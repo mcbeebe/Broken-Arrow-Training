@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from 'react'
-import type { TrainingWeek } from '../types'
+import type { TrainingWeek, PlannedDay } from '../types'
 import DayCard from './DayCard'
 import VolumeChart from './VolumeChart'
+import WorkoutModal from './WorkoutModal'
 
 interface WeeklyPlanProps {
   weeks: TrainingWeek[]
@@ -9,6 +10,7 @@ interface WeeklyPlanProps {
 
 export default function WeeklyPlan({ weeks }: WeeklyPlanProps) {
   const [activeWeek, setActiveWeek] = useState(0)
+  const [modalDay, setModalDay] = useState<PlannedDay | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const week = weeks[activeWeek]
 
@@ -54,12 +56,21 @@ export default function WeeklyPlan({ weeks }: WeeklyPlanProps) {
       {/* Day cards */}
       <div className="px-3 space-y-2">
         {week.days.map((d, i) => (
-          <DayCard key={i} day={d} />
+          <DayCard key={i} day={d} onTap={() => setModalDay(d)} />
         ))}
       </div>
 
       {/* Volume chart */}
       <VolumeChart weeks={weeks} activeWeek={activeWeek} onWeekClick={setActiveWeek} />
+
+      {/* Workout detail modal */}
+      {modalDay && (
+        <WorkoutModal
+          day={modalDay}
+          weekNum={week.num}
+          onClose={() => setModalDay(null)}
+        />
+      )}
     </div>
   )
 }

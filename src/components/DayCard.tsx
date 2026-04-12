@@ -4,16 +4,18 @@ import { formatMiles, formatSeconds } from '../utils/format'
 
 interface DayCardProps {
   day: PlannedDay
+  onTap: () => void
 }
 
-export default function DayCard({ day }: DayCardProps) {
+export default function DayCard({ day, onTap }: DayCardProps) {
   const style = getWorkoutStyle(day.type)
   const actual = day.actual
 
   return (
     <div
-      className="rounded-xl overflow-hidden shadow-sm"
+      className="rounded-xl overflow-hidden shadow-sm cursor-pointer active:scale-[0.98] transition-transform"
       style={{ backgroundColor: style.bg, borderLeft: `4px solid ${style.border}` }}
+      onClick={onTap}
     >
       <div className="px-3 py-2.5">
         <div className="flex items-center justify-between">
@@ -26,16 +28,19 @@ export default function DayCard({ day }: DayCardProps) {
               </span>
             )}
           </div>
-          {day.time !== '—' && (
-            <span className="text-xs text-slate-500 bg-white/60 rounded-full px-2 py-0.5">
-              {day.time}
-            </span>
-          )}
+          <div className="flex items-center gap-2">
+            {day.time !== '—' && (
+              <span className="text-xs text-slate-500 bg-white/60 rounded-full px-2 py-0.5">
+                {day.time}
+              </span>
+            )}
+            <span className="text-slate-400 text-xs">›</span>
+          </div>
         </div>
         <div className="mt-1.5">
           <p className="font-medium text-sm text-slate-800">{day.workout}</p>
           {day.detail && (
-            <p className="text-xs text-slate-600 mt-0.5">{day.detail}</p>
+            <p className="text-xs text-slate-600 mt-0.5 line-clamp-2">{day.detail}</p>
           )}
         </div>
         {day.zone !== '—' && (
