@@ -1,14 +1,16 @@
 import { useState, useMemo } from 'react'
 import type { ViewId } from './types'
-import { mikePlan } from './data'
+import { plans } from './data'
 import { useStrava } from './hooks/useStrava'
 import { useCompliance } from './hooks/useCompliance'
+import { useManualLog } from './hooks/useManualLog'
 import { matchActivitiesToPlan } from './utils/matching'
 import WeeklyPlan from './components/WeeklyPlan'
 import Dashboard from './components/Dashboard'
 import RaceInfo from './components/RaceInfo'
 import Methodology from './components/Methodology'
 import Settings from './components/Settings'
+import ProfileSwitcher from './components/ProfileSwitcher'
 
 const TABS: { id: ViewId; label: string }[] = [
   { id: 'plan', label: 'Plan' },
@@ -20,25 +22,40 @@ const TABS: { id: ViewId; label: string }[] = [
 
 export default function App() {
   const [view, setView] = useState<ViewId>('plan')
+  const [athleteId, setAthleteId] = useState('mike')
+  const plan = plans[athleteId]
   const strava = useStrava()
+  const manualLog = useManualLog(athleteId)
 
-  // Merge Strava activities into training plan
+  // Merge Strava or manual log data into training plan
   const weeks = useMemo(() => {
-    if (strava.activities.length === 0) return mikePlan.weeks
-    return matchActivitiesToPlan(mikePlan.weeks, strava.activities)
-  }, [strava.activities])
+    let w = plan.weeks
+    // Apply Strava data (Mike)
+    if (athleteId === 'mike' && strava.activities.length > 0) {
+      w = matchActivitiesToPlan(w, strava.activities)
+    }
+    // Apply manual logs (all athletes)
+    w = manualLog.applyLogsToWeeks(w)
+    return w
+  }, [plan.weeks, strava.activities, athleteId, manualLog.applyLogsToWeeks])
 
   const compliance = useCompliance(weeks)
+  const raceName = plan.race.distance.includes('18K') ? 'BROKEN ARROW 18K' : 'BROKEN ARROW 11K'
 
   return (
     <div className="min-h-screen bg-slate-50" style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" }}>
       {/* Header */}
       <div className="bg-slate-800 text-white px-4 py-5">
-        <h1 className="text-xl font-bold tracking-tight">BROKEN ARROW 18K</h1>
-        <p className="text-slate-300 text-sm mt-1">
-          10-Week Training Plan · {mikePlan.athlete.name} · Max HR: {mikePlan.athlete.maxHR}
-        </p>
-        <p className="text-teal-400 text-xs mt-1">{mikePlan.athlete.weeklyStructure}</p>
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 className="text-xl font-bold tracking-tight">{raceName}</h1>
+            <p className="text-slate-300 text-sm mt-1">
+              10-Week Training Plan · {plan.athlete.name} · Max HR: {plan.athlete.maxHR}
+            </p>
+            <p className="text-teal-400 text-xs mt-1">{plan.athlete.weeklyStructure}</p>
+          </div>
+          <ProfileSwitcher athleteId={athleteId} onSwitch={setAthleteId} />
+        </div>
       </div>
 
       {/* Tab nav */}
@@ -59,12 +76,17 @@ export default function App() {
       </div>
 
       {/* Content */}
-      {view === 'plan' && <WeeklyPlan weeks={weeks} />}
+      {view === 'plan' && (
+        <WeeklyPlan
+          weeks={weeks}
+          manualLog={manualLog}
+        />
+      )}
       {view === 'dashboard' && (
-        <Dashboard weeks={weeks} compliance={compliance} raceDate={mikePlan.race.date} />
+        <Dashboard weeks={weeks} compliance={compliance} raceDate={plan.race.date} />
       )}
       {view === 'method' && <Methodology />}
-      {view === 'info' && <RaceInfo race={mikePlan.race} />}
+      {view === 'info' && <RaceInfo race={plan.race} />}
       {view === 'settings' && (
         <Settings
           connected={strava.connected}

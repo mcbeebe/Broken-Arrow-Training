@@ -5,9 +5,10 @@ import { formatMiles, formatSeconds, estimateRunTime } from '../utils/format'
 interface DayCardProps {
   day: PlannedDay
   onTap: () => void
+  onLog?: () => void
 }
 
-export default function DayCard({ day, onTap }: DayCardProps) {
+export default function DayCard({ day, onTap, onLog }: DayCardProps) {
   const style = getWorkoutStyle(day.type)
   const actual = day.actual
   const timeEst = estimateRunTime(day.zone)
@@ -30,6 +31,18 @@ export default function DayCard({ day, onTap }: DayCardProps) {
             )}
           </div>
           <div className="flex items-center gap-2">
+            {onLog && (
+              <button
+                onClick={e => { e.stopPropagation(); onLog() }}
+                className={`text-xs font-medium px-2 py-0.5 rounded-full transition-colors ${
+                  actual
+                    ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                    : 'bg-teal-100 text-teal-700 hover:bg-teal-200'
+                }`}
+              >
+                {actual ? '✏️ Edit' : '📝 Log'}
+              </button>
+            )}
             {day.time !== '—' && (
               <span className="text-xs text-slate-500 bg-white/60 rounded-full px-2 py-0.5">
                 {day.time}
@@ -51,11 +64,11 @@ export default function DayCard({ day, onTap }: DayCardProps) {
           </div>
         )}
 
-        {/* Strava actual data overlay */}
+        {/* Actual data overlay */}
         {actual && (
           <div className="mt-2 pt-2 border-t border-slate-200/50">
             <p className="text-xs font-medium text-teal-700 mb-1">
-              Strava: {actual.name}
+              {actual.type === 'Manual' ? '📝' : '🔗 Strava:'} {actual.name}
             </p>
             <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-600">
               {actual.distance > 0 && (

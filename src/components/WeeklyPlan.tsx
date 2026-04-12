@@ -1,16 +1,21 @@
 import { useState, useRef, useEffect } from 'react'
-import type { TrainingWeek, PlannedDay } from '../types'
+import type { TrainingWeek, PlannedDay, ActualWorkout } from '../types'
 import DayCard from './DayCard'
 import VolumeChart from './VolumeChart'
 import WorkoutModal from './WorkoutModal'
+import ManualLog from './ManualLog'
 
 interface WeeklyPlanProps {
   weeks: TrainingWeek[]
+  manualLog?: {
+    logWorkout: (dayLabel: string, data: ActualWorkout) => void
+  }
 }
 
-export default function WeeklyPlan({ weeks }: WeeklyPlanProps) {
+export default function WeeklyPlan({ weeks, manualLog }: WeeklyPlanProps) {
   const [activeWeek, setActiveWeek] = useState(0)
   const [modalDay, setModalDay] = useState<PlannedDay | null>(null)
+  const [logDay, setLogDay] = useState<PlannedDay | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const week = weeks[activeWeek]
 
@@ -56,7 +61,12 @@ export default function WeeklyPlan({ weeks }: WeeklyPlanProps) {
       {/* Day cards */}
       <div className="px-3 space-y-2">
         {week.days.map((d, i) => (
-          <DayCard key={i} day={d} onTap={() => setModalDay(d)} />
+          <DayCard
+            key={i}
+            day={d}
+            onTap={() => setModalDay(d)}
+            onLog={manualLog ? () => setLogDay(d) : undefined}
+          />
         ))}
       </div>
 
@@ -69,6 +79,19 @@ export default function WeeklyPlan({ weeks }: WeeklyPlanProps) {
           day={modalDay}
           weekNum={week.num}
           onClose={() => setModalDay(null)}
+        />
+      )}
+
+      {/* Manual log modal */}
+      {logDay && manualLog && (
+        <ManualLog
+          dayLabel={logDay.day}
+          existing={logDay.actual}
+          onSave={(data) => {
+            manualLog.logWorkout(logDay.day, data)
+            setLogDay(null)
+          }}
+          onClose={() => setLogDay(null)}
         />
       )}
     </div>
