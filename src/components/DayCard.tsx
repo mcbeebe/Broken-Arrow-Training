@@ -1,0 +1,43 @@
+import type { PlannedDay } from '../types'
+import { getWorkoutStyle } from '../utils/styles'
+
+interface DayCardProps {
+  day: PlannedDay
+}
+
+export default function DayCard({ day }: DayCardProps) {
+  const style = getWorkoutStyle(day.type)
+
+  return (
+    <div
+      className="rounded-xl overflow-hidden shadow-sm"
+      style={{ backgroundColor: style.bg, borderLeft: `4px solid ${style.border}` }}
+    >
+      <div className="px-3 py-2.5">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-sm">{style.label}</span>
+            <span className="font-semibold text-sm text-slate-800">{day.day}</span>
+          </div>
+          {day.time !== '—' && (
+            <span className="text-xs text-slate-500 bg-white/60 rounded-full px-2 py-0.5">
+              {day.time}
+            </span>
+          )}
+        </div>
+        <div className="mt-1.5">
+          <p className="font-medium text-sm text-slate-800">{day.workout}</p>
+          {day.detail && (
+            <p className="text-xs text-slate-600 mt-0.5">{day.detail}</p>
+          )}
+        </div>
+        {day.zone !== '—' && (
+          <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-slate-500">
+            <span>📊 {day.zone}</span>
+            {day.route !== '—' && <span>📍 {day.route}</span>}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
