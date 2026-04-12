@@ -35,6 +35,10 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
+        env:
+          VITE_STRAVA_CLIENT_ID: ${{ secrets.VITE_STRAVA_CLIENT_ID }}
+          VITE_STRAVA_TOKEN_EXCHANGE_URL: ${{ secrets.VITE_STRAVA_TOKEN_EXCHANGE_URL }}
+          VITE_STRAVA_REDIRECT_URI: https://mcbeebe.github.io/Broken-Arrow-Training/
       - uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
