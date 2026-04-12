@@ -2,16 +2,19 @@ import { useState, useMemo } from 'react'
 import type { ViewId } from './types'
 import { mikePlan } from './data'
 import { useStrava } from './hooks/useStrava'
+import { useCompliance } from './hooks/useCompliance'
 import { matchActivitiesToPlan } from './utils/matching'
 import WeeklyPlan from './components/WeeklyPlan'
+import Dashboard from './components/Dashboard'
 import HRZones from './components/HRZones'
 import RaceInfo from './components/RaceInfo'
 import Settings from './components/Settings'
 
 const TABS: { id: ViewId; label: string }[] = [
-  { id: 'plan', label: 'Weekly Plan' },
-  { id: 'zones', label: 'HR Zones' },
-  { id: 'info', label: 'Race Info' },
+  { id: 'plan', label: 'Plan' },
+  { id: 'dashboard', label: 'Dashboard' },
+  { id: 'zones', label: 'Zones' },
+  { id: 'info', label: 'Race' },
   { id: 'settings', label: 'Settings' },
 ]
 
@@ -24,6 +27,8 @@ export default function App() {
     if (strava.activities.length === 0) return mikePlan.weeks
     return matchActivitiesToPlan(mikePlan.weeks, strava.activities)
   }, [strava.activities])
+
+  const compliance = useCompliance(weeks)
 
   return (
     <div className="min-h-screen bg-slate-50" style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" }}>
@@ -42,7 +47,7 @@ export default function App() {
           <button
             key={t.id}
             onClick={() => setView(t.id)}
-            className={`flex-1 py-3 text-sm font-medium transition-colors ${
+            className={`flex-1 py-3 text-xs sm:text-sm font-medium transition-colors ${
               view === t.id
                 ? 'text-teal-700 border-b-2 border-teal-600'
                 : 'text-slate-500'
@@ -55,6 +60,9 @@ export default function App() {
 
       {/* Content */}
       {view === 'plan' && <WeeklyPlan weeks={weeks} />}
+      {view === 'dashboard' && (
+        <Dashboard weeks={weeks} compliance={compliance} raceDate={mikePlan.race.date} />
+      )}
       {view === 'zones' && <HRZones zones={mikePlan.zones} maxHR={mikePlan.athlete.maxHR} />}
       {view === 'info' && <RaceInfo race={mikePlan.race} />}
       {view === 'settings' && (

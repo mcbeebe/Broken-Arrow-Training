@@ -9,7 +9,7 @@ export type WorkoutType =
   | "travel"
   | "race";
 
-export type ViewId = "plan" | "zones" | "info" | "settings";
+export type ViewId = "plan" | "dashboard" | "zones" | "info" | "settings";
 
 export interface StravaTokens {
   accessToken: string;
