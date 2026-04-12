@@ -1,5 +1,6 @@
 import type { PlannedDay } from '../types'
 import { getWorkoutStyle } from '../utils/styles'
+import { formatMiles, formatSeconds } from '../utils/format'
 
 interface DayCardProps {
   day: PlannedDay
@@ -7,6 +8,7 @@ interface DayCardProps {
 
 export default function DayCard({ day }: DayCardProps) {
   const style = getWorkoutStyle(day.type)
+  const actual = day.actual
 
   return (
     <div
@@ -18,6 +20,11 @@ export default function DayCard({ day }: DayCardProps) {
           <div className="flex items-center gap-2">
             <span className="text-sm">{style.label}</span>
             <span className="font-semibold text-sm text-slate-800">{day.day}</span>
+            {actual && (
+              <span className="text-xs bg-green-100 text-green-700 rounded-full px-1.5 py-0.5 font-medium">
+                ✓ Done
+              </span>
+            )}
           </div>
           {day.time !== '—' && (
             <span className="text-xs text-slate-500 bg-white/60 rounded-full px-2 py-0.5">
@@ -35,6 +42,29 @@ export default function DayCard({ day }: DayCardProps) {
           <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-slate-500">
             <span>📊 {day.zone}</span>
             {day.route !== '—' && <span>📍 {day.route}</span>}
+          </div>
+        )}
+
+        {/* Strava actual data overlay */}
+        {actual && (
+          <div className="mt-2 pt-2 border-t border-slate-200/50">
+            <p className="text-xs font-medium text-teal-700 mb-1">
+              Strava: {actual.name}
+            </p>
+            <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-600">
+              {actual.distance > 0 && (
+                <span>📏 {formatMiles(actual.distance)}</span>
+              )}
+              {actual.movingTime > 0 && (
+                <span>⏱ {formatSeconds(actual.movingTime)}</span>
+              )}
+              {actual.avgHR && (
+                <span>❤️ {actual.avgHR} avg</span>
+              )}
+              {actual.elevationGain > 0 && (
+                <span>⛰ {actual.elevationGain} ft</span>
+              )}
+            </div>
           </div>
         )}
       </div>

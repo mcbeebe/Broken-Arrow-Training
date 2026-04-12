@@ -9,7 +9,30 @@ export type WorkoutType =
   | "travel"
   | "race";
 
-export type ViewId = "plan" | "zones" | "info";
+export type ViewId = "plan" | "zones" | "info" | "settings";
+
+export interface StravaTokens {
+  accessToken: string;
+  refreshToken: string;
+  expiresAt: number;
+  athleteId: number;
+  athleteName: string;
+}
+
+export interface StravaActivity {
+  id: number;
+  name: string;
+  type: string;
+  sport_type: string;
+  distance: number;
+  moving_time: number;
+  elapsed_time: number;
+  total_elevation_gain: number;
+  average_heartrate?: number;
+  max_heartrate?: number;
+  start_date_local: string;
+  start_date: string;
+}
 
 export interface HRZone {
   zone: string;
