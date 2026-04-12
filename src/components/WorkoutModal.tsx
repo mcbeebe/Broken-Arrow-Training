@@ -4,6 +4,7 @@ import { getWorkoutStyle } from '../utils/styles'
 import { getCoaching } from '../utils/coaching'
 import { formatMiles, formatSeconds } from '../utils/format'
 import { parseRoutine, type ParsedExercise } from '../utils/exercises'
+import { parseIntervalWorkout, getDrillDay, RUNNING_DRILLS, MYRTL_ROUTINE, type RunSegment, type DrillGuide } from '../utils/drills'
 
 interface WorkoutModalProps {
   day: PlannedDay
@@ -16,7 +17,11 @@ export default function WorkoutModal({ day, weekNum, onClose }: WorkoutModalProp
   const coaching = getCoaching(day, weekNum)
   const actual = day.actual
   const isStrength = day.type === 'strength'
+  const isQuality = day.type === 'quality'
+  const isRunType = ['run', 'quality', 'long'].includes(day.type)
   const exercises = isStrength ? parseRoutine(day.detail) : []
+  const intervals = isQuality ? parseIntervalWorkout(day.detail, day.zone) : []
+  const isDrillDay = getDrillDay(weekNum) === day.day
 
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
@@ -119,6 +124,54 @@ export default function WorkoutModal({ day, weekNum, onClose }: WorkoutModalProp
             </div>
           )}
 
+          {/* Quality: Interval breakdown */}
+          {isQuality && intervals.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">⚡ Interval Breakdown</p>
+              <div className="space-y-1.5">
+                {intervals.map((seg, i) => (
+                  <IntervalSegment key={i} segment={seg} index={i} />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Drills + Myrtl for designated drill days */}
+          {isDrillDay && (
+            <div>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">🏃 Running Drills (post-run, before cool-down)</p>
+              <p className="text-xs text-slate-500 mb-2">Do these after your run while your muscles are warm. Takes ~8 min.</p>
+              <div className="space-y-1.5">
+                {RUNNING_DRILLS.map((drill, i) => (
+                  <DrillCard key={i} drill={drill} />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {isDrillDay && (
+            <div>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">🦵 Myrtl Hip Routine (post-run)</p>
+              <p className="text-xs text-slate-500 mb-2">The Myrtl routine activates and strengthens your hip stabilizers. Do it after drills. Takes ~10 min.</p>
+              <div className="space-y-1.5">
+                {MYRTL_ROUTINE.map((drill, i) => (
+                  <DrillCard key={i} drill={drill} />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Myrtl recommendation for non-drill run days */}
+          {isRunType && !isDrillDay && (
+            <div className="bg-blue-50 rounded-xl p-3 border border-blue-200">
+              <p className="text-xs font-semibold text-blue-800">💡 Drills & Myrtl Tip</p>
+              <p className="text-xs text-blue-700 mt-1">
+                Running drills and the Myrtl hip routine are scheduled for your {getDrillDay(weekNum)} run this week.
+                If you want extra hip work today, do the Myrtl routine post-run (10 min).
+              </p>
+            </div>
+          )}
+
           {/* Mindset */}
           <div className="bg-slate-50 rounded-xl p-3 border border-slate-200">
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">🧠 Mindset</p>
@@ -201,6 +254,83 @@ function ExerciseCard({ exercise, index }: { exercise: ParsedExercise; index: nu
       {expanded && !guide && (
         <div className="px-3 pb-3 border-t border-purple-100 pt-2">
           <p className="text-xs text-slate-500">No detailed guide available for this exercise yet.</p>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function IntervalSegment({ segment, index }: { segment: RunSegment; index: number }) {
+  const [expanded, setExpanded] = useState(false)
+  const isWarmCool = segment.label === 'Warm-Up' || segment.label === 'Cool-Down'
+  const isRecovery = segment.label.startsWith('Recovery')
+  const bgColor = isWarmCool ? 'bg-green-50 border-green-200' : isRecovery ? 'bg-slate-50 border-slate-200' : 'bg-amber-50 border-amber-200'
+  const numColor = isWarmCool ? 'bg-green-100 text-green-700' : isRecovery ? 'bg-slate-100 text-slate-500' : 'bg-amber-100 text-amber-700'
+
+  return (
+    <div
+      className={`rounded-xl border overflow-hidden ${bgColor}`}
+      onClick={() => setExpanded(!expanded)}
+    >
+      <div className="px-3 py-2 cursor-pointer">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className={`text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shrink-0 ${numColor}`}>
+              {index + 1}
+            </span>
+            <span className="text-sm font-medium text-slate-800">{segment.label}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-slate-600">{segment.duration}</span>
+            <span className="text-slate-400 text-xs">{expanded ? '▼' : '›'}</span>
+          </div>
+        </div>
+        <p className="text-xs text-slate-500 mt-0.5 ml-7">{segment.effort}</p>
+      </div>
+
+      {expanded && (
+        <div className="px-3 pb-2.5 border-t border-slate-200/50 pt-2">
+          <ul className="space-y-1">
+            {segment.cues.map((cue, i) => (
+              <li key={i} className="text-xs text-slate-600 flex gap-1.5">
+                <span className="text-slate-400 shrink-0">•</span>
+                <span>{cue}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function DrillCard({ drill }: { drill: DrillGuide }) {
+  const [expanded, setExpanded] = useState(false)
+
+  return (
+    <div
+      className="bg-white rounded-xl border border-blue-200 overflow-hidden"
+      onClick={() => setExpanded(!expanded)}
+    >
+      <div className="px-3 py-2 cursor-pointer">
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-medium text-slate-800">{drill.name}</span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-blue-600">{drill.duration}</span>
+            <span className="text-slate-400 text-xs">{expanded ? '▼' : '›'}</span>
+          </div>
+        </div>
+      </div>
+      {expanded && (
+        <div className="px-3 pb-2.5 border-t border-blue-100 pt-2">
+          <ul className="space-y-1">
+            {drill.form.map((cue, i) => (
+              <li key={i} className="text-xs text-slate-600 flex gap-1.5">
+                <span className="text-slate-400 shrink-0">•</span>
+                <span>{cue}</span>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
     </div>

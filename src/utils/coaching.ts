@@ -59,11 +59,15 @@ function getTypeCoaching(day: PlannedDay, phase: Phase): Omit<CoachingNarrative,
         title: 'Easy Aerobic Run',
         purpose: 'Easy runs build your aerobic base — the foundation of all endurance. At this effort, your body is burning fat efficiently, building capillary density, and strengthening connective tissue without accumulating fatigue.',
         execution: [
-          'Start slower than you think. The first mile should feel almost too easy.',
+          'WARM-UP (5 min): Walk 2 min → easy jog 3 min. Include 5 leg swings per side.',
+          'RUN: Start slower than you think. The first mile should feel almost too easy.',
           'Breathe through your nose if possible — if you can\'t, you\'re going too hard.',
-          'Keep your HR in the target zone. If it drifts up on hills, walk — that\'s not failure, that\'s smart training.',
-          day.route !== '—' ? `Enjoy the route at ${day.route}. Look around. Easy days should feel good.` : 'Find a route you enjoy. Easy days should feel good.',
-        ],
+          'Keep your HR in the target zone. If it drifts up on hills, WALK — that\'s not failure, that\'s smart training.',
+          'FORM CUES: Land midfoot under your hips. Quick cadence (~170-180 steps/min). Relaxed shoulders — drop them away from your ears. Arms at 90°, swinging forward/back (not across your body).',
+          day.workout.includes('strides') ? 'STRIDES (after the run): 4 × 20 sec at ~85% effort with walk-back recovery. Smooth and relaxed, not sprinting.' : '',
+          'COOL-DOWN (5 min): Walk it out. Stretch calves, quads, hip flexors (30 sec each).',
+          day.route !== '—' ? `📍 Route: ${day.route}. Look around — easy days should feel good.` : '',
+        ].filter(Boolean),
         mindset: 'The #1 mistake in trail running is going too hard on easy days. Protect this effort level fiercely. Fast runners are made on easy days, not hard ones.',
       }
 
@@ -74,17 +78,27 @@ function getTypeCoaching(day: PlannedDay, phase: Phase): Omit<CoachingNarrative,
           ? 'Hill repeats build race-specific power. Broken Arrow is a climbing race — every hill repeat wires your neuromuscular system for sustained uphill effort at altitude.'
           : day.workout.toLowerCase().includes('tempo')
           ? 'Tempo work raises your lactate threshold — the pace you can sustain before things get uncomfortable. This translates directly to maintaining effort on long Broken Arrow climbs.'
+          : day.workout.toLowerCase().includes('bounding')
+          ? 'Hill bounding builds explosive uphill power and neuromuscular coordination. Short, max-effort bursts teach your muscles to recruit fast-twitch fibers for steep climbing.'
           : day.workout.toLowerCase().includes('race-pace')
           ? 'Race-pace intervals teach your body what race day will feel like. You\'re calibrating effort, practicing fueling, and building confidence for the real thing.'
+          : day.workout.toLowerCase().includes('dress rehearsal')
+          ? 'This is your dress rehearsal — simulate race conditions as closely as possible. Full kit, full nutrition, race effort on a big climb. Everything you learn today saves you on race day.'
+          : day.workout.toLowerCase().includes('sharpener')
+          ? 'A short, crisp session to maintain sharpness during taper. You should feel FAST and CONTROLLED — not tired. If it feels hard, you\'re doing too much.'
           : 'This session builds speed and power above your aerobic base. The hard efforts create training stimulus; the recovery intervals let you repeat them with good form.',
         execution: [
-          'Warm up 10-15 min easy before any hard effort.',
-          'Hit the target zone on the hard efforts, but don\'t exceed it. Controlled intensity beats all-out chaos.',
-          'Recovery intervals are RECOVERY. Walk if needed. The magic happens in the hard portions.',
-          day.workout.includes('POLES') ? 'Practice your pole plant rhythm. Smooth and consistent beats powerful and erratic.' : 'Focus on quick cadence and upright posture on the climbs.',
-          'Cool down 10 min easy. Don\'t skip this — it starts your recovery.',
+          'WARM-UP (10-15 min): Easy jog 8-10 min → Running drills (high knees, butt kicks, A-skips — 2×30m each) → 2-3 strides building to workout pace.',
+          'See the detailed interval breakdown below — each rep is mapped out with target effort and recovery.',
+          day.workout.includes('POLES') ? '🥾 POLES: Use on all climbs. Focus on plant rhythm: pole plants should sync with your opposite foot (left pole, right foot). Aim for a consistent 1-2, 1-2 cadence.' : 'UPHILL FORM: Shorten your stride, lean slightly forward from the ankles (not the waist), drive your knees, pump your arms.',
+          'DOWNHILL FORM (if applicable): Quick feet, slight forward lean, let gravity do the work. Don\'t brake with your quads — use quick, light steps.',
+          'COOL-DOWN (10 min): Easy jog 5 min → walk 3 min → stretch calves, quads, hip flexors, hamstrings (30 sec each).',
         ],
-        mindset: 'Quality sessions are where fitness jumps happen. Embrace the discomfort, but respect the recovery intervals. You\'re training, not racing.',
+        mindset: day.workout.toLowerCase().includes('dress rehearsal')
+          ? 'Treat this like race morning. What will you eat? What will you wear? How will you manage the climb? Everything you practice today is one less unknown on June 20.'
+          : day.workout.toLowerCase().includes('sharpener')
+          ? 'This should feel GOOD. If your legs are tired from the taper, the first rep may feel sluggish — that\'s normal. By rep 2-3 you\'ll feel sharp. Trust it.'
+          : 'Quality sessions are where fitness jumps happen. Embrace the discomfort, but respect the recovery intervals. You\'re training, not racing.',
       }
 
     case 'long':
@@ -92,15 +106,18 @@ function getTypeCoaching(day: PlannedDay, phase: Phase): Omit<CoachingNarrative,
         title: 'Long Run',
         purpose: 'The long run is your most important weekly session. It builds endurance, teaches your body to burn fat, and — critically — lets you practice everything for race day: pacing, nutrition, gear, and mental toughness on tired legs.',
         execution: [
-          'Start conservatively. The first third should feel easy. The work comes in the final third.',
-          'Practice race nutrition: eat early and often (100-150 cal every 30 min). Don\'t wait until you\'re hungry.',
-          'Walk the steep uphills — this is exactly what you\'ll do on race day. Power hiking is a skill.',
-          day.workout.includes('POLES') ? 'Poles on all climbs. Practice plant timing until it\'s automatic.' : 'If terrain is technical, slow down and focus on foot placement.',
-          'Carry enough water. Dehydration ruins long runs and the training effect.',
+          'PRE-RUN: Eat 200-300 cal 2 hours before (oatmeal, banana, toast — whatever sits well). Fill your vest with 16+ oz water.',
+          'WARM-UP (10 min): Walk 3 min → easy jog 7 min. No rushing — you have a long day ahead.',
+          'FIRST THIRD: Deliberately easy. If you feel great, SLOW DOWN. You\'ll need that energy later.',
+          'MIDDLE THIRD: Settle into a sustainable rhythm. Walk ALL steep uphills — this is exactly what you\'ll do on race day. Power hiking IS the strategy.',
+          day.workout.includes('POLES') ? '🥾 POLES on all climbs. Practice your race-day pole rhythm. By now this should feel natural.' : 'On steep ups: shorten stride, hands on thighs, lean forward, rhythmic breathing.',
+          'FINAL THIRD: This is where the training happens. Fatigue is the point. Maintain form even when tired. Quick feet, tall posture.',
+          'NUTRITION DURING: Eat 100-150 cal every 30 min starting at minute 30. Don\'t wait until hungry — by then it\'s too late. Practice with the EXACT foods you\'ll use on race day.',
+          'COOL-DOWN: Walk 5-10 min. Stretch everything. Eat/drink within 20 min of finishing.',
         ],
         mindset: phase === 'peak'
           ? 'This is your biggest effort before race day. Treat it like a dress rehearsal — race kit, race nutrition, race mentality. After this, you taper and trust your fitness.'
-          : 'Long runs build the confidence to finish. Every mile you cover in training is a mile that won\'t scare you on race day.',
+          : 'Long runs build the confidence to finish. Every mile you cover in training is a mile that won\'t scare you on race day. When it gets hard at mile 7, break it into small chunks: "just get to that next tree."',
       }
 
     case 'cross':
