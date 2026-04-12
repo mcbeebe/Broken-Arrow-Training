@@ -41,12 +41,13 @@ function getTypeCoaching(day: PlannedDay, phase: Phase): Omit<CoachingNarrative,
           ? 'Maintenance-only strength. You\'re preserving neuromuscular connections without creating fatigue. Keep it light — the hard work is done.'
           : 'Building eccentric strength for steep descents and concentric power for sustained climbs. This directly translates to race-day performance on Broken Arrow\'s technical terrain.',
         execution: [
-          'Warm up 5-10 min with dynamic movement before lifting.',
-          'Focus on controlled tempo — especially the lowering (eccentric) phase.',
-          'Rest 60-90 seconds between sets. This is strength, not cardio.',
+          'WARM-UP (5-7 min): Foam roll quads & calves (1 min each) → 20 leg swings per side → 10 bodyweight squats → 10 walking lunges → 10 hip circles per side.',
+          'Work through the exercises in order (see guides below). Tap any exercise for form cues and suggested weights.',
+          'Tempo: 2 sec up, 2-3 sec down on every rep. Control the lowering phase.',
           phase === 'build' || phase === 'peak'
-            ? 'Eccentric work is key: slow the negative on squats and step-downs. Your quads will thank you on the Shirley Canyon descent.'
-            : 'Full range of motion on every rep. Quality over quantity.',
+            ? 'Eccentric work is key this phase: count "one-Mississippi, two-Mississippi" on every lowering. Your quads will thank you on the Shirley Canyon descent.'
+            : 'Full range of motion on every rep. If form breaks, reduce weight.',
+          'COOL-DOWN (5 min): Quad stretch 30s/leg → Calf stretch 30s/leg → Hip flexor stretch 30s/leg → Pigeon pose 30s/leg.',
         ],
         mindset: phase === 'base'
           ? 'You\'re building the engine. Trust the process — this gym work pays dividends in weeks 6-8.'

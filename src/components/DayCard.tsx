@@ -1,6 +1,6 @@
 import type { PlannedDay } from '../types'
 import { getWorkoutStyle } from '../utils/styles'
-import { formatMiles, formatSeconds } from '../utils/format'
+import { formatMiles, formatSeconds, estimateRunTime } from '../utils/format'
 
 interface DayCardProps {
   day: PlannedDay
@@ -10,6 +10,7 @@ interface DayCardProps {
 export default function DayCard({ day, onTap }: DayCardProps) {
   const style = getWorkoutStyle(day.type)
   const actual = day.actual
+  const timeEst = estimateRunTime(day.zone)
 
   return (
     <div
@@ -45,7 +46,7 @@ export default function DayCard({ day, onTap }: DayCardProps) {
         </div>
         {day.zone !== '—' && (
           <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-slate-500">
-            <span>📊 {day.zone}</span>
+            <span>📊 {day.zone}{timeEst ? ` (${timeEst} running)` : ''}</span>
             {day.route !== '—' && <span>📍 {day.route}</span>}
           </div>
         )}

@@ -1,8 +1,9 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import type { PlannedDay } from '../types'
 import { getWorkoutStyle } from '../utils/styles'
 import { getCoaching } from '../utils/coaching'
 import { formatMiles, formatSeconds } from '../utils/format'
+import { parseRoutine, type ParsedExercise } from '../utils/exercises'
 
 interface WorkoutModalProps {
   day: PlannedDay
@@ -14,8 +15,9 @@ export default function WorkoutModal({ day, weekNum, onClose }: WorkoutModalProp
   const style = getWorkoutStyle(day.type)
   const coaching = getCoaching(day, weekNum)
   const actual = day.actual
+  const isStrength = day.type === 'strength'
+  const exercises = isStrength ? parseRoutine(day.detail) : []
 
-  // Close on Escape key
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
       if (e.key === 'Escape') onClose()
@@ -24,7 +26,6 @@ export default function WorkoutModal({ day, weekNum, onClose }: WorkoutModalProp
     return () => document.removeEventListener('keydown', handleKey)
   }, [onClose])
 
-  // Prevent body scroll when modal is open
   useEffect(() => {
     document.body.style.overflow = 'hidden'
     return () => { document.body.style.overflow = '' }
@@ -35,17 +36,15 @@ export default function WorkoutModal({ day, weekNum, onClose }: WorkoutModalProp
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
       onClick={onClose}
     >
-      {/* Backdrop */}
       <div className="absolute inset-0 bg-black/50" />
 
-      {/* Modal */}
       <div
         className="relative bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-lg max-h-[85vh] overflow-y-auto shadow-xl"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
         <div
-          className="sticky top-0 px-4 pt-4 pb-3 rounded-t-2xl"
+          className="sticky top-0 px-4 pt-4 pb-3 rounded-t-2xl z-10"
           style={{ backgroundColor: style.bg, borderBottom: `3px solid ${style.border}` }}
         >
           <div className="flex items-center justify-between">
@@ -65,22 +64,16 @@ export default function WorkoutModal({ day, weekNum, onClose }: WorkoutModalProp
           </div>
           <p className="font-semibold text-slate-800 mt-2">{day.workout}</p>
           {day.time !== '—' && (
-            <p className="text-xs text-slate-500 mt-0.5">{day.time} · {day.route !== '—' ? day.route : ''}</p>
+            <div className="mt-0.5">
+              <p className="text-xs text-slate-500">
+                ⏱ Total session: {day.time} (includes warm-up, cool-down & transitions)
+                {day.route !== '—' && <> · 📍 {day.route}</>}
+              </p>
+            </div>
           )}
         </div>
 
         <div className="px-4 py-4 space-y-4">
-          {/* Planned details */}
-          {day.detail && (
-            <div>
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Workout Details</p>
-              <p className="text-sm text-slate-700">{day.detail}</p>
-              {day.zone !== '—' && (
-                <p className="text-sm text-slate-600 mt-1">📊 Target: {day.zone}</p>
-              )}
-            </div>
-          )}
-
           {/* Strava actual */}
           {actual && (
             <div className="bg-teal-50 rounded-xl p-3 border border-teal-200">
@@ -95,13 +88,13 @@ export default function WorkoutModal({ day, weekNum, onClose }: WorkoutModalProp
             </div>
           )}
 
-          {/* Coaching: Purpose */}
+          {/* Purpose */}
           <div>
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">🎯 Purpose</p>
             <p className="text-sm text-slate-700 leading-relaxed">{coaching.purpose}</p>
           </div>
 
-          {/* Coaching: How to Execute */}
+          {/* How to Execute */}
           <div>
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">📋 How to Execute</p>
             <ul className="space-y-1.5">
@@ -114,28 +107,102 @@ export default function WorkoutModal({ day, weekNum, onClose }: WorkoutModalProp
             </ul>
           </div>
 
-          {/* Coaching: Mindset */}
+          {/* Strength: Exercise-by-exercise guide */}
+          {isStrength && exercises.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">🏋️ Exercise Guide (tap for form cues)</p>
+              <div className="space-y-2">
+                {exercises.map((ex, i) => (
+                  <ExerciseCard key={i} exercise={ex} index={i + 1} />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Mindset */}
           <div className="bg-slate-50 rounded-xl p-3 border border-slate-200">
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">🧠 Mindset</p>
             <p className="text-sm text-slate-700 italic leading-relaxed">{coaching.mindset}</p>
           </div>
 
-          {/* Coaching: Nutrition */}
+          {/* Nutrition */}
           <div>
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">🍌 Nutrition</p>
             <p className="text-sm text-slate-700">{coaching.nutrition}</p>
           </div>
 
-          {/* Coaching: Recovery */}
+          {/* Recovery */}
           <div>
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">🔄 Recovery</p>
             <p className="text-sm text-slate-700">{coaching.recovery}</p>
           </div>
         </div>
 
-        {/* Bottom padding for mobile */}
         <div className="h-6" />
       </div>
+    </div>
+  )
+}
+
+function ExerciseCard({ exercise, index }: { exercise: ParsedExercise; index: number }) {
+  const [expanded, setExpanded] = useState(false)
+  const guide = exercise.guide
+
+  return (
+    <div
+      className="bg-white rounded-xl border border-purple-200 overflow-hidden"
+      onClick={() => setExpanded(!expanded)}
+    >
+      <div className="px-3 py-2.5 cursor-pointer">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-purple-600 bg-purple-100 rounded-full w-5 h-5 flex items-center justify-center shrink-0">
+              {index}
+            </span>
+            <span className="text-sm font-medium text-slate-800">
+              {guide?.name || exercise.name}
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            {exercise.sets && exercise.reps && (
+              <span className="text-xs text-purple-700 bg-purple-50 rounded-full px-2 py-0.5 font-medium">
+                {exercise.sets} × {exercise.reps}
+              </span>
+            )}
+            <span className="text-slate-400 text-xs">{expanded ? '▼' : '›'}</span>
+          </div>
+        </div>
+        {guide && !expanded && (
+          <p className="text-xs text-slate-500 mt-0.5 ml-7">{guide.weight} · {guide.rest}</p>
+        )}
+      </div>
+
+      {expanded && guide && (
+        <div className="px-3 pb-3 border-t border-purple-100 pt-2 space-y-2">
+          <p className="text-xs text-slate-500 italic">{guide.aka}</p>
+          <div className="flex gap-3 text-xs">
+            <span className="text-purple-700 bg-purple-50 rounded px-2 py-1">💪 {guide.weight}</span>
+            <span className="text-purple-700 bg-purple-50 rounded px-2 py-1">⏸ {guide.rest}</span>
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-slate-600 mb-1">Form Cues:</p>
+            <ol className="space-y-1">
+              {guide.form.map((cue, i) => (
+                <li key={i} className="text-xs text-slate-600 flex gap-1.5">
+                  <span className="text-slate-400 shrink-0">{i + 1}.</span>
+                  <span>{cue}</span>
+                </li>
+              ))}
+            </ol>
+          </div>
+        </div>
+      )}
+
+      {expanded && !guide && (
+        <div className="px-3 pb-3 border-t border-purple-100 pt-2">
+          <p className="text-xs text-slate-500">No detailed guide available for this exercise yet.</p>
+        </div>
+      )}
     </div>
   )
 }
