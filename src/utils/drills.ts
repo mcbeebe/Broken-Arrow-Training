@@ -4,6 +4,47 @@ export interface DrillGuide {
   form: string[]
 }
 
+/**
+ * Pre-run activation: abbreviated Myrtl (~3 min).
+ * Wakes up glutes/hips before they need to fire during the run.
+ */
+export const PRE_RUN_ACTIVATION: DrillGuide[] = [
+  {
+    name: 'Clam Shell',
+    duration: '10 reps each side',
+    form: [
+      'Lie on your side, knees bent 90°, feet together.',
+      'Open your top knee like a clam shell while keeping your feet touching.',
+      'Squeeze and hold at the top for 1 second.',
+      'Fires up the glute medius — your primary hip stabilizer while running.',
+    ],
+  },
+  {
+    name: 'Donkey Kick',
+    duration: '10 reps each side',
+    form: [
+      'On all fours, hands under shoulders, knees under hips.',
+      'Keeping your knee bent, drive one foot toward the ceiling.',
+      'Squeeze your glute at the top. Don\'t arch your lower back.',
+      'Activates your glute max for hip extension — the power behind every stride.',
+    ],
+  },
+  {
+    name: 'Fire Hydrant',
+    duration: '10 reps each side',
+    form: [
+      'On all fours. Lift one knee out to the side, keeping it bent 90°.',
+      'Raise until your thigh is roughly parallel to the ground.',
+      'Keep your hips level — don\'t shift your weight to the other side.',
+      'Wakes up the hip abductors that keep your pelvis stable on trails.',
+    ],
+  },
+]
+
+/**
+ * Post-run full Myrtl routine (~10 min).
+ * Full hip strengthening and mobility after muscles are warm.
+ */
 export const MYRTL_ROUTINE: DrillGuide[] = [
   {
     name: 'Lateral Leg Raise',

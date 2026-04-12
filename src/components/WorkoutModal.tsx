@@ -4,7 +4,7 @@ import { getWorkoutStyle } from '../utils/styles'
 import { getCoaching } from '../utils/coaching'
 import { formatMiles, formatSeconds } from '../utils/format'
 import { parseRoutine, type ParsedExercise } from '../utils/exercises'
-import { parseIntervalWorkout, getDrillDay, RUNNING_DRILLS, MYRTL_ROUTINE, type RunSegment, type DrillGuide } from '../utils/drills'
+import { parseIntervalWorkout, getDrillDay, RUNNING_DRILLS, MYRTL_ROUTINE, PRE_RUN_ACTIVATION, type RunSegment, type DrillGuide } from '../utils/drills'
 
 interface WorkoutModalProps {
   day: PlannedDay
@@ -93,6 +93,19 @@ export default function WorkoutModal({ day, weekNum, onClose }: WorkoutModalProp
             </div>
           )}
 
+          {/* Pre-run activation for drill days */}
+          {isDrillDay && (
+            <div>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">🔥 Pre-Run Activation (~3 min)</p>
+              <p className="text-xs text-slate-500 mb-2">Do these BEFORE your run to wake up your glutes and hips. Quick and targeted.</p>
+              <div className="space-y-1.5">
+                {PRE_RUN_ACTIVATION.map((drill, i) => (
+                  <DrillCard key={i} drill={drill} />
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Purpose */}
           <div>
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">🎯 Purpose</p>
@@ -139,8 +152,8 @@ export default function WorkoutModal({ day, weekNum, onClose }: WorkoutModalProp
           {/* Drills + Myrtl for designated drill days */}
           {isDrillDay && (
             <div>
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">🏃 Running Drills (post-run, before cool-down)</p>
-              <p className="text-xs text-slate-500 mb-2">Do these after your run while your muscles are warm. Takes ~8 min.</p>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">🏃 Post-Run: Running Drills (~8 min)</p>
+              <p className="text-xs text-slate-500 mb-2">Do these after your run while muscles are warm, before stretching. Builds speed and coordination.</p>
               <div className="space-y-1.5">
                 {RUNNING_DRILLS.map((drill, i) => (
                   <DrillCard key={i} drill={drill} />
@@ -151,8 +164,8 @@ export default function WorkoutModal({ day, weekNum, onClose }: WorkoutModalProp
 
           {isDrillDay && (
             <div>
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">🦵 Myrtl Hip Routine (post-run)</p>
-              <p className="text-xs text-slate-500 mb-2">The Myrtl routine activates and strengthens your hip stabilizers. Do it after drills. Takes ~10 min.</p>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">🦵 Post-Run: Full Myrtl Hip Routine (~10 min)</p>
+              <p className="text-xs text-slate-500 mb-2">Full hip strengthening after drills. You did the abbreviated version pre-run — now go deep while muscles are warm.</p>
               <div className="space-y-1.5">
                 {MYRTL_ROUTINE.map((drill, i) => (
                   <DrillCard key={i} drill={drill} />
