@@ -6,14 +6,14 @@ import { useCompliance } from './hooks/useCompliance'
 import { matchActivitiesToPlan } from './utils/matching'
 import WeeklyPlan from './components/WeeklyPlan'
 import Dashboard from './components/Dashboard'
-import HRZones from './components/HRZones'
 import RaceInfo from './components/RaceInfo'
+import Methodology from './components/Methodology'
 import Settings from './components/Settings'
 
 const TABS: { id: ViewId; label: string }[] = [
   { id: 'plan', label: 'Plan' },
-  { id: 'dashboard', label: 'Dashboard' },
-  { id: 'zones', label: 'Zones' },
+  { id: 'dashboard', label: 'Stats' },
+  { id: 'method', label: 'Method' },
   { id: 'info', label: 'Race' },
   { id: 'settings', label: 'Settings' },
 ]
@@ -63,7 +63,7 @@ export default function App() {
       {view === 'dashboard' && (
         <Dashboard weeks={weeks} compliance={compliance} raceDate={mikePlan.race.date} />
       )}
-      {view === 'zones' && <HRZones zones={mikePlan.zones} maxHR={mikePlan.athlete.maxHR} />}
+      {view === 'method' && <Methodology />}
       {view === 'info' && <RaceInfo race={mikePlan.race} />}
       {view === 'settings' && (
         <Settings
