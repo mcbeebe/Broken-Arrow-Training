@@ -20,14 +20,6 @@ from garminconnect import Garmin
 _garmin_client = None
 
 
-def _kv_headers():
-    token = os.environ.get("KV_REST_API_TOKEN", "")
-    return {
-        "Authorization": f"Bearer {token}",
-        "Content-Type": "application/json",
-    }
-
-
 def _kv_get(key: str):
     """Get a value from Upstash KV via REST API."""
     url = os.environ.get("KV_REST_API_URL", "")
@@ -42,7 +34,7 @@ def _kv_get(key: str):
         with urllib.request.urlopen(req) as resp:
             data = json.loads(resp.read().decode())
             return data.get("result")
-    except Exception as e:
+    except Exception:
         return None
 
 
@@ -53,8 +45,6 @@ def _kv_set(key: str, value: str, ex: int = 86400 * 30):
     if not url or not token:
         raise RuntimeError(f"KV not configured: url={'set' if url else 'missing'}, token={'set' if token else 'missing'}")
 
-    # Use the simple REST endpoint: POST /set/key/value/EX/seconds
-    # Value needs to be URL-encoded since it contains JSON
     encoded_value = urllib.request.quote(value, safe='')
     set_url = f"{url}/set/{key}/{encoded_value}/EX/{ex}"
     req = urllib.request.Request(
@@ -75,14 +65,14 @@ def _try_saved_session() -> Garmin | None:
     email = os.environ.get("GARMIN_EMAIL", "")
     password = os.environ.get("GARMIN_PASSWORD", "")
 
-    saved_session = _kv_get("garmin_session")
-    if not saved_session:
+    saved_token = _kv_get("garmin_session")
+    if not saved_token:
         return None
 
     try:
         client = Garmin(email, password)
-        client.garth.loads(saved_session)
-        client.display_name = client.get_full_name()
+        # login(tokenstore=str) — if len > 512, calls client.loads() internally
+        client.login(tokenstore=saved_token)
         _garmin_client = client
         return client
     except Exception:
@@ -90,13 +80,13 @@ def _try_saved_session() -> Garmin | None:
 
 
 def _save_session(client: Garmin):
-    """Save Garmin garth session tokens to KV."""
-    try:
-        token_data = client.garth.dumps()
-        if token_data:
-            _kv_set("garmin_session", token_data)
-    except Exception as e:
-        raise RuntimeError(f"Failed to save session: {str(e)}")
+    """Save Garmin session tokens to KV via client.dumps()."""
+    # client.client is the internal HTTP client with dumps()/loads()
+    token_data = client.client.dumps()
+    if token_data:
+        _kv_set("garmin_session", token_data)
+    else:
+        raise RuntimeError("client.client.dumps() returned empty")
 
 
 class handler(BaseHTTPRequestHandler):
@@ -113,7 +103,6 @@ class handler(BaseHTTPRequestHandler):
         kv_token = os.environ.get("KV_REST_API_TOKEN", "")
         email = os.environ.get("GARMIN_EMAIL", "")
 
-        # Try to read session from KV
         saved = _kv_get("garmin_session")
         has_session = saved is not None and len(str(saved)) > 0
 
@@ -166,7 +155,7 @@ class handler(BaseHTTPRequestHandler):
                 self._send_json(200, {
                     "authenticated": True,
                     "displayName": display_name or "Garmin User",
-                    "session_saved": True,
+                    "session_restored": True,
                 })
                 return
 

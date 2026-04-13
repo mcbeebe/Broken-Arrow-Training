@@ -55,12 +55,11 @@ def _get_client() -> Garmin:
             _garmin_client = None
 
     # Try saved session from KV
-    saved_session = _kv_get("garmin_session")
-    if saved_session:
+    saved_token = _kv_get("garmin_session")
+    if saved_token:
         try:
             client = Garmin(email, password)
-            client.garth.loads(saved_session)
-            client.display_name = client.get_full_name()
+            client.login(tokenstore=saved_token)
             _garmin_client = client
             return client
         except Exception:
