@@ -87,9 +87,9 @@ const mikePlan: TrainingPlan = {
         { day: 'Tue 5/5', type: 'run', workout: 'Easy run', detail: 'Last Oakland run before Seattle.', zone: '4.5 mi · Z1–2 (108–148)', route: 'Temescal Lake + Hardy Park', time: '1 hr' },
         { day: 'Wed 5/6', type: 'travel', workout: '✈ TRAVEL to Seattle', detail: 'Travel day. Light movement only.', zone: '—', route: '—', time: '—' },
         { day: 'Thu 5/7', type: 'quality', workout: 'Hill bounding', detail: '6×60 sec max effort uphill, walk down, 3-min recovery. Seattle has great hills!', zone: '4.0 mi · Z4 bounds (167–177)', route: '🌲 Seattle: Discovery Park or Magnolia Bluff', time: '1 hr 10 min' },
-        { day: 'Fri 5/9', type: 'travel', workout: '✈ TRAVEL home', detail: 'Travel day. Rest or easy 15-min jog.', zone: '—', route: '—', time: '—' },
-        { day: 'Sat 5/10', type: 'cross', workout: 'CROSS-TRAIN: Erg + hike', detail: 'Rowing erg 20 min Z2 · Hike neighborhood hills 30 min', zone: 'Z2 (128–148)', route: 'Gym + neighborhood', time: '1 hr 10 min' },
-        { day: 'Sun 5/11', type: 'long', workout: 'LONG RUN — Max vert 🥾 FIRST POLES', detail: '~1,528 ft gain. FIRST run with poles. Practice plant rhythm on climbs.', zone: '7.0 mi · Z1–2 (108–148)', route: 'Redwood Regional: East Ridge → Stream → West Ridge', time: '2 hr 15 min' },
+        { day: 'Fri 5/8', type: 'travel', workout: '✈ TRAVEL home', detail: 'Travel day. Rest or easy 15-min jog.', zone: '—', route: '—', time: '—' },
+        { day: 'Sat 5/9', type: 'cross', workout: 'CROSS-TRAIN: Erg + hike', detail: 'Rowing erg 20 min Z2 · Hike neighborhood hills 30 min', zone: 'Z2 (128–148)', route: 'Gym + neighborhood', time: '1 hr 10 min' },
+        { day: 'Sun 5/10', type: 'long', workout: 'LONG RUN — Max vert 🥾 FIRST POLES', detail: '~1,528 ft gain. FIRST run with poles. Practice plant rhythm on climbs.', zone: '7.0 mi · Z1–2 (108–148)', route: 'Redwood Regional: East Ridge → Stream → West Ridge', time: '2 hr 15 min' },
       ],
     },
     {
