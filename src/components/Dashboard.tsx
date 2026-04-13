@@ -386,11 +386,45 @@ function PerformanceGlossary() {
         </div>
         <div>
           <p className="font-semibold text-slate-700">TRIMP — Training Impulse</p>
-          <p>A single number that quantifies the training stress of a workout, based on the Banister formula. It combines duration, heart rate intensity (how hard your heart worked relative to your max), and sport type. Higher TRIMP = more training stress. A 60-minute easy run might score ~80, while a 90-minute hill workout could score ~200+.</p>
+          <p>A single number that quantifies the training stress of a workout using the Banister formula:</p>
+          <div className="bg-white rounded-lg p-2 mt-1.5 border border-slate-200 font-mono text-[10px] text-center text-slate-700">
+            TRIMP = duration × ΔHR ratio × 0.64 × e<sup>(1.92 × ΔHR ratio)</sup>
+          </div>
+          <p className="mt-1.5">Where ΔHR ratio = (avgHR − restingHR) / (maxHR − restingHR). The exponential term means high-intensity efforts produce disproportionately more training stress.</p>
+        </div>
+        <div>
+          <p className="font-semibold text-slate-700">Sport Multipliers</p>
+          <p>Different activities stress the body differently. Each sport type applies a multiplier to the base TRIMP:</p>
+          <div className="mt-1.5 overflow-hidden rounded-lg border border-slate-200">
+            <table className="w-full text-[10px]">
+              <thead>
+                <tr className="bg-slate-100">
+                  <th className="text-left px-2 py-1 font-semibold text-slate-700">Sport</th>
+                  <th className="text-right px-2 py-1 font-semibold text-slate-700">Multiplier</th>
+                  <th className="text-left px-2 py-1 font-semibold text-slate-700">Why</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                <tr className="bg-white"><td className="px-2 py-1">Trail Running</td><td className="text-right px-2 py-1 font-mono">1.05×</td><td className="px-2 py-1 text-slate-500">Uneven terrain, elevation stress</td></tr>
+                <tr className="bg-slate-50"><td className="px-2 py-1">Running</td><td className="text-right px-2 py-1 font-mono">1.00×</td><td className="px-2 py-1 text-slate-500">Baseline reference sport</td></tr>
+                <tr className="bg-white"><td className="px-2 py-1">Hiking</td><td className="text-right px-2 py-1 font-mono">1.10×</td><td className="px-2 py-1 text-slate-500">Heavy pack, long duration, elevation</td></tr>
+                <tr className="bg-slate-50"><td className="px-2 py-1">Strength</td><td className="text-right px-2 py-1 font-mono">0.80×</td><td className="px-2 py-1 text-slate-500">Muscular stress, less cardiovascular</td></tr>
+                <tr className="bg-white"><td className="px-2 py-1">Cycling</td><td className="text-right px-2 py-1 font-mono">0.70×</td><td className="px-2 py-1 text-slate-500">Non-weight-bearing, less impact</td></tr>
+                <tr className="bg-slate-50"><td className="px-2 py-1">Elliptical</td><td className="text-right px-2 py-1 font-mono">0.60×</td><td className="px-2 py-1 text-slate-500">Low impact cross-training</td></tr>
+                <tr className="bg-white"><td className="px-2 py-1">Swimming</td><td className="text-right px-2 py-1 font-mono">0.50×</td><td className="px-2 py-1 text-slate-500">Non-weight-bearing, cooling effect</td></tr>
+                <tr className="bg-slate-50"><td className="px-2 py-1">Walking</td><td className="text-right px-2 py-1 font-mono">0.30×</td><td className="px-2 py-1 text-slate-500">Recovery-level effort</td></tr>
+                <tr className="bg-white"><td className="px-2 py-1">Yoga</td><td className="text-right px-2 py-1 font-mono">0.20×</td><td className="px-2 py-1 text-slate-500">Flexibility/mobility, minimal stress</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div>
+          <p className="font-semibold text-slate-700">Elevation Bonus</p>
+          <p>Workouts with significant climbing get an additional <strong>+10 TRIMP per 1,000 ft</strong> of elevation gain. This accounts for the extra muscular and cardiovascular demand of vertical work — critical for Broken Arrow Skyrace prep.</p>
         </div>
         <div>
           <p className="font-semibold text-slate-700">Weekly TRIMP</p>
-          <p>Your total training load for the past 7 days, broken down by sport type (running, strength, hiking, etc.). This helps you see how different activities contribute to your overall fatigue and fitness. The stacked bar chart shows the distribution — a balanced mix is generally better than all-or-nothing training.</p>
+          <p>Your total training load for the past 7 days, broken down by sport type. The stacked bar chart shows the distribution — a balanced mix across running, strength, and cross-training is generally better than all-or-nothing training.</p>
         </div>
         <div className="pt-2 border-t border-slate-200">
           <p className="font-semibold text-slate-700">The Banister Model</p>
