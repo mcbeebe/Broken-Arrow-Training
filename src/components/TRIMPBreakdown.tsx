@@ -88,11 +88,11 @@ export default function TRIMPBreakdown({ dailyTrimp }: TRIMPBreakdownProps) {
       <div className="flex items-baseline justify-between mb-3">
         <div>
           <p className="text-sm font-semibold text-slate-700">7-Day Training Load</p>
-          <p className="text-xs text-slate-400">Adjusted TRIMP by activity type</p>
+          <p className="text-xs text-slate-400">Garmin EPOC (primary) + Banister TRIMP (fallback) · MIM-adjusted</p>
         </div>
         <div className="text-right">
           <p className="text-xl font-bold text-slate-800">{weeklyTotal}</p>
-          <p className="text-[10px] text-slate-400 uppercase">Weekly TRIMP</p>
+          <p className="text-[10px] text-slate-400 uppercase">Weekly Load</p>
         </div>
       </div>
       <div style={{ height: 160 }}>

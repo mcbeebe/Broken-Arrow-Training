@@ -48,7 +48,7 @@ export default function PerformanceChart({
         <div className="flex items-baseline justify-between mb-3">
           <div>
             <p className="text-sm font-semibold text-slate-700">Fitness / Fatigue / Form</p>
-            <p className="text-xs text-slate-400">Banister model · Race: {raceDate}</p>
+            <p className="text-xs text-slate-400">Banister impulse-response model · Race: {raceDate}</p>
           </div>
         </div>
 
@@ -171,7 +171,7 @@ export default function PerformanceChart({
             : latest.tsb >= 5 ? 'Fresh — good day for a quality workout'
             : latest.tsb >= -10 ? 'Productive — building fitness, some fatigue'
             : latest.tsb >= -30 ? 'Tired — back off if this persists 3+ days'
-            : 'Overreaching — prioritize rest to avoid injury'
+            : 'Fatigue exceeds fitness base — common early in a plan. Check Readiness tab for biometric confirmation.'
           }
         />
         <PerfStatCard

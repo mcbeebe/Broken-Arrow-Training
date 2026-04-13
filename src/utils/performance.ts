@@ -121,7 +121,7 @@ export function getTSBLabel(state: TSBState): string {
     well_rested: 'Well Rested',
     productive: 'Productive Training',
     overreaching: 'Overreaching',
-    danger: 'Danger Zone',
+    danger: 'Deep Fatigue Debt',
   }
   return labels[state]
 }
@@ -198,7 +198,7 @@ export function generateWeeklyRecommendations(
     recommendations.push({
       type: 'overreaching',
       severity: 'alert',
-      message: 'Overreaching detected. Consider swapping this week\'s quality sessions for easy runs.',
+      message: 'Form (TSB) below -30 for 3+ days — fatigue is outpacing your fitness base. Normal early in a plan while CTL builds. Check the Readiness tab: if GREEN, your body is handling it. If YELLOW/RED, consider swapping quality sessions for easy runs.',
       weekNum: currentWeekNum,
     })
   }
