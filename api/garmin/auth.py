@@ -127,8 +127,8 @@ class handler(BaseHTTPRequestHandler):
 
             # Step 2: Complete MFA with provided code
             if mfa_code:
-                client = Garmin(email, password)
-                client.login(prompt_mfa=lambda: mfa_code)
+                client = Garmin(email, password, prompt_mfa=lambda: mfa_code)
+                client.login()
                 _garmin_client = client
                 _save_session(client)
 
