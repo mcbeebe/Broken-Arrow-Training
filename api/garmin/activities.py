@@ -3,18 +3,73 @@
 GET /api/garmin/activities?start=YYYY-MM-DD&end=YYYY-MM-DD
 - Fetches activities with HR, elevation, and type data for TRIMP calculation
 - Supplements Strava for non-Strava activities (strength, yoga, etc.)
+- Uses saved session from Upstash KV (set via /api/garmin/auth)
 """
 
 import json
 import os
-import sys
+import urllib.request
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
+from garminconnect import Garmin
 
-# Add parent directory to path for shared module import
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _session import get_client
+_garmin_client = None
+
+
+def _kv_get(key: str):
+    """Get a value from Upstash KV."""
+    url = os.environ.get("KV_REST_API_URL", "")
+    token = os.environ.get("KV_REST_API_TOKEN", "")
+    if not url or not token:
+        return None
+    req = urllib.request.Request(
+        f"{url}/get/{key}",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    try:
+        with urllib.request.urlopen(req) as resp:
+            data = json.loads(resp.read().decode())
+            return data.get("result")
+    except Exception:
+        return None
+
+
+def _get_client() -> Garmin:
+    """Get an authenticated Garmin client using saved session from KV."""
+    global _garmin_client
+
+    email = os.environ.get("GARMIN_EMAIL", "")
+    password = os.environ.get("GARMIN_PASSWORD", "")
+
+    if not email or not password:
+        raise ValueError("GARMIN_EMAIL and GARMIN_PASSWORD must be set")
+
+    # Try module-level cache first (warm invocation)
+    if _garmin_client is not None:
+        try:
+            _garmin_client.get_full_name()
+            return _garmin_client
+        except Exception:
+            _garmin_client = None
+
+    # Try saved session from KV
+    saved_session = _kv_get("garmin_session")
+    if saved_session:
+        try:
+            session_data = json.loads(saved_session) if isinstance(saved_session, str) else saved_session
+            client = Garmin(email, password)
+            client.login(session_data)
+            client.get_full_name()
+            _garmin_client = client
+            return client
+        except Exception:
+            pass
+
+    raise RuntimeError(
+        "No valid Garmin session found. "
+        "Please authenticate first via POST /api/garmin/auth"
+    )
 
 
 def _meters_to_feet(meters: float) -> float:
@@ -45,7 +100,7 @@ class handler(BaseHTTPRequestHandler):
                 }).encode())
                 return
 
-            client = get_client()
+            client = _get_client()
             raw_activities = client.get_activities_by_date(start, end)
 
             activities = []
@@ -61,11 +116,10 @@ class handler(BaseHTTPRequestHandler):
                 training_effect = act.get("aerobicTrainingEffect", None)
                 start_local = act.get("startTimeLocal", "")
 
-                # Extract date from start time
                 date_str = ""
                 if start_local:
                     try:
-                        date_str = start_local[:10]  # YYYY-MM-DD
+                        date_str = start_local[:10]
                     except Exception:
                         date_str = ""
 

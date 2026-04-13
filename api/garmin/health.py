@@ -3,19 +3,74 @@
 GET /api/garmin/health?days=N
 - Fetches HRV, RHR, sleep, and Body Battery for the last N days (default: 1, max: 30)
 - Returns array of daily health records
+- Uses saved session from Upstash KV (set via /api/garmin/auth)
 """
 
 import json
 import os
-import sys
 import math
+import urllib.request
 from datetime import datetime, timedelta
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
+from garminconnect import Garmin
 
-# Add parent directory to path for shared module import
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _session import get_client
+_garmin_client = None
+
+
+def _kv_get(key: str):
+    """Get a value from Upstash KV."""
+    url = os.environ.get("KV_REST_API_URL", "")
+    token = os.environ.get("KV_REST_API_TOKEN", "")
+    if not url or not token:
+        return None
+    req = urllib.request.Request(
+        f"{url}/get/{key}",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    try:
+        with urllib.request.urlopen(req) as resp:
+            data = json.loads(resp.read().decode())
+            return data.get("result")
+    except Exception:
+        return None
+
+
+def _get_client() -> Garmin:
+    """Get an authenticated Garmin client using saved session from KV."""
+    global _garmin_client
+
+    email = os.environ.get("GARMIN_EMAIL", "")
+    password = os.environ.get("GARMIN_PASSWORD", "")
+
+    if not email or not password:
+        raise ValueError("GARMIN_EMAIL and GARMIN_PASSWORD must be set")
+
+    # Try module-level cache first (warm invocation)
+    if _garmin_client is not None:
+        try:
+            _garmin_client.get_full_name()
+            return _garmin_client
+        except Exception:
+            _garmin_client = None
+
+    # Try saved session from KV
+    saved_session = _kv_get("garmin_session")
+    if saved_session:
+        try:
+            session_data = json.loads(saved_session) if isinstance(saved_session, str) else saved_session
+            client = Garmin(email, password)
+            client.login(session_data)
+            client.get_full_name()
+            _garmin_client = client
+            return client
+        except Exception:
+            pass
+
+    raise RuntimeError(
+        "No valid Garmin session found. "
+        "Please authenticate first via POST /api/garmin/auth"
+    )
 
 
 def _safe_get(func, *args):
@@ -31,7 +86,6 @@ def _extract_hrv(hrv_data) -> dict | None:
     if not hrv_data:
         return None
 
-    # python-garminconnect returns different structures depending on version
     if isinstance(hrv_data, dict):
         weekly_avg = hrv_data.get("weeklyAvg", 0)
         last_night = hrv_data.get("lastNightAvg", 0) or hrv_data.get("lastNight5MinHigh", 0)
@@ -108,7 +162,7 @@ class handler(BaseHTTPRequestHandler):
             query = parse_qs(urlparse(self.path).query)
             days = min(int(query.get("days", ["1"])[0]), 30)
 
-            client = get_client()
+            client = _get_client()
             today = datetime.now().date()
             results = []
 
@@ -125,7 +179,6 @@ class handler(BaseHTTPRequestHandler):
                 if rhr_data and isinstance(rhr_data, dict):
                     rhr_val = rhr_data.get("restingHeartRate", None)
                     if not rhr_val:
-                        # Some versions nest it differently
                         rhr_val = rhr_data.get("value", None)
                     record["rhr"] = rhr_val
                 else:
