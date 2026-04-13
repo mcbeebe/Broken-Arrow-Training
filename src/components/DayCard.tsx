@@ -101,6 +101,16 @@ export default function DayCard({ day, onTap, onLog, onSwap, isSwapSelected, isS
                 <span>⛰ {actual.elevationGain} ft</span>
               )}
             </div>
+            {actual.strengthLog && actual.strengthLog.length > 0 && (
+              <div className="mt-1.5 text-xs text-purple-600">
+                💪 {actual.strengthLog.length} exercise{actual.strengthLog.length > 1 ? 's' : ''}
+                {' · '}
+                {actual.strengthLog.map(ex => ex.focus).filter((v, i, a) => a.indexOf(v) === i).join(', ')}
+              </div>
+            )}
+            {actual.notes && (
+              <p className="mt-1 text-xs text-slate-500 italic">{actual.notes}</p>
+            )}
           </div>
         )}
       </div>

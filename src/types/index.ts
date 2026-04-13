@@ -63,6 +63,20 @@ export interface ActualWorkout {
   type: string;
   name: string;
   startDate: string;
+  notes?: string;
+  strengthLog?: StrengthExerciseLog[];
+}
+
+export interface StrengthExerciseLog {
+  name: string;
+  focus: "upper" | "lower" | "core" | "full";
+  sets: StrengthSet[];
+}
+
+export interface StrengthSet {
+  reps: number;
+  weight: string;
+  notes?: string;
 }
 
 export interface TrainingWeek {
