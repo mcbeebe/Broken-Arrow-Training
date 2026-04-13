@@ -7,36 +7,15 @@ GET /api/garmin/health?days=N
 
 import json
 import os
+import sys
 import math
 from datetime import datetime, timedelta
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
-from garminconnect import Garmin
 
-_garmin_client = None
-
-
-def _get_client() -> Garmin:
-    """Get or create a Garmin client with cached session."""
-    global _garmin_client
-
-    email = os.environ.get("GARMIN_EMAIL", "")
-    password = os.environ.get("GARMIN_PASSWORD", "")
-
-    if not email or not password:
-        raise ValueError("GARMIN_EMAIL and GARMIN_PASSWORD must be set")
-
-    if _garmin_client is not None:
-        try:
-            _garmin_client.get_full_name()
-            return _garmin_client
-        except Exception:
-            _garmin_client = None
-
-    client = Garmin(email, password)
-    client.login()
-    _garmin_client = client
-    return client
+# Add parent directory to path for shared module import
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from _session import get_client
 
 
 def _safe_get(func, *args):
@@ -129,7 +108,7 @@ class handler(BaseHTTPRequestHandler):
             query = parse_qs(urlparse(self.path).query)
             days = min(int(query.get("days", ["1"])[0]), 30)
 
-            client = _get_client()
+            client = get_client()
             today = datetime.now().date()
             results = []
 
