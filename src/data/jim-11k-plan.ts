@@ -153,13 +153,13 @@ const jimPlan: TrainingPlan = {
       ],
     },
     {
-      num: 10, dates: 'Jun 15–21 (RACE SAT)', miles: '7+race', focus: 'RACE WEEK. Shakeouts only. Travel Fri. RACE SATURDAY 8AM.',
+      num: 10, dates: 'Jun 15–21 (RACE SAT)', miles: '7+race', focus: 'RACE WEEK. Shakeouts only. Travel Thu. RACE SATURDAY 8AM.',
       days: [
         { day: 'Mon 6/15', type: 'run', workout: 'Easy shakeout', detail: 'Very easy opener. Short.', zone: '2.5 mi · Z1 (83–115)', route: 'Larry Scott Trail or South Bay Way', time: '30 min' },
         { day: 'Tue 6/16', type: 'run', workout: 'Easy run + strides', detail: 'Short and sharp. 3×20 sec strides.', zone: '2.0 mi · Z1 + strides', route: 'South Bay Way neighborhood', time: '25 min' },
         { day: 'Wed 6/17', type: 'rest', workout: 'Rest', detail: 'Legs up. Hydrate. Eat well. Pack gear.', zone: '—', route: '—', time: '—' },
-        { day: 'Thu 6/18', type: 'run', workout: 'Pre-race shakeout', detail: 'Very easy 15 min. Last run before race.', zone: '1.5 mi · Z1 (83–115)', route: 'South Bay Way (flat)', time: '20 min' },
-        { day: 'Fri 6/19', type: 'travel', workout: 'Travel to Palisades Tahoe', detail: 'Arrive early. Acclimate. Hydrate for altitude. Cheer Mike at the 18K (12PM)! Packet pickup.', zone: '—', route: 'Palisades Tahoe', time: '—' },
+        { day: 'Thu 6/18', type: 'travel', workout: 'Travel to Palisades Tahoe', detail: 'Arrive Thursday. Acclimate. Hydrate for altitude. Packet pickup.', zone: '—', route: 'Palisades Tahoe', time: '—' },
+        { day: 'Fri 6/19', type: 'rest', workout: 'Pre-race rest', detail: 'Cheer Mike at the 18K (12PM start)! Easy walk. Legs up. Hydrate. Eat well. Visualize tomorrow.', zone: '—', route: 'Palisades Tahoe', time: '—' },
         { day: 'Sat 6/20', type: 'race', workout: '🏔 RACE: BROKEN ARROW 11K', detail: '6.8 mi · ~1,840 ft climb · 8AM start. Stairway to Heaven → Siberia Ridge → descent to finish. RING DAS BELL!', zone: '6.8 mi · Z2–4 (115–155)', route: 'Palisades Tahoe, CA', time: '1.5–2.5 hr' },
         { day: 'Sun 6/21', type: 'rest', workout: 'Recovery', detail: 'Celebrate! Gentle movement. Drive home.', zone: '—', route: '—', time: '—' },
       ],

@@ -152,13 +152,13 @@ const loriPlan: TrainingPlan = {
       ],
     },
     {
-      num: 10, dates: 'Jun 15–20 (RACE SAT)', miles: '8+race', focus: 'RACE WEEK. Shakeouts only. NO BFT. Travel Fri. RACE SATURDAY 8AM.',
+      num: 10, dates: 'Jun 15–20 (RACE SAT)', miles: '8+race', focus: 'RACE WEEK. Shakeouts only. NO BFT. Travel Thu. RACE SATURDAY 8AM.',
       days: [
         { day: 'Mon 6/15', type: 'run', workout: 'Easy shakeout', detail: 'Very easy opener. Z1 only. Shake out residual fatigue.', zone: '2.5 mi · Z1 only (98–116)', route: 'Temescal Lake Park (flat)', time: '35 min' },
         { day: 'Tue 6/16', type: 'run', workout: 'Easy run + strides', detail: 'Short and sharp. 4×15 sec strides. Activate fast-twitch. Stay loose.', zone: '2.0 mi · Z1 + strides', route: 'Flat neighborhood route', time: '30 min' },
         { day: 'Wed 6/17', type: 'rest', workout: 'Rest', detail: 'No BFT this week. Legs up. Hydrate. Carb-load begins.', zone: '—', route: '—', time: '—' },
-        { day: 'Thu 6/18', type: 'rest', workout: 'Rest', detail: 'Rest day. Prep gear bag. Hydrate aggressively.', zone: '—', route: '—', time: '—' },
-        { day: 'Fri 6/19', type: 'travel', workout: 'Travel to Palisades Tahoe', detail: 'Arrive Friday. Acclimate overnight. Hydrate for altitude. Optional 15-min shakeout at altitude. Packet pickup.', zone: '~1.0 mi · Z1 (98–116)', route: 'Palisades Tahoe village', time: '~4 hr' },
+        { day: 'Thu 6/18', type: 'travel', workout: 'Travel to Palisades Tahoe', detail: 'Arrive Thursday. Acclimate. Hydrate for altitude. Cheer Mike at the 18K Friday 12PM! Packet pickup.', zone: '~1.0 mi · Z1 (98–116)', route: 'Palisades Tahoe village', time: '~4 hr' },
+        { day: 'Fri 6/19', type: 'rest', workout: 'Pre-race rest', detail: 'Cheer Mike at the 18K (12PM start)! Easy walk. Legs up. Hydrate. Eat well. Visualize tomorrow.', zone: '—', route: 'Palisades Tahoe', time: '—' },
         { day: 'Sat 6/20', type: 'race', workout: '🏔 RACE: BROKEN ARROW 11K', detail: '6.8 mi · ~1,840 ft climb · 8AM start. Village → Western States Tr → Snow King Peak → steep descent → finish. Start conservative! Power hike steep grades. Eat 100 cal at mile 3. RING DAS BELL!', zone: '6.8 mi · Z2–4 (116–161)', route: 'Palisades Tahoe, CA', time: '1.5–3 hr' },
         { day: 'Sun 6/21', type: 'rest', workout: 'Recovery', detail: 'Celebrate! You ARE a rockstar. 🏆 Easy walk. Enjoy Tahoe.', zone: '—', route: '—', time: '—' },
       ],
