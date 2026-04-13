@@ -116,7 +116,7 @@ export default function WorkoutModal({ day, weekNum, onClose, zones }: WorkoutMo
           {actual && (
             <div className="bg-teal-50 rounded-xl p-3 border border-teal-200 space-y-2">
               <p className="text-xs font-semibold text-teal-800 uppercase tracking-wide">
-                {actual.type === 'Manual' ? '📝 Logged' : '🔗 Strava'}: {actual.name}
+                {actual.source === 'manual' || actual.type === 'Manual' ? '📝 Logged' : actual.source === 'garmin' ? '⌚ Garmin' : '🔗 Strava'}: {actual.name}
               </p>
               <div className="grid grid-cols-2 gap-2 text-sm text-teal-700">
                 {actual.distance > 0 && <span>📏 {formatMiles(actual.distance)}</span>}
@@ -132,6 +132,92 @@ export default function WorkoutModal({ day, weekNum, onClose, zones }: WorkoutMo
               </div>
               {actual.deviceName && (
                 <p className="text-[10px] text-teal-600">📱 {actual.deviceName}</p>
+              )}
+
+              {/* Garmin Training Metrics */}
+              {(actual.aerobicTE || actual.anaerobicTE || actual.epoc) && (
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {actual.aerobicTE != null && (
+                    <span className={`text-xs px-2 py-1 rounded-lg font-medium ${
+                      actual.aerobicTE >= 4 ? 'bg-red-100 text-red-700' :
+                      actual.aerobicTE >= 3 ? 'bg-amber-100 text-amber-700' :
+                      'bg-green-100 text-green-700'
+                    }`}>
+                      🫀 Aerobic TE: {actual.aerobicTE.toFixed(1)}
+                      {actual.aerobicTE >= 4 ? ' (Overreaching)' : actual.aerobicTE >= 3 ? ' (Improving)' : ' (Maintaining)'}
+                    </span>
+                  )}
+                  {actual.anaerobicTE != null && (
+                    <span className={`text-xs px-2 py-1 rounded-lg font-medium ${
+                      actual.anaerobicTE >= 3 ? 'bg-purple-100 text-purple-700' :
+                      actual.anaerobicTE >= 1 ? 'bg-blue-100 text-blue-700' :
+                      'bg-slate-100 text-slate-600'
+                    }`}>
+                      ⚡ Anaerobic TE: {actual.anaerobicTE.toFixed(1)}
+                    </span>
+                  )}
+                  {actual.epoc != null && actual.epoc > 0 && (
+                    <span className="text-xs px-2 py-1 rounded-lg font-medium bg-orange-100 text-orange-700">
+                      🔥 EPOC: {Math.round(actual.epoc)}
+                    </span>
+                  )}
+                  {actual.recoveryTimeHours != null && actual.recoveryTimeHours > 0 && (
+                    <span className="text-xs px-2 py-1 rounded-lg font-medium bg-teal-100 text-teal-700">
+                      🔄 Recovery: {actual.recoveryTimeHours}h
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {/* HR Zone Distribution */}
+              {actual.hrZoneSummary && actual.hrZoneSummary.length > 0 && (
+                <div className="mt-2">
+                  <p className="text-xs font-semibold text-teal-800 mb-1">HR Zone Distribution</p>
+                  <div className="space-y-1">
+                    {actual.hrZoneSummary.map((z, i) => {
+                      const total = actual.hrZoneSummary!.reduce((s, z) => s + z.seconds, 0)
+                      const pct = total > 0 ? (z.seconds / total) * 100 : 0
+                      const mins = Math.round(z.seconds / 60)
+                      const colors = ['#94A3B8', '#3B82F6', '#22C55E', '#F59E0B', '#EF4444']
+                      const labels = ['Z1 Recovery', 'Z2 Easy', 'Z3 Moderate', 'Z4 Hard', 'Z5 Max']
+                      return pct > 1 ? (
+                        <div key={i} className="flex items-center gap-2 text-[10px]">
+                          <span className="w-16 text-teal-700">{labels[z.zone - 1] || `Z${z.zone}`}</span>
+                          <div className="flex-1 h-3 bg-teal-50 rounded-full overflow-hidden">
+                            <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: colors[z.zone - 1] || '#94A3B8' }} />
+                          </div>
+                          <span className="text-teal-600 w-12 text-right">{mins}m ({Math.round(pct)}%)</span>
+                        </div>
+                      ) : null
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Exercise Sets from Garmin / Strength Log */}
+              {actual.strengthLog && actual.strengthLog.length > 0 && (
+                <div className="mt-2">
+                  <p className="text-xs font-semibold text-teal-800 mb-1">
+                    {actual.source === 'garmin' ? '⌚ Exercise Sets (from watch)' : '💪 Strength Log'}
+                  </p>
+                  <div className="space-y-1.5">
+                    {actual.strengthLog.map((ex, i) => (
+                      <div key={i} className="bg-teal-100/50 rounded-lg px-2 py-1.5">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-medium text-teal-800">{ex.name}</span>
+                          <span className="text-[10px] text-teal-600 capitalize">{ex.focus}</span>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5 mt-1">
+                          {ex.sets.map((s, j) => (
+                            <span key={j} className="text-[10px] text-teal-700 bg-white/60 rounded px-1.5 py-0.5">
+                              {s.reps > 0 ? `${s.reps} reps` : ''}{s.weight !== '—' ? ` @ ${s.weight}` : ''}{s.notes ? ` (${s.notes})` : ''}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               )}
 
               {/* Splits */}

@@ -14,6 +14,7 @@ const ALL_BA_KEYS = [
   'ba_garmin_last_sync',
   'ba_garmin_connected',
   'ba_garmin_activities',
+  'ba_garmin_activity_details',
   'ba_strava_tokens',
   'ba_strava_activities',
   'ba_strava_last_sync',

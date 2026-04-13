@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useCallback } from 'react'
 import type { ViewId } from './types'
 import { plans } from './data'
 import { useStrava } from './hooks/useStrava'
@@ -7,7 +7,8 @@ import { useCompliance } from './hooks/useCompliance'
 import { useManualLog } from './hooks/useManualLog'
 import { useDaySwap } from './hooks/useDaySwap'
 import { useReadiness } from './hooks/useReadiness'
-import { matchActivitiesToPlan } from './utils/matching'
+import { matchActivitiesToPlan, mergeGarminDetailIntoWeeks } from './utils/matching'
+import { generateMorningCoach, generateEveningCoach, getCoachTimeOfDay } from './utils/coach'
 import { checkStorageVersion, clearAllCachedData, clearAllAppData } from './utils/storageVersion'
 import WeeklyPlan from './components/WeeklyPlan'
 import Dashboard from './components/Dashboard'
@@ -67,9 +68,13 @@ export default function App() {
     if (showStrava && strava.activities.length > 0) {
       w = matchActivitiesToPlan(w, strava.activities)
     }
+    // Garmin detail enriches/overrides Strava actuals
+    if (garmin.connected && Object.keys(garmin.activityDetails).length > 0) {
+      w = mergeGarminDetailIntoWeeks(w, garmin.activityDetails)
+    }
     w = manualLog.applyLogsToWeeks(w)
     return w
-  }, [plan.weeks, strava.activities, showStrava, manualLog.applyLogsToWeeks, daySwap.applySwapsToWeeks])
+  }, [plan.weeks, strava.activities, showStrava, manualLog.applyLogsToWeeks, daySwap.applySwapsToWeeks, garmin.connected, garmin.activityDetails])
 
   const compliance = useCompliance(weeks)
   const raceName = plan.race.distance.includes('18K') ? 'BROKEN ARROW 18K' : 'BROKEN ARROW 11K'
@@ -90,11 +95,38 @@ export default function App() {
     const dayLabel = `${month}/${day}`
     for (const week of weeks) {
       for (const d of week.days) {
-        if (d.day === dayLabel) return d
+        if (d.day.includes(dayLabel)) return d
       }
     }
     return undefined
   }, [weeks])
+
+  // Find tomorrow's planned workout
+  const tomorrowPlannedWorkout = useMemo(() => {
+    const tomorrow = new Date()
+    tomorrow.setDate(tomorrow.getDate() + 1)
+    const month = tomorrow.getMonth() + 1
+    const day = tomorrow.getDate()
+    const dayLabel = `${month}/${day}`
+    for (const week of weeks) {
+      for (const d of week.days) {
+        if (d.day.includes(dayLabel)) return d
+      }
+    }
+    return undefined
+  }, [weeks])
+
+  // Current week days and today's index for coach engine
+  const currentWeekDays = useMemo(() => {
+    const currentWeek = weeks.find(w => w.num === currentWeekNum)
+    return currentWeek?.days || []
+  }, [weeks, currentWeekNum])
+
+  const todayDayIndex = useMemo(() => {
+    const today = new Date()
+    const dayLabel = `${today.getMonth() + 1}/${today.getDate()}`
+    return currentWeekDays.findIndex(d => d.day.includes(dayLabel))
+  }, [currentWeekDays])
 
   // Readiness engine (combines Garmin health data + Strava/Garmin activities)
   const readiness = useReadiness({
@@ -112,6 +144,38 @@ export default function App() {
     const today = new Date().toISOString().slice(0, 10)
     return garmin.healthData.find(d => d.date === today)
   }, [garmin.healthData])
+
+  // AI Coach recommendation
+  const coachRecommendation = useMemo(() => {
+    const timeOfDay = getCoachTimeOfDay()
+    const latestPerf = readiness.performance.length > 0 ? readiness.performance[readiness.performance.length - 1] : null
+
+    if (timeOfDay === 'morning') {
+      return generateMorningCoach(
+        readiness.todayScore,
+        todayPlannedWorkout,
+        currentWeekDays,
+        todayDayIndex,
+        latestPerf,
+        todayHealth?.sleep,
+        readiness.trainingStateInfo,
+      )
+    } else {
+      return generateEveningCoach(
+        readiness.todayScore,
+        tomorrowPlannedWorkout,
+        todayHealth?.sleep,
+        todayHealth?.bodyBattery,
+        latestPerf,
+        readiness.trainingStateInfo,
+      )
+    }
+  }, [readiness.todayScore, todayPlannedWorkout, tomorrowPlannedWorkout, currentWeekDays, todayDayIndex, readiness.performance, todayHealth, readiness.trainingStateInfo])
+
+  // Handler for coach swap
+  const handleCoachSwap = useCallback((fromIndex: number, toIndex: number) => {
+    daySwap.swapDays(currentWeekNum, fromIndex, toIndex)
+  }, [daySwap, currentWeekNum])
 
   return (
     <div className="min-h-screen bg-slate-50" style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" }}>
@@ -153,6 +217,8 @@ export default function App() {
           todayHealth={todayHealth}
           healthHistory={garmin.healthData}
           garminConnected={garmin.connected}
+          coachRecommendation={coachRecommendation}
+          onCoachSwap={handleCoachSwap}
         />
       )}
       {view === 'dashboard' && (

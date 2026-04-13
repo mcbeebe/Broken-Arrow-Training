@@ -1,4 +1,5 @@
-import type { StravaActivity, TrainingWeek, ActualWorkout, PlannedDay, WorkoutType } from '../types'
+import type { StravaActivity, TrainingWeek, ActualWorkout, PlannedDay, WorkoutType, GarminActivityDetail } from '../types'
+import { garminDetailToActual } from './garmin'
 
 /**
  * Match Strava activities to planned workout days by date and type.
@@ -87,6 +88,7 @@ function getExpectedStravaTypes(type: WorkoutType): string[] {
 function stravaToActual(activity: StravaActivity): ActualWorkout {
   return {
     stravaId: activity.id,
+    source: 'strava',
     distance: metersToMiles(activity.distance),
     movingTime: activity.moving_time,
     elapsedTime: activity.elapsed_time,
@@ -133,4 +135,74 @@ function formatPaceFromSpeed(metersPerSec: number): string {
   const mins = Math.floor(secsPerMile / 60)
   const secs = Math.round(secsPerMile % 60)
   return `${mins}:${secs.toString().padStart(2, '0')}/mi`
+}
+
+// ─── Garmin Activity Detail Merge ──────────────────────────────
+
+export function mergeGarminDetailIntoWeeks(
+  weeks: TrainingWeek[],
+  detailsByDate: Record<string, GarminActivityDetail[]>,
+): TrainingWeek[] {
+  return weeks.map(week => ({
+    ...week,
+    days: week.days.map(day => {
+      const dayDate = parseDayDate(day.day)
+      if (!dayDate) return day
+
+      const details = detailsByDate[dayDate]
+      if (!details || details.length === 0) return day
+
+      // Find best matching detail for this day's workout type
+      const bestDetail = findBestGarminMatch(day, details)
+      if (!bestDetail) return day
+
+      const garminActual = garminDetailToActual(bestDetail)
+
+      if (day.actual && day.actual.source !== 'manual') {
+        // Enrich existing Strava actual with Garmin data
+        return {
+          ...day,
+          actual: {
+            ...day.actual,
+            source: day.actual.source === 'garmin' ? 'garmin' as const : 'strava' as const,
+            garminId: garminActual.garminId,
+            aerobicTE: garminActual.aerobicTE,
+            anaerobicTE: garminActual.anaerobicTE,
+            epoc: garminActual.epoc,
+            recoveryTimeHours: garminActual.recoveryTimeHours,
+            vo2max: garminActual.vo2max,
+            hrZoneSummary: garminActual.hrZoneSummary,
+            // Override strengthLog if Garmin has exercise sets (more detailed)
+            strengthLog: garminActual.strengthLog?.length ? garminActual.strengthLog : day.actual.strengthLog,
+          },
+        }
+      }
+
+      // No existing actual — Garmin becomes the actual
+      return { ...day, actual: garminActual }
+    }),
+  }))
+}
+
+function findBestGarminMatch(day: PlannedDay, details: GarminActivityDetail[]): GarminActivityDetail | null {
+  if (details.length === 1) return details[0]
+
+  const expectedTypes = getExpectedGarminTypes(day.type)
+  const typed = details.find(d =>
+    expectedTypes.some(t => d.type.toLowerCase().includes(t))
+  )
+  return typed || details[0]
+}
+
+function getExpectedGarminTypes(type: WorkoutType): string[] {
+  switch (type) {
+    case 'run': case 'quality': case 'long': case 'race':
+      return ['running', 'trail_running', 'treadmill']
+    case 'cross':
+      return ['cycling', 'swimming', 'hiking', 'walking', 'yoga', 'elliptical', 'rowing']
+    case 'strength':
+      return ['strength', 'cardio', 'hiit']
+    default:
+      return []
+  }
 }

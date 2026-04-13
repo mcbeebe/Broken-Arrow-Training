@@ -110,7 +110,7 @@ export default function DayCard({ day, onTap, onLog, onSwap, isSwapSelected, isS
         {actual && (
           <div className="mt-2 pt-2 border-t border-slate-200/50">
             <p className="text-xs font-medium text-teal-700 mb-1">
-              {actual.type === 'Manual' ? '📝' : '🔗 Strava:'} {actual.name}
+              {actual.source === 'manual' || actual.type === 'Manual' ? '📝' : actual.source === 'garmin' ? '⌚ Garmin:' : '🔗 Strava:'} {actual.name}
             </p>
             <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-600">
               {actual.distance > 0 && (
@@ -131,7 +131,37 @@ export default function DayCard({ day, onTap, onLog, onSwap, isSwapSelected, isS
               {actual.calories && (
                 <span>🔋 {actual.calories} cal</span>
               )}
+              {actual.aerobicTE != null && (
+                <span>🫀 AE {actual.aerobicTE.toFixed(1)}</span>
+              )}
+              {actual.anaerobicTE != null && (
+                <span>⚡ AN {actual.anaerobicTE.toFixed(1)}</span>
+              )}
+              {actual.epoc != null && actual.epoc > 0 && (
+                <span>🔥 EPOC {Math.round(actual.epoc)}</span>
+              )}
+              {actual.recoveryTimeHours != null && actual.recoveryTimeHours > 0 && (
+                <span>🔄 {actual.recoveryTimeHours}h recovery</span>
+              )}
             </div>
+            {actual.hrZoneSummary && actual.hrZoneSummary.length > 0 && (
+              <div className="mt-1.5">
+                <div className="flex h-2 rounded-full overflow-hidden">
+                  {actual.hrZoneSummary.map((z, i) => {
+                    const total = actual.hrZoneSummary!.reduce((s, z) => s + z.seconds, 0)
+                    const pct = total > 0 ? (z.seconds / total) * 100 : 0
+                    const colors = ['#94A3B8', '#3B82F6', '#22C55E', '#F59E0B', '#EF4444']
+                    return pct > 0 ? (
+                      <div key={i} style={{ width: `${pct}%`, backgroundColor: colors[z.zone - 1] || '#94A3B8' }} />
+                    ) : null
+                  })}
+                </div>
+                <div className="flex justify-between mt-0.5">
+                  <span className="text-[8px] text-slate-400">Z1</span>
+                  <span className="text-[8px] text-slate-400">Z5</span>
+                </div>
+              </div>
+            )}
             {actual.strengthLog && actual.strengthLog.length > 0 && (
               <div className="mt-1.5 text-xs text-purple-600">
                 💪 {actual.strengthLog.length} exercise{actual.strengthLog.length > 1 ? 's' : ''}

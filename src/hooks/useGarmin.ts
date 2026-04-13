@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from 'react'
-import type { GarminHealthData, GarminActivity } from '../types'
+import type { GarminHealthData, GarminActivity, GarminActivityDetail } from '../types'
 import {
   checkGarminAuth,
   fetchHealthData,
   fetchGarminActivities,
+  fetchActivityDetail,
   getCachedHealthData,
   cacheHealthData,
   mergeHealthData,
@@ -15,6 +16,8 @@ import {
   isSyncStale,
   getCachedGarminActivities,
   cacheGarminActivities,
+  getCachedActivityDetails,
+  cacheActivityDetails,
 } from '../utils/garmin'
 
 export interface UseGarminReturn {
@@ -24,6 +27,7 @@ export interface UseGarminReturn {
   error: string | null
   healthData: GarminHealthData[]
   garminActivities: GarminActivity[]
+  activityDetails: Record<string, GarminActivityDetail[]>
   lastSync: string | null
   displayName: string | null
   connect: () => Promise<void>
@@ -37,6 +41,7 @@ export function useGarmin(): UseGarminReturn {
   const [error, setError] = useState<string | null>(null)
   const [healthData, setHealthData] = useState<GarminHealthData[]>(getCachedHealthData())
   const [garminActivities, setGarminActivities] = useState<GarminActivity[]>(getCachedGarminActivities())
+  const [activityDetails, setActivityDetails] = useState<Record<string, GarminActivityDetail[]>>(getCachedActivityDetails())
   const [lastSync, setLastSync] = useState<string | null>(getGarminLastSync())
   const [displayName, setDisplayName] = useState<string | null>(null)
 
@@ -71,6 +76,28 @@ export function useGarmin(): UseGarminReturn {
         cacheGarminActivities(activities)
         setGarminActivities(activities)
 
+        // Fetch detailed activity data for last 7 days
+        const detailCache = { ...getCachedActivityDetails() }
+        const last7Dates: string[] = []
+        for (let i = 0; i < 7; i++) {
+          const d = new Date(Date.now() - i * 24 * 60 * 60 * 1000)
+          last7Dates.push(d.toISOString().slice(0, 10))
+        }
+        const datesWithActivities = last7Dates.filter(date =>
+          activities.some(a => a.date === date)
+        )
+        const detailResults = await Promise.all(
+          datesWithActivities.map(async date => {
+            const details = await fetchActivityDetail(date)
+            return { date, details }
+          })
+        )
+        for (const { date, details } of detailResults) {
+          if (details.length > 0) detailCache[date] = details
+        }
+        cacheActivityDetails(detailCache)
+        setActivityDetails(detailCache)
+
         setLastSync(new Date().toISOString())
       } else {
         setError(result.error || 'Authentication failed')
@@ -87,6 +114,7 @@ export function useGarmin(): UseGarminReturn {
     setConnected(false)
     setHealthData([])
     setGarminActivities([])
+    setActivityDetails({})
     setLastSync(null)
     setDisplayName(null)
     setError(null)
@@ -113,6 +141,28 @@ export function useGarmin(): UseGarminReturn {
       cacheGarminActivities(activities)
       setGarminActivities(activities)
 
+      // Fetch detailed activity data for last 7 days
+      const detailCache = { ...getCachedActivityDetails() }
+      const last7Dates: string[] = []
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(Date.now() - i * 24 * 60 * 60 * 1000)
+        last7Dates.push(d.toISOString().slice(0, 10))
+      }
+      const datesWithActivities = last7Dates.filter(date =>
+        activities.some(a => a.date === date)
+      )
+      const detailResults = await Promise.all(
+        datesWithActivities.map(async date => {
+          const details = await fetchActivityDetail(date)
+          return { date, details }
+        })
+      )
+      for (const { date, details } of detailResults) {
+        if (details.length > 0) detailCache[date] = details
+      }
+      cacheActivityDetails(detailCache)
+      setActivityDetails(detailCache)
+
       setLastSync(new Date().toISOString())
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Sync failed')
@@ -135,6 +185,7 @@ export function useGarmin(): UseGarminReturn {
     error,
     healthData,
     garminActivities,
+    activityDetails,
     lastSync,
     displayName,
     connect,

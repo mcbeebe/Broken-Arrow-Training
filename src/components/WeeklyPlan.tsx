@@ -1,10 +1,11 @@
 import { useState, useRef, useEffect } from 'react'
-import type { TrainingWeek, PlannedDay, ActualWorkout, HRZone, ReadinessScore, GarminHealthData } from '../types'
+import type { TrainingWeek, PlannedDay, ActualWorkout, HRZone, ReadinessScore, GarminHealthData, CoachRecommendation } from '../types'
 import DayCard from './DayCard'
 import VolumeChart from './VolumeChart'
 import WorkoutModal from './WorkoutModal'
 import ManualLog from './ManualLog'
 import ReadinessBanner from './ReadinessBanner'
+import CoachCard from './CoachCard'
 
 interface WeeklyPlanProps {
   weeks: TrainingWeek[]
@@ -22,6 +23,8 @@ interface WeeklyPlanProps {
   todayHealth?: GarminHealthData
   healthHistory?: GarminHealthData[]
   garminConnected?: boolean
+  coachRecommendation?: CoachRecommendation
+  onCoachSwap?: (fromIndex: number, toIndex: number) => void
 }
 
 export default function WeeklyPlan({
@@ -34,6 +37,8 @@ export default function WeeklyPlan({
   todayHealth,
   healthHistory = [],
   garminConnected = false,
+  coachRecommendation,
+  onCoachSwap,
 }: WeeklyPlanProps) {
   const [activeWeek, setActiveWeek] = useState(0)
   const [modalDay, setModalDay] = useState<PlannedDay | null>(null)
@@ -115,6 +120,14 @@ export default function WeeklyPlan({
           todayScore={todayReadiness}
           todayHealth={todayHealth}
           healthHistory={healthHistory}
+        />
+      )}
+
+      {/* AI Coach recommendation */}
+      {coachRecommendation && (
+        <CoachCard
+          recommendation={coachRecommendation}
+          onSwap={onCoachSwap ? (from, to) => onCoachSwap(from, to) : undefined}
         />
       )}
 

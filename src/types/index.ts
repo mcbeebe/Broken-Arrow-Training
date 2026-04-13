@@ -89,6 +89,8 @@ export interface PlannedDay {
 
 export interface ActualWorkout {
   stravaId: number;
+  garminId?: number;
+  source?: 'strava' | 'garmin' | 'manual';
   distance: number;
   movingTime: number;
   elapsedTime: number;
@@ -110,6 +112,12 @@ export interface ActualWorkout {
   splits?: { split: number; pace: string; hr?: number; elev: number }[];
   laps?: { name: string; distance: number; pace: string; hr?: number }[];
   deviceName?: string;
+  aerobicTE?: number;
+  anaerobicTE?: number;
+  epoc?: number;
+  recoveryTimeHours?: number;
+  vo2max?: number;
+  hrZoneSummary?: { zone: number; seconds: number }[];
 }
 
 export interface StrengthExerciseLog {
@@ -216,6 +224,48 @@ export interface GarminActivity {
   calories?: number;
   vigorousIntensityMinutes?: number;
   moderateIntensityMinutes?: number;
+}
+
+export interface GarminHRZone {
+  zoneNumber: number
+  zoneLowBoundary: number
+  secsInZone: number
+}
+
+export interface GarminExerciseSet {
+  exerciseName: string
+  category: string
+  setType: string
+  repetitionCount?: number
+  weight?: number
+  duration?: number
+}
+
+export interface GarminActivityDetail {
+  activityId: number
+  name: string
+  type: string
+  startTimeLocal: string
+  durationSeconds: number
+  movingDurationSeconds: number
+  averageHR?: number
+  maxHR?: number
+  distanceMeters: number
+  elevationGainMeters: number
+  elevationLossMeters: number
+  aerobicTrainingEffect?: number
+  anaerobicTrainingEffect?: number
+  trainingEffectLabel?: string
+  activityTrainingLoad?: number
+  calories: number
+  activeCalories?: number
+  vO2MaxValue?: number
+  recoveryTime?: number
+  moderateIntensityMinutes?: number
+  vigorousIntensityMinutes?: number
+  hrZones?: GarminHRZone[]
+  exerciseSets?: GarminExerciseSet[]
+  splits?: unknown
 }
 
 export interface GarminConnectionState {
@@ -351,4 +401,26 @@ export interface WeeklyRecommendation {
   severity: "info" | "warning" | "alert";
   message: string;
   weekNum?: number;
+}
+
+// ─── AI Coach Types ─────────────────────────────────────────────
+
+export type CoachTimeOfDay = 'morning' | 'evening'
+
+export interface CoachRecommendation {
+  timeOfDay: CoachTimeOfDay
+  headline: string
+  body: string
+  sleepTarget?: string  // e.g., "8+ hours tonight"
+  action?: CoachAction
+  inputs: string[]  // which data points drove this (e.g., "HRV above baseline", "TSB -42")
+}
+
+export interface CoachAction {
+  type: 'execute' | 'modify' | 'skip' | 'swap' | 'sleep_target'
+  label: string  // button label
+  detail: string  // explanation
+  swapFromIndex?: number
+  swapToIndex?: number
+  swapWeekNum?: number
 }
