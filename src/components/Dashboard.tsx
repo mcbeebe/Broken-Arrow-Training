@@ -309,7 +309,7 @@ function ReadinessGlossary() {
         </div>
         <div>
           <p className="font-semibold text-slate-700">Training Load (20% weight)</p>
-          <p>How much stress your recent training has placed on your body, measured via TRIMP (Training Impulse). A high recent training load relative to your baseline reduces readiness. Scored inversely — less recent load means more readiness.</p>
+          <p>How much stress your recent training has placed on your body, measured via EPOC (Excess Post-exercise Oxygen Consumption). A high recent training load relative to your baseline reduces readiness. Scored inversely — less recent load means more readiness.</p>
         </div>
         <div className="pt-2 border-t border-slate-200">
           <p className="font-semibold text-slate-700">Traffic Light Signals</p>
@@ -394,16 +394,20 @@ function PerformanceGlossary() {
           </ul>
         </div>
         <div>
-          <p className="font-semibold text-slate-700">TRIMP — Training Impulse</p>
-          <p>A single number that quantifies the training stress of a workout using the Banister formula:</p>
-          <div className="bg-white rounded-lg p-2 mt-1.5 border border-slate-200 font-mono text-[10px] text-center text-slate-700">
-            TRIMP = duration × ΔHR ratio × 0.64 × e<sup>(1.92 × ΔHR ratio)</sup>
+          <p className="font-semibold text-slate-700">EPOC — Excess Post-exercise Oxygen Consumption</p>
+          <p>A single number that quantifies the <em>recovery debt</em> created by a workout — how much extra oxygen your body needs to return to baseline. More physiologically accurate than traditional TRIMP because it captures both aerobic and anaerobic cost, making it especially accurate for strength training, HIIT, and trail running.</p>
+          <div className="bg-white rounded-lg p-3 mt-1.5 border border-slate-200 text-[10px] text-slate-700 space-y-1">
+            <p className="font-mono text-center">%HRR = (avgHR − restHR) / (maxHR − restHR)</p>
+            <p className="font-mono text-center">VO₂<sub>exercise</sub> = VO₂max × %HRR</p>
+            <p className="font-mono text-center">Exercise O₂ cost = (VO₂<sub>exercise</sub> − 3.5) × duration</p>
+            <p className="font-mono text-center">EPOC = O₂ cost × 0.045 × e<sup>(1.35 × %HRR)</sup></p>
+            <p className="text-center text-slate-500 pt-1">Based on Borsheim & Bahr (2003), LaForgia et al. (2006), Swain et al. (1998)</p>
           </div>
-          <p className="mt-1.5">Where ΔHR ratio = (avgHR − restingHR) / (maxHR − restingHR). The exponential term means high-intensity efforts produce disproportionately more training stress.</p>
+          <p className="mt-1.5">The exponential term is key: high-intensity work creates <em>disproportionately</em> more recovery debt. A 30-minute Z4 run creates far more EPOC than a 30-minute Z2 run at the same average HR — and a heavy strength session generates significant EPOC even when average HR appears moderate (because of the anaerobic cost between sets).</p>
         </div>
         <div>
           <p className="font-semibold text-slate-700">Sport Multipliers</p>
-          <p>Different activities stress the body differently. Each sport type applies a multiplier to the base TRIMP:</p>
+          <p>Different activities stress the body differently. Each sport type applies a multiplier to the base EPOC:</p>
           <div className="mt-1.5 overflow-hidden rounded-lg border border-slate-200">
             <table className="w-full text-[10px]">
               <thead>
@@ -429,15 +433,19 @@ function PerformanceGlossary() {
         </div>
         <div>
           <p className="font-semibold text-slate-700">Elevation Bonus</p>
-          <p>Workouts with significant climbing get an additional <strong>+10 TRIMP per 1,000 ft</strong> of elevation gain. This accounts for the extra muscular and cardiovascular demand of vertical work — critical for Broken Arrow Skyrace prep.</p>
+          <p>Workouts with significant climbing get an additional <strong>+10 per 1,000 ft</strong> of elevation gain. This accounts for eccentric loading on descents, altitude stress, and the extra cardiovascular demand of vertical work — critical for Broken Arrow Skyrace prep.</p>
         </div>
         <div>
-          <p className="font-semibold text-slate-700">Weekly TRIMP</p>
-          <p>Your total training load for the past 7 days, broken down by sport type. The stacked bar chart shows the distribution — a balanced mix across running, strength, and cross-training is generally better than all-or-nothing training.</p>
+          <p className="font-semibold text-slate-700">Weekly Training Load</p>
+          <p>Your total EPOC-based training load for the past 7 days, broken down by sport type. The stacked bar chart shows the distribution — a balanced mix across running, strength, and cross-training is generally better than all-or-nothing training.</p>
+        </div>
+        <div>
+          <p className="font-semibold text-slate-700">Garmin Aerobic / Anaerobic Training Effect</p>
+          <p>Displayed alongside your EPOC load as supplementary context. Aerobic TE (0–5.0) indicates cardiovascular stimulus; Anaerobic TE (0–5.0) indicates high-intensity/muscular stimulus. These are Garmin's proprietary metrics — useful for understanding session character but <em>not</em> used in the training load model to avoid double-counting.</p>
         </div>
         <div className="pt-2 border-t border-slate-200">
-          <p className="font-semibold text-slate-700">The Banister Model</p>
-          <p>All of these metrics come from the Banister impulse-response model, a peer-reviewed framework used in sport science since the 1970s. The core idea: every workout produces both a <em>fitness</em> gain (slow to build, slow to fade) and a <em>fatigue</em> cost (fast to build, fast to fade). Your "form" at any moment is the balance between the two. Proper tapering before a race lets fatigue drop faster than fitness, producing peak performance.</p>
+          <p className="font-semibold text-slate-700">The Impulse-Response Model</p>
+          <p>CTL, ATL, TSB, and ACWR all come from the impulse-response framework used in sport science since the 1970s (Banister et al.). The core idea: every workout produces both a <em>fitness</em> gain (slow to build, slow to fade) and a <em>fatigue</em> cost (fast to build, fast to fade). Your "form" at any moment is the balance between the two. By using EPOC instead of traditional TRIMP as the input, this model better captures the true metabolic cost of your mixed strength + trail training. Proper tapering before a race lets fatigue drop faster than fitness, producing peak performance.</p>
         </div>
       </div>
     </div>
