@@ -109,9 +109,7 @@ const TYPE_MAP: Record<string, SportType> = {
   strength_training: 'strength_full',
   cardio: 'cardio',
   hiit: 'hiit',
-  elliptical: 'elliptical',
   indoor_rowing: 'indoor_rowing',
-  yoga: 'yoga',
   pilates: 'pilates',
   breathwork: 'breathwork',
   // Catch-all
