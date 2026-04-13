@@ -61,22 +61,25 @@ export function useReadiness({
     return withRHR[0].rhr!
   }, [healthData])
 
-  // Calculate TRIMP from Strava activities (primary source)
+  // Calculate TRIMP — Garmin activities are the primary source
+  // (captures strength, yoga, hiking, etc. that may not be in Strava)
+  // Strava supplements for dates/activities not covered by Garmin.
+  // All TRIMP uses our own Banister formula — not Garmin's black-box activityTrainingLoad.
   const trimpRecords = useMemo(() => {
-    const stravaRecords: TRIMPRecord[] = stravaActivities
-      .map(a => stravaActivityToTRIMP(a, restingHR, maxHR))
-      .filter((r): r is TRIMPRecord => r !== null)
-
-    // Get dates covered by Strava
-    const stravaDates = new Set(stravaRecords.map(r => r.date))
-
-    // Supplement with Garmin activities for dates not in Strava
     const garminRecords: TRIMPRecord[] = garminActivities
-      .filter(a => !stravaDates.has(a.date))
       .map(a => garminActivityToTRIMP(a, restingHR, maxHR))
       .filter((r): r is TRIMPRecord => r !== null)
 
-    return [...stravaRecords, ...garminRecords].sort((a, b) => a.date.localeCompare(b.date))
+    // Get dates covered by Garmin
+    const garminDates = new Set(garminRecords.map(r => r.date))
+
+    // Supplement with Strava activities for dates not in Garmin
+    const stravaRecords: TRIMPRecord[] = stravaActivities
+      .filter(a => !garminDates.has(a.start_date_local.slice(0, 10)))
+      .map(a => stravaActivityToTRIMP(a, restingHR, maxHR))
+      .filter((r): r is TRIMPRecord => r !== null)
+
+    return [...garminRecords, ...stravaRecords].sort((a, b) => a.date.localeCompare(b.date))
   }, [stravaActivities, garminActivities, restingHR, maxHR])
 
   // Aggregate daily TRIMP

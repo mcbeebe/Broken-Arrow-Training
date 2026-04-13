@@ -58,11 +58,19 @@ export function useGarmin(): UseGarminReturn {
         setConnected(true)
         setDisplayName(result.displayName || null)
 
-        // 30-day backfill on first connection
+        // 30-day backfill on first connection (health + activities)
         const data = await fetchHealthData(30)
         const merged = mergeHealthData(healthData, data)
         cacheHealthData(merged)
         setHealthData(merged)
+
+        // Also backfill Garmin activities (primary TRIMP source)
+        const today = new Date().toISOString().slice(0, 10)
+        const thirtyAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+        const activities = await fetchGarminActivities(thirtyAgo, today)
+        cacheGarminActivities(activities)
+        setGarminActivities(activities)
+
         setLastSync(new Date().toISOString())
       } else {
         setError(result.error || 'Authentication failed')

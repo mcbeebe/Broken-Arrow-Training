@@ -130,6 +130,11 @@ class handler(BaseHTTPRequestHandler):
                     "maxHR": max_hr,
                     "elevationGainFt": round(_meters_to_feet(elevation_m), 0),
                     "trainingEffect": training_effect,
+                    "anaerobicTrainingEffect": act.get("anaerobicTrainingEffect"),
+                    "activityTrainingLoad": act.get("activityTrainingLoad"),
+                    "calories": act.get("calories"),
+                    "vigorousIntensityMinutes": act.get("vigorousIntensityMinutes"),
+                    "moderateIntensityMinutes": act.get("moderateIntensityMinutes"),
                 })
 
             self.send_response(200)
