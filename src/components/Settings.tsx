@@ -22,6 +22,9 @@ interface SettingsProps {
   onGarminConnect: () => Promise<void>
   onGarminDisconnect: () => void
   onGarminSync: () => Promise<void>
+  // Cache management
+  onClearCache?: () => void
+  onClearAll?: () => void
 }
 
 export default function Settings({
@@ -43,6 +46,8 @@ export default function Settings({
   onGarminConnect,
   onGarminDisconnect,
   onGarminSync,
+  onClearCache,
+  onClearAll,
 }: SettingsProps) {
   return (
     <div className="px-4 py-4 space-y-4">
@@ -110,6 +115,42 @@ export default function Settings({
         </div>
       )}
 
+      {/* Cache management */}
+      {(onClearCache || onClearAll) && (
+        <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-100 space-y-3">
+          <h3 className="text-sm font-semibold text-slate-700">Data Management</h3>
+          <p className="text-xs text-slate-500">
+            If you're seeing stale data, clear the cache and re-sync. This forces the app to fetch fresh data from Strava and Garmin.
+          </p>
+          <div className="flex gap-2">
+            {onClearCache && (
+              <button
+                onClick={() => {
+                  onClearCache()
+                  window.location.reload()
+                }}
+                className="text-xs font-medium px-3 py-1.5 rounded-lg bg-amber-100 text-amber-700 hover:bg-amber-200 transition-colors"
+              >
+                Clear Cache & Reload
+              </button>
+            )}
+            {onClearAll && (
+              <button
+                onClick={() => {
+                  if (confirm('This will sign you out of Strava and Garmin. Continue?')) {
+                    onClearAll()
+                    window.location.reload()
+                  }
+                }}
+                className="text-xs font-medium px-3 py-1.5 rounded-lg bg-red-100 text-red-700 hover:bg-red-200 transition-colors"
+              >
+                Clear All & Sign Out
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* App info */}
       <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-100">
         <h3 className="text-sm font-semibold text-slate-700 mb-2">About</h3>
@@ -117,6 +158,7 @@ export default function Settings({
           <p>Broken Arrow 18K Training App</p>
           <p>10-week plan: Apr 13 – Jun 22, 2026</p>
           <p>Race: Friday June 20, 12PM at Palisades Tahoe</p>
+          <p className="text-slate-400">Engine: ATE v2 (EPOC + Banister fallback)</p>
         </div>
       </div>
     </div>

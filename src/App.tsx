@@ -8,11 +8,15 @@ import { useManualLog } from './hooks/useManualLog'
 import { useDaySwap } from './hooks/useDaySwap'
 import { useReadiness } from './hooks/useReadiness'
 import { matchActivitiesToPlan } from './utils/matching'
+import { checkStorageVersion, clearAllCachedData, clearAllAppData } from './utils/storageVersion'
 import WeeklyPlan from './components/WeeklyPlan'
 import Dashboard from './components/Dashboard'
 import RaceInfo from './components/RaceInfo'
 import Methodology from './components/Methodology'
 import Settings from './components/Settings'
+
+// Auto-clear stale caches on app startup when data format changes
+checkStorageVersion()
 
 function getAthleteFromHash(): string {
   const hash = window.location.hash.replace('#', '').toLowerCase()
@@ -188,6 +192,8 @@ export default function App() {
           onGarminConnect={garmin.connect}
           onGarminDisconnect={garmin.disconnect}
           onGarminSync={garmin.sync}
+          onClearCache={clearAllCachedData}
+          onClearAll={clearAllAppData}
         />
       )}
     </div>
