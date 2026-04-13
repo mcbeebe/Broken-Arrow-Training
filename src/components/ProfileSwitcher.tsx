@@ -5,6 +5,7 @@ interface ProfileSwitcherProps {
 
 const PROFILES = [
   { id: 'mike', label: 'Mike 18K' },
+  { id: 'lori', label: 'Lori 11K' },
   { id: 'jim', label: 'Jim 11K' },
 ]
 
