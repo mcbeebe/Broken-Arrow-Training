@@ -1,4 +1,4 @@
-import type { PlannedDay } from '../types'
+import type { PlannedDay, ReadinessScore } from '../types'
 import { getWorkoutStyle } from '../utils/styles'
 import { formatMiles, formatSeconds, estimateRunTime } from '../utils/format'
 
@@ -9,12 +9,22 @@ interface DayCardProps {
   onSwap?: () => void
   isSwapSelected?: boolean
   isSwapTarget?: boolean
+  readiness?: ReadinessScore
 }
 
-export default function DayCard({ day, onTap, onLog, onSwap, isSwapSelected, isSwapTarget }: DayCardProps) {
+export default function DayCard({ day, onTap, onLog, onSwap, isSwapSelected, isSwapTarget, readiness }: DayCardProps) {
   const style = getWorkoutStyle(day.type)
   const actual = day.actual
   const timeEst = estimateRunTime(day.zone)
+
+  const statusDot = readiness && readiness.status !== 'GREEN' ? (
+    <span
+      className={`w-2.5 h-2.5 rounded-full inline-block ${
+        readiness.status === 'YELLOW' ? 'bg-amber-400' : 'bg-red-500'
+      }`}
+      title={`Readiness: ${readiness.status} (${readiness.composite}/100)`}
+    />
+  ) : null
 
   return (
     <div
@@ -60,6 +70,7 @@ export default function DayCard({ day, onTap, onLog, onSwap, isSwapSelected, isS
                 {actual ? '✏️ Edit' : '📝 Log'}
               </button>
             )}
+            {statusDot}
             {day.time !== '—' && (
               <span className="text-xs text-slate-500 bg-white/60 rounded-full px-2 py-0.5">
                 {day.time}
@@ -78,6 +89,17 @@ export default function DayCard({ day, onTap, onLog, onSwap, isSwapSelected, isS
           <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-slate-500">
             <span>📊 {day.zone}{timeEst ? ` (${timeEst} running)` : ''}</span>
             {day.route !== '—' && <span>📍 {day.route}</span>}
+          </div>
+        )}
+
+        {/* Readiness adjustment suggestion */}
+        {readiness && readiness.adjustment && readiness.status !== 'GREEN' && (
+          <div className={`mt-1.5 px-2 py-1 rounded-md text-xs ${
+            readiness.status === 'YELLOW'
+              ? 'bg-amber-100/60 text-amber-700'
+              : 'bg-red-100/60 text-red-700'
+          }`}>
+            💡 {readiness.adjustment}
           </div>
         )}
 

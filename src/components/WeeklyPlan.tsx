@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect } from 'react'
-import type { TrainingWeek, PlannedDay, ActualWorkout, HRZone } from '../types'
+import type { TrainingWeek, PlannedDay, ActualWorkout, HRZone, ReadinessScore, GarminHealthData } from '../types'
 import DayCard from './DayCard'
 import VolumeChart from './VolumeChart'
 import WorkoutModal from './WorkoutModal'
 import ManualLog from './ManualLog'
+import ReadinessBanner from './ReadinessBanner'
 
 interface WeeklyPlanProps {
   weeks: TrainingWeek[]
@@ -16,9 +17,24 @@ interface WeeklyPlanProps {
     resetWeek: (weekNum: number) => void
     hasSwaps: (weekNum: number) => boolean
   }
+  todayReadiness?: ReadinessScore | null
+  weekReadiness?: ReadinessScore[]
+  todayHealth?: GarminHealthData
+  healthHistory?: GarminHealthData[]
+  garminConnected?: boolean
 }
 
-export default function WeeklyPlan({ weeks, zones, manualLog, daySwap }: WeeklyPlanProps) {
+export default function WeeklyPlan({
+  weeks,
+  zones,
+  manualLog,
+  daySwap,
+  todayReadiness,
+  weekReadiness = [],
+  todayHealth,
+  healthHistory = [],
+  garminConnected = false,
+}: WeeklyPlanProps) {
   const [activeWeek, setActiveWeek] = useState(0)
   const [modalDay, setModalDay] = useState<PlannedDay | null>(null)
   const [logDay, setLogDay] = useState<PlannedDay | null>(null)
@@ -49,6 +65,12 @@ export default function WeeklyPlan({ weeks, zones, manualLog, daySwap }: WeeklyP
 
   const showResetButton = daySwap?.hasSwaps(week.num)
   const isSwapMode = swapSource !== null
+
+  // Build a map of date -> ReadinessScore for DayCard matching
+  const readinessByDate = new Map<string, ReadinessScore>()
+  for (const score of weekReadiness) {
+    readinessByDate.set(score.date, score)
+  }
 
   return (
     <div className="pb-6">
@@ -87,6 +109,15 @@ export default function WeeklyPlan({ weeks, zones, manualLog, daySwap }: WeeklyP
         </div>
       )}
 
+      {/* Readiness banner (only when Garmin connected and data available) */}
+      {garminConnected && todayReadiness && (
+        <ReadinessBanner
+          todayScore={todayReadiness}
+          todayHealth={todayHealth}
+          healthHistory={healthHistory}
+        />
+      )}
+
       {/* Week header */}
       <div className="px-4 pt-4 pb-2">
         <div className="flex items-center justify-between">
@@ -111,25 +142,32 @@ export default function WeeklyPlan({ weeks, zones, manualLog, daySwap }: WeeklyP
 
       {/* Day cards */}
       <div className="px-3 space-y-2">
-        {week.days.map((d, i) => (
-          <div
-            key={`${week.num}-${i}`}
-            className={`transition-all rounded-xl ${
-              swapSource === i ? 'ring-2 ring-teal-500 ring-offset-2 scale-[0.98]' : ''
-            } ${
-              isSwapMode && swapSource !== i ? 'ring-1 ring-teal-300 ring-offset-1' : ''
-            }`}
-          >
-            <DayCard
-              day={d}
-              onTap={isSwapMode ? () => handleSwapTap(i) : () => setModalDay(d)}
-              onLog={manualLog ? () => setLogDay(d) : undefined}
-              onSwap={daySwap ? () => handleSwapTap(i) : undefined}
-              isSwapSelected={swapSource === i}
-              isSwapTarget={isSwapMode && swapSource !== i}
-            />
-          </div>
-        ))}
+        {week.days.map((d, i) => {
+          // Match readiness to day by parsing day label to date
+          const dayDateMatch = parseDayToDate(d.day, week.dates)
+          const readiness = dayDateMatch ? readinessByDate.get(dayDateMatch) : undefined
+
+          return (
+            <div
+              key={`${week.num}-${i}`}
+              className={`transition-all rounded-xl ${
+                swapSource === i ? 'ring-2 ring-teal-500 ring-offset-2 scale-[0.98]' : ''
+              } ${
+                isSwapMode && swapSource !== i ? 'ring-1 ring-teal-300 ring-offset-1' : ''
+              }`}
+            >
+              <DayCard
+                day={d}
+                onTap={isSwapMode ? () => handleSwapTap(i) : () => setModalDay(d)}
+                onLog={manualLog ? () => setLogDay(d) : undefined}
+                onSwap={daySwap ? () => handleSwapTap(i) : undefined}
+                isSwapSelected={swapSource === i}
+                isSwapTarget={isSwapMode && swapSource !== i}
+                readiness={readiness}
+              />
+            </div>
+          )
+        })}
       </div>
 
       {/* Volume chart */}
@@ -159,4 +197,16 @@ export default function WeeklyPlan({ weeks, zones, manualLog, daySwap }: WeeklyP
       )}
     </div>
   )
+}
+
+/**
+ * Parse a day label like "4/13" into a YYYY-MM-DD string using the week dates context.
+ * Week dates format: "Apr 13 – 19" → year is 2026.
+ */
+function parseDayToDate(dayLabel: string, _weekDates: string): string | null {
+  const match = dayLabel.match(/^(\d{1,2})\/(\d{1,2})/)
+  if (!match) return null
+  const month = match[1].padStart(2, '0')
+  const day = match[2].padStart(2, '0')
+  return `2026-${month}-${day}`
 }

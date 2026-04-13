@@ -1,6 +1,8 @@
 import StravaConnect from './StravaConnect'
+import GarminConnect from './GarminConnect'
 
 interface SettingsProps {
+  // Strava
   connected: boolean
   configured: boolean
   loading: boolean
@@ -10,6 +12,16 @@ interface SettingsProps {
   onConnect: () => void
   onDisconnect: () => void
   onSync: () => Promise<void>
+  // Garmin
+  garminConnected: boolean
+  garminConfigured: boolean
+  garminLoading: boolean
+  garminError: string | null
+  garminDisplayName: string | null
+  garminLastSync: string | null
+  onGarminConnect: () => Promise<void>
+  onGarminDisconnect: () => void
+  onGarminSync: () => Promise<void>
 }
 
 export default function Settings({
@@ -22,6 +34,15 @@ export default function Settings({
   onConnect,
   onDisconnect,
   onSync,
+  garminConnected,
+  garminConfigured,
+  garminLoading,
+  garminError,
+  garminDisplayName,
+  garminLastSync,
+  onGarminConnect,
+  onGarminDisconnect,
+  onGarminSync,
 }: SettingsProps) {
   return (
     <div className="px-4 py-4 space-y-4">
@@ -37,6 +58,25 @@ export default function Settings({
           athleteName={athleteName}
           onConnect={onConnect}
           onDisconnect={onDisconnect}
+        />
+      </div>
+
+      {/* Garmin connection */}
+      <div>
+        <h3 className="text-sm font-semibold text-slate-700 mb-2">Garmin Integration</h3>
+        <p className="text-xs text-slate-400 mb-2">
+          HRV, resting HR, sleep quality, and Body Battery for readiness scoring.
+        </p>
+        <GarminConnect
+          connected={garminConnected}
+          configured={garminConfigured}
+          loading={garminLoading}
+          error={garminError}
+          displayName={garminDisplayName}
+          lastSync={garminLastSync}
+          onConnect={onGarminConnect}
+          onDisconnect={onGarminDisconnect}
+          onSync={onGarminSync}
         />
       </div>
 

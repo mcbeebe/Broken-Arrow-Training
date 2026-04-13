@@ -1,17 +1,52 @@
-import type { TrainingWeek } from '../types'
+import { useState } from 'react'
+import type { TrainingWeek, ReadinessScore, GarminHealthData, DailyTRIMP, PerformanceMetrics, WeeklyRecommendation } from '../types'
 import type { OverallCompliance } from '../hooks/useCompliance'
 import { getMilesNumber } from '../utils/format'
+import ReadinessBanner from './ReadinessBanner'
+import TRIMPBreakdown from './TRIMPBreakdown'
+import PerformanceChart from './PerformanceChart'
+
+type DashSubTab = 'compliance' | 'readiness' | 'performance'
 
 interface DashboardProps {
   weeks: TrainingWeek[]
   compliance: OverallCompliance
   raceDate: string
+  // Garmin/Readiness data (optional — renders only when available)
+  todayScore?: ReadinessScore | null
+  weekScores?: ReadinessScore[]
+  todayHealth?: GarminHealthData
+  healthHistory?: GarminHealthData[]
+  dailyTrimp?: DailyTRIMP[]
+  performance?: PerformanceMetrics[]
+  weeklyRecommendations?: WeeklyRecommendation[]
+  garminConnected?: boolean
 }
 
-export default function Dashboard({ weeks, compliance, raceDate }: DashboardProps) {
+export default function Dashboard({
+  weeks,
+  compliance,
+  raceDate,
+  todayScore,
+  weekScores = [],
+  todayHealth,
+  healthHistory = [],
+  dailyTrimp = [],
+  performance = [],
+  weeklyRecommendations = [],
+  garminConnected = false,
+}: DashboardProps) {
+  const [subTab, setSubTab] = useState<DashSubTab>('compliance')
+
   const daysUntilRace = Math.max(0, Math.ceil(
     (new Date('2026-06-20').getTime() - Date.now()) / (1000 * 60 * 60 * 24)
   ))
+
+  const SUB_TABS: { id: DashSubTab; label: string; available: boolean }[] = [
+    { id: 'compliance', label: 'Compliance', available: true },
+    { id: 'readiness', label: 'Readiness', available: garminConnected },
+    { id: 'performance', label: 'Performance', available: garminConnected || dailyTrimp.length > 0 },
+  ]
 
   return (
     <div className="px-4 py-4 space-y-4">
@@ -24,6 +59,52 @@ export default function Dashboard({ weeks, compliance, raceDate }: DashboardProp
         <p className="text-xs text-teal-400 mt-1">{raceDate}</p>
       </div>
 
+      {/* Sub-tab navigation */}
+      <div className="flex gap-1 bg-slate-100 rounded-lg p-1">
+        {SUB_TABS.filter(t => t.available).map(t => (
+          <button
+            key={t.id}
+            onClick={() => setSubTab(t.id)}
+            className={`flex-1 py-2 text-xs font-medium rounded-md transition-colors ${
+              subTab === t.id
+                ? 'bg-white text-slate-800 shadow-sm'
+                : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Sub-tab content */}
+      {subTab === 'compliance' && (
+        <ComplianceTab weeks={weeks} compliance={compliance} />
+      )}
+      {subTab === 'readiness' && (
+        <ReadinessTab
+          todayScore={todayScore}
+          weekScores={weekScores}
+          todayHealth={todayHealth}
+          healthHistory={healthHistory}
+        />
+      )}
+      {subTab === 'performance' && (
+        <PerformanceTab
+          dailyTrimp={dailyTrimp}
+          performance={performance}
+          recommendations={weeklyRecommendations}
+          raceDate={raceDate}
+        />
+      )}
+    </div>
+  )
+}
+
+// ─── Compliance Sub-Tab (existing content) ──────────────────────
+
+function ComplianceTab({ weeks, compliance }: { weeks: TrainingWeek[]; compliance: OverallCompliance }) {
+  return (
+    <div className="space-y-4">
       {/* Summary cards */}
       <div className="grid grid-cols-2 gap-3">
         <StatCard
@@ -73,7 +154,6 @@ export default function Dashboard({ weeks, compliance, raceDate }: DashboardProp
                   )}
                 </div>
               </div>
-              {/* Mileage bar */}
               <div className="mt-2">
                 <div className="flex justify-between text-xs text-slate-500 mb-0.5">
                   <span>{wk.actualMiles} mi actual</span>
@@ -133,6 +213,91 @@ export default function Dashboard({ weeks, compliance, raceDate }: DashboardProp
     </div>
   )
 }
+
+// ─── Readiness Sub-Tab ──────────────────────────────────────────
+
+function ReadinessTab({
+  todayScore,
+  weekScores,
+  todayHealth,
+  healthHistory,
+}: {
+  todayScore?: ReadinessScore | null
+  weekScores: ReadinessScore[]
+  todayHealth?: GarminHealthData
+  healthHistory: GarminHealthData[]
+}) {
+  return (
+    <div className="space-y-4">
+      {todayScore && (
+        <ReadinessBanner
+          todayScore={todayScore}
+          todayHealth={todayHealth}
+          healthHistory={healthHistory}
+        />
+      )}
+
+      {/* 7-day readiness trend */}
+      {weekScores.length > 0 && (
+        <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-100">
+          <p className="text-sm font-semibold text-slate-700 mb-3">7-Day Readiness Trend</p>
+          <div className="flex items-end gap-1.5 h-20">
+            {weekScores.map((s, i) => {
+              const height = `${Math.max(s.composite, 5)}%`
+              const bg =
+                s.status === 'GREEN' ? 'bg-green-500' :
+                s.status === 'YELLOW' ? 'bg-amber-400' :
+                'bg-red-500'
+              return (
+                <div key={i} className="flex-1 flex flex-col items-center gap-1">
+                  <span className="text-[9px] text-slate-400">{s.composite}</span>
+                  <div
+                    className={`w-full rounded-t ${bg} transition-all`}
+                    style={{ height }}
+                  />
+                  <span className="text-[9px] text-slate-400">{s.date.slice(5)}</span>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {!todayScore && (
+        <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-100 text-center">
+          <p className="text-sm text-slate-500">Connect Garmin and sync to see readiness data</p>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── Performance Sub-Tab ────────────────────────────────────────
+
+function PerformanceTab({
+  dailyTrimp,
+  performance,
+  recommendations,
+  raceDate,
+}: {
+  dailyTrimp: DailyTRIMP[]
+  performance: PerformanceMetrics[]
+  recommendations: WeeklyRecommendation[]
+  raceDate: string
+}) {
+  return (
+    <div className="space-y-4">
+      <PerformanceChart
+        performance={performance}
+        recommendations={recommendations}
+        raceDate={raceDate}
+      />
+      <TRIMPBreakdown dailyTrimp={dailyTrimp} />
+    </div>
+  )
+}
+
+// ─── Shared StatCard ────────────────────────────────────────────
 
 function StatCard({ label, value, sub, color }: { label: string; value: string; sub: string; color: string }) {
   const colorMap: Record<string, string> = {
