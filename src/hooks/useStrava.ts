@@ -80,8 +80,8 @@ export function useStrava(): UseStravaReturn {
       const accessToken = await getValidToken()
       if (!accessToken) return
 
-      // Fetch activities from training start date (Apr 13, 2026)
-      const trainingStart = new Date('2026-04-13T00:00:00').getTime() / 1000
+      // Fetch activities from 24 hours before training start (timezone buffer)
+      const trainingStart = new Date('2026-04-12T00:00:00').getTime() / 1000
       const fetched = await fetchActivities(accessToken, trainingStart)
       setActivities(fetched)
       cacheActivities(fetched)
