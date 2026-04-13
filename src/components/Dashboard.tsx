@@ -268,6 +268,56 @@ function ReadinessTab({
           <p className="text-sm text-slate-500">Connect Garmin and sync to see readiness data</p>
         </div>
       )}
+
+      {/* Glossary */}
+      <ReadinessGlossary />
+    </div>
+  )
+}
+
+// ─── Readiness Glossary ────────────────────────────────────────
+
+function ReadinessGlossary() {
+  return (
+    <div className="bg-slate-50 rounded-xl p-4 border border-slate-200">
+      <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-3">Understanding Your Readiness</p>
+      <div className="space-y-3 text-xs text-slate-600 leading-relaxed">
+        <div>
+          <p className="font-semibold text-slate-700">Readiness Score (0–100)</p>
+          <p>A composite score reflecting how prepared your body is to train today. It combines four biometric inputs from your Garmin watch, each weighted by its predictive importance for recovery.</p>
+        </div>
+        <div>
+          <p className="font-semibold text-slate-700">HRV — Heart Rate Variability (40% weight)</p>
+          <p>The variation in time between heartbeats, measured overnight. Higher HRV generally indicates better recovery and parasympathetic (rest-and-digest) nervous system activation. Your score is based on how today's HRV compares to your personal 30-day rolling baseline — not absolute numbers.</p>
+        </div>
+        <div>
+          <p className="font-semibold text-slate-700">RHR — Resting Heart Rate (20% weight)</p>
+          <p>Your lowest heart rate while at rest. A lower-than-baseline RHR suggests good recovery; an elevated RHR can signal fatigue, stress, dehydration, or illness. Scored inversely — lower is better.</p>
+        </div>
+        <div>
+          <p className="font-semibold text-slate-700">Sleep (20% weight)</p>
+          <p>A combination of sleep duration and Garmin's sleep score. Both quantity (hours) and quality (deep, REM, and light sleep distribution) matter for recovery. The readiness engine weighs duration at 50% and quality at 50%.</p>
+        </div>
+        <div>
+          <p className="font-semibold text-slate-700">Training Load (20% weight)</p>
+          <p>How much stress your recent training has placed on your body, measured via TRIMP (Training Impulse). A high recent training load relative to your baseline reduces readiness. Scored inversely — less recent load means more readiness.</p>
+        </div>
+        <div className="pt-2 border-t border-slate-200">
+          <p className="font-semibold text-slate-700">Traffic Light Signals</p>
+          <p>
+            <span className="inline-block w-2.5 h-2.5 rounded-full bg-green-500 mr-1 align-middle" />
+            <strong>GREEN (70–100):</strong> Execute your planned workout as written.
+          </p>
+          <p>
+            <span className="inline-block w-2.5 h-2.5 rounded-full bg-amber-400 mr-1 align-middle" />
+            <strong>YELLOW (40–69):</strong> Reduce intensity or volume. Specific adjustments are shown.
+          </p>
+          <p>
+            <span className="inline-block w-2.5 h-2.5 rounded-full bg-red-500 mr-1 align-middle" />
+            <strong>RED (0–39):</strong> Swap for an easy walk or full rest day. Your body needs recovery.
+          </p>
+        </div>
+      </div>
     </div>
   )
 }
@@ -293,6 +343,60 @@ function PerformanceTab({
         raceDate={raceDate}
       />
       <TRIMPBreakdown dailyTrimp={dailyTrimp} />
+      <PerformanceGlossary />
+    </div>
+  )
+}
+
+// ─── Performance Glossary ──────────────────────────────────────
+
+function PerformanceGlossary() {
+  return (
+    <div className="bg-slate-50 rounded-xl p-4 border border-slate-200">
+      <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-3">Understanding Your Performance Metrics</p>
+      <div className="space-y-3 text-xs text-slate-600 leading-relaxed">
+        <div>
+          <p className="font-semibold text-slate-700">Fitness (CTL) — Chronic Training Load</p>
+          <p>A 42-day exponentially weighted rolling average of your daily training load (TRIMP). It represents your accumulated fitness over roughly the past 6 weeks. CTL rises slowly with consistent training and decays slowly during rest. Think of it as your "fitness bank account" — it takes weeks to build and weeks to lose.</p>
+        </div>
+        <div>
+          <p className="font-semibold text-slate-700">Fatigue (ATL) — Acute Training Load</p>
+          <p>A 7-day exponentially weighted rolling average of your daily TRIMP. It captures the fatigue from your most recent training. ATL responds quickly — a hard workout spikes it, and a rest day drops it. When ATL is much higher than CTL, you're accumulating fatigue faster than fitness.</p>
+        </div>
+        <div>
+          <p className="font-semibold text-slate-700">Form (TSB) — Training Stress Balance</p>
+          <p>The difference between Fitness and Fatigue (CTL minus ATL). A positive TSB means you're fresher than your fitness level — ideal for racing. A negative TSB means you're carrying fatigue — normal during hard training blocks. For race day, the target is TSB between +15 and +25 ("peak form").</p>
+          <ul className="mt-1 ml-3 space-y-0.5 list-disc">
+            <li><strong>+15 to +25:</strong> Peak form — race ready</li>
+            <li><strong>+5 to +14:</strong> Fresh — good for quality sessions</li>
+            <li><strong>-10 to +4:</strong> Productive training — building fitness</li>
+            <li><strong>-30 to -11:</strong> Tired — accumulating fatigue, normal in build weeks</li>
+            <li><strong>Below -30:</strong> Overreaching — injury/burnout risk, consider backing off</li>
+          </ul>
+        </div>
+        <div>
+          <p className="font-semibold text-slate-700">ACWR — Acute:Chronic Workload Ratio</p>
+          <p>The ratio of your recent training load (ATL) to your long-term fitness (CTL). It flags injury risk from training spikes.</p>
+          <ul className="mt-1 ml-3 space-y-0.5 list-disc">
+            <li><strong>0.8–1.3:</strong> Sweet spot — safe and productive</li>
+            <li><strong>1.3–1.5:</strong> Caution — elevated injury risk</li>
+            <li><strong>Above 1.5:</strong> High risk — you've ramped up too fast</li>
+            <li><strong>Below 0.8:</strong> Detraining — you may be doing too little</li>
+          </ul>
+        </div>
+        <div>
+          <p className="font-semibold text-slate-700">TRIMP — Training Impulse</p>
+          <p>A single number that quantifies the training stress of a workout, based on the Banister formula. It combines duration, heart rate intensity (how hard your heart worked relative to your max), and sport type. Higher TRIMP = more training stress. A 60-minute easy run might score ~80, while a 90-minute hill workout could score ~200+.</p>
+        </div>
+        <div>
+          <p className="font-semibold text-slate-700">Weekly TRIMP</p>
+          <p>Your total training load for the past 7 days, broken down by sport type (running, strength, hiking, etc.). This helps you see how different activities contribute to your overall fatigue and fitness. The stacked bar chart shows the distribution — a balanced mix is generally better than all-or-nothing training.</p>
+        </div>
+        <div className="pt-2 border-t border-slate-200">
+          <p className="font-semibold text-slate-700">The Banister Model</p>
+          <p>All of these metrics come from the Banister impulse-response model, a peer-reviewed framework used in sport science since the 1970s. The core idea: every workout produces both a <em>fitness</em> gain (slow to build, slow to fade) and a <em>fatigue</em> cost (fast to build, fast to fade). Your "form" at any moment is the balance between the two. Proper tapering before a race lets fatigue drop faster than fitness, producing peak performance.</p>
+        </div>
+      </div>
     </div>
   )
 }
