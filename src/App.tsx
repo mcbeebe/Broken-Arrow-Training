@@ -4,6 +4,7 @@ import { plans } from './data'
 import { useStrava } from './hooks/useStrava'
 import { useCompliance } from './hooks/useCompliance'
 import { useManualLog } from './hooks/useManualLog'
+import { useDaySwap } from './hooks/useDaySwap'
 import { matchActivitiesToPlan } from './utils/matching'
 import WeeklyPlan from './components/WeeklyPlan'
 import Dashboard from './components/Dashboard'
@@ -26,10 +27,13 @@ export default function App() {
   const plan = plans[athleteId]
   const strava = useStrava()
   const manualLog = useManualLog(athleteId)
+  const daySwap = useDaySwap(athleteId)
 
   // Merge Strava or manual log data into training plan
   const weeks = useMemo(() => {
     let w = plan.weeks
+    // Apply day swaps first
+    w = daySwap.applySwapsToWeeks(w)
     // Apply Strava data (Mike)
     if (athleteId === 'mike' && strava.activities.length > 0) {
       w = matchActivitiesToPlan(w, strava.activities)
@@ -37,7 +41,7 @@ export default function App() {
     // Apply manual logs (all athletes)
     w = manualLog.applyLogsToWeeks(w)
     return w
-  }, [plan.weeks, strava.activities, athleteId, manualLog.applyLogsToWeeks])
+  }, [plan.weeks, strava.activities, athleteId, manualLog.applyLogsToWeeks, daySwap.applySwapsToWeeks])
 
   const compliance = useCompliance(weeks)
   const raceName = plan.race.distance.includes('18K') ? 'BROKEN ARROW 18K' : 'BROKEN ARROW 11K'
@@ -80,6 +84,7 @@ export default function App() {
         <WeeklyPlan
           weeks={weeks}
           manualLog={manualLog}
+          daySwap={daySwap}
         />
       )}
       {view === 'dashboard' && (
