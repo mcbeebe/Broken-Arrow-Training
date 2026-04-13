@@ -140,3 +140,59 @@ export function getLastSyncTime(): string | null {
 export function isStravaConfigured(): boolean {
   return Boolean(CLIENT_ID && TOKEN_EXCHANGE_URL)
 }
+
+// --- Activity streams (detailed HR, pace, etc.) ---
+
+export interface StreamData {
+  time: number[]
+  heartrate: number[]
+  distance: number[]
+  altitude: number[]
+  velocity: number[]
+  cadence: number[]
+}
+
+const STORAGE_KEY_STREAMS = 'ba_strava_streams'
+
+export async function fetchActivityStreams(
+  accessToken: string,
+  activityId: number,
+): Promise<StreamData | null> {
+  // Check cache first
+  const cached = getCachedStream(activityId)
+  if (cached) return cached
+
+  const keys = 'time,heartrate,distance,altitude,velocity_smooth,cadence'
+  const res = await fetch(
+    `https://www.strava.com/api/v3/activities/${activityId}/streams?keys=${keys}&key_type=time`,
+    { headers: { Authorization: `Bearer ${accessToken}` } },
+  )
+  if (!res.ok) return null
+
+  const streams: { type: string; data: number[] }[] = await res.json()
+  const data: StreamData = {
+    time: findStream(streams, 'time'),
+    heartrate: findStream(streams, 'heartrate'),
+    distance: findStream(streams, 'distance'),
+    altitude: findStream(streams, 'altitude'),
+    velocity: findStream(streams, 'velocity_smooth'),
+    cadence: findStream(streams, 'cadence'),
+  }
+
+  cacheStream(activityId, data)
+  return data
+}
+
+function findStream(streams: { type: string; data: number[] }[], type: string): number[] {
+  return streams.find(s => s.type === type)?.data || []
+}
+
+function getCachedStream(activityId: number): StreamData | null {
+  const raw = localStorage.getItem(`${STORAGE_KEY_STREAMS}_${activityId}`)
+  if (!raw) return null
+  return JSON.parse(raw) as StreamData
+}
+
+function cacheStream(activityId: number, data: StreamData): void {
+  localStorage.setItem(`${STORAGE_KEY_STREAMS}_${activityId}`, JSON.stringify(data))
+}

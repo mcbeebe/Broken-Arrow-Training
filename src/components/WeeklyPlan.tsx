@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import type { TrainingWeek, PlannedDay, ActualWorkout } from '../types'
+import type { TrainingWeek, PlannedDay, ActualWorkout, HRZone } from '../types'
 import DayCard from './DayCard'
 import VolumeChart from './VolumeChart'
 import WorkoutModal from './WorkoutModal'
@@ -7,6 +7,7 @@ import ManualLog from './ManualLog'
 
 interface WeeklyPlanProps {
   weeks: TrainingWeek[]
+  zones?: HRZone[]
   manualLog?: {
     logWorkout: (dayLabel: string, data: ActualWorkout) => void
   }
@@ -17,7 +18,7 @@ interface WeeklyPlanProps {
   }
 }
 
-export default function WeeklyPlan({ weeks, manualLog, daySwap }: WeeklyPlanProps) {
+export default function WeeklyPlan({ weeks, zones, manualLog, daySwap }: WeeklyPlanProps) {
   const [activeWeek, setActiveWeek] = useState(0)
   const [modalDay, setModalDay] = useState<PlannedDay | null>(null)
   const [logDay, setLogDay] = useState<PlannedDay | null>(null)
@@ -140,6 +141,7 @@ export default function WeeklyPlan({ weeks, manualLog, daySwap }: WeeklyPlanProp
           day={modalDay}
           weekNum={week.num}
           onClose={() => setModalDay(null)}
+          zones={zones}
         />
       )}
 

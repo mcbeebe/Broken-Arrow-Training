@@ -1,18 +1,21 @@
 import { useEffect, useState } from 'react'
-import type { PlannedDay } from '../types'
+import type { PlannedDay, HRZone } from '../types'
 import { getWorkoutStyle } from '../utils/styles'
 import { getCoaching } from '../utils/coaching'
 import { formatMiles, formatSeconds } from '../utils/format'
 import { parseRoutine, type ParsedExercise } from '../utils/exercises'
 import { parseIntervalWorkout, getDrillDay, RUNNING_DRILLS, MYRTL_ROUTINE, PRE_RUN_ACTIVATION, type RunSegment, type DrillGuide } from '../utils/drills'
+import { fetchActivityStreams, getTokens, isTokenExpired, refreshAccessToken, type StreamData } from '../utils/strava'
+import HRChart from './HRChart'
 
 interface WorkoutModalProps {
   day: PlannedDay
   weekNum: number
   onClose: () => void
+  zones?: HRZone[]
 }
 
-export default function WorkoutModal({ day, weekNum, onClose }: WorkoutModalProps) {
+export default function WorkoutModal({ day, weekNum, onClose, zones }: WorkoutModalProps) {
   const style = getWorkoutStyle(day.type)
   const coaching = getCoaching(day, weekNum)
   const actual = day.actual
@@ -22,6 +25,36 @@ export default function WorkoutModal({ day, weekNum, onClose }: WorkoutModalProp
   const exercises = isStrength ? parseRoutine(day.detail) : []
   const intervals = isQuality ? parseIntervalWorkout(day.detail, day.zone) : []
   const isDrillDay = getDrillDay(weekNum) === day.day
+  const [stream, setStream] = useState<StreamData | null>(null)
+  const [streamLoading, setStreamLoading] = useState(false)
+
+  // Fetch HR stream on-demand when modal opens with a Strava activity
+  useEffect(() => {
+    if (!actual || actual.type === 'Manual' || !actual.stravaId) return
+    let cancelled = false
+
+    async function loadStream() {
+      setStreamLoading(true)
+      try {
+        const tokens = getTokens()
+        if (!tokens) return
+        let accessToken = tokens.accessToken
+        if (isTokenExpired(tokens)) {
+          const refreshed = await refreshAccessToken(tokens.refreshToken)
+          accessToken = refreshed.accessToken
+        }
+        const data = await fetchActivityStreams(accessToken, actual!.stravaId)
+        if (!cancelled) setStream(data)
+      } catch {
+        // Silently fail — stream is optional
+      } finally {
+        if (!cancelled) setStreamLoading(false)
+      }
+    }
+
+    loadStream()
+    return () => { cancelled = true }
+  }, [actual])
 
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
@@ -133,6 +166,16 @@ export default function WorkoutModal({ day, weekNum, onClose }: WorkoutModalProp
                     ))}
                   </div>
                 </div>
+              )}
+
+              {/* HR Stream Chart */}
+              {stream && stream.heartrate.length > 0 && (
+                <div className="mt-2">
+                  <HRChart stream={stream} zones={zones} />
+                </div>
+              )}
+              {streamLoading && (
+                <p className="text-xs text-teal-600 mt-2 animate-pulse">Loading heart rate data...</p>
               )}
             </div>
           )}

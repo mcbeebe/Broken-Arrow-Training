@@ -99,6 +99,7 @@ export default function App() {
       {view === 'plan' && (
         <WeeklyPlan
           weeks={weeks}
+          zones={plan.zones}
           manualLog={manualLog}
           daySwap={daySwap}
         />
