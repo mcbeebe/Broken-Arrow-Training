@@ -1,6 +1,6 @@
 import type { DailyTRIMP, PerformanceMetrics, TSBState, ACWRRisk, WeeklyRecommendation } from '../types'
 
-// ─── Exponentially Weighted Moving Average ──────────────────────
+// ─── Tau-based EWMA (for CTL/ATL/TSB performance display) ──────
 // EWMA_today = EWMA_yesterday × e^(-1/τ) + value_today × (1 - e^(-1/τ))
 
 const CTL_TAU = 42  // fitness decay: 42-day time constant
@@ -29,6 +29,55 @@ export function calculateEWMA(
   }
 
   return results
+}
+
+// ─── Span-based EWMA (for ACWR — ATE-aligned) ──────────────────
+// alpha = 2 / (span + 1) — standard financial/sport science EWMA
+// Used for 7-day acute and 28-day chronic workload ratio
+
+function ewmaSpan(values: number[], span: number): number {
+  if (values.length === 0) return 0
+  const alpha = 2 / (span + 1)
+  let ewma = values[0]
+  for (let i = 1; i < values.length; i++) {
+    ewma = alpha * values[i] + (1 - alpha) * ewma
+  }
+  return ewma
+}
+
+/**
+ * Calculate ACWR using ATE's span-based EWMA (7-day acute / 28-day chronic).
+ * This is separate from the tau-based CTL/ATL used for the performance timeline.
+ */
+export function calculateSpanACWR(dailyTrimp: DailyTRIMP[]): number {
+  if (dailyTrimp.length < 7) return 0
+
+  const dailyValues = dailyTrimp.map(d => d.total)
+  const acute = ewmaSpan(dailyValues, 7)
+  const chronic = ewmaSpan(dailyValues, 28)
+
+  if (chronic <= 0) return 0
+  return Math.round((acute / chronic) * 100) / 100
+}
+
+/**
+ * Check weekly TRIMP overload (ATE guardrail).
+ * Returns ratio of 7d sum to 28d weekly average.
+ */
+export function checkWeeklyTRIMPOverload(dailyTrimp: DailyTRIMP[]): { ratio: number; overloaded: boolean } {
+  if (dailyTrimp.length < 28) return { ratio: 0, overloaded: false }
+
+  const last7 = dailyTrimp.slice(-7).reduce((sum, d) => sum + d.total, 0)
+  const last28 = dailyTrimp.slice(-28).reduce((sum, d) => sum + d.total, 0)
+  const weeklyAvg28d = last28 / 4 // 28 days = 4 weeks
+
+  if (weeklyAvg28d <= 0) return { ratio: 0, overloaded: false }
+
+  const ratioPct = (last7 / weeklyAvg28d) * 100
+  return {
+    ratio: Math.round(ratioPct),
+    overloaded: ratioPct > 120, // ATE threshold: 120%
+  }
 }
 
 // ─── Performance Timeline ───────────────────────────────────────

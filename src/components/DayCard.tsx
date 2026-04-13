@@ -17,12 +17,15 @@ export default function DayCard({ day, onTap, onLog, onSwap, isSwapSelected, isS
   const actual = day.actual
   const timeEst = estimateRunTime(day.zone)
 
-  const statusDot = readiness && readiness.status !== 'GREEN' ? (
+  const dotColor = readiness?.status === 'PEAK' ? 'bg-indigo-500'
+    : readiness?.status === 'YELLOW' ? 'bg-amber-400'
+    : readiness?.status === 'RED' ? 'bg-red-500'
+    : null
+
+  const statusDot = readiness && dotColor ? (
     <span
-      className={`w-2.5 h-2.5 rounded-full inline-block ${
-        readiness.status === 'YELLOW' ? 'bg-amber-400' : 'bg-red-500'
-      }`}
-      title={`Readiness: ${readiness.status} (${readiness.composite}/100)`}
+      className={`w-2.5 h-2.5 rounded-full inline-block ${dotColor}`}
+      title={`Readiness: ${readiness.status} (${readiness.displayScore}/100) — State ${readiness.trainingState}`}
     />
   ) : null
 

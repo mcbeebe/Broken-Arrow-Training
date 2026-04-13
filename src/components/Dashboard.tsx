@@ -243,14 +243,15 @@ function ReadinessTab({
           <p className="text-sm font-semibold text-slate-700 mb-3">7-Day Readiness Trend</p>
           <div className="flex items-end gap-1.5 h-20">
             {weekScores.map((s, i) => {
-              const height = `${Math.max(s.composite, 5)}%`
+              const height = `${Math.max(s.displayScore, 5)}%`
               const bg =
+                s.status === 'PEAK' ? 'bg-indigo-500' :
                 s.status === 'GREEN' ? 'bg-green-500' :
                 s.status === 'YELLOW' ? 'bg-amber-400' :
                 'bg-red-500'
               return (
                 <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                  <span className="text-[9px] text-slate-400">{s.composite}</span>
+                  <span className="text-[9px] text-slate-400">{s.displayScore}</span>
                   <div
                     className={`w-full rounded-t ${bg} transition-all`}
                     style={{ height }}

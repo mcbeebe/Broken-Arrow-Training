@@ -1,4 +1,4 @@
-import type { ReadinessScore, GarminHealthData } from '../types'
+import type { ReadinessScore, ReadinessStatus, GarminHealthData } from '../types'
 import { LineChart, Line, ResponsiveContainer } from 'recharts'
 
 interface ReadinessBannerProps {
@@ -7,7 +7,15 @@ interface ReadinessBannerProps {
   healthHistory: GarminHealthData[]
 }
 
-const STATUS_STYLES = {
+const STATUS_STYLES: Record<ReadinessStatus, { bg: string; border: string; text: string; badge: string; dot: string; accent: string }> = {
+  PEAK: {
+    bg: 'bg-indigo-50',
+    border: 'border-indigo-200',
+    text: 'text-indigo-800',
+    badge: 'bg-indigo-600',
+    dot: 'bg-indigo-500',
+    accent: '#6366F1',
+  },
   GREEN: {
     bg: 'bg-green-50',
     border: 'border-green-200',
@@ -34,7 +42,30 @@ const STATUS_STYLES = {
   },
 }
 
-const STATUS_EMOJI = { GREEN: '🟢', YELLOW: '🟡', RED: '🔴' }
+const STATUS_EMOJI: Record<ReadinessStatus, string> = { PEAK: '⭐', GREEN: '🟢', YELLOW: '🟡', RED: '🔴' }
+
+const STATE_LABELS: Record<string, string> = {
+  A: 'State A — Well Recovered',
+  B: 'State B — Not Fully Recovered',
+  C: 'State C — Overreaching',
+  D: 'State D — Overtrained',
+}
+
+const SCORE_LABELS: Record<string, { label: string; color: string }> = {
+  '2': { label: 'Excellent', color: 'text-green-600' },
+  '1': { label: 'Good', color: 'text-green-600' },
+  '0': { label: 'Normal', color: 'text-slate-500' },
+  '-0.5': { label: 'Below', color: 'text-amber-600' },
+  '-1': { label: 'Low', color: 'text-red-600' },
+}
+
+function getScoreLabel(score: number): { label: string; color: string } {
+  if (score >= 1.5) return SCORE_LABELS['2']
+  if (score >= 0.5) return SCORE_LABELS['1']
+  if (score >= -0.25) return SCORE_LABELS['0']
+  if (score >= -0.75) return SCORE_LABELS['-0.5']
+  return SCORE_LABELS['-1']
+}
 
 function Sparkline({ data, color }: { data: number[]; color: string }) {
   if (data.length < 2) return null
@@ -80,24 +111,47 @@ export default function ReadinessBanner({
 
   return (
     <div className={`mx-3 mt-3 rounded-xl ${style.bg} border ${style.border} overflow-hidden`}>
-      {/* Header: status badge + composite score + message */}
+      {/* Header: status badge + score + training state */}
       <div className="px-4 pt-3 pb-2">
-        <div className="flex items-center gap-2 mb-1.5">
+        <div className="flex items-center gap-2 mb-1.5 flex-wrap">
           <span className={`text-xs font-bold text-white px-2 py-0.5 rounded-full ${style.badge}`}>
             {STATUS_EMOJI[todayScore.status]} {todayScore.status}
           </span>
           <span className={`text-sm font-bold ${style.text}`}>
-            {todayScore.composite}/100
+            {todayScore.displayScore}/100
           </span>
+          {todayScore.trainingState !== 'A' && (
+            <span className="text-[10px] font-medium text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
+              {STATE_LABELS[todayScore.trainingState]}
+            </span>
+          )}
         </div>
+
+        {/* ACWR warning */}
+        {todayScore.acwr != null && todayScore.acwr > 1.3 && (
+          <div className="mb-1.5 text-[10px] font-medium text-amber-700 bg-amber-100 px-2 py-1 rounded inline-block">
+            ⚠️ ACWR {todayScore.acwr.toFixed(2)} — {todayScore.acwr > 1.5 ? 'High injury risk' : 'Elevated'}
+          </div>
+        )}
+
         <p className={`text-sm ${style.text} leading-relaxed`}>
           {todayScore.message || 'Calculating readiness...'}
         </p>
-        {todayScore.adjustment && todayScore.status !== 'GREEN' && (
+
+        {todayScore.adjustment && todayScore.status !== 'GREEN' && todayScore.status !== 'PEAK' && (
           <div className={`mt-2 px-3 py-1.5 rounded-lg ${style.bg} border ${style.border} inline-block`}>
             <p className={`text-xs font-medium ${style.text}`}>
               💡 {todayScore.adjustment}
             </p>
+          </div>
+        )}
+
+        {/* Guardrails triggered */}
+        {todayScore.guardrailsTriggered && todayScore.guardrailsTriggered.length > 0 && (
+          <div className="mt-1.5 space-y-0.5">
+            {todayScore.guardrailsTriggered.map((g, i) => (
+              <p key={i} className="text-[9px] text-slate-500 italic">🛡️ {g}</p>
+            ))}
           </div>
         )}
       </div>
@@ -127,12 +181,13 @@ export default function ReadinessBanner({
           unit="hrs"
           score={todayScore.components.sleep}
         />
-        {/* Body Battery or Load */}
+        {/* Body Battery */}
         <MetricCard
-          label={bodyBattery !== null ? 'Battery' : 'Load'}
-          value={bodyBattery !== null ? `${bodyBattery}` : `${todayScore.components.trainingLoad}`}
-          unit={bodyBattery !== null ? '/100' : '/100'}
+          label="Battery"
+          value={bodyBattery !== null ? `${bodyBattery}` : '—'}
+          unit={bodyBattery !== null ? '/100' : ''}
           score={todayScore.components.trainingLoad}
+          gated={bodyBattery !== null && bodyBattery < 25}
         />
       </div>
     </div>
@@ -145,26 +200,26 @@ function MetricCard({
   unit,
   score,
   sparkline,
+  gated,
 }: {
   label: string
   value: string
   unit: string
   score: number
   sparkline?: React.ReactNode
+  gated?: boolean
 }) {
-  const scoreColor =
-    score >= 70 ? 'text-green-600' :
-    score >= 40 ? 'text-amber-600' :
-    'text-red-600'
+  const { label: scoreLabel, color: scoreColor } = getScoreLabel(score)
 
   return (
-    <div className="bg-white rounded-lg p-2 text-center">
+    <div className={`bg-white rounded-lg p-2 text-center ${gated ? 'ring-1 ring-red-300' : ''}`}>
       <p className="text-[10px] text-slate-500 font-medium uppercase tracking-wide">{label}</p>
       <p className="text-base font-bold text-slate-800 leading-tight mt-0.5">
         {value}<span className="text-[9px] text-slate-400 font-normal ml-0.5">{unit}</span>
       </p>
       {sparkline && <div className="flex justify-center mt-1">{sparkline}</div>}
-      <p className={`text-[9px] font-semibold mt-0.5 ${scoreColor}`}>{score}/100</p>
+      <p className={`text-[9px] font-semibold mt-0.5 ${scoreColor}`}>{scoreLabel}</p>
+      {gated && <p className="text-[8px] text-red-500 font-medium">⚠️ Low</p>}
     </div>
   )
 }

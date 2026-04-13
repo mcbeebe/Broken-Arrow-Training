@@ -1,55 +1,21 @@
 import type { SportType, TRIMPRecord, DailyTRIMP, StravaActivity, GarminActivity } from '../types'
 
-// ─── EPOC-Based Training Load ───────────────────────────────────
-// Excess Post-exercise Oxygen Consumption — the metabolic recovery debt
-// created by an activity. More accurate than Banister TRIMP for mixed
-// training (especially strength, HIIT, and trail running) because it
-// captures anaerobic cost and the exponential intensity–recovery relationship.
+// ─── Training Load Calculation (ATE-aligned) ────────────────────
 //
-// Based on: Borsheim & Bahr (2003), LaForgia et al. (2006), Swain et al. (1998)
+// Primary: Garmin's on-device EPOC (activityTrainingLoad) — computed
+// by Firstbeat algorithm from beat-by-beat R-R intervals on the watch.
+// This is the most accurate per-activity load available.
 //
-// Model:
-//   %HRR = (avgHR - restHR) / (maxHR - restHR)  ≈ %VO2max (Swain)
-//   VO2_exercise = VO2max_est × %HRR              (mL/kg/min)
-//   excess_VO2   = (VO2_exercise - 3.5) × duration (mL O₂/kg above 1 MET)
-//   EPOC         = excess_VO2 × α × e^(β × %HRR)  (recovery debt in mL O₂/kg)
+// Fallback: Banister TRIMP (1991) when Garmin EPOC is unavailable
+// (e.g., Strava-only activities or activities without HR sensor).
 //
-// Constants α=0.045, β=1.35 calibrated against literature ranges:
-//   Low intensity  (~30% HRR):  EPOC ≈ 6-15 mL O₂/kg
-//   Moderate       (~60% HRR):  EPOC ≈ 15-35 mL O₂/kg
-//   High           (~85%+ HRR): EPOC ≈ 50-100+ mL O₂/kg
+// EPOC and TRIMP are NOT additive — engine uses one per activity.
 
-const ESTIMATED_VO2MAX = 45 // mL/kg/min — trained recreational athlete
-const RESTING_VO2 = 3.5     // 1 MET baseline (mL/kg/min)
-const EPOC_ALPHA = 0.045     // scaling constant
-const EPOC_BETA = 1.35       // exponential intensity coefficient
+// ─── Banister TRIMP (Fallback) ──────────────────────────────────
+// TRIMP = duration(min) × fHR × y
+// where fHR = (avgHR - restHR) / (maxHR - restHR)
+// Male: y = 0.64 × e^(1.92 × fHR)
 
-export function calculateEPOC(
-  durationMinutes: number,
-  avgHR: number,
-  restingHR: number,
-  maxHR: number,
-): number {
-  if (durationMinutes <= 0 || avgHR <= restingHR || maxHR <= restingHR) return 0
-
-  // Heart rate reserve fraction ≈ %VO2max (Swain et al. 1998)
-  const hrr = Math.min(Math.max((avgHR - restingHR) / (maxHR - restingHR), 0), 1)
-
-  // Estimate VO2 during exercise
-  const vo2Exercise = ESTIMATED_VO2MAX * hrr // mL/kg/min
-  const excessVO2Rate = Math.max(vo2Exercise - RESTING_VO2, 0)
-
-  // Total excess oxygen cost during exercise (mL O₂/kg)
-  const exerciseO2Cost = excessVO2Rate * durationMinutes
-
-  // EPOC: recovery debt scales exponentially with intensity
-  // Higher intensity → disproportionately more recovery cost
-  const epoc = exerciseO2Cost * EPOC_ALPHA * Math.exp(EPOC_BETA * hrr)
-
-  return epoc // mL O₂/kg
-}
-
-// Legacy Banister TRIMP — kept for reference/comparison only
 export function calculateBanisterTRIMP(
   durationMinutes: number,
   avgHR: number,
@@ -57,31 +23,60 @@ export function calculateBanisterTRIMP(
   maxHR: number,
 ): number {
   if (durationMinutes <= 0 || avgHR <= restingHR || maxHR <= restingHR) return 0
-  const deltaHR = Math.min(Math.max((avgHR - restingHR) / (maxHR - restingHR), 0), 1)
-  return durationMinutes * deltaHR * 0.64 * Math.exp(1.92 * deltaHR)
+  const fHR = Math.min(Math.max((avgHR - restingHR) / (maxHR - restingHR), 0), 1)
+  return durationMinutes * fHR * 0.64 * Math.exp(1.92 * fHR)
 }
 
-// ─── Sport Multipliers ──────────────────────────────────────────
-// Adjusts raw TRIMP for musculoskeletal impact relative to running (1.0x baseline)
+// ─── MIM (Musculoskeletal Impact Modifier) Matrix ───────────────
+// Validated against Firstbeat EPOC ranges (WP-G6)
+// From ATE engine: 23-activity mapping
 
-const SPORT_MULTIPLIERS: Record<SportType, number> = {
+const MIM_MATRIX: Record<SportType, number> = {
+  // Running variants
   running: 1.0,
-  trail_running: 1.05,
-  cycling: 0.70,
-  hiking: 1.10,
-  swimming: 0.50,
-  strength_training: 0.80,
-  yoga: 0.20,
-  walking: 0.30,
-  elliptical: 0.60,
-  other: 0.60,
+  trail_running: 1.1,
+  // Cycling
+  cycling: 0.65,
+  mountain_biking: 0.8,
+  // Hiking
+  hiking: 0.8,
+  hiking_steep: 1.2,
+  walking: 0.4,
+  // Water sports
+  swimming: 0.35,
+  lap_swimming: 0.35,
+  aqua_jogging: 0.6,
+  // Strength (sub-classified by focus)
+  strength_upper: 0.2,
+  strength_lower: 1.5,
+  strength_full: 1.0,
+  // High-intensity
+  hiit: 1.3,
+  cardio: 1.3,
+  // Cardio machines
+  elliptical: 0.7,
+  rowing: 0.5,
+  indoor_rowing: 0.5,
+  // Recovery / mobility
+  yoga: 0.3,
+  pilates: 0.3,
+  // Excluded from load (tracked for compliance only)
+  breathwork: 0.0,
+  myrtl: 0.0,
+  running_drills: 0.0,
+  // Catch-all
+  other: 0.6,
 }
+
+const DEFAULT_MIM = 0.6
 
 export function getSportMultiplier(sportType: SportType): number {
-  return SPORT_MULTIPLIERS[sportType] ?? 0.60
+  return MIM_MATRIX[sportType] ?? DEFAULT_MIM
 }
 
-// ─── Map activity type strings to SportType ─────────────────────
+// ─── Activity Type Classification ───────────────────────────────
+// Maps raw Garmin/Strava type strings to ATE SportType
+// Then applies sub-classification for strength and hiking
 
 const TYPE_MAP: Record<string, SportType> = {
   // Strava types
@@ -89,45 +84,145 @@ const TYPE_MAP: Record<string, SportType> = {
   trail_run: 'trail_running',
   ride: 'cycling',
   virtualride: 'cycling',
+  mountainbikeride: 'mountain_biking',
   swim: 'swimming',
-  hike: 'hiking',
+  hike: 'hiking',        // resolved to hiking/hiking_steep by elevation
   walk: 'walking',
   yoga: 'yoga',
-  weighttraining: 'strength_training',
-  workout: 'strength_training',
+  weighttraining: 'strength_full',  // resolved to upper/lower/full by sub-classifier
+  workout: 'strength_full',
   elliptical: 'elliptical',
-  rowing: 'elliptical',
-  // Garmin types
+  rowing: 'rowing',
+  // Garmin types (from Garmin Connect API)
   running: 'running',
+  treadmill_running: 'running',
   trail_running: 'trail_running',
   cycling: 'cycling',
+  indoor_cycling: 'cycling',
+  mountain_biking: 'mountain_biking',
   hiking: 'hiking',
-  swimming: 'swimming',
-  strength_training: 'strength_training',
   walking: 'walking',
-  indoor_rowing: 'elliptical',
-  // Catch-alls
+  swimming: 'swimming',
+  open_water_swimming: 'swimming',
+  lap_swimming: 'lap_swimming',
+  pool_swimming: 'lap_swimming',
+  strength_training: 'strength_full',
+  cardio: 'cardio',
+  hiit: 'hiit',
+  elliptical: 'elliptical',
+  indoor_rowing: 'indoor_rowing',
+  yoga: 'yoga',
+  pilates: 'pilates',
+  breathwork: 'breathwork',
+  // Catch-all
   other: 'other',
 }
 
-export function mapToSportType(rawType: string): SportType {
-  const normalized = rawType.toLowerCase().replace(/\s+/g, '')
-  return TYPE_MAP[normalized] ?? 'other'
+// ATE steep hike threshold (from ENGINE_DEFAULTS)
+const STEEP_HIKE_ELEV_THRESHOLD_FT = 500
+
+// ATE strength HR inference threshold (60% HRR → lower body focus)
+const STRENGTH_HR_INFERENCE_THRESHOLD = 0.60
+
+/**
+ * Sub-classify strength activities into upper/lower/full.
+ * ATE priority: (1) name keywords, (2) HR inference, (3) default full.
+ */
+export function classifyStrength(
+  activityName: string,
+  avgHR?: number,
+  restingHR?: number,
+  maxHR?: number,
+): SportType {
+  const name = activityName.toLowerCase()
+
+  // Priority 1: Name-based classification
+  const lowerKeywords = ['lower', 'legs', 'leg day', 'squat', 'deadlift', 'lunge', 'glute', 'hamstring', 'quad']
+  const upperKeywords = ['upper', 'push', 'pull', 'chest', 'shoulder', 'arm', 'bicep', 'tricep', 'back']
+
+  if (lowerKeywords.some(k => name.includes(k))) return 'strength_lower'
+  if (upperKeywords.some(k => name.includes(k))) return 'strength_upper'
+
+  // Priority 2: HR inference — high HR during strength = lower body focus
+  if (avgHR && restingHR && maxHR && maxHR > restingHR) {
+    const hrReservePct = (avgHR - restingHR) / (maxHR - restingHR)
+    if (hrReservePct > STRENGTH_HR_INFERENCE_THRESHOLD) return 'strength_lower'
+  }
+
+  // Default: full body
+  return 'strength_full'
+}
+
+/**
+ * Sub-classify hiking into flat vs steep based on elevation gain.
+ */
+export function classifyHiking(elevationGainFt: number): SportType {
+  return elevationGainFt > STEEP_HIKE_ELEV_THRESHOLD_FT ? 'hiking_steep' : 'hiking'
+}
+
+/**
+ * Map raw activity type string to ATE SportType with sub-classification.
+ * Pass the full activity for Garmin sub-classification (strength/hiking).
+ */
+export function mapToSportType(
+  rawType: string,
+  activity?: { name?: string; avgHR?: number; elevationGainFt?: number },
+  restingHR?: number,
+  maxHR?: number,
+): SportType {
+  const normalized = rawType.toLowerCase().replace(/\s+/g, '_')
+  const baseSport = TYPE_MAP[normalized] ?? TYPE_MAP[normalized.replace(/_/g, '')] ?? 'other'
+
+  // Sub-classify strength
+  if (baseSport === 'strength_full' && activity?.name) {
+    return classifyStrength(activity.name, activity.avgHR, restingHR, maxHR)
+  }
+
+  // Sub-classify hiking
+  if (baseSport === 'hiking' && activity?.elevationGainFt != null) {
+    return classifyHiking(activity.elevationGainFt)
+  }
+
+  return baseSport
 }
 
 // ─── Elevation Bonus ────────────────────────────────────────────
-// Per Johnston/Uphill Athlete: +10 TRIMP per 1,000 ft elevation gain
+// Johnston/Evoke Endurance: +10 per 1,000 ft elevation gain
+// Accounts for eccentric loading on descents and altitude stress
 
 export function calculateElevationBonus(elevationGainFt: number): number {
   if (elevationGainFt <= 0) return 0
   return (elevationGainFt / 1000) * 10
 }
 
-// ─── Adjusted Training Load (EPOC-based) ────────────────────────
-// adjusted_load = EPOC × sport_multiplier + elevation_bonus
-// Sport multipliers adjust for musculoskeletal impact beyond metabolic cost
-// Elevation bonus accounts for eccentric loading on descents and altitude stress
+// ─── Adjusted Training Load ─────────────────────────────────────
+// adjusted_load = base_load × MIM + elevation_bonus
+// base_load = Garmin EPOC (primary) or Banister TRIMP (fallback)
+// EPOC and TRIMP are NOT additive — engine uses one per activity.
 
+export function calculateAdjustedLoad(
+  baseLoad: number,
+  sportType: SportType,
+  elevationGainFt: number,
+  activityName: string,
+  date: string,
+): TRIMPRecord {
+  const sportMultiplier = getSportMultiplier(sportType)
+  const elevationBonus = calculateElevationBonus(elevationGainFt)
+  const adjustedLoad = baseLoad * sportMultiplier + elevationBonus
+
+  return {
+    date,
+    activityName,
+    sportType,
+    baseTRIMP: Math.round(baseLoad * 10) / 10,
+    sportMultiplier,
+    elevationBonus: Math.round(elevationBonus * 10) / 10,
+    adjustedTRIMP: Math.round(adjustedLoad * 10) / 10,
+  }
+}
+
+// Legacy wrapper for backward compatibility
 export function calculateAdjustedTRIMP(
   durationMinutes: number,
   avgHR: number,
@@ -138,23 +233,11 @@ export function calculateAdjustedTRIMP(
   activityName: string,
   date: string,
 ): TRIMPRecord {
-  const baseEPOC = calculateEPOC(durationMinutes, avgHR, restingHR, maxHR)
-  const sportMultiplier = getSportMultiplier(sportType)
-  const elevationBonus = calculateElevationBonus(elevationGainFt)
-  const adjustedLoad = baseEPOC * sportMultiplier + elevationBonus
-
-  return {
-    date,
-    activityName,
-    sportType,
-    baseTRIMP: Math.round(baseEPOC * 10) / 10,
-    sportMultiplier,
-    elevationBonus: Math.round(elevationBonus * 10) / 10,
-    adjustedTRIMP: Math.round(adjustedLoad * 10) / 10,
-  }
+  const baseLoad = calculateBanisterTRIMP(durationMinutes, avgHR, restingHR, maxHR)
+  return calculateAdjustedLoad(baseLoad, sportType, elevationGainFt, activityName, date)
 }
 
-// ─── Convert activities to TRIMP records ────────────────────────
+// ─── Convert activities to training load records ────────────────
 
 export function stravaActivityToTRIMP(
   activity: StravaActivity,
@@ -163,20 +246,18 @@ export function stravaActivityToTRIMP(
 ): TRIMPRecord | null {
   if (!activity.average_heartrate) return null
 
-  const sportType = mapToSportType(activity.sport_type || activity.type)
+  const sportType = mapToSportType(
+    activity.sport_type || activity.type,
+    { name: activity.name, avgHR: activity.average_heartrate, elevationGainFt: activity.total_elevation_gain * 3.28084 },
+    restingHR,
+    maxHR,
+  )
   const durationMinutes = activity.moving_time / 60
   const elevationFt = activity.total_elevation_gain * 3.28084
 
-  return calculateAdjustedTRIMP(
-    durationMinutes,
-    activity.average_heartrate,
-    restingHR,
-    maxHR,
-    sportType,
-    elevationFt,
-    activity.name,
-    activity.start_date_local.slice(0, 10),
-  )
+  // Strava: always use Banister TRIMP (no Garmin EPOC available)
+  const baseLoad = calculateBanisterTRIMP(durationMinutes, activity.average_heartrate, restingHR, maxHR)
+  return calculateAdjustedLoad(baseLoad, sportType, elevationFt, activity.name, activity.start_date_local.slice(0, 10))
 }
 
 export function garminActivityToTRIMP(
@@ -184,23 +265,33 @@ export function garminActivityToTRIMP(
   restingHR: number,
   maxHR: number,
 ): TRIMPRecord | null {
-  if (!activity.avgHR) return null
-
-  const sportType = mapToSportType(activity.type)
-
-  return calculateAdjustedTRIMP(
-    activity.durationMinutes,
-    activity.avgHR,
+  // Activities with zero MIM (breathwork, myrtl, drills) are excluded from load
+  const sportType = mapToSportType(
+    activity.type,
+    { name: activity.name, avgHR: activity.avgHR, elevationGainFt: activity.elevationGainFt },
     restingHR,
     maxHR,
-    sportType,
-    activity.elevationGainFt,
-    activity.name,
-    activity.date,
   )
+  if (getSportMultiplier(sportType) === 0) return null
+
+  // Primary: Garmin's on-device EPOC (Firstbeat, from beat-by-beat R-R)
+  if (activity.activityTrainingLoad != null && activity.activityTrainingLoad > 0) {
+    return calculateAdjustedLoad(
+      activity.activityTrainingLoad,
+      sportType,
+      activity.elevationGainFt,
+      activity.name,
+      activity.date,
+    )
+  }
+
+  // Fallback: Banister TRIMP (when EPOC unavailable)
+  if (!activity.avgHR) return null
+  const baseLoad = calculateBanisterTRIMP(activity.durationMinutes, activity.avgHR, restingHR, maxHR)
+  return calculateAdjustedLoad(baseLoad, sportType, activity.elevationGainFt, activity.name, activity.date)
 }
 
-// ─── Aggregate daily TRIMP ──────────────────────────────────────
+// ─── Aggregate daily training load ──────────────────────────────
 
 export function aggregateDailyTRIMP(records: TRIMPRecord[]): DailyTRIMP[] {
   const byDate = new Map<string, TRIMPRecord[]>()

@@ -224,24 +224,45 @@ export interface GarminConnectionState {
   dataRange: { from: string; to: string } | null;
 }
 
-// ─── Readiness Engine Types ─────────────────────────────────────
+// ─── Readiness Engine Types (ATE-aligned) ─────────────────────────
 
-export type ReadinessStatus = "GREEN" | "YELLOW" | "RED";
+export type ReadinessStatus = "PEAK" | "GREEN" | "YELLOW" | "RED";
+
+export type TrainingState = "A" | "B" | "C" | "D";
 
 export interface ReadinessScoreComponents {
-  hrv: number;             // 0-100
-  rhr: number;             // 0-100
-  sleep: number;           // 0-100
-  trainingLoad: number;    // 0-100
+  hrv: number;             // -1 to +2 (ATE bucket score)
+  rhr: number;             // -1 to +2
+  sleep: number;           // -1 to +2
+  trainingLoad: number;    // -1 to +2
 }
 
 export interface ReadinessScore {
   date: string;
-  composite: number;       // 0-100 weighted sum
+  composite: number;       // ATE scale: -2.0 to +2.0
+  displayScore: number;    // UI scale: 0-100 (mapped from composite)
   status: ReadinessStatus;
+  trainingState: TrainingState;
   components: ReadinessScoreComponents;
   message: string;         // conversational "AI coach" style interpretation
   adjustment?: string;     // workout modification suggestion
+  acwr?: number;           // for guardrail visibility
+  guardrailsTriggered?: string[];  // which guardrails fired
+}
+
+export interface TrainingStateInfo {
+  state: TrainingState;
+  consecutiveRedDays: number;
+  stateDDurationDays: number;
+  medicalFlagLevel: "none" | "info" | "warning" | "critical";
+}
+
+export interface DeloadDay {
+  dayNumber: number;       // 1-7
+  intensityCap: number;    // 0, 0.6, 0.7, 0.5
+  maxMinutes: number;      // 0, 35, 45, 0 (reassess)
+  zoneLimit: string;       // "rest", "Z1", "Z1-2", "reassess"
+  description: string;
 }
 
 export interface Baseline {
@@ -264,12 +285,26 @@ export type SportType =
   | "running"
   | "trail_running"
   | "cycling"
+  | "mountain_biking"
   | "hiking"
-  | "swimming"
-  | "strength_training"
-  | "yoga"
+  | "hiking_steep"
   | "walking"
+  | "swimming"
+  | "lap_swimming"
+  | "aqua_jogging"
+  | "strength_upper"
+  | "strength_lower"
+  | "strength_full"
+  | "hiit"
+  | "cardio"
   | "elliptical"
+  | "rowing"
+  | "indoor_rowing"
+  | "yoga"
+  | "pilates"
+  | "breathwork"
+  | "myrtl"
+  | "running_drills"
   | "other";
 
 export interface TRIMPRecord {
@@ -312,7 +347,7 @@ export type ACWRRisk =
   | "high_risk";     // > 1.5
 
 export interface WeeklyRecommendation {
-  type: "overreaching" | "acwr_spike" | "acwr_low" | "ctl_plateau" | "taper_early" | "on_track" | "recovery_needed" | "hrv_unstable";
+  type: "overreaching" | "acwr_spike" | "acwr_low" | "ctl_plateau" | "taper_early" | "on_track" | "recovery_needed" | "hrv_unstable" | "weekly_trimp_overload" | "medical_flag";
   severity: "info" | "warning" | "alert";
   message: string;
   weekNum?: number;

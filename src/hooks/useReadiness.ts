@@ -9,9 +9,11 @@ import type {
   PerformanceMetrics,
   WeeklyRecommendation,
   ReadinessBaselines,
+  TrainingStateInfo,
+  DeloadDay,
 } from '../types'
 import { stravaActivityToTRIMP, garminActivityToTRIMP, aggregateDailyTRIMP } from '../utils/trimp'
-import { calculatePerformanceTimeline, generateWeeklyRecommendations } from '../utils/performance'
+import { calculatePerformanceTimeline, generateWeeklyRecommendations, calculateSpanACWR, checkWeeklyTRIMPOverload } from '../utils/performance'
 import {
   calculateBaselines,
   calculateReadiness,
@@ -19,6 +21,11 @@ import {
   generateReadinessMessage,
   suggestDailyAdjustment,
   checkHRVStability,
+  classifyTrainingState,
+  countConsecutiveRedDays,
+  check7dDecliningTrend,
+  buildTrainingStateInfo,
+  computeDeloadProgram,
 } from '../utils/readiness'
 import type { PlannedDay } from '../types'
 
@@ -41,6 +48,9 @@ export interface UseReadinessReturn {
   weeklyRecommendations: WeeklyRecommendation[]
   baselines: ReadinessBaselines | null
   hrvStability: { stable: boolean; cv: number }
+  acwr: number
+  trainingStateInfo: TrainingStateInfo | null
+  deloadProgram: DeloadDay[] | null
   loading: boolean
 }
 
@@ -61,10 +71,10 @@ export function useReadiness({
     return withRHR[0].rhr!
   }, [healthData])
 
-  // Calculate TRIMP — Garmin activities are the primary source
-  // (captures strength, yoga, hiking, etc. that may not be in Strava)
-  // Strava supplements for dates/activities not covered by Garmin.
-  // All TRIMP uses our own Banister formula — not Garmin's black-box activityTrainingLoad.
+  // Calculate training load — Garmin activities are the primary source
+  // Uses Garmin's on-device EPOC (activityTrainingLoad) as primary load signal.
+  // Strava supplements for dates not covered by Garmin.
+  // Banister TRIMP is the fallback when EPOC unavailable.
   const trimpRecords = useMemo(() => {
     const garminRecords: TRIMPRecord[] = garminActivities
       .map(a => garminActivityToTRIMP(a, restingHR, maxHR))
@@ -82,8 +92,17 @@ export function useReadiness({
     return [...garminRecords, ...stravaRecords].sort((a, b) => a.date.localeCompare(b.date))
   }, [stravaActivities, garminActivities, restingHR, maxHR])
 
-  // Aggregate daily TRIMP
+  // Aggregate daily training load
   const dailyTrimp = useMemo(() => aggregateDailyTRIMP(trimpRecords), [trimpRecords])
+
+  // Calculate span-based ACWR (ATE: 7d acute / 28d chronic)
+  const acwr = useMemo(() => calculateSpanACWR(dailyTrimp), [dailyTrimp])
+
+  // HRV stability check
+  const hrvStability = useMemo(
+    () => checkHRVStability(healthData),
+    [healthData],
+  )
 
   // Calculate baselines from health history
   const baselines = useMemo(() => {
@@ -100,18 +119,29 @@ export function useReadiness({
       .sort((a, b) => a.date.localeCompare(b.date))
       .slice(-7)
 
-    const scores = recentHealth.map(day => {
-      const trimpUpToDay = dailyTrimp.filter(d => d.date <= day.date)
-      const score = calculateReadiness(day, baselines, trimpUpToDay.slice(-7))
-      score.message = generateReadinessMessage(score, todayPlannedWorkout)
-      if (todayPlannedWorkout) {
-        score.adjustment = suggestDailyAdjustment(score.status, todayPlannedWorkout.type, score.components)
-      }
+    // Calculate raw scores
+    const rawScores = recentHealth.map(day => {
+      const score = calculateReadiness(day, baselines, acwr, hrvStability.cv)
       return score
     })
 
-    return applyGuardrails(scores)
-  }, [healthData, baselines, dailyTrimp, todayPlannedWorkout])
+    // Apply guardrails (ACWR, body battery, acute overrides, consecutive limits)
+    const guarded = applyGuardrails(rawScores, healthData, dailyTrimp, acwr)
+
+    // Classify training state and fill messages
+    const consecutiveRed = countConsecutiveRedDays(guarded)
+    const declining = check7dDecliningTrend(healthData)
+
+    return guarded.map(score => {
+      const state = classifyTrainingState(score.composite, acwr, consecutiveRed, declining)
+      score.trainingState = state
+      score.message = generateReadinessMessage(score, todayPlannedWorkout)
+      if (todayPlannedWorkout) {
+        score.adjustment = suggestDailyAdjustment(score.status, state, todayPlannedWorkout.type, score.components)
+      }
+      return score
+    })
+  }, [healthData, baselines, dailyTrimp, acwr, hrvStability.cv, todayPlannedWorkout])
 
   // Today's score
   const todayScore = useMemo(() => {
@@ -119,23 +149,63 @@ export function useReadiness({
     return weekScores[weekScores.length - 1]
   }, [weekScores])
 
-  // Performance timeline (CTL/ATL/TSB/ACWR)
+  // Training state info (with medical flags)
+  const trainingStateInfo = useMemo(() => {
+    if (!todayScore) return null
+    const consecutiveRed = countConsecutiveRedDays(weekScores)
+    return buildTrainingStateInfo(todayScore.trainingState, consecutiveRed)
+  }, [todayScore, weekScores])
+
+  // Deload program (only when State D)
+  const deloadProgram = useMemo(() => {
+    if (trainingStateInfo?.state !== 'D') return null
+    return computeDeloadProgram()
+  }, [trainingStateInfo])
+
+  // Performance timeline (CTL/ATL/TSB/ACWR display)
   const performance = useMemo(
     () => calculatePerformanceTimeline(dailyTrimp),
     [dailyTrimp],
   )
 
-  // Weekly recommendations
-  const weeklyRecommendations = useMemo(
-    () => generateWeeklyRecommendations(performance, currentWeekNum, raceDate),
-    [performance, currentWeekNum, raceDate],
-  )
+  // Weekly recommendations (including TRIMP overload check)
+  const weeklyRecommendations = useMemo(() => {
+    const recs = generateWeeklyRecommendations(performance, currentWeekNum, raceDate)
 
-  // HRV stability check
-  const hrvStability = useMemo(
-    () => checkHRVStability(healthData),
-    [healthData],
-  )
+    // Add weekly TRIMP overload check (ATE guardrail)
+    const overload = checkWeeklyTRIMPOverload(dailyTrimp)
+    if (overload.overloaded) {
+      recs.push({
+        type: 'weekly_trimp_overload',
+        severity: 'warning',
+        message: `Weekly training load (${overload.ratio}% of 28-day average) exceeds 120% threshold. Consider reducing volume.`,
+        weekNum: currentWeekNum,
+      })
+    }
+
+    // Add medical flag if applicable
+    if (trainingStateInfo?.medicalFlagLevel === 'critical') {
+      recs.push({
+        type: 'medical_flag',
+        severity: 'alert',
+        message: `State D for ${trainingStateInfo.stateDDurationDays}+ days. Consider blood work (cortisol, testosterone, ferritin, CRP) and sports medicine consultation.`,
+      })
+    } else if (trainingStateInfo?.medicalFlagLevel === 'warning') {
+      recs.push({
+        type: 'medical_flag',
+        severity: 'warning',
+        message: `Extended overtraining (${trainingStateInfo.stateDDurationDays}+ days). Recommend sports medicine consultation.`,
+      })
+    } else if (trainingStateInfo?.medicalFlagLevel === 'info') {
+      recs.push({
+        type: 'medical_flag',
+        severity: 'info',
+        message: `Overtraining for ${trainingStateInfo.stateDDurationDays}+ days. Prioritize rest, nutrition, and stress management.`,
+      })
+    }
+
+    return recs
+  }, [performance, currentWeekNum, raceDate, dailyTrimp, trainingStateInfo])
 
   return {
     todayScore,
@@ -146,6 +216,9 @@ export function useReadiness({
     weeklyRecommendations,
     baselines,
     hrvStability,
+    acwr,
+    trainingStateInfo,
+    deloadProgram,
     loading: false,
   }
 }
