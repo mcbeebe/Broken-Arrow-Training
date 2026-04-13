@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect, useCallback } from 'react'
 import type { ViewId } from './types'
 import { plans } from './data'
 import { useStrava } from './hooks/useStrava'
@@ -21,9 +21,30 @@ const TABS: { id: ViewId; label: string }[] = [
   { id: 'settings', label: 'Settings' },
 ]
 
+function getAthleteFromHash(): string {
+  const hash = window.location.hash.replace('#', '').toLowerCase()
+  if (hash in plans) return hash
+  return 'mike'
+}
+
 export default function App() {
   const [view, setView] = useState<ViewId>('plan')
-  const [athleteId, setAthleteId] = useState('mike')
+  const [athleteId, setAthleteId] = useState(getAthleteFromHash)
+
+  const switchAthlete = useCallback((id: string) => {
+    setAthleteId(id)
+    window.location.hash = id
+    setView('plan')
+  }, [])
+
+  // Listen for hash changes (back/forward buttons)
+  useEffect(() => {
+    function onHashChange() {
+      setAthleteId(getAthleteFromHash())
+    }
+    window.addEventListener('hashchange', onHashChange)
+    return () => window.removeEventListener('hashchange', onHashChange)
+  }, [])
   const plan = plans[athleteId]
   const strava = useStrava()
   const manualLog = useManualLog(athleteId)
@@ -58,7 +79,7 @@ export default function App() {
             </p>
             <p className="text-teal-400 text-xs mt-1">{plan.athlete.weeklyStructure}</p>
           </div>
-          <ProfileSwitcher athleteId={athleteId} onSwitch={setAthleteId} />
+          <ProfileSwitcher athleteId={athleteId} onSwitch={switchAthlete} />
         </div>
       </div>
 
