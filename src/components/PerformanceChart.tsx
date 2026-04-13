@@ -135,21 +135,56 @@ export default function PerformanceChart({
         </div>
       </div>
 
-      {/* Current stats cards */}
-      <div className="grid grid-cols-4 gap-2">
-        <PerfStatCard label="Fitness" value={latest.ctl.toFixed(0)} sub="CTL" color="blue" />
-        <PerfStatCard label="Fatigue" value={latest.atl.toFixed(0)} sub="ATL" color="red" />
+      {/* Current stats cards with contextual notes */}
+      <div className="grid grid-cols-2 gap-2">
+        <PerfStatCard
+          label="Fitness"
+          value={latest.ctl.toFixed(0)}
+          sub="CTL"
+          color="blue"
+          note={
+            latest.ctl < 20 ? 'Building base — keep training consistently'
+            : latest.ctl < 40 ? 'Moderate fitness — on track for build phase'
+            : latest.ctl < 60 ? 'Strong fitness — maintain through quality sessions'
+            : 'High fitness — protect with smart recovery'
+          }
+        />
+        <PerfStatCard
+          label="Fatigue"
+          value={latest.atl.toFixed(0)}
+          sub="ATL"
+          color="red"
+          note={
+            latest.atl > latest.ctl * 1.5 ? 'Very high — consider an easy day soon'
+            : latest.atl > latest.ctl ? 'Fatigue exceeds fitness — normal in build weeks'
+            : latest.atl > latest.ctl * 0.8 ? 'Balanced — productive training zone'
+            : 'Low fatigue — room to push harder'
+          }
+        />
         <PerfStatCard
           label="Form"
           value={`${latest.tsb >= 0 ? '+' : ''}${latest.tsb.toFixed(0)}`}
           sub={getTSBLabel(tsbState)}
           color={tsbState === 'peaked' || tsbState === 'well_rested' ? 'green' : tsbState === 'productive' ? 'slate' : 'red'}
+          note={
+            latest.tsb >= 15 ? 'Peak form — ideal for racing or time trials'
+            : latest.tsb >= 5 ? 'Fresh — good day for a quality workout'
+            : latest.tsb >= -10 ? 'Productive — building fitness, some fatigue'
+            : latest.tsb >= -30 ? 'Tired — back off if this persists 3+ days'
+            : 'Overreaching — prioritize rest to avoid injury'
+          }
         />
         <PerfStatCard
           label="ACWR"
           value={latest.acwr.toFixed(2)}
           sub={getACWRLabel(acwrRisk)}
           color={acwrRisk === 'sweet_spot' ? 'green' : acwrRisk === 'caution' ? 'amber' : 'red'}
+          note={
+            acwrRisk === 'sweet_spot' ? 'Safe zone — training load matches your fitness'
+            : acwrRisk === 'caution' ? 'Ramping up fast — watch for soreness or tightness'
+            : acwrRisk === 'high_risk' ? 'Injury risk elevated — reduce volume this week'
+            : 'Undertraining — add volume gradually to avoid detraining'
+          }
         />
       </div>
 
@@ -174,7 +209,9 @@ export default function PerformanceChart({
   )
 }
 
-function PerfStatCard({ label, value, sub, color }: { label: string; value: string; sub: string; color: string }) {
+function PerfStatCard({ label, value, sub, color, note }: {
+  label: string; value: string; sub: string; color: string; note?: string
+}) {
   const colorMap: Record<string, string> = {
     blue: 'text-blue-700',
     red: 'text-red-600',
@@ -183,10 +220,17 @@ function PerfStatCard({ label, value, sub, color }: { label: string; value: stri
     slate: 'text-slate-700',
   }
   return (
-    <div className="bg-white rounded-xl p-2 shadow-sm border border-slate-100 text-center">
-      <p className="text-[10px] text-slate-500 uppercase tracking-wide">{label}</p>
-      <p className={`text-lg font-bold ${colorMap[color] || 'text-slate-800'}`}>{value}</p>
-      <p className="text-[9px] text-slate-400 leading-tight">{sub}</p>
+    <div className="bg-white rounded-xl p-3 shadow-sm border border-slate-100">
+      <div className="flex items-baseline gap-2">
+        <div>
+          <p className="text-[10px] text-slate-500 uppercase tracking-wide">{label}</p>
+          <p className={`text-xl font-bold ${colorMap[color] || 'text-slate-800'}`}>{value}</p>
+          <p className="text-[9px] text-slate-400 leading-tight">{sub}</p>
+        </div>
+      </div>
+      {note && (
+        <p className="text-[10px] text-slate-500 mt-1.5 leading-snug border-t border-slate-100 pt-1.5">{note}</p>
+      )}
     </div>
   )
 }

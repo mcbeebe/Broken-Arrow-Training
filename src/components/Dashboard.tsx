@@ -263,6 +263,15 @@ function ReadinessTab({
         </div>
       )}
 
+      {/* Calibration notice */}
+      {todayScore && weekScores.length < 7 && weekScores.length > 0 && (
+        <div className="bg-blue-50 rounded-xl p-3 border border-blue-200">
+          <p className="text-xs text-blue-700">
+            <strong>Calibrating:</strong> {weekScores.length}/7 days of data. Scores will become more personalized as your baseline builds. Full calibration at 7+ days.
+          </p>
+        </div>
+      )}
+
       {!todayScore && (
         <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-100 text-center">
           <p className="text-sm text-slate-500">Connect Garmin and sync to see readiness data</p>

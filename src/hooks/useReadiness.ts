@@ -84,7 +84,7 @@ export function useReadiness({
 
   // Calculate baselines from health history
   const baselines = useMemo(() => {
-    if (healthData.length < 3) return null
+    if (healthData.length < 1) return null
     return calculateBaselines(healthData, trimpRecords)
   }, [healthData, trimpRecords])
 
