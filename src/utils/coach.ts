@@ -209,7 +209,7 @@ export function generateMorningCoach(
 export function generateEveningCoach(
   todayScore: ReadinessScore | null,
   tomorrowWorkout: PlannedDay | undefined,
-  sleepData: SleepData | undefined,
+  _sleepData: SleepData | undefined,
   bodyBattery: BodyBatteryData | undefined,
   performance: PerformanceMetrics | null,
   _trainingState: TrainingStateInfo | null,
