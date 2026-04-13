@@ -80,10 +80,9 @@ def _try_saved_session() -> Garmin | None:
         return None
 
     try:
-        session_data = json.loads(saved_session) if isinstance(saved_session, str) else saved_session
         client = Garmin(email, password)
-        client.login(session_data)
-        client.get_full_name()
+        client.garth.loads(saved_session)
+        client.display_name = client.get_full_name()
         _garmin_client = client
         return client
     except Exception:
@@ -91,11 +90,13 @@ def _try_saved_session() -> Garmin | None:
 
 
 def _save_session(client: Garmin):
-    """Save Garmin session tokens to KV."""
-    session_data = client.session_data
-    if session_data:
-        serialized = json.dumps(session_data)
-        _kv_set("garmin_session", serialized)
+    """Save Garmin garth session tokens to KV."""
+    try:
+        token_data = client.garth.dumps()
+        if token_data:
+            _kv_set("garmin_session", token_data)
+    except Exception as e:
+        raise RuntimeError(f"Failed to save session: {str(e)}")
 
 
 class handler(BaseHTTPRequestHandler):

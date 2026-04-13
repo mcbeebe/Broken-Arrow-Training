@@ -57,10 +57,9 @@ def _get_client() -> Garmin:
     saved_session = _kv_get("garmin_session")
     if saved_session:
         try:
-            session_data = json.loads(saved_session) if isinstance(saved_session, str) else saved_session
             client = Garmin(email, password)
-            client.login(session_data)
-            client.get_full_name()
+            client.garth.loads(saved_session)
+            client.display_name = client.get_full_name()
             _garmin_client = client
             return client
         except Exception:
