@@ -21,11 +21,8 @@ export default function WeeklyPlan({ weeks, manualLog, daySwap }: WeeklyPlanProp
   const [activeWeek, setActiveWeek] = useState(0)
   const [modalDay, setModalDay] = useState<PlannedDay | null>(null)
   const [logDay, setLogDay] = useState<PlannedDay | null>(null)
-  const [dragIndex, setDragIndex] = useState<number | null>(null)
-  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
-  const [, setTouchStartY] = useState<number | null>(null)
+  const [swapSource, setSwapSource] = useState<number | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
-  const cardRefs = useRef<(HTMLDivElement | null)[]>([])
   const week = weeks[activeWeek]
 
   useEffect(() => {
@@ -35,60 +32,22 @@ export default function WeeklyPlan({ weeks, manualLog, daySwap }: WeeklyPlanProp
     }
   }, [activeWeek])
 
-  // Desktop drag handlers
-  function handleDragStart(index: number) {
-    setDragIndex(index)
-  }
-
-  function handleDragOver(e: React.DragEvent, index: number) {
-    e.preventDefault()
-    setDragOverIndex(index)
-  }
-
-  function handleDrop(index: number) {
-    if (dragIndex !== null && dragIndex !== index && daySwap) {
-      daySwap.swapDays(week.num, dragIndex, index)
+  // Tap-to-swap: first tap selects source, second tap selects target
+  function handleSwapTap(index: number) {
+    if (swapSource === null) {
+      setSwapSource(index)
+    } else if (swapSource === index) {
+      // Tapped same card — cancel
+      setSwapSource(null)
+    } else {
+      // Swap and clear
+      daySwap?.swapDays(week.num, swapSource, index)
+      setSwapSource(null)
     }
-    setDragIndex(null)
-    setDragOverIndex(null)
-  }
-
-  function handleDragEnd() {
-    setDragIndex(null)
-    setDragOverIndex(null)
-  }
-
-  // Touch drag handlers for mobile
-  function handleTouchStart(index: number, e: React.TouchEvent) {
-    setDragIndex(index)
-    setTouchStartY(e.touches[0].clientY)
-  }
-
-  function handleTouchMove(e: React.TouchEvent) {
-    if (dragIndex === null) return
-    const touch = e.touches[0]
-    // Find which card the touch is over
-    for (let i = 0; i < cardRefs.current.length; i++) {
-      const el = cardRefs.current[i]
-      if (!el) continue
-      const rect = el.getBoundingClientRect()
-      if (touch.clientY >= rect.top && touch.clientY <= rect.bottom) {
-        setDragOverIndex(i)
-        break
-      }
-    }
-  }
-
-  function handleTouchEnd() {
-    if (dragIndex !== null && dragOverIndex !== null && dragIndex !== dragOverIndex && daySwap) {
-      daySwap.swapDays(week.num, dragIndex, dragOverIndex)
-    }
-    setDragIndex(null)
-    setDragOverIndex(null)
-    setTouchStartY(null)
   }
 
   const showResetButton = daySwap?.hasSwaps(week.num)
+  const isSwapMode = swapSource !== null
 
   return (
     <div className="pb-6">
@@ -112,6 +71,21 @@ export default function WeeklyPlan({ weeks, manualLog, daySwap }: WeeklyPlanProp
         ))}
       </div>
 
+      {/* Swap mode banner */}
+      {isSwapMode && (
+        <div className="bg-teal-600 text-white px-4 py-2 flex items-center justify-between">
+          <p className="text-sm font-medium">
+            Swapping {week.days[swapSource!]?.day} — tap another day to swap
+          </p>
+          <button
+            onClick={() => setSwapSource(null)}
+            className="text-xs bg-teal-700 hover:bg-teal-800 px-2 py-1 rounded-lg"
+          >
+            Cancel
+          </button>
+        </div>
+      )}
+
       {/* Week header */}
       <div className="px-4 pt-4 pb-2">
         <div className="flex items-center justify-between">
@@ -132,9 +106,6 @@ export default function WeeklyPlan({ weeks, manualLog, daySwap }: WeeklyPlanProp
             </button>
           )}
         </div>
-        {daySwap && (
-          <p className="text-[10px] text-slate-400 mt-1">Long-press and drag cards to swap workouts between days</p>
-        )}
       </div>
 
       {/* Day cards */}
@@ -142,25 +113,19 @@ export default function WeeklyPlan({ weeks, manualLog, daySwap }: WeeklyPlanProp
         {week.days.map((d, i) => (
           <div
             key={`${week.num}-${i}`}
-            ref={el => { cardRefs.current[i] = el }}
-            draggable={!!daySwap}
-            onDragStart={() => handleDragStart(i)}
-            onDragOver={(e) => handleDragOver(e, i)}
-            onDrop={() => handleDrop(i)}
-            onDragEnd={handleDragEnd}
-            onTouchStart={(e) => daySwap && handleTouchStart(i, e)}
-            onTouchMove={handleTouchMove}
-            onTouchEnd={handleTouchEnd}
-            className={`transition-all ${
-              dragIndex === i ? 'opacity-50 scale-95' : ''
+            className={`transition-all rounded-xl ${
+              swapSource === i ? 'ring-2 ring-teal-500 ring-offset-2 scale-[0.98]' : ''
             } ${
-              dragOverIndex === i && dragIndex !== i ? 'ring-2 ring-teal-400 ring-offset-2 rounded-xl' : ''
+              isSwapMode && swapSource !== i ? 'ring-1 ring-teal-300 ring-offset-1' : ''
             }`}
           >
             <DayCard
               day={d}
-              onTap={() => setModalDay(d)}
+              onTap={isSwapMode ? () => handleSwapTap(i) : () => setModalDay(d)}
               onLog={manualLog ? () => setLogDay(d) : undefined}
+              onSwap={daySwap ? () => handleSwapTap(i) : undefined}
+              isSwapSelected={swapSource === i}
+              isSwapTarget={isSwapMode && swapSource !== i}
             />
           </div>
         ))}

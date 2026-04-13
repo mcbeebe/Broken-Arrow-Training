@@ -6,9 +6,12 @@ interface DayCardProps {
   day: PlannedDay
   onTap: () => void
   onLog?: () => void
+  onSwap?: () => void
+  isSwapSelected?: boolean
+  isSwapTarget?: boolean
 }
 
-export default function DayCard({ day, onTap, onLog }: DayCardProps) {
+export default function DayCard({ day, onTap, onLog, onSwap, isSwapSelected, isSwapTarget }: DayCardProps) {
   const style = getWorkoutStyle(day.type)
   const actual = day.actual
   const timeEst = estimateRunTime(day.zone)
@@ -30,7 +33,21 @@ export default function DayCard({ day, onTap, onLog }: DayCardProps) {
               </span>
             )}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
+            {onSwap && (
+              <button
+                onClick={e => { e.stopPropagation(); onSwap() }}
+                className={`text-xs font-medium px-2 py-0.5 rounded-full transition-colors ${
+                  isSwapSelected
+                    ? 'bg-teal-500 text-white'
+                    : isSwapTarget
+                    ? 'bg-teal-100 text-teal-700 animate-pulse'
+                    : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                }`}
+              >
+                ⇄
+              </button>
+            )}
             {onLog && (
               <button
                 onClick={e => { e.stopPropagation(); onLog() }}
