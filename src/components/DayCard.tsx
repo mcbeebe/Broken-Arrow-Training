@@ -100,6 +100,12 @@ export default function DayCard({ day, onTap, onLog, onSwap, isSwapSelected, isS
               {actual.elevationGain > 0 && (
                 <span>⛰ {actual.elevationGain} ft</span>
               )}
+              {actual.sufferScore && (
+                <span>🔥 {actual.sufferScore} effort</span>
+              )}
+              {actual.calories && (
+                <span>🔋 {actual.calories} cal</span>
+              )}
             </div>
             {actual.strengthLog && actual.strengthLog.length > 0 && (
               <div className="mt-1.5 text-xs text-purple-600">

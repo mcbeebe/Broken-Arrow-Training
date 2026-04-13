@@ -30,8 +30,43 @@ export interface StravaActivity {
   total_elevation_gain: number;
   average_heartrate?: number;
   max_heartrate?: number;
+  average_cadence?: number;
+  average_speed?: number;
+  max_speed?: number;
+  suffer_score?: number;
+  calories?: number;
+  elev_high?: number;
+  elev_low?: number;
   start_date_local: string;
   start_date: string;
+  splits_metric?: StravaSplit[];
+  laps?: StravaLap[];
+  device_name?: string;
+  gear_id?: string;
+  description?: string;
+}
+
+export interface StravaSplit {
+  distance: number;
+  elapsed_time: number;
+  moving_time: number;
+  average_heartrate?: number;
+  average_speed: number;
+  elevation_difference: number;
+  split: number;
+}
+
+export interface StravaLap {
+  name: string;
+  distance: number;
+  moving_time: number;
+  elapsed_time: number;
+  average_heartrate?: number;
+  max_heartrate?: number;
+  average_cadence?: number;
+  average_speed: number;
+  total_elevation_gain: number;
+  lap_index: number;
 }
 
 export interface HRZone {
@@ -59,12 +94,22 @@ export interface ActualWorkout {
   elapsedTime: number;
   avgHR?: number;
   maxHR?: number;
+  avgCadence?: number;
+  avgSpeed?: number;
+  maxSpeed?: number;
+  sufferScore?: number;
+  calories?: number;
   elevationGain: number;
+  elevHigh?: number;
+  elevLow?: number;
   type: string;
   name: string;
   startDate: string;
   notes?: string;
   strengthLog?: StrengthExerciseLog[];
+  splits?: { split: number; pace: string; hr?: number; elev: number }[];
+  laps?: { name: string; distance: number; pace: string; hr?: number }[];
+  deviceName?: string;
 }
 
 export interface StrengthExerciseLog {

@@ -92,10 +92,30 @@ function stravaToActual(activity: StravaActivity): ActualWorkout {
     elapsedTime: activity.elapsed_time,
     avgHR: activity.average_heartrate,
     maxHR: activity.max_heartrate,
+    avgCadence: activity.average_cadence,
+    avgSpeed: activity.average_speed,
+    maxSpeed: activity.max_speed,
+    sufferScore: activity.suffer_score,
+    calories: activity.calories,
     elevationGain: metersToFeet(activity.total_elevation_gain),
+    elevHigh: activity.elev_high ? metersToFeet(activity.elev_high) : undefined,
+    elevLow: activity.elev_low ? metersToFeet(activity.elev_low) : undefined,
     type: activity.type,
     name: activity.name,
     startDate: activity.start_date_local,
+    deviceName: activity.device_name,
+    splits: activity.splits_metric?.map(s => ({
+      split: s.split,
+      pace: formatPaceFromSpeed(s.average_speed),
+      hr: s.average_heartrate,
+      elev: metersToFeet(s.elevation_difference),
+    })),
+    laps: activity.laps?.map(l => ({
+      name: l.name,
+      distance: metersToMiles(l.distance),
+      pace: formatPaceFromSpeed(l.average_speed),
+      hr: l.average_heartrate,
+    })),
   }
 }
 
@@ -105,4 +125,12 @@ function metersToMiles(meters: number): number {
 
 function metersToFeet(meters: number): number {
   return Math.round(meters * 3.28084)
+}
+
+function formatPaceFromSpeed(metersPerSec: number): string {
+  if (!metersPerSec || metersPerSec === 0) return '--'
+  const secsPerMile = 1609.344 / metersPerSec
+  const mins = Math.floor(secsPerMile / 60)
+  const secs = Math.round(secsPerMile % 60)
+  return `${mins}:${secs.toString().padStart(2, '0')}/mi`
 }

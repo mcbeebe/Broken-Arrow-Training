@@ -81,15 +81,59 @@ export default function WorkoutModal({ day, weekNum, onClose }: WorkoutModalProp
         <div className="px-4 py-4 space-y-4">
           {/* Strava actual */}
           {actual && (
-            <div className="bg-teal-50 rounded-xl p-3 border border-teal-200">
-              <p className="text-xs font-semibold text-teal-800 uppercase tracking-wide mb-1.5">Strava: {actual.name}</p>
+            <div className="bg-teal-50 rounded-xl p-3 border border-teal-200 space-y-2">
+              <p className="text-xs font-semibold text-teal-800 uppercase tracking-wide">
+                {actual.type === 'Manual' ? '📝 Logged' : '🔗 Strava'}: {actual.name}
+              </p>
               <div className="grid grid-cols-2 gap-2 text-sm text-teal-700">
                 {actual.distance > 0 && <span>📏 {formatMiles(actual.distance)}</span>}
                 {actual.movingTime > 0 && <span>⏱ {formatSeconds(actual.movingTime)}</span>}
                 {actual.avgHR && <span>❤️ {actual.avgHR} avg HR</span>}
                 {actual.maxHR && <span>💓 {actual.maxHR} max HR</span>}
                 {actual.elevationGain > 0 && <span>⛰ {actual.elevationGain} ft gain</span>}
+                {actual.sufferScore && <span>🔥 {actual.sufferScore} relative effort</span>}
+                {actual.calories && <span>🔋 {actual.calories} cal</span>}
+                {actual.avgCadence && <span>👟 {Math.round(actual.avgCadence * 2)} spm</span>}
+                {actual.elevHigh && <span>📈 {actual.elevHigh} ft high</span>}
+                {actual.elevLow && <span>📉 {actual.elevLow} ft low</span>}
               </div>
+              {actual.deviceName && (
+                <p className="text-[10px] text-teal-600">📱 {actual.deviceName}</p>
+              )}
+
+              {/* Splits */}
+              {actual.splits && actual.splits.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-teal-800 mt-2 mb-1">Splits (per km)</p>
+                  <div className="space-y-0.5">
+                    {actual.splits.map((s, i) => (
+                      <div key={i} className="flex justify-between text-xs text-teal-700 bg-teal-100/50 rounded px-2 py-0.5">
+                        <span>Km {s.split}</span>
+                        <span>{s.pace}</span>
+                        {s.hr && <span>❤️ {s.hr}</span>}
+                        <span>{s.elev > 0 ? `+${s.elev}` : s.elev} ft</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Laps */}
+              {actual.laps && actual.laps.length > 1 && (
+                <div>
+                  <p className="text-xs font-semibold text-teal-800 mt-2 mb-1">Laps</p>
+                  <div className="space-y-0.5">
+                    {actual.laps.map((l, i) => (
+                      <div key={i} className="flex justify-between text-xs text-teal-700 bg-teal-100/50 rounded px-2 py-0.5">
+                        <span className="truncate max-w-[120px]">{l.name}</span>
+                        <span>{formatMiles(l.distance)}</span>
+                        <span>{l.pace}</span>
+                        {l.hr && <span>❤️ {l.hr}</span>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
