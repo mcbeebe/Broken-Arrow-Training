@@ -8,7 +8,6 @@ GET /api/garmin/health?days=N
 
 import json
 import os
-import math
 import urllib.request
 from datetime import datetime, timedelta
 from http.server import BaseHTTPRequestHandler
@@ -39,22 +38,16 @@ def _kv_get(key: str):
 def _get_client() -> Garmin:
     """Get an authenticated Garmin client using saved session from KV."""
     global _garmin_client
-
     email = os.environ.get("GARMIN_EMAIL", "")
     password = os.environ.get("GARMIN_PASSWORD", "")
-
     if not email or not password:
         raise ValueError("GARMIN_EMAIL and GARMIN_PASSWORD must be set")
-
-    # Try module-level cache first (warm invocation)
     if _garmin_client is not None:
         try:
             _garmin_client.get_full_name()
             return _garmin_client
         except Exception:
             _garmin_client = None
-
-    # Try saved session from KV
     saved_token = _kv_get("garmin_session")
     if saved_token:
         try:
@@ -64,11 +57,7 @@ def _get_client() -> Garmin:
             return client
         except Exception:
             pass
-
-    raise RuntimeError(
-        "No valid Garmin session found. "
-        "Please authenticate first via POST /api/garmin/auth"
-    )
+    raise RuntimeError("No valid Garmin session. Authenticate via POST /api/garmin/auth")
 
 
 def _safe_get(func, *args):
@@ -80,67 +69,136 @@ def _safe_get(func, *args):
 
 
 def _extract_hrv(hrv_data) -> dict | None:
-    """Extract HRV metrics from Garmin response."""
-    if not hrv_data:
+    """Extract HRV from Garmin response.
+
+    Actual structure:
+    {
+        "hrvSummary": {
+            "weeklyAvg": 42,
+            "lastNightAvg": 45,
+            "lastNight5MinHigh": 68,
+            "status": "BALANCED",
+            "baseline": {"lowUpper": 34, "balancedLow": 37, "balancedUpper": 50, ...}
+        },
+        "hrvReadings": [{"hrvValue": 50, ...}, ...]
+    }
+    """
+    if not hrv_data or not isinstance(hrv_data, dict):
         return None
 
-    if isinstance(hrv_data, dict):
-        weekly_avg = hrv_data.get("weeklyAvg", 0)
-        last_night = hrv_data.get("lastNightAvg", 0) or hrv_data.get("lastNight5MinHigh", 0)
-        status = hrv_data.get("status", "UNKNOWN")
-        if weekly_avg or last_night:
-            return {
-                "weeklyAvg": weekly_avg or 0,
-                "lastNightAvg": last_night or 0,
-                "status": status,
-            }
+    summary = hrv_data.get("hrvSummary")
+    if not summary:
+        return None
+
+    weekly_avg = summary.get("weeklyAvg", 0)
+    last_night = summary.get("lastNightAvg", 0)
+    last_night_high = summary.get("lastNight5MinHigh", 0)
+    status = summary.get("status", "UNKNOWN")
+    baseline = summary.get("baseline", {})
+
+    if weekly_avg or last_night:
+        return {
+            "weeklyAvg": weekly_avg or 0,
+            "lastNightAvg": last_night or 0,
+            "lastNight5MinHigh": last_night_high or 0,
+            "status": status,
+            "baselineLow": baseline.get("balancedLow", 0),
+            "baselineHigh": baseline.get("balancedUpper", 0),
+        }
+    return None
+
+
+def _extract_rhr(rhr_data, heart_rates_data) -> int | None:
+    """Extract RHR from Garmin response.
+
+    rhr_day structure:
+    {"allMetrics": {"metricsMap": {"WELLNESS_RESTING_HEART_RATE": [{"value": 57.0, ...}]}}}
+
+    heart_rates structure (fallback):
+    {"restingHeartRate": 57, ...}
+    """
+    # Try rhr_day first
+    if rhr_data and isinstance(rhr_data, dict):
+        try:
+            metrics = rhr_data.get("allMetrics", {}).get("metricsMap", {})
+            rhr_list = metrics.get("WELLNESS_RESTING_HEART_RATE", [])
+            if rhr_list and len(rhr_list) > 0:
+                val = rhr_list[0].get("value")
+                if val is not None:
+                    return int(val)
+        except Exception:
+            pass
+
+    # Fallback to heart_rates
+    if heart_rates_data and isinstance(heart_rates_data, dict):
+        rhr = heart_rates_data.get("restingHeartRate")
+        if rhr:
+            return int(rhr)
+
     return None
 
 
 def _extract_sleep(sleep_data) -> dict | None:
     """Extract sleep metrics from Garmin response."""
-    if not sleep_data:
+    if not sleep_data or not isinstance(sleep_data, dict):
         return None
 
-    if isinstance(sleep_data, dict):
-        daily = sleep_data.get("dailySleepDTO", sleep_data)
-        duration = daily.get("sleepTimeSeconds", 0)
-        if duration > 0:
-            return {
-                "durationSeconds": duration,
-                "quality": daily.get("sleepQualityType", "UNKNOWN"),
-                "deepSeconds": daily.get("deepSleepSeconds", 0),
-                "remSeconds": daily.get("remSleepSeconds", 0),
-                "lightSeconds": daily.get("lightSleepSeconds", 0),
-                "awakeSeconds": daily.get("awakeSleepSeconds", 0),
-                "score": daily.get("sleepScores", {}).get("overall", {}).get("value"),
-            }
+    daily = sleep_data.get("dailySleepDTO", sleep_data)
+    duration = daily.get("sleepTimeSeconds", 0)
+    if duration > 0:
+        return {
+            "durationSeconds": duration,
+            "quality": daily.get("sleepQualityType", "UNKNOWN"),
+            "deepSeconds": daily.get("deepSleepSeconds", 0),
+            "remSeconds": daily.get("remSleepSeconds", 0),
+            "lightSeconds": daily.get("lightSleepSeconds", 0),
+            "awakeSeconds": daily.get("awakeSleepSeconds", 0),
+            "score": daily.get("sleepScores", {}).get("overall", {}).get("value"),
+        }
     return None
 
 
 def _extract_body_battery(bb_data) -> dict | None:
-    """Extract Body Battery metrics from Garmin response."""
+    """Extract Body Battery from Garmin response.
+
+    Actual structure (list):
+    [{"date": "2026-04-13", "charged": 40, "drained": 21,
+      "bodyBatteryValuesArray": [[timestamp, level], ...], ...}]
+    """
     if not bb_data:
         return None
 
+    # It's a list — get first entry
+    entry = None
     if isinstance(bb_data, list) and len(bb_data) > 0:
-        bb = bb_data[0] if isinstance(bb_data[0], dict) else {}
+        entry = bb_data[0]
     elif isinstance(bb_data, dict):
-        bb = bb_data
-    else:
+        entry = bb_data
+
+    if not entry or not isinstance(entry, dict):
         return None
 
-    charged = bb.get("charged", 0)
-    drained = bb.get("drained", 0)
-    highest = bb.get("bodyBatteryHighestValue", bb.get("highest", 0))
-    lowest = bb.get("bodyBatteryLowestValue", bb.get("lowest", 0))
-    current = bb.get("bodyBatteryMostRecentValue", bb.get("current", 0))
+    charged = entry.get("charged", 0)
+    drained = entry.get("drained", 0)
 
-    if highest or current:
+    # Get highest and latest values from bodyBatteryValuesArray
+    values_array = entry.get("bodyBatteryValuesArray", [])
+    highest = 0
+    lowest = 100
+    current = 0
+    for item in values_array:
+        if isinstance(item, list) and len(item) >= 2:
+            val = item[1]
+            if val is not None:
+                highest = max(highest, val)
+                lowest = min(lowest, val)
+                current = val  # Last value = most recent
+
+    if highest > 0 or current > 0:
         return {
-            "highest": highest or 0,
-            "lowest": lowest or 0,
-            "current": current or 0,
+            "highest": highest,
+            "lowest": lowest if lowest < 100 else 0,
+            "current": current,
             "charged": charged or 0,
             "drained": drained or 0,
         }
@@ -170,22 +228,21 @@ class handler(BaseHTTPRequestHandler):
 
                 record = {"date": date_str}
 
+                # HRV — nested under hrvSummary
                 hrv_data = _safe_get(client.get_hrv_data, date_str)
                 record["hrv"] = _extract_hrv(hrv_data)
 
+                # RHR — nested under allMetrics.metricsMap, with heart_rates fallback
                 rhr_data = _safe_get(client.get_rhr_day, date_str)
-                if rhr_data and isinstance(rhr_data, dict):
-                    rhr_val = rhr_data.get("restingHeartRate", None)
-                    if not rhr_val:
-                        rhr_val = rhr_data.get("value", None)
-                    record["rhr"] = rhr_val
-                else:
-                    record["rhr"] = None
+                heart_rates_data = _safe_get(client.get_heart_rates, date_str)
+                record["rhr"] = _extract_rhr(rhr_data, heart_rates_data)
 
+                # Sleep
                 sleep_data = _safe_get(client.get_sleep_data, date_str)
                 record["sleep"] = _extract_sleep(sleep_data)
 
-                bb_data = _safe_get(client.get_body_battery, date_str)
+                # Body Battery — requires (startdate, enddate)
+                bb_data = _safe_get(client.get_body_battery, date_str, date_str)
                 record["bodyBattery"] = _extract_body_battery(bb_data)
 
                 results.append(record)
