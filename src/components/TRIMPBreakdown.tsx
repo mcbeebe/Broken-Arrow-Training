@@ -86,7 +86,7 @@ export default function TRIMPBreakdown({ dailyTrimp, sorenessLoadByDate }: TRIMP
         entry['soreness'] = Math.round(sorenessInSupplement * 10) / 10
       }
       if (otherSupplement > 0.5) {
-        entry['exercise_rpe_boost'] = Math.round(otherSupplement * 10) / 10
+        entry['doms_carry'] = Math.round(otherSupplement * 10) / 10
       }
     }
     // Ensure rest days show a tiny bar for visibility
@@ -106,7 +106,7 @@ export default function TRIMPBreakdown({ dailyTrimp, sorenessLoadByDate }: TRIMP
     }
   }
   for (const entry of chartData) {
-    if (entry['exercise_rpe_boost']) hasBoost = true
+    if (entry['doms_carry']) hasBoost = true
     if (entry['soreness']) hasSoreness = true
   }
 
@@ -115,7 +115,7 @@ export default function TRIMPBreakdown({ dailyTrimp, sorenessLoadByDate }: TRIMP
       <div className="flex items-baseline justify-between mb-3">
         <div>
           <p className="text-sm font-semibold text-slate-700">7-Day Training Load</p>
-          <p className="text-xs text-slate-400">Garmin EPOC · MIM-adjusted · exercise &amp; RPE supplements</p>
+          <p className="text-xs text-slate-400">Garmin EPOC · MIM-adjusted · DOMS &amp; soreness</p>
         </div>
         <div className="text-right">
           <p className="text-xl font-bold text-slate-800">{weeklyTotal}</p>
@@ -142,7 +142,7 @@ export default function TRIMPBreakdown({ dailyTrimp, sorenessLoadByDate }: TRIMP
               formatter={(value, name) => {
                 if (name === '_isRest' || name === 'rest') return [null, null]
                 const label = name === 'soreness' ? 'muscle soreness'
-                  : name === 'exercise_rpe_boost' ? 'exercise + RPE boost'
+                  : name === 'doms_carry' ? 'DOMS carry-over'
                   : String(name).replace(/_/g, ' ')
                 return [
                   `${Math.round(Number(value))} TRIMP`,
@@ -162,7 +162,7 @@ export default function TRIMPBreakdown({ dailyTrimp, sorenessLoadByDate }: TRIMP
             ))}
             {hasBoost && (
               <Bar
-                dataKey="exercise_rpe_boost"
+                dataKey="doms_carry"
                 stackId="trimp"
                 fill="#F59E0B"
                 radius={[2, 2, 0, 0]}
@@ -205,7 +205,7 @@ export default function TRIMPBreakdown({ dailyTrimp, sorenessLoadByDate }: TRIMP
         {hasBoost && (
           <span className="flex items-center gap-1 text-[10px] text-slate-500">
             <span className="w-2 h-2 rounded-sm inline-block" style={{ backgroundColor: '#F59E0B' }} />
-            exercise + RPE boost
+            DOMS carry-over
           </span>
         )}
         {hasSoreness && (
