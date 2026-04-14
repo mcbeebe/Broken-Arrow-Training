@@ -1,6 +1,15 @@
 """Shared Garmin session management for all API endpoints.
 
-Loads saved session from Upstash KV to avoid MFA on every request.
+Supports multiple athletes — each athlete has their own Garmin credentials
+and session stored in Upstash KV under a scoped key.
+
+Credential resolution:
+  1. Per-athlete env vars: GARMIN_EMAIL_MIKE / GARMIN_PASSWORD_MIKE
+  2. Fallback: GARMIN_EMAIL / GARMIN_PASSWORD (single-user mode)
+
+Session KV keys:
+  - "garmin_session_{athlete}" for per-athlete sessions
+  - "garmin_session" for default (no athlete param)
 """
 
 import json
@@ -8,7 +17,8 @@ import os
 import urllib.request
 from garminconnect import Garmin
 
-_garmin_client = None
+# Module-level cache: { athlete_id: Garmin client }
+_client_cache: dict[str, Garmin] = {}
 
 
 def _get_kv_headers():
@@ -20,6 +30,7 @@ def _get_kv_headers():
 
 
 def _kv_get(key: str):
+    """Get a value from Upstash KV via REST API."""
     url = os.environ.get("KV_REST_API_URL", "")
     if not url:
         return None
@@ -35,33 +46,88 @@ def _kv_get(key: str):
         return None
 
 
-def get_client() -> Garmin:
-    """Get an authenticated Garmin client using saved session from KV."""
-    global _garmin_client
+def _kv_set(key: str, value: str, ex: int = 86400 * 30):
+    """Set a value in Upstash KV via REST API with expiration."""
+    url = os.environ.get("KV_REST_API_URL", "")
+    token = os.environ.get("KV_REST_API_TOKEN", "")
+    if not url or not token:
+        raise RuntimeError(
+            f"KV not configured: url={'set' if url else 'missing'}, "
+            f"token={'set' if token else 'missing'}"
+        )
+    encoded_value = urllib.request.quote(value, safe='')
+    set_url = f"{url}/set/{key}/{encoded_value}/EX/{ex}"
+    req = urllib.request.Request(
+        set_url,
+        headers={"Authorization": f"Bearer {token}"},
+        method="POST",
+    )
+    with urllib.request.urlopen(req) as resp:
+        result = json.loads(resp.read().decode())
+        if result.get("error"):
+            raise RuntimeError(f"KV set error: {result['error']}")
 
+
+def _session_key(athlete: str | None) -> str:
+    """KV key for an athlete's Garmin session."""
+    if athlete:
+        return f"garmin_session_{athlete}"
+    return "garmin_session"
+
+
+def _get_credentials(athlete: str | None) -> tuple[str, str]:
+    """Resolve Garmin credentials for an athlete.
+
+    Tries per-athlete env vars first (e.g., GARMIN_EMAIL_JIM),
+    then falls back to the default GARMIN_EMAIL / GARMIN_PASSWORD.
+    """
+    if athlete:
+        suffix = athlete.upper()
+        email = os.environ.get(f"GARMIN_EMAIL_{suffix}", "")
+        password = os.environ.get(f"GARMIN_PASSWORD_{suffix}", "")
+        if email and password:
+            return email, password
+
+    # Fallback to default credentials
     email = os.environ.get("GARMIN_EMAIL", "")
     password = os.environ.get("GARMIN_PASSWORD", "")
-
     if not email or not password:
-        raise ValueError("GARMIN_EMAIL and GARMIN_PASSWORD must be set")
+        raise ValueError(
+            "Garmin credentials not configured. "
+            f"Set GARMIN_EMAIL_{(athlete or '').upper()} / GARMIN_PASSWORD_{(athlete or '').upper()} "
+            "or GARMIN_EMAIL / GARMIN_PASSWORD."
+        )
+    return email, password
 
-    # Try module-level cache first (warm invocation)
-    if _garmin_client is not None:
+
+def get_client(athlete: str | None = None) -> Garmin:
+    """Get an authenticated Garmin client for the given athlete.
+
+    Uses cached client if available, then tries saved session from KV.
+    Raises RuntimeError if no valid session exists.
+    """
+    global _client_cache
+    cache_key = athlete or "__default__"
+
+    # Try module-level cache first (warm serverless invocation)
+    if cache_key in _client_cache:
         try:
-            _garmin_client.get_full_name()
-            return _garmin_client
+            _client_cache[cache_key].get_full_name()
+            return _client_cache[cache_key]
         except Exception:
-            _garmin_client = None
+            del _client_cache[cache_key]
+
+    email, password = _get_credentials(athlete)
+    kv_key = _session_key(athlete)
 
     # Try saved session from KV
-    saved_session = _kv_get("garmin_session")
-    if saved_session:
+    saved_token = _kv_get(kv_key)
+    if saved_token:
         try:
-            session_data = json.loads(saved_session) if isinstance(saved_session, str) else saved_session
             client = Garmin(email, password)
-            client.login(session_data)
+            client.login(tokenstore=saved_token)
             client.get_full_name()  # Verify it works
-            _garmin_client = client
+            _client_cache[cache_key] = client
             return client
         except Exception:
             pass
@@ -69,4 +135,42 @@ def get_client() -> Garmin:
     raise RuntimeError(
         "No valid Garmin session found. "
         "Please authenticate first via POST /api/garmin/auth"
+        + (f"?athlete={athlete}" if athlete else "")
     )
+
+
+def save_session(client: Garmin, athlete: str | None = None):
+    """Save Garmin session tokens to KV for the given athlete."""
+    token_data = client.client.dumps()
+    if not token_data:
+        raise RuntimeError("client.client.dumps() returned empty")
+    _kv_set(_session_key(athlete), token_data)
+    # Also cache in memory
+    cache_key = athlete or "__default__"
+    _client_cache[cache_key] = client
+
+
+def login_fresh(athlete: str | None = None, mfa_code: str | None = None) -> Garmin:
+    """Perform a fresh Garmin login (with optional MFA code).
+
+    If mfa_code is provided, passes it as the MFA prompt response.
+    On success, saves the session to KV and returns the client.
+    """
+    email, password = _get_credentials(athlete)
+
+    if mfa_code:
+        client = Garmin(email, password, prompt_mfa=lambda: mfa_code)
+    else:
+        client = Garmin(email, password)
+
+    client.login()
+    save_session(client, athlete)
+    return client
+
+
+def get_athlete_from_query(path: str) -> str | None:
+    """Extract the 'athlete' query parameter from a request path."""
+    from urllib.parse import urlparse, parse_qs
+    query = parse_qs(urlparse(path).query)
+    values = query.get("athlete", [None])
+    return values[0] if values and values[0] else None

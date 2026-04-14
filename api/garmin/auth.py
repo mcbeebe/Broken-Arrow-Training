@@ -1,92 +1,22 @@
-"""Garmin authentication endpoint with MFA support.
+"""Garmin authentication endpoint with per-athlete MFA support.
 
-POST /api/garmin/auth
+POST /api/garmin/auth?athlete=mike
 - Step 1: POST with no body → triggers login, Garmin sends SMS → returns {mfa_required: true}
 - Step 2: POST with {mfa_code: "123456"} → completes MFA, saves session to KV → returns {authenticated: true}
 - Subsequent: loads saved session from KV → no MFA needed
 
-GET /api/garmin/auth
-- Debug: checks if session exists in KV and if env vars are set
+Each athlete has their own session stored in KV under "garmin_session_{athlete}".
+Credentials resolve from GARMIN_EMAIL_{ATHLETE} / GARMIN_PASSWORD_{ATHLETE} env vars,
+falling back to GARMIN_EMAIL / GARMIN_PASSWORD for single-user setups.
 
-Session tokens are persisted in Upstash KV so MFA is only needed once.
+GET /api/garmin/auth?athlete=mike
+- Debug: checks if session exists in KV and if env vars are set
 """
 
 import json
 import os
-import urllib.request
 from http.server import BaseHTTPRequestHandler
-from garminconnect import Garmin
-
-_garmin_client = None
-
-
-def _kv_get(key: str):
-    """Get a value from Upstash KV via REST API."""
-    url = os.environ.get("KV_REST_API_URL", "")
-    token = os.environ.get("KV_REST_API_TOKEN", "")
-    if not url or not token:
-        return None
-    req = urllib.request.Request(
-        f"{url}/get/{key}",
-        headers={"Authorization": f"Bearer {token}"},
-    )
-    try:
-        with urllib.request.urlopen(req) as resp:
-            data = json.loads(resp.read().decode())
-            return data.get("result")
-    except Exception:
-        return None
-
-
-def _kv_set(key: str, value: str, ex: int = 86400 * 30):
-    """Set a value in Upstash KV via REST API with expiration."""
-    url = os.environ.get("KV_REST_API_URL", "")
-    token = os.environ.get("KV_REST_API_TOKEN", "")
-    if not url or not token:
-        raise RuntimeError(f"KV not configured: url={'set' if url else 'missing'}, token={'set' if token else 'missing'}")
-
-    encoded_value = urllib.request.quote(value, safe='')
-    set_url = f"{url}/set/{key}/{encoded_value}/EX/{ex}"
-    req = urllib.request.Request(
-        set_url,
-        headers={"Authorization": f"Bearer {token}"},
-        method="POST",
-    )
-    with urllib.request.urlopen(req) as resp:
-        result = json.loads(resp.read().decode())
-        if result.get("error"):
-            raise RuntimeError(f"KV set error: {result['error']}")
-
-
-def _try_saved_session() -> Garmin | None:
-    """Try to restore a Garmin client from a saved session in KV."""
-    global _garmin_client
-
-    email = os.environ.get("GARMIN_EMAIL", "")
-    password = os.environ.get("GARMIN_PASSWORD", "")
-
-    saved_token = _kv_get("garmin_session")
-    if not saved_token:
-        return None
-
-    try:
-        client = Garmin(email, password)
-        # login(tokenstore=str) — if len > 512, calls client.loads() internally
-        client.login(tokenstore=saved_token)
-        _garmin_client = client
-        return client
-    except Exception:
-        return None
-
-
-def _save_session(client: Garmin):
-    """Save Garmin session tokens to KV via client.dumps()."""
-    # client.client is the internal HTTP client with dumps()/loads()
-    token_data = client.client.dumps()
-    if token_data:
-        _kv_set("garmin_session", token_data)
-    else:
-        raise RuntimeError("client.client.dumps() returned empty")
+from ._session import get_client, save_session, login_fresh, get_athlete_from_query, _kv_get, _session_key, _get_credentials
 
 
 class handler(BaseHTTPRequestHandler):
@@ -98,31 +28,34 @@ class handler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_GET(self):
-        """Debug endpoint to check KV and env var status."""
+        """Debug endpoint to check KV and env var status for an athlete."""
+        athlete = get_athlete_from_query(self.path)
         kv_url = os.environ.get("KV_REST_API_URL", "")
         kv_token = os.environ.get("KV_REST_API_TOKEN", "")
-        email = os.environ.get("GARMIN_EMAIL", "")
 
-        saved = _kv_get("garmin_session")
+        # Check for per-athlete credentials
+        has_creds = False
+        try:
+            _get_credentials(athlete)
+            has_creds = True
+        except ValueError:
+            pass
+
+        saved = _kv_get(_session_key(athlete))
         has_session = saved is not None and len(str(saved)) > 0
 
         self._send_json(200, {
+            "athlete": athlete,
             "kv_url_set": bool(kv_url),
             "kv_token_set": bool(kv_token),
-            "email_set": bool(email),
+            "credentials_configured": has_creds,
             "session_in_kv": has_session,
             "session_length": len(str(saved)) if saved else 0,
         })
 
     def do_POST(self):
-        global _garmin_client
-
         try:
-            email = os.environ.get("GARMIN_EMAIL", "")
-            password = os.environ.get("GARMIN_PASSWORD", "")
-
-            if not email or not password:
-                raise ValueError("GARMIN_EMAIL and GARMIN_PASSWORD must be set")
+            athlete = get_athlete_from_query(self.path)
 
             # Parse request body
             content_length = int(self.headers.get("Content-Length", 0))
@@ -135,40 +68,38 @@ class handler(BaseHTTPRequestHandler):
 
             # Step 2: Complete MFA with provided code
             if mfa_code:
-                client = Garmin(email, password, prompt_mfa=lambda: mfa_code)
-                client.login()
-                _garmin_client = client
-                _save_session(client)
-
+                client = login_fresh(athlete, mfa_code=mfa_code)
                 display_name = client.get_full_name()
                 self._send_json(200, {
                     "authenticated": True,
                     "displayName": display_name or "Garmin User",
+                    "athlete": athlete,
                     "session_saved": True,
                 })
                 return
 
             # Try saved session first
-            client = _try_saved_session()
-            if client:
+            try:
+                client = get_client(athlete)
                 display_name = client.get_full_name()
                 self._send_json(200, {
                     "authenticated": True,
                     "displayName": display_name or "Garmin User",
+                    "athlete": athlete,
                     "session_restored": True,
                 })
                 return
+            except RuntimeError:
+                pass
 
-            # Step 1: Fresh login — will trigger MFA SMS
+            # Step 1: Fresh login — may trigger MFA SMS
             try:
-                client = Garmin(email, password)
-                client.login()
-                _garmin_client = client
-                _save_session(client)
+                client = login_fresh(athlete)
                 display_name = client.get_full_name()
                 self._send_json(200, {
                     "authenticated": True,
                     "displayName": display_name or "Garmin User",
+                    "athlete": athlete,
                     "session_saved": True,
                 })
             except Exception as e:
@@ -176,6 +107,7 @@ class handler(BaseHTTPRequestHandler):
                     self._send_json(200, {
                         "authenticated": False,
                         "mfa_required": True,
+                        "athlete": athlete,
                         "message": "SMS verification code sent. POST back with {\"mfa_code\": \"123456\"} to complete.",
                     })
                 else:
