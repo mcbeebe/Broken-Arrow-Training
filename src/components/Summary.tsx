@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import type { ReadinessScore, GarminHealthData, CoachRecommendation, PerformanceMetrics, DailyTRIMP } from '../types'
+import type { SorenessLevel } from '../hooks/useSoreness'
 import { getTSBState, getTSBLabel, getACWRRisk, getACWRLabel } from '../utils/performance'
 import { localDateStr } from '../utils/format'
 import TodayBriefing from './TodayBriefing'
@@ -15,6 +16,8 @@ interface SummaryProps {
   onCoachSwap?: (fromIndex: number, toIndex: number) => void
   dailyTrimp: DailyTRIMP[]
   performance: PerformanceMetrics[]
+  todaySoreness: SorenessLevel | null
+  onLogSoreness: (date: string, level: SorenessLevel) => void
 }
 
 // ─── Scale bar component ──────────────────────────────────────
@@ -98,6 +101,8 @@ export default function Summary({
   onCoachSwap,
   dailyTrimp,
   performance,
+  todaySoreness,
+  onLogSoreness,
 }: SummaryProps) {
   const latestPerf = performance.length > 0 ? performance[performance.length - 1] : null
 
@@ -118,6 +123,8 @@ export default function Summary({
           onCoachSwap={onCoachSwap}
           performance={performance}
           dailyTrimp={dailyTrimp}
+          todaySoreness={todaySoreness}
+          onLogSoreness={onLogSoreness}
         />
       ) : (
         <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-100">

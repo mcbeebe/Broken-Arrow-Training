@@ -7,6 +7,7 @@ import type {
   PerformanceMetrics,
   DailyTRIMP,
 } from '../types'
+import type { SorenessLevel } from '../hooks/useSoreness'
 import { localDateStr } from '../utils/format'
 import { LineChart, Line, ResponsiveContainer } from 'recharts'
 
@@ -18,7 +19,19 @@ interface TodayBriefingProps {
   onCoachSwap?: (fromIndex: number, toIndex: number) => void
   performance: PerformanceMetrics[]
   dailyTrimp: DailyTRIMP[]
+  todaySoreness: SorenessLevel | null
+  onLogSoreness: (date: string, level: SorenessLevel) => void
 }
+
+// ─── Soreness check-in options ───────────────────────────────────
+
+const SORENESS_OPTIONS: { level: SorenessLevel; emoji: string; label: string; color: string; activeBg: string }[] = [
+  { level: 1, emoji: '💚', label: 'Fresh',      color: 'text-green-700',  activeBg: 'bg-green-100 ring-2 ring-green-400' },
+  { level: 2, emoji: '👍', label: 'Normal',     color: 'text-slate-600',  activeBg: 'bg-slate-100 ring-2 ring-slate-400' },
+  { level: 3, emoji: '😣', label: 'Sore',       color: 'text-amber-700',  activeBg: 'bg-amber-100 ring-2 ring-amber-400' },
+  { level: 4, emoji: '😫', label: 'Very Sore',  color: 'text-orange-700', activeBg: 'bg-orange-100 ring-2 ring-orange-400' },
+  { level: 5, emoji: '🔥', label: 'Wrecked',    color: 'text-red-700',    activeBg: 'bg-red-100 ring-2 ring-red-400' },
+]
 
 // ─── Status visual styles ────────────────────────────────────────
 
@@ -223,6 +236,8 @@ export default function TodayBriefing({
   onCoachSwap,
   performance,
   dailyTrimp,
+  todaySoreness,
+  onLogSoreness,
 }: TodayBriefingProps) {
   const [expanded, setExpanded] = useState(true)
   const [swapDone, setSwapDone] = useState(false)
@@ -347,6 +362,47 @@ export default function TodayBriefing({
               </div>
             </div>
           )}
+
+          {/* ── Soreness Check-In ── */}
+          <div>
+            <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-2">
+              How do your legs feel today?
+            </p>
+            <div className="flex gap-1.5">
+              {SORENESS_OPTIONS.map(opt => {
+                const isActive = todaySoreness === opt.level
+                return (
+                  <button
+                    key={opt.level}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onLogSoreness(localDateStr(), opt.level)
+                    }}
+                    className={`flex-1 py-2 rounded-lg text-center transition-all ${
+                      isActive
+                        ? opt.activeBg
+                        : 'bg-white/60 hover:bg-white/80'
+                    }`}
+                  >
+                    <span className="text-lg block">{opt.emoji}</span>
+                    <span className={`text-[9px] font-medium block mt-0.5 ${isActive ? opt.color : 'text-slate-500'}`}>
+                      {opt.label}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+            {todaySoreness && todaySoreness >= 3 && (
+              <p className="text-[10px] text-slate-400 mt-1 italic">
+                Soreness logged — fatigue and load metrics adjusted upward.
+              </p>
+            )}
+            {todaySoreness === 1 && (
+              <p className="text-[10px] text-slate-400 mt-1 italic">
+                Feeling fresh — DOMS adjustment reduced.
+              </p>
+            )}
+          </div>
 
           {/* ── Health Metrics Grid ── */}
           <div className="grid grid-cols-4 gap-1.5">

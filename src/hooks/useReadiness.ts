@@ -37,6 +37,7 @@ interface UseReadinessProps {
   garminActivityDetails: Record<string, GarminActivityDetail[]>
   rpeByDate: Map<string, number>
   exerciseLoadByDate: Map<string, number>
+  sorenessLoadByDate: Map<string, number>
   maxHR: number
   todayPlannedWorkout?: PlannedDay
   currentWeekNum: number
@@ -65,6 +66,7 @@ export function useReadiness({
   garminActivityDetails,
   rpeByDate,
   exerciseLoadByDate,
+  sorenessLoadByDate,
   maxHR,
   todayPlannedWorkout,
   currentWeekNum,
@@ -126,9 +128,14 @@ export function useReadiness({
   //    (e.g., goblet squats, step-ups), each set adds incremental load
   //    based on muscle focus, weight, and reps. This is ADDITIVE — it
   //    supplements EPOC rather than replacing it.
+  //
+  // 3. Soreness check-in: user's perceived muscle soreness (1-5 scale)
+  //    adds or subtracts load to reflect actual DOMS severity vs model
+  //    prediction. Based on Twist & Highton 2013: perceived soreness is
+  //    the most responsive real-time indicator of eccentric recovery.
   const dailyTrimp = useMemo(() => {
     const base = aggregateDailyTRIMP(trimpRecords)
-    if (rpeByDate.size === 0 && exerciseLoadByDate.size === 0) return base
+    if (rpeByDate.size === 0 && exerciseLoadByDate.size === 0 && sorenessLoadByDate.size === 0) return base
 
     return base.map(day => {
       let total = day.total
@@ -146,10 +153,16 @@ export function useReadiness({
         total = total * rpeMultiplier
       }
 
+      // Apply soreness check-in adjustment (additive — Twist & Highton 2013)
+      const sorenessAdj = sorenessLoadByDate.get(day.date)
+      if (sorenessAdj) {
+        total = Math.max(0, total + sorenessAdj)
+      }
+
       if (total === day.total) return day
       return { ...day, total: Math.round(total * 10) / 10 }
     })
-  }, [trimpRecords, rpeByDate, exerciseLoadByDate])
+  }, [trimpRecords, rpeByDate, exerciseLoadByDate, sorenessLoadByDate])
 
   // Performance timeline (CTL/ATL/TSB/ACWR) — computed early so ACWR feeds readiness
   const performance = useMemo(

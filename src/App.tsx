@@ -7,6 +7,7 @@ import { useCompliance } from './hooks/useCompliance'
 import { useManualLog } from './hooks/useManualLog'
 import { useDaySwap } from './hooks/useDaySwap'
 import { useReadiness } from './hooks/useReadiness'
+import { useSoreness } from './hooks/useSoreness'
 import { matchActivitiesToPlan, mergeGarminDetailIntoWeeks } from './utils/matching'
 import { calculateExerciseLoad } from './utils/trimp'
 import { localDateStr } from './utils/format'
@@ -46,6 +47,7 @@ export default function App() {
   const plan = plans[athleteId]
   const manualLog = useManualLog(athleteId)
   const daySwap = useDaySwap(athleteId)
+  const soreness = useSoreness(athleteId)
   const showStrava = true  // All athletes can connect Strava and Garmin
 
   const TABS: { id: ViewId; label: string }[] = [
@@ -151,6 +153,7 @@ export default function App() {
     garminActivityDetails: garmin.activityDetails,
     rpeByDate,
     exerciseLoadByDate,
+    sorenessLoadByDate: soreness.sorenessLoadByDate,
     maxHR: plan.athlete.maxHR,
     todayPlannedWorkout,
     currentWeekNum,
@@ -235,6 +238,8 @@ export default function App() {
           onCoachSwap={handleCoachSwap}
           dailyTrimp={readiness.dailyTrimp}
           performance={readiness.performance}
+          todaySoreness={soreness.todaySoreness}
+          onLogSoreness={soreness.logSoreness}
         />
       )}
       {view === 'plan' && (
