@@ -20,7 +20,12 @@ export function calculateEWMA(
   const factor = 1 - decay
   const results: { date: string; ewma: number }[] = []
 
-  let prev = 0  // seed at zero — EWMA builds from no training history
+  // Seed: average daily load over available history (standard practice when
+  // training history is shorter than the time constant). Without this, CTL
+  // (tau=42) takes 6+ weeks to converge, producing artificially low fitness
+  // and extreme ACWR values with only 30 days of Garmin data.
+  const avg = dailyValues.reduce((sum, d) => sum + d.value, 0) / dailyValues.length
+  let prev = avg
 
   for (const { date, value } of dailyValues) {
     const ewma = prev * decay + value * factor
@@ -38,7 +43,8 @@ export function calculateEWMA(
 function ewmaSpan(values: number[], span: number): number {
   if (values.length === 0) return 0
   const alpha = 2 / (span + 1)
-  let ewma = values[0]
+  const avg = values.reduce((s, v) => s + v, 0) / values.length
+  let ewma = avg
   for (let i = 1; i < values.length; i++) {
     ewma = alpha * values[i] + (1 - alpha) * ewma
   }

@@ -74,13 +74,13 @@ export function useGarmin(athleteId?: string): UseGarminReturn {
         setConnected(true)
         setDisplayName(result.displayName || null)
 
-        const data = await fetchHealthData(30)
+        const data = await fetchHealthData(120)
         const merged = mergeHealthData(healthData, data)
         cacheHealthData(merged, athleteId)
         setHealthData(merged)
 
         const today = localDateStr()
-        const thirtyAgo = localDateStr(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000))
+        const thirtyAgo = localDateStr(new Date(Date.now() - 120 * 24 * 60 * 60 * 1000))
         const activities = await fetchGarminActivities(thirtyAgo, today)
         cacheGarminActivities(activities, athleteId)
         setGarminActivities(activities)
@@ -135,14 +135,14 @@ export function useGarmin(athleteId?: string): UseGarminReturn {
     setError(null)
 
     try {
-      const days = healthData.length === 0 ? 30 : 7
+      const days = healthData.length === 0 ? 120 : 7
       const data = await fetchHealthData(days)
       const merged = mergeHealthData(healthData, data)
       cacheHealthData(merged, athleteId)
       setHealthData(merged)
 
       const today = localDateStr()
-      const thirtyAgo = localDateStr(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000))
+      const thirtyAgo = localDateStr(new Date(Date.now() - 120 * 24 * 60 * 60 * 1000))
       const activities = await fetchGarminActivities(thirtyAgo, today)
       cacheGarminActivities(activities, athleteId)
       setGarminActivities(activities)
