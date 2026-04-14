@@ -265,6 +265,7 @@ export default function App() {
           performance={readiness.performance}
           weeklyRecommendations={readiness.weeklyRecommendations}
           garminConnected={garmin.connected}
+          sorenessLoadByDate={soreness.sorenessLoadByDate}
         />
       )}
       {view === 'method' && <Methodology />}

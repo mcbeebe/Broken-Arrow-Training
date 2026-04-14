@@ -25,7 +25,7 @@ export default function PerformanceChart({
   if (performance.length === 0) {
     return (
       <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-100">
-        <p className="text-sm font-semibold text-slate-700">Fitness / Fatigue / Form</p>
+        <p className="text-sm font-semibold text-slate-700">Fitness / Fatigue / Recovery Balance</p>
         <p className="text-xs text-slate-400 mt-1">Connect Garmin and sync activities to see performance trends</p>
       </div>
     )
@@ -47,7 +47,7 @@ export default function PerformanceChart({
       <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-100">
         <div className="flex items-baseline justify-between mb-3">
           <div>
-            <p className="text-sm font-semibold text-slate-700">Fitness / Fatigue / Form</p>
+            <p className="text-sm font-semibold text-slate-700">Fitness / Fatigue / Recovery Balance</p>
             <p className="text-xs text-slate-400">Banister impulse-response model · Race: {raceDate}</p>
           </div>
         </div>

@@ -79,13 +79,13 @@ function buildWeekNarrative(
     lines.push(`🔥 No rest days this week — consider scheduling recovery.`)
   }
 
-  // Form direction
+  // Recovery Balance direction
   const tsbDelta = latest.tsb - weekAgo.tsb
   if (Math.abs(tsbDelta) >= 3) {
     lines.push(
       tsbDelta > 0
-        ? `🌱 Form improving (+${Math.abs(tsbDelta).toFixed(0)}) — you're getting fresher.`
-        : `⬇️ Form dropped (${tsbDelta.toFixed(0)}) — fatigue accumulating from training load.`
+        ? `🌱 Recovery Balance improving (+${Math.abs(tsbDelta).toFixed(0)}) — you're getting fresher.`
+        : `⬇️ Recovery Balance dropped (${tsbDelta.toFixed(0)}) — fatigue accumulating from training load.`
     )
   }
 
@@ -169,6 +169,7 @@ export default function Summary({
                   <p className="text-xs text-blue-600 font-semibold">{fitnessLabel}</p>
                 </div>
                 <p className="text-xs font-medium text-slate-600">Fitness <span className="text-slate-400 font-normal">— 42-day training base (CTL)</span></p>
+                <p className="text-[9px] text-slate-400 mt-0.5 italic">Cardiovascular + musculoskeletal load · EPOC + MIM + DOMS + soreness</p>
                 <div className="relative mt-2 h-3 rounded-full overflow-hidden flex border border-blue-200">
                   <div className="h-full bg-blue-100" style={{ width: '20%' }} />
                   <div className="h-full bg-blue-200" style={{ width: '20%' }} />
@@ -195,6 +196,7 @@ export default function Summary({
                   <p className="text-xs text-red-500 font-semibold">{fatigueLabel}</p>
                 </div>
                 <p className="text-xs font-medium text-slate-600">Fatigue <span className="text-slate-400 font-normal">— 7-day recent load (ATL)</span></p>
+                <p className="text-[9px] text-slate-400 mt-0.5 italic">Includes DOMS carry-over + perceived soreness from check-in</p>
                 <div className="relative mt-2 h-3 rounded-full overflow-hidden flex border border-red-200">
                   <div className="h-full bg-green-200" style={{ width: '33%' }} />
                   <div className="h-full bg-amber-200" style={{ width: '22%' }} />
@@ -232,6 +234,7 @@ export default function Summary({
                   }`}>{getTSBLabel(tsbState)}</p>
                 </div>
                 <p className="text-xs font-medium text-slate-600">Recovery Balance <span className="text-slate-400 font-normal">— are you fresh or fatigued? (TSB)</span></p>
+                <p className="text-[9px] text-slate-400 mt-0.5 italic">Fitness minus Fatigue · negative = cardio + muscle fatigue exceeds base</p>
                 <div className="relative mt-2 h-3 rounded-full overflow-hidden flex border border-slate-200">
                   <div className="h-full bg-red-300" style={{ width: '15%' }} />
                   <div className="h-full bg-orange-200" style={{ width: '16%' }} />
@@ -271,6 +274,7 @@ export default function Summary({
                   }`}>{getACWRLabel(acwrRisk)}</p>
                 </div>
                 <p className="text-xs font-medium text-slate-600">Load Ratio <span className="text-slate-400 font-normal">— acute vs chronic workload (ACWR)</span></p>
+                <p className="text-[9px] text-slate-400 mt-0.5 italic">How fast you're ramping · includes all load: cardio, strength, DOMS, soreness</p>
                 <div className="relative mt-2 h-3 rounded-full overflow-hidden flex border border-slate-200">
                   <div className="h-full bg-blue-200" style={{ width: '40%' }} />
                   <div className="h-full bg-green-300" style={{ width: '25%' }} />

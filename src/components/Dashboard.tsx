@@ -21,6 +21,7 @@ interface DashboardProps {
   performance?: PerformanceMetrics[]
   weeklyRecommendations?: WeeklyRecommendation[]
   garminConnected?: boolean
+  sorenessLoadByDate?: Map<string, number>
 }
 
 export default function Dashboard({
@@ -35,6 +36,7 @@ export default function Dashboard({
   performance = [],
   weeklyRecommendations = [],
   garminConnected = false,
+  sorenessLoadByDate,
 }: DashboardProps) {
   const [subTab, setSubTab] = useState<DashSubTab>('compliance')
 
@@ -94,6 +96,7 @@ export default function Dashboard({
           performance={performance}
           recommendations={weeklyRecommendations}
           raceDate={raceDate}
+          sorenessLoadByDate={sorenessLoadByDate}
         />
       )}
     </div>
@@ -297,7 +300,7 @@ function ReadinessGlossary() {
           <p className="text-blue-700 mt-1">
             <strong>Readiness</strong> answers: <em>"How recovered is my body right now?"</em> — based on today's biometrics (HRV, RHR, sleep) plus training load ratio.
             <strong> Performance</strong> answers: <em>"How does my accumulated fatigue compare to my fitness base?"</em> — based purely on training stress math (Banister model).
-            These systems are independent and can disagree. You can feel recovered (GREEN readiness) while carrying a large fatigue debt (negative Form). Both are valid — check both.
+            These systems are independent and can disagree. You can feel recovered (GREEN readiness) while carrying a large fatigue debt (negative Recovery Balance). Both are valid — check both.
           </p>
         </div>
         <div>
@@ -373,11 +376,13 @@ function PerformanceTab({
   performance,
   recommendations,
   raceDate,
+  sorenessLoadByDate,
 }: {
   dailyTrimp: DailyTRIMP[]
   performance: PerformanceMetrics[]
   recommendations: WeeklyRecommendation[]
   raceDate: string
+  sorenessLoadByDate?: Map<string, number>
 }) {
   return (
     <div className="space-y-4">
@@ -386,7 +391,7 @@ function PerformanceTab({
         recommendations={recommendations}
         raceDate={raceDate}
       />
-      <TRIMPBreakdown dailyTrimp={dailyTrimp} />
+      <TRIMPBreakdown dailyTrimp={dailyTrimp} sorenessLoadByDate={sorenessLoadByDate} />
       <PerformanceGlossary />
     </div>
   )
@@ -405,7 +410,7 @@ function PerformanceGlossary() {
             The Performance tab uses the <strong>Banister impulse-response model</strong> (CTL/ATL/TSB) — a purely mathematical model of fitness vs fatigue accumulation over time. It does <em>not</em> look at your biometrics.
             The Readiness tab uses the <strong>ATE engine</strong> — a biometric-first model using HRV, RHR, sleep, and ACWR.
             Both consume the same daily training load (Garmin EPOC or Banister TRIMP), but they answer different questions.
-            It's normal for Form to show "Danger Zone" while Readiness shows GREEN — that means your fatigue debt is high but your body is recovering well day-to-day. Respect both signals.
+            It's normal for Recovery Balance to show "Danger Zone" while Readiness shows GREEN — that means your fatigue debt is high but your body is recovering well day-to-day. Respect both signals.
           </p>
         </div>
         <div>
