@@ -284,9 +284,11 @@ export default function App() {
           garminConfigured={garmin.configured}
           garminLoading={garmin.loading}
           garminError={garmin.error}
+          garminMfaRequired={garmin.mfaRequired}
           garminDisplayName={garmin.displayName}
           garminLastSync={garmin.lastSync}
           onGarminConnect={garmin.connect}
+          onGarminSubmitMfa={garmin.submitMfa}
           onGarminDisconnect={garmin.disconnect}
           onGarminSync={garmin.sync}
           onClearCache={clearAllCachedData}

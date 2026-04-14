@@ -1,3 +1,5 @@
+import { useState } from 'react'
+
 interface GarminConnectProps {
   connected: boolean
   configured: boolean
@@ -5,7 +7,9 @@ interface GarminConnectProps {
   error: string | null
   displayName: string | null
   lastSync: string | null
-  onConnect: () => Promise<void>
+  mfaRequired: boolean
+  onConnect: (email: string, password: string) => Promise<void>
+  onSubmitMfa: (code: string) => Promise<void>
   onDisconnect: () => void
   onSync: () => Promise<void>
 }
@@ -17,10 +21,16 @@ export default function GarminConnect({
   error,
   displayName,
   lastSync,
+  mfaRequired,
   onConnect,
+  onSubmitMfa,
   onDisconnect,
   onSync,
 }: GarminConnectProps) {
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [mfaCode, setMfaCode] = useState('')
+
   if (!configured) {
     return (
       <div className="bg-amber-50 rounded-xl p-3 border border-amber-200">
@@ -67,22 +77,70 @@ export default function GarminConnect({
     )
   }
 
+  // MFA step — Garmin sent a verification code
+  if (mfaRequired) {
+    return (
+      <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-100 space-y-3">
+        <p className="text-sm font-medium text-slate-700">Garmin Verification</p>
+        <p className="text-xs text-slate-500">
+          Garmin sent a verification code to your phone. Enter it below to complete sign-in.
+        </p>
+        {error && <p className="text-xs text-red-600">{error}</p>}
+        <input
+          type="text"
+          inputMode="numeric"
+          autoComplete="one-time-code"
+          placeholder="6-digit code"
+          value={mfaCode}
+          onChange={e => setMfaCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+          className="w-full text-sm px-3 py-2 rounded-lg border border-slate-300 focus:border-teal-500 focus:ring-1 focus:ring-teal-500 outline-none"
+        />
+        <button
+          onClick={() => { onSubmitMfa(mfaCode); setMfaCode('') }}
+          disabled={loading || mfaCode.length < 6}
+          className="w-full text-sm font-semibold px-4 py-2.5 rounded-xl text-white transition-colors disabled:opacity-50"
+          style={{ backgroundColor: '#007CC3' }}
+        >
+          {loading ? 'Verifying...' : 'Verify Code'}
+        </button>
+      </div>
+    )
+  }
+
+  // Sign-in form — email + password
   return (
     <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-100 space-y-3">
       <p className="text-xs text-slate-500">
-        Connect to Garmin to enable readiness scoring, recovery tracking, and adaptive workout recommendations.
+        Sign in with your Garmin Connect account to enable readiness scoring, recovery tracking, and adaptive workout recommendations.
       </p>
-      {error && (
-        <p className="text-xs text-red-600">{error}</p>
-      )}
+      {error && <p className="text-xs text-red-600">{error}</p>}
+      <input
+        type="email"
+        autoComplete="email"
+        placeholder="Garmin email"
+        value={email}
+        onChange={e => setEmail(e.target.value)}
+        className="w-full text-sm px-3 py-2 rounded-lg border border-slate-300 focus:border-teal-500 focus:ring-1 focus:ring-teal-500 outline-none"
+      />
+      <input
+        type="password"
+        autoComplete="current-password"
+        placeholder="Garmin password"
+        value={password}
+        onChange={e => setPassword(e.target.value)}
+        className="w-full text-sm px-3 py-2 rounded-lg border border-slate-300 focus:border-teal-500 focus:ring-1 focus:ring-teal-500 outline-none"
+      />
       <button
-        onClick={onConnect}
-        disabled={loading}
-        className="flex items-center gap-2 text-sm font-semibold px-4 py-2.5 rounded-xl text-white transition-colors disabled:opacity-50"
+        onClick={() => { onConnect(email, password); setPassword('') }}
+        disabled={loading || !email || !password}
+        className="w-full flex items-center justify-center gap-2 text-sm font-semibold px-4 py-2.5 rounded-xl text-white transition-colors disabled:opacity-50"
         style={{ backgroundColor: '#007CC3' }}
       >
         {loading ? 'Connecting...' : 'Connect Garmin'}
       </button>
+      <p className="text-[10px] text-slate-400 text-center">
+        Your password is sent securely to authenticate with Garmin and is never stored.
+      </p>
     </div>
   )
 }

@@ -104,6 +104,10 @@ def get_client(athlete: str | None = None) -> Garmin:
     """Get an authenticated Garmin client for the given athlete.
 
     Uses cached client if available, then tries saved session from KV.
+    For session restore, credentials from env vars are optional — the
+    garminconnect library can restore from a session token alone if the
+    email/password used during auth are provided (or dummy values for
+    session-only restore).
     Raises RuntimeError if no valid session exists.
     """
     global _client_cache
@@ -117,7 +121,13 @@ def get_client(athlete: str | None = None) -> Garmin:
         except Exception:
             del _client_cache[cache_key]
 
-    email, password = _get_credentials(athlete)
+    # For session restore, use env var credentials if available, otherwise
+    # use placeholder values — the session token has the real auth.
+    try:
+        email, password = _get_credentials(athlete)
+    except ValueError:
+        email, password = "session@restore", "session_token_auth"
+
     kv_key = _session_key(athlete)
 
     # Try saved session from KV
@@ -150,13 +160,25 @@ def save_session(client: Garmin, athlete: str | None = None):
     _client_cache[cache_key] = client
 
 
-def login_fresh(athlete: str | None = None, mfa_code: str | None = None) -> Garmin:
+def login_fresh(
+    athlete: str | None = None,
+    mfa_code: str | None = None,
+    email: str | None = None,
+    password: str | None = None,
+) -> Garmin:
     """Perform a fresh Garmin login (with optional MFA code).
+
+    Credentials can come from:
+    1. email/password params (user-provided via frontend form)
+    2. Per-athlete env vars (GARMIN_EMAIL_JIM)
+    3. Default env vars (GARMIN_EMAIL)
 
     If mfa_code is provided, passes it as the MFA prompt response.
     On success, saves the session to KV and returns the client.
+    The password is never stored — only the session token.
     """
-    email, password = _get_credentials(athlete)
+    if not email or not password:
+        email, password = _get_credentials(athlete)
 
     if mfa_code:
         client = Garmin(email, password, prompt_mfa=lambda: mfa_code)

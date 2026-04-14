@@ -17,9 +17,11 @@ interface SettingsProps {
   garminConfigured: boolean
   garminLoading: boolean
   garminError: string | null
+  garminMfaRequired: boolean
   garminDisplayName: string | null
   garminLastSync: string | null
-  onGarminConnect: () => Promise<void>
+  onGarminConnect: (email: string, password: string) => Promise<void>
+  onGarminSubmitMfa: (code: string) => Promise<void>
   onGarminDisconnect: () => void
   onGarminSync: () => Promise<void>
   // Cache management
@@ -41,9 +43,11 @@ export default function Settings({
   garminConfigured,
   garminLoading,
   garminError,
+  garminMfaRequired,
   garminDisplayName,
   garminLastSync,
   onGarminConnect,
+  onGarminSubmitMfa,
   onGarminDisconnect,
   onGarminSync,
   onClearCache,
@@ -77,9 +81,11 @@ export default function Settings({
           configured={garminConfigured}
           loading={garminLoading}
           error={garminError}
+          mfaRequired={garminMfaRequired}
           displayName={garminDisplayName}
           lastSync={garminLastSync}
           onConnect={onGarminConnect}
+          onSubmitMfa={onGarminSubmitMfa}
           onDisconnect={onGarminDisconnect}
           onSync={onGarminSync}
         />

@@ -64,11 +64,17 @@ class handler(BaseHTTPRequestHandler):
                 raw = self.rfile.read(content_length)
                 body = json.loads(raw.decode())
 
+            # Credentials from request body (user-entered on frontend)
+            email = body.get("email", "")
+            password = body.get("password", "")
             mfa_code = body.get("mfa_code", "")
 
             # Step 2: Complete MFA with provided code
             if mfa_code:
-                client = login_fresh(athlete, mfa_code=mfa_code)
+                client = login_fresh(
+                    athlete, mfa_code=mfa_code,
+                    email=email or None, password=password or None,
+                )
                 display_name = client.get_full_name()
                 self._send_json(200, {
                     "authenticated": True,
@@ -78,7 +84,7 @@ class handler(BaseHTTPRequestHandler):
                 })
                 return
 
-            # Try saved session first
+            # Try saved session first (no credentials needed)
             try:
                 client = get_client(athlete)
                 display_name = client.get_full_name()
@@ -93,8 +99,16 @@ class handler(BaseHTTPRequestHandler):
                 pass
 
             # Step 1: Fresh login — may trigger MFA SMS
+            # Credentials come from request body (frontend form) or env vars
+            if not email or not password:
+                self._send_json(401, {
+                    "authenticated": False,
+                    "error": "Garmin email and password required. Please enter your credentials.",
+                })
+                return
+
             try:
-                client = login_fresh(athlete)
+                client = login_fresh(athlete, email=email, password=password)
                 display_name = client.get_full_name()
                 self._send_json(200, {
                     "authenticated": True,

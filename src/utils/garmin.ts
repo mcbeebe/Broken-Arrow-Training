@@ -17,11 +17,19 @@ function scopedKey(base: string, athleteId?: string): string {
 
 // ─── API Functions ──────────────────────────────────────────────
 
-export async function checkGarminAuth(athleteId?: string): Promise<{ authenticated: boolean; displayName?: string; error?: string }> {
+export async function checkGarminAuth(
+  athleteId?: string,
+  credentials?: { email: string; password: string; mfa_code?: string },
+): Promise<{ authenticated: boolean; displayName?: string; mfa_required?: boolean; error?: string }> {
   if (!GARMIN_API_URL) return { authenticated: false, error: 'Garmin API URL not configured' }
 
   const params = athleteId ? `?athlete=${athleteId}` : ''
-  const res = await fetch(`${GARMIN_API_URL}/api/garmin/auth${params}`, { method: 'POST' })
+  const body = credentials ? JSON.stringify(credentials) : undefined
+  const res = await fetch(`${GARMIN_API_URL}/api/garmin/auth${params}`, {
+    method: 'POST',
+    headers: body ? { 'Content-Type': 'application/json' } : undefined,
+    body,
+  })
   return res.json()
 }
 
