@@ -36,29 +36,48 @@ export interface UseGarminReturn {
   sync: () => Promise<void>
 }
 
-export function useGarmin(athleteId?: string): UseGarminReturn {
-  const [connected, setConnected] = useState(() => isGarminConnected(athleteId))
+export function useGarmin(athleteId?: string, garminOwner?: string): UseGarminReturn {
+  // Gate: only the profile that owns the Garmin account can access Garmin data.
+  // This prevents Mike's Garmin data from leaking into Jim/Lori/Joel's profiles.
+  const isOwner = !garminOwner || athleteId === garminOwner
+
+  const [connected, setConnected] = useState(() => isOwner ? isGarminConnected(athleteId) : false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [healthData, setHealthData] = useState<GarminHealthData[]>(() => getCachedHealthData(athleteId))
-  const [garminActivities, setGarminActivities] = useState<GarminActivity[]>(() => getCachedGarminActivities(athleteId))
-  const [activityDetails, setActivityDetails] = useState<Record<string, GarminActivityDetail[]>>(() => getCachedActivityDetails(athleteId))
-  const [lastSync, setLastSync] = useState<string | null>(() => getGarminLastSync(athleteId))
+  const [healthData, setHealthData] = useState<GarminHealthData[]>(() => isOwner ? getCachedHealthData(athleteId) : [])
+  const [garminActivities, setGarminActivities] = useState<GarminActivity[]>(() => isOwner ? getCachedGarminActivities(athleteId) : [])
+  const [activityDetails, setActivityDetails] = useState<Record<string, GarminActivityDetail[]>>(() => isOwner ? getCachedActivityDetails(athleteId) : {})
+  const [lastSync, setLastSync] = useState<string | null>(() => isOwner ? getGarminLastSync(athleteId) : null)
   const [displayName, setDisplayName] = useState<string | null>(null)
 
   const configured = isGarminConfigured()
 
-  // Re-load from storage when athleteId changes
+  // Re-load from storage when athleteId changes (only if this profile owns Garmin)
   useEffect(() => {
+    if (!isOwner) {
+      // Not this profile's Garmin — clear any accidentally cached data and return empty state
+      clearGarminData(athleteId)
+      setConnected(false)
+      setHealthData([])
+      setGarminActivities([])
+      setActivityDetails({})
+      setLastSync(null)
+      setError(null)
+      return
+    }
     setConnected(isGarminConnected(athleteId))
     setHealthData(getCachedHealthData(athleteId))
     setGarminActivities(getCachedGarminActivities(athleteId))
     setActivityDetails(getCachedActivityDetails(athleteId))
     setLastSync(getGarminLastSync(athleteId))
     setError(null)
-  }, [athleteId])
+  }, [athleteId, isOwner])
 
   const connect = useCallback(async () => {
+    if (!isOwner) {
+      setError('Garmin is connected on another profile')
+      return
+    }
     if (!configured) {
       setError('Garmin API URL not configured')
       return
@@ -115,7 +134,7 @@ export function useGarmin(athleteId?: string): UseGarminReturn {
     } finally {
       setLoading(false)
     }
-  }, [configured, healthData, athleteId])
+  }, [configured, healthData, athleteId, isOwner])
 
   const disconnect = useCallback(() => {
     clearGarminData(athleteId)
@@ -129,7 +148,7 @@ export function useGarmin(athleteId?: string): UseGarminReturn {
   }, [athleteId])
 
   const sync = useCallback(async () => {
-    if (!configured || !connected) return
+    if (!isOwner || !configured || !connected) return
 
     setLoading(true)
     setError(null)
@@ -174,11 +193,11 @@ export function useGarmin(athleteId?: string): UseGarminReturn {
     } finally {
       setLoading(false)
     }
-  }, [configured, connected, healthData, athleteId])
+  }, [configured, connected, healthData, athleteId, isOwner])
 
-  // Auto-sync on mount if stale
+  // Auto-sync on mount if stale (only for Garmin owner profile)
   useEffect(() => {
-    if (connected && configured && isSyncStale(athleteId)) {
+    if (isOwner && connected && configured && isSyncStale(athleteId)) {
       sync()
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps

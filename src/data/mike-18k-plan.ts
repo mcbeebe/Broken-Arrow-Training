@@ -6,6 +6,7 @@ const mikePlan: TrainingPlan = {
     maxHR: 197,
     currentBase: '~10 mi/wk',
     weeklyStructure: '3 runs + 1 cross-train + 1 strength/wk · Poles Wk 4+',
+    garminOwner: 'mike',
   },
   zones: [
     { zone: 'Z1 – Recovery', hr: '108–128', pct: '55–65%', desc: 'Very easy, full conversation' },

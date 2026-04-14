@@ -32,8 +32,9 @@ function getAthleteFromHash(): string {
 export default function App() {
   const [view, setView] = useState<ViewId>('summary')
   const [athleteId, setAthleteId] = useState(getAthleteFromHash)
+  const plan = plans[athleteId]
   const strava = useStrava(athleteId)
-  const garmin = useGarmin(athleteId)
+  const garmin = useGarmin(athleteId, plan.athlete.garminOwner)
 
   useEffect(() => {
     function onHashChange() {
@@ -43,8 +44,6 @@ export default function App() {
     window.addEventListener('hashchange', onHashChange)
     return () => window.removeEventListener('hashchange', onHashChange)
   }, [])
-
-  const plan = plans[athleteId]
   const manualLog = useManualLog(athleteId)
   const daySwap = useDaySwap(athleteId)
   const soreness = useSoreness(athleteId)
