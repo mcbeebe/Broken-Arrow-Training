@@ -83,9 +83,9 @@ export function useReadiness({
     // When Garmin is connected and has data, use ONLY Garmin for training load.
     // Garmin's on-device EPOC (Firstbeat) is the primary load signal.
     // Strava data is used for visuals/matching only, not load calculations.
-    console.log('[TRIMP DEBUG] garminActivities:', garminActivities.length, 'garminRecords:', garminRecords.length)
+    console.log('[TRIMP DEBUG] garminActivities:', garminActivities.length, 'garminRecords:', garminRecords.length, 'stravaActivities:', stravaActivities.length)
     if (garminRecords.length > 0) {
-      console.log('[TRIMP DEBUG] Using GARMIN only. Records:', garminRecords.map(r => `${r.date}: ${r.load.toFixed(1)}`))
+      console.log('[TRIMP DEBUG] Using GARMIN only. Records:', garminRecords.map(r => `${r.date}: ${r.adjustedTRIMP.toFixed(1)}`))
       return garminRecords.sort((a, b) => a.date.localeCompare(b.date))
     }
 
