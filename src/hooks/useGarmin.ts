@@ -3,6 +3,7 @@ import type { GarminHealthData, GarminActivity, GarminActivityDetail } from '../
 import { localDateStr } from '../utils/format'
 import {
   checkGarminAuth,
+  disconnectGarmin,
   fetchHealthData,
   fetchGarminActivities,
   fetchActivityDetail,
@@ -59,8 +60,9 @@ export function useGarmin(athleteId?: string): UseGarminReturn {
     const storedName = getGarminDisplayName(athleteId)
 
     // Migration: if connected but no displayName, this is stale data from
-    // before per-athlete Garmin support. Clear it.
+    // before per-athlete Garmin support. Clear it (frontend + backend KV).
     if (wasConnected && !storedName) {
+      void disconnectGarmin(athleteId)
       clearGarminData(athleteId)
       setConnected(false)
       setHealthData([])
@@ -190,6 +192,9 @@ export function useGarmin(athleteId?: string): UseGarminReturn {
   }, [athleteId, pendingCredentials, handleAuthSuccess])
 
   const disconnect = useCallback(() => {
+    // Fire-and-forget: wipe backend KV session so next "Connect" can't
+    // silently restore someone else's token saved under this athleteId.
+    void disconnectGarmin(athleteId)
     clearGarminData(athleteId)
     setConnected(false)
     setHealthData([])

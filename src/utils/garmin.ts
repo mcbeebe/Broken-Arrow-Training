@@ -33,6 +33,16 @@ export async function checkGarminAuth(
   return res.json()
 }
 
+export async function disconnectGarmin(athleteId?: string): Promise<void> {
+  if (!GARMIN_API_URL) return
+  const params = athleteId ? `?athlete=${athleteId}` : ''
+  try {
+    await fetch(`${GARMIN_API_URL}/api/garmin/auth${params}`, { method: 'DELETE' })
+  } catch {
+    // Best-effort — don't block frontend disconnect on backend failure
+  }
+}
+
 export async function fetchHealthData(days: number = 1, athleteId?: string): Promise<GarminHealthData[]> {
   if (!GARMIN_API_URL) return []
 

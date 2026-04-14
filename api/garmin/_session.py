@@ -68,6 +68,23 @@ def _kv_set(key: str, value: str, ex: int = 86400 * 30):
             raise RuntimeError(f"KV set error: {result['error']}")
 
 
+def _kv_del(key: str):
+    """Delete a key from Upstash KV via REST API. Silently ignores failures."""
+    url = os.environ.get("KV_REST_API_URL", "")
+    token = os.environ.get("KV_REST_API_TOKEN", "")
+    if not url or not token:
+        return
+    req = urllib.request.Request(
+        f"{url}/del/{key}",
+        headers={"Authorization": f"Bearer {token}"},
+        method="POST",
+    )
+    try:
+        urllib.request.urlopen(req).read()
+    except Exception:
+        pass
+
+
 def _session_key(athlete: str | None) -> str:
     """KV key for an athlete's Garmin session."""
     if athlete:

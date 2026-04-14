@@ -16,16 +16,26 @@ GET /api/garmin/auth?athlete=mike
 import json
 import os
 from http.server import BaseHTTPRequestHandler
-from ._session import get_client, save_session, login_fresh, get_athlete_from_query, _kv_get, _session_key, _get_credentials
+from ._session import (
+    get_client, save_session, login_fresh, get_athlete_from_query,
+    _kv_get, _kv_del, _session_key, _get_credentials, _client_cache,
+)
 
 
 class handler(BaseHTTPRequestHandler):
     def do_OPTIONS(self):
         self.send_response(200)
         self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.end_headers()
+
+    def do_DELETE(self):
+        """Wipe the saved session for an athlete. Use to clear stale/cross-user tokens."""
+        athlete = get_athlete_from_query(self.path)
+        _kv_del(_session_key(athlete))
+        _client_cache.pop(athlete or "__default__", None)
+        self._send_json(200, {"cleared": True, "athlete": athlete})
 
     def do_GET(self):
         """Debug endpoint to check KV and env var status for an athlete."""
@@ -68,9 +78,15 @@ class handler(BaseHTTPRequestHandler):
             email = body.get("email", "")
             password = body.get("password", "")
             mfa_code = body.get("mfa_code", "")
+            force_fresh = bool(body.get("force_fresh"))
 
             # Step 2: Complete MFA with provided code
+            # This ALWAYS does a fresh login with the caller's credentials —
+            # never falls back to a saved session.
             if mfa_code:
+                # Clear any stale session before writing the new one.
+                _kv_del(_session_key(athlete))
+                _client_cache.pop(athlete or "__default__", None)
                 client = login_fresh(
                     athlete, mfa_code=mfa_code,
                     email=email or None, password=password or None,
@@ -84,21 +100,30 @@ class handler(BaseHTTPRequestHandler):
                 })
                 return
 
-            # Try saved session first (no credentials needed)
-            try:
-                client = get_client(athlete)
-                display_name = client.get_full_name()
-                self._send_json(200, {
-                    "authenticated": True,
-                    "displayName": display_name or "Garmin User",
-                    "athlete": athlete,
-                    "session_restored": True,
-                })
-                return
-            except RuntimeError:
-                pass
+            # If the caller submitted credentials OR requested force_fresh,
+            # SKIP the saved-session branch. Otherwise a stale/cross-user
+            # token saved at garmin_session_{athlete} would be returned as
+            # "authenticated" and the user would see someone else's data.
+            if not email and not password and not force_fresh:
+                try:
+                    client = get_client(athlete)
+                    display_name = client.get_full_name()
+                    self._send_json(200, {
+                        "authenticated": True,
+                        "displayName": display_name or "Garmin User",
+                        "athlete": athlete,
+                        "session_restored": True,
+                    })
+                    return
+                except RuntimeError:
+                    pass
 
-            # Step 1: Fresh login — may trigger MFA SMS
+            # Step 1: Fresh login — may trigger MFA SMS.
+            # Wipe any stale session/cache for this athlete first so we never
+            # silently restore a token that belongs to someone else.
+            _kv_del(_session_key(athlete))
+            _client_cache.pop(athlete or "__default__", None)
+
             # Credentials come from request body (frontend form) or env vars
             if not email or not password:
                 self._send_json(401, {
