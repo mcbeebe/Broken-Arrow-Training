@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import type { GarminHealthData, GarminActivity, GarminActivityDetail } from '../types'
+import { localDateStr } from '../utils/format'
 import {
   checkGarminAuth,
   fetchHealthData,
@@ -70,8 +71,8 @@ export function useGarmin(): UseGarminReturn {
         setHealthData(merged)
 
         // Also backfill Garmin activities (primary TRIMP source)
-        const today = new Date().toISOString().slice(0, 10)
-        const thirtyAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+        const today = localDateStr()
+        const thirtyAgo = localDateStr(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000))
         const activities = await fetchGarminActivities(thirtyAgo, today)
         cacheGarminActivities(activities)
         setGarminActivities(activities)
@@ -81,7 +82,7 @@ export function useGarmin(): UseGarminReturn {
         const last7Dates: string[] = []
         for (let i = 0; i < 7; i++) {
           const d = new Date(Date.now() - i * 24 * 60 * 60 * 1000)
-          last7Dates.push(d.toISOString().slice(0, 10))
+          last7Dates.push(localDateStr(d))
         }
         const datesWithActivities = last7Dates.filter(date =>
           activities.some(a => a.date === date)
@@ -135,8 +136,8 @@ export function useGarmin(): UseGarminReturn {
       setHealthData(merged)
 
       // Fetch Garmin activities for supplement (last 30 days)
-      const today = new Date().toISOString().slice(0, 10)
-      const thirtyAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+      const today = localDateStr()
+      const thirtyAgo = localDateStr(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000))
       const activities = await fetchGarminActivities(thirtyAgo, today)
       cacheGarminActivities(activities)
       setGarminActivities(activities)
@@ -146,7 +147,7 @@ export function useGarmin(): UseGarminReturn {
       const last7Dates: string[] = []
       for (let i = 0; i < 7; i++) {
         const d = new Date(Date.now() - i * 24 * 60 * 60 * 1000)
-        last7Dates.push(d.toISOString().slice(0, 10))
+        last7Dates.push(localDateStr(d))
       }
       const datesWithActivities = last7Dates.filter(date =>
         activities.some(a => a.date === date)

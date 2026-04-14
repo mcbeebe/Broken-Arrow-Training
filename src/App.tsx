@@ -8,6 +8,7 @@ import { useManualLog } from './hooks/useManualLog'
 import { useDaySwap } from './hooks/useDaySwap'
 import { useReadiness } from './hooks/useReadiness'
 import { matchActivitiesToPlan, mergeGarminDetailIntoWeeks } from './utils/matching'
+import { localDateStr } from './utils/format'
 import { generateMorningCoach, generateEveningCoach, getCoachTimeOfDay } from './utils/coach'
 import { checkStorageVersion, clearAllCachedData, clearAllAppData } from './utils/storageVersion'
 import WeeklyPlan from './components/WeeklyPlan'
@@ -142,7 +143,7 @@ export default function App() {
 
   // Today's health data for banner
   const todayHealth = useMemo(() => {
-    const today = new Date().toISOString().slice(0, 10)
+    const today = localDateStr()
     return garmin.healthData.find(d => d.date === today)
   }, [garmin.healthData])
 

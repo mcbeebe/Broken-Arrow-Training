@@ -1,4 +1,5 @@
 import type { DailyTRIMP } from '../types'
+import { localDateStr } from '../utils/format'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 
 interface TRIMPBreakdownProps {
@@ -38,7 +39,7 @@ function getLast7Days(): string[] {
   for (let i = 6; i >= 0; i--) {
     const d = new Date(today)
     d.setDate(d.getDate() - i)
-    days.push(d.toISOString().slice(0, 10))
+    days.push(localDateStr(d))
   }
   return days
 }
