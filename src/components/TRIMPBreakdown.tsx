@@ -75,7 +75,10 @@ export default function TRIMPBreakdown({ dailyTrimp, sorenessLoadByDate }: TRIMP
       entry[key] = ((entry[key] as number) || 0) + rec.adjustedTRIMP
       recordSum += rec.adjustedTRIMP
     }
-    // Split supplement into soreness vs exercise+RPE so chart labels are accurate
+    // Split supplement into three distinct categories:
+    // 1. Soreness check-in (user input, any day)
+    // 2. RPE + exercise boost (on days WITH activities — from RPE multiplier and manual exercises)
+    // 3. DOMS carry-over (on days WITHOUT activities — delayed muscle damage from prior days)
     const supplement = day.total - recordSum
     if (supplement > 0.5) {
       const sorenessAdj = sorenessLoadByDate?.get(day.date) || 0
@@ -86,7 +89,10 @@ export default function TRIMPBreakdown({ dailyTrimp, sorenessLoadByDate }: TRIMP
         entry['soreness'] = Math.round(sorenessInSupplement * 10) / 10
       }
       if (otherSupplement > 0.5) {
-        entry['doms_carry'] = Math.round(otherSupplement * 10) / 10
+        // If this day has its own activity records, the supplement is from RPE/exercise.
+        // If it has no records (rest day), the supplement is DOMS carry from prior days.
+        const key = day.records.length > 0 ? 'rpe_exercise' : 'doms_carry'
+        entry[key] = Math.round(otherSupplement * 10) / 10
       }
     }
     // Ensure rest days show a tiny bar for visibility
@@ -96,9 +102,10 @@ export default function TRIMPBreakdown({ dailyTrimp, sorenessLoadByDate }: TRIMP
     return entry
   })
 
-  // Get all sport types present (including boost and soreness)
+  // Get all sport types and supplement categories present
   const sportTypes = new Set<string>()
-  let hasBoost = false
+  let hasRpeExercise = false
+  let hasDoms = false
   let hasSoreness = false
   for (const day of filledDays) {
     for (const rec of day.records) {
@@ -106,7 +113,8 @@ export default function TRIMPBreakdown({ dailyTrimp, sorenessLoadByDate }: TRIMP
     }
   }
   for (const entry of chartData) {
-    if (entry['doms_carry']) hasBoost = true
+    if (entry['rpe_exercise']) hasRpeExercise = true
+    if (entry['doms_carry']) hasDoms = true
     if (entry['soreness']) hasSoreness = true
   }
 
@@ -143,6 +151,7 @@ export default function TRIMPBreakdown({ dailyTrimp, sorenessLoadByDate }: TRIMP
                 if (name === '_isRest' || name === 'rest') return [null, null]
                 const label = name === 'soreness' ? 'muscle soreness'
                   : name === 'doms_carry' ? 'DOMS carry-over'
+                  : name === 'rpe_exercise' ? 'RPE + exercise boost'
                   : String(name).replace(/_/g, ' ')
                 return [
                   `${Math.round(Number(value))} TRIMP`,
@@ -160,11 +169,19 @@ export default function TRIMPBreakdown({ dailyTrimp, sorenessLoadByDate }: TRIMP
                 radius={[2, 2, 0, 0]}
               />
             ))}
-            {hasBoost && (
+            {hasRpeExercise && (
+              <Bar
+                dataKey="rpe_exercise"
+                stackId="trimp"
+                fill="#F59E0B"
+                radius={[2, 2, 0, 0]}
+              />
+            )}
+            {hasDoms && (
               <Bar
                 dataKey="doms_carry"
                 stackId="trimp"
-                fill="#F59E0B"
+                fill="#FB923C"
                 radius={[2, 2, 0, 0]}
               />
             )}
@@ -202,9 +219,15 @@ export default function TRIMPBreakdown({ dailyTrimp, sorenessLoadByDate }: TRIMP
             {type.replace(/_/g, ' ')}
           </span>
         ))}
-        {hasBoost && (
+        {hasRpeExercise && (
           <span className="flex items-center gap-1 text-[10px] text-slate-500">
             <span className="w-2 h-2 rounded-sm inline-block" style={{ backgroundColor: '#F59E0B' }} />
+            RPE + exercise
+          </span>
+        )}
+        {hasDoms && (
+          <span className="flex items-center gap-1 text-[10px] text-slate-500">
+            <span className="w-2 h-2 rounded-sm inline-block" style={{ backgroundColor: '#FB923C' }} />
             DOMS carry-over
           </span>
         )}
