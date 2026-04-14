@@ -67,8 +67,8 @@ describe('getSportMultiplier (ATE MIM matrix)', () => {
 
   it('returns correct strength sub-type multipliers', () => {
     expect(getSportMultiplier('strength_upper')).toBe(0.2)
-    expect(getSportMultiplier('strength_lower')).toBe(1.5)
-    expect(getSportMultiplier('strength_full')).toBe(1.0)
+    expect(getSportMultiplier('strength_lower')).toBe(2.0)
+    expect(getSportMultiplier('strength_full')).toBe(1.2)
   })
 
   it('returns correct HIIT/cardio multipliers', () => {

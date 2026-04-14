@@ -47,9 +47,12 @@ const MIM_MATRIX: Record<SportType, number> = {
   lap_swimming: 0.35,
   aqua_jogging: 0.6,
   // Strength (sub-classified by focus)
+  // strength_lower raised from 1.5 → 2.0: EPOC massively underestimates
+  // eccentric damage from heavy squats/lunges/deadlifts. DOMS peaks 24-48h
+  // later but EPOC only captures acute cardiovascular cost.
   strength_upper: 0.2,
-  strength_lower: 1.5,
-  strength_full: 1.0,
+  strength_lower: 2.0,
+  strength_full: 1.2,
   // High-intensity
   hiit: 1.3,
   cardio: 1.3,
@@ -66,6 +69,29 @@ const MIM_MATRIX: Record<SportType, number> = {
   running_drills: 0.0,
   // Catch-all
   other: 0.6,
+}
+
+// ─── Minimum Load Floors ───────────────────────────────────────
+// Garmin EPOC can report absurdly low values for strength (e.g., 20-30)
+// because HR doesn't stay elevated. These floors ensure that a real
+// strength session gets credited with meaningful load.
+const MIN_LOAD_FLOOR: Partial<Record<SportType, number>> = {
+  strength_lower: 70,  // heavy compound lower = minimum 70 adjusted load
+  strength_full: 50,   // full body = minimum 50
+  strength_upper: 20,  // upper body = minimum 20
+  hiking_steep: 40,    // steep hike = minimum 40
+}
+
+// ─── DOMS Carry-Forward Coefficients ───────────────────────────
+// Delayed-Onset Muscle Soreness (DOMS) peaks 24-48h after eccentric
+// loading. The current system only counts load on day 0, but the
+// physiological recovery cost persists for 2-3 days.
+// Values: fraction of original adjusted load added to day+1, day+2
+export const DOMS_CARRY: Partial<Record<SportType, number[]>> = {
+  strength_lower: [0.40, 0.20],  // +40% day+1, +20% day+2 (heavy eccentric)
+  strength_full:  [0.25, 0.10],  // +25% day+1, +10% day+2
+  hiking_steep:   [0.15, 0.05],  // eccentric from steep descents
+  trail_running:  [0.10],        // mild DOMS from terrain variation
 }
 
 const DEFAULT_MIM = 0.6
@@ -229,7 +255,13 @@ export function calculateAdjustedLoad(
 ): TRIMPRecord {
   const sportMultiplier = getSportMultiplier(sportType)
   const elevationBonus = calculateElevationBonus(elevationGainFt)
-  const adjustedLoad = baseLoad * sportMultiplier + elevationBonus
+  let adjustedLoad = baseLoad * sportMultiplier + elevationBonus
+
+  // Apply minimum load floor — EPOC can grossly underestimate strength sessions
+  const floor = MIN_LOAD_FLOOR[sportType]
+  if (floor && adjustedLoad < floor) {
+    adjustedLoad = floor
+  }
 
   return {
     date,
@@ -346,7 +378,42 @@ export function aggregateDailyTRIMP(records: TRIMPRecord[]): DailyTRIMP[] {
     current.setDate(current.getDate() + 1)
   }
 
+  // ── DOMS Carry-Forward ──────────────────────────────────────────
+  // Strength and steep activities cause delayed muscle damage (DOMS)
+  // that peaks 24-48h later. Spread a fraction of the original load
+  // into subsequent days so ATL/fatigue reflects the lingering cost.
+  applyDOMSCarryForward(result)
+
   return result
+}
+
+/**
+ * Mutates dailyTrimp array in-place, adding DOMS carry-forward load
+ * from high-eccentric activities into subsequent days.
+ */
+function applyDOMSCarryForward(days: DailyTRIMP[]): void {
+  // Collect DOMS sources first (to avoid double-counting carry on carry)
+  const domsSources: { dayIndex: number; load: number; carry: number[] }[] = []
+
+  for (let i = 0; i < days.length; i++) {
+    for (const rec of days[i].records) {
+      const carry = DOMS_CARRY[rec.sportType]
+      if (carry && carry.length > 0) {
+        domsSources.push({ dayIndex: i, load: rec.adjustedTRIMP, carry })
+      }
+    }
+  }
+
+  // Apply carry-forward to subsequent days
+  for (const src of domsSources) {
+    for (let offset = 0; offset < src.carry.length; offset++) {
+      const targetIdx = src.dayIndex + offset + 1
+      if (targetIdx < days.length) {
+        const carryLoad = Math.round(src.load * src.carry[offset] * 10) / 10
+        days[targetIdx].total = Math.round((days[targetIdx].total + carryLoad) * 10) / 10
+      }
+    }
+  }
 }
 
 // ─── Manual Exercise Load ──────────────────────────────────────

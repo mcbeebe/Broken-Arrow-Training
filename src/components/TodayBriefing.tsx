@@ -114,36 +114,54 @@ function buildWhyNarrative(
     }
   }
 
-  // ── Recent training load context (last 2 days) ──
+  // ── Recent training load context (last 3 days) with DOMS awareness ──
+  const strengthSports = ['strength_lower', 'strength_full', 'hiking_steep']
   const recentDays = dailyTrimp
     .filter(d => d.date <= today && d.total > 0)
     .sort((a, b) => b.date.localeCompare(a.date))
-    .slice(0, 3)
+    .slice(0, 4)
 
   if (recentDays.length > 0) {
-    const yesterday = recentDays.find(d => {
-      const yd = localDateStr(new Date(Date.now() - 24 * 60 * 60 * 1000))
-      return d.date === yd
-    })
-    const dayBefore = recentDays.find(d => {
-      const dbd = localDateStr(new Date(Date.now() - 48 * 60 * 60 * 1000))
-      return d.date === dbd
-    })
+    const yd = localDateStr(new Date(Date.now() - 24 * 60 * 60 * 1000))
+    const dbd = localDateStr(new Date(Date.now() - 48 * 60 * 60 * 1000))
+    const d3 = localDateStr(new Date(Date.now() - 72 * 60 * 60 * 1000))
+    const yesterday = recentDays.find(d => d.date === yd)
+    const dayBefore = recentDays.find(d => d.date === dbd)
+    const day3 = recentDays.find(d => d.date === d3)
+
+    // Check for DOMS-causing activities in recent days
+    const hasRecentStrength = (day: DailyTRIMP | undefined) =>
+      day?.records.some(r => strengthSports.includes(r.sportType))
 
     if (yesterday && yesterday.total > 0) {
       const topRecord = yesterday.records[0]
       const sport = topRecord ? topRecord.sportType.replace(/_/g, ' ') : 'workout'
-      if (yesterday.total > 150) {
+      const isStrength = hasRecentStrength(yesterday)
+
+      if (isStrength) {
+        lines.push(`Yesterday's ${sport} (${Math.round(yesterday.total)} load) is causing delayed muscle soreness (DOMS) — this peaks today and tomorrow, adding to your fatigue.`)
+      } else if (yesterday.total > 150) {
         lines.push(`Yesterday's ${sport} was a heavy session (${Math.round(yesterday.total)} load) — that's adding to today's fatigue.`)
       } else if (yesterday.total > 80) {
         lines.push(`Yesterday's ${sport} (${Math.round(yesterday.total)} load) is factoring into today's recovery.`)
       }
     }
 
-    if (dayBefore && dayBefore.total > 100) {
+    if (dayBefore) {
       const topRecord = dayBefore.records[0]
       const sport = topRecord ? topRecord.sportType.replace(/_/g, ' ') : 'workout'
-      lines.push(`Day before yesterday's ${sport} (${Math.round(dayBefore.total)} load) is still influencing your fatigue.`)
+      const isStrength = hasRecentStrength(dayBefore)
+
+      if (isStrength) {
+        lines.push(`${sport} from 2 days ago is still causing DOMS — muscle soreness typically peaks at 24-48 hours.`)
+      } else if (dayBefore.total > 100) {
+        lines.push(`${sport} from 2 days ago (${Math.round(dayBefore.total)} load) is still influencing your fatigue.`)
+      }
+    }
+
+    // 3 days ago — only mention if it was a heavy strength session (DOMS can linger)
+    if (day3 && hasRecentStrength(day3) && day3.total > 80) {
+      lines.push(`Heavy strength from 3 days ago may still have residual DOMS effects.`)
     }
   }
 
