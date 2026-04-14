@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import type {
   GarminHealthData,
   GarminActivity,
+  GarminActivityDetail,
   StravaActivity,
   ReadinessScore,
   TRIMPRecord,
@@ -33,6 +34,7 @@ interface UseReadinessProps {
   healthData: GarminHealthData[]
   stravaActivities: StravaActivity[]
   garminActivities: GarminActivity[]
+  garminActivityDetails: Record<string, GarminActivityDetail[]>
   maxHR: number
   todayPlannedWorkout?: PlannedDay
   currentWeekNum: number
@@ -58,6 +60,7 @@ export function useReadiness({
   healthData,
   stravaActivities,
   garminActivities,
+  garminActivityDetails,
   maxHR,
   todayPlannedWorkout,
   currentWeekNum,
@@ -76,8 +79,23 @@ export function useReadiness({
   // Strava supplements for dates not covered by Garmin.
   // Banister TRIMP is the fallback when EPOC unavailable.
   const trimpRecords = useMemo(() => {
+    // Build a lookup of exercise names per date for strength sub-classification.
+    // If a "Strength" activity has lunges/squats/deadlifts in its exercise sets,
+    // it should be classified as strength_lower (MIM 1.5) not strength_full (1.0).
+    const exerciseNamesByDate = new Map<string, string[]>()
+    for (const details of Object.values(garminActivityDetails)) {
+      for (const d of details) {
+        const date = d.startTimeLocal?.slice(0, 10)
+        if (date && d.exerciseSets?.length) {
+          const names = d.exerciseSets.map(s => (s.exerciseName || '').toLowerCase()).filter(Boolean)
+          const existing = exerciseNamesByDate.get(date) || []
+          exerciseNamesByDate.set(date, [...existing, ...names])
+        }
+      }
+    }
+
     const garminRecords: TRIMPRecord[] = garminActivities
-      .map(a => garminActivityToTRIMP(a, restingHR, maxHR))
+      .map(a => garminActivityToTRIMP(a, restingHR, maxHR, exerciseNamesByDate.get(a.date)))
       .filter((r): r is TRIMPRecord => r !== null)
 
     // When Garmin is connected and has data, use ONLY Garmin for training load.
@@ -93,7 +111,7 @@ export function useReadiness({
       .filter((r): r is TRIMPRecord => r !== null)
 
     return stravaRecords.sort((a, b) => a.date.localeCompare(b.date))
-  }, [stravaActivities, garminActivities, restingHR, maxHR])
+  }, [stravaActivities, garminActivities, garminActivityDetails, restingHR, maxHR])
 
   // Aggregate daily training load
   const dailyTrimp = useMemo(() => aggregateDailyTRIMP(trimpRecords), [trimpRecords])

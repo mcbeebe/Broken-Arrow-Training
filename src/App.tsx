@@ -127,6 +127,7 @@ export default function App() {
     healthData: garmin.healthData,
     stravaActivities: strava.activities,
     garminActivities: garmin.garminActivities,
+    garminActivityDetails: garmin.activityDetails,
     maxHR: plan.athlete.maxHR,
     todayPlannedWorkout,
     currentWeekNum,

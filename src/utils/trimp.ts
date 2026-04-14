@@ -131,17 +131,39 @@ export function classifyStrength(
   avgHR?: number,
   restingHR?: number,
   maxHR?: number,
+  exerciseNames?: string[],
 ): SportType {
   const name = activityName.toLowerCase()
 
-  // Priority 1: Name-based classification
+  // Priority 1: Activity name keywords
   const lowerKeywords = ['lower', 'legs', 'leg day', 'squat', 'deadlift', 'lunge', 'glute', 'hamstring', 'quad']
   const upperKeywords = ['upper', 'push', 'pull', 'chest', 'shoulder', 'arm', 'bicep', 'tricep', 'back']
 
   if (lowerKeywords.some(k => name.includes(k))) return 'strength_lower'
   if (upperKeywords.some(k => name.includes(k))) return 'strength_upper'
 
-  // Priority 2: HR inference — high HR during strength = lower body focus
+  // Priority 2: Exercise set inspection — check actual exercises performed.
+  // If exercise names include lower body movements, classify as lower even when
+  // the activity is generically named "Strength" by Garmin.
+  if (exerciseNames && exerciseNames.length > 0) {
+    const lowerExercises = ['squat', 'lunge', 'deadlift', 'step up', 'step_up', 'stepup',
+      'leg press', 'leg_press', 'leg curl', 'leg_curl', 'leg extension', 'leg_extension',
+      'calf raise', 'calf_raise', 'hip thrust', 'hip_thrust', 'glute', 'hamstring',
+      'romanian', 'rdl', 'goblet', 'front squat', 'back squat', 'bulgarian']
+    const upperExercises = ['bench', 'press', 'curl', 'row', 'pullup', 'pull_up', 'pull-up',
+      'pushup', 'push_up', 'push-up', 'fly', 'flye', 'lateral raise', 'shoulder',
+      'tricep', 'bicep', 'dip', 'overhead']
+
+    const allExercises = exerciseNames.join(' ')
+    const hasLower = lowerExercises.some(k => allExercises.includes(k))
+    const hasUpper = upperExercises.some(k => allExercises.includes(k))
+
+    if (hasLower && !hasUpper) return 'strength_lower'
+    if (hasUpper && !hasLower) return 'strength_upper'
+    if (hasLower && hasUpper) return 'strength_full'
+  }
+
+  // Priority 3: HR inference — high HR during strength = lower body focus
   if (avgHR && restingHR && maxHR && maxHR > restingHR) {
     const hrReservePct = (avgHR - restingHR) / (maxHR - restingHR)
     if (hrReservePct > STRENGTH_HR_INFERENCE_THRESHOLD) return 'strength_lower'
@@ -164,7 +186,7 @@ export function classifyHiking(elevationGainFt: number): SportType {
  */
 export function mapToSportType(
   rawType: string,
-  activity?: { name?: string; avgHR?: number; elevationGainFt?: number },
+  activity?: { name?: string; avgHR?: number; elevationGainFt?: number; exerciseNames?: string[] },
   restingHR?: number,
   maxHR?: number,
 ): SportType {
@@ -173,7 +195,7 @@ export function mapToSportType(
 
   // Sub-classify strength
   if (baseSport === 'strength_full' && activity?.name) {
-    return classifyStrength(activity.name, activity.avgHR, restingHR, maxHR)
+    return classifyStrength(activity.name, activity.avgHR, restingHR, maxHR, activity.exerciseNames)
   }
 
   // Sub-classify hiking
@@ -262,11 +284,12 @@ export function garminActivityToTRIMP(
   activity: GarminActivity,
   restingHR: number,
   maxHR: number,
+  exerciseNames?: string[],
 ): TRIMPRecord | null {
   // Activities with zero MIM (breathwork, myrtl, drills) are excluded from load
   const sportType = mapToSportType(
     activity.type,
-    { name: activity.name, avgHR: activity.avgHR, elevationGainFt: activity.elevationGainFt },
+    { name: activity.name, avgHR: activity.avgHR, elevationGainFt: activity.elevationGainFt, exerciseNames },
     restingHR,
     maxHR,
   )
