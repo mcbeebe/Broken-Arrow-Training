@@ -219,13 +219,15 @@ export function generateWeeklyRecommendations(
     })
   }
 
-  // Check ACWR too low (< 0.8 for most of the week)
-  const lowACWRDays = recent.filter(m => m.acwr > 0 && m.acwr < 0.8).length
-  if (lowACWRDays >= 5) {
+  // Check ACWR too low — only if TODAY's ACWR is genuinely low.
+  // Previous logic checked 5/7 days < 0.8, but rest days naturally have low ACWR
+  // which caused false "undertraining" alerts even during heavy training weeks.
+  // Now only triggers if today's ACWR is very low (< 0.7) — clear detraining signal.
+  if (latest.acwr > 0 && latest.acwr < 0.7) {
     recommendations.push({
       type: 'acwr_low',
       severity: 'info',
-      message: 'Undertraining. You have capacity for more. Consider adding a tempo segment to an easy run.',
+      message: 'Training load is below your fitness base. Consider adding a tempo segment to maintain fitness.',
       weekNum: currentWeekNum,
     })
   }

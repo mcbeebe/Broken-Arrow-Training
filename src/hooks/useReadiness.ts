@@ -135,6 +135,24 @@ export function useReadiness({
   //    the most responsive real-time indicator of eccentric recovery.
   const dailyTrimp = useMemo(() => {
     const base = aggregateDailyTRIMP(trimpRecords)
+
+    // Extend the timeline to include today if it's not already there.
+    // This matters when today is a rest day (no Garmin activity) but the user
+    // logged soreness, RPE, or exercises — without today in the array,
+    // those adjustments have nowhere to land and EWMA stalls a day behind.
+    const today = new Date().toISOString().slice(0, 10)
+    if (base.length > 0 && base[base.length - 1].date < today) {
+      // Fill from last activity date to today (inclusive)
+      const lastDate = new Date(base[base.length - 1].date + 'T00:00:00')
+      const todayDate = new Date(today + 'T00:00:00')
+      const current = new Date(lastDate)
+      current.setDate(current.getDate() + 1) // start from day after last entry
+      while (current <= todayDate) {
+        base.push({ date: current.toISOString().slice(0, 10), total: 0, records: [] })
+        current.setDate(current.getDate() + 1)
+      }
+    }
+
     if (rpeByDate.size === 0 && exerciseLoadByDate.size === 0 && sorenessLoadByDate.size === 0) return base
 
     return base.map(day => {
