@@ -10,6 +10,11 @@ const STORAGE_KEY_TOKENS = 'ba_strava_tokens'
 const STORAGE_KEY_ACTIVITIES = 'ba_strava_activities'
 const STORAGE_KEY_LAST_SYNC = 'ba_strava_last_sync'
 
+// Scoped storage helpers — each athlete gets their own keys
+function scopedKey(base: string, athleteId?: string): string {
+  return athleteId ? `${base}_${athleteId}` : base
+}
+
 // --- OAuth ---
 
 export function getAuthUrl(): string {
@@ -68,20 +73,20 @@ export async function refreshAccessToken(refreshToken: string): Promise<StravaTo
 
 // --- Token storage ---
 
-export function saveTokens(tokens: StravaTokens): void {
-  localStorage.setItem(STORAGE_KEY_TOKENS, JSON.stringify(tokens))
+export function saveTokens(tokens: StravaTokens, athleteId?: string): void {
+  localStorage.setItem(scopedKey(STORAGE_KEY_TOKENS, athleteId), JSON.stringify(tokens))
 }
 
-export function getTokens(): StravaTokens | null {
-  const raw = localStorage.getItem(STORAGE_KEY_TOKENS)
+export function getTokens(athleteId?: string): StravaTokens | null {
+  const raw = localStorage.getItem(scopedKey(STORAGE_KEY_TOKENS, athleteId))
   if (!raw) return null
   return JSON.parse(raw) as StravaTokens
 }
 
-export function clearTokens(): void {
-  localStorage.removeItem(STORAGE_KEY_TOKENS)
-  localStorage.removeItem(STORAGE_KEY_ACTIVITIES)
-  localStorage.removeItem(STORAGE_KEY_LAST_SYNC)
+export function clearTokens(athleteId?: string): void {
+  localStorage.removeItem(scopedKey(STORAGE_KEY_TOKENS, athleteId))
+  localStorage.removeItem(scopedKey(STORAGE_KEY_ACTIVITIES, athleteId))
+  localStorage.removeItem(scopedKey(STORAGE_KEY_LAST_SYNC, athleteId))
 }
 
 export function isTokenExpired(tokens: StravaTokens): boolean {
@@ -122,19 +127,19 @@ export async function fetchActivities(
 
 // --- Activity cache ---
 
-export function getCachedActivities(): StravaActivity[] {
-  const raw = localStorage.getItem(STORAGE_KEY_ACTIVITIES)
+export function getCachedActivities(athleteId?: string): StravaActivity[] {
+  const raw = localStorage.getItem(scopedKey(STORAGE_KEY_ACTIVITIES, athleteId))
   if (!raw) return []
   return JSON.parse(raw) as StravaActivity[]
 }
 
-export function cacheActivities(activities: StravaActivity[]): void {
-  localStorage.setItem(STORAGE_KEY_ACTIVITIES, JSON.stringify(activities))
-  localStorage.setItem(STORAGE_KEY_LAST_SYNC, new Date().toISOString())
+export function cacheActivities(activities: StravaActivity[], athleteId?: string): void {
+  localStorage.setItem(scopedKey(STORAGE_KEY_ACTIVITIES, athleteId), JSON.stringify(activities))
+  localStorage.setItem(scopedKey(STORAGE_KEY_LAST_SYNC, athleteId), new Date().toISOString())
 }
 
-export function getLastSyncTime(): string | null {
-  return localStorage.getItem(STORAGE_KEY_LAST_SYNC)
+export function getLastSyncTime(athleteId?: string): string | null {
+  return localStorage.getItem(scopedKey(STORAGE_KEY_LAST_SYNC, athleteId))
 }
 
 export function isStravaConfigured(): boolean {

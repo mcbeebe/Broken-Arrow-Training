@@ -30,7 +30,7 @@ function getAthleteFromHash(): string {
 export default function App() {
   const [view, setView] = useState<ViewId>('summary')
   const [athleteId, setAthleteId] = useState(getAthleteFromHash)
-  const strava = useStrava()
+  const strava = useStrava(athleteId)
   const garmin = useGarmin()
 
   useEffect(() => {

@@ -13,6 +13,7 @@ import {
   getLastSyncTime,
   getAuthUrl,
   isStravaConfigured,
+  saveTokens,
 } from '../utils/strava'
 
 interface UseStravaReturn {
@@ -28,19 +29,26 @@ interface UseStravaReturn {
   sync: () => Promise<void>
 }
 
-export function useStrava(): UseStravaReturn {
-  const [tokens, setTokens] = useState<StravaTokens | null>(getTokens)
-  const [activities, setActivities] = useState<StravaActivity[]>(getCachedActivities)
+export function useStrava(athleteId?: string): UseStravaReturn {
+  const [tokens, setTokens] = useState<StravaTokens | null>(() => getTokens(athleteId))
+  const [activities, setActivities] = useState<StravaActivity[]>(() => getCachedActivities(athleteId))
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [lastSync, setLastSync] = useState<string | null>(getLastSyncTime)
+  const [lastSync, setLastSync] = useState<string | null>(() => getLastSyncTime(athleteId))
+
+  // Re-load from storage when athleteId changes
+  useEffect(() => {
+    setTokens(getTokens(athleteId))
+    setActivities(getCachedActivities(athleteId))
+    setLastSync(getLastSyncTime(athleteId))
+    setError(null)
+  }, [athleteId])
 
   // Handle OAuth callback on mount
   useEffect(() => {
     const code = getCodeFromUrl()
     if (code) {
-      // Clean URL
-      window.history.replaceState({}, '', window.location.pathname)
+      window.history.replaceState({}, '', window.location.pathname + window.location.hash)
       handleCodeExchange(code)
     }
   }, [])
@@ -50,6 +58,7 @@ export function useStrava(): UseStravaReturn {
     setError(null)
     try {
       const newTokens = await exchangeToken(code)
+      saveTokens(newTokens, athleteId)
       setTokens(newTokens)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Token exchange failed')
@@ -64,6 +73,7 @@ export function useStrava(): UseStravaReturn {
 
     try {
       const refreshed = await refreshAccessToken(tokens.refreshToken)
+      saveTokens(refreshed, athleteId)
       setTokens(refreshed)
       return refreshed.accessToken
     } catch {
@@ -80,20 +90,18 @@ export function useStrava(): UseStravaReturn {
       const accessToken = await getValidToken()
       if (!accessToken) return
 
-      // Fetch activities from 24 hours before training start (timezone buffer)
       const trainingStart = new Date('2026-04-12T00:00:00').getTime() / 1000
       const fetched = await fetchActivities(accessToken, trainingStart)
       setActivities(fetched)
-      cacheActivities(fetched)
+      cacheActivities(fetched, athleteId)
       setLastSync(new Date().toISOString())
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to sync activities')
     } finally {
       setLoading(false)
     }
-  }, [tokens])
+  }, [tokens, athleteId])
 
-  // Auto-sync after connecting
   useEffect(() => {
     if (tokens && activities.length === 0) {
       sync()
@@ -105,7 +113,7 @@ export function useStrava(): UseStravaReturn {
   }
 
   function disconnect() {
-    clearTokens()
+    clearTokens(athleteId)
     setTokens(null)
     setActivities([])
     setLastSync(null)
