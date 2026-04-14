@@ -1,22 +1,65 @@
 import { useState } from 'react'
-import type { ActualWorkout, StrengthExerciseLog, StrengthSet } from '../types'
+import type { ActualWorkout, PlannedDay, StrengthExerciseLog, StrengthSet } from '../types'
 
 type LogMode = 'run' | 'strength'
 
 interface ManualLogProps {
   dayLabel: string
   existing?: ActualWorkout
+  planned?: PlannedDay
   onSave: (data: ActualWorkout) => void
   onClose: () => void
 }
 
-export default function ManualLog({ dayLabel, existing, onSave, onClose }: ManualLogProps) {
+/**
+ * Build an ISO date string from a day label like "Mon 4/13" or "W1D1 — Mon 4/13".
+ * Falls back to today if parsing fails.
+ */
+function buildStartDate(dayLabel: string): string {
+  const match = dayLabel.match(/(\d{1,2})\/(\d{1,2})/)
+  if (match) {
+    const month = parseInt(match[1])
+    const day = parseInt(match[2])
+    const year = new Date().getFullYear()
+    const d = new Date(year, month - 1, day, 8, 0, 0) // assume 8 AM
+    return d.toISOString()
+  }
+  return new Date().toISOString()
+}
+
+/**
+ * Parse planned time string (e.g., "45-50 min", "1:15", "50 min") to minutes.
+ */
+function parsePlannedTime(timeStr: string): number {
+  if (!timeStr) return 0
+  // Handle "45-50 min" → take the midpoint
+  const rangeMatch = timeStr.match(/(\d+)\s*[-–]\s*(\d+)/)
+  if (rangeMatch) return Math.round((parseInt(rangeMatch[1]) + parseInt(rangeMatch[2])) / 2)
+  // Handle "1:15" → 75
+  const colonMatch = timeStr.match(/(\d+):(\d+)/)
+  if (colonMatch) return parseInt(colonMatch[1]) * 60 + parseInt(colonMatch[2])
+  // Handle "50 min" or just "50"
+  const numMatch = timeStr.match(/(\d+)/)
+  return numMatch ? parseInt(numMatch[1]) : 0
+}
+
+export default function ManualLog({ dayLabel, existing, planned, onSave, onClose }: ManualLogProps) {
   const isStrength = existing?.strengthLog?.length
     || existing?.type?.toLowerCase().includes('strength')
     || existing?.name?.toLowerCase().includes('strength')
+    || planned?.type === 'strength'
   const [mode, setMode] = useState<LogMode>(isStrength ? 'strength' : 'run')
-  const [name, setName] = useState(existing?.name || '')
-  const [time, setTime] = useState(existing ? String(Math.round(existing.movingTime / 60)) : '')
+
+  // Pre-populate from existing actual, or fall back to planned workout
+  const plannedName = planned?.workout || ''
+  const plannedTime = planned?.time ? parsePlannedTime(planned.time) : 0
+
+  const [name, setName] = useState(existing?.name || plannedName)
+  const [time, setTime] = useState(
+    existing ? String(Math.round(existing.movingTime / 60))
+    : plannedTime > 0 ? String(plannedTime)
+    : ''
+  )
   const [hr, setHr] = useState(existing?.avgHR?.toString() || '')
   const [notes, setNotes] = useState(existing?.notes || '')
   const [rpe, setRpe] = useState(existing?.rpe?.toString() || '')
@@ -40,9 +83,9 @@ export default function ManualLog({ dayLabel, existing, onSave, onClose }: Manua
       avgHR: parseInt(hr) || existing?.avgHR,
       maxHR: existing?.maxHR,         // Preserve (was hardcoded to undefined)
       elevationGain: mode === 'run' ? (parseInt(elevation) || 0) : (existing?.elevationGain ?? 0),
-      type: existing?.type || 'Manual',
+      type: existing?.type || (mode === 'strength' ? 'strength_training' : 'running'),
       name: name || (mode === 'strength' ? `Strength — ${dayLabel}` : `Run — ${dayLabel}`),
-      startDate: existing?.startDate || new Date().toISOString(),
+      startDate: existing?.startDate || buildStartDate(dayLabel),
       notes,
       rpe: parseInt(rpe) || existing?.rpe || undefined,
       strengthLog: mode === 'strength' ? exercises : existing?.strengthLog,
@@ -118,6 +161,20 @@ export default function ManualLog({ dayLabel, existing, onSave, onClose }: Manua
         </div>
 
         <div className="px-4 py-4 space-y-3">
+          {/* Show planned workout as reference */}
+          {planned && !existing && (
+            <div className="bg-teal-50 rounded-lg px-3 py-2 border border-teal-200">
+              <p className="text-[10px] font-semibold text-teal-600 uppercase tracking-wide mb-0.5">Planned Workout</p>
+              <p className="text-xs text-teal-800 font-medium">{planned.workout}</p>
+              {planned.detail && (
+                <p className="text-[10px] text-teal-600 mt-0.5">{planned.detail}</p>
+              )}
+              {planned.zone && planned.zone !== '—' && (
+                <p className="text-[10px] text-teal-500 mt-0.5">Zone: {planned.zone} · Time: {planned.time}</p>
+              )}
+            </div>
+          )}
+
           <Field label="Activity name" placeholder={mode === 'strength' ? 'BFT Class, Gym Session, etc.' : 'Morning Run, Trail Run, etc.'} value={name} onChange={setName} />
 
           <div className="grid grid-cols-2 gap-3">

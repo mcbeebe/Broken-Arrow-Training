@@ -43,30 +43,34 @@ export function checkStorageVersion(): void {
  * (so user stays authenticated) but forces a fresh sync.
  */
 export function clearAllCachedData(): void {
-  // Clear known keys (except auth tokens)
+  // Preserve auth tokens AND user-entered data (manual logs, day swaps, soreness).
+  // These are NOT caches — they're user input that shouldn't be lost on sync refresh.
   const preserveKeys = ['ba_strava_tokens', 'ba_garmin_connected', VERSION_KEY]
+  const preservePrefixes = ['ba_manual_logs', 'ba_day_swaps', 'ba_soreness']
 
   for (const key of ALL_BA_KEYS) {
-    if (!preserveKeys.includes(key)) {
+    if (!preserveKeys.includes(key) && !preservePrefixes.some(p => key.startsWith(p))) {
       localStorage.removeItem(key)
     }
   }
 
-  // Also clear any stream caches (ba_strava_streams_*)
+  // Clear stream caches but NOT user-entered data
   const keysToRemove: string[] = []
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i)
-    if (key && key.startsWith('ba_strava_streams_')) {
+    if (!key) continue
+    // Clear Strava stream caches
+    if (key.startsWith('ba_strava_streams_')) {
       keysToRemove.push(key)
     }
-    // Also clear any athlete-specific keys
-    if (key && (key.startsWith('ba_day_swaps_') || key.startsWith('ba_manual_logs_'))) {
+    // Clear Garmin caches (athlete-specific)
+    if (key.startsWith('ba_garmin_health_') || key.startsWith('ba_garmin_activities_') || key.startsWith('ba_garmin_activity_details_')) {
       keysToRemove.push(key)
     }
   }
   keysToRemove.forEach(k => localStorage.removeItem(k))
 
-  console.log('[StorageVersion] Cached data cleared — next sync will fetch fresh data')
+  console.log('[StorageVersion] Cached data cleared (manual logs, swaps, soreness preserved)')
 }
 
 /**
