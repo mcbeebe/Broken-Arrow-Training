@@ -144,9 +144,9 @@ class handler(BaseHTTPRequestHandler):
                     hr_zones = _safe_get(client.get_activity_hr_in_timezones, activity_id)
                     detail["hrZones"] = hr_zones
 
-                    # Get exercise sets (for strength)
-                    if activity_type in ("strength_training", "other"):
-                        exercise_sets = _safe_get(client.get_activity_exercise_sets, activity_id)
+                    # Get exercise sets (strength, HIIT, cardio, and any activity that may have sets)
+                    exercise_sets = _safe_get(client.get_activity_exercise_sets, activity_id)
+                    if exercise_sets and not isinstance(exercise_sets, str):
                         detail["exerciseSets"] = exercise_sets
 
                     # Get splits

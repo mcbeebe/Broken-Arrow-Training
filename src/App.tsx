@@ -11,6 +11,7 @@ import { matchActivitiesToPlan, mergeGarminDetailIntoWeeks } from './utils/match
 import { generateMorningCoach, generateEveningCoach, getCoachTimeOfDay } from './utils/coach'
 import { checkStorageVersion, clearAllCachedData, clearAllAppData } from './utils/storageVersion'
 import WeeklyPlan from './components/WeeklyPlan'
+import Summary from './components/Summary'
 import Dashboard from './components/Dashboard'
 import RaceInfo from './components/RaceInfo'
 import Methodology from './components/Methodology'
@@ -26,7 +27,7 @@ function getAthleteFromHash(): string {
 }
 
 export default function App() {
-  const [view, setView] = useState<ViewId>('plan')
+  const [view, setView] = useState<ViewId>('summary')
   const [athleteId, setAthleteId] = useState(getAthleteFromHash)
   const strava = useStrava()
   const garmin = useGarmin()
@@ -34,7 +35,7 @@ export default function App() {
   useEffect(() => {
     function onHashChange() {
       setAthleteId(getAthleteFromHash())
-      setView('plan')
+      setView('summary')
     }
     window.addEventListener('hashchange', onHashChange)
     return () => window.removeEventListener('hashchange', onHashChange)
@@ -48,17 +49,17 @@ export default function App() {
   // Only show Settings tab for Mike (Strava), show manual log for others
   const TABS: { id: ViewId; label: string }[] = showStrava
     ? [
+        { id: 'summary', label: 'Summary' },
         { id: 'plan', label: 'Plan' },
         { id: 'dashboard', label: 'Stats' },
         { id: 'method', label: 'Method' },
-        { id: 'info', label: 'Race' },
         { id: 'settings', label: 'Settings' },
       ]
     : [
+        { id: 'summary', label: 'Summary' },
         { id: 'plan', label: 'Plan' },
         { id: 'dashboard', label: 'Stats' },
         { id: 'method', label: 'Method' },
-        { id: 'info', label: 'Race' },
       ]
 
   // Merge Strava or manual log data into training plan
@@ -206,19 +207,26 @@ export default function App() {
       </div>
 
       {/* Content */}
+      {view === 'summary' && (
+        <Summary
+          todayScore={readiness.todayScore}
+          weekScores={readiness.weekScores}
+          todayHealth={todayHealth}
+          healthHistory={garmin.healthData}
+          garminConnected={garmin.connected}
+          coachRecommendation={coachRecommendation}
+          onCoachSwap={handleCoachSwap}
+          dailyTrimp={readiness.dailyTrimp}
+          performance={readiness.performance}
+        />
+      )}
       {view === 'plan' && (
         <WeeklyPlan
           weeks={weeks}
           zones={plan.zones}
           manualLog={manualLog}
           daySwap={daySwap}
-          todayReadiness={readiness.todayScore}
           weekReadiness={readiness.weekScores}
-          todayHealth={todayHealth}
-          healthHistory={garmin.healthData}
-          garminConnected={garmin.connected}
-          coachRecommendation={coachRecommendation}
-          onCoachSwap={handleCoachSwap}
         />
       )}
       {view === 'dashboard' && (

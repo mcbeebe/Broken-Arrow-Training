@@ -165,22 +165,52 @@ export function garminDetailToActual(detail: GarminActivityDetail): ActualWorkou
 function parseGarminExerciseSets(raw: unknown): StrengthExerciseLog[] {
   if (!raw) return []
 
-  // Handle the Garmin response format
-  const obj = raw as Record<string, unknown>
-  const exercises = (obj?.exercises || obj?.exerciseSets || (Array.isArray(raw) ? raw : [])) as Record<string, unknown>[]
-  if (!Array.isArray(exercises)) return []
+  // Garmin exercise sets structure:
+  // { exerciseSets: [ { exercises: [{category, name}], repetitionCount, weight, setType, duration }, ... ] }
+  // OR just an array of sets directly
+  let sets: Record<string, unknown>[]
+  if (Array.isArray(raw)) {
+    sets = raw as Record<string, unknown>[]
+  } else {
+    const obj = raw as Record<string, unknown>
+    sets = (obj?.exerciseSets || []) as Record<string, unknown>[]
+  }
+  if (!Array.isArray(sets)) return []
 
-  return exercises.map((ex: Record<string, unknown>) => {
-    const name = formatExerciseName((ex.exerciseName || ex.category || 'Unknown') as string)
-    const focus = classifyExerciseFocus(name)
-    const rawSets = (ex.sets || []) as Record<string, unknown>[]
-    const sets: StrengthSet[] = (Array.isArray(rawSets) ? rawSets : []).map((s: Record<string, unknown>) => ({
-      reps: (s.repetitionCount as number) || 0,
-      weight: s.weight ? `${Math.round((s.weight as number) * 2.205)} lbs` : '—', // Garmin sends kg, convert to lbs
-      notes: s.duration ? `${Math.round(s.duration as number)}s` : undefined,
-    }))
-    return { name, focus, sets }
-  })
+  // Filter to ACTIVE sets only (skip REST)
+  const activeSets = sets.filter(s => s.setType === 'ACTIVE')
+
+  // Group sets by exercise name (category + name from exercises[0])
+  const grouped = new Map<string, StrengthSet[]>()
+  for (const s of activeSets) {
+    const exList = (s.exercises || []) as Record<string, unknown>[]
+    const firstEx = exList[0] as Record<string, unknown> | undefined
+    // Use specific name if available, fall back to category
+    const rawName = (firstEx?.name || firstEx?.category || 'Unknown') as string
+    const name = formatExerciseName(rawName)
+
+    const reps = (s.repetitionCount as number) || 0
+    // Garmin sends weight in grams — convert to lbs
+    const weightG = (s.weight as number) || 0
+    const weightLbs = weightG > 0 ? Math.round(weightG / 453.592) : 0
+    const duration = s.duration as number | undefined
+
+    const set: StrengthSet = {
+      reps,
+      weight: weightLbs > 0 ? `${weightLbs} lbs` : '—',
+      notes: duration && reps === 0 ? `${Math.round(duration)}s` : undefined,
+    }
+
+    const existing = grouped.get(name) || []
+    existing.push(set)
+    grouped.set(name, existing)
+  }
+
+  return Array.from(grouped.entries()).map(([name, sets]) => ({
+    name,
+    focus: classifyExerciseFocus(name),
+    sets,
+  }))
 }
 
 function formatExerciseName(garminName: string): string {

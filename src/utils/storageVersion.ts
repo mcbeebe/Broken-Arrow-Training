@@ -6,7 +6,7 @@
  */
 
 const VERSION_KEY = 'ba_storage_version'
-const CURRENT_VERSION = 2  // v2 = ATE engine migration (EPOC, new scoring, expanded sport types)
+const CURRENT_VERSION = 3  // v3 = timezone fix + Garmin detail + AI Coach
 
 /** All localStorage keys used by the app */
 const ALL_BA_KEYS = [
