@@ -28,6 +28,57 @@ function buildStartDate(dayLabel: string): string {
 }
 
 /**
+ * Parse a plan detail string into structured exercise entries.
+ * e.g., "Goblet squats 3×12 · Walking lunges 3×10/leg · Step-ups 3×10/leg · RDL w/ DB 3×10 · Plank 3×45s"
+ * → array of StrengthExerciseLog with name, focus, and sets pre-filled.
+ */
+function parsePlanExercises(detail: string): StrengthExerciseLog[] {
+  if (!detail) return []
+
+  // Split on common delimiters: " · ", " | ", " + ", " - " (with spaces), or newlines
+  const parts = detail.split(/\s*[·|]\s*|\n/).map(s => s.trim()).filter(Boolean)
+
+  const exercises: StrengthExerciseLog[] = []
+  for (const part of parts) {
+    // Try to match "Exercise Name NxR" patterns like "3×12", "3x10", "3×45s"
+    const setsMatch = part.match(/^(.+?)\s+(\d+)\s*[×xX]\s*(\d+)\s*(?:\/\w+)?(?:\s*\w+)?$/)
+
+    let name: string
+    let numSets = 3
+    let reps = 10
+
+    if (setsMatch) {
+      name = setsMatch[1].trim()
+      numSets = parseInt(setsMatch[2])
+      reps = parseInt(setsMatch[3])
+    } else {
+      // No sets pattern found — use the whole string as name
+      name = part
+    }
+
+    // Auto-detect focus from exercise name
+    const lower = name.toLowerCase()
+    const lowerKeywords = ['squat', 'lunge', 'step-up', 'step up', 'rdl', 'deadlift', 'glute', 'calf', 'leg']
+    const upperKeywords = ['press', 'bench', 'curl', 'row', 'pullup', 'push-up', 'pushup', 'shoulder', 'tricep', 'bicep']
+    const coreKeywords = ['plank', 'crunch', 'ab ', 'core', 'dead bug', 'bird dog', 'pallof']
+
+    let focus: StrengthExerciseLog['focus'] = 'full'
+    if (lowerKeywords.some(k => lower.includes(k))) focus = 'lower'
+    else if (upperKeywords.some(k => lower.includes(k))) focus = 'upper'
+    else if (coreKeywords.some(k => lower.includes(k))) focus = 'core'
+
+    const sets: StrengthSet[] = Array.from({ length: numSets }, () => ({
+      reps,
+      weight: '',
+    }))
+
+    exercises.push({ name, focus, sets })
+  }
+
+  return exercises
+}
+
+/**
  * Parse planned time string (e.g., "45-50 min", "1:15", "50 min") to minutes.
  */
 function parsePlannedTime(timeStr: string): number {
@@ -198,12 +249,22 @@ export default function ManualLog({ dayLabel, existing, planned, onSave, onClose
             <div>
               <div className="flex items-center justify-between mb-2">
                 <p className="text-xs font-medium text-slate-600">Exercises</p>
-                <button
-                  onClick={addExercise}
-                  className="text-xs font-medium px-2 py-1 rounded-lg bg-purple-100 text-purple-700 hover:bg-purple-200 transition-colors"
-                >
-                  + Add Exercise
-                </button>
+                <div className="flex gap-1.5">
+                  {planned?.detail && (
+                    <button
+                      onClick={() => setExercises(parsePlanExercises(planned.detail))}
+                      className="text-xs font-medium px-2 py-1 rounded-lg bg-teal-100 text-teal-700 hover:bg-teal-200 transition-colors"
+                    >
+                      📋 Import from plan
+                    </button>
+                  )}
+                  <button
+                    onClick={addExercise}
+                    className="text-xs font-medium px-2 py-1 rounded-lg bg-purple-100 text-purple-700 hover:bg-purple-200 transition-colors"
+                  >
+                    + Add Exercise
+                  </button>
+                </div>
               </div>
 
               {exercises.length === 0 && (
