@@ -158,21 +158,26 @@ export function mergeGarminDetailIntoWeeks(
 
       const garminActual = garminDetailToActual(bestDetail)
 
-      if (day.actual && day.actual.source !== 'manual') {
-        // Enrich existing Strava actual with Garmin data
+      if (day.actual) {
+        // Enrich existing actual (Strava or manual) with Garmin biometric data.
+        // Garmin always provides HR, TE, EPOC, HR zones, exercise sets — layer these
+        // on top of whatever exists, preserving the original source's data as base.
         return {
           ...day,
           actual: {
-            ...day.actual,
-            source: day.actual.source === 'garmin' ? 'garmin' as const : 'strava' as const,
-            garminId: garminActual.garminId,
+            ...garminActual,           // Garmin as base (HR, TE, EPOC, exercises)
+            ...day.actual,             // Strava/manual overrides on top (preserves manual edits)
+            // Always use Garmin biometrics — these are device-measured, more reliable
+            avgHR: garminActual.avgHR ?? day.actual.avgHR,
+            maxHR: garminActual.maxHR ?? day.actual.maxHR,
             aerobicTE: garminActual.aerobicTE,
             anaerobicTE: garminActual.anaerobicTE,
             epoc: garminActual.epoc,
             recoveryTimeHours: garminActual.recoveryTimeHours,
             vo2max: garminActual.vo2max,
             hrZoneSummary: garminActual.hrZoneSummary,
-            // Override strengthLog if Garmin has exercise sets (more detailed)
+            garminId: garminActual.garminId,
+            // Garmin exercise sets are more detailed (from watch sensors)
             strengthLog: garminActual.strengthLog?.length ? garminActual.strengthLog : day.actual.strengthLog,
           },
         }
