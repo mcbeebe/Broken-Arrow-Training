@@ -36,48 +36,29 @@ export interface UseGarminReturn {
   sync: () => Promise<void>
 }
 
-export function useGarmin(athleteId?: string, garminOwner?: string): UseGarminReturn {
-  // Gate: only the profile that owns the Garmin account can access Garmin data.
-  // This prevents Mike's Garmin data from leaking into Jim/Lori/Joel's profiles.
-  const isOwner = !garminOwner || athleteId === garminOwner
-
-  const [connected, setConnected] = useState(() => isOwner ? isGarminConnected(athleteId) : false)
+export function useGarmin(athleteId?: string): UseGarminReturn {
+  const [connected, setConnected] = useState(() => isGarminConnected(athleteId))
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [healthData, setHealthData] = useState<GarminHealthData[]>(() => isOwner ? getCachedHealthData(athleteId) : [])
-  const [garminActivities, setGarminActivities] = useState<GarminActivity[]>(() => isOwner ? getCachedGarminActivities(athleteId) : [])
-  const [activityDetails, setActivityDetails] = useState<Record<string, GarminActivityDetail[]>>(() => isOwner ? getCachedActivityDetails(athleteId) : {})
-  const [lastSync, setLastSync] = useState<string | null>(() => isOwner ? getGarminLastSync(athleteId) : null)
+  const [healthData, setHealthData] = useState<GarminHealthData[]>(() => getCachedHealthData(athleteId))
+  const [garminActivities, setGarminActivities] = useState<GarminActivity[]>(() => getCachedGarminActivities(athleteId))
+  const [activityDetails, setActivityDetails] = useState<Record<string, GarminActivityDetail[]>>(() => getCachedActivityDetails(athleteId))
+  const [lastSync, setLastSync] = useState<string | null>(() => getGarminLastSync(athleteId))
   const [displayName, setDisplayName] = useState<string | null>(null)
 
   const configured = isGarminConfigured()
 
-  // Re-load from storage when athleteId changes (only if this profile owns Garmin)
+  // Re-load from storage when athleteId changes
   useEffect(() => {
-    if (!isOwner) {
-      // Not this profile's Garmin — clear any accidentally cached data and return empty state
-      clearGarminData(athleteId)
-      setConnected(false)
-      setHealthData([])
-      setGarminActivities([])
-      setActivityDetails({})
-      setLastSync(null)
-      setError(null)
-      return
-    }
     setConnected(isGarminConnected(athleteId))
     setHealthData(getCachedHealthData(athleteId))
     setGarminActivities(getCachedGarminActivities(athleteId))
     setActivityDetails(getCachedActivityDetails(athleteId))
     setLastSync(getGarminLastSync(athleteId))
     setError(null)
-  }, [athleteId, isOwner])
+  }, [athleteId])
 
   const connect = useCallback(async () => {
-    if (!isOwner) {
-      setError('Garmin is connected on another profile')
-      return
-    }
     if (!configured) {
       setError('Garmin API URL not configured')
       return
@@ -87,20 +68,20 @@ export function useGarmin(athleteId?: string, garminOwner?: string): UseGarminRe
     setError(null)
 
     try {
-      const result = await checkGarminAuth()
+      const result = await checkGarminAuth(athleteId)
       if (result.authenticated) {
         setGarminConnected(true, athleteId)
         setConnected(true)
         setDisplayName(result.displayName || null)
 
-        const data = await fetchHealthData(120)
+        const data = await fetchHealthData(120, athleteId)
         const merged = mergeHealthData(healthData, data)
         cacheHealthData(merged, athleteId)
         setHealthData(merged)
 
         const today = localDateStr()
         const thirtyAgo = localDateStr(new Date(Date.now() - 120 * 24 * 60 * 60 * 1000))
-        const activities = await fetchGarminActivities(thirtyAgo, today)
+        const activities = await fetchGarminActivities(thirtyAgo, today, athleteId)
         cacheGarminActivities(activities, athleteId)
         setGarminActivities(activities)
 
@@ -115,7 +96,7 @@ export function useGarmin(athleteId?: string, garminOwner?: string): UseGarminRe
         )
         const detailResults = await Promise.all(
           datesWithActivities.map(async date => {
-            const details = await fetchActivityDetail(date)
+            const details = await fetchActivityDetail(date, athleteId)
             return { date, details }
           })
         )
@@ -134,7 +115,7 @@ export function useGarmin(athleteId?: string, garminOwner?: string): UseGarminRe
     } finally {
       setLoading(false)
     }
-  }, [configured, healthData, athleteId, isOwner])
+  }, [configured, healthData, athleteId])
 
   const disconnect = useCallback(() => {
     clearGarminData(athleteId)
@@ -148,21 +129,21 @@ export function useGarmin(athleteId?: string, garminOwner?: string): UseGarminRe
   }, [athleteId])
 
   const sync = useCallback(async () => {
-    if (!isOwner || !configured || !connected) return
+    if (!configured || !connected) return
 
     setLoading(true)
     setError(null)
 
     try {
       const days = healthData.length === 0 ? 120 : 7
-      const data = await fetchHealthData(days)
+      const data = await fetchHealthData(days, athleteId)
       const merged = mergeHealthData(healthData, data)
       cacheHealthData(merged, athleteId)
       setHealthData(merged)
 
       const today = localDateStr()
       const thirtyAgo = localDateStr(new Date(Date.now() - 120 * 24 * 60 * 60 * 1000))
-      const activities = await fetchGarminActivities(thirtyAgo, today)
+      const activities = await fetchGarminActivities(thirtyAgo, today, athleteId)
       cacheGarminActivities(activities, athleteId)
       setGarminActivities(activities)
 
@@ -177,7 +158,7 @@ export function useGarmin(athleteId?: string, garminOwner?: string): UseGarminRe
       )
       const detailResults = await Promise.all(
         datesWithActivities.map(async date => {
-          const details = await fetchActivityDetail(date)
+          const details = await fetchActivityDetail(date, athleteId)
           return { date, details }
         })
       )
@@ -193,11 +174,11 @@ export function useGarmin(athleteId?: string, garminOwner?: string): UseGarminRe
     } finally {
       setLoading(false)
     }
-  }, [configured, connected, healthData, athleteId, isOwner])
+  }, [configured, connected, healthData, athleteId])
 
-  // Auto-sync on mount if stale (only for Garmin owner profile)
+  // Auto-sync on mount if stale
   useEffect(() => {
-    if (isOwner && connected && configured && isSyncStale(athleteId)) {
+    if (connected && configured && isSyncStale(athleteId)) {
       sync()
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps

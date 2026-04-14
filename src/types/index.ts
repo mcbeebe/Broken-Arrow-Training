@@ -162,8 +162,6 @@ export interface AthleteProfile {
   maxHR: number;
   currentBase: string;
   weeklyStructure: string;
-  /** Which athleteId owns the Garmin connection (data flows only to this profile) */
-  garminOwner?: string;
 }
 
 export interface TrainingPlan {

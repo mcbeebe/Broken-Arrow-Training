@@ -34,7 +34,7 @@ export default function App() {
   const [athleteId, setAthleteId] = useState(getAthleteFromHash)
   const plan = plans[athleteId]
   const strava = useStrava(athleteId)
-  const garmin = useGarmin(athleteId, plan.athlete.garminOwner)
+  const garmin = useGarmin(athleteId)
 
   useEffect(() => {
     function onHashChange() {

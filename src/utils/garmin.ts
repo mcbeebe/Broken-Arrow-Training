@@ -16,28 +16,31 @@ function scopedKey(base: string, athleteId?: string): string {
 
 // ─── API Functions ──────────────────────────────────────────────
 
-export async function checkGarminAuth(): Promise<{ authenticated: boolean; displayName?: string; error?: string }> {
+export async function checkGarminAuth(athleteId?: string): Promise<{ authenticated: boolean; displayName?: string; error?: string }> {
   if (!GARMIN_API_URL) return { authenticated: false, error: 'Garmin API URL not configured' }
 
-  const res = await fetch(`${GARMIN_API_URL}/api/garmin/auth`, { method: 'POST' })
+  const params = athleteId ? `?athlete=${athleteId}` : ''
+  const res = await fetch(`${GARMIN_API_URL}/api/garmin/auth${params}`, { method: 'POST' })
   return res.json()
 }
 
-export async function fetchHealthData(days: number = 1): Promise<GarminHealthData[]> {
+export async function fetchHealthData(days: number = 1, athleteId?: string): Promise<GarminHealthData[]> {
   if (!GARMIN_API_URL) return []
 
   const tzOffset = Math.round(-new Date().getTimezoneOffset() / 60)  // e.g., -7 for Pacific
-  const res = await fetch(`${GARMIN_API_URL}/api/garmin/health?days=${days}&tz=${tzOffset}`)
+  const athleteParam = athleteId ? `&athlete=${athleteId}` : ''
+  const res = await fetch(`${GARMIN_API_URL}/api/garmin/health?days=${days}&tz=${tzOffset}${athleteParam}`)
   if (!res.ok) throw new Error(`Garmin health fetch failed: ${res.status}`)
 
   const data = await res.json()
   return data.dates || []
 }
 
-export async function fetchGarminActivities(start: string, end: string): Promise<GarminActivity[]> {
+export async function fetchGarminActivities(start: string, end: string, athleteId?: string): Promise<GarminActivity[]> {
   if (!GARMIN_API_URL) return []
 
-  const res = await fetch(`${GARMIN_API_URL}/api/garmin/activities?start=${start}&end=${end}`)
+  const athleteParam = athleteId ? `&athlete=${athleteId}` : ''
+  const res = await fetch(`${GARMIN_API_URL}/api/garmin/activities?start=${start}&end=${end}${athleteParam}`)
   if (!res.ok) throw new Error(`Garmin activities fetch failed: ${res.status}`)
 
   const data = await res.json()
@@ -110,9 +113,10 @@ export function cacheGarminActivities(activities: GarminActivity[], athleteId?: 
 
 // ─── Activity Detail API & Cache ───────────────────────────────
 
-export async function fetchActivityDetail(date: string): Promise<GarminActivityDetail[]> {
+export async function fetchActivityDetail(date: string, athleteId?: string): Promise<GarminActivityDetail[]> {
   if (!GARMIN_API_URL) return []
-  const res = await fetch(`${GARMIN_API_URL}/api/garmin/activity_detail?date=${date}`)
+  const athleteParam = athleteId ? `&athlete=${athleteId}` : ''
+  const res = await fetch(`${GARMIN_API_URL}/api/garmin/activity_detail?date=${date}${athleteParam}`)
   if (!res.ok) return []
   const data = await res.json()
   return data.activities || []
