@@ -1,4 +1,4 @@
-import type { SportType, TRIMPRecord, DailyTRIMP, StravaActivity, GarminActivity } from '../types'
+import type { SportType, TRIMPRecord, DailyTRIMP, StravaActivity, GarminActivity, StrengthExerciseLog } from '../types'
 
 // ─── Training Load Calculation (ATE-aligned) ────────────────────
 //
@@ -347,4 +347,49 @@ export function aggregateDailyTRIMP(records: TRIMPRecord[]): DailyTRIMP[] {
   }
 
   return result
+}
+
+// ─── Manual Exercise Load ──────────────────────────────────────
+// Calculates supplemental training load from manually-logged strength
+// exercises. Captures musculoskeletal stress that Garmin EPOC misses
+// (especially when Garmin fails to track exercises like goblet squats
+// or step-ups).
+//
+// Per-set base load by muscle focus:
+//   lower: 4.0 (compound, high metabolic cost, high DOMS potential)
+//   full:  2.5 (mixed compound movements)
+//   upper: 1.5 (lower metabolic cost)
+//   core:  1.0 (minimal systemic impact)
+//
+// Modifiers: weight (heavier = more load) and reps (more = more load)
+
+const EXERCISE_BASE_LOAD: Record<string, number> = {
+  lower: 4.0,
+  full: 2.5,
+  upper: 1.5,
+  core: 1.0,
+}
+
+export function calculateExerciseLoad(exercises: StrengthExerciseLog[]): number {
+  if (!exercises || exercises.length === 0) return 0
+
+  let totalLoad = 0
+  for (const exercise of exercises) {
+    const basePerSet = EXERCISE_BASE_LOAD[exercise.focus] ?? 2.5
+    for (const set of exercise.sets) {
+      const reps = set.reps || 0
+      if (reps === 0) continue
+
+      // Weight modifier: heavier loads = more musculoskeletal stress
+      const weightLbs = parseFloat(set.weight) || 0
+      const weightScale = weightLbs > 0 ? Math.min(2.0, 1 + weightLbs / 200) : 1.0
+
+      // Rep modifier: normalize to 10-rep baseline
+      const repScale = Math.min(2.0, reps / 10)
+
+      totalLoad += basePerSet * weightScale * repScale
+    }
+  }
+
+  return Math.round(totalLoad * 10) / 10
 }

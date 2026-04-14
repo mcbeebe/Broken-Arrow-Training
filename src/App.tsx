@@ -8,6 +8,7 @@ import { useManualLog } from './hooks/useManualLog'
 import { useDaySwap } from './hooks/useDaySwap'
 import { useReadiness } from './hooks/useReadiness'
 import { matchActivitiesToPlan, mergeGarminDetailIntoWeeks } from './utils/matching'
+import { calculateExerciseLoad } from './utils/trimp'
 import { localDateStr } from './utils/format'
 import { generateMorningCoach, generateEveningCoach, getCoachTimeOfDay } from './utils/coach'
 import { checkStorageVersion, clearAllCachedData, clearAllAppData } from './utils/storageVersion'
@@ -122,17 +123,24 @@ export default function App() {
     return currentWeekDays.findIndex(d => d.day.includes(dayLabel))
   }, [currentWeekDays])
 
-  // Extract RPE ratings from manual logs to blend with EPOC-based load
-  const rpeByDate = useMemo(() => {
-    const map = new Map<string, number>()
+  // Extract RPE ratings and manual exercise load from actuals
+  const { rpeByDate, exerciseLoadByDate } = useMemo(() => {
+    const rpeMap = new Map<string, number>()
+    const exMap = new Map<string, number>()
     for (const week of weeks) {
       for (const day of week.days) {
-        if (day.actual?.rpe && day.actual.startDate) {
-          map.set(day.actual.startDate.slice(0, 10), day.actual.rpe)
+        if (!day.actual?.startDate) continue
+        const date = day.actual.startDate.slice(0, 10)
+        if (day.actual.rpe) {
+          rpeMap.set(date, day.actual.rpe)
+        }
+        if (day.actual.strengthLog?.length) {
+          const load = calculateExerciseLoad(day.actual.strengthLog)
+          if (load > 0) exMap.set(date, load)
         }
       }
     }
-    return map
+    return { rpeByDate: rpeMap, exerciseLoadByDate: exMap }
   }, [weeks])
 
   // Readiness engine (combines Garmin health data + Strava/Garmin activities)
@@ -142,6 +150,7 @@ export default function App() {
     garminActivities: garmin.garminActivities,
     garminActivityDetails: garmin.activityDetails,
     rpeByDate,
+    exerciseLoadByDate,
     maxHR: plan.athlete.maxHR,
     todayPlannedWorkout,
     currentWeekNum,

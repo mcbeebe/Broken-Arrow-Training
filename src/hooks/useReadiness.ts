@@ -36,6 +36,7 @@ interface UseReadinessProps {
   garminActivities: GarminActivity[]
   garminActivityDetails: Record<string, GarminActivityDetail[]>
   rpeByDate: Map<string, number>
+  exerciseLoadByDate: Map<string, number>
   maxHR: number
   todayPlannedWorkout?: PlannedDay
   currentWeekNum: number
@@ -63,6 +64,7 @@ export function useReadiness({
   garminActivities,
   garminActivityDetails,
   rpeByDate,
+  exerciseLoadByDate,
   maxHR,
   todayPlannedWorkout,
   currentWeekNum,
@@ -115,22 +117,39 @@ export function useReadiness({
     return stravaRecords.sort((a, b) => a.date.localeCompare(b.date))
   }, [stravaActivities, garminActivities, garminActivityDetails, restingHR, maxHR])
 
-  // Aggregate daily training load, applying RPE adjustment when available.
-  // RPE blending: EPOC captures cardiovascular stress but misses muscular fatigue (DOMS).
-  // When RPE is provided, adjust daily load by up to ±20%:
-  //   RPE 5 = neutral (no change), RPE 10 = +20%, RPE 1 = -20%
+  // Aggregate daily training load with two supplements:
+  //
+  // 1. RPE blending: EPOC captures cardiovascular stress but misses DOMS.
+  //    RPE 5 = neutral, RPE 10 = +20%, RPE 1 = -16%.
+  //
+  // 2. Manual exercise load: when user logs exercises that Garmin missed
+  //    (e.g., goblet squats, step-ups), each set adds incremental load
+  //    based on muscle focus, weight, and reps. This is ADDITIVE — it
+  //    supplements EPOC rather than replacing it.
   const dailyTrimp = useMemo(() => {
     const base = aggregateDailyTRIMP(trimpRecords)
-    if (rpeByDate.size === 0) return base
+    if (rpeByDate.size === 0 && exerciseLoadByDate.size === 0) return base
 
     return base.map(day => {
+      let total = day.total
+
+      // Add supplemental load from manually-logged exercises
+      const exerciseLoad = exerciseLoadByDate.get(day.date)
+      if (exerciseLoad && exerciseLoad > 0) {
+        total += exerciseLoad
+      }
+
+      // Apply RPE multiplier (on the combined EPOC + exercise load)
       const rpe = rpeByDate.get(day.date)
-      if (!rpe || day.total === 0) return day
-      // Scale: RPE 5 = 1.0x, RPE 10 = 1.2x, RPE 1 = 0.84x
-      const rpeMultiplier = 1 + 0.04 * (rpe - 5)
-      return { ...day, total: Math.round(day.total * rpeMultiplier * 10) / 10 }
+      if (rpe && total > 0) {
+        const rpeMultiplier = 1 + 0.04 * (rpe - 5)
+        total = total * rpeMultiplier
+      }
+
+      if (total === day.total) return day
+      return { ...day, total: Math.round(total * 10) / 10 }
     })
-  }, [trimpRecords, rpeByDate])
+  }, [trimpRecords, rpeByDate, exerciseLoadByDate])
 
   // Performance timeline (CTL/ATL/TSB/ACWR) — computed early so ACWR feeds readiness
   const performance = useMemo(
