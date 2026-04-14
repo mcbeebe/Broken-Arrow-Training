@@ -80,16 +80,19 @@ export function useReadiness({
       .map(a => garminActivityToTRIMP(a, restingHR, maxHR))
       .filter((r): r is TRIMPRecord => r !== null)
 
-    // Get dates covered by Garmin
-    const garminDates = new Set(garminRecords.map(r => r.date))
+    // When Garmin is connected and has data, use ONLY Garmin for training load.
+    // Garmin's on-device EPOC (Firstbeat) is the primary load signal.
+    // Strava data is used for visuals/matching only, not load calculations.
+    if (garminRecords.length > 0) {
+      return garminRecords.sort((a, b) => a.date.localeCompare(b.date))
+    }
 
-    // Supplement with Strava activities for dates not in Garmin
+    // Fallback: no Garmin data, use Strava with Banister TRIMP
     const stravaRecords: TRIMPRecord[] = stravaActivities
-      .filter(a => !garminDates.has(a.start_date_local.slice(0, 10)))
       .map(a => stravaActivityToTRIMP(a, restingHR, maxHR))
       .filter((r): r is TRIMPRecord => r !== null)
 
-    return [...garminRecords, ...stravaRecords].sort((a, b) => a.date.localeCompare(b.date))
+    return stravaRecords.sort((a, b) => a.date.localeCompare(b.date))
   }, [stravaActivities, garminActivities, restingHR, maxHR])
 
   // Aggregate daily training load
