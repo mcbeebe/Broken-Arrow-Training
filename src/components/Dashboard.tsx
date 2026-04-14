@@ -318,7 +318,7 @@ function ReadinessGlossary() {
         </div>
         <div>
           <p className="font-semibold text-slate-700">Training Load — ACWR (20% weight)</p>
-          <p>Based on your Acute:Chronic Workload Ratio (Gabbett 2016). Uses a 7-day / 28-day span-based EWMA of your daily training load. Scored by zone: undertraining (&lt;0.8) = Good (+1), sweet spot (0.8–1.3) = Normal (0), caution (1.3–1.5) = Below (-0.5), danger (&gt;1.5) = Low (-1). This is fundamentally different from the Performance tab's Form/TSB — ACWR measures your recent ramp rate, while TSB measures your net fatigue balance.</p>
+          <p>Based on your Acute:Chronic Workload Ratio (Gabbett 2016). Uses a 7-day / 28-day span-based EWMA of your daily training load. Scored by zone: undertraining (&lt;0.8) = Good (+1), sweet spot (0.8–1.3) = Normal (0), caution (1.3–1.5) = Below (-0.5), danger (&gt;1.5) = Low (-1). This is fundamentally different from the Performance tab's Recovery Balance/TSB — ACWR measures your recent ramp rate, while TSB measures your net fatigue balance.</p>
         </div>
         <div className="pt-2 border-t border-slate-200">
           <p className="font-semibold text-slate-700">Traffic Light Signals</p>
@@ -423,7 +423,7 @@ function PerformanceGlossary() {
           <p>A 7-day exponentially weighted rolling average of your daily adjusted training load. It captures the fatigue from your most recent training. ATL responds quickly — a hard workout spikes it, and a rest day drops it. When ATL is much higher than CTL, you're accumulating fatigue faster than fitness.</p>
         </div>
         <div>
-          <p className="font-semibold text-slate-700">Form (TSB) — Training Stress Balance</p>
+          <p className="font-semibold text-slate-700">Recovery Balance (TSB) — Are You Fresh or Fatigued?</p>
           <p>The difference between Fitness and Fatigue (CTL minus ATL). A positive TSB means you're fresher than your fitness level — ideal for racing. A deeply negative TSB means fatigue has outpaced your fitness base — normal in early build weeks when CTL hasn't had time to accumulate. For race day, the target is TSB between +15 and +25 ("peak form").</p>
           <ul className="mt-1 ml-3 space-y-0.5 list-disc">
             <li><strong>+15 to +25:</strong> Peak form — race ready</li>
@@ -490,8 +490,8 @@ function PerformanceGlossary() {
         </div>
         <div className="pt-2 border-t border-slate-200">
           <p className="font-semibold text-slate-700">The Impulse-Response Model (Banister et al., 1975)</p>
-          <p>CTL, ATL, and TSB come from the impulse-response framework used in sport science since the 1970s. The core idea: every workout produces both a <em>fitness</em> gain (slow to build, slow to fade — 42-day time constant) and a <em>fatigue</em> cost (fast to build, fast to fade — 7-day time constant). Your "form" at any moment is the balance between the two.</p>
-          <p className="mt-1">Early in a training plan, it's common to see deeply negative Form (TSB &lt; -30) because fatigue accumulates quickly (7-day ATL ramps fast) while fitness builds slowly (42-day CTL needs weeks). This does <strong>not</strong> mean you're overtrained — check the Readiness tab for biometric confirmation. If Readiness is GREEN, your body is handling the load. Proper tapering before a race lets fatigue drop faster than fitness, producing peak performance.</p>
+          <p>CTL, ATL, and TSB come from the impulse-response framework used in sport science since the 1970s. The core idea: every workout produces both a <em>fitness</em> gain (slow to build, slow to fade — 42-day time constant) and a <em>fatigue</em> cost (fast to build, fast to fade — 7-day time constant). Your recovery balance at any moment is the difference between the two.</p>
+          <p className="mt-1">Early in a training plan, it's common to see deeply negative Recovery Balance (TSB &lt; -30) because fatigue accumulates quickly (7-day ATL ramps fast) while fitness builds slowly (42-day CTL needs weeks). This does <strong>not</strong> mean you're overtrained — check the Readiness tab for biometric confirmation. If Readiness is GREEN, your body is handling the load. Proper tapering before a race lets fatigue drop faster than fitness, producing peak performance.</p>
         </div>
       </div>
     </div>

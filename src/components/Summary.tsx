@@ -210,7 +210,7 @@ export default function Summary({
                 </div>
               </div>
 
-              {/* Form (TSB) — full width */}
+              {/* Recovery Balance (TSB) — full width */}
               <div className={`rounded-lg p-3 ${
                 tsbState === 'peaked' || tsbState === 'well_rested' ? 'bg-green-50'
                 : tsbState === 'productive' ? 'bg-slate-50'
@@ -231,7 +231,7 @@ export default function Summary({
                     : 'text-amber-600'
                   }`}>{getTSBLabel(tsbState)}</p>
                 </div>
-                <p className="text-xs font-medium text-slate-600">Form <span className="text-slate-400 font-normal">— Fitness minus Fatigue (TSB)</span></p>
+                <p className="text-xs font-medium text-slate-600">Recovery Balance <span className="text-slate-400 font-normal">— are you fresh or fatigued? (TSB)</span></p>
                 <div className="relative mt-2 h-3 rounded-full overflow-hidden flex border border-slate-200">
                   <div className="h-full bg-red-300" style={{ width: '15%' }} />
                   <div className="h-full bg-orange-200" style={{ width: '16%' }} />

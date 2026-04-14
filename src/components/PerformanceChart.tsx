@@ -75,7 +75,7 @@ export default function PerformanceChart({
                   typeof value === 'number' ? value.toFixed(1) : String(value),
                   name === 'ctl' ? 'Fitness (CTL)' :
                   name === 'atl' ? 'Fatigue (ATL)' :
-                  'Form (TSB)',
+                  'Recovery Balance (TSB)',
                 ]}
               />
               {/* Target TSB zone for race day */}
@@ -130,7 +130,7 @@ export default function PerformanceChart({
             <span className="w-3 h-0.5 bg-red-400 inline-block rounded" style={{ borderBottom: '1px dashed' }} /> Fatigue (ATL)
           </span>
           <span className="flex items-center gap-1">
-            <span className="w-3 h-0.5 bg-green-600 inline-block rounded" /> Form (TSB)
+            <span className="w-3 h-0.5 bg-green-600 inline-block rounded" /> Recovery Balance (TSB)
           </span>
         </div>
       </div>
@@ -162,7 +162,7 @@ export default function PerformanceChart({
           }
         />
         <PerfStatCard
-          label="Form"
+          label="Recovery Balance"
           value={`${latest.tsb >= 0 ? '+' : ''}${latest.tsb.toFixed(0)}`}
           sub={getTSBLabel(tsbState)}
           color={tsbState === 'peaked' || tsbState === 'well_rested' ? 'green' : tsbState === 'productive' ? 'slate' : 'red'}

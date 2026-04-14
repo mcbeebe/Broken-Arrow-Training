@@ -40,7 +40,7 @@ export function generateMorningCoach(
   }
 
   if (performance) {
-    inputs.push(`Form (TSB): ${performance.tsb >= 0 ? '+' : ''}${performance.tsb.toFixed(0)}`)
+    inputs.push(`Recovery Balance (TSB): ${performance.tsb >= 0 ? '+' : ''}${performance.tsb.toFixed(0)}`)
     if (performance.acwr > 0) inputs.push(`ACWR: ${performance.acwr.toFixed(2)}`)
   }
 
