@@ -19,6 +19,7 @@ import {
   cacheGarminActivities,
   getCachedActivityDetails,
   cacheActivityDetails,
+  getGarminDisplayName,
 } from '../utils/garmin'
 
 export interface UseGarminReturn {
@@ -44,17 +45,36 @@ export function useGarmin(athleteId?: string): UseGarminReturn {
   const [garminActivities, setGarminActivities] = useState<GarminActivity[]>(() => getCachedGarminActivities(athleteId))
   const [activityDetails, setActivityDetails] = useState<Record<string, GarminActivityDetail[]>>(() => getCachedActivityDetails(athleteId))
   const [lastSync, setLastSync] = useState<string | null>(() => getGarminLastSync(athleteId))
-  const [displayName, setDisplayName] = useState<string | null>(null)
+  const [displayName, setDisplayName] = useState<string | null>(() => getGarminDisplayName(athleteId))
 
   const configured = isGarminConfigured()
 
   // Re-load from storage when athleteId changes
   useEffect(() => {
-    setConnected(isGarminConnected(athleteId))
+    const wasConnected = isGarminConnected(athleteId)
+    const storedName = getGarminDisplayName(athleteId)
+
+    // Migration: if connected but no displayName, this is stale data from
+    // before per-athlete Garmin support. Clear it so it doesn't auto-sync
+    // someone else's Garmin data into this profile.
+    if (wasConnected && !storedName) {
+      clearGarminData(athleteId)
+      setConnected(false)
+      setHealthData([])
+      setGarminActivities([])
+      setActivityDetails({})
+      setLastSync(null)
+      setDisplayName(null)
+      setError(null)
+      return
+    }
+
+    setConnected(wasConnected)
     setHealthData(getCachedHealthData(athleteId))
     setGarminActivities(getCachedGarminActivities(athleteId))
     setActivityDetails(getCachedActivityDetails(athleteId))
     setLastSync(getGarminLastSync(athleteId))
+    setDisplayName(storedName)
     setError(null)
   }, [athleteId])
 
@@ -70,9 +90,10 @@ export function useGarmin(athleteId?: string): UseGarminReturn {
     try {
       const result = await checkGarminAuth(athleteId)
       if (result.authenticated) {
-        setGarminConnected(true, athleteId)
+        const name = result.displayName || null
+        setGarminConnected(true, athleteId, name || undefined)
         setConnected(true)
-        setDisplayName(result.displayName || null)
+        setDisplayName(name)
 
         const data = await fetchHealthData(120, athleteId)
         const merged = mergeHealthData(healthData, data)

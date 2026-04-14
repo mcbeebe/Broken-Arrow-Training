@@ -6,6 +6,7 @@ const STORAGE_KEYS = {
   health: 'ba_garmin_health',
   lastSync: 'ba_garmin_last_sync',
   connected: 'ba_garmin_connected',
+  displayName: 'ba_garmin_display_name',
   activities: 'ba_garmin_activities',
   activityDetails: 'ba_garmin_activity_details',
 } as const
@@ -78,8 +79,15 @@ export function isGarminConnected(athleteId?: string): boolean {
   return localStorage.getItem(scopedKey(STORAGE_KEYS.connected, athleteId)) === 'true'
 }
 
-export function setGarminConnected(connected: boolean, athleteId?: string): void {
+export function setGarminConnected(connected: boolean, athleteId?: string, displayName?: string): void {
   localStorage.setItem(scopedKey(STORAGE_KEYS.connected, athleteId), String(connected))
+  if (displayName) {
+    localStorage.setItem(scopedKey(STORAGE_KEYS.displayName, athleteId), displayName)
+  }
+}
+
+export function getGarminDisplayName(athleteId?: string): string | null {
+  return localStorage.getItem(scopedKey(STORAGE_KEYS.displayName, athleteId))
 }
 
 export function clearGarminData(athleteId?: string): void {
