@@ -36,17 +36,27 @@ export interface UseGarminReturn {
   sync: () => Promise<void>
 }
 
-export function useGarmin(): UseGarminReturn {
-  const [connected, setConnected] = useState(isGarminConnected())
+export function useGarmin(athleteId?: string): UseGarminReturn {
+  const [connected, setConnected] = useState(() => isGarminConnected(athleteId))
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [healthData, setHealthData] = useState<GarminHealthData[]>(getCachedHealthData())
-  const [garminActivities, setGarminActivities] = useState<GarminActivity[]>(getCachedGarminActivities())
-  const [activityDetails, setActivityDetails] = useState<Record<string, GarminActivityDetail[]>>(getCachedActivityDetails())
-  const [lastSync, setLastSync] = useState<string | null>(getGarminLastSync())
+  const [healthData, setHealthData] = useState<GarminHealthData[]>(() => getCachedHealthData(athleteId))
+  const [garminActivities, setGarminActivities] = useState<GarminActivity[]>(() => getCachedGarminActivities(athleteId))
+  const [activityDetails, setActivityDetails] = useState<Record<string, GarminActivityDetail[]>>(() => getCachedActivityDetails(athleteId))
+  const [lastSync, setLastSync] = useState<string | null>(() => getGarminLastSync(athleteId))
   const [displayName, setDisplayName] = useState<string | null>(null)
 
   const configured = isGarminConfigured()
+
+  // Re-load from storage when athleteId changes
+  useEffect(() => {
+    setConnected(isGarminConnected(athleteId))
+    setHealthData(getCachedHealthData(athleteId))
+    setGarminActivities(getCachedGarminActivities(athleteId))
+    setActivityDetails(getCachedActivityDetails(athleteId))
+    setLastSync(getGarminLastSync(athleteId))
+    setError(null)
+  }, [athleteId])
 
   const connect = useCallback(async () => {
     if (!configured) {
@@ -60,25 +70,22 @@ export function useGarmin(): UseGarminReturn {
     try {
       const result = await checkGarminAuth()
       if (result.authenticated) {
-        setGarminConnected(true)
+        setGarminConnected(true, athleteId)
         setConnected(true)
         setDisplayName(result.displayName || null)
 
-        // 30-day backfill on first connection (health + activities)
         const data = await fetchHealthData(30)
         const merged = mergeHealthData(healthData, data)
-        cacheHealthData(merged)
+        cacheHealthData(merged, athleteId)
         setHealthData(merged)
 
-        // Also backfill Garmin activities (primary TRIMP source)
         const today = localDateStr()
         const thirtyAgo = localDateStr(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000))
         const activities = await fetchGarminActivities(thirtyAgo, today)
-        cacheGarminActivities(activities)
+        cacheGarminActivities(activities, athleteId)
         setGarminActivities(activities)
 
-        // Fetch detailed activity data for last 7 days
-        const detailCache = { ...getCachedActivityDetails() }
+        const detailCache = { ...getCachedActivityDetails(athleteId) }
         const last7Dates: string[] = []
         for (let i = 0; i < 7; i++) {
           const d = new Date(Date.now() - i * 24 * 60 * 60 * 1000)
@@ -96,7 +103,7 @@ export function useGarmin(): UseGarminReturn {
         for (const { date, details } of detailResults) {
           if (details.length > 0) detailCache[date] = details
         }
-        cacheActivityDetails(detailCache)
+        cacheActivityDetails(detailCache, athleteId)
         setActivityDetails(detailCache)
 
         setLastSync(new Date().toISOString())
@@ -108,10 +115,10 @@ export function useGarmin(): UseGarminReturn {
     } finally {
       setLoading(false)
     }
-  }, [configured, healthData])
+  }, [configured, healthData, athleteId])
 
   const disconnect = useCallback(() => {
-    clearGarminData()
+    clearGarminData(athleteId)
     setConnected(false)
     setHealthData([])
     setGarminActivities([])
@@ -119,7 +126,7 @@ export function useGarmin(): UseGarminReturn {
     setLastSync(null)
     setDisplayName(null)
     setError(null)
-  }, [])
+  }, [athleteId])
 
   const sync = useCallback(async () => {
     if (!configured || !connected) return
@@ -128,22 +135,19 @@ export function useGarmin(): UseGarminReturn {
     setError(null)
 
     try {
-      // Fetch last 7 days for incremental sync
       const days = healthData.length === 0 ? 30 : 7
       const data = await fetchHealthData(days)
       const merged = mergeHealthData(healthData, data)
-      cacheHealthData(merged)
+      cacheHealthData(merged, athleteId)
       setHealthData(merged)
 
-      // Fetch Garmin activities for supplement (last 30 days)
       const today = localDateStr()
       const thirtyAgo = localDateStr(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000))
       const activities = await fetchGarminActivities(thirtyAgo, today)
-      cacheGarminActivities(activities)
+      cacheGarminActivities(activities, athleteId)
       setGarminActivities(activities)
 
-      // Fetch detailed activity data for last 7 days
-      const detailCache = { ...getCachedActivityDetails() }
+      const detailCache = { ...getCachedActivityDetails(athleteId) }
       const last7Dates: string[] = []
       for (let i = 0; i < 7; i++) {
         const d = new Date(Date.now() - i * 24 * 60 * 60 * 1000)
@@ -161,7 +165,7 @@ export function useGarmin(): UseGarminReturn {
       for (const { date, details } of detailResults) {
         if (details.length > 0) detailCache[date] = details
       }
-      cacheActivityDetails(detailCache)
+      cacheActivityDetails(detailCache, athleteId)
       setActivityDetails(detailCache)
 
       setLastSync(new Date().toISOString())
@@ -170,11 +174,11 @@ export function useGarmin(): UseGarminReturn {
     } finally {
       setLoading(false)
     }
-  }, [configured, connected, healthData])
+  }, [configured, connected, healthData, athleteId])
 
   // Auto-sync on mount if stale
   useEffect(() => {
-    if (connected && configured && isSyncStale()) {
+    if (connected && configured && isSyncStale(athleteId)) {
       sync()
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps

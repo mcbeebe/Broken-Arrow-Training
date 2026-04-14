@@ -31,7 +31,7 @@ export default function App() {
   const [view, setView] = useState<ViewId>('summary')
   const [athleteId, setAthleteId] = useState(getAthleteFromHash)
   const strava = useStrava(athleteId)
-  const garmin = useGarmin()
+  const garmin = useGarmin(athleteId)
 
   useEffect(() => {
     function onHashChange() {
@@ -45,23 +45,15 @@ export default function App() {
   const plan = plans[athleteId]
   const manualLog = useManualLog(athleteId)
   const daySwap = useDaySwap(athleteId)
-  const showStrava = athleteId === 'mike' || athleteId === 'lori' || athleteId === 'joel'
+  const showStrava = true  // All athletes can connect Strava and Garmin
 
-  // Only show Settings tab for Mike (Strava), show manual log for others
-  const TABS: { id: ViewId; label: string }[] = showStrava
-    ? [
-        { id: 'summary', label: 'Summary' },
-        { id: 'plan', label: 'Plan' },
-        { id: 'dashboard', label: 'Stats' },
-        { id: 'method', label: 'Method' },
-        { id: 'settings', label: 'Settings' },
-      ]
-    : [
-        { id: 'summary', label: 'Summary' },
-        { id: 'plan', label: 'Plan' },
-        { id: 'dashboard', label: 'Stats' },
-        { id: 'method', label: 'Method' },
-      ]
+  const TABS: { id: ViewId; label: string }[] = [
+    { id: 'summary', label: 'Summary' },
+    { id: 'plan', label: 'Plan' },
+    { id: 'dashboard', label: 'Stats' },
+    { id: 'method', label: 'Method' },
+    { id: 'settings', label: 'Settings' },
+  ]
 
   // Merge Strava or manual log data into training plan
   const weeks = useMemo(() => {

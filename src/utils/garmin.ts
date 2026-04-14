@@ -10,6 +10,10 @@ const STORAGE_KEYS = {
   activityDetails: 'ba_garmin_activity_details',
 } as const
 
+function scopedKey(base: string, athleteId?: string): string {
+  return athleteId ? `${base}_${athleteId}` : base
+}
+
 // ─── API Functions ──────────────────────────────────────────────
 
 export async function checkGarminAuth(): Promise<{ authenticated: boolean; displayName?: string; error?: string }> {
@@ -42,66 +46,66 @@ export async function fetchGarminActivities(start: string, end: string): Promise
 
 // ─── localStorage Cache ─────────────────────────────────────────
 
-export function getCachedHealthData(): GarminHealthData[] {
+export function getCachedHealthData(athleteId?: string): GarminHealthData[] {
   try {
-    const raw = localStorage.getItem(STORAGE_KEYS.health)
+    const raw = localStorage.getItem(scopedKey(STORAGE_KEYS.health, athleteId))
     return raw ? JSON.parse(raw) : []
   } catch {
     return []
   }
 }
 
-export function cacheHealthData(data: GarminHealthData[]): void {
-  localStorage.setItem(STORAGE_KEYS.health, JSON.stringify(data))
-  localStorage.setItem(STORAGE_KEYS.lastSync, new Date().toISOString())
+export function cacheHealthData(data: GarminHealthData[], athleteId?: string): void {
+  localStorage.setItem(scopedKey(STORAGE_KEYS.health, athleteId), JSON.stringify(data))
+  localStorage.setItem(scopedKey(STORAGE_KEYS.lastSync, athleteId), new Date().toISOString())
 }
 
 export function mergeHealthData(existing: GarminHealthData[], incoming: GarminHealthData[]): GarminHealthData[] {
   const byDate = new Map<string, GarminHealthData>()
   for (const d of existing) byDate.set(d.date, d)
-  for (const d of incoming) byDate.set(d.date, d)  // newer data wins
+  for (const d of incoming) byDate.set(d.date, d)
   return Array.from(byDate.values()).sort((a, b) => b.date.localeCompare(a.date))
 }
 
-export function getGarminLastSync(): string | null {
-  return localStorage.getItem(STORAGE_KEYS.lastSync)
+export function getGarminLastSync(athleteId?: string): string | null {
+  return localStorage.getItem(scopedKey(STORAGE_KEYS.lastSync, athleteId))
 }
 
-export function isGarminConnected(): boolean {
-  return localStorage.getItem(STORAGE_KEYS.connected) === 'true'
+export function isGarminConnected(athleteId?: string): boolean {
+  return localStorage.getItem(scopedKey(STORAGE_KEYS.connected, athleteId)) === 'true'
 }
 
-export function setGarminConnected(connected: boolean): void {
-  localStorage.setItem(STORAGE_KEYS.connected, String(connected))
+export function setGarminConnected(connected: boolean, athleteId?: string): void {
+  localStorage.setItem(scopedKey(STORAGE_KEYS.connected, athleteId), String(connected))
 }
 
-export function clearGarminData(): void {
-  Object.values(STORAGE_KEYS).forEach(key => localStorage.removeItem(key))
+export function clearGarminData(athleteId?: string): void {
+  Object.values(STORAGE_KEYS).forEach(key => localStorage.removeItem(scopedKey(key, athleteId)))
 }
 
 export function isGarminConfigured(): boolean {
   return !!GARMIN_API_URL
 }
 
-export function isSyncStale(maxAgeMs: number = 12 * 60 * 60 * 1000): boolean {
-  const lastSync = getGarminLastSync()
+export function isSyncStale(athleteId?: string, maxAgeMs: number = 12 * 60 * 60 * 1000): boolean {
+  const lastSync = getGarminLastSync(athleteId)
   if (!lastSync) return true
   return Date.now() - new Date(lastSync).getTime() > maxAgeMs
 }
 
 // ─── Garmin Activity Cache ──────────────────────────────────────
 
-export function getCachedGarminActivities(): GarminActivity[] {
+export function getCachedGarminActivities(athleteId?: string): GarminActivity[] {
   try {
-    const raw = localStorage.getItem(STORAGE_KEYS.activities)
+    const raw = localStorage.getItem(scopedKey(STORAGE_KEYS.activities, athleteId))
     return raw ? JSON.parse(raw) : []
   } catch {
     return []
   }
 }
 
-export function cacheGarminActivities(activities: GarminActivity[]): void {
-  localStorage.setItem(STORAGE_KEYS.activities, JSON.stringify(activities))
+export function cacheGarminActivities(activities: GarminActivity[], athleteId?: string): void {
+  localStorage.setItem(scopedKey(STORAGE_KEYS.activities, athleteId), JSON.stringify(activities))
 }
 
 // ─── Activity Detail API & Cache ───────────────────────────────
@@ -114,15 +118,15 @@ export async function fetchActivityDetail(date: string): Promise<GarminActivityD
   return data.activities || []
 }
 
-export function getCachedActivityDetails(): Record<string, GarminActivityDetail[]> {
+export function getCachedActivityDetails(athleteId?: string): Record<string, GarminActivityDetail[]> {
   try {
-    const raw = localStorage.getItem(STORAGE_KEYS.activityDetails)
+    const raw = localStorage.getItem(scopedKey(STORAGE_KEYS.activityDetails, athleteId))
     return raw ? JSON.parse(raw) : {}
   } catch { return {} }
 }
 
-export function cacheActivityDetails(details: Record<string, GarminActivityDetail[]>): void {
-  localStorage.setItem(STORAGE_KEYS.activityDetails, JSON.stringify(details))
+export function cacheActivityDetails(details: Record<string, GarminActivityDetail[]>, athleteId?: string): void {
+  localStorage.setItem(scopedKey(STORAGE_KEYS.activityDetails, athleteId), JSON.stringify(details))
 }
 
 // ─── Garmin Detail → ActualWorkout Converter ───────────────────
