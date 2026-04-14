@@ -16,6 +16,7 @@ export default function ManualLog({ dayLabel, existing, onSave, onClose }: Manua
   const [time, setTime] = useState(existing ? String(Math.round(existing.movingTime / 60)) : '')
   const [hr, setHr] = useState(existing?.avgHR?.toString() || '')
   const [notes, setNotes] = useState(existing?.notes || '')
+  const [rpe, setRpe] = useState(existing?.rpe?.toString() || '')
 
   // Run fields
   const [distance, setDistance] = useState(existing?.distance?.toString() || '')
@@ -40,6 +41,7 @@ export default function ManualLog({ dayLabel, existing, onSave, onClose }: Manua
       name: name || (mode === 'strength' ? `Strength — ${dayLabel}` : `Run — ${dayLabel}`),
       startDate: existing?.startDate || new Date().toISOString(),
       notes,
+      rpe: parseInt(rpe) || existing?.rpe || undefined,
       strengthLog: mode === 'strength' ? exercises : existing?.strengthLog,
     }
     onSave(entry)
@@ -161,6 +163,33 @@ export default function ManualLog({ dayLabel, existing, onSave, onClose }: Manua
               </div>
             </div>
           )}
+
+          {/* RPE — Rate of Perceived Exertion */}
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1.5">
+              How hard did it feel? (RPE)
+            </label>
+            <div className="flex gap-1">
+              {[1,2,3,4,5,6,7,8,9,10].map(val => (
+                <button
+                  key={val}
+                  type="button"
+                  onClick={() => setRpe(val.toString())}
+                  className={`flex-1 py-2 rounded-lg text-xs font-bold transition-colors ${
+                    parseInt(rpe) === val
+                      ? val <= 3 ? 'bg-green-500 text-white'
+                        : val <= 6 ? 'bg-amber-500 text-white'
+                        : val <= 8 ? 'bg-orange-500 text-white'
+                        : 'bg-red-500 text-white'
+                      : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                  }`}
+                >
+                  {val}
+                </button>
+              ))}
+            </div>
+            <p className="text-[10px] text-slate-400 mt-1">1 = barely felt it · 5 = moderate · 8 = very hard · 10 = max effort</p>
+          </div>
 
           <Field label="Notes" placeholder={mode === 'strength' ? 'How did it feel? Energy level? Anything to remember...' : 'Felt good, walked the steep hills...'} value={notes} onChange={setNotes} />
 

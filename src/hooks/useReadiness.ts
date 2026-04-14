@@ -35,6 +35,7 @@ interface UseReadinessProps {
   stravaActivities: StravaActivity[]
   garminActivities: GarminActivity[]
   garminActivityDetails: Record<string, GarminActivityDetail[]>
+  rpeByDate: Map<string, number>
   maxHR: number
   todayPlannedWorkout?: PlannedDay
   currentWeekNum: number
@@ -61,6 +62,7 @@ export function useReadiness({
   stravaActivities,
   garminActivities,
   garminActivityDetails,
+  rpeByDate,
   maxHR,
   todayPlannedWorkout,
   currentWeekNum,
@@ -113,8 +115,22 @@ export function useReadiness({
     return stravaRecords.sort((a, b) => a.date.localeCompare(b.date))
   }, [stravaActivities, garminActivities, garminActivityDetails, restingHR, maxHR])
 
-  // Aggregate daily training load
-  const dailyTrimp = useMemo(() => aggregateDailyTRIMP(trimpRecords), [trimpRecords])
+  // Aggregate daily training load, applying RPE adjustment when available.
+  // RPE blending: EPOC captures cardiovascular stress but misses muscular fatigue (DOMS).
+  // When RPE is provided, adjust daily load by up to ±20%:
+  //   RPE 5 = neutral (no change), RPE 10 = +20%, RPE 1 = -20%
+  const dailyTrimp = useMemo(() => {
+    const base = aggregateDailyTRIMP(trimpRecords)
+    if (rpeByDate.size === 0) return base
+
+    return base.map(day => {
+      const rpe = rpeByDate.get(day.date)
+      if (!rpe || day.total === 0) return day
+      // Scale: RPE 5 = 1.0x, RPE 10 = 1.2x, RPE 1 = 0.84x
+      const rpeMultiplier = 1 + 0.04 * (rpe - 5)
+      return { ...day, total: Math.round(day.total * rpeMultiplier * 10) / 10 }
+    })
+  }, [trimpRecords, rpeByDate])
 
   // Calculate span-based ACWR (ATE: 7d acute / 28d chronic)
   const acwr = useMemo(() => calculateSpanACWR(dailyTrimp), [dailyTrimp])

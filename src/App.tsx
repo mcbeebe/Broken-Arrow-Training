@@ -122,12 +122,26 @@ export default function App() {
     return currentWeekDays.findIndex(d => d.day.includes(dayLabel))
   }, [currentWeekDays])
 
+  // Extract RPE ratings from manual logs to blend with EPOC-based load
+  const rpeByDate = useMemo(() => {
+    const map = new Map<string, number>()
+    for (const week of weeks) {
+      for (const day of week.days) {
+        if (day.actual?.rpe && day.actual.startDate) {
+          map.set(day.actual.startDate.slice(0, 10), day.actual.rpe)
+        }
+      }
+    }
+    return map
+  }, [weeks])
+
   // Readiness engine (combines Garmin health data + Strava/Garmin activities)
   const readiness = useReadiness({
     healthData: garmin.healthData,
     stravaActivities: strava.activities,
     garminActivities: garmin.garminActivities,
     garminActivityDetails: garmin.activityDetails,
+    rpeByDate,
     maxHR: plan.athlete.maxHR,
     todayPlannedWorkout,
     currentWeekNum,

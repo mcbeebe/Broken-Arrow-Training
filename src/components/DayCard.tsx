@@ -42,7 +42,7 @@ export default function DayCard({ day, onTap, onLog, onSwap, isSwapSelected, isS
             <span className="font-semibold text-sm text-slate-800">{day.day}</span>
             {actual && (
               <span className="text-xs bg-green-100 text-green-700 rounded-full px-1.5 py-0.5 font-medium">
-                ✓ Done
+                ✓ Done{actual.rpe ? ` · RPE ${actual.rpe}` : ''}
               </span>
             )}
           </div>
@@ -167,6 +167,19 @@ export default function DayCard({ day, onTap, onLog, onSwap, isSwapSelected, isS
                 💪 {actual.strengthLog.length} exercise{actual.strengthLog.length > 1 ? 's' : ''}
                 {' · '}
                 {actual.strengthLog.map(ex => ex.focus).filter((v, i, a) => a.indexOf(v) === i).join(', ')}
+              </div>
+            )}
+            {actual.rpe && (
+              <div className="mt-1.5 flex items-center gap-1.5">
+                <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${
+                  actual.rpe <= 3 ? 'bg-green-100 text-green-700'
+                  : actual.rpe <= 6 ? 'bg-amber-100 text-amber-700'
+                  : actual.rpe <= 8 ? 'bg-orange-100 text-orange-700'
+                  : 'bg-red-100 text-red-700'
+                }`}>RPE {actual.rpe}/10</span>
+                <span className="text-[10px] text-slate-400">
+                  {actual.rpe <= 3 ? 'Easy' : actual.rpe <= 5 ? 'Moderate' : actual.rpe <= 7 ? 'Hard' : actual.rpe <= 9 ? 'Very Hard' : 'Max'}
+                </span>
               </div>
             )}
             {actual.notes && (

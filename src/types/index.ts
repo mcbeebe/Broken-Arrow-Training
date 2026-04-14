@@ -108,6 +108,7 @@ export interface ActualWorkout {
   name: string;
   startDate: string;
   notes?: string;
+  rpe?: number;  // 1-10 Rate of Perceived Exertion (muscular + cardiovascular)
   strengthLog?: StrengthExerciseLog[];
   splits?: { split: number; pace: string; hr?: number; elev: number }[];
   laps?: { name: string; distance: number; pace: string; hr?: number }[];
