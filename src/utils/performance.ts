@@ -20,7 +20,7 @@ export function calculateEWMA(
   const factor = 1 - decay
   const results: { date: string; ewma: number }[] = []
 
-  let prev = dailyValues[0].value  // seed with first value
+  let prev = 0  // seed at zero — EWMA builds from no training history
 
   for (const { date, value } of dailyValues) {
     const ewma = prev * decay + value * factor

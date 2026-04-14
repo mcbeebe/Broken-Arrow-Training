@@ -32,14 +32,15 @@ describe('calculateEWMA', () => {
   it('ATL (tau=7) decays faster than CTL (tau=42)', () => {
     const values = [
       { date: '2026-04-01', value: 100 },
-      ...Array.from({ length: 14 }, (_, i) => ({
+      ...Array.from({ length: 30 }, (_, i) => ({
         date: `2026-04-${String(i + 2).padStart(2, '0')}`,
         value: 0,
       })),
     ]
     const atl = calculateEWMA(values, 7)
     const ctl = calculateEWMA(values, 42)
-    // After 14 zero days, ATL should be much lower than CTL
+    // After 30 zero days, ATL should be much lower than CTL
+    // (ATL reacts faster to the spike but also decays faster)
     const atlFinal = atl[atl.length - 1].ewma
     const ctlFinal = ctl[ctl.length - 1].ewma
     expect(atlFinal).toBeLessThan(ctlFinal)

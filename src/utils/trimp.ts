@@ -292,6 +292,8 @@ export function garminActivityToTRIMP(
 // ─── Aggregate daily training load ──────────────────────────────
 
 export function aggregateDailyTRIMP(records: TRIMPRecord[]): DailyTRIMP[] {
+  if (records.length === 0) return []
+
   const byDate = new Map<string, TRIMPRecord[]>()
 
   for (const r of records) {
@@ -300,11 +302,26 @@ export function aggregateDailyTRIMP(records: TRIMPRecord[]): DailyTRIMP[] {
     byDate.set(r.date, existing)
   }
 
-  return Array.from(byDate.entries())
-    .map(([date, recs]) => ({
-      date,
-      total: Math.round(recs.reduce((sum, r) => sum + r.adjustedTRIMP, 0) * 10) / 10,
-      records: recs,
-    }))
-    .sort((a, b) => a.date.localeCompare(b.date))
+  // Fill in zero-load rest days between first and last activity dates.
+  // EWMA requires continuous daily values — gaps cause the decay to stall,
+  // inflating CTL/ATL because rest days never pull the average down.
+  const dates = Array.from(byDate.keys()).sort()
+  const startDate = new Date(dates[0] + 'T00:00:00')
+  const endDate = new Date(dates[dates.length - 1] + 'T00:00:00')
+
+  const result: DailyTRIMP[] = []
+  const current = new Date(startDate)
+
+  while (current <= endDate) {
+    const dateStr = current.toISOString().slice(0, 10)
+    const recs = byDate.get(dateStr)
+    result.push({
+      date: dateStr,
+      total: recs ? Math.round(recs.reduce((sum, r) => sum + r.adjustedTRIMP, 0) * 10) / 10 : 0,
+      records: recs || [],
+    })
+    current.setDate(current.getDate() + 1)
+  }
+
+  return result
 }
