@@ -99,18 +99,18 @@ class handler(BaseHTTPRequestHandler):
                     "startTimeGMT": act.get("startTimeGMT", ""),
 
                     # Duration
-                    "durationSeconds": act.get("duration", 0),
-                    "elapsedDurationSeconds": act.get("elapsedDuration", 0),
-                    "movingDurationSeconds": act.get("movingDuration", 0),
+                    "durationSeconds": act.get("duration") or 0,
+                    "elapsedDurationSeconds": act.get("elapsedDuration") or 0,
+                    "movingDurationSeconds": act.get("movingDuration") or 0,
 
                     # Heart Rate
                     "averageHR": act.get("averageHR"),
                     "maxHR": act.get("maxHR"),
 
                     # Distance / Elevation
-                    "distanceMeters": act.get("distance", 0),
-                    "elevationGainMeters": act.get("elevationGain", 0),
-                    "elevationLossMeters": act.get("elevationLoss", 0),
+                    "distanceMeters": act.get("distance") or 0,
+                    "elevationGainMeters": act.get("elevationGain") or 0,
+                    "elevationLossMeters": act.get("elevationLoss") or 0,
 
                     # Training metrics from Garmin
                     "aerobicTrainingEffect": act.get("aerobicTrainingEffect"),
@@ -119,9 +119,9 @@ class handler(BaseHTTPRequestHandler):
                     "activityTrainingLoad": act.get("activityTrainingLoad"),
 
                     # Calories
-                    "calories": act.get("calories", 0),
-                    "bmrCalories": act.get("bmrCalories", 0),
-                    "activeCalories": act.get("activeDuration", 0),
+                    "calories": act.get("calories") or 0,
+                    "bmrCalories": act.get("bmrCalories") or 0,
+                    "activeCalories": act.get("activeDuration") or 0,
 
                     # Pace / Speed
                     "averageSpeed": act.get("averageSpeed"),

@@ -90,11 +90,11 @@ def _extract_hrv(hrv_data) -> dict | None:
     if not summary:
         return None
 
-    weekly_avg = summary.get("weeklyAvg", 0)
-    last_night = summary.get("lastNightAvg", 0)
-    last_night_high = summary.get("lastNight5MinHigh", 0)
-    status = summary.get("status", "UNKNOWN")
-    baseline = summary.get("baseline", {})
+    weekly_avg = summary.get("weeklyAvg") or 0
+    last_night = summary.get("lastNightAvg") or 0
+    last_night_high = summary.get("lastNight5MinHigh") or 0
+    status = summary.get("status") or "UNKNOWN"
+    baseline = summary.get("baseline") or {}
 
     if weekly_avg or last_night:
         return {
@@ -102,8 +102,8 @@ def _extract_hrv(hrv_data) -> dict | None:
             "lastNightAvg": last_night or 0,
             "lastNight5MinHigh": last_night_high or 0,
             "status": status,
-            "baselineLow": baseline.get("balancedLow", 0),
-            "baselineHigh": baseline.get("balancedUpper", 0),
+            "baselineLow": baseline.get("balancedLow") or 0,
+            "baselineHigh": baseline.get("balancedUpper") or 0,
         }
     return None
 
@@ -143,17 +143,17 @@ def _extract_sleep(sleep_data) -> dict | None:
     if not sleep_data or not isinstance(sleep_data, dict):
         return None
 
-    daily = sleep_data.get("dailySleepDTO", sleep_data)
-    duration = daily.get("sleepTimeSeconds", 0)
+    daily = sleep_data.get("dailySleepDTO") or sleep_data
+    duration = daily.get("sleepTimeSeconds") or 0
     if duration > 0:
         return {
             "durationSeconds": duration,
-            "quality": daily.get("sleepQualityType", "UNKNOWN"),
-            "deepSeconds": daily.get("deepSleepSeconds", 0),
-            "remSeconds": daily.get("remSleepSeconds", 0),
-            "lightSeconds": daily.get("lightSleepSeconds", 0),
-            "awakeSeconds": daily.get("awakeSleepSeconds", 0),
-            "score": daily.get("sleepScores", {}).get("overall", {}).get("value"),
+            "quality": daily.get("sleepQualityType") or "UNKNOWN",
+            "deepSeconds": daily.get("deepSleepSeconds") or 0,
+            "remSeconds": daily.get("remSleepSeconds") or 0,
+            "lightSeconds": daily.get("lightSleepSeconds") or 0,
+            "awakeSeconds": daily.get("awakeSleepSeconds") or 0,
+            "score": (daily.get("sleepScores") or {}).get("overall", {}).get("value"),
         }
     return None
 
@@ -178,11 +178,11 @@ def _extract_body_battery(bb_data) -> dict | None:
     if not entry or not isinstance(entry, dict):
         return None
 
-    charged = entry.get("charged", 0)
-    drained = entry.get("drained", 0)
+    charged = entry.get("charged") or 0
+    drained = entry.get("drained") or 0
 
     # Get highest and latest values from bodyBatteryValuesArray
-    values_array = entry.get("bodyBatteryValuesArray", [])
+    values_array = entry.get("bodyBatteryValuesArray") or []
     highest = 0
     lowest = 100
     current = 0

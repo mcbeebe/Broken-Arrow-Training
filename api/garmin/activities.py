@@ -107,7 +107,7 @@ class handler(BaseHTTPRequestHandler):
                                  if isinstance(act.get("activityType"), dict)
                                  else str(act.get("activityType", "other")))
 
-                duration_seconds = act.get("duration", 0)
+                duration_seconds = act.get("duration") or 0
                 avg_hr = act.get("averageHR", None)
                 max_hr = act.get("maxHR", None)
                 elevation_m = act.get("elevationGain", 0) or 0
