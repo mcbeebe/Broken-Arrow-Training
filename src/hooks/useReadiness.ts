@@ -130,12 +130,20 @@ export function useReadiness({
     const base = aggregateDailyTRIMP(trimpRecords)
     if (rpeByDate.size === 0 && exerciseLoadByDate.size === 0) return base
 
+    if (exerciseLoadByDate.size > 0) {
+      console.log('[LOAD DEBUG] exerciseLoadByDate:', Object.fromEntries(exerciseLoadByDate))
+    }
+    if (rpeByDate.size > 0) {
+      console.log('[LOAD DEBUG] rpeByDate:', Object.fromEntries(rpeByDate))
+    }
+
     return base.map(day => {
       let total = day.total
 
       // Add supplemental load from manually-logged exercises
       const exerciseLoad = exerciseLoadByDate.get(day.date)
       if (exerciseLoad && exerciseLoad > 0) {
+        console.log(`[LOAD DEBUG] ${day.date}: base=${day.total} +exercise=${exerciseLoad}`)
         total += exerciseLoad
       }
 
@@ -143,6 +151,7 @@ export function useReadiness({
       const rpe = rpeByDate.get(day.date)
       if (rpe && total > 0) {
         const rpeMultiplier = 1 + 0.04 * (rpe - 5)
+        console.log(`[LOAD DEBUG] ${day.date}: +RPE ${rpe} → ×${rpeMultiplier.toFixed(2)} → ${(total * rpeMultiplier).toFixed(1)}`)
         total = total * rpeMultiplier
       }
 
