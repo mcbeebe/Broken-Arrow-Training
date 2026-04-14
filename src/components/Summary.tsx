@@ -21,52 +21,6 @@ interface SummaryProps {
 // ─── Scale bar component ──────────────────────────────────────
 // Renders a horizontal gauge with colored zones and a marker
 
-function ScaleBar({ value, zones, min, max }: {
-  value: number
-  zones: { from: number; to: number; color: string; label?: string }[]
-  min: number
-  max: number
-}) {
-  const range = max - min
-  const pct = Math.max(0, Math.min(100, ((value - min) / range) * 100))
-
-  return (
-    <div className="mt-1.5">
-      <div className="relative h-2 rounded-full overflow-hidden flex">
-        {zones.map((z, i) => {
-          const width = ((z.to - z.from) / range) * 100
-          return (
-            <div
-              key={i}
-              className="h-full"
-              style={{ width: `${width}%`, backgroundColor: z.color, opacity: 0.3 }}
-            />
-          )
-        })}
-        {/* Marker */}
-        <div
-          className="absolute top-0 w-0.5 h-full bg-slate-800 rounded"
-          style={{ left: `${pct}%`, transform: 'translateX(-50%)' }}
-        />
-      </div>
-      <div className="flex justify-between mt-0.5">
-        {zones.filter(z => z.label).map((z, i) => {
-          const center = ((z.from + z.to) / 2 - min) / range * 100
-          return (
-            <span
-              key={i}
-              className="text-[8px] text-slate-400 absolute"
-              style={{ left: `${center}%`, transform: 'translateX(-50%)' }}
-            >
-              {z.label}
-            </span>
-          )
-        })}
-      </div>
-    </div>
-  )
-}
-
 // ─── What Changed This Week narrative ─────────────────────────
 
 function buildWeekNarrative(
@@ -200,131 +154,131 @@ export default function Summary({
               <p className="text-sm font-semibold text-slate-700">Performance Snapshot</p>
               <p className="text-[10px] text-slate-400">Garmin EPOC · 42d / 7d EWMA</p>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-3">
               {/* Fitness (CTL) */}
               <div className="bg-blue-50 rounded-lg p-3">
                 <div className="flex items-baseline justify-between">
-                  <p className="text-2xl font-bold text-blue-700">{latestPerf.ctl.toFixed(0)}</p>
-                  <p className="text-[10px] text-blue-500 font-medium">{fitnessLabel}</p>
+                  <div>
+                    <span className="text-2xl font-bold text-blue-700">{latestPerf.ctl.toFixed(0)}</span>
+                    <span className="text-xs text-slate-500 ml-2">/ 100</span>
+                  </div>
+                  <p className="text-xs text-blue-600 font-semibold">{fitnessLabel}</p>
                 </div>
-                <p className="text-xs font-medium text-slate-600 mt-0.5">Fitness</p>
-                {/* Scale: 0─20─40─60─80─100 */}
-                <div className="mt-1.5">
-                  <div className="relative h-1.5 rounded-full overflow-hidden flex">
-                    <div className="h-full" style={{ width: '20%', backgroundColor: '#BFDBFE' }} />
-                    <div className="h-full" style={{ width: '20%', backgroundColor: '#93C5FD' }} />
-                    <div className="h-full" style={{ width: '20%', backgroundColor: '#60A5FA' }} />
-                    <div className="h-full" style={{ width: '20%', backgroundColor: '#3B82F6' }} />
-                    <div className="h-full" style={{ width: '20%', backgroundColor: '#2563EB' }} />
-                    <div
-                      className="absolute top-0 w-1 h-full bg-blue-900 rounded"
-                      style={{ left: `${Math.min(100, (latestPerf.ctl / 100) * 100)}%`, transform: 'translateX(-50%)' }}
-                    />
-                  </div>
-                  <div className="flex justify-between text-[8px] text-slate-400 mt-0.5">
-                    <span>0</span><span>20</span><span>40</span><span>60</span><span>80</span><span>100</span>
-                  </div>
+                <p className="text-xs font-medium text-slate-600">Fitness <span className="text-slate-400 font-normal">— 42-day training base (CTL)</span></p>
+                <div className="relative mt-2 h-3 rounded-full overflow-hidden flex border border-blue-200">
+                  <div className="h-full bg-blue-100" style={{ width: '20%' }} />
+                  <div className="h-full bg-blue-200" style={{ width: '20%' }} />
+                  <div className="h-full bg-blue-300" style={{ width: '20%' }} />
+                  <div className="h-full bg-blue-400" style={{ width: '20%' }} />
+                  <div className="h-full bg-blue-500" style={{ width: '20%' }} />
+                  <div
+                    className="absolute top-0 w-1.5 h-full bg-blue-900 rounded shadow"
+                    style={{ left: `${Math.min(100, (latestPerf.ctl / 100) * 100)}%`, transform: 'translateX(-50%)' }}
+                  />
+                </div>
+                <div className="flex justify-between text-[9px] text-slate-400 mt-1">
+                  <span>0 Beginner</span><span>20</span><span>40</span><span>60</span><span>80 Competitive</span><span>100+</span>
                 </div>
               </div>
+
               {/* Fatigue (ATL) */}
               <div className="bg-red-50 rounded-lg p-3">
                 <div className="flex items-baseline justify-between">
-                  <p className="text-2xl font-bold text-red-600">{latestPerf.atl.toFixed(0)}</p>
-                  <p className="text-[10px] text-red-500 font-medium">{fatigueLabel}</p>
+                  <div>
+                    <span className="text-2xl font-bold text-red-600">{latestPerf.atl.toFixed(0)}</span>
+                    <span className="text-xs text-slate-500 ml-2">vs fitness {latestPerf.ctl.toFixed(0)}</span>
+                  </div>
+                  <p className="text-xs text-red-500 font-semibold">{fatigueLabel}</p>
                 </div>
-                <p className="text-xs font-medium text-slate-600 mt-0.5">Fatigue</p>
-                {/* Scale relative to fitness */}
-                <div className="mt-1.5">
-                  <div className="relative h-1.5 rounded-full overflow-hidden flex">
-                    <div className="h-full" style={{ width: '40%', backgroundColor: '#BBF7D0' }} />
-                    <div className="h-full" style={{ width: '20%', backgroundColor: '#FDE68A' }} />
-                    <div className="h-full" style={{ width: '20%', backgroundColor: '#FECACA' }} />
-                    <div className="h-full" style={{ width: '20%', backgroundColor: '#FCA5A5' }} />
-                    <div
-                      className="absolute top-0 w-1 h-full bg-red-900 rounded"
-                      style={{ left: `${Math.min(100, (latestPerf.atl / 120) * 100)}%`, transform: 'translateX(-50%)' }}
-                    />
-                  </div>
-                  <div className="flex justify-between text-[8px] text-slate-400 mt-0.5">
-                    <span>Low</span><span>Balanced</span><span>High</span><span>Very High</span>
-                  </div>
+                <p className="text-xs font-medium text-slate-600">Fatigue <span className="text-slate-400 font-normal">— 7-day recent load (ATL)</span></p>
+                <div className="relative mt-2 h-3 rounded-full overflow-hidden flex border border-red-200">
+                  <div className="h-full bg-green-200" style={{ width: '33%' }} />
+                  <div className="h-full bg-amber-200" style={{ width: '22%' }} />
+                  <div className="h-full bg-red-200" style={{ width: '22%' }} />
+                  <div className="h-full bg-red-300" style={{ width: '23%' }} />
+                  <div
+                    className="absolute top-0 w-1.5 h-full bg-red-900 rounded shadow"
+                    style={{ left: `${Math.min(100, (latestPerf.atl / 120) * 100)}%`, transform: 'translateX(-50%)' }}
+                  />
+                </div>
+                <div className="flex justify-between text-[9px] text-slate-400 mt-1">
+                  <span>0 Fresh</span><span>40 Balanced</span><span>80 High</span><span>120 Very High</span>
                 </div>
               </div>
-              {/* Form (TSB) */}
+
+              {/* Form (TSB) — full width */}
               <div className={`rounded-lg p-3 ${
                 tsbState === 'peaked' || tsbState === 'well_rested' ? 'bg-green-50'
                 : tsbState === 'productive' ? 'bg-slate-50'
                 : 'bg-amber-50'
               }`}>
                 <div className="flex items-baseline justify-between">
-                  <p className={`text-2xl font-bold ${
-                    latestPerf.tsb >= 5 ? 'text-green-700'
-                    : latestPerf.tsb >= -10 ? 'text-slate-700'
-                    : 'text-amber-700'
-                  }`}>
-                    {latestPerf.tsb >= 0 ? '+' : ''}{latestPerf.tsb.toFixed(0)}
-                  </p>
-                  <p className={`text-[10px] font-medium ${
+                  <div>
+                    <span className={`text-2xl font-bold ${
+                      latestPerf.tsb >= 5 ? 'text-green-700'
+                      : latestPerf.tsb >= -10 ? 'text-slate-700'
+                      : 'text-amber-700'
+                    }`}>{latestPerf.tsb >= 0 ? '+' : ''}{latestPerf.tsb.toFixed(0)}</span>
+                    <span className="text-xs text-slate-500 ml-2">range: -30 to +25</span>
+                  </div>
+                  <p className={`text-xs font-semibold ${
                     latestPerf.tsb >= 5 ? 'text-green-600'
                     : latestPerf.tsb >= -10 ? 'text-slate-500'
                     : 'text-amber-600'
                   }`}>{getTSBLabel(tsbState)}</p>
                 </div>
-                <p className="text-xs font-medium text-slate-600 mt-0.5">Form</p>
-                {/* Scale: -30 ── -10 ── +5 ── +15 ── +25 */}
-                <div className="mt-1.5">
-                  <div className="relative h-1.5 rounded-full overflow-hidden flex">
-                    <div className="h-full" style={{ width: '18%', backgroundColor: '#FCA5A5' }} title="Danger" />
-                    <div className="h-full" style={{ width: '18%', backgroundColor: '#FECACA' }} title="Overreaching" />
-                    <div className="h-full" style={{ width: '28%', backgroundColor: '#E2E8F0' }} title="Productive" />
-                    <div className="h-full" style={{ width: '18%', backgroundColor: '#BBF7D0' }} title="Fresh" />
-                    <div className="h-full" style={{ width: '18%', backgroundColor: '#86EFAC' }} title="Peaked" />
-                    <div
-                      className="absolute top-0 w-1 h-full bg-slate-800 rounded"
-                      style={{ left: `${Math.max(0, Math.min(100, ((latestPerf.tsb + 40) / 65) * 100))}%`, transform: 'translateX(-50%)' }}
-                    />
-                  </div>
-                  <div className="flex justify-between text-[8px] text-slate-400 mt-0.5">
-                    <span>-30 tired</span><span>0</span><span>+15 fresh</span><span>+25 peak</span>
-                  </div>
+                <p className="text-xs font-medium text-slate-600">Form <span className="text-slate-400 font-normal">— Fitness minus Fatigue (TSB)</span></p>
+                <div className="relative mt-2 h-3 rounded-full overflow-hidden flex border border-slate-200">
+                  <div className="h-full bg-red-300" style={{ width: '15%' }} />
+                  <div className="h-full bg-orange-200" style={{ width: '16%' }} />
+                  <div className="h-full bg-slate-200" style={{ width: '23%' }} />
+                  <div className="h-full bg-green-200" style={{ width: '16%' }} />
+                  <div className="h-full bg-green-300" style={{ width: '15%' }} />
+                  <div className="h-full bg-emerald-300" style={{ width: '15%' }} />
+                  <div
+                    className="absolute top-0 w-2 h-full bg-slate-900 rounded shadow"
+                    style={{ left: `${Math.max(0, Math.min(100, ((latestPerf.tsb + 40) / 65) * 100))}%`, transform: 'translateX(-50%)' }}
+                  />
+                </div>
+                <div className="flex justify-between text-[9px] text-slate-400 mt-1">
+                  <span>-30 Deep fatigue</span><span>-10</span><span>0</span><span>+5</span><span>+15 Fresh</span><span>+25 Peak</span>
                 </div>
               </div>
-              {/* ACWR */}
+
+              {/* ACWR — full width */}
               <div className={`rounded-lg p-3 ${
                 acwrRisk === 'sweet_spot' ? 'bg-green-50'
                 : acwrRisk === 'high_risk' ? 'bg-red-50'
                 : 'bg-amber-50'
               }`}>
                 <div className="flex items-baseline justify-between">
-                  <p className={`text-2xl font-bold ${
-                    acwrRisk === 'sweet_spot' ? 'text-green-700'
-                    : acwrRisk === 'high_risk' ? 'text-red-600'
-                    : 'text-amber-600'
-                  }`}>
-                    {latestPerf.acwr.toFixed(2)}
-                  </p>
-                  <p className={`text-[10px] font-medium ${
+                  <div>
+                    <span className={`text-2xl font-bold ${
+                      acwrRisk === 'sweet_spot' ? 'text-green-700'
+                      : acwrRisk === 'high_risk' ? 'text-red-600'
+                      : 'text-amber-600'
+                    }`}>{latestPerf.acwr.toFixed(2)}</span>
+                    <span className="text-xs text-slate-500 ml-2">sweet spot: 0.8–1.3</span>
+                  </div>
+                  <p className={`text-xs font-semibold ${
                     acwrRisk === 'sweet_spot' ? 'text-green-600'
                     : acwrRisk === 'high_risk' ? 'text-red-500'
                     : 'text-amber-600'
                   }`}>{getACWRLabel(acwrRisk)}</p>
                 </div>
-                <p className="text-xs font-medium text-slate-600 mt-0.5">Load Ratio</p>
-                {/* Scale: 0 ── 0.8 ── 1.3 ── 1.5 ── 2.0 */}
-                <div className="mt-1.5">
-                  <div className="relative h-1.5 rounded-full overflow-hidden flex">
-                    <div className="h-full" style={{ width: '40%', backgroundColor: '#93C5FD' }} title="Undertraining" />
-                    <div className="h-full" style={{ width: '25%', backgroundColor: '#86EFAC' }} title="Sweet Spot" />
-                    <div className="h-full" style={{ width: '10%', backgroundColor: '#FDE68A' }} title="Caution" />
-                    <div className="h-full" style={{ width: '25%', backgroundColor: '#FCA5A5' }} title="High Risk" />
-                    <div
-                      className="absolute top-0 w-1 h-full bg-slate-800 rounded"
-                      style={{ left: `${Math.max(0, Math.min(100, (latestPerf.acwr / 2) * 100))}%`, transform: 'translateX(-50%)' }}
-                    />
-                  </div>
-                  <div className="flex justify-between text-[8px] text-slate-400 mt-0.5">
-                    <span>0</span><span>0.8</span><span>1.3</span><span>1.5</span><span>2.0</span>
-                  </div>
+                <p className="text-xs font-medium text-slate-600">Load Ratio <span className="text-slate-400 font-normal">— acute vs chronic workload (ACWR)</span></p>
+                <div className="relative mt-2 h-3 rounded-full overflow-hidden flex border border-slate-200">
+                  <div className="h-full bg-blue-200" style={{ width: '40%' }} />
+                  <div className="h-full bg-green-300" style={{ width: '25%' }} />
+                  <div className="h-full bg-amber-300" style={{ width: '10%' }} />
+                  <div className="h-full bg-red-300" style={{ width: '25%' }} />
+                  <div
+                    className="absolute top-0 w-2 h-full bg-slate-900 rounded shadow"
+                    style={{ left: `${Math.max(0, Math.min(100, (latestPerf.acwr / 2) * 100))}%`, transform: 'translateX(-50%)' }}
+                  />
+                </div>
+                <div className="flex justify-between text-[9px] text-slate-400 mt-1">
+                  <span>0 Detraining</span><span>0.8</span><span className="font-semibold text-green-600">Sweet Spot</span><span>1.5</span><span>2.0 Injury risk</span>
                 </div>
               </div>
             </div>
