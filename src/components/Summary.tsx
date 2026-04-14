@@ -248,7 +248,7 @@ export default function Summary({
                   <div className="h-full bg-emerald-300" style={{ width: '15%' }} />
                   <div
                     className="absolute top-0 w-2 h-full bg-slate-900 rounded shadow"
-                    style={{ left: `${Math.max(0, Math.min(100, ((latestPerf.tsb + 40) / 65) * 100))}%`, transform: 'translateX(-50%)' }}
+                    style={{ left: `${Math.max(0, Math.min(100, ((latestPerf.tsb + 30) / 55) * 100))}%`, transform: 'translateX(-50%)' }}
                   />
                 </div>
                 <div className="flex justify-between text-[9px] text-slate-400 mt-1">

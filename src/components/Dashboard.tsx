@@ -244,9 +244,9 @@ function ReadinessTab({
       {weekScores.length > 0 && (
         <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-100">
           <p className="text-sm font-semibold text-slate-700 mb-3">7-Day Readiness Trend</p>
-          <div className="flex items-end gap-1.5 h-20">
+          <div className="flex items-end gap-1.5 h-24">
             {weekScores.map((s, i) => {
-              const height = `${Math.max(s.displayScore, 5)}%`
+              const barPx = Math.max(Math.round((s.displayScore / 100) * 64), 2)
               const bg =
                 s.status === 'PEAK' ? 'bg-indigo-500' :
                 s.status === 'GREEN' ? 'bg-green-500' :
@@ -257,7 +257,7 @@ function ReadinessTab({
                   <span className="text-[9px] text-slate-400">{s.displayScore}</span>
                   <div
                     className={`w-full rounded-t ${bg} transition-all`}
-                    style={{ height }}
+                    style={{ height: `${barPx}px` }}
                   />
                   <span className="text-[9px] text-slate-400">{s.date.slice(5)}</span>
                 </div>
