@@ -2,8 +2,7 @@ import { useMemo } from 'react'
 import type { ReadinessScore, GarminHealthData, CoachRecommendation, PerformanceMetrics, DailyTRIMP } from '../types'
 import { getTSBState, getTSBLabel, getACWRRisk, getACWRLabel } from '../utils/performance'
 import { localDateStr } from '../utils/format'
-import ReadinessBanner from './ReadinessBanner'
-import CoachCard from './CoachCard'
+import TodayBriefing from './TodayBriefing'
 import TRIMPBreakdown from './TRIMPBreakdown'
 
 interface SummaryProps {
@@ -109,20 +108,16 @@ export default function Summary({
 
   return (
     <div className="px-3 py-4 space-y-3">
-      {/* AI Coach recommendation */}
-      {coachRecommendation && (
-        <CoachCard
-          recommendation={coachRecommendation}
-          onSwap={onCoachSwap ? (from, to) => onCoachSwap(from, to) : undefined}
-        />
-      )}
-
-      {/* Readiness banner */}
+      {/* Unified daily briefing: coach + readiness + why */}
       {garminConnected && todayScore ? (
-        <ReadinessBanner
+        <TodayBriefing
           todayScore={todayScore}
           todayHealth={todayHealth}
           healthHistory={healthHistory}
+          coachRecommendation={coachRecommendation}
+          onCoachSwap={onCoachSwap}
+          performance={performance}
+          dailyTrimp={dailyTrimp}
         />
       ) : (
         <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-100">
