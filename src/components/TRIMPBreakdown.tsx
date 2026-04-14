@@ -59,15 +59,25 @@ export default function TRIMPBreakdown({ dailyTrimp }: TRIMPBreakdownProps) {
 
   const weeklyTotal = Math.round(filledDays.reduce((s, d) => s + d.total, 0))
 
-  // Build chart data: each day gets a stacked bar by sport type
+  // Build chart data: each day gets a stacked bar by sport type.
+  // The adjusted daily total may be higher than the sum of records
+  // due to manual exercise load and RPE boost — show these as
+  // separate bar segments so the chart reflects the true load.
   const chartData = filledDays.map(day => {
     const entry: Record<string, string | number> = {
       date: day.date.slice(5), // MM-DD
       _isRest: day.total === 0 ? 1 : 0,
     }
+    let recordSum = 0
     for (const rec of day.records) {
       const key = rec.sportType
       entry[key] = ((entry[key] as number) || 0) + rec.adjustedTRIMP
+      recordSum += rec.adjustedTRIMP
+    }
+    // Show exercise + RPE supplements as a separate "boost" segment
+    const supplement = day.total - recordSum
+    if (supplement > 0.5) {
+      entry['exercise_rpe_boost'] = Math.round(supplement * 10) / 10
     }
     // Ensure rest days show a tiny bar for visibility
     if (day.total === 0) {
@@ -76,12 +86,16 @@ export default function TRIMPBreakdown({ dailyTrimp }: TRIMPBreakdownProps) {
     return entry
   })
 
-  // Get all sport types present
+  // Get all sport types present (including boost)
   const sportTypes = new Set<string>()
+  let hasBoost = false
   for (const day of filledDays) {
     for (const rec of day.records) {
       sportTypes.add(rec.sportType)
     }
+  }
+  for (const entry of chartData) {
+    if (entry['exercise_rpe_boost']) hasBoost = true
   }
 
   return (
@@ -89,7 +103,7 @@ export default function TRIMPBreakdown({ dailyTrimp }: TRIMPBreakdownProps) {
       <div className="flex items-baseline justify-between mb-3">
         <div>
           <p className="text-sm font-semibold text-slate-700">7-Day Training Load</p>
-          <p className="text-xs text-slate-400">Garmin EPOC (primary) + Banister TRIMP (fallback) · MIM-adjusted</p>
+          <p className="text-xs text-slate-400">Garmin EPOC · MIM-adjusted · exercise &amp; RPE supplements</p>
         </div>
         <div className="text-right">
           <p className="text-xl font-bold text-slate-800">{weeklyTotal}</p>
@@ -115,9 +129,10 @@ export default function TRIMPBreakdown({ dailyTrimp }: TRIMPBreakdownProps) {
               contentStyle={{ fontSize: 11, borderRadius: 8 }}
               formatter={(value, name) => {
                 if (name === '_isRest' || name === 'rest') return [null, null]
+                const label = name === 'exercise_rpe_boost' ? 'exercise + RPE boost' : String(name).replace(/_/g, ' ')
                 return [
                   `${Math.round(Number(value))} TRIMP`,
-                  String(name).replace('_', ' '),
+                  label,
                 ]
               }}
               itemSorter={() => 0}
@@ -131,6 +146,14 @@ export default function TRIMPBreakdown({ dailyTrimp }: TRIMPBreakdownProps) {
                 radius={[2, 2, 0, 0]}
               />
             ))}
+            {hasBoost && (
+              <Bar
+                dataKey="exercise_rpe_boost"
+                stackId="trimp"
+                fill="#F59E0B"
+                radius={[2, 2, 0, 0]}
+              />
+            )}
           </BarChart>
         </ResponsiveContainer>
       </div>
@@ -154,9 +177,15 @@ export default function TRIMPBreakdown({ dailyTrimp }: TRIMPBreakdownProps) {
               className="w-2 h-2 rounded-sm inline-block"
               style={{ backgroundColor: SPORT_COLORS[type] || '#94A3B8' }}
             />
-            {type.replace('_', ' ')}
+            {type.replace(/_/g, ' ')}
           </span>
         ))}
+        {hasBoost && (
+          <span className="flex items-center gap-1 text-[10px] text-slate-500">
+            <span className="w-2 h-2 rounded-sm inline-block" style={{ backgroundColor: '#F59E0B' }} />
+            exercise + RPE boost
+          </span>
+        )}
       </div>
     </div>
   )
