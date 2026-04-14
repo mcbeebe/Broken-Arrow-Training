@@ -357,12 +357,16 @@ export function aggregateDailyTRIMP(records: TRIMPRecord[]): DailyTRIMP[] {
     byDate.set(r.date, existing)
   }
 
-  // Fill in zero-load rest days between first and last activity dates.
-  // EWMA requires continuous daily values — gaps cause the decay to stall,
-  // inflating CTL/ATL because rest days never pull the average down.
+  // Fill in zero-load rest days between first activity and TODAY (inclusive).
+  // Must extend to today (not just last activity) so that:
+  // 1. EWMA doesn't stall — rest days pull the average down
+  // 2. DOMS carry-forward from recent activities lands on today/tomorrow
+  // 3. Soreness check-ins on rest days have a day to attach to
   const dates = Array.from(byDate.keys()).sort()
   const startDate = new Date(dates[0] + 'T00:00:00')
-  const endDate = new Date(dates[dates.length - 1] + 'T00:00:00')
+  const today = new Date(new Date().toISOString().slice(0, 10) + 'T00:00:00')
+  const lastActivity = new Date(dates[dates.length - 1] + 'T00:00:00')
+  const endDate = today > lastActivity ? today : lastActivity
 
   const result: DailyTRIMP[] = []
   const current = new Date(startDate)

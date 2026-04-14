@@ -4,6 +4,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recha
 
 interface TRIMPBreakdownProps {
   dailyTrimp: DailyTRIMP[]
+  sorenessLoadByDate?: Map<string, number>
 }
 
 const SPORT_COLORS: Record<string, string> = {
@@ -44,7 +45,7 @@ function getLast7Days(): string[] {
   return days
 }
 
-export default function TRIMPBreakdown({ dailyTrimp }: TRIMPBreakdownProps) {
+export default function TRIMPBreakdown({ dailyTrimp, sorenessLoadByDate }: TRIMPBreakdownProps) {
   const last7Days = getLast7Days()
 
   // Build a lookup from existing TRIMP data
@@ -74,10 +75,19 @@ export default function TRIMPBreakdown({ dailyTrimp }: TRIMPBreakdownProps) {
       entry[key] = ((entry[key] as number) || 0) + rec.adjustedTRIMP
       recordSum += rec.adjustedTRIMP
     }
-    // Show exercise + RPE supplements as a separate "boost" segment
+    // Split supplement into soreness vs exercise+RPE so chart labels are accurate
     const supplement = day.total - recordSum
     if (supplement > 0.5) {
-      entry['exercise_rpe_boost'] = Math.round(supplement * 10) / 10
+      const sorenessAdj = sorenessLoadByDate?.get(day.date) || 0
+      const sorenessInSupplement = Math.max(0, Math.min(sorenessAdj, supplement))
+      const otherSupplement = supplement - sorenessInSupplement
+
+      if (sorenessInSupplement > 0.5) {
+        entry['soreness'] = Math.round(sorenessInSupplement * 10) / 10
+      }
+      if (otherSupplement > 0.5) {
+        entry['exercise_rpe_boost'] = Math.round(otherSupplement * 10) / 10
+      }
     }
     // Ensure rest days show a tiny bar for visibility
     if (day.total === 0) {
@@ -86,9 +96,10 @@ export default function TRIMPBreakdown({ dailyTrimp }: TRIMPBreakdownProps) {
     return entry
   })
 
-  // Get all sport types present (including boost)
+  // Get all sport types present (including boost and soreness)
   const sportTypes = new Set<string>()
   let hasBoost = false
+  let hasSoreness = false
   for (const day of filledDays) {
     for (const rec of day.records) {
       sportTypes.add(rec.sportType)
@@ -96,6 +107,7 @@ export default function TRIMPBreakdown({ dailyTrimp }: TRIMPBreakdownProps) {
   }
   for (const entry of chartData) {
     if (entry['exercise_rpe_boost']) hasBoost = true
+    if (entry['soreness']) hasSoreness = true
   }
 
   return (
@@ -129,7 +141,9 @@ export default function TRIMPBreakdown({ dailyTrimp }: TRIMPBreakdownProps) {
               contentStyle={{ fontSize: 11, borderRadius: 8 }}
               formatter={(value, name) => {
                 if (name === '_isRest' || name === 'rest') return [null, null]
-                const label = name === 'exercise_rpe_boost' ? 'exercise + RPE boost' : String(name).replace(/_/g, ' ')
+                const label = name === 'soreness' ? 'muscle soreness'
+                  : name === 'exercise_rpe_boost' ? 'exercise + RPE boost'
+                  : String(name).replace(/_/g, ' ')
                 return [
                   `${Math.round(Number(value))} TRIMP`,
                   label,
@@ -151,6 +165,14 @@ export default function TRIMPBreakdown({ dailyTrimp }: TRIMPBreakdownProps) {
                 dataKey="exercise_rpe_boost"
                 stackId="trimp"
                 fill="#F59E0B"
+                radius={[2, 2, 0, 0]}
+              />
+            )}
+            {hasSoreness && (
+              <Bar
+                dataKey="soreness"
+                stackId="trimp"
+                fill="#F87171"
                 radius={[2, 2, 0, 0]}
               />
             )}
@@ -184,6 +206,12 @@ export default function TRIMPBreakdown({ dailyTrimp }: TRIMPBreakdownProps) {
           <span className="flex items-center gap-1 text-[10px] text-slate-500">
             <span className="w-2 h-2 rounded-sm inline-block" style={{ backgroundColor: '#F59E0B' }} />
             exercise + RPE boost
+          </span>
+        )}
+        {hasSoreness && (
+          <span className="flex items-center gap-1 text-[10px] text-slate-500">
+            <span className="w-2 h-2 rounded-sm inline-block" style={{ backgroundColor: '#F87171' }} />
+            muscle soreness
           </span>
         )}
       </div>

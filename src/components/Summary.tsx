@@ -18,6 +18,7 @@ interface SummaryProps {
   performance: PerformanceMetrics[]
   todaySoreness: SorenessLevel | null
   onLogSoreness: (date: string, level: SorenessLevel) => void
+  sorenessLoadByDate: Map<string, number>
 }
 
 // ─── Scale bar component ──────────────────────────────────────
@@ -103,6 +104,7 @@ export default function Summary({
   performance,
   todaySoreness,
   onLogSoreness,
+  sorenessLoadByDate,
 }: SummaryProps) {
   const latestPerf = performance.length > 0 ? performance[performance.length - 1] : null
 
@@ -302,7 +304,7 @@ export default function Summary({
 
       {/* 7-day training load */}
       {dailyTrimp.length > 0 && (
-        <TRIMPBreakdown dailyTrimp={dailyTrimp} />
+        <TRIMPBreakdown dailyTrimp={dailyTrimp} sorenessLoadByDate={sorenessLoadByDate} />
       )}
 
       {/* Week readiness trend */}

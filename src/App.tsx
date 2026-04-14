@@ -240,6 +240,7 @@ export default function App() {
           performance={readiness.performance}
           todaySoreness={soreness.todaySoreness}
           onLogSoreness={soreness.logSoreness}
+          sorenessLoadByDate={soreness.sorenessLoadByDate}
         />
       )}
       {view === 'plan' && (
