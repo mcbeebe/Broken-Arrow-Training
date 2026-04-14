@@ -143,11 +143,15 @@ export default function Summary({
       {latestPerf && (() => {
         const tsbState = getTSBState(latestPerf.tsb)
         const acwrRisk = getACWRRisk(latestPerf.acwr)
+        // CTL labels: coaching convention (Coggan/Allen 2010, TrainingPeaks).
+        // Approximate ranges for recreational-to-competitive endurance athletes.
         const fitnessLabel = latestPerf.ctl < 20 ? 'Building'
           : latestPerf.ctl < 40 ? 'Moderate'
           : latestPerf.ctl < 60 ? 'Strong'
           : latestPerf.ctl < 80 ? 'High'
           : 'Elite'
+        // ATL labels: relative to CTL (more meaningful than absolute thresholds).
+        // ATL > 1.5× CTL indicates acute overload beyond chronic capacity.
         const fatigueLabel = latestPerf.atl > latestPerf.ctl * 1.5 ? 'Very High'
           : latestPerf.atl > latestPerf.ctl ? 'Elevated'
           : latestPerf.atl > latestPerf.ctl * 0.8 ? 'Balanced'

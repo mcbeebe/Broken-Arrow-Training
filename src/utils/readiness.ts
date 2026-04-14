@@ -16,7 +16,25 @@ import type {
 import { aggregateDailyTRIMP } from './trimp'
 
 // ─── ATE Engine Constants ───────────────────────────────────────
-// Ported from ATE config.py ENGINE_DEFAULTS
+// Adaptive Training Engine — biometric-first readiness model.
+//
+// Scientific foundations:
+//   HRV (ln RMSSD):  Plews et al. 2013 — ln(RMSSD) is the gold standard
+//                     for parasympathetic recovery monitoring in athletes.
+//                     CV > 10% = noisy signal (Plews et al. 2012).
+//   RHR:             Buchheit 2014 — elevated RHR is a reliable marker of
+//                     accumulated fatigue when trended against baseline.
+//   Sleep:           Hirshkowitz et al. 2015 (NSF) — 7-9h adult consensus.
+//                     Watson et al. 2015 (AASM) — <6h = impaired recovery.
+//   ACWR guardrails: Gabbett 2016 — >1.5 = elevated injury risk.
+//   Overtraining:    Meeusen et al. 2013 (ECSS/ACSM) — 5+ consecutive
+//                     poor-recovery days suggests non-functional overreaching.
+//
+// Weights reflect predictive importance for next-day performance:
+//   HRV 40% — most responsive autonomic recovery signal (Plews 2013)
+//   RHR 20% — slower-moving fatigue confirmation (Buchheit 2014)
+//   Sleep 20% — foundation for all recovery (Walker 2017)
+//   Load 20% — training stress context (Gabbett 2016)
 
 // Composite weights (must sum to 1.0)
 const WEIGHT_HRV = 0.40
@@ -24,33 +42,36 @@ const WEIGHT_RHR = 0.20
 const WEIGHT_SLEEP = 0.20
 const WEIGHT_LOAD = 0.20
 
-// Recovery Composite sub-weights (WP-G1, must sum to 1.0)
+// Recovery Composite sub-weights (Firstbeat WP-G1, must sum to 1.0)
+// RMSSD dominant because it's the most sensitive overnight recovery marker
 const RECOVERY_WEIGHT_RMSSD = 0.50
 const RECOVERY_WEIGHT_RHR_DEV = 0.25
 const RECOVERY_WEIGHT_HRV_STATUS = 0.25
 
-// Signal thresholds
+// Signal thresholds — these map a -2 to +2 composite score to status.
+// Chosen to create four roughly equal-probability zones for a normally
+// distributed athlete population. Not from a specific study.
 const THRESHOLD_PEAK = 1.25
 const THRESHOLD_GREEN = 0.25
 const THRESHOLD_YELLOW = -0.25
 
 // Scoring thresholds
-const NORMAL_RANGE_SD_MULT = 0.50
-const CV_ALERT_THRESHOLD = 10.0
-const RHR_ELEVATED_THRESHOLD = 5.0
-const SLEEP_MIN_THRESHOLD = 7.0
+const NORMAL_RANGE_SD_MULT = 0.50  // z-score boundary for "normal" band
+const CV_ALERT_THRESHOLD = 10.0     // Plews et al. 2012: CV > 10% = unreliable
+const RHR_ELEVATED_THRESHOLD = 5.0  // Buchheit 2014: ≥5 bpm above baseline
+const SLEEP_MIN_THRESHOLD = 7.0     // Hirshkowitz 2015 (NSF): adult minimum
 
 // Guardrail thresholds
-const ACUTE_SLEEP_FLOOR = 6.0
-const ACUTE_RMSSD_DROP_PCT = 25.0
-const MAX_CONSEC_HIGH = 2
-const MAX_PEAK_PER_WEEK = 1
-const BODY_BATTERY_GATE = 25
+const ACUTE_SLEEP_FLOOR = 6.0       // Watson 2015 (AASM): <6h impairs recovery
+const ACUTE_RMSSD_DROP_PCT = 25.0   // Plews 2013: acute drop = sympathetic dominance
+const MAX_CONSEC_HIGH = 2           // Prevents score inflation from stable metrics
+const MAX_PEAK_PER_WEEK = 1         // Same — conservative peak allocation
+const BODY_BATTERY_GATE = 25        // Garmin proprietary — no published cutoff
 
-// Training state thresholds
+// Training state thresholds (Meeusen et al. 2013 ECSS/ACSM framework)
 const STATE_B_THRESHOLD = 0.25
-const STATE_C_ACWR_MIN = 1.3
-const STATE_D_CONSECUTIVE_RED = 5
+const STATE_C_ACWR_MIN = 1.3        // Gabbett 2016: above sweet spot
+const STATE_D_CONSECUTIVE_RED = 5    // Meeusen 2013: persistent signs → NFOR
 
 // ─── Baseline Calculation ───────────────────────────────────────
 

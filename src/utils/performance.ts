@@ -112,13 +112,20 @@ export function calculatePerformanceTimeline(dailyTrimp: DailyTRIMP[]): Performa
 }
 
 // ─── TSB State Classification ───────────────────────────────────
+// Banister impulse-response model (Banister et al. 1975; Morton et al. 1990).
+// Specific TSB thresholds are coaching conventions widely adopted via
+// TrainingPeaks (Coggan/Allen 2010). Taper research supports TSB +10 to +30
+// as race-ready (Mujika & Padilla 2003; Bosquet et al. 2007), which aligns
+// with our +15/+25 "peaked" zone.
+// Overreaching zone (-30 to -10) aligns with functional overreaching
+// definitions in Meeusen et al. 2013 (ECSS/ACSM joint statement).
 
 export function getTSBState(tsb: number): TSBState {
-  if (tsb >= 15) return 'peaked'
+  if (tsb >= 15) return 'peaked'      // Mujika & Padilla 2003: taper sweet spot
   if (tsb >= 5) return 'well_rested'
-  if (tsb >= -10) return 'productive'
-  if (tsb >= -30) return 'overreaching'
-  return 'danger'
+  if (tsb >= -10) return 'productive'  // Normal training stress
+  if (tsb >= -30) return 'overreaching' // Functional overreaching (Meeusen 2013)
+  return 'danger'                       // Non-functional overreaching risk
 }
 
 export function getTSBLabel(state: TSBState): string {
@@ -133,12 +140,17 @@ export function getTSBLabel(state: TSBState): string {
 }
 
 // ─── ACWR Risk Classification ───────────────────────────────────
+// Gabbett 2016 meta-analysis: ACWR 0.8–1.3 = lowest injury incidence.
+// Hulin et al. 2014: ACWR > 1.5 = 2–4× injury risk in cricket/rugby.
+// Blanch & Gabbett 2016: confirmed across multiple sports.
+// Note: Gabbett 2020 revisited these thresholds, noting they're
+// population-level guidelines, not individual prescriptions.
 
 export function getACWRRisk(acwr: number): ACWRRisk {
-  if (acwr < 0.8) return 'detraining'
-  if (acwr <= 1.3) return 'sweet_spot'
-  if (acwr <= 1.5) return 'caution'
-  return 'high_risk'
+  if (acwr < 0.8) return 'detraining'  // Gabbett 2016: underpreparedness risk
+  if (acwr <= 1.3) return 'sweet_spot'  // Gabbett 2016: lowest injury incidence
+  if (acwr <= 1.5) return 'caution'     // Transitional zone
+  return 'high_risk'                     // Hulin 2014: 2–4× injury risk
 }
 
 export function getACWRLabel(risk: ACWRRisk): string {
