@@ -14,7 +14,7 @@ import type {
   DeloadDay,
 } from '../types'
 import { stravaActivityToTRIMP, garminActivityToTRIMP, aggregateDailyTRIMP } from '../utils/trimp'
-import { calculatePerformanceTimeline, generateWeeklyRecommendations, calculateSpanACWR, checkWeeklyTRIMPOverload } from '../utils/performance'
+import { calculatePerformanceTimeline, generateWeeklyRecommendations, checkWeeklyTRIMPOverload } from '../utils/performance'
 import {
   calculateBaselines,
   calculateReadiness,
@@ -132,8 +132,19 @@ export function useReadiness({
     })
   }, [trimpRecords, rpeByDate])
 
-  // Calculate span-based ACWR (ATE: 7d acute / 28d chronic)
-  const acwr = useMemo(() => calculateSpanACWR(dailyTrimp), [dailyTrimp])
+  // Performance timeline (CTL/ATL/TSB/ACWR) — computed early so ACWR feeds readiness
+  const performance = useMemo(
+    () => calculatePerformanceTimeline(dailyTrimp),
+    [dailyTrimp],
+  )
+
+  // Single consistent ACWR (tau-based: ATL/CTL) used everywhere.
+  // Previously had two different ACWR values (span-based for readiness, tau-based
+  // for performance display), which caused confusing mismatches.
+  const acwr = useMemo(() => {
+    if (performance.length === 0) return 0
+    return performance[performance.length - 1].acwr
+  }, [performance])
 
   // HRV stability check
   const hrvStability = useMemo(
@@ -198,12 +209,6 @@ export function useReadiness({
     if (trainingStateInfo?.state !== 'D') return null
     return computeDeloadProgram()
   }, [trainingStateInfo])
-
-  // Performance timeline (CTL/ATL/TSB/ACWR display)
-  const performance = useMemo(
-    () => calculatePerformanceTimeline(dailyTrimp),
-    [dailyTrimp],
-  )
 
   // Weekly recommendations (including TRIMP overload check)
   const weeklyRecommendations = useMemo(() => {

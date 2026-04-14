@@ -11,7 +11,10 @@ interface ManualLogProps {
 }
 
 export default function ManualLog({ dayLabel, existing, onSave, onClose }: ManualLogProps) {
-  const [mode, setMode] = useState<LogMode>(existing?.strengthLog ? 'strength' : 'run')
+  const isStrength = existing?.strengthLog?.length
+    || existing?.type?.toLowerCase().includes('strength')
+    || existing?.name?.toLowerCase().includes('strength')
+  const [mode, setMode] = useState<LogMode>(isStrength ? 'strength' : 'run')
   const [name, setName] = useState(existing?.name || '')
   const [time, setTime] = useState(existing ? String(Math.round(existing.movingTime / 60)) : '')
   const [hr, setHr] = useState(existing?.avgHR?.toString() || '')
