@@ -28,18 +28,19 @@ export default function ManualLog({ dayLabel, existing, onSave, onClose }: Manua
 
   function handleSave() {
     const entry: ActualWorkout = {
+      ...existing,                    // Preserve ALL existing fields (Garmin HR, TE, EPOC, zones, etc.)
       stravaId: existing?.stravaId || Date.now(),
-      distance: mode === 'run' ? (parseFloat(distance) || 0) : 0,
+      distance: mode === 'run' ? (parseFloat(distance) || 0) : (existing?.distance ?? 0),
       movingTime: (parseInt(time) || 0) * 60,
       elapsedTime: (parseInt(time) || 0) * 60,
-      avgHR: parseInt(hr) || undefined,
-      maxHR: undefined,
-      elevationGain: mode === 'run' ? (parseInt(elevation) || 0) : 0,
-      type: 'Manual',
+      avgHR: parseInt(hr) || existing?.avgHR,
+      maxHR: existing?.maxHR,         // Preserve (was hardcoded to undefined)
+      elevationGain: mode === 'run' ? (parseInt(elevation) || 0) : (existing?.elevationGain ?? 0),
+      type: existing?.type || 'Manual',
       name: name || (mode === 'strength' ? `Strength — ${dayLabel}` : `Run — ${dayLabel}`),
       startDate: existing?.startDate || new Date().toISOString(),
       notes,
-      strengthLog: mode === 'strength' ? exercises : undefined,
+      strengthLog: mode === 'strength' ? exercises : existing?.strengthLog,
     }
     onSave(entry)
   }
