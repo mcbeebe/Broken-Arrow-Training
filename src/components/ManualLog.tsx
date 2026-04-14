@@ -161,10 +161,13 @@ export default function ManualLog({ dayLabel, existing, planned, onSave, onClose
         </div>
 
         <div className="px-4 py-4 space-y-3">
-          {/* Show planned workout as reference */}
-          {planned && !existing && (
+          {/* Show planned workout as reference — always visible so user can
+              see what was prescribed and add exercises Garmin missed */}
+          {planned && (
             <div className="bg-teal-50 rounded-lg px-3 py-2 border border-teal-200">
-              <p className="text-[10px] font-semibold text-teal-600 uppercase tracking-wide mb-0.5">Planned Workout</p>
+              <p className="text-[10px] font-semibold text-teal-600 uppercase tracking-wide mb-0.5">
+                {existing ? 'Planned (for reference)' : 'Planned Workout'}
+              </p>
               <p className="text-xs text-teal-800 font-medium">{planned.workout}</p>
               {planned.detail && (
                 <p className="text-[10px] text-teal-600 mt-0.5">{planned.detail}</p>
