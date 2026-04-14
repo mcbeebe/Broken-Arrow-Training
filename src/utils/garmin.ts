@@ -22,7 +22,8 @@ export async function checkGarminAuth(): Promise<{ authenticated: boolean; displ
 export async function fetchHealthData(days: number = 1): Promise<GarminHealthData[]> {
   if (!GARMIN_API_URL) return []
 
-  const res = await fetch(`${GARMIN_API_URL}/api/garmin/health?days=${days}`)
+  const tzOffset = Math.round(-new Date().getTimezoneOffset() / 60)  // e.g., -7 for Pacific
+  const res = await fetch(`${GARMIN_API_URL}/api/garmin/health?days=${days}&tz=${tzOffset}`)
   if (!res.ok) throw new Error(`Garmin health fetch failed: ${res.status}`)
 
   const data = await res.json()

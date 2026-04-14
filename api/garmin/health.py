@@ -218,8 +218,12 @@ class handler(BaseHTTPRequestHandler):
             query = parse_qs(urlparse(self.path).query)
             days = min(int(query.get("days", ["1"])[0]), 30)
 
+            # Accept tz offset in hours (e.g., tz=-7 for Pacific)
+            # so "today" matches the user's local date, not UTC
+            tz_offset = int(query.get("tz", ["0"])[0])
+
             client = _get_client()
-            today = datetime.now().date()
+            today = (datetime.utcnow() + timedelta(hours=tz_offset)).date()
             results = []
 
             for i in range(days):
