@@ -45,7 +45,7 @@ export default function App() {
   const plan = plans[athleteId]
   const manualLog = useManualLog(athleteId)
   const daySwap = useDaySwap(athleteId)
-  const showStrava = athleteId === 'mike' || athleteId === 'lori'
+  const showStrava = athleteId === 'mike' || athleteId === 'lori' || athleteId === 'joel'
 
   // Only show Settings tab for Mike (Strava), show manual log for others
   const TABS: { id: ViewId; label: string }[] = showStrava
