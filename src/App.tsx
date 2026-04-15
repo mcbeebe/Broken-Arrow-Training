@@ -56,6 +56,7 @@ export default function App() {
     { id: 'summary', label: 'Summary' },
     { id: 'plan', label: 'Plan' },
     { id: 'dashboard', label: 'Stats' },
+    { id: 'coach-preview', label: 'Coach' },
     { id: 'method', label: 'Method' },
     { id: 'settings', label: 'Settings' },
   ]
