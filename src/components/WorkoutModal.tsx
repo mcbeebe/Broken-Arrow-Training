@@ -185,10 +185,15 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId }
                 </div>
               )}
 
-              {/* HR Zone Distribution */}
+              {/* HR Zone Distribution — from Garmin's default zones (% of max HR),
+                   NOT the plan's Uphill Athlete zones. See "Time in Zone" chart
+                   below for plan-zone breakdown used by grading. */}
               {actual.hrZoneSummary && actual.hrZoneSummary.length > 0 && (
                 <div className="mt-2">
-                  <p className="text-xs font-semibold text-teal-800 mb-1">HR Zone Distribution</p>
+                  <p className="text-xs font-semibold text-teal-800 mb-1">
+                    HR Zone Distribution
+                    <span className="ml-1.5 text-[10px] text-teal-600 font-normal">(Garmin's zones)</span>
+                  </p>
                   <div className="space-y-1">
                     {actual.hrZoneSummary.map((z, i) => {
                       const total = actual.hrZoneSummary!.reduce((s, z) => s + z.seconds, 0)

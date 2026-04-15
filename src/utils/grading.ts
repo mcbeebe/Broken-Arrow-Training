@@ -7,6 +7,63 @@ function hasPlannedDrills(day: PlannedDay): boolean {
   return getPlannedDrills(day).length > 0 || !!day.actual?.drills?.items?.length
 }
 
+/**
+ * Read cached HR stream (Strava or Garmin) from localStorage for the activity.
+ * Returns null if no stream cached.
+ */
+function getCachedHRStream(activityId: number | string | undefined): { time: number[]; heartrate: number[] } | null {
+  if (!activityId) return null
+  const keys = [
+    `ba_strava_streams_${activityId}`,
+    `ba_garmin_streams_${activityId}`,
+  ]
+  // Also scan for scoped athlete keys
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i)
+    if (k && (k.includes(`strava_streams`) || k.includes(`garmin_streams`)) && k.endsWith(String(activityId))) {
+      keys.push(k)
+    }
+  }
+  for (const k of keys) {
+    try {
+      const raw = localStorage.getItem(k)
+      if (!raw) continue
+      const stream = JSON.parse(raw)
+      if (stream?.heartrate?.length && stream?.time?.length) {
+        return { time: stream.time, heartrate: stream.heartrate }
+      }
+    } catch {
+      // Skip
+    }
+  }
+  return null
+}
+
+/**
+ * Compute % of time where HR was within the target band, using per-second
+ * stream data against PLAN zones (Uphill Athlete). This is the same math as
+ * the "Time in Zone" bar in the workout modal.
+ */
+function computeTimeInZoneFromStream(
+  stream: { time: number[]; heartrate: number[] },
+  low: number,
+  high: number,
+): number {
+  const hrs = stream.heartrate
+  const times = stream.time
+  if (hrs.length < 2) return 0
+  let inZoneSec = 0
+  let totalSec = 0
+  for (let i = 1; i < hrs.length; i++) {
+    const hr = hrs[i]
+    const dt = times[i] - times[i - 1]
+    if (dt <= 0 || dt > 60) continue  // skip gaps
+    totalSec += dt
+    if (hr >= low && hr <= high) inZoneSec += dt
+  }
+  return totalSec > 0 ? (inZoneSec / totalSec) * 100 : 0
+}
+
 export type Grade = 'A+' | 'A' | 'A-' | 'B+' | 'B' | 'B-' | 'C+' | 'C' | 'C-' | 'D+' | 'D' | 'N/A'
 
 export interface GradeResult {
@@ -78,69 +135,55 @@ export function calculateGrade(day: PlannedDay): GradeResult | null {
       }
     }
 
-    // HR zone compliance (30% weight)
-    // PREFER time-in-zone from hrZoneSummary when available (Garmin).
-    // avgHR as fallback is misleading: a 90%-in-zone run with a hill spike can
-    // have an avg HR above zone even though you were on target most of the time.
+    // HR zone compliance (30% weight) — always uses PLAN zones (Uphill Athlete).
+    // Preferred: per-second HR stream bucketed into plan zones (exact, matches
+    // "Time in Zone" bar in modal). Fallback: avgHR vs plan zone band.
+    // We deliberately IGNORE Garmin's hrZoneSummary since those use Garmin's
+    // default zones (% of max HR), not the plan's Uphill Athlete zones.
     if (day.zone !== '—') {
       const range = parseZoneRange(day.zone)
 
-      if (actual.hrZoneSummary && actual.hrZoneSummary.length > 0 && range) {
-        // Compute % of time spent with HR inside the target band
-        // (with ±5 bpm grace window, same as avgHR logic).
-        const expandedLow = range.low - 5
-        const expandedHigh = range.high + 5
-        let inZoneSec = 0
-        let totalSec = 0
-        for (const z of actual.hrZoneSummary) {
-          totalSec += z.seconds
-          // If we have per-zone HR bounds, use them; otherwise assume
-          // mid-zone average based on zone number (Garmin convention).
-          const zLow = z.lowHR ?? (z.zone - 1) * 30 + 60
-          const zHigh = z.highHR ?? z.zone * 30 + 60
-          // Zone fully inside target band → all seconds count
-          if (zLow >= expandedLow && zHigh <= expandedHigh) {
-            inZoneSec += z.seconds
-          } else if (zLow < expandedHigh && zHigh > expandedLow) {
-            // Zone partially overlaps — approximate proportion in target
-            const overlap = Math.max(0, Math.min(zHigh, expandedHigh) - Math.max(zLow, expandedLow))
-            const zoneWidth = Math.max(1, zHigh - zLow)
-            inZoneSec += z.seconds * (overlap / zoneWidth)
-          }
-        }
-        const tizPct = totalSec > 0 ? (inZoneSec / totalSec) * 100 : 0
-        if (tizPct >= 80) {
-          hrScore = 1.0
-          reasons.push(`${Math.round(tizPct)}% HR in zone`)
-        } else if (tizPct >= 65) {
-          hrScore = 0.9
-          reasons.push(`${Math.round(tizPct)}% HR in zone`)
-        } else if (tizPct >= 50) {
-          hrScore = 0.75
-          reasons.push(`${Math.round(tizPct)}% HR in zone`)
-        } else {
-          hrScore = 0.55
-          reasons.push(`${Math.round(tizPct)}% HR in zone`)
-        }
-      } else if (actual.avgHR && range) {
-        // Fallback: grade on avg HR with wider grace for easy runs
-        const expandedLow = range.low - 5
-        const expandedHigh = range.high + 5
-        if (actual.avgHR >= expandedLow && actual.avgHR <= expandedHigh) {
-          hrScore = 1.0
-          reasons.push('HR in zone')
-        } else if (actual.avgHR < expandedLow) {
-          hrScore = 0.9
-          reasons.push('HR below zone (easy)')
-        } else {
-          const overBy = actual.avgHR - expandedHigh
-          if (overBy <= 10) {
-            hrScore = 0.8
-            reasons.push('HR slightly above zone')
+      if (range) {
+        const stream = getCachedHRStream(actual.stravaId || actual.garminId)
+        if (stream) {
+          // Use per-second stream data against PLAN zones with ±3 bpm grace
+          const tizPct = computeTimeInZoneFromStream(stream, range.low - 3, range.high + 3)
+          if (tizPct >= 80) {
+            hrScore = 1.0
+            reasons.push(`${Math.round(tizPct)}% HR in zone`)
+          } else if (tizPct >= 65) {
+            hrScore = 0.9
+            reasons.push(`${Math.round(tizPct)}% HR in zone`)
+          } else if (tizPct >= 50) {
+            hrScore = 0.75
+            reasons.push(`${Math.round(tizPct)}% HR in zone`)
           } else {
-            hrScore = 0.55
-            reasons.push('HR above zone')
+            hrScore = 0.6
+            reasons.push(`${Math.round(tizPct)}% HR in zone`)
           }
+        } else if (actual.avgHR) {
+          // Fallback: grade on avg HR with wider grace for easy runs
+          const expandedLow = range.low - 5
+          const expandedHigh = range.high + 5
+          if (actual.avgHR >= expandedLow && actual.avgHR <= expandedHigh) {
+            hrScore = 1.0
+            reasons.push('HR in zone (avg)')
+          } else if (actual.avgHR < expandedLow) {
+            hrScore = 0.9
+            reasons.push('HR below zone (easy)')
+          } else {
+            const overBy = actual.avgHR - expandedHigh
+            if (overBy <= 10) {
+              hrScore = 0.8
+              reasons.push('HR slightly above zone')
+            } else {
+              hrScore = 0.6
+              reasons.push('HR above zone')
+            }
+          }
+        } else {
+          // No HR data — neutral score, don't penalize
+          hrScore = 0.9
         }
       }
     }
