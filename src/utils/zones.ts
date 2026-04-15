@@ -13,9 +13,24 @@ export function getZoneForHR(hr: number, zones: HRZone[]): HRZone | null {
 }
 
 export function parseZoneRange(hrString: string): { low: number; high: number } | null {
-  const match = hrString.match(/(\d+)\s*[–-]\s*(\d+)/)
-  if (!match) return null
-  return { low: parseInt(match[1], 10), high: parseInt(match[2], 10) }
+  // Prefer the HR range inside parentheses: "(108–148)" — that's always
+  // the actual HR target. Previous naive match grabbed "Z1–2" first and
+  // returned {low: 1, high: 2}, which made every grade say 0% in zone.
+  const parenMatch = hrString.match(/\((\d+)\s*[–-]\s*(\d+)\)/)
+  if (parenMatch) {
+    return { low: parseInt(parenMatch[1], 10), high: parseInt(parenMatch[2], 10) }
+  }
+  // Fallback: scan all digit-dash-digit pairs and pick the first with
+  // plausible HR values (60-220 bpm).
+  const allMatches = Array.from(hrString.matchAll(/(\d+)\s*[–-]\s*(\d+)/g))
+  for (const m of allMatches) {
+    const low = parseInt(m[1], 10)
+    const high = parseInt(m[2], 10)
+    if (low >= 60 && high <= 220 && low < high) {
+      return { low, high }
+    }
+  }
+  return null
 }
 
 export function isInTargetZone(avgHR: number, targetLow: number, targetHigh: number): boolean {
