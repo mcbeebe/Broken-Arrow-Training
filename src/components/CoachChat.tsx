@@ -123,17 +123,32 @@ export default function CoachChat({ athleteId, memory, snapshot, seed, onSeedCon
   }
 
   const turns = memory.conversation.filter(t => t.role !== 'system-handoff')
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  // Auto-grow the textarea up to ~5 rows, then scroll inside it.
+  useEffect(() => {
+    const el = textareaRef.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = `${Math.min(el.scrollHeight, 140)}px`
+  }, [input])
+
+  const canSend = !!input.trim() && !streaming && coachApiAvailable()
 
   return (
-    <div className="flex flex-col h-[60vh] min-h-[400px] bg-white rounded-xl border border-slate-200 overflow-hidden">
+    <div className="flex flex-col h-full bg-white rounded-xl border border-slate-200 overflow-hidden">
       <div
         ref={scrollerRef}
         className="flex-1 overflow-y-auto px-3 py-3 space-y-2.5"
       >
         {turns.length === 0 && !streaming && (
-          <div className="text-center text-xs text-slate-400 py-8 px-4">
-            <p className="mb-1">💬 Start a conversation with your coach.</p>
-            <p>Ask about your training, how to pace a workout, or what today's readiness means.</p>
+          <div className="flex">
+            <div className="max-w-[85%] bg-indigo-50 text-slate-800 rounded-2xl rounded-tl-sm px-3 py-2.5 text-base leading-relaxed">
+              <p>👋 Morning — ready when you are.</p>
+              <p className="text-sm text-slate-500 mt-1.5">
+                Try <em>"What should I focus on this week?"</em> or <em>"How should I pace tomorrow's long run?"</em>
+              </p>
+            </div>
           </div>
         )}
         {turns.map(t => (
@@ -141,7 +156,7 @@ export default function CoachChat({ athleteId, memory, snapshot, seed, onSeedCon
         ))}
         {streaming && (
           <div className="flex">
-            <div className="max-w-[85%] bg-indigo-50 text-slate-800 rounded-2xl rounded-tl-sm px-3 py-2 text-sm whitespace-pre-wrap leading-snug">
+            <div className="max-w-[85%] bg-indigo-50 text-slate-800 rounded-2xl rounded-tl-sm px-3 py-2 text-base whitespace-pre-wrap leading-relaxed">
               {liveReply || <span className="text-indigo-400">…</span>}
             </div>
           </div>
@@ -154,28 +169,39 @@ export default function CoachChat({ athleteId, memory, snapshot, seed, onSeedCon
         </div>
       )}
 
-      <div className="border-t border-slate-200 px-2 py-2 flex items-end gap-2 bg-slate-50">
-        <textarea
-          value={input}
-          onChange={e => setInput(e.target.value)}
-          onKeyDown={e => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-              e.preventDefault()
-              send()
-            }
-          }}
-          placeholder={coachApiAvailable() ? 'Ask the coach…' : 'Coach is offline.'}
-          rows={1}
-          disabled={!coachApiAvailable() || streaming}
-          className="flex-1 resize-none px-2.5 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-400 bg-white disabled:bg-slate-100"
-        />
-        <button
-          onClick={send}
-          disabled={!input.trim() || streaming || !coachApiAvailable()}
-          className="text-xs font-semibold px-3 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-40 transition-colors"
-        >
-          {streaming ? '…' : 'Send'}
-        </button>
+      <div className="border-t border-slate-200 px-2 py-2 bg-white">
+        <div className="relative flex items-end">
+          <textarea
+            ref={textareaRef}
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault()
+                send()
+              }
+            }}
+            placeholder={coachApiAvailable() ? 'Ask the coach…' : 'Coach is offline.'}
+            rows={1}
+            disabled={!coachApiAvailable() || streaming}
+            className="flex-1 resize-none pl-3 pr-11 py-2.5 text-base border border-slate-200 rounded-2xl focus:outline-none focus:ring-1 focus:ring-indigo-400 bg-white disabled:bg-slate-100 max-h-[140px] leading-relaxed"
+          />
+          {canSend && (
+            <button
+              onClick={send}
+              aria-label="Send"
+              className="absolute right-1.5 bottom-1.5 w-8 h-8 flex items-center justify-center rounded-full bg-indigo-600 text-white hover:bg-indigo-700 transition-colors shadow-sm"
+            >
+              {streaming ? (
+                <span className="text-sm">…</span>
+              ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                  <path fillRule="evenodd" d="M10 17a1 1 0 01-1-1V6.414L5.707 9.707a1 1 0 01-1.414-1.414l5-5a1 1 0 011.414 0l5 5a1 1 0 01-1.414 1.414L11 6.414V16a1 1 0 01-1 1z" clipRule="evenodd" />
+                </svg>
+              )}
+            </button>
+          )}
+        </div>
       </div>
     </div>
   )
@@ -185,7 +211,7 @@ function ChatTurn({ turn }: { turn: ConversationTurn }) {
   if (turn.role === 'user') {
     return (
       <div className="flex justify-end">
-        <div className="max-w-[85%] bg-indigo-600 text-white rounded-2xl rounded-tr-sm px-3 py-2 text-sm whitespace-pre-wrap leading-snug">
+        <div className="max-w-[85%] bg-indigo-600 text-white rounded-2xl rounded-tr-sm px-3 py-2 text-base whitespace-pre-wrap leading-relaxed">
           {turn.content}
         </div>
       </div>
@@ -194,8 +220,8 @@ function ChatTurn({ turn }: { turn: ConversationTurn }) {
   if (turn.role === 'coach') {
     return (
       <div className="flex">
-        <div className="max-w-[85%] bg-amber-50 border border-amber-200 text-slate-800 rounded-2xl rounded-tl-sm px-3 py-2 text-sm leading-snug">
-          <p className="text-[10px] uppercase font-bold tracking-wider text-amber-700 mb-0.5">
+        <div className="max-w-[85%] bg-amber-50 border border-amber-200 text-slate-800 rounded-2xl rounded-tl-sm px-3 py-2 text-base leading-relaxed">
+          <p className="text-xs uppercase font-bold tracking-wider text-amber-700 mb-0.5">
             Coach ping {turn.trigger ? `· ${turn.trigger.replace(/_/g, ' ')}` : ''}
           </p>
           <p className="whitespace-pre-wrap">{turn.content}</p>
@@ -206,7 +232,7 @@ function ChatTurn({ turn }: { turn: ConversationTurn }) {
   // assistant
   return (
     <div className="flex">
-      <div className="max-w-[85%] bg-indigo-50 text-slate-800 rounded-2xl rounded-tl-sm px-3 py-2 text-sm whitespace-pre-wrap leading-snug">
+      <div className="max-w-[85%] bg-indigo-50 text-slate-800 rounded-2xl rounded-tl-sm px-3 py-2 text-base whitespace-pre-wrap leading-relaxed">
         {turn.content}
       </div>
     </div>

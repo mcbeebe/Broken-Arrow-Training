@@ -1,7 +1,6 @@
 import { useEffect } from 'react'
 import type { CoachInsight, CoachSnapshot } from '../types'
 import type { UseCoachMemoryReturn } from '../hooks/useCoachMemory'
-import CoachInsightCard from './CoachInsightCard'
 import CoachChat from './CoachChat'
 import PendingInferenceView from './PendingInference'
 
@@ -19,16 +18,18 @@ interface Props {
 }
 
 /**
- * Coach tab content: daily read + pending inferences + full chat. On
- * mount we mark any unread proactive pings as read so the tab badge
- * clears.
+ * Coach tab content: pending inferences (if any) + full chat. The daily
+ * insight is NOT rendered here anymore — it lives on Summary and seeds
+ * the chat via the `chatSeed` prop when the user taps "Ask". Keeping the
+ * Coach tab focused on dialogue avoids duplicating the daily read and
+ * lets the chat fill the viewport.
  */
 export default function CoachTab({
   athleteId,
   memory,
   snapshot,
-  dailyInsight,
-  dailyInsightLoading,
+  dailyInsight: _dailyInsight,
+  dailyInsightLoading: _dailyInsightLoading,
   chatSeed,
   onChatSeedConsumed,
   onMarkRead,
@@ -40,17 +41,13 @@ export default function CoachTab({
     onInteraction?.('coach_tab_opened')
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+  void _dailyInsight
+  void _dailyInsightLoading
 
   return (
-    <div className="px-3 py-4 space-y-3">
-      <CoachInsightCard
-        insight={dailyInsight}
-        loading={dailyInsightLoading}
-        onAsk={undefined}  // already in the tab; nothing to seed to
-      />
-
+    <div className="flex flex-col h-[calc(100vh-9rem)] px-3 py-3 gap-2">
       {memory.pendingInferences.length > 0 && (
-        <div className="space-y-2">
+        <div className="space-y-2 shrink-0">
           {memory.pendingInferences.map(inf => (
             <PendingInferenceView
               key={inf.id}
@@ -68,19 +65,21 @@ export default function CoachTab({
         </div>
       )}
 
-      <CoachChat
-        athleteId={athleteId}
-        memory={memory}
-        snapshot={snapshot}
-        seed={chatSeed}
-        onSeedConsumed={onChatSeedConsumed}
-        onSent={() => onInteraction?.('chat_sent')}
-      />
+      <div className="flex-1 min-h-0">
+        <CoachChat
+          athleteId={athleteId}
+          memory={memory}
+          snapshot={snapshot}
+          seed={chatSeed}
+          onSeedConsumed={onChatSeedConsumed}
+          onSent={() => onInteraction?.('chat_sent')}
+        />
+      </div>
 
-      <div className="text-center">
+      <div className="text-center shrink-0">
         <button
           onClick={onGoSettings}
-          className="text-[11px] text-slate-400 hover:text-slate-600 transition-colors"
+          className="text-xs text-slate-400 hover:text-slate-600 transition-colors"
         >
           Edit About Me in Settings →
         </button>
