@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
-import type { PlannedDay, HRZone } from '../types'
+import type { PlannedDay, HRZone, ReadinessScore, PerformanceMetrics } from '../types'
 import { getWorkoutStyle } from '../utils/styles'
 import { getCoaching } from '../utils/coaching'
+import { generateWorkoutTake } from '../utils/coachNotes'
+import CoachWorkoutTakeView from './CoachWorkoutTake'
 import { formatMiles, formatSeconds } from '../utils/format'
 import { parseRoutine, type ParsedExercise } from '../utils/exercises'
 import { parseIntervalWorkout, getDrillDay, RUNNING_DRILLS, MYRTL_ROUTINE, PRE_RUN_ACTIVATION, type RunSegment, type DrillGuide } from '../utils/drills'
@@ -16,9 +18,12 @@ interface WorkoutModalProps {
   onClose: () => void
   zones?: HRZone[]
   athleteId?: string
+  coachEnabled?: boolean
+  readiness?: ReadinessScore
+  latestPerf?: PerformanceMetrics | null
 }
 
-export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId }: WorkoutModalProps) {
+export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, coachEnabled, readiness, latestPerf }: WorkoutModalProps) {
   const style = getWorkoutStyle(day.type)
   const coaching = getCoaching(day, weekNum)
   const actual = day.actual
@@ -128,6 +133,13 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId }
         </div>
 
         <div className="px-4 py-4 space-y-4">
+          {/* Ambient Coach take — Mike-only, top of detail view */}
+          {coachEnabled && (
+            <CoachWorkoutTakeView
+              take={generateWorkoutTake(day, weekNum, readiness, latestPerf ?? null)}
+            />
+          )}
+
           {/* Strava actual */}
           {actual && (
             <div className="bg-teal-50 rounded-xl p-3 border border-teal-200 space-y-2">

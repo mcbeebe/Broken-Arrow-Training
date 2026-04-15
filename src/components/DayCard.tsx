@@ -6,7 +6,9 @@ import { parsePlannedTargets } from '../utils/targets'
 import { gradeWorkoutDay } from '../hooks/useCompliance'
 import { getPlannedDrills, getDrillDay } from '../utils/drills'
 import { calculateGrade } from '../utils/grading'
+import { generateDayCardNote } from '../utils/coachNotes'
 import TargetVsActual from './TargetVsActual'
+import CoachDayNoteView from './CoachDayNote'
 
 interface DayCardProps {
   day: PlannedDay
@@ -17,9 +19,10 @@ interface DayCardProps {
   isSwapSelected?: boolean
   isSwapTarget?: boolean
   readiness?: ReadinessScore
+  coachEnabled?: boolean
 }
 
-export default function DayCard({ day, weekNum, onTap, onLog, onSwap, isSwapSelected, isSwapTarget, readiness }: DayCardProps) {
+export default function DayCard({ day, weekNum, onTap, onLog, onSwap, isSwapSelected, isSwapTarget, readiness, coachEnabled }: DayCardProps) {
   const style = getWorkoutStyle(day.type)
   const actual = day.actual
   const timeEst = estimateRunTime(day.zone)
@@ -181,6 +184,14 @@ export default function DayCard({ day, weekNum, onTap, onLog, onSwap, isSwapSele
           </div>
         )}
 
+        {/* Ambient Coach inline note — Mike-only for now. Only renders
+            when the coach has something worth saying. */}
+        {coachEnabled && (() => {
+          const note = generateDayCardNote(day, weekNum, readiness, weekNum === 10)
+          return note ? <CoachDayNoteView note={note} /> : null
+        })()}
+
+        {/* Target vs Actual compliance grid (renders if targets parseable & workout done) */}
         {actual && (() => {
           const targets = parsePlannedTargets(day)
           const hasTargets = targets.distanceMi !== undefined

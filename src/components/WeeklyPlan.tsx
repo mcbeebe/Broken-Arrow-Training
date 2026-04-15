@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import type { TrainingWeek, PlannedDay, ActualWorkout, HRZone, ReadinessScore } from '../types'
+import type { TrainingWeek, PlannedDay, ActualWorkout, HRZone, ReadinessScore, PerformanceMetrics } from '../types'
 import DayCard from './DayCard'
 import VolumeChart from './VolumeChart'
 import WorkoutModal from './WorkoutModal'
@@ -18,6 +18,8 @@ interface WeeklyPlanProps {
   }
   weekReadiness?: ReadinessScore[]
   athleteId?: string
+  coachEnabled?: boolean
+  latestPerf?: PerformanceMetrics | null
 }
 
 export default function WeeklyPlan({
@@ -27,6 +29,8 @@ export default function WeeklyPlan({
   daySwap,
   weekReadiness = [],
   athleteId,
+  coachEnabled,
+  latestPerf,
 }: WeeklyPlanProps) {
   const [activeWeek, setActiveWeek] = useState(0)
   const [modalDay, setModalDay] = useState<PlannedDay | null>(null)
@@ -149,6 +153,7 @@ export default function WeeklyPlan({
                 isSwapSelected={swapSource === i}
                 isSwapTarget={isSwapMode && swapSource !== i}
                 readiness={readiness}
+                coachEnabled={coachEnabled}
               />
             </div>
           )
@@ -166,6 +171,12 @@ export default function WeeklyPlan({
           onClose={() => setModalDay(null)}
           zones={zones}
           athleteId={athleteId}
+          coachEnabled={coachEnabled}
+          readiness={(() => {
+            const d = parseDayToDate(modalDay.day, week.dates)
+            return d ? readinessByDate.get(d) : undefined
+          })()}
+          latestPerf={latestPerf}
         />
       )}
 

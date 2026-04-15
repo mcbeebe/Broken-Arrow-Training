@@ -8,6 +8,7 @@ import { useManualLog } from './hooks/useManualLog'
 import { useDaySwap } from './hooks/useDaySwap'
 import { useReadiness } from './hooks/useReadiness'
 import { useSoreness } from './hooks/useSoreness'
+import { useAboutMe } from './hooks/useAboutMe'
 import { matchActivitiesToPlan, mergeGarminDetailIntoWeeks } from './utils/matching'
 import { calculateExerciseLoad } from './utils/trimp'
 import { localDateStr } from './utils/format'
@@ -20,7 +21,6 @@ import RaceInfo from './components/RaceInfo'
 import Methodology from './components/Methodology'
 import Settings from './components/Settings'
 import { useHRZones } from './hooks/useHRZones'
-import CoachPreview from './components/CoachPreview'
 
 // Auto-clear stale caches on app startup when data format changes
 checkStorageVersion()
@@ -50,13 +50,15 @@ export default function App() {
   const daySwap = useDaySwap(athleteId)
   const soreness = useSoreness(athleteId)
   const hrZones = useHRZones(athleteId, plan.zones)
+  const aboutMe = useAboutMe(athleteId)
   const showStrava = true  // All athletes can connect Strava and Garmin
+  // Phase A: ambient Coach surfaces are gated to Mike only
+  const coachEnabled = athleteId === 'mike'
 
   const TABS: { id: ViewId; label: string }[] = [
     { id: 'summary', label: 'Summary' },
     { id: 'plan', label: 'Plan' },
     { id: 'dashboard', label: 'Stats' },
-    { id: 'coach-preview', label: 'Coach' },
     { id: 'method', label: 'Method' },
     { id: 'settings', label: 'Settings' },
   ]
@@ -254,6 +256,8 @@ export default function App() {
           daySwap={daySwap}
           weekReadiness={readiness.weekScores}
           athleteId={athleteId}
+          coachEnabled={coachEnabled}
+          latestPerf={readiness.performance.length > 0 ? readiness.performance[readiness.performance.length - 1] : null}
         />
       )}
       {view === 'dashboard' && (
@@ -274,7 +278,6 @@ export default function App() {
           sorenessLoadByDate={soreness.sorenessLoadByDate}
         />
       )}
-      {view === 'coach-preview' && <CoachPreview />}
       {view === 'method' && <Methodology />}
       {view === 'info' && <RaceInfo race={plan.race} />}
       {view === 'settings' && showStrava && (
@@ -306,7 +309,10 @@ export default function App() {
           onResetHRZones={hrZones.reset}
           onClearCache={clearAllCachedData}
           onClearAll={clearAllAppData}
-          setView={setView}
+          coachEnabled={coachEnabled}
+          aboutMeText={aboutMe.text}
+          onSaveAboutMe={aboutMe.save}
+          onClearAboutMe={aboutMe.clear}
         />
       )}
     </div>
