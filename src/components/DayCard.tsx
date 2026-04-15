@@ -4,6 +4,7 @@ import { formatMiles, formatSeconds, estimateRunTime } from '../utils/format'
 import { parsePlannedTargets } from '../utils/targets'
 import { gradeWorkoutDay } from '../hooks/useCompliance'
 import { getPlannedDrills, getDrillDay } from '../utils/drills'
+import { calculateGrade } from '../utils/grading'
 import TargetVsActual from './TargetVsActual'
 
 interface DayCardProps {
@@ -21,6 +22,12 @@ export default function DayCard({ day, weekNum, onTap, onLog, onSwap, isSwapSele
   const style = getWorkoutStyle(day.type)
   const actual = day.actual
   const timeEst = estimateRunTime(day.zone)
+  const gradeResult = calculateGrade(day)
+  const isCompleted = !!actual
+
+  // When completed, use a more saturated emerald background but preserve
+  // the workout-type color as the left border (visual identity stays)
+  const cardBg = isCompleted ? '#D1FAE5' : style.bg  // emerald-100 vs original light tint
 
   const dotColor = readiness?.status === 'PEAK' ? 'bg-indigo-500'
     : readiness?.status === 'YELLOW' ? 'bg-amber-400'
@@ -36,97 +43,113 @@ export default function DayCard({ day, weekNum, onTap, onLog, onSwap, isSwapSele
 
   return (
     <div
-      className="rounded-xl overflow-hidden shadow-sm cursor-pointer active:scale-[0.98] transition-transform"
-      style={{ backgroundColor: style.bg, borderLeft: `4px solid ${style.border}` }}
+      className="rounded-xl overflow-hidden shadow-sm cursor-pointer active:scale-[0.98] transition-all"
+      style={{ backgroundColor: cardBg, borderLeft: `4px solid ${style.border}` }}
       onClick={onTap}
     >
       <div className="px-3 py-2.5">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="text-sm">{style.label}</span>
-            <span className="font-semibold text-sm text-slate-800">{day.day}</span>
-            {actual && (
-              <span className="text-xs bg-green-100 text-green-700 rounded-full px-1.5 py-0.5 font-medium">
-                ✓ Done{actual.rpe ? ` · RPE ${actual.rpe}` : ''}
-              </span>
-            )}
-            {(() => {
-              // Drill indicator: show for run days that either have drills in
-              // the plan detail or are the week's scheduled drill day.
-              const runTypes = new Set(['run', 'long', 'quality', 'race'])
-              if (!runTypes.has(day.type)) return null
-              const plannedDrills = getPlannedDrills(day)
-              const isScheduledDrillDay = weekNum !== undefined && getDrillDay(weekNum) === day.day
-              if (plannedDrills.length === 0 && !isScheduledDrillDay) return null
-              const drillDone = actual?.drills?.completed
-              const doneCount = actual?.drills?.items?.filter(i => i.done).length ?? 0
-              const totalCount = actual?.drills?.items?.length ?? plannedDrills.length
-              if (drillDone) {
-                return (
-                  <span className="text-[10px] bg-sky-100 text-sky-700 rounded-full px-1.5 py-0.5 font-medium"
-                    title={`Drills done${doneCount > 0 ? ` (${doneCount}/${totalCount})` : ''}`}>
-                    🤸 Drills ✓
-                  </span>
-                )
-              }
-              if (actual) {
-                return (
-                  <span className="text-[10px] bg-amber-100 text-amber-700 rounded-full px-1.5 py-0.5 font-medium"
-                    title="Drills planned but not logged as completed">
-                    🤸 Drills —
-                  </span>
-                )
-              }
-              return (
-                <span className="text-[10px] bg-slate-100 text-slate-500 rounded-full px-1.5 py-0.5 font-medium"
-                  title="Drills scheduled for this run">
-                  🤸 Drills
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-sm">{style.label}</span>
+              <span className="font-semibold text-sm text-slate-800">{day.day}</span>
+              {actual?.rpe && (
+                <span className="text-[10px] bg-white/60 text-slate-600 rounded-full px-1.5 py-0.5 font-medium">
+                  RPE {actual.rpe}
                 </span>
-              )
-            })()}
+              )}
+              {(() => {
+                // Drill indicator: show for run days that either have drills in
+                // the plan detail or are the week's scheduled drill day.
+                const runTypes = new Set(['run', 'long', 'quality', 'race'])
+                if (!runTypes.has(day.type)) return null
+                const plannedDrills = getPlannedDrills(day)
+                const isScheduledDrillDay = weekNum !== undefined && getDrillDay(weekNum) === day.day
+                if (plannedDrills.length === 0 && !isScheduledDrillDay) return null
+                const drillDone = actual?.drills?.completed
+                const doneCount = actual?.drills?.items?.filter(i => i.done).length ?? 0
+                const totalCount = actual?.drills?.items?.length ?? plannedDrills.length
+                if (drillDone) {
+                  return (
+                    <span className="text-[10px] bg-sky-100 text-sky-700 rounded-full px-1.5 py-0.5 font-medium"
+                      title={`Drills done${doneCount > 0 ? ` (${doneCount}/${totalCount})` : ''}`}>
+                      🤸 Drills ✓
+                    </span>
+                  )
+                }
+                if (actual) {
+                  return (
+                    <span className="text-[10px] bg-amber-100 text-amber-700 rounded-full px-1.5 py-0.5 font-medium"
+                      title="Drills planned but not logged as completed">
+                      🤸 Drills —
+                    </span>
+                  )
+                }
+                return (
+                  <span className="text-[10px] bg-slate-100 text-slate-500 rounded-full px-1.5 py-0.5 font-medium"
+                    title="Drills scheduled for this run">
+                    🤸 Drills
+                  </span>
+                )
+              })()}
+            </div>
+            <div className="mt-1.5">
+              <p className="font-medium text-sm text-slate-800">{day.workout}</p>
+              {day.detail && (
+                <p className="text-xs text-slate-600 mt-0.5 line-clamp-2">{day.detail}</p>
+              )}
+            </div>
           </div>
-          <div className="flex items-center gap-1.5">
-            {onSwap && (
-              <button
-                onClick={e => { e.stopPropagation(); onSwap() }}
-                className={`text-xs font-medium px-2 py-0.5 rounded-full transition-colors ${
-                  isSwapSelected
-                    ? 'bg-teal-500 text-white'
-                    : isSwapTarget
-                    ? 'bg-teal-100 text-teal-700 animate-pulse'
-                    : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
-                }`}
-              >
-                ⇄
-              </button>
+
+          {/* Right column: Grade (large) + action buttons */}
+          <div className="flex flex-col items-end gap-1 shrink-0">
+            {/* Grade — large and prominent */}
+            {gradeResult && (
+              <div className={`${gradeResult.bgColor} rounded-lg px-2 py-0.5 flex flex-col items-center min-w-[3rem]`}>
+                <span className={`text-2xl font-black leading-tight ${gradeResult.color}`}>
+                  {gradeResult.grade}
+                </span>
+              </div>
             )}
-            {onLog && (
-              <button
-                onClick={e => { e.stopPropagation(); onLog() }}
-                className={`text-xs font-medium px-2 py-0.5 rounded-full transition-colors ${
-                  actual
-                    ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                    : 'bg-teal-100 text-teal-700 hover:bg-teal-200'
-                }`}
-              >
-                {actual ? '✏️ Edit' : '📝 Log'}
-              </button>
-            )}
-            {statusDot}
-            {day.time !== '—' && (
-              <span className="text-xs text-slate-500 bg-white/60 rounded-full px-2 py-0.5">
-                {day.time}
-              </span>
-            )}
-            <span className="text-slate-400 text-xs">›</span>
+            {/* Action buttons row */}
+            <div className="flex items-center gap-1.5">
+              {onSwap && (
+                <button
+                  onClick={e => { e.stopPropagation(); onSwap() }}
+                  className={`text-xs font-medium px-2 py-0.5 rounded-full transition-colors ${
+                    isSwapSelected
+                      ? 'bg-teal-500 text-white'
+                      : isSwapTarget
+                      ? 'bg-teal-100 text-teal-700 animate-pulse'
+                      : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                  }`}
+                >
+                  ⇄
+                </button>
+              )}
+              {onLog && (
+                <button
+                  onClick={e => { e.stopPropagation(); onLog() }}
+                  className={`text-xs font-medium px-2 py-0.5 rounded-full transition-colors ${
+                    actual
+                      ? 'bg-emerald-200 text-emerald-800 hover:bg-emerald-300'
+                      : 'bg-teal-100 text-teal-700 hover:bg-teal-200'
+                  }`}
+                >
+                  {actual ? '✏️ Edit' : '📝 Log'}
+                </button>
+              )}
+              {statusDot}
+              {day.time !== '—' && (
+                <span className="text-xs text-slate-500 bg-white/60 rounded-full px-2 py-0.5">
+                  {day.time}
+                </span>
+              )}
+              <span className="text-slate-400 text-xs">›</span>
+            </div>
           </div>
         </div>
-        <div className="mt-1.5">
-          <p className="font-medium text-sm text-slate-800">{day.workout}</p>
-          {day.detail && (
-            <p className="text-xs text-slate-600 mt-0.5 line-clamp-2">{day.detail}</p>
-          )}
-        </div>
+
         {day.zone !== '—' && (
           <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-slate-500">
             <span>📊 {day.zone}{timeEst ? ` (${timeEst} running)` : ''}</span>
@@ -158,7 +181,7 @@ export default function DayCard({ day, weekNum, onTap, onLog, onSwap, isSwapSele
 
         {/* Actual data overlay */}
         {actual && (
-          <div className="mt-2 pt-2 border-t border-slate-200/50">
+          <div className="mt-2 pt-2 border-t border-emerald-200/60">
             <p className="text-xs font-medium text-teal-700 mb-1">
               {actual.source === 'manual' || actual.type === 'Manual' ? '📝' : actual.source === 'garmin' ? '⌚ Garmin:' : '🔗 Strava:'} {actual.name}
             </p>
