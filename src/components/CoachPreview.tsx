@@ -1,301 +1,334 @@
 import { useState } from 'react'
 
 /**
- * Visual mockup of the planned Coach feature for design review.
- * No LLM wiring — all responses are canned. Visit via `#coach-preview`
- * hash or a temporary tab entry.
+ * Visual mockup of the planned Coach feature — ambient integration
+ * version. Instead of a dedicated chat tab, the coach shows up where
+ * you already work: a card on Summary, a line on day cards, an About
+ * Me section in Settings. Thread access is a drawer, not a destination.
  *
- * Shows:
- *   1. Chat interface with sample conversation + model-tier badge
- *   2. Proposal cards at all four tone levels
- *   3. Memory view with About Me + structured records
- *   4. Coach-brain toggle (Fast / Balanced / Careful)
+ * All responses are canned — no LLM wiring.
  */
 
-type TabId = 'chat' | 'proposals' | 'memory'
 type Tone = 'optional' | 'suggested' | 'recommended' | 'strongly_encouraged'
-type Brain = 'fast' | 'balanced' | 'careful'
-type ModelUsed = 'haiku' | 'sonnet'
-
-interface ChatMsg {
-  role: 'user' | 'coach'
-  text: string
-  model?: ModelUsed
-}
-
-const SAMPLE_THREAD: ChatMsg[] = [
-  { role: 'user', text: 'My left knee felt tight after the downhills yesterday. Should I skip tomorrow?' },
-  {
-    role: 'coach',
-    model: 'sonnet',
-    text: "That tracks with what you've told me before — downhills have been the main flare-up trigger for that knee. Tomorrow is an easy 3mi Z1–2, not much eccentric load, but I'd still lean toward swapping it for a 20-min spin or a walk. Keeps the week's volume intact, gives the joint 48h of quiet. Want me to draft the swap?",
-  },
-  { role: 'user', text: 'yeah propose it' },
-  {
-    role: 'coach',
-    model: 'sonnet',
-    text: "Proposed below. It's recommended — not required — because you're still early in the block and a missed easy day won't hurt fitness. If the knee feels clean by the morning, run it.",
-  },
-]
 
 export default function CoachPreview() {
-  const [tab, setTab] = useState<TabId>('chat')
-  const [brain, setBrain] = useState<Brain>('balanced')
-
   return (
-    <div className="max-w-md mx-auto pb-24">
+    <div className="max-w-md mx-auto pb-16">
       <Banner />
 
-      <div className="px-3 mt-3">
-        <TabBar tab={tab} onChange={setTab} />
-      </div>
+      <div className="px-3 py-4 space-y-6">
+        <SurfaceBlock
+          name="① On the Summary page"
+          sub="The coach's daily read lives at the top of your home screen. Glanceable, dismissable, optional to engage with."
+        >
+          <SummaryMock />
+        </SurfaceBlock>
 
-      <div className="px-3 mt-3">
-        {tab === 'chat' && <ChatView brain={brain} onBrainChange={setBrain} />}
-        {tab === 'proposals' && <ProposalsView />}
-        {tab === 'memory' && <MemoryView />}
+        <SurfaceBlock
+          name="② On a day card"
+          sub="When a specific day needs a note, a small coach line appears inline. No chat UI — just the relevant thought, in context."
+        >
+          <DayCardMock />
+        </SurfaceBlock>
+
+        <SurfaceBlock
+          name="③ On the workout instruction modal"
+          sub="Opening a workout shows the coach's take at the top of the detail view, with a small Ask link for follow-up."
+        >
+          <WorkoutModalMock />
+        </SurfaceBlock>
+
+        <SurfaceBlock
+          name="④ In Settings → About Me"
+          sub="Memory lives as a free-text field you own. The coach can suggest additions, which you approve. No separate memory view, no extra tab."
+        >
+          <AboutMeMock />
+        </SurfaceBlock>
+
+        <SurfaceBlock
+          name="⑤ Proposals in the flow"
+          sub="When the coach recommends changing something, the proposal shows up inline on Summary or on the affected day — visual weight scales by tone."
+        >
+          <div className="space-y-2">
+            <ProposalCard
+              tone="strongly_encouraged"
+              title="Skip tomorrow's hill repeats"
+              why="You reported 7/10 left-knee pain today — hill repeats load the same tissue."
+              cost="Replace with 45-min spin or pool run. Keeps the load, protects the knee."
+            />
+            <ProposalCard
+              tone="recommended"
+              title="Swap Wed ↔ Tue this week"
+              why="You have PT Wednesday morning — avoids a same-day double."
+              cost="Tue adds 45 min of Z2; Wed becomes mobility only."
+            />
+            <ProposalCard
+              tone="suggested"
+              title="Try 5am for Saturday's long run"
+              why="Forecast shows 85°F by 9am; your HR drifts above 75°F."
+              cost="Earlier wake-up; fueling shifts earlier too."
+            />
+            <ProposalCard
+              tone="optional"
+              title="Add strides after Thursday's run"
+              why="Light speed priming 3 weeks out from quality work."
+              cost="Adds 5 min. Not critical."
+            />
+          </div>
+        </SurfaceBlock>
+
+        <SurfaceBlock
+          name="⑥ Full conversation (drawer)"
+          sub="When you want scroll-back, the Summary card's 'our conversation' link opens a drawer. Not a destination — just scroll history."
+        >
+          <ConversationDrawerMock />
+        </SurfaceBlock>
       </div>
     </div>
   )
 }
 
-// ─── Banner ──────────────────────────────────────────────────
+// ─── Banner + section wrapper ───────────────────────────────
 
 function Banner() {
   return (
     <div className="bg-gradient-to-r from-indigo-500 to-teal-500 text-white px-4 py-3">
-      <p className="text-[10px] font-semibold uppercase tracking-wider opacity-80">Design preview · not yet live</p>
-      <h1 className="text-lg font-bold">Coach</h1>
-      <p className="text-xs opacity-90">Week 1 · 9 weeks to Broken Arrow · GREEN readiness</p>
+      <p className="text-[10px] font-semibold uppercase tracking-wider opacity-80">Design preview · not live yet</p>
+      <h1 className="text-lg font-bold">Coach — ambient integration</h1>
+      <p className="text-xs opacity-90">No dedicated chat tab. Coach lives inside the surfaces you already use.</p>
     </div>
   )
 }
 
-// ─── Tabs ────────────────────────────────────────────────────
-
-function TabBar({ tab, onChange }: { tab: TabId; onChange: (t: TabId) => void }) {
-  const tabs: { id: TabId; label: string }[] = [
-    { id: 'chat', label: '💬 Chat' },
-    { id: 'proposals', label: '📝 Proposals' },
-    { id: 'memory', label: '🧠 Memory' },
-  ]
-  return (
-    <div className="flex rounded-xl overflow-hidden border border-slate-200 bg-white">
-      {tabs.map(t => (
-        <button
-          key={t.id}
-          onClick={() => onChange(t.id)}
-          className={`flex-1 py-2 text-xs font-medium transition-colors ${
-            tab === t.id ? 'bg-indigo-500 text-white' : 'bg-white text-slate-600'
-          }`}
-        >
-          {t.label}
-        </button>
-      ))}
-    </div>
-  )
-}
-
-// ─── Chat view ───────────────────────────────────────────────
-
-function ChatView({ brain, onBrainChange }: { brain: Brain; onBrainChange: (b: Brain) => void }) {
-  const [input, setInput] = useState('')
-  const [thread, setThread] = useState<ChatMsg[]>(SAMPLE_THREAD)
-  const [typing, setTyping] = useState(false)
-
-  function handleSend() {
-    if (!input.trim()) return
-    const userMsg: ChatMsg = { role: 'user', text: input }
-    setThread([...thread, userMsg])
-    setInput('')
-    setTyping(true)
-    setTimeout(() => {
-      const model: ModelUsed = brain === 'fast' ? 'haiku' : brain === 'careful' ? 'sonnet' : 'haiku'
-      setThread(t => [...t, {
-        role: 'coach',
-        model,
-        text: "(Mockup response — in the real build this is where Claude's reply would stream in, grounded against your memory, last-14-days compliance, and upcoming plan.)",
-      }])
-      setTyping(false)
-    }, 600)
-  }
-
+function SurfaceBlock({ name, sub, children }: { name: string; sub: string; children: React.ReactNode }) {
   return (
     <div>
-      <BrainToggle brain={brain} onChange={onBrainChange} />
+      <p className="text-[10px] font-bold uppercase tracking-wider text-indigo-600">{name}</p>
+      <p className="text-xs text-slate-500 mb-2 leading-snug">{sub}</p>
+      <div className="bg-slate-100 rounded-2xl p-2">
+        {children}
+      </div>
+    </div>
+  )
+}
 
-      <div className="mt-3 space-y-3">
-        {thread.map((m, i) => <MessageBubble key={i} msg={m} />)}
-        {typing && (
-          <div className="flex gap-1 px-3">
-            <span className="w-2 h-2 bg-slate-300 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-            <span className="w-2 h-2 bg-slate-300 rounded-full animate-bounce" style={{ animationDelay: '120ms' }} />
-            <span className="w-2 h-2 bg-slate-300 rounded-full animate-bounce" style={{ animationDelay: '240ms' }} />
-          </div>
-        )}
+// ─── ① Summary coach card mock ──────────────────────────────
+
+function SummaryMock() {
+  const [input, setInput] = useState('')
+  const [showDrawer, setShowDrawer] = useState(false)
+
+  return (
+    <div className="space-y-2">
+      {/* Fake Summary header for context */}
+      <div className="bg-white rounded-xl p-3 shadow-sm">
+        <p className="text-[10px] text-slate-400 uppercase tracking-wide">Tuesday, Apr 14 · GREEN</p>
+        <p className="text-sm font-semibold text-slate-800">Easy run · 3 mi · Z1–2</p>
       </div>
 
-      {/* Sample inline proposal card after the last coach message */}
-      {thread.length >= 4 && (
-        <div className="mt-3">
-          <ProposalCard
-            tone="recommended"
-            title="Swap tomorrow's easy run → 20-min spin"
-            why="Left-knee tightness after downhill work; give the joint 48h before Saturday's tempo."
-            cost="Minor: misses ~3 mi of Z2 volume; no impact on key session."
-            alt="Alt: walk 30 min + hip flexor foam roll, skip the cardio."
-          />
+      {/* Coach note — ambient, no chat UI */}
+      <div className="bg-white rounded-xl p-3 shadow-sm border-l-4 border-indigo-400">
+        <div className="flex items-center gap-2 mb-1.5">
+          <span className="text-lg">🤖</span>
+          <p className="text-[10px] font-bold uppercase tracking-wider text-indigo-600">Coach's read</p>
         </div>
-      )}
-
-      <div className="mt-4 flex gap-2">
-        <input
-          value={input}
-          onChange={e => setInput(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && handleSend()}
-          placeholder="Ask the coach…"
-          className="flex-1 px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
-        />
-        <button onClick={handleSend} className="px-4 py-2 bg-indigo-500 text-white rounded-xl text-sm font-medium hover:bg-indigo-600">
-          Send
-        </button>
-      </div>
-      <p className="text-[10px] text-slate-400 mt-1.5 italic">
-        Voice input coming later. Not yet wired to the API — responses are mocked.
-      </p>
-    </div>
-  )
-}
-
-function MessageBubble({ msg }: { msg: ChatMsg }) {
-  const isUser = msg.role === 'user'
-  return (
-    <div className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
-      <div className={`max-w-[85%] px-3 py-2 rounded-2xl text-sm ${
-        isUser
-          ? 'bg-indigo-500 text-white rounded-br-sm'
-          : 'bg-slate-100 text-slate-800 rounded-bl-sm'
-      }`}>
-        <p className="leading-snug whitespace-pre-wrap">{msg.text}</p>
-        {!isUser && msg.model && (
-          <p className={`text-[9px] mt-1 ${msg.model === 'sonnet' ? 'text-indigo-600 font-semibold' : 'text-slate-400'}`}>
-            {msg.model === 'sonnet' ? '⚡ Sonnet — careful reasoning' : '· Haiku'}
-          </p>
-        )}
-      </div>
-    </div>
-  )
-}
-
-function BrainToggle({ brain, onChange }: { brain: Brain; onChange: (b: Brain) => void }) {
-  const opts: { id: Brain; label: string; sub: string }[] = [
-    { id: 'fast', label: 'Fast', sub: 'Haiku only' },
-    { id: 'balanced', label: 'Balanced', sub: 'Auto' },
-    { id: 'careful', label: 'Careful', sub: 'Sonnet' },
-  ]
-  return (
-    <div className="bg-slate-50 border border-slate-200 rounded-xl p-2">
-      <p className="text-[10px] font-semibold text-slate-500 uppercase mb-1.5 px-1">Coach brain</p>
-      <div className="flex gap-1">
-        {opts.map(o => (
-          <button
-            key={o.id}
-            onClick={() => onChange(o.id)}
-            className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-medium transition-colors text-center ${
-              brain === o.id ? 'bg-white shadow-sm border border-indigo-200 text-indigo-700' : 'text-slate-500'
-            }`}
-          >
-            <div>{o.label}</div>
-            <div className="text-[9px] font-normal opacity-70">{o.sub}</div>
+        <p className="text-sm text-slate-700 leading-snug">
+          Your sleep was 6h 20m — lower than your baseline. Your HR was also elevated on yesterday's run. I'd keep today truly easy — hold the lower end of Z2 and skip the strides. Nothing lost from a conservative day here.
+        </p>
+        <div className="mt-2 flex items-center gap-3 text-[11px]">
+          <button className="text-indigo-600 font-medium hover:text-indigo-700">Tell me more</button>
+          <span className="text-slate-300">·</span>
+          <button onClick={() => setShowDrawer(true)} className="text-slate-500 hover:text-slate-700">
+            Our conversation →
           </button>
-        ))}
+        </div>
+
+        {/* Inline quick-ask input */}
+        <div className="mt-3 flex gap-1.5">
+          <input
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            placeholder="Quick question for the coach…"
+            className="flex-1 px-2.5 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-400"
+          />
+          <button className="px-3 py-1.5 bg-indigo-500 text-white rounded-lg text-xs font-medium">
+            Ask
+          </button>
+        </div>
       </div>
-    </div>
-  )
-}
 
-// ─── Proposals view ──────────────────────────────────────────
-
-function ProposalsView() {
-  return (
-    <div className="space-y-3">
-      <p className="text-xs text-slate-500 mb-1">
-        The four tone levels the coach uses. Each card is Accept / Edit / Reject — never auto-applied.
-      </p>
-
-      <ProposalCard
-        tone="strongly_encouraged"
-        title="Skip tomorrow's hill repeats"
-        why="You reported sharp left-knee pain at 7/10 on a 5K race. Hill repeats would load the same tissue."
-        cost="Miss one quality session in week 4. We'll replace with a pool run or bike alternative."
-        alt="If pain is < 3/10 by morning, sub 45-min spin + technique drills."
-      />
-
+      {/* Show a pending proposal inline if there is one */}
       <ProposalCard
         tone="recommended"
         title="Swap Wed ↔ Tue this week"
-        why="You have PT Wednesday morning — moving the easy run avoids a same-day double."
-        cost="Wed now has only mobility; Tue adds 45 min of Z2."
-        alt="Alt: drop Wed entirely, keep Tue as planned."
+        why="You have PT Wednesday morning — avoids a same-day double."
+        cost="Tue adds 45 min of Z2; Wed becomes mobility only."
       />
 
-      <ProposalCard
-        tone="suggested"
-        title="Try 5am for Saturday's long run"
-        why="Forecast shows 85°F by 9am. Your HR data shows meaningful drift above 75°F."
-        cost="Earlier wake-up. Fueling needs to shift earlier too."
-        alt="Keep 7am start, expect ~10% HR drift."
-      />
-
-      <ProposalCard
-        tone="optional"
-        title="Add strides after Thursday's run"
-        why="You're 3 weeks from your first quality session — a light priming dose of speed keeps the neuromuscular system awake."
-        cost="Adds 5 min to Thursday. Not critical for Broken Arrow."
-        alt="Skip — won't affect race outcome."
-      />
+      {showDrawer && <ConversationDrawerMock inline onClose={() => setShowDrawer(false)} />}
     </div>
   )
 }
 
-function ProposalCard({ tone, title, why, cost, alt }: { tone: Tone; title: string; why: string; cost: string; alt: string }) {
-  const [expanded, setExpanded] = useState(tone === 'recommended' || tone === 'strongly_encouraged')
-  const style = toneStyle(tone)
+// ─── ② DayCard coach line mock ──────────────────────────────
+
+function DayCardMock() {
+  return (
+    <div className="space-y-2">
+      {/* Normal day card with a coach line */}
+      <div className="rounded-xl shadow-sm overflow-hidden" style={{ background: '#E0F2FE', borderLeft: '4px solid #0EA5E9' }}>
+        <div className="px-3 py-2.5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-sm">🏃</span>
+              <span className="font-semibold text-sm text-slate-800">Thu 4/16</span>
+              <span className="text-[10px] bg-amber-100 text-amber-700 rounded-full px-1.5 py-0.5 font-medium">⚠ LIMITED</span>
+            </div>
+            <span className="text-xs text-slate-500 bg-white/60 rounded-full px-2 py-0.5">30 min</span>
+          </div>
+          <p className="font-medium text-sm text-slate-800 mt-1.5">⚠ LIMITED</p>
+          <p className="text-xs text-slate-600">Easy walk or short jog, 20–30 min max</p>
+
+          {/* Coach inline note — subtle, italic, no icons-everywhere */}
+          <div className="mt-2 pt-2 border-t border-sky-200/60">
+            <p className="text-xs text-indigo-700 leading-snug">
+              <span className="font-semibold">Coach:</span> Last time you did a pre-race limited day you went too long and felt flat Sunday. Keep this to 20 min at the shorter end.
+            </p>
+            <button className="mt-1 text-[11px] text-indigo-500 font-medium">Ask about this day →</button>
+          </div>
+        </div>
+      </div>
+
+      {/* Another day — no coach note needed */}
+      <div className="rounded-xl shadow-sm overflow-hidden" style={{ background: '#F1F5F9', borderLeft: '4px solid #94A3B8' }}>
+        <div className="px-3 py-2.5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-sm">🛌</span>
+              <span className="font-semibold text-sm text-slate-800">Fri 4/17</span>
+            </div>
+            <span className="text-xs text-slate-500 bg-white/60 rounded-full px-2 py-0.5">—</span>
+          </div>
+          <p className="font-medium text-sm text-slate-800 mt-1.5">Rest</p>
+          <p className="text-xs text-slate-600">Pre-race rest</p>
+        </div>
+      </div>
+      <p className="text-[10px] text-slate-400 italic text-center">
+        Coach only speaks up when there's something worth saying.
+      </p>
+    </div>
+  )
+}
+
+// ─── ③ WorkoutModal coach note mock ────────────────────────
+
+function WorkoutModalMock() {
+  return (
+    <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+      <div className="px-3 py-2.5 border-b border-slate-200">
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-bold text-slate-800">Easy run · Tue 4/14</p>
+          <span className="text-xs text-slate-400">✕</span>
+        </div>
+        <p className="text-xs text-slate-500">3 mi · Z1–2 (108–148) · 45 min</p>
+      </div>
+
+      {/* Coach's take — at the top of the detail view */}
+      <div className="bg-indigo-50/60 px-3 py-2.5 border-b border-indigo-100">
+        <div className="flex items-center gap-1.5 mb-1">
+          <span className="text-base">🤖</span>
+          <p className="text-[10px] font-bold uppercase tracking-wider text-indigo-600">Coach</p>
+        </div>
+        <p className="text-xs text-slate-700 leading-snug">
+          Straightforward easy day. Focus on drills — it's your scheduled drill day for week 1, and A-skips are the single highest-leverage form cue for your stride. You skipped these last block and your cadence stayed under 170.
+        </p>
+        <button className="mt-1.5 text-[11px] text-indigo-600 font-medium">Ask about this workout →</button>
+      </div>
+
+      <div className="px-3 py-2.5 space-y-2">
+        <div>
+          <p className="text-[10px] font-semibold text-slate-500 uppercase">Purpose</p>
+          <p className="text-xs text-slate-700">Aerobic base. Keep it conversational.</p>
+        </div>
+        <div>
+          <p className="text-[10px] font-semibold text-slate-500 uppercase">How to execute</p>
+          <p className="text-xs text-slate-700">Dynamic warm-up → 30 min Z2 → drills → cool-down…</p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── ④ About Me mock ────────────────────────────────────────
+
+function AboutMeMock() {
+  const [aboutMe, setAboutMe] = useState(
+    `Training for Broken Arrow 18K (June 2026). History of left-knee tightness after downhills — ice + rest works, foam rolling the hip flexors (not the quad) gets at the referred pain. Right hamstring flared in 2024, now managed. Ice baths yes; icy-hot is useless for me. Foam rolling yes, static stretching no. Prefer 5am runs, hate trail in rain.
+
+PT is Sara at NorthBay, typically Wed mornings.`,
+  )
 
   return (
-    <div className={`rounded-xl border overflow-hidden ${style.container}`}>
+    <div className="bg-white rounded-xl p-3 shadow-sm">
+      <div className="flex items-center justify-between mb-2">
+        <div>
+          <p className="text-sm font-semibold text-slate-700">About Me</p>
+          <p className="text-[10px] text-slate-400">What the coach knows about you. You own this.</p>
+        </div>
+      </div>
+      <textarea
+        value={aboutMe}
+        onChange={e => setAboutMe(e.target.value)}
+        rows={7}
+        className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500 resize-none leading-relaxed"
+      />
+
+      {/* Pending coach-learned addition */}
+      <div className="mt-2 bg-indigo-50 border border-indigo-200 rounded-lg px-3 py-2">
+        <p className="text-[10px] font-bold uppercase tracking-wider text-indigo-600">Coach noticed</p>
+        <p className="text-xs text-slate-700 mt-0.5 leading-snug">
+          "Mike's biggest fitness jumps have come from volume, not intensity — 40+ mpw weeks outpace tempo-heavy weeks."
+        </p>
+        <div className="mt-1.5 flex gap-1.5">
+          <button className="text-[11px] font-semibold text-indigo-600">Add to About Me</button>
+          <span className="text-slate-300">·</span>
+          <button className="text-[11px] text-slate-500">Dismiss</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Proposal card (reused) ─────────────────────────────────
+
+function ProposalCard({ tone, title, why, cost }: { tone: Tone; title: string; why: string; cost: string }) {
+  const [expanded, setExpanded] = useState(tone === 'recommended' || tone === 'strongly_encouraged')
+  const s = toneStyle(tone)
+  return (
+    <div className={`rounded-xl border overflow-hidden ${s.container}`}>
       <button onClick={() => setExpanded(!expanded)} className="w-full px-3 py-2 text-left">
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex-1">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${style.chip}`}>
-                {style.label}
-              </span>
-              <span className="text-xs font-semibold text-slate-800">{title}</span>
-            </div>
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${s.chip}`}>{s.label}</span>
+            <span className="text-xs font-semibold text-slate-800">{title}</span>
           </div>
-          <span className="text-slate-400 text-xs mt-0.5">{expanded ? '▼' : '›'}</span>
+          <span className="text-slate-400 text-xs">{expanded ? '▼' : '›'}</span>
         </div>
       </button>
-
       {expanded && (
-        <div className="px-3 pb-3 space-y-2 border-t border-slate-200/60">
-          <div className="pt-2">
+        <div className="px-3 pb-3 pt-2 border-t border-slate-200/60 space-y-1.5">
+          <div>
             <p className="text-[10px] font-semibold text-slate-500 uppercase">Why</p>
             <p className="text-xs text-slate-700">{why}</p>
           </div>
           <div>
-            <p className="text-[10px] font-semibold text-slate-500 uppercase">Cost</p>
+            <p className="text-[10px] font-semibold text-slate-500 uppercase">Tradeoff</p>
             <p className="text-xs text-slate-700">{cost}</p>
           </div>
-          <div>
-            <p className="text-[10px] font-semibold text-slate-500 uppercase">Alternative</p>
-            <p className="text-xs text-slate-700">{alt}</p>
-          </div>
-          <div className="flex gap-2 pt-1">
-            <button className={`flex-1 py-1.5 text-xs font-semibold rounded-lg ${style.primaryBtn}`}>Accept</button>
-            <button className="flex-1 py-1.5 text-xs font-semibold rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-50">Edit</button>
-            <button className="flex-1 py-1.5 text-xs font-semibold rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-50">Reject</button>
+          <div className="flex gap-1.5 pt-1">
+            <button className={`flex-1 py-1 text-xs font-semibold rounded-lg ${s.primaryBtn}`}>Accept</button>
+            <button className="flex-1 py-1 text-xs font-semibold rounded-lg bg-white border border-slate-200 text-slate-600">Edit</button>
+            <button className="flex-1 py-1 text-xs font-semibold rounded-lg bg-white border border-slate-200 text-slate-600">Reject</button>
           </div>
         </div>
       )}
@@ -306,115 +339,48 @@ function ProposalCard({ tone, title, why, cost, alt }: { tone: Tone; title: stri
 function toneStyle(tone: Tone) {
   switch (tone) {
     case 'strongly_encouraged':
-      return {
-        label: '⚠ Strongly encouraged',
-        container: 'bg-red-50 border-red-300',
-        chip: 'bg-red-600 text-white',
-        primaryBtn: 'bg-red-600 text-white hover:bg-red-700',
-      }
+      return { label: '⚠ Strongly encouraged', container: 'bg-red-50 border-red-300', chip: 'bg-red-600 text-white', primaryBtn: 'bg-red-600 text-white' }
     case 'recommended':
-      return {
-        label: '📌 Recommended',
-        container: 'bg-amber-50 border-amber-200',
-        chip: 'bg-amber-500 text-white',
-        primaryBtn: 'bg-amber-600 text-white hover:bg-amber-700',
-      }
+      return { label: '📌 Recommended', container: 'bg-amber-50 border-amber-200', chip: 'bg-amber-500 text-white', primaryBtn: 'bg-amber-600 text-white' }
     case 'suggested':
-      return {
-        label: '💡 Suggested',
-        container: 'bg-teal-50 border-teal-200',
-        chip: 'bg-teal-500 text-white',
-        primaryBtn: 'bg-teal-600 text-white hover:bg-teal-700',
-      }
+      return { label: '💡 Suggested', container: 'bg-teal-50 border-teal-200', chip: 'bg-teal-500 text-white', primaryBtn: 'bg-teal-600 text-white' }
     case 'optional':
-      return {
-        label: '· Optional',
-        container: 'bg-slate-50 border-slate-200',
-        chip: 'bg-slate-400 text-white',
-        primaryBtn: 'bg-slate-600 text-white hover:bg-slate-700',
-      }
+      return { label: '· Optional', container: 'bg-slate-50 border-slate-200', chip: 'bg-slate-400 text-white', primaryBtn: 'bg-slate-600 text-white' }
   }
 }
 
-// ─── Memory view ─────────────────────────────────────────────
+// ─── ⑥ Conversation drawer mock ─────────────────────────────
 
-function MemoryView() {
-  const [aboutMe, setAboutMe] = useState(
-    `Training for Broken Arrow 18K (June 2026). History of left-knee tightness after downhills — ice + rest works, foam rolling the hip flexors (not the quad) gets at the referred pain. Right hamstring flared in 2024, now managed. Ice baths yes; icy-hot is useless for me. Foam rolling yes, static stretching no. Prefer 5am runs, hate trail in rain.
-
-PT is Sara at NorthBay, typically Wed mornings.`,
-  )
+function ConversationDrawerMock({ inline, onClose }: { inline?: boolean; onClose?: () => void } = {}) {
+  const wrapper = inline
+    ? 'mt-3 bg-white rounded-xl border border-slate-200 overflow-hidden'
+    : 'bg-white rounded-xl shadow-sm overflow-hidden'
 
   return (
-    <div className="space-y-3">
-      {/* About Me */}
-      <div className="bg-white border border-slate-200 rounded-xl p-3">
-        <div className="flex items-center justify-between mb-2">
-          <p className="text-xs font-semibold text-slate-700">About Me</p>
-          <span className="text-[9px] text-slate-400">editable · auto-populated</span>
-        </div>
-        <textarea
-          value={aboutMe}
-          onChange={e => setAboutMe(e.target.value)}
-          rows={7}
-          className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500 resize-none leading-relaxed"
-        />
-        <p className="text-[10px] text-slate-400 mt-1 italic">
-          The coach reads this on every turn. When the coach learns something new in conversation, it'll append a "— coach learned today" line you can keep or edit.
-        </p>
+    <div className={wrapper}>
+      <div className="px-3 py-2 border-b border-slate-200 flex items-center justify-between">
+        <p className="text-xs font-semibold text-slate-700">Our conversation</p>
+        {inline && <button onClick={onClose} className="text-xs text-slate-400">✕</button>}
       </div>
-
-      {/* Coach-inferred addition (pending) */}
-      <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-3">
-        <div className="flex items-center gap-2 mb-1.5">
-          <span className="text-[9px] font-bold uppercase tracking-wider bg-indigo-500 text-white px-1.5 py-0.5 rounded">
-            Coach learned today
-          </span>
-        </div>
-        <p className="text-xs text-slate-700 leading-snug">
-          "Mike responds to volume, not intensity. The two biggest fitness jumps in his last block both came during 40+ mpw weeks, not during tempo-heavy weeks."
-        </p>
-        <div className="flex gap-2 mt-2">
-          <button className="flex-1 py-1.5 text-xs font-semibold rounded-lg bg-indigo-600 text-white hover:bg-indigo-700">
-            Add to About Me
-          </button>
-          <button className="flex-1 py-1.5 text-xs font-semibold rounded-lg bg-white border border-indigo-200 text-indigo-700 hover:bg-indigo-50">
-            Edit
-          </button>
-          <button className="py-1.5 px-3 text-xs font-semibold rounded-lg bg-white border border-slate-200 text-slate-500 hover:bg-slate-50">
-            Dismiss
-          </button>
-        </div>
+      <div className="px-3 py-3 space-y-2 max-h-64 overflow-y-auto">
+        <Bubble role="coach">Your sleep was 6h 20m last night — that's lower than your baseline. I'd keep today conservative.</Bubble>
+        <Bubble role="user">makes sense. how's my week looking overall?</Bubble>
+        <Bubble role="coach">Volume's tracking 8% under target so far this week. Not a concern — you have a hard Saturday coming and the low week intentionally front-loaded rest. Trust the plan.</Bubble>
+        <Bubble role="user">my left knee is tight</Bubble>
+        <Bubble role="coach">Noted — logging that. How bad, 1–10? Downhill-triggered like usual or something new?</Bubble>
       </div>
-
-      {/* Structured records summary */}
-      <div className="bg-white border border-slate-200 rounded-xl p-3">
-        <p className="text-xs font-semibold text-slate-700 mb-2">What the coach is tracking</p>
-        <div className="space-y-1.5">
-          <RecordRow icon="🩹" label="Left knee" value="Managed · trigger: downhills · last flareup: this week" />
-          <RecordRow icon="🩹" label="Right hamstring" value="Resolved · monitor on long runs" />
-          <RecordRow icon="❄️" label="Ice baths" value="Loves" />
-          <RecordRow icon="🧘" label="Static stretching" value="Refuses" />
-          <RecordRow icon="🌅" label="Morning runs" value="Strong preference — 5am" />
-          <RecordRow icon="👤" label="PT — Sara, NorthBay" value="Wed mornings" />
-          <RecordRow icon="📈" label="Principle" value="Responds to volume, not intensity" />
-        </div>
-        <button className="w-full mt-3 py-1.5 text-xs font-medium text-indigo-600 hover:text-indigo-700">
-          View + edit all →
-        </button>
-      </div>
+      <p className="text-[10px] text-slate-400 italic text-center pb-2">Scroll history — not a destination.</p>
     </div>
   )
 }
 
-function RecordRow({ icon, label, value }: { icon: string; label: string; value: string }) {
+function Bubble({ role, children }: { role: 'user' | 'coach'; children: React.ReactNode }) {
+  const isUser = role === 'user'
   return (
-    <div className="flex items-start gap-2 text-xs">
-      <span className="w-5 shrink-0">{icon}</span>
-      <div className="flex-1 min-w-0">
-        <span className="font-semibold text-slate-700">{label}</span>
-        <span className="text-slate-500"> · {value}</span>
-      </div>
+    <div className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
+      <div className={`max-w-[85%] px-3 py-1.5 rounded-2xl text-xs leading-snug ${
+        isUser ? 'bg-indigo-500 text-white rounded-br-sm' : 'bg-slate-100 text-slate-800 rounded-bl-sm'
+      }`}>{children}</div>
     </div>
   )
 }
