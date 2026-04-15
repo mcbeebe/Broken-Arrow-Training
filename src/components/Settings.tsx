@@ -1,5 +1,7 @@
 import StravaConnect from './StravaConnect'
 import GarminConnect from './GarminConnect'
+import HRZoneEditor from './HRZoneEditor'
+import type { HRZone } from '../types'
 
 interface SettingsProps {
   // Strava
@@ -24,6 +26,12 @@ interface SettingsProps {
   onGarminSubmitMfa: (code: string) => Promise<void>
   onGarminDisconnect: () => void
   onGarminSync: () => Promise<void>
+  // HR Zones
+  hrZones?: HRZone[]
+  hrZonesCustomized?: boolean
+  hrZonesMaxHR?: number
+  onSaveHRZones?: (zones: HRZone[]) => void
+  onResetHRZones?: () => void
   // Cache management
   onClearCache?: () => void
   onClearAll?: () => void
@@ -50,6 +58,11 @@ export default function Settings({
   onGarminSubmitMfa,
   onGarminDisconnect,
   onGarminSync,
+  hrZones,
+  hrZonesCustomized,
+  hrZonesMaxHR,
+  onSaveHRZones,
+  onResetHRZones,
   onClearCache,
   onClearAll,
 }: SettingsProps) {
@@ -90,6 +103,17 @@ export default function Settings({
           onSync={onGarminSync}
         />
       </div>
+
+      {/* HR Zones (Uphill Athlete defaults from plan, customizable) */}
+      {hrZones && onSaveHRZones && onResetHRZones && (
+        <HRZoneEditor
+          zones={hrZones}
+          isCustomized={!!hrZonesCustomized}
+          maxHR={hrZonesMaxHR ?? 0}
+          onSave={onSaveHRZones}
+          onReset={onResetHRZones}
+        />
+      )}
 
       {/* Error display */}
       {error && (

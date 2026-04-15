@@ -19,6 +19,7 @@ import Dashboard from './components/Dashboard'
 import RaceInfo from './components/RaceInfo'
 import Methodology from './components/Methodology'
 import Settings from './components/Settings'
+import { useHRZones } from './hooks/useHRZones'
 
 // Auto-clear stale caches on app startup when data format changes
 checkStorageVersion()
@@ -47,6 +48,7 @@ export default function App() {
   const manualLog = useManualLog(athleteId)
   const daySwap = useDaySwap(athleteId)
   const soreness = useSoreness(athleteId)
+  const hrZones = useHRZones(athleteId, plan.zones)
   const showStrava = true  // All athletes can connect Strava and Garmin
 
   const TABS: { id: ViewId; label: string }[] = [
@@ -245,7 +247,7 @@ export default function App() {
       {view === 'plan' && (
         <WeeklyPlan
           weeks={weeks}
-          zones={plan.zones}
+          zones={hrZones.zones}
           manualLog={manualLog}
           daySwap={daySwap}
           weekReadiness={readiness.weekScores}
@@ -257,7 +259,7 @@ export default function App() {
           weeks={weeks}
           compliance={compliance}
           raceDate={plan.race.date}
-          planZones={plan.zones}
+          planZones={hrZones.zones}
           athleteMaxHR={plan.athlete.maxHR}
           todayScore={readiness.todayScore}
           weekScores={readiness.weekScores}
@@ -294,6 +296,11 @@ export default function App() {
           onGarminSubmitMfa={garmin.submitMfa}
           onGarminDisconnect={garmin.disconnect}
           onGarminSync={garmin.sync}
+          hrZones={hrZones.zones}
+          hrZonesCustomized={hrZones.isCustomized}
+          hrZonesMaxHR={plan.athlete.maxHR}
+          onSaveHRZones={hrZones.save}
+          onResetHRZones={hrZones.reset}
           onClearCache={clearAllCachedData}
           onClearAll={clearAllAppData}
         />

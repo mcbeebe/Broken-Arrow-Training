@@ -1,6 +1,11 @@
 import type { PlannedDay } from '../types'
 import { parseZoneRange } from './zones'
 import { getMilesNumber } from './format'
+import { getPlannedDrills } from './drills'
+
+function hasPlannedDrills(day: PlannedDay): boolean {
+  return getPlannedDrills(day).length > 0 || !!day.actual?.drills?.items?.length
+}
 
 export type Grade = 'A+' | 'A' | 'A-' | 'B+' | 'B' | 'B-' | 'C+' | 'C' | 'C-' | 'D+' | 'D' | 'N/A'
 
@@ -43,6 +48,8 @@ export function calculateGrade(day: PlannedDay): GradeResult | null {
   let effortScore = 0.5      // Default neutral if we can't measure
   let hrScore = 0.5          // Default neutral
   let structureScore = 0.5   // Default neutral
+  let drillScore = 1.0       // Default neutral (only penalized if drills planned + missed)
+  let drillWeighted = false  // Only factor drills in when relevant
 
   const reasons: string[] = []
 
@@ -207,10 +214,42 @@ export function calculateGrade(day: PlannedDay): GradeResult | null {
     }
   }
 
-  // Weighted score (completion 15% + effort 40% + HR 30% + structure 15%)
-  const finalScore = Math.round(
-    (completionScore * 0.15 + effortScore * 0.40 + hrScore * 0.30 + structureScore * 0.15) * 100
-  )
+  // --- DRILL SCORING (run-type days only) ---
+  if (['run', 'quality', 'long'].includes(day.type)) {
+    const plannedDrills = hasPlannedDrills(day)
+    if (plannedDrills) {
+      drillWeighted = true
+      if (actual.drills?.completed) {
+        // Full credit if all items checked off, partial if only some
+        const items = actual.drills.items
+        if (items && items.length > 0) {
+          const done = items.filter(i => i.done).length
+          const pct = done / items.length
+          drillScore = pct
+          if (pct >= 0.8) reasons.push('drills done')
+          else if (pct >= 0.5) reasons.push(`${done}/${items.length} drills`)
+          else reasons.push('few drills done')
+        } else {
+          drillScore = 1.0
+          reasons.push('drills done')
+        }
+      } else {
+        drillScore = 0.3
+        reasons.push('drills skipped')
+      }
+    }
+  }
+
+  // Weighted score
+  // Run types with drills: completion 12% + effort 35% + HR 28% + structure 15% + drills 10% = 100%
+  // All others: completion 15% + effort 40% + HR 30% + structure 15% = 100%
+  const finalScore = drillWeighted
+    ? Math.round(
+        (completionScore * 0.12 + effortScore * 0.35 + hrScore * 0.28 + structureScore * 0.15 + drillScore * 0.10) * 100
+      )
+    : Math.round(
+        (completionScore * 0.15 + effortScore * 0.40 + hrScore * 0.30 + structureScore * 0.15) * 100
+      )
 
   const grade = scoreToGrade(finalScore)
   return {
