@@ -142,8 +142,8 @@ export function useCoachMemory(athleteId: string, enabled: boolean = true) {
   }, [athleteId, apiAvailable, mutate])
 
   const appendTurn = useCallback(
-    async (role: ConversationTurn['role'], content: string) => {
-      await mutate('append_turn', { role, content })
+    async (role: ConversationTurn['role'], content: string, trigger?: string) => {
+      await mutate('append_turn', trigger ? { role, content, trigger } : { role, content })
     },
     [mutate],
   )

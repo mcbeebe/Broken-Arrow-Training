@@ -576,11 +576,37 @@ export interface CoachSnapshotAnalytics {
   }
 }
 
+/**
+ * Compact, LLM-friendly view of raw Garmin health metrics. The readiness
+ * engine already consumes the raw stream and emits a normalized component
+ * score (-1 to +2), but that normalized number hides the actual hours /
+ * bpm / ms the coach needs to speak in human terms ("you slept 6.2h").
+ * So we pass a trimmed, serializable copy of the relevant fields through
+ * to the LLM too.
+ */
+export interface CoachHealthToday {
+  date: string                          // YYYY-MM-DD
+  sleepHours?: number                   // total sleep in hours (1 decimal)
+  sleepScore?: number                   // 0-100 if Garmin supplied it
+  sleepQuality?: string                 // 'EXCELLENT' | 'GOOD' | 'FAIR' | 'POOR'
+  rhr?: number                          // resting HR bpm
+  hrvLastNightMs?: number               // RMSSD last night
+  hrvWeeklyAvgMs?: number               // RMSSD 7-day avg
+  hrvStatus?: string                    // Garmin HRV status string
+  bodyBatteryCurrent?: number           // 0-100
+  bodyBatteryCharged?: number           // amount charged overnight
+  bodyBatteryDrained?: number           // amount drained today
+}
+
 export interface CoachSnapshot {
   today: { date: string }
   currentWeekNum?: number
   readiness?: ReadinessScore | null
   performance?: PerformanceMetrics | null
+  /** Raw-ish health metrics for today (hours/bpm/ms) so the LLM can
+   *  narrate sleep & recovery in natural units instead of the readiness
+   *  engine's normalized bucket score. */
+  todayHealth?: CoachHealthToday | null
   plannedToday?: PlannedDay | null
   plannedTomorrow?: PlannedDay | null
   recentActivities?: {

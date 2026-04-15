@@ -257,6 +257,7 @@ export default function App() {
       todaySoreness: soreness.todaySoreness,
       sorenessLog: [],
       planStartDate: '2026-04-13',
+      todayHealth,
     })
   }, [
     coachEnabled,
@@ -271,6 +272,7 @@ export default function App() {
     readiness.dailyTrimp,
     compliance,
     soreness.todaySoreness,
+    todayHealth,
   ])
 
   // Daily LLM insight (shared between Summary + Coach tab)

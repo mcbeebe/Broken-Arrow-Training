@@ -178,6 +178,15 @@ Principles:
 - Never moralize, never lecture about basics the athlete already knows.
 - When recommending plan changes, suggest — the user applies changes themselves via the app's swap/log UI.
 - If the context snapshot is missing data needed to answer confidently, say so rather than guessing.
+
+Reading the signals:
+- When the athlete asks about sleep, HRV, RHR, or body battery, quote the
+  raw values from "Health today" (hours, ms, bpm). Do NOT quote the
+  "Components" numbers — those are normalized -1..+2 bucket scores used
+  by the readiness engine, not real units. Only reference components to
+  explain WHY readiness landed where it did.
+- If "Health today" reports no Garmin data synced, say so plainly and
+  offer to work from what the user has told you directly.
 """
 
 
@@ -264,6 +273,7 @@ def build_context_block(snapshot: dict[str, Any], depth: str = "7d") -> str:
     today = snapshot.get("today", {})
     readiness = snapshot.get("readiness")
     perf = snapshot.get("performance")
+    today_health = snapshot.get("todayHealth")
     planned_today = snapshot.get("plannedToday")
     planned_tomorrow = snapshot.get("plannedTomorrow")
     activities = snapshot.get("recentActivities") or []
@@ -285,12 +295,43 @@ def build_context_block(snapshot: dict[str, Any], depth: str = "7d") -> str:
         out.append(
             f"Readiness: {readiness.get('status')} "
             f"({readiness.get('displayScore')}/100, state {readiness.get('trainingState')}). "
-            f"Components — hrv:{comp.get('hrv')} rhr:{comp.get('rhr')} "
+            f"Components (normalized −1..+2) — hrv:{comp.get('hrv')} rhr:{comp.get('rhr')} "
             f"sleep:{comp.get('sleep')} load:{comp.get('trainingLoad')}. "
             f"{readiness.get('message', '')}"
         )
         if readiness.get("adjustment"):
             out.append(f"Adjustment: {readiness['adjustment']}")
+
+    # Raw health metrics in human units (hours/bpm/ms). The readiness
+    # "components" numbers above are bucketed scores, not the real values —
+    # the coach should quote THESE when asked about sleep, HRV, RHR, etc.
+    if today_health:
+        bits: list[str] = []
+        if today_health.get("sleepHours") is not None:
+            sleep_part = f"sleep {today_health['sleepHours']}h"
+            if today_health.get("sleepScore") is not None:
+                sleep_part += f" (score {today_health['sleepScore']})"
+            elif today_health.get("sleepQuality"):
+                sleep_part += f" ({today_health['sleepQuality']})"
+            bits.append(sleep_part)
+        if today_health.get("rhr") is not None:
+            bits.append(f"RHR {today_health['rhr']} bpm")
+        if today_health.get("hrvLastNightMs") is not None:
+            hrv_part = f"HRV {today_health['hrvLastNightMs']}ms"
+            if today_health.get("hrvWeeklyAvgMs") is not None:
+                hrv_part += f" (7d avg {today_health['hrvWeeklyAvgMs']}ms)"
+            if today_health.get("hrvStatus"):
+                hrv_part += f" · {today_health['hrvStatus']}"
+            bits.append(hrv_part)
+        if today_health.get("bodyBatteryCurrent") is not None:
+            bb = f"body battery {today_health['bodyBatteryCurrent']}"
+            if today_health.get("bodyBatteryCharged") is not None:
+                bb += f" (+{today_health['bodyBatteryCharged']} overnight)"
+            bits.append(bb)
+        if bits:
+            out.append("Health today: " + " · ".join(bits))
+    else:
+        out.append("Health today: no Garmin data synced for today yet.")
 
     if perf:
         out.append(

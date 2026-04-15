@@ -62,6 +62,7 @@ class handler(BaseHTTPRequestHandler):
         if action == "append_turn":
             role = str(body.get("role", "user"))
             content = str(body.get("content", ""))
+            trigger = body.get("trigger")
             if role not in ("user", "assistant", "coach", "system-handoff"):
                 send_json(self, 400, {"error": "invalid role"})
                 return
@@ -73,6 +74,8 @@ class handler(BaseHTTPRequestHandler):
             }
             if role == "coach":
                 turn["unread"] = True
+            if trigger and isinstance(trigger, str):
+                turn["trigger"] = trigger
             mem["conversation"].append(turn)
             save_memory(athlete_id, mem)
             send_json(self, 200, mem)

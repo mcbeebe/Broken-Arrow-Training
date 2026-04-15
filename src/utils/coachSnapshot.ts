@@ -1,6 +1,8 @@
 import type {
   CoachSnapshot,
   CoachSnapshotAnalytics,
+  CoachHealthToday,
+  GarminHealthData,
   PerformanceMetrics,
   PlannedDay,
   ReadinessScore,
@@ -36,6 +38,10 @@ interface Inputs {
   todaySoreness?: SorenessLevel | null
   sorenessLog?: { date: string; level: SorenessLevel }[]
   planStartDate: string  // YYYY-MM-DD
+  /** Raw Garmin health data for today (sleep hours, HRV ms, RHR bpm,
+   *  body battery). The readiness engine already normalizes these into
+   *  components, but the coach needs the raw units for human answers. */
+  todayHealth?: GarminHealthData | null
 }
 
 function todayISO(): string {
@@ -216,8 +222,43 @@ export function buildAnalytics(inputs: Inputs): CoachSnapshotAnalytics {
   }
 }
 
+/**
+ * Project raw GarminHealthData into the compact CoachHealthToday shape.
+ * Returns null when there is no meaningful health data for today.
+ */
+function projectHealth(h: GarminHealthData | null | undefined): CoachHealthToday | null {
+  if (!h) return null
+  const out: CoachHealthToday = { date: h.date }
+  if (h.sleep) {
+    if (h.sleep.durationSeconds > 0) {
+      out.sleepHours = Math.round((h.sleep.durationSeconds / 3600) * 10) / 10
+    }
+    if (typeof h.sleep.score === 'number') out.sleepScore = h.sleep.score
+    if (h.sleep.quality) out.sleepQuality = h.sleep.quality
+  }
+  if (typeof h.rhr === 'number') out.rhr = h.rhr
+  if (h.hrv) {
+    if (typeof h.hrv.lastNightAvg === 'number') out.hrvLastNightMs = h.hrv.lastNightAvg
+    if (typeof h.hrv.weeklyAvg === 'number') out.hrvWeeklyAvgMs = h.hrv.weeklyAvg
+    if (h.hrv.status) out.hrvStatus = h.hrv.status
+  }
+  if (h.bodyBattery) {
+    if (typeof h.bodyBattery.current === 'number') out.bodyBatteryCurrent = h.bodyBattery.current
+    if (typeof h.bodyBattery.charged === 'number') out.bodyBatteryCharged = h.bodyBattery.charged
+    if (typeof h.bodyBattery.drained === 'number') out.bodyBatteryDrained = h.bodyBattery.drained
+  }
+  // If we have nothing beyond the date, treat as null so the coach doesn't
+  // pretend it has data.
+  const hasAny =
+    out.sleepHours !== undefined ||
+    out.rhr !== undefined ||
+    out.hrvLastNightMs !== undefined ||
+    out.bodyBatteryCurrent !== undefined
+  return hasAny ? out : null
+}
+
 export function buildCoachSnapshot(inputs: Inputs): CoachSnapshot {
-  const { weeks, plannedToday, plannedTomorrow, readiness, performance, athleteProfile, race, currentWeekNum } = inputs
+  const { weeks, plannedToday, plannedTomorrow, readiness, performance, athleteProfile, race, currentWeekNum, todayHealth } = inputs
 
   const sevenAgo = daysAgoISO(7)
   const thirtyAgo = daysAgoISO(30)
@@ -260,6 +301,7 @@ export function buildCoachSnapshot(inputs: Inputs): CoachSnapshot {
     currentWeekNum,
     readiness,
     performance: performance.length ? performance[performance.length - 1] : null,
+    todayHealth: projectHealth(todayHealth),
     plannedToday: plannedToday ?? null,
     plannedTomorrow: plannedTomorrow ?? null,
     recentActivities,

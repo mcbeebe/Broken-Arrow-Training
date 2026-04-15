@@ -125,6 +125,11 @@ export default function CoachChat({ athleteId, memory, snapshot, seed, onSeedCon
   const turns = memory.conversation.filter(t => t.role !== 'system-handoff')
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
+  // One-line snapshot chip above the composer. Derives from the same
+  // data the LLM sees, so the user always knows what the coach "knows"
+  // right now. Tapping it prefills a focused question.
+  const chipText = buildContextChip(snapshot)
+
   // Auto-grow the textarea up to ~5 rows, then scroll inside it.
   useEffect(() => {
     const el = textareaRef.current
@@ -169,6 +174,16 @@ export default function CoachChat({ athleteId, memory, snapshot, seed, onSeedCon
         </div>
       )}
 
+      {chipText && (
+        <button
+          onClick={() => setInput('What does this mean for today?')}
+          className="mx-2 mb-1 px-3 py-1.5 rounded-full bg-slate-50 border border-slate-200 text-xs text-slate-600 hover:bg-slate-100 text-left truncate"
+          title="Tap to ask about today's signals"
+        >
+          💡 {chipText}
+        </button>
+      )}
+
       <div className="border-t border-slate-200 px-2 py-2 bg-white">
         <div className="relative flex items-end">
           <textarea
@@ -205,6 +220,30 @@ export default function CoachChat({ athleteId, memory, snapshot, seed, onSeedCon
       </div>
     </div>
   )
+}
+
+/**
+ * Render a compact one-line summary of what the coach currently sees.
+ * Returns null when there's nothing meaningful to report so the chip
+ * simply doesn't render.
+ */
+function buildContextChip(snapshot: CoachSnapshot | null): string | null {
+  if (!snapshot) return null
+  const bits: string[] = []
+  const r = snapshot.readiness
+  if (r?.status && typeof r.displayScore === 'number') {
+    bits.push(`${r.status.toLowerCase()} ${r.displayScore}/100`)
+  }
+  const h = snapshot.todayHealth
+  if (h?.sleepHours !== undefined) {
+    bits.push(`sleep ${h.sleepHours}h`)
+  }
+  const acwr = snapshot.performance?.acwr
+  if (typeof acwr === 'number' && !Number.isNaN(acwr)) {
+    bits.push(`ACWR ${acwr.toFixed(2)}`)
+  }
+  if (bits.length === 0) return null
+  return bits.join(' · ')
 }
 
 function ChatTurn({ turn }: { turn: ConversationTurn }) {

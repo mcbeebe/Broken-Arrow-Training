@@ -17,18 +17,43 @@ interface Props {
   onInteraction?: (kind: string, meta?: Record<string, unknown>) => void
 }
 
+const DAILY_SEED_KEY = 'ba_coach_daily_seeded_v1'
+
+/** Whether today's daily insight has already been seeded into the
+ *  conversation for this athlete. Stored as a single localStorage key
+ *  so it survives reloads but doesn't leak across days. */
+function readSeedDate(athleteId: string): string | null {
+  try {
+    return localStorage.getItem(`${DAILY_SEED_KEY}:${athleteId}`)
+  } catch {
+    return null
+  }
+}
+function writeSeedDate(athleteId: string, date: string) {
+  try {
+    localStorage.setItem(`${DAILY_SEED_KEY}:${athleteId}`, date)
+  } catch {
+    /* quota */
+  }
+}
+
+function buildSeedText(insight: CoachInsight): string {
+  const parts: string[] = [insight.text.trim()]
+  if (insight.tip) parts.push(`Tip: ${insight.tip.trim()}`)
+  return parts.join('\n\n')
+}
+
 /**
  * Coach tab content: pending inferences (if any) + full chat. The daily
- * insight is NOT rendered here anymore — it lives on Summary and seeds
- * the chat via the `chatSeed` prop when the user taps "Ask". Keeping the
- * Coach tab focused on dialogue avoids duplicating the daily read and
- * lets the chat fill the viewport.
+ * insight is no longer rendered as its own hero card — instead it's
+ * seeded into the conversation as the first coach turn of the day, so it
+ * reads as part of the thread and the Coach tab is pure dialogue.
  */
 export default function CoachTab({
   athleteId,
   memory,
   snapshot,
-  dailyInsight: _dailyInsight,
+  dailyInsight,
   dailyInsightLoading: _dailyInsightLoading,
   chatSeed,
   onChatSeedConsumed,
@@ -41,8 +66,21 @@ export default function CoachTab({
     onInteraction?.('coach_tab_opened')
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-  void _dailyInsight
   void _dailyInsightLoading
+
+  // Seed today's insight as a role:'coach' turn with trigger:'daily_insight'
+  // the first time it becomes available each day. Guarded by a localStorage
+  // date flag so we don't re-seed on every refresh.
+  useEffect(() => {
+    if (!dailyInsight || dailyInsight.silent) return
+    if (!dailyInsight.text || !dailyInsight.text.trim()) return
+    const today = snapshot?.today?.date
+    if (!today) return
+    if (readSeedDate(athleteId) === today) return
+    writeSeedDate(athleteId, today)
+    memory.appendTurn('coach', buildSeedText(dailyInsight), 'daily_insight')
+    onInteraction?.('daily_insight_seeded', { date: today })
+  }, [dailyInsight, snapshot?.today?.date, athleteId, memory, onInteraction])
 
   return (
     <div className="flex flex-col h-[calc(100vh-9rem)] px-3 py-3 gap-2">
