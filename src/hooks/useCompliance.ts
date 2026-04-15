@@ -244,12 +244,30 @@ export function gradeWorkoutDay(day: PlannedDay, targets: ReturnType<typeof pars
     }
   }
 
-  // HR — prefer time-in-zone from hrZoneSummary, fall back to avgHR
+  // HR — prefer per-second stream (against plan zones), then hrZoneSummary, then avgHR
   let hrInZonePct: number | undefined
   let hrGrade: ComplianceGrade = 'na'
   const hrAvg = actual.avgHR
   if (targets.hrLow !== undefined && targets.hrHigh !== undefined) {
-    hrInZonePct = computeHRTimeInZone(actual.hrZoneSummary, targets.hrLow, targets.hrHigh, actual.avgHR)
+    // Try cached HR stream first — matches "Time in Zone" bar in modal
+    const stream = getCachedHRStreamForActual(actual)
+    if (stream) {
+      const hrs = stream.heartrate
+      const times = stream.time
+      let inSec = 0
+      let totSec = 0
+      for (let i = 1; i < hrs.length; i++) {
+        const hr = hrs[i]
+        const dt = times[i] - times[i - 1]
+        if (dt <= 0 || dt > 60) continue
+        totSec += dt
+        if (hr >= targets.hrLow - 3 && hr <= targets.hrHigh + 3) inSec += dt
+      }
+      if (totSec > 0) hrInZonePct = (inSec / totSec) * 100
+    }
+    if (hrInZonePct === undefined) {
+      hrInZonePct = computeHRTimeInZone(actual.hrZoneSummary, targets.hrLow, targets.hrHigh, actual.avgHR)
+    }
     if (hrInZonePct !== undefined) {
       if (hrInZonePct >= HR_TIME_IN_ZONE_HIT) hrGrade = 'hit'
       else if (hrInZonePct >= HR_TIME_IN_ZONE_CLOSE) hrGrade = 'close'
@@ -306,6 +324,33 @@ function gradeRatio(ratio: number): ComplianceGrade {
  * 1..5 to approximate HR bands and sums the overlap with [targetLow, targetHigh].
  * Falls back to binary avgHR-in-range when zone summary is missing.
  */
+/**
+ * Read cached HR stream (Strava or Garmin, scoped or unscoped) from localStorage.
+ */
+function getCachedHRStreamForActual(actual: { stravaId?: number; garminId?: number }): { time: number[]; heartrate: number[] } | null {
+  const ids = [actual.stravaId, actual.garminId].filter(Boolean)
+  if (ids.length === 0) return null
+  // Scan all localStorage keys for matching streams
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i)
+    if (!k) continue
+    if (!(k.includes('strava_streams') || k.includes('garmin_streams'))) continue
+    const matchesId = ids.some(id => k.endsWith(String(id)))
+    if (!matchesId) continue
+    try {
+      const raw = localStorage.getItem(k)
+      if (!raw) continue
+      const stream = JSON.parse(raw)
+      if (stream?.heartrate?.length && stream?.time?.length) {
+        return { time: stream.time, heartrate: stream.heartrate }
+      }
+    } catch {
+      // Skip
+    }
+  }
+  return null
+}
+
 export function computeHRTimeInZone(
   zoneSummary: { zone: number; seconds: number; lowHR?: number; highHR?: number }[] | undefined,
   targetLow: number,
