@@ -36,6 +36,13 @@ function writeSeedDate(athleteId: string, date: string) {
     /* quota */
   }
 }
+function clearSeedDate(athleteId: string) {
+  try {
+    localStorage.removeItem(`${DAILY_SEED_KEY}:${athleteId}`)
+  } catch {
+    /* ignore */
+  }
+}
 
 function buildSeedText(insight: CoachInsight): string {
   const parts: string[] = [insight.text.trim()]
@@ -114,13 +121,33 @@ export default function CoachTab({
         />
       </div>
 
-      <div className="text-center shrink-0">
+      <div className="flex items-center justify-center gap-4 shrink-0">
         <button
           onClick={onGoSettings}
           className="text-xs text-slate-400 hover:text-slate-600 transition-colors"
         >
           Edit About Me in Settings →
         </button>
+        {memory.conversation.length > 0 && (
+          <button
+            onClick={async () => {
+              // Confirm to avoid accidental wipes — conversation history is
+              // meaningful and cannot be recovered after clear.
+              if (!window.confirm(
+                'Clear the conversation? This removes all past turns so you can start fresh. ' +
+                'Your About Me and pending observations are kept.',
+              )) return
+              await memory.clearConversation()
+              // Let today's daily insight re-seed on the next refresh.
+              clearSeedDate(athleteId)
+              onInteraction?.('conversation_cleared')
+            }}
+            className="text-xs text-slate-400 hover:text-rose-600 transition-colors"
+            title="Wipe the chat history so the next reply starts clean"
+          >
+            Clear conversation
+          </button>
+        )}
       </div>
     </div>
   )
