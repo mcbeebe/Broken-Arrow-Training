@@ -9,7 +9,7 @@ export type WorkoutType =
   | "travel"
   | "race";
 
-export type ViewId = "plan" | "summary" | "dashboard" | "zones" | "method" | "info" | "settings";
+export type ViewId = "plan" | "summary" | "dashboard" | "zones" | "method" | "info" | "settings" | "coach";
 
 export interface StravaTokens {
   accessToken: string;
@@ -490,3 +490,120 @@ export interface CoachAction {
   swapToIndex?: number
   swapWeekNum?: number
 }
+
+// ─── Phase B: Conversational Coach + proactive surfaces ─────────
+
+export type CoachTurnRole = 'user' | 'assistant' | 'coach' | 'system-handoff'
+
+export interface ConversationTurn {
+  id: string
+  role: CoachTurnRole
+  content: string
+  ts: number
+  unread?: boolean
+  trigger?: string  // set on role='coach' when produced by a ping
+}
+
+export interface PendingInference {
+  id: string
+  text: string
+  sourceTurnId?: string
+  proposedAt: number
+}
+
+export interface ConversationSummary {
+  text: string
+  throughTurnId: string
+  ts: number
+}
+
+export interface CoachMemory {
+  aboutMe: string
+  conversation: ConversationTurn[]
+  conversationSummary: ConversationSummary | null
+  pendingInferences: PendingInference[]
+}
+
+export type CoachPingTriggerType =
+  | 'new_workout'
+  | 'readiness_shift'
+  | 'skipped_workout'
+  | 'weekly_recap'
+
+export interface CoachPingTrigger {
+  type: CoachPingTriggerType
+  payload?: Record<string, unknown>
+}
+
+// Client-assembled snapshot sent with every LLM call
+export interface CoachSnapshotAnalytics {
+  weekToDate: {
+    miles: number
+    durationSec: number
+    trimp: number
+    timeInZones: { z1: number; z2: number; z3: number; z4: number; z5: number }
+  }
+  last7dPerZone: {
+    z1Sec: number
+    z2Sec: number
+    z3Sec: number
+    z4Sec: number
+    z5Sec: number
+  }
+  complianceSummary: {
+    distancePct: number
+    durationPct: number
+    hrPct: number
+    flagged: number
+  }
+  loadTrend: {
+    ctl: number
+    atl: number
+    tsb: number
+    acwr: number
+    ctlDelta7d: number
+  }
+  raceProjection: {
+    estimatedSeconds: number | null
+    confidence: 'low' | 'med' | 'high'
+    basis: string
+  }
+  planProgress: {
+    weeksElapsed: number
+    weeksRemaining: number
+    onTrack: boolean
+    reason: string
+  }
+}
+
+export interface CoachSnapshot {
+  today: { date: string }
+  currentWeekNum?: number
+  readiness?: ReadinessScore | null
+  performance?: PerformanceMetrics | null
+  plannedToday?: PlannedDay | null
+  plannedTomorrow?: PlannedDay | null
+  recentActivities?: {
+    startDate: string
+    name: string
+    distance: number
+    movingTime: number
+    avgHR?: number
+    elevationGain?: number
+    rpe?: number
+  }[]
+  recentSoreness?: { date: string; summary: string }[]
+  athleteProfile?: AthleteProfile
+  race?: RaceInfo
+  analytics?: CoachSnapshotAnalytics
+}
+
+export interface CoachInsight {
+  text: string
+  tip?: string
+  tone?: 'info' | 'heads_up' | 'flag'
+  silent?: boolean
+  generatedAt: number
+  cached?: boolean
+}
+

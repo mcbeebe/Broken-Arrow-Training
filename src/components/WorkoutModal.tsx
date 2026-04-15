@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
-import type { PlannedDay, HRZone, ReadinessScore, PerformanceMetrics } from '../types'
+import type { PlannedDay, HRZone, ReadinessScore, PerformanceMetrics, CoachSnapshot } from '../types'
 import { getWorkoutStyle } from '../utils/styles'
 import { getCoaching } from '../utils/coaching'
 import { generateWorkoutTake } from '../utils/coachNotes'
 import CoachWorkoutTakeView from './CoachWorkoutTake'
+import { useCoachInsight } from '../hooks/useCoachInsight'
 import { formatMiles, formatSeconds } from '../utils/format'
 import { parseRoutine, type ParsedExercise } from '../utils/exercises'
 import { parseIntervalWorkout, getDrillDay, RUNNING_DRILLS, MYRTL_ROUTINE, PRE_RUN_ACTIVATION, type RunSegment, type DrillGuide } from '../utils/drills'
@@ -21,9 +22,11 @@ interface WorkoutModalProps {
   coachEnabled?: boolean
   readiness?: ReadinessScore
   latestPerf?: PerformanceMetrics | null
+  coachSnapshot?: CoachSnapshot | null
+  onAskCoach?: (seed: string) => void
 }
 
-export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, coachEnabled, readiness, latestPerf }: WorkoutModalProps) {
+export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, coachEnabled, readiness, latestPerf, coachSnapshot, onAskCoach }: WorkoutModalProps) {
   const style = getWorkoutStyle(day.type)
   const coaching = getCoaching(day, weekNum)
   const actual = day.actual
@@ -135,8 +138,14 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
         <div className="px-4 py-4 space-y-4">
           {/* Ambient Coach take — Mike-only, top of detail view */}
           {coachEnabled && (
-            <CoachWorkoutTakeView
-              take={generateWorkoutTake(day, weekNum, readiness, latestPerf ?? null)}
+            <CoachWorkoutTakeForDay
+              day={day}
+              weekNum={weekNum}
+              readiness={readiness}
+              latestPerf={latestPerf}
+              athleteId={athleteId}
+              coachSnapshot={coachSnapshot}
+              onAsk={onAskCoach}
             />
           )}
 
@@ -580,5 +589,44 @@ function DrillCard({ drill }: { drill: DrillGuide }) {
         </div>
       )}
     </div>
+  )
+}
+
+// ─── CoachWorkoutTakeForDay ────────────────────────────────────
+// Wraps CoachWorkoutTakeView + useCoachInsight so the hook runs only when
+// the modal is open (which is when this component is mounted).
+function CoachWorkoutTakeForDay({
+  day,
+  weekNum,
+  readiness,
+  latestPerf,
+  athleteId,
+  coachSnapshot,
+  onAsk,
+}: {
+  day: PlannedDay
+  weekNum: number
+  readiness?: ReadinessScore
+  latestPerf?: PerformanceMetrics | null
+  athleteId?: string
+  coachSnapshot?: CoachSnapshot | null
+  onAsk?: (seed: string) => void
+}) {
+  const fallback = generateWorkoutTake(day, weekNum, readiness, latestPerf ?? null)
+  const { insight, loading } = useCoachInsight({
+    athleteId: athleteId || '',
+    surface: `workout_take:${day.day}`,
+    snapshot: coachSnapshot ?? null,
+    enabled: !!athleteId && !!coachSnapshot,
+    fallbackText: fallback.text,
+    fallbackTip: fallback.tip,
+  })
+  return (
+    <CoachWorkoutTakeView
+      take={fallback}
+      insight={insight}
+      loading={loading}
+      onAsk={onAsk}
+    />
   )
 }

@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react'
-import type { ReadinessScore, GarminHealthData, CoachRecommendation, PerformanceMetrics, DailyTRIMP } from '../types'
+import type { ReadinessScore, GarminHealthData, CoachRecommendation, PerformanceMetrics, DailyTRIMP, CoachInsight } from '../types'
 import type { SorenessLevel } from '../hooks/useSoreness'
 import { getTSBState, getTSBLabel, getACWRRisk, getACWRLabel } from '../utils/performance'
 import { localDateStr } from '../utils/format'
 import TodayBriefing from './TodayBriefing'
 import TRIMPBreakdown from './TRIMPBreakdown'
+import CoachInsightCard from './CoachInsightCard'
 
 interface SummaryProps {
   todayScore: ReadinessScore | null
@@ -19,6 +20,10 @@ interface SummaryProps {
   todaySoreness: SorenessLevel | null
   onLogSoreness: (date: string, level: SorenessLevel) => void
   sorenessLoadByDate: Map<string, number>
+  coachEnabled?: boolean
+  dailyInsight?: CoachInsight | null
+  dailyInsightLoading?: boolean
+  onAskCoach?: (seed: string) => void
 }
 
 // ─── Scale bar component ──────────────────────────────────────
@@ -105,6 +110,10 @@ export default function Summary({
   todaySoreness,
   onLogSoreness,
   sorenessLoadByDate,
+  coachEnabled,
+  dailyInsight,
+  dailyInsightLoading,
+  onAskCoach,
 }: SummaryProps) {
   const latestPerf = performance.length > 0 ? performance[performance.length - 1] : null
   const [perfOpen, setPerfOpen] = useState(false)
@@ -117,6 +126,16 @@ export default function Summary({
 
   return (
     <div className="px-3 py-4 space-y-3">
+      {/* LLM-generated daily coach read (Mike-only). Silent when Coach
+          API is offline and no fallback text is wired. */}
+      {coachEnabled && (
+        <CoachInsightCard
+          insight={dailyInsight ?? null}
+          loading={!!dailyInsightLoading}
+          onAsk={onAskCoach}
+        />
+      )}
+
       {/* Unified daily briefing: coach + readiness + why */}
       {garminConnected && todayScore ? (
         <TodayBriefing

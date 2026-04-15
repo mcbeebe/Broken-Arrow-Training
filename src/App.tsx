@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from 'react'
-import type { ViewId } from './types'
+import type { ViewId, CoachSnapshot } from './types'
 import { plans } from './data'
 import { useStrava } from './hooks/useStrava'
 import { useGarmin } from './hooks/useGarmin'
@@ -8,18 +8,24 @@ import { useManualLog } from './hooks/useManualLog'
 import { useDaySwap } from './hooks/useDaySwap'
 import { useReadiness } from './hooks/useReadiness'
 import { useSoreness } from './hooks/useSoreness'
-import { useAboutMe } from './hooks/useAboutMe'
+import { useCoachMemory } from './hooks/useCoachMemory'
+import { useCoachInsight } from './hooks/useCoachInsight'
+import { useProactivePings } from './hooks/useProactivePings'
+import { useCoachTelemetry } from './hooks/useCoachTelemetry'
 import { matchActivitiesToPlan, mergeGarminDetailIntoWeeks } from './utils/matching'
 import { calculateExerciseLoad } from './utils/trimp'
 import { localDateStr } from './utils/format'
 import { generateMorningCoach, generateEveningCoach, getCoachTimeOfDay } from './utils/coach'
 import { checkStorageVersion, clearAllCachedData, clearAllAppData } from './utils/storageVersion'
+import { buildCoachSnapshot } from './utils/coachSnapshot'
 import WeeklyPlan from './components/WeeklyPlan'
 import Summary from './components/Summary'
 import Dashboard from './components/Dashboard'
 import RaceInfo from './components/RaceInfo'
 import Methodology from './components/Methodology'
 import Settings from './components/Settings'
+import CoachTab from './components/CoachTab'
+import CoachPingToast from './components/CoachPingToast'
 import { useHRZones } from './hooks/useHRZones'
 
 // Auto-clear stale caches on app startup when data format changes
@@ -34,6 +40,7 @@ function getAthleteFromHash(): string {
 export default function App() {
   const [view, setView] = useState<ViewId>('summary')
   const [athleteId, setAthleteId] = useState(getAthleteFromHash)
+  const [chatSeed, setChatSeed] = useState<string | null>(null)
   const plan = plans[athleteId]
   const strava = useStrava(athleteId)
   const garmin = useGarmin(athleteId)
@@ -50,18 +57,25 @@ export default function App() {
   const daySwap = useDaySwap(athleteId)
   const soreness = useSoreness(athleteId)
   const hrZones = useHRZones(athleteId, plan.zones)
-  const aboutMe = useAboutMe(athleteId)
   const showStrava = true  // All athletes can connect Strava and Garmin
-  // Phase A: ambient Coach surfaces are gated to Mike only
+  // Phase B: ambient Coach surfaces + conversation gated to Mike only
   const coachEnabled = athleteId === 'mike'
+  const coachMemory = useCoachMemory(athleteId, coachEnabled)
+  const coachTelemetry = useCoachTelemetry(athleteId, coachEnabled)
 
-  const TABS: { id: ViewId; label: string }[] = [
-    { id: 'summary', label: 'Summary' },
-    { id: 'plan', label: 'Plan' },
-    { id: 'dashboard', label: 'Stats' },
-    { id: 'method', label: 'Method' },
-    { id: 'settings', label: 'Settings' },
-  ]
+  const TABS: { id: ViewId; label: string; badge?: number }[] = useMemo(() => {
+    const base: { id: ViewId; label: string; badge?: number }[] = [
+      { id: 'summary', label: 'Summary' },
+      { id: 'plan', label: 'Plan' },
+      { id: 'dashboard', label: 'Stats' },
+    ]
+    if (coachEnabled) {
+      base.push({ id: 'coach', label: 'Coach', badge: coachMemory.unreadCount })
+    }
+    base.push({ id: 'method', label: 'Method' })
+    base.push({ id: 'settings', label: 'Settings' })
+    return base
+  }, [coachEnabled, coachMemory.unreadCount])
 
   // Merge Strava or manual log data into training plan
   const weeks = useMemo(() => {
@@ -171,11 +185,29 @@ export default function App() {
     return garmin.healthData.find(d => d.date === today)
   }, [garmin.healthData])
 
-  // AI Coach recommendation
+  const latestPerf = useMemo(
+    () => (readiness.performance.length > 0 ? readiness.performance[readiness.performance.length - 1] : null),
+    [readiness.performance],
+  )
+
+  // Yesterday's readiness score — for proactive ping trigger detection
+  const yesterdayScore = useMemo(() => {
+    const today = localDateStr()
+    const yesterday = localDateStr(new Date(Date.now() - 86400000))
+    // Find a score with yesterday's date in the full weekScores (sorted)
+    const match = readiness.weekScores.find(s => s.date === yesterday)
+    if (match) return match
+    // Fallback: if todayScore is the last entry, the one before it is yesterday
+    const scores = readiness.weekScores
+    if (scores.length >= 2 && scores[scores.length - 1].date === today) {
+      return scores[scores.length - 2]
+    }
+    return null
+  }, [readiness.weekScores])
+
+  // AI Coach recommendation (legacy heuristic — still drives TodayBriefing)
   const coachRecommendation = useMemo(() => {
     const timeOfDay = getCoachTimeOfDay()
-    const latestPerf = readiness.performance.length > 0 ? readiness.performance[readiness.performance.length - 1] : null
-
     if (timeOfDay === 'morning') {
       return generateMorningCoach(
         readiness.todayScore,
@@ -196,12 +228,81 @@ export default function App() {
         readiness.trainingStateInfo,
       )
     }
-  }, [readiness.todayScore, todayPlannedWorkout, tomorrowPlannedWorkout, currentWeekDays, todayDayIndex, readiness.performance, todayHealth, readiness.trainingStateInfo])
+  }, [readiness.todayScore, todayPlannedWorkout, tomorrowPlannedWorkout, currentWeekDays, todayDayIndex, latestPerf, todayHealth, readiness.trainingStateInfo])
 
   // Handler for coach swap
   const handleCoachSwap = useCallback((fromIndex: number, toIndex: number) => {
     daySwap.swapDays(currentWeekNum, fromIndex, toIndex)
   }, [daySwap, currentWeekNum])
+
+  // Assemble the CoachSnapshot for LLM calls (Mike-only)
+  const coachSnapshot: CoachSnapshot | null = useMemo(() => {
+    if (!coachEnabled) return null
+    // Gate on having at least some data — without readiness or performance
+    // the LLM has nothing useful to say.
+    if (!readiness.todayScore && readiness.performance.length === 0) return null
+    return buildCoachSnapshot({
+      athleteProfile: plan.athlete,
+      race: plan.race,
+      raceDistanceMiles: plan.race.distanceMiles,
+      raceElevationFt: parseInt((plan.race.elevation || '0').replace(/[^0-9]/g, ''), 10) || 0,
+      currentWeekNum,
+      weeks,
+      plannedToday: todayPlannedWorkout,
+      plannedTomorrow: tomorrowPlannedWorkout,
+      readiness: readiness.todayScore,
+      performance: readiness.performance,
+      dailyTrimp: readiness.dailyTrimp,
+      compliance,
+      todaySoreness: soreness.todaySoreness,
+      sorenessLog: [],
+      planStartDate: '2026-04-13',
+    })
+  }, [
+    coachEnabled,
+    plan.athlete,
+    plan.race,
+    currentWeekNum,
+    weeks,
+    todayPlannedWorkout,
+    tomorrowPlannedWorkout,
+    readiness.todayScore,
+    readiness.performance,
+    readiness.dailyTrimp,
+    compliance,
+    soreness.todaySoreness,
+  ])
+
+  // Daily LLM insight (shared between Summary + Coach tab)
+  const dailyInsight = useCoachInsight({
+    athleteId,
+    surface: 'daily',
+    snapshot: coachSnapshot,
+    enabled: coachEnabled && !!coachSnapshot,
+  })
+
+  // Proactive pings driver (Mike-only)
+  useProactivePings({
+    athleteId,
+    enabled: coachEnabled,
+    snapshot: coachSnapshot,
+    stravaActivities: strava.activities,
+    garminActivities: garmin.garminActivities,
+    todayScore: readiness.todayScore,
+    yesterdayScore,
+    plannedToday: todayPlannedWorkout,
+    memory: coachMemory,
+  })
+
+  // "Ask about this" → seed chat + open Coach tab
+  const handleAskCoach = useCallback(
+    (seed: string) => {
+      setChatSeed(seed)
+      setView('coach')
+      coachTelemetry.logInteraction('ask_tapped')
+    },
+    [coachTelemetry],
+  )
 
   return (
     <div className="min-h-screen bg-slate-50" style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" }}>
@@ -214,19 +315,33 @@ export default function App() {
         <p className="text-teal-400 text-xs mt-1">{plan.athlete.weeklyStructure}</p>
       </div>
 
+      {/* Proactive coach ping toast */}
+      {coachEnabled && (
+        <CoachPingToast
+          unreadCount={coachMemory.unreadCount}
+          onOpen={() => setView('coach')}
+          onDismiss={() => coachTelemetry.logInteraction('toast_dismissed')}
+        />
+      )}
+
       {/* Tab nav */}
       <div className="flex border-b border-slate-200 bg-white sticky top-0 z-10">
         {TABS.map(t => (
           <button
             key={t.id}
             onClick={() => setView(t.id)}
-            className={`flex-1 py-3 text-xs sm:text-sm font-medium transition-colors ${
+            className={`flex-1 py-3 text-xs sm:text-sm font-medium transition-colors relative ${
               view === t.id
                 ? 'text-teal-700 border-b-2 border-teal-600'
                 : 'text-slate-500'
             }`}
           >
             {t.label}
+            {t.badge ? (
+              <span className="ml-1 inline-flex items-center justify-center text-[10px] min-w-[18px] h-[18px] px-1 rounded-full bg-amber-500 text-white align-middle">
+                {t.badge}
+              </span>
+            ) : null}
           </button>
         ))}
       </div>
@@ -246,6 +361,10 @@ export default function App() {
           todaySoreness={soreness.todaySoreness}
           onLogSoreness={soreness.logSoreness}
           sorenessLoadByDate={soreness.sorenessLoadByDate}
+          coachEnabled={coachEnabled}
+          dailyInsight={dailyInsight.insight}
+          dailyInsightLoading={dailyInsight.loading}
+          onAskCoach={handleAskCoach}
         />
       )}
       {view === 'plan' && (
@@ -257,7 +376,9 @@ export default function App() {
           weekReadiness={readiness.weekScores}
           athleteId={athleteId}
           coachEnabled={coachEnabled}
-          latestPerf={readiness.performance.length > 0 ? readiness.performance[readiness.performance.length - 1] : null}
+          latestPerf={latestPerf}
+          coachSnapshot={coachSnapshot}
+          onAskCoach={handleAskCoach}
         />
       )}
       {view === 'dashboard' && (
@@ -276,6 +397,20 @@ export default function App() {
           weeklyRecommendations={readiness.weeklyRecommendations}
           garminConnected={garmin.connected}
           sorenessLoadByDate={soreness.sorenessLoadByDate}
+        />
+      )}
+      {view === 'coach' && coachEnabled && (
+        <CoachTab
+          athleteId={athleteId}
+          memory={coachMemory}
+          snapshot={coachSnapshot}
+          dailyInsight={dailyInsight.insight}
+          dailyInsightLoading={dailyInsight.loading}
+          chatSeed={chatSeed}
+          onChatSeedConsumed={() => setChatSeed(null)}
+          onMarkRead={() => coachMemory.markRead()}
+          onGoSettings={() => setView('settings')}
+          onInteraction={(k, m) => coachTelemetry.logInteraction(k as Parameters<typeof coachTelemetry.logInteraction>[0], m)}
         />
       )}
       {view === 'method' && <Methodology />}
@@ -310,9 +445,13 @@ export default function App() {
           onClearCache={clearAllCachedData}
           onClearAll={clearAllAppData}
           coachEnabled={coachEnabled}
-          aboutMeText={aboutMe.text}
-          onSaveAboutMe={aboutMe.save}
-          onClearAboutMe={aboutMe.clear}
+          aboutMeText={coachMemory.aboutMe}
+          onSaveAboutMe={coachMemory.saveAboutMe}
+          onClearAboutMe={coachMemory.clearAboutMe}
+          pendingInferences={coachMemory.pendingInferences}
+          onAcceptInference={coachMemory.acceptInference}
+          onDismissInference={coachMemory.dismissInference}
+          athleteId={athleteId}
         />
       )}
     </div>

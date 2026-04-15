@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { PlannedDay, ReadinessScore } from '../types'
+import type { PlannedDay, ReadinessScore, CoachSnapshot } from '../types'
 import { getWorkoutStyle } from '../utils/styles'
 import { formatMiles, formatSeconds, estimateRunTime } from '../utils/format'
 import { parsePlannedTargets } from '../utils/targets'
@@ -7,6 +7,7 @@ import { gradeWorkoutDay } from '../hooks/useCompliance'
 import { getPlannedDrills, getDrillDay } from '../utils/drills'
 import { calculateGrade } from '../utils/grading'
 import { generateDayCardNote } from '../utils/coachNotes'
+import { useCoachInsight } from '../hooks/useCoachInsight'
 import TargetVsActual from './TargetVsActual'
 import CoachDayNoteView from './CoachDayNote'
 
@@ -20,9 +21,14 @@ interface DayCardProps {
   isSwapTarget?: boolean
   readiness?: ReadinessScore
   coachEnabled?: boolean
+  /** When true, this day is "today" — enables LLM insight for its card. */
+  isToday?: boolean
+  athleteId?: string
+  coachSnapshot?: CoachSnapshot | null
+  onAskCoach?: (seed: string) => void
 }
 
-export default function DayCard({ day, weekNum, onTap, onLog, onSwap, isSwapSelected, isSwapTarget, readiness, coachEnabled }: DayCardProps) {
+export default function DayCard({ day, weekNum, onTap, onLog, onSwap, isSwapSelected, isSwapTarget, readiness, coachEnabled, isToday, athleteId, coachSnapshot, onAskCoach }: DayCardProps) {
   const style = getWorkoutStyle(day.type)
   const actual = day.actual
   const timeEst = estimateRunTime(day.zone)
@@ -216,11 +222,19 @@ export default function DayCard({ day, weekNum, onTap, onLog, onSwap, isSwapSele
         )}
 
         {/* Ambient Coach inline note — Mike-only for now. Only renders
-            when the coach has something worth saying. */}
-        {!cardCollapsed && coachEnabled && (() => {
-          const note = generateDayCardNote(day, weekNum, readiness, weekNum === 10)
-          return note ? <CoachDayNoteView note={note} /> : null
-        })()}
+            when the coach has something worth saying. For today's card,
+            also attempts to fetch an LLM-generated note. */}
+        {!cardCollapsed && coachEnabled && (
+          <DayCardCoachNote
+            day={day}
+            weekNum={weekNum}
+            readiness={readiness}
+            isToday={!!isToday}
+            athleteId={athleteId}
+            coachSnapshot={coachSnapshot}
+            onAsk={onAskCoach}
+          />
+        )}
 
         {/* Target vs Actual compliance grid (renders if targets parseable & workout done) */}
         {!cardCollapsed && actual && (() => {
@@ -298,5 +312,46 @@ export default function DayCard({ day, weekNum, onTap, onLog, onSwap, isSwapSele
         )}
       </div>
     </div>
+  )
+}
+
+// ─── DayCardCoachNote ──────────────────────────────────────────
+// Small wrapper so the LLM hook is only active when rendered (we gate it
+// to today's card to keep costs bounded — other cards just use the
+// heuristic note).
+function DayCardCoachNote({
+  day,
+  weekNum,
+  readiness,
+  isToday,
+  athleteId,
+  coachSnapshot,
+  onAsk,
+}: {
+  day: PlannedDay
+  weekNum?: number
+  readiness?: ReadinessScore
+  isToday: boolean
+  athleteId?: string
+  coachSnapshot?: CoachSnapshot | null
+  onAsk?: (seed: string) => void
+}) {
+  const heuristic = generateDayCardNote(day, weekNum, readiness, weekNum === 10)
+  const { insight, loading } = useCoachInsight({
+    athleteId: athleteId || '',
+    surface: `day_card:${day.day}`,
+    snapshot: coachSnapshot ?? null,
+    enabled: isToday && !!athleteId && !!coachSnapshot,
+    fallbackText: heuristic?.text,
+  })
+  // If neither surfaces anything and we're not loading, render nothing
+  if (!heuristic && !insight && !loading) return null
+  return (
+    <CoachDayNoteView
+      note={heuristic}
+      insight={isToday ? insight : null}
+      loading={isToday ? loading : false}
+      onAsk={onAsk}
+    />
   )
 }

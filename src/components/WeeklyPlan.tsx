@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import type { TrainingWeek, PlannedDay, ActualWorkout, HRZone, ReadinessScore, PerformanceMetrics } from '../types'
+import type { TrainingWeek, PlannedDay, ActualWorkout, HRZone, ReadinessScore, PerformanceMetrics, CoachSnapshot } from '../types'
 import DayCard from './DayCard'
 import VolumeChart from './VolumeChart'
 import WorkoutModal from './WorkoutModal'
@@ -20,6 +20,16 @@ interface WeeklyPlanProps {
   athleteId?: string
   coachEnabled?: boolean
   latestPerf?: PerformanceMetrics | null
+  coachSnapshot?: CoachSnapshot | null
+  onAskCoach?: (seed: string) => void
+}
+
+function todayDateString(): string {
+  const d = new Date()
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${dd}`
 }
 
 export default function WeeklyPlan({
@@ -31,6 +41,8 @@ export default function WeeklyPlan({
   athleteId,
   coachEnabled,
   latestPerf,
+  coachSnapshot,
+  onAskCoach,
 }: WeeklyPlanProps) {
   const [activeWeek, setActiveWeek] = useState(0)
   const [modalDay, setModalDay] = useState<PlannedDay | null>(null)
@@ -154,6 +166,10 @@ export default function WeeklyPlan({
                 isSwapTarget={isSwapMode && swapSource !== i}
                 readiness={readiness}
                 coachEnabled={coachEnabled}
+                isToday={dayDateMatch === todayDateString()}
+                athleteId={athleteId}
+                coachSnapshot={coachSnapshot}
+                onAskCoach={onAskCoach}
               />
             </div>
           )
@@ -177,6 +193,8 @@ export default function WeeklyPlan({
             return d ? readinessByDate.get(d) : undefined
           })()}
           latestPerf={latestPerf}
+          coachSnapshot={coachSnapshot}
+          onAskCoach={onAskCoach}
         />
       )}
 

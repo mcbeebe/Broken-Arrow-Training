@@ -2,7 +2,9 @@ import StravaConnect from './StravaConnect'
 import GarminConnect from './GarminConnect'
 import HRZoneEditor from './HRZoneEditor'
 import AboutMe from './AboutMe'
-import type { HRZone } from '../types'
+import PendingInferenceView from './PendingInference'
+import CoachDiagnostics from './CoachDiagnostics'
+import type { HRZone, PendingInference } from '../types'
 
 interface SettingsProps {
   // Coach (Mike-only for now)
@@ -10,6 +12,10 @@ interface SettingsProps {
   aboutMeText?: string
   onSaveAboutMe?: (next: string) => void
   onClearAboutMe?: () => void
+  pendingInferences?: PendingInference[]
+  onAcceptInference?: (id: string) => void
+  onDismissInference?: (id: string) => void
+  athleteId?: string
   // Strava
   connected: boolean
   configured: boolean
@@ -75,18 +81,37 @@ export default function Settings({
   aboutMeText,
   onSaveAboutMe,
   onClearAboutMe,
+  pendingInferences,
+  onAcceptInference,
+  onDismissInference,
+  athleteId,
 }: SettingsProps) {
   return (
     <div className="px-4 py-4 space-y-4">
       <h2 className="text-lg font-bold text-slate-800">Settings</h2>
 
-      {/* About Me — Coach memory surface (Mike-only for Phase A) */}
+      {/* About Me — Coach memory surface (Mike-only) */}
       {coachEnabled && onSaveAboutMe && onClearAboutMe && (
-        <AboutMe
-          value={aboutMeText ?? ''}
-          onSave={onSaveAboutMe}
-          onClear={onClearAboutMe}
-        />
+        <>
+          {pendingInferences && pendingInferences.length > 0 && onAcceptInference && onDismissInference && (
+            <div className="space-y-2">
+              {pendingInferences.map(inf => (
+                <PendingInferenceView
+                  key={inf.id}
+                  inference={inf}
+                  onAccept={onAcceptInference}
+                  onDismiss={onDismissInference}
+                />
+              ))}
+            </div>
+          )}
+          <AboutMe
+            value={aboutMeText ?? ''}
+            onSave={onSaveAboutMe}
+            onClear={onClearAboutMe}
+          />
+          {athleteId && <CoachDiagnostics athleteId={athleteId} />}
+        </>
       )}
 
       {/* Strava connection */}

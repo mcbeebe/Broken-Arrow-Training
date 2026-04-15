@@ -1,0 +1,226 @@
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import type { CoachMemory, ConversationTurn } from '../types'
+import { coachApiAvailable, coachFetch } from '../utils/coachApi'
+
+/**
+ * Server-backed Coach memory (replaces useAboutMe). Persisted in Upstash KV
+ * so conversation + About Me + pending inferences sync across devices.
+ *
+ * Falls back to localStorage-only behaviour when the coach API is not
+ * reachable (offline / no env var). About Me is still writable in that
+ * mode; conversation + inferences simply aren't available.
+ */
+
+const LS_KEY_PREFIX = 'ba_coach_memory_v1:'
+
+function emptyMemory(): CoachMemory {
+  return {
+    aboutMe: '',
+    conversation: [],
+    conversationSummary: null,
+    pendingInferences: [],
+  }
+}
+
+function readLocal(athleteId: string): CoachMemory {
+  try {
+    const raw = localStorage.getItem(LS_KEY_PREFIX + athleteId)
+    if (!raw) return emptyMemory()
+    const parsed = JSON.parse(raw)
+    return { ...emptyMemory(), ...parsed }
+  } catch {
+    return emptyMemory()
+  }
+}
+
+function writeLocal(athleteId: string, mem: CoachMemory) {
+  try {
+    localStorage.setItem(LS_KEY_PREFIX + athleteId, JSON.stringify(mem))
+  } catch {
+    // best effort
+  }
+}
+
+export function useCoachMemory(athleteId: string, enabled: boolean = true) {
+  const [memory, setMemory] = useState<CoachMemory>(() => readLocal(athleteId))
+  const [loaded, setLoaded] = useState(false)
+  const [online, setOnline] = useState(false)
+  const inflight = useRef<Promise<void> | null>(null)
+
+  const apiAvailable = coachApiAvailable()
+
+  const refresh = useCallback(async () => {
+    if (!enabled || !apiAvailable || !athleteId) {
+      setLoaded(true)
+      return
+    }
+    if (inflight.current) return inflight.current
+    const p = (async () => {
+      try {
+        const server = await coachFetch<CoachMemory>(
+          `/api/coach/memory?athleteId=${encodeURIComponent(athleteId)}`,
+        )
+        setMemory(server)
+        writeLocal(athleteId, server)
+        setOnline(true)
+      } catch {
+        setOnline(false)
+      } finally {
+        setLoaded(true)
+      }
+    })()
+    inflight.current = p
+    try {
+      await p
+    } finally {
+      inflight.current = null
+    }
+  }, [athleteId, enabled, apiAvailable])
+
+  // Load on mount + athlete change
+  useEffect(() => {
+    setMemory(readLocal(athleteId))
+    setLoaded(false)
+    refresh()
+  }, [athleteId, refresh])
+
+  // Refresh on window focus
+  useEffect(() => {
+    if (!enabled || !apiAvailable) return
+    function onFocus() {
+      refresh()
+    }
+    window.addEventListener('focus', onFocus)
+    return () => window.removeEventListener('focus', onFocus)
+  }, [refresh, enabled, apiAvailable])
+
+  const mutate = useCallback(
+    async (action: string, extra: Record<string, unknown> = {}) => {
+      if (!apiAvailable) return
+      try {
+        const server = await coachFetch<CoachMemory>(
+          `/api/coach/memory?athleteId=${encodeURIComponent(athleteId)}`,
+          {
+            method: 'POST',
+            body: JSON.stringify({ action, ...extra }),
+          },
+        )
+        setMemory(server)
+        writeLocal(athleteId, server)
+        setOnline(true)
+      } catch {
+        setOnline(false)
+      }
+    },
+    [athleteId, apiAvailable],
+  )
+
+  const saveAboutMe = useCallback(
+    async (next: string) => {
+      // Optimistic
+      setMemory(m => {
+        const updated = { ...m, aboutMe: next }
+        writeLocal(athleteId, updated)
+        return updated
+      })
+      if (apiAvailable) {
+        await mutate('save_about_me', { text: next })
+      }
+    },
+    [athleteId, apiAvailable, mutate],
+  )
+
+  const clearAboutMe = useCallback(async () => {
+    setMemory(m => {
+      const updated = { ...m, aboutMe: '' }
+      writeLocal(athleteId, updated)
+      return updated
+    })
+    if (apiAvailable) {
+      await mutate('clear_about_me')
+    }
+  }, [athleteId, apiAvailable, mutate])
+
+  const appendTurn = useCallback(
+    async (role: ConversationTurn['role'], content: string) => {
+      await mutate('append_turn', { role, content })
+    },
+    [mutate],
+  )
+
+  const acceptInference = useCallback(
+    async (id: string) => {
+      await mutate('accept_inference', { id })
+    },
+    [mutate],
+  )
+
+  const dismissInference = useCallback(
+    async (id: string) => {
+      await mutate('dismiss_inference', { id })
+    },
+    [mutate],
+  )
+
+  const markRead = useCallback(
+    async (turnId?: string) => {
+      // Optimistic: clear unread flags client-side immediately
+      setMemory(m => {
+        const updated = {
+          ...m,
+          conversation: m.conversation.map(t => ({
+            ...t,
+            unread: t.role === 'coach' && t.unread ? false : t.unread,
+          })),
+        }
+        writeLocal(athleteId, updated)
+        return updated
+      })
+      await mutate('mark_read', { turnId })
+    },
+    [athleteId, mutate],
+  )
+
+  const clearConversation = useCallback(async () => {
+    await mutate('clear_conversation')
+  }, [mutate])
+
+  const unreadCount = useMemo(
+    () => memory.conversation.filter(t => t.role === 'coach' && t.unread).length,
+    [memory.conversation],
+  )
+
+  // Allow local optimistic inserts (used by CoachChat while streaming)
+  const patchLocal = useCallback(
+    (updater: (m: CoachMemory) => CoachMemory) => {
+      setMemory(m => {
+        const updated = updater(m)
+        writeLocal(athleteId, updated)
+        return updated
+      })
+    },
+    [athleteId],
+  )
+
+  return {
+    memory,
+    aboutMe: memory.aboutMe,
+    conversation: memory.conversation,
+    pendingInferences: memory.pendingInferences,
+    unreadCount,
+    loaded,
+    online,
+    apiAvailable,
+    refresh,
+    saveAboutMe,
+    clearAboutMe,
+    appendTurn,
+    acceptInference,
+    dismissInference,
+    markRead,
+    clearConversation,
+    patchLocal,
+  }
+}
+
+export type UseCoachMemoryReturn = ReturnType<typeof useCoachMemory>
