@@ -177,7 +177,7 @@ export default function Summary({
             </button>
             {perfOpen && (
             <div className="px-4 pb-4 space-y-3">
-              {/* Fitness (CTL) */}
+              {/* Fitness (CTL) — left=worst (red), right=best (green) */}
               <div className="bg-blue-50 rounded-lg p-3">
                 <div className="flex items-baseline justify-between">
                   <div>
@@ -189,13 +189,13 @@ export default function Summary({
                 <p className="text-xs font-medium text-slate-600">Fitness <span className="text-slate-400 font-normal">— 42-day training base (CTL)</span></p>
                 <p className="text-[9px] text-slate-400 mt-0.5 italic">Cardiovascular + musculoskeletal load · EPOC + MIM + DOMS + soreness</p>
                 <div className="relative mt-2 h-3 rounded-full overflow-hidden flex border border-blue-200">
-                  <div className="h-full bg-blue-100" style={{ width: '20%' }} />
-                  <div className="h-full bg-blue-200" style={{ width: '20%' }} />
-                  <div className="h-full bg-blue-300" style={{ width: '20%' }} />
-                  <div className="h-full bg-blue-400" style={{ width: '20%' }} />
-                  <div className="h-full bg-blue-500" style={{ width: '20%' }} />
+                  <div className="h-full bg-red-200" style={{ width: '20%' }} />
+                  <div className="h-full bg-orange-200" style={{ width: '20%' }} />
+                  <div className="h-full bg-amber-200" style={{ width: '20%' }} />
+                  <div className="h-full bg-green-300" style={{ width: '20%' }} />
+                  <div className="h-full bg-emerald-400" style={{ width: '20%' }} />
                   <div
-                    className="absolute top-0 w-1.5 h-full bg-blue-900 rounded shadow"
+                    className="absolute top-0 w-1.5 h-full bg-slate-900 rounded shadow"
                     style={{ left: `${Math.min(100, (latestPerf.ctl / 100) * 100)}%`, transform: 'translateX(-50%)' }}
                   />
                 </div>
@@ -204,7 +204,7 @@ export default function Summary({
                 </div>
               </div>
 
-              {/* Fatigue (ATL) */}
+              {/* Fatigue (ATL) — flipped: left=high fatigue (red), right=fresh (green) */}
               <div className="bg-red-50 rounded-lg p-3">
                 <div className="flex items-baseline justify-between">
                   <div>
@@ -216,21 +216,21 @@ export default function Summary({
                 <p className="text-xs font-medium text-slate-600">Fatigue <span className="text-slate-400 font-normal">— 7-day recent load (ATL)</span></p>
                 <p className="text-[9px] text-slate-400 mt-0.5 italic">Includes DOMS carry-over + perceived soreness from check-in</p>
                 <div className="relative mt-2 h-3 rounded-full overflow-hidden flex border border-red-200">
-                  <div className="h-full bg-green-200" style={{ width: '33%' }} />
-                  <div className="h-full bg-amber-200" style={{ width: '22%' }} />
-                  <div className="h-full bg-red-200" style={{ width: '22%' }} />
                   <div className="h-full bg-red-300" style={{ width: '23%' }} />
+                  <div className="h-full bg-red-200" style={{ width: '22%' }} />
+                  <div className="h-full bg-amber-200" style={{ width: '22%' }} />
+                  <div className="h-full bg-green-300" style={{ width: '33%' }} />
                   <div
-                    className="absolute top-0 w-1.5 h-full bg-red-900 rounded shadow"
-                    style={{ left: `${Math.min(100, (latestPerf.atl / 120) * 100)}%`, transform: 'translateX(-50%)' }}
+                    className="absolute top-0 w-1.5 h-full bg-slate-900 rounded shadow"
+                    style={{ left: `${Math.max(0, Math.min(100, (1 - latestPerf.atl / 120) * 100))}%`, transform: 'translateX(-50%)' }}
                   />
                 </div>
                 <div className="flex justify-between text-[9px] text-slate-400 mt-1">
-                  <span>0 Fresh</span><span>40 Balanced</span><span>80 High</span><span>120 Very High</span>
+                  <span>120 Very High</span><span>80 High</span><span>40 Balanced</span><span>0 Fresh</span>
                 </div>
               </div>
 
-              {/* Recovery Balance (TSB) — full width */}
+              {/* Recovery Balance (TSB) — left=deep fatigue (red), right=peak (green) */}
               <div className={`rounded-lg p-3 ${
                 tsbState === 'peaked' || tsbState === 'well_rested' ? 'bg-green-50'
                 : tsbState === 'productive' ? 'bg-slate-50'
@@ -256,10 +256,10 @@ export default function Summary({
                 <div className="relative mt-2 h-3 rounded-full overflow-hidden flex border border-slate-200">
                   <div className="h-full bg-red-300" style={{ width: '15%' }} />
                   <div className="h-full bg-orange-200" style={{ width: '16%' }} />
-                  <div className="h-full bg-slate-200" style={{ width: '23%' }} />
+                  <div className="h-full bg-amber-200" style={{ width: '23%' }} />
                   <div className="h-full bg-green-200" style={{ width: '16%' }} />
                   <div className="h-full bg-green-300" style={{ width: '15%' }} />
-                  <div className="h-full bg-emerald-300" style={{ width: '15%' }} />
+                  <div className="h-full bg-emerald-400" style={{ width: '15%' }} />
                   <div
                     className="absolute top-0 w-2 h-full bg-slate-900 rounded shadow"
                     style={{ left: `${Math.max(0, Math.min(100, ((latestPerf.tsb + 30) / 55) * 100))}%`, transform: 'translateX(-50%)' }}
@@ -293,18 +293,20 @@ export default function Summary({
                 </div>
                 <p className="text-xs font-medium text-slate-600">Load Ratio <span className="text-slate-400 font-normal">— acute vs chronic workload (ACWR)</span></p>
                 <p className="text-[9px] text-slate-400 mt-0.5 italic">How fast you're ramping · includes all load: cardio, strength, DOMS, soreness</p>
+                {/* Flipped: left=injury risk (2.0, red), right=detraining (0, amber),
+                    green sweet spot lives in the right-of-center — green/best on the right. */}
                 <div className="relative mt-2 h-3 rounded-full overflow-hidden flex border border-slate-200">
-                  <div className="h-full bg-blue-200" style={{ width: '40%' }} />
-                  <div className="h-full bg-green-300" style={{ width: '25%' }} />
+                  <div className="h-full bg-red-400" style={{ width: '25%' }} />
                   <div className="h-full bg-amber-300" style={{ width: '10%' }} />
-                  <div className="h-full bg-red-300" style={{ width: '25%' }} />
+                  <div className="h-full bg-green-400" style={{ width: '25%' }} />
+                  <div className="h-full bg-amber-200" style={{ width: '40%' }} />
                   <div
                     className="absolute top-0 w-2 h-full bg-slate-900 rounded shadow"
-                    style={{ left: `${Math.max(0, Math.min(100, (latestPerf.acwr / 2) * 100))}%`, transform: 'translateX(-50%)' }}
+                    style={{ left: `${Math.max(0, Math.min(100, (1 - latestPerf.acwr / 2) * 100))}%`, transform: 'translateX(-50%)' }}
                   />
                 </div>
                 <div className="flex justify-between text-[9px] text-slate-400 mt-1">
-                  <span>0 Detraining</span><span>0.8</span><span className="font-semibold text-green-600">Sweet Spot</span><span>1.5</span><span>2.0 Injury risk</span>
+                  <span>2.0 Injury risk</span><span>1.5</span><span className="font-semibold text-green-600">Sweet Spot</span><span>0.8</span><span>0 Detraining</span>
                 </div>
               </div>
             </div>
