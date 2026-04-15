@@ -6,16 +6,19 @@ import { formatMiles, formatSeconds } from '../utils/format'
 import { parseRoutine, type ParsedExercise } from '../utils/exercises'
 import { parseIntervalWorkout, getDrillDay, RUNNING_DRILLS, MYRTL_ROUTINE, PRE_RUN_ACTIVATION, type RunSegment, type DrillGuide } from '../utils/drills'
 import { fetchActivityStreams, getTokens, isTokenExpired, refreshAccessToken, type StreamData } from '../utils/strava'
+import { fetchGarminActivityStream } from '../utils/garmin'
 import HRChart from './HRChart'
+import PaceChart from './PaceChart'
 
 interface WorkoutModalProps {
   day: PlannedDay
   weekNum: number
   onClose: () => void
   zones?: HRZone[]
+  athleteId?: string
 }
 
-export default function WorkoutModal({ day, weekNum, onClose, zones }: WorkoutModalProps) {
+export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId }: WorkoutModalProps) {
   const style = getWorkoutStyle(day.type)
   const coaching = getCoaching(day, weekNum)
   const actual = day.actual
@@ -28,23 +31,36 @@ export default function WorkoutModal({ day, weekNum, onClose, zones }: WorkoutMo
   const [stream, setStream] = useState<StreamData | null>(null)
   const [streamLoading, setStreamLoading] = useState(false)
 
-  // Fetch HR stream on-demand when modal opens with a Strava activity
+  // Fetch per-second stream on-demand. Prefers Garmin when available
+  // (more accurate HR, pace, elevation from the watch itself), falls
+  // back to Strava.
   useEffect(() => {
-    if (!actual || actual.type === 'Manual' || !actual.stravaId) return
+    if (!actual || actual.type === 'Manual') return
     let cancelled = false
 
     async function loadStream() {
       setStreamLoading(true)
       try {
-        const tokens = getTokens()
-        if (!tokens) return
-        let accessToken = tokens.accessToken
-        if (isTokenExpired(tokens)) {
-          const refreshed = await refreshAccessToken(tokens.refreshToken)
-          accessToken = refreshed.accessToken
+        // Prefer Garmin if the actual came from Garmin
+        if (actual!.source === 'garmin' && actual!.garminId) {
+          const data = await fetchGarminActivityStream(actual!.garminId, athleteId)
+          if (!cancelled && data) {
+            setStream(data)
+            return
+          }
         }
-        const data = await fetchActivityStreams(accessToken, actual!.stravaId)
-        if (!cancelled) setStream(data)
+        // Strava fallback (or primary source)
+        if (actual!.stravaId) {
+          const tokens = getTokens()
+          if (!tokens) return
+          let accessToken = tokens.accessToken
+          if (isTokenExpired(tokens)) {
+            const refreshed = await refreshAccessToken(tokens.refreshToken)
+            accessToken = refreshed.accessToken
+          }
+          const data = await fetchActivityStreams(accessToken, actual!.stravaId)
+          if (!cancelled) setStream(data)
+        }
       } catch {
         // Silently fail — stream is optional
       } finally {
@@ -54,7 +70,7 @@ export default function WorkoutModal({ day, weekNum, onClose, zones }: WorkoutMo
 
     loadStream()
     return () => { cancelled = true }
-  }, [actual])
+  }, [actual, athleteId])
 
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
@@ -260,8 +276,12 @@ export default function WorkoutModal({ day, weekNum, onClose, zones }: WorkoutMo
                   <HRChart stream={stream} zones={zones} />
                 </div>
               )}
+              {/* Pace + elevation chart (only useful for running workouts with velocity data) */}
+              {stream && isRunType && stream.velocity && stream.velocity.length > 0 && (
+                <PaceChart stream={stream} />
+              )}
               {streamLoading && (
-                <p className="text-xs text-teal-600 mt-2 animate-pulse">Loading heart rate data...</p>
+                <p className="text-xs text-teal-600 mt-2 animate-pulse">Loading activity data...</p>
               )}
             </div>
           )}

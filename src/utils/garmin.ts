@@ -1,4 +1,5 @@
 import type { GarminHealthData, GarminActivity, GarminActivityDetail, ActualWorkout, StrengthExerciseLog, StrengthSet } from '../types'
+import type { StreamData } from './strava'
 
 const GARMIN_API_URL = import.meta.env.VITE_GARMIN_API_URL || ''
 
@@ -9,6 +10,7 @@ const STORAGE_KEYS = {
   displayName: 'ba_garmin_display_name',
   activities: 'ba_garmin_activities',
   activityDetails: 'ba_garmin_activity_details',
+  streams: 'ba_garmin_streams',
 } as const
 
 function scopedKey(base: string, athleteId?: string): string {
@@ -157,6 +159,59 @@ export function getCachedActivityDetails(athleteId?: string): Record<string, Gar
 
 export function cacheActivityDetails(details: Record<string, GarminActivityDetail[]>, athleteId?: string): void {
   localStorage.setItem(scopedKey(STORAGE_KEYS.activityDetails, athleteId), JSON.stringify(details))
+}
+
+// ─── Activity Stream API & Cache ───────────────────────────────
+
+/**
+ * Fetch per-second time-series stream (HR, velocity, altitude, distance,
+ * cadence) for a Garmin activity. Shape matches Strava's StreamData so
+ * the same HRChart/PaceChart components can render either source.
+ *
+ * Results are cached in localStorage indefinitely — completed-activity
+ * streams are immutable.
+ */
+export async function fetchGarminActivityStream(
+  activityId: number | string,
+  athleteId?: string,
+): Promise<StreamData | null> {
+  if (!GARMIN_API_URL) return null
+  const cached = getCachedGarminStream(activityId, athleteId)
+  if (cached) return cached
+
+  const athleteParam = athleteId ? `&athlete=${athleteId}` : ''
+  try {
+    const res = await fetch(
+      `${GARMIN_API_URL}/api/garmin/activity_stream?activityId=${activityId}${athleteParam}`,
+    )
+    if (!res.ok) return null
+    const json = await res.json()
+    const stream = json?.stream as StreamData | undefined
+    if (!stream || !stream.heartrate || stream.heartrate.length === 0) return null
+    cacheGarminStream(activityId, stream, athleteId)
+    return stream
+  } catch {
+    return null
+  }
+}
+
+function streamStorageKey(activityId: number | string, athleteId?: string): string {
+  return `${scopedKey(STORAGE_KEYS.streams, athleteId)}_${activityId}`
+}
+
+function getCachedGarminStream(activityId: number | string, athleteId?: string): StreamData | null {
+  try {
+    const raw = localStorage.getItem(streamStorageKey(activityId, athleteId))
+    return raw ? (JSON.parse(raw) as StreamData) : null
+  } catch { return null }
+}
+
+function cacheGarminStream(activityId: number | string, data: StreamData, athleteId?: string): void {
+  try {
+    localStorage.setItem(streamStorageKey(activityId, athleteId), JSON.stringify(data))
+  } catch {
+    // Quota exceeded — not fatal, just skip caching
+  }
 }
 
 // ─── Garmin Detail → ActualWorkout Converter ───────────────────

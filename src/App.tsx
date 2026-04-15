@@ -249,6 +249,7 @@ export default function App() {
           manualLog={manualLog}
           daySwap={daySwap}
           weekReadiness={readiness.weekScores}
+          athleteId={athleteId}
         />
       )}
       {view === 'dashboard' && (

@@ -17,6 +17,7 @@ interface WeeklyPlanProps {
     hasSwaps: (weekNum: number) => boolean
   }
   weekReadiness?: ReadinessScore[]
+  athleteId?: string
 }
 
 export default function WeeklyPlan({
@@ -25,6 +26,7 @@ export default function WeeklyPlan({
   manualLog,
   daySwap,
   weekReadiness = [],
+  athleteId,
 }: WeeklyPlanProps) {
   const [activeWeek, setActiveWeek] = useState(0)
   const [modalDay, setModalDay] = useState<PlannedDay | null>(null)
@@ -163,6 +165,7 @@ export default function WeeklyPlan({
           weekNum={week.num}
           onClose={() => setModalDay(null)}
           zones={zones}
+          athleteId={athleteId}
         />
       )}
 
