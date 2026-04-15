@@ -20,6 +20,7 @@ import RaceInfo from './components/RaceInfo'
 import Methodology from './components/Methodology'
 import Settings from './components/Settings'
 import { useHRZones } from './hooks/useHRZones'
+import CoachPreview from './components/CoachPreview'
 
 // Auto-clear stale caches on app startup when data format changes
 checkStorageVersion()
@@ -272,6 +273,7 @@ export default function App() {
           sorenessLoadByDate={soreness.sorenessLoadByDate}
         />
       )}
+      {view === 'coach-preview' && <CoachPreview />}
       {view === 'method' && <Methodology />}
       {view === 'info' && <RaceInfo race={plan.race} />}
       {view === 'settings' && showStrava && (
@@ -303,6 +305,7 @@ export default function App() {
           onResetHRZones={hrZones.reset}
           onClearCache={clearAllCachedData}
           onClearAll={clearAllAppData}
+          setView={setView}
         />
       )}
     </div>

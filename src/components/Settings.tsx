@@ -1,9 +1,10 @@
 import StravaConnect from './StravaConnect'
 import GarminConnect from './GarminConnect'
 import HRZoneEditor from './HRZoneEditor'
-import type { HRZone } from '../types'
+import type { HRZone, ViewId } from '../types'
 
 interface SettingsProps {
+  setView?: (v: ViewId) => void
   // Strava
   connected: boolean
   configured: boolean
@@ -65,10 +66,24 @@ export default function Settings({
   onResetHRZones,
   onClearCache,
   onClearAll,
+  setView,
 }: SettingsProps) {
   return (
     <div className="px-4 py-4 space-y-4">
       <h2 className="text-lg font-bold text-slate-800">Settings</h2>
+
+      {/* Coach preview — temporary entry point for design review.
+          Remove once the real Coach feature ships. */}
+      {setView && (
+        <button
+          onClick={() => setView('coach-preview')}
+          className="w-full bg-gradient-to-r from-indigo-500 to-teal-500 text-white px-4 py-3 rounded-xl text-left"
+        >
+          <p className="text-[10px] font-semibold uppercase tracking-wider opacity-80">Design preview</p>
+          <p className="text-sm font-bold">🤖 Coach — visual mockup</p>
+          <p className="text-xs opacity-90">Tap to preview the planned Coach UI. Not wired to a real model yet.</p>
+        </button>
+      )}
 
       {/* Strava connection */}
       <div>
