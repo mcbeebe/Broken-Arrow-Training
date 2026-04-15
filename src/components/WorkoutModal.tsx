@@ -108,10 +108,10 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <span className="text-lg">{style.label}</span>
+              <span className="text-xl">{style.label}</span>
               <div>
-                <p className="font-bold text-slate-800">{day.day}</p>
-                <p className="text-xs text-slate-500">Week {weekNum}</p>
+                <p className="font-bold text-lg text-slate-800">{day.day}</p>
+                <p className="text-sm text-slate-500">Week {weekNum}</p>
               </div>
             </div>
             <button
@@ -121,10 +121,10 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
               ✕
             </button>
           </div>
-          <p className="font-semibold text-slate-800 mt-2">{day.workout}</p>
+          <p className="font-semibold text-lg text-slate-800 mt-2">{day.workout}</p>
           {day.time !== '—' && (
             <div className="mt-0.5">
-              <p className="text-xs text-slate-500">
+              <p className="text-sm text-slate-600">
                 ⏱ Total session: {day.time} (includes warm-up, cool-down & transitions)
                 {day.route !== '—' && <> · 📍 {day.route}</>}
               </p>
@@ -143,10 +143,10 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
           {/* Strava actual */}
           {actual && (
             <div className="bg-teal-50 rounded-xl p-3 border border-teal-200 space-y-2">
-              <p className="text-xs font-semibold text-teal-800 uppercase tracking-wide">
+              <p className="text-sm font-semibold text-teal-800 uppercase tracking-wide">
                 {actual.source === 'manual' || actual.type === 'Manual' ? '📝 Logged' : actual.source === 'garmin' ? '⌚ Garmin' : '🔗 Strava'}: {actual.name}
               </p>
-              <div className="grid grid-cols-2 gap-2 text-sm text-teal-700">
+              <div className="grid grid-cols-2 gap-2 text-base text-teal-700">
                 {actual.distance > 0 && <span>📏 {formatMiles(actual.distance)}</span>}
                 {actual.movingTime > 0 && <span>⏱ {formatSeconds(actual.movingTime)}</span>}
                 {actual.avgHR && <span>❤️ {actual.avgHR} avg HR</span>}
@@ -159,7 +159,7 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
                 {actual.elevLow && <span>📉 {actual.elevLow} ft low</span>}
               </div>
               {actual.deviceName && (
-                <p className="text-[10px] text-teal-600">📱 {actual.deviceName}</p>
+                <p className="text-xs text-teal-600">📱 {actual.deviceName}</p>
               )}
 
               {/* Garmin Training Metrics */}
@@ -204,19 +204,19 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
               {/* Exercise Sets from Garmin / Strength Log */}
               {actual.strengthLog && actual.strengthLog.length > 0 && (
                 <div className="mt-2">
-                  <p className="text-xs font-semibold text-teal-800 mb-1">
+                  <p className="text-sm font-semibold text-teal-800 mb-1">
                     {actual.source === 'garmin' ? '⌚ Exercise Sets (from watch)' : '💪 Strength Log'}
                   </p>
                   <div className="space-y-1.5">
                     {actual.strengthLog.map((ex, i) => (
                       <div key={i} className="bg-teal-100/50 rounded-lg px-2 py-1.5">
                         <div className="flex items-center justify-between">
-                          <span className="text-xs font-medium text-teal-800">{ex.name}</span>
-                          <span className="text-[10px] text-teal-600 capitalize">{ex.focus}</span>
+                          <span className="text-sm font-medium text-teal-800">{ex.name}</span>
+                          <span className="text-xs text-teal-600 capitalize">{ex.focus}</span>
                         </div>
                         <div className="flex flex-wrap gap-1.5 mt-1">
                           {ex.sets.map((s, j) => (
-                            <span key={j} className="text-[10px] text-teal-700 bg-white/60 rounded px-1.5 py-0.5">
+                            <span key={j} className="text-xs text-teal-700 bg-white/60 rounded px-1.5 py-0.5">
                               {s.reps > 0 ? `${s.reps} reps` : ''}{s.weight !== '—' ? ` @ ${s.weight}` : ''}{s.notes ? ` (${s.notes})` : ''}
                             </span>
                           ))}
@@ -230,10 +230,10 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
               {/* Splits */}
               {actual.splits && actual.splits.length > 0 && (
                 <div>
-                  <p className="text-xs font-semibold text-teal-800 mt-2 mb-1">Splits (per km)</p>
+                  <p className="text-sm font-semibold text-teal-800 mt-2 mb-1">Splits (per km)</p>
                   <div className="space-y-0.5">
                     {actual.splits.map((s, i) => (
-                      <div key={i} className="flex justify-between text-xs text-teal-700 bg-teal-100/50 rounded px-2 py-0.5">
+                      <div key={i} className="flex justify-between text-sm text-teal-700 bg-teal-100/50 rounded px-2 py-0.5">
                         <span>Km {s.split}</span>
                         <span>{s.pace}</span>
                         {s.hr && <span>❤️ {s.hr}</span>}
@@ -247,10 +247,10 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
               {/* Laps */}
               {actual.laps && actual.laps.length > 1 && (
                 <div>
-                  <p className="text-xs font-semibold text-teal-800 mt-2 mb-1">Laps</p>
+                  <p className="text-sm font-semibold text-teal-800 mt-2 mb-1">Laps</p>
                   <div className="space-y-0.5">
                     {actual.laps.map((l, i) => (
-                      <div key={i} className="flex justify-between text-xs text-teal-700 bg-teal-100/50 rounded px-2 py-0.5">
+                      <div key={i} className="flex justify-between text-sm text-teal-700 bg-teal-100/50 rounded px-2 py-0.5">
                         <span className="truncate max-w-[120px]">{l.name}</span>
                         <span>{formatMiles(l.distance)}</span>
                         <span>{l.pace}</span>
@@ -272,7 +272,7 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
                 <PaceChart stream={stream} />
               )}
               {streamLoading && (
-                <p className="text-xs text-teal-600 mt-2 animate-pulse">Loading activity data...</p>
+                <p className="text-sm text-teal-600 mt-2 animate-pulse">Loading activity data...</p>
               )}
             </div>
           )}
@@ -286,8 +286,8 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
           {/* Pre-run activation for drill days */}
           {isDrillDay && (
             <div>
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">🔥 Pre-Run Activation (~3 min)</p>
-              <p className="text-xs text-slate-500 mb-2">Do these BEFORE your run to wake up your glutes and hips. Quick and targeted.</p>
+              <p className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-2">🔥 Pre-Run Activation (~3 min)</p>
+              <p className="text-sm text-slate-600 mb-2">Do these BEFORE your run to wake up your glutes and hips. Quick and targeted.</p>
               <div className="space-y-1.5">
                 {PRE_RUN_ACTIVATION.map((drill, i) => (
                   <DrillCard key={i} drill={drill} />
@@ -298,16 +298,16 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
 
           {/* Purpose */}
           <div>
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">🎯 Purpose</p>
-            <p className="text-sm text-slate-700 leading-relaxed">{coaching.purpose}</p>
+            <p className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-1">🎯 Purpose</p>
+            <p className="text-base text-slate-700 leading-relaxed">{coaching.purpose}</p>
           </div>
 
           {/* How to Execute */}
           <div>
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">📋 How to Execute</p>
+            <p className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-1">📋 How to Execute</p>
             <ul className="space-y-1.5">
               {coaching.execution.map((tip, i) => (
-                <li key={i} className="text-sm text-slate-700 flex gap-2">
+                <li key={i} className="text-base text-slate-700 flex gap-2">
                   <span className="text-slate-400 shrink-0">•</span>
                   <span>{tip}</span>
                 </li>
@@ -318,7 +318,7 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
           {/* Strength: Exercise-by-exercise guide */}
           {isStrength && exercises.length > 0 && (
             <div>
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">🏋️ Exercise Guide (tap for form cues)</p>
+              <p className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-2">🏋️ Exercise Guide (tap for form cues)</p>
               <div className="space-y-2">
                 {exercises.map((ex, i) => (
                   <ExerciseCard key={i} exercise={ex} index={i + 1} />
@@ -330,7 +330,7 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
           {/* Quality: Interval breakdown */}
           {isQuality && intervals.length > 0 && (
             <div>
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">⚡ Interval Breakdown</p>
+              <p className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-2">⚡ Interval Breakdown</p>
               <div className="space-y-1.5">
                 {intervals.map((seg, i) => (
                   <IntervalSegment key={i} segment={seg} index={i} />
@@ -342,8 +342,8 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
           {/* Drills + Myrtl for designated drill days */}
           {isDrillDay && (
             <div>
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">🏃 Post-Run: Running Drills (~8 min)</p>
-              <p className="text-xs text-slate-500 mb-2">Do these after your run while muscles are warm, before stretching. Builds speed and coordination.</p>
+              <p className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-2">🏃 Post-Run: Running Drills (~8 min)</p>
+              <p className="text-sm text-slate-600 mb-2">Do these after your run while muscles are warm, before stretching. Builds speed and coordination.</p>
               <div className="space-y-1.5">
                 {RUNNING_DRILLS.map((drill, i) => (
                   <DrillCard key={i} drill={drill} />
@@ -354,8 +354,8 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
 
           {isDrillDay && (
             <div>
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">🦵 Post-Run: Full Myrtl Hip Routine (~10 min)</p>
-              <p className="text-xs text-slate-500 mb-2">Full hip strengthening after drills. You did the abbreviated version pre-run — now go deep while muscles are warm.</p>
+              <p className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-2">🦵 Post-Run: Full Myrtl Hip Routine (~10 min)</p>
+              <p className="text-sm text-slate-600 mb-2">Full hip strengthening after drills. You did the abbreviated version pre-run — now go deep while muscles are warm.</p>
               <div className="space-y-1.5">
                 {MYRTL_ROUTINE.map((drill, i) => (
                   <DrillCard key={i} drill={drill} />
@@ -367,8 +367,8 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
           {/* Myrtl recommendation for non-drill run days */}
           {isRunType && !isDrillDay && (
             <div className="bg-blue-50 rounded-xl p-3 border border-blue-200">
-              <p className="text-xs font-semibold text-blue-800">💡 Drills & Myrtl Tip</p>
-              <p className="text-xs text-blue-700 mt-1">
+              <p className="text-sm font-semibold text-blue-800">💡 Drills & Myrtl Tip</p>
+              <p className="text-sm text-blue-700 mt-1">
                 Running drills and the Myrtl hip routine are scheduled for your {getDrillDay(weekNum)} run this week.
                 If you want extra hip work today, do the Myrtl routine post-run (10 min).
               </p>
@@ -377,20 +377,20 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
 
           {/* Mindset */}
           <div className="bg-slate-50 rounded-xl p-3 border border-slate-200">
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">🧠 Mindset</p>
-            <p className="text-sm text-slate-700 italic leading-relaxed">{coaching.mindset}</p>
+            <p className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-1">🧠 Mindset</p>
+            <p className="text-base text-slate-700 italic leading-relaxed">{coaching.mindset}</p>
           </div>
 
           {/* Nutrition */}
           <div>
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">🍌 Nutrition</p>
-            <p className="text-sm text-slate-700">{coaching.nutrition}</p>
+            <p className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-1">🍌 Nutrition</p>
+            <p className="text-base text-slate-700">{coaching.nutrition}</p>
           </div>
 
           {/* Recovery */}
           <div>
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">🔄 Recovery</p>
-            <p className="text-sm text-slate-700">{coaching.recovery}</p>
+            <p className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-1">🔄 Recovery</p>
+            <p className="text-base text-slate-700">{coaching.recovery}</p>
           </div>
         </div>
 
@@ -403,11 +403,11 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
 function DrillStatusBanner({ drills }: { drills?: { completed: boolean; items?: { name: string; done: boolean }[]; durationMin?: number } }) {
   if (!drills) {
     return (
-      <div className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 flex items-center gap-2">
-        <span className="text-lg">🤸</span>
+      <div className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 flex items-center gap-2">
+        <span className="text-xl">🤸</span>
         <div className="flex-1">
-          <p className="text-xs font-semibold text-slate-700">Drills not yet logged</p>
-          <p className="text-[11px] text-slate-500">Open the Log modal to check off drills as you do them.</p>
+          <p className="text-base font-semibold text-slate-700">Drills not yet logged</p>
+          <p className="text-sm text-slate-500">Open the Log modal to check off drills as you do them.</p>
         </div>
       </div>
     )
@@ -416,15 +416,15 @@ function DrillStatusBanner({ drills }: { drills?: { completed: boolean; items?: 
   const total = drills.items?.length ?? 0
   if (drills.completed) {
     return (
-      <div className="bg-sky-50 border border-sky-200 rounded-xl px-3 py-2 flex items-center gap-2">
-        <span className="text-lg">✅</span>
+      <div className="bg-sky-50 border border-sky-200 rounded-xl px-3 py-2.5 flex items-center gap-2">
+        <span className="text-xl">✅</span>
         <div className="flex-1">
-          <p className="text-xs font-semibold text-sky-800">
+          <p className="text-base font-semibold text-sky-800">
             Drills completed{total > 0 ? ` · ${done}/${total} items` : ''}
             {drills.durationMin ? ` · ${drills.durationMin} min` : ''}
           </p>
           {total > 0 && done < total && (
-            <p className="text-[11px] text-sky-600">
+            <p className="text-sm text-sky-600">
               Skipped: {drills.items!.filter(i => !i.done).map(i => i.name).join(', ')}
             </p>
           )}
@@ -433,11 +433,11 @@ function DrillStatusBanner({ drills }: { drills?: { completed: boolean; items?: 
     )
   }
   return (
-    <div className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 flex items-center gap-2">
-      <span className="text-lg">⚠️</span>
+    <div className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5 flex items-center gap-2">
+      <span className="text-xl">⚠️</span>
       <div className="flex-1">
-        <p className="text-xs font-semibold text-amber-800">Drills planned but not marked complete</p>
-        <p className="text-[11px] text-amber-600">Open the Log modal and tick the drill checkboxes.</p>
+        <p className="text-base font-semibold text-amber-800">Drills planned but not marked complete</p>
+        <p className="text-sm text-amber-600">Open the Log modal and tick the drill checkboxes.</p>
       </div>
     </div>
   )
@@ -458,36 +458,36 @@ function ExerciseCard({ exercise, index }: { exercise: ParsedExercise; index: nu
             <span className="text-xs font-bold text-purple-600 bg-purple-100 rounded-full w-5 h-5 flex items-center justify-center shrink-0">
               {index}
             </span>
-            <span className="text-sm font-medium text-slate-800">
+            <span className="text-base font-medium text-slate-800">
               {guide?.name || exercise.name}
             </span>
           </div>
           <div className="flex items-center gap-2">
             {exercise.sets && exercise.reps && (
-              <span className="text-xs text-purple-700 bg-purple-50 rounded-full px-2 py-0.5 font-medium">
+              <span className="text-sm text-purple-700 bg-purple-50 rounded-full px-2 py-0.5 font-medium">
                 {exercise.sets} × {exercise.reps}
               </span>
             )}
-            <span className="text-slate-400 text-xs">{expanded ? '▼' : '›'}</span>
+            <span className="text-slate-400 text-sm">{expanded ? '▼' : '›'}</span>
           </div>
         </div>
         {guide && !expanded && (
-          <p className="text-xs text-slate-500 mt-0.5 ml-7">{guide.weight} · {guide.rest}</p>
+          <p className="text-sm text-slate-500 mt-0.5 ml-7">{guide.weight} · {guide.rest}</p>
         )}
       </div>
 
       {expanded && guide && (
         <div className="px-3 pb-3 border-t border-purple-100 pt-2 space-y-2">
-          <p className="text-xs text-slate-500 italic">{guide.aka}</p>
-          <div className="flex gap-3 text-xs">
+          <p className="text-sm text-slate-500 italic">{guide.aka}</p>
+          <div className="flex gap-3 text-sm">
             <span className="text-purple-700 bg-purple-50 rounded px-2 py-1">💪 {guide.weight}</span>
             <span className="text-purple-700 bg-purple-50 rounded px-2 py-1">⏸ {guide.rest}</span>
           </div>
           <div>
-            <p className="text-xs font-semibold text-slate-600 mb-1">Form Cues:</p>
+            <p className="text-sm font-semibold text-slate-600 mb-1">Form Cues:</p>
             <ol className="space-y-1">
               {guide.form.map((cue, i) => (
-                <li key={i} className="text-xs text-slate-600 flex gap-1.5">
+                <li key={i} className="text-sm text-slate-600 flex gap-1.5">
                   <span className="text-slate-400 shrink-0">{i + 1}.</span>
                   <span>{cue}</span>
                 </li>
@@ -499,7 +499,7 @@ function ExerciseCard({ exercise, index }: { exercise: ParsedExercise; index: nu
 
       {expanded && !guide && (
         <div className="px-3 pb-3 border-t border-purple-100 pt-2">
-          <p className="text-xs text-slate-500">No detailed guide available for this exercise yet.</p>
+          <p className="text-sm text-slate-500">No detailed guide available for this exercise yet.</p>
         </div>
       )}
     </div>
@@ -521,24 +521,24 @@ function IntervalSegment({ segment, index }: { segment: RunSegment; index: numbe
       <div className="px-3 py-2 cursor-pointer">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className={`text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shrink-0 ${numColor}`}>
+            <span className={`text-sm font-bold rounded-full w-6 h-6 flex items-center justify-center shrink-0 ${numColor}`}>
               {index + 1}
             </span>
-            <span className="text-sm font-medium text-slate-800">{segment.label}</span>
+            <span className="text-base font-medium text-slate-800">{segment.label}</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-xs text-slate-600">{segment.duration}</span>
-            <span className="text-slate-400 text-xs">{expanded ? '▼' : '›'}</span>
+            <span className="text-sm text-slate-600">{segment.duration}</span>
+            <span className="text-slate-400 text-sm">{expanded ? '▼' : '›'}</span>
           </div>
         </div>
-        <p className="text-xs text-slate-500 mt-0.5 ml-7">{segment.effort}</p>
+        <p className="text-sm text-slate-500 mt-0.5 ml-8">{segment.effort}</p>
       </div>
 
       {expanded && (
         <div className="px-3 pb-2.5 border-t border-slate-200/50 pt-2">
           <ul className="space-y-1">
             {segment.cues.map((cue, i) => (
-              <li key={i} className="text-xs text-slate-600 flex gap-1.5">
+              <li key={i} className="text-sm text-slate-600 flex gap-1.5">
                 <span className="text-slate-400 shrink-0">•</span>
                 <span>{cue}</span>
               </li>
@@ -558,20 +558,20 @@ function DrillCard({ drill }: { drill: DrillGuide }) {
       className="bg-white rounded-xl border border-blue-200 overflow-hidden"
       onClick={() => setExpanded(!expanded)}
     >
-      <div className="px-3 py-2 cursor-pointer">
+      <div className="px-3 py-2.5 cursor-pointer">
         <div className="flex items-center justify-between">
-          <span className="text-sm font-medium text-slate-800">{drill.name}</span>
+          <span className="text-base font-medium text-slate-800">{drill.name}</span>
           <div className="flex items-center gap-2">
-            <span className="text-xs text-blue-600">{drill.duration}</span>
-            <span className="text-slate-400 text-xs">{expanded ? '▼' : '›'}</span>
+            <span className="text-sm text-blue-600">{drill.duration}</span>
+            <span className="text-slate-400 text-sm">{expanded ? '▼' : '›'}</span>
           </div>
         </div>
       </div>
       {expanded && (
-        <div className="px-3 pb-2.5 border-t border-blue-100 pt-2">
+        <div className="px-3 pb-3 border-t border-blue-100 pt-2">
           <ul className="space-y-1">
             {drill.form.map((cue, i) => (
-              <li key={i} className="text-xs text-slate-600 flex gap-1.5">
+              <li key={i} className="text-sm text-slate-600 flex gap-1.5">
                 <span className="text-slate-400 shrink-0">•</span>
                 <span>{cue}</span>
               </li>
