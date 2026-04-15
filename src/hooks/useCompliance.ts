@@ -246,6 +246,7 @@ export function gradeWorkoutDay(day: PlannedDay, targets: ReturnType<typeof pars
     hrInZonePct,
     hrAvg,
     hrGrade,
+    hrZoneSummary: actual.hrZoneSummary,
     flagged: flagReasons.length > 0,
     flagReasons,
   }
@@ -266,7 +267,7 @@ function gradeRatio(ratio: number): ComplianceGrade {
  * Falls back to binary avgHR-in-range when zone summary is missing.
  */
 export function computeHRTimeInZone(
-  zoneSummary: { zone: number; seconds: number }[] | undefined,
+  zoneSummary: { zone: number; seconds: number; lowHR?: number; highHR?: number }[] | undefined,
   targetLow: number,
   targetHigh: number,
   avgHR?: number,
@@ -274,17 +275,37 @@ export function computeHRTimeInZone(
   if (zoneSummary && zoneSummary.length > 0) {
     const total = zoneSummary.reduce((s, z) => s + z.seconds, 0)
     if (total <= 0) return undefined
-    // Approximate zone HR boundaries (Mike's zones: 108/128/148/167/177)
-    // We can't know the exact zone for every athlete so use canonical
-    // % bands: Z1=50-65%, Z2=65-75%, Z3=75-85%, Z4=85-90%, Z5=90-100%.
-    // Approximate by assuming the target band sits at Z1-Z2 boundary for
-    // most plan days. Simpler rule: credit any zone whose midpoint falls
-    // inside [targetLow, targetHigh] fully; zones outside get zero.
-    // We derive zone midpoints from the user's own zones via a small
-    // heuristic: zones 1-5 midpoints are assumed at 118/138/158/172/187.
-    const ZONE_MID: Record<number, number> = {
-      1: 118, 2: 138, 3: 158, 4: 172, 5: 187,
+
+    // Preferred path: Garmin provides per-zone lowHR/highHR boundaries.
+    // Compute fractional overlap between each zone's HR band and the
+    // plan's target band. This is accurate regardless of whether the
+    // device's zone definitions match the plan's zones.
+    const hasBoundaries = zoneSummary.some(z => z.lowHR !== undefined)
+    if (hasBoundaries) {
+      let inZone = 0
+      // Sort by lowHR so we can infer highHR from the next zone's lowHR
+      const sorted = [...zoneSummary].sort((a, b) => (a.lowHR ?? 0) - (b.lowHR ?? 0))
+      for (let i = 0; i < sorted.length; i++) {
+        const z = sorted[i]
+        const low = z.lowHR
+        if (low === undefined) continue
+        // highHR from the record, else infer from next zone's low, else +20 bpm span
+        const high = z.highHR ?? (sorted[i + 1]?.lowHR !== undefined ? sorted[i + 1].lowHR! - 1 : low + 20)
+        const overlapLow = Math.max(low, targetLow)
+        const overlapHigh = Math.min(high, targetHigh)
+        if (overlapHigh >= overlapLow) {
+          const overlap = overlapHigh - overlapLow + 1
+          const span = high - low + 1
+          const fraction = span > 0 ? overlap / span : 0
+          inZone += z.seconds * fraction
+        }
+      }
+      return (inZone / total) * 100
     }
+
+    // Fallback: no boundaries — use canonical zone midpoints
+    // (zones 1-5 ≈ 118/138/158/172/187). Less accurate but usable.
+    const ZONE_MID: Record<number, number> = { 1: 118, 2: 138, 3: 158, 4: 172, 5: 187 }
     let inZone = 0
     for (const z of zoneSummary) {
       const mid = ZONE_MID[z.zone]
@@ -294,7 +315,7 @@ export function computeHRTimeInZone(
     }
     return (inZone / total) * 100
   }
-  // Fallback: binary check on avgHR
+  // Final fallback: binary check on avgHR
   if (avgHR !== undefined) {
     return avgHR >= targetLow && avgHR <= targetHigh ? 100 : 0
   }

@@ -191,7 +191,16 @@ export function garminDetailToActual(detail: GarminActivityDetail): ActualWorkou
     epoc: detail.activityTrainingLoad,
     recoveryTimeHours: detail.recoveryTime,
     vo2max: detail.vO2MaxValue,
-    hrZoneSummary: detail.hrZones?.map(z => ({ zone: z.zoneNumber, seconds: z.secsInZone })),
+    hrZoneSummary: detail.hrZones?.map((z, i, arr) => {
+      const next = arr[i + 1]
+      return {
+        zone: z.zoneNumber,
+        seconds: z.secsInZone,
+        lowHR: z.zoneLowBoundary,
+        // highHR = next zone's low boundary - 1 (if we have it)
+        highHR: next?.zoneLowBoundary ? next.zoneLowBoundary - 1 : undefined,
+      }
+    }),
     strengthLog,
   }
 }

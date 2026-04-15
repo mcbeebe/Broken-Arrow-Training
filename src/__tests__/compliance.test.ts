@@ -200,4 +200,34 @@ describe('computeHRTimeInZone', () => {
   it('returns 0 when summary missing and avgHR out of range', () => {
     expect(computeHRTimeInZone(undefined, 108, 148, 155)).toBe(0)
   })
+
+  it('uses device-reported zone boundaries when present (fractional overlap)', () => {
+    // Garmin device zones: Z1 100-119, Z2 120-139, Z3 140-159, Z4 160-179, Z5 180+
+    // Plan target: 108-148 — overlaps Z1 (108-119 = 12 of 20), Z2 (fully, 20/20),
+    // Z3 (140-148 = 9 of 20). Z4/Z5 = 0.
+    const summary = [
+      { zone: 1, seconds: 100, lowHR: 100, highHR: 119 },  // 12/20 = 0.6 in target
+      { zone: 2, seconds: 200, lowHR: 120, highHR: 139 },  // 20/20 = 1.0
+      { zone: 3, seconds: 100, lowHR: 140, highHR: 159 },  // 9/20 = 0.45
+      { zone: 4, seconds: 100, lowHR: 160, highHR: 179 },  // 0
+    ]
+    const pct = computeHRTimeInZone(summary, 108, 148)!
+    // In-zone = 100*0.6 + 200*1.0 + 100*0.45 + 0 = 60 + 200 + 45 = 305
+    // Total = 500. 305/500 = 61%
+    expect(pct).toBeCloseTo(61, 0)
+  })
+
+  it('device zone labeled Z3 but band overlaps plan target → still credited', () => {
+    // Scenario: Garmin Z3 = 130-149, plan target = 108-148.
+    // User spent 90% in device Z3 (actually in plan Z2 range).
+    const summary = [
+      { zone: 2, seconds: 60, lowHR: 110, highHR: 129 },
+      { zone: 3, seconds: 540, lowHR: 130, highHR: 149 },  // 19/20 of this zone in target
+    ]
+    const pct = computeHRTimeInZone(summary, 108, 148)!
+    // Z2 fully in target (110-129 ⊆ 108-148): 60 * 1.0 = 60
+    // Z3: overlap 130-148 = 19 of 20: 540 * 0.95 = 513
+    // Total 600 → (573/600)*100 ≈ 95.5%
+    expect(pct).toBeGreaterThan(90)
+  })
 })

@@ -124,6 +124,8 @@ export interface DayCompliance {
   hrInZonePct?: number     // 0-100
   hrAvg?: number
   hrGrade: ComplianceGrade
+  // Raw zone distribution (seconds per zone 1..5) — for proportional bars
+  hrZoneSummary?: { zone: number; seconds: number; lowHR?: number; highHR?: number }[]
   // Overall flag — any major miss?
   flagged: boolean
   flagReasons: string[]
@@ -160,7 +162,7 @@ export interface ActualWorkout {
   epoc?: number;
   recoveryTimeHours?: number;
   vo2max?: number;
-  hrZoneSummary?: { zone: number; seconds: number }[];
+  hrZoneSummary?: { zone: number; seconds: number; lowHR?: number; highHR?: number }[];
 }
 
 export interface StrengthExerciseLog {
