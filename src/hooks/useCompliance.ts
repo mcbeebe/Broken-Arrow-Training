@@ -13,7 +13,9 @@ export interface WeekCompliance {
   actualMiles: number
   plannedElevation: number
   actualElevation: number
-  hrCompliance: number // % of workouts where HR was within target band (time-in-zone ≥ 50%)
+  hrCompliance: number // avg time-in-zone % across HR-checked workouts
+  hrCheckedWorkouts: number // # workouts with HR measurement against a target zone
+  hrInZoneTotal: number // sum of hrInZonePct across checked workouts
   days: DayCompliance[] // per-day breakdown
   // New aggregate metrics
   distanceCompliancePct: number  // avg distance % across completed days
@@ -62,8 +64,8 @@ function computeCompliance(weeks: TrainingWeek[]): OverallCompliance {
     let actualMiles = 0
     let actualElevation = 0
 
-    // For HR compliance %: count workouts where HR time-in-zone >= 50%
-    let hrInZoneWorkouts = 0
+    // Avg time-in-zone across HR-checked workouts (not binary pass/fail)
+    let hrInZoneTotal = 0
     let hrCheckedWorkouts = 0
 
     // For distance/duration compliance: collect per-day % and average
@@ -95,7 +97,7 @@ function computeCompliance(weeks: TrainingWeek[]): OverallCompliance {
         if (rec.durationPct !== undefined) durationPcts.push(rec.durationPct)
         if (rec.hrInZonePct !== undefined) {
           hrCheckedWorkouts++
-          if (rec.hrInZonePct >= HR_TIME_IN_ZONE_CLOSE) hrInZoneWorkouts++
+          hrInZoneTotal += rec.hrInZonePct
         }
         if (rec.flagged) flaggedCount++
       } else {
@@ -118,7 +120,7 @@ function computeCompliance(weeks: TrainingWeek[]): OverallCompliance {
     const distanceCompliancePct = avgPct(distancePcts)
     const durationCompliancePct = avgPct(durationPcts)
     const hrCompliance = hrCheckedWorkouts > 0
-      ? Math.round((hrInZoneWorkouts / hrCheckedWorkouts) * 100)
+      ? Math.round(hrInZoneTotal / hrCheckedWorkouts)
       : 0
 
     return {
@@ -132,6 +134,8 @@ function computeCompliance(weeks: TrainingWeek[]): OverallCompliance {
       plannedElevation,
       actualElevation,
       hrCompliance,
+      hrCheckedWorkouts,
+      hrInZoneTotal,
       days: dayComplianceList,
       distanceCompliancePct,
       durationCompliancePct,
@@ -147,9 +151,13 @@ function computeCompliance(weeks: TrainingWeek[]): OverallCompliance {
   const totalActualElevation = weekStats.reduce((s, w) => s + w.actualElevation, 0)
   const totalFlagged = weekStats.reduce((s, w) => s + w.flaggedCount, 0)
 
-  const hrCheckedWeeks = weekStats.filter(w => w.hrCompliance > 0)
-  const overallHRCompliance = hrCheckedWeeks.length > 0
-    ? Math.round(hrCheckedWeeks.reduce((s, w) => s + w.hrCompliance, 0) / hrCheckedWeeks.length)
+  // Aggregate across all HR-checked workouts, not mean-of-weekly-means.
+  // Filtering out 0%-weeks biases the number upward; summing workout-level
+  // time-in-zone keeps each workout weighted equally.
+  const totalHrChecked = weekStats.reduce((s, w) => s + w.hrCheckedWorkouts, 0)
+  const totalHrInZone = weekStats.reduce((s, w) => s + w.hrInZoneTotal, 0)
+  const overallHRCompliance = totalHrChecked > 0
+    ? Math.round(totalHrInZone / totalHrChecked)
     : 0
 
   const distanceWeeks = weekStats.filter(w => w.distanceCompliancePct > 0)
@@ -299,12 +307,33 @@ export function gradeWorkoutDay(day: PlannedDay, targets: ReturnType<typeof pars
     drillGrade: (() => {
       const planned = (targets.drillItems?.length ?? 0) > 0
       if (!planned) return 'na' as ComplianceGrade
-      if (actual.drills?.completed) return 'hit' as ComplianceGrade
+      // Count actual items done. Fall back to the `completed` flag only
+      // when no per-item data exists (legacy logs).
+      const items = actual.drills?.items
+      const completedFlag = actual.drills?.completed
+      if (items && items.length > 0) {
+        const done = items.filter(i => i.done).length
+        const pct = done / items.length
+        if (pct >= 0.8) return 'hit' as ComplianceGrade
+        if (pct >= 0.5) {
+          flagReasons.push(`Only ${done}/${items.length} drills done`)
+          return 'close' as ComplianceGrade
+        }
+        flagReasons.push(`Only ${done}/${items.length} drills done`)
+        return 'miss' as ComplianceGrade
+      }
+      if (completedFlag) return 'hit' as ComplianceGrade
       flagReasons.push('Drills planned but not completed')
       return 'miss' as ComplianceGrade
     })(),
     drillsPlanned: (targets.drillItems?.length ?? 0) > 0,
-    drillsCompleted: !!actual.drills?.completed,
+    drillsCompleted: (() => {
+      const items = actual.drills?.items
+      if (items && items.length > 0) {
+        return items.filter(i => i.done).length / items.length >= 0.8
+      }
+      return !!actual.drills?.completed
+    })(),
     flagged: flagReasons.length > 0,
     flagReasons,
   }

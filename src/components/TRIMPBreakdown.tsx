@@ -122,31 +122,31 @@ export default function TRIMPBreakdown({ dailyTrimp, sorenessLoadByDate }: TRIMP
     <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-100">
       <div className="flex items-baseline justify-between mb-3">
         <div>
-          <p className="text-sm font-semibold text-slate-700">7-Day Training Load</p>
-          <p className="text-xs text-slate-400">Garmin EPOC · MIM-adjusted · DOMS &amp; soreness</p>
+          <p className="text-base font-semibold text-slate-700">7-Day Training Load</p>
+          <p className="text-sm text-slate-500">Garmin EPOC · MIM-adjusted · DOMS &amp; soreness</p>
         </div>
         <div className="text-right">
-          <p className="text-xl font-bold text-slate-800">{weeklyTotal}</p>
-          <p className="text-[10px] text-slate-400 uppercase">Weekly Load</p>
+          <p className="text-2xl font-bold text-slate-800">{weeklyTotal}</p>
+          <p className="text-xs text-slate-500 uppercase">Weekly Load</p>
         </div>
       </div>
-      <div style={{ height: 160 }}>
+      <div style={{ height: 180 }}>
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={chartData} barCategoryGap="15%">
             <XAxis
               dataKey="date"
-              tick={{ fontSize: 10, fill: '#94A3B8' }}
+              tick={{ fontSize: 12, fill: '#94A3B8' }}
               axisLine={false}
               tickLine={false}
             />
             <YAxis
-              tick={{ fontSize: 10, fill: '#94A3B8' }}
+              tick={{ fontSize: 12, fill: '#94A3B8' }}
               axisLine={false}
               tickLine={false}
-              width={30}
+              width={32}
             />
             <Tooltip
-              contentStyle={{ fontSize: 11, borderRadius: 8 }}
+              contentStyle={{ fontSize: 13, borderRadius: 8 }}
               formatter={(value, name) => {
                 if (name === '_isRest' || name === 'rest') return [null, null]
                 const label = name === 'soreness' ? 'muscle soreness'
@@ -202,7 +202,7 @@ export default function TRIMPBreakdown({ dailyTrimp, sorenessLoadByDate }: TRIMP
         {filledDays.map((day, i) => (
           <div key={i} className="flex-1 text-center">
             {day.total === 0 && (
-              <span className="text-[9px] text-slate-300 italic">Rest</span>
+              <span className="text-xs text-slate-400 italic">Rest</span>
             )}
           </div>
         ))}
@@ -211,29 +211,29 @@ export default function TRIMPBreakdown({ dailyTrimp, sorenessLoadByDate }: TRIMP
       {/* Legend */}
       <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2">
         {Array.from(sportTypes).map(type => (
-          <span key={type} className="flex items-center gap-1 text-[10px] text-slate-500">
+          <span key={type} className="flex items-center gap-1 text-xs text-slate-500">
             <span
-              className="w-2 h-2 rounded-sm inline-block"
+              className="w-2.5 h-2.5 rounded-sm inline-block"
               style={{ backgroundColor: SPORT_COLORS[type] || '#94A3B8' }}
             />
             {type.replace(/_/g, ' ')}
           </span>
         ))}
         {hasRpeExercise && (
-          <span className="flex items-center gap-1 text-[10px] text-slate-500">
-            <span className="w-2 h-2 rounded-sm inline-block" style={{ backgroundColor: '#F59E0B' }} />
+          <span className="flex items-center gap-1 text-xs text-slate-500">
+            <span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ backgroundColor: '#F59E0B' }} />
             RPE + exercise
           </span>
         )}
         {hasDoms && (
-          <span className="flex items-center gap-1 text-[10px] text-slate-500">
-            <span className="w-2 h-2 rounded-sm inline-block" style={{ backgroundColor: '#FB923C' }} />
+          <span className="flex items-center gap-1 text-xs text-slate-500">
+            <span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ backgroundColor: '#FB923C' }} />
             DOMS carry-over
           </span>
         )}
         {hasSoreness && (
-          <span className="flex items-center gap-1 text-[10px] text-slate-500">
-            <span className="w-2 h-2 rounded-sm inline-block" style={{ backgroundColor: '#F87171' }} />
+          <span className="flex items-center gap-1 text-xs text-slate-500">
+            <span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ backgroundColor: '#F87171' }} />
             muscle soreness
           </span>
         )}

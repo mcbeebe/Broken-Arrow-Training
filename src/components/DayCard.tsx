@@ -30,6 +30,7 @@ export default function DayCard({ day, weekNum, onTap, onLog, onSwap, isSwapSele
   const isCompleted = !!actual
   const [detailsExpanded, setDetailsExpanded] = useState(false)
   const [descExpanded, setDescExpanded] = useState(false)
+  const [cardCollapsed, setCardCollapsed] = useState(isCompleted)
 
   // When completed, use a more saturated emerald background but preserve
   // the workout-type color as the left border (visual identity stays)
@@ -70,14 +71,27 @@ export default function DayCard({ day, weekNum, onTap, onLog, onSwap, isSwapSele
                 const plannedDrills = getPlannedDrills(day)
                 const isScheduledDrillDay = weekNum !== undefined && getDrillDay(weekNum) === day.day
                 if (plannedDrills.length === 0 && !isScheduledDrillDay) return null
-                const drillDone = actual?.drills?.completed
-                const doneCount = actual?.drills?.items?.filter(i => i.done).length ?? 0
-                const totalCount = actual?.drills?.items?.length ?? plannedDrills.length
-                if (drillDone) {
+                const items = actual?.drills?.items
+                const doneCount = items?.filter(i => i.done).length ?? 0
+                const totalCount = items?.length ?? plannedDrills.length
+                // Item-level completion takes precedence over the `completed` flag:
+                // an unchecked list with completed=true is still "partial".
+                const drillPct = items && items.length > 0
+                  ? doneCount / items.length
+                  : (actual?.drills?.completed ? 1 : 0)
+                if (drillPct >= 0.8) {
                   return (
                     <span className="text-xs bg-sky-100 text-sky-700 rounded-full px-2 py-0.5 font-medium"
-                      title={`Drills done${doneCount > 0 ? ` (${doneCount}/${totalCount})` : ''}`}>
+                      title={`Drills done (${doneCount}/${totalCount})`}>
                       🤸 Drills ✓
+                    </span>
+                  )
+                }
+                if (actual && drillPct > 0) {
+                  return (
+                    <span className="text-xs bg-amber-100 text-amber-700 rounded-full px-2 py-0.5 font-medium"
+                      title={`Partial (${doneCount}/${totalCount})`}>
+                      🤸 Drills {doneCount}/{totalCount}
                     </span>
                   )
                 }
@@ -99,7 +113,7 @@ export default function DayCard({ day, weekNum, onTap, onLog, onSwap, isSwapSele
             </div>
             <div className="mt-2">
               <p className="font-medium text-base text-slate-800">{day.workout}</p>
-              {day.detail && (
+              {day.detail && !cardCollapsed && (
                 <>
                   <p className={`text-sm text-slate-700 mt-1 ${descExpanded ? '' : 'line-clamp-2'}`}>{day.detail}</p>
                   {day.detail.length > 80 && (
@@ -111,6 +125,14 @@ export default function DayCard({ day, weekNum, onTap, onLog, onSwap, isSwapSele
                     </button>
                   )}
                 </>
+              )}
+              {/* Compact summary line when collapsed */}
+              {cardCollapsed && actual && (
+                <p className="text-sm text-slate-600 mt-1 truncate">
+                  {actual.distance > 0 && <span>{formatMiles(actual.distance)} · </span>}
+                  {actual.movingTime > 0 && <span>{formatSeconds(actual.movingTime)}</span>}
+                  {actual.avgHR ? <span> · ❤️ {actual.avgHR}</span> : null}
+                </p>
               )}
             </div>
           </div>
@@ -162,19 +184,28 @@ export default function DayCard({ day, weekNum, onTap, onLog, onSwap, isSwapSele
                   {day.time}
                 </span>
               )}
+              {isCompleted && (
+                <button
+                  onClick={e => { e.stopPropagation(); setCardCollapsed(!cardCollapsed) }}
+                  className="text-xs font-medium text-teal-700 hover:text-teal-900 px-1.5 py-1 rounded"
+                  title={cardCollapsed ? 'Show details' : 'Collapse'}
+                >
+                  {cardCollapsed ? '▾' : '▴'}
+                </button>
+              )}
               <span className="text-slate-400 text-sm">›</span>
             </div>
           </div>
         </div>
 
-        {day.zone !== '—' && (
+        {!cardCollapsed && day.zone !== '—' && (
           <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2.5 text-sm text-slate-600">
             <span>📊 {day.zone}{timeEst ? ` (${timeEst} running)` : ''}</span>
             {day.route !== '—' && <span>📍 {day.route}</span>}
           </div>
         )}
 
-        {readiness && readiness.adjustment && readiness.status !== 'GREEN' && (
+        {!cardCollapsed && readiness && readiness.adjustment && readiness.status !== 'GREEN' && (
           <div className={`mt-2 px-2.5 py-1.5 rounded-md text-sm ${
             readiness.status === 'YELLOW'
               ? 'bg-amber-100/60 text-amber-700'
@@ -186,13 +217,13 @@ export default function DayCard({ day, weekNum, onTap, onLog, onSwap, isSwapSele
 
         {/* Ambient Coach inline note — Mike-only for now. Only renders
             when the coach has something worth saying. */}
-        {coachEnabled && (() => {
+        {!cardCollapsed && coachEnabled && (() => {
           const note = generateDayCardNote(day, weekNum, readiness, weekNum === 10)
           return note ? <CoachDayNoteView note={note} /> : null
         })()}
 
         {/* Target vs Actual compliance grid (renders if targets parseable & workout done) */}
-        {actual && (() => {
+        {!cardCollapsed && actual && (() => {
           const targets = parsePlannedTargets(day)
           const hasTargets = targets.distanceMi !== undefined
             || targets.durationMin !== undefined
@@ -203,7 +234,7 @@ export default function DayCard({ day, weekNum, onTap, onLog, onSwap, isSwapSele
         })()}
 
         {/* Actual data overlay — collapsible */}
-        {actual && (
+        {!cardCollapsed && actual && (
           <div className="mt-2 pt-2 border-t border-emerald-200/60">
             <button
               onClick={e => { e.stopPropagation(); setDetailsExpanded(!detailsExpanded) }}
