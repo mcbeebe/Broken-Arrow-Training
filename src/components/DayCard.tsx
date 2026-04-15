@@ -103,12 +103,17 @@ export default function DayCard({ day, weekNum, onTap, onLog, onSwap, isSwapSele
 
           {/* Right column: Grade (large) + action buttons */}
           <div className="flex flex-col items-end gap-1 shrink-0">
-            {/* Grade — large and prominent */}
+            {/* Grade — large and prominent with reason to the left */}
             {gradeResult && (
-              <div className={`${gradeResult.bgColor} rounded-lg px-2 py-0.5 flex flex-col items-center min-w-[3rem]`}>
-                <span className={`text-2xl font-black leading-tight ${gradeResult.color}`}>
-                  {gradeResult.grade}
+              <div className="flex items-center gap-1.5">
+                <span className={`text-[10px] leading-tight text-right max-w-[5.5rem] ${gradeResult.color} opacity-80`}>
+                  {gradeResult.reason}
                 </span>
+                <div className={`${gradeResult.bgColor} rounded-lg px-2 py-0.5 flex flex-col items-center min-w-[3rem]`}>
+                  <span className={`text-2xl font-black leading-tight ${gradeResult.color}`}>
+                    {gradeResult.grade}
+                  </span>
+                </div>
               </div>
             )}
             {/* Action buttons row */}
