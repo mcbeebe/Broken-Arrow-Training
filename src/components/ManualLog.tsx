@@ -1,6 +1,19 @@
 import { useState } from 'react'
 import type { ActualWorkout, PlannedDay, StrengthExerciseLog, StrengthSet, DrillLog } from '../types'
-import { getPlannedDrills } from '../utils/drills'
+import { getPlannedDrills, getDrillDay } from '../utils/drills'
+
+// Fallback drill menu shown on run days when plan detail doesn't spell out
+// specific drills — matches the routine described in WorkoutModal's drill
+// guides so the user sees a consistent checklist.
+const DEFAULT_DRILL_ITEMS = [
+  'Dynamic warm-up (leg swings, hip openers)',
+  'A-skips 2×30m',
+  'B-skips 2×30m',
+  'High knees 2×30m',
+  'Butt kicks 2×30m',
+  'Strides 4×100m',
+  'Myrtl / hip activation',
+]
 
 type LogMode = 'run' | 'strength'
 
@@ -8,6 +21,7 @@ interface ManualLogProps {
   dayLabel: string
   existing?: ActualWorkout
   planned?: PlannedDay
+  weekNum?: number
   onSave: (data: ActualWorkout) => void
   onClose: () => void
 }
@@ -95,7 +109,7 @@ function parsePlannedTime(timeStr: string): number {
   return numMatch ? parseInt(numMatch[1]) : 0
 }
 
-export default function ManualLog({ dayLabel, existing, planned, onSave, onClose }: ManualLogProps) {
+export default function ManualLog({ dayLabel, existing, planned, weekNum, onSave, onClose }: ManualLogProps) {
   const isStrength = existing?.strengthLog?.length
     || existing?.type?.toLowerCase().includes('strength')
     || existing?.name?.toLowerCase().includes('strength')
@@ -125,9 +139,26 @@ export default function ManualLog({ dayLabel, existing, planned, onSave, onClose
     existing?.strengthLog || []
   )
 
-  // Drills — only shown for run days with planned drill items
-  const plannedDrills = planned ? getPlannedDrills(planned) : []
-  const hasPlannedDrills = plannedDrills.length > 0
+  // Drills — shown for any run-type day. If the plan detail explicitly
+  // lists drills, use those; otherwise fall back to either (a) the
+  // default drill menu when this is the scheduled "drill day" for the
+  // week, or (b) just a Dynamic warm-up line for other easy-run days so
+  // the user can still mark it done.
+  const runTypes = new Set(['run', 'long', 'quality', 'race'])
+  const isRunDay = planned ? runTypes.has(planned.type) : mode === 'run'
+  const plannedDrillsFromDetail = planned ? getPlannedDrills(planned) : []
+  const isScheduledDrillDay = weekNum !== undefined && planned
+    ? getDrillDay(weekNum) === planned.day
+    : false
+  const fallbackDrills = isScheduledDrillDay
+    ? DEFAULT_DRILL_ITEMS
+    : isRunDay
+      ? ['Dynamic warm-up (leg swings, hip openers)']
+      : []
+  const plannedDrills = plannedDrillsFromDetail.length > 0
+    ? plannedDrillsFromDetail
+    : fallbackDrills
+  const hasPlannedDrills = mode === 'run' && plannedDrills.length > 0
   const [drillsCompleted, setDrillsCompleted] = useState<boolean>(
     existing?.drills?.completed ?? false
   )
@@ -342,9 +373,8 @@ export default function ManualLog({ dayLabel, existing, planned, onSave, onClose
                       checked={it.done}
                       onChange={() => toggleDrillItem(i)}
                       className="w-3.5 h-3.5 mt-0.5 accent-sky-600"
-                      disabled={!drillsCompleted}
                     />
-                    <span className={`text-xs ${drillsCompleted ? 'text-sky-900' : 'text-sky-400'}`}>
+                    <span className="text-xs text-sky-900">
                       {it.name}
                     </span>
                   </label>

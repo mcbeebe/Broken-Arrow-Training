@@ -171,6 +171,7 @@ export default function WeeklyPlan({
           dayLabel={logDay.day}
           existing={logDay.actual}
           planned={logDay}
+          weekNum={week.num}
           onSave={(data) => {
             manualLog.logWorkout(logDay.day, data)
             setLogDay(null)
