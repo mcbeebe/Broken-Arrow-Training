@@ -185,35 +185,9 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId }
                 </div>
               )}
 
-              {/* HR Zone Distribution — from Garmin's default zones (% of max HR),
-                   NOT the plan's Uphill Athlete zones. See "Time in Zone" chart
-                   below for plan-zone breakdown used by grading. */}
-              {actual.hrZoneSummary && actual.hrZoneSummary.length > 0 && (
-                <div className="mt-2">
-                  <p className="text-xs font-semibold text-teal-800 mb-1">
-                    HR Zone Distribution
-                    <span className="ml-1.5 text-[10px] text-teal-600 font-normal">(Garmin's zones)</span>
-                  </p>
-                  <div className="space-y-1">
-                    {actual.hrZoneSummary.map((z, i) => {
-                      const total = actual.hrZoneSummary!.reduce((s, z) => s + z.seconds, 0)
-                      const pct = total > 0 ? (z.seconds / total) * 100 : 0
-                      const mins = Math.round(z.seconds / 60)
-                      const colors = ['#94A3B8', '#3B82F6', '#22C55E', '#F59E0B', '#EF4444']
-                      const labels = ['Z1 Recovery', 'Z2 Easy', 'Z3 Moderate', 'Z4 Hard', 'Z5 Max']
-                      return pct > 1 ? (
-                        <div key={i} className="flex items-center gap-2 text-[10px]">
-                          <span className="w-16 text-teal-700">{labels[z.zone - 1] || `Z${z.zone}`}</span>
-                          <div className="flex-1 h-3 bg-teal-50 rounded-full overflow-hidden">
-                            <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: colors[z.zone - 1] || '#94A3B8' }} />
-                          </div>
-                          <span className="text-teal-600 w-12 text-right">{mins}m ({Math.round(pct)}%)</span>
-                        </div>
-                      ) : null
-                    })}
-                  </div>
-                </div>
-              )}
+              {/* Garmin's HR Zone Distribution removed — the "Time in Zone"
+                   bar below uses the plan's Uphill Athlete zones, which is
+                   what the grade and training targets are based on. */}
 
               {/* Exercise Sets from Garmin / Strength Log */}
               {actual.strengthLog && actual.strengthLog.length > 0 && (
