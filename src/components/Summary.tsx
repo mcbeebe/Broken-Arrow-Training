@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import type { ReadinessScore, GarminHealthData, CoachRecommendation, PerformanceMetrics, DailyTRIMP } from '../types'
 import type { SorenessLevel } from '../hooks/useSoreness'
 import { getTSBState, getTSBLabel, getACWRRisk, getACWRLabel } from '../utils/performance'
@@ -107,6 +107,8 @@ export default function Summary({
   sorenessLoadByDate,
 }: SummaryProps) {
   const latestPerf = performance.length > 0 ? performance[performance.length - 1] : null
+  const [perfOpen, setPerfOpen] = useState(false)
+  const [narrativeOpen, setNarrativeOpen] = useState(true)
 
   const weekNarrative = useMemo(
     () => buildWeekNarrative(performance, dailyTrimp),
@@ -130,8 +132,8 @@ export default function Summary({
         />
       ) : (
         <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-100">
-          <p className="text-sm font-semibold text-slate-700">Readiness</p>
-          <p className="text-xs text-slate-400 mt-1">
+          <p className="text-base font-semibold text-slate-700">Readiness</p>
+          <p className="text-sm text-slate-500 mt-1">
             {garminConnected
               ? 'Syncing Garmin data — readiness score will appear after first sync completes.'
               : 'Connect Garmin in Settings to see daily readiness scoring.'}
@@ -157,12 +159,24 @@ export default function Summary({
           : latestPerf.atl > latestPerf.ctl * 0.8 ? 'Balanced'
           : 'Low'
         return (
-          <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-100">
-            <div className="flex items-baseline justify-between mb-3">
-              <p className="text-sm font-semibold text-slate-700">Performance Snapshot</p>
-              <p className="text-[10px] text-slate-400">Garmin EPOC · 42d / 7d EWMA</p>
-            </div>
-            <div className="space-y-3">
+          <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
+            <button
+              onClick={() => setPerfOpen(!perfOpen)}
+              className="w-full flex items-center justify-between p-4 text-left hover:bg-slate-50 transition-colors"
+            >
+              <div className="flex-1 min-w-0">
+                <p className="text-base font-semibold text-slate-700">Performance Snapshot</p>
+                {!perfOpen && (
+                  <p className="text-sm text-slate-500 mt-0.5">
+                    Fitness {latestPerf.ctl.toFixed(0)} · Fatigue {latestPerf.atl.toFixed(0)} · Balance {latestPerf.tsb >= 0 ? '+' : ''}{latestPerf.tsb.toFixed(0)} · ACWR {latestPerf.acwr.toFixed(2)}
+                  </p>
+                )}
+                {perfOpen && <p className="text-xs text-slate-400 mt-0.5">Garmin EPOC · 42d / 7d EWMA</p>}
+              </div>
+              <span className="text-sm text-teal-600 ml-2 shrink-0">{perfOpen ? '▴ Hide' : '▾ Details'}</span>
+            </button>
+            {perfOpen && (
+            <div className="px-4 pb-4 space-y-3">
               {/* Fitness (CTL) */}
               <div className="bg-blue-50 rounded-lg p-3">
                 <div className="flex items-baseline justify-between">
@@ -294,19 +308,28 @@ export default function Summary({
                 </div>
               </div>
             </div>
+            )}
           </div>
         )
       })()}
 
       {/* What Changed This Week */}
       {weekNarrative.length > 0 && (
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-100">
-          <p className="text-sm font-semibold text-slate-700 mb-2">What Changed This Week</p>
-          <div className="space-y-1.5">
-            {weekNarrative.map((line, i) => (
-              <p key={i} className="text-xs text-slate-600 leading-relaxed">{line}</p>
-            ))}
-          </div>
+        <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
+          <button
+            onClick={() => setNarrativeOpen(!narrativeOpen)}
+            className="w-full flex items-center justify-between p-4 text-left hover:bg-slate-50 transition-colors"
+          >
+            <p className="text-base font-semibold text-slate-700">What Changed This Week</p>
+            <span className="text-sm text-teal-600 ml-2 shrink-0">{narrativeOpen ? '▴ Hide' : '▾ Show'}</span>
+          </button>
+          {narrativeOpen && (
+            <div className="px-4 pb-4 space-y-1.5">
+              {weekNarrative.map((line, i) => (
+                <p key={i} className="text-sm text-slate-600 leading-relaxed">{line}</p>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -318,7 +341,7 @@ export default function Summary({
       {/* Week readiness trend */}
       {weekScores.length > 1 && (
         <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-100">
-          <p className="text-sm font-semibold text-slate-700 mb-2">This Week's Readiness</p>
+          <p className="text-base font-semibold text-slate-700 mb-2">This Week's Readiness</p>
           <div className="flex gap-1">
             {weekScores.slice(-7).map((score, i) => {
               const dotColor =
@@ -329,8 +352,8 @@ export default function Summary({
               return (
                 <div key={i} className="flex-1 text-center">
                   <div className={`w-4 h-4 rounded-full ${dotColor} mx-auto mb-1`} />
-                  <p className="text-[10px] text-slate-500">{score.date.slice(5)}</p>
-                  <p className="text-xs font-medium text-slate-600">{score.displayScore}</p>
+                  <p className="text-xs text-slate-500">{score.date.slice(5)}</p>
+                  <p className="text-sm font-medium text-slate-600">{score.displayScore}</p>
                 </div>
               )
             })}

@@ -48,7 +48,7 @@ export default function Dashboard({
   const parsedPlanZones = parsePlanZones(planZones, athleteMaxHR)
 
   const daysUntilRace = Math.max(0, Math.ceil(
-    (new Date('2026-06-20').getTime() - Date.now()) / (1000 * 60 * 60 * 24)
+    (new Date('2026-06-19').getTime() - Date.now()) / (1000 * 60 * 60 * 24)
   ))
 
   const SUB_TABS: { id: DashSubTab; label: string; available: boolean }[] = [
@@ -59,13 +59,13 @@ export default function Dashboard({
 
   return (
     <div className="px-4 py-4 space-y-4">
-      <h2 className="text-lg font-bold text-slate-800">Dashboard</h2>
+      <h2 className="text-xl font-bold text-slate-800">Dashboard</h2>
 
       {/* Race countdown */}
       <div className="bg-slate-800 rounded-xl p-4 text-white text-center">
-        <p className="text-3xl font-bold">{daysUntilRace}</p>
-        <p className="text-sm text-slate-300">days until race</p>
-        <p className="text-xs text-teal-400 mt-1">{raceDate}</p>
+        <p className="text-4xl font-bold">{daysUntilRace}</p>
+        <p className="text-base text-slate-300">days until race</p>
+        <p className="text-sm text-teal-400 mt-1">{raceDate}</p>
       </div>
 
       {/* Sub-tab navigation */}
@@ -74,7 +74,7 @@ export default function Dashboard({
           <button
             key={t.id}
             onClick={() => setSubTab(t.id)}
-            className={`flex-1 py-2 text-xs font-medium rounded-md transition-colors ${
+            className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${
               subTab === t.id
                 ? 'bg-white text-slate-800 shadow-sm'
                 : 'text-slate-500 hover:text-slate-700'
@@ -150,7 +150,7 @@ function ComplianceTab({ weeks, compliance, planZones }: { weeks: TrainingWeek[]
       </div>
 
       {/* Legend */}
-      <div className="flex flex-wrap items-center gap-2 text-[10px] text-slate-500 bg-slate-50 rounded-lg px-3 py-2">
+      <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 bg-slate-50 rounded-lg px-3 py-2">
         <span className="flex items-center gap-1">
           <span className="w-2.5 h-2.5 rounded-sm bg-green-500 inline-block" /> On target
         </span>
@@ -173,7 +173,7 @@ function ComplianceTab({ weeks, compliance, planZones }: { weeks: TrainingWeek[]
 
       {/* Weekly compliance breakdown */}
       <div>
-        <h3 className="text-sm font-semibold text-slate-700 mb-2">Weekly Breakdown</h3>
+        <h3 className="text-base font-semibold text-slate-700 mb-2">Weekly Breakdown</h3>
         <div className="space-y-2">
           {compliance.weeks.map((wk, i) => (
             <ComplianceWeekRow
@@ -189,7 +189,7 @@ function ComplianceTab({ weeks, compliance, planZones }: { weeks: TrainingWeek[]
 
       {/* Planned vs Actual volume chart (kept — still useful high-level view) */}
       <div>
-        <h3 className="text-sm font-semibold text-slate-700 mb-2">Planned vs Actual Mileage</h3>
+        <h3 className="text-base font-semibold text-slate-700 mb-2">Planned vs Actual Mileage</h3>
         <div className="flex items-end gap-1 h-32">
           {weeks.map((w, i) => {
             const planned = getMilesNumber(w.miles)
@@ -199,7 +199,7 @@ function ComplianceTab({ weeks, compliance, planZones }: { weeks: TrainingWeek[]
             const aPct = (actual / max) * 100
             return (
               <div key={w.num} className="flex-1 flex flex-col items-center gap-0.5">
-                <span className="text-[8px] text-slate-400">{actual > 0 ? actual : ''}</span>
+                <span className="text-[10px] text-slate-500">{actual > 0 ? actual : ''}</span>
                 <div className="w-full flex gap-px" style={{ height: `${Math.max(pPct, aPct)}%`, minHeight: 4 }}>
                   <div
                     className="flex-1 rounded-t bg-slate-300"
@@ -212,12 +212,12 @@ function ComplianceTab({ weeks, compliance, planZones }: { weeks: TrainingWeek[]
                     />
                   )}
                 </div>
-                <span className="text-[9px] text-slate-400">{w.num}</span>
+                <span className="text-[10px] text-slate-500">{w.num}</span>
               </div>
             )
           })}
         </div>
-        <div className="flex justify-center gap-4 mt-2 text-xs text-slate-500">
+        <div className="flex justify-center gap-4 mt-2 text-sm text-slate-500">
           <span className="flex items-center gap-1">
             <span className="w-2.5 h-2.5 rounded-sm bg-slate-300 inline-block" /> Planned
           </span>
@@ -256,7 +256,7 @@ function ReadinessTab({
       {/* 7-day readiness trend */}
       {weekScores.length > 0 && (
         <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-100">
-          <p className="text-sm font-semibold text-slate-700 mb-3">7-Day Readiness Trend</p>
+          <p className="text-base font-semibold text-slate-700 mb-3">7-Day Readiness Trend</p>
           <div className="flex items-end gap-1.5 h-24">
             {weekScores.map((s, i) => {
               const barPx = Math.max(Math.round((s.displayScore / 100) * 64), 2)
@@ -267,12 +267,12 @@ function ReadinessTab({
                 'bg-red-500'
               return (
                 <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                  <span className="text-[9px] text-slate-400">{s.displayScore}</span>
+                  <span className="text-xs text-slate-500">{s.displayScore}</span>
                   <div
                     className={`w-full rounded-t ${bg} transition-all`}
                     style={{ height: `${barPx}px` }}
                   />
-                  <span className="text-[9px] text-slate-400">{s.date.slice(5)}</span>
+                  <span className="text-xs text-slate-500">{s.date.slice(5)}</span>
                 </div>
               )
             })}
@@ -283,7 +283,7 @@ function ReadinessTab({
       {/* Calibration notice */}
       {todayScore && weekScores.length < 7 && weekScores.length > 0 && (
         <div className="bg-blue-50 rounded-xl p-3 border border-blue-200">
-          <p className="text-xs text-blue-700">
+          <p className="text-sm text-blue-700">
             <strong>Calibrating:</strong> {weekScores.length}/7 days of data. Scores will become more personalized as your baseline builds. Full calibration at 7+ days.
           </p>
         </div>
@@ -291,7 +291,7 @@ function ReadinessTab({
 
       {!todayScore && (
         <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-100 text-center">
-          <p className="text-sm text-slate-500">Connect Garmin and sync to see readiness data</p>
+          <p className="text-base text-slate-500">Connect Garmin and sync to see readiness data</p>
         </div>
       )}
 
@@ -304,10 +304,18 @@ function ReadinessTab({
 // ─── Readiness Glossary ────────────────────────────────────────
 
 function ReadinessGlossary() {
+  const [open, setOpen] = useState(false)
   return (
-    <div className="bg-slate-50 rounded-xl p-4 border border-slate-200">
-      <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-3">Understanding Your Readiness</p>
-      <div className="space-y-3 text-xs text-slate-600 leading-relaxed">
+    <div className="bg-slate-50 rounded-xl border border-slate-200 overflow-hidden">
+      <button
+        onClick={() => setOpen(!open)}
+        className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-slate-100 transition-colors"
+      >
+        <p className="text-sm font-semibold text-slate-600 uppercase tracking-wide">Understanding Your Readiness</p>
+        <span className="text-sm text-teal-600 ml-2 shrink-0">{open ? '▴ Hide' : '▾ Show'}</span>
+      </button>
+      {open && (
+      <div className="px-4 pb-4 space-y-3 text-sm text-slate-600 leading-relaxed">
         <div className="bg-blue-50 rounded-lg p-2.5 border border-blue-200">
           <p className="font-semibold text-blue-800">Readiness vs Performance — Two Different Questions</p>
           <p className="text-blue-700 mt-1">
@@ -378,6 +386,7 @@ function ReadinessGlossary() {
           </ul>
         </div>
       </div>
+      )}
     </div>
   )
 }
@@ -413,10 +422,18 @@ function PerformanceTab({
 // ─── Performance Glossary ──────────────────────────────────────
 
 function PerformanceGlossary() {
+  const [open, setOpen] = useState(false)
   return (
-    <div className="bg-slate-50 rounded-xl p-4 border border-slate-200">
-      <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-3">Understanding Your Performance Metrics</p>
-      <div className="space-y-3 text-xs text-slate-600 leading-relaxed">
+    <div className="bg-slate-50 rounded-xl border border-slate-200 overflow-hidden">
+      <button
+        onClick={() => setOpen(!open)}
+        className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-slate-100 transition-colors"
+      >
+        <p className="text-sm font-semibold text-slate-600 uppercase tracking-wide">Understanding Your Performance Metrics</p>
+        <span className="text-sm text-teal-600 ml-2 shrink-0">{open ? '▴ Hide' : '▾ Show'}</span>
+      </button>
+      {open && (
+      <div className="px-4 pb-4 space-y-3 text-sm text-slate-600 leading-relaxed">
         <div className="bg-blue-50 rounded-lg p-2.5 border border-blue-200">
           <p className="font-semibold text-blue-800">Performance vs Readiness — Different Models, Same Load Data</p>
           <p className="text-blue-700 mt-1">
@@ -512,6 +529,7 @@ function PerformanceGlossary() {
           <p className="mt-1">Early in a training plan, it's common to see deeply negative Recovery Balance (TSB &lt; -30) because fatigue accumulates quickly (7-day ATL ramps fast) while fitness builds slowly (42-day CTL needs weeks). This does <strong>not</strong> mean you're overtrained — check the Readiness tab for biometric confirmation. If Readiness is GREEN, your body is handling the load. Proper tapering before a race lets fatigue drop faster than fitness, producing peak performance.</p>
         </div>
       </div>
+      )}
     </div>
   )
 }
@@ -529,9 +547,9 @@ function StatCard({ label, value, sub, color }: { label: string; value: string; 
 
   return (
     <div className={`rounded-xl p-3 border ${classes}`}>
-      <p className="text-xs opacity-75">{label}</p>
-      <p className="text-xl font-bold mt-0.5">{value}</p>
-      <p className="text-xs opacity-60 mt-0.5">{sub}</p>
+      <p className="text-sm opacity-75">{label}</p>
+      <p className="text-2xl font-bold mt-0.5">{value}</p>
+      <p className="text-sm opacity-60 mt-0.5">{sub}</p>
     </div>
   )
 }
