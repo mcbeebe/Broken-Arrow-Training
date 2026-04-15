@@ -72,26 +72,67 @@ export function calculateGrade(day: PlannedDay): GradeResult | null {
     }
 
     // HR zone compliance (30% weight)
-    if (actual.avgHR && day.zone !== '—') {
+    // PREFER time-in-zone from hrZoneSummary when available (Garmin).
+    // avgHR as fallback is misleading: a 90%-in-zone run with a hill spike can
+    // have an avg HR above zone even though you were on target most of the time.
+    if (day.zone !== '—') {
       const range = parseZoneRange(day.zone)
-      if (range) {
-        const expandedLow = range.low - 5  // Small grace window
+
+      if (actual.hrZoneSummary && actual.hrZoneSummary.length > 0 && range) {
+        // Compute % of time spent with HR inside the target band
+        // (with ±5 bpm grace window, same as avgHR logic).
+        const expandedLow = range.low - 5
+        const expandedHigh = range.high + 5
+        let inZoneSec = 0
+        let totalSec = 0
+        for (const z of actual.hrZoneSummary) {
+          totalSec += z.seconds
+          // If we have per-zone HR bounds, use them; otherwise assume
+          // mid-zone average based on zone number (Garmin convention).
+          const zLow = z.lowHR ?? (z.zone - 1) * 30 + 60
+          const zHigh = z.highHR ?? z.zone * 30 + 60
+          // Zone fully inside target band → all seconds count
+          if (zLow >= expandedLow && zHigh <= expandedHigh) {
+            inZoneSec += z.seconds
+          } else if (zLow < expandedHigh && zHigh > expandedLow) {
+            // Zone partially overlaps — approximate proportion in target
+            const overlap = Math.max(0, Math.min(zHigh, expandedHigh) - Math.max(zLow, expandedLow))
+            const zoneWidth = Math.max(1, zHigh - zLow)
+            inZoneSec += z.seconds * (overlap / zoneWidth)
+          }
+        }
+        const tizPct = totalSec > 0 ? (inZoneSec / totalSec) * 100 : 0
+        if (tizPct >= 80) {
+          hrScore = 1.0
+          reasons.push(`${Math.round(tizPct)}% HR in zone`)
+        } else if (tizPct >= 65) {
+          hrScore = 0.9
+          reasons.push(`${Math.round(tizPct)}% HR in zone`)
+        } else if (tizPct >= 50) {
+          hrScore = 0.75
+          reasons.push(`${Math.round(tizPct)}% HR in zone`)
+        } else {
+          hrScore = 0.55
+          reasons.push(`${Math.round(tizPct)}% HR in zone`)
+        }
+      } else if (actual.avgHR && range) {
+        // Fallback: grade on avg HR with wider grace for easy runs
+        const expandedLow = range.low - 5
         const expandedHigh = range.high + 5
         if (actual.avgHR >= expandedLow && actual.avgHR <= expandedHigh) {
           hrScore = 1.0
           reasons.push('HR in zone')
         } else if (actual.avgHR < expandedLow) {
-          hrScore = 0.85  // Going easier than planned
+          hrScore = 0.9
           reasons.push('HR below zone (easy)')
         } else {
-          // Going harder than planned
           const overBy = actual.avgHR - expandedHigh
           if (overBy <= 10) {
-            hrScore = 0.7
+            hrScore = 0.8
             reasons.push('HR slightly above zone')
           } else {
-            hrScore = 0.5
-            reasons.push('HR significantly above zone')
+            hrScore = 0.55
+            reasons.push('HR above zone')
           }
         }
       }
