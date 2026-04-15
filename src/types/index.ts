@@ -94,7 +94,12 @@ export interface PlannedDay {
  */
 export interface PlannedTargets {
   distanceMi?: number    // e.g. 3.0
-  durationMin?: number   // e.g. 45
+  durationMin?: number   // e.g. 45 (total plan time incl. warmup/drills)
+  // Estimated RUNNING-time range for run days (e.g. 32-38 min for a 3.0mi
+  // easy run). When present, grader uses this instead of durationMin so
+  // run duration isn't penalized for drill/warmup time not tracked in GPS.
+  durationMinLow?: number
+  durationMinHigh?: number
   hrLow?: number         // e.g. 108
   hrHigh?: number        // e.g. 148
   elevationFt?: number   // parsed from detail ("~760 ft gain")

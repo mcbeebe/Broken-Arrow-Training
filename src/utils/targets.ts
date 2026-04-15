@@ -64,6 +64,28 @@ export function parseElevation(detail: string): number | undefined {
 }
 
 /**
+ * Estimate running-time range for a run day (low, high in minutes) based
+ * on planned distance and effort zone. Mirrors utils/format.estimateRunTime
+ * but returns structured numbers. Used so run duration grading ignores
+ * drill/warmup time that isn't captured by the GPS watch.
+ */
+export function estimateRunTimeRange(
+  zoneStr: string,
+  type?: string,
+): { low: number; high: number } | undefined {
+  const mi = parseDistance(zoneStr)
+  if (mi === undefined || mi === 0) return undefined
+  const isHilly = zoneStr.includes('Z3') || zoneStr.includes('Z4')
+  // Long-run terrain tends to be slower/hillier
+  const isLong = type === 'long'
+  const lowPace = isHilly || isLong ? 12.0 : 10.5
+  const highPace = isHilly || isLong ? 14.0 : 12.5
+  return { low: Math.round(mi * lowPace), high: Math.round(mi * highPace) }
+}
+
+const RUN_TYPES_FOR_RANGE = new Set(['run', 'long', 'quality', 'race'])
+
+/**
  * Derive all structured targets for a single day.
  */
 export function parsePlannedTargets(day: PlannedDay): PlannedTargets {
@@ -77,6 +99,16 @@ export function parsePlannedTargets(day: PlannedDay): PlannedTargets {
   }
   const duration = parseDuration(day.time)
   if (duration !== undefined) targets.durationMin = duration
+  // For run days, prefer the estimated running-time range — the plan's
+  // `time` field often includes warmup/drills/cooldown that don't show up
+  // on the GPS watch, so grading against total plan time unfairly misses.
+  if (RUN_TYPES_FOR_RANGE.has(day.type) && distance !== undefined) {
+    const range = estimateRunTimeRange(day.zone, day.type)
+    if (range) {
+      targets.durationMinLow = range.low
+      targets.durationMinHigh = range.high
+    }
+  }
   const elev = parseElevation(day.detail)
   if (elev !== undefined) targets.elevationFt = elev
   return targets

@@ -1,14 +1,14 @@
 import type { DayCompliance, ComplianceGrade, PlannedTargets } from '../types'
 import type { WeekCompliance } from '../hooks/useCompliance'
+import { rebucketToPlanZones, type PlanZone } from '../utils/zones'
 
 interface ComplianceWeekRowProps {
   week: WeekCompliance
   weekLabel?: string  // e.g. "Apr 13–19"
   weekFocus?: string  // week focus blurb
+  planZones?: PlanZone[]  // athlete's own zone bands — bar renders in these
 }
 
-// Approximate zone midpoints (aligns with useCompliance)
-const ZONE_MID: Record<number, number> = { 1: 118, 2: 138, 3: 158, 4: 172, 5: 187 }
 const ZONE_COLORS = ['#94A3B8', '#3B82F6', '#22C55E', '#F59E0B', '#EF4444'] // Z1..Z5
 
 /**
@@ -16,7 +16,7 @@ const ZONE_COLORS = ['#94A3B8', '#3B82F6', '#22C55E', '#F59E0B', '#EF4444'] // Z
  *   • Distance / Duration → fill-vs-target bar (dashed 100% target line)
  *   • HR → stacked zone-distribution bar with target-band outline
  */
-export default function ComplianceWeekRow({ week, weekLabel, weekFocus }: ComplianceWeekRowProps) {
+export default function ComplianceWeekRow({ week, weekLabel, weekFocus, planZones }: ComplianceWeekRowProps) {
   const days = (week.days || []).slice(0, 7)
 
   return (
@@ -80,6 +80,7 @@ export default function ComplianceWeekRow({ week, weekLabel, weekFocus }: Compli
             targets={d.targets}
             inZonePct={d.hrInZonePct}
             hrAvg={d.hrAvg}
+            planZones={planZones}
           />
         )} />
       </div>
@@ -167,12 +168,14 @@ function ZoneBar({
   targets,
   inZonePct,
   hrAvg,
+  planZones,
 }: {
   summary?: { zone: number; seconds: number; lowHR?: number; highHR?: number }[]
   grade: ComplianceGrade
   targets: PlannedTargets
   inZonePct?: number
   hrAvg?: number
+  planZones?: PlanZone[]
 }) {
   if (grade === 'na') {
     return <div className="h-full rounded-sm bg-slate-100" title="No HR target" />
@@ -183,49 +186,32 @@ function ZoneBar({
 
   const { hrLow, hrHigh } = targets
 
-  if (summary && summary.length > 0 && hrLow !== undefined && hrHigh !== undefined) {
-    const total = summary.reduce((s, z) => s + z.seconds, 0)
+  if (summary && summary.length > 0 && hrLow !== undefined && hrHigh !== undefined && planZones && planZones.length > 0) {
+    // Re-bucket device-reported zone seconds into the athlete's plan zones
+    // via HR-range overlap. This way the visible Z1..Z5 colors correspond
+    // to THIS athlete's zone system, not the device's.
+    const rebucketed = rebucketToPlanZones(summary, planZones)
+    const total = rebucketed.reduce((s, z) => s + z.seconds, 0)
     if (total <= 0) return <div className="h-full rounded-sm bg-slate-100" />
-    // Ensure zones 1..5 in order; missing zones = 0
-    const ordered = [1, 2, 3, 4, 5].map(z => {
-      const found = summary.find(s => s.zone === z)
-      return { zone: z, seconds: found ? found.seconds : 0 }
-    })
-    const titleParts = ordered
+
+    const titleParts = rebucketed
       .filter(z => z.seconds > 0)
       .map(z => `Z${z.zone} ${Math.round((z.seconds / total) * 100)}%`)
     const title = `${titleParts.join(' · ')}${inZonePct !== undefined ? ` — ${Math.round(inZonePct)}% in target` : ''}${hrAvg ? ` · avg ${hrAvg}` : ''}`
 
-    // Determine whether each zone overlaps the plan's target HR band.
-    // Prefer actual lowHR/highHR from the device summary; fall back to
-    // canonical zone midpoints if the device didn't report boundaries.
-    const sorted = [...summary].sort((a, b) => (a.lowHR ?? 0) - (b.lowHR ?? 0))
-    const boundsByZone = new Map<number, { low: number; high: number }>()
-    for (let i = 0; i < sorted.length; i++) {
-      const z = sorted[i]
-      if (z.lowHR === undefined) continue
-      const high = z.highHR ?? (sorted[i + 1]?.lowHR !== undefined ? sorted[i + 1].lowHR! - 1 : z.lowHR + 20)
-      boundsByZone.set(z.zone, { low: z.lowHR, high })
-    }
-
     return (
       <div className="flex h-full w-full rounded-sm overflow-hidden" title={title}>
-        {ordered.map(z => {
+        {rebucketed.map(z => {
           const pct = (z.seconds / total) * 100
           if (pct <= 0) return null
-          const bounds = boundsByZone.get(z.zone)
-          // In-target if this zone's actual HR band overlaps the plan target.
-          // If we don't have bounds, fall back to the zone-midpoint heuristic.
-          const inTarget = bounds
-            ? bounds.high >= hrLow && bounds.low <= hrHigh
-            : ZONE_MID[z.zone] >= hrLow && ZONE_MID[z.zone] <= hrHigh
+          // In-target if this plan zone overlaps the plan target HR band
+          const inTarget = z.high >= hrLow && z.low <= hrHigh
           return (
             <div
               key={z.zone}
               style={{
                 width: `${pct}%`,
                 background: ZONE_COLORS[z.zone - 1],
-                // Outline in-target zones so the user can see the plan's band.
                 boxShadow: inTarget ? 'inset 0 0 0 1.5px rgba(15,23,42,0.7)' : undefined,
               }}
             />
@@ -235,7 +221,7 @@ function ZoneBar({
     )
   }
 
-  // No zone summary — fall back to a grade-colored bar (avgHR binary)
+  // No zone summary or no plan zones — fall back to grade-colored bar
   return (
     <div
       className="h-full rounded-sm"

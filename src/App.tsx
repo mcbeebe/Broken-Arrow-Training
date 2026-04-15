@@ -256,6 +256,8 @@ export default function App() {
           weeks={weeks}
           compliance={compliance}
           raceDate={plan.race.date}
+          planZones={plan.zones}
+          athleteMaxHR={plan.athlete.maxHR}
           todayScore={readiness.todayScore}
           weekScores={readiness.weekScores}
           todayHealth={todayHealth}

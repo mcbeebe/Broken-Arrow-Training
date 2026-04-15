@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import type { TrainingWeek, ReadinessScore, GarminHealthData, DailyTRIMP, PerformanceMetrics, WeeklyRecommendation } from '../types'
+import type { TrainingWeek, ReadinessScore, GarminHealthData, DailyTRIMP, PerformanceMetrics, WeeklyRecommendation, HRZone } from '../types'
 import type { OverallCompliance } from '../hooks/useCompliance'
+import { parsePlanZones } from '../utils/zones'
 import { getMilesNumber } from '../utils/format'
 import ReadinessBanner from './ReadinessBanner'
 import TRIMPBreakdown from './TRIMPBreakdown'
@@ -23,6 +24,8 @@ interface DashboardProps {
   weeklyRecommendations?: WeeklyRecommendation[]
   garminConnected?: boolean
   sorenessLoadByDate?: Map<string, number>
+  planZones?: HRZone[]
+  athleteMaxHR?: number
 }
 
 export default function Dashboard({
@@ -38,8 +41,11 @@ export default function Dashboard({
   weeklyRecommendations = [],
   garminConnected = false,
   sorenessLoadByDate,
+  planZones = [],
+  athleteMaxHR,
 }: DashboardProps) {
   const [subTab, setSubTab] = useState<DashSubTab>('compliance')
+  const parsedPlanZones = parsePlanZones(planZones, athleteMaxHR)
 
   const daysUntilRace = Math.max(0, Math.ceil(
     (new Date('2026-06-20').getTime() - Date.now()) / (1000 * 60 * 60 * 24)
@@ -81,7 +87,7 @@ export default function Dashboard({
 
       {/* Sub-tab content */}
       {subTab === 'compliance' && (
-        <ComplianceTab weeks={weeks} compliance={compliance} />
+        <ComplianceTab weeks={weeks} compliance={compliance} planZones={parsedPlanZones} />
       )}
       {subTab === 'readiness' && (
         <ReadinessTab
@@ -106,7 +112,7 @@ export default function Dashboard({
 
 // ─── Compliance Sub-Tab ────────────────────────────────────────
 
-function ComplianceTab({ weeks, compliance }: { weeks: TrainingWeek[]; compliance: OverallCompliance }) {
+function ComplianceTab({ weeks, compliance, planZones }: { weeks: TrainingWeek[]; compliance: OverallCompliance; planZones: ReturnType<typeof parsePlanZones> }) {
   // Only show past/current weeks in the weekly breakdown (up to current week #).
   // Future weeks have nothing to grade yet.
   return (
@@ -175,6 +181,7 @@ function ComplianceTab({ weeks, compliance }: { weeks: TrainingWeek[]; complianc
               week={wk}
               weekLabel={weeks[i]?.dates}
               weekFocus={weeks[i]?.focus}
+              planZones={planZones}
             />
           ))}
         </div>

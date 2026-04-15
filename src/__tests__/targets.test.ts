@@ -101,6 +101,10 @@ describe('parsePlannedTargets', () => {
     expect(t).toEqual({
       distanceMi: 3.0,
       durationMin: 45,
+      // Run days also get a running-time range derived from distance/zone:
+      // 3.0 mi × (10.5–12.5 min/mi easy flat) = 32–38 min
+      durationMinLow: 32,
+      durationMinHigh: 38,
       hrLow: 108,
       hrHigh: 148,
     })

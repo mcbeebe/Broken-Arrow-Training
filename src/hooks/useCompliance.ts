@@ -200,16 +200,35 @@ export function gradeWorkoutDay(day: PlannedDay, targets: ReturnType<typeof pars
   }
 
   // Duration (moving time, converted to minutes)
+  // Prefer the running-time range (from estimateRunTimeRange) for run days —
+  // total plan time often includes drills/warmup not captured by GPS.
   let durationPct: number | undefined
   let durationGrade: ComplianceGrade = 'na'
-  if (targets.durationMin !== undefined && targets.durationMin > 0 && actual.movingTime > 0) {
+  if (actual.movingTime > 0) {
     const actualMin = actual.movingTime / 60
-    const pct = actualMin / targets.durationMin
-    durationPct = pct
-    durationGrade = gradeRatio(pct)
-    // Only flag duration if it's a serious short — don't penalize efficient runners
-    if (pct < 1 - CLOSE_BAND) {
-      flagReasons.push(`Duration ${Math.round(actualMin)} min vs ${targets.durationMin} planned`)
+    if (targets.durationMinLow !== undefined && targets.durationMinHigh !== undefined) {
+      const { durationMinLow: lo, durationMinHigh: hi } = targets
+      const mid = (lo + hi) / 2
+      durationPct = actualMin / mid
+      if (actualMin >= lo && actualMin <= hi) {
+        durationGrade = 'hit'
+      } else if (actualMin > hi * (1 + CLOSE_BAND)) {
+        durationGrade = 'over'
+      } else if (actualMin >= lo * (1 - CLOSE_BAND) && actualMin <= hi * (1 + CLOSE_BAND)) {
+        durationGrade = 'close'
+      } else {
+        durationGrade = 'miss'
+      }
+      if (actualMin < lo * (1 - CLOSE_BAND)) {
+        flagReasons.push(`Duration ${Math.round(actualMin)} min vs ${lo}–${hi} min target`)
+      }
+    } else if (targets.durationMin !== undefined && targets.durationMin > 0) {
+      const pct = actualMin / targets.durationMin
+      durationPct = pct
+      durationGrade = gradeRatio(pct)
+      if (pct < 1 - CLOSE_BAND) {
+        flagReasons.push(`Duration ${Math.round(actualMin)} min vs ${targets.durationMin} planned`)
+      }
     }
   }
 

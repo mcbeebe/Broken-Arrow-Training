@@ -38,11 +38,15 @@ export default function TargetVsActual({ compliance }: TargetVsActualProps) {
             grade={distanceGrade}
           />
         )}
-        {/* Duration */}
-        {targets.durationMin !== undefined && (
+        {/* Duration — prefer running-time range when present */}
+        {(targets.durationMinLow !== undefined || targets.durationMin !== undefined) && (
           <MetricRow
             label="Dur"
-            target={`${targets.durationMin} min`}
+            target={
+              targets.durationMinLow !== undefined && targets.durationMinHigh !== undefined
+                ? `${targets.durationMinLow}–${targets.durationMinHigh} min`
+                : `${targets.durationMin} min`
+            }
             actual={durationActual !== undefined ? formatSeconds(durationActual * 60) : '—'}
             pct={durationPct}
             grade={durationGrade}

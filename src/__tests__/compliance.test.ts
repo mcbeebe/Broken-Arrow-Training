@@ -143,24 +143,46 @@ describe('gradeWorkoutDay — HR grading', () => {
 })
 
 describe('gradeWorkoutDay — duration grading', () => {
-  it('grades near-exact duration as hit', () => {
-    const day = mkDay({ actual: mkActual({ movingTime: 47 * 60 }) })  // 47 min vs 45
+  // Run days grade against the running-time RANGE (32–38 min for a 3mi
+  // easy run), not the 45-min total plan time (which includes drills).
+
+  it('grades actual inside running-time range as hit', () => {
+    const day = mkDay({ actual: mkActual({ movingTime: 34 * 60 }) })  // inside 32–38
     const result = gradeWorkoutDay(day, parsePlannedTargets(day))
     expect(result.durationGrade).toBe('hit')
   })
 
-  it('grades 38-min actual vs 45-min target as close (below hit band)', () => {
-    const day = mkDay({ actual: mkActual({ movingTime: 38 * 60 }) })
+  it('grades 45-min actual as over (well above 38 upper bound)', () => {
+    const day = mkDay({ actual: mkActual({ movingTime: 47 * 60 }) })
     const result = gradeWorkoutDay(day, parsePlannedTargets(day))
-    // 38/45 = 0.844 → within close band [0.8, 1.2] but outside hit [0.9, 1.1]
+    // 47 > 38 * 1.2 = 45.6 → over
+    expect(result.durationGrade).toBe('over')
+  })
+
+  it('grades 30-min actual (just below 32 lower bound) as close', () => {
+    const day = mkDay({ actual: mkActual({ movingTime: 30 * 60 }) })
+    const result = gradeWorkoutDay(day, parsePlannedTargets(day))
+    // 30 is in [32*0.8=25.6, 38*1.2=45.6] but outside [32,38] → close
     expect(result.durationGrade).toBe('close')
   })
 
-  it('grades 30-min actual vs 45-min target as miss (>20% short)', () => {
-    const day = mkDay({ actual: mkActual({ movingTime: 30 * 60 }) })
+  it('grades 20-min actual as miss (well below lower bound)', () => {
+    const day = mkDay({ actual: mkActual({ movingTime: 20 * 60 }) })
     const result = gradeWorkoutDay(day, parsePlannedTargets(day))
-    // 30/45 = 0.666 → below 0.8 → miss
+    // 20 < 32 * 0.8 = 25.6 → miss
     expect(result.durationGrade).toBe('miss')
+  })
+
+  it('falls back to durationMin for strength/non-run days', () => {
+    const day = mkDay({
+      type: 'strength',
+      zone: 'Z1 (108–128)',  // no distance → no range
+      time: '1 hr',
+      actual: mkActual({ movingTime: 55 * 60 }),
+    })
+    const result = gradeWorkoutDay(day, parsePlannedTargets(day))
+    // 55/60 = 0.917 → hit
+    expect(result.durationGrade).toBe('hit')
   })
 
   it('grades no movingTime as na', () => {
