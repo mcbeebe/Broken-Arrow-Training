@@ -192,6 +192,55 @@ describe('gradeWorkoutDay — duration grading', () => {
   })
 })
 
+// ─── Drills grading ─────────────────────────────────────────────
+
+describe('gradeWorkoutDay — drills', () => {
+  const mkDrillDay = (drillsOverride?: Partial<ActualWorkout['drills']>, detail = 'Conversational pace · A-skips 3×20m · Strides 4×100m') =>
+    mkDay({
+      detail,
+      actual: mkActual({
+        drills: drillsOverride as ActualWorkout['drills'],
+      }),
+    })
+
+  it('grades drill as hit when completed', () => {
+    const day = mkDrillDay({ completed: true })
+    const result = gradeWorkoutDay(day, parsePlannedTargets(day))
+    expect(result.drillsPlanned).toBe(true)
+    expect(result.drillGrade).toBe('hit')
+  })
+
+  it('grades drill as miss when planned + not completed', () => {
+    const day = mkDrillDay({ completed: false })
+    const result = gradeWorkoutDay(day, parsePlannedTargets(day))
+    expect(result.drillsPlanned).toBe(true)
+    expect(result.drillGrade).toBe('miss')
+    expect(result.flagReasons.some(r => r.includes('Drills'))).toBe(true)
+  })
+
+  it('grades drill as na when no drills planned', () => {
+    const day = mkDay({ detail: 'Conversational pace' })
+    const result = gradeWorkoutDay(day, parsePlannedTargets(day))
+    expect(result.drillsPlanned).toBe(false)
+    expect(result.drillGrade).toBe('na')
+  })
+
+  it('drill duration credits total time when logged', () => {
+    // Plan: 45 min total, 3mi easy run (32-38 min running-time range)
+    // Actual: 34 min moving + 10 min drills = 44 min
+    // With drills logged, grade against total 45 → 44/45 = 0.978 → hit
+    const day = mkDay({
+      detail: '· A-skips 3×20m · Strides 4×100m',
+      actual: mkActual({
+        movingTime: 34 * 60,
+        drills: { completed: true, durationMin: 10 },
+      }),
+    })
+    const result = gradeWorkoutDay(day, parsePlannedTargets(day))
+    expect(result.durationGrade).toBe('hit')
+  })
+})
+
 // ─── computeHRTimeInZone direct tests ────────────────────────────
 
 describe('computeHRTimeInZone', () => {

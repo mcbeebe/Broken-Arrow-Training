@@ -103,6 +103,9 @@ export interface PlannedTargets {
   hrLow?: number         // e.g. 108
   hrHigh?: number        // e.g. 148
   elevationFt?: number   // parsed from detail ("~760 ft gain")
+  // Planned drill/warmup items — parsed from detail. When present, Drills
+  // is graded as an extra compliance metric.
+  drillItems?: string[]
 }
 
 export type ComplianceGrade = 'hit' | 'close' | 'miss' | 'skipped' | 'over' | 'na'
@@ -131,6 +134,10 @@ export interface DayCompliance {
   hrGrade: ComplianceGrade
   // Raw zone distribution (seconds per zone 1..5) — for proportional bars
   hrZoneSummary?: { zone: number; seconds: number; lowHR?: number; highHR?: number }[]
+  // Drills grade — 'hit' if completed, 'miss' if planned + not done, 'na' if not planned
+  drillGrade: ComplianceGrade
+  drillsPlanned: boolean
+  drillsCompleted: boolean
   // Overall flag — any major miss?
   flagged: boolean
   flagReasons: string[]
@@ -168,6 +175,15 @@ export interface ActualWorkout {
   recoveryTimeHours?: number;
   vo2max?: number;
   hrZoneSummary?: { zone: number; seconds: number; lowHR?: number; highHR?: number }[];
+  // Drills / warmup / cooldown that typically happen off-GPS. Logged manually.
+  drills?: DrillLog;
+}
+
+export interface DrillLog {
+  completed: boolean                       // did you do the drill block at all?
+  items?: { name: string; done: boolean }[]  // per-item checkboxes (optional)
+  durationMin?: number                     // optional manual entry — credited to total run time
+  notes?: string
 }
 
 export interface StrengthExerciseLog {

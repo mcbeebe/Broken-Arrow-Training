@@ -1,3 +1,44 @@
+import type { PlannedDay } from '../types'
+
+// ─── Planned-drill parsing (for compliance grading) ─────────────
+
+// Keywords that mark a plan item as a drill / warmup / activation block.
+const DRILL_KEYWORDS = [
+  'drill', 'strides', 'stride', 'form',
+  'dynamic warm', 'dynamic stretch', 'warm-up', 'warmup', 'warm up',
+  'cooldown', 'cool down', 'cool-down',
+  'a-skip', 'b-skip', 'skips', 'high knees', 'butt kicks', 'carioca',
+  'leg swings', 'foam roll', 'activation', 'myrtl', 'clam shell',
+  'donkey kick', 'fire hydrant',
+]
+
+function looksLikeDrill(item: string): boolean {
+  const lower = item.toLowerCase()
+  return DRILL_KEYWORDS.some(kw => lower.includes(kw))
+}
+
+/**
+ * Extract planned drill items from a day's detail string by splitting on
+ * `·` and filtering for drill-keyword matches.
+ */
+export function parseDrillItems(detail: string): string[] {
+  if (!detail) return []
+  const parts = detail.split(/\s*[·|]\s*|\n/).map(s => s.trim()).filter(Boolean)
+  return parts.filter(looksLikeDrill)
+}
+
+/**
+ * Returns planned drill items for this day (runs only). Strength days
+ * aren't "drills" — they have their own exercise tracking.
+ */
+export function getPlannedDrills(day: PlannedDay): string[] {
+  const runTypes = new Set(['run', 'long', 'quality', 'race'])
+  if (!runTypes.has(day.type)) return []
+  return parseDrillItems(day.detail)
+}
+
+// ─── Drill guides (existing) ────────────────────────────────────
+
 export interface DrillGuide {
   name: string
   duration: string

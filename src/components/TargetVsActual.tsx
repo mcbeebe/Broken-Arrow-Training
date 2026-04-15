@@ -14,20 +14,31 @@ export default function TargetVsActual({ compliance }: TargetVsActualProps) {
   const { targets, distanceActual, distancePct, distanceGrade,
     durationActual, durationPct, durationGrade,
     hrAvg, hrInZonePct, hrGrade,
+    drillGrade, drillsPlanned, drillsCompleted,
     flagReasons } = compliance
 
   // No structured targets to compare against — nothing to show
   const hasAnyTarget = targets.distanceMi !== undefined
     || targets.durationMin !== undefined
     || targets.hrLow !== undefined
+    || drillsPlanned
   if (!hasAnyTarget) return null
+
+  // Count visible metrics to pick grid layout
+  const metricCount = [
+    targets.distanceMi !== undefined,
+    targets.durationMinLow !== undefined || targets.durationMin !== undefined,
+    targets.hrLow !== undefined && targets.hrHigh !== undefined,
+    drillsPlanned,
+  ].filter(Boolean).length
+  const gridCols = metricCount >= 4 ? 'grid-cols-4' : metricCount === 3 ? 'grid-cols-3' : metricCount === 2 ? 'grid-cols-2' : 'grid-cols-1'
 
   return (
     <div className="mt-2 pt-2 border-t border-slate-200/50">
       <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
         Target vs Actual
       </p>
-      <div className="grid grid-cols-3 gap-2">
+      <div className={`grid ${gridCols} gap-2`}>
         {/* Distance */}
         {targets.distanceMi !== undefined && (
           <MetricRow
@@ -66,6 +77,15 @@ export default function TargetVsActual({ compliance }: TargetVsActualProps) {
             }
             grade={hrGrade}
             actualSuffix={hrInZonePct !== undefined ? 'in zone' : undefined}
+          />
+        )}
+        {/* Drills */}
+        {drillsPlanned && (
+          <MetricRow
+            label="Drills"
+            target={`${targets.drillItems?.length ?? 0} planned`}
+            actual={drillsCompleted ? '✓ done' : '—'}
+            grade={drillGrade}
           />
         )}
       </div>

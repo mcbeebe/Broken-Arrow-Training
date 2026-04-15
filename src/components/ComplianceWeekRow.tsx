@@ -18,6 +18,7 @@ const ZONE_COLORS = ['#94A3B8', '#3B82F6', '#22C55E', '#F59E0B', '#EF4444'] // Z
  */
 export default function ComplianceWeekRow({ week, weekLabel, weekFocus, planZones }: ComplianceWeekRowProps) {
   const days = (week.days || []).slice(0, 7)
+  const anyDrillsPlanned = days.some(d => d.drillsPlanned)
 
   return (
     <div className="bg-white rounded-xl p-3 shadow-sm border border-slate-100">
@@ -83,6 +84,18 @@ export default function ComplianceWeekRow({ week, weekLabel, weekFocus, planZone
             planZones={planZones}
           />
         )} />
+
+        {/* Drills row — only shown if any day has planned drills */}
+        {anyDrillsPlanned && (
+          <MetricRow label="Drills" days={days} render={d => (
+            <DrillCell
+              planned={d.drillsPlanned}
+              completed={d.drillsCompleted}
+              grade={d.drillGrade}
+              items={d.targets.drillItems}
+            />
+          )} />
+        )}
       </div>
 
       {/* Footer */}
@@ -228,6 +241,36 @@ function ZoneBar({
       style={{ background: gradeFill(grade) }}
       title={hrAvg ? `avg HR ${hrAvg}` : undefined}
     />
+  )
+}
+
+/**
+ * Drill cell — solid color indicating hit/miss/skipped. Title reveals
+ * the planned drill items.
+ */
+function DrillCell({
+  planned, completed, grade, items,
+}: {
+  planned: boolean
+  completed: boolean
+  grade: ComplianceGrade
+  items?: string[]
+}) {
+  if (!planned || grade === 'na') {
+    return <div className="h-full rounded-sm bg-slate-100" title="No drills planned" />
+  }
+  const itemList = items?.join(' · ') ?? ''
+  const title = completed
+    ? `Drills done${itemList ? ` (${itemList})` : ''}`
+    : `Drills planned but not completed${itemList ? ` (${itemList})` : ''}`
+  return (
+    <div
+      className="h-full rounded-sm flex items-center justify-center text-[8px] font-bold text-white"
+      style={{ background: gradeFill(grade) }}
+      title={title}
+    >
+      {completed ? '✓' : '—'}
+    </div>
   )
 }
 

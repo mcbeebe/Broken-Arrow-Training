@@ -199,36 +199,48 @@ export function gradeWorkoutDay(day: PlannedDay, targets: ReturnType<typeof pars
     }
   }
 
-  // Duration (moving time, converted to minutes)
-  // Prefer the running-time range (from estimateRunTimeRange) for run days —
-  // total plan time often includes drills/warmup not captured by GPS.
+  // Duration grading — two modes:
+  //   1. Drills logged → grade (moving + drill) against total plan time
+  //   2. Run day, no drills logged → grade moving-only against running-time range
+  //   3. Otherwise → grade moving-only against total plan time
   let durationPct: number | undefined
   let durationGrade: ComplianceGrade = 'na'
-  if (actual.movingTime > 0) {
-    const actualMin = actual.movingTime / 60
-    if (targets.durationMinLow !== undefined && targets.durationMinHigh !== undefined) {
-      const { durationMinLow: lo, durationMinHigh: hi } = targets
-      const mid = (lo + hi) / 2
-      durationPct = actualMin / mid
-      if (actualMin >= lo && actualMin <= hi) {
-        durationGrade = 'hit'
-      } else if (actualMin > hi * (1 + CLOSE_BAND)) {
-        durationGrade = 'over'
-      } else if (actualMin >= lo * (1 - CLOSE_BAND) && actualMin <= hi * (1 + CLOSE_BAND)) {
-        durationGrade = 'close'
-      } else {
-        durationGrade = 'miss'
-      }
-      if (actualMin < lo * (1 - CLOSE_BAND)) {
-        flagReasons.push(`Duration ${Math.round(actualMin)} min vs ${lo}–${hi} min target`)
-      }
-    } else if (targets.durationMin !== undefined && targets.durationMin > 0) {
-      const pct = actualMin / targets.durationMin
-      durationPct = pct
-      durationGrade = gradeRatio(pct)
-      if (pct < 1 - CLOSE_BAND) {
-        flagReasons.push(`Duration ${Math.round(actualMin)} min vs ${targets.durationMin} planned`)
-      }
+  const drillMin = actual.drills?.durationMin ?? 0
+  const movingMin = actual.movingTime / 60
+
+  if (drillMin > 0 && targets.durationMin !== undefined && targets.durationMin > 0) {
+    // Mode 1: drills logged — grade total time against plan total
+    const combined = movingMin + drillMin
+    const pct = combined / targets.durationMin
+    durationPct = pct
+    durationGrade = gradeRatio(pct)
+    if (pct < 1 - CLOSE_BAND) {
+      flagReasons.push(`Duration ${Math.round(combined)} min vs ${targets.durationMin} planned`)
+    }
+  } else if (movingMin > 0 && targets.durationMinLow !== undefined && targets.durationMinHigh !== undefined) {
+    // Mode 2: run day, no drills — grade moving against running-time range
+    const { durationMinLow: lo, durationMinHigh: hi } = targets
+    const mid = (lo + hi) / 2
+    durationPct = movingMin / mid
+    if (movingMin >= lo && movingMin <= hi) {
+      durationGrade = 'hit'
+    } else if (movingMin > hi * (1 + CLOSE_BAND)) {
+      durationGrade = 'over'
+    } else if (movingMin >= lo * (1 - CLOSE_BAND) && movingMin <= hi * (1 + CLOSE_BAND)) {
+      durationGrade = 'close'
+    } else {
+      durationGrade = 'miss'
+    }
+    if (movingMin < lo * (1 - CLOSE_BAND)) {
+      flagReasons.push(`Duration ${Math.round(movingMin)} min vs ${lo}–${hi} min target`)
+    }
+  } else if (movingMin > 0 && targets.durationMin !== undefined && targets.durationMin > 0) {
+    // Mode 3: non-run or no range — grade against total plan time
+    const pct = movingMin / targets.durationMin
+    durationPct = pct
+    durationGrade = gradeRatio(pct)
+    if (pct < 1 - CLOSE_BAND) {
+      flagReasons.push(`Duration ${Math.round(movingMin)} min vs ${targets.durationMin} planned`)
     }
   }
 
@@ -266,6 +278,15 @@ export function gradeWorkoutDay(day: PlannedDay, targets: ReturnType<typeof pars
     hrAvg,
     hrGrade,
     hrZoneSummary: actual.hrZoneSummary,
+    drillGrade: (() => {
+      const planned = (targets.drillItems?.length ?? 0) > 0
+      if (!planned) return 'na' as ComplianceGrade
+      if (actual.drills?.completed) return 'hit' as ComplianceGrade
+      flagReasons.push('Drills planned but not completed')
+      return 'miss' as ComplianceGrade
+    })(),
+    drillsPlanned: (targets.drillItems?.length ?? 0) > 0,
+    drillsCompleted: !!actual.drills?.completed,
     flagged: flagReasons.length > 0,
     flagReasons,
   }
@@ -353,12 +374,16 @@ function buildRestDayCompliance(day: PlannedDay, targets: ReturnType<typeof pars
     distanceGrade: 'na',
     durationGrade: 'na',
     hrGrade: 'na',
+    drillGrade: 'na',
+    drillsPlanned: false,
+    drillsCompleted: false,
     flagged: false,
     flagReasons: [],
   }
 }
 
 function buildSkippedDayCompliance(day: PlannedDay, targets: ReturnType<typeof parsePlannedTargets>): DayCompliance {
+  const drillsPlanned = (targets.drillItems?.length ?? 0) > 0
   return {
     date: parseDayDate(day.day) || '',
     day: day.day,
@@ -368,6 +393,9 @@ function buildSkippedDayCompliance(day: PlannedDay, targets: ReturnType<typeof p
     distanceGrade: 'skipped',
     durationGrade: 'skipped',
     hrGrade: 'skipped',
+    drillGrade: drillsPlanned ? 'skipped' : 'na',
+    drillsPlanned,
+    drillsCompleted: false,
     flagged: true,
     flagReasons: ['Workout not logged'],
   }
@@ -383,6 +411,9 @@ function buildUpcomingDayCompliance(day: PlannedDay, targets: ReturnType<typeof 
     distanceGrade: 'na',
     durationGrade: 'na',
     hrGrade: 'na',
+    drillGrade: 'na',
+    drillsPlanned: (targets.drillItems?.length ?? 0) > 0,
+    drillsCompleted: false,
     flagged: false,
     flagReasons: [],
   }

@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import type { ActualWorkout, PlannedDay, StrengthExerciseLog, StrengthSet } from '../types'
+import type { ActualWorkout, PlannedDay, StrengthExerciseLog, StrengthSet, DrillLog } from '../types'
+import { getPlannedDrills } from '../utils/drills'
 
 type LogMode = 'run' | 'strength'
 
@@ -124,7 +125,32 @@ export default function ManualLog({ dayLabel, existing, planned, onSave, onClose
     existing?.strengthLog || []
   )
 
+  // Drills — only shown for run days with planned drill items
+  const plannedDrills = planned ? getPlannedDrills(planned) : []
+  const hasPlannedDrills = plannedDrills.length > 0
+  const [drillsCompleted, setDrillsCompleted] = useState<boolean>(
+    existing?.drills?.completed ?? false
+  )
+  const [drillItems, setDrillItems] = useState<{ name: string; done: boolean }[]>(
+    existing?.drills?.items
+      ?? plannedDrills.map(name => ({ name, done: false }))
+  )
+  const [drillDurationMin, setDrillDurationMin] = useState<string>(
+    existing?.drills?.durationMin?.toString() ?? ''
+  )
+  const [drillNotes, setDrillNotes] = useState<string>(existing?.drills?.notes ?? '')
+
   function handleSave() {
+    // Only persist drills block when relevant (run mode, drills planned OR user toggled it)
+    const drills: DrillLog | undefined = (mode === 'run' && (hasPlannedDrills || drillsCompleted))
+      ? {
+          completed: drillsCompleted,
+          items: drillItems.length > 0 ? drillItems : undefined,
+          durationMin: drillDurationMin ? parseInt(drillDurationMin) : undefined,
+          notes: drillNotes || undefined,
+        }
+      : existing?.drills
+
     const entry: ActualWorkout = {
       ...existing,                    // Preserve ALL existing fields (Garmin HR, TE, EPOC, zones, etc.)
       stravaId: existing?.stravaId || Date.now(),
@@ -140,8 +166,13 @@ export default function ManualLog({ dayLabel, existing, planned, onSave, onClose
       notes,
       rpe: parseInt(rpe) || existing?.rpe || undefined,
       strengthLog: mode === 'strength' ? exercises : existing?.strengthLog,
+      drills,
     }
     onSave(entry)
+  }
+
+  function toggleDrillItem(idx: number) {
+    setDrillItems(drillItems.map((it, i) => i === idx ? { ...it, done: !it.done } : it))
   }
 
   function addExercise() {
@@ -285,6 +316,68 @@ export default function ManualLog({ dayLabel, existing, planned, onSave, onClose
                   />
                 ))}
               </div>
+            </div>
+          )}
+
+          {/* Drills / warmup block — shown for runs when plan includes drill items */}
+          {mode === 'run' && hasPlannedDrills && (
+            <div className="bg-sky-50 rounded-xl p-3 border border-sky-200">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs font-semibold text-sky-700">Drills / Warmup</p>
+                <label className="flex items-center gap-1.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={drillsCompleted}
+                    onChange={e => setDrillsCompleted(e.target.checked)}
+                    className="w-4 h-4 accent-sky-600"
+                  />
+                  <span className="text-xs font-medium text-sky-700">Completed</span>
+                </label>
+              </div>
+              <div className="space-y-1">
+                {drillItems.map((it, i) => (
+                  <label key={i} className="flex items-start gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={it.done}
+                      onChange={() => toggleDrillItem(i)}
+                      className="w-3.5 h-3.5 mt-0.5 accent-sky-600"
+                      disabled={!drillsCompleted}
+                    />
+                    <span className={`text-xs ${drillsCompleted ? 'text-sky-900' : 'text-sky-400'}`}>
+                      {it.name}
+                    </span>
+                  </label>
+                ))}
+              </div>
+              {drillsCompleted && (
+                <div className="mt-2 grid grid-cols-2 gap-2 items-end">
+                  <div>
+                    <label className="text-[10px] font-medium text-sky-700 block mb-0.5">Drill time (min)</label>
+                    <input
+                      type="number"
+                      placeholder="10"
+                      value={drillDurationMin}
+                      onChange={e => setDrillDurationMin(e.target.value)}
+                      className="w-full px-2 py-1.5 text-xs border border-sky-200 rounded focus:outline-none focus:ring-1 focus:ring-sky-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-medium text-sky-700 block mb-0.5">Notes</label>
+                    <input
+                      placeholder="Felt tight, skipped strides..."
+                      value={drillNotes}
+                      onChange={e => setDrillNotes(e.target.value)}
+                      className="w-full px-2 py-1.5 text-xs border border-sky-200 rounded focus:outline-none focus:ring-1 focus:ring-sky-500"
+                    />
+                  </div>
+                </div>
+              )}
+              {drillsCompleted && drillDurationMin && (
+                <p className="mt-1.5 text-[10px] text-sky-600 italic">
+                  ✓ Drill time will be credited toward your total workout duration
+                </p>
+              )}
             </div>
           )}
 

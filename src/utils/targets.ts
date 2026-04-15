@@ -1,4 +1,5 @@
 import type { PlannedDay, PlannedTargets } from '../types'
+import { getPlannedDrills } from './drills'
 
 // ─── Target Parser ──────────────────────────────────────────────
 // Derives structured numeric targets (distance/duration/HR range/elevation)
@@ -111,5 +112,7 @@ export function parsePlannedTargets(day: PlannedDay): PlannedTargets {
   }
   const elev = parseElevation(day.detail)
   if (elev !== undefined) targets.elevationFt = elev
+  const drills = getPlannedDrills(day)
+  if (drills.length > 0) targets.drillItems = drills
   return targets
 }
