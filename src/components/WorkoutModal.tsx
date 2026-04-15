@@ -266,6 +266,12 @@ export default function WorkoutModal({ day, weekNum, onClose, zones }: WorkoutMo
             </div>
           )}
 
+          {/* Drill completion status — shown whenever drills are scheduled,
+              regardless of whether the workout has been logged yet. */}
+          {isDrillDay && (
+            <DrillStatusBanner drills={actual?.drills} />
+          )}
+
           {/* Pre-run activation for drill days */}
           {isDrillDay && (
             <div>
@@ -378,6 +384,49 @@ export default function WorkoutModal({ day, weekNum, onClose, zones }: WorkoutMo
         </div>
 
         <div className="h-6" />
+      </div>
+    </div>
+  )
+}
+
+function DrillStatusBanner({ drills }: { drills?: { completed: boolean; items?: { name: string; done: boolean }[]; durationMin?: number } }) {
+  if (!drills) {
+    return (
+      <div className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 flex items-center gap-2">
+        <span className="text-lg">🤸</span>
+        <div className="flex-1">
+          <p className="text-xs font-semibold text-slate-700">Drills not yet logged</p>
+          <p className="text-[11px] text-slate-500">Open the Log modal to check off drills as you do them.</p>
+        </div>
+      </div>
+    )
+  }
+  const done = drills.items?.filter(i => i.done).length ?? 0
+  const total = drills.items?.length ?? 0
+  if (drills.completed) {
+    return (
+      <div className="bg-sky-50 border border-sky-200 rounded-xl px-3 py-2 flex items-center gap-2">
+        <span className="text-lg">✅</span>
+        <div className="flex-1">
+          <p className="text-xs font-semibold text-sky-800">
+            Drills completed{total > 0 ? ` · ${done}/${total} items` : ''}
+            {drills.durationMin ? ` · ${drills.durationMin} min` : ''}
+          </p>
+          {total > 0 && done < total && (
+            <p className="text-[11px] text-sky-600">
+              Skipped: {drills.items!.filter(i => !i.done).map(i => i.name).join(', ')}
+            </p>
+          )}
+        </div>
+      </div>
+    )
+  }
+  return (
+    <div className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 flex items-center gap-2">
+      <span className="text-lg">⚠️</span>
+      <div className="flex-1">
+        <p className="text-xs font-semibold text-amber-800">Drills planned but not marked complete</p>
+        <p className="text-[11px] text-amber-600">Open the Log modal and tick the drill checkboxes.</p>
       </div>
     </div>
   )

@@ -140,6 +140,7 @@ export default function WeeklyPlan({
             >
               <DayCard
                 day={d}
+                weekNum={week.num}
                 onTap={isSwapMode ? () => handleSwapTap(i) : () => setModalDay(d)}
                 onLog={manualLog ? () => setLogDay(d) : undefined}
                 onSwap={daySwap ? () => handleSwapTap(i) : undefined}

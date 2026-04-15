@@ -3,10 +3,12 @@ import { getWorkoutStyle } from '../utils/styles'
 import { formatMiles, formatSeconds, estimateRunTime } from '../utils/format'
 import { parsePlannedTargets } from '../utils/targets'
 import { gradeWorkoutDay } from '../hooks/useCompliance'
+import { getPlannedDrills, getDrillDay } from '../utils/drills'
 import TargetVsActual from './TargetVsActual'
 
 interface DayCardProps {
   day: PlannedDay
+  weekNum?: number
   onTap: () => void
   onLog?: () => void
   onSwap?: () => void
@@ -15,7 +17,7 @@ interface DayCardProps {
   readiness?: ReadinessScore
 }
 
-export default function DayCard({ day, onTap, onLog, onSwap, isSwapSelected, isSwapTarget, readiness }: DayCardProps) {
+export default function DayCard({ day, weekNum, onTap, onLog, onSwap, isSwapSelected, isSwapTarget, readiness }: DayCardProps) {
   const style = getWorkoutStyle(day.type)
   const actual = day.actual
   const timeEst = estimateRunTime(day.zone)
@@ -48,6 +50,40 @@ export default function DayCard({ day, onTap, onLog, onSwap, isSwapSelected, isS
                 ✓ Done{actual.rpe ? ` · RPE ${actual.rpe}` : ''}
               </span>
             )}
+            {(() => {
+              // Drill indicator: show for run days that either have drills in
+              // the plan detail or are the week's scheduled drill day.
+              const runTypes = new Set(['run', 'long', 'quality', 'race'])
+              if (!runTypes.has(day.type)) return null
+              const plannedDrills = getPlannedDrills(day)
+              const isScheduledDrillDay = weekNum !== undefined && getDrillDay(weekNum) === day.day
+              if (plannedDrills.length === 0 && !isScheduledDrillDay) return null
+              const drillDone = actual?.drills?.completed
+              const doneCount = actual?.drills?.items?.filter(i => i.done).length ?? 0
+              const totalCount = actual?.drills?.items?.length ?? plannedDrills.length
+              if (drillDone) {
+                return (
+                  <span className="text-[10px] bg-sky-100 text-sky-700 rounded-full px-1.5 py-0.5 font-medium"
+                    title={`Drills done${doneCount > 0 ? ` (${doneCount}/${totalCount})` : ''}`}>
+                    🤸 Drills ✓
+                  </span>
+                )
+              }
+              if (actual) {
+                return (
+                  <span className="text-[10px] bg-amber-100 text-amber-700 rounded-full px-1.5 py-0.5 font-medium"
+                    title="Drills planned but not logged as completed">
+                    🤸 Drills —
+                  </span>
+                )
+              }
+              return (
+                <span className="text-[10px] bg-slate-100 text-slate-500 rounded-full px-1.5 py-0.5 font-medium"
+                  title="Drills scheduled for this run">
+                  🤸 Drills
+                </span>
+              )
+            })()}
           </div>
           <div className="flex items-center gap-1.5">
             {onSwap && (
