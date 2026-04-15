@@ -87,6 +87,48 @@ export interface PlannedDay {
   actual?: ActualWorkout;
 }
 
+/**
+ * Structured targets derived from a PlannedDay's zone/detail/time strings.
+ * Populated by `parsePlannedTargets()` — not hand-authored in plan data, so
+ * the existing plan format (mike-18k-plan.ts) remains unchanged.
+ */
+export interface PlannedTargets {
+  distanceMi?: number    // e.g. 3.0
+  durationMin?: number   // e.g. 45
+  hrLow?: number         // e.g. 108
+  hrHigh?: number        // e.g. 148
+  elevationFt?: number   // parsed from detail ("~760 ft gain")
+}
+
+export type ComplianceGrade = 'hit' | 'close' | 'miss' | 'skipped' | 'over' | 'na'
+
+/**
+ * Per-day compliance vs the parsed targets. Each metric is graded
+ * independently so the UI can show 3-4 dots/bars per workout.
+ */
+export interface DayCompliance {
+  date: string
+  day: string
+  workoutType: WorkoutType
+  hasActual: boolean
+  targets: PlannedTargets
+  // Distance (miles)
+  distanceActual?: number
+  distancePct?: number     // actual / target (1.0 = exact)
+  distanceGrade: ComplianceGrade
+  // Duration (minutes, moving time)
+  durationActual?: number
+  durationPct?: number
+  durationGrade: ComplianceGrade
+  // HR: time-in-zone % (from hrZoneSummary when available, avgHR fallback)
+  hrInZonePct?: number     // 0-100
+  hrAvg?: number
+  hrGrade: ComplianceGrade
+  // Overall flag — any major miss?
+  flagged: boolean
+  flagReasons: string[]
+}
+
 export interface ActualWorkout {
   stravaId: number;
   garminId?: number;

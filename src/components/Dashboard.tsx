@@ -5,6 +5,7 @@ import { getMilesNumber } from '../utils/format'
 import ReadinessBanner from './ReadinessBanner'
 import TRIMPBreakdown from './TRIMPBreakdown'
 import PerformanceChart from './PerformanceChart'
+import ComplianceWeekRow from './ComplianceWeekRow'
 
 type DashSubTab = 'compliance' | 'readiness' | 'performance'
 
@@ -103,12 +104,14 @@ export default function Dashboard({
   )
 }
 
-// ─── Compliance Sub-Tab (existing content) ──────────────────────
+// ─── Compliance Sub-Tab ────────────────────────────────────────
 
 function ComplianceTab({ weeks, compliance }: { weeks: TrainingWeek[]; compliance: OverallCompliance }) {
+  // Only show past/current weeks in the weekly breakdown (up to current week #).
+  // Future weeks have nothing to grade yet.
   return (
     <div className="space-y-4">
-      {/* Summary cards */}
+      {/* Summary cards — now includes Distance & Duration compliance */}
       <div className="grid grid-cols-2 gap-3">
         <StatCard
           label="Completion"
@@ -117,64 +120,67 @@ function ComplianceTab({ weeks, compliance }: { weeks: TrainingWeek[]; complianc
           color="teal"
         />
         <StatCard
-          label="Actual Miles"
-          value={`${compliance.totalActualMiles}`}
-          sub={`of ${compliance.totalPlannedMiles} planned`}
+          label="Distance"
+          value={`${compliance.overallDistanceCompliance}%`}
+          sub={`${compliance.totalActualMiles} / ${compliance.totalPlannedMiles} mi`}
           color="blue"
         />
         <StatCard
-          label="Elevation"
-          value={`${compliance.totalActualElevation.toLocaleString()} ft`}
-          sub="total gain"
-          color="amber"
-        />
-        <StatCard
-          label="HR Compliance"
+          label="HR in Zone"
           value={`${compliance.overallHRCompliance}%`}
-          sub="in target zone"
+          sub={
+            compliance.totalFlagged > 0
+              ? `${compliance.totalFlagged} flagged`
+              : 'on target'
+          }
           color="rose"
         />
+        <StatCard
+          label="Duration"
+          value={`${compliance.overallDurationCompliance}%`}
+          sub="of planned time"
+          color="amber"
+        />
+      </div>
+
+      {/* Legend */}
+      <div className="flex flex-wrap items-center gap-2 text-[10px] text-slate-500 bg-slate-50 rounded-lg px-3 py-2">
+        <span className="flex items-center gap-1">
+          <span className="w-2.5 h-2.5 rounded-sm bg-green-500 inline-block" /> On target
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="w-2.5 h-2.5 rounded-sm bg-amber-400 inline-block" /> Close
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="w-2.5 h-2.5 rounded-sm bg-red-500 inline-block" /> Missed
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="w-2.5 h-2.5 rounded-sm bg-blue-400 inline-block" /> Over
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="w-2.5 h-2.5 rounded-sm bg-slate-300 inline-block" /> Skipped
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="w-2.5 h-2.5 rounded-sm bg-slate-100 inline-block" /> No target
+        </span>
       </div>
 
       {/* Weekly compliance breakdown */}
       <div>
         <h3 className="text-sm font-semibold text-slate-700 mb-2">Weekly Breakdown</h3>
         <div className="space-y-2">
-          {compliance.weeks.map(wk => (
-            <div key={wk.weekNum} className="bg-white rounded-xl p-3 shadow-sm border border-slate-100">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-slate-800">Week {wk.weekNum}</span>
-                <div className="flex gap-1.5">
-                  {wk.completed > 0 && (
-                    <span className="text-xs bg-green-100 text-green-700 rounded-full px-2 py-0.5">
-                      {wk.completed} done
-                    </span>
-                  )}
-                  {wk.missed > 0 && (
-                    <span className="text-xs bg-red-100 text-red-700 rounded-full px-2 py-0.5">
-                      {wk.missed} missed
-                    </span>
-                  )}
-                </div>
-              </div>
-              <div className="mt-2">
-                <div className="flex justify-between text-xs text-slate-500 mb-0.5">
-                  <span>{wk.actualMiles} mi actual</span>
-                  <span>{wk.plannedMiles} mi planned</span>
-                </div>
-                <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-teal-500 rounded-full transition-all"
-                    style={{ width: `${Math.min(100, wk.plannedMiles > 0 ? (wk.actualMiles / wk.plannedMiles) * 100 : 0)}%` }}
-                  />
-                </div>
-              </div>
-            </div>
+          {compliance.weeks.map((wk, i) => (
+            <ComplianceWeekRow
+              key={wk.weekNum}
+              week={wk}
+              weekLabel={weeks[i]?.dates}
+              weekFocus={weeks[i]?.focus}
+            />
           ))}
         </div>
       </div>
 
-      {/* Planned vs Actual volume chart */}
+      {/* Planned vs Actual volume chart (kept — still useful high-level view) */}
       <div>
         <h3 className="text-sm font-semibold text-slate-700 mb-2">Planned vs Actual Mileage</h3>
         <div className="flex items-end gap-1 h-32">

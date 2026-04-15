@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
-import type { TrainingWeek } from '../types'
+import type { TrainingWeek, PlannedDay, DayCompliance, ComplianceGrade } from '../types'
 import { getMilesNumber } from '../utils/format'
-import { parseZoneRange } from '../utils/zones'
+import { parsePlannedTargets } from '../utils/targets'
 
 export interface WeekCompliance {
   weekNum: number
@@ -13,7 +13,12 @@ export interface WeekCompliance {
   actualMiles: number
   plannedElevation: number
   actualElevation: number
-  hrCompliance: number // percentage of workouts where avg HR was in target zone
+  hrCompliance: number // % of workouts where HR was within target band (time-in-zone ≥ 50%)
+  days: DayCompliance[] // per-day breakdown
+  // New aggregate metrics
+  distanceCompliancePct: number  // avg distance % across completed days
+  durationCompliancePct: number  // avg duration % across completed days
+  flaggedCount: number            // # workouts with any major miss
 }
 
 export interface OverallCompliance {
@@ -26,9 +31,24 @@ export interface OverallCompliance {
   totalActualMiles: number
   totalActualElevation: number
   overallHRCompliance: number
+  overallDistanceCompliance: number
+  overallDurationCompliance: number
+  totalFlagged: number
 }
 
 const REST_TYPES = new Set(['rest', 'travel', 'limited'])
+
+// ─── Grading thresholds ─────────────────────────────────────────
+// "hit"   = within ±10% of target (or ≥75% HR time-in-zone)
+// "close" = within ±20% (or 50-75% time-in-zone)
+// "miss"  = >±20% short (or <50% time-in-zone)
+// "over"  = >+20% over target (distance/duration only — can be good or bad)
+// "skipped" = planned workout day, no actual logged, day is in the past
+// "na"    = no target to grade (rest day, or target not parseable)
+const HIT_BAND = 0.10
+const CLOSE_BAND = 0.20
+const HR_TIME_IN_ZONE_HIT = 75
+const HR_TIME_IN_ZONE_CLOSE = 50
 
 export function useCompliance(weeks: TrainingWeek[]): OverallCompliance {
   return useMemo(() => computeCompliance(weeks), [weeks])
@@ -41,12 +61,25 @@ function computeCompliance(weeks: TrainingWeek[]): OverallCompliance {
     let restDays = 0
     let actualMiles = 0
     let actualElevation = 0
-    let hrInZone = 0
-    let hrChecked = 0
+
+    // For HR compliance %: count workouts where HR time-in-zone >= 50%
+    let hrInZoneWorkouts = 0
+    let hrCheckedWorkouts = 0
+
+    // For distance/duration compliance: collect per-day % and average
+    const distancePcts: number[] = []
+    const durationPcts: number[] = []
+    let flaggedCount = 0
+
+    const dayComplianceList: DayCompliance[] = []
 
     for (const day of week.days) {
+      const targets = parsePlannedTargets(day)
+
       if (REST_TYPES.has(day.type)) {
         restDays++
+        // Rest/travel/limited: minimal compliance row, for display only
+        dayComplianceList.push(buildRestDayCompliance(day, targets))
         continue
       }
 
@@ -55,30 +88,38 @@ function computeCompliance(weeks: TrainingWeek[]): OverallCompliance {
         actualMiles += day.actual.distance
         actualElevation += day.actual.elevationGain
 
-        // HR zone compliance
-        if (day.actual.avgHR && day.zone !== '—') {
-          const range = parseZoneRange(day.zone)
-          if (range) {
-            hrChecked++
-            if (day.actual.avgHR >= range.low && day.actual.avgHR <= range.high) {
-              hrInZone++
-            }
-          }
+        const rec = gradeWorkoutDay(day, targets)
+        dayComplianceList.push(rec)
+
+        if (rec.distancePct !== undefined) distancePcts.push(rec.distancePct)
+        if (rec.durationPct !== undefined) durationPcts.push(rec.durationPct)
+        if (rec.hrInZonePct !== undefined) {
+          hrCheckedWorkouts++
+          if (rec.hrInZonePct >= HR_TIME_IN_ZONE_CLOSE) hrInZoneWorkouts++
         }
+        if (rec.flagged) flaggedCount++
       } else {
         // Only count as missed if the day is in the past
         const dayDate = parseDayDate(day.day)
-        if (dayDate && dayDate < todayStr()) {
+        const isPast = dayDate !== null && dayDate < todayStr()
+        if (isPast) {
           missed++
+          dayComplianceList.push(buildSkippedDayCompliance(day, targets))
+        } else {
+          dayComplianceList.push(buildUpcomingDayCompliance(day, targets))
         }
       }
     }
 
     const totalWorkouts = week.days.length - restDays
     const plannedMiles = getMilesNumber(week.miles)
-
-    // Estimate planned elevation from zone descriptions (rough heuristic)
     const plannedElevation = estimateElevation(week)
+
+    const distanceCompliancePct = avgPct(distancePcts)
+    const durationCompliancePct = avgPct(durationPcts)
+    const hrCompliance = hrCheckedWorkouts > 0
+      ? Math.round((hrInZoneWorkouts / hrCheckedWorkouts) * 100)
+      : 0
 
     return {
       weekNum: week.num,
@@ -90,7 +131,11 @@ function computeCompliance(weeks: TrainingWeek[]): OverallCompliance {
       actualMiles: Math.round(actualMiles * 10) / 10,
       plannedElevation,
       actualElevation,
-      hrCompliance: hrChecked > 0 ? Math.round((hrInZone / hrChecked) * 100) : 0,
+      hrCompliance,
+      days: dayComplianceList,
+      distanceCompliancePct,
+      durationCompliancePct,
+      flaggedCount,
     } satisfies WeekCompliance
   })
 
@@ -100,9 +145,21 @@ function computeCompliance(weeks: TrainingWeek[]): OverallCompliance {
   const totalPlannedMiles = weekStats.reduce((s, w) => s + w.plannedMiles, 0)
   const totalActualMiles = weekStats.reduce((s, w) => s + w.actualMiles, 0)
   const totalActualElevation = weekStats.reduce((s, w) => s + w.actualElevation, 0)
+  const totalFlagged = weekStats.reduce((s, w) => s + w.flaggedCount, 0)
+
   const hrCheckedWeeks = weekStats.filter(w => w.hrCompliance > 0)
   const overallHRCompliance = hrCheckedWeeks.length > 0
     ? Math.round(hrCheckedWeeks.reduce((s, w) => s + w.hrCompliance, 0) / hrCheckedWeeks.length)
+    : 0
+
+  const distanceWeeks = weekStats.filter(w => w.distanceCompliancePct > 0)
+  const overallDistanceCompliance = distanceWeeks.length > 0
+    ? Math.round(distanceWeeks.reduce((s, w) => s + w.distanceCompliancePct, 0) / distanceWeeks.length)
+    : 0
+
+  const durationWeeks = weekStats.filter(w => w.durationCompliancePct > 0)
+  const overallDurationCompliance = durationWeeks.length > 0
+    ? Math.round(durationWeeks.reduce((s, w) => s + w.durationCompliancePct, 0) / durationWeeks.length)
     : 0
 
   return {
@@ -117,7 +174,188 @@ function computeCompliance(weeks: TrainingWeek[]): OverallCompliance {
     totalActualMiles: Math.round(totalActualMiles * 10) / 10,
     totalActualElevation,
     overallHRCompliance,
+    overallDistanceCompliance,
+    overallDurationCompliance,
+    totalFlagged,
   }
+}
+
+// ─── Per-day grading ────────────────────────────────────────────
+
+export function gradeWorkoutDay(day: PlannedDay, targets: ReturnType<typeof parsePlannedTargets>): DayCompliance {
+  const actual = day.actual!
+  const dayDate = parseDayDate(day.day) || ''
+  const flagReasons: string[] = []
+
+  // Distance
+  let distancePct: number | undefined
+  let distanceGrade: ComplianceGrade = 'na'
+  if (targets.distanceMi !== undefined && targets.distanceMi > 0) {
+    const pct = actual.distance / targets.distanceMi
+    distancePct = pct
+    distanceGrade = gradeRatio(pct)
+    if (distanceGrade === 'miss' && pct < 1 - CLOSE_BAND) {
+      flagReasons.push(`Distance ${actual.distance.toFixed(1)} mi vs ${targets.distanceMi} planned`)
+    }
+  }
+
+  // Duration (moving time, converted to minutes)
+  let durationPct: number | undefined
+  let durationGrade: ComplianceGrade = 'na'
+  if (targets.durationMin !== undefined && targets.durationMin > 0 && actual.movingTime > 0) {
+    const actualMin = actual.movingTime / 60
+    const pct = actualMin / targets.durationMin
+    durationPct = pct
+    durationGrade = gradeRatio(pct)
+    // Only flag duration if it's a serious short — don't penalize efficient runners
+    if (pct < 1 - CLOSE_BAND) {
+      flagReasons.push(`Duration ${Math.round(actualMin)} min vs ${targets.durationMin} planned`)
+    }
+  }
+
+  // HR — prefer time-in-zone from hrZoneSummary, fall back to avgHR
+  let hrInZonePct: number | undefined
+  let hrGrade: ComplianceGrade = 'na'
+  const hrAvg = actual.avgHR
+  if (targets.hrLow !== undefined && targets.hrHigh !== undefined) {
+    hrInZonePct = computeHRTimeInZone(actual.hrZoneSummary, targets.hrLow, targets.hrHigh, actual.avgHR)
+    if (hrInZonePct !== undefined) {
+      if (hrInZonePct >= HR_TIME_IN_ZONE_HIT) hrGrade = 'hit'
+      else if (hrInZonePct >= HR_TIME_IN_ZONE_CLOSE) hrGrade = 'close'
+      else hrGrade = 'miss'
+      if (hrGrade === 'miss') {
+        flagReasons.push(
+          `HR off-target (${Math.round(hrInZonePct)}% in ${targets.hrLow}–${targets.hrHigh} zone)`,
+        )
+      }
+    }
+  }
+
+  return {
+    date: dayDate,
+    day: day.day,
+    workoutType: day.type,
+    hasActual: true,
+    targets,
+    distanceActual: actual.distance || undefined,
+    distancePct,
+    distanceGrade,
+    durationActual: actual.movingTime > 0 ? Math.round(actual.movingTime / 60) : undefined,
+    durationPct,
+    durationGrade,
+    hrInZonePct,
+    hrAvg,
+    hrGrade,
+    flagged: flagReasons.length > 0,
+    flagReasons,
+  }
+}
+
+function gradeRatio(ratio: number): ComplianceGrade {
+  if (ratio >= 1 - HIT_BAND && ratio <= 1 + HIT_BAND) return 'hit'
+  if (ratio > 1 + CLOSE_BAND) return 'over'
+  if (ratio > 1 + HIT_BAND) return 'close'
+  if (ratio >= 1 - CLOSE_BAND) return 'close'
+  return 'miss'
+}
+
+/**
+ * Compute HR time-in-zone %.
+ * Prefers granular hrZoneSummary (seconds per zone); maps Garmin/Strava zones
+ * 1..5 to approximate HR bands and sums the overlap with [targetLow, targetHigh].
+ * Falls back to binary avgHR-in-range when zone summary is missing.
+ */
+export function computeHRTimeInZone(
+  zoneSummary: { zone: number; seconds: number }[] | undefined,
+  targetLow: number,
+  targetHigh: number,
+  avgHR?: number,
+): number | undefined {
+  if (zoneSummary && zoneSummary.length > 0) {
+    const total = zoneSummary.reduce((s, z) => s + z.seconds, 0)
+    if (total <= 0) return undefined
+    // Approximate zone HR boundaries (Mike's zones: 108/128/148/167/177)
+    // We can't know the exact zone for every athlete so use canonical
+    // % bands: Z1=50-65%, Z2=65-75%, Z3=75-85%, Z4=85-90%, Z5=90-100%.
+    // Approximate by assuming the target band sits at Z1-Z2 boundary for
+    // most plan days. Simpler rule: credit any zone whose midpoint falls
+    // inside [targetLow, targetHigh] fully; zones outside get zero.
+    // We derive zone midpoints from the user's own zones via a small
+    // heuristic: zones 1-5 midpoints are assumed at 118/138/158/172/187.
+    const ZONE_MID: Record<number, number> = {
+      1: 118, 2: 138, 3: 158, 4: 172, 5: 187,
+    }
+    let inZone = 0
+    for (const z of zoneSummary) {
+      const mid = ZONE_MID[z.zone]
+      if (mid !== undefined && mid >= targetLow && mid <= targetHigh) {
+        inZone += z.seconds
+      }
+    }
+    return (inZone / total) * 100
+  }
+  // Fallback: binary check on avgHR
+  if (avgHR !== undefined) {
+    return avgHR >= targetLow && avgHR <= targetHigh ? 100 : 0
+  }
+  return undefined
+}
+
+// ─── Builders for non-completed days ────────────────────────────
+
+function buildRestDayCompliance(day: PlannedDay, targets: ReturnType<typeof parsePlannedTargets>): DayCompliance {
+  return {
+    date: parseDayDate(day.day) || '',
+    day: day.day,
+    workoutType: day.type,
+    hasActual: !!day.actual,
+    targets,
+    distanceGrade: 'na',
+    durationGrade: 'na',
+    hrGrade: 'na',
+    flagged: false,
+    flagReasons: [],
+  }
+}
+
+function buildSkippedDayCompliance(day: PlannedDay, targets: ReturnType<typeof parsePlannedTargets>): DayCompliance {
+  return {
+    date: parseDayDate(day.day) || '',
+    day: day.day,
+    workoutType: day.type,
+    hasActual: false,
+    targets,
+    distanceGrade: 'skipped',
+    durationGrade: 'skipped',
+    hrGrade: 'skipped',
+    flagged: true,
+    flagReasons: ['Workout not logged'],
+  }
+}
+
+function buildUpcomingDayCompliance(day: PlannedDay, targets: ReturnType<typeof parsePlannedTargets>): DayCompliance {
+  return {
+    date: parseDayDate(day.day) || '',
+    day: day.day,
+    workoutType: day.type,
+    hasActual: false,
+    targets,
+    distanceGrade: 'na',
+    durationGrade: 'na',
+    hrGrade: 'na',
+    flagged: false,
+    flagReasons: [],
+  }
+}
+
+// ─── Helpers ────────────────────────────────────────────────────
+
+function avgPct(values: number[]): number {
+  if (values.length === 0) return 0
+  // Convert ratios to percentages, clamp to 200% to avoid outliers skewing
+  const clamped = values.map(v => Math.min(v, 2))
+  const avg = clamped.reduce((s, v) => s + v, 0) / clamped.length
+  return Math.round(avg * 100)
 }
 
 function parseDayDate(dayLabel: string): string | null {
@@ -137,7 +375,6 @@ function todayStr(): string {
 }
 
 function estimateElevation(week: TrainingWeek): number {
-  // Rough estimation from zone descriptions mentioning "ft gain"
   let total = 0
   for (const day of week.days) {
     const match = day.detail.match(/([\d,]+)\s*(?:\+\s*)?ft/i)

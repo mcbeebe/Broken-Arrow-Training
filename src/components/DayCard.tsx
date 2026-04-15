@@ -1,6 +1,9 @@
 import type { PlannedDay, ReadinessScore } from '../types'
 import { getWorkoutStyle } from '../utils/styles'
 import { formatMiles, formatSeconds, estimateRunTime } from '../utils/format'
+import { parsePlannedTargets } from '../utils/targets'
+import { gradeWorkoutDay } from '../hooks/useCompliance'
+import TargetVsActual from './TargetVsActual'
 
 interface DayCardProps {
   day: PlannedDay
@@ -105,6 +108,17 @@ export default function DayCard({ day, onTap, onLog, onSwap, isSwapSelected, isS
             💡 {readiness.adjustment}
           </div>
         )}
+
+        {/* Target vs Actual compliance grid (renders if targets parseable & workout done) */}
+        {actual && (() => {
+          const targets = parsePlannedTargets(day)
+          const hasTargets = targets.distanceMi !== undefined
+            || targets.durationMin !== undefined
+            || targets.hrLow !== undefined
+          if (!hasTargets) return null
+          const compliance = gradeWorkoutDay(day, targets)
+          return <TargetVsActual compliance={compliance} />
+        })()}
 
         {/* Actual data overlay */}
         {actual && (
