@@ -24,9 +24,9 @@ function renderMarkdown(text: string): ReactNode {
   const paragraphs = text.split(/\n{2,}/)
   return paragraphs.map((para, pi) => {
     const lines = para.split('\n')
-    // Detect if this paragraph is a bullet list (every line starts with - or •)
-    const isList = lines.length > 0 && lines.every(l => /^\s*[-•*]\s/.test(l) || l.trim() === '')
-    if (isList) {
+    // Detect bullet list (lines starting with -, •, *)
+    const isBulletList = lines.length > 0 && lines.every(l => /^\s*[-•*]\s/.test(l) || l.trim() === '')
+    if (isBulletList) {
       const items = lines.filter(l => l.trim()).map(l => l.replace(/^\s*[-•*]\s*/, ''))
       return (
         <ul key={pi} className="list-disc list-inside space-y-0.5 my-1">
@@ -34,6 +34,18 @@ function renderMarkdown(text: string): ReactNode {
             <li key={i}>{renderInline(item)}</li>
           ))}
         </ul>
+      )
+    }
+    // Detect numbered list (lines starting with 1., 2., etc.)
+    const isNumberedList = lines.length > 0 && lines.every(l => /^\s*\d+[.)]\s/.test(l) || l.trim() === '')
+    if (isNumberedList) {
+      const items = lines.filter(l => l.trim()).map(l => l.replace(/^\s*\d+[.)]\s*/, ''))
+      return (
+        <ol key={pi} className="list-decimal list-inside space-y-0.5 my-1">
+          {items.map((item, i) => (
+            <li key={i}>{renderInline(item)}</li>
+          ))}
+        </ol>
       )
     }
     // Regular paragraph — render inline formatting, preserve single newlines
