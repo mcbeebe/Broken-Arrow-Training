@@ -4,6 +4,7 @@ import GarminConnect from './GarminConnect'
 import HRZoneEditor from './HRZoneEditor'
 import AboutMe from './AboutMe'
 import CoachDiagnostics from './CoachDiagnostics'
+import DeployDiagnostics from './DeployDiagnostics'
 import Methodology from './Methodology'
 import type { HRZone, PendingInference, CoachPersona } from '../types'
 import CoachPersonaEditor from './CoachPersonaEditor'
@@ -201,10 +202,18 @@ export default function Settings({
         <Methodology />
       </SettingsSection>
 
-      {/* ── Diagnostics section ── */}
+      {/* ── Diagnostics section (owner-only) ── */}
       {coachEnabled && athleteId && (
         <SettingsSection title="Coach Diagnostics">
           <CoachDiagnostics athleteId={athleteId} />
+        </SettingsSection>
+      )}
+
+      {/* ── Deploy Diagnostics (owner-only, Mike) — shows frontend vs.
+          API commit SHAs so you can confirm Vercel has caught up. ── */}
+      {athleteId === 'mike' && (
+        <SettingsSection title="Deploy Diagnostics">
+          <DeployDiagnostics />
         </SettingsSection>
       )}
 
