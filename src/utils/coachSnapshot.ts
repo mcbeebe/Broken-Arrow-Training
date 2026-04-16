@@ -11,6 +11,8 @@ import type {
   AthleteProfile,
   RaceInfo,
   DailyTRIMP,
+  StravaActivity,
+  GarminActivity,
 } from '../types'
 import type { OverallCompliance } from '../hooks/useCompliance'
 import type { SorenessLevel } from '../hooks/useSoreness'
@@ -42,6 +44,14 @@ interface Inputs {
    *  body battery). The readiness engine already normalizes these into
    *  components, but the coach needs the raw units for human answers. */
   todayHealth?: GarminHealthData | null
+  /** Raw Strava activities — NOT filtered to plan days. Necessary so
+   *  the coach can see workouts that happened BEFORE the plan started
+   *  (pre-plan base miles) or on non-plan days (bonus runs, cross-
+   *  training not on the calendar). */
+  stravaActivities?: StravaActivity[]
+  /** Raw Garmin activities — same rationale as Strava. When both
+   *  are present, we dedup by matching start timestamps. */
+  garminActivities?: GarminActivity[]
 }
 
 function todayISO(): string {
@@ -281,7 +291,7 @@ function projectHealth(h: GarminHealthData | null | undefined): CoachHealthToday
 }
 
 export function buildCoachSnapshot(inputs: Inputs): CoachSnapshot {
-  const { weeks, plannedToday, plannedTomorrow, readiness, performance, athleteProfile, race, currentWeekNum, todayHealth, planStartDate } = inputs
+  const { weeks, plannedToday, plannedTomorrow, readiness, performance, athleteProfile, race, currentWeekNum, todayHealth, planStartDate, stravaActivities, garminActivities } = inputs
 
   const sevenAgo = daysAgoISO(7)
   const thirtyAgo = daysAgoISO(30)
@@ -321,21 +331,41 @@ export function buildCoachSnapshot(inputs: Inputs): CoachSnapshot {
     days: weeks.flatMap(w => w.days.map(d => compactPlannedDay(d, dayLabelToISO(d.day, planStartDate) ?? undefined))),
   }
 
-  // Collect ALL actuals from the last 120 days. The server's
-  // build_context_block trims the rendered window by `depth`:
-  //   - default → last 30 days
-  //   - depth=30d (history/trend keywords) → last 60 days
-  //   - depth=120d (long-range keywords) → full 120 days
-  // Sending the full set keeps one round-trip budget: the client
-  // ships what it has; server decides how much to surface.
-  const acts: NonNullable<CoachSnapshot['recentActivities']> = []
+  // Collect ALL activities from the last 120 days — matched AND
+  // unmatched. Three sources, merged + deduped:
+  //   1. weeks[*].days[*].actual — activities matched to plan days
+  //   2. stravaActivities — raw Strava feed (catches pre-plan rides,
+  //      non-plan-day bonus runs, etc.)
+  //   3. garminActivities — raw Garmin feed (same reasoning)
+  //
+  // Dedup key: the start-date minute. Same activity synced through
+  // both Strava and Garmin will collide on minute-level timestamps.
+  // We keep the richest copy (plan-matched > Strava > Garmin).
+  //
+  // The server's build_context_block trims the rendered window by
+  // `depth`: 30 items default, 60 on history keywords, 120 on
+  // long-range keywords.
+  type ActEntry = NonNullable<CoachSnapshot['recentActivities']>[number]
+  const actsByKey = new Map<string, { entry: ActEntry; priority: number }>()
+  const putAct = (entry: ActEntry, priority: number) => {
+    if (!entry.startDate) return
+    const iso = entry.startDate.slice(0, 10)
+    if (iso < oneTwentyAgo) return
+    // Minute-level dedup key: ISO datetime truncated to minute
+    const key = entry.startDate.slice(0, 16)
+    const existing = actsByKey.get(key)
+    if (!existing || priority > existing.priority) {
+      actsByKey.set(key, { entry, priority })
+    }
+  }
+
+  // Source 1: plan-matched actuals (highest priority — has RPE,
+  // drill status, manual notes)
   for (const w of weeks) {
     for (const d of w.days) {
       const a = d.actual
       if (!a?.startDate) continue
-      const date = a.startDate.slice(0, 10)
-      if (date < oneTwentyAgo) continue
-      acts.push({
+      putAct({
         startDate: a.startDate,
         name: a.name || '',
         distance: a.distance || 0,
@@ -343,11 +373,48 @@ export function buildCoachSnapshot(inputs: Inputs): CoachSnapshot {
         avgHR: a.avgHR,
         elevationGain: a.elevationGain,
         rpe: a.rpe,
-      })
+      }, 3)
     }
   }
-  acts.sort((a, b) => b.startDate.localeCompare(a.startDate))
-  const recentActivities = acts
+
+  // Source 2: raw Strava activities (catches pre-plan + non-plan days)
+  for (const s of stravaActivities || []) {
+    if (!s.start_date) continue
+    putAct({
+      startDate: s.start_date,
+      name: s.name || s.sport_type || 'Activity',
+      // Strava distance is in meters — convert to miles to match
+      // the plan's unit (1 mi = 1609.344 m).
+      distance: s.distance ? s.distance / 1609.344 : 0,
+      movingTime: s.moving_time || 0,
+      avgHR: s.average_heartrate,
+      elevationGain: s.total_elevation_gain
+        // Strava elevation is meters; convert to feet
+        ? Math.round(s.total_elevation_gain * 3.28084)
+        : 0,
+      rpe: undefined,
+    }, 2)
+  }
+
+  // Source 3: raw Garmin activities
+  for (const g of garminActivities || []) {
+    if (!g.date) continue
+    // Garmin activity shape here is the summary form — fields
+    // already in app units (miles, feet).
+    putAct({
+      startDate: g.date.includes('T') ? g.date : `${g.date}T00:00:00`,
+      name: g.name || g.type || 'Activity',
+      distance: 0, // GarminActivity summary doesn't carry distance
+      movingTime: g.durationMinutes ? g.durationMinutes * 60 : 0,
+      avgHR: g.avgHR,
+      elevationGain: g.elevationGainFt || 0,
+      rpe: undefined,
+    }, 1)
+  }
+
+  const recentActivities = Array.from(actsByKey.values())
+    .map(x => x.entry)
+    .sort((a, b) => b.startDate.localeCompare(a.startDate))
   void sevenAgo
   void thirtyAgo
 

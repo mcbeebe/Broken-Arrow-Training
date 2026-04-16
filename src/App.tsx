@@ -262,6 +262,10 @@ export default function App() {
       sorenessLog: [],
       planStartDate: '2026-04-13',
       todayHealth,
+      // Raw activity feeds so the coach can see workouts outside the
+      // plan window (pre-plan base, non-plan-day bonus runs, etc.)
+      stravaActivities: strava.activities,
+      garminActivities: garmin.garminActivities,
     })
     // Attach persona so the API can shape the system prompt voice
     const persona = coachMemory.coachPersona
@@ -284,6 +288,8 @@ export default function App() {
     soreness.todaySoreness,
     todayHealth,
     coachMemory.coachPersona,
+    strava.activities,
+    garmin.garminActivities,
   ])
 
   // Daily LLM insight (shared between Summary + Coach tab)
