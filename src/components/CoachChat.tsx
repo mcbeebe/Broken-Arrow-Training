@@ -130,12 +130,19 @@ export default function CoachChat({ athleteId, memory, snapshot, seed, onSeedCon
   // right now. Tapping it prefills a focused question.
   const chipText = buildContextChip(snapshot)
 
-  // Auto-grow the textarea up to ~5 rows, then scroll inside it.
+  // Auto-grow the textarea up to ~4 rows, then scroll inside it.
+  // We measure scrollHeight by temporarily collapsing to 1-row height,
+  // then expand. Using requestAnimationFrame avoids layout thrash that
+  // causes a visible "glitch" on iOS/mobile.
   useEffect(() => {
     const el = textareaRef.current
     if (!el) return
-    el.style.height = 'auto'
-    el.style.height = `${Math.min(el.scrollHeight, 140)}px`
+    requestAnimationFrame(() => {
+      el.style.height = '0'
+      const clamped = Math.min(el.scrollHeight, 120)
+      el.style.height = `${Math.max(clamped, 42)}px`
+      el.style.overflowY = el.scrollHeight > 120 ? 'auto' : 'hidden'
+    })
   }, [input])
 
   const canSend = !!input.trim() && !streaming && coachApiAvailable()
@@ -184,7 +191,7 @@ export default function CoachChat({ athleteId, memory, snapshot, seed, onSeedCon
         </button>
       )}
 
-      <div className="border-t border-slate-200 px-2 py-2 bg-white">
+      <div className="border-t border-slate-200 px-2 py-2 bg-white shrink-0">
         <div className="relative flex items-end">
           <textarea
             ref={textareaRef}
@@ -199,7 +206,7 @@ export default function CoachChat({ athleteId, memory, snapshot, seed, onSeedCon
             placeholder={coachApiAvailable() ? 'Ask the coach…' : 'Coach is offline.'}
             rows={1}
             disabled={!coachApiAvailable() || streaming}
-            className="flex-1 resize-none pl-3 pr-11 py-2.5 text-base border border-slate-200 rounded-2xl focus:outline-none focus:ring-1 focus:ring-indigo-400 bg-white disabled:bg-slate-100 max-h-[140px] leading-relaxed"
+            className="flex-1 resize-none pl-3 pr-11 py-2.5 text-base border border-slate-200 rounded-2xl focus:outline-none focus:ring-1 focus:ring-indigo-400 bg-white disabled:bg-slate-100 max-h-[120px] leading-relaxed"
           />
           {canSend && (
             <button

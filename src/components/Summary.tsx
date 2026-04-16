@@ -312,21 +312,30 @@ export default function Summary({
                 </div>
                 <p className="text-xs font-medium text-slate-600">Load Ratio <span className="text-slate-400 font-normal">— acute vs chronic workload (ACWR)</span></p>
                 <p className="text-[9px] text-slate-400 mt-0.5 italic">How fast you're ramping · includes all load: cardio, strength, DOMS, soreness</p>
-                {/* Flipped: left=injury risk (2.0, red), right=detraining (0, amber),
-                    green sweet spot lives in the right-of-center — green/best on the right. */}
-                <div className="relative mt-2 h-3 rounded-full overflow-hidden flex border border-slate-200">
-                  <div className="h-full bg-red-400" style={{ width: '25%' }} />
-                  <div className="h-full bg-amber-300" style={{ width: '10%' }} />
-                  <div className="h-full bg-green-400" style={{ width: '25%' }} />
-                  <div className="h-full bg-amber-200" style={{ width: '40%' }} />
-                  <div
-                    className="absolute top-0 w-2 h-full bg-slate-900 rounded shadow"
-                    style={{ left: `${Math.max(0, Math.min(100, (1 - latestPerf.acwr / 2) * 100))}%`, transform: 'translateX(-50%)' }}
-                  />
-                </div>
-                <div className="flex justify-between text-[9px] text-slate-400 mt-1">
-                  <span>2.0 Injury risk</span><span>1.5</span><span className="font-semibold text-green-600">Sweet Spot</span><span>0.8</span><span>0 Detraining</span>
-                </div>
+                {/* ACWR as a "safety" gauge: marker position = how close
+                    you are to the sweet-spot center (1.05). Farther away
+                    (either direction) → marker drifts left toward red.
+                    Deep in sweet spot → marker far right in green. */}
+                {(() => {
+                  const safety = Math.max(0, Math.min(1, 1 - Math.abs(latestPerf.acwr - 1.05) / 0.95))
+                  return (
+                    <>
+                      <div className="relative mt-2 h-3 rounded-full overflow-hidden flex border border-slate-200">
+                        <div className="h-full bg-red-300" style={{ width: '25%' }} />
+                        <div className="h-full bg-amber-300" style={{ width: '25%' }} />
+                        <div className="h-full bg-green-300" style={{ width: '25%' }} />
+                        <div className="h-full bg-emerald-400" style={{ width: '25%' }} />
+                        <div
+                          className="absolute top-0 w-2 h-full bg-slate-900 rounded shadow"
+                          style={{ left: `${safety * 100}%`, transform: 'translateX(-50%)' }}
+                        />
+                      </div>
+                      <div className="flex justify-between text-[9px] text-slate-400 mt-1">
+                        <span>Danger</span><span>Caution</span><span>Good</span><span className="font-semibold text-green-600">Sweet Spot</span>
+                      </div>
+                    </>
+                  )
+                })()}
               </div>
             </div>
             )}

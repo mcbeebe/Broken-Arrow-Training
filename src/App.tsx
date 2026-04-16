@@ -70,12 +70,15 @@ export default function App() {
       { id: 'dashboard', label: 'Stats' },
     ]
     if (coachEnabled) {
-      base.push({ id: 'coach', label: 'Coach', badge: coachMemory.unreadCount })
+      // Hide the badge when the user is already on the Coach tab —
+      // they're reading the messages, so the dot is redundant and
+      // the onMarkRead() effect will clear unread flags anyway.
+      base.push({ id: 'coach', label: 'Coach', badge: view === 'coach' ? 0 : coachMemory.unreadCount })
     }
     base.push({ id: 'method', label: 'Method' })
     base.push({ id: 'settings', label: 'Settings' })
     return base
-  }, [coachEnabled, coachMemory.unreadCount])
+  }, [coachEnabled, coachMemory.unreadCount, view])
 
   // Merge Strava or manual log data into training plan
   const weeks = useMemo(() => {
