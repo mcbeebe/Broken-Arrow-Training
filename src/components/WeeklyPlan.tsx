@@ -1,5 +1,6 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo } from 'react'
 import type { TrainingWeek, PlannedDay, ActualWorkout, HRZone, ReadinessScore, PerformanceMetrics, CoachSnapshot } from '../types'
+import { getWorkoutStyle } from '../utils/styles'
 import DayCard from './DayCard'
 import VolumeChart from './VolumeChart'
 import WorkoutModal from './WorkoutModal'
@@ -44,12 +45,30 @@ export default function WeeklyPlan({
   coachSnapshot,
   onAskCoach,
 }: WeeklyPlanProps) {
+  const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list')
   const [activeWeek, setActiveWeek] = useState(0)
   const [modalDay, setModalDay] = useState<PlannedDay | null>(null)
   const [logDay, setLogDay] = useState<PlannedDay | null>(null)
   const [swapSource, setSwapSource] = useState<number | null>(null)
+  const [calMonth, setCalMonth] = useState(() => {
+    // Start on current month
+    const d = new Date()
+    return { year: d.getFullYear(), month: d.getMonth() }
+  })
   const scrollRef = useRef<HTMLDivElement>(null)
   const week = weeks[activeWeek]
+
+  // Build a date→PlannedDay lookup for the calendar
+  const daysByDate = useMemo(() => {
+    const map = new Map<string, PlannedDay>()
+    for (const w of weeks) {
+      for (const d of w.days) {
+        const iso = parseDayToDate(d.day, w.dates)
+        if (iso) map.set(iso, d)
+      }
+    }
+    return map
+  }, [weeks])
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -83,6 +102,63 @@ export default function WeeklyPlan({
 
   return (
     <div className="pb-6">
+      {/* View toggle: List / Calendar */}
+      <div className="flex items-center justify-between px-3 pt-3 pb-1 bg-white border-b border-slate-100">
+        <div className="flex gap-1 bg-slate-100 rounded-lg p-0.5">
+          <button
+            onClick={() => setViewMode('list')}
+            className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+              viewMode === 'list' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500'
+            }`}
+          >
+            List
+          </button>
+          <button
+            onClick={() => setViewMode('calendar')}
+            className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+              viewMode === 'calendar' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500'
+            }`}
+          >
+            Calendar
+          </button>
+        </div>
+        {viewMode === 'calendar' && (
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setCalMonth(prev => {
+                const d = new Date(prev.year, prev.month - 1, 1)
+                return { year: d.getFullYear(), month: d.getMonth() }
+              })}
+              className="text-sm text-slate-500 hover:text-slate-700 px-1"
+            >‹</button>
+            <span className="text-sm font-medium text-slate-700 min-w-[100px] text-center">
+              {new Date(calMonth.year, calMonth.month).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+            </span>
+            <button
+              onClick={() => setCalMonth(prev => {
+                const d = new Date(prev.year, prev.month + 1, 1)
+                return { year: d.getFullYear(), month: d.getMonth() }
+              })}
+              className="text-sm text-slate-500 hover:text-slate-700 px-1"
+            >›</button>
+          </div>
+        )}
+      </div>
+
+      {/* ── Calendar view ── */}
+      {viewMode === 'calendar' && (
+        <CalendarGrid
+          year={calMonth.year}
+          month={calMonth.month}
+          daysByDate={daysByDate}
+          readinessByDate={readinessByDate}
+          onDayTap={d => setModalDay(d)}
+        />
+      )}
+
+      {/* ── List view (existing) ── */}
+      {viewMode === 'list' && (
+      <>
       {/* Week selector */}
       <div ref={scrollRef} className="flex overflow-x-auto gap-1.5 px-3 py-3 bg-white border-b border-slate-100">
         {weeks.map((w, i) => (
@@ -178,8 +254,10 @@ export default function WeeklyPlan({
 
       {/* Volume chart */}
       <VolumeChart weeks={weeks} activeWeek={activeWeek} onWeekClick={setActiveWeek} />
+      </>
+      )}
 
-      {/* Workout detail modal */}
+      {/* Workout detail modal (shared by both views) */}
       {modalDay && (
         <WorkoutModal
           day={modalDay}
@@ -217,13 +295,101 @@ export default function WeeklyPlan({
 }
 
 /**
- * Parse a day label like "4/13" into a YYYY-MM-DD string using the week dates context.
- * Week dates format: "Apr 13 – 19" → year is 2026.
+ * Parse a day label like "Mon 4/13" into a YYYY-MM-DD string.
  */
 function parseDayToDate(dayLabel: string, _weekDates: string): string | null {
-  const match = dayLabel.match(/^(\d{1,2})\/(\d{1,2})/)
+  const match = dayLabel.match(/(\d{1,2})\/(\d{1,2})/)
   if (!match) return null
   const month = match[1].padStart(2, '0')
   const day = match[2].padStart(2, '0')
   return `2026-${month}-${day}`
+}
+
+// ─── Calendar Grid ──────────────────────────────────────────────
+
+const DAY_HEADERS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+
+function CalendarGrid({
+  year, month, daysByDate, readinessByDate, onDayTap,
+}: {
+  year: number
+  month: number
+  daysByDate: Map<string, PlannedDay>
+  readinessByDate: Map<string, ReadinessScore>
+  onDayTap: (d: PlannedDay) => void
+}) {
+  const today = todayDateString()
+
+  // Build the grid: first, find what day-of-week the month starts on (Mon=0)
+  const firstOfMonth = new Date(year, month, 1)
+  const daysInMonth = new Date(year, month + 1, 0).getDate()
+  // getDay(): 0=Sun → shift to Mon=0
+  const startDow = (firstOfMonth.getDay() + 6) % 7
+
+  // Build cells: leading blanks + days of month
+  const cells: (number | null)[] = []
+  for (let i = 0; i < startDow; i++) cells.push(null)
+  for (let d = 1; d <= daysInMonth; d++) cells.push(d)
+  // Trailing blanks to fill the last row
+  while (cells.length % 7 !== 0) cells.push(null)
+
+  return (
+    <div className="px-3 py-3">
+      {/* Day headers */}
+      <div className="grid grid-cols-7 gap-1 mb-1">
+        {DAY_HEADERS.map(d => (
+          <div key={d} className="text-center text-xs font-medium text-slate-400 py-1">{d}</div>
+        ))}
+      </div>
+      {/* Day cells */}
+      <div className="grid grid-cols-7 gap-1">
+        {cells.map((dayNum, i) => {
+          if (dayNum === null) return <div key={`blank-${i}`} />
+          const iso = `${year}-${String(month + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`
+          const planned = daysByDate.get(iso)
+          const isToday = iso === today
+          const readiness = readinessByDate.get(iso)
+
+          if (!planned) {
+            // Day exists in month but no plan entry — grey cell
+            return (
+              <div key={iso} className={`rounded-lg p-1 min-h-[60px] ${isToday ? 'ring-2 ring-teal-500' : 'bg-slate-50'}`}>
+                <span className="text-xs text-slate-300">{dayNum}</span>
+              </div>
+            )
+          }
+
+          const style = getWorkoutStyle(planned.type)
+          const isDone = !!planned.actual
+          const bg = isDone ? '#D1FAE5' : style.bg
+
+          // Readiness dot
+          const dotColor = readiness?.status === 'PEAK' ? 'bg-indigo-500'
+            : readiness?.status === 'YELLOW' ? 'bg-amber-400'
+            : readiness?.status === 'RED' ? 'bg-red-500'
+            : null
+
+          return (
+            <button
+              key={iso}
+              onClick={() => onDayTap(planned)}
+              className={`rounded-lg p-1.5 min-h-[60px] text-left transition-all active:scale-95 ${
+                isToday ? 'ring-2 ring-teal-500 ring-offset-1' : ''
+              }`}
+              style={{ backgroundColor: bg, borderLeft: `3px solid ${style.border}` }}
+            >
+              <div className="flex items-center justify-between">
+                <span className={`text-xs font-bold ${isToday ? 'text-teal-700' : 'text-slate-700'}`}>{dayNum}</span>
+                {dotColor && <span className={`w-2 h-2 rounded-full ${dotColor}`} />}
+              </div>
+              <p className="text-[10px] font-medium text-slate-800 mt-0.5 line-clamp-1 leading-tight">
+                {style.label} {planned.workout.length > 12 ? planned.workout.slice(0, 11) + '…' : planned.workout}
+              </p>
+              {isDone && <span className="text-[9px] text-emerald-600 font-medium">✓</span>}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
 }
