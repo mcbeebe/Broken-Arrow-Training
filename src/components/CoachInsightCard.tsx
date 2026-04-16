@@ -7,6 +7,10 @@ interface Props {
   onAsk?: (seed: string) => void
   /** Persona name from CoachMemory.coachPersona.name (falls back to "Coach"). */
   coachName?: string
+  /** Optional regenerate handler — when provided, shows a ↻ button that
+   *  busts the insight cache and refetches. Lets the athlete pull a
+   *  fresh read after changing persona without waiting for tomorrow. */
+  onRegenerate?: () => void
 }
 
 /**
@@ -15,7 +19,7 @@ interface Props {
  * The "Ask about this →" button routes back to Coach tab with the
  * insight seeded as conversation context.
  */
-export default function CoachInsightCard({ insight, loading, onAsk, coachName }: Props) {
+export default function CoachInsightCard({ insight, loading, onAsk, coachName, onRegenerate }: Props) {
   const name = coachName?.trim() || 'Coach'
   if (loading && !insight) {
     return (
@@ -37,14 +41,25 @@ export default function CoachInsightCard({ insight, loading, onAsk, coachName }:
             {name}
           </p>
         </div>
-        {onAsk && (
-          <button
-            onClick={() => onAsk(insight.text)}
-            className="text-sm font-medium text-indigo-700 hover:text-indigo-900 transition-colors"
-          >
-            Ask about this →
-          </button>
-        )}
+        <div className="flex items-center gap-3">
+          {onRegenerate && (
+            <button
+              onClick={onRegenerate}
+              className="text-sm text-indigo-600 hover:text-indigo-800 transition-colors"
+              title="Regenerate with current persona and context"
+            >
+              ↻ Regenerate
+            </button>
+          )}
+          {onAsk && (
+            <button
+              onClick={() => onAsk(insight.text)}
+              className="text-sm font-medium text-indigo-700 hover:text-indigo-900 transition-colors"
+            >
+              Ask about this →
+            </button>
+          )}
+        </div>
       </div>
       <div className="text-base text-slate-800 leading-relaxed">
         {renderMarkdown(insight.text)}

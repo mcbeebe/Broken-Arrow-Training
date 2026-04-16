@@ -341,12 +341,15 @@ function CalendarGrid({
       {/* Day headers */}
       <div className="grid grid-cols-7 gap-1 shrink-0">
         {DAY_HEADERS.map(d => (
-          <div key={d} className="text-center text-xs font-medium text-slate-400 py-0.5">{d}</div>
+          <div key={d} className="text-center text-sm font-semibold text-slate-500 py-1">{d}</div>
         ))}
       </div>
-      {/* Day cells — equal-height rows that stretch to fill remaining height */}
+      {/* Day cells — equal-height rows that stretch to fill remaining height.
+          Typography and detail scale with viewport: mobile stays compact,
+          sm+ shows more detail (zone, distance), md+ shows the full workout
+          description line. */}
       <div
-        className="grid grid-cols-7 gap-1 flex-1 min-h-0"
+        className="grid grid-cols-7 gap-1 sm:gap-1.5 flex-1 min-h-0"
         style={{ gridTemplateRows: `repeat(${numRows}, minmax(0, 1fr))` }}
       >
         {cells.map((dayNum, i) => {
@@ -357,10 +360,9 @@ function CalendarGrid({
           const readiness = readinessByDate.get(iso)
 
           if (!planned) {
-            // Day exists in month but no plan entry — grey cell
             return (
-              <div key={iso} className={`rounded-lg p-1.5 ${isToday ? 'ring-2 ring-teal-500' : 'bg-slate-50'}`}>
-                <span className="text-sm text-slate-300">{dayNum}</span>
+              <div key={iso} className={`rounded-lg p-1.5 sm:p-2 ${isToday ? 'ring-2 ring-teal-500' : 'bg-slate-50'}`}>
+                <span className="text-base sm:text-lg text-slate-300">{dayNum}</span>
               </div>
             )
           }
@@ -369,32 +371,53 @@ function CalendarGrid({
           const isDone = !!planned.actual
           const bg = isDone ? '#D1FAE5' : style.bg
 
-          // Readiness dot
           const dotColor = readiness?.status === 'PEAK' ? 'bg-indigo-500'
             : readiness?.status === 'YELLOW' ? 'bg-amber-400'
             : readiness?.status === 'RED' ? 'bg-red-500'
             : null
 
+          // Distance + zone for larger breakpoints
+          const milesMatch = planned.zone?.match(/([\d.]+)\s*mi/i)
+          const miles = milesMatch ? milesMatch[1] : null
+          const zoneMatch = planned.zone?.match(/Z\d(?:–\d)?/i)
+          const zoneShort = zoneMatch ? zoneMatch[0] : null
+
           return (
             <button
               key={iso}
               onClick={() => onDayTap(planned)}
-              className={`rounded-lg p-1.5 text-left transition-all active:scale-95 overflow-hidden flex flex-col ${
+              className={`rounded-lg p-1.5 sm:p-2 text-left transition-all active:scale-95 overflow-hidden flex flex-col ${
                 isToday ? 'ring-2 ring-teal-500 ring-offset-1' : ''
               }`}
               style={{ backgroundColor: bg, borderLeft: `3px solid ${style.border}` }}
             >
               <div className="flex items-center justify-between shrink-0">
-                <span className={`text-sm font-bold ${isToday ? 'text-teal-700' : 'text-slate-700'}`}>{dayNum}</span>
-                {dotColor && <span className={`w-2 h-2 rounded-full ${dotColor}`} />}
+                <span className={`text-base sm:text-lg font-bold ${isToday ? 'text-teal-700' : 'text-slate-700'}`}>{dayNum}</span>
+                {dotColor && <span className={`w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full ${dotColor}`} />}
               </div>
-              <div className="flex items-center gap-0.5 mt-0.5 shrink-0">
-                <span className="text-base leading-none">{style.label}</span>
-                {isDone && <span className="text-xs text-emerald-700 font-bold">✓</span>}
+              <div className="flex items-center gap-1 mt-0.5 shrink-0">
+                <span className="text-lg sm:text-xl leading-none">{style.label}</span>
+                {isDone && <span className="text-xs sm:text-sm text-emerald-700 font-bold">✓</span>}
               </div>
-              <p className="text-[10px] font-medium text-slate-700 mt-0.5 line-clamp-2 leading-tight flex-1 min-h-0">
+              {/* Workout title — clamped tighter on mobile, more on larger screens */}
+              <p className="text-xs sm:text-sm font-semibold text-slate-800 mt-1 line-clamp-2 sm:line-clamp-2 leading-tight">
                 {planned.workout}
               </p>
+              {/* Distance + zone — shown from sm up (tablet+) */}
+              {(miles || zoneShort) && (
+                <p className="hidden sm:block text-xs text-slate-600 mt-1 leading-tight">
+                  {miles && <span>{miles} mi</span>}
+                  {miles && zoneShort && <span> · </span>}
+                  {zoneShort && <span>{zoneShort}</span>}
+                </p>
+              )}
+              {/* Full description — shown from md up (desktop). Space is
+                  tight; 2-3 lines clamped to prevent cell stretch. */}
+              {planned.detail && (
+                <p className="hidden md:block text-xs text-slate-500 mt-1 line-clamp-3 leading-snug flex-1 min-h-0">
+                  {planned.detail}
+                </p>
+              )}
             </button>
           )
         })}

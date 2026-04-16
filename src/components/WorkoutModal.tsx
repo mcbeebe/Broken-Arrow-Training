@@ -5,7 +5,7 @@ import { getCoaching } from '../utils/coaching'
 import { generateWorkoutTake } from '../utils/coachNotes'
 import CoachWorkoutTakeView from './CoachWorkoutTake'
 import { useCoachInsight } from '../hooks/useCoachInsight'
-import { formatMiles, formatSeconds } from '../utils/format'
+import { formatMiles, formatSeconds, estimateRunTime } from '../utils/format'
 import { parseRoutine, type ParsedExercise } from '../utils/exercises'
 import { parseIntervalWorkout, getDrillDay, RUNNING_DRILLS, MYRTL_ROUTINE, PRE_RUN_ACTIVATION, type RunSegment, type DrillGuide } from '../utils/drills'
 import { fetchActivityStreams, getTokens, isTokenExpired, refreshAccessToken, type StreamData } from '../utils/strava'
@@ -125,14 +125,33 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
             </button>
           </div>
           <p className="font-semibold text-lg text-slate-800 mt-2">{day.workout}</p>
-          {day.time !== '—' && (
-            <div className="mt-0.5">
-              <p className="text-sm text-slate-600">
-                ⏱ Total session: {day.time} (includes warm-up, cool-down & transitions)
-                {day.route !== '—' && <> · 📍 {day.route}</>}
-              </p>
-            </div>
-          )}
+          {/* Distance + estimated running time pulled from the zone
+              field (e.g. "3.0 mi · Z1–2 (108–148)"). Shown prominently
+              so athletes see the actual run portion, not just total session. */}
+          {(() => {
+            const milesMatch = day.zone?.match(/([\d.]+)\s*mi/i)
+            const miles = milesMatch ? parseFloat(milesMatch[1]) : null
+            const runTime = estimateRunTime(day.zone || '')
+            const hasRunDetails = miles !== null || !!runTime
+            if (!hasRunDetails && day.time === '—') return null
+            return (
+              <div className="mt-1 space-y-0.5 text-sm text-slate-600">
+                {hasRunDetails && (
+                  <p>
+                    {miles !== null && <span>📏 {miles} mi</span>}
+                    {miles !== null && runTime && <span> · </span>}
+                    {runTime && <span>🏃 {runTime} running</span>}
+                  </p>
+                )}
+                {day.time !== '—' && (
+                  <p>
+                    ⏱ Total session: {day.time}
+                    {day.route !== '—' && <> · 📍 {day.route}</>}
+                  </p>
+                )}
+              </div>
+            )
+          })()}
         </div>
 
         <div className="px-4 py-4 space-y-4">
@@ -614,25 +633,33 @@ function CoachWorkoutTakeForDay({
 }) {
   const fallback = generateWorkoutTake(day, weekNum, readiness, latestPerf ?? null)
 
-  // For completed (past) workouts, skip the LLM insight entirely.
-  // The LLM only sees today's snapshot and will talk about today's
-  // readiness / today's plan — not the historical workout being
-  // reviewed. The heuristic fallback IS day-specific and gives a
-  // focused "here's how it went" read.
+  // LLM insight only fires for TODAY's upcoming workout. Two reasons
+  // to disable it otherwise:
+  //   1. Completed days — the snapshot is today-centric so the LLM
+  //      would comment on today's readiness instead of the past run.
+  //      The heuristic (buildCompletedTake) already gives a great
+  //      execution-focused reflection.
+  //   2. Future days — same problem. "Tomorrow's walk is fine" is
+  //      useless copy when the athlete opened Thu 5/14's easy run.
+  //      The heuristic generateWorkoutTake is day-specific and reads
+  //      naturally for any day.
   const isCompleted = !!day.actual
+  const todayLabel = coachSnapshot?.plannedToday?.day
+  const isToday = !!todayLabel && todayLabel === day.day
+  const useLLM = isToday && !isCompleted
   const { insight, loading } = useCoachInsight({
     athleteId: athleteId || '',
     surface: `workout_take:${day.day}`,
     snapshot: coachSnapshot ?? null,
-    enabled: !isCompleted && !!athleteId && !!coachSnapshot,
+    enabled: useLLM && !!athleteId && !!coachSnapshot,
     fallbackText: fallback.text,
     fallbackTip: fallback.tip,
   })
   return (
     <CoachWorkoutTakeView
       take={fallback}
-      insight={isCompleted ? null : insight}
-      loading={isCompleted ? false : loading}
+      insight={useLLM ? insight : null}
+      loading={useLLM ? loading : false}
       onAsk={onAsk}
       coachName={coachSnapshot?.coachPersona?.name?.trim() || 'Coach'}
     />

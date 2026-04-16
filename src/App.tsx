@@ -377,6 +377,7 @@ export default function App() {
           dailyInsightLoading={dailyInsight.loading}
           onAskCoach={handleAskCoach}
           coachName={coachMemory.coachPersona?.name}
+          onRegenerateDailyInsight={dailyInsight.regenerate}
         />
       )}
       {view === 'plan' && (

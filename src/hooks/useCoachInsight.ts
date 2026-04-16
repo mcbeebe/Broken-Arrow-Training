@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { CoachInsight, CoachSnapshot } from '../types'
 import { coachApiAvailable, coachApiBase } from '../utils/coachApi'
 
@@ -88,6 +88,21 @@ export function useCoachInsight(opts: UseCoachInsightOptions) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const abortRef = useRef<AbortController | null>(null)
+  const [regenToken, setRegenToken] = useState(0)
+
+  const regenerate = useCallback(() => {
+    if (!snapshot) return
+    // Clear the localStorage cache for this surface+hash so the next
+    // effect run hits the network instead of reading stale copy.
+    const fields = materialFields(surface, snapshot)
+    const contextHash = hashFields(fields)
+    try {
+      localStorage.removeItem(lsKey(athleteId, surface, contextHash))
+    } catch {
+      /* ignore */
+    }
+    setRegenToken(x => x + 1)
+  }, [athleteId, surface, snapshot])
 
   useEffect(() => {
     if (!enabled || !snapshot || !coachApiAvailable()) {
@@ -169,7 +184,8 @@ export function useCoachInsight(opts: UseCoachInsightOptions) {
     return () => {
       ac.abort()
     }
-  }, [athleteId, surface, snapshot, enabled, fallbackText, fallbackTip])
+    // regenToken is included so tapping "Regenerate" re-fires the effect
+  }, [athleteId, surface, snapshot, enabled, fallbackText, fallbackTip, regenToken])
 
-  return { insight, loading, error }
+  return { insight, loading, error, regenerate }
 }
