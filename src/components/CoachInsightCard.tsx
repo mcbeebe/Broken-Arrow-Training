@@ -5,6 +5,8 @@ interface Props {
   insight: CoachInsight | null
   loading: boolean
   onAsk?: (seed: string) => void
+  /** Persona name from CoachMemory.coachPersona.name (falls back to "Coach"). */
+  coachName?: string
 }
 
 /**
@@ -13,7 +15,8 @@ interface Props {
  * The "Ask about this →" button routes back to Coach tab with the
  * insight seeded as conversation context.
  */
-export default function CoachInsightCard({ insight, loading, onAsk }: Props) {
+export default function CoachInsightCard({ insight, loading, onAsk, coachName }: Props) {
+  const name = coachName?.trim() || 'Coach'
   if (loading && !insight) {
     return (
       <div className="bg-indigo-50/70 border border-indigo-100 rounded-xl px-3 py-3 animate-pulse">
@@ -28,10 +31,10 @@ export default function CoachInsightCard({ insight, loading, onAsk }: Props) {
   return (
     <div className="bg-indigo-50/70 border border-indigo-100 rounded-xl px-3 py-3">
       <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-1.5">
-          <span className="text-xl">🤖</span>
+        <div className="flex items-center gap-2">
+          <span className="text-xl leading-none" role="img" aria-label="coach">🧢</span>
           <p className="text-sm font-bold uppercase tracking-wider text-indigo-700">
-            Coach
+            {name}
           </p>
         </div>
         {onAsk && (

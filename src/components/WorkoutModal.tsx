@@ -634,6 +634,7 @@ function CoachWorkoutTakeForDay({
       insight={isCompleted ? null : insight}
       loading={isCompleted ? false : loading}
       onAsk={onAsk}
+      coachName={coachSnapshot?.coachPersona?.name?.trim() || 'Coach'}
     />
   )
 }

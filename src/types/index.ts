@@ -532,6 +532,7 @@ export const COACH_TRAITS = [
   { id: 'strict', label: 'Strict', emoji: '🎯', desc: 'Holds you accountable' },
   { id: 'lighthearted', label: 'Light-hearted', emoji: '☀️', desc: 'Positive and breezy' },
   { id: 'demanding', label: 'Demanding', emoji: '💪', desc: 'Pushes you hard' },
+  { id: 'motivational', label: 'Motivational', emoji: '📣', desc: 'Fires you up, believes in you' },
   { id: 'warm', label: 'Warm', emoji: '🤗', desc: 'Empathetic, supportive' },
   { id: 'direct', label: 'Direct', emoji: '⚡', desc: 'No fluff, straight talk' },
   { id: 'nerdy', label: 'Data Nerd', emoji: '🤓', desc: 'Loves numbers and research' },

@@ -24,6 +24,7 @@ interface SummaryProps {
   dailyInsight?: CoachInsight | null
   dailyInsightLoading?: boolean
   onAskCoach?: (seed: string) => void
+  coachName?: string
 }
 
 // ─── Scale bar component ──────────────────────────────────────
@@ -114,6 +115,7 @@ export default function Summary({
   dailyInsight,
   dailyInsightLoading,
   onAskCoach,
+  coachName,
 }: SummaryProps) {
   const latestPerf = performance.length > 0 ? performance[performance.length - 1] : null
   const [perfOpen, setPerfOpen] = useState(false)
@@ -133,6 +135,7 @@ export default function Summary({
           insight={dailyInsight ?? null}
           loading={!!dailyInsightLoading}
           onAsk={onAskCoach}
+          coachName={coachName}
         />
       )}
 

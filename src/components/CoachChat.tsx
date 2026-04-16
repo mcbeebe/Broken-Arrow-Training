@@ -176,7 +176,11 @@ export default function CoachChat({ athleteId, memory, snapshot, seed, onSeedCon
         {turns.length === 0 && !streaming && (
           <div className="flex">
             <div className="max-w-[85%] bg-indigo-50 text-slate-800 rounded-2xl rounded-tl-sm px-3 py-2.5 text-base leading-relaxed">
-              <p>👋 Morning — ready when you are.</p>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-xl leading-none" role="img" aria-label="coach">🧢</span>
+                <p className="text-xs uppercase font-bold tracking-wider text-indigo-700">{coachName}</p>
+              </div>
+              <p>Ready when you are.</p>
               <p className="text-sm text-slate-500 mt-1.5">
                 Try <em>"What should I focus on this week?"</em> or <em>"How should I pace tomorrow's long run?"</em>
               </p>
@@ -300,9 +304,12 @@ function ChatTurn({ turn, onCopy, coachName = 'Coach' }: { turn: ConversationTur
     return (
       <div className="flex flex-col items-start" onClick={() => setShowActions(!showActions)}>
         <div className="max-w-[85%] bg-amber-50 border border-amber-200 text-slate-800 rounded-2xl rounded-tl-sm px-3 py-2 text-base leading-relaxed cursor-pointer">
-          <p className="text-xs uppercase font-bold tracking-wider text-amber-700 mb-1">
-            {coachName} {turn.trigger ? `· ${turn.trigger.replace(/_/g, ' ')}` : ''}
-          </p>
+          <div className="flex items-center gap-1.5 mb-1">
+            <span className="text-base leading-none" role="img" aria-label="coach">🧢</span>
+            <p className="text-xs uppercase font-bold tracking-wider text-amber-700">
+              {coachName}{turn.trigger ? ` · ${turn.trigger.replace(/_/g, ' ')}` : ''}
+            </p>
+          </div>
           {renderMarkdown(turn.content)}
         </div>
         {copyBtn}

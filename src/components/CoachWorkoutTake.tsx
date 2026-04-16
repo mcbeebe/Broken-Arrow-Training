@@ -9,13 +9,16 @@ interface Props {
   insight?: CoachInsight | null
   loading?: boolean
   onAsk?: (seed: string) => void
+  /** Persona name; defaults to "Coach". */
+  coachName?: string
 }
 
 /**
  * Coach's take rendered at the top of the WorkoutModal. Prefers the LLM
  * insight when available; otherwise falls back to the heuristic take.
  */
-export default function CoachWorkoutTakeView({ take, insight, loading, onAsk }: Props) {
+export default function CoachWorkoutTakeView({ take, insight, loading, onAsk, coachName }: Props) {
+  const name = coachName?.trim() || 'Coach'
   const text = (insight && !insight.silent && insight.text) || take?.text || ''
   const tip = (insight && insight.tip) || take?.tip
 
@@ -32,9 +35,9 @@ export default function CoachWorkoutTakeView({ take, insight, loading, onAsk }: 
   return (
     <div className="bg-indigo-50/70 border border-indigo-100 rounded-xl px-3 py-3">
       <div className="flex items-center justify-between mb-1.5">
-        <div className="flex items-center gap-1.5">
-          <span className="text-xl">🤖</span>
-          <p className="text-sm font-bold uppercase tracking-wider text-indigo-700">Coach</p>
+        <div className="flex items-center gap-2">
+          <span className="text-xl leading-none" role="img" aria-label="coach">🧢</span>
+          <p className="text-sm font-bold uppercase tracking-wider text-indigo-700">{name}</p>
         </div>
         {onAsk && (
           <button
