@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import type { ConversationTurn, CoachSnapshot } from '../types'
 import { coachApiAvailable, coachApiBase } from '../utils/coachApi'
 import type { UseCoachMemoryReturn } from '../hooks/useCoachMemory'
@@ -11,6 +11,80 @@ function CopiedToast({ visible }: { visible: boolean }) {
       Copied to clipboard
     </div>
   )
+}
+
+/**
+ * Lightweight inline markdown renderer. Handles:
+ *   **bold**, *italic*, `code`, and — at the block level —
+ *   lines starting with - or • as bullet lists.
+ * Anything heavier (headers, links, images) is left as plain text.
+ */
+function renderMarkdown(text: string): ReactNode {
+  // Split into paragraphs on double-newline
+  const paragraphs = text.split(/\n{2,}/)
+  return paragraphs.map((para, pi) => {
+    const lines = para.split('\n')
+    // Detect if this paragraph is a bullet list (every line starts with - or •)
+    const isList = lines.length > 0 && lines.every(l => /^\s*[-•*]\s/.test(l) || l.trim() === '')
+    if (isList) {
+      const items = lines.filter(l => l.trim()).map(l => l.replace(/^\s*[-•*]\s*/, ''))
+      return (
+        <ul key={pi} className="list-disc list-inside space-y-0.5 my-1">
+          {items.map((item, i) => (
+            <li key={i}>{renderInline(item)}</li>
+          ))}
+        </ul>
+      )
+    }
+    // Regular paragraph — render inline formatting, preserve single newlines
+    return (
+      <p key={pi} className={pi > 0 ? 'mt-2' : ''}>
+        {lines.map((line, li) => (
+          <span key={li}>
+            {li > 0 && <br />}
+            {renderInline(line)}
+          </span>
+        ))}
+      </p>
+    )
+  })
+}
+
+/** Parse inline **bold**, *italic*, `code` within a single line. */
+function renderInline(text: string): ReactNode {
+  // Regex matches **bold**, *italic*, `code` — in that priority order
+  const parts: ReactNode[] = []
+  let remaining = text
+  let key = 0
+  const re = /(\*\*(.+?)\*\*|\*(.+?)\*|`(.+?)`)/g
+  let lastIndex = 0
+  let match: RegExpExecArray | null
+  while ((match = re.exec(remaining)) !== null) {
+    // Push text before this match
+    if (match.index > lastIndex) {
+      parts.push(remaining.slice(lastIndex, match.index))
+    }
+    if (match[2]) {
+      // **bold**
+      parts.push(<strong key={key++}>{match[2]}</strong>)
+    } else if (match[3]) {
+      // *italic*
+      parts.push(<em key={key++}>{match[3]}</em>)
+    } else if (match[4]) {
+      // `code`
+      parts.push(
+        <code key={key++} className="bg-slate-200/60 rounded px-1 py-0.5 text-sm font-mono">
+          {match[4]}
+        </code>
+      )
+    }
+    lastIndex = re.lastIndex
+  }
+  // Push remaining text after last match
+  if (lastIndex < remaining.length) {
+    parts.push(remaining.slice(lastIndex))
+  }
+  return parts.length > 0 ? parts : text
 }
 
 interface Props {
@@ -187,8 +261,8 @@ export default function CoachChat({ athleteId, memory, snapshot, seed, onSeedCon
         ))}
         {streaming && (
           <div className="flex">
-            <div className="max-w-[85%] bg-indigo-50 text-slate-800 rounded-2xl rounded-tl-sm px-3 py-2 text-base whitespace-pre-wrap leading-relaxed">
-              {liveReply || <span className="text-indigo-400">…</span>}
+            <div className="max-w-[85%] bg-indigo-50 text-slate-800 rounded-2xl rounded-tl-sm px-3 py-2 text-base leading-relaxed">
+              {liveReply ? renderMarkdown(liveReply) : <span className="text-indigo-400">…</span>}
             </div>
           </div>
         )}
@@ -288,8 +362,8 @@ function ChatTurn({ turn, onCopy, coachName = 'Coach' }: { turn: ConversationTur
   if (turn.role === 'user') {
     return (
       <div className="flex flex-col items-end" onClick={() => setShowActions(!showActions)}>
-        <div className="max-w-[85%] bg-indigo-600 text-white rounded-2xl rounded-tr-sm px-3 py-2 text-base whitespace-pre-wrap leading-relaxed cursor-pointer">
-          {turn.content}
+        <div className="max-w-[85%] bg-indigo-600 text-white rounded-2xl rounded-tr-sm px-3 py-2 text-base leading-relaxed cursor-pointer">
+          {renderMarkdown(turn.content)}
         </div>
         {copyBtn}
       </div>
@@ -299,10 +373,10 @@ function ChatTurn({ turn, onCopy, coachName = 'Coach' }: { turn: ConversationTur
     return (
       <div className="flex flex-col items-start" onClick={() => setShowActions(!showActions)}>
         <div className="max-w-[85%] bg-amber-50 border border-amber-200 text-slate-800 rounded-2xl rounded-tl-sm px-3 py-2 text-base leading-relaxed cursor-pointer">
-          <p className="text-xs uppercase font-bold tracking-wider text-amber-700 mb-0.5">
+          <p className="text-xs uppercase font-bold tracking-wider text-amber-700 mb-1">
             {coachName} {turn.trigger ? `· ${turn.trigger.replace(/_/g, ' ')}` : ''}
           </p>
-          <p className="whitespace-pre-wrap">{turn.content}</p>
+          {renderMarkdown(turn.content)}
         </div>
         {copyBtn}
       </div>
@@ -311,8 +385,8 @@ function ChatTurn({ turn, onCopy, coachName = 'Coach' }: { turn: ConversationTur
   // assistant
   return (
     <div className="flex flex-col items-start" onClick={() => setShowActions(!showActions)}>
-      <div className="max-w-[85%] bg-indigo-50 text-slate-800 rounded-2xl rounded-tl-sm px-3 py-2 text-base whitespace-pre-wrap leading-relaxed cursor-pointer">
-        {turn.content}
+      <div className="max-w-[85%] bg-indigo-50 text-slate-800 rounded-2xl rounded-tl-sm px-3 py-2 text-base leading-relaxed cursor-pointer">
+        {renderMarkdown(turn.content)}
       </div>
       {copyBtn}
     </div>
