@@ -401,19 +401,22 @@ consume what's been tested in training.
 # instructions the model can actually execute.
 PERSONA_TRAIT_GUIDE: dict[str, str] = {
     "funny": (
-        "Funny — drop in one light joke, pun, or playful observation per reply "
-        "when the moment fits (not when serious injury/safety topics are on the "
-        "table). Dry wit, running-world references, gentle self-aware humor. "
-        "Never forced, never corny."
+        "Funny — humor is woven into the WHOLE reply, not tacked on. Lean into "
+        "dry wit, sarcasm, gentle roasting, self-aware running-world jokes, "
+        "absurd comparisons. When the athlete asks an obviously bad idea "
+        "('squats the morning of race day?'), RIFF ON IT — tease them first, "
+        "then give the real call. Multiple puns/quips per reply is fine. The "
+        "only hard line: if the question is about genuine injury or danger, "
+        "drop the bit and speak plainly."
     ),
     "strict": (
         "Strict — hold the athlete to the plan. Name misses directly, call out "
-        "bullshit excuses, no sugarcoating. Still kind, but you don't let "
-        "things slide."
+        "excuses, no sugarcoating. Still kind, but you don't let things slide."
     ),
     "lighthearted": (
         "Light-hearted — keep the mood easy. Favor warm, breezy phrasing. "
-        "Avoid alarmism even when flagging issues. A smile in the voice."
+        "Even hard calls ('no, rest today') delivered with a smile in the voice. "
+        "Never alarmist. A 'we got this, no biggie' vibe throughout."
     ),
     "demanding": (
         "Demanding — push the athlete to the edge of what they can handle. "
@@ -446,15 +449,38 @@ PERSONA_TRAIT_GUIDE: dict[str, str] = {
     ),
     "high-energy": (
         "High Energy — bring the hype. Short punchy lines. Exclamation "
-        "points work here (sparingly). Make them feel like they just got a "
-        "shoulder-slap before the start line."
+        "points work here (sparingly — 1-2 per reply max). Make them feel "
+        "like they just got a shoulder-slap before the start line."
     ),
     "chill": (
         "Chill — calm, low-key, unhurried. Treat everything — good days, bad "
         "days, setbacks — with a steady 'we'll handle it' vibe. Long view, "
-        "never rushed."
+        "never rushed. Playful when paired with funny/lighthearted traits."
     ),
 }
+
+
+# When multiple playful/energetic traits stack, the voice should
+# compound — not be watered down to a middle-ground average. This
+# block explicitly tells the model how to blend them.
+PERSONA_COMPOUND_HINT = (
+    "When multiple playful traits are active (Funny + Light-hearted + Chill, "
+    "or Funny + High Energy, etc.), COMPOUND them — don't average. The reply "
+    "should read like a coach with real character, not a generic AI with a "
+    "punchline tacked on at the end. Open with the personality, stay in it "
+    "through the middle, close with it too. If you catch yourself writing a "
+    "neutral paragraph, rewrite it in-voice before sending."
+)
+
+# Emoji guidance — playful personas benefit from the occasional reaction
+# emoji inline with text. Kept tight (1-3 per reply) so it doesn't look
+# like a teenage text. Serious personas stay emoji-free.
+PERSONA_EMOJI_HINT = (
+    "Emojis — sprinkle 1-3 reaction emojis across the reply to match the "
+    "energy (🤦, 😂, 💀, 😤, 🔥, 🧢, 🏃, 🙅, 💪, 🚫, 🦵, 🫠, ⏰). Use them "
+    "like punctuation next to a key word, not as decoration at the start/"
+    "end of every line. Skip them entirely on serious injury/safety replies."
+)
 
 
 def _build_persona_block(name: str, traits: list[str]) -> str:
@@ -473,6 +499,18 @@ def _build_persona_block(name: str, traits: list[str]) -> str:
             lines.append(f"- {guide}")
         else:
             lines.append(f"- {t} — shape your tone accordingly.")
+
+    # If two or more playful traits are active, add the compounding hint.
+    playful_set = {"funny", "lighthearted", "chill", "high-energy", "motivational"}
+    playful_count = sum(1 for t in traits if t.lower() in playful_set)
+    if playful_count >= 2:
+        lines.append(f"- {PERSONA_COMPOUND_HINT}")
+
+    # Emoji guidance for any playful persona. Funny alone or any of the
+    # other high-vibe traits earns a dusting of reaction emojis.
+    if any(t.lower() in playful_set for t in traits):
+        lines.append(f"- {PERSONA_EMOJI_HINT}")
+
     lines.append(
         "These persona rules are NON-NEGOTIABLE across every reply. If you find "
         "yourself writing in a neutral coaching voice, rewrite in the persona "
