@@ -3,6 +3,16 @@ import type { ConversationTurn, CoachSnapshot } from '../types'
 import { coachApiAvailable, coachApiBase } from '../utils/coachApi'
 import type { UseCoachMemoryReturn } from '../hooks/useCoachMemory'
 
+/** Tiny toast that disappears after a beat. */
+function CopiedToast({ visible }: { visible: boolean }) {
+  if (!visible) return null
+  return (
+    <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 bg-slate-800 text-white text-sm px-4 py-2 rounded-full shadow-lg animate-fade-in">
+      Copied to clipboard
+    </div>
+  )
+}
+
 interface Props {
   athleteId: string
   memory: UseCoachMemoryReturn
@@ -23,8 +33,16 @@ export default function CoachChat({ athleteId, memory, snapshot, seed, onSeedCon
   const [streaming, setStreaming] = useState(false)
   const [liveReply, setLiveReply] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [copiedToast, setCopiedToast] = useState(false)
   const scrollerRef = useRef<HTMLDivElement>(null)
   const seededRef = useRef<string | null>(null)
+
+  function copyText(text: string) {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopiedToast(true)
+      setTimeout(() => setCopiedToast(false), 1500)
+    }).catch(() => { /* silently fail — not critical */ })
+  }
 
   // Consume seed on mount — post an invisible system-handoff turn so the
   // coach has the context of what the user just tapped on.
@@ -164,7 +182,7 @@ export default function CoachChat({ athleteId, memory, snapshot, seed, onSeedCon
           </div>
         )}
         {turns.map(t => (
-          <ChatTurn key={t.id} turn={t} />
+          <ChatTurn key={t.id} turn={t} onCopy={copyText} />
         ))}
         {streaming && (
           <div className="flex">
@@ -225,6 +243,7 @@ export default function CoachChat({ athleteId, memory, snapshot, seed, onSeedCon
           )}
         </div>
       </div>
+      <CopiedToast visible={copiedToast} />
     </div>
   )
 }
@@ -253,34 +272,48 @@ function buildContextChip(snapshot: CoachSnapshot | null): string | null {
   return bits.join(' · ')
 }
 
-function ChatTurn({ turn }: { turn: ConversationTurn }) {
+function ChatTurn({ turn, onCopy }: { turn: ConversationTurn; onCopy: (text: string) => void }) {
+  const [showActions, setShowActions] = useState(false)
+
+  const copyBtn = showActions && (
+    <button
+      onClick={e => { e.stopPropagation(); onCopy(turn.content); setShowActions(false) }}
+      className="text-[10px] font-medium text-slate-500 hover:text-slate-700 bg-white/90 backdrop-blur rounded-full px-2 py-0.5 shadow-sm border border-slate-200 mt-1 transition-opacity"
+    >
+      Copy
+    </button>
+  )
+
   if (turn.role === 'user') {
     return (
-      <div className="flex justify-end">
-        <div className="max-w-[85%] bg-indigo-600 text-white rounded-2xl rounded-tr-sm px-3 py-2 text-base whitespace-pre-wrap leading-relaxed">
+      <div className="flex flex-col items-end" onClick={() => setShowActions(!showActions)}>
+        <div className="max-w-[85%] bg-indigo-600 text-white rounded-2xl rounded-tr-sm px-3 py-2 text-base whitespace-pre-wrap leading-relaxed cursor-pointer">
           {turn.content}
         </div>
+        {copyBtn}
       </div>
     )
   }
   if (turn.role === 'coach') {
     return (
-      <div className="flex">
-        <div className="max-w-[85%] bg-amber-50 border border-amber-200 text-slate-800 rounded-2xl rounded-tl-sm px-3 py-2 text-base leading-relaxed">
+      <div className="flex flex-col items-start" onClick={() => setShowActions(!showActions)}>
+        <div className="max-w-[85%] bg-amber-50 border border-amber-200 text-slate-800 rounded-2xl rounded-tl-sm px-3 py-2 text-base leading-relaxed cursor-pointer">
           <p className="text-xs uppercase font-bold tracking-wider text-amber-700 mb-0.5">
             Coach ping {turn.trigger ? `· ${turn.trigger.replace(/_/g, ' ')}` : ''}
           </p>
           <p className="whitespace-pre-wrap">{turn.content}</p>
         </div>
+        {copyBtn}
       </div>
     )
   }
   // assistant
   return (
-    <div className="flex">
-      <div className="max-w-[85%] bg-indigo-50 text-slate-800 rounded-2xl rounded-tl-sm px-3 py-2 text-base whitespace-pre-wrap leading-relaxed">
+    <div className="flex flex-col items-start" onClick={() => setShowActions(!showActions)}>
+      <div className="max-w-[85%] bg-indigo-50 text-slate-800 rounded-2xl rounded-tl-sm px-3 py-2 text-base whitespace-pre-wrap leading-relaxed cursor-pointer">
         {turn.content}
       </div>
+      {copyBtn}
     </div>
   )
 }

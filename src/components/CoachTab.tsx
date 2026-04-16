@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import type { CoachInsight, CoachSnapshot } from '../types'
+import type { CoachInsight, CoachSnapshot, ConversationTurn } from '../types'
 import type { UseCoachMemoryReturn } from '../hooks/useCoachMemory'
 import CoachChat from './CoachChat'
 
@@ -106,34 +106,112 @@ export default function CoachTab({
         />
       </div>
 
-      <div className="flex items-center justify-center gap-4 shrink-0">
+      <div className="flex items-center justify-center gap-3 shrink-0 flex-wrap">
         <button
           onClick={onGoSettings}
           className="text-xs text-slate-400 hover:text-slate-600 transition-colors"
         >
-          Edit About Me in Settings →
+          About Me →
         </button>
         {memory.conversation.length > 0 && (
-          <button
-            onClick={async () => {
-              // Confirm to avoid accidental wipes — conversation history is
-              // meaningful and cannot be recovered after clear.
-              if (!window.confirm(
-                'Clear the conversation? This removes all past turns so you can start fresh. ' +
-                'Your About Me and pending observations are kept.',
-              )) return
-              await memory.clearConversation()
-              // Let today's daily insight re-seed on the next refresh.
-              clearSeedDate(athleteId)
-              onInteraction?.('conversation_cleared')
-            }}
-            className="text-xs text-slate-400 hover:text-rose-600 transition-colors"
-            title="Wipe the chat history so the next reply starts clean"
-          >
-            Clear conversation
-          </button>
+          <>
+            <button
+              onClick={() => shareConversation(memory.conversation, athleteId, onInteraction)}
+              className="text-xs text-slate-400 hover:text-indigo-600 transition-colors"
+              title="Share or copy this conversation"
+            >
+              Share
+            </button>
+            <button
+              onClick={async () => {
+                if (!window.confirm(
+                  'Clear the conversation? This removes all past turns so you can start fresh. ' +
+                  'Your About Me and pending observations are kept.',
+                )) return
+                await memory.clearConversation()
+                clearSeedDate(athleteId)
+                onInteraction?.('conversation_cleared')
+              }}
+              className="text-xs text-slate-400 hover:text-rose-600 transition-colors"
+              title="Wipe the chat history so the next reply starts clean"
+            >
+              Clear
+            </button>
+          </>
         )}
       </div>
     </div>
   )
+}
+
+// ─── Conversation export / share ──────────────────────────────
+
+function formatConversation(
+  turns: ConversationTurn[],
+  athleteId: string,
+): string {
+  const visible = turns.filter(t => t.role !== 'system-handoff')
+  if (visible.length === 0) return ''
+
+  const lines: string[] = []
+  const now = new Date()
+  lines.push(`Broken Arrow Training — Coach Chat`)
+  lines.push(`Athlete: ${athleteId} · Exported ${now.toLocaleDateString()} ${now.toLocaleTimeString()}`)
+  lines.push('─'.repeat(40))
+
+  for (const t of visible) {
+    const label =
+      t.role === 'user' ? 'You'
+      : t.role === 'coach' ? `Coach${t.trigger ? ` (${t.trigger.replace(/_/g, ' ')})` : ''}`
+      : 'Coach'
+    const time = t.ts ? new Date(t.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''
+    lines.push('')
+    lines.push(`${label}${time ? '  ' + time : ''}`)
+    lines.push(t.content)
+  }
+  lines.push('')
+  lines.push('─'.repeat(40))
+  lines.push('Shared from Broken Arrow Training App')
+  return lines.join('\n')
+}
+
+async function shareConversation(
+  turns: ConversationTurn[],
+  athleteId: string,
+  onInteraction?: (kind: string, meta?: Record<string, unknown>) => void,
+) {
+  const text = formatConversation(turns, athleteId)
+  if (!text) return
+
+  // Try native Web Share API first (mobile share sheet — Messages, email, etc.)
+  if (typeof navigator.share === 'function') {
+    try {
+      await navigator.share({
+        title: 'Coach Chat — Broken Arrow Training',
+        text,
+      })
+      onInteraction?.('conversation_shared', { method: 'native' })
+      return
+    } catch {
+      // User cancelled or API unsupported — fall through to clipboard
+    }
+  }
+
+  // Fallback: copy to clipboard
+  try {
+    await navigator.clipboard.writeText(text)
+    window.alert('Conversation copied to clipboard.')
+    onInteraction?.('conversation_shared', { method: 'clipboard' })
+  } catch {
+    // Last resort: open a textarea for manual copy
+    const textarea = document.createElement('textarea')
+    textarea.value = text
+    textarea.style.cssText = 'position:fixed;left:-9999px'
+    document.body.appendChild(textarea)
+    textarea.select()
+    document.execCommand('copy')
+    document.body.removeChild(textarea)
+    window.alert('Conversation copied to clipboard.')
+    onInteraction?.('conversation_shared', { method: 'fallback' })
+  }
 }
