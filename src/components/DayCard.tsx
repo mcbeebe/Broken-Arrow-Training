@@ -211,7 +211,11 @@ export default function DayCard({ day, weekNum, onTap, onLog, onSwap, isSwapSele
           </div>
         )}
 
-        {!cardCollapsed && readiness && readiness.adjustment && readiness.status !== 'GREEN' && (
+        {/* Readiness adjustment is a forward-looking recommendation
+            (e.g. "consider rest", "dial back intensity"). Suppress it
+            on completed workouts — by the time the day is logged, the
+            advice is stale and misleading. */}
+        {!cardCollapsed && !isCompleted && readiness && readiness.adjustment && readiness.status !== 'GREEN' && (
           <div className={`mt-2 px-2.5 py-1.5 rounded-md text-sm ${
             readiness.status === 'YELLOW'
               ? 'bg-amber-100/60 text-amber-700'
@@ -255,7 +259,13 @@ export default function DayCard({ day, weekNum, onTap, onLog, onSwap, isSwapSele
               className="w-full flex items-center justify-between text-left"
             >
               <p className="text-sm font-medium text-teal-700">
-                {actual.source === 'manual' || actual.type === 'Manual' ? '📝' : actual.source === 'garmin' ? '⌚ Garmin:' : '🔗 Strava:'} {actual.name}
+                {/* Show a subtle source icon only. The activity name
+                    stands on its own — users don't care whether it
+                    came through Strava or Garmin, and the "Strava:"
+                    prefix was misleading on Garmin-recorded sessions
+                    that happened to ingest via Strava. */}
+                {actual.source === 'manual' || actual.type === 'Manual' ? '📝 ' : '🏃 '}
+                {actual.name}
               </p>
               <span className="text-xs text-teal-600 ml-2 shrink-0">
                 {detailsExpanded ? '▴ Hide' : '▾ Details'}

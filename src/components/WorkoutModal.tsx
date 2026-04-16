@@ -172,7 +172,11 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
           {actual && (
             <div className="bg-teal-50 rounded-xl p-3 border border-teal-200 space-y-2">
               <p className="text-sm font-semibold text-teal-800 uppercase tracking-wide">
-                {actual.source === 'manual' || actual.type === 'Manual' ? '📝 Logged' : actual.source === 'garmin' ? '⌚ Garmin' : '🔗 Strava'}: {actual.name}
+                {/* Source-agnostic label — just show activity name.
+                    The source (Strava sync vs. Garmin) is metadata,
+                    not something users need prefixed every time. */}
+                {actual.source === 'manual' || actual.type === 'Manual' ? '📝 ' : '🏃 '}
+                {actual.name}
               </p>
               <div className="grid grid-cols-2 gap-2 text-base text-teal-700">
                 {actual.distance > 0 && <span>📏 {formatMiles(actual.distance)}</span>}
