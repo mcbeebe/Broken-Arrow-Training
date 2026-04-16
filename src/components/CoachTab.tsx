@@ -2,7 +2,6 @@ import { useEffect } from 'react'
 import type { CoachInsight, CoachSnapshot } from '../types'
 import type { UseCoachMemoryReturn } from '../hooks/useCoachMemory'
 import CoachChat from './CoachChat'
-import PendingInferenceView from './PendingInference'
 
 interface Props {
   athleteId: string
@@ -91,25 +90,11 @@ export default function CoachTab({
 
   return (
     <div className="flex flex-col h-[calc(100vh-9rem)] px-3 py-3 gap-2">
-      {memory.pendingInferences.length > 0 && (
-        <div className="space-y-2 shrink-0">
-          {memory.pendingInferences.map(inf => (
-            <PendingInferenceView
-              key={inf.id}
-              inference={inf}
-              onAccept={id => {
-                memory.acceptInference(id)
-                onInteraction?.('inference_accepted', { id })
-              }}
-              onDismiss={id => {
-                memory.dismissInference(id)
-                onInteraction?.('inference_dismissed', { id })
-              }}
-            />
-          ))}
-        </div>
-      )}
-
+      {/* Pending-inference cards used to live here asking the user to
+          approve durable facts. We removed them — new facts are merged
+          into About Me silently in the background with dedup. Existing
+          pending entries from the old flow are drained server-side on
+          the next chat send. */}
       <div className="flex-1 min-h-0">
         <CoachChat
           athleteId={athleteId}

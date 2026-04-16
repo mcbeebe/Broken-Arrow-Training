@@ -2,7 +2,6 @@ import StravaConnect from './StravaConnect'
 import GarminConnect from './GarminConnect'
 import HRZoneEditor from './HRZoneEditor'
 import AboutMe from './AboutMe'
-import PendingInferenceView from './PendingInference'
 import CoachDiagnostics from './CoachDiagnostics'
 import type { HRZone, PendingInference } from '../types'
 
@@ -81,30 +80,24 @@ export default function Settings({
   aboutMeText,
   onSaveAboutMe,
   onClearAboutMe,
-  pendingInferences,
-  onAcceptInference,
-  onDismissInference,
+  pendingInferences: _pendingInferences,
+  onAcceptInference: _onAcceptInference,
+  onDismissInference: _onDismissInference,
   athleteId,
 }: SettingsProps) {
+  void _pendingInferences
+  void _onAcceptInference
+  void _onDismissInference
   return (
     <div className="px-4 py-4 space-y-4">
       <h2 className="text-lg font-bold text-slate-800">Settings</h2>
 
-      {/* About Me — Coach memory surface (Mike-only) */}
+      {/* About Me — Coach memory surface (Mike-only). The "Coach noticed"
+          approval cards used to live here; new durable facts are merged
+          into About Me silently now, so this section is just the editable
+          doc itself. */}
       {coachEnabled && onSaveAboutMe && onClearAboutMe && (
         <>
-          {pendingInferences && pendingInferences.length > 0 && onAcceptInference && onDismissInference && (
-            <div className="space-y-2">
-              {pendingInferences.map(inf => (
-                <PendingInferenceView
-                  key={inf.id}
-                  inference={inf}
-                  onAccept={onAcceptInference}
-                  onDismiss={onDismissInference}
-                />
-              ))}
-            </div>
-          )}
           <AboutMe
             value={aboutMeText ?? ''}
             onSave={onSaveAboutMe}

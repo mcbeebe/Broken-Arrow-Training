@@ -23,10 +23,10 @@ from ._core import (
     call_anthropic,
     detect_expand_trigger,
     detect_inferences,
+    fact_already_known,
     load_memory,
     log_llm_call,
     log_sample_event,
-    new_inference_id,
     new_turn_id,
     pick_model,
     read_json_body,
@@ -91,6 +91,34 @@ class handler(BaseHTTPRequestHandler):
             return
 
         memory = load_memory(athlete_id)
+
+        # One-time migration: silently fold any legacy pending inferences into
+        # About Me with dedup, then clear the list. The approve/dismiss UI has
+        # been retired — we do this in the background now, so orphaned entries
+        # from the old flow shouldn't linger forever in memory.
+        legacy_pending = memory.get("pendingInferences") or []
+        if legacy_pending:
+            existing_about = memory.get("aboutMe", "") or ""
+            merged_lines: list[str] = []
+            if existing_about.strip():
+                merged_lines.append(existing_about.rstrip())
+            for p in legacy_pending:
+                t = str(p.get("text", "")).strip()
+                if not t:
+                    continue
+                # Use the same dedup heuristic as the live detector so
+                # paraphrases of profile/race/existing facts drop out.
+                if fact_already_known(
+                    t,
+                    "\n".join(merged_lines),
+                    snapshot.get("athleteProfile"),
+                    snapshot.get("race"),
+                ):
+                    continue
+                merged_lines.append(f"- {t}")
+            memory["aboutMe"] = "\n".join(merged_lines) if merged_lines else ""
+            memory["pendingInferences"] = []
+            save_memory(athlete_id, memory)
 
         # Append user turn(s) to memory first so they persist even on failure
         for m in incoming:
@@ -247,18 +275,30 @@ class handler(BaseHTTPRequestHandler):
                 }
             )
 
-            # Inference detection
+            # Inference detection — fold new facts silently into About Me.
+            # The user used to approve each one via a UI card, but in
+            # practice that produced duplicate/noisy prompts. Now we
+            # detect + dedup + merge in the background. The detector
+            # already knows about existing About Me, athlete profile,
+            # and race info, so duplicates are filtered before we see
+            # them here.
             if full_text and last_user_msg:
-                facts = detect_inferences(athlete_id, last_user_msg, full_text)
-                for f in facts:
-                    memory.setdefault("pendingInferences", []).append(
-                        {
-                            "id": new_inference_id(),
-                            "text": f,
-                            "sourceTurnId": assistant_turn_id,
-                            "proposedAt": int(time.time() * 1000),
-                        }
-                    )
+                facts = detect_inferences(
+                    athlete_id,
+                    last_user_msg,
+                    full_text,
+                    existing_about_me=memory.get("aboutMe", "") or "",
+                    athlete_profile=(snapshot or {}).get("athleteProfile"),
+                    race=(snapshot or {}).get("race"),
+                )
+                if facts:
+                    existing = (memory.get("aboutMe") or "").rstrip()
+                    lines: list[str] = []
+                    if existing:
+                        lines.append(existing)
+                    for f in facts:
+                        lines.append(f"- {f}")
+                    memory["aboutMe"] = "\n".join(lines)
 
             # Summarize if needed
             memory["conversationSummary"] = summarize_conversation(

@@ -179,6 +179,20 @@ Principles:
 - When recommending plan changes, suggest — the user applies changes themselves via the app's swap/log UI.
 - If the context snapshot is missing data needed to answer confidently, say so rather than guessing.
 
+What you already know (do NOT re-ask or confirm):
+- The athlete's full 10-week training plan for the Broken Arrow Skyrace,
+  including every week's focus, every planned workout, mileage, elevation,
+  HR zones, race logistics, and gear list — these are part of the app and
+  live in the per-turn context snapshot.
+- The athlete's profile (name, max HR, base, weekly structure) and race
+  details (date, distance, course, elevation).
+- Everything in "About this athlete" (their About Me doc).
+- Recent actuals (what they ran / lifted), compliance, readiness, and
+  performance metrics — refreshed on every turn.
+Treat all of the above as known. Don't ask the athlete to re-tell you
+their plan, their goals, or things already in About Me. If you need a
+detail you can see in context, use it directly.
+
 Reading the signals:
 - When the athlete asks about sleep, HRV, RHR, or body battery, quote the
   raw values from "Health today" (hours, ms, bpm). Do NOT quote the
@@ -187,6 +201,12 @@ Reading the signals:
   explain WHY readiness landed where it did.
 - If "Health today" reports no Garmin data synced, say so plainly and
   offer to work from what the user has told you directly.
+
+Memory is handled silently:
+- You don't ask the athlete whether to remember things. The app extracts
+  durable facts from every exchange and merges them into About Me
+  invisibly, with dedup. Never say "should I save that?" or "added to
+  your About Me." Just use the information going forward.
 """
 
 
@@ -756,36 +776,163 @@ def summarize_conversation(
 
 # ─── Inference detection (post-chat) ────────────────────────────
 
+def _normalize_fact(s: str) -> str:
+    """Lowercase + collapse whitespace + strip trivial punctuation for
+    deterministic dedup comparison. Not bulletproof but catches the
+    common case of the same sentence arriving twice."""
+    s = re.sub(r"[^\w\s]", " ", s.lower())
+    s = re.sub(r"\s+", " ", s).strip()
+    return s
+
+
+def _about_me_bullets(about_me: str) -> list[str]:
+    """Split an About Me document into individual bullet / line facts."""
+    if not about_me:
+        return []
+    out: list[str] = []
+    for raw in about_me.splitlines():
+        line = raw.strip()
+        if not line:
+            continue
+        # Strip common bullet markers
+        line = re.sub(r"^[-*•]\s*", "", line)
+        if line:
+            out.append(line)
+    return out
+
+
+def fact_already_known(
+    fact: str,
+    about_me: str,
+    athlete_profile: dict[str, Any] | None,
+    race: dict[str, Any] | None,
+) -> bool:
+    """Return True when the fact is already captured somewhere the
+    coach can see — About Me bullets, the athlete profile, or the race
+    info. Uses a soft token-overlap heuristic so paraphrases still
+    collide (e.g. 'I run in Oakland' vs 'I'm based in Oakland')."""
+    norm_fact = _normalize_fact(fact)
+    if not norm_fact:
+        return True  # empty fact, ignore
+
+    # Collect reference text
+    reference_blobs: list[str] = []
+    for b in _about_me_bullets(about_me):
+        reference_blobs.append(b)
+    if athlete_profile:
+        for k in ("name", "currentBase", "weeklyStructure"):
+            v = athlete_profile.get(k)
+            if v:
+                reference_blobs.append(str(v))
+    if race:
+        for k in ("name", "distance", "date", "course", "elevation"):
+            v = race.get(k)
+            if v:
+                reference_blobs.append(str(v))
+
+    fact_tokens = set(norm_fact.split())
+    # Drop stop-ish words to avoid false negatives from common fillers
+    fact_tokens -= {
+        "a", "an", "the", "and", "or", "but", "i", "im", "my", "me",
+        "is", "are", "to", "of", "for", "on", "in", "at", "with",
+        "you", "he", "she", "they", "it",
+    }
+    if not fact_tokens:
+        return True
+
+    for blob in reference_blobs:
+        nb = _normalize_fact(blob)
+        if not nb:
+            continue
+        # Exact substring match
+        if norm_fact in nb or nb in norm_fact:
+            return True
+        # Token-overlap: if 70%+ of fact's meaningful tokens appear in
+        # the blob, treat as already covered. Tuned low enough to catch
+        # paraphrases, high enough to let genuinely new facts through.
+        blob_tokens = set(nb.split())
+        if not blob_tokens:
+            continue
+        overlap = len(fact_tokens & blob_tokens)
+        if overlap / len(fact_tokens) >= 0.7:
+            return True
+
+    return False
+
+
 def detect_inferences(
     athlete_id: str,
     user_msg: str,
     assistant_msg: str,
+    existing_about_me: str = "",
+    athlete_profile: dict[str, Any] | None = None,
+    race: dict[str, Any] | None = None,
 ) -> list[str]:
-    """Scan the latest exchange for durable athlete facts worth surfacing as
-    pending inferences. Returns a list of one-line statements suitable for
-    the 'About Me' doc. Empty list means nothing durable was learned.
+    """Scan the latest exchange for durable athlete facts worth surfacing.
+    Returns short first-person statements suitable for appending to
+    About Me. Empty list means nothing durable was learned that isn't
+    already known.
+
+    The detector is given existing About Me + athlete profile + race so it
+    can self-filter duplicates. A post-filter does a second pass with
+    `fact_already_known` to catch paraphrases the model missed.
     """
     try:
+        known_lines: list[str] = []
+        if athlete_profile:
+            name = athlete_profile.get("name") or "Athlete"
+            max_hr = athlete_profile.get("maxHR")
+            structure = athlete_profile.get("weeklyStructure") or ""
+            base = athlete_profile.get("currentBase") or ""
+            known_lines.append(
+                f"- Athlete profile: {name}, max HR {max_hr or '?'}, "
+                f"base {base}, structure {structure}"
+            )
+        if race:
+            known_lines.append(
+                f"- Race: {race.get('name', '')} on {race.get('date', '')}, "
+                f"{race.get('distance', '')}, {race.get('elevation', '')}, "
+                f"course: {race.get('course', '')}"
+            )
+        if existing_about_me and existing_about_me.strip():
+            known_lines.append("- Existing About Me:")
+            for b in _about_me_bullets(existing_about_me):
+                known_lines.append(f"    • {b}")
+        known_block = "\n".join(known_lines) if known_lines else "(none)"
+
         result = call_anthropic(
             model=HAIKU_MODEL,
             system=(
-                "You extract durable facts the coach should remember about the "
-                "athlete from a single chat exchange. Durable = true across many "
-                "sessions (injuries, preferences, life context, goals, equipment, "
-                "schedule constraints). NOT durable = today's readiness, this "
-                "week's workout, transient feelings.\n\n"
-                "Output format: JSON array of short statement strings "
-                "(first-person, written as they would appear in the athlete's "
-                "About Me). If nothing durable is worth saving, output `[]`. "
-                "Output ONLY the JSON, nothing else."
+                "You extract durable facts the coach should remember about "
+                "this athlete from a single chat exchange. You are NOT a "
+                "conversational agent — respond only with the JSON array.\n\n"
+                "DURABLE = true across many sessions: injuries, chronic "
+                "limitations, body context, life/work/travel constraints, "
+                "long-term goals beyond this race, equipment preferences, "
+                "training philosophy, schedule patterns.\n\n"
+                "NOT DURABLE (never output): today's readiness, this week's "
+                "workout, transient feelings, one-off sleep, single session "
+                "notes.\n\n"
+                "ALREADY KNOWN — DO NOT OUTPUT: anything described in the "
+                "athlete profile, race info, or existing About Me below. "
+                "Anything that is part of the training plan (weekly "
+                "structure, race logistics, workout types, elevation, HR "
+                "zones) is considered known and must not be re-extracted. "
+                "Paraphrases of known facts are still duplicates — skip "
+                "them.\n\n"
+                "Output: JSON array of short first-person statements, max 2 "
+                "items. Empty array `[]` is the correct answer in most "
+                "exchanges. Output ONLY the JSON."
             ),
             messages=[
                 {
                     "role": "user",
                     "content": (
+                        f"KNOWN CONTEXT (do not re-extract any of this):\n"
+                        f"{known_block}\n\n"
                         f"Athlete said:\n{user_msg}\n\n"
                         f"Coach replied:\n{assistant_msg}\n\n"
-                        "Durable facts, if any:"
+                        "New durable facts, if any:"
                     ),
                 }
             ],
@@ -801,7 +948,20 @@ def detect_inferences(
         parsed = json.loads(text) if text else []
         if not isinstance(parsed, list):
             return []
-        return [str(s).strip() for s in parsed if str(s).strip()][:3]
+        candidates = [str(s).strip() for s in parsed if str(s).strip()]
+        # Post-filter: drop anything the heuristic already considers known.
+        # The LLM is inconsistent about respecting "already known" instructions,
+        # so belt-and-suspenders dedup here.
+        novel: list[str] = []
+        for c in candidates:
+            if not fact_already_known(c, existing_about_me, athlete_profile, race):
+                # Also dedup against facts added earlier in this same batch
+                if not any(
+                    fact_already_known(c, "\n".join(novel), None, None)
+                    for _ in [0]
+                ):
+                    novel.append(c)
+        return novel[:2]
     except Exception:
         return []
 
