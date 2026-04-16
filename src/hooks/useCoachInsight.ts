@@ -43,7 +43,7 @@ export function materialFields(surface: string, snapshot: CoachSnapshot): unknow
     readiness: r
       ? {
           status: r.status,
-          bucket: Math.round((r.displayScore ?? 0) / 10) * 10,
+          bucket: Math.round((r.displayScore ?? 0) / 20) * 20,
           state: r.trainingState,
         }
       : null,

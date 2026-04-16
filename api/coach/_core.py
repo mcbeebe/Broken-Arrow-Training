@@ -442,6 +442,29 @@ consume what's been tested in training.
   Trust the training.
 """
 
+# Condensed reference for insight surfaces (daily, day_card, workout_take).
+# Keeps essential readiness/performance/zone definitions but drops the full
+# methodology, race course detail, and drill/e-bike notes that only matter
+# in conversational chat. ~85% smaller than APP_KNOWLEDGE.
+APP_KNOWLEDGE_LITE = """\
+APP KNOWLEDGE (condensed)
+
+Readiness: composite 0-100 score. PEAK = top recovery (hard work OK),
+GREEN = execute as planned, YELLOW = reduce intensity (stay Z1-2),
+RED = swap for walk or rest. Guardrails: sleep<6h → YELLOW,
+ACWR>1.5 → YELLOW, HRV drop >25% → RED.
+
+Performance (Banister): CTL = 42d fitness. ATL = 7d fatigue.
+TSB = CTL−ATL (positive = fresh). Race-day target TSB: +15 to +25.
+
+HR Zones: Z1 108-128, Z2 128-148, Z3 148-167, Z4 167-177 (Max 197).
+
+Workout types: Quality (Z3-4 intervals/tempo). Long (hilly Z2, poles
+Wk4+). Easy run (Z1-2 conversational). Strength (compound lifts +
+eccentrics). Limited (20-min easy). Rest (full rest). Cross (low-impact
+Z1-2).
+"""
+
 
 # Per-trait voice guidance — the LLM ignores generic "be funny" unless
 # you tell it specifically HOW. These map trait id → one or two concrete
@@ -575,6 +598,7 @@ def build_system_prompt(
     athlete_profile: dict[str, Any] | None,
     race: dict[str, Any] | None,
     coach_persona: dict[str, Any] | None = None,
+    lite_knowledge: bool = False,
 ) -> str:
     # Build the core role line, potentially customized with persona.
     role = COACH_ROLE.strip()
@@ -584,7 +608,8 @@ def build_system_prompt(
         if persona_name or persona_traits:
             role = role + "\n\n" + _build_persona_block(persona_name, persona_traits)
 
-    parts: list[str] = [role, APP_KNOWLEDGE.strip()]
+    knowledge = APP_KNOWLEDGE_LITE.strip() if lite_knowledge else APP_KNOWLEDGE.strip()
+    parts: list[str] = [role, knowledge]
 
     if athlete_profile:
         parts.append(
@@ -698,6 +723,7 @@ def build_context_block(
     snapshot: dict[str, Any],
     depth: str = "7d",
     include_full_plan: bool = False,
+    max_activities: int | None = None,
 ) -> str:
     """Compact, LLM-readable context block from the CoachSnapshot.
 
@@ -718,17 +744,16 @@ def build_context_block(
     analytics = snapshot.get("analytics") or {}
     week_num = snapshot.get("currentWeekNum")
 
-    # Trim activities window. Default is "30d" — 30 most recent
-    # activities — which gives the coach the last ~3-4 weeks of
-    # context without crowding the prompt. Long-range keywords push
-    # this out to 120d so questions about the whole block can be
-    # answered without a second round-trip.
-    if depth == "120d":
+    # Trim activities window. max_activities overrides the depth-based
+    # default — insight surfaces pass a smaller cap to save tokens.
+    if max_activities is not None:
+        activities = activities[:max_activities]
+    elif depth == "120d":
         activities = activities[:120]
     elif depth == "30d":
-        activities = activities[:60]  # ~2 months — 30d default, 60d on keyword
+        activities = activities[:60]
     else:
-        activities = activities[:30]  # legacy "7d" path — still broader than before
+        activities = activities[:30]
 
     out: list[str] = []
     out.append(f"Today: {today.get('date', '')} (week {week_num or '?'})")
@@ -1035,14 +1060,15 @@ def _get_anthropic_client():
 def call_anthropic(
     *,
     model: str,
-    system: str,
+    system: str | list[dict[str, Any]],
     messages: list[dict[str, Any]],
     max_tokens: int = 600,
     athlete_id: str | None = None,
     surface: str = "unknown",
     log_sample: bool = False,
 ) -> dict[str, Any]:
-    """Non-streaming Anthropic call. Logs telemetry. Returns {text, usage}."""
+    """Non-streaming Anthropic call. Logs telemetry. Returns {text, usage}.
+    `system` can be a string or a list of content blocks (for prompt caching)."""
     client = _get_anthropic_client()
     t0 = time.time()
     success = True
@@ -1101,13 +1127,14 @@ def call_anthropic(
 def stream_anthropic(
     *,
     model: str,
-    system: str,
+    system: str | list[dict[str, Any]],
     messages: list[dict[str, Any]],
     max_tokens: int = 600,
 ) -> Iterable[tuple[str, str]]:
     """Stream Anthropic response. Yields ('delta', text) tuples, then
     ('done', full_text), finally ('usage', json_str).
 
+    `system` can be a string or a list of content blocks (for prompt caching).
     Telemetry logging is done by the caller so the full text + tokens are
     available after the stream completes.
     """

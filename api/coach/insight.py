@@ -114,8 +114,9 @@ class handler(BaseHTTPRequestHandler):
             athlete_profile=snapshot.get("athleteProfile"),
             race=snapshot.get("race"),
             coach_persona=snapshot.get("coachPersona") or memory.get("coachPersona"),
+            lite_knowledge=True,
         )
-        context_block = build_context_block(snapshot, depth="7d")
+        context_block = build_context_block(snapshot, depth="7d", max_activities=15)
 
         # For day_card / workout_take include the specific day label in the user msg
         day_label = ""

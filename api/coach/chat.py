@@ -203,10 +203,18 @@ class handler(BaseHTTPRequestHandler):
             include_full_plan=include_full_plan,
         )
         plan_note = "full-plan" if include_full_plan else "14-day"
-        system_full = (
-            f"{system}\n\n---\n\n"
+        ctx_text = (
+            f"\n\n---\n\n"
             f"Current context snapshot ({depth}, plan window: {plan_note}):\n{ctx}"
         )
+        # Prompt caching: the system prompt (role + knowledge + persona +
+        # about-me) is stable across turns in a chat session. Mark it as
+        # a cache breakpoint so Anthropic reuses KV-cache on subsequent
+        # turns (~90% input-token discount on the cached prefix).
+        system_full = [
+            {"type": "text", "text": system, "cache_control": {"type": "ephemeral"}},
+            {"type": "text", "text": ctx_text},
+        ]
 
         # Stream
         self.send_response(200)
@@ -258,7 +266,10 @@ class handler(BaseHTTPRequestHandler):
         # If model said it needs more history and we weren't already 30d, retry
         if full_text.strip().startswith("[NEED_MORE_HISTORY]") and depth != "30d":
             ctx = build_context_block(snapshot, depth="30d")
-            system_full = f"{system}\n\n---\n\nCurrent context snapshot (30d):\n{ctx}"
+            system_full = [
+                {"type": "text", "text": system, "cache_control": {"type": "ephemeral"}},
+                {"type": "text", "text": f"\n\n---\n\nCurrent context snapshot (30d):\n{ctx}"},
+            ]
             full_text = ""
             try:
                 for kind, payload in stream_anthropic(
@@ -293,11 +304,16 @@ class handler(BaseHTTPRequestHandler):
                 latency_ms=int((time.time() - t0) * 1000),
                 success=True,
             )
+            system_for_log = (
+                "\n".join(b["text"] for b in system_full)
+                if isinstance(system_full, list)
+                else system_full
+            )
             log_sample_event(
                 athlete_id=athlete_id,
                 model=model,
                 surface="chat",
-                system_prompt=system_full,
+                system_prompt=system_for_log,
                 messages=messages,
                 response=full_text,
             )
