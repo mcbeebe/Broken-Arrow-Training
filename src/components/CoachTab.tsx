@@ -186,15 +186,13 @@ export default function CoachTab({
       {/* Action bar — always visible at top. Left side has history + minimize; right side has Save/Copy/Clear */}
       <div className="flex items-center justify-between shrink-0 px-1">
         <div className="flex items-center gap-3">
-          {archives.length > 0 && (
-            <button
-              onClick={() => setHistoryOpen(true)}
-              className="text-xs font-medium text-slate-500 hover:text-slate-700 transition-colors flex items-center gap-1"
-              title="View past conversations"
-            >
-              📅 History ({archives.length})
-            </button>
-          )}
+          <button
+            onClick={() => setHistoryOpen(true)}
+            className="text-xs font-medium text-slate-500 hover:text-slate-700 transition-colors flex items-center gap-1"
+            title="View past conversations"
+          >
+            📅 History{archives.length > 0 ? ` (${archives.length})` : ''}
+          </button>
           {hasTurns && (
             <button
               onClick={() => setChatMinimized(!chatMinimized)}
@@ -206,6 +204,21 @@ export default function CoachTab({
         </div>
         {hasTurns && (
           <div className="flex items-center gap-3">
+            <button
+              onClick={async () => {
+                const today = snapshot?.today?.date || new Date().toISOString().slice(0, 10)
+                if (!window.confirm(
+                  `Archive this conversation under ${today} and start a fresh thread? You can always revisit it in History.`,
+                )) return
+                await memory.rolloverDay(today)
+                clearSeedDate(athleteId)
+                onInteraction?.('conversation_archived', { date: today })
+              }}
+              className="text-xs text-slate-400 hover:text-indigo-600 transition-colors"
+              title="Archive this chat to History and start fresh"
+            >
+              Archive
+            </button>
             <button
               onClick={() => saveConversation(memory.conversation, athleteId)}
               className="text-xs text-slate-400 hover:text-indigo-600 transition-colors"
