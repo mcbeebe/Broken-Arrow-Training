@@ -29,6 +29,31 @@ interface Props {
  * parse SSE from /api/coach/chat. New user/assistant turns are persisted
  * server-side; we refresh memory after the stream completes.
  */
+const FONT_SCALE_KEY_PREFIX = 'ba_coach_font_scale:'
+const FONT_SCALE_OPTIONS = [0.85, 1.0, 1.15, 1.3] as const
+
+function readFontScale(athleteId: string): number {
+  try {
+    const raw = localStorage.getItem(`${FONT_SCALE_KEY_PREFIX}${athleteId}`)
+    const n = raw ? parseFloat(raw) : 1.0
+    if (!Number.isFinite(n)) return 1.0
+    // Snap to the closest valid option
+    return FONT_SCALE_OPTIONS.reduce((best, opt) =>
+      Math.abs(opt - n) < Math.abs(best - n) ? opt : best
+    , 1.0)
+  } catch {
+    return 1.0
+  }
+}
+
+function writeFontScale(athleteId: string, scale: number) {
+  try {
+    localStorage.setItem(`${FONT_SCALE_KEY_PREFIX}${athleteId}`, String(scale))
+  } catch {
+    /* quota */
+  }
+}
+
 export default function CoachChat({ athleteId, memory, snapshot, seed, onSeedConsumed, onSent }: Props) {
   const coachName = snapshot?.coachPersona?.name?.trim() || 'Coach'
   const [input, setInput] = useState('')
@@ -36,8 +61,18 @@ export default function CoachChat({ athleteId, memory, snapshot, seed, onSeedCon
   const [liveReply, setLiveReply] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [copiedToast, setCopiedToast] = useState(false)
+  const [fontScale, setFontScaleState] = useState(() => readFontScale(athleteId))
   const scrollerRef = useRef<HTMLDivElement>(null)
   const seededRef = useRef<string | null>(null)
+
+  function adjustFontScale(delta: 1 | -1) {
+    const idx = FONT_SCALE_OPTIONS.indexOf(fontScale as typeof FONT_SCALE_OPTIONS[number])
+    const currentIdx = idx >= 0 ? idx : 1
+    const nextIdx = Math.max(0, Math.min(FONT_SCALE_OPTIONS.length - 1, currentIdx + delta))
+    const next = FONT_SCALE_OPTIONS[nextIdx]
+    setFontScaleState(next)
+    writeFontScale(athleteId, next)
+  }
 
   function copyText(text: string) {
     navigator.clipboard.writeText(text).then(() => {
@@ -172,8 +207,34 @@ export default function CoachChat({ athleteId, memory, snapshot, seed, onSeedCon
 
   const canSend = !!input.trim() && !streaming && coachApiAvailable()
 
+  // Font-size control bar — A− / A+ sits tucked above the chat
+  // scroller so it's reachable without leaving the tab. Disabled
+  // states at the size extremes.
+  const atMinScale = fontScale <= FONT_SCALE_OPTIONS[0]
+  const atMaxScale = fontScale >= FONT_SCALE_OPTIONS[FONT_SCALE_OPTIONS.length - 1]
+
   return (
     <div className="flex flex-col h-full bg-white rounded-xl border border-slate-200 overflow-hidden">
+      {/* Font size controls */}
+      <div className="flex items-center justify-end gap-1 px-2 py-1 border-b border-slate-100 shrink-0">
+        <span className="text-xs text-slate-400 mr-1">Text</span>
+        <button
+          onClick={() => adjustFontScale(-1)}
+          disabled={atMinScale}
+          className="w-7 h-7 flex items-center justify-center rounded-md text-xs font-semibold text-slate-600 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          title="Smaller text"
+        >
+          A−
+        </button>
+        <button
+          onClick={() => adjustFontScale(1)}
+          disabled={atMaxScale}
+          className="w-7 h-7 flex items-center justify-center rounded-md text-sm font-semibold text-slate-600 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          title="Larger text"
+        >
+          A+
+        </button>
+      </div>
       <div
         ref={scrollerRef}
         className="flex-1 overflow-y-auto px-3 py-3 space-y-2.5"
@@ -193,11 +254,14 @@ export default function CoachChat({ athleteId, memory, snapshot, seed, onSeedCon
           </div>
         )}
         {turns.map(t => (
-          <ChatTurn key={t.id} turn={t} onCopy={copyText} coachName={coachName} />
+          <ChatTurn key={t.id} turn={t} onCopy={copyText} coachName={coachName} fontScale={fontScale} />
         ))}
         {streaming && (
           <div className="flex">
-            <div className="max-w-[85%] bg-indigo-50 text-slate-800 rounded-2xl rounded-tl-sm px-3 py-2 text-base leading-relaxed">
+            <div
+              className="max-w-[85%] bg-indigo-50 text-slate-800 rounded-2xl rounded-tl-sm px-3 py-2 leading-relaxed"
+              style={{ fontSize: `${fontScale}rem` }}
+            >
               {liveReply ? renderMarkdown(liveReply) : <span className="text-indigo-400">…</span>}
             </div>
           </div>
@@ -283,13 +347,27 @@ function buildContextChip(snapshot: CoachSnapshot | null): string | null {
   return bits.join(' · ')
 }
 
-function ChatTurn({ turn, onCopy, coachName = 'Coach' }: { turn: ConversationTurn; onCopy: (text: string) => void; coachName?: string }) {
+/** Long-response threshold — replies over this many chars get a
+ *  collapse affordance so the athlete can stash them and scroll past. */
+const COLLAPSE_CHAR_THRESHOLD = 400
+
+function ChatTurn({
+  turn,
+  onCopy,
+  coachName = 'Coach',
+  fontScale = 1.0,
+}: {
+  turn: ConversationTurn
+  onCopy: (text: string) => void
+  coachName?: string
+  fontScale?: number
+}) {
   const [showActions, setShowActions] = useState(false)
+  const [collapsed, setCollapsed] = useState(false)
 
   // PERSONA UPDATED handoff → render as a small inline divider so the
   // athlete sees their persona edit landed in the thread.
   if (turn.role === 'system-handoff' && turn.content.startsWith('[PERSONA UPDATED]')) {
-    // Extract "New name: X. New traits: Y." for a compact label.
     const nameMatch = turn.content.match(/New name:\s*([^.]+?)\.\s*New traits:\s*([^.]+?)\./)
     const summary = nameMatch
       ? `${nameMatch[1].trim()} — ${nameMatch[2].trim()}`
@@ -303,6 +381,24 @@ function ChatTurn({ turn, onCopy, coachName = 'Coach' }: { turn: ConversationTur
     )
   }
 
+  const long = turn.content.length > COLLAPSE_CHAR_THRESHOLD
+  const bubbleStyle = { fontSize: `${fontScale}rem` } as const
+  const preview = collapsed
+    ? turn.content.slice(0, 120).replace(/\s+\S*$/, '') + '…'
+    : null
+
+  // Small ▾/▴ toggle shown in the bubble's corner when the reply is
+  // long enough to warrant collapsing.
+  const collapseToggle = long && (
+    <button
+      onClick={e => { e.stopPropagation(); setCollapsed(!collapsed) }}
+      className="absolute top-1.5 right-1.5 w-6 h-6 flex items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 transition-colors"
+      title={collapsed ? 'Expand' : 'Collapse'}
+    >
+      {collapsed ? '▾' : '▴'}
+    </button>
+  )
+
   const copyBtn = showActions && (
     <button
       onClick={e => { e.stopPropagation(); onCopy(turn.content); setShowActions(false) }}
@@ -315,8 +411,23 @@ function ChatTurn({ turn, onCopy, coachName = 'Coach' }: { turn: ConversationTur
   if (turn.role === 'user') {
     return (
       <div className="flex flex-col items-end" onClick={() => setShowActions(!showActions)}>
-        <div className="max-w-[85%] bg-indigo-600 text-white rounded-2xl rounded-tr-sm px-3 py-2 text-base leading-relaxed cursor-pointer">
-          {renderMarkdown(turn.content)}
+        <div
+          className="relative max-w-[85%] bg-indigo-600 text-white rounded-2xl rounded-tr-sm px-3 py-2 leading-relaxed cursor-pointer"
+          style={bubbleStyle}
+        >
+          {/* Collapse toggle on the left for user bubbles since bubble aligns right */}
+          {long && (
+            <button
+              onClick={e => { e.stopPropagation(); setCollapsed(!collapsed) }}
+              className="absolute top-1.5 left-1.5 w-6 h-6 flex items-center justify-center rounded-full text-white/80 hover:bg-white/10 transition-colors"
+              title={collapsed ? 'Expand' : 'Collapse'}
+            >
+              {collapsed ? '▾' : '▴'}
+            </button>
+          )}
+          <div className={long ? 'pl-6' : undefined}>
+            {collapsed ? <span className="italic opacity-80">{preview}</span> : renderMarkdown(turn.content)}
+          </div>
         </div>
         {copyBtn}
       </div>
@@ -325,14 +436,18 @@ function ChatTurn({ turn, onCopy, coachName = 'Coach' }: { turn: ConversationTur
   if (turn.role === 'coach') {
     return (
       <div className="flex flex-col items-start" onClick={() => setShowActions(!showActions)}>
-        <div className="max-w-[85%] bg-amber-50 border border-amber-200 text-slate-800 rounded-2xl rounded-tl-sm px-3 py-2 text-base leading-relaxed cursor-pointer">
-          <div className="flex items-center gap-1.5 mb-1">
+        <div
+          className="relative max-w-[85%] bg-amber-50 border border-amber-200 text-slate-800 rounded-2xl rounded-tl-sm px-3 py-2 leading-relaxed cursor-pointer"
+          style={bubbleStyle}
+        >
+          <div className="flex items-center gap-1.5 mb-1 pr-7">
             <span className="text-base leading-none" role="img" aria-label="coach">🧢</span>
             <p className="text-xs uppercase font-bold tracking-wider text-amber-700">
               {coachName}{turn.trigger ? ` · ${turn.trigger.replace(/_/g, ' ')}` : ''}
             </p>
           </div>
-          {renderMarkdown(turn.content)}
+          {collapseToggle}
+          {collapsed ? <p className="italic text-slate-500">{preview}</p> : renderMarkdown(turn.content)}
         </div>
         {copyBtn}
       </div>
@@ -341,8 +456,14 @@ function ChatTurn({ turn, onCopy, coachName = 'Coach' }: { turn: ConversationTur
   // assistant
   return (
     <div className="flex flex-col items-start" onClick={() => setShowActions(!showActions)}>
-      <div className="max-w-[85%] bg-indigo-50 text-slate-800 rounded-2xl rounded-tl-sm px-3 py-2 text-base leading-relaxed cursor-pointer">
-        {renderMarkdown(turn.content)}
+      <div
+        className="relative max-w-[85%] bg-indigo-50 text-slate-800 rounded-2xl rounded-tl-sm px-3 py-2 leading-relaxed cursor-pointer"
+        style={bubbleStyle}
+      >
+        {collapseToggle}
+        <div className={long ? 'pr-7' : undefined}>
+          {collapsed ? <p className="italic text-slate-500">{preview}</p> : renderMarkdown(turn.content)}
+        </div>
       </div>
       {copyBtn}
     </div>
