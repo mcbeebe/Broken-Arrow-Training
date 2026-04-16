@@ -517,11 +517,34 @@ export interface ConversationSummary {
   ts: number
 }
 
+export interface CoachPersona {
+  /** Display name, e.g. "Coach Chuck" */
+  name: string
+  /** Active personality trait keywords from the available set. */
+  traits: string[]
+}
+
+/** Available trait chips for the persona picker. Each trait shapes the
+ *  coach's voice via the system prompt. Multiple can be active. */
+export const COACH_TRAITS = [
+  { id: 'funny', label: 'Funny', emoji: '😄', desc: 'Uses humor and wit' },
+  { id: 'strict', label: 'Strict', emoji: '🎯', desc: 'Holds you accountable' },
+  { id: 'lighthearted', label: 'Light-hearted', emoji: '☀️', desc: 'Positive and breezy' },
+  { id: 'demanding', label: 'Demanding', emoji: '💪', desc: 'Pushes you hard' },
+  { id: 'warm', label: 'Warm', emoji: '🤗', desc: 'Empathetic, supportive' },
+  { id: 'direct', label: 'Direct', emoji: '⚡', desc: 'No fluff, straight talk' },
+  { id: 'nerdy', label: 'Data Nerd', emoji: '🤓', desc: 'Loves numbers and research' },
+  { id: 'old-school', label: 'Old School', emoji: '🧓', desc: 'Classic coaching wisdom' },
+  { id: 'high-energy', label: 'High Energy', emoji: '🔥', desc: 'Pump-you-up vibes' },
+  { id: 'chill', label: 'Chill', emoji: '🧘', desc: 'Calm, low-key approach' },
+] as const
+
 export interface CoachMemory {
   aboutMe: string
   conversation: ConversationTurn[]
   conversationSummary: ConversationSummary | null
   pendingInferences: PendingInference[]
+  coachPersona?: CoachPersona
 }
 
 export type CoachPingTriggerType =
@@ -634,6 +657,7 @@ export interface CoachSnapshot {
   athleteProfile?: AthleteProfile
   race?: RaceInfo
   analytics?: CoachSnapshotAnalytics
+  coachPersona?: CoachPersona | null
 }
 
 export interface CoachInsight {

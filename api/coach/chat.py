@@ -155,6 +155,7 @@ class handler(BaseHTTPRequestHandler):
             conversation_summary=memory.get("conversationSummary"),
             athlete_profile=snapshot.get("athleteProfile"),
             race=snapshot.get("race"),
+            coach_persona=snapshot.get("coachPersona"),
         )
 
         # Decide depth

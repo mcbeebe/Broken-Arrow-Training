@@ -3,7 +3,8 @@ import GarminConnect from './GarminConnect'
 import HRZoneEditor from './HRZoneEditor'
 import AboutMe from './AboutMe'
 import CoachDiagnostics from './CoachDiagnostics'
-import type { HRZone, PendingInference } from '../types'
+import type { HRZone, PendingInference, CoachPersona } from '../types'
+import CoachPersonaEditor from './CoachPersonaEditor'
 
 interface SettingsProps {
   // Coach (Mike-only for now)
@@ -14,6 +15,8 @@ interface SettingsProps {
   pendingInferences?: PendingInference[]
   onAcceptInference?: (id: string) => void
   onDismissInference?: (id: string) => void
+  coachPersona?: CoachPersona
+  onSaveCoachPersona?: (p: CoachPersona) => void
   athleteId?: string
   // Strava
   connected: boolean
@@ -83,6 +86,8 @@ export default function Settings({
   pendingInferences: _pendingInferences,
   onAcceptInference: _onAcceptInference,
   onDismissInference: _onDismissInference,
+  coachPersona,
+  onSaveCoachPersona,
   athleteId,
 }: SettingsProps) {
   void _pendingInferences
@@ -103,6 +108,12 @@ export default function Settings({
             onSave={onSaveAboutMe}
             onClear={onClearAboutMe}
           />
+          {onSaveCoachPersona && (
+            <CoachPersonaEditor
+              persona={coachPersona ?? { name: '', traits: [] }}
+              onSave={onSaveCoachPersona}
+            />
+          )}
           {athleteId && <CoachDiagnostics athleteId={athleteId} />}
         </>
       )}

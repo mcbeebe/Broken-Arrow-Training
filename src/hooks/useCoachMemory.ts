@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { CoachMemory, ConversationTurn } from '../types'
+import type { CoachMemory, CoachPersona, ConversationTurn } from '../types'
 import { coachApiAvailable, coachFetch } from '../utils/coachApi'
 
 /**
@@ -185,6 +185,21 @@ export function useCoachMemory(athleteId: string, enabled: boolean = true) {
     await mutate('clear_conversation')
   }, [mutate])
 
+  const saveCoachPersona = useCallback(
+    async (persona: CoachPersona) => {
+      // Optimistic
+      setMemory(m => {
+        const updated = { ...m, coachPersona: persona }
+        writeLocal(athleteId, updated)
+        return updated
+      })
+      if (apiAvailable) {
+        await mutate('save_coach_persona', { persona })
+      }
+    },
+    [athleteId, apiAvailable, mutate],
+  )
+
   const unreadCount = useMemo(
     () => memory.conversation.filter(t => t.role === 'coach' && t.unread).length,
     [memory.conversation],
@@ -205,6 +220,7 @@ export function useCoachMemory(athleteId: string, enabled: boolean = true) {
   return {
     memory,
     aboutMe: memory.aboutMe,
+    coachPersona: memory.coachPersona ?? { name: '', traits: [] },
     conversation: memory.conversation,
     pendingInferences: memory.pendingInferences,
     unreadCount,
@@ -219,6 +235,7 @@ export function useCoachMemory(athleteId: string, enabled: boolean = true) {
     dismissInference,
     markRead,
     clearConversation,
+    saveCoachPersona,
     patchLocal,
   }
 }

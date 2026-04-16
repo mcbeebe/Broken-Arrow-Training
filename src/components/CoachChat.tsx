@@ -29,6 +29,7 @@ interface Props {
  * server-side; we refresh memory after the stream completes.
  */
 export default function CoachChat({ athleteId, memory, snapshot, seed, onSeedConsumed, onSent }: Props) {
+  const coachName = snapshot?.coachPersona?.name?.trim() || 'Coach'
   const [input, setInput] = useState('')
   const [streaming, setStreaming] = useState(false)
   const [liveReply, setLiveReply] = useState('')
@@ -182,7 +183,7 @@ export default function CoachChat({ athleteId, memory, snapshot, seed, onSeedCon
           </div>
         )}
         {turns.map(t => (
-          <ChatTurn key={t.id} turn={t} onCopy={copyText} />
+          <ChatTurn key={t.id} turn={t} onCopy={copyText} coachName={coachName} />
         ))}
         {streaming && (
           <div className="flex">
@@ -272,7 +273,7 @@ function buildContextChip(snapshot: CoachSnapshot | null): string | null {
   return bits.join(' · ')
 }
 
-function ChatTurn({ turn, onCopy }: { turn: ConversationTurn; onCopy: (text: string) => void }) {
+function ChatTurn({ turn, onCopy, coachName = 'Coach' }: { turn: ConversationTurn; onCopy: (text: string) => void; coachName?: string }) {
   const [showActions, setShowActions] = useState(false)
 
   const copyBtn = showActions && (
@@ -299,7 +300,7 @@ function ChatTurn({ turn, onCopy }: { turn: ConversationTurn; onCopy: (text: str
       <div className="flex flex-col items-start" onClick={() => setShowActions(!showActions)}>
         <div className="max-w-[85%] bg-amber-50 border border-amber-200 text-slate-800 rounded-2xl rounded-tl-sm px-3 py-2 text-base leading-relaxed cursor-pointer">
           <p className="text-xs uppercase font-bold tracking-wider text-amber-700 mb-0.5">
-            Coach ping {turn.trigger ? `· ${turn.trigger.replace(/_/g, ' ')}` : ''}
+            {coachName} {turn.trigger ? `· ${turn.trigger.replace(/_/g, ' ')}` : ''}
           </p>
           <p className="whitespace-pre-wrap">{turn.content}</p>
         </div>

@@ -374,8 +374,33 @@ def build_system_prompt(
     conversation_summary: dict[str, Any] | None,
     athlete_profile: dict[str, Any] | None,
     race: dict[str, Any] | None,
+    coach_persona: dict[str, Any] | None = None,
 ) -> str:
-    parts: list[str] = [COACH_ROLE.strip(), APP_KNOWLEDGE.strip()]
+    # Build the core role line, potentially customized with persona.
+    role = COACH_ROLE.strip()
+    if coach_persona:
+        persona_name = (coach_persona.get("name") or "").strip()
+        persona_traits = [str(t).strip() for t in (coach_persona.get("traits") or []) if str(t).strip()]
+        if persona_name or persona_traits:
+            overrides: list[str] = []
+            if persona_name:
+                overrides.append(
+                    f'Your name is "{persona_name}". The athlete chose this name '
+                    f'for you — use it naturally when it fits, but don\'t force it '
+                    f'into every reply.'
+                )
+            if persona_traits:
+                trait_str = ", ".join(persona_traits)
+                overrides.append(
+                    f"Your personality is: {trait_str}. Let these traits shape your "
+                    f"tone, word choice, and energy. Stay true to this personality "
+                    f"across all replies — it's what the athlete wants from their "
+                    f"coach. But never let personality override safety: if the body "
+                    f"says rest, say rest, even if you're a 'demanding' coach."
+                )
+            role = role + "\n\nPersona:\n" + "\n".join(overrides)
+
+    parts: list[str] = [role, APP_KNOWLEDGE.strip()]
 
     if athlete_profile:
         parts.append(

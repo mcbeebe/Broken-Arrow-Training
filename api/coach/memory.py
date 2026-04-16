@@ -139,6 +139,16 @@ class handler(BaseHTTPRequestHandler):
             send_json(self, 200, mem)
             return
 
+        if action == "save_coach_persona":
+            persona = body.get("persona", {})
+            mem["coachPersona"] = {
+                "name": str(persona.get("name", "")).strip(),
+                "traits": [str(t).strip() for t in (persona.get("traits") or []) if str(t).strip()],
+            }
+            save_memory(athlete_id, mem)
+            send_json(self, 200, mem)
+            return
+
         if action == "clear_conversation":
             mem["conversation"] = []
             mem["conversationSummary"] = None

@@ -244,7 +244,7 @@ export default function App() {
     // Gate on having at least some data — without readiness or performance
     // the LLM has nothing useful to say.
     if (!readiness.todayScore && readiness.performance.length === 0) return null
-    return buildCoachSnapshot({
+    const snap = buildCoachSnapshot({
       athleteProfile: plan.athlete,
       race: plan.race,
       raceDistanceMiles: plan.race.distanceMiles,
@@ -262,6 +262,12 @@ export default function App() {
       planStartDate: '2026-04-13',
       todayHealth,
     })
+    // Attach persona so the API can shape the system prompt voice
+    const persona = coachMemory.coachPersona
+    if (persona && (persona.name || persona.traits.length > 0)) {
+      snap.coachPersona = persona
+    }
+    return snap
   }, [
     coachEnabled,
     plan.athlete,
@@ -276,6 +282,7 @@ export default function App() {
     compliance,
     soreness.todaySoreness,
     todayHealth,
+    coachMemory.coachPersona,
   ])
 
   // Daily LLM insight (shared between Summary + Coach tab)
@@ -456,6 +463,8 @@ export default function App() {
           pendingInferences={coachMemory.pendingInferences}
           onAcceptInference={coachMemory.acceptInference}
           onDismissInference={coachMemory.dismissInference}
+          coachPersona={coachMemory.coachPersona}
+          onSaveCoachPersona={coachMemory.saveCoachPersona}
           athleteId={athleteId}
         />
       )}
