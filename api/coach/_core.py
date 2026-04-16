@@ -580,6 +580,19 @@ def build_system_prompt(
         "[NEED_MORE_HISTORY] — the app will retry with 30-day context."
     )
 
+    # Final voice reminder — placed LAST so it's the freshest instruction
+    # the model sees before generating. This is the single biggest lever
+    # for getting personality to land consistently.
+    if coach_persona and ((coach_persona.get("name") or "").strip() or coach_persona.get("traits")):
+        parts.append(
+            "FINAL REMINDER before you write your reply: re-read the Persona "
+            "block at the top of this prompt. Your reply must sound like THAT "
+            "coach — in the opening line, the middle, and the closing line. "
+            "If the reply reads like generic AI-coach output, rewrite it in "
+            "voice before sending. The athlete specifically chose this "
+            "personality because they want coaching that feels personal."
+        )
+
     return "\n\n".join(parts)
 
 
@@ -841,8 +854,22 @@ FULL_PLAN_RE = re.compile(
 )
 
 
-def pick_model(messages: list[dict[str, Any]]) -> str:
-    """Default to Haiku; escalate to Sonnet on specific signals."""
+PLAYFUL_TRAITS_FOR_MODEL_BUMP = {
+    "funny", "lighthearted", "chill", "high-energy", "motivational",
+    "demanding", "warm",
+}
+
+
+def pick_model(
+    messages: list[dict[str, Any]],
+    coach_persona: dict[str, Any] | None = None,
+) -> str:
+    """Default to Haiku; escalate to Sonnet on specific signals.
+
+    When the athlete has configured a rich personality (2+ playful traits),
+    we also bump to Sonnet — Haiku is terse and bad at sustaining voice
+    across a full reply, which is the main lever for persona landing.
+    """
     if not messages:
         return HAIKU_MODEL
     last_user = ""
@@ -862,6 +889,19 @@ def pick_model(messages: list[dict[str, Any]]) -> str:
         return SONNET_MODEL
     if turn_count > 8:
         return SONNET_MODEL
+
+    # Persona-driven bump: if the athlete has 2+ playful traits OR a
+    # named coach, route to Sonnet. Persona is the athlete's chosen
+    # voice — worth the extra tokens to render it properly.
+    if coach_persona:
+        has_name = bool((coach_persona.get("name") or "").strip())
+        traits = [str(t).lower() for t in (coach_persona.get("traits") or [])]
+        playful_count = sum(1 for t in traits if t in PLAYFUL_TRAITS_FOR_MODEL_BUMP)
+        if has_name and playful_count >= 1:
+            return SONNET_MODEL
+        if playful_count >= 2:
+            return SONNET_MODEL
+
     return HAIKU_MODEL
 
 

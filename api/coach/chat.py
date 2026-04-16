@@ -148,7 +148,8 @@ class handler(BaseHTTPRequestHandler):
         # don't double-include; _compose_messages already does that correctly
         # since we pass [] as new_user_messages.
 
-        model = pick_model(messages)
+        persona_for_model = snapshot.get("coachPersona") or memory.get("coachPersona")
+        model = pick_model(messages, coach_persona=persona_for_model)
         system = build_system_prompt(
             about_me=memory.get("aboutMe", ""),
             pending_inferences=memory.get("pendingInferences", []),
