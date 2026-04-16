@@ -36,6 +36,7 @@ export function materialFields(surface: string, snapshot: CoachSnapshot): unknow
   const p = snapshot.performance
   const t = snapshot.plannedToday
   const tm = snapshot.plannedTomorrow
+  const persona = snapshot.coachPersona
   return {
     surface,
     date: snapshot.today?.date,
@@ -58,6 +59,12 @@ export function materialFields(surface: string, snapshot: CoachSnapshot): unknow
       : null,
     plannedTomorrow: tm
       ? { day: tm.day, type: tm.type, workout: tm.workout }
+      : null,
+    // Persona identity is baked into the cache key so changing the
+    // coach's name or traits busts cached insights — otherwise you'd
+    // keep seeing the old generic voice until the day's signals change.
+    persona: persona
+      ? { name: persona.name?.trim() || '', traits: [...(persona.traits || [])].sort() }
       : null,
   }
 }

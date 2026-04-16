@@ -155,7 +155,10 @@ class handler(BaseHTTPRequestHandler):
             conversation_summary=memory.get("conversationSummary"),
             athlete_profile=snapshot.get("athleteProfile"),
             race=snapshot.get("race"),
-            coach_persona=snapshot.get("coachPersona"),
+            # Prefer the snapshot's persona (it's fresh), fall back to
+            # whatever's in KV memory so a persona set in an earlier
+            # session still applies if the client hasn't synced yet.
+            coach_persona=snapshot.get("coachPersona") or memory.get("coachPersona"),
         )
 
         # Decide depth

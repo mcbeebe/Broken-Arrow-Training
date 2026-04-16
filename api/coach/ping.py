@@ -92,6 +92,7 @@ class handler(BaseHTTPRequestHandler):
             conversation_summary=memory.get("conversationSummary"),
             athlete_profile=snapshot.get("athleteProfile"),
             race=snapshot.get("race"),
+            coach_persona=snapshot.get("coachPersona") or memory.get("coachPersona"),
         )
         ctx = build_context_block(snapshot, depth="7d")
         instruction = TRIGGER_PROMPTS[trigger_type]

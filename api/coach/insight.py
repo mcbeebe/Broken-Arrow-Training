@@ -98,6 +98,7 @@ class handler(BaseHTTPRequestHandler):
             conversation_summary=memory.get("conversationSummary"),
             athlete_profile=snapshot.get("athleteProfile"),
             race=snapshot.get("race"),
+            coach_persona=snapshot.get("coachPersona") or memory.get("coachPersona"),
         )
         context_block = build_context_block(snapshot, depth="7d")
 

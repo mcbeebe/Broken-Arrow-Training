@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { CoachInsight, CoachSnapshot, ConversationTurn, DailyChatArchive } from '../types'
+import { COACH_TRAITS } from '../types'
 import type { UseCoachMemoryReturn } from '../hooks/useCoachMemory'
 import CoachChat from './CoachChat'
 
@@ -143,8 +144,45 @@ export default function CoachTab({
     }
   }
 
+  const persona = snapshot?.coachPersona
+  const coachDisplayName = persona?.name?.trim() || 'Your Coach'
+  const personaTraits = (persona?.traits ?? []).slice()
+
   return (
     <div className="flex flex-col h-[calc(100vh-9rem)] px-3 py-3 gap-2 relative">
+      {/* Coach identity header */}
+      <div className="shrink-0 bg-gradient-to-br from-indigo-50 to-white border border-indigo-100 rounded-xl px-4 py-3">
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 rounded-full bg-indigo-100 flex items-center justify-center text-3xl leading-none shrink-0">
+            🧢
+          </div>
+          <div className="flex-1 min-w-0">
+            <h2 className="text-lg font-bold text-slate-800 leading-tight">{coachDisplayName}</h2>
+            {personaTraits.length > 0 ? (
+              <ul className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-slate-600">
+                {personaTraits.map(id => {
+                  const trait = COACH_TRAITS.find(t => t.id === id)
+                  if (!trait) return null
+                  return (
+                    <li key={id} className="flex items-center gap-1">
+                      <span className="text-slate-300">•</span>
+                      <span>{trait.emoji} {trait.label}</span>
+                    </li>
+                  )
+                })}
+              </ul>
+            ) : (
+              <button
+                onClick={onGoSettings}
+                className="text-xs text-indigo-600 hover:text-indigo-800 mt-0.5"
+              >
+                Customize in Settings →
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
       {/* Action bar — always visible at top. Left side has history + minimize; right side has Save/Copy/Clear */}
       <div className="flex items-center justify-between shrink-0 px-1">
         <div className="flex items-center gap-3">

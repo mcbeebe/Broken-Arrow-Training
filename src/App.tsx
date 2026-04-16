@@ -341,7 +341,7 @@ export default function App() {
           <button
             key={t.id}
             onClick={() => setView(t.id)}
-            className={`flex-1 py-3 text-xs sm:text-sm font-medium transition-colors relative ${
+            className={`flex-1 py-3.5 text-sm sm:text-base font-semibold transition-colors relative ${
               view === t.id
                 ? 'text-teal-700 border-b-2 border-teal-600'
                 : 'text-slate-500'
