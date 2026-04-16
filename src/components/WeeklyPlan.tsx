@@ -332,17 +332,23 @@ function CalendarGrid({
   for (let d = 1; d <= daysInMonth; d++) cells.push(d)
   // Trailing blanks to fill the last row
   while (cells.length % 7 !== 0) cells.push(null)
+  const numRows = cells.length / 7
 
   return (
-    <div className="px-3 py-3">
+    // Flex column that fills remaining viewport height below the header/toggle.
+    // Approx 11rem budget is taken by the app header, tab bar, and view toggle.
+    <div className="flex flex-col px-3 pt-2 pb-3 gap-1" style={{ height: 'calc(100vh - 11rem)' }}>
       {/* Day headers */}
-      <div className="grid grid-cols-7 gap-1 mb-1">
+      <div className="grid grid-cols-7 gap-1 shrink-0">
         {DAY_HEADERS.map(d => (
-          <div key={d} className="text-center text-xs font-medium text-slate-400 py-1">{d}</div>
+          <div key={d} className="text-center text-xs font-medium text-slate-400 py-0.5">{d}</div>
         ))}
       </div>
-      {/* Day cells */}
-      <div className="grid grid-cols-7 gap-1">
+      {/* Day cells — equal-height rows that stretch to fill remaining height */}
+      <div
+        className="grid grid-cols-7 gap-1 flex-1 min-h-0"
+        style={{ gridTemplateRows: `repeat(${numRows}, minmax(0, 1fr))` }}
+      >
         {cells.map((dayNum, i) => {
           if (dayNum === null) return <div key={`blank-${i}`} />
           const iso = `${year}-${String(month + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`
@@ -353,8 +359,8 @@ function CalendarGrid({
           if (!planned) {
             // Day exists in month but no plan entry — grey cell
             return (
-              <div key={iso} className={`rounded-lg p-1 min-h-[60px] ${isToday ? 'ring-2 ring-teal-500' : 'bg-slate-50'}`}>
-                <span className="text-xs text-slate-300">{dayNum}</span>
+              <div key={iso} className={`rounded-lg p-1.5 ${isToday ? 'ring-2 ring-teal-500' : 'bg-slate-50'}`}>
+                <span className="text-sm text-slate-300">{dayNum}</span>
               </div>
             )
           }
@@ -373,19 +379,22 @@ function CalendarGrid({
             <button
               key={iso}
               onClick={() => onDayTap(planned)}
-              className={`rounded-lg p-1.5 min-h-[60px] text-left transition-all active:scale-95 ${
+              className={`rounded-lg p-1.5 text-left transition-all active:scale-95 overflow-hidden flex flex-col ${
                 isToday ? 'ring-2 ring-teal-500 ring-offset-1' : ''
               }`}
               style={{ backgroundColor: bg, borderLeft: `3px solid ${style.border}` }}
             >
-              <div className="flex items-center justify-between">
-                <span className={`text-xs font-bold ${isToday ? 'text-teal-700' : 'text-slate-700'}`}>{dayNum}</span>
+              <div className="flex items-center justify-between shrink-0">
+                <span className={`text-sm font-bold ${isToday ? 'text-teal-700' : 'text-slate-700'}`}>{dayNum}</span>
                 {dotColor && <span className={`w-2 h-2 rounded-full ${dotColor}`} />}
               </div>
-              <p className="text-[10px] font-medium text-slate-800 mt-0.5 line-clamp-1 leading-tight">
-                {style.label} {planned.workout.length > 12 ? planned.workout.slice(0, 11) + '…' : planned.workout}
+              <div className="flex items-center gap-0.5 mt-0.5 shrink-0">
+                <span className="text-base leading-none">{style.label}</span>
+                {isDone && <span className="text-xs text-emerald-700 font-bold">✓</span>}
+              </div>
+              <p className="text-[10px] font-medium text-slate-700 mt-0.5 line-clamp-2 leading-tight flex-1 min-h-0">
+                {planned.workout}
               </p>
-              {isDone && <span className="text-[9px] text-emerald-600 font-medium">✓</span>}
             </button>
           )
         })}
