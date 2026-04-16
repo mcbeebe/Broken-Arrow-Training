@@ -540,12 +540,28 @@ export const COACH_TRAITS = [
   { id: 'chill', label: 'Chill', emoji: '🧘', desc: 'Calm, low-key approach' },
 ] as const
 
+/** A conversation archived under a specific date so it can be reviewed
+ *  later. Populated when the live conversation rolls over to a new day. */
+export interface DailyChatArchive {
+  /** YYYY-MM-DD of the day's activity */
+  date: string
+  /** Snapshot of the turns that belonged to that day */
+  turns: ConversationTurn[]
+  /** Short one-line preview generated from the last turn for the list */
+  preview: string
+  /** Total number of visible turns (excludes system-handoff) */
+  turnCount: number
+}
+
 export interface CoachMemory {
   aboutMe: string
   conversation: ConversationTurn[]
   conversationSummary: ConversationSummary | null
   pendingInferences: PendingInference[]
   coachPersona?: CoachPersona
+  /** Auto-archived daily conversations — accessible via the Coach
+   *  history drawer. Newest first. */
+  dailyArchives?: DailyChatArchive[]
 }
 
 export type CoachPingTriggerType =

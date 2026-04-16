@@ -139,6 +139,38 @@ class handler(BaseHTTPRequestHandler):
             send_json(self, 200, mem)
             return
 
+        if action == "rollover_day":
+            # Archive the current conversation under a specific date and
+            # start fresh. Called by the client when it detects a new day
+            # on first send. Keeps at most 30 archives to bound memory.
+            date = str(body.get("date", "")).strip()
+            if not date:
+                send_json(self, 400, {"error": "date required"})
+                return
+            turns = mem.get("conversation") or []
+            visible = [t for t in turns if t.get("role") != "system-handoff"]
+            if visible:
+                last = visible[-1]
+                preview_src = str(last.get("content", "")).strip().replace("\n", " ")
+                preview = preview_src[:100] + ("…" if len(preview_src) > 100 else "")
+                archive = {
+                    "date": date,
+                    "turns": turns,
+                    "preview": preview,
+                    "turnCount": len(visible),
+                }
+                archives = mem.get("dailyArchives") or []
+                # Merge: if an archive for this date already exists, replace it
+                archives = [a for a in archives if a.get("date") != date]
+                archives.insert(0, archive)
+                # Cap at 30 archives to keep KV bounded
+                mem["dailyArchives"] = archives[:30]
+                mem["conversation"] = []
+                mem["conversationSummary"] = None
+            save_memory(athlete_id, mem)
+            send_json(self, 200, mem)
+            return
+
         if action == "save_coach_persona":
             persona = body.get("persona", {})
             mem["coachPersona"] = {

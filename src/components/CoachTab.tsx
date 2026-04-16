@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { CoachInsight, CoachSnapshot, ConversationTurn } from '../types'
+import type { CoachInsight, CoachSnapshot, ConversationTurn, DailyChatArchive } from '../types'
 import type { UseCoachMemoryReturn } from '../hooks/useCoachMemory'
 import CoachChat from './CoachChat'
 
@@ -74,6 +74,30 @@ export default function CoachTab({
   }, [])
   void _dailyInsightLoading
 
+  // Auto-rollover: when today is a different day than the newest
+  // conversation turn, archive the current conversation under that prior
+  // date so today starts a fresh thread. Uses localStorage to avoid
+  // double-firing in the same session.
+  useEffect(() => {
+    const today = snapshot?.today?.date
+    if (!today) return
+    const visible = memory.conversation.filter(t => t.role !== 'system-handoff')
+    if (visible.length === 0) return
+    // Find the date of the newest turn from its ts
+    const lastTurn = visible[visible.length - 1]
+    if (!lastTurn.ts) return
+    const lastDate = new Date(lastTurn.ts).toISOString().slice(0, 10)
+    if (lastDate === today) return  // same day, nothing to do
+    // Prior-day content exists — archive it
+    const rolloverKey = `ba_coach_last_rollover:${athleteId}`
+    if (localStorage.getItem(rolloverKey) === today) return
+    try { localStorage.setItem(rolloverKey, today) } catch { /* quota */ }
+    memory.rolloverDay(lastDate)
+    // Reset the seed flag so today's insight seeds into the fresh thread
+    clearSeedDate(athleteId)
+    onInteraction?.('day_rolled_over', { archivedDate: lastDate })
+  }, [snapshot?.today?.date, memory, athleteId, onInteraction])
+
   // Seed today's insight as a role:'coach' turn with trigger:'daily_insight'
   // the first time it becomes available each day. Guarded by a localStorage
   // date flag so we don't re-seed on every refresh.
@@ -89,19 +113,60 @@ export default function CoachTab({
   }, [dailyInsight, snapshot?.today?.date, athleteId, memory, onInteraction])
 
   const [chatMinimized, setChatMinimized] = useState(false)
+  const [historyOpen, setHistoryOpen] = useState(false)
+  const [viewingArchive, setViewingArchive] = useState<string | null>(null)
   const hasTurns = memory.conversation.filter(t => t.role !== 'system-handoff').length > 0
+  const archives = memory.dailyArchives ?? []
+
+  // If viewing an archived chat, render the read-only transcript
+  if (viewingArchive) {
+    const archive = archives.find(a => a.date === viewingArchive)
+    if (archive) {
+      return (
+        <div className="flex flex-col h-[calc(100vh-9rem)] px-3 py-3 gap-2">
+          <div className="flex items-center justify-between shrink-0">
+            <button
+              onClick={() => setViewingArchive(null)}
+              className="text-sm font-medium text-teal-700 hover:text-teal-900"
+            >
+              ‹ Back to today
+            </button>
+            <p className="text-sm font-semibold text-slate-700">
+              {new Date(archive.date + 'T12:00:00').toLocaleDateString('en-US', {
+                weekday: 'long', month: 'short', day: 'numeric',
+              })}
+            </p>
+          </div>
+          <ArchiveViewer archive={archive} coachName={snapshot?.coachPersona?.name?.trim() || 'Coach'} />
+        </div>
+      )
+    }
+  }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-9rem)] px-3 py-3 gap-2">
-      {/* Action bar — always visible at top */}
-      {hasTurns && (
-        <div className="flex items-center justify-between shrink-0 px-1">
-          <button
-            onClick={() => setChatMinimized(!chatMinimized)}
-            className="text-xs font-medium text-slate-500 hover:text-slate-700 transition-colors"
-          >
-            {chatMinimized ? '▾ Show chat' : '▴ Minimize'}
-          </button>
+    <div className="flex flex-col h-[calc(100vh-9rem)] px-3 py-3 gap-2 relative">
+      {/* Action bar — always visible at top. Left side has history + minimize; right side has Save/Copy/Clear */}
+      <div className="flex items-center justify-between shrink-0 px-1">
+        <div className="flex items-center gap-3">
+          {archives.length > 0 && (
+            <button
+              onClick={() => setHistoryOpen(true)}
+              className="text-xs font-medium text-slate-500 hover:text-slate-700 transition-colors flex items-center gap-1"
+              title="View past conversations"
+            >
+              📅 History ({archives.length})
+            </button>
+          )}
+          {hasTurns && (
+            <button
+              onClick={() => setChatMinimized(!chatMinimized)}
+              className="text-xs font-medium text-slate-500 hover:text-slate-700 transition-colors"
+            >
+              {chatMinimized ? '▾ Show chat' : '▴ Minimize'}
+            </button>
+          )}
+        </div>
+        {hasTurns && (
           <div className="flex items-center gap-3">
             <button
               onClick={() => saveConversation(memory.conversation, athleteId)}
@@ -132,8 +197,8 @@ export default function CoachTab({
               Clear
             </button>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Chat area */}
       <div className={`${chatMinimized ? 'hidden' : 'flex-1 min-h-0'}`}>
@@ -173,6 +238,117 @@ export default function CoachTab({
         >
           About Me in Settings →
         </button>
+      </div>
+
+      {/* History drawer */}
+      {historyOpen && (
+        <HistoryDrawer
+          archives={archives}
+          onClose={() => setHistoryOpen(false)}
+          onSelect={date => {
+            setViewingArchive(date)
+            setHistoryOpen(false)
+            onInteraction?.('archive_viewed', { date })
+          }}
+        />
+      )}
+    </div>
+  )
+}
+
+// ─── Archive viewer + History drawer ──────────────────────────
+
+function ArchiveViewer({ archive, coachName }: { archive: DailyChatArchive; coachName: string }) {
+  const visible = archive.turns.filter(t => t.role !== 'system-handoff')
+  return (
+    <div className="flex-1 min-h-0 overflow-y-auto bg-white rounded-xl border border-slate-200 p-3 space-y-2.5">
+      {visible.length === 0 ? (
+        <p className="text-sm text-slate-400 text-center py-8">No messages on this day.</p>
+      ) : (
+        visible.map(t => {
+          if (t.role === 'user') {
+            return (
+              <div key={t.id} className="flex justify-end">
+                <div className="max-w-[85%] bg-indigo-600 text-white rounded-2xl rounded-tr-sm px-3 py-2 text-base leading-relaxed">
+                  {t.content}
+                </div>
+              </div>
+            )
+          }
+          if (t.role === 'coach') {
+            return (
+              <div key={t.id} className="flex">
+                <div className="max-w-[85%] bg-amber-50 border border-amber-200 text-slate-800 rounded-2xl rounded-tl-sm px-3 py-2 text-base leading-relaxed">
+                  <p className="text-xs uppercase font-bold tracking-wider text-amber-700 mb-1">
+                    {coachName} {t.trigger ? `· ${t.trigger.replace(/_/g, ' ')}` : ''}
+                  </p>
+                  <p className="whitespace-pre-wrap">{t.content}</p>
+                </div>
+              </div>
+            )
+          }
+          return (
+            <div key={t.id} className="flex">
+              <div className="max-w-[85%] bg-indigo-50 text-slate-800 rounded-2xl rounded-tl-sm px-3 py-2 text-base whitespace-pre-wrap leading-relaxed">
+                {t.content}
+              </div>
+            </div>
+          )
+        })
+      )}
+    </div>
+  )
+}
+
+function HistoryDrawer({
+  archives,
+  onClose,
+  onSelect,
+}: {
+  archives: DailyChatArchive[]
+  onClose: () => void
+  onSelect: (date: string) => void
+}) {
+  return (
+    <div className="fixed inset-0 z-40" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/40" />
+      <div
+        className="absolute left-0 top-0 bottom-0 w-72 bg-white shadow-xl overflow-y-auto"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="sticky top-0 bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between">
+          <h3 className="text-base font-semibold text-slate-800">Chat History</h3>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 flex items-center justify-center rounded-full text-slate-500 hover:bg-slate-100"
+          >
+            ✕
+          </button>
+        </div>
+        {archives.length === 0 ? (
+          <p className="text-sm text-slate-400 text-center py-8 px-4">
+            No past conversations yet. Chats roll over automatically at the start of each new day.
+          </p>
+        ) : (
+          <ul className="divide-y divide-slate-100">
+            {archives.map(a => (
+              <li key={a.date}>
+                <button
+                  onClick={() => onSelect(a.date)}
+                  className="w-full text-left px-4 py-3 hover:bg-slate-50 transition-colors"
+                >
+                  <p className="text-sm font-semibold text-slate-800">
+                    {new Date(a.date + 'T12:00:00').toLocaleDateString('en-US', {
+                      weekday: 'short', month: 'short', day: 'numeric',
+                    })}
+                  </p>
+                  <p className="text-xs text-slate-500 mt-0.5">{a.turnCount} messages</p>
+                  <p className="text-xs text-slate-600 mt-1 line-clamp-2 italic">"{a.preview}"</p>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </div>
   )

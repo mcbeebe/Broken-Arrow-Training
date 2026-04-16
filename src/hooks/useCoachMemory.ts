@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { CoachMemory, CoachPersona, ConversationTurn } from '../types'
+import type { CoachMemory, CoachPersona, ConversationTurn, DailyChatArchive } from '../types'
 import { coachApiAvailable, coachFetch } from '../utils/coachApi'
 
 /**
@@ -185,6 +185,13 @@ export function useCoachMemory(athleteId: string, enabled: boolean = true) {
     await mutate('clear_conversation')
   }, [mutate])
 
+  const rolloverDay = useCallback(
+    async (date: string) => {
+      await mutate('rollover_day', { date })
+    },
+    [mutate],
+  )
+
   const saveCoachPersona = useCallback(
     async (persona: CoachPersona) => {
       // Optimistic
@@ -222,6 +229,7 @@ export function useCoachMemory(athleteId: string, enabled: boolean = true) {
     aboutMe: memory.aboutMe,
     coachPersona: memory.coachPersona ?? { name: '', traits: [] },
     conversation: memory.conversation,
+    dailyArchives: (memory.dailyArchives ?? []) as DailyChatArchive[],
     pendingInferences: memory.pendingInferences,
     unreadCount,
     loaded,
@@ -235,6 +243,7 @@ export function useCoachMemory(athleteId: string, enabled: boolean = true) {
     dismissInference,
     markRead,
     clearConversation,
+    rolloverDay,
     saveCoachPersona,
     patchLocal,
   }
