@@ -41,6 +41,13 @@ export function generateDayCardNote(
   raceWeek: boolean,
 ): CoachDayNote | null {
   const { type } = day
+
+  // Completed workouts don't need forward-looking execution cues.
+  // "Readiness is 60/100 — easy effort only" is useless on a run
+  // that's already in the books. The modal's Coach's take handles
+  // post-execution reflection via buildCompletedTake.
+  if (day.actual) return null
+
   const drillDay = weekNum !== undefined && getDrillDay(weekNum) === day.day
   const plannedDrills = getPlannedDrills(day)
 
