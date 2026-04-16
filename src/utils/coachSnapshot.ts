@@ -285,6 +285,11 @@ export function buildCoachSnapshot(inputs: Inputs): CoachSnapshot {
 
   const sevenAgo = daysAgoISO(7)
   const thirtyAgo = daysAgoISO(30)
+  // 120 days of actuals is our max lookback — roughly 4 months. Keeps
+  // token budget reasonable (~120 lines worst case) while giving the
+  // coach real trend visibility when asked about "the last few months"
+  // or "earlier in the block."
+  const oneTwentyAgo = daysAgoISO(120)
   const today = todayISO()
   // 2-week look-ahead window (today inclusive)
   const ahead14 = (() => {
@@ -316,14 +321,20 @@ export function buildCoachSnapshot(inputs: Inputs): CoachSnapshot {
     days: weeks.flatMap(w => w.days.map(d => compactPlannedDay(d, dayLabelToISO(d.day, planStartDate) ?? undefined))),
   }
 
-  // Collect recent activities
+  // Collect ALL actuals from the last 120 days. The server's
+  // build_context_block trims the rendered window by `depth`:
+  //   - default → last 30 days
+  //   - depth=30d (history/trend keywords) → last 60 days
+  //   - depth=120d (long-range keywords) → full 120 days
+  // Sending the full set keeps one round-trip budget: the client
+  // ships what it has; server decides how much to surface.
   const acts: NonNullable<CoachSnapshot['recentActivities']> = []
   for (const w of weeks) {
     for (const d of w.days) {
       const a = d.actual
       if (!a?.startDate) continue
       const date = a.startDate.slice(0, 10)
-      if (date < thirtyAgo) continue
+      if (date < oneTwentyAgo) continue
       acts.push({
         startDate: a.startDate,
         name: a.name || '',
@@ -336,10 +347,9 @@ export function buildCoachSnapshot(inputs: Inputs): CoachSnapshot {
     }
   }
   acts.sort((a, b) => b.startDate.localeCompare(a.startDate))
-
-  // Only include the 7d window in the primary snapshot (30d is available via
-  // re-building; the chat endpoint can expand depth server-side).
-  const recentActivities = acts.filter(a => a.startDate.slice(0, 10) >= sevenAgo)
+  const recentActivities = acts
+  void sevenAgo
+  void thirtyAgo
 
   const recentSoreness =
     (inputs.sorenessLog || [])

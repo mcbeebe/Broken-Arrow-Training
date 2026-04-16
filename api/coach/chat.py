@@ -23,6 +23,7 @@ from ._core import (
     check_and_increment_budget,
     call_anthropic,
     detect_expand_trigger,
+    detect_long_history_trigger,
     detect_full_plan_trigger,
     detect_inferences,
     fact_already_known,
@@ -186,7 +187,15 @@ class handler(BaseHTTPRequestHandler):
             if m.get("role") == "user":
                 last_user_msg = str(m.get("content", ""))
                 break
-        depth = "30d" if detect_expand_trigger(last_user_msg) else "7d"
+        # Depth tiers: 120d for multi-month/whole-block questions,
+        # 30d (→60 activities) for history/trend/pattern keywords,
+        # 7d (→30 activities) as the new default baseline.
+        if detect_long_history_trigger(last_user_msg):
+            depth = "120d"
+        elif detect_expand_trigger(last_user_msg):
+            depth = "30d"
+        else:
+            depth = "7d"
         include_full_plan = detect_full_plan_trigger(last_user_msg)
         ctx = build_context_block(
             snapshot,

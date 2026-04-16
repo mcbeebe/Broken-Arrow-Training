@@ -622,9 +622,15 @@ def build_system_prompt(
         )
 
     parts.append(
-        "If the user's question requires data older than what's in the context "
-        "snapshot (e.g. >7 days), respond only with the literal token "
-        "[NEED_MORE_HISTORY] — the app will retry with 30-day context."
+        "Activity history available to you: the snapshot surfaces the most "
+        "recent activities based on the user's question. Default is the last "
+        "~30 activities; mentions of 'history', 'trend', or 'past month' "
+        "expand to ~60; multi-month or whole-block questions expand to "
+        "~120. Each activity line is prefixed with its ISO date and day "
+        "of week — quote those accurately when referencing past sessions. "
+        "If the user asks about something further back than 120 days, say "
+        "so plainly — the plan itself started mid-April 2026, so 120 days "
+        "covers the whole block."
     )
 
     # Final voice reminder — placed LAST so it's the freshest instruction
@@ -669,6 +675,25 @@ def _fmt_seconds_as_min(s: Any) -> str:
         return "0m"
 
 
+_DOW_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+
+
+def _fmt_date_with_dow(date_str: str) -> str:
+    """Convert 'YYYY-MM-DD' or ISO datetime → 'YYYY-MM-DD (Mon)'.
+    LLMs reliably misname weekdays when given bare dates — prepending
+    the day name eliminates that whole class of errors."""
+    if not date_str or len(date_str) < 10:
+        return date_str or ""
+    ymd = date_str[:10]
+    try:
+        from datetime import date
+        y, m, d = ymd.split("-")
+        dow = date(int(y), int(m), int(d)).weekday()
+        return f"{ymd} ({_DOW_NAMES[dow]})"
+    except Exception:
+        return ymd
+
+
 def build_context_block(
     snapshot: dict[str, Any],
     depth: str = "7d",
@@ -693,11 +718,17 @@ def build_context_block(
     analytics = snapshot.get("analytics") or {}
     week_num = snapshot.get("currentWeekNum")
 
-    # Trim activities window
-    if depth == "30d":
-        activities = activities[:30]
+    # Trim activities window. Default is "30d" — 30 most recent
+    # activities — which gives the coach the last ~3-4 weeks of
+    # context without crowding the prompt. Long-range keywords push
+    # this out to 120d so questions about the whole block can be
+    # answered without a second round-trip.
+    if depth == "120d":
+        activities = activities[:120]
+    elif depth == "30d":
+        activities = activities[:60]  # ~2 months — 30d default, 60d on keyword
     else:
-        activities = activities[:12]  # ~last 7-12 days
+        activities = activities[:30]  # legacy "7d" path — still broader than before
 
     out: list[str] = []
     out.append(f"Today: {today.get('date', '')} (week {week_num or '?'})")
@@ -815,7 +846,8 @@ def build_context_block(
         out.append(f"Recent activities ({depth}, most recent first):")
         for a in activities:
             out.append(
-                f"  - {a.get('startDate', '')[:10]} · {a.get('name', '')} · "
+                f"  - {_fmt_date_with_dow(a.get('startDate', ''))} · "
+                f"{a.get('name', '')} · "
                 f"{_fmt_num(a.get('distance'))}mi · "
                 f"{_fmt_seconds_as_min(a.get('movingTime'))} · "
                 f"avgHR {a.get('avgHR') or '—'} · "
@@ -826,7 +858,7 @@ def build_context_block(
     if soreness:
         out.append("Recent soreness:")
         for s in soreness[:5]:
-            out.append(f"  - {s.get('date', '')}: {s.get('summary', '')}")
+            out.append(f"  - {_fmt_date_with_dow(s.get('date', ''))}: {s.get('summary', '')}")
 
     if analytics:
         wtd = analytics.get("weekToDate") or {}
@@ -894,7 +926,17 @@ def build_context_block(
 INJURY_RE = re.compile(r"\b(pain|hurt|sore|tight|ache|injur(?:ed|y))\b", re.IGNORECASE)
 PLAN_CHANGE_RE = re.compile(r"\b(skip|swap|move|push|drop|cancel)\b", re.IGNORECASE)
 EXPAND_RE = re.compile(
-    r"\b(last month|past month|last 30|30 days|30-day|history|trend|over time|pattern|all season|this season|so far|cycle)\b",
+    r"\b(last month|past month|last 30|30 days|30-day|history|trend|"
+    r"over time|pattern|all season|this season|so far|cycle)\b",
+    re.IGNORECASE,
+)
+# Long-range history: athletes asking about full training block,
+# multi-month patterns, or dates from 1+ months ago. Pushes the
+# activity window out to 120 days.
+LONG_HISTORY_RE = re.compile(
+    r"\b(last (?:2|3|4) months|past (?:few |several )?months|3[- ]?month|"
+    r"4[- ]?month|quarter|120 days?|whole (?:block|build|plan)|"
+    r"weeks? ago|earlier in (?:the |my )?(?:plan|block|build|cycle))\b",
     re.IGNORECASE,
 )
 # Triggers that request the FULL 10-week plan (not just the 14-day window)
@@ -955,6 +997,14 @@ def pick_model(
             return SONNET_MODEL
 
     return HAIKU_MODEL
+
+
+def detect_long_history_trigger(user_msg: str) -> bool:
+    """Should we expand to the 120-day activity window? Triggered by
+    multi-month or whole-block-scope questions."""
+    if not user_msg:
+        return False
+    return bool(LONG_HISTORY_RE.search(user_msg))
 
 
 def detect_expand_trigger(user_msg: str) -> bool:
