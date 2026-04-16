@@ -76,9 +76,13 @@ describe('getSportMultiplier (ATE MIM matrix)', () => {
     expect(getSportMultiplier('cardio')).toBe(1.3)
   })
 
-  it('returns 0 for pure mobility/breathing activities', () => {
+  it('returns 0 for breathwork only — pure mechanical-load-free activity', () => {
     expect(getSportMultiplier('breathwork')).toBe(0.0)
-    expect(getSportMultiplier('myrtl')).toBe(0.0)
+  })
+
+  it('credits myrtl hip routine with minimal load', () => {
+    // Glute/hip activation — real but very light muscular work
+    expect(getSportMultiplier('myrtl')).toBe(0.1)
   })
 
   it('credits running drills at half of running load', () => {

@@ -507,7 +507,8 @@ function PerformanceGlossary() {
                 <tr className="bg-white"><td className="px-2 py-1">Yoga / Pilates</td><td className="text-right px-2 py-1 font-mono">0.30×</td><td className="px-2 py-1 text-slate-500">Flexibility/mobility, minimal stress</td></tr>
                 <tr className="bg-slate-50"><td className="px-2 py-1">Strength (Upper)</td><td className="text-right px-2 py-1 font-mono">0.20×</td><td className="px-2 py-1 text-slate-500">Low running-muscle impact, low cardio</td></tr>
                 <tr className="bg-white"><td className="px-2 py-1">Running Drills</td><td className="text-right px-2 py-1 font-mono">0.50×</td><td className="px-2 py-1 text-slate-500">Plyometric impact + HR elevated during A-skips, bounding, strides</td></tr>
-                <tr className="bg-slate-50"><td className="px-2 py-1">Myrtl / Breathwork</td><td className="text-right px-2 py-1 font-mono">0.00×</td><td className="px-2 py-1 text-slate-500">Mobility / breath work — tracked for compliance, no load</td></tr>
+                <tr className="bg-slate-50"><td className="px-2 py-1">Myrtl</td><td className="text-right px-2 py-1 font-mono">0.10×</td><td className="px-2 py-1 text-slate-500">Hip activation — small but real muscular work on glutes/rotators</td></tr>
+                <tr className="bg-white"><td className="px-2 py-1">Breathwork</td><td className="text-right px-2 py-1 font-mono">0.00×</td><td className="px-2 py-1 text-slate-500">Pure breath work — tracked for compliance, no mechanical load</td></tr>
               </tbody>
             </table>
           </div>

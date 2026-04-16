@@ -68,9 +68,12 @@ const MIM_MATRIX: Record<SportType, number> = {
   // Recovery / mobility
   yoga: 0.3,
   pilates: 0.3,
-  // Mobility/breathing — no meaningful load
+  // Breathwork — no mechanical load
   breathwork: 0.0,
-  myrtl: 0.0,
+  // Myrtl hip routine — light activation of glute medius, hip flexors,
+  // and rotators. Real but minimal muscular work; small credit so it
+  // shows up on the books without inflating load.
+  myrtl: 0.1,
   // Running drills (A-skips, B-skips, strides, bounding) — plyometric
   // impact + HR stays in Z2-3 during work reps. Half of running to
   // credit both the cardio and impact/eccentric landing cost without
