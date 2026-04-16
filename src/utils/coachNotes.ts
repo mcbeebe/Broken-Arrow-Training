@@ -75,8 +75,11 @@ export function generateDayCardNote(
     }
   }
 
-  // Drill-day nudge on run days that are scheduled drills
-  if ((type === 'run' || type === 'long') && drillDay && !day.actual?.drills?.completed) {
+  // Drill-day nudge on run days that are scheduled drills.
+  // (day.actual is always undefined here because of the early return
+  // above, so we don't need to check completion status — by definition
+  // drills can't have been done yet on a not-yet-done workout.)
+  if ((type === 'run' || type === 'long') && drillDay) {
     return {
       text: `Drill day. A-skips + strides are the single highest-leverage form cue for your stride — don't skip them.`,
       tone: 'info',
@@ -99,8 +102,9 @@ export function generateDayCardNote(
     }
   }
 
-  // Explicit planned drills with no actual and it's today/past → nudge
-  if (plannedDrills.length > 0 && !day.actual?.drills?.completed && (type === 'run' || type === 'quality')) {
+  // Explicit planned drills — day.actual is always undefined here due to
+  // the early return above, so no completion check is needed.
+  if (plannedDrills.length > 0 && (type === 'run' || type === 'quality')) {
     return {
       text: `Plan has drills prescribed — they're cheap insurance and the single easiest way to protect form as volume climbs.`,
       tone: 'info',
