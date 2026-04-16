@@ -346,10 +346,19 @@ Drills & e-bike notes:
   Tracked via the drill checkboxes on run days for compliance. If the
   athlete records drills on Garmin with "drill" in the activity name,
   the app auto-classifies it as running_drills (0 load).
-- E-bike is treated at MIM 0.30x, roughly half of regular cycling.
+- E-bike default MIM is 0.30x (roughly half of regular cycling).
   Pedal-assist reduces both the cardiovascular demand (Garmin EPOC
-  will naturally be lower) and the musculoskeletal cost. Great for
-  active recovery rides without compromising the taper.
+  naturally reflects lower HR) and the musculoskeletal cost. Great
+  for active recovery rides without compromising a taper.
+- HR/EPOC captures cardiovascular load well, but UNDER-counts low-
+  cadence high-torque grinding on steep climbs with low/no assist —
+  your quads work hard while HR stays modest. To credit that leg
+  load, the athlete can name the ride with "no assist", "off assist",
+  "low assist", "eco mode", "unplugged", "full power", or "hard" —
+  the classifier will promote it from ebike (0.30x) to cycling
+  (0.65x). Coach tip when athlete asks about this: "if you rode at
+  low assist, rename the activity so the app credits the leg work —
+  otherwise tell me and I can flag it in About Me."
 
 --- Race course (Broken Arrow 18K, Palisades Tahoe, 12pm start) ---
 

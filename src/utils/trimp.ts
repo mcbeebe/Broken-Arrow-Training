@@ -243,6 +243,18 @@ export function mapToSportType(
     return 'myrtl'
   }
   if (/\b(e[- ]?bike|ebike|pedal[- ]?assist|electric[- ]?bike)\b/.test(name)) {
+    // Assist-level hints in the name let the athlete signal when they
+    // rode hard with minimal motor help — that brings the muscular load
+    // closer to a regular bike and should be credited as such.
+    //
+    // "no assist" / "off" / "unplugged" / "full power" / "hard" →
+    //    treat as regular cycling (0.65×) — rider did the work
+    // "low assist" / "eco" / "min assist" →
+    //    also regular cycling — you're grinding harder than pure e-bike
+    // Default (moderate/auto/turbo assist) → ebike (0.30×)
+    if (/\b(no[- ]?assist|off[- ]?assist|unplugged|full[- ]?power|hard|low[- ]?assist|min[- ]?assist|eco[- ]?mode|minimal[- ]?assist)\b/.test(name)) {
+      return 'cycling'
+    }
     return 'ebike'
   }
   if (/\b(breathwork|breath work|wim[- ]?hof)\b/.test(name)) {
