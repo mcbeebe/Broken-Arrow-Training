@@ -306,27 +306,38 @@ export function gradeWorkoutDay(day: PlannedDay, targets: ReturnType<typeof pars
     hrZoneSummary: actual.hrZoneSummary,
     drillGrade: (() => {
       const planned = (targets.drillItems?.length ?? 0) > 0
-      if (!planned) return 'na' as ComplianceGrade
-      // Count actual items done. Fall back to the `completed` flag only
-      // when no per-item data exists (legacy logs).
       const items = actual.drills?.items
+      const loggedItems = (items?.length ?? 0) > 0
       const completedFlag = actual.drills?.completed
+      // Grade drills when EITHER the plan prescribed them OR the
+      // athlete logged any drill activity in the manual log. That way
+      // "partially did drills on an easy run" shows up even when the
+      // plan detail didn't explicitly list drills.
+      if (!planned && !loggedItems && !completedFlag) return 'na' as ComplianceGrade
       if (items && items.length > 0) {
         const done = items.filter(i => i.done).length
         const pct = done / items.length
         if (pct >= 0.8) return 'hit' as ComplianceGrade
-        if (pct >= 0.5) {
-          flagReasons.push(`Only ${done}/${items.length} drills done`)
+        if (pct > 0) {
+          // Any partial engagement counts as "close" (amber). User
+          // at least showed up — that's categorically different from
+          // skipping entirely.
+          flagReasons.push(`${done}/${items.length} drills done`)
           return 'close' as ComplianceGrade
         }
-        flagReasons.push(`Only ${done}/${items.length} drills done`)
+        flagReasons.push(`0/${items.length} drills done`)
         return 'miss' as ComplianceGrade
       }
       if (completedFlag) return 'hit' as ComplianceGrade
-      flagReasons.push('Drills planned but not completed')
-      return 'miss' as ComplianceGrade
+      if (planned) {
+        flagReasons.push('Drills planned but not completed')
+        return 'miss' as ComplianceGrade
+      }
+      return 'na' as ComplianceGrade
     })(),
-    drillsPlanned: (targets.drillItems?.length ?? 0) > 0,
+    drillsPlanned: (targets.drillItems?.length ?? 0) > 0
+      || (actual.drills?.items?.length ?? 0) > 0
+      || !!actual.drills?.completed,
     drillsCompleted: (() => {
       const items = actual.drills?.items
       if (items && items.length > 0) {

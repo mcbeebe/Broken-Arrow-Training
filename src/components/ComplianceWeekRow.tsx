@@ -65,24 +65,30 @@ export default function ComplianceWeekRow({ week, weekLabel, weekFocus, planZone
 
         {/* Distance row */}
         <MetricRow label="Dist" days={days} render={d => (
-          <RatioBar pct={d.distancePct} grade={d.distanceGrade} />
+          isRestPlan(d.workoutType)
+            ? <RestCell workoutType={d.workoutType} />
+            : <RatioBar pct={d.distancePct} grade={d.distanceGrade} />
         )} />
 
         {/* Duration row */}
         <MetricRow label="Dur" days={days} render={d => (
-          <RatioBar pct={d.durationPct} grade={d.durationGrade} />
+          isRestPlan(d.workoutType)
+            ? <RestCell workoutType={d.workoutType} />
+            : <RatioBar pct={d.durationPct} grade={d.durationGrade} />
         )} />
 
         {/* HR row — stacked zone bar w/ target band */}
         <MetricRow label="HR" days={days} render={d => (
-          <ZoneBar
-            summary={d.hrZoneSummary}
-            grade={d.hrGrade}
-            targets={d.targets}
-            inZonePct={d.hrInZonePct}
-            hrAvg={d.hrAvg}
-            planZones={planZones}
-          />
+          isRestPlan(d.workoutType)
+            ? <RestCell workoutType={d.workoutType} />
+            : <ZoneBar
+                summary={d.hrZoneSummary}
+                grade={d.hrGrade}
+                targets={d.targets}
+                inZonePct={d.hrInZonePct}
+                hrAvg={d.hrAvg}
+                planZones={planZones}
+              />
         )} />
 
         {/* Drills row — only shown if any day has planned drills */}
@@ -283,6 +289,30 @@ function gradeFill(grade: ComplianceGrade): string {
     case 'skipped': return '#CBD5E1'
     case 'na': return '#F1F5F9'
   }
+}
+
+/** True for workout types that mean "planned rest / not training".
+ *  These days should render distinct from 'no target' (empty grey)
+ *  because resting was literally the plan. */
+function isRestPlan(type: string): boolean {
+  return type === 'rest' || type === 'travel'
+}
+
+/**
+ * Rest-day cell — subtle emerald tint with a tiny ✓ so on-plan rest
+ * days are visually distinct from skipped-workout days. Used across
+ * the Dist/Dur/HR rows for days where the plan was rest.
+ */
+function RestCell({ workoutType }: { workoutType: string }) {
+  const label = workoutType === 'travel' ? 'Travel' : 'Rest'
+  return (
+    <div
+      className="h-full rounded-sm bg-emerald-100/70 flex items-center justify-center"
+      title={`${label} — on plan`}
+    >
+      <span className="text-[7px] text-emerald-700 font-semibold leading-none">✓</span>
+    </div>
+  )
 }
 
 function dayInitial(dayLabel: string): string {
