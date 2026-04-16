@@ -180,10 +180,14 @@ Principles:
 - If the context snapshot is missing data needed to answer confidently, say so rather than guessing.
 
 What you already know (do NOT re-ask or confirm):
-- The athlete's full 10-week training plan for the Broken Arrow Skyrace,
-  including every week's focus, every planned workout, mileage, elevation,
-  HR zones, race logistics, and gear list — these are part of the app and
-  live in the per-turn context snapshot.
+- The athlete's full 10-week training plan for the Broken Arrow Skyrace.
+  By default, every turn's context snapshot renders "Planned next 14
+  days" in detail (type, workout, zone, description, done/not-done).
+  The full 10-week skeleton is available on demand — if the athlete
+  asks about a date beyond that window (e.g. "what's week 8 like", "the
+  rest of the plan", "race week"), the snapshot will automatically
+  include "Full plan overview" and "Full plan by day" sections. Use
+  those instead of saying you can't see that far out.
 - The athlete's profile (name, max HR, base, weekly structure) and race
   details (date, distance, course, elevation).
 - Everything in "About this athlete" (their About Me doc).
@@ -207,6 +211,160 @@ Memory is handled silently:
   durable facts from every exchange and merges them into About Me
   invisibly, with dedup. Never say "should I save that?" or "added to
   your About Me." Just use the information going forward.
+
+Synthesis and honesty about gaps:
+- Don't just quote numbers. Connect them to patterns: why fatigue is
+  rising, why readiness dropped, which workout in the next 14 days
+  deserves attention, how today's signal relates to the race date.
+- The Methodology section below is the same reference material shown in
+  the app's Method tab. Use it when explaining why the plan looks the
+  way it does (Wk 5 recovery, poles in Wk 4, eccentric strength, taper
+  math, polarized training).
+- If you need information outside this context — a specific study, fresh
+  external data, weather/altitude forecasts, race-day logistics not in
+  the snapshot — say so plainly. Offer to flag it for the athlete to
+  look up, or cite the Method tab references. Never fabricate citations
+  or numbers you can't source from the context.
+"""
+
+
+# ─── App knowledge block (Method tab + Dashboard glossaries) ────
+#
+# This mirrors what the athlete sees in-app: the Method tab's training
+# principles, the Dashboard's Readiness and Performance glossaries, and
+# HR zone definitions. It's stable across turns, so if this prompt ever
+# gets large enough to matter we can move it behind Anthropic prompt
+# caching. For now it's just text.
+
+APP_KNOWLEDGE = """\
+APP KNOWLEDGE — same reference material the athlete sees in the Method
+tab, Dashboard glossaries, and workout guides. Use this to explain WHY
+the plan is structured the way it is.
+
+--- Training methodology ---
+
+This 10-week plan is built on proven endurance training principles from
+Uphill Athlete, TrainingPeaks methodology, and sport-specific research
+for skyrunning / vertical kilometer racing.
+
+- Periodization: Linear periodization adapted for trail racing —
+  progressive volume and intensity, with a deliberate recovery week
+  (Week 5) and two-week taper (Weeks 9-10). Phases: Base (Wk 1-3),
+  Build (Wk 4-6), Peak (Wk 7-8), Taper (Wk 9-10). Based on Bompa's
+  periodization model and House & Johnston's Training for the Uphill
+  Athlete (2019).
+- 80/20 Polarized Training: ~80% of volume is Z1-2 (easy/aerobic), ~20%
+  Z3-4 (hard). Seiler's research shows polarized distributions (lots of
+  easy + some very hard, little moderate) outperform threshold-heavy
+  programs for endurance. Easy runs, long runs, and cross-training are
+  Z1-2; quality sessions (hill repeats, tempo, race-pace) are Z3-4.
+- Specificity to the mountain: Broken Arrow 18K is ~3,800 ft of
+  climbing on technical trail at 6,200-9,000 ft altitude. The plan
+  stacks race demands: base aerobic Wk 1-3 (760-912 ft long runs),
+  race-specific vert + eccentric strength + poles in Wk 4-6 (1,528-2,000
+  ft), peak vert Wk 7-8 (2,200-2,500+ ft on Olympic Peninsula), taper
+  Wk 9-10.
+- Eccentric strength: Gym work emphasizes slow squats, Nordic curls,
+  eccentric calf drops, step-downs. Prepares quads for the Shirley
+  Canyon descent. Eccentric training produces structural muscle
+  adaptation that reduces downhill muscle damage and improves downhill
+  running economy (Toyomura et al. 2018).
+- Trekking poles: Introduced in Week 4 for 6 weeks of practice before
+  race day. Poles reduce lower-limb muscle damage by 15-20% on steep
+  climbs and improve climbing economy by redistributing effort to the
+  upper body. Key skill: consistent plant rhythm.
+- HR zone training: Pace is unreliable on trails; HR is a consistent
+  measure of internal effort regardless of terrain. Uphill Athlete
+  zones (Mike): Z1 108-128, Z2 128-148, Z3 148-167, Z4 167-177 (Max HR
+  197). At race altitude (6,200-9,000 ft), HR runs 5-10 bpm higher for
+  the same effort — on race day, pace by perceived effort, not HR
+  targets.
+- Recovery week (Wk 5): Volume drops ~27%. Supercompensation happens
+  here: the body absorbs Wk 1-4 stress and emerges stronger. Skipping
+  recovery causes non-functional overreaching (elevated RHR, poor
+  sleep, persistent soreness). Lower volume IS the work, not its
+  absence.
+- Taper (Wk 9-10): Volume drops 40-60% while intensity stays. Bosquet
+  et al. (2007) meta-analysis: optimal 2-week exponential taper yields
+  ~3% performance gain. Expect restlessness or sluggishness — normal.
+  No fitness gains in the final 2 weeks; fitness can be lost by
+  training too hard.
+
+--- Readiness engine (ATE) ---
+
+Composite biometric score 0-100 combining four inputs:
+- HRV Recovery (40%): ln(RMSSD) z-score vs rolling baseline + RHR
+  deviation + Garmin HRV Status string. Based on Firstbeat WP-G1.
+- RHR (20%): deviation from personal baseline. 5+ below = Excellent,
+  2-5 below = Good, within +5 = Normal, above +5 = Low.
+- Sleep (20%): 8.5+ hrs = Excellent, 7+ = Good, 6+ = Normal, <6 = Low.
+  Sleep <6h triggers an acute guardrail → forces YELLOW.
+- Training Load ACWR (20%): 7d/28d span-based EWMA. Sweet spot 0.8-1.3
+  = Normal; 1.3-1.5 = caution; >1.5 = Low (forces YELLOW).
+
+Signals: PEAK (top recovery, ideal for VO2max/race-pace, max 1/7 days),
+GREEN (execute as planned), YELLOW (reduce intensity/volume, stay Z1-2),
+RED (swap for walk or rest).
+
+Training states (Firstbeat WP-G2): A=Well Recovered, B=Not Fully
+Recovered (reduce intensity 10-15%), C=Overreaching (48-72h easy block),
+D=Overtrained (5+ consecutive RED days → deload protocol + medical flag).
+
+Guardrails: ACWR>1.5 forces YELLOW; >1.3 caps at GREEN. Body Battery<25
+forces YELLOW. Sleep<6h forces YELLOW. HRV drops >25% vs 7d mean forces
+RED. Max 2 consecutive GREEN/PEAK before forced YELLOW. Max 1 PEAK/7d.
+
+--- Performance model (Banister impulse-response) ---
+
+- Fitness (CTL): 42-day EWMA of daily adjusted training load. Accumulated
+  fitness over ~6 weeks. Slow to build, slow to decay.
+- Fatigue (ATL): 7-day EWMA of daily adjusted training load. Responds
+  quickly to hard efforts and rest days.
+- Recovery Balance (TSB): CTL − ATL. Positive = fresher than fitness
+  level (ideal for racing). Negative = fatigue outpacing base (normal
+  in early build weeks). Race-day target: +15 to +25 ("peak form").
+- ACWR (Performance tab): tau-based EWMA 7d/42d. Sweet spot 0.8-1.3.
+  Separate from the Readiness tab's span-based ACWR 7d/28d.
+
+Training load source: Garmin EPOC (activityTrainingLoad from Firstbeat)
+when available; Banister TRIMP fallback when no watch data. Adjusted by
+sport-specific MIM (Musculoskeletal Impact Modifier) + elevation bonus
+(+10 per 1,000 ft gain). MIM examples: strength-lower 1.50x, HIIT 1.30x,
+hiking-steep 1.20x, trail-running 1.10x, running 1.00x, cycling 0.65x,
+yoga 0.30x.
+
+--- Race course (Broken Arrow 18K, Palisades Tahoe, 12pm start) ---
+
+- Mi 0-3: Climb to KT saddle. Settle in. Poles early.
+- Mi 3-5: Red Dog → Headwall Ridge → Stairway to Heaven → Washeshu Peak
+  (~9,000 ft). THE CRUX.
+- Mi 4.9: Siberia Aid Station. Refuel fully.
+- Mi 5-7.6: Descent into Shirley Canyon → Julia's AS. Quad-punishing
+  downhill.
+- Mi 7.6-11: All downhill to finish. Ring das Bell.
+
+Nutrition: 100-150 cal every 30 min from the start. 16+ oz water. Only
+consume what's been tested in training.
+
+--- Workout type philosophy (brief) ---
+
+- Strength: Heavy compound lifts + eccentrics. Focus on quality over
+  load. Full ROM. Form breaks = reduce weight.
+- Easy run (Z1-2): Conversational pace. Build aerobic base without
+  accumulating fatigue. If you can't hold a sentence, you're too hot.
+- Quality (Z3-4 intervals): Hill repeats, tempo, race-pace. The hard
+  20% of polarized. Always warm up + cool down.
+- Long run: Hilly + technical when possible. Practice race nutrition
+  (100-150 cal/30 min). Poles on all long runs from Wk 4.
+- Cross-train: Low-impact aerobic (bike/row/hike) to add volume without
+  pounding the legs. Keep HR Z1-2 unless specified.
+- Limited (post-hard or pre-travel): Easy 20-min walk or rest. The
+  recovery IS the work.
+- Rest: Full rest day. Stretching, mobility, sleep, hydration.
+- Travel: No workout; the stress is logistical. Hydrate, stretch on
+  arrival, scout local trails if possible.
+- Race: Pace by perceived effort at altitude. Hydrate and fuel early.
+  Trust the training.
 """
 
 
@@ -217,7 +375,7 @@ def build_system_prompt(
     athlete_profile: dict[str, Any] | None,
     race: dict[str, Any] | None,
 ) -> str:
-    parts: list[str] = [COACH_ROLE.strip()]
+    parts: list[str] = [COACH_ROLE.strip(), APP_KNOWLEDGE.strip()]
 
     if athlete_profile:
         parts.append(
@@ -284,11 +442,16 @@ def _fmt_seconds_as_min(s: Any) -> str:
         return "0m"
 
 
-def build_context_block(snapshot: dict[str, Any], depth: str = "7d") -> str:
+def build_context_block(
+    snapshot: dict[str, Any],
+    depth: str = "7d",
+    include_full_plan: bool = False,
+) -> str:
     """Compact, LLM-readable context block from the CoachSnapshot.
 
     Keep this compact — tokens matter. We trim activities to recent N days
-    based on `depth`.
+    based on `depth`. The next-14-day planned window is always rendered;
+    the full 10-week plan is only rendered when `include_full_plan=True`.
     """
     today = snapshot.get("today", {})
     readiness = snapshot.get("readiness")
@@ -296,6 +459,8 @@ def build_context_block(snapshot: dict[str, Any], depth: str = "7d") -> str:
     today_health = snapshot.get("todayHealth")
     planned_today = snapshot.get("plannedToday")
     planned_tomorrow = snapshot.get("plannedTomorrow")
+    planned_upcoming = snapshot.get("plannedUpcoming") or []
+    full_plan = snapshot.get("fullPlan") or None
     activities = snapshot.get("recentActivities") or []
     soreness = snapshot.get("recentSoreness") or []
     analytics = snapshot.get("analytics") or {}
@@ -381,6 +546,43 @@ def build_context_block(snapshot: dict[str, Any], depth: str = "7d") -> str:
             f"Tomorrow planned: {planned_tomorrow.get('day')} · "
             f"{planned_tomorrow.get('type')} · {planned_tomorrow.get('workout')}"
         )
+
+    # Next 14 days of planned workouts — always included so the coach
+    # can reason about swaps, recovery pacing, and what's coming without
+    # needing the athlete to describe it.
+    if planned_upcoming:
+        out.append("Planned next 14 days:")
+        for p in planned_upcoming:
+            zone = p.get("zone") or "—"
+            detail = (p.get("detail") or "").replace("\n", " ")
+            # Trim very long details to keep the window compact
+            if len(detail) > 120:
+                detail = detail[:117] + "…"
+            actual = " [DONE]" if p.get("actual") else ""
+            out.append(
+                f"  - {p.get('day', '')} · {p.get('type', '')} · "
+                f"{p.get('workout', '')} · zone {zone}{' · ' + detail if detail else ''}{actual}"
+            )
+
+    # Full 10-week plan skeleton — only when the user asked (detects
+    # keywords like "full plan", "all weeks", "week 5", etc.)
+    if include_full_plan and full_plan:
+        wk_lines = full_plan.get("weeks") or []
+        dy_lines = full_plan.get("days") or []
+        if wk_lines:
+            out.append("Full plan overview (all weeks):")
+            for w in wk_lines:
+                out.append(
+                    f"  Wk {w.get('num')} ({w.get('dates')}, {w.get('miles')}mi): "
+                    f"{w.get('focus')}"
+                )
+        if dy_lines:
+            out.append("Full plan by day:")
+            for d in dy_lines:
+                out.append(
+                    f"  {d.get('day', '')} · {d.get('type', '')} · "
+                    f"{d.get('workout', '')} · zone {d.get('zone', '—')}"
+                )
 
     if activities:
         out.append(f"Recent activities ({depth}, most recent first):")
@@ -468,6 +670,13 @@ EXPAND_RE = re.compile(
     r"\b(last month|past month|last 30|30 days|30-day|history|trend|over time|pattern|all season|this season|so far|cycle)\b",
     re.IGNORECASE,
 )
+# Triggers that request the FULL 10-week plan (not just the 14-day window)
+FULL_PLAN_RE = re.compile(
+    r"\b(full plan|entire plan|whole plan|all weeks|all 10 weeks|rest of (?:the |my )?plan|"
+    r"remaining (?:weeks|plan)|every week|race week|peak week|taper week|week \d+|"
+    r"overview of (?:the |my )?plan)\b",
+    re.IGNORECASE,
+)
 
 
 def pick_model(messages: list[dict[str, Any]]) -> str:
@@ -498,6 +707,15 @@ def detect_expand_trigger(user_msg: str) -> bool:
     if not user_msg:
         return False
     return bool(EXPAND_RE.search(user_msg))
+
+
+def detect_full_plan_trigger(user_msg: str) -> bool:
+    """Should we render the entire 10-week plan skeleton, not just the
+    default 14-day window? Triggered by explicit requests to see more
+    of the plan."""
+    if not user_msg:
+        return False
+    return bool(FULL_PLAN_RE.search(user_msg))
 
 
 # ─── Anthropic wrapper ──────────────────────────────────────────

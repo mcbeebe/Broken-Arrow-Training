@@ -61,6 +61,29 @@ function daysAgoISO(n: number): string {
   return `${y}-${m}-${dd}`
 }
 
+/** Parse "Mon 4/15" into an ISO date using the plan start year so we
+ *  can compare against today / ranges. Returns null if the label
+ *  doesn't contain an M/D pair. */
+function dayLabelToISO(label: string, planStartDate: string): string | null {
+  const m = label.match(/(\d{1,2})\/(\d{1,2})/)
+  if (!m) return null
+  const month = parseInt(m[1], 10)
+  const day = parseInt(m[2], 10)
+  const year = parseInt((planStartDate || '').slice(0, 4), 10) || new Date().getFullYear()
+  return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+}
+
+/** Compact one-line summary of a planned day for the full-plan dump. */
+function compactPlannedDay(d: PlannedDay, iso?: string): { day: string; date?: string; type: string; workout: string; zone: string } {
+  return {
+    day: d.day,
+    date: iso,
+    type: d.type,
+    workout: d.workout,
+    zone: d.zone,
+  }
+}
+
 function zonesFromActual(a: ActualWorkout): { z1: number; z2: number; z3: number; z4: number; z5: number } {
   const z = { z1: 0, z2: 0, z3: 0, z4: 0, z5: 0 }
   const sum = a.hrZoneSummary
@@ -258,10 +281,40 @@ function projectHealth(h: GarminHealthData | null | undefined): CoachHealthToday
 }
 
 export function buildCoachSnapshot(inputs: Inputs): CoachSnapshot {
-  const { weeks, plannedToday, plannedTomorrow, readiness, performance, athleteProfile, race, currentWeekNum, todayHealth } = inputs
+  const { weeks, plannedToday, plannedTomorrow, readiness, performance, athleteProfile, race, currentWeekNum, todayHealth, planStartDate } = inputs
 
   const sevenAgo = daysAgoISO(7)
   const thirtyAgo = daysAgoISO(30)
+  const today = todayISO()
+  // 2-week look-ahead window (today inclusive)
+  const ahead14 = (() => {
+    const d = new Date()
+    d.setDate(d.getDate() + 13)
+    const y = d.getFullYear()
+    const m = String(d.getMonth() + 1).padStart(2, '0')
+    const dd = String(d.getDate()).padStart(2, '0')
+    return `${y}-${m}-${dd}`
+  })()
+
+  // Planned upcoming: every planned day between today and today+13, in order.
+  const plannedUpcoming: PlannedDay[] = []
+  for (const w of weeks) {
+    for (const d of w.days) {
+      const iso = dayLabelToISO(d.day, planStartDate)
+      if (!iso) continue
+      if (iso >= today && iso <= ahead14) {
+        plannedUpcoming.push(d)
+      }
+    }
+  }
+
+  // Full plan skeleton (always emitted on the snapshot — cheap in bytes,
+  // and the brief only renders it when the user asks for it). One line
+  // per planned day + a compact per-week focus/miles header.
+  const fullPlan: NonNullable<CoachSnapshot['fullPlan']> = {
+    weeks: weeks.map(w => ({ num: w.num, dates: w.dates, miles: w.miles, focus: w.focus })),
+    days: weeks.flatMap(w => w.days.map(d => compactPlannedDay(d, dayLabelToISO(d.day, planStartDate) ?? undefined))),
+  }
 
   // Collect recent activities
   const acts: NonNullable<CoachSnapshot['recentActivities']> = []
@@ -304,6 +357,8 @@ export function buildCoachSnapshot(inputs: Inputs): CoachSnapshot {
     todayHealth: projectHealth(todayHealth),
     plannedToday: plannedToday ?? null,
     plannedTomorrow: plannedTomorrow ?? null,
+    plannedUpcoming,
+    fullPlan,
     recentActivities,
     recentSoreness,
     athleteProfile,

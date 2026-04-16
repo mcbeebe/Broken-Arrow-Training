@@ -22,6 +22,7 @@ from ._core import (
     build_system_prompt,
     call_anthropic,
     detect_expand_trigger,
+    detect_full_plan_trigger,
     detect_inferences,
     fact_already_known,
     load_memory,
@@ -163,8 +164,17 @@ class handler(BaseHTTPRequestHandler):
                 last_user_msg = str(m.get("content", ""))
                 break
         depth = "30d" if detect_expand_trigger(last_user_msg) else "7d"
-        ctx = build_context_block(snapshot, depth=depth)
-        system_full = f"{system}\n\n---\n\nCurrent context snapshot ({depth}):\n{ctx}"
+        include_full_plan = detect_full_plan_trigger(last_user_msg)
+        ctx = build_context_block(
+            snapshot,
+            depth=depth,
+            include_full_plan=include_full_plan,
+        )
+        plan_note = "full-plan" if include_full_plan else "14-day"
+        system_full = (
+            f"{system}\n\n---\n\n"
+            f"Current context snapshot ({depth}, plan window: {plan_note}):\n{ctx}"
+        )
 
         # Stream
         self.send_response(200)

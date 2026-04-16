@@ -609,6 +609,18 @@ export interface CoachSnapshot {
   todayHealth?: CoachHealthToday | null
   plannedToday?: PlannedDay | null
   plannedTomorrow?: PlannedDay | null
+  /** Planned workouts for the next ~14 days (today + 13 more), one
+   *  entry per planned day. Included by default so the coach can
+   *  reason about the short-term schedule without being asked. */
+  plannedUpcoming?: PlannedDay[]
+  /** Full plan skeleton — every day across all 10 weeks as a compact
+   *  one-line-per-day summary. Only included on demand (triggered by
+   *  keywords like "full plan", "all weeks") because it doubles token
+   *  use. */
+  fullPlan?: {
+    weeks: { num: number; dates: string; miles: number | string; focus: string }[]
+    days: { day: string; date?: string; type: string; workout: string; zone: string }[]
+  } | null
   recentActivities?: {
     startDate: string
     name: string
