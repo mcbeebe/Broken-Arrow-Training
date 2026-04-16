@@ -30,17 +30,18 @@ interface Props {
  * server-side; we refresh memory after the stream completes.
  */
 const FONT_SCALE_KEY_PREFIX = 'ba_coach_font_scale:'
-const FONT_SCALE_OPTIONS = [0.85, 1.0, 1.15, 1.3] as const
+const FONT_SCALE_OPTIONS = [0.7, 0.8, 0.9, 1.0, 1.15, 1.3] as const
 
 function readFontScale(athleteId: string): number {
   try {
     const raw = localStorage.getItem(`${FONT_SCALE_KEY_PREFIX}${athleteId}`)
     const n = raw ? parseFloat(raw) : 1.0
     if (!Number.isFinite(n)) return 1.0
-    // Snap to the closest valid option
-    return FONT_SCALE_OPTIONS.reduce((best, opt) =>
+    // Snap to the closest valid option — seed the reducer with the
+    // first option so we actually compare every candidate.
+    return FONT_SCALE_OPTIONS.reduce<number>((best, opt) =>
       Math.abs(opt - n) < Math.abs(best - n) ? opt : best
-    , 1.0)
+    , FONT_SCALE_OPTIONS[0])
   } catch {
     return 1.0
   }
