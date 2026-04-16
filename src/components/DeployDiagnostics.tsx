@@ -47,17 +47,32 @@ export default function DeployDiagnostics() {
   useEffect(() => { fetchVersion() }, [])
 
   const apiShort = api?.commit || '—'
-  const inSync = front !== 'dev' && apiShort !== '—' && apiShort !== 'unknown' && front === apiShort
+  const hasFront = front !== 'dev'
+  const hasApi = apiShort !== '—' && apiShort !== 'unknown'
+  const inSync = hasFront && hasApi && front === apiShort
   const statusColor = inSync
     ? 'text-green-700 bg-green-50 border-green-200'
     : 'text-amber-700 bg-amber-50 border-amber-200'
-  const statusText = inSync
-    ? '✅ Frontend and API are in sync'
-    : front === 'dev'
-    ? 'ℹ️ Frontend SHA not injected (dev build)'
-    : apiShort === 'unknown'
-    ? '⚠️ API SHA unavailable — Vercel env vars may be missing'
-    : '⚠️ Frontend and API are on different commits'
+
+  let statusText: string
+  let hint: string | null = null
+  if (inSync) {
+    statusText = '✅ Frontend and API are in sync'
+  } else if (!hasFront) {
+    statusText = 'ℹ️ Frontend SHA not injected (dev build)'
+  } else if (!hasApi) {
+    statusText = '⚠️ API SHA unavailable — check Vercel deploy / env vars'
+  } else {
+    // Both present but mismatched. We don't have a strict ordering
+    // of SHAs, but the most common cause is simply a stale client
+    // bundle. Recommend a hard refresh first.
+    statusText = '⚠️ Frontend and API are on different commits'
+    hint =
+      "This usually means your browser is still running a cached copy " +
+      "of the frontend. Hard-refresh (Cmd+Shift+R / Ctrl+F5, or close + " +
+      "reopen the PWA). If it persists after that, the slower side " +
+      "(usually GH Pages Actions) is still finishing its deploy."
+  }
 
   return (
     <div className="space-y-3">
@@ -65,7 +80,12 @@ export default function DeployDiagnostics() {
         Backend deploy status. Use this to confirm Vercel picked up your latest push.
       </p>
 
-      <div className={`rounded-lg px-3 py-2 text-sm border ${statusColor}`}>{statusText}</div>
+      <div className={`rounded-lg px-3 py-2 text-sm border ${statusColor}`}>
+        <p>{statusText}</p>
+        {hint && (
+          <p className="text-xs mt-1.5 opacity-80 leading-snug">{hint}</p>
+        )}
+      </div>
 
       <div className="grid grid-cols-2 gap-3 text-sm">
         <div>
