@@ -24,6 +24,16 @@ function renderMarkdown(text: string): ReactNode {
   const paragraphs = text.split(/\n{2,}/)
   return paragraphs.map((para, pi) => {
     const lines = para.split('\n')
+
+    // Detect headers: ### H3, ## H2, # H1 (single-line paragraphs only)
+    if (lines.length === 1) {
+      const h3 = lines[0].match(/^###\s+(.+)/)
+      if (h3) return <p key={pi} className="text-base font-bold text-slate-800 mt-2 mb-0.5">{renderInline(h3[1])}</p>
+      const h2 = lines[0].match(/^##\s+(.+)/)
+      if (h2) return <p key={pi} className="text-lg font-bold text-slate-800 mt-2 mb-0.5">{renderInline(h2[1])}</p>
+      const h1 = lines[0].match(/^#\s+(.+)/)
+      if (h1) return <p key={pi} className="text-xl font-bold text-slate-800 mt-2 mb-0.5">{renderInline(h1[1])}</p>
+    }
     // Detect bullet list (lines starting with -, •, *)
     const isBulletList = lines.length > 0 && lines.every(l => /^\s*[-•*]\s/.test(l) || l.trim() === '')
     if (isBulletList) {
