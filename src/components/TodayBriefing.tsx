@@ -289,24 +289,24 @@ export default function TodayBriefing({
       >
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className={`text-xs font-bold text-white px-2 py-0.5 rounded-full ${style.badge}`}>
+            <span className={`text-sm font-bold text-white px-2.5 py-0.5 rounded-full ${style.badge}`}>
               {STATUS_EMOJI[todayScore.status]} {todayScore.status}
             </span>
-            <span className={`text-lg font-bold ${style.text}`}>
+            <span className={`text-xl font-bold ${style.text}`}>
               {todayScore.displayScore}/100
             </span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-[10px] text-slate-400">
+            <span className="text-xs text-slate-500">
               {isMorning ? '☀️' : '🌙'} {isMorning ? 'Morning' : 'Evening'}
             </span>
-            <span className="text-xs text-slate-400">{expanded ? '▼' : '›'}</span>
+            <span className="text-sm text-slate-400">{expanded ? '▼' : '›'}</span>
           </div>
         </div>
 
         {/* Coach headline */}
         {rec && (
-          <p className={`text-sm font-bold ${style.text}`}>
+          <p className={`text-base font-bold ${style.text}`}>
             {actionStyle.icon} {rec.headline}
           </p>
         )}
@@ -316,17 +316,17 @@ export default function TodayBriefing({
         <div className="px-4 pb-4 space-y-3">
           {/* ── Coach Recommendation (what to do) ── */}
           {rec && (
-            <div className={`rounded-lg px-3 py-2 ${actionStyle.actionBg}`}>
-              <p className={`text-xs ${actionStyle.actionText} leading-relaxed`}>{rec.body}</p>
+            <div className={`rounded-lg px-3 py-2.5 ${actionStyle.actionBg}`}>
+              <p className={`text-sm ${actionStyle.actionText} leading-relaxed`}>{rec.body}</p>
 
               {rec.action && rec.action.type !== 'swap' && (
-                <p className={`text-xs ${actionStyle.actionText} opacity-75 italic mt-1`}>
+                <p className={`text-sm ${actionStyle.actionText} opacity-75 italic mt-1`}>
                   💡 {rec.action.detail}
                 </p>
               )}
 
               {rec.sleepTarget && (
-                <div className="flex items-center gap-2 text-xs mt-1">
+                <div className="flex items-center gap-2 text-sm mt-1">
                   <span className="text-indigo-600 font-medium">🛏 Sleep target:</span>
                   <span className={`font-bold ${actionStyle.actionText}`}>{rec.sleepTarget}</span>
                 </div>
@@ -350,12 +350,12 @@ export default function TodayBriefing({
           {/* ── Why: What's driving this ── */}
           {whyLines.length > 0 && (
             <div>
-              <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
+              <p className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
                 Why this recommendation
               </p>
-              <div className="space-y-1">
+              <div className="space-y-1.5">
                 {whyLines.map((line, i) => (
-                  <p key={i} className="text-xs text-slate-600 leading-relaxed">
+                  <p key={i} className="text-sm text-slate-600 leading-relaxed">
                     {line}
                   </p>
                 ))}
@@ -365,7 +365,7 @@ export default function TodayBriefing({
 
           {/* ── Soreness Check-In ── */}
           <div>
-            <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-2">
+            <p className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-2">
               How do your legs feel today?
             </p>
             <div className="flex gap-1.5">
@@ -378,14 +378,14 @@ export default function TodayBriefing({
                       e.stopPropagation()
                       onLogSoreness(localDateStr(), opt.level)
                     }}
-                    className={`flex-1 py-2 rounded-lg text-center transition-all ${
+                    className={`flex-1 py-2.5 rounded-lg text-center transition-all ${
                       isActive
                         ? opt.activeBg
                         : 'bg-white/60 hover:bg-white/80'
                     }`}
                   >
-                    <span className="text-lg block">{opt.emoji}</span>
-                    <span className={`text-[9px] font-medium block mt-0.5 ${isActive ? opt.color : 'text-slate-500'}`}>
+                    <span className="text-xl block">{opt.emoji}</span>
+                    <span className={`text-xs font-medium block mt-0.5 ${isActive ? opt.color : 'text-slate-500'}`}>
                       {opt.label}
                     </span>
                   </button>
@@ -393,12 +393,12 @@ export default function TodayBriefing({
               })}
             </div>
             {todaySoreness && todaySoreness >= 3 && (
-              <p className="text-[10px] text-slate-400 mt-1 italic">
+              <p className="text-xs text-slate-400 mt-1 italic">
                 Soreness logged — fatigue and load metrics adjusted upward.
               </p>
             )}
             {todaySoreness === 1 && (
-              <p className="text-[10px] text-slate-400 mt-1 italic">
+              <p className="text-xs text-slate-400 mt-1 italic">
                 Feeling fresh — DOMS adjustment reduced.
               </p>
             )}
@@ -455,14 +455,14 @@ function MetricCard({
   const { label: scoreLabel, color: scoreColor } = getScoreLabel(score)
 
   return (
-    <div className={`bg-white rounded-lg p-2 text-center ${gated ? 'ring-1 ring-red-300' : ''}`}>
-      <p className="text-[10px] text-slate-500 font-medium uppercase tracking-wide">{label}</p>
-      <p className="text-base font-bold text-slate-800 leading-tight mt-0.5">
-        {value}<span className="text-[9px] text-slate-400 font-normal ml-0.5">{unit}</span>
+    <div className={`bg-white rounded-lg p-2.5 text-center ${gated ? 'ring-1 ring-red-300' : ''}`}>
+      <p className="text-xs text-slate-500 font-semibold uppercase tracking-wide">{label}</p>
+      <p className="text-lg font-bold text-slate-800 leading-tight mt-0.5">
+        {value}<span className="text-xs text-slate-400 font-normal ml-0.5">{unit}</span>
       </p>
       {sparkline && <div className="flex justify-center mt-1">{sparkline}</div>}
-      <p className={`text-[9px] font-semibold mt-0.5 ${scoreColor}`}>{scoreLabel}</p>
-      {gated && <p className="text-[8px] text-red-500 font-medium">⚠️ Low</p>}
+      <p className={`text-xs font-semibold mt-0.5 ${scoreColor}`}>{scoreLabel}</p>
+      {gated && <p className="text-xs text-red-500 font-medium">⚠️ Low</p>}
     </div>
   )
 }
