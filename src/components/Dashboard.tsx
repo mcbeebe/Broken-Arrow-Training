@@ -501,11 +501,12 @@ function PerformanceGlossary() {
                 <tr className="bg-slate-50"><td className="px-2 py-1">Mountain Biking</td><td className="text-right px-2 py-1 font-mono">0.80×</td><td className="px-2 py-1 text-slate-500">Non-weight-bearing but technical</td></tr>
                 <tr className="bg-white"><td className="px-2 py-1">Elliptical</td><td className="text-right px-2 py-1 font-mono">0.70×</td><td className="px-2 py-1 text-slate-500">Low impact cross-training</td></tr>
                 <tr className="bg-slate-50"><td className="px-2 py-1">Cycling</td><td className="text-right px-2 py-1 font-mono">0.65×</td><td className="px-2 py-1 text-slate-500">Non-weight-bearing, less impact</td></tr>
+                <tr className="bg-white"><td className="px-2 py-1">E-Bike</td><td className="text-right px-2 py-1 font-mono">0.30×</td><td className="px-2 py-1 text-slate-500">Pedal-assist reduces muscular + cardio demand</td></tr>
                 <tr className="bg-white"><td className="px-2 py-1">Walking</td><td className="text-right px-2 py-1 font-mono">0.40×</td><td className="px-2 py-1 text-slate-500">Recovery-level effort</td></tr>
                 <tr className="bg-slate-50"><td className="px-2 py-1">Swimming</td><td className="text-right px-2 py-1 font-mono">0.35×</td><td className="px-2 py-1 text-slate-500">Non-weight-bearing, cooling effect</td></tr>
                 <tr className="bg-white"><td className="px-2 py-1">Yoga / Pilates</td><td className="text-right px-2 py-1 font-mono">0.30×</td><td className="px-2 py-1 text-slate-500">Flexibility/mobility, minimal stress</td></tr>
                 <tr className="bg-slate-50"><td className="px-2 py-1">Strength (Upper)</td><td className="text-right px-2 py-1 font-mono">0.20×</td><td className="px-2 py-1 text-slate-500">Low running-muscle impact, low cardio</td></tr>
-                <tr className="bg-white"><td className="px-2 py-1">Breathwork / Drills</td><td className="text-right px-2 py-1 font-mono">0.00×</td><td className="px-2 py-1 text-slate-500">No load — tracked for compliance only</td></tr>
+                <tr className="bg-white"><td className="px-2 py-1">Running Drills / Myrtl / Breathwork</td><td className="text-right px-2 py-1 font-mono">0.00×</td><td className="px-2 py-1 text-slate-500">Neuromuscular work — tracked for compliance, not load</td></tr>
               </tbody>
             </table>
           </div>

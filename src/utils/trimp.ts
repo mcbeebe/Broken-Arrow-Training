@@ -37,6 +37,11 @@ const MIM_MATRIX: Record<SportType, number> = {
   trail_running: 1.1,
   // Cycling
   cycling: 0.65,
+  // E-bike: pedal-assist reduces both cardiovascular and muscular
+  // demand significantly. Treat as ~half of regular cycling load.
+  // In practice, Garmin EPOC will already reflect the lower HR; this
+  // MIM further discounts the musculoskeletal impact.
+  ebike: 0.30,
   mountain_biking: 0.8,
   // Hiking
   hiking: 0.8,
@@ -110,6 +115,8 @@ const TYPE_MAP: Record<string, SportType> = {
   trail_run: 'trail_running',
   ride: 'cycling',
   virtualride: 'cycling',
+  ebikeride: 'ebike',
+  emountainbikeride: 'ebike',
   mountainbikeride: 'mountain_biking',
   swim: 'swimming',
   hike: 'hiking',        // resolved to hiking/hiking_steep by elevation
@@ -125,6 +132,12 @@ const TYPE_MAP: Record<string, SportType> = {
   trail_running: 'trail_running',
   cycling: 'cycling',
   indoor_cycling: 'cycling',
+  // Garmin e-bike activity types (varies by device firmware)
+  e_bike_fitness: 'ebike',
+  e_bike_mountain: 'ebike',
+  electric_bike: 'ebike',
+  electric_bike_ride: 'ebike',
+  ebike: 'ebike',
   mountain_biking: 'mountain_biking',
   hiking: 'hiking',
   walking: 'walking',
@@ -217,6 +230,25 @@ export function mapToSportType(
   maxHR?: number,
 ): SportType {
   const normalized = rawType.toLowerCase().replace(/\s+/g, '_')
+  const name = (activity?.name || '').toLowerCase()
+
+  // ── Name-based overrides (highest priority) ──
+  // These let the athlete record on Garmin with any activity type
+  // (walking, cardio, other, etc.) and get classified correctly by
+  // the activity title.
+  if (/\b(drill|drills|a[- ]?skip|b[- ]?skip|strides|stride)\b/.test(name)) {
+    return 'running_drills'
+  }
+  if (/\b(myrtl|myrtle)\b/.test(name)) {
+    return 'myrtl'
+  }
+  if (/\b(e[- ]?bike|ebike|pedal[- ]?assist|electric[- ]?bike)\b/.test(name)) {
+    return 'ebike'
+  }
+  if (/\b(breathwork|breath work|wim[- ]?hof)\b/.test(name)) {
+    return 'breathwork'
+  }
+
   const baseSport = TYPE_MAP[normalized] ?? TYPE_MAP[normalized.replace(/_/g, '')] ?? 'other'
 
   // Sub-classify strength

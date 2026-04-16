@@ -11,6 +11,7 @@ const SPORT_COLORS: Record<string, string> = {
   running: '#059669',
   trail_running: '#10B981',
   cycling: '#3B82F6',
+  ebike: '#93C5FD',
   mountain_biking: '#2563EB',
   hiking: '#D97706',
   hiking_steep: '#B45309',

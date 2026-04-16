@@ -401,6 +401,7 @@ export type SportType =
   | "running"
   | "trail_running"
   | "cycling"
+  | "ebike"
   | "mountain_biking"
   | "hiking"
   | "hiking_steep"

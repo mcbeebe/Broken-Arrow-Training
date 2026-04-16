@@ -335,9 +335,21 @@ RED. Max 2 consecutive GREEN/PEAK before forced YELLOW. Max 1 PEAK/7d.
 Training load source: Garmin EPOC (activityTrainingLoad from Firstbeat)
 when available; Banister TRIMP fallback when no watch data. Adjusted by
 sport-specific MIM (Musculoskeletal Impact Modifier) + elevation bonus
-(+10 per 1,000 ft gain). MIM examples: strength-lower 1.50x, HIIT 1.30x,
-hiking-steep 1.20x, trail-running 1.10x, running 1.00x, cycling 0.65x,
-yoga 0.30x.
+(+10 per 1,000 ft gain). MIM examples: strength-lower 2.00x (eccentric
++ DOMS), HIIT 1.30x, hiking-steep 1.20x, trail-running 1.10x, running
+1.00x, cycling 0.65x, ebike 0.30x, yoga 0.30x, running_drills 0.00x
+(form work only).
+
+Drills & e-bike notes:
+- Running drills (A-skips, strides, Myrtl) add zero training load by
+  design — they're for form and neuromuscular activation, not stress.
+  Tracked via the drill checkboxes on run days for compliance. If the
+  athlete records drills on Garmin with "drill" in the activity name,
+  the app auto-classifies it as running_drills (0 load).
+- E-bike is treated at MIM 0.30x, roughly half of regular cycling.
+  Pedal-assist reduces both the cardiovascular demand (Garmin EPOC
+  will naturally be lower) and the musculoskeletal cost. Great for
+  active recovery rides without compromising the taper.
 
 --- Race course (Broken Arrow 18K, Palisades Tahoe, 12pm start) ---
 
