@@ -22,7 +22,7 @@ import WeeklyPlan from './components/WeeklyPlan'
 import Summary from './components/Summary'
 import Dashboard from './components/Dashboard'
 import RaceInfo from './components/RaceInfo'
-import Methodology from './components/Methodology'
+// Methodology is now a subsection within Settings
 import Settings from './components/Settings'
 import CoachTab from './components/CoachTab'
 import CoachPingToast from './components/CoachPingToast'
@@ -75,7 +75,6 @@ export default function App() {
       // the onMarkRead() effect will clear unread flags anyway.
       base.push({ id: 'coach', label: 'Coach', badge: view === 'coach' ? 0 : coachMemory.unreadCount })
     }
-    base.push({ id: 'method', label: 'Method' })
     base.push({ id: 'settings', label: 'Settings' })
     return base
   }, [coachEnabled, coachMemory.unreadCount, view])
@@ -425,7 +424,7 @@ export default function App() {
           onInteraction={(k, m) => coachTelemetry.logInteraction(k as Parameters<typeof coachTelemetry.logInteraction>[0], m)}
         />
       )}
-      {view === 'method' && <Methodology />}
+      {/* Methodology moved into Settings as a collapsible subsection */}
       {view === 'info' && <RaceInfo race={plan.race} />}
       {view === 'settings' && showStrava && (
         <Settings
