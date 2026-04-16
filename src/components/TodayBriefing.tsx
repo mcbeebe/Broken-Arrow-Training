@@ -353,13 +353,13 @@ export default function TodayBriefing({
               <p className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
                 Why this recommendation
               </p>
-              <div className="space-y-1.5">
+              <ul className="list-disc list-outside ml-5 space-y-1">
                 {whyLines.map((line, i) => (
-                  <p key={i} className="text-sm text-slate-600 leading-relaxed">
+                  <li key={i} className="text-sm text-slate-700 leading-relaxed">
                     {line}
-                  </p>
+                  </li>
                 ))}
-              </div>
+              </ul>
             </div>
           )}
 

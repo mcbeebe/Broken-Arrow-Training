@@ -1,5 +1,6 @@
 import type { CoachWorkoutTake } from '../utils/coachNotes'
 import type { CoachInsight } from '../types'
+import { renderMarkdown } from '../utils/markdown'
 
 interface Props {
   /** Heuristic fallback (used if no insight). */
@@ -44,11 +45,11 @@ export default function CoachWorkoutTakeView({ take, insight, loading, onAsk }: 
           </button>
         )}
       </div>
-      <p className="text-base text-slate-700 leading-relaxed whitespace-pre-wrap">{text}</p>
+      <div className="text-base text-slate-700 leading-relaxed">{renderMarkdown(text)}</div>
       {tip && (
-        <p className="mt-2 text-sm text-indigo-700/90 leading-relaxed">
-          <span className="font-semibold">Tip:</span> {tip}
-        </p>
+        <div className="mt-2 text-sm text-indigo-700/90 leading-relaxed">
+          <span className="font-semibold">Tip:</span> {renderMarkdown(tip)}
+        </div>
       )}
     </div>
   )

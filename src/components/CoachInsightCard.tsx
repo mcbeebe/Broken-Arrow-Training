@@ -1,4 +1,5 @@
 import type { CoachInsight } from '../types'
+import { renderMarkdown } from '../utils/markdown'
 
 interface Props {
   insight: CoachInsight | null
@@ -26,29 +27,29 @@ export default function CoachInsightCard({ insight, loading, onAsk }: Props) {
 
   return (
     <div className="bg-indigo-50/70 border border-indigo-100 rounded-xl px-3 py-3">
-      <div className="flex items-center justify-between mb-1.5">
+      <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-1.5">
-          <span className="text-base">🤖</span>
-          <p className="text-[10px] font-bold uppercase tracking-wider text-indigo-700">
+          <span className="text-xl">🤖</span>
+          <p className="text-sm font-bold uppercase tracking-wider text-indigo-700">
             Coach
           </p>
         </div>
         {onAsk && (
           <button
             onClick={() => onAsk(insight.text)}
-            className="text-[11px] font-medium text-indigo-700 hover:text-indigo-900 transition-colors"
+            className="text-sm font-medium text-indigo-700 hover:text-indigo-900 transition-colors"
           >
             Ask about this →
           </button>
         )}
       </div>
-      <p className="text-sm text-slate-800 leading-snug whitespace-pre-wrap">
-        {insight.text}
-      </p>
+      <div className="text-base text-slate-800 leading-relaxed">
+        {renderMarkdown(insight.text)}
+      </div>
       {insight.tip && (
-        <p className="mt-1.5 text-xs text-indigo-700/90 leading-snug">
-          <span className="font-semibold">Tip:</span> {insight.tip}
-        </p>
+        <div className="mt-2 text-sm text-indigo-700/90 leading-relaxed">
+          <span className="font-semibold">Tip:</span> {renderMarkdown(insight.tip)}
+        </div>
       )}
     </div>
   )
