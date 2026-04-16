@@ -89,6 +89,10 @@ export function useCoachInsight(opts: UseCoachInsightOptions) {
   const [error, setError] = useState<string | null>(null)
   const abortRef = useRef<AbortController | null>(null)
   const [regenToken, setRegenToken] = useState(0)
+  // When >0, the next fetch posts force=true so the SERVER cache is
+  // bypassed too. Decrements to 0 after one fire so subsequent
+  // automatic refreshes (snapshot/persona changes) still use cache.
+  const [forceCount, setForceCount] = useState(0)
 
   const regenerate = useCallback(() => {
     if (!snapshot) return
@@ -101,6 +105,11 @@ export function useCoachInsight(opts: UseCoachInsightOptions) {
     } catch {
       /* ignore */
     }
+    // Bump regenToken to re-fire the effect, AND set forceCount so the
+    // next request body includes force=true and the API skips its KV
+    // cache lookup. Without this, server-side cache would return the
+    // exact same response and the user wouldn't see any change.
+    setForceCount(c => c + 1)
     setRegenToken(x => x + 1)
   }, [athleteId, surface, snapshot])
 
@@ -123,19 +132,25 @@ export function useCoachInsight(opts: UseCoachInsightOptions) {
     const fields = materialFields(surface, snapshot)
     const contextHash = hashFields(fields)
     const cacheKey = lsKey(athleteId, surface, contextHash)
+    // forceCount > 0 means the user just hit Regenerate. Skip BOTH the
+    // localStorage cache and the server's KV cache so the LLM is
+    // actually re-invoked.
+    const forcing = forceCount > 0
 
-    // Try localStorage cache first
-    try {
-      const raw = localStorage.getItem(cacheKey)
-      if (raw) {
-        const parsed: CoachInsight = JSON.parse(raw)
-        if (Date.now() - (parsed.generatedAt ?? 0) < MAX_AGE_MS) {
-          setInsight(parsed)
-          return
+    // Try localStorage cache first (skipped on force)
+    if (!forcing) {
+      try {
+        const raw = localStorage.getItem(cacheKey)
+        if (raw) {
+          const parsed: CoachInsight = JSON.parse(raw)
+          if (Date.now() - (parsed.generatedAt ?? 0) < MAX_AGE_MS) {
+            setInsight(parsed)
+            return
+          }
         }
+      } catch {
+        // ignore
       }
-    } catch {
-      // ignore
     }
 
     // Fetch
@@ -154,6 +169,7 @@ export function useCoachInsight(opts: UseCoachInsightOptions) {
             surface,
             contextHash,
             snapshot,
+            ...(forcing ? { force: true } : {}),
           }),
           signal: ac.signal,
         })
@@ -165,6 +181,9 @@ export function useCoachInsight(opts: UseCoachInsightOptions) {
         } catch {
           /* ignore quota */
         }
+        // Consume the force flag — subsequent automatic refreshes
+        // (snapshot/persona changes) should resume using cache.
+        if (forcing) setForceCount(0)
       } catch (e) {
         if ((e as Error).name === 'AbortError') return
         setError((e as Error).message)
@@ -184,8 +203,9 @@ export function useCoachInsight(opts: UseCoachInsightOptions) {
     return () => {
       ac.abort()
     }
-    // regenToken is included so tapping "Regenerate" re-fires the effect
-  }, [athleteId, surface, snapshot, enabled, fallbackText, fallbackTip, regenToken])
+    // regenToken is included so tapping "Regenerate" re-fires the effect.
+    // forceCount affects request body, so it's also a dep.
+  }, [athleteId, surface, snapshot, enabled, fallbackText, fallbackTip, regenToken, forceCount])
 
   return { insight, loading, error, regenerate }
 }

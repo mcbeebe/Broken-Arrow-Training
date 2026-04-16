@@ -84,17 +84,23 @@ class handler(BaseHTTPRequestHandler):
         surface = str(body.get("surface", "")).strip()
         context_hash = str(body.get("contextHash", "")).strip()
         snapshot = body.get("snapshot") or {}
+        # Force=true bypasses BOTH client and server cache. The Regenerate
+        # button on CoachInsightCard sets this so re-generating with the
+        # same context (same persona, same readiness) actually produces a
+        # fresh LLM call instead of replaying the KV-cached version.
+        force = bool(body.get("force"))
 
         if not athlete_id or not surface or not context_hash:
             send_json(self, 400, {"error": "athleteId, surface, contextHash required"})
             return
 
         cache_key = insight_key(athlete_id, surface, context_hash)
-        cached = kv_get_json(cache_key)
-        if cached and isinstance(cached, dict):
-            cached["cached"] = True
-            send_json(self, 200, cached)
-            return
+        if not force:
+            cached = kv_get_json(cache_key)
+            if cached and isinstance(cached, dict):
+                cached["cached"] = True
+                send_json(self, 200, cached)
+                return
 
         # Build prompt
         surface_root = _surface_key(surface)
