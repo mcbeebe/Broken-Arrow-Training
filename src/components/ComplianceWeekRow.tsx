@@ -66,21 +66,21 @@ export default function ComplianceWeekRow({ week, weekLabel, weekFocus, planZone
         {/* Distance row */}
         <MetricRow label="Dist" days={days} render={d => (
           isRestPlan(d.workoutType)
-            ? <RestCell workoutType={d.workoutType} />
+            ? <RestCell workoutType={d.workoutType} isPast={isPastDate(d.date)} />
             : <RatioBar pct={d.distancePct} grade={d.distanceGrade} />
         )} />
 
         {/* Duration row */}
         <MetricRow label="Dur" days={days} render={d => (
           isRestPlan(d.workoutType)
-            ? <RestCell workoutType={d.workoutType} />
+            ? <RestCell workoutType={d.workoutType} isPast={isPastDate(d.date)} />
             : <RatioBar pct={d.durationPct} grade={d.durationGrade} />
         )} />
 
         {/* HR row — stacked zone bar w/ target band */}
         <MetricRow label="HR" days={days} render={d => (
           isRestPlan(d.workoutType)
-            ? <RestCell workoutType={d.workoutType} />
+            ? <RestCell workoutType={d.workoutType} isPast={isPastDate(d.date)} />
             : <ZoneBar
                 summary={d.hrZoneSummary}
                 grade={d.hrGrade}
@@ -298,20 +298,44 @@ function isRestPlan(type: string): boolean {
   return type === 'rest' || type === 'travel'
 }
 
+/** Local YYYY-MM-DD for today. */
+function todayISO(): string {
+  const d = new Date()
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${dd}`
+}
+
+function isPastDate(iso?: string): boolean {
+  if (!iso) return false
+  return iso < todayISO()
+}
+
 /**
- * Rest-day cell — subtle emerald tint with a tiny ✓ so on-plan rest
- * days are visually distinct from skipped-workout days. Used across
- * the Dist/Dur/HR rows for days where the plan was rest.
+ * Rest-day cell.
+ *   • Past rest day → emerald tint + ✓ ("rested as planned")
+ *   • Today/future rest day → muted emerald tint, no ✓ (just "scheduled rest")
+ * Distinct from skipped (dark grey) and no-target (light grey).
  */
-function RestCell({ workoutType }: { workoutType: string }) {
+function RestCell({ workoutType, isPast }: { workoutType: string; isPast: boolean }) {
   const label = workoutType === 'travel' ? 'Travel' : 'Rest'
+  if (isPast) {
+    return (
+      <div
+        className="h-full rounded-sm bg-emerald-100/70 flex items-center justify-center"
+        title={`${label} — on plan`}
+      >
+        <span className="text-[7px] text-emerald-700 font-semibold leading-none">✓</span>
+      </div>
+    )
+  }
+  // Future / today — scheduled but not yet done. No ✓.
   return (
     <div
-      className="h-full rounded-sm bg-emerald-100/70 flex items-center justify-center"
-      title={`${label} — on plan`}
-    >
-      <span className="text-[7px] text-emerald-700 font-semibold leading-none">✓</span>
-    </div>
+      className="h-full rounded-sm bg-emerald-50 border border-emerald-100"
+      title={`${label} — scheduled`}
+    />
   )
 }
 
