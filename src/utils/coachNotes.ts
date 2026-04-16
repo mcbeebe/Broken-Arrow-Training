@@ -104,7 +104,96 @@ export function generateDayCardNote(
   return null
 }
 
-// ─── WorkoutModal coach take ──────────────────────────────────
+// ─── Completed-workout reflection ─────────────────────────────
+
+import { parseZoneRange } from './zones'
+
+/**
+ * Build a day-specific take for a workout that's already been logged.
+ * Focuses on what happened — distance, time, HR, effort — not today's
+ * readiness or what the athlete should do next.
+ */
+function buildCompletedTake(day: PlannedDay, _weekNum: number): CoachWorkoutTake {
+  const a = day.actual!
+  const { type } = day
+  const parts: string[] = []
+  const tips: string[] = []
+
+  // Distance vs planned
+  const plannedMiMatch = day.zone.match(/([\d.]+)\s*mi/)
+  const plannedMi = plannedMiMatch ? parseFloat(plannedMiMatch[1]) : null
+  if (a.distance > 0 && plannedMi) {
+    const ratio = a.distance / plannedMi
+    if (ratio >= 0.95 && ratio <= 1.1) {
+      parts.push(`Distance nailed — ${a.distance.toFixed(1)} mi on a ${plannedMi} mi target.`)
+    } else if (ratio > 1.1) {
+      parts.push(`Went long: ${a.distance.toFixed(1)} mi vs ${plannedMi} planned. Fine if legs felt good, watch accumulated fatigue.`)
+    } else if (ratio >= 0.7) {
+      parts.push(`Came in at ${a.distance.toFixed(1)} mi vs ${plannedMi} planned — a bit short but still counted.`)
+    } else {
+      parts.push(`Only ${a.distance.toFixed(1)} mi of the ${plannedMi} planned — something cut it short.`)
+    }
+  } else if (a.distance > 0) {
+    parts.push(`Logged ${a.distance.toFixed(1)} mi.`)
+  }
+
+  // Duration
+  if (a.movingTime > 0) {
+    const min = Math.round(a.movingTime / 60)
+    parts.push(`${min} min moving time.`)
+  }
+
+  // HR vs plan zone
+  if (a.avgHR && a.avgHR > 0) {
+    const range = parseZoneRange(day.zone)
+    if (range) {
+      if (a.avgHR >= range.low && a.avgHR <= range.high) {
+        parts.push(`Avg HR ${a.avgHR} was right in the ${range.low}–${range.high} target zone.`)
+      } else if (a.avgHR > range.high) {
+        const over = a.avgHR - range.high
+        parts.push(`Avg HR ${a.avgHR} ran ${over} bpm above the ${range.low}–${range.high} target — pushed harder than planned.`)
+        tips.push('If this was intentional, log it. If not, check pacing next time.')
+      } else {
+        parts.push(`Avg HR ${a.avgHR} was below the ${range.low}–${range.high} target — conservative effort.`)
+      }
+    } else {
+      parts.push(`Avg HR ${a.avgHR}.`)
+    }
+  }
+
+  // Elevation
+  if (a.elevationGain > 200) {
+    parts.push(`${a.elevationGain} ft of climbing — solid vert work.`)
+  }
+
+  // RPE
+  if (a.rpe) {
+    if (a.rpe >= 8) parts.push(`RPE ${a.rpe}/10 — that was a hard effort.`)
+    else if (a.rpe <= 3) parts.push(`RPE ${a.rpe}/10 — truly easy.`)
+  }
+
+  // Strength-specific
+  if (type === 'strength' && a.strengthLog?.length) {
+    parts.push(`${a.strengthLog.length} exercises logged.`)
+    tips.push('Track load progression week-over-week — that\'s what drives adaptation.')
+  }
+
+  // Drills
+  if (a.drills?.completed) {
+    tips.push('Drills done — good investment in form.')
+  }
+
+  if (parts.length === 0) {
+    parts.push(`${a.name || day.workout} — done.`)
+  }
+
+  return {
+    text: parts.join(' '),
+    tip: tips.length > 0 ? tips[0] : 'Review the chart below to see where effort drifted.',
+  }
+}
+
+// ─── WorkoutModal coach take (upcoming/today) ─────────────────
 
 /**
  * Generate a short "Coach" paragraph shown at the top of the workout
@@ -121,14 +210,9 @@ export function generateWorkoutTake(
   const drillDay = getDrillDay(weekNum) === day.day
   const hasActual = !!day.actual
 
-  // Already logged — reflect on execution
+  // Already logged — reflect on execution, not today's readiness
   if (hasActual) {
-    const a = day.actual!
-    const hrCallout = a.avgHR && a.avgHR > 0 ? ` Avg HR landed at ${a.avgHR}.` : ''
-    return {
-      text: `This is already in the books — ${a.name || 'logged'}.${hrCallout} Review the chart below and note anything you'd flag for next time.`,
-      tip: 'Tap the stream chart to see where HR drifted vs target.',
-    }
+    return buildCompletedTake(day, weekNum)
   }
 
   // Readiness context frames everything

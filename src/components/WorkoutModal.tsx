@@ -613,19 +613,26 @@ function CoachWorkoutTakeForDay({
   onAsk?: (seed: string) => void
 }) {
   const fallback = generateWorkoutTake(day, weekNum, readiness, latestPerf ?? null)
+
+  // For completed (past) workouts, skip the LLM insight entirely.
+  // The LLM only sees today's snapshot and will talk about today's
+  // readiness / today's plan — not the historical workout being
+  // reviewed. The heuristic fallback IS day-specific and gives a
+  // focused "here's how it went" read.
+  const isCompleted = !!day.actual
   const { insight, loading } = useCoachInsight({
     athleteId: athleteId || '',
     surface: `workout_take:${day.day}`,
     snapshot: coachSnapshot ?? null,
-    enabled: !!athleteId && !!coachSnapshot,
+    enabled: !isCompleted && !!athleteId && !!coachSnapshot,
     fallbackText: fallback.text,
     fallbackTip: fallback.tip,
   })
   return (
     <CoachWorkoutTakeView
       take={fallback}
-      insight={insight}
-      loading={loading}
+      insight={isCompleted ? null : insight}
+      loading={isCompleted ? false : loading}
       onAsk={onAsk}
     />
   )
