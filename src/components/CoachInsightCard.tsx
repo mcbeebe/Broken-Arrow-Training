@@ -71,50 +71,63 @@ export default function CoachInsightCard({ insight, loading, onAsk, coachName, o
 
   return (
     <div className="bg-indigo-50/70 border border-indigo-100 rounded-xl px-3 py-3">
-      <div className="flex items-center justify-between mb-2 gap-2">
-        <div className="flex items-center gap-2 min-w-0">
+      {/* Top row: avatar + name (no truncation) + collapse toggle */}
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex items-center gap-2 flex-1 min-w-0">
           <span className="text-xl leading-none shrink-0" role="img" aria-label="coach">🧢</span>
-          <p className="text-sm font-bold uppercase tracking-wider text-indigo-700 truncate">
+          <p className="text-sm font-bold uppercase tracking-wider text-indigo-700 break-words">
             {name}
           </p>
         </div>
-        <div className="flex items-center gap-3 shrink-0">
-          {!collapsed && onRegenerate && (
+        <button
+          onClick={toggleCollapsed}
+          className="w-7 h-7 flex items-center justify-center rounded-full text-indigo-600 hover:bg-indigo-100 transition-colors shrink-0"
+          title={collapsed ? 'Expand' : 'Collapse'}
+        >
+          {collapsed ? '▾' : '▴'}
+        </button>
+      </div>
+
+      {/* Second row: action buttons. Only shown when expanded. */}
+      {!collapsed && (onRegenerate || onAsk) && (
+        <div className="flex items-center gap-4 mt-1 mb-2 text-sm">
+          {onRegenerate && (
             <button
               onClick={onRegenerate}
-              className="text-sm text-indigo-600 hover:text-indigo-800 transition-colors"
+              disabled={loading}
+              className="text-indigo-600 hover:text-indigo-800 disabled:opacity-60 transition-colors flex items-center gap-1"
               title="Regenerate with current persona and context"
             >
-              ↻ Regenerate
+              {loading ? (
+                <>
+                  <span className="inline-block w-3 h-3 rounded-full border-2 border-indigo-400 border-t-transparent animate-spin" />
+                  <span>Generating…</span>
+                </>
+              ) : (
+                <>↻ Regenerate</>
+              )}
             </button>
           )}
-          {!collapsed && onAsk && (
+          {onAsk && (
             <button
               onClick={() => onAsk(insight.text)}
-              className="text-sm font-medium text-indigo-700 hover:text-indigo-900 transition-colors"
+              className="font-medium text-indigo-700 hover:text-indigo-900 transition-colors ml-auto"
             >
               Ask about this →
             </button>
           )}
-          <button
-            onClick={toggleCollapsed}
-            className="w-7 h-7 flex items-center justify-center rounded-full text-indigo-600 hover:bg-indigo-100 transition-colors"
-            title={collapsed ? 'Expand' : 'Collapse'}
-          >
-            {collapsed ? '▾' : '▴'}
-          </button>
         </div>
-      </div>
+      )}
 
       {collapsed ? (
         <button
           onClick={toggleCollapsed}
-          className="w-full text-left text-sm text-slate-600 italic leading-snug line-clamp-2 hover:text-slate-800 transition-colors"
+          className="w-full text-left text-sm text-slate-600 italic leading-snug line-clamp-2 hover:text-slate-800 transition-colors mt-2"
         >
           {preview}
         </button>
       ) : (
-        <>
+        <div className={loading ? 'opacity-60 transition-opacity' : 'transition-opacity'}>
           <div className="text-base text-slate-800 leading-relaxed">
             {renderMarkdown(insight.text)}
           </div>
@@ -123,7 +136,7 @@ export default function CoachInsightCard({ insight, loading, onAsk, coachName, o
               <span className="font-semibold">Tip:</span> {renderMarkdown(insight.tip)}
             </div>
           )}
-        </>
+        </div>
       )}
     </div>
   )
