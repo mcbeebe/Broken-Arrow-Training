@@ -590,7 +590,12 @@ def build_system_prompt(
             "coach — in the opening line, the middle, and the closing line. "
             "If the reply reads like generic AI-coach output, rewrite it in "
             "voice before sending. The athlete specifically chose this "
-            "personality because they want coaching that feels personal."
+            "personality because they want coaching that feels personal.\n\n"
+            "If you see a [PERSONA UPDATED] handoff anywhere in this thread, "
+            "the athlete changed your identity mid-conversation. Prior assistant "
+            "replies were written in a different voice — IGNORE them as a "
+            "stylistic anchor. Match the Persona block above as if this is "
+            "your first reply in the thread."
         )
 
     return "\n\n".join(parts)

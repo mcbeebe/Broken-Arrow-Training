@@ -142,7 +142,12 @@ export default function CoachChat({ athleteId, memory, snapshot, seed, onSeedCon
     }
   }
 
-  const turns = memory.conversation.filter(t => t.role !== 'system-handoff')
+  // Show all turns. system-handoff turns mostly stay hidden, but the
+  // PERSONA UPDATED markers render as a visible inline divider so the
+  // athlete sees the persona change took effect.
+  const turns = memory.conversation.filter(
+    t => t.role !== 'system-handoff' || t.content.startsWith('[PERSONA UPDATED]')
+  )
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   // One-line snapshot chip above the composer. Derives from the same
@@ -280,6 +285,23 @@ function buildContextChip(snapshot: CoachSnapshot | null): string | null {
 
 function ChatTurn({ turn, onCopy, coachName = 'Coach' }: { turn: ConversationTurn; onCopy: (text: string) => void; coachName?: string }) {
   const [showActions, setShowActions] = useState(false)
+
+  // PERSONA UPDATED handoff → render as a small inline divider so the
+  // athlete sees their persona edit landed in the thread.
+  if (turn.role === 'system-handoff' && turn.content.startsWith('[PERSONA UPDATED]')) {
+    // Extract "New name: X. New traits: Y." for a compact label.
+    const nameMatch = turn.content.match(/New name:\s*([^.]+?)\.\s*New traits:\s*([^.]+?)\./)
+    const summary = nameMatch
+      ? `${nameMatch[1].trim()} — ${nameMatch[2].trim()}`
+      : 'Coach updated'
+    return (
+      <div className="flex items-center gap-2 my-2">
+        <div className="flex-1 h-px bg-slate-200" />
+        <span className="text-xs text-slate-500 italic px-2">🧢 {summary}</span>
+        <div className="flex-1 h-px bg-slate-200" />
+      </div>
+    )
+  }
 
   const copyBtn = showActions && (
     <button

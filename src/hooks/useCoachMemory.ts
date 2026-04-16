@@ -202,9 +202,25 @@ export function useCoachMemory(athleteId: string, enabled: boolean = true) {
       })
       if (apiAvailable) {
         await mutate('save_coach_persona', { persona })
+        // If there's an active conversation, inject a system-handoff
+        // marker so the LLM adapts mid-thread. Without this, prior
+        // replies in the old voice anchor the model and the new
+        // persona takes several turns (or a clear) to show up.
+        const visibleTurns = memory.conversation.filter(t => t.role !== 'system-handoff')
+        if (visibleTurns.length > 0) {
+          const name = persona.name?.trim() || 'Coach'
+          const traits = (persona.traits || []).join(', ') || 'none set'
+          const note =
+            `[PERSONA UPDATED] The athlete just changed the coach's identity in Settings. ` +
+            `New name: ${name}. New traits: ${traits}. ` +
+            `From this turn forward, match this new persona fully. DO NOT mirror the voice ` +
+            `of prior replies in this thread — they were written under a different persona ` +
+            `and should not anchor your tone.`
+          await mutate('append_turn', { role: 'system-handoff', content: note })
+        }
       }
     },
-    [athleteId, apiAvailable, mutate],
+    [athleteId, apiAvailable, mutate, memory.conversation],
   )
 
   const unreadCount = useMemo(
