@@ -68,10 +68,14 @@ const MIM_MATRIX: Record<SportType, number> = {
   // Recovery / mobility
   yoga: 0.3,
   pilates: 0.3,
-  // Excluded from load (tracked for compliance only)
+  // Mobility/breathing — no meaningful load
   breathwork: 0.0,
   myrtl: 0.0,
-  running_drills: 0.0,
+  // Running drills (A-skips, B-skips, strides, bounding) — plyometric
+  // impact + HR stays in Z2-3 during work reps. Half of running to
+  // credit both the cardio and impact/eccentric landing cost without
+  // over-counting the short duration.
+  running_drills: 0.5,
   // Catch-all
   other: 0.6,
 }
@@ -97,6 +101,7 @@ export const DOMS_CARRY: Partial<Record<SportType, number[]>> = {
   strength_full:  [0.25, 0.10],  // +25% day+1, +10% day+2
   hiking_steep:   [0.15, 0.05],  // eccentric from steep descents
   trail_running:  [0.10],        // mild DOMS from terrain variation
+  running_drills: [0.10],        // mild calf/Achilles tightness from bounding + strides
 }
 
 const DEFAULT_MIM = 0.6
@@ -362,7 +367,7 @@ export function garminActivityToTRIMP(
   maxHR: number,
   exerciseNames?: string[],
 ): TRIMPRecord | null {
-  // Activities with zero MIM (breathwork, myrtl, drills) are excluded from load
+  // Activities with zero MIM (myrtl, breathwork — pure mobility) are excluded
   const sportType = mapToSportType(
     activity.type,
     { name: activity.name, avgHR: activity.avgHR, elevationGainFt: activity.elevationGainFt, exerciseNames },

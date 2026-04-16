@@ -337,15 +337,16 @@ when available; Banister TRIMP fallback when no watch data. Adjusted by
 sport-specific MIM (Musculoskeletal Impact Modifier) + elevation bonus
 (+10 per 1,000 ft gain). MIM examples: strength-lower 2.00x (eccentric
 + DOMS), HIIT 1.30x, hiking-steep 1.20x, trail-running 1.10x, running
-1.00x, cycling 0.65x, ebike 0.30x, yoga 0.30x, running_drills 0.00x
-(form work only).
+1.00x, cycling 0.65x, running_drills 0.50x, ebike 0.30x, yoga 0.30x,
+myrtl/breathwork 0.00x.
 
 Drills & e-bike notes:
-- Running drills (A-skips, strides, Myrtl) add zero training load by
-  design — they're for form and neuromuscular activation, not stress.
-  Tracked via the drill checkboxes on run days for compliance. If the
-  athlete records drills on Garmin with "drill" in the activity name,
-  the app auto-classifies it as running_drills (0 load).
+- Running drills (A-skips, B-skips, bounding, strides) are credited
+  at 0.50x — half of running load. They keep HR elevated (often Z2-3
+  during work reps) and the plyometric impact + eccentric landings
+  have real musculoskeletal cost. Mild DOMS carry-over applied
+  (+10% next day). Myrtl hip routine and breathwork stay at 0.00x —
+  those are pure mobility work.
 - E-bike default MIM is 0.30x (roughly half of regular cycling).
   Pedal-assist reduces both the cardiovascular demand (Garmin EPOC
   naturally reflects lower HR) and the musculoskeletal cost. Great

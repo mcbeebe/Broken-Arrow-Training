@@ -76,10 +76,15 @@ describe('getSportMultiplier (ATE MIM matrix)', () => {
     expect(getSportMultiplier('cardio')).toBe(1.3)
   })
 
-  it('returns 0 for excluded-from-load activities', () => {
+  it('returns 0 for pure mobility/breathing activities', () => {
     expect(getSportMultiplier('breathwork')).toBe(0.0)
     expect(getSportMultiplier('myrtl')).toBe(0.0)
-    expect(getSportMultiplier('running_drills')).toBe(0.0)
+  })
+
+  it('credits running drills at half of running load', () => {
+    // Drills are plyometric — A-skips, bounding, strides keep HR up
+    // and stress the legs. Half of running is the fair middle ground.
+    expect(getSportMultiplier('running_drills')).toBe(0.5)
   })
 })
 
