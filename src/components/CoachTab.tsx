@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import type { CoachInsight, CoachSnapshot, ConversationTurn } from '../types'
 import type { UseCoachMemoryReturn } from '../hooks/useCoachMemory'
 import CoachChat from './CoachChat'
@@ -88,57 +88,91 @@ export default function CoachTab({
     onInteraction?.('daily_insight_seeded', { date: today })
   }, [dailyInsight, snapshot?.today?.date, athleteId, memory, onInteraction])
 
+  const [chatMinimized, setChatMinimized] = useState(false)
+  const hasTurns = memory.conversation.filter(t => t.role !== 'system-handoff').length > 0
+
   return (
     <div className="flex flex-col h-[calc(100vh-9rem)] px-3 py-3 gap-2">
-      {/* Pending-inference cards used to live here asking the user to
-          approve durable facts. We removed them — new facts are merged
-          into About Me silently in the background with dedup. Existing
-          pending entries from the old flow are drained server-side on
-          the next chat send. */}
-      <div className="flex-1 min-h-0">
-        <CoachChat
-          athleteId={athleteId}
-          memory={memory}
-          snapshot={snapshot}
-          seed={chatSeed}
-          onSeedConsumed={onChatSeedConsumed}
-          onSent={() => onInteraction?.('chat_sent')}
-        />
-      </div>
-
-      <div className="flex items-center justify-center gap-3 shrink-0 flex-wrap">
-        <button
-          onClick={onGoSettings}
-          className="text-xs text-slate-400 hover:text-slate-600 transition-colors"
-        >
-          About Me →
-        </button>
-        {memory.conversation.length > 0 && (
-          <>
+      {/* Action bar — always visible at top */}
+      {hasTurns && (
+        <div className="flex items-center justify-between shrink-0 px-1">
+          <button
+            onClick={() => setChatMinimized(!chatMinimized)}
+            className="text-xs font-medium text-slate-500 hover:text-slate-700 transition-colors"
+          >
+            {chatMinimized ? '▾ Show chat' : '▴ Minimize'}
+          </button>
+          <div className="flex items-center gap-3">
             <button
-              onClick={() => shareConversation(memory.conversation, athleteId, onInteraction)}
+              onClick={() => saveConversation(memory.conversation, athleteId)}
               className="text-xs text-slate-400 hover:text-indigo-600 transition-colors"
-              title="Share or copy this conversation"
+              title="Download conversation as a text file"
             >
-              Share
+              Save
+            </button>
+            <button
+              onClick={() => copyConversation(memory.conversation, athleteId)}
+              className="text-xs text-slate-400 hover:text-indigo-600 transition-colors"
+              title="Copy conversation to clipboard"
+            >
+              Copy
             </button>
             <button
               onClick={async () => {
                 if (!window.confirm(
-                  'Clear the conversation? This removes all past turns so you can start fresh. ' +
-                  'Your About Me and pending observations are kept.',
+                  'Clear the conversation? This removes all past turns so you can start fresh.',
                 )) return
                 await memory.clearConversation()
                 clearSeedDate(athleteId)
                 onInteraction?.('conversation_cleared')
               }}
               className="text-xs text-slate-400 hover:text-rose-600 transition-colors"
-              title="Wipe the chat history so the next reply starts clean"
+              title="Clear all chat history"
             >
               Clear
             </button>
-          </>
-        )}
+          </div>
+        </div>
+      )}
+
+      {/* Chat area */}
+      <div className={`${chatMinimized ? 'hidden' : 'flex-1 min-h-0'}`}>
+        <CoachChat
+          athleteId={athleteId}
+          memory={memory}
+          snapshot={snapshot}
+          seed={chatSeed}
+          onSeedConsumed={onChatSeedConsumed}
+          onSent={() => { onInteraction?.('chat_sent'); setChatMinimized(false) }}
+        />
+      </div>
+
+      {/* Minimized view: last message preview + tap to expand */}
+      {chatMinimized && hasTurns && (() => {
+        const visible = memory.conversation.filter(t => t.role !== 'system-handoff')
+        const last = visible[visible.length - 1]
+        if (!last) return null
+        const label = last.role === 'user' ? 'You' : 'Coach'
+        const preview = last.content.length > 120 ? last.content.slice(0, 117) + '…' : last.content
+        return (
+          <button
+            onClick={() => setChatMinimized(false)}
+            className="flex-1 bg-white rounded-xl border border-slate-200 p-3 text-left hover:bg-slate-50 transition-colors min-h-0 overflow-hidden"
+          >
+            <p className="text-xs font-medium text-slate-500 mb-0.5">{label}:</p>
+            <p className="text-sm text-slate-700 line-clamp-3">{preview}</p>
+            <p className="text-xs text-teal-600 mt-1">Tap to expand ›</p>
+          </button>
+        )
+      })()}
+
+      <div className="flex items-center justify-center shrink-0">
+        <button
+          onClick={onGoSettings}
+          className="text-xs text-slate-400 hover:text-slate-600 transition-colors"
+        >
+          About Me in Settings →
+        </button>
       </div>
     </div>
   )
@@ -175,43 +209,43 @@ function formatConversation(
   return lines.join('\n')
 }
 
-async function shareConversation(
-  turns: ConversationTurn[],
-  athleteId: string,
-  onInteraction?: (kind: string, meta?: Record<string, unknown>) => void,
-) {
+/** Download conversation as a .txt file — works everywhere, no API
+ *  dependencies. Creates a temporary download link and clicks it. */
+function saveConversation(turns: ConversationTurn[], athleteId: string) {
   const text = formatConversation(turns, athleteId)
   if (!text) return
+  const blob = new Blob([text], { type: 'text/plain;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  const date = new Date().toISOString().slice(0, 10)
+  a.download = `coach-chat-${athleteId}-${date}.txt`
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+}
 
-  // Try native Web Share API first (mobile share sheet — Messages, email, etc.)
-  if (typeof navigator.share === 'function') {
-    try {
-      await navigator.share({
-        title: 'Coach Chat — Broken Arrow Training',
-        text,
-      })
-      onInteraction?.('conversation_shared', { method: 'native' })
-      return
-    } catch {
-      // User cancelled or API unsupported — fall through to clipboard
-    }
+/** Copy conversation to clipboard with fallback for older browsers. */
+function copyConversation(turns: ConversationTurn[], athleteId: string) {
+  const text = formatConversation(turns, athleteId)
+  if (!text) return
+  if (navigator.clipboard?.writeText) {
+    navigator.clipboard.writeText(text)
+      .then(() => window.alert('Conversation copied to clipboard.'))
+      .catch(() => fallbackCopy(text))
+  } else {
+    fallbackCopy(text)
   }
+}
 
-  // Fallback: copy to clipboard
-  try {
-    await navigator.clipboard.writeText(text)
-    window.alert('Conversation copied to clipboard.')
-    onInteraction?.('conversation_shared', { method: 'clipboard' })
-  } catch {
-    // Last resort: open a textarea for manual copy
-    const textarea = document.createElement('textarea')
-    textarea.value = text
-    textarea.style.cssText = 'position:fixed;left:-9999px'
-    document.body.appendChild(textarea)
-    textarea.select()
-    document.execCommand('copy')
-    document.body.removeChild(textarea)
-    window.alert('Conversation copied to clipboard.')
-    onInteraction?.('conversation_shared', { method: 'fallback' })
-  }
+function fallbackCopy(text: string) {
+  const textarea = document.createElement('textarea')
+  textarea.value = text
+  textarea.style.cssText = 'position:fixed;left:-9999px'
+  document.body.appendChild(textarea)
+  textarea.select()
+  document.execCommand('copy')
+  document.body.removeChild(textarea)
+  window.alert('Conversation copied to clipboard.')
 }
