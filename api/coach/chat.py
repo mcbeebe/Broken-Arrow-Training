@@ -20,6 +20,7 @@ from ._core import (
     HAIKU_MODEL,
     build_context_block,
     build_system_prompt,
+    check_and_increment_budget,
     call_anthropic,
     detect_expand_trigger,
     detect_full_plan_trigger,
@@ -89,6 +90,23 @@ class handler(BaseHTTPRequestHandler):
             return
         if not isinstance(incoming, list) or not incoming:
             send_json(self, 400, {"error": "messages required"})
+            return
+
+        # Per-athlete soft daily budget check. Runaway chat loops or
+        # abuse shouldn't burn a weekend's worth of tokens. Over the
+        # cap → 429 with a clear message; the client can retry tomorrow.
+        within_budget, used, budget = check_and_increment_budget(athlete_id)
+        if not within_budget:
+            send_json(self, 429, {
+                "error": "daily_budget_exceeded",
+                "message": (
+                    f"You've hit today's coach budget ({used}/{budget} calls). "
+                    f"Resets at midnight UTC. This is a soft safety cap; ping "
+                    f"support if you need it raised."
+                ),
+                "used": used,
+                "budget": budget,
+            })
             return
 
         memory = load_memory(athlete_id)

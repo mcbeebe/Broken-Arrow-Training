@@ -127,6 +127,53 @@ def ping_cooldown_key(athlete_id: str, trigger_type: str) -> str:
     return f"coach_ping_cooldown:{athlete_id}:{trigger_type}"
 
 
+# ─── Per-athlete LLM budget ─────────────────────────────────────
+#
+# Soft daily cap on LLM calls per athlete. Not a hard wall — returns
+# a bool so the caller can decide whether to 429 or just note it in
+# the system prompt ("quota running low, stay brief"). Keeps one
+# bad prompt loop from burning a weekend's worth of tokens.
+
+# Default budget: 200 LLM calls/day/athlete. Enough for heavy chat
+# use (30-40 turns) plus daily insight + workout takes + pings.
+DEFAULT_DAILY_BUDGET = 200
+
+
+def budget_key(athlete_id: str, date_str: str) -> str:
+    return f"coach_budget:{athlete_id}:{date_str}"
+
+
+def _today_date_str() -> str:
+    from datetime import datetime, timezone
+    return datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+
+def check_and_increment_budget(
+    athlete_id: str,
+    daily_budget: int = DEFAULT_DAILY_BUDGET,
+) -> tuple[bool, int, int]:
+    """Increment today's LLM call counter for this athlete and return
+    (within_budget, used, budget). If KV isn't configured, always
+    returns (True, 0, budget) — open season in dev.
+
+    Counter auto-expires after 48h so we don't accumulate stale keys.
+    """
+    if not athlete_id:
+        return True, 0, daily_budget
+    key = budget_key(athlete_id, _today_date_str())
+    try:
+        current = int(kv_get(key) or "0")
+    except (TypeError, ValueError):
+        current = 0
+    new_count = current + 1
+    try:
+        kv_set(key, str(new_count), ex=172800)  # 48h TTL
+    except Exception:
+        # KV unavailable — don't block on budget accounting
+        return True, new_count, daily_budget
+    return new_count <= daily_budget, new_count, daily_budget
+
+
 def telemetry_key(athlete_id: str, date_str: str) -> str:
     return f"coach_telemetry:{athlete_id}:{date_str}"
 

@@ -58,8 +58,10 @@ export default function App() {
   const soreness = useSoreness(athleteId)
   const hrZones = useHRZones(athleteId, plan.zones)
   const showStrava = true  // All athletes can connect Strava and Garmin
-  // Phase B: ambient Coach surfaces + conversation gated to Mike only
-  const coachEnabled = athleteId === 'mike'
+  // Coach is now available to all athletes. Per-athlete isolation is
+  // handled server-side via athleteId-keyed KV memory. Soft cost caps
+  // enforced in api/coach/_core.py budget helpers.
+  const coachEnabled = true
   const coachMemory = useCoachMemory(athleteId, coachEnabled)
   const coachTelemetry = useCoachTelemetry(athleteId, coachEnabled)
 
