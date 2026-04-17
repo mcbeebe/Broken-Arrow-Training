@@ -1,7 +1,7 @@
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine, ReferenceArea } from 'recharts'
 import type { HRZone } from '../types'
 import type { StreamData } from '../utils/strava'
-import { parseZoneRange } from '../utils/zones'
+import { parseZoneRange, HR_ZONE_TOLERANCE_BPM } from '../utils/zones'
 import ChartExpandOverlay from './ChartExpandOverlay'
 
 interface HRChartProps {
@@ -195,7 +195,7 @@ function ZoneComplianceSummary({
     if (dt <= 0 || dt > 30) continue
     totalSeconds += dt
 
-    if (target && hr >= target.low && hr <= target.high) {
+    if (target && hr >= target.low - HR_ZONE_TOLERANCE_BPM && hr <= target.high + HR_ZONE_TOLERANCE_BPM) {
       inTargetSeconds += dt
     }
 

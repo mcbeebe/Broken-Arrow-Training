@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import type { TrainingWeek, PlannedDay, DayCompliance, ComplianceGrade } from '../types'
 import { getMilesNumber } from '../utils/format'
 import { parsePlannedTargets } from '../utils/targets'
+import { HR_ZONE_TOLERANCE_BPM } from '../utils/zones'
 
 export interface WeekCompliance {
   weekNum: number
@@ -269,7 +270,7 @@ export function gradeWorkoutDay(day: PlannedDay, targets: ReturnType<typeof pars
         const dt = times[i] - times[i - 1]
         if (dt <= 0 || dt > 60) continue
         totSec += dt
-        if (hr >= targets.hrLow - 3 && hr <= targets.hrHigh + 3) inSec += dt
+        if (hr >= targets.hrLow - HR_ZONE_TOLERANCE_BPM && hr <= targets.hrHigh + HR_ZONE_TOLERANCE_BPM) inSec += dt
       }
       if (totSec > 0) hrInZonePct = (inSec / totSec) * 100
     }

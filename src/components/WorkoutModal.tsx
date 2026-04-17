@@ -5,7 +5,7 @@ import { getCoaching } from '../utils/coaching'
 import { generateWorkoutTake } from '../utils/coachNotes'
 import CoachWorkoutTakeView from './CoachWorkoutTake'
 import { useCoachInsight } from '../hooks/useCoachInsight'
-import { formatMiles, formatSeconds, estimateRunTime } from '../utils/format'
+import { formatMiles, formatSeconds, formatPace, estimateRunTime } from '../utils/format'
 import { parseRoutine, type ParsedExercise } from '../utils/exercises'
 import { parseIntervalWorkout, getDrillDay, RUNNING_DRILLS, MYRTL_ROUTINE, PRE_RUN_ACTIVATION, type RunSegment, type DrillGuide } from '../utils/drills'
 import { fetchActivityStreams, getTokens, isTokenExpired, refreshAccessToken, type StreamData } from '../utils/strava'
@@ -271,18 +271,45 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
                 {actual.source === 'manual' || actual.type === 'Manual' ? '📝 ' : '🏃 '}
                 {actual.name}
               </p>
-              <div className="grid grid-cols-2 gap-2 text-base text-teal-700">
-                {actual.distance > 0 && <span>📏 {formatMiles(actual.distance)}</span>}
-                {actual.movingTime > 0 && <span>⏱ {formatSeconds(actual.movingTime)}</span>}
-                {actual.avgHR && <span>❤️ {actual.avgHR} avg HR</span>}
-                {actual.maxHR && <span>💓 {actual.maxHR} max HR</span>}
-                {actual.elevationGain > 0 && <span>⛰ {actual.elevationGain} ft gain</span>}
-                {actual.sufferScore && <span>🔥 {actual.sufferScore} relative effort</span>}
-                {actual.calories && <span>🔋 {actual.calories} cal</span>}
-                {actual.avgCadence && <span>👟 {Math.round(actual.avgCadence * 2)} spm</span>}
-                {actual.elevHigh && <span>📈 {actual.elevHigh} ft high</span>}
-                {actual.elevLow && <span>📉 {actual.elevLow} ft low</span>}
-              </div>
+              {/* Primary Stats — Strava-style grid */}
+              {(() => {
+                const stats: { value: string; label: string }[] = []
+                if (actual.distance > 0) stats.push({ value: formatMiles(actual.distance), label: 'Distance' })
+                if (actual.movingTime > 0) stats.push({ value: formatSeconds(actual.movingTime), label: 'Moving Time' })
+                if (actual.distance > 0 && actual.movingTime > 0) stats.push({ value: formatPace(actual.distance, actual.movingTime), label: 'Avg Pace' })
+                if (actual.avgHR) stats.push({ value: `${actual.avgHR} bpm`, label: 'Avg Heart Rate' })
+                if (actual.elevationGain > 0) stats.push({ value: `${actual.elevationGain} ft`, label: 'Elev Gain' })
+                if (actual.calories) stats.push({ value: `${actual.calories}`, label: 'Calories' })
+                if (stats.length === 0) return null
+                const cols = stats.length <= 2 || stats.length === 4 ? 'grid-cols-2' : 'grid-cols-3'
+                return (
+                  <div className={`grid ${cols} gap-3`}>
+                    {stats.map((s, i) => (
+                      <div key={i} className="text-center">
+                        <p className="text-2xl font-bold text-teal-800 leading-tight">{s.value}</p>
+                        <p className="text-[10px] text-teal-600 uppercase tracking-wide mt-0.5">{s.label}</p>
+                      </div>
+                    ))}
+                  </div>
+                )
+              })()}
+              {/* Secondary stats — small badges */}
+              {(() => {
+                const pills: { emoji: string; text: string }[] = []
+                if (actual.maxHR) pills.push({ emoji: '💓', text: `${actual.maxHR} max HR` })
+                if (actual.sufferScore) pills.push({ emoji: '🔥', text: `${actual.sufferScore} effort` })
+                if (actual.avgCadence) pills.push({ emoji: '👟', text: `${Math.round(actual.avgCadence * 2)} spm` })
+                if (actual.elevHigh) pills.push({ emoji: '📈', text: `${actual.elevHigh} ft high` })
+                if (actual.elevLow) pills.push({ emoji: '📉', text: `${actual.elevLow} ft low` })
+                if (pills.length === 0) return null
+                return (
+                  <div className="flex flex-wrap gap-1.5">
+                    {pills.map((p, i) => (
+                      <span key={i} className="text-xs px-2 py-0.5 rounded-lg bg-teal-100/60 text-teal-700">{p.emoji} {p.text}</span>
+                    ))}
+                  </div>
+                )
+              })()}
               {actual.deviceName && (
                 <p className="text-xs text-teal-600">📱 {actual.deviceName}</p>
               )}

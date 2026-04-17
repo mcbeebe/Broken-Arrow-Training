@@ -1,5 +1,7 @@
 import type { HRZone } from '../types'
 
+export const HR_ZONE_TOLERANCE_BPM = 3
+
 export function getZoneForHR(hr: number, zones: HRZone[]): HRZone | null {
   for (const zone of zones) {
     const match = zone.hr.match(/(\d+)\s*[–-]\s*(\d+)/)
