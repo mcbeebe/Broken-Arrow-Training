@@ -49,7 +49,7 @@ export default function HRChart({ stream, zones, targetZone }: HRChartProps) {
           <span className="text-[10px] text-slate-400">Tap to expand</span>
         </div>
       )}
-      <div className={expanded ? 'h-full min-h-[300px]' : 'h-40'}>
+      <div style={expanded ? { width: '100%', height: 'calc(100vh - 120px)' } : undefined} className={expanded ? '' : 'h-40'}>
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={data} margin={{ top: 5, right: 5, left: expanded ? 0 : -20, bottom: 0 }}>
             <defs>

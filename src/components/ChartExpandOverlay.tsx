@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 
 interface ChartExpandOverlayProps {
   children: (expanded: boolean) => React.ReactNode
@@ -32,27 +33,30 @@ export default function ChartExpandOverlay({ children, title }: ChartExpandOverl
         {children(false)}
       </div>
 
-      {expanded && (
+      {expanded && createPortal(
         <div
-          className="fixed inset-0 z-[100] bg-black/95 flex flex-col"
+          className="fixed inset-0 flex flex-col"
+          style={{ zIndex: 9999, backgroundColor: 'rgba(0,0,0,0.97)' }}
           onClick={() => setExpanded(false)}
         >
-          <div className="flex items-center justify-between px-4 pt-4 pb-2">
+          <div className="flex items-center justify-between px-4 pt-3 pb-1 shrink-0">
             <p className="text-white font-semibold text-base">{title}</p>
             <button
               onClick={() => setExpanded(false)}
-              className="text-white/70 hover:text-white text-lg font-bold px-2"
+              className="text-blue-400 hover:text-blue-300 text-base font-semibold px-2 py-1"
             >
               Close
             </button>
           </div>
           <div
-            className="flex-1 px-2 pb-6 min-h-0"
+            className="flex-1 px-2 pb-4"
+            style={{ height: 'calc(100vh - 56px)' }}
             onClick={e => e.stopPropagation()}
           >
             {children(true)}
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </>
   )
