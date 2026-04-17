@@ -407,6 +407,8 @@ export default function App() {
           latestPerf={latestPerf}
           coachSnapshot={coachSnapshot}
           onAskCoach={handleAskCoach}
+          race={plan.race}
+          compliance={compliance.weeks}
         />
       )}
       {view === 'dashboard' && (

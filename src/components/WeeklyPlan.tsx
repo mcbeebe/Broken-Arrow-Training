@@ -1,10 +1,12 @@
 import { useState, useRef, useEffect, useMemo } from 'react'
-import type { TrainingWeek, PlannedDay, ActualWorkout, HRZone, ReadinessScore, PerformanceMetrics, CoachSnapshot } from '../types'
+import type { TrainingWeek, PlannedDay, ActualWorkout, HRZone, ReadinessScore, PerformanceMetrics, CoachSnapshot, RaceInfo } from '../types'
+import type { WeekCompliance } from '../hooks/useCompliance'
 import { getWorkoutStyle } from '../utils/styles'
 import DayCard from './DayCard'
 import VolumeChart from './VolumeChart'
 import WorkoutModal from './WorkoutModal'
 import ManualLog from './ManualLog'
+import RaceNarrative from './RaceNarrative'
 
 interface WeeklyPlanProps {
   weeks: TrainingWeek[]
@@ -23,6 +25,8 @@ interface WeeklyPlanProps {
   latestPerf?: PerformanceMetrics | null
   coachSnapshot?: CoachSnapshot | null
   onAskCoach?: (seed: string) => void
+  race?: RaceInfo
+  compliance?: WeekCompliance[]
 }
 
 function todayDateString(): string {
@@ -44,6 +48,8 @@ export default function WeeklyPlan({
   latestPerf,
   coachSnapshot,
   onAskCoach,
+  race,
+  compliance,
 }: WeeklyPlanProps) {
   const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list')
   const [activeWeek, setActiveWeek] = useState(0)
@@ -215,6 +221,18 @@ export default function WeeklyPlan({
           )}
         </div>
       </div>
+
+      {/* Race narrative */}
+      {race && (
+        <RaceNarrative
+          race={race}
+          weekNum={week.num}
+          totalWeeks={weeks.length}
+          weeks={weeks}
+          compliance={compliance}
+          perf={latestPerf}
+        />
+      )}
 
       {/* Day cards */}
       <div className="px-3 space-y-2">
