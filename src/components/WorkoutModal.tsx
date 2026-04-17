@@ -13,6 +13,93 @@ import { fetchGarminActivityStream } from '../utils/garmin'
 import HRChart from './HRChart'
 import PaceChart from './PaceChart'
 
+interface MileSplit {
+  mile: number
+  time: number
+  pace: string
+  avgHR: number
+  elevGain: number
+}
+
+function computeMileSplits(stream: StreamData): MileSplit[] {
+  const { distance, time, heartrate, altitude } = stream
+  if (!distance || distance.length < 2) return []
+
+  const METERS_PER_MILE = 1609.344
+  const splits: MileSplit[] = []
+  let mileStart = 0
+  let mileNum = 1
+
+  for (let i = 1; i < distance.length; i++) {
+    const totalDist = distance[i]
+    const nextMileBoundary = mileNum * METERS_PER_MILE
+
+    if (totalDist >= nextMileBoundary) {
+      const segTime = time[i] - time[mileStart]
+      const paceSecPerMile = segTime > 0 ? segTime : 0
+      const pm = Math.floor(paceSecPerMile / 60)
+      const ps = Math.round(paceSecPerMile % 60)
+
+      let hrSum = 0, hrCount = 0
+      for (let j = mileStart; j <= i; j++) {
+        if (heartrate[j] > 0) { hrSum += heartrate[j]; hrCount++ }
+      }
+
+      let elevGain = 0
+      if (altitude && altitude.length > i) {
+        for (let j = mileStart + 1; j <= i; j++) {
+          const diff = altitude[j] - altitude[j - 1]
+          if (diff > 0) elevGain += diff
+        }
+      }
+
+      splits.push({
+        mile: mileNum,
+        time: segTime,
+        pace: `${pm}:${ps.toString().padStart(2, '0')}`,
+        avgHR: hrCount > 0 ? Math.round(hrSum / hrCount) : 0,
+        elevGain: Math.round(elevGain * 3.28084),
+      })
+
+      mileStart = i
+      mileNum++
+    }
+  }
+
+  // Partial last mile
+  const lastDist = distance[distance.length - 1]
+  const partialMiles = (lastDist - (mileNum - 1) * METERS_PER_MILE) / METERS_PER_MILE
+  if (partialMiles >= 0.1) {
+    const segTime = time[distance.length - 1] - time[mileStart]
+    const paceSecPerMile = partialMiles > 0 ? segTime / partialMiles : 0
+    const pm = Math.floor(paceSecPerMile / 60)
+    const ps = Math.round(paceSecPerMile % 60)
+
+    let hrSum = 0, hrCount = 0
+    for (let j = mileStart; j < distance.length; j++) {
+      if (heartrate[j] > 0) { hrSum += heartrate[j]; hrCount++ }
+    }
+
+    let elevGain = 0
+    if (altitude && altitude.length >= distance.length) {
+      for (let j = mileStart + 1; j < distance.length; j++) {
+        const diff = altitude[j] - altitude[j - 1]
+        if (diff > 0) elevGain += diff
+      }
+    }
+
+    splits.push({
+      mile: mileNum,
+      time: segTime,
+      pace: `${pm}:${ps.toString().padStart(2, '0')}`,
+      avgHR: hrCount > 0 ? Math.round(hrSum / hrCount) : 0,
+      elevGain: Math.round(elevGain * 3.28084),
+    })
+  }
+
+  return splits
+}
+
 interface WorkoutModalProps {
   day: PlannedDay
   weekNum: number
@@ -146,6 +233,13 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
                   <p>
                     ⏱ Total session: {day.time}
                     {day.route !== '—' && <> · 📍 {day.route}</>}
+                  </p>
+                )}
+                {actual && actual.movingTime > 0 && (
+                  <p className="font-medium text-teal-700">
+                    ✅ Actual: {formatSeconds(actual.movingTime)}
+                    {actual.distance > 0 && <> · {formatMiles(actual.distance)} mi</>}
+                    {actual.avgHR ? <> · {actual.avgHR} avg HR</> : null}
                   </p>
                 )}
               </div>
@@ -292,6 +386,41 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
                   </div>
                 </div>
               )}
+
+              {/* Per-mile splits table (computed from stream data) */}
+              {stream && stream.distance && stream.distance.length > 0 && (() => {
+                const mileSplits = computeMileSplits(stream)
+                if (mileSplits.length === 0) return null
+                return (
+                  <div className="mt-2">
+                    <p className="text-sm font-semibold text-teal-800 mb-1">Mile Splits</p>
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="text-slate-500 border-b border-slate-200">
+                          <th className="text-left py-1 font-medium">Mile</th>
+                          <th className="text-right py-1 font-medium">Pace</th>
+                          <th className="text-right py-1 font-medium">Avg HR</th>
+                          <th className="text-right py-1 font-medium">Elev</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {mileSplits.map(s => (
+                          <tr key={s.mile} className="border-b border-slate-100">
+                            <td className="py-1 text-slate-700 font-medium">
+                              {s.mile}{s.mile === mileSplits.length && (stream.distance![stream.distance!.length - 1] / 1609.344) % 1 >= 0.1
+                                ? ` (${((stream.distance![stream.distance!.length - 1] / 1609.344) % 1).toFixed(2)} mi)`
+                                : ''}
+                            </td>
+                            <td className="py-1 text-right text-slate-800 font-semibold">{s.pace}/mi</td>
+                            <td className="py-1 text-right text-slate-700">{s.avgHR > 0 ? `${s.avgHR} bpm` : '—'}</td>
+                            <td className="py-1 text-right text-slate-600">{s.elevGain > 0 ? `+${s.elevGain}ft` : '—'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )
+              })()}
 
               {/* HR Stream Chart */}
               {stream && stream.heartrate.length > 0 && (
