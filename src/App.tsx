@@ -328,12 +328,12 @@ export default function App() {
   return (
     <div className="min-h-screen bg-slate-50" style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" }}>
       {/* Header */}
-      <div className="bg-slate-800 text-white px-4 py-5">
-        <h1 className="text-xl font-bold tracking-tight">{raceName}</h1>
-        <p className="text-slate-300 text-sm mt-1">
+      <div className="bg-slate-800 text-white px-3 py-2.5">
+        <h1 className="text-lg font-bold tracking-tight leading-tight">{raceName}</h1>
+        <p className="text-slate-300 text-xs mt-0.5">
           10-Week Training Plan · {plan.athlete.name} · Max HR: {plan.athlete.maxHR}
         </p>
-        <p className="text-teal-400 text-xs mt-1">{plan.athlete.weeklyStructure}</p>
+        <p className="text-teal-400 text-[10px] mt-0.5">{plan.athlete.weeklyStructure}</p>
       </div>
 
       {/* Proactive coach ping toast */}
@@ -351,7 +351,7 @@ export default function App() {
           <button
             key={t.id}
             onClick={() => setView(t.id)}
-            className={`flex-1 py-3.5 text-sm sm:text-base font-semibold transition-colors relative ${
+            className={`flex-1 py-2.5 text-sm font-semibold transition-colors relative ${
               view === t.id
                 ? 'text-teal-700 border-b-2 border-teal-600'
                 : 'text-slate-500'

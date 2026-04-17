@@ -106,25 +106,24 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
       >
         {/* Header */}
         <div
-          className="sticky top-0 px-4 pt-4 pb-3 rounded-t-2xl z-10"
-          style={{ backgroundColor: style.bg, borderBottom: `3px solid ${style.border}` }}
+          className="sticky top-0 px-3 pt-3 pb-2 rounded-t-2xl z-10"
+          style={{ backgroundColor: style.bg, borderBottom: `2px solid ${style.border}` }}
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <span className="text-xl">{style.label}</span>
+              <span className="text-lg">{style.label}</span>
               <div>
-                <p className="font-bold text-lg text-slate-800">{day.day}</p>
-                <p className="text-sm text-slate-500">Week {weekNum}</p>
+                <p className="font-bold text-base text-slate-800 leading-tight">{day.day} <span className="font-normal text-sm text-slate-500">Wk {weekNum}</span></p>
               </div>
             </div>
             <button
               onClick={onClose}
-              className="w-8 h-8 flex items-center justify-center rounded-full bg-white/70 text-slate-600 hover:bg-white transition-colors"
+              className="w-7 h-7 flex items-center justify-center rounded-full bg-white/70 text-slate-600 hover:bg-white transition-colors"
             >
               ✕
             </button>
           </div>
-          <p className="font-semibold text-lg text-slate-800 mt-2">{day.workout}</p>
+          <p className="font-semibold text-base text-slate-800 mt-1">{day.workout}</p>
           {/* Distance + estimated running time pulled from the zone
               field (e.g. "3.0 mi · Z1–2 (108–148)"). Shown prominently
               so athletes see the actual run portion, not just total session. */}
@@ -300,8 +299,7 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
                   <HRChart stream={stream} zones={zones} />
                 </div>
               )}
-              {/* Pace + elevation chart (only useful for running workouts with velocity data) */}
-              {stream && isRunType && stream.velocity && stream.velocity.length > 0 && (
+              {stream && stream.velocity && stream.velocity.length > 0 && (
                 <PaceChart stream={stream} />
               )}
               {streamLoading && (
