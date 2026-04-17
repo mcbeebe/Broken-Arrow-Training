@@ -140,7 +140,7 @@ export default function CoachTab({
                   return (
                     <li key={id} className="flex items-center gap-0.5">
                       <span className="text-slate-300">·</span>
-                      <span className="text-sm leading-none">{trait.emoji}</span>
+                      <span className="text-[11px] leading-none">{trait.emoji}</span>
                       <span>{trait.label}</span>
                     </li>
                   )
