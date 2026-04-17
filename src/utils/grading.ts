@@ -74,7 +74,7 @@ export interface GradeResult {
   reason: string       // Short explanation
 }
 
-const REST_TYPES = new Set(['rest', 'travel', 'limited'])
+const REST_TYPES = new Set(['rest', 'travel'])
 
 /**
  * Calculate a letter grade for a workout based on completion and execution quality.

@@ -238,7 +238,7 @@ export default function CoachChat({ athleteId, memory, snapshot, seed, onSeedCon
       </div>
       <div
         ref={scrollerRef}
-        className="flex-1 overflow-y-auto px-2 py-2 space-y-2"
+        className="flex-1 overflow-y-auto px-1.5 py-2 space-y-2"
       >
         {turns.length === 0 && !streaming && (
           <div className="flex">
@@ -438,7 +438,7 @@ function ChatTurn({
     return (
       <div className="flex flex-col items-start" onClick={() => setShowActions(!showActions)}>
         <div
-          className="relative max-w-[95%] bg-amber-50 border border-amber-200 text-slate-800 rounded-2xl rounded-tl-sm px-3 py-2 leading-relaxed cursor-pointer"
+          className="relative w-full bg-amber-50 border border-amber-200 text-slate-800 rounded-2xl rounded-tl-sm px-3 py-2 leading-relaxed cursor-pointer"
           style={bubbleStyle}
         >
           <div className="flex items-center gap-1.5 mb-1 pr-7">
@@ -458,7 +458,7 @@ function ChatTurn({
   return (
     <div className="flex flex-col items-start" onClick={() => setShowActions(!showActions)}>
       <div
-        className="relative max-w-[95%] bg-indigo-50 text-slate-800 rounded-2xl rounded-tl-sm px-3 py-2 leading-relaxed cursor-pointer"
+        className="relative w-full bg-indigo-50 text-slate-800 rounded-2xl rounded-tl-sm px-3 py-2 leading-relaxed cursor-pointer"
         style={bubbleStyle}
       >
         {collapseToggle}
