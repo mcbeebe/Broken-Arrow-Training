@@ -640,7 +640,7 @@ export interface CoachHealthToday {
 }
 
 export interface CoachSnapshot {
-  today: { date: string }
+  today: { date: string; period?: 'morning' | 'afternoon' | 'evening' }
   currentWeekNum?: number
   readiness?: ReadinessScore | null
   performance?: PerformanceMetrics | null

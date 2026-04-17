@@ -28,9 +28,17 @@ from ._core import (
 
 SURFACE_INSTRUCTIONS = {
     "daily": (
-        "Write a short (3-5 sentence) daily coach read for the athlete: what "
-        "today's signal says + one actionable cue. Ground it in specific "
-        "numbers from the snapshot (HRV ms, sleep h, CTL, TSB, etc.). "
+        "Write a short (3-5 sentence) coach read for the athlete. The "
+        "context snapshot tells you the current time of day (morning, "
+        "afternoon, or evening) — frame your read accordingly:\n"
+        "- Morning: what today's signal says + how to approach the day's workout.\n"
+        "- Afternoon: check-in on execution — did they log a workout? If so, "
+        "reflect on it. If not, what's still on the plate.\n"
+        "- Evening: wrap-up — how the day went, what matters for tomorrow, "
+        "recovery cues (sleep, hydration).\n"
+        "Do NOT label it 'Morning Read' or 'Evening Read' — just write in "
+        "the right voice for the time. Ground it in specific numbers from "
+        "the snapshot (HRV ms, sleep h, CTL, TSB, etc.). "
         "IMPORTANT: your Persona block at the top of the system prompt is "
         "the voice for this read. If you're Funny → humor woven in. If "
         "you're Motivational → fire them up with the data, don't suppress "

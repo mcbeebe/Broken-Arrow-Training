@@ -26,6 +26,14 @@ export function hashFields(obj: unknown): string {
   return (h >>> 0).toString(36)
 }
 
+/** Returns 'morning' (before noon), 'afternoon' (noon–5pm), or 'evening' (5pm+). */
+export function dayPeriod(): 'morning' | 'afternoon' | 'evening' {
+  const h = new Date().getHours()
+  if (h < 12) return 'morning'
+  if (h < 17) return 'afternoon'
+  return 'evening'
+}
+
 /**
  * Extract the fields that materially affect an insight answer so we can
  * hash them. The goal is *stability* — trivial field changes shouldn't
@@ -40,6 +48,7 @@ export function materialFields(surface: string, snapshot: CoachSnapshot): unknow
   return {
     surface,
     date: snapshot.today?.date,
+    period: dayPeriod(),
     readiness: r
       ? {
           status: r.status,

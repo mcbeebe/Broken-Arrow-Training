@@ -56,6 +56,13 @@ interface Inputs {
   garminActivities?: GarminActivity[]
 }
 
+function currentDayPeriod(): 'morning' | 'afternoon' | 'evening' {
+  const h = new Date().getHours()
+  if (h < 12) return 'morning'
+  if (h < 17) return 'afternoon'
+  return 'evening'
+}
+
 function todayISO(): string {
   const d = new Date()
   const y = d.getFullYear()
@@ -429,7 +436,7 @@ export function buildCoachSnapshot(inputs: Inputs): CoachSnapshot {
   const analytics = buildAnalytics(inputs)
 
   return {
-    today: { date: todayISO() },
+    today: { date: todayISO(), period: currentDayPeriod() },
     currentWeekNum,
     readiness,
     performance: performance.length ? performance[performance.length - 1] : null,

@@ -762,8 +762,10 @@ def build_context_block(
     else:
         activities = activities[:30]
 
+    period = today.get("period", "morning")
+
     out: list[str] = []
-    out.append(f"Today: {today.get('date', '')} (week {week_num or '?'})")
+    out.append(f"Today: {today.get('date', '')} (week {week_num or '?'}), {period}")
 
     if readiness:
         comp = readiness.get("components", {}) or {}
