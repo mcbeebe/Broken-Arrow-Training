@@ -393,9 +393,8 @@ export function buildCoachSnapshot(inputs: Inputs): CoachSnapshot {
         rpe: a.rpe,
         laps: a.laps?.map(l => ({
           distance: l.distance,
-          movingTime: l.moving_time,
-          avgHR: l.average_heartrate,
-          avgSpeed: l.average_speed,
+          movingTime: 0,
+          avgHR: l.hr,
           elev: l.elev,
         })),
         hrZones: a.hrZoneSummary?.filter(z => z.seconds > 0).map(z => ({
