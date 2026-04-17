@@ -3,6 +3,7 @@ import type { HRZone } from '../types'
 import type { StreamData } from '../utils/strava'
 import { parseZoneRange, HR_ZONE_TOLERANCE_BPM } from '../utils/zones'
 import ChartExpandOverlay from './ChartExpandOverlay'
+import ZoneBreakdownTable from './ZoneBreakdownTable'
 
 interface HRChartProps {
   stream: StreamData
@@ -164,6 +165,14 @@ export default function HRChart({ stream, zones, targetZone }: HRChartProps) {
           heartrates={stream.heartrate}
           times={stream.time}
           zones={zones}
+          targetZone={targetZone}
+        />
+      )}
+
+      {targetZone && (
+        <ZoneBreakdownTable
+          heartrates={stream.heartrate}
+          times={stream.time}
           targetZone={targetZone}
         />
       )}
