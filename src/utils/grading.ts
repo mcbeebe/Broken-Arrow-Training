@@ -257,6 +257,32 @@ export function calculateGrade(day: PlannedDay): GradeResult | null {
     }
   }
 
+  // --- LIMITED (easy walk/jog, recovery day) ---
+  else if (day.type === 'limited') {
+    if (actual.movingTime > 0) {
+      effortScore = 1.0
+      structureScore = 1.0
+      reasons.push('completed')
+
+      // HR: should stay easy (Z1-Z2). Reward low HR.
+      const range = parseZoneRange(day.zone)
+      if (range && actual.avgHR) {
+        if (actual.avgHR <= range.high) {
+          hrScore = 1.0
+          reasons.push('HR on target')
+        } else if (actual.avgHR <= range.high + 10) {
+          hrScore = 0.8
+          reasons.push('HR slightly high')
+        } else {
+          hrScore = 0.5
+          reasons.push('HR too high for limited')
+        }
+      } else {
+        hrScore = 0.9
+      }
+    }
+  }
+
   // --- DRILL SCORING (run-type days only) ---
   if (['run', 'quality', 'long'].includes(day.type)) {
     const plannedDrills = hasPlannedDrills(day)
