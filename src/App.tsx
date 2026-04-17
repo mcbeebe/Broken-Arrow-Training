@@ -326,7 +326,7 @@ export default function App() {
   )
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-16" style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" }}>
+    <div className="min-h-screen bg-slate-50 pb-20" style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" }}>
       {/* Header */}
       <div className="bg-slate-800 text-white px-3 py-2.5">
         <h1 className="text-lg font-bold tracking-tight leading-tight">{raceName}</h1>
@@ -466,7 +466,7 @@ export default function App() {
       {/* Bottom Tab Bar */}
       <nav
         className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-slate-200 flex"
-        style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+        style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 8px)' }}
       >
         {TABS.map(t => {
           const active = view === t.id
@@ -474,17 +474,17 @@ export default function App() {
             <button
               key={t.id}
               onClick={() => setView(t.id)}
-              className={`flex-1 flex flex-col items-center gap-0.5 py-1.5 transition-colors relative ${
+              className={`flex-1 flex flex-col items-center justify-center gap-1 pt-2 pb-1.5 min-h-[56px] transition-colors relative ${
                 active ? 'text-teal-700' : 'text-slate-400'
               }`}
             >
               <span className="relative">
                 <TabIcon id={t.id} active={active} />
                 {!!t.badge && (
-                  <span className="absolute -top-1 -right-1.5 w-2.5 h-2.5 rounded-full bg-amber-500 border border-white" />
+                  <span className="absolute -top-1 -right-2 w-3 h-3 rounded-full bg-amber-500 border-2 border-white" />
                 )}
               </span>
-              <span className={`text-[10px] leading-tight ${active ? 'font-semibold' : 'font-medium'}`}>{t.label}</span>
+              <span className={`text-[11px] leading-tight ${active ? 'font-semibold' : 'font-medium'}`}>{t.label}</span>
             </button>
           )
         })}
@@ -495,7 +495,7 @@ export default function App() {
 
 function TabIcon({ id, active }: { id: string; active: boolean }) {
   const color = active ? '#0f766e' : '#94a3b8'
-  const size = 22
+  const size = 24
   const sw = active ? 2.2 : 1.8
   const common = { width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: color, strokeWidth: sw, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const }
   switch (id) {
