@@ -32,7 +32,7 @@ export default function RaceNarrative({ race, weekNum, totalWeeks, weeks, compli
 
       <div className="space-y-3">
         {paragraphs.map((p, i) => (
-          <p key={i} className="text-sm text-slate-300 leading-relaxed">{p}</p>
+          <p key={i} className="text-base text-slate-300 leading-relaxed">{p}</p>
         ))}
       </div>
     </div>
