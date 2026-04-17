@@ -276,7 +276,7 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
               )}
 
               {/* Laps */}
-              {actual.laps && actual.laps.length > 1 && (
+              {actual.laps && actual.laps.length > 0 && (
                 <div>
                   <p className="text-sm font-semibold text-teal-800 mt-2 mb-1">Laps</p>
                   <div className="space-y-0.5">

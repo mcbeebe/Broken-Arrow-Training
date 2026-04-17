@@ -122,25 +122,22 @@ export default function CoachTab({
   const personaTraits = (persona?.traits ?? []).slice()
 
   return (
-    <div className="flex flex-col h-[calc(100vh-9rem)] px-3 py-3 gap-2 relative">
-      {/* Coach identity header — compact. Smaller avatar + trait chips
-          so the persona block doesn't crowd the chat. */}
-      <div className="shrink-0 bg-gradient-to-br from-indigo-50 to-white border border-indigo-100 rounded-xl px-3 py-2">
-        <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-full bg-indigo-100 flex items-center justify-center text-xl leading-none shrink-0">
-            🧢
-          </div>
+    <div className="flex flex-col h-[calc(100vh-7rem)] px-2 py-1.5 gap-1.5 relative">
+      {/* Coach identity — single compact row */}
+      <div className="shrink-0 bg-gradient-to-br from-indigo-50 to-white border border-indigo-100 rounded-lg px-2.5 py-1.5">
+        <div className="flex items-center gap-2">
+          <span className="text-lg leading-none shrink-0">🧢</span>
           <div className="flex-1 min-w-0">
-            <h2 className="text-base font-bold text-slate-800 leading-tight">{coachDisplayName}</h2>
+            <h2 className="text-sm font-bold text-slate-800 leading-tight">{coachDisplayName}</h2>
             {personaTraits.length > 0 ? (
-              <ul className="mt-0.5 flex flex-wrap gap-x-2 gap-y-0 text-[11px] text-slate-500 leading-snug">
+              <ul className="flex flex-wrap gap-x-1.5 gap-y-0 text-[10px] text-slate-500 leading-snug">
                 {personaTraits.map(id => {
                   const trait = COACH_TRAITS.find(t => t.id === id)
                   if (!trait) return null
                   return (
                     <li key={id} className="flex items-center gap-0.5">
                       <span className="text-slate-300">·</span>
-                      <span className="text-[11px] leading-none">{trait.emoji}</span>
+                      <span className="text-[10px] leading-none">{trait.emoji}</span>
                       <span>{trait.label}</span>
                     </li>
                   )
