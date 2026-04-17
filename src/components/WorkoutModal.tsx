@@ -391,33 +391,41 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
               {stream && stream.distance && stream.distance.length > 0 && (() => {
                 const mileSplits = computeMileSplits(stream)
                 if (mileSplits.length === 0) return null
+                const avgTime = mileSplits.reduce((s, m) => s + m.time, 0) / mileSplits.length
+                const maxTime = Math.max(...mileSplits.map(m => m.time))
                 return (
                   <div className="mt-2">
-                    <p className="text-sm font-semibold text-teal-800 mb-1">Mile Splits</p>
-                    <table className="w-full text-xs">
-                      <thead>
-                        <tr className="text-slate-500 border-b border-slate-200">
-                          <th className="text-left py-1 font-medium">Mile</th>
-                          <th className="text-right py-1 font-medium">Pace</th>
-                          <th className="text-right py-1 font-medium">Avg HR</th>
-                          <th className="text-right py-1 font-medium">Elev</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {mileSplits.map(s => (
-                          <tr key={s.mile} className="border-b border-slate-100">
-                            <td className="py-1 text-slate-700 font-medium">
-                              {s.mile}{s.mile === mileSplits.length && (stream.distance![stream.distance!.length - 1] / 1609.344) % 1 >= 0.1
-                                ? ` (${((stream.distance![stream.distance!.length - 1] / 1609.344) % 1).toFixed(2)} mi)`
-                                : ''}
-                            </td>
-                            <td className="py-1 text-right text-slate-800 font-semibold">{s.pace}/mi</td>
-                            <td className="py-1 text-right text-slate-700">{s.avgHR > 0 ? `${s.avgHR} bpm` : '—'}</td>
-                            <td className="py-1 text-right text-slate-600">{s.elevGain > 0 ? `+${s.elevGain}ft` : '—'}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                    <p className="text-sm font-semibold text-teal-800 mb-1.5">Mile Splits</p>
+                    <div className="space-y-1">
+                      {mileSplits.map(s => {
+                        const barPct = maxTime > 0 ? (s.time / maxTime) * 100 : 0
+                        const delta = s.time - avgTime
+                        const deltaStr = delta === 0 ? '' : delta > 0 ? `+${Math.abs(Math.round(delta))}s` : `-${Math.abs(Math.round(delta))}s`
+                        const barColor = delta <= -5 ? '#22C55E' : delta >= 5 ? '#EF4444' : '#3B82F6'
+                        const deltaColor = delta <= -5 ? 'text-green-600' : delta >= 5 ? 'text-red-500' : 'text-slate-400'
+                        return (
+                          <div key={s.mile} className="flex items-center gap-2">
+                            <span className="text-xs text-slate-500 w-4 text-right font-medium">{s.mile}</span>
+                            <div className="flex-1 relative h-5 bg-slate-100 rounded overflow-hidden">
+                              <div className="h-full rounded" style={{ width: `${barPct}%`, backgroundColor: barColor }} />
+                              <span className="absolute inset-0 flex items-center px-1.5 text-[11px] font-semibold text-white drop-shadow-sm">
+                                {s.pace}/mi
+                              </span>
+                            </div>
+                            <span className="text-[10px] w-8 text-right font-medium" style={{ color: deltaColor === 'text-slate-400' ? '#94A3B8' : undefined }}>
+                              <span className={deltaColor}>{deltaStr}</span>
+                            </span>
+                            <span className="text-[10px] text-slate-500 w-10 text-right">{s.avgHR > 0 ? `${s.avgHR}` : '—'}</span>
+                            <span className="text-[10px] text-slate-400 w-8 text-right">{s.elevGain > 0 ? `+${s.elevGain}'` : ''}</span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                    <div className="flex justify-between mt-1 text-[9px] text-slate-400 px-6">
+                      <span>Avg {mileSplits.length > 0 ? mileSplits[0].pace : ''}/mi</span>
+                      <span>HR</span>
+                      <span>Elev</span>
+                    </div>
                   </div>
                 )
               })()}

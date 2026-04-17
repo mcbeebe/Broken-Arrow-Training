@@ -389,6 +389,10 @@ export default function App() {
           onAskCoach={handleAskCoach}
           coachName={coachMemory.coachPersona?.name}
           onRegenerateDailyInsight={dailyInsight.regenerate}
+          todayPlannedWorkout={todayPlannedWorkout}
+          currentWeekNum={currentWeekNum}
+          zones={hrZones.zones}
+          coachSnapshot={coachSnapshot}
         />
       )}
       {view === 'plan' && (

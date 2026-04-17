@@ -1,11 +1,13 @@
 import { useMemo, useState } from 'react'
-import type { ReadinessScore, GarminHealthData, CoachRecommendation, PerformanceMetrics, DailyTRIMP, CoachInsight } from '../types'
+import type { ReadinessScore, GarminHealthData, CoachRecommendation, PerformanceMetrics, DailyTRIMP, CoachInsight, PlannedDay, HRZone, CoachSnapshot } from '../types'
 import type { SorenessLevel } from '../hooks/useSoreness'
 import { getTSBState, getTSBLabel, getACWRRisk, getACWRLabel } from '../utils/performance'
 import { localDateStr } from '../utils/format'
 import TodayBriefing from './TodayBriefing'
 import TRIMPBreakdown from './TRIMPBreakdown'
 import CoachInsightCard from './CoachInsightCard'
+import WorkoutModal from './WorkoutModal'
+import { getWorkoutStyle } from '../utils/styles'
 
 interface SummaryProps {
   athleteId: string
@@ -27,6 +29,10 @@ interface SummaryProps {
   onAskCoach?: (seed: string) => void
   coachName?: string
   onRegenerateDailyInsight?: () => void
+  todayPlannedWorkout?: PlannedDay | null
+  currentWeekNum?: number
+  zones?: HRZone[]
+  coachSnapshot?: CoachSnapshot | null
 }
 
 // ─── Scale bar component ──────────────────────────────────────
@@ -120,10 +126,15 @@ export default function Summary({
   onAskCoach,
   coachName,
   onRegenerateDailyInsight,
+  todayPlannedWorkout,
+  currentWeekNum,
+  zones,
+  coachSnapshot,
 }: SummaryProps) {
   const latestPerf = performance.length > 0 ? performance[performance.length - 1] : null
   const [perfOpen, setPerfOpen] = useState(false)
   const [narrativeOpen, setNarrativeOpen] = useState(true)
+  const [showTodayModal, setShowTodayModal] = useState(false)
 
   const weekNarrative = useMemo(
     () => buildWeekNarrative(performance, dailyTrimp),
@@ -142,6 +153,47 @@ export default function Summary({
           athleteId={athleteId}
         />
       )}
+
+      {/* Today's Workout CTA */}
+      {todayPlannedWorkout && todayPlannedWorkout.type !== 'rest' && (() => {
+        const style = getWorkoutStyle(todayPlannedWorkout.type)
+        const isCompleted = !!todayPlannedWorkout.actual
+        return (
+          <>
+            <button
+              onClick={() => setShowTodayModal(true)}
+              className="w-full text-left rounded-xl border-2 px-3 py-2.5 transition-colors"
+              style={{ borderColor: style.border, backgroundColor: isCompleted ? style.bg : 'white' }}
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+                    {isCompleted ? 'Completed' : "Today's Workout"}
+                  </p>
+                  <p className="font-bold text-slate-800 mt-0.5">{todayPlannedWorkout.workout}</p>
+                  <p className="text-sm text-slate-600 mt-0.5">
+                    {todayPlannedWorkout.zone !== '—' && todayPlannedWorkout.zone}
+                    {todayPlannedWorkout.time !== '—' && ` · ${todayPlannedWorkout.time}`}
+                  </p>
+                </div>
+                <span className="text-2xl">{style.label}</span>
+              </div>
+            </button>
+            {showTodayModal && (
+              <WorkoutModal
+                day={todayPlannedWorkout}
+                weekNum={currentWeekNum ?? 1}
+                onClose={() => setShowTodayModal(false)}
+                zones={zones || []}
+                readiness={todayScore ?? undefined}
+                latestPerf={latestPerf}
+                coachSnapshot={coachSnapshot ?? undefined}
+                athleteId={athleteId}
+              />
+            )}
+          </>
+        )
+      })()}
 
       {/* Unified daily briefing: coach + readiness + why */}
       {garminConnected && todayScore ? (
@@ -194,7 +246,7 @@ export default function Summary({
                 <p className="text-base font-semibold text-slate-700">Performance Snapshot</p>
                 {!perfOpen && (
                   <p className="text-sm text-slate-500 mt-0.5">
-                    Fitness {latestPerf.ctl.toFixed(0)} · Fatigue {latestPerf.atl.toFixed(0)} · Balance {latestPerf.tsb >= 0 ? '+' : ''}{latestPerf.tsb.toFixed(0)} · ACWR {latestPerf.acwr.toFixed(2)}
+                    {fitnessLabel} fitness · {fatigueLabel} fatigue · {latestPerf.tsb >= 5 ? 'Fresh' : latestPerf.tsb >= -10 ? 'Balanced' : latestPerf.tsb >= -25 ? 'Tired' : 'Deep fatigue'}
                   </p>
                 )}
                 {perfOpen && <p className="text-xs text-slate-400 mt-0.5">Garmin EPOC · 42d / 7d EWMA</p>}
