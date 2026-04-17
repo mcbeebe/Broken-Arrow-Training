@@ -51,7 +51,7 @@ export default function WeeklyPlan({
   race,
   compliance,
 }: WeeklyPlanProps) {
-  const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list')
+  const [viewMode, setViewMode] = useState<'list' | 'calendar' | 'race'>('list')
   const [activeWeek, setActiveWeek] = useState(0)
   const [modalDay, setModalDay] = useState<PlannedDay | null>(null)
   const [logDay, setLogDay] = useState<PlannedDay | null>(null)
@@ -127,6 +127,16 @@ export default function WeeklyPlan({
           >
             Calendar
           </button>
+          {race && (
+            <button
+              onClick={() => setViewMode('race')}
+              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                viewMode === 'race' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500'
+              }`}
+            >
+              🏔 Race
+            </button>
+          )}
         </div>
         {viewMode === 'calendar' && (
           <div className="flex items-center gap-2">
@@ -222,18 +232,6 @@ export default function WeeklyPlan({
         </div>
       </div>
 
-      {/* Race narrative */}
-      {race && (
-        <RaceNarrative
-          race={race}
-          weekNum={week.num}
-          totalWeeks={weeks.length}
-          weeks={weeks}
-          compliance={compliance}
-          perf={latestPerf}
-        />
-      )}
-
       {/* Day cards */}
       <div className="px-3 space-y-2">
         {week.days.map((d, i) => {
@@ -275,7 +273,58 @@ export default function WeeklyPlan({
       </>
       )}
 
-      {/* Workout detail modal (shared by both views) */}
+      {/* ── Race prep view ── */}
+      {viewMode === 'race' && race && (
+        <div className="px-3 pt-3">
+          <RaceNarrative
+            race={race}
+            weekNum={week.num}
+            totalWeeks={weeks.length}
+            weeks={weeks}
+            compliance={compliance}
+            perf={latestPerf}
+          />
+
+          {/* Course landmarks */}
+          {race.landmarks && race.landmarks.length > 0 && (
+            <div className="mt-3 bg-white rounded-xl p-4 shadow-sm border border-slate-100">
+              <p className="text-sm font-semibold text-slate-700 mb-2">Course Landmarks</p>
+              <div className="space-y-2">
+                {race.landmarks.map((l, i) => (
+                  <div key={i} className="flex gap-2">
+                    <span className="text-xs font-mono text-teal-600 shrink-0 w-14 pt-0.5">{l.segment}</span>
+                    <p className="text-xs text-slate-600 leading-relaxed">{l.description}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Gear checklist */}
+          {race.gear && race.gear.length > 0 && (
+            <div className="mt-3 bg-white rounded-xl p-4 shadow-sm border border-slate-100">
+              <p className="text-sm font-semibold text-slate-700 mb-2">Gear Checklist</p>
+              <div className="space-y-1">
+                {race.gear.map((g, i) => (
+                  <p key={i} className="text-xs text-slate-600">
+                    {g.required ? '✅' : '📋'} {g.item}
+                  </p>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Nutrition */}
+          {race.nutrition && (
+            <div className="mt-3 bg-white rounded-xl p-4 shadow-sm border border-slate-100">
+              <p className="text-sm font-semibold text-slate-700 mb-1">Nutrition Strategy</p>
+              <p className="text-xs text-slate-600 leading-relaxed">{race.nutrition}</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Workout detail modal (shared by all views) */}
       {modalDay && (
         <WorkoutModal
           day={modalDay}
