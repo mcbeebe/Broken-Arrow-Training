@@ -283,10 +283,11 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
                   <div className="space-y-0.5">
                     {actual.laps.map((l, i) => (
                       <div key={i} className="flex justify-between text-sm text-teal-700 bg-teal-100/50 rounded px-2 py-0.5">
-                        <span className="truncate max-w-[120px]">{l.name}</span>
+                        <span className="truncate max-w-[100px]">{l.name}</span>
                         <span>{formatMiles(l.distance)}</span>
                         <span>{l.pace}</span>
                         {l.hr && <span>❤️ {l.hr}</span>}
+                        {l.elev != null && l.elev > 0 && <span>⛰ {l.elev}ft</span>}
                       </div>
                     ))}
                   </div>

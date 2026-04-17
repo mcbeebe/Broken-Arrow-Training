@@ -242,6 +242,7 @@ export function garminDetailToActual(detail: GarminActivityDetail): ActualWorkou
           ? formatPace(1609.344 / s.averageSpeed)
           : '--',
         hr: s.averageHR,
+        elev: s.elevationGain != null ? Math.round(s.elevationGain * 3.28084) : undefined,
       }))
     }
   }

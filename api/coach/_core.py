@@ -926,7 +926,8 @@ def build_context_block(
                             ps = int(pace_sec) % 60
                             pace = f" {pm}:{ps:02d}/mi"
                         hr = f" HR{lap['avgHR']}" if lap.get('avgHR') else ""
-                        lap_parts.append(f"{j+1}){dist}mi{pace}{hr}")
+                        elev = f" +{lap['elev']}ft" if lap.get('elev') else ""
+                        lap_parts.append(f"{j+1}){dist}mi{pace}{hr}{elev}")
                     out.append(f"    laps: {' · '.join(lap_parts)}")
 
     if soreness:

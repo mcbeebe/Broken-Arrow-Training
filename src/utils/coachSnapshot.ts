@@ -396,6 +396,7 @@ export function buildCoachSnapshot(inputs: Inputs): CoachSnapshot {
           movingTime: l.moving_time,
           avgHR: l.average_heartrate,
           avgSpeed: l.average_speed,
+          elev: l.elev,
         })),
         hrZones: a.hrZoneSummary?.filter(z => z.seconds > 0).map(z => ({
           zone: z.zone,
@@ -427,6 +428,7 @@ export function buildCoachSnapshot(inputs: Inputs): CoachSnapshot {
         movingTime: l.moving_time,
         avgHR: l.average_heartrate,
         avgSpeed: l.average_speed,
+        elev: l.total_elevation_gain ? Math.round(l.total_elevation_gain * 3.28084) : undefined,
       })),
     }, 2)
   }

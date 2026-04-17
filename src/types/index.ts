@@ -167,7 +167,7 @@ export interface ActualWorkout {
   rpe?: number;  // 1-10 Rate of Perceived Exertion (muscular + cardiovascular)
   strengthLog?: StrengthExerciseLog[];
   splits?: { split: number; pace: string; hr?: number; elev: number }[];
-  laps?: { name: string; distance: number; pace: string; hr?: number }[];
+  laps?: { name: string; distance: number; pace: string; hr?: number; elev?: number }[];
   deviceName?: string;
   aerobicTE?: number;
   anaerobicTE?: number;
@@ -684,7 +684,7 @@ export interface CoachSnapshot {
     elevationGain?: number
     rpe?: number
     /** Per-lap/split breakdown (from Strava laps or Garmin splits). */
-    laps?: { distance: number; movingTime: number; avgHR?: number; avgSpeed?: number }[]
+    laps?: { distance: number; movingTime: number; avgHR?: number; avgSpeed?: number; elev?: number }[]
     /** Time-in-zone breakdown (from Garmin activity detail). */
     hrZones?: { zone: number; seconds: number }[]
     /** Garmin training effects. */

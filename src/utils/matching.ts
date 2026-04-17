@@ -117,6 +117,7 @@ function stravaToActual(activity: StravaActivity): ActualWorkout {
       distance: metersToMiles(l.distance),
       pace: formatPaceFromSpeed(l.average_speed),
       hr: l.average_heartrate,
+      elev: l.total_elevation_gain ? metersToFeet(l.total_elevation_gain) : undefined,
     })),
   }
 }
