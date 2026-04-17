@@ -202,8 +202,8 @@ export default function Settings({
         <Methodology />
       </SettingsSection>
 
-      {/* ── Diagnostics section (owner-only) ── */}
-      {coachEnabled && athleteId && (
+      {/* ── Diagnostics (owner-only) ── */}
+      {coachEnabled && athleteId === 'mike' && (
         <SettingsSection title="Coach Diagnostics">
           <CoachDiagnostics athleteId={athleteId} />
         </SettingsSection>

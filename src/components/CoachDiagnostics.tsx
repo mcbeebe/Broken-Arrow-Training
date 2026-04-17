@@ -37,7 +37,10 @@ interface TelemetryResponse {
  * enabled). Shows LLM usage / cost / interaction counts and lets you
  * inspect recent prompt+response samples for manual quality review.
  */
+const ALL_ATHLETES = ['mike', 'jim', 'lori', 'joel']
+
 export default function CoachDiagnostics({ athleteId }: Props) {
+  const [viewingAthlete, setViewingAthlete] = useState(athleteId)
   const [data, setData] = useState<TelemetryResponse | null>(null)
   const [loading, setLoading] = useState(false)
   const [days, setDays] = useState(30)
@@ -48,7 +51,7 @@ export default function CoachDiagnostics({ athleteId }: Props) {
     setLoading(true)
     try {
       const res = await fetch(
-        `${coachApiBase()}/api/coach/telemetry?athleteId=${encodeURIComponent(athleteId)}&days=${days}`,
+        `${coachApiBase()}/api/coach/telemetry?athleteId=${encodeURIComponent(viewingAthlete)}&days=${days}`,
       )
       if (res.ok) {
         const j = (await res.json()) as TelemetryResponse
@@ -64,7 +67,7 @@ export default function CoachDiagnostics({ athleteId }: Props) {
   useEffect(() => {
     load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [athleteId, days])
+  }, [viewingAthlete, days])
 
   if (!coachApiAvailable()) {
     return (
@@ -78,7 +81,18 @@ export default function CoachDiagnostics({ athleteId }: Props) {
   return (
     <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-100 space-y-3">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-slate-700">Coach Diagnostics</h3>
+        <div className="flex items-center gap-2">
+          <h3 className="text-sm font-semibold text-slate-700">Coach Diagnostics</h3>
+          <select
+            value={viewingAthlete}
+            onChange={e => setViewingAthlete(e.target.value)}
+            className="text-[11px] bg-slate-100 border border-slate-200 rounded px-1.5 py-0.5 text-slate-700"
+          >
+            {ALL_ATHLETES.map(a => (
+              <option key={a} value={a}>{a.charAt(0).toUpperCase() + a.slice(1)}</option>
+            ))}
+          </select>
+        </div>
         <div className="flex gap-1.5">
           {[7, 30, 90].map(n => (
             <button
