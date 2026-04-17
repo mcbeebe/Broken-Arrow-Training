@@ -10,6 +10,9 @@
     "api/terra/*.py": {
       "maxDuration": 30
     },
+    "api/apple/*.py": {
+      "maxDuration": 30
+    },
     "api/coach/*.py": {
       "maxDuration": 60
     }

@@ -52,8 +52,18 @@ export async function disconnectTerra(athleteId?: string): Promise<void> {
 export async function fetchTerraHealth(days: number = 120, athleteId?: string): Promise<GarminHealthData[]> {
   if (!TERRA_API_URL) return []
   const athleteParam = athleteId ? `&athlete=${athleteId}` : ''
+  // Try Apple Health endpoint first (iOS companion app pushes data here)
+  try {
+    const appleRes = await fetch(`${TERRA_API_URL}/api/apple/health?days=${days}${athleteParam}`)
+    if (appleRes.ok) {
+      const appleData = await appleRes.json()
+      const appleDates = appleData.dates || []
+      if (appleDates.length > 0) return appleDates
+    }
+  } catch { /* fall through to Terra */ }
+  // Fallback to Terra API
   const res = await fetch(`${TERRA_API_URL}/api/terra/health?days=${days}${athleteParam}`)
-  if (!res.ok) throw new Error(`Terra health fetch failed: ${res.status}`)
+  if (!res.ok) throw new Error(`Health data fetch failed: ${res.status}`)
   const data = await res.json()
   return (data.dates || []).map(normalizeTerraHealth)
 }
