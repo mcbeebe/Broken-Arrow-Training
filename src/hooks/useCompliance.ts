@@ -38,7 +38,7 @@ export interface OverallCompliance {
   totalFlagged: number
 }
 
-const REST_TYPES = new Set(['rest', 'travel', 'limited'])
+const REST_TYPES = new Set(['rest', 'travel'])
 
 // ─── Grading thresholds ─────────────────────────────────────────
 // "hit"   = within ±10% of target (or ≥75% HR time-in-zone)
