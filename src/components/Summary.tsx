@@ -8,6 +8,7 @@ import TRIMPBreakdown from './TRIMPBreakdown'
 import CoachInsightCard from './CoachInsightCard'
 
 interface SummaryProps {
+  athleteId: string
   todayScore: ReadinessScore | null
   weekScores: ReadinessScore[]
   todayHealth?: GarminHealthData
@@ -100,6 +101,7 @@ function buildWeekNarrative(
 }
 
 export default function Summary({
+  athleteId,
   todayScore,
   weekScores,
   todayHealth,
@@ -130,8 +132,6 @@ export default function Summary({
 
   return (
     <div className="px-3 py-4 space-y-3">
-      {/* LLM-generated daily coach read (Mike-only). Silent when Coach
-          API is offline and no fallback text is wired. */}
       {coachEnabled && (
         <CoachInsightCard
           insight={dailyInsight ?? null}
@@ -139,6 +139,7 @@ export default function Summary({
           onAsk={onAskCoach}
           coachName={coachName}
           onRegenerate={onRegenerateDailyInsight}
+          athleteId={athleteId}
         />
       )}
 

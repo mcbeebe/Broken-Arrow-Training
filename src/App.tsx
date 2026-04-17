@@ -369,6 +369,7 @@ export default function App() {
       {/* Content */}
       {view === 'summary' && (
         <Summary
+          athleteId={athleteId}
           todayScore={readiness.todayScore}
           weekScores={readiness.weekScores}
           todayHealth={todayHealth}

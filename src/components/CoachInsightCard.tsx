@@ -12,44 +12,38 @@ interface Props {
    *  busts the insight cache and refetches. Lets the athlete pull a
    *  fresh read after changing persona without waiting for tomorrow. */
   onRegenerate?: () => void
+  athleteId?: string
 }
 
-/**
- * Daily LLM-generated coach read, rendered on Summary and at the top of
- * the Coach tab. When insight is null + not loading, renders nothing.
- * The "Ask about this →" button routes back to Coach tab with the
- * insight seeded as conversation context.
- *
- * Collapsible: athletes can stash the card to a one-line header once
- * they've read it. Collapse state persists per-athlete in localStorage
- * so the preference sticks across reloads.
- */
+const COLLAPSE_PREFIX = 'ba_coach_insight_collapsed'
 
-const COLLAPSE_KEY = 'ba_coach_insight_collapsed'
+function collapseKey(athleteId?: string): string {
+  return athleteId ? `${COLLAPSE_PREFIX}_${athleteId}` : COLLAPSE_PREFIX
+}
 
-function readCollapsed(): boolean {
+function readCollapsed(athleteId?: string): boolean {
   try {
-    return localStorage.getItem(COLLAPSE_KEY) === '1'
+    return localStorage.getItem(collapseKey(athleteId)) === '1'
   } catch {
     return false
   }
 }
-function writeCollapsed(v: boolean) {
+function writeCollapsed(v: boolean, athleteId?: string) {
   try {
-    localStorage.setItem(COLLAPSE_KEY, v ? '1' : '0')
+    localStorage.setItem(collapseKey(athleteId), v ? '1' : '0')
   } catch {
     /* ignore */
   }
 }
 
-export default function CoachInsightCard({ insight, loading, onAsk, coachName, onRegenerate }: Props) {
+export default function CoachInsightCard({ insight, loading, onAsk, coachName, onRegenerate, athleteId }: Props) {
   const name = coachName?.trim() || 'Coach'
-  const [collapsed, setCollapsed] = useState(readCollapsed)
+  const [collapsed, setCollapsed] = useState(() => readCollapsed(athleteId))
 
   function toggleCollapsed() {
     const next = !collapsed
     setCollapsed(next)
-    writeCollapsed(next)
+    writeCollapsed(next, athleteId)
   }
 
   if (loading && !insight) {
