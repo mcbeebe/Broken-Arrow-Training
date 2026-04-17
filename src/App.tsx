@@ -267,6 +267,7 @@ export default function App() {
       // plan window (pre-plan base, non-plan-day bonus runs, etc.)
       stravaActivities: strava.activities,
       garminActivities: garmin.garminActivities,
+      garminActivityDetails: garmin.activityDetails,
     })
     // Attach persona so the API can shape the system prompt voice
     const persona = coachMemory.coachPersona

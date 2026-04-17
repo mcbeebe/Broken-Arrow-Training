@@ -3,6 +3,7 @@ import type {
   CoachSnapshotAnalytics,
   CoachHealthToday,
   GarminHealthData,
+  GarminActivityDetail,
   PerformanceMetrics,
   PlannedDay,
   ReadinessScore,
@@ -54,6 +55,9 @@ interface Inputs {
   /** Raw Garmin activities — same rationale as Strava. When both
    *  are present, we dedup by matching start timestamps. */
   garminActivities?: GarminActivity[]
+  /** Garmin activity details keyed by date — enriches activities with
+   *  distance, HR zones, training effects, VO2max. */
+  garminActivityDetails?: Record<string, GarminActivityDetail[]>
 }
 
 function currentDayPeriod(): 'morning' | 'afternoon' | 'evening' {
@@ -368,8 +372,12 @@ export function buildCoachSnapshot(inputs: Inputs): CoachSnapshot {
     }
   }
 
+  // Garmin activity details keyed by date — used to enrich activities
+  // with distance, HR zones, training effects, and VO2max.
+  const gDetails = inputs.garminActivityDetails || {}
+
   // Source 1: plan-matched actuals (highest priority — has RPE,
-  // drill status, manual notes)
+  // drill status, manual notes, and Garmin-enriched fields)
   for (const w of weeks) {
     for (const d of w.days) {
       const a = d.actual
@@ -380,8 +388,22 @@ export function buildCoachSnapshot(inputs: Inputs): CoachSnapshot {
         distance: a.distance || 0,
         movingTime: a.movingTime || 0,
         avgHR: a.avgHR,
+        maxHR: a.maxHR,
         elevationGain: a.elevationGain,
         rpe: a.rpe,
+        laps: a.laps?.map(l => ({
+          distance: l.distance,
+          movingTime: l.moving_time,
+          avgHR: l.average_heartrate,
+          avgSpeed: l.average_speed,
+        })),
+        hrZones: a.hrZoneSummary?.filter(z => z.seconds > 0).map(z => ({
+          zone: z.zone,
+          seconds: z.seconds,
+        })),
+        aerobicTE: a.aerobicTE,
+        anaerobicTE: a.anaerobicTE,
+        vo2max: a.vo2max,
       }, 3)
     }
   }
@@ -392,32 +414,52 @@ export function buildCoachSnapshot(inputs: Inputs): CoachSnapshot {
     putAct({
       startDate: s.start_date,
       name: s.name || s.sport_type || 'Activity',
-      // Strava distance is in meters — convert to miles to match
-      // the plan's unit (1 mi = 1609.344 m).
       distance: s.distance ? s.distance / 1609.344 : 0,
       movingTime: s.moving_time || 0,
       avgHR: s.average_heartrate,
+      maxHR: s.max_heartrate,
       elevationGain: s.total_elevation_gain
-        // Strava elevation is meters; convert to feet
         ? Math.round(s.total_elevation_gain * 3.28084)
         : 0,
       rpe: undefined,
+      laps: s.laps?.map(l => ({
+        distance: l.distance / 1609.344,
+        movingTime: l.moving_time,
+        avgHR: l.average_heartrate,
+        avgSpeed: l.average_speed,
+      })),
     }, 2)
   }
 
-  // Source 3: raw Garmin activities
+  // Source 3: raw Garmin activities — enrich from activity details
+  // when available to get distance, HR zones, and training effects.
   for (const g of garminActivities || []) {
     if (!g.date) continue
-    // Garmin activity shape here is the summary form — fields
-    // already in app units (miles, feet).
+    const dateKey = g.date.slice(0, 10)
+    const details = gDetails[dateKey]
+    const detail = details?.[0]
     putAct({
       startDate: g.date.includes('T') ? g.date : `${g.date}T00:00:00`,
       name: g.name || g.type || 'Activity',
-      distance: 0, // GarminActivity summary doesn't carry distance
-      movingTime: g.durationMinutes ? g.durationMinutes * 60 : 0,
-      avgHR: g.avgHR,
-      elevationGain: g.elevationGainFt || 0,
+      distance: detail
+        ? Math.round((detail.distanceMeters / 1609.344) * 100) / 100
+        : 0,
+      movingTime: detail
+        ? (detail.movingDurationSeconds || detail.durationSeconds)
+        : (g.durationMinutes ? g.durationMinutes * 60 : 0),
+      avgHR: detail?.averageHR ?? g.avgHR,
+      maxHR: detail?.maxHR ?? g.maxHR,
+      elevationGain: detail
+        ? Math.round(detail.elevationGainMeters * 3.28084)
+        : (g.elevationGainFt || 0),
       rpe: undefined,
+      hrZones: detail?.hrZones?.filter(z => z.secsInZone > 0).map(z => ({
+        zone: z.zoneNumber,
+        seconds: z.secsInZone,
+      })),
+      aerobicTE: detail?.aerobicTrainingEffect,
+      anaerobicTE: detail?.anaerobicTrainingEffect,
+      vo2max: detail?.vO2MaxValue,
     }, 1)
   }
 

@@ -668,8 +668,17 @@ export interface CoachSnapshot {
     distance: number
     movingTime: number
     avgHR?: number
+    maxHR?: number
     elevationGain?: number
     rpe?: number
+    /** Per-lap/split breakdown (from Strava laps or Garmin splits). */
+    laps?: { distance: number; movingTime: number; avgHR?: number; avgSpeed?: number }[]
+    /** Time-in-zone breakdown (from Garmin activity detail). */
+    hrZones?: { zone: number; seconds: number }[]
+    /** Garmin training effects. */
+    aerobicTE?: number
+    anaerobicTE?: number
+    vo2max?: number
   }[]
   recentSoreness?: { date: string; summary: string }[]
   athleteProfile?: AthleteProfile

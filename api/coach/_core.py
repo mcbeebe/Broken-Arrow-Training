@@ -884,16 +884,50 @@ def build_context_block(
 
     if activities:
         out.append(f"Recent activities ({depth}, most recent first):")
-        for a in activities:
-            out.append(
+        for i, a in enumerate(activities):
+            line = (
                 f"  - {_fmt_date_with_dow(a.get('startDate', ''))} · "
                 f"{a.get('name', '')} · "
                 f"{_fmt_num(a.get('distance'))}mi · "
                 f"{_fmt_seconds_as_min(a.get('movingTime'))} · "
-                f"avgHR {a.get('avgHR') or '—'} · "
-                f"elev {a.get('elevationGain') or 0}ft · "
-                f"RPE {a.get('rpe') or '—'}"
+                f"avgHR {a.get('avgHR') or '—'}"
             )
+            if a.get('maxHR'):
+                line += f" maxHR {a['maxHR']}"
+            line += f" · elev {a.get('elevationGain') or 0}ft"
+            if a.get('rpe'):
+                line += f" · RPE {a['rpe']}"
+            if a.get('aerobicTE'):
+                line += f" · TE {_fmt_num(a['aerobicTE'])}"
+            if a.get('vo2max'):
+                line += f" · VO2max {_fmt_num(a['vo2max'], 0)}"
+            out.append(line)
+
+            # Detailed data for recent activities (last 7 to keep tokens bounded)
+            if i < 7:
+                # HR zone breakdown
+                zones = a.get('hrZones') or []
+                if zones:
+                    zparts = [f"Z{z['zone']}:{_fmt_seconds_as_min(z['seconds'])}" for z in zones]
+                    out.append(f"    zones: {' · '.join(zparts)}")
+
+                # Laps/splits — compact per-lap pace + HR
+                laps = a.get('laps') or []
+                if laps:
+                    lap_parts: list[str] = []
+                    for j, lap in enumerate(laps[:15]):
+                        dist = _fmt_num(lap.get('distance', 0))
+                        time_s = lap.get('movingTime', 0)
+                        pace = ""
+                        d_mi = lap.get('distance', 0)
+                        if d_mi > 0 and time_s > 0:
+                            pace_sec = time_s / d_mi
+                            pm = int(pace_sec) // 60
+                            ps = int(pace_sec) % 60
+                            pace = f" {pm}:{ps:02d}/mi"
+                        hr = f" HR{lap['avgHR']}" if lap.get('avgHR') else ""
+                        lap_parts.append(f"{j+1}){dist}mi{pace}{hr}")
+                    out.append(f"    laps: {' · '.join(lap_parts)}")
 
     if soreness:
         out.append("Recent soreness:")
