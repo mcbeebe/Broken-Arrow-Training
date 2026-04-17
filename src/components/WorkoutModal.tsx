@@ -433,7 +433,7 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
               {/* HR Stream Chart */}
               {stream && stream.heartrate.length > 0 && (
                 <div className="mt-2">
-                  <HRChart stream={stream} zones={zones} />
+                  <HRChart stream={stream} zones={zones} targetZone={day.zone} />
                 </div>
               )}
               {stream && stream.velocity && stream.velocity.length > 0 && (
