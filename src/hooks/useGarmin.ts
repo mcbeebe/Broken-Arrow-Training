@@ -255,12 +255,14 @@ export function useGarmin(athleteId?: string): UseGarminReturn {
     }
   }, [configured, connected, healthData, athleteId])
 
-  // Auto-sync on mount if stale (only for already-connected profiles)
+  // Auto-sync on app open if data is more than 5 minutes old.
+  // Short threshold ensures every real app open gets fresh Garmin data
+  // while preventing duplicate syncs within the same session.
   useEffect(() => {
-    if (connected && configured && isSyncStale(athleteId)) {
+    if (connected && configured && isSyncStale(athleteId, 5 * 60 * 1000)) {
       sync()
     }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [connected, configured, athleteId, sync])
 
   return {
     connected,
