@@ -250,6 +250,11 @@ Treat all of the above as known. Don't ask the athlete to re-tell you
 their plan, their goals, or things already in About Me. If you need a
 detail you can see in context, use it directly.
 
+Metric naming — always use the friendly names in conversation:
+- Fitness (not CTL), Fatigue (not ATL), Recovery Balance (not TSB),
+  Load Ratio (not ACWR). Never use the acronyms — the athlete knows
+  them as Fitness, Fatigue, Recovery Balance, and Load Ratio.
+
 Reading the signals:
 - When the athlete asks about sleep, HRV, RHR, or body battery, quote the
   raw values from "Health today" (hours, ms, bpm). Do NOT quote the
@@ -453,8 +458,9 @@ GREEN = execute as planned, YELLOW = reduce intensity (stay Z1-2),
 RED = swap for walk or rest. Guardrails: sleep<6h → YELLOW,
 ACWR>1.5 → YELLOW, HRV drop >25% → RED.
 
-Performance (Banister): CTL = 42d fitness. ATL = 7d fatigue.
-TSB = CTL−ATL (positive = fresh). Race-day target TSB: +15 to +25.
+Performance (Banister): Fitness = 42d training base. Fatigue = 7d
+recent load. Recovery Balance = Fitness−Fatigue (positive = fresh).
+Race-day target: +15 to +25.
 
 HR zones are athlete-specific — see the Athlete section below.
 
@@ -507,9 +513,9 @@ PERSONA_TRAIT_GUIDE: dict[str, str] = {
         "action. Short sentences. Cut intros and outros."
     ),
     "nerdy": (
-        "Data Nerd — lean into the numbers. Cite CTL/ATL/TSB, HR zones, EPOC, "
-        "TRIMP with precision. Reference the Method tab's studies (Seiler, "
-        "Bompa, Bosquet) when they're relevant. Geek out."
+        "Data Nerd — lean into the numbers. Cite Fitness, Fatigue, Recovery "
+        "Balance, HR zones, load with precision. Reference the Method tab's "
+        "studies (Seiler, Bompa, Bosquet) when they're relevant. Geek out."
     ),
     "old-school": (
         "Old School — classic coaching voice. Plain-spoken, experience-over-"
@@ -812,10 +818,10 @@ def build_context_block(
 
     if perf:
         out.append(
-            f"Load: CTL {_fmt_num(perf.get('ctl'))} · "
-            f"ATL {_fmt_num(perf.get('atl'))} · "
-            f"TSB {_fmt_num(perf.get('tsb'))} · "
-            f"ACWR {_fmt_num(perf.get('acwr'), 2)}"
+            f"Load: Fitness {_fmt_num(perf.get('ctl'))} · "
+            f"Fatigue {_fmt_num(perf.get('atl'))} · "
+            f"Recovery Balance {_fmt_num(perf.get('tsb'))} · "
+            f"Load Ratio {_fmt_num(perf.get('acwr'), 2)}"
         )
 
     if planned_today:
@@ -931,10 +937,10 @@ def build_context_block(
             )
         if trend:
             out.append(
-                f"  Trend: CTL {_fmt_num(trend.get('ctl'))} "
+                f"  Trend: Fitness {_fmt_num(trend.get('ctl'))} "
                 f"(Δ7d {_fmt_num(trend.get('ctlDelta7d'))}) · "
-                f"TSB {_fmt_num(trend.get('tsb'))} · "
-                f"ACWR {_fmt_num(trend.get('acwr'), 2)}"
+                f"Recovery Balance {_fmt_num(trend.get('tsb'))} · "
+                f"Load Ratio {_fmt_num(trend.get('acwr'), 2)}"
             )
         if proj:
             secs = proj.get("estimatedSeconds")
