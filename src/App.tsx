@@ -326,7 +326,7 @@ export default function App() {
   )
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-20" style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" }}>
+    <div className="min-h-screen bg-slate-50 pb-24" style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" }}>
       {/* Header */}
       <div className="bg-slate-800 text-white px-3 py-2.5">
         <h1 className="text-lg font-bold tracking-tight leading-tight">{raceName}</h1>
@@ -466,7 +466,7 @@ export default function App() {
       {/* Bottom Tab Bar */}
       <nav
         className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-slate-200 flex"
-        style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 8px)' }}
+        style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 14px)' }}
       >
         {TABS.map(t => {
           const active = view === t.id
@@ -474,7 +474,7 @@ export default function App() {
             <button
               key={t.id}
               onClick={() => setView(t.id)}
-              className={`flex-1 flex flex-col items-center justify-center gap-1 pt-2 pb-1.5 min-h-[56px] transition-colors relative ${
+              className={`flex-1 flex flex-col items-center justify-center gap-1 pt-2.5 pb-2 min-h-[60px] transition-colors relative ${
                 active ? 'text-teal-700' : 'text-slate-400'
               }`}
             >
