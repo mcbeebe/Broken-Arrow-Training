@@ -1,4 +1,4 @@
-import type { GarminHealthData, GarminActivity, GarminActivityDetail, ActualWorkout, StrengthExerciseLog, StrengthSet } from '../types'
+import type { GarminHealthData, GarminActivity, GarminActivityDetail, GarminSplit, ActualWorkout, StrengthExerciseLog, StrengthSet } from '../types'
 import type { StreamData } from './strava'
 
 const GARMIN_API_URL = import.meta.env.VITE_GARMIN_API_URL || ''
@@ -227,6 +227,25 @@ export function garminDetailToActual(detail: GarminActivityDetail): ActualWorkou
     if (strengthLog.length === 0) strengthLog = undefined
   }
 
+  // Parse Garmin splits into the standard laps format.
+  // Garmin splits can come as a nested structure — extract the flat
+  // array of split entries from whichever shape the API returns.
+  let laps: ActualWorkout['laps']
+  const rawSplits = detail.splits
+  if (rawSplits && Array.isArray(rawSplits)) {
+    const splitEntries = extractGarminSplitEntries(rawSplits)
+    if (splitEntries.length > 0) {
+      laps = splitEntries.map((s, i) => ({
+        name: s.splitType === 'INTERVAL_REST' ? 'Rest' : `Lap ${i + 1}`,
+        distance: Math.round(((s.distance || 0) / 1609.344) * 100) / 100,
+        pace: s.averageSpeed && s.averageSpeed > 0
+          ? formatPace(1609.344 / s.averageSpeed)
+          : '--',
+        hr: s.averageHR,
+      }))
+    }
+  }
+
   return {
     stravaId: 0,
     garminId: detail.activityId,
@@ -236,6 +255,8 @@ export function garminDetailToActual(detail: GarminActivityDetail): ActualWorkou
     elapsedTime: detail.durationSeconds,
     avgHR: detail.averageHR,
     maxHR: detail.maxHR,
+    avgSpeed: detail.averageSpeed,
+    maxSpeed: detail.maxSpeed,
     calories: detail.calories,
     elevationGain: elevFt,
     type: detail.type,
@@ -252,12 +273,40 @@ export function garminDetailToActual(detail: GarminActivityDetail): ActualWorkou
         zone: z.zoneNumber,
         seconds: z.secsInZone,
         lowHR: z.zoneLowBoundary,
-        // highHR = next zone's low boundary - 1 (if we have it)
         highHR: next?.zoneLowBoundary ? next.zoneLowBoundary - 1 : undefined,
       }
     }),
+    laps,
     strengthLog,
   }
+}
+
+function formatPace(secsPerMile: number): string {
+  const mins = Math.floor(secsPerMile / 60)
+  const secs = Math.round(secsPerMile % 60)
+  return `${mins}:${secs.toString().padStart(2, '0')}/mi`
+}
+
+/** Garmin splits can arrive as a nested structure with various keys.
+ *  This extracts the flat array of split entries regardless of shape. */
+function extractGarminSplitEntries(raw: unknown[]): GarminSplit[] {
+  // Shape 1: flat array of split objects with distance/duration
+  if (raw.length > 0 && typeof raw[0] === 'object' && raw[0] !== null && 'distance' in raw[0]) {
+    return raw as GarminSplit[]
+  }
+  // Shape 2: nested { lapDTOs: [...] } or { activityDetailMetrics: [...] }
+  for (const item of raw) {
+    if (item && typeof item === 'object') {
+      const obj = item as Record<string, unknown>
+      for (const key of Object.keys(obj)) {
+        const val = obj[key]
+        if (Array.isArray(val) && val.length > 0 && typeof val[0] === 'object' && val[0] !== null && 'distance' in val[0]) {
+          return val as GarminSplit[]
+        }
+      }
+    }
+  }
+  return []
 }
 
 function parseGarminExerciseSets(raw: unknown): StrengthExerciseLog[] {

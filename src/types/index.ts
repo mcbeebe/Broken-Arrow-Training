@@ -307,6 +307,16 @@ export interface GarminExerciseSet {
   duration?: number
 }
 
+export interface GarminSplit {
+  distance?: number       // meters
+  duration?: number       // seconds
+  averageHR?: number
+  maxHR?: number
+  averageSpeed?: number   // m/s
+  elevationGain?: number  // meters
+  splitType?: string      // "INTERVAL_ACTIVE", "INTERVAL_REST", etc.
+}
+
 export interface GarminActivityDetail {
   activityId: number
   name: string
@@ -331,7 +341,9 @@ export interface GarminActivityDetail {
   vigorousIntensityMinutes?: number
   hrZones?: GarminHRZone[]
   exerciseSets?: GarminExerciseSet[]
-  splits?: unknown
+  splits?: GarminSplit[]
+  averageSpeed?: number
+  maxSpeed?: number
 }
 
 export interface GarminConnectionState {
