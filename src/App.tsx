@@ -3,6 +3,8 @@ import type { ViewId, CoachSnapshot } from './types'
 import { plans } from './data'
 import { useStrava } from './hooks/useStrava'
 import { useGarmin } from './hooks/useGarmin'
+import { useTerra } from './hooks/useTerra'
+import { useWearableSource } from './hooks/useWearableSource'
 import { useCompliance } from './hooks/useCompliance'
 import { useManualLog } from './hooks/useManualLog'
 import { useDaySwap } from './hooks/useDaySwap'
@@ -44,6 +46,26 @@ export default function App() {
   const plan = plans[athleteId]
   const strava = useStrava(athleteId)
   const garmin = useGarmin(athleteId)
+  const terra = useTerra(athleteId)
+  const { source: wearableSource, setSource: setWearableSource } = useWearableSource(athleteId)
+
+  const activeWearable = useMemo(() => {
+    if (wearableSource === 'terra') {
+      return {
+        connected: terra.connected,
+        healthData: terra.healthData,
+        activities: terra.terraActivities,
+        activityDetails: terra.activityDetails,
+      }
+    }
+    return {
+      connected: garmin.connected,
+      healthData: garmin.healthData,
+      activities: garmin.garminActivities,
+      activityDetails: garmin.activityDetails,
+    }
+  }, [wearableSource, garmin.connected, garmin.healthData, garmin.garminActivities, garmin.activityDetails,
+      terra.connected, terra.healthData, terra.terraActivities, terra.activityDetails])
 
   useEffect(() => {
     function onHashChange() {
@@ -89,12 +111,12 @@ export default function App() {
       w = matchActivitiesToPlan(w, strava.activities)
     }
     // Garmin detail enriches/overrides Strava actuals
-    if (garmin.connected && Object.keys(garmin.activityDetails).length > 0) {
-      w = mergeGarminDetailIntoWeeks(w, garmin.activityDetails)
+    if (activeWearable.connected && Object.keys(activeWearable.activityDetails).length > 0) {
+      w = mergeGarminDetailIntoWeeks(w, activeWearable.activityDetails)
     }
     w = manualLog.applyLogsToWeeks(w)
     return w
-  }, [plan.weeks, strava.activities, showStrava, manualLog.applyLogsToWeeks, daySwap.applySwapsToWeeks, garmin.connected, garmin.activityDetails])
+  }, [plan.weeks, strava.activities, showStrava, manualLog.applyLogsToWeeks, daySwap.applySwapsToWeeks, activeWearable.connected, activeWearable.activityDetails])
 
   const compliance = useCompliance(weeks)
   const raceName = plan.race.distance.includes('18K') ? 'BROKEN ARROW 18K' : 'BROKEN ARROW 11K'
@@ -170,10 +192,10 @@ export default function App() {
 
   // Readiness engine (combines Garmin health data + Strava/Garmin activities)
   const readiness = useReadiness({
-    healthData: garmin.healthData,
+    healthData: activeWearable.healthData,
     stravaActivities: strava.activities,
-    garminActivities: garmin.garminActivities,
-    garminActivityDetails: garmin.activityDetails,
+    garminActivities: activeWearable.activities,
+    garminActivityDetails: activeWearable.activityDetails,
     rpeByDate,
     exerciseLoadByDate,
     sorenessLoadByDate: soreness.sorenessLoadByDate,
@@ -186,8 +208,8 @@ export default function App() {
   // Today's health data for banner
   const todayHealth = useMemo(() => {
     const today = localDateStr()
-    return garmin.healthData.find(d => d.date === today)
-  }, [garmin.healthData])
+    return activeWearable.healthData.find(d => d.date === today)
+  }, [activeWearable.healthData])
 
   const latestPerf = useMemo(
     () => (readiness.performance.length > 0 ? readiness.performance[readiness.performance.length - 1] : null),
@@ -266,8 +288,8 @@ export default function App() {
       // Raw activity feeds so the coach can see workouts outside the
       // plan window (pre-plan base, non-plan-day bonus runs, etc.)
       stravaActivities: strava.activities,
-      garminActivities: garmin.garminActivities,
-      garminActivityDetails: garmin.activityDetails,
+      garminActivities: activeWearable.activities,
+      garminActivityDetails: activeWearable.activityDetails,
     })
     // Attach persona so the API can shape the system prompt voice
     const persona = coachMemory.coachPersona
@@ -291,7 +313,7 @@ export default function App() {
     todayHealth,
     coachMemory.coachPersona,
     strava.activities,
-    garmin.garminActivities,
+    activeWearable.activities,
   ])
 
   // Daily LLM insight (shared between Summary + Coach tab)
@@ -308,7 +330,7 @@ export default function App() {
     enabled: coachEnabled,
     snapshot: coachSnapshot,
     stravaActivities: strava.activities,
-    garminActivities: garmin.garminActivities,
+    garminActivities: activeWearable.activities,
     todayScore: readiness.todayScore,
     yesterdayScore,
     plannedToday: todayPlannedWorkout,
@@ -352,8 +374,8 @@ export default function App() {
           todayScore={readiness.todayScore}
           weekScores={readiness.weekScores}
           todayHealth={todayHealth}
-          healthHistory={garmin.healthData}
-          garminConnected={garmin.connected}
+          healthHistory={activeWearable.healthData}
+          garminConnected={activeWearable.connected}
           coachRecommendation={coachRecommendation}
           onCoachSwap={handleCoachSwap}
           dailyTrimp={readiness.dailyTrimp}
@@ -397,11 +419,11 @@ export default function App() {
           todayScore={readiness.todayScore}
           weekScores={readiness.weekScores}
           todayHealth={todayHealth}
-          healthHistory={garmin.healthData}
+          healthHistory={activeWearable.healthData}
           dailyTrimp={readiness.dailyTrimp}
           performance={readiness.performance}
           weeklyRecommendations={readiness.weeklyRecommendations}
-          garminConnected={garmin.connected}
+          garminConnected={activeWearable.connected}
           sorenessLoadByDate={soreness.sorenessLoadByDate}
         />
       )}
@@ -443,6 +465,17 @@ export default function App() {
           onGarminSubmitMfa={garmin.submitMfa}
           onGarminDisconnect={garmin.disconnect}
           onGarminSync={garmin.sync}
+          wearableSource={wearableSource}
+          onSetWearableSource={setWearableSource}
+          terraConnected={terra.connected}
+          terraConfigured={terra.configured}
+          terraLoading={terra.loading}
+          terraError={terra.error}
+          terraDisplayName={terra.displayName}
+          terraLastSync={terra.lastSync}
+          onTerraConnect={terra.connect}
+          onTerraDisconnect={terra.disconnect}
+          onTerraSync={terra.sync}
           hrZones={hrZones.zones}
           hrZonesCustomized={hrZones.isCustomized}
           hrZonesMaxHR={plan.athlete.maxHR}
