@@ -115,6 +115,7 @@ class handler(BaseHTTPRequestHandler):
             race=snapshot.get("race"),
             coach_persona=snapshot.get("coachPersona") or memory.get("coachPersona"),
             lite_knowledge=True,
+            zones=snapshot.get("zones"),
         )
         context_block = build_context_block(snapshot, depth="7d", max_activities=15)
 

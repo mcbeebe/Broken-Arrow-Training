@@ -179,6 +179,7 @@ class handler(BaseHTTPRequestHandler):
             # whatever's in KV memory so a persona set in an earlier
             # session still applies if the client hasn't synced yet.
             coach_persona=snapshot.get("coachPersona") or memory.get("coachPersona"),
+            zones=snapshot.get("zones"),
         )
 
         # Decide depth

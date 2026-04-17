@@ -674,6 +674,9 @@ export interface CoachSnapshot {
   recentSoreness?: { date: string; summary: string }[]
   athleteProfile?: AthleteProfile
   race?: RaceInfo
+  /** Athlete's HR zone definitions from the plan — rendered dynamically
+   *  in the Coach system prompt so each athlete gets their own zones. */
+  zones?: HRZone[]
   analytics?: CoachSnapshotAnalytics
   coachPersona?: CoachPersona | null
 }

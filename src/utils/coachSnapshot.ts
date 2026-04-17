@@ -9,6 +9,7 @@ import type {
   TrainingWeek,
   ActualWorkout,
   AthleteProfile,
+  HRZone,
   RaceInfo,
   DailyTRIMP,
   StravaActivity,
@@ -31,6 +32,7 @@ interface Inputs {
   raceElevationFt: number
   currentWeekNum: number
   weeks: TrainingWeek[]
+  zones?: HRZone[]
   plannedToday?: PlannedDay
   plannedTomorrow?: PlannedDay
   readiness: ReadinessScore | null
@@ -440,6 +442,7 @@ export function buildCoachSnapshot(inputs: Inputs): CoachSnapshot {
     recentSoreness,
     athleteProfile,
     race,
+    zones: inputs.zones,
     analytics,
   }
 }

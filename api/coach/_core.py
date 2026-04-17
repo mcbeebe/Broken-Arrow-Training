@@ -327,11 +327,10 @@ for skyrunning / vertical kilometer racing.
   climbs and improve climbing economy by redistributing effort to the
   upper body. Key skill: consistent plant rhythm.
 - HR zone training: Pace is unreliable on trails; HR is a consistent
-  measure of internal effort regardless of terrain. Uphill Athlete
-  zones (Mike): Z1 108-128, Z2 128-148, Z3 148-167, Z4 167-177 (Max HR
-  197). At race altitude (6,200-9,000 ft), HR runs 5-10 bpm higher for
-  the same effort — on race day, pace by perceived effort, not HR
-  targets.
+  measure of internal effort regardless of terrain. Each athlete's zones
+  are listed in the Athlete section below. At race altitude (6,200-9,000
+  ft), HR runs 5-10 bpm higher for the same effort — on race day, pace
+  by perceived effort, not HR targets.
 - Recovery week (Wk 5): Volume drops ~27%. Supercompensation happens
   here: the body absorbs Wk 1-4 stress and emerges stronger. Skipping
   recovery causes non-functional overreaching (elevated RHR, poor
@@ -457,7 +456,7 @@ ACWR>1.5 → YELLOW, HRV drop >25% → RED.
 Performance (Banister): CTL = 42d fitness. ATL = 7d fatigue.
 TSB = CTL−ATL (positive = fresh). Race-day target TSB: +15 to +25.
 
-HR Zones: Z1 108-128, Z2 128-148, Z3 148-167, Z4 167-177 (Max 197).
+HR zones are athlete-specific — see the Athlete section below.
 
 Workout types: Quality (Z3-4 intervals/tempo). Long (hilly Z2, poles
 Wk4+). Easy run (Z1-2 conversational). Strength (compound lifts +
@@ -599,6 +598,7 @@ def build_system_prompt(
     race: dict[str, Any] | None,
     coach_persona: dict[str, Any] | None = None,
     lite_knowledge: bool = False,
+    zones: list[dict[str, Any]] | None = None,
 ) -> str:
     # Build the core role line, potentially customized with persona.
     role = COACH_ROLE.strip()
@@ -612,12 +612,19 @@ def build_system_prompt(
     parts: list[str] = [role, knowledge]
 
     if athlete_profile:
-        parts.append(
+        athlete_lines = (
             "Athlete:\n"
             f"- Name: {athlete_profile.get('name', 'Athlete')}\n"
             f"- Max HR: {athlete_profile.get('maxHR', 'unknown')}\n"
             f"- Structure: {athlete_profile.get('weeklyStructure', '')}"
         )
+        if zones:
+            zone_strs = [
+                f"{z.get('zone', '')}: {z.get('hr', '')} ({z.get('pct', '')})"
+                for z in zones
+            ]
+            athlete_lines += "\n- HR Zones: " + " · ".join(zone_strs)
+        parts.append(athlete_lines)
 
     if race:
         parts.append(

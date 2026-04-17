@@ -239,7 +239,7 @@ export default function App() {
     daySwap.swapDays(currentWeekNum, fromIndex, toIndex)
   }, [daySwap, currentWeekNum])
 
-  // Assemble the CoachSnapshot for LLM calls (Mike-only)
+  // Assemble the CoachSnapshot for LLM calls
   const coachSnapshot: CoachSnapshot | null = useMemo(() => {
     if (!coachEnabled) return null
     // Gate on having at least some data — without readiness or performance
@@ -248,6 +248,7 @@ export default function App() {
     const snap = buildCoachSnapshot({
       athleteProfile: plan.athlete,
       race: plan.race,
+      zones: plan.zones,
       raceDistanceMiles: plan.race.distanceMiles,
       raceElevationFt: parseInt((plan.race.elevation || '0').replace(/[^0-9]/g, ''), 10) || 0,
       currentWeekNum,
