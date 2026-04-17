@@ -98,7 +98,7 @@ export default function Settings({
   void _onAcceptInference
   void _onDismissInference
   return (
-    <div className="px-4 py-4 space-y-4">
+    <div className="px-2 py-3 space-y-3">
       <h2 className="text-xl font-bold text-slate-800">Settings</h2>
 
       {/* Error display */}
@@ -278,13 +278,13 @@ function SettingsSection({ title, children, defaultOpen = false }: {
     <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
       <button
         onClick={() => setOpen(!open)}
-        className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-slate-50 transition-colors"
+        className="w-full flex items-center justify-between px-3 py-2.5 text-left hover:bg-slate-50 transition-colors"
       >
-        <h3 className="text-base font-semibold text-slate-800">{title}</h3>
+        <h3 className="text-sm font-semibold text-slate-800">{title}</h3>
         <span className="text-sm text-teal-600">{open ? '▴' : '▾'}</span>
       </button>
       {open && (
-        <div className="px-4 pb-4 border-t border-slate-100 pt-3">
+        <div className="px-3 pb-3 border-t border-slate-100 pt-2">
           {children}
         </div>
       )}

@@ -178,6 +178,8 @@ export function mergeGarminDetailIntoWeeks(
             vo2max: garminActual.vo2max,
             hrZoneSummary: garminActual.hrZoneSummary,
             garminId: garminActual.garminId,
+            // Prefer Strava laps if available (richer metadata), fall back to Garmin splits
+            laps: day.actual.laps?.length ? day.actual.laps : garminActual.laps,
             // Garmin exercise sets are more detailed (from watch sensors)
             strengthLog: garminActual.strengthLog?.length ? garminActual.strengthLog : day.actual.strengthLog,
           },
