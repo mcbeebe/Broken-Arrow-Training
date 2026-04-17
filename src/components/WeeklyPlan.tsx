@@ -7,6 +7,7 @@ import VolumeChart from './VolumeChart'
 import WorkoutModal from './WorkoutModal'
 import ManualLog from './ManualLog'
 import RaceNarrative from './RaceNarrative'
+import RaceElevationProfile from './RaceElevationProfile'
 
 interface WeeklyPlanProps {
   weeks: TrainingWeek[]
@@ -284,6 +285,11 @@ export default function WeeklyPlan({
             compliance={compliance}
             perf={latestPerf}
           />
+
+          {/* Elevation profile */}
+          <div className="mt-3">
+            <RaceElevationProfile race={race} />
+          </div>
 
           {/* Course landmarks */}
           {race.landmarks && race.landmarks.length > 0 && (
