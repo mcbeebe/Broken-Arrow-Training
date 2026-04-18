@@ -122,10 +122,10 @@ export default function PerformanceChart({
               <ReferenceLine y={0} stroke={isDark ? '#475569' : '#94a3b8'} strokeDasharray="2 2" />
               <ReferenceLine y={5} stroke="#059669" strokeOpacity={0.4} strokeDasharray="4 4" strokeWidth={1} />
               <ReferenceLine y={25} stroke="#059669" strokeOpacity={0.4} strokeDasharray="4 4" strokeWidth={1} />
-              {/* ACWR corridor: 0.8×CTL to 1.3×CTL — fatigue sweet spot */}
-              <Area type="natural" dataKey="acwrHigh" stroke="none" fill={isDark ? '#7c3aed' : '#ede9fe'} fillOpacity={isDark ? 0.2 : 0.3} dot={false} isAnimationActive={false} />
-              <Area type="natural" dataKey="acwrLow" stroke="none" fill={isDark ? '#0f172a' : '#ffffff'} fillOpacity={1} dot={false} isAnimationActive={false} />
-              <Area type="natural" dataKey="ctl" stroke="#3B82F6" fill="#3B82F6" fillOpacity={0.1} strokeWidth={expanded ? 2.5 : 2} dot={false} isAnimationActive={false} />
+              {/* ACWR corridor: 0.8×CTL to 1.3×CTL — fatigue sweet spot (dashed lines) */}
+              <Area type="natural" dataKey="acwrHigh" stroke="#7c3aed" strokeWidth={1} strokeDasharray="4 4" strokeOpacity={0.5} fill="none" dot={false} isAnimationActive={false} />
+              <Area type="natural" dataKey="acwrLow" stroke="#7c3aed" strokeWidth={1} strokeDasharray="4 4" strokeOpacity={0.5} fill="none" dot={false} isAnimationActive={false} />
+              <Area type="natural" dataKey="ctl" stroke="#3B82F6" fill="none" strokeWidth={expanded ? 2.5 : 2} dot={false} isAnimationActive={false} />
               <Area type="natural" dataKey="atl" stroke="#EF4444" fill="transparent" strokeWidth={expanded ? 2 : 1.5} strokeDasharray="4 2" dot={false} isAnimationActive={false} />
               <Area type="natural" dataKey={expanded ? 'tsb' : 'tsbSmooth'} stroke="#059669" fill="#059669" fillOpacity={0.15} strokeWidth={expanded ? 2.5 : 2} dot={false} isAnimationActive={false} />
             </AreaChart>
