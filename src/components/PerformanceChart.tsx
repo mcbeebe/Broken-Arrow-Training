@@ -40,6 +40,8 @@ export default function PerformanceChart({
   const rawData = performance.map(m => ({
     ...m,
     label: m.date.slice(5),
+    acwrLow: m.ctl * 0.8,
+    acwrHigh: m.ctl * 1.3,
   }))
 
   const smoothedData = smoothSeries(rawData, 5)
@@ -115,6 +117,9 @@ export default function PerformanceChart({
                 label={{ value: 'Race Day', fontSize: expanded ? 12 : 10, fill: isDark ? '#6ee7b7' : '#047857' }}
               />
               <ReferenceLine y={0} stroke={isDark ? '#475569' : '#94a3b8'} strokeDasharray="2 2" />
+              {/* ACWR corridor: 0.8×CTL to 1.3×CTL — fatigue sweet spot */}
+              <Area type="natural" dataKey="acwrHigh" stroke="none" fill={isDark ? '#7c3aed' : '#ede9fe'} fillOpacity={isDark ? 0.2 : 0.3} dot={false} isAnimationActive={false} />
+              <Area type="natural" dataKey="acwrLow" stroke="none" fill={isDark ? '#0f172a' : '#ffffff'} fillOpacity={1} dot={false} isAnimationActive={false} />
               <Area type="natural" dataKey="ctl" stroke="#3B82F6" fill="#3B82F6" fillOpacity={0.1} strokeWidth={expanded ? 2.5 : 2} dot={false} isAnimationActive={false} />
               <Area type="natural" dataKey="atl" stroke="#EF4444" fill="transparent" strokeWidth={expanded ? 2 : 1.5} strokeDasharray="4 2" dot={false} isAnimationActive={false} />
               <Area type="natural" dataKey={expanded ? 'tsb' : 'tsbSmooth'} stroke="#059669" fill="#059669" fillOpacity={0.15} strokeWidth={expanded ? 2.5 : 2} dot={false} isAnimationActive={false} />
@@ -140,6 +145,9 @@ export default function PerformanceChart({
             </span>
             <span className="flex items-center gap-1">
               <span className="w-3 h-2 bg-green-600/20 border border-green-600/30 inline-block rounded" /> Race Day Peak (TSB +5 to +25)
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="w-3 h-2 bg-violet-400/20 border border-violet-400/30 inline-block rounded" /> Fatigue Corridor (0.8–1.3× Fitness)
             </span>
           </div>
         )}
@@ -268,6 +276,8 @@ interface ChartPoint {
   atl: number
   tsb: number
   tsbSmooth?: number
+  acwrLow: number
+  acwrHigh: number
   label: string
   date: string
   acwr: number
@@ -281,11 +291,14 @@ function smoothSeries(data: ChartPoint[], window: number): ChartPoint[] {
     const end = Math.min(data.length - 1, i + halfW)
     const slice = data.slice(start, end + 1)
     const n = slice.length
+    const smoothCtl = slice.reduce((s, p) => s + p.ctl, 0) / n
     return {
       ...point,
-      ctl: slice.reduce((s, p) => s + p.ctl, 0) / n,
+      ctl: smoothCtl,
       atl: slice.reduce((s, p) => s + p.atl, 0) / n,
       tsbSmooth: slice.reduce((s, p) => s + p.tsb, 0) / n,
+      acwrLow: smoothCtl * 0.8,
+      acwrHigh: smoothCtl * 1.3,
     }
   })
 }
