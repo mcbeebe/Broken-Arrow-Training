@@ -94,9 +94,9 @@ export default function PerformanceChart({
                   'Recovery Balance (TSB)',
                 ]}
               />
-              {/* Training band: productive overreach zone (TSB -10 to +5) */}
+              {/* Training band: productive overreach zone (TSB -30 to -10) */}
               <ReferenceArea
-                y1={-10} y2={5}
+                y1={-30} y2={-10}
                 fill={isDark ? '#1e3a5f' : '#dbeafe'}
                 fillOpacity={isDark ? 0.5 : 0.4}
                 stroke="#3B82F6"
@@ -104,9 +104,9 @@ export default function PerformanceChart({
                 strokeWidth={1}
                 label={{ value: 'Training Zone', fontSize: expanded ? 12 : 10, fill: isDark ? '#93c5fd' : '#1d4ed8', position: 'insideBottomLeft' }}
               />
-              {/* Race day band: peak performance zone (TSB +15 to +25) */}
+              {/* Race day band: peak performance zone (TSB +5 to +25) */}
               <ReferenceArea
-                y1={15} y2={25}
+                y1={5} y2={25}
                 fill={isDark ? '#064e3b' : '#d1fae5'}
                 fillOpacity={isDark ? 0.5 : 0.4}
                 stroke="#059669"
@@ -136,10 +136,10 @@ export default function PerformanceChart({
         {expanded && (
           <div className="flex flex-wrap justify-center gap-x-4 gap-y-1 mt-1 text-xs text-slate-500 dark:text-slate-400">
             <span className="flex items-center gap-1">
-              <span className="w-3 h-2 bg-blue-500/10 border border-blue-500/30 inline-block rounded" /> Training Zone (TSB -10 to +5)
+              <span className="w-3 h-2 bg-blue-500/10 border border-blue-500/30 inline-block rounded" /> Training Zone (TSB -30 to -10)
             </span>
             <span className="flex items-center gap-1">
-              <span className="w-3 h-2 bg-green-600/20 border border-green-600/30 inline-block rounded" /> Race Day Peak (TSB +15 to +25)
+              <span className="w-3 h-2 bg-green-600/20 border border-green-600/30 inline-block rounded" /> Race Day Peak (TSB +5 to +25)
             </span>
           </div>
         )}
