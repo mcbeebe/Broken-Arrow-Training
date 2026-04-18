@@ -7,12 +7,6 @@
     "api/garmin/*.py": {
       "maxDuration": 30
     },
-    "api/terra/*.py": {
-      "maxDuration": 30
-    },
-    "api/apple/*.py": {
-      "maxDuration": 30
-    },
     "api/auth/*.py": {
       "maxDuration": 15
     },

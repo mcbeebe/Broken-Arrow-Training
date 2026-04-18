@@ -1,9 +1,7 @@
 import { useState } from 'react'
 import StravaConnect from './StravaConnect'
 import GarminConnect from './GarminConnect'
-import TerraConnect from './TerraConnect'
 import HRZoneEditor from './HRZoneEditor'
-import type { WearableSource } from '../types'
 import type { AuthSession } from '../utils/auth'
 import type { ThemeMode } from '../hooks/useTheme'
 import AboutMe from './AboutMe'
@@ -47,19 +45,6 @@ interface SettingsProps {
   onGarminSubmitMfa: (code: string) => Promise<void>
   onGarminDisconnect: () => void
   onGarminSync: () => Promise<void>
-  // Wearable source
-  wearableSource?: WearableSource
-  onSetWearableSource?: (source: WearableSource) => void
-  // Terra (Apple Health)
-  terraConnected?: boolean
-  terraConfigured?: boolean
-  terraLoading?: boolean
-  terraError?: string | null
-  terraDisplayName?: string | null
-  terraLastSync?: string | null
-  onTerraConnect?: () => Promise<void>
-  onTerraDisconnect?: () => void
-  onTerraSync?: () => Promise<void>
   // HR Zones
   hrZones?: HRZone[]
   hrZonesCustomized?: boolean
@@ -99,17 +84,6 @@ export default function Settings({
   onGarminSubmitMfa,
   onGarminDisconnect,
   onGarminSync,
-  wearableSource,
-  onSetWearableSource,
-  terraConnected,
-  terraConfigured,
-  terraLoading,
-  terraError,
-  terraDisplayName,
-  terraLastSync,
-  onTerraConnect,
-  onTerraDisconnect,
-  onTerraSync,
   hrZones,
   hrZonesCustomized,
   hrZonesMaxHR,
@@ -229,69 +203,25 @@ export default function Settings({
               onDisconnect={onDisconnect}
             />
           </div>
-          {/* Wearable source picker */}
-          {onSetWearableSource && (
-            <div className="space-y-2">
-              <h4 className="text-sm font-semibold text-slate-700">Health Data Source</h4>
-              <p className="text-xs text-slate-400">
-                HRV, resting HR, sleep, and readiness scoring. Choose one source.
-              </p>
-              <div className="flex gap-1 bg-slate-100 rounded-lg p-0.5">
-                <button
-                  onClick={() => onSetWearableSource('garmin')}
-                  className={`flex-1 text-xs font-medium py-2 rounded-md transition-colors ${
-                    wearableSource === 'garmin' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500'
-                  }`}
-                >
-                  Garmin
-                </button>
-                <button
-                  onClick={() => onSetWearableSource('terra')}
-                  className={`flex-1 text-xs font-medium py-2 rounded-md transition-colors ${
-                    wearableSource === 'terra' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500'
-                  }`}
-                >
-                  Apple Health
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Active source connection panel */}
-          {(!wearableSource || wearableSource === 'garmin' || wearableSource === 'none') && (
-            <div>
-              <h4 className="text-sm font-semibold text-slate-700 mb-2">Garmin</h4>
-              <GarminConnect
-                connected={garminConnected}
-                configured={garminConfigured}
-                loading={garminLoading}
-                error={garminError}
-                mfaRequired={garminMfaRequired}
-                displayName={garminDisplayName}
-                lastSync={garminLastSync}
-                onConnect={onGarminConnect}
-                onSubmitMfa={onGarminSubmitMfa}
-                onDisconnect={onGarminDisconnect}
-                onSync={onGarminSync}
-              />
-            </div>
-          )}
-          {wearableSource === 'terra' && onTerraConnect && onTerraDisconnect && onTerraSync && (
-            <div>
-              <h4 className="text-sm font-semibold text-slate-700 mb-2">Apple Health</h4>
-              <TerraConnect
-                connected={!!terraConnected}
-                configured={!!terraConfigured}
-                loading={!!terraLoading}
-                error={terraError ?? null}
-                displayName={terraDisplayName ?? null}
-                lastSync={terraLastSync ?? null}
-                onConnect={onTerraConnect}
-                onDisconnect={onTerraDisconnect}
-                onSync={onTerraSync}
-              />
-            </div>
-          )}
+          <div>
+            <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-2">Garmin</h4>
+            <p className="text-xs text-slate-400 mb-2">
+              HRV, resting HR, sleep quality, and Body Battery for readiness scoring.
+            </p>
+            <GarminConnect
+              connected={garminConnected}
+              configured={garminConfigured}
+              loading={garminLoading}
+              error={garminError}
+              mfaRequired={garminMfaRequired}
+              displayName={garminDisplayName}
+              lastSync={garminLastSync}
+              onConnect={onGarminConnect}
+              onSubmitMfa={onGarminSubmitMfa}
+              onDisconnect={onGarminDisconnect}
+              onSync={onGarminSync}
+            />
+          </div>
           {connected && (
             <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-100 space-y-3">
               <div className="flex items-center justify-between">

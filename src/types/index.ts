@@ -352,8 +352,6 @@ export interface GarminConnectionState {
   dataRange: { from: string; to: string } | null;
 }
 
-export type WearableSource = 'garmin' | 'terra' | 'none'
-
 // ─── Readiness Engine Types (ATE-aligned) ─────────────────────────
 
 export type ReadinessStatus = "PEAK" | "GREEN" | "YELLOW" | "RED";
