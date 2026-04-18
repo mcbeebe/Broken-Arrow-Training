@@ -3,8 +3,8 @@ import { useState } from 'react'
 export default function Methodology() {
   return (
     <div className="px-4 py-4 space-y-5 pb-8">
-      <h2 className="text-xl font-bold text-slate-800">Training Philosophy</h2>
-      <p className="text-base text-slate-600">
+      <h2 className="text-xl font-bold text-slate-800 dark:text-white">Training Philosophy</h2>
+      <p className="text-base text-slate-600 dark:text-slate-300">
         This 10-week plan is built on proven endurance training principles from Uphill Athlete,
         TrainingPeaks methodology, and sport-specific research for skyrunning and vertical kilometer racing.
       </p>
@@ -56,7 +56,7 @@ export default function Methodology() {
           Broken Arrow's 18K features <strong>~3,800 ft of climbing</strong> on technical trail at
           altitude (6,200-9,000 ft). The plan progressively builds these specific demands:
         </p>
-        <ul className="space-y-2 text-base text-slate-700">
+        <ul className="space-y-2 text-base text-slate-700 dark:text-slate-200">
           <li className="flex gap-2"><span className="text-teal-600 font-bold shrink-0">Wk 1-3:</span> Base aerobic fitness + initial vert (760-912 ft on long runs)</li>
           <li className="flex gap-2"><span className="text-teal-600 font-bold shrink-0">Wk 4-6:</span> Race-specific vert (1,528-2,000 ft), poles introduced, eccentric strength</li>
           <li className="flex gap-2"><span className="text-teal-600 font-bold shrink-0">Wk 7-8:</span> Peak vert (2,200-2,500+ ft) on Olympic Peninsula trails, dress rehearsal</li>
@@ -110,7 +110,7 @@ export default function Methodology() {
           pace on flat ground. Heart rate provides a <strong>consistent measure of internal effort</strong>
           regardless of terrain or conditions.
         </p>
-        <div className="bg-white rounded-xl p-3 border border-slate-100 space-y-1.5 text-base">
+        <div className="bg-white dark:bg-slate-800 rounded-xl p-3 border border-slate-100 dark:border-slate-700 space-y-1.5 text-base">
           <div className="flex justify-between"><strong>Z1 (108-128)</strong><span>Recovery / warm-up</span></div>
           <div className="flex justify-between"><strong>Z2 (128-148)</strong><span>Aerobic base (80% of training)</span></div>
           <div className="flex justify-between"><strong>Z3 (148-167)</strong><span>Tempo / sustained effort</span></div>
@@ -166,7 +166,7 @@ export default function Methodology() {
 
       {/* References */}
       <Section title="References">
-        <div className="space-y-2 text-sm text-slate-600">
+        <div className="space-y-2 text-sm text-slate-600 dark:text-slate-300">
           <p>Achten, J. & Jeukendrup, A. (2003). Heart Rate Monitoring: Applications and Limitations. <em>Sports Medicine</em>, 33(7), 517-538.</p>
           <p>Bosquet, L., et al. (2007). Effects of Tapering on Performance: A Meta-Analysis. <em>Medicine & Science in Sports & Exercise</em>, 39(8), 1358-1365.</p>
           <p>Giandolini, M., et al. (2019). Trekking Poles and Uphill Walking. <em>Medicine & Science in Sports & Exercise</em>, 51(6S), 247.</p>
@@ -184,16 +184,16 @@ export default function Methodology() {
 function Section({ title, children, defaultOpen = false }: { title: string; children: React.ReactNode; defaultOpen?: boolean }) {
   const [open, setOpen] = useState(defaultOpen)
   return (
-    <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+    <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
       <button
         onClick={() => setOpen(!open)}
-        className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-slate-50 transition-colors"
+        className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-slate-50 dark:hover:bg-slate-700 dark:bg-slate-900 transition-colors"
       >
-        <h3 className="text-base font-bold text-slate-800">{title}</h3>
+        <h3 className="text-base font-bold text-slate-800 dark:text-white">{title}</h3>
         <span className="text-sm text-teal-600 ml-2 shrink-0">{open ? '▴' : '▾'}</span>
       </button>
       {open && (
-        <div className="px-4 pb-4 text-base text-slate-700 space-y-2 border-t border-slate-100 pt-3">
+        <div className="px-4 pb-4 text-base text-slate-700 dark:text-slate-200 space-y-2 border-t border-slate-100 dark:border-slate-700 pt-3">
           {children}
         </div>
       )}
@@ -203,9 +203,9 @@ function Section({ title, children, defaultOpen = false }: { title: string; chil
 
 function Citation({ text, source }: { text: string; source: string }) {
   return (
-    <blockquote className="bg-slate-50 rounded-xl p-3 border-l-4 border-teal-500 my-2">
-      <p className="text-base text-slate-700 italic">"{text}"</p>
-      <p className="text-sm text-slate-500 mt-1">— {source}</p>
+    <blockquote className="bg-slate-50 dark:bg-slate-900 rounded-xl p-3 border-l-4 border-teal-500 my-2">
+      <p className="text-base text-slate-700 dark:text-slate-200 italic">"{text}"</p>
+      <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">— {source}</p>
     </blockquote>
   )
 }
@@ -228,7 +228,7 @@ function PhaseBar() {
       </div>
       <div className="flex mt-1">
         {phases.map(p => (
-          <div key={p.label} className="text-center text-xs text-slate-500" style={{ width: p.width }}>
+          <div key={p.label} className="text-center text-xs text-slate-500 dark:text-slate-400" style={{ width: p.width }}>
             Wk {p.weeks}
           </div>
         ))}

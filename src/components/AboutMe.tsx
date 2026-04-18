@@ -57,10 +57,10 @@ export default function AboutMe({ value, onSave, onClear }: AboutMeProps) {
   const charCount = draft.length
 
   return (
-    <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-100">
+    <div className="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700">
       <div className="flex items-center justify-between mb-2">
         <div>
-          <h3 className="text-sm font-semibold text-slate-700">About Me</h3>
+          <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200">About Me</h3>
           <p className="text-[10px] text-slate-400">What the coach knows about you. You own this — edit anytime.</p>
         </div>
       </div>
@@ -71,7 +71,7 @@ export default function AboutMe({ value, onSave, onClear }: AboutMeProps) {
         onBlur={handleBlur}
         rows={10}
         placeholder={PLACEHOLDER}
-        className="w-full px-2.5 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-400 resize-y leading-relaxed font-normal"
+        className="w-full px-2.5 py-2 text-xs border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-400 resize-y leading-relaxed font-normal"
       />
 
       <div className="mt-2 flex items-center justify-between">

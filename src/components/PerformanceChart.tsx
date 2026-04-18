@@ -24,9 +24,9 @@ export default function PerformanceChart({
 }: PerformanceChartProps) {
   if (performance.length === 0) {
     return (
-      <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-100">
-        <p className="text-base font-semibold text-slate-700">Fitness / Fatigue / Recovery Balance</p>
-        <p className="text-sm text-slate-500 mt-1">Connect Garmin and sync activities to see performance trends</p>
+      <div className="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700">
+        <p className="text-base font-semibold text-slate-700 dark:text-slate-200">Fitness / Fatigue / Recovery Balance</p>
+        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Connect Garmin and sync activities to see performance trends</p>
       </div>
     )
   }
@@ -44,11 +44,11 @@ export default function PerformanceChart({
   return (
     <div className="space-y-3">
       {/* CTL / ATL / TSB Chart */}
-      <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-100">
+      <div className="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700">
         <div className="flex items-baseline justify-between mb-3">
           <div>
-            <p className="text-base font-semibold text-slate-700">Fitness / Fatigue / Recovery Balance</p>
-            <p className="text-sm text-slate-500">Banister impulse-response model · Race: {raceDate}</p>
+            <p className="text-base font-semibold text-slate-700 dark:text-slate-200">Fitness / Fatigue / Recovery Balance</p>
+            <p className="text-sm text-slate-500 dark:text-slate-400">Banister impulse-response model · Race: {raceDate}</p>
           </div>
         </div>
 
@@ -122,7 +122,7 @@ export default function PerformanceChart({
         </div>
 
         {/* Legend */}
-        <div className="flex flex-wrap justify-center gap-x-4 gap-y-1 mt-2 text-sm text-slate-600">
+        <div className="flex flex-wrap justify-center gap-x-4 gap-y-1 mt-2 text-sm text-slate-600 dark:text-slate-300">
           <span className="flex items-center gap-1">
             <span className="w-3 h-0.5 bg-blue-500 inline-block rounded" /> Fitness (CTL)
           </span>
@@ -191,7 +191,7 @@ export default function PerformanceChart({
       {/* Recommendations */}
       {recommendations.length > 0 && (
         <div className="space-y-2">
-          <p className="text-base font-semibold text-slate-700">Recommendations</p>
+          <p className="text-base font-semibold text-slate-700 dark:text-slate-200">Recommendations</p>
           {recommendations.map((rec, i) => {
             const s = SEVERITY_STYLES[rec.severity]
             return (
@@ -217,19 +217,19 @@ function PerfStatCard({ label, value, sub, color, note }: {
     red: 'text-red-600',
     green: 'text-green-700',
     amber: 'text-amber-600',
-    slate: 'text-slate-700',
+    slate: 'text-slate-700 dark:text-slate-200',
   }
   return (
-    <div className="bg-white rounded-xl p-3 shadow-sm border border-slate-100">
+    <div className="bg-white dark:bg-slate-800 rounded-xl p-3 shadow-sm border border-slate-100 dark:border-slate-700">
       <div className="flex items-baseline gap-2">
         <div>
-          <p className="text-xs text-slate-500 uppercase tracking-wide">{label}</p>
-          <p className={`text-2xl font-bold ${colorMap[color] || 'text-slate-800'}`}>{value}</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wide">{label}</p>
+          <p className={`text-2xl font-bold ${colorMap[color] || 'text-slate-800 dark:text-white'}`}>{value}</p>
           <p className="text-xs text-slate-400 leading-tight">{sub}</p>
         </div>
       </div>
       {note && (
-        <p className="text-sm text-slate-600 mt-1.5 leading-snug border-t border-slate-100 pt-1.5">{note}</p>
+        <p className="text-sm text-slate-600 dark:text-slate-300 mt-1.5 leading-snug border-t border-slate-100 dark:border-slate-700 pt-1.5">{note}</p>
       )}
     </div>
   )

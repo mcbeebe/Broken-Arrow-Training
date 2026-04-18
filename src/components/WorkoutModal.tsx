@@ -188,7 +188,7 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
       <div className="absolute inset-0 bg-black/50" />
 
       <div
-        className="relative bg-white rounded-t-2xl w-full max-h-[96vh] overflow-y-auto shadow-xl"
+        className="relative bg-white dark:bg-slate-800 rounded-t-2xl w-full max-h-[96vh] overflow-y-auto shadow-xl"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
@@ -200,17 +200,17 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
             <div className="flex items-center gap-2">
               <span className="text-lg">{style.label}</span>
               <div>
-                <p className="font-bold text-base text-slate-800 leading-tight">{day.day} <span className="font-normal text-sm text-slate-500">Wk {weekNum}</span></p>
+                <p className="font-bold text-base text-slate-800 dark:text-white leading-tight">{day.day} <span className="font-normal text-sm text-slate-500 dark:text-slate-400">Wk {weekNum}</span></p>
               </div>
             </div>
             <button
               onClick={onClose}
-              className="w-7 h-7 flex items-center justify-center rounded-full bg-white/70 text-slate-600 hover:bg-white transition-colors"
+              className="w-7 h-7 flex items-center justify-center rounded-full bg-white dark:bg-slate-800/70 text-slate-600 dark:text-slate-300 hover:bg-white dark:bg-slate-800 transition-colors"
             >
               ✕
             </button>
           </div>
-          <p className="font-semibold text-base text-slate-800 mt-1">{day.workout}</p>
+          <p className="font-semibold text-base text-slate-800 dark:text-white mt-1">{day.workout}</p>
           {/* Distance + estimated running time pulled from the zone
               field (e.g. "3.0 mi · Z1–2 (108–148)"). Shown prominently
               so athletes see the actual run portion, not just total session. */}
@@ -221,7 +221,7 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
             const hasRunDetails = miles !== null || !!runTime
             if (!hasRunDetails && day.time === '—') return null
             return (
-              <div className="mt-1 space-y-0.5 text-sm text-slate-600">
+              <div className="mt-1 space-y-0.5 text-sm text-slate-600 dark:text-slate-300">
                 {hasRunDetails && (
                   <p>
                     {miles !== null && <span>📏 {miles} mi</span>}
@@ -331,7 +331,7 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
                     <span className={`text-xs px-2 py-1 rounded-lg font-medium ${
                       actual.anaerobicTE >= 3 ? 'bg-purple-100 text-purple-700' :
                       actual.anaerobicTE >= 1 ? 'bg-blue-100 text-blue-700' :
-                      'bg-slate-100 text-slate-600'
+                      'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
                     }`}>
                       ⚡ Anaerobic TE: {actual.anaerobicTE.toFixed(1)}
                     </span>
@@ -368,7 +368,7 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
                         </div>
                         <div className="flex flex-wrap gap-1.5 mt-1">
                           {ex.sets.map((s, j) => (
-                            <span key={j} className="text-xs text-teal-700 bg-white/60 rounded px-1.5 py-0.5">
+                            <span key={j} className="text-xs text-teal-700 bg-white dark:bg-slate-800/60 rounded px-1.5 py-0.5">
                               {s.reps > 0 ? `${s.reps} reps` : ''}{s.weight !== '—' ? ` @ ${s.weight}` : ''}{s.notes ? ` (${s.notes})` : ''}
                             </span>
                           ))}
@@ -432,8 +432,8 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
                         const deltaColor = delta <= -5 ? 'text-green-600' : delta >= 5 ? 'text-red-500' : 'text-slate-400'
                         return (
                           <div key={s.mile} className="flex items-center gap-2">
-                            <span className="text-xs text-slate-500 w-4 text-right font-medium">{s.mile}</span>
-                            <div className="flex-1 relative h-5 bg-slate-100 rounded overflow-hidden">
+                            <span className="text-xs text-slate-500 dark:text-slate-400 w-4 text-right font-medium">{s.mile}</span>
+                            <div className="flex-1 relative h-5 bg-slate-100 dark:bg-slate-700 rounded overflow-hidden">
                               <div className="h-full rounded" style={{ width: `${barPct}%`, backgroundColor: barColor }} />
                               <span className="absolute inset-0 flex items-center px-1.5 text-[11px] font-semibold text-white drop-shadow-sm">
                                 {s.pace}/mi
@@ -442,7 +442,7 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
                             <span className="text-[10px] w-8 text-right font-medium" style={{ color: deltaColor === 'text-slate-400' ? '#94A3B8' : undefined }}>
                               <span className={deltaColor}>{deltaStr}</span>
                             </span>
-                            <span className="text-[10px] text-slate-500 w-10 text-right">{s.avgHR > 0 ? `${s.avgHR}` : '—'}</span>
+                            <span className="text-[10px] text-slate-500 dark:text-slate-400 w-10 text-right">{s.avgHR > 0 ? `${s.avgHR}` : '—'}</span>
                             <span className="text-[10px] text-slate-400 w-8 text-right">{s.elevGain > 0 ? `+${s.elevGain}'` : ''}</span>
                           </div>
                         )
@@ -481,8 +481,8 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
           {/* Pre-run activation for drill days */}
           {isDrillDay && (
             <div>
-              <p className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-2">🔥 Pre-Run Activation (~3 min)</p>
-              <p className="text-sm text-slate-600 mb-2">Do these BEFORE your run to wake up your glutes and hips. Quick and targeted.</p>
+              <p className="text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-2">🔥 Pre-Run Activation (~3 min)</p>
+              <p className="text-sm text-slate-600 dark:text-slate-300 mb-2">Do these BEFORE your run to wake up your glutes and hips. Quick and targeted.</p>
               <div className="space-y-1.5">
                 {PRE_RUN_ACTIVATION.map((drill, i) => (
                   <DrillCard key={i} drill={drill} />
@@ -493,16 +493,16 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
 
           {/* Purpose */}
           <div>
-            <p className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-1">🎯 Purpose</p>
-            <p className="text-base text-slate-700 leading-relaxed">{coaching.purpose}</p>
+            <p className="text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1">🎯 Purpose</p>
+            <p className="text-base text-slate-700 dark:text-slate-200 leading-relaxed">{coaching.purpose}</p>
           </div>
 
           {/* How to Execute */}
           <div>
-            <p className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-1">📋 How to Execute</p>
+            <p className="text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1">📋 How to Execute</p>
             <ul className="space-y-1.5">
               {coaching.execution.map((tip, i) => (
-                <li key={i} className="text-base text-slate-700 flex gap-2">
+                <li key={i} className="text-base text-slate-700 dark:text-slate-200 flex gap-2">
                   <span className="text-slate-400 shrink-0">•</span>
                   <span>{tip}</span>
                 </li>
@@ -513,7 +513,7 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
           {/* Strength: Exercise-by-exercise guide */}
           {isStrength && exercises.length > 0 && (
             <div>
-              <p className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-2">🏋️ Exercise Guide (tap for form cues)</p>
+              <p className="text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-2">🏋️ Exercise Guide (tap for form cues)</p>
               <div className="space-y-2">
                 {exercises.map((ex, i) => (
                   <ExerciseCard key={i} exercise={ex} index={i + 1} />
@@ -525,7 +525,7 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
           {/* Quality: Interval breakdown */}
           {isQuality && intervals.length > 0 && (
             <div>
-              <p className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-2">⚡ Interval Breakdown</p>
+              <p className="text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-2">⚡ Interval Breakdown</p>
               <div className="space-y-1.5">
                 {intervals.map((seg, i) => (
                   <IntervalSegment key={i} segment={seg} index={i} />
@@ -537,8 +537,8 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
           {/* Drills + Myrtl for designated drill days */}
           {isDrillDay && (
             <div>
-              <p className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-2">🏃 Post-Run: Running Drills (~8 min)</p>
-              <p className="text-sm text-slate-600 mb-2">Do these after your run while muscles are warm, before stretching. Builds speed and coordination.</p>
+              <p className="text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-2">🏃 Post-Run: Running Drills (~8 min)</p>
+              <p className="text-sm text-slate-600 dark:text-slate-300 mb-2">Do these after your run while muscles are warm, before stretching. Builds speed and coordination.</p>
               <div className="space-y-1.5">
                 {RUNNING_DRILLS.map((drill, i) => (
                   <DrillCard key={i} drill={drill} />
@@ -549,8 +549,8 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
 
           {isDrillDay && (
             <div>
-              <p className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-2">🦵 Post-Run: Full Myrtl Hip Routine (~10 min)</p>
-              <p className="text-sm text-slate-600 mb-2">Full hip strengthening after drills. You did the abbreviated version pre-run — now go deep while muscles are warm.</p>
+              <p className="text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-2">🦵 Post-Run: Full Myrtl Hip Routine (~10 min)</p>
+              <p className="text-sm text-slate-600 dark:text-slate-300 mb-2">Full hip strengthening after drills. You did the abbreviated version pre-run — now go deep while muscles are warm.</p>
               <div className="space-y-1.5">
                 {MYRTL_ROUTINE.map((drill, i) => (
                   <DrillCard key={i} drill={drill} />
@@ -571,21 +571,21 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
           )}
 
           {/* Mindset */}
-          <div className="bg-slate-50 rounded-xl p-3 border border-slate-200">
-            <p className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-1">🧠 Mindset</p>
-            <p className="text-base text-slate-700 italic leading-relaxed">{coaching.mindset}</p>
+          <div className="bg-slate-50 dark:bg-slate-900 rounded-xl p-3 border border-slate-200 dark:border-slate-700">
+            <p className="text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1">🧠 Mindset</p>
+            <p className="text-base text-slate-700 dark:text-slate-200 italic leading-relaxed">{coaching.mindset}</p>
           </div>
 
           {/* Nutrition */}
           <div>
-            <p className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-1">🍌 Nutrition</p>
-            <p className="text-base text-slate-700">{coaching.nutrition}</p>
+            <p className="text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1">🍌 Nutrition</p>
+            <p className="text-base text-slate-700 dark:text-slate-200">{coaching.nutrition}</p>
           </div>
 
           {/* Recovery */}
           <div>
-            <p className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-1">🔄 Recovery</p>
-            <p className="text-base text-slate-700">{coaching.recovery}</p>
+            <p className="text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1">🔄 Recovery</p>
+            <p className="text-base text-slate-700 dark:text-slate-200">{coaching.recovery}</p>
           </div>
         </div>
 
@@ -598,11 +598,11 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
 function DrillStatusBanner({ drills }: { drills?: { completed: boolean; items?: { name: string; done: boolean }[]; durationMin?: number } }) {
   if (!drills) {
     return (
-      <div className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 flex items-center gap-2">
+      <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2.5 flex items-center gap-2">
         <span className="text-xl">🤸</span>
         <div className="flex-1">
-          <p className="text-base font-semibold text-slate-700">Drills not yet logged</p>
-          <p className="text-sm text-slate-500">Open the Log modal to check off drills as you do them.</p>
+          <p className="text-base font-semibold text-slate-700 dark:text-slate-200">Drills not yet logged</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400">Open the Log modal to check off drills as you do them.</p>
         </div>
       </div>
     )
@@ -644,7 +644,7 @@ function ExerciseCard({ exercise, index }: { exercise: ParsedExercise; index: nu
 
   return (
     <div
-      className="bg-white rounded-xl border border-purple-200 overflow-hidden"
+      className="bg-white dark:bg-slate-800 rounded-xl border border-purple-200 overflow-hidden"
       onClick={() => setExpanded(!expanded)}
     >
       <div className="px-3 py-2.5 cursor-pointer">
@@ -653,7 +653,7 @@ function ExerciseCard({ exercise, index }: { exercise: ParsedExercise; index: nu
             <span className="text-xs font-bold text-purple-600 bg-purple-100 rounded-full w-5 h-5 flex items-center justify-center shrink-0">
               {index}
             </span>
-            <span className="text-base font-medium text-slate-800">
+            <span className="text-base font-medium text-slate-800 dark:text-white">
               {guide?.name || exercise.name}
             </span>
           </div>
@@ -667,22 +667,22 @@ function ExerciseCard({ exercise, index }: { exercise: ParsedExercise; index: nu
           </div>
         </div>
         {guide && !expanded && (
-          <p className="text-sm text-slate-500 mt-0.5 ml-7">{guide.weight} · {guide.rest}</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5 ml-7">{guide.weight} · {guide.rest}</p>
         )}
       </div>
 
       {expanded && guide && (
         <div className="px-3 pb-3 border-t border-purple-100 pt-2 space-y-2">
-          <p className="text-sm text-slate-500 italic">{guide.aka}</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400 italic">{guide.aka}</p>
           <div className="flex gap-3 text-sm">
             <span className="text-purple-700 bg-purple-50 rounded px-2 py-1">💪 {guide.weight}</span>
             <span className="text-purple-700 bg-purple-50 rounded px-2 py-1">⏸ {guide.rest}</span>
           </div>
           <div>
-            <p className="text-sm font-semibold text-slate-600 mb-1">Form Cues:</p>
+            <p className="text-sm font-semibold text-slate-600 dark:text-slate-300 mb-1">Form Cues:</p>
             <ol className="space-y-1">
               {guide.form.map((cue, i) => (
-                <li key={i} className="text-sm text-slate-600 flex gap-1.5">
+                <li key={i} className="text-sm text-slate-600 dark:text-slate-300 flex gap-1.5">
                   <span className="text-slate-400 shrink-0">{i + 1}.</span>
                   <span>{cue}</span>
                 </li>
@@ -694,7 +694,7 @@ function ExerciseCard({ exercise, index }: { exercise: ParsedExercise; index: nu
 
       {expanded && !guide && (
         <div className="px-3 pb-3 border-t border-purple-100 pt-2">
-          <p className="text-sm text-slate-500">No detailed guide available for this exercise yet.</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400">No detailed guide available for this exercise yet.</p>
         </div>
       )}
     </div>
@@ -705,8 +705,8 @@ function IntervalSegment({ segment, index }: { segment: RunSegment; index: numbe
   const [expanded, setExpanded] = useState(false)
   const isWarmCool = segment.label === 'Warm-Up' || segment.label === 'Cool-Down'
   const isRecovery = segment.label.startsWith('Recovery')
-  const bgColor = isWarmCool ? 'bg-green-50 border-green-200' : isRecovery ? 'bg-slate-50 border-slate-200' : 'bg-amber-50 border-amber-200'
-  const numColor = isWarmCool ? 'bg-green-100 text-green-700' : isRecovery ? 'bg-slate-100 text-slate-500' : 'bg-amber-100 text-amber-700'
+  const bgColor = isWarmCool ? 'bg-green-50 border-green-200' : isRecovery ? 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700' : 'bg-amber-50 border-amber-200'
+  const numColor = isWarmCool ? 'bg-green-100 text-green-700' : isRecovery ? 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400' : 'bg-amber-100 text-amber-700'
 
   return (
     <div
@@ -719,21 +719,21 @@ function IntervalSegment({ segment, index }: { segment: RunSegment; index: numbe
             <span className={`text-sm font-bold rounded-full w-6 h-6 flex items-center justify-center shrink-0 ${numColor}`}>
               {index + 1}
             </span>
-            <span className="text-base font-medium text-slate-800">{segment.label}</span>
+            <span className="text-base font-medium text-slate-800 dark:text-white">{segment.label}</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-sm text-slate-600">{segment.duration}</span>
+            <span className="text-sm text-slate-600 dark:text-slate-300">{segment.duration}</span>
             <span className="text-slate-400 text-sm">{expanded ? '▼' : '›'}</span>
           </div>
         </div>
-        <p className="text-sm text-slate-500 mt-0.5 ml-8">{segment.effort}</p>
+        <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5 ml-8">{segment.effort}</p>
       </div>
 
       {expanded && (
-        <div className="px-3 pb-2.5 border-t border-slate-200/50 pt-2">
+        <div className="px-3 pb-2.5 border-t border-slate-200 dark:border-slate-700/50 pt-2">
           <ul className="space-y-1">
             {segment.cues.map((cue, i) => (
-              <li key={i} className="text-sm text-slate-600 flex gap-1.5">
+              <li key={i} className="text-sm text-slate-600 dark:text-slate-300 flex gap-1.5">
                 <span className="text-slate-400 shrink-0">•</span>
                 <span>{cue}</span>
               </li>
@@ -750,12 +750,12 @@ function DrillCard({ drill }: { drill: DrillGuide }) {
 
   return (
     <div
-      className="bg-white rounded-xl border border-blue-200 overflow-hidden"
+      className="bg-white dark:bg-slate-800 rounded-xl border border-blue-200 overflow-hidden"
       onClick={() => setExpanded(!expanded)}
     >
       <div className="px-3 py-2.5 cursor-pointer">
         <div className="flex items-center justify-between">
-          <span className="text-base font-medium text-slate-800">{drill.name}</span>
+          <span className="text-base font-medium text-slate-800 dark:text-white">{drill.name}</span>
           <div className="flex items-center gap-2">
             <span className="text-sm text-blue-600">{drill.duration}</span>
             <span className="text-slate-400 text-sm">{expanded ? '▼' : '›'}</span>
@@ -766,7 +766,7 @@ function DrillCard({ drill }: { drill: DrillGuide }) {
         <div className="px-3 pb-3 border-t border-blue-100 pt-2">
           <ul className="space-y-1">
             {drill.form.map((cue, i) => (
-              <li key={i} className="text-sm text-slate-600 flex gap-1.5">
+              <li key={i} className="text-sm text-slate-600 dark:text-slate-300 flex gap-1.5">
                 <span className="text-slate-400 shrink-0">•</span>
                 <span>{cue}</span>
               </li>

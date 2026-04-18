@@ -46,7 +46,7 @@ export default function HRChart({ stream, zones, targetZone }: HRChartProps) {
     <div>
       {!expanded && (
         <div className="flex items-center justify-between mb-1">
-          <p className="text-xs font-semibold text-slate-600">Heart Rate Over Time</p>
+          <p className="text-xs font-semibold text-slate-600 dark:text-slate-300">Heart Rate Over Time</p>
           <span className="text-[10px] text-slate-400">Tap to expand</span>
         </div>
       )}
@@ -242,10 +242,10 @@ function ZoneComplianceSummary({
   return (
     <div className="mt-3">
       {target && inTargetPct !== null && (
-        <div className="bg-slate-50 rounded-xl p-3 mb-2 border border-slate-100">
+        <div className="bg-slate-50 dark:bg-slate-900 rounded-xl p-3 mb-2 border border-slate-100 dark:border-slate-700">
           <div className="flex items-center justify-between mb-2">
             <div>
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Target Zone Compliance</p>
+              <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Target Zone Compliance</p>
               <p className="text-[11px] text-slate-400">{target.low}–{target.high} bpm</p>
             </div>
             <div className="text-right">
@@ -271,7 +271,7 @@ function ZoneComplianceSummary({
       )}
 
       {/* Zone breakdown bar */}
-      <p className="text-[10px] text-slate-500 mb-1">Time in Zone</p>
+      <p className="text-[10px] text-slate-500 dark:text-slate-400 mb-1">Time in Zone</p>
       <div className="flex rounded-full overflow-hidden h-3">
         {zones.map((z, i) => {
           const pct = (zoneTimes[z.zone] / totalSeconds) * 100
@@ -299,7 +299,7 @@ function ZoneComplianceSummary({
           if (mins === 0 && pct === 0) return null
           const isTarget = target ? isZoneInTarget(z.hr, target.low, target.high) : false
           return (
-            <span key={i} className={`text-[10px] flex items-center gap-1 ${isTarget ? 'text-slate-700 font-semibold' : 'text-slate-500'}`}>
+            <span key={i} className={`text-[10px] flex items-center gap-1 ${isTarget ? 'text-slate-700 dark:text-slate-200 font-semibold' : 'text-slate-500 dark:text-slate-400'}`}>
               <span className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: ZONE_COLORS[i] }} />
               {z.zone.split('–')[0].trim()}: {mins}m ({pct}%)
               {isTarget && <span className="text-green-600 text-[8px]">TARGET</span>}

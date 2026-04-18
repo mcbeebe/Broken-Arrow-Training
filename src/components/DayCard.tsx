@@ -65,9 +65,9 @@ export default function DayCard({ day, weekNum, onTap, onLog, onSwap, isSwapSele
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-base">{style.label}</span>
-              <span className="font-semibold text-base text-slate-800">{day.day}</span>
+              <span className="font-semibold text-base text-slate-800 dark:text-white">{day.day}</span>
               {actual?.rpe && (
-                <span className="text-xs bg-white/60 text-slate-700 rounded-full px-2 py-0.5 font-medium">
+                <span className="text-xs bg-white dark:bg-slate-800/60 text-slate-700 dark:text-slate-200 rounded-full px-2 py-0.5 font-medium">
                   RPE {actual.rpe}
                 </span>
               )}
@@ -110,7 +110,7 @@ export default function DayCard({ day, weekNum, onTap, onLog, onSwap, isSwapSele
                   )
                 }
                 return (
-                  <span className="text-xs bg-slate-100 text-slate-500 rounded-full px-2 py-0.5 font-medium"
+                  <span className="text-xs bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 rounded-full px-2 py-0.5 font-medium"
                     title="Drills scheduled for this run">
                     🤸 Drills
                   </span>
@@ -118,10 +118,10 @@ export default function DayCard({ day, weekNum, onTap, onLog, onSwap, isSwapSele
               })()}
             </div>
             <div className="mt-2">
-              <p className="font-medium text-base text-slate-800">{day.workout}</p>
+              <p className="font-medium text-base text-slate-800 dark:text-white">{day.workout}</p>
               {day.detail && !cardCollapsed && (
                 <>
-                  <p className={`text-sm text-slate-700 mt-1 ${descExpanded ? '' : 'line-clamp-2'}`}>{day.detail}</p>
+                  <p className={`text-sm text-slate-700 dark:text-slate-200 mt-1 ${descExpanded ? '' : 'line-clamp-2'}`}>{day.detail}</p>
                   {day.detail.length > 80 && (
                     <button
                       onClick={e => { e.stopPropagation(); setDescExpanded(!descExpanded) }}
@@ -134,7 +134,7 @@ export default function DayCard({ day, weekNum, onTap, onLog, onSwap, isSwapSele
               )}
               {/* Compact summary line when collapsed */}
               {cardCollapsed && actual && (
-                <p className="text-sm text-slate-600 mt-1 truncate">
+                <p className="text-sm text-slate-600 dark:text-slate-300 mt-1 truncate">
                   {actual.distance > 0 && <span>{formatMiles(actual.distance)} · </span>}
                   {actual.movingTime > 0 && <span>{formatSeconds(actual.movingTime)}</span>}
                   {actual.avgHR ? <span> · ❤️ {actual.avgHR}</span> : null}
@@ -166,7 +166,7 @@ export default function DayCard({ day, weekNum, onTap, onLog, onSwap, isSwapSele
                       ? 'bg-teal-500 text-white'
                       : isSwapTarget
                       ? 'bg-teal-100 text-teal-700 animate-pulse'
-                      : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                      : 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-600'
                   }`}
                 >
                   ⇄
@@ -186,7 +186,7 @@ export default function DayCard({ day, weekNum, onTap, onLog, onSwap, isSwapSele
               )}
               {statusDot}
               {day.time !== '—' && (
-                <span className="text-xs text-slate-600 bg-white/60 rounded-full px-2 py-0.5">
+                <span className="text-xs text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-800/60 rounded-full px-2 py-0.5">
                   {day.time}
                 </span>
               )}
@@ -205,7 +205,7 @@ export default function DayCard({ day, weekNum, onTap, onLog, onSwap, isSwapSele
         </div>
 
         {!cardCollapsed && day.zone !== '—' && (
-          <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2.5 text-sm text-slate-600">
+          <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2.5 text-sm text-slate-600 dark:text-slate-300">
             <span>📊 {day.zone}{timeEst ? ` (${timeEst} running)` : ''}</span>
             {day.route !== '—' && <span>📍 {day.route}</span>}
           </div>
@@ -273,7 +273,7 @@ export default function DayCard({ day, weekNum, onTap, onLog, onSwap, isSwapSele
             </button>
 
             {/* Always-visible key stats */}
-            <div className="flex flex-wrap gap-x-3 gap-y-1 text-sm text-slate-700 mt-1.5">
+            <div className="flex flex-wrap gap-x-3 gap-y-1 text-sm text-slate-700 dark:text-slate-200 mt-1.5">
               {actual.distance > 0 && <span>📏 {formatMiles(actual.distance)}</span>}
               {actual.movingTime > 0 && <span>⏱ {formatSeconds(actual.movingTime)}</span>}
               {actual.avgHR && <span>❤️ {actual.avgHR} avg</span>}
@@ -283,7 +283,7 @@ export default function DayCard({ day, weekNum, onTap, onLog, onSwap, isSwapSele
             {/* Expanded details */}
             {detailsExpanded && (
               <>
-                <div className="flex flex-wrap gap-x-3 gap-y-1 text-sm text-slate-700 mt-1.5">
+                <div className="flex flex-wrap gap-x-3 gap-y-1 text-sm text-slate-700 dark:text-slate-200 mt-1.5">
                   {actual.sufferScore && <span>🔥 {actual.sufferScore} effort</span>}
                   {actual.calories && <span>🔋 {actual.calories} cal</span>}
                   {actual.aerobicTE != null && <span>🫀 AE {actual.aerobicTE.toFixed(1)}</span>}
@@ -308,13 +308,13 @@ export default function DayCard({ day, weekNum, onTap, onLog, onSwap, isSwapSele
                       : actual.rpe <= 8 ? 'bg-orange-100 text-orange-700'
                       : 'bg-red-100 text-red-700'
                     }`}>RPE {actual.rpe}/10</span>
-                    <span className="text-xs text-slate-500">
+                    <span className="text-xs text-slate-500 dark:text-slate-400">
                       {actual.rpe <= 3 ? 'Easy' : actual.rpe <= 5 ? 'Moderate' : actual.rpe <= 7 ? 'Hard' : actual.rpe <= 9 ? 'Very Hard' : 'Max'}
                     </span>
                   </div>
                 )}
                 {actual.notes && (
-                  <p className="mt-2 text-sm text-slate-600 italic">{actual.notes}</p>
+                  <p className="mt-2 text-sm text-slate-600 dark:text-slate-300 italic">{actual.notes}</p>
                 )}
               </>
             )}

@@ -21,11 +21,11 @@ export default function ComplianceWeekRow({ week, weekLabel, weekFocus, planZone
   const anyDrillsPlanned = days.some(d => d.drillsPlanned)
 
   return (
-    <div className="bg-white rounded-xl p-3 shadow-sm border border-slate-100">
+    <div className="bg-white dark:bg-slate-800 rounded-xl p-3 shadow-sm border border-slate-100 dark:border-slate-700">
       {/* Header */}
       <div className="flex items-center justify-between mb-2">
         <div>
-          <span className="text-sm font-medium text-slate-800">Week {week.weekNum}</span>
+          <span className="text-sm font-medium text-slate-800 dark:text-white">Week {week.weekNum}</span>
           {weekLabel && <span className="text-xs text-slate-400 ml-2">{weekLabel}</span>}
         </div>
         <div className="flex gap-1">
@@ -48,7 +48,7 @@ export default function ComplianceWeekRow({ week, weekLabel, weekFocus, planZone
       </div>
 
       {weekFocus && (
-        <p className="text-[10px] text-slate-500 italic mb-2 line-clamp-1">{weekFocus}</p>
+        <p className="text-[10px] text-slate-500 dark:text-slate-400 italic mb-2 line-clamp-1">{weekFocus}</p>
       )}
 
       {/* Per-day grid: columns = days, rows = metric bars */}
@@ -105,10 +105,10 @@ export default function ComplianceWeekRow({ week, weekLabel, weekFocus, planZone
       </div>
 
       {/* Footer */}
-      <div className="mt-2 pt-2 border-t border-slate-100 flex justify-between text-[10px] text-slate-500">
+      <div className="mt-2 pt-2 border-t border-slate-100 dark:border-slate-700 flex justify-between text-[10px] text-slate-500 dark:text-slate-400">
         <span>{week.actualMiles} / {week.plannedMiles} mi</span>
         {week.hrCompliance > 0 && (
-          <span>HR in zone: <strong className="text-slate-700">{week.hrCompliance}%</strong></span>
+          <span>HR in zone: <strong className="text-slate-700 dark:text-slate-200">{week.hrCompliance}%</strong></span>
         )}
       </div>
 
@@ -137,7 +137,7 @@ function MetricRow({
 }) {
   return (
     <div className="grid grid-cols-[28px_repeat(7,1fr)] gap-1 items-center">
-      <span className="text-[9px] font-semibold text-slate-500 uppercase">{label}</span>
+      <span className="text-[9px] font-semibold text-slate-500 dark:text-slate-400 uppercase">{label}</span>
       {days.map((d, i) => (
         <div key={i} className="h-3.5">{render(d)}</div>
       ))}
@@ -153,7 +153,7 @@ function MetricRow({
  */
 function RatioBar({ pct, grade }: { pct?: number; grade: ComplianceGrade }) {
   if (pct === undefined || grade === 'na') {
-    return <div className="h-full rounded-sm bg-slate-100" title="No target" />
+    return <div className="h-full rounded-sm bg-slate-100 dark:bg-slate-700" title="No target" />
   }
   if (grade === 'skipped') {
     return <div className="h-full rounded-sm bg-slate-300" title="Skipped" />
@@ -164,7 +164,7 @@ function RatioBar({ pct, grade }: { pct?: number; grade: ComplianceGrade }) {
   const color = gradeFill(grade)
 
   return (
-    <div className="relative h-full rounded-sm bg-slate-100 overflow-hidden" title={`${Math.round(pct * 100)}% of target`}>
+    <div className="relative h-full rounded-sm bg-slate-100 dark:bg-slate-700 overflow-hidden" title={`${Math.round(pct * 100)}% of target`}>
       <div className="h-full rounded-sm" style={{ width: `${fillWidth}%`, background: color }} />
       {/* target line */}
       <div
@@ -197,7 +197,7 @@ function ZoneBar({
   planZones?: PlanZone[]
 }) {
   if (grade === 'na') {
-    return <div className="h-full rounded-sm bg-slate-100" title="No HR target" />
+    return <div className="h-full rounded-sm bg-slate-100 dark:bg-slate-700" title="No HR target" />
   }
   if (grade === 'skipped') {
     return <div className="h-full rounded-sm bg-slate-300" title="Skipped" />
@@ -211,7 +211,7 @@ function ZoneBar({
     // to THIS athlete's zone system, not the device's.
     const rebucketed = rebucketToPlanZones(summary, planZones)
     const total = rebucketed.reduce((s, z) => s + z.seconds, 0)
-    if (total <= 0) return <div className="h-full rounded-sm bg-slate-100" />
+    if (total <= 0) return <div className="h-full rounded-sm bg-slate-100 dark:bg-slate-700" />
 
     const titleParts = rebucketed
       .filter(z => z.seconds > 0)
@@ -263,7 +263,7 @@ function DrillCell({
   items?: string[]
 }) {
   if (!planned || grade === 'na') {
-    return <div className="h-full rounded-sm bg-slate-100" title="No drills planned" />
+    return <div className="h-full rounded-sm bg-slate-100 dark:bg-slate-700" title="No drills planned" />
   }
   const itemList = items?.join(' · ') ?? ''
   const title = completed

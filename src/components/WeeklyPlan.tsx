@@ -110,12 +110,12 @@ export default function WeeklyPlan({
   return (
     <div className="pb-6">
       {/* View toggle: List / Calendar */}
-      <div className="flex items-center justify-between px-3 pt-3 pb-1 bg-white border-b border-slate-100">
-        <div className="flex gap-1 bg-slate-100 rounded-lg p-0.5">
+      <div className="flex items-center justify-between px-3 pt-3 pb-1 bg-white dark:bg-slate-800 border-b border-slate-100 dark:border-slate-700">
+        <div className="flex gap-1 bg-slate-100 dark:bg-slate-700 rounded-lg p-0.5">
           <button
             onClick={() => setViewMode('list')}
             className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-              viewMode === 'list' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500'
+              viewMode === 'list' ? 'bg-white dark:bg-slate-800 text-slate-800 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400'
             }`}
           >
             List
@@ -123,7 +123,7 @@ export default function WeeklyPlan({
           <button
             onClick={() => setViewMode('calendar')}
             className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-              viewMode === 'calendar' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500'
+              viewMode === 'calendar' ? 'bg-white dark:bg-slate-800 text-slate-800 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400'
             }`}
           >
             Calendar
@@ -132,7 +132,7 @@ export default function WeeklyPlan({
             <button
               onClick={() => setViewMode('race')}
               className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-                viewMode === 'race' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500'
+                viewMode === 'race' ? 'bg-white dark:bg-slate-800 text-slate-800 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400'
               }`}
             >
               🏔 Race
@@ -146,9 +146,9 @@ export default function WeeklyPlan({
                 const d = new Date(prev.year, prev.month - 1, 1)
                 return { year: d.getFullYear(), month: d.getMonth() }
               })}
-              className="text-sm text-slate-500 hover:text-slate-700 px-1"
+              className="text-sm text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:text-slate-200 px-1"
             >‹</button>
-            <span className="text-sm font-medium text-slate-700 min-w-[100px] text-center">
+            <span className="text-sm font-medium text-slate-700 dark:text-slate-200 min-w-[100px] text-center">
               {new Date(calMonth.year, calMonth.month).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
             </span>
             <button
@@ -156,7 +156,7 @@ export default function WeeklyPlan({
                 const d = new Date(prev.year, prev.month + 1, 1)
                 return { year: d.getFullYear(), month: d.getMonth() }
               })}
-              className="text-sm text-slate-500 hover:text-slate-700 px-1"
+              className="text-sm text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:text-slate-200 px-1"
             >›</button>
           </div>
         )}
@@ -177,7 +177,7 @@ export default function WeeklyPlan({
       {viewMode === 'list' && (
       <>
       {/* Week selector */}
-      <div ref={scrollRef} className="flex overflow-x-auto gap-1.5 px-3 py-3 bg-white border-b border-slate-100">
+      <div ref={scrollRef} className="flex overflow-x-auto gap-1.5 px-3 py-3 bg-white dark:bg-slate-800 border-b border-slate-100 dark:border-slate-700">
         {weeks.map((w, i) => (
           <button
             key={w.num}
@@ -185,7 +185,7 @@ export default function WeeklyPlan({
             className={`shrink-0 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
               activeWeek === i
                 ? 'bg-slate-800 text-white shadow-md'
-                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'
             }`}
           >
             <div>Wk {w.num}</div>
@@ -216,11 +216,11 @@ export default function WeeklyPlan({
         <div className="flex items-center justify-between">
           <div>
             <div className="flex items-baseline gap-2">
-              <span className="text-lg font-bold text-slate-800">Week {week.num}</span>
-              <span className="text-sm text-slate-500">{week.dates}</span>
+              <span className="text-lg font-bold text-slate-800 dark:text-white">Week {week.num}</span>
+              <span className="text-sm text-slate-500 dark:text-slate-400">{week.dates}</span>
               <span className="text-sm font-semibold text-teal-600">~{week.miles} mi</span>
             </div>
-            <p className="text-xs text-slate-500 mt-1">{week.focus}</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{week.focus}</p>
           </div>
           {showResetButton && (
             <button
@@ -293,13 +293,13 @@ export default function WeeklyPlan({
 
           {/* Course landmarks */}
           {race.landmarks && race.landmarks.length > 0 && (
-            <div className="mt-3 bg-white rounded-xl p-4 shadow-sm border border-slate-100">
-              <p className="text-sm font-semibold text-slate-700 mb-2">Course Landmarks</p>
+            <div className="mt-3 bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700">
+              <p className="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-2">Course Landmarks</p>
               <div className="space-y-2">
                 {race.landmarks.map((l, i) => (
                   <div key={i} className="flex gap-2">
                     <span className="text-xs font-mono text-teal-600 shrink-0 w-14 pt-0.5">{l.segment}</span>
-                    <p className="text-xs text-slate-600 leading-relaxed">{l.description}</p>
+                    <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">{l.description}</p>
                   </div>
                 ))}
               </div>
@@ -308,11 +308,11 @@ export default function WeeklyPlan({
 
           {/* Gear checklist */}
           {race.gear && race.gear.length > 0 && (
-            <div className="mt-3 bg-white rounded-xl p-4 shadow-sm border border-slate-100">
-              <p className="text-sm font-semibold text-slate-700 mb-2">Gear Checklist</p>
+            <div className="mt-3 bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700">
+              <p className="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-2">Gear Checklist</p>
               <div className="space-y-1">
                 {race.gear.map((g, i) => (
-                  <p key={i} className="text-xs text-slate-600">
+                  <p key={i} className="text-xs text-slate-600 dark:text-slate-300">
                     {g.required ? '✅' : '📋'} {g.item}
                   </p>
                 ))}
@@ -322,9 +322,9 @@ export default function WeeklyPlan({
 
           {/* Nutrition */}
           {race.nutrition && (
-            <div className="mt-3 bg-white rounded-xl p-4 shadow-sm border border-slate-100">
-              <p className="text-sm font-semibold text-slate-700 mb-1">Nutrition Strategy</p>
-              <p className="text-xs text-slate-600 leading-relaxed">{race.nutrition}</p>
+            <div className="mt-3 bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700">
+              <p className="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-1">Nutrition Strategy</p>
+              <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">{race.nutrition}</p>
             </div>
           )}
         </div>
@@ -414,7 +414,7 @@ function CalendarGrid({
       {/* Day headers */}
       <div className="grid grid-cols-7 gap-1 shrink-0">
         {DAY_HEADERS.map(d => (
-          <div key={d} className="text-center text-sm font-semibold text-slate-500 py-1">{d}</div>
+          <div key={d} className="text-center text-sm font-semibold text-slate-500 dark:text-slate-400 py-1">{d}</div>
         ))}
       </div>
       {/* Day cells — equal-height rows that stretch to fill remaining height.
@@ -434,7 +434,7 @@ function CalendarGrid({
 
           if (!planned) {
             return (
-              <div key={iso} className={`rounded-lg p-1.5 sm:p-2 ${isToday ? 'ring-2 ring-teal-500' : 'bg-slate-50'}`}>
+              <div key={iso} className={`rounded-lg p-1.5 sm:p-2 ${isToday ? 'ring-2 ring-teal-500' : 'bg-slate-50 dark:bg-slate-900'}`}>
                 <span className="text-base sm:text-lg text-slate-300">{dayNum}</span>
               </div>
             )
@@ -465,7 +465,7 @@ function CalendarGrid({
               style={{ backgroundColor: bg, borderLeft: `3px solid ${style.border}` }}
             >
               <div className="flex items-center justify-between shrink-0">
-                <span className={`text-base sm:text-lg font-bold ${isToday ? 'text-teal-700' : 'text-slate-700'}`}>{dayNum}</span>
+                <span className={`text-base sm:text-lg font-bold ${isToday ? 'text-teal-700' : 'text-slate-700 dark:text-slate-200'}`}>{dayNum}</span>
                 {dotColor && <span className={`w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full ${dotColor}`} />}
               </div>
               <div className="flex items-center gap-1 mt-0.5 shrink-0">
@@ -473,12 +473,12 @@ function CalendarGrid({
                 {isDone && <span className="text-xs sm:text-sm text-emerald-700 font-bold">✓</span>}
               </div>
               {/* Workout title — clamped tighter on mobile, more on larger screens */}
-              <p className="text-xs sm:text-sm font-semibold text-slate-800 mt-1 line-clamp-2 sm:line-clamp-2 leading-tight">
+              <p className="text-xs sm:text-sm font-semibold text-slate-800 dark:text-white mt-1 line-clamp-2 sm:line-clamp-2 leading-tight">
                 {planned.workout}
               </p>
               {/* Distance + zone — shown from sm up (tablet+) */}
               {(miles || zoneShort) && (
-                <p className="hidden sm:block text-xs text-slate-600 mt-1 leading-tight">
+                <p className="hidden sm:block text-xs text-slate-600 dark:text-slate-300 mt-1 leading-tight">
                   {miles && <span>{miles} mi</span>}
                   {miles && zoneShort && <span> · </span>}
                   {zoneShort && <span>{zoneShort}</span>}
@@ -487,7 +487,7 @@ function CalendarGrid({
               {/* Full description — shown from md up (desktop). Space is
                   tight; 2-3 lines clamped to prevent cell stretch. */}
               {planned.detail && (
-                <p className="hidden md:block text-xs text-slate-500 mt-1 line-clamp-3 leading-snug flex-1 min-h-0">
+                <p className="hidden md:block text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-3 leading-snug flex-1 min-h-0">
                   {planned.detail}
                 </p>
               )}

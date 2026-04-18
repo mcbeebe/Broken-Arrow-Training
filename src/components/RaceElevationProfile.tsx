@@ -66,8 +66,8 @@ export default function RaceElevationProfile({ race }: ElevationProfileProps) {
   const aidStations = profile.filter(p => p.label?.includes('Aid') || p.label?.includes('HIGH POINT'))
 
   return (
-    <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-100">
-      <p className="text-sm font-semibold text-slate-700 mb-1">Elevation Profile</p>
+    <div className="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700">
+      <p className="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-1">Elevation Profile</p>
       <p className="text-xs text-slate-400 mb-3">
         {race.elevation} · {race.elevationRange}
       </p>
@@ -137,7 +137,7 @@ export default function RaceElevationProfile({ race }: ElevationProfileProps) {
 
       {/* Grade breakdown */}
       <div className="mt-3 space-y-1.5">
-        <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Segment Grades</p>
+        <p className="text-xs font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wide">Segment Grades</p>
         {getSegments(profile).map((seg, i) => (
           <div key={i} className="flex items-center gap-2">
             <div
@@ -147,27 +147,27 @@ export default function RaceElevationProfile({ race }: ElevationProfileProps) {
                 backgroundColor: seg.avgGrade > 10 ? '#dc2626' : seg.avgGrade > 5 ? '#f59e0b' : seg.avgGrade > 0 ? '#22c55e' : seg.avgGrade > -10 ? '#3b82f6' : '#8b5cf6',
               }}
             />
-            <span className="text-xs text-slate-700 font-medium w-20 shrink-0">Mi {seg.from}–{seg.to}</span>
+            <span className="text-xs text-slate-700 dark:text-slate-200 font-medium w-20 shrink-0">Mi {seg.from}–{seg.to}</span>
             <span className={`text-xs font-semibold w-10 shrink-0 ${seg.avgGrade > 0 ? 'text-red-600' : 'text-blue-600'}`}>
               {seg.avgGrade > 0 ? '+' : ''}{seg.avgGrade}%
             </span>
-            <span className="text-xs text-slate-500 truncate">{seg.label}</span>
+            <span className="text-xs text-slate-500 dark:text-slate-400 truncate">{seg.label}</span>
           </div>
         ))}
       </div>
 
       {/* Legend */}
-      <div className="flex flex-wrap gap-3 mt-3 pt-2 border-t border-slate-100">
-        <span className="flex items-center gap-1 text-[10px] text-slate-500">
+      <div className="flex flex-wrap gap-3 mt-3 pt-2 border-t border-slate-100 dark:border-slate-700">
+        <span className="flex items-center gap-1 text-[10px] text-slate-500 dark:text-slate-400">
           <span className="w-2 h-2 rounded-full bg-red-500" /> Steep climb (&gt;10%)
         </span>
-        <span className="flex items-center gap-1 text-[10px] text-slate-500">
+        <span className="flex items-center gap-1 text-[10px] text-slate-500 dark:text-slate-400">
           <span className="w-2 h-2 rounded-full bg-amber-500" /> Moderate (5–10%)
         </span>
-        <span className="flex items-center gap-1 text-[10px] text-slate-500">
+        <span className="flex items-center gap-1 text-[10px] text-slate-500 dark:text-slate-400">
           <span className="w-2 h-2 rounded-full bg-green-500" /> Easy (&lt;5%)
         </span>
-        <span className="flex items-center gap-1 text-[10px] text-slate-500">
+        <span className="flex items-center gap-1 text-[10px] text-slate-500 dark:text-slate-400">
           <span className="w-2 h-2 rounded-full bg-blue-500" /> Descent
         </span>
       </div>

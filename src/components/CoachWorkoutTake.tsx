@@ -48,7 +48,7 @@ export default function CoachWorkoutTakeView({ take, insight, loading, onAsk, co
           </button>
         )}
       </div>
-      <div className="text-base text-slate-700 leading-relaxed">{renderMarkdown(text)}</div>
+      <div className="text-base text-slate-700 dark:text-slate-200 leading-relaxed">{renderMarkdown(text)}</div>
       {tip && (
         <div className="mt-2 text-sm text-indigo-700/90 leading-relaxed">
           <span className="font-semibold">Tip:</span> {renderMarkdown(tip)}

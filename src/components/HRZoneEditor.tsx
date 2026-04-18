@@ -42,11 +42,11 @@ export default function HRZoneEditor({ zones, isCustomized, maxHR, onSave, onRes
   }
 
   return (
-    <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-100 space-y-3">
+    <div className="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700 space-y-3">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-sm font-semibold text-slate-700">Heart Rate Zones</h3>
-          <p className="text-xs text-slate-500">
+          <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200">Heart Rate Zones</h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400">
             Max HR: {maxHR} bpm
             {isCustomized && <span className="ml-1.5 text-teal-600">· customized</span>}
           </p>
@@ -63,7 +63,7 @@ export default function HRZoneEditor({ zones, isCustomized, maxHR, onSave, onRes
           {isCustomized && !editing && (
             <button
               onClick={onReset}
-              className="text-xs font-medium px-3 py-1.5 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"
+              className="text-xs font-medium px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
               title="Revert to plan defaults"
             >
               ↩ Reset
@@ -73,7 +73,7 @@ export default function HRZoneEditor({ zones, isCustomized, maxHR, onSave, onRes
             <>
               <button
                 onClick={() => setEditing(false)}
-                className="text-xs font-medium px-3 py-1.5 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"
+                className="text-xs font-medium px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
               >
                 Cancel
               </button>
@@ -95,14 +95,14 @@ export default function HRZoneEditor({ zones, isCustomized, maxHR, onSave, onRes
           const low = match ? match[1] : ''
           const high = match ? match[2] : ''
           return (
-            <div key={i} className="bg-slate-50 rounded-lg px-3 py-2">
+            <div key={i} className="bg-slate-50 dark:bg-slate-900 rounded-lg px-3 py-2">
               {editing ? (
                 <div className="space-y-1.5">
                   <input
                     type="text"
                     value={z.zone}
                     onChange={e => updateZone(i, { zone: e.target.value })}
-                    className="w-full px-2 py-1 text-sm font-medium text-slate-800 border border-slate-200 rounded bg-white"
+                    className="w-full px-2 py-1 text-sm font-medium text-slate-800 dark:text-white border border-slate-200 dark:border-slate-700 rounded bg-white dark:bg-slate-800"
                     placeholder="Zone name (e.g., Z1 – Recovery)"
                   />
                   <div className="flex items-center gap-1.5">
@@ -110,7 +110,7 @@ export default function HRZoneEditor({ zones, isCustomized, maxHR, onSave, onRes
                       type="number"
                       value={low}
                       onChange={e => updateZoneRange(i, e.target.value, high)}
-                      className="w-16 px-2 py-1 text-xs border border-slate-200 rounded bg-white"
+                      className="w-16 px-2 py-1 text-xs border border-slate-200 dark:border-slate-700 rounded bg-white dark:bg-slate-800"
                       placeholder="low"
                     />
                     <span className="text-xs text-slate-400">–</span>
@@ -118,28 +118,28 @@ export default function HRZoneEditor({ zones, isCustomized, maxHR, onSave, onRes
                       type="number"
                       value={high}
                       onChange={e => updateZoneRange(i, low, e.target.value)}
-                      className="w-16 px-2 py-1 text-xs border border-slate-200 rounded bg-white"
+                      className="w-16 px-2 py-1 text-xs border border-slate-200 dark:border-slate-700 rounded bg-white dark:bg-slate-800"
                       placeholder="high"
                     />
-                    <span className="text-xs text-slate-500">bpm</span>
+                    <span className="text-xs text-slate-500 dark:text-slate-400">bpm</span>
                     <span className="ml-auto text-xs text-slate-400">{z.pct}</span>
                   </div>
                   <input
                     type="text"
                     value={z.desc}
                     onChange={e => updateZone(i, { desc: e.target.value })}
-                    className="w-full px-2 py-1 text-xs text-slate-600 border border-slate-200 rounded bg-white"
+                    className="w-full px-2 py-1 text-xs text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 rounded bg-white dark:bg-slate-800"
                     placeholder="Description"
                   />
                 </div>
               ) : (
                 <div>
                   <div className="flex justify-between items-baseline">
-                    <span className="text-sm font-semibold text-slate-800">{z.zone}</span>
+                    <span className="text-sm font-semibold text-slate-800 dark:text-white">{z.zone}</span>
                     <span className="text-sm font-mono text-teal-700">{z.hr} bpm</span>
                   </div>
                   <div className="flex justify-between mt-0.5">
-                    <span className="text-xs text-slate-500">{z.desc}</span>
+                    <span className="text-xs text-slate-500 dark:text-slate-400">{z.desc}</span>
                     <span className="text-xs text-slate-400">{z.pct}</span>
                   </div>
                 </div>

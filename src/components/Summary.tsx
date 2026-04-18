@@ -167,11 +167,11 @@ export default function Summary({
             >
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+                  <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide">
                     {isCompleted ? 'Completed' : "Today's Workout"}
                   </p>
-                  <p className="font-bold text-slate-800 mt-0.5">{todayPlannedWorkout.workout}</p>
-                  <p className="text-sm text-slate-600 mt-0.5">
+                  <p className="font-bold text-slate-800 dark:text-white mt-0.5">{todayPlannedWorkout.workout}</p>
+                  <p className="text-sm text-slate-600 dark:text-slate-300 mt-0.5">
                     {todayPlannedWorkout.zone !== '—' && todayPlannedWorkout.zone}
                     {todayPlannedWorkout.time !== '—' && ` · ${todayPlannedWorkout.time}`}
                   </p>
@@ -209,9 +209,9 @@ export default function Summary({
           onLogSoreness={onLogSoreness}
         />
       ) : (
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-100">
-          <p className="text-base font-semibold text-slate-700">Readiness</p>
-          <p className="text-sm text-slate-500 mt-1">
+        <div className="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700">
+          <p className="text-base font-semibold text-slate-700 dark:text-slate-200">Readiness</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
             {garminConnected
               ? 'Syncing Garmin data — readiness score will appear after first sync completes.'
               : 'Connect Garmin in Settings to see daily readiness scoring.'}
@@ -237,15 +237,15 @@ export default function Summary({
           : latestPerf.atl > latestPerf.ctl * 0.8 ? 'Balanced'
           : 'Low'
         return (
-          <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
             <button
               onClick={() => setPerfOpen(!perfOpen)}
-              className="w-full flex items-center justify-between p-4 text-left hover:bg-slate-50 transition-colors"
+              className="w-full flex items-center justify-between p-4 text-left hover:bg-slate-50 dark:hover:bg-slate-700 dark:bg-slate-900 transition-colors"
             >
               <div className="flex-1 min-w-0">
-                <p className="text-base font-semibold text-slate-700">Performance Snapshot</p>
+                <p className="text-base font-semibold text-slate-700 dark:text-slate-200">Performance Snapshot</p>
                 {!perfOpen && (
-                  <p className="text-sm text-slate-500 mt-0.5">
+                  <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
                     {fitnessLabel} fitness · {fatigueLabel} fatigue · {latestPerf.tsb >= 5 ? 'Fresh' : latestPerf.tsb >= -10 ? 'Balanced' : latestPerf.tsb >= -25 ? 'Tired' : 'Deep fatigue'}
                   </p>
                 )}
@@ -260,11 +260,11 @@ export default function Summary({
                 <div className="flex items-baseline justify-between">
                   <div>
                     <span className="text-2xl font-bold text-blue-700">{latestPerf.ctl.toFixed(0)}</span>
-                    <span className="text-xs text-slate-500 ml-2">/ 100</span>
+                    <span className="text-xs text-slate-500 dark:text-slate-400 ml-2">/ 100</span>
                   </div>
                   <p className="text-xs text-blue-600 font-semibold">{fitnessLabel}</p>
                 </div>
-                <p className="text-xs font-medium text-slate-600">Fitness <span className="text-slate-400 font-normal">— 42-day training base (CTL)</span></p>
+                <p className="text-xs font-medium text-slate-600 dark:text-slate-300">Fitness <span className="text-slate-400 font-normal">— 42-day training base (CTL)</span></p>
                 <p className="text-[9px] text-slate-400 mt-0.5 italic">Cardiovascular + musculoskeletal load · EPOC + MIM + DOMS + soreness</p>
                 <div className="relative mt-2 h-3 rounded-full overflow-hidden flex border border-blue-200">
                   <div className="h-full bg-red-200" style={{ width: '20%' }} />
@@ -287,11 +287,11 @@ export default function Summary({
                 <div className="flex items-baseline justify-between">
                   <div>
                     <span className="text-2xl font-bold text-red-600">{latestPerf.atl.toFixed(0)}</span>
-                    <span className="text-xs text-slate-500 ml-2">vs fitness {latestPerf.ctl.toFixed(0)}</span>
+                    <span className="text-xs text-slate-500 dark:text-slate-400 ml-2">vs fitness {latestPerf.ctl.toFixed(0)}</span>
                   </div>
                   <p className="text-xs text-red-500 font-semibold">{fatigueLabel}</p>
                 </div>
-                <p className="text-xs font-medium text-slate-600">Fatigue <span className="text-slate-400 font-normal">— 7-day recent load (ATL)</span></p>
+                <p className="text-xs font-medium text-slate-600 dark:text-slate-300">Fatigue <span className="text-slate-400 font-normal">— 7-day recent load (ATL)</span></p>
                 <p className="text-[9px] text-slate-400 mt-0.5 italic">Includes DOMS carry-over + perceived soreness from check-in</p>
                 <div className="relative mt-2 h-3 rounded-full overflow-hidden flex border border-red-200">
                   <div className="h-full bg-red-300" style={{ width: '23%' }} />
@@ -311,27 +311,27 @@ export default function Summary({
               {/* Recovery Balance (TSB) — left=deep fatigue (red), right=peak (green) */}
               <div className={`rounded-lg p-3 ${
                 tsbState === 'peaked' || tsbState === 'well_rested' ? 'bg-green-50'
-                : tsbState === 'productive' ? 'bg-slate-50'
+                : tsbState === 'productive' ? 'bg-slate-50 dark:bg-slate-900'
                 : 'bg-amber-50'
               }`}>
                 <div className="flex items-baseline justify-between">
                   <div>
                     <span className={`text-2xl font-bold ${
                       latestPerf.tsb >= 5 ? 'text-green-700'
-                      : latestPerf.tsb >= -10 ? 'text-slate-700'
+                      : latestPerf.tsb >= -10 ? 'text-slate-700 dark:text-slate-200'
                       : 'text-amber-700'
                     }`}>{latestPerf.tsb >= 0 ? '+' : ''}{latestPerf.tsb.toFixed(0)}</span>
-                    <span className="text-xs text-slate-500 ml-2">range: -30 to +25</span>
+                    <span className="text-xs text-slate-500 dark:text-slate-400 ml-2">range: -30 to +25</span>
                   </div>
                   <p className={`text-xs font-semibold ${
                     latestPerf.tsb >= 5 ? 'text-green-600'
-                    : latestPerf.tsb >= -10 ? 'text-slate-500'
+                    : latestPerf.tsb >= -10 ? 'text-slate-500 dark:text-slate-400'
                     : 'text-amber-600'
                   }`}>{getTSBLabel(tsbState)}</p>
                 </div>
-                <p className="text-xs font-medium text-slate-600">Recovery Balance <span className="text-slate-400 font-normal">— are you fresh or fatigued? (TSB)</span></p>
+                <p className="text-xs font-medium text-slate-600 dark:text-slate-300">Recovery Balance <span className="text-slate-400 font-normal">— are you fresh or fatigued? (TSB)</span></p>
                 <p className="text-[9px] text-slate-400 mt-0.5 italic">Fitness minus Fatigue · negative = cardio + muscle fatigue exceeds base</p>
-                <div className="relative mt-2 h-3 rounded-full overflow-hidden flex border border-slate-200">
+                <div className="relative mt-2 h-3 rounded-full overflow-hidden flex border border-slate-200 dark:border-slate-700">
                   <div className="h-full bg-red-300" style={{ width: '15%' }} />
                   <div className="h-full bg-orange-200" style={{ width: '16%' }} />
                   <div className="h-full bg-amber-200" style={{ width: '23%' }} />
@@ -361,7 +361,7 @@ export default function Summary({
                       : acwrRisk === 'high_risk' ? 'text-red-600'
                       : 'text-amber-600'
                     }`}>{latestPerf.acwr.toFixed(2)}</span>
-                    <span className="text-xs text-slate-500 ml-2">sweet spot: 0.8–1.3</span>
+                    <span className="text-xs text-slate-500 dark:text-slate-400 ml-2">sweet spot: 0.8–1.3</span>
                   </div>
                   <p className={`text-xs font-semibold ${
                     acwrRisk === 'sweet_spot' ? 'text-green-600'
@@ -369,7 +369,7 @@ export default function Summary({
                     : 'text-amber-600'
                   }`}>{getACWRLabel(acwrRisk)}</p>
                 </div>
-                <p className="text-xs font-medium text-slate-600">Load Ratio <span className="text-slate-400 font-normal">— acute vs chronic workload (ACWR)</span></p>
+                <p className="text-xs font-medium text-slate-600 dark:text-slate-300">Load Ratio <span className="text-slate-400 font-normal">— acute vs chronic workload (ACWR)</span></p>
                 <p className="text-[9px] text-slate-400 mt-0.5 italic">How fast you're ramping · includes all load: cardio, strength, DOMS, soreness</p>
                 {/* ACWR as a "safety" gauge: marker position = how close
                     you are to the sweet-spot center (1.05). Farther away
@@ -379,7 +379,7 @@ export default function Summary({
                   const safety = Math.max(0, Math.min(1, 1 - Math.abs(latestPerf.acwr - 1.05) / 0.95))
                   return (
                     <>
-                      <div className="relative mt-2 h-3 rounded-full overflow-hidden flex border border-slate-200">
+                      <div className="relative mt-2 h-3 rounded-full overflow-hidden flex border border-slate-200 dark:border-slate-700">
                         <div className="h-full bg-red-300" style={{ width: '25%' }} />
                         <div className="h-full bg-amber-300" style={{ width: '25%' }} />
                         <div className="h-full bg-green-300" style={{ width: '25%' }} />
@@ -404,18 +404,18 @@ export default function Summary({
 
       {/* What Changed This Week */}
       {weekNarrative.length > 0 && (
-        <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
           <button
             onClick={() => setNarrativeOpen(!narrativeOpen)}
-            className="w-full flex items-center justify-between p-4 text-left hover:bg-slate-50 transition-colors"
+            className="w-full flex items-center justify-between p-4 text-left hover:bg-slate-50 dark:hover:bg-slate-700 dark:bg-slate-900 transition-colors"
           >
-            <p className="text-base font-semibold text-slate-700">What Changed This Week</p>
+            <p className="text-base font-semibold text-slate-700 dark:text-slate-200">What Changed This Week</p>
             <span className="text-sm text-teal-600 ml-2 shrink-0">{narrativeOpen ? '▴ Hide' : '▾ Show'}</span>
           </button>
           {narrativeOpen && (
             <div className="px-4 pb-4 space-y-1.5">
               {weekNarrative.map((line, i) => (
-                <p key={i} className="text-sm text-slate-600 leading-relaxed">{line}</p>
+                <p key={i} className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">{line}</p>
               ))}
             </div>
           )}
@@ -429,8 +429,8 @@ export default function Summary({
 
       {/* Week readiness trend */}
       {weekScores.length > 1 && (
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-100">
-          <p className="text-base font-semibold text-slate-700 mb-2">This Week's Readiness</p>
+        <div className="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700">
+          <p className="text-base font-semibold text-slate-700 dark:text-slate-200 mb-2">This Week's Readiness</p>
           <div className="flex gap-1">
             {weekScores.slice(-7).map((score, i) => {
               const dotColor =
@@ -441,8 +441,8 @@ export default function Summary({
               return (
                 <div key={i} className="flex-1 text-center">
                   <div className={`w-4 h-4 rounded-full ${dotColor} mx-auto mb-1`} />
-                  <p className="text-xs text-slate-500">{score.date.slice(5)}</p>
-                  <p className="text-sm font-medium text-slate-600">{score.displayScore}</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">{score.date.slice(5)}</p>
+                  <p className="text-sm font-medium text-slate-600 dark:text-slate-300">{score.displayScore}</p>
                 </div>
               )
             })}

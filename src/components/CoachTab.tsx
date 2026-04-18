@@ -105,7 +105,7 @@ export default function CoachTab({
             >
               ‹ Back to today
             </button>
-            <p className="text-sm font-semibold text-slate-700">
+            <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
               {new Date(archive.date + 'T12:00:00').toLocaleDateString('en-US', {
                 weekday: 'long', month: 'short', day: 'numeric',
               })}
@@ -128,9 +128,9 @@ export default function CoachTab({
         <div className="flex items-center gap-2">
           <span className="text-lg leading-none shrink-0">🧢</span>
           <div className="flex-1 min-w-0">
-            <h2 className="text-sm font-bold text-slate-800 leading-tight">{coachDisplayName}</h2>
+            <h2 className="text-sm font-bold text-slate-800 dark:text-white leading-tight">{coachDisplayName}</h2>
             {personaTraits.length > 0 ? (
-              <ul className="flex flex-wrap gap-x-1.5 gap-y-0 text-[10px] text-slate-500 leading-snug">
+              <ul className="flex flex-wrap gap-x-1.5 gap-y-0 text-[10px] text-slate-500 dark:text-slate-400 leading-snug">
                 {personaTraits.map(id => {
                   const trait = COACH_TRAITS.find(t => t.id === id)
                   if (!trait) return null
@@ -160,7 +160,7 @@ export default function CoachTab({
         <div className="flex items-center gap-3">
           <button
             onClick={() => setHistoryOpen(true)}
-            className="text-xs font-medium text-slate-500 hover:text-slate-700 transition-colors flex items-center gap-1"
+            className="text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:text-slate-200 transition-colors flex items-center gap-1"
             title="View past conversations"
           >
             📅 History{archives.length > 0 ? ` (${archives.length})` : ''}
@@ -168,7 +168,7 @@ export default function CoachTab({
           {hasTurns && (
             <button
               onClick={() => setChatMinimized(!chatMinimized)}
-              className="text-xs font-medium text-slate-500 hover:text-slate-700 transition-colors"
+              className="text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:text-slate-200 transition-colors"
             >
               {chatMinimized ? '▾ Show chat' : '▴ Minimize'}
             </button>
@@ -245,10 +245,10 @@ export default function CoachTab({
         return (
           <button
             onClick={() => setChatMinimized(false)}
-            className="flex-1 bg-white rounded-xl border border-slate-200 p-3 text-left hover:bg-slate-50 transition-colors min-h-0 overflow-hidden"
+            className="flex-1 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-3 text-left hover:bg-slate-50 dark:hover:bg-slate-700 dark:bg-slate-900 transition-colors min-h-0 overflow-hidden"
           >
-            <p className="text-xs font-medium text-slate-500 mb-0.5">{label}:</p>
-            <p className="text-sm text-slate-700 line-clamp-3">{preview}</p>
+            <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-0.5">{label}:</p>
+            <p className="text-sm text-slate-700 dark:text-slate-200 line-clamp-3">{preview}</p>
             <p className="text-xs text-teal-600 mt-1">Tap to expand ›</p>
           </button>
         )
@@ -257,7 +257,7 @@ export default function CoachTab({
       <div className="flex items-center justify-center shrink-0">
         <button
           onClick={onGoSettings}
-          className="text-xs text-slate-400 hover:text-slate-600 transition-colors"
+          className="text-xs text-slate-400 hover:text-slate-600 dark:text-slate-300 transition-colors"
         >
           About Me in Settings →
         </button>
@@ -284,7 +284,7 @@ export default function CoachTab({
 function ArchiveViewer({ archive, coachName }: { archive: DailyChatArchive; coachName: string }) {
   const visible = archive.turns.filter(t => t.role !== 'system-handoff')
   return (
-    <div className="flex-1 min-h-0 overflow-y-auto bg-white rounded-xl border border-slate-200 p-3 space-y-2.5">
+    <div className="flex-1 min-h-0 overflow-y-auto bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-3 space-y-2.5">
       {visible.length === 0 ? (
         <p className="text-sm text-slate-400 text-center py-8">No messages on this day.</p>
       ) : (
@@ -301,7 +301,7 @@ function ArchiveViewer({ archive, coachName }: { archive: DailyChatArchive; coac
           if (t.role === 'coach') {
             return (
               <div key={t.id} className="flex">
-                <div className="max-w-[85%] bg-amber-50 border border-amber-200 text-slate-800 rounded-2xl rounded-tl-sm px-3 py-2 text-base leading-relaxed">
+                <div className="max-w-[85%] bg-amber-50 border border-amber-200 text-slate-800 dark:text-white rounded-2xl rounded-tl-sm px-3 py-2 text-base leading-relaxed">
                   <div className="flex items-center gap-1.5 mb-1">
                     <span className="text-base leading-none" role="img" aria-label="coach">🧢</span>
                     <p className="text-xs uppercase font-bold tracking-wider text-amber-700">
@@ -315,7 +315,7 @@ function ArchiveViewer({ archive, coachName }: { archive: DailyChatArchive; coac
           }
           return (
             <div key={t.id} className="flex">
-              <div className="max-w-[85%] bg-indigo-50 text-slate-800 rounded-2xl rounded-tl-sm px-3 py-2 text-base whitespace-pre-wrap leading-relaxed">
+              <div className="max-w-[85%] bg-indigo-50 text-slate-800 dark:text-white rounded-2xl rounded-tl-sm px-3 py-2 text-base whitespace-pre-wrap leading-relaxed">
                 {t.content}
               </div>
             </div>
@@ -339,14 +339,14 @@ function HistoryDrawer({
     <div className="fixed inset-0 z-40" onClick={onClose}>
       <div className="absolute inset-0 bg-black/40" />
       <div
-        className="absolute left-0 top-0 bottom-0 w-72 bg-white shadow-xl overflow-y-auto"
+        className="absolute left-0 top-0 bottom-0 w-72 bg-white dark:bg-slate-800 shadow-xl overflow-y-auto"
         onClick={e => e.stopPropagation()}
       >
-        <div className="sticky top-0 bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between">
-          <h3 className="text-base font-semibold text-slate-800">Chat History</h3>
+        <div className="sticky top-0 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-4 py-3 flex items-center justify-between">
+          <h3 className="text-base font-semibold text-slate-800 dark:text-white">Chat History</h3>
           <button
             onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center rounded-full text-slate-500 hover:bg-slate-100"
+            className="w-8 h-8 flex items-center justify-center rounded-full text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:bg-slate-700"
           >
             ✕
           </button>
@@ -361,15 +361,15 @@ function HistoryDrawer({
               <li key={a.date}>
                 <button
                   onClick={() => onSelect(a.date)}
-                  className="w-full text-left px-4 py-3 hover:bg-slate-50 transition-colors"
+                  className="w-full text-left px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-700 dark:bg-slate-900 transition-colors"
                 >
-                  <p className="text-sm font-semibold text-slate-800">
+                  <p className="text-sm font-semibold text-slate-800 dark:text-white">
                     {new Date(a.date + 'T12:00:00').toLocaleDateString('en-US', {
                       weekday: 'short', month: 'short', day: 'numeric',
                     })}
                   </p>
-                  <p className="text-xs text-slate-500 mt-0.5">{a.turnCount} messages</p>
-                  <p className="text-xs text-slate-600 mt-1 line-clamp-2 italic">"{a.preview}"</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{a.turnCount} messages</p>
+                  <p className="text-xs text-slate-600 dark:text-slate-300 mt-1 line-clamp-2 italic">"{a.preview}"</p>
                 </button>
               </li>
             ))}

@@ -243,21 +243,21 @@ export default function ManualLog({ dayLabel, existing, planned, weekNum, onSave
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center" onClick={onClose}>
       <div className="absolute inset-0 bg-black/50" />
       <div
-        className="relative bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md max-h-[90vh] overflow-y-auto shadow-xl"
+        className="relative bg-white dark:bg-slate-800 rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md max-h-[90vh] overflow-y-auto shadow-xl"
         onClick={e => e.stopPropagation()}
       >
-        <div className="sticky top-0 bg-white px-4 pt-4 pb-3 border-b border-slate-200 rounded-t-2xl z-10">
+        <div className="sticky top-0 bg-white dark:bg-slate-800 px-4 pt-4 pb-3 border-b border-slate-200 dark:border-slate-700 rounded-t-2xl z-10">
           <div className="flex items-center justify-between">
-            <h3 className="font-bold text-slate-800">Log Workout — {dayLabel}</h3>
-            <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-600">✕</button>
+            <h3 className="font-bold text-slate-800 dark:text-white">Log Workout — {dayLabel}</h3>
+            <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">✕</button>
           </div>
 
           {/* Mode toggle */}
-          <div className="flex mt-3 rounded-lg overflow-hidden border border-slate-200">
+          <div className="flex mt-3 rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700">
             <button
               onClick={() => setMode('run')}
               className={`flex-1 py-2 text-xs font-medium transition-colors ${
-                mode === 'run' ? 'bg-teal-600 text-white' : 'bg-white text-slate-600'
+                mode === 'run' ? 'bg-teal-600 text-white' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300'
               }`}
             >
               🏃 Run / Cardio
@@ -265,7 +265,7 @@ export default function ManualLog({ dayLabel, existing, planned, weekNum, onSave
             <button
               onClick={() => setMode('strength')}
               className={`flex-1 py-2 text-xs font-medium transition-colors ${
-                mode === 'strength' ? 'bg-purple-600 text-white' : 'bg-white text-slate-600'
+                mode === 'strength' ? 'bg-purple-600 text-white' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300'
               }`}
             >
               💪 Strength
@@ -310,7 +310,7 @@ export default function ManualLog({ dayLabel, existing, planned, weekNum, onSave
           {mode === 'strength' && (
             <div>
               <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-medium text-slate-600">Exercises</p>
+                <p className="text-xs font-medium text-slate-600 dark:text-slate-300">Exercises</p>
                 <div className="flex gap-1.5">
                   {planned?.detail && (
                     <button
@@ -413,7 +413,7 @@ export default function ManualLog({ dayLabel, existing, planned, weekNum, onSave
 
           {/* RPE — Rate of Perceived Exertion */}
           <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1.5">
+            <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1.5">
               How hard did it feel? (RPE)
             </label>
             <div className="flex gap-1">
@@ -428,7 +428,7 @@ export default function ManualLog({ dayLabel, existing, planned, weekNum, onSave
                         : val <= 6 ? 'bg-amber-500 text-white'
                         : val <= 8 ? 'bg-orange-500 text-white'
                         : 'bg-red-500 text-white'
-                      : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                      : 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-600'
                   }`}
                 >
                   {val}
@@ -495,7 +495,7 @@ function ExerciseEntry({ exercise, index, onUpdate, onRemove, onAddSet, onUpdate
             className={`flex-1 py-1 text-[10px] font-medium rounded transition-colors ${
               exercise.focus === opt.value
                 ? 'bg-purple-600 text-white'
-                : 'bg-white text-purple-600 border border-purple-200'
+                : 'bg-white dark:bg-slate-800 text-purple-600 border border-purple-200'
             }`}
           >
             {opt.label}
@@ -544,13 +544,13 @@ function Field({ label, placeholder, value, onChange, type = 'text' }: {
 }) {
   return (
     <div>
-      <label className="text-xs font-medium text-slate-600 block mb-1">{label}</label>
+      <label className="text-xs font-medium text-slate-600 dark:text-slate-300 block mb-1">{label}</label>
       <input
         type={type}
         placeholder={placeholder}
         value={value}
         onChange={e => onChange(e.target.value)}
-        className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+        className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
       />
     </div>
   )

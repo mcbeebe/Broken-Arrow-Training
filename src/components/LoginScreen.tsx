@@ -61,17 +61,17 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
   }, [googleClientId, handleGoogleResponse])
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center px-6"
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex flex-col items-center justify-center px-6"
          style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" }}>
       <div className="w-full max-w-sm space-y-8">
         <div className="text-center">
-          <h1 className="text-3xl font-bold text-slate-800 tracking-tight">BROKEN ARROW</h1>
-          <p className="text-sm text-slate-500 mt-1">Training Plan</p>
+          <h1 className="text-3xl font-bold text-slate-800 dark:text-white tracking-tight">BROKEN ARROW</h1>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Training Plan</p>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-5">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 space-y-5">
           <div className="text-center">
-            <p className="text-base font-semibold text-slate-700">Sign in to your account</p>
+            <p className="text-base font-semibold text-slate-700 dark:text-slate-200">Sign in to your account</p>
             <p className="text-xs text-slate-400 mt-1">Use the Google account linked to your training plan</p>
           </div>
 
@@ -84,7 +84,7 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
           {loading && (
             <div className="flex items-center justify-center py-4">
               <div className="animate-spin w-6 h-6 border-2 border-teal-600 border-t-transparent rounded-full" />
-              <span className="ml-2 text-sm text-slate-500">Signing in...</span>
+              <span className="ml-2 text-sm text-slate-500 dark:text-slate-400">Signing in...</span>
             </div>
           )}
 

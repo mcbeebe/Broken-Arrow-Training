@@ -43,15 +43,15 @@ export default function GarminConnect({
 
   if (connected) {
     return (
-      <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-100 space-y-3">
+      <div className="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700 space-y-3">
         <div className="flex items-center gap-2">
           <span className="w-2.5 h-2.5 rounded-full bg-green-500" />
-          <span className="text-sm font-medium text-slate-800">
+          <span className="text-sm font-medium text-slate-800 dark:text-white">
             Connected{displayName ? ` · ${displayName}` : ''}
           </span>
         </div>
         {lastSync && (
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-slate-500 dark:text-slate-400">
             Last synced: {new Date(lastSync).toLocaleString()}
           </p>
         )}
@@ -68,7 +68,7 @@ export default function GarminConnect({
           </button>
           <button
             onClick={onDisconnect}
-            className="text-xs font-medium px-3 py-1.5 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"
+            className="text-xs font-medium px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
           >
             Disconnect
           </button>
@@ -80,9 +80,9 @@ export default function GarminConnect({
   // MFA step — Garmin sent a verification code
   if (mfaRequired) {
     return (
-      <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-100 space-y-3">
-        <p className="text-sm font-medium text-slate-700">Garmin Verification</p>
-        <p className="text-xs text-slate-500">
+      <div className="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700 space-y-3">
+        <p className="text-sm font-medium text-slate-700 dark:text-slate-200">Garmin Verification</p>
+        <p className="text-xs text-slate-500 dark:text-slate-400">
           Garmin sent a verification code to your phone. Enter it below to complete sign-in.
         </p>
         {error && <p className="text-xs text-red-600">{error}</p>}
@@ -109,8 +109,8 @@ export default function GarminConnect({
 
   // Sign-in form — email + password
   return (
-    <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-100 space-y-3">
-      <p className="text-xs text-slate-500">
+    <div className="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700 space-y-3">
+      <p className="text-xs text-slate-500 dark:text-slate-400">
         Sign in with your Garmin Connect account to enable readiness scoring, recovery tracking, and adaptive workout recommendations.
       </p>
       {error && <p className="text-xs text-red-600">{error}</p>}

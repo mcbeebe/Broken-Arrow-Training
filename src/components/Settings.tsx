@@ -137,7 +137,7 @@ export default function Settings({
   void _onDismissInference
   return (
     <div className="px-2 py-3 space-y-3">
-      <h2 className="text-xl font-bold text-slate-800">Settings</h2>
+      <h2 className="text-xl font-bold text-slate-800 dark:text-white">Settings</h2>
 
       {/* Error display */}
       {error && (
@@ -468,16 +468,16 @@ function SettingsSection({ title, children, defaultOpen = false }: {
 }) {
   const [open, setOpen] = useState(defaultOpen)
   return (
-    <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+    <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden shadow-sm">
       <button
         onClick={() => setOpen(!open)}
-        className="w-full flex items-center justify-between px-3 py-2.5 text-left hover:bg-slate-50 transition-colors"
+        className="w-full flex items-center justify-between px-3 py-2.5 text-left hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
       >
-        <h3 className="text-sm font-semibold text-slate-800">{title}</h3>
-        <span className="text-sm text-teal-600">{open ? '▴' : '▾'}</span>
+        <h3 className="text-sm font-semibold text-slate-800 dark:text-white">{title}</h3>
+        <span className="text-sm text-teal-600 dark:text-teal-400">{open ? '▴' : '▾'}</span>
       </button>
       {open && (
-        <div className="px-3 pb-3 border-t border-slate-100 pt-2">
+        <div className="px-3 pb-3 border-t border-slate-100 dark:border-slate-700 pt-2">
           {children}
         </div>
       )}
