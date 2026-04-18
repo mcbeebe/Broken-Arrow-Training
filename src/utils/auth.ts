@@ -1,5 +1,5 @@
 const AUTH_KEY = 'ba_auth_session'
-const API_URL = import.meta.env.VITE_GARMIN_API_URL || ''
+const API_URL = (import.meta.env.VITE_GARMIN_API_URL || '').replace(/\/$/, '')
 
 export interface AuthSession {
   athleteId: string
