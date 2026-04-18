@@ -298,6 +298,9 @@ export default function Summary({
                   <div className="h-full bg-red-200" style={{ width: '22%' }} />
                   <div className="h-full bg-amber-200" style={{ width: '22%' }} />
                   <div className="h-full bg-green-300" style={{ width: '33%' }} />
+                  {/* ACWR sweet spot on fatigue scale: 0.8×CTL and 1.3×CTL */}
+                  <div className="absolute top-0 h-full border-l border-dashed border-violet-500/60" style={{ left: `${Math.max(0, Math.min(100, (1 - latestPerf.ctl * 1.3 / 120) * 100))}%` }} />
+                  <div className="absolute top-0 h-full border-l border-dashed border-violet-500/60" style={{ left: `${Math.max(0, Math.min(100, (1 - latestPerf.ctl * 0.8 / 120) * 100))}%` }} />
                   <div
                     className="absolute top-0 w-1.5 h-full bg-slate-900 rounded shadow"
                     style={{ left: `${Math.max(0, Math.min(100, (1 - latestPerf.atl / 120) * 100))}%`, transform: 'translateX(-50%)' }}
@@ -338,6 +341,12 @@ export default function Summary({
                   <div className="h-full bg-green-200" style={{ width: '16%' }} />
                   <div className="h-full bg-green-300" style={{ width: '15%' }} />
                   <div className="h-full bg-emerald-400" style={{ width: '15%' }} />
+                  {/* Training Zone boundaries: -30 and -10 */}
+                  <div className="absolute top-0 h-full border-l border-dashed border-blue-500/60" style={{ left: `${(((-30) + 30) / 55) * 100}%` }} />
+                  <div className="absolute top-0 h-full border-l border-dashed border-blue-500/60" style={{ left: `${(((-10) + 30) / 55) * 100}%` }} />
+                  {/* Race Day boundaries: +5 and +25 */}
+                  <div className="absolute top-0 h-full border-l border-dashed border-green-600/60" style={{ left: `${(((5) + 30) / 55) * 100}%` }} />
+                  <div className="absolute top-0 h-full border-l border-dashed border-green-600/60" style={{ left: `${(((25) + 30) / 55) * 100}%` }} />
                   <div
                     className="absolute top-0 w-2 h-full bg-slate-900 rounded shadow"
                     style={{ left: `${Math.max(0, Math.min(100, ((latestPerf.tsb + 30) / 55) * 100))}%`, transform: 'translateX(-50%)' }}
@@ -384,6 +393,9 @@ export default function Summary({
                         <div className="h-full bg-amber-300" style={{ width: '25%' }} />
                         <div className="h-full bg-green-300" style={{ width: '25%' }} />
                         <div className="h-full bg-emerald-400" style={{ width: '25%' }} />
+                        {/* Sweet spot boundaries: ACWR 0.8 and 1.3 → mapped to safety scale */}
+                        <div className="absolute top-0 h-full border-l border-dashed border-green-700/60" style={{ left: `${Math.max(0, Math.min(100, (1 - Math.abs(0.8 - 1.05) / 0.95) * 100))}%` }} />
+                        <div className="absolute top-0 h-full border-l border-dashed border-green-700/60" style={{ left: `${Math.max(0, Math.min(100, (1 - Math.abs(1.3 - 1.05) / 0.95) * 100))}%` }} />
                         <div
                           className="absolute top-0 w-2 h-full bg-slate-900 rounded shadow"
                           style={{ left: `${safety * 100}%`, transform: 'translateX(-50%)' }}
