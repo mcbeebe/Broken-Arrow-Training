@@ -489,6 +489,7 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
           dailyTrimp={readiness.dailyTrimp}
           performance={readiness.performance}
           weeklyRecommendations={readiness.weeklyRecommendations}
+          riskFlags={readiness.riskFlags}
           garminConnected={garmin.connected}
           sorenessLoadByDate={soreness.sorenessLoadByDate}
         />

@@ -1,12 +1,15 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import type { TrainingWeek, ReadinessScore, GarminHealthData, DailyTRIMP, PerformanceMetrics, WeeklyRecommendation, HRZone } from '../types'
 import type { OverallCompliance } from '../hooks/useCompliance'
+import type { RiskFlag } from '../utils/readiness'
 import { parsePlanZones } from '../utils/zones'
 import { getMilesNumber } from '../utils/format'
+import { filterByTimeWindow, type TimeWindow } from '../utils/performance'
 import ReadinessBanner from './ReadinessBanner'
 import TRIMPBreakdown from './TRIMPBreakdown'
 import PerformanceChart from './PerformanceChart'
 import ComplianceWeekRow from './ComplianceWeekRow'
+import CalendarHeatmap from './CalendarHeatmap'
 
 type DashSubTab = 'compliance' | 'readiness' | 'performance'
 
@@ -22,6 +25,7 @@ interface DashboardProps {
   dailyTrimp?: DailyTRIMP[]
   performance?: PerformanceMetrics[]
   weeklyRecommendations?: WeeklyRecommendation[]
+  riskFlags?: RiskFlag[]
   garminConnected?: boolean
   sorenessLoadByDate?: Map<string, number>
   planZones?: HRZone[]
@@ -39,6 +43,7 @@ export default function Dashboard({
   dailyTrimp = [],
   performance = [],
   weeklyRecommendations = [],
+  riskFlags = [],
   garminConnected = false,
   sorenessLoadByDate,
   planZones = [],
@@ -85,6 +90,8 @@ export default function Dashboard({
           weekScores={weekScores}
           todayHealth={todayHealth}
           healthHistory={healthHistory}
+          dailyTrimp={dailyTrimp}
+          riskFlags={riskFlags}
         />
       )}
       {subTab === 'performance' && (
@@ -92,6 +99,7 @@ export default function Dashboard({
           dailyTrimp={dailyTrimp}
           performance={performance}
           recommendations={weeklyRecommendations}
+          riskFlags={riskFlags}
           raceDate={raceDate}
           sorenessLoadByDate={sorenessLoadByDate}
         />
@@ -227,11 +235,15 @@ function ReadinessTab({
   weekScores,
   todayHealth,
   healthHistory,
+  dailyTrimp,
+  riskFlags,
 }: {
   todayScore?: ReadinessScore | null
   weekScores: ReadinessScore[]
   todayHealth?: GarminHealthData
   healthHistory: GarminHealthData[]
+  dailyTrimp: DailyTRIMP[]
+  riskFlags: RiskFlag[]
 }) {
   return (
     <div className="space-y-4">
@@ -242,6 +254,10 @@ function ReadinessTab({
           healthHistory={healthHistory}
         />
       )}
+
+      <RiskFlagsCard flags={riskFlags} />
+
+      <CalendarHeatmap dailyTrimp={dailyTrimp} readinessScores={weekScores} />
 
       {/* 7-day readiness trend */}
       {weekScores.length > 0 && (
@@ -387,24 +403,90 @@ function PerformanceTab({
   dailyTrimp,
   performance,
   recommendations,
+  riskFlags,
   raceDate,
   sorenessLoadByDate,
 }: {
   dailyTrimp: DailyTRIMP[]
   performance: PerformanceMetrics[]
   recommendations: WeeklyRecommendation[]
+  riskFlags: RiskFlag[]
   raceDate: string
   sorenessLoadByDate?: Map<string, number>
 }) {
+  const [timeWindow, setTimeWindow] = useState<TimeWindow>('all')
+  const filteredPerformance = useMemo(() => filterByTimeWindow(performance, timeWindow), [performance, timeWindow])
+  const filteredTrimp = useMemo(() => filterByTimeWindow(dailyTrimp, timeWindow), [dailyTrimp, timeWindow])
   return (
     <div className="space-y-4">
+      <RiskFlagsCard flags={riskFlags} />
+      <TimeWindowToggle value={timeWindow} onChange={setTimeWindow} />
       <PerformanceChart
-        performance={performance}
+        performance={filteredPerformance}
         recommendations={recommendations}
         raceDate={raceDate}
       />
-      <TRIMPBreakdown dailyTrimp={dailyTrimp} sorenessLoadByDate={sorenessLoadByDate} />
+      <TRIMPBreakdown dailyTrimp={filteredTrimp} sorenessLoadByDate={sorenessLoadByDate} />
       <PerformanceGlossary />
+    </div>
+  )
+}
+
+// ─── Time Window Toggle ─────────────────────────────────────────
+
+function TimeWindowToggle({ value, onChange }: { value: TimeWindow; onChange: (w: TimeWindow) => void }) {
+  const options: { id: TimeWindow; label: string }[] = [
+    { id: '7d', label: '7d' },
+    { id: '30d', label: '30d' },
+    { id: '90d', label: '90d' },
+    { id: 'all', label: 'All' },
+  ]
+  return (
+    <div className="flex gap-1 bg-slate-100 dark:bg-slate-700 rounded-lg p-0.5">
+      {options.map(o => (
+        <button
+          key={o.id}
+          onClick={() => onChange(o.id)}
+          className={`flex-1 text-xs font-medium py-1.5 rounded-md transition-colors ${
+            value === o.id
+              ? 'bg-white dark:bg-slate-600 text-slate-800 dark:text-white shadow-sm'
+              : 'text-slate-500 dark:text-slate-400'
+          }`}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+// ─── Risk Flags Card ────────────────────────────────────────────
+
+function RiskFlagsCard({ flags }: { flags: RiskFlag[] }) {
+  if (flags.length === 0) return null
+  const alerts = flags.filter(f => f.severity === 'alert')
+  const warnings = flags.filter(f => f.severity === 'warning')
+  const bgClass = alerts.length > 0
+    ? 'bg-red-50 dark:bg-red-950 border-red-200 dark:border-red-900'
+    : 'bg-amber-50 dark:bg-amber-950 border-amber-200 dark:border-amber-900'
+  const icon = alerts.length > 0 ? '🚨' : '⚠️'
+  const title = alerts.length > 0 ? 'Injury Risk Alert' : 'Heads up'
+  return (
+    <div className={`rounded-xl p-3 border ${bgClass}`}>
+      <p className="text-sm font-bold text-slate-800 dark:text-white mb-2">{icon} {title}</p>
+      <div className="space-y-2">
+        {[...alerts, ...warnings].map(f => (
+          <div key={f.id} className="bg-white/60 dark:bg-slate-900/40 rounded-lg p-2">
+            <div className="flex items-center justify-between gap-2 mb-0.5">
+              <p className="text-xs font-semibold text-slate-800 dark:text-slate-200">{f.title}</p>
+              {f.metric && (
+                <span className="text-[10px] font-mono text-slate-500 dark:text-slate-400">{f.metric}</span>
+              )}
+            </div>
+            <p className="text-xs text-slate-600 dark:text-slate-300 leading-snug">{f.message}</p>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }

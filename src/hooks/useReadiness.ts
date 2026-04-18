@@ -22,6 +22,7 @@ import {
   generateReadinessMessage,
   suggestDailyAdjustment,
   checkHRVStability,
+  checkInjuryRisk,
   classifyTrainingState,
   countConsecutiveRedDays,
   check7dDecliningTrend,
@@ -53,6 +54,7 @@ export interface UseReadinessReturn {
   weeklyRecommendations: WeeklyRecommendation[]
   baselines: ReadinessBaselines | null
   hrvStability: { stable: boolean; cv: number }
+  riskFlags: import('../utils/readiness').RiskFlag[]
   acwr: number
   trainingStateInfo: TrainingStateInfo | null
   deloadProgram: DeloadDay[] | null
@@ -187,6 +189,12 @@ export function useReadiness({
     [healthData],
   )
 
+  // Proactive injury risk flags (HRV slope, ACWR acceleration, recovery failure)
+  const riskFlags = useMemo(
+    () => checkInjuryRisk(healthData, performance),
+    [healthData, performance],
+  )
+
   // Calculate baselines from health history
   const baselines = useMemo(() => {
     if (healthData.length < 1) return null
@@ -293,6 +301,7 @@ export function useReadiness({
     weeklyRecommendations,
     baselines,
     hrvStability,
+    riskFlags,
     acwr,
     trainingStateInfo,
     deloadProgram,

@@ -12,6 +12,7 @@ import type {
   DailyTRIMP,
   WorkoutType,
   PlannedDay,
+  PerformanceMetrics,
 } from '../types'
 import { aggregateDailyTRIMP } from './trimp'
 
@@ -476,6 +477,157 @@ export function checkHRVStability(healthHistory: GarminHealthData[]): { stable: 
   const cv = baseline.mean > 0 ? (baseline.stdDev / baseline.mean) * 100 : 0
 
   return { stable: cv <= CV_ALERT_THRESHOLD, cv: Math.round(cv * 10) / 10 }
+}
+
+// ─── Injury Risk Flagging (proactive trend analysis) ──────────
+
+export interface RiskFlag {
+  id: string
+  severity: 'watch' | 'warning' | 'alert'
+  title: string
+  message: string
+  metric?: string
+}
+
+/** 3-day HRV slope via linear regression on ln(RMSSD).
+ *  A negative slope below threshold indicates HRV is dropping rapidly —
+ *  strong signal for non-functional overreaching. */
+export function check3dHRVSlope(healthHistory: GarminHealthData[]): {
+  slope: number
+  decelerating: boolean
+} {
+  const recent = healthHistory
+    .filter(d => d.hrv?.lastNightAvg && d.hrv.lastNightAvg > 0)
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .slice(-3)
+
+  if (recent.length < 3) return { slope: 0, decelerating: false }
+
+  const hrvLog = recent.map(d => Math.log(d.hrv!.lastNightAvg))
+  const x = [0, 1, 2]
+  const meanX = 1
+  const meanY = (hrvLog[0] + hrvLog[1] + hrvLog[2]) / 3
+  const num = x.reduce((s, xi, i) => s + (xi - meanX) * (hrvLog[i] - meanY), 0)
+  const den = x.reduce((s, xi) => s + (xi - meanX) ** 2, 0)
+  const slope = den > 0 ? num / den : 0
+
+  // Threshold: -0.12 in log space ≈ -11% per day (meaningful decline)
+  return { slope, decelerating: slope < -0.12 }
+}
+
+/** Detect accelerating ACWR (second-derivative check).
+ *  If ACWR went 1.1 → 1.2 → 1.4, the rate of increase is accelerating,
+ *  which is worse than steady ramp. Strong signal to deload. */
+export function checkACWRAcceleration(performance: PerformanceMetrics[]): {
+  accelerating: boolean
+  acwrNow: number
+  acwr3dAgo: number
+  acwr7dAgo: number
+} {
+  if (performance.length < 8) return { accelerating: false, acwrNow: 0, acwr3dAgo: 0, acwr7dAgo: 0 }
+
+  const now = performance[performance.length - 1]
+  const ago3d = performance[performance.length - 4]
+  const ago7d = performance[performance.length - 8]
+
+  const acwrNow = now.acwr || 0
+  const acwr3d = ago3d?.acwr || 0
+  const acwr7d = ago7d?.acwr || 0
+
+  // Rate change: if delta(3d) > delta(prev 4d), acceleration
+  const delta3d = acwrNow - acwr3d
+  const delta4d = acwr3d - acwr7d
+  const accelerating = delta3d > 0.1 && delta3d > delta4d && acwrNow > 1.25
+
+  return { accelerating, acwrNow, acwr3dAgo: acwr3d, acwr7dAgo: acwr7d }
+}
+
+/** Multi-day recovery failure: both HRV below baseline AND RHR above
+ *  baseline for 3+ of last 5 days. Classic overtraining signature. */
+export function checkRecoveryFailure(healthHistory: GarminHealthData[]): {
+  failing: boolean
+  lowHRVDays: number
+  elevatedRHRDays: number
+} {
+  const recent = healthHistory
+    .filter(d => d.hrv?.lastNightAvg && d.rhr != null)
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .slice(-14)
+
+  if (recent.length < 7) return { failing: false, lowHRVDays: 0, elevatedRHRDays: 0 }
+
+  const last5 = recent.slice(-5)
+  const prior9 = recent.slice(0, -5)
+  if (prior9.length < 5) return { failing: false, lowHRVDays: 0, elevatedRHRDays: 0 }
+
+  const hrvBaseline = calculateBaseline(prior9.map(d => Math.log(d.hrv!.lastNightAvg)))
+  const rhrBaseline = calculateBaseline(prior9.map(d => d.rhr!))
+
+  let lowHRVDays = 0
+  let elevatedRHRDays = 0
+  for (const d of last5) {
+    if (Math.log(d.hrv!.lastNightAvg) < hrvBaseline.mean - hrvBaseline.stdDev * 0.5) lowHRVDays++
+    if (d.rhr! > rhrBaseline.mean + 2) elevatedRHRDays++
+  }
+
+  return {
+    failing: lowHRVDays >= 3 && elevatedRHRDays >= 3,
+    lowHRVDays,
+    elevatedRHRDays,
+  }
+}
+
+/** Run all risk checks and return a prioritized list of flags. */
+export function checkInjuryRisk(
+  healthHistory: GarminHealthData[],
+  performance: PerformanceMetrics[],
+): RiskFlag[] {
+  const flags: RiskFlag[] = []
+
+  const hrvSlope = check3dHRVSlope(healthHistory)
+  if (hrvSlope.decelerating) {
+    flags.push({
+      id: 'hrv_slope',
+      severity: 'warning',
+      title: 'HRV dropping fast',
+      message: `HRV has declined steeply over 3 days (slope ${hrvSlope.slope.toFixed(2)}). Consider 1-2 easy days to allow recovery.`,
+      metric: `slope: ${hrvSlope.slope.toFixed(2)}`,
+    })
+  }
+
+  const acwrAccel = checkACWRAcceleration(performance)
+  if (acwrAccel.accelerating) {
+    flags.push({
+      id: 'acwr_accel',
+      severity: 'alert',
+      title: 'Training load ramp accelerating',
+      message: `ACWR jumped from ${acwrAccel.acwr3dAgo.toFixed(2)} to ${acwrAccel.acwrNow.toFixed(2)} in 3 days. Injury risk climbing. Deload this week.`,
+      metric: `ACWR ${acwrAccel.acwrNow.toFixed(2)}`,
+    })
+  }
+
+  const recovery = checkRecoveryFailure(healthHistory)
+  if (recovery.failing) {
+    flags.push({
+      id: 'recovery_fail',
+      severity: 'alert',
+      title: 'Recovery system under strain',
+      message: `HRV below baseline on ${recovery.lowHRVDays}/5 days AND RHR elevated on ${recovery.elevatedRHRDays}/5 days. Classic overtraining signature. Take 2-3 rest days and re-evaluate.`,
+      metric: `${recovery.lowHRVDays}/5 low HRV · ${recovery.elevatedRHRDays}/5 high RHR`,
+    })
+  }
+
+  const decliningTrend = check7dDecliningTrend(healthHistory)
+  if (decliningTrend) {
+    flags.push({
+      id: 'hrv_decline_7d',
+      severity: 'warning',
+      title: 'HRV declining every day this week',
+      message: 'HRV has decreased on each of the last 7 days. This is rare and suggests accumulating fatigue faster than you can recover.',
+    })
+  }
+
+  return flags
 }
 
 // ─── Conversational Messages (ATE-aligned) ──────────────────────

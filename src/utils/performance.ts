@@ -1,5 +1,22 @@
 import type { DailyTRIMP, PerformanceMetrics, TSBState, ACWRRisk, WeeklyRecommendation } from '../types'
 
+// ─── Time window filtering ─────────────────────────────────────
+
+export type TimeWindow = '7d' | '30d' | '90d' | 'all'
+
+/** Filter any date-indexed array to records on-or-after the cutoff. */
+export function filterByTimeWindow<T extends { date: string }>(
+  data: T[],
+  window: TimeWindow,
+): T[] {
+  if (window === 'all' || data.length === 0) return data
+  const days = window === '7d' ? 7 : window === '30d' ? 30 : 90
+  const cutoff = new Date()
+  cutoff.setDate(cutoff.getDate() - days)
+  const cutoffStr = cutoff.toISOString().slice(0, 10)
+  return data.filter(d => d.date >= cutoffStr)
+}
+
 // ─── Tau-based EWMA (for CTL/ATL/TSB performance display) ──────
 // EWMA_today = EWMA_yesterday × e^(-1/τ) + value_today × (1 - e^(-1/τ))
 
