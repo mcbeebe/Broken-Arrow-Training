@@ -46,6 +46,12 @@ export default function PerformanceChart({
 
   const renderChart = (expanded: boolean) => {
     const chartData = expanded ? rawData : smoothedData
+    const allVals = chartData.flatMap(d => [d.ctl, d.atl, d.tsb, (d as { tsbSmooth?: number }).tsbSmooth ?? d.tsb])
+    const dataMax = Math.max(...allVals)
+    const dataMin = Math.min(...allVals)
+    const yMax = Math.ceil((Math.max(dataMax, 25) + 10) / 10) * 10
+    const yMin = Math.floor((Math.min(dataMin, -10) - 5) / 10) * 10
+    const isDark = document.documentElement.classList.contains('dark')
     return (
       <div>
         {!expanded && (
@@ -65,18 +71,20 @@ export default function PerformanceChart({
                 interval="preserveStartEnd"
               />
               <YAxis
+                domain={[yMin, yMax]}
                 tick={{ fontSize: expanded ? 12 : 11, fill: expanded ? '#cbd5e1' : '#94A3B8' }}
                 axisLine={false}
                 tickLine={false}
-                width={32}
+                width={36}
               />
               <Tooltip
                 contentStyle={{
                   fontSize: expanded ? 14 : 13,
                   borderRadius: 8,
-                  border: '1px solid #e2e8f0',
-                  backgroundColor: expanded ? '#1e293b' : '#ffffff',
-                  color: expanded ? '#f1f5f9' : '#1e293b',
+                  border: isDark || expanded ? '1px solid #334155' : '1px solid #e2e8f0',
+                  padding: '6px 10px',
+                  backgroundColor: isDark || expanded ? '#1e293b' : '#ffffff',
+                  color: isDark || expanded ? '#f1f5f9' : '#1e293b',
                 }}
                 formatter={(value, name) => [
                   typeof value === 'number' ? value.toFixed(1) : String(value),
@@ -90,15 +98,21 @@ export default function PerformanceChart({
               <ReferenceArea
                 y1={-10} y2={5}
                 fill="#3B82F6"
-                fillOpacity={0.04}
-                label={expanded ? { value: 'Training Zone', fontSize: 10, fill: '#3B82F6', position: 'insideBottomLeft' } : undefined}
+                fillOpacity={isDark ? 0.15 : 0.08}
+                stroke="#3B82F6"
+                strokeOpacity={0.3}
+                strokeDasharray="4 4"
+                label={{ value: 'Training Zone', fontSize: expanded ? 11 : 9, fill: isDark ? '#60a5fa' : '#3B82F6', position: 'insideBottomLeft' }}
               />
               {/* Race day band: peak performance zone (TSB +15 to +25) */}
               <ReferenceArea
                 y1={15} y2={25}
                 fill="#059669"
-                fillOpacity={0.08}
-                label={{ value: 'Race Day Target', fontSize: expanded ? 12 : 10, fill: '#059669' }}
+                fillOpacity={isDark ? 0.2 : 0.12}
+                stroke="#059669"
+                strokeOpacity={0.4}
+                strokeDasharray="4 4"
+                label={{ value: 'Race Day', fontSize: expanded ? 12 : 10, fill: isDark ? '#34d399' : '#059669' }}
               />
               <ReferenceLine y={0} stroke={expanded ? '#475569' : '#cbd5e1'} strokeDasharray="2 2" />
               <Area type="natural" dataKey="ctl" stroke="#3B82F6" fill="#3B82F6" fillOpacity={0.1} strokeWidth={expanded ? 2.5 : 2} dot={false} isAnimationActive={false} />

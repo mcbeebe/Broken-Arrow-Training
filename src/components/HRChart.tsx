@@ -92,10 +92,10 @@ export default function HRChart({ stream, zones, targetZone }: HRChartProps) {
               contentStyle={{
                 fontSize: expanded ? 14 : 12,
                 borderRadius: 8,
-                border: '1px solid #e2e8f0',
+                border: expanded || document.documentElement.classList.contains('dark') ? '1px solid #334155' : '1px solid #e2e8f0',
                 padding: '6px 10px',
-                backgroundColor: expanded ? '#1e293b' : '#ffffff',
-                color: expanded ? '#f1f5f9' : '#1e293b',
+                backgroundColor: expanded || document.documentElement.classList.contains('dark') ? '#1e293b' : '#ffffff',
+                color: expanded || document.documentElement.classList.contains('dark') ? '#f1f5f9' : '#1e293b',
               }}
               formatter={(value, name) => {
                 if (name === 'hr') return [`${value} bpm`, 'Heart Rate']
