@@ -11,7 +11,7 @@ import json
 import os
 import urllib.request
 from http.server import BaseHTTPRequestHandler
-from ._helpers import lookup_athlete, create_session_token
+from ._helpers import lookup_athlete, create_session_token, get_email_to_athlete_map
 
 
 class handler(BaseHTTPRequestHandler):
@@ -54,8 +54,9 @@ class handler(BaseHTTPRequestHandler):
             # Map email to athlete
             athlete_id = lookup_athlete(email)
             if not athlete_id:
+                configured_count = len(get_email_to_athlete_map())
                 self._send_json(403, {
-                    "error": "No athlete account found for this email. Contact Mike to get set up.",
+                    "error": f"No athlete account found for {email}. {configured_count} athlete(s) configured. Contact Mike to get set up.",
                     "email": email,
                 })
                 return
