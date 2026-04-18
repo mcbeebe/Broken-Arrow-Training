@@ -329,6 +329,57 @@ export default function Settings({
         </SettingsSection>
       )}
 
+      {/* ── Grading Rubric section ── */}
+      <SettingsSection title="Grading Rubric">
+        <div className="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700 space-y-4">
+          <p className="text-sm text-slate-600 dark:text-slate-400">
+            Each workout is graded on distance, duration, and heart rate zone compliance. Grades appear as colored indicators on the compliance grid and day cards.
+          </p>
+
+          <div>
+            <p className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wide mb-2">Distance & Duration</p>
+            <div className="space-y-1.5">
+              <GradeRow color="#22c55e" label="On Target" desc="Within ±10% of planned" />
+              <GradeRow color="#eab308" label="Close" desc="Within ±20% of planned" />
+              <GradeRow color="#ef4444" label="Missed" desc="More than 20% short" />
+              <GradeRow color="#3b82f6" label="Over" desc="More than 20% above planned" />
+              <GradeRow color="#d1d5db" label="Skipped" desc="Planned workout, no activity logged" />
+              <GradeRow color="#f1f5f9" label="No Target" desc="Rest day or target not applicable" />
+            </div>
+          </div>
+
+          <div>
+            <p className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wide mb-2">Heart Rate Zone Compliance</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">
+              Measured as percentage of workout time spent in the prescribed HR zone (with ±3 bpm tolerance).
+            </p>
+            <div className="space-y-1.5">
+              <GradeRow color="#22c55e" label="On Target" desc="≥75% of time in target zone" />
+              <GradeRow color="#eab308" label="Close" desc="50–75% of time in target zone" />
+              <GradeRow color="#ef4444" label="Missed (Flagged)" desc="Less than 50% of time in target zone" />
+            </div>
+          </div>
+
+          <div>
+            <p className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wide mb-2">Overall Compliance</p>
+            <div className="space-y-1.5 text-xs text-slate-600 dark:text-slate-400">
+              <p><span className="font-medium text-slate-700 dark:text-slate-300">Completion %</span> — workouts completed vs. planned (excludes rest days)</p>
+              <p><span className="font-medium text-slate-700 dark:text-slate-300">Distance %</span> — actual miles vs. planned miles across all workouts</p>
+              <p><span className="font-medium text-slate-700 dark:text-slate-300">HR in Zone %</span> — average time-in-zone across all HR-checked workouts</p>
+              <p><span className="font-medium text-slate-700 dark:text-slate-300">Duration %</span> — actual moving time vs. planned time</p>
+              <p><span className="font-medium text-slate-700 dark:text-slate-300">Flagged</span> — workouts with any major miss (distance, duration, or HR)</p>
+            </div>
+          </div>
+
+          <div className="bg-slate-50 dark:bg-slate-700 rounded-lg p-3">
+            <p className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">How HR zone is calculated</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+              Per-second heart rate data from your watch is compared against the planned zone. Each second where your HR falls within the target range (±3 bpm tolerance) counts as "in zone." The percentage is total in-zone seconds divided by total workout seconds. A ±3 bpm tolerance accounts for watch sensor variability.
+            </p>
+          </div>
+        </div>
+      </SettingsSection>
+
       {/* ── Training Methodology section ── */}
       <SettingsSection title="Training Methodology">
         <Methodology />
@@ -401,6 +452,16 @@ export default function Settings({
 }
 
 // ─── Collapsible settings section ───────────────────────────────
+
+function GradeRow({ color, label, desc }: { color: string; label: string; desc: string }) {
+  return (
+    <div className="flex items-center gap-2">
+      <span className="w-3 h-3 rounded-sm shrink-0" style={{ backgroundColor: color }} />
+      <span className="text-xs font-medium text-slate-700 dark:text-slate-300 w-20 shrink-0">{label}</span>
+      <span className="text-xs text-slate-500 dark:text-slate-400">{desc}</span>
+    </div>
+  )
+}
 
 function SettingsSection({ title, children, defaultOpen = false }: {
   title: string; children: React.ReactNode; defaultOpen?: boolean
