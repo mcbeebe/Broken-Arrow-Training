@@ -100,9 +100,9 @@ export default function PerformanceChart({
                       label={{ value: 'Race Target', fontSize: 11, fill: '#059669' }}
                     />
                     <ReferenceLine y={0} stroke={expanded ? '#475569' : '#cbd5e1'} strokeDasharray="2 2" />
-                    <Area type="monotone" dataKey="ctl" stroke="#3B82F6" fill="#3B82F6" fillOpacity={0.1} strokeWidth={expanded ? 2.5 : 2} dot={false} />
-                    <Area type="monotone" dataKey="atl" stroke="#EF4444" fill="transparent" strokeWidth={expanded ? 2 : 1.5} strokeDasharray="4 2" dot={false} />
-                    <Area type="monotone" dataKey="tsb" stroke="#059669" fill="#059669" fillOpacity={0.15} strokeWidth={expanded ? 2.5 : 2} dot={false} />
+                    <Area type="natural" dataKey="ctl" stroke="#3B82F6" fill="#3B82F6" fillOpacity={0.1} strokeWidth={expanded ? 2.5 : 2} dot={false} isAnimationActive={false} />
+                    <Area type="natural" dataKey="atl" stroke="#EF4444" fill="transparent" strokeWidth={expanded ? 2 : 1.5} strokeDasharray="4 2" dot={false} isAnimationActive={false} />
+                    <Area type="natural" dataKey="tsb" stroke="#059669" fill="#059669" fillOpacity={0.15} strokeWidth={expanded ? 2.5 : 2} dot={false} isAnimationActive={false} />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
