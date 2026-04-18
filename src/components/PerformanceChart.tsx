@@ -62,17 +62,17 @@ export default function PerformanceChart({
         <div style={expanded ? { width: '100%', height: 'calc(100vh - 120px)' } : { height: 220 }}>
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke={expanded ? '#334155' : '#f1f5f9'} />
+              <CartesianGrid strokeDasharray="3 3" stroke={isDark ? '#334155' : '#e2e8f0'} />
               <XAxis
                 dataKey="label"
-                tick={{ fontSize: expanded ? 12 : 11, fill: expanded ? '#cbd5e1' : '#94A3B8' }}
+                tick={{ fontSize: expanded ? 12 : 11, fill: isDark ? '#cbd5e1' : '#64748b' }}
                 axisLine={false}
                 tickLine={false}
                 interval="preserveStartEnd"
               />
               <YAxis
                 domain={[yMin, yMax]}
-                tick={{ fontSize: expanded ? 12 : 11, fill: expanded ? '#cbd5e1' : '#94A3B8' }}
+                tick={{ fontSize: expanded ? 12 : 11, fill: isDark ? '#cbd5e1' : '#64748b' }}
                 axisLine={false}
                 tickLine={false}
                 width={36}
@@ -81,10 +81,10 @@ export default function PerformanceChart({
                 contentStyle={{
                   fontSize: expanded ? 14 : 13,
                   borderRadius: 8,
-                  border: isDark || expanded ? '1px solid #334155' : '1px solid #e2e8f0',
+                  border: isDark ? '1px solid #334155' : '1px solid #e2e8f0',
                   padding: '6px 10px',
-                  backgroundColor: isDark || expanded ? '#1e293b' : '#ffffff',
-                  color: isDark || expanded ? '#f1f5f9' : '#1e293b',
+                  backgroundColor: isDark ? '#1e293b' : '#ffffff',
+                  color: isDark ? '#f1f5f9' : '#1e293b',
                 }}
                 formatter={(value, name) => [
                   typeof value === 'number' ? value.toFixed(1) : String(value),
@@ -97,24 +97,24 @@ export default function PerformanceChart({
               {/* Training band: productive overreach zone (TSB -10 to +5) */}
               <ReferenceArea
                 y1={-10} y2={5}
-                fill="#3B82F6"
-                fillOpacity={isDark ? 0.15 : 0.08}
+                fill={isDark ? '#1e3a5f' : '#dbeafe'}
+                fillOpacity={isDark ? 0.5 : 0.4}
                 stroke="#3B82F6"
-                strokeOpacity={0.3}
-                strokeDasharray="4 4"
-                label={{ value: 'Training Zone', fontSize: expanded ? 11 : 9, fill: isDark ? '#60a5fa' : '#3B82F6', position: 'insideBottomLeft' }}
+                strokeOpacity={0.6}
+                strokeWidth={1}
+                label={{ value: 'Training Zone', fontSize: expanded ? 12 : 10, fill: isDark ? '#93c5fd' : '#1d4ed8', position: 'insideBottomLeft' }}
               />
               {/* Race day band: peak performance zone (TSB +15 to +25) */}
               <ReferenceArea
                 y1={15} y2={25}
-                fill="#059669"
-                fillOpacity={isDark ? 0.2 : 0.12}
+                fill={isDark ? '#064e3b' : '#d1fae5'}
+                fillOpacity={isDark ? 0.5 : 0.4}
                 stroke="#059669"
-                strokeOpacity={0.4}
-                strokeDasharray="4 4"
-                label={{ value: 'Race Day', fontSize: expanded ? 12 : 10, fill: isDark ? '#34d399' : '#059669' }}
+                strokeOpacity={0.6}
+                strokeWidth={1}
+                label={{ value: 'Race Day', fontSize: expanded ? 12 : 10, fill: isDark ? '#6ee7b7' : '#047857' }}
               />
-              <ReferenceLine y={0} stroke={expanded ? '#475569' : '#cbd5e1'} strokeDasharray="2 2" />
+              <ReferenceLine y={0} stroke={isDark ? '#475569' : '#94a3b8'} strokeDasharray="2 2" />
               <Area type="natural" dataKey="ctl" stroke="#3B82F6" fill="#3B82F6" fillOpacity={0.1} strokeWidth={expanded ? 2.5 : 2} dot={false} isAnimationActive={false} />
               <Area type="natural" dataKey="atl" stroke="#EF4444" fill="transparent" strokeWidth={expanded ? 2 : 1.5} strokeDasharray="4 2" dot={false} isAnimationActive={false} />
               <Area type="natural" dataKey={expanded ? 'tsb' : 'tsbSmooth'} stroke="#059669" fill="#059669" fillOpacity={0.15} strokeWidth={expanded ? 2.5 : 2} dot={false} isAnimationActive={false} />
@@ -122,7 +122,7 @@ export default function PerformanceChart({
           </ResponsiveContainer>
         </div>
         {/* Legend */}
-        <div className={`flex flex-wrap justify-center gap-x-4 gap-y-1 mt-2 text-sm ${expanded ? 'text-slate-300' : 'text-slate-600 dark:text-slate-300'}`}>
+        <div className="flex flex-wrap justify-center gap-x-4 gap-y-1 mt-2 text-sm text-slate-600 dark:text-slate-300">
           <span className="flex items-center gap-1">
             <span className="w-3 h-0.5 bg-blue-500 inline-block rounded" /> Fitness (CTL)
           </span>
@@ -134,7 +134,7 @@ export default function PerformanceChart({
           </span>
         </div>
         {expanded && (
-          <div className="flex flex-wrap justify-center gap-x-4 gap-y-1 mt-1 text-xs text-slate-400">
+          <div className="flex flex-wrap justify-center gap-x-4 gap-y-1 mt-1 text-xs text-slate-500 dark:text-slate-400">
             <span className="flex items-center gap-1">
               <span className="w-3 h-2 bg-blue-500/10 border border-blue-500/30 inline-block rounded" /> Training Zone (TSB -10 to +5)
             </span>

@@ -77,14 +77,14 @@ export default function HRChart({ stream, zones, targetZone }: HRChartProps) {
             )}
             <XAxis
               dataKey="time"
-              tick={{ fontSize: expanded ? 12 : 10, fill: expanded ? '#cbd5e1' : '#94a3b8' }}
+              tick={{ fontSize: expanded ? 12 : 10, fill: document.documentElement.classList.contains('dark') ? '#cbd5e1' : '#64748b' }}
               tickFormatter={v => `${v}m`}
               axisLine={false}
               tickLine={false}
             />
             <YAxis
               domain={[yMin, yMax]}
-              tick={{ fontSize: expanded ? 12 : 10, fill: expanded ? '#cbd5e1' : '#94a3b8' }}
+              tick={{ fontSize: expanded ? 12 : 10, fill: document.documentElement.classList.contains('dark') ? '#cbd5e1' : '#64748b' }}
               axisLine={false}
               tickLine={false}
             />
@@ -92,10 +92,10 @@ export default function HRChart({ stream, zones, targetZone }: HRChartProps) {
               contentStyle={{
                 fontSize: expanded ? 14 : 12,
                 borderRadius: 8,
-                border: expanded || document.documentElement.classList.contains('dark') ? '1px solid #334155' : '1px solid #e2e8f0',
+                border: document.documentElement.classList.contains('dark') ? '1px solid #334155' : '1px solid #e2e8f0',
                 padding: '6px 10px',
-                backgroundColor: expanded || document.documentElement.classList.contains('dark') ? '#1e293b' : '#ffffff',
-                color: expanded || document.documentElement.classList.contains('dark') ? '#f1f5f9' : '#1e293b',
+                backgroundColor: document.documentElement.classList.contains('dark') ? '#1e293b' : '#ffffff',
+                color: document.documentElement.classList.contains('dark') ? '#f1f5f9' : '#1e293b',
               }}
               formatter={(value, name) => {
                 if (name === 'hr') return [`${value} bpm`, 'Heart Rate']
@@ -109,7 +109,7 @@ export default function HRChart({ stream, zones, targetZone }: HRChartProps) {
                 <ReferenceLine
                   key={i}
                   y={zb.high}
-                  stroke={expanded ? '#475569' : '#94a3b8'}
+                  stroke={document.documentElement.classList.contains('dark') ? '#475569' : '#94a3b8'}
                   strokeDasharray="3 3"
                   strokeWidth={0.5}
                 />

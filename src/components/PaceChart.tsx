@@ -63,7 +63,7 @@ export default function PaceChart({ stream }: PaceChartProps) {
             </defs>
             <XAxis
               dataKey="time"
-              tick={{ fontSize: expanded ? 12 : 10, fill: expanded ? '#cbd5e1' : '#94a3b8' }}
+              tick={{ fontSize: expanded ? 12 : 10, fill: document.documentElement.classList.contains('dark') ? '#cbd5e1' : '#64748b' }}
               tickFormatter={v => `${v}m`}
               axisLine={false}
               tickLine={false}
@@ -72,7 +72,7 @@ export default function PaceChart({ stream }: PaceChartProps) {
               yAxisId="pace"
               reversed
               domain={[minPace, maxPace]}
-              tick={{ fontSize: expanded ? 12 : 10, fill: expanded ? '#cbd5e1' : '#94a3b8' }}
+              tick={{ fontSize: expanded ? 12 : 10, fill: document.documentElement.classList.contains('dark') ? '#cbd5e1' : '#64748b' }}
               tickFormatter={v => formatPace(v)}
               axisLine={false}
               tickLine={false}
@@ -83,7 +83,7 @@ export default function PaceChart({ stream }: PaceChartProps) {
                 yAxisId="alt"
                 orientation="right"
                 domain={altDomain}
-                tick={{ fontSize: expanded ? 12 : 10, fill: expanded ? '#cbd5e1' : '#94a3b8' }}
+                tick={{ fontSize: expanded ? 12 : 10, fill: document.documentElement.classList.contains('dark') ? '#cbd5e1' : '#64748b' }}
                 tickFormatter={v => `${Math.round(v)}'`}
                 axisLine={false}
                 tickLine={false}
@@ -94,10 +94,10 @@ export default function PaceChart({ stream }: PaceChartProps) {
               contentStyle={{
                 fontSize: expanded ? 14 : 12,
                 borderRadius: 8,
-                border: expanded || document.documentElement.classList.contains('dark') ? '1px solid #334155' : '1px solid #e2e8f0',
+                border: document.documentElement.classList.contains('dark') ? '1px solid #334155' : '1px solid #e2e8f0',
                 padding: '6px 10px',
-                backgroundColor: expanded || document.documentElement.classList.contains('dark') ? '#1e293b' : '#ffffff',
-                color: expanded || document.documentElement.classList.contains('dark') ? '#f1f5f9' : '#1e293b',
+                backgroundColor: document.documentElement.classList.contains('dark') ? '#1e293b' : '#ffffff',
+                color: document.documentElement.classList.contains('dark') ? '#f1f5f9' : '#1e293b',
               }}
               formatter={(value, name) => {
                 if (name === 'pace' && typeof value === 'number') {

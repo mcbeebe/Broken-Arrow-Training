@@ -35,15 +35,15 @@ export default function ChartExpandOverlay({ children, title }: ChartExpandOverl
 
       {expanded && createPortal(
         <div
-          className="fixed inset-0 flex flex-col"
-          style={{ zIndex: 9999, backgroundColor: 'rgba(0,0,0,0.97)' }}
+          className="fixed inset-0 flex flex-col bg-white dark:bg-slate-900"
+          style={{ zIndex: 9999 }}
           onClick={() => setExpanded(false)}
         >
-          <div className="flex items-center justify-between px-4 pt-3 pb-1 shrink-0">
-            <p className="text-white font-semibold text-base">{title}</p>
+          <div className="flex items-center justify-between px-4 pt-3 pb-1 shrink-0 border-b border-slate-200 dark:border-slate-700">
+            <p className="text-slate-800 dark:text-white font-semibold text-base">{title}</p>
             <button
               onClick={() => setExpanded(false)}
-              className="text-blue-400 hover:text-blue-300 text-base font-semibold px-2 py-1"
+              className="text-teal-600 dark:text-teal-400 hover:text-teal-700 text-base font-semibold px-2 py-1"
             >
               Close
             </button>
