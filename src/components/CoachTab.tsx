@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import type { CoachInsight, CoachSnapshot, ConversationTurn, DailyChatArchive } from '../types'
-import { COACH_TRAITS } from '../types'
 import type { UseCoachMemoryReturn } from '../hooks/useCoachMemory'
 import CoachChat from './CoachChat'
 
@@ -117,46 +116,13 @@ export default function CoachTab({
     }
   }
 
-  const persona = snapshot?.coachPersona
-  const coachDisplayName = persona?.name?.trim() || 'Your Coach'
-  const personaTraits = (persona?.traits ?? []).slice()
+  void onGoSettings
 
   return (
-    <div className="flex flex-col h-[calc(100vh-7rem)] px-1 py-1 gap-1 relative">
-      {/* Coach identity — single compact row */}
-      <div className="shrink-0 bg-gradient-to-br from-indigo-50 to-white dark:from-indigo-950 dark:to-slate-800 border border-indigo-100 dark:border-indigo-900 rounded-lg px-2.5 py-1.5">
-        <div className="flex items-center gap-2">
-          <span className="text-lg leading-none shrink-0">🧢</span>
-          <div className="flex-1 min-w-0">
-            <h2 className="text-sm font-bold text-slate-800 dark:text-white leading-tight">{coachDisplayName}</h2>
-            {personaTraits.length > 0 ? (
-              <ul className="flex flex-wrap gap-x-1.5 gap-y-0 text-[10px] text-slate-500 dark:text-slate-400 leading-snug">
-                {personaTraits.map(id => {
-                  const trait = COACH_TRAITS.find(t => t.id === id)
-                  if (!trait) return null
-                  return (
-                    <li key={id} className="flex items-center gap-0.5">
-                      <span className="text-slate-300 dark:text-slate-600">·</span>
-                      <span className="text-[10px] leading-none">{trait.emoji}</span>
-                      <span>{trait.label}</span>
-                    </li>
-                  )
-                })}
-              </ul>
-            ) : (
-              <button
-                onClick={onGoSettings}
-                className="text-xs text-indigo-600 hover:text-indigo-800 mt-0.5"
-              >
-                Customize in Settings →
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
+    <div className="flex flex-col h-[calc(100vh-7rem)] px-0 py-0 gap-0 relative">
 
-      {/* Action bar — always visible at top. Left side has history + minimize; right side has Save/Copy/Clear */}
-      <div className="flex items-center justify-between shrink-0 px-1">
+      {/* Action bar */}
+      <div className="flex items-center justify-between shrink-0 px-2 py-1">
         <div className="flex items-center gap-3">
           <button
             onClick={() => setHistoryOpen(true)}
@@ -253,9 +219,6 @@ export default function CoachTab({
           </button>
         )
       })()}
-
-      <div className="flex items-center justify-center shrink-0">
-      </div>
 
       {/* History drawer */}
       {historyOpen && (

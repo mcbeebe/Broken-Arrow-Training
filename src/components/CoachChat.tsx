@@ -208,41 +208,18 @@ export default function CoachChat({ athleteId, memory, snapshot, seed, onSeedCon
 
   const canSend = !!input.trim() && !streaming && coachApiAvailable()
 
-  // Font-size control bar — A− / A+ sits tucked above the chat
-  // scroller so it's reachable without leaving the tab. Disabled
-  // states at the size extremes.
-  const atMinScale = fontScale <= FONT_SCALE_OPTIONS[0]
-  const atMaxScale = fontScale >= FONT_SCALE_OPTIONS[FONT_SCALE_OPTIONS.length - 1]
+  void adjustFontScale
+  void fontScale
 
   return (
-    <div className="flex flex-col h-full bg-white rounded-xl border border-slate-200 overflow-hidden">
-      {/* Font size controls */}
-      <div className="flex items-center justify-end gap-1 px-2 py-1 border-b border-slate-100 shrink-0">
-        <span className="text-xs text-slate-400 mr-1">Text</span>
-        <button
-          onClick={() => adjustFontScale(-1)}
-          disabled={atMinScale}
-          className="w-7 h-7 flex items-center justify-center rounded-md text-xs font-semibold text-slate-600 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-          title="Smaller text"
-        >
-          A−
-        </button>
-        <button
-          onClick={() => adjustFontScale(1)}
-          disabled={atMaxScale}
-          className="w-7 h-7 flex items-center justify-center rounded-md text-sm font-semibold text-slate-600 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-          title="Larger text"
-        >
-          A+
-        </button>
-      </div>
+    <div className="flex flex-col h-full bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
       <div
         ref={scrollerRef}
-        className="flex-1 overflow-y-auto px-1 py-1.5 space-y-2"
+        className="flex-1 overflow-y-auto px-2 py-1.5 space-y-2"
       >
         {turns.length === 0 && !streaming && (
           <div className="flex">
-            <div className="max-w-[85%] bg-indigo-50 text-slate-800 rounded-2xl rounded-tl-sm px-3 py-2.5 text-base leading-relaxed">
+            <div className="max-w-[92%] bg-indigo-50 text-slate-800 rounded-2xl rounded-tl-sm px-3 py-2.5 text-base leading-relaxed">
               <div className="flex items-center gap-2 mb-1">
                 <span className="text-xl leading-none" role="img" aria-label="coach">🧢</span>
                 <p className="text-xs uppercase font-bold tracking-wider text-indigo-700">{coachName}</p>
@@ -260,7 +237,7 @@ export default function CoachChat({ athleteId, memory, snapshot, seed, onSeedCon
         {streaming && (
           <div className="flex">
             <div
-              className="max-w-[85%] bg-indigo-50 text-slate-800 rounded-2xl rounded-tl-sm px-3 py-2 leading-relaxed"
+              className="max-w-[92%] bg-indigo-50 text-slate-800 rounded-2xl rounded-tl-sm px-3 py-2 leading-relaxed"
               style={{ fontSize: `${fontScale}rem` }}
             >
               {liveReply ? renderMarkdown(liveReply) : <span className="text-indigo-400">…</span>}
@@ -275,7 +252,7 @@ export default function CoachChat({ athleteId, memory, snapshot, seed, onSeedCon
         </div>
       )}
 
-      <div className="border-t border-slate-200 px-2 py-2 bg-white dark:bg-slate-800 shrink-0">
+      <div className="border-t border-slate-200 dark:border-slate-700 px-2 py-1.5 bg-white dark:bg-slate-800 shrink-0">
         <div className="relative flex items-end">
           <textarea
             ref={textareaRef}
@@ -290,7 +267,7 @@ export default function CoachChat({ athleteId, memory, snapshot, seed, onSeedCon
             placeholder={coachApiAvailable() ? 'Ask the coach…' : 'Coach is offline.'}
             rows={1}
             disabled={!coachApiAvailable() || streaming}
-            className="flex-1 resize-none pl-3 pr-11 py-2.5 text-base border border-slate-200 rounded-2xl focus:outline-none focus:ring-1 focus:ring-indigo-400 bg-white disabled:bg-slate-100 max-h-[120px] leading-relaxed"
+            className="flex-1 resize-none pl-3 pr-11 py-2 text-base border border-slate-200 dark:border-slate-600 rounded-2xl focus:outline-none focus:ring-1 focus:ring-indigo-400 bg-white dark:bg-slate-700 dark:text-white disabled:bg-slate-100 max-h-[120px] leading-relaxed"
           />
           {canSend && (
             <button
@@ -403,7 +380,7 @@ function ChatTurn({
     return (
       <div className="flex flex-col items-end" onClick={() => setShowActions(!showActions)}>
         <div
-          className="relative max-w-[85%] bg-indigo-600 text-white rounded-2xl rounded-tr-sm px-3 py-2 leading-relaxed cursor-pointer"
+          className="relative max-w-[92%] bg-indigo-600 text-white rounded-2xl rounded-tr-sm px-3 py-2 leading-relaxed cursor-pointer"
           style={bubbleStyle}
         >
           {/* Collapse toggle on the left for user bubbles since bubble aligns right */}
