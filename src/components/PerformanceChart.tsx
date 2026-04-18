@@ -36,11 +36,102 @@ export default function PerformanceChart({
   const tsbState = getTSBState(latest.tsb)
   const acwrRisk = getACWRRisk(latest.acwr)
 
-  // Prepare chart data with short date labels
-  const chartData = performance.map(m => ({
+  // Prepare chart data — smooth for regular view, full detail for expanded
+  const rawData = performance.map(m => ({
     ...m,
-    label: m.date.slice(5), // MM-DD
+    label: m.date.slice(5),
   }))
+
+  const smoothedData = smoothSeries(rawData, 5)
+
+  const renderChart = (expanded: boolean) => {
+    const chartData = expanded ? rawData : smoothedData
+    return (
+      <div>
+        {!expanded && (
+          <div className="flex items-center justify-end mb-1">
+            <span className="text-[10px] text-slate-400">Tap to expand</span>
+          </div>
+        )}
+        <div style={expanded ? { width: '100%', height: 'calc(100vh - 120px)' } : { height: 220 }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={chartData}>
+              <CartesianGrid strokeDasharray="3 3" stroke={expanded ? '#334155' : '#f1f5f9'} />
+              <XAxis
+                dataKey="label"
+                tick={{ fontSize: expanded ? 12 : 11, fill: expanded ? '#cbd5e1' : '#94A3B8' }}
+                axisLine={false}
+                tickLine={false}
+                interval="preserveStartEnd"
+              />
+              <YAxis
+                tick={{ fontSize: expanded ? 12 : 11, fill: expanded ? '#cbd5e1' : '#94A3B8' }}
+                axisLine={false}
+                tickLine={false}
+                width={32}
+              />
+              <Tooltip
+                contentStyle={{
+                  fontSize: expanded ? 14 : 13,
+                  borderRadius: 8,
+                  border: '1px solid #e2e8f0',
+                  backgroundColor: expanded ? '#1e293b' : '#ffffff',
+                  color: expanded ? '#f1f5f9' : '#1e293b',
+                }}
+                formatter={(value, name) => [
+                  typeof value === 'number' ? value.toFixed(1) : String(value),
+                  name === 'ctl' ? 'Fitness (CTL)' :
+                  name === 'atl' ? 'Fatigue (ATL)' :
+                  name === 'tsbSmooth' ? 'Recovery Balance (TSB)' :
+                  'Recovery Balance (TSB)',
+                ]}
+              />
+              {/* Training band: productive overreach zone (TSB -10 to +5) */}
+              <ReferenceArea
+                y1={-10} y2={5}
+                fill="#3B82F6"
+                fillOpacity={0.04}
+                label={expanded ? { value: 'Training Zone', fontSize: 10, fill: '#3B82F6', position: 'insideBottomLeft' } : undefined}
+              />
+              {/* Race day band: peak performance zone (TSB +15 to +25) */}
+              <ReferenceArea
+                y1={15} y2={25}
+                fill="#059669"
+                fillOpacity={0.08}
+                label={{ value: 'Race Day Target', fontSize: expanded ? 12 : 10, fill: '#059669' }}
+              />
+              <ReferenceLine y={0} stroke={expanded ? '#475569' : '#cbd5e1'} strokeDasharray="2 2" />
+              <Area type="natural" dataKey="ctl" stroke="#3B82F6" fill="#3B82F6" fillOpacity={0.1} strokeWidth={expanded ? 2.5 : 2} dot={false} isAnimationActive={false} />
+              <Area type="natural" dataKey="atl" stroke="#EF4444" fill="transparent" strokeWidth={expanded ? 2 : 1.5} strokeDasharray="4 2" dot={false} isAnimationActive={false} />
+              <Area type="natural" dataKey={expanded ? 'tsb' : 'tsbSmooth'} stroke="#059669" fill="#059669" fillOpacity={0.15} strokeWidth={expanded ? 2.5 : 2} dot={false} isAnimationActive={false} />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+        {/* Legend */}
+        <div className={`flex flex-wrap justify-center gap-x-4 gap-y-1 mt-2 text-sm ${expanded ? 'text-slate-300' : 'text-slate-600 dark:text-slate-300'}`}>
+          <span className="flex items-center gap-1">
+            <span className="w-3 h-0.5 bg-blue-500 inline-block rounded" /> Fitness (CTL)
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="w-3 h-0.5 bg-red-400 inline-block rounded" style={{ borderBottom: '1px dashed' }} /> Fatigue (ATL)
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="w-3 h-0.5 bg-green-600 inline-block rounded" /> Recovery (TSB)
+          </span>
+        </div>
+        {expanded && (
+          <div className="flex flex-wrap justify-center gap-x-4 gap-y-1 mt-1 text-xs text-slate-400">
+            <span className="flex items-center gap-1">
+              <span className="w-3 h-2 bg-blue-500/10 border border-blue-500/30 inline-block rounded" /> Training Zone (TSB -10 to +5)
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="w-3 h-2 bg-green-600/20 border border-green-600/30 inline-block rounded" /> Race Day Peak (TSB +15 to +25)
+            </span>
+          </div>
+        )}
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-3">
@@ -54,72 +145,7 @@ export default function PerformanceChart({
         </div>
 
         <ChartExpandOverlay title="Fitness / Fatigue / Recovery">
-          {(expanded) => (
-            <div>
-              {!expanded && (
-                <div className="flex items-center justify-end mb-1">
-                  <span className="text-[10px] text-slate-400">Tap to expand</span>
-                </div>
-              )}
-              <div style={expanded ? { width: '100%', height: 'calc(100vh - 120px)' } : { height: 220 }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke={expanded ? '#334155' : '#f1f5f9'} />
-                    <XAxis
-                      dataKey="label"
-                      tick={{ fontSize: expanded ? 12 : 11, fill: expanded ? '#cbd5e1' : '#94A3B8' }}
-                      axisLine={false}
-                      tickLine={false}
-                      interval="preserveStartEnd"
-                    />
-                    <YAxis
-                      tick={{ fontSize: expanded ? 12 : 11, fill: expanded ? '#cbd5e1' : '#94A3B8' }}
-                      axisLine={false}
-                      tickLine={false}
-                      width={32}
-                    />
-                    <Tooltip
-                      contentStyle={{
-                        fontSize: expanded ? 14 : 13,
-                        borderRadius: 8,
-                        border: '1px solid #e2e8f0',
-                        backgroundColor: expanded ? '#1e293b' : '#ffffff',
-                        color: expanded ? '#f1f5f9' : '#1e293b',
-                      }}
-                      formatter={(value, name) => [
-                        typeof value === 'number' ? value.toFixed(1) : String(value),
-                        name === 'ctl' ? 'Fitness (CTL)' :
-                        name === 'atl' ? 'Fatigue (ATL)' :
-                        'Recovery Balance (TSB)',
-                      ]}
-                    />
-                    <ReferenceArea
-                      y1={15} y2={25}
-                      fill="#059669"
-                      fillOpacity={0.05}
-                      label={{ value: 'Race Target', fontSize: 11, fill: '#059669' }}
-                    />
-                    <ReferenceLine y={0} stroke={expanded ? '#475569' : '#cbd5e1'} strokeDasharray="2 2" />
-                    <Area type="natural" dataKey="ctl" stroke="#3B82F6" fill="#3B82F6" fillOpacity={0.1} strokeWidth={expanded ? 2.5 : 2} dot={false} isAnimationActive={false} />
-                    <Area type="natural" dataKey="atl" stroke="#EF4444" fill="transparent" strokeWidth={expanded ? 2 : 1.5} strokeDasharray="4 2" dot={false} isAnimationActive={false} />
-                    <Area type="natural" dataKey="tsb" stroke="#059669" fill="#059669" fillOpacity={0.15} strokeWidth={expanded ? 2.5 : 2} dot={false} isAnimationActive={false} />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-              {/* Legend */}
-              <div className={`flex flex-wrap justify-center gap-x-4 gap-y-1 mt-2 text-sm ${expanded ? 'text-slate-300' : 'text-slate-600 dark:text-slate-300'}`}>
-                <span className="flex items-center gap-1">
-                  <span className="w-3 h-0.5 bg-blue-500 inline-block rounded" /> Fitness (CTL)
-                </span>
-                <span className="flex items-center gap-1">
-                  <span className="w-3 h-0.5 bg-red-400 inline-block rounded" style={{ borderBottom: '1px dashed' }} /> Fatigue (ATL)
-                </span>
-                <span className="flex items-center gap-1">
-                  <span className="w-3 h-0.5 bg-green-600 inline-block rounded" /> Recovery Balance (TSB)
-                </span>
-              </div>
-            </div>
-          )}
+          {renderChart}
         </ChartExpandOverlay>
       </div>
 
@@ -221,4 +247,31 @@ function PerfStatCard({ label, value, sub, color, note }: {
       )}
     </div>
   )
+}
+
+interface ChartPoint {
+  ctl: number
+  atl: number
+  tsb: number
+  tsbSmooth?: number
+  label: string
+  date: string
+  acwr: number
+}
+
+function smoothSeries(data: ChartPoint[], window: number): ChartPoint[] {
+  if (data.length <= window) return data
+  return data.map((point, i) => {
+    const halfW = Math.floor(window / 2)
+    const start = Math.max(0, i - halfW)
+    const end = Math.min(data.length - 1, i + halfW)
+    const slice = data.slice(start, end + 1)
+    const n = slice.length
+    return {
+      ...point,
+      ctl: slice.reduce((s, p) => s + p.ctl, 0) / n,
+      atl: slice.reduce((s, p) => s + p.atl, 0) / n,
+      tsbSmooth: slice.reduce((s, p) => s + p.tsb, 0) / n,
+    }
+  })
 }
