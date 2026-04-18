@@ -40,6 +40,8 @@ jobs:
           VITE_STRAVA_TOKEN_EXCHANGE_URL: ${{ secrets.VITE_STRAVA_TOKEN_EXCHANGE_URL }}
           VITE_STRAVA_REDIRECT_URI: https://mcbeebe.github.io/Broken-Arrow-Training/
           VITE_GARMIN_API_URL: ${{ secrets.VITE_GARMIN_API_URL }}
+          VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
+          VITE_TERRA_API_URL: ${{ secrets.VITE_TERRA_API_URL }}
           # Git SHA baked into the bundle so the Deploy Diagnostics
           # panel in Settings can compare frontend vs. API version.
           VITE_GIT_COMMIT_SHA: ${{ github.sha }}
