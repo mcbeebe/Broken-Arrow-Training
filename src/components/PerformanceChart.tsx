@@ -4,6 +4,7 @@ import {
   AreaChart, Area, XAxis, YAxis, Tooltip,
   ResponsiveContainer, ReferenceLine, ReferenceArea, CartesianGrid,
 } from 'recharts'
+import ChartExpandOverlay from './ChartExpandOverlay'
 
 interface PerformanceChartProps {
   performance: PerformanceMetrics[]
@@ -52,87 +53,74 @@ export default function PerformanceChart({
           </div>
         </div>
 
-        <div style={{ height: 220 }}>
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-              <XAxis
-                dataKey="label"
-                tick={{ fontSize: 11, fill: '#94A3B8' }}
-                axisLine={false}
-                tickLine={false}
-                interval="preserveStartEnd"
-              />
-              <YAxis
-                tick={{ fontSize: 11, fill: '#94A3B8' }}
-                axisLine={false}
-                tickLine={false}
-                width={32}
-              />
-              <Tooltip
-                contentStyle={{ fontSize: 13, borderRadius: 8, border: '1px solid #e2e8f0' }}
-                formatter={(value, name) => [
-                  typeof value === 'number' ? value.toFixed(1) : String(value),
-                  name === 'ctl' ? 'Fitness (CTL)' :
-                  name === 'atl' ? 'Fatigue (ATL)' :
-                  'Recovery Balance (TSB)',
-                ]}
-              />
-              {/* Target TSB zone for race day */}
-              <ReferenceArea
-                y1={15} y2={25}
-                fill="#059669"
-                fillOpacity={0.05}
-                label={{ value: 'Race Target', fontSize: 11, fill: '#059669' }}
-              />
-              {/* Zero line for TSB */}
-              <ReferenceLine y={0} stroke="#cbd5e1" strokeDasharray="2 2" />
-              {/* CTL (fitness) - blue filled */}
-              <Area
-                type="monotone"
-                dataKey="ctl"
-                stroke="#3B82F6"
-                fill="#3B82F6"
-                fillOpacity={0.1}
-                strokeWidth={2}
-                dot={false}
-              />
-              {/* ATL (fatigue) - red line */}
-              <Area
-                type="monotone"
-                dataKey="atl"
-                stroke="#EF4444"
-                fill="transparent"
-                strokeWidth={1.5}
-                strokeDasharray="4 2"
-                dot={false}
-              />
-              {/* TSB (form) - green/red area */}
-              <Area
-                type="monotone"
-                dataKey="tsb"
-                stroke="#059669"
-                fill="#059669"
-                fillOpacity={0.15}
-                strokeWidth={2}
-                dot={false}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Legend */}
-        <div className="flex flex-wrap justify-center gap-x-4 gap-y-1 mt-2 text-sm text-slate-600 dark:text-slate-300">
-          <span className="flex items-center gap-1">
-            <span className="w-3 h-0.5 bg-blue-500 inline-block rounded" /> Fitness (CTL)
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="w-3 h-0.5 bg-red-400 inline-block rounded" style={{ borderBottom: '1px dashed' }} /> Fatigue (ATL)
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="w-3 h-0.5 bg-green-600 inline-block rounded" /> Recovery Balance (TSB)
-          </span>
-        </div>
+        <ChartExpandOverlay title="Fitness / Fatigue / Recovery">
+          {(expanded) => (
+            <div>
+              {!expanded && (
+                <div className="flex items-center justify-end mb-1">
+                  <span className="text-[10px] text-slate-400">Tap to expand</span>
+                </div>
+              )}
+              <div style={expanded ? { width: '100%', height: 'calc(100vh - 120px)' } : { height: 220 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke={expanded ? '#334155' : '#f1f5f9'} />
+                    <XAxis
+                      dataKey="label"
+                      tick={{ fontSize: expanded ? 12 : 11, fill: expanded ? '#cbd5e1' : '#94A3B8' }}
+                      axisLine={false}
+                      tickLine={false}
+                      interval="preserveStartEnd"
+                    />
+                    <YAxis
+                      tick={{ fontSize: expanded ? 12 : 11, fill: expanded ? '#cbd5e1' : '#94A3B8' }}
+                      axisLine={false}
+                      tickLine={false}
+                      width={32}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        fontSize: expanded ? 14 : 13,
+                        borderRadius: 8,
+                        border: '1px solid #e2e8f0',
+                        backgroundColor: expanded ? '#1e293b' : '#ffffff',
+                        color: expanded ? '#f1f5f9' : '#1e293b',
+                      }}
+                      formatter={(value, name) => [
+                        typeof value === 'number' ? value.toFixed(1) : String(value),
+                        name === 'ctl' ? 'Fitness (CTL)' :
+                        name === 'atl' ? 'Fatigue (ATL)' :
+                        'Recovery Balance (TSB)',
+                      ]}
+                    />
+                    <ReferenceArea
+                      y1={15} y2={25}
+                      fill="#059669"
+                      fillOpacity={0.05}
+                      label={{ value: 'Race Target', fontSize: 11, fill: '#059669' }}
+                    />
+                    <ReferenceLine y={0} stroke={expanded ? '#475569' : '#cbd5e1'} strokeDasharray="2 2" />
+                    <Area type="monotone" dataKey="ctl" stroke="#3B82F6" fill="#3B82F6" fillOpacity={0.1} strokeWidth={expanded ? 2.5 : 2} dot={false} />
+                    <Area type="monotone" dataKey="atl" stroke="#EF4444" fill="transparent" strokeWidth={expanded ? 2 : 1.5} strokeDasharray="4 2" dot={false} />
+                    <Area type="monotone" dataKey="tsb" stroke="#059669" fill="#059669" fillOpacity={0.15} strokeWidth={expanded ? 2.5 : 2} dot={false} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+              {/* Legend */}
+              <div className={`flex flex-wrap justify-center gap-x-4 gap-y-1 mt-2 text-sm ${expanded ? 'text-slate-300' : 'text-slate-600 dark:text-slate-300'}`}>
+                <span className="flex items-center gap-1">
+                  <span className="w-3 h-0.5 bg-blue-500 inline-block rounded" /> Fitness (CTL)
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="w-3 h-0.5 bg-red-400 inline-block rounded" style={{ borderBottom: '1px dashed' }} /> Fatigue (ATL)
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="w-3 h-0.5 bg-green-600 inline-block rounded" /> Recovery Balance (TSB)
+                </span>
+              </div>
+            </div>
+          )}
+        </ChartExpandOverlay>
       </div>
 
       {/* Current stats cards with contextual notes */}
