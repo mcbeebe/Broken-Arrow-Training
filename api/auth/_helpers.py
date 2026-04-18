@@ -40,7 +40,7 @@ def get_email_to_athlete_map() -> dict[str, str]:
         if ":" not in pair:
             continue
         athlete_id, email = pair.split(":", 1)
-        mapping[email.strip().lower()] = athlete_id.strip()
+        mapping[email.strip().lower()] = athlete_id.strip().lower()
     return mapping
 
 
