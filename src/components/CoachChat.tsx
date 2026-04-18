@@ -189,7 +189,7 @@ export default function CoachChat({ athleteId, memory, snapshot, seed, onSeedCon
   // One-line snapshot chip above the composer. Derives from the same
   // data the LLM sees, so the user always knows what the coach "knows"
   // right now. Tapping it prefills a focused question.
-  const chipText = buildContextChip(snapshot)
+  void buildContextChip
 
   // Auto-grow the textarea up to ~4 rows, then scroll inside it.
   // We measure scrollHeight by temporarily collapsing to 1-row height,
@@ -275,17 +275,7 @@ export default function CoachChat({ athleteId, memory, snapshot, seed, onSeedCon
         </div>
       )}
 
-      {chipText && (
-        <button
-          onClick={() => setInput('What does this mean for today?')}
-          className="mx-2 mb-1 px-3 py-1.5 rounded-full bg-slate-50 border border-slate-200 text-xs text-slate-600 hover:bg-slate-100 text-left truncate"
-          title="Tap to ask about today's signals"
-        >
-          💡 {chipText}
-        </button>
-      )}
-
-      <div className="border-t border-slate-200 px-2 py-2 bg-white shrink-0">
+      <div className="border-t border-slate-200 px-2 py-2 bg-white dark:bg-slate-800 shrink-0">
         <div className="relative flex items-end">
           <textarea
             ref={textareaRef}

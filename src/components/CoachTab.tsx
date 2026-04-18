@@ -124,7 +124,7 @@ export default function CoachTab({
   return (
     <div className="flex flex-col h-[calc(100vh-7rem)] px-1 py-1 gap-1 relative">
       {/* Coach identity — single compact row */}
-      <div className="shrink-0 bg-gradient-to-br from-indigo-50 to-white border border-indigo-100 rounded-lg px-2.5 py-1.5">
+      <div className="shrink-0 bg-gradient-to-br from-indigo-50 to-white dark:from-indigo-950 dark:to-slate-800 border border-indigo-100 dark:border-indigo-900 rounded-lg px-2.5 py-1.5">
         <div className="flex items-center gap-2">
           <span className="text-lg leading-none shrink-0">🧢</span>
           <div className="flex-1 min-w-0">
@@ -136,7 +136,7 @@ export default function CoachTab({
                   if (!trait) return null
                   return (
                     <li key={id} className="flex items-center gap-0.5">
-                      <span className="text-slate-300">·</span>
+                      <span className="text-slate-300 dark:text-slate-600">·</span>
                       <span className="text-[10px] leading-none">{trait.emoji}</span>
                       <span>{trait.label}</span>
                     </li>
@@ -255,12 +255,6 @@ export default function CoachTab({
       })()}
 
       <div className="flex items-center justify-center shrink-0">
-        <button
-          onClick={onGoSettings}
-          className="text-xs text-slate-400 hover:text-slate-600 dark:text-slate-300 transition-colors"
-        >
-          About Me in Settings →
-        </button>
       </div>
 
       {/* History drawer */}
