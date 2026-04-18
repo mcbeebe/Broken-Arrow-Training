@@ -155,6 +155,7 @@ export interface StreamData {
   altitude: number[]
   velocity: number[]
   cadence: number[]
+  latlng?: [number, number][]  // GPS track: array of [lat, lng] pairs
 }
 
 const STORAGE_KEY_STREAMS = 'ba_strava_streams'
@@ -167,14 +168,15 @@ export async function fetchActivityStreams(
   const cached = getCachedStream(activityId)
   if (cached) return cached
 
-  const keys = 'time,heartrate,distance,altitude,velocity_smooth,cadence'
+  const keys = 'time,heartrate,distance,altitude,velocity_smooth,cadence,latlng'
   const res = await fetch(
     `https://www.strava.com/api/v3/activities/${activityId}/streams?keys=${keys}&key_type=time`,
     { headers: { Authorization: `Bearer ${accessToken}` } },
   )
   if (!res.ok) return null
 
-  const streams: { type: string; data: number[] }[] = await res.json()
+  const streams: { type: string; data: number[] | [number, number][] }[] = await res.json()
+  const latlngStream = streams.find(s => s.type === 'latlng')
   const data: StreamData = {
     time: findStream(streams, 'time'),
     heartrate: findStream(streams, 'heartrate'),
@@ -182,14 +184,16 @@ export async function fetchActivityStreams(
     altitude: findStream(streams, 'altitude'),
     velocity: findStream(streams, 'velocity_smooth'),
     cadence: findStream(streams, 'cadence'),
+    latlng: latlngStream ? (latlngStream.data as [number, number][]) : undefined,
   }
 
   cacheStream(activityId, data)
   return data
 }
 
-function findStream(streams: { type: string; data: number[] }[], type: string): number[] {
-  return streams.find(s => s.type === type)?.data || []
+function findStream(streams: { type: string; data: number[] | [number, number][] }[], type: string): number[] {
+  const s = streams.find(x => x.type === type)
+  return (s?.data as number[]) || []
 }
 
 function getCachedStream(activityId: number): StreamData | null {
