@@ -31,6 +31,7 @@ import CoachPingToast from './components/CoachPingToast'
 import LoginScreen from './components/LoginScreen'
 import { useHRZones } from './hooks/useHRZones'
 import { getStoredSession, clearSession, type AuthSession } from './utils/auth'
+import { useTheme } from './hooks/useTheme'
 
 // Auto-clear stale caches on app startup when data format changes
 checkStorageVersion()
@@ -69,6 +70,7 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
   const [view, setView] = useState<ViewId>('summary')
   const [athleteId, setAthleteId] = useState(() => session?.athleteId || getAthleteFromHash())
   const [chatSeed, setChatSeed] = useState<string | null>(null)
+  const theme = useTheme()
   const plan = plans[athleteId]
   const strava = useStrava(athleteId)
   const garmin = useGarmin(athleteId)
@@ -374,9 +376,9 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
   )
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-24" style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" }}>
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 pb-24 dark:text-slate-200 transition-colors" style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" }}>
       {/* Header */}
-      <div className="bg-slate-800 text-white px-3 py-2.5">
+      <div className="bg-slate-800 dark:bg-slate-900 text-white px-3 py-2.5">
         <h1 className="text-lg font-bold tracking-tight leading-tight">{raceName}</h1>
         <p className="text-slate-300 text-xs mt-0.5">
           10-Week Training Plan · {plan.athlete.name} · Max HR: {plan.athlete.maxHR}
@@ -523,12 +525,14 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
           athleteId={athleteId}
           authSession={session}
           onLogout={onLogout}
+          themeMode={theme.mode}
+          onSetThemeMode={theme.setMode}
         />
       )}
 
       {/* Bottom Tab Bar */}
       <nav
-        className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-slate-200 flex"
+        className="fixed bottom-0 left-0 right-0 z-40 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-700 flex"
         style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 14px)' }}
       >
         {TABS.map(t => {

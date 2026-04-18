@@ -5,6 +5,7 @@ import TerraConnect from './TerraConnect'
 import HRZoneEditor from './HRZoneEditor'
 import type { WearableSource } from '../types'
 import type { AuthSession } from '../utils/auth'
+import type { ThemeMode } from '../hooks/useTheme'
 import AboutMe from './AboutMe'
 import CoachDiagnostics from './CoachDiagnostics'
 import DeployDiagnostics from './DeployDiagnostics'
@@ -72,6 +73,9 @@ interface SettingsProps {
   // Auth
   authSession?: AuthSession | null
   onLogout?: () => void
+  // Theme
+  themeMode?: ThemeMode
+  onSetThemeMode?: (mode: ThemeMode) => void
 }
 
 export default function Settings({
@@ -125,6 +129,8 @@ export default function Settings({
   athleteId,
   authSession,
   onLogout,
+  themeMode,
+  onSetThemeMode,
 }: SettingsProps) {
   void _pendingInferences
   void _onAcceptInference
@@ -159,6 +165,33 @@ export default function Settings({
             >
               Sign Out
             </button>
+          </div>
+        </SettingsSection>
+      )}
+
+      {/* ── Appearance section ── */}
+      {onSetThemeMode && (
+        <SettingsSection title="Appearance" defaultOpen>
+          <div className="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700">
+            <p className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-3">Theme</p>
+            <div className="flex gap-1 bg-slate-100 dark:bg-slate-700 rounded-lg p-0.5">
+              {([['light', 'Light'], ['dark', 'Dark'], ['auto', 'Auto']] as const).map(([value, label]) => (
+                <button
+                  key={value}
+                  onClick={() => onSetThemeMode(value)}
+                  className={`flex-1 text-xs font-medium py-2 rounded-md transition-colors ${
+                    themeMode === value
+                      ? 'bg-white dark:bg-slate-600 text-slate-800 dark:text-white shadow-sm'
+                      : 'text-slate-500 dark:text-slate-400'
+                  }`}
+                >
+                  {value === 'light' ? '☀️ ' : value === 'dark' ? '🌙 ' : '⚙️ '}{label}
+                </button>
+              ))}
+            </div>
+            {themeMode === 'auto' && (
+              <p className="text-[10px] text-slate-400 mt-2">Follows your device's system setting</p>
+            )}
           </div>
         </SettingsSection>
       )}
