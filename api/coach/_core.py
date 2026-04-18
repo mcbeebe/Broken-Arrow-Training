@@ -565,8 +565,11 @@ def _build_persona_block(name: str, traits: list[str]) -> str:
     lines: list[str] = ["Persona — this is THE voice for every reply:"]
     if name:
         lines.append(
-            f'- Your name is "{name}". Sign notable replies with it when '
-            f'natural (morning check-in, big flag). Don\'t repeat it every turn.'
+            f'- Your name is "{name}". Sign notable replies with just your name when '
+            f'natural (morning check-in, big flag). Don\'t repeat it every turn. '
+            f'NEVER list your traits or personality descriptors as a signature — '
+            f'don\'t write things like "— {name} — funny, motivational, direct" or similar. '
+            f'Just your name, nothing after it.'
         )
     for t in traits:
         guide = PERSONA_TRAIT_GUIDE.get(t.lower())

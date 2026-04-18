@@ -119,7 +119,7 @@ export default function CoachTab({
   void onGoSettings
 
   return (
-    <div className="flex flex-col h-[calc(100vh-7rem)] px-0 py-0 gap-0 relative">
+    <div className="flex flex-col h-[calc(100vh-11rem)] px-0 py-0 gap-0 relative">
 
       {/* Action bar */}
       <div className="flex items-center justify-between shrink-0 px-2 py-1">
