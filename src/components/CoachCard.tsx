@@ -20,6 +20,7 @@ export default function CoachCard({ recommendation, onSwap }: CoachCardProps) {
     skip: { bg: 'bg-red-50', border: 'border-red-200', text: 'text-red-800', icon: '\uD83D\uDED1' },
     swap: { bg: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-800', icon: '\uD83D\uDD04' },
     sleep_target: { bg: 'bg-indigo-50', border: 'border-indigo-200', text: 'text-indigo-800', icon: '\uD83C\uDF19' },
+    propose_edit: { bg: 'bg-indigo-50', border: 'border-indigo-200', text: 'text-indigo-800', icon: '\uD83D\uDCCB' },
   }
 
   const colors = rec.action ? actionColors[rec.action.type] : (isMorning ? actionColors.execute : actionColors.sleep_target)

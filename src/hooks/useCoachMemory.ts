@@ -240,6 +240,25 @@ export function useCoachMemory(athleteId: string, enabled: boolean = true) {
     [athleteId],
   )
 
+  /** Update fields on an existing turn (e.g. actionStatus for a
+   *  proposal that the user has approved/rejected). Local-only —
+   *  the server copy will still have the original turn but this
+   *  update is UI state, not training data, so localStorage is
+   *  the right home. */
+  const updateTurn = useCallback(
+    (turnId: string, patch: Partial<ConversationTurn>) => {
+      setMemory(m => {
+        const updated: CoachMemory = {
+          ...m,
+          conversation: m.conversation.map(t => t.id === turnId ? { ...t, ...patch } : t),
+        }
+        writeLocal(athleteId, updated)
+        return updated
+      })
+    },
+    [athleteId],
+  )
+
   return {
     memory,
     aboutMe: memory.aboutMe,
@@ -262,6 +281,7 @@ export function useCoachMemory(athleteId: string, enabled: boolean = true) {
     rolloverDay,
     saveCoachPersona,
     patchLocal,
+    updateTurn,
   }
 }
 

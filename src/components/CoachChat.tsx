@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from 'react'
-import type { ConversationTurn, CoachSnapshot } from '../types'
+import { useEffect, useRef, useState, useMemo } from 'react'
+import type { ConversationTurn, CoachSnapshot, CoachAction, PlannedDay } from '../types'
 import { coachApiAvailable, coachApiBase } from '../utils/coachApi'
 import type { UseCoachMemoryReturn } from '../hooks/useCoachMemory'
 import { renderMarkdown } from '../utils/markdown'
+import { extractProposal } from '../utils/chatProposal'
 
 /** Tiny toast that disappears after a beat. */
 function CopiedToast({ visible }: { visible: boolean }) {
@@ -21,6 +22,12 @@ interface Props {
   seed?: string | null
   onSeedConsumed?: () => void
   onSent?: () => void
+  /** Return the planned day at (weekNum, dayIndex) so the action card
+   *  can show "what → what" diff. */
+  getPlannedDay?: (weekNum: number, dayIndex: number) => PlannedDay | null
+  onApproveAction?: (turnId: string, action: CoachAction) => void
+  onRejectAction?: (turnId: string) => void
+  onUndoAction?: (turnId: string, overrideId: string) => void
 }
 
 /**
@@ -55,7 +62,7 @@ function writeFontScale(athleteId: string, scale: number) {
   }
 }
 
-export default function CoachChat({ athleteId, memory, snapshot, seed, onSeedConsumed, onSent }: Props) {
+export default function CoachChat({ athleteId, memory, snapshot, seed, onSeedConsumed, onSent, getPlannedDay, onApproveAction, onRejectAction, onUndoAction }: Props) {
   const coachName = snapshot?.coachPersona?.name?.trim() || 'Coach'
   const [input, setInput] = useState('')
   const [streaming, setStreaming] = useState(false)
@@ -232,7 +239,17 @@ export default function CoachChat({ athleteId, memory, snapshot, seed, onSeedCon
           </div>
         )}
         {turns.map(t => (
-          <ChatTurn key={t.id} turn={t} onCopy={copyText} coachName={coachName} fontScale={fontScale} />
+          <ChatTurn
+            key={t.id}
+            turn={t}
+            onCopy={copyText}
+            coachName={coachName}
+            fontScale={fontScale}
+            getPlannedDay={getPlannedDay}
+            onApproveAction={onApproveAction}
+            onRejectAction={onRejectAction}
+            onUndoAction={onUndoAction}
+          />
         ))}
         {streaming && (
           <div className="flex">
@@ -324,11 +341,19 @@ function ChatTurn({
   onCopy,
   coachName = 'Coach',
   fontScale = 1.0,
+  getPlannedDay,
+  onApproveAction,
+  onRejectAction,
+  onUndoAction,
 }: {
   turn: ConversationTurn
   onCopy: (text: string) => void
   coachName?: string
   fontScale?: number
+  getPlannedDay?: (weekNum: number, dayIndex: number) => PlannedDay | null
+  onApproveAction?: (turnId: string, action: CoachAction) => void
+  onRejectAction?: (turnId: string) => void
+  onUndoAction?: (turnId: string, overrideId: string) => void
 }) {
   const [showActions, setShowActions] = useState(false)
   const [collapsed, setCollapsed] = useState(false)
@@ -349,10 +374,27 @@ function ChatTurn({
     )
   }
 
-  const long = turn.content.length > COLLAPSE_CHAR_THRESHOLD
+  // Extract any ```proposal block from the message. Prefer the turn's
+  // pre-parsed action (if we stored one on approve/reject) so the
+  // content doesn't re-parse every render.
+  const parsed = useMemo(() => {
+    if (turn.role !== 'assistant' && turn.role !== 'coach') {
+      return { content: turn.content, action: null as CoachAction | null }
+    }
+    if (turn.action) {
+      // Already parsed and persisted; strip the block from content too
+      return extractProposal(turn.content)
+    }
+    return extractProposal(turn.content)
+  }, [turn.content, turn.role, turn.action])
+
+  const displayContent = parsed.content
+  const inlineAction = turn.action || parsed.action
+
+  const long = displayContent.length > COLLAPSE_CHAR_THRESHOLD
   const bubbleStyle = { fontSize: `${fontScale}rem` } as const
   const preview = collapsed
-    ? turn.content.slice(0, 120).replace(/\s+\S*$/, '') + '…'
+    ? displayContent.slice(0, 120).replace(/\s+\S*$/, '') + '…'
     : null
 
   // Small ▾/▴ toggle shown in the bubble's corner when the reply is
@@ -394,7 +436,7 @@ function ChatTurn({
             </button>
           )}
           <div className={long ? 'pl-6' : undefined}>
-            {collapsed ? <span className="italic opacity-80">{preview}</span> : renderMarkdown(turn.content)}
+            {collapsed ? <span className="italic opacity-80">{preview}</span> : renderMarkdown(displayContent)}
           </div>
         </div>
         {copyBtn}
@@ -415,7 +457,7 @@ function ChatTurn({
             </p>
           </div>
           {collapseToggle}
-          {collapsed ? <p className="italic text-slate-500">{preview}</p> : renderMarkdown(turn.content)}
+          {collapsed ? <p className="italic text-slate-500">{preview}</p> : renderMarkdown(displayContent)}
         </div>
         {copyBtn}
       </div>
@@ -425,15 +467,130 @@ function ChatTurn({
   return (
     <div className="flex flex-col items-start" onClick={() => setShowActions(!showActions)}>
       <div
-        className="relative w-full bg-indigo-50 text-slate-800 rounded-2xl rounded-tl-sm px-2 py-1.5 leading-relaxed cursor-pointer"
+        className="relative w-full bg-indigo-50 dark:bg-indigo-950 text-slate-800 dark:text-slate-200 rounded-2xl rounded-tl-sm px-2 py-1.5 leading-relaxed cursor-pointer"
         style={bubbleStyle}
       >
         {collapseToggle}
         <div className={long ? 'pr-7' : undefined}>
-          {collapsed ? <p className="italic text-slate-500">{preview}</p> : renderMarkdown(turn.content)}
+          {collapsed ? <p className="italic text-slate-500">{preview}</p> : renderMarkdown(displayContent)}
         </div>
       </div>
+      {inlineAction && inlineAction.type === 'propose_edit' && inlineAction.proposedEdit && (
+        <ProposalCard
+          turn={turn}
+          action={inlineAction}
+          getPlannedDay={getPlannedDay}
+          onApprove={onApproveAction}
+          onReject={onRejectAction}
+          onUndo={onUndoAction}
+        />
+      )}
       {copyBtn}
+    </div>
+  )
+}
+
+const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+
+function ProposalCard({
+  turn, action, getPlannedDay, onApprove, onReject, onUndo,
+}: {
+  turn: ConversationTurn
+  action: CoachAction
+  getPlannedDay?: (weekNum: number, dayIndex: number) => PlannedDay | null
+  onApprove?: (turnId: string, action: CoachAction) => void
+  onReject?: (turnId: string) => void
+  onUndo?: (turnId: string, overrideId: string) => void
+}) {
+  const pe = action.proposedEdit!
+  const original = getPlannedDay?.(pe.weekNum, pe.dayIndex)
+  const dayLabel = original?.day || `Wk ${pe.weekNum} ${DAY_LABELS[pe.dayIndex]}`
+  const status = turn.actionStatus || 'pending'
+
+  if (status === 'applied') {
+    return (
+      <div
+        className="mt-2 w-full flex items-center justify-between px-3 py-2 rounded-xl bg-emerald-50 dark:bg-emerald-950 border border-emerald-200 dark:border-emerald-900"
+        onClick={e => e.stopPropagation()}
+      >
+        <span className="text-xs text-emerald-700 dark:text-emerald-300 font-medium">
+          ✓ Applied to {dayLabel}
+        </span>
+        {turn.actionOverrideId && (
+          <button
+            onClick={() => onUndo?.(turn.id, turn.actionOverrideId!)}
+            className="text-xs font-semibold text-emerald-700 dark:text-emerald-300 underline"
+          >
+            Undo
+          </button>
+        )}
+      </div>
+    )
+  }
+
+  if (status === 'rejected') {
+    return (
+      <div
+        className="mt-2 w-full px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700"
+        onClick={e => e.stopPropagation()}
+      >
+        <span className="text-xs text-slate-500 dark:text-slate-400">
+          Kept original for {dayLabel}
+        </span>
+      </div>
+    )
+  }
+
+  return (
+    <div
+      className="mt-2 w-full rounded-xl bg-white dark:bg-slate-800 border-2 border-indigo-300 dark:border-indigo-700 overflow-hidden"
+      onClick={e => e.stopPropagation()}
+    >
+      <div className="px-3 py-2 border-b border-indigo-100 dark:border-slate-700 bg-indigo-50 dark:bg-indigo-950">
+        <p className="text-xs font-bold text-indigo-700 dark:text-indigo-300">
+          📋 Proposed change for {dayLabel}
+        </p>
+      </div>
+      <div className="px-3 py-2 space-y-1.5">
+        {original && (
+          <div className="text-[11px] text-slate-500 dark:text-slate-400">
+            <span className="font-semibold">Current:</span> {original.workout}
+          </div>
+        )}
+        <div className="text-xs text-slate-700 dark:text-slate-200">
+          <span className="font-semibold text-indigo-700 dark:text-indigo-300">New:</span>{' '}
+          {pe.updates.workout || action.detail}
+        </div>
+        {pe.updates.detail && (
+          <div className="text-[11px] text-slate-500 dark:text-slate-400 leading-snug">
+            {pe.updates.detail}
+          </div>
+        )}
+        {pe.updates.zone && (
+          <div className="text-[11px] text-slate-500 dark:text-slate-400">
+            Zone: {pe.updates.zone}{pe.updates.time ? ` · ${pe.updates.time}` : ''}
+          </div>
+        )}
+        {pe.rationale && (
+          <div className="text-[11px] italic text-slate-500 dark:text-slate-400 pt-1 border-t border-slate-100 dark:border-slate-700">
+            "{pe.rationale}"
+          </div>
+        )}
+      </div>
+      <div className="flex gap-1 px-2 pb-2">
+        <button
+          onClick={() => onApprove?.(turn.id, action)}
+          className="flex-1 text-xs font-semibold py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors"
+        >
+          ✓ Apply
+        </button>
+        <button
+          onClick={() => onReject?.(turn.id)}
+          className="flex-1 text-xs font-medium py-2 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
+        >
+          Keep original
+        </button>
+      </div>
     </div>
   )
 }

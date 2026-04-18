@@ -1,10 +1,11 @@
 import { useState, useMemo, useEffect, useCallback } from 'react'
-import type { ViewId, CoachSnapshot } from './types'
+import type { ViewId, CoachSnapshot, CoachAction, PlannedDay } from './types'
 import { plans } from './data'
 import { useStrava } from './hooks/useStrava'
 import { useGarmin } from './hooks/useGarmin'
 import { useCompliance } from './hooks/useCompliance'
 import { useManualLog } from './hooks/useManualLog'
+import { usePlanOverrides } from './hooks/usePlanOverrides'
 import { useDaySwap } from './hooks/useDaySwap'
 import { useReadiness } from './hooks/useReadiness'
 import { useSoreness } from './hooks/useSoreness'
@@ -98,6 +99,7 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
   }, [])
   const manualLog = useManualLog(athleteId)
   const daySwap = useDaySwap(athleteId)
+  const planOverrides = usePlanOverrides(athleteId)
   const soreness = useSoreness(athleteId)
   const hrZones = useHRZones(athleteId, plan.zones)
   const showStrava = true  // All athletes can connect Strava and Garmin
@@ -128,6 +130,9 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
   const weeks = useMemo(() => {
     let w = plan.weeks
     w = daySwap.applySwapsToWeeks(w)
+    // Coach-proposed plan overrides (e.g. swap strength for mobility)
+    // apply BEFORE actuals so actual matches still line up by day label.
+    w = planOverrides.applyOverridesToWeeks(w)
     if (showStrava && strava.activities.length > 0) {
       w = matchActivitiesToPlan(w, strava.activities)
     }
@@ -137,7 +142,7 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
     }
     w = manualLog.applyLogsToWeeks(w)
     return w
-  }, [plan.weeks, strava.activities, showStrava, manualLog.applyLogsToWeeks, daySwap.applySwapsToWeeks, garmin.connected, garmin.activityDetails])
+  }, [plan.weeks, strava.activities, showStrava, manualLog.applyLogsToWeeks, daySwap.applySwapsToWeeks, planOverrides.applyOverridesToWeeks, garmin.connected, garmin.activityDetails])
 
   const compliance = useCompliance(weeks)
   const raceName = plan.race.distance.includes('18K') ? 'BROKEN ARROW 18K' : 'BROKEN ARROW 11K'
@@ -374,6 +379,35 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
     [coachTelemetry],
   )
 
+  // Resolve a planned day by (weekNum, dayIndex). Uses base plan days
+  // (pre-override) so the ProposalCard can show a "before → after" diff
+  // with the original workout.
+  const getPlannedDay = useCallback((weekNum: number, dayIndex: number): PlannedDay | null => {
+    const w = plan.weeks.find(wk => wk.num === weekNum)
+    if (!w) return null
+    return w.days[dayIndex] ?? null
+  }, [plan.weeks])
+
+  const handleApproveAction = useCallback((turnId: string, action: CoachAction) => {
+    if (action.type !== 'propose_edit' || !action.proposedEdit) return
+    const overrideId = planOverrides.applyOverride({
+      weekNum: action.proposedEdit.weekNum,
+      dayIndex: action.proposedEdit.dayIndex,
+      updates: action.proposedEdit.updates,
+      rationale: action.proposedEdit.rationale,
+    })
+    coachMemory.updateTurn(turnId, { actionStatus: 'applied', actionOverrideId: overrideId })
+  }, [planOverrides, coachMemory])
+
+  const handleRejectAction = useCallback((turnId: string) => {
+    coachMemory.updateTurn(turnId, { actionStatus: 'rejected' })
+  }, [coachMemory])
+
+  const handleUndoAction = useCallback((turnId: string, overrideId: string) => {
+    planOverrides.removeOverride(overrideId)
+    coachMemory.updateTurn(turnId, { actionStatus: 'pending', actionOverrideId: undefined })
+  }, [planOverrides, coachMemory])
+
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 pb-24 dark:text-slate-200 transition-colors" style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" }}>
       {/* Header */}
@@ -471,6 +505,10 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
           onMarkRead={() => coachMemory.markRead()}
           onGoSettings={() => setView('settings')}
           onInteraction={(k, m) => coachTelemetry.logInteraction(k as Parameters<typeof coachTelemetry.logInteraction>[0], m)}
+          getPlannedDay={getPlannedDay}
+          onApproveAction={handleApproveAction}
+          onRejectAction={handleRejectAction}
+          onUndoAction={handleUndoAction}
         />
       )}
       {/* Methodology moved into Settings as a collapsible subsection */}

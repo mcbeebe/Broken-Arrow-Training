@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { CoachInsight, CoachSnapshot, ConversationTurn, DailyChatArchive } from '../types'
+import type { CoachInsight, CoachSnapshot, ConversationTurn, DailyChatArchive, CoachAction, PlannedDay } from '../types'
 import type { UseCoachMemoryReturn } from '../hooks/useCoachMemory'
 import CoachChat from './CoachChat'
 
@@ -14,6 +14,11 @@ interface Props {
   onMarkRead: () => void
   onGoSettings: () => void
   onInteraction?: (kind: string, meta?: Record<string, unknown>) => void
+  /** Proposal action handlers — passed through to CoachChat. */
+  getPlannedDay?: (weekNum: number, dayIndex: number) => PlannedDay | null
+  onApproveAction?: (turnId: string, action: CoachAction) => void
+  onRejectAction?: (turnId: string) => void
+  onUndoAction?: (turnId: string, overrideId: string) => void
 }
 
 const DAILY_SEED_KEY = 'ba_coach_daily_seeded_v1'
@@ -46,6 +51,10 @@ export default function CoachTab({
   onMarkRead,
   onGoSettings,
   onInteraction,
+  getPlannedDay,
+  onApproveAction,
+  onRejectAction,
+  onUndoAction,
 }: Props) {
   useEffect(() => {
     onMarkRead()
@@ -198,6 +207,10 @@ export default function CoachTab({
           seed={chatSeed}
           onSeedConsumed={onChatSeedConsumed}
           onSent={() => { onInteraction?.('chat_sent'); setChatMinimized(false) }}
+          getPlannedDay={getPlannedDay}
+          onApproveAction={onApproveAction}
+          onRejectAction={onRejectAction}
+          onUndoAction={onUndoAction}
         />
       </div>
 

@@ -496,12 +496,19 @@ export interface CoachRecommendation {
 }
 
 export interface CoachAction {
-  type: 'execute' | 'modify' | 'skip' | 'swap' | 'sleep_target'
+  type: 'execute' | 'modify' | 'skip' | 'swap' | 'sleep_target' | 'propose_edit'
   label: string  // button label
   detail: string  // explanation
   swapFromIndex?: number
   swapToIndex?: number
   swapWeekNum?: number
+  /** For 'propose_edit' actions: which day to modify and what to change. */
+  proposedEdit?: {
+    weekNum: number
+    dayIndex: number
+    updates: Partial<Omit<PlannedDay, 'day' | 'actual'>>
+    rationale?: string
+  }
 }
 
 // ─── Phase B: Conversational Coach + proactive surfaces ─────────
@@ -515,6 +522,14 @@ export interface ConversationTurn {
   ts: number
   unread?: boolean
   trigger?: string  // set on role='coach' when produced by a ping
+  /** Structured action parsed from message content (e.g. a `proposal`
+   *  fenced block). Renders as an approve/reject card below the bubble. */
+  action?: CoachAction
+  /** UI state for inline actions: pending | applied | rejected. */
+  actionStatus?: 'pending' | 'applied' | 'rejected'
+  /** When an action has been applied, the persisted override id so the
+   *  user can undo it. */
+  actionOverrideId?: string
 }
 
 export interface PendingInference {
