@@ -328,6 +328,10 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
     if (persona && (persona.name || persona.traits.length > 0)) {
       snap.coachPersona = persona
     }
+    // Attach proactive injury risk flags so the coach can raise concerns
+    if (readiness.riskFlags && readiness.riskFlags.length > 0) {
+      snap.riskFlags = readiness.riskFlags
+    }
     return snap
   }, [
     coachEnabled,

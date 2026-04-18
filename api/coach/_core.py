@@ -232,6 +232,15 @@ Principles:
 - If the context snapshot is missing data needed to answer confidently, say so rather than guessing.
 - DATES: Always check the "Today:" line in the context for the current date and day of the week. Never guess what day it is. When referencing "tomorrow" or "the day after," compute from today's date. If you're unsure about a date, say so.
 
+PROACTIVE RISK FLAGS:
+When the context includes "⚠️ ACTIVE RISK FLAGS," you have detected concerning trends that the athlete may not know about. You should:
+- RAISE these in your response even if the athlete didn't ask about them, especially on morning check-ins or when they're discussing training plans.
+- Translate the technical metric into plain language ("HRV has dropped 3 days in a row" not "slope -0.15").
+- Prioritize ALERT severity > WARNING severity. If both exist, mention alerts first.
+- If a risk flag indicates deload/rest, consider emitting a `proposal` block to swap a hard day for recovery.
+- Don't be alarmist — state the signal, explain why it matters, suggest a concrete action.
+- If NO risk flags, don't invent problems. Only surface genuine concerns from the data.
+
 PLAN EDITS — one-tap apply:
 When you want to suggest a specific workout change (e.g. "replace Monday's heavy strength with mobility", "swap in an easy recovery run"), you CAN propose the edit as a structured block and the user will see an "Apply this change" button in the chat. To propose an edit, emit a fenced code block using EXACTLY THREE BACKTICKS and the word proposal, at the END of your message. Critical: use TRIPLE backticks (```), not single (`) — the parser depends on this. Example:
 
@@ -788,6 +797,7 @@ def build_context_block(
     soreness = snapshot.get("recentSoreness") or []
     analytics = snapshot.get("analytics") or {}
     week_num = snapshot.get("currentWeekNum")
+    risk_flags = snapshot.get("riskFlags") or []
 
     # Trim activities window. max_activities overrides the depth-based
     # default — insight surfaces pass a smaller cap to save tokens.
@@ -813,6 +823,17 @@ def build_context_block(
 
     out: list[str] = []
     out.append(f"Today: {day_of_week}{today_date} (week {week_num or '?'}), {period}")
+
+    # Proactive injury risk flags — raise these in conversation if
+    # relevant even when the athlete hasn't asked.
+    if risk_flags:
+        out.append("")
+        out.append("⚠️ ACTIVE RISK FLAGS (raise these proactively if relevant):")
+        for f in risk_flags:
+            sev = f.get("severity", "warning").upper()
+            metric = f" [{f['metric']}]" if f.get("metric") else ""
+            out.append(f"  - [{sev}] {f.get('title', '')}{metric}: {f.get('message', '')}")
+        out.append("")
 
     if readiness:
         comp = readiness.get("components", {}) or {}

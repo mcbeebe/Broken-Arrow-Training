@@ -714,6 +714,9 @@ export interface CoachSnapshot {
    *  in the Coach system prompt so each athlete gets their own zones. */
   zones?: HRZone[]
   analytics?: CoachSnapshotAnalytics
+  /** Proactive injury risk flags from trend analysis — surfaced to the
+   *  coach so it can raise concerns without waiting for the athlete to ask. */
+  riskFlags?: { id: string; severity: 'watch' | 'warning' | 'alert'; title: string; message: string; metric?: string }[]
   coachPersona?: CoachPersona | null
 }
 
