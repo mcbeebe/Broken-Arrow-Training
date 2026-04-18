@@ -47,9 +47,6 @@ export default function Dashboard({
   const [subTab, setSubTab] = useState<DashSubTab>('compliance')
   const parsedPlanZones = parsePlanZones(planZones, athleteMaxHR)
 
-  const daysUntilRace = Math.max(0, Math.ceil(
-    (new Date('2026-06-19').getTime() - Date.now()) / (1000 * 60 * 60 * 24)
-  ))
 
   const SUB_TABS: { id: DashSubTab; label: string; available: boolean }[] = [
     { id: 'compliance', label: 'Compliance', available: true },
@@ -60,13 +57,6 @@ export default function Dashboard({
   return (
     <div className="px-4 py-4 space-y-4">
       <h2 className="text-xl font-bold text-slate-800 dark:text-white">Dashboard</h2>
-
-      {/* Race countdown */}
-      <div className="bg-slate-800 rounded-xl p-4 text-white text-center">
-        <p className="text-4xl font-bold">{daysUntilRace}</p>
-        <p className="text-base text-slate-300">days until race</p>
-        <p className="text-sm text-teal-400 mt-1">{raceDate}</p>
-      </div>
 
       {/* Sub-tab navigation */}
       <div className="flex gap-1 bg-slate-100 dark:bg-slate-700 rounded-lg p-1">

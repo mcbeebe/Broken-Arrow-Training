@@ -149,6 +149,12 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
   const compliance = useCompliance(weeks)
   const raceName = plan.race.distance.includes('18K') ? 'BROKEN ARROW 18K' : 'BROKEN ARROW 11K'
 
+  const daysUntilRace = useMemo(() => {
+    const raceStr = plan.race.date.match(/\w+,\s*(.+)/)?.[1] || plan.race.date
+    const raceDate = new Date(raceStr)
+    return Math.max(0, Math.ceil((raceDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+  }, [plan.race.date])
+
   // Determine current week number
   const currentWeekNum = useMemo(() => {
     const now = new Date()
@@ -379,9 +385,12 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 pb-24 dark:text-slate-200 transition-colors" style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" }}>
       {/* Header */}
       <div className="bg-slate-800 dark:bg-slate-900 text-white px-3 py-2.5">
-        <h1 className="text-lg font-bold tracking-tight leading-tight">{raceName}</h1>
+        <div className="flex items-baseline justify-between">
+          <h1 className="text-lg font-bold tracking-tight leading-tight">{raceName}</h1>
+          <span className="text-teal-400 text-sm font-semibold">{daysUntilRace} days</span>
+        </div>
         <p className="text-slate-300 text-xs mt-0.5">
-          10-Week Training Plan · {plan.athlete.name} · Max HR: {plan.athlete.maxHR}
+          {plan.athlete.name} · {plan.race.date}
         </p>
         <p className="text-teal-400 text-[10px] mt-0.5">{plan.athlete.weeklyStructure}</p>
       </div>
