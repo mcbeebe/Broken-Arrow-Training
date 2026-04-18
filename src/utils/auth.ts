@@ -42,20 +42,33 @@ export async function verifySession(session: AuthSession): Promise<boolean> {
 }
 
 export async function loginWithGoogle(credential: string): Promise<AuthSession> {
-  const res = await fetch(`${API_URL}/api/auth/google`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ credential }),
-  })
-  const data = await res.json()
+  if (!API_URL) {
+    throw new Error('API URL not configured (VITE_GARMIN_API_URL missing)')
+  }
+  let res: Response
+  try {
+    res = await fetch(`${API_URL}/api/auth/google`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ credential }),
+    })
+  } catch (e) {
+    throw new Error(`Network error reaching ${API_URL}/api/auth/google: ${(e as Error).message}`)
+  }
+  let data: { authenticated?: boolean; athleteId?: string; email?: string; name?: string; token?: string; error?: string }
+  try {
+    data = await res.json()
+  } catch {
+    throw new Error(`Backend returned ${res.status} (non-JSON response)`)
+  }
   if (!res.ok || !data.authenticated) {
-    throw new Error(data.error || 'Login failed')
+    throw new Error(data.error || `Login failed (status ${res.status})`)
   }
   const session: AuthSession = {
-    athleteId: data.athleteId,
-    email: data.email,
+    athleteId: data.athleteId!,
+    email: data.email!,
     name: data.name || '',
-    token: data.token,
+    token: data.token!,
     provider: 'google',
   }
   saveSession(session)
