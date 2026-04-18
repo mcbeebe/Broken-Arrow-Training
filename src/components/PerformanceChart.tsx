@@ -116,7 +116,12 @@ export default function PerformanceChart({
                 strokeWidth={1}
                 label={{ value: 'Race Day', fontSize: expanded ? 12 : 10, fill: isDark ? '#6ee7b7' : '#047857' }}
               />
+              {/* TSB band boundary lines */}
+              <ReferenceLine y={-30} stroke="#3B82F6" strokeOpacity={0.4} strokeDasharray="4 4" strokeWidth={1} />
+              <ReferenceLine y={-10} stroke="#3B82F6" strokeOpacity={0.4} strokeDasharray="4 4" strokeWidth={1} />
               <ReferenceLine y={0} stroke={isDark ? '#475569' : '#94a3b8'} strokeDasharray="2 2" />
+              <ReferenceLine y={5} stroke="#059669" strokeOpacity={0.4} strokeDasharray="4 4" strokeWidth={1} />
+              <ReferenceLine y={25} stroke="#059669" strokeOpacity={0.4} strokeDasharray="4 4" strokeWidth={1} />
               {/* ACWR corridor: 0.8×CTL to 1.3×CTL — fatigue sweet spot */}
               <Area type="natural" dataKey="acwrHigh" stroke="none" fill={isDark ? '#7c3aed' : '#ede9fe'} fillOpacity={isDark ? 0.2 : 0.3} dot={false} isAnimationActive={false} />
               <Area type="natural" dataKey="acwrLow" stroke="none" fill={isDark ? '#0f172a' : '#ffffff'} fillOpacity={1} dot={false} isAnimationActive={false} />
