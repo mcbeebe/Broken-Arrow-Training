@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useMemo } from 'react'
 import type { TrainingWeek, PlannedDay, ActualWorkout, HRZone, ReadinessScore, PerformanceMetrics, CoachSnapshot, RaceInfo } from '../types'
 import type { WeekCompliance } from '../hooks/useCompliance'
-import { getWorkoutStyle } from '../utils/styles'
+import { getWorkoutStyle, adaptBg } from '../utils/styles'
 import DayCard from './DayCard'
 import VolumeChart from './VolumeChart'
 import WorkoutModal from './WorkoutModal'
@@ -442,7 +442,7 @@ function CalendarGrid({
 
           const style = getWorkoutStyle(planned.type)
           const isDone = !!planned.actual
-          const bg = isDone ? '#D1FAE5' : style.bg
+          const bg = adaptBg(isDone ? '#D1FAE5' : style.bg)
 
           const dotColor = readiness?.status === 'PEAK' ? 'bg-indigo-500'
             : readiness?.status === 'YELLOW' ? 'bg-amber-400'

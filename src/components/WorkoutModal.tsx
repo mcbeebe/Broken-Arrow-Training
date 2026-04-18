@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { PlannedDay, HRZone, ReadinessScore, PerformanceMetrics, CoachSnapshot } from '../types'
-import { getWorkoutStyle } from '../utils/styles'
+import { getWorkoutStyle, adaptBg } from '../utils/styles'
 import { getCoaching } from '../utils/coaching'
 import { generateWorkoutTake } from '../utils/coachNotes'
 import CoachWorkoutTakeView from './CoachWorkoutTake'
@@ -194,7 +194,7 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
         {/* Header */}
         <div
           className="sticky top-0 px-3 pt-3 pb-2 rounded-t-2xl z-10"
-          style={{ backgroundColor: style.bg, borderBottom: `2px solid ${style.border}` }}
+          style={{ backgroundColor: adaptBg(style.bg), borderBottom: `2px solid ${style.border}` }}
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -263,7 +263,7 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
 
           {/* Strava actual */}
           {actual && (
-            <div className="bg-teal-50 rounded-xl p-3 border border-teal-200 space-y-2">
+            <div className="bg-teal-50 dark:bg-teal-950 rounded-xl p-3 border border-teal-200 dark:border-teal-800 space-y-2">
               <p className="text-sm font-semibold text-teal-800 uppercase tracking-wide">
                 {/* Source-agnostic label — just show activity name.
                     The source (Strava sync vs. Garmin) is metadata,

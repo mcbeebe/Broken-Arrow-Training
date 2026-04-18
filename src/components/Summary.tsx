@@ -256,7 +256,7 @@ export default function Summary({
             {perfOpen && (
             <div className="px-4 pb-4 space-y-3">
               {/* Fitness (CTL) — left=worst (red), right=best (green) */}
-              <div className="bg-blue-50 rounded-lg p-3">
+              <div className="bg-blue-50 dark:bg-blue-950 rounded-lg p-3">
                 <div className="flex items-baseline justify-between">
                   <div>
                     <span className="text-2xl font-bold text-blue-700">{latestPerf.ctl.toFixed(0)}</span>
@@ -283,7 +283,7 @@ export default function Summary({
               </div>
 
               {/* Fatigue (ATL) — flipped: left=high fatigue (red), right=fresh (green) */}
-              <div className="bg-red-50 rounded-lg p-3">
+              <div className="bg-red-50 dark:bg-red-950 rounded-lg p-3">
                 <div className="flex items-baseline justify-between">
                   <div>
                     <span className="text-2xl font-bold text-red-600">{latestPerf.atl.toFixed(0)}</span>
@@ -310,9 +310,9 @@ export default function Summary({
 
               {/* Recovery Balance (TSB) — left=deep fatigue (red), right=peak (green) */}
               <div className={`rounded-lg p-3 ${
-                tsbState === 'peaked' || tsbState === 'well_rested' ? 'bg-green-50'
+                tsbState === 'peaked' || tsbState === 'well_rested' ? 'bg-green-50 dark:bg-green-950'
                 : tsbState === 'productive' ? 'bg-slate-50 dark:bg-slate-900'
-                : 'bg-amber-50'
+                : 'bg-amber-50 dark:bg-amber-950'
               }`}>
                 <div className="flex items-baseline justify-between">
                   <div>
@@ -350,9 +350,9 @@ export default function Summary({
 
               {/* ACWR — full width */}
               <div className={`rounded-lg p-3 ${
-                acwrRisk === 'sweet_spot' ? 'bg-green-50'
-                : acwrRisk === 'high_risk' ? 'bg-red-50'
-                : 'bg-amber-50'
+                acwrRisk === 'sweet_spot' ? 'bg-green-50 dark:bg-green-950'
+                : acwrRisk === 'high_risk' ? 'bg-red-50 dark:bg-red-950'
+                : 'bg-amber-50 dark:bg-amber-950'
               }`}>
                 <div className="flex items-baseline justify-between">
                   <div>

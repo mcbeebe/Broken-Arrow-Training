@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { PlannedDay, ReadinessScore, CoachSnapshot } from '../types'
-import { getWorkoutStyle } from '../utils/styles'
+import { getWorkoutStyle, adaptBg } from '../utils/styles'
 import { formatMiles, formatSeconds, estimateRunTime } from '../utils/format'
 import { parsePlannedTargets } from '../utils/targets'
 import { gradeWorkoutDay } from '../hooks/useCompliance'
@@ -40,7 +40,7 @@ export default function DayCard({ day, weekNum, onTap, onLog, onSwap, isSwapSele
 
   // When completed, use a more saturated emerald background but preserve
   // the workout-type color as the left border (visual identity stays)
-  const cardBg = isCompleted ? '#D1FAE5' : style.bg
+  const cardBg = adaptBg(isCompleted ? '#D1FAE5' : style.bg)
 
   const dotColor = readiness?.status === 'PEAK' ? 'bg-indigo-500'
     : readiness?.status === 'YELLOW' ? 'bg-amber-400'
@@ -324,6 +324,7 @@ export default function DayCard({ day, weekNum, onTap, onLog, onSwap, isSwapSele
     </div>
   )
 }
+
 
 // ─── DayCardCoachNote ──────────────────────────────────────────
 // Small wrapper so the LLM hook is only active when rendered (we gate it
