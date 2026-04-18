@@ -6,17 +6,31 @@ import type { CoachAction, PlannedDay } from '../types'
  * of type 'propose_edit'. If the block is malformed, returns the original
  * content and action: null (graceful degradation).
  */
-const PROPOSAL_BLOCK_RE = /```proposal\s*\n([\s\S]*?)\n```/
+// Match proposal blocks with various backtick counts (1-4) and optional whitespace.
+// The LLM sometimes uses single backticks instead of triple.
+const PROPOSAL_BLOCK_RE = /`{1,4}\s*proposal\s*\n([\s\S]*?)\n`{1,4}/
+
+// Also try to match a standalone JSON object with weekNum/dayIndex/updates
+// at the end of the message (fallback when the LLM doesn't use a fenced block)
+const PROPOSAL_JSON_RE = /\n\s*(\{[\s\S]*?"weekNum"\s*:\s*\d[\s\S]*?"updates"\s*:[\s\S]*?\})\s*$/
 
 const ALLOWED_UPDATE_FIELDS: (keyof Omit<PlannedDay, 'day' | 'actual'>)[] = [
   'type', 'workout', 'detail', 'zone', 'route', 'time',
 ]
 
 export function extractProposal(content: string): { content: string; action: CoachAction | null } {
-  const match = content.match(PROPOSAL_BLOCK_RE)
-  if (!match) return { content, action: null }
+  let match = content.match(PROPOSAL_BLOCK_RE)
+  let matchedFull = match?.[0]
+  let jsonStr = match?.[1]?.trim()
 
-  const jsonStr = match[1].trim()
+  // Fallback: try to find a bare JSON object with proposal fields at the end
+  if (!jsonStr) {
+    match = content.match(PROPOSAL_JSON_RE)
+    matchedFull = match?.[0]
+    jsonStr = match?.[1]?.trim()
+  }
+
+  if (!jsonStr || !matchedFull) return { content, action: null }
   let parsed: unknown
   try {
     parsed = JSON.parse(jsonStr)
@@ -47,7 +61,7 @@ export function extractProposal(content: string): { content: string; action: Coa
     return { content, action: null }
   }
 
-  const cleanContent = content.replace(PROPOSAL_BLOCK_RE, '').trim()
+  const cleanContent = content.replace(matchedFull, '').trim()
 
   const summary = summarizeUpdates(cleanUpdates)
   const action: CoachAction = {
