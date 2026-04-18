@@ -66,10 +66,25 @@ export default function App() {
 
 function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; onLogout: () => void }) {
   const [view, setView] = useState<ViewId>('summary')
-  const [athleteId, setAthleteId] = useState(() => session?.athleteId || getAthleteFromHash())
+  const [athleteId, setAthleteId] = useState(() => (session?.athleteId || getAthleteFromHash()).toLowerCase())
   const [chatSeed, setChatSeed] = useState<string | null>(null)
   const theme = useTheme()
   const plan = plans[athleteId]
+
+  if (!plan) {
+    return (
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col items-center justify-center px-6">
+        <div className="text-center space-y-4">
+          <h1 className="text-2xl font-bold text-slate-800 dark:text-white">No Training Plan Found</h1>
+          <p className="text-slate-500 dark:text-slate-400">
+            Athlete ID "{athleteId}" doesn't have a training plan configured.
+            Valid IDs: {Object.keys(plans).join(', ')}
+          </p>
+          <button onClick={onLogout} className="text-teal-600 font-medium">Sign out and try again</button>
+        </div>
+      </div>
+    )
+  }
   const strava = useStrava(athleteId)
   const garmin = useGarmin(athleteId)
 
