@@ -13,6 +13,9 @@
     "api/apple/*.py": {
       "maxDuration": 30
     },
+    "api/auth/*.py": {
+      "maxDuration": 15
+    },
     "api/coach/*.py": {
       "maxDuration": 60
     }

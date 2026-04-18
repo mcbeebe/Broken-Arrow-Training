@@ -4,6 +4,7 @@ import GarminConnect from './GarminConnect'
 import TerraConnect from './TerraConnect'
 import HRZoneEditor from './HRZoneEditor'
 import type { WearableSource } from '../types'
+import type { AuthSession } from '../utils/auth'
 import AboutMe from './AboutMe'
 import CoachDiagnostics from './CoachDiagnostics'
 import DeployDiagnostics from './DeployDiagnostics'
@@ -68,6 +69,9 @@ interface SettingsProps {
   onClearCache?: () => void
   onClearAll?: () => void
   setView?: (v: string) => void
+  // Auth
+  authSession?: AuthSession | null
+  onLogout?: () => void
 }
 
 export default function Settings({
@@ -119,6 +123,8 @@ export default function Settings({
   coachPersona,
   onSaveCoachPersona,
   athleteId,
+  authSession,
+  onLogout,
 }: SettingsProps) {
   void _pendingInferences
   void _onAcceptInference
@@ -132,6 +138,29 @@ export default function Settings({
         <div className="bg-red-50 rounded-xl p-3 border border-red-200">
           <p className="text-sm text-red-700">{error}</p>
         </div>
+      )}
+
+      {/* ── Account section ── */}
+      {authSession && onLogout && (
+        <SettingsSection title="Account" defaultOpen>
+          <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-100 space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-teal-100 flex items-center justify-center text-teal-700 font-bold text-lg">
+                {(authSession.name || authSession.email)[0]?.toUpperCase()}
+              </div>
+              <div>
+                <p className="text-sm font-medium text-slate-800">{authSession.name || authSession.athleteId}</p>
+                <p className="text-xs text-slate-500">{authSession.email}</p>
+              </div>
+            </div>
+            <button
+              onClick={onLogout}
+              className="w-full text-sm font-medium px-4 py-2 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"
+            >
+              Sign Out
+            </button>
+          </div>
+        </SettingsSection>
       )}
 
       {/* ── Coach section ── */}

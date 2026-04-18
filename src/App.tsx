@@ -28,7 +28,9 @@ import RaceInfo from './components/RaceInfo'
 import Settings from './components/Settings'
 import CoachTab from './components/CoachTab'
 import CoachPingToast from './components/CoachPingToast'
+import LoginScreen from './components/LoginScreen'
 import { useHRZones } from './hooks/useHRZones'
+import { getStoredSession, clearSession, type AuthSession } from './utils/auth'
 
 // Auto-clear stale caches on app startup when data format changes
 checkStorageVersion()
@@ -40,8 +42,32 @@ function getAthleteFromHash(): string {
 }
 
 export default function App() {
+  const [session, setSession] = useState<AuthSession | null>(() => getStoredSession())
+
+  const handleLogin = useCallback((s: AuthSession) => {
+    setSession(s)
+    window.location.hash = s.athleteId
+  }, [])
+
+  const handleLogout = useCallback(() => {
+    clearSession()
+    setSession(null)
+  }, [])
+
+  // If no session and no Google client ID configured, fall back to hash-based auth
+  const googleConfigured = !!import.meta.env.VITE_GOOGLE_CLIENT_ID
+  const requireLogin = googleConfigured && !session
+
+  if (requireLogin) {
+    return <LoginScreen onLogin={handleLogin} />
+  }
+
+  return <AuthenticatedApp session={session} onLogout={handleLogout} />
+}
+
+function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; onLogout: () => void }) {
   const [view, setView] = useState<ViewId>('summary')
-  const [athleteId, setAthleteId] = useState(getAthleteFromHash)
+  const [athleteId, setAthleteId] = useState(() => session?.athleteId || getAthleteFromHash())
   const [chatSeed, setChatSeed] = useState<string | null>(null)
   const plan = plans[athleteId]
   const strava = useStrava(athleteId)
@@ -495,6 +521,8 @@ export default function App() {
           coachPersona={coachMemory.coachPersona}
           onSaveCoachPersona={coachMemory.saveCoachPersona}
           athleteId={athleteId}
+          authSession={session}
+          onLogout={onLogout}
         />
       )}
 
