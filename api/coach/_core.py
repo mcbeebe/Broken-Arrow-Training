@@ -231,6 +231,7 @@ Principles:
 - Never moralize, never lecture about basics the athlete already knows.
 - When recommending plan changes, suggest — the user applies changes themselves via the app's swap/log UI.
 - If the context snapshot is missing data needed to answer confidently, say so rather than guessing.
+- DATES: Always check the "Today:" line in the context for the current date and day of the week. Never guess what day it is. When referencing "tomorrow" or "the day after," compute from today's date. If you're unsure about a date, say so.
 
 What you already know (do NOT re-ask or confirm):
 - The athlete's full 10-week training plan for the Broken Arrow Skyrace.
@@ -772,9 +773,18 @@ def build_context_block(
         activities = activities[:30]
 
     period = today.get("period", "morning")
+    today_date = today.get("date", "")
+    # Add explicit day-of-week so the LLM never has to guess
+    day_of_week = ""
+    if today_date:
+        try:
+            from datetime import datetime as _dt
+            day_of_week = _dt.strptime(today_date, "%Y-%m-%d").strftime("%A") + " "
+        except Exception:
+            pass
 
     out: list[str] = []
-    out.append(f"Today: {today.get('date', '')} (week {week_num or '?'}), {period}")
+    out.append(f"Today: {day_of_week}{today_date} (week {week_num or '?'}), {period}")
 
     if readiness:
         comp = readiness.get("components", {}) or {}
