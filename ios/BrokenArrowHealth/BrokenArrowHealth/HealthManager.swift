@@ -1,266 +1,12 @@
 import Foundation
 import HealthKit
 
-@MainActor
-final class HealthManager: ObservableObject {
-    enum SyncState: Equatable {
-        case idle
-        case authorizing
-        case querying
-        case uploading
-        case success(stored: Int, at: Date)
-        case failure(String)
-    }
-
-    @Published var authorized = false
-    @Published var state: SyncState = .idle
-
-    @Published var lastRecordsPreview: [HealthRecord] = []
-
-    private let store = HKHealthStore()
-
-    private var readTypes: Set<HKObjectType> {
-        var types: Set<HKObjectType> = []
-        if let hrv = HKObjectType.quantityType(forIdentifier: .heartRateVariabilitySDNN) {
-            types.insert(hrv)
-        }
-        if let rhr = HKObjectType.quantityType(forIdentifier: .restingHeartRate) {
-            types.insert(rhr)
-        }
-        if let sleep = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) {
-            types.insert(sleep)
-        }
-        return types
-    }
-
-    func requestAuthorization() async {
-        guard HKHealthStore.isHealthDataAvailable() else {
-            state = .failure("HealthKit unavailable on this device.")
-            return
-        }
-        state = .authorizing
-        do {
-            try await store.requestAuthorization(toShare: [], read: readTypes)
-            authorized = true
-            state = .idle
-        } catch {
-            state = .failure("Authorization failed: \(error.localizedDescription)")
-        }
-    }
-
-    func syncLastSevenDays(athlete: String, apiURL: String) async {
-        guard !athlete.isEmpty, !apiURL.isEmpty else {
-            state = .failure("Set athlete ID and API URL first.")
-            return
-        }
-
-        state = .querying
-        let cal = Calendar.current
-        let today = cal.startOfDay(for: Date())
-        let end = cal.date(byAdding: .day, value: 1, to: today) ?? today
-        let start = cal.date(byAdding: .day, value: -7, to: today) ?? today
-
-        do {
-            async let hrv = hrvByDay(from: start, to: end)
-            async let rhr = rhrByDay(from: start, to: end)
-            async let sleep = sleepByDay(from: start, to: end)
-
-            let hrvMap = try await hrv
-            let rhrMap = try await rhr
-            let sleepMap = try await sleep
-
-            var dates = Set<String>()
-            dates.formUnion(hrvMap.keys)
-            dates.formUnion(rhrMap.keys)
-            dates.formUnion(sleepMap.keys)
-
-            let records: [HealthRecord] = dates.sorted().map { date in
-                let sleep = sleepMap[date]
-                return HealthRecord(
-                    date: date,
-                    hrv: hrvMap[date],
-                    rhr: rhrMap[date],
-                    sleepSeconds: sleep?.total,
-                    deepSeconds: sleep?.deep,
-                    remSeconds: sleep?.rem,
-                    lightSeconds: sleep?.light,
-                    awakeSeconds: sleep?.awake
-                )
-            }
-
-            lastRecordsPreview = records
-
-            if records.isEmpty {
-                state = .failure("No HealthKit data found for the last 7 days. Make sure your Apple Watch has synced.")
-                return
-            }
-
-            state = .uploading
-            let stored = try await upload(records: records, athlete: athlete, apiURL: apiURL)
-            state = .success(stored: stored, at: Date())
-        } catch {
-            state = .failure(error.localizedDescription)
-        }
-    }
-
-    private func hrvByDay(from start: Date, to end: Date) async throws -> [String: Double] {
-        guard let type = HKQuantityType.quantityType(forIdentifier: .heartRateVariabilitySDNN) else {
-            return [:]
-        }
-        let samples = try await fetchQuantitySamples(type: type, start: start, end: end)
-        let unit = HKUnit.secondUnit(with: .milli)
-        var byDay: [String: [Double]] = [:]
-        for s in samples {
-            let day = Self.isoDay(s.startDate)
-            byDay[day, default: []].append(s.quantity.doubleValue(for: unit))
-        }
-        return byDay.mapValues { round(($0.reduce(0, +) / Double($0.count)) * 10) / 10 }
-    }
-
-    private func rhrByDay(from start: Date, to end: Date) async throws -> [String: Int] {
-        guard let type = HKQuantityType.quantityType(forIdentifier: .restingHeartRate) else {
-            return [:]
-        }
-        let samples = try await fetchQuantitySamples(type: type, start: start, end: end)
-        let unit = HKUnit.count().unitDivided(by: .minute())
-        var byDay: [String: [Double]] = [:]
-        for s in samples {
-            let day = Self.isoDay(s.startDate)
-            byDay[day, default: []].append(s.quantity.doubleValue(for: unit))
-        }
-        return byDay.mapValues { Int(round($0.reduce(0, +) / Double($0.count))) }
-    }
-
-    struct SleepBreakdown {
-        let total: Int
-        let deep: Int
-        let rem: Int
-        let light: Int
-        let awake: Int
-    }
-
-    private func sleepByDay(from start: Date, to end: Date) async throws -> [String: SleepBreakdown] {
-        guard let type = HKCategoryType.categoryType(forIdentifier: .sleepAnalysis) else {
-            return [:]
-        }
-        let samples = try await fetchCategorySamples(type: type, start: start, end: end)
-
-        // Attribute a sleep session to the day you woke up on (endDate).
-        var byDay: [String: (total: Double, deep: Double, rem: Double, light: Double, awake: Double)] = [:]
-        for s in samples {
-            let day = Self.isoDay(s.endDate)
-            let seconds = s.endDate.timeIntervalSince(s.startDate)
-            guard seconds > 0 else { continue }
-            var bucket = byDay[day] ?? (0, 0, 0, 0, 0)
-            switch s.value {
-            case HKCategoryValueSleepAnalysis.asleepDeep.rawValue:
-                bucket.deep += seconds
-                bucket.total += seconds
-            case HKCategoryValueSleepAnalysis.asleepREM.rawValue:
-                bucket.rem += seconds
-                bucket.total += seconds
-            case HKCategoryValueSleepAnalysis.asleepCore.rawValue,
-                 HKCategoryValueSleepAnalysis.asleep.rawValue,
-                 HKCategoryValueSleepAnalysis.asleepUnspecified.rawValue:
-                bucket.light += seconds
-                bucket.total += seconds
-            case HKCategoryValueSleepAnalysis.awake.rawValue:
-                bucket.awake += seconds
-            default:
-                break
-            }
-            byDay[day] = bucket
-        }
-
-        return byDay.mapValues { v in
-            SleepBreakdown(
-                total: Int(v.total),
-                deep: Int(v.deep),
-                rem: Int(v.rem),
-                light: Int(v.light),
-                awake: Int(v.awake)
-            )
-        }
-    }
-
-    private func fetchQuantitySamples(type: HKQuantityType, start: Date, end: Date) async throws -> [HKQuantitySample] {
-        let predicate = HKQuery.predicateForSamples(withStart: start, end: end, options: [])
-        return try await withCheckedThrowingContinuation { cont in
-            let q = HKSampleQuery(
-                sampleType: type,
-                predicate: predicate,
-                limit: HKObjectQueryNoLimit,
-                sortDescriptors: nil
-            ) { _, samples, err in
-                if let err { cont.resume(throwing: err); return }
-                cont.resume(returning: (samples as? [HKQuantitySample]) ?? [])
-            }
-            store.execute(q)
-        }
-    }
-
-    private func fetchCategorySamples(type: HKCategoryType, start: Date, end: Date) async throws -> [HKCategorySample] {
-        let predicate = HKQuery.predicateForSamples(withStart: start, end: end, options: [])
-        return try await withCheckedThrowingContinuation { cont in
-            let q = HKSampleQuery(
-                sampleType: type,
-                predicate: predicate,
-                limit: HKObjectQueryNoLimit,
-                sortDescriptors: nil
-            ) { _, samples, err in
-                if let err { cont.resume(throwing: err); return }
-                cont.resume(returning: (samples as? [HKCategorySample]) ?? [])
-            }
-            store.execute(q)
-        }
-    }
-
-    private func upload(records: [HealthRecord], athlete: String, apiURL: String) async throws -> Int {
-        let base = apiURL.hasSuffix("/") ? String(apiURL.dropLast()) : apiURL
-        guard var comps = URLComponents(string: "\(base)/api/apple/health") else {
-            throw NSError(domain: "BrokenArrow", code: 1, userInfo: [NSLocalizedDescriptionKey: "Invalid API URL."])
-        }
-        comps.queryItems = [URLQueryItem(name: "athlete", value: athlete)]
-        guard let url = comps.url else {
-            throw NSError(domain: "BrokenArrow", code: 2, userInfo: [NSLocalizedDescriptionKey: "Could not build URL."])
-        }
-
-        var req = URLRequest(url: url)
-        req.httpMethod = "POST"
-        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        req.httpBody = try JSONEncoder().encode(UploadPayload(records: records))
-
-        let (data, resp) = try await URLSession.shared.data(for: req)
-        guard let http = resp as? HTTPURLResponse else {
-            throw NSError(domain: "BrokenArrow", code: 3, userInfo: [NSLocalizedDescriptionKey: "No HTTP response."])
-        }
-        guard (200..<300).contains(http.statusCode) else {
-            let msg = String(data: data, encoding: .utf8) ?? "HTTP \(http.statusCode)"
-            throw NSError(domain: "BrokenArrow", code: http.statusCode, userInfo: [NSLocalizedDescriptionKey: msg])
-        }
-        let decoded = try JSONDecoder().decode(UploadResponse.self, from: data)
-        return decoded.stored
-    }
-
-    private static let isoFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.calendar = Calendar(identifier: .gregorian)
-        f.locale = Locale(identifier: "en_US_POSIX")
-        f.timeZone = TimeZone.current
-        f.dateFormat = "yyyy-MM-dd"
-        return f
-    }()
-
-    static func isoDay(_ date: Date) -> String {
-        isoFormatter.string(from: date)
-    }
-}
-
-struct HealthRecord: Codable, Identifiable {
+struct DailyHealth: Identifiable {
     var id: String { date }
     let date: String
     let hrv: Double?
     let rhr: Int?
+    let sleepHours: Double?
     let sleepSeconds: Int?
     let deepSeconds: Int?
     let remSeconds: Int?
@@ -268,11 +14,263 @@ struct HealthRecord: Codable, Identifiable {
     let awakeSeconds: Int?
 }
 
-private struct UploadPayload: Codable {
-    let records: [HealthRecord]
-}
+@MainActor
+class HealthManager: ObservableObject {
+    private let store = HKHealthStore()
+    private var athleteId: String = ""
+    private var apiUrl: String = ""
 
-private struct UploadResponse: Codable {
-    let ok: Bool
-    let stored: Int
+    @Published var isAuthorized = false
+    @Published var isSyncing = false
+    @Published var lastSyncDate: Date?
+    @Published var lastError: String?
+    @Published var todayData: DailyHealth?
+
+    func configure(athleteId: String, apiUrl: String) {
+        self.athleteId = athleteId
+        self.apiUrl = apiUrl.hasSuffix("/") ? String(apiUrl.dropLast()) : apiUrl
+    }
+
+    func disconnect() {
+        athleteId = ""
+        apiUrl = ""
+        isAuthorized = false
+        lastSyncDate = nil
+        todayData = nil
+    }
+
+    func requestAuthorization() {
+        guard HKHealthStore.isHealthDataAvailable() else {
+            lastError = "HealthKit not available on this device"
+            return
+        }
+
+        let readTypes: Set<HKObjectType> = [
+            HKQuantityType(.heartRateVariabilitySDNN),
+            HKQuantityType(.restingHeartRate),
+            HKCategoryType(.sleepAnalysis),
+        ]
+
+        store.requestAuthorization(toShare: nil, read: readTypes) { [weak self] success, error in
+            Task { @MainActor in
+                if success {
+                    self?.isAuthorized = true
+                    self?.lastError = nil
+                    await self?.syncNow()
+                } else {
+                    self?.lastError = error?.localizedDescription ?? "Authorization denied"
+                }
+            }
+        }
+    }
+
+    func syncNow() async {
+        guard !athleteId.isEmpty, !apiUrl.isEmpty else { return }
+        isSyncing = true
+        lastError = nil
+
+        do {
+            let calendar = Calendar.current
+            let today = calendar.startOfDay(for: Date())
+            let weekAgo = calendar.date(byAdding: .day, value: -7, to: today)!
+            let tomorrow = calendar.date(byAdding: .day, value: 1, to: today)!
+
+            async let hrvMap = fetchHRVByDay(from: weekAgo, to: tomorrow)
+            async let rhrMap = fetchRHRByDay(from: weekAgo, to: tomorrow)
+            async let sleepMap = fetchSleepByDay(from: weekAgo, to: tomorrow)
+
+            let hrv = try await hrvMap
+            let rhr = try await rhrMap
+            let sleep = try await sleepMap
+
+            var allDates = Set<String>()
+            allDates.formUnion(hrv.keys)
+            allDates.formUnion(rhr.keys)
+            allDates.formUnion(sleep.keys)
+
+            var records: [[String: Any]] = []
+            let todayStr = Self.formatDate(today)
+
+            for dateStr in allDates.sorted() {
+                let s = sleep[dateStr]
+                var record: [String: Any] = ["date": dateStr]
+                if let h = hrv[dateStr] { record["hrv"] = h }
+                if let r = rhr[dateStr] { record["rhr"] = r }
+                if let s {
+                    record["sleepSeconds"] = s.total
+                    record["deepSeconds"] = s.deep
+                    record["remSeconds"] = s.rem
+                    record["lightSeconds"] = s.light
+                    record["awakeSeconds"] = s.awake
+                }
+                records.append(record)
+
+                if dateStr == todayStr {
+                    todayData = DailyHealth(
+                        date: dateStr,
+                        hrv: hrv[dateStr],
+                        rhr: rhr[dateStr],
+                        sleepHours: s.map { Double($0.total) / 3600.0 },
+                        sleepSeconds: s?.total,
+                        deepSeconds: s?.deep,
+                        remSeconds: s?.rem,
+                        lightSeconds: s?.light,
+                        awakeSeconds: s?.awake
+                    )
+                }
+            }
+
+            if !records.isEmpty {
+                try await uploadRecords(records)
+                lastSyncDate = Date()
+            } else {
+                lastError = "No HealthKit data found for the last 7 days. Make sure your Apple Watch has synced."
+            }
+        } catch {
+            lastError = error.localizedDescription
+        }
+
+        isSyncing = false
+    }
+
+    // MARK: - HRV (averaged across all samples per day)
+
+    private func fetchHRVByDay(from start: Date, to end: Date) async throws -> [String: Double] {
+        let type = HKQuantityType(.heartRateVariabilitySDNN)
+        let unit = HKUnit.secondUnit(with: .milli)
+        let samples = try await fetchQuantitySamples(type: type, start: start, end: end)
+
+        var byDay: [String: [Double]] = [:]
+        for s in samples {
+            let day = Self.formatDate(s.startDate)
+            byDay[day, default: []].append(s.quantity.doubleValue(for: unit))
+        }
+        return byDay.mapValues { values in
+            round((values.reduce(0, +) / Double(values.count)) * 10) / 10
+        }
+    }
+
+    // MARK: - RHR (averaged across all samples per day)
+
+    private func fetchRHRByDay(from start: Date, to end: Date) async throws -> [String: Int] {
+        let type = HKQuantityType(.restingHeartRate)
+        let unit = HKUnit.count().unitDivided(by: .minute())
+        let samples = try await fetchQuantitySamples(type: type, start: start, end: end)
+
+        var byDay: [String: [Double]] = [:]
+        for s in samples {
+            let day = Self.formatDate(s.startDate)
+            byDay[day, default: []].append(s.quantity.doubleValue(for: unit))
+        }
+        return byDay.mapValues { values in
+            Int(round(values.reduce(0, +) / Double(values.count)))
+        }
+    }
+
+    // MARK: - Sleep (bucketed by wake-up day to avoid cross-midnight double-counting)
+
+    struct SleepData {
+        let total: Int
+        let deep: Int
+        let rem: Int
+        let light: Int
+        let awake: Int
+    }
+
+    private func fetchSleepByDay(from start: Date, to end: Date) async throws -> [String: SleepData] {
+        let type = HKCategoryType(.sleepAnalysis)
+        let samples = try await fetchCategorySamples(type: type, start: start, end: end)
+
+        var byDay: [String: (total: Int, deep: Int, rem: Int, light: Int, awake: Int)] = [:]
+        for sample in samples {
+            let day = Self.formatDate(sample.endDate)
+            let duration = Int(sample.endDate.timeIntervalSince(sample.startDate))
+            guard duration > 0 else { continue }
+
+            var bucket = byDay[day] ?? (0, 0, 0, 0, 0)
+            switch sample.value {
+            case HKCategoryValueSleepAnalysis.asleepDeep.rawValue:
+                bucket.deep += duration
+                bucket.total += duration
+            case HKCategoryValueSleepAnalysis.asleepREM.rawValue:
+                bucket.rem += duration
+                bucket.total += duration
+            case HKCategoryValueSleepAnalysis.asleepCore.rawValue,
+                 HKCategoryValueSleepAnalysis.asleepUnspecified.rawValue:
+                bucket.light += duration
+                bucket.total += duration
+            case HKCategoryValueSleepAnalysis.awake.rawValue:
+                bucket.awake += duration
+            default:
+                break
+            }
+            byDay[day] = bucket
+        }
+
+        return byDay.compactMapValues { v in
+            v.total > 0 ? SleepData(total: v.total, deep: v.deep, rem: v.rem, light: v.light, awake: v.awake) : nil
+        }
+    }
+
+    // MARK: - Generic HealthKit queries
+
+    private func fetchQuantitySamples(type: HKQuantityType, start: Date, end: Date) async throws -> [HKQuantitySample] {
+        let predicate = HKQuery.predicateForSamples(withStart: start, end: end)
+        return try await withCheckedThrowingContinuation { cont in
+            let query = HKSampleQuery(sampleType: type, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: nil) { _, samples, error in
+                if let error { cont.resume(throwing: error); return }
+                cont.resume(returning: (samples as? [HKQuantitySample]) ?? [])
+            }
+            store.execute(query)
+        }
+    }
+
+    private func fetchCategorySamples(type: HKCategoryType, start: Date, end: Date) async throws -> [HKCategorySample] {
+        let predicate = HKQuery.predicateForSamples(withStart: start, end: end)
+        return try await withCheckedThrowingContinuation { cont in
+            let query = HKSampleQuery(sampleType: type, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: nil) { _, samples, error in
+                if let error { cont.resume(throwing: error); return }
+                cont.resume(returning: (samples as? [HKCategorySample]) ?? [])
+            }
+            store.execute(query)
+        }
+    }
+
+    // MARK: - Upload
+
+    private func uploadRecords(_ records: [[String: Any]]) async throws {
+        guard var comps = URLComponents(string: "\(apiUrl)/api/apple/health") else {
+            throw URLError(.badURL)
+        }
+        comps.queryItems = [URLQueryItem(name: "athlete", value: athleteId)]
+        guard let url = comps.url else {
+            throw URLError(.badURL)
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONSerialization.data(withJSONObject: ["records": records])
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse, (200..<300).contains(httpResponse.statusCode) else {
+            let body = String(data: data, encoding: .utf8) ?? "Unknown error"
+            throw NSError(domain: "BrokenArrowHealth", code: 1, userInfo: [NSLocalizedDescriptionKey: "Upload failed: \(body)"])
+        }
+    }
+
+    // MARK: - Helpers
+
+    private static let dateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd"
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.timeZone = TimeZone.current
+        return f
+    }()
+
+    static func formatDate(_ date: Date) -> String {
+        dateFormatter.string(from: date)
+    }
 }

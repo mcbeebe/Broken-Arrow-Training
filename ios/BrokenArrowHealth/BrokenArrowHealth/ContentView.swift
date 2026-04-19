@@ -2,117 +2,120 @@ import SwiftUI
 
 struct ContentView: View {
     @EnvironmentObject var health: HealthManager
-
     @AppStorage("athleteId") private var athleteId: String = ""
-    @AppStorage("apiURL") private var apiURL: String = "https://broken-arrow-training.vercel.app"
+    @AppStorage("apiUrl") private var apiUrl: String = ""
 
     var body: some View {
-        NavigationStack {
-            Form {
-                Section("Athlete") {
-                    TextField("athlete id (e.g. mike)", text: $athleteId)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                }
-
-                Section("Backend") {
-                    TextField("API URL", text: $apiURL)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                        .keyboardType(.URL)
-                }
-
-                Section("HealthKit") {
-                    if health.authorized {
-                        Label("Authorized", systemImage: "checkmark.seal.fill")
-                            .foregroundStyle(.green)
-                    } else {
-                        Button {
-                            Task { await health.requestAuthorization() }
-                        } label: {
-                            Label("Grant HealthKit access", systemImage: "heart.text.square")
-                        }
-                    }
-                }
-
-                Section("Sync") {
-                    Button {
-                        Task {
-                            await health.syncLastSevenDays(athlete: athleteId, apiURL: apiURL)
-                        }
-                    } label: {
-                        HStack {
-                            Image(systemName: "arrow.triangle.2.circlepath")
-                            Text("Sync last 7 days")
-                            Spacer()
-                            if case .querying = health.state { ProgressView() }
-                            if case .uploading = health.state { ProgressView() }
-                        }
-                    }
-                    .disabled(isBusy || athleteId.isEmpty || apiURL.isEmpty || !health.authorized)
-
-                    StateRow(state: health.state)
-                }
-
-                if !health.lastRecordsPreview.isEmpty {
-                    Section("Last upload preview") {
-                        ForEach(health.lastRecordsPreview) { r in
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(r.date).font(.headline)
-                                HStack(spacing: 12) {
-                                    if let hrv = r.hrv {
-                                        Text("HRV \(hrv, specifier: "%.1f")")
-                                    }
-                                    if let rhr = r.rhr {
-                                        Text("RHR \(rhr)")
-                                    }
-                                    if let s = r.sleepSeconds {
-                                        Text("Sleep \(formatHours(s))")
-                                    }
-                                }
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            }
-                        }
-                    }
+        NavigationView {
+            VStack(spacing: 20) {
+                if athleteId.isEmpty || apiUrl.isEmpty {
+                    setupView
+                } else {
+                    connectedView
                 }
             }
+            .padding()
             .navigationTitle("Broken Arrow Health")
         }
-    }
-
-    private var isBusy: Bool {
-        switch health.state {
-        case .authorizing, .querying, .uploading: return true
-        default: return false
+        .onAppear {
+            if !athleteId.isEmpty && !apiUrl.isEmpty {
+                health.configure(athleteId: athleteId, apiUrl: apiUrl)
+                health.requestAuthorization()
+            }
         }
     }
 
-    private func formatHours(_ seconds: Int) -> String {
-        let hours = Double(seconds) / 3600.0
-        return String(format: "%.1fh", hours)
+    private var setupView: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "heart.text.square.fill")
+                .font(.system(size: 60))
+                .foregroundColor(.green)
+            Text("Connect to Broken Arrow")
+                .font(.title2).bold()
+            Text("Syncs Apple Watch HRV, RHR, and sleep to the Broken Arrow training app.")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+            VStack(spacing: 12) {
+                TextField("Your athlete ID (e.g. mike)", text: $athleteId)
+                    .textFieldStyle(.roundedBorder)
+                    .autocapitalization(.none)
+                    .disableAutocorrection(true)
+                TextField("API URL (https://...)", text: $apiUrl)
+                    .textFieldStyle(.roundedBorder)
+                    .autocapitalization(.none)
+                    .disableAutocorrection(true)
+                    .keyboardType(.URL)
+            }
+            .padding(.horizontal)
+            Button {
+                health.configure(athleteId: athleteId, apiUrl: apiUrl)
+                health.requestAuthorization()
+            } label: {
+                Text("Connect Apple Health")
+                    .font(.headline)
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(Color.green)
+                    .foregroundColor(.white)
+                    .cornerRadius(12)
+            }
+            .disabled(athleteId.isEmpty || apiUrl.isEmpty)
+            .padding(.horizontal)
+        }
     }
-}
 
-private struct StateRow: View {
-    let state: HealthManager.SyncState
-
-    var body: some View {
-        switch state {
-        case .idle:
-            Text("Idle").foregroundStyle(.secondary)
-        case .authorizing:
-            Text("Requesting HealthKit authorization…")
-        case .querying:
-            Text("Reading from HealthKit…")
-        case .uploading:
-            Text("Uploading to backend…")
-        case .success(let n, let at):
-            Label("Uploaded \(n) day\(n == 1 ? "" : "s") at \(at.formatted(date: .omitted, time: .shortened))", systemImage: "checkmark.circle.fill")
-                .foregroundStyle(.green)
-        case .failure(let msg):
-            Label(msg, systemImage: "exclamationmark.triangle.fill")
-                .foregroundStyle(.red)
+    private var connectedView: some View {
+        VStack(spacing: 16) {
+            HStack {
+                Circle()
+                    .fill(health.lastSyncDate != nil ? Color.green : Color.orange)
+                    .frame(width: 10, height: 10)
+                Text(health.isAuthorized ? "Connected" : "Waiting for permissions...")
+                    .font(.headline)
+                Spacer()
+            }
+            Text("Athlete: \(athleteId)")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            if let lastSync = health.lastSyncDate {
+                Text("Last sync: \(lastSync, style: .relative) ago")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            if let error = health.lastError {
+                Text(error)
+                    .font(.caption)
+                    .foregroundColor(.red)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            Spacer()
+            Button {
+                Task { await health.syncNow() }
+            } label: {
+                HStack {
+                    if health.isSyncing {
+                        ProgressView().tint(.white)
+                    }
+                    Text(health.isSyncing ? "Syncing..." : "Sync Now")
+                }
+                .font(.headline)
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(Color.teal)
+                .foregroundColor(.white)
+                .cornerRadius(12)
+            }
+            .disabled(health.isSyncing || !health.isAuthorized)
+            Button("Disconnect") {
+                athleteId = ""
+                apiUrl = ""
+                health.disconnect()
+            }
+            .font(.subheadline)
+            .foregroundColor(.secondary)
         }
     }
 }
