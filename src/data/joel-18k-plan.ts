@@ -47,7 +47,7 @@ const joelPlan: TrainingPlan = {
     {
       num: 1, dates: 'Apr 13–19', miles: 12, focus: 'Base building. Establish trail routine. Easy volume.',
       days: [
-        { day: 'Mon 4/13', type: 'strength', workout: 'STRENGTH', detail: 'Goblet squats 3×12 · Walking lunges 3×10/leg · Step-ups 3×10/leg · RDL w/ DB 3×10 · Plank 3×45s', zone: 'Z1 (96–113)', route: 'Gym', time: '1 hr' },
+        { day: 'Mon 4/13', type: 'strength', workout: 'STRENGTH', detail: 'Goblet squats 3×15 · Walking lunges 3×12/leg · Step-ups 3×12/leg · RDL w/ DB 3×12 · Plank 3×45s', zone: 'Z1 (96–113)', route: 'Gym', time: '1 hr' },
         { day: 'Tue 4/14', type: 'run', workout: 'Easy run', detail: 'Conversational pace. You have road speed — now learn to run easy on trails.', zone: '4.0 mi · Z1–2 (96–131)', route: 'Temescal Lake Park', time: '40 min' },
         { day: 'Wed 4/15', type: 'rest', workout: 'Rest', detail: '', zone: '—', route: '—', time: '—' },
         { day: 'Thu 4/16', type: 'run', workout: 'Easy run', detail: 'Gentle rolling hills. Run by feel, not pace. Trail pace is slower than road — that\'s normal.', zone: '3.0 mi · Z1–2 (96–131)', route: 'Rockridge neighborhood', time: '35 min' },
@@ -59,7 +59,7 @@ const joelPlan: TrainingPlan = {
     {
       num: 2, dates: 'Apr 20–26', miles: 14, focus: 'First structured hill work. Build vertical tolerance.',
       days: [
-        { day: 'Mon 4/20', type: 'strength', workout: 'STRENGTH', detail: 'BB back squat 3×10 · Bulgarian split squat 3×8/leg · Leg press 3×12 · Calf raises 3×15 · Dead bugs 3×10/side', zone: 'Z1 (96–113)', route: 'Gym', time: '1 hr 10 min' },
+        { day: 'Mon 4/20', type: 'strength', workout: 'STRENGTH', detail: 'Goblet squats 3×15 · Bulgarian split squat 3×10/leg · Step-ups 3×12/leg · Calf raises 3×15 · Dead bugs 3×10/side', zone: 'Z1 (96–113)', route: 'Gym', time: '1 hr 10 min' },
         { day: 'Tue 4/21', type: 'run', workout: 'Easy run', detail: 'Conversational pace. Recovery from weekend.', zone: '4.0 mi · Z1–2 (96–131)', route: 'Temescal Lake + neighborhood', time: '40 min' },
         { day: 'Wed 4/22', type: 'rest', workout: 'Rest', detail: '', zone: '—', route: '—', time: '—' },
         { day: 'Thu 4/23', type: 'quality', workout: 'Hill repeats', detail: '4×90 sec uphill @ Z3, jog down recovery. First intensity session. Your road fitness transfers — just add gradient.', zone: '4.0 mi · Z3 intervals (131–148)', route: 'Claremont Canyon fire road', time: '55 min' },
@@ -71,7 +71,7 @@ const joelPlan: TrainingPlan = {
     {
       num: 3, dates: 'Apr 27–May 3', miles: 16, focus: 'Build volume. Tempo work introduced. Technical footing.',
       days: [
-        { day: 'Mon 4/27', type: 'strength', workout: 'STRENGTH', detail: 'BB squat 3×10 · Eccentric step-downs 3×8/leg · RDL w/ DB 3×10 · Bird dogs 3×8/side · Plank 3×45s', zone: 'Z1 (96–113)', route: 'Gym', time: '1 hr' },
+        { day: 'Mon 4/27', type: 'strength', workout: 'STRENGTH', detail: 'Goblet squats 3×15 · Walking lunges 3×12/leg · Step-ups 3×12/leg · RDL w/ DB 3×12 · Plank 3×45s', zone: 'Z1 (96–113)', route: 'Gym', time: '1 hr' },
         { day: 'Tue 4/28', type: 'run', workout: 'Easy run', detail: 'Conversational. Flat to gentle rolling.', zone: '4.5 mi · Z1–2 (96–131)', route: 'Temescal Lake → Rockridge loop', time: '45 min' },
         { day: 'Wed 4/29', type: 'rest', workout: 'Rest', detail: '', zone: '—', route: '—', time: '—' },
         { day: 'Thu 4/30', type: 'quality', workout: 'Tempo intervals', detail: '3×5 min @ Z3 uphill, 3 min easy between. Sustained uphill tempo — this is race-relevant climbing.', zone: '4.5 mi · Z3 (131–148)', route: 'Strawberry Canyon lower fire road', time: '1 hr' },
@@ -83,7 +83,7 @@ const joelPlan: TrainingPlan = {
     {
       num: 4, dates: 'May 4–10', miles: 18, focus: 'Race-specific vert. POLES introduced. Eccentric strength.',
       days: [
-        { day: 'Mon 5/4', type: 'strength', workout: 'STRENGTH', detail: 'BB squat 4×8 · Eccentric squat (4-sec lower) 3×6 · Nordic curl 3×5 · Eccentric calf drops 3×12/leg · Plank 3×45s', zone: 'Z1 (96–113)', route: 'Gym', time: '1 hr 15 min' },
+        { day: 'Mon 5/4', type: 'strength', workout: 'STRENGTH', detail: 'Goblet squats 3×15 · Eccentric step-downs 3×10/leg · Bulgarian split squat 3×10/leg · Eccentric calf drops 3×12/leg · Plank 3×45s', zone: 'Z1 (96–113)', route: 'Gym', time: '1 hr 15 min' },
         { day: 'Tue 5/5', type: 'run', workout: 'Easy run', detail: 'Comfortable effort. Focus on relaxed cadence.', zone: '5.0 mi · Z1–2 (96–131)', route: 'Temescal Lake + Hardy Park', time: '50 min' },
         { day: 'Wed 5/6', type: 'rest', workout: 'Rest', detail: '', zone: '—', route: '—', time: '—' },
         { day: 'Thu 5/7', type: 'quality', workout: 'Hill bounding', detail: '5×60 sec max effort uphill, walk down, 3-min recovery. Build explosive uphill power.', zone: '4.5 mi · Z4 bounds (148–157)', route: 'Claremont Canyon fire road', time: '1 hr 10 min' },
@@ -107,7 +107,7 @@ const joelPlan: TrainingPlan = {
     {
       num: 6, dates: 'May 18–24', miles: 22, focus: 'Build block 2. Sustained climbing. Poles on all hill days.',
       days: [
-        { day: 'Mon 5/18', type: 'strength', workout: 'STRENGTH', detail: 'BB squat 4×8 · Eccentric step-downs 3×8/leg · RDL 3×10 · Weighted hip thrust 3×10 · Side plank 3×30s/side', zone: 'Z1 (96–113)', route: 'Gym', time: '1 hr 15 min' },
+        { day: 'Mon 5/18', type: 'strength', workout: 'STRENGTH', detail: 'Step-ups 3×15/leg · Eccentric step-downs 3×10/leg · RDL w/ DB 3×12 · Glute bridge 3×15 · Side plank 3×30s/side', zone: 'Z1 (96–113)', route: 'Gym', time: '1 hr 15 min' },
         { day: 'Tue 5/19', type: 'run', workout: 'Easy run', detail: 'Rolling hills with Bay views. Stay aerobic.', zone: '5.5 mi · Z1–2 (96–131)', route: 'Temescal → Piedmont → Mtn View Cemetery', time: '55 min' },
         { day: 'Wed 5/20', type: 'rest', workout: 'Rest', detail: '', zone: '—', route: '—', time: '—' },
         { day: 'Thu 5/21', type: 'quality', workout: 'Uphill tempo w/ POLES 🥾', detail: '2×10 min sustained climb @ Z3, 5 min easy between. Practice plant cadence.', zone: '5.5 mi · Z3 (131–148)', route: 'Stonewall-Panoramic → Claremont Canyon', time: '1 hr 15 min' },
@@ -119,7 +119,7 @@ const joelPlan: TrainingPlan = {
     {
       num: 7, dates: 'May 25–31', miles: 25, focus: 'Peak volume. Race simulation. Biggest training week.',
       days: [
-        { day: 'Mon 5/25', type: 'strength', workout: 'STRENGTH', detail: 'Back squat 4×6 (heavier) · SL leg press 3×10/leg · Eccentric Nordic curls 3×5 · Weighted calf raises 3×15 · Dead bugs 3×10/side', zone: 'Z1 (96–113)', route: 'Gym', time: '1 hr 15 min' },
+        { day: 'Mon 5/25', type: 'strength', workout: 'STRENGTH', detail: 'Bulgarian split squat 3×12/leg · Step-ups 3×15/leg · Eccentric Nordic curls 3×5 · Calf raises 3×20 · Dead bugs 3×10/side', zone: 'Z1 (96–113)', route: 'Gym', time: '1 hr 15 min' },
         { day: 'Tue 5/26', type: 'run', workout: 'Easy run', detail: 'Legs may be tired from Monday. Honor the fatigue.', zone: '5.5 mi · Z1–2 (96–131)', route: 'Temescal Lake + neighborhood', time: '55 min' },
         { day: 'Wed 5/27', type: 'rest', workout: 'Rest', detail: '', zone: '—', route: '—', time: '—' },
         { day: 'Thu 5/28', type: 'quality', workout: 'Race-pace intervals w/ POLES 🥾', detail: '4×6 min @ Z3–4 uphill, jog/walk down. Hardest intensity session.', zone: '5.5 mi · Z3–4 (131–157)', route: 'Strawberry Canyon Escalator repeats', time: '1 hr 20 min' },

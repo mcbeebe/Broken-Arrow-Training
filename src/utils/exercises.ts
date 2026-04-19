@@ -10,8 +10,8 @@ const GUIDES: Record<string, ExerciseGuide> = {
   'goblet squat': {
     name: 'Goblet Squat',
     aka: 'A squat holding a dumbbell at your chest',
-    weight: '35 lb dumbbell',
-    rest: '60-90 sec between sets',
+    weight: '20-30 lb dumbbell (focus on control, not load)',
+    rest: '60 sec between sets',
     form: [
       'Hold the dumbbell vertically at your chest, cupping the top end with both hands.',
       'Feet shoulder-width apart, toes turned out slightly (~15°).',
@@ -24,8 +24,8 @@ const GUIDES: Record<string, ExerciseGuide> = {
   'bb back squat': {
     name: 'Barbell Back Squat',
     aka: 'The classic squat with a barbell on your upper back',
-    weight: '135 lb (bar + 45 lb plates each side)',
-    rest: '90-120 sec between sets',
+    weight: '95-115 lb (moderate — muscular endurance focus)',
+    rest: '60-90 sec between sets',
     form: [
       'Bar sits on your upper traps (high bar) — NOT on your neck bones.',
       'Feet shoulder-width, toes slightly out. Grip the bar wider than shoulders.',
@@ -39,8 +39,8 @@ const GUIDES: Record<string, ExerciseGuide> = {
   'back squat': {
     name: 'Barbell Back Squat',
     aka: 'The classic squat with a barbell on your upper back',
-    weight: '145-155 lb (heavier week)',
-    rest: '2 min between sets (heavier load)',
+    weight: '95-115 lb (moderate — muscular endurance focus)',
+    rest: '60-90 sec between sets',
     form: [
       'Bar sits on your upper traps (high bar) — NOT on your neck bones.',
       'Feet shoulder-width, toes slightly out. Grip the bar wider than shoulders.',
@@ -54,8 +54,8 @@ const GUIDES: Record<string, ExerciseGuide> = {
   'bb squat': {
     name: 'Barbell Back Squat',
     aka: 'The classic squat with a barbell on your upper back',
-    weight: '135-145 lb',
-    rest: '90-120 sec between sets',
+    weight: '95-115 lb (moderate — muscular endurance focus)',
+    rest: '60-90 sec between sets',
     form: [
       'Bar sits on your upper traps (high bar) — NOT on your neck bones.',
       'Feet shoulder-width, toes slightly out. Grip the bar wider than shoulders.',
@@ -68,8 +68,8 @@ const GUIDES: Record<string, ExerciseGuide> = {
   'bulgarian split squat': {
     name: 'Bulgarian Split Squat',
     aka: 'A single-leg squat with your back foot elevated on a bench',
-    weight: '20-25 lb dumbbells (one in each hand)',
-    rest: '60-90 sec between sets (each leg counts as a set)',
+    weight: 'Bodyweight or 10-15 lb dumbbells (one in each hand)',
+    rest: '60 sec between sets (each leg counts as a set)',
     form: [
       'Stand 2-3 feet in front of a bench. Put the top of your back foot on the bench.',
       'Hold a dumbbell in each hand at your sides.',
@@ -83,8 +83,8 @@ const GUIDES: Record<string, ExerciseGuide> = {
   'leg press': {
     name: 'Leg Press',
     aka: 'Machine exercise where you push a weighted sled with your feet',
-    weight: '180-225 lb (machine)',
-    rest: '60-90 sec between sets',
+    weight: '135-160 lb (machine — moderate, focus on endurance)',
+    rest: '60 sec between sets',
     form: [
       'Sit in the machine with your back flat against the pad.',
       'Feet hip-width apart on the platform, positioned in the middle.',
@@ -97,7 +97,7 @@ const GUIDES: Record<string, ExerciseGuide> = {
   'sl leg press': {
     name: 'Single-Leg Leg Press',
     aka: 'Leg press using one leg at a time — builds trail-running balance',
-    weight: '90-115 lb (machine, per leg)',
+    weight: '70-90 lb (machine, per leg)',
     rest: '60 sec between legs',
     form: [
       'Same setup as regular leg press, but only one foot on the platform.',
@@ -111,7 +111,7 @@ const GUIDES: Record<string, ExerciseGuide> = {
   'rdl': {
     name: 'Romanian Deadlift (RDL)',
     aka: 'A hip hinge exercise — you bend forward at the hips while keeping your legs nearly straight. NOT a squat.',
-    weight: '35 lb dumbbells (one in each hand) or 95 lb barbell',
+    weight: '20-25 lb dumbbells (one in each hand)',
     rest: '60-90 sec between sets',
     form: [
       'Stand with feet hip-width. Hold dumbbells in front of your thighs (or barbell).',
@@ -181,7 +181,7 @@ const GUIDES: Record<string, ExerciseGuide> = {
   'weighted calf raise': {
     name: 'Weighted Calf Raises',
     aka: 'Calf raises holding extra weight for added resistance',
-    weight: '35-45 lb dumbbell in one hand',
+    weight: '20-30 lb dumbbell in one hand',
     rest: '60 sec between sets',
     form: [
       'Stand on a step edge. Hold a dumbbell in one hand, other hand on wall for balance.',
@@ -206,7 +206,7 @@ const GUIDES: Record<string, ExerciseGuide> = {
   'eccentric squat': {
     name: 'Eccentric Squat (4-sec lower)',
     aka: 'A squat where you lower very slowly — the lowering is the hard part',
-    weight: '115-135 lb barbell',
+    weight: '75-95 lb barbell (or goblet squat with 25 lb DB)',
     rest: '90 sec between sets',
     form: [
       'Set up like a normal back squat.',
@@ -332,7 +332,7 @@ const GUIDES: Record<string, ExerciseGuide> = {
   'weighted hip thrust': {
     name: 'Weighted Hip Thrust',
     aka: 'Like a glute bridge but with your back on a bench and a barbell on your hips',
-    weight: '95-115 lb barbell across hips (use a bar pad)',
+    weight: '65-85 lb barbell across hips (use a bar pad)',
     rest: '60-90 sec between sets',
     form: [
       'Sit on the floor with your upper back against a bench. Barbell across your hip crease.',

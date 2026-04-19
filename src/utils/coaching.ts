@@ -36,17 +36,17 @@ function getTypeCoaching(day: PlannedDay, phase: Phase): Omit<CoachingNarrative,
       return {
         title: 'Strength Session',
         purpose: phase === 'base'
-          ? 'Building the muscular foundation for mountain running. Strength work now prevents injury later and builds the power you\'ll need for 3,800 ft of climbing on race day.'
+          ? 'Building muscular endurance for mountain running. Uphill Athlete approach: lighter loads, higher reps, single-leg focus. This prevents injury and builds the sustained power you need for 3,800 ft of climbing.'
           : phase === 'taper'
           ? 'Maintenance-only strength. You\'re preserving neuromuscular connections without creating fatigue. Keep it light — the hard work is done.'
-          : 'Building eccentric strength for steep descents and concentric power for sustained climbs. This directly translates to race-day performance on Broken Arrow\'s technical terrain.',
+          : 'Muscular endurance for sustained climbs and eccentric control for steep descents. Lighter loads, more reps, single-leg movements — this is how mountain athletes train.',
         execution: [
           'WARM-UP (5-7 min): Foam roll quads & calves (1 min each) → 20 leg swings per side → 10 bodyweight squats → 10 walking lunges → 10 hip circles per side.',
-          'Work through the exercises in order (see guides below). Tap any exercise for form cues and suggested weights.',
-          'Tempo: 2 sec up, 2-3 sec down on every rep. Control the lowering phase.',
+          'Work through the exercises in order (see guides below). Tap any exercise for form cues.',
+          'Keep the weight moderate — you should finish each set feeling like you had 2-3 reps left. Muscular endurance, not max strength.',
           phase === 'build' || phase === 'peak'
             ? 'Eccentric work is key this phase: count "one-Mississippi, two-Mississippi" on every lowering. Your quads will thank you on the Shirley Canyon descent.'
-            : 'Full range of motion on every rep. If form breaks, reduce weight.',
+            : 'Full range of motion on every rep. Tempo: 2 sec up, 3 sec down. Control the lowering phase.',
           'COOL-DOWN (5 min): Quad stretch 30s/leg → Calf stretch 30s/leg → Hip flexor stretch 30s/leg → Pigeon pose 30s/leg.',
         ],
         mindset: phase === 'base'
