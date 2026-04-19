@@ -17,9 +17,10 @@ struct DailyHealth: Identifiable {
 @MainActor
 class HealthManager: ObservableObject {
     private let store = HKHealthStore()
-    private var athleteId: String = ""
+    /// Auth context, injected by the app shell. The server derives
+    /// athleteId from the JWT, so we don't track it separately here.
     private var apiUrl: String = ""
-    private var apiKey: String = ""
+    private var sessionToken: String = ""
 
     @Published var isAuthorized = false
     @Published var isSyncing = false
@@ -27,16 +28,14 @@ class HealthManager: ObservableObject {
     @Published var lastError: String?
     @Published var todayData: DailyHealth?
 
-    func configure(athleteId: String, apiUrl: String, apiKey: String) {
-        self.athleteId = athleteId
+    func configure(apiUrl: String, sessionToken: String) {
         self.apiUrl = apiUrl.hasSuffix("/") ? String(apiUrl.dropLast()) : apiUrl
-        self.apiKey = apiKey
+        self.sessionToken = sessionToken
     }
 
     func disconnect() {
-        athleteId = ""
         apiUrl = ""
-        apiKey = ""
+        sessionToken = ""
         isAuthorized = false
         lastSyncDate = nil
         todayData = nil
@@ -68,9 +67,9 @@ class HealthManager: ObservableObject {
     }
 
     func syncNow() async {
-        guard !athleteId.isEmpty, !apiUrl.isEmpty, !apiKey.isEmpty else {
-            if apiKey.isEmpty {
-                lastError = "API key required"
+        guard !apiUrl.isEmpty, !sessionToken.isEmpty else {
+            if sessionToken.isEmpty {
+                lastError = "Not signed in"
             }
             return
         }
@@ -247,18 +246,13 @@ class HealthManager: ObservableObject {
     // MARK: - Upload
 
     private func uploadRecords(_ records: [[String: Any]]) async throws {
-        guard var comps = URLComponents(string: "\(apiUrl)/api/apple/health") else {
+        guard let url = URL(string: "\(apiUrl)/api/apple/health") else {
             throw URLError(.badURL)
         }
-        comps.queryItems = [URLQueryItem(name: "athlete", value: athleteId)]
-        guard let url = comps.url else {
-            throw URLError(.badURL)
-        }
-
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        request.setValue("Bearer \(sessionToken)", forHTTPHeaderField: "Authorization")
         request.httpBody = try JSONSerialization.data(withJSONObject: ["records": records])
 
         let (data, response) = try await URLSession.shared.data(for: request)

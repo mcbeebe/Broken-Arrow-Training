@@ -1,6 +1,6 @@
 """Apple Health data receiver and query endpoint.
 
-POST /api/apple/health?athlete=mike
+POST /api/apple/health
 - Receives health data from the iOS companion app
 - Body: { "records": [ { "date": "2026-04-17", "hrv": 42.5, "rhr": 58,
           "sleepSeconds": 27000, "deepSeconds": 9000, "remSeconds": 5400,
@@ -8,18 +8,18 @@ POST /api/apple/health?athlete=mike
 - Stores per-athlete per-date in Upstash KV
 - Returns: { "ok": true, "stored": N }
 
-GET /api/apple/health?athlete=mike&days=7
+GET /api/apple/health?days=7
 - Returns stored health data for this athlete in same shape as
   Garmin /api/garmin/health so the readiness engine works unchanged
 - Response: { "dates": [ { date, hrv?, rhr?, sleep?, bodyBattery?:null }, ... ] }
 
-Auth: both POST and GET require an Authorization: Bearer <key> header
-matching the APPLE_HEALTH_API_KEY env var on the server. If the env var
-is unset the endpoint fails closed (503) — we do NOT allow unauthenticated
-access as a fallback.
+Auth: both POST and GET require an Authorization: Bearer <jwt> header
+where <jwt> is a session token minted by /api/auth/google. The athlete
+identity is derived from the token, not the query string, so a signed-in
+user can't read or write another user's data. Fails closed (503) if
+OAUTH_JWT_SECRET is not configured.
 """
 
-import hmac
 import json
 import os
 import urllib.request
@@ -27,6 +27,8 @@ import urllib.parse
 from datetime import datetime, timedelta
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
+
+from ._helpers import authenticate
 
 
 def _kv_headers():
@@ -74,29 +76,12 @@ def _index_key(athlete: str) -> str:
     return f"apple_health_dates_{athlete}"
 
 
-def _athlete(path: str) -> str | None:
+def _query_athlete(path: str) -> str | None:
+    """Legacy: some callers still pass ?athlete=mike. We compare it to
+    the JWT's athleteId and reject mismatches."""
     q = parse_qs(urlparse(path).query)
     v = q.get("athlete", [None])
     return v[0] if v and v[0] else None
-
-
-def _check_auth(handler_self) -> tuple[bool, int, str]:
-    """Validate Authorization: Bearer <key> against APPLE_HEALTH_API_KEY.
-
-    Returns (ok, status_code, error_message). Fails closed if the env
-    var is unset so a misconfigured deploy can't accidentally expose
-    the endpoint.
-    """
-    expected = os.environ.get("APPLE_HEALTH_API_KEY", "")
-    if not expected:
-        return (False, 503, "server misconfigured: APPLE_HEALTH_API_KEY not set")
-    header = handler_self.headers.get("Authorization", "")
-    if not header.startswith("Bearer "):
-        return (False, 401, "missing or invalid Authorization header")
-    provided = header[len("Bearer "):].strip()
-    if not hmac.compare_digest(provided.encode(), expected.encode()):
-        return (False, 401, "invalid API key")
-    return (True, 200, "")
 
 
 def _normalize(raw: dict) -> dict:
@@ -145,14 +130,17 @@ class handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         try:
-            ok, status, msg = _check_auth(self)
+            ok, status, msg, athlete = authenticate(self)
             if not ok:
                 self._json(status, {"error": msg})
                 return
 
-            athlete = _athlete(self.path)
-            if not athlete:
-                self._json(400, {"error": "athlete query param required"})
+            # If a legacy client passes ?athlete=..., make sure it matches
+            # the identity in the token — never let a signed-in user write
+            # data under someone else's athleteId.
+            q_athlete = _query_athlete(self.path)
+            if q_athlete and q_athlete != athlete:
+                self._json(403, {"error": "athlete query param does not match authenticated user"})
                 return
 
             content_length = int(self.headers.get("Content-Length", 0))
@@ -193,16 +181,17 @@ class handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         try:
-            ok, status, msg = _check_auth(self)
+            ok, status, msg, athlete = authenticate(self)
             if not ok:
                 self._json(status, {"error": msg})
                 return
 
-            q = parse_qs(urlparse(self.path).query)
-            athlete = _athlete(self.path)
-            if not athlete:
-                self._json(400, {"error": "athlete required"})
+            q_athlete = _query_athlete(self.path)
+            if q_athlete and q_athlete != athlete:
+                self._json(403, {"error": "athlete query param does not match authenticated user"})
                 return
+
+            q = parse_qs(urlparse(self.path).query)
 
             days = min(int(q.get("days", ["7"])[0]), 180)
             cutoff = (datetime.utcnow() - timedelta(days=days)).date().isoformat()

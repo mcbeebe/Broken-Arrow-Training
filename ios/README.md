@@ -6,27 +6,36 @@ readiness engine can use Apple Watch data alongside (or instead of) Garmin.
 
 ## What it does
 
-1. Asks for HealthKit read permission for:
+1. User taps **Sign in with Google**. The Google Sign-In sheet appears;
+   they pick their account. The iOS app exchanges the resulting Google
+   ID token for a Broken Arrow session JWT via `POST /api/auth/google`,
+   which maps the verified email to an athleteId.
+2. The session JWT is stored in the iOS Keychain (device-only, no
+   iCloud sync).
+3. The app asks for HealthKit read permission for:
    - `HKQuantityTypeIdentifierHeartRateVariabilitySDNN`
    - `HKQuantityTypeIdentifierRestingHeartRate`
    - `HKCategoryTypeIdentifierSleepAnalysis`
-2. On **Sync last 7 days**, queries HealthKit per-day, averages HRV/RHR,
-   sums sleep stages, and POSTs the batch to
-   `POST {API}/api/apple/health?athlete={id}`.
-3. The backend stores the normalized records in Upstash KV under
+4. On **Sync**, it queries HealthKit per-day, averages HRV/RHR, sums
+   sleep stages, and POSTs the batch to `POST {API}/api/apple/health`
+   with `Authorization: Bearer <session-jwt>`. The server reads the
+   athleteId from the JWT — clients can't write to anyone else's data.
+5. The backend stores the normalized records in Upstash KV under
    `apple_health_{athlete}_{date}`, then the web app reads them back via
-   `GET /api/apple/health?athlete={id}&days=7` and feeds them into the
-   same readiness pipeline as Garmin.
+   `GET /api/apple/health?days=7` and feeds them into the same
+   readiness pipeline as Garmin.
 
 ## Project layout
 
 ```
 ios/BrokenArrowHealth/
   BrokenArrowHealth/
-    BrokenArrowHealthApp.swift          # @main entry point
-    ContentView.swift                   # SwiftUI form + Sync button
+    BrokenArrowHealthApp.swift          # @main entry point, URL handler
+    ContentView.swift                   # Sign-in + sync UI
+    AuthManager.swift                   # Google Sign-In → session JWT
     HealthManager.swift                 # HKHealthStore queries + upload
-    Info.plist                          # NSHealthShareUsageDescription
+    KeychainStore.swift                 # Keychain wrapper for JWT
+    Info.plist                          # usage strings + URL scheme
     BrokenArrowHealth.entitlements      # HealthKit capability
     Assets.xcassets/                    # AppIcon + AccentColor
     Preview Content/
@@ -68,41 +77,90 @@ No `.xcodeproj` is checked in. You create one in Xcode the first time
      `BrokenArrowHealth/BrokenArrowHealth.entitlements`.
 10. Minimum deployment: iOS 17.0.
 
-## Set the server API key (one time, before first run)
+## Add the Google Sign-In SDK (Swift Package Manager)
 
-The `/api/apple/health` endpoint requires an `Authorization: Bearer <key>`
-header on every request. Generate a strong random key and set it in two
-places:
+1. In Xcode, select the project → **Package Dependencies** tab → **+**.
+2. Paste `https://github.com/google/GoogleSignIn-iOS` and click Add.
+3. Choose **Up to Next Major** starting at `7.1.0` (or later).
+4. Pick the `GoogleSignIn` library and add it to the
+   `BrokenArrowHealth` target.
 
+## Create the iOS OAuth client in Google Cloud
+
+The iOS app uses its own OAuth client ID (different from the web app's).
+
+1. Open <https://console.cloud.google.com/apis/credentials> for the
+   same project your web Sign-In uses.
+2. **Create Credentials → OAuth client ID**.
+3. Application type: **iOS**.
+4. Bundle ID: **must exactly match** the bundle identifier Xcode shows
+   under the target's **General** tab (e.g. `com.yourdomain.BrokenArrowHealth`).
+5. Click Create. Copy two things from the detail page:
+   - **Client ID**: looks like `1234-abcd.apps.googleusercontent.com`.
+   - **iOS URL scheme**: the client ID reversed, e.g.
+     `com.googleusercontent.apps.1234-abcd`.
+
+## Wire the client ID into the iOS app
+
+1. In Xcode, open `BrokenArrowHealth/Info.plist`.
+2. Add a top-level string key `GIDClientID` with the **Client ID** value.
+3. Add a `CFBundleURLTypes` array with one URL type whose
+   `CFBundleURLSchemes` contains the **iOS URL scheme** above.
+
+Info.plist fragment:
+
+```xml
+<key>GIDClientID</key>
+<string>1234-abcd.apps.googleusercontent.com</string>
+<key>CFBundleURLTypes</key>
+<array>
+  <dict>
+    <key>CFBundleURLSchemes</key>
+    <array>
+      <string>com.googleusercontent.apps.1234-abcd</string>
+    </array>
+  </dict>
+</array>
 ```
-# 1. In Vercel project settings → Environment Variables
-APPLE_HEALTH_API_KEY=<paste-64-char-random-string>
 
-# Example generator:
-python3 -c "import secrets; print(secrets.token_urlsafe(48))"
-```
+## Set the Vercel env vars
 
-Trigger a Vercel redeploy after setting the env var so the function
-picks it up. If the env var is unset the endpoint fails closed (503)
-— it will **not** accidentally allow unauthenticated access.
+The server needs to accept ID tokens from the iOS OAuth client when
+they hit `/api/auth/google`. Add (or confirm) these in Vercel:
+
+- `GOOGLE_CLIENT_ID` — your existing **web** Google OAuth client ID
+- `GOOGLE_CLIENT_ID_IOS` — the new **iOS** Google OAuth client ID
+- `OAUTH_JWT_SECRET` — already set; used to sign session JWTs
+- `ATHLETE_EMAILS` — already set; maps verified emails to athleteIds
+
+The Apple Health endpoint now fails closed with 503 if
+`OAUTH_JWT_SECRET` is unset, so a misconfigured deploy can't leak data.
+
+(The previous `APPLE_HEALTH_API_KEY` shared-secret env var is no longer
+used — you can remove it.)
 
 ## Run it on your Watch-paired iPhone
 
 1. Plug in your iPhone, select it as the run destination.
 2. Build + Run (`⌘R`).
-3. On first launch, tap **Grant HealthKit access** and allow HRV, RHR,
-   and Sleep. (If you accidentally deny, fix it at
+3. On first launch, enter the API URL
+   (`https://broken-arrow-training.vercel.app` by default) and tap
+   **Sign in with Google**. Pick the account tied to your athlete email.
+4. Tap **Grant HealthKit access** and allow HRV, RHR, and Sleep.
+   (If you accidentally deny, fix it at
    Settings → Health → Data Access & Devices → Broken Arrow Health.)
-4. Enter your athlete id (e.g. `mike`), the API URL
-   (`https://broken-arrow-training.vercel.app` by default), and paste
-   the same `APPLE_HEALTH_API_KEY` value you set on Vercel.
-5. Tap **Sync last 7 days**. You should see `Uploaded N days` and a
-   preview list of the records. Open the web app's Readiness tab to
-   confirm the numbers appear.
+5. Tap **Sync Now**. You should see the last sync timestamp update.
+   Open the web app's Readiness tab to confirm the numbers appear.
 
-If you see `401 invalid API key`, the key on the phone doesn't match
-the server env var — paste the Vercel value again. If you see
-`503 server misconfigured`, the env var isn't set on Vercel yet.
+Troubleshooting:
+- **"Invalid client ID"** on sign-in — `GOOGLE_CLIENT_ID_IOS` on Vercel
+  doesn't match the client ID the iOS app is using. Re-copy it from
+  Google Cloud Console.
+- **"No athlete account found"** — the verified Google email isn't in
+  the `ATHLETE_EMAILS` env var on Vercel. Add it and redeploy.
+- **"missing or invalid Authorization header"** on upload — the iOS
+  session JWT expired (1 year TTL) or was cleared. Sign out and sign
+  back in to refresh.
 
 ## Distributing via TestFlight
 
@@ -138,9 +196,11 @@ missing fields gracefully.
   new Watch users may not have 7 days yet.
 - **"Authorization failed"** — Check Settings → Health → Data Access &
   Devices → Broken Arrow Health and toggle on the three categories.
-- **401/403 from upload** — The endpoint is public (no auth); if you
-  see this it's a Vercel deployment protection issue. Make sure the
-  API URL points to production, not a preview deployment.
+- **401 from upload** — Session JWT expired (1 year TTL) or was
+  revoked (JWT secret rotated). Sign out and sign back in.
+- **403 from upload** — The `?athlete=X` query param didn't match the
+  athleteId in the JWT. Remove the param (the server derives identity
+  from the token now).
 - **Dates are off by one** — HealthKit returns samples in UTC but we
   bucket by local day. If you travel across time zones, sync after
   you've been in the new zone for a full night's sleep.
