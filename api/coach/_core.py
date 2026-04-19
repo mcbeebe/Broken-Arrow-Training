@@ -231,7 +231,14 @@ Principles:
 - Never moralize, never lecture about basics the athlete already knows.
 - If the context snapshot is missing data needed to answer confidently, say so rather than guessing.
 - DATES: Always check the "Today:" line in the context for the current date and day of the week. Never guess what day it is. When referencing "tomorrow" or "the day after," compute from today's date. CRITICAL: If an activity's date matches the "Today:" date, say "today" — NEVER "yesterday." Compare date strings character-by-character before using temporal words. If the same date appears on both the "Today:" line and a "Today actual:" / recent activity line, that activity was TODAY. Do not say "yesterday" about a same-day activity under any circumstance.
-- DATA INTEGRITY (PRs, previous times, comparisons): ONLY cite a PR, previous time, or improvement delta if it is LITERALLY present in the context — specifically on a "Prior best at ~Xmi" line or another explicit prior-time line. If the context says "Prior best at ~Xmi: NONE in context window," you MUST NOT claim a PR, cite a previous effort, or compare today's time to any earlier time. Do not infer baselines from activity names, planned workouts, or memory. If no baseline line exists, omit the comparison entirely — say "no prior effort at this distance in the window" or simply don't mention PR. Fabricating a "96-second PR" or similar number is a hard failure.
+- DATA INTEGRITY (PRs, previous times, comparisons): The context contains a "PR_STATUS:" line when today has a completed activity. This line is the SOLE authority on PR claims. You MUST obey it literally:
+  - If "PR_STATUS: NO" — the athlete was SLOWER than their prior best. You MUST NOT say "PR," "faster," "minute faster," "seconds faster," or any framing that implies improvement over a prior time. State plainly they were X slower than the prior best. Congratulate the effort if warranted, but do NOT fabricate an improvement.
+  - If "PR_STATUS: YES" — you may call it a PR and must use EXACTLY the delta shown (e.g., "40-second PR"). Do not invent a second or alternative delta. One delta number only.
+  - If "PR_STATUS: NO BASELINE" or "UNKNOWN" — do not claim a PR, do not cite a previous time, do not compare.
+  - If "PR_STATUS: TIE" — today matched prior; say so. Not a PR.
+  - Never output two different delta numbers (e.g., "a minute faster" and "40-second PR" in the same reply). The PR_STATUS line has ONE delta; use ONLY that one.
+  - Never infer baselines from activity names, planned workouts, or memory. The PR_STATUS line is ground truth.
+- PACE MATH: Never compute pace yourself. The "Today actual" and "Prior best" lines include a pre-computed "pace X:XX/mi" field — quote it verbatim. Do not divide time by distance in your head; you get it wrong.
 
 PROACTIVE RISK FLAGS:
 When the context includes "⚠️ ACTIVE RISK FLAGS," you have detected concerning trends that the athlete may not know about. You should:
@@ -970,20 +977,27 @@ def build_context_block(
         )
         if planned_today.get("actual"):
             a = planned_today["actual"]
-            out.append(
-                f"Today actual: {a.get('name', '')} · "
-                f"{_fmt_num(a.get('distance'))}mi · "
-                f"{_fmt_seconds_as_min(a.get('movingTime'))} · "
-                f"avgHR {a.get('avgHR') or '—'} · "
-                f"RPE {a.get('rpe') or '—'}"
-            )
-            # Pre-compute prior best time at this distance so the coach
-            # can make truthful PR comparisons instead of hallucinating.
-            # Baseline = fastest movingTime among prior activities within
-            # ±10% of today's distance. If none, say so explicitly.
             today_dist = a.get("distance") or 0
             today_time = a.get("movingTime") or 0
             today_date_key = a.get("startDate", "")[:10]
+            # Pre-compute today's pace so the coach never does pace math.
+            today_pace_str = "—"
+            if today_dist > 0 and today_time > 0:
+                pace_sec = today_time / today_dist
+                pm = int(pace_sec) // 60
+                ps = int(pace_sec) % 60
+                today_pace_str = f"{pm}:{ps:02d}/mi"
+            out.append(
+                f"Today actual: {a.get('name', '')} · "
+                f"{_fmt_num(today_dist)}mi · "
+                f"{_fmt_seconds_as_min(today_time)} · "
+                f"pace {today_pace_str} · "
+                f"avgHR {a.get('avgHR') or '—'} · "
+                f"RPE {a.get('rpe') or '—'}"
+            )
+            # Pre-compute prior best + EXPLICIT PR_STATUS so the coach
+            # cannot fabricate a PR. Baseline = fastest movingTime among
+            # prior activities within ±10% of today's distance.
             if today_dist > 0:
                 lo, hi = today_dist * 0.9, today_dist * 1.1
                 prior_best: dict[str, Any] | None = None
@@ -1000,23 +1014,54 @@ def build_context_block(
                     if prior_best is None or t < (prior_best.get("movingTime") or 0):
                         prior_best = prev
                 if prior_best:
-                    delta_s = (prior_best.get("movingTime") or 0) - today_time
-                    delta_str = ""
-                    if today_time > 0:
-                        sign = "faster" if delta_s > 0 else "slower" if delta_s < 0 else "same"
-                        delta_str = f" · today is {_fmt_seconds_as_min(abs(delta_s))} {sign}"
+                    pb_time = prior_best.get("movingTime") or 0
+                    pb_dist = prior_best.get("distance") or 0
+                    pb_pace_str = "—"
+                    if pb_dist > 0 and pb_time > 0:
+                        pb_pace_sec = pb_time / pb_dist
+                        pm = int(pb_pace_sec) // 60
+                        ps = int(pb_pace_sec) % 60
+                        pb_pace_str = f"{pm}:{ps:02d}/mi"
+                    delta_s = pb_time - today_time  # >0 means today faster
+                    if today_time > 0 and pb_time > 0:
+                        if delta_s > 0:
+                            pr_status = (
+                                f"PR_STATUS: YES — today ({_fmt_seconds_as_min(today_time)}) is "
+                                f"{_fmt_seconds_as_min(abs(delta_s))} FASTER than prior best "
+                                f"on {_fmt_date_with_dow(prior_best.get('startDate', ''))} "
+                                f"({_fmt_seconds_as_min(pb_time)}). You MAY call this a PR and MUST use "
+                                f"exactly '{_fmt_seconds_as_min(abs(delta_s))} PR' — no other delta."
+                            )
+                        elif delta_s < 0:
+                            pr_status = (
+                                f"PR_STATUS: NO — today ({_fmt_seconds_as_min(today_time)}) is "
+                                f"{_fmt_seconds_as_min(abs(delta_s))} SLOWER than prior best "
+                                f"on {_fmt_date_with_dow(prior_best.get('startDate', ''))} "
+                                f"({_fmt_seconds_as_min(pb_time)}). DO NOT call this a PR. "
+                                f"DO NOT say 'faster than'. State plainly that today was "
+                                f"{_fmt_seconds_as_min(abs(delta_s))} slower than the prior best."
+                            )
+                        else:
+                            pr_status = (
+                                f"PR_STATUS: TIE — today matches prior best "
+                                f"({_fmt_seconds_as_min(today_time)}). Do not call this a PR."
+                            )
+                    else:
+                        pr_status = "PR_STATUS: UNKNOWN — insufficient data. Do not claim a PR."
                     out.append(
                         f"Prior best at ~{_fmt_num(today_dist)}mi (±10%, in context window): "
                         f"{_fmt_date_with_dow(prior_best.get('startDate', ''))} · "
                         f"{prior_best.get('name', '')} · "
-                        f"{_fmt_num(prior_best.get('distance'))}mi · "
-                        f"{_fmt_seconds_as_min(prior_best.get('movingTime'))}"
-                        f"{delta_str}"
+                        f"{_fmt_num(pb_dist)}mi · "
+                        f"{_fmt_seconds_as_min(pb_time)} · pace {pb_pace_str}"
                     )
+                    out.append(pr_status)
                 else:
                     out.append(
-                        f"Prior best at ~{_fmt_num(today_dist)}mi: NONE in context window — "
-                        f"do NOT claim a PR or cite a previous time for this distance."
+                        f"Prior best at ~{_fmt_num(today_dist)}mi: NONE in context window."
+                    )
+                    out.append(
+                        "PR_STATUS: NO BASELINE — do NOT claim a PR or cite any previous time for this distance."
                     )
     if planned_tomorrow:
         out.append(
