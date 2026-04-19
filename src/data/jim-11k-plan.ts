@@ -72,7 +72,7 @@ const jimPlan: TrainingPlan = {
       num: 3, dates: 'Apr 27–May 3', miles: 17, focus: 'Build volume slightly. Tempo work introduced.',
       days: [
         { day: 'Mon 4/27', type: 'run', workout: 'Easy run', detail: 'Conversational. Flat and easy.', zone: '3.5 mi · Z1–2 (83–130)', route: 'South Bay Way → Ludlow trails', time: '42 min' },
-        { day: 'Tue 4/28', type: 'strength', workout: 'STRENGTH', detail: 'Chair-assisted squats (sit-to-stand) 2×10 · Wall push-ups 2×10 · Standing calf raises (holding chair) 2×12 · Bird dogs 2×8/side · Single-leg stands 3×20s/side', zone: 'Z1 (83–115)', route: '🏠 Home gym', time: '30 min' },
+        { day: 'Tue 4/28', type: 'strength', workout: 'STRENGTH', detail: 'Goblet squats 3×12 (15 lb) · Eccentric step-downs 3×8/leg · RDL w/ DB 3×10 (15 lb) · Bird dogs 3×8/side · Plank 3×45s', zone: 'Z1 (83–115)', route: '🏠 Home gym', time: '35 min' },
         { day: 'Wed 4/29', type: 'run', workout: 'Easy run + strides', detail: 'Easy effort + 4×20 sec strides.', zone: '3.5 mi · Z1–2 (83–130)', route: 'Larry Scott Trail', time: '42 min' },
         { day: 'Thu 4/30', type: 'rest', workout: 'Rest or easy walk', detail: '2 mi walk or stretching/mobility.', zone: '—', route: 'South Bay Way neighborhood', time: '30 min' },
         { day: 'Fri 5/1', type: 'quality', workout: 'Tempo intervals', detail: '3×4 min @ Z3, 3 min easy between. Sustained but controlled effort.', zone: '3.5 mi · Z3 (130–145)', route: 'Larry Scott Trail (flat sections)', time: '50 min' },
@@ -84,7 +84,7 @@ const jimPlan: TrainingPlan = {
       num: 4, dates: 'May 4–10', miles: 18, focus: 'Race-specific vert. Poles introduced on hikes.',
       days: [
         { day: 'Mon 5/4', type: 'run', workout: 'Easy run', detail: 'Gentle recovery day.', zone: '3.0 mi · Z1–2 (83–130)', route: 'South Bay Way → Ludlow trails', time: '35 min' },
-        { day: 'Tue 5/5', type: 'strength', workout: 'STRENGTH', detail: 'Chair-assisted squats (sit-to-stand) 2×10 · Glute bridges 2×10 · Standing calf raises (holding chair) 2×12 · Standing hip abductions 2×10/side · Single-leg stands 3×20s/side', zone: 'Z1 (83–115)', route: '🏠 Home gym', time: '30 min' },
+        { day: 'Tue 5/5', type: 'strength', workout: 'STRENGTH', detail: 'Goblet squats 3×12 (15 lb) · Eccentric calf drops 3×12/leg · Walking lunges 3×10/leg · Glute bridges 3×15 · Side plank 3×20s/side', zone: 'Z1 (83–115)', route: '🏠 Home gym', time: '35 min' },
         { day: 'Wed 5/6', type: 'run', workout: 'Easy run + strides', detail: 'Z1–2 pace + 4×20 sec strides.', zone: '3.5 mi · Z1–2 (83–130)', route: 'Larry Scott Trail', time: '42 min' },
         { day: 'Thu 5/7', type: 'quality', workout: 'Hill repeats + POLES 🥾', detail: '4×90 sec uphill @ Z3 with poles, walk down. Practice plant rhythm.', zone: '3.5 mi · Z3 intervals (130–145)', route: 'Timberton Dr Trail', time: '50 min' },
         { day: 'Fri 5/8', type: 'rest', workout: 'Rest or easy walk', detail: 'Rest day between hard efforts. Easy walk or stretching only.', zone: '—', route: 'South Bay Way neighborhood', time: '30 min' },
@@ -96,7 +96,7 @@ const jimPlan: TrainingPlan = {
       num: 5, dates: 'May 11–17', miles: '14+race', focus: 'RACE WEEK: Rhody Run 12K (May 17). Taper Mon–Fri, race Saturday.',
       days: [
         { day: 'Mon 5/11', type: 'run', workout: 'Easy run — short', detail: 'Very easy. Taper starts.', zone: '2.5 mi · Z1 (83–115)', route: 'Larry Scott Trail or South Bay Way', time: '30 min' },
-        { day: 'Tue 5/12', type: 'strength', workout: 'STRENGTH (light)', detail: 'Chair-assisted squats (sit-to-stand) 2×8 · Glute bridges 2×8 · Standing calf raises (holding chair) 2×10 · Bird dogs 2×6/side · Seated leg extensions 2×10', zone: 'Z1 (83–115)', route: '🏠 Home gym', time: '20 min' },
+        { day: 'Tue 5/12', type: 'strength', workout: 'STRENGTH (light)', detail: 'BW squats 3×12 · Glute bridges 3×12 · Calf raises 2×15 · Plank 2×45s · Stretching', zone: 'Z1 (83–115)', route: '🏠 Home gym', time: '25 min' },
         { day: 'Wed 5/13', type: 'run', workout: 'Easy run + strides', detail: 'Short and crisp. 3×20 sec strides at the end.', zone: '2.5 mi · Z1–2 (83–130)', route: 'Larry Scott Trail or South Bay Way', time: '30 min' },
         { day: 'Thu 5/14', type: 'rest', workout: 'Rest', detail: 'Complete rest. Hydrate. Prep race gear.', zone: '—', route: '—', time: '—' },
         { day: 'Fri 5/15', type: 'run', workout: 'Pre-race shakeout', detail: 'Very easy 15-20 min jog. Loosen up for tomorrow.', zone: '1.5 mi · Z1 (83–115)', route: 'South Bay Way (flat)', time: '20 min' },
@@ -109,7 +109,7 @@ const jimPlan: TrainingPlan = {
       days: [
         { day: 'Mon 5/18', type: 'rest', workout: 'Rest', detail: 'Post-race recovery. Complete rest or gentle walk.', zone: '—', route: '—', time: '—' },
         { day: 'Tue 5/19', type: 'run', workout: 'Recovery run', detail: 'Very easy. Legs may be sore from the 12K. Short and gentle.', zone: '2.5 mi · Z1 (83–115)', route: 'Larry Scott Trail or South Bay Way', time: '30 min' },
-        { day: 'Wed 5/20', type: 'strength', workout: 'STRENGTH', detail: 'Chair-assisted squats (sit-to-stand) 2×10 · Wall push-ups 2×10 · Glute bridges 2×10 · Standing calf raises (holding chair) 2×12 · Single-leg stands 3×20s/side', zone: 'Z1 (83–115)', route: '🏠 Home gym', time: '30 min' },
+        { day: 'Wed 5/20', type: 'strength', workout: 'STRENGTH', detail: 'Goblet squats 3×12 (15 lb) · Eccentric step-downs 3×8/leg · RDL w/ DB 3×10 (15 lb) · Plank 3×45s · Calf raises 3×15', zone: 'Z1 (83–115)', route: '🏠 Home gym', time: '35 min' },
         { day: 'Thu 5/21', type: 'quality', workout: 'Uphill tempo w/ POLES 🥾', detail: '2×6 min sustained climb @ Z3, 4 min easy between. Practice pole cadence.', zone: '3.5 mi · Z3 (130–145)', route: 'Timberton Dr Trail', time: '50 min' },
         { day: 'Fri 5/22', type: 'rest', workout: 'Rest or easy walk', detail: 'Rest day between hard efforts. Easy walk or stretching only.', zone: '—', route: 'South Bay Way neighborhood', time: '30 min' },
         { day: 'Sat 5/23', type: 'cross', workout: 'HIKE — Vert + POLES 🥾', detail: '~900 ft gain. Power hike up with poles, controlled descent.', zone: '3.5 mi · Z2 (115–130)', route: '🏔 Mt Townsend Trail', time: '1 hr 30 min' },
@@ -120,7 +120,7 @@ const jimPlan: TrainingPlan = {
       num: 7, dates: 'May 25–31', miles: 19, focus: 'Peak volume week. Biggest long run. Race-specific vert.',
       days: [
         { day: 'Mon 5/25', type: 'run', workout: 'Easy run', detail: 'Conversational pace. Gentle start to peak week.', zone: '3.5 mi · Z1–2 (83–130)', route: 'Larry Scott Trail or South Bay Way', time: '42 min' },
-        { day: 'Tue 5/26', type: 'strength', workout: 'STRENGTH', detail: 'Chair-assisted squats (sit-to-stand) 2×10 · Standing hip abductions 2×10/side · Glute bridges 2×10 · Bird dogs 2×8/side · Single-leg stands 3×20s/side', zone: 'Z1 (83–115)', route: '🏠 Home gym', time: '30 min' },
+        { day: 'Tue 5/26', type: 'strength', workout: 'STRENGTH', detail: 'Goblet squats 3×12 (15 lb) · Eccentric calf drops 3×12/leg · Walking lunges 3×10/leg · Dead bugs 3×10/side · Side plank 3×20s/side', zone: 'Z1 (83–115)', route: '🏠 Home gym', time: '35 min' },
         { day: 'Wed 5/27', type: 'run', workout: 'Easy run + strides', detail: 'Easy + 4×20 sec strides.', zone: '3.5 mi · Z1–2 (83–130)', route: 'South Bay Way neighborhood', time: '42 min' },
         { day: 'Thu 5/28', type: 'quality', workout: 'Race-pace uphill w/ POLES 🥾', detail: '3×5 min @ Z3–4 uphill, walk down recovery. Hardest quality session.', zone: '4.0 mi · Z3–4 (130–155)', route: '🏔 Mt Townsend Trail', time: '1 hr' },
         { day: 'Fri 5/29', type: 'rest', workout: 'Rest', detail: 'Rest day before peak weekend. Save your legs for tomorrow and Sunday.', zone: '—', route: 'South Bay Way neighborhood', time: '—' },
@@ -132,7 +132,7 @@ const jimPlan: TrainingPlan = {
       num: 8, dates: 'Jun 1–7', miles: '13+race', focus: 'RACE WEEK 2: North Olympic Discovery 10K (Jun 6). Taper, then race.',
       days: [
         { day: 'Mon 6/1', type: 'run', workout: 'Easy run — short', detail: 'Recovery from peak weekend. Very easy.', zone: '2.5 mi · Z1 (83–115)', route: 'Larry Scott Trail or South Bay Way', time: '30 min' },
-        { day: 'Tue 6/2', type: 'strength', workout: 'STRENGTH (light)', detail: 'Chair-assisted squats (sit-to-stand) 2×8 · Glute bridges 2×8 · Standing calf raises (holding chair) 2×10 · Seated leg extensions 2×10 · Single-leg stands 3×15s/side', zone: 'Z1 (83–115)', route: '🏠 Home gym', time: '20 min' },
+        { day: 'Tue 6/2', type: 'strength', workout: 'STRENGTH (light)', detail: 'BW squats 3×12 · Glute bridges 3×12 · Calf raises 2×15 · Plank 2×45s', zone: 'Z1 (83–115)', route: '🏠 Home gym', time: '25 min' },
         { day: 'Wed 6/3', type: 'run', workout: 'Easy run + strides', detail: 'Short and crisp. 3×20 sec strides.', zone: '2.5 mi · Z1–2 (83–130)', route: 'Larry Scott Trail or South Bay Way', time: '30 min' },
         { day: 'Thu 6/4', type: 'rest', workout: 'Rest', detail: 'Complete rest. Hydrate. Prep race gear.', zone: '—', route: '—', time: '—' },
         { day: 'Fri 6/5', type: 'run', workout: 'Pre-race shakeout', detail: 'Very easy 15 min jog.', zone: '1.5 mi · Z1 (83–115)', route: 'South Bay Way (flat)', time: '20 min' },
@@ -145,7 +145,7 @@ const jimPlan: TrainingPlan = {
       days: [
         { day: 'Mon 6/8', type: 'rest', workout: 'Rest', detail: 'Post-race recovery.', zone: '—', route: '—', time: '—' },
         { day: 'Tue 6/9', type: 'run', workout: 'Easy run', detail: 'Gentle return to running. Easy effort.', zone: '3.0 mi · Z1–2 (83–130)', route: 'Larry Scott Trail or South Bay Way', time: '35 min' },
-        { day: 'Wed 6/10', type: 'strength', workout: 'STRENGTH (taper)', detail: 'Chair-assisted squats (sit-to-stand) 2×8 · Glute bridges 2×8 · Standing calf raises (holding chair) 2×10 · Bird dogs 2×6/side · Single-leg stands 2×15s/side', zone: 'Z1 (83–115)', route: '🏠 Home gym', time: '15 min' },
+        { day: 'Wed 6/10', type: 'strength', workout: 'STRENGTH (taper)', detail: 'BW squats 3×10 · Walking lunges 2×8/leg · Glute bridges 3×10 · Plank 2×30s', zone: 'Z1 (83–115)', route: '🏠 Home gym', time: '20 min' },
         { day: 'Thu 6/11', type: 'quality', workout: 'Short hill sharpener w/ POLES 🥾', detail: '3×3 min @ Z3 uphill, full recovery. Should feel CRISP, not tired.', zone: '3.0 mi · Z3 (130–145)', route: 'Timberton Dr Trail', time: '40 min' },
         { day: 'Fri 6/12', type: 'rest', workout: 'Rest or easy walk', detail: 'Rest day between hard efforts. Easy walk or stretching only.', zone: '—', route: 'South Bay Way neighborhood', time: '20 min' },
         { day: 'Sat 6/13', type: 'cross', workout: 'Easy hike + POLES 🥾', detail: 'Easy hike 30 min. Enjoy the trail. Stay relaxed.', zone: '2.0 mi · Z1–2 (83–130)', route: 'Ludlow Falls Interpretive Trail', time: '45 min' },
