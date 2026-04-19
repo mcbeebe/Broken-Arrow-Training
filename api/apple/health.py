@@ -12,8 +12,14 @@ GET /api/apple/health?athlete=mike&days=7
 - Returns stored health data for this athlete in same shape as
   Garmin /api/garmin/health so the readiness engine works unchanged
 - Response: { "dates": [ { date, hrv?, rhr?, sleep?, bodyBattery?:null }, ... ] }
+
+Auth: both POST and GET require an Authorization: Bearer <key> header
+matching the APPLE_HEALTH_API_KEY env var on the server. If the env var
+is unset the endpoint fails closed (503) — we do NOT allow unauthenticated
+access as a fallback.
 """
 
+import hmac
 import json
 import os
 import urllib.request
@@ -74,6 +80,25 @@ def _athlete(path: str) -> str | None:
     return v[0] if v and v[0] else None
 
 
+def _check_auth(handler_self) -> tuple[bool, int, str]:
+    """Validate Authorization: Bearer <key> against APPLE_HEALTH_API_KEY.
+
+    Returns (ok, status_code, error_message). Fails closed if the env
+    var is unset so a misconfigured deploy can't accidentally expose
+    the endpoint.
+    """
+    expected = os.environ.get("APPLE_HEALTH_API_KEY", "")
+    if not expected:
+        return (False, 503, "server misconfigured: APPLE_HEALTH_API_KEY not set")
+    header = handler_self.headers.get("Authorization", "")
+    if not header.startswith("Bearer "):
+        return (False, 401, "missing or invalid Authorization header")
+    provided = header[len("Bearer "):].strip()
+    if not hmac.compare_digest(provided.encode(), expected.encode()):
+        return (False, 401, "invalid API key")
+    return (True, 200, "")
+
+
 def _normalize(raw: dict) -> dict:
     """Convert iOS payload to GarminHealthData shape (what the frontend expects)."""
     record: dict = {"date": raw.get("date", "")}
@@ -120,6 +145,11 @@ class handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         try:
+            ok, status, msg = _check_auth(self)
+            if not ok:
+                self._json(status, {"error": msg})
+                return
+
             athlete = _athlete(self.path)
             if not athlete:
                 self._json(400, {"error": "athlete query param required"})
@@ -163,6 +193,11 @@ class handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         try:
+            ok, status, msg = _check_auth(self)
+            if not ok:
+                self._json(status, {"error": msg})
+                return
+
             q = parse_qs(urlparse(self.path).query)
             athlete = _athlete(self.path)
             if not athlete:

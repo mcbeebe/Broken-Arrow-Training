@@ -68,6 +68,24 @@ No `.xcodeproj` is checked in. You create one in Xcode the first time
      `BrokenArrowHealth/BrokenArrowHealth.entitlements`.
 10. Minimum deployment: iOS 17.0.
 
+## Set the server API key (one time, before first run)
+
+The `/api/apple/health` endpoint requires an `Authorization: Bearer <key>`
+header on every request. Generate a strong random key and set it in two
+places:
+
+```
+# 1. In Vercel project settings → Environment Variables
+APPLE_HEALTH_API_KEY=<paste-64-char-random-string>
+
+# Example generator:
+python3 -c "import secrets; print(secrets.token_urlsafe(48))"
+```
+
+Trigger a Vercel redeploy after setting the env var so the function
+picks it up. If the env var is unset the endpoint fails closed (503)
+— it will **not** accidentally allow unauthenticated access.
+
 ## Run it on your Watch-paired iPhone
 
 1. Plug in your iPhone, select it as the run destination.
@@ -75,11 +93,16 @@ No `.xcodeproj` is checked in. You create one in Xcode the first time
 3. On first launch, tap **Grant HealthKit access** and allow HRV, RHR,
    and Sleep. (If you accidentally deny, fix it at
    Settings → Health → Data Access & Devices → Broken Arrow Health.)
-4. Enter your athlete id (e.g. `mike`) and confirm the API URL
-   (`https://broken-arrow-training.vercel.app` by default).
+4. Enter your athlete id (e.g. `mike`), the API URL
+   (`https://broken-arrow-training.vercel.app` by default), and paste
+   the same `APPLE_HEALTH_API_KEY` value you set on Vercel.
 5. Tap **Sync last 7 days**. You should see `Uploaded N days` and a
    preview list of the records. Open the web app's Readiness tab to
    confirm the numbers appear.
+
+If you see `401 invalid API key`, the key on the phone doesn't match
+the server env var — paste the Vercel value again. If you see
+`503 server misconfigured`, the env var isn't set on Vercel yet.
 
 ## Distributing via TestFlight
 
