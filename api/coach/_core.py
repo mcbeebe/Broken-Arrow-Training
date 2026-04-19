@@ -309,9 +309,23 @@ DEEP USE OF CONTEXT — make it personal:
   "Your last long run was 6.2 mi with 912 ft of gain — today's 7.0 mi
   with 1,528 ft is a significant step up. Walk the steep sections."
 - CITE research when explaining WHY — not unprompted, but when the
-  athlete asks "why" or seems skeptical. "The reason we taper 40-60%
-  instead of 20% — Bosquet's 2007 meta-analysis of 182 athletes showed
-  that's the sweet spot for the supercompensation effect."
+  athlete asks "why" or seems skeptical. Citations MUST come from one
+  of two sources — never invent authors, years, journals, or effect
+  sizes:
+  1. The baked-in "Research citations" section below (Bosquet, Seiler,
+     Hulin, Plews, Toyomura, Vernillo, Pellegrini, etc.). You may cite
+     these verbatim.
+  2. Results returned by the `web_search` tool. When citing a web
+     result, include the URL inline (or a short "source: example.com")
+     so the athlete can verify.
+  If a topic is outside the baked-in list (compression socks, specific
+  supplements, race results for a given event, weather forecasts, etc.),
+  USE `web_search` to find a real study/source before citing. Fabricating
+  citations like "Hill et al. (2014, JSAMS), effect size 0.27" when you
+  have neither a baked-in reference nor a search result is a hard failure.
+  If a search returns nothing useful, say so plainly — "I looked but
+  couldn't find a good source" — and give the advice from general
+  knowledge without pseudo-citations.
 - CONNECT the dots between metrics. Don't just report numbers — explain
   what they MEAN together: "Your HRV dropped 15% while your fatigue
   spiked to 85 — that's your body telling you the Saturday long run
@@ -346,10 +360,14 @@ Synthesis and honesty about gaps:
   way it does (Wk 5 recovery, poles in Wk 4, eccentric strength, taper
   math, polarized training).
 - If you need information outside this context — a specific study, fresh
-  external data, weather/altitude forecasts, race-day logistics not in
-  the snapshot — say so plainly. Offer to flag it for the athlete to
-  look up, or cite the Method tab references. Never fabricate citations
-  or numbers you can't source from the context.
+  external data, weather/altitude forecasts, race-day logistics, product
+  research (compression socks, nutrition, gear), race results, etc. —
+  USE the `web_search` tool. Prefer authoritative sources: peer-reviewed
+  journals, Uphill Athlete, TrainingPeaks, ITRA, UltraSignup, race
+  organizer sites. Include URLs or short source names inline with any
+  facts you cite from search. Never fabricate citations or numbers you
+  can't source from the context, the baked-in knowledge base, or a
+  successful web search.
 """
 
 
@@ -1405,11 +1423,15 @@ def stream_anthropic(
     messages: list[dict[str, Any]],
     max_tokens: int = 600,
     temperature: float | None = None,
+    tools: list[dict[str, Any]] | None = None,
 ) -> Iterable[tuple[str, str]]:
     """Stream Anthropic response. Yields ('delta', text) tuples, then
-    ('done', full_text), finally ('usage', json_str).
+    ('done', full_text), finally ('usage', json_str). May also yield
+    ('status', msg) events to surface server-side tool activity (e.g.
+    web search) to the UI.
 
     `system` can be a string or a list of content blocks (for prompt caching).
+    `tools` optionally enables server-side tools like web_search_20250305.
     Telemetry logging is done by the caller so the full text + tokens are
     available after the stream completes.
     """
@@ -1423,10 +1445,18 @@ def stream_anthropic(
     }
     if temperature is not None:
         stream_kwargs["temperature"] = temperature
+    if tools:
+        stream_kwargs["tools"] = tools
     with client.messages.stream(**stream_kwargs) as stream:
         for event in stream:
             et = getattr(event, "type", "")
-            if et == "content_block_delta":
+            if et == "content_block_start":
+                block = getattr(event, "content_block", None)
+                bt = getattr(block, "type", "") if block else ""
+                if bt == "server_tool_use":
+                    tname = getattr(block, "name", "") or "tool"
+                    yield ("status", f"🔍 {tname}…")
+            elif et == "content_block_delta":
                 delta = getattr(event, "delta", None)
                 if delta and getattr(delta, "type", None) == "text_delta":
                     chunk = delta.text
@@ -1439,6 +1469,10 @@ def stream_anthropic(
         "input": getattr(final.usage, "input_tokens", 0) or 0,
         "output": getattr(final.usage, "output_tokens", 0) or 0,
     }
+    # Surface web-search usage for telemetry/cost tracking when present.
+    st = getattr(final.usage, "server_tool_use", None)
+    if st is not None:
+        usage["web_searches"] = getattr(st, "web_search_requests", 0) or 0
     yield ("usage", json.dumps(usage))
 
 

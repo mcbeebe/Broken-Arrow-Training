@@ -235,11 +235,18 @@ class handler(BaseHTTPRequestHandler):
                 messages=messages,
                 max_tokens=1500,
                 temperature=0.3,
+                tools=[{
+                    "type": "web_search_20250305",
+                    "name": "web_search",
+                    "max_uses": 3,
+                }],
             )
             for kind, payload in stream_iter:
                 if kind == "delta":
                     full_text += payload
                     _write_sse(self, {"type": "delta", "text": payload})
+                elif kind == "status":
+                    _write_sse(self, {"type": "status", "text": payload})
                 elif kind == "done":
                     # full_text already accumulated
                     pass
@@ -280,10 +287,17 @@ class handler(BaseHTTPRequestHandler):
                     messages=messages,
                     max_tokens=1500,
                     temperature=0.3,
+                    tools=[{
+                        "type": "web_search_20250305",
+                        "name": "web_search",
+                        "max_uses": 3,
+                    }],
                 ):
                     if kind == "delta":
                         full_text += payload
                         _write_sse(self, {"type": "delta", "text": payload})
+                    elif kind == "status":
+                        _write_sse(self, {"type": "status", "text": payload})
                     elif kind == "usage":
                         try:
                             u2 = json.loads(payload)

@@ -67,6 +67,7 @@ export default function CoachChat({ athleteId, memory, snapshot, seed, onSeedCon
   const [input, setInput] = useState('')
   const [streaming, setStreaming] = useState(false)
   const [liveReply, setLiveReply] = useState('')
+  const [liveStatus, setLiveStatus] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [copiedToast, setCopiedToast] = useState(false)
   const [fontScale, setFontScaleState] = useState(() => readFontScale(athleteId))
@@ -167,6 +168,9 @@ export default function CoachChat({ athleteId, memory, snapshot, seed, onSeedCon
             if (obj.type === 'delta' && obj.text) {
               accum += obj.text
               setLiveReply(accum)
+              setLiveStatus(null)
+            } else if (obj.type === 'status' && obj.text) {
+              setLiveStatus(obj.text)
             } else if (obj.type === 'error') {
               setError(obj.message || 'stream error')
             }
@@ -180,6 +184,7 @@ export default function CoachChat({ athleteId, memory, snapshot, seed, onSeedCon
     } finally {
       setStreaming(false)
       setLiveReply('')
+      setLiveStatus(null)
       // Pull fresh memory (includes assistant turn + any new inferences)
       memory.refresh()
     }
@@ -252,7 +257,10 @@ export default function CoachChat({ athleteId, memory, snapshot, seed, onSeedCon
           />
         ))}
         {streaming && (
-          <div className="flex">
+          <div className="flex flex-col gap-1">
+            {liveStatus && !liveReply && (
+              <div className="text-xs text-indigo-500 italic px-1">{liveStatus}</div>
+            )}
             <div
               className="max-w-[92%] bg-indigo-50 text-slate-800 rounded-2xl rounded-tl-sm px-3 py-2 leading-relaxed"
               style={{ fontSize: `${fontScale}rem` }}
