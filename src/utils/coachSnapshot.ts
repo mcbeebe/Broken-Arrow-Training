@@ -19,6 +19,7 @@ import type {
 import type { OverallCompliance } from '../hooks/useCompliance'
 import type { SorenessLevel } from '../hooks/useSoreness'
 import { computeRaceProjection } from './raceProjection'
+import { localDateStr } from './format'
 
 /**
  * Assemble the CoachSnapshot that's sent with every LLM call. The goal is
@@ -150,7 +151,7 @@ export function buildAnalytics(inputs: Inputs): CoachSnapshotAnalytics {
   }
 
   // Week-to-date (ISO week starting Monday)
-  const weekStartStr = isoWeekStart(new Date()).toISOString().slice(0, 10)
+  const weekStartStr = localDateStr(isoWeekStart(new Date()))
   const wtdActuals = actuals.filter(x => x.date >= weekStartStr)
   const wtdMiles = wtdActuals.reduce((s, x) => s + (x.a.distance || 0), 0)
   const wtdDurationSec = wtdActuals.reduce((s, x) => s + (x.a.movingTime || 0), 0)

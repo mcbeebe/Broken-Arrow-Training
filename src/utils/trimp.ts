@@ -1,4 +1,5 @@
 import type { SportType, TRIMPRecord, DailyTRIMP, StravaActivity, GarminActivity, StrengthExerciseLog } from '../types'
+import { localDateStr } from './format'
 
 // ─── Training Load Calculation (ATE-aligned) ────────────────────
 //
@@ -416,7 +417,7 @@ export function aggregateDailyTRIMP(records: TRIMPRecord[]): DailyTRIMP[] {
   // 3. Soreness check-ins on rest days have a day to attach to
   const dates = Array.from(byDate.keys()).sort()
   const startDate = new Date(dates[0] + 'T00:00:00')
-  const today = new Date(new Date().toISOString().slice(0, 10) + 'T00:00:00')
+  const today = new Date(localDateStr() + 'T00:00:00')
   const lastActivity = new Date(dates[dates.length - 1] + 'T00:00:00')
   const endDate = today > lastActivity ? today : lastActivity
 
@@ -424,7 +425,7 @@ export function aggregateDailyTRIMP(records: TRIMPRecord[]): DailyTRIMP[] {
   const current = new Date(startDate)
 
   while (current <= endDate) {
-    const dateStr = current.toISOString().slice(0, 10)
+    const dateStr = localDateStr(current)
     const recs = byDate.get(dateStr)
     result.push({
       date: dateStr,

@@ -1,4 +1,5 @@
 import type { DailyTRIMP, PerformanceMetrics, TSBState, ACWRRisk, WeeklyRecommendation } from '../types'
+import { localDateStr } from './format'
 
 // ─── Time window filtering ─────────────────────────────────────
 
@@ -13,7 +14,7 @@ export function filterByTimeWindow<T extends { date: string }>(
   const days = window === '7d' ? 7 : window === '30d' ? 30 : 90
   const cutoff = new Date()
   cutoff.setDate(cutoff.getDate() - days)
-  const cutoffStr = cutoff.toISOString().slice(0, 10)
+  const cutoffStr = localDateStr(cutoff)
   return data.filter(d => d.date >= cutoffStr)
 }
 

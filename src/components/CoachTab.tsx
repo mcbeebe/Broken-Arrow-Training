@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { CoachInsight, CoachSnapshot, ConversationTurn, DailyChatArchive, CoachAction, PlannedDay } from '../types'
 import type { UseCoachMemoryReturn } from '../hooks/useCoachMemory'
+import { localDateStr } from '../utils/format'
 import CoachChat from './CoachChat'
 
 interface Props {
@@ -76,7 +77,7 @@ export default function CoachTab({
     // Find the date of the newest turn from its ts
     const lastTurn = visible[visible.length - 1]
     if (!lastTurn.ts) return
-    const lastDate = new Date(lastTurn.ts).toISOString().slice(0, 10)
+    const lastDate = localDateStr(new Date(lastTurn.ts))
     if (lastDate === today) return  // same day, nothing to do
     // Prior-day content exists — archive it
     const rolloverKey = `ba_coach_last_rollover:${athleteId}`
@@ -153,7 +154,7 @@ export default function CoachTab({
           <div className="flex items-center gap-3">
             <button
               onClick={async () => {
-                const today = snapshot?.today?.date || new Date().toISOString().slice(0, 10)
+                const today = snapshot?.today?.date || localDateStr()
                 if (!window.confirm(
                   `Archive this conversation under ${today} and start a fresh thread? You can always revisit it in History.`,
                 )) return
@@ -390,7 +391,7 @@ function saveConversation(turns: ConversationTurn[], athleteId: string) {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  const date = new Date().toISOString().slice(0, 10)
+  const date = localDateStr()
   a.download = `coach-chat-${athleteId}-${date}.txt`
   document.body.appendChild(a)
   a.click()
