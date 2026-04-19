@@ -16,6 +16,7 @@ interface PerformanceChartProps {
 
 type MetricKey = 'ctl' | 'atl' | 'tsb' | 'load'
 const DEFAULT_METRICS: Record<MetricKey, boolean> = { ctl: true, atl: true, tsb: true, load: true }
+type LoadMode = 'daily' | '7d'
 
 const SEVERITY_STYLES = {
   info: { bg: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-700', icon: 'i' },
@@ -30,6 +31,7 @@ export default function PerformanceChart({
   dailyTrimp = [],
 }: PerformanceChartProps) {
   const [visible, setVisible] = useState<Record<MetricKey, boolean>>(DEFAULT_METRICS)
+  const [loadMode, setLoadMode] = useState<LoadMode>('7d')
   const toggle = (k: MetricKey) => setVisible(v => ({ ...v, [k]: !v[k] }))
   if (performance.length === 0) {
     return (
@@ -48,13 +50,22 @@ export default function PerformanceChart({
   const loadByDate = new Map(dailyTrimp.map(d => [d.date, d.total]))
 
   // Prepare chart data — smooth for regular view, full detail for expanded
-  const rawData = performance.map(m => ({
-    ...m,
-    label: m.date.slice(5),
-    acwrLow: m.ctl * 0.8,
-    acwrHigh: m.ctl * 1.3,
-    load: loadByDate.get(m.date) ?? 0,
-  }))
+  const rawData = performance.map((m, i, arr) => {
+    const dailyLoad = loadByDate.get(m.date) ?? 0
+    // 7-day trailing sum: sum of this day + previous 6 days
+    let trailingLoad = dailyLoad
+    for (let j = 1; j < 7 && i - j >= 0; j++) {
+      trailingLoad += loadByDate.get(arr[i - j].date) ?? 0
+    }
+    return {
+      ...m,
+      label: m.date.slice(5),
+      acwrLow: m.ctl * 0.8,
+      acwrHigh: m.ctl * 1.3,
+      load: dailyLoad,
+      load7d: Math.round(trailingLoad),
+    }
+  })
 
   const smoothedData = smoothSeries(rawData, 5)
 
@@ -65,7 +76,8 @@ export default function PerformanceChart({
     const dataMin = Math.min(...allVals)
     const yMax = Math.ceil((Math.max(dataMax, 25) + 10) / 10) * 10
     const yMin = Math.floor((Math.min(dataMin, -10) - 5) / 10) * 10
-    const loadMax = Math.max(50, ...chartData.map(d => d.load))
+    const loadVals = chartData.map(d => loadMode === '7d' ? d.load7d : d.load)
+    const loadMax = Math.max(50, ...loadVals)
     const loadAxisMax = Math.ceil(loadMax * 1.1 / 50) * 50
     const isDark = document.documentElement.classList.contains('dark')
     const showBands = visible.tsb // TSB bands only meaningful when TSB is shown
@@ -117,17 +129,18 @@ export default function PerformanceChart({
                   color: isDark ? '#f1f5f9' : '#1e293b',
                 }}
                 formatter={(value, name) => [
-                  typeof value === 'number' ? value.toFixed(name === 'load' ? 0 : 1) : String(value),
+                  typeof value === 'number' ? value.toFixed(name === 'load' || name === 'load7d' ? 0 : 1) : String(value),
                   name === 'ctl' ? 'Fitness (CTL)' :
                   name === 'atl' ? 'Fatigue (ATL)' :
                   name === 'load' ? 'Daily Load' :
+                  name === 'load7d' ? '7-Day Load' :
                   name === 'tsbSmooth' ? 'Recovery Balance (TSB)' :
                   'Recovery Balance (TSB)',
                 ]}
               />
-              {/* Daily training load line (right axis) */}
+              {/* Training load line (right axis) — daily or 7-day trailing */}
               {visible.load && (
-                <Area yAxisId="right" type="natural" dataKey="load" stroke="#d97706" fill="#d97706" fillOpacity={0.08} strokeWidth={expanded ? 2 : 1.5} dot={false} isAnimationActive={false} />
+                <Area yAxisId="right" type="natural" dataKey={loadMode === '7d' ? 'load7d' : 'load'} stroke="#d97706" fill="none" strokeWidth={expanded ? 2.5 : 2} dot={false} isAnimationActive={false} />
               )}
               {/* Training band: productive overreach zone (TSB -30 to -10) */}
               {showBands && (
@@ -165,7 +178,7 @@ export default function PerformanceChart({
               {visible.ctl && <Area yAxisId="left" type="natural" dataKey="acwrHigh" stroke="#7c3aed" strokeWidth={1} strokeDasharray="4 4" strokeOpacity={0.5} fill="none" dot={false} isAnimationActive={false} />}
               {visible.ctl && <Area yAxisId="left" type="natural" dataKey="acwrLow" stroke="#7c3aed" strokeWidth={1} strokeDasharray="4 4" strokeOpacity={0.5} fill="none" dot={false} isAnimationActive={false} />}
               {visible.ctl && <Area yAxisId="left" type="natural" dataKey="ctl" stroke="#3B82F6" fill="none" strokeWidth={expanded ? 2.5 : 2} dot={false} isAnimationActive={false} />}
-              {visible.atl && <Area yAxisId="left" type="natural" dataKey="atl" stroke="#EF4444" fill="transparent" strokeWidth={expanded ? 2 : 1.5} strokeDasharray="4 2" dot={false} isAnimationActive={false} />}
+              {visible.atl && <Area yAxisId="left" type="natural" dataKey="atl" stroke="#EF4444" fill="none" strokeWidth={expanded ? 2.5 : 2} dot={false} isAnimationActive={false} />}
               {visible.tsb && <Area yAxisId="left" type="natural" dataKey={expanded ? 'tsb' : 'tsbSmooth'} stroke="#059669" fill="#059669" fillOpacity={0.15} strokeWidth={expanded ? 2.5 : 2} dot={false} isAnimationActive={false} />}
             </ComposedChart>
           </ResponsiveContainer>
@@ -175,7 +188,15 @@ export default function PerformanceChart({
           <MetricPill active={visible.ctl} onClick={() => toggle('ctl')} color="blue" label="Fitness" />
           <MetricPill active={visible.atl} onClick={() => toggle('atl')} color="red" label="Fatigue" />
           <MetricPill active={visible.tsb} onClick={() => toggle('tsb')} color="green" label="Recovery" />
-          <MetricPill active={visible.load} onClick={() => toggle('load')} color="amber" label="Daily Load" />
+          <MetricPill active={visible.load} onClick={() => toggle('load')} color="amber" label={loadMode === '7d' ? '7d Load' : 'Daily Load'} />
+          {visible.load && (
+            <button
+              onClick={() => setLoadMode(m => m === 'daily' ? '7d' : 'daily')}
+              className="text-[10px] px-1.5 py-0.5 rounded border border-amber-300 text-amber-600 bg-amber-50"
+            >
+              {loadMode === '7d' ? '→ daily' : '→ 7-day'}
+            </button>
+          )}
         </div>
         {expanded && (
           <div className="flex flex-wrap justify-center gap-x-4 gap-y-1 mt-1 text-xs text-slate-500 dark:text-slate-400">
@@ -343,6 +364,7 @@ interface ChartPoint {
   date: string
   acwr: number
   load: number
+  load7d: number
 }
 
 function smoothSeries(data: ChartPoint[], window: number): ChartPoint[] {
@@ -360,6 +382,7 @@ function smoothSeries(data: ChartPoint[], window: number): ChartPoint[] {
       atl: slice.reduce((s, p) => s + p.atl, 0) / n,
       tsbSmooth: slice.reduce((s, p) => s + p.tsb, 0) / n,
       load: slice.reduce((s, p) => s + p.load, 0) / n,
+      load7d: slice.reduce((s, p) => s + p.load7d, 0) / n,
       acwrLow: smoothCtl * 0.8,
       acwrHigh: smoothCtl * 1.3,
     }
