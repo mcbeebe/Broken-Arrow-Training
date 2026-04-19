@@ -133,6 +133,7 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
     : baseCoaching
   const isRunType = ['run', 'quality', 'long'].includes(day.type)
   const exercises = isStrength ? parseRoutine(day.detail) : []
+  const customExercises = hasCustomDetail ? parseRoutine(day.detail) : []
   const intervals = isQuality ? parseIntervalWorkout(day.detail, day.zone) : []
   const isDrillDay = getDrillDay(weekNum) === day.day
   const [stream, setStream] = useState<StreamData | null>(null)
@@ -533,6 +534,18 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
               <p className="text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-2">🏋️ Exercise Guide (tap for form cues)</p>
               <div className="space-y-2">
                 {exercises.map((ex, i) => (
+                  <ExerciseCard key={i} exercise={ex} index={i + 1} />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Override/custom exercises: show exercise cards when available */}
+          {hasCustomDetail && customExercises.length > 0 && (
+            <div>
+              <p className="text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-2">📋 Exercise Guide (tap for form cues)</p>
+              <div className="space-y-2">
+                {customExercises.map((ex, i) => (
                   <ExerciseCard key={i} exercise={ex} index={i + 1} />
                 ))}
               </div>
