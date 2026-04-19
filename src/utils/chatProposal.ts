@@ -94,6 +94,22 @@ export function extractProposal(content: string): { content: string; action: Coa
   return { content: cleanContent, action }
 }
 
+/**
+ * Strip an in-progress (unclosed) proposal block from streaming text so
+ * the raw JSON doesn't flash on screen before the parser kicks in.
+ * Returns the content with any open `proposal block removed. If the
+ * block is closed, returns content unchanged (extractProposal handles it).
+ */
+const PROPOSAL_STREAMING_OPEN_RE = /`{1,4}\s*proposal\b[\s\S]*$/
+const PROPOSAL_CLOSED_RE = /`{1,4}\s*proposal\s*\n[\s\S]*?\n`{1,4}/
+
+export function stripStreamingProposal(content: string): string {
+  if (PROPOSAL_CLOSED_RE.test(content)) return content
+  const openMatch = content.match(PROPOSAL_STREAMING_OPEN_RE)
+  if (!openMatch) return content
+  return content.slice(0, openMatch.index).trimEnd()
+}
+
 function repairJSON(s: string): string | null {
   // Trim trailing backticks/whitespace the LLM might have left
   let cleaned = s.replace(/`+\s*$/, '').trim()

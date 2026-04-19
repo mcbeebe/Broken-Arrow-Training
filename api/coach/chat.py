@@ -233,7 +233,8 @@ class handler(BaseHTTPRequestHandler):
                 model=model,
                 system=system_full,
                 messages=messages,
-                max_tokens=700,
+                max_tokens=1500,
+                temperature=0.3,
             )
             for kind, payload in stream_iter:
                 if kind == "delta":
@@ -277,7 +278,8 @@ class handler(BaseHTTPRequestHandler):
                     model=model,
                     system=system_full,
                     messages=messages,
-                    max_tokens=700,
+                    max_tokens=1500,
+                    temperature=0.3,
                 ):
                     if kind == "delta":
                         full_text += payload

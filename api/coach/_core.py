@@ -230,8 +230,8 @@ Principles:
 - Be curious. If something in today's signal is unusual, name it and ask about it.
 - Never moralize, never lecture about basics the athlete already knows.
 - If the context snapshot is missing data needed to answer confidently, say so rather than guessing.
-- DATES: Always check the "Today:" line in the context for the current date and day of the week. Never guess what day it is. When referencing "tomorrow" or "the day after," compute from today's date. If you're unsure about a date, say so. If an activity happened TODAY, say "today" — not "yesterday."
-- DATA INTEGRITY: ONLY reference numbers, times, PRs, or historical comparisons that are EXPLICITLY present in the context. NEVER fabricate a PR, a previous race time, a comparison to an earlier effort, or any number you don't see in the data. If you don't have the baseline to compare against, simply omit the comparison. Making up stats destroys trust.
+- DATES: Always check the "Today:" line in the context for the current date and day of the week. Never guess what day it is. When referencing "tomorrow" or "the day after," compute from today's date. CRITICAL: If an activity's date matches the "Today:" date, say "today" — NEVER "yesterday." Compare date strings character-by-character before using temporal words. If the same date appears on both the "Today:" line and a "Today actual:" / recent activity line, that activity was TODAY. Do not say "yesterday" about a same-day activity under any circumstance.
+- DATA INTEGRITY (PRs, previous times, comparisons): ONLY cite a PR, previous time, or improvement delta if it is LITERALLY present in the context — specifically on a "Prior best at ~Xmi" line or another explicit prior-time line. If the context says "Prior best at ~Xmi: NONE in context window," you MUST NOT claim a PR, cite a previous effort, or compare today's time to any earlier time. Do not infer baselines from activity names, planned workouts, or memory. If no baseline line exists, omit the comparison entirely — say "no prior effort at this distance in the window" or simply don't mention PR. Fabricating a "96-second PR" or similar number is a hard failure.
 
 PROACTIVE RISK FLAGS:
 When the context includes "⚠️ ACTIVE RISK FLAGS," you have detected concerning trends that the athlete may not know about. You should:
@@ -977,6 +977,47 @@ def build_context_block(
                 f"avgHR {a.get('avgHR') or '—'} · "
                 f"RPE {a.get('rpe') or '—'}"
             )
+            # Pre-compute prior best time at this distance so the coach
+            # can make truthful PR comparisons instead of hallucinating.
+            # Baseline = fastest movingTime among prior activities within
+            # ±10% of today's distance. If none, say so explicitly.
+            today_dist = a.get("distance") or 0
+            today_time = a.get("movingTime") or 0
+            today_date_key = a.get("startDate", "")[:10]
+            if today_dist > 0:
+                lo, hi = today_dist * 0.9, today_dist * 1.1
+                prior_best: dict[str, Any] | None = None
+                for prev in activities:
+                    prev_date = (prev.get("startDate") or "")[:10]
+                    if prev_date == today_date_key:
+                        continue
+                    d = prev.get("distance") or 0
+                    t = prev.get("movingTime") or 0
+                    if d <= 0 or t <= 0:
+                        continue
+                    if not (lo <= d <= hi):
+                        continue
+                    if prior_best is None or t < (prior_best.get("movingTime") or 0):
+                        prior_best = prev
+                if prior_best:
+                    delta_s = (prior_best.get("movingTime") or 0) - today_time
+                    delta_str = ""
+                    if today_time > 0:
+                        sign = "faster" if delta_s > 0 else "slower" if delta_s < 0 else "same"
+                        delta_str = f" · today is {_fmt_seconds_as_min(abs(delta_s))} {sign}"
+                    out.append(
+                        f"Prior best at ~{_fmt_num(today_dist)}mi (±10%, in context window): "
+                        f"{_fmt_date_with_dow(prior_best.get('startDate', ''))} · "
+                        f"{prior_best.get('name', '')} · "
+                        f"{_fmt_num(prior_best.get('distance'))}mi · "
+                        f"{_fmt_seconds_as_min(prior_best.get('movingTime'))}"
+                        f"{delta_str}"
+                    )
+                else:
+                    out.append(
+                        f"Prior best at ~{_fmt_num(today_dist)}mi: NONE in context window — "
+                        f"do NOT claim a PR or cite a previous time for this distance."
+                    )
     if planned_tomorrow:
         out.append(
             f"Tomorrow planned: {planned_tomorrow.get('day')} · "
@@ -1318,6 +1359,7 @@ def stream_anthropic(
     system: str | list[dict[str, Any]],
     messages: list[dict[str, Any]],
     max_tokens: int = 600,
+    temperature: float | None = None,
 ) -> Iterable[tuple[str, str]]:
     """Stream Anthropic response. Yields ('delta', text) tuples, then
     ('done', full_text), finally ('usage', json_str).
@@ -1328,12 +1370,15 @@ def stream_anthropic(
     """
     client = _get_anthropic_client()
     full = []
-    with client.messages.stream(
-        model=model,
-        system=system,
-        messages=messages,
-        max_tokens=max_tokens,
-    ) as stream:
+    stream_kwargs: dict[str, Any] = {
+        "model": model,
+        "system": system,
+        "messages": messages,
+        "max_tokens": max_tokens,
+    }
+    if temperature is not None:
+        stream_kwargs["temperature"] = temperature
+    with client.messages.stream(**stream_kwargs) as stream:
         for event in stream:
             et = getattr(event, "type", "")
             if et == "content_block_delta":

@@ -3,7 +3,7 @@ import type { ConversationTurn, CoachSnapshot, CoachAction, PlannedDay } from '.
 import { coachApiAvailable, coachApiBase } from '../utils/coachApi'
 import type { UseCoachMemoryReturn } from '../hooks/useCoachMemory'
 import { renderMarkdown } from '../utils/markdown'
-import { extractProposal } from '../utils/chatProposal'
+import { extractProposal, stripStreamingProposal } from '../utils/chatProposal'
 
 /** Tiny toast that disappears after a beat. */
 function CopiedToast({ visible }: { visible: boolean }) {
@@ -257,7 +257,7 @@ export default function CoachChat({ athleteId, memory, snapshot, seed, onSeedCon
               className="max-w-[92%] bg-indigo-50 text-slate-800 rounded-2xl rounded-tl-sm px-3 py-2 leading-relaxed"
               style={{ fontSize: `${fontScale}rem` }}
             >
-              {liveReply ? renderMarkdown(liveReply) : <span className="text-indigo-400">…</span>}
+              {liveReply ? renderMarkdown(stripStreamingProposal(liveReply)) : <span className="text-indigo-400">…</span>}
             </div>
           </div>
         )}
