@@ -140,14 +140,28 @@ class handler(BaseHTTPRequestHandler):
             memory["pendingInferences"] = []
             save_memory(athlete_id, memory)
 
-        # Append user turn(s) to memory first so they persist even on failure
+        # Append user turn(s) to memory first so they persist even on failure.
+        # Images are ephemeral — we never store the bytes, only an inline
+        # marker in the text so the historical bubble shows an attachment hint.
+        latest_image: dict | None = None
         for m in incoming:
             if m.get("role") == "user":
+                text_content = str(m.get("content", ""))
+                img = m.get("image") if isinstance(m.get("image"), dict) else None
+                if img and isinstance(img.get("data"), str) and img["data"]:
+                    latest_image = {
+                        "media_type": str(img.get("mediaType") or "image/jpeg"),
+                        "data": img["data"],
+                    }
+                    marker = "[📷 image attached]"
+                    text_content = (
+                        f"{text_content}\n\n{marker}" if text_content else marker
+                    )
                 memory["conversation"].append(
                     {
                         "id": new_turn_id(),
                         "role": "user",
-                        "content": str(m.get("content", "")),
+                        "content": text_content,
                         "ts": int(time.time() * 1000),
                     }
                 )
@@ -166,6 +180,34 @@ class handler(BaseHTTPRequestHandler):
         # remove the trailing entries we already appended from memory so we
         # don't double-include; _compose_messages already does that correctly
         # since we pass [] as new_user_messages.
+
+        # If this turn has an image, replace the last user message's plain
+        # string content with an Anthropic content-block array so vision
+        # gets the photo. We don't persist the bytes — the image lives
+        # only for this one turn.
+        if latest_image:
+            for i in range(len(messages) - 1, -1, -1):
+                if messages[i].get("role") == "user":
+                    text = messages[i].get("content", "")
+                    if isinstance(text, str):
+                        # Strip the "[📷 image attached]" marker we added for
+                        # the persisted history bubble — the model gets the
+                        # actual image instead.
+                        text = text.replace("[📷 image attached]", "").strip()
+                        if not text:
+                            text = "What do you see in this photo?"
+                        messages[i]["content"] = [
+                            {
+                                "type": "image",
+                                "source": {
+                                    "type": "base64",
+                                    "media_type": latest_image["media_type"],
+                                    "data": latest_image["data"],
+                                },
+                            },
+                            {"type": "text", "text": text},
+                        ]
+                    break
 
         persona_for_model = snapshot.get("coachPersona") or memory.get("coachPersona")
         model = pick_model(messages, coach_persona=persona_for_model)
