@@ -182,7 +182,7 @@ export async function fetchGarminActivityStream(
   const athleteParam = athleteId ? `&athlete=${athleteId}` : ''
   try {
     const res = await fetch(
-      `${GARMIN_API_URL}/api/garmin/activity_stream?activityId=${activityId}${athleteParam}`,
+      `${GARMIN_API_URL}/api/garmin/activity_detail?activityId=${activityId}${athleteParam}`,
     )
     if (!res.ok) return null
     const json = await res.json()
