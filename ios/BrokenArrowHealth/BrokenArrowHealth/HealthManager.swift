@@ -19,6 +19,7 @@ class HealthManager: ObservableObject {
     private let store = HKHealthStore()
     private var athleteId: String = ""
     private var apiUrl: String = ""
+    private var apiKey: String = ""
 
     @Published var isAuthorized = false
     @Published var isSyncing = false
@@ -26,14 +27,16 @@ class HealthManager: ObservableObject {
     @Published var lastError: String?
     @Published var todayData: DailyHealth?
 
-    func configure(athleteId: String, apiUrl: String) {
+    func configure(athleteId: String, apiUrl: String, apiKey: String) {
         self.athleteId = athleteId
         self.apiUrl = apiUrl.hasSuffix("/") ? String(apiUrl.dropLast()) : apiUrl
+        self.apiKey = apiKey
     }
 
     func disconnect() {
         athleteId = ""
         apiUrl = ""
+        apiKey = ""
         isAuthorized = false
         lastSyncDate = nil
         todayData = nil
@@ -65,7 +68,12 @@ class HealthManager: ObservableObject {
     }
 
     func syncNow() async {
-        guard !athleteId.isEmpty, !apiUrl.isEmpty else { return }
+        guard !athleteId.isEmpty, !apiUrl.isEmpty, !apiKey.isEmpty else {
+            if apiKey.isEmpty {
+                lastError = "API key required"
+            }
+            return
+        }
         isSyncing = true
         lastError = nil
 
@@ -250,6 +258,7 @@ class HealthManager: ObservableObject {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         request.httpBody = try JSONSerialization.data(withJSONObject: ["records": records])
 
         let (data, response) = try await URLSession.shared.data(for: request)

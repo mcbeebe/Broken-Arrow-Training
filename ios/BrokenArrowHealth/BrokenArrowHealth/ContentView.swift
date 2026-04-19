@@ -4,11 +4,12 @@ struct ContentView: View {
     @EnvironmentObject var health: HealthManager
     @AppStorage("athleteId") private var athleteId: String = ""
     @AppStorage("apiUrl") private var apiUrl: String = ""
+    @AppStorage("apiKey") private var apiKey: String = ""
 
     var body: some View {
         NavigationView {
             VStack(spacing: 20) {
-                if athleteId.isEmpty || apiUrl.isEmpty {
+                if athleteId.isEmpty || apiUrl.isEmpty || apiKey.isEmpty {
                     setupView
                 } else {
                     connectedView
@@ -18,8 +19,8 @@ struct ContentView: View {
             .navigationTitle("Broken Arrow Health")
         }
         .onAppear {
-            if !athleteId.isEmpty && !apiUrl.isEmpty {
-                health.configure(athleteId: athleteId, apiUrl: apiUrl)
+            if !athleteId.isEmpty && !apiUrl.isEmpty && !apiKey.isEmpty {
+                health.configure(athleteId: athleteId, apiUrl: apiUrl, apiKey: apiKey)
                 health.requestAuthorization()
             }
         }
@@ -46,10 +47,14 @@ struct ContentView: View {
                     .autocapitalization(.none)
                     .disableAutocorrection(true)
                     .keyboardType(.URL)
+                SecureField("API key (APPLE_HEALTH_API_KEY)", text: $apiKey)
+                    .textFieldStyle(.roundedBorder)
+                    .autocapitalization(.none)
+                    .disableAutocorrection(true)
             }
             .padding(.horizontal)
             Button {
-                health.configure(athleteId: athleteId, apiUrl: apiUrl)
+                health.configure(athleteId: athleteId, apiUrl: apiUrl, apiKey: apiKey)
                 health.requestAuthorization()
             } label: {
                 Text("Connect Apple Health")
@@ -60,7 +65,7 @@ struct ContentView: View {
                     .foregroundColor(.white)
                     .cornerRadius(12)
             }
-            .disabled(athleteId.isEmpty || apiUrl.isEmpty)
+            .disabled(athleteId.isEmpty || apiUrl.isEmpty || apiKey.isEmpty)
             .padding(.horizontal)
         }
     }
@@ -112,6 +117,7 @@ struct ContentView: View {
             Button("Disconnect") {
                 athleteId = ""
                 apiUrl = ""
+                apiKey = ""
                 health.disconnect()
             }
             .font(.subheadline)
