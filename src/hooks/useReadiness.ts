@@ -189,10 +189,10 @@ export function useReadiness({
     [healthData],
   )
 
-  // Proactive injury risk flags (HRV slope, ACWR acceleration, recovery failure)
+  // Proactive injury risk flags (HRV slope, ACWR acceleration, recovery failure, escalating soreness)
   const riskFlags = useMemo(
-    () => checkInjuryRisk(healthData, performance),
-    [healthData, performance],
+    () => checkInjuryRisk(healthData, performance, sorenessLoadByDate),
+    [healthData, performance, sorenessLoadByDate],
   )
 
   // Calculate baselines from health history

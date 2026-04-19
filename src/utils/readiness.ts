@@ -577,10 +577,48 @@ export function checkRecoveryFailure(healthHistory: GarminHealthData[]): {
   }
 }
 
+/**
+ * Check for escalating DOMS/soreness — user-reported soreness elevated
+ * on 3+ of the last 5 days OR increasing for 3 consecutive days. These
+ * patterns correlate with eccentric overload (Twist & Highton 2013) and
+ * raise injury risk if training continues at the same intensity.
+ */
+export function checkEscalatingSoreness(
+  sorenessLoadByDate: Map<string, number>,
+): { escalating: boolean; elevatedDays: number; trending: boolean; last: number } {
+  const today = new Date()
+  const recent: { date: string; adj: number }[] = []
+  for (let i = 0; i < 5; i++) {
+    const d = new Date(today)
+    d.setDate(d.getDate() - i)
+    const y = d.getFullYear()
+    const m = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    const key = `${y}-${m}-${day}`
+    recent.push({ date: key, adj: sorenessLoadByDate.get(key) ?? 0 })
+  }
+  // Soreness adjustment > 0 means user reported moderate-or-worse soreness
+  // (Level 3 = +15, Level 4 = +35, Level 5 = +65; Level 2 = 0; Level 1 = -15)
+  const elevatedDays = recent.filter(r => r.adj > 0).length
+  // Trending: last 3 consecutive days all elevated AND non-decreasing
+  const last3 = recent.slice(0, 3)
+  const trending =
+    last3.every(r => r.adj > 0) &&
+    last3[0].adj >= last3[1].adj &&
+    last3[1].adj >= last3[2].adj
+  return {
+    escalating: elevatedDays >= 3 || trending,
+    elevatedDays,
+    trending,
+    last: recent[0].adj,
+  }
+}
+
 /** Run all risk checks and return a prioritized list of flags. */
 export function checkInjuryRisk(
   healthHistory: GarminHealthData[],
   performance: PerformanceMetrics[],
+  sorenessLoadByDate?: Map<string, number>,
 ): RiskFlag[] {
   const flags: RiskFlag[] = []
 
@@ -625,6 +663,22 @@ export function checkInjuryRisk(
       title: 'HRV declining every day this week',
       message: 'HRV has decreased on each of the last 7 days. This is rare and suggests accumulating fatigue faster than you can recover.',
     })
+  }
+
+  if (sorenessLoadByDate) {
+    const soreness = checkEscalatingSoreness(sorenessLoadByDate)
+    if (soreness.escalating) {
+      const severity: RiskFlag['severity'] = soreness.trending && soreness.last >= 35 ? 'alert' : 'warning'
+      flags.push({
+        id: 'escalating_soreness',
+        severity,
+        title: 'Muscle soreness escalating',
+        message: soreness.trending
+          ? `Soreness has been elevated and trending up for 3 days. This is a classic eccentric-overload signal — back off quad-loading work (heavy squats, downhill running) for 1–2 days.`
+          : `Elevated soreness on ${soreness.elevatedDays}/5 recent days. Recovery is lagging behind training stimulus. Consider an easy day or mobility session.`,
+        metric: `soreness adj +${soreness.last}`,
+      })
+    }
   }
 
   return flags
