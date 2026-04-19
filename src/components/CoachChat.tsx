@@ -4,6 +4,7 @@ import { coachApiAvailable, coachApiBase } from '../utils/coachApi'
 import type { UseCoachMemoryReturn } from '../hooks/useCoachMemory'
 import { renderMarkdown } from '../utils/markdown'
 import { extractProposal, stripStreamingProposal } from '../utils/chatProposal'
+import { resizeImage, type ResizedImage } from '../utils/imageResize'
 
 /** Tiny toast that disappears after a beat. */
 function CopiedToast({ visible }: { visible: boolean }) {
@@ -69,6 +70,9 @@ export default function CoachChat({ athleteId, memory, snapshot, seed, onSeedCon
   const [liveReply, setLiveReply] = useState('')
   const [liveStatus, setLiveStatus] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [attachedImage, setAttachedImage] = useState<ResizedImage | null>(null)
+  const [attaching, setAttaching] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const [copiedToast, setCopiedToast] = useState(false)
   const [fontScale, setFontScaleState] = useState(() => readFontScale(athleteId))
   const scrollerRef = useRef<HTMLDivElement>(null)
@@ -108,21 +112,47 @@ export default function CoachChat({ athleteId, memory, snapshot, seed, onSeedCon
     scrollerRef.current?.scrollTo({ top: scrollerRef.current.scrollHeight, behavior: 'smooth' })
   }, [memory.conversation.length, liveReply])
 
+  async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    e.target.value = ''  // allow re-selecting same file
+    if (!file) return
+    if (!file.type.startsWith('image/')) {
+      setError('Only image files are supported.')
+      return
+    }
+    setAttaching(true)
+    setError(null)
+    try {
+      const resized = await resizeImage(file)
+      setAttachedImage(resized)
+    } catch (err) {
+      setError(`Couldn't process image: ${(err as Error).message}`)
+    } finally {
+      setAttaching(false)
+    }
+  }
+
   async function send() {
     const text = input.trim()
-    if (!text || streaming) return
+    if ((!text && !attachedImage) || streaming) return
     if (!coachApiAvailable()) {
       setError('Coach is offline (API not configured).')
       return
     }
+    const image = attachedImage
+    const promptText = text || (image ? 'What do you see in this photo?' : '')
     setInput('')
+    setAttachedImage(null)
     setStreaming(true)
     setLiveReply('')
     setError(null)
     onSent?.()
 
-    // Optimistic append — the server will also persist this, so on refresh
-    // we may see it twice briefly; acceptable.
+    // Optimistic append. Annotate with image marker so the bubble shows
+    // the attachment indicator even before the server round-trip lands.
+    const optimisticContent = image
+      ? `${promptText}\n\n[📷 image attached]`
+      : promptText
     memory.patchLocal(m => ({
       ...m,
       conversation: [
@@ -130,20 +160,23 @@ export default function CoachChat({ athleteId, memory, snapshot, seed, onSeedCon
         {
           id: `local_${Date.now()}`,
           role: 'user',
-          content: text,
+          content: optimisticContent,
           ts: Date.now(),
         },
       ],
     }))
 
     try {
-      // Send only the new user turn — the server has the full history
+      const userMessage: Record<string, unknown> = { role: 'user', content: promptText }
+      if (image) {
+        userMessage.image = { mediaType: image.mediaType, data: image.base64 }
+      }
       const res = await fetch(`${coachApiBase()}/api/coach/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           athleteId,
-          messages: [{ role: 'user', content: text }],
+          messages: [userMessage],
           snapshot,
         }),
       })
@@ -218,7 +251,7 @@ export default function CoachChat({ athleteId, memory, snapshot, seed, onSeedCon
     })
   }, [input])
 
-  const canSend = !!input.trim() && !streaming && coachApiAvailable()
+  const canSend = (!!input.trim() || !!attachedImage) && !streaming && !attaching && coachApiAvailable()
 
   void adjustFontScale
   void fontScale
@@ -278,7 +311,52 @@ export default function CoachChat({ athleteId, memory, snapshot, seed, onSeedCon
       )}
 
       <div className="border-t border-slate-200 dark:border-slate-700 px-2 py-1.5 bg-white dark:bg-slate-800 shrink-0">
+        {(attachedImage || attaching) && (
+          <div className="px-1 pb-1.5 flex items-center gap-2">
+            {attaching && (
+              <div className="text-xs text-slate-500 italic">Processing image…</div>
+            )}
+            {attachedImage && (
+              <div className="relative inline-block">
+                <img
+                  src={attachedImage.dataUrl}
+                  alt="attachment preview"
+                  className="h-16 w-16 object-cover rounded-lg border border-slate-200 dark:border-slate-700"
+                />
+                <button
+                  type="button"
+                  onClick={() => setAttachedImage(null)}
+                  aria-label="Remove image"
+                  className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-slate-800 text-white text-xs flex items-center justify-center shadow"
+                >
+                  ×
+                </button>
+                <div className="text-[10px] text-slate-400 mt-0.5">
+                  {attachedImage.width}×{attachedImage.height} · {(attachedImage.bytes / 1024).toFixed(0)}KB
+                </div>
+              </div>
+            )}
+          </div>
+        )}
         <div className="relative flex items-end">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleFileSelect}
+          />
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={!coachApiAvailable() || streaming || attaching}
+            aria-label="Attach photo"
+            className="mr-1 mb-1 w-9 h-9 flex items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-40 transition-colors"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
+              <path fillRule="evenodd" d="M4 5a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V7a2 2 0 00-2-2h-1.586a1 1 0 01-.707-.293l-1.121-1.121A2 2 0 0011.172 3H8.828a2 2 0 00-1.414.586L6.293 4.707A1 1 0 015.586 5H4zm6 9a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
+            </svg>
+          </button>
           <textarea
             ref={textareaRef}
             value={input}
