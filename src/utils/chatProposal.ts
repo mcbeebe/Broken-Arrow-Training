@@ -10,6 +10,9 @@ import type { CoachAction, PlannedDay } from '../types'
 // The LLM sometimes uses single backticks instead of triple.
 const PROPOSAL_BLOCK_RE = /`{1,4}\s*proposal\s*\n([\s\S]*?)\n`{1,4}/
 
+// Fallback: proposal block with opening backticks but missing closing (truncated response)
+const PROPOSAL_BLOCK_OPEN_RE = /`{1,4}\s*proposal\s*\n([\s\S]*)/
+
 // Also try to match a standalone JSON object with weekNum/dayIndex/updates
 // at the end of the message (fallback when the LLM doesn't use a fenced block)
 const PROPOSAL_JSON_RE = /\n\s*(\{[\s\S]*?"weekNum"\s*:\s*\d[\s\S]*?"updates"\s*:[\s\S]*?\})\s*$/
@@ -30,12 +33,24 @@ export function extractProposal(content: string): { content: string; action: Coa
     jsonStr = match?.[1]?.trim()
   }
 
+  // Fallback: proposal block with opening backticks but no closing (truncated)
+  if (!jsonStr) {
+    match = content.match(PROPOSAL_BLOCK_OPEN_RE)
+    matchedFull = match?.[0]
+    jsonStr = match?.[1]?.trim()
+  }
+
   if (!jsonStr || !matchedFull) return { content, action: null }
   let parsed: unknown
   try {
     parsed = JSON.parse(jsonStr)
   } catch {
-    return { content, action: null }
+    // Try to repair truncated JSON by closing open braces
+    const repaired = repairJSON(jsonStr)
+    if (repaired) {
+      try { parsed = JSON.parse(repaired) } catch { /* give up */ }
+    }
+    if (!parsed) return { content, action: null }
   }
 
   if (!isValidProposal(parsed)) {
@@ -77,6 +92,24 @@ export function extractProposal(content: string): { content: string; action: Coa
   }
 
   return { content: cleanContent, action }
+}
+
+function repairJSON(s: string): string | null {
+  // Trim trailing backticks/whitespace the LLM might have left
+  let cleaned = s.replace(/`+\s*$/, '').trim()
+  // Truncate at last complete value (before a trailing comma or truncated string)
+  cleaned = cleaned.replace(/,\s*"[^"]*$/, '')    // trailing incomplete key
+  cleaned = cleaned.replace(/,\s*$/, '')           // trailing comma
+  cleaned = cleaned.replace(/:\s*"[^"]*$/, ': ""') // truncated string value
+  // Count braces and close any that are open
+  let braces = 0
+  for (const c of cleaned) {
+    if (c === '{') braces++
+    if (c === '}') braces--
+  }
+  if (braces <= 0) return null
+  cleaned += '}'.repeat(braces)
+  return cleaned
 }
 
 function isValidProposal(obj: unknown): boolean {
