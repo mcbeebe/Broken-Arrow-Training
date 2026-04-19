@@ -45,9 +45,18 @@ class handler(BaseHTTPRequestHandler):
                 self._send_json(401, {"error": "Email not verified"})
                 return
 
-            # Check Google client ID matches
-            client_id = os.environ.get("GOOGLE_CLIENT_ID", "")
-            if client_id and token_data.get("aud") != client_id:
+            # Accept Google ID tokens from either the web client or the iOS
+            # companion app. The web Google Sign-In button is audienced to
+            # GOOGLE_CLIENT_ID; the native iOS SDK is audienced to
+            # GOOGLE_CLIENT_ID_IOS. Both are legitimate — we just need one
+            # of them to match.
+            allowed_auds = {
+                aud for aud in (
+                    os.environ.get("GOOGLE_CLIENT_ID", ""),
+                    os.environ.get("GOOGLE_CLIENT_ID_IOS", ""),
+                ) if aud
+            }
+            if allowed_auds and token_data.get("aud") not in allowed_auds:
                 self._send_json(401, {"error": "Invalid client ID"})
                 return
 

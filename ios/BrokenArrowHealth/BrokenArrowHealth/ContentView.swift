@@ -2,28 +2,29 @@ import SwiftUI
 
 struct ContentView: View {
     @EnvironmentObject var health: HealthManager
-    @AppStorage("athleteId") private var athleteId: String = ""
-    @AppStorage("apiUrl") private var apiUrl: String = ""
-    @AppStorage("apiKey") private var apiKey: String = ""
+    @EnvironmentObject var auth: AuthManager
 
     var body: some View {
         NavigationView {
             VStack(spacing: 20) {
-                if athleteId.isEmpty || apiUrl.isEmpty || apiKey.isEmpty {
-                    setupView
-                } else {
+                if auth.isSignedIn {
                     connectedView
+                } else {
+                    setupView
                 }
             }
             .padding()
             .navigationTitle("Broken Arrow Health")
         }
-        .onAppear {
-            if !athleteId.isEmpty && !apiUrl.isEmpty && !apiKey.isEmpty {
-                health.configure(athleteId: athleteId, apiUrl: apiUrl, apiKey: apiKey)
-                health.requestAuthorization()
-            }
-        }
+        .onAppear { wireUp() }
+        .onChange(of: auth.sessionToken) { _, _ in wireUp() }
+    }
+
+    private func wireUp() {
+        guard auth.isSignedIn, !auth.apiUrl.isEmpty,
+              let token = auth.sessionToken else { return }
+        health.configure(apiUrl: auth.apiUrl, sessionToken: token)
+        health.requestAuthorization()
     }
 
     private var setupView: some View {
@@ -33,40 +34,46 @@ struct ContentView: View {
                 .foregroundColor(.green)
             Text("Connect to Broken Arrow")
                 .font(.title2).bold()
-            Text("Syncs Apple Watch HRV, RHR, and sleep to the Broken Arrow training app.")
+            Text("Sign in with the Google account your coach uses. The app will sync your Apple Watch HRV, RHR, and sleep into Broken Arrow Training.")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
-            VStack(spacing: 12) {
-                TextField("Your athlete ID (e.g. mike)", text: $athleteId)
-                    .textFieldStyle(.roundedBorder)
-                    .autocapitalization(.none)
-                    .disableAutocorrection(true)
-                TextField("API URL (https://...)", text: $apiUrl)
-                    .textFieldStyle(.roundedBorder)
-                    .autocapitalization(.none)
-                    .disableAutocorrection(true)
-                    .keyboardType(.URL)
-                SecureField("API key (APPLE_HEALTH_API_KEY)", text: $apiKey)
-                    .textFieldStyle(.roundedBorder)
-                    .autocapitalization(.none)
-                    .disableAutocorrection(true)
-            }
-            .padding(.horizontal)
+            TextField("API URL (https://...)", text: $auth.apiUrl)
+                .textFieldStyle(.roundedBorder)
+                .autocapitalization(.none)
+                .disableAutocorrection(true)
+                .keyboardType(.URL)
+                .padding(.horizontal)
             Button {
-                health.configure(athleteId: athleteId, apiUrl: apiUrl, apiKey: apiKey)
-                health.requestAuthorization()
+                Task {
+                    guard let root = rootViewController() else { return }
+                    await auth.signIn(presenting: root)
+                }
             } label: {
-                Text("Connect Apple Health")
-                    .font(.headline)
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(Color.green)
-                    .foregroundColor(.white)
-                    .cornerRadius(12)
+                HStack {
+                    if auth.isSigningIn {
+                        ProgressView().tint(.white)
+                    } else {
+                        Image(systemName: "person.crop.circle.fill")
+                    }
+                    Text(auth.isSigningIn ? "Signing in…" : "Sign in with Google")
+                }
+                .font(.headline)
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(Color.blue)
+                .foregroundColor(.white)
+                .cornerRadius(12)
             }
-            .disabled(athleteId.isEmpty || apiUrl.isEmpty || apiKey.isEmpty)
+            .disabled(auth.apiUrl.isEmpty || auth.isSigningIn)
             .padding(.horizontal)
+            if let error = auth.lastError {
+                Text(error)
+                    .font(.caption)
+                    .foregroundColor(.red)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal)
+            }
         }
     }
 
@@ -76,14 +83,22 @@ struct ContentView: View {
                 Circle()
                     .fill(health.lastSyncDate != nil ? Color.green : Color.orange)
                     .frame(width: 10, height: 10)
-                Text(health.isAuthorized ? "Connected" : "Waiting for permissions...")
+                Text(health.isAuthorized ? "Connected" : "Waiting for Apple Health permissions…")
                     .font(.headline)
                 Spacer()
             }
-            Text("Athlete: \(athleteId)")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-                .frame(maxWidth: .infinity, alignment: .leading)
+            VStack(alignment: .leading, spacing: 2) {
+                if let name = auth.displayName, !name.isEmpty {
+                    Text(name).font(.subheadline).bold()
+                }
+                if let email = auth.email, !email.isEmpty {
+                    Text(email).font(.caption).foregroundColor(.secondary)
+                }
+                if let id = auth.athleteId, !id.isEmpty {
+                    Text("Athlete: \(id)").font(.caption).foregroundColor(.secondary)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
             if let lastSync = health.lastSyncDate {
                 Text("Last sync: \(lastSync, style: .relative) ago")
                     .font(.caption)
@@ -104,7 +119,7 @@ struct ContentView: View {
                     if health.isSyncing {
                         ProgressView().tint(.white)
                     }
-                    Text(health.isSyncing ? "Syncing..." : "Sync Now")
+                    Text(health.isSyncing ? "Syncing…" : "Sync Now")
                 }
                 .font(.headline)
                 .frame(maxWidth: .infinity)
@@ -114,10 +129,8 @@ struct ContentView: View {
                 .cornerRadius(12)
             }
             .disabled(health.isSyncing || !health.isAuthorized)
-            Button("Disconnect") {
-                athleteId = ""
-                apiUrl = ""
-                apiKey = ""
+            Button("Sign out") {
+                auth.signOut()
                 health.disconnect()
             }
             .font(.subheadline)
@@ -126,6 +139,19 @@ struct ContentView: View {
     }
 }
 
+/// Resolve the current key window's root view controller so the
+/// Google sign-in sheet has something to present from.
+@MainActor
+func rootViewController() -> UIViewController? {
+    let scenes = UIApplication.shared.connectedScenes
+    let windowScene = scenes.first { $0.activationState == .foregroundActive } as? UIWindowScene
+        ?? scenes.first as? UIWindowScene
+    return windowScene?.windows.first(where: { $0.isKeyWindow })?.rootViewController
+        ?? windowScene?.windows.first?.rootViewController
+}
+
 #Preview {
-    ContentView().environmentObject(HealthManager())
+    ContentView()
+        .environmentObject(HealthManager())
+        .environmentObject(AuthManager())
 }
