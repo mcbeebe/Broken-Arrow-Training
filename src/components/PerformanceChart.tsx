@@ -2,7 +2,7 @@ import { useState } from 'react'
 import type { PerformanceMetrics, WeeklyRecommendation, DailyTRIMP } from '../types'
 import { getTSBState, getTSBLabel, getACWRRisk, getACWRLabel } from '../utils/performance'
 import {
-  ComposedChart, Area, Bar, XAxis, YAxis, Tooltip,
+  ComposedChart, Area, XAxis, YAxis, Tooltip,
   ResponsiveContainer, ReferenceLine, ReferenceArea, CartesianGrid,
 } from 'recharts'
 import ChartExpandOverlay from './ChartExpandOverlay'
@@ -125,9 +125,9 @@ export default function PerformanceChart({
                   'Recovery Balance (TSB)',
                 ]}
               />
-              {/* Daily training load bars (right axis) — drawn first so lines sit on top */}
+              {/* Daily training load line (right axis) */}
               {visible.load && (
-                <Bar yAxisId="right" dataKey="load" fill={isDark ? '#fbbf24' : '#f59e0b'} fillOpacity={0.35} isAnimationActive={false} />
+                <Area yAxisId="right" type="natural" dataKey="load" stroke="#d97706" fill="#d97706" fillOpacity={0.08} strokeWidth={expanded ? 2 : 1.5} dot={false} isAnimationActive={false} />
               )}
               {/* Training band: productive overreach zone (TSB -30 to -10) */}
               {showBands && (
@@ -359,6 +359,7 @@ function smoothSeries(data: ChartPoint[], window: number): ChartPoint[] {
       ctl: smoothCtl,
       atl: slice.reduce((s, p) => s + p.atl, 0) / n,
       tsbSmooth: slice.reduce((s, p) => s + p.tsb, 0) / n,
+      load: slice.reduce((s, p) => s + p.load, 0) / n,
       acwrLow: smoothCtl * 0.8,
       acwrHigh: smoothCtl * 1.3,
     }
