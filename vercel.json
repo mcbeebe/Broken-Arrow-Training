@@ -12,6 +12,9 @@
     },
     "api/coach/*.py": {
       "maxDuration": 60
+    },
+    "api/apple/*.py": {
+      "maxDuration": 30
     }
   },
   "headers": [
