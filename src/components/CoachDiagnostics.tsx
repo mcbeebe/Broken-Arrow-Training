@@ -42,20 +42,33 @@ const ALL_ATHLETES = ['mike', 'jim', 'lori', 'joel']
 export default function CoachDiagnostics({ athleteId }: Props) {
   const [viewingAthlete, setViewingAthlete] = useState(athleteId)
   const [data, setData] = useState<TelemetryResponse | null>(null)
+  const [allData, setAllData] = useState<Record<string, TelemetryResponse> | null>(null)
   const [loading, setLoading] = useState(false)
   const [days, setDays] = useState(30)
   const [expanded, setExpanded] = useState<Set<number>>(new Set())
+  const isAllView = viewingAthlete === 'all'
 
   async function load() {
     if (!coachApiAvailable()) return
     setLoading(true)
     try {
-      const res = await fetch(
-        `${coachApiBase()}/api/coach/telemetry?athleteId=${encodeURIComponent(viewingAthlete)}&days=${days}`,
-      )
-      if (res.ok) {
-        const j = (await res.json()) as TelemetryResponse
-        setData(j)
+      if (isAllView) {
+        const results: Record<string, TelemetryResponse> = {}
+        await Promise.all(ALL_ATHLETES.map(async (a) => {
+          const res = await fetch(`${coachApiBase()}/api/coach/telemetry?athleteId=${a}&days=${days}`)
+          if (res.ok) results[a] = await res.json()
+        }))
+        setAllData(results)
+        setData(null)
+      } else {
+        const res = await fetch(
+          `${coachApiBase()}/api/coach/telemetry?athleteId=${encodeURIComponent(viewingAthlete)}&days=${days}`,
+        )
+        if (res.ok) {
+          const j = (await res.json()) as TelemetryResponse
+          setData(j)
+        }
+        setAllData(null)
       }
     } catch {
       // ignore
@@ -86,8 +99,9 @@ export default function CoachDiagnostics({ athleteId }: Props) {
           <select
             value={viewingAthlete}
             onChange={e => setViewingAthlete(e.target.value)}
-            className="text-[11px] bg-slate-100 border border-slate-200 rounded px-1.5 py-0.5 text-slate-700"
+            className="text-[11px] bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded px-1.5 py-0.5 text-slate-700 dark:text-slate-200"
           >
+            <option value="all">All Athletes</option>
             {ALL_ATHLETES.map(a => (
               <option key={a} value={a}>{a.charAt(0).toUpperCase() + a.slice(1)}</option>
             ))}
@@ -108,11 +122,65 @@ export default function CoachDiagnostics({ athleteId }: Props) {
         </div>
       </div>
 
-      {loading && !data && (
-        <p className="text-xs text-slate-400">Loading…</p>
+      {loading && !data && !allData && (
+        <p className="text-xs text-slate-400 dark:text-slate-500">Loading…</p>
       )}
 
-      {data && (
+      {/* All-athletes summary view */}
+      {isAllView && allData && (
+        <div className="space-y-3">
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b border-slate-200 dark:border-slate-700">
+                  <th className="text-left py-1.5 text-slate-500 dark:text-slate-400 font-semibold">Athlete</th>
+                  <th className="text-right py-1.5 text-slate-500 dark:text-slate-400 font-semibold">Calls</th>
+                  <th className="text-right py-1.5 text-slate-500 dark:text-slate-400 font-semibold">Input</th>
+                  <th className="text-right py-1.5 text-slate-500 dark:text-slate-400 font-semibold">Output</th>
+                  <th className="text-right py-1.5 text-slate-500 dark:text-slate-400 font-semibold">Cost</th>
+                </tr>
+              </thead>
+              <tbody>
+                {ALL_ATHLETES.map(a => {
+                  const d = allData[a]
+                  if (!d) return (
+                    <tr key={a} className="border-b border-slate-100 dark:border-slate-700">
+                      <td className="py-1.5 text-slate-700 dark:text-slate-200 font-medium capitalize">{a}</td>
+                      <td className="text-right text-slate-400" colSpan={4}>No data</td>
+                    </tr>
+                  )
+                  return (
+                    <tr key={a} className="border-b border-slate-100 dark:border-slate-700">
+                      <td className="py-1.5 text-slate-700 dark:text-slate-200 font-medium capitalize">{a}</td>
+                      <td className="text-right text-slate-600 dark:text-slate-300">{d.rollup.llm.totalCalls}</td>
+                      <td className="text-right text-slate-600 dark:text-slate-300">{(d.rollup.llm.totalInput / 1000).toFixed(1)}k</td>
+                      <td className="text-right text-slate-600 dark:text-slate-300">{(d.rollup.llm.totalOutput / 1000).toFixed(1)}k</td>
+                      <td className="text-right text-slate-700 dark:text-slate-200 font-semibold">${d.rollup.llm.totalCost.toFixed(4)}</td>
+                    </tr>
+                  )
+                })}
+                <tr className="border-t-2 border-slate-300 dark:border-slate-600 font-bold">
+                  <td className="py-1.5 text-slate-800 dark:text-white">Total</td>
+                  <td className="text-right text-slate-800 dark:text-white">
+                    {Object.values(allData).reduce((s, d) => s + d.rollup.llm.totalCalls, 0)}
+                  </td>
+                  <td className="text-right text-slate-800 dark:text-white">
+                    {(Object.values(allData).reduce((s, d) => s + d.rollup.llm.totalInput, 0) / 1000).toFixed(1)}k
+                  </td>
+                  <td className="text-right text-slate-800 dark:text-white">
+                    {(Object.values(allData).reduce((s, d) => s + d.rollup.llm.totalOutput, 0) / 1000).toFixed(1)}k
+                  </td>
+                  <td className="text-right text-green-700 dark:text-green-400 font-bold">
+                    ${Object.values(allData).reduce((s, d) => s + d.rollup.llm.totalCost, 0).toFixed(4)}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {data && !isAllView && (
         <>
           {/* Usage summary */}
           <div className="grid grid-cols-2 gap-2">
