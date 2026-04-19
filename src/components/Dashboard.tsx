@@ -255,7 +255,7 @@ function ReadinessTab({
         />
       )}
 
-      <RiskFlagsCard flags={riskFlags} />
+      <RiskFlagsCard flags={riskFlags} showAllClear />
 
       <CalendarHeatmap dailyTrimp={dailyTrimp} readinessScores={weekScores} />
 
@@ -462,8 +462,18 @@ function TimeWindowToggle({ value, onChange }: { value: TimeWindow; onChange: (w
 
 // ─── Risk Flags Card ────────────────────────────────────────────
 
-function RiskFlagsCard({ flags }: { flags: RiskFlag[] }) {
-  if (flags.length === 0) return null
+function RiskFlagsCard({ flags, showAllClear = false }: { flags: RiskFlag[]; showAllClear?: boolean }) {
+  if (flags.length === 0) {
+    if (!showAllClear) return null
+    return (
+      <div className="rounded-xl p-3 border bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-900">
+        <p className="text-sm font-semibold text-green-800 dark:text-green-300">✓ No injury risk flags</p>
+        <p className="text-xs text-green-700 dark:text-green-400 mt-0.5">
+          HRV trend, load ratio, and recovery markers all within safe ranges. Monitoring continues daily.
+        </p>
+      </div>
+    )
+  }
   const alerts = flags.filter(f => f.severity === 'alert')
   const warnings = flags.filter(f => f.severity === 'warning')
   const bgClass = alerts.length > 0

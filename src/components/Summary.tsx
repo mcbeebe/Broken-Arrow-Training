@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import type { ReadinessScore, GarminHealthData, CoachRecommendation, PerformanceMetrics, DailyTRIMP, CoachInsight, PlannedDay, HRZone, CoachSnapshot } from '../types'
+import type { RiskFlag } from '../utils/readiness'
 import type { SorenessLevel } from '../hooks/useSoreness'
 import { getTSBState, getTSBLabel, getACWRRisk, getACWRLabel } from '../utils/performance'
 import { localDateStr } from '../utils/format'
@@ -33,6 +34,7 @@ interface SummaryProps {
   currentWeekNum?: number
   zones?: HRZone[]
   coachSnapshot?: CoachSnapshot | null
+  riskFlags?: RiskFlag[]
 }
 
 // ─── Scale bar component ──────────────────────────────────────
@@ -130,6 +132,7 @@ export default function Summary({
   currentWeekNum,
   zones,
   coachSnapshot,
+  riskFlags = [],
 }: SummaryProps) {
   const latestPerf = performance.length > 0 ? performance[performance.length - 1] : null
   const [perfOpen, setPerfOpen] = useState(false)
@@ -194,6 +197,9 @@ export default function Summary({
           </>
         )
       })()}
+
+      {/* Injury risk alerts — only renders when active flags present */}
+      {riskFlags.length > 0 && <SummaryRiskFlags flags={riskFlags} />}
 
       {/* Unified daily briefing: coach + readiness + why */}
       {garminConnected && todayScore ? (
@@ -461,6 +467,34 @@ export default function Summary({
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+function SummaryRiskFlags({ flags }: { flags: RiskFlag[] }) {
+  const alerts = flags.filter(f => f.severity === 'alert')
+  const warnings = flags.filter(f => f.severity === 'warning')
+  const bgClass = alerts.length > 0
+    ? 'bg-red-50 dark:bg-red-950 border-red-200 dark:border-red-900'
+    : 'bg-amber-50 dark:bg-amber-950 border-amber-200 dark:border-amber-900'
+  const icon = alerts.length > 0 ? '🚨' : '⚠️'
+  const title = alerts.length > 0 ? 'Injury Risk Alert' : 'Heads up'
+  return (
+    <div className={`rounded-xl p-3 border ${bgClass}`}>
+      <p className="text-sm font-bold text-slate-800 dark:text-white mb-2">{icon} {title}</p>
+      <div className="space-y-2">
+        {[...alerts, ...warnings].map(f => (
+          <div key={f.id} className="bg-white/60 dark:bg-slate-900/40 rounded-lg p-2">
+            <div className="flex items-center justify-between gap-2 mb-0.5">
+              <p className="text-xs font-semibold text-slate-800 dark:text-slate-200">{f.title}</p>
+              {f.metric && (
+                <span className="text-[10px] font-mono text-slate-500 dark:text-slate-400">{f.metric}</span>
+              )}
+            </div>
+            <p className="text-xs text-slate-600 dark:text-slate-300 leading-snug">{f.message}</p>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }

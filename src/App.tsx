@@ -461,6 +461,7 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
           currentWeekNum={currentWeekNum}
           zones={hrZones.zones}
           coachSnapshot={coachSnapshot}
+          riskFlags={readiness.riskFlags}
         />
       )}
       {view === 'plan' && (
