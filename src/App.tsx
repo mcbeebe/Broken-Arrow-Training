@@ -29,6 +29,7 @@ import CoachTab from './components/CoachTab'
 import CoachPingToast from './components/CoachPingToast'
 import LoginScreen from './components/LoginScreen'
 import { useHRZones } from './hooks/useHRZones'
+import { useMaxHR } from './hooks/useMaxHR'
 import { getStoredSession, clearSession, type AuthSession } from './utils/auth'
 import { useTheme } from './hooks/useTheme'
 
@@ -102,6 +103,26 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
   const planOverrides = usePlanOverrides(athleteId)
   const soreness = useSoreness(athleteId)
   const hrZones = useHRZones(athleteId, plan.zones)
+  const maxHROverride = useMaxHR(athleteId, plan.athlete.maxHR)
+  const effectiveAthlete = useMemo(
+    () => ({ ...plan.athlete, maxHR: maxHROverride.maxHR }),
+    [plan.athlete, maxHROverride.maxHR],
+  )
+  const handleSaveHRZones = useCallback(
+    (zones: import('./types').HRZone[], nextMaxHR: number) => {
+      hrZones.save(zones)
+      if (nextMaxHR > 0 && nextMaxHR !== plan.athlete.maxHR) {
+        maxHROverride.save(nextMaxHR)
+      } else if (nextMaxHR === plan.athlete.maxHR && maxHROverride.isCustomized) {
+        maxHROverride.reset()
+      }
+    },
+    [hrZones, maxHROverride, plan.athlete.maxHR],
+  )
+  const handleResetHRZones = useCallback(() => {
+    hrZones.reset()
+    maxHROverride.reset()
+  }, [hrZones, maxHROverride])
   const showStrava = true  // All athletes can connect Strava and Garmin
   // Coach is now available to all athletes. Per-athlete isolation is
   // handled server-side via athleteId-keyed KV memory. Soft cost caps
@@ -231,7 +252,7 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
     rpeByDate,
     exerciseLoadByDate,
     sorenessLoadByDate: soreness.sorenessLoadByDate,
-    maxHR: plan.athlete.maxHR,
+    maxHR: maxHROverride.maxHR,
     todayPlannedWorkout,
     currentWeekNum,
     raceDate: plan.race.date,
@@ -300,7 +321,7 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
     // the LLM has nothing useful to say.
     if (!readiness.todayScore && readiness.performance.length === 0) return null
     const snap = buildCoachSnapshot({
-      athleteProfile: plan.athlete,
+      athleteProfile: effectiveAthlete,
       race: plan.race,
       zones: plan.zones,
       raceDistanceMiles: plan.race.distanceMiles,
@@ -335,7 +356,7 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
     return snap
   }, [
     coachEnabled,
-    plan.athlete,
+    effectiveAthlete,
     plan.race,
     currentWeekNum,
     weeks,
@@ -486,7 +507,7 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
           compliance={compliance}
           raceDate={plan.race.date}
           planZones={hrZones.zones}
-          athleteMaxHR={plan.athlete.maxHR}
+          athleteMaxHR={maxHROverride.maxHR}
           todayScore={readiness.todayScore}
           weekScores={readiness.weekScores}
           todayHealth={todayHealth}
@@ -543,9 +564,10 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
           onGarminSync={garmin.sync}
           hrZones={hrZones.zones}
           hrZonesCustomized={hrZones.isCustomized}
-          hrZonesMaxHR={plan.athlete.maxHR}
-          onSaveHRZones={hrZones.save}
-          onResetHRZones={hrZones.reset}
+          hrZonesMaxHR={maxHROverride.maxHR}
+          hrZonesMaxHRCustomized={maxHROverride.isCustomized}
+          onSaveHRZones={handleSaveHRZones}
+          onResetHRZones={handleResetHRZones}
           onClearCache={clearAllCachedData}
           onClearAll={clearAllAppData}
           coachEnabled={coachEnabled}

@@ -49,7 +49,8 @@ interface SettingsProps {
   hrZones?: HRZone[]
   hrZonesCustomized?: boolean
   hrZonesMaxHR?: number
-  onSaveHRZones?: (zones: HRZone[]) => void
+  hrZonesMaxHRCustomized?: boolean
+  onSaveHRZones?: (zones: HRZone[], maxHR: number) => void
   onResetHRZones?: () => void
   // Cache management
   onClearCache?: () => void
@@ -87,6 +88,7 @@ export default function Settings({
   hrZones,
   hrZonesCustomized,
   hrZonesMaxHR,
+  hrZonesMaxHRCustomized,
   onSaveHRZones,
   onResetHRZones,
   onClearCache,
@@ -253,6 +255,7 @@ export default function Settings({
             zones={hrZones}
             isCustomized={!!hrZonesCustomized}
             maxHR={hrZonesMaxHR ?? 0}
+            maxHRCustomized={!!hrZonesMaxHRCustomized}
             onSave={onSaveHRZones}
             onReset={onResetHRZones}
           />

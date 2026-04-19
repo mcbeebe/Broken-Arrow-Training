@@ -230,8 +230,15 @@ Principles:
 - Be curious. If something in today's signal is unusual, name it and ask about it.
 - Never moralize, never lecture about basics the athlete already knows.
 - If the context snapshot is missing data needed to answer confidently, say so rather than guessing.
-- DATES: Always check the "Today:" line in the context for the current date and day of the week. Never guess what day it is. When referencing "tomorrow" or "the day after," compute from today's date. If you're unsure about a date, say so. If an activity happened TODAY, say "today" — not "yesterday."
-- DATA INTEGRITY: ONLY reference numbers, times, PRs, or historical comparisons that are EXPLICITLY present in the context. NEVER fabricate a PR, a previous race time, a comparison to an earlier effort, or any number you don't see in the data. If you don't have the baseline to compare against, simply omit the comparison. Making up stats destroys trust.
+- DATES: Always check the "Today:" line in the context for the current date and day of the week. Never guess what day it is. When referencing "tomorrow" or "the day after," compute from today's date. CRITICAL: If an activity's date matches the "Today:" date, say "today" — NEVER "yesterday." Compare date strings character-by-character before using temporal words. If the same date appears on both the "Today:" line and a "Today actual:" / recent activity line, that activity was TODAY. Do not say "yesterday" about a same-day activity under any circumstance.
+- DATA INTEGRITY (PRs, previous times, comparisons): The context contains a "PR_STATUS:" line when today has a completed activity. This line is the SOLE authority on PR claims. You MUST obey it literally:
+  - If "PR_STATUS: NO" — the athlete was SLOWER than their prior best. You MUST NOT say "PR," "faster," "minute faster," "seconds faster," or any framing that implies improvement over a prior time. State plainly they were X slower than the prior best. Congratulate the effort if warranted, but do NOT fabricate an improvement.
+  - If "PR_STATUS: YES" — you may call it a PR and must use EXACTLY the delta shown (e.g., "40-second PR"). Do not invent a second or alternative delta. One delta number only.
+  - If "PR_STATUS: NO BASELINE" or "UNKNOWN" — do not claim a PR, do not cite a previous time, do not compare.
+  - If "PR_STATUS: TIE" — today matched prior; say so. Not a PR.
+  - Never output two different delta numbers (e.g., "a minute faster" and "40-second PR" in the same reply). The PR_STATUS line has ONE delta; use ONLY that one.
+  - Never infer baselines from activity names, planned workouts, or memory. The PR_STATUS line is ground truth.
+- PACE MATH: Never compute pace yourself. The "Today actual" and "Prior best" lines include a pre-computed "pace X:XX/mi" field — quote it verbatim. Do not divide time by distance in your head; you get it wrong.
 
 PROACTIVE RISK FLAGS:
 When the context includes "⚠️ ACTIVE RISK FLAGS," you have detected concerning trends that the athlete may not know about. You should:
@@ -302,9 +309,23 @@ DEEP USE OF CONTEXT — make it personal:
   "Your last long run was 6.2 mi with 912 ft of gain — today's 7.0 mi
   with 1,528 ft is a significant step up. Walk the steep sections."
 - CITE research when explaining WHY — not unprompted, but when the
-  athlete asks "why" or seems skeptical. "The reason we taper 40-60%
-  instead of 20% — Bosquet's 2007 meta-analysis of 182 athletes showed
-  that's the sweet spot for the supercompensation effect."
+  athlete asks "why" or seems skeptical. Citations MUST come from one
+  of two sources — never invent authors, years, journals, or effect
+  sizes:
+  1. The baked-in "Research citations" section below (Bosquet, Seiler,
+     Hulin, Plews, Toyomura, Vernillo, Pellegrini, etc.). You may cite
+     these verbatim.
+  2. Results returned by the `web_search` tool. When citing a web
+     result, include the URL inline (or a short "source: example.com")
+     so the athlete can verify.
+  If a topic is outside the baked-in list (compression socks, specific
+  supplements, race results for a given event, weather forecasts, etc.),
+  USE `web_search` to find a real study/source before citing. Fabricating
+  citations like "Hill et al. (2014, JSAMS), effect size 0.27" when you
+  have neither a baked-in reference nor a search result is a hard failure.
+  If a search returns nothing useful, say so plainly — "I looked but
+  couldn't find a good source" — and give the advice from general
+  knowledge without pseudo-citations.
 - CONNECT the dots between metrics. Don't just report numbers — explain
   what they MEAN together: "Your HRV dropped 15% while your fatigue
   spiked to 85 — that's your body telling you the Saturday long run
@@ -339,10 +360,14 @@ Synthesis and honesty about gaps:
   way it does (Wk 5 recovery, poles in Wk 4, eccentric strength, taper
   math, polarized training).
 - If you need information outside this context — a specific study, fresh
-  external data, weather/altitude forecasts, race-day logistics not in
-  the snapshot — say so plainly. Offer to flag it for the athlete to
-  look up, or cite the Method tab references. Never fabricate citations
-  or numbers you can't source from the context.
+  external data, weather/altitude forecasts, race-day logistics, product
+  research (compression socks, nutrition, gear), race results, etc. —
+  USE the `web_search` tool. Prefer authoritative sources: peer-reviewed
+  journals, Uphill Athlete, TrainingPeaks, ITRA, UltraSignup, race
+  organizer sites. Include URLs or short source names inline with any
+  facts you cite from search. Never fabricate citations or numbers you
+  can't source from the context, the baked-in knowledge base, or a
+  successful web search.
 """
 
 
@@ -970,13 +995,92 @@ def build_context_block(
         )
         if planned_today.get("actual"):
             a = planned_today["actual"]
+            today_dist = a.get("distance") or 0
+            today_time = a.get("movingTime") or 0
+            today_date_key = a.get("startDate", "")[:10]
+            # Pre-compute today's pace so the coach never does pace math.
+            today_pace_str = "—"
+            if today_dist > 0 and today_time > 0:
+                pace_sec = today_time / today_dist
+                pm = int(pace_sec) // 60
+                ps = int(pace_sec) % 60
+                today_pace_str = f"{pm}:{ps:02d}/mi"
             out.append(
                 f"Today actual: {a.get('name', '')} · "
-                f"{_fmt_num(a.get('distance'))}mi · "
-                f"{_fmt_seconds_as_min(a.get('movingTime'))} · "
+                f"{_fmt_num(today_dist)}mi · "
+                f"{_fmt_seconds_as_min(today_time)} · "
+                f"pace {today_pace_str} · "
                 f"avgHR {a.get('avgHR') or '—'} · "
                 f"RPE {a.get('rpe') or '—'}"
             )
+            # Pre-compute prior best + EXPLICIT PR_STATUS so the coach
+            # cannot fabricate a PR. Baseline = fastest movingTime among
+            # prior activities within ±10% of today's distance.
+            if today_dist > 0:
+                lo, hi = today_dist * 0.9, today_dist * 1.1
+                prior_best: dict[str, Any] | None = None
+                for prev in activities:
+                    prev_date = (prev.get("startDate") or "")[:10]
+                    if prev_date == today_date_key:
+                        continue
+                    d = prev.get("distance") or 0
+                    t = prev.get("movingTime") or 0
+                    if d <= 0 or t <= 0:
+                        continue
+                    if not (lo <= d <= hi):
+                        continue
+                    if prior_best is None or t < (prior_best.get("movingTime") or 0):
+                        prior_best = prev
+                if prior_best:
+                    pb_time = prior_best.get("movingTime") or 0
+                    pb_dist = prior_best.get("distance") or 0
+                    pb_pace_str = "—"
+                    if pb_dist > 0 and pb_time > 0:
+                        pb_pace_sec = pb_time / pb_dist
+                        pm = int(pb_pace_sec) // 60
+                        ps = int(pb_pace_sec) % 60
+                        pb_pace_str = f"{pm}:{ps:02d}/mi"
+                    delta_s = pb_time - today_time  # >0 means today faster
+                    if today_time > 0 and pb_time > 0:
+                        if delta_s > 0:
+                            pr_status = (
+                                f"PR_STATUS: YES — today ({_fmt_seconds_as_min(today_time)}) is "
+                                f"{_fmt_seconds_as_min(abs(delta_s))} FASTER than prior best "
+                                f"on {_fmt_date_with_dow(prior_best.get('startDate', ''))} "
+                                f"({_fmt_seconds_as_min(pb_time)}). You MAY call this a PR and MUST use "
+                                f"exactly '{_fmt_seconds_as_min(abs(delta_s))} PR' — no other delta."
+                            )
+                        elif delta_s < 0:
+                            pr_status = (
+                                f"PR_STATUS: NO — today ({_fmt_seconds_as_min(today_time)}) is "
+                                f"{_fmt_seconds_as_min(abs(delta_s))} SLOWER than prior best "
+                                f"on {_fmt_date_with_dow(prior_best.get('startDate', ''))} "
+                                f"({_fmt_seconds_as_min(pb_time)}). DO NOT call this a PR. "
+                                f"DO NOT say 'faster than'. State plainly that today was "
+                                f"{_fmt_seconds_as_min(abs(delta_s))} slower than the prior best."
+                            )
+                        else:
+                            pr_status = (
+                                f"PR_STATUS: TIE — today matches prior best "
+                                f"({_fmt_seconds_as_min(today_time)}). Do not call this a PR."
+                            )
+                    else:
+                        pr_status = "PR_STATUS: UNKNOWN — insufficient data. Do not claim a PR."
+                    out.append(
+                        f"Prior best at ~{_fmt_num(today_dist)}mi (±10%, in context window): "
+                        f"{_fmt_date_with_dow(prior_best.get('startDate', ''))} · "
+                        f"{prior_best.get('name', '')} · "
+                        f"{_fmt_num(pb_dist)}mi · "
+                        f"{_fmt_seconds_as_min(pb_time)} · pace {pb_pace_str}"
+                    )
+                    out.append(pr_status)
+                else:
+                    out.append(
+                        f"Prior best at ~{_fmt_num(today_dist)}mi: NONE in context window."
+                    )
+                    out.append(
+                        "PR_STATUS: NO BASELINE — do NOT claim a PR or cite any previous time for this distance."
+                    )
     if planned_tomorrow:
         out.append(
             f"Tomorrow planned: {planned_tomorrow.get('day')} · "
@@ -1318,25 +1422,41 @@ def stream_anthropic(
     system: str | list[dict[str, Any]],
     messages: list[dict[str, Any]],
     max_tokens: int = 600,
+    temperature: float | None = None,
+    tools: list[dict[str, Any]] | None = None,
 ) -> Iterable[tuple[str, str]]:
     """Stream Anthropic response. Yields ('delta', text) tuples, then
-    ('done', full_text), finally ('usage', json_str).
+    ('done', full_text), finally ('usage', json_str). May also yield
+    ('status', msg) events to surface server-side tool activity (e.g.
+    web search) to the UI.
 
     `system` can be a string or a list of content blocks (for prompt caching).
+    `tools` optionally enables server-side tools like web_search_20250305.
     Telemetry logging is done by the caller so the full text + tokens are
     available after the stream completes.
     """
     client = _get_anthropic_client()
     full = []
-    with client.messages.stream(
-        model=model,
-        system=system,
-        messages=messages,
-        max_tokens=max_tokens,
-    ) as stream:
+    stream_kwargs: dict[str, Any] = {
+        "model": model,
+        "system": system,
+        "messages": messages,
+        "max_tokens": max_tokens,
+    }
+    if temperature is not None:
+        stream_kwargs["temperature"] = temperature
+    if tools:
+        stream_kwargs["tools"] = tools
+    with client.messages.stream(**stream_kwargs) as stream:
         for event in stream:
             et = getattr(event, "type", "")
-            if et == "content_block_delta":
+            if et == "content_block_start":
+                block = getattr(event, "content_block", None)
+                bt = getattr(block, "type", "") if block else ""
+                if bt == "server_tool_use":
+                    tname = getattr(block, "name", "") or "tool"
+                    yield ("status", f"🔍 {tname}…")
+            elif et == "content_block_delta":
                 delta = getattr(event, "delta", None)
                 if delta and getattr(delta, "type", None) == "text_delta":
                     chunk = delta.text
@@ -1349,6 +1469,10 @@ def stream_anthropic(
         "input": getattr(final.usage, "input_tokens", 0) or 0,
         "output": getattr(final.usage, "output_tokens", 0) or 0,
     }
+    # Surface web-search usage for telemetry/cost tracking when present.
+    st = getattr(final.usage, "server_tool_use", None)
+    if st is not None:
+        usage["web_searches"] = getattr(st, "web_search_requests", 0) or 0
     yield ("usage", json.dumps(usage))
 
 
