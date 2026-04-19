@@ -116,10 +116,21 @@ interface WorkoutModalProps {
 
 export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, coachEnabled, readiness, latestPerf, coachSnapshot, onAskCoach }: WorkoutModalProps) {
   const style = getWorkoutStyle(day.type)
-  const coaching = getCoaching(day, weekNum)
+  const baseCoaching = getCoaching(day, weekNum)
   const actual = day.actual
   const isStrength = day.type === 'strength'
   const isQuality = day.type === 'quality'
+
+  // When coach overrides (or plan data) provide specific exercises in the detail
+  // field, show those as execution steps instead of generic type-based guidance.
+  // Strength/quality workouts already parse detail into exercise/interval cards.
+  const hasCustomDetail = !isStrength && !isQuality && day.detail && day.detail.includes(' · ')
+  const coaching = hasCustomDetail
+    ? {
+        ...baseCoaching,
+        execution: day.detail.split(' · ').map((s: string) => s.trim()).filter(Boolean),
+      }
+    : baseCoaching
   const isRunType = ['run', 'quality', 'long'].includes(day.type)
   const exercises = isStrength ? parseRoutine(day.detail) : []
   const intervals = isQuality ? parseIntervalWorkout(day.detail, day.zone) : []
