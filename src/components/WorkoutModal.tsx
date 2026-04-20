@@ -370,7 +370,7 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
               {actual.strengthLog && actual.strengthLog.length > 0 && (
                 <div className="mt-2">
                   <p className="text-sm font-semibold text-teal-800 mb-1">
-                    {actual.source === 'garmin' ? '⌚ Exercise Sets (from watch)' : '💪 Strength Log'}
+                    {actual.source === 'garmin' && actual.garminId && actual.type === 'strength_training' ? '⌚ Exercise Sets (from watch)' : '📋 Logged Exercises'}
                   </p>
                   <div className="space-y-1.5">
                     {actual.strengthLog.map((ex, i) => (
