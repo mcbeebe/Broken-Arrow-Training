@@ -123,7 +123,7 @@ def memory_key(athlete_id: str) -> str:
 # changes in a way that old cached insights would be wrong about. The
 # version is baked into the cache key so every prompt change orphans
 # stale KV entries instead of serving them until their 48h TTL expires.
-INSIGHT_PROMPT_VERSION = "v4-recent-race"
+INSIGHT_PROMPT_VERSION = "v5-effort-filter"
 
 
 def insight_key(athlete_id: str, surface: str, context_hash: str) -> str:
@@ -1061,10 +1061,24 @@ def build_context_block(
         )
         # Pre-compute prior best + EXPLICIT PR_STATUS so the coach
         # cannot fabricate a PR. Baseline = fastest movingTime among
-        # prior activities within ±10% of target distance.
+        # prior activities within ±10% of target distance — but ONLY
+        # activities that look like a race effort. A recovery-pace easy
+        # run at the same distance is NOT a valid PR baseline; comparing
+        # a 22:00 race to a 34:00 easy run and calling that "11-minute
+        # PR" is exactly the hallucination we're trying to prevent.
         if today_dist > 0:
             lo, hi = today_dist * 0.9, today_dist * 1.1
+            today_hr = a.get("avgHR") or 0
+            today_name = (a.get("name") or "").lower()
+            # Minimum HR for a prior activity to count as race-effort.
+            # Use 85% of today's avg HR when we have it, otherwise a
+            # floor of 160 bpm (roughly Z4 for most athletes).
+            min_prior_hr = int(today_hr * 0.85) if today_hr >= 150 else 160
+            race_kw = ("race", "5k", "10k", "half", "marathon", "time trial", "tt")
+            today_is_racey = any(kw in today_name for kw in race_kw) or today_hr >= 160
+
             prior_best: dict[str, Any] | None = None
+            prior_best_rejected_easy: dict[str, Any] | None = None  # for debug line
             for prev in activities:
                 prev_date = (prev.get("startDate") or "")[:10]
                 if prev_date == today_date_key:
@@ -1074,6 +1088,17 @@ def build_context_block(
                 if d <= 0 or t <= 0:
                     continue
                 if not (lo <= d <= hi):
+                    continue
+                # Effort filter: if today was a race, only count prior
+                # activities whose name or HR suggests a race effort too.
+                prev_hr = prev.get("avgHR") or 0
+                prev_name = (prev.get("name") or "").lower()
+                prev_is_racey = any(kw in prev_name for kw in race_kw) or prev_hr >= min_prior_hr
+                if today_is_racey and not prev_is_racey:
+                    # Stash the easiest-but-fastest activity for context,
+                    # but don't let it be the PR baseline.
+                    if prior_best_rejected_easy is None or t < (prior_best_rejected_easy.get("movingTime") or 0):
+                        prior_best_rejected_easy = prev
                     continue
                 if prior_best is None or t < (prior_best.get("movingTime") or 0):
                     prior_best = prev
@@ -1124,12 +1149,28 @@ def build_context_block(
                 out.append(prior_best_line)
                 out.append(pr_status)
             else:
-                pr_status = (
-                    "PR_STATUS: NO BASELINE — do NOT claim a PR or cite any previous time for this distance."
-                )
-                out.append(
-                    f"Prior best at ~{_fmt_num(today_dist)}mi: NONE in context window."
-                )
+                if prior_best_rejected_easy is not None:
+                    rej = prior_best_rejected_easy
+                    rej_hr = rej.get("avgHR")
+                    rej_hr_str = f"HR {rej_hr}" if rej_hr else "no HR"
+                    pr_status = (
+                        "PR_STATUS: NO RACE BASELINE — there ARE prior activities at ~"
+                        f"{_fmt_num(today_dist)}mi but they were EASY-PACE efforts (e.g. "
+                        f"{_fmt_date_with_dow(rej.get('startDate', ''))} · {rej.get('name', '')} · "
+                        f"{_fmt_seconds_as_min(rej.get('movingTime') or 0)} · {rej_hr_str}), "
+                        "NOT race efforts. DO NOT compare a race to an easy run. "
+                        "DO NOT claim a PR."
+                    )
+                    out.append(
+                        f"Prior efforts at ~{_fmt_num(today_dist)}mi: only easy-pace runs in the context window, no race-effort baseline."
+                    )
+                else:
+                    pr_status = (
+                        "PR_STATUS: NO BASELINE — do NOT claim a PR or cite any previous time for this distance."
+                    )
+                    out.append(
+                        f"Prior best at ~{_fmt_num(today_dist)}mi: NONE in context window."
+                    )
                 out.append(pr_status)
 
             # Hoist a prominent banner to the very top of the context
