@@ -119,8 +119,15 @@ def memory_key(athlete_id: str) -> str:
     return f"coach_memory:{athlete_id}"
 
 
+# Bump whenever server-side prompt, context block, or model routing
+# changes in a way that old cached insights would be wrong about. The
+# version is baked into the cache key so every prompt change orphans
+# stale KV entries instead of serving them until their 48h TTL expires.
+INSIGHT_PROMPT_VERSION = "v3-prfix"
+
+
 def insight_key(athlete_id: str, surface: str, context_hash: str) -> str:
-    return f"coach_insight:{athlete_id}:{surface}:{context_hash}"
+    return f"coach_insight:{athlete_id}:{surface}:{INSIGHT_PROMPT_VERSION}:{context_hash}"
 
 
 def ping_cooldown_key(athlete_id: str, trigger_type: str) -> str:
