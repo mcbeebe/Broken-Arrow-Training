@@ -221,9 +221,29 @@ export function gradeWorkoutDay(day: PlannedDay, targets: ReturnType<typeof pars
   const movingMin = actual.movingTime / 60
   const isCross = day.type === 'cross'
 
-  if (isCross) {
-    // Cross-training: don't grade duration — Garmin only captures the
-    // cardio portion, not mobility/Myrtl/stretching. HR is the metric.
+  if (isCross && targets.durationMin !== undefined && targets.durationMin > 0 && movingMin > 0) {
+    // Cross-training: the planned time includes mobility/Myrtl/foam roll that
+    // Garmin doesn't capture. Only penalize on the high side (going WAY over)
+    // or on the low side if mobility items were explicitly checked off.
+    const mobilityDone = actual.drills?.completed === true
+      || (actual.drills?.items && actual.drills.items.filter(i => i.done).length > 0)
+    const combined = mobilityDone && drillMin > 0 ? movingMin + drillMin : movingMin
+    const pct = combined / targets.durationMin
+    durationPct = pct
+    if (pct > 1 + CLOSE_BAND) {
+      // Over: 2x planned = way too much even for cross-training
+      durationGrade = 'over'
+      flagReasons.push(`Duration ${Math.round(combined)} min vs ${targets.durationMin} planned`)
+    } else if (mobilityDone) {
+      // Mobility confirmed → grade normally
+      durationGrade = gradeRatio(pct)
+      if (durationGrade === 'miss') {
+        flagReasons.push(`Duration ${Math.round(combined)} min vs ${targets.durationMin} planned`)
+      }
+    } else {
+      // Mobility not confirmed → accept shortfall (mobility just not logged)
+      durationGrade = pct >= 0.5 ? 'hit' : 'close'
+    }
   } else if (drillMin > 0 && targets.durationMin !== undefined && targets.durationMin > 0) {
     // Mode 1: drills logged — grade total time against plan total
     const combined = movingMin + drillMin

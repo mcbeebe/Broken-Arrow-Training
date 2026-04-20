@@ -28,12 +28,23 @@ export function parseDrillItems(detail: string): string[] {
 }
 
 /**
- * Returns planned drill items for this day (runs only). Strength days
- * aren't "drills" — they have their own exercise tracking.
+ * Returns planned drill/mobility items for this day. Run days get drill
+ * items from the plan detail. Cross-training days get mobility items
+ * (Myrtl, foam roll, glute bridges, etc.) so users can check off what
+ * they did instead of manually logging each exercise.
  */
 export function getPlannedDrills(day: PlannedDay): string[] {
-  const runTypes = new Set(['run', 'long', 'quality', 'race'])
-  if (!runTypes.has(day.type)) return []
+  const eligibleTypes = new Set(['run', 'long', 'quality', 'race', 'cross'])
+  if (!eligibleTypes.has(day.type)) return []
+  if (day.type === 'cross') {
+    // For cross-training, every detail item is a potential checkoff
+    // (Myrtl, foam roll, glute bridges, etc.) — not just drill keywords.
+    if (!day.detail) return []
+    return day.detail
+      .split(/\s*[·|]\s*|\n/)
+      .map(s => s.trim())
+      .filter(Boolean)
+  }
   return parseDrillItems(day.detail)
 }
 

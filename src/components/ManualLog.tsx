@@ -146,6 +146,7 @@ export default function ManualLog({ dayLabel, existing, planned, weekNum, onSave
   // the user can still mark it done.
   const runTypes = new Set(['run', 'long', 'quality', 'race'])
   const isRunDay = planned ? runTypes.has(planned.type) : mode === 'run'
+  const isCrossDay = planned?.type === 'cross'
   const plannedDrillsFromDetail = planned ? getPlannedDrills(planned) : []
   const isScheduledDrillDay = weekNum !== undefined && planned
     ? getDrillDay(weekNum) === planned.day
@@ -158,7 +159,7 @@ export default function ManualLog({ dayLabel, existing, planned, weekNum, onSave
   const plannedDrills = plannedDrillsFromDetail.length > 0
     ? plannedDrillsFromDetail
     : fallbackDrills
-  const hasPlannedDrills = mode === 'run' && plannedDrills.length > 0
+  const hasPlannedDrills = mode === 'run' && (plannedDrills.length > 0 || isCrossDay)
   const [drillsCompleted, setDrillsCompleted] = useState<boolean>(
     existing?.drills?.completed ?? false
   )
@@ -350,11 +351,13 @@ export default function ManualLog({ dayLabel, existing, planned, weekNum, onSave
             </div>
           )}
 
-          {/* Drills / warmup block — shown for runs when plan includes drill items */}
+          {/* Drills / warmup block — shown for runs + cross-training when plan includes items */}
           {mode === 'run' && hasPlannedDrills && (
             <div className="bg-sky-50 rounded-xl p-3 border border-sky-200">
               <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-semibold text-sky-700">Drills / Warmup</p>
+                <p className="text-xs font-semibold text-sky-700">
+                  {isCrossDay ? 'Mobility / Activation' : 'Drills / Warmup'}
+                </p>
                 <label className="flex items-center gap-1.5 cursor-pointer">
                   <input
                     type="checkbox"
