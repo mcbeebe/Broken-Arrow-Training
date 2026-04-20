@@ -212,12 +212,19 @@ export function gradeWorkoutDay(day: PlannedDay, targets: ReturnType<typeof pars
   //   1. Drills logged → grade (moving + drill) against total plan time
   //   2. Run day, no drills logged → grade moving-only against running-time range
   //   3. Otherwise → grade moving-only against total plan time
+  //   Exception: cross-training skips duration grading because mobility/foam
+  //   roll/Myrtl aren't captured by activity trackers — only the optional
+  //   cardio portion shows up, so comparing it to total plan time is unfair.
   let durationPct: number | undefined
   let durationGrade: ComplianceGrade = 'na'
   const drillMin = actual.drills?.durationMin ?? 0
   const movingMin = actual.movingTime / 60
+  const isCross = day.type === 'cross'
 
-  if (drillMin > 0 && targets.durationMin !== undefined && targets.durationMin > 0) {
+  if (isCross) {
+    // Cross-training: don't grade duration — Garmin only captures the
+    // cardio portion, not mobility/Myrtl/stretching. HR is the metric.
+  } else if (drillMin > 0 && targets.durationMin !== undefined && targets.durationMin > 0) {
     // Mode 1: drills logged — grade total time against plan total
     const combined = movingMin + drillMin
     const pct = combined / targets.durationMin
