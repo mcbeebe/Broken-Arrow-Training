@@ -155,12 +155,25 @@ class handler(BaseHTTPRequestHandler):
             if (has_name and playful_count >= 1) or playful_count >= 2:
                 model_to_use = SONNET_MODEL
 
+        # Race-result days are high-stakes for accuracy. Haiku tends to
+        # hallucinate PR deltas regardless of the PR_STATUS directive; the
+        # athlete calls these mistakes out in every testing session.
+        # Upgrade to Sonnet whenever the context includes a PR_STATUS line
+        # (i.e. today has a completed activity with a distance baseline).
+        if "PR_STATUS:" in context_block:
+            model_to_use = SONNET_MODEL
+
         try:
             result = call_anthropic(
                 model=model_to_use,
                 system=system,
                 messages=[{"role": "user", "content": user_msg}],
                 max_tokens=400,
+                # Low temperature on the daily summary: it states facts
+                # about PR status, dates, pace, and readiness. We need
+                # the model to follow the PR_STATUS line in the context
+                # literally, not paraphrase into hallucinated deltas.
+                temperature=0.2,
                 athlete_id=athlete_id,
                 surface=f"insight:{surface_root}",
                 log_sample=True,
