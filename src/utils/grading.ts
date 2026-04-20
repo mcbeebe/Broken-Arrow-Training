@@ -244,14 +244,71 @@ export function calculateGrade(day: PlannedDay): GradeResult | null {
     if (actual.movingTime > 0) {
       effortScore = 1.0
       const plannedMin = parseTimeToMinutes(day.time)
+      // Mobility/Myrtl/foam roll aren't captured by Garmin — only the
+      // cardio portion shows up. Grade accordingly:
+      //   • Way over (2x+): penalize (2hr bike when plan says 30min)
+      //   • Mobility checked off: credit drill time + cardio
+      //   • Otherwise: accept shortfall (mobility just not logged)
+      const drillItems = actual.drills?.items
+      const drillsDone = drillItems?.filter(i => i.done).length ?? 0
+      const totalItems = drillItems?.length ?? 0
+      const drillMin = actual.drills?.durationMin ?? 0
+      const mobilityConfirmed = actual.drills?.completed === true || drillsDone > 0
+
       if (plannedMin) {
         const actualMin = actual.movingTime / 60
-        const ratio = actualMin / plannedMin
-        hrScore = ratio >= 0.9 ? 1.0 : ratio >= 0.7 ? 0.8 : 0.6
-        structureScore = hrScore
+        const combinedMin = mobilityConfirmed ? actualMin + drillMin : actualMin
+        const ratio = combinedMin / plannedMin
+
+        if (ratio > 1.5) {
+          // Way over — penalize
+          hrScore = 0.6
+          structureScore = 0.6
+          reasons.push('duration well over plan')
+        } else if (mobilityConfirmed) {
+          // Mobility confirmed → grade normally + boost for items done
+          const itemPct = totalItems > 0 ? drillsDone / totalItems : 1
+          if (ratio >= 0.85 && ratio <= 1.15) {
+            hrScore = 1.0
+            structureScore = 0.8 + itemPct * 0.2
+          } else if (ratio >= 0.7) {
+            hrScore = 0.9
+            structureScore = 0.75 + itemPct * 0.2
+          } else {
+            hrScore = 0.85
+            structureScore = 0.7 + itemPct * 0.2
+          }
+          reasons.push(`${drillsDone}/${totalItems} mobility items done`)
+        } else {
+          // Mobility not logged → accept shortfall gracefully
+          hrScore = ratio >= 0.3 ? 1.0 : 0.85
+          structureScore = 0.9
+          reasons.push('cardio logged (mobility not tracked)')
+        }
       } else {
         hrScore = 0.9
         structureScore = 0.9
+      }
+      // HR compliance: for cross-training, this is the primary quality
+      // metric (staying in Z1 for recovery). Use per-second stream if
+      // available, else fall back to avgHR.
+      const range = parseZoneRange(day.zone)
+      if (range && actual.avgHR) {
+        const stream = getCachedHRStream(actual.stravaId || actual.garminId)
+        let tizPct: number | null = null
+        if (stream) {
+          tizPct = computeTimeInZoneFromStream(stream, range.low - 3, range.high + 3)
+        }
+        if (tizPct !== null) {
+          if (tizPct < 75) {
+            // HR discipline matters — penalize if drifting out of Z1
+            hrScore = Math.min(hrScore, tizPct >= 50 ? 0.8 : 0.65)
+            reasons.push(`${Math.round(tizPct)}% HR in zone`)
+          }
+        } else if (actual.avgHR > range.high + 10) {
+          hrScore = Math.min(hrScore, 0.7)
+          reasons.push('HR above zone')
+        }
       }
       reasons.push('completed')
     }
