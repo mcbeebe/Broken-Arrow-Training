@@ -260,6 +260,7 @@ export default function WeeklyPlan({
                 readiness={readiness}
                 coachEnabled={coachEnabled}
                 isToday={dayDateMatch === todayDateString()}
+                isPast={!!dayDateMatch && dayDateMatch < todayDateString()}
                 athleteId={athleteId}
                 coachSnapshot={coachSnapshot}
                 onAskCoach={onAskCoach}
@@ -270,7 +271,7 @@ export default function WeeklyPlan({
       </div>
 
       {/* Volume chart */}
-      <VolumeChart weeks={weeks} activeWeek={activeWeek} onWeekClick={setActiveWeek} />
+      <VolumeChart weeks={weeks} activeWeek={activeWeek} onWeekClick={setActiveWeek} compliance={compliance} />
       </>
       )}
 

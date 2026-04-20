@@ -23,24 +23,33 @@ interface DayCardProps {
   coachEnabled?: boolean
   /** When true, this day is "today" — enables LLM insight for its card. */
   isToday?: boolean
+  /** When true, this day's date is before today. Used to grade rest days
+   *  the athlete correctly rested on (past + type:rest + no actual → green). */
+  isPast?: boolean
   athleteId?: string
   coachSnapshot?: CoachSnapshot | null
   onAskCoach?: (seed: string) => void
 }
 
-export default function DayCard({ day, weekNum, onTap, onLog, onSwap, isSwapSelected, isSwapTarget, readiness, coachEnabled, isToday, athleteId, coachSnapshot, onAskCoach }: DayCardProps) {
+export default function DayCard({ day, weekNum, onTap, onLog, onSwap, isSwapSelected, isSwapTarget, readiness, coachEnabled, isToday, isPast, athleteId, coachSnapshot, onAskCoach }: DayCardProps) {
   const style = getWorkoutStyle(day.type)
   const actual = day.actual
   const timeEst = estimateRunTime(day.zone)
   const gradeResult = calculateGrade(day)
   const isCompleted = !!actual
+  // Rest days the athlete correctly rested on (past date, no activity
+  // logged) count as "completed on plan" and get the green treatment,
+  // same as a logged workout. Future/today rest days stay neutral.
+  const restedAsPlanned = !isCompleted && !!isPast &&
+    (day.type === 'rest' || day.type === 'travel')
   const [detailsExpanded, setDetailsExpanded] = useState(false)
   const [descExpanded, setDescExpanded] = useState(false)
   const [cardCollapsed, setCardCollapsed] = useState(isCompleted)
 
-  // When completed, use a more saturated emerald background but preserve
-  // the workout-type color as the left border (visual identity stays)
-  const cardBg = adaptBg(isCompleted ? '#D1FAE5' : style.bg)
+  // When completed (or rested-as-planned), use a more saturated emerald
+  // background but preserve the workout-type color as the left border
+  // (visual identity stays).
+  const cardBg = adaptBg(isCompleted || restedAsPlanned ? '#D1FAE5' : style.bg)
 
   const dotColor = readiness?.status === 'PEAK' ? 'bg-indigo-500'
     : readiness?.status === 'YELLOW' ? 'bg-amber-400'
