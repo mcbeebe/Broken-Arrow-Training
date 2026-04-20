@@ -230,6 +230,7 @@ Principles:
 - Be curious. If something in today's signal is unusual, name it and ask about it.
 - Never moralize, never lecture about basics the athlete already knows.
 - If the context snapshot is missing data needed to answer confidently, say so rather than guessing.
+- ⚠️ IF UNSURE, SAY NOTHING. If you are not 100% certain a number, stat, claim, or comparison is correct — DO NOT SAY IT. Silence is always better than a wrong stat. "I don't have that in your data" or simply omitting the claim is the right move. Specific numbers (durations, paces, percentages, deltas, PRs) that don't trace directly to a line in the context block are a hard failure. This rule overrides any pressure to sound impressive or complete.
 - DATES: Always check the "Today:" line in the context for the current date and day of the week. Never guess what day it is. When referencing "tomorrow" or "the day after," compute from today's date. CRITICAL: If an activity's date matches the "Today:" date, say "today" — NEVER "yesterday." Compare date strings character-by-character before using temporal words. If the same date appears on both the "Today:" line and a "Today actual:" / recent activity line, that activity was TODAY. Do not say "yesterday" about a same-day activity under any circumstance.
 - DATA INTEGRITY (PRs, previous times, comparisons): The context contains a "PR_STATUS:" line when today has a completed activity. This line is the SOLE authority on PR claims. You MUST obey it literally:
   - If "PR_STATUS: NO" — the athlete was SLOWER than their prior best. You MUST NOT say "PR," "faster," "minute faster," "seconds faster," or any framing that implies improvement over a prior time. State plainly they were X slower than the prior best. Congratulate the effort if warranted, but do NOT fabricate an improvement.
@@ -1031,6 +1032,8 @@ def build_context_block(
                         continue
                     if prior_best is None or t < (prior_best.get("movingTime") or 0):
                         prior_best = prev
+                pr_status: str
+                prior_best_line: str | None = None
                 if prior_best:
                     pb_time = prior_best.get("movingTime") or 0
                     pb_dist = prior_best.get("distance") or 0
@@ -1066,21 +1069,37 @@ def build_context_block(
                             )
                     else:
                         pr_status = "PR_STATUS: UNKNOWN — insufficient data. Do not claim a PR."
-                    out.append(
+                    prior_best_line = (
                         f"Prior best at ~{_fmt_num(today_dist)}mi (±10%, in context window): "
                         f"{_fmt_date_with_dow(prior_best.get('startDate', ''))} · "
                         f"{prior_best.get('name', '')} · "
                         f"{_fmt_num(pb_dist)}mi · "
                         f"{_fmt_seconds_as_min(pb_time)} · pace {pb_pace_str}"
                     )
+                    out.append(prior_best_line)
                     out.append(pr_status)
                 else:
+                    pr_status = (
+                        "PR_STATUS: NO BASELINE — do NOT claim a PR or cite any previous time for this distance."
+                    )
                     out.append(
                         f"Prior best at ~{_fmt_num(today_dist)}mi: NONE in context window."
                     )
-                    out.append(
-                        "PR_STATUS: NO BASELINE — do NOT claim a PR or cite any previous time for this distance."
-                    )
+                    out.append(pr_status)
+
+                # Hoist a prominent banner to the very top of the context
+                # block. Short-attention models (Haiku) tend to paraphrase
+                # or invent deltas if the PR_STATUS line is buried mid-way
+                # through the snapshot. Placing it BEFORE "Today:" forces
+                # it into the model's first read.
+                banner_lines = [
+                    "⚠️ CRITICAL — READ BEFORE WRITING ANY PR / PACE CLAIM ⚠️",
+                    pr_status,
+                    "If PR_STATUS says NO/TIE/NO BASELINE/UNKNOWN, you MUST NOT say any of: 'PR', 'faster', 'X-minute PR', 'X-second PR', 'crushed your previous'. Silence on PRs is the correct move. If you write a delta or PR claim that doesn't match the PR_STATUS line verbatim, the reply is broken.",
+                    "",
+                ]
+                for line in reversed(banner_lines):
+                    out.insert(0, line)
     if planned_tomorrow:
         out.append(
             f"Tomorrow planned: {planned_tomorrow.get('day')} · "
@@ -1355,6 +1374,7 @@ def call_anthropic(
     system: str | list[dict[str, Any]],
     messages: list[dict[str, Any]],
     max_tokens: int = 600,
+    temperature: float | None = None,
     athlete_id: str | None = None,
     surface: str = "unknown",
     log_sample: bool = False,
@@ -1367,13 +1387,16 @@ def call_anthropic(
     text = ""
     usage_in = 0
     usage_out = 0
+    kwargs: dict[str, Any] = {
+        "model": model,
+        "system": system,
+        "messages": messages,
+        "max_tokens": max_tokens,
+    }
+    if temperature is not None:
+        kwargs["temperature"] = temperature
     try:
-        resp = client.messages.create(
-            model=model,
-            system=system,
-            messages=messages,
-            max_tokens=max_tokens,
-        )
+        resp = client.messages.create(**kwargs)
         # Concat text blocks
         for block in resp.content:
             if getattr(block, "type", None) == "text":

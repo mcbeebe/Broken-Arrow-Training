@@ -113,6 +113,7 @@ class handler(BaseHTTPRequestHandler):
                 system=system,
                 messages=[{"role": "user", "content": user_msg}],
                 max_tokens=200,
+                temperature=0.2,
                 athlete_id=athlete_id,
                 surface=f"ping:{trigger_type}",
                 log_sample=True,
