@@ -94,7 +94,7 @@ export default function VolumeChart({ weeks, activeWeek, onWeekClick, compliance
         </div>
       )}
 
-      <div className="flex items-end gap-1 h-28">
+      <div className="flex items-end gap-1 h-48">
         {rows.map(({ w, i, planned, actual, band }) => {
           const barMiles = band === 'future' ? planned : actual
           const barPct = maxMiles > 0 ? (barMiles / maxMiles) * 100 : 0
@@ -102,7 +102,7 @@ export default function VolumeChart({ weeks, activeWeek, onWeekClick, compliance
           const isActive = activeWeek === i
           return (
             <div key={w.num} className="flex-1 flex flex-col items-center gap-1 min-w-0">
-              <span className="text-[9px] font-medium text-slate-600 dark:text-slate-300 leading-tight">
+              <span className="text-[10px] font-medium text-slate-700 dark:text-slate-200 leading-tight">
                 {band === 'future' ? planned : actual}
               </span>
               <div
@@ -139,7 +139,7 @@ export default function VolumeChart({ weeks, activeWeek, onWeekClick, compliance
                   )}
                 </div>
               </div>
-              <span className={`text-[9px] ${band === 'flag' ? 'text-red-600 font-semibold' : 'text-slate-400 dark:text-slate-500'}`}>
+              <span className={`text-[10px] ${band === 'flag' ? 'text-red-600 font-semibold' : 'text-slate-500 dark:text-slate-400'}`}>
                 {w.num}
               </span>
             </div>
