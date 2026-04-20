@@ -254,10 +254,12 @@ export function calculateGrade(day: PlannedDay): GradeResult | null {
       const totalItems = drillItems?.length ?? 0
       const drillMin = actual.drills?.durationMin ?? 0
       const mobilityConfirmed = actual.drills?.completed === true || drillsDone > 0
+      // Estimate mobility time when user checked items but didn't enter drill time
+      const estimatedMobilityMin = mobilityConfirmed && drillMin === 0 ? Math.max(10, drillsDone * 3) : drillMin
 
       if (plannedMin) {
         const actualMin = actual.movingTime / 60
-        const combinedMin = mobilityConfirmed ? actualMin + drillMin : actualMin
+        const combinedMin = mobilityConfirmed ? actualMin + estimatedMobilityMin : actualMin
         const ratio = combinedMin / plannedMin
 
         if (ratio > 1.5) {
