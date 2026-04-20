@@ -14,14 +14,12 @@ interface VolumeChartProps {
  *   within ±15%  → 'ok'     (green)
  *   15–25% off   → 'warn'   (yellow)
  *   >25% off     → 'flag'   (red, with warning badge)
- * A past week with zero actual miles against a non-zero plan is always
- * 'flag' regardless of percentage math (divide-by-plan-by-zero edge).
  */
 type Band = 'ok' | 'warn' | 'flag' | 'future'
 
 function classify(actual: number, planned: number, hasStarted: boolean): Band {
   if (!hasStarted) return 'future'
-  if (planned <= 0) return 'ok' // nothing planned, nothing to grade
+  if (planned <= 0) return 'ok'
   const dev = Math.abs(actual - planned) / planned
   if (dev <= 0.15) return 'ok'
   if (dev <= 0.25) return 'warn'
@@ -32,7 +30,7 @@ const BAND_FILL: Record<Band, string> = {
   ok: '#10B981',      // emerald-500
   warn: '#F59E0B',    // amber-500
   flag: '#EF4444',    // red-500
-  future: '#E2E8F0',  // slate-200 (outline fill)
+  future: '#CBD5E1',  // slate-300 (faded outline for upcoming)
 }
 
 const BAND_BORDER: Record<Band, string> = {
@@ -41,6 +39,8 @@ const BAND_BORDER: Record<Band, string> = {
   flag: '#DC2626',
   future: '#94A3B8',
 }
+
+const CHART_PX = 280  // pixel height of the bar area; bars use full height
 
 export default function VolumeChart({ weeks, activeWeek, onWeekClick, compliance }: VolumeChartProps) {
   const byNum = new Map<number, WeekCompliance>()
@@ -57,9 +57,6 @@ export default function VolumeChart({ weeks, activeWeek, onWeekClick, compliance
     }),
   )
 
-  // hasStarted = this week has any actual miles logged. Cleaner than
-  // date-math for determining "in play" weeks, and handles the case
-  // where the current week has just started.
   const rows = weeks.map((w, i) => {
     const planned = getMilesNumber(w.miles)
     const wc = byNum.get(w.num)
@@ -94,60 +91,57 @@ export default function VolumeChart({ weeks, activeWeek, onWeekClick, compliance
         </div>
       )}
 
-      <div className="flex items-end gap-1 h-48">
+      <div className="flex gap-1" style={{ height: CHART_PX }}>
         {rows.map(({ w, i, planned, actual, band }) => {
           const barMiles = band === 'future' ? planned : actual
           const barPct = maxMiles > 0 ? (barMiles / maxMiles) * 100 : 0
           const plannedPct = maxMiles > 0 ? (planned / maxMiles) * 100 : 0
           const isActive = activeWeek === i
           return (
-            <div key={w.num} className="flex-1 flex flex-col items-center gap-1 min-w-0">
-              <span className="text-[10px] font-medium text-slate-700 dark:text-slate-200 leading-tight">
+            <div key={w.num} className="flex-1 min-w-0 grid" style={{ gridTemplateRows: 'auto 1fr auto' }}>
+              {/* Top row: actual or planned mileage label */}
+              <div className="text-center text-[10px] font-medium text-slate-700 dark:text-slate-200 pb-1">
                 {band === 'future' ? planned : actual}
-              </span>
+              </div>
+              {/* Middle row: bar fills the entire vertical space */}
               <div
-                className="w-full relative cursor-pointer"
-                style={{ height: '100%' }}
+                className="relative cursor-pointer"
                 onClick={() => onWeekClick(i)}
                 title={`Wk ${w.num}: ${actual}mi actual / ${planned}mi planned`}
               >
-                <div className="absolute inset-x-0 bottom-0 h-full">
+                <div
+                  className="absolute inset-x-0 bottom-0 rounded-t transition-all"
+                  style={{
+                    height: `${Math.max(barPct, 1)}%`,
+                    background: band === 'future' ? 'transparent' : BAND_FILL[band],
+                    border: `1.5px ${band === 'future' ? 'dashed' : 'solid'} ${BAND_BORDER[band]}`,
+                    borderBottom: 'none',
+                    outline: isActive ? '2px solid #0F172A' : 'none',
+                    outlineOffset: 1,
+                  }}
+                />
+                {band !== 'future' && planned > 0 && (
                   <div
-                    className="absolute inset-x-0 bottom-0 rounded-t transition-all"
+                    className="absolute inset-x-0"
                     style={{
-                      height: `${barPct}%`,
-                      minHeight: 4,
-                      background: band === 'future' ? 'transparent' : BAND_FILL[band],
-                      border: `1px solid ${BAND_BORDER[band]}`,
-                      borderBottom: 'none',
-                      outline: isActive ? '2px solid #0F172A' : 'none',
-                      outlineOffset: 1,
+                      bottom: `${plannedPct}%`,
+                      height: 0,
+                      borderTop: '1.5px dashed #475569',
                     }}
+                    title={`Plan target: ${planned}mi`}
                   />
-                  {/* Planned-target dashed line — only drawn when actual > 0
-                      (past/current weeks) so future weeks don't show
-                      duplicate markers. */}
-                  {band !== 'future' && planned > 0 && (
-                    <div
-                      className="absolute inset-x-0"
-                      style={{
-                        bottom: `${plannedPct}%`,
-                        height: 0,
-                        borderTop: '1.5px dashed #475569',
-                      }}
-                    />
-                  )}
-                </div>
+                )}
               </div>
-              <span className={`text-[10px] ${band === 'flag' ? 'text-red-600 font-semibold' : 'text-slate-500 dark:text-slate-400'}`}>
+              {/* Bottom row: week number */}
+              <div className={`text-center text-[10px] pt-1 ${band === 'flag' ? 'text-red-600 font-semibold' : 'text-slate-500 dark:text-slate-400'}`}>
                 {w.num}
-              </span>
+              </div>
             </div>
           )
         })}
       </div>
-      <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1">
-        Bars = actual miles. Dashed line = plan target. Bars without fill are upcoming weeks.
+      <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-2">
+        Solid bars = actual miles. Dashed outlines = upcoming weeks at planned mileage. The dashed horizontal line on past/current weeks marks the plan target for that week.
       </p>
     </div>
   )
