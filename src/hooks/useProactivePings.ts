@@ -153,18 +153,33 @@ export function useProactivePings(inputs: Inputs) {
       const nowDate = new Date()
       const hour = nowDate.getHours()
       if (hour >= 20 && plannedToday && plannedToday.type !== 'rest' && !plannedToday.actual) {
-        const skipKey = `skipped:${athleteId}:${plannedToday.day}`
-        if (!lsGet(skipKey)) {
-          lsSet(skipKey, '1')
-          const result = await postPing(
-            athleteId,
-            {
-              type: 'skipped_workout',
-              payload: { day: plannedToday.day, workout: plannedToday.workout },
-            },
-            snapshot,
-          )
-          if (!cancelled && result && !result.skipped) memory.refresh()
+        // Don't fire "skipped workout" if a matching raw activity exists
+        // today — that means the athlete DID work out, we're just still
+        // waiting on the sync/matching pipeline to link it to the plan.
+        // Previously this ping would fire prematurely right after a race
+        // while Garmin was still syncing, then cache a wrong narrative.
+        const todayISO = (() => {
+          const y = nowDate.getFullYear()
+          const m = String(nowDate.getMonth() + 1).padStart(2, '0')
+          const d = String(nowDate.getDate()).padStart(2, '0')
+          return `${y}-${m}-${d}`
+        })()
+        const hasRawToday = stravaActivities.some(a => (a.start_date_local || '').slice(0, 10) === todayISO)
+          || garminActivities.some(a => (a.date || '') === todayISO)
+        if (!hasRawToday) {
+          const skipKey = `skipped:${athleteId}:${plannedToday.day}`
+          if (!lsGet(skipKey)) {
+            lsSet(skipKey, '1')
+            const result = await postPing(
+              athleteId,
+              {
+                type: 'skipped_workout',
+                payload: { day: plannedToday.day, workout: plannedToday.workout },
+              },
+              snapshot,
+            )
+            if (!cancelled && result && !result.skipped) memory.refresh()
+          }
         }
       }
 
