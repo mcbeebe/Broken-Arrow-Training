@@ -221,6 +221,20 @@
                       <span class="ml-auto text-[9px] text-slate-500">6:40 am</span>
                     </div>
                     <div class="text-[11px] text-slate-800 dark:text-slate-100 leading-snug">Morning Mike — everything's green today. Your <b>HRV bounced up 8%</b>, the MIM signal says your muscles recovered, and Saturday's descent load has cleared. <b>Today's 80 min Z2 is the right call</b> — I added 10 min since you're fresh. Route is flat on purpose (quads still rebuilding).</div>
+
+                    <!-- Why drill-down (preserved: TodayBriefing "Why" narrative) -->
+                    <details class="mt-2">
+                      <summary class="text-[10px] text-indigo-700 dark:text-indigo-200 font-medium cursor-pointer list-none">▾ What's driving this recommendation</summary>
+                      <ul class="mt-1.5 space-y-1 text-[10px] text-slate-700 dark:text-slate-200 leading-snug pl-0.5">
+                        <li>• Sleep 7h53 (above your 7h average) — <b>+6 readiness</b></li>
+                        <li>• HRV +8% rolling mean — nervous system recovered</li>
+                        <li>• ACWR 1.12 — inside the 0.8–1.3 sweet spot</li>
+                        <li>• MIM quad signal back to baseline after Sat (DOMS carry 0.18)</li>
+                        <li>• Body battery 87/100 (excellent)</li>
+                        <li>• No guardrails triggered (Plews CV clean, Meeusen NFOR clean)</li>
+                      </ul>
+                    </details>
+
                     <div class="flex gap-1.5 mt-2 flex-wrap">
                       <button class="text-[10px] px-2 py-1 bg-indigo-600 text-white rounded-lg font-semibold shadow-sm">▶ Start today's run</button>
                       <button class="text-[10px] px-2 py-1 bg-white dark:bg-slate-700 border border-indigo-300 dark:border-indigo-600 text-indigo-700 dark:text-indigo-200 rounded-lg font-medium">Ask Riley why</button>
@@ -267,6 +281,17 @@
                 </div>
               </div>
 
+              <!-- Injury Risk Alerts (preserved: SummaryRiskFlags) -->
+              <div class="rounded-xl border-l-4 border-l-amber-500 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-2.5 mb-3">
+                <div class="flex items-start gap-2">
+                  <div class="text-sm">⚠</div>
+                  <div class="flex-1">
+                    <div class="text-[10px] font-semibold text-amber-800 dark:text-amber-200 uppercase tracking-wide">1 warning</div>
+                    <div class="text-[10px] text-slate-700 dark:text-slate-200">Eccentric load above sweet spot last 7d — avoid heavy descent today.</div>
+                  </div>
+                </div>
+              </div>
+
               <!-- Today's workout card -->
               <div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3 mb-3 shadow-sm">
                 <div class="flex items-center justify-between">
@@ -282,6 +307,123 @@
                   <span class="text-[9px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">TSS 62</span>
                 </div>
                 <button class="text-[10px] text-indigo-600 mt-2 font-medium">Why this workout? →</button>
+              </div>
+
+              <!-- Health metrics grid (preserved: TodayBriefing 4-metric grid) -->
+              <div class="text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 mb-1.5">Today's vitals</div>
+              <div class="grid grid-cols-2 gap-2 mb-3">
+                <div class="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-2">
+                  <div class="flex items-center justify-between">
+                    <span class="text-[9px] text-slate-500 uppercase tracking-wide">HRV</span>
+                    <span class="text-[9px] text-emerald-600 font-semibold">Good</span>
+                  </div>
+                  <div class="flex items-baseline gap-1"><span class="text-sm font-bold">68</span><span class="text-[9px] text-slate-500">ms</span></div>
+                  <svg viewBox="0 0 60 14" class="w-full h-3 mt-0.5"><path d="M 0 10 L 10 9 L 20 8 L 30 7 L 40 6 L 50 4 L 60 5" stroke="#10b981" stroke-width="1.5" fill="none"/></svg>
+                </div>
+                <div class="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-2">
+                  <div class="flex items-center justify-between">
+                    <span class="text-[9px] text-slate-500 uppercase tracking-wide">RHR</span>
+                    <span class="text-[9px] text-emerald-600 font-semibold">Normal</span>
+                  </div>
+                  <div class="flex items-baseline gap-1"><span class="text-sm font-bold">48</span><span class="text-[9px] text-slate-500">bpm</span></div>
+                  <svg viewBox="0 0 60 14" class="w-full h-3 mt-0.5"><path d="M 0 5 L 10 6 L 20 6 L 30 7 L 40 6 L 50 5 L 60 5" stroke="#2563eb" stroke-width="1.5" fill="none"/></svg>
+                </div>
+                <div class="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-2">
+                  <div class="flex items-center justify-between">
+                    <span class="text-[9px] text-slate-500 uppercase tracking-wide">Sleep</span>
+                    <span class="text-[9px] text-emerald-600 font-semibold">Good</span>
+                  </div>
+                  <div class="flex items-baseline gap-1"><span class="text-sm font-bold">7:53</span></div>
+                  <div class="flex gap-0.5 mt-1"><span class="h-1 flex-1 bg-indigo-400 rounded"></span><span class="h-1 flex-1 bg-indigo-500 rounded"></span><span class="h-1 flex-1 bg-indigo-600 rounded"></span><span class="h-1 flex-1 bg-indigo-500 rounded"></span></div>
+                </div>
+                <div class="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-2">
+                  <div class="flex items-center justify-between">
+                    <span class="text-[9px] text-slate-500 uppercase tracking-wide">Body Batt.</span>
+                    <span class="text-[9px] text-emerald-600 font-semibold">Excellent</span>
+                  </div>
+                  <div class="flex items-baseline gap-1"><span class="text-sm font-bold">87</span><span class="text-[9px] text-slate-500">/100</span></div>
+                  <div class="h-1 bg-slate-200 dark:bg-slate-700 rounded mt-1"><div class="h-1 bg-gradient-to-r from-amber-400 to-emerald-500 rounded" style="width:87%"></div></div>
+                </div>
+              </div>
+
+              <!-- Performance Snapshot (preserved: CTL/ATL/TSB/ACWR scale bars) -->
+              <div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3 mb-3">
+                <div class="flex items-center justify-between mb-2">
+                  <span class="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Performance snapshot</span>
+                  <button class="text-[9px] text-indigo-600 font-medium">Expand ▾</button>
+                </div>
+                <!-- Fitness CTL -->
+                <div class="mb-1.5">
+                  <div class="flex justify-between text-[9px] mb-0.5"><span>Fitness <span class="text-slate-500">(CTL 58)</span></span><span class="text-blue-600 font-semibold">Strong</span></div>
+                  <div class="h-1.5 bg-slate-200 dark:bg-slate-700 rounded"><div class="h-1.5 bg-blue-500 rounded" style="width:58%"></div></div>
+                </div>
+                <!-- Fatigue ATL -->
+                <div class="mb-1.5">
+                  <div class="flex justify-between text-[9px] mb-0.5"><span>Fatigue <span class="text-slate-500">(ATL 62)</span></span><span class="text-amber-600 font-semibold">Elevated</span></div>
+                  <div class="h-1.5 bg-slate-200 dark:bg-slate-700 rounded"><div class="h-1.5 bg-rose-500 rounded" style="width:62%"></div></div>
+                </div>
+                <!-- Recovery TSB -->
+                <div class="mb-1.5">
+                  <div class="flex justify-between text-[9px] mb-0.5"><span>Recovery <span class="text-slate-500">(TSB −4)</span></span><span class="text-emerald-600 font-semibold">Balanced</span></div>
+                  <div class="h-1.5 bg-slate-200 dark:bg-slate-700 rounded relative"><div class="absolute h-1.5 w-1 bg-slate-800 dark:bg-white rounded" style="left:48%"></div></div>
+                </div>
+                <!-- ACWR -->
+                <div>
+                  <div class="flex justify-between text-[9px] mb-0.5"><span>Load ratio <span class="text-slate-500">(ACWR 1.12)</span></span><span class="text-emerald-600 font-semibold">Sweet spot</span></div>
+                  <div class="h-1.5 rounded relative" style="background: linear-gradient(to right,#dc2626 0%,#f59e0b 15%,#10b981 30%,#10b981 70%,#f59e0b 85%,#dc2626 100%);"><div class="absolute h-1.5 w-1 bg-slate-800 dark:bg-white rounded" style="left:56%"></div></div>
+                </div>
+              </div>
+
+              <!-- 7-Day Training Load (preserved: TRIMPBreakdown) -->
+              <div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3 mb-3">
+                <div class="flex items-center justify-between mb-1.5">
+                  <span class="text-[10px] font-semibold uppercase tracking-wide text-slate-500">7-day training load</span>
+                  <span class="text-[9px] text-slate-500">TRIMP · by sport</span>
+                </div>
+                <div class="flex items-end gap-1 h-10">
+                  <div class="flex-1 flex flex-col-reverse gap-px"><div class="bg-teal-500 rounded-t" style="height:40%"></div></div>
+                  <div class="flex-1 flex flex-col-reverse gap-px"><div class="bg-slate-200 dark:bg-slate-700 rounded-t" style="height:8%"></div></div>
+                  <div class="flex-1 flex flex-col-reverse gap-px"><div class="bg-rose-500" style="height:50%"></div><div class="bg-teal-500 rounded-t" style="height:10%"></div></div>
+                  <div class="flex-1 flex flex-col-reverse gap-px"><div class="bg-teal-500 rounded-t" style="height:45%"></div></div>
+                  <div class="flex-1 flex flex-col-reverse gap-px"><div class="bg-slate-200 dark:bg-slate-700 rounded-t" style="height:8%"></div></div>
+                  <div class="flex-1 flex flex-col-reverse gap-px"><div class="bg-amber-500" style="height:55%"></div><div class="bg-teal-500 rounded-t" style="height:15%"></div></div>
+                  <div class="flex-1 flex flex-col-reverse gap-px"><div class="bg-purple-500 rounded-t" style="height:90%"></div></div>
+                </div>
+                <div class="flex gap-1 text-[9px] text-slate-500 mt-1"><span class="flex-1 text-center">M</span><span class="flex-1 text-center">T</span><span class="flex-1 text-center">W</span><span class="flex-1 text-center">T</span><span class="flex-1 text-center">F</span><span class="flex-1 text-center">S</span><span class="flex-1 text-center">S</span></div>
+                <div class="flex gap-2 mt-1.5 text-[9px] flex-wrap">
+                  <span class="inline-flex items-center gap-0.5"><span class="w-2 h-2 rounded-sm bg-teal-500"></span>Run</span>
+                  <span class="inline-flex items-center gap-0.5"><span class="w-2 h-2 rounded-sm bg-rose-500"></span>VO₂</span>
+                  <span class="inline-flex items-center gap-0.5"><span class="w-2 h-2 rounded-sm bg-amber-500"></span>Vert</span>
+                  <span class="inline-flex items-center gap-0.5"><span class="w-2 h-2 rounded-sm bg-purple-500"></span>Long</span>
+                </div>
+              </div>
+
+              <!-- What Changed This Week (preserved narrative) -->
+              <div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3 mb-3">
+                <div class="flex items-center justify-between mb-1">
+                  <span class="text-[10px] font-semibold uppercase tracking-wide text-slate-500">What changed this week</span>
+                  <span class="text-[9px] text-indigo-600">▾</span>
+                </div>
+                <ul class="text-[10px] text-slate-700 dark:text-slate-200 space-y-1 leading-snug">
+                  <li>• CTL +3.2 — fitness still trending up</li>
+                  <li>• Sat was your biggest workout (TSS 148)</li>
+                  <li>• 2 rest days — good recovery ratio</li>
+                  <li>• TSB trending toward fresh — ready for race simulation</li>
+                </ul>
+              </div>
+
+              <!-- This Week's Readiness (preserved: 7-day colored dots) -->
+              <div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3 mb-3">
+                <div class="text-[10px] font-semibold uppercase tracking-wide text-slate-500 mb-1.5">This week's readiness</div>
+                <div class="flex justify-between items-end gap-1">
+                  <div class="flex flex-col items-center gap-0.5"><div class="w-6 h-6 rounded-full bg-emerald-500 text-white text-[9px] font-bold flex items-center justify-center">92</div><span class="text-[8px] text-slate-500">M</span></div>
+                  <div class="flex flex-col items-center gap-0.5"><div class="w-6 h-6 rounded-full bg-emerald-500 text-white text-[9px] font-bold flex items-center justify-center">88</div><span class="text-[8px] text-slate-500">T</span></div>
+                  <div class="flex flex-col items-center gap-0.5"><div class="w-6 h-6 rounded-full bg-amber-500 text-white text-[9px] font-bold flex items-center justify-center">71</div><span class="text-[8px] text-slate-500">W</span></div>
+                  <div class="flex flex-col items-center gap-0.5"><div class="w-6 h-6 rounded-full bg-emerald-400 text-white text-[9px] font-bold flex items-center justify-center">82</div><span class="text-[8px] text-slate-500">T</span></div>
+                  <div class="flex flex-col items-center gap-0.5"><div class="w-6 h-6 rounded-full bg-emerald-500 text-white text-[9px] font-bold flex items-center justify-center">89</div><span class="text-[8px] text-slate-500">F</span></div>
+                  <div class="flex flex-col items-center gap-0.5"><div class="w-6 h-6 rounded-full bg-emerald-500 text-white text-[9px] font-bold flex items-center justify-center">90</div><span class="text-[8px] text-slate-500">S</span></div>
+                  <div class="flex flex-col items-center gap-0.5"><div class="w-6 h-6 rounded-full bg-emerald-500 text-white text-[9px] font-bold flex items-center justify-center">92</div><span class="text-[8px] text-slate-500">S</span></div>
+                </div>
               </div>
 
               <!-- Soreness check-in -->
@@ -336,19 +478,26 @@
             <p class="text-sm text-slate-700 dark:text-slate-200 leading-relaxed"><strong>Riley</strong> (Analytical persona) is the primary surface — the voice that interprets the 5 engines into one human sentence each morning. Engines feed the coach; user hears the coach.</p>
           </div>
           <div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4">
-            <div class="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">What's on this screen</div>
-            <ul class="text-sm space-y-2 list-disc pl-4">
-              <li><strong>Riley's morning brief</strong> (HERO) — coach synthesis of all 5 engines + quick actions.</li>
-              <li><strong>Engine strip 2×2</strong> — the raw dial state, one tap from the detail view. Riley's card cites these.</li>
-              <li>Workout card with <strong>"Why this workout?"</strong> → opens Screen 11 (the engine breakdown).</li>
-              <li>Soreness check-in (already in app).</li>
-              <li><strong>Proactive Riley nudge</strong> — altitude prep reminder (surfaces because race is at 7,300 ft).</li>
-              <li>7-day preview stays (already in app).</li>
-            </ul>
+            <div class="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">What's on this screen (top → bottom)</div>
+            <ol class="text-sm space-y-1.5 list-decimal pl-5">
+              <li><strong>ReadinessBanner</strong> — preserved</li>
+              <li><strong>Riley's morning brief</strong> — NEW (hero). "Why" drill-down preserves TodayBriefing narrative.</li>
+              <li><strong>Engine strip 2×2</strong> — NEW</li>
+              <li><strong>Proactive Riley nudge</strong> — NEW</li>
+              <li><strong>Soreness check-in</strong> — preserved</li>
+              <li><strong>Injury Risk Alerts</strong> — preserved (<code>SummaryRiskFlags</code>)</li>
+              <li><strong>Today's workout card</strong> — preserved + "Why this workout?" link</li>
+              <li><strong>4-metric vitals grid</strong> — preserved (HRV/RHR/Sleep/Body Battery sparklines)</li>
+              <li><strong>Performance Snapshot</strong> — preserved (CTL/ATL/TSB/ACWR scale bars)</li>
+              <li><strong>7-day Training Load</strong> — preserved (<code>TRIMPBreakdown</code>)</li>
+              <li><strong>What Changed This Week</strong> — preserved</li>
+              <li><strong>This Week's Readiness</strong> — preserved (7-day dots)</li>
+              <li><strong>Next 7 days preview</strong> — preserved</li>
+            </ol>
           </div>
           <div class="rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 p-4">
-            <div class="text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300 mb-1">Net additions</div>
-            <div class="text-sm text-slate-700 dark:text-slate-200">CoachMorningBrief card (hero), EngineStrip, proactive nudges. Existing ReadinessBanner/SorenessCheckin unchanged.</div>
+            <div class="text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300 mb-1">Nothing existing was dropped</div>
+            <div class="text-sm text-slate-700 dark:text-slate-200">All shipped Summary features preserved. Net ADDITIONS: Riley's morning brief (hero), EngineStrip (2×2), proactive Riley nudge.</div>
           </div>
         </aside>
       </div>
@@ -572,42 +721,102 @@
               </div>
             </div>
             <div class="iphone-content text-slate-900 dark:text-slate-100">
-              <!-- Sub-tabs -->
+              <!-- 3 Sub-tabs mirroring Dashboard.tsx: Compliance / Readiness / Performance -->
               <div class="flex gap-1 mb-3 text-[10px]">
-                <button class="flex-1 py-1.5 rounded border-b-2 border-teal-600 font-semibold text-teal-700">Load</button>
+                <button class="flex-1 py-1.5 rounded border-b border-slate-200 dark:border-slate-700 text-slate-500">Compliance</button>
                 <button class="flex-1 py-1.5 rounded border-b border-slate-200 dark:border-slate-700 text-slate-500">Readiness</button>
-                <button class="flex-1 py-1.5 rounded border-b border-slate-200 dark:border-slate-700 text-slate-500">Perf</button>
-                <button class="flex-1 py-1.5 rounded border-b border-slate-200 dark:border-slate-700 text-slate-500">Comply</button>
+                <button class="flex-1 py-1.5 rounded border-b-2 border-teal-600 font-semibold text-teal-700">Performance</button>
               </div>
 
-              <!-- CTL/ATL/TSB -->
+              <!-- Time window toggle (preserved: TimeWindowToggle) -->
+              <div class="flex gap-1 mb-2 text-[9px]">
+                <button class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-700">7d</button>
+                <button class="px-2 py-0.5 rounded bg-teal-600 text-white font-semibold">30d</button>
+                <button class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-700">90d</button>
+                <button class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-700">All</button>
+                <span class="ml-auto text-[9px] text-slate-500 self-center">Mar 22 – Apr 20</span>
+              </div>
+
+              <!-- Compliance preview card (since we're on Performance subtab; this shows what Compliance subtab contains) -->
+              <div class="rounded-xl border border-dashed border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800/50 p-2 mb-3">
+                <div class="flex items-center justify-between">
+                  <span class="text-[9px] uppercase tracking-wide text-slate-500">Compliance subtab preserves:</span>
+                  <span class="text-[9px] text-indigo-600">View →</span>
+                </div>
+                <div class="text-[10px] mt-0.5 text-slate-700 dark:text-slate-300 leading-snug">Completion %, Distance %, HR-in-zone %, Duration %, weekly rows, Planned vs Actual mileage chart</div>
+              </div>
+
+              <!-- PerformanceChart: CTL/ATL/TSB with metric pills + reference bands (preserved: PerformanceChart.tsx) -->
               <div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3 mb-3">
                 <div class="flex items-center justify-between mb-2">
-                  <div class="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Fitness &amp; Freshness</div>
+                  <div class="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Fitness · Fatigue · Recovery</div>
                   <span class="text-[9px] px-1.5 py-0.5 rounded tier-T1">T1</span>
                 </div>
-                <div class="grid grid-cols-3 gap-2 mb-2">
-                  <div class="text-center">
-                    <div class="text-[9px] text-slate-500">CTL</div>
-                    <div class="text-base font-bold text-blue-600">58</div>
-                    <div class="text-[9px] text-emerald-600">+3.2</div>
-                  </div>
-                  <div class="text-center">
-                    <div class="text-[9px] text-slate-500">ATL</div>
-                    <div class="text-base font-bold text-rose-600">62</div>
-                    <div class="text-[9px] text-slate-500">+1.8</div>
-                  </div>
-                  <div class="text-center">
-                    <div class="text-[9px] text-slate-500">TSB</div>
-                    <div class="text-base font-bold text-amber-600">−4</div>
-                    <div class="text-[9px] text-slate-500">ready</div>
-                  </div>
+                <!-- Metric pills (preserved: toggle visibility) -->
+                <div class="flex gap-1 mb-2 flex-wrap">
+                  <button class="text-[9px] px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-200 border border-blue-300 dark:border-blue-700 font-semibold">● Fitness</button>
+                  <button class="text-[9px] px-1.5 py-0.5 rounded bg-rose-100 dark:bg-rose-900/40 text-rose-700 dark:text-rose-200 border border-rose-300 dark:border-rose-700 font-semibold">● Fatigue</button>
+                  <button class="text-[9px] px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-200 border border-amber-300 dark:border-amber-700 font-semibold">● Recovery</button>
+                  <button class="text-[9px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-slate-500 border border-slate-300 dark:border-slate-600">○ Load</button>
                 </div>
-                <svg viewBox="0 0 280 60" class="w-full h-14">
-                  <path d="M 0 40 Q 40 35 80 32 T 160 25 T 240 20 L 280 18" stroke="#2563eb" stroke-width="2" fill="none"/>
-                  <path d="M 0 45 Q 40 40 80 35 T 160 28 T 240 22 L 280 16" stroke="#e11d48" stroke-width="2" fill="none" stroke-dasharray="2,2"/>
-                  <line x1="0" y1="50" x2="280" y2="50" stroke="#94a3b8" stroke-width="0.5"/>
+                <!-- Chart with reference bands -->
+                <svg viewBox="0 0 280 90" class="w-full h-20">
+                  <!-- Race-Day peak band (TSB +5..+25) -->
+                  <rect x="0" y="6" width="280" height="10" fill="#10b981" opacity="0.1"/>
+                  <!-- Training zone band (TSB -30..-10) -->
+                  <rect x="0" y="56" width="280" height="20" fill="#f59e0b" opacity="0.08"/>
+                  <!-- ACWR corridor dashed lines (preserved) -->
+                  <line x1="0" y1="30" x2="280" y2="25" stroke="#94a3b8" stroke-width="0.5" stroke-dasharray="3,2"/>
+                  <line x1="0" y1="50" x2="280" y2="45" stroke="#94a3b8" stroke-width="0.5" stroke-dasharray="3,2"/>
+                  <!-- CTL line -->
+                  <path d="M 0 55 Q 40 50 80 46 T 160 38 T 240 32 L 280 30" stroke="#2563eb" stroke-width="2" fill="none"/>
+                  <!-- ATL line -->
+                  <path d="M 0 58 Q 40 52 80 48 T 160 36 T 240 28 L 280 24" stroke="#e11d48" stroke-width="2" fill="none"/>
+                  <!-- TSB line -->
+                  <path d="M 0 48 Q 40 46 80 44 T 160 42 T 240 40 L 280 38" stroke="#f59e0b" stroke-width="2" fill="none" stroke-dasharray="2,2"/>
                 </svg>
+                <div class="flex justify-between text-[8px] text-slate-500 mt-1"><span>Mar 22</span><span>Apr 20</span></div>
+              </div>
+
+              <!-- 4 Performance stat cards (preserved) -->
+              <div class="grid grid-cols-2 gap-1.5 mb-3">
+                <div class="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-2">
+                  <div class="text-[9px] text-slate-500">Fitness (CTL)</div>
+                  <div class="text-sm font-bold text-blue-600">58 <span class="text-[9px] text-emerald-600">+3.2</span></div>
+                  <div class="text-[9px] text-slate-500">Strong base</div>
+                </div>
+                <div class="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-2">
+                  <div class="text-[9px] text-slate-500">Fatigue (ATL)</div>
+                  <div class="text-sm font-bold text-rose-600">62 <span class="text-[9px] text-slate-500">+1.8</span></div>
+                  <div class="text-[9px] text-slate-500">Elevated</div>
+                </div>
+                <div class="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-2">
+                  <div class="text-[9px] text-slate-500">Recovery (TSB)</div>
+                  <div class="text-sm font-bold text-amber-600">−4</div>
+                  <div class="text-[9px] text-slate-500">Balanced</div>
+                </div>
+                <div class="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-2">
+                  <div class="text-[9px] text-slate-500">Load (ACWR)</div>
+                  <div class="text-sm font-bold text-emerald-600">1.12</div>
+                  <div class="text-[9px] text-slate-500">Sweet spot</div>
+                </div>
+              </div>
+
+              <!-- 7-day Training Load (preserved: TRIMPBreakdown on Stats too) -->
+              <div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3 mb-3">
+                <div class="flex items-center justify-between mb-1">
+                  <span class="text-[10px] font-semibold uppercase tracking-wide text-slate-500">7-day training load</span>
+                  <span class="text-[9px] text-slate-500">TRIMP</span>
+                </div>
+                <div class="flex items-end gap-0.5 h-8">
+                  <div class="flex-1 bg-teal-400 rounded-t" style="height:40%"></div>
+                  <div class="flex-1 bg-slate-200 dark:bg-slate-700 rounded-t" style="height:8%"></div>
+                  <div class="flex-1 bg-rose-400 rounded-t" style="height:60%"></div>
+                  <div class="flex-1 bg-teal-400 rounded-t" style="height:45%"></div>
+                  <div class="flex-1 bg-slate-200 dark:bg-slate-700 rounded-t" style="height:8%"></div>
+                  <div class="flex-1 bg-amber-400 rounded-t" style="height:70%"></div>
+                  <div class="flex-1 bg-purple-500 rounded-t" style="height:95%"></div>
+                </div>
               </div>
 
               <!-- NEW: Eccentric load strip -->
@@ -634,6 +843,29 @@
                   <span>Sat: high</span>
                 </div>
               </div>
+
+              <!-- Readiness subtab preview (preserved: 7-day readiness trend + glossary) -->
+              <div class="rounded-xl border border-dashed border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800/50 p-2 mb-3">
+                <div class="flex items-center justify-between mb-1">
+                  <span class="text-[9px] uppercase tracking-wide text-slate-500">Readiness subtab preserves:</span>
+                  <span class="text-[9px] text-indigo-600">View →</span>
+                </div>
+                <div class="text-[10px] text-slate-700 dark:text-slate-300 leading-snug">ReadinessBanner (compact), RiskFlagsCard, 7-day readiness bars, calibration notice, ReadinessGlossary (HRV/RHR/Sleep/ACWR/guardrails education)</div>
+              </div>
+
+              <!-- Performance Glossary collapsible (preserved: PerformanceGlossary) -->
+              <details class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-2.5 mb-3">
+                <summary class="text-[10px] font-semibold uppercase tracking-wide text-slate-500 cursor-pointer list-none flex items-center justify-between">
+                  <span>Glossary · what these mean</span>
+                  <span class="text-[9px] text-indigo-600">▾</span>
+                </summary>
+                <ul class="mt-2 space-y-1 text-[10px] text-slate-700 dark:text-slate-200 leading-snug">
+                  <li><b>CTL</b> — fitness (42-day rolling TRIMP)</li>
+                  <li><b>ATL</b> — fatigue (7-day rolling TRIMP)</li>
+                  <li><b>TSB</b> — freshness (CTL − ATL)</li>
+                  <li><b>ACWR</b> — acute/chronic workload ratio</li>
+                </ul>
+              </details>
 
               <!-- Calendar heatmap -->
               <div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3 mb-3">
@@ -668,16 +900,25 @@
 
         <aside class="flex-1 min-w-[280px] max-w-md space-y-3">
           <div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4">
-            <div class="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">The only visible addition</div>
-            <ul class="text-sm space-y-2 list-disc pl-4">
-              <li><strong>Eccentric load strip</strong> (NEW) — the Descent engine surfaces here. Answers "how much downhill pounding have my legs been through?"</li>
-              <li>CTL/ATL/TSB panel, readiness chart, and calendar heatmap stay the same.</li>
-              <li>Evidence-tier chips added to each stat block.</li>
+            <div class="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">Preserved from shipped app</div>
+            <ul class="text-sm space-y-1.5 list-disc pl-4">
+              <li><strong>3 subtabs:</strong> Compliance / Readiness / Performance (matches <code>Dashboard.tsx</code>)</li>
+              <li><strong>TimeWindowToggle</strong> (7d / 30d / 90d / All)</li>
+              <li><strong>PerformanceChart</strong> with metric pills, training + race reference bands, ACWR corridor dashed lines</li>
+              <li><strong>4 stat cards</strong> (Fitness / Fatigue / Recovery / Load)</li>
+              <li><strong>TRIMPBreakdown</strong> (7-day training load)</li>
+              <li><strong>CalendarHeatmap</strong> (last 8 weeks)</li>
+              <li><strong>PerformanceGlossary</strong> (collapsible CTL/ATL/TSB/ACWR)</li>
+              <li>Compliance &amp; Readiness subtab contents preserved (shown as inline preview cards)</li>
             </ul>
+          </div>
+          <div class="rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 p-4">
+            <div class="text-xs font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-300 mb-1">Net ADDITIONS</div>
+            <div class="text-sm text-slate-700 dark:text-slate-200"><strong>Eccentric Load strip</strong> (Descent engine, Sprint 8) + evidence-tier chips on every stat block. No other changes.</div>
           </div>
           <div class="rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 p-4">
             <div class="text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300 mb-1">Files touched</div>
-            <div class="text-sm text-slate-700 dark:text-slate-200">New <code>EccentricLoadStrip.tsx</code> (Sprint 8), <code>StatsView.tsx</code> (mount it), <code>EvidenceTierChip.tsx</code> (Sprint 1).</div>
+            <div class="text-sm text-slate-700 dark:text-slate-200">New <code>EccentricLoadStrip.tsx</code> (Sprint 8) + mount in <code>Dashboard.tsx</code>. Existing PerformanceChart / TRIMPBreakdown / CalendarHeatmap unchanged.</div>
           </div>
         </aside>
       </div>
@@ -702,12 +943,18 @@
               <span class="sb-right">●●● 🛜 🔋</span>
             </div>
             <div class="iphone-header">
-              <div class="flex items-center justify-between">
-                <div>
-                  <div class="text-[10px] opacity-75 uppercase tracking-wide">Coach</div>
-                  <div class="text-sm font-semibold">Riley · Analytical</div>
+              <div class="flex items-center justify-between gap-2">
+                <div class="flex items-center gap-1.5 min-w-0">
+                  <div class="w-6 h-6 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-[10px] font-bold shrink-0">R</div>
+                  <div class="min-w-0">
+                    <div class="text-[10px] opacity-75 uppercase tracking-wide">Coach</div>
+                    <div class="text-sm font-semibold truncate">Riley · Analytical</div>
+                  </div>
                 </div>
-                <div class="text-[10px] bg-white/10 border border-white/20 px-2 py-0.5 rounded">GPT-4</div>
+                <div class="flex items-center gap-1 shrink-0">
+                  <button class="text-[9px] bg-white/10 border border-white/20 px-1.5 py-0.5 rounded" title="History">🕘 14</button>
+                  <button class="text-[9px] bg-white/10 border border-white/20 px-1.5 py-0.5 rounded" title="Minimize">▭</button>
+                </div>
               </div>
             </div>
             <div class="iphone-content text-slate-900 dark:text-slate-100">
@@ -789,17 +1036,26 @@
 
         <aside class="flex-1 min-w-[280px] max-w-md space-y-3">
           <div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4">
-            <div class="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">What's new on Coach</div>
-            <ul class="text-sm space-y-2 list-disc pl-4">
-              <li><strong>AMS Altitude advisory</strong> proactive ping — fires when a trip at altitude is detected.</li>
-              <li>Chat messages now <strong>cite which engine</strong> (Descent T2, Terrain T1) for explainability.</li>
-              <li>Pending inference indicator (MIM weekly check).</li>
-              <li>Daily insight and chat shell already exist.</li>
+            <div class="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">Preserved from shipped app</div>
+            <ul class="text-sm space-y-1.5 list-disc pl-4">
+              <li><strong>Chat surface</strong> with proposal action handlers (<code>CoachTab.tsx</code>)</li>
+              <li><strong>History button</strong> (🕘) → opens <code>ArchiveViewer</code></li>
+              <li><strong>Minimize toggle</strong> (▭) → collapse chat surface</li>
+              <li><strong>CoachInsightCard</strong> (daily insight, regenerate)</li>
+              <li><strong>Pending inferences</strong> (shown inline)</li>
+            </ul>
+          </div>
+          <div class="rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 p-4">
+            <div class="text-xs font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-300 mb-1">Net ADDITIONS</div>
+            <ul class="text-sm space-y-1 list-disc pl-4">
+              <li><strong>AMS Altitude advisory</strong> proactive ping (Sprint 11)</li>
+              <li><strong>Engine citation chips</strong> in chat (Sprint 12)</li>
+              <li>Daily insight references MIM (Sprint 7)</li>
             </ul>
           </div>
           <div class="rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 p-4">
             <div class="text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300 mb-1">Files touched</div>
-            <div class="text-sm text-slate-700 dark:text-slate-200">New <code>AltitudeAdvisoryCard.tsx</code> (Sprint 11), <code>CoachChat.tsx</code> (add engine citation chips), <code>CoachInsightCard.tsx</code> (mention MIM).</div>
+            <div class="text-sm text-slate-700 dark:text-slate-200">New <code>AltitudeAdvisoryCard.tsx</code> (Sprint 11), <code>CoachChat.tsx</code> (citation chips), <code>CoachInsightCard.tsx</code> (mention MIM). Existing <code>CoachTab.tsx</code>, <code>ArchiveViewer.tsx</code> unchanged.</div>
           </div>
         </aside>
       </div>
@@ -861,15 +1117,22 @@
                 </div>
               </div>
 
-              <!-- Coach persona -->
+              <!-- Coach persona (expanded — preserved from shipped CoachPersonaSelector) -->
               <div class="text-[10px] font-semibold uppercase tracking-wide text-slate-500 mb-1">Coach</div>
               <div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 divide-y divide-slate-200 dark:divide-slate-700 mb-3">
-                <div class="p-2.5 flex items-center justify-between">
-                  <div>
-                    <div class="text-[11px] font-medium">Persona</div>
-                    <div class="text-[10px] text-slate-500">Analytical (Riley)</div>
+                <div class="p-2.5">
+                  <div class="text-[11px] font-medium mb-1.5">Persona</div>
+                  <div class="grid grid-cols-4 gap-1">
+                    <button class="text-[9px] px-1 py-1.5 rounded border-2 border-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 font-semibold">Riley<br><span class="text-[8px] opacity-70">Analytical</span></button>
+                    <button class="text-[9px] px-1 py-1.5 rounded border border-slate-300 dark:border-slate-600">Sam<br><span class="text-[8px] opacity-70">Supportive</span></button>
+                    <button class="text-[9px] px-1 py-1.5 rounded border border-slate-300 dark:border-slate-600">Max<br><span class="text-[8px] opacity-70">Drill Sgt</span></button>
+                    <button class="text-[9px] px-1 py-1.5 rounded border border-slate-300 dark:border-slate-600">Zen<br><span class="text-[8px] opacity-70">Balanced</span></button>
                   </div>
-                  <span class="text-slate-400">›</span>
+                </div>
+                <div class="p-2.5">
+                  <div class="text-[11px] font-medium mb-1">About me</div>
+                  <div class="text-[10px] text-slate-500 mb-1.5">Free-text context that Riley uses in every reply.</div>
+                  <textarea rows="3" class="w-full text-[10px] rounded border border-slate-300 dark:border-slate-600 p-1.5 bg-slate-50 dark:bg-slate-900/40" readonly>42yo male, history of right-knee PFPS (2023). Training for Broken Arrow VK Jun 6. Live at 2,000 ft; race day 7,300 ft. Strong on climbs, cautious on descents. Prefer evidence-first tone.</textarea>
                 </div>
                 <div class="p-2.5 flex items-center justify-between">
                   <div>
@@ -878,6 +1141,23 @@
                   </div>
                   <span class="text-slate-400">›</span>
                 </div>
+              </div>
+
+              <!-- HR Zones (preserved from shipped HRZoneEditor) -->
+              <div class="text-[10px] font-semibold uppercase tracking-wide text-slate-500 mb-1">Heart-rate zones</div>
+              <div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-2.5 mb-3">
+                <div class="flex items-center justify-between mb-1.5">
+                  <div class="text-[11px] font-medium">Max HR</div>
+                  <div class="flex items-center gap-1"><input type="number" value="182" class="w-12 text-[10px] rounded border border-slate-300 dark:border-slate-600 p-0.5 text-center" readonly><span class="text-[10px] text-slate-500">bpm</span></div>
+                </div>
+                <div class="space-y-1">
+                  <div class="flex items-center gap-1.5"><span class="w-6 text-[9px] font-semibold text-sky-700 dark:text-sky-300">Z1</span><div class="flex-1 h-2 rounded bg-sky-200 dark:bg-sky-900/40"></div><span class="text-[9px] text-slate-500 w-16 text-right">&lt; 127</span></div>
+                  <div class="flex items-center gap-1.5"><span class="w-6 text-[9px] font-semibold text-emerald-700 dark:text-emerald-300">Z2</span><div class="flex-1 h-2 rounded bg-emerald-200 dark:bg-emerald-900/40"></div><span class="text-[9px] text-slate-500 w-16 text-right">127–146</span></div>
+                  <div class="flex items-center gap-1.5"><span class="w-6 text-[9px] font-semibold text-amber-700 dark:text-amber-300">Z3</span><div class="flex-1 h-2 rounded bg-amber-200 dark:bg-amber-900/40"></div><span class="text-[9px] text-slate-500 w-16 text-right">146–164</span></div>
+                  <div class="flex items-center gap-1.5"><span class="w-6 text-[9px] font-semibold text-orange-700 dark:text-orange-300">Z4</span><div class="flex-1 h-2 rounded bg-orange-200 dark:bg-orange-900/40"></div><span class="text-[9px] text-slate-500 w-16 text-right">164–173</span></div>
+                  <div class="flex items-center gap-1.5"><span class="w-6 text-[9px] font-semibold text-rose-700 dark:text-rose-300">Z5</span><div class="flex-1 h-2 rounded bg-rose-200 dark:bg-rose-900/40"></div><span class="text-[9px] text-slate-500 w-16 text-right">&gt; 173</span></div>
+                </div>
+                <div class="text-[9px] text-slate-500 mt-1.5">Tap any zone to edit · Source: Garmin LTHR calibrated 2026-03-12</div>
               </div>
 
               <!-- Integrations -->
@@ -925,6 +1205,34 @@
                   <span class="text-slate-400">›</span>
                 </div>
               </a>
+
+              <!-- Cache & Diagnostics (preserved from shipped CacheDiagnostics) -->
+              <div class="text-[10px] font-semibold uppercase tracking-wide text-slate-500 mb-1">Advanced</div>
+              <div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 divide-y divide-slate-200 dark:divide-slate-700 mb-3">
+                <div class="p-2.5 flex items-center justify-between">
+                  <div>
+                    <div class="text-[11px] font-medium">Cache status</div>
+                    <div class="text-[10px] text-slate-500">Activities · 2.1 MB · Last sync 6:41 AM</div>
+                  </div>
+                  <button class="text-[10px] px-2 py-1 rounded border border-slate-300 dark:border-slate-600">Clear</button>
+                </div>
+                <div class="p-2.5 flex items-center justify-between">
+                  <div>
+                    <div class="text-[11px] font-medium">Diagnostics</div>
+                    <div class="text-[10px] text-slate-500">Export logs · engine state · inference trace</div>
+                  </div>
+                  <span class="text-slate-400">›</span>
+                </div>
+                <div class="p-2.5 flex items-center justify-between">
+                  <div>
+                    <div class="text-[11px] font-medium">Data &amp; privacy</div>
+                    <div class="text-[10px] text-slate-500">Export · delete account</div>
+                  </div>
+                  <span class="text-slate-400">›</span>
+                </div>
+              </div>
+
+              <div class="text-[9px] text-center text-slate-400 py-2">Broken Arrow Training · v0.12.3 · Build 2026.04.20</div>
             </div>
             <div class="iphone-tabbar">
               <div class="iphone-tab"><div class="iphone-tab-dot">📋</div><div>Summary</div></div>
@@ -939,16 +1247,26 @@
 
         <aside class="flex-1 min-w-[280px] max-w-md space-y-3">
           <div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4">
-            <div class="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">Two new rows on Settings</div>
-            <ul class="text-sm space-y-2 list-disc pl-4">
-              <li><strong>Trips</strong> — where the altitude wizard is surfaced; detects upcoming high-elevation races from calendar.</li>
-              <li><strong>Methodology</strong> link — opens Screen 12 ("How the engines work"). Makes the system legible.</li>
-              <li>Profile, coach persona, integrations already exist.</li>
+            <div class="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">Preserved from shipped app</div>
+            <ul class="text-sm space-y-1.5 list-disc pl-4">
+              <li><strong>Profile</strong> — age, weight, level (<code>ProfileCard.tsx</code>)</li>
+              <li><strong>Coach persona selector</strong> — 4 personas with preview (<code>CoachPersonaSelector.tsx</code>)</li>
+              <li><strong>About me</strong> — free-text context field that Riley uses in every reply (<code>AboutMeEditor.tsx</code>)</li>
+              <li><strong>HR Zone Editor</strong> — Max HR + 5 zone bands, Garmin LTHR sync (<code>HRZoneEditor.tsx</code>)</li>
+              <li><strong>Integrations</strong> — Strava/Garmin/Zwift with connection state (<code>IntegrationsRow.tsx</code>)</li>
+              <li><strong>Cache / Diagnostics / Data &amp; privacy</strong> — existing admin rows (<code>CacheDiagnostics.tsx</code>, <code>PrivacyRow.tsx</code>)</li>
+            </ul>
+          </div>
+          <div class="rounded-xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-950/40 p-4">
+            <div class="text-xs font-semibold uppercase tracking-wide text-indigo-700 dark:text-indigo-300 mb-1">Net ADDITIONS</div>
+            <ul class="text-sm space-y-1.5 list-disc pl-4">
+              <li><strong>Trips</strong> — altitude wizard trigger; auto-detects upcoming high-elevation races from calendar (Sprint 11)</li>
+              <li><strong>Methodology</strong> link — opens Screen 12 "How the 5 engines work" (Sprint 13)</li>
             </ul>
           </div>
           <div class="rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 p-4">
             <div class="text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300 mb-1">Files touched</div>
-            <div class="text-sm text-slate-700 dark:text-slate-200">New <code>TripsSection.tsx</code> + <code>AltitudeWizard.tsx</code> (Sprint 11), <code>SettingsView.tsx</code> (add rows), <code>MethodologyView.tsx</code> (Sprint 13).</div>
+            <div class="text-sm text-slate-700 dark:text-slate-200">New <code>TripsSection.tsx</code> + <code>AltitudeWizard.tsx</code> (Sprint 11); <code>SettingsView.tsx</code> (insert Trips + Methodology rows, re-order); <code>MethodologyView.tsx</code> (Sprint 13). No changes to <code>HRZoneEditor</code>, <code>AboutMeEditor</code>, <code>CoachPersonaSelector</code>, <code>CacheDiagnostics</code> — those render as-is.</div>
           </div>
         </aside>
       </div>
