@@ -227,12 +227,18 @@ export function useGarmin(athleteId?: string): UseGarminReturn {
       setGarminActivities(activities)
 
       const detailCache = { ...getCachedActivityDetails(athleteId) }
-      const last7Dates: string[] = []
+      // Fetch details for dates that have activities but no cached details,
+      // plus the last 7 days. This covers older dates that were cleared
+      // from cache or never fetched (e.g., elliptical without HR).
+      const datesToFetch = new Set<string>()
       for (let i = 0; i < 7; i++) {
         const d = new Date(Date.now() - i * 24 * 60 * 60 * 1000)
-        last7Dates.push(localDateStr(d))
+        datesToFetch.add(localDateStr(d))
       }
-      const datesWithActivities = last7Dates.filter(date =>
+      for (const a of activities) {
+        if (a.date && !detailCache[a.date]) datesToFetch.add(a.date)
+      }
+      const datesWithActivities = [...datesToFetch].filter(date =>
         activities.some(a => a.date === date)
       )
       const detailResults = await Promise.all(
