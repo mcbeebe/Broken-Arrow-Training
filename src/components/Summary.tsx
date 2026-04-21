@@ -41,9 +41,10 @@ interface SummaryProps {
 // Consistent 6-segment gauge: red → orange → yellow → light green → green → darker green
 // Midpoint (boundary between yellow and light green) = balanced/neutral zone
 
-function GaugeBar({ value, min, max, labels, targetLines }: {
+function GaugeBar({ value, min, max, labels, targetLines, zones }: {
   value: number; min: number; max: number; labels: string[]
-  targetLines?: { pos: number; color: string }[]
+  targetLines?: { pos: number; color: string; label?: string }[]
+  zones?: string[]
 }) {
   const pct = Math.max(0, Math.min(100, ((value - min) / (max - min)) * 100))
   return (
@@ -63,7 +64,21 @@ function GaugeBar({ value, min, max, labels, targetLines }: {
           style={{ left: `${pct}%`, transform: 'translateX(-50%)' }}
         />
       </div>
-      <div className="flex justify-between text-[9px] text-slate-400 mt-1">
+      {zones && (
+        <div className="flex mt-0.5">
+          {zones.map((z, i) => (
+            <span key={i} className="text-[8px] text-slate-400 text-center italic" style={{ width: '16.67%' }}>{z}</span>
+          ))}
+        </div>
+      )}
+      {targetLines?.some(t => t.label) && (
+        <div className="relative h-3 mt-0">
+          {targetLines.filter(t => t.label).map((t, i) => (
+            <span key={i} className="absolute text-[8px] font-semibold" style={{ left: `${((t.pos - min) / (max - min)) * 100}%`, transform: 'translateX(-50%)', color: t.color }}>{t.label}</span>
+          ))}
+        </div>
+      )}
+      <div className={`flex justify-between text-[9px] text-slate-400 ${zones || targetLines?.some(t => t.label) ? 'mt-0' : 'mt-1'}`}>
         {labels.map((l, i) => <span key={i}>{l}</span>)}
       </div>
     </>
@@ -93,7 +108,14 @@ function ACWRGaugeBar({ value }: { value: number }) {
           style={{ left: `${pct}%`, transform: 'translateX(-50%)' }}
         />
       </div>
-      <div className="flex justify-between text-[9px] text-slate-400 mt-1">
+      <div className="flex mt-0.5">
+        <span className="text-[8px] text-slate-400 text-center italic" style={{ width: '16.67%' }}>Detrained</span>
+        <span className="text-[8px] text-slate-400 text-center italic" style={{ width: '16.67%' }}>Under</span>
+        <span className="text-[8px] text-green-600 text-center italic font-semibold" style={{ width: '33.34%' }}>Sweet Spot</span>
+        <span className="text-[8px] text-slate-400 text-center italic" style={{ width: '16.67%' }}>Caution</span>
+        <span className="text-[8px] text-slate-400 text-center italic" style={{ width: '16.65%' }}>Danger</span>
+      </div>
+      <div className="flex justify-between text-[9px] text-slate-400 mt-0">
         <span>0</span>
         <span>0.33</span>
         <span>0.67</span>
@@ -364,6 +386,7 @@ export default function Summary({
                   value={latestPerf.ctl}
                   min={0} max={100}
                   labels={['0', '17', '33', '50', '67', '83', '100']}
+                  zones={['Untrained', 'Beginner', 'Recreational', 'Trained', 'Competitive', 'Elite']}
                 />
               </div>
 
@@ -382,9 +405,10 @@ export default function Summary({
                   value={100 - latestPerf.atl}
                   min={0} max={100}
                   labels={['100', '83', '67', '50', '33', '17', '0']}
+                  zones={['Overload', 'Very High', 'High', 'Moderate', 'Balanced', 'Fresh']}
                   targetLines={[
-                    { pos: 100 - latestPerf.ctl * 1.3, color: 'rgba(139,92,246,0.6)' },
-                    { pos: 100 - latestPerf.ctl * 0.8, color: 'rgba(139,92,246,0.6)' },
+                    { pos: 100 - latestPerf.ctl * 1.3, color: 'rgba(139,92,246,0.7)', label: '1.3×' },
+                    { pos: 100 - latestPerf.ctl * 0.8, color: 'rgba(139,92,246,0.7)', label: '0.8×' },
                   ]}
                 />
               </div>
@@ -416,10 +440,12 @@ export default function Summary({
                   value={latestPerf.tsb + 30}
                   min={0} max={55}
                   labels={['-30', '-21', '-12', '-2', '+7', '+16', '+25']}
+                  zones={['Deep fatigue', 'Overreach', 'Productive', 'Balanced', 'Fresh', 'Race ready']}
                   targetLines={[
-                    { pos: -10 + 30, color: 'rgba(59,130,246,0.6)' },
-                    { pos: 5 + 30, color: 'rgba(5,150,105,0.6)' },
-                    { pos: 25 + 30, color: 'rgba(5,150,105,0.6)' },
+                    { pos: -30 + 30, color: 'rgba(59,130,246,0.7)', label: 'Training ▸' },
+                    { pos: -10 + 30, color: 'rgba(59,130,246,0.7)', label: '◂' },
+                    { pos: 5 + 30, color: 'rgba(5,150,105,0.7)', label: 'Race ▸' },
+                    { pos: 25 + 30, color: 'rgba(5,150,105,0.7)', label: '◂' },
                   ]}
                 />
               </div>
