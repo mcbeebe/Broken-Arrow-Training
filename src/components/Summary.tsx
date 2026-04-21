@@ -386,29 +386,34 @@ export default function Summary({
                 </div>
                 <p className="text-xs font-medium text-slate-600 dark:text-slate-300">Load Ratio <span className="text-slate-400 font-normal">— acute vs chronic workload (ACWR)</span></p>
                 <p className="text-[9px] text-slate-400 mt-0.5 italic">How fast you're ramping · includes all load: cardio, strength, DOMS, soreness</p>
-                {/* ACWR as a "safety" gauge: marker position = how close
-                    you are to the sweet-spot center (1.05). Farther away
-                    (either direction) → marker drifts left toward red.
-                    Deep in sweet spot → marker far right in green. */}
+                {/* ACWR as a linear scale: 0 → 2.0.
+                    Left (0-0.8) = undertrained (blue).
+                    Middle (0.8-1.3) = sweet spot (green).
+                    Right (1.3-2.0) = caution→danger (amber→red). */}
                 {(() => {
-                  const safety = Math.max(0, Math.min(1, 1 - Math.abs(latestPerf.acwr - 1.05) / 0.95))
+                  const maxACWR = 2.0
+                  const pct = Math.max(0, Math.min(100, (latestPerf.acwr / maxACWR) * 100))
                   return (
                     <>
                       <div className="relative mt-2 h-3 rounded-full overflow-hidden flex border border-slate-200 dark:border-slate-700">
-                        <div className="h-full bg-red-300" style={{ width: '25%' }} />
-                        <div className="h-full bg-amber-300" style={{ width: '25%' }} />
+                        {/* 0-0.8 = 40% of bar: undertrained (blue) */}
+                        <div className="h-full bg-blue-200" style={{ width: '40%' }} />
+                        {/* 0.8-1.3 = 25% of bar: sweet spot (green) */}
                         <div className="h-full bg-green-300" style={{ width: '25%' }} />
-                        <div className="h-full bg-emerald-400" style={{ width: '25%' }} />
-                        {/* Sweet spot boundaries: ACWR 0.8 and 1.3 → mapped to safety scale */}
-                        <div className="absolute top-0 h-full border-l border-dashed border-green-700/60" style={{ left: `${Math.max(0, Math.min(100, (1 - Math.abs(0.8 - 1.05) / 0.95) * 100))}%` }} />
-                        <div className="absolute top-0 h-full border-l border-dashed border-green-700/60" style={{ left: `${Math.max(0, Math.min(100, (1 - Math.abs(1.3 - 1.05) / 0.95) * 100))}%` }} />
+                        {/* 1.3-1.5 = 10% of bar: caution (amber) */}
+                        <div className="h-full bg-amber-300" style={{ width: '10%' }} />
+                        {/* 1.5-2.0 = 25% of bar: danger (red) */}
+                        <div className="h-full bg-red-300" style={{ width: '25%' }} />
+                        {/* Sweet spot boundary lines */}
+                        <div className="absolute top-0 h-full border-l border-dashed border-green-700/60" style={{ left: '40%' }} />
+                        <div className="absolute top-0 h-full border-l border-dashed border-green-700/60" style={{ left: '65%' }} />
                         <div
                           className="absolute top-0 w-2 h-full bg-slate-900 rounded shadow"
-                          style={{ left: `${safety * 100}%`, transform: 'translateX(-50%)' }}
+                          style={{ left: `${pct}%`, transform: 'translateX(-50%)' }}
                         />
                       </div>
                       <div className="flex justify-between text-[9px] text-slate-400 mt-1">
-                        <span>Danger</span><span>Caution</span><span>Good</span><span className="font-semibold text-green-600">Sweet Spot</span>
+                        <span>0 Under</span><span>0.8</span><span className="font-semibold text-green-600">Sweet Spot</span><span>1.3</span><span>2.0 Danger</span>
                       </div>
                     </>
                   )

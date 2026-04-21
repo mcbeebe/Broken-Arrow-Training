@@ -69,16 +69,19 @@ export default function PerformanceChart({
 
   const smoothedData = smoothSeries(rawData, 5)
 
+  // Compute y-axis domain from RAW data so collapsed and expanded views
+  // share the same scale — reference bands (Training Zone, Race Day)
+  // stay at consistent visual positions.
+  const allRawVals = rawData.flatMap(d => [d.ctl, d.atl, d.tsb])
+  const rawMax = Math.max(...allRawVals)
+  const rawMin = Math.min(...allRawVals)
+  const fixedYMax = Math.ceil((Math.max(rawMax, 25) + 10) / 10) * 10
+  const fixedYMin = Math.floor((Math.min(rawMin, -10) - 5) / 10) * 10
+  const allLoadVals = rawData.map(d => loadMode === '7d' ? d.load7d : d.load)
+  const fixedLoadMax = Math.ceil(Math.max(50, ...allLoadVals) * 1.1 / 50) * 50
+
   const renderChart = (expanded: boolean) => {
     const chartData = expanded ? rawData : smoothedData
-    const allVals = chartData.flatMap(d => [d.ctl, d.atl, d.tsb, (d as { tsbSmooth?: number }).tsbSmooth ?? d.tsb])
-    const dataMax = Math.max(...allVals)
-    const dataMin = Math.min(...allVals)
-    const yMax = Math.ceil((Math.max(dataMax, 25) + 10) / 10) * 10
-    const yMin = Math.floor((Math.min(dataMin, -10) - 5) / 10) * 10
-    const loadVals = chartData.map(d => loadMode === '7d' ? d.load7d : d.load)
-    const loadMax = Math.max(50, ...loadVals)
-    const loadAxisMax = Math.ceil(loadMax * 1.1 / 50) * 50
     const isDark = document.documentElement.classList.contains('dark')
     const showBands = visible.tsb // TSB bands only meaningful when TSB is shown
     return (
@@ -101,7 +104,7 @@ export default function PerformanceChart({
               />
               <YAxis
                 yAxisId="left"
-                domain={[yMin, yMax]}
+                domain={[fixedYMin, fixedYMax]}
                 tick={{ fontSize: expanded ? 12 : 11, fill: isDark ? '#cbd5e1' : '#64748b' }}
                 axisLine={false}
                 tickLine={false}
@@ -111,7 +114,7 @@ export default function PerformanceChart({
                 <YAxis
                   yAxisId="right"
                   orientation="right"
-                  domain={[0, loadAxisMax]}
+                  domain={[0, fixedLoadMax]}
                   tick={{ fontSize: expanded ? 11 : 10, fill: isDark ? '#fbbf24' : '#d97706' }}
                   axisLine={false}
                   tickLine={false}
