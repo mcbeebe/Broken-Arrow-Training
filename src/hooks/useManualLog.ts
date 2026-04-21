@@ -33,8 +33,13 @@ export function useManualLog(athleteId: string) {
       ...week,
       days: week.days.map(day => {
         const logged = logs[day.day]
-        if (logged) return { ...day, actual: logged }
-        return day
+        if (!logged) return day
+        // Merge: preserve Garmin biometrics (garminId, source, epoc, TE, HR
+        // zones) from the existing actual, layer manual edits on top
+        const merged = day.actual
+          ? { ...day.actual, ...logged, garminId: day.actual.garminId ?? logged.garminId, source: day.actual.source ?? logged.source }
+          : logged
+        return { ...day, actual: merged }
       }),
     }))
   }, [logs])
