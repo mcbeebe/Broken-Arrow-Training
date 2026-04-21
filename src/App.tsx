@@ -319,8 +319,9 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
   // Assemble the CoachSnapshot for LLM calls
   const coachSnapshot: CoachSnapshot | null = useMemo(() => {
     if (!coachEnabled) return null
-    // Gate on having at least some data — without readiness or performance
-    // the LLM has nothing useful to say.
+    // Wait for Garmin sync to finish before building the snapshot so the
+    // coach sees fresh data, not stale cache from the previous session.
+    if (garmin.connected && garmin.loading) return null
     if (!readiness.todayScore && readiness.performance.length === 0) return null
     const snap = buildCoachSnapshot({
       athleteProfile: effectiveAthlete,
