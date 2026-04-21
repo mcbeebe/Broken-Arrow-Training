@@ -62,6 +62,9 @@
       <a href="#s1" class="nav-link flex items-center gap-2 px-3 py-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800">
         <span class="w-5 text-center">⌂</span> 1. Dashboard + engines
       </a>
+      <a href="#s14" class="nav-link flex items-center gap-2 px-3 py-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800">
+        <span class="w-5 text-center">🎛</span> 14. How today composes
+      </a>
       <a href="#s11" class="nav-link flex items-center gap-2 px-3 py-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800">
         <span class="w-5 text-center">⚡</span> 11. Why this workout?
       </a>
@@ -145,83 +148,128 @@
             </div>
           </div>
 
-          <!-- NEW: Engine strip -->
+          <!-- NEW: Engine strip — plain-English first, metric demoted -->
           <div>
             <div class="flex items-center justify-between mb-2">
-              <h3 class="text-sm font-semibold text-slate-600 dark:text-slate-300">Engines <span class="text-slate-400 font-normal">· signals composed into today's plan</span></h3>
-              <a href="#s11" class="text-xs text-indigo-600 dark:text-indigo-400 hover:underline font-medium">Why this workout? →</a>
+              <h3 class="text-sm font-semibold text-slate-600 dark:text-slate-300">Engines <span class="text-slate-400 font-normal">· each one nudges today's plan on a different dial</span></h3>
+              <div class="flex items-center gap-3">
+                <a href="#s14" class="text-xs text-indigo-600 dark:text-indigo-400 hover:underline font-medium">How this composes →</a>
+                <a href="#s11" class="text-xs text-indigo-600 dark:text-indigo-400 hover:underline font-medium">Why this workout? →</a>
+              </div>
             </div>
-            <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-3">
+
               <!-- Terrain -->
               <a href="#s3" class="block rounded-xl border border-emerald-200 dark:border-emerald-800 bg-white dark:bg-slate-900 p-4 hover:shadow-md transition">
-                <div class="flex items-start justify-between">
-                  <div class="flex items-center gap-2 text-slate-800 dark:text-slate-100"><span>⛰</span><span class="text-xs font-semibold">Terrain</span></div>
-                  <span class="tier-T2 text-[10px] font-semibold px-1.5 py-0.5 rounded border">T2</span>
+                <div class="flex items-start justify-between mb-2">
+                  <div class="flex items-center gap-2">
+                    <span class="text-lg">⛰</span>
+                    <span class="text-xs font-semibold text-slate-800 dark:text-slate-100">Terrain</span>
+                    <span class="inline-flex items-center gap-1 text-[10px]"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span><span class="text-emerald-700 dark:text-emerald-300 font-medium">GREEN</span></span>
+                  </div>
+                  <span class="tier-T2 text-[10px] font-semibold px-1.5 py-0.5 rounded border shrink-0">T2</span>
                 </div>
-                <div class="mt-2 flex items-baseline gap-1">
-                  <span class="text-xl font-bold">7:12</span>
-                  <span class="text-[10px] text-slate-500">GAP /mi</span>
+                <p class="text-[13px] text-slate-800 dark:text-slate-100 leading-snug">
+                  Your hill-running engine is humming. Today's rolling route is fair game — <b>target GAP 7:12/mi</b>, not raw pace.
+                </p>
+                <div class="mt-3 flex items-center justify-between gap-3">
+                  <div class="flex items-center gap-1.5 text-[10px]">
+                    <span class="uppercase text-slate-400 tracking-wider">turns</span>
+                    <span class="font-semibold px-1.5 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">Route + pace target</span>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <span class="text-[10px] text-slate-400">7:12 vs 7:48 raw</span>
+                    <svg viewBox="0 0 60 16" class="w-14 h-4"><polyline fill="none" stroke="#10B981" stroke-width="1.5" points="0,14 10,12 20,10 30,11 40,8 50,7 60,5"/></svg>
+                  </div>
                 </div>
-                <div class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">vs 7:48 raw · +8% vertical</div>
-                <svg viewBox="0 0 100 24" class="mt-2 w-full h-6"><polyline fill="none" stroke="#10B981" stroke-width="1.5" points="0,20 10,18 20,15 30,17 40,12 50,14 60,10 70,11 80,9 90,7 100,6"/></svg>
-                <div class="mt-1 inline-flex items-center gap-1 text-[10px]"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span><span class="text-emerald-700 dark:text-emerald-300 font-medium">GREEN</span></div>
               </a>
+
               <!-- MIM -->
               <a href="#s4" class="block rounded-xl border border-indigo-200 dark:border-indigo-800 bg-white dark:bg-slate-900 p-4 hover:shadow-md transition ring-1 ring-indigo-100 dark:ring-indigo-900">
-                <div class="flex items-start justify-between">
-                  <div class="flex items-center gap-2 text-slate-800 dark:text-slate-100"><span>🧬</span><span class="text-xs font-semibold">MIM</span><span class="text-[9px] px-1 py-0.5 rounded bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-200 font-bold">NOVEL</span></div>
-                  <span class="tier-T2 text-[10px] font-semibold px-1.5 py-0.5 rounded border">T2</span>
+                <div class="flex items-start justify-between mb-2">
+                  <div class="flex items-center gap-2">
+                    <span class="text-lg">🧬</span>
+                    <span class="text-xs font-semibold text-slate-800 dark:text-slate-100">MIM</span>
+                    <span class="text-[9px] px-1 py-0.5 rounded bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-200 font-bold">NOVEL</span>
+                    <span class="inline-flex items-center gap-1 text-[10px]"><span class="w-1.5 h-1.5 rounded-full bg-indigo-500"></span><span class="text-indigo-700 dark:text-indigo-300 font-medium">CARRY-FWD</span></span>
+                  </div>
+                  <span class="tier-T2 text-[10px] font-semibold px-1.5 py-0.5 rounded border shrink-0">T2</span>
                 </div>
-                <div class="mt-2 flex items-baseline gap-1">
-                  <span class="text-xl font-bold">1.8×</span>
-                  <span class="text-[10px] text-slate-500">lower-body impact</span>
+                <p class="text-[13px] text-slate-800 dark:text-slate-100 leading-snug">
+                  Your legs took <b>1.8×</b> the hit of yesterday's cycling number. Aerobic fresh, quads tired — easy Z2 is the right call; no hill repeats today.
+                </p>
+                <div class="mt-3 flex items-center justify-between gap-3">
+                  <div class="flex items-center gap-1.5 text-[10px]">
+                    <span class="uppercase text-slate-400 tracking-wider">turns</span>
+                    <span class="font-semibold px-1.5 py-0.5 rounded bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">Workout content</span>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <span class="text-[10px] text-slate-400">quads 65% · aerobic 100%</span>
+                    <svg viewBox="0 0 60 16" class="w-14 h-4"><polyline fill="none" stroke="#6366F1" stroke-width="1.5" points="0,10 10,9 20,11 30,8 40,9 50,7 60,6"/></svg>
+                  </div>
                 </div>
-                <div class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">personalised · n=27 sessions</div>
-                <svg viewBox="0 0 100 24" class="mt-2 w-full h-6"><polyline fill="none" stroke="#6366F1" stroke-width="1.5" points="0,16 10,15 20,17 30,13 40,14 50,11 60,10 70,12 80,9 90,10 100,8"/></svg>
-                <div class="mt-1 inline-flex items-center gap-1 text-[10px]"><span class="w-1.5 h-1.5 rounded-full bg-indigo-500"></span><span class="text-indigo-700 dark:text-indigo-300 font-medium">CARRY-FWD 0.3</span></div>
               </a>
+
               <!-- Descent -->
               <a href="#s7" class="block rounded-xl border border-amber-200 dark:border-amber-800 bg-white dark:bg-slate-900 p-4 hover:shadow-md transition">
-                <div class="flex items-start justify-between">
-                  <div class="flex items-center gap-2 text-slate-800 dark:text-slate-100"><span>↘</span><span class="text-xs font-semibold">Descent</span></div>
-                  <span class="tier-T2 text-[10px] font-semibold px-1.5 py-0.5 rounded border">T2</span>
-                </div>
-                <div class="mt-2 flex items-baseline gap-1">
-                  <span class="text-xl font-bold">42</span>
-                  <span class="text-[10px] text-slate-500">ecc-TRIMP 48h</span>
-                </div>
-                <div class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">severe 120m · moderate 180m</div>
-                <svg viewBox="0 0 100 24" class="mt-2 w-full h-6">
-                  <rect x="0" y="12" width="8" height="10" fill="#D97706"/>
-                  <rect x="12" y="8" width="8" height="14" fill="#D97706"/>
-                  <rect x="24" y="18" width="8" height="4" fill="#D97706"/>
-                  <rect x="36" y="14" width="8" height="8" fill="#D97706"/>
-                  <rect x="48" y="4" width="8" height="18" fill="#D97706"/>
-                  <rect x="60" y="10" width="8" height="12" fill="#D97706"/>
-                  <rect x="72" y="16" width="8" height="6" fill="#D97706"/>
-                  <rect x="84" y="6" width="8" height="16" fill="#D97706"/>
-                </svg>
-                <div class="mt-1 inline-flex items-center gap-1 text-[10px]"><span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span><span class="text-amber-700 dark:text-amber-300 font-medium">YELLOW · cap descent</span></div>
-              </a>
-              <!-- Altitude -->
-              <a href="#s8" class="block rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4 hover:shadow-md transition">
-                <div class="flex items-start justify-between">
-                  <div class="flex items-center gap-2 text-slate-800 dark:text-slate-100"><span>🏔</span><span class="text-xs font-semibold">Altitude</span></div>
-                  <span class="tier-T1 text-[10px] font-semibold px-1.5 py-0.5 rounded border">T1</span>
-                </div>
-                <div class="mt-2 flex items-baseline gap-1">
-                  <span class="text-xl font-bold">1,540</span>
-                  <span class="text-[10px] text-slate-500">m · acclim 18</span>
-                </div>
-                <div class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">intensity -2% · no advisory</div>
-                <div class="mt-2">
-                  <div class="h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-                    <div class="h-full bg-gradient-to-r from-sky-400 to-sky-600" style="width:18%"></div>
+                <div class="flex items-start justify-between mb-2">
+                  <div class="flex items-center gap-2">
+                    <span class="text-lg">↘</span>
+                    <span class="text-xs font-semibold text-slate-800 dark:text-slate-100">Descent-load</span>
+                    <span class="inline-flex items-center gap-1 text-[10px]"><span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span><span class="text-amber-700 dark:text-amber-300 font-medium">YELLOW</span></span>
                   </div>
-                  <div class="flex justify-between text-[9px] text-slate-400 mt-1"><span>0</span><span>50</span><span>100</span></div>
+                  <span class="tier-T2 text-[10px] font-semibold px-1.5 py-0.5 rounded border shrink-0">T2</span>
                 </div>
-                <div class="mt-1 inline-flex items-center gap-1 text-[10px]"><span class="w-1.5 h-1.5 rounded-full bg-sky-500"></span><span class="text-sky-700 dark:text-sky-300 font-medium">ACCLIMATIZING</span></div>
+                <p class="text-[13px] text-slate-800 dark:text-slate-100 leading-snug">
+                  Saturday's 5,000 ft descent is still in your legs. DOMS peaks today — <b>cap descent at 150 m</b> and skip pounding downhills.
+                </p>
+                <div class="mt-3 flex items-center justify-between gap-3">
+                  <div class="flex items-center gap-1.5 text-[10px]">
+                    <span class="uppercase text-slate-400 tracking-wider">turns</span>
+                    <span class="font-semibold px-1.5 py-0.5 rounded bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800">Flat vs. hilly</span>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <span class="text-[10px] text-slate-400">42 ecc-TRIMP · 48 h</span>
+                    <svg viewBox="0 0 60 16" class="w-14 h-4">
+                      <rect x="0" y="8" width="6" height="6" fill="#D97706"/>
+                      <rect x="8" y="4" width="6" height="10" fill="#D97706"/>
+                      <rect x="16" y="10" width="6" height="4" fill="#D97706"/>
+                      <rect x="24" y="6" width="6" height="8" fill="#D97706"/>
+                      <rect x="32" y="2" width="6" height="12" fill="#D97706"/>
+                      <rect x="40" y="6" width="6" height="8" fill="#D97706"/>
+                      <rect x="48" y="9" width="6" height="5" fill="#D97706"/>
+                    </svg>
+                  </div>
+                </div>
               </a>
+
+              <!-- Altitude -->
+              <a href="#s8" class="block rounded-xl border border-sky-200 dark:border-sky-800 bg-white dark:bg-slate-900 p-4 hover:shadow-md transition">
+                <div class="flex items-start justify-between mb-2">
+                  <div class="flex items-center gap-2">
+                    <span class="text-lg">🏔</span>
+                    <span class="text-xs font-semibold text-slate-800 dark:text-slate-100">Altitude</span>
+                    <span class="inline-flex items-center gap-1 text-[10px]"><span class="w-1.5 h-1.5 rounded-full bg-sky-500"></span><span class="text-sky-700 dark:text-sky-300 font-medium">ACCLIMATISING</span></span>
+                  </div>
+                  <span class="tier-T1 text-[10px] font-semibold px-1.5 py-0.5 rounded border shrink-0">T1</span>
+                </div>
+                <p class="text-[13px] text-slate-800 dark:text-slate-100 leading-snug">
+                  Day 3 at 1,540 m. Thin air means easy pace feels ~2% slower — <b>that's the air, not weakness</b>. No AMS flags.
+                </p>
+                <div class="mt-3 flex items-center justify-between gap-3">
+                  <div class="flex items-center gap-1.5 text-[10px]">
+                    <span class="uppercase text-slate-400 tracking-wider">turns</span>
+                    <span class="font-semibold px-1.5 py-0.5 rounded bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-800">Pace expectation</span>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <span class="text-[10px] text-slate-400">1,540 m · acclim 18%</span>
+                    <div class="w-14 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                      <div class="h-full bg-gradient-to-r from-sky-400 to-sky-600" style="width:18%"></div>
+                    </div>
+                  </div>
+                </div>
+              </a>
+
             </div>
           </div>
 
@@ -1616,8 +1664,10 @@
         <div class="max-w-5xl mx-auto grid md:grid-cols-[240px_minmax(0,1fr)] gap-6">
           <!-- TOC -->
           <aside class="space-y-1 text-sm">
-            <div class="px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500">MIM methodology</div>
-            <a class="block px-3 py-2 rounded bg-indigo-50 text-indigo-700 font-semibold dark:bg-indigo-950/40 dark:text-indigo-300">1. What is MIM?</a>
+            <div class="px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500">All engines</div>
+            <a class="block px-3 py-2 rounded bg-indigo-50 text-indigo-700 font-semibold dark:bg-indigo-950/40 dark:text-indigo-300">0. Plain-English cheat sheet</a>
+            <div class="px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500 mt-2">MIM methodology</div>
+            <a class="block px-3 py-2 rounded hover:bg-slate-100 dark:hover:bg-slate-800">1. What is MIM?</a>
             <a class="block px-3 py-2 rounded hover:bg-slate-100 dark:hover:bg-slate-800">2. Inputs</a>
             <a class="block px-3 py-2 rounded hover:bg-slate-100 dark:hover:bg-slate-800">3. Priors (OpenSim + GRADE)</a>
             <a class="block px-3 py-2 rounded hover:bg-slate-100 dark:hover:bg-slate-800">4. Shrinkage (Efron-Morris)</a>
@@ -1629,6 +1679,80 @@
 
           <!-- Body -->
           <div class="space-y-6">
+            <!-- NEW: Plain-English cheat sheet -->
+            <article class="rounded-2xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50/40 dark:bg-indigo-950/20 p-6">
+              <div class="flex items-center gap-2 mb-1">
+                <h2 class="text-lg font-bold">0. Plain-English cheat sheet</h2>
+                <span class="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200">read this first</span>
+              </div>
+              <p class="text-sm text-slate-700 dark:text-slate-300 mt-1">Before the science. Each engine does <em>one</em> job and turns <em>one</em> dial on your workout. Here's the whole system in 60 seconds.</p>
+
+              <div class="mt-4 overflow-x-auto">
+                <table class="w-full text-[12px]">
+                  <thead>
+                    <tr class="text-[10px] uppercase tracking-wider text-slate-500 dark:text-slate-400 bg-white/60 dark:bg-slate-900/50">
+                      <th class="py-2 px-3 text-left">Engine</th>
+                      <th class="py-2 px-3 text-left">Its job (plain English)</th>
+                      <th class="py-2 px-3 text-left">Dial it turns</th>
+                      <th class="py-2 px-3 text-left">Example nudge</th>
+                    </tr>
+                  </thead>
+                  <tbody class="text-slate-800 dark:text-slate-200 bg-white/70 dark:bg-slate-900/40">
+                    <tr class="border-t border-slate-200 dark:border-slate-800">
+                      <td class="py-2.5 px-3">
+                        <div class="flex items-center gap-2"><span>⚡</span><span class="font-semibold">Readiness</span></div>
+                        <div class="text-[10px] text-slate-500 mt-0.5">LIVE today</div>
+                      </td>
+                      <td class="py-2.5 px-3">"Am I recovered enough to train hard today?"</td>
+                      <td class="py-2.5 px-3"><span class="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">Intensity</span></td>
+                      <td class="py-2.5 px-3 text-slate-600 dark:text-slate-300">HRV low → swap today's tempo for easy Z1</td>
+                    </tr>
+                    <tr class="border-t border-slate-200 dark:border-slate-800">
+                      <td class="py-2.5 px-3">
+                        <div class="flex items-center gap-2"><span>⛰</span><span class="font-semibold">Terrain</span></div>
+                        <div class="text-[10px] text-slate-500 mt-0.5">Sprint 2–4</div>
+                      </td>
+                      <td class="py-2.5 px-3">"How well do I handle hills — and how tough was today's run <em>really</em>?"</td>
+                      <td class="py-2.5 px-3"><span class="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">Route + pacing target</span></td>
+                      <td class="py-2.5 px-3 text-slate-600 dark:text-slate-300">Hilly route → target GAP 7:30/mi, not raw pace</td>
+                    </tr>
+                    <tr class="border-t border-slate-200 dark:border-slate-800">
+                      <td class="py-2.5 px-3">
+                        <div class="flex items-center gap-2"><span>🧬</span><span class="font-semibold">MIM</span><span class="text-[9px] px-1 py-0.5 rounded bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-200 font-bold">NOVEL</span></div>
+                        <div class="text-[10px] text-slate-500 mt-0.5">Sprint 5–7</div>
+                      </td>
+                      <td class="py-2.5 px-3">"Which parts of my body are tired, and which are fresh?"</td>
+                      <td class="py-2.5 px-3"><span class="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">Workout content</span></td>
+                      <td class="py-2.5 px-3 text-slate-600 dark:text-slate-300">Legs cooked / aerobic fresh → bike instead of run</td>
+                    </tr>
+                    <tr class="border-t border-slate-200 dark:border-slate-800">
+                      <td class="py-2.5 px-3">
+                        <div class="flex items-center gap-2"><span>↘</span><span class="font-semibold">Descent-load</span></div>
+                        <div class="text-[10px] text-slate-500 mt-0.5">Sprint 8–9</div>
+                      </td>
+                      <td class="py-2.5 px-3">"How much downhill damage am I carrying, and when does it peak?"</td>
+                      <td class="py-2.5 px-3"><span class="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800">Flat vs. hilly</span></td>
+                      <td class="py-2.5 px-3 text-slate-600 dark:text-slate-300">Saturday's 5,000 ft descent peaks today → cap descent 150 m</td>
+                    </tr>
+                    <tr class="border-t border-slate-200 dark:border-slate-800">
+                      <td class="py-2.5 px-3">
+                        <div class="flex items-center gap-2"><span>🏔</span><span class="font-semibold">Altitude</span></div>
+                        <div class="text-[10px] text-slate-500 mt-0.5">Sprint 10–11</div>
+                      </td>
+                      <td class="py-2.5 px-3">"How will thin air — or just-returning-from-it — warp my plan?"</td>
+                      <td class="py-2.5 px-3"><span class="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-800">Pace expectation</span></td>
+                      <td class="py-2.5 px-3 text-slate-600 dark:text-slate-300">Day 2 at 2,500 m → paces +15%, max HR −5 bpm</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <div class="mt-4 p-3 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+                <div class="text-[11px] font-semibold text-slate-700 dark:text-slate-200">The one-sentence mental model</div>
+                <p class="text-[12px] text-slate-600 dark:text-slate-300 mt-1 leading-relaxed">Your plan on paper is the <em>intent</em>. The five engines each check one thing about reality, each turns a different dial, and the dials stack into today's actual workout. See <a href="#s14" class="text-indigo-600 dark:text-indigo-400 underline">Screen 14 · How today composes</a> for the canonical picture.</p>
+              </div>
+            </article>
+
             <article class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6">
               <h2 class="text-lg font-bold">1. What is MIM?</h2>
               <p class="text-sm text-slate-700 dark:text-slate-300 mt-2">MIM (Musculoskeletal Impact Modifier) is a per-sport multiplier we apply when summing your daily training load. Banister TRIMP treats 200 units of cycling TRIMP the same as 200 units of strength-lower TRIMP — biomechanically, they're not. MIM makes them comparable.</p>
@@ -2049,6 +2173,223 @@ export interface Engine&lt;TState, TScore&gt; {
       <!-- Footnote -->
       <div class="text-[11px] text-slate-500 dark:text-slate-400 italic pl-1">
         File paths verified against <code>src/</code> scan on 2026-04-20 · Tab model verified against <code>src/App.tsx</code> lines 134–146 (ViewId state machine) · All "existing" references grounded in codebase, not guessed.
+      </div>
+    </section>
+
+    <!-- ===================== SCREEN 14 — HOW TODAY COMPOSES ===================== -->
+    <section data-screen id="s14" class="p-6 sm:p-8 space-y-6">
+      <div class="flex items-start justify-between flex-wrap gap-2">
+        <div>
+          <div class="text-xs font-semibold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">Screen 14 · Composed view</div>
+          <h1 class="text-2xl font-bold mt-1">How today's workout gets composed</h1>
+          <p class="text-sm text-slate-600 dark:text-slate-300 max-w-2xl mt-1">Each engine turns a <b>different dial</b>. They don't fight each other — they stack. This is the canonical picture of how the plan on paper becomes today's actual workout.</p>
+        </div>
+        <div class="flex gap-2">
+          <span class="px-2 py-1 text-[11px] rounded-md border border-slate-300 dark:border-slate-700">Sprint 12</span>
+          <span class="px-2 py-1 text-[11px] rounded-md border border-slate-300 dark:border-slate-700">WhyDrawer.tsx</span>
+        </div>
+      </div>
+
+      <!-- ── 3-column flow diagram ───────────────────────────────────────── -->
+      <div class="bg-slate-100 dark:bg-slate-900 rounded-2xl ba-grid p-6">
+        <div class="max-w-6xl mx-auto">
+
+          <!-- top row: the pipeline headline -->
+          <div class="grid md:grid-cols-[1fr_auto_1.2fr_auto_1fr] gap-3 md:gap-4 items-center">
+
+            <!-- Plan (raw) -->
+            <div class="rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
+              <div class="text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Plan says</div>
+              <div class="text-base font-bold mt-1 text-slate-800 dark:text-slate-100">Z2 Aerobic</div>
+              <div class="text-sm text-slate-600 dark:text-slate-300 mt-0.5">80 min · rolling trails</div>
+              <div class="text-sm text-slate-600 dark:text-slate-300">HR ≤ 155</div>
+              <div class="text-[10px] text-slate-400 mt-2 italic">from your training calendar</div>
+            </div>
+
+            <!-- arrow -->
+            <div class="hidden md:flex items-center justify-center text-slate-400 text-2xl">→</div>
+
+            <!-- 5 engines (middle column) -->
+            <div class="rounded-xl border border-indigo-200 dark:border-indigo-800 bg-white dark:bg-slate-900 p-4">
+              <div class="text-[10px] font-semibold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">5 engines check, independently</div>
+              <div class="grid grid-cols-5 gap-1.5 mt-2">
+                <div class="text-center">
+                  <div class="w-8 h-8 mx-auto rounded-full bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center text-base">⚡</div>
+                  <div class="text-[9px] mt-1 text-slate-600 dark:text-slate-300 font-medium">Readiness</div>
+                </div>
+                <div class="text-center">
+                  <div class="w-8 h-8 mx-auto rounded-full bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center text-base">⛰</div>
+                  <div class="text-[9px] mt-1 text-slate-600 dark:text-slate-300 font-medium">Terrain</div>
+                </div>
+                <div class="text-center">
+                  <div class="w-8 h-8 mx-auto rounded-full bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center text-base">🧬</div>
+                  <div class="text-[9px] mt-1 text-slate-600 dark:text-slate-300 font-medium">MIM</div>
+                </div>
+                <div class="text-center">
+                  <div class="w-8 h-8 mx-auto rounded-full bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center text-base">↘</div>
+                  <div class="text-[9px] mt-1 text-slate-600 dark:text-slate-300 font-medium">Descent</div>
+                </div>
+                <div class="text-center">
+                  <div class="w-8 h-8 mx-auto rounded-full bg-sky-100 dark:bg-sky-900/40 flex items-center justify-center text-base">🏔</div>
+                  <div class="text-[9px] mt-1 text-slate-600 dark:text-slate-300 font-medium">Altitude</div>
+                </div>
+              </div>
+              <div class="text-[10px] text-slate-500 dark:text-slate-400 mt-3 italic leading-relaxed">Each engine asks <em>one</em> question and turns <em>one</em> dial. No voting, no averaging — the dials stack.</div>
+            </div>
+
+            <!-- arrow -->
+            <div class="hidden md:flex items-center justify-center text-slate-400 text-2xl">→</div>
+
+            <!-- Today (composed) -->
+            <div class="rounded-xl border border-indigo-300 dark:border-indigo-700 bg-indigo-50/60 dark:bg-indigo-950/40 p-4 ring-1 ring-indigo-200 dark:ring-indigo-900">
+              <div class="text-[10px] font-semibold uppercase tracking-wider text-indigo-700 dark:text-indigo-300">Today is</div>
+              <div class="text-base font-bold mt-1 text-indigo-900 dark:text-indigo-100">Z2 Aerobic — 80 min</div>
+              <ul class="text-[11px] text-slate-700 dark:text-slate-200 mt-1.5 space-y-0.5">
+                <li>• Rolling trails, HR ≤ 155</li>
+                <li>• <b>Target GAP 7:12/mi</b> <span class="text-emerald-600 dark:text-emerald-400">← Terrain</span></li>
+                <li>• <b>Cap descent 150 m</b> <span class="text-amber-600 dark:text-amber-400">← Descent</span></li>
+                <li>• <b>Paces +2% for altitude</b> <span class="text-sky-600 dark:text-sky-400">← Altitude</span></li>
+                <li>• Intensity unchanged <span class="text-slate-400">← Readiness (GREEN)</span></li>
+                <li>• Workout type unchanged <span class="text-slate-400">← MIM (confirmed)</span></li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- per-engine dial rows -->
+          <div class="mt-6">
+            <div class="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-2">What each engine checked (in plain English)</div>
+            <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+              <table class="w-full text-[12px]">
+                <thead>
+                  <tr class="text-[10px] uppercase tracking-wider text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/50">
+                    <th class="py-2 px-3 text-left">Engine</th>
+                    <th class="py-2 px-3 text-left">Asks</th>
+                    <th class="py-2 px-3 text-left">Turns the dial for…</th>
+                    <th class="py-2 px-3 text-left">Today's answer → change to plan</th>
+                  </tr>
+                </thead>
+                <tbody class="text-slate-800 dark:text-slate-200">
+                  <tr class="border-t border-slate-200 dark:border-slate-800">
+                    <td class="py-3 px-3">
+                      <div class="flex items-center gap-2">
+                        <span class="w-6 h-6 rounded-full bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center text-xs">⚡</span>
+                        <span class="font-semibold">Readiness</span>
+                      </div>
+                    </td>
+                    <td class="py-3 px-3 text-slate-600 dark:text-slate-300">"Can I push today?"</td>
+                    <td class="py-3 px-3">
+                      <span class="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">Intensity</span>
+                    </td>
+                    <td class="py-3 px-3 text-slate-700 dark:text-slate-300"><b class="text-emerald-600 dark:text-emerald-400">GREEN</b> — HRV good, sleep good. <span class="text-slate-500">No change.</span></td>
+                  </tr>
+                  <tr class="border-t border-slate-200 dark:border-slate-800">
+                    <td class="py-3 px-3">
+                      <div class="flex items-center gap-2">
+                        <span class="w-6 h-6 rounded-full bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center text-xs">⛰</span>
+                        <span class="font-semibold">Terrain</span>
+                      </div>
+                    </td>
+                    <td class="py-3 px-3 text-slate-600 dark:text-slate-300">"Am I running hills?"</td>
+                    <td class="py-3 px-3">
+                      <span class="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">Route + pace target</span>
+                    </td>
+                    <td class="py-3 px-3 text-slate-700 dark:text-slate-300"><b class="text-emerald-600 dark:text-emerald-400">+8% vertical</b> today. <span class="text-slate-500">Added: target GAP 7:12/mi, not raw pace.</span></td>
+                  </tr>
+                  <tr class="border-t border-slate-200 dark:border-slate-800">
+                    <td class="py-3 px-3">
+                      <div class="flex items-center gap-2">
+                        <span class="w-6 h-6 rounded-full bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center text-xs">🧬</span>
+                        <span class="font-semibold">MIM</span>
+                        <span class="text-[9px] px-1 py-0.5 rounded bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-200 font-bold">NOVEL</span>
+                      </div>
+                    </td>
+                    <td class="py-3 px-3 text-slate-600 dark:text-slate-300">"Which muscles are fresh?"</td>
+                    <td class="py-3 px-3">
+                      <span class="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">Workout content</span>
+                    </td>
+                    <td class="py-3 px-3 text-slate-700 dark:text-slate-300">Aerobic <b class="text-emerald-600 dark:text-emerald-400">100%</b>, quads <b class="text-amber-600 dark:text-amber-400">65%</b>. <span class="text-slate-500">Z2 is perfect; confirmed no hill repeats.</span></td>
+                  </tr>
+                  <tr class="border-t border-slate-200 dark:border-slate-800">
+                    <td class="py-3 px-3">
+                      <div class="flex items-center gap-2">
+                        <span class="w-6 h-6 rounded-full bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center text-xs">↘</span>
+                        <span class="font-semibold">Descent-load</span>
+                      </div>
+                    </td>
+                    <td class="py-3 px-3 text-slate-600 dark:text-slate-300">"Am I in DOMS peak?"</td>
+                    <td class="py-3 px-3">
+                      <span class="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800">Flat vs. hilly</span>
+                    </td>
+                    <td class="py-3 px-3 text-slate-700 dark:text-slate-300">Sat's 5,000 ft descent = <b class="text-amber-600 dark:text-amber-400">DOMS peak today</b>. <span class="text-slate-500">Added: cap descent 150 m.</span></td>
+                  </tr>
+                  <tr class="border-t border-slate-200 dark:border-slate-800">
+                    <td class="py-3 px-3">
+                      <div class="flex items-center gap-2">
+                        <span class="w-6 h-6 rounded-full bg-sky-100 dark:bg-sky-900/40 flex items-center justify-center text-xs">🏔</span>
+                        <span class="font-semibold">Altitude</span>
+                      </div>
+                    </td>
+                    <td class="py-3 px-3 text-slate-600 dark:text-slate-300">"Am I at elevation?"</td>
+                    <td class="py-3 px-3">
+                      <span class="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-800">Pace expectation</span>
+                    </td>
+                    <td class="py-3 px-3 text-slate-700 dark:text-slate-300">Day 3 at <b class="text-sky-600 dark:text-sky-400">1,540 m</b>, 18% acclimatised. <span class="text-slate-500">Added: pace +2%, monitor for AMS (none today).</span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- why independence matters -->
+          <div class="mt-6 grid md:grid-cols-2 gap-4">
+            <div class="rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50/60 dark:bg-emerald-950/30 p-4">
+              <div class="text-xs font-semibold text-emerald-800 dark:text-emerald-200 mb-1">✓ Why the dials are independent</div>
+              <p class="text-[12px] text-slate-700 dark:text-slate-300 leading-relaxed">Each engine sees a <em>different slice</em> of the truth. Readiness watches nervous system, Terrain watches the route, MIM watches muscles-by-system, Descent watches eccentric damage, Altitude watches oxygen. Averaging them would smear signal. Stacking their dials preserves it.</p>
+            </div>
+            <div class="rounded-xl border border-rose-200 dark:border-rose-800 bg-rose-50/60 dark:bg-rose-950/30 p-4">
+              <div class="text-xs font-semibold text-rose-800 dark:text-rose-200 mb-1">✗ What we explicitly don't do</div>
+              <ul class="text-[12px] text-slate-700 dark:text-slate-300 leading-relaxed space-y-1 list-disc pl-5">
+                <li>No single composite score hiding the reasoning</li>
+                <li>No engine vetoes another's dial — they operate on different ones</li>
+                <li>No hidden weights — every nudge is traceable in the Why drawer</li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- alternate scenario preview -->
+          <div class="mt-6">
+            <div class="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-2">How the picture shifts on a different day</div>
+            <div class="grid md:grid-cols-3 gap-3">
+              <div class="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
+                <div class="text-[10px] uppercase tracking-wider text-slate-500 dark:text-slate-400">Scenario · Low readiness</div>
+                <div class="text-xs font-semibold mt-1">HRV tanks after poor sleep</div>
+                <p class="text-[11px] text-slate-600 dark:text-slate-300 mt-1">Readiness turns to <b class="text-amber-600">YELLOW</b> → dial "Intensity" shifts. Plan says VO₂; today becomes easy Z1–Z2. Other engines unchanged.</p>
+              </div>
+              <div class="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
+                <div class="text-[10px] uppercase tracking-wider text-slate-500 dark:text-slate-400">Scenario · Flat city run</div>
+                <div class="text-xs font-semibold mt-1">You're travelling, no hills</div>
+                <p class="text-[11px] text-slate-600 dark:text-slate-300 mt-1">Terrain says <b class="text-slate-500">no adjustment needed</b> (flat = GAP ≈ raw pace). Descent goes quiet. Altitude quiet. Only Readiness + MIM still apply.</p>
+              </div>
+              <div class="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
+                <div class="text-[10px] uppercase tracking-wider text-slate-500 dark:text-slate-400">Scenario · AMS flag</div>
+                <div class="text-xs font-semibold mt-1">Headache at 3,000 m</div>
+                <p class="text-[11px] text-slate-600 dark:text-slate-300 mt-1">Altitude turns <b class="text-rose-600">RED</b> (AMS suspected) → session downgraded to easy walk + hydration prompt. This is the one scenario where an engine can <em>halt</em> the workout.</p>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- design notes -->
+      <div class="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 text-sm">
+        <div class="font-semibold mb-1">Design notes</div>
+        <ul class="list-disc list-inside text-slate-600 dark:text-slate-300 space-y-1">
+          <li>This screen is the <b>canonical mental model</b> for how the engines relate. It lives behind the "How this composes →" link on Screen 1 and is auto-surfaced the first time a user sees a plan change they didn't expect.</li>
+          <li>Every adjustment in the "Today is" panel is colour-matched to the engine that added it. Users can trace any line back to an engine in one glance.</li>
+          <li>The dial table doubles as onboarding copy — read it once, and you understand all 5 engines without ever seeing HRV, GAP, TRIMP, or acclimatisation %.</li>
+          <li>The "different day" strip reinforces that engines <em>go quiet</em> when they have nothing to say — they aren't always firing.</li>
+        </ul>
       </div>
     </section>
 
