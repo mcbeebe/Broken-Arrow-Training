@@ -150,8 +150,9 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
       setStreamLoading(true)
       try {
         let data: StreamData | null = null
-        // Prefer Garmin if the actual came from Garmin
-        if (actual!.source === 'garmin' && actual!.garminId) {
+        // Try Garmin stream whenever we have a garminId (even if source
+        // was overwritten by manual log — the watch still recorded HR)
+        if (actual!.garminId) {
           data = await fetchGarminActivityStream(actual!.garminId, athleteId)
         }
         // Strava fallback (or primary source)
