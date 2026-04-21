@@ -105,6 +105,105 @@ Full reference list is consolidated in §17 below and mirrored verbatim in `BA_V
 | Descent-Load | PARTIAL (DOMS_CARRY only) | LIVE, eccentric-TRIMP + repeated-bout memory |
 | Altitude | PHASE 3 | LIVE, dose + acclimatization + dampening |
 
+### 4.4 Preservation Matrix (shipped code ↔ plan decisions)
+
+**Purpose.** Every row below is a concrete surface area in the currently-shipped app. Each row states the decision the plan takes with that surface (Preserve / Extend / Re-parent / Streamline / Deprecate) and names the sprint that touches it. This is the single source of truth the mockups, the sprint sections below, and the xlsx tracker all agree with. **No shipped feature may be silently dropped** — if a row says "deprecate" it is justified in the final column.
+
+**Legend.**
+- ✅ **Preserve** — component ships unchanged; plan wires new data into it without modifying source
+- 🔄 **Extend** — component kept, new props / sub-sections added
+- 📦 **Re-parent** — component kept, moved under a new screen or route
+- ✂ **Streamline** — component kept but content consolidated with new sibling
+- ❌ **Deprecate** — replaced, justified in Notes
+- 🆕 **Add** — net-new component (listed for completeness where a shipped sibling is implicated)
+
+#### 4.4.1 Summary tab
+
+| Shipped surface | Decision | Sprint that touches | Notes |
+|---|---|---|---|
+| `TodayBriefing.tsx` (Today narrative + "Why") | 🔄 Extend | S12 (Ensemble) | Riley hero card wraps it; "Why" collapsible gains MIM + Altitude bullets |
+| `VitalsGrid.tsx` (HRV / RHR / Sleep / Body Battery + sparklines) | ✅ Preserve | — | No change; data already hits it |
+| `InjuryRiskAlerts.tsx` (amber alert strip) | 🔄 Extend | S8 (Descent-A), S11 (Altitude-B) | Adds descent-load red-flag channel + AMS red-flag channel |
+| `PerformanceSnapshot.tsx` (CTL / ATL / TSB / ACWR scale bars) | ✅ Preserve | — | Reads existing `CoachSnapshot`; untouched |
+| `TRIMPBreakdown.tsx` (7-day bar chart, sport-type colors) | 🔄 Extend | S8 (Descent-A) | New `eccentricDose` series stacked onto existing bars |
+| `WhatChangedCard.tsx` (week narrative) | 🔄 Extend | S12 (Ensemble) | Narrative source switches to Adaptive Plan Engine output |
+| `WeekAtAGlance.tsx` (7 readiness dots) | ✅ Preserve | — | Unchanged |
+| **Riley hero card** | 🆕 Add | S1 (Foundation) stub, S12 (real) | Persona + synthesis + "What's driving this" — wraps `TodayBriefing` |
+
+#### 4.4.2 Plan tab
+
+| Shipped surface | Decision | Sprint that touches | Notes |
+|---|---|---|---|
+| `PlanView.tsx` (main list) | ✂ Streamline | S12 (Ensemble) | "This week, per Riley" narration card prepended above existing list |
+| `WeekStrip.tsx` (M-T-W-T-F-S-S pill strip) | ✅ Preserve | — | Unchanged |
+| `WorkoutCard.tsx` (per-day card) | 🔄 Extend | S2–S4 (Terrain), S5–S7 (MIM), S11 (Altitude) | Tier chips for Terrain / MIM / Altitude get chip slots; existing layout preserved |
+| `PlanCompliance.tsx` (% complete) | ✅ Preserve | — | Unchanged |
+| `NextWorkoutSummary.tsx` | ✅ Preserve | — | Unchanged |
+| **"Per Riley" narration card** | 🆕 Add | S12 | New card above Plan list |
+
+#### 4.4.3 Stats tab
+
+| Shipped surface | Decision | Sprint that touches | Notes |
+|---|---|---|---|
+| `CompliancePanel.tsx` | 📦 Re-parent | S1 (Foundation) | Becomes Compliance sub-tab; no code changes |
+| `ReadinessPanel.tsx` | 📦 Re-parent | S1 | Becomes Readiness sub-tab |
+| `PerformancePanel.tsx` | 📦 Re-parent | S1 | Becomes Performance sub-tab |
+| `PerformanceChart.tsx` (recharts line) | 🔄 Extend | S4 (Terrain-C), S12 | Metric pills + race-day reference band + ACWR corridor added as optional props |
+| `TimeWindowToggle.tsx` (7d/30d/90d/All) | ✅ Preserve | — | Unchanged |
+| `PerformanceGlossary.tsx` (collapsible defs) | 🔄 Extend | S7 (MIM-C) | Add MIM + Altitude + Eccentric glossary rows |
+| `StatCards.tsx` (4-card grid) | ✅ Preserve | — | Unchanged |
+
+#### 4.4.4 Coach tab
+
+| Shipped surface | Decision | Sprint that touches | Notes |
+|---|---|---|---|
+| `CoachChat.tsx` (chat surface, pending inferences) | ✅ Preserve | — | Chat shell untouched |
+| `CoachInsightCard.tsx` | 🔄 Extend | S7 (MIM-C), S11 (Altitude-B) | Adds citation chips + AMS advisory variant |
+| `CoachHistory.tsx` | ✅ Preserve | — | History + minimize controls unchanged |
+| `CoachPersonaSelector.tsx` | ✅ Preserve | — | Shared with Settings; unchanged |
+| **Riley avatar coin in header** | 🆕 Add | S12 | Visual-only; no new data |
+
+#### 4.4.5 Settings tab
+
+| Shipped surface | Decision | Sprint that touches | Notes |
+|---|---|---|---|
+| `ProfileCard.tsx` | ✅ Preserve | — | Unchanged |
+| `CoachPersonaSelector.tsx` | ✅ Preserve | — | 4-button grid stays as shipped |
+| `AboutMeEditor.tsx` | ✅ Preserve | — | Free-text field consumed by every Riley reply |
+| `HRZoneEditor.tsx` | ✅ Preserve | — | Max HR + 5 zone bands + Garmin LTHR sync |
+| `IntegrationsRow.tsx` (Strava / Garmin / Zwift) | 🔄 Extend | S10 (Altitude-A) | Zwift upgraded from "optional" to "recommended" for altitude prep |
+| `CacheDiagnostics.tsx` | ✅ Preserve | — | Unchanged |
+| `PrivacyRow.tsx` (export / delete) | ✅ Preserve | — | Unchanged |
+| **Trips section + altitude wizard trigger** | 🆕 Add | S11 (Altitude-B) | New `TripsSection.tsx` + `AltitudeWizard.tsx` |
+| **Methodology link → Screen 12** | 🆕 Add | S13 (Release) | New `MethodologyView.tsx` |
+
+#### 4.4.6 Shared primitives & utils
+
+| Shipped surface | Decision | Sprint that touches | Notes |
+|---|---|---|---|
+| `ReadinessBadge.tsx`, `TierChip.tsx`, `SparklineMini.tsx`, `MetricCard.tsx`, `ScaleBar.tsx`, `Navbar.tsx` | ✅ Preserve | — | All primitives ship unchanged |
+| `src/utils/readiness.ts` (ATE + Plews + Meeusen) | ✅ Preserve | — | Untouched (already T1/T2 sourced) |
+| `src/utils/trimp.ts` (Banister TRIMP + static MIM_MATRIX + DOMS_CARRY) | 🔄 Extend | S5 (MIM-A), S8 (Descent-A) | MIM_MATRIX becomes Bayesian posterior; DOMS_CARRY extended by eccentric-TRIMP; **static matrix kept as fallback** for new-user cold start |
+| `src/utils/garmin.ts` (athlete-scoped storage, tz fetch) | ✅ Preserve | — | Unchanged |
+| `src/types/index.ts` (732 LOC) | 🔄 Extend | every sprint | Only additive: new engine types appended; **no existing types renamed or removed** |
+| `src/__tests__/` (12 test files) | ✅ Preserve | every sprint | **Guardrail:** all 12 files must stay green at every sprint's Definition-of-Done; new tests added alongside, not in place of, old tests |
+
+#### 4.4.7 Backend & infra
+
+| Shipped surface | Decision | Sprint that touches | Notes |
+|---|---|---|---|
+| `api/coach/` (Python serverless) | 🔄 Extend | S12 | Adds engine-state payload to prompt; prompt template stays backward-compatible |
+| `api/garmin/`, `api/apple/`, `api/auth/` | ✅ Preserve | — | Unchanged |
+| `worker/strava-token-exchange.ts` (Cloudflare Worker) | ✅ Preserve | — | Unchanged |
+| `ios/BrokenArrowHealth/` (SwiftUI + HealthKit) | ✅ Preserve | — | No iOS work in this plan |
+| `.github/workflows/deploy.yml` | 🔄 Extend | S1 | Coverage gate raised (80/80/80/80); no other job changes |
+
+#### 4.4.8 Summary
+
+- **0 deprecations.** No shipped component is being replaced. Extensions are additive (new optional props, new sub-sections, new sibling cards).
+- **5 net additions,** all with explicit sprint homes: Riley hero card (S1 stub, S12 real), Per-Riley Plan narration (S12), Riley avatar coin in Coach header (S12), Trips section + Altitude Wizard (S11), Methodology view (S13).
+- **12 existing test files** must stay green at every Definition-of-Done. This is the non-negotiable regression guardrail.
+
 ---
 
 ## 5. Engine Gap Analysis
@@ -185,6 +284,12 @@ Full reference list is consolidated in §17 below and mirrored verbatim in `BA_V
 **Window:** 2026-04-27 → 2026-05-10
 **Goal:** De-risk every downstream sprint by putting the scaffolding in place — feature-store module, DEM ingestion skeleton, observability hooks, engine ADR template, coverage gate.
 
+**Touches existing** (per §4.4):
+- Re-exports from `src/utils/readiness.ts` and `src/utils/trimp.ts` into `src/engines/` — no behaviour change.
+- `.github/workflows/deploy.yml` coverage gate raised to 80/80/80/80.
+- Stats tab sub-tabs introduced (`CompliancePanel`, `ReadinessPanel`, `PerformancePanel` re-parented, source unchanged).
+- **No UI primitives or tests modified.** All 12 shipped test files must stay green at DoD.
+
 ### 7.1 User stories
 
 **US-S1-01** — *As a developer, I want a single `src/engines/` module boundary so engine code stays separable from UI.*
@@ -253,6 +358,12 @@ Full reference list is consolidated in §17 below and mirrored verbatim in `BA_V
 **Window:** 2026-05-11 → 2026-05-24
 **Goal:** Implement Grade-Adjusted Pace using the Minetti 2002 cost-of-locomotion polynomial for incline -45% to +45%.
 
+**Touches existing** (per §4.4):
+- `ActivityCard.tsx` gains a GAP field next to raw pace; layout preserved, no renames.
+- `CoachSnapshot` type gets an additive `engines.terrain.gap` field.
+- `WorkoutCard.tsx` gains an optional Terrain tier-chip slot (empty unless GAP present).
+- All existing `trimp.test.ts`, `readiness.test.ts`, `plan-data.test.ts` must stay green.
+
 **User stories:**
 
 **US-S2-01** — *As an athlete, I want my trail pace normalised to flat-equivalent GAP so I can compare today's easy run on a 600 m-gain route to yesterday's flat run.*
@@ -301,6 +412,12 @@ Full reference list is consolidated in §17 below and mirrored verbatim in `BA_V
 
 **Window:** 2026-05-25 → 2026-06-07
 **Goal:** Replace device-reported elevation with DEM-snapped elevation. Correct cumulative gain/loss with cached tiles; fall back gracefully.
+
+**Touches existing** (per §4.4):
+- Activity-ingest pipeline augmented; elevation display reads corrected gain from same shape.
+- `VitalsGrid.tsx`, `TRIMPBreakdown.tsx`, `WorkoutCard.tsx` **untouched** — they consume the corrected numbers transparently.
+- Existing elevation stream remains available as `rawAltitudeStream` for fallback / comparison.
+- All 12 shipped test files must stay green at DoD.
 
 **User stories:**
 
@@ -351,6 +468,12 @@ Full reference list is consolidated in §17 below and mirrored verbatim in `BA_V
 
 **Window:** 2026-06-08 → 2026-06-21
 **Goal:** Compute Vertical Efficiency (VE) and expose a pluggable UTMB Index / ITRA Performance Index provider.
+
+**Touches existing** (per §4.4):
+- `PerformanceChart.tsx` extended with an optional VE metric pill (existing metric pills preserved).
+- `PerformanceGlossary.tsx` gains VE + UTMB-Index + ITRA-PI glossary rows.
+- `WorkoutCard.tsx` Terrain tier chip now renders when VE / UTMB-Index is known.
+- All existing Stats tab tests (`compliance.test.ts`, `performance.test.ts`, `raceProjection.test.ts`) must stay green.
 
 **User stories:**
 
@@ -408,6 +531,12 @@ Full reference list is consolidated in §17 below and mirrored verbatim in `BA_V
 **Window:** 2026-06-22 → 2026-07-05
 **Goal:** Fit population priors from historical fleet data; stand up the Bayesian computation path; run it shadow-mode alongside the static matrix.
 
+**Touches existing** (per §4.4):
+- `src/utils/trimp.ts` — Bayesian posterior computed *alongside* the static `MIM_MATRIX`. **Static matrix output remains the default** for end users until Sprint 6 cohort flip.
+- `CoachSnapshot` type gains `engines.mim.posterior` (additive).
+- No UI changes. No existing component touched.
+- `trimp.test.ts` must stay green; new `mim.bayes.test.ts` added alongside.
+
 **User stories:**
 
 **US-S5-01** — *As a data-aware developer, I want population priors fit from fleet data so personalisation has a sensible starting point.*
@@ -461,6 +590,12 @@ Full reference list is consolidated in §17 below and mirrored verbatim in `BA_V
 
 **Window:** 2026-07-06 → 2026-07-19
 **Goal:** Close the learning loop — ingest soreness / readiness signals, update posteriors nightly, switch cohort of opt-in users to the new MIM.
+
+**Touches existing** (per §4.4):
+- `CoachInsightCard.tsx` extended with a soreness-feedback prompt variant (existing variants preserved).
+- `src/utils/trimp.ts` — opt-in cohort reads from Bayesian posterior; **static `MIM_MATRIX` retained as cold-start fallback** for new users with <14 days of data.
+- `CoachMemory` type gains `sorenessLog[]` (additive).
+- `trimp.test.ts`, `coachAnalyticsSnapshot.test.ts`, `coachInsightCache.test.ts` must stay green.
 
 **User stories:**
 
@@ -516,6 +651,13 @@ Full reference list is consolidated in §17 below and mirrored verbatim in `BA_V
 
 **Window:** 2026-07-20 → 2026-08-02
 **Goal:** Ship the explainability layer and publish the methodology doc — the moat is only defensible if we can *show* the science.
+
+**Touches existing** (per §4.4):
+- `CoachInsightCard.tsx` gains citation-chip slot (T1–T4 badges with PMID links); existing card body layout preserved.
+- `PerformanceGlossary.tsx` gains MIM rows (Bayesian posterior, per-user CI, static fallback).
+- `TierChip.tsx` shared primitive unchanged; re-used in new contexts.
+- Publishes `docs/mim-methodology.md` (new file).
+- All existing test files must stay green.
 
 **User stories:**
 
@@ -573,6 +715,12 @@ Full reference list is consolidated in §17 below and mirrored verbatim in `BA_V
 **Window:** 2026-08-03 → 2026-08-16
 **Goal:** Compute eccentric dose per activity using descent steepness × speed × time, per Vernillo 2017 and Peake 2017.
 
+**Touches existing** (per §4.4):
+- `src/utils/trimp.ts` — eccentric dose computed *alongside* existing TRIMP; `DOMS_CARRY` coefficients kept as baseline and extended with descent-specific decay.
+- `TRIMPBreakdown.tsx` gains a new `eccentricDose` series stacked onto existing sport-type bars (existing bars preserved).
+- `InjuryRiskAlerts.tsx` gains a descent-load red-flag channel.
+- `trimp.test.ts` must stay green; new `eccentric.test.ts`, `descent.integration.test.ts` added.
+
 **User stories:**
 
 **US-S8-01** — *As an athlete, I want eccentric load quantified per activity so a 2,000 m descent day doesn't look like a flat easy day in my load balance.*
@@ -620,6 +768,12 @@ Full reference list is consolidated in §17 below and mirrored verbatim in `BA_V
 
 **Window:** 2026-08-17 → 2026-08-30
 **Goal:** Model the repeated-bout effect — after a downhill bout, the next same-stimulus bout within 7–14 days incurs less damage (Hyldahl 2017 PMID 28457071 meta).
+
+**Touches existing** (per §4.4):
+- `src/utils/trimp.ts` `applyDOMSCarryForward` extended with 7–14-day repeated-bout decay (existing 2-day decay preserved as baseline).
+- `CoachSnapshot.engines.descent.repeatedBoutProtection` field added (additive).
+- No UI component touched.
+- `trimp.test.ts` must stay green; new `repeatedBout.test.ts` added.
 
 **User stories:**
 
@@ -674,6 +828,12 @@ Full reference list is consolidated in §17 below and mirrored verbatim in `BA_V
 **Window:** 2026-08-31 → 2026-09-13
 **Goal:** Build the hypoxic-dose accumulator and the Levine & Stray-Gundersen LHTL acclimatization curve.
 
+**Touches existing** (per §4.4):
+- `IntegrationsRow.tsx` — Zwift row label upgraded from "optional" to "recommended for altitude prep" (single string change; connection logic preserved).
+- `CoachSnapshot.engines.altitude.{dose,acclimatization}` added (additive).
+- `src/engines/altitude/` is new code; no shipped util modified.
+- All existing test files must stay green.
+
 **User stories:**
 
 **US-S10-01** — *As an altitude-travelling athlete, I want the app to track how much time I've spent at altitude so it understands my acclimatization state.*
@@ -719,6 +879,13 @@ Full reference list is consolidated in §17 below and mirrored verbatim in `BA_V
 
 **Window:** 2026-09-14 → 2026-09-27
 **Goal:** Use the altitude index to dampen prescribed paces / HRs and raise an AMS safety flag if ascent-rate × altitude is aggressive.
+
+**Touches existing** (per §4.4):
+- **Adds** `TripsSection.tsx` and `AltitudeWizard.tsx` — mounted in `SettingsView.tsx` above Integrations (Settings shell preserved).
+- `WorkoutCard.tsx` gains optional "altitude dampening applied" caveat text (existing layout preserved).
+- `InjuryRiskAlerts.tsx` gains an AMS red-flag channel (Bailey 2021 consensus).
+- `CoachInsightCard.tsx` gains AMS advisory variant.
+- All existing test files must stay green; new `altitudeDampening.test.ts`, `ams.test.ts` added.
 
 **User stories:**
 
@@ -775,6 +942,14 @@ Full reference list is consolidated in §17 below and mirrored verbatim in `BA_V
 **Window:** 2026-09-28 → 2026-10-11
 **Goal:** Compose all five engines into a single `DailyPrescription`. Ground the LLM coach on structured engine outputs so it never hallucinates engine values.
 
+**Touches existing** (per §4.4) — this is the highest-touch sprint, but every change is additive or a wrapper:
+- `TodayBriefing.tsx` — **preserved**; new `RileyHeroCard.tsx` wraps it on the Summary tab (existing component rendered as a child).
+- `WhatChangedCard.tsx` — narrative source switched to `DailyPrescription.narrative`; component body untouched.
+- `PlanView.tsx` — **"This week, per Riley"** narration card *prepended* above the existing list (list preserved).
+- `CoachChat.tsx` header gains Riley avatar coin (visual-only).
+- `api/coach/` Python prompt template extended to include `engines` payload; prompt stays backward-compatible when field absent.
+- **All 12 shipped test files must stay green.** New `ensemble.test.ts`, `adaptivePlan.test.ts`, `riley-hero.test.tsx` added alongside.
+
 **User stories:**
 
 **US-S12-01** — *As an athlete, I want one clear daily prescription that respects readiness, MIM, terrain, eccentric load, and altitude.*
@@ -830,6 +1005,13 @@ Full reference list is consolidated in §17 below and mirrored verbatim in `BA_V
 
 **Window:** 2026-10-12 → 2026-10-25
 **Goal:** Performance, resilience, accessibility, docs, release train.
+
+**Touches existing** (per §4.4):
+- **Adds** `MethodologyView.tsx` (Screen 12 "How the 5 engines work") + Settings "Methodology" link row.
+- Performance + a11y polish touches every shipped component; **no behaviour changes** beyond axe-core / lighthouse score targets.
+- `CacheDiagnostics.tsx`, `PrivacyRow.tsx` validated but unchanged.
+- Smoke tests exercise every tab's mounted state.
+- All 12 shipped test files plus all new sprint test files must stay green.
 
 **User stories:**
 
