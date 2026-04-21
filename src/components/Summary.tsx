@@ -38,7 +38,74 @@ interface SummaryProps {
 }
 
 // ─── Scale bar component ──────────────────────────────────────
-// Renders a horizontal gauge with colored zones and a marker
+// Consistent 6-segment gauge: red → orange → yellow → light green → green → darker green
+// Midpoint (boundary between yellow and light green) = balanced/neutral zone
+
+function GaugeBar({ value, min, max, labels }: {
+  value: number; min: number; max: number; labels: string[]
+}) {
+  const pct = Math.max(0, Math.min(100, ((value - min) / (max - min)) * 100))
+  return (
+    <>
+      <div className="relative mt-2 h-3 rounded-full overflow-hidden flex border border-slate-200 dark:border-slate-700">
+        <div className="h-full bg-red-300" style={{ width: '16.67%' }} />
+        <div className="h-full bg-orange-200" style={{ width: '16.67%' }} />
+        <div className="h-full bg-amber-200" style={{ width: '16.67%' }} />
+        <div className="h-full bg-green-200" style={{ width: '16.67%' }} />
+        <div className="h-full bg-green-300" style={{ width: '16.67%' }} />
+        <div className="h-full bg-emerald-400" style={{ width: '16.65%' }} />
+        <div
+          className="absolute top-0 w-2 h-full bg-slate-900 rounded shadow"
+          style={{ left: `${pct}%`, transform: 'translateX(-50%)' }}
+        />
+      </div>
+      <div className="flex justify-between text-[9px] text-slate-400 mt-1">
+        {labels.map((l, i) => <span key={i}>{l}</span>)}
+      </div>
+    </>
+  )
+}
+
+// ACWR gauge: 5 segments with 1.0 centered in green
+// blue (0-0.5) → light blue (0.5-0.8) → green (0.8-1.3) → yellow (1.3-1.6) → red (1.6-2.0)
+// 1.0 sits in the middle of the green zone
+
+function ACWRGaugeBar({ value }: { value: number }) {
+  const maxACWR = 2.0
+  const pct = Math.max(0, Math.min(100, (value / maxACWR) * 100))
+  return (
+    <>
+      <div className="relative mt-2 h-3 rounded-full overflow-hidden flex border border-slate-200 dark:border-slate-700">
+        {/* 0-0.5 = 25%: undertrained (blue) */}
+        <div className="h-full bg-blue-300" style={{ width: '25%' }} />
+        {/* 0.5-0.8 = 15%: building (light blue) */}
+        <div className="h-full bg-blue-200" style={{ width: '15%' }} />
+        {/* 0.8-1.3 = 25%: sweet spot (green). 1.0 = 50% mark = center of green */}
+        <div className="h-full bg-green-300" style={{ width: '25%' }} />
+        {/* 1.3-1.6 = 15%: caution (yellow) */}
+        <div className="h-full bg-amber-300" style={{ width: '15%' }} />
+        {/* 1.6-2.0 = 20%: danger (red) */}
+        <div className="h-full bg-red-300" style={{ width: '20%' }} />
+        {/* Sweet spot boundary lines at 0.8 (40%) and 1.3 (65%) */}
+        <div className="absolute top-0 h-full border-l border-dashed border-green-700/50" style={{ left: '40%' }} />
+        <div className="absolute top-0 h-full border-l border-dashed border-green-700/50" style={{ left: '65%' }} />
+        <div
+          className="absolute top-0 w-2 h-full bg-slate-900 rounded shadow"
+          style={{ left: `${pct}%`, transform: 'translateX(-50%)' }}
+        />
+      </div>
+      <div className="flex justify-between text-[9px] text-slate-400 mt-1">
+        <span>0</span>
+        <span>0.5</span>
+        <span>0.8</span>
+        <span className="font-semibold text-green-600">1.0</span>
+        <span>1.3</span>
+        <span>1.6</span>
+        <span>2.0</span>
+      </div>
+    </>
+  )
+}
 
 // ─── What Changed This Week narrative ─────────────────────────
 
@@ -261,7 +328,7 @@ export default function Summary({
             </button>
             {perfOpen && (
             <div className="px-4 pb-4 space-y-3">
-              {/* Fitness (CTL) — left=worst (red), right=best (green) */}
+              {/* Fitness (CTL) — 0-100 scale, 6 equal segments, midpoint at 50 */}
               <div className="bg-blue-50 dark:bg-blue-950 rounded-lg p-3">
                 <div className="flex items-baseline justify-between">
                   <div>
@@ -272,23 +339,14 @@ export default function Summary({
                 </div>
                 <p className="text-xs font-medium text-slate-600 dark:text-slate-300">Fitness <span className="text-slate-400 font-normal">— 42-day training base (CTL)</span></p>
                 <p className="text-[9px] text-slate-400 mt-0.5 italic">Cardiovascular + musculoskeletal load · EPOC + MIM + DOMS + soreness</p>
-                <div className="relative mt-2 h-3 rounded-full overflow-hidden flex border border-blue-200">
-                  <div className="h-full bg-red-200" style={{ width: '20%' }} />
-                  <div className="h-full bg-orange-200" style={{ width: '20%' }} />
-                  <div className="h-full bg-amber-200" style={{ width: '20%' }} />
-                  <div className="h-full bg-green-300" style={{ width: '20%' }} />
-                  <div className="h-full bg-emerald-400" style={{ width: '20%' }} />
-                  <div
-                    className="absolute top-0 w-1.5 h-full bg-slate-900 rounded shadow"
-                    style={{ left: `${Math.min(100, (latestPerf.ctl / 100) * 100)}%`, transform: 'translateX(-50%)' }}
-                  />
-                </div>
-                <div className="flex justify-between text-[9px] text-slate-400 mt-1">
-                  <span>0 Beginner</span><span>20</span><span>40</span><span>60</span><span>80 Competitive</span><span>100+</span>
-                </div>
+                <GaugeBar
+                  value={latestPerf.ctl}
+                  min={0} max={100}
+                  labels={['0', '17', '33', '50', '67', '83', '100']}
+                />
               </div>
 
-              {/* Fatigue (ATL) — flipped: left=high fatigue (red), right=fresh (green) */}
+              {/* Fatigue (ATL) — flipped: 120→0, high fatigue on left */}
               <div className="bg-red-50 dark:bg-red-950 rounded-lg p-3">
                 <div className="flex items-baseline justify-between">
                   <div>
@@ -299,25 +357,14 @@ export default function Summary({
                 </div>
                 <p className="text-xs font-medium text-slate-600 dark:text-slate-300">Fatigue <span className="text-slate-400 font-normal">— 7-day recent load (ATL)</span></p>
                 <p className="text-[9px] text-slate-400 mt-0.5 italic">Includes DOMS carry-over + perceived soreness from check-in</p>
-                <div className="relative mt-2 h-3 rounded-full overflow-hidden flex border border-red-200">
-                  <div className="h-full bg-red-300" style={{ width: '23%' }} />
-                  <div className="h-full bg-red-200" style={{ width: '22%' }} />
-                  <div className="h-full bg-amber-200" style={{ width: '22%' }} />
-                  <div className="h-full bg-green-300" style={{ width: '33%' }} />
-                  {/* ACWR sweet spot on fatigue scale: 0.8×CTL and 1.3×CTL */}
-                  <div className="absolute top-0 h-full border-l border-dashed border-violet-500/60" style={{ left: `${Math.max(0, Math.min(100, (1 - latestPerf.ctl * 1.3 / 120) * 100))}%` }} />
-                  <div className="absolute top-0 h-full border-l border-dashed border-violet-500/60" style={{ left: `${Math.max(0, Math.min(100, (1 - latestPerf.ctl * 0.8 / 120) * 100))}%` }} />
-                  <div
-                    className="absolute top-0 w-1.5 h-full bg-slate-900 rounded shadow"
-                    style={{ left: `${Math.max(0, Math.min(100, (1 - latestPerf.atl / 120) * 100))}%`, transform: 'translateX(-50%)' }}
-                  />
-                </div>
-                <div className="flex justify-between text-[9px] text-slate-400 mt-1">
-                  <span>120 Very High</span><span>80 High</span><span>40 Balanced</span><span>0 Fresh</span>
-                </div>
+                <GaugeBar
+                  value={120 - latestPerf.atl}
+                  min={0} max={120}
+                  labels={['120', '100', '80', '60', '40', '20', '0']}
+                />
               </div>
 
-              {/* Recovery Balance (TSB) — left=deep fatigue (red), right=peak (green) */}
+              {/* Recovery Balance (TSB) — -30 to +25 */}
               <div className={`rounded-lg p-3 ${
                 tsbState === 'peaked' || tsbState === 'well_rested' ? 'bg-green-50 dark:bg-green-950'
                 : tsbState === 'productive' ? 'bg-slate-50 dark:bg-slate-900'
@@ -340,30 +387,14 @@ export default function Summary({
                 </div>
                 <p className="text-xs font-medium text-slate-600 dark:text-slate-300">Recovery Balance <span className="text-slate-400 font-normal">— are you fresh or fatigued? (TSB)</span></p>
                 <p className="text-[9px] text-slate-400 mt-0.5 italic">Fitness minus Fatigue · negative = cardio + muscle fatigue exceeds base</p>
-                <div className="relative mt-2 h-3 rounded-full overflow-hidden flex border border-slate-200 dark:border-slate-700">
-                  <div className="h-full bg-red-300" style={{ width: '15%' }} />
-                  <div className="h-full bg-orange-200" style={{ width: '16%' }} />
-                  <div className="h-full bg-amber-200" style={{ width: '23%' }} />
-                  <div className="h-full bg-green-200" style={{ width: '16%' }} />
-                  <div className="h-full bg-green-300" style={{ width: '15%' }} />
-                  <div className="h-full bg-emerald-400" style={{ width: '15%' }} />
-                  {/* Training Zone boundaries: -30 and -10 */}
-                  <div className="absolute top-0 h-full border-l border-dashed border-blue-500/60" style={{ left: `${(((-30) + 30) / 55) * 100}%` }} />
-                  <div className="absolute top-0 h-full border-l border-dashed border-blue-500/60" style={{ left: `${(((-10) + 30) / 55) * 100}%` }} />
-                  {/* Race Day boundaries: +5 and +25 */}
-                  <div className="absolute top-0 h-full border-l border-dashed border-green-600/60" style={{ left: `${(((5) + 30) / 55) * 100}%` }} />
-                  <div className="absolute top-0 h-full border-l border-dashed border-green-600/60" style={{ left: `${(((25) + 30) / 55) * 100}%` }} />
-                  <div
-                    className="absolute top-0 w-2 h-full bg-slate-900 rounded shadow"
-                    style={{ left: `${Math.max(0, Math.min(100, ((latestPerf.tsb + 30) / 55) * 100))}%`, transform: 'translateX(-50%)' }}
-                  />
-                </div>
-                <div className="flex justify-between text-[9px] text-slate-400 mt-1">
-                  <span>-30 Deep fatigue</span><span>-10</span><span>0</span><span>+5</span><span>+15 Fresh</span><span>+25 Peak</span>
-                </div>
+                <GaugeBar
+                  value={latestPerf.tsb + 30}
+                  min={0} max={55}
+                  labels={['-30', '-21', '-12', '-2', '+7', '+16', '+25']}
+                />
               </div>
 
-              {/* ACWR — full width */}
+              {/* ACWR — 5-segment: blue, light blue, green, yellow, red */}
               <div className={`rounded-lg p-3 ${
                 acwrRisk === 'sweet_spot' ? 'bg-green-50 dark:bg-green-950'
                 : acwrRisk === 'high_risk' ? 'bg-red-50 dark:bg-red-950'
@@ -386,38 +417,7 @@ export default function Summary({
                 </div>
                 <p className="text-xs font-medium text-slate-600 dark:text-slate-300">Load Ratio <span className="text-slate-400 font-normal">— acute vs chronic workload (ACWR)</span></p>
                 <p className="text-[9px] text-slate-400 mt-0.5 italic">How fast you're ramping · includes all load: cardio, strength, DOMS, soreness</p>
-                {/* ACWR as a linear scale: 0 → 2.0.
-                    Left (0-0.8) = undertrained (blue).
-                    Middle (0.8-1.3) = sweet spot (green).
-                    Right (1.3-2.0) = caution→danger (amber→red). */}
-                {(() => {
-                  const maxACWR = 2.0
-                  const pct = Math.max(0, Math.min(100, (latestPerf.acwr / maxACWR) * 100))
-                  return (
-                    <>
-                      <div className="relative mt-2 h-3 rounded-full overflow-hidden flex border border-slate-200 dark:border-slate-700">
-                        {/* 0-0.8 = 40% of bar: undertrained (blue) */}
-                        <div className="h-full bg-blue-200" style={{ width: '40%' }} />
-                        {/* 0.8-1.3 = 25% of bar: sweet spot (green) */}
-                        <div className="h-full bg-green-300" style={{ width: '25%' }} />
-                        {/* 1.3-1.5 = 10% of bar: caution (amber) */}
-                        <div className="h-full bg-amber-300" style={{ width: '10%' }} />
-                        {/* 1.5-2.0 = 25% of bar: danger (red) */}
-                        <div className="h-full bg-red-300" style={{ width: '25%' }} />
-                        {/* Sweet spot boundary lines */}
-                        <div className="absolute top-0 h-full border-l border-dashed border-green-700/60" style={{ left: '40%' }} />
-                        <div className="absolute top-0 h-full border-l border-dashed border-green-700/60" style={{ left: '65%' }} />
-                        <div
-                          className="absolute top-0 w-2 h-full bg-slate-900 rounded shadow"
-                          style={{ left: `${pct}%`, transform: 'translateX(-50%)' }}
-                        />
-                      </div>
-                      <div className="flex justify-between text-[9px] text-slate-400 mt-1">
-                        <span>0 Under</span><span>0.8</span><span className="font-semibold text-green-600">Sweet Spot</span><span>1.3</span><span>2.0 Danger</span>
-                      </div>
-                    </>
-                  )
-                })()}
+                <ACWRGaugeBar value={latestPerf.acwr} />
               </div>
             </div>
             )}
