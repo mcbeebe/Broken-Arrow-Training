@@ -11,8 +11,19 @@ export interface MIMOverride {
   avgRecoveryDays: number
 }
 
+export interface MIMSuggestion {
+  sport: SportType
+  currentMIM: number
+  suggestedMIM: number
+  avgRecoveryDays: number
+  expectedRecoveryDays: number
+  samples: number
+  reason: string
+}
+
 const STORAGE_KEY = 'ba_mim_calibration'
 const MAX_DRIFT = 0.3
+const CHANGE_THRESHOLD = 0.05
 
 function scopedKey(athleteId?: string) {
   return athleteId ? `${STORAGE_KEY}_${athleteId}` : STORAGE_KEY
@@ -21,6 +32,8 @@ function scopedKey(athleteId?: string) {
 interface StoredCalibration {
   overrides: Record<string, { calibrated: number; manual: number | null; samples: number; avgRecoveryDays: number }>
   lastCalibrated: string
+  pendingSuggestions?: MIMSuggestion[]
+  dismissedSuggestions?: string[]
 }
 
 function readStored(athleteId?: string): StoredCalibration {
@@ -66,6 +79,18 @@ const DEFAULT_MIM: Record<string, number> = {
   other: 0.6,
 }
 
+export const SPORT_LABELS: Record<string, string> = {
+  running: 'Running', trail_running: 'Trail Running', cycling: 'Cycling',
+  ebike: 'E-Bike', mountain_biking: 'Mountain Biking', hiking: 'Hiking',
+  hiking_steep: 'Steep Hiking', walking: 'Walking', swimming: 'Swimming',
+  lap_swimming: 'Lap Swimming', aqua_jogging: 'Aqua Jogging',
+  strength_upper: 'Strength (Upper)', strength_lower: 'Strength (Lower)',
+  strength_full: 'Strength (Full)', hiit: 'HIIT', cardio: 'Cardio',
+  elliptical: 'Elliptical', rowing: 'Rowing', indoor_rowing: 'Indoor Rowing',
+  yoga: 'Yoga', pilates: 'Pilates', running_drills: 'Running Drills',
+  myrtl: 'Myrtl', other: 'Other',
+}
+
 const EXPECTED_RECOVERY_DAYS: Record<string, number> = {
   strength_lower: 2.5,
   strength_full: 2.0,
@@ -91,6 +116,8 @@ export function useMIMCalibration(
     if (!dailyTrimp || !sorenessLoadByDate || dailyTrimp.length < 7) return
 
     const updated = { ...stored }
+    const newSuggestions: MIMSuggestion[] = []
+    const dismissed = new Set(updated.dismissedSuggestions ?? [])
 
     const sportDays = new Map<string, { date: string; load: number }[]>()
     for (const day of dailyTrimp) {
@@ -131,9 +158,8 @@ export function useMIMCalibration(
 
       const avgRecovery = totalRecoveryDays / measured
       const ratio = avgRecovery / expectedDays
-
       const existing = updated.overrides[sport]
-      const prevCalibrated = existing?.calibrated ?? defaultVal
+      const currentMIM = existing?.manual ?? existing?.calibrated ?? defaultVal
 
       let delta = 0
       if (ratio > 1.2) delta = 0.05
@@ -141,13 +167,31 @@ export function useMIMCalibration(
       else if (ratio < 0.7) delta = -0.03
       else if (ratio < 0.9) delta = -0.01
 
+      if (Math.abs(delta) < 0.01) continue
+
       const ema = 0.3
-      const newCalibrated = prevCalibrated + ema * delta
+      const newCalibrated = currentMIM + ema * delta
       const clamped = Math.max(defaultVal * (1 - MAX_DRIFT), Math.min(defaultVal * (1 + MAX_DRIFT), newCalibrated))
       const rounded = Math.round(clamped * 100) / 100
 
+      if (Math.abs(rounded - currentMIM) >= CHANGE_THRESHOLD && !dismissed.has(sport)) {
+        const sportLabel = SPORT_LABELS[sport] || sport
+        const direction = rounded > currentMIM ? 'increase' : 'decrease'
+        newSuggestions.push({
+          sport: sport as SportType,
+          currentMIM,
+          suggestedMIM: rounded,
+          avgRecoveryDays: Math.round(avgRecovery * 10) / 10,
+          expectedRecoveryDays: expectedDays,
+          samples: measured,
+          reason: `Your avg recovery after ${sportLabel} is ${(avgRecovery).toFixed(1)} days (expected ${expectedDays}). Suggesting ${direction} from ${currentMIM.toFixed(2)} → ${rounded.toFixed(2)}.`,
+        })
+      }
+
+      // Update avg recovery stats even without applying the MIM change
       updated.overrides[sport] = {
-        calibrated: rounded,
+        ...existing,
+        calibrated: existing?.calibrated ?? defaultVal,
         manual: existing?.manual ?? null,
         samples: (existing?.samples ?? 0) + measured,
         avgRecoveryDays: Math.round(avgRecovery * 10) / 10,
@@ -155,6 +199,7 @@ export function useMIMCalibration(
     }
 
     updated.lastCalibrated = new Date().toISOString().slice(0, 10)
+    updated.pendingSuggestions = newSuggestions.length > 0 ? newSuggestions : undefined
     writeStored(updated, athleteId)
     setStored(updated)
   }, [dailyTrimp, sorenessLoadByDate, stored, athleteId])
@@ -217,15 +262,54 @@ export function useMIMCalibration(
     })
   }, [stored])
 
+  const acceptSuggestion = useCallback((sport: string): string => {
+    const updated = { ...stored }
+    const suggestion = (updated.pendingSuggestions ?? []).find(s => s.sport === sport)
+    if (!suggestion) return ''
+
+    const existing = updated.overrides[sport] ?? {
+      calibrated: DEFAULT_MIM[sport] ?? 0.6,
+      manual: null,
+      samples: 0,
+      avgRecoveryDays: 0,
+    }
+    existing.calibrated = suggestion.suggestedMIM
+    updated.overrides[sport] = existing
+    updated.pendingSuggestions = (updated.pendingSuggestions ?? []).filter(s => s.sport !== sport)
+    if (updated.pendingSuggestions.length === 0) updated.pendingSuggestions = undefined
+    writeStored(updated, athleteId)
+    setStored(updated)
+
+    const label = SPORT_LABELS[sport] || sport
+    return `MIM for ${label} updated from ${suggestion.currentMIM.toFixed(2)} to ${suggestion.suggestedMIM.toFixed(2)} based on ${suggestion.avgRecoveryDays}-day avg recovery (${suggestion.samples} sessions).`
+  }, [stored, athleteId])
+
+  const dismissSuggestion = useCallback((sport: string) => {
+    const updated = { ...stored }
+    updated.pendingSuggestions = (updated.pendingSuggestions ?? []).filter(s => s.sport !== sport)
+    if (updated.pendingSuggestions?.length === 0) updated.pendingSuggestions = undefined
+    updated.dismissedSuggestions = [...(updated.dismissedSuggestions ?? []), sport]
+    writeStored(updated, athleteId)
+    setStored(updated)
+  }, [stored, athleteId])
+
+  const pendingSuggestions = useMemo(
+    () => stored.pendingSuggestions ?? [],
+    [stored.pendingSuggestions],
+  )
+
   const hasDOMS = useCallback((sport: SportType): boolean => {
     return !!(DOMS_CARRY as Record<string, unknown>)[sport]
   }, [])
 
   return {
     allOverrides,
+    pendingSuggestions,
     getMultiplier,
     setManualOverride,
     resetOverride,
+    acceptSuggestion,
+    dismissSuggestion,
     calibrate,
     lastCalibrated: stored.lastCalibrated,
     hasDOMS,

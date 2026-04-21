@@ -459,7 +459,38 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
       )}
 
       {/* Content */}
-      {view === 'summary' && (
+      {view === 'summary' && (<>
+        {mimCalibration.pendingSuggestions.length > 0 && (
+          <div className="px-3 mb-3 space-y-2">
+            {mimCalibration.pendingSuggestions.map(s => (
+              <div key={s.sport} className="bg-amber-50 dark:bg-amber-950 rounded-xl p-3 border border-amber-200 dark:border-amber-800">
+                <p className="text-xs font-semibold text-amber-700 dark:text-amber-300 mb-1">Training Load Calibration</p>
+                <p className="text-sm text-amber-800 dark:text-amber-200">{s.reason}</p>
+                <div className="flex gap-2 mt-2">
+                  <button
+                    onClick={() => {
+                      const note = mimCalibration.acceptSuggestion(s.sport)
+                      if (note && coachMemory.saveAboutMe) {
+                        const existing = coachMemory.aboutMe || ''
+                        const updated = existing ? `${existing}\n${note}` : note
+                        coachMemory.saveAboutMe(updated)
+                      }
+                    }}
+                    className="text-xs px-3 py-1 rounded-lg bg-amber-600 text-white font-medium"
+                  >
+                    Accept
+                  </button>
+                  <button
+                    onClick={() => mimCalibration.dismissSuggestion(s.sport)}
+                    className="text-xs px-3 py-1 rounded-lg border border-amber-300 text-amber-700 font-medium"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
         <Summary
           athleteId={athleteId}
           todayScore={readiness.todayScore}
@@ -486,7 +517,7 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
           coachSnapshot={coachSnapshot}
           riskFlags={readiness.riskFlags}
         />
-      )}
+      </>)}
       {view === 'plan' && (
         <WeeklyPlan
           weeks={weeks}

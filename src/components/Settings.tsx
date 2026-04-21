@@ -10,6 +10,7 @@ import DeployDiagnostics from './DeployDiagnostics'
 import Methodology from './Methodology'
 import type { HRZone, PendingInference, CoachPersona } from '../types'
 import type { MIMOverride } from '../hooks/useMIMCalibration'
+import { SPORT_LABELS } from '../hooks/useMIMCalibration'
 import CoachPersonaEditor from './CoachPersonaEditor'
 
 interface SettingsProps {
@@ -419,18 +420,6 @@ function GradeRow({ color, label, desc }: { color: string; label: string; desc: 
       <span className="text-xs text-slate-500 dark:text-slate-400">{desc}</span>
     </div>
   )
-}
-
-const SPORT_LABELS: Record<string, string> = {
-  running: 'Running', trail_running: 'Trail Running', cycling: 'Cycling',
-  ebike: 'E-Bike', mountain_biking: 'Mountain Biking', hiking: 'Hiking',
-  hiking_steep: 'Steep Hiking', walking: 'Walking', swimming: 'Swimming',
-  lap_swimming: 'Lap Swimming', aqua_jogging: 'Aqua Jogging',
-  strength_upper: 'Strength (Upper)', strength_lower: 'Strength (Lower)',
-  strength_full: 'Strength (Full)', hiit: 'HIIT', cardio: 'Cardio',
-  elliptical: 'Elliptical', rowing: 'Rowing', indoor_rowing: 'Indoor Rowing',
-  yoga: 'Yoga', pilates: 'Pilates', running_drills: 'Running Drills',
-  myrtl: 'Myrtl', other: 'Other',
 }
 
 function MIMTable({ overrides, lastCalibrated, onSetManual, onReset, onRecalibrate }: {
