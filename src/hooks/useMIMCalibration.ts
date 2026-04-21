@@ -264,6 +264,7 @@ export function useMIMCalibration(
       const bActive = b.manual ?? b.calibrated
       return bActive - aActive
     })
+  }, [stored])
 
   const acceptSuggestion = useCallback((sport: string): string => {
     const updated = { ...stored }
