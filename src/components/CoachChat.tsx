@@ -67,6 +67,7 @@ export default function CoachChat({ athleteId, memory, snapshot, seed, onSeedCon
   const coachName = snapshot?.coachPersona?.name?.trim() || 'Coach'
   const [input, setInput] = useState('')
   const [streaming, setStreaming] = useState(false)
+  const sendingRef = useRef(false)
   const [liveReply, setLiveReply] = useState('')
   const [liveStatus, setLiveStatus] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -134,8 +135,10 @@ export default function CoachChat({ athleteId, memory, snapshot, seed, onSeedCon
 
   async function send() {
     const text = input.trim()
-    if ((!text && !attachedImage) || streaming) return
+    if ((!text && !attachedImage) || streaming || sendingRef.current) return
+    sendingRef.current = true
     if (!coachApiAvailable()) {
+      sendingRef.current = false
       setError('Coach is offline (API not configured).')
       return
     }
@@ -216,9 +219,9 @@ export default function CoachChat({ athleteId, memory, snapshot, seed, onSeedCon
       setError((e as Error).message)
     } finally {
       setStreaming(false)
+      sendingRef.current = false
       setLiveReply('')
       setLiveStatus(null)
-      // Pull fresh memory (includes assistant turn + any new inferences)
       memory.refresh()
     }
   }
@@ -306,7 +309,11 @@ export default function CoachChat({ athleteId, memory, snapshot, seed, onSeedCon
 
       {error && (
         <div className="px-3 py-1.5 text-xs text-red-700 bg-red-50 border-t border-red-100">
-          {error}
+          {error.includes('credit balance') || error.includes('billing')
+            ? 'Anthropic API credits exhausted. Top up at console.anthropic.com → Plans & Billing, then try again.'
+            : error.includes('budget_exceeded') || error.includes('429')
+            ? 'Daily coach budget reached. Reset in Settings → Coach Diagnostics, or wait until midnight UTC.'
+            : error}
         </div>
       )}
 
