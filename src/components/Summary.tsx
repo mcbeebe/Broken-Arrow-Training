@@ -379,12 +379,12 @@ export default function Summary({
                 <p className="text-xs font-medium text-slate-600 dark:text-slate-300">Fatigue <span className="text-slate-400 font-normal">— 7-day recent load (ATL)</span></p>
                 <p className="text-[9px] text-slate-400 mt-0.5 italic">Includes DOMS carry-over + perceived soreness from check-in</p>
                 <GaugeBar
-                  value={120 - latestPerf.atl}
-                  min={0} max={120}
-                  labels={['120', '100', '80', '60', '40', '20', '0']}
+                  value={100 - latestPerf.atl}
+                  min={0} max={100}
+                  labels={['100', '83', '67', '50', '33', '17', '0']}
                   targetLines={[
-                    { pos: 120 - latestPerf.ctl * 1.3, color: 'rgba(139,92,246,0.6)' },
-                    { pos: 120 - latestPerf.ctl * 0.8, color: 'rgba(139,92,246,0.6)' },
+                    { pos: 100 - latestPerf.ctl * 1.3, color: 'rgba(139,92,246,0.6)' },
+                    { pos: 100 - latestPerf.ctl * 0.8, color: 'rgba(139,92,246,0.6)' },
                   ]}
                 />
               </div>
