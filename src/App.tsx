@@ -9,6 +9,7 @@ import { usePlanOverrides } from './hooks/usePlanOverrides'
 import { useDaySwap } from './hooks/useDaySwap'
 import { useReadiness } from './hooks/useReadiness'
 import { useSoreness } from './hooks/useSoreness'
+import { useMIMCalibration } from './hooks/useMIMCalibration'
 import { useCoachMemory } from './hooks/useCoachMemory'
 import { useCoachInsight } from './hooks/useCoachInsight'
 import { useProactivePings } from './hooks/useProactivePings'
@@ -268,6 +269,7 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
     () => (readiness.performance.length > 0 ? readiness.performance[readiness.performance.length - 1] : null),
     [readiness.performance],
   )
+  const mimCalibration = useMIMCalibration(athleteId, readiness.dailyTrimp, soreness.sorenessLoadByDate)
 
   // Yesterday's readiness score — for proactive ping trigger detection
   const yesterdayScore = useMemo(() => {
@@ -584,6 +586,11 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
           onLogout={onLogout}
           themeMode={theme.mode}
           onSetThemeMode={theme.setMode}
+          mimOverrides={mimCalibration.allOverrides}
+          mimLastCalibrated={mimCalibration.lastCalibrated}
+          onSetMIMManual={mimCalibration.setManualOverride}
+          onResetMIM={mimCalibration.resetOverride}
+          onRecalibrateMIM={mimCalibration.calibrate}
         />
       )}
 

@@ -110,8 +110,31 @@ export const DOMS_CARRY: Partial<Record<SportType, number[]>> = {
 
 const DEFAULT_MIM = 0.6
 
-export function getSportMultiplier(sportType: SportType): number {
+let _mimOverrideCache: Record<string, { calibrated: number; manual: number | null }> | null = null
+let _mimOverrideCacheKey = ''
+
+export function getSportMultiplier(sportType: SportType, athleteId?: string): number {
+  if (athleteId) {
+    const key = `ba_mim_calibration_${athleteId}`
+    if (_mimOverrideCacheKey !== key) {
+      try {
+        const raw = localStorage.getItem(key)
+        _mimOverrideCache = raw ? JSON.parse(raw).overrides ?? null : null
+        _mimOverrideCacheKey = key
+      } catch { _mimOverrideCache = null }
+    }
+    if (_mimOverrideCache?.[sportType]) {
+      const o = _mimOverrideCache[sportType]
+      if (o.manual !== null && o.manual !== undefined) return o.manual
+      if (o.calibrated !== undefined) return o.calibrated
+    }
+  }
   return MIM_MATRIX[sportType] ?? DEFAULT_MIM
+}
+
+export function invalidateMIMCache() {
+  _mimOverrideCacheKey = ''
+  _mimOverrideCache = null
 }
 
 // ─── Activity Type Classification ───────────────────────────────

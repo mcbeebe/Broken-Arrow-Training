@@ -9,6 +9,7 @@ import CoachDiagnostics from './CoachDiagnostics'
 import DeployDiagnostics from './DeployDiagnostics'
 import Methodology from './Methodology'
 import type { HRZone, PendingInference, CoachPersona } from '../types'
+import type { MIMOverride } from '../hooks/useMIMCalibration'
 import CoachPersonaEditor from './CoachPersonaEditor'
 
 interface SettingsProps {
@@ -62,6 +63,12 @@ interface SettingsProps {
   // Theme
   themeMode?: ThemeMode
   onSetThemeMode?: (mode: ThemeMode) => void
+  // MIM Calibration
+  mimOverrides?: MIMOverride[]
+  mimLastCalibrated?: string
+  onSetMIMManual?: (sport: string, value: number | null) => void
+  onResetMIM?: (sport: string) => void
+  onRecalibrateMIM?: () => void
 }
 
 export default function Settings({
@@ -107,6 +114,11 @@ export default function Settings({
   onLogout,
   themeMode,
   onSetThemeMode,
+  mimOverrides,
+  mimLastCalibrated,
+  onSetMIMManual,
+  onResetMIM,
+  onRecalibrateMIM,
 }: SettingsProps) {
   void _pendingInferences
   void _onAcceptInference
@@ -318,6 +330,19 @@ export default function Settings({
         <Methodology />
       </SettingsSection>
 
+      {/* ── MIM Calibration ── */}
+      {mimOverrides && mimOverrides.length > 0 && (
+        <SettingsSection title="Training Load Multipliers (MIM)">
+          <MIMTable
+            overrides={mimOverrides}
+            lastCalibrated={mimLastCalibrated}
+            onSetManual={onSetMIMManual}
+            onReset={onResetMIM}
+            onRecalibrate={onRecalibrateMIM}
+          />
+        </SettingsSection>
+      )}
+
       {/* ── Diagnostics (owner-only) ── */}
       {coachEnabled && athleteId === 'mike' && (
         <SettingsSection title="Coach Diagnostics">
@@ -392,6 +417,131 @@ function GradeRow({ color, label, desc }: { color: string; label: string; desc: 
       <span className="w-3 h-3 rounded-sm shrink-0" style={{ backgroundColor: color }} />
       <span className="text-xs font-medium text-slate-700 dark:text-slate-300 w-20 shrink-0">{label}</span>
       <span className="text-xs text-slate-500 dark:text-slate-400">{desc}</span>
+    </div>
+  )
+}
+
+const SPORT_LABELS: Record<string, string> = {
+  running: 'Running', trail_running: 'Trail Running', cycling: 'Cycling',
+  ebike: 'E-Bike', mountain_biking: 'Mountain Biking', hiking: 'Hiking',
+  hiking_steep: 'Steep Hiking', walking: 'Walking', swimming: 'Swimming',
+  lap_swimming: 'Lap Swimming', aqua_jogging: 'Aqua Jogging',
+  strength_upper: 'Strength (Upper)', strength_lower: 'Strength (Lower)',
+  strength_full: 'Strength (Full)', hiit: 'HIIT', cardio: 'Cardio',
+  elliptical: 'Elliptical', rowing: 'Rowing', indoor_rowing: 'Indoor Rowing',
+  yoga: 'Yoga', pilates: 'Pilates', running_drills: 'Running Drills',
+  myrtl: 'Myrtl', other: 'Other',
+}
+
+function MIMTable({ overrides, lastCalibrated, onSetManual, onReset, onRecalibrate }: {
+  overrides: MIMOverride[]
+  lastCalibrated?: string
+  onSetManual?: (sport: string, value: number | null) => void
+  onReset?: (sport: string) => void
+  onRecalibrate?: () => void
+}) {
+  const [editing, setEditing] = useState<string | null>(null)
+  const [editVal, setEditVal] = useState('')
+
+  return (
+    <div className="space-y-2">
+      <p className="text-xs text-slate-500 dark:text-slate-400">
+        The Musculoskeletal Impact Modifier adjusts raw Garmin EPOC to reflect true training stress per sport.
+        Values auto-calibrate from your soreness recovery patterns. Tap a value to override manually.
+      </p>
+      {lastCalibrated && (
+        <p className="text-[10px] text-slate-400">Last calibrated: {lastCalibrated}</p>
+      )}
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="border-b border-slate-200 dark:border-slate-700">
+              <th className="text-left py-1.5 text-slate-500 dark:text-slate-400 font-semibold">Activity</th>
+              <th className="text-right py-1.5 text-slate-500 dark:text-slate-400 font-semibold w-16">Default</th>
+              <th className="text-right py-1.5 text-slate-500 dark:text-slate-400 font-semibold w-20">Active</th>
+              <th className="text-right py-1.5 text-slate-500 dark:text-slate-400 font-semibold w-16">Recovery</th>
+              <th className="w-8"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {overrides.map(o => {
+              const active = o.manual ?? o.calibrated
+              const isCalibrated = o.calibrated !== o.defaultMIM
+              const isManual = o.manual !== null
+              const isEditing = editing === o.sport
+              const drift = ((active - o.defaultMIM) / o.defaultMIM * 100)
+              return (
+                <tr key={o.sport} className="border-b border-slate-100 dark:border-slate-700">
+                  <td className="py-1.5 text-slate-700 dark:text-slate-200">{SPORT_LABELS[o.sport] || o.sport}</td>
+                  <td className="text-right text-slate-400">{o.defaultMIM.toFixed(2)}</td>
+                  <td className="text-right">
+                    {isEditing ? (
+                      <input
+                        autoFocus
+                        type="number"
+                        step="0.05"
+                        className="w-16 text-right text-xs border border-teal-300 rounded px-1 py-0.5"
+                        value={editVal}
+                        onChange={e => setEditVal(e.target.value)}
+                        onBlur={() => {
+                          const v = parseFloat(editVal)
+                          if (!isNaN(v) && v >= 0 && v <= 5) onSetManual?.(o.sport, v)
+                          setEditing(null)
+                        }}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
+                          if (e.key === 'Escape') setEditing(null)
+                        }}
+                      />
+                    ) : (
+                      <button
+                        onClick={() => { setEditing(o.sport); setEditVal(active.toFixed(2)) }}
+                        className={`font-mono ${isManual ? 'text-teal-600 font-bold' : isCalibrated ? 'text-blue-600 font-semibold' : 'text-slate-600 dark:text-slate-300'}`}
+                        title={isManual ? 'Manual override' : isCalibrated ? 'Auto-calibrated' : 'Default'}
+                      >
+                        {active.toFixed(2)}
+                        {Math.abs(drift) >= 1 && (
+                          <span className={`ml-0.5 text-[9px] ${drift > 0 ? 'text-red-400' : 'text-green-500'}`}>
+                            {drift > 0 ? '+' : ''}{drift.toFixed(0)}%
+                          </span>
+                        )}
+                      </button>
+                    )}
+                  </td>
+                  <td className="text-right text-slate-400">
+                    {o.avgRecoveryDays > 0 ? `${o.avgRecoveryDays}d` : '—'}
+                  </td>
+                  <td className="text-center">
+                    {(isManual || isCalibrated) && (
+                      <button
+                        onClick={() => onReset?.(o.sport)}
+                        className="text-[9px] text-slate-400 hover:text-red-500"
+                        title="Reset to default"
+                      >
+                        ×
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+      <div className="flex items-center justify-between pt-1">
+        <div className="flex gap-2 text-[9px] text-slate-400">
+          <span><span className="text-blue-600 font-semibold">Blue</span> = auto-calibrated</span>
+          <span><span className="text-teal-600 font-bold">Teal</span> = manual</span>
+        </div>
+        {onRecalibrate && (
+          <button
+            onClick={onRecalibrate}
+            className="text-[10px] text-teal-600 hover:text-teal-700 font-medium"
+          >
+            Recalibrate now
+          </button>
+        )}
+      </div>
     </div>
   )
 }
