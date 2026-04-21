@@ -574,12 +574,12 @@ function PerformanceGlossary() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                <tr className="bg-white dark:bg-slate-800"><td className="px-2 py-1">Strength (Lower)</td><td className="text-right px-2 py-1 font-mono">1.50×</td><td className="px-2 py-1 text-slate-500 dark:text-slate-400">Heavy eccentric load, high neural fatigue</td></tr>
+                <tr className="bg-white dark:bg-slate-800"><td className="px-2 py-1">Strength (Lower)</td><td className="text-right px-2 py-1 font-mono">2.00×</td><td className="px-2 py-1 text-slate-500 dark:text-slate-400">Heavy eccentric load — EPOC underestimates delayed muscle damage</td></tr>
                 <tr className="bg-slate-50 dark:bg-slate-900"><td className="px-2 py-1">HIIT / Cardio</td><td className="text-right px-2 py-1 font-mono">1.30×</td><td className="px-2 py-1 text-slate-500 dark:text-slate-400">Anaerobic + cardiovascular demand</td></tr>
                 <tr className="bg-white dark:bg-slate-800"><td className="px-2 py-1">Hiking (Steep)</td><td className="text-right px-2 py-1 font-mono">1.20×</td><td className="px-2 py-1 text-slate-500 dark:text-slate-400">&gt;500ft gain, eccentric descent loading</td></tr>
-                <tr className="bg-slate-50 dark:bg-slate-900"><td className="px-2 py-1">Trail Running</td><td className="text-right px-2 py-1 font-mono">1.10×</td><td className="px-2 py-1 text-slate-500 dark:text-slate-400">Uneven terrain, elevation stress</td></tr>
-                <tr className="bg-white dark:bg-slate-800"><td className="px-2 py-1">Running</td><td className="text-right px-2 py-1 font-mono">1.00×</td><td className="px-2 py-1 text-slate-500 dark:text-slate-400">Baseline reference sport</td></tr>
-                <tr className="bg-slate-50 dark:bg-slate-900"><td className="px-2 py-1">Strength (Full Body)</td><td className="text-right px-2 py-1 font-mono">1.00×</td><td className="px-2 py-1 text-slate-500 dark:text-slate-400">Mixed compound movements</td></tr>
+                <tr className="bg-slate-50 dark:bg-slate-900"><td className="px-2 py-1">Strength (Full Body)</td><td className="text-right px-2 py-1 font-mono">1.20×</td><td className="px-2 py-1 text-slate-500 dark:text-slate-400">Mixed compound movements</td></tr>
+                <tr className="bg-white dark:bg-slate-800"><td className="px-2 py-1">Trail Running</td><td className="text-right px-2 py-1 font-mono">1.10×</td><td className="px-2 py-1 text-slate-500 dark:text-slate-400">Uneven terrain, elevation stress</td></tr>
+                <tr className="bg-slate-50 dark:bg-slate-900"><td className="px-2 py-1">Running</td><td className="text-right px-2 py-1 font-mono">1.00×</td><td className="px-2 py-1 text-slate-500 dark:text-slate-400">Baseline reference sport</td></tr>
                 <tr className="bg-white dark:bg-slate-800"><td className="px-2 py-1">Hiking (Flat)</td><td className="text-right px-2 py-1 font-mono">0.80×</td><td className="px-2 py-1 text-slate-500 dark:text-slate-400">Low impact, sustained aerobic</td></tr>
                 <tr className="bg-slate-50 dark:bg-slate-900"><td className="px-2 py-1">Mountain Biking</td><td className="text-right px-2 py-1 font-mono">0.80×</td><td className="px-2 py-1 text-slate-500 dark:text-slate-400">Non-weight-bearing but technical</td></tr>
                 <tr className="bg-white dark:bg-slate-800"><td className="px-2 py-1">Elliptical</td><td className="text-right px-2 py-1 font-mono">0.70×</td><td className="px-2 py-1 text-slate-500 dark:text-slate-400">Low impact cross-training</td></tr>
@@ -595,7 +595,7 @@ function PerformanceGlossary() {
               </tbody>
             </table>
           </div>
-          <p className="mt-1.5 text-slate-500 dark:text-slate-400 italic">Strength is auto-classified by activity name keywords (upper/lower/push/pull/legs) with HR inference fallback (&gt;60% HRR → lower body). Hiking is classified as steep when elevation gain exceeds 500 ft.</p>
+          <p className="mt-1.5 text-slate-500 dark:text-slate-400 italic">Strength is auto-classified by activity name keywords (upper/lower/push/pull/legs) with HR inference fallback (&gt;60% HRR → lower body). Hiking is classified as steep when elevation gain exceeds 500 ft. These values auto-calibrate from your soreness recovery patterns — see Settings → Training Load Multipliers.</p>
         </div>
         <div>
           <p className="font-semibold text-slate-700 dark:text-slate-200">Elevation Bonus</p>
