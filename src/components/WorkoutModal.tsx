@@ -149,25 +149,34 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
     async function loadStream() {
       setStreamLoading(true)
       try {
+        let data: StreamData | null = null
         // Prefer Garmin if the actual came from Garmin
         if (actual!.source === 'garmin' && actual!.garminId) {
-          const data = await fetchGarminActivityStream(actual!.garminId, athleteId)
-          if (!cancelled && data) {
-            setStream(data)
-            return
-          }
+          data = await fetchGarminActivityStream(actual!.garminId, athleteId)
         }
         // Strava fallback (or primary source)
-        if (actual!.stravaId) {
+        if (!data && actual!.stravaId) {
           const tokens = getTokens()
-          if (!tokens) return
-          let accessToken = tokens.accessToken
-          if (isTokenExpired(tokens)) {
-            const refreshed = await refreshAccessToken(tokens.refreshToken)
-            accessToken = refreshed.accessToken
+          if (tokens) {
+            let accessToken = tokens.accessToken
+            if (isTokenExpired(tokens)) {
+              const refreshed = await refreshAccessToken(tokens.refreshToken)
+              accessToken = refreshed.accessToken
+            }
+            data = await fetchActivityStreams(accessToken, actual!.stravaId)
           }
-          const data = await fetchActivityStreams(accessToken, actual!.stravaId)
-          if (!cancelled) setStream(data)
+        }
+        if (!cancelled && data) {
+          setStream(data)
+          // Backfill avgHR from stream when the activity summary is missing it
+          // (common for elliptical, rowing, and other non-standard Garmin activities)
+          if (!actual!.avgHR && data.heartrate?.length) {
+            const hrs = data.heartrate.filter(h => h > 0)
+            if (hrs.length > 0) {
+              actual!.avgHR = Math.round(hrs.reduce((s, h) => s + h, 0) / hrs.length)
+              actual!.maxHR = Math.max(...hrs)
+            }
+          }
         }
       } catch {
         // Silently fail — stream is optional
