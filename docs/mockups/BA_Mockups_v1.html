@@ -99,11 +99,13 @@
       <a href="#s10" class="nav-link flex items-center gap-2 px-3 py-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800">
         <span class="w-5 text-center">⚠</span> 10. AMS advisory
       </a>
-      <div class="px-3 pt-4">
-        <a href="#design-system" class="nav-link flex items-center gap-2 px-3 py-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400">
-          <span class="w-5 text-center">🎨</span> Design system notes
-        </a>
-      </div>
+      <div class="px-3 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Appendix</div>
+      <a href="#s13" class="nav-link flex items-center gap-2 px-3 py-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800">
+        <span class="w-5 text-center">🗺</span> 13. Integration map
+      </a>
+      <a href="#design-system" class="nav-link flex items-center gap-2 px-3 py-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400">
+        <span class="w-5 text-center">🎨</span> Design system notes
+      </a>
     </nav>
   </aside>
 
@@ -1707,6 +1709,349 @@
     </section>
 
     <!-- ===================== DESIGN SYSTEM NOTES ===================== -->
+    <!-- ===================== SCREEN 13 — INTEGRATION MAP ===================== -->
+    <section data-screen id="s13" class="p-6 sm:p-8 space-y-6">
+      <div class="flex items-start justify-between flex-wrap gap-2">
+        <div>
+          <div class="text-[11px] uppercase tracking-wider text-slate-500 dark:text-slate-400">Appendix · Screen 13</div>
+          <h1 class="text-2xl font-bold">Integration map &amp; re-architecture recommendations</h1>
+          <p class="text-sm text-slate-600 dark:text-slate-300 mt-1">How each of screens 1–12 lands inside the existing Broken Arrow codebase &amp; navigation — and the opinionated refactors worth doing in Sprint 1.</p>
+        </div>
+        <span class="text-[11px] font-semibold px-2 py-1 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200">grounded in src/ scan · April 2026</span>
+      </div>
+
+      <!-- ── A · Tab-nav overlay ─────────────────────────────────────────────── -->
+      <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-5">
+        <div class="text-sm font-semibold mb-1">A · Where each screen appears in the existing 5-tab navigation</div>
+        <p class="text-xs text-slate-500 dark:text-slate-400 mb-4">The bottom-tab bar (<code class="text-[11px] bg-slate-100 dark:bg-slate-800 px-1 rounded">src/App.tsx</code> · <code class="text-[11px] bg-slate-100 dark:bg-slate-800 px-1 rounded">ViewId</code> state machine) stays at 5 tabs. New engines plug in as deep-link detail routes, not new tabs.</p>
+
+        <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
+          <!-- Summary tab -->
+          <div class="rounded-lg border border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-900/20 p-3">
+            <div class="flex items-center justify-between mb-2">
+              <div class="text-xs font-bold text-indigo-800 dark:text-indigo-200">Summary</div>
+              <div class="text-[10px] font-semibold text-indigo-600 dark:text-indigo-300">default</div>
+            </div>
+            <div class="space-y-1 text-[11px] text-slate-700 dark:text-slate-300">
+              <div>📊 Screen 1 — Engine strip</div>
+              <div>💬 Screen 6 — Soreness prompt</div>
+              <div>🏔 Screen 8 — Altitude strip*</div>
+              <div>⚠ Screen 10 — AMS chip*</div>
+              <div>⚡ Screen 11 — Why drawer</div>
+            </div>
+            <div class="text-[10px] text-slate-500 dark:text-slate-400 mt-2 italic">*conditional on trip</div>
+          </div>
+          <!-- Plan tab -->
+          <div class="rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 p-3">
+            <div class="text-xs font-bold text-slate-800 dark:text-slate-100 mb-2">Plan</div>
+            <div class="space-y-1 text-[11px] text-slate-700 dark:text-slate-300">
+              <div>🏃 Screen 2 — ActivityCard + GAP</div>
+              <div class="text-slate-400 italic">(WorkoutModal detail)</div>
+            </div>
+          </div>
+          <!-- Stats tab -->
+          <div class="rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 p-3">
+            <div class="text-xs font-bold text-slate-800 dark:text-slate-100 mb-2">Stats</div>
+            <div class="space-y-1 text-[11px] text-slate-700 dark:text-slate-300">
+              <div>🏃 Screen 2 — GAP in charts</div>
+              <div>↘ Screen 7 — Eccentric strip</div>
+            </div>
+          </div>
+          <!-- Coach tab -->
+          <div class="rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 p-3">
+            <div class="text-xs font-bold text-slate-800 dark:text-slate-100 mb-2">Coach</div>
+            <div class="space-y-1 text-[11px] text-slate-700 dark:text-slate-300">
+              <div class="text-slate-400 italic">existing · no new screens</div>
+              <div>⚠ Screen 10 — toast via CoachPingToast</div>
+            </div>
+          </div>
+          <!-- Settings tab -->
+          <div class="rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 p-3">
+            <div class="text-xs font-bold text-slate-800 dark:text-slate-100 mb-2">Settings</div>
+            <div class="space-y-1 text-[11px] text-slate-700 dark:text-slate-300">
+              <div>🗓 Screen 9 — Altitude wizard (launcher)</div>
+              <div>📚 Screen 12 — Methodology link</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-4 grid md:grid-cols-2 gap-3">
+          <div class="rounded-lg border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/20 p-3">
+            <div class="text-xs font-semibold text-emerald-800 dark:text-emerald-200 mb-1">Deep-link routes (new)</div>
+            <ul class="text-[11px] text-emerald-900 dark:text-emerald-100 space-y-0.5">
+              <li>• <code>#terrain-detail</code> → Screen 3</li>
+              <li>• <code>#mim-detail</code> → Screen 4</li>
+              <li>• <code>#descent-detail</code> → (expanded Screen 7)</li>
+              <li>• <code>#altitude-detail</code> → (expanded Screen 8)</li>
+            </ul>
+            <div class="text-[10px] text-emerald-700 dark:text-emerald-300 mt-2 italic">Reached by tapping any engine card in Screen 1.</div>
+          </div>
+          <div class="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 p-3">
+            <div class="text-xs font-semibold text-amber-800 dark:text-amber-200 mb-1">Cross-cutting primitives (new)</div>
+            <ul class="text-[11px] text-amber-900 dark:text-amber-100 space-y-0.5">
+              <li>• Evidence-Tier Chip — Screen 5, used on 3, 4, 11, 12</li>
+              <li>• Engine Card — Screen 1, reused on 8</li>
+              <li>• Why drawer row — Screen 11</li>
+              <li>• AMS header chip — Screen 10, lives in App shell</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── B · Screen → file-path map ─────────────────────────────────────── -->
+      <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-5">
+        <div class="text-sm font-semibold mb-1">B · Screen-by-screen file-path map</div>
+        <p class="text-xs text-slate-500 dark:text-slate-400 mb-3">Resolution: component file + anchor (where the screen hangs off the existing tree). "Extends" = plugs into an existing component; "New route" = needs a new <code>ViewId</code>.</p>
+        <div class="overflow-x-auto">
+          <table class="w-full text-[12px] border-separate border-spacing-0">
+            <thead class="text-left text-[11px] uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              <tr>
+                <th class="py-2 pr-3 border-b border-slate-200 dark:border-slate-700">#</th>
+                <th class="py-2 pr-3 border-b border-slate-200 dark:border-slate-700">Screen</th>
+                <th class="py-2 pr-3 border-b border-slate-200 dark:border-slate-700">Tab</th>
+                <th class="py-2 pr-3 border-b border-slate-200 dark:border-slate-700">Source file</th>
+                <th class="py-2 pr-3 border-b border-slate-200 dark:border-slate-700">Anchor / status</th>
+              </tr>
+            </thead>
+            <tbody class="text-slate-800 dark:text-slate-200">
+              <tr class="border-b border-slate-100 dark:border-slate-800">
+                <td class="py-2 pr-3 font-mono text-slate-400">1</td>
+                <td class="py-2 pr-3">Dashboard + engine strip</td>
+                <td class="py-2 pr-3"><span class="inline-block px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-800 dark:bg-indigo-900/40 dark:text-indigo-200 text-[10px] font-semibold">Summary</span></td>
+                <td class="py-2 pr-3 font-mono text-[11px]">src/components/EngineStrip.tsx</td>
+                <td class="py-2 pr-3 text-[11px]"><b class="text-emerald-600 dark:text-emerald-400">NEW</b> · extends <code>TodayBriefing.tsx</code>, sits below <code>ReadinessBanner</code></td>
+              </tr>
+              <tr class="border-b border-slate-100 dark:border-slate-800">
+                <td class="py-2 pr-3 font-mono text-slate-400">2</td>
+                <td class="py-2 pr-3">ActivityCard + GAP</td>
+                <td class="py-2 pr-3"><span class="inline-block px-1.5 py-0.5 rounded bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200 text-[10px] font-semibold">Plan · Stats</span></td>
+                <td class="py-2 pr-3 font-mono text-[11px]">src/components/ActivityCard.tsx<br><span class="text-slate-500">+ src/utils/gap.ts</span></td>
+                <td class="py-2 pr-3 text-[11px]"><b class="text-emerald-600 dark:text-emerald-400">NEW</b> · replaces pace-only row in <code>DayCard.tsx</code> / <code>WorkoutModal.tsx</code></td>
+              </tr>
+              <tr class="border-b border-slate-100 dark:border-slate-800">
+                <td class="py-2 pr-3 font-mono text-slate-400">3</td>
+                <td class="py-2 pr-3">Terrain detail</td>
+                <td class="py-2 pr-3"><span class="inline-block px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200 text-[10px] font-semibold">deep-link</span></td>
+                <td class="py-2 pr-3 font-mono text-[11px]">src/components/engines/terrain/<br>TerrainDetail.tsx</td>
+                <td class="py-2 pr-3 text-[11px]"><b class="text-emerald-600 dark:text-emerald-400">NEW</b> · new <code>ViewId 'terrain-detail'</code></td>
+              </tr>
+              <tr class="border-b border-slate-100 dark:border-slate-800">
+                <td class="py-2 pr-3 font-mono text-slate-400">4</td>
+                <td class="py-2 pr-3">MIM detail (novel IP)</td>
+                <td class="py-2 pr-3"><span class="inline-block px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200 text-[10px] font-semibold">deep-link</span></td>
+                <td class="py-2 pr-3 font-mono text-[11px]">src/components/engines/mim/MIMDetail.tsx<br><span class="text-slate-500">builds on existing utils/trimp.ts</span></td>
+                <td class="py-2 pr-3 text-[11px]"><b class="text-emerald-600 dark:text-emerald-400">NEW</b> · Bayesian layer over existing <code>MIM_MATRIX + DOMS_CARRY</code></td>
+              </tr>
+              <tr class="border-b border-slate-100 dark:border-slate-800">
+                <td class="py-2 pr-3 font-mono text-slate-400">5</td>
+                <td class="py-2 pr-3">Evidence-Tier Chip spec</td>
+                <td class="py-2 pr-3"><span class="inline-block px-1.5 py-0.5 rounded bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-200 text-[10px] font-semibold">primitive</span></td>
+                <td class="py-2 pr-3 font-mono text-[11px]">src/components/primitives/<br>EvidenceTierChip.tsx</td>
+                <td class="py-2 pr-3 text-[11px]"><b class="text-emerald-600 dark:text-emerald-400">NEW</b> · shared primitive · new folder <code>primitives/</code></td>
+              </tr>
+              <tr class="border-b border-slate-100 dark:border-slate-800">
+                <td class="py-2 pr-3 font-mono text-slate-400">6</td>
+                <td class="py-2 pr-3">Soreness prompt</td>
+                <td class="py-2 pr-3"><span class="inline-block px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-800 dark:bg-indigo-900/40 dark:text-indigo-200 text-[10px] font-semibold">Summary</span></td>
+                <td class="py-2 pr-3 font-mono text-[11px]">src/components/SorenessPrompt.tsx<br><span class="text-slate-500">existing: hooks/useSoreness.ts</span></td>
+                <td class="py-2 pr-3 text-[11px]"><b class="text-amber-600 dark:text-amber-400">ENHANCES</b> existing inline soreness check-in in <code>TodayBriefing.tsx</code> — adds mobile bottom-sheet + "skip with reason"</td>
+              </tr>
+              <tr class="border-b border-slate-100 dark:border-slate-800">
+                <td class="py-2 pr-3 font-mono text-slate-400">7</td>
+                <td class="py-2 pr-3">Eccentric load strip</td>
+                <td class="py-2 pr-3"><span class="inline-block px-1.5 py-0.5 rounded bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200 text-[10px] font-semibold">Stats</span></td>
+                <td class="py-2 pr-3 font-mono text-[11px]">src/components/engines/descent/<br>EccentricLoadStrip.tsx</td>
+                <td class="py-2 pr-3 text-[11px]"><b class="text-emerald-600 dark:text-emerald-400">NEW</b> · sits beside existing <code>TRIMPBreakdown.tsx</code> in <code>Dashboard.tsx</code></td>
+              </tr>
+              <tr class="border-b border-slate-100 dark:border-slate-800">
+                <td class="py-2 pr-3 font-mono text-slate-400">8</td>
+                <td class="py-2 pr-3">Altitude strip</td>
+                <td class="py-2 pr-3"><span class="inline-block px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-800 dark:bg-indigo-900/40 dark:text-indigo-200 text-[10px] font-semibold">Summary</span></td>
+                <td class="py-2 pr-3 font-mono text-[11px]">src/components/engines/altitude/<br>AltitudeStrip.tsx</td>
+                <td class="py-2 pr-3 text-[11px]"><b class="text-emerald-600 dark:text-emerald-400">NEW</b> · 4th card in <code>EngineStrip</code>; only rendered if <code>useAltitudeTrip</code> has an active trip</td>
+              </tr>
+              <tr class="border-b border-slate-100 dark:border-slate-800">
+                <td class="py-2 pr-3 font-mono text-slate-400">9</td>
+                <td class="py-2 pr-3">Altitude trip wizard</td>
+                <td class="py-2 pr-3"><span class="inline-block px-1.5 py-0.5 rounded bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200 text-[10px] font-semibold">Settings</span></td>
+                <td class="py-2 pr-3 font-mono text-[11px]">src/components/engines/altitude/<br>AltitudeTripWizard.tsx<br><span class="text-slate-500">+ hooks/useAltitudeTrip.ts</span></td>
+                <td class="py-2 pr-3 text-[11px]"><b class="text-emerald-600 dark:text-emerald-400">NEW</b> · modal launched from Settings → Trips or from engine-card CTA</td>
+              </tr>
+              <tr class="border-b border-slate-100 dark:border-slate-800">
+                <td class="py-2 pr-3 font-mono text-slate-400">10</td>
+                <td class="py-2 pr-3">AMS advisory</td>
+                <td class="py-2 pr-3"><span class="inline-block px-1.5 py-0.5 rounded bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-200 text-[10px] font-semibold">App shell</span></td>
+                <td class="py-2 pr-3 font-mono text-[11px]">src/components/engines/altitude/<br>AmsAdvisory.tsx<br><span class="text-slate-500">reuses CoachPingToast.tsx</span></td>
+                <td class="py-2 pr-3 text-[11px]"><b class="text-amber-600 dark:text-amber-400">REUSES</b> proactive-ping infra · adds persistent chip to top bar in <code>App.tsx</code></td>
+              </tr>
+              <tr class="border-b border-slate-100 dark:border-slate-800">
+                <td class="py-2 pr-3 font-mono text-slate-400">11</td>
+                <td class="py-2 pr-3">Why-this-workout drawer</td>
+                <td class="py-2 pr-3"><span class="inline-block px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-800 dark:bg-indigo-900/40 dark:text-indigo-200 text-[10px] font-semibold">Summary</span></td>
+                <td class="py-2 pr-3 font-mono text-[11px]">src/components/WhyDrawer.tsx<br><span class="text-slate-500">+ src/utils/rationale.ts</span></td>
+                <td class="py-2 pr-3 text-[11px]"><b class="text-emerald-600 dark:text-emerald-400">NEW</b> · button above <code>EngineStrip</code> · aggregates <code>rationale()</code> from each engine</td>
+              </tr>
+              <tr>
+                <td class="py-2 pr-3 font-mono text-slate-400">12</td>
+                <td class="py-2 pr-3">Methodology viewer</td>
+                <td class="py-2 pr-3"><span class="inline-block px-1.5 py-0.5 rounded bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200 text-[10px] font-semibold">Settings</span></td>
+                <td class="py-2 pr-3 font-mono text-[11px]">src/components/Methodology.tsx</td>
+                <td class="py-2 pr-3 text-[11px]"><b class="text-amber-600 dark:text-amber-400">ENHANCES</b> existing (currently hidden <code>method</code> view) · add TOC sidebar + citations</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ── C · Proposed folder diff ──────────────────────────────────────── -->
+      <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-5">
+        <div class="text-sm font-semibold mb-1">C · Proposed <code>src/</code> folder structure</div>
+        <p class="text-xs text-slate-500 dark:text-slate-400 mb-3">Current <code>components/</code> is flat with ~45 files. Adding 4 engines × 3–5 files each will make it unmanageable. Extract <code>primitives/</code> and <code>engines/</code> in Sprint 1 while the move is cheap.</p>
+        <div class="grid md:grid-cols-2 gap-3">
+          <div class="rounded-lg border border-slate-200 dark:border-slate-700 p-3 bg-slate-50 dark:bg-slate-800/40">
+            <div class="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Today (flat)</div>
+<pre class="text-[11px] leading-relaxed text-slate-700 dark:text-slate-300 overflow-x-auto font-mono">src/
+├── components/           <span class="text-slate-400">← 45+ files, flat</span>
+│   ├── ReadinessBanner.tsx
+│   ├── TodayBriefing.tsx
+│   ├── Dashboard.tsx
+│   ├── Methodology.tsx
+│   └── ... 41 others
+├── utils/
+│   ├── readiness.ts
+│   ├── trimp.ts          <span class="text-slate-400">(MIM_MATRIX + DOMS_CARRY)</span>
+│   └── ...
+├── hooks/
+│   ├── useReadiness.ts
+│   ├── useSoreness.ts
+│   └── ...
+└── types/index.ts</pre>
+          </div>
+          <div class="rounded-lg border border-emerald-200 dark:border-emerald-800 p-3 bg-emerald-50 dark:bg-emerald-900/20">
+            <div class="text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 uppercase tracking-wider mb-2">Proposed (Sprint 1 refactor)</div>
+<pre class="text-[11px] leading-relaxed text-slate-700 dark:text-slate-200 overflow-x-auto font-mono">src/
+├── components/
+│   ├── <span class="text-emerald-600 dark:text-emerald-400 font-semibold">primitives/</span>           <span class="text-slate-400">← NEW</span>
+│   │   ├── <span class="text-emerald-600 dark:text-emerald-400">EvidenceTierChip.tsx</span>
+│   │   ├── <span class="text-emerald-600 dark:text-emerald-400">EngineCard.tsx</span>
+│   │   ├── <span class="text-emerald-600 dark:text-emerald-400">TierBadge.tsx</span>
+│   │   └── <span class="text-emerald-600 dark:text-emerald-400">Sparkline.tsx</span>
+│   ├── <span class="text-emerald-600 dark:text-emerald-400 font-semibold">engines/</span>              <span class="text-slate-400">← NEW</span>
+│   │   ├── readiness/
+│   │   │   └── ReadinessBanner.tsx <span class="text-amber-600 dark:text-amber-400">(moved)</span>
+│   │   ├── <span class="text-emerald-600 dark:text-emerald-400">terrain/</span>          <span class="text-slate-400">3</span>
+│   │   ├── <span class="text-emerald-600 dark:text-emerald-400">mim/</span>              <span class="text-slate-400">4</span>
+│   │   ├── <span class="text-emerald-600 dark:text-emerald-400">descent/</span>          <span class="text-slate-400">7</span>
+│   │   └── <span class="text-emerald-600 dark:text-emerald-400">altitude/</span>         <span class="text-slate-400">8, 9, 10</span>
+│   ├── <span class="text-emerald-600 dark:text-emerald-400">EngineStrip.tsx</span>      <span class="text-slate-400">1</span>
+│   ├── <span class="text-emerald-600 dark:text-emerald-400">ActivityCard.tsx</span>     <span class="text-slate-400">2</span>
+│   ├── <span class="text-emerald-600 dark:text-emerald-400">WhyDrawer.tsx</span>        <span class="text-slate-400">11</span>
+│   ├── <span class="text-emerald-600 dark:text-emerald-400">SorenessPrompt.tsx</span>   <span class="text-slate-400">6</span>
+│   ├── Methodology.tsx  <span class="text-amber-600 dark:text-amber-400">(enhanced)</span>
+│   └── ...existing
+├── <span class="text-emerald-600 dark:text-emerald-400 font-semibold">engines/</span>                  <span class="text-slate-400">← NEW (business logic)</span>
+│   ├── <span class="text-emerald-600 dark:text-emerald-400">types.ts</span>              <span class="text-slate-400">Engine interface</span>
+│   ├── readiness.ts     <span class="text-amber-600 dark:text-amber-400">(moved from utils/)</span>
+│   ├── <span class="text-emerald-600 dark:text-emerald-400">terrain.ts</span>
+│   ├── <span class="text-emerald-600 dark:text-emerald-400">mim.ts</span>                <span class="text-slate-400">Bayesian layer</span>
+│   ├── <span class="text-emerald-600 dark:text-emerald-400">descent.ts</span>
+│   └── <span class="text-emerald-600 dark:text-emerald-400">altitude.ts</span>
+├── hooks/
+│   ├── <span class="text-emerald-600 dark:text-emerald-400">useAltitudeTrip.ts</span>   <span class="text-slate-400">NEW</span>
+│   └── ...existing
+└── utils/
+    ├── <span class="text-emerald-600 dark:text-emerald-400">gap.ts</span>                <span class="text-slate-400">NEW — Minetti 2002</span>
+    ├── <span class="text-emerald-600 dark:text-emerald-400">rationale.ts</span>          <span class="text-slate-400">NEW — feeds WhyDrawer</span>
+    └── ...existing</pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── D · Engine interface sketch ───────────────────────────────────── -->
+      <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-5">
+        <div class="text-sm font-semibold mb-1">D · Unified <code>Engine&lt;T&gt;</code> interface</div>
+        <p class="text-xs text-slate-500 dark:text-slate-400 mb-3">All five engines (Readiness + 4 new) implement one contract. The dashboard maps over <code>engines[]</code> — no special cases.</p>
+<pre class="text-[11px] leading-relaxed text-slate-700 dark:text-slate-200 overflow-x-auto font-mono bg-slate-50 dark:bg-slate-800/40 rounded-lg p-3 border border-slate-200 dark:border-slate-700">// src/engines/types.ts
+export type EngineId = 'readiness' | 'terrain' | 'mim' | 'descent' | 'altitude'
+export type EvidenceTier = 'T1' | 'T2' | 'T3' | 'T4'
+
+export interface EvidenceMeta {
+  tier: EvidenceTier
+  source: string             // "Minetti 2002, J Appl Physiol"
+  doi?: string
+  scope: 'population' | 'personalized'
+}
+
+export interface Rationale {
+  engineId: EngineId
+  direction: '+' | '−' | '→'  // ceiling / cap / route-shift
+  label: string              // "Terrain · rolling route suggested"
+  magnitude?: number         // for sorting in WhyDrawer
+  evidence: EvidenceMeta
+}
+
+export interface Engine&lt;TState, TScore&gt; {
+  id: EngineId
+  label: string
+  color: 'indigo' | 'emerald' | 'cyan' | 'amber' | 'red'
+  evidence: EvidenceMeta
+  compute(input: EngineInputs): TState
+  score(state: TState): TScore
+  rationale(state: TState): Rationale[]  // feeds WhyDrawer
+}</pre>
+      </div>
+
+      <!-- ── E · Re-architecture recommendations ──────────────────────────── -->
+      <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-5">
+        <div class="text-sm font-semibold mb-1">E · Re-architecture recommendations</div>
+        <p class="text-xs text-slate-500 dark:text-slate-400 mb-4">Strong opinions, with justification. Ordered by Sprint 1 priority.</p>
+        <div class="space-y-3">
+          <div class="rounded-lg border border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-900/20 p-3">
+            <div class="text-xs font-semibold text-indigo-800 dark:text-indigo-200">1 · Extract <code>components/engines/</code> and <code>components/primitives/</code></div>
+            <p class="text-[11px] text-slate-700 dark:text-slate-300 mt-1">The flat 45-file <code>components/</code> breaks as we add 4 engines × 3–5 components. One-shot move in Sprint 1 — ~20 imports to update. <b>Trade-off:</b> one coordinated PR vs. incremental churn over 13 sprints.</p>
+          </div>
+          <div class="rounded-lg border border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-900/20 p-3">
+            <div class="text-xs font-semibold text-indigo-800 dark:text-indigo-200">2 · Promote the view state machine to a hash-router</div>
+            <p class="text-[11px] text-slate-700 dark:text-slate-300 mt-1"><code>useState&lt;ViewId&gt;</code> works for 5 tabs; with engine-detail deep-links, wizard modals, and Coach-emitted action URLs, it won't. <code>react-router-dom</code> with a hash adapter keeps deep-links stable on reload. <b>Trade-off:</b> +14 KB gzipped, removes ~80 lines of switch-case routing in <code>App.tsx</code>.</p>
+          </div>
+          <div class="rounded-lg border border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-900/20 p-3">
+            <div class="text-xs font-semibold text-indigo-800 dark:text-indigo-200">3 · Engine as a first-class interface</div>
+            <p class="text-[11px] text-slate-700 dark:text-slate-300 mt-1">A <code>src/engines/</code> module exposing <code>Engine&lt;TState, TScore&gt;</code> (see panel D). Each of the 5 engines implements it. Dashboard iterates, no special cases, WhyDrawer gets rationale for free. <b>Trade-off:</b> upfront design cost; massive testability + extensibility payoff for any future 6th engine.</p>
+          </div>
+          <div class="rounded-lg border border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-900/20 p-3">
+            <div class="text-xs font-semibold text-indigo-800 dark:text-indigo-200">4 · <code>EvidenceTier</code> + <code>EvidenceMeta</code> as core types</div>
+            <p class="text-[11px] text-slate-700 dark:text-slate-300 mt-1">Every engine output, every rationale row, every chart annotation carries <code>{ tier, source, doi, scope }</code>. Enforces the discipline the methodology viewer promises. Not a component concern — a core type in <code>types/index.ts</code>.</p>
+          </div>
+          <div class="rounded-lg border border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-900/20 p-3">
+            <div class="text-xs font-semibold text-indigo-800 dark:text-indigo-200">5 · Telemetry is a prerequisite, not a follow-up</div>
+            <p class="text-[11px] text-slate-700 dark:text-slate-300 mt-1">Add <code>useTelemetry</code> in Sprint 1, wire it to every engine card click / Why-drawer open / wizard completion <em>before</em> adding features. Otherwise we ship 4 engines without knowing which ones users look at. <b>Trade-off:</b> one sprint of infra; avoids rebuilding analytics later.</p>
+          </div>
+          <div class="rounded-lg border border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-900/20 p-3">
+            <div class="text-xs font-semibold text-indigo-800 dark:text-indigo-200">6 · Keep the dark-mode discipline</div>
+            <p class="text-[11px] text-slate-700 dark:text-slate-300 mt-1"><code>darkMode: 'class'</code> is configured and <code>useTheme.ts</code> exists. Every new engine component must land with dark variants in its first PR — enforce via code-review checklist. Mockups set the pattern; don't let implementation slip.</p>
+          </div>
+          <div class="rounded-lg border border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-900/20 p-3">
+            <div class="text-xs font-semibold text-indigo-800 dark:text-indigo-200">7 · Upgrade MIM, don't rewrite it</div>
+            <p class="text-[11px] text-slate-700 dark:text-slate-300 mt-1"><code>utils/trimp.ts</code> already has <code>MIM_MATRIX</code> and <code>DOMS_CARRY</code>. Sprints 5–7 add a Bayesian shrinkage/partial-pooling layer <em>on top</em> — population prior from the matrix, Efron-Morris shrinkage per athlete. Frame the tickets as "upgrade" so no one romanticizes a greenfield rewrite.</p>
+          </div>
+        </div>
+
+        <div class="mt-5 rounded-lg border border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-900/20 p-3">
+          <div class="text-xs font-semibold text-rose-800 dark:text-rose-200">⛔ What I'd recommend against</div>
+          <ul class="text-[11px] text-slate-700 dark:text-slate-300 mt-1 space-y-1 list-disc pl-5">
+            <li><b>A new tab per engine.</b> Five engines × a tab = clutter. Keep the 5-tab bottom bar. Engine details are deep-link routes.</li>
+            <li><b>Moving <code>ReadinessBanner</code> before Sprint 1 is done.</b> It's imported from many places; the move has to be a coordinated first step, not a piecemeal touch during feature work.</li>
+            <li><b>Rebuilding MIM from scratch.</b> The existing matrix is your foundation. Layer, don't replace.</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Footnote -->
+      <div class="text-[11px] text-slate-500 dark:text-slate-400 italic pl-1">
+        File paths verified against <code>src/</code> scan on 2026-04-20 · Tab model verified against <code>src/App.tsx</code> lines 134–146 (ViewId state machine) · All "existing" references grounded in codebase, not guessed.
+      </div>
+    </section>
+
     <section data-screen id="design-system" class="p-6 sm:p-8 space-y-6">
       <div>
         <div class="text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400">Appendix</div>
