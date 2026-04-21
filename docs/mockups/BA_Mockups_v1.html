@@ -27,6 +27,36 @@
   .dark .tier-T3 { background-color: rgb(120 53 15 / 0.4); color: rgb(253 230 138); border-color: rgb(146 64 14); }
   .dark .tier-T4 { background-color: rgb(31 41 55 / 0.6); color: rgb(209 213 219); border-color: rgb(75 85 99); }
   .device-frame { box-shadow: 0 0 0 8px rgb(17 24 39), 0 20px 40px -10px rgba(0,0,0,0.3); border-radius: 28px; }
+  /* ---------- iPhone-frame user views -------------------------------- */
+  .iphone { width: 360px; height: 780px; border-radius: 44px; background: #0b0b0d; padding: 12px; box-shadow: 0 30px 60px -15px rgba(0,0,0,0.45), 0 0 0 2px #1f2937; position: relative; flex-shrink: 0; }
+  .iphone-screen { position: relative; width: 100%; height: 100%; border-radius: 32px; overflow: hidden; background: #f1f5f9; display: flex; flex-direction: column; }
+  .dark .iphone-screen { background: #0f172a; }
+  .iphone-notch { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); width: 110px; height: 26px; background: #000; border-radius: 999px; z-index: 30; }
+  .iphone-statusbar { height: 38px; padding: 0 20px 0 22px; display: flex; align-items: center; justify-content: space-between; font-size: 13px; font-weight: 600; color: #fff; background: #1e293b; position: relative; z-index: 20; }
+  .dark .iphone-statusbar { background: #0f172a; }
+  .iphone-statusbar .sb-right { display: inline-flex; gap: 6px; align-items: center; }
+  .iphone-header { background: #1e293b; color: #fff; padding: 10px 14px 12px; }
+  .dark .iphone-header { background: #020617; }
+  .iphone-content { flex: 1; overflow-y: auto; padding: 12px 12px 84px; }
+  .iphone-tabbar { position: absolute; left: 0; right: 0; bottom: 0; height: 72px; background: #fff; border-top: 1px solid #e2e8f0; display: flex; padding: 6px 4px 14px; z-index: 25; }
+  .dark .iphone-tabbar { background: #1e293b; border-top-color: #334155; }
+  .iphone-tab { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: 10px; color: #94a3b8; }
+  .iphone-tab.active { color: #0f766e; font-weight: 600; }
+  .iphone-tab-dot { width: 24px; height: 24px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 14px; }
+  .iphone-tab.active .iphone-tab-dot { background: #ccfbf1; color: #0f766e; }
+  .dark .iphone-tab.active .iphone-tab-dot { background: rgba(20,184,166,0.15); }
+  .iphone-home-indicator { position: absolute; bottom: 6px; left: 50%; transform: translateX(-50%); width: 120px; height: 4px; border-radius: 999px; background: rgba(0,0,0,0.35); z-index: 35; }
+  .dark .iphone-home-indicator { background: rgba(255,255,255,0.4); }
+  /* Small iPhone thumbnails for the journey row */
+  .iphone-sm { width: 180px; height: 390px; border-radius: 28px; padding: 8px; }
+  .iphone-sm .iphone-screen { border-radius: 20px; }
+  .iphone-sm .iphone-notch { top: 6px; width: 60px; height: 14px; }
+  .iphone-sm .iphone-statusbar { height: 22px; font-size: 8px; padding: 0 10px; }
+  .iphone-sm .iphone-header { padding: 6px 8px 6px; }
+  .iphone-sm .iphone-content { padding: 6px 6px 42px; font-size: 10px; }
+  .iphone-sm .iphone-tabbar { height: 38px; padding: 4px 2px 8px; }
+  .iphone-sm .iphone-tab { font-size: 7px; }
+  .iphone-sm .iphone-tab-dot { width: 16px; height: 16px; font-size: 10px; }
 </style>
 </head>
 <body class="h-full bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
@@ -58,7 +88,27 @@
   <!-- Sidebar ------------------------------------------------------------ -->
   <aside class="w-64 shrink-0 border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hidden lg:block">
     <nav class="p-3 space-y-0.5 text-sm">
-      <div class="px-3 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Composed views</div>
+      <div class="px-3 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-wider text-indigo-600 dark:text-indigo-300">★ User views (integrated)</div>
+      <a href="#user-summary" class="nav-link flex items-center gap-2 px-3 py-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800">
+        <span class="w-5 text-center">📱</span> Summary tab
+      </a>
+      <a href="#user-plan" class="nav-link flex items-center gap-2 px-3 py-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800">
+        <span class="w-5 text-center">📱</span> Plan tab
+      </a>
+      <a href="#user-stats" class="nav-link flex items-center gap-2 px-3 py-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800">
+        <span class="w-5 text-center">📱</span> Stats tab
+      </a>
+      <a href="#user-coach" class="nav-link flex items-center gap-2 px-3 py-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800">
+        <span class="w-5 text-center">📱</span> Coach tab
+      </a>
+      <a href="#user-settings" class="nav-link flex items-center gap-2 px-3 py-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800">
+        <span class="w-5 text-center">📱</span> Settings tab
+      </a>
+      <a href="#user-journey" class="nav-link flex items-center gap-2 px-3 py-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800">
+        <span class="w-5 text-center">🗺</span> Morning journey
+      </a>
+
+      <div class="px-3 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Composed views</div>
       <a href="#s1" class="nav-link flex items-center gap-2 px-3 py-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800">
         <span class="w-5 text-center">⌂</span> 1. Dashboard + engines
       </a>
@@ -114,6 +164,983 @@
 
   <!-- Main ------------------------------------------------------------ -->
   <main class="flex-1 min-w-0 overflow-x-hidden">
+
+    <!-- ============================================================== -->
+    <!-- ============ USER VIEWS (INTEGRATED, MOBILE-FRAMED) =========== -->
+    <!-- ============================================================== -->
+
+    <!-- ===================== USER · SUMMARY TAB ===================== -->
+    <section data-screen id="user-summary" class="p-6 sm:p-8 space-y-6">
+      <div class="flex items-start justify-between flex-wrap gap-2">
+        <div>
+          <h1 class="text-2xl font-bold">📱 Summary tab — integrated user view</h1>
+          <p class="text-sm text-slate-500 dark:text-slate-400 max-w-2xl">This is what Mike actually sees when he opens the app each morning. All 5 engines are present without dominating the UI — they live as a compact 2×2 engine strip, with deeper views one tap away.</p>
+        </div>
+        <span class="text-xs px-2 py-1 rounded-full bg-indigo-100 text-indigo-800 border border-indigo-300 dark:bg-indigo-900/40 dark:text-indigo-200 dark:border-indigo-700">User view · default landing</span>
+      </div>
+
+      <div class="flex flex-wrap gap-10 items-start justify-center lg:justify-start">
+        <!-- iPhone frame -->
+        <div class="iphone">
+          <div class="iphone-notch"></div>
+          <div class="iphone-screen">
+            <div class="iphone-statusbar">
+              <span>6:42</span>
+              <span class="sb-right">●●● 🛜 🔋</span>
+            </div>
+            <div class="iphone-header">
+              <div class="flex items-center justify-between">
+                <div>
+                  <div class="text-[10px] opacity-75 uppercase tracking-wide">Broken Arrow VK · Olympic Valley</div>
+                  <div class="text-sm font-semibold">47 days to race day</div>
+                </div>
+                <div class="text-[10px] bg-white/10 border border-white/20 px-2 py-0.5 rounded">Peak phase</div>
+              </div>
+            </div>
+            <div class="iphone-content text-slate-900 dark:text-slate-100">
+              <!-- Readiness banner -->
+              <div class="rounded-xl p-3 mb-3" style="background: linear-gradient(135deg,#10b981,#059669); color:#fff;">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <div class="text-[10px] uppercase tracking-wide opacity-85">Readiness</div>
+                    <div class="text-xl font-bold leading-none">PEAK · 92/100</div>
+                    <div class="text-[11px] opacity-90 mt-1">HRV +8%, sleep 7h53, low soreness</div>
+                  </div>
+                  <div class="text-3xl">💪</div>
+                </div>
+              </div>
+
+              <!-- Engine strip 2x2 -->
+              <div class="text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 mb-1.5">Today's dials</div>
+              <div class="grid grid-cols-2 gap-2 mb-3">
+                <div class="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-2">
+                  <div class="flex items-center justify-between">
+                    <span class="text-[10px] font-semibold">⛰ Terrain</span>
+                    <span class="text-[9px] px-1 py-0.5 rounded tier-T1">T1</span>
+                  </div>
+                  <div class="text-[11px] font-bold mt-0.5">Hilly route</div>
+                  <div class="text-[9px] text-slate-500">GAP +4%</div>
+                </div>
+                <div class="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-2">
+                  <div class="flex items-center justify-between">
+                    <span class="text-[10px] font-semibold">🧬 MIM</span>
+                    <span class="text-[9px] px-1 py-0.5 rounded tier-T2">T2</span>
+                  </div>
+                  <div class="text-[11px] font-bold mt-0.5">Steady Z2</div>
+                  <div class="text-[9px] text-slate-500">no intervals</div>
+                </div>
+                <div class="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-2">
+                  <div class="flex items-center justify-between">
+                    <span class="text-[10px] font-semibold">⬇ Descent</span>
+                    <span class="text-[9px] px-1 py-0.5 rounded tier-T3">T3</span>
+                  </div>
+                  <div class="text-[11px] font-bold mt-0.5">Low eccentric</div>
+                  <div class="text-[9px] text-slate-500">flats OK</div>
+                </div>
+                <div class="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-2">
+                  <div class="flex items-center justify-between">
+                    <span class="text-[10px] font-semibold">⛅ Altitude</span>
+                    <span class="text-[9px] px-1 py-0.5 rounded tier-T2">T2</span>
+                  </div>
+                  <div class="text-[11px] font-bold mt-0.5">Sea level</div>
+                  <div class="text-[9px] text-slate-500">no adj.</div>
+                </div>
+              </div>
+
+              <!-- Today's workout card -->
+              <div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3 mb-3 shadow-sm">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <div class="text-[10px] text-slate-500 uppercase tracking-wide">Today · Mon</div>
+                    <div class="text-sm font-semibold">Z2 Aerobic · 80 min</div>
+                  </div>
+                  <button class="text-[10px] px-2 py-1 bg-teal-600 text-white rounded font-semibold">Start →</button>
+                </div>
+                <div class="flex gap-1 mt-2 flex-wrap">
+                  <span class="text-[9px] px-1.5 py-0.5 rounded bg-teal-50 text-teal-700 border border-teal-200">HR 132–148</span>
+                  <span class="text-[9px] px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">+800 ft</span>
+                  <span class="text-[9px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">TSS 62</span>
+                </div>
+                <button class="text-[10px] text-indigo-600 mt-2 font-medium">Why this workout? →</button>
+              </div>
+
+              <!-- Soreness check-in -->
+              <div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3 mb-3">
+                <div class="text-[10px] text-slate-500 uppercase tracking-wide mb-1">Morning check-in</div>
+                <div class="text-[11px] font-medium mb-2">How are the legs today?</div>
+                <div class="flex gap-1.5">
+                  <button class="flex-1 rounded-lg border-2 border-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 py-1.5 text-sm">😎</button>
+                  <button class="flex-1 rounded-lg border border-slate-200 dark:border-slate-700 py-1.5 text-sm">🙂</button>
+                  <button class="flex-1 rounded-lg border border-slate-200 dark:border-slate-700 py-1.5 text-sm">😕</button>
+                  <button class="flex-1 rounded-lg border border-slate-200 dark:border-slate-700 py-1.5 text-sm">😣</button>
+                </div>
+              </div>
+
+              <!-- Coach insight -->
+              <div class="rounded-xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 p-3 mb-3">
+                <div class="flex items-start gap-2">
+                  <div class="text-base">💬</div>
+                  <div class="flex-1">
+                    <div class="text-[10px] font-semibold text-indigo-700 dark:text-indigo-300 uppercase tracking-wide">Coach insight</div>
+                    <div class="text-[11px] text-slate-700 dark:text-slate-200 leading-snug">Your HRV is trending up and muscle inflammation dropped — it's a green-light day. I nudged today +10 min.</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 7-day preview -->
+              <div class="text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 mb-1.5">Next 7 days</div>
+              <div class="flex gap-1 mb-2">
+                <div class="flex-1 rounded bg-teal-500 text-white text-[9px] font-bold text-center py-1.5">M<br/>Z2</div>
+                <div class="flex-1 rounded bg-slate-300 dark:bg-slate-700 text-[9px] font-bold text-center py-1.5">T<br/>—</div>
+                <div class="flex-1 rounded bg-rose-500 text-white text-[9px] font-bold text-center py-1.5">W<br/>VO2</div>
+                <div class="flex-1 rounded bg-teal-500 text-white text-[9px] font-bold text-center py-1.5">T<br/>Z2</div>
+                <div class="flex-1 rounded bg-slate-300 dark:bg-slate-700 text-[9px] font-bold text-center py-1.5">F<br/>—</div>
+                <div class="flex-1 rounded bg-amber-500 text-white text-[9px] font-bold text-center py-1.5">S<br/>Vert</div>
+                <div class="flex-1 rounded bg-purple-500 text-white text-[9px] font-bold text-center py-1.5">S<br/>Long</div>
+              </div>
+            </div>
+            <div class="iphone-tabbar">
+              <div class="iphone-tab active"><div class="iphone-tab-dot">📋</div><div>Summary</div></div>
+              <div class="iphone-tab"><div class="iphone-tab-dot">📅</div><div>Plan</div></div>
+              <div class="iphone-tab"><div class="iphone-tab-dot">📊</div><div>Stats</div></div>
+              <div class="iphone-tab"><div class="iphone-tab-dot">💬</div><div>Coach</div></div>
+              <div class="iphone-tab"><div class="iphone-tab-dot">⚙️</div><div>Settings</div></div>
+            </div>
+            <div class="iphone-home-indicator"></div>
+          </div>
+        </div>
+
+        <!-- Annotation panel -->
+        <aside class="flex-1 min-w-[280px] max-w-md space-y-3">
+          <div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4">
+            <div class="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">What's new vs today</div>
+            <ul class="text-sm space-y-2 list-disc pl-4">
+              <li><strong>Engine strip 2×2</strong> — all 4 new engines visible at a glance, each a tap away. Small footprint.</li>
+              <li>Workout card now shows a <strong>"Why this workout?"</strong> link → opens Screen 11.</li>
+              <li>Soreness check-in stays put (already in app).</li>
+              <li>Coach insight already exists — now mentions MIM ("muscle inflammation").</li>
+              <li>Everything below the engine strip is unchanged from today's Summary.</li>
+            </ul>
+          </div>
+          <div class="rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 p-4">
+            <div class="text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300 mb-1">Net additions to this screen</div>
+            <div class="text-sm text-slate-700 dark:text-slate-200">One new component (EngineStrip) + one new link ("Why this workout?"). No visual clutter.</div>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- ===================== USER · PLAN TAB ===================== -->
+    <section data-screen id="user-plan" class="p-6 sm:p-8 space-y-6">
+      <div class="flex items-start justify-between flex-wrap gap-2">
+        <div>
+          <h1 class="text-2xl font-bold">📱 Plan tab — integrated user view</h1>
+          <p class="text-sm text-slate-500 dark:text-slate-400 max-w-2xl">Where Mike sees his week, expands a day, and sees how the engines shaped it. ActivityCard + GAP overlay appear inline on the expanded day.</p>
+        </div>
+        <span class="text-xs px-2 py-1 rounded-full bg-indigo-100 text-indigo-800 border border-indigo-300 dark:bg-indigo-900/40 dark:text-indigo-200 dark:border-indigo-700">User view</span>
+      </div>
+
+      <div class="flex flex-wrap gap-10 items-start justify-center lg:justify-start">
+        <div class="iphone">
+          <div class="iphone-notch"></div>
+          <div class="iphone-screen">
+            <div class="iphone-statusbar">
+              <span>6:42</span>
+              <span class="sb-right">●●● 🛜 🔋</span>
+            </div>
+            <div class="iphone-header">
+              <div class="flex items-center justify-between">
+                <div>
+                  <div class="text-[10px] opacity-75 uppercase tracking-wide">Training plan · Peak phase</div>
+                  <div class="text-sm font-semibold">Week 6 of 12</div>
+                </div>
+                <div class="text-[10px] bg-white/10 border border-white/20 px-2 py-0.5 rounded">Apr 20–26</div>
+              </div>
+            </div>
+            <div class="iphone-content text-slate-900 dark:text-slate-100">
+              <!-- Week selector -->
+              <div class="flex gap-1 mb-2 overflow-x-auto pb-1">
+                <button class="text-[10px] px-2 py-1 rounded bg-slate-200 dark:bg-slate-700 font-semibold whitespace-nowrap">W5</button>
+                <button class="text-[10px] px-2 py-1 rounded bg-teal-600 text-white font-semibold whitespace-nowrap">W6</button>
+                <button class="text-[10px] px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 whitespace-nowrap">W7</button>
+                <button class="text-[10px] px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 whitespace-nowrap">W8</button>
+                <button class="text-[10px] px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 whitespace-nowrap">W9</button>
+              </div>
+
+              <!-- Mini volume/load chart -->
+              <div class="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-2 mb-3">
+                <div class="flex items-center justify-between mb-1">
+                  <span class="text-[10px] font-semibold">Week volume</span>
+                  <span class="text-[10px] text-slate-500">8h 20m · 6,400 ft</span>
+                </div>
+                <div class="flex items-end gap-1 h-10">
+                  <div class="flex-1 bg-teal-400 rounded-t" style="height:45%"></div>
+                  <div class="flex-1 bg-slate-200 dark:bg-slate-700 rounded-t" style="height:8%"></div>
+                  <div class="flex-1 bg-rose-400 rounded-t" style="height:60%"></div>
+                  <div class="flex-1 bg-teal-400 rounded-t" style="height:50%"></div>
+                  <div class="flex-1 bg-slate-200 dark:bg-slate-700 rounded-t" style="height:8%"></div>
+                  <div class="flex-1 bg-amber-400 rounded-t" style="height:75%"></div>
+                  <div class="flex-1 bg-purple-500 rounded-t" style="height:95%"></div>
+                </div>
+                <div class="flex gap-1 text-[9px] text-slate-500 mt-0.5"><span class="flex-1 text-center">M</span><span class="flex-1 text-center">T</span><span class="flex-1 text-center">W</span><span class="flex-1 text-center">T</span><span class="flex-1 text-center">F</span><span class="flex-1 text-center">S</span><span class="flex-1 text-center">S</span></div>
+              </div>
+
+              <!-- Day cards -->
+              <div class="space-y-1.5">
+                <!-- Monday expanded -->
+                <div class="rounded-lg border-2 border-teal-400 bg-teal-50 dark:bg-teal-950/30 p-2.5">
+                  <div class="flex items-center justify-between">
+                    <div>
+                      <div class="text-[10px] text-slate-500 uppercase tracking-wide">Mon · Today</div>
+                      <div class="text-sm font-semibold">Z2 Aerobic · 80 min</div>
+                    </div>
+                    <span class="text-[9px] px-1.5 py-0.5 rounded tier-T2">T2</span>
+                  </div>
+                  <div class="flex gap-1 mt-1.5 flex-wrap">
+                    <span class="text-[9px] px-1.5 py-0.5 rounded bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">HR 132–148</span>
+                    <span class="text-[9px] px-1.5 py-0.5 rounded bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">+800 ft</span>
+                    <span class="text-[9px] px-1.5 py-0.5 rounded bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">TSS 62</span>
+                  </div>
+                  <!-- ActivityCard inline -->
+                  <div class="mt-2 rounded bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-2">
+                    <div class="text-[9px] font-semibold uppercase tracking-wide text-slate-500 mb-1">Route · GAP overlay</div>
+                    <svg viewBox="0 0 280 50" class="w-full h-10">
+                      <path d="M 0 40 Q 40 30 70 32 T 140 25 T 210 18 T 280 20" stroke="#0d9488" stroke-width="2" fill="none"/>
+                      <path d="M 0 42 Q 40 38 70 36 T 140 32 T 210 28 T 280 29" stroke="#94a3b8" stroke-width="1" fill="none" stroke-dasharray="2,2"/>
+                    </svg>
+                    <div class="flex justify-between text-[9px] text-slate-500">
+                      <span>Pace 9:14/mi</span>
+                      <span>GAP 8:42/mi</span>
+                      <span>+4% adj.</span>
+                    </div>
+                  </div>
+                  <button class="text-[10px] mt-2 text-indigo-600 font-medium">Why this workout? →</button>
+                </div>
+
+                <!-- Tue -->
+                <div class="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-2">
+                  <div class="flex items-center justify-between">
+                    <div>
+                      <div class="text-[10px] text-slate-500 uppercase tracking-wide">Tue</div>
+                      <div class="text-[11px] font-medium">Rest · Active recovery</div>
+                    </div>
+                    <span class="text-[9px] text-slate-400">—</span>
+                  </div>
+                </div>
+                <!-- Wed -->
+                <div class="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-2">
+                  <div class="flex items-center justify-between">
+                    <div>
+                      <div class="text-[10px] text-slate-500 uppercase tracking-wide">Wed</div>
+                      <div class="text-[11px] font-medium">VO2 · 6×3' hills</div>
+                    </div>
+                    <span class="text-[9px] px-1.5 py-0.5 rounded tier-T1">T1</span>
+                  </div>
+                </div>
+                <!-- Thu -->
+                <div class="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-2">
+                  <div class="flex items-center justify-between">
+                    <div>
+                      <div class="text-[10px] text-slate-500 uppercase tracking-wide">Thu</div>
+                      <div class="text-[11px] font-medium">Z2 · 60 min</div>
+                    </div>
+                    <span class="text-[9px] px-1.5 py-0.5 rounded tier-T2">T2</span>
+                  </div>
+                </div>
+                <!-- Sat -->
+                <div class="rounded-lg border border-slate-200 dark:border-slate-700 bg-amber-50 dark:bg-amber-950/30 p-2">
+                  <div class="flex items-center justify-between">
+                    <div>
+                      <div class="text-[10px] text-slate-500 uppercase tracking-wide">Sat</div>
+                      <div class="text-[11px] font-medium">Vertical focus · 2,800 ft</div>
+                    </div>
+                    <span class="text-[9px] px-1.5 py-0.5 rounded tier-T1">T1</span>
+                  </div>
+                </div>
+                <!-- Sun -->
+                <div class="rounded-lg border border-slate-200 dark:border-slate-700 bg-purple-50 dark:bg-purple-950/30 p-2">
+                  <div class="flex items-center justify-between">
+                    <div>
+                      <div class="text-[10px] text-slate-500 uppercase tracking-wide">Sun</div>
+                      <div class="text-[11px] font-medium">Long run · 2h 15m</div>
+                    </div>
+                    <span class="text-[9px] px-1.5 py-0.5 rounded tier-T2">T2</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="iphone-tabbar">
+              <div class="iphone-tab"><div class="iphone-tab-dot">📋</div><div>Summary</div></div>
+              <div class="iphone-tab active"><div class="iphone-tab-dot">📅</div><div>Plan</div></div>
+              <div class="iphone-tab"><div class="iphone-tab-dot">📊</div><div>Stats</div></div>
+              <div class="iphone-tab"><div class="iphone-tab-dot">💬</div><div>Coach</div></div>
+              <div class="iphone-tab"><div class="iphone-tab-dot">⚙️</div><div>Settings</div></div>
+            </div>
+            <div class="iphone-home-indicator"></div>
+          </div>
+        </div>
+
+        <aside class="flex-1 min-w-[280px] max-w-md space-y-3">
+          <div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4">
+            <div class="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">What changes here</div>
+            <ul class="text-sm space-y-2 list-disc pl-4">
+              <li><strong>Evidence-tier chip</strong> on each day card (T1/T2) — shows how confident the coach is in the plan.</li>
+              <li><strong>ActivityCard + GAP overlay</strong> nested inside expanded day — was standalone before.</li>
+              <li><strong>"Why this workout?"</strong> link surfaces the engine decisions → Screen 11.</li>
+              <li>Week selector, volume chart, day list already exist.</li>
+            </ul>
+          </div>
+          <div class="rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 p-4">
+            <div class="text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300 mb-1">Files touched</div>
+            <div class="text-sm text-slate-700 dark:text-slate-200"><code>PlanView.tsx</code> (add evidence chip + expanded ActivityCard), new <code>ActivityCard.tsx</code> (Sprint 3).</div>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- ===================== USER · STATS TAB ===================== -->
+    <section data-screen id="user-stats" class="p-6 sm:p-8 space-y-6">
+      <div class="flex items-start justify-between flex-wrap gap-2">
+        <div>
+          <h1 class="text-2xl font-bold">📱 Stats tab — integrated user view</h1>
+          <p class="text-sm text-slate-500 dark:text-slate-400 max-w-2xl">Compliance, readiness trend, and performance — with the new <strong>Eccentric load strip</strong> from the Descent engine sitting between CTL/ATL and the calendar heatmap.</p>
+        </div>
+        <span class="text-xs px-2 py-1 rounded-full bg-indigo-100 text-indigo-800 border border-indigo-300 dark:bg-indigo-900/40 dark:text-indigo-200 dark:border-indigo-700">User view</span>
+      </div>
+
+      <div class="flex flex-wrap gap-10 items-start justify-center lg:justify-start">
+        <div class="iphone">
+          <div class="iphone-notch"></div>
+          <div class="iphone-screen">
+            <div class="iphone-statusbar">
+              <span>6:42</span>
+              <span class="sb-right">●●● 🛜 🔋</span>
+            </div>
+            <div class="iphone-header">
+              <div class="flex items-center justify-between">
+                <div>
+                  <div class="text-[10px] opacity-75 uppercase tracking-wide">Performance</div>
+                  <div class="text-sm font-semibold">Last 90 days</div>
+                </div>
+                <div class="text-[10px] bg-white/10 border border-white/20 px-2 py-0.5 rounded">Peak phase</div>
+              </div>
+            </div>
+            <div class="iphone-content text-slate-900 dark:text-slate-100">
+              <!-- Sub-tabs -->
+              <div class="flex gap-1 mb-3 text-[10px]">
+                <button class="flex-1 py-1.5 rounded border-b-2 border-teal-600 font-semibold text-teal-700">Load</button>
+                <button class="flex-1 py-1.5 rounded border-b border-slate-200 dark:border-slate-700 text-slate-500">Readiness</button>
+                <button class="flex-1 py-1.5 rounded border-b border-slate-200 dark:border-slate-700 text-slate-500">Perf</button>
+                <button class="flex-1 py-1.5 rounded border-b border-slate-200 dark:border-slate-700 text-slate-500">Comply</button>
+              </div>
+
+              <!-- CTL/ATL/TSB -->
+              <div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3 mb-3">
+                <div class="flex items-center justify-between mb-2">
+                  <div class="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Fitness &amp; Freshness</div>
+                  <span class="text-[9px] px-1.5 py-0.5 rounded tier-T1">T1</span>
+                </div>
+                <div class="grid grid-cols-3 gap-2 mb-2">
+                  <div class="text-center">
+                    <div class="text-[9px] text-slate-500">CTL</div>
+                    <div class="text-base font-bold text-blue-600">58</div>
+                    <div class="text-[9px] text-emerald-600">+3.2</div>
+                  </div>
+                  <div class="text-center">
+                    <div class="text-[9px] text-slate-500">ATL</div>
+                    <div class="text-base font-bold text-rose-600">62</div>
+                    <div class="text-[9px] text-slate-500">+1.8</div>
+                  </div>
+                  <div class="text-center">
+                    <div class="text-[9px] text-slate-500">TSB</div>
+                    <div class="text-base font-bold text-amber-600">−4</div>
+                    <div class="text-[9px] text-slate-500">ready</div>
+                  </div>
+                </div>
+                <svg viewBox="0 0 280 60" class="w-full h-14">
+                  <path d="M 0 40 Q 40 35 80 32 T 160 25 T 240 20 L 280 18" stroke="#2563eb" stroke-width="2" fill="none"/>
+                  <path d="M 0 45 Q 40 40 80 35 T 160 28 T 240 22 L 280 16" stroke="#e11d48" stroke-width="2" fill="none" stroke-dasharray="2,2"/>
+                  <line x1="0" y1="50" x2="280" y2="50" stroke="#94a3b8" stroke-width="0.5"/>
+                </svg>
+              </div>
+
+              <!-- NEW: Eccentric load strip -->
+              <div class="rounded-xl border-2 border-amber-300 dark:border-amber-600 bg-amber-50 dark:bg-amber-950/30 p-3 mb-3">
+                <div class="flex items-center justify-between mb-2">
+                  <div>
+                    <div class="text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-300">⬇ Eccentric load · NEW</div>
+                    <div class="text-[11px] text-slate-700 dark:text-slate-200 mt-0.5">How much downhill pounding your legs absorbed</div>
+                  </div>
+                  <span class="text-[9px] px-1.5 py-0.5 rounded tier-T3">T3</span>
+                </div>
+                <div class="flex items-end gap-0.5 h-8 mt-1">
+                  <div class="flex-1 bg-amber-300 rounded-t" style="height:20%"></div>
+                  <div class="flex-1 bg-amber-300 rounded-t" style="height:35%"></div>
+                  <div class="flex-1 bg-amber-400 rounded-t" style="height:55%"></div>
+                  <div class="flex-1 bg-amber-400 rounded-t" style="height:40%"></div>
+                  <div class="flex-1 bg-amber-500 rounded-t" style="height:70%"></div>
+                  <div class="flex-1 bg-amber-600 rounded-t" style="height:95%"></div>
+                  <div class="flex-1 bg-amber-400 rounded-t" style="height:60%"></div>
+                </div>
+                <div class="flex justify-between text-[9px] text-slate-500 mt-1">
+                  <span>7d</span>
+                  <span>60% moderate</span>
+                  <span>Sat: high</span>
+                </div>
+              </div>
+
+              <!-- Calendar heatmap -->
+              <div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3 mb-3">
+                <div class="text-[10px] font-semibold uppercase tracking-wide text-slate-500 mb-2">Calendar · last 8 weeks</div>
+                <div class="grid grid-cols-8 gap-0.5">
+                  <!-- 56 cells: 7x8 -->
+                  <!-- week 1 -->
+                  <div class="aspect-square rounded-sm bg-emerald-200"></div><div class="aspect-square rounded-sm bg-slate-100 dark:bg-slate-700"></div><div class="aspect-square rounded-sm bg-emerald-400"></div><div class="aspect-square rounded-sm bg-emerald-300"></div><div class="aspect-square rounded-sm bg-slate-100 dark:bg-slate-700"></div><div class="aspect-square rounded-sm bg-emerald-500"></div><div class="aspect-square rounded-sm bg-emerald-600"></div><div class="aspect-square rounded-sm bg-emerald-300"></div>
+                  <!-- week 2 -->
+                  <div class="aspect-square rounded-sm bg-emerald-300"></div><div class="aspect-square rounded-sm bg-slate-100 dark:bg-slate-700"></div><div class="aspect-square rounded-sm bg-emerald-400"></div><div class="aspect-square rounded-sm bg-emerald-300"></div><div class="aspect-square rounded-sm bg-slate-100 dark:bg-slate-700"></div><div class="aspect-square rounded-sm bg-emerald-500"></div><div class="aspect-square rounded-sm bg-emerald-600"></div><div class="aspect-square rounded-sm bg-emerald-300"></div>
+                  <!-- week 3 -->
+                  <div class="aspect-square rounded-sm bg-emerald-400"></div><div class="aspect-square rounded-sm bg-slate-100 dark:bg-slate-700"></div><div class="aspect-square rounded-sm bg-emerald-500"></div><div class="aspect-square rounded-sm bg-emerald-400"></div><div class="aspect-square rounded-sm bg-slate-100 dark:bg-slate-700"></div><div class="aspect-square rounded-sm bg-emerald-600"></div><div class="aspect-square rounded-sm bg-emerald-700"></div><div class="aspect-square rounded-sm bg-emerald-400"></div>
+                  <!-- week 4 -->
+                  <div class="aspect-square rounded-sm bg-amber-400"></div><div class="aspect-square rounded-sm bg-slate-100 dark:bg-slate-700"></div><div class="aspect-square rounded-sm bg-amber-500"></div><div class="aspect-square rounded-sm bg-emerald-400"></div><div class="aspect-square rounded-sm bg-slate-100 dark:bg-slate-700"></div><div class="aspect-square rounded-sm bg-rose-400"></div><div class="aspect-square rounded-sm bg-rose-500"></div><div class="aspect-square rounded-sm bg-emerald-500"></div>
+                </div>
+                <div class="flex justify-between text-[9px] text-slate-500 mt-2">
+                  <span>Apr</span>
+                  <span>Mar</span>
+                </div>
+              </div>
+            </div>
+            <div class="iphone-tabbar">
+              <div class="iphone-tab"><div class="iphone-tab-dot">📋</div><div>Summary</div></div>
+              <div class="iphone-tab"><div class="iphone-tab-dot">📅</div><div>Plan</div></div>
+              <div class="iphone-tab active"><div class="iphone-tab-dot">📊</div><div>Stats</div></div>
+              <div class="iphone-tab"><div class="iphone-tab-dot">💬</div><div>Coach</div></div>
+              <div class="iphone-tab"><div class="iphone-tab-dot">⚙️</div><div>Settings</div></div>
+            </div>
+            <div class="iphone-home-indicator"></div>
+          </div>
+        </div>
+
+        <aside class="flex-1 min-w-[280px] max-w-md space-y-3">
+          <div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4">
+            <div class="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">The only visible addition</div>
+            <ul class="text-sm space-y-2 list-disc pl-4">
+              <li><strong>Eccentric load strip</strong> (NEW) — the Descent engine surfaces here. Answers "how much downhill pounding have my legs been through?"</li>
+              <li>CTL/ATL/TSB panel, readiness chart, and calendar heatmap stay the same.</li>
+              <li>Evidence-tier chips added to each stat block.</li>
+            </ul>
+          </div>
+          <div class="rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 p-4">
+            <div class="text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300 mb-1">Files touched</div>
+            <div class="text-sm text-slate-700 dark:text-slate-200">New <code>EccentricLoadStrip.tsx</code> (Sprint 8), <code>StatsView.tsx</code> (mount it), <code>EvidenceTierChip.tsx</code> (Sprint 1).</div>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- ===================== USER · COACH TAB ===================== -->
+    <section data-screen id="user-coach" class="p-6 sm:p-8 space-y-6">
+      <div class="flex items-start justify-between flex-wrap gap-2">
+        <div>
+          <h1 class="text-2xl font-bold">📱 Coach tab — integrated user view</h1>
+          <p class="text-sm text-slate-500 dark:text-slate-400 max-w-2xl">The conversational surface. Insights, chat, and the new <strong>AMS advisory</strong> proactive ping from the Altitude engine live here.</p>
+        </div>
+        <span class="text-xs px-2 py-1 rounded-full bg-indigo-100 text-indigo-800 border border-indigo-300 dark:bg-indigo-900/40 dark:text-indigo-200 dark:border-indigo-700">User view</span>
+      </div>
+
+      <div class="flex flex-wrap gap-10 items-start justify-center lg:justify-start">
+        <div class="iphone">
+          <div class="iphone-notch"></div>
+          <div class="iphone-screen">
+            <div class="iphone-statusbar">
+              <span>6:42</span>
+              <span class="sb-right">●●● 🛜 🔋</span>
+            </div>
+            <div class="iphone-header">
+              <div class="flex items-center justify-between">
+                <div>
+                  <div class="text-[10px] opacity-75 uppercase tracking-wide">Coach</div>
+                  <div class="text-sm font-semibold">Riley · Analytical</div>
+                </div>
+                <div class="text-[10px] bg-white/10 border border-white/20 px-2 py-0.5 rounded">GPT-4</div>
+              </div>
+            </div>
+            <div class="iphone-content text-slate-900 dark:text-slate-100">
+              <!-- AMS Advisory proactive ping (NEW) -->
+              <div class="rounded-xl border-2 border-amber-300 dark:border-amber-600 bg-amber-50 dark:bg-amber-950/30 p-3 mb-3">
+                <div class="flex items-start gap-2">
+                  <div class="text-base">⛅</div>
+                  <div class="flex-1">
+                    <div class="flex items-center justify-between">
+                      <div class="text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-300">Altitude advisory · NEW</div>
+                      <span class="text-[9px] px-1.5 py-0.5 rounded tier-T3">T3</span>
+                    </div>
+                    <div class="text-[11px] text-slate-700 dark:text-slate-200 leading-snug mt-1">Race is at 7,300 ft. You arrive 2 days before. Recommend adding <strong>3× Zwift hypoxia sessions</strong> in the next 2 weeks.</div>
+                    <div class="flex gap-1 mt-2">
+                      <button class="text-[10px] bg-amber-600 text-white px-2 py-1 rounded font-semibold">Add to plan</button>
+                      <button class="text-[10px] text-amber-700 dark:text-amber-300 px-2 py-1">Dismiss</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Daily insight -->
+              <div class="rounded-xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 p-3 mb-3">
+                <div class="text-[10px] font-semibold uppercase tracking-wide text-indigo-700 dark:text-indigo-300 mb-1">Daily insight</div>
+                <div class="text-[11px] text-slate-700 dark:text-slate-200 leading-snug">Your HRV rose 8% this week and muscle inflammation (MIM) dropped to baseline — your body adapted well to last week's VO2 block. Green light for a second hill session Wednesday.</div>
+              </div>
+
+              <!-- Chat thread -->
+              <div class="space-y-2 mb-3">
+                <div class="flex justify-end">
+                  <div class="max-w-[75%] rounded-xl rounded-br-none bg-teal-600 text-white px-3 py-2 text-[11px]">Why was my workout shortened yesterday?</div>
+                </div>
+                <div class="flex">
+                  <div class="max-w-[80%] rounded-xl rounded-bl-none bg-slate-100 dark:bg-slate-700 px-3 py-2 text-[11px] leading-snug">Your descent-load from Saturday was 35% higher than expected — your eccentric strip flagged red. I dropped Sunday's long run to 75 min to protect your quads.
+                    <div class="mt-1.5 flex gap-1">
+                      <span class="text-[9px] px-1.5 py-0.5 rounded tier-T2 border">Descent · T2</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="flex justify-end">
+                  <div class="max-w-[75%] rounded-xl rounded-br-none bg-teal-600 text-white px-3 py-2 text-[11px]">Makes sense. How's my terrain score?</div>
+                </div>
+                <div class="flex">
+                  <div class="max-w-[80%] rounded-xl rounded-bl-none bg-slate-100 dark:bg-slate-700 px-3 py-2 text-[11px] leading-snug">+4.2% GAP over the last 30 days — you're running hills faster than your flats predict. That's exactly what peak phase should do.
+                    <div class="mt-1.5 flex gap-1">
+                      <span class="text-[9px] px-1.5 py-0.5 rounded tier-T1 border">Terrain · T1</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Pending inference (NEW) -->
+              <div class="rounded-xl border border-dashed border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 p-2.5 mb-3">
+                <div class="flex items-center gap-2">
+                  <div class="animate-pulse text-base">⟳</div>
+                  <div class="flex-1">
+                    <div class="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Pending · tonight</div>
+                    <div class="text-[10px] text-slate-600 dark:text-slate-300">MIM recovery check · weekly retrospective</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Input -->
+              <div class="flex items-center gap-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full p-1">
+                <input type="text" placeholder="Ask Riley…" class="flex-1 bg-transparent px-2 text-[11px] outline-none" />
+                <button class="w-7 h-7 rounded-full bg-teal-600 text-white text-[11px]">↑</button>
+              </div>
+            </div>
+            <div class="iphone-tabbar">
+              <div class="iphone-tab"><div class="iphone-tab-dot">📋</div><div>Summary</div></div>
+              <div class="iphone-tab"><div class="iphone-tab-dot">📅</div><div>Plan</div></div>
+              <div class="iphone-tab"><div class="iphone-tab-dot">📊</div><div>Stats</div></div>
+              <div class="iphone-tab active"><div class="iphone-tab-dot">💬</div><div>Coach</div></div>
+              <div class="iphone-tab"><div class="iphone-tab-dot">⚙️</div><div>Settings</div></div>
+            </div>
+            <div class="iphone-home-indicator"></div>
+          </div>
+        </div>
+
+        <aside class="flex-1 min-w-[280px] max-w-md space-y-3">
+          <div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4">
+            <div class="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">What's new on Coach</div>
+            <ul class="text-sm space-y-2 list-disc pl-4">
+              <li><strong>AMS Altitude advisory</strong> proactive ping — fires when a trip at altitude is detected.</li>
+              <li>Chat messages now <strong>cite which engine</strong> (Descent T2, Terrain T1) for explainability.</li>
+              <li>Pending inference indicator (MIM weekly check).</li>
+              <li>Daily insight and chat shell already exist.</li>
+            </ul>
+          </div>
+          <div class="rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 p-4">
+            <div class="text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300 mb-1">Files touched</div>
+            <div class="text-sm text-slate-700 dark:text-slate-200">New <code>AltitudeAdvisoryCard.tsx</code> (Sprint 11), <code>CoachChat.tsx</code> (add engine citation chips), <code>CoachInsightCard.tsx</code> (mention MIM).</div>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- ===================== USER · SETTINGS TAB ===================== -->
+    <section data-screen id="user-settings" class="p-6 sm:p-8 space-y-6">
+      <div class="flex items-start justify-between flex-wrap gap-2">
+        <div>
+          <h1 class="text-2xl font-bold">📱 Settings tab — integrated user view</h1>
+          <p class="text-sm text-slate-500 dark:text-slate-400 max-w-2xl">Where the new <strong>Trips</strong> section (altitude wizard trigger) and <strong>Methodology</strong> link sit — alongside the existing profile, persona, and integrations rows.</p>
+        </div>
+        <span class="text-xs px-2 py-1 rounded-full bg-indigo-100 text-indigo-800 border border-indigo-300 dark:bg-indigo-900/40 dark:text-indigo-200 dark:border-indigo-700">User view</span>
+      </div>
+
+      <div class="flex flex-wrap gap-10 items-start justify-center lg:justify-start">
+        <div class="iphone">
+          <div class="iphone-notch"></div>
+          <div class="iphone-screen">
+            <div class="iphone-statusbar">
+              <span>6:42</span>
+              <span class="sb-right">●●● 🛜 🔋</span>
+            </div>
+            <div class="iphone-header">
+              <div class="flex items-center justify-between">
+                <div>
+                  <div class="text-[10px] opacity-75 uppercase tracking-wide">Settings</div>
+                  <div class="text-sm font-semibold">mcbeebe@gmail.com</div>
+                </div>
+              </div>
+            </div>
+            <div class="iphone-content text-slate-900 dark:text-slate-100">
+              <!-- Profile card -->
+              <div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3 mb-3">
+                <div class="flex items-center gap-2">
+                  <div class="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-blue-600 text-white flex items-center justify-center text-sm font-bold">MB</div>
+                  <div class="flex-1">
+                    <div class="text-[12px] font-semibold">Mike Beebe</div>
+                    <div class="text-[10px] text-slate-500">Age 42 · 170 lb · Intermediate</div>
+                  </div>
+                  <span class="text-slate-400">›</span>
+                </div>
+              </div>
+
+              <!-- Trips (NEW) -->
+              <div class="text-[10px] font-semibold uppercase tracking-wide text-slate-500 mb-1">Trips · NEW</div>
+              <div class="rounded-xl border-2 border-amber-300 dark:border-amber-600 bg-amber-50 dark:bg-amber-950/30 p-3 mb-3">
+                <div class="flex items-start gap-2">
+                  <div class="text-base">✈️</div>
+                  <div class="flex-1">
+                    <div class="text-[11px] font-semibold">Upcoming · Broken Arrow VK</div>
+                    <div class="text-[10px] text-slate-600 dark:text-slate-300">Jun 6 · Olympic Valley · 7,300 ft</div>
+                    <div class="flex items-center gap-1 mt-1">
+                      <span class="text-[9px] px-1.5 py-0.5 rounded tier-T3">Altitude · T3</span>
+                      <span class="text-[9px] text-amber-700 dark:text-amber-300 font-medium">Wizard: 3 sessions proposed</span>
+                    </div>
+                  </div>
+                  <button class="text-[10px] px-2 py-1 bg-amber-600 text-white rounded font-semibold">Open</button>
+                </div>
+              </div>
+
+              <!-- Coach persona -->
+              <div class="text-[10px] font-semibold uppercase tracking-wide text-slate-500 mb-1">Coach</div>
+              <div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 divide-y divide-slate-200 dark:divide-slate-700 mb-3">
+                <div class="p-2.5 flex items-center justify-between">
+                  <div>
+                    <div class="text-[11px] font-medium">Persona</div>
+                    <div class="text-[10px] text-slate-500">Analytical (Riley)</div>
+                  </div>
+                  <span class="text-slate-400">›</span>
+                </div>
+                <div class="p-2.5 flex items-center justify-between">
+                  <div>
+                    <div class="text-[11px] font-medium">Message frequency</div>
+                    <div class="text-[10px] text-slate-500">Daily insight + proactive</div>
+                  </div>
+                  <span class="text-slate-400">›</span>
+                </div>
+              </div>
+
+              <!-- Integrations -->
+              <div class="text-[10px] font-semibold uppercase tracking-wide text-slate-500 mb-1">Integrations</div>
+              <div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 divide-y divide-slate-200 dark:divide-slate-700 mb-3">
+                <div class="p-2.5 flex items-center justify-between">
+                  <div class="flex items-center gap-2">
+                    <div class="w-5 h-5 rounded bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">S</div>
+                    <div>
+                      <div class="text-[11px] font-medium">Strava</div>
+                      <div class="text-[10px] text-emerald-600">Connected</div>
+                    </div>
+                  </div>
+                  <span class="text-slate-400">›</span>
+                </div>
+                <div class="p-2.5 flex items-center justify-between">
+                  <div class="flex items-center gap-2">
+                    <div class="w-5 h-5 rounded bg-slate-700 text-white text-[10px] font-bold flex items-center justify-center">G</div>
+                    <div>
+                      <div class="text-[11px] font-medium">Garmin</div>
+                      <div class="text-[10px] text-emerald-600">Connected</div>
+                    </div>
+                  </div>
+                  <span class="text-slate-400">›</span>
+                </div>
+                <div class="p-2.5 flex items-center justify-between">
+                  <div class="flex items-center gap-2">
+                    <div class="w-5 h-5 rounded bg-purple-600 text-white text-[10px] font-bold flex items-center justify-center">Z</div>
+                    <div>
+                      <div class="text-[11px] font-medium">Zwift</div>
+                      <div class="text-[10px] text-slate-500">Connect for altitude prep</div>
+                    </div>
+                  </div>
+                  <span class="text-slate-400">›</span>
+                </div>
+              </div>
+
+              <!-- Methodology link (NEW) -->
+              <a href="#s12" class="block rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3 mb-3">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <div class="text-[11px] font-semibold">Methodology · NEW</div>
+                    <div class="text-[10px] text-slate-500">How the 5 engines work together</div>
+                  </div>
+                  <span class="text-slate-400">›</span>
+                </div>
+              </a>
+            </div>
+            <div class="iphone-tabbar">
+              <div class="iphone-tab"><div class="iphone-tab-dot">📋</div><div>Summary</div></div>
+              <div class="iphone-tab"><div class="iphone-tab-dot">📅</div><div>Plan</div></div>
+              <div class="iphone-tab"><div class="iphone-tab-dot">📊</div><div>Stats</div></div>
+              <div class="iphone-tab"><div class="iphone-tab-dot">💬</div><div>Coach</div></div>
+              <div class="iphone-tab active"><div class="iphone-tab-dot">⚙️</div><div>Settings</div></div>
+            </div>
+            <div class="iphone-home-indicator"></div>
+          </div>
+        </div>
+
+        <aside class="flex-1 min-w-[280px] max-w-md space-y-3">
+          <div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4">
+            <div class="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">Two new rows on Settings</div>
+            <ul class="text-sm space-y-2 list-disc pl-4">
+              <li><strong>Trips</strong> — where the altitude wizard is surfaced; detects upcoming high-elevation races from calendar.</li>
+              <li><strong>Methodology</strong> link — opens Screen 12 ("How the engines work"). Makes the system legible.</li>
+              <li>Profile, coach persona, integrations already exist.</li>
+            </ul>
+          </div>
+          <div class="rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 p-4">
+            <div class="text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300 mb-1">Files touched</div>
+            <div class="text-sm text-slate-700 dark:text-slate-200">New <code>TripsSection.tsx</code> + <code>AltitudeWizard.tsx</code> (Sprint 11), <code>SettingsView.tsx</code> (add rows), <code>MethodologyView.tsx</code> (Sprint 13).</div>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- ===================== USER · MORNING JOURNEY ===================== -->
+    <section data-screen id="user-journey" class="p-6 sm:p-8 space-y-6">
+      <div class="flex items-start justify-between flex-wrap gap-2">
+        <div>
+          <h1 class="text-2xl font-bold">🗺 Morning journey — end-to-end user flow</h1>
+          <p class="text-sm text-slate-500 dark:text-slate-400 max-w-2xl">A typical Monday morning: Mike wakes up, opens the app, gets curious about his Descent tier, taps into "Why this workout?", and starts his run. 5 taps, ~30 seconds.</p>
+        </div>
+        <span class="text-xs px-2 py-1 rounded-full bg-indigo-100 text-indigo-800 border border-indigo-300 dark:bg-indigo-900/40 dark:text-indigo-200 dark:border-indigo-700">User flow · 5 steps</span>
+      </div>
+
+      <div class="overflow-x-auto pb-4">
+        <div class="flex items-start gap-3 min-w-max">
+          <!-- Step 1: Lock screen -->
+          <div class="flex flex-col items-center gap-2">
+            <div class="iphone iphone-sm">
+              <div class="iphone-notch"></div>
+              <div class="iphone-screen" style="background: linear-gradient(160deg,#0c4a6e,#134e4a);">
+                <div class="iphone-statusbar" style="background:transparent;">
+                  <span>6:42</span>
+                  <span class="sb-right">●● 🔋</span>
+                </div>
+                <div class="flex-1 flex flex-col items-center justify-center text-white p-2 text-center">
+                  <div class="text-[22px] font-light leading-none">6:42</div>
+                  <div class="text-[9px] opacity-75 mb-2">Monday, April 20</div>
+                  <div class="w-full rounded-lg bg-white/10 backdrop-blur border border-white/20 p-2 text-left">
+                    <div class="flex items-center gap-1">
+                      <span class="text-[10px]">BA</span>
+                      <span class="text-[8px] opacity-75">now</span>
+                    </div>
+                    <div class="text-[9px] leading-tight mt-0.5">Ready to run — PEAK 92/100. 80 min Z2 awaits.</div>
+                  </div>
+                </div>
+                <div class="iphone-home-indicator"></div>
+              </div>
+            </div>
+            <div class="text-center w-44">
+              <div class="text-[10px] font-semibold text-teal-700 dark:text-teal-300">① Lock screen</div>
+              <div class="text-[10px] text-slate-500">Push notification from BA</div>
+            </div>
+          </div>
+
+          <div class="pt-24 text-2xl text-slate-300">→</div>
+
+          <!-- Step 2: Summary opens -->
+          <div class="flex flex-col items-center gap-2">
+            <div class="iphone iphone-sm">
+              <div class="iphone-notch"></div>
+              <div class="iphone-screen">
+                <div class="iphone-statusbar">
+                  <span>6:42</span>
+                  <span class="sb-right">●● 🔋</span>
+                </div>
+                <div class="iphone-header">
+                  <div class="text-[7px] opacity-75 uppercase">Broken Arrow VK</div>
+                  <div class="text-[10px] font-semibold">47 days</div>
+                </div>
+                <div class="iphone-content text-slate-900 dark:text-slate-100">
+                  <div class="rounded p-1.5 mb-1" style="background:linear-gradient(135deg,#10b981,#059669);color:#fff;">
+                    <div class="text-[7px] opacity-85 uppercase">Readiness</div>
+                    <div class="text-[11px] font-bold">PEAK 92</div>
+                  </div>
+                  <div class="grid grid-cols-2 gap-1 mb-1">
+                    <div class="rounded border border-slate-200 p-1"><div class="text-[7px]">⛰ Terrain</div><div class="text-[8px] font-bold">T1</div></div>
+                    <div class="rounded border border-slate-200 p-1"><div class="text-[7px]">🧬 MIM</div><div class="text-[8px] font-bold">T2</div></div>
+                    <div class="rounded border-2 border-teal-500 p-1 bg-teal-50"><div class="text-[7px]">⬇ Descent</div><div class="text-[8px] font-bold">T3</div></div>
+                    <div class="rounded border border-slate-200 p-1"><div class="text-[7px]">⛅ Alt</div><div class="text-[8px] font-bold">T2</div></div>
+                  </div>
+                  <div class="rounded border border-slate-200 p-1.5">
+                    <div class="text-[7px] text-slate-500">Today</div>
+                    <div class="text-[9px] font-semibold">Z2 · 80 min</div>
+                  </div>
+                </div>
+                <div class="iphone-tabbar">
+                  <div class="iphone-tab active"><div class="iphone-tab-dot">📋</div><div>Sum</div></div>
+                  <div class="iphone-tab"><div class="iphone-tab-dot">📅</div><div>Plan</div></div>
+                  <div class="iphone-tab"><div class="iphone-tab-dot">📊</div><div>Stat</div></div>
+                  <div class="iphone-tab"><div class="iphone-tab-dot">💬</div><div>Coa</div></div>
+                  <div class="iphone-tab"><div class="iphone-tab-dot">⚙️</div><div>Set</div></div>
+                </div>
+                <div class="iphone-home-indicator"></div>
+              </div>
+            </div>
+            <div class="text-center w-44">
+              <div class="text-[10px] font-semibold text-teal-700 dark:text-teal-300">② Summary opens</div>
+              <div class="text-[10px] text-slate-500">"Wait — why is Descent T3?"</div>
+            </div>
+          </div>
+
+          <div class="pt-24 text-2xl text-slate-300">→</div>
+
+          <!-- Step 3: Descent drill-in -->
+          <div class="flex flex-col items-center gap-2">
+            <div class="iphone iphone-sm">
+              <div class="iphone-notch"></div>
+              <div class="iphone-screen">
+                <div class="iphone-statusbar">
+                  <span>6:42</span>
+                  <span class="sb-right">●● 🔋</span>
+                </div>
+                <div class="iphone-header">
+                  <div class="text-[7px] opacity-75 uppercase">← Back</div>
+                  <div class="text-[10px] font-semibold">⬇ Descent engine</div>
+                </div>
+                <div class="iphone-content text-slate-900 dark:text-slate-100">
+                  <div class="rounded p-1.5 mb-1 bg-amber-50 border border-amber-300">
+                    <div class="text-[7px] uppercase text-amber-700">Eccentric load</div>
+                    <div class="text-[10px] font-bold">HIGH · 7d</div>
+                  </div>
+                  <div class="flex items-end gap-0.5 h-6 mb-1">
+                    <div class="flex-1 bg-amber-300 rounded-t" style="height:30%"></div>
+                    <div class="flex-1 bg-amber-400 rounded-t" style="height:55%"></div>
+                    <div class="flex-1 bg-amber-500 rounded-t" style="height:75%"></div>
+                    <div class="flex-1 bg-amber-600 rounded-t" style="height:95%"></div>
+                    <div class="flex-1 bg-amber-400 rounded-t" style="height:60%"></div>
+                  </div>
+                  <div class="text-[8px] leading-snug">Saturday's 2,800ft descent pushed your quads into orange. Today = flat to recover.</div>
+                </div>
+                <div class="iphone-tabbar">
+                  <div class="iphone-tab active"><div class="iphone-tab-dot">📋</div><div>Sum</div></div>
+                  <div class="iphone-tab"><div class="iphone-tab-dot">📅</div><div>Plan</div></div>
+                  <div class="iphone-tab"><div class="iphone-tab-dot">📊</div><div>Stat</div></div>
+                  <div class="iphone-tab"><div class="iphone-tab-dot">💬</div><div>Coa</div></div>
+                  <div class="iphone-tab"><div class="iphone-tab-dot">⚙️</div><div>Set</div></div>
+                </div>
+                <div class="iphone-home-indicator"></div>
+              </div>
+            </div>
+            <div class="text-center w-44">
+              <div class="text-[10px] font-semibold text-teal-700 dark:text-teal-300">③ Tap Descent</div>
+              <div class="text-[10px] text-slate-500">"Oh, that's why."</div>
+            </div>
+          </div>
+
+          <div class="pt-24 text-2xl text-slate-300">→</div>
+
+          <!-- Step 4: Why this workout? -->
+          <div class="flex flex-col items-center gap-2">
+            <div class="iphone iphone-sm">
+              <div class="iphone-notch"></div>
+              <div class="iphone-screen">
+                <div class="iphone-statusbar">
+                  <span>6:42</span>
+                  <span class="sb-right">●● 🔋</span>
+                </div>
+                <div class="iphone-header">
+                  <div class="text-[7px] opacity-75 uppercase">← Back</div>
+                  <div class="text-[10px] font-semibold">⚡ Why Z2 today?</div>
+                </div>
+                <div class="iphone-content text-slate-900 dark:text-slate-100">
+                  <div class="rounded bg-indigo-50 p-1.5 mb-1 border border-indigo-200">
+                    <div class="text-[8px] leading-snug">Descent was high → flat route. Readiness high → +10 min. MIM normal → no intensity change.</div>
+                  </div>
+                  <div class="space-y-0.5">
+                    <div class="flex justify-between rounded border border-slate-200 p-1 text-[8px]">
+                      <span>⬇ Descent</span><span class="font-semibold text-amber-600">Flat ✓</span>
+                    </div>
+                    <div class="flex justify-between rounded border border-slate-200 p-1 text-[8px]">
+                      <span>📊 Readiness</span><span class="font-semibold text-emerald-600">+10m</span>
+                    </div>
+                    <div class="flex justify-between rounded border border-slate-200 p-1 text-[8px]">
+                      <span>🧬 MIM</span><span class="font-semibold text-slate-600">hold</span>
+                    </div>
+                    <div class="flex justify-between rounded border border-slate-200 p-1 text-[8px]">
+                      <span>⛰ Terrain</span><span class="font-semibold text-slate-600">N/A</span>
+                    </div>
+                    <div class="flex justify-between rounded border border-slate-200 p-1 text-[8px]">
+                      <span>⛅ Altitude</span><span class="font-semibold text-slate-600">sea</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="iphone-tabbar">
+                  <div class="iphone-tab active"><div class="iphone-tab-dot">📋</div><div>Sum</div></div>
+                  <div class="iphone-tab"><div class="iphone-tab-dot">📅</div><div>Plan</div></div>
+                  <div class="iphone-tab"><div class="iphone-tab-dot">📊</div><div>Stat</div></div>
+                  <div class="iphone-tab"><div class="iphone-tab-dot">💬</div><div>Coa</div></div>
+                  <div class="iphone-tab"><div class="iphone-tab-dot">⚙️</div><div>Set</div></div>
+                </div>
+                <div class="iphone-home-indicator"></div>
+              </div>
+            </div>
+            <div class="text-center w-44">
+              <div class="text-[10px] font-semibold text-teal-700 dark:text-teal-300">④ Why this workout?</div>
+              <div class="text-[10px] text-slate-500">All 5 engines' contribution</div>
+            </div>
+          </div>
+
+          <div class="pt-24 text-2xl text-slate-300">→</div>
+
+          <!-- Step 5: Start workout -->
+          <div class="flex flex-col items-center gap-2">
+            <div class="iphone iphone-sm">
+              <div class="iphone-notch"></div>
+              <div class="iphone-screen">
+                <div class="iphone-statusbar">
+                  <span>6:42</span>
+                  <span class="sb-right">●● 🔋</span>
+                </div>
+                <div class="iphone-header" style="background:#0d9488;">
+                  <div class="text-[7px] opacity-85 uppercase">Active workout</div>
+                  <div class="text-[10px] font-semibold">Z2 Aerobic · 80 min</div>
+                </div>
+                <div class="iphone-content flex flex-col items-center text-center gap-2 pt-4">
+                  <div class="text-[26px] font-light leading-none">00:00</div>
+                  <div class="text-[8px] text-slate-500">HR target 132–148</div>
+                  <div class="w-20 h-20 rounded-full border-4 border-teal-600 flex items-center justify-center">
+                    <div class="text-[9px] font-bold">START</div>
+                  </div>
+                  <div class="flex gap-1 text-[7px] justify-center">
+                    <span class="px-1.5 py-0.5 rounded bg-teal-50 text-teal-700 border border-teal-200">80 min</span>
+                    <span class="px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">+800 ft</span>
+                  </div>
+                </div>
+                <div class="iphone-home-indicator"></div>
+              </div>
+            </div>
+            <div class="text-center w-44">
+              <div class="text-[10px] font-semibold text-teal-700 dark:text-teal-300">⑤ Start the run</div>
+              <div class="text-[10px] text-slate-500">Confident in the plan</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 max-w-3xl">
+        <div class="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">What this flow proves</div>
+        <ul class="text-sm space-y-2 list-disc pl-5">
+          <li>The <strong>4 new engines are visible</strong> on Summary in one tap, deep data one more tap away — never dominates the UX.</li>
+          <li>"Why this workout?" (Screen 11) is the <strong>keystone screen</strong> — it answers the "but why?" question with all 5 engines' contribution in one place.</li>
+          <li>Average user interaction: <strong>5 taps, ~30 seconds</strong> from lock screen to starting their workout.</li>
+          <li>All additions are <strong>additive, not disruptive</strong> — the existing Summary/Plan/Stats/Coach/Settings layout is preserved.</li>
+        </ul>
+      </div>
+    </section>
 
     <!-- ===================== SCREEN 1 — DASHBOARD ===================== -->
     <section data-screen id="s1" class="p-6 sm:p-8 space-y-6">
@@ -2458,13 +3485,13 @@ export interface Engine&lt;TState, TScore&gt; {
   const screens = document.querySelectorAll('[data-screen]');
   const links = document.querySelectorAll('.nav-link');
   function show(hash) {
-    const id = (hash || '#s1').replace('#', '');
+    const id = (hash || '#user-summary').replace('#', '');
     screens.forEach(s => s.classList.toggle('active', s.id === id));
     links.forEach(l => l.setAttribute('data-active', l.getAttribute('href') === '#' + id));
     window.scrollTo(0, 0);
   }
   window.addEventListener('hashchange', () => show(window.location.hash));
-  show(window.location.hash || '#s1');
+  show(window.location.hash || '#user-summary');
 
   // Dark mode toggle
   const root = document.documentElement;
