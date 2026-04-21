@@ -249,8 +249,8 @@ export function garminDetailToActual(detail: GarminActivityDetail): ActualWorkou
 
   // Estimate avgHR from zone data when the summary doesn't provide it
   // (common for elliptical, rowing, and other non-standard cardio)
-  let avgHR = detail.averageHR ?? null
-  let maxHR = detail.maxHR ?? null
+  let avgHR: number | undefined = detail.averageHR ?? undefined
+  let maxHR: number | undefined = detail.maxHR ?? undefined
   if (!avgHR && detail.hrZones && Array.isArray(detail.hrZones)) {
     let totalSec = 0
     let weightedHR = 0
