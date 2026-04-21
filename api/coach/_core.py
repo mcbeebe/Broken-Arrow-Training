@@ -141,9 +141,9 @@ def ping_cooldown_key(athlete_id: str, trigger_type: str) -> str:
 # the system prompt ("quota running low, stay brief"). Keeps one
 # bad prompt loop from burning a weekend's worth of tokens.
 
-# Default budget: 200 LLM calls/day/athlete. Enough for heavy chat
-# use (30-40 turns) plus daily insight + workout takes + pings.
-DEFAULT_DAILY_BUDGET = 200
+# Default budget: 500 LLM calls/day/athlete. Enough for heavy chat
+# use plus daily insight + workout takes + pings + proactive notes.
+DEFAULT_DAILY_BUDGET = 500
 
 
 def budget_key(athlete_id: str, date_str: str) -> str:
@@ -179,6 +179,18 @@ def check_and_increment_budget(
         # KV unavailable — don't block on budget accounting
         return True, new_count, daily_budget
     return new_count <= daily_budget, new_count, daily_budget
+
+
+def reset_budget(athlete_id: str) -> bool:
+    """Reset today's budget counter for this athlete. Returns True on success."""
+    if not athlete_id:
+        return True
+    key = budget_key(athlete_id, _today_date_str())
+    try:
+        kv_set(key, "0", ex=172800)
+        return True
+    except Exception:
+        return False
 
 
 def telemetry_key(athlete_id: str, date_str: str) -> str:

@@ -17,6 +17,7 @@ from ._core import (
     kv_get_json,
     log_interaction,
     read_json_body,
+    reset_budget,
     samples_key,
     send_cors_preflight,
     send_json,
@@ -135,3 +136,17 @@ class handler(BaseHTTPRequestHandler):
                     meta=e.get("meta") if isinstance(e.get("meta"), dict) else None,
                 )
         send_json(self, 200, {"ok": True, "received": len(events)})
+
+    def do_DELETE(self):
+        """DELETE /api/coach/telemetry?athleteId=X&action=reset_budget"""
+        q = parse_qs(urlparse(self.path).query)
+        athlete_id = (q.get("athleteId", [""])[0] or "").strip()
+        action = (q.get("action", [""])[0] or "").strip()
+        if not athlete_id:
+            send_json(self, 400, {"error": "athleteId required"})
+            return
+        if action == "reset_budget":
+            ok = reset_budget(athlete_id)
+            send_json(self, 200 if ok else 500, {"ok": ok, "action": "reset_budget", "athleteId": athlete_id})
+        else:
+            send_json(self, 400, {"error": "unknown action"})

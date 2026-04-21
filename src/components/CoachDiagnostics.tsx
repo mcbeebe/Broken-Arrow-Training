@@ -122,6 +122,24 @@ export default function CoachDiagnostics({ athleteId }: Props) {
         </div>
       </div>
 
+      {!isAllView && (
+        <button
+          onClick={async () => {
+            try {
+              const res = await fetch(
+                `${coachApiBase()}/api/coach/telemetry?athleteId=${encodeURIComponent(viewingAthlete)}&action=reset_budget`,
+                { method: 'DELETE' },
+              )
+              if (res.ok) alert('Budget reset. Try your coach message again.')
+              else alert('Failed to reset budget.')
+            } catch { alert('Network error resetting budget.') }
+          }}
+          className="text-[10px] px-2 py-0.5 rounded bg-red-50 text-red-600 border border-red-200 hover:bg-red-100"
+        >
+          Reset Daily Budget
+        </button>
+      )}
+
       {loading && !data && !allData && (
         <p className="text-xs text-slate-400 dark:text-slate-500">Loading…</p>
       )}
