@@ -206,15 +206,34 @@ class handler(BaseHTTPRequestHandler):
                 hr_zones = _safe_get(client.get_activity_hr_in_timezones, activity_id)
                 detail["hrZones"] = hr_zones
 
-                # Fallback: if summary didn't provide avgHR, try the detailed
-                # activity stats. This covers elliptical, rowing, and other
-                # non-standard cardio types where the summary endpoint omits HR.
+                # Fallback: if summary didn't provide avgHR, compute it from
+                # HR zones (which work for all activity types including elliptical).
+                if not detail.get("averageHR") and hr_zones and isinstance(hr_zones, list):
+                    total_secs = 0
+                    weighted_hr = 0
+                    for z in hr_zones:
+                        if isinstance(z, dict):
+                            secs = z.get("secsInZone", 0) or 0
+                            low = z.get("zoneLowBoundary", 0) or 0
+                            if secs > 0 and low > 0:
+                                mid = low + 10
+                                weighted_hr += mid * secs
+                                total_secs += secs
+                    if total_secs > 0:
+                        detail["averageHR"] = round(weighted_hr / total_secs)
+
+                # Second fallback: try the per-second HR stream to compute exact avg
                 if not detail.get("averageHR") and activity_id:
                     try:
-                        full = client.get_activity(activity_id)
-                        if isinstance(full, dict):
-                            detail["averageHR"] = detail.get("averageHR") or full.get("averageHR") or full.get("summaryDTO", {}).get("averageHR")
-                            detail["maxHR"] = detail.get("maxHR") or full.get("maxHR") or full.get("summaryDTO", {}).get("maxHR")
+                        stream_details = client.get_activity_details(activity_id, maxchart=2000, maxpoly=100)
+                        descriptors = stream_details.get("metricDescriptors", []) or []
+                        metrics = stream_details.get("activityDetailMetrics", []) or []
+                        hr_idx = next((d["metricsIndex"] for d in descriptors if d.get("key") == "directHeartRate"), None)
+                        if hr_idx is not None and metrics:
+                            hr_values = [row["metrics"][hr_idx] for row in metrics if row.get("metrics") and len(row["metrics"]) > hr_idx and row["metrics"][hr_idx]]
+                            if hr_values:
+                                detail["averageHR"] = round(sum(hr_values) / len(hr_values))
+                                detail["maxHR"] = max(hr_values)
                     except Exception:
                         pass
 

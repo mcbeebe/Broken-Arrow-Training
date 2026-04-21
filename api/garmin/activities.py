@@ -65,6 +65,7 @@ class handler(BaseHTTPRequestHandler):
 
                 activities.append({
                     "date": date_str,
+                    "activityId": act.get("activityId"),
                     "type": activity_type,
                     "name": act.get("activityName", "Activity"),
                     "durationMinutes": round(duration_seconds / 60, 1),
