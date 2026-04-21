@@ -259,8 +259,11 @@ export function useMIMCalibration(
         samples: override?.samples ?? 0,
         avgRecoveryDays: override?.avgRecoveryDays ?? 0,
       }
+    }).sort((a, b) => {
+      const aActive = a.manual ?? a.calibrated
+      const bActive = b.manual ?? b.calibrated
+      return bActive - aActive
     })
-  }, [stored])
 
   const acceptSuggestion = useCallback((sport: string): string => {
     const updated = { ...stored }
