@@ -41,8 +41,9 @@ interface SummaryProps {
 // Consistent 6-segment gauge: red → orange → yellow → light green → green → darker green
 // Midpoint (boundary between yellow and light green) = balanced/neutral zone
 
-function GaugeBar({ value, min, max, labels }: {
+function GaugeBar({ value, min, max, labels, targetLines }: {
   value: number; min: number; max: number; labels: string[]
+  targetLines?: { pos: number; color: string }[]
 }) {
   const pct = Math.max(0, Math.min(100, ((value - min) / (max - min)) * 100))
   return (
@@ -54,6 +55,9 @@ function GaugeBar({ value, min, max, labels }: {
         <div className="h-full bg-green-200" style={{ width: '16.67%' }} />
         <div className="h-full bg-green-300" style={{ width: '16.67%' }} />
         <div className="h-full bg-emerald-400" style={{ width: '16.65%' }} />
+        {targetLines?.map((t, i) => (
+          <div key={i} className="absolute top-0 h-full border-l-2 border-dashed" style={{ left: `${((t.pos - min) / (max - min)) * 100}%`, borderColor: t.color }} />
+        ))}
         <div
           className="absolute top-0 w-2 h-full bg-slate-900 rounded shadow"
           style={{ left: `${pct}%`, transform: 'translateX(-50%)' }}
@@ -66,9 +70,8 @@ function GaugeBar({ value, min, max, labels }: {
   )
 }
 
-// ACWR gauge: 5 segments with 1.0 centered in green
-// blue (0-0.5) → light blue (0.5-0.8) → green (0.8-1.3) → yellow (1.3-1.6) → red (1.6-2.0)
-// 1.0 sits in the middle of the green zone
+// ACWR gauge: 6 equal segments, 1.0 centered in green
+// blue → light blue → green → green → yellow → red
 
 function ACWRGaugeBar({ value }: { value: number }) {
   const maxACWR = 2.0
@@ -76,19 +79,15 @@ function ACWRGaugeBar({ value }: { value: number }) {
   return (
     <>
       <div className="relative mt-2 h-3 rounded-full overflow-hidden flex border border-slate-200 dark:border-slate-700">
-        {/* 0-0.5 = 25%: undertrained (blue) */}
-        <div className="h-full bg-blue-300" style={{ width: '25%' }} />
-        {/* 0.5-0.8 = 15%: building (light blue) */}
-        <div className="h-full bg-blue-200" style={{ width: '15%' }} />
-        {/* 0.8-1.3 = 25%: sweet spot (green). 1.0 = 50% mark = center of green */}
-        <div className="h-full bg-green-300" style={{ width: '25%' }} />
-        {/* 1.3-1.6 = 15%: caution (yellow) */}
-        <div className="h-full bg-amber-300" style={{ width: '15%' }} />
-        {/* 1.6-2.0 = 20%: danger (red) */}
-        <div className="h-full bg-red-300" style={{ width: '20%' }} />
-        {/* Sweet spot boundary lines at 0.8 (40%) and 1.3 (65%) */}
-        <div className="absolute top-0 h-full border-l border-dashed border-green-700/50" style={{ left: '40%' }} />
-        <div className="absolute top-0 h-full border-l border-dashed border-green-700/50" style={{ left: '65%' }} />
+        <div className="h-full bg-blue-300" style={{ width: '16.67%' }} />
+        <div className="h-full bg-blue-200" style={{ width: '16.67%' }} />
+        <div className="h-full bg-green-300" style={{ width: '16.67%' }} />
+        <div className="h-full bg-green-200" style={{ width: '16.67%' }} />
+        <div className="h-full bg-amber-300" style={{ width: '16.67%' }} />
+        <div className="h-full bg-red-300" style={{ width: '16.65%' }} />
+        {/* Sweet spot boundary lines at 0.8 and 1.3 */}
+        <div className="absolute top-0 h-full border-l-2 border-dashed border-green-700/60" style={{ left: `${(0.8 / maxACWR) * 100}%` }} />
+        <div className="absolute top-0 h-full border-l-2 border-dashed border-green-700/60" style={{ left: `${(1.3 / maxACWR) * 100}%` }} />
         <div
           className="absolute top-0 w-2 h-full bg-slate-900 rounded shadow"
           style={{ left: `${pct}%`, transform: 'translateX(-50%)' }}
@@ -96,14 +95,31 @@ function ACWRGaugeBar({ value }: { value: number }) {
       </div>
       <div className="flex justify-between text-[9px] text-slate-400 mt-1">
         <span>0</span>
-        <span>0.5</span>
-        <span>0.8</span>
+        <span>0.33</span>
+        <span>0.67</span>
         <span className="font-semibold text-green-600">1.0</span>
-        <span>1.3</span>
-        <span>1.6</span>
+        <span>1.33</span>
+        <span>1.67</span>
         <span>2.0</span>
       </div>
     </>
+  )
+}
+
+// Inline 7-day sparkline rendered as a tiny SVG
+function Sparkline({ data, color }: { data: number[]; color: string }) {
+  if (data.length < 2) return null
+  const h = 16, w = 36
+  const min = Math.min(...data)
+  const max = Math.max(...data)
+  const range = max - min || 1
+  const points = data.map((v, i) =>
+    `${(i / (data.length - 1)) * w},${h - ((v - min) / range) * (h - 2) - 1}`
+  ).join(' ')
+  return (
+    <svg width={w} height={h} className="inline-block mr-1 align-middle">
+      <polyline points={points} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
   )
 }
 
@@ -309,6 +325,11 @@ export default function Summary({
           : latestPerf.atl > latestPerf.ctl ? 'Elevated'
           : latestPerf.atl > latestPerf.ctl * 0.8 ? 'Balanced'
           : 'Low'
+        const last7 = performance.slice(-7)
+        const ctlSpark = last7.map(p => p.ctl)
+        const atlSpark = last7.map(p => p.atl)
+        const tsbSpark = last7.map(p => p.tsb)
+        const acwrSpark = last7.map(p => p.acwr)
         return (
           <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
             <button
@@ -335,7 +356,7 @@ export default function Summary({
                     <span className="text-2xl font-bold text-blue-700">{latestPerf.ctl.toFixed(0)}</span>
                     <span className="text-xs text-slate-500 dark:text-slate-400 ml-2">/ 100</span>
                   </div>
-                  <p className="text-xs text-blue-600 font-semibold">{fitnessLabel}</p>
+                  <p className="text-xs text-blue-600 font-semibold"><Sparkline data={ctlSpark} color="#2563eb" />{fitnessLabel}</p>
                 </div>
                 <p className="text-xs font-medium text-slate-600 dark:text-slate-300">Fitness <span className="text-slate-400 font-normal">— 42-day training base (CTL)</span></p>
                 <p className="text-[9px] text-slate-400 mt-0.5 italic">Cardiovascular + musculoskeletal load · EPOC + MIM + DOMS + soreness</p>
@@ -353,7 +374,7 @@ export default function Summary({
                     <span className="text-2xl font-bold text-red-600">{latestPerf.atl.toFixed(0)}</span>
                     <span className="text-xs text-slate-500 dark:text-slate-400 ml-2">vs fitness {latestPerf.ctl.toFixed(0)}</span>
                   </div>
-                  <p className="text-xs text-red-500 font-semibold">{fatigueLabel}</p>
+                  <p className="text-xs text-red-500 font-semibold"><Sparkline data={atlSpark} color="#ef4444" />{fatigueLabel}</p>
                 </div>
                 <p className="text-xs font-medium text-slate-600 dark:text-slate-300">Fatigue <span className="text-slate-400 font-normal">— 7-day recent load (ATL)</span></p>
                 <p className="text-[9px] text-slate-400 mt-0.5 italic">Includes DOMS carry-over + perceived soreness from check-in</p>
@@ -361,6 +382,10 @@ export default function Summary({
                   value={120 - latestPerf.atl}
                   min={0} max={120}
                   labels={['120', '100', '80', '60', '40', '20', '0']}
+                  targetLines={[
+                    { pos: 120 - latestPerf.ctl * 1.3, color: 'rgba(139,92,246,0.6)' },
+                    { pos: 120 - latestPerf.ctl * 0.8, color: 'rgba(139,92,246,0.6)' },
+                  ]}
                 />
               </div>
 
@@ -383,7 +408,7 @@ export default function Summary({
                     latestPerf.tsb >= 5 ? 'text-green-600'
                     : latestPerf.tsb >= -10 ? 'text-slate-500 dark:text-slate-400'
                     : 'text-amber-600'
-                  }`}>{getTSBLabel(tsbState)}</p>
+                  }`}><Sparkline data={tsbSpark} color="#059669" />{getTSBLabel(tsbState)}</p>
                 </div>
                 <p className="text-xs font-medium text-slate-600 dark:text-slate-300">Recovery Balance <span className="text-slate-400 font-normal">— are you fresh or fatigued? (TSB)</span></p>
                 <p className="text-[9px] text-slate-400 mt-0.5 italic">Fitness minus Fatigue · negative = cardio + muscle fatigue exceeds base</p>
@@ -391,6 +416,11 @@ export default function Summary({
                   value={latestPerf.tsb + 30}
                   min={0} max={55}
                   labels={['-30', '-21', '-12', '-2', '+7', '+16', '+25']}
+                  targetLines={[
+                    { pos: -10 + 30, color: 'rgba(59,130,246,0.6)' },
+                    { pos: 5 + 30, color: 'rgba(5,150,105,0.6)' },
+                    { pos: 25 + 30, color: 'rgba(5,150,105,0.6)' },
+                  ]}
                 />
               </div>
 
@@ -413,7 +443,7 @@ export default function Summary({
                     acwrRisk === 'sweet_spot' ? 'text-green-600'
                     : acwrRisk === 'high_risk' ? 'text-red-500'
                     : 'text-amber-600'
-                  }`}>{getACWRLabel(acwrRisk)}</p>
+                  }`}><Sparkline data={acwrSpark} color="#d97706" />{getACWRLabel(acwrRisk)}</p>
                 </div>
                 <p className="text-xs font-medium text-slate-600 dark:text-slate-300">Load Ratio <span className="text-slate-400 font-normal">— acute vs chronic workload (ACWR)</span></p>
                 <p className="text-[9px] text-slate-400 mt-0.5 italic">How fast you're ramping · includes all load: cardio, strength, DOMS, soreness</p>
