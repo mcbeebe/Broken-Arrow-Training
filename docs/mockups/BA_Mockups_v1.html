@@ -210,6 +210,26 @@
                 </div>
               </div>
 
+              <!-- ★ Coach hero card — Riley's morning brief -->
+              <div class="rounded-2xl border-2 border-indigo-300 dark:border-indigo-600 bg-gradient-to-br from-indigo-50 to-white dark:from-indigo-950/60 dark:to-slate-800 p-3 mb-3 shadow-sm">
+                <div class="flex items-start gap-2.5">
+                  <div class="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center text-xs font-bold shrink-0 shadow-md ring-2 ring-white dark:ring-slate-800">R</div>
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-1.5 mb-0.5">
+                      <span class="text-[11px] font-bold text-indigo-700 dark:text-indigo-200">Riley</span>
+                      <span class="text-[8px] px-1 py-0.5 rounded bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-200 font-semibold uppercase tracking-wide">Analytical coach</span>
+                      <span class="ml-auto text-[9px] text-slate-500">6:40 am</span>
+                    </div>
+                    <div class="text-[11px] text-slate-800 dark:text-slate-100 leading-snug">Morning Mike — everything's green today. Your <b>HRV bounced up 8%</b>, the MIM signal says your muscles recovered, and Saturday's descent load has cleared. <b>Today's 80 min Z2 is the right call</b> — I added 10 min since you're fresh. Route is flat on purpose (quads still rebuilding).</div>
+                    <div class="flex gap-1.5 mt-2 flex-wrap">
+                      <button class="text-[10px] px-2 py-1 bg-indigo-600 text-white rounded-lg font-semibold shadow-sm">▶ Start today's run</button>
+                      <button class="text-[10px] px-2 py-1 bg-white dark:bg-slate-700 border border-indigo-300 dark:border-indigo-600 text-indigo-700 dark:text-indigo-200 rounded-lg font-medium">Ask Riley why</button>
+                      <button class="text-[10px] px-2 py-1 text-indigo-600 dark:text-indigo-300 rounded-lg">Adjust →</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               <!-- Engine strip 2x2 -->
               <div class="text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 mb-1.5">Today's dials</div>
               <div class="grid grid-cols-2 gap-2 mb-3">
@@ -276,13 +296,12 @@
                 </div>
               </div>
 
-              <!-- Coach insight -->
-              <div class="rounded-xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 p-3 mb-3">
+              <!-- Follow-up nudge from Riley (proactive) -->
+              <div class="rounded-xl bg-white dark:bg-slate-800 border border-indigo-200 dark:border-indigo-800 border-l-4 border-l-indigo-500 p-2.5 mb-3">
                 <div class="flex items-start gap-2">
-                  <div class="text-base">💬</div>
+                  <div class="w-5 h-5 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center text-[9px] font-bold shrink-0">R</div>
                   <div class="flex-1">
-                    <div class="text-[10px] font-semibold text-indigo-700 dark:text-indigo-300 uppercase tracking-wide">Coach insight</div>
-                    <div class="text-[11px] text-slate-700 dark:text-slate-200 leading-snug">Your HRV is trending up and muscle inflammation dropped — it's a green-light day. I nudged today +10 min.</div>
+                    <div class="text-[10px] text-slate-700 dark:text-slate-200 leading-snug">Heads up: your race is at <b>7,300 ft</b> — we should plan altitude prep. Tap <b>Trips</b> in Settings.</div>
                   </div>
                 </div>
               </div>
@@ -312,19 +331,24 @@
 
         <!-- Annotation panel -->
         <aside class="flex-1 min-w-[280px] max-w-md space-y-3">
+          <div class="rounded-xl border-2 border-indigo-300 dark:border-indigo-700 bg-indigo-50 dark:bg-indigo-950/40 p-4">
+            <div class="text-xs font-semibold uppercase tracking-wide text-indigo-700 dark:text-indigo-300 mb-2">★ Coach as connective tissue</div>
+            <p class="text-sm text-slate-700 dark:text-slate-200 leading-relaxed"><strong>Riley</strong> (Analytical persona) is the primary surface — the voice that interprets the 5 engines into one human sentence each morning. Engines feed the coach; user hears the coach.</p>
+          </div>
           <div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4">
-            <div class="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">What's new vs today</div>
+            <div class="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">What's on this screen</div>
             <ul class="text-sm space-y-2 list-disc pl-4">
-              <li><strong>Engine strip 2×2</strong> — all 4 new engines visible at a glance, each a tap away. Small footprint.</li>
-              <li>Workout card now shows a <strong>"Why this workout?"</strong> link → opens Screen 11.</li>
-              <li>Soreness check-in stays put (already in app).</li>
-              <li>Coach insight already exists — now mentions MIM ("muscle inflammation").</li>
-              <li>Everything below the engine strip is unchanged from today's Summary.</li>
+              <li><strong>Riley's morning brief</strong> (HERO) — coach synthesis of all 5 engines + quick actions.</li>
+              <li><strong>Engine strip 2×2</strong> — the raw dial state, one tap from the detail view. Riley's card cites these.</li>
+              <li>Workout card with <strong>"Why this workout?"</strong> → opens Screen 11 (the engine breakdown).</li>
+              <li>Soreness check-in (already in app).</li>
+              <li><strong>Proactive Riley nudge</strong> — altitude prep reminder (surfaces because race is at 7,300 ft).</li>
+              <li>7-day preview stays (already in app).</li>
             </ul>
           </div>
           <div class="rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 p-4">
-            <div class="text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300 mb-1">Net additions to this screen</div>
-            <div class="text-sm text-slate-700 dark:text-slate-200">One new component (EngineStrip) + one new link ("Why this workout?"). No visual clutter.</div>
+            <div class="text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300 mb-1">Net additions</div>
+            <div class="text-sm text-slate-700 dark:text-slate-200">CoachMorningBrief card (hero), EngineStrip, proactive nudges. Existing ReadinessBanner/SorenessCheckin unchanged.</div>
           </div>
         </aside>
       </div>
@@ -358,6 +382,24 @@
               </div>
             </div>
             <div class="iphone-content text-slate-900 dark:text-slate-100">
+              <!-- ★ Riley's weekly brief -->
+              <div class="rounded-2xl border-2 border-indigo-300 dark:border-indigo-600 bg-gradient-to-br from-indigo-50 to-white dark:from-indigo-950/60 dark:to-slate-800 p-3 mb-3 shadow-sm">
+                <div class="flex items-start gap-2.5">
+                  <div class="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center text-xs font-bold shrink-0 shadow-md ring-2 ring-white dark:ring-slate-800">R</div>
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-1.5 mb-0.5">
+                      <span class="text-[11px] font-bold text-indigo-700 dark:text-indigo-200">Riley</span>
+                      <span class="text-[8px] px-1 py-0.5 rounded bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-200 font-semibold uppercase">This week</span>
+                    </div>
+                    <div class="text-[11px] text-slate-800 dark:text-slate-100 leading-snug">Week 6 is your <b>biggest load week</b> of peak — 8h 20m, 6,400 ft. One quality day (<b>Wed VO₂</b>), one vertical day (<b>Sat</b>), one long day (<b>Sun</b>). Tue &amp; Fri deliberately easy to let you absorb it. I'm watching your MIM and eccentric load — if either spikes, I'll trim Sunday.</div>
+                    <div class="flex gap-1.5 mt-2 flex-wrap">
+                      <button class="text-[10px] px-2 py-1 bg-white dark:bg-slate-700 border border-indigo-300 dark:border-indigo-600 text-indigo-700 dark:text-indigo-200 rounded-lg font-medium">Show me the tradeoffs</button>
+                      <button class="text-[10px] px-2 py-1 text-indigo-600 dark:text-indigo-300 rounded-lg font-medium">Adjust week →</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               <!-- Week selector -->
               <div class="flex gap-1 mb-2 overflow-x-auto pb-1">
                 <button class="text-[10px] px-2 py-1 rounded bg-slate-200 dark:bg-slate-700 font-semibold whitespace-nowrap">W5</button>
@@ -481,18 +523,22 @@
         </div>
 
         <aside class="flex-1 min-w-[280px] max-w-md space-y-3">
+          <div class="rounded-xl border-2 border-indigo-300 dark:border-indigo-700 bg-indigo-50 dark:bg-indigo-950/40 p-4">
+            <div class="text-xs font-semibold uppercase tracking-wide text-indigo-700 dark:text-indigo-300 mb-2">★ Riley narrates the week</div>
+            <p class="text-sm text-slate-700 dark:text-slate-200 leading-relaxed">The week doesn't explain itself — Riley does. The coach card at the top tells Mike why this week is shaped the way it is, what's at stake, and what would trigger a change.</p>
+          </div>
           <div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4">
             <div class="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">What changes here</div>
             <ul class="text-sm space-y-2 list-disc pl-4">
-              <li><strong>Evidence-tier chip</strong> on each day card (T1/T2) — shows how confident the coach is in the plan.</li>
-              <li><strong>ActivityCard + GAP overlay</strong> nested inside expanded day — was standalone before.</li>
-              <li><strong>"Why this workout?"</strong> link surfaces the engine decisions → Screen 11.</li>
-              <li>Week selector, volume chart, day list already exist.</li>
+              <li><strong>Riley's weekly brief</strong> (NEW) — coach narration at top, with "Show me the tradeoffs" + "Adjust week" actions.</li>
+              <li><strong>Evidence-tier chip</strong> on each day card (T1/T2).</li>
+              <li><strong>ActivityCard + GAP overlay</strong> nested inside expanded day.</li>
+              <li><strong>"Why this workout?"</strong> link surfaces engine decisions → Screen 11.</li>
             </ul>
           </div>
           <div class="rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 p-4">
             <div class="text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300 mb-1">Files touched</div>
-            <div class="text-sm text-slate-700 dark:text-slate-200"><code>PlanView.tsx</code> (add evidence chip + expanded ActivityCard), new <code>ActivityCard.tsx</code> (Sprint 3).</div>
+            <div class="text-sm text-slate-700 dark:text-slate-200">New <code>CoachWeeklyBrief.tsx</code>, <code>PlanView.tsx</code> (mount brief + evidence chip + ActivityCard), new <code>ActivityCard.tsx</code> (Sprint 3).</div>
           </div>
         </aside>
       </div>
@@ -920,7 +966,7 @@
 
       <div class="overflow-x-auto pb-4">
         <div class="flex items-start gap-3 min-w-max">
-          <!-- Step 1: Lock screen -->
+          <!-- Step 1: Lock screen — notification FROM Riley -->
           <div class="flex flex-col items-center gap-2">
             <div class="iphone iphone-sm">
               <div class="iphone-notch"></div>
@@ -932,12 +978,13 @@
                 <div class="flex-1 flex flex-col items-center justify-center text-white p-2 text-center">
                   <div class="text-[22px] font-light leading-none">6:42</div>
                   <div class="text-[9px] opacity-75 mb-2">Monday, April 20</div>
-                  <div class="w-full rounded-lg bg-white/10 backdrop-blur border border-white/20 p-2 text-left">
-                    <div class="flex items-center gap-1">
-                      <span class="text-[10px]">BA</span>
-                      <span class="text-[8px] opacity-75">now</span>
+                  <div class="w-full rounded-lg bg-white/15 backdrop-blur border border-white/25 p-1.5 text-left">
+                    <div class="flex items-center gap-1 mb-0.5">
+                      <div class="w-4 h-4 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 text-white flex items-center justify-center text-[8px] font-bold shrink-0">R</div>
+                      <span class="text-[8px] font-semibold">Riley · Coach</span>
+                      <span class="text-[7px] opacity-75 ml-auto">now</span>
                     </div>
-                    <div class="text-[9px] leading-tight mt-0.5">Ready to run — PEAK 92/100. 80 min Z2 awaits.</div>
+                    <div class="text-[8px] leading-tight">Morning Mike — you're <b>peak</b> today. HRV +8%, MIM normal. 80-min Z2 is queued, flat route to protect your quads.</div>
                   </div>
                 </div>
                 <div class="iphone-home-indicator"></div>
@@ -945,7 +992,7 @@
             </div>
             <div class="text-center w-44">
               <div class="text-[10px] font-semibold text-teal-700 dark:text-teal-300">① Lock screen</div>
-              <div class="text-[10px] text-slate-500">Push notification from BA</div>
+              <div class="text-[10px] text-slate-500">Notification from <b>Riley</b>, not the app</div>
             </div>
           </div>
 
@@ -1012,18 +1059,22 @@
                   <div class="text-[10px] font-semibold">⬇ Descent engine</div>
                 </div>
                 <div class="iphone-content text-slate-900 dark:text-slate-100">
-                  <div class="rounded p-1.5 mb-1 bg-amber-50 border border-amber-300">
+                  <div class="rounded p-1 mb-1 bg-amber-50 border border-amber-300">
                     <div class="text-[7px] uppercase text-amber-700">Eccentric load</div>
-                    <div class="text-[10px] font-bold">HIGH · 7d</div>
+                    <div class="text-[9px] font-bold">HIGH · 7d</div>
                   </div>
-                  <div class="flex items-end gap-0.5 h-6 mb-1">
+                  <div class="flex items-end gap-0.5 h-5 mb-1">
                     <div class="flex-1 bg-amber-300 rounded-t" style="height:30%"></div>
                     <div class="flex-1 bg-amber-400 rounded-t" style="height:55%"></div>
                     <div class="flex-1 bg-amber-500 rounded-t" style="height:75%"></div>
                     <div class="flex-1 bg-amber-600 rounded-t" style="height:95%"></div>
                     <div class="flex-1 bg-amber-400 rounded-t" style="height:60%"></div>
                   </div>
-                  <div class="text-[8px] leading-snug">Saturday's 2,800ft descent pushed your quads into orange. Today = flat to recover.</div>
+                  <!-- Riley inline explanation -->
+                  <div class="rounded bg-indigo-50 border border-indigo-200 p-1 mt-1 flex items-start gap-1">
+                    <div class="w-3 h-3 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center text-[6px] font-bold shrink-0">R</div>
+                    <div class="text-[7px] leading-tight text-slate-800">Saturday's 2,800ft descent pushed your quads into orange. That's why today is flat — <b>I'm protecting your eccentric capacity</b> for Saturday's vert day.</div>
+                  </div>
                 </div>
                 <div class="iphone-tabbar">
                   <div class="iphone-tab active"><div class="iphone-tab-dot">📋</div><div>Sum</div></div>
@@ -1037,7 +1088,7 @@
             </div>
             <div class="text-center w-44">
               <div class="text-[10px] font-semibold text-teal-700 dark:text-teal-300">③ Tap Descent</div>
-              <div class="text-[10px] text-slate-500">"Oh, that's why."</div>
+              <div class="text-[10px] text-slate-500">Riley explains inline: "Oh, that's why."</div>
             </div>
           </div>
 
@@ -1131,14 +1182,25 @@
         </div>
       </div>
 
-      <div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 max-w-3xl">
-        <div class="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">What this flow proves</div>
-        <ul class="text-sm space-y-2 list-disc pl-5">
-          <li>The <strong>4 new engines are visible</strong> on Summary in one tap, deep data one more tap away — never dominates the UX.</li>
-          <li>"Why this workout?" (Screen 11) is the <strong>keystone screen</strong> — it answers the "but why?" question with all 5 engines' contribution in one place.</li>
-          <li>Average user interaction: <strong>5 taps, ~30 seconds</strong> from lock screen to starting their workout.</li>
-          <li>All additions are <strong>additive, not disruptive</strong> — the existing Summary/Plan/Stats/Coach/Settings layout is preserved.</li>
-        </ul>
+      <div class="grid md:grid-cols-2 gap-3 max-w-4xl">
+        <div class="rounded-xl border-2 border-indigo-300 dark:border-indigo-700 bg-indigo-50 dark:bg-indigo-950/40 p-4">
+          <div class="text-xs font-semibold uppercase tracking-wide text-indigo-700 dark:text-indigo-300 mb-2">★ Riley is the voice, engines are the data</div>
+          <ul class="text-sm space-y-2 list-disc pl-5 text-slate-700 dark:text-slate-200">
+            <li>Step ① — notification comes from <strong>Riley</strong> (not "the app") with a one-sentence synthesis.</li>
+            <li>Step ② — Riley's morning brief is the <strong>hero card</strong>; engines are the supporting cast.</li>
+            <li>Step ③ — Descent detail has Riley explaining inline, not just numbers.</li>
+            <li>Step ④ — "Why this workout?" is Riley's breakdown of all 5 engines.</li>
+          </ul>
+        </div>
+        <div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4">
+          <div class="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">What this flow proves</div>
+          <ul class="text-sm space-y-2 list-disc pl-5">
+            <li>All <strong>4 new engines</strong> are visible on Summary in one tap, deep data one more tap away — never dominates the UX.</li>
+            <li>"Why this workout?" (Screen 11) is the <strong>keystone screen</strong> — Riley's answer with all 5 engines' contribution.</li>
+            <li>Average user interaction: <strong>5 taps, ~30 seconds</strong> from lock screen to starting their workout.</li>
+            <li>All additions are <strong>additive, not disruptive</strong>.</li>
+          </ul>
+        </div>
       </div>
     </section>
 
