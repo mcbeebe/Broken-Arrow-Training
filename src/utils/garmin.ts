@@ -247,6 +247,23 @@ export function garminDetailToActual(detail: GarminActivityDetail): ActualWorkou
     }
   }
 
+  // Estimate avgHR from zone data when the summary doesn't provide it
+  // (common for elliptical, rowing, and other non-standard cardio)
+  let avgHR = detail.averageHR ?? null
+  let maxHR = detail.maxHR ?? null
+  if (!avgHR && detail.hrZones && Array.isArray(detail.hrZones)) {
+    let totalSec = 0
+    let weightedHR = 0
+    for (const z of detail.hrZones) {
+      if (z.secsInZone > 0 && z.zoneLowBoundary) {
+        const mid = z.zoneLowBoundary + 10
+        weightedHR += mid * z.secsInZone
+        totalSec += z.secsInZone
+      }
+    }
+    if (totalSec > 0) avgHR = Math.round(weightedHR / totalSec)
+  }
+
   return {
     stravaId: 0,
     garminId: detail.activityId,
@@ -254,8 +271,8 @@ export function garminDetailToActual(detail: GarminActivityDetail): ActualWorkou
     distance: distanceMiles,
     movingTime: detail.movingDurationSeconds || detail.durationSeconds,
     elapsedTime: detail.durationSeconds,
-    avgHR: detail.averageHR,
-    maxHR: detail.maxHR,
+    avgHR,
+    maxHR,
     avgSpeed: detail.averageSpeed,
     maxSpeed: detail.maxSpeed,
     calories: detail.calories,

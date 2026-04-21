@@ -206,6 +206,18 @@ class handler(BaseHTTPRequestHandler):
                 hr_zones = _safe_get(client.get_activity_hr_in_timezones, activity_id)
                 detail["hrZones"] = hr_zones
 
+                # Fallback: if summary didn't provide avgHR, try the detailed
+                # activity stats. This covers elliptical, rowing, and other
+                # non-standard cardio types where the summary endpoint omits HR.
+                if not detail.get("averageHR") and activity_id:
+                    try:
+                        full = client.get_activity(activity_id)
+                        if isinstance(full, dict):
+                            detail["averageHR"] = detail.get("averageHR") or full.get("averageHR") or full.get("summaryDTO", {}).get("averageHR")
+                            detail["maxHR"] = detail.get("maxHR") or full.get("maxHR") or full.get("summaryDTO", {}).get("maxHR")
+                    except Exception:
+                        pass
+
                 exercise_sets = _safe_get(client.get_activity_exercise_sets, activity_id)
                 if exercise_sets and not isinstance(exercise_sets, str):
                     detail["exerciseSets"] = exercise_sets
