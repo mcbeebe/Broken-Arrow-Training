@@ -352,21 +352,17 @@ export function buildCoachSnapshot(inputs: Inputs): CoachSnapshot {
   //      non-plan-day bonus runs, etc.)
   //   3. garminActivities — raw Garmin feed (same reasoning)
   //
-  // Dedup key: the start-date minute. Same activity synced through
-  // both Strava and Garmin will collide on minute-level timestamps.
-  // We keep the richest copy (plan-matched > Strava > Garmin).
-  //
-  // The server's build_context_block trims the rendered window by
-  // `depth`: 30 items default, 60 on history keywords, 120 on
-  // long-range keywords.
+  // Dedup key: the start-date minute for raw Strava/Garmin activities,
+  // but DATE-level for plan-matched actuals. This prevents the manual log
+  // (which generates a new startDate at 8 AM) from appearing as a second
+  // activity alongside the Garmin bike ride on the same day.
   type ActEntry = NonNullable<CoachSnapshot['recentActivities']>[number]
   const actsByKey = new Map<string, { entry: ActEntry; priority: number }>()
-  const putAct = (entry: ActEntry, priority: number) => {
+  const putAct = (entry: ActEntry, priority: number, dayLevel = false) => {
     if (!entry.startDate) return
     const iso = entry.startDate.slice(0, 10)
     if (iso < oneTwentyAgo) return
-    // Minute-level dedup key: ISO datetime truncated to minute
-    const key = entry.startDate.slice(0, 16)
+    const key = dayLevel ? iso : entry.startDate.slice(0, 16)
     const existing = actsByKey.get(key)
     if (!existing || priority > existing.priority) {
       actsByKey.set(key, { entry, priority })
@@ -405,7 +401,7 @@ export function buildCoachSnapshot(inputs: Inputs): CoachSnapshot {
         aerobicTE: a.aerobicTE,
         anaerobicTE: a.anaerobicTE,
         vo2max: a.vo2max,
-      }, 3)
+      }, 3, true)
     }
   }
 
