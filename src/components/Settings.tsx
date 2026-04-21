@@ -69,7 +69,7 @@ interface SettingsProps {
   mimLastCalibrated?: string
   onSetMIMManual?: (sport: string, value: number | null) => void
   onResetMIM?: (sport: string) => void
-  onRecalibrateMIM?: () => void
+  onRecalibrateMIM?: () => string
 }
 
 export default function Settings({
@@ -427,10 +427,11 @@ function MIMTable({ overrides, lastCalibrated, onSetManual, onReset, onRecalibra
   lastCalibrated?: string
   onSetManual?: (sport: string, value: number | null) => void
   onReset?: (sport: string) => void
-  onRecalibrate?: () => void
+  onRecalibrate?: () => string
 }) {
   const [editing, setEditing] = useState<string | null>(null)
   const [editVal, setEditVal] = useState('')
+  const [calibrateMsg, setCalibrateMsg] = useState<string | null>(null)
 
   return (
     <div className="space-y-2">
@@ -524,13 +525,20 @@ function MIMTable({ overrides, lastCalibrated, onSetManual, onReset, onRecalibra
         </div>
         {onRecalibrate && (
           <button
-            onClick={onRecalibrate}
+            onClick={() => {
+              const msg = onRecalibrate()
+              setCalibrateMsg(msg || 'Done.')
+              setTimeout(() => setCalibrateMsg(null), 5000)
+            }}
             className="text-[10px] text-teal-600 hover:text-teal-700 font-medium"
           >
             Recalibrate now
           </button>
         )}
       </div>
+      {calibrateMsg && (
+        <p className="text-[10px] text-teal-700 dark:text-teal-400 bg-teal-50 dark:bg-teal-950 rounded px-2 py-1 mt-1">{calibrateMsg}</p>
+      )}
     </div>
   )
 }

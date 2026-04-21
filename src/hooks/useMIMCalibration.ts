@@ -124,8 +124,9 @@ export function useMIMCalibration(
     setStored(readStored(athleteId))
   }, [athleteId])
 
-  const calibrate = useCallback(() => {
-    if (!dailyTrimp || !sorenessLoadByDate || dailyTrimp.length < 7) return
+  const calibrate = useCallback((): string => {
+    if (!dailyTrimp || dailyTrimp.length < 3) return 'Not enough training data yet (need 3+ days).'
+    if (!sorenessLoadByDate || sorenessLoadByDate.size === 0) return 'No soreness check-ins logged yet. Log soreness after workouts to enable calibration.'
 
     const updated = { ...stored }
     const newSuggestions: MIMSuggestion[] = []
@@ -214,6 +215,8 @@ export function useMIMCalibration(
     updated.pendingSuggestions = newSuggestions.length > 0 ? newSuggestions : undefined
     writeStored(updated, athleteId)
     setStored(updated)
+    if (newSuggestions.length > 0) return `Found ${newSuggestions.length} calibration suggestion(s). Check Summary tab.`
+    return 'Calibration complete — all values within expected range. No changes needed.'
   }, [dailyTrimp, sorenessLoadByDate, stored, athleteId])
 
   useEffect(() => {
