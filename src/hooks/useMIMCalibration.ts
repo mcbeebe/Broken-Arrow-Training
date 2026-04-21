@@ -39,7 +39,19 @@ interface StoredCalibration {
 function readStored(athleteId?: string): StoredCalibration {
   try {
     const raw = localStorage.getItem(scopedKey(athleteId))
-    return raw ? JSON.parse(raw) : { overrides: {}, lastCalibrated: '' }
+    if (!raw) return { overrides: {}, lastCalibrated: '' }
+    const data: StoredCalibration = JSON.parse(raw)
+    // Migrate: clear stale auto-calibrated values from the old code that
+    // applied silently. If a calibrated value differs from the default by
+    // less than the change threshold and there's no manual override, it was
+    // never explicitly accepted — reset it to the default.
+    for (const [sport, o] of Object.entries(data.overrides)) {
+      const def = DEFAULT_MIM[sport] ?? 0.6
+      if (o.manual === null && Math.abs(o.calibrated - def) < CHANGE_THRESHOLD) {
+        o.calibrated = def
+      }
+    }
+    return data
   } catch {
     return { overrides: {}, lastCalibrated: '' }
   }
