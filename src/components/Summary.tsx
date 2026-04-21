@@ -49,7 +49,7 @@ function GaugeBar({ value, min, max, labels, targetLines, zones }: {
   const pct = Math.max(0, Math.min(100, ((value - min) / (max - min)) * 100))
   return (
     <>
-      <div className="relative mt-2 h-3 rounded-full overflow-hidden flex border border-slate-200 dark:border-slate-700">
+      <div className="relative mt-2.5 h-4 rounded-full overflow-hidden flex border border-slate-200 dark:border-slate-700">
         <div className="h-full bg-red-300" style={{ width: '16.67%' }} />
         <div className="h-full bg-orange-200" style={{ width: '16.67%' }} />
         <div className="h-full bg-amber-200" style={{ width: '16.67%' }} />
@@ -60,7 +60,7 @@ function GaugeBar({ value, min, max, labels, targetLines, zones }: {
           <div key={i} className="absolute top-0 h-full border-l-2 border-dashed" style={{ left: `${((t.pos - min) / (max - min)) * 100}%`, borderColor: t.color }} />
         ))}
         <div
-          className="absolute top-0 w-2 h-full bg-slate-900 rounded shadow"
+          className="absolute top-0 w-2.5 h-full bg-slate-900 rounded shadow"
           style={{ left: `${pct}%`, transform: 'translateX(-50%)' }}
         />
       </div>
@@ -93,18 +93,17 @@ function ACWRGaugeBar({ value }: { value: number }) {
   const pct = Math.max(0, Math.min(100, (value / maxACWR) * 100))
   return (
     <>
-      <div className="relative mt-2 h-3 rounded-full overflow-hidden flex border border-slate-200 dark:border-slate-700">
+      <div className="relative mt-2.5 h-4 rounded-full overflow-hidden flex border border-slate-200 dark:border-slate-700">
         <div className="h-full bg-blue-300" style={{ width: '16.67%' }} />
         <div className="h-full bg-blue-200" style={{ width: '16.67%' }} />
         <div className="h-full bg-green-300" style={{ width: '16.67%' }} />
         <div className="h-full bg-green-200" style={{ width: '16.67%' }} />
         <div className="h-full bg-amber-300" style={{ width: '16.67%' }} />
         <div className="h-full bg-red-300" style={{ width: '16.65%' }} />
-        {/* Sweet spot boundary lines at 0.8 and 1.3 */}
         <div className="absolute top-0 h-full border-l-2 border-dashed border-green-700/60" style={{ left: `${(0.8 / maxACWR) * 100}%` }} />
         <div className="absolute top-0 h-full border-l-2 border-dashed border-green-700/60" style={{ left: `${(1.3 / maxACWR) * 100}%` }} />
         <div
-          className="absolute top-0 w-2 h-full bg-slate-900 rounded shadow"
+          className="absolute top-0 w-2.5 h-full bg-slate-900 rounded shadow"
           style={{ left: `${pct}%`, transform: 'translateX(-50%)' }}
         />
       </div>
@@ -370,9 +369,9 @@ export default function Summary({
               <span className="text-sm text-teal-600 ml-2 shrink-0">{perfOpen ? '▴ Hide' : '▾ Details'}</span>
             </button>
             {perfOpen && (
-            <div className="px-4 pb-4 space-y-3">
+            <div className="px-4 pb-4 space-y-5">
               {/* Fitness (CTL) — 0-100 scale, 6 equal segments, midpoint at 50 */}
-              <div className="bg-blue-50 dark:bg-blue-950 rounded-lg p-3">
+              <div className="bg-blue-50 dark:bg-blue-950 rounded-lg p-4">
                 <div className="flex items-baseline justify-between">
                   <div>
                     <span className="text-2xl font-bold text-blue-700">{latestPerf.ctl.toFixed(0)}</span>
@@ -391,7 +390,7 @@ export default function Summary({
               </div>
 
               {/* Fatigue (ATL) — flipped: 120→0, high fatigue on left */}
-              <div className="bg-red-50 dark:bg-red-950 rounded-lg p-3">
+              <div className="bg-red-50 dark:bg-red-950 rounded-lg p-4">
                 <div className="flex items-baseline justify-between">
                   <div>
                     <span className="text-2xl font-bold text-red-600">{latestPerf.atl.toFixed(0)}</span>
@@ -414,7 +413,7 @@ export default function Summary({
               </div>
 
               {/* Recovery Balance (TSB) — -30 to +25 */}
-              <div className={`rounded-lg p-3 ${
+              <div className={`rounded-lg p-4 ${
                 tsbState === 'peaked' || tsbState === 'well_rested' ? 'bg-green-50 dark:bg-green-950'
                 : tsbState === 'productive' ? 'bg-slate-50 dark:bg-slate-900'
                 : 'bg-amber-50 dark:bg-amber-950'
@@ -451,7 +450,7 @@ export default function Summary({
               </div>
 
               {/* ACWR — 5-segment: blue, light blue, green, yellow, red */}
-              <div className={`rounded-lg p-3 ${
+              <div className={`rounded-lg p-4 ${
                 acwrRisk === 'sweet_spot' ? 'bg-green-50 dark:bg-green-950'
                 : acwrRisk === 'high_risk' ? 'bg-red-50 dark:bg-red-950'
                 : 'bg-amber-50 dark:bg-amber-950'
