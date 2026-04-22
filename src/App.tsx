@@ -8,6 +8,8 @@ import { useManualLog } from './hooks/useManualLog'
 import { usePlanOverrides } from './hooks/usePlanOverrides'
 import { useDaySwap } from './hooks/useDaySwap'
 import { useReadiness } from './hooks/useReadiness'
+import { useOnboarding } from './hooks/useOnboarding'
+import Onboarding from './components/Onboarding'
 import { useSoreness } from './hooks/useSoreness'
 import { useMIMCalibration } from './hooks/useMIMCalibration'
 import { useCoachMemory } from './hooks/useCoachMemory'
@@ -72,18 +74,38 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
   const [athleteId, setAthleteId] = useState(() => (session?.athleteId || getAthleteFromHash()).toLowerCase())
   const [chatSeed, setChatSeed] = useState<string | null>(null)
   const theme = useTheme()
+  const onboarding = useOnboarding(athleteId)
   const plan = plans[athleteId]
 
-  if (!plan) {
+  if (!plan && !onboarding.isOnboarded) {
     return (
-      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col items-center justify-center px-6">
+      <Onboarding
+        onComplete={(config) => {
+          onboarding.save(config)
+        }}
+        onSkip={onLogout}
+      />
+    )
+  }
+
+  if (!plan && onboarding.isOnboarded) {
+    return (
+      <div className="min-h-screen bg-white flex flex-col items-center justify-center px-6">
         <div className="text-center space-y-4">
-          <h1 className="text-2xl font-bold text-slate-800 dark:text-white">No Training Plan Found</h1>
-          <p className="text-slate-500 dark:text-slate-400">
-            Athlete ID "{athleteId}" doesn't have a training plan configured.
-            Valid IDs: {Object.keys(plans).join(', ')}
+          <span className="text-5xl">{onboarding.config?.raceType === 'hyrox' ? '🏋️' : onboarding.config?.raceType === 'trail' ? '🏔' : '💪'}</span>
+          <h1 className="text-2xl font-bold text-slate-800">Welcome, {onboarding.config?.athleteName}!</h1>
+          <p className="text-slate-500">
+            Your {onboarding.config?.raceType === 'hyrox' ? 'Hyrox' : onboarding.config?.raceType === 'trail' ? 'trail race' : 'fitness'} plan for <strong>{onboarding.config?.raceName}</strong> is being generated.
           </p>
-          <button onClick={onLogout} className="text-teal-600 font-medium">Sign out and try again</button>
+          <p className="text-sm text-slate-400">
+            {onboarding.config?.experienceLevel} · {onboarding.config?.trainingDaysPerWeek} days/week
+            {onboarding.config?.raceDate ? ` · Race: ${onboarding.config.raceDate}` : ''}
+          </p>
+          <div className="pt-4 space-y-2">
+            <button onClick={() => onboarding.clear()} className="text-teal-600 font-medium text-sm">Redo onboarding</button>
+            <br />
+            <button onClick={onLogout} className="text-slate-400 font-medium text-sm">Sign out</button>
+          </div>
         </div>
       </div>
     )
