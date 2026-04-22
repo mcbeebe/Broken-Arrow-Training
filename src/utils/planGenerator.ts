@@ -1,5 +1,5 @@
 import type { TrainingPlan, TrainingWeek, PlannedDay, HRZone } from '../types'
-import type { OnboardingConfig } from '../hooks/useOnboarding'
+import type { OnboardingConfig, ExperienceLevel } from '../hooks/useOnboarding'
 
 function computeZones(maxHR: number): HRZone[] {
   return [
@@ -19,13 +19,92 @@ function addDays(dateStr: string, days: number): string {
 function formatDay(dateStr: string): string {
   const d = new Date(dateStr + 'T12:00:00')
   const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-  const month = d.getMonth() + 1
-  const day = d.getDate()
-  return `${days[d.getDay()]} ${month}/${day}`
+  return `${days[d.getDay()]} ${d.getMonth() + 1}/${d.getDate()}`
 }
 
 function getWeekStart(raceDate: string, weeksOut: number): string {
   return addDays(raceDate, -weeksOut * 7)
+}
+
+interface LevelParams {
+  totalWeeks: number
+  baseRunMi: number
+  buildRunMi: number
+  peakRunMi: number
+  longRunMi: number
+  peakLongMi: number
+  repeats: { base: number; build: number; peak: number }
+  wallBallReps: { base: number; build: number; peak: number }
+  wallBallWeight: string
+  sledNote: string
+  simStations: { build: number; peak: number }
+  strengthDetail: { base: string; build: string }
+  recoveryWeeks: number[]
+}
+
+function getLevelParams(level: ExperienceLevel): LevelParams {
+  switch (level) {
+    case 'beginner': return {
+      totalWeeks: 16,
+      baseRunMi: 2.0, buildRunMi: 2.5, peakRunMi: 3.0,
+      longRunMi: 3.5, peakLongMi: 5.0,
+      repeats: { base: 0, build: 3, peak: 4 },
+      wallBallReps: { base: 30, build: 50, peak: 75 },
+      wallBallWeight: '6 kg',
+      sledNote: 'Light sled — focus on form',
+      simStations: { build: 3, peak: 4 },
+      strengthDetail: {
+        base: 'BW squats 3×15 · BW lunges 3×10/leg · Push-ups (knees ok) 3×10 · Plank 3×30s · Glute bridges 3×15',
+        build: 'Goblet squats 3×12 · DB lunges 3×10/leg · Wall balls 3×15 (6 kg) · Push-ups 3×12 · Farmer carry 2×30m light · Plank 3×45s',
+      },
+      recoveryWeeks: [4, 8, 12],
+    }
+    case 'intermediate': return {
+      totalWeeks: 12,
+      baseRunMi: 3.0, buildRunMi: 3.5, peakRunMi: 4.0,
+      longRunMi: 5.0, peakLongMi: 6.0,
+      repeats: { base: 0, build: 4, peak: 6 },
+      wallBallReps: { base: 50, build: 75, peak: 100 },
+      wallBallWeight: '6 kg',
+      sledNote: 'Competition sled weight',
+      simStations: { build: 4, peak: 8 },
+      strengthDetail: {
+        base: 'Goblet squats 3×15 · DB lunges 3×12/leg · Push-ups 3×15 · Bent-over rows 3×12 · Plank 3×45s · Dead bugs 3×10/side',
+        build: 'Wall balls 3×20 (6 kg) · Sled push 3×25m · Farmer carry 3×50m · Sandbag lunges 3×10/leg · Burpee broad jump 3×8 · Plank 3×60s',
+      },
+      recoveryWeeks: [4, 8],
+    }
+    case 'advanced': return {
+      totalWeeks: 10,
+      baseRunMi: 4.0, buildRunMi: 4.5, peakRunMi: 5.0,
+      longRunMi: 6.0, peakLongMi: 7.0,
+      repeats: { base: 3, build: 6, peak: 8 },
+      wallBallReps: { base: 75, build: 100, peak: 100 },
+      wallBallWeight: '9 kg',
+      sledNote: 'Competition weight — practice fast transitions',
+      simStations: { build: 6, peak: 8 },
+      strengthDetail: {
+        base: 'BB back squat 3×10 · DB lunges 3×12/leg · Pull-ups 3×8 · DB rows 3×10 · Wall balls 3×15 (9 kg) · Plank 3×60s',
+        build: 'Wall balls 4×25 (9 kg) · Sled push 4×50m race pace · Sled pull 3×50m · Farmer carry 3×100m heavy · Sandbag lunges 3×12/leg · Burpee broad jump 4×10',
+      },
+      recoveryWeeks: [4, 7],
+    }
+    case 'elite': return {
+      totalWeeks: 8,
+      baseRunMi: 5.0, buildRunMi: 5.5, peakRunMi: 6.0,
+      longRunMi: 7.0, peakLongMi: 8.0,
+      repeats: { base: 4, build: 8, peak: 8 },
+      wallBallReps: { base: 100, build: 100, peak: 100 },
+      wallBallWeight: '9 kg',
+      sledNote: 'Competition + heavy. Above-race effort on station days.',
+      simStations: { build: 8, peak: 8 },
+      strengthDetail: {
+        base: 'BB squat 4×8 · BB deadlift 3×8 · Weighted pull-ups 3×6 · Wall balls 4×25 (9 kg) · Sled push 3×50m heavy · Plank 3×60s',
+        build: 'Full Hyrox station circuit: all 8 at competition weight/reps · Rest 90s between · Time each station · Farmer carry 4×100m heavy',
+      },
+      recoveryWeeks: [3, 6],
+    }
+  }
 }
 
 export function generateHyroxPlan(config: OnboardingConfig): TrainingPlan {
@@ -37,57 +116,51 @@ export function generateHyroxPlan(config: OnboardingConfig): TrainingPlan {
   const z4 = `Z4 (${Math.round(maxHR * 0.85)}–${Math.round(maxHR * 0.90)})`
 
   const raceDate = config.raceDate || addDays(new Date().toISOString().slice(0, 10), 84)
-  const totalWeeks = 12
+  const P = getLevelParams(config.experienceLevel)
+  const totalWeeks = P.totalWeeks
   const daysPerWeek = config.trainingDaysPerWeek
+  const weakStation = config.weakStation || 'Wall Balls'
+
+  const baseEnd = Math.round(totalWeeks * 0.3)
+  const buildEnd = Math.round(totalWeeks * 0.7)
+  const peakEnd = totalWeeks - 1
 
   const weeks: TrainingWeek[] = []
 
   for (let w = 0; w < totalWeeks; w++) {
     const weekNum = w + 1
     const weekStart = getWeekStart(raceDate, totalWeeks - w)
-    const phase = weekNum <= 4 ? 'base' : weekNum <= 8 ? 'build' : weekNum <= 11 ? 'peak' : 'taper'
-    const isRecovery = weekNum === 4 || weekNum === 8
+    const phase = weekNum <= baseEnd ? 'base' : weekNum <= buildEnd ? 'build' : weekNum <= peakEnd ? 'peak' : 'taper'
+    const isRecovery = P.recoveryWeeks.includes(weekNum)
 
     const days: PlannedDay[] = []
+    const trainingDays = getTrainingDayNumbers(daysPerWeek)
 
     for (let d = 0; d < 7; d++) {
       const dateStr = addDays(weekStart, d)
       const dayLabel = formatDay(dateStr)
       const dayOfWeek = new Date(dateStr + 'T12:00:00').getDay()
 
-      if (daysPerWeek <= 3 && ![1, 3, 6].includes(dayOfWeek)) {
-        days.push({ day: dayLabel, type: 'rest', workout: 'Rest', detail: '', zone: '—', route: '—', time: '—' })
-        continue
-      }
-      if (daysPerWeek === 4 && ![1, 3, 5, 6].includes(dayOfWeek)) {
-        days.push({ day: dayLabel, type: 'rest', workout: 'Rest', detail: '', zone: '—', route: '—', time: '—' })
-        continue
-      }
-      if (daysPerWeek === 5 && ![0, 4].includes(dayOfWeek)) {
-        // train Mon-Wed, Fri, Sat
-      } else if (daysPerWeek === 5 && [0, 4].includes(dayOfWeek)) {
-        days.push({ day: dayLabel, type: 'rest', workout: 'Rest', detail: '', zone: '—', route: '—', time: '—' })
-        continue
-      }
-      if (daysPerWeek >= 6 && dayOfWeek === 0) {
+      if (!trainingDays.includes(dayOfWeek)) {
         days.push({ day: dayLabel, type: 'rest', workout: 'Rest', detail: '', zone: '—', route: '—', time: '—' })
         continue
       }
 
-      const workout = getHyroxWorkout(dayOfWeek, weekNum, phase, isRecovery, config, z1, z2, z3, z4)
+      const workout = getHyroxWorkout(dayOfWeek, phase, isRecovery, P, weakStation, z1, z2, z3, z4)
       days.push({ day: dayLabel, ...workout })
     }
 
-    const focus = phase === 'base' ? 'Build aerobic base + station familiarity'
-      : phase === 'build' ? 'Race-specific station work + running intervals'
-      : phase === 'peak' ? 'Full simulations + intensity'
-      : 'Taper. Reduce volume, maintain sharpness.'
+    const baseMiles = isRecovery ? Math.round(P.baseRunMi * 4) : phase === 'base' ? Math.round(P.baseRunMi * daysPerWeek) : phase === 'build' ? Math.round(P.buildRunMi * daysPerWeek) : Math.round(P.peakRunMi * daysPerWeek)
 
     weeks.push({
       num: weekNum,
       dates: `${formatDay(weekStart).slice(4)} – ${formatDay(addDays(weekStart, 6)).slice(4)}`,
-      miles: isRecovery ? '~8' : phase === 'base' ? '~12' : '~15',
-      focus: isRecovery ? 'RECOVERY WEEK. Reduce volume 40%.' : focus,
+      miles: isRecovery ? `~${Math.round(baseMiles * 0.6)}` : `~${baseMiles}`,
+      focus: isRecovery ? 'RECOVERY WEEK. Volume drops 40%. Absorb adaptations.'
+        : phase === 'base' ? `Build aerobic base + station familiarity. ${config.experienceLevel === 'beginner' ? 'Focus on form over speed.' : ''}`
+        : phase === 'build' ? `Race-specific station work + running intervals. ${P.sledNote}`
+        : phase === 'peak' ? `Full simulations + intensity. ${P.simStations.peak} stations at race effort.`
+        : 'Taper. Reduce volume, maintain sharpness. Trust your fitness.',
       days,
     })
   }
@@ -128,78 +201,91 @@ export function generateHyroxPlan(config: OnboardingConfig): TrainingPlan {
   }
 }
 
+function getTrainingDayNumbers(daysPerWeek: number): number[] {
+  switch (daysPerWeek) {
+    case 3: return [1, 3, 6]
+    case 4: return [1, 2, 4, 6]
+    case 5: return [1, 2, 3, 5, 6]
+    case 6: return [1, 2, 3, 4, 5, 6]
+    default: return [1, 3, 6]
+  }
+}
+
 function getHyroxWorkout(
   dayOfWeek: number,
-  weekNum: number,
   phase: string,
   isRecovery: boolean,
-  config: OnboardingConfig,
+  P: LevelParams,
+  weakStation: string,
   z1: string, z2: string, z3: string, z4: string,
 ): Omit<PlannedDay, 'day'> {
+
   if (isRecovery) {
     if (dayOfWeek === 1 || dayOfWeek === 3) {
-      return { type: 'run', workout: 'Easy run', detail: 'Recovery week. Very easy effort.', zone: `3.0 mi · ${z1}`, route: 'Flat route', time: '35 min' }
+      return { type: 'run', workout: 'Easy run', detail: 'Recovery week. Very easy effort.', zone: `${P.baseRunMi} mi · ${z1}`, route: 'Flat route', time: `${Math.round(P.baseRunMi * 12)} min` }
     }
     if (dayOfWeek === 6) {
-      return { type: 'cross', workout: 'Light station practice', detail: 'Pick 3 stations · 50% effort · Focus on form not speed', zone: z1, route: 'Gym', time: '30 min' }
+      return { type: 'cross', workout: 'Light station practice', detail: `Pick 3 stations · 50% effort · Focus on form not speed · ${P.wallBallWeight} wall balls`, zone: z1, route: 'Gym', time: '30 min' }
     }
     return { type: 'rest', workout: 'Rest', detail: 'Recovery week', zone: '—', route: '—', time: '—' }
   }
 
+  const runMi = phase === 'base' ? P.baseRunMi : phase === 'build' ? P.buildRunMi : P.peakRunMi
+
   // Monday: Running
   if (dayOfWeek === 1) {
     if (phase === 'base') {
-      return { type: 'run', workout: 'Easy run', detail: 'Conversational pace. Build aerobic base.', zone: `3.0 mi · ${z2}`, route: 'Flat route', time: '35 min' }
+      return { type: 'run', workout: 'Easy run', detail: 'Conversational pace. Build aerobic base.', zone: `${runMi} mi · ${z2}`, route: 'Flat route', time: `${Math.round(runMi * 12)} min` }
     }
-    if (phase === 'build') {
-      return { type: 'quality', workout: '1km repeats', detail: `${weekNum <= 6 ? '4' : '6'}×1km @ race pace, 90 sec rest. Simulate Hyrox run legs.`, zone: `4.0 mi · ${z3}`, route: 'Track or flat', time: '45 min' }
+    const reps = phase === 'build' ? P.repeats.build : P.repeats.peak
+    if (reps > 0) {
+      return { type: 'quality', workout: '1km repeats', detail: `${reps}×1km @ race pace, ${phase === 'peak' ? '60' : '90'} sec rest. Simulate Hyrox run legs.`, zone: `${runMi + 1} mi · ${z3}`, route: 'Track or flat', time: `${Math.round((runMi + 1) * 11)} min` }
     }
-    return { type: 'quality', workout: 'Race-pace intervals', detail: '6×1km @ race pace, 60 sec rest. Practice pacing under fatigue.', zone: `5.0 mi · ${z3}–${z4}`, route: 'Track or flat', time: '50 min' }
+    return { type: 'run', workout: 'Easy run', detail: 'Build base before intervals.', zone: `${runMi} mi · ${z2}`, route: 'Flat route', time: `${Math.round(runMi * 12)} min` }
   }
 
   // Tuesday: Strength / Functional
   if (dayOfWeek === 2) {
-    if (phase === 'base') {
-      return { type: 'strength', workout: 'STRENGTH: Full body', detail: 'Goblet squats 3×15 · DB lunges 3×12/leg · Push-ups 3×15 · Bent-over rows 3×12 · Plank 3×45s · Dead bugs 3×10/side', zone: z1, route: 'Gym', time: '50 min' }
-    }
-    return { type: 'strength', workout: 'STRENGTH: Hyrox-specific', detail: 'Wall balls 3×20 · Sled push practice 3×25m · Farmer carry 3×50m · Sandbag lunges 3×10/leg · Burpee broad jump 3×8 · Plank 3×60s', zone: z2, route: 'Gym', time: '1 hr' }
+    const detail = phase === 'base' ? P.strengthDetail.base : P.strengthDetail.build
+    return { type: 'strength', workout: phase === 'base' ? 'STRENGTH: Foundation' : 'STRENGTH: Hyrox-specific', detail, zone: phase === 'base' ? z1 : z2, route: 'Gym', time: phase === 'base' ? '50 min' : '1 hr' }
   }
 
   // Wednesday: Running + conditioning
   if (dayOfWeek === 3) {
     if (phase === 'base') {
-      return { type: 'run', workout: 'Easy run + strides', detail: 'Z2 pace + 4×20 sec strides at the end.', zone: `3.5 mi · ${z2}`, route: 'Flat route', time: '40 min' }
+      return { type: 'run', workout: 'Easy run + strides', detail: `Z2 pace + 4×20 sec strides at the end.`, zone: `${runMi + 0.5} mi · ${z2}`, route: 'Flat route', time: `${Math.round((runMi + 0.5) * 12)} min` }
     }
-    return { type: 'run', workout: 'Tempo run', detail: `20 min @ ${z3}. Build lactate threshold for sustained Hyrox effort.`, zone: `4.0 mi · ${z3}`, route: 'Flat route', time: '45 min' }
+    return { type: 'run', workout: 'Tempo run', detail: `20 min @ ${z3}. Build lactate threshold.`, zone: `${runMi + 0.5} mi · ${z3}`, route: 'Flat route', time: `${Math.round((runMi + 0.5) * 11)} min` }
   }
 
   // Thursday: Station-specific
   if (dayOfWeek === 4) {
-    const weakStation = config.weakStation || 'Wall Balls'
+    const wb = phase === 'base' ? P.wallBallReps.base : phase === 'build' ? P.wallBallReps.build : P.wallBallReps.peak
     if (phase === 'base') {
-      return { type: 'cross', workout: 'Station circuit (intro)', detail: `SkiErg 500m · Row 500m · Wall balls 50 · ${weakStation} practice · Rest 2 min between`, zone: z2, route: 'Gym', time: '45 min' }
+      return { type: 'cross', workout: 'Station circuit (intro)', detail: `SkiErg 500m · Row 500m · Wall balls ${wb} (${P.wallBallWeight}) · ${weakStation} practice · Rest 2 min between`, zone: z2, route: 'Gym', time: '45 min' }
     }
+    const sims = phase === 'build' ? P.simStations.build : P.simStations.peak
     if (phase === 'build') {
-      return { type: 'cross', workout: 'Station circuit (race effort)', detail: `SkiErg 1000m · Sled push 50m · Row 1000m · Wall balls 75 · ${weakStation} extra set · 90 sec rest between`, zone: z3, route: 'Gym', time: '55 min' }
+      return { type: 'cross', workout: `Station circuit (${sims} stations)`, detail: `${sims} stations at race effort · Wall balls ${wb} (${P.wallBallWeight}) · ${weakStation} extra set · ${P.sledNote} · 90 sec rest between`, zone: z3, route: 'Gym', time: '55 min' }
     }
-    return { type: 'cross', workout: 'Mini simulation', detail: '4 stations at race effort + 4×1km runs between. Practice transitions.', zone: `${z3}–${z4}`, route: 'Gym', time: '1 hr 10 min' }
+    return { type: 'cross', workout: `Simulation (${sims} stations)`, detail: `${sims} stations at race effort + ${sims}×1km runs between. Full race weight. Practice transitions.`, zone: `${z3}–${z4}`, route: 'Gym', time: '1 hr 10 min' }
   }
 
   // Friday: easy / mobility
   if (dayOfWeek === 5) {
-    return { type: 'run', workout: 'Easy run or cross-train', detail: 'Very easy. Active recovery. Bike, elliptical, or easy jog.', zone: `2.5 mi · ${z1}`, route: 'Any', time: '30 min' }
+    return { type: 'run', workout: 'Easy run or cross-train', detail: 'Very easy. Active recovery. Bike, elliptical, or easy jog.', zone: `${Math.max(2, runMi - 1)} mi · ${z1}`, route: 'Any', time: '30 min' }
   }
 
   // Saturday: Long session
   if (dayOfWeek === 6) {
     if (phase === 'base') {
-      return { type: 'long', workout: 'Long run', detail: 'Build endurance. Conversational pace throughout.', zone: `5.0 mi · ${z2}`, route: 'Any route', time: '55 min' }
+      return { type: 'long', workout: 'Long run', detail: 'Build endurance. Conversational pace throughout.', zone: `${P.longRunMi} mi · ${z2}`, route: 'Any route', time: `${Math.round(P.longRunMi * 12)} min` }
     }
     if (phase === 'build') {
-      return { type: 'long', workout: 'Long run + station finisher', detail: '5 mi run then 3 station circuits at moderate effort. Practice running on tired legs into stations.', zone: `6.0 mi · ${z2}`, route: 'Run + Gym', time: '1 hr 20 min' }
+      return { type: 'long', workout: 'Long run + station finisher', detail: `${P.longRunMi} mi run then ${P.simStations.build > 4 ? '4' : '3'} station circuits at moderate effort. Running on tired legs into stations.`, zone: `${P.longRunMi} mi · ${z2}`, route: 'Run + Gym', time: `${Math.round(P.longRunMi * 12) + 25} min` }
     }
     if (phase === 'peak') {
-      return { type: 'long', workout: 'FULL HYROX SIMULATION', detail: '8×1km runs + all 8 stations at race effort. Full dress rehearsal.', zone: `8km + stations · ${z3}`, route: 'Gym', time: '1 hr 30 min' }
+      return { type: 'long', workout: 'FULL HYROX SIMULATION', detail: `8×1km runs + all 8 stations at race effort. ${P.wallBallWeight} wall balls. ${P.sledNote}. Full dress rehearsal.`, zone: `8km + stations · ${z3}`, route: 'Gym', time: '1 hr 30 min' }
     }
     return { type: 'run', workout: 'Easy shakeout', detail: 'Taper. Short and easy. Stay sharp.', zone: `2.0 mi · ${z1}`, route: 'Flat route', time: '25 min' }
   }
