@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, useCallback } from 'react'
 import type { ViewId, CoachSnapshot, CoachAction, PlannedDay } from './types'
 import { plans } from './data'
+import { generateHyroxPlan } from './utils/planGenerator'
 import { useStrava } from './hooks/useStrava'
 import { useGarmin } from './hooks/useGarmin'
 import { useCompliance } from './hooks/useCompliance'
@@ -88,18 +89,24 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
     )
   }
 
-  if (!plan && onboarding.isOnboarded) {
+  // Generate plan from onboarding config if no pre-built plan exists
+  const generatedPlan = useMemo(() => {
+    if (plan || !onboarding.config) return null
+    if (onboarding.config.raceType === 'hyrox') return generateHyroxPlan(onboarding.config)
+    return null
+  }, [plan, onboarding.config])
+
+  const activePlan = plan || generatedPlan
+
+  if (!activePlan) {
     return (
       <div className="min-h-screen bg-white flex flex-col items-center justify-center px-6">
         <div className="text-center space-y-4">
           <span className="text-5xl">{onboarding.config?.raceType === 'hyrox' ? '🏋️' : onboarding.config?.raceType === 'trail' ? '🏔' : '💪'}</span>
-          <h1 className="text-2xl font-bold text-slate-800">Welcome, {onboarding.config?.athleteName}!</h1>
+          <h1 className="text-2xl font-bold text-slate-800">Welcome, {onboarding.config?.athleteName || athleteId}!</h1>
           <p className="text-slate-500">
-            Your {onboarding.config?.raceType === 'hyrox' ? 'Hyrox' : onboarding.config?.raceType === 'trail' ? 'trail race' : 'fitness'} plan for <strong>{onboarding.config?.raceName}</strong> is being generated.
-          </p>
-          <p className="text-sm text-slate-400">
-            {onboarding.config?.experienceLevel} · {onboarding.config?.trainingDaysPerWeek} days/week
-            {onboarding.config?.raceDate ? ` · Race: ${onboarding.config.raceDate}` : ''}
+            Plan generation for <strong>{onboarding.config?.raceType || 'your goal'}</strong> is coming soon.
+            {onboarding.config?.raceType === 'trail' && ' Trail race plan generator is in development.'}
           </p>
           <div className="pt-4 space-y-2">
             <button onClick={() => onboarding.clear()} className="text-teal-600 font-medium text-sm">Redo onboarding</button>
@@ -125,22 +132,22 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
   const daySwap = useDaySwap(athleteId)
   const planOverrides = usePlanOverrides(athleteId)
   const soreness = useSoreness(athleteId)
-  const hrZones = useHRZones(athleteId, plan.zones)
-  const maxHROverride = useMaxHR(athleteId, plan.athlete.maxHR)
+  const hrZones = useHRZones(athleteId, activePlan.zones)
+  const maxHROverride = useMaxHR(athleteId, activePlan.athlete.maxHR)
   const effectiveAthlete = useMemo(
-    () => ({ ...plan.athlete, maxHR: maxHROverride.maxHR }),
-    [plan.athlete, maxHROverride.maxHR],
+    () => ({ ...activePlan.athlete, maxHR: maxHROverride.maxHR }),
+    [activePlan.athlete, maxHROverride.maxHR],
   )
   const handleSaveHRZones = useCallback(
     (zones: import('./types').HRZone[], nextMaxHR: number) => {
       hrZones.save(zones)
-      if (nextMaxHR > 0 && nextMaxHR !== plan.athlete.maxHR) {
+      if (nextMaxHR > 0 && nextMaxHR !== activePlan.athlete.maxHR) {
         maxHROverride.save(nextMaxHR)
-      } else if (nextMaxHR === plan.athlete.maxHR && maxHROverride.isCustomized) {
+      } else if (nextMaxHR === activePlan.athlete.maxHR && maxHROverride.isCustomized) {
         maxHROverride.reset()
       }
     },
-    [hrZones, maxHROverride, plan.athlete.maxHR],
+    [hrZones, maxHROverride, activePlan.athlete.maxHR],
   )
   const handleResetHRZones = useCallback(() => {
     hrZones.reset()
@@ -172,7 +179,7 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
 
   // Merge Strava or manual log data into training plan
   const weeks = useMemo(() => {
-    let w = plan.weeks
+    let w = activePlan.weeks
     w = daySwap.applySwapsToWeeks(w)
     // Coach-proposed plan overrides (e.g. swap strength for mobility)
     // apply BEFORE actuals so actual matches still line up by day label.
@@ -186,16 +193,16 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
     }
     w = manualLog.applyLogsToWeeks(w)
     return w
-  }, [plan.weeks, strava.activities, showStrava, manualLog.applyLogsToWeeks, daySwap.applySwapsToWeeks, planOverrides.applyOverridesToWeeks, garmin.connected, garmin.activityDetails])
+  }, [activePlan.weeks, strava.activities, showStrava, manualLog.applyLogsToWeeks, daySwap.applySwapsToWeeks, planOverrides.applyOverridesToWeeks, garmin.connected, garmin.activityDetails])
 
   const compliance = useCompliance(weeks)
-  const raceName = plan.race.distance.includes('18K') ? 'BROKEN ARROW 18K' : 'BROKEN ARROW 11K'
+  const raceName = activePlan.race.name || (activePlan.race.distance.includes('18K') ? 'BROKEN ARROW 18K' : 'BROKEN ARROW 11K')
 
   const daysUntilRace = useMemo(() => {
-    const raceStr = plan.race.date.match(/\w+,\s*(.+)/)?.[1] || plan.race.date
+    const raceStr = activePlan.race.date.match(/\w+,\s*(.+)/)?.[1] || activePlan.race.date
     const raceDate = new Date(raceStr)
     return Math.max(0, Math.ceil((raceDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
-  }, [plan.race.date])
+  }, [activePlan.race.date])
 
   // Determine current week number
   const currentWeekNum = useMemo(() => {
@@ -278,7 +285,7 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
     maxHR: maxHROverride.maxHR,
     todayPlannedWorkout,
     currentWeekNum,
-    raceDate: plan.race.date,
+    raceDate: activePlan.race.date,
   })
 
   // Today's health data for banner
@@ -347,10 +354,10 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
     if (!readiness.todayScore && readiness.performance.length === 0) return null
     const snap = buildCoachSnapshot({
       athleteProfile: effectiveAthlete,
-      race: plan.race,
-      zones: plan.zones,
-      raceDistanceMiles: plan.race.distanceMiles,
-      raceElevationFt: parseInt((plan.race.elevation || '0').replace(/[^0-9]/g, ''), 10) || 0,
+      race: activePlan.race,
+      zones: activePlan.zones,
+      raceDistanceMiles: activePlan.race.distanceMiles,
+      raceElevationFt: parseInt((activePlan.race.elevation || '0').replace(/[^0-9]/g, ''), 10) || 0,
       currentWeekNum,
       weeks,
       plannedToday: todayPlannedWorkout,
@@ -382,7 +389,7 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
   }, [
     coachEnabled,
     effectiveAthlete,
-    plan.race,
+    activePlan.race,
     currentWeekNum,
     weeks,
     todayPlannedWorkout,
@@ -433,10 +440,10 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
   // (pre-override) so the ProposalCard can show a "before → after" diff
   // with the original workout.
   const getPlannedDay = useCallback((weekNum: number, dayIndex: number): PlannedDay | null => {
-    const w = plan.weeks.find(wk => wk.num === weekNum)
+    const w = activePlan.weeks.find(wk => wk.num === weekNum)
     if (!w) return null
     return w.days[dayIndex] ?? null
-  }, [plan.weeks])
+  }, [activePlan.weeks])
 
   const handleApproveAction = useCallback((turnId: string, action: CoachAction) => {
     if (action.type !== 'propose_edit' || !action.proposedEdit) return
@@ -467,9 +474,9 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
           <span className="text-teal-400 text-sm font-semibold">{daysUntilRace} days</span>
         </div>
         <p className="text-slate-300 text-xs mt-0.5">
-          {plan.athlete.name} · {plan.race.date}
+          {activePlan.athlete.name} · {activePlan.race.date}
         </p>
-        <p className="text-teal-400 text-[10px] mt-0.5">{plan.athlete.weeklyStructure}</p>
+        <p className="text-teal-400 text-[10px] mt-0.5">{activePlan.athlete.weeklyStructure}</p>
       </div>
 
       {/* Proactive coach ping toast */}
@@ -553,7 +560,7 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
           latestPerf={latestPerf}
           coachSnapshot={coachSnapshot}
           onAskCoach={handleAskCoach}
-          race={plan.race}
+          race={activePlan.race}
           compliance={compliance.weeks}
         />
       )}
@@ -561,7 +568,7 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
         <Dashboard
           weeks={weeks}
           compliance={compliance}
-          raceDate={plan.race.date}
+          raceDate={activePlan.race.date}
           planZones={hrZones.zones}
           athleteMaxHR={maxHROverride.maxHR}
           todayScore={readiness.todayScore}
@@ -595,7 +602,7 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
         />
       )}
       {/* Methodology moved into Settings as a collapsible subsection */}
-      {view === 'info' && <RaceInfo race={plan.race} />}
+      {view === 'info' && <RaceInfo race={activePlan.race} />}
       {view === 'settings' && showStrava && (
         <Settings
           connected={strava.connected}

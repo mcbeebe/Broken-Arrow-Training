@@ -1,12 +1,12 @@
 import { useState } from 'react'
-import type { RaceType, ExperienceLevel, OnboardingConfig } from '../hooks/useOnboarding'
+import type { RaceType, ExperienceLevel, WearableType, OnboardingConfig } from '../hooks/useOnboarding'
 
 interface Props {
   onComplete: (config: OnboardingConfig) => void
   onSkip?: () => void
 }
 
-const TOTAL_STEPS = 6
+const TOTAL_STEPS = 7
 
 export default function Onboarding({ onComplete, onSkip }: Props) {
   const [step, setStep] = useState(0)
@@ -17,6 +17,7 @@ export default function Onboarding({ onComplete, onSkip }: Props) {
   const [daysPerWeek, setDaysPerWeek] = useState<number | null>(null)
   const [longRunDay, setLongRunDay] = useState<string | null>(null)
   const [weakStation, setWeakStation] = useState<string | null>(null)
+  const [wearable, setWearable] = useState<WearableType | null>(null)
   const [name, setName] = useState('')
   const [age, setAge] = useState('')
   const [maxHR, setMaxHR] = useState('')
@@ -31,7 +32,8 @@ export default function Onboarding({ onComplete, onSkip }: Props) {
       case 2: return !!experience
       case 3: return !!daysPerWeek
       case 4: return raceType === 'trail' ? !!longRunDay : raceType === 'hyrox' ? !!weakStation : true
-      case 5: return name.trim().length > 0 && age.trim().length > 0
+      case 5: return !!wearable
+      case 6: return name.trim().length > 0 && age.trim().length > 0
       default: return false
     }
   })()
@@ -46,6 +48,7 @@ export default function Onboarding({ onComplete, onSkip }: Props) {
       trainingDaysPerWeek: daysPerWeek!,
       longRunDay: longRunDay ?? undefined,
       weakStation: weakStation ?? undefined,
+      wearable: wearable || 'none',
       athleteName: name.trim(),
       age: ageNum,
       maxHR: maxHR ? parseInt(maxHR) : 220 - ageNum,
@@ -156,6 +159,15 @@ export default function Onboarding({ onComplete, onSkip }: Props) {
         )}
 
         {step === 5 && (
+          <StepContainer title="What wearable do you use?" subtitle="We'll pull heart rate, sleep, and recovery data from your device">
+            <OptionCard selected={wearable === 'garmin'} onClick={() => setWearable('garmin')} title="Garmin Watch" desc="Syncs HR, HRV, sleep, body battery, and activities directly." icon="garmin" />
+            <OptionCard selected={wearable === 'apple_watch'} onClick={() => setWearable('apple_watch')} title="Apple Watch" desc="Syncs HRV, resting HR, and sleep via the companion iOS app." icon="apple" />
+            <OptionCard selected={wearable === 'oura'} onClick={() => setWearable('oura')} title="Oura Ring" desc="Syncs HRV, resting HR, and sleep via Apple Health + iOS app." icon="oura" />
+            <OptionCard selected={wearable === 'none'} onClick={() => setWearable('none')} title="No wearable" desc="You can still log workouts manually and use the coach." />
+          </StepContainer>
+        )}
+
+        {step === 6 && (
           <StepContainer title="Almost done! Tell us about yourself." subtitle="This helps us personalize your plan">
             <div className="space-y-4">
               <div>
@@ -239,7 +251,7 @@ function OptionCard({ selected, onClick, title, desc, icon }: {
       <div className="flex items-start gap-3">
         {icon && (
           <span className="text-2xl mt-0.5">
-            {icon === 'mountain' ? '🏔' : icon === 'hyrox' ? '🏋️' : icon === 'general' ? '💪' : ''}
+            {icon === 'mountain' ? '🏔' : icon === 'hyrox' ? '🏋️' : icon === 'general' ? '💪' : icon === 'garmin' ? '⌚' : icon === 'apple' ? '⌚' : icon === 'oura' ? '💍' : ''}
           </span>
         )}
         <div className="flex-1">

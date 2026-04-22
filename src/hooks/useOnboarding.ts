@@ -3,6 +3,8 @@ import { useState, useCallback, useEffect } from 'react'
 export type RaceType = 'trail' | 'hyrox' | 'general'
 export type ExperienceLevel = 'beginner' | 'intermediate' | 'advanced' | 'elite'
 
+export type WearableType = 'garmin' | 'apple_watch' | 'oura' | 'none'
+
 export interface OnboardingConfig {
   raceType: RaceType
   raceName: string
@@ -11,6 +13,7 @@ export interface OnboardingConfig {
   trainingDaysPerWeek: number
   longRunDay?: string
   weakStation?: string
+  wearable: WearableType
   athleteName: string
   age: number
   maxHR?: number

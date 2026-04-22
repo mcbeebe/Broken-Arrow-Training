@@ -219,7 +219,7 @@ export interface RaceInfo {
   landmarks: { segment: string; description: string }[];
   gear: { item: string; required: boolean }[];
   nutrition: string;
-  loriNote: string;
+  loriNote?: string;
 }
 
 export interface AthleteProfile {
