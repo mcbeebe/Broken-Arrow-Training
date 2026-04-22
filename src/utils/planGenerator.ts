@@ -44,6 +44,21 @@ interface LevelParams {
 
 function getLevelParams(level: ExperienceLevel): LevelParams {
   switch (level) {
+    case 'first_timer': return {
+      totalWeeks: 20,
+      baseRunMi: 1.5, buildRunMi: 2.0, peakRunMi: 2.5,
+      longRunMi: 2.5, peakLongMi: 4.0,
+      repeats: { base: 0, build: 0, peak: 3 },
+      wallBallReps: { base: 15, build: 30, peak: 50 },
+      wallBallWeight: '4 kg',
+      sledNote: 'Empty or very light sled — learn the movement first',
+      simStations: { build: 2, peak: 4 },
+      strengthDetail: {
+        base: 'BW squats 2×10 · Wall sit 2×20s · Push-ups (knees) 2×8 · Plank 2×20s · Glute bridges 2×12 · Dead bugs 2×8/side',
+        build: 'BW squats 3×12 · BW lunges 2×8/leg · Wall balls 2×10 (4 kg) · Push-ups 2×10 · Farmer carry 2×20m light · Plank 3×30s',
+      },
+      recoveryWeeks: [4, 8, 12, 16],
+    }
     case 'beginner': return {
       totalWeeks: 16,
       baseRunMi: 2.0, buildRunMi: 2.5, peakRunMi: 3.0,

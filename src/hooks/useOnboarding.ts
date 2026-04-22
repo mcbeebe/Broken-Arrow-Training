@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react'
 
 export type RaceType = 'trail' | 'hyrox' | 'general'
-export type ExperienceLevel = 'beginner' | 'intermediate' | 'advanced' | 'elite'
+export type ExperienceLevel = 'first_timer' | 'beginner' | 'intermediate' | 'advanced' | 'elite'
 
 export type WearableType = 'garmin' | 'apple_watch' | 'oura' | 'none'
 

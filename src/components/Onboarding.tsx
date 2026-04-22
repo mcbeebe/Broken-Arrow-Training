@@ -114,6 +114,8 @@ export default function Onboarding({ onComplete, onSkip }: Props) {
 
         {step === 2 && (
           <StepContainer title="How would you rate your fitness?" subtitle="Pick the level that suits you best (you can change this later)">
+            <OptionCard selected={experience === 'first_timer'} onClick={() => setExperience('first_timer')} title="First Timer"
+              desc={raceType === 'hyrox' ? 'Never done Hyrox or functional fitness. May not run regularly yet.' : 'New to structured exercise. Building the habit.'} />
             <OptionCard selected={experience === 'beginner'} onClick={() => setExperience('beginner')} title="Beginner"
               desc={raceType === 'hyrox' ? 'New to functional fitness. Can run 2-3 miles.' : 'You can complete a 3mi run without stopping, in under 60 minutes'} />
             <OptionCard selected={experience === 'intermediate'} onClick={() => setExperience('intermediate')} title="Intermediate"
