@@ -12,6 +12,7 @@ import { fetchActivityStreams, getTokens, isTokenExpired, refreshAccessToken, ty
 import { fetchGarminActivityStream } from '../utils/garmin'
 import HRChart from './HRChart'
 import PaceChart from './PaceChart'
+import ElevationChart from './ElevationChart'
 import RouteMap from './RouteMap'
 
 interface MileSplit {
@@ -475,6 +476,9 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
                 <div className="mt-2">
                   <HRChart stream={stream} zones={zones} targetZone={day.zone} />
                 </div>
+              )}
+              {stream && stream.altitude && stream.altitude.some(a => a > 0) && (
+                <ElevationChart stream={stream} />
               )}
               {stream && stream.velocity && stream.velocity.length > 0 && (
                 <PaceChart stream={stream} />

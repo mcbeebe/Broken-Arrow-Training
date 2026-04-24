@@ -156,7 +156,13 @@ export default function HRChart({ stream, zones, targetZone }: HRChartProps) {
 
   return (
     <div>
-      <ChartExpandOverlay title="Heart Rate">
+      <ChartExpandOverlay
+        title="Heart Rate"
+        stream={stream}
+        zones={zones}
+        targetZone={targetZone}
+        initialMetric="hr"
+      >
         {renderChart}
       </ChartExpandOverlay>
 
