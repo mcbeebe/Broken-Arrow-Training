@@ -137,7 +137,7 @@ export default function PaceChart({ stream }: PaceChartProps) {
   )
 
   return (
-    <ChartExpandOverlay title="Pace & Elevation">
+    <ChartExpandOverlay title="Pace & Elevation" stream={stream} initialMetric="pace">
       {renderChart}
     </ChartExpandOverlay>
   )
