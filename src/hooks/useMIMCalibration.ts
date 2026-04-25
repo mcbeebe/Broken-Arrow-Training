@@ -66,6 +66,7 @@ function writeStored(data: StoredCalibration, athleteId?: string) {
 const DEFAULT_MIM: Record<string, number> = {
   running: 1.0,
   trail_running: 1.1,
+  running_steep: 1.3,
   cycling: 0.65,
   ebike: 0.30,
   mountain_biking: 0.8,
@@ -92,7 +93,7 @@ const DEFAULT_MIM: Record<string, number> = {
 }
 
 export const SPORT_LABELS: Record<string, string> = {
-  running: 'Running', trail_running: 'Trail Running', cycling: 'Cycling',
+  running: 'Running', trail_running: 'Trail Running', running_steep: 'Steep Running', cycling: 'Cycling',
   ebike: 'E-Bike', mountain_biking: 'Mountain Biking', hiking: 'Hiking',
   hiking_steep: 'Steep Hiking', walking: 'Walking', swimming: 'Swimming',
   lap_swimming: 'Lap Swimming', aqua_jogging: 'Aqua Jogging',
@@ -107,6 +108,7 @@ const EXPECTED_RECOVERY_DAYS: Record<string, number> = {
   strength_lower: 2.5,
   strength_full: 2.0,
   hiking_steep: 1.5,
+  running_steep: 1.5,
   trail_running: 1.0,
   running: 0.5,
   hiit: 1.5,
@@ -256,7 +258,7 @@ export function useMIMCalibration(
 
   const allOverrides = useMemo((): MIMOverride[] => {
     const displaySports: SportType[] = [
-      'running', 'trail_running', 'cycling', 'ebike', 'mountain_biking',
+      'running', 'trail_running', 'running_steep', 'cycling', 'ebike', 'mountain_biking',
       'hiking', 'hiking_steep', 'walking',
       'strength_lower', 'strength_full', 'strength_upper',
       'hiit', 'cardio', 'elliptical', 'rowing', 'indoor_rowing',

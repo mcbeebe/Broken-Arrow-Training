@@ -10,6 +10,7 @@ import { parseRoutine, type ParsedExercise } from '../utils/exercises'
 import { parseIntervalWorkout, getDrillDay, RUNNING_DRILLS, MYRTL_ROUTINE, PRE_RUN_ACTIVATION, type RunSegment, type DrillGuide } from '../utils/drills'
 import { fetchActivityStreams, getTokens, isTokenExpired, refreshAccessToken, type StreamData } from '../utils/strava'
 import { fetchGarminActivityStream } from '../utils/garmin'
+import { classifyRun, getSportMultiplier } from '../utils/trimp'
 import HRChart from './HRChart'
 import PaceChart from './PaceChart'
 import ElevationChart from './ElevationChart'
@@ -318,6 +319,32 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
                         <p className="text-[10px] text-teal-600 uppercase tracking-wide mt-0.5">{s.label}</p>
                       </div>
                     ))}
+                  </div>
+                )
+              })()}
+              {/* Auto-promoted MIM tier — surfaces when terrain pushed
+                  the run from "Running" up to Trail/Steep so the athlete
+                  can see why this workout earned extra training load. */}
+              {(() => {
+                const runTypes = new Set(['run', 'long', 'quality', 'race'])
+                if (!runTypes.has(day.type)) return null
+                if (!(actual.elevationGain > 0 && actual.distance > 0)) return null
+                const tier = classifyRun('running', actual.elevationGain, actual.distance)
+                if (tier === 'running') return null
+                const mim = getSportMultiplier(tier)
+                const isSteep = tier === 'running_steep'
+                const label = isSteep ? '⛰ Steep Run' : '🌲 Trail Run'
+                const cls = isSteep
+                  ? 'bg-emerald-200 text-emerald-900 border-emerald-300'
+                  : 'bg-emerald-100 text-emerald-800 border-emerald-200'
+                return (
+                  <div>
+                    <span
+                      className={`inline-flex items-center gap-1 text-xs font-semibold rounded-full border px-2 py-0.5 ${cls}`}
+                      title={`Auto-promoted from Running based on terrain. MIM ${mim.toFixed(2)}× applied to training load.`}
+                    >
+                      {label} · MIM {mim.toFixed(2)}×
+                    </span>
                   </div>
                 )
               })()}

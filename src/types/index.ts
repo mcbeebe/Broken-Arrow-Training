@@ -284,6 +284,7 @@ export interface GarminActivity {
   avgHR?: number;
   maxHR?: number;
   elevationGainFt: number;
+  distanceMi?: number;
   trainingEffect?: number;          // Garmin aerobic TE (0-5.0)
   anaerobicTrainingEffect?: number; // Garmin anaerobic TE (0-5.0)
   activityTrainingLoad?: number;    // Garmin EPOC-based training load
@@ -412,6 +413,7 @@ export interface ReadinessBaselines {
 export type SportType =
   | "running"
   | "trail_running"
+  | "running_steep"
   | "cycling"
   | "ebike"
   | "mountain_biking"
