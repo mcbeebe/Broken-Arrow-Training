@@ -600,7 +600,7 @@ function PerformanceGlossary() {
         </div>
         <div>
           <p className="font-semibold text-slate-700 dark:text-slate-200">Elevation Bonus</p>
-          <p>Workouts with significant climbing get an additional <strong>+10 per 1,000 ft</strong> of elevation gain. This accounts for eccentric loading on descents, altitude stress, and the extra cardiovascular demand of vertical work — critical for Broken Arrow Skyrace prep.</p>
+          <p>Workouts with significant climbing get an additional <strong>+10 per 500 ft</strong> of elevation gain. This accounts for eccentric loading on descents, altitude stress, and the extra cardiovascular demand of vertical work — critical for Broken Arrow Skyrace prep.</p>
         </div>
         <div>
           <p className="font-semibold text-slate-700 dark:text-slate-200">7-Day Training Load</p>

@@ -363,12 +363,15 @@ export function mapToSportType(
 }
 
 // ─── Elevation Bonus ────────────────────────────────────────────
-// Johnston/Evoke Endurance: +10 per 1,000 ft elevation gain
+// +10 per 500 ft of elevation gain (doubled vs. the original
+// Johnston/Evoke +10/1000 ft to better reflect Broken Arrow course
+// loading — sustained descents punish quads harder than the literature
+// gives credit for).
 // Accounts for eccentric loading on descents and altitude stress
 
 export function calculateElevationBonus(elevationGainFt: number): number {
   if (elevationGainFt <= 0) return 0
-  return (elevationGainFt / 1000) * 10
+  return (elevationGainFt / 500) * 10
 }
 
 // ─── Adjusted Training Load ─────────────────────────────────────

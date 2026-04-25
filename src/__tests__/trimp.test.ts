@@ -211,10 +211,11 @@ describe('calculateElevationBonus', () => {
     expect(calculateElevationBonus(0)).toBe(0)
   })
 
-  it('returns 10 per 1000 ft', () => {
-    expect(calculateElevationBonus(1000)).toBe(10)
-    expect(calculateElevationBonus(2000)).toBe(20)
-    expect(calculateElevationBonus(3800)).toBe(38) // Broken Arrow 18K course
+  it('returns 10 per 500 ft', () => {
+    expect(calculateElevationBonus(500)).toBe(10)
+    expect(calculateElevationBonus(1000)).toBe(20)
+    expect(calculateElevationBonus(2000)).toBe(40)
+    expect(calculateElevationBonus(3800)).toBe(76) // Broken Arrow 18K course
   })
 
   it('returns 0 for negative elevation', () => {
@@ -231,7 +232,7 @@ describe('calculateAdjustedTRIMP', () => {
     )
     expect(record.sportType).toBe('hiking')
     expect(record.sportMultiplier).toBe(0.8) // ATE hiking MIM
-    expect(record.elevationBonus).toBe(20)
+    expect(record.elevationBonus).toBe(40)
     expect(record.date).toBe('2026-04-15')
     expect(record.activityName).toBe('Oakland Hills Hike')
   })

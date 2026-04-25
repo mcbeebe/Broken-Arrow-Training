@@ -491,9 +491,11 @@ RED. Max 2 consecutive GREEN/PEAK before forced YELLOW. Max 1 PEAK/7d.
 Training load source: Garmin EPOC (activityTrainingLoad from Firstbeat)
 when available; Banister TRIMP fallback when no watch data. Adjusted by
 sport-specific MIM (Musculoskeletal Impact Modifier) + elevation bonus
-(+10 per 1,000 ft gain). MIM examples: strength-lower 2.00x (eccentric
-+ DOMS), HIIT 1.30x, hiking-steep 1.20x, trail-running 1.10x, running
-1.00x, cycling 0.65x, running_drills 0.50x, ebike 0.30x, yoga 0.30x,
+(+10 per 500 ft gain). MIM examples: strength-lower 2.00x (eccentric
++ DOMS), running-steep 1.30x (sustained climbing, auto-promoted from
+running at >=200 ft/mi), HIIT 1.30x, hiking-steep 1.20x, trail-running
+1.10x (auto-promoted from running at >=100 ft/mi), running 1.00x,
+cycling 0.65x, running_drills 0.50x, ebike 0.30x, yoga 0.30x,
 myrtl 0.10x, breathwork 0.00x.
 
 Drills & e-bike notes:
