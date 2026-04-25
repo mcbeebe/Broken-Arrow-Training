@@ -53,6 +53,7 @@ class handler(BaseHTTPRequestHandler):
                 avg_hr = act.get("averageHR", None)
                 max_hr = act.get("maxHR", None)
                 elevation_m = act.get("elevationGain", 0) or 0
+                distance_m = act.get("distance", 0) or 0
                 training_effect = act.get("aerobicTrainingEffect", None)
                 start_local = act.get("startTimeLocal", "")
 
@@ -72,6 +73,7 @@ class handler(BaseHTTPRequestHandler):
                     "avgHR": avg_hr,
                     "maxHR": max_hr,
                     "elevationGainFt": round(_meters_to_feet(elevation_m), 0),
+                    "distanceMi": round(distance_m / 1609.344, 2) if distance_m else 0,
                     "trainingEffect": training_effect,
                     "anaerobicTrainingEffect": act.get("anaerobicTrainingEffect"),
                     "activityTrainingLoad": act.get("activityTrainingLoad"),

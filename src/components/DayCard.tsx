@@ -6,6 +6,7 @@ import { parsePlannedTargets } from '../utils/targets'
 import { gradeWorkoutDay } from '../hooks/useCompliance'
 import { getPlannedDrills, getDrillDay } from '../utils/drills'
 import { calculateGrade } from '../utils/grading'
+import { classifyRun, getSportMultiplier } from '../utils/trimp'
 import { generateDayCardNote } from '../utils/coachNotes'
 import { useCoachInsight } from '../hooks/useCoachInsight'
 import TargetVsActual from './TargetVsActual'
@@ -287,7 +288,33 @@ export default function DayCard({ day, weekNum, onTap, onLog, onSwap, isSwapSele
               {actual.movingTime > 0 && <span>⏱ {formatSeconds(actual.movingTime)}</span>}
               {actual.avgHR && <span>❤️ {actual.avgHR} avg</span>}
               {actual.elevationGain > 0 && <span>⛰ {actual.elevationGain} ft</span>}
+              {actual.elevationGain > 0 && actual.distance > 0 && (
+                <span>📐 Avg Grade: {((actual.elevationGain / (actual.distance * 5280)) * 100).toFixed(1)}%</span>
+              )}
             </div>
+            {(() => {
+              const runTypes = new Set(['run', 'long', 'quality', 'race'])
+              if (!runTypes.has(day.type)) return null
+              if (!(actual.elevationGain > 0 && actual.distance > 0)) return null
+              const tier = classifyRun('running', actual.elevationGain, actual.distance)
+              if (tier === 'running') return null
+              const mim = getSportMultiplier(tier)
+              const isSteep = tier === 'running_steep'
+              const label = isSteep ? '⛰ Steep Run' : '🌲 Trail Run'
+              const cls = isSteep
+                ? 'bg-emerald-200 text-emerald-900 border-emerald-300'
+                : 'bg-emerald-100 text-emerald-800 border-emerald-200'
+              return (
+                <div className="mt-1.5">
+                  <span
+                    className={`inline-flex items-center gap-1 text-xs font-semibold rounded-full border px-2 py-0.5 ${cls}`}
+                    title={`Auto-promoted from Running based on terrain. MIM ${mim.toFixed(2)}× applied to training load.`}
+                  >
+                    {label} · MIM {mim.toFixed(2)}×
+                  </span>
+                </div>
+              )
+            })()}
 
             {/* Expanded details */}
             {detailsExpanded && (

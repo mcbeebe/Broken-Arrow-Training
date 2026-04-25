@@ -10,6 +10,7 @@ interface CalendarHeatmapProps {
 const SPORT_COLORS: Record<string, string> = {
   running: '#059669',
   trail_running: '#10B981',
+  running_steep: '#047857',
   cycling: '#3B82F6',
   ebike: '#93C5FD',
   mountain_biking: '#2563EB',

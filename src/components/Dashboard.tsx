@@ -576,9 +576,10 @@ function PerformanceGlossary() {
               <tbody className="divide-y divide-slate-100">
                 <tr className="bg-white dark:bg-slate-800"><td className="px-2 py-1">Strength (Lower)</td><td className="text-right px-2 py-1 font-mono">2.00×</td><td className="px-2 py-1 text-slate-500 dark:text-slate-400">Heavy eccentric load — EPOC underestimates delayed muscle damage</td></tr>
                 <tr className="bg-slate-50 dark:bg-slate-900"><td className="px-2 py-1">HIIT / Cardio</td><td className="text-right px-2 py-1 font-mono">1.30×</td><td className="px-2 py-1 text-slate-500 dark:text-slate-400">Anaerobic + cardiovascular demand</td></tr>
-                <tr className="bg-white dark:bg-slate-800"><td className="px-2 py-1">Hiking (Steep)</td><td className="text-right px-2 py-1 font-mono">1.20×</td><td className="px-2 py-1 text-slate-500 dark:text-slate-400">&gt;500ft gain, eccentric descent loading</td></tr>
+                <tr className="bg-white dark:bg-slate-800"><td className="px-2 py-1">Running (Steep)</td><td className="text-right px-2 py-1 font-mono">1.30×</td><td className="px-2 py-1 text-slate-500 dark:text-slate-400">Sustained climbing — auto-applied at ≥200 ft/mi (~3.8% avg grade)</td></tr>
+                <tr className="bg-slate-50 dark:bg-slate-900"><td className="px-2 py-1">Hiking (Steep)</td><td className="text-right px-2 py-1 font-mono">1.20×</td><td className="px-2 py-1 text-slate-500 dark:text-slate-400">&gt;500ft gain, eccentric descent loading</td></tr>
                 <tr className="bg-slate-50 dark:bg-slate-900"><td className="px-2 py-1">Strength (Full Body)</td><td className="text-right px-2 py-1 font-mono">1.20×</td><td className="px-2 py-1 text-slate-500 dark:text-slate-400">Mixed compound movements</td></tr>
-                <tr className="bg-white dark:bg-slate-800"><td className="px-2 py-1">Trail Running</td><td className="text-right px-2 py-1 font-mono">1.10×</td><td className="px-2 py-1 text-slate-500 dark:text-slate-400">Uneven terrain, elevation stress</td></tr>
+                <tr className="bg-white dark:bg-slate-800"><td className="px-2 py-1">Trail Running</td><td className="text-right px-2 py-1 font-mono">1.10×</td><td className="px-2 py-1 text-slate-500 dark:text-slate-400">Uneven terrain, elevation stress — auto-applied at ≥100 ft/mi (~1.9% avg grade)</td></tr>
                 <tr className="bg-slate-50 dark:bg-slate-900"><td className="px-2 py-1">Running</td><td className="text-right px-2 py-1 font-mono">1.00×</td><td className="px-2 py-1 text-slate-500 dark:text-slate-400">Baseline reference sport</td></tr>
                 <tr className="bg-white dark:bg-slate-800"><td className="px-2 py-1">Hiking (Flat)</td><td className="text-right px-2 py-1 font-mono">0.80×</td><td className="px-2 py-1 text-slate-500 dark:text-slate-400">Low impact, sustained aerobic</td></tr>
                 <tr className="bg-slate-50 dark:bg-slate-900"><td className="px-2 py-1">Mountain Biking</td><td className="text-right px-2 py-1 font-mono">0.80×</td><td className="px-2 py-1 text-slate-500 dark:text-slate-400">Non-weight-bearing but technical</td></tr>
@@ -595,11 +596,11 @@ function PerformanceGlossary() {
               </tbody>
             </table>
           </div>
-          <p className="mt-1.5 text-slate-500 dark:text-slate-400 italic">Strength is auto-classified by activity name keywords (upper/lower/push/pull/legs) with HR inference fallback (&gt;60% HRR → lower body). Hiking is classified as steep when elevation gain exceeds 500 ft. These values auto-calibrate from your soreness recovery patterns — see Settings → Training Load Multipliers.</p>
+          <p className="mt-1.5 text-slate-500 dark:text-slate-400 italic">Strength is auto-classified by activity name keywords (upper/lower/push/pull/legs) with HR inference fallback (&gt;60% HRR → lower body). Hiking is classified as steep when elevation gain exceeds 500 ft. Runs are auto-promoted to Trail Running (≥100 ft/mi) or Steep Running (≥200 ft/mi) based on the recorded elevation profile, even if Garmin/Strava tagged them as a flat road run. These values auto-calibrate from your soreness recovery patterns — see Settings → Training Load Multipliers.</p>
         </div>
         <div>
           <p className="font-semibold text-slate-700 dark:text-slate-200">Elevation Bonus</p>
-          <p>Workouts with significant climbing get an additional <strong>+10 per 1,000 ft</strong> of elevation gain. This accounts for eccentric loading on descents, altitude stress, and the extra cardiovascular demand of vertical work — critical for Broken Arrow Skyrace prep.</p>
+          <p>Workouts with significant climbing get an additional <strong>+10 per 500 ft</strong> of elevation gain. This accounts for eccentric loading on descents, altitude stress, and the extra cardiovascular demand of vertical work — critical for Broken Arrow Skyrace prep.</p>
         </div>
         <div>
           <p className="font-semibold text-slate-700 dark:text-slate-200">7-Day Training Load</p>

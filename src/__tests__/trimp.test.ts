@@ -8,6 +8,7 @@ import {
   aggregateDailyTRIMP,
   classifyStrength,
   classifyHiking,
+  classifyRun,
 } from '../utils/trimp'
 
 describe('calculateBanisterTRIMP', () => {
@@ -54,6 +55,7 @@ describe('getSportMultiplier (ATE MIM matrix)', () => {
 
   it('returns ATE-validated multipliers for all sport types', () => {
     expect(getSportMultiplier('trail_running')).toBe(1.1)
+    expect(getSportMultiplier('running_steep')).toBe(1.3)
     expect(getSportMultiplier('cycling')).toBe(0.65)
     expect(getSportMultiplier('hiking')).toBe(0.8)
     expect(getSportMultiplier('hiking_steep')).toBe(1.2)
@@ -151,15 +153,69 @@ describe('classifyHiking', () => {
   })
 })
 
+describe('classifyRun', () => {
+  it('keeps flat road runs as running', () => {
+    expect(classifyRun('running', 50, 5)).toBe('running')   // 10 ft/mi
+    expect(classifyRun('running', 0, 5)).toBe('running')
+  })
+
+  it('promotes a hilly run to trail_running at ~100 ft/mi', () => {
+    expect(classifyRun('running', 600, 5)).toBe('trail_running')   // 120 ft/mi
+    expect(classifyRun('running', 250, 2.5)).toBe('trail_running') // 100 ft/mi exactly
+  })
+
+  it('promotes to running_steep at ~200 ft/mi', () => {
+    expect(classifyRun('running', 1500, 6)).toBe('running_steep')  // 250 ft/mi (user's run)
+    expect(classifyRun('running', 800, 4)).toBe('running_steep')   // 200 ft/mi exactly
+  })
+
+  it('further promotes a tagged trail_run when it is steep', () => {
+    expect(classifyRun('trail_running', 1500, 6)).toBe('running_steep')
+  })
+
+  it('does not demote a tagged trail_run on a flat day', () => {
+    expect(classifyRun('trail_running', 50, 5)).toBe('trail_running')
+  })
+
+  it('falls back to total-gain thresholds without distance', () => {
+    expect(classifyRun('running', 400)).toBe('running')           // < 500 ft total
+    expect(classifyRun('running', 600)).toBe('trail_running')      // ≥ 500 ft total
+    expect(classifyRun('running', 1600)).toBe('running_steep')     // ≥ 1500 ft total
+  })
+
+  it('passes through non-run sports unchanged', () => {
+    expect(classifyRun('hiking', 1000, 3)).toBe('hiking')
+    expect(classifyRun('cycling', 2000, 30)).toBe('cycling')
+  })
+})
+
+describe('mapToSportType run sub-classification', () => {
+  it('promotes a Garmin "running" with hilly profile to running_steep', () => {
+    expect(mapToSportType('running', { name: 'Trail Run', elevationGainFt: 1500, distanceMi: 6 }))
+      .toBe('running_steep')
+  })
+
+  it('keeps a flat road Run as running', () => {
+    expect(mapToSportType('Run', { name: 'Easy Run', elevationGainFt: 80, distanceMi: 5 }))
+      .toBe('running')
+  })
+
+  it('promotes a tagged trail_run further when very hilly', () => {
+    expect(mapToSportType('trail_run', { name: 'Mountain Loop', elevationGainFt: 2000, distanceMi: 8 }))
+      .toBe('running_steep')
+  })
+})
+
 describe('calculateElevationBonus', () => {
   it('returns 0 for zero elevation', () => {
     expect(calculateElevationBonus(0)).toBe(0)
   })
 
-  it('returns 10 per 1000 ft', () => {
-    expect(calculateElevationBonus(1000)).toBe(10)
-    expect(calculateElevationBonus(2000)).toBe(20)
-    expect(calculateElevationBonus(3800)).toBe(38) // Broken Arrow 18K course
+  it('returns 10 per 500 ft', () => {
+    expect(calculateElevationBonus(500)).toBe(10)
+    expect(calculateElevationBonus(1000)).toBe(20)
+    expect(calculateElevationBonus(2000)).toBe(40)
+    expect(calculateElevationBonus(3800)).toBe(76) // Broken Arrow 18K course
   })
 
   it('returns 0 for negative elevation', () => {
@@ -176,7 +232,7 @@ describe('calculateAdjustedTRIMP', () => {
     )
     expect(record.sportType).toBe('hiking')
     expect(record.sportMultiplier).toBe(0.8) // ATE hiking MIM
-    expect(record.elevationBonus).toBe(20)
+    expect(record.elevationBonus).toBe(40)
     expect(record.date).toBe('2026-04-15')
     expect(record.activityName).toBe('Oakland Hills Hike')
   })

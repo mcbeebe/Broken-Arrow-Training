@@ -36,6 +36,10 @@ const MIM_MATRIX: Record<SportType, number> = {
   // Running variants
   running: 1.0,
   trail_running: 1.1,
+  // Sustained climbing/descent on a run — eccentric load on quads from
+  // descents pushes DOMS into hiking-territory. Auto-promoted by
+  // classifyRun() when avg grade clears ~3.8% (200 ft/mi).
+  running_steep: 1.3,
   // Cycling
   cycling: 0.65,
   // E-bike: pedal-assist reduces both cardiovascular and muscular
@@ -105,6 +109,7 @@ export const DOMS_CARRY: Partial<Record<SportType, number[]>> = {
   strength_full:  [0.25, 0.10],  // +25% day+1, +10% day+2
   hiking_steep:   [0.15, 0.05],  // eccentric from steep descents
   trail_running:  [0.10],        // mild DOMS from terrain variation
+  running_steep:  [0.15, 0.05],  // sustained eccentric on descents
   running_drills: [0.10],        // mild calf/Achilles tightness from bounding + strides
 }
 
@@ -190,6 +195,15 @@ const TYPE_MAP: Record<string, SportType> = {
 // ATE steep hike threshold (from ENGINE_DEFAULTS)
 const STEEP_HIKE_ELEV_THRESHOLD_FT = 500
 
+// Run hilliness thresholds — primary signal is ft/mile (proxy for avg
+// grade). Total-gain fallbacks are used when distance is unavailable.
+//   100 ft/mi ≈ 1.9% avg grade → trail/rolling
+//   200 ft/mi ≈ 3.8% avg grade → mountain run (sustained climb + descent)
+const TRAIL_RUN_ELEV_PER_MI_FT = 100
+const STEEP_RUN_ELEV_PER_MI_FT = 200
+const TRAIL_RUN_TOTAL_GAIN_FT = 500
+const STEEP_RUN_TOTAL_GAIN_FT = 1500
+
 // ATE strength HR inference threshold (60% HRR → lower body focus)
 const STRENGTH_HR_INFERENCE_THRESHOLD = 0.60
 
@@ -252,12 +266,44 @@ export function classifyHiking(elevationGainFt: number): SportType {
 }
 
 /**
+ * Promote a `running` or `trail_running` activity into a hillier tier
+ * when the terrain warrants it. Mirrors classifyHiking, but on a 2-step
+ * scale (flat → trail → steep). Uses ft/mile when distance is known
+ * (proxy for avg grade), falls back to total gain otherwise.
+ *
+ * Never demotes — an activity already tagged trail_running won't drop
+ * back to running just because the climb was modest.
+ */
+export function classifyRun(
+  baseSport: SportType,
+  elevationGainFt: number,
+  distanceMi?: number,
+): SportType {
+  if (baseSport !== 'running' && baseSport !== 'trail_running') return baseSport
+  if (elevationGainFt <= 0) return baseSport
+
+  const elevPerMi = distanceMi && distanceMi > 0 ? elevationGainFt / distanceMi : null
+
+  const isSteep = elevPerMi != null
+    ? elevPerMi >= STEEP_RUN_ELEV_PER_MI_FT
+    : elevationGainFt >= STEEP_RUN_TOTAL_GAIN_FT
+  if (isSteep) return 'running_steep'
+
+  if (baseSport === 'trail_running') return baseSport // don't demote
+
+  const isTrail = elevPerMi != null
+    ? elevPerMi >= TRAIL_RUN_ELEV_PER_MI_FT
+    : elevationGainFt >= TRAIL_RUN_TOTAL_GAIN_FT
+  return isTrail ? 'trail_running' : 'running'
+}
+
+/**
  * Map raw activity type string to ATE SportType with sub-classification.
  * Pass the full activity for Garmin sub-classification (strength/hiking).
  */
 export function mapToSportType(
   rawType: string,
-  activity?: { name?: string; avgHR?: number; elevationGainFt?: number; exerciseNames?: string[] },
+  activity?: { name?: string; avgHR?: number; elevationGainFt?: number; distanceMi?: number; exerciseNames?: string[] },
   restingHR?: number,
   maxHR?: number,
 ): SportType {
@@ -305,16 +351,27 @@ export function mapToSportType(
     return classifyHiking(activity.elevationGainFt)
   }
 
+  // Sub-classify running by hilliness — auto-promote a road "Run" with
+  // significant climbing into trail_running / running_steep so MIM
+  // reflects the actual eccentric load. Only applies when we have an
+  // elevation reading (Garmin/Strava both supply it).
+  if ((baseSport === 'running' || baseSport === 'trail_running') && activity?.elevationGainFt != null) {
+    return classifyRun(baseSport, activity.elevationGainFt, activity.distanceMi)
+  }
+
   return baseSport
 }
 
 // ─── Elevation Bonus ────────────────────────────────────────────
-// Johnston/Evoke Endurance: +10 per 1,000 ft elevation gain
+// +10 per 500 ft of elevation gain (doubled vs. the original
+// Johnston/Evoke +10/1000 ft to better reflect Broken Arrow course
+// loading — sustained descents punish quads harder than the literature
+// gives credit for).
 // Accounts for eccentric loading on descents and altitude stress
 
 export function calculateElevationBonus(elevationGainFt: number): number {
   if (elevationGainFt <= 0) return 0
-  return (elevationGainFt / 1000) * 10
+  return (elevationGainFt / 500) * 10
 }
 
 // ─── Adjusted Training Load ─────────────────────────────────────
@@ -374,14 +431,15 @@ export function stravaActivityToTRIMP(
 ): TRIMPRecord | null {
   if (!activity.average_heartrate) return null
 
+  const elevationFt = activity.total_elevation_gain * 3.28084
+  const distanceMi = activity.distance / 1609.344
   const sportType = mapToSportType(
     activity.sport_type || activity.type,
-    { name: activity.name, avgHR: activity.average_heartrate, elevationGainFt: activity.total_elevation_gain * 3.28084 },
+    { name: activity.name, avgHR: activity.average_heartrate, elevationGainFt: elevationFt, distanceMi },
     restingHR,
     maxHR,
   )
   const durationMinutes = activity.moving_time / 60
-  const elevationFt = activity.total_elevation_gain * 3.28084
 
   // Strava: always use Banister TRIMP (no Garmin EPOC available)
   const baseLoad = calculateBanisterTRIMP(durationMinutes, activity.average_heartrate, restingHR, maxHR)
@@ -397,7 +455,7 @@ export function garminActivityToTRIMP(
   // Activities with zero MIM (myrtl, breathwork — pure mobility) are excluded
   const sportType = mapToSportType(
     activity.type,
-    { name: activity.name, avgHR: activity.avgHR, elevationGainFt: activity.elevationGainFt, exerciseNames },
+    { name: activity.name, avgHR: activity.avgHR, elevationGainFt: activity.elevationGainFt, distanceMi: activity.distanceMi, exerciseNames },
     restingHR,
     maxHR,
   )
