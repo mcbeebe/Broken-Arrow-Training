@@ -303,6 +303,10 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
                 if (actual.distance > 0 && actual.movingTime > 0) stats.push({ value: formatPace(actual.distance, actual.movingTime), label: 'Avg Pace' })
                 if (actual.avgHR) stats.push({ value: `${actual.avgHR} bpm`, label: 'Avg Heart Rate' })
                 if (actual.elevationGain > 0) stats.push({ value: `${actual.elevationGain} ft`, label: 'Elev Gain' })
+                if (actual.elevationGain > 0 && actual.distance > 0) {
+                  const avgGrade = (actual.elevationGain / (actual.distance * 5280)) * 100
+                  stats.push({ value: `${avgGrade.toFixed(1)}%`, label: 'Avg Grade' })
+                }
                 if (actual.calories) stats.push({ value: `${actual.calories}`, label: 'Calories' })
                 if (stats.length === 0) return null
                 const cols = stats.length <= 2 || stats.length === 4 ? 'grid-cols-2' : 'grid-cols-3'

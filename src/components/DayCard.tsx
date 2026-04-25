@@ -287,6 +287,9 @@ export default function DayCard({ day, weekNum, onTap, onLog, onSwap, isSwapSele
               {actual.movingTime > 0 && <span>⏱ {formatSeconds(actual.movingTime)}</span>}
               {actual.avgHR && <span>❤️ {actual.avgHR} avg</span>}
               {actual.elevationGain > 0 && <span>⛰ {actual.elevationGain} ft</span>}
+              {actual.elevationGain > 0 && actual.distance > 0 && (
+                <span>📐 Avg Grade: {((actual.elevationGain / (actual.distance * 5280)) * 100).toFixed(1)}%</span>
+              )}
             </div>
 
             {/* Expanded details */}
