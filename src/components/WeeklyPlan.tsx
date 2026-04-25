@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useMemo } from 'react'
-import type { TrainingWeek, PlannedDay, ActualWorkout, HRZone, ReadinessScore, PerformanceMetrics, CoachSnapshot, RaceInfo } from '../types'
+import type { TrainingWeek, PlannedDay, ActualWorkout, HRZone, ReadinessScore, PerformanceMetrics, CoachSnapshot, RaceInfo, DailyTRIMP } from '../types'
+import { findTrimpRecord } from '../utils/trimp'
 import type { WeekCompliance } from '../hooks/useCompliance'
 import { getWorkoutStyle, adaptBg } from '../utils/styles'
 import DayCard from './DayCard'
@@ -28,6 +29,7 @@ interface WeeklyPlanProps {
   onAskCoach?: (seed: string) => void
   race?: RaceInfo
   compliance?: WeekCompliance[]
+  dailyTrimp?: DailyTRIMP[]
 }
 
 function todayDateString(): string {
@@ -51,6 +53,7 @@ export default function WeeklyPlan({
   onAskCoach,
   race,
   compliance,
+  dailyTrimp,
 }: WeeklyPlanProps) {
   const [viewMode, setViewMode] = useState<'list' | 'calendar' | 'race'>('list')
   const [activeWeek, setActiveWeek] = useState(0)
@@ -239,6 +242,7 @@ export default function WeeklyPlan({
           // Match readiness to day by parsing day label to date
           const dayDateMatch = parseDayToDate(d.day, week.dates)
           const readiness = dayDateMatch ? readinessByDate.get(dayDateMatch) : undefined
+          const trimpRecord = findTrimpRecord(dailyTrimp, dayDateMatch, d.actual?.name)
 
           return (
             <div
@@ -264,6 +268,7 @@ export default function WeeklyPlan({
                 athleteId={athleteId}
                 coachSnapshot={coachSnapshot}
                 onAskCoach={onAskCoach}
+                trimpRecord={trimpRecord}
               />
             </div>
           )
@@ -347,6 +352,10 @@ export default function WeeklyPlan({
           latestPerf={latestPerf}
           coachSnapshot={coachSnapshot}
           onAskCoach={onAskCoach}
+          trimpRecord={(() => {
+            const d = parseDayToDate(modalDay.day, week.dates)
+            return findTrimpRecord(dailyTrimp, d, modalDay.actual?.name)
+          })()}
         />
       )}
 

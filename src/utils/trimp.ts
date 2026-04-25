@@ -478,6 +478,27 @@ export function garminActivityToTRIMP(
   return calculateAdjustedLoad(baseLoad, sportType, activity.elevationGainFt, activity.name, activity.date)
 }
 
+// ─── Lookup helper ──────────────────────────────────────────────
+// Find the canonical TRIMPRecord for a logged activity so the UI can
+// surface the engine's actual sport classification, MIM, elevation
+// bonus, and adjusted load. Falls back to a same-date record when only
+// one exists (covers manual logs whose name was edited after sync).
+
+export function findTrimpRecord(
+  dailyTrimp: DailyTRIMP[] | undefined | null,
+  date: string | null | undefined,
+  activityName: string | undefined,
+): TRIMPRecord | undefined {
+  if (!dailyTrimp || !date) return undefined
+  const day = dailyTrimp.find(d => d.date === date)
+  if (!day || day.records.length === 0) return undefined
+  if (activityName) {
+    const exact = day.records.find(r => r.activityName === activityName)
+    if (exact) return exact
+  }
+  return day.records.length === 1 ? day.records[0] : undefined
+}
+
 // ─── Aggregate daily training load ──────────────────────────────
 
 export function aggregateDailyTRIMP(records: TRIMPRecord[]): DailyTRIMP[] {

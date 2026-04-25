@@ -1,12 +1,13 @@
-import { useState } from 'react'
-import type { PlannedDay, ReadinessScore, CoachSnapshot } from '../types'
+import { useState, type ReactNode } from 'react'
+import type { PlannedDay, ReadinessScore, CoachSnapshot, TRIMPRecord } from '../types'
 import { getWorkoutStyle, adaptBg } from '../utils/styles'
 import { formatMiles, formatSeconds, estimateRunTime } from '../utils/format'
 import { parsePlannedTargets } from '../utils/targets'
 import { gradeWorkoutDay } from '../hooks/useCompliance'
 import { getPlannedDrills, getDrillDay } from '../utils/drills'
 import { calculateGrade } from '../utils/grading'
-import { classifyRun, getSportMultiplier } from '../utils/trimp'
+import { classifyRun, getSportMultiplier, calculateElevationBonus } from '../utils/trimp'
+import { SPORT_LABELS } from '../hooks/useMIMCalibration'
 import { generateDayCardNote } from '../utils/coachNotes'
 import { useCoachInsight } from '../hooks/useCoachInsight'
 import TargetVsActual from './TargetVsActual'
@@ -30,9 +31,13 @@ interface DayCardProps {
   athleteId?: string
   coachSnapshot?: CoachSnapshot | null
   onAskCoach?: (seed: string) => void
+  /** Canonical training-load record for the logged activity, if any.
+   *  Surfaces the engine's MIM tier, elevation bonus, and adjusted load
+   *  on the card so the athlete can see how the workout was credited. */
+  trimpRecord?: TRIMPRecord
 }
 
-export default function DayCard({ day, weekNum, onTap, onLog, onSwap, isSwapSelected, isSwapTarget, readiness, coachEnabled, isToday, isPast, athleteId, coachSnapshot, onAskCoach }: DayCardProps) {
+export default function DayCard({ day, weekNum, onTap, onLog, onSwap, isSwapSelected, isSwapTarget, readiness, coachEnabled, isToday, isPast, athleteId, coachSnapshot, onAskCoach, trimpRecord }: DayCardProps) {
   const style = getWorkoutStyle(day.type)
   const actual = day.actual
   const timeEst = estimateRunTime(day.zone)
@@ -291,29 +296,68 @@ export default function DayCard({ day, weekNum, onTap, onLog, onSwap, isSwapSele
               {actual.elevationGain > 0 && actual.distance > 0 && (
                 <span>📐 Avg Grade: {((actual.elevationGain / (actual.distance * 5280)) * 100).toFixed(1)}%</span>
               )}
+              {trimpRecord && trimpRecord.adjustedTRIMP > 0 && (
+                <span title={`Adjusted training load. Base ${trimpRecord.baseTRIMP} × MIM ${trimpRecord.sportMultiplier.toFixed(2)} + ${trimpRecord.elevationBonus} elev bonus.`}>
+                  🎯 Load: {Math.round(trimpRecord.adjustedTRIMP)}
+                </span>
+              )}
             </div>
             {(() => {
+              const pills: ReactNode[] = []
               const runTypes = new Set(['run', 'long', 'quality', 'race'])
-              if (!runTypes.has(day.type)) return null
-              if (!(actual.elevationGain > 0 && actual.distance > 0)) return null
-              const tier = classifyRun('running', actual.elevationGain, actual.distance)
-              if (tier === 'running') return null
-              const mim = getSportMultiplier(tier)
-              const isSteep = tier === 'running_steep'
-              const label = isSteep ? '⛰ Steep Run' : '🌲 Trail Run'
-              const cls = isSteep
-                ? 'bg-emerald-200 text-emerald-900 border-emerald-300'
-                : 'bg-emerald-100 text-emerald-800 border-emerald-200'
-              return (
-                <div className="mt-1.5">
+
+              // MIM tier pill — show for every logged activity. Prefer
+              // the engine's classification (trimpRecord) so the pill
+              // matches what the load math actually used; fall back to
+              // local classification for runs the engine hasn't scored
+              // yet (e.g., manual logs without HR).
+              let sportType = trimpRecord?.sportType
+              if (!sportType && runTypes.has(day.type) && actual.elevationGain > 0) {
+                sportType = classifyRun(
+                  'running',
+                  actual.elevationGain,
+                  actual.distance > 0 ? actual.distance : undefined,
+                )
+              }
+              if (sportType) {
+                const mim = trimpRecord?.sportMultiplier ?? getSportMultiplier(sportType)
+                const label = SPORT_LABELS[sportType] ?? sportType
+                const isHigh = mim >= 1.2
+                const isLow = mim < 1.0
+                const cls = isHigh
+                  ? 'bg-emerald-200 text-emerald-900 border-emerald-300'
+                  : isLow
+                  ? 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-700 dark:text-slate-200 dark:border-slate-600'
+                  : 'bg-emerald-100 text-emerald-800 border-emerald-200'
+                pills.push(
                   <span
+                    key="mim"
                     className={`inline-flex items-center gap-1 text-xs font-semibold rounded-full border px-2 py-0.5 ${cls}`}
-                    title={`Auto-promoted from Running based on terrain. MIM ${mim.toFixed(2)}× applied to training load.`}
+                    title={`${label}: MIM ${mim.toFixed(2)}× applied to base training load.`}
                   >
                     {label} · MIM {mim.toFixed(2)}×
                   </span>
-                </div>
-              )
+                )
+              }
+
+              // Elevation-bonus pill — surfaces the additive +10/500ft
+              // credit so the athlete sees both load contributors.
+              const elevBonus = trimpRecord?.elevationBonus
+                ?? (actual.elevationGain > 0 ? calculateElevationBonus(actual.elevationGain) : 0)
+              if (elevBonus >= 10) {
+                pills.push(
+                  <span
+                    key="elev"
+                    className="inline-flex items-center gap-1 text-xs font-semibold rounded-full border px-2 py-0.5 bg-amber-100 text-amber-800 border-amber-200"
+                    title={`Elevation bonus: +10 training load per 500 ft of gain. ${actual.elevationGain} ft → +${Math.round(elevBonus)}.`}
+                  >
+                    🔥 Elev Bonus +{Math.round(elevBonus)}
+                  </span>
+                )
+              }
+
+              if (pills.length === 0) return null
+              return <div className="mt-1.5 flex flex-wrap gap-1.5">{pills}</div>
             })()}
 
             {/* Expanded details */}
