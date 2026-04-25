@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import type { PlannedDay, HRZone, ReadinessScore, PerformanceMetrics, CoachSnapshot } from '../types'
+import { useEffect, useState, type ReactNode } from 'react'
+import type { PlannedDay, HRZone, ReadinessScore, PerformanceMetrics, CoachSnapshot, TRIMPRecord } from '../types'
 import { getWorkoutStyle, adaptBg } from '../utils/styles'
 import { getCoaching } from '../utils/coaching'
 import { generateWorkoutTake } from '../utils/coachNotes'
@@ -11,6 +11,7 @@ import { parseIntervalWorkout, getDrillDay, RUNNING_DRILLS, MYRTL_ROUTINE, PRE_R
 import { fetchActivityStreams, getTokens, isTokenExpired, refreshAccessToken, type StreamData } from '../utils/strava'
 import { fetchGarminActivityStream } from '../utils/garmin'
 import { classifyRun, getSportMultiplier, calculateElevationBonus } from '../utils/trimp'
+import { SPORT_LABELS } from '../hooks/useMIMCalibration'
 import HRChart from './HRChart'
 import PaceChart from './PaceChart'
 import ElevationChart from './ElevationChart'
@@ -114,9 +115,11 @@ interface WorkoutModalProps {
   latestPerf?: PerformanceMetrics | null
   coachSnapshot?: CoachSnapshot | null
   onAskCoach?: (seed: string) => void
+  /** Canonical training-load record for the logged activity, if any. */
+  trimpRecord?: TRIMPRecord
 }
 
-export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, coachEnabled, readiness, latestPerf, coachSnapshot, onAskCoach }: WorkoutModalProps) {
+export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, coachEnabled, readiness, latestPerf, coachSnapshot, onAskCoach, trimpRecord }: WorkoutModalProps) {
   const style = getWorkoutStyle(day.type)
   const baseCoaching = getCoaching(day, weekNum)
   const actual = day.actual
@@ -308,6 +311,9 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
                   const avgGrade = (actual.elevationGain / (actual.distance * 5280)) * 100
                   stats.push({ value: `${avgGrade.toFixed(1)}%`, label: 'Avg Grade' })
                 }
+                if (trimpRecord && trimpRecord.adjustedTRIMP > 0) {
+                  stats.push({ value: `${Math.round(trimpRecord.adjustedTRIMP)}`, label: 'Total Load' })
+                }
                 if (actual.calories) stats.push({ value: `${actual.calories}`, label: 'Calories' })
                 if (stats.length === 0) return null
                 const cols = stats.length <= 2 || stats.length === 4 ? 'grid-cols-2' : 'grid-cols-3'
@@ -322,49 +328,58 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
                   </div>
                 )
               })()}
-              {/* Hilly-run impact callouts — surfaces both the
-                  multiplicative MIM tier (when terrain auto-promoted
-                  Running to Trail/Steep) and the additive elevation
-                  bonus (+10 per 500 ft) so the athlete sees exactly
-                  why this workout earned extra training load. */}
+              {/* Load-impact callouts — MIM tier (every logged activity)
+                  + elevation bonus (when ≥+10). Mirrors DayCard so the
+                  athlete sees the same credit math here and on the card. */}
               {(() => {
+                const pills: ReactNode[] = []
                 const runTypes = new Set(['run', 'long', 'quality', 'race'])
-                if (!runTypes.has(day.type)) return null
-                if (!(actual.elevationGain > 0)) return null
-                const tier = classifyRun(
-                  'running',
-                  actual.elevationGain,
-                  actual.distance > 0 ? actual.distance : undefined,
-                )
-                const elevBonus = calculateElevationBonus(actual.elevationGain)
-                const showTier = tier !== 'running'
-                const showBonus = elevBonus >= 10
-                if (!showTier && !showBonus) return null
-                const isSteep = tier === 'running_steep'
-                const tierLabel = isSteep ? '⛰ Steep Run' : '🌲 Trail Run'
-                const tierCls = isSteep
-                  ? 'bg-emerald-200 text-emerald-900 border-emerald-300'
-                  : 'bg-emerald-100 text-emerald-800 border-emerald-200'
-                return (
-                  <div className="flex flex-wrap gap-1.5">
-                    {showTier && (
-                      <span
-                        className={`inline-flex items-center gap-1 text-xs font-semibold rounded-full border px-2 py-0.5 ${tierCls}`}
-                        title={`Auto-promoted from Running based on terrain. MIM ${getSportMultiplier(tier).toFixed(2)}× applied to training load.`}
-                      >
-                        {tierLabel} · MIM {getSportMultiplier(tier).toFixed(2)}×
-                      </span>
-                    )}
-                    {showBonus && (
-                      <span
-                        className="inline-flex items-center gap-1 text-xs font-semibold rounded-full border px-2 py-0.5 bg-amber-100 text-amber-800 border-amber-200"
-                        title={`Elevation bonus: +10 training load per 500 ft of gain. ${actual.elevationGain} ft → +${Math.round(elevBonus)}.`}
-                      >
-                        🔥 Elev Bonus +{Math.round(elevBonus)}
-                      </span>
-                    )}
-                  </div>
-                )
+
+                let sportType = trimpRecord?.sportType
+                if (!sportType && runTypes.has(day.type) && actual.elevationGain > 0) {
+                  sportType = classifyRun(
+                    'running',
+                    actual.elevationGain,
+                    actual.distance > 0 ? actual.distance : undefined,
+                  )
+                }
+                if (sportType) {
+                  const mim = trimpRecord?.sportMultiplier ?? getSportMultiplier(sportType)
+                  const label = SPORT_LABELS[sportType] ?? sportType
+                  const isHigh = mim >= 1.2
+                  const isLow = mim < 1.0
+                  const cls = isHigh
+                    ? 'bg-emerald-200 text-emerald-900 border-emerald-300'
+                    : isLow
+                    ? 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-700 dark:text-slate-200 dark:border-slate-600'
+                    : 'bg-emerald-100 text-emerald-800 border-emerald-200'
+                  pills.push(
+                    <span
+                      key="mim"
+                      className={`inline-flex items-center gap-1 text-xs font-semibold rounded-full border px-2 py-0.5 ${cls}`}
+                      title={`${label}: MIM ${mim.toFixed(2)}× applied to base training load.`}
+                    >
+                      {label} · MIM {mim.toFixed(2)}×
+                    </span>
+                  )
+                }
+
+                const elevBonus = trimpRecord?.elevationBonus
+                  ?? (actual.elevationGain > 0 ? calculateElevationBonus(actual.elevationGain) : 0)
+                if (elevBonus >= 10) {
+                  pills.push(
+                    <span
+                      key="elev"
+                      className="inline-flex items-center gap-1 text-xs font-semibold rounded-full border px-2 py-0.5 bg-amber-100 text-amber-800 border-amber-200"
+                      title={`Elevation bonus: +10 training load per 500 ft of gain. ${actual.elevationGain} ft → +${Math.round(elevBonus)}.`}
+                    >
+                      🔥 Elev Bonus +{Math.round(elevBonus)}
+                    </span>
+                  )
+                }
+
+                if (pills.length === 0) return null
+                return <div className="flex flex-wrap gap-1.5">{pills}</div>
               })()}
               {/* Secondary stats — small badges */}
               {(() => {

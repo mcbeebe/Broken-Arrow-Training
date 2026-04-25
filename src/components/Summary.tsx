@@ -4,6 +4,7 @@ import type { RiskFlag } from '../utils/readiness'
 import type { SorenessLevel } from '../hooks/useSoreness'
 import { getTSBState, getTSBLabel, getACWRRisk, getACWRLabel } from '../utils/performance'
 import { localDateStr } from '../utils/format'
+import { findTrimpRecord } from '../utils/trimp'
 import TodayBriefing from './TodayBriefing'
 import TRIMPBreakdown from './TRIMPBreakdown'
 import CoachInsightCard from './CoachInsightCard'
@@ -296,6 +297,11 @@ export default function Summary({
                 latestPerf={latestPerf}
                 coachSnapshot={coachSnapshot ?? undefined}
                 athleteId={athleteId}
+                trimpRecord={findTrimpRecord(
+                  dailyTrimp,
+                  localDateStr(),
+                  todayPlannedWorkout.actual?.name,
+                )}
               />
             )}
           </>

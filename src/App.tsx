@@ -562,6 +562,7 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
           onAskCoach={handleAskCoach}
           race={activePlan.race}
           compliance={compliance.weeks}
+          dailyTrimp={readiness.dailyTrimp}
         />
       )}
       {view === 'dashboard' && (
