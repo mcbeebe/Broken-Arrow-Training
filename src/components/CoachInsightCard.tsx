@@ -1,6 +1,8 @@
-import { useState } from 'react'
-import type { CoachInsight } from '../types'
+import { useMemo, useState } from 'react'
+import type { CoachAction, CoachInsight, PlannedDay } from '../types'
 import { renderMarkdown } from '../utils/markdown'
+import { extractProposal } from '../utils/chatProposal'
+import ProposalCard, { type ProposalStatus } from './ProposalCard'
 
 interface Props {
   insight: CoachInsight | null
@@ -13,9 +15,18 @@ interface Props {
    *  fresh read after changing persona without waiting for tomorrow. */
   onRegenerate?: () => void
   athleteId?: string
+  /** Resolves the original PlannedDay (pre-override) so the proposal card
+   *  can show a "before → after" diff. */
+  getPlannedDay?: (weekNum: number, dayIndex: number) => PlannedDay | null
+  /** Apply a proposed plan edit and return the override id so the card
+   *  can later offer "Undo". */
+  onApproveProposal?: (action: CoachAction) => string | undefined
+  /** Roll back a previously-applied override. */
+  onUndoProposal?: (overrideId: string) => void
 }
 
 const COLLAPSE_PREFIX = 'ba_coach_insight_collapsed'
+const PROPOSAL_STATE_PREFIX = 'ba_coach_insight_proposal_v1'
 
 function collapseKey(athleteId?: string): string {
   return athleteId ? `${COLLAPSE_PREFIX}_${athleteId}` : COLLAPSE_PREFIX
@@ -36,14 +47,95 @@ function writeCollapsed(v: boolean, athleteId?: string) {
   }
 }
 
-export default function CoachInsightCard({ insight, loading, onAsk, coachName, onRegenerate, athleteId }: Props) {
+interface ProposalState {
+  status: ProposalStatus
+  overrideId?: string
+}
+
+function proposalStateKey(athleteId: string | undefined, action: CoachAction): string | null {
+  const pe = action.proposedEdit
+  if (!pe) return null
+  const scope = athleteId || 'default'
+  return `${PROPOSAL_STATE_PREFIX}:${scope}:w${pe.weekNum}d${pe.dayIndex}`
+}
+
+function readProposalState(athleteId: string | undefined, action: CoachAction): ProposalState {
+  const key = proposalStateKey(athleteId, action)
+  if (!key) return { status: 'pending' }
+  try {
+    const raw = localStorage.getItem(key)
+    if (!raw) return { status: 'pending' }
+    const parsed = JSON.parse(raw) as ProposalState
+    if (parsed.status === 'applied' || parsed.status === 'rejected' || parsed.status === 'pending') {
+      return parsed
+    }
+  } catch {
+    /* ignore */
+  }
+  return { status: 'pending' }
+}
+
+function writeProposalState(athleteId: string | undefined, action: CoachAction, state: ProposalState) {
+  const key = proposalStateKey(athleteId, action)
+  if (!key) return
+  try {
+    if (state.status === 'pending' && !state.overrideId) {
+      localStorage.removeItem(key)
+    } else {
+      localStorage.setItem(key, JSON.stringify(state))
+    }
+  } catch {
+    /* ignore */
+  }
+}
+
+export default function CoachInsightCard({
+  insight, loading, onAsk, coachName, onRegenerate, athleteId,
+  getPlannedDay, onApproveProposal, onUndoProposal,
+}: Props) {
   const name = coachName?.trim() || 'Coach'
   const [collapsed, setCollapsed] = useState(() => readCollapsed(athleteId))
+
+  // Parse a `proposal` block out of the insight text so the raw JSON
+  // never reaches the markdown renderer.
+  const parsed = useMemo(
+    () => insight ? extractProposal(insight.text) : { content: '', action: null },
+    [insight],
+  )
+  const action = parsed.action
+
+  // Bump on user mutation so the next render re-reads localStorage. Avoids
+  // a setState-in-effect for cross-render sync.
+  const [stateVersion, setStateVersion] = useState(0)
+  const proposalState: ProposalState = useMemo(
+    () => action ? readProposalState(athleteId, action) : { status: 'pending' },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [athleteId, action, stateVersion],
+  )
 
   function toggleCollapsed() {
     const next = !collapsed
     setCollapsed(next)
     writeCollapsed(next, athleteId)
+  }
+
+  function handleApprove(a: CoachAction) {
+    const overrideId = onApproveProposal?.(a)
+    writeProposalState(athleteId, a, { status: 'applied', overrideId })
+    setStateVersion(v => v + 1)
+  }
+
+  function handleReject() {
+    if (!action) return
+    writeProposalState(athleteId, action, { status: 'rejected' })
+    setStateVersion(v => v + 1)
+  }
+
+  function handleUndo(overrideId: string) {
+    if (!action) return
+    onUndoProposal?.(overrideId)
+    writeProposalState(athleteId, action, { status: 'pending' })
+    setStateVersion(v => v + 1)
   }
 
   if (loading && !insight) {
@@ -57,8 +149,10 @@ export default function CoachInsightCard({ insight, loading, onAsk, coachName, o
   }
   if (!insight || insight.silent || !insight.text) return null
 
+  const displayText = parsed.content || insight.text
+
   // One-line preview for collapsed state — first sentence or ~80 chars
-  const firstSentence = insight.text.split(/(?<=[.!?])\s/)[0] || insight.text
+  const firstSentence = displayText.split(/(?<=[.!?])\s/)[0] || displayText
   const preview = firstSentence.length > 100
     ? firstSentence.slice(0, 97).replace(/\s+\S*$/, '') + '…'
     : firstSentence
@@ -104,7 +198,7 @@ export default function CoachInsightCard({ insight, loading, onAsk, coachName, o
           )}
           {onAsk && (
             <button
-              onClick={() => onAsk(insight.text)}
+              onClick={() => onAsk(displayText)}
               className="font-medium text-indigo-700 hover:text-indigo-900 transition-colors ml-auto"
             >
               Ask about this →
@@ -123,8 +217,19 @@ export default function CoachInsightCard({ insight, loading, onAsk, coachName, o
       ) : (
         <div className={loading ? 'opacity-60 transition-opacity' : 'transition-opacity'}>
           <div className="text-base text-slate-800 leading-relaxed">
-            {renderMarkdown(insight.text)}
+            {renderMarkdown(displayText)}
           </div>
+          {action && action.type === 'propose_edit' && action.proposedEdit && (
+            <ProposalCard
+              action={action}
+              status={proposalState.status}
+              overrideId={proposalState.overrideId}
+              getPlannedDay={getPlannedDay}
+              onApprove={handleApprove}
+              onReject={handleReject}
+              onUndo={handleUndo}
+            />
+          )}
           {insight.tip && (
             <div className="mt-2 text-sm text-indigo-700/90 leading-relaxed">
               <span className="font-semibold">Tip:</span> {renderMarkdown(insight.tip)}

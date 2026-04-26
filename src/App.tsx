@@ -465,6 +465,23 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
     coachMemory.updateTurn(turnId, { actionStatus: 'pending', actionOverrideId: undefined })
   }, [planOverrides, coachMemory])
 
+  // Daily-insight proposals don't live in coachMemory, so they get their
+  // own approve/undo path that just touches planOverrides. The card
+  // tracks its own pending/applied/rejected status in localStorage.
+  const handleApproveInsightProposal = useCallback((action: CoachAction): string | undefined => {
+    if (action.type !== 'propose_edit' || !action.proposedEdit) return undefined
+    return planOverrides.applyOverride({
+      weekNum: action.proposedEdit.weekNum,
+      dayIndex: action.proposedEdit.dayIndex,
+      updates: action.proposedEdit.updates,
+      rationale: action.proposedEdit.rationale,
+    })
+  }, [planOverrides])
+
+  const handleUndoInsightProposal = useCallback((overrideId: string) => {
+    planOverrides.removeOverride(overrideId)
+  }, [planOverrides])
+
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 pb-24 dark:text-slate-200 transition-colors" style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" }}>
       {/* Header */}
@@ -546,6 +563,9 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
           zones={hrZones.zones}
           coachSnapshot={coachSnapshot}
           riskFlags={readiness.riskFlags}
+          getPlannedDay={getPlannedDay}
+          onApproveInsightProposal={handleApproveInsightProposal}
+          onUndoInsightProposal={handleUndoInsightProposal}
         />
       </>)}
       {view === 'plan' && (
