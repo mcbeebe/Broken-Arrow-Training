@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import type { ReadinessScore, GarminHealthData, CoachRecommendation, PerformanceMetrics, DailyTRIMP, CoachInsight, PlannedDay, HRZone, CoachSnapshot } from '../types'
+import type { ReadinessScore, GarminHealthData, CoachRecommendation, PerformanceMetrics, DailyTRIMP, CoachInsight, PlannedDay, HRZone, CoachSnapshot, CoachAction } from '../types'
 import type { RiskFlag } from '../utils/readiness'
 import type { SorenessLevel } from '../hooks/useSoreness'
 import { getTSBState, getTSBLabel, getACWRRisk, getACWRLabel } from '../utils/performance'
@@ -36,6 +36,9 @@ interface SummaryProps {
   zones?: HRZone[]
   coachSnapshot?: CoachSnapshot | null
   riskFlags?: RiskFlag[]
+  getPlannedDay?: (weekNum: number, dayIndex: number) => PlannedDay | null
+  onApproveInsightProposal?: (action: CoachAction) => string | undefined
+  onUndoInsightProposal?: (overrideId: string) => void
 }
 
 // ─── Scale bar component ──────────────────────────────────────
@@ -238,6 +241,9 @@ export default function Summary({
   zones,
   coachSnapshot,
   riskFlags = [],
+  getPlannedDay,
+  onApproveInsightProposal,
+  onUndoInsightProposal,
 }: SummaryProps) {
   const latestPerf = performance.length > 0 ? performance[performance.length - 1] : null
   const [perfOpen, setPerfOpen] = useState(false)
@@ -259,6 +265,9 @@ export default function Summary({
           coachName={coachName}
           onRegenerate={onRegenerateDailyInsight}
           athleteId={athleteId}
+          getPlannedDay={getPlannedDay}
+          onApproveProposal={onApproveInsightProposal}
+          onUndoProposal={onUndoInsightProposal}
         />
       )}
 
