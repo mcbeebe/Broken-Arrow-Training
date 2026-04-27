@@ -331,6 +331,27 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
               {/* Load-impact callouts — MIM tier (every logged activity)
                   + elevation bonus (when ≥+10). Mirrors DayCard so the
                   athlete sees the same credit math here and on the card. */}
+              {trimpRecord && trimpRecord.adjustedTRIMP > 0 && (() => {
+                // Reconstruct: adjusted = base × MIM + elev_bonus (unless
+                // MIN_LOAD_FLOOR clamped it). Show the math so the athlete
+                // can see exactly where Total Load came from.
+                const base = trimpRecord.baseTRIMP
+                const mim = trimpRecord.sportMultiplier
+                const elev = trimpRecord.elevationBonus
+                const adjusted = trimpRecord.adjustedTRIMP
+                const expected = base * mim + elev
+                const floored = Math.abs(expected - adjusted) > 0.5 && adjusted > expected
+                return (
+                  <p className="text-[11px] text-teal-700 dark:text-teal-300 text-center italic -mt-1">
+                    {floored ? (
+                      <>Total Load = <span className="font-semibold">{Math.round(adjusted)}</span> (minimum applied; raw {Math.round(base)} × {mim.toFixed(2)} + {Math.round(elev)} = {Math.round(expected)})</>
+                    ) : (
+                      <>Total Load = {Math.round(base)} base × {mim.toFixed(2)} MIM{elev > 0 ? ` + ${Math.round(elev)} elev` : ''} = <span className="font-semibold">{Math.round(adjusted)}</span></>
+                    )}
+                  </p>
+                )
+              })()}
+              {/* Load-impact pills — sport MIM tier + elevation bonus. */}
               {(() => {
                 const pills: ReactNode[] = []
                 const runTypes = new Set(['run', 'long', 'quality', 'race'])

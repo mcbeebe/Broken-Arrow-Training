@@ -149,18 +149,45 @@ export default function TRIMPBreakdown({ dailyTrimp, sorenessLoadByDate }: TRIMP
             />
             <Tooltip
               contentStyle={{ fontSize: 13, borderRadius: 8 }}
-              formatter={(value, name) => {
-                if (name === '_isRest' || name === 'rest') return [null, null]
-                const label = name === 'soreness' ? 'muscle soreness'
-                  : name === 'doms_carry' ? 'DOMS carry-over'
-                  : name === 'rpe_exercise' ? 'RPE + exercise boost'
-                  : String(name).replace(/_/g, ' ')
-                return [
-                  `${Math.round(Number(value))} TRIMP`,
-                  label,
-                ]
-              }}
               itemSorter={() => 0}
+              content={(props) => {
+                const { active, payload, label } = props as {
+                  active?: boolean
+                  payload?: ReadonlyArray<{ name?: string | number; value?: string | number; color?: string }>
+                  label?: string | number
+                }
+                if (!active || !payload || payload.length === 0) return null
+                const rows = payload.filter(p => p.name !== '_isRest' && p.name !== 'rest' && p.value != null && Number(p.value) > 0)
+                if (rows.length === 0) return null
+                const hasDayAdj = rows.some(p => p.name === 'rpe_exercise' || p.name === 'doms_carry' || p.name === 'soreness')
+                const friendly = (n: string | number | undefined) =>
+                  n === 'soreness' ? 'muscle soreness'
+                  : n === 'doms_carry' ? 'DOMS carry-over'
+                  : n === 'rpe_exercise' ? 'RPE + exercise boost'
+                  : String(n ?? '').replace(/_/g, ' ')
+                return (
+                  <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-md px-3 py-2 text-[13px]">
+                    <p className="font-semibold text-slate-700 dark:text-slate-200 mb-1">{label}</p>
+                    {rows.map((p, i) => (
+                      <div key={i} className="flex items-center gap-2">
+                        <span
+                          className="w-2.5 h-2.5 rounded-sm inline-block shrink-0"
+                          style={{ backgroundColor: p.color }}
+                        />
+                        <span className="text-slate-600 dark:text-slate-300">{friendly(p.name)}</span>
+                        <span className="ml-auto font-medium text-slate-700 dark:text-slate-200">
+                          {Math.round(Number(p.value))} TRIMP
+                        </span>
+                      </div>
+                    ))}
+                    {hasDayAdj && (
+                      <p className="mt-1.5 pt-1.5 border-t border-slate-100 dark:border-slate-700 text-[11px] text-slate-500 dark:text-slate-400 italic leading-snug">
+                        RPE / soreness / DOMS are day-level adjustments — applied to the day's total, not to any single workout.
+                      </p>
+                    )}
+                  </div>
+                )
+              }}
             />
             {Array.from(sportTypes).map(type => (
               <Bar
