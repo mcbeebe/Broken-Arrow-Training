@@ -270,6 +270,56 @@ export function resolveMIM(
   return { mim: MIM_MATRIX[sportType] ?? DEFAULT_MIM, ifSource: 'static' }
 }
 
+// ─── MIM Engine Description (for UI) ────────────────────────────
+// Tells the Settings page which formula governs each sport so the table
+// can show "0.4 + 0.4·IF²" instead of a fixed default that no longer
+// matches the engine. Range is the typical span for a real workout.
+
+export type MIMEngine = 'static' | 'cycling-if' | 'mountain-biking-if' | 'hiking-grade'
+
+export interface MIMEngineDescription {
+  engine: MIMEngine
+  /** Static fallback for the sport (used when dynamic inputs missing). */
+  staticValue: number
+  /** Short human-friendly formula label for the table. */
+  formulaLabel: string
+  /** Typical realized range for this sport — for the engine column hint. */
+  typicalRange?: [number, number]
+}
+
+export function describeMIMEngine(sport: SportType): MIMEngineDescription {
+  const staticValue = MIM_MATRIX[sport] ?? DEFAULT_MIM
+  if (sport === 'cycling') {
+    return {
+      engine: 'cycling-if',
+      staticValue,
+      formulaLabel: '0.4 + 0.4·IF²',
+      typicalRange: [0.5, 1.0],
+    }
+  }
+  if (sport === 'mountain_biking') {
+    return {
+      engine: 'mountain-biking-if',
+      staticValue,
+      formulaLabel: '(0.4 + 0.4·IF²) × 1.2',
+      typicalRange: [0.6, 1.2],
+    }
+  }
+  if (sport === 'hiking' || sport === 'hiking_steep') {
+    return {
+      engine: 'hiking-grade',
+      staticValue,
+      formulaLabel: 'Minetti walk / flat run',
+      typicalRange: [0.3, 4.9],
+    }
+  }
+  return {
+    engine: 'static',
+    staticValue,
+    formulaLabel: staticValue.toFixed(2) + '× (static)',
+  }
+}
+
 // ─── Activity Type Classification ───────────────────────────────
 // Maps raw Garmin/Strava type strings to ATE SportType
 // Then applies sub-classification for strength and hiking

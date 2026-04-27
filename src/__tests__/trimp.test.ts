@@ -703,3 +703,42 @@ describe('garminActivityToTRIMP — hiking MIM uses average grade', () => {
     expect(record!.ifSource).toBe('static')
   })
 })
+
+describe('describeMIMEngine', () => {
+  it('marks cycling as the IF² formula', async () => {
+    const { describeMIMEngine } = await import('../utils/trimp')
+    const desc = describeMIMEngine('cycling')
+    expect(desc.engine).toBe('cycling-if')
+    expect(desc.formulaLabel).toMatch(/IF/)
+    expect(desc.staticValue).toBe(0.65)
+    expect(desc.typicalRange?.[0]).toBeGreaterThan(0)
+  })
+
+  it('marks mountain biking with the MTB terrain bump', async () => {
+    const { describeMIMEngine } = await import('../utils/trimp')
+    const desc = describeMIMEngine('mountain_biking')
+    expect(desc.engine).toBe('mountain-biking-if')
+    expect(desc.formulaLabel).toMatch(/1\.2/)
+  })
+
+  it('marks hiking variants as grade-based (Minetti)', async () => {
+    const { describeMIMEngine } = await import('../utils/trimp')
+    expect(describeMIMEngine('hiking').engine).toBe('hiking-grade')
+    expect(describeMIMEngine('hiking_steep').engine).toBe('hiking-grade')
+    expect(describeMIMEngine('hiking').formulaLabel).toMatch(/Minetti/)
+  })
+
+  it('marks running, strength, swimming, etc. as static', async () => {
+    const { describeMIMEngine } = await import('../utils/trimp')
+    expect(describeMIMEngine('running').engine).toBe('static')
+    expect(describeMIMEngine('strength_lower').engine).toBe('static')
+    expect(describeMIMEngine('swimming').engine).toBe('static')
+    expect(describeMIMEngine('running').formulaLabel).toMatch(/static/)
+  })
+
+  it('marks ebike as static (pedal assist breaks IF)', async () => {
+    const { describeMIMEngine } = await import('../utils/trimp')
+    expect(describeMIMEngine('ebike').engine).toBe('static')
+    expect(describeMIMEngine('ebike').staticValue).toBe(0.30)
+  })
+})

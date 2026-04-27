@@ -436,8 +436,9 @@ function MIMTable({ overrides, lastCalibrated, onSetManual, onReset, onRecalibra
   return (
     <div className="space-y-2">
       <p className="text-xs text-slate-500 dark:text-slate-400">
-        The Musculoskeletal Impact Modifier adjusts raw Garmin EPOC to reflect true training stress per sport.
-        Values auto-calibrate from your soreness recovery patterns. Tap a value to override manually.
+        The Musculoskeletal Impact Modifier (MIM) scales raw Garmin EPOC into actual training stress per sport.
+        Cycling, mountain biking, and hiking now compute MIM <em>per workout</em> from intensity factor (cycling)
+        or grade (hiking) instead of a fixed default. Other sports use a static lookup. Tap any value to override manually.
       </p>
       {lastCalibrated && (
         <p className="text-[10px] text-slate-400">Last calibrated: {lastCalibrated}</p>
@@ -447,23 +448,44 @@ function MIMTable({ overrides, lastCalibrated, onSetManual, onReset, onRecalibra
           <thead>
             <tr className="border-b border-slate-200 dark:border-slate-700">
               <th className="text-left py-1.5 text-slate-500 dark:text-slate-400 font-semibold">Activity</th>
-              <th className="text-right py-1.5 text-slate-500 dark:text-slate-400 font-semibold w-16">Default</th>
-              <th className="text-right py-1.5 text-slate-500 dark:text-slate-400 font-semibold w-20">Active</th>
-              <th className="text-right py-1.5 text-slate-500 dark:text-slate-400 font-semibold w-16">Recovery</th>
+              <th className="text-left py-1.5 text-slate-500 dark:text-slate-400 font-semibold">Engine</th>
+              <th className="text-right py-1.5 text-slate-500 dark:text-slate-400 font-semibold w-20" title="Average MIM the engine actually applied across your last 30 days of activities">Recent</th>
+              <th className="text-right py-1.5 text-slate-500 dark:text-slate-400 font-semibold w-20" title="Manual override — always wins over the engine">Override</th>
               <th className="w-8"></th>
             </tr>
           </thead>
           <tbody>
             {overrides.map(o => {
-              const active = o.manual ?? o.calibrated
-              const isCalibrated = o.calibrated !== o.defaultMIM
               const isManual = o.manual !== null
+              const isDynamic = o.engine !== 'static'
               const isEditing = editing === o.sport
-              const drift = ((active - o.defaultMIM) / o.defaultMIM * 100)
+              const baseline = o.recentAvgMIM ?? o.defaultMIM
+              const overrideDrift = isManual ? ((o.manual! - baseline) / baseline) * 100 : 0
+              const engineCellClass = isDynamic
+                ? 'text-violet-600 dark:text-violet-300 font-medium'
+                : 'text-slate-500 dark:text-slate-400'
+              const engineLabel = isDynamic
+                ? o.formulaLabel
+                : o.defaultMIM.toFixed(2)
+              const engineTitle = isDynamic
+                ? `Per-workout formula. Typical range ${o.typicalRange ? o.typicalRange[0].toFixed(1) + '–' + o.typicalRange[1].toFixed(1) + '×' : 'varies'}.`
+                : 'Static lookup applied to every workout for this sport.'
               return (
                 <tr key={o.sport} className="border-b border-slate-100 dark:border-slate-700">
                   <td className="py-1.5 text-slate-700 dark:text-slate-200">{SPORT_LABELS[o.sport] || o.sport}</td>
-                  <td className="text-right text-slate-400">{o.defaultMIM.toFixed(2)}</td>
+                  <td className={`py-1.5 ${engineCellClass}`} title={engineTitle}>
+                    {engineLabel}
+                  </td>
+                  <td className="text-right text-slate-600 dark:text-slate-300 font-mono">
+                    {o.recentAvgMIM !== null ? (
+                      <span title={`${o.recentSampleCount} session${o.recentSampleCount === 1 ? '' : 's'} in last 30d`}>
+                        {o.recentAvgMIM.toFixed(2)}
+                        <span className="text-[9px] text-slate-400 ml-0.5">×{o.recentSampleCount}</span>
+                      </span>
+                    ) : (
+                      <span className="text-slate-300">—</span>
+                    )}
+                  </td>
                   <td className="text-right">
                     {isEditing ? (
                       <input
@@ -485,28 +507,31 @@ function MIMTable({ overrides, lastCalibrated, onSetManual, onReset, onRecalibra
                       />
                     ) : (
                       <button
-                        onClick={() => { setEditing(o.sport); setEditVal(active.toFixed(2)) }}
-                        className={`font-mono ${isManual ? 'text-teal-600 font-bold' : isCalibrated ? 'text-blue-600 font-semibold' : 'text-slate-600 dark:text-slate-300'}`}
-                        title={isManual ? 'Manual override' : isCalibrated ? 'Auto-calibrated' : 'Default'}
+                        onClick={() => { setEditing(o.sport); setEditVal((o.manual ?? o.recentAvgMIM ?? o.defaultMIM).toFixed(2)) }}
+                        className={`font-mono ${isManual ? 'text-teal-600 font-bold' : 'text-slate-300 hover:text-slate-500'}`}
+                        title={isManual ? 'Manual override (wins over engine)' : 'Tap to set a manual override'}
                       >
-                        {active.toFixed(2)}
-                        {Math.abs(drift) >= 1 && (
-                          <span className={`ml-0.5 text-[9px] ${drift > 0 ? 'text-red-400' : 'text-green-500'}`}>
-                            {drift > 0 ? '+' : ''}{drift.toFixed(0)}%
-                          </span>
+                        {isManual ? (
+                          <>
+                            {o.manual!.toFixed(2)}
+                            {Math.abs(overrideDrift) >= 1 && (
+                              <span className={`ml-0.5 text-[9px] ${overrideDrift > 0 ? 'text-red-400' : 'text-green-500'}`}>
+                                {overrideDrift > 0 ? '+' : ''}{overrideDrift.toFixed(0)}%
+                              </span>
+                            )}
+                          </>
+                        ) : (
+                          'set…'
                         )}
                       </button>
                     )}
                   </td>
-                  <td className="text-right text-slate-400">
-                    {o.avgRecoveryDays > 0 ? `${o.avgRecoveryDays}d` : '—'}
-                  </td>
                   <td className="text-center">
-                    {(isManual || isCalibrated) && (
+                    {isManual && (
                       <button
                         onClick={() => onReset?.(o.sport)}
                         className="text-[9px] text-slate-400 hover:text-red-500"
-                        title="Reset to default"
+                        title="Clear manual override"
                       >
                         ×
                       </button>
@@ -519,9 +544,9 @@ function MIMTable({ overrides, lastCalibrated, onSetManual, onReset, onRecalibra
         </table>
       </div>
       <div className="flex items-center justify-between pt-1">
-        <div className="flex gap-2 text-[9px] text-slate-400">
-          <span><span className="text-blue-600 font-semibold">Blue</span> = auto-calibrated</span>
-          <span><span className="text-teal-600 font-bold">Teal</span> = manual</span>
+        <div className="flex gap-2 text-[9px] text-slate-400 flex-wrap">
+          <span><span className="text-violet-600 dark:text-violet-300 font-medium">Violet</span> = per-workout formula</span>
+          <span><span className="text-teal-600 font-bold">Teal</span> = manual override</span>
         </div>
         {onRecalibrate && (
           <button
