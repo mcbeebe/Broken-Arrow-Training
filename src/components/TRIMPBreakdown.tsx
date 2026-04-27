@@ -7,6 +7,10 @@ interface TRIMPBreakdownProps {
   sorenessLoadByDate?: Map<string, number>
   rpeByDate?: Map<string, number>
   exerciseLoadByDate?: Map<string, number>
+  /** Engine's predicted DOMS carry per day (from useReadiness). When a
+   *  soreness check-in covers the same physiological signal as the
+   *  prediction, only the larger of the two contributes to day total. */
+  domsCarryByDate?: Map<string, number>
 }
 
 const SPORT_COLORS: Record<string, string> = {
@@ -64,7 +68,7 @@ interface Breakdown {
   dayTotal: number
 }
 
-export default function TRIMPBreakdown({ dailyTrimp, sorenessLoadByDate, rpeByDate, exerciseLoadByDate }: TRIMPBreakdownProps) {
+export default function TRIMPBreakdown({ dailyTrimp, sorenessLoadByDate, rpeByDate, exerciseLoadByDate, domsCarryByDate }: TRIMPBreakdownProps) {
   const last7Days = getLast7Days()
 
   // Build a lookup from existing TRIMP data
@@ -79,22 +83,23 @@ export default function TRIMPBreakdown({ dailyTrimp, sorenessLoadByDate, rpeByDa
 
   const weeklyTotal = Math.round(filledDays.reduce((s, d) => s + d.total, 0))
 
-  // Per-day truthful decomposition. day.total = (recordSum + exerciseLoad)
-  // × rpeMult + sorenessAdj + domsCarry, where domsCarry is the residual
-  // from prior days' high-eccentric activities baked in by aggregateDailyTRIMP.
-  // We compute domsCarry as the residual so the breakdown reconciles to
-  // day.total exactly.
+  // Per-day decomposition. After useReadiness applies its dedup logic:
+  //   day.total = (recordSum + exerciseLoad) × rpeMult
+  //             + max(domsCarry, sorenessAdj_positive)
+  //             + sorenessAdj_negative
+  // We use the engine's predicted domsCarry directly (passed in from
+  // useReadiness) so the chart matches the hook's source of truth, and
+  // splits "DOMS carry-over (predicted)" from "muscle soreness above
+  // prediction" in the tooltip when both apply.
   const breakdownByMMDD = new Map<string, Breakdown>()
   for (const day of filledDays) {
     const recordSum = day.records.reduce((s, r) => s + r.adjustedTRIMP, 0)
     const exerciseLoad = exerciseLoadByDate?.get(day.date) ?? 0
     const rpeValue = rpeByDate?.get(day.date) ?? null
     const rpeMult = rpeValue ? 1 + 0.04 * (rpeValue - 5) : 1
-    const afterExercise = recordSum + exerciseLoad
-    const rpeDelta = afterExercise * (rpeMult - 1)
+    const rpeDelta = (recordSum + exerciseLoad) * (rpeMult - 1)
     const sorenessAdj = sorenessLoadByDate?.get(day.date) ?? 0
-    const accountedFor = recordSum + exerciseLoad + rpeDelta + sorenessAdj
-    const domsCarry = Math.max(0, day.total - accountedFor)
+    const domsCarry = domsCarryByDate?.get(day.date) ?? 0
     breakdownByMMDD.set(day.date.slice(5), {
       records: day.records.map(r => ({ sportType: r.sportType, trimp: r.adjustedTRIMP })),
       exerciseLoad,
@@ -109,7 +114,9 @@ export default function TRIMPBreakdown({ dailyTrimp, sorenessLoadByDate, rpeByDa
 
   // Build chart data using the breakdown. Bar segments are post-RPE-adjusted
   // so the stack height matches day.total even when RPE < 5 reduces things —
-  // the raw values + RPE delta are spelled out in the tooltip.
+  // the raw values + RPE delta are spelled out in the tooltip. DOMS carry
+  // and soreness are de-duplicated: when both apply, the bar shows the full
+  // DOMS prediction plus only the *excess* soreness above prediction.
   const chartData = filledDays.map(day => {
     const bd = breakdownByMMDD.get(day.date.slice(5))!
     const entry: Record<string, string | number> = {
@@ -123,11 +130,15 @@ export default function TRIMPBreakdown({ dailyTrimp, sorenessLoadByDate, rpeByDa
     if (bd.exerciseLoad > 0.5) {
       entry['manual_exercise'] = Math.round(bd.exerciseLoad * bd.rpeMult * 10) / 10
     }
-    if (bd.sorenessAdj > 0.5) {
-      entry['soreness'] = Math.round(bd.sorenessAdj * 10) / 10
-    }
+    // De-dup'd lagged-fatigue contribution. Positive soreness above
+    // predicted DOMS shows as the excess; otherwise the prediction stands.
+    // Negative soreness (recovery) bypasses the bar (tooltip shows it).
     if (bd.domsCarry > 0.5) {
       entry['doms_carry'] = Math.round(bd.domsCarry * 10) / 10
+    }
+    if (bd.sorenessAdj > 0) {
+      const excess = Math.max(0, bd.sorenessAdj - bd.domsCarry)
+      if (excess > 0.5) entry['soreness'] = Math.round(excess * 10) / 10
     }
     if (bd.dayTotal === 0) {
       entry['rest'] = 0
@@ -186,7 +197,7 @@ export default function TRIMPBreakdown({ dailyTrimp, sorenessLoadByDate, rpeByDa
                 const bd = breakdownByMMDD.get(String(label))
                 if (!bd || bd.dayTotal <= 0) return null
 
-                interface Row { swatch: string; name: string; value: number; signed?: boolean }
+                interface Row { swatch: string; name: string; value: number; signed?: boolean; subtitle?: string }
                 const rows: Row[] = []
                 for (const r of bd.records) {
                   rows.push({
@@ -206,15 +217,38 @@ export default function TRIMPBreakdown({ dailyTrimp, sorenessLoadByDate, rpeByDa
                     signed: true,
                   })
                 }
-                if (bd.sorenessAdj > 0.5) {
-                  rows.push({ swatch: SORENESS_COLOR, name: 'muscle soreness', value: bd.sorenessAdj })
-                }
+                // De-dup'd lagged-fatigue: show predicted DOMS, then excess
+                // soreness (if measurement was higher than prediction).
                 if (bd.domsCarry > 0.5) {
-                  rows.push({ swatch: DOMS_COLOR, name: 'DOMS carry-over', value: bd.domsCarry })
+                  const dedupNote = bd.sorenessAdj > 0
+                    ? bd.sorenessAdj >= bd.domsCarry
+                      ? '(prediction confirmed by check-in)'
+                      : '(prediction; check-in lower)'
+                    : undefined
+                  rows.push({ swatch: DOMS_COLOR, name: 'DOMS carry-over', value: bd.domsCarry, subtitle: dedupNote })
+                }
+                if (Math.abs(bd.sorenessAdj) > 0.5) {
+                  if (bd.sorenessAdj < 0) {
+                    rows.push({
+                      swatch: SORENESS_COLOR,
+                      name: 'soreness (recovery)',
+                      value: bd.sorenessAdj,
+                      signed: true,
+                    })
+                  } else {
+                    const excess = Math.max(0, bd.sorenessAdj - bd.domsCarry)
+                    if (excess > 0.5) {
+                      rows.push({
+                        swatch: SORENESS_COLOR,
+                        name: bd.domsCarry > 0.5 ? 'soreness (above predicted)' : 'muscle soreness',
+                        value: excess,
+                      })
+                    }
+                  }
                 }
                 if (rows.length === 0) return null
 
-                const hasDayAdj = bd.rpeValue !== null || bd.sorenessAdj > 0.5 || bd.domsCarry > 0.5
+                const hasDayAdj = bd.rpeValue !== null || Math.abs(bd.sorenessAdj) > 0.5 || bd.domsCarry > 0.5
 
                 const fmt = (v: number, signed?: boolean) => {
                   const n = Math.round(v)
@@ -226,15 +260,22 @@ export default function TRIMPBreakdown({ dailyTrimp, sorenessLoadByDate, rpeByDa
                   <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-md px-3 py-2 text-[13px]">
                     <p className="font-semibold text-slate-700 dark:text-slate-200 mb-1">{label}</p>
                     {rows.map((r, i) => (
-                      <div key={i} className="flex items-center gap-2">
-                        <span
-                          className="w-2.5 h-2.5 rounded-sm inline-block shrink-0"
-                          style={{ backgroundColor: r.swatch }}
-                        />
-                        <span className="text-slate-600 dark:text-slate-300">{r.name}</span>
-                        <span className={`ml-auto font-medium ${r.signed && r.value < 0 ? 'text-rose-600 dark:text-rose-400' : 'text-slate-700 dark:text-slate-200'}`}>
-                          {fmt(r.value, r.signed)}
-                        </span>
+                      <div key={i}>
+                        <div className="flex items-center gap-2">
+                          <span
+                            className="w-2.5 h-2.5 rounded-sm inline-block shrink-0"
+                            style={{ backgroundColor: r.swatch }}
+                          />
+                          <span className="text-slate-600 dark:text-slate-300">{r.name}</span>
+                          <span className={`ml-auto font-medium ${r.signed && r.value < 0 ? 'text-rose-600 dark:text-rose-400' : 'text-slate-700 dark:text-slate-200'}`}>
+                            {fmt(r.value, r.signed)}
+                          </span>
+                        </div>
+                        {r.subtitle && (
+                          <p className="ml-[18px] text-[10px] text-slate-400 dark:text-slate-500 italic leading-tight">
+                            {r.subtitle}
+                          </p>
+                        )}
                       </div>
                     ))}
                     <div className="flex items-center gap-2 mt-1 pt-1 border-t border-slate-100 dark:border-slate-700">

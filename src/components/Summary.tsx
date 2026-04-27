@@ -27,6 +27,7 @@ interface SummaryProps {
   sorenessLoadByDate: Map<string, number>
   rpeByDate?: Map<string, number>
   exerciseLoadByDate?: Map<string, number>
+  domsCarryByDate?: Map<string, number>
   coachEnabled?: boolean
   dailyInsight?: CoachInsight | null
   dailyInsightLoading?: boolean
@@ -234,6 +235,7 @@ export default function Summary({
   sorenessLoadByDate,
   rpeByDate,
   exerciseLoadByDate,
+  domsCarryByDate,
   coachEnabled,
   dailyInsight,
   dailyInsightLoading,
@@ -526,6 +528,7 @@ export default function Summary({
           sorenessLoadByDate={sorenessLoadByDate}
           rpeByDate={rpeByDate}
           exerciseLoadByDate={exerciseLoadByDate}
+          domsCarryByDate={domsCarryByDate}
         />
       )}
 

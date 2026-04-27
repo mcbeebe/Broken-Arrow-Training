@@ -557,6 +557,53 @@ export function aggregateDailyTRIMP(records: TRIMPRecord[]): DailyTRIMP[] {
   return result
 }
 
+// ─── Per-Day Adjustment Composition ─────────────────────────────
+// Combines a day's raw record load with manual exercise, RPE, soreness,
+// and engine-predicted DOMS carry into a single adjusted total. Used by
+// useReadiness; kept pure so it's trivially testable.
+//
+// Formula:
+//   total = (recordSum + exerciseLoad) × rpeMult
+//         + max(domsCarry, sorenessAdj)         // when sorenessAdj > 0
+//         + (domsCarry + sorenessAdj)           // when sorenessAdj < 0 (recovery credit)
+//         + domsCarry                            // when sorenessAdj == 0 / undefined
+//
+// RPE multiplies today's effort only, never yesterday's residual carry.
+// DOMS prediction and soreness check-in model the same physiological
+// signal — when both apply positively, take the higher rather than
+// summing. Negative soreness (recovery credit per Twist & Highton 2013)
+// bypasses the dedup so it lands additively.
+
+export interface DailyAdjustmentInputs {
+  exerciseLoad?: number
+  rpeValue?: number
+  sorenessAdj?: number
+}
+
+export function composeDayLoad(
+  recordSum: number,
+  domsCarry: number,
+  adj: DailyAdjustmentInputs = {},
+): number {
+  const exerciseLoad = adj.exerciseLoad ?? 0
+  const rpeValue = adj.rpeValue
+  const rpeMult = rpeValue ? 1 + 0.04 * (rpeValue - 5) : 1
+  const sorenessAdj = adj.sorenessAdj ?? 0
+
+  const effortLoad = (recordSum + exerciseLoad) * rpeMult
+
+  let lagged: number
+  if (sorenessAdj > 0) {
+    lagged = Math.max(domsCarry, sorenessAdj)
+  } else if (sorenessAdj < 0) {
+    lagged = Math.max(0, domsCarry + sorenessAdj)
+  } else {
+    lagged = domsCarry
+  }
+
+  return Math.max(0, effortLoad + lagged)
+}
+
 /**
  * Mutates dailyTrimp array in-place, adding DOMS carry-forward load
  * from high-eccentric activities into subsequent days.

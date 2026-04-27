@@ -9,6 +9,7 @@ import {
   classifyStrength,
   classifyHiking,
   classifyRun,
+  composeDayLoad,
 } from '../utils/trimp'
 
 describe('calculateBanisterTRIMP', () => {
@@ -284,5 +285,57 @@ describe('aggregateDailyTRIMP', () => {
     const daily = aggregateDailyTRIMP(records)
     expect(daily[0].date).toBe('2026-04-15')
     expect(daily[1].date).toBe('2026-04-16')
+  })
+})
+
+describe('composeDayLoad', () => {
+  it('returns recordSum when no adjustments and no DOMS carry', () => {
+    expect(composeDayLoad(100, 0)).toBe(100)
+  })
+
+  it('adds DOMS carry without scaling by RPE', () => {
+    // RPE 7 multiplies effort by 1.08 — but only effort, not the carry.
+    // Effort: 100 × 1.08 = 108. Carry: 40 (untouched). Total: 148.
+    expect(composeDayLoad(100, 40, { rpeValue: 7 })).toBeCloseTo(148, 1)
+  })
+
+  it('uses higher of DOMS prediction vs positive soreness (no double-count)', () => {
+    // recordSum 4, DOMS carry 40, soreness 30.
+    // Effort: 4 × 1 = 4. Lagged: max(40, 30) = 40. Total: 44.
+    expect(composeDayLoad(4, 40, { sorenessAdj: 30 })).toBeCloseTo(44, 1)
+  })
+
+  it('soreness above DOMS prediction lifts the day total to the higher value', () => {
+    // recordSum 4, DOMS carry 20, soreness 50.
+    // Lagged: max(20, 50) = 50. Total: 4 + 50 = 54.
+    expect(composeDayLoad(4, 20, { sorenessAdj: 50 })).toBeCloseTo(54, 1)
+  })
+
+  it('soreness only (no DOMS) adds fully — current behavior preserved', () => {
+    expect(composeDayLoad(100, 0, { sorenessAdj: 30 })).toBeCloseTo(130, 1)
+  })
+
+  it('DOMS only (no soreness) uses prediction', () => {
+    expect(composeDayLoad(100, 40, {})).toBeCloseTo(140, 1)
+  })
+
+  it('negative soreness (recovery credit) discounts DOMS without dedup gate', () => {
+    // recordSum 100, DOMS 40, soreness −15 → lagged = max(0, 40 − 15) = 25.
+    // Total = 100 + 25 = 125. (Relief lands; not swallowed by dedup.)
+    expect(composeDayLoad(100, 40, { sorenessAdj: -15 })).toBeCloseTo(125, 1)
+  })
+
+  it('large negative soreness clamps lagged at zero', () => {
+    expect(composeDayLoad(100, 10, { sorenessAdj: -50 })).toBeCloseTo(100, 1)
+  })
+
+  it('RPE only multiplies records + exercise — never DOMS carry', () => {
+    // RPE 1 → 0.84 multiplier. Effort: (100 + 20) × 0.84 = 100.8.
+    // Carry: 50 untouched. Total: 150.8.
+    expect(composeDayLoad(100, 50, { exerciseLoad: 20, rpeValue: 1 })).toBeCloseTo(150.8, 1)
+  })
+
+  it('reduces to current sum when sorenessAdj==0 and rpe absent', () => {
+    expect(composeDayLoad(50, 10, {})).toBe(60)
   })
 })
