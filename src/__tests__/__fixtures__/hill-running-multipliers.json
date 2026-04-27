@@ -1,6 +1,6 @@
 {
-  "version": "1.0",
-  "source": "Hill_Running_Load_Multipliers_v1.0.xlsx",
+  "version": "1.1",
+  "source": "Hill_Running_Load_Multipliers_v1.1.xlsx",
   "polynomial": {
     "run": {
       "a0": 3.6,

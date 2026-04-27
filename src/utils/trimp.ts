@@ -1,5 +1,8 @@
-import type { SportType, TRIMPRecord, DailyTRIMP, StravaActivity, GarminActivity, StrengthExerciseLog } from '../types'
+import type { SportType, TRIMPRecord, DailyTRIMP, StravaActivity, GarminActivity, StrengthExerciseLog, IFSource } from '../types'
 import { localDateStr } from './format'
+import { cyclingMIM } from '../engines/cycling/mim'
+import { hikingMIM } from '../engines/terrain/locomotion/hiking'
+import { computeIntensityFactor } from './intensity-factor'
 
 // ─── Training Load Calculation (ATE-aligned) ────────────────────
 //
@@ -115,26 +118,33 @@ export const DOMS_CARRY: Partial<Record<SportType, number[]>> = {
 
 const DEFAULT_MIM = 0.6
 
+// MTB rough-terrain bump on top of the cycling MIM formula. Cycling MIM
+// captures smooth-road tibiofemoral compression only; mountain biking adds
+// impact and brief eccentric load that the formula doesn't model directly.
+const MTB_TERRAIN_BUMP = 1.2
+
 let _mimOverrideCache: Record<string, { calibrated: number; manual: number | null }> | null = null
 let _mimOverrideCacheKey = ''
 
-export function getSportMultiplier(sportType: SportType, athleteId?: string): number {
-  if (athleteId) {
-    const key = `ba_mim_calibration_${athleteId}`
-    if (_mimOverrideCacheKey !== key) {
-      try {
-        const raw = localStorage.getItem(key)
-        _mimOverrideCache = raw ? JSON.parse(raw).overrides ?? null : null
-        _mimOverrideCacheKey = key
-      } catch { _mimOverrideCache = null }
-    }
-    if (_mimOverrideCache?.[sportType]) {
-      const o = _mimOverrideCache[sportType]
-      if (o.manual !== null && o.manual !== undefined) return o.manual
-      if (o.calibrated !== undefined) return o.calibrated
-    }
+function getManualOverride(sportType: SportType, athleteId?: string): number | null {
+  if (!athleteId) return null
+  const key = `ba_mim_calibration_${athleteId}`
+  if (_mimOverrideCacheKey !== key) {
+    try {
+      const raw = localStorage.getItem(key)
+      _mimOverrideCache = raw ? JSON.parse(raw).overrides ?? null : null
+      _mimOverrideCacheKey = key
+    } catch { _mimOverrideCache = null }
   }
-  return MIM_MATRIX[sportType] ?? DEFAULT_MIM
+  const o = _mimOverrideCache?.[sportType]
+  if (!o) return null
+  if (o.manual !== null && o.manual !== undefined) return o.manual
+  if (o.calibrated !== undefined) return o.calibrated
+  return null
+}
+
+export function getSportMultiplier(sportType: SportType, athleteId?: string): number {
+  return getManualOverride(sportType, athleteId) ?? MIM_MATRIX[sportType] ?? DEFAULT_MIM
 }
 
 export function invalidateMIMCache() {
@@ -176,6 +186,88 @@ export function getDOMSCarryMultiplier(sportType: SportType, athleteId?: string)
 export function invalidateDOMSCalibrationCache() {
   _domsOverrideCacheKey = ''
   _domsOverrideCache = null
+}
+
+// ─── Dynamic MIM Resolution (Hill Running v1.1) ─────────────────
+// For hiking and cycling, the v1.1 research replaces a single static
+// multiplier with a continuous function of the activity's terrain and
+// intensity. Manual calibration overrides still win — they encode the
+// athlete's own perception of load and we shouldn't second-guess them.
+
+export interface ResolveMIMInputs {
+  elevationGainFt?: number | null
+  distanceMi?: number | null
+  avgHR?: number | null
+  restingHR?: number | null
+  maxHR?: number | null
+  ftpWatts?: number | null
+  avgPowerW?: number | null
+  normalizedPowerW?: number | null
+}
+
+export interface MIMResolution {
+  mim: number
+  intensityFactor?: number
+  ifSource: IFSource
+}
+
+const FT_PER_MI = 5280
+
+function resolveHikingMIM(sportType: SportType, inputs: ResolveMIMInputs): MIMResolution {
+  const elevFt = inputs.elevationGainFt ?? 0
+  const distMi = inputs.distanceMi ?? 0
+  if (distMi > 0) {
+    const grade = elevFt / (distMi * FT_PER_MI)
+    return { mim: hikingMIM(grade), ifSource: 'grade' }
+  }
+  return { mim: MIM_MATRIX[sportType] ?? DEFAULT_MIM, ifSource: 'static' }
+}
+
+function resolveCyclingMIM(sportType: SportType, inputs: ResolveMIMInputs): MIMResolution {
+  const if_ = computeIntensityFactor({
+    normalizedPower: inputs.normalizedPowerW,
+    avgPower: inputs.avgPowerW,
+    ftp: inputs.ftpWatts,
+    avgHR: inputs.avgHR,
+    restingHR: inputs.restingHR,
+    maxHR: inputs.maxHR,
+  })
+  if (if_ === null) {
+    return { mim: MIM_MATRIX[sportType] ?? DEFAULT_MIM, ifSource: 'static' }
+  }
+  const base = cyclingMIM(if_.value)
+  const mim = sportType === 'mountain_biking' ? base * MTB_TERRAIN_BUMP : base
+  return { mim, intensityFactor: if_.value, ifSource: if_.source }
+}
+
+/**
+ * Resolve the MIM for an activity, picking the dynamic formula when the
+ * relevant inputs are present and falling back to the static MIM_MATRIX
+ * value otherwise. Manual calibration overrides bypass the formula
+ * entirely so an athlete's tuned number is always respected.
+ */
+export function resolveMIM(
+  sportType: SportType,
+  inputs: ResolveMIMInputs,
+  athleteId?: string,
+): MIMResolution {
+  const override = getManualOverride(sportType, athleteId)
+  if (override !== null) {
+    return { mim: override, ifSource: 'static' }
+  }
+
+  if (sportType === 'hiking' || sportType === 'hiking_steep') {
+    return resolveHikingMIM(sportType, inputs)
+  }
+
+  if (sportType === 'cycling' || sportType === 'mountain_biking') {
+    return resolveCyclingMIM(sportType, inputs)
+  }
+
+  // ebike: pedal assist makes IF unreliable as a muscular-load proxy.
+  // Strength, running, swimming, etc. stay on their static MIM until the
+  // research backs a dynamic formula for them.
+  return { mim: MIM_MATRIX[sportType] ?? DEFAULT_MIM, ifSource: 'static' }
 }
 
 // ─── Activity Type Classification ───────────────────────────────
@@ -432,8 +524,13 @@ export function calculateAdjustedLoad(
   elevationGainFt: number,
   activityName: string,
   date: string,
+  resolved?: MIMResolution,
 ): TRIMPRecord {
-  const sportMultiplier = getSportMultiplier(sportType)
+  const mimResolution: MIMResolution = resolved ?? {
+    mim: getSportMultiplier(sportType),
+    ifSource: 'static',
+  }
+  const sportMultiplier = mimResolution.mim
   const elevationBonus = calculateElevationBonus(elevationGainFt)
   let adjustedLoad = baseLoad * sportMultiplier + elevationBonus
 
@@ -448,9 +545,13 @@ export function calculateAdjustedLoad(
     activityName,
     sportType,
     baseTRIMP: Math.round(baseLoad * 10) / 10,
-    sportMultiplier,
+    sportMultiplier: Math.round(sportMultiplier * 1000) / 1000,
     elevationBonus: Math.round(elevationBonus * 10) / 10,
     adjustedTRIMP: Math.round(adjustedLoad * 10) / 10,
+    intensityFactor: mimResolution.intensityFactor !== undefined
+      ? Math.round(mimResolution.intensityFactor * 1000) / 1000
+      : undefined,
+    ifSource: mimResolution.ifSource,
   }
 }
 
@@ -475,6 +576,8 @@ export function stravaActivityToTRIMP(
   activity: StravaActivity,
   restingHR: number,
   maxHR: number,
+  athleteFTP?: number,
+  athleteId?: string,
 ): TRIMPRecord | null {
   if (!activity.average_heartrate) return null
 
@@ -488,9 +591,20 @@ export function stravaActivityToTRIMP(
   )
   const durationMinutes = activity.moving_time / 60
 
+  const resolved = resolveMIM(sportType, {
+    elevationGainFt: elevationFt,
+    distanceMi,
+    avgHR: activity.average_heartrate,
+    restingHR,
+    maxHR,
+    ftpWatts: athleteFTP,
+    avgPowerW: activity.average_watts,
+    normalizedPowerW: activity.weighted_average_watts,
+  }, athleteId)
+
   // Strava: always use Banister TRIMP (no Garmin EPOC available)
   const baseLoad = calculateBanisterTRIMP(durationMinutes, activity.average_heartrate, restingHR, maxHR)
-  return calculateAdjustedLoad(baseLoad, sportType, elevationFt, activity.name, activity.start_date_local.slice(0, 10))
+  return calculateAdjustedLoad(baseLoad, sportType, elevationFt, activity.name, activity.start_date_local.slice(0, 10), resolved)
 }
 
 export function garminActivityToTRIMP(
@@ -498,6 +612,8 @@ export function garminActivityToTRIMP(
   restingHR: number,
   maxHR: number,
   exerciseNames?: string[],
+  athleteFTP?: number,
+  athleteId?: string,
 ): TRIMPRecord | null {
   // Activities with zero MIM (myrtl, breathwork — pure mobility) are excluded
   const sportType = mapToSportType(
@@ -508,6 +624,17 @@ export function garminActivityToTRIMP(
   )
   if (getSportMultiplier(sportType) === 0) return null
 
+  const resolved = resolveMIM(sportType, {
+    elevationGainFt: activity.elevationGainFt,
+    distanceMi: activity.distanceMi,
+    avgHR: activity.avgHR,
+    restingHR,
+    maxHR,
+    ftpWatts: athleteFTP,
+    avgPowerW: activity.avgPowerW,
+    normalizedPowerW: activity.normalizedPowerW,
+  }, athleteId)
+
   // Primary: Garmin's on-device EPOC (Firstbeat, from beat-by-beat R-R)
   if (activity.activityTrainingLoad != null && activity.activityTrainingLoad > 0) {
     return calculateAdjustedLoad(
@@ -516,13 +643,14 @@ export function garminActivityToTRIMP(
       activity.elevationGainFt,
       activity.name,
       activity.date,
+      resolved,
     )
   }
 
   // Fallback: Banister TRIMP (when EPOC unavailable)
   if (!activity.avgHR) return null
   const baseLoad = calculateBanisterTRIMP(activity.durationMinutes, activity.avgHR, restingHR, maxHR)
-  return calculateAdjustedLoad(baseLoad, sportType, activity.elevationGainFt, activity.name, activity.date)
+  return calculateAdjustedLoad(baseLoad, sportType, activity.elevationGainFt, activity.name, activity.date, resolved)
 }
 
 // ─── Lookup helper ──────────────────────────────────────────────

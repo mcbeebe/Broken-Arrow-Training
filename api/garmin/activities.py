@@ -80,6 +80,8 @@ class handler(BaseHTTPRequestHandler):
                     "calories": act.get("calories"),
                     "vigorousIntensityMinutes": act.get("vigorousIntensityMinutes"),
                     "moderateIntensityMinutes": act.get("moderateIntensityMinutes"),
+                    "avgPowerW": act.get("averagePower"),
+                    "normalizedPowerW": act.get("normalizedPower"),
                 })
 
             self.send_response(200)

@@ -40,13 +40,14 @@ interface UseReadinessProps {
   exerciseLoadByDate: Map<string, number>
   sorenessLoadByDate: Map<string, number>
   maxHR: number
+  ftpWatts?: number
+  /** Optional — drives per-athlete DOMS calibration AND per-athlete MIM
+   *  override lookups (cycling MIM, hiking MIM). When unset, defaults are
+   *  used. */
+  athleteId?: string
   todayPlannedWorkout?: PlannedDay
   currentWeekNum: number
   raceDate: string
-  /** Optional — when set, the engine reads per-athlete DOMS calibration
-   *  from localStorage so applyDOMSCarryForward scales by personalized
-   *  multipliers. Without it, defaults (1.0×) are used. */
-  athleteId?: string
 }
 
 export interface UseReadinessReturn {
@@ -79,10 +80,11 @@ export function useReadiness({
   exerciseLoadByDate,
   sorenessLoadByDate,
   maxHR,
+  ftpWatts,
+  athleteId,
   todayPlannedWorkout,
   currentWeekNum,
   raceDate,
-  athleteId,
 }: UseReadinessProps): UseReadinessReturn {
 
   // Get resting HR from latest Garmin data
@@ -113,7 +115,7 @@ export function useReadiness({
     }
 
     const garminRecords: TRIMPRecord[] = garminActivities
-      .map(a => garminActivityToTRIMP(a, restingHR, maxHR, exerciseNamesByDate.get(a.date)))
+      .map(a => garminActivityToTRIMP(a, restingHR, maxHR, exerciseNamesByDate.get(a.date), ftpWatts, athleteId))
       .filter((r): r is TRIMPRecord => r !== null)
 
     // When Garmin is connected and has data, use ONLY Garmin for training load.
@@ -125,11 +127,11 @@ export function useReadiness({
 
     // Fallback: no Garmin data, use Strava with Banister TRIMP
     const stravaRecords: TRIMPRecord[] = stravaActivities
-      .map(a => stravaActivityToTRIMP(a, restingHR, maxHR))
+      .map(a => stravaActivityToTRIMP(a, restingHR, maxHR, ftpWatts, athleteId))
       .filter((r): r is TRIMPRecord => r !== null)
 
     return stravaRecords.sort((a, b) => a.date.localeCompare(b.date))
-  }, [stravaActivities, garminActivities, garminActivityDetails, restingHR, maxHR])
+  }, [stravaActivities, garminActivities, garminActivityDetails, restingHR, maxHR, ftpWatts, athleteId])
 
   // Aggregate daily training load. Composition (per day):
   //

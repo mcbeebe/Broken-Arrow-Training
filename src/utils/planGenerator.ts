@@ -200,6 +200,7 @@ export function generateHyroxPlan(config: OnboardingConfig): TrainingPlan {
     athlete: {
       name: config.athleteName,
       maxHR,
+      ftpWatts: config.ftpWatts,
       currentBase: `${config.experienceLevel} · ${config.trainingDaysPerWeek} days/wk`,
       weeklyStructure: `${daysPerWeek} sessions: running + functional + station-specific`,
     },

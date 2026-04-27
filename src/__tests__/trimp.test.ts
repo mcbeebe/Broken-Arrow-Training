@@ -11,8 +11,11 @@ import {
   classifyRun,
   composeDayLoad,
   calibrateDOMSCarry,
+  resolveMIM,
+  stravaActivityToTRIMP,
+  garminActivityToTRIMP,
 } from '../utils/trimp'
-import type { DailyTRIMP, TRIMPRecord, SportType } from '../types'
+import type { DailyTRIMP, TRIMPRecord, SportType, GarminActivity, StravaActivity } from '../types'
 
 describe('calculateBanisterTRIMP', () => {
   it('returns 0 for zero duration', () => {
@@ -516,5 +519,187 @@ describe('calibrateDOMSCarry', () => {
     // Avg ≈ 0.42
     expect(lower.ratio).toBeCloseTo(0.42, 1)
     expect(lower.samples).toBe(2)
+  })
+})
+
+describe('resolveMIM (Hill Running v1.1 dynamic MIM)', () => {
+  describe('hiking — hikingMIM(grade) when distance + elev present', () => {
+    it('flat hike (no grade) ≈ 0.69× and reports ifSource grade', () => {
+      const r = resolveMIM('hiking', { elevationGainFt: 0, distanceMi: 5 })
+      expect(r.mim).toBeCloseTo(0.694, 2)
+      expect(r.ifSource).toBe('grade')
+      expect(r.intensityFactor).toBeUndefined()
+    })
+
+    it('moderate climb 5.7% avg grade gives ~1.06×', () => {
+      // 1500 ft over 5 mi → grade = 1500 / 26400 ≈ 0.0568
+      const r = resolveMIM('hiking', { elevationGainFt: 1500, distanceMi: 5 })
+      expect(r.mim).toBeCloseTo(1.06, 1)
+      expect(r.ifSource).toBe('grade')
+    })
+
+    it('steep hike 15% avg grade gives ~1.76× (well above prior 1.2 cap)', () => {
+      // 2400 ft over 3 mi → grade = 2400 / 15840 ≈ 0.1515
+      const r = resolveMIM('hiking_steep', { elevationGainFt: 2400, distanceMi: 3 })
+      expect(r.mim).toBeGreaterThan(1.7)
+      expect(r.mim).toBeLessThan(1.85)
+      expect(r.ifSource).toBe('grade')
+    })
+
+    it('falls back to static 0.8 when distance is missing', () => {
+      const r = resolveMIM('hiking', { elevationGainFt: 1000 })
+      expect(r.mim).toBe(0.8)
+      expect(r.ifSource).toBe('static')
+    })
+  })
+
+  describe('cycling — cyclingMIM(IF) with priority NP > avgPower > HR-reserve', () => {
+    it('uses normalized power / FTP when both present', () => {
+      const r = resolveMIM('cycling', {
+        normalizedPowerW: 220,
+        avgPowerW: 200,
+        ftpWatts: 250,
+      })
+      expect(r.intensityFactor).toBe(0.88)
+      expect(r.ifSource).toBe('power')
+      // cyclingMIM(0.88) = 0.4 + 0.4 * 0.7744 = 0.7098
+      expect(r.mim).toBeCloseTo(0.71, 2)
+    })
+
+    it('falls back to HR-reserve when no FTP', () => {
+      const r = resolveMIM('cycling', {
+        avgHR: 148,
+        restingHR: 50,
+        maxHR: 190,
+      })
+      expect(r.ifSource).toBe('hr_reserve')
+      // HR-reserve 0.7 → cyclingMIM ≈ 0.596
+      expect(r.mim).toBeCloseTo(0.596, 2)
+    })
+
+    it('falls back to static 0.65 when neither power nor HR is usable', () => {
+      const r = resolveMIM('cycling', {})
+      expect(r.mim).toBe(0.65)
+      expect(r.ifSource).toBe('static')
+    })
+
+    it('mountain biking gets a 1.2× rough-terrain bump on top of cyclingMIM', () => {
+      const cycling = resolveMIM('cycling', { avgHR: 148, restingHR: 50, maxHR: 190 })
+      const mtb = resolveMIM('mountain_biking', { avgHR: 148, restingHR: 50, maxHR: 190 })
+      expect(mtb.mim).toBeCloseTo(cycling.mim * 1.2, 3)
+      expect(mtb.ifSource).toBe('hr_reserve')
+    })
+  })
+
+  describe('non-dynamic sports — stay on the static MIM_MATRIX', () => {
+    it('running stays at 1.0×', () => {
+      const r = resolveMIM('running', { avgHR: 148, restingHR: 50, maxHR: 190 })
+      expect(r.mim).toBe(1.0)
+      expect(r.ifSource).toBe('static')
+    })
+
+    it('ebike stays at 0.30× regardless of HR (pedal-assist makes IF unreliable)', () => {
+      const r = resolveMIM('ebike', { avgHR: 180, restingHR: 50, maxHR: 190 })
+      expect(r.mim).toBe(0.30)
+      expect(r.ifSource).toBe('static')
+    })
+
+    it('strength_lower stays at the static eccentric MIM 2.0', () => {
+      const r = resolveMIM('strength_lower', {})
+      expect(r.mim).toBe(2.0)
+    })
+  })
+})
+
+describe('stravaActivityToTRIMP — cycling MIM uses power when present', () => {
+  const baseActivity: Partial<StravaActivity> = {
+    id: 1,
+    name: 'Threshold ride',
+    type: 'Ride',
+    sport_type: 'Ride',
+    distance: 30000, // 30 km
+    moving_time: 3600, // 60 min
+    elapsed_time: 3600,
+    total_elevation_gain: 200,
+    average_heartrate: 148,
+    start_date_local: '2026-04-15T08:00:00Z',
+    start_date: '2026-04-15T08:00:00Z',
+  }
+
+  it('uses normalized power / FTP when activity has device_watts', () => {
+    const record = stravaActivityToTRIMP(
+      { ...baseActivity, weighted_average_watts: 240, average_watts: 220, device_watts: true } as StravaActivity,
+      50, 190,
+      250,  // FTP
+    )
+    expect(record).not.toBeNull()
+    expect(record!.ifSource).toBe('power')
+    expect(record!.intensityFactor).toBe(0.96)
+    // cyclingMIM(0.96) = 0.4 + 0.4 * 0.9216 = 0.769
+    expect(record!.sportMultiplier).toBeCloseTo(0.769, 2)
+  })
+
+  it('falls back to HR-reserve when no power on the activity', () => {
+    const record = stravaActivityToTRIMP(
+      { ...baseActivity } as StravaActivity,
+      50, 190,
+      250,
+    )
+    expect(record).not.toBeNull()
+    expect(record!.ifSource).toBe('hr_reserve')
+    expect(record!.intensityFactor).toBeCloseTo(0.7, 2)
+    expect(record!.sportMultiplier).toBeCloseTo(0.596, 2)
+  })
+
+  it('falls back to HR-reserve when athlete has no FTP', () => {
+    const record = stravaActivityToTRIMP(
+      { ...baseActivity, weighted_average_watts: 240 } as StravaActivity,
+      50, 190,
+      undefined,  // no FTP
+    )
+    expect(record).not.toBeNull()
+    expect(record!.ifSource).toBe('hr_reserve')
+  })
+})
+
+describe('garminActivityToTRIMP — hiking MIM uses average grade', () => {
+  const baseHike: GarminActivity = {
+    date: '2026-04-15',
+    type: 'hiking',
+    name: 'Marin Headlands',
+    durationMinutes: 90,
+    avgHR: 130,
+    elevationGainFt: 1500,
+    distanceMi: 5,
+    activityTrainingLoad: 60,
+  }
+
+  it('5.7% avg grade gives hikingMIM ≈ 1.06× (vs prior static 0.8 / 1.2)', () => {
+    const record = garminActivityToTRIMP(baseHike, 50, 190)
+    expect(record).not.toBeNull()
+    expect(record!.ifSource).toBe('grade')
+    expect(record!.sportMultiplier).toBeCloseTo(1.06, 1)
+  })
+
+  it('flat hike (no elevation) reports static fallback', () => {
+    const record = garminActivityToTRIMP(
+      { ...baseHike, elevationGainFt: 0, distanceMi: 5 },
+      50, 190,
+    )
+    expect(record).not.toBeNull()
+    expect(record!.ifSource).toBe('grade')
+    expect(record!.sportMultiplier).toBeCloseTo(0.694, 2)
+  })
+
+  it('hike with no distance falls back to static MIM matrix', () => {
+    const record = garminActivityToTRIMP(
+      { ...baseHike, distanceMi: undefined, elevationGainFt: 1500 },
+      50, 190,
+    )
+    expect(record).not.toBeNull()
+    // 1500 ft > 500 → classifyHiking → 'hiking_steep' → static 1.2
+    expect(record!.sportType).toBe('hiking_steep')
+    expect(record!.sportMultiplier).toBe(1.2)
+    expect(record!.ifSource).toBe('static')
   })
 })

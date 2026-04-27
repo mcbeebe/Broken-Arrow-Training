@@ -341,12 +341,18 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
                 const adjusted = trimpRecord.adjustedTRIMP
                 const expected = base * mim + elev
                 const floored = Math.abs(expected - adjusted) > 0.5 && adjusted > expected
+                const ifSource = trimpRecord.ifSource
+                const if_ = trimpRecord.intensityFactor
+                let mimNote = ''
+                if (ifSource === 'power' && if_ != null) mimNote = ` (power IF ${if_.toFixed(2)})`
+                else if (ifSource === 'hr_reserve' && if_ != null) mimNote = ` (HR IF ${if_.toFixed(2)})`
+                else if (ifSource === 'grade') mimNote = ` (grade)`
                 return (
                   <p className="text-[11px] text-teal-700 dark:text-teal-300 text-center italic -mt-1">
                     {floored ? (
                       <>Total Load = <span className="font-semibold">{Math.round(adjusted)}</span> (minimum applied; raw {Math.round(base)} × {mim.toFixed(2)} + {Math.round(elev)} = {Math.round(expected)})</>
                     ) : (
-                      <>Total Load = {Math.round(base)} base × {mim.toFixed(2)} MIM{elev > 0 ? ` + ${Math.round(elev)} elev` : ''} = <span className="font-semibold">{Math.round(adjusted)}</span></>
+                      <>Total Load = {Math.round(base)} base × {mim.toFixed(2)} MIM{mimNote}{elev > 0 ? ` + ${Math.round(elev)} elev` : ''} = <span className="font-semibold">{Math.round(adjusted)}</span></>
                     )}
                   </p>
                 )
@@ -374,11 +380,21 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
                     : isLow
                     ? 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-700 dark:text-slate-200 dark:border-slate-600'
                     : 'bg-emerald-100 text-emerald-800 border-emerald-200'
+                  const ifSource = trimpRecord?.ifSource
+                  const if_ = trimpRecord?.intensityFactor
+                  let sourceNote = ''
+                  if (ifSource === 'power' && if_ != null) {
+                    sourceNote = ` Derived from cycling MIM = 0.4 + 0.4·IF² with IF = ${if_.toFixed(2)} (NormalizedPower / FTP).`
+                  } else if (ifSource === 'hr_reserve' && if_ != null) {
+                    sourceNote = ` Derived from cycling MIM = 0.4 + 0.4·IF² with IF = ${if_.toFixed(2)} (HR-reserve fallback — no power data).`
+                  } else if (ifSource === 'grade') {
+                    sourceNote = ' Derived from Minetti walking polynomial at the activity\'s average grade.'
+                  }
                   pills.push(
                     <span
                       key="mim"
                       className={`inline-flex items-center gap-1 text-xs font-semibold rounded-full border px-2 py-0.5 ${cls}`}
-                      title={`${label}: MIM ${mim.toFixed(2)}× applied to base training load.`}
+                      title={`${label}: MIM ${mim.toFixed(2)}× applied to base training load.${sourceNote}`}
                     >
                       {label} · MIM {mim.toFixed(2)}×
                     </span>

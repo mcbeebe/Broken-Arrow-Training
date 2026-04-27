@@ -7,7 +7,7 @@
  * Domain:      g ∈ [-0.45, +0.45]  (Minetti's published gradient range)
  *
  * Coefficient values are the canonical run + walk fits from
- * `docs/research/Hill_Running_Load_Multipliers_v1.0.xlsx` and reproduce the
+ * `docs/research/Hill_Running_Load_Multipliers_v1.1.xlsx` and reproduce the
  * fixture sample points in `src/__tests__/__fixtures__/hill-running-multipliers.json`
  * within ±0.005 J/kg/m.
  *
