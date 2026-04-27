@@ -13,7 +13,7 @@ import type {
   TrainingStateInfo,
   DeloadDay,
 } from '../types'
-import { stravaActivityToTRIMP, garminActivityToTRIMP, aggregateDailyTRIMP } from '../utils/trimp'
+import { stravaActivityToTRIMP, garminActivityToTRIMP, aggregateDailyTRIMP, composeDayLoad } from '../utils/trimp'
 import { calculatePerformanceTimeline, generateWeeklyRecommendations, checkWeeklyTRIMPOverload } from '../utils/performance'
 import {
   calculateBaselines,
@@ -50,6 +50,11 @@ export interface UseReadinessReturn {
   weekScores: ReadinessScore[]
   trimpHistory: TRIMPRecord[]
   dailyTrimp: DailyTRIMP[]
+  /** Engine's predicted DOMS carry-forward per day (residual that
+   *  `aggregateDailyTRIMP` baked in from prior days' high-eccentric
+   *  records). Exposed so the chart can show "predicted vs measured"
+   *  without recomputing the algorithm. */
+  domsCarryByDate: Map<string, number>
   performance: PerformanceMetrics[]
   weeklyRecommendations: WeeklyRecommendation[]
   baselines: ReadinessBaselines | null
@@ -121,52 +126,55 @@ export function useReadiness({
     return stravaRecords.sort((a, b) => a.date.localeCompare(b.date))
   }, [stravaActivities, garminActivities, garminActivityDetails, restingHR, maxHR])
 
-  // Aggregate daily training load with two supplements:
+  // Aggregate daily training load. Composition (per day):
   //
-  // 1. RPE blending: EPOC captures cardiovascular stress but misses DOMS.
-  //    RPE 5 = neutral, RPE 10 = +20%, RPE 1 = -16%.
+  //   total = (recordSum + exerciseLoad) × rpeMult
+  //         + max(domsCarry, sorenessAdj_positive)
+  //         + sorenessAdj_negative   // recovery credit, additive
   //
-  // 2. Manual exercise load: when user logs exercises that Garmin missed
-  //    (e.g., goblet squats, step-ups), each set adds incremental load
-  //    based on muscle focus, weight, and reps. This is ADDITIVE — it
-  //    supplements EPOC rather than replacing it.
+  // Where:
+  //   - recordSum   = sum of activity TRIMP records for the day
+  //   - exerciseLoad = manually-logged strength load (Garmin EPOC misses it)
+  //   - rpeMult     = 1 + 0.04 × (rpe − 5);  RPE 5 neutral, 10 = +20%, 1 = −16%
+  //   - domsCarry   = engine prediction baked into base.total by
+  //                   applyDOMSCarryForward (10–40% of yesterday's
+  //                   high-eccentric records)
+  //   - sorenessAdj = user's check-in (Twist & Highton 2013)
   //
-  // 3. Soreness check-in: user's perceived muscle soreness (1-5 scale)
-  //    adds or subtracts load to reflect actual DOMS severity vs model
-  //    prediction. Based on Twist & Highton 2013: perceived soreness is
-  //    the most responsive real-time indicator of eccentric recovery.
-  const dailyTrimp = useMemo(() => {
-    // aggregateDailyTRIMP now extends through today and applies DOMS carry-forward,
-    // so soreness/RPE/exercise adjustments can land on rest days.
+  // RPE only multiplies today's effort — not yesterday's residual DOMS.
+  // DOMS prediction and soreness check-in are de-duplicated when both
+  // apply: take the higher of the two (engine prediction vs measurement)
+  // rather than stacking. Negative soreness (relief) bypasses the dedup
+  // and lands additively as a recovery credit.
+  const { dailyTrimp, domsCarryByDate } = useMemo(() => {
+    // aggregateDailyTRIMP extends through today and applies DOMS carry-
+    // forward, so soreness/RPE/exercise adjustments can land on rest days.
     const base = aggregateDailyTRIMP(trimpRecords)
 
-    if (rpeByDate.size === 0 && exerciseLoadByDate.size === 0 && sorenessLoadByDate.size === 0) return base
+    const domsMap = new Map<string, number>()
+    for (const day of base) {
+      const recordSum = day.records.reduce((s, r) => s + r.adjustedTRIMP, 0)
+      const carry = Math.max(0, day.total - recordSum)
+      if (carry > 0) domsMap.set(day.date, Math.round(carry * 10) / 10)
+    }
 
-    return base.map(day => {
-      let total = day.total
+    if (rpeByDate.size === 0 && exerciseLoadByDate.size === 0 && sorenessLoadByDate.size === 0) {
+      return { dailyTrimp: base, domsCarryByDate: domsMap }
+    }
 
-      // Add supplemental load from manually-logged exercises
-      const exerciseLoad = exerciseLoadByDate.get(day.date)
-      if (exerciseLoad && exerciseLoad > 0) {
-        total += exerciseLoad
-      }
-
-      // Apply RPE multiplier (on the combined EPOC + exercise load)
-      const rpe = rpeByDate.get(day.date)
-      if (rpe && total > 0) {
-        const rpeMultiplier = 1 + 0.04 * (rpe - 5)
-        total = total * rpeMultiplier
-      }
-
-      // Apply soreness check-in adjustment (additive — Twist & Highton 2013)
-      const sorenessAdj = sorenessLoadByDate.get(day.date)
-      if (sorenessAdj) {
-        total = Math.max(0, total + sorenessAdj)
-      }
-
-      if (total === day.total) return day
+    const adjusted = base.map(day => {
+      const recordSum = day.records.reduce((s, r) => s + r.adjustedTRIMP, 0)
+      const domsCarry = Math.max(0, day.total - recordSum)
+      const total = composeDayLoad(recordSum, domsCarry, {
+        exerciseLoad: exerciseLoadByDate.get(day.date),
+        rpeValue: rpeByDate.get(day.date),
+        sorenessAdj: sorenessLoadByDate.get(day.date),
+      })
+      if (Math.abs(total - day.total) < 0.05) return day
       return { ...day, total: Math.round(total * 10) / 10 }
     })
+
+    return { dailyTrimp: adjusted, domsCarryByDate: domsMap }
   }, [trimpRecords, rpeByDate, exerciseLoadByDate, sorenessLoadByDate])
 
   // Performance timeline (CTL/ATL/TSB/ACWR) — computed early so ACWR feeds readiness
@@ -297,6 +305,7 @@ export function useReadiness({
     weekScores,
     trimpHistory: trimpRecords,
     dailyTrimp,
+    domsCarryByDate,
     performance,
     weeklyRecommendations,
     baselines,
