@@ -867,6 +867,24 @@ function ExerciseCard({ exercise, index }: { exercise: ParsedExercise; index: nu
               ))}
             </ol>
           </div>
+          {guide.alternates && guide.alternates.length > 0 && (
+            <div className="pt-2 border-t border-purple-100 dark:border-purple-900">
+              <p className="text-sm font-semibold text-slate-600 dark:text-slate-300 mb-1">🔄 Alternates</p>
+              <ul className="space-y-1.5">
+                {guide.alternates.map((alt, i) => (
+                  <li key={i} className="text-sm text-slate-600 dark:text-slate-300">
+                    <div className="flex items-baseline gap-1.5">
+                      <span className="font-medium text-slate-700 dark:text-slate-200">{alt.name}</span>
+                      <span className="text-[11px] text-purple-700 bg-purple-50 dark:bg-purple-950 dark:text-purple-300 rounded px-1.5 py-0.5">{alt.equipment}</span>
+                    </div>
+                    {alt.notes && (
+                      <p className="text-[12px] text-slate-500 dark:text-slate-400 leading-snug ml-0.5 mt-0.5">{alt.notes}</p>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       )}
 
