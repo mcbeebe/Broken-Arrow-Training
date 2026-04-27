@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useMemo } from 'react'
 import type { DailyTRIMP, SportType } from '../types'
-import { DOMS_CARRY } from '../utils/trimp'
+import { DOMS_CARRY, describeMIMEngine, type MIMEngine } from '../utils/trimp'
 
 export interface MIMOverride {
   sport: SportType
@@ -9,6 +9,19 @@ export interface MIMOverride {
   manual: number | null
   samples: number
   avgRecoveryDays: number
+  /** Which formula the engine uses to resolve MIM at workout time —
+   *  static lookup or one of the v1.1 dynamic formulas. */
+  engine: MIMEngine
+  /** Short human label for the formula (e.g. "0.4 + 0.4·IF²"). */
+  formulaLabel: string
+  /** Typical realized range when the dynamic formula is used. */
+  typicalRange?: [number, number]
+  /** Avg of `sportMultiplier` actually applied across recent (last 30d)
+   *  TRIMP records for this sport — what the engine *really* did, not
+   *  the table default. `null` when no recent samples. */
+  recentAvgMIM: number | null
+  /** Number of TRIMP records in the recent-avg window. */
+  recentSampleCount: number
 }
 
 export interface MIMSuggestion {
@@ -256,6 +269,27 @@ export function useMIMCalibration(
     return DEFAULT_MIM[sport] ?? 0.6
   }, [stored])
 
+  // Roll up actual realized MIM per sport from the last 30 days of
+  // TRIMP records. Captures the dynamic-formula output (cycling IF,
+  // hiking grade) so the Settings table can show "what the engine did"
+  // rather than just the static default.
+  const realizedBySport = useMemo(() => {
+    const out = new Map<SportType, { sum: number; count: number }>()
+    if (!dailyTrimp || dailyTrimp.length === 0) return out
+    const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000
+    for (const day of dailyTrimp) {
+      const t = new Date(day.date + 'T00:00:00').getTime()
+      if (Number.isFinite(t) && t < cutoff) continue
+      for (const rec of day.records) {
+        const bucket = out.get(rec.sportType) ?? { sum: 0, count: 0 }
+        bucket.sum += rec.sportMultiplier
+        bucket.count += 1
+        out.set(rec.sportType, bucket)
+      }
+    }
+    return out
+  }, [dailyTrimp])
+
   const allOverrides = useMemo((): MIMOverride[] => {
     const displaySports: SportType[] = [
       'running', 'trail_running', 'running_steep', 'cycling', 'ebike', 'mountain_biking',
@@ -268,6 +302,11 @@ export function useMIMCalibration(
     return displaySports.map(sport => {
       const defaultVal = DEFAULT_MIM[sport] ?? 0.6
       const override = stored.overrides[sport]
+      const desc = describeMIMEngine(sport)
+      const realized = realizedBySport.get(sport)
+      const recentAvgMIM = realized && realized.count > 0
+        ? Math.round((realized.sum / realized.count) * 100) / 100
+        : null
       return {
         sport,
         defaultMIM: defaultVal,
@@ -275,6 +314,11 @@ export function useMIMCalibration(
         manual: override?.manual ?? null,
         samples: override?.samples ?? 0,
         avgRecoveryDays: override?.avgRecoveryDays ?? 0,
+        engine: desc.engine,
+        formulaLabel: desc.formulaLabel,
+        typicalRange: desc.typicalRange,
+        recentAvgMIM,
+        recentSampleCount: realized?.count ?? 0,
       }
     }).sort((a, b) => {
       const aActive = a.manual ?? a.calibrated
