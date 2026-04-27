@@ -38,6 +38,10 @@ const SPORT_COLORS: Record<string, string> = {
   other: '#94A3B8',
 }
 
+const MANUAL_EXERCISE_COLOR = '#F59E0B'
+const DOMS_COLOR = '#FB923C'
+const SORENESS_COLOR = '#F87171'
+
 function getLast7Days(): string[] {
   const days: string[] = []
   const today = new Date()
@@ -47,6 +51,17 @@ function getLast7Days(): string[] {
     days.push(localDateStr(d))
   }
   return days
+}
+
+interface Breakdown {
+  records: { sportType: string; trimp: number }[]
+  exerciseLoad: number
+  rpeValue: number | null
+  rpeMult: number
+  rpeDelta: number   // signed
+  sorenessAdj: number
+  domsCarry: number  // residual carry-forward from prior days' eccentric work
+  dayTotal: number
 }
 
 export default function TRIMPBreakdown({ dailyTrimp, sorenessLoadByDate, rpeByDate, exerciseLoadByDate }: TRIMPBreakdownProps) {
@@ -64,77 +79,11 @@ export default function TRIMPBreakdown({ dailyTrimp, sorenessLoadByDate, rpeByDa
 
   const weeklyTotal = Math.round(filledDays.reduce((s, d) => s + d.total, 0))
 
-  // Build chart data: each day gets a stacked bar by sport type.
-  // The adjusted daily total may be higher than the sum of records
-  // due to manual exercise load and RPE boost — show these as
-  // separate bar segments so the chart reflects the true load.
-  const chartData = filledDays.map(day => {
-    const entry: Record<string, string | number> = {
-      date: day.date.slice(5), // MM-DD
-      _isRest: day.total === 0 ? 1 : 0,
-    }
-    let recordSum = 0
-    for (const rec of day.records) {
-      const key = rec.sportType
-      entry[key] = ((entry[key] as number) || 0) + rec.adjustedTRIMP
-      recordSum += rec.adjustedTRIMP
-    }
-    // Split supplement into three distinct categories:
-    // 1. Soreness check-in (user input, any day)
-    // 2. RPE + exercise boost (on days WITH activities — from RPE multiplier and manual exercises)
-    // 3. DOMS carry-over (on days WITHOUT activities — delayed muscle damage from prior days)
-    const supplement = day.total - recordSum
-    if (supplement > 0.5) {
-      const sorenessAdj = sorenessLoadByDate?.get(day.date) || 0
-      const sorenessInSupplement = Math.max(0, Math.min(sorenessAdj, supplement))
-      const otherSupplement = supplement - sorenessInSupplement
-
-      if (sorenessInSupplement > 0.5) {
-        entry['soreness'] = Math.round(sorenessInSupplement * 10) / 10
-      }
-      if (otherSupplement > 0.5) {
-        // If this day has its own activity records, the supplement is from RPE/exercise.
-        // If it has no records (rest day), the supplement is DOMS carry from prior days.
-        const key = day.records.length > 0 ? 'rpe_exercise' : 'doms_carry'
-        entry[key] = Math.round(otherSupplement * 10) / 10
-      }
-    }
-    // Ensure rest days show a tiny bar for visibility
-    if (day.total === 0) {
-      entry['rest'] = 0
-    }
-    return entry
-  })
-
-  // Get all sport types and supplement categories present
-  const sportTypes = new Set<string>()
-  let hasRpeExercise = false
-  let hasDoms = false
-  let hasSoreness = false
-  for (const day of filledDays) {
-    for (const rec of day.records) {
-      sportTypes.add(rec.sportType)
-    }
-  }
-  for (const entry of chartData) {
-    if (entry['rpe_exercise']) hasRpeExercise = true
-    if (entry['doms_carry']) hasDoms = true
-    if (entry['soreness']) hasSoreness = true
-  }
-
-  // Per-day truthful decomposition for the tooltip. The bar segments above
-  // bundle exercise + RPE delta into one "rpe_exercise" lump, which hides
-  // the fact that a low RPE *reduces* load. Here we split them out so the
-  // tooltip can show e.g. "manual exercise +25, RPE 1 adjustment −5".
-  interface Breakdown {
-    records: { sportType: string; trimp: number }[]
-    exerciseLoad: number
-    rpeValue: number | null
-    rpeDelta: number   // signed
-    sorenessAdj: number
-    domsCarry: number
-    dayTotal: number
-  }
+  // Per-day truthful decomposition. day.total = (recordSum + exerciseLoad)
+  // × rpeMult + sorenessAdj + domsCarry, where domsCarry is the residual
+  // from prior days' high-eccentric activities baked in by aggregateDailyTRIMP.
+  // We compute domsCarry as the residual so the breakdown reconciles to
+  // day.total exactly.
   const breakdownByMMDD = new Map<string, Breakdown>()
   for (const day of filledDays) {
     const recordSum = day.records.reduce((s, r) => s + r.adjustedTRIMP, 0)
@@ -144,20 +93,61 @@ export default function TRIMPBreakdown({ dailyTrimp, sorenessLoadByDate, rpeByDa
     const afterExercise = recordSum + exerciseLoad
     const rpeDelta = afterExercise * (rpeMult - 1)
     const sorenessAdj = sorenessLoadByDate?.get(day.date) ?? 0
-    // Anything left over (e.g. on a rest day) is DOMS carry-over from
-    // prior days. Computed as residual so the breakdown always reconciles
-    // to day.total exactly.
     const accountedFor = recordSum + exerciseLoad + rpeDelta + sorenessAdj
     const domsCarry = Math.max(0, day.total - accountedFor)
     breakdownByMMDD.set(day.date.slice(5), {
       records: day.records.map(r => ({ sportType: r.sportType, trimp: r.adjustedTRIMP })),
       exerciseLoad,
       rpeValue,
+      rpeMult,
       rpeDelta,
       sorenessAdj,
       domsCarry,
       dayTotal: day.total,
     })
+  }
+
+  // Build chart data using the breakdown. Bar segments are post-RPE-adjusted
+  // so the stack height matches day.total even when RPE < 5 reduces things —
+  // the raw values + RPE delta are spelled out in the tooltip.
+  const chartData = filledDays.map(day => {
+    const bd = breakdownByMMDD.get(day.date.slice(5))!
+    const entry: Record<string, string | number> = {
+      date: day.date.slice(5),
+      _isRest: bd.dayTotal === 0 ? 1 : 0,
+    }
+    for (const r of bd.records) {
+      const v = Math.round(r.trimp * bd.rpeMult * 10) / 10
+      if (v > 0.5) entry[r.sportType] = ((entry[r.sportType] as number) || 0) + v
+    }
+    if (bd.exerciseLoad > 0.5) {
+      entry['manual_exercise'] = Math.round(bd.exerciseLoad * bd.rpeMult * 10) / 10
+    }
+    if (bd.sorenessAdj > 0.5) {
+      entry['soreness'] = Math.round(bd.sorenessAdj * 10) / 10
+    }
+    if (bd.domsCarry > 0.5) {
+      entry['doms_carry'] = Math.round(bd.domsCarry * 10) / 10
+    }
+    if (bd.dayTotal === 0) {
+      entry['rest'] = 0
+    }
+    return entry
+  })
+
+  // Detect which optional segments are actually present so we only mount
+  // the corresponding <Bar /> + legend chip when needed.
+  const sportTypes = new Set<string>()
+  for (const day of filledDays) {
+    for (const rec of day.records) sportTypes.add(rec.sportType)
+  }
+  let hasManualExercise = false
+  let hasDoms = false
+  let hasSoreness = false
+  for (const entry of chartData) {
+    if (entry['manual_exercise']) hasManualExercise = true
+    if (entry['doms_carry']) hasDoms = true
+    if (entry['soreness']) hasSoreness = true
   }
 
   return (
@@ -206,7 +196,7 @@ export default function TRIMPBreakdown({ dailyTrimp, sorenessLoadByDate, rpeByDa
                   })
                 }
                 if (bd.exerciseLoad > 0.5) {
-                  rows.push({ swatch: '#F59E0B', name: 'manual exercise', value: bd.exerciseLoad })
+                  rows.push({ swatch: MANUAL_EXERCISE_COLOR, name: 'manual exercise', value: bd.exerciseLoad })
                 }
                 if (bd.rpeValue !== null && Math.abs(bd.rpeDelta) > 0.5) {
                   rows.push({
@@ -217,10 +207,10 @@ export default function TRIMPBreakdown({ dailyTrimp, sorenessLoadByDate, rpeByDa
                   })
                 }
                 if (bd.sorenessAdj > 0.5) {
-                  rows.push({ swatch: '#F87171', name: 'muscle soreness', value: bd.sorenessAdj })
+                  rows.push({ swatch: SORENESS_COLOR, name: 'muscle soreness', value: bd.sorenessAdj })
                 }
                 if (bd.domsCarry > 0.5) {
-                  rows.push({ swatch: '#FB923C', name: 'DOMS carry-over', value: bd.domsCarry })
+                  rows.push({ swatch: DOMS_COLOR, name: 'DOMS carry-over', value: bd.domsCarry })
                 }
                 if (rows.length === 0) return null
 
@@ -269,11 +259,11 @@ export default function TRIMPBreakdown({ dailyTrimp, sorenessLoadByDate, rpeByDa
                 radius={[2, 2, 0, 0]}
               />
             ))}
-            {hasRpeExercise && (
+            {hasManualExercise && (
               <Bar
-                dataKey="rpe_exercise"
+                dataKey="manual_exercise"
                 stackId="trimp"
-                fill="#F59E0B"
+                fill={MANUAL_EXERCISE_COLOR}
                 radius={[2, 2, 0, 0]}
               />
             )}
@@ -281,7 +271,7 @@ export default function TRIMPBreakdown({ dailyTrimp, sorenessLoadByDate, rpeByDa
               <Bar
                 dataKey="doms_carry"
                 stackId="trimp"
-                fill="#FB923C"
+                fill={DOMS_COLOR}
                 radius={[2, 2, 0, 0]}
               />
             )}
@@ -289,7 +279,7 @@ export default function TRIMPBreakdown({ dailyTrimp, sorenessLoadByDate, rpeByDa
               <Bar
                 dataKey="soreness"
                 stackId="trimp"
-                fill="#F87171"
+                fill={SORENESS_COLOR}
                 radius={[2, 2, 0, 0]}
               />
             )}
@@ -319,21 +309,21 @@ export default function TRIMPBreakdown({ dailyTrimp, sorenessLoadByDate, rpeByDa
             {type.replace(/_/g, ' ')}
           </span>
         ))}
-        {hasRpeExercise && (
+        {hasManualExercise && (
           <span className="flex items-center gap-1 text-xs text-slate-500">
-            <span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ backgroundColor: '#F59E0B' }} />
-            RPE + exercise
+            <span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ backgroundColor: MANUAL_EXERCISE_COLOR }} />
+            manual exercise
           </span>
         )}
         {hasDoms && (
           <span className="flex items-center gap-1 text-xs text-slate-500">
-            <span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ backgroundColor: '#FB923C' }} />
+            <span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ backgroundColor: DOMS_COLOR }} />
             DOMS carry-over
           </span>
         )}
         {hasSoreness && (
           <span className="flex items-center gap-1 text-xs text-slate-500">
-            <span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ backgroundColor: '#F87171' }} />
+            <span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ backgroundColor: SORENESS_COLOR }} />
             muscle soreness
           </span>
         )}
