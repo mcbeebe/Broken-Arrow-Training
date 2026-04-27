@@ -1,0 +1,157 @@
+{
+  "version": "1.0",
+  "source": "Hill_Running_Load_Multipliers_v1.0.xlsx",
+  "polynomial": {
+    "run": {
+      "a0": 3.6,
+      "a1": 19.5,
+      "a2": 46.3,
+      "a3": -43.3,
+      "a4": -30.4,
+      "a5": 155.4
+    },
+    "walk": {
+      "b0": 2.5,
+      "b1": 19.6,
+      "b2": 51.9,
+      "b3": -76.8,
+      "b4": -58.7,
+      "b5": 280.5
+    }
+  },
+  "samples": [
+    {
+      "grade": -0.45,
+      "runCost": 4.0323,
+      "runMult": 1.1201,
+      "walkMult": 1.0014,
+      "ecc": 5
+    },
+    {
+      "grade": -0.4,
+      "runCost": 3.6097,
+      "runMult": 1.0027,
+      "walkMult": 0.9734,
+      "ecc": 5
+    },
+    {
+      "grade": -0.35,
+      "runCost": 3.0309,
+      "runMult": 0.8419,
+      "walkMult": 0.8157,
+      "ecc": 5
+    },
+    {
+      "grade": -0.3,
+      "runCost": 2.4622,
+      "runMult": 0.684,
+      "walkMult": 0.6132,
+      "ecc": 5
+    },
+    {
+      "grade": -0.25,
+      "runCost": 2.0248,
+      "runMult": 0.5624,
+      "walkMult": 0.4279,
+      "ecc": 4
+    },
+    {
+      "grade": -0.2,
+      "runCost": 1.8,
+      "runMult": 0.5,
+      "walkMult": 0.3019,
+      "ecc": 4
+    },
+    {
+      "grade": -0.15,
+      "runCost": 1.8357,
+      "runMult": 0.5099,
+      "walkMult": 0.26,
+      "ecc": 3
+    },
+    {
+      "grade": -0.1,
+      "runCost": 2.1517,
+      "runMult": 0.5977,
+      "walkMult": 0.3131,
+      "ecc": 2
+    },
+    {
+      "grade": -0.05,
+      "runCost": 2.7459,
+      "runMult": 0.7628,
+      "walkMult": 0.4608,
+      "ecc": 2
+    },
+    {
+      "grade": 0.0,
+      "runCost": 3.6,
+      "runMult": 1.0,
+      "walkMult": 0.6944,
+      "ecc": 1
+    },
+    {
+      "grade": 0.05,
+      "runCost": 4.6852,
+      "runMult": 1.3014,
+      "walkMult": 1.0,
+      "ecc": 1
+    },
+    {
+      "grade": 0.1,
+      "runCost": 5.9682,
+      "runMult": 1.6578,
+      "walkMult": 1.3609,
+      "ecc": 2
+    },
+    {
+      "grade": 0.15,
+      "runCost": 7.417,
+      "runMult": 2.0603,
+      "walkMult": 1.7611,
+      "ecc": 2
+    },
+    {
+      "grade": 0.2,
+      "runCost": 9.0067,
+      "runMult": 2.5019,
+      "walkMult": 2.1882,
+      "ecc": 2
+    },
+    {
+      "grade": 0.25,
+      "runCost": 10.7252,
+      "runMult": 2.9792,
+      "walkMult": 2.6357,
+      "ecc": 2
+    },
+    {
+      "grade": 0.3,
+      "runCost": 12.5793,
+      "runMult": 3.4942,
+      "walkMult": 3.1065,
+      "ecc": 2
+    },
+    {
+      "grade": 0.35,
+      "runCost": 14.6003,
+      "runMult": 4.0556,
+      "walkMult": 3.6159,
+      "ecc": 3
+    },
+    {
+      "grade": 0.4,
+      "runCost": 16.8499,
+      "runMult": 4.6805,
+      "walkMult": 4.194,
+      "ecc": 3
+    },
+    {
+      "grade": 0.45,
+      "runCost": 19.426,
+      "runMult": 5.3961,
+      "walkMult": 4.889,
+      "ecc": 3
+    }
+  ]
+}
