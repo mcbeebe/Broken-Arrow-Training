@@ -1,6 +1,8 @@
-import type { TrainingWeek } from '../types'
+import { useState } from 'react'
+import type { TrainingWeek, SportType } from '../types'
 import type { WeekCompliance } from '../hooks/useCompliance'
 import { getMilesNumber } from '../utils/format'
+import { mapToSportType, getSportMultiplier } from '../utils/trimp'
 
 interface VolumeChartProps {
   weeks: TrainingWeek[]
@@ -42,9 +44,44 @@ const BAND_BORDER: Record<Band, string> = {
 
 const CHART_PX = 280  // pixel height of the bar area; bars use full height
 
+const RUN_TYPES = new Set<SportType>(['running', 'trail_running', 'running_steep'])
+
+/**
+ * Sum a week's actual mileage in two modes:
+ *   'running'  — only running variants (the plan is written in run miles).
+ *   'combined' — every activity counted, scaled by sportMIM/runMIM (1.0)
+ *                so 20 mi cycling at MIM 0.65 contributes 13 equivalent mi.
+ *                Approximation, not pace-equivalent — deliberately uses MIM
+ *                for consistency with the rest of the load engine.
+ */
+function weekMiles(week: TrainingWeek, mode: 'running' | 'combined'): number {
+  let miles = 0
+  for (const day of week.days) {
+    const a = day.actual
+    if (!a || !a.distance || a.distance <= 0) continue
+    const sport = mapToSportType(a.type || '', { name: a.name, elevationGainFt: a.elevationGain })
+    if (mode === 'running') {
+      if (RUN_TYPES.has(sport)) miles += a.distance
+    } else {
+      const mim = getSportMultiplier(sport)
+      miles += a.distance * mim
+    }
+  }
+  return Math.round(miles * 10) / 10
+}
+
 export default function VolumeChart({ weeks, activeWeek, onWeekClick, compliance }: VolumeChartProps) {
+  const [mode, setMode] = useState<'running' | 'combined'>('running')
+
   const byNum = new Map<number, WeekCompliance>()
   for (const c of compliance ?? []) byNum.set(c.weekNum, c)
+
+  // Pre-compute per-mode miles so the same numbers feed labels, deviation,
+  // and band classification.
+  const actualByWeek = new Map<number, number>()
+  for (const w of weeks) {
+    actualByWeek.set(w.num, weekMiles(w, mode))
+  }
 
   // Y-axis scale = max of planned and actual across all weeks so bars
   // don't clip when an athlete goes over plan.
@@ -52,7 +89,7 @@ export default function VolumeChart({ weeks, activeWeek, onWeekClick, compliance
     1,
     ...weeks.flatMap(w => {
       const planned = getMilesNumber(w.miles)
-      const actual = byNum.get(w.num)?.actualMiles ?? 0
+      const actual = actualByWeek.get(w.num) ?? 0
       return [planned, actual]
     }),
   )
@@ -60,7 +97,7 @@ export default function VolumeChart({ weeks, activeWeek, onWeekClick, compliance
   const rows = weeks.map((w, i) => {
     const planned = getMilesNumber(w.miles)
     const wc = byNum.get(w.num)
-    const actual = wc?.actualMiles ?? 0
+    const actual = actualByWeek.get(w.num) ?? 0
     const hasStarted = actual > 0 || (wc != null && (wc.completed + wc.missed) > 0)
     const band = classify(actual, planned, hasStarted)
     const deviation = planned > 0 ? (actual - planned) / planned : 0
@@ -71,12 +108,35 @@ export default function VolumeChart({ weeks, activeWeek, onWeekClick, compliance
 
   return (
     <div className="px-4 mt-6">
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
         <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200">Volume Progression</h3>
-        <div className="flex items-center gap-2 text-[10px] text-slate-500 dark:text-slate-400">
-          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm" style={{ background: BAND_FILL.ok }} />±15%</span>
-          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm" style={{ background: BAND_FILL.warn }} />±25%</span>
-          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm" style={{ background: BAND_FILL.flag }} />&gt;25%</span>
+        <div className="flex items-center gap-2">
+          <div className="inline-flex rounded-full border border-slate-200 dark:border-slate-700 overflow-hidden text-[10px] font-medium" role="tablist">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={mode === 'running'}
+              onClick={() => setMode('running')}
+              className={`px-2 py-0.5 transition-colors ${mode === 'running' ? 'bg-emerald-600 text-white' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'}`}
+            >
+              Running
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={mode === 'combined'}
+              onClick={() => setMode('combined')}
+              className={`px-2 py-0.5 transition-colors ${mode === 'combined' ? 'bg-emerald-600 text-white' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'}`}
+              title="Combine running + cycling + hiking, each scaled by its MIM (cycling 0.65×, hiking 0.8× etc.)"
+            >
+              Combined
+            </button>
+          </div>
+          <div className="flex items-center gap-2 text-[10px] text-slate-500 dark:text-slate-400">
+            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm" style={{ background: BAND_FILL.ok }} />±15%</span>
+            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm" style={{ background: BAND_FILL.warn }} />±25%</span>
+            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm" style={{ background: BAND_FILL.flag }} />&gt;25%</span>
+          </div>
         </div>
       </div>
 
@@ -107,7 +167,7 @@ export default function VolumeChart({ weeks, activeWeek, onWeekClick, compliance
               <div
                 className="relative cursor-pointer"
                 onClick={() => onWeekClick(i)}
-                title={`Wk ${w.num}: ${actual}mi actual / ${planned}mi planned`}
+                title={`Wk ${w.num}: ${actual}${mode === 'combined' ? ' equiv mi' : 'mi'} actual / ${planned}mi planned`}
               >
                 <div
                   className="absolute inset-x-0 bottom-0 rounded-t transition-all"
@@ -141,7 +201,11 @@ export default function VolumeChart({ weeks, activeWeek, onWeekClick, compliance
         })}
       </div>
       <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-2">
-        Solid bars = actual miles. Dashed outlines = upcoming weeks at planned mileage. The dashed horizontal line on past/current weeks marks the plan target for that week.
+        {mode === 'running' ? (
+          <>Solid bars = actual run miles only. Dashed outlines = upcoming weeks at planned mileage. The dashed horizontal line on past/current weeks marks the plan target for that week.</>
+        ) : (
+          <>Solid bars = run-equivalent miles (each sport scaled by its MIM — cycling × 0.65, hiking × 0.8, etc.). Dashed outlines = upcoming weeks at planned mileage. The dashed horizontal line on past/current weeks marks the plan target for that week.</>
+        )}
       </p>
     </div>
   )
