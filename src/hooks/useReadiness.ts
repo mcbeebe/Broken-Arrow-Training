@@ -48,6 +48,11 @@ interface UseReadinessProps {
   todayPlannedWorkout?: PlannedDay
   currentWeekNum: number
   raceDate: string
+  /** Tertiary HR fallback: Map keyed by activity date with the avgHR/maxHR
+   *  the matching layer already wrote onto `PlannedDay.actual`. Used when
+   *  the raw summary AND the detail both miss HR — the matched-actual is
+   *  often complete (it composes per-second stream data). */
+  actualHRByDate?: Map<string, { avgHR?: number; maxHR?: number }>
 }
 
 export interface UseReadinessReturn {
@@ -85,11 +90,14 @@ export function useReadiness({
   todayPlannedWorkout,
   currentWeekNum,
   raceDate,
+  actualHRByDate,
 }: UseReadinessProps): UseReadinessReturn {
 
-  // Get resting HR from latest Garmin data
+  // Get resting HR from latest Garmin data. Filter out 0/garbage values
+  // (Garmin occasionally returns rhr=0 for missing-data days, which would
+  // sneak past `rhr != null` and break the dynamic IF computation).
   const restingHR = useMemo(() => {
-    const withRHR = healthData.filter(d => d.rhr != null)
+    const withRHR = healthData.filter(d => typeof d.rhr === 'number' && d.rhr > 30)
     if (withRHR.length === 0) return 55 // fallback default
     return withRHR[0].rhr!
   }, [healthData])
@@ -123,6 +131,7 @@ export function useReadiness({
         // — match by date + name (most days have one activity per name).
         let enriched = a
         if (!a.avgHR || !a.maxHR) {
+          // 1) Try the cached Garmin activity detail for this date.
           const detailsForDay = garminActivityDetails[a.date] ?? []
           const detail = detailsForDay.find(d => d.name === a.name) ?? detailsForDay[0]
           if (detail) {
@@ -130,6 +139,18 @@ export function useReadiness({
               ...a,
               avgHR: a.avgHR ?? detail.averageHR,
               maxHR: a.maxHR ?? detail.maxHR,
+            }
+          }
+        }
+        if (!enriched.avgHR || !enriched.maxHR) {
+          // 2) Fall back to whatever the matching layer already wrote onto
+          //    PlannedDay.actual (often filled in from per-second stream).
+          const fromActual = actualHRByDate?.get(a.date)
+          if (fromActual) {
+            enriched = {
+              ...enriched,
+              avgHR: enriched.avgHR ?? fromActual.avgHR,
+              maxHR: enriched.maxHR ?? fromActual.maxHR,
             }
           }
         }
@@ -150,7 +171,7 @@ export function useReadiness({
       .filter((r): r is TRIMPRecord => r !== null)
 
     return stravaRecords.sort((a, b) => a.date.localeCompare(b.date))
-  }, [stravaActivities, garminActivities, garminActivityDetails, restingHR, maxHR, ftpWatts, athleteId])
+  }, [stravaActivities, garminActivities, garminActivityDetails, restingHR, maxHR, ftpWatts, athleteId, actualHRByDate])
 
   // Aggregate daily training load. Composition (per day):
   //

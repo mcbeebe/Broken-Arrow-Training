@@ -274,6 +274,28 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
     return { rpeByDate: rpeMap, exerciseLoadByDate: exMap }
   }, [weeks])
 
+  // Tertiary HR fallback for the IF computation. The matching layer in
+  // mergeGarminDetailIntoWeeks/matchActivitiesToPlan already wrote avgHR/maxHR
+  // onto each PlannedDay.actual — those values are often complete even when
+  // the raw Garmin summary list is missing HR. Build a date-keyed lookup so
+  // useReadiness can use it as a final fallback before falling back to the
+  // static MIM lookup.
+  const actualHRByDate = useMemo(() => {
+    const m = new Map<string, { avgHR?: number; maxHR?: number }>()
+    for (const week of weeks) {
+      for (const d of week.days) {
+        const a = d.actual
+        if (!a) continue
+        const date = a.startDate?.slice(0, 10)
+        if (!date) continue
+        if (a.avgHR || a.maxHR) {
+          m.set(date, { avgHR: a.avgHR, maxHR: a.maxHR })
+        }
+      }
+    }
+    return m
+  }, [weeks])
+
   // Readiness engine (combines Garmin health data + Strava/Garmin activities)
   const readiness = useReadiness({
     healthData: garmin.healthData,
@@ -289,6 +311,7 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
     todayPlannedWorkout,
     currentWeekNum,
     raceDate: activePlan.race.date,
+    actualHRByDate,
   })
 
   // Today's health data for banner
