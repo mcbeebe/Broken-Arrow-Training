@@ -142,6 +142,42 @@ export function invalidateMIMCache() {
   _mimOverrideCache = null
 }
 
+// ─── Per-Athlete DOMS Carry Calibration ─────────────────────────
+// Athletes recover at different rates. The DOMS_CARRY table has fixed
+// defaults derived from group studies, but we let `useDOMSCalibration`
+// learn a per-athlete multiplier (default 1.0×) by comparing measured
+// soreness vs predicted DOMS over a rolling window. Storage shape mirrors
+// the MIM calibration so the engine just reads localStorage.
+
+export const DEFAULT_DOMS_MULT = 1.0
+export const DOMS_MULT_MIN = 0.5
+export const DOMS_MULT_MAX = 2.0
+
+let _domsOverrideCache: Record<string, { calibrated: number; manual: number | null }> | null = null
+let _domsOverrideCacheKey = ''
+
+export function getDOMSCarryMultiplier(sportType: SportType, athleteId?: string): number {
+  if (!athleteId) return DEFAULT_DOMS_MULT
+  const key = `ba_doms_calibration_${athleteId}`
+  if (_domsOverrideCacheKey !== key) {
+    try {
+      const raw = localStorage.getItem(key)
+      _domsOverrideCache = raw ? JSON.parse(raw).overrides ?? null : null
+      _domsOverrideCacheKey = key
+    } catch { _domsOverrideCache = null }
+  }
+  const o = _domsOverrideCache?.[sportType]
+  if (!o) return DEFAULT_DOMS_MULT
+  if (o.manual !== null && o.manual !== undefined) return o.manual
+  if (o.calibrated !== undefined) return o.calibrated
+  return DEFAULT_DOMS_MULT
+}
+
+export function invalidateDOMSCalibrationCache() {
+  _domsOverrideCacheKey = ''
+  _domsOverrideCache = null
+}
+
 // ─── Activity Type Classification ───────────────────────────────
 // Maps raw Garmin/Strava type strings to ATE SportType
 // Then applies sub-classification for strength and hiking
@@ -512,7 +548,7 @@ export function findTrimpRecord(
 
 // ─── Aggregate daily training load ──────────────────────────────
 
-export function aggregateDailyTRIMP(records: TRIMPRecord[]): DailyTRIMP[] {
+export function aggregateDailyTRIMP(records: TRIMPRecord[], athleteId?: string): DailyTRIMP[] {
   if (records.length === 0) return []
 
   const byDate = new Map<string, TRIMPRecord[]>()
@@ -552,9 +588,114 @@ export function aggregateDailyTRIMP(records: TRIMPRecord[]): DailyTRIMP[] {
   // Strength and steep activities cause delayed muscle damage (DOMS)
   // that peaks 24-48h later. Spread a fraction of the original load
   // into subsequent days so ATL/fatigue reflects the lingering cost.
-  applyDOMSCarryForward(result)
+  applyDOMSCarryForward(result, athleteId)
 
   return result
+}
+
+// ─── DOMS Calibration Math (pure) ───────────────────────────────
+// Compares logged soreness vs predicted DOMS over the carry window for
+// each high-eccentric workout. Confounded workouts (those with another
+// DOMS-generating activity in the window) are skipped to keep
+// attribution clean. Returns one ratio per sport averaging measured /
+// predicted across all valid samples.
+
+export interface DOMSCalibrationSample {
+  sport: SportType
+  ratio: number              // measuredSoreness / predictedDOMS (over the carry window)
+  samples: number            // # of qualifying workouts contributing
+  predictedAvg: number       // avg predicted DOMS (for transparency)
+  measuredAvg: number        // avg measured soreness over the window
+}
+
+export interface DOMSCalibrationInput {
+  /** Daily aggregated TRIMP including each day's records (raw, post-MIM
+   *  adjustedTRIMP). Used to find DOMS-generating workouts and detect
+   *  confounded windows. */
+  dailyTrimp: DailyTRIMP[]
+  /** Map of YYYY-MM-DD → soreness adjustment (positive = sore today).
+   *  Negative values (recovery credit) are treated as 0 for prediction
+   *  fit since they represent over-recovery, not the DOMS signal. */
+  sorenessByDate: Map<string, number>
+  /** Athlete's currently-applied per-sport DOMS multiplier (so the fit
+   *  ratio reflects deviation from current state, not from default). */
+  currentMultiplier: (sport: SportType) => number
+  /** Skip workouts whose adjustedTRIMP is below this threshold — too
+   *  small for the soreness signal to be reliable. Defaults to 30. */
+  minLoad?: number
+}
+
+function shiftDate(date: string, days: number): string {
+  const d = new Date(date + 'T12:00:00')
+  d.setDate(d.getDate() + days)
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+export function calibrateDOMSCarry(input: DOMSCalibrationInput): DOMSCalibrationSample[] {
+  const minLoad = input.minLoad ?? 30
+  const samplesBySport = new Map<SportType, { ratios: number[]; predicted: number[]; measured: number[] }>()
+
+  // Index records by date for confound detection
+  const recordsByDate = new Map<string, TRIMPRecord[]>()
+  for (const day of input.dailyTrimp) {
+    recordsByDate.set(day.date, day.records)
+  }
+
+  for (const day of input.dailyTrimp) {
+    for (const rec of day.records) {
+      const carryArr = DOMS_CARRY[rec.sportType]
+      if (!carryArr || carryArr.length === 0) continue
+      if (rec.adjustedTRIMP < minLoad) continue
+
+      // Skip confounded workouts: another DOMS-generating activity in
+      // the lookahead window blurs attribution.
+      let confounded = false
+      for (let d = 1; d <= carryArr.length; d++) {
+        const dayD = recordsByDate.get(shiftDate(day.date, d)) ?? []
+        if (dayD.some(r => DOMS_CARRY[r.sportType])) {
+          confounded = true
+          break
+        }
+      }
+      if (confounded) continue
+
+      const mult = input.currentMultiplier(rec.sportType)
+      let predicted = 0
+      let measured = 0
+      for (let d = 0; d < carryArr.length; d++) {
+        predicted += rec.adjustedTRIMP * carryArr[d] * mult
+        const sor = input.sorenessByDate.get(shiftDate(day.date, d + 1)) ?? 0
+        measured += Math.max(0, sor)
+      }
+      if (predicted < 1) continue
+
+      const ratio = measured / predicted
+      const bucket = samplesBySport.get(rec.sportType) ?? { ratios: [], predicted: [], measured: [] }
+      bucket.ratios.push(ratio)
+      bucket.predicted.push(predicted)
+      bucket.measured.push(measured)
+      samplesBySport.set(rec.sportType, bucket)
+    }
+  }
+
+  const out: DOMSCalibrationSample[] = []
+  for (const [sport, b] of samplesBySport) {
+    if (b.ratios.length < 2) continue   // need ≥ 2 samples for stability
+    const avgRatio = b.ratios.reduce((s, x) => s + x, 0) / b.ratios.length
+    const avgPredicted = b.predicted.reduce((s, x) => s + x, 0) / b.predicted.length
+    const avgMeasured = b.measured.reduce((s, x) => s + x, 0) / b.measured.length
+    out.push({
+      sport,
+      ratio: Math.round(avgRatio * 100) / 100,
+      samples: b.ratios.length,
+      predictedAvg: Math.round(avgPredicted * 10) / 10,
+      measuredAvg: Math.round(avgMeasured * 10) / 10,
+    })
+  }
+  return out
 }
 
 // ─── Per-Day Adjustment Composition ─────────────────────────────
@@ -606,17 +747,20 @@ export function composeDayLoad(
 
 /**
  * Mutates dailyTrimp array in-place, adding DOMS carry-forward load
- * from high-eccentric activities into subsequent days.
+ * from high-eccentric activities into subsequent days. When athleteId
+ * is provided, scales each per-sport carry by that athlete's calibrated
+ * multiplier so individual recovery profiles override group defaults.
  */
-function applyDOMSCarryForward(days: DailyTRIMP[]): void {
+function applyDOMSCarryForward(days: DailyTRIMP[], athleteId?: string): void {
   // Collect DOMS sources first (to avoid double-counting carry on carry)
-  const domsSources: { dayIndex: number; load: number; carry: number[] }[] = []
+  const domsSources: { dayIndex: number; load: number; carry: number[]; mult: number }[] = []
 
   for (let i = 0; i < days.length; i++) {
     for (const rec of days[i].records) {
       const carry = DOMS_CARRY[rec.sportType]
       if (carry && carry.length > 0) {
-        domsSources.push({ dayIndex: i, load: rec.adjustedTRIMP, carry })
+        const mult = getDOMSCarryMultiplier(rec.sportType, athleteId)
+        domsSources.push({ dayIndex: i, load: rec.adjustedTRIMP, carry, mult })
       }
     }
   }
@@ -626,7 +770,7 @@ function applyDOMSCarryForward(days: DailyTRIMP[]): void {
     for (let offset = 0; offset < src.carry.length; offset++) {
       const targetIdx = src.dayIndex + offset + 1
       if (targetIdx < days.length) {
-        const carryLoad = Math.round(src.load * src.carry[offset] * 10) / 10
+        const carryLoad = Math.round(src.load * src.carry[offset] * src.mult * 10) / 10
         days[targetIdx].total = Math.round((days[targetIdx].total + carryLoad) * 10) / 10
       }
     }

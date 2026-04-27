@@ -10,7 +10,9 @@ import {
   classifyHiking,
   classifyRun,
   composeDayLoad,
+  calibrateDOMSCarry,
 } from '../utils/trimp'
+import type { DailyTRIMP, TRIMPRecord, SportType } from '../types'
 
 describe('calculateBanisterTRIMP', () => {
   it('returns 0 for zero duration', () => {
@@ -337,5 +339,182 @@ describe('composeDayLoad', () => {
 
   it('reduces to current sum when sorenessAdj==0 and rpe absent', () => {
     expect(composeDayLoad(50, 10, {})).toBe(60)
+  })
+})
+
+describe('calibrateDOMSCarry', () => {
+  function record(date: string, sport: SportType, load: number): TRIMPRecord {
+    return {
+      date,
+      activityName: 'test',
+      sportType: sport,
+      baseTRIMP: load,
+      sportMultiplier: 1,
+      elevationBonus: 0,
+      adjustedTRIMP: load,
+    }
+  }
+
+  function dailyTrimp(records: TRIMPRecord[]): DailyTRIMP[] {
+    const byDate = new Map<string, TRIMPRecord[]>()
+    for (const r of records) {
+      const list = byDate.get(r.date) ?? []
+      list.push(r)
+      byDate.set(r.date, list)
+    }
+    return Array.from(byDate.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, recs]) => ({
+        date,
+        total: recs.reduce((s, r) => s + r.adjustedTRIMP, 0),
+        records: recs,
+      }))
+  }
+
+  // strength_lower: DOMS_CARRY = [0.40, 0.20]; predicted DOMS over 2 days
+  // = load × 0.6 × multiplier. With multiplier 1.0 and load 100, predicted = 60.
+
+  it('returns no samples when there are fewer than 2 isolated workouts', () => {
+    const days = dailyTrimp([record('2026-04-10', 'strength_lower', 100)])
+    const out = calibrateDOMSCarry({
+      dailyTrimp: days,
+      sorenessByDate: new Map([['2026-04-11', 30]]),
+      currentMultiplier: () => 1.0,
+    })
+    expect(out).toEqual([])
+  })
+
+  it('measures user being more sore than predicted (ratio > 1)', () => {
+    // Two strength_lower workouts a week apart; user logs heavy soreness
+    const days = dailyTrimp([
+      record('2026-04-01', 'strength_lower', 100),
+      record('2026-04-15', 'strength_lower', 100),
+    ])
+    const sor = new Map<string, number>([
+      ['2026-04-02', 50],
+      ['2026-04-03', 30],
+      ['2026-04-16', 60],
+      ['2026-04-17', 20],
+    ])
+    const out = calibrateDOMSCarry({
+      dailyTrimp: days,
+      sorenessByDate: sor,
+      currentMultiplier: () => 1.0,
+    })
+    const lower = out.find(s => s.sport === 'strength_lower')
+    expect(lower).toBeDefined()
+    // predicted = 100*0.4 + 100*0.2 = 60 each → 60 avg
+    // measured  = (50+30)=80 and (60+20)=80 → 80 avg
+    // ratio = 80/60 ≈ 1.33
+    expect(lower!.ratio).toBeCloseTo(1.33, 1)
+    expect(lower!.samples).toBe(2)
+  })
+
+  it('measures user recovering faster than predicted (ratio < 1)', () => {
+    const days = dailyTrimp([
+      record('2026-04-01', 'strength_lower', 100),
+      record('2026-04-15', 'strength_lower', 100),
+    ])
+    const sor = new Map<string, number>([
+      ['2026-04-02', 15],
+      ['2026-04-03', 0],
+      ['2026-04-16', 18],
+      ['2026-04-17', 0],
+    ])
+    const out = calibrateDOMSCarry({
+      dailyTrimp: days,
+      sorenessByDate: sor,
+      currentMultiplier: () => 1.0,
+    })
+    const lower = out.find(s => s.sport === 'strength_lower')!
+    // measured avg ≈ 16.5; predicted avg = 60 → ratio ≈ 0.275
+    expect(lower.ratio).toBeCloseTo(0.28, 1)
+    expect(lower.samples).toBe(2)
+  })
+
+  it('skips confounded workouts (another DOMS-generating activity in window)', () => {
+    // Strength on 04-01 followed by trail_running on 04-02 confounds the
+    // 04-02 / 04-03 soreness signal.
+    const days = dailyTrimp([
+      record('2026-04-01', 'strength_lower', 100),
+      record('2026-04-02', 'trail_running', 80),
+      record('2026-04-15', 'strength_lower', 100),
+      record('2026-04-16', 'trail_running', 80),
+    ])
+    const sor = new Map<string, number>([
+      ['2026-04-02', 60],
+      ['2026-04-03', 30],
+      ['2026-04-16', 60],
+      ['2026-04-17', 30],
+    ])
+    const out = calibrateDOMSCarry({
+      dailyTrimp: days,
+      sorenessByDate: sor,
+      currentMultiplier: () => 1.0,
+    })
+    // strength_lower is confounded both times — skipped.
+    // trail_running has DOMS_CARRY = [0.10] — only 1 day window. The
+    // 04-03 / 04-17 soreness on the next day is not also a DOMS day.
+    expect(out.find(s => s.sport === 'strength_lower')).toBeUndefined()
+    expect(out.find(s => s.sport === 'trail_running')).toBeDefined()
+  })
+
+  it('skips workouts below minLoad threshold', () => {
+    const days = dailyTrimp([
+      record('2026-04-01', 'strength_lower', 10),
+      record('2026-04-15', 'strength_lower', 10),
+    ])
+    const sor = new Map([
+      ['2026-04-02', 30],
+      ['2026-04-16', 30],
+    ])
+    const out = calibrateDOMSCarry({
+      dailyTrimp: days,
+      sorenessByDate: sor,
+      currentMultiplier: () => 1.0,
+    })
+    expect(out).toEqual([])
+  })
+
+  it('reflects the current multiplier when computing predicted DOMS', () => {
+    // With multiplier 2.0× and load 100, predicted = 60 × 2 = 120.
+    // Logged 80 → ratio = 80/120 ≈ 0.67.
+    const days = dailyTrimp([
+      record('2026-04-01', 'strength_lower', 100),
+      record('2026-04-15', 'strength_lower', 100),
+    ])
+    const sor = new Map([
+      ['2026-04-02', 50], ['2026-04-03', 30],
+      ['2026-04-16', 50], ['2026-04-17', 30],
+    ])
+    const out = calibrateDOMSCarry({
+      dailyTrimp: days,
+      sorenessByDate: sor,
+      currentMultiplier: () => 2.0,
+    })
+    const lower = out.find(s => s.sport === 'strength_lower')!
+    expect(lower.ratio).toBeCloseTo(0.67, 1)
+  })
+
+  it('clamps negative soreness to zero (recovery credit not used as DOMS signal)', () => {
+    const days = dailyTrimp([
+      record('2026-04-01', 'strength_lower', 100),
+      record('2026-04-15', 'strength_lower', 100),
+    ])
+    const sor = new Map([
+      ['2026-04-02', -10], ['2026-04-03', -5],
+      ['2026-04-16', 30], ['2026-04-17', 20],
+    ])
+    const out = calibrateDOMSCarry({
+      dailyTrimp: days,
+      sorenessByDate: sor,
+      currentMultiplier: () => 1.0,
+    })
+    const lower = out.find(s => s.sport === 'strength_lower')!
+    // First sample: measured = 0, predicted = 60 → ratio 0
+    // Second: measured = 50, predicted = 60 → ratio 0.83
+    // Avg ≈ 0.42
+    expect(lower.ratio).toBeCloseTo(0.42, 1)
+    expect(lower.samples).toBe(2)
   })
 })

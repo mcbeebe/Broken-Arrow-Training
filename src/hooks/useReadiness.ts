@@ -43,6 +43,10 @@ interface UseReadinessProps {
   todayPlannedWorkout?: PlannedDay
   currentWeekNum: number
   raceDate: string
+  /** Optional — when set, the engine reads per-athlete DOMS calibration
+   *  from localStorage so applyDOMSCarryForward scales by personalized
+   *  multipliers. Without it, defaults (1.0×) are used. */
+  athleteId?: string
 }
 
 export interface UseReadinessReturn {
@@ -78,6 +82,7 @@ export function useReadiness({
   todayPlannedWorkout,
   currentWeekNum,
   raceDate,
+  athleteId,
 }: UseReadinessProps): UseReadinessReturn {
 
   // Get resting HR from latest Garmin data
@@ -148,8 +153,9 @@ export function useReadiness({
   // and lands additively as a recovery credit.
   const { dailyTrimp, domsCarryByDate } = useMemo(() => {
     // aggregateDailyTRIMP extends through today and applies DOMS carry-
-    // forward, so soreness/RPE/exercise adjustments can land on rest days.
-    const base = aggregateDailyTRIMP(trimpRecords)
+    // forward (scaled by per-athlete calibration when athleteId set),
+    // so soreness/RPE/exercise adjustments can land on rest days.
+    const base = aggregateDailyTRIMP(trimpRecords, athleteId)
 
     const domsMap = new Map<string, number>()
     for (const day of base) {
@@ -175,7 +181,7 @@ export function useReadiness({
     })
 
     return { dailyTrimp: adjusted, domsCarryByDate: domsMap }
-  }, [trimpRecords, rpeByDate, exerciseLoadByDate, sorenessLoadByDate])
+  }, [trimpRecords, rpeByDate, exerciseLoadByDate, sorenessLoadByDate, athleteId])
 
   // Performance timeline (CTL/ATL/TSB/ACWR) — computed early so ACWR feeds readiness
   const performance = useMemo(

@@ -13,6 +13,7 @@ import { useOnboarding } from './hooks/useOnboarding'
 import Onboarding from './components/Onboarding'
 import { useSoreness } from './hooks/useSoreness'
 import { useMIMCalibration } from './hooks/useMIMCalibration'
+import { useDOMSCalibration } from './hooks/useDOMSCalibration'
 import { useCoachMemory } from './hooks/useCoachMemory'
 import { useCoachInsight } from './hooks/useCoachInsight'
 import { useProactivePings } from './hooks/useProactivePings'
@@ -286,6 +287,7 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
     todayPlannedWorkout,
     currentWeekNum,
     raceDate: activePlan.race.date,
+    athleteId,
   })
 
   // Today's health data for banner
@@ -299,6 +301,7 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
     [readiness.performance],
   )
   const mimCalibration = useMIMCalibration(athleteId, readiness.dailyTrimp, soreness.sorenessLoadByDate)
+  const domsCalibration = useDOMSCalibration(athleteId, readiness.dailyTrimp, soreness.sorenessLoadByDate)
 
   // Yesterday's readiness score — for proactive ping trigger detection
   const yesterdayScore = useMemo(() => {
@@ -530,6 +533,37 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
                   <button
                     onClick={() => mimCalibration.dismissSuggestion(s.sport)}
                     className="text-xs px-3 py-1 rounded-lg border border-amber-300 text-amber-700 font-medium"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        {domsCalibration.pendingSuggestions.length > 0 && (
+          <div className="px-3 mb-3 space-y-2">
+            {domsCalibration.pendingSuggestions.map(s => (
+              <div key={s.sport} className="bg-orange-50 dark:bg-orange-950 rounded-xl p-3 border border-orange-200 dark:border-orange-900">
+                <p className="text-xs font-semibold text-orange-700 dark:text-orange-300 mb-1">Recovery Calibration</p>
+                <p className="text-sm text-orange-800 dark:text-orange-200">{s.reason}</p>
+                <div className="flex gap-2 mt-2">
+                  <button
+                    onClick={() => {
+                      const note = domsCalibration.acceptSuggestion(s.sport)
+                      if (note && coachMemory.saveAboutMe) {
+                        const existing = coachMemory.aboutMe || ''
+                        const updated = existing ? `${existing}\n${note}` : note
+                        coachMemory.saveAboutMe(updated)
+                      }
+                    }}
+                    className="text-xs px-3 py-1 rounded-lg bg-orange-600 text-white font-medium"
+                  >
+                    Accept
+                  </button>
+                  <button
+                    onClick={() => domsCalibration.dismissSuggestion(s.sport)}
+                    className="text-xs px-3 py-1 rounded-lg border border-orange-300 text-orange-700 font-medium"
                   >
                     Dismiss
                   </button>
