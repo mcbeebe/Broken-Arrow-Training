@@ -10,7 +10,7 @@ import { parseRoutine, type ParsedExercise } from '../utils/exercises'
 import { parseIntervalWorkout, getDrillDay, RUNNING_DRILLS, MYRTL_ROUTINE, PRE_RUN_ACTIVATION, type RunSegment, type DrillGuide } from '../utils/drills'
 import { fetchActivityStreams, getTokens, isTokenExpired, refreshAccessToken, type StreamData } from '../utils/strava'
 import { fetchGarminActivityStream } from '../utils/garmin'
-import { classifyRun, getSportMultiplier, calculateElevationBonus } from '../utils/trimp'
+import { classifyRun, getSportMultiplier, calculateElevationBonus, describeMIMEngine } from '../utils/trimp'
 import { SPORT_LABELS } from '../hooks/useMIMCalibration'
 import HRChart from './HRChart'
 import PaceChart from './PaceChart'
@@ -343,16 +343,35 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
                 const floored = Math.abs(expected - adjusted) > 0.5 && adjusted > expected
                 const ifSource = trimpRecord.ifSource
                 const if_ = trimpRecord.intensityFactor
+                const desc = describeMIMEngine(trimpRecord.sportType)
+                // Always annotate the source so the athlete can tell whether
+                // the dynamic per-workout formula ran or the engine fell back
+                // to the static lookup. For dynamic-capable sports that
+                // landed on `static`, explain why.
                 let mimNote = ''
-                if (ifSource === 'power' && if_ != null) mimNote = ` (power IF ${if_.toFixed(2)})`
-                else if (ifSource === 'hr_reserve' && if_ != null) mimNote = ` (HR IF ${if_.toFixed(2)})`
-                else if (ifSource === 'grade') mimNote = ` (grade)`
+                if (ifSource === 'power' && if_ != null) {
+                  mimNote = ` · power IF ${if_.toFixed(2)}, ${desc.formulaLabel}`
+                } else if (ifSource === 'hr_reserve' && if_ != null) {
+                  mimNote = ` · HR IF ${if_.toFixed(2)}, ${desc.formulaLabel}`
+                } else if (ifSource === 'grade') {
+                  mimNote = ` · ${desc.formulaLabel} (grade)`
+                } else if (ifSource === 'static') {
+                  if (desc.engine === 'cycling-if' || desc.engine === 'mountain-biking-if') {
+                    mimNote = ' · static fallback — no power or HR data for IF'
+                  } else if (desc.engine === 'hiking-grade') {
+                    mimNote = ' · static fallback — no distance for grade'
+                  } else {
+                    mimNote = ' · static lookup'
+                  }
+                }
                 return (
-                  <p className="text-[11px] text-teal-700 dark:text-teal-300 text-center italic -mt-1">
+                  <p className="text-[11px] text-teal-700 dark:text-teal-300 text-center italic -mt-1 px-2">
                     {floored ? (
                       <>Total Load = <span className="font-semibold">{Math.round(adjusted)}</span> (minimum applied; raw {Math.round(base)} × {mim.toFixed(2)} + {Math.round(elev)} = {Math.round(expected)})</>
                     ) : (
-                      <>Total Load = {Math.round(base)} base × {mim.toFixed(2)} MIM{mimNote}{elev > 0 ? ` + ${Math.round(elev)} elev` : ''} = <span className="font-semibold">{Math.round(adjusted)}</span></>
+                      <>Total Load = {Math.round(base)} base × {mim.toFixed(2)} MIM{elev > 0 ? ` + ${Math.round(elev)} elev` : ''} = <span className="font-semibold">{Math.round(adjusted)}</span>{mimNote && (
+                        <><br /><span className="text-[10px] text-teal-600/80 dark:text-teal-400/80 not-italic">{mimNote.replace(/^ · /, '')}</span></>
+                      )}</>
                     )}
                   </p>
                 )
@@ -382,13 +401,27 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
                     : 'bg-emerald-100 text-emerald-800 border-emerald-200'
                   const ifSource = trimpRecord?.ifSource
                   const if_ = trimpRecord?.intensityFactor
+                  const desc = describeMIMEngine(sportType)
                   let sourceNote = ''
+                  let sourceTag = ''
                   if (ifSource === 'power' && if_ != null) {
-                    sourceNote = ` Derived from cycling MIM = 0.4 + 0.4·IF² with IF = ${if_.toFixed(2)} (NormalizedPower / FTP).`
+                    sourceNote = ` Derived from ${desc.formulaLabel} with IF = ${if_.toFixed(2)} (NormalizedPower / FTP).`
+                    sourceTag = ` · IF ${if_.toFixed(2)}`
                   } else if (ifSource === 'hr_reserve' && if_ != null) {
-                    sourceNote = ` Derived from cycling MIM = 0.4 + 0.4·IF² with IF = ${if_.toFixed(2)} (HR-reserve fallback — no power data).`
+                    sourceNote = ` Derived from ${desc.formulaLabel} with IF = ${if_.toFixed(2)} (HR-reserve fallback — no power data).`
+                    sourceTag = ` · IF ${if_.toFixed(2)}`
                   } else if (ifSource === 'grade') {
-                    sourceNote = ' Derived from Minetti walking polynomial at the activity\'s average grade.'
+                    sourceNote = ` Derived from ${desc.formulaLabel} at the activity's average grade.`
+                    sourceTag = ' · grade'
+                  } else if (ifSource === 'static') {
+                    if (desc.engine === 'cycling-if' || desc.engine === 'mountain-biking-if') {
+                      sourceNote = ` Static fallback (${desc.staticValue.toFixed(2)}× from MIM_MATRIX) — the per-workout formula ${desc.formulaLabel} needs power data or HR + restingHR + maxHR, none of which were available.`
+                    } else if (desc.engine === 'hiking-grade') {
+                      sourceNote = ` Static fallback (${desc.staticValue.toFixed(2)}×) — the per-workout formula ${desc.formulaLabel} needs distance to compute grade, which wasn't available.`
+                    } else {
+                      sourceNote = ` Static lookup from MIM_MATRIX (no per-workout formula for ${label}).`
+                    }
+                    sourceTag = ' · static'
                   }
                   pills.push(
                     <span
@@ -396,7 +429,7 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
                       className={`inline-flex items-center gap-1 text-xs font-semibold rounded-full border px-2 py-0.5 ${cls}`}
                       title={`${label}: MIM ${mim.toFixed(2)}× applied to base training load.${sourceNote}`}
                     >
-                      {label} · MIM {mim.toFixed(2)}×
+                      {label} · MIM {mim.toFixed(2)}×{sourceTag}
                     </span>
                   )
                 }
