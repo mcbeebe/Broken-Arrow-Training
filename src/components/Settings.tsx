@@ -564,6 +564,87 @@ function MIMTable({ overrides, lastCalibrated, onSetManual, onReset, onRecalibra
       {calibrateMsg && (
         <p className="text-[10px] text-teal-700 dark:text-teal-400 bg-teal-50 dark:bg-teal-950 rounded px-2 py-1 mt-1">{calibrateMsg}</p>
       )}
+
+      <details className="mt-2 border border-slate-200 dark:border-slate-700 rounded-lg">
+        <summary className="cursor-pointer text-xs font-medium text-slate-600 dark:text-slate-300 px-3 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg">
+          How these formulas work
+        </summary>
+        <div className="px-3 pb-3 pt-1 space-y-2 text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">
+          <p className="text-slate-500 dark:text-slate-400">
+            Every multiplier is anchored to <strong>1.0× = flat running</strong>. So 0.65× cycling means a cycling
+            minute is ~65% as musculoskeletally taxing as a flat-running minute at the same heart-rate cost.
+          </p>
+
+          <div>
+            <p className="font-semibold text-slate-700 dark:text-slate-200">Intensity Factor (IF)</p>
+            <p>
+              How hard the ride felt relative to your threshold. Power-meter rides use{' '}
+              <code className="px-1 rounded bg-slate-100 dark:bg-slate-700 font-mono">IF = NormalizedPower / FTP</code>.
+              Without power, the engine falls back to heart-rate reserve{' '}
+              <code className="px-1 rounded bg-slate-100 dark:bg-slate-700 font-mono">(avgHR − restHR) / (maxHR − restHR)</code>.
+              Typical range 0.5 (recovery) to 1.1 (over-threshold).
+            </p>
+          </div>
+
+          <div>
+            <p className="font-semibold text-slate-700 dark:text-slate-200">Cycling MIM &nbsp;<span className="font-mono text-violet-600 dark:text-violet-300">= 0.4 + 0.4 · IF²</span></p>
+            <p>
+              Knee-joint compression rises roughly with the square of normalized power
+              (<a href="https://pubmed.ncbi.nlm.nih.gov/23346556/" target="_blank" rel="noopener noreferrer" className="text-teal-600 dark:text-teal-400 underline">D'Lima 2013</a>;
+              {' '}<a href="https://pubmed.ncbi.nlm.nih.gov/3728780/" target="_blank" rel="noopener noreferrer" className="text-teal-600 dark:text-teal-400 underline">Ericson &amp; Nisell 1986/87</a>),
+              while flat-run vGRF peaks around 2.5× bodyweight (Nilsson &amp; Thorstensson 1989). Easy spinning ≈ 0.5×,
+              steady Z2 ≈ 0.6×, threshold ≈ 0.8×, sprint ≈ 1.0×.
+            </p>
+            <p className="mt-1 text-slate-500 dark:text-slate-400">
+              Mountain biking adds a <strong>×1.2 rough-terrain bump</strong> on top to account for impact and brief
+              eccentric loads the smooth-road formula doesn't model.
+            </p>
+          </div>
+
+          <div>
+            <p className="font-semibold text-slate-700 dark:text-slate-200">Hiking MIM &nbsp;<span className="font-mono text-violet-600 dark:text-violet-300">= costWalk(grade) / costRun(0)</span></p>
+            <p>
+              Walking energy cost from Minetti's polynomial, divided by flat-running cost. <strong>Grade</strong> is
+              signed elevation gain over horizontal distance ({' '}
+              <code className="px-1 rounded bg-slate-100 dark:bg-slate-700 font-mono">elev_gain_ft / (distance_mi × 5280)</code>;
+              0.10 = +10%, −0.05 = −5%). Reference points from{' '}
+              <a href="https://pubmed.ncbi.nlm.nih.gov/12183501/" target="_blank" rel="noopener noreferrer" className="text-teal-600 dark:text-teal-400 underline">Minetti et al. 2002</a>:
+            </p>
+            <table className="text-[10px] mt-1 ml-2 font-mono">
+              <tbody>
+                <tr><td className="pr-3 text-slate-400">−10% (descent)</td><td>0.31×</td></tr>
+                <tr><td className="pr-3 text-slate-400">flat</td><td>0.69×</td></tr>
+                <tr><td className="pr-3 text-slate-400">+10%</td><td>1.36×</td></tr>
+                <tr><td className="pr-3 text-slate-400">+20% (steep)</td><td>2.19×</td></tr>
+                <tr><td className="pr-3 text-slate-400">+30%</td><td>3.11×</td></tr>
+                <tr><td className="pr-3 text-slate-400">+45% (scramble)</td><td>4.89×</td></tr>
+              </tbody>
+            </table>
+            <p className="mt-1 text-slate-500 dark:text-slate-400">
+              Above ~+20% grade walking is more economical than running — that's why elite skyrunners power-hike
+              the steepest sections.
+            </p>
+          </div>
+
+          <div>
+            <p className="font-semibold text-slate-700 dark:text-slate-200">Static lookup</p>
+            <p>
+              Sports without a research-backed dynamic formula (running, strength, swimming, etc.) use a fixed
+              lookup applied to every workout for that sport. E-bike stays static at 0.30× because pedal-assist
+              makes IF unreliable as a muscular-load proxy.
+            </p>
+          </div>
+
+          <div>
+            <p className="font-semibold text-slate-700 dark:text-slate-200">Manual override</p>
+            <p>
+              Always wins over the engine. Tap a value in the Override column to set your own. Use this when your
+              own perception of load disagrees with the model — your tuned number is what we'll use everywhere
+              (chart bars, ATL/CTL, coach insights).
+            </p>
+          </div>
+        </div>
+      </details>
     </div>
   )
 }
