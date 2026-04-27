@@ -431,7 +431,27 @@ function MIMTable({ overrides, lastCalibrated, onSetManual, onReset, onRecalibra
 }) {
   const [editing, setEditing] = useState<string | null>(null)
   const [editVal, setEditVal] = useState('')
+  const [editOriginal, setEditOriginal] = useState('')
   const [calibrateMsg, setCalibrateMsg] = useState<string | null>(null)
+
+  const overrideCount = overrides.filter(o => o.manual !== null).length
+
+  function clearAllOverrides() {
+    if (!onReset) return
+    for (const o of overrides) {
+      if (o.manual !== null) onReset(o.sport)
+    }
+  }
+
+  function commitEdit(sport: string) {
+    const v = parseFloat(editVal)
+    // Only persist if the value actually changed from the original — prevents
+    // accidental override-locking when the user just taps a row to inspect.
+    if (editVal !== editOriginal && !isNaN(v) && v >= 0 && v <= 5) {
+      onSetManual?.(sport, v)
+    }
+    setEditing(null)
+  }
 
   return (
     <div className="space-y-2">
@@ -440,6 +460,20 @@ function MIMTable({ overrides, lastCalibrated, onSetManual, onReset, onRecalibra
         Cycling, mountain biking, and hiking now compute MIM <em>per workout</em> from intensity factor (cycling)
         or grade (hiking) instead of a fixed default. Other sports use a static lookup. Tap any value to override manually.
       </p>
+      {overrideCount > 0 && (
+        <div className="bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-900 rounded-lg px-2.5 py-1.5 flex items-center justify-between gap-2">
+          <p className="text-[11px] text-amber-800 dark:text-amber-200 leading-snug">
+            <span className="font-semibold">{overrideCount}</span> manual override{overrideCount === 1 ? '' : 's'} active —
+            these bypass the per-workout formula. Clear if you want the engine to compute MIM dynamically again.
+          </p>
+          <button
+            onClick={clearAllOverrides}
+            className="shrink-0 text-[10px] font-medium text-amber-700 dark:text-amber-200 underline hover:text-amber-900 dark:hover:text-white"
+          >
+            Clear all
+          </button>
+        </div>
+      )}
       {lastCalibrated && (
         <p className="text-[10px] text-slate-400">Last calibrated: {lastCalibrated}</p>
       )}
@@ -495,11 +529,7 @@ function MIMTable({ overrides, lastCalibrated, onSetManual, onReset, onRecalibra
                         className="w-16 text-right text-xs border border-teal-300 rounded px-1 py-0.5"
                         value={editVal}
                         onChange={e => setEditVal(e.target.value)}
-                        onBlur={() => {
-                          const v = parseFloat(editVal)
-                          if (!isNaN(v) && v >= 0 && v <= 5) onSetManual?.(o.sport, v)
-                          setEditing(null)
-                        }}
+                        onBlur={() => commitEdit(o.sport)}
                         onKeyDown={e => {
                           if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
                           if (e.key === 'Escape') setEditing(null)
@@ -507,12 +537,18 @@ function MIMTable({ overrides, lastCalibrated, onSetManual, onReset, onRecalibra
                       />
                     ) : (
                       <button
-                        onClick={() => { setEditing(o.sport); setEditVal((o.manual ?? o.recentAvgMIM ?? o.defaultMIM).toFixed(2)) }}
-                        className={`font-mono ${isManual ? 'text-teal-600 font-bold' : 'text-slate-300 hover:text-slate-500'}`}
-                        title={isManual ? 'Manual override (wins over engine)' : 'Tap to set a manual override'}
+                        onClick={() => {
+                          const initial = (o.manual ?? o.recentAvgMIM ?? o.defaultMIM).toFixed(2)
+                          setEditing(o.sport)
+                          setEditVal(initial)
+                          setEditOriginal(initial)
+                        }}
+                        className={`font-mono ${isManual ? 'text-amber-700 dark:text-amber-300 font-bold' : 'text-slate-300 hover:text-slate-500'}`}
+                        title={isManual ? 'Manual override — bypasses the engine. Tap × to clear.' : 'Tap to set a manual override'}
                       >
                         {isManual ? (
                           <>
+                            <span className="mr-0.5">⚠️</span>
                             {o.manual!.toFixed(2)}
                             {Math.abs(overrideDrift) >= 1 && (
                               <span className={`ml-0.5 text-[9px] ${overrideDrift > 0 ? 'text-red-400' : 'text-green-500'}`}>
@@ -546,7 +582,7 @@ function MIMTable({ overrides, lastCalibrated, onSetManual, onReset, onRecalibra
       <div className="flex items-center justify-between pt-1">
         <div className="flex gap-2 text-[9px] text-slate-400 flex-wrap">
           <span><span className="text-violet-600 dark:text-violet-300 font-medium">Violet</span> = per-workout formula</span>
-          <span><span className="text-teal-600 font-bold">Teal</span> = manual override</span>
+          <span><span className="text-amber-700 dark:text-amber-300 font-bold">⚠️ Amber</span> = manual override (bypasses engine)</span>
         </div>
         {onRecalibrate && (
           <button
