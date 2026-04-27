@@ -115,7 +115,26 @@ export function useReadiness({
     }
 
     const garminRecords: TRIMPRecord[] = garminActivities
-      .map(a => garminActivityToTRIMP(a, restingHR, maxHR, exerciseNamesByDate.get(a.date), ftpWatts, athleteId))
+      .map(a => {
+        // Garmin's summary list endpoint sometimes omits averageHR/maxHR
+        // (notably for cycling activities), even though the activity-detail
+        // endpoint has them. Without HR the dynamic cycling MIM falls back
+        // to the static lookup. Backfill from detail when summary is missing
+        // — match by date + name (most days have one activity per name).
+        let enriched = a
+        if (!a.avgHR || !a.maxHR) {
+          const detailsForDay = garminActivityDetails[a.date] ?? []
+          const detail = detailsForDay.find(d => d.name === a.name) ?? detailsForDay[0]
+          if (detail) {
+            enriched = {
+              ...a,
+              avgHR: a.avgHR ?? detail.averageHR,
+              maxHR: a.maxHR ?? detail.maxHR,
+            }
+          }
+        }
+        return garminActivityToTRIMP(enriched, restingHR, maxHR, exerciseNamesByDate.get(a.date), ftpWatts, athleteId)
+      })
       .filter((r): r is TRIMPRecord => r !== null)
 
     // When Garmin is connected and has data, use ONLY Garmin for training load.
