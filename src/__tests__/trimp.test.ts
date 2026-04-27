@@ -119,6 +119,20 @@ describe('mapToSportType', () => {
   it('returns "other" for unknown types', () => {
     expect(mapToSportType('unknown_sport')).toBe('other')
   })
+
+  it('classifies cycling sub-types as cycling (not "other")', () => {
+    // Strava sport_type values beyond plain "Ride"
+    expect(mapToSportType('GravelRide')).toBe('cycling')
+    expect(mapToSportType('VirtualRide')).toBe('cycling')
+    expect(mapToSportType('Velomobile')).toBe('cycling')
+    // Garmin activity types
+    expect(mapToSportType('road_biking')).toBe('cycling')
+    expect(mapToSportType('gravel_cycling')).toBe('cycling')
+    expect(mapToSportType('cyclocross')).toBe('cycling')
+    expect(mapToSportType('track_cycling')).toBe('cycling')
+    expect(mapToSportType('indoor_cycling')).toBe('cycling')
+    expect(mapToSportType('commuting')).toBe('cycling')
+  })
 })
 
 describe('classifyStrength', () => {

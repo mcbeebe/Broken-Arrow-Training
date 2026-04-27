@@ -152,6 +152,8 @@ const TYPE_MAP: Record<string, SportType> = {
   trail_run: 'trail_running',
   ride: 'cycling',
   virtualride: 'cycling',
+  gravelride: 'cycling',           // Strava sport_type "GravelRide"
+  velomobile: 'cycling',           // Strava sport_type "Velomobile"
   ebikeride: 'ebike',
   emountainbikeride: 'ebike',
   mountainbikeride: 'mountain_biking',
@@ -169,6 +171,14 @@ const TYPE_MAP: Record<string, SportType> = {
   trail_running: 'trail_running',
   cycling: 'cycling',
   indoor_cycling: 'cycling',
+  road_biking: 'cycling',          // Garmin's term for road rides
+  gravel_cycling: 'cycling',
+  cyclocross: 'cycling',
+  track_cycling: 'cycling',
+  bmx: 'cycling',
+  commuting: 'cycling',
+  bike_commute: 'cycling',
+  virtual_ride: 'cycling',
   // Garmin e-bike activity types (varies by device firmware)
   e_bike_fitness: 'ebike',
   e_bike_mountain: 'ebike',
@@ -176,6 +186,7 @@ const TYPE_MAP: Record<string, SportType> = {
   electric_bike_ride: 'ebike',
   ebike: 'ebike',
   mountain_biking: 'mountain_biking',
+  downhill_biking: 'mountain_biking',
   hiking: 'hiking',
   walking: 'walking',
   swimming: 'swimming',
