@@ -284,10 +284,11 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
     exerciseLoadByDate,
     sorenessLoadByDate: soreness.sorenessLoadByDate,
     maxHR: maxHROverride.maxHR,
+    ftpWatts: activePlan.athlete.ftpWatts,
+    athleteId,
     todayPlannedWorkout,
     currentWeekNum,
     raceDate: activePlan.race.date,
-    athleteId,
   })
 
   // Today's health data for banner

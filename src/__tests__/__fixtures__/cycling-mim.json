@@ -1,0 +1,52 @@
+{
+  "version": "1.1",
+  "source": "Hill_Running_Load_Multipliers_v1.1.xlsx",
+  "formula": {
+    "a": 0.4,
+    "b": 0.4
+  },
+  "samples": [
+    {
+      "label": "Recovery / spin",
+      "description": "Active recovery, easy spinning",
+      "intensityFactor": 0.55,
+      "kneeCompressionBW": 1.05,
+      "mim": 0.521
+    },
+    {
+      "label": "Endurance / Z2",
+      "description": "Steady aerobic base building",
+      "intensityFactor": 0.7,
+      "kneeCompressionBW": 1.2,
+      "mim": 0.596
+    },
+    {
+      "label": "Tempo / sweet spot",
+      "description": "Moderate-hard sustained effort",
+      "intensityFactor": 0.85,
+      "kneeCompressionBW": 1.5,
+      "mim": 0.689
+    },
+    {
+      "label": "Threshold (FTP)",
+      "description": "1-hour max sustainable power",
+      "intensityFactor": 1.0,
+      "kneeCompressionBW": 1.8,
+      "mim": 0.8
+    },
+    {
+      "label": "VO2 max intervals",
+      "description": "3\u20135 min hard intervals",
+      "intensityFactor": 1.1,
+      "kneeCompressionBW": 2.0,
+      "mim": 0.884
+    },
+    {
+      "label": "Sprints / standing",
+      "description": "Max efforts, standing climbs",
+      "intensityFactor": 1.2,
+      "kneeCompressionBW": 2.5,
+      "mim": 0.976
+    }
+  ]
+}

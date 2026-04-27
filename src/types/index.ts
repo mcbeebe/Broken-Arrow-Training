@@ -44,6 +44,12 @@ export interface StravaActivity {
   device_name?: string;
   gear_id?: string;
   description?: string;
+  // Power-meter fields — Strava populates these only on activities recorded
+  // with a connected power meter (cycling activities almost exclusively).
+  // Cycling MIM uses normalized > average > HR-reserve in priority order.
+  average_watts?: number;
+  weighted_average_watts?: number;
+  device_watts?: boolean;
 }
 
 export interface StravaSplit {
@@ -227,6 +233,11 @@ export interface AthleteProfile {
   maxHR: number;
   currentBase: string;
   weeklyStructure: string;
+  // Functional Threshold Power (watts) — 1-hour max sustainable cycling power.
+  // Used as the denominator of Intensity Factor (IF = NP / FTP) for the
+  // cycling MIM formula. Optional; HR-reserve fallback applies when absent
+  // or when an activity has no power data.
+  ftpWatts?: number;
 }
 
 export interface TrainingPlan {
@@ -291,6 +302,10 @@ export interface GarminActivity {
   calories?: number;
   vigorousIntensityMinutes?: number;
   moderateIntensityMinutes?: number;
+  // Power fields populated for cycling activities recorded with a power
+  // meter. Used by cycling MIM in the same priority as Strava's fields.
+  avgPowerW?: number;
+  normalizedPowerW?: number;
 }
 
 export interface GarminHRZone {
@@ -438,6 +453,15 @@ export type SportType =
   | "running_drills"
   | "other";
 
+/**
+ * Source of the Intensity Factor used to derive an activity's MIM.
+ *   power      — IF = NormalizedPower / FTP (or avgPower / FTP)
+ *   hr_reserve — IF = (avgHR - rHR) / (mHR - rHR), the Banister fHR
+ *   grade      — hiking MIM derived from avg grade (no IF involved)
+ *   static     — fixed lookup, no intensity input
+ */
+export type IFSource = 'power' | 'hr_reserve' | 'grade' | 'static'
+
 export interface TRIMPRecord {
   date: string;
   activityName: string;
@@ -446,6 +470,11 @@ export interface TRIMPRecord {
   sportMultiplier: number;
   elevationBonus: number;
   adjustedTRIMP: number;
+  // Intensity Factor (or grade-derived multiplier input) used to compute
+  // sportMultiplier. Present for cycling and hiking when a dynamic MIM
+  // was applied; absent for sports that still use a static MIM.
+  intensityFactor?: number;
+  ifSource?: IFSource;
 }
 
 export interface DailyTRIMP {

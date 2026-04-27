@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Generate src/__tests__/__fixtures__/hill-running-multipliers.json from the
-canonical source spreadsheet `Hill_Running_Load_Multipliers_v1.0.xlsx`.
+canonical source spreadsheet `Hill_Running_Load_Multipliers_v1.1.xlsx`.
 
 The xlsx is the human-edited source of truth for the Minetti 2002 5th-order
 polynomial coefficients (run + walk) and a sweep of grade samples used to
@@ -30,7 +30,7 @@ except ImportError:
     sys.exit(2)
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_XLSX = REPO_ROOT / "docs/research/Hill_Running_Load_Multipliers_v1.0.xlsx"
+DEFAULT_XLSX = REPO_ROOT / "docs/research/Hill_Running_Load_Multipliers_v1.1.xlsx"
 OUTPUT = REPO_ROOT / "src/__tests__/__fixtures__/hill-running-multipliers.json"
 
 RUN_COEFF_CELLS = {"a0": ("K", 8), "a1": ("K", 7), "a2": ("K", 6), "a3": ("K", 5), "a4": ("K", 4), "a5": ("K", 3)}
@@ -72,7 +72,7 @@ def main():
         })
 
     fixture = {
-        "version": "1.0",
+        "version": "1.1",
         "source": xlsx_path.name,
         "polynomial": polynomial,
         "samples": samples,

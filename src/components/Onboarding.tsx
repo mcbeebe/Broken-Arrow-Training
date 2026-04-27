@@ -21,6 +21,7 @@ export default function Onboarding({ onComplete, onSkip }: Props) {
   const [name, setName] = useState('')
   const [age, setAge] = useState('')
   const [maxHR, setMaxHR] = useState('')
+  const [ftp, setFtp] = useState('')
 
   const next = () => setStep(s => Math.min(s + 1, TOTAL_STEPS - 1))
   const back = () => setStep(s => Math.max(s - 1, 0))
@@ -52,6 +53,7 @@ export default function Onboarding({ onComplete, onSkip }: Props) {
       athleteName: name.trim(),
       age: ageNum,
       maxHR: maxHR ? parseInt(maxHR) : 220 - ageNum,
+      ftpWatts: ftp ? parseInt(ftp) : undefined,
       completedAt: '',
     })
   }
@@ -204,6 +206,17 @@ export default function Onboarding({ onComplete, onSkip }: Props) {
                 {age && !maxHR && (
                   <p className="text-xs text-slate-400 mt-1">Using estimated max HR: {220 - (parseInt(age) || 30)} bpm (220 - age)</p>
                 )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Cycling FTP (optional)</label>
+                <input
+                  type="number"
+                  value={ftp}
+                  onChange={e => setFtp(e.target.value)}
+                  placeholder="e.g. 250 (watts)"
+                  className="w-full px-3 py-3 text-base border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400"
+                />
+                <p className="text-xs text-slate-400 mt-1">Sharpens cycling load when you ride with a power meter. Skip if you don't have one — we'll fall back to heart rate.</p>
               </div>
             </div>
           </StepContainer>

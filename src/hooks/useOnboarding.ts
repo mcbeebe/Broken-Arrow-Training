@@ -17,6 +17,9 @@ export interface OnboardingConfig {
   athleteName: string
   age: number
   maxHR?: number
+  // Optional cycling FTP (watts). Drives the cycling MIM intensity factor
+  // when an activity has power-meter data; HR-reserve falls back when absent.
+  ftpWatts?: number
   completedAt: string
 }
 
