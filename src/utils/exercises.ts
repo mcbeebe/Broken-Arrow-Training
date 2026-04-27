@@ -1,9 +1,20 @@
+export interface ExerciseAlternate {
+  /** Short label for the substitute exercise. */
+  name: string
+  /** Equipment needed (e.g. "Dumbbells", "Med ball", "Bodyweight"). */
+  equipment: string
+  /** Optional swap rationale or short cue. */
+  notes?: string
+}
+
 export interface ExerciseGuide {
   name: string
   aka: string
   weight: string
   rest: string
   form: string[]
+  /** Same-stimulus substitutes for athletes with different equipment. */
+  alternates?: ExerciseAlternate[]
 }
 
 const GUIDES: Record<string, ExerciseGuide> = {
@@ -356,6 +367,12 @@ const GUIDES: Record<string, ExerciseGuide> = {
       'Push back up to full arm extension.',
       'If full push-ups are too hard, drop to your knees — no shame in scaling.',
     ],
+    alternates: [
+      { name: 'DB floor press', equipment: 'Dumbbells', notes: 'Lying on the floor, press DBs up from chest. Same horizontal-push pattern, lets you scale load precisely.' },
+      { name: 'Knee push-ups', equipment: 'Bodyweight', notes: 'Same torso line, knees on floor. Reduces load by ~30%.' },
+      { name: 'Incline push-ups', equipment: 'Bench / box', notes: 'Hands on a raised surface — easier the higher the surface.' },
+      { name: 'DB bench press', equipment: 'Dumbbells + bench', notes: 'If you have a bench, this loads the same pattern with more leverage for heavy reps.' },
+    ],
   },
   'sl deadlift': {
     name: 'Single-Leg Deadlift (SL Deadlift)',
@@ -397,6 +414,89 @@ const GUIDES: Record<string, ExerciseGuide> = {
       'Immediately sink into the next squat and jump again.',
       'This builds explosive power for steep trail climbs.',
       'Land quietly = good form. Loud landing = too stiff.',
+    ],
+  },
+  // ── Upper body / mobility additions ────────────────────────────
+  'dead hang': {
+    name: 'Dead Hang',
+    aka: 'Passive hang from a pull-up bar — grip strength + lat decompression',
+    weight: 'Bodyweight (add a 10-20 lb DB held between feet for extra grip work)',
+    rest: '60-90 sec between sets',
+    form: [
+      'Grip a pull-up bar with both hands, slightly wider than shoulders. Palms forward.',
+      'Hang completely — let your shoulders relax up toward your ears. Breathe.',
+      'Engage your core mildly so you\'re not just hanging from your spine.',
+      'Aim for 15-30s holds. Build up over weeks.',
+      'Release the bar before your grip fails — drop with control.',
+      'No pull-up bar? See alternates below.',
+    ],
+    alternates: [
+      { name: 'DB farmer\'s hold', equipment: 'Dumbbells', notes: 'Heavy DBs at sides, stand tall, hold for 30-45s. Same grip + postural stimulus.' },
+      { name: 'DB pullover', equipment: 'Dumbbell + bench', notes: 'Lying on bench, dumbbell over chest, lower arms behind head. Hits the lat-stretch component.' },
+      { name: 'Hollow body hold', equipment: 'Bodyweight', notes: 'Lie supine, lower back pressed to floor, arms overhead. 20-30s. Trains the same shoulder + core integration.' },
+      { name: 'Plate pinch hold', equipment: 'Plates / heavy book', notes: 'Pinch two plates together with fingers, hold 20-30s per side.' },
+    ],
+  },
+  'russian twist': {
+    name: 'Russian Twists',
+    aka: 'Seated rotational core — obliques and trunk control',
+    weight: 'Med ball, dumbbell, or bodyweight (heels lifted for harder)',
+    rest: '45-60 sec between sets',
+    form: [
+      'Sit on the floor, knees bent, feet flat (or heels lifted for harder).',
+      'Lean back ~45° so abs are engaged the whole set.',
+      'Hold a med ball or dumbbell at chest. Rotate side to side, tapping next to your hip.',
+      'Move from your trunk, not your arms. Keep chest tall.',
+      'Slow and controlled — momentum makes the obliques lazy.',
+      'One full left+right = 1 rep (so 20 reps = 10 each side).',
+    ],
+    alternates: [
+      { name: 'DB Russian twists', equipment: 'Dumbbells', notes: 'Same motion holding a single dumbbell at chest.' },
+      { name: 'Bicycle crunches', equipment: 'Bodyweight', notes: 'Lying on back, alternate elbow to opposite knee. Same oblique + rotation pattern.' },
+      { name: 'Side plank with reach-through', equipment: 'Bodyweight', notes: 'Side plank, top arm threads under torso then opens to ceiling. Slower tempo, more shoulder stability.' },
+      { name: 'Pallof press', equipment: 'Band or cable', notes: 'Press a band straight out from chest while resisting rotation. Anti-rotation cousin to twists.' },
+    ],
+  },
+  'myrtl': {
+    name: 'Myrtl Hip Routine',
+    aka: 'Glute medius / hip rotator activation routine — runner staple',
+    weight: 'Bodyweight',
+    rest: 'Move continuously through all movements',
+    form: [
+      'Lateral leg swings — 10 each leg. Stand tall, swing one leg side to side.',
+      'Front-to-back swings — 10 each leg. Forward and back, foot stays flexed.',
+      'Hurdle trail — 10 each leg. Bring knee up, around, and over an imaginary hurdle.',
+      'Hurdle lead — 10 each leg. Same motion in reverse.',
+      'Donkey kicks — 10 each leg. On hands and knees, kick straight up.',
+      'Donkey whips — 10 each leg. Same start, knee swings out then back to center.',
+      'Fire hydrants — 10 each leg. On hands and knees, knee opens out to side.',
+      'Knee circles — 10 each direction per leg. Knee draws a circle in the air.',
+      'Total: about 5-8 minutes. Best done before runs to prime the hip stabilizers.',
+    ],
+    alternates: [
+      { name: '90/90 hip switches', equipment: 'Bodyweight', notes: 'Sit with both knees at 90°, rotate side to side. Hits internal/external rotation.' },
+      { name: 'Standing leg circles', equipment: 'Bodyweight', notes: 'Stand on one leg, draw circles with the other knee. 10 each direction.' },
+      { name: 'Banded clamshells + monster walks', equipment: 'Mini band', notes: 'Clamshells (15/side) + lateral monster walks (10 each direction). Loaded glute med work.' },
+    ],
+  },
+  'foam roll': {
+    name: 'Foam Roll (quads / calves)',
+    aka: 'Self-myofascial release — eases tight tissue',
+    weight: 'Foam roller',
+    rest: 'Continuous — about 1-2 min per area',
+    form: [
+      'Quads: face down, roller across the front of one thigh. Roll slowly from hip to knee.',
+      'Pause 20-30s on any tender spot. Breathe deeply — don\'t hold tension.',
+      'Inner / outer quad: rotate the leg so the roller hits VMO (inner) and IT band-side outer quad.',
+      'Calves: sit with the roller under one calf. Cross the other leg on top for more pressure.',
+      'Roll from Achilles to back of knee. Pause on knots.',
+      'Total: ~5 min per side. Daily after runs is ideal.',
+      'Discomfort = normal. Sharp pain = back off pressure.',
+    ],
+    alternates: [
+      { name: 'Lacrosse / tennis ball', equipment: 'Ball', notes: 'Smaller, more targeted pressure. Good for calf knots and IT band-adjacent tight spots.' },
+      { name: 'Massage gun', equipment: 'Percussion gun', notes: '60-90s per area. More superficial than foam rolling but quicker.' },
+      { name: 'Couch / wall stretch', equipment: 'Bodyweight', notes: 'If you have no roller — couch quad stretch (rear foot on couch, lunge forward) hits the rec fem and quads similarly.' },
     ],
   },
 }
