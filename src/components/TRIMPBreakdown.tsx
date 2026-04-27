@@ -5,6 +5,8 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recha
 interface TRIMPBreakdownProps {
   dailyTrimp: DailyTRIMP[]
   sorenessLoadByDate?: Map<string, number>
+  rpeByDate?: Map<string, number>
+  exerciseLoadByDate?: Map<string, number>
 }
 
 const SPORT_COLORS: Record<string, string> = {
@@ -47,7 +49,7 @@ function getLast7Days(): string[] {
   return days
 }
 
-export default function TRIMPBreakdown({ dailyTrimp, sorenessLoadByDate }: TRIMPBreakdownProps) {
+export default function TRIMPBreakdown({ dailyTrimp, sorenessLoadByDate, rpeByDate, exerciseLoadByDate }: TRIMPBreakdownProps) {
   const last7Days = getLast7Days()
 
   // Build a lookup from existing TRIMP data
@@ -120,6 +122,44 @@ export default function TRIMPBreakdown({ dailyTrimp, sorenessLoadByDate }: TRIMP
     if (entry['soreness']) hasSoreness = true
   }
 
+  // Per-day truthful decomposition for the tooltip. The bar segments above
+  // bundle exercise + RPE delta into one "rpe_exercise" lump, which hides
+  // the fact that a low RPE *reduces* load. Here we split them out so the
+  // tooltip can show e.g. "manual exercise +25, RPE 1 adjustment −5".
+  interface Breakdown {
+    records: { sportType: string; trimp: number }[]
+    exerciseLoad: number
+    rpeValue: number | null
+    rpeDelta: number   // signed
+    sorenessAdj: number
+    domsCarry: number
+    dayTotal: number
+  }
+  const breakdownByMMDD = new Map<string, Breakdown>()
+  for (const day of filledDays) {
+    const recordSum = day.records.reduce((s, r) => s + r.adjustedTRIMP, 0)
+    const exerciseLoad = exerciseLoadByDate?.get(day.date) ?? 0
+    const rpeValue = rpeByDate?.get(day.date) ?? null
+    const rpeMult = rpeValue ? 1 + 0.04 * (rpeValue - 5) : 1
+    const afterExercise = recordSum + exerciseLoad
+    const rpeDelta = afterExercise * (rpeMult - 1)
+    const sorenessAdj = sorenessLoadByDate?.get(day.date) ?? 0
+    // Anything left over (e.g. on a rest day) is DOMS carry-over from
+    // prior days. Computed as residual so the breakdown always reconciles
+    // to day.total exactly.
+    const accountedFor = recordSum + exerciseLoad + rpeDelta + sorenessAdj
+    const domsCarry = Math.max(0, day.total - accountedFor)
+    breakdownByMMDD.set(day.date.slice(5), {
+      records: day.records.map(r => ({ sportType: r.sportType, trimp: r.adjustedTRIMP })),
+      exerciseLoad,
+      rpeValue,
+      rpeDelta,
+      sorenessAdj,
+      domsCarry,
+      dayTotal: day.total,
+    })
+  }
+
   return (
     <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-100">
       <div className="flex items-baseline justify-between mb-3">
@@ -151,35 +191,66 @@ export default function TRIMPBreakdown({ dailyTrimp, sorenessLoadByDate }: TRIMP
               contentStyle={{ fontSize: 13, borderRadius: 8 }}
               itemSorter={() => 0}
               content={(props) => {
-                const { active, payload, label } = props as {
-                  active?: boolean
-                  payload?: ReadonlyArray<{ name?: string | number; value?: string | number; color?: string }>
-                  label?: string | number
+                const { active, label } = props as { active?: boolean; label?: string | number }
+                if (!active || label == null) return null
+                const bd = breakdownByMMDD.get(String(label))
+                if (!bd || bd.dayTotal <= 0) return null
+
+                interface Row { swatch: string; name: string; value: number; signed?: boolean }
+                const rows: Row[] = []
+                for (const r of bd.records) {
+                  rows.push({
+                    swatch: SPORT_COLORS[r.sportType] || '#94A3B8',
+                    name: r.sportType.replace(/_/g, ' '),
+                    value: r.trimp,
+                  })
                 }
-                if (!active || !payload || payload.length === 0) return null
-                const rows = payload.filter(p => p.name !== '_isRest' && p.name !== 'rest' && p.value != null && Number(p.value) > 0)
+                if (bd.exerciseLoad > 0.5) {
+                  rows.push({ swatch: '#F59E0B', name: 'manual exercise', value: bd.exerciseLoad })
+                }
+                if (bd.rpeValue !== null && Math.abs(bd.rpeDelta) > 0.5) {
+                  rows.push({
+                    swatch: '#FBBF24',
+                    name: `RPE ${bd.rpeValue} adjustment`,
+                    value: bd.rpeDelta,
+                    signed: true,
+                  })
+                }
+                if (bd.sorenessAdj > 0.5) {
+                  rows.push({ swatch: '#F87171', name: 'muscle soreness', value: bd.sorenessAdj })
+                }
+                if (bd.domsCarry > 0.5) {
+                  rows.push({ swatch: '#FB923C', name: 'DOMS carry-over', value: bd.domsCarry })
+                }
                 if (rows.length === 0) return null
-                const hasDayAdj = rows.some(p => p.name === 'rpe_exercise' || p.name === 'doms_carry' || p.name === 'soreness')
-                const friendly = (n: string | number | undefined) =>
-                  n === 'soreness' ? 'muscle soreness'
-                  : n === 'doms_carry' ? 'DOMS carry-over'
-                  : n === 'rpe_exercise' ? 'RPE + exercise boost'
-                  : String(n ?? '').replace(/_/g, ' ')
+
+                const hasDayAdj = bd.rpeValue !== null || bd.sorenessAdj > 0.5 || bd.domsCarry > 0.5
+
+                const fmt = (v: number, signed?: boolean) => {
+                  const n = Math.round(v)
+                  if (signed) return n > 0 ? `+${n} TRIMP` : `${n} TRIMP`
+                  return `${n} TRIMP`
+                }
+
                 return (
                   <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-md px-3 py-2 text-[13px]">
                     <p className="font-semibold text-slate-700 dark:text-slate-200 mb-1">{label}</p>
-                    {rows.map((p, i) => (
+                    {rows.map((r, i) => (
                       <div key={i} className="flex items-center gap-2">
                         <span
                           className="w-2.5 h-2.5 rounded-sm inline-block shrink-0"
-                          style={{ backgroundColor: p.color }}
+                          style={{ backgroundColor: r.swatch }}
                         />
-                        <span className="text-slate-600 dark:text-slate-300">{friendly(p.name)}</span>
-                        <span className="ml-auto font-medium text-slate-700 dark:text-slate-200">
-                          {Math.round(Number(p.value))} TRIMP
+                        <span className="text-slate-600 dark:text-slate-300">{r.name}</span>
+                        <span className={`ml-auto font-medium ${r.signed && r.value < 0 ? 'text-rose-600 dark:text-rose-400' : 'text-slate-700 dark:text-slate-200'}`}>
+                          {fmt(r.value, r.signed)}
                         </span>
                       </div>
                     ))}
+                    <div className="flex items-center gap-2 mt-1 pt-1 border-t border-slate-100 dark:border-slate-700">
+                      <span className="text-slate-700 dark:text-slate-200 font-semibold">Day total</span>
+                      <span className="ml-auto font-semibold text-slate-700 dark:text-slate-200">{Math.round(bd.dayTotal)} TRIMP</span>
+                    </div>
                     {hasDayAdj && (
                       <p className="mt-1.5 pt-1.5 border-t border-slate-100 dark:border-slate-700 text-[11px] text-slate-500 dark:text-slate-400 italic leading-snug">
                         RPE / soreness / DOMS are day-level adjustments — applied to the day's total, not to any single workout.

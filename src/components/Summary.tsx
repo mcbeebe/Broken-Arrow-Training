@@ -25,6 +25,8 @@ interface SummaryProps {
   todaySoreness: SorenessLevel | null
   onLogSoreness: (date: string, level: SorenessLevel) => void
   sorenessLoadByDate: Map<string, number>
+  rpeByDate?: Map<string, number>
+  exerciseLoadByDate?: Map<string, number>
   coachEnabled?: boolean
   dailyInsight?: CoachInsight | null
   dailyInsightLoading?: boolean
@@ -230,6 +232,8 @@ export default function Summary({
   todaySoreness,
   onLogSoreness,
   sorenessLoadByDate,
+  rpeByDate,
+  exerciseLoadByDate,
   coachEnabled,
   dailyInsight,
   dailyInsightLoading,
@@ -517,7 +521,12 @@ export default function Summary({
 
       {/* 7-day training load */}
       {dailyTrimp.length > 0 && (
-        <TRIMPBreakdown dailyTrimp={dailyTrimp} sorenessLoadByDate={sorenessLoadByDate} />
+        <TRIMPBreakdown
+          dailyTrimp={dailyTrimp}
+          sorenessLoadByDate={sorenessLoadByDate}
+          rpeByDate={rpeByDate}
+          exerciseLoadByDate={exerciseLoadByDate}
+        />
       )}
 
       {/* Week readiness trend */}

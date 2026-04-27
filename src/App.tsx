@@ -552,6 +552,8 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
           todaySoreness={soreness.todaySoreness}
           onLogSoreness={soreness.logSoreness}
           sorenessLoadByDate={soreness.sorenessLoadByDate}
+          rpeByDate={rpeByDate}
+          exerciseLoadByDate={exerciseLoadByDate}
           coachEnabled={coachEnabled}
           dailyInsight={dailyInsight.insight}
           dailyInsightLoading={dailyInsight.loading}
