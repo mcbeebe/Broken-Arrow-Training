@@ -14,6 +14,7 @@ import Onboarding from './components/Onboarding'
 import { useSoreness } from './hooks/useSoreness'
 import { useMIMCalibration } from './hooks/useMIMCalibration'
 import { loadRunGAPCache } from './utils/runGAP'
+import { loadEccentricCache } from './utils/runEccentric'
 import { useDOMSCalibration } from './hooks/useDOMSCalibration'
 import { useCoachMemory } from './hooks/useCoachMemory'
 import { useCoachInsight } from './hooks/useCoachInsight'
@@ -296,6 +297,22 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
     [athleteId, runGAPVersion],
   )
 
+  // Same pattern for the per-activity eccentric cache. WorkoutModal
+  // dispatches `ba:run-eccentric-cache-updated` after caching; the engine
+  // reads the map on the next render so DOMS carry-forward switches from
+  // static T4 coefficients to research-backed eccentric-derived ones.
+  const [runEccentricVersion, setRunEccentricVersion] = useState(0)
+  useEffect(() => {
+    function onUpdate() { setRunEccentricVersion(v => v + 1) }
+    window.addEventListener('ba:run-eccentric-cache-updated', onUpdate)
+    return () => window.removeEventListener('ba:run-eccentric-cache-updated', onUpdate)
+  }, [])
+  const eccentricByActivity = useMemo(
+    () => loadEccentricCache(athleteId),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [athleteId, runEccentricVersion],
+  )
+
   const actualHRByDate = useMemo(() => {
     const m = new Map<string, { avgHR?: number; maxHR?: number }>()
     for (const week of weeks) {
@@ -329,6 +346,7 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
     raceDate: activePlan.race.date,
     actualHRByDate,
     runGAPByActivity,
+    eccentricByActivity,
   })
 
   // Today's health data for banner
