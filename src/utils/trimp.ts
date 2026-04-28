@@ -209,6 +209,11 @@ export interface MIMResolution {
   mim: number
   intensityFactor?: number
   ifSource: IFSource
+  /** Diagnostic: when ifSource='static' for a sport that CAN compute
+   *  dynamically (cycling/MTB/hiking), explains which inputs were missing.
+   *  Surfaced in WorkoutModal so the athlete can tell whether the formula
+   *  actually got the data it needed. */
+  staticReason?: string
 }
 
 const FT_PER_MI = 5280
@@ -220,7 +225,11 @@ function resolveHikingMIM(sportType: SportType, inputs: ResolveMIMInputs): MIMRe
     const grade = elevFt / (distMi * FT_PER_MI)
     return { mim: hikingMIM(grade), ifSource: 'grade' }
   }
-  return { mim: MIM_MATRIX[sportType] ?? DEFAULT_MIM, ifSource: 'static' }
+  return {
+    mim: MIM_MATRIX[sportType] ?? DEFAULT_MIM,
+    ifSource: 'static',
+    staticReason: 'no distance recorded',
+  }
 }
 
 function resolveCyclingMIM(sportType: SportType, inputs: ResolveMIMInputs): MIMResolution {
@@ -233,7 +242,20 @@ function resolveCyclingMIM(sportType: SportType, inputs: ResolveMIMInputs): MIMR
     maxHR: inputs.maxHR,
   })
   if (if_ === null) {
-    return { mim: MIM_MATRIX[sportType] ?? DEFAULT_MIM, ifSource: 'static' }
+    // Diagnose which inputs were missing so the math line can explain.
+    const have: string[] = []
+    const missing: string[] = []
+    ;(inputs.normalizedPowerW ?? 0) > 0 ? have.push(`NP ${inputs.normalizedPowerW}`) : missing.push('NP')
+    ;(inputs.avgPowerW ?? 0) > 0 ? have.push(`AP ${inputs.avgPowerW}`) : missing.push('AP')
+    ;(inputs.ftpWatts ?? 0) > 0 ? have.push(`FTP ${inputs.ftpWatts}`) : missing.push('FTP')
+    ;(inputs.avgHR ?? 0) > 0 ? have.push(`avgHR ${inputs.avgHR}`) : missing.push('avgHR')
+    ;(inputs.restingHR ?? 0) > 0 ? have.push(`rHR ${inputs.restingHR}`) : missing.push('rHR')
+    ;(inputs.maxHR ?? 0) > 0 ? have.push(`mHR ${inputs.maxHR}`) : missing.push('mHR')
+    return {
+      mim: MIM_MATRIX[sportType] ?? DEFAULT_MIM,
+      ifSource: 'static',
+      staticReason: `engine had: ${have.length ? have.join(', ') : 'nothing'}; missing: ${missing.length ? missing.join(', ') : 'nothing'}`,
+    }
   }
   const base = cyclingMIM(if_.value)
   const mim = sportType === 'mountain_biking' ? base * MTB_TERRAIN_BUMP : base
@@ -602,6 +624,7 @@ export function calculateAdjustedLoad(
       ? Math.round(mimResolution.intensityFactor * 1000) / 1000
       : undefined,
     ifSource: mimResolution.ifSource,
+    staticReason: mimResolution.staticReason,
   }
 }
 
