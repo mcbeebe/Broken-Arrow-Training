@@ -123,8 +123,13 @@ export default function ZoneBreakdownTable({ heartrates, times, targetZone, alti
             grade = (data.altEnd - data.altStart) / dDist
             if (mimFn) {
               mim = mimFn(grade)
-              weightedNumer += mim * data.totalSec
-              weightedDenom += data.totalSec
+              // Distance-weighted average matches `computeWholeActivityGAP`:
+              // each meter of locomotion contributes its cost-per-meter,
+              // total → MIM = equivalent_flat_distance / actual_distance.
+              // Time-weighting would over-weight slow climb minutes and
+              // produce a different number than the engine's GAP MIM.
+              weightedNumer += mim * dDist
+              weightedDenom += dDist
             }
           }
         }
@@ -171,7 +176,7 @@ export default function ZoneBreakdownTable({ heartrates, times, targetZone, alti
           <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">Minute-by-Minute Zone Breakdown</p>
           <p className="text-[10px] text-slate-500 dark:text-slate-400">
             {formatTime(totalInSec)} in / {formatTime(totalOutSec)} out of {target.low}–{target.high} bpm ({inPct}% in zone)
-            {showMIM && weightedMIM != null && ` · time-weighted MIM ${weightedMIM.toFixed(2)}×`}
+            {showMIM && weightedMIM != null && ` · distance-weighted MIM ${weightedMIM.toFixed(2)}×`}
           </p>
         </div>
         <span className="text-slate-400 text-xs">{expanded ? '▲' : '▼'}</span>
