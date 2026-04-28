@@ -791,6 +791,92 @@ describe('resolveMIM uses cached GAP MIM for runs when provided', () => {
   })
 })
 
+describe('aggregateDailyTRIMP — eccentric-derived DOMS carry', () => {
+  function record(date: string, sport: SportType, load: number, name = 'Test'): TRIMPRecord {
+    return {
+      date,
+      activityName: name,
+      sportType: sport,
+      baseTRIMP: load,
+      sportMultiplier: 1,
+      elevationBonus: 0,
+      adjustedTRIMP: load,
+    }
+  }
+
+  it('uses eccentric-derived carry for runs with cached eccentric data', () => {
+    // running_steep static is [0.15, 0.05] but with avgEccentric 4.0
+    // (severe descent), the eccentric formula gives [0.30, 0.15]
+    const eccentricByActivity = {
+      '2026-04-01|Severe Descent': { averageScore: 4.0 },
+    }
+    const days = aggregateDailyTRIMP(
+      [record('2026-04-01', 'running_steep', 100, 'Severe Descent')],
+      undefined,
+      eccentricByActivity,
+    )
+    // day+1 carry = (4.0 - 1) × 0.10 = 0.30 → 30
+    expect(days[1]?.total).toBeCloseTo(30, 0)
+    // day+2 carry = (4.0 - 1) × 0.05 = 0.15 → 15
+    expect(days[2]?.total).toBeCloseTo(15, 0)
+  })
+
+  it('falls back to static DOMS_CARRY when no eccentric data is cached', () => {
+    // No eccentricByActivity provided — uses static [0.15, 0.05]
+    const days = aggregateDailyTRIMP([
+      record('2026-04-01', 'running_steep', 100),
+    ])
+    expect(days[1]?.total).toBeCloseTo(15, 0)
+    expect(days[2]?.total).toBeCloseTo(5, 0)
+  })
+
+  it('flat run with eccentric ~1.0 produces no DOMS carry', () => {
+    const eccentricByActivity = {
+      '2026-04-01|Flat Park Run': { averageScore: 1.0 },
+    }
+    const days = aggregateDailyTRIMP(
+      [record('2026-04-01', 'running', 100, 'Flat Park Run')],
+      undefined,
+      eccentricByActivity,
+    )
+    // running has no static DOMS_CARRY entry, and ecc = 1.0 produces 0
+    // → no carry on day+1 / day+2
+    expect(days[1]?.total ?? 0).toBeCloseTo(0, 0)
+  })
+
+  it('eccentric-derived carry matches the existing trail_running heuristic at ecc 2.0', () => {
+    // trail_running static is [0.10] — at avgEccentric 2.0 the formula
+    // gives [0.10, 0.05], so the day+1 carry matches the existing T4 value.
+    const eccentricByActivity = {
+      '2026-04-01|Trail Run': { averageScore: 2.0 },
+    }
+    const days = aggregateDailyTRIMP(
+      [record('2026-04-01', 'trail_running', 100, 'Trail Run')],
+      undefined,
+      eccentricByActivity,
+    )
+    expect(days[1]?.total).toBeCloseTo(10, 0)
+    expect(days[2]?.total).toBeCloseTo(5, 0)
+  })
+
+  it('per-activity eccentric overrides per-sport static — different runs same day', () => {
+    const eccentricByActivity = {
+      '2026-04-01|Hill Repeats': { averageScore: 3.0 },  // → [0.20, 0.10]
+      '2026-04-02|Easy Recovery': { averageScore: 1.2 }, // → [0.02, 0.01] minimal
+    }
+    const days = aggregateDailyTRIMP([
+      record('2026-04-01', 'running_steep', 100, 'Hill Repeats'),
+      record('2026-04-02', 'running', 80, 'Easy Recovery'),
+    ], undefined, eccentricByActivity)
+    // Day 0: 100 (Hill Repeats)
+    // Day 1: 80 (Easy Recovery) + 100×0.20 (carry from Hill Repeats) = 100
+    expect(days[0].total).toBeCloseTo(100, 0)
+    expect(days[1].total).toBeCloseTo(100, 0)
+    // Day 2: 100×0.10 (Hill Repeats day+2) + 80×0.02 (Easy Recovery day+1) ≈ 11.6
+    expect(days[2].total).toBeCloseTo(11.6, 0)
+  })
+})
+
 describe('runningMIM (Minetti run polynomial)', () => {
   it('matches the Hill Running Load v1.1 quick-reference table at the inflection points', async () => {
     const { runningMIM } = await import('../engines/terrain/locomotion/running')

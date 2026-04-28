@@ -822,7 +822,21 @@ export function findTrimpRecord(
 
 // ─── Aggregate daily training load ──────────────────────────────
 
-export function aggregateDailyTRIMP(records: TRIMPRecord[], athleteId?: string): DailyTRIMP[] {
+export interface ActivityEccentric {
+  /** Distance-weighted avg eccentric score 1-5 (Vernillo 2017 / Peake 2017). */
+  averageScore: number
+}
+
+export function aggregateDailyTRIMP(
+  records: TRIMPRecord[],
+  athleteId?: string,
+  /** Per-activity eccentric data keyed by `${date}|${activityName}`. When
+   *  supplied for an activity, DOMS carry-forward is computed from the
+   *  research-backed eccentric score instead of the static T4 per-sport
+   *  coefficient. Activities not in this map fall back to the static
+   *  table (still labeled T4 heuristic). */
+  eccentricByActivity?: Record<string, ActivityEccentric>,
+): DailyTRIMP[] {
   if (records.length === 0) return []
 
   const byDate = new Map<string, TRIMPRecord[]>()
@@ -862,7 +876,7 @@ export function aggregateDailyTRIMP(records: TRIMPRecord[], athleteId?: string):
   // Strength and steep activities cause delayed muscle damage (DOMS)
   // that peaks 24-48h later. Spread a fraction of the original load
   // into subsequent days so ATL/fatigue reflects the lingering cost.
-  applyDOMSCarryForward(result, athleteId)
+  applyDOMSCarryForward(result, athleteId, eccentricByActivity)
 
   return result
 }
@@ -1025,13 +1039,58 @@ export function composeDayLoad(
  * is provided, scales each per-sport carry by that athlete's calibrated
  * multiplier so individual recovery profiles override group defaults.
  */
-function applyDOMSCarryForward(days: DailyTRIMP[], athleteId?: string): void {
+/**
+ * Eccentric-derived DOMS carry coefficient for an activity.
+ *
+ * Mechanism is research-backed (Peake 2017 PMID 28035017): eccentric
+ * volume × intensity → DOMS, peaking 24-48 h post-exercise then declining.
+ * Magnitude per unit of eccentric is a calibrated heuristic chosen so
+ * baseline values match the existing static T4 coefficients for trail
+ * and steep running:
+ *
+ *   ecc 1.0 (flat run)     → day+1 = 0%, day+2 = 0%
+ *   ecc 2.0 (rolling)      → day+1 = 10%, day+2 = 5%   (≈ trail_running [0.10])
+ *   ecc 2.5 (steep)        → day+1 = 15%, day+2 = 7.5% (≈ running_steep [0.15, 0.05])
+ *   ecc 4.0 (severe descent) → day+1 = 30%, day+2 = 15%
+ *   ecc 5.0 (scramble)     → day+1 = 40%, day+2 = 20% (≈ strength_lower [0.40, 0.20])
+ *
+ * Per-athlete refinement happens via `useDOMSCalibration` which scales
+ * the carry by the athlete's observed soreness pattern.
+ */
+function eccentricCarryCoefficients(avgScore: number): number[] {
+  const above = Math.max(0, avgScore - 1)
+  const day1 = Math.round(above * 0.10 * 100) / 100
+  const day2 = Math.round(above * 0.05 * 100) / 100
+  if (day1 < 0.01) return []
+  return [day1, day2]
+}
+
+function applyDOMSCarryForward(
+  days: DailyTRIMP[],
+  athleteId?: string,
+  eccentricByActivity?: Record<string, ActivityEccentric>,
+): void {
   // Collect DOMS sources first (to avoid double-counting carry on carry)
   const domsSources: { dayIndex: number; load: number; carry: number[]; mult: number }[] = []
 
   for (let i = 0; i < days.length; i++) {
     for (const rec of days[i].records) {
-      const carry = DOMS_CARRY[rec.sportType]
+      // Prefer eccentric-derived coefficient when the activity has a
+      // cached per-second eccentric score (computed by computeEccentricLoad
+      // in WorkoutModal when the GPS stream loads). Falls back to the
+      // static T4 DOMS_CARRY table for activities without a stream
+      // (cycling, swimming, strength, plus runs the user hasn't opened).
+      const eccKey = `${days[i].date}|${rec.activityName}`
+      const ecc = eccentricByActivity?.[eccKey]
+      let carry: number[] | undefined
+      if (ecc && ecc.averageScore >= 1) {
+        const eccCarry = eccentricCarryCoefficients(ecc.averageScore)
+        if (eccCarry.length > 0) carry = eccCarry
+      }
+      if (!carry) {
+        const staticCarry = DOMS_CARRY[rec.sportType]
+        if (staticCarry && staticCarry.length > 0) carry = staticCarry
+      }
       if (carry && carry.length > 0) {
         const mult = getDOMSCarryMultiplier(rec.sportType, athleteId)
         domsSources.push({ dayIndex: i, load: rec.adjustedTRIMP, carry, mult })

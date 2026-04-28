@@ -57,6 +57,11 @@ interface UseReadinessProps {
    *  when the WorkoutModal has loaded a per-second stream for a running
    *  activity. Preferred over avg-grade for runs in `resolveRunningMIM`. */
   runGAPByActivity?: Record<string, number>
+  /** Per-activity eccentric load keyed by `${date}|${name}`. Populated by
+   *  WorkoutModal when the GPS stream loads. Used by `applyDOMSCarryForward`
+   *  to compute research-backed DOMS carry from actual descent damage
+   *  instead of the static T4 per-sport coefficient. */
+  eccentricByActivity?: Record<string, { averageScore: number }>
 }
 
 export interface UseReadinessReturn {
@@ -96,6 +101,7 @@ export function useReadiness({
   raceDate,
   actualHRByDate,
   runGAPByActivity,
+  eccentricByActivity,
 }: UseReadinessProps): UseReadinessReturn {
 
   // Get resting HR from latest Garmin data. Filter out 0/garbage values
@@ -211,7 +217,7 @@ export function useReadiness({
     // aggregateDailyTRIMP extends through today and applies DOMS carry-
     // forward (scaled by per-athlete calibration when athleteId set),
     // so soreness/RPE/exercise adjustments can land on rest days.
-    const base = aggregateDailyTRIMP(trimpRecords, athleteId)
+    const base = aggregateDailyTRIMP(trimpRecords, athleteId, eccentricByActivity)
 
     const domsMap = new Map<string, number>()
     for (const day of base) {
@@ -237,7 +243,7 @@ export function useReadiness({
     })
 
     return { dailyTrimp: adjusted, domsCarryByDate: domsMap }
-  }, [trimpRecords, rpeByDate, exerciseLoadByDate, sorenessLoadByDate, athleteId])
+  }, [trimpRecords, rpeByDate, exerciseLoadByDate, sorenessLoadByDate, athleteId, eccentricByActivity])
 
   // Performance timeline (CTL/ATL/TSB/ACWR) — computed early so ACWR feeds readiness
   const performance = useMemo(
