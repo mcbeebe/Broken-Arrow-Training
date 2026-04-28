@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react'
 import { parseZoneRange, HR_ZONE_TOLERANCE_BPM } from '../utils/zones'
 import { runningMIM } from '../engines/terrain/locomotion/running'
 import { hikingMIM } from '../engines/terrain/locomotion/hiking'
+import { eccentricScore } from '../engines/descent/eccentric'
 import type { SportType } from '../types'
 
 interface ZoneBreakdownTableProps {
@@ -30,6 +31,9 @@ interface MinuteBucket {
   grade: number | null
   /** Per-minute MIM derived from grade — null when sport doesn't support it. */
   mim: number | null
+  /** Per-minute eccentric (descent / braking) score 1-5 — null when no
+   *  grade data. Available for any locomotion sport with a stream. */
+  eccentric: number | null
 }
 
 function pickMIMFor(sportType: SportType | undefined): ((grade: number) => number) | null {
@@ -54,7 +58,7 @@ export default function ZoneBreakdownTable({ heartrates, times, targetZone, alti
   const hasGradeData = !!(altitude && distance && altitude.length === heartrates.length && distance.length === heartrates.length)
   const showMIM = !!mimFn && hasGradeData
 
-  const { buckets, totalInSec, totalOutSec, totalSec, weightedMIM } = useMemo(() => {
+  const { buckets, totalInSec, totalOutSec, totalSec, weightedMIM, weightedEccentric } = useMemo(() => {
     interface Cell {
       sum: number
       count: number
@@ -111,16 +115,22 @@ export default function ZoneBreakdownTable({ heartrates, times, targetZone, alti
 
     let weightedNumer = 0
     let weightedDenom = 0
+    let eccentricNumer = 0
+    let eccentricDenom = 0
 
     const buckets: MinuteBucket[] = Array.from(bucketMap.entries())
       .sort((a, b) => a[0] - b[0])
       .map(([minute, data]) => {
         let grade: number | null = null
         let mim: number | null = null
+        let eccentric: number | null = null
         if (data.altStart !== undefined && data.altEnd !== undefined && data.distStart !== undefined && data.distEnd !== undefined) {
           const dDist = data.distEnd - data.distStart
           if (dDist > 5) {  // need at least 5m of forward motion to compute slope
             grade = (data.altEnd - data.altStart) / dDist
+            eccentric = eccentricScore(grade)
+            eccentricNumer += eccentric * dDist
+            eccentricDenom += dDist
             if (mimFn) {
               mim = mimFn(grade)
               // Distance-weighted average matches `computeWholeActivityGAP`:
@@ -143,6 +153,7 @@ export default function ZoneBreakdownTable({ heartrates, times, targetZone, alti
           totalSeconds: Math.round(data.totalSec),
           grade,
           mim,
+          eccentric,
         }
       })
 
@@ -152,6 +163,7 @@ export default function ZoneBreakdownTable({ heartrates, times, targetZone, alti
       totalOutSec: Math.round(totalOutSec),
       totalSec: Math.round(totalSec),
       weightedMIM: weightedDenom > 0 ? weightedNumer / weightedDenom : null,
+      weightedEccentric: eccentricDenom > 0 ? eccentricNumer / eccentricDenom : null,
     }
   }, [heartrates, times, target, tLow, tHigh, altitude, distance, hasGradeData, mimFn])
 
@@ -161,9 +173,9 @@ export default function ZoneBreakdownTable({ heartrates, times, targetZone, alti
 
   // Layout grid columns based on which optional columns are visible
   const gridCols = showMIM
-    ? 'grid-cols-[36px_minmax(0,1fr)_minmax(0,1.1fr)_minmax(0,0.7fr)_minmax(0,0.6fr)_minmax(0,0.95fr)_50px]'
+    ? 'grid-cols-[32px_minmax(0,0.85fr)_minmax(0,0.95fr)_minmax(0,0.6fr)_minmax(0,0.55fr)_minmax(0,0.5fr)_minmax(0,0.85fr)_46px]'
     : hasGradeData
-      ? 'grid-cols-[36px_minmax(0,1fr)_minmax(0,1.1fr)_minmax(0,0.7fr)_minmax(0,0.95fr)_50px]'
+      ? 'grid-cols-[32px_minmax(0,0.9fr)_minmax(0,1fr)_minmax(0,0.65fr)_minmax(0,0.55fr)_minmax(0,0.9fr)_50px]'
       : 'grid-cols-[40px_1fr_1fr_1fr_60px]'
 
   return (
@@ -177,6 +189,7 @@ export default function ZoneBreakdownTable({ heartrates, times, targetZone, alti
           <p className="text-[10px] text-slate-500 dark:text-slate-400">
             {formatTime(totalInSec)} in / {formatTime(totalOutSec)} out of {target.low}–{target.high} bpm ({inPct}% in zone)
             {showMIM && weightedMIM != null && ` · distance-weighted MIM ${weightedMIM.toFixed(2)}×`}
+            {hasGradeData && weightedEccentric != null && ` · ecc ${weightedEccentric.toFixed(2)}/5`}
           </p>
         </div>
         <span className="text-slate-400 text-xs">{expanded ? '▲' : '▼'}</span>
@@ -191,6 +204,7 @@ export default function ZoneBreakdownTable({ heartrates, times, targetZone, alti
             <span className="text-right">Range</span>
             {hasGradeData && <span className="text-right">Grade</span>}
             {showMIM && <span className="text-right">MIM</span>}
+            {hasGradeData && <span className="text-right" title="Eccentric (descent / braking) score 1-5 — Vernillo 2017 / Peake 2017">Ecc</span>}
             <span className="text-right">Zone</span>
             <span className="text-right">Status</span>
           </div>
@@ -238,6 +252,20 @@ export default function ZoneBreakdownTable({ heartrates, times, targetZone, alti
                       {b.mim == null ? '—' : `${b.mim.toFixed(2)}×`}
                     </span>
                   )}
+                  {hasGradeData && (
+                    <span
+                      className={`text-right font-mono ${
+                        b.eccentric == null
+                          ? 'text-slate-300'
+                          : b.eccentric >= 4 ? 'text-rose-600 dark:text-rose-400 font-semibold'
+                          : b.eccentric >= 3 ? 'text-orange-600 dark:text-orange-400 font-semibold'
+                          : b.eccentric >= 2 ? 'text-amber-600 dark:text-amber-400'
+                          : 'text-slate-500 dark:text-slate-400'
+                      }`}
+                    >
+                      {b.eccentric == null ? '—' : b.eccentric.toFixed(1)}
+                    </span>
+                  )}
                   <span className="text-right text-slate-500 dark:text-slate-400">
                     {isFullyIn ? (
                       <span className="text-green-600">✓ 60s</span>
@@ -276,6 +304,11 @@ export default function ZoneBreakdownTable({ heartrates, times, targetZone, alti
             {showMIM && (
               <span className="text-right font-mono text-slate-700 dark:text-slate-200">
                 {weightedMIM != null ? `${weightedMIM.toFixed(2)}×` : '—'}
+              </span>
+            )}
+            {hasGradeData && (
+              <span className="text-right font-mono text-slate-700 dark:text-slate-200">
+                {weightedEccentric != null ? weightedEccentric.toFixed(2) : '—'}
               </span>
             )}
             <span className="text-right">
