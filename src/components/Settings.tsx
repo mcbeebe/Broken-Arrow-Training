@@ -434,12 +434,20 @@ function MIMTable({ overrides, lastCalibrated, onSetManual, onReset, onRecalibra
   const [editOriginal, setEditOriginal] = useState('')
   const [calibrateMsg, setCalibrateMsg] = useState<string | null>(null)
 
-  const overrideCount = overrides.filter(o => o.manual !== null).length
+  // Both manual and calibrated entries bypass the dynamic per-workout
+  // formula (calibrated only matters for sports without one — e.g. running,
+  // strength). Surface the count of either so the user can wipe all stored
+  // calibration in a single tap.
+  const overrideCount = overrides.filter(
+    o => o.manual !== null || o.calibrated !== o.defaultMIM,
+  ).length
 
   function clearAllOverrides() {
     if (!onReset) return
     for (const o of overrides) {
-      if (o.manual !== null) onReset(o.sport)
+      if (o.manual !== null || o.calibrated !== o.defaultMIM) {
+        onReset(o.sport)
+      }
     }
   }
 

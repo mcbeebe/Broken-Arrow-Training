@@ -126,8 +126,8 @@ const MTB_TERRAIN_BUMP = 1.2
 let _mimOverrideCache: Record<string, { calibrated: number; manual: number | null }> | null = null
 let _mimOverrideCacheKey = ''
 
-function getManualOverride(sportType: SportType, athleteId?: string): number | null {
-  if (!athleteId) return null
+function loadCache(athleteId?: string) {
+  if (!athleteId) return
   const key = `ba_mim_calibration_${athleteId}`
   if (_mimOverrideCacheKey !== key) {
     try {
@@ -136,6 +136,33 @@ function getManualOverride(sportType: SportType, athleteId?: string): number | n
       _mimOverrideCacheKey = key
     } catch { _mimOverrideCache = null }
   }
+}
+
+/**
+ * Returns ONLY the user-entered manual override (or null when none).
+ * Used by resolveMIM to short-circuit the dynamic formula — the rule is
+ * "manual always wins, but auto-calibrated tuning shouldn't override the
+ * per-workout formula since that formula doesn't have a static default
+ * for calibration to tune in the first place."
+ */
+function getManualOnlyOverride(sportType: SportType, athleteId?: string): number | null {
+  if (!athleteId) return null
+  loadCache(athleteId)
+  const o = _mimOverrideCache?.[sportType]
+  if (!o) return null
+  if (o.manual !== null && o.manual !== undefined) return o.manual
+  return null
+}
+
+/**
+ * Returns manual override OR auto-calibrated value (or null when neither).
+ * Used by static-MIM consumers (`getSportMultiplier`) where calibrated
+ * values legitimately tune the static lookup for sports without a
+ * dynamic formula (running, strength, etc.).
+ */
+function getManualOrCalibratedOverride(sportType: SportType, athleteId?: string): number | null {
+  if (!athleteId) return null
+  loadCache(athleteId)
   const o = _mimOverrideCache?.[sportType]
   if (!o) return null
   if (o.manual !== null && o.manual !== undefined) return o.manual
@@ -144,7 +171,7 @@ function getManualOverride(sportType: SportType, athleteId?: string): number | n
 }
 
 export function getSportMultiplier(sportType: SportType, athleteId?: string): number {
-  return getManualOverride(sportType, athleteId) ?? MIM_MATRIX[sportType] ?? DEFAULT_MIM
+  return getManualOrCalibratedOverride(sportType, athleteId) ?? MIM_MATRIX[sportType] ?? DEFAULT_MIM
 }
 
 export function invalidateMIMCache() {
@@ -273,7 +300,11 @@ export function resolveMIM(
   inputs: ResolveMIMInputs,
   athleteId?: string,
 ): MIMResolution {
-  const override = getManualOverride(sportType, athleteId)
+  // Only an explicit *manual* override bypasses the dynamic formula.
+  // Auto-calibrated values would be meaningless here (the formula doesn't
+  // have a static default for calibration to tune); they only apply via
+  // getSportMultiplier when the sport has no dynamic engine.
+  const override = getManualOnlyOverride(sportType, athleteId)
   if (override !== null) {
     return { mim: override, ifSource: 'static' }
   }
@@ -289,7 +320,7 @@ export function resolveMIM(
   // ebike: pedal assist makes IF unreliable as a muscular-load proxy.
   // Strength, running, swimming, etc. stay on their static MIM until the
   // research backs a dynamic formula for them.
-  return { mim: MIM_MATRIX[sportType] ?? DEFAULT_MIM, ifSource: 'static' }
+  return { mim: getSportMultiplier(sportType, athleteId), ifSource: 'static' }
 }
 
 // ─── MIM Engine Description (for UI) ────────────────────────────
