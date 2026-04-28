@@ -2,6 +2,7 @@ import type { SportType, TRIMPRecord, DailyTRIMP, StravaActivity, GarminActivity
 import { localDateStr } from './format'
 import { cyclingMIM } from '../engines/cycling/mim'
 import { hikingMIM } from '../engines/terrain/locomotion/hiking'
+import { runningMIM } from '../engines/terrain/locomotion/running'
 import { computeIntensityFactor } from './intensity-factor'
 
 // ─── Training Load Calculation (ATE-aligned) ────────────────────
@@ -259,6 +260,25 @@ function resolveHikingMIM(sportType: SportType, inputs: ResolveMIMInputs): MIMRe
   }
 }
 
+function resolveRunningMIM(sportType: SportType, inputs: ResolveMIMInputs): MIMResolution {
+  const elevFt = inputs.elevationGainFt ?? 0
+  const distMi = inputs.distanceMi ?? 0
+  if (distMi > 0) {
+    // Average grade as a first pass — captures cumulative cost vs the
+    // static MIM tier. For activities where a per-second GPS stream is
+    // cached, the WorkoutModal can refine this via computeWholeActivityGAP
+    // to capture short steep peaks (e.g. hill repeats with > 20% sections)
+    // that average grade smooths out.
+    const grade = elevFt / (distMi * FT_PER_MI)
+    return { mim: runningMIM(grade), ifSource: 'grade' }
+  }
+  return {
+    mim: MIM_MATRIX[sportType] ?? DEFAULT_MIM,
+    ifSource: 'static',
+    staticReason: 'no distance recorded',
+  }
+}
+
 function resolveCyclingMIM(sportType: SportType, inputs: ResolveMIMInputs): MIMResolution {
   const if_ = computeIntensityFactor({
     normalizedPower: inputs.normalizedPowerW,
@@ -317,9 +337,13 @@ export function resolveMIM(
     return resolveCyclingMIM(sportType, inputs)
   }
 
+  if (sportType === 'running' || sportType === 'trail_running' || sportType === 'running_steep') {
+    return resolveRunningMIM(sportType, inputs)
+  }
+
   // ebike: pedal assist makes IF unreliable as a muscular-load proxy.
-  // Strength, running, swimming, etc. stay on their static MIM until the
-  // research backs a dynamic formula for them.
+  // Strength, swimming, etc. stay on their static MIM until the research
+  // backs a dynamic formula for them.
   return { mim: getSportMultiplier(sportType, athleteId), ifSource: 'static' }
 }
 
@@ -328,7 +352,7 @@ export function resolveMIM(
 // can show "0.4 + 0.4·IF²" instead of a fixed default that no longer
 // matches the engine. Range is the typical span for a real workout.
 
-export type MIMEngine = 'static' | 'cycling-if' | 'mountain-biking-if' | 'hiking-grade'
+export type MIMEngine = 'static' | 'cycling-if' | 'mountain-biking-if' | 'hiking-grade' | 'running-grade'
 
 export interface MIMEngineDescription {
   engine: MIMEngine
@@ -364,6 +388,14 @@ export function describeMIMEngine(sport: SportType): MIMEngineDescription {
       staticValue,
       formulaLabel: 'Minetti walk / flat run',
       typicalRange: [0.3, 4.9],
+    }
+  }
+  if (sport === 'running' || sport === 'trail_running' || sport === 'running_steep') {
+    return {
+      engine: 'running-grade',
+      staticValue,
+      formulaLabel: 'Minetti run / flat run',
+      typicalRange: [0.5, 5.4],
     }
   }
   return {

@@ -728,17 +728,47 @@ describe('describeMIMEngine', () => {
     expect(describeMIMEngine('hiking').formulaLabel).toMatch(/Minetti/)
   })
 
-  it('marks running, strength, swimming, etc. as static', async () => {
+  it('marks running variants as grade-based (Minetti run polynomial)', async () => {
     const { describeMIMEngine } = await import('../utils/trimp')
-    expect(describeMIMEngine('running').engine).toBe('static')
+    expect(describeMIMEngine('running').engine).toBe('running-grade')
+    expect(describeMIMEngine('trail_running').engine).toBe('running-grade')
+    expect(describeMIMEngine('running_steep').engine).toBe('running-grade')
+    expect(describeMIMEngine('running').formulaLabel).toMatch(/Minetti run/)
+  })
+
+  it('marks strength + swimming as static (no dynamic formula yet)', async () => {
+    const { describeMIMEngine } = await import('../utils/trimp')
     expect(describeMIMEngine('strength_lower').engine).toBe('static')
     expect(describeMIMEngine('swimming').engine).toBe('static')
-    expect(describeMIMEngine('running').formulaLabel).toMatch(/static/)
   })
 
   it('marks ebike as static (pedal assist breaks IF)', async () => {
     const { describeMIMEngine } = await import('../utils/trimp')
     expect(describeMIMEngine('ebike').engine).toBe('static')
     expect(describeMIMEngine('ebike').staticValue).toBe(0.30)
+  })
+})
+
+describe('runningMIM (Minetti run polynomial)', () => {
+  it('matches the Hill Running Load v1.1 quick-reference table at the inflection points', async () => {
+    const { runningMIM } = await import('../engines/terrain/locomotion/running')
+    // Ranges per the v1.1 research summary; widen tolerance slightly since
+    // the underlying Minetti polynomial is fitted to lab data.
+    expect(runningMIM(0)).toBeCloseTo(1.00, 2)
+    expect(runningMIM(0.05)).toBeCloseTo(1.30, 1)
+    expect(runningMIM(0.10)).toBeCloseTo(1.66, 1)
+    expect(runningMIM(0.15)).toBeCloseTo(2.06, 1)
+    expect(runningMIM(0.20)).toBeCloseTo(2.50, 1)
+    // Descents (energy cost only — eccentric handled by DOMS_CARRY)
+    expect(runningMIM(-0.10)).toBeLessThan(1.0)
+    expect(runningMIM(-0.20)).toBeLessThan(0.6)
+  })
+
+  it('is monotonic on climbs — steeper costs more', async () => {
+    const { runningMIM } = await import('../engines/terrain/locomotion/running')
+    expect(runningMIM(0.05)).toBeLessThan(runningMIM(0.10))
+    expect(runningMIM(0.10)).toBeLessThan(runningMIM(0.15))
+    expect(runningMIM(0.15)).toBeLessThan(runningMIM(0.20))
+    expect(runningMIM(0.20)).toBeLessThan(runningMIM(0.30))
   })
 })
