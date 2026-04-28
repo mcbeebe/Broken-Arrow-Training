@@ -731,3 +731,56 @@ export interface CoachInsight {
   cached?: boolean
 }
 
+// --- Terrain Engine (PR-05) ----------------------------------------------
+// Additive types per BA_Terrain_Descent_IT_Project_Plan_v1.0 §PR-05 and
+// spec §6.1.1. Produced by computeTerrainProfile in
+// src/engines/terrain/locomotion/gap.ts.
+
+/**
+ * One time-bucketed segment of an activity.
+ *
+ * `meanGradePct` is the average grade across the bucket as a signed
+ * percentage (e.g. +12 for a 12 % climb, -8 for an 8 % descent).
+ * `runMultiplier` is the Minetti-derived energy multiplier for that grade.
+ */
+export interface TerrainSegment {
+  startSec: number
+  endSec: number
+  distanceM: number
+  meanGradePct: number
+  runMultiplier: number
+  paceMps: number
+  /** Populated by PR-06 from the cadence stream. */
+  cadenceSpm?: number
+}
+
+/**
+ * One bucket of the per-activity grade histogram. Bands tile the Minetti
+ * domain `[-45 %, +45 %]` end-to-end with no gaps and no overlap.
+ */
+export interface GradeBand {
+  lowerPct: number
+  upperPct: number
+  label: string
+  distanceM: number
+}
+
+/**
+ * Whole-activity terrain summary consumed by the Hill Load Dashboard,
+ * Descent-Load Engine, and grounded LLM coach narration.
+ */
+export interface TerrainProfile {
+  /** Equivalent flat-running distance for the activity's metabolic cost. */
+  equivalentFlatDistanceM: number
+  /** GAP expressed as seconds per kilometre of equivalent flat distance. */
+  gapSecondsPerKm: number
+  segments: TerrainSegment[]
+  /** Cumulative metres climbed, derived from the smoothed altitude stream.
+   *  Will differ from Strava's pre-summed `total_elevation_gain` by a few %
+   *  because Strava uses its own noise-rejection threshold. */
+  verticalGainM: number
+  /** Cumulative metres descended; same caveat as `verticalGainM`. */
+  verticalLossM: number
+  gradeHistogramBands: GradeBand[]
+}
+
