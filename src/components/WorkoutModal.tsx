@@ -12,6 +12,8 @@ import { fetchActivityStreams, getTokens, isTokenExpired, refreshAccessToken, ty
 import { fetchGarminActivityStream } from '../utils/garmin'
 import { classifyRun, getSportMultiplier, calculateElevationBonus, describeMIMEngine, mapToSportType } from '../utils/trimp'
 import { cacheRunGAP, computeStreamGAPMIM } from '../utils/runGAP'
+import { computeEccentricLoad } from '../engines/descent/eccentric'
+import { cacheEccentric, getCachedEccentric, type CachedEccentric } from '../utils/runEccentric'
 import { SPORT_LABELS } from '../hooks/useMIMCalibration'
 import HRChart from './HRChart'
 import PaceChart from './PaceChart'
@@ -192,13 +194,20 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
           const sport = mapToSportType(actual!.type || '', { name: actual!.name, elevationGainFt: actual!.elevationGain, distanceMi: actual!.distance })
           const isRun = sport === 'running' || sport === 'trail_running' || sport === 'running_steep'
           if (isRun && actual!.startDate) {
+            const dateKey = actual!.startDate.slice(0, 10)
             const gapMIM = computeStreamGAPMIM(data)
             if (gapMIM !== null) {
-              const dateKey = actual!.startDate.slice(0, 10)
               cacheRunGAP(dateKey, actual!.name, gapMIM, athleteId)
-              // Notify App so the engine picks up the precise number on
-              // its next render (TRIMPRecord, ATL/CTL/TSB, math line).
               window.dispatchEvent(new CustomEvent('ba:run-gap-cache-updated'))
+            }
+            // Compute eccentric (descent / braking) load via the v1.1
+            // research table. Cached so subsequent renders can attribute
+            // DOMS carry-forward to actual descent damage rather than a
+            // static per-sport coefficient.
+            const eccResult = computeEccentricLoad(data)
+            if (eccResult) {
+              cacheEccentric(dateKey, actual!.name, eccResult, athleteId)
+              window.dispatchEvent(new CustomEvent('ba:run-eccentric-cache-updated'))
             }
           }
         }
@@ -485,6 +494,35 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
                       title={`Elevation bonus: +10 training load per 500 ft of gain. ${actual.elevationGain} ft → +${Math.round(elevBonus)}.`}
                     >
                       🔥 Elev Bonus +{Math.round(elevBonus)}
+                    </span>
+                  )
+                }
+
+                // Eccentric (descent / braking) pill — shown when the
+                // GPS stream has been processed and the activity has any
+                // descent or steep-grade work registered.
+                const cachedEcc: CachedEccentric | null = (sportType === 'running' || sportType === 'trail_running' || sportType === 'running_steep' || sportType === 'hiking' || sportType === 'hiking_steep') && actual.startDate
+                  ? getCachedEccentric(actual.startDate.slice(0, 10), actual.name, athleteId)
+                  : null
+                if (cachedEcc && cachedEcc.averageScore >= 1.05) {
+                  const sev = cachedEcc.buckets.severe
+                  const mod = cachedEcc.buckets.moderate
+                  const totalDescent = sev + mod
+                  const isHigh = cachedEcc.averageScore >= 2.5 || sev >= 500
+                  const cls = isHigh
+                    ? 'bg-rose-100 text-rose-800 border-rose-200 dark:bg-rose-950 dark:text-rose-300 dark:border-rose-900'
+                    : 'bg-orange-50 text-orange-800 border-orange-200 dark:bg-orange-950 dark:text-orange-300 dark:border-orange-900'
+                  const totalKm = (cachedEcc.buckets.mild + mod + sev) / 1000
+                  const sevPct = totalKm > 0 ? Math.round((sev / 1000 / totalKm) * 100) : 0
+                  const modPct = totalKm > 0 ? Math.round((mod / 1000 / totalKm) * 100) : 0
+                  pills.push(
+                    <span
+                      key="ecc"
+                      className={`inline-flex items-center gap-1 text-xs font-semibold rounded-full border px-2 py-0.5 ${cls}`}
+                      title={`Eccentric (descent / braking) load — distance-weighted average ${cachedEcc.averageScore.toFixed(2)} on the 1-5 scale (Vernillo 2017 PMID 27392180; Peake 2017 PMID 28035017). Severe: ${(sev / 1000).toFixed(2)} km · moderate: ${(mod / 1000).toFixed(2)} km · mild: ${(cachedEcc.buckets.mild / 1000).toFixed(2)} km. The eccentric component is what drives DOMS even when energy cost (MIM) is low (e.g. fast descents).`}
+                    >
+                      🦵 Eccentric {cachedEcc.averageScore.toFixed(1)}
+                      {totalDescent >= 500 && <span className="text-[9px] ml-0.5 opacity-80">· {sevPct}% severe / {modPct}% mod</span>}
                     </span>
                   )
                 }
