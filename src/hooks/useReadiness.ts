@@ -53,6 +53,10 @@ interface UseReadinessProps {
    *  the raw summary AND the detail both miss HR — the matched-actual is
    *  often complete (it composes per-second stream data). */
   actualHRByDate?: Map<string, { avgHR?: number; maxHR?: number }>
+  /** Per-activity GAP-derived MIM keyed by `${date}|${name}`. Populated
+   *  when the WorkoutModal has loaded a per-second stream for a running
+   *  activity. Preferred over avg-grade for runs in `resolveRunningMIM`. */
+  runGAPByActivity?: Record<string, number>
 }
 
 export interface UseReadinessReturn {
@@ -91,6 +95,7 @@ export function useReadiness({
   currentWeekNum,
   raceDate,
   actualHRByDate,
+  runGAPByActivity,
 }: UseReadinessProps): UseReadinessReturn {
 
   // Get resting HR from latest Garmin data. Filter out 0/garbage values
@@ -154,7 +159,11 @@ export function useReadiness({
             }
           }
         }
-        return garminActivityToTRIMP(enriched, restingHR, maxHR, exerciseNamesByDate.get(a.date), ftpWatts, athleteId)
+        // Use the cached per-second GAP MIM for runs where the WorkoutModal
+        // has loaded a stream — captures short steep peaks accurately.
+        const gapKey = `${a.date}|${a.name}`
+        const gapMIM = runGAPByActivity?.[gapKey]
+        return garminActivityToTRIMP(enriched, restingHR, maxHR, exerciseNamesByDate.get(a.date), ftpWatts, athleteId, gapMIM)
       })
       .filter((r): r is TRIMPRecord => r !== null)
 
@@ -167,11 +176,16 @@ export function useReadiness({
 
     // Fallback: no Garmin data, use Strava with Banister TRIMP
     const stravaRecords: TRIMPRecord[] = stravaActivities
-      .map(a => stravaActivityToTRIMP(a, restingHR, maxHR, ftpWatts, athleteId))
+      .map(a => {
+        const date = a.start_date_local.slice(0, 10)
+        const gapKey = `${date}|${a.name}`
+        const gapMIM = runGAPByActivity?.[gapKey]
+        return stravaActivityToTRIMP(a, restingHR, maxHR, ftpWatts, athleteId, gapMIM)
+      })
       .filter((r): r is TRIMPRecord => r !== null)
 
     return stravaRecords.sort((a, b) => a.date.localeCompare(b.date))
-  }, [stravaActivities, garminActivities, garminActivityDetails, restingHR, maxHR, ftpWatts, athleteId, actualHRByDate])
+  }, [stravaActivities, garminActivities, garminActivityDetails, restingHR, maxHR, ftpWatts, athleteId, actualHRByDate, runGAPByActivity])
 
   // Aggregate daily training load. Composition (per day):
   //

@@ -231,6 +231,11 @@ export interface ResolveMIMInputs {
   ftpWatts?: number | null
   avgPowerW?: number | null
   normalizedPowerW?: number | null
+  /** Time-weighted MIM derived from a per-second altitude+distance stream
+   *  via `computeWholeActivityGAP`. When supplied for a running activity,
+   *  preferred over avg-grade because it captures short steep peaks (hill
+   *  repeats, technical descents) that average grade smooths out. */
+  gapMIM?: number | null
 }
 
 export interface MIMResolution {
@@ -261,14 +266,15 @@ function resolveHikingMIM(sportType: SportType, inputs: ResolveMIMInputs): MIMRe
 }
 
 function resolveRunningMIM(sportType: SportType, inputs: ResolveMIMInputs): MIMResolution {
+  // Prefer the time-weighted GAP MIM when a GPS stream has been processed
+  // — this captures short steep peaks the activity-average grade smooths
+  // out. Falls back to avg grade, then static.
+  if (inputs.gapMIM != null && inputs.gapMIM > 0) {
+    return { mim: inputs.gapMIM, ifSource: 'grade' }
+  }
   const elevFt = inputs.elevationGainFt ?? 0
   const distMi = inputs.distanceMi ?? 0
   if (distMi > 0) {
-    // Average grade as a first pass — captures cumulative cost vs the
-    // static MIM tier. For activities where a per-second GPS stream is
-    // cached, the WorkoutModal can refine this via computeWholeActivityGAP
-    // to capture short steep peaks (e.g. hill repeats with > 20% sections)
-    // that average grade smooths out.
     const grade = elevFt / (distMi * FT_PER_MI)
     return { mim: runningMIM(grade), ifSource: 'grade' }
   }
@@ -714,6 +720,7 @@ export function stravaActivityToTRIMP(
   maxHR: number,
   athleteFTP?: number,
   athleteId?: string,
+  gapMIM?: number,
 ): TRIMPRecord | null {
   if (!activity.average_heartrate) return null
 
@@ -736,6 +743,7 @@ export function stravaActivityToTRIMP(
     ftpWatts: athleteFTP,
     avgPowerW: activity.average_watts,
     normalizedPowerW: activity.weighted_average_watts,
+    gapMIM,
   }, athleteId)
 
   // Strava: always use Banister TRIMP (no Garmin EPOC available)
@@ -750,6 +758,7 @@ export function garminActivityToTRIMP(
   exerciseNames?: string[],
   athleteFTP?: number,
   athleteId?: string,
+  gapMIM?: number,
 ): TRIMPRecord | null {
   // Activities with zero MIM (myrtl, breathwork — pure mobility) are excluded
   const sportType = mapToSportType(
@@ -769,6 +778,7 @@ export function garminActivityToTRIMP(
     ftpWatts: athleteFTP,
     avgPowerW: activity.avgPowerW,
     normalizedPowerW: activity.normalizedPowerW,
+    gapMIM,
   }, athleteId)
 
   // Primary: Garmin's on-device EPOC (Firstbeat, from beat-by-beat R-R)
