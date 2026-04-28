@@ -749,6 +749,48 @@ describe('describeMIMEngine', () => {
   })
 })
 
+describe('resolveMIM uses cached GAP MIM for runs when provided', () => {
+  it('prefers gapMIM over avg-grade when supplied', async () => {
+    const { resolveMIM } = await import('../utils/trimp')
+    const out = resolveMIM('running_steep', {
+      elevationGainFt: 800,    // would give ~5% avg over 3 mi → 1.30×
+      distanceMi: 3.0,
+      gapMIM: 1.85,            // simulates per-second weighting that captured peaks
+    })
+    expect(out.mim).toBe(1.85)
+    expect(out.ifSource).toBe('grade')
+  })
+
+  it('falls back to avg-grade running MIM when gapMIM not provided', async () => {
+    const { resolveMIM } = await import('../utils/trimp')
+    const out = resolveMIM('running', {
+      elevationGainFt: 800,
+      distanceMi: 3.0,
+    })
+    // 800 / (3.0 × 5280) = 5.05% grade → ~1.31×
+    expect(out.mim).toBeCloseTo(1.31, 1)
+    expect(out.ifSource).toBe('grade')
+  })
+
+  it('falls back to static when neither gapMIM nor distance is available', async () => {
+    const { resolveMIM } = await import('../utils/trimp')
+    const out = resolveMIM('running', {})
+    expect(out.mim).toBe(1.0)
+    expect(out.ifSource).toBe('static')
+  })
+
+  it('ignores zero / negative gapMIM', async () => {
+    const { resolveMIM } = await import('../utils/trimp')
+    const out = resolveMIM('running', {
+      elevationGainFt: 0,
+      distanceMi: 5.0,
+      gapMIM: 0,
+    })
+    // gapMIM 0 should be skipped, avg-grade 0% → 1.0×
+    expect(out.mim).toBeCloseTo(1.0, 2)
+  })
+})
+
 describe('runningMIM (Minetti run polynomial)', () => {
   it('matches the Hill Running Load v1.1 quick-reference table at the inflection points', async () => {
     const { runningMIM } = await import('../engines/terrain/locomotion/running')

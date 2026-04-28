@@ -13,6 +13,7 @@ import { useOnboarding } from './hooks/useOnboarding'
 import Onboarding from './components/Onboarding'
 import { useSoreness } from './hooks/useSoreness'
 import { useMIMCalibration } from './hooks/useMIMCalibration'
+import { loadRunGAPCache } from './utils/runGAP'
 import { useDOMSCalibration } from './hooks/useDOMSCalibration'
 import { useCoachMemory } from './hooks/useCoachMemory'
 import { useCoachInsight } from './hooks/useCoachInsight'
@@ -280,6 +281,21 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
   // the raw Garmin summary list is missing HR. Build a date-keyed lookup so
   // useReadiness can use it as a final fallback before falling back to the
   // static MIM lookup.
+  // Per-activity GAP-derived MIM cache. WorkoutModal writes to localStorage
+  // when a stream loads; we bump `runGAPVersion` on a custom event to
+  // re-read so the engine picks up the precise number on next render.
+  const [runGAPVersion, setRunGAPVersion] = useState(0)
+  useEffect(() => {
+    function onUpdate() { setRunGAPVersion(v => v + 1) }
+    window.addEventListener('ba:run-gap-cache-updated', onUpdate)
+    return () => window.removeEventListener('ba:run-gap-cache-updated', onUpdate)
+  }, [])
+  const runGAPByActivity = useMemo(
+    () => loadRunGAPCache(athleteId),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [athleteId, runGAPVersion],
+  )
+
   const actualHRByDate = useMemo(() => {
     const m = new Map<string, { avgHR?: number; maxHR?: number }>()
     for (const week of weeks) {
@@ -312,6 +328,7 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
     currentWeekNum,
     raceDate: activePlan.race.date,
     actualHRByDate,
+    runGAPByActivity,
   })
 
   // Today's health data for banner

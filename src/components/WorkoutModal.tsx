@@ -10,7 +10,8 @@ import { parseRoutine, type ParsedExercise } from '../utils/exercises'
 import { parseIntervalWorkout, getDrillDay, RUNNING_DRILLS, MYRTL_ROUTINE, PRE_RUN_ACTIVATION, type RunSegment, type DrillGuide } from '../utils/drills'
 import { fetchActivityStreams, getTokens, isTokenExpired, refreshAccessToken, type StreamData } from '../utils/strava'
 import { fetchGarminActivityStream } from '../utils/garmin'
-import { classifyRun, getSportMultiplier, calculateElevationBonus, describeMIMEngine } from '../utils/trimp'
+import { classifyRun, getSportMultiplier, calculateElevationBonus, describeMIMEngine, mapToSportType } from '../utils/trimp'
+import { cacheRunGAP, computeStreamGAPMIM } from '../utils/runGAP'
 import { SPORT_LABELS } from '../hooks/useMIMCalibration'
 import HRChart from './HRChart'
 import PaceChart from './PaceChart'
@@ -181,6 +182,23 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
             if (hrs.length > 0) {
               actual!.avgHR = Math.round(hrs.reduce((s, h) => s + h, 0) / hrs.length)
               actual!.maxHR = Math.max(...hrs)
+            }
+          }
+          // For running activities, compute the time-weighted GAP MIM and
+          // cache it so the engine picks it up on the next render.
+          // Activity-average grade smooths out short steep peaks (e.g.
+          // hill repeats with > 20% sections); per-second sampling captures
+          // them per the Hill-Running v1.1 research.
+          const sport = mapToSportType(actual!.type || '', { name: actual!.name, elevationGainFt: actual!.elevationGain, distanceMi: actual!.distance })
+          const isRun = sport === 'running' || sport === 'trail_running' || sport === 'running_steep'
+          if (isRun && actual!.startDate) {
+            const gapMIM = computeStreamGAPMIM(data)
+            if (gapMIM !== null) {
+              const dateKey = actual!.startDate.slice(0, 10)
+              cacheRunGAP(dateKey, actual!.name, gapMIM, athleteId)
+              // Notify App so the engine picks up the precise number on
+              // its next render (TRIMPRecord, ATL/CTL/TSB, math line).
+              window.dispatchEvent(new CustomEvent('ba:run-gap-cache-updated'))
             }
           }
         }
