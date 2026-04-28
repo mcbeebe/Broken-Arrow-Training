@@ -10,7 +10,7 @@ import { parseRoutine, type ParsedExercise } from '../utils/exercises'
 import { parseIntervalWorkout, getDrillDay, RUNNING_DRILLS, MYRTL_ROUTINE, PRE_RUN_ACTIVATION, type RunSegment, type DrillGuide } from '../utils/drills'
 import { fetchActivityStreams, getTokens, isTokenExpired, refreshAccessToken, type StreamData } from '../utils/strava'
 import { fetchGarminActivityStream } from '../utils/garmin'
-import { classifyRun, getSportMultiplier, calculateElevationBonus, describeMIMEngine, mapToSportType } from '../utils/trimp'
+import { classifyRun, getSportMultiplier, describeMIMEngine, mapToSportType } from '../utils/trimp'
 import { cacheRunGAP, computeStreamGAPMIM } from '../utils/runGAP'
 import { computeEccentricLoad } from '../engines/descent/eccentric'
 import { cacheEccentric, getCachedEccentric, type CachedEccentric } from '../utils/runEccentric'
@@ -484,14 +484,18 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
                   )
                 }
 
-                const elevBonus = trimpRecord?.elevationBonus
-                  ?? (actual.elevationGain > 0 ? calculateElevationBonus(actual.elevationGain) : 0)
+                // Legacy elev_bonus pill — only renders for old TRIMPRecords
+                // whose `elevationBonus` field was computed before retirement.
+                // New records always have elevationBonus=0; the descent damage
+                // those records used to capture is now handled by the
+                // eccentric engine + altitude engine.
+                const elevBonus = trimpRecord?.elevationBonus ?? 0
                 if (elevBonus >= 10) {
                   pills.push(
                     <span
                       key="elev"
                       className="inline-flex items-center gap-1 text-xs font-semibold rounded-full border px-2 py-0.5 bg-amber-100 text-amber-800 border-amber-200"
-                      title={`Elevation bonus: +10 training load per 500 ft of gain. ${actual.elevationGain} ft → +${Math.round(elevBonus)}.`}
+                      title={`Legacy elevation bonus from a TRIMPRecord computed before the heuristic was retired. Descent damage is now handled by the eccentric engine; altitude stress by the altitude engine.`}
                     >
                       🔥 Elev Bonus +{Math.round(elevBonus)}
                     </span>
