@@ -750,7 +750,7 @@ describe('describeMIMEngine', () => {
 })
 
 describe('resolveMIM uses cached GAP MIM for runs when provided', () => {
-  it('prefers gapMIM over avg-grade when supplied', async () => {
+  it('prefers gapMIM over avg-grade when supplied + sets ifSource to grade_gps', async () => {
     const { resolveMIM } = await import('../utils/trimp')
     const out = resolveMIM('running_steep', {
       elevationGainFt: 800,    // would give ~5% avg over 3 mi → 1.30×
@@ -758,7 +758,7 @@ describe('resolveMIM uses cached GAP MIM for runs when provided', () => {
       gapMIM: 1.85,            // simulates per-second weighting that captured peaks
     })
     expect(out.mim).toBe(1.85)
-    expect(out.ifSource).toBe('grade')
+    expect(out.ifSource).toBe('grade_gps')
   })
 
   it('falls back to avg-grade running MIM when gapMIM not provided', async () => {

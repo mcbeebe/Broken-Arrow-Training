@@ -460,7 +460,14 @@ export type SportType =
  *   grade      — hiking MIM derived from avg grade (no IF involved)
  *   static     — fixed lookup, no intensity input
  */
-export type IFSource = 'power' | 'hr_reserve' | 'grade' | 'static'
+/**
+ * `grade`     = MIM derived from activity-average grade (single elev_gain
+ *               / distance number). Cheap, ignores within-activity variance.
+ * `grade_gps` = MIM derived from per-second GPS altitude+distance via
+ *               `computeWholeActivityGAP` — captures peaks the average
+ *               smooths out (hill repeats, technical descents).
+ */
+export type IFSource = 'power' | 'hr_reserve' | 'grade' | 'grade_gps' | 'static'
 
 export interface TRIMPRecord {
   date: string;

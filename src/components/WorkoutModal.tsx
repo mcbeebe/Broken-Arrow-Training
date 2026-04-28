@@ -371,8 +371,15 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
                   mimNote = ` · power IF ${if_.toFixed(2)}, ${desc.formulaLabel}`
                 } else if (ifSource === 'hr_reserve' && if_ != null) {
                   mimNote = ` · HR IF ${if_.toFixed(2)}, ${desc.formulaLabel}`
+                } else if (ifSource === 'grade_gps') {
+                  // Per-second weighting via the GPS stream — captures peaks
+                  // that the activity-average grade smooths out.
+                  mimNote = ` · ${desc.formulaLabel} (per-second GPS, ${stream?.distance?.length ?? 0} samples)`
                 } else if (ifSource === 'grade') {
-                  mimNote = ` · ${desc.formulaLabel} (grade)`
+                  const elevFt = actual?.elevationGain ?? 0
+                  const distMi = actual?.distance ?? 0
+                  const gradePct = distMi > 0 ? ((elevFt / (distMi * 5280)) * 100) : 0
+                  mimNote = ` · ${desc.formulaLabel} (avg grade ${gradePct.toFixed(1)}%)`
                 } else if (ifSource === 'static') {
                   if (desc.engine === 'cycling-if' || desc.engine === 'mountain-biking-if') {
                     // Prefer engine-side reason (exactly which inputs the
@@ -441,6 +448,9 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
                   } else if (ifSource === 'hr_reserve' && if_ != null) {
                     sourceNote = ` Derived from ${desc.formulaLabel} with IF = ${if_.toFixed(2)} (HR-reserve fallback — no power data).`
                     sourceTag = ` · IF ${if_.toFixed(2)}`
+                  } else if (ifSource === 'grade_gps') {
+                    sourceNote = ` Derived from ${desc.formulaLabel} integrated over per-second GPS altitude+distance samples (computeWholeActivityGAP). Captures peaks the activity-average grade smooths out.`
+                    sourceTag = ' · GAP'
                   } else if (ifSource === 'grade') {
                     sourceNote = ` Derived from ${desc.formulaLabel} at the activity's average grade.`
                     sourceTag = ' · grade'

@@ -270,7 +270,7 @@ function resolveRunningMIM(sportType: SportType, inputs: ResolveMIMInputs): MIMR
   // — this captures short steep peaks the activity-average grade smooths
   // out. Falls back to avg grade, then static.
   if (inputs.gapMIM != null && inputs.gapMIM > 0) {
-    return { mim: inputs.gapMIM, ifSource: 'grade' }
+    return { mim: inputs.gapMIM, ifSource: 'grade_gps' }
   }
   const elevFt = inputs.elevationGainFt ?? 0
   const distMi = inputs.distanceMi ?? 0
