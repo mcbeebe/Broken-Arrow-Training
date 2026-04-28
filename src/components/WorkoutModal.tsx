@@ -659,7 +659,12 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
               {/* HR Stream Chart */}
               {stream && stream.heartrate.length > 0 && (
                 <div className="mt-2">
-                  <HRChart stream={stream} zones={zones} targetZone={day.zone} />
+                  <HRChart
+                    stream={stream}
+                    zones={zones}
+                    targetZone={day.zone}
+                    sportType={trimpRecord?.sportType ?? (actual ? mapToSportType(actual.type || '', { name: actual.name, elevationGainFt: actual.elevationGain, distanceMi: actual.distance }) : undefined)}
+                  />
                 </div>
               )}
               {stream && stream.altitude && stream.altitude.some(a => a > 0) && (

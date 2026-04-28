@@ -1,5 +1,5 @@
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine, ReferenceArea } from 'recharts'
-import type { HRZone } from '../types'
+import type { HRZone, SportType } from '../types'
 import type { StreamData } from '../utils/strava'
 import { parseZoneRange, HR_ZONE_TOLERANCE_BPM } from '../utils/zones'
 import ChartExpandOverlay from './ChartExpandOverlay'
@@ -9,9 +9,13 @@ interface HRChartProps {
   stream: StreamData
   zones?: HRZone[]
   targetZone?: string
+  /** When set, the minute-by-minute table picks up Grade + MIM columns
+   *  (running variants → Minetti run polynomial; hiking variants →
+   *  Minetti walk; other sports show grade only). */
+  sportType?: SportType
 }
 
-export default function HRChart({ stream, zones, targetZone }: HRChartProps) {
+export default function HRChart({ stream, zones, targetZone, sportType }: HRChartProps) {
   if (!stream.heartrate.length || !stream.time.length) {
     return <p className="text-xs text-slate-400 italic">No heart rate data available</p>
   }
@@ -179,7 +183,10 @@ export default function HRChart({ stream, zones, targetZone }: HRChartProps) {
         <ZoneBreakdownTable
           heartrates={stream.heartrate}
           times={stream.time}
+          altitude={stream.altitude}
+          distance={stream.distance}
           targetZone={targetZone}
+          sportType={sportType}
         />
       )}
     </div>
