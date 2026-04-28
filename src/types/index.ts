@@ -475,6 +475,9 @@ export interface TRIMPRecord {
   // was applied; absent for sports that still use a static MIM.
   intensityFactor?: number;
   ifSource?: IFSource;
+  /** When ifSource='static' for a dynamic-capable sport, explains which
+   *  inputs the engine had vs missed. Used by WorkoutModal's diagnostic. */
+  staticReason?: string;
 }
 
 export interface DailyTRIMP {

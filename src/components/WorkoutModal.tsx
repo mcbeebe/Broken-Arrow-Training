@@ -357,19 +357,22 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
                   mimNote = ` · ${desc.formulaLabel} (grade)`
                 } else if (ifSource === 'static') {
                   if (desc.engine === 'cycling-if' || desc.engine === 'mountain-biking-if') {
-                    // Help diagnose why the dynamic formula didn't run by
-                    // calling out which HR inputs the matched actual carries
-                    // (the engine may have missed them if avgHR/maxHR landed
-                    // only in `actual` and not on the raw Garmin summary).
-                    const have: string[] = []
-                    if (actual.avgHR) have.push(`avgHR ${actual.avgHR}`)
-                    if (actual.maxHR) have.push(`maxHR ${actual.maxHR}`)
-                    const detail = have.length > 0
-                      ? ` (record has ${have.join(', ')} — try re-syncing Garmin)`
-                      : ' (no HR or power on the synced record)'
-                    mimNote = ` · static fallback — IF couldn't be computed${detail}`
+                    // Prefer engine-side reason (exactly which inputs the
+                    // engine had vs missed). Falls back to the matched
+                    // actual's HR readout if that's not available.
+                    const reason = trimpRecord.staticReason
+                    if (reason) {
+                      mimNote = ` · static fallback — ${reason}`
+                    } else {
+                      const have: string[] = []
+                      if (actual.avgHR) have.push(`avgHR ${actual.avgHR}`)
+                      if (actual.maxHR) have.push(`maxHR ${actual.maxHR}`)
+                      mimNote = ` · static fallback — IF couldn't be computed${have.length ? ` (record has ${have.join(', ')})` : ''}`
+                    }
                   } else if (desc.engine === 'hiking-grade') {
-                    mimNote = ' · static fallback — no distance for grade'
+                    mimNote = trimpRecord.staticReason
+                      ? ` · static fallback — ${trimpRecord.staticReason}`
+                      : ' · static fallback — no distance for grade'
                   } else {
                     mimNote = ' · static lookup'
                   }
