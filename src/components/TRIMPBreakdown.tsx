@@ -283,9 +283,14 @@ export default function TRIMPBreakdown({ dailyTrimp, sorenessLoadByDate, rpeByDa
                       <span className="ml-auto font-semibold text-slate-700 dark:text-slate-200">{Math.round(bd.dayTotal)} TRIMP</span>
                     </div>
                     {hasDayAdj && (
-                      <p className="mt-1.5 pt-1.5 border-t border-slate-100 dark:border-slate-700 text-[11px] text-slate-500 dark:text-slate-400 italic leading-snug">
-                        RPE / soreness / DOMS are day-level adjustments — applied to the day's total, not to any single workout.
-                      </p>
+                      <div className="mt-1.5 pt-1.5 border-t border-slate-100 dark:border-slate-700 space-y-0.5">
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 italic leading-snug">
+                          RPE / soreness / DOMS are day-level adjustments — applied to the day's total, not to any single workout.
+                        </p>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-snug">
+                          <strong>DOMS</strong> = predicted by your training. <strong>Soreness</strong> = measured by you. We trust the bigger of the two.
+                        </p>
+                      </div>
                     )}
                   </div>
                 )
@@ -369,6 +374,13 @@ export default function TRIMPBreakdown({ dailyTrimp, sorenessLoadByDate, rpeByDa
           </span>
         )}
       </div>
+      {(hasDoms || hasSoreness) && (
+        <p className="mt-2 text-[10px] text-slate-400 dark:text-slate-500 leading-snug">
+          <span className="font-semibold text-slate-500 dark:text-slate-400">DOMS</span> = predicted by your training (Peake 2017).
+          {' '}<span className="font-semibold text-slate-500 dark:text-slate-400">Soreness</span> = measured by you (daily check-in).
+          When both apply we keep the bigger of the two — never sum.
+        </p>
+      )}
     </div>
   )
 }
