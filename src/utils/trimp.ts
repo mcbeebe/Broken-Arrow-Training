@@ -642,16 +642,33 @@ export function mapToSportType(
   return baseSport
 }
 
-// ─── Elevation Bonus ────────────────────────────────────────────
-// +10 per 500 ft of elevation gain (doubled vs. the original
-// Johnston/Evoke +10/1000 ft to better reflect Broken Arrow course
-// loading — sustained descents punish quads harder than the literature
-// gives credit for).
-// Accounts for eccentric loading on descents and altitude stress
-
-export function calculateElevationBonus(elevationGainFt: number): number {
-  if (elevationGainFt <= 0) return 0
-  return (elevationGainFt / 500) * 10
+// ─── Elevation Bonus (RETIRED — kept as 0 for backward-compat) ────
+//
+// Previously +10 per 500 ft of elevation gain — a T4 heuristic intended
+// to cover (a) eccentric loading on descents and (b) altitude stress.
+//
+// Both effects are now modeled with research-grounded engines that
+// supersede this heuristic:
+//
+//   (a) Eccentric loading → `src/engines/descent/eccentric.ts` integrates
+//       per-second eccentric score (Vernillo 2017 PMID 27392180; Peake
+//       2017 PMID 28035017) and feeds research-backed DOMS carry-forward
+//       in `applyDOMSCarryForward`. For activities without GPS streams,
+//       static T4 DOMS_CARRY remains the fallback.
+//
+//   (b) Altitude stress → deferred to the dedicated Altitude Engine
+//       (PROJECT_PLAN.md §5.4, Chapman 2014 / West 2013 / Levine &
+//       Stray-Gundersen 1997). Elevation gain alone isn't a good proxy
+//       for hypoxic stress; cumulative km·hours above ~1500 m is.
+//
+// The function is kept (returning 0) so existing callers don't break,
+// and so old TRIMPRecords loaded from cache still surface a 0 value for
+// `elevationBonus`. Cleanup pending — full removal once no consumer
+// references the field for math.
+//
+// @deprecated — returns 0. Replaced by eccentric engine + altitude engine.
+export function calculateElevationBonus(_elevationGainFt: number): number {
+  return 0
 }
 
 // ─── Adjusted Training Load ─────────────────────────────────────

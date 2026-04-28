@@ -226,25 +226,24 @@ describe('mapToSportType run sub-classification', () => {
   })
 })
 
-describe('calculateElevationBonus', () => {
-  it('returns 0 for zero elevation', () => {
+describe('calculateElevationBonus (RETIRED — always returns 0)', () => {
+  // The +10/500 ft heuristic was retired in favor of the research-grounded
+  // eccentric engine (Vernillo 2017 / Peake 2017) for descent damage and
+  // the future Altitude Engine for altitude stress. The function is kept
+  // as a no-op for backward compatibility — TRIMPRecords from the cache
+  // produced before the retirement still surface their old `elevationBonus`
+  // field, but new computations always emit 0.
+  it('returns 0 for any elevation gain', () => {
     expect(calculateElevationBonus(0)).toBe(0)
-  })
-
-  it('returns 10 per 500 ft', () => {
-    expect(calculateElevationBonus(500)).toBe(10)
-    expect(calculateElevationBonus(1000)).toBe(20)
-    expect(calculateElevationBonus(2000)).toBe(40)
-    expect(calculateElevationBonus(3800)).toBe(76) // Broken Arrow 18K course
-  })
-
-  it('returns 0 for negative elevation', () => {
+    expect(calculateElevationBonus(500)).toBe(0)
+    expect(calculateElevationBonus(2000)).toBe(0)
+    expect(calculateElevationBonus(3800)).toBe(0) // Broken Arrow 18K course
     expect(calculateElevationBonus(-500)).toBe(0)
   })
 })
 
 describe('calculateAdjustedTRIMP', () => {
-  it('combines base TRIMP, ATE multiplier, and elevation bonus', () => {
+  it('combines base TRIMP and ATE multiplier (no elevation bonus after retirement)', () => {
     const record = calculateAdjustedTRIMP(
       45, 150, 55, 197,
       'hiking', 2000,
@@ -252,7 +251,7 @@ describe('calculateAdjustedTRIMP', () => {
     )
     expect(record.sportType).toBe('hiking')
     expect(record.sportMultiplier).toBe(0.8) // ATE hiking MIM
-    expect(record.elevationBonus).toBe(40)
+    expect(record.elevationBonus).toBe(0) // retired
     expect(record.date).toBe('2026-04-15')
     expect(record.activityName).toBe('Oakland Hills Hike')
   })
