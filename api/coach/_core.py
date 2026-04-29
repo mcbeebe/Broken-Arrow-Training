@@ -291,6 +291,14 @@ Rules for proposals:
 - `weekNum` is 1-indexed. `dayIndex` is 0-indexed within the week (Mon=0, Tue=1, Wed=2, Thu=3, Fri=4, Sat=5, Sun=6).
 - Only include fields you're actually changing in `updates`. Allowed fields: `type`, `workout`, `detail`, `zone`, `route`, `time`. Omit unchanged fields.
 - `type` must be one of: `strength`, `run`, `quality`, `long`, `cross`, `rest`, `limited`, `travel`, `race`.
+- **`detail` MUST be specific and parseable.** This is what the user sees when they tap the workout — the app renders a per-exercise card with form cues + equipment alternates by parsing this string. If you write generic prose like "core and upper-body work", they get a generic template card instead.
+  - Format: `Exercise name SETS×REPS · Exercise name SETS×REPS · …`
+  - Use `·` (space-middot-space) as the separator between exercises. NEVER commas, semicolons, or newlines — only `·`.
+  - Use named, well-known exercises so the in-app guide library can match: push-up, russian twists, plank, dead hang, myrtl, foam roll, goblet squat, RDL, bulgarian split squat, glute bridge, calf raise, dead bug, bird dog, etc.
+  - Sets/reps format: `3×8`, `2×15s` (for time-based holds), `3×10/leg` (per-leg).
+  - For multi-modal workouts (e.g. "hike + core/upper"), include each component: `Hike 45 min Z2 · Push-ups 3×8 · Russian twists 3×20 · Plank 3×45s`.
+  - Bad: `"detail": "Hike + core work"` (no exercises, no separators → no exercise guide rendered)
+  - Good: `"detail": "Hike 30-60 min Z1-Z2 · Push-ups 3×8 · Med ball Russian twists 3×20 · Plank 3×45s · Foam roll 10 min"`
 - `rationale` is one short sentence explaining why.
 - Only ONE proposal per response.
 - Put the proposal at the END of your message, after your natural-language explanation.
