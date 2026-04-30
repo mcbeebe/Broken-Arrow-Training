@@ -800,6 +800,30 @@ export interface TerrainSegment {
 }
 
 /**
+ * One eccentric (descent) bout's record, the input unit for repeated-bout
+ * protection (PR-10). Persisted by the caller; the engine consumes a
+ * window of recent records.
+ */
+export interface EccentricBoutRecord {
+  /** ISO date (YYYY-MM-DD) of the activity. */
+  date: string
+  doseAU: number
+}
+
+/**
+ * The result of evaluating repeated-bout protection on a window of
+ * recent eccentric bouts. `protectionFactor` is the headline 0..maxP
+ * value; downstream Readiness consumes it to dampen the load score.
+ */
+export interface RepeatedBoutState {
+  recentBouts: readonly EccentricBoutRecord[]
+  /** 0 to maxProtection (default 0.45 per Hyldahl 2017). */
+  protectionFactor: number
+  /** ISO date of the bout that produced peak protection, when > 0. */
+  peakAt?: string
+}
+
+/**
  * Per-activity eccentric dose summary, produced by
  * `eccentricTrimpForActivity` (PR-09).
  *
