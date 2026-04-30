@@ -791,6 +791,26 @@ export interface TerrainSegment {
   paceMps: number
   /** Populated by PR-06 from the cadence stream. */
   cadenceSpm?: number
+  /** Run-vs-hike decision; populated by PR-06 from grade + cadence. */
+  gait?: GaitDecision
+}
+
+/**
+ * Run-vs-hike decision for one segment.
+ *
+ * `recommendedGait` is what the engine suggests based on grade alone (energy
+ * crossover at +15 %; see `src/engines/terrain/locomotion/gait.ts`).
+ * `actualGait` is inferred from the cadence stream when available; ambiguous
+ * cadences (135 ≤ spm < 160) leave it `'unknown'` with `confidence: 0`.
+ */
+export interface GaitDecision {
+  recommendedGait: 'run' | 'hike'
+  actualGait: 'run' | 'hike' | 'unknown'
+  /** Mean cadence (steps/min) over the bucket; null when no cadence stream. */
+  cadenceSpm: number | null
+  /** 0..1 confidence in the `actualGait` reading. */
+  confidence: number
+  reason: 'minetti-crossover' | 'user-override' | 'plan-prescribed'
 }
 
 /**

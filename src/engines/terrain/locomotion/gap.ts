@@ -11,6 +11,7 @@
  */
 
 import { costRun } from './minetti'
+import { inferGait } from './gait'
 import { savitzkyGolay } from './smoothing'
 import type {
   GradeBand,
@@ -107,6 +108,9 @@ export interface TerrainProfileInput {
   readonly distance: readonly number[]
   /** Time samples in seconds (monotonically increasing), time-aligned with the above. */
   readonly time: readonly number[]
+  /** Optional cadence stream (steps/min), time-aligned with the others.
+   *  When provided, each segment receives a `gait.actualGait` reading. */
+  readonly cadence?: readonly number[]
   /** Bucket size in seconds. Default 5 (spec §6.1.1). */
   readonly bucketSeconds?: number
 }
@@ -126,6 +130,20 @@ const GRADE_BAND_TEMPLATE: ReadonlyArray<Omit<GradeBand, 'distanceM'>> = [
   { lowerPct: 15, upperPct: 25, label: 'Moderate climb' },
   { lowerPct: 25, upperPct: 45, label: 'Steep climb' },
 ]
+
+/** Mean of `arr[startIdx..endIdx]` (inclusive endpoints). Skips NaN. */
+function meanOver(arr: readonly number[], startIdx: number, endIdx: number): number | null {
+  let sum = 0
+  let count = 0
+  for (let i = startIdx; i <= endIdx; i++) {
+    const v = arr[i]
+    if (Number.isFinite(v)) {
+      sum += v
+      count++
+    }
+  }
+  return count > 0 ? sum / count : null
+}
 
 function bandIndexFor(gradePct: number): number {
   // Clamp into the polynomial domain so out-of-range samples still bucket.
@@ -153,13 +171,19 @@ function bandIndexFor(gradePct: number): number {
  *         samples, or `bucketSeconds` is not strictly positive.
  */
 export function computeTerrainProfile(input: TerrainProfileInput): TerrainProfile {
-  const { altitude, distance, time } = input
+  const { altitude, distance, time, cadence } = input
   const bucketSeconds = input.bucketSeconds ?? DEFAULT_BUCKET_SECONDS
 
   if (altitude.length !== distance.length || altitude.length !== time.length) {
     throw new Error(
       `TerrainProfile: stream length mismatch (altitude=${altitude.length}, ` +
         `distance=${distance.length}, time=${time.length})`,
+    )
+  }
+  if (cadence !== undefined && cadence.length !== altitude.length) {
+    throw new Error(
+      `TerrainProfile: cadence stream length mismatch ` +
+        `(cadence=${cadence.length}, altitude=${altitude.length})`,
     )
   }
   if (altitude.length < 2) {
@@ -198,6 +222,7 @@ export function computeTerrainProfile(input: TerrainProfileInput): TerrainProfil
         const segAlt = smoothedAlt[i] - smoothedAlt[bucketStart]
         const meanGrade = segAlt / segDistance
         const runMult = costRun(meanGrade) / costRun(0)
+        const meanCadence = cadence !== undefined ? meanOver(cadence, bucketStart, i) : null
         segments.push({
           startSec,
           endSec,
@@ -205,6 +230,8 @@ export function computeTerrainProfile(input: TerrainProfileInput): TerrainProfil
           meanGradePct: meanGrade * 100,
           runMultiplier: runMult,
           paceMps: segDistance / (endSec - startSec),
+          cadenceSpm: meanCadence ?? undefined,
+          gait: inferGait(meanCadence, meanGrade),
         })
       }
       bucketStart = i
