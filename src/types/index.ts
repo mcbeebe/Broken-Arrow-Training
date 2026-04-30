@@ -800,6 +800,23 @@ export interface TerrainSegment {
 }
 
 /**
+ * Forecast of DOMS-equivalent eccentric load at three time horizons after
+ * an activity. Produced by `forecastDOMSWindow` (PR-11) and consumed by
+ * Tomorrow's Forecast UI (PR-15) and Readiness Load dampening (PR-13).
+ *
+ * Each `forecastNh` value is in the same arbitrary units as
+ * `EccentricDose.doseAU`. `doseAU` and `protectionFactor` are threaded
+ * through so the UI can show the underlying inputs alongside the forecast.
+ */
+export interface DescentLoadForecast {
+  forecast24h: number
+  forecast48h: number
+  forecast72h: number
+  doseAU: number
+  protectionFactor: number
+}
+
+/**
  * One eccentric (descent) bout's record, the input unit for repeated-bout
  * protection (PR-10). Persisted by the caller; the engine consumes a
  * window of recent records.
