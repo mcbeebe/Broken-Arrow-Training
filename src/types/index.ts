@@ -793,6 +793,10 @@ export interface TerrainSegment {
   cadenceSpm?: number
   /** Run-vs-hike decision; populated by PR-06 from grade + cadence. */
   gait?: GaitDecision
+  /** Discrete eccentric-load bucket (1–5) per the Vernillo / Peake scale.
+   *  Populated by PR-08 from `meanGradePct`. See
+   *  `src/engines/descent/eccentricBucket.ts` for boundaries. */
+  eccentricBucket?: 1 | 2 | 3 | 4 | 5
 }
 
 /**

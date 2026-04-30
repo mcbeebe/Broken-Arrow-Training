@@ -13,6 +13,7 @@
 import { costRun } from './minetti'
 import { inferGait } from './gait'
 import { savitzkyGolay } from './smoothing'
+import { eccentricBucket } from '../../descent/eccentricBucket'
 import type {
   GradeBand,
   TerrainProfile,
@@ -232,6 +233,7 @@ export function computeTerrainProfile(input: TerrainProfileInput): TerrainProfil
           paceMps: segDistance / (endSec - startSec),
           cadenceSpm: meanCadence ?? undefined,
           gait: inferGait(meanCadence, meanGrade),
+          eccentricBucket: eccentricBucket(meanGrade),
         })
       }
       bucketStart = i
