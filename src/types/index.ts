@@ -800,6 +800,24 @@ export interface TerrainSegment {
 }
 
 /**
+ * Per-activity eccentric dose summary, produced by
+ * `eccentricTrimpForActivity` (PR-09).
+ *
+ * `doseAU` is the headline number — arbitrary units, calibrated so a hard
+ * BA Skyrace 23K race effort lands near 110 AU (spec §8.5). Downstream
+ * engines (Readiness load dampening, DOMS forecast) read it directly.
+ */
+export interface EccentricDose {
+  activityId: string
+  doseAU: number
+  /** Descent distance in metres bucketed by eccentric severity. */
+  bucketHistogram: Record<1 | 2 | 3 | 4 | 5, number>
+  /** Distance-weighted mean descent grade as a signed percentage. */
+  meanDescentGrade: number
+  descentDistanceM: number
+}
+
+/**
  * Run-vs-hike decision for one segment.
  *
  * `recommendedGait` is what the engine suggests based on grade alone (energy
