@@ -759,6 +759,39 @@ export interface CoachSnapshot {
    *  coach so it can raise concerns without waiting for the athlete to ask. */
   riskFlags?: { id: string; severity: 'watch' | 'warning' | 'alert'; title: string; message: string; metric?: string }[]
   coachPersona?: CoachPersona | null
+  /** Engine-layer outputs (terrain, descent, ...) consumed by the LLM
+   *  coach for grounded narration. Added in PR-12; populated only when
+   *  the snapshot caller passes pre-computed engine data. Forwards as-is
+   *  — the snapshot builder does not synthesize these fields. */
+  engines?: CoachSnapshotEngines
+}
+
+/**
+ * Engine-layer outputs attached to a CoachSnapshot. Each sub-namespace
+ * is independently optional; the snapshot builder forwards whatever the
+ * caller provides and omits the rest.
+ */
+export interface CoachSnapshotEngines {
+  terrain?: {
+    whole: {
+      gapSeconds: number
+      verticalGainM: number
+      verticalLossM: number
+    }
+    /** Full per-bucket segment array. For long activities the caller may
+     *  choose to compress this to grade-band rollups before passing in. */
+    segments: TerrainSegment[]
+    // weeklyTerrainLoad?: TerrainLoadProfile  // deferred — type not yet defined
+  }
+  descent?: {
+    todayEccentricDose: number
+    rolling7d: number
+    rolling28d: number
+    repeatedBoutState: RepeatedBoutState
+    forecast24h: number
+    forecast48h: number
+    forecast72h: number
+  }
 }
 
 export interface CoachInsight {

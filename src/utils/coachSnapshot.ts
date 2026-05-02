@@ -1,6 +1,7 @@
 import type {
   CoachSnapshot,
   CoachSnapshotAnalytics,
+  CoachSnapshotEngines,
   CoachHealthToday,
   GarminHealthData,
   GarminActivityDetail,
@@ -59,6 +60,11 @@ interface Inputs {
   /** Garmin activity details keyed by date — enriches activities with
    *  distance, HR zones, training effects, VO2max. */
   garminActivityDetails?: Record<string, GarminActivityDetail[]>
+  /** Pre-computed engine outputs (terrain / descent) to forward into the
+   *  snapshot. Added in PR-12. The snapshot builder is a pass-through —
+   *  it does not synthesize these fields. When omitted, `snapshot.engines`
+   *  is omitted entirely. */
+  engines?: CoachSnapshotEngines
 }
 
 function currentDayPeriod(): 'morning' | 'afternoon' | 'evening' {
@@ -475,7 +481,7 @@ export function buildCoachSnapshot(inputs: Inputs): CoachSnapshot {
 
   const analytics = buildAnalytics(inputs)
 
-  return {
+  const snapshot: CoachSnapshot = {
     today: { date: todayISO(), period: currentDayPeriod() },
     currentWeekNum,
     readiness,
@@ -492,4 +498,10 @@ export function buildCoachSnapshot(inputs: Inputs): CoachSnapshot {
     zones: inputs.zones,
     analytics,
   }
+  // Forward engine-layer outputs only when the caller supplied them, so
+  // existing snapshots stay byte-identical (no `engines: undefined` key).
+  if (inputs.engines !== undefined) {
+    snapshot.engines = inputs.engines
+  }
+  return snapshot
 }
