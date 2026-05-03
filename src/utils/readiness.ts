@@ -215,6 +215,32 @@ export function scoreLoad(acwr: number): number {
   return -1.0                    // danger
 }
 
+/** Floor on the eccentric-load dampening factor — caps attenuation at 30 %. */
+const LOAD_DAMPENING_FLOOR = 0.7
+
+/**
+ * Compute the multiplicative dampening factor applied to the Load
+ * component of ATE when recent eccentric (descent) work is high. Maps a
+ * 24-hour DOMS forecast (in arbitrary units, see `engines/descent/forecast`)
+ * against the athlete's reference dose to produce a number in [0.7, 1.0].
+ *
+ *     factor = max(0.7, 1 − forecast24h / referenceDose)
+ *
+ * Returns 1 (no dampening) for non-positive inputs so callers can pass the
+ * raw values without pre-checking.
+ *
+ * @see BA_Terrain_Descent_Engine_Spec_v1.0.docx §7.4
+ * @see BA_Terrain_Descent_IT_Project_Plan_v1.0.md §PR-13
+ */
+export function loadDampeningFactor(
+  forecast24h: number,
+  referenceDose: number,
+): number {
+  if (!(referenceDose > 0)) return 1
+  if (!(forecast24h > 0)) return 1
+  return Math.max(LOAD_DAMPENING_FLOOR, 1 - forecast24h / referenceDose)
+}
+
 // ─── Composite Score & Signal ───────────────────────────────────
 
 /**
@@ -236,12 +262,19 @@ export function classifyStatus(composite: number): ReadinessStatus {
 
 /**
  * Calculate full readiness score (ATE-aligned).
+ *
+ * `loadDampening` (default `1`, no-op) attenuates the Load component to
+ * acknowledge recent eccentric (descent) work — see {@link loadDampeningFactor}
+ * for the producer. Affects only the composite sum; `components.trainingLoad`
+ * still reports the raw `scoreLoad(acwr)` so the dampening is observable
+ * separately from the training-load score itself.
  */
 export function calculateReadiness(
   today: GarminHealthData,
   baselines: ReadinessBaselines,
   acwr: number,
   hrvCV: number,
+  loadDampening: number = 1,
 ): ReadinessScore {
   const hrvScore = scoreHRV(today, baselines, hrvCV)
   const rhrScore = scoreRHR(today.rhr, baselines.rhr)
@@ -252,7 +285,7 @@ export function calculateReadiness(
     hrvScore * WEIGHT_HRV +
     rhrScore * WEIGHT_RHR +
     sleepScore * WEIGHT_SLEEP +
-    loadScore * WEIGHT_LOAD
+    loadScore * loadDampening * WEIGHT_LOAD
 
   const roundedComposite = Math.round(composite * 100) / 100
   const status = classifyStatus(roundedComposite)
