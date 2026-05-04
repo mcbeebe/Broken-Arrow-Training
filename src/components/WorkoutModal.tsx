@@ -745,6 +745,44 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
             </div>
           )}
 
+          {/* Other Garmin activities recorded the same day. Shown when the
+              user logged multiple sessions (e.g. a warm-up walk + a strength
+              session) so nothing recorded silently disappears from the day
+              view. Their load IS already counted in the training-load chart;
+              this section just makes them visible. */}
+          {day.secondaryActuals && day.secondaryActuals.length > 0 && (
+            <div className="bg-slate-50 dark:bg-slate-900 rounded-xl p-3 border border-slate-200 dark:border-slate-700 space-y-2">
+              <p className="text-xs font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wide">
+                📋 Other activities recorded today ({day.secondaryActuals.length})
+              </p>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-snug">
+                Picked the {actual?.type ?? 'primary'} session above as your main workout.
+                These are also counted in your 7-Day Training Load.
+              </p>
+              <div className="space-y-1.5">
+                {day.secondaryActuals.map((sec, i) => (
+                  <div
+                    key={sec.garminId ?? i}
+                    className="flex items-center justify-between gap-2 text-xs bg-white dark:bg-slate-800 rounded-lg px-2.5 py-1.5 border border-slate-100 dark:border-slate-700"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-slate-700 dark:text-slate-200 truncate">{sec.name}</p>
+                      <p className="text-[10px] text-slate-500 dark:text-slate-400 capitalize">{sec.type.replace(/_/g, ' ')}</p>
+                    </div>
+                    <div className="text-right shrink-0 font-mono text-slate-600 dark:text-slate-300">
+                      <p>{formatSeconds(sec.movingTime)}</p>
+                      <p className="text-[10px] text-slate-500">
+                        {sec.distance > 0 && <>{formatMiles(sec.distance)} mi</>}
+                        {sec.distance > 0 && sec.avgHR ? ' · ' : ''}
+                        {sec.avgHR ? <>{sec.avgHR} bpm</> : null}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Drill completion status — shown whenever drills are scheduled,
               regardless of whether the workout has been logged yet. */}
           {isDrillDay && (
