@@ -140,6 +140,12 @@ function formatPaceFromSpeed(metersPerSec: number): string {
 
 // ─── Garmin Activity Detail Merge ──────────────────────────────
 
+/** Activities under this duration (sec) are treated as Garmin sync stubs
+ *  (e.g. user started, stopped, deleted on watch — Garmin's API may keep
+ *  returning them for up to a sync cycle). Filtered out before matching
+ *  AND before secondary-activity surfacing. */
+const MIN_ACTIVITY_DURATION_SEC = 120
+
 export function mergeGarminDetailIntoWeeks(
   weeks: TrainingWeek[],
   detailsByDate: Record<string, GarminActivityDetail[]>,
@@ -150,14 +156,24 @@ export function mergeGarminDetailIntoWeeks(
       const dayDate = parseDayDate(day.day)
       if (!dayDate) return day
 
-      const details = detailsByDate[dayDate]
-      if (!details || details.length === 0) return day
+      const allDetails = detailsByDate[dayDate]
+      if (!allDetails || allDetails.length === 0) return day
+
+      const details = allDetails.filter(d => activityDuration(d) >= MIN_ACTIVITY_DURATION_SEC)
+      if (details.length === 0) return day
 
       // Find best matching detail for this day's workout type
       const bestDetail = findBestGarminMatch(day, details)
       if (!bestDetail) return day
 
       const garminActual = garminDetailToActual(bestDetail)
+
+      // Surface other activities for the same day so the UI can show them.
+      // Skip the chosen one and any that match by garminId (in case of dupes).
+      const others = details
+        .filter(d => d.activityId !== bestDetail.activityId)
+        .map(d => garminDetailToActual(d))
+      const secondaryActuals = others.length > 0 ? others : undefined
 
       if (day.actual) {
         // Enrich existing actual (Strava or manual) with Garmin biometric data.
@@ -183,23 +199,43 @@ export function mergeGarminDetailIntoWeeks(
             // Garmin exercise sets are more detailed (from watch sensors)
             strengthLog: garminActual.strengthLog?.length ? garminActual.strengthLog : day.actual.strengthLog,
           },
+          secondaryActuals,
         }
       }
 
       // No existing actual — Garmin becomes the actual
-      return { ...day, actual: garminActual }
+      return { ...day, actual: garminActual, secondaryActuals }
     }),
   }))
 }
 
-function findBestGarminMatch(day: PlannedDay, details: GarminActivityDetail[]): GarminActivityDetail | null {
+function activityDuration(d: GarminActivityDetail): number {
+  return d.movingDurationSeconds || d.durationSeconds || 0
+}
+
+/** Score = duration × HR proxy. Captures total stimulus better than
+ *  duration alone (a 20-min strength at 130 bpm beats a 25-min walk at
+ *  95 bpm). Falls back to duration when no HR. */
+function activityScore(d: GarminActivityDetail): number {
+  const dur = activityDuration(d)
+  const hr = d.averageHR ?? 100
+  return dur * Math.max(hr, 100)
+}
+
+/** Pick the best Garmin activity for the planned day:
+ *  1. Among activities whose type matches the plan, take the highest-scored.
+ *  2. If none match, take the highest-scored overall.
+ *  Caller has already filtered out sub-MIN_ACTIVITY_DURATION_SEC stubs. */
+export function findBestGarminMatch(day: PlannedDay, details: GarminActivityDetail[]): GarminActivityDetail | null {
+  if (details.length === 0) return null
   if (details.length === 1) return details[0]
 
   const expectedTypes = getExpectedGarminTypes(day.type)
-  const typed = details.find(d =>
+  const matching = details.filter(d =>
     expectedTypes.some(t => d.type.toLowerCase().includes(t))
   )
-  return typed || details[0]
+  const pool = matching.length > 0 ? matching : details
+  return pool.reduce((best, d) => activityScore(d) > activityScore(best) ? d : best)
 }
 
 function getExpectedGarminTypes(type: WorkoutType): string[] {

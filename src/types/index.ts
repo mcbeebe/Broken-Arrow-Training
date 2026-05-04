@@ -91,6 +91,12 @@ export interface PlannedDay {
   route: string;
   time: string;
   actual?: ActualWorkout;
+  /** Other Garmin activities recorded the same day that aren't the primary
+   *  match. Common when the user does multiple sessions in a day (e.g.
+   *  morning warm-up walk + evening strength). UI can surface these so
+   *  nothing recorded silently disappears. Excludes sync-stub activities
+   *  under 2 min. */
+  secondaryActuals?: ActualWorkout[];
 }
 
 /**
