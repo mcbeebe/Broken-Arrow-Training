@@ -345,6 +345,7 @@ export default function WeeklyPlan({
           zones={zones}
           athleteId={athleteId}
           coachEnabled={coachEnabled}
+          weeks={weeks}
           readiness={(() => {
             const d = parseDayToDate(modalDay.day, week.dates)
             return d ? readinessByDate.get(d) : undefined

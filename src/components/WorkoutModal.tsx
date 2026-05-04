@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import type { PlannedDay, HRZone, ReadinessScore, PerformanceMetrics, CoachSnapshot, TRIMPRecord } from '../types'
 import { getWorkoutStyle, adaptBg } from '../utils/styles'
 import { getCoaching } from '../utils/coaching'
@@ -7,6 +7,7 @@ import CoachWorkoutTakeView from './CoachWorkoutTake'
 import { useCoachInsight } from '../hooks/useCoachInsight'
 import { formatMiles, formatSeconds, formatPace, estimateRunTime } from '../utils/format'
 import { parseRoutine, type ParsedExercise } from '../utils/exercises'
+import { buildProgression, normalizeExerciseName, suggestNextTarget, type ExerciseProgression } from '../utils/strengthProgression'
 import { parseIntervalWorkout, getDrillDay, RUNNING_DRILLS, MYRTL_ROUTINE, PRE_RUN_ACTIVATION, type RunSegment, type DrillGuide } from '../utils/drills'
 import { fetchActivityStreams, getTokens, isTokenExpired, refreshAccessToken, type StreamData } from '../utils/strava'
 import { fetchGarminActivityStream } from '../utils/garmin'
@@ -120,9 +121,12 @@ interface WorkoutModalProps {
   onAskCoach?: (seed: string) => void
   /** Canonical training-load record for the logged activity, if any. */
   trimpRecord?: TRIMPRecord
+  /** Full plan weeks — used to surface per-exercise progression history
+   *  inside strength exercise cards (last session + suggested next target). */
+  weeks?: import('../types').TrainingWeek[]
 }
 
-export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, coachEnabled, readiness, latestPerf, coachSnapshot, onAskCoach, trimpRecord }: WorkoutModalProps) {
+export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, coachEnabled, readiness, latestPerf, coachSnapshot, onAskCoach, trimpRecord, weeks }: WorkoutModalProps) {
   const style = getWorkoutStyle(day.type)
   const baseCoaching = getCoaching(day, weekNum)
   const actual = day.actual
@@ -143,6 +147,21 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
   const exercises = isStrength ? parseRoutine(day.detail) : []
   const customExercises = hasCustomDetail ? parseRoutine(day.detail) : []
   const intervals = isQuality ? parseIntervalWorkout(day.detail, day.zone) : []
+
+  // Per-exercise progression history. We build it once per modal render
+  // and exclude THIS day from each entry so the "last session" line
+  // doesn't reflect the workout the user is currently looking at.
+  const progressionByExercise = useMemo(() => {
+    if (!weeks || weeks.length === 0) return null
+    const todayDate = day.actual?.startDate?.slice(0, 10)
+    const filteredWeeks = todayDate
+      ? weeks.map(w => ({
+          ...w,
+          days: w.days.map(d => (d.actual?.startDate?.slice(0, 10) === todayDate ? { ...d, actual: undefined } : d)),
+        }))
+      : weeks
+    return buildProgression(filteredWeeks)
+  }, [weeks, day.actual?.startDate])
   const isDrillDay = getDrillDay(weekNum) === day.day
   const [stream, setStream] = useState<StreamData | null>(null)
   const [streamLoading, setStreamLoading] = useState(false)
@@ -770,7 +789,12 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
               <p className="text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-2">🏋️ Exercise Guide (tap for form cues)</p>
               <div className="space-y-2">
                 {exercises.map((ex, i) => (
-                  <ExerciseCard key={i} exercise={ex} index={i + 1} />
+                  <ExerciseCard
+                    key={i}
+                    exercise={ex}
+                    index={i + 1}
+                    progression={progressionByExercise?.get(normalizeExerciseName(ex.name)) ?? null}
+                  />
                 ))}
               </div>
             </div>
@@ -782,7 +806,12 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
               <p className="text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-2">📋 Exercise Guide (tap for form cues)</p>
               <div className="space-y-2">
                 {customExercises.map((ex, i) => (
-                  <ExerciseCard key={i} exercise={ex} index={i + 1} />
+                  <ExerciseCard
+                    key={i}
+                    exercise={ex}
+                    index={i + 1}
+                    progression={progressionByExercise?.get(normalizeExerciseName(ex.name)) ?? null}
+                  />
                 ))}
               </div>
             </div>
@@ -904,9 +933,21 @@ function DrillStatusBanner({ drills }: { drills?: { completed: boolean; items?: 
   )
 }
 
-function ExerciseCard({ exercise, index }: { exercise: ParsedExercise; index: number }) {
+function ExerciseCard({
+  exercise, index, progression,
+}: {
+  exercise: ParsedExercise
+  index: number
+  progression?: ExerciseProgression | null
+}) {
   const [expanded, setExpanded] = useState(false)
   const guide = exercise.guide
+
+  const plannedSets = parseInt(exercise.sets || '0', 10) || 0
+  const plannedReps = parseInt((exercise.reps || '0').toString(), 10) || 0
+  const target = progression && progression.last
+    ? suggestNextTarget(progression, plannedSets, plannedReps)
+    : null
 
   return (
     <div
@@ -935,6 +976,16 @@ function ExerciseCard({ exercise, index }: { exercise: ParsedExercise; index: nu
         {guide && !expanded && (
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5 ml-7">{guide.weight} · {guide.rest}</p>
         )}
+        {!expanded && progression?.last && target && (
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 ml-7">
+            <span className="text-slate-400">Last:</span> {progression.last.topWeightLb > 0 ? `${progression.last.topWeightLb} lb · ` : ''}
+            {Math.round(progression.last.totalReps / Math.max(1, progression.last.sets.length))}/set (Wk {progression.last.weekNum})
+            {' · '}
+            <span className={target.tier === 'progress' ? 'text-emerald-600 dark:text-emerald-400 font-medium' : target.tier === 'deload' ? 'text-amber-600 dark:text-amber-400' : 'text-slate-500'}>
+              Try: {target.weightLb > 0 ? `${target.weightLb} lb · ` : ''}{target.reps}/set
+            </span>
+          </p>
+        )}
       </div>
 
       {expanded && guide && (
@@ -955,6 +1006,12 @@ function ExerciseCard({ exercise, index }: { exercise: ParsedExercise; index: nu
               ))}
             </ol>
           </div>
+          {progression && progression.sessions.length > 0 && (
+            <div className="pt-2 border-t border-purple-100 dark:border-purple-900">
+              <p className="text-sm font-semibold text-slate-600 dark:text-slate-300 mb-1">📈 Your progression ({progression.sessions.length} session{progression.sessions.length === 1 ? '' : 's'})</p>
+              <ProgressionDetail progression={progression} target={target} plannedSets={plannedSets} plannedReps={plannedReps} />
+            </div>
+          )}
           {guide.alternates && guide.alternates.length > 0 && (
             <div className="pt-2 border-t border-purple-100 dark:border-purple-900">
               <p className="text-sm font-semibold text-slate-600 dark:text-slate-300 mb-1">🔄 Alternates</p>
@@ -979,6 +1036,71 @@ function ExerciseCard({ exercise, index }: { exercise: ParsedExercise; index: nu
       {expanded && !guide && (
         <div className="px-3 pb-3 border-t border-purple-100 pt-2">
           <p className="text-sm text-slate-500 dark:text-slate-400">No detailed guide available for this exercise yet.</p>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function ProgressionDetail({
+  progression, target, plannedSets, plannedReps,
+}: {
+  progression: ExerciseProgression
+  target: ReturnType<typeof suggestNextTarget> | null
+  plannedSets: number
+  plannedReps: number
+}) {
+  // Show the most recent ~6 sessions chronologically with a visual delta
+  const recent = progression.sessions.slice(-6)
+  const firstWeight = recent[0]?.topWeightLb ?? 0
+  const lastWeight = progression.last?.topWeightLb ?? 0
+  const delta = lastWeight - firstWeight
+  const deltaPct = firstWeight > 0 ? Math.round((delta / firstWeight) * 100) : 0
+
+  return (
+    <div className="space-y-2">
+      <div className="text-xs space-y-1">
+        {recent.map((s, i) => {
+          const reps = s.sets.length > 0 ? Math.round(s.totalReps / s.sets.length) : 0
+          const isLast = i === recent.length - 1
+          return (
+            <div key={i} className="flex items-center justify-between font-mono text-slate-600 dark:text-slate-300">
+              <span className="text-slate-400">Wk {s.weekNum}</span>
+              <span className={isLast ? 'font-semibold text-slate-700 dark:text-slate-200' : ''}>
+                {s.topWeightLb > 0 ? `${s.topWeightLb} lb` : 'BW'} × {reps} × {s.sets.length}
+              </span>
+            </div>
+          )
+        })}
+      </div>
+
+      {progression.sessions.length >= 2 && lastWeight > 0 && (
+        <p className="text-[11px] text-slate-500 dark:text-slate-400">
+          {delta > 0
+            ? <>Up <span className="font-semibold text-emerald-600 dark:text-emerald-400">+{delta} lb</span> ({deltaPct >= 0 ? '+' : ''}{deltaPct}%) from your first logged session.</>
+            : delta < 0
+              ? <>Down <span className="font-semibold text-amber-600 dark:text-amber-400">{delta} lb</span> from your first logged session — likely a deload week.</>
+              : <>Holding steady at {lastWeight} lb across {progression.sessions.length} sessions.</>}
+        </p>
+      )}
+
+      {target && (
+        <div className={`rounded-md px-2 py-1.5 text-xs ${
+          target.tier === 'progress'
+            ? 'bg-emerald-50 text-emerald-800 border border-emerald-100 dark:bg-emerald-950 dark:text-emerald-200 dark:border-emerald-900'
+            : target.tier === 'deload'
+              ? 'bg-amber-50 text-amber-800 border border-amber-100 dark:bg-amber-950 dark:text-amber-200 dark:border-amber-900'
+              : target.tier === 'starting'
+                ? 'bg-slate-50 text-slate-700 border border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700'
+                : 'bg-purple-50 text-purple-800 border border-purple-100 dark:bg-purple-950 dark:text-purple-200 dark:border-purple-900'
+        }`}>
+          <p className="font-semibold">
+            🎯 Try today: {target.weightLb > 0 ? `${target.weightLb} lb` : 'bodyweight'} × {target.reps} reps × {target.sets} sets
+            {plannedSets > 0 && plannedReps > 0 && plannedSets !== target.sets && plannedReps !== target.reps && (
+              <span className="font-normal text-[10px] ml-1 opacity-70">(plan said {plannedSets}×{plannedReps})</span>
+            )}
+          </p>
+          <p className="mt-0.5 leading-snug">{target.rationale}</p>
         </div>
       )}
     </div>

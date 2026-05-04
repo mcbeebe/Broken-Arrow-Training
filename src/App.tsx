@@ -659,6 +659,7 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
           zones={hrZones.zones}
           coachSnapshot={coachSnapshot}
           riskFlags={readiness.riskFlags}
+          weeks={weeks}
           getPlannedDay={getPlannedDay}
           onApproveInsightProposal={handleApproveInsightProposal}
           onUndoInsightProposal={handleUndoInsightProposal}
