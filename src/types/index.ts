@@ -816,6 +816,14 @@ export interface TerrainSegment {
 }
 
 /**
+ * Multiplier applied on top of an athlete's base MIM coefficient when the
+ * activity carries a {@link TerrainProfile}. Produced by `gradeModifier`
+ * in `src/engines/mim/gradeModifier.ts` (PR-14). A value of 1 means flat
+ * (no modification); BA Skyrace 23K-class courses land near 1.25–1.30.
+ */
+export type GradeModifier = number
+
+/**
  * Forecast of DOMS-equivalent eccentric load at three time horizons after
  * an activity. Produced by `forecastDOMSWindow` (PR-11) and consumed by
  * Tomorrow's Forecast UI (PR-15) and Readiness Load dampening (PR-13).
