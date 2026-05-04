@@ -20,6 +20,7 @@ import type { OverallCompliance } from '../hooks/useCompliance'
 import type { SorenessLevel } from '../hooks/useSoreness'
 import { computeRaceProjection } from './raceProjection'
 import { localDateStr } from './format'
+import { buildProgression, suggestNextTarget } from './strengthProgression'
 
 /**
  * Assemble the CoachSnapshot that's sent with every LLM call. The goal is
@@ -475,6 +476,45 @@ export function buildCoachSnapshot(inputs: Inputs): CoachSnapshot {
 
   const analytics = buildAnalytics(inputs)
 
+  // Per-exercise strength progression — compact, only includes exercises
+  // logged in the last 60 days so the snapshot doesn't bloat token use.
+  // Each entry carries first/latest sessions + the linear-progression
+  // suggested next target so the coach can call out specific numbers.
+  const progressionMap = buildProgression(inputs.weeks)
+  const sixtyAgo = (() => {
+    const d = new Date()
+    d.setDate(d.getDate() - 60)
+    return localDateStr(d)
+  })()
+  const strengthProgression = Array.from(progressionMap.values())
+    .filter(p => p.last && p.last.date >= sixtyAgo)
+    .map(p => {
+      const first = p.first!
+      const last = p.last!
+      const firstAvgReps = first.sets.length > 0 ? Math.round(first.totalReps / first.sets.length) : 0
+      const lastAvgReps = last.sets.length > 0 ? Math.round(last.totalReps / last.sets.length) : 0
+      const weeksSinceFirst = Math.max(0, last.weekNum - first.weekNum)
+      // Use the latest session's sets/reps as the planned input for the
+      // suggestion (we don't know the upcoming planned numbers here).
+      const tgt = suggestNextTarget(p, last.sets.length, lastAvgReps)
+      return {
+        name: p.displayName,
+        sessions: p.sessions.length,
+        isBodyweight: p.isBodyweight,
+        peakWeightLb: p.peakWeightLb,
+        weeksSinceFirst,
+        firstSession: { weekNum: first.weekNum, topWeightLb: first.topWeightLb, avgReps: firstAvgReps, sets: first.sets.length },
+        latestSession: { weekNum: last.weekNum, topWeightLb: last.topWeightLb, avgReps: lastAvgReps, sets: last.sets.length },
+        suggestedTarget: tgt
+          ? { weightLb: tgt.weightLb, reps: tgt.reps, sets: tgt.sets, tier: tgt.tier, rationale: tgt.rationale }
+          : undefined,
+      }
+    })
+    // Sort by sessions descending so the coach sees the best-tracked
+    // exercises first when token budgets force truncation.
+    .sort((a, b) => b.sessions - a.sessions)
+    .slice(0, 12)
+
   return {
     today: { date: todayISO(), period: currentDayPeriod() },
     currentWeekNum,
@@ -491,5 +531,6 @@ export function buildCoachSnapshot(inputs: Inputs): CoachSnapshot {
     race,
     zones: inputs.zones,
     analytics,
+    strengthProgression: strengthProgression.length > 0 ? strengthProgression : undefined,
   }
 }

@@ -758,6 +758,22 @@ export interface CoachSnapshot {
   /** Proactive injury risk flags from trend analysis — surfaced to the
    *  coach so it can raise concerns without waiting for the athlete to ask. */
   riskFlags?: { id: string; severity: 'watch' | 'warning' | 'alert'; title: string; message: string; metric?: string }[]
+  /** Per-exercise strength-progression summary — derived from
+   *  `actual.strengthLog` across all logged weeks. Lets the coach
+   *  acknowledge real progression ("you've added 5 lb to goblet squat
+   *  over 2 weeks") and propose targeted weight/rep changes. Each entry
+   *  carries the linear-progression suggested target so the coach can
+   *  call out specific numbers without recomputing the math. */
+  strengthProgression?: {
+    name: string                                        // canonical/display name
+    sessions: number                                     // total logged
+    isBodyweight: boolean
+    peakWeightLb: number
+    weeksSinceFirst: number                              // breadth of trajectory
+    firstSession: { weekNum: number; topWeightLb: number; avgReps: number; sets: number }
+    latestSession: { weekNum: number; topWeightLb: number; avgReps: number; sets: number }
+    suggestedTarget?: { weightLb: number; reps: number; sets: number; tier: 'progress' | 'hold' | 'deload' | 'starting'; rationale: string }
+  }[]
   coachPersona?: CoachPersona | null
 }
 
