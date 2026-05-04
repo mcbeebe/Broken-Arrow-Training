@@ -285,6 +285,106 @@ function roundToPlate(weight: number): number {
   return Math.round(weight / MIN_WEIGHT_INCREMENT_LB) * MIN_WEIGHT_INCREMENT_LB
 }
 
+export interface ProjectionResult {
+  /** Projected top weight in lb at the target week. 0 for bodyweight. */
+  predictedWeightLb: number
+  /** Projected average reps per set at the target week (for bodyweight). */
+  predictedReps: number
+  /** Plain-English confidence label — based on session count + trajectory shape. */
+  confidence: 'low' | 'medium' | 'high'
+  /** Method used: 'linear' = OLS regression, 'last-known' = held flat
+   *  (only one session), 'flat' = held flat (no recent change). */
+  method: 'linear' | 'last-known' | 'flat'
+}
+
+/**
+ * Project an exercise's expected top set forward to a target week using
+ * simple linear regression on (weekNum, topWeightLb) for weighted lifts
+ * or (weekNum, avgRepsPerSet) for bodyweight. Confidence is heuristic
+ * but communicates "do/don't trust this projection at face value."
+ */
+export function projectToWeek(
+  progression: ExerciseProgression,
+  targetWeekNum: number,
+): ProjectionResult | null {
+  const sessions = progression.sessions
+  if (sessions.length === 0) return null
+  const last = sessions[sessions.length - 1]
+
+  // Single data point → can't fit a line, just hold last value
+  if (sessions.length < 2) {
+    return {
+      predictedWeightLb: progression.isBodyweight ? 0 : last.topWeightLb,
+      predictedReps: last.sets.length > 0 ? Math.round(last.totalReps / last.sets.length) : 0,
+      confidence: 'low',
+      method: 'last-known',
+    }
+  }
+
+  // Project the right metric for the modality
+  const xs = sessions.map(s => s.weekNum)
+  const ys = progression.isBodyweight
+    ? sessions.map(s => (s.sets.length > 0 ? s.totalReps / s.sets.length : 0))
+    : sessions.map(s => s.topWeightLb)
+
+  const slope = ols(xs, ys)
+  if (slope === null) {
+    return {
+      predictedWeightLb: progression.isBodyweight ? 0 : last.topWeightLb,
+      predictedReps: last.sets.length > 0 ? Math.round(last.totalReps / last.sets.length) : 0,
+      confidence: 'low',
+      method: 'flat',
+    }
+  }
+
+  // y = a + b*x; predict at target week
+  const meanX = avg(xs)
+  const meanY = avg(ys)
+  const intercept = meanY - slope * meanX
+  const predictedY = intercept + slope * targetWeekNum
+
+  // Confidence heuristic: more sessions + monotonic improvement = higher
+  const monotonic = sessions.every((_s, i) => i === 0 || ys[i] >= ys[i - 1])
+  const confidence: ProjectionResult['confidence'] =
+    sessions.length >= 5 ? 'high' :
+    sessions.length >= 3 ? (monotonic ? 'high' : 'medium') :
+    monotonic ? 'medium' : 'low'
+
+  if (progression.isBodyweight) {
+    return {
+      predictedWeightLb: 0,
+      predictedReps: Math.max(0, Math.round(predictedY)),
+      confidence,
+      method: 'linear',
+    }
+  }
+  return {
+    predictedWeightLb: Math.max(0, Math.round((predictedY) / 2.5) * 2.5),
+    predictedReps: last.sets.length > 0 ? Math.round(last.totalReps / last.sets.length) : 0,
+    confidence,
+    method: 'linear',
+  }
+}
+
+function avg(xs: number[]): number {
+  if (xs.length === 0) return 0
+  return xs.reduce((s, x) => s + x, 0) / xs.length
+}
+
+function ols(xs: number[], ys: number[]): number | null {
+  if (xs.length < 2 || xs.length !== ys.length) return null
+  const meanX = avg(xs)
+  const meanY = avg(ys)
+  let num = 0
+  let den = 0
+  for (let i = 0; i < xs.length; i++) {
+    num += (xs[i] - meanX) * (ys[i] - meanY)
+    den += (xs[i] - meanX) ** 2
+  }
+  if (den === 0) return null  // all same x value
+  return num / den
+}
+
 /** Format a session compactly: "20 lb × 8 (Wk 1)" or "× 12 (Wk 2)". */
 export function formatSession(session: ExerciseSession): string {
   const reps = session.sets.length > 0
