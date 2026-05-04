@@ -170,6 +170,7 @@ export default function CoachChat({ athleteId, memory, snapshot, seed, onSeedCon
       ],
     }))
 
+    let chatSucceeded = false
     try {
       const userMessage: Record<string, unknown> = { role: 'user', content: promptText }
       if (image) {
@@ -216,6 +217,7 @@ export default function CoachChat({ athleteId, memory, snapshot, seed, onSeedCon
           }
         }
       }
+      chatSucceeded = true
     } catch (e) {
       setError((e as Error).message)
     } finally {
@@ -223,7 +225,14 @@ export default function CoachChat({ athleteId, memory, snapshot, seed, onSeedCon
       sendingRef.current = false
       setLiveReply('')
       setLiveStatus(null)
-      memory.refresh()
+      // Only refresh from the server when the chat call succeeded. On
+      // failure we keep the optimistic local turn so the user can see
+      // their message + the error. Refreshing here would call
+      // GET /api/coach/memory which, for a brand-new user (e.g. someone
+      // who just connected Strava and has no server-side conversation
+      // yet), returns an empty conversation — clobbering the optimistic
+      // turn and making the chat appear to instantly disappear.
+      if (chatSucceeded) memory.refresh()
     }
   }
 
