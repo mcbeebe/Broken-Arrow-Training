@@ -320,6 +320,17 @@ What you already know (do NOT re-ask or confirm):
 - Everything in "About this athlete" (their About Me doc).
 - Recent actuals (what they ran / lifted), compliance, readiness, and
   performance metrics — refreshed on every turn.
+- **Strength progression by exercise** (when present in context): a
+  one-line-per-exercise summary of first vs latest session (week, weight,
+  reps × sets) plus the engine's suggested next target (weight × reps ×
+  sets) and tier (`progress` / `hold` / `deload` / `starting`). The
+  athlete already sees the suggested next target on the in-app workout
+  card — when you reference numbers, MATCH them. Don't invent rep schemes
+  the engine isn't suggesting. When the trajectory is clean (e.g. ratio
+  showed `progress` for several sessions in a row), acknowledge it
+  directly — "you've added 5 lb to goblet squat over 2 weeks, that's
+  textbook linear progression." When tier is `hold` or `deload`, lean
+  toward the conservative read in your reply rather than pushing harder.
 - Previous conversations in this thread and archived daily conversations.
 Treat all of the above as known. Don't ask the athlete to re-tell you
 their plan, their goals, or things already in About Me. If you need a
@@ -1302,6 +1313,46 @@ def build_context_block(
         out.append("Recent soreness:")
         for s in soreness[:5]:
             out.append(f"  - {_fmt_date_with_dow(s.get('date', ''))}: {s.get('summary', '')}")
+
+    # Strength progression — per-exercise trajectory + the engine's
+    # research-grounded next-session target. Lets the coach acknowledge
+    # real progression and propose specific weight/rep changes that match
+    # what the in-app UI is already showing the athlete on the workout
+    # card. Stay tight — one line per exercise.
+    progression = snapshot.get("strengthProgression") or []
+    if progression:
+        out.append("Strength progression (recent 60 d, per exercise):")
+        for ex in progression[:12]:
+            name = ex.get("name", "?")
+            sessions = ex.get("sessions", 0)
+            first = ex.get("firstSession") or {}
+            last = ex.get("latestSession") or {}
+            is_bw = ex.get("isBodyweight", False)
+
+            first_w = "BW" if is_bw else f"{first.get('topWeightLb', 0)}lb"
+            first_wk = first.get("weekNum", "?")
+            first_reps = first.get("avgReps", 0)
+            first_sets = first.get("sets", 0)
+            first_str = f"Wk{first_wk} {first_w} x{first_reps}x{first_sets}"
+
+            last_w = "BW" if is_bw else f"{last.get('topWeightLb', 0)}lb"
+            last_wk = last.get("weekNum", "?")
+            last_reps = last.get("avgReps", 0)
+            last_sets = last.get("sets", 0)
+            last_str = f"Wk{last_wk} {last_w} x{last_reps}x{last_sets}"
+
+            tgt = ex.get("suggestedTarget") or {}
+            tgt_str = ""
+            if tgt:
+                tgt_weight = tgt.get("weightLb", 0) or 0
+                tgt_w = "BW" if tgt_weight == 0 else f"{tgt_weight}lb"
+                tgt_reps = tgt.get("reps", "?")
+                tgt_sets = tgt.get("sets", "?")
+                tgt_tier = tgt.get("tier", "")
+                tgt_rationale = tgt.get("rationale", "")
+                tgt_str = f"  Suggested next: {tgt_w} x{tgt_reps}x{tgt_sets} [{tgt_tier}] — {tgt_rationale}"
+            session_word = "session" if sessions == 1 else "sessions"
+            out.append(f"  - {name}: {sessions} {session_word}, first {first_str} -> latest {last_str}.{tgt_str}")
 
     if analytics:
         wtd = analytics.get("weekToDate") or {}
