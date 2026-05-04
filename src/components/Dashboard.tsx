@@ -10,6 +10,7 @@ import TRIMPBreakdown from './TRIMPBreakdown'
 import PerformanceChart from './PerformanceChart'
 import ComplianceWeekRow from './ComplianceWeekRow'
 import CalendarHeatmap from './CalendarHeatmap'
+import StrengthProgressSection from './StrengthProgressSection'
 
 type DashSubTab = 'compliance' | 'readiness' | 'performance'
 
@@ -104,6 +105,8 @@ export default function Dashboard({
           sorenessLoadByDate={sorenessLoadByDate}
         />
       )}
+
+      <StrengthProgressSection weeks={weeks} />
     </div>
   )
 }

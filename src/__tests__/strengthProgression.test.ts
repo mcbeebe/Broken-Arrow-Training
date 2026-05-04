@@ -5,6 +5,7 @@ import {
   buildProgression,
   getProgressionFor,
   suggestNextTarget,
+  projectToWeek,
   formatSession,
   type ExerciseProgression,
   type ExerciseSession,
@@ -188,6 +189,88 @@ describe('suggestNextTarget — progression rules', () => {
     const out = suggestNextTarget(prog, 3, 8)
     expect(out.tier).toBe('progress')
     expect(out.rationale).toMatch(/harder|alternate/i)
+  })
+})
+
+describe('projectToWeek', () => {
+  function progression(sessions: Partial<ExerciseSession>[], isBW = false): ExerciseProgression {
+    const filled: ExerciseSession[] = sessions.map((s, i) => ({
+      date: s.date ?? `2026-04-${20 + i}`,
+      weekNum: s.weekNum ?? i + 1,
+      dayLabel: s.dayLabel ?? 'Mon',
+      sets: s.sets ?? [],
+      topWeightLb: s.topWeightLb ?? 0,
+      totalReps: s.totalReps ?? 0,
+    }))
+    return {
+      canonicalName: 'goblet squat',
+      displayName: 'Goblet Squat',
+      sessions: filled,
+      first: filled[0],
+      last: filled[filled.length - 1],
+      peakWeightLb: filled.reduce((m, s) => Math.max(m, s.topWeightLb), 0),
+      isBodyweight: isBW || filled.every(s => s.topWeightLb === 0),
+    }
+  }
+
+  it('linear projection — wk 1: 15 lb, wk 3: 20 lb → wk 5: ~25 lb', () => {
+    const prog = progression([
+      { weekNum: 1, topWeightLb: 15, totalReps: 24, sets: [{reps:8,weight:'15 lb'},{reps:8,weight:'15 lb'},{reps:8,weight:'15 lb'}] },
+      { weekNum: 3, topWeightLb: 20, totalReps: 24, sets: [{reps:8,weight:'20 lb'},{reps:8,weight:'20 lb'},{reps:8,weight:'20 lb'}] },
+    ])
+    const out = projectToWeek(prog, 5)
+    expect(out).not.toBeNull()
+    expect(out!.method).toBe('linear')
+    expect(out!.predictedWeightLb).toBe(25)
+  })
+
+  it('low confidence with single session — held at last known', () => {
+    const prog = progression([{ weekNum: 1, topWeightLb: 30, totalReps: 24, sets: [{reps:8,weight:'30 lb'},{reps:8,weight:'30 lb'},{reps:8,weight:'30 lb'}] }])
+    const out = projectToWeek(prog, 5)
+    expect(out!.method).toBe('last-known')
+    expect(out!.confidence).toBe('low')
+    expect(out!.predictedWeightLb).toBe(30)
+  })
+
+  it('high confidence after 5+ monotonic sessions', () => {
+    const prog = progression([
+      { weekNum: 1, topWeightLb: 15, totalReps: 24, sets: [{reps:8,weight:'15 lb'},{reps:8,weight:'15 lb'},{reps:8,weight:'15 lb'}] },
+      { weekNum: 2, topWeightLb: 17.5, totalReps: 24, sets: [{reps:8,weight:'17.5 lb'},{reps:8,weight:'17.5 lb'},{reps:8,weight:'17.5 lb'}] },
+      { weekNum: 3, topWeightLb: 20, totalReps: 24, sets: [{reps:8,weight:'20 lb'},{reps:8,weight:'20 lb'},{reps:8,weight:'20 lb'}] },
+      { weekNum: 4, topWeightLb: 22.5, totalReps: 24, sets: [{reps:8,weight:'22.5 lb'},{reps:8,weight:'22.5 lb'},{reps:8,weight:'22.5 lb'}] },
+      { weekNum: 5, topWeightLb: 25, totalReps: 24, sets: [{reps:8,weight:'25 lb'},{reps:8,weight:'25 lb'},{reps:8,weight:'25 lb'}] },
+    ])
+    const out = projectToWeek(prog, 9)
+    expect(out!.confidence).toBe('high')
+    expect(out!.predictedWeightLb).toBe(35)  // slope 2.5/wk × wk9 + intercept
+  })
+
+  it('bodyweight projection — predicts reps not weight', () => {
+    const prog = progression([
+      { weekNum: 1, topWeightLb: 0, totalReps: 24, sets: [{reps:8,weight:'—'},{reps:8,weight:'—'},{reps:8,weight:'—'}] },
+      { weekNum: 3, topWeightLb: 0, totalReps: 30, sets: [{reps:10,weight:'—'},{reps:10,weight:'—'},{reps:10,weight:'—'}] },
+    ], true)
+    const out = projectToWeek(prog, 5)
+    expect(out!.predictedWeightLb).toBe(0)
+    expect(out!.predictedReps).toBe(12)
+    expect(out!.method).toBe('linear')
+  })
+
+  it('returns null for empty history', () => {
+    const empty: ExerciseProgression = {
+      canonicalName: 'x', displayName: 'X', sessions: [], peakWeightLb: 0, isBodyweight: true,
+    }
+    expect(projectToWeek(empty, 5)).toBeNull()
+  })
+
+  it('flat trajectory — held steady, weight unchanged', () => {
+    const prog = progression([
+      { weekNum: 1, topWeightLb: 20, totalReps: 24, sets: [{reps:8,weight:'20 lb'},{reps:8,weight:'20 lb'},{reps:8,weight:'20 lb'}] },
+      { weekNum: 2, topWeightLb: 20, totalReps: 24, sets: [{reps:8,weight:'20 lb'},{reps:8,weight:'20 lb'},{reps:8,weight:'20 lb'}] },
+      { weekNum: 3, topWeightLb: 20, totalReps: 24, sets: [{reps:8,weight:'20 lb'},{reps:8,weight:'20 lb'},{reps:8,weight:'20 lb'}] },
+    ])
+    const out = projectToWeek(prog, 5)
+    expect(out!.predictedWeightLb).toBe(20)
   })
 })
 
