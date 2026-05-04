@@ -36,6 +36,9 @@ interface SummaryProps {
   onRegenerateDailyInsight?: () => void
   todayPlannedWorkout?: PlannedDay | null
   currentWeekNum?: number
+  /** Full plan weeks — passed through to WorkoutModal so the strength
+   *  progression display inside exercise cards has history to look up. */
+  weeks?: import('../types').TrainingWeek[]
   zones?: HRZone[]
   coachSnapshot?: CoachSnapshot | null
   riskFlags?: RiskFlag[]
@@ -244,6 +247,7 @@ export default function Summary({
   onRegenerateDailyInsight,
   todayPlannedWorkout,
   currentWeekNum,
+  weeks,
   zones,
   coachSnapshot,
   riskFlags = [],
@@ -308,6 +312,7 @@ export default function Summary({
                 weekNum={currentWeekNum ?? 1}
                 onClose={() => setShowTodayModal(false)}
                 zones={zones || []}
+                weeks={weeks}
                 readiness={todayScore ?? undefined}
                 latestPerf={latestPerf}
                 coachSnapshot={coachSnapshot ?? undefined}
