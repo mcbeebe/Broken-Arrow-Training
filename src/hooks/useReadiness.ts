@@ -233,10 +233,17 @@ export function useReadiness({
     const adjusted = base.map(day => {
       const recordSum = day.records.reduce((s, r) => s + r.adjustedTRIMP, 0)
       const domsCarry = Math.max(0, day.total - recordSum)
+      // Strength HR-TRIMP for de-dup against exerciseLoad. Both are
+      // signals from the same Garmin strength session; we want the
+      // larger one as the strength contribution rather than stacking.
+      const strengthHRTRIMP = day.records
+        .filter(r => r.sportType.startsWith('strength_'))
+        .reduce((s, r) => s + r.adjustedTRIMP, 0)
       const total = composeDayLoad(recordSum, domsCarry, {
         exerciseLoad: exerciseLoadByDate.get(day.date),
         rpeValue: rpeByDate.get(day.date),
         sorenessAdj: sorenessLoadByDate.get(day.date),
+        strengthHRTRIMP,
       })
       if (Math.abs(total - day.total) < 0.05) return day
       return { ...day, total: Math.round(total * 10) / 10 }

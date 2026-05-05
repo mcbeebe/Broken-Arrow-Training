@@ -1024,6 +1024,16 @@ export interface DailyAdjustmentInputs {
   exerciseLoad?: number
   rpeValue?: number
   sorenessAdj?: number
+  /** HR-based TRIMP from strength records on this day (subset of recordSum).
+   *  When provided alongside `exerciseLoad`, the engine de-duplicates: the
+   *  strength contribution becomes `max(strengthHRTRIMP, exerciseLoad)`
+   *  rather than the sum. Without this, a Garmin-tracked strength session
+   *  would be counted twice — once via HR (cardiovascular signal, captured
+   *  by the activity record) and once via rep×weight load (muscular signal
+   *  derived from the same activity's exerciseSets). For low-HR strength
+   *  (BW circuits, light isometric work), exerciseLoad still wins; for
+   *  high-HR strength (HIIT, heavy compounds w/ HR rise), HR wins. */
+  strengthHRTRIMP?: number
 }
 
 export function composeDayLoad(
@@ -1035,8 +1045,16 @@ export function composeDayLoad(
   const rpeValue = adj.rpeValue
   const rpeMult = rpeValue ? 1 + 0.04 * (rpeValue - 5) : 1
   const sorenessAdj = adj.sorenessAdj ?? 0
+  const strengthHR = adj.strengthHRTRIMP ?? 0
 
-  const effortLoad = (recordSum + exerciseLoad) * rpeMult
+  // De-duplicate strength: if both HR-TRIMP and rep×weight load came from
+  // the same session, take the larger signal as the strength contribution
+  // and add it to the non-strength HR records. Falls back to legacy
+  // additive behavior when caller doesn't pass strengthHRTRIMP (e.g.
+  // historical days, manually-only-logged strength with no Garmin record).
+  const nonStrengthHR = Math.max(0, recordSum - strengthHR)
+  const strengthTotal = strengthHR > 0 ? Math.max(strengthHR, exerciseLoad) : exerciseLoad
+  const effortLoad = (nonStrengthHR + strengthTotal) * rpeMult
 
   let lagged: number
   if (sorenessAdj > 0) {

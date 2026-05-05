@@ -28,6 +28,16 @@ export function useManualLog(athleteId: string) {
     })
   }, [athleteId])
 
+  const removeLog = useCallback((dayLabel: string) => {
+    setLogs(prev => {
+      if (!(dayLabel in prev)) return prev
+      const next = { ...prev }
+      delete next[dayLabel]
+      saveLogs(athleteId, next)
+      return next
+    })
+  }, [athleteId])
+
   const applyLogsToWeeks = useCallback((weeks: TrainingWeek[]): TrainingWeek[] => {
     return weeks.map(week => ({
       ...week,
@@ -44,5 +54,5 @@ export function useManualLog(athleteId: string) {
     }))
   }, [logs])
 
-  return { logs, logWorkout, applyLogsToWeeks }
+  return { logs, logWorkout, removeLog, applyLogsToWeeks }
 }

@@ -15,6 +15,11 @@ interface WeeklyPlanProps {
   zones?: HRZone[]
   manualLog?: {
     logWorkout: (dayLabel: string, data: ActualWorkout) => void
+    removeLog: (dayLabel: string) => void
+    /** Map keyed by dayLabel; presence indicates an explicit user log entry
+     *  exists for that day (distinguishes from Garmin/Strava-derived
+     *  actuals). Drives whether the Delete button is shown in ManualLog. */
+    logs: Record<string, ActualWorkout>
   }
   daySwap?: {
     swapDays: (weekNum: number, fromIndex: number, toIndex: number) => void
@@ -372,6 +377,11 @@ export default function WeeklyPlan({
             setLogDay(null)
           }}
           onClose={() => setLogDay(null)}
+          onDelete={
+            manualLog.logs[logDay.day]
+              ? () => manualLog.removeLog(logDay.day)
+              : undefined
+          }
         />
       )}
     </div>

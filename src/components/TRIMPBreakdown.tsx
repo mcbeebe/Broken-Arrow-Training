@@ -60,6 +60,14 @@ function getLast7Days(): string[] {
 interface Breakdown {
   records: { sportType: string; trimp: number }[]
   exerciseLoad: number
+  /** True when exerciseLoad was already absorbed into a strength record
+   *  via max() (engine de-dup). When true, the separate "manual exercise"
+   *  row is suppressed in chart + tooltip; the strength record displays
+   *  the de-dup'd value. */
+  exerciseLoadAbsorbed: boolean
+  /** Multiplier applied to strength records to scale them up when
+   *  exerciseLoad exceeds the HR-derived strength TRIMP. 1 otherwise. */
+  strengthScale: number
   rpeValue: number | null
   rpeMult: number
   rpeDelta: number   // signed
@@ -97,12 +105,30 @@ export default function TRIMPBreakdown({ dailyTrimp, sorenessLoadByDate, rpeByDa
     const exerciseLoad = exerciseLoadByDate?.get(day.date) ?? 0
     const rpeValue = rpeByDate?.get(day.date) ?? null
     const rpeMult = rpeValue ? 1 + 0.04 * (rpeValue - 5) : 1
-    const rpeDelta = (recordSum + exerciseLoad) * (rpeMult - 1)
     const sorenessAdj = sorenessLoadByDate?.get(day.date) ?? 0
     const domsCarry = domsCarryByDate?.get(day.date) ?? 0
+
+    // Mirror the engine's strength dedup so the chart bar heights add up
+    // to day.total. When a Garmin strength record is present alongside
+    // exerciseLoad (rep×weight calc from same session's exerciseSets), the
+    // engine takes max(strengthHR, exerciseLoad) instead of summing.
+    const strengthHRTRIMP = day.records
+      .filter(r => r.sportType.startsWith('strength_'))
+      .reduce((s, r) => s + r.adjustedTRIMP, 0)
+    const exerciseLoadAbsorbed = strengthHRTRIMP > 0 && exerciseLoad > 0
+    const strengthScale = strengthHRTRIMP > 0 && exerciseLoad > strengthHRTRIMP
+      ? exerciseLoad / strengthHRTRIMP
+      : 1
+    // Effective non-RPE record sum after dedup, used for rpeDelta below.
+    const effectiveRecordSum = recordSum - strengthHRTRIMP + strengthHRTRIMP * strengthScale
+    const effectiveExerciseLoad = exerciseLoadAbsorbed ? 0 : exerciseLoad
+    const rpeDelta = (effectiveRecordSum + effectiveExerciseLoad) * (rpeMult - 1)
+
     breakdownByMMDD.set(day.date.slice(5), {
       records: day.records.map(r => ({ sportType: r.sportType, trimp: r.adjustedTRIMP })),
       exerciseLoad,
+      exerciseLoadAbsorbed,
+      strengthScale,
       rpeValue,
       rpeMult,
       rpeDelta,
@@ -124,10 +150,14 @@ export default function TRIMPBreakdown({ dailyTrimp, sorenessLoadByDate, rpeByDa
       _isRest: bd.dayTotal === 0 ? 1 : 0,
     }
     for (const r of bd.records) {
-      const v = Math.round(r.trimp * bd.rpeMult * 10) / 10
+      const isStrength = r.sportType.startsWith('strength_')
+      const scaled = isStrength ? r.trimp * bd.strengthScale : r.trimp
+      const v = Math.round(scaled * bd.rpeMult * 10) / 10
       if (v > 0.5) entry[r.sportType] = ((entry[r.sportType] as number) || 0) + v
     }
-    if (bd.exerciseLoad > 0.5) {
+    // Only show "manual exercise" as a separate segment when it isn't
+    // already absorbed into a strength record via max() dedup.
+    if (!bd.exerciseLoadAbsorbed && bd.exerciseLoad > 0.5) {
       entry['manual_exercise'] = Math.round(bd.exerciseLoad * bd.rpeMult * 10) / 10
     }
     // De-dup'd lagged-fatigue contribution. Positive soreness above
@@ -200,13 +230,23 @@ export default function TRIMPBreakdown({ dailyTrimp, sorenessLoadByDate, rpeByDa
                 interface Row { swatch: string; name: string; value: number; signed?: boolean; subtitle?: string }
                 const rows: Row[] = []
                 for (const r of bd.records) {
+                  const isStrength = r.sportType.startsWith('strength_')
+                  const scaled = isStrength ? r.trimp * bd.strengthScale : r.trimp
+                  const subtitle = isStrength && bd.exerciseLoadAbsorbed
+                    ? bd.strengthScale > 1
+                      ? `(HR ${Math.round(r.trimp)} + rep load ${Math.round(bd.exerciseLoad)} → larger wins)`
+                      : '(HR captured the session; rep load absorbed)'
+                    : undefined
                   rows.push({
                     swatch: SPORT_COLORS[r.sportType] || '#94A3B8',
                     name: r.sportType.replace(/_/g, ' '),
-                    value: r.trimp,
+                    value: scaled,
+                    subtitle,
                   })
                 }
-                if (bd.exerciseLoad > 0.5) {
+                // Only surface a separate "manual exercise" row when it
+                // hasn't been absorbed into a strength record via dedup.
+                if (!bd.exerciseLoadAbsorbed && bd.exerciseLoad > 0.5) {
                   rows.push({ swatch: MANUAL_EXERCISE_COLOR, name: 'manual exercise', value: bd.exerciseLoad })
                 }
                 if (bd.rpeValue !== null && Math.abs(bd.rpeDelta) > 0.5) {

@@ -342,6 +342,46 @@ describe('composeDayLoad', () => {
   it('reduces to current sum when sorenessAdj==0 and rpe absent', () => {
     expect(composeDayLoad(50, 10, {})).toBe(60)
   })
+
+  // Strength dedup: HR-based TRIMP and rep×weight exerciseLoad are two
+  // signals from the same Garmin strength session. Take max() not sum.
+  describe('strength dedup', () => {
+    it('takes max(strengthHR, exerciseLoad) when both present', () => {
+      // recordSum 60 = 9 ebike + 51 strength. exerciseLoad 70 (rep×weight).
+      // Without dedup: 60 + 70 = 130. With dedup: 9 + max(51, 70) = 79.
+      expect(composeDayLoad(60, 0, { exerciseLoad: 70, strengthHRTRIMP: 51 })).toBeCloseTo(79, 1)
+    })
+
+    it('keeps HR when HR exceeds rep load (well-tracked HIIT-style strength)', () => {
+      // strengthHR 80 captures a high-HR strength session; exerciseLoad 50
+      // is the rep calc. HR wins → 80. Plus other 10 = 90.
+      expect(composeDayLoad(90, 0, { exerciseLoad: 50, strengthHRTRIMP: 80 })).toBeCloseTo(90, 1)
+    })
+
+    it('keeps exerciseLoad when no strength HR present (BW-only or no HR)', () => {
+      // recordSum 0 (no Garmin strength record). exerciseLoad 60 (rep calc).
+      // Total = 0 + 60 = 60. Legacy behavior preserved.
+      expect(composeDayLoad(0, 0, { exerciseLoad: 60 })).toBeCloseTo(60, 1)
+    })
+
+    it('falls back to additive when caller omits strengthHRTRIMP', () => {
+      // Old signature path — preserves prior semantics for historical days.
+      expect(composeDayLoad(50, 0, { exerciseLoad: 30 })).toBeCloseTo(80, 1)
+    })
+
+    it('multi-sport day: only strength portion is de-dup\'d', () => {
+      // 6 ebike + 3 running + 52 strength = 61 recordSum. exerciseLoad 70.
+      // strengthHR 52 → strength contribution = max(52, 70) = 70.
+      // non-strength HR = 61 - 52 = 9. Total = 9 + 70 = 79.
+      expect(composeDayLoad(61, 0, { exerciseLoad: 70, strengthHRTRIMP: 52 })).toBeCloseTo(79, 1)
+    })
+
+    it('RPE multiplies the de-dup\'d effort, not the raw sum', () => {
+      // recordSum 60 with strengthHR 51, exerciseLoad 70, RPE 7 (×1.08).
+      // Effort = (9 + 70) × 1.08 = 85.32. No DOMS carry.
+      expect(composeDayLoad(60, 0, { exerciseLoad: 70, strengthHRTRIMP: 51, rpeValue: 7 })).toBeCloseTo(85.32, 1)
+    })
+  })
 })
 
 describe('calibrateDOMSCarry', () => {

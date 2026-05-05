@@ -24,6 +24,10 @@ interface ManualLogProps {
   weekNum?: number
   onSave: (data: ActualWorkout) => void
   onClose: () => void
+  /** When provided, renders a "Delete log" button. Only the caller knows
+   *  whether a manual log entry actually exists for this day (vs. just a
+   *  Garmin/Strava actual being shown as `existing`), so this is opt-in. */
+  onDelete?: () => void
 }
 
 /**
@@ -109,7 +113,7 @@ function parsePlannedTime(timeStr: string): number {
   return numMatch ? parseInt(numMatch[1]) : 0
 }
 
-export default function ManualLog({ dayLabel, existing, planned, weekNum, onSave, onClose }: ManualLogProps) {
+export default function ManualLog({ dayLabel, existing, planned, weekNum, onSave, onClose, onDelete }: ManualLogProps) {
   const isStrength = existing?.strengthLog?.length
     || existing?.type?.toLowerCase().includes('strength')
     || existing?.name?.toLowerCase().includes('strength')
@@ -451,6 +455,20 @@ export default function ManualLog({ dayLabel, existing, planned, weekNum, onSave
           >
             {existing ? 'Update' : 'Save Workout'}
           </button>
+
+          {onDelete && (
+            <button
+              onClick={() => {
+                if (window.confirm('Delete this manual log entry? Garmin/Strava data for this day will remain.')) {
+                  onDelete()
+                  onClose()
+                }
+              }}
+              className="w-full font-semibold py-2.5 rounded-xl transition-colors mt-2 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-900 hover:bg-red-50 dark:hover:bg-red-950"
+            >
+              🗑 Delete manual log
+            </button>
+          )}
         </div>
 
         <div className="h-6" />
