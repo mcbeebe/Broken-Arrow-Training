@@ -417,7 +417,7 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
     const snap = buildCoachSnapshot({
       athleteProfile: effectiveAthlete,
       race: activePlan.race,
-      zones: activePlan.zones,
+      zones: hrZones.zones,
       raceDistanceMiles: activePlan.race.distanceMiles,
       raceElevationFt: parseInt((activePlan.race.elevation || '0').replace(/[^0-9]/g, ''), 10) || 0,
       currentWeekNum,
@@ -452,6 +452,7 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
     coachEnabled,
     effectiveAthlete,
     activePlan.race,
+    hrZones.zones,
     currentWeekNum,
     weeks,
     todayPlannedWorkout,

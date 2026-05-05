@@ -328,7 +328,7 @@ export default function Settings({
 
       {/* ── Training Methodology section ── */}
       <SettingsSection title="Training Methodology">
-        <Methodology />
+        <Methodology zones={hrZones} />
       </SettingsSection>
 
       {/* ── MIM Calibration ── */}

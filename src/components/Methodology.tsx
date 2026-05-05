@@ -1,6 +1,11 @@
 import { useState } from 'react'
+import type { HRZone } from '../types'
 
-export default function Methodology() {
+interface MethodologyProps {
+  zones?: HRZone[]
+}
+
+export default function Methodology({ zones }: MethodologyProps = {}) {
   return (
     <div className="px-4 py-4 space-y-5 pb-8">
       <h2 className="text-xl font-bold text-slate-800 dark:text-white">Training Philosophy</h2>
@@ -111,10 +116,20 @@ export default function Methodology() {
           regardless of terrain or conditions.
         </p>
         <div className="bg-white dark:bg-slate-800 rounded-xl p-3 border border-slate-100 dark:border-slate-700 space-y-1.5 text-base">
-          <div className="flex justify-between"><strong>Z1 (108-128)</strong><span>Recovery / warm-up</span></div>
-          <div className="flex justify-between"><strong>Z2 (128-148)</strong><span>Aerobic base (80% of training)</span></div>
-          <div className="flex justify-between"><strong>Z3 (148-167)</strong><span>Tempo / sustained effort</span></div>
-          <div className="flex justify-between"><strong>Z4 (167-177)</strong><span>Threshold / hard intervals</span></div>
+          {zones && zones.length > 0 ? (
+            zones.map((z) => (
+              <div key={z.zone} className="flex justify-between">
+                <strong>{z.zone} ({z.hr})</strong><span>{z.desc}</span>
+              </div>
+            ))
+          ) : (
+            <>
+              <div className="flex justify-between"><strong>Z1 (108-128)</strong><span>Recovery / warm-up</span></div>
+              <div className="flex justify-between"><strong>Z2 (128-148)</strong><span>Aerobic base (80% of training)</span></div>
+              <div className="flex justify-between"><strong>Z3 (148-167)</strong><span>Tempo / sustained effort</span></div>
+              <div className="flex justify-between"><strong>Z4 (167-177)</strong><span>Threshold / hard intervals</span></div>
+            </>
+          )}
         </div>
         <Citation
           text="Heart rate monitoring provides a practical, real-time index of exercise intensity that accounts for environmental and terrain variables."
