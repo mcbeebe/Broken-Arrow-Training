@@ -256,6 +256,16 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
     return currentWeekDays.findIndex(d => d.day.includes(dayLabel))
   }, [currentWeekDays])
 
+  // Planned days from tomorrow forward through the next ~10 days. Drives the
+  // soreness alert's "next quad-loading session" callout.
+  const upcomingPlannedDays = useMemo(() => {
+    const remainingThisWeek = todayDayIndex >= 0
+      ? currentWeekDays.slice(todayDayIndex + 1)
+      : currentWeekDays
+    const nextWeek = weeks.find(w => w.num === currentWeekNum + 1)?.days ?? []
+    return [...remainingThisWeek, ...nextWeek]
+  }, [currentWeekDays, todayDayIndex, weeks, currentWeekNum])
+
   // Extract RPE ratings and manual exercise load from actuals
   const { rpeByDate, exerciseLoadByDate } = useMemo(() => {
     const rpeMap = new Map<string, number>()
@@ -347,6 +357,7 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
     actualHRByDate,
     runGAPByActivity,
     eccentricByActivity,
+    upcomingPlannedDays,
   })
 
   // Today's health data for banner

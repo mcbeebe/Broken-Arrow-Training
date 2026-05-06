@@ -647,11 +647,44 @@ export function checkEscalatingSoreness(
   }
 }
 
+/**
+ * Scan upcoming planned days for the next quad-loading session
+ * (eccentric strength, plyo/bounding, downhill-heavy long runs).
+ * Returns null if none found in the window.
+ */
+export function findNextQuadLoadingSession(
+  daysAhead: PlannedDay[],
+): { day: string; workout: string } | null {
+  const QUAD_KEYWORDS = /\b(bound(?:ing)?|plyo|depth\s*jump|step[- ]?down|eccentric|nordic|drop\s*jump|downhill|descent|split\s*squat|bulgarian|step[- ]?up)\b/i
+  for (const d of daysAhead) {
+    if (!d || d.type === 'rest' || d.type === 'travel') continue
+    const haystack = `${d.workout} ${d.detail}`
+    if (QUAD_KEYWORDS.test(haystack)) {
+      return { day: d.day, workout: d.workout }
+    }
+  }
+  return null
+}
+
+/** Easy/aerobic workouts that don't add meaningful quad-loading. */
+function isLowQuadLoadDay(d: PlannedDay | undefined): boolean {
+  if (!d) return true
+  if (d.type === 'rest' || d.type === 'travel' || d.type === 'limited' || d.type === 'cross') return true
+  // Easy/Z1-2 runs are aerobic; long runs and quality runs can load quads
+  if (d.type === 'run') {
+    const z = (d.zone || '').toLowerCase()
+    return /z1|z2/.test(z) && !/z3|z4|z5/.test(z)
+  }
+  return false
+}
+
 /** Run all risk checks and return a prioritized list of flags. */
 export function checkInjuryRisk(
   healthHistory: GarminHealthData[],
   performance: PerformanceMetrics[],
   sorenessLoadByDate?: Map<string, number>,
+  todayPlanned?: PlannedDay,
+  daysAhead?: PlannedDay[],
 ): RiskFlag[] {
   const flags: RiskFlag[] = []
 
@@ -702,13 +735,28 @@ export function checkInjuryRisk(
     const soreness = checkEscalatingSoreness(sorenessLoadByDate)
     if (soreness.escalating) {
       const severity: RiskFlag['severity'] = soreness.trending && soreness.last >= 35 ? 'alert' : 'warning'
+      const nextQuad = daysAhead ? findNextQuadLoadingSession(daysAhead) : null
+      const todayClear = isLowQuadLoadDay(todayPlanned)
+
+      const todayLine = todayClear
+        ? `Today's ${todayPlanned?.workout ?? 'session'} is fine — easy aerobic work doesn't add quad load.`
+        : `Today's ${todayPlanned?.workout ?? 'session'} loads the quads — drop intensity or swap if soreness is climbing.`
+
+      const watchLine = nextQuad
+        ? ` Watching ${nextQuad.day}'s ${nextQuad.workout} — if soreness is still trending up tomorrow, that's the one we cut.`
+        : ` If soreness keeps climbing, the next quad-loading session (heavy squats, bounding, downhill) gets pulled.`
+
+      const trendLine = soreness.trending
+        ? `Soreness has been elevated and trending up for 3 days — classic eccentric-overload signal.`
+        : `Elevated soreness on ${soreness.elevatedDays}/5 recent days — recovery lagging behind training stimulus.`
+
+      const title = todayClear ? 'Quad-loading at risk' : 'Muscle soreness escalating'
+
       flags.push({
         id: 'escalating_soreness',
         severity,
-        title: 'Muscle soreness escalating',
-        message: soreness.trending
-          ? `Soreness has been elevated and trending up for 3 days. This is a classic eccentric-overload signal — back off quad-loading work (heavy squats, downhill running) for 1–2 days.`
-          : `Elevated soreness on ${soreness.elevatedDays}/5 recent days. Recovery is lagging behind training stimulus. Consider an easy day or mobility session.`,
+        title,
+        message: `${trendLine} ${todayLine}${watchLine}`,
         metric: `soreness adj +${soreness.last}`,
       })
     }

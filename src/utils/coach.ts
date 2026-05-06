@@ -80,12 +80,15 @@ export function generateMorningCoach(
     }
   }
 
-  // GREEN + State A: execute as planned
+  // GREEN + State A: execute as planned. GREEN spans display scores ~56–80,
+  // so distinguish lower-band (cleared but not fresh) from upper-band (solid)
+  // rather than calling the whole range "Good recovery".
   if (status === 'GREEN' && state === 'A') {
+    const recoveryLabel = displayScore >= 70 ? 'Solid recovery' : 'Cleared to train'
     return {
       timeOfDay: 'morning',
       headline: `Green light — ${workoutName} as planned`,
-      body: `Good recovery (${displayScore}/100). Execute your ${workoutName} as written.${components.sleep >= 1 ? ' Good sleep is fueling today.' : ''}`,
+      body: `${recoveryLabel} (${displayScore}/100). Execute your ${workoutName} as written.${components.sleep >= 1 ? ' Good sleep is fueling today.' : ''}`,
       action: { type: 'execute', label: 'Execute as planned', detail: 'Normal intensity' },
       inputs,
     }

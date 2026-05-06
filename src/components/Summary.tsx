@@ -328,9 +328,6 @@ export default function Summary({
         )
       })()}
 
-      {/* Injury risk alerts — only renders when active flags present */}
-      {riskFlags.length > 0 && <SummaryRiskFlags flags={riskFlags} />}
-
       {/* Unified daily briefing: coach + readiness + why */}
       {garminConnected && todayScore ? (
         <TodayBriefing
@@ -354,6 +351,9 @@ export default function Summary({
           </p>
         </div>
       )}
+
+      {/* Forward-looking risk alerts — only renders when active flags present */}
+      {riskFlags.length > 0 && <SummaryRiskFlags flags={riskFlags} />}
 
       {/* Quick performance snapshot with scale bars */}
       {latestPerf && (() => {
