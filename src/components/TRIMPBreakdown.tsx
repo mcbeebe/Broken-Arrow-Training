@@ -1,6 +1,9 @@
+import { useState } from 'react'
 import type { DailyTRIMP } from '../types'
 import { localDateStr } from '../utils/format'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
+
+export type TRIMPRange = '7d' | '30d' | '90d' | 'ytd' | 'all'
 
 interface TRIMPBreakdownProps {
   dailyTrimp: DailyTRIMP[]
@@ -11,6 +14,10 @@ interface TRIMPBreakdownProps {
    *  soreness check-in covers the same physiological signal as the
    *  prediction, only the larger of the two contributes to day total. */
   domsCarryByDate?: Map<string, number>
+  /** Externally-controlled range. When omitted, the chart renders its own
+   *  toggle (7d / 30d / 90d / YTD) and defaults to 7d. */
+  range?: TRIMPRange
+  onRangeChange?: (r: TRIMPRange) => void
 }
 
 const SPORT_COLORS: Record<string, string> = {
@@ -46,15 +53,47 @@ const MANUAL_EXERCISE_COLOR = '#F59E0B'
 const DOMS_COLOR = '#FB923C'
 const SORENESS_COLOR = '#F87171'
 
-function getLast7Days(): string[] {
-  const days: string[] = []
+function getRangeDays(range: TRIMPRange, dailyTrimp: DailyTRIMP[]): string[] {
   const today = new Date()
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date(today)
-    d.setDate(d.getDate() - i)
-    days.push(localDateStr(d))
+  const days: string[] = []
+
+  let startDate: Date
+  if (range === '7d') {
+    startDate = new Date(today)
+    startDate.setDate(today.getDate() - 6)
+  } else if (range === '30d') {
+    startDate = new Date(today)
+    startDate.setDate(today.getDate() - 29)
+  } else if (range === '90d') {
+    startDate = new Date(today)
+    startDate.setDate(today.getDate() - 89)
+  } else if (range === 'ytd') {
+    startDate = new Date(today.getFullYear(), 0, 1)
+  } else {
+    // 'all' — earliest date in dailyTrimp, or default to 90d ago if empty
+    if (dailyTrimp.length === 0) {
+      startDate = new Date(today)
+      startDate.setDate(today.getDate() - 89)
+    } else {
+      const earliest = [...dailyTrimp].sort((a, b) => a.date.localeCompare(b.date))[0].date
+      startDate = new Date(earliest + 'T00:00:00')
+    }
+  }
+
+  const cursor = new Date(startDate)
+  while (cursor <= today) {
+    days.push(localDateStr(cursor))
+    cursor.setDate(cursor.getDate() + 1)
   }
   return days
+}
+
+const RANGE_LABELS: Record<TRIMPRange, { tab: string; title: string; total: string }> = {
+  '7d':  { tab: '7d',  title: '7-Day Training Load',         total: 'Weekly Load' },
+  '30d': { tab: '30d', title: '30-Day Training Load',        total: '30-Day Total' },
+  '90d': { tab: '90d', title: '90-Day Training Load',        total: '90-Day Total' },
+  'ytd': { tab: 'YTD', title: 'Year-to-Date Training Load',  total: 'YTD Total' },
+  'all': { tab: 'All', title: 'Training Load',               total: 'Total Load' },
 }
 
 interface Breakdown {
@@ -68,20 +107,37 @@ interface Breakdown {
   dayTotal: number
 }
 
-export default function TRIMPBreakdown({ dailyTrimp, sorenessLoadByDate, rpeByDate, exerciseLoadByDate, domsCarryByDate }: TRIMPBreakdownProps) {
-  const last7Days = getLast7Days()
+export default function TRIMPBreakdown({
+  dailyTrimp,
+  sorenessLoadByDate,
+  rpeByDate,
+  exerciseLoadByDate,
+  domsCarryByDate,
+  range: controlledRange,
+  onRangeChange,
+}: TRIMPBreakdownProps) {
+  const [internalRange, setInternalRange] = useState<TRIMPRange>('7d')
+  const range = controlledRange ?? internalRange
+  const setRange = (r: TRIMPRange) => {
+    if (controlledRange === undefined) setInternalRange(r)
+    onRangeChange?.(r)
+  }
+  const showRangeToggle = controlledRange === undefined
+
+  const rangeDays = getRangeDays(range, dailyTrimp)
 
   // Build a lookup from existing TRIMP data
   const trimpByDate = new Map(dailyTrimp.map(d => [d.date, d]))
 
-  // Fill all 7 days, including rest days with 0
-  const filledDays: DailyTRIMP[] = last7Days.map(date => {
+  // Fill every day in range, including rest days with 0
+  const filledDays: DailyTRIMP[] = rangeDays.map(date => {
     const existing = trimpByDate.get(date)
     if (existing) return existing
     return { date, total: 0, records: [] }
   })
 
-  const weeklyTotal = Math.round(filledDays.reduce((s, d) => s + d.total, 0))
+  const rangeTotal = Math.round(filledDays.reduce((s, d) => s + d.total, 0))
+  const labels = RANGE_LABELS[range]
 
   // Per-day decomposition. After useReadiness applies its dedup logic:
   //   day.total = (recordSum + exerciseLoad) × rpeMult
@@ -91,7 +147,9 @@ export default function TRIMPBreakdown({ dailyTrimp, sorenessLoadByDate, rpeByDa
   // useReadiness) so the chart matches the hook's source of truth, and
   // splits "DOMS carry-over (predicted)" from "muscle soreness above
   // prediction" in the tooltip when both apply.
-  const breakdownByMMDD = new Map<string, Breakdown>()
+  // Keyed on full ISO date so 30d/90d/all ranges that cross a year boundary
+  // (e.g. mid-January) don't collide on bare MM-DD keys.
+  const breakdownByDate = new Map<string, Breakdown>()
   for (const day of filledDays) {
     const recordSum = day.records.reduce((s, r) => s + r.adjustedTRIMP, 0)
     const exerciseLoad = exerciseLoadByDate?.get(day.date) ?? 0
@@ -100,7 +158,7 @@ export default function TRIMPBreakdown({ dailyTrimp, sorenessLoadByDate, rpeByDa
     const rpeDelta = (recordSum + exerciseLoad) * (rpeMult - 1)
     const sorenessAdj = sorenessLoadByDate?.get(day.date) ?? 0
     const domsCarry = domsCarryByDate?.get(day.date) ?? 0
-    breakdownByMMDD.set(day.date.slice(5), {
+    breakdownByDate.set(day.date, {
       records: day.records.map(r => ({ sportType: r.sportType, trimp: r.adjustedTRIMP })),
       exerciseLoad,
       rpeValue,
@@ -118,9 +176,10 @@ export default function TRIMPBreakdown({ dailyTrimp, sorenessLoadByDate, rpeByDa
   // and soreness are de-duplicated: when both apply, the bar shows the full
   // DOMS prediction plus only the *excess* soreness above prediction.
   const chartData = filledDays.map(day => {
-    const bd = breakdownByMMDD.get(day.date.slice(5))!
+    const bd = breakdownByDate.get(day.date)!
     const entry: Record<string, string | number> = {
       date: day.date.slice(5),
+      fullDate: day.date,
       _isRest: bd.dayTotal === 0 ? 1 : 0,
     }
     for (const r of bd.records) {
@@ -161,26 +220,53 @@ export default function TRIMPBreakdown({ dailyTrimp, sorenessLoadByDate, rpeByDa
     if (entry['soreness']) hasSoreness = true
   }
 
+  const rangeOptions: TRIMPRange[] = ['7d', '30d', '90d', 'ytd']
+
   return (
     <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-100">
       <div className="flex items-baseline justify-between mb-3">
         <div>
-          <p className="text-base font-semibold text-slate-700">7-Day Training Load</p>
+          <p className="text-base font-semibold text-slate-700">{labels.title}</p>
           <p className="text-sm text-slate-500">Garmin EPOC · MIM-adjusted · DOMS &amp; soreness</p>
         </div>
         <div className="text-right">
-          <p className="text-2xl font-bold text-slate-800">{weeklyTotal}</p>
-          <p className="text-xs text-slate-500 uppercase">Weekly Load</p>
+          <p className="text-2xl font-bold text-slate-800">{rangeTotal}</p>
+          <p className="text-xs text-slate-500 uppercase">{labels.total}</p>
         </div>
       </div>
+      {showRangeToggle && (
+        <div className="flex gap-1 bg-slate-100 dark:bg-slate-700 rounded-lg p-0.5 mb-3">
+          {rangeOptions.map(r => (
+            <button
+              key={r}
+              onClick={() => setRange(r)}
+              className={`flex-1 text-xs font-medium py-1.5 rounded-md transition-colors ${
+                range === r
+                  ? 'bg-white dark:bg-slate-600 text-slate-800 dark:text-white shadow-sm'
+                  : 'text-slate-500 dark:text-slate-400'
+              }`}
+            >
+              {RANGE_LABELS[r].tab}
+            </button>
+          ))}
+        </div>
+      )}
       <div style={{ height: 180 }}>
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={chartData} barCategoryGap="15%">
+          <BarChart
+            data={chartData}
+            barCategoryGap={range === '7d' ? '15%' : '5%'}
+          >
             <XAxis
               dataKey="date"
               tick={{ fontSize: 12, fill: '#94A3B8' }}
               axisLine={false}
               tickLine={false}
+              interval={
+                range === '7d' ? 0
+                : range === '30d' ? Math.max(0, Math.floor(chartData.length / 6) - 1)
+                : 'preserveStartEnd'
+              }
             />
             <YAxis
               tick={{ fontSize: 12, fill: '#94A3B8' }}
@@ -192,10 +278,16 @@ export default function TRIMPBreakdown({ dailyTrimp, sorenessLoadByDate, rpeByDa
               contentStyle={{ fontSize: 13, borderRadius: 8 }}
               itemSorter={() => 0}
               content={(props) => {
-                const { active, label } = props as { active?: boolean; label?: string | number }
-                if (!active || label == null) return null
-                const bd = breakdownByMMDD.get(String(label))
+                const { active, payload, label } = props as unknown as {
+                  active?: boolean
+                  payload?: ReadonlyArray<{ payload?: { fullDate?: string } }>
+                  label?: string | number
+                }
+                if (!active || !payload?.length) return null
+                const fullDate = payload[0]?.payload?.fullDate
+                const bd = fullDate ? breakdownByDate.get(fullDate) : undefined
                 if (!bd || bd.dayTotal <= 0) return null
+                const tooltipLabel = String(label ?? fullDate?.slice(5) ?? '')
 
                 interface Row { swatch: string; name: string; value: number; signed?: boolean; subtitle?: string }
                 const rows: Row[] = []
@@ -258,7 +350,7 @@ export default function TRIMPBreakdown({ dailyTrimp, sorenessLoadByDate, rpeByDa
 
                 return (
                   <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-md px-3 py-2 text-[13px]">
-                    <p className="font-semibold text-slate-700 dark:text-slate-200 mb-1">{label}</p>
+                    <p className="font-semibold text-slate-700 dark:text-slate-200 mb-1">{tooltipLabel}</p>
                     {rows.map((r, i) => (
                       <div key={i}>
                         <div className="flex items-center gap-2">
@@ -333,16 +425,19 @@ export default function TRIMPBreakdown({ dailyTrimp, sorenessLoadByDate, rpeByDa
         </ResponsiveContainer>
       </div>
 
-      {/* Day labels with rest day indicators */}
-      <div className="flex gap-1.5 mt-1 px-[30px]">
-        {filledDays.map((day, i) => (
-          <div key={i} className="flex-1 text-center">
-            {day.total === 0 && (
-              <span className="text-xs text-slate-400 italic">Rest</span>
-            )}
-          </div>
-        ))}
-      </div>
+      {/* Day labels with rest day indicators — only readable at 7d. For
+          longer ranges, individual rest tags would overflow the row. */}
+      {range === '7d' && (
+        <div className="flex gap-1.5 mt-1 px-[30px]">
+          {filledDays.map((day, i) => (
+            <div key={i} className="flex-1 text-center">
+              {day.total === 0 && (
+                <span className="text-xs text-slate-400 italic">Rest</span>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Legend */}
       <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2">

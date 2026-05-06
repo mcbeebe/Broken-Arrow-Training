@@ -419,7 +419,6 @@ function PerformanceTab({
 }) {
   const [timeWindow, setTimeWindow] = useState<TimeWindow>('all')
   const filteredPerformance = useMemo(() => filterByTimeWindow(performance, timeWindow), [performance, timeWindow])
-  const filteredTrimp = useMemo(() => filterByTimeWindow(dailyTrimp, timeWindow), [dailyTrimp, timeWindow])
   return (
     <div className="space-y-4">
       <RiskFlagsCard flags={riskFlags} />
@@ -430,7 +429,11 @@ function PerformanceTab({
         raceDate={raceDate}
         dailyTrimp={dailyTrimp}
       />
-      <TRIMPBreakdown dailyTrimp={filteredTrimp} sorenessLoadByDate={sorenessLoadByDate} />
+      <TRIMPBreakdown
+        dailyTrimp={dailyTrimp}
+        sorenessLoadByDate={sorenessLoadByDate}
+        range={timeWindow}
+      />
       <PerformanceGlossary />
     </div>
   )
