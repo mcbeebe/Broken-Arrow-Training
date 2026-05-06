@@ -428,7 +428,7 @@ function PerformanceTab({
         performance={filteredPerformance}
         recommendations={recommendations}
         raceDate={raceDate}
-        dailyTrimp={filteredTrimp}
+        dailyTrimp={dailyTrimp}
       />
       <TRIMPBreakdown dailyTrimp={filteredTrimp} sorenessLoadByDate={sorenessLoadByDate} />
       <PerformanceGlossary />
