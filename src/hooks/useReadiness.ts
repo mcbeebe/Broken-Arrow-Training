@@ -62,6 +62,10 @@ interface UseReadinessProps {
    *  to compute research-backed DOMS carry from actual descent damage
    *  instead of the static T4 per-sport coefficient. */
   eccentricByActivity?: Record<string, { averageScore: number }>
+  /** Upcoming planned days from today onward (typically the rest of the
+   *  current week + next week). Used by `checkInjuryRisk` to name the next
+   *  quad-loading session in the soreness alert. */
+  upcomingPlannedDays?: PlannedDay[]
 }
 
 export interface UseReadinessReturn {
@@ -102,6 +106,7 @@ export function useReadiness({
   actualHRByDate,
   runGAPByActivity,
   eccentricByActivity,
+  upcomingPlannedDays,
 }: UseReadinessProps): UseReadinessReturn {
 
   // Get resting HR from latest Garmin data. Filter out 0/garbage values
@@ -267,8 +272,14 @@ export function useReadiness({
 
   // Proactive injury risk flags (HRV slope, ACWR acceleration, recovery failure, escalating soreness)
   const riskFlags = useMemo(
-    () => checkInjuryRisk(healthData, performance, sorenessLoadByDate),
-    [healthData, performance, sorenessLoadByDate],
+    () => checkInjuryRisk(
+      healthData,
+      performance,
+      sorenessLoadByDate,
+      todayPlannedWorkout,
+      upcomingPlannedDays,
+    ),
+    [healthData, performance, sorenessLoadByDate, todayPlannedWorkout, upcomingPlannedDays],
   )
 
   // Calculate baselines from health history
