@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { PerformanceMetrics, WeeklyRecommendation, DailyTRIMP } from '../types'
 import { getTSBState, getTSBLabel, getACWRRisk, getACWRLabel } from '../utils/performance'
+import { localDateStr } from '../utils/format'
 import {
   ComposedChart, Area, XAxis, YAxis, Tooltip,
   ResponsiveContainer, ReferenceLine, ReferenceArea, CartesianGrid,
@@ -46,16 +47,24 @@ export default function PerformanceChart({
   const tsbState = getTSBState(latest.tsb)
   const acwrRisk = getACWRRisk(latest.acwr)
 
-  // Index daily TRIMP by date for fast lookup
+  // Index daily TRIMP by date for fast lookup. Caller passes the FULL
+  // unfiltered dailyTrimp so the rolling 7-day sum has correct lookback
+  // even when `performance` has been sliced to a short time window.
   const loadByDate = new Map(dailyTrimp.map(d => [d.date, d.total]))
 
   // Prepare chart data — smooth for regular view, full detail for expanded
-  const rawData = performance.map((m, i, arr) => {
+  const rawData = performance.map((m) => {
     const dailyLoad = loadByDate.get(m.date) ?? 0
-    // 7-day trailing sum: sum of this day + previous 6 days
-    let trailingLoad = dailyLoad
-    for (let j = 1; j < 7 && i - j >= 0; j++) {
-      trailingLoad += loadByDate.get(arr[i - j].date) ?? 0
+    // 7-day trailing sum: walk back by calendar date (not array index) so
+    // the lookback crosses the start of the visible window into the
+    // unfiltered history. Use local-date formatting — toISOString shifts
+    // dates by ±1 outside UTC.
+    const baseDate = new Date(m.date + 'T00:00:00')
+    let trailingLoad = 0
+    for (let j = 0; j < 7; j++) {
+      const d = new Date(baseDate)
+      d.setDate(d.getDate() - j)
+      trailingLoad += loadByDate.get(localDateStr(d)) ?? 0
     }
     return {
       ...m,

@@ -75,6 +75,10 @@ export function materialFields(surface: string, snapshot: CoachSnapshot): unknow
     persona: persona
       ? { name: persona.name?.trim() || '', traits: [...(persona.traits || [])].sort() }
       : null,
+    // HR zone HR ranges are baked into the system prompt, so a settings
+    // change must bust the cache — otherwise the user keeps seeing an
+    // insight that quotes their old zones for up to 48h.
+    zones: snapshot.zones?.map(z => z.hr) ?? null,
   }
 }
 

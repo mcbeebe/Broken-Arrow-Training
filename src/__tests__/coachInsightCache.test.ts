@@ -88,6 +88,24 @@ describe('materialFields', () => {
     )
   })
 
+  it('busts cache when HR zones change in settings', () => {
+    const z148 = snap({
+      zones: [
+        { zone: 'Z1', hr: '108-128', pct: '55-65%', desc: '' },
+        { zone: 'Z2', hr: '128-148', pct: '65-75%', desc: '' },
+      ],
+    })
+    const z150 = snap({
+      zones: [
+        { zone: 'Z1', hr: '108-128', pct: '55-65%', desc: '' },
+        { zone: 'Z2', hr: '128-150', pct: '65-75%', desc: '' },
+      ],
+    })
+    expect(hashFields(materialFields('daily', z148))).not.toBe(
+      hashFields(materialFields('daily', z150)),
+    )
+  })
+
   it('busts cache when today\'s workout becomes actual-logged', () => {
     const before = snap()
     const after = snap({
