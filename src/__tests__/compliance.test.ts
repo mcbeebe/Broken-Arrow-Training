@@ -140,6 +140,29 @@ describe('gradeWorkoutDay — HR grading', () => {
     expect(result.hrGrade).toBe('na')
     expect(result.hrInZonePct).toBeUndefined()
   })
+
+  it('grades a Z4 bike workout against a sport-shifted target band', () => {
+    // Plan: running Z4 (167–177). Athlete swapped in indoor cycling.
+    // Cycling pushes typically sit ~10 bpm below the running zone, so
+    // an avg of 162 bpm (sustained Z4 cycling) should grade as hit, not
+    // a miss for being below the running band.
+    const day = mkDay({
+      type: 'quality',
+      zone: '4.0 mi · Z4 (167–177)',
+      actual: mkActual({
+        type: 'indoor_cycling',
+        name: 'Indoor Cycling',
+        distance: 0,
+        avgHR: 162,
+      }),
+    })
+    const cyclingTargets = parsePlannedTargets(day, 'cycling')
+    const result = gradeWorkoutDay(day, cyclingTargets)
+    // Shifted band 157–167 → 162 is in zone → hit
+    expect(cyclingTargets.hrLow).toBe(157)
+    expect(cyclingTargets.hrHigh).toBe(167)
+    expect(result.hrGrade).toBe('hit')
+  })
 })
 
 describe('gradeWorkoutDay — duration grading', () => {

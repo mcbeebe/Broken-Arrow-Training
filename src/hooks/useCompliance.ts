@@ -3,6 +3,7 @@ import type { TrainingWeek, PlannedDay, DayCompliance, ComplianceGrade } from '.
 import { getMilesNumber } from '../utils/format'
 import { parsePlannedTargets } from '../utils/targets'
 import { HR_ZONE_TOLERANCE_BPM } from '../utils/zones'
+import { mapToSportType } from '../utils/trimp'
 
 export interface WeekCompliance {
   weekNum: number
@@ -77,7 +78,15 @@ function computeCompliance(weeks: TrainingWeek[]): OverallCompliance {
     const dayComplianceList: DayCompliance[] = []
 
     for (const day of week.days) {
-      const targets = parsePlannedTargets(day)
+      const actualSport = day.actual
+        ? mapToSportType(day.actual.type, {
+            name: day.actual.name,
+            avgHR: day.actual.avgHR,
+            elevationGainFt: day.actual.elevationGain,
+            distanceMi: day.actual.distance,
+          })
+        : undefined
+      const targets = parsePlannedTargets(day, actualSport)
 
       if (REST_TYPES.has(day.type)) {
         restDays++

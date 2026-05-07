@@ -6,7 +6,7 @@ import { parsePlannedTargets } from '../utils/targets'
 import { gradeWorkoutDay } from '../hooks/useCompliance'
 import { getPlannedDrills, getDrillDay } from '../utils/drills'
 import { calculateGrade } from '../utils/grading'
-import { classifyRun, getSportMultiplier, calculateElevationBonus } from '../utils/trimp'
+import { classifyRun, getSportMultiplier, calculateElevationBonus, mapToSportType } from '../utils/trimp'
 import { SPORT_LABELS } from '../hooks/useMIMCalibration'
 import { generateDayCardNote } from '../utils/coachNotes'
 import { useCoachInsight } from '../hooks/useCoachInsight'
@@ -257,7 +257,13 @@ export default function DayCard({ day, weekNum, onTap, onLog, onSwap, isSwapSele
 
         {/* Target vs Actual compliance grid (renders if targets parseable & workout done) */}
         {!cardCollapsed && actual && (() => {
-          const targets = parsePlannedTargets(day)
+          const actualSport = mapToSportType(actual.type, {
+            name: actual.name,
+            avgHR: actual.avgHR,
+            elevationGainFt: actual.elevationGain,
+            distanceMi: actual.distance,
+          })
+          const targets = parsePlannedTargets(day, actualSport)
           const hasTargets = targets.distanceMi !== undefined
             || targets.durationMin !== undefined
             || targets.hrLow !== undefined

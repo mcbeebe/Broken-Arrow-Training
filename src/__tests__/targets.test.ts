@@ -145,4 +145,31 @@ describe('parsePlannedTargets', () => {
     expect(t.distanceMi).toBe(8.0)
     expect(t.durationMin).toBe(150)
   })
+
+  it('shifts HR target band down for cycling actuals', () => {
+    // Plan was a Z4 running interval (167–177); athlete completed it as
+    // indoor cycling, where steady-state HR is ~10 bpm lower at the same
+    // perceived effort. Target band should shift to 157–167.
+    const t = parsePlannedTargets(
+      mkDay({ type: 'quality', zone: '4.0 mi · Z4 (167–177)' }),
+      'cycling',
+    )
+    expect(t.hrLow).toBe(157)
+    expect(t.hrHigh).toBe(167)
+  })
+
+  it('leaves HR target band unchanged for running actuals', () => {
+    const t = parsePlannedTargets(mkDay({}), 'running')
+    expect(t.hrLow).toBe(108)
+    expect(t.hrHigh).toBe(148)
+  })
+
+  it('shifts HR band further for swimming', () => {
+    const t = parsePlannedTargets(
+      mkDay({ zone: 'Z2 (128–148)', type: 'cross' }),
+      'swimming',
+    )
+    expect(t.hrLow).toBe(116)
+    expect(t.hrHigh).toBe(136)
+  })
 })

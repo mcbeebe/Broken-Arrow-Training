@@ -16,6 +16,7 @@ import { cacheRunGAP, computeStreamGAPMIM } from '../utils/runGAP'
 import { computeEccentricLoad } from '../engines/descent/eccentric'
 import { cacheEccentric, getCachedEccentric, type CachedEccentric } from '../utils/runEccentric'
 import { SPORT_LABELS } from '../hooks/useMIMCalibration'
+import { adjustZoneStringForSport } from '../utils/zones'
 import HRChart from './HRChart'
 import PaceChart from './PaceChart'
 import ElevationChart from './ElevationChart'
@@ -718,16 +719,25 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
               })()}
 
               {/* HR Stream Chart */}
-              {stream && stream.heartrate.length > 0 && (
-                <div className="mt-2">
-                  <HRChart
-                    stream={stream}
-                    zones={zones}
-                    targetZone={day.zone}
-                    sportType={trimpRecord?.sportType ?? (actual ? mapToSportType(actual.type || '', { name: actual.name, elevationGainFt: actual.elevationGain, distanceMi: actual.distance }) : undefined)}
-                  />
-                </div>
-              )}
+              {stream && stream.heartrate.length > 0 && (() => {
+                const inferredSport = trimpRecord?.sportType
+                  ?? (actual ? mapToSportType(actual.type || '', { name: actual.name, elevationGainFt: actual.elevationGain, distanceMi: actual.distance }) : undefined)
+                // Plan zones are calibrated to running. Shift the target band
+                // for sports with lower steady-state HR at equivalent effort
+                // (cycling, swimming, etc.) so the compliance ring and the
+                // minute-by-minute table grade against an achievable zone.
+                const adjustedTargetZone = adjustZoneStringForSport(day.zone, inferredSport)
+                return (
+                  <div className="mt-2">
+                    <HRChart
+                      stream={stream}
+                      zones={zones}
+                      targetZone={adjustedTargetZone}
+                      sportType={inferredSport}
+                    />
+                  </div>
+                )
+              })()}
               {stream && stream.altitude && stream.altitude.some(a => a > 0) && (
                 <ElevationChart stream={stream} />
               )}

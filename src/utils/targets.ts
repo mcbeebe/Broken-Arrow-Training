@@ -1,5 +1,6 @@
-import type { PlannedDay, PlannedTargets } from '../types'
+import type { PlannedDay, PlannedTargets, SportType } from '../types'
 import { getPlannedDrills } from './drills'
+import { getSportHRZoneOffset } from './zones'
 
 // ─── Target Parser ──────────────────────────────────────────────
 // Derives structured numeric targets (distance/duration/HR range/elevation)
@@ -88,15 +89,22 @@ const RUN_TYPES_FOR_RANGE = new Set(['run', 'long', 'quality', 'race'])
 
 /**
  * Derive all structured targets for a single day.
+ *
+ * `actualSportType` lets the grader shift the HR target band when the
+ * athlete completed the workout in a non-running sport (e.g. swapped a
+ * run for an indoor bike session). Plan HR zones are calibrated to
+ * running; cycling/swimming/etc. have lower steady-state HR at the same
+ * effort, so we apply a sport-specific offset.
  */
-export function parsePlannedTargets(day: PlannedDay): PlannedTargets {
+export function parsePlannedTargets(day: PlannedDay, actualSportType?: SportType): PlannedTargets {
   const targets: PlannedTargets = {}
   const distance = parseDistance(day.zone)
   if (distance !== undefined) targets.distanceMi = distance
   const hr = parseHRRange(day.zone)
   if (hr) {
-    targets.hrLow = hr.low
-    targets.hrHigh = hr.high
+    const offset = getSportHRZoneOffset(actualSportType)
+    targets.hrLow = hr.low - offset
+    targets.hrHigh = hr.high - offset
   }
   const duration = parseDuration(day.time)
   if (duration !== undefined) targets.durationMin = duration

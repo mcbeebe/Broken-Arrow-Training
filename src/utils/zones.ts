@@ -1,6 +1,46 @@
-import type { HRZone } from '../types'
+import type { HRZone, SportType } from '../types'
 
 export const HR_ZONE_TOLERANCE_BPM = 3
+
+// Plan HR zones are calibrated to running. At equivalent perceived effort,
+// steady-state HR is lower in sports that engage less muscle mass or support
+// body weight (saddle, water). Joe Friel's rule of thumb: cycling LTHR ≈
+// running LTHR − 10 bpm; swimming runs even lower due to horizontal posture
+// and water cooling. We shift the workout's target HR band by this offset
+// when the actual sport differs from running, so a Z4 bike interval isn't
+// graded against a target band the rider physiologically can't reach.
+const SPORT_HR_OFFSET_BPM: Partial<Record<SportType, number>> = {
+  cycling: 10,
+  ebike: 10,
+  mountain_biking: 10,
+  rowing: 5,
+  indoor_rowing: 5,
+  elliptical: 5,
+  swimming: 12,
+  lap_swimming: 12,
+  aqua_jogging: 12,
+}
+
+export function getSportHRZoneOffset(sportType?: SportType | string): number {
+  if (!sportType) return 0
+  return SPORT_HR_OFFSET_BPM[sportType as SportType] ?? 0
+}
+
+/**
+ * Shift the parenthesized HR range in a plan zone string downward by the
+ * sport-specific offset. Returns the input unchanged when no offset applies
+ * or no parenthesized range is present.
+ *
+ *   adjustZoneStringForSport('4.0 mi · Z4 (167–177)', 'cycling')
+ *     → '4.0 mi · Z4 (157–167)'
+ */
+export function adjustZoneStringForSport(zoneString: string, sportType?: SportType | string): string {
+  const offset = getSportHRZoneOffset(sportType)
+  if (offset === 0 || !zoneString) return zoneString
+  return zoneString.replace(/\((\d+)(\s*[–-]\s*)(\d+)\)/, (_, low, sep, high) => {
+    return `(${parseInt(low, 10) - offset}${sep}${parseInt(high, 10) - offset})`
+  })
+}
 
 export function getZoneForHR(hr: number, zones: HRZone[]): HRZone | null {
   for (const zone of zones) {

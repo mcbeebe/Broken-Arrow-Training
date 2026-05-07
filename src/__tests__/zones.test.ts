@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { getZoneForHR, parseZoneRange, isInTargetZone } from '../utils/zones'
+import { getZoneForHR, parseZoneRange, isInTargetZone, getSportHRZoneOffset, adjustZoneStringForSport } from '../utils/zones'
 import { mikePlan } from '../data'
 
 const zones = mikePlan.zones
@@ -72,5 +72,50 @@ describe('isInTargetZone', () => {
 
   it('returns false when HR is above range', () => {
     expect(isInTargetZone(160, 128, 148)).toBe(false)
+  })
+})
+
+describe('getSportHRZoneOffset', () => {
+  it('returns 0 for running', () => {
+    expect(getSportHRZoneOffset('running')).toBe(0)
+    expect(getSportHRZoneOffset('trail_running')).toBe(0)
+  })
+
+  it('returns 10 for cycling-class sports', () => {
+    expect(getSportHRZoneOffset('cycling')).toBe(10)
+    expect(getSportHRZoneOffset('mountain_biking')).toBe(10)
+    expect(getSportHRZoneOffset('ebike')).toBe(10)
+  })
+
+  it('returns 12 for swimming', () => {
+    expect(getSportHRZoneOffset('swimming')).toBe(12)
+    expect(getSportHRZoneOffset('lap_swimming')).toBe(12)
+  })
+
+  it('returns 0 for unknown / undefined', () => {
+    expect(getSportHRZoneOffset(undefined)).toBe(0)
+    expect(getSportHRZoneOffset('strength_full')).toBe(0)
+  })
+})
+
+describe('adjustZoneStringForSport', () => {
+  it('shifts the parenthesized HR range down for cycling', () => {
+    expect(adjustZoneStringForSport('4.0 mi · Z4 (167–177)', 'cycling'))
+      .toBe('4.0 mi · Z4 (157–167)')
+  })
+
+  it('preserves dash character (en-dash vs hyphen)', () => {
+    expect(adjustZoneStringForSport('Z2 (128-148)', 'cycling')).toBe('Z2 (118-138)')
+    expect(adjustZoneStringForSport('Z2 (128–148)', 'cycling')).toBe('Z2 (118–138)')
+  })
+
+  it('returns the input unchanged for running', () => {
+    const s = '4.0 mi · Z4 (167–177)'
+    expect(adjustZoneStringForSport(s, 'running')).toBe(s)
+  })
+
+  it('returns the input unchanged when no range is present', () => {
+    expect(adjustZoneStringForSport('—', 'cycling')).toBe('—')
+    expect(adjustZoneStringForSport('Z1', 'cycling')).toBe('Z1')
   })
 })
