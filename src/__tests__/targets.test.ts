@@ -172,4 +172,40 @@ describe('parsePlannedTargets', () => {
     expect(t.hrLow).toBe(116)
     expect(t.hrHigh).toBe(136)
   })
+
+  it('uses athlete-customized HR zones (maxHR override) over plan defaults', () => {
+    // Plan zone string is "Z4 (167–177)" — baked from default maxHR=197.
+    // Athlete bumped maxHR to 200, so their custom Z4 is 170–180. The
+    // grader should resolve the Z4 label against the customized zones.
+    const userZones = [
+      { zone: 'Z1 – Recovery', hr: '110–130', pct: '55–65%', desc: '' },
+      { zone: 'Z2 – Aerobic', hr: '130–150', pct: '65–75%', desc: '' },
+      { zone: 'Z3 – Tempo', hr: '150–170', pct: '75–85%', desc: '' },
+      { zone: 'Z4 – Threshold', hr: '170–180', pct: '85–90%', desc: '' },
+    ]
+    const t = parsePlannedTargets(
+      mkDay({ type: 'quality', zone: '4.0 mi · Z4 (167–177)' }),
+      'running',
+      userZones,
+    )
+    expect(t.hrLow).toBe(170)
+    expect(t.hrHigh).toBe(180)
+  })
+
+  it('stacks customized zones with cycling sport offset', () => {
+    // maxHR=200 + indoor cycling: user's Z4 (170–180) shifted by −10 → 160–170
+    const userZones = [
+      { zone: 'Z1 – Recovery', hr: '110–130', pct: '55–65%', desc: '' },
+      { zone: 'Z2 – Aerobic', hr: '130–150', pct: '65–75%', desc: '' },
+      { zone: 'Z3 – Tempo', hr: '150–170', pct: '75–85%', desc: '' },
+      { zone: 'Z4 – Threshold', hr: '170–180', pct: '85–90%', desc: '' },
+    ]
+    const t = parsePlannedTargets(
+      mkDay({ type: 'quality', zone: '4.0 mi · Z4 (167–177)' }),
+      'cycling',
+      userZones,
+    )
+    expect(t.hrLow).toBe(160)
+    expect(t.hrHigh).toBe(170)
+  })
 })

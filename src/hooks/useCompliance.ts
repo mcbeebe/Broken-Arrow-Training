@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import type { TrainingWeek, PlannedDay, DayCompliance, ComplianceGrade } from '../types'
+import type { TrainingWeek, PlannedDay, DayCompliance, ComplianceGrade, HRZone } from '../types'
 import { getMilesNumber } from '../utils/format'
 import { parsePlannedTargets } from '../utils/targets'
 import { HR_ZONE_TOLERANCE_BPM } from '../utils/zones'
@@ -54,11 +54,11 @@ const CLOSE_BAND = 0.20
 const HR_TIME_IN_ZONE_HIT = 75
 const HR_TIME_IN_ZONE_CLOSE = 50
 
-export function useCompliance(weeks: TrainingWeek[]): OverallCompliance {
-  return useMemo(() => computeCompliance(weeks), [weeks])
+export function useCompliance(weeks: TrainingWeek[], userZones?: HRZone[]): OverallCompliance {
+  return useMemo(() => computeCompliance(weeks, userZones), [weeks, userZones])
 }
 
-function computeCompliance(weeks: TrainingWeek[]): OverallCompliance {
+function computeCompliance(weeks: TrainingWeek[], userZones?: HRZone[]): OverallCompliance {
   const weekStats = weeks.map(week => {
     let completed = 0
     let missed = 0
@@ -86,7 +86,7 @@ function computeCompliance(weeks: TrainingWeek[]): OverallCompliance {
             distanceMi: day.actual.distance,
           })
         : undefined
-      const targets = parsePlannedTargets(day, actualSport)
+      const targets = parsePlannedTargets(day, actualSport, userZones)
 
       if (REST_TYPES.has(day.type)) {
         restDays++

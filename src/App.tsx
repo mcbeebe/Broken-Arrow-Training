@@ -198,7 +198,7 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
     return w
   }, [activePlan.weeks, strava.activities, showStrava, manualLog.applyLogsToWeeks, daySwap.applySwapsToWeeks, planOverrides.applyOverridesToWeeks, garmin.connected, garmin.activityDetails])
 
-  const compliance = useCompliance(weeks)
+  const compliance = useCompliance(weeks, hrZones.zones)
   const raceName = activePlan.race.name || (activePlan.race.distance.includes('18K') ? 'BROKEN ARROW 18K' : 'BROKEN ARROW 11K')
 
   const daysUntilRace = useMemo(() => {

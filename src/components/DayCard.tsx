@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react'
-import type { PlannedDay, ReadinessScore, CoachSnapshot, TRIMPRecord } from '../types'
+import type { PlannedDay, ReadinessScore, CoachSnapshot, TRIMPRecord, HRZone } from '../types'
 import { getWorkoutStyle, adaptBg } from '../utils/styles'
 import { formatMiles, formatSeconds, estimateRunTime } from '../utils/format'
 import { parsePlannedTargets } from '../utils/targets'
@@ -35,9 +35,13 @@ interface DayCardProps {
    *  Surfaces the engine's MIM tier, elevation bonus, and adjusted load
    *  on the card so the athlete can see how the workout was credited. */
   trimpRecord?: TRIMPRecord
+  /** Athlete-customized HR zones (from Settings). When present, the
+   *  grader resolves the plan day's zone label (Z4, Z1-2, …) against
+   *  these zones instead of the plan's hardcoded HR ranges. */
+  userZones?: HRZone[]
 }
 
-export default function DayCard({ day, weekNum, onTap, onLog, onSwap, isSwapSelected, isSwapTarget, readiness, coachEnabled, isToday, isPast, athleteId, coachSnapshot, onAskCoach, trimpRecord }: DayCardProps) {
+export default function DayCard({ day, weekNum, onTap, onLog, onSwap, isSwapSelected, isSwapTarget, readiness, coachEnabled, isToday, isPast, athleteId, coachSnapshot, onAskCoach, trimpRecord, userZones }: DayCardProps) {
   const style = getWorkoutStyle(day.type)
   const actual = day.actual
   const timeEst = estimateRunTime(day.zone)
@@ -263,7 +267,7 @@ export default function DayCard({ day, weekNum, onTap, onLog, onSwap, isSwapSele
             elevationGainFt: actual.elevationGain,
             distanceMi: actual.distance,
           })
-          const targets = parsePlannedTargets(day, actualSport)
+          const targets = parsePlannedTargets(day, actualSport, userZones)
           const hasTargets = targets.distanceMi !== undefined
             || targets.durationMin !== undefined
             || targets.hrLow !== undefined

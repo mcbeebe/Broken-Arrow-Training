@@ -42,6 +42,91 @@ export function adjustZoneStringForSport(zoneString: string, sportType?: SportTy
   })
 }
 
+/**
+ * Replace the parenthesized HR range in a plan zone string with an explicit
+ * range. Used when we've resolved the actual target band (from user zones
+ * and/or sport offsets) and want the display string to match what the
+ * grader is using.
+ */
+export function replaceZoneStringHR(zoneString: string, low: number, high: number): string {
+  if (!zoneString) return zoneString
+  if (zoneString.match(/\(\d+\s*[–-]\s*\d+\)/)) {
+    return zoneString.replace(/\(\d+(\s*[–-]\s*)\d+\)/, (_, sep) => `(${low}${sep}${high})`)
+  }
+  // No existing range — append one so HRChart / ZoneBreakdownTable can parse it.
+  return `${zoneString} (${low}–${high})`
+}
+
+/**
+ * Extract zone numbers from a plan zone string label.
+ *   "4.0 mi · Z4 bounds (167–177)"  → [4]
+ *   "3.0 mi · Z1–2 (108–148)"       → [1, 2]
+ *   "Z3–4 (148–177)"                → [3, 4]
+ *   "Easy spin"                     → []
+ */
+export function parsePlanZoneLabels(zoneString: string): number[] {
+  if (!zoneString) return []
+  const multi = zoneString.match(/Z(\d)\s*[–-]\s*(\d)/i)
+  if (multi) {
+    const lo = parseInt(multi[1], 10)
+    const hi = parseInt(multi[2], 10)
+    if (lo <= hi) {
+      const out: number[] = []
+      for (let i = lo; i <= hi; i++) out.push(i)
+      return out
+    }
+  }
+  const single = zoneString.match(/Z(\d)\b/i)
+  if (single) return [parseInt(single[1], 10)]
+  return []
+}
+
+/**
+ * Resolve the HR target range for a plan day's zone string, preferring the
+ * athlete's customized HR zones when available.
+ *
+ * Plan zone strings embed both a zone label ("Z4") and a hardcoded HR range
+ * computed from the plan's default maxHR. When the athlete has customized
+ * their zones (e.g. set maxHR=200), the label still applies but the
+ * parenthetical numbers are stale — look the label up in the user's zones
+ * and use that range instead. Falls back to the parenthetical range when
+ * no label/user-zone match is found.
+ */
+export function resolveTargetHRFromPlanZone(
+  zoneString: string,
+  userZones?: HRZone[],
+): { low: number; high: number } | undefined {
+  if (!zoneString || zoneString === '—') return undefined
+  if (userZones && userZones.length > 0) {
+    const labels = parsePlanZoneLabels(zoneString)
+    if (labels.length > 0) {
+      const ranges: { low: number; high: number }[] = []
+      for (const num of labels) {
+        const range = lookupUserZoneRange(userZones, num)
+        if (range) ranges.push(range)
+      }
+      if (ranges.length > 0) {
+        return {
+          low: Math.min(...ranges.map(r => r.low)),
+          high: Math.max(...ranges.map(r => r.high)),
+        }
+      }
+    }
+  }
+  const m = zoneString.match(/\((\d+)\s*[–-]\s*(\d+)\)/)
+  if (!m) return undefined
+  return { low: parseInt(m[1], 10), high: parseInt(m[2], 10) }
+}
+
+function lookupUserZoneRange(userZones: HRZone[], zoneNum: number): { low: number; high: number } | null {
+  const zone = userZones.find(z => {
+    const m = z.zone.match(/Z(\d)/i)
+    return m && parseInt(m[1], 10) === zoneNum
+  })
+  if (!zone) return null
+  return parseZoneRange(zone.hr)
+}
+
 export function getZoneForHR(hr: number, zones: HRZone[]): HRZone | null {
   for (const zone of zones) {
     const match = zone.hr.match(/(\d+)\s*[–-]\s*(\d+)/)

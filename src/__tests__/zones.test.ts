@@ -1,6 +1,16 @@
 import { describe, it, expect } from 'vitest'
-import { getZoneForHR, parseZoneRange, isInTargetZone, getSportHRZoneOffset, adjustZoneStringForSport } from '../utils/zones'
+import {
+  getZoneForHR,
+  parseZoneRange,
+  isInTargetZone,
+  getSportHRZoneOffset,
+  adjustZoneStringForSport,
+  replaceZoneStringHR,
+  parsePlanZoneLabels,
+  resolveTargetHRFromPlanZone,
+} from '../utils/zones'
 import { mikePlan } from '../data'
+import type { HRZone } from '../types'
 
 const zones = mikePlan.zones
 
@@ -117,5 +127,75 @@ describe('adjustZoneStringForSport', () => {
   it('returns the input unchanged when no range is present', () => {
     expect(adjustZoneStringForSport('—', 'cycling')).toBe('—')
     expect(adjustZoneStringForSport('Z1', 'cycling')).toBe('Z1')
+  })
+})
+
+describe('parsePlanZoneLabels', () => {
+  it('parses single-zone labels', () => {
+    expect(parsePlanZoneLabels('4.0 mi · Z4 bounds (167–177)')).toEqual([4])
+    expect(parsePlanZoneLabels('Z1 (108–128)')).toEqual([1])
+  })
+
+  it('parses multi-zone ranges', () => {
+    expect(parsePlanZoneLabels('3.0 mi · Z1–2 (108–148)')).toEqual([1, 2])
+    expect(parsePlanZoneLabels('Z3-4 (148–177)')).toEqual([3, 4])
+  })
+
+  it('returns empty when no zone label present', () => {
+    expect(parsePlanZoneLabels('Easy spin')).toEqual([])
+    expect(parsePlanZoneLabels('—')).toEqual([])
+  })
+})
+
+describe('resolveTargetHRFromPlanZone', () => {
+  // Athlete-customized zones for maxHR=200
+  const userZones200: HRZone[] = [
+    { zone: 'Z1 – Recovery', hr: '110–130', pct: '55–65%', desc: '' },
+    { zone: 'Z2 – Aerobic', hr: '130–150', pct: '65–75%', desc: '' },
+    { zone: 'Z3 – Tempo', hr: '150–170', pct: '75–85%', desc: '' },
+    { zone: 'Z4 – Threshold', hr: '170–180', pct: '85–90%', desc: '' },
+  ]
+
+  it('uses customized zones to resolve a Z4 plan day for maxHR=200', () => {
+    // Plan string baked at maxHR=197 → "(167–177)". Athlete maxHR=200 →
+    // their custom Z4 is 170–180. Resolver should prefer the user zone.
+    expect(resolveTargetHRFromPlanZone('4.0 mi · Z4 (167–177)', userZones200))
+      .toEqual({ low: 170, high: 180 })
+  })
+
+  it('spans multiple zones for Z1–2 plan strings', () => {
+    expect(resolveTargetHRFromPlanZone('3.0 mi · Z1–2 (108–148)', userZones200))
+      .toEqual({ low: 110, high: 150 })
+  })
+
+  it('falls back to parenthetical when no user zones supplied', () => {
+    expect(resolveTargetHRFromPlanZone('4.0 mi · Z4 (167–177)'))
+      .toEqual({ low: 167, high: 177 })
+  })
+
+  it('falls back to parenthetical when zone label is missing', () => {
+    expect(resolveTargetHRFromPlanZone('(108–148)', userZones200))
+      .toEqual({ low: 108, high: 148 })
+  })
+
+  it('returns undefined when no range can be resolved', () => {
+    expect(resolveTargetHRFromPlanZone('—', userZones200)).toBeUndefined()
+    expect(resolveTargetHRFromPlanZone('', userZones200)).toBeUndefined()
+  })
+})
+
+describe('replaceZoneStringHR', () => {
+  it('replaces an existing parenthesized range', () => {
+    expect(replaceZoneStringHR('4.0 mi · Z4 (167–177)', 170, 180))
+      .toBe('4.0 mi · Z4 (170–180)')
+  })
+
+  it('preserves dash character', () => {
+    expect(replaceZoneStringHR('Z2 (128-148)', 130, 150)).toBe('Z2 (130-150)')
+    expect(replaceZoneStringHR('Z2 (128–148)', 130, 150)).toBe('Z2 (130–150)')
+  })
+
+  it('appends a range when none is present', () => {
+    expect(replaceZoneStringHR('Z4 effort', 170, 180)).toBe('Z4 effort (170–180)')
   })
 })

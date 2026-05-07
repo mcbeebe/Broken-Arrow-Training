@@ -1,6 +1,6 @@
-import type { PlannedDay, PlannedTargets, SportType } from '../types'
+import type { PlannedDay, PlannedTargets, SportType, HRZone } from '../types'
 import { getPlannedDrills } from './drills'
-import { getSportHRZoneOffset } from './zones'
+import { getSportHRZoneOffset, resolveTargetHRFromPlanZone } from './zones'
 
 // ─── Target Parser ──────────────────────────────────────────────
 // Derives structured numeric targets (distance/duration/HR range/elevation)
@@ -95,12 +95,22 @@ const RUN_TYPES_FOR_RANGE = new Set(['run', 'long', 'quality', 'race'])
  * run for an indoor bike session). Plan HR zones are calibrated to
  * running; cycling/swimming/etc. have lower steady-state HR at the same
  * effort, so we apply a sport-specific offset.
+ *
+ * `userZones` lets the grader honor athlete-customized HR zones. The plan's
+ * zone string embeds a hardcoded HR range computed from the plan's default
+ * maxHR — when the athlete has set a different maxHR / customized their
+ * zones, the parenthetical numbers go stale. We look up the zone label
+ * (Z4, Z1-2, …) in the customized zones and use that range instead.
  */
-export function parsePlannedTargets(day: PlannedDay, actualSportType?: SportType): PlannedTargets {
+export function parsePlannedTargets(
+  day: PlannedDay,
+  actualSportType?: SportType,
+  userZones?: HRZone[],
+): PlannedTargets {
   const targets: PlannedTargets = {}
   const distance = parseDistance(day.zone)
   if (distance !== undefined) targets.distanceMi = distance
-  const hr = parseHRRange(day.zone)
+  const hr = resolveTargetHRFromPlanZone(day.zone, userZones)
   if (hr) {
     const offset = getSportHRZoneOffset(actualSportType)
     targets.hrLow = hr.low - offset

@@ -16,7 +16,7 @@ import { cacheRunGAP, computeStreamGAPMIM } from '../utils/runGAP'
 import { computeEccentricLoad } from '../engines/descent/eccentric'
 import { cacheEccentric, getCachedEccentric, type CachedEccentric } from '../utils/runEccentric'
 import { SPORT_LABELS } from '../hooks/useMIMCalibration'
-import { adjustZoneStringForSport } from '../utils/zones'
+import { getSportHRZoneOffset, replaceZoneStringHR, resolveTargetHRFromPlanZone } from '../utils/zones'
 import HRChart from './HRChart'
 import PaceChart from './PaceChart'
 import ElevationChart from './ElevationChart'
@@ -722,11 +722,18 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
               {stream && stream.heartrate.length > 0 && (() => {
                 const inferredSport = trimpRecord?.sportType
                   ?? (actual ? mapToSportType(actual.type || '', { name: actual.name, elevationGainFt: actual.elevationGain, distanceMi: actual.distance }) : undefined)
-                // Plan zones are calibrated to running. Shift the target band
-                // for sports with lower steady-state HR at equivalent effort
-                // (cycling, swimming, etc.) so the compliance ring and the
-                // minute-by-minute table grade against an achievable zone.
-                const adjustedTargetZone = adjustZoneStringForSport(day.zone, inferredSport)
+                // Resolve the target HR band the same way the grader does:
+                // (1) Look up the plan zone label (Z4, Z1-2, …) in the
+                //     athlete's customized zones — picks up custom maxHR.
+                // (2) Apply a sport-specific offset for non-running actuals,
+                //     since cycling/swimming HR runs lower at equal effort.
+                // Display the resolved range so the green band, compliance
+                // ring, and minute-by-minute table all match the grade.
+                const resolved = resolveTargetHRFromPlanZone(day.zone, zones)
+                const offset = getSportHRZoneOffset(inferredSport)
+                const adjustedTargetZone = resolved
+                  ? replaceZoneStringHR(day.zone, resolved.low - offset, resolved.high - offset)
+                  : day.zone
                 return (
                   <div className="mt-2">
                     <HRChart

@@ -269,6 +269,7 @@ export default function WeeklyPlan({
                 coachSnapshot={coachSnapshot}
                 onAskCoach={onAskCoach}
                 trimpRecord={trimpRecord}
+                userZones={zones}
               />
             </div>
           )
