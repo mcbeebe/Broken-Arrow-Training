@@ -1,7 +1,8 @@
-import type { PlannedDay } from '../types'
-import { parseZoneRange } from './zones'
+import type { PlannedDay, HRZone } from '../types'
+import { resolveTargetHRFromPlanZone, getSportHRZoneOffset } from './zones'
 import { getMilesNumber } from './format'
 import { getPlannedDrills } from './drills'
+import { mapToSportType } from './trimp'
 
 function hasPlannedDrills(day: PlannedDay): boolean {
   return getPlannedDrills(day).length > 0 || !!day.actual?.drills?.items?.length
@@ -79,8 +80,15 @@ const REST_TYPES = new Set(['rest', 'travel'])
 /**
  * Calculate a letter grade for a workout based on completion and execution quality.
  * Uses existing palette: emerald/teal (A's), amber (B/C), rose/red (D), slate (N/A).
+ *
+ * `userZones` lets the grade honor athlete-customized HR zones (custom maxHR);
+ * the plan day's zone label (Z4, Z1-2, …) is resolved against the customized
+ * zones rather than the plan's hardcoded HR ranges. The actual workout's sport
+ * type also shifts the HR band — cycling/swimming HR runs lower than running
+ * at equivalent effort, so a Z4 bike interval graded against the running band
+ * unfairly tanks the score.
  */
-export function calculateGrade(day: PlannedDay): GradeResult | null {
+export function calculateGrade(day: PlannedDay, userZones?: HRZone[]): GradeResult | null {
   // Rest/travel/limited days don't get graded
   if (REST_TYPES.has(day.type)) return null
 
@@ -110,9 +118,30 @@ export function calculateGrade(day: PlannedDay): GradeResult | null {
 
   const reasons: string[] = []
 
+  // Resolve the HR target band once, the same way the rest of the grading
+  // pipeline does:
+  //   1. Map plan zone label (Z4, Z1-2) onto the athlete's customized zones
+  //      so a custom maxHR drives the target.
+  //   2. Shift the band downward when the actual workout is a non-running
+  //      sport (cycling/swimming/etc.) where HR runs lower at equivalent
+  //      effort.
+  const actualSport = mapToSportType(actual.type || '', {
+    name: actual.name,
+    avgHR: actual.avgHR,
+    elevationGainFt: actual.elevationGain,
+    distanceMi: actual.distance,
+  })
+  const sportOffset = getSportHRZoneOffset(actualSport)
+  const resolvedTarget = (() => {
+    const r = resolveTargetHRFromPlanZone(day.zone, userZones)
+    if (!r) return null
+    return { low: r.low - sportOffset, high: r.high - sportOffset }
+  })()
+
   // --- RUN WORKOUTS (run, quality, long, race) ---
   if (['run', 'quality', 'long', 'race'].includes(day.type)) {
     const plannedMiles = extractMilesFromZone(day.zone)
+    const plannedMin = parseTimeToMinutes(day.time)
 
     // Distance match (40% weight)
     if (plannedMiles && actual.distance > 0) {
@@ -133,15 +162,35 @@ export function calculateGrade(day: PlannedDay): GradeResult | null {
         effortScore = 0.4
         reasons.push('well short of plan')
       }
+    } else if (plannedMin && actual.movingTime > 0) {
+      // No planned distance (or watch reported 0 — common for indoor trainer
+      // / bike-interval sessions). Fall back to duration as the effort
+      // signal so we don't anchor effortScore at the 0.5 neutral default
+      // and tank an otherwise well-executed workout.
+      const ratio = (actual.movingTime / 60) / plannedMin
+      if (ratio >= 0.9 && ratio <= 1.15) {
+        effortScore = 1.0
+        reasons.push('duration on target')
+      } else if (ratio >= 0.75) {
+        effortScore = 0.85
+        reasons.push(`${Math.round(ratio * 100)}% of planned duration`)
+      } else if (ratio >= 0.5) {
+        effortScore = 0.65
+        reasons.push(`${Math.round(ratio * 100)}% of planned duration`)
+      } else {
+        effortScore = 0.4
+        reasons.push('well short of plan')
+      }
     }
 
-    // HR zone compliance (30% weight) — always uses PLAN zones (Uphill Athlete).
-    // Preferred: per-second HR stream bucketed into plan zones (exact, matches
-    // "Time in Zone" bar in modal). Fallback: avgHR vs plan zone band.
+    // HR zone compliance (30% weight) — resolved against the athlete's
+    // customized zones (when set) and shifted by sport offset for
+    // non-running actuals. Preferred: per-second HR stream against the
+    // resolved band. Fallback: avgHR vs the same band.
     // We deliberately IGNORE Garmin's hrZoneSummary since those use Garmin's
     // default zones (% of max HR), not the plan's Uphill Athlete zones.
     if (day.zone !== '—') {
-      const range = parseZoneRange(day.zone)
+      const range = resolvedTarget
 
       if (range) {
         const stream = getCachedHRStream(actual.stravaId || actual.garminId)
@@ -189,7 +238,6 @@ export function calculateGrade(day: PlannedDay): GradeResult | null {
     }
 
     // Duration match — structure score (15% weight)
-    const plannedMin = parseTimeToMinutes(day.time)
     if (plannedMin && actual.movingTime > 0) {
       const actualMin = actual.movingTime / 60
       const ratio = actualMin / plannedMin
@@ -294,7 +342,7 @@ export function calculateGrade(day: PlannedDay): GradeResult | null {
       // HR compliance: for cross-training, this is the primary quality
       // metric (staying in Z1 for recovery). Use per-second stream if
       // available, else fall back to avgHR.
-      const range = parseZoneRange(day.zone)
+      const range = resolvedTarget
       if (range && actual.avgHR) {
         const stream = getCachedHRStream(actual.stravaId || actual.garminId)
         let tizPct: number | null = null
@@ -324,7 +372,7 @@ export function calculateGrade(day: PlannedDay): GradeResult | null {
       reasons.push('completed')
 
       // HR: should stay easy (Z1-Z2). Reward low HR.
-      const range = parseZoneRange(day.zone)
+      const range = resolvedTarget
       if (range && actual.avgHR) {
         if (actual.avgHR <= range.high) {
           hrScore = 1.0

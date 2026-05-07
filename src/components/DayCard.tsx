@@ -45,7 +45,7 @@ export default function DayCard({ day, weekNum, onTap, onLog, onSwap, isSwapSele
   const style = getWorkoutStyle(day.type)
   const actual = day.actual
   const timeEst = estimateRunTime(day.zone)
-  const gradeResult = calculateGrade(day)
+  const gradeResult = calculateGrade(day, userZones)
   const isCompleted = !!actual
   // Rest days the athlete correctly rested on (past date, no activity
   // logged) count as "completed on plan" and get the green treatment,
