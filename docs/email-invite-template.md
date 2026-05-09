@@ -8,30 +8,28 @@ until proper auth ships (see `docs/MULTI_USER_TODO.md`).
 
 ## Subject lines (pick one)
 
-- You're in — Broken Arrow Training is ready for you
-- Early access: Broken Arrow Training
-- Come kick the tires on Broken Arrow Training
-
+- You're invited — Training App is ready for you!
+- 
 ---
 
 ## Body
 
 Hi [First name],
 
-I've been building a trail-running training app called **Broken Arrow
+I've been building an all-purpose training app called **Broken Arrow
 Training**, and I'd love for you to be one of the first athletes on it.
 
 It's a coaching tool that turns your day-to-day training data into a daily
 readiness score, a session prescription, and a conversation with an AI
 coach that actually remembers your history. Today it covers:
 
-- **Readiness** — HRV, sleep, recent load, and lifestyle stressors rolled
+- **Training Readiness** — HRV, sleep, recent load, and lifestyle stressors rolled
   into a single go/easy/rest signal each morning.
-- **Load & MIM** — TRIMP plus a Movement Intensity Matrix so vertical,
-  technical, and flat miles each count for what they actually cost.
+- **Load & Impact** — TRIMP plus a Movement Intensity Matrix so vertical,
+  technical, cycling, lifting, HITT workouts and flat miles each count for what they actually cost.
 - **AI coach** — chat, persona, and per-athlete memory. It sees your
   numbers and your notes, and adapts week to week.
-- **Connections** — Strava and Garmin sync, plus HealthKit on iOS.
+- **Integrations** — Strava and Garmin sync, plus HealthKit on iOS.
 
 ### Getting started
 
@@ -45,8 +43,7 @@ coach that actually remembers your history. Today it covers:
 
 ### A few things to know
 
-- **Friends-and-family release.** The URL is unlisted; please don't share
-  it yet. Login/auth is the next thing on the roadmap.
+- **Friends-and-family release.** You're feedback is much appreciated. You're helping build the next great app.
 - **Your data is yours.** Every athlete's data is scoped separately on
   device and on the server — you won't see anyone else's training and
   they won't see yours.
