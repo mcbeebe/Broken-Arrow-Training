@@ -7,6 +7,7 @@ import DayCard from './DayCard'
 import VolumeChart from './VolumeChart'
 import WorkoutModal from './WorkoutModal'
 import ManualLog from './ManualLog'
+import EditPlanDay from './EditPlanDay'
 import RaceNarrative from './RaceNarrative'
 import RaceElevationProfile from './RaceElevationProfile'
 
@@ -20,6 +21,14 @@ interface WeeklyPlanProps {
     swapDays: (weekNum: number, fromIndex: number, toIndex: number) => void
     resetWeek: (weekNum: number) => void
     hasSwaps: (weekNum: number) => boolean
+  }
+  /** Per-day manual edits to the *planned* workout. When set, an "Edit
+   *  plan" button surfaces on each card and opens a form pre-filled with
+   *  the current (possibly already-overridden) plan day. */
+  planEditor?: {
+    applyOverride: (weekNum: number, dayIndex: number, updates: Partial<Omit<PlannedDay, 'day' | 'actual'>>) => void
+    removeForDay: (weekNum: number, dayIndex: number) => void
+    hasOverride: (weekNum: number, dayIndex: number) => boolean
   }
   weekReadiness?: ReadinessScore[]
   athleteId?: string
@@ -45,6 +54,7 @@ export default function WeeklyPlan({
   zones,
   manualLog,
   daySwap,
+  planEditor,
   weekReadiness = [],
   athleteId,
   coachEnabled,
@@ -59,6 +69,7 @@ export default function WeeklyPlan({
   const [activeWeek, setActiveWeek] = useState(0)
   const [modalDay, setModalDay] = useState<PlannedDay | null>(null)
   const [logDay, setLogDay] = useState<PlannedDay | null>(null)
+  const [editPlanIndex, setEditPlanIndex] = useState<number | null>(null)
   const [swapSource, setSwapSource] = useState<number | null>(null)
   const [calMonth, setCalMonth] = useState(() => {
     // Start on current month
@@ -259,6 +270,8 @@ export default function WeeklyPlan({
                 onTap={isSwapMode ? () => handleSwapTap(i) : () => setModalDay(d)}
                 onLog={manualLog ? () => setLogDay(d) : undefined}
                 onSwap={daySwap ? () => handleSwapTap(i) : undefined}
+                onEditPlan={planEditor ? () => setEditPlanIndex(i) : undefined}
+                hasPlanOverride={planEditor?.hasOverride(week.num, i)}
                 isSwapSelected={swapSource === i}
                 isSwapTarget={isSwapMode && swapSource !== i}
                 readiness={readiness}
@@ -373,6 +386,18 @@ export default function WeeklyPlan({
             setLogDay(null)
           }}
           onClose={() => setLogDay(null)}
+        />
+      )}
+
+      {/* Edit-plan modal */}
+      {editPlanIndex !== null && planEditor && week.days[editPlanIndex] && (
+        <EditPlanDay
+          day={week.days[editPlanIndex]}
+          weekNum={week.num}
+          hasOverride={planEditor.hasOverride(week.num, editPlanIndex)}
+          onSave={(updates) => planEditor.applyOverride(week.num, editPlanIndex, updates)}
+          onResetToPlan={() => planEditor.removeForDay(week.num, editPlanIndex)}
+          onClose={() => setEditPlanIndex(null)}
         />
       )}
     </div>

@@ -683,6 +683,13 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
           zones={hrZones.zones}
           manualLog={manualLog}
           daySwap={daySwap}
+          planEditor={{
+            applyOverride: (weekNum, dayIndex, updates) =>
+              planOverrides.applyOverride({ weekNum, dayIndex, updates, rationale: 'Manual edit' }),
+            removeForDay: planOverrides.removeForDay,
+            hasOverride: (weekNum, dayIndex) =>
+              planOverrides.overrides.some(o => o.weekNum === weekNum && o.dayIndex === dayIndex),
+          }}
           weekReadiness={readiness.weekScores}
           athleteId={athleteId}
           coachEnabled={coachEnabled}

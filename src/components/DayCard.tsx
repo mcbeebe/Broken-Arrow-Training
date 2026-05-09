@@ -19,6 +19,12 @@ interface DayCardProps {
   onTap: () => void
   onLog?: () => void
   onSwap?: () => void
+  /** Open the per-day plan editor (workout title, zone, time, route, etc.).
+   *  Stored as a per-day override so the original plan is preserved. */
+  onEditPlan?: () => void
+  /** True when this day already has a manual plan override applied —
+   *  surfaces a small "edited" affordance on the card. */
+  hasPlanOverride?: boolean
   isSwapSelected?: boolean
   isSwapTarget?: boolean
   readiness?: ReadinessScore
@@ -41,7 +47,7 @@ interface DayCardProps {
   userZones?: HRZone[]
 }
 
-export default function DayCard({ day, weekNum, onTap, onLog, onSwap, isSwapSelected, isSwapTarget, readiness, coachEnabled, isToday, isPast, athleteId, coachSnapshot, onAskCoach, trimpRecord, userZones }: DayCardProps) {
+export default function DayCard({ day, weekNum, onTap, onLog, onSwap, onEditPlan, hasPlanOverride, isSwapSelected, isSwapTarget, readiness, coachEnabled, isToday, isPast, athleteId, coachSnapshot, onAskCoach, trimpRecord, userZones }: DayCardProps) {
   const style = getWorkoutStyle(day.type)
   const actual = day.actual
   const timeEst = estimateRunTime(day.zone)
@@ -191,16 +197,30 @@ export default function DayCard({ day, weekNum, onTap, onLog, onSwap, isSwapSele
                   ⇄
                 </button>
               )}
+              {onEditPlan && (
+                <button
+                  onClick={e => { e.stopPropagation(); onEditPlan() }}
+                  title="Edit the planned workout for this day"
+                  className={`text-xs font-medium px-2 py-1 rounded-full transition-colors ${
+                    hasPlanOverride
+                      ? 'bg-amber-100 text-amber-800 hover:bg-amber-200'
+                      : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'
+                  }`}
+                >
+                  {hasPlanOverride ? '📝 Plan*' : '📝 Plan'}
+                </button>
+              )}
               {onLog && (
                 <button
                   onClick={e => { e.stopPropagation(); onLog() }}
+                  title={actual ? 'Edit your logged workout' : 'Log your actual workout'}
                   className={`text-xs font-medium px-2 py-1 rounded-full transition-colors ${
                     actual
                       ? 'bg-emerald-200 text-emerald-800 hover:bg-emerald-300'
                       : 'bg-teal-100 text-teal-700 hover:bg-teal-200'
                   }`}
                 >
-                  {actual ? '✏️ Edit' : '📝 Log'}
+                  {actual ? '✏️ Actual' : '📝 Log'}
                 </button>
               )}
               {statusDot}
