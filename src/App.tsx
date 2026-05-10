@@ -35,9 +35,11 @@ import Settings from './components/Settings'
 import CoachTab from './components/CoachTab'
 import CoachPingToast from './components/CoachPingToast'
 import LoginScreen from './components/LoginScreen'
+import InAppBrowserGate from './components/InAppBrowserGate'
 import { useHRZones } from './hooks/useHRZones'
 import { useMaxHR } from './hooks/useMaxHR'
 import { getStoredSession, clearSession, type AuthSession } from './utils/auth'
+import { isInAppBrowser, isBypassed } from './utils/inAppBrowser'
 import { useTheme } from './hooks/useTheme'
 
 // Auto-clear stale caches on app startup when data format changes
@@ -51,6 +53,7 @@ function getAthleteFromHash(): string {
 
 export default function App() {
   const [session, setSession] = useState<AuthSession | null>(() => getStoredSession())
+  const [gateBypassed, setGateBypassed] = useState(() => isBypassed())
 
   const handleLogin = useCallback((s: AuthSession) => {
     setSession(s)
@@ -61,6 +64,12 @@ export default function App() {
     clearSession()
     setSession(null)
   }, [])
+
+  // Google OAuth is blocked inside in-app browsers (Gmail, Facebook, etc.).
+  // Existing sessions skip the gate so returning users aren't blocked.
+  if (!session && !gateBypassed && isInAppBrowser()) {
+    return <InAppBrowserGate onBypass={() => setGateBypassed(true)} />
+  }
 
   // If no session and no Google client ID configured, fall back to hash-based auth
   const googleConfigured = !!import.meta.env.VITE_GOOGLE_CLIENT_ID
