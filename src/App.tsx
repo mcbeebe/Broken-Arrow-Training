@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useCallback } from 'react'
 import type { ViewId, CoachSnapshot, CoachAction, PlannedDay } from './types'
 import { plans } from './data'
-import { generateHyroxPlan } from './utils/planGenerator'
+import { generateHyroxPlan, generateTrailPlan, generateGeneralPlan } from './utils/planGenerator'
 import { useStrava } from './hooks/useStrava'
 import { useGarmin } from './hooks/useGarmin'
 import { useCompliance } from './hooks/useCompliance'
@@ -96,6 +96,8 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
   const generatedPlan = useMemo(() => {
     if (plan || !onboarding.config) return null
     if (onboarding.config.raceType === 'hyrox') return generateHyroxPlan(onboarding.config)
+    if (onboarding.config.raceType === 'trail') return generateTrailPlan(onboarding.config)
+    if (onboarding.config.raceType === 'general') return generateGeneralPlan(onboarding.config)
     return null
   }, [plan, onboarding.config])
 
