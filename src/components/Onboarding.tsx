@@ -10,6 +10,7 @@ import type {
   CrossTrainingMode,
   TrainingTimeOfDay,
 } from '../hooks/useOnboarding'
+import { parseTimeToSeconds } from '../utils/parseTime'
 
 interface Props {
   onComplete: (config: OnboardingConfig) => void
@@ -51,18 +52,6 @@ const TIME_OF_DAY_OPTIONS: { value: TrainingTimeOfDay; label: string; desc: stri
   { value: 'afternoon', label: 'Afternoon', desc: '2pm – 5pm' },
   { value: 'evening', label: 'Evening', desc: 'After 5pm' },
 ]
-
-// Parse "mm:ss" or "hh:mm:ss" into seconds. Returns undefined if invalid/empty.
-function parseTimeToSeconds(input: string): number | undefined {
-  const trimmed = input.trim()
-  if (!trimmed) return undefined
-  const parts = trimmed.split(':').map(p => p.trim())
-  if (parts.some(p => !/^\d+$/.test(p))) return undefined
-  const nums = parts.map(Number)
-  if (nums.length === 2) return nums[0] * 60 + nums[1]
-  if (nums.length === 3) return nums[0] * 3600 + nums[1] * 60 + nums[2]
-  return undefined
-}
 
 export default function Onboarding({ onComplete, onSkip }: Props) {
   const [step, setStep] = useState(0)
