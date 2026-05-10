@@ -5,6 +5,30 @@ export type ExperienceLevel = 'first_timer' | 'beginner' | 'intermediate' | 'adv
 
 export type WearableType = 'garmin' | 'apple_watch' | 'oura' | 'none'
 
+export type FitnessAnchorType =
+  | 'race_5k'
+  | 'race_10k'
+  | 'race_hm'
+  | 'race_marathon'
+  | 'lthr'
+  | 'easy_pace'
+  | 'none'
+
+export interface FitnessAnchor {
+  type: FitnessAnchorType
+  // Race / pace anchors store seconds; lthr stores bpm
+  valueSeconds?: number
+  bpm?: number
+}
+
+export type InjuryStatus = 'none' | 'returning' | 'current'
+
+export type EquipmentAccess = 'track' | 'hills' | 'treadmill' | 'trails' | 'gym'
+
+export type CrossTrainingMode = 'cycling' | 'swimming' | 'rowing' | 'hiking' | 'yoga'
+
+export type TrainingTimeOfDay = 'early_am' | 'morning' | 'midday' | 'afternoon' | 'evening'
+
 export interface OnboardingConfig {
   raceType: RaceType
   raceName: string
@@ -20,6 +44,22 @@ export interface OnboardingConfig {
   // Optional cycling FTP (watts). Drives the cycling MIM intensity factor
   // when an activity has power-meter data; HR-reserve falls back when absent.
   ftpWatts?: number
+  // Objective fitness benchmark: recent race time, LTHR, or self-reported easy pace.
+  // Drives pace/HR zone derivation for plan intensities.
+  fitnessAnchor?: FitnessAnchor
+  // Current weekly running mileage (miles). Used to cap volume ramp safely.
+  currentWeeklyMileage?: number
+  injuryStatus?: InjuryStatus
+  // Multi-select: which terrain/equipment the athlete can train on.
+  equipmentAccess?: EquipmentAccess[]
+  // 0 = none. Drives whether plan includes strength sessions and how many.
+  strengthDaysPerWeek?: number
+  // Cross-training modalities the athlete enjoys / wants substituted on easy days.
+  crossTrainingModes?: CrossTrainingMode[]
+  // When during the day the athlete typically trains (multi-select).
+  preferredTrainingTimes?: TrainingTimeOfDay[]
+  // Free-text: travel weeks, vacations, work crunch, deload windows, etc.
+  scheduleConstraintsNote?: string
   completedAt: string
 }
 
