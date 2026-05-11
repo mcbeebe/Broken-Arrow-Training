@@ -11,6 +11,9 @@ import { useDaySwap } from './hooks/useDaySwap'
 import { useReadiness } from './hooks/useReadiness'
 import { useOnboarding } from './hooks/useOnboarding'
 import Onboarding from './components/Onboarding'
+import MethodSelection from './components/MethodSelection'
+import { getMethodById } from './data/methods'
+import { generatePlanFromMethod } from './engines/planGenerator/generatePlan'
 import { useSoreness } from './hooks/useSoreness'
 import { useMIMCalibration } from './hooks/useMIMCalibration'
 import { loadRunGAPCache } from './utils/runGAP'
@@ -101,10 +104,31 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
     )
   }
 
+  // Trail/road athletes pick a training method before plan generation.
+  // Hyrox/general skip this and go straight to the legacy generator.
+  const needsMethodPick =
+    !plan && !!onboarding.config && !!onboarding.config.raceDistance && !onboarding.config.selectedMethodId
+  if (needsMethodPick && onboarding.config) {
+    const cfg = onboarding.config
+    return (
+      <MethodSelection
+        config={cfg}
+        onConfirm={(methodId) => {
+          onboarding.save({ ...cfg, selectedMethodId: methodId })
+        }}
+        onBack={() => onboarding.clear()}
+      />
+    )
+  }
+
   // Generate plan from onboarding config if no pre-built plan exists
   const generatedPlan = useMemo(() => {
     if (plan || !onboarding.config) return null
     if (onboarding.config.raceType === 'hyrox') return generateHyroxPlan(onboarding.config)
+    if (onboarding.config.selectedMethodId) {
+      const method = getMethodById(onboarding.config.selectedMethodId)
+      if (method) return generatePlanFromMethod(method, onboarding.config)
+    }
     return null
   }, [plan, onboarding.config])
 
