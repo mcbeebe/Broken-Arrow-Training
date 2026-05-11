@@ -1,10 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, cleanup } from '@testing-library/react'
 import Onboarding from '../components/Onboarding'
 import type { OnboardingConfig } from '../hooks/useOnboarding'
 
+beforeEach(() => {
+  cleanup()
+  vi.clearAllMocks()
+})
+
 function clickContinue() {
-  const btn = screen.getByRole('button', { name: /continue/i })
+  const btn = screen.getByRole('button', { name: /continue|create my plan/i })
   fireEvent.click(btn)
 }
 
@@ -21,6 +26,7 @@ function getContinueButton() {
 // step, optionally overriding values. Returns the captured config from onComplete.
 function walkHappyPath(overrides: Partial<{
   raceType: 'Trail / Road Race' | 'Hyrox' | 'General Fitness'
+  raceDistance: string
   experience: string
   daysPerWeek: number
   longRunDay: string
@@ -43,6 +49,7 @@ function walkHappyPath(overrides: Partial<{
 }> = {}): OnboardingConfig {
   const o = {
     raceType: 'Trail / Road Race',
+    raceDistance: 'Marathon',
     experience: 'Intermediate',
     daysPerWeek: 5,
     longRunDay: 'Saturday',
@@ -76,15 +83,27 @@ function walkHappyPath(overrides: Partial<{
   fireEvent.change(raceNameInput, { target: { value: 'Test Race' } })
   clickContinue()
 
-  // Step 2: Experience
+  // Step 2 (trail only): Race distance — skipped for hyrox/general via visibleSteps
+  if (o.raceType === 'Trail / Road Race') {
+    // Distance options use exact-match labels for short names (5K, 10K, Marathon)
+    const target = o.raceDistance === 'Marathon'
+      ? screen.getByText(/^Marathon$/)
+      : o.raceDistance === '5K'
+        ? screen.getByText(/^5K$/)
+        : screen.getByText(o.raceDistance)
+    fireEvent.click(target)
+    clickContinue()
+  }
+
+  // Step 3: Experience
   fireEvent.click(screen.getByText(o.experience))
   clickContinue()
 
-  // Step 3: Days per week
+  // Step 4: Days per week
   fireEvent.click(screen.getByText(`${o.daysPerWeek} Days`))
   clickContinue()
 
-  // Step 4: Long run day OR weak station
+  // Step 5: Long run day OR weak station
   if (o.raceType === 'Hyrox') {
     fireEvent.click(screen.getByText(o.weakStation))
   } else {
@@ -92,8 +111,7 @@ function walkHappyPath(overrides: Partial<{
   }
   clickContinue()
 
-  // Step 5: Fitness baseline (anchor + mileage + injury)
-  // Set anchor type via select
+  // Step 6: Fitness baseline (anchor + mileage + injury)
   const anchorSelect = screen.getByRole('combobox')
   fireEvent.change(anchorSelect, { target: { value: o.anchorOption } })
   if (o.anchorOption !== 'none') {
@@ -105,25 +123,23 @@ function walkHappyPath(overrides: Partial<{
       fireEvent.change(timeInput, { target: { value: o.anchorTime } })
     }
   }
-  // Weekly mileage
   if (o.weeklyMileage) {
     const mileageInput = screen.getByPlaceholderText('e.g. 20')
     fireEvent.change(mileageInput, { target: { value: o.weeklyMileage } })
   }
-  // Injury
   fireEvent.click(screen.getByText(o.injury))
   clickContinue()
 
-  // Step 6: Equipment access (multi-select)
+  // Step 7: Equipment access (multi-select)
   o.equipment.forEach(label => fireEvent.click(screen.getByText(label)))
   clickContinue()
 
-  // Step 7: Strength + cross-training
+  // Step 8: Strength + cross-training
   fireEvent.click(screen.getByRole('button', { name: o.strength }))
   o.crossTraining.forEach(label => fireEvent.click(screen.getByText(label)))
   clickContinue()
 
-  // Step 8: Schedule & constraints
+  // Step 9: Schedule & constraints
   o.trainingTimes.forEach(label => fireEvent.click(screen.getByText(label)))
   if (o.scheduleNote) {
     const textarea = screen.getByPlaceholderText(/Travel May/)
@@ -131,17 +147,16 @@ function walkHappyPath(overrides: Partial<{
   }
   clickContinue()
 
-  // Step 9: Wearable
+  // Step 10: Wearable
   fireEvent.click(screen.getByText(o.wearable))
   clickContinue()
 
-  // Step 10: Personal data
+  // Step 11: Personal data
   const nameInput = screen.getByPlaceholderText('e.g. Jenn')
   fireEvent.change(nameInput, { target: { value: o.name } })
   const ageInput = screen.getByPlaceholderText('e.g. 41')
   fireEvent.change(ageInput, { target: { value: o.age } })
   if (o.maxHR) {
-    // The max-HR input has a dynamic placeholder; grab it by label proximity.
     const maxHRLabel = screen.getByText(/Max Heart Rate/)
     const maxHRInput = maxHRLabel.parentElement!.querySelector('input')!
     fireEvent.change(maxHRInput, { target: { value: o.maxHR } })
@@ -157,10 +172,6 @@ function walkHappyPath(overrides: Partial<{
 }
 
 describe('Onboarding', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-  })
-
   describe('happy path', () => {
     it('captures all answers and emits a complete OnboardingConfig', () => {
       const cfg = walkHappyPath()
@@ -168,6 +179,7 @@ describe('Onboarding', () => {
       expect(cfg).toMatchObject({
         raceType: 'trail',
         raceName: 'Test Race',
+        raceDistance: 'marathon',
         experienceLevel: 'intermediate',
         trainingDaysPerWeek: 5,
         longRunDay: 'Saturday',
@@ -200,6 +212,85 @@ describe('Onboarding', () => {
     })
   })
 
+  describe('race-distance step (Q1)', () => {
+    it('shows the race-distance step when raceType is trail/road', () => {
+      const onComplete = vi.fn()
+      render(<Onboarding onComplete={onComplete} />)
+      fireEvent.click(screen.getByText(/Trail \/ Road Race/))
+      clickContinue()
+      fireEvent.change(screen.getByPlaceholderText(/Broken Arrow/), { target: { value: 'X' } })
+      clickContinue()
+      expect(screen.getByText(/race distance/i)).toBeInTheDocument()
+      expect(screen.getByText(/^Marathon$/)).toBeInTheDocument()
+      expect(screen.getByText(/100 Mile/)).toBeInTheDocument()
+    })
+
+    it('skips the race-distance step for Hyrox', () => {
+      const onComplete = vi.fn()
+      render(<Onboarding onComplete={onComplete} />)
+      fireEvent.click(screen.getByText(/^Hyrox$/))
+      clickContinue()
+      fireEvent.change(screen.getByPlaceholderText(/Hyrox San Francisco/), { target: { value: 'Hyrox SF' } })
+      clickContinue()
+      expect(screen.queryByText(/race distance/i)).not.toBeInTheDocument()
+      expect(screen.getByText(/how would you rate your fitness/i)).toBeInTheDocument()
+    })
+
+    it('skips the race-distance step for General Fitness', () => {
+      const onComplete = vi.fn()
+      render(<Onboarding onComplete={onComplete} />)
+      fireEvent.click(screen.getByText(/General Fitness/))
+      clickContinue()
+      fireEvent.change(screen.getByPlaceholderText(/Summer Fitness/), { target: { value: 'Block' } })
+      clickContinue()
+      expect(screen.queryByText(/race distance/i)).not.toBeInTheDocument()
+      expect(screen.getByText(/how would you rate your fitness/i)).toBeInTheDocument()
+    })
+
+    it('omits raceDistance when raceType is Hyrox', () => {
+      const cfg = walkHappyPath({ raceType: 'Hyrox', weakStation: 'Wall Balls' })
+      expect(cfg.raceType).toBe('hyrox')
+      expect(cfg.raceDistance).toBeUndefined()
+    })
+
+    it('omits raceDistance when raceType is General Fitness', () => {
+      const cfg = walkHappyPath({ raceType: 'General Fitness' })
+      expect(cfg.raceType).toBe('general')
+      expect(cfg.raceDistance).toBeUndefined()
+    })
+
+    it('captures the user-selected race distance for trail races', () => {
+      const cfg = walkHappyPath({ raceDistance: '50K Ultra' })
+      expect(cfg.raceDistance).toBe('50k')
+    })
+
+    it('Back from experience returns to race-distance for trail', () => {
+      render(<Onboarding onComplete={vi.fn()} />)
+      fireEvent.click(screen.getByText(/Trail \/ Road Race/))
+      clickContinue()
+      fireEvent.change(screen.getByPlaceholderText(/Broken Arrow/), { target: { value: 'Foo' } })
+      clickContinue()
+      fireEvent.click(screen.getByText(/^Marathon$/))
+      clickContinue()
+      // Now on experience step. Click back arrow.
+      const backArrow = document.querySelector('.fixed .flex.items-center.justify-between button') as HTMLButtonElement
+      fireEvent.click(backArrow)
+      expect(screen.getByText(/race distance/i)).toBeInTheDocument()
+    })
+
+    it('Back from experience returns to race-name for hyrox (race-distance skipped)', () => {
+      render(<Onboarding onComplete={vi.fn()} />)
+      fireEvent.click(screen.getByText(/^Hyrox$/))
+      clickContinue()
+      fireEvent.change(screen.getByPlaceholderText(/Hyrox San Francisco/), { target: { value: 'Foo' } })
+      clickContinue()
+      const backArrow = document.querySelector('.fixed .flex.items-center.justify-between button') as HTMLButtonElement
+      fireEvent.click(backArrow)
+      expect(screen.getByText(/tell us about your race/i)).toBeInTheDocument()
+      expect(screen.queryByText(/race distance/i)).not.toBeInTheDocument()
+    })
+  })
+
   describe('days per week', () => {
     it('allows 7 days/week', () => {
       const cfg = walkHappyPath({ daysPerWeek: 7 })
@@ -209,10 +300,12 @@ describe('Onboarding', () => {
     it.each([3, 4, 5, 6, 7])('shows %i days option', (n) => {
       const onComplete = vi.fn()
       render(<Onboarding onComplete={onComplete} />)
-      // Advance to step 3
       fireEvent.click(screen.getByText('Trail / Road Race'))
       clickContinue()
       fireEvent.change(screen.getByPlaceholderText(/Broken Arrow/), { target: { value: 'X' } })
+      clickContinue()
+      // race-distance step
+      fireEvent.click(screen.getByText(/^Marathon$/))
       clickContinue()
       fireEvent.click(screen.getByText('Intermediate'))
       clickContinue()
@@ -332,97 +425,64 @@ describe('Onboarding', () => {
   })
 
   describe('gating / Continue button', () => {
-    it('disables Continue on step 5 until injury status is selected', () => {
+    function advanceTo(stepName: 'baseline' | 'equipment' | 'strength' | 'schedule') {
       const onComplete = vi.fn()
       render(<Onboarding onComplete={onComplete} />)
-      // Advance to step 5
+      // raceType
       fireEvent.click(screen.getByText('Trail / Road Race'))
       clickContinue()
+      // raceName
       fireEvent.change(screen.getByPlaceholderText(/Broken Arrow/), { target: { value: 'X' } })
       clickContinue()
+      // raceDistance
+      fireEvent.click(screen.getByText(/^Marathon$/))
+      clickContinue()
+      // experience
       fireEvent.click(screen.getByText('Intermediate'))
       clickContinue()
+      // days
       fireEvent.click(screen.getByText('5 Days'))
       clickContinue()
+      // variant (long-run day)
       fireEvent.click(screen.getByText('Saturday'))
       clickContinue()
+      if (stepName === 'baseline') return
+      // baseline (injury)
+      fireEvent.click(screen.getByText('No injuries'))
+      clickContinue()
+      if (stepName === 'equipment') return
+      // equipment
+      fireEvent.click(screen.getByText('Track'))
+      clickContinue()
+      if (stepName === 'strength') return
+      // strength
+      fireEvent.click(screen.getByRole('button', { name: 'None' }))
+      clickContinue()
+    }
 
-      // On step 5 — anchor and mileage filled but no injury picked yet
+    it('disables Continue on the baseline step until injury status is selected', () => {
+      advanceTo('baseline')
       expect(getContinueButton()?.disabled).toBe(true)
       fireEvent.click(screen.getByText('No injuries'))
       expect(getContinueButton()?.disabled).toBe(false)
     })
 
-    it('disables Continue on step 6 until at least one equipment is chosen', () => {
-      const onComplete = vi.fn()
-      render(<Onboarding onComplete={onComplete} />)
-      // Advance through to step 6
-      fireEvent.click(screen.getByText('Trail / Road Race'))
-      clickContinue()
-      fireEvent.change(screen.getByPlaceholderText(/Broken Arrow/), { target: { value: 'X' } })
-      clickContinue()
-      fireEvent.click(screen.getByText('Intermediate'))
-      clickContinue()
-      fireEvent.click(screen.getByText('5 Days'))
-      clickContinue()
-      fireEvent.click(screen.getByText('Saturday'))
-      clickContinue()
-      fireEvent.click(screen.getByText('No injuries'))
-      clickContinue()
-
-      // On step 6 — no equipment picked yet
+    it('disables Continue on the equipment step until at least one item is chosen', () => {
+      advanceTo('equipment')
       expect(getContinueButton()?.disabled).toBe(true)
       fireEvent.click(screen.getByText('Track'))
       expect(getContinueButton()?.disabled).toBe(false)
     })
 
-    it('disables Continue on step 7 until strength frequency is selected', () => {
-      const onComplete = vi.fn()
-      render(<Onboarding onComplete={onComplete} />)
-      // Advance to step 7
-      fireEvent.click(screen.getByText('Trail / Road Race'))
-      clickContinue()
-      fireEvent.change(screen.getByPlaceholderText(/Broken Arrow/), { target: { value: 'X' } })
-      clickContinue()
-      fireEvent.click(screen.getByText('Intermediate'))
-      clickContinue()
-      fireEvent.click(screen.getByText('5 Days'))
-      clickContinue()
-      fireEvent.click(screen.getByText('Saturday'))
-      clickContinue()
-      fireEvent.click(screen.getByText('No injuries'))
-      clickContinue()
-      fireEvent.click(screen.getByText('Track'))
-      clickContinue()
-
-      // On step 7 — strength not picked
+    it('disables Continue on the strength step until strength frequency is selected', () => {
+      advanceTo('strength')
       expect(getContinueButton()?.disabled).toBe(true)
       fireEvent.click(screen.getByRole('button', { name: 'None' }))
       expect(getContinueButton()?.disabled).toBe(false)
     })
 
-    it('disables Continue on step 8 until at least one training time is picked', () => {
-      const onComplete = vi.fn()
-      render(<Onboarding onComplete={onComplete} />)
-      // Advance to step 8
-      fireEvent.click(screen.getByText('Trail / Road Race'))
-      clickContinue()
-      fireEvent.change(screen.getByPlaceholderText(/Broken Arrow/), { target: { value: 'X' } })
-      clickContinue()
-      fireEvent.click(screen.getByText('Intermediate'))
-      clickContinue()
-      fireEvent.click(screen.getByText('5 Days'))
-      clickContinue()
-      fireEvent.click(screen.getByText('Saturday'))
-      clickContinue()
-      fireEvent.click(screen.getByText('No injuries'))
-      clickContinue()
-      fireEvent.click(screen.getByText('Track'))
-      clickContinue()
-      fireEvent.click(screen.getByRole('button', { name: 'None' }))
-      clickContinue()
-
-      // On step 8
+    it('disables Continue on the schedule step until at least one training time is picked', () => {
+      advanceTo('schedule')
       expect(getContinueButton()?.disabled).toBe(true)
       fireEvent.click(screen.getByText('Early morning'))
       expect(getContinueButton()?.disabled).toBe(false)
@@ -430,7 +490,7 @@ describe('Onboarding', () => {
   })
 
   describe('Hyrox branch', () => {
-    it('uses weakStation instead of longRunDay on step 4', () => {
+    it('uses weakStation instead of longRunDay on the variant step', () => {
       const cfg = walkHappyPath({ raceType: 'Hyrox', weakStation: 'Sled Push' })
       expect(cfg.raceType).toBe('hyrox')
       expect(cfg.weakStation).toBe('Sled Push')
@@ -439,12 +499,21 @@ describe('Onboarding', () => {
   })
 
   describe('progress bar', () => {
-    it('uses 11 total steps', () => {
+    it('uses 11 visible steps before raceType is picked (race-distance hidden)', () => {
       const onComplete = vi.fn()
       const { container } = render(<Onboarding onComplete={onComplete} />)
       const progressFill = container.querySelector('.bg-teal-500.rounded-full') as HTMLElement
       // step 0 of 11 → width = 1/11 ≈ 9.09%
       expect(progressFill.style.width).toMatch(/^9\.09/)
+    })
+
+    it('expands to 12 visible steps after raceType=trail is picked', () => {
+      const onComplete = vi.fn()
+      const { container } = render(<Onboarding onComplete={onComplete} />)
+      fireEvent.click(screen.getByText('Trail / Road Race'))
+      const progressFill = container.querySelector('.bg-teal-500.rounded-full') as HTMLElement
+      // Still on step 0 (idx 0 of 12) → 1/12 ≈ 8.33%
+      expect(progressFill.style.width).toMatch(/^8\.33/)
     })
   })
 
@@ -453,7 +522,6 @@ describe('Onboarding', () => {
       const onComplete = vi.fn()
       const onSkip = vi.fn()
       const { container } = render(<Onboarding onComplete={onComplete} onSkip={onSkip} />)
-      // Skip is the only header button whose svg path starts with "M4 4l10 10" (the X).
       const buttons = Array.from(container.querySelectorAll('button'))
       const skipBtn = buttons.find(b =>
         b.querySelector('svg path[d^="M4 4l10 10"]') !== null

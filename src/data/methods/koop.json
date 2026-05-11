@@ -1,0 +1,572 @@
+{
+  "id": "koop",
+  "name": "Koop / CTS Ultra",
+  "coach": "Jason Koop (Carmichael Training Systems)",
+  "yearOfOrigin": 2016,
+  "keyBook": "Training Essentials for Ultrarunning",
+  "citations": [
+    { "source": "Jason Koop with Jim Rutberg", "title": "Training Essentials for Ultrarunning (2nd Edition)", "year": 2021 },
+    { "source": "Jason Koop", "title": "KoopCast podcast and CTS Ultra coaching", "url": "https://www.trainright.com/coaches/jason-koop/" }
+  ],
+  "description": "Ultra-specific system from CTS coach Jason Koop, built around the principles that ultras are won by being durable, not fast. Heart rate-anchored zones, back-to-back long runs on weekends, vertical gain progression, and explicit terrain specificity. Covers 50K through 100-mile races including mountain ultras.",
+  "signature": "Back-to-back long runs on weekends, terrain-specific training, and HR-zone-based intensity prescription",
+  "philosophyNarrative": "Koop's CTS Ultra system rejects the road-marathon training mindset. For ultras, Koop argues, fitness matters less than durability: your ability to keep moving when fueling fails, terrain punishes you, and the day stretches past 12 hours. Five principles drive the system: (1) heart rate trumps pace — paces vary wildly with terrain and fatigue, so HR is the only consistent metric; (2) back-to-back long runs (Saturday + Sunday) build the cumulative time-on-feet that defines ultra-readiness; (3) vertical gain is its own training stress — plans target weekly elevation specific to the goal race; (4) terrain specificity matters more than intensity prescription — train on the surfaces you'll race on; (5) durability work (steep hikes, descending) is non-optional for mountain ultras. Plans range 16-32 weeks depending on distance and goal. Koop uses Endurance, Tempo, SteadyState, and ClimbingRepeats as primary workouts.",
+  "primaryAnchor": "lthr_bpm",
+  "fallbackAnchor": "self_assessed_pace",
+  "paceZones": [
+    {
+      "canonical": "recovery",
+      "displayName": "Recovery (Zone 1)",
+      "abbreviation": "Z1",
+      "purpose": "Active recovery between long efforts. HR <80% LTHR.",
+      "paceFormula": {
+        "anchorType": "lthr_bpm",
+        "strategy": "pct_of_hr",
+        "expression": "<80% LTHR",
+        "pctOfLthr": { "min": 0.60, "max": 0.80 }
+      },
+      "rpeRange": { "min": 2, "max": 3, "description": "Effortless; restorative" },
+      "hrRange": { "minPctLthr": 0.60, "maxPctLthr": 0.80 }
+    },
+    {
+      "canonical": "easy",
+      "displayName": "Endurance (Zone 2)",
+      "abbreviation": "End",
+      "purpose": "Aerobic base — bulk of weekly volume and most of the long-run time. HR 80-90% LTHR. Slow on uphills, faster on flats.",
+      "paceFormula": {
+        "anchorType": "lthr_bpm",
+        "strategy": "pct_of_hr",
+        "expression": "80-90% LTHR",
+        "pctOfLthr": { "min": 0.80, "max": 0.90 }
+      },
+      "rpeRange": { "min": 4, "max": 6, "description": "Conversational; sustainable for hours" },
+      "hrRange": { "minPctLthr": 0.80, "maxPctLthr": 0.90 }
+    },
+    {
+      "canonical": "aerobic_threshold",
+      "displayName": "Tempo (Zone 3)",
+      "abbreviation": "Tempo",
+      "purpose": "Sustained aerobic intensity — Koop's 'Tempo' is essentially extended aerobic threshold work. HR 90-95% LTHR. 30-60 min continuous.",
+      "paceFormula": {
+        "anchorType": "lthr_bpm",
+        "strategy": "pct_of_hr",
+        "expression": "90-95% LTHR",
+        "pctOfLthr": { "min": 0.90, "max": 0.95 }
+      },
+      "rpeRange": { "min": 6, "max": 7, "description": "Comfortably hard; sustainable for an hour" },
+      "hrRange": { "minPctLthr": 0.90, "maxPctLthr": 0.95 }
+    },
+    {
+      "canonical": "lactate_threshold",
+      "displayName": "SteadyState (Zone 4)",
+      "abbreviation": "SS",
+      "purpose": "Lactate threshold work. HR 95-100% LTHR. Used in interval format (3-15 min reps) or continuous (15-30 min). Critical for shorter ultras (50K-50M).",
+      "paceFormula": {
+        "anchorType": "lthr_bpm",
+        "strategy": "pct_of_hr",
+        "expression": "95-100% LTHR",
+        "pctOfLthr": { "min": 0.95, "max": 1.00 }
+      },
+      "rpeRange": { "min": 7, "max": 8, "description": "Hard; ~1-hour race effort" },
+      "hrRange": { "minPctLthr": 0.95, "maxPctLthr": 1.00 }
+    },
+    {
+      "canonical": "vo2max",
+      "displayName": "ClimbingRepeats (Zone 5)",
+      "abbreviation": "CR",
+      "purpose": "VO2max-equivalent intensity, typically performed on uphill terrain. 2-5 min hill repeats. HR 100-105% LTHR. Used sparingly — durability matters more than VO2 ceiling for ultras.",
+      "paceFormula": {
+        "anchorType": "lthr_bpm",
+        "strategy": "pct_of_hr",
+        "expression": ">100% LTHR",
+        "pctOfLthr": { "min": 1.00, "max": 1.05 }
+      },
+      "rpeRange": { "min": 8, "max": 9, "description": "Hard; on uphills, this is climbing effort" },
+      "hrRange": { "minPctLthr": 1.00, "maxPctLthr": 1.05 }
+    }
+  ],
+  "workouts": [
+    {
+      "id": "koop_endurance_run",
+      "name": "Endurance Run (Z2)",
+      "shortDescription": "Aerobic run at Zone 2 — the bulk of weekly volume",
+      "category": "easy",
+      "primaryZone": "easy",
+      "displayName": "Endurance",
+      "structure": {
+        "mainSet": [
+          {
+            "description": "Steady run at Endurance pace",
+            "duration": { "value": 75, "unit": "min" },
+            "paceZone": "easy",
+            "cue": "Hold Zone 2. On hills, pace will slow but HR stays in zone — slow down or hike if needed."
+          }
+        ]
+      },
+      "approxDurationMinutes": { "min": 45, "max": 120 },
+      "approxDistanceMiles": { "min": 4, "max": 14 },
+      "purpose": "Aerobic base building. Most weekly volume is here. On trails, expect to hike steep climbs to maintain Z2 — this is correct.",
+      "cues": [
+        "Slow down or hike on climbs to keep HR in Z2",
+        "Pace varies wildly with terrain — HR is the constant",
+        "Bulk of long runs are at this intensity"
+      ],
+      "validPhaseIds": ["base", "specific_prep", "race_prep", "taper"]
+    },
+    {
+      "id": "koop_back_to_back_long",
+      "name": "Back-to-Back Long Runs",
+      "shortDescription": "Saturday long + Sunday long — Koop's signature ultra preparation",
+      "category": "long",
+      "primaryZone": "easy",
+      "displayName": "B2B Long",
+      "structure": {
+        "mainSet": [
+          {
+            "description": "Sat: long run at Endurance pace; Sun: medium-long run at Endurance pace",
+            "duration": { "value": 240, "unit": "min" },
+            "paceZone": "easy",
+            "cue": "The Saturday long run is your hardest workout of the week. Sunday's long run starts with tired legs — that's the point. This pair builds ultra-specific durability."
+          }
+        ]
+      },
+      "approxDurationMinutes": { "min": 180, "max": 480 },
+      "approxDistanceMiles": { "min": 12, "max": 40 },
+      "purpose": "The CTS Ultra signature workout. Saturday long run + Sunday medium-long run trains time-on-feet under pre-existing fatigue — the central physiological demand of ultras. Used 2-3× per month in the specific-prep phase.",
+      "cues": [
+        "Saturday: target race-distance practice (longer for shorter races)",
+        "Sunday: 50-70% of Saturday's duration; HR may drift higher at same pace",
+        "Practice race-day fueling on both days",
+        "Hike steep terrain to keep HR in zone — running every step is not the goal"
+      ],
+      "validPhaseIds": ["specific_prep", "race_prep"],
+      "minimumExperience": "intermediate",
+      "requiresBaseMileage": 30
+    },
+    {
+      "id": "koop_long_run",
+      "name": "Long Run (single)",
+      "shortDescription": "Single weekly long run for 50K-distance plans or recovery weeks",
+      "category": "long",
+      "primaryZone": "easy",
+      "displayName": "Long Run",
+      "structure": {
+        "mainSet": [
+          {
+            "description": "Long steady run at Endurance pace",
+            "duration": { "value": 180, "unit": "min" },
+            "paceZone": "easy",
+            "cue": "Cumulative time on feet. For mountain ultras, target similar elevation gain to your race. Hike steep terrain."
+          }
+        ]
+      },
+      "approxDurationMinutes": { "min": 90, "max": 360 },
+      "approxDistanceMiles": { "min": 8, "max": 30 },
+      "purpose": "Endurance and time-on-feet. Single long runs are the default in base phase; back-to-backs replace them in specific prep.",
+      "cues": [
+        "Time on feet matters more than mileage",
+        "On trails, target similar vertical to your goal race",
+        "Practice race-day fueling and gear (vest, poles, headlamp for night portions)"
+      ],
+      "validPhaseIds": ["base", "specific_prep", "race_prep"]
+    },
+    {
+      "id": "koop_tempo",
+      "name": "Tempo (Z3)",
+      "shortDescription": "30-60 min continuous at aerobic threshold (Z3) — extended sustainable effort",
+      "category": "tempo",
+      "primaryZone": "aerobic_threshold",
+      "displayName": "Tempo",
+      "structure": {
+        "warmup": {
+          "description": "Easy warmup at Endurance pace",
+          "duration": { "value": 15, "unit": "min" },
+          "paceZone": "easy"
+        },
+        "mainSet": [
+          {
+            "description": "Continuous at Zone 3",
+            "duration": { "value": 40, "unit": "min" },
+            "paceZone": "aerobic_threshold",
+            "cue": "Sustainable aerobic effort. Pace varies with terrain — HR is the gauge."
+          }
+        ],
+        "cooldown": {
+          "description": "Easy cooldown",
+          "duration": { "value": 10, "unit": "min" },
+          "paceZone": "easy"
+        }
+      },
+      "approxDurationMinutes": { "min": 50, "max": 90 },
+      "approxDistanceMiles": { "min": 6, "max": 12 },
+      "purpose": "Aerobic threshold development — the intensity at which you'll spend significant time during ultras. Extended sustainable effort is more race-specific than VO2max work for ultras.",
+      "cues": [
+        "Steady HR throughout — even if pace drops",
+        "On trails, run flats and downhills, hike steep climbs",
+        "Build duration across the program: 30 → 45 → 60 min"
+      ],
+      "validPhaseIds": ["base", "specific_prep"]
+    },
+    {
+      "id": "koop_steady_state",
+      "name": "SteadyState Intervals (Z4)",
+      "shortDescription": "Lactate threshold intervals — 3-15 min reps at Z4",
+      "category": "cruise_intervals",
+      "primaryZone": "lactate_threshold",
+      "displayName": "SteadyState",
+      "structure": {
+        "warmup": {
+          "description": "Easy warmup + 4 strides",
+          "duration": { "value": 20, "unit": "min" },
+          "paceZone": "easy"
+        },
+        "mainSet": [
+          {
+            "description": "SteadyState intervals",
+            "duration": { "value": 8, "unit": "min" },
+            "paceZone": "lactate_threshold",
+            "reps": 3,
+            "recovery": { "type": "jog", "duration": { "value": 3, "unit": "min" } },
+            "cue": "Threshold effort. Hold Z4 for the full duration of each rep."
+          }
+        ],
+        "cooldown": {
+          "description": "Easy cooldown",
+          "duration": { "value": 15, "unit": "min" },
+          "paceZone": "easy"
+        }
+      },
+      "approxDurationMinutes": { "min": 60, "max": 90 },
+      "approxDistanceMiles": { "min": 7, "max": 11 },
+      "purpose": "Lactate threshold development. Especially important for 50K-50M races where intensity matters more than for 100M+. Used in the specific-prep phase.",
+      "cues": [
+        "Even effort across all reps",
+        "If reps slow significantly, end the workout",
+        "On trails, choose rolling/runnable terrain"
+      ],
+      "validPhaseIds": ["specific_prep", "race_prep"]
+    },
+    {
+      "id": "koop_climbing_repeats",
+      "name": "Climbing Repeats (Z5)",
+      "shortDescription": "Hill repeats at high intensity — develops climbing-specific strength",
+      "category": "hills",
+      "primaryZone": "vo2max",
+      "displayName": "ClimbingRepeats",
+      "structure": {
+        "warmup": {
+          "description": "Easy run to base of hill",
+          "duration": { "value": 15, "unit": "min" },
+          "paceZone": "easy"
+        },
+        "mainSet": [
+          {
+            "description": "Hill repeats at Z5 effort",
+            "duration": { "value": 4, "unit": "min" },
+            "paceZone": "vo2max",
+            "reps": 5,
+            "recovery": { "type": "jog", "duration": { "value": 4, "unit": "min" } },
+            "cue": "Climb at Zone 5 effort. Choose a hill steep enough that HR rises naturally — let the grade do the work."
+          }
+        ],
+        "cooldown": {
+          "description": "Easy cooldown",
+          "duration": { "value": 15, "unit": "min" },
+          "paceZone": "easy"
+        }
+      },
+      "approxDurationMinutes": { "min": 60, "max": 90 },
+      "approxDistanceMiles": { "min": 5, "max": 9 },
+      "purpose": "Develops climbing-specific strength and VO2max. Especially valuable for mountain ultras. Replaces flat speedwork in CTS Ultra plans.",
+      "cues": [
+        "Choose a hill ~6-10% grade",
+        "Effort, not pace — let the grade work for you",
+        "Walk down for recovery; reset for next rep"
+      ],
+      "validPhaseIds": ["specific_prep", "race_prep"]
+    },
+    {
+      "id": "koop_durability_hike",
+      "name": "Durability Hike",
+      "shortDescription": "Steep uphill hiking session — builds vertical gain capacity",
+      "category": "hills",
+      "primaryZone": "easy",
+      "displayName": "Durability Hike",
+      "structure": {
+        "mainSet": [
+          {
+            "description": "Steady uphill hiking on steep terrain",
+            "duration": { "value": 90, "unit": "min" },
+            "paceZone": "easy",
+            "cue": "Hike at sustainable Z2 effort on steep terrain (>10% grade). Use poles if you'll race with them. Builds vertical gain capacity without running impact."
+          }
+        ]
+      },
+      "approxDurationMinutes": { "min": 60, "max": 240 },
+      "approxDistanceMiles": { "min": 3, "max": 12 },
+      "purpose": "Builds vertical gain capacity and hiking-specific strength for mountain ultras. Lower impact than running, allows more total vertical per week.",
+      "cues": [
+        "Hike, don't run — stay in Z2 even on the steepest sections",
+        "Practice with poles if you'll race with them",
+        "Target similar vertical-gain rate to your goal race"
+      ],
+      "validPhaseIds": ["base", "specific_prep", "race_prep"]
+    },
+    {
+      "id": "koop_recovery",
+      "name": "Recovery Run",
+      "shortDescription": "Very easy short run between hard efforts",
+      "category": "recovery",
+      "primaryZone": "recovery",
+      "displayName": "Recovery",
+      "structure": {
+        "mainSet": [
+          {
+            "description": "Very easy run at Zone 1",
+            "duration": { "value": 30, "unit": "min" },
+            "paceZone": "recovery",
+            "cue": "HR strictly Z1 (<80% LTHR). The point is movement, not training."
+          }
+        ]
+      },
+      "approxDurationMinutes": { "min": 20, "max": 50 },
+      "approxDistanceMiles": { "min": 2, "max": 6 },
+      "purpose": "Active recovery between hard sessions and after back-to-back long runs.",
+      "cues": ["Walk if HR drifts up", "Skip if genuinely depleted"],
+      "validPhaseIds": ["base", "specific_prep", "race_prep", "taper"]
+    }
+  ],
+  "phases": [
+    {
+      "id": "base",
+      "name": "Base",
+      "order": 1,
+      "pctOfPlan": { "min": 0.25, "default": 0.35, "max": 0.45 },
+      "weekBounds": { "minWeeks": 4, "maxWeeks": 12 },
+      "focus": "Build aerobic base. Single long runs (no back-to-backs yet). Tempo work begins. Vertical gain progression.",
+      "intensityDistribution": { "easyPct": 90, "moderatePct": 7, "hardPct": 3 },
+      "keyWorkoutIds": ["koop_endurance_run", "koop_long_run", "koop_tempo", "koop_durability_hike", "koop_recovery"],
+      "mileageBehavior": "build",
+      "athleteNarrative": "Welcome to CTS Ultra Base phase. Your priority here is aerobic base and weekly vertical gain. Most weekly running is at Zone 2 (Endurance). One Tempo session per week. For mountain ultras, durability hikes build vertical capacity without running impact. Single long runs on Sunday — back-to-backs come in the next phase. Trust the volume — for ultras, time-on-feet is everything."
+    },
+    {
+      "id": "specific_prep",
+      "name": "Specific Prep",
+      "order": 2,
+      "pctOfPlan": { "min": 0.25, "default": 0.35, "max": 0.40 },
+      "weekBounds": { "minWeeks": 4, "maxWeeks": 10 },
+      "focus": "Back-to-back long runs introduced. SteadyState intervals. ClimbingRepeats for mountain ultras. Race-specific terrain and gear practice.",
+      "intensityDistribution": { "easyPct": 85, "moderatePct": 8, "hardPct": 7 },
+      "keyWorkoutIds": ["koop_endurance_run", "koop_back_to_back_long", "koop_tempo", "koop_steady_state", "koop_climbing_repeats", "koop_durability_hike", "koop_recovery"],
+      "mileageBehavior": "build",
+      "athleteNarrative": "Specific Prep phase. The back-to-back long run is now your most important workout — Saturday's long run is followed by Sunday's medium-long run. This trains the cumulative fatigue that defines ultras. SteadyState intervals build threshold for shorter ultras; ClimbingRepeats build climbing strength for mountain races. Practice race gear (vest, poles, headlamp) and race fueling on the back-to-backs."
+    },
+    {
+      "id": "race_prep",
+      "name": "Race Prep",
+      "order": 3,
+      "pctOfPlan": { "min": 0.15, "default": 0.20, "max": 0.30 },
+      "weekBounds": { "minWeeks": 3, "maxWeeks": 6 },
+      "focus": "Peak back-to-backs (longest of the program). Final ClimbingRepeats. Begin taper end of phase.",
+      "intensityDistribution": { "easyPct": 85, "moderatePct": 10, "hardPct": 5 },
+      "keyWorkoutIds": ["koop_endurance_run", "koop_back_to_back_long", "koop_steady_state", "koop_climbing_repeats", "koop_durability_hike", "koop_recovery"],
+      "mileageBehavior": "peak",
+      "athleteNarrative": "Race Prep. Peak back-to-back long runs occur here — the longest two-day blocks in the program. For 100-milers, peak might be 35 mi Saturday + 25 mi Sunday. Final ClimbingRepeats sharpen climbing strength. After this phase, taper begins. The work is being banked."
+    },
+    {
+      "id": "taper",
+      "name": "Taper",
+      "order": 4,
+      "pctOfPlan": { "min": 0.10, "default": 0.10, "max": 0.20 },
+      "weekBounds": { "minWeeks": 2, "maxWeeks": 4 },
+      "focus": "Reduce volume sharply. Light vertical gain to maintain hiking adaptation. Final shake-out.",
+      "intensityDistribution": { "easyPct": 90, "moderatePct": 8, "hardPct": 2 },
+      "keyWorkoutIds": ["koop_endurance_run", "koop_durability_hike", "koop_recovery"],
+      "mileageBehavior": "taper",
+      "athleteNarrative": "Taper. CTS Ultra taper is longer than for road races — typically 3-4 weeks for 100-milers, 2-3 for 50-milers. Volume drops, but light vertical gain (1-2 short hikes) maintains your hiking adaptation. Sleep, hydrate, plan logistics. The work is done."
+    }
+  ],
+  "weeklyPatterns": [
+    {
+      "phaseId": "base",
+      "daysPerWeek": 5,
+      "weekType": "standard",
+      "schedule": [
+        { "dayOfWeek": 1, "category": "rest" },
+        { "dayOfWeek": 2, "category": "tempo", "preferredWorkoutIds": ["koop_tempo"], "notes": "Z3 Tempo" },
+        { "dayOfWeek": 3, "category": "easy", "preferredWorkoutIds": ["koop_endurance_run"], "volumeModifier": "medium" },
+        { "dayOfWeek": 4, "category": "easy", "preferredWorkoutIds": ["koop_endurance_run", "koop_durability_hike"], "volumeModifier": "medium", "notes": "Z2 run or durability hike" },
+        { "dayOfWeek": 5, "category": "rest" },
+        { "dayOfWeek": 6, "category": "easy", "preferredWorkoutIds": ["koop_endurance_run"], "volumeModifier": "short" },
+        { "dayOfWeek": 7, "category": "long", "preferredWorkoutIds": ["koop_long_run"], "volumeModifier": "long" }
+      ],
+      "notes": "Base 5-day. Single long run Sunday. Tempo Tuesday. Optional durability hike Thursday for mountain runners."
+    },
+    {
+      "phaseId": "specific_prep",
+      "daysPerWeek": 6,
+      "weekType": "standard",
+      "schedule": [
+        { "dayOfWeek": 1, "category": "rest" },
+        { "dayOfWeek": 2, "category": "cruise_intervals", "preferredWorkoutIds": ["koop_steady_state"], "notes": "SteadyState (Z4)" },
+        { "dayOfWeek": 3, "category": "easy", "preferredWorkoutIds": ["koop_endurance_run"], "volumeModifier": "medium" },
+        { "dayOfWeek": 4, "category": "hills", "preferredWorkoutIds": ["koop_climbing_repeats", "koop_durability_hike"], "notes": "Climbing Repeats OR Durability Hike (mountain)" },
+        { "dayOfWeek": 5, "category": "recovery", "preferredWorkoutIds": ["koop_recovery"], "volumeModifier": "short" },
+        { "dayOfWeek": 6, "category": "long", "preferredWorkoutIds": ["koop_back_to_back_long"], "volumeModifier": "long", "notes": "B2B Day 1 (Sat) — long run" },
+        { "dayOfWeek": 7, "category": "long", "preferredWorkoutIds": ["koop_back_to_back_long"], "volumeModifier": "medium", "notes": "B2B Day 2 (Sun) — medium-long run on tired legs" }
+      ],
+      "notes": "Specific prep 6-day. Tuesday SteadyState + Thursday ClimbingRepeats + B2B long runs on Sat/Sun. Most demanding pattern."
+    },
+    {
+      "phaseId": "specific_prep",
+      "daysPerWeek": 5,
+      "weekType": "standard",
+      "schedule": [
+        { "dayOfWeek": 1, "category": "rest" },
+        { "dayOfWeek": 2, "category": "cruise_intervals", "preferredWorkoutIds": ["koop_steady_state"], "notes": "SteadyState" },
+        { "dayOfWeek": 3, "category": "easy", "preferredWorkoutIds": ["koop_endurance_run"], "volumeModifier": "medium" },
+        { "dayOfWeek": 4, "category": "hills", "preferredWorkoutIds": ["koop_climbing_repeats", "koop_durability_hike"] },
+        { "dayOfWeek": 5, "category": "rest" },
+        { "dayOfWeek": 6, "category": "long", "preferredWorkoutIds": ["koop_back_to_back_long"], "volumeModifier": "long", "notes": "B2B Day 1 (Sat)" },
+        { "dayOfWeek": 7, "category": "long", "preferredWorkoutIds": ["koop_back_to_back_long"], "volumeModifier": "medium", "notes": "B2B Day 2 (Sun)" }
+      ],
+      "notes": "5-day specific prep. Drops the recovery run to keep B2B intact."
+    },
+    {
+      "phaseId": "race_prep",
+      "daysPerWeek": 6,
+      "weekType": "standard",
+      "schedule": [
+        { "dayOfWeek": 1, "category": "rest" },
+        { "dayOfWeek": 2, "category": "cruise_intervals", "preferredWorkoutIds": ["koop_steady_state"], "notes": "Final SteadyState" },
+        { "dayOfWeek": 3, "category": "easy", "preferredWorkoutIds": ["koop_endurance_run"], "volumeModifier": "medium" },
+        { "dayOfWeek": 4, "category": "hills", "preferredWorkoutIds": ["koop_climbing_repeats", "koop_durability_hike"] },
+        { "dayOfWeek": 5, "category": "recovery", "preferredWorkoutIds": ["koop_recovery"], "volumeModifier": "short" },
+        { "dayOfWeek": 6, "category": "long", "preferredWorkoutIds": ["koop_back_to_back_long"], "volumeModifier": "long", "notes": "Peak B2B Day 1" },
+        { "dayOfWeek": 7, "category": "long", "preferredWorkoutIds": ["koop_back_to_back_long"], "volumeModifier": "long", "notes": "Peak B2B Day 2" }
+      ],
+      "notes": "Race prep peak. Longest B2B of the program. After this, taper begins."
+    },
+    {
+      "phaseId": "specific_prep",
+      "daysPerWeek": 6,
+      "weekType": "recovery",
+      "schedule": [
+        { "dayOfWeek": 1, "category": "rest" },
+        { "dayOfWeek": 2, "category": "easy", "preferredWorkoutIds": ["koop_endurance_run"], "volumeModifier": "medium" },
+        { "dayOfWeek": 3, "category": "tempo", "preferredWorkoutIds": ["koop_tempo"], "notes": "Reduced Tempo only" },
+        { "dayOfWeek": 4, "category": "easy", "preferredWorkoutIds": ["koop_endurance_run"], "volumeModifier": "medium" },
+        { "dayOfWeek": 5, "category": "easy", "preferredWorkoutIds": ["koop_endurance_run"], "volumeModifier": "short" },
+        { "dayOfWeek": 6, "category": "long", "preferredWorkoutIds": ["koop_long_run"], "volumeModifier": "medium", "notes": "Cutback long run — single, no B2B" },
+        { "dayOfWeek": 7, "category": "recovery", "preferredWorkoutIds": ["koop_recovery"], "volumeModifier": "short" }
+      ],
+      "notes": "Recovery week — every 3-4 weeks. B2B replaced with single shorter long run. Reduced intensity."
+    }
+  ],
+  "mileageProgression": {
+    "startMileagePctOfPeak": 0.50,
+    "peakMileageRule": { "type": "multiplier_of_current", "value": 1.6 },
+    "maxWeeklyIncreasePct": 0.10,
+    "cutbackEveryNWeeks": 3,
+    "cutbackPct": 0.70,
+    "longRunPctCap": 0.45
+  },
+  "taper": {
+    "durationWeeks": 3,
+    "weeklyVolumePcts": [0.70, 0.50, 0.30],
+    "preserveIntensity": false,
+    "raceWeekSchedule": [
+      { "dayOfWeek": 1, "category": "rest" },
+      { "dayOfWeek": 2, "category": "easy", "preferredWorkoutIds": ["koop_endurance_run"], "volumeModifier": "short", "notes": "30 min Z2" },
+      { "dayOfWeek": 3, "category": "rest" },
+      { "dayOfWeek": 4, "category": "easy", "preferredWorkoutIds": ["koop_endurance_run"], "volumeModifier": "short", "notes": "20-30 min Z2 with light hiking" },
+      { "dayOfWeek": 5, "category": "rest" },
+      { "dayOfWeek": 6, "category": "easy", "volumeModifier": "short", "notes": "Optional 15 min shakeout" },
+      { "dayOfWeek": 7, "category": "race_pace", "notes": "RACE DAY" }
+    ],
+    "notes": "CTS Ultra taper: longer and gentler than road taper. 70% / 50% / 30% volume across 3 weeks. For 100-milers, often extends to 4 weeks."
+  },
+  "strengthRecommendation": {
+    "daysPerWeek": { "min": 1, "max": 3, "default": 2 },
+    "workoutIds": [],
+    "philosophy": "Koop strongly recommends strength training for ultrarunners — single-leg work, hip/glute strength, core stability, posterior chain. 2× per week, 30-45 min sessions. Critical for durability and injury prevention given high training loads."
+  },
+  "crossTrainingRecommendation": {
+    "approvedModalities": ["cycling", "hiking", "swimming"],
+    "daysPerWeek": { "min": 0, "max": 2, "default": 1 },
+    "intensityGuidance": "Hiking is the most race-specific cross-training for mountain ultras — counts toward both training stimulus and durability. Cycling is acceptable for aerobic supplementation on rest days. Easy effort only."
+  },
+  "applicability": {
+    "byDistance": {
+      "5k": "NOT_SUITED",
+      "10k": "NOT_SUITED",
+      "half_marathon": "NOT_SUITED",
+      "marathon": "CAUTION",
+      "50k": "BEST",
+      "50_mile": "BEST",
+      "100k": "BEST",
+      "100_mile": "BEST",
+      "mountain_ultra": "BEST"
+    },
+    "byExperience": {
+      "beginner": "NOT_SUITED",
+      "recreational": "CAUTION",
+      "intermediate": "GOOD",
+      "advanced": "BEST",
+      "elite": "BEST"
+    },
+    "byTerrain": {
+      "road": "OK",
+      "track": "NOT_SUITED",
+      "trail_rolling": "BEST",
+      "mountain_vertical": "BEST",
+      "cross_country": "GOOD"
+    },
+    "weeklyHoursRange": { "min": 8, "max": 20 },
+    "daysPerWeekRange": { "min": 5, "max": 7, "ideal": 6 }
+  },
+  "restrictions": [
+    {
+      "type": "distance",
+      "rule": "Built specifically for ultras (50K and beyond). Not designed for road races up to the marathon — overly long training sessions and insufficient pace specificity for shorter races.",
+      "blocking": false,
+      "suggestedAlternativeId": "pfitzinger",
+      "warningMessage": "CTS Ultra is built for ultras. For road marathon, consider Pfitzinger or Daniels — they're more pace-specific."
+    },
+    {
+      "type": "experience",
+      "rule": "Requires substantial running base (50+ miles per week or equivalent training time) and prior race experience. Not appropriate for first-time ultrarunners without a coaching relationship.",
+      "blocking": false,
+      "suggestedAlternativeId": "roche_swap",
+      "warningMessage": "CTS Ultra plans assume serious training history. For first-time ultrarunners, Roche/SWAP is more accessible and emphasizes joy/play over volume."
+    },
+    {
+      "type": "time",
+      "rule": "Plans require 8-20 hours/week and access to trails (or hills) for terrain specificity. Hard for runners without trail access or limited weekly time.",
+      "blocking": false,
+      "warningMessage": "CTS Ultra requires significant weekly time and ideally trail/hill access. With limited time or road-only access, results will be compromised — but the system can be adapted with cycling/hiking substitutes."
+    }
+  ],
+  "generationRules": {
+    "defaultPlanWeeks": 24,
+    "supportedPlanWeeks": [16, 18, 20, 24, 28, 32],
+    "qualityWorkoutsPerWeek": { "min": 1, "max": 3, "default": 2 },
+    "minDaysBetweenHardSessions": 2,
+    "allowsDoubles": false,
+    "compressionPriority": ["base", "specific_prep", "race_prep", "taper"],
+    "expansionPriority": ["base", "specific_prep", "race_prep", "taper"],
+    "invariants": [
+      "Long run cap at 45% of weekly mileage (looser than road methods due to ultra demands)",
+      "Back-to-back long runs only in specific_prep and race_prep phases",
+      "B2B Day 2 must be 50-70% of B2B Day 1 duration",
+      "Vertical gain progression: track weekly elevation gain alongside mileage for mountain races",
+      "ClimbingRepeats only when user has hasHillsNearby = true",
+      "Cutback every 3-4 weeks at 70%",
+      "Taper extends to 4 weeks for 100-milers",
+      "Hiking counts as training time (especially Z2 vertical-gain hikes)",
+      "If user lacks trail access, substitute road hill repeats but warn that race specificity is reduced"
+    ]
+  },
+  "schemaVersion": "1.0.0",
+  "lastUpdated": "2026-05-09"
+}

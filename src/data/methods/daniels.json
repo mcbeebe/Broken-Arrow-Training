@@ -1,0 +1,699 @@
+{
+  "id": "daniels",
+  "name": "Daniels' Running Formula (VDOT)",
+  "coach": "Jack Daniels, PhD",
+  "yearOfOrigin": 1998,
+  "keyBook": "Daniels' Running Formula",
+  "citations": [
+    {
+      "source": "Jack Daniels",
+      "title": "Daniels' Running Formula (3rd Edition)",
+      "year": 2014
+    },
+    {
+      "source": "Jack Daniels",
+      "title": "Daniels VDOT Calculator and pace tables",
+      "url": "https://vdoto2.com/"
+    }
+  ],
+  "description": "VDOT-based system that derives all training paces from a single fitness number computed from a recent race performance. Five pace zones — E, M, T, I, R — each tied to a specific physiological adaptation. Built around 2 quality (Q) sessions per week plus easy fill.",
+  "signature": "VDOT-based pace zones (E/M/T/I/R) with 2 quality sessions per week",
+  "philosophyNarrative": "Daniels' system rests on three pillars: (1) every training pace targets a specific physiological adaptation, not a feeling; (2) you derive every pace from a single VDOT number computed from a recent race; (3) you organize the year into four phases that progressively transition from base aerobic work to race-specific quality. The two-quality-sessions-per-week structure ('2Q') is what most amateur runners follow — one threshold/interval session and one long run with embedded quality, with everything else at conversational easy pace. The genius of the system is that as your VDOT improves, every pace updates automatically, so the structure stays the same while the work gets faster.",
+  "primaryAnchor": "recent_race_time",
+  "fallbackAnchor": "self_assessed_pace",
+  "paceZones": [
+    {
+      "canonical": "recovery",
+      "displayName": "Recovery",
+      "abbreviation": "Rec",
+      "purpose": "Active recovery between hard sessions — slower than E pace. The goal is movement and blood flow, not training stimulus. Should leave you feeling better, not more tired.",
+      "paceFormula": {
+        "anchorType": "vdot",
+        "strategy": "offset_from_anchor",
+        "expression": "easy_pace + 30 sec/mile",
+        "offsetSecPerMile": { "min": 20, "max": 60 }
+      },
+      "rpeRange": { "min": 2, "max": 3, "description": "Very easy — effortless; could continue indefinitely without strain" },
+      "hrRange": { "minPctLthr": 0.55, "maxPctLthr": 0.65 }
+    },
+    {
+      "canonical": "easy",
+      "displayName": "E pace (Easy)",
+      "abbreviation": "E",
+      "purpose": "Develops cardiovascular base, capillary density, and mitochondrial adaptations. Most weekly mileage is at this pace. Conversational throughout — should be able to speak in full sentences.",
+      "paceFormula": {
+        "anchorType": "vdot",
+        "strategy": "vdot_table",
+        "expression": "vdot_table.E[vdot]"
+      },
+      "rpeRange": { "min": 3, "max": 5, "description": "Conversational; full sentences without breath struggle" },
+      "hrRange": { "minPctLthr": 0.65, "maxPctLthr": 0.79 }
+    },
+    {
+      "canonical": "marathon_pace",
+      "displayName": "M pace (Marathon)",
+      "abbreviation": "M",
+      "purpose": "Race pace for marathon. Used in marathon-specific workouts and embedded in long runs late in training to build pace tolerance.",
+      "paceFormula": {
+        "anchorType": "vdot",
+        "strategy": "vdot_table",
+        "expression": "vdot_table.M[vdot]"
+      },
+      "rpeRange": { "min": 6, "max": 7, "description": "Comfortably hard but sustainable for a long time" },
+      "hrRange": { "minPctLthr": 0.80, "maxPctLthr": 0.88 }
+    },
+    {
+      "canonical": "lactate_threshold",
+      "displayName": "T pace (Threshold)",
+      "abbreviation": "T",
+      "purpose": "Develops lactate threshold — the ability to clear lactate as fast as it accumulates. 'Comfortably hard'; about 1-hour race pace. Done as steady tempo (20-30 min) or cruise intervals (5-15 min reps with short rest).",
+      "paceFormula": {
+        "anchorType": "vdot",
+        "strategy": "vdot_table",
+        "expression": "vdot_table.T[vdot]"
+      },
+      "rpeRange": { "min": 7, "max": 8, "description": "Comfortably hard; 1-hour race pace; can speak only in short phrases" },
+      "hrRange": { "minPctLthr": 0.88, "maxPctLthr": 0.92 }
+    },
+    {
+      "canonical": "vo2max",
+      "displayName": "I pace (Interval)",
+      "abbreviation": "I",
+      "purpose": "Develops VO2max — maximum oxygen uptake. Done as 3-5 minute intervals at ~3K-5K race pace, with equal jog recovery. Total volume capped at 8% of weekly mileage or 10K, whichever is less.",
+      "paceFormula": {
+        "anchorType": "vdot",
+        "strategy": "vdot_table",
+        "expression": "vdot_table.I[vdot]"
+      },
+      "rpeRange": { "min": 8, "max": 9, "description": "Hard; 3K-5K race pace; cannot speak more than a word or two" },
+      "hrRange": { "minPctLthr": 0.95, "maxPctLthr": 1.00 }
+    },
+    {
+      "canonical": "speed",
+      "displayName": "R pace (Repetition)",
+      "abbreviation": "R",
+      "purpose": "Develops running economy, speed, and neuromuscular efficiency. Faster than VO2max — done as 200-600m reps with FULL recovery (typically 2-4× rep duration). NOT a cardiovascular workout; it's a speed/economy workout.",
+      "paceFormula": {
+        "anchorType": "vdot",
+        "strategy": "vdot_table",
+        "expression": "vdot_table.R[vdot]"
+      },
+      "rpeRange": { "min": 9, "max": 9, "description": "Fast and crisp; not maximum sprint — quick but controlled" }
+    }
+  ],
+  "workouts": [
+    {
+      "id": "daniels_easy_run",
+      "name": "Easy Run (E)",
+      "shortDescription": "Conversational base run at E pace",
+      "category": "easy",
+      "primaryZone": "easy",
+      "displayName": "E Run",
+      "structure": {
+        "mainSet": [
+          {
+            "description": "Steady run at E pace",
+            "duration": { "value": 45, "unit": "min" },
+            "paceZone": "easy",
+            "cue": "Conversational throughout. If you cannot speak in full sentences, slow down."
+          }
+        ]
+      },
+      "approxDurationMinutes": { "min": 30, "max": 75 },
+      "approxDistanceMiles": { "min": 3, "max": 9 },
+      "purpose": "Aerobic base development and recovery between hard sessions. Foundation of every Daniels plan — 70-80% of weekly mileage.",
+      "cues": [
+        "Conversational pace — should be able to speak full sentences",
+        "If pace creeps up, deliberately back off",
+        "Goal is repeated stress without depletion"
+      ],
+      "validPhaseIds": ["foundation", "early_quality", "transition_quality", "final_quality"]
+    },
+    {
+      "id": "daniels_long_run",
+      "name": "Long Run (E)",
+      "shortDescription": "Long steady run at E pace, capped at ~25-30% of weekly mileage",
+      "category": "long",
+      "primaryZone": "easy",
+      "displayName": "Long Run (E)",
+      "structure": {
+        "mainSet": [
+          {
+            "description": "Long steady run at E pace; for marathon training, build to 18-22 miles",
+            "duration": { "value": 120, "unit": "min" },
+            "paceZone": "easy",
+            "cue": "Stay conversational the entire run. Carry water and fuel for runs >90 min."
+          }
+        ]
+      },
+      "approxDurationMinutes": { "min": 60, "max": 180 },
+      "approxDistanceMiles": { "min": 8, "max": 22 },
+      "purpose": "Builds endurance, cardiovascular efficiency, and fatigue resistance. Critical for half/full marathon. Capped at 25-30% of weekly mileage to prevent injury.",
+      "cues": [
+        "Time on feet matters more than pace",
+        "Practice marathon-day fueling on runs over 90 minutes",
+        "Effort should remain steady, not rising"
+      ],
+      "validPhaseIds": ["foundation", "early_quality", "transition_quality", "final_quality"]
+    },
+    {
+      "id": "daniels_long_run_with_marathon_pace",
+      "name": "Long Run with M-Pace Segment",
+      "shortDescription": "Long run with embedded marathon-pace miles for race specificity",
+      "category": "long",
+      "primaryZone": "marathon_pace",
+      "displayName": "Long Run + M-Pace",
+      "structure": {
+        "warmup": {
+          "description": "Easy warmup at E pace",
+          "duration": { "value": 30, "unit": "min" },
+          "paceZone": "easy"
+        },
+        "mainSet": [
+          {
+            "description": "Marathon-pace segment in the middle of the run",
+            "distance": { "value": 6, "unit": "mi" },
+            "paceZone": "marathon_pace",
+            "cue": "Lock into the rhythm you'll race at. Should feel controlled, not strained."
+          },
+          {
+            "description": "Easy running to complete total distance",
+            "duration": { "value": 45, "unit": "min" },
+            "paceZone": "easy"
+          }
+        ]
+      },
+      "approxDurationMinutes": { "min": 90, "max": 180 },
+      "approxDistanceMiles": { "min": 12, "max": 22 },
+      "purpose": "Builds the ability to hold marathon goal pace under fatigue. Used in late-phase marathon prep (Phase III/IV).",
+      "cues": [
+        "M-pace should feel sustainable, not racing",
+        "If M-pace feels labored, your goal time may be too aggressive",
+        "Practice race-day fueling during this run"
+      ],
+      "validPhaseIds": ["transition_quality", "final_quality"],
+      "minimumExperience": "intermediate",
+      "requiresBaseMileage": 30
+    },
+    {
+      "id": "daniels_threshold_steady",
+      "name": "Steady Threshold Tempo (T)",
+      "shortDescription": "20-30 minute continuous run at T pace",
+      "category": "tempo",
+      "primaryZone": "lactate_threshold",
+      "displayName": "Tempo (T)",
+      "structure": {
+        "warmup": {
+          "description": "Easy warmup at E pace + 4× strides",
+          "duration": { "value": 15, "unit": "min" },
+          "paceZone": "easy",
+          "cue": "Strides: 4× ~20 sec at R effort with full recovery between"
+        },
+        "mainSet": [
+          {
+            "description": "Continuous run at T pace",
+            "duration": { "value": 20, "unit": "min" },
+            "paceZone": "lactate_threshold",
+            "cue": "Comfortably hard — about 1-hour race pace. Steady throughout."
+          }
+        ],
+        "cooldown": {
+          "description": "Easy cooldown at E pace",
+          "duration": { "value": 10, "unit": "min" },
+          "paceZone": "easy"
+        }
+      },
+      "approxDurationMinutes": { "min": 45, "max": 65 },
+      "approxDistanceMiles": { "min": 6, "max": 9 },
+      "purpose": "Raises lactate threshold — the pace at which lactate begins to accumulate. The single most important workout for half marathon and longer.",
+      "cues": [
+        "Pace should be one you could hold for ~1 hour in a race",
+        "If you can converse in full sentences, you're going too easy",
+        "If you can't speak more than a word, you're going too hard"
+      ],
+      "validPhaseIds": ["transition_quality", "final_quality"]
+    },
+    {
+      "id": "daniels_cruise_intervals",
+      "name": "Cruise Intervals (T)",
+      "shortDescription": "Threshold work broken into shorter pieces with brief recovery",
+      "category": "cruise_intervals",
+      "primaryZone": "lactate_threshold",
+      "displayName": "Cruise Intervals (T)",
+      "structure": {
+        "warmup": {
+          "description": "Easy warmup at E pace + 4× strides",
+          "duration": { "value": 15, "unit": "min" },
+          "paceZone": "easy"
+        },
+        "mainSet": [
+          {
+            "description": "Threshold intervals",
+            "distance": { "value": 1, "unit": "mi" },
+            "paceZone": "lactate_threshold",
+            "reps": 4,
+            "recovery": {
+              "type": "jog",
+              "duration": { "value": 1, "unit": "min" }
+            },
+            "cue": "Each rep at T pace; recovery is brief — just enough to reset rhythm."
+          }
+        ],
+        "cooldown": {
+          "description": "Easy cooldown at E pace",
+          "duration": { "value": 10, "unit": "min" },
+          "paceZone": "easy"
+        }
+      },
+      "approxDurationMinutes": { "min": 50, "max": 75 },
+      "approxDistanceMiles": { "min": 7, "max": 10 },
+      "purpose": "Same physiological target as steady tempo (LT) but allows more total volume at threshold pace because of the brief breaks. Often more sustainable than 30-min continuous tempos.",
+      "cues": [
+        "Don't let recovery become the workout — keep jog moving",
+        "Each rep should feel identical in effort",
+        "If reps slow significantly, end the workout"
+      ],
+      "validPhaseIds": ["early_quality", "transition_quality", "final_quality"]
+    },
+    {
+      "id": "daniels_vo2_intervals",
+      "name": "VO2max Intervals (I)",
+      "shortDescription": "3-5 minute reps at I pace with equal jog recovery",
+      "category": "vo2_intervals",
+      "primaryZone": "vo2max",
+      "displayName": "Intervals (I)",
+      "structure": {
+        "warmup": {
+          "description": "Easy warmup at E pace + 4× strides + 2× 30-sec at I pace",
+          "duration": { "value": 20, "unit": "min" },
+          "paceZone": "easy",
+          "cue": "Build progressively into the workout"
+        },
+        "mainSet": [
+          {
+            "description": "VO2max intervals at I pace",
+            "duration": { "value": 3, "unit": "min" },
+            "paceZone": "vo2max",
+            "reps": 5,
+            "recovery": {
+              "type": "jog",
+              "duration": { "value": 3, "unit": "min" }
+            },
+            "cue": "About 3K-5K race pace. Equal jog recovery between reps."
+          }
+        ],
+        "cooldown": {
+          "description": "Easy cooldown at E pace",
+          "duration": { "value": 10, "unit": "min" },
+          "paceZone": "easy"
+        }
+      },
+      "approxDurationMinutes": { "min": 50, "max": 70 },
+      "approxDistanceMiles": { "min": 6, "max": 9 },
+      "purpose": "Develops VO2max — the ceiling on your aerobic engine. Total time at I pace capped at 10% of weekly mileage or ~10K, whichever is less, to prevent overstress.",
+      "cues": [
+        "First rep should feel almost too easy — pace is the same throughout",
+        "Effort rises naturally as workout progresses",
+        "If you can't complete the planned reps at pace, your VDOT is overestimated"
+      ],
+      "validPhaseIds": ["early_quality", "transition_quality"]
+    },
+    {
+      "id": "daniels_repetition_short",
+      "name": "Short Repetitions (R)",
+      "shortDescription": "200-400m reps at R pace with full recovery for speed and economy",
+      "category": "speed_repetitions",
+      "primaryZone": "speed",
+      "displayName": "Reps (R)",
+      "structure": {
+        "warmup": {
+          "description": "Easy warmup + dynamic drills + 4× strides",
+          "duration": { "value": 20, "unit": "min" },
+          "paceZone": "easy"
+        },
+        "mainSet": [
+          {
+            "description": "Short repetitions at R pace",
+            "distance": { "value": 400, "unit": "m" },
+            "paceZone": "speed",
+            "reps": 8,
+            "recovery": {
+              "type": "jog",
+              "distance": { "value": 400, "unit": "m" }
+            },
+            "cue": "Crisp and fast but not maximum sprint. Recovery is intentionally generous — full recovery preserves speed and form."
+          }
+        ],
+        "cooldown": {
+          "description": "Easy cooldown at E pace",
+          "duration": { "value": 10, "unit": "min" },
+          "paceZone": "easy"
+        }
+      },
+      "approxDurationMinutes": { "min": 45, "max": 60 },
+      "approxDistanceMiles": { "min": 5, "max": 8 },
+      "purpose": "Develops running economy and neuromuscular efficiency — your ability to run fast efficiently. NOT a cardiovascular workout. Total volume capped at 5% of weekly mileage.",
+      "cues": [
+        "If form breaks down, end the workout — quality over quantity",
+        "Take FULL recovery — this is a speed workout, not a hard cardio session",
+        "Reps should feel similar in pace throughout"
+      ],
+      "validPhaseIds": ["early_quality", "transition_quality", "final_quality"]
+    },
+    {
+      "id": "daniels_strides",
+      "name": "Strides",
+      "shortDescription": "8-10× ~20-sec at R pace tagged onto the end of an easy run",
+      "category": "strides",
+      "primaryZone": "speed",
+      "displayName": "Strides",
+      "structure": {
+        "mainSet": [
+          {
+            "description": "Strides at R effort",
+            "duration": { "value": 20, "unit": "sec" },
+            "paceZone": "speed",
+            "reps": 8,
+            "recovery": {
+              "type": "stand",
+              "duration": { "value": 60, "unit": "sec" }
+            },
+            "cue": "Smooth, fast, controlled — not sprinting. Focus on quick turnover and relaxed form."
+          }
+        ]
+      },
+      "approxDurationMinutes": { "min": 8, "max": 12 },
+      "purpose": "Maintains neuromuscular sharpness and running economy. Add to easy days 2-3× per week. Almost never injurious because of brevity and full recovery.",
+      "cues": [
+        "Build to top speed gradually — don't blast off",
+        "Focus on quick cadence, not stride length",
+        "Should feel energizing, never depleting"
+      ],
+      "validPhaseIds": ["foundation", "early_quality", "transition_quality", "final_quality"]
+    },
+    {
+      "id": "daniels_recovery_run",
+      "name": "Recovery Run",
+      "shortDescription": "Very easy short run between hard sessions",
+      "category": "recovery",
+      "primaryZone": "recovery",
+      "displayName": "Recovery",
+      "structure": {
+        "mainSet": [
+          {
+            "description": "Very easy short run",
+            "duration": { "value": 30, "unit": "min" },
+            "paceZone": "recovery",
+            "cue": "Slower than easy. The point is movement and blood flow, not training stimulus."
+          }
+        ]
+      },
+      "approxDurationMinutes": { "min": 20, "max": 45 },
+      "approxDistanceMiles": { "min": 2, "max": 5 },
+      "purpose": "Promotes recovery between hard sessions. Should leave you feeling better, not more tired.",
+      "cues": [
+        "If you don't feel better at the end, you ran too hard",
+        "Walk breaks are fine",
+        "Skip if genuinely fatigued"
+      ],
+      "validPhaseIds": ["foundation", "early_quality", "transition_quality", "final_quality"]
+    },
+    {
+      "id": "daniels_marathon_simulation",
+      "name": "Marathon Simulation Long Run",
+      "shortDescription": "Long run at progressive M-pace effort, simulating race demands",
+      "category": "long",
+      "primaryZone": "marathon_pace",
+      "displayName": "Marathon Simulation",
+      "structure": {
+        "warmup": {
+          "description": "Easy warmup at E pace",
+          "duration": { "value": 20, "unit": "min" },
+          "paceZone": "easy"
+        },
+        "mainSet": [
+          {
+            "description": "Progressive M-pace segments",
+            "distance": { "value": 4, "unit": "mi" },
+            "paceZone": "marathon_pace",
+            "reps": 3,
+            "recovery": {
+              "type": "jog",
+              "duration": { "value": 3, "unit": "min" }
+            },
+            "cue": "Each 4-mile segment at M-pace; brief jog between. Total ~12 miles at M-pace."
+          }
+        ],
+        "cooldown": {
+          "description": "Easy cooldown",
+          "duration": { "value": 15, "unit": "min" },
+          "paceZone": "easy"
+        }
+      },
+      "approxDurationMinutes": { "min": 130, "max": 170 },
+      "approxDistanceMiles": { "min": 16, "max": 20 },
+      "purpose": "Race-specific preparation: simulates marathon fatigue and pace tolerance. Used in Phase IV, 4-6 weeks before race.",
+      "cues": [
+        "Practice race-day nutrition and hydration",
+        "If M-pace is unsustainable, your goal time may be too aggressive",
+        "Run final segment at planned race effort"
+      ],
+      "validPhaseIds": ["final_quality"],
+      "minimumExperience": "advanced",
+      "requiresBaseMileage": 40
+    }
+  ],
+  "phases": [
+    {
+      "id": "foundation",
+      "name": "Phase I — Foundation",
+      "order": 1,
+      "pctOfPlan": { "min": 0.20, "default": 0.30, "max": 0.40 },
+      "weekBounds": { "minWeeks": 3, "maxWeeks": 8 },
+      "focus": "Build aerobic base, accumulate easy mileage, prepare body for harder work to come.",
+      "intensityDistribution": { "easyPct": 95, "moderatePct": 0, "hardPct": 5 },
+      "keyWorkoutIds": ["daniels_easy_run", "daniels_long_run", "daniels_strides", "daniels_recovery_run"],
+      "mileageBehavior": "build",
+      "athleteNarrative": "Welcome to Phase I — Foundation. The goal of this phase is simple: build aerobic base. Almost everything you run will be at conversational E pace. The only quality work is strides — short bursts of speed at the end of some easy runs. Resist the urge to add intensity; the work you do here is the foundation everything else is built on. Mileage builds gradually, with one cutback week every 4 weeks."
+    },
+    {
+      "id": "early_quality",
+      "name": "Phase II — Early Quality",
+      "order": 2,
+      "pctOfPlan": { "min": 0.20, "default": 0.25, "max": 0.30 },
+      "weekBounds": { "minWeeks": 3, "maxWeeks": 6 },
+      "focus": "Introduce R-pace work for speed and economy; maintain aerobic base; begin cruise intervals.",
+      "intensityDistribution": { "easyPct": 85, "moderatePct": 5, "hardPct": 10 },
+      "keyWorkoutIds": ["daniels_easy_run", "daniels_long_run", "daniels_repetition_short", "daniels_cruise_intervals", "daniels_strides"],
+      "mileageBehavior": "build",
+      "athleteNarrative": "Phase II adds your first true quality workouts. R-pace repetitions develop running economy and speed without major cardiovascular cost — full recoveries are the key. You'll do 1-2 quality sessions per week (Q1 and Q2): typically R-pace early in the week and a long run on the weekend. Mileage continues to climb. If R-pace feels uncomfortably hard, your VDOT may be overestimated."
+    },
+    {
+      "id": "transition_quality",
+      "name": "Phase III — Transition Quality",
+      "order": 3,
+      "pctOfPlan": { "min": 0.20, "default": 0.25, "max": 0.30 },
+      "weekBounds": { "minWeeks": 3, "maxWeeks": 6 },
+      "focus": "VO2max development via I-pace intervals; cruise intervals continue; long run extends.",
+      "intensityDistribution": { "easyPct": 80, "moderatePct": 5, "hardPct": 15 },
+      "keyWorkoutIds": ["daniels_easy_run", "daniels_long_run", "daniels_long_run_with_marathon_pace", "daniels_vo2_intervals", "daniels_cruise_intervals", "daniels_strides"],
+      "mileageBehavior": "peak",
+      "athleteNarrative": "Phase III is where the engine gets bigger. I-pace intervals (3-5 minute reps at 3K-5K pace) push your VO2max ceiling. Cruise intervals continue developing threshold. Long runs extend toward race distance. This is the most demanding phase — pay attention to recovery. Total I-pace volume is capped at 10% of weekly mileage; if you can't complete reps at pace, end the workout."
+    },
+    {
+      "id": "final_quality",
+      "name": "Phase IV — Final Quality",
+      "order": 4,
+      "pctOfPlan": { "min": 0.15, "default": 0.20, "max": 0.30 },
+      "weekBounds": { "minWeeks": 3, "maxWeeks": 6 },
+      "focus": "Race-specific work: T pace and goal-pace running. Taper integrated into final 2-3 weeks.",
+      "intensityDistribution": { "easyPct": 80, "moderatePct": 10, "hardPct": 10 },
+      "keyWorkoutIds": ["daniels_easy_run", "daniels_long_run_with_marathon_pace", "daniels_threshold_steady", "daniels_marathon_simulation", "daniels_strides", "daniels_repetition_short"],
+      "mileageBehavior": "taper",
+      "athleteNarrative": "Phase IV is race-specific. Workouts shift toward your goal pace — for a marathon, that means M-pace work; for shorter races, more T-pace. The final 2-3 weeks taper volume while preserving intensity (short fast work). Trust your fitness; the work is done. Sleep, eat, hydrate, and don't try to make up for missed training in the last few weeks."
+    }
+  ],
+  "weeklyPatterns": [
+    {
+      "phaseId": "foundation",
+      "daysPerWeek": 5,
+      "weekType": "standard",
+      "schedule": [
+        { "dayOfWeek": 1, "category": "rest", "notes": "Full rest or optional cross-training (30 min easy)" },
+        { "dayOfWeek": 2, "category": "easy", "preferredWorkoutIds": ["daniels_easy_run"], "volumeModifier": "medium" },
+        { "dayOfWeek": 3, "category": "easy", "preferredWorkoutIds": ["daniels_easy_run", "daniels_strides"], "volumeModifier": "short", "notes": "Add strides at end" },
+        { "dayOfWeek": 4, "category": "easy", "preferredWorkoutIds": ["daniels_easy_run"], "volumeModifier": "medium" },
+        { "dayOfWeek": 5, "category": "rest", "notes": "Rest or 30 min cross-training" },
+        { "dayOfWeek": 6, "category": "long", "preferredWorkoutIds": ["daniels_long_run"], "volumeModifier": "long" },
+        { "dayOfWeek": 7, "category": "easy", "preferredWorkoutIds": ["daniels_recovery_run"], "volumeModifier": "short" }
+      ],
+      "notes": "Foundation week — all aerobic. Strides on day 3 add neuromuscular work without recovery cost."
+    },
+    {
+      "phaseId": "transition_quality",
+      "daysPerWeek": 5,
+      "weekType": "standard",
+      "schedule": [
+        { "dayOfWeek": 1, "category": "rest" },
+        { "dayOfWeek": 2, "category": "vo2_intervals", "preferredWorkoutIds": ["daniels_vo2_intervals"], "notes": "Q1 — VO2max work" },
+        { "dayOfWeek": 3, "category": "rest", "notes": "Recovery day (off) after Q1" },
+        { "dayOfWeek": 4, "category": "easy", "preferredWorkoutIds": ["daniels_easy_run", "daniels_strides"], "volumeModifier": "medium" },
+        { "dayOfWeek": 5, "category": "cruise_intervals", "preferredWorkoutIds": ["daniels_cruise_intervals"], "notes": "Q2 — threshold cruise intervals" },
+        { "dayOfWeek": 6, "category": "easy", "preferredWorkoutIds": ["daniels_easy_run"], "volumeModifier": "short" },
+        { "dayOfWeek": 7, "category": "long", "preferredWorkoutIds": ["daniels_long_run", "daniels_long_run_with_marathon_pace"], "volumeModifier": "long" }
+      ],
+      "notes": "Two quality sessions (Q1: VO2 intervals Tuesday, Q2: cruise intervals Friday) plus long run Sunday. 48+ hrs between hard sessions."
+    },
+    {
+      "phaseId": "transition_quality",
+      "daysPerWeek": 6,
+      "weekType": "standard",
+      "schedule": [
+        { "dayOfWeek": 1, "category": "easy", "preferredWorkoutIds": ["daniels_easy_run"], "volumeModifier": "short" },
+        { "dayOfWeek": 2, "category": "vo2_intervals", "preferredWorkoutIds": ["daniels_vo2_intervals"], "notes": "Q1" },
+        { "dayOfWeek": 3, "category": "easy", "preferredWorkoutIds": ["daniels_easy_run"], "volumeModifier": "medium" },
+        { "dayOfWeek": 4, "category": "easy", "preferredWorkoutIds": ["daniels_easy_run", "daniels_strides"], "volumeModifier": "medium", "notes": "Add strides" },
+        { "dayOfWeek": 5, "category": "cruise_intervals", "preferredWorkoutIds": ["daniels_cruise_intervals", "daniels_threshold_steady"], "notes": "Q2" },
+        { "dayOfWeek": 6, "category": "rest" },
+        { "dayOfWeek": 7, "category": "long", "preferredWorkoutIds": ["daniels_long_run", "daniels_long_run_with_marathon_pace"], "volumeModifier": "long" }
+      ],
+      "notes": "6-day variant: adds short Monday easy run to increase weekly volume; rest moves to Saturday before Sunday long run."
+    },
+    {
+      "phaseId": "transition_quality",
+      "daysPerWeek": 4,
+      "weekType": "standard",
+      "schedule": [
+        { "dayOfWeek": 1, "category": "rest" },
+        { "dayOfWeek": 2, "category": "vo2_intervals", "preferredWorkoutIds": ["daniels_vo2_intervals"], "notes": "Q1" },
+        { "dayOfWeek": 3, "category": "rest" },
+        { "dayOfWeek": 4, "category": "easy", "preferredWorkoutIds": ["daniels_easy_run", "daniels_strides"], "volumeModifier": "medium" },
+        { "dayOfWeek": 5, "category": "cruise_intervals", "preferredWorkoutIds": ["daniels_cruise_intervals"], "notes": "Q2" },
+        { "dayOfWeek": 6, "category": "rest" },
+        { "dayOfWeek": 7, "category": "long", "preferredWorkoutIds": ["daniels_long_run"], "volumeModifier": "long" }
+      ],
+      "notes": "4-day variant for time-limited runners. Two quality sessions + long run; mileage will be lower than 5-6 day plans."
+    },
+    {
+      "phaseId": "transition_quality",
+      "daysPerWeek": 5,
+      "weekType": "recovery",
+      "schedule": [
+        { "dayOfWeek": 1, "category": "rest" },
+        { "dayOfWeek": 2, "category": "easy", "preferredWorkoutIds": ["daniels_easy_run"], "volumeModifier": "medium" },
+        { "dayOfWeek": 3, "category": "rest" },
+        { "dayOfWeek": 4, "category": "easy", "preferredWorkoutIds": ["daniels_easy_run", "daniels_strides"], "volumeModifier": "medium" },
+        { "dayOfWeek": 5, "category": "cruise_intervals", "preferredWorkoutIds": ["daniels_cruise_intervals"], "notes": "Single quality session — keep volume modest" },
+        { "dayOfWeek": 6, "category": "easy", "preferredWorkoutIds": ["daniels_easy_run"], "volumeModifier": "short", "notes": "Short shakeout before long run" },
+        { "dayOfWeek": 7, "category": "long", "preferredWorkoutIds": ["daniels_long_run"], "volumeModifier": "medium", "notes": "Cutback long run — 70% of normal" }
+      ],
+      "notes": "Recovery week — every 4th week. Single quality session, reduced mileage (~70% of standard), cutback long run."
+    }
+  ],
+  "mileageProgression": {
+    "startMileagePctOfPeak": 0.55,
+    "peakMileageRule": { "type": "multiplier_of_current", "value": 1.4 },
+    "maxWeeklyIncreasePct": 0.10,
+    "cutbackEveryNWeeks": 4,
+    "cutbackPct": 0.70,
+    "longRunPctCap": 0.30
+  },
+  "taper": {
+    "durationWeeks": 3,
+    "weeklyVolumePcts": [0.80, 0.60, 0.40],
+    "preserveIntensity": true,
+    "raceWeekSchedule": [
+      { "dayOfWeek": 1, "category": "easy", "preferredWorkoutIds": ["daniels_easy_run"], "volumeModifier": "short" },
+      { "dayOfWeek": 2, "category": "easy", "preferredWorkoutIds": ["daniels_easy_run", "daniels_strides"], "volumeModifier": "short", "notes": "Easy + 4 strides" },
+      { "dayOfWeek": 3, "category": "rest" },
+      { "dayOfWeek": 4, "category": "easy", "preferredWorkoutIds": ["daniels_easy_run"], "volumeModifier": "short", "notes": "20-30 min easy" },
+      { "dayOfWeek": 5, "category": "rest" },
+      { "dayOfWeek": 6, "category": "easy", "volumeModifier": "short", "notes": "10-15 min shakeout with 4 strides at race pace effort" },
+      { "dayOfWeek": 7, "category": "race_pace", "notes": "RACE DAY" }
+    ],
+    "notes": "Daniels' classic 3-week marathon taper: 80% → 60% → 40% volume. Intensity is preserved — strides and short threshold reps stay in. The work is done; trust the taper."
+  },
+  "strengthRecommendation": {
+    "daysPerWeek": { "min": 0, "max": 2, "default": 1 },
+    "workoutIds": [],
+    "philosophy": "Daniels does not prescribe specific strength routines. If user opts in via onboarding, recommend basic running-specific strength: single-leg work, glute activation, core stability. 1-2× per week, ~20-30 minutes, scheduled on easy or rest days. Reduce to maintenance-only during Phase IV taper."
+  },
+  "crossTrainingRecommendation": {
+    "approvedModalities": ["cycling", "swimming", "rowing", "elliptical"],
+    "daysPerWeek": { "min": 0, "max": 2, "default": 0 },
+    "intensityGuidance": "Use only on rest days or to replace recovery runs if needed for injury management. Keep efforts at E-pace equivalent — conversational. NOT a replacement for running-specific work."
+  },
+  "applicability": {
+    "byDistance": {
+      "5k": "BEST",
+      "10k": "BEST",
+      "half_marathon": "GOOD",
+      "marathon": "BEST",
+      "50k": "CAUTION",
+      "50_mile": "NOT_SUITED",
+      "100k": "NOT_SUITED",
+      "100_mile": "NOT_SUITED",
+      "mountain_ultra": "NOT_SUITED"
+    },
+    "byExperience": {
+      "beginner": "NOT_SUITED",
+      "recreational": "OK",
+      "intermediate": "GOOD",
+      "advanced": "BEST",
+      "elite": "GOOD"
+    },
+    "byTerrain": {
+      "road": "BEST",
+      "track": "BEST",
+      "trail_rolling": "OK",
+      "mountain_vertical": "NOT_SUITED",
+      "cross_country": "GOOD"
+    },
+    "weeklyHoursRange": { "min": 4, "max": 10 },
+    "daysPerWeekRange": { "min": 4, "max": 7, "ideal": 5 }
+  },
+  "restrictions": [
+    {
+      "type": "distance",
+      "rule": "Not designed for ultras (50K and beyond). Lacks ultra-specific volume, time-on-feet emphasis, and back-to-back long-run structure.",
+      "blocking": false,
+      "suggestedAlternativeId": "koop",
+      "warningMessage": "Daniels' system is built for road races up to the marathon. For ultras, consider a method like Koop or Roche."
+    },
+    {
+      "type": "experience",
+      "rule": "Requires baseline aerobic fitness — VDOT calculation needs a recent race result. Total beginners (couch-to-5K) should build base first.",
+      "blocking": false,
+      "suggestedAlternativeId": "higdon",
+      "warningMessage": "Daniels' system assumes you have a recent race time to derive VDOT. If you're brand new to running, a beginner-focused method like Higdon Novice may be a better starting point."
+    },
+    {
+      "type": "terrain",
+      "rule": "Pace-based prescription assumes flat-ish terrain and consistent surfaces. Mountain/vertical races require terrain-specific methods.",
+      "blocking": false,
+      "suggestedAlternativeId": "uphill_athlete",
+      "warningMessage": "VDOT-based paces don't translate to mountain or technical terrain. For vertical races, consider Training for the Uphill Athlete."
+    }
+  ],
+  "generationRules": {
+    "defaultPlanWeeks": 18,
+    "supportedPlanWeeks": [8, 12, 16, 18, 20, 24],
+    "qualityWorkoutsPerWeek": { "min": 1, "max": 2, "default": 2 },
+    "minDaysBetweenHardSessions": 2,
+    "allowsDoubles": true,
+    "compressionPriority": ["foundation", "early_quality", "transition_quality", "final_quality"],
+    "expansionPriority": ["foundation", "transition_quality", "early_quality", "final_quality"],
+    "invariants": [
+      "Long run must not exceed 30% of weekly mileage",
+      "I-pace volume must not exceed 8% of weekly mileage or 10K, whichever is less",
+      "R-pace volume must not exceed 5% of weekly mileage",
+      "Minimum 2 days between any two hard sessions",
+      "Cutback week (70% volume) every 4th week",
+      "Strides allowed on any easy day, max 3× per week",
+      "Final 2 weeks must show progressive volume reduction",
+      "If user's currentWeeklyMileage < 20 mi, downgrade to 'recreational' experience routing"
+    ]
+  },
+  "schemaVersion": "1.0.0",
+  "lastUpdated": "2026-05-09"
+}

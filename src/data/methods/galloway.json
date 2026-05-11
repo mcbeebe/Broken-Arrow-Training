@@ -1,0 +1,450 @@
+{
+  "id": "galloway",
+  "name": "Galloway Run-Walk-Run",
+  "coach": "Jeff Galloway",
+  "yearOfOrigin": 1978,
+  "keyBook": "Galloway's Book on Running",
+  "citations": [
+    { "source": "Jeff Galloway", "title": "Galloway's Book on Running (2nd Edition)", "year": 2002 },
+    { "source": "Jeff Galloway", "title": "Marathon: You Can Do It!", "year": 2010 },
+    { "source": "Jeff Galloway", "title": "Run-Walk-Run method and Magic Mile time trial", "url": "https://www.jeffgalloway.com/training/run-walk/" }
+  ],
+  "description": "The Run-Walk-Run method: every workout — including races — uses planned run/walk intervals (e.g., 30 sec run / 30 sec walk, or 4 min run / 30 sec walk). Anchored to the Magic Mile time trial. Famous for accessibility, injury resistance, and enabling first-time and masters runners to complete marathons.",
+  "signature": "Run-Walk-Run intervals throughout every run; Magic Mile time trial as the fitness anchor",
+  "philosophyNarrative": "Galloway's revolutionary insight: walking breaks during continuous running don't slow you down — they speed you up. Inserting planned walk breaks (the 'Run-Walk-Run' or RWR method) keeps muscles fresher, prevents the cumulative fatigue that wrecks pacing, and makes recovery between hard efforts almost instant. The system is anchored on a 'Magic Mile' time trial — a single, all-out mile run periodically — which derives all other paces. Run-walk ratios scale with experience: beginners might run 30 seconds and walk 30 seconds; advanced runners might run 4 minutes and walk 30 seconds. The RWR pattern is used in EVERY run including races. The result: dramatically lower injury rates, accessibility for runners who can't run continuously for hours, and surprising results — many Galloway runners post personal bests using walk breaks. Especially powerful for first-time marathoners, masters athletes, and anyone returning from injury.",
+  "primaryAnchor": "estimated_5k_time",
+  "fallbackAnchor": "self_assessed_pace",
+  "paceZones": [
+    {
+      "canonical": "easy",
+      "displayName": "Easy / Long Run pace",
+      "abbreviation": "Easy",
+      "purpose": "Most weekly running. Galloway prescribes long-run pace = magic mile + 2 min/mile slower as a starting point. RWR ratio applied throughout.",
+      "paceFormula": {
+        "anchorType": "estimated_5k_time",
+        "strategy": "offset_from_anchor",
+        "expression": "magic_mile_pace + 2-3 min/mile",
+        "offsetSecPerMile": { "min": 120, "max": 180 }
+      },
+      "rpeRange": { "min": 3, "max": 5, "description": "Comfortable; RWR breaks make this very sustainable" },
+      "hrRange": { "minPctLthr": 0.65, "maxPctLthr": 0.78 }
+    },
+    {
+      "canonical": "race_pace",
+      "displayName": "Goal Race Pace",
+      "abbreviation": "Race",
+      "purpose": "User's goal race pace. Galloway's published formulas: 5K = MM + 0:33/mi; 10K = MM + 1:00/mi; HM = MM + 1:20/mi; Marathon = MM + 3:00/mi.",
+      "paceFormula": {
+        "anchorType": "estimated_5k_time",
+        "strategy": "offset_from_anchor",
+        "expression": "from_magic_mile_predictions",
+        "offsetSecPerMile": { "min": 0, "max": 0 }
+      },
+      "rpeRange": { "min": 6, "max": 8, "description": "Race effort, varies by distance — RWR makes this sustainable" }
+    },
+    {
+      "canonical": "vo2max",
+      "displayName": "Magic Mile",
+      "abbreviation": "MM",
+      "purpose": "Time-trial pace. Run every 3-4 weeks to recalibrate fitness. Equivalent to all-out 1-mile race pace.",
+      "paceFormula": {
+        "anchorType": "estimated_5k_time",
+        "strategy": "rpe_only",
+        "expression": "all-out 1-mile time trial"
+      },
+      "rpeRange": { "min": 9, "max": 9, "description": "All-out 1-mile time trial" }
+    }
+  ],
+  "workouts": [
+    {
+      "id": "galloway_easy_rwr",
+      "name": "Easy Run with Run-Walk-Run",
+      "shortDescription": "Easy aerobic run using assigned RWR ratio (30:30, 1:1, 2:1, etc.)",
+      "category": "easy",
+      "primaryZone": "easy",
+      "displayName": "Easy (RWR)",
+      "structure": {
+        "mainSet": [
+          {
+            "description": "Run-walk-run intervals throughout",
+            "duration": { "value": 30, "unit": "min" },
+            "paceZone": "easy",
+            "cue": "Apply your RWR ratio (e.g., 30:30 or 1:1) throughout. Walk breaks brisk — walking, not strolling."
+          }
+        ]
+      },
+      "approxDurationMinutes": { "min": 20, "max": 60 },
+      "approxDistanceMiles": { "min": 2, "max": 6 },
+      "purpose": "Aerobic base building with built-in recovery. RWR keeps stress on muscles and joints low while still building cardiovascular fitness.",
+      "cues": [
+        "Walk breaks should be brisk (~3.5 mph), not strolling",
+        "Use a run-walk timer or app to maintain ratio",
+        "If pace feels too easy, that's correct — RWR is intentionally moderate"
+      ],
+      "validPhaseIds": ["base", "build", "peak", "taper"]
+    },
+    {
+      "id": "galloway_long_rwr",
+      "name": "Long Run with Run-Walk-Run",
+      "shortDescription": "Long run using RWR ratio, often EXCEEDING race distance for marathon",
+      "category": "long",
+      "primaryZone": "easy",
+      "displayName": "Long (RWR)",
+      "structure": {
+        "mainSet": [
+          {
+            "description": "Long run with run-walk intervals throughout",
+            "distance": { "value": 14, "unit": "mi" },
+            "paceZone": "easy",
+            "cue": "Galloway long runs often exceed race distance (up to 26-29 mi for marathon!) because RWR keeps fatigue low. Pace is intentionally slow."
+          }
+        ]
+      },
+      "approxDurationMinutes": { "min": 60, "max": 360 },
+      "approxDistanceMiles": { "min": 4, "max": 29 },
+      "purpose": "Endurance building. Galloway's marathon plans famously include 26-29 mile long runs (above race distance) — possible only because RWR keeps fatigue low. Builds extreme race-day confidence.",
+      "cues": [
+        "Pace 2-3 minutes per mile slower than goal race pace",
+        "Use shorter run intervals than your normal RWR if pace creeps up",
+        "Practice race-day fueling on runs over 90 min"
+      ],
+      "validPhaseIds": ["base", "build", "peak"]
+    },
+    {
+      "id": "galloway_magic_mile",
+      "name": "Magic Mile Time Trial",
+      "shortDescription": "All-out 1-mile time trial used every 3-4 weeks to recalibrate fitness",
+      "category": "time_trial",
+      "primaryZone": "vo2max",
+      "displayName": "Magic Mile",
+      "structure": {
+        "warmup": {
+          "description": "Easy run with RWR + 4× strides",
+          "duration": { "value": 15, "unit": "min" },
+          "paceZone": "easy"
+        },
+        "mainSet": [
+          {
+            "description": "All-out 1-mile time trial",
+            "distance": { "value": 1, "unit": "mi" },
+            "paceZone": "vo2max",
+            "cue": "Controlled-fast first quarter, settle into rhythm, push the last quarter. Time accurately — this number drives all paces."
+          }
+        ],
+        "cooldown": {
+          "description": "Easy run with RWR",
+          "duration": { "value": 15, "unit": "min" },
+          "paceZone": "easy"
+        }
+      },
+      "approxDurationMinutes": { "min": 35, "max": 50 },
+      "approxDistanceMiles": { "min": 4, "max": 6 },
+      "purpose": "Fitness anchor. Galloway's Magic Mile predicts race times across all distances via published formulas. Run every 3-4 weeks to track progress and recalibrate paces.",
+      "cues": [
+        "First quarter: controlled-fast (don't blast off)",
+        "Middle: settle into rhythm",
+        "Final quarter: empty the tank",
+        "Use the result to update training paces"
+      ],
+      "validPhaseIds": ["base", "build", "peak"],
+      "minimumExperience": "recreational"
+    },
+    {
+      "id": "galloway_pace_run",
+      "name": "Race Pace Run with RWR",
+      "shortDescription": "Run at goal race pace using race-day RWR ratio",
+      "category": "race_pace",
+      "primaryZone": "race_pace",
+      "displayName": "Race Pace (RWR)",
+      "structure": {
+        "warmup": {
+          "description": "Easy with RWR",
+          "duration": { "value": 10, "unit": "min" },
+          "paceZone": "easy"
+        },
+        "mainSet": [
+          {
+            "description": "Continuous run at race pace using race-day RWR ratio",
+            "distance": { "value": 4, "unit": "mi" },
+            "paceZone": "race_pace",
+            "cue": "Use the exact RWR ratio you'll race with. This rehearses race-day rhythm."
+          }
+        ],
+        "cooldown": {
+          "description": "Easy with RWR",
+          "duration": { "value": 10, "unit": "min" },
+          "paceZone": "easy"
+        }
+      },
+      "approxDurationMinutes": { "min": 35, "max": 90 },
+      "approxDistanceMiles": { "min": 4, "max": 10 },
+      "purpose": "Race-day rehearsal. Practices the RWR rhythm you'll use in the race so it's automatic on race day.",
+      "cues": [
+        "Use your race-day RWR ratio exactly",
+        "Goal pace from the start — no easing in",
+        "Practice taking water/fuel during walk breaks"
+      ],
+      "validPhaseIds": ["build", "peak"]
+    },
+    {
+      "id": "galloway_cadence_drills",
+      "name": "Cadence Drills",
+      "shortDescription": "Optional turnover work — short fast intervals for cadence development",
+      "category": "strides",
+      "primaryZone": "vo2max",
+      "displayName": "Cadence Drills",
+      "structure": {
+        "mainSet": [
+          {
+            "description": "Cadence drills",
+            "duration": { "value": 30, "unit": "sec" },
+            "paceZone": "vo2max",
+            "reps": 4,
+            "recovery": { "type": "walk", "duration": { "value": 60, "unit": "sec" } },
+            "cue": "Quick turnover, short stride. Count steps for 30 sec — aim for 90+ per leg."
+          }
+        ]
+      },
+      "approxDurationMinutes": { "min": 6, "max": 10 },
+      "purpose": "Improves cadence and running economy. Optional in Galloway plans; especially useful for masters runners and those working on form.",
+      "cues": [
+        "Short, quick steps — not long strides",
+        "Relaxed shoulders and arms",
+        "Optional — skip if fatigued"
+      ],
+      "validPhaseIds": ["base", "build", "peak"]
+    },
+    {
+      "id": "galloway_cross_training",
+      "name": "Cross-Training",
+      "shortDescription": "Optional aerobic supplement on non-running days",
+      "category": "cross_training",
+      "primaryZone": "easy",
+      "displayName": "Cross-Train",
+      "structure": {
+        "mainSet": [
+          {
+            "description": "Cross-training at easy effort",
+            "duration": { "value": 45, "unit": "min" },
+            "paceZone": "easy",
+            "cue": "Easy aerobic effort. Cycling or pool running preferred."
+          }
+        ]
+      },
+      "approxDurationMinutes": { "min": 30, "max": 75 },
+      "purpose": "Aerobic supplement without running impact. Galloway encourages cross-training for aerobic capacity, especially for masters runners.",
+      "cues": ["Easy effort — supplemental, not stress", "Excellent for injury prevention"],
+      "validPhaseIds": ["base", "build", "peak", "taper"]
+    }
+  ],
+  "phases": [
+    {
+      "id": "base",
+      "name": "Base",
+      "order": 1,
+      "pctOfPlan": { "min": 0.20, "default": 0.30, "max": 0.40 },
+      "weekBounds": { "minWeeks": 3, "maxWeeks": 8 },
+      "focus": "Establish RWR pattern, build short-run consistency, first Magic Mile.",
+      "intensityDistribution": { "easyPct": 100, "moderatePct": 0, "hardPct": 0 },
+      "keyWorkoutIds": ["galloway_easy_rwr", "galloway_long_rwr", "galloway_magic_mile", "galloway_cross_training"],
+      "mileageBehavior": "build",
+      "athleteNarrative": "Welcome to Galloway. The first thing to learn is the Run-Walk-Run rhythm. Use a run-walk timer or app — every workout uses your assigned ratio. Beginners typically start with 30 seconds run / 30 seconds walk; we'll adjust as your fitness grows. The first Magic Mile time trial happens at the end of week 3 or 4 to set your training paces. Don't worry if it feels slow — RWR is supposed to feel sustainable."
+    },
+    {
+      "id": "build",
+      "name": "Build",
+      "order": 2,
+      "pctOfPlan": { "min": 0.30, "default": 0.40, "max": 0.50 },
+      "weekBounds": { "minWeeks": 4, "maxWeeks": 10 },
+      "focus": "Long runs extend; second/third Magic Mile recalibrates pace; race-pace runs introduced.",
+      "intensityDistribution": { "easyPct": 92, "moderatePct": 5, "hardPct": 3 },
+      "keyWorkoutIds": ["galloway_easy_rwr", "galloway_long_rwr", "galloway_magic_mile", "galloway_pace_run", "galloway_cadence_drills"],
+      "mileageBehavior": "build",
+      "athleteNarrative": "Build phase. Long runs extend dramatically — Galloway plans famously go beyond race distance. The Magic Mile is run every 3-4 weeks to track fitness gains and update your paces. A weekly race-pace run begins, using your exact race-day RWR ratio. Trust the long runs — they feel slow but they're banking endurance you'll cash in on race day."
+    },
+    {
+      "id": "peak",
+      "name": "Peak",
+      "order": 3,
+      "pctOfPlan": { "min": 0.10, "default": 0.20, "max": 0.30 },
+      "weekBounds": { "minWeeks": 2, "maxWeeks": 5 },
+      "focus": "Peak long run (often longer than race distance), final pace runs, race confidence.",
+      "intensityDistribution": { "easyPct": 90, "moderatePct": 7, "hardPct": 3 },
+      "keyWorkoutIds": ["galloway_easy_rwr", "galloway_long_rwr", "galloway_pace_run", "galloway_cadence_drills"],
+      "mileageBehavior": "peak",
+      "athleteNarrative": "Peak phase. For marathon plans, this is where you do a 26-mile long run — the unique Galloway approach of going AT or above race distance. RWR makes this possible without depleting you. Final Magic Mile sets race expectations. Race-pace runs lock in your race-day rhythm. You're ready."
+    },
+    {
+      "id": "taper",
+      "name": "Taper",
+      "order": 4,
+      "pctOfPlan": { "min": 0.05, "default": 0.10, "max": 0.15 },
+      "weekBounds": { "minWeeks": 2, "maxWeeks": 3 },
+      "focus": "Reduce volume; preserve RWR rhythm; arrive fresh.",
+      "intensityDistribution": { "easyPct": 95, "moderatePct": 5, "hardPct": 0 },
+      "keyWorkoutIds": ["galloway_easy_rwr", "galloway_pace_run", "galloway_cross_training"],
+      "mileageBehavior": "taper",
+      "athleteNarrative": "Taper. Volume drops, but the RWR rhythm continues so race day feels familiar. A short pace run mid-week confirms your race-day pace. Sleep, hydrate, trust the work."
+    }
+  ],
+  "weeklyPatterns": [
+    {
+      "phaseId": "base",
+      "daysPerWeek": 3,
+      "weekType": "standard",
+      "schedule": [
+        { "dayOfWeek": 1, "category": "rest" },
+        { "dayOfWeek": 2, "category": "easy", "preferredWorkoutIds": ["galloway_easy_rwr"], "volumeModifier": "medium", "notes": "30 min RWR" },
+        { "dayOfWeek": 3, "category": "rest", "notes": "Optional cross-training" },
+        { "dayOfWeek": 4, "category": "easy", "preferredWorkoutIds": ["galloway_easy_rwr"], "volumeModifier": "medium", "notes": "30 min RWR" },
+        { "dayOfWeek": 5, "category": "rest" },
+        { "dayOfWeek": 6, "category": "rest", "notes": "Optional cross-training" },
+        { "dayOfWeek": 7, "category": "long", "preferredWorkoutIds": ["galloway_long_rwr"], "volumeModifier": "long" }
+      ],
+      "notes": "Galloway 3-day pattern. Most accessible — 2 easy runs midweek + Sunday long run. Excellent for first-time marathoners and masters athletes."
+    },
+    {
+      "phaseId": "build",
+      "daysPerWeek": 3,
+      "weekType": "standard",
+      "schedule": [
+        { "dayOfWeek": 1, "category": "rest" },
+        { "dayOfWeek": 2, "category": "easy", "preferredWorkoutIds": ["galloway_easy_rwr"], "volumeModifier": "medium" },
+        { "dayOfWeek": 3, "category": "rest", "notes": "Optional cross-training" },
+        { "dayOfWeek": 4, "category": "race_pace", "preferredWorkoutIds": ["galloway_pace_run", "galloway_magic_mile"], "notes": "Race pace OR Magic Mile (every 3-4 wk)" },
+        { "dayOfWeek": 5, "category": "rest" },
+        { "dayOfWeek": 6, "category": "rest", "notes": "Optional cross-training" },
+        { "dayOfWeek": 7, "category": "long", "preferredWorkoutIds": ["galloway_long_rwr"], "volumeModifier": "long" }
+      ],
+      "notes": "Build phase 3-day. Thursday alternates between race-pace run and Magic Mile."
+    },
+    {
+      "phaseId": "build",
+      "daysPerWeek": 4,
+      "weekType": "standard",
+      "schedule": [
+        { "dayOfWeek": 1, "category": "rest" },
+        { "dayOfWeek": 2, "category": "easy", "preferredWorkoutIds": ["galloway_easy_rwr"], "volumeModifier": "medium" },
+        { "dayOfWeek": 3, "category": "rest", "notes": "Optional cross-training" },
+        { "dayOfWeek": 4, "category": "race_pace", "preferredWorkoutIds": ["galloway_pace_run", "galloway_magic_mile"] },
+        { "dayOfWeek": 5, "category": "easy", "preferredWorkoutIds": ["galloway_easy_rwr", "galloway_cadence_drills"], "volumeModifier": "short", "notes": "RWR + cadence drills" },
+        { "dayOfWeek": 6, "category": "rest" },
+        { "dayOfWeek": 7, "category": "long", "preferredWorkoutIds": ["galloway_long_rwr"], "volumeModifier": "long" }
+      ],
+      "notes": "4-day build pattern. Adds a third weekly run with optional cadence drills."
+    },
+    {
+      "phaseId": "build",
+      "daysPerWeek": 3,
+      "weekType": "recovery",
+      "schedule": [
+        { "dayOfWeek": 1, "category": "rest" },
+        { "dayOfWeek": 2, "category": "easy", "preferredWorkoutIds": ["galloway_easy_rwr"], "volumeModifier": "short" },
+        { "dayOfWeek": 3, "category": "rest" },
+        { "dayOfWeek": 4, "category": "easy", "preferredWorkoutIds": ["galloway_easy_rwr"], "volumeModifier": "short", "notes": "Skip race-pace run this week" },
+        { "dayOfWeek": 5, "category": "rest" },
+        { "dayOfWeek": 6, "category": "rest" },
+        { "dayOfWeek": 7, "category": "long", "preferredWorkoutIds": ["galloway_long_rwr"], "volumeModifier": "medium", "notes": "Cutback long run" }
+      ],
+      "notes": "Recovery week — every 3 weeks. Volume reduced, no quality session."
+    }
+  ],
+  "mileageProgression": {
+    "startMileagePctOfPeak": 0.40,
+    "peakMileageRule": { "type": "multiplier_of_current", "value": 1.6 },
+    "maxWeeklyIncreasePct": 0.15,
+    "cutbackEveryNWeeks": 3,
+    "cutbackPct": 0.65,
+    "longRunPctCap": 0.55
+  },
+  "taper": {
+    "durationWeeks": 2,
+    "weeklyVolumePcts": [0.65, 0.40],
+    "preserveIntensity": false,
+    "raceWeekSchedule": [
+      { "dayOfWeek": 1, "category": "rest" },
+      { "dayOfWeek": 2, "category": "easy", "preferredWorkoutIds": ["galloway_easy_rwr"], "volumeModifier": "short", "notes": "20 min RWR" },
+      { "dayOfWeek": 3, "category": "rest" },
+      { "dayOfWeek": 4, "category": "race_pace", "preferredWorkoutIds": ["galloway_pace_run"], "volumeModifier": "short", "notes": "2 mi at race pace with RWR" },
+      { "dayOfWeek": 5, "category": "rest" },
+      { "dayOfWeek": 6, "category": "easy", "preferredWorkoutIds": ["galloway_easy_rwr"], "volumeModifier": "short", "notes": "10-15 min shakeout" },
+      { "dayOfWeek": 7, "category": "race_pace", "notes": "RACE DAY — use your trained RWR ratio" }
+    ],
+    "notes": "Galloway taper is gentle — RWR makes the system inherently low-fatigue, so dramatic taper isn't needed. 2 weeks at 65%/40% volume."
+  },
+  "strengthRecommendation": {
+    "daysPerWeek": { "min": 0, "max": 1, "default": 0 },
+    "workoutIds": [],
+    "philosophy": "Galloway emphasizes core stability and form drills over heavy lifting. If user opts in via onboarding, recommend a short core/glute routine (10-15 min) on rest days. Avoid heavy strength work — Galloway runners often have masters runner profiles where excessive load isn't beneficial."
+  },
+  "crossTrainingRecommendation": {
+    "approvedModalities": ["cycling", "swimming", "elliptical", "rowing"],
+    "daysPerWeek": { "min": 0, "max": 2, "default": 1 },
+    "intensityGuidance": "Galloway plans explicitly include cross-training as a rest-day option. Easy aerobic effort, 30-60 min. Especially valuable for masters runners and runners managing minor injuries."
+  },
+  "applicability": {
+    "byDistance": {
+      "5k": "GOOD",
+      "10k": "GOOD",
+      "half_marathon": "BEST",
+      "marathon": "BEST",
+      "50k": "GOOD",
+      "50_mile": "OK",
+      "100k": "OK",
+      "100_mile": "CAUTION",
+      "mountain_ultra": "OK"
+    },
+    "byExperience": {
+      "beginner": "BEST",
+      "recreational": "BEST",
+      "intermediate": "GOOD",
+      "advanced": "OK",
+      "elite": "NOT_SUITED"
+    },
+    "byTerrain": {
+      "road": "BEST",
+      "track": "OK",
+      "trail_rolling": "BEST",
+      "mountain_vertical": "GOOD",
+      "cross_country": "OK"
+    },
+    "weeklyHoursRange": { "min": 3, "max": 7 },
+    "daysPerWeekRange": { "min": 3, "max": 5, "ideal": 3 }
+  },
+  "restrictions": [
+    {
+      "type": "experience",
+      "rule": "Elite runners targeting fast times generally don't use RWR — though many advanced runners benefit from it for ultras and recovery from injury.",
+      "blocking": false,
+      "suggestedAlternativeId": "daniels",
+      "warningMessage": "Galloway is excellent for accessibility, recovery, and ultras — but if you're targeting an elite-level time, a continuous-running method (Daniels, Pfitzinger) may be more pace-specific."
+    },
+    {
+      "type": "general",
+      "rule": "Run-walk-run requires the user to be willing to take walk breaks during races and training. Some runners psychologically resist this.",
+      "blocking": false,
+      "warningMessage": "Galloway requires walk breaks during EVERY run, including races. If the idea of walking during a race feels wrong, this method may not work for you — but consider that many Galloway runners post personal bests using it."
+    }
+  ],
+  "generationRules": {
+    "defaultPlanWeeks": 18,
+    "supportedPlanWeeks": [12, 16, 18, 20, 24, 32],
+    "qualityWorkoutsPerWeek": { "min": 0, "max": 1, "default": 1 },
+    "minDaysBetweenHardSessions": 2,
+    "allowsDoubles": false,
+    "compressionPriority": ["base", "build", "peak", "taper"],
+    "expansionPriority": ["base", "build", "peak", "taper"],
+    "invariants": [
+      "RWR ratio applied to EVERY run, including races",
+      "Magic Mile time trial every 3-4 weeks for fitness recalibration",
+      "Long run can EXCEED race distance for marathon (up to 26-29 mi) — RWR makes this safe",
+      "Long run cap at 55% of weekly mileage (much higher than other methods due to RWR)",
+      "Cutback every 3 weeks at 65% — Galloway uses more frequent recovery weeks",
+      "Beginners: 3 days/week is the standard; do not push higher",
+      "Walk breaks must be brisk (~3.5 mph), not strolling",
+      "If user resists walk breaks, suggest Higdon Novice as alternative"
+    ]
+  },
+  "schemaVersion": "1.0.0",
+  "lastUpdated": "2026-05-09"
+}

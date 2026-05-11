@@ -1,0 +1,556 @@
+{
+  "id": "roche_swap",
+  "name": "Roche / SWAP (Some Work, All Play)",
+  "coach": "David and Megan Roche",
+  "yearOfOrigin": 2018,
+  "keyBook": "The Happy Runner",
+  "citations": [
+    { "source": "David and Megan Roche", "title": "The Happy Runner: Love the Process, Get Faster, Run Longer", "year": 2018 },
+    { "source": "David and Megan Roche", "title": "SWAP Podcast and coaching", "url": "https://www.swaprunning.com/" },
+    { "source": "David Roche", "title": "Trail Runner Magazine columns", "url": "https://www.trailrunnermag.com/" }
+  ],
+  "description": "Joy-emphasizing trail/ultra system from the Roche husband-wife coaching team. Built around aerobic threshold (AeT) work, 30-30 second strides as the signature workout, and 'fast aerobic + short fast' combinations. Anchored to AeT (aerobic threshold) heart rate. Plans cover 50K through 100-mile races, with strong applicability to road marathon as well.",
+  "signature": "30-30 strides (30 sec on / 30 sec off) and aerobic threshold-anchored zones, with explicit emphasis on running joyfully",
+  "philosophyNarrative": "The Roches' SWAP system rests on a counterintuitive observation: many ultrarunners over-train and arrive at races depleted, having sacrificed joy for volume. Their answer is 'Some Work, All Play' — keep the playful spirit central, do the work that matters most, and skip the rest. Five principles: (1) aerobic threshold (AeT) is the master metric — most volume sits below it; (2) the 30-30 stride (30 seconds at fast effort, 30 seconds easy) is the signature workout, used 1-2× weekly to build neuromuscular sharpness without true hard sessions; (3) workouts combine 'fast aerobic' + 'short fast' (e.g., 50 min AeT followed by 6× 30-sec strides) to develop both aerobic and neuromuscular systems efficiently; (4) hill strides on rolling terrain are foundational from week one; (5) wave loading — varying weekly volume and intensity rather than steady linear progression — maintains freshness. The system is more flexible and adaptive than CTS Ultra, with a wider applicability across distances and especially welcoming to runners coming back from injury or burnout.",
+  "primaryAnchor": "aet_bpm",
+  "fallbackAnchor": "self_assessed_pace",
+  "paceZones": [
+    {
+      "canonical": "recovery",
+      "displayName": "Recovery",
+      "abbreviation": "Rec",
+      "purpose": "Active recovery — well below AeT. Used between hard days.",
+      "paceFormula": {
+        "anchorType": "aet_bpm",
+        "strategy": "pct_of_hr",
+        "expression": "<85% AeT",
+        "pctOfLthr": { "min": 0.55, "max": 0.70 }
+      },
+      "rpeRange": { "min": 2, "max": 3, "description": "Restorative; effortless" },
+      "hrRange": { "minPctLthr": 0.55, "maxPctLthr": 0.70 }
+    },
+    {
+      "canonical": "easy",
+      "displayName": "Aerobic",
+      "abbreviation": "Aer",
+      "purpose": "Bulk of weekly running — well below aerobic threshold. Conversational.",
+      "paceFormula": {
+        "anchorType": "aet_bpm",
+        "strategy": "pct_of_hr",
+        "expression": "85-95% AeT",
+        "pctOfLthr": { "min": 0.70, "max": 0.82 }
+      },
+      "rpeRange": { "min": 4, "max": 5, "description": "Conversational; full sentences" },
+      "hrRange": { "minPctLthr": 0.70, "maxPctLthr": 0.82 }
+    },
+    {
+      "canonical": "aerobic_threshold",
+      "displayName": "AeT (Aerobic Threshold)",
+      "abbreviation": "AeT",
+      "purpose": "Master metric for SWAP. Sustainable for hours. Used in fast aerobic runs and embedded in long runs late in training.",
+      "paceFormula": {
+        "anchorType": "aet_bpm",
+        "strategy": "pct_of_hr",
+        "expression": "AeT ± 3 bpm",
+        "pctOfLthr": { "min": 0.82, "max": 0.88 }
+      },
+      "rpeRange": { "min": 5, "max": 7, "description": "Steady; rhythmic; sustainable for ~2 hours" },
+      "hrRange": { "minPctLthr": 0.82, "maxPctLthr": 0.88 }
+    },
+    {
+      "canonical": "lactate_threshold",
+      "displayName": "AnT (Anaerobic Threshold)",
+      "abbreviation": "AnT",
+      "purpose": "Lactate threshold work. Used sparingly in SWAP — typically only 1× per week and only in the build/peak phases.",
+      "paceFormula": {
+        "anchorType": "aet_bpm",
+        "strategy": "pct_of_hr",
+        "expression": "AeT + ~10-15 bpm",
+        "pctOfLthr": { "min": 0.92, "max": 1.00 }
+      },
+      "rpeRange": { "min": 7, "max": 8, "description": "Comfortably hard; ~1-hour race effort" },
+      "hrRange": { "minPctLthr": 0.92, "maxPctLthr": 1.00 }
+    },
+    {
+      "canonical": "vo2max",
+      "displayName": "Fast (30-30 / VO2)",
+      "abbreviation": "Fast",
+      "purpose": "Short fast efforts — 30 seconds at near-mile race effort, used in 30-30 sets and hill strides. Builds neuromuscular sharpness.",
+      "paceFormula": {
+        "anchorType": "aet_bpm",
+        "strategy": "rpe_only",
+        "expression": "near-mile race effort"
+      },
+      "rpeRange": { "min": 8, "max": 9, "description": "Fast — but the 30-sec duration keeps it sustainable" }
+    }
+  ],
+  "workouts": [
+    {
+      "id": "roche_aerobic_run",
+      "name": "Aerobic Run",
+      "shortDescription": "Easy aerobic run below AeT — bulk of weekly volume",
+      "category": "easy",
+      "primaryZone": "easy",
+      "displayName": "Aerobic",
+      "structure": {
+        "mainSet": [
+          {
+            "description": "Steady run below aerobic threshold",
+            "duration": { "value": 50, "unit": "min" },
+            "paceZone": "easy",
+            "cue": "Hold HR below AeT. On hills, slow down — pace varies, AeT discipline does not."
+          }
+        ]
+      },
+      "approxDurationMinutes": { "min": 30, "max": 90 },
+      "approxDistanceMiles": { "min": 3, "max": 11 },
+      "purpose": "Aerobic base building. The Roches emphasize quality of easy days — you should finish feeling good, not depleted.",
+      "cues": [
+        "If HR drifts above AeT, slow down or hike",
+        "Should feel restorative, not draining",
+        "Joy matters — if running feels like a chore today, run shorter"
+      ],
+      "validPhaseIds": ["foundation", "build", "peak", "taper"]
+    },
+    {
+      "id": "roche_aerobic_30_30",
+      "name": "Aerobic + 30-30 Strides",
+      "shortDescription": "Aerobic run with 30-30 strides at the end — SWAP's signature combo",
+      "category": "fartlek",
+      "primaryZone": "vo2max",
+      "displayName": "Aerobic + 30-30s",
+      "structure": {
+        "warmup": {
+          "description": "Easy warmup",
+          "duration": { "value": 10, "unit": "min" },
+          "paceZone": "easy"
+        },
+        "mainSet": [
+          {
+            "description": "Aerobic run below AeT",
+            "duration": { "value": 35, "unit": "min" },
+            "paceZone": "easy"
+          },
+          {
+            "description": "30-30 strides — 30 sec fast / 30 sec easy",
+            "duration": { "value": 30, "unit": "sec" },
+            "paceZone": "vo2max",
+            "reps": 8,
+            "recovery": { "type": "jog", "duration": { "value": 30, "unit": "sec" } },
+            "cue": "Fast but controlled — near-mile race effort. The 30-sec duration is long enough to matter, short enough to stay smooth."
+          }
+        ],
+        "cooldown": {
+          "description": "Easy cooldown",
+          "duration": { "value": 5, "unit": "min" },
+          "paceZone": "easy"
+        }
+      },
+      "approxDurationMinutes": { "min": 50, "max": 70 },
+      "approxDistanceMiles": { "min": 5, "max": 9 },
+      "purpose": "SWAP's signature combination workout. Builds aerobic capacity (the long aerobic block) AND neuromuscular sharpness (the 30-30s) in one session, without true hard work.",
+      "cues": [
+        "30-30s should feel quick but never grinding",
+        "If 30-30s feel labored, do fewer reps or stop early",
+        "Recovery jogs keep moving — don't walk the recoveries"
+      ],
+      "validPhaseIds": ["foundation", "build", "peak"]
+    },
+    {
+      "id": "roche_long_run",
+      "name": "Long Run",
+      "shortDescription": "Long aerobic run, with optional AeT segment late in training",
+      "category": "long",
+      "primaryZone": "easy",
+      "displayName": "Long",
+      "structure": {
+        "mainSet": [
+          {
+            "description": "Long steady run below AeT",
+            "duration": { "value": 150, "unit": "min" },
+            "paceZone": "easy",
+            "cue": "Hold HR below AeT — even as fatigue accumulates and HR wants to drift up."
+          }
+        ]
+      },
+      "approxDurationMinutes": { "min": 60, "max": 360 },
+      "approxDistanceMiles": { "min": 6, "max": 30 },
+      "purpose": "Endurance building. SWAP long runs vary by race distance — capped at 22 mi for marathon, can extend to 5+ hours for 100-milers.",
+      "cues": [
+        "Time on feet matters more than mileage",
+        "Practice race-day fueling on runs over 90 min",
+        "On trails, target similar elevation gain to your race"
+      ],
+      "validPhaseIds": ["foundation", "build", "peak"]
+    },
+    {
+      "id": "roche_long_with_aet",
+      "name": "Long Run with AeT Segment",
+      "shortDescription": "Long run with 20-40 min at AeT in the middle",
+      "category": "long",
+      "primaryZone": "aerobic_threshold",
+      "displayName": "Long + AeT",
+      "structure": {
+        "warmup": {
+          "description": "Easy aerobic warmup",
+          "duration": { "value": 30, "unit": "min" },
+          "paceZone": "easy"
+        },
+        "mainSet": [
+          {
+            "description": "Sustained AeT segment",
+            "duration": { "value": 30, "unit": "min" },
+            "paceZone": "aerobic_threshold",
+            "cue": "Lock into AeT effort. Pace varies with terrain — HR is the constant."
+          },
+          {
+            "description": "Easy aerobic to finish",
+            "duration": { "value": 60, "unit": "min" },
+            "paceZone": "easy"
+          }
+        ]
+      },
+      "approxDurationMinutes": { "min": 110, "max": 200 },
+      "approxDistanceMiles": { "min": 12, "max": 22 },
+      "purpose": "Builds the ability to hold AeT under accumulated fatigue — the central physiological demand of ultra and marathon racing.",
+      "cues": [
+        "AeT segment is sustainable — should not feel like racing",
+        "Practice race fueling and gear during the run",
+        "If AeT pace drops significantly during segment, end early — you're fatigued"
+      ],
+      "validPhaseIds": ["build", "peak"],
+      "minimumExperience": "intermediate"
+    },
+    {
+      "id": "roche_hill_strides",
+      "name": "Hill Strides",
+      "shortDescription": "8-10× ~10-second strides up moderate hills, full recovery",
+      "category": "hills",
+      "primaryZone": "vo2max",
+      "displayName": "Hill Strides",
+      "structure": {
+        "warmup": {
+          "description": "Easy run to base of hill",
+          "duration": { "value": 15, "unit": "min" },
+          "paceZone": "easy"
+        },
+        "mainSet": [
+          {
+            "description": "Hill strides at fast effort",
+            "duration": { "value": 10, "unit": "sec" },
+            "paceZone": "vo2max",
+            "reps": 8,
+            "recovery": { "type": "walk", "duration": { "value": 90, "unit": "sec" } },
+            "cue": "Fast and explosive uphill — 10 seconds of work, full recovery walk down."
+          }
+        ],
+        "cooldown": {
+          "description": "Easy cooldown",
+          "duration": { "value": 10, "unit": "min" },
+          "paceZone": "easy"
+        }
+      },
+      "approxDurationMinutes": { "min": 35, "max": 50 },
+      "approxDistanceMiles": { "min": 4, "max": 6 },
+      "purpose": "Strength + neuromuscular work. Hill grade does the work — you don't need pure flat speed. Used 1× weekly in foundation and build phases.",
+      "cues": [
+        "Pick a hill ~5-8% grade",
+        "Walk down for full recovery",
+        "Build to top speed gradually within the 10 seconds"
+      ],
+      "validPhaseIds": ["foundation", "build", "peak", "taper"]
+    },
+    {
+      "id": "roche_ant_workout",
+      "name": "AnT Workout",
+      "shortDescription": "Lactate threshold intervals — used sparingly in build/peak",
+      "category": "tempo",
+      "primaryZone": "lactate_threshold",
+      "displayName": "AnT",
+      "structure": {
+        "warmup": {
+          "description": "Easy warmup + 4 strides",
+          "duration": { "value": 20, "unit": "min" },
+          "paceZone": "easy"
+        },
+        "mainSet": [
+          {
+            "description": "AnT intervals",
+            "duration": { "value": 6, "unit": "min" },
+            "paceZone": "lactate_threshold",
+            "reps": 4,
+            "recovery": { "type": "jog", "duration": { "value": 2, "unit": "min" } },
+            "cue": "AnT effort — about 1-hour race pace. Even effort across all reps."
+          }
+        ],
+        "cooldown": {
+          "description": "Easy cooldown",
+          "duration": { "value": 10, "unit": "min" },
+          "paceZone": "easy"
+        }
+      },
+      "approxDurationMinutes": { "min": 60, "max": 80 },
+      "approxDistanceMiles": { "min": 6, "max": 10 },
+      "purpose": "Lactate threshold development. SWAP uses AnT work sparingly — once per week max, only in build and peak phases.",
+      "cues": [
+        "Even effort — first rep at the same intensity as the last",
+        "If reps slow significantly, end the workout",
+        "AnT is harder than AeT — respect the recovery requirement"
+      ],
+      "validPhaseIds": ["build", "peak"]
+    },
+    {
+      "id": "roche_recovery_run",
+      "name": "Recovery Run",
+      "shortDescription": "Very easy short run between hard efforts",
+      "category": "recovery",
+      "primaryZone": "recovery",
+      "displayName": "Recovery",
+      "structure": {
+        "mainSet": [
+          {
+            "description": "Very easy run well below AeT",
+            "duration": { "value": 30, "unit": "min" },
+            "paceZone": "recovery",
+            "cue": "Restorative effort — should leave you feeling better."
+          }
+        ]
+      },
+      "approxDurationMinutes": { "min": 20, "max": 45 },
+      "approxDistanceMiles": { "min": 2, "max": 5 },
+      "purpose": "Active recovery. SWAP encourages skipping recovery runs entirely if fatigued — joy and freshness matter.",
+      "cues": [
+        "If you don't feel better at the end, you ran too hard",
+        "Skipping is allowed — SWAP values freshness",
+        "Walking is fine"
+      ],
+      "validPhaseIds": ["foundation", "build", "peak", "taper"]
+    }
+  ],
+  "phases": [
+    {
+      "id": "foundation",
+      "name": "Foundation",
+      "order": 1,
+      "pctOfPlan": { "min": 0.20, "default": 0.30, "max": 0.40 },
+      "weekBounds": { "minWeeks": 3, "maxWeeks": 8 },
+      "focus": "Aerobic base + 30-30 strides + hill strides. No AnT work yet.",
+      "intensityDistribution": { "easyPct": 90, "moderatePct": 5, "hardPct": 5 },
+      "keyWorkoutIds": ["roche_aerobic_run", "roche_aerobic_30_30", "roche_long_run", "roche_hill_strides", "roche_recovery_run"],
+      "mileageBehavior": "build",
+      "athleteNarrative": "Welcome to the SWAP foundation phase. This is where you build the aerobic engine and learn the rhythm of 30-30 strides. Two short fast sessions per week (30-30s and hill strides) keep you sharp without true hard work. Most weekly running is below aerobic threshold — finish runs feeling good, not depleted. Joy comes first; everything follows from that."
+    },
+    {
+      "id": "build",
+      "name": "Build",
+      "order": 2,
+      "pctOfPlan": { "min": 0.25, "default": 0.30, "max": 0.35 },
+      "weekBounds": { "minWeeks": 3, "maxWeeks": 6 },
+      "focus": "Add AeT segments to long runs. Begin AnT (threshold) workouts once per week. Continue 30-30s and hill strides.",
+      "intensityDistribution": { "easyPct": 82, "moderatePct": 10, "hardPct": 8 },
+      "keyWorkoutIds": ["roche_aerobic_run", "roche_aerobic_30_30", "roche_long_run", "roche_long_with_aet", "roche_hill_strides", "roche_ant_workout", "roche_recovery_run"],
+      "mileageBehavior": "build",
+      "athleteNarrative": "Build phase. AeT segments enter long runs — 20-30 min at aerobic threshold builds the ability to sustain race pace under fatigue. Once a week, an AnT (lactate threshold) workout is added. The 30-30s and hill strides continue throughout — they're the rhythm of SWAP."
+    },
+    {
+      "id": "peak",
+      "name": "Peak",
+      "order": 3,
+      "pctOfPlan": { "min": 0.20, "default": 0.25, "max": 0.30 },
+      "weekBounds": { "minWeeks": 3, "maxWeeks": 6 },
+      "focus": "Peak AeT volume in long runs. Race-specific terrain practice. Peak weekly volume.",
+      "intensityDistribution": { "easyPct": 80, "moderatePct": 12, "hardPct": 8 },
+      "keyWorkoutIds": ["roche_aerobic_run", "roche_aerobic_30_30", "roche_long_with_aet", "roche_ant_workout", "roche_hill_strides", "roche_recovery_run"],
+      "mileageBehavior": "peak",
+      "athleteNarrative": "Peak phase. The longest AeT segments occur here. For mountain ultras, target similar vertical to your race. AnT workouts continue once per week. Wave loading is crucial — you'll have heavy weeks and lighter weeks rather than steady linear progression."
+    },
+    {
+      "id": "taper",
+      "name": "Taper",
+      "order": 4,
+      "pctOfPlan": { "min": 0.10, "default": 0.15, "max": 0.20 },
+      "weekBounds": { "minWeeks": 2, "maxWeeks": 3 },
+      "focus": "Reduce volume; preserve 30-30s and hill strides for sharpness; arrive joyful.",
+      "intensityDistribution": { "easyPct": 85, "moderatePct": 10, "hardPct": 5 },
+      "keyWorkoutIds": ["roche_aerobic_run", "roche_hill_strides", "roche_recovery_run"],
+      "mileageBehavior": "taper",
+      "athleteNarrative": "Taper. Volume drops, but 30-30s and hill strides continue at reduced volume so you stay sharp. The Roches emphasize: arrive at the start line feeling FRESH and EXCITED, not exhausted. Skip workouts if you don't feel up for them. Sleep, eat, hydrate, smile."
+    }
+  ],
+  "weeklyPatterns": [
+    {
+      "phaseId": "foundation",
+      "daysPerWeek": 5,
+      "weekType": "standard",
+      "schedule": [
+        { "dayOfWeek": 1, "category": "rest" },
+        { "dayOfWeek": 2, "category": "fartlek", "preferredWorkoutIds": ["roche_aerobic_30_30"], "notes": "Aerobic + 30-30 strides" },
+        { "dayOfWeek": 3, "category": "easy", "preferredWorkoutIds": ["roche_aerobic_run"], "volumeModifier": "medium" },
+        { "dayOfWeek": 4, "category": "hills", "preferredWorkoutIds": ["roche_hill_strides"], "notes": "Hill strides" },
+        { "dayOfWeek": 5, "category": "rest" },
+        { "dayOfWeek": 6, "category": "easy", "preferredWorkoutIds": ["roche_aerobic_run"], "volumeModifier": "short" },
+        { "dayOfWeek": 7, "category": "long", "preferredWorkoutIds": ["roche_long_run"], "volumeModifier": "long" }
+      ],
+      "notes": "Foundation 5-day. Tuesday 30-30s + Thursday hill strides + Sunday long run. No AnT work yet."
+    },
+    {
+      "phaseId": "build",
+      "daysPerWeek": 5,
+      "weekType": "standard",
+      "schedule": [
+        { "dayOfWeek": 1, "category": "rest" },
+        { "dayOfWeek": 2, "category": "tempo", "preferredWorkoutIds": ["roche_ant_workout"], "notes": "AnT workout" },
+        { "dayOfWeek": 3, "category": "easy", "preferredWorkoutIds": ["roche_aerobic_run"], "volumeModifier": "medium" },
+        { "dayOfWeek": 4, "category": "fartlek", "preferredWorkoutIds": ["roche_aerobic_30_30"], "notes": "30-30 strides" },
+        { "dayOfWeek": 5, "category": "rest" },
+        { "dayOfWeek": 6, "category": "hills", "preferredWorkoutIds": ["roche_hill_strides"], "notes": "Hill strides" },
+        { "dayOfWeek": 7, "category": "long", "preferredWorkoutIds": ["roche_long_run", "roche_long_with_aet"], "volumeModifier": "long" }
+      ],
+      "notes": "Build 5-day. AnT Tuesday + 30-30s Thursday + hill strides Saturday + Long run Sunday with optional AeT segment."
+    },
+    {
+      "phaseId": "build",
+      "daysPerWeek": 6,
+      "weekType": "standard",
+      "schedule": [
+        { "dayOfWeek": 1, "category": "recovery", "preferredWorkoutIds": ["roche_recovery_run"], "volumeModifier": "short" },
+        { "dayOfWeek": 2, "category": "tempo", "preferredWorkoutIds": ["roche_ant_workout"], "notes": "AnT" },
+        { "dayOfWeek": 3, "category": "easy", "preferredWorkoutIds": ["roche_aerobic_run"], "volumeModifier": "medium" },
+        { "dayOfWeek": 4, "category": "fartlek", "preferredWorkoutIds": ["roche_aerobic_30_30"], "notes": "30-30 strides" },
+        { "dayOfWeek": 5, "category": "rest" },
+        { "dayOfWeek": 6, "category": "hills", "preferredWorkoutIds": ["roche_hill_strides"], "notes": "Hill strides" },
+        { "dayOfWeek": 7, "category": "long", "preferredWorkoutIds": ["roche_long_with_aet"], "volumeModifier": "long" }
+      ],
+      "notes": "Build 6-day. Adds Monday recovery run for higher weekly volume."
+    },
+    {
+      "phaseId": "peak",
+      "daysPerWeek": 5,
+      "weekType": "standard",
+      "schedule": [
+        { "dayOfWeek": 1, "category": "rest" },
+        { "dayOfWeek": 2, "category": "tempo", "preferredWorkoutIds": ["roche_ant_workout"], "notes": "AnT" },
+        { "dayOfWeek": 3, "category": "easy", "preferredWorkoutIds": ["roche_aerobic_run"], "volumeModifier": "medium" },
+        { "dayOfWeek": 4, "category": "fartlek", "preferredWorkoutIds": ["roche_aerobic_30_30"] },
+        { "dayOfWeek": 5, "category": "rest" },
+        { "dayOfWeek": 6, "category": "easy", "preferredWorkoutIds": ["roche_aerobic_run"], "volumeModifier": "short" },
+        { "dayOfWeek": 7, "category": "long", "preferredWorkoutIds": ["roche_long_with_aet"], "volumeModifier": "long" }
+      ],
+      "notes": "Peak 5-day. Hill strides drop to make room for peak Long run AeT segments."
+    },
+    {
+      "phaseId": "build",
+      "daysPerWeek": 5,
+      "weekType": "recovery",
+      "schedule": [
+        { "dayOfWeek": 1, "category": "rest" },
+        { "dayOfWeek": 2, "category": "easy", "preferredWorkoutIds": ["roche_aerobic_run"], "volumeModifier": "medium" },
+        { "dayOfWeek": 3, "category": "fartlek", "preferredWorkoutIds": ["roche_aerobic_30_30"], "notes": "Reduced 30-30s — only quality this week" },
+        { "dayOfWeek": 4, "category": "easy", "preferredWorkoutIds": ["roche_aerobic_run"], "volumeModifier": "short" },
+        { "dayOfWeek": 5, "category": "rest" },
+        { "dayOfWeek": 6, "category": "easy", "preferredWorkoutIds": ["roche_aerobic_run"], "volumeModifier": "short" },
+        { "dayOfWeek": 7, "category": "long", "preferredWorkoutIds": ["roche_long_run"], "volumeModifier": "medium", "notes": "Cutback long run" }
+      ],
+      "notes": "Recovery week — every 3-4 weeks. Drops AnT, keeps 30-30s, cuts long run."
+    }
+  ],
+  "mileageProgression": {
+    "startMileagePctOfPeak": 0.55,
+    "peakMileageRule": { "type": "multiplier_of_current", "value": 1.4 },
+    "maxWeeklyIncreasePct": 0.12,
+    "cutbackEveryNWeeks": 3,
+    "cutbackPct": 0.70,
+    "longRunPctCap": 0.35
+  },
+  "taper": {
+    "durationWeeks": 2,
+    "weeklyVolumePcts": [0.70, 0.45],
+    "preserveIntensity": true,
+    "raceWeekSchedule": [
+      { "dayOfWeek": 1, "category": "rest" },
+      { "dayOfWeek": 2, "category": "fartlek", "preferredWorkoutIds": ["roche_aerobic_30_30"], "volumeModifier": "short", "notes": "4× 30-30 strides only" },
+      { "dayOfWeek": 3, "category": "rest" },
+      { "dayOfWeek": 4, "category": "hills", "preferredWorkoutIds": ["roche_hill_strides"], "volumeModifier": "short", "notes": "4× short hill strides" },
+      { "dayOfWeek": 5, "category": "rest" },
+      { "dayOfWeek": 6, "category": "easy", "preferredWorkoutIds": ["roche_aerobic_run"], "volumeModifier": "short", "notes": "Shakeout 15-20 min" },
+      { "dayOfWeek": 7, "category": "race_pace", "notes": "RACE DAY — run with joy" }
+    ],
+    "notes": "SWAP taper is short and joyful — 2 weeks at 70%/45%. 30-30s and hill strides preserved at low volume to keep neuromuscular sharpness without depletion."
+  },
+  "strengthRecommendation": {
+    "daysPerWeek": { "min": 1, "max": 3, "default": 2 },
+    "workoutIds": [],
+    "philosophy": "Strong recommendation: 2× weekly strength sessions of 20-40 min. Focus on glute/hip strength, single-leg work, core stability. The Roches see strength as foundational for both performance and durability."
+  },
+  "crossTrainingRecommendation": {
+    "approvedModalities": ["cycling", "hiking", "yoga", "pilates"],
+    "daysPerWeek": { "min": 0, "max": 2, "default": 1 },
+    "intensityGuidance": "Cross-training, especially yoga and hiking, are explicitly encouraged. Yoga supports joy and recovery; hiking adds vertical gain without running impact. Easy effort only."
+  },
+  "applicability": {
+    "byDistance": {
+      "5k": "OK",
+      "10k": "GOOD",
+      "half_marathon": "GOOD",
+      "marathon": "GOOD",
+      "50k": "BEST",
+      "50_mile": "BEST",
+      "100k": "BEST",
+      "100_mile": "BEST",
+      "mountain_ultra": "BEST"
+    },
+    "byExperience": {
+      "beginner": "OK",
+      "recreational": "GOOD",
+      "intermediate": "BEST",
+      "advanced": "BEST",
+      "elite": "GOOD"
+    },
+    "byTerrain": {
+      "road": "GOOD",
+      "track": "OK",
+      "trail_rolling": "BEST",
+      "mountain_vertical": "BEST",
+      "cross_country": "BEST"
+    },
+    "weeklyHoursRange": { "min": 5, "max": 16 },
+    "daysPerWeekRange": { "min": 4, "max": 6, "ideal": 5 }
+  },
+  "restrictions": [
+    {
+      "type": "general",
+      "rule": "Requires AeT (aerobic threshold) measurement for accurate zone targeting. Without HR data and a known AeT, the system relies on RPE — workable but less precise.",
+      "blocking": false,
+      "warningMessage": "SWAP works best with a known AeT (aerobic threshold). Without HR data, you'll need to self-regulate by RPE — possible, but the AeT-anchored precision is part of what makes the system effective."
+    },
+    {
+      "type": "experience",
+      "rule": "Beginners can use SWAP but benefit from a longer foundation phase. The 30-30 strides and AnT work assume baseline running fitness.",
+      "blocking": false,
+      "suggestedAlternativeId": "higdon",
+      "warningMessage": "SWAP is accessible but assumes some running history. For first-time runners or returning from extended layoff, Higdon Novice is gentler."
+    }
+  ],
+  "generationRules": {
+    "defaultPlanWeeks": 16,
+    "supportedPlanWeeks": [12, 16, 18, 20, 24],
+    "qualityWorkoutsPerWeek": { "min": 1, "max": 3, "default": 2 },
+    "minDaysBetweenHardSessions": 1,
+    "allowsDoubles": false,
+    "compressionPriority": ["foundation", "build", "peak", "taper"],
+    "expansionPriority": ["foundation", "build", "peak", "taper"],
+    "invariants": [
+      "30-30 strides included weekly throughout the program (except race week which has reduced volume)",
+      "Hill strides included weekly in foundation and build phases",
+      "AnT work introduced only in build phase, max 1× per week",
+      "Long run cap at 35% of weekly mileage",
+      "Wave loading: vary weekly volume by ±10-15% rather than steady linear progression",
+      "Cutback every 3 weeks at 70%",
+      "Taper is short (2 weeks): 70% / 45%",
+      "Skip workouts when fatigued — SWAP values freshness over rigid adherence",
+      "30-30s never go to maximum effort — fast but smooth"
+    ]
+  },
+  "schemaVersion": "1.0.0",
+  "lastUpdated": "2026-05-09"
+}

@@ -5,6 +5,17 @@ export type ExperienceLevel = 'first_timer' | 'beginner' | 'intermediate' | 'adv
 
 export type WearableType = 'garmin' | 'apple_watch' | 'oura' | 'none'
 
+export type RaceDistance =
+  | '5k'
+  | '10k'
+  | 'half_marathon'
+  | 'marathon'
+  | '50k'
+  | '50_mile'
+  | '100k'
+  | '100_mile'
+  | 'mountain_ultra'
+
 export type FitnessAnchorType =
   | 'race_5k'
   | 'race_10k'
@@ -33,6 +44,13 @@ export interface OnboardingConfig {
   raceType: RaceType
   raceName: string
   raceDate: string
+  // Target race distance — required for trail/road races, omitted for hyrox/general.
+  // Drives method selection via applicability.byDistance in the plan-generator engine.
+  raceDistance?: RaceDistance
+  // Training method the user picked from the top-3 recommendation (e.g. 'daniels',
+  // 'koop', 'roche_swap'). Only set for trail/road flows; hyrox/general skip
+  // method selection and use the existing generateHyroxPlan path.
+  selectedMethodId?: string
   experienceLevel: ExperienceLevel
   trainingDaysPerWeek: number
   longRunDay?: string
