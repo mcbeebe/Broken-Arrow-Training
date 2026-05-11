@@ -1,12 +1,57 @@
 import { useState } from 'react'
-import type { RaceType, ExperienceLevel, WearableType, OnboardingConfig } from '../hooks/useOnboarding'
+import type {
+  RaceType,
+  ExperienceLevel,
+  WearableType,
+  OnboardingConfig,
+  FitnessAnchorType,
+  InjuryStatus,
+  EquipmentAccess,
+  CrossTrainingMode,
+  TrainingTimeOfDay,
+} from '../hooks/useOnboarding'
+import { parseTimeToSeconds } from '../utils/parseTime'
 
 interface Props {
   onComplete: (config: OnboardingConfig) => void
   onSkip?: () => void
 }
 
-const TOTAL_STEPS = 7
+const TOTAL_STEPS = 11
+
+const ANCHOR_OPTIONS: { value: FitnessAnchorType; label: string; placeholder: string; kind: 'time' | 'bpm' | 'none' }[] = [
+  { value: 'race_5k', label: 'Recent 5K time', placeholder: 'mm:ss', kind: 'time' },
+  { value: 'race_10k', label: 'Recent 10K time', placeholder: 'mm:ss or hh:mm:ss', kind: 'time' },
+  { value: 'race_hm', label: 'Half marathon time', placeholder: 'hh:mm:ss', kind: 'time' },
+  { value: 'race_marathon', label: 'Marathon time', placeholder: 'hh:mm:ss', kind: 'time' },
+  { value: 'easy_pace', label: 'Self-reported easy pace (per mile)', placeholder: 'mm:ss', kind: 'time' },
+  { value: 'lthr', label: 'Lactate threshold HR (LTHR)', placeholder: 'bpm', kind: 'bpm' },
+  { value: 'none', label: "I don't know yet", placeholder: '', kind: 'none' },
+]
+
+const EQUIPMENT_OPTIONS: { value: EquipmentAccess; label: string; desc: string; icon: string }[] = [
+  { value: 'track', label: 'Track', desc: 'Measured intervals, repeats', icon: '🏟' },
+  { value: 'hills', label: 'Hills', desc: 'For climbs, hill repeats', icon: '⛰' },
+  { value: 'trails', label: 'Trails', desc: 'Off-road running', icon: '🌲' },
+  { value: 'treadmill', label: 'Treadmill', desc: 'Indoor running', icon: '🏃' },
+  { value: 'gym', label: 'Gym', desc: 'Strength + functional work', icon: '🏋️' },
+]
+
+const CROSS_TRAINING_OPTIONS: { value: CrossTrainingMode; label: string; icon: string }[] = [
+  { value: 'cycling', label: 'Cycling', icon: '🚴' },
+  { value: 'swimming', label: 'Swimming', icon: '🏊' },
+  { value: 'rowing', label: 'Rowing', icon: '🚣' },
+  { value: 'hiking', label: 'Hiking', icon: '🥾' },
+  { value: 'yoga', label: 'Yoga / Mobility', icon: '🧘' },
+]
+
+const TIME_OF_DAY_OPTIONS: { value: TrainingTimeOfDay; label: string; desc: string }[] = [
+  { value: 'early_am', label: 'Early morning', desc: 'Before 7am' },
+  { value: 'morning', label: 'Morning', desc: '7am – 11am' },
+  { value: 'midday', label: 'Midday', desc: '11am – 2pm' },
+  { value: 'afternoon', label: 'Afternoon', desc: '2pm – 5pm' },
+  { value: 'evening', label: 'Evening', desc: 'After 5pm' },
+]
 
 export default function Onboarding({ onComplete, onSkip }: Props) {
   const [step, setStep] = useState(0)
@@ -23,8 +68,30 @@ export default function Onboarding({ onComplete, onSkip }: Props) {
   const [maxHR, setMaxHR] = useState('')
   const [ftp, setFtp] = useState('')
 
+  // New fields
+  const [anchorType, setAnchorType] = useState<FitnessAnchorType>('none')
+  const [anchorTime, setAnchorTime] = useState('')
+  const [anchorBpm, setAnchorBpm] = useState('')
+  const [weeklyMileage, setWeeklyMileage] = useState('')
+  const [injury, setInjury] = useState<InjuryStatus | null>(null)
+  const [equipment, setEquipment] = useState<EquipmentAccess[]>([])
+  const [strengthDays, setStrengthDays] = useState<number | null>(null)
+  const [crossTraining, setCrossTraining] = useState<CrossTrainingMode[]>([])
+  const [trainingTimes, setTrainingTimes] = useState<TrainingTimeOfDay[]>([])
+  const [scheduleNote, setScheduleNote] = useState('')
+
   const next = () => setStep(s => Math.min(s + 1, TOTAL_STEPS - 1))
   const back = () => setStep(s => Math.max(s - 1, 0))
+
+  const toggleEquipment = (e: EquipmentAccess) => {
+    setEquipment(prev => prev.includes(e) ? prev.filter(x => x !== e) : [...prev, e])
+  }
+  const toggleCrossTraining = (m: CrossTrainingMode) => {
+    setCrossTraining(prev => prev.includes(m) ? prev.filter(x => x !== m) : [...prev, m])
+  }
+  const toggleTrainingTime = (t: TrainingTimeOfDay) => {
+    setTrainingTimes(prev => prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t])
+  }
 
   const canContinue = (() => {
     switch (step) {
@@ -32,15 +99,31 @@ export default function Onboarding({ onComplete, onSkip }: Props) {
       case 1: return raceName.trim().length > 0
       case 2: return !!experience
       case 3: return !!daysPerWeek
-      case 4: return raceType === 'trail' ? !!longRunDay : raceType === 'hyrox' ? !!weakStation : true
-      case 5: return !!wearable
-      case 6: return name.trim().length > 0 && age.trim().length > 0
+      case 4: return raceType === 'trail' ? !!longRunDay : raceType === 'hyrox' ? !!weakStation : !!longRunDay
+      case 5: return !!injury // anchor + mileage are optional; injury is the gating answer
+      case 6: return equipment.length > 0
+      case 7: return strengthDays !== null // cross-training is optional
+      case 8: return trainingTimes.length > 0 // schedule note is optional
+      case 9: return !!wearable
+      case 10: return name.trim().length > 0 && age.trim().length > 0
       default: return false
     }
   })()
 
   const handleComplete = () => {
     const ageNum = parseInt(age) || 30
+    const anchorOpt = ANCHOR_OPTIONS.find(o => o.value === anchorType)!
+    let fitnessAnchor: OnboardingConfig['fitnessAnchor']
+    if (anchorType !== 'none') {
+      if (anchorOpt.kind === 'time') {
+        const secs = parseTimeToSeconds(anchorTime)
+        if (secs) fitnessAnchor = { type: anchorType, valueSeconds: secs }
+      } else if (anchorOpt.kind === 'bpm') {
+        const bpm = parseInt(anchorBpm)
+        if (bpm > 0) fitnessAnchor = { type: anchorType, bpm }
+      }
+    }
+
     onComplete({
       raceType: raceType!,
       raceName: raceName.trim(),
@@ -54,9 +137,19 @@ export default function Onboarding({ onComplete, onSkip }: Props) {
       age: ageNum,
       maxHR: maxHR ? parseInt(maxHR) : 220 - ageNum,
       ftpWatts: ftp ? parseInt(ftp) : undefined,
+      fitnessAnchor,
+      currentWeeklyMileage: weeklyMileage ? parseFloat(weeklyMileage) : undefined,
+      injuryStatus: injury ?? undefined,
+      equipmentAccess: equipment.length > 0 ? equipment : undefined,
+      strengthDaysPerWeek: strengthDays ?? undefined,
+      crossTrainingModes: crossTraining.length > 0 ? crossTraining : undefined,
+      preferredTrainingTimes: trainingTimes.length > 0 ? trainingTimes : undefined,
+      scheduleConstraintsNote: scheduleNote.trim() || undefined,
       completedAt: '',
     })
   }
+
+  const selectedAnchor = ANCHOR_OPTIONS.find(o => o.value === anchorType)!
 
   return (
     <div className="fixed inset-0 z-50 bg-white flex flex-col">
@@ -131,9 +224,9 @@ export default function Onboarding({ onComplete, onSkip }: Props) {
 
         {step === 3 && (
           <StepContainer title="How many days per week do you want to train?" subtitle="This should be at most one more than you currently train to reduce injury risk">
-            {[3, 4, 5, 6].map(n => (
+            {[3, 4, 5, 6, 7].map(n => (
               <OptionCard key={n} selected={daysPerWeek === n} onClick={() => setDaysPerWeek(n)} title={`${n} Days`}
-                desc={n === 3 ? 'Minimum effective dose. Great for busy schedules.' : n === 4 ? 'Balanced. Most popular choice.' : n === 5 ? 'Solid volume. Includes dedicated recovery.' : 'High commitment. For experienced athletes.'} />
+                desc={n === 3 ? 'Minimum effective dose. Great for busy schedules.' : n === 4 ? 'Balanced. Most popular choice.' : n === 5 ? 'Solid volume. Includes dedicated recovery.' : n === 6 ? 'High commitment. For experienced athletes.' : 'Daily training. Requires careful recovery management.'} />
             ))}
           </StepContainer>
         )}
@@ -163,6 +256,158 @@ export default function Onboarding({ onComplete, onSkip }: Props) {
         )}
 
         {step === 5 && (
+          <StepContainer title="Where are you right now?" subtitle="Your current fitness baseline. Anchor and mileage are optional but make your plan more accurate.">
+            <div className="space-y-5">
+              {/* Fitness anchor */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Fitness anchor (optional)</label>
+                <select
+                  value={anchorType}
+                  onChange={e => setAnchorType(e.target.value as FitnessAnchorType)}
+                  className="w-full px-3 py-3 text-base border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400 bg-white"
+                >
+                  {ANCHOR_OPTIONS.map(o => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
+                {selectedAnchor.kind === 'time' && (
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={anchorTime}
+                    onChange={e => setAnchorTime(e.target.value)}
+                    placeholder={selectedAnchor.placeholder}
+                    className="mt-2 w-full px-3 py-3 text-base border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400"
+                  />
+                )}
+                {selectedAnchor.kind === 'bpm' && (
+                  <input
+                    type="number"
+                    value={anchorBpm}
+                    onChange={e => setAnchorBpm(e.target.value)}
+                    placeholder={selectedAnchor.placeholder}
+                    className="mt-2 w-full px-3 py-3 text-base border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400"
+                  />
+                )}
+                <p className="text-xs text-slate-400 mt-1">Helps us set accurate paces and HR zones.</p>
+              </div>
+
+              {/* Weekly mileage */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Current weekly running mileage (optional)</label>
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  value={weeklyMileage}
+                  onChange={e => setWeeklyMileage(e.target.value)}
+                  placeholder="e.g. 20"
+                  className="w-full px-3 py-3 text-base border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400"
+                />
+                <p className="text-xs text-slate-400 mt-1">Sets a safe baseline so we don't ramp volume too fast.</p>
+              </div>
+
+              {/* Injury status — required */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Recent injury status</label>
+                <div className="space-y-2">
+                  <OptionCard selected={injury === 'none'} onClick={() => setInjury('none')} title="No injuries" desc="Healthy and ready to train." />
+                  <OptionCard selected={injury === 'returning'} onClick={() => setInjury('returning')} title="Returning from injury" desc="Recently cleared. We'll ramp gently." />
+                  <OptionCard selected={injury === 'current'} onClick={() => setInjury('current')} title="Currently injured" desc="We'll prioritize recovery & cross-training." />
+                </div>
+              </div>
+            </div>
+          </StepContainer>
+        )}
+
+        {step === 6 && (
+          <StepContainer title="What do you have access to?" subtitle="Select all that apply. We'll match workouts to your environment.">
+            {EQUIPMENT_OPTIONS.map(opt => (
+              <OptionCard
+                key={opt.value}
+                selected={equipment.includes(opt.value)}
+                onClick={() => toggleEquipment(opt.value)}
+                title={opt.label}
+                desc={opt.desc}
+                icon={opt.icon}
+                multi
+              />
+            ))}
+          </StepContainer>
+        )}
+
+        {step === 7 && (
+          <StepContainer title="Strength & cross-training" subtitle="Tell us how you want to round out your running.">
+            <div className="space-y-5">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Strength training per week</label>
+                <div className="grid grid-cols-4 gap-2">
+                  {[0, 1, 2, 3].map(n => (
+                    <button
+                      key={n}
+                      onClick={() => setStrengthDays(n)}
+                      className={`py-3 rounded-xl border-2 text-base font-semibold transition ${
+                        strengthDays === n ? 'border-teal-500 bg-teal-50 text-teal-800' : 'border-slate-200 bg-slate-50 text-slate-700'
+                      }`}
+                    >
+                      {n === 0 ? 'None' : n === 3 ? '3+' : `${n}x`}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Cross-training you'd enjoy (optional)</label>
+                <div className="space-y-2">
+                  {CROSS_TRAINING_OPTIONS.map(opt => (
+                    <OptionCard
+                      key={opt.value}
+                      selected={crossTraining.includes(opt.value)}
+                      onClick={() => toggleCrossTraining(opt.value)}
+                      title={opt.label}
+                      icon={opt.icon}
+                      multi
+                    />
+                  ))}
+                </div>
+                <p className="text-xs text-slate-400 mt-2">We'll use these as easy-day swaps and recovery sessions.</p>
+              </div>
+            </div>
+          </StepContainer>
+        )}
+
+        {step === 8 && (
+          <StepContainer title="Schedule & constraints" subtitle="So we can fit training around your life.">
+            <div className="space-y-5">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">When do you usually train?</label>
+                <div className="space-y-2">
+                  {TIME_OF_DAY_OPTIONS.map(opt => (
+                    <OptionCard
+                      key={opt.value}
+                      selected={trainingTimes.includes(opt.value)}
+                      onClick={() => toggleTrainingTime(opt.value)}
+                      title={opt.label}
+                      desc={opt.desc}
+                      multi
+                    />
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Travel, blackout dates, or other constraints (optional)</label>
+                <textarea
+                  value={scheduleNote}
+                  onChange={e => setScheduleNote(e.target.value)}
+                  placeholder="e.g. Travel May 15–22, no equipment July 4 week, work crunch in June"
+                  rows={3}
+                  className="w-full px-3 py-3 text-base border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400 resize-none"
+                />
+                <p className="text-xs text-slate-400 mt-1">We'll account for these when shaping your weekly load.</p>
+              </div>
+            </div>
+          </StepContainer>
+        )}
+
+        {step === 9 && (
           <StepContainer title="What wearable do you use?" subtitle="We'll pull heart rate, sleep, and recovery data from your device">
             <OptionCard selected={wearable === 'garmin'} onClick={() => setWearable('garmin')} title="Garmin Watch" desc="Syncs HR, HRV, sleep, body battery, and activities directly." icon="garmin" />
             <OptionCard selected={wearable === 'apple_watch'} onClick={() => setWearable('apple_watch')} title="Apple Watch" desc="Syncs HRV, resting HR, and sleep via the companion iOS app." icon="apple" />
@@ -171,7 +416,7 @@ export default function Onboarding({ onComplete, onSkip }: Props) {
           </StepContainer>
         )}
 
-        {step === 6 && (
+        {step === 10 && (
           <StepContainer title="Almost done! Tell us about yourself." subtitle="This helps us personalize your plan">
             <div className="space-y-4">
               <div>
@@ -193,6 +438,7 @@ export default function Onboarding({ onComplete, onSkip }: Props) {
                   placeholder="e.g. 41"
                   className="w-full px-3 py-3 text-base border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400"
                 />
+                <p className="text-xs text-slate-400 mt-1">Used for MAF formula and masters-athlete adjustments.</p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Max Heart Rate (optional)</label>
@@ -251,8 +497,8 @@ function StepContainer({ title, subtitle, children }: { title: string; subtitle?
   )
 }
 
-function OptionCard({ selected, onClick, title, desc, icon }: {
-  selected: boolean; onClick: () => void; title: string; desc?: string; icon?: string
+function OptionCard({ selected, onClick, title, desc, icon, multi }: {
+  selected: boolean; onClick: () => void; title: string; desc?: string; icon?: string; multi?: boolean
 }) {
   return (
     <button
@@ -266,14 +512,14 @@ function OptionCard({ selected, onClick, title, desc, icon }: {
       <div className="flex items-start gap-3">
         {icon && (
           <span className="text-2xl mt-0.5">
-            {icon === 'mountain' ? '🏔' : icon === 'hyrox' ? '🏋️' : icon === 'general' ? '💪' : icon === 'garmin' ? '⌚' : icon === 'apple' ? '⌚' : icon === 'oura' ? '💍' : ''}
+            {icon === 'mountain' ? '🏔' : icon === 'hyrox' ? '🏋️' : icon === 'general' ? '💪' : icon === 'garmin' ? '⌚' : icon === 'apple' ? '⌚' : icon === 'oura' ? '💍' : icon}
           </span>
         )}
         <div className="flex-1">
           <p className={`font-semibold ${selected ? 'text-teal-800' : 'text-slate-800'}`}>{title}</p>
           {desc && <p className="text-sm text-slate-500 mt-0.5">{desc}</p>}
         </div>
-        <div className={`w-5 h-5 rounded-full border-2 mt-0.5 flex items-center justify-center shrink-0 ${
+        <div className={`${multi ? 'rounded' : 'rounded-full'} w-5 h-5 border-2 mt-0.5 flex items-center justify-center shrink-0 ${
           selected ? 'border-teal-500 bg-teal-500' : 'border-slate-300'
         }`}>
           {selected && <svg width="12" height="12" fill="white" viewBox="0 0 20 20"><path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" /></svg>}
