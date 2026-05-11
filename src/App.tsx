@@ -2,6 +2,9 @@ import { useState, useMemo, useEffect, useCallback } from 'react'
 import type { ViewId, CoachSnapshot, CoachAction, PlannedDay } from './types'
 import { plans } from './data'
 import { generateHyroxPlan } from './utils/planGenerator'
+import { generatePlanFromMethod } from './engines/planGenerator/generatePlan'
+import { getMethodById } from './data/methods'
+import MethodSelection from './components/MethodSelection'
 import { useStrava } from './hooks/useStrava'
 import { useGarmin } from './hooks/useGarmin'
 import { useCompliance } from './hooks/useCompliance'
@@ -101,26 +104,68 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
     )
   }
 
+  // Trail/road races route through MethodSelection (Q2) before plan generation.
+  // Hyrox / General Fitness skip method selection entirely (Q2 design directive).
+  const needsMethodSelection =
+    !plan &&
+    !!onboarding.config &&
+    onboarding.config.raceType === 'trail' &&
+    !!onboarding.config.raceDistance &&
+    !onboarding.config.selectedMethodId
+
+  if (needsMethodSelection) {
+    return (
+      <MethodSelection
+        config={onboarding.config!}
+        onConfirm={(methodId) => {
+          onboarding.save({ ...onboarding.config!, selectedMethodId: methodId })
+        }}
+      />
+    )
+  }
+
   // Generate plan from onboarding config if no pre-built plan exists
   const generatedPlan = useMemo(() => {
     if (plan || !onboarding.config) return null
     if (onboarding.config.raceType === 'hyrox') return generateHyroxPlan(onboarding.config)
+    if (
+      onboarding.config.raceType === 'trail' &&
+      onboarding.config.selectedMethodId
+    ) {
+      const method = getMethodById(onboarding.config.selectedMethodId)
+      if (method) return generatePlanFromMethod(method, onboarding.config)
+    }
     return null
   }, [plan, onboarding.config])
 
   const activePlan = plan || generatedPlan
 
   if (!activePlan) {
+    const cfg = onboarding.config
+    const isTrailMissingMethod =
+      cfg?.raceType === 'trail' && !!cfg.selectedMethodId && !getMethodById(cfg.selectedMethodId)
     return (
       <div className="min-h-screen bg-white flex flex-col items-center justify-center px-6">
         <div className="text-center space-y-4">
-          <span className="text-5xl">{onboarding.config?.raceType === 'hyrox' ? '🏋️' : onboarding.config?.raceType === 'trail' ? '🏔' : '💪'}</span>
-          <h1 className="text-2xl font-bold text-slate-800">Welcome, {onboarding.config?.athleteName || athleteId}!</h1>
+          <span className="text-5xl">{cfg?.raceType === 'hyrox' ? '🏋️' : cfg?.raceType === 'trail' ? '🏔' : '💪'}</span>
+          <h1 className="text-2xl font-bold text-slate-800">Welcome, {cfg?.athleteName || athleteId}!</h1>
           <p className="text-slate-500">
-            Plan generation for <strong>{onboarding.config?.raceType || 'your goal'}</strong> is coming soon.
-            {onboarding.config?.raceType === 'trail' && ' Trail race plan generator is in development.'}
+            {isTrailMissingMethod
+              ? <>The training method on file (<strong>{cfg.selectedMethodId}</strong>) isn't available anymore. Pick a new one to continue.</>
+              : <>Plan generation for <strong>{cfg?.raceType || 'your goal'}</strong> is coming soon.</>}
           </p>
           <div className="pt-4 space-y-2">
+            {isTrailMissingMethod && (
+              <>
+                <button
+                  onClick={() => onboarding.save({ ...cfg, selectedMethodId: undefined })}
+                  className="text-teal-600 font-medium text-sm"
+                >
+                  Pick a new method
+                </button>
+                <br />
+              </>
+            )}
             <button onClick={() => onboarding.clear()} className="text-teal-600 font-medium text-sm">Redo onboarding</button>
             <br />
             <button onClick={onLogout} className="text-slate-400 font-medium text-sm">Sign out</button>
