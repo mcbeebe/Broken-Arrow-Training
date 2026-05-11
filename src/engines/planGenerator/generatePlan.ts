@@ -27,6 +27,7 @@ import {
   mapToMethodExperience,
 } from './weekPlan'
 import { pickWeeklyPattern, pickWorkoutForDay, buildPlannedWorkout } from './workouts'
+import { injectExtraDays } from './extraDays'
 
 const DAY_OF_WEEK_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const
 
@@ -217,6 +218,17 @@ export function generatePlanFromMethod(
                        - DAY_OF_WEEK_LABELS.indexOf(b.day.split(' ')[0] as (typeof DAY_OF_WEEK_LABELS)[number]))
 
     const phase = method.phases.find(p => p.id === weekMi.phaseId)
+
+    // Slot user-selected strength + cross-training onto rest days. Race week
+    // skips the injection — its schedule is hand-authored in the method's
+    // taper.raceWeekSchedule and shouldn't be edited.
+    const withExtras = isFinalWeek
+      ? days
+      : injectExtraDays(days, config, method, phase, {
+          isTaper: weekMi.isTaper,
+          phaseId: weekMi.phaseId,
+          weekNumber: weekMi.weekNumber,
+        })
     weeks.push({
       num: w + 1,
       dates: `${formatDayLabel(weekStart)} – ${formatDayLabel(addDays(weekStart, 6))}`,
@@ -226,7 +238,7 @@ export function generatePlanFromMethod(
         : weekMi.isCutback
           ? 'Cutback'
           : (phase?.name ?? 'Build'),
-      days,
+      days: withExtras,
     })
   }
 
