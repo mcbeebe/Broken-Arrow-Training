@@ -324,4 +324,63 @@ describe('generatePlanFromMethod — end-to-end', () => {
     // Z4 upper bound should be 90% of 200 = 180
     expect(plan.zones.some(z => z.hr.includes('180'))).toBe(true)
   })
+
+  it('injects strength sessions onto rest days when onboarding requests them', () => {
+    const plan = generatePlanFromMethod(koop, makeConfig({
+      raceDistance: '50k',
+      experienceLevel: 'advanced',
+      strengthDaysPerWeek: 2,
+    }), TODAY)
+    // A non-taper, non-cutback week should have the requested strength days.
+    const buildWeek = plan.weeks.find(w => w.focus !== 'Taper' && w.focus !== 'Cutback')!
+    const strengthCount = buildWeek.days.filter(d => d.type === 'strength').length
+    expect(strengthCount).toBeGreaterThanOrEqual(1)
+    expect(strengthCount).toBeLessThanOrEqual(2)
+    // Strength days must have a parseable routine (contains the standard separator).
+    const strengthDay = buildWeek.days.find(d => d.type === 'strength')!
+    expect(strengthDay.detail).toContain(' · ')
+    expect(strengthDay.workout.toLowerCase()).toContain('strength')
+  })
+
+  it('injects a cross-training day for the user\'s preferred modality', () => {
+    const plan = generatePlanFromMethod(koop, makeConfig({
+      raceDistance: '50k',
+      experienceLevel: 'advanced',
+      crossTrainingModes: ['hiking'],
+    }), TODAY)
+    const buildWeek = plan.weeks.find(w => w.focus !== 'Taper' && w.focus !== 'Cutback')!
+    const cross = buildWeek.days.find(d => d.type === 'cross')
+    expect(cross).toBeDefined()
+    expect(cross!.workout.toLowerCase()).toContain('hiking')
+    expect(cross!.detail.length).toBeGreaterThan(0)
+  })
+
+  it('leaves the schedule alone when onboarding requests neither strength nor cross', () => {
+    const planExtras = generatePlanFromMethod(koop, makeConfig({
+      raceDistance: '50k',
+      experienceLevel: 'advanced',
+      strengthDaysPerWeek: 0,
+    }), TODAY)
+    const planBase = generatePlanFromMethod(koop, makeConfig({
+      raceDistance: '50k',
+      experienceLevel: 'advanced',
+    }), TODAY)
+    // Same day-types week-by-week when no extras were requested.
+    expect(planExtras.weeks.map(w => w.days.map(d => d.type)))
+      .toEqual(planBase.weeks.map(w => w.days.map(d => d.type)))
+  })
+
+  it('drops strength to maintenance during taper weeks', () => {
+    const plan = generatePlanFromMethod(koop, makeConfig({
+      raceDistance: '50k',
+      experienceLevel: 'advanced',
+      strengthDaysPerWeek: 3,
+    }), TODAY)
+    // Pick a taper week (excluding the race week, which uses raceWeekSchedule).
+    const taperWeeks = plan.weeks.filter(w => w.focus === 'Taper').slice(0, -1)
+    for (const w of taperWeeks) {
+      const count = w.days.filter(d => d.type === 'strength').length
+      expect(count).toBeLessThanOrEqual(1)
+    }
+  })
 })
