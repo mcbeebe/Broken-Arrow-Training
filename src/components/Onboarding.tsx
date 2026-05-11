@@ -1,18 +1,50 @@
 import { useState } from 'react'
-import type { RaceType, ExperienceLevel, WearableType, OnboardingConfig } from '../hooks/useOnboarding'
+import type { RaceType, RaceDistance, ExperienceLevel, WearableType, OnboardingConfig } from '../hooks/useOnboarding'
 
 interface Props {
   onComplete: (config: OnboardingConfig) => void
   onSkip?: () => void
 }
 
-const TOTAL_STEPS = 7
+// Step indices. Race-distance (step 2) is conditional — only shown for trail/road races.
+// For hyrox/general, navigation skips index 2 (see visibleSteps below).
+const STEP_RACE_TYPE = 0
+const STEP_RACE_NAME = 1
+const STEP_RACE_DISTANCE = 2
+const STEP_EXPERIENCE = 3
+const STEP_DAYS = 4
+const STEP_VARIANT = 5
+const STEP_WEARABLE = 6
+const STEP_PROFILE = 7
+const ALL_STEPS = [
+  STEP_RACE_TYPE,
+  STEP_RACE_NAME,
+  STEP_RACE_DISTANCE,
+  STEP_EXPERIENCE,
+  STEP_DAYS,
+  STEP_VARIANT,
+  STEP_WEARABLE,
+  STEP_PROFILE,
+] as const
+
+const DISTANCE_OPTIONS: ReadonlyArray<{ value: RaceDistance; label: string; desc: string }> = [
+  { value: '5k',             label: '5K',              desc: '3.1 mi · short, sharp, speed-focused' },
+  { value: '10k',            label: '10K',             desc: '6.2 mi · threshold + speed' },
+  { value: 'half_marathon',  label: 'Half Marathon',   desc: '13.1 mi · endurance + threshold' },
+  { value: 'marathon',       label: 'Marathon',        desc: '26.2 mi · pure aerobic endurance' },
+  { value: '50k',            label: '50K Ultra',       desc: '31 mi · ultra entry distance' },
+  { value: '50_mile',        label: '50 Mile',         desc: '50 mi · ultra endurance' },
+  { value: '100k',           label: '100K',            desc: '62 mi · long-format ultra' },
+  { value: '100_mile',       label: '100 Mile',        desc: '100 mi · all-day-and-night ultra' },
+  { value: 'mountain_ultra', label: 'Mountain Ultra',  desc: 'Vertical-heavy, technical terrain' },
+]
 
 export default function Onboarding({ onComplete, onSkip }: Props) {
   const [step, setStep] = useState(0)
   const [raceType, setRaceType] = useState<RaceType | null>(null)
   const [raceName, setRaceName] = useState('')
   const [raceDate, setRaceDate] = useState('')
+  const [raceDistance, setRaceDistance] = useState<RaceDistance | null>(null)
   const [experience, setExperience] = useState<ExperienceLevel | null>(null)
   const [daysPerWeek, setDaysPerWeek] = useState<number | null>(null)
   const [longRunDay, setLongRunDay] = useState<string | null>(null)
@@ -23,18 +55,36 @@ export default function Onboarding({ onComplete, onSkip }: Props) {
   const [maxHR, setMaxHR] = useState('')
   const [ftp, setFtp] = useState('')
 
-  const next = () => setStep(s => Math.min(s + 1, TOTAL_STEPS - 1))
-  const back = () => setStep(s => Math.max(s - 1, 0))
+  // Race-distance step only shows for trail/road races. Hyrox is its own fixed format,
+  // general fitness has no target distance.
+  const showsDistanceStep = raceType === 'trail'
+  const visibleSteps: readonly number[] = showsDistanceStep
+    ? ALL_STEPS
+    : ALL_STEPS.filter(s => s !== STEP_RACE_DISTANCE)
+  const visibleIdx = visibleSteps.indexOf(step)
+  const isLastStep = visibleIdx === visibleSteps.length - 1
+
+  const next = () => {
+    if (visibleIdx < visibleSteps.length - 1) {
+      setStep(visibleSteps[visibleIdx + 1])
+    }
+  }
+  const back = () => {
+    if (visibleIdx > 0) {
+      setStep(visibleSteps[visibleIdx - 1])
+    }
+  }
 
   const canContinue = (() => {
     switch (step) {
-      case 0: return !!raceType
-      case 1: return raceName.trim().length > 0
-      case 2: return !!experience
-      case 3: return !!daysPerWeek
-      case 4: return raceType === 'trail' ? !!longRunDay : raceType === 'hyrox' ? !!weakStation : true
-      case 5: return !!wearable
-      case 6: return name.trim().length > 0 && age.trim().length > 0
+      case STEP_RACE_TYPE: return !!raceType
+      case STEP_RACE_NAME: return raceName.trim().length > 0
+      case STEP_RACE_DISTANCE: return !!raceDistance
+      case STEP_EXPERIENCE: return !!experience
+      case STEP_DAYS: return !!daysPerWeek
+      case STEP_VARIANT: return raceType === 'trail' ? !!longRunDay : raceType === 'hyrox' ? !!weakStation : true
+      case STEP_WEARABLE: return !!wearable
+      case STEP_PROFILE: return name.trim().length > 0 && age.trim().length > 0
       default: return false
     }
   })()
@@ -45,6 +95,7 @@ export default function Onboarding({ onComplete, onSkip }: Props) {
       raceType: raceType!,
       raceName: raceName.trim(),
       raceDate,
+      raceDistance: showsDistanceStep ? (raceDistance ?? undefined) : undefined,
       experienceLevel: experience!,
       trainingDaysPerWeek: daysPerWeek!,
       longRunDay: longRunDay ?? undefined,
@@ -62,12 +113,12 @@ export default function Onboarding({ onComplete, onSkip }: Props) {
     <div className="fixed inset-0 z-50 bg-white flex flex-col">
       {/* Header */}
       <div className="flex items-center justify-between px-4 pt-4 pb-2">
-        <button onClick={step > 0 ? back : undefined} className={`w-8 h-8 flex items-center justify-center ${step > 0 ? 'text-slate-600' : 'text-transparent'}`}>
+        <button onClick={visibleIdx > 0 ? back : undefined} className={`w-8 h-8 flex items-center justify-center ${visibleIdx > 0 ? 'text-slate-600' : 'text-transparent'}`}>
           <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 4L7 10l8 6" /></svg>
         </button>
         {/* Progress bar */}
         <div className="flex-1 mx-4 h-1.5 bg-slate-200 rounded-full overflow-hidden">
-          <div className="h-full bg-teal-500 rounded-full transition-all duration-300" style={{ width: `${((step + 1) / TOTAL_STEPS) * 100}%` }} />
+          <div className="h-full bg-teal-500 rounded-full transition-all duration-300" style={{ width: `${((visibleIdx + 1) / visibleSteps.length) * 100}%` }} />
         </div>
         {onSkip && (
           <button onClick={onSkip} className="w-8 h-8 flex items-center justify-center text-slate-400">
@@ -78,7 +129,7 @@ export default function Onboarding({ onComplete, onSkip }: Props) {
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto px-5 pt-4 pb-24">
-        {step === 0 && (
+        {step === STEP_RACE_TYPE && (
           <StepContainer title="What are you training for?" subtitle="Pick the type that matches your goal">
             <OptionCard selected={raceType === 'trail'} onClick={() => setRaceType('trail')} title="Trail / Road Race" desc="Sky races, ultras, marathons, half marathons, 10K, 5K" icon="mountain" />
             <OptionCard selected={raceType === 'hyrox'} onClick={() => setRaceType('hyrox')} title="Hyrox" desc="8 stations + 8km running. Functional fitness racing." icon="hyrox" />
@@ -86,7 +137,7 @@ export default function Onboarding({ onComplete, onSkip }: Props) {
           </StepContainer>
         )}
 
-        {step === 1 && (
+        {step === STEP_RACE_NAME && (
           <StepContainer title={raceType === 'general' ? 'Give your training plan a name' : 'Tell us about your race'} subtitle={raceType === 'general' ? 'Something to keep you motivated' : 'We\'ll build your plan around race day'}>
             <div className="space-y-4">
               <div>
@@ -114,7 +165,21 @@ export default function Onboarding({ onComplete, onSkip }: Props) {
           </StepContainer>
         )}
 
-        {step === 2 && (
+        {step === STEP_RACE_DISTANCE && showsDistanceStep && (
+          <StepContainer title="What's your race distance?" subtitle="We'll match you with training methods designed for that distance">
+            {DISTANCE_OPTIONS.map(opt => (
+              <OptionCard
+                key={opt.value}
+                selected={raceDistance === opt.value}
+                onClick={() => setRaceDistance(opt.value)}
+                title={opt.label}
+                desc={opt.desc}
+              />
+            ))}
+          </StepContainer>
+        )}
+
+        {step === STEP_EXPERIENCE && (
           <StepContainer title="How would you rate your fitness?" subtitle="Pick the level that suits you best (you can change this later)">
             <OptionCard selected={experience === 'first_timer'} onClick={() => setExperience('first_timer')} title="First Timer"
               desc={raceType === 'hyrox' ? 'Never done Hyrox or functional fitness. May not run regularly yet.' : 'New to structured exercise. Building the habit.'} />
@@ -129,7 +194,7 @@ export default function Onboarding({ onComplete, onSkip }: Props) {
           </StepContainer>
         )}
 
-        {step === 3 && (
+        {step === STEP_DAYS && (
           <StepContainer title="How many days per week do you want to train?" subtitle="This should be at most one more than you currently train to reduce injury risk">
             {[3, 4, 5, 6].map(n => (
               <OptionCard key={n} selected={daysPerWeek === n} onClick={() => setDaysPerWeek(n)} title={`${n} Days`}
@@ -138,7 +203,7 @@ export default function Onboarding({ onComplete, onSkip }: Props) {
           </StepContainer>
         )}
 
-        {step === 4 && raceType === 'trail' && (
+        {step === STEP_VARIANT && raceType === 'trail' && (
           <StepContainer title="Which day do you want to do your long runs?" subtitle="Choose one to continue">
             {['Saturday', 'Sunday', 'Tuesday', 'Friday'].map(d => (
               <OptionCard key={d} selected={longRunDay === d} onClick={() => setLongRunDay(d)} title={d} />
@@ -146,7 +211,7 @@ export default function Onboarding({ onComplete, onSkip }: Props) {
           </StepContainer>
         )}
 
-        {step === 4 && raceType === 'hyrox' && (
+        {step === STEP_VARIANT && raceType === 'hyrox' && (
           <StepContainer title="Which station do you find hardest?" subtitle="We'll give it extra focus in your plan">
             {['SkiErg', 'Sled Push', 'Sled Pull', 'Burpee Broad Jump', 'Rowing', 'Farmer Carry', 'Sandbag Lunges', 'Wall Balls'].map(s => (
               <OptionCard key={s} selected={weakStation === s} onClick={() => setWeakStation(s)} title={s} />
@@ -154,7 +219,7 @@ export default function Onboarding({ onComplete, onSkip }: Props) {
           </StepContainer>
         )}
 
-        {step === 4 && raceType === 'general' && (
+        {step === STEP_VARIANT && raceType === 'general' && (
           <StepContainer title="Which day do you prefer for your longest workout?" subtitle="Choose one to continue">
             {['Saturday', 'Sunday', 'Tuesday', 'Friday'].map(d => (
               <OptionCard key={d} selected={longRunDay === d} onClick={() => setLongRunDay(d)} title={d} />
@@ -162,7 +227,7 @@ export default function Onboarding({ onComplete, onSkip }: Props) {
           </StepContainer>
         )}
 
-        {step === 5 && (
+        {step === STEP_WEARABLE && (
           <StepContainer title="What wearable do you use?" subtitle="We'll pull heart rate, sleep, and recovery data from your device">
             <OptionCard selected={wearable === 'garmin'} onClick={() => setWearable('garmin')} title="Garmin Watch" desc="Syncs HR, HRV, sleep, body battery, and activities directly." icon="garmin" />
             <OptionCard selected={wearable === 'apple_watch'} onClick={() => setWearable('apple_watch')} title="Apple Watch" desc="Syncs HRV, resting HR, and sleep via the companion iOS app." icon="apple" />
@@ -171,7 +236,7 @@ export default function Onboarding({ onComplete, onSkip }: Props) {
           </StepContainer>
         )}
 
-        {step === 6 && (
+        {step === STEP_PROFILE && (
           <StepContainer title="Almost done! Tell us about yourself." subtitle="This helps us personalize your plan">
             <div className="space-y-4">
               <div>
@@ -226,7 +291,7 @@ export default function Onboarding({ onComplete, onSkip }: Props) {
       {/* Continue button */}
       <div className="fixed bottom-0 left-0 right-0 px-5 py-4 bg-white border-t border-slate-100">
         <button
-          onClick={step === TOTAL_STEPS - 1 ? handleComplete : next}
+          onClick={isLastStep ? handleComplete : next}
           disabled={!canContinue}
           className={`w-full py-3.5 rounded-xl text-base font-semibold transition ${
             canContinue
@@ -234,7 +299,7 @@ export default function Onboarding({ onComplete, onSkip }: Props) {
               : 'bg-slate-200 text-slate-400'
           }`}
         >
-          {step === TOTAL_STEPS - 1 ? 'Create My Plan' : 'Continue'}
+          {isLastStep ? 'Create My Plan' : 'Continue'}
         </button>
       </div>
     </div>

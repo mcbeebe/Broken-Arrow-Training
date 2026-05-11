@@ -1,0 +1,238 @@
+/**
+ * Phase allocation + weekly mileage progression.
+ *
+ * Decides plan length (snapped to method.supportedPlanWeeks), assigns each
+ * week to a phase, and computes weekly mileage with cutback weeks and a
+ * final taper applied per the method's `taper` block.
+ */
+import type { TrainingMethod, Phase, ExperienceLevel as MethodExperienceLevel } from '../../types/training-method'
+import type { OnboardingConfig, ExperienceLevel as OnboardingExperienceLevel } from '../../hooks/useOnboarding'
+import type { PhaseBlock, WeekMileage } from './types'
+
+/** Default current weekly mileage by Onboarding experience level, in miles.
+ *  These are conservative — the engine applies maxWeeklyIncreasePct, so
+ *  underestimating means a slightly longer build rather than an injury risk. */
+const CURRENT_MILEAGE_BY_EXPERIENCE: Record<OnboardingExperienceLevel, number> = {
+  first_timer: 6,
+  beginner: 10,
+  intermediate: 20,
+  advanced: 32,
+  elite: 48,
+}
+
+/** Estimate user's current weekly running miles when onboarding doesn't capture it. */
+export function estimateCurrentWeeklyMileage(config: OnboardingConfig): number {
+  return CURRENT_MILEAGE_BY_EXPERIENCE[config.experienceLevel]
+}
+
+/**
+ * Snap a desired plan length to the nearest entry in
+ * `method.generationRules.supportedPlanWeeks`. Ties prefer the larger
+ * value (more training time is generally less risky than rushed).
+ */
+export function snapToSupportedWeeks(method: TrainingMethod, desiredWeeks: number): number {
+  const supported = [...method.generationRules.supportedPlanWeeks].sort((a, b) => a - b)
+  let best = supported[supported.length - 1]
+  let bestDelta = Math.abs(best - desiredWeeks)
+  for (const w of supported) {
+    const d = Math.abs(w - desiredWeeks)
+    if (d < bestDelta || (d === bestDelta && w > best)) {
+      best = w
+      bestDelta = d
+    }
+  }
+  return best
+}
+
+/** Pick a plan length given a race date (or fall back to method default). */
+export function chooseTotalWeeks(
+  method: TrainingMethod,
+  raceDateIso: string | undefined,
+  todayIso: string = new Date().toISOString().slice(0, 10),
+): number {
+  if (!raceDateIso) return method.generationRules.defaultPlanWeeks
+  const ms = new Date(raceDateIso + 'T12:00:00').getTime() - new Date(todayIso + 'T12:00:00').getTime()
+  const days = Math.max(0, Math.round(ms / (24 * 3600 * 1000)))
+  const desired = Math.max(1, Math.round(days / 7))
+  return snapToSupportedWeeks(method, desired)
+}
+
+/**
+ * Allocate the given number of weeks across the method's phases. Honors
+ * pctOfPlan.default as a starting point, then enforces each phase's
+ * weekBounds [minWeeks, maxWeeks]. If the total can't fit the floors,
+ * we compress using compressionPriority (drop weeks from the LAST entry
+ * in the priority array, working backward). If the total exceeds ceilings,
+ * we expand using expansionPriority (add weeks to the FIRST entry).
+ */
+export function allocatePhaseWeeks(method: TrainingMethod, totalWeeks: number): PhaseBlock[] {
+  const phases = [...method.phases].sort((a, b) => a.order - b.order)
+  // Start from pctOfPlan.default
+  const raw = phases.map(p => p.pctOfPlan.default * totalWeeks)
+  let weeks = raw.map(r => Math.max(1, Math.round(r)))
+
+  // Adjust to sum exactly
+  let delta = totalWeeks - weeks.reduce((s, w) => s + w, 0)
+  // Distribute the delta: positive → add to later phases; negative → subtract from later
+  let i = phases.length - 1
+  while (delta !== 0 && i >= 0) {
+    if (delta > 0) {
+      weeks[i] += 1
+      delta -= 1
+    } else {
+      if (weeks[i] > 1) {
+        weeks[i] -= 1
+        delta += 1
+      }
+    }
+    i -= 1
+    if (i < 0 && delta !== 0) i = phases.length - 1  // wrap
+  }
+
+  // Compress to weekBounds.minWeeks floor if total too small
+  const order = method.generationRules.compressionPriority
+  weeks = enforceBounds(weeks, phases, order, 'compress')
+  weeks = enforceBounds(weeks, phases, method.generationRules.expansionPriority, 'expand')
+
+  // After enforcing bounds, re-sync sum to totalWeeks
+  let sum = weeks.reduce((s, w) => s + w, 0)
+  let cursor = 0
+  while (sum > totalWeeks && cursor < weeks.length * 4) {
+    const idx = order[cursor % order.length]
+    const pIdx = phases.findIndex(p => p.id === idx)
+    if (pIdx >= 0 && weeks[pIdx] > phases[pIdx].weekBounds.minWeeks) {
+      weeks[pIdx] -= 1
+      sum -= 1
+    }
+    cursor += 1
+  }
+  cursor = 0
+  while (sum < totalWeeks && cursor < weeks.length * 4) {
+    const idx = method.generationRules.expansionPriority[cursor % method.generationRules.expansionPriority.length]
+    const pIdx = phases.findIndex(p => p.id === idx)
+    if (pIdx >= 0 && weeks[pIdx] < phases[pIdx].weekBounds.maxWeeks) {
+      weeks[pIdx] += 1
+      sum += 1
+    }
+    cursor += 1
+  }
+
+  // Build blocks
+  const blocks: PhaseBlock[] = []
+  let cursorIdx = 0
+  for (let i = 0; i < phases.length; i++) {
+    const w = weeks[i]
+    if (w <= 0) continue
+    blocks.push({
+      phaseId: phases[i].id,
+      startWeekIndex: cursorIdx,
+      endWeekIndex: cursorIdx + w - 1,
+    })
+    cursorIdx += w
+  }
+  return blocks
+}
+
+function enforceBounds(
+  weeks: number[],
+  phases: Phase[],
+  priority: string[],
+  direction: 'compress' | 'expand',
+): number[] {
+  const result = [...weeks]
+  for (const phaseId of priority) {
+    const pIdx = phases.findIndex(p => p.id === phaseId)
+    if (pIdx < 0) continue
+    const phase = phases[pIdx]
+    if (direction === 'compress') {
+      result[pIdx] = Math.max(result[pIdx], phase.weekBounds.minWeeks)
+    } else {
+      result[pIdx] = Math.min(result[pIdx], phase.weekBounds.maxWeeks)
+    }
+  }
+  return result
+}
+
+/** Index of a week into the phase block list. */
+export function phaseIdAtWeek(blocks: PhaseBlock[], weekIndex: number): string {
+  for (const b of blocks) {
+    if (weekIndex >= b.startWeekIndex && weekIndex <= b.endWeekIndex) return b.phaseId
+  }
+  return blocks[blocks.length - 1]?.phaseId ?? ''
+}
+
+/**
+ * Compute weekly mileage targets — linear build from
+ * `current × startMileagePctOfPeak` up to `current × peakMileageRule.value`,
+ * with cutback weeks at `cutbackEveryNWeeks` and a final taper per
+ * `method.taper.weeklyVolumePcts`. Mileage is capped each week so
+ * week-over-week growth never exceeds `maxWeeklyIncreasePct`.
+ */
+export function buildWeeklyMileage(
+  method: TrainingMethod,
+  totalWeeks: number,
+  blocks: PhaseBlock[],
+  currentWeeklyMileage: number,
+): WeekMileage[] {
+  const mp = method.mileageProgression
+  const peak = method.taper.preserveIntensity
+    ? currentWeeklyMileage * mp.peakMileageRule.value
+    : currentWeeklyMileage * mp.peakMileageRule.value
+  const start = peak * mp.startMileagePctOfPeak
+  const taperWeeks = method.taper.durationWeeks
+  const taperPcts = method.taper.weeklyVolumePcts
+  const peakWeekIndex = totalWeeks - taperWeeks - 1  // last build week before taper
+
+  const out: WeekMileage[] = []
+  // Track the highest non-cutback build week so cutbacks don't permanently
+  // stunt the cap-based growth — week N+1 after a cutback can build back up
+  // toward the trend, not just toward the cut value.
+  let lastBuildMi = start
+  for (let w = 0; w < totalWeeks; w++) {
+    const phaseId = phaseIdAtWeek(blocks, w)
+    const isTaperWeek = w >= totalWeeks - taperWeeks
+    let totalMi: number
+    let isCutback = false
+
+    if (isTaperWeek) {
+      const taperIdx = w - (totalWeeks - taperWeeks)
+      totalMi = peak * (taperPcts[taperIdx] ?? taperPcts[taperPcts.length - 1])
+    } else {
+      // Linear-ish build from start → peak across non-taper weeks
+      const span = Math.max(1, peakWeekIndex)
+      const t = Math.min(1, w / span)
+      const linear = start + (peak - start) * t
+      // Cap week-over-week growth against the last NON-cutback build week
+      const cap = lastBuildMi * (1 + mp.maxWeeklyIncreasePct)
+      totalMi = Math.min(linear, cap)
+      // Cutback week — drop to cutbackPct of the last build mileage, but
+      // don't disturb the trend baseline for next week's cap calc.
+      if (mp.cutbackEveryNWeeks > 0 && (w + 1) % mp.cutbackEveryNWeeks === 0 && w < peakWeekIndex) {
+        totalMi = lastBuildMi * mp.cutbackPct
+        isCutback = true
+      } else {
+        lastBuildMi = totalMi
+      }
+    }
+
+    // Round total to 1 decimal first, then floor longRunMi against the
+    // rounded total — preserves the invariant longRunMi ≤ totalMi × pctCap.
+    const totalRounded = Math.round(totalMi * 10) / 10
+    const longRunRounded = Math.floor(totalRounded * mp.longRunPctCap * 10) / 10
+    out.push({
+      weekIndex: w,
+      weekNumber: w + 1,
+      totalMi: totalRounded,
+      longRunMi: longRunRounded,
+      isCutback,
+      isTaper: isTaperWeek,
+      phaseId,
+    })
+  }
+  return out
+}
+
+/** Map Onboarding's `first_timer` onto the method-side experience scale. */
+export function mapToMethodExperience(level: OnboardingExperienceLevel): MethodExperienceLevel {
+  return level === 'first_timer' ? 'beginner' : level
+}

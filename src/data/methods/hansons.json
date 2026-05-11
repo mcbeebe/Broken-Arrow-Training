@@ -1,0 +1,614 @@
+{
+  "id": "hansons",
+  "name": "Hansons Marathon Method",
+  "coach": "Kevin Hanson, Keith Hanson, and Luke Humphrey",
+  "yearOfOrigin": 2012,
+  "keyBook": "Hansons Marathon Method",
+  "citations": [
+    {
+      "source": "Luke Humphrey, Keith Hanson, and Kevin Hanson",
+      "title": "Hansons Marathon Method (2nd Edition)",
+      "year": 2016
+    },
+    {
+      "source": "Luke Humphrey",
+      "title": "Hansons Half-Marathon Method",
+      "year": 2014
+    }
+  ],
+  "description": "High-frequency (6 days/week) marathon system built on the principle of cumulative fatigue. Long run capped at 16 miles. Three quality sessions per week — Speed, Strength (intervals at MP-10sec), and Tempo (Marathon Pace runs of 6-10 mi). All aerobic running done somewhat tired by design.",
+  "signature": "Cumulative fatigue with a 16-mile long-run cap and three quality sessions: Speed, Strength, and Tempo (marathon pace)",
+  "philosophyNarrative": "Hansons reject the philosophy of long, leisurely Sunday long runs followed by easy weeks of recovery. Instead, the system builds 'cumulative fatigue' — you train slightly tired all the time so that the back-half of marathon-day fatigue feels familiar. Three principles drive the system: (1) the long run is capped at 16 miles because anything longer doesn't add fitness proportional to recovery cost; (2) marathon pace is the most race-specific pace and gets disproportionate emphasis (6-10 mile tempo runs at goal pace); (3) frequency matters more than any single big workout — 6 days per week of running, with quality on Tuesday (Speed/Strength), Thursday (Tempo), and Sunday (Long Run). All easy runs are intentionally not 'recovered' — that's the point. Training adaptation comes from accumulated stress, not single hero efforts.",
+  "primaryAnchor": "recent_race_time",
+  "fallbackAnchor": "self_assessed_pace",
+  "paceZones": [
+    {
+      "canonical": "recovery",
+      "displayName": "Recovery",
+      "abbreviation": "Rec",
+      "purpose": "The slowest aerobic running. Used the day after Sunday long runs.",
+      "paceFormula": {
+        "anchorType": "recent_race_time",
+        "strategy": "offset_from_anchor",
+        "expression": "MP + 90-120 sec/mile",
+        "offsetSecPerMile": { "min": 90, "max": 120 }
+      },
+      "rpeRange": { "min": 2, "max": 3, "description": "Effortless; truly recovery-paced" },
+      "hrRange": { "minPctLthr": 0.55, "maxPctLthr": 0.70 }
+    },
+    {
+      "canonical": "easy",
+      "displayName": "Easy",
+      "abbreviation": "Easy",
+      "purpose": "Standard aerobic pace for most runs. Hansons intentionally don't make this 'fully recovered' — cumulative fatigue is the point.",
+      "paceFormula": {
+        "anchorType": "recent_race_time",
+        "strategy": "offset_from_anchor",
+        "expression": "MP + 60-90 sec/mile",
+        "offsetSecPerMile": { "min": 60, "max": 90 }
+      },
+      "rpeRange": { "min": 4, "max": 5, "description": "Conversational; the bulk of weekly running" },
+      "hrRange": { "minPctLthr": 0.70, "maxPctLthr": 0.83 }
+    },
+    {
+      "canonical": "marathon_pace",
+      "displayName": "Marathon Pace (Tempo)",
+      "abbreviation": "MP",
+      "purpose": "Hansons' Tempo IS Marathon Pace. The most race-specific pace, done as 6-10 mile continuous Tempo runs.",
+      "paceFormula": {
+        "anchorType": "recent_race_time",
+        "strategy": "offset_from_anchor",
+        "expression": "marathon_goal_pace",
+        "offsetSecPerMile": { "min": 0, "max": 0 }
+      },
+      "rpeRange": { "min": 6, "max": 7, "description": "Comfortably hard; rhythmic; sustainable for full marathon" },
+      "hrRange": { "minPctLthr": 0.83, "maxPctLthr": 0.88 }
+    },
+    {
+      "canonical": "lactate_threshold",
+      "displayName": "Strength (MP-10s)",
+      "abbreviation": "Str",
+      "purpose": "Marathon pace minus 10 seconds per mile — the 'Strength' pace. Used in interval sessions: 6×1 mi, 4×1.5 mi, 3×2 mi, all at Strength pace.",
+      "paceFormula": {
+        "anchorType": "recent_race_time",
+        "strategy": "offset_from_anchor",
+        "expression": "marathon_goal_pace - 10 sec/mile",
+        "offsetSecPerMile": { "min": -12, "max": -8 }
+      },
+      "rpeRange": { "min": 7, "max": 8, "description": "Slightly faster than Tempo — controlled but firm" },
+      "hrRange": { "minPctLthr": 0.88, "maxPctLthr": 0.95 }
+    },
+    {
+      "canonical": "vo2max",
+      "displayName": "Speed",
+      "abbreviation": "Spd",
+      "purpose": "5K-10K race pace. Used in shorter intervals (400m-1600m) during the Speed phase. Builds aerobic ceiling and economy.",
+      "paceFormula": {
+        "anchorType": "recent_race_time",
+        "strategy": "offset_from_anchor",
+        "expression": "5K-10K race pace",
+        "offsetSecPerMile": { "min": -10, "max": 10 }
+      },
+      "rpeRange": { "min": 8, "max": 9, "description": "Hard; 5K-10K race pace" },
+      "hrRange": { "minPctLthr": 0.95, "maxPctLthr": 1.02 }
+    },
+    {
+      "canonical": "aerobic_threshold",
+      "displayName": "Long",
+      "abbreviation": "Long",
+      "purpose": "Pace for the 16-mile long run. Slightly faster than Easy — hits the aerobic threshold without going to MP.",
+      "paceFormula": {
+        "anchorType": "recent_race_time",
+        "strategy": "offset_from_anchor",
+        "expression": "MP + 30-60 sec/mile",
+        "offsetSecPerMile": { "min": 30, "max": 60 }
+      },
+      "rpeRange": { "min": 5, "max": 6, "description": "Steady; intentional; not conversational throughout" },
+      "hrRange": { "minPctLthr": 0.78, "maxPctLthr": 0.85 }
+    }
+  ],
+  "workouts": [
+    {
+      "id": "hansons_recovery_run",
+      "name": "Recovery Run",
+      "shortDescription": "Very easy short run, typically Monday post long-run",
+      "category": "recovery",
+      "primaryZone": "recovery",
+      "displayName": "Recovery",
+      "structure": {
+        "mainSet": [
+          {
+            "description": "Easy short run at recovery pace",
+            "duration": { "value": 35, "unit": "min" },
+            "paceZone": "recovery",
+            "cue": "Truly recovery-paced. The day after Sunday long run is for moving the legs, not training."
+          }
+        ]
+      },
+      "approxDurationMinutes": { "min": 25, "max": 50 },
+      "approxDistanceMiles": { "min": 3, "max": 6 },
+      "purpose": "Active recovery the day after long runs and intervals. Even 'easy' days in Hansons are intentionally not fully recovered — but the day after long run is the exception.",
+      "cues": [
+        "Slower than Easy pace by 1-2 min/mile",
+        "Walk breaks are fine if needed",
+        "If genuinely depleted, take the day off"
+      ],
+      "validPhaseIds": ["base", "strength", "tempo_speed", "taper"]
+    },
+    {
+      "id": "hansons_easy_run",
+      "name": "Easy Run",
+      "shortDescription": "Standard aerobic run — done somewhat tired by design",
+      "category": "easy",
+      "primaryZone": "easy",
+      "displayName": "Easy",
+      "structure": {
+        "mainSet": [
+          {
+            "description": "Steady run at Easy pace",
+            "duration": { "value": 55, "unit": "min" },
+            "paceZone": "easy",
+            "cue": "Conversational, but you're not expected to feel fully fresh — that's the cumulative fatigue principle."
+          }
+        ]
+      },
+      "approxDurationMinutes": { "min": 40, "max": 75 },
+      "approxDistanceMiles": { "min": 5, "max": 10 },
+      "purpose": "Bulk of weekly mileage. Builds aerobic base under cumulative fatigue. The accumulated stress IS the training stimulus.",
+      "cues": [
+        "Conversational pace, but legs may feel heavy from Tuesday/Thursday/Sunday — that's expected",
+        "Don't try to make easy days truly recovery — that defeats the system",
+        "If you can't hit Easy pace, slow further; don't skip"
+      ],
+      "validPhaseIds": ["base", "strength", "tempo_speed", "taper"]
+    },
+    {
+      "id": "hansons_long_run",
+      "name": "Long Run (capped at 16 mi)",
+      "shortDescription": "Sunday long run — Hansons' famous 16-mile cap",
+      "category": "long",
+      "primaryZone": "aerobic_threshold",
+      "displayName": "Long Run",
+      "structure": {
+        "mainSet": [
+          {
+            "description": "Long steady run at Long pace",
+            "distance": { "value": 16, "unit": "mi" },
+            "paceZone": "aerobic_threshold",
+            "cue": "Cap at 16 miles. The Hansons' principle: longer runs cost more recovery than they add fitness. The cumulative weekly load builds the marathon-specific endurance."
+          }
+        ]
+      },
+      "approxDurationMinutes": { "min": 100, "max": 170 },
+      "approxDistanceMiles": { "min": 8, "max": 16 },
+      "purpose": "Endurance plus race-specific fatigue. The 16-mile cap is foundational to Hansons — anything longer is considered counterproductive given the rest of the weekly load.",
+      "cues": [
+        "Stop at 16 miles even if you feel great — the cumulative weekly load is what matters",
+        "Practice race-day fueling",
+        "This run will feel hard later in training because of accumulated fatigue from Tuesday and Thursday"
+      ],
+      "validPhaseIds": ["base", "strength", "tempo_speed"]
+    },
+    {
+      "id": "hansons_tempo",
+      "name": "Tempo Run (Marathon Pace)",
+      "shortDescription": "6-10 mile continuous run at Marathon Pace — Hansons' signature workout",
+      "category": "tempo",
+      "primaryZone": "marathon_pace",
+      "displayName": "Tempo",
+      "structure": {
+        "warmup": {
+          "description": "Easy warmup",
+          "distance": { "value": 1.5, "unit": "mi" },
+          "paceZone": "easy"
+        },
+        "mainSet": [
+          {
+            "description": "Continuous run at Marathon Pace",
+            "distance": { "value": 8, "unit": "mi" },
+            "paceZone": "marathon_pace",
+            "cue": "This IS Marathon Pace, not 1-hour race pace. Hold goal race pace for the full duration."
+          }
+        ],
+        "cooldown": {
+          "description": "Easy cooldown",
+          "distance": { "value": 1.5, "unit": "mi" },
+          "paceZone": "easy"
+        }
+      },
+      "approxDurationMinutes": { "min": 60, "max": 100 },
+      "approxDistanceMiles": { "min": 9, "max": 13 },
+      "purpose": "Race-specificity at Marathon Pace. Volume builds across the program: 5 mi → 6 mi → 7 mi → 8 mi → 9 mi → 10 mi peak. The single most important workout in the Hansons system.",
+      "cues": [
+        "Goal race pace, not faster — discipline is critical",
+        "If MP feels labored, your goal time may be too aggressive — recalibrate",
+        "Practice race-day fueling on tempos over 60 min"
+      ],
+      "validPhaseIds": ["tempo_speed", "taper"]
+    },
+    {
+      "id": "hansons_strength_intervals",
+      "name": "Strength Intervals (MP-10s)",
+      "shortDescription": "Intervals at Strength pace (MP-10 sec/mile) — 6×1mi to 3×2mi",
+      "category": "cruise_intervals",
+      "primaryZone": "lactate_threshold",
+      "displayName": "Strength",
+      "structure": {
+        "warmup": {
+          "description": "Easy warmup",
+          "distance": { "value": 1.5, "unit": "mi" },
+          "paceZone": "easy"
+        },
+        "mainSet": [
+          {
+            "description": "Strength intervals at MP-10 sec/mile",
+            "distance": { "value": 1, "unit": "mi" },
+            "paceZone": "lactate_threshold",
+            "reps": 6,
+            "recovery": {
+              "type": "jog",
+              "distance": { "value": 0.25, "unit": "mi" }
+            },
+            "cue": "Slightly faster than Tempo. Practice running marathon pace under fatigue with brief recoveries."
+          }
+        ],
+        "cooldown": {
+          "description": "Easy cooldown",
+          "distance": { "value": 1.5, "unit": "mi" },
+          "paceZone": "easy"
+        }
+      },
+      "approxDurationMinutes": { "min": 60, "max": 90 },
+      "approxDistanceMiles": { "min": 9, "max": 12 },
+      "purpose": "Strength pace (MP-10) is the bridge between aerobic threshold and race-pace work. Builds lactate tolerance specific to marathon demands. Volume progresses: 6×1mi → 4×1.5mi → 3×2mi.",
+      "cues": [
+        "Pace is slightly firmer than Tempo, but still controlled",
+        "Brief recovery (~400m jog) keeps you in the right physiological zone",
+        "If reps slow significantly, you're going too hard"
+      ],
+      "validPhaseIds": ["strength", "tempo_speed"]
+    },
+    {
+      "id": "hansons_speed_short",
+      "name": "Speed (Short Intervals)",
+      "shortDescription": "Short intervals at 5K-10K pace, weeks 1-7 of the plan",
+      "category": "vo2_intervals",
+      "primaryZone": "vo2max",
+      "displayName": "Speed",
+      "structure": {
+        "warmup": {
+          "description": "Easy warmup + 4× strides",
+          "distance": { "value": 1.5, "unit": "mi" },
+          "paceZone": "easy"
+        },
+        "mainSet": [
+          {
+            "description": "Short speed intervals",
+            "distance": { "value": 600, "unit": "m" },
+            "paceZone": "vo2max",
+            "reps": 6,
+            "recovery": {
+              "type": "jog",
+              "distance": { "value": 400, "unit": "m" }
+            },
+            "cue": "5K-10K pace. Develops aerobic ceiling before the program transitions to MP-specific work."
+          }
+        ],
+        "cooldown": {
+          "description": "Easy cooldown",
+          "distance": { "value": 1.5, "unit": "mi" },
+          "paceZone": "easy"
+        }
+      },
+      "approxDurationMinutes": { "min": 55, "max": 75 },
+      "approxDistanceMiles": { "min": 7, "max": 10 },
+      "purpose": "Develops VO2max and economy in the early phase before transitioning to Marathon-Pace specificity. Used in weeks 1-5 of the program; replaced by Strength workouts later.",
+      "cues": [
+        "First rep at the same pace as the last — even pacing",
+        "Form and turnover matter — don't grind",
+        "If you can't hold pace, end the workout"
+      ],
+      "validPhaseIds": ["base", "strength"]
+    },
+    {
+      "id": "hansons_strides",
+      "name": "Strides",
+      "shortDescription": "8-10× ~20-sec strides tagged onto easy runs",
+      "category": "strides",
+      "primaryZone": "vo2max",
+      "displayName": "Strides",
+      "structure": {
+        "mainSet": [
+          {
+            "description": "Strides at faster than 5K pace",
+            "duration": { "value": 20, "unit": "sec" },
+            "paceZone": "vo2max",
+            "reps": 8,
+            "recovery": {
+              "type": "stand",
+              "duration": { "value": 60, "unit": "sec" }
+            },
+            "cue": "Smooth and fast — never sprinting. Build to top speed gradually."
+          }
+        ]
+      },
+      "approxDurationMinutes": { "min": 8, "max": 12 },
+      "purpose": "Maintains stride mechanics and turnover during high-volume training. Tagged onto end of easy runs.",
+      "cues": [
+        "Quick turnover, relaxed shoulders",
+        "Skip if very fatigued"
+      ],
+      "validPhaseIds": ["base", "strength", "tempo_speed", "taper"]
+    },
+    {
+      "id": "hansons_race_simulation",
+      "name": "Race Simulation Tempo",
+      "shortDescription": "10-mile peak Tempo at Marathon Pace, late in the program",
+      "category": "tempo",
+      "primaryZone": "marathon_pace",
+      "displayName": "Race Simulation",
+      "structure": {
+        "warmup": {
+          "description": "Easy warmup",
+          "distance": { "value": 2, "unit": "mi" },
+          "paceZone": "easy"
+        },
+        "mainSet": [
+          {
+            "description": "Continuous run at Marathon Pace",
+            "distance": { "value": 10, "unit": "mi" },
+            "paceZone": "marathon_pace",
+            "cue": "Peak Tempo workout. Practice race-day fueling, pacing, and mental engagement."
+          }
+        ],
+        "cooldown": {
+          "description": "Easy cooldown",
+          "distance": { "value": 2, "unit": "mi" },
+          "paceZone": "easy"
+        }
+      },
+      "approxDurationMinutes": { "min": 90, "max": 120 },
+      "approxDistanceMiles": { "min": 12, "max": 14 },
+      "purpose": "Race-day rehearsal. The longest MP effort in the program — gives confidence and final fitness check before taper.",
+      "cues": [
+        "Treat as a race-day rehearsal: nutrition, gear, pacing",
+        "Hit MP from the first mile; no easing in",
+        "If MP feels labored, your goal time is too aggressive"
+      ],
+      "validPhaseIds": ["tempo_speed"],
+      "minimumExperience": "intermediate"
+    }
+  ],
+  "phases": [
+    {
+      "id": "base",
+      "name": "Base",
+      "order": 1,
+      "pctOfPlan": { "min": 0.20, "default": 0.30, "max": 0.40 },
+      "weekBounds": { "minWeeks": 3, "maxWeeks": 8 },
+      "focus": "Build aerobic base, establish 6-day frequency, introduce Speed work. No MP work yet.",
+      "intensityDistribution": { "easyPct": 90, "moderatePct": 5, "hardPct": 5 },
+      "keyWorkoutIds": ["hansons_easy_run", "hansons_long_run", "hansons_recovery_run", "hansons_speed_short", "hansons_strides"],
+      "mileageBehavior": "build",
+      "athleteNarrative": "Welcome to the Base phase. Your job here is to establish the 6-day-per-week running pattern and let your body adapt to running every day. You'll do Speed (short intervals at 5K pace) on Tuesdays — these are NOT marathon-specific yet, but they build the engine. The 16-mile long-run cap is in effect from day one. Trust it. Easy runs may feel harder than expected — that's the cumulative fatigue principle working as designed."
+    },
+    {
+      "id": "strength",
+      "name": "Strength",
+      "order": 2,
+      "pctOfPlan": { "min": 0.20, "default": 0.25, "max": 0.30 },
+      "weekBounds": { "minWeeks": 3, "maxWeeks": 6 },
+      "focus": "Transition from Speed to Strength intervals (MP-10 pace). Tempo work begins.",
+      "intensityDistribution": { "easyPct": 80, "moderatePct": 10, "hardPct": 10 },
+      "keyWorkoutIds": ["hansons_easy_run", "hansons_long_run", "hansons_recovery_run", "hansons_strength_intervals", "hansons_tempo", "hansons_speed_short", "hansons_strides"],
+      "mileageBehavior": "build",
+      "athleteNarrative": "Strength phase: the program begins to shape itself toward marathon specificity. Tuesday workouts transition from short Speed intervals to longer Strength reps at MP-10 sec/mile pace. Thursday introduces the Tempo run at Marathon Pace — initially short (5-6 mi), building toward 10 mi by mid-program. Sunday long run remains at 16 miles. The full pattern is now in place: Tue Speed/Strength, Thu Tempo, Sun Long."
+    },
+    {
+      "id": "tempo_speed",
+      "name": "Tempo + Speed (Race-Specific)",
+      "order": 3,
+      "pctOfPlan": { "min": 0.25, "default": 0.30, "max": 0.35 },
+      "weekBounds": { "minWeeks": 4, "maxWeeks": 7 },
+      "focus": "Peak Tempo runs (8-10 mi at MP), Strength intervals, race simulation. Mileage at peak.",
+      "intensityDistribution": { "easyPct": 75, "moderatePct": 15, "hardPct": 10 },
+      "keyWorkoutIds": ["hansons_easy_run", "hansons_long_run", "hansons_recovery_run", "hansons_strength_intervals", "hansons_tempo", "hansons_race_simulation", "hansons_strides"],
+      "mileageBehavior": "peak",
+      "athleteNarrative": "Tempo + Speed is where Hansons distinguishes itself. Thursday Tempo runs build to 10 miles at Marathon Pace — a peak MP workout that gives you racing confidence. Tuesday Strength intervals continue. Mileage is at peak (50-65 mpw for the Beginner plan, 60-80+ for Advanced). The cumulative fatigue is now constant — trust that this is the training, not a problem to fix."
+    },
+    {
+      "id": "taper",
+      "name": "Taper",
+      "order": 4,
+      "pctOfPlan": { "min": 0.10, "default": 0.15, "max": 0.20 },
+      "weekBounds": { "minWeeks": 2, "maxWeeks": 3 },
+      "focus": "Reduce volume sharply while preserving intensity. Final tune-up Tempo 10-12 days out.",
+      "intensityDistribution": { "easyPct": 80, "moderatePct": 12, "hardPct": 8 },
+      "keyWorkoutIds": ["hansons_easy_run", "hansons_recovery_run", "hansons_tempo", "hansons_strides"],
+      "mileageBehavior": "taper",
+      "athleteNarrative": "Taper. Hansons' taper is shorter than other systems — typically 10-12 days — because cumulative fatigue is the training stimulus and you don't need to fully shed it. Volume drops, but Tuesday Strength reps and Thursday Tempo continue at reduced volume. Trust the system. The work is done."
+    }
+  ],
+  "weeklyPatterns": [
+    {
+      "phaseId": "base",
+      "daysPerWeek": 6,
+      "weekType": "standard",
+      "schedule": [
+        { "dayOfWeek": 1, "category": "rest" },
+        { "dayOfWeek": 2, "category": "vo2_intervals", "preferredWorkoutIds": ["hansons_speed_short"], "notes": "Speed (short intervals)" },
+        { "dayOfWeek": 3, "category": "easy", "preferredWorkoutIds": ["hansons_easy_run"], "volumeModifier": "medium" },
+        { "dayOfWeek": 4, "category": "easy", "preferredWorkoutIds": ["hansons_easy_run", "hansons_strides"], "volumeModifier": "medium" },
+        { "dayOfWeek": 5, "category": "easy", "preferredWorkoutIds": ["hansons_easy_run"], "volumeModifier": "medium" },
+        { "dayOfWeek": 6, "category": "easy", "preferredWorkoutIds": ["hansons_easy_run"], "volumeModifier": "short" },
+        { "dayOfWeek": 7, "category": "long", "preferredWorkoutIds": ["hansons_long_run"], "volumeModifier": "long" }
+      ],
+      "notes": "Base phase. Single quality session (Speed) Tuesday, all easy fill, Sunday long run capped at 16 mi."
+    },
+    {
+      "phaseId": "strength",
+      "daysPerWeek": 6,
+      "weekType": "standard",
+      "schedule": [
+        { "dayOfWeek": 1, "category": "recovery", "preferredWorkoutIds": ["hansons_recovery_run"], "volumeModifier": "short", "notes": "Post long-run recovery" },
+        { "dayOfWeek": 2, "category": "cruise_intervals", "preferredWorkoutIds": ["hansons_strength_intervals"], "notes": "Strength intervals" },
+        { "dayOfWeek": 3, "category": "easy", "preferredWorkoutIds": ["hansons_easy_run"], "volumeModifier": "medium" },
+        { "dayOfWeek": 4, "category": "tempo", "preferredWorkoutIds": ["hansons_tempo"], "notes": "Tempo (MP)" },
+        { "dayOfWeek": 5, "category": "easy", "preferredWorkoutIds": ["hansons_easy_run", "hansons_strides"], "volumeModifier": "medium" },
+        { "dayOfWeek": 6, "category": "rest" },
+        { "dayOfWeek": 7, "category": "long", "preferredWorkoutIds": ["hansons_long_run"], "volumeModifier": "long" }
+      ],
+      "notes": "Strength phase. Three quality days: Tuesday Strength + Thursday Tempo + Sunday Long. The full Hansons rhythm."
+    },
+    {
+      "phaseId": "tempo_speed",
+      "daysPerWeek": 6,
+      "weekType": "standard",
+      "schedule": [
+        { "dayOfWeek": 1, "category": "recovery", "preferredWorkoutIds": ["hansons_recovery_run"], "volumeModifier": "short" },
+        { "dayOfWeek": 2, "category": "cruise_intervals", "preferredWorkoutIds": ["hansons_strength_intervals"], "notes": "Strength" },
+        { "dayOfWeek": 3, "category": "easy", "preferredWorkoutIds": ["hansons_easy_run"], "volumeModifier": "medium" },
+        { "dayOfWeek": 4, "category": "tempo", "preferredWorkoutIds": ["hansons_tempo", "hansons_race_simulation"], "notes": "Peak Tempo (8-10 mi at MP)" },
+        { "dayOfWeek": 5, "category": "easy", "preferredWorkoutIds": ["hansons_easy_run", "hansons_strides"], "volumeModifier": "medium" },
+        { "dayOfWeek": 6, "category": "rest" },
+        { "dayOfWeek": 7, "category": "long", "preferredWorkoutIds": ["hansons_long_run"], "volumeModifier": "long" }
+      ],
+      "notes": "Tempo+Speed peak. Three quality days. Tempo extends to 10 mi at MP. Long run still capped at 16."
+    },
+    {
+      "phaseId": "tempo_speed",
+      "daysPerWeek": 5,
+      "weekType": "standard",
+      "schedule": [
+        { "dayOfWeek": 1, "category": "rest" },
+        { "dayOfWeek": 2, "category": "cruise_intervals", "preferredWorkoutIds": ["hansons_strength_intervals"], "notes": "Strength" },
+        { "dayOfWeek": 3, "category": "easy", "preferredWorkoutIds": ["hansons_easy_run"], "volumeModifier": "medium" },
+        { "dayOfWeek": 4, "category": "tempo", "preferredWorkoutIds": ["hansons_tempo"], "notes": "Tempo" },
+        { "dayOfWeek": 5, "category": "rest" },
+        { "dayOfWeek": 6, "category": "easy", "preferredWorkoutIds": ["hansons_easy_run", "hansons_strides"], "volumeModifier": "medium" },
+        { "dayOfWeek": 7, "category": "long", "preferredWorkoutIds": ["hansons_long_run"], "volumeModifier": "long" }
+      ],
+      "notes": "5-day variant. Departs slightly from Hansons philosophy (cumulative fatigue benefits from frequency) but keeps all 3 quality sessions. Recommend user run 6 days if possible."
+    },
+    {
+      "phaseId": "tempo_speed",
+      "daysPerWeek": 6,
+      "weekType": "recovery",
+      "schedule": [
+        { "dayOfWeek": 1, "category": "recovery", "preferredWorkoutIds": ["hansons_recovery_run"], "volumeModifier": "short" },
+        { "dayOfWeek": 2, "category": "cruise_intervals", "preferredWorkoutIds": ["hansons_strength_intervals"], "notes": "Reduced Strength volume" },
+        { "dayOfWeek": 3, "category": "easy", "preferredWorkoutIds": ["hansons_easy_run"], "volumeModifier": "short" },
+        { "dayOfWeek": 4, "category": "tempo", "preferredWorkoutIds": ["hansons_tempo"], "notes": "Reduced Tempo (5-6 mi)" },
+        { "dayOfWeek": 5, "category": "easy", "preferredWorkoutIds": ["hansons_easy_run"], "volumeModifier": "short" },
+        { "dayOfWeek": 6, "category": "rest" },
+        { "dayOfWeek": 7, "category": "long", "preferredWorkoutIds": ["hansons_long_run"], "volumeModifier": "medium", "notes": "Cutback long run — 12 mi" }
+      ],
+      "notes": "Recovery week — every 4-5 weeks. All sessions reduced. Quality preserved but volume cut."
+    }
+  ],
+  "mileageProgression": {
+    "startMileagePctOfPeak": 0.55,
+    "peakMileageRule": { "type": "multiplier_of_current", "value": 1.4 },
+    "maxWeeklyIncreasePct": 0.10,
+    "cutbackEveryNWeeks": 4,
+    "cutbackPct": 0.80,
+    "longRunPctCap": 0.30
+  },
+  "taper": {
+    "durationWeeks": 2,
+    "weeklyVolumePcts": [0.65, 0.40],
+    "preserveIntensity": true,
+    "raceWeekSchedule": [
+      { "dayOfWeek": 1, "category": "rest" },
+      { "dayOfWeek": 2, "category": "tempo", "preferredWorkoutIds": ["hansons_tempo"], "volumeModifier": "short", "notes": "Short Tempo: 2 mi at MP" },
+      { "dayOfWeek": 3, "category": "easy", "preferredWorkoutIds": ["hansons_easy_run"], "volumeModifier": "short" },
+      { "dayOfWeek": 4, "category": "rest" },
+      { "dayOfWeek": 5, "category": "easy", "preferredWorkoutIds": ["hansons_easy_run", "hansons_strides"], "volumeModifier": "short" },
+      { "dayOfWeek": 6, "category": "easy", "volumeModifier": "short", "notes": "Shakeout 2-3 mi" },
+      { "dayOfWeek": 7, "category": "race_pace", "notes": "RACE DAY" }
+    ],
+    "notes": "Hansons' 2-week taper is shorter than other systems — cumulative fatigue is the training stimulus, so you don't need to fully shed it. Tuesday Tempo at MP keeps neuromuscular systems sharp."
+  },
+  "strengthRecommendation": {
+    "daysPerWeek": { "min": 0, "max": 2, "default": 1 },
+    "workoutIds": [],
+    "philosophy": "Hansons recommend supplemental strength work 1-2× per week — running-specific, focused on hip/glute strength and core stability. 20-30 min sessions. Do on easy days; never adjacent to Tuesday/Thursday/Sunday quality sessions."
+  },
+  "crossTrainingRecommendation": {
+    "approvedModalities": ["cycling", "swimming", "elliptical"],
+    "daysPerWeek": { "min": 0, "max": 1, "default": 0 },
+    "intensityGuidance": "Cross-training is supplemental and optional. Use only on Monday rest day at recovery effort. Hansons emphasize that running frequency IS the program — don't substitute cross-training for run days."
+  },
+  "applicability": {
+    "byDistance": {
+      "5k": "NOT_SUITED",
+      "10k": "OK",
+      "half_marathon": "GOOD",
+      "marathon": "BEST",
+      "50k": "NOT_SUITED",
+      "50_mile": "NOT_SUITED",
+      "100k": "NOT_SUITED",
+      "100_mile": "NOT_SUITED",
+      "mountain_ultra": "NOT_SUITED"
+    },
+    "byExperience": {
+      "beginner": "NOT_SUITED",
+      "recreational": "OK",
+      "intermediate": "BEST",
+      "advanced": "BEST",
+      "elite": "GOOD"
+    },
+    "byTerrain": {
+      "road": "BEST",
+      "track": "GOOD",
+      "trail_rolling": "OK",
+      "mountain_vertical": "NOT_SUITED",
+      "cross_country": "OK"
+    },
+    "weeklyHoursRange": { "min": 5, "max": 10 },
+    "daysPerWeekRange": { "min": 5, "max": 7, "ideal": 6 }
+  },
+  "restrictions": [
+    {
+      "type": "distance",
+      "rule": "Hansons is built for the marathon. The shorter Hansons Half-Marathon Method exists but uses similar principles. Not designed for ultras or sub-half distances.",
+      "blocking": false,
+      "suggestedAlternativeId": "daniels",
+      "warningMessage": "Hansons is optimized for the marathon. For 5K-10K specifically, Daniels' VDOT system is a better fit."
+    },
+    {
+      "type": "experience",
+      "rule": "Beginners often struggle with the cumulative fatigue principle and the 6-day frequency. Best suited to runners with at least one marathon completed and 30+ mpw base.",
+      "blocking": false,
+      "suggestedAlternativeId": "higdon",
+      "warningMessage": "Hansons assumes cumulative-fatigue training and 6 days/week. For your first marathon, consider Higdon Novice — gentler ramp, fewer days/week."
+    },
+    {
+      "type": "time",
+      "rule": "Plan requires 6 days/week running availability. Cumulative fatigue principle breaks down at lower frequencies.",
+      "blocking": false,
+      "warningMessage": "Hansons requires 6 days/week running. With fewer days, the cumulative fatigue principle that defines this method doesn't work as designed. Consider Higdon (4-5 days) or Daniels (5 days)."
+    }
+  ],
+  "generationRules": {
+    "defaultPlanWeeks": 18,
+    "supportedPlanWeeks": [16, 18],
+    "qualityWorkoutsPerWeek": { "min": 2, "max": 3, "default": 3 },
+    "minDaysBetweenHardSessions": 1,
+    "allowsDoubles": false,
+    "compressionPriority": ["base", "strength", "tempo_speed", "taper"],
+    "expansionPriority": ["base", "tempo_speed", "strength", "taper"],
+    "invariants": [
+      "Long run capped at 16 miles — never exceed this regardless of weekly mileage",
+      "Quality sessions: Tuesday (Speed/Strength), Thursday (Tempo), Sunday (Long Run)",
+      "Easy days are intentionally not full recovery — cumulative fatigue is the stimulus",
+      "Tempo (MP) volume builds: 5 → 6 → 7 → 8 → 9 → 10 mi peak",
+      "Strength interval volume builds: 6×1mi → 4×1.5mi → 3×2mi",
+      "Cutback every 4-5 weeks at 80% of peak",
+      "Taper is short (2 weeks): 65% / 40% volume",
+      "If user has fewer than 6 days/week available, warn that cumulative fatigue principle is compromised"
+    ]
+  },
+  "schemaVersion": "1.0.0",
+  "lastUpdated": "2026-05-09"
+}

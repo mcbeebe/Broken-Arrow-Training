@@ -97,6 +97,10 @@ export interface PlannedDay {
    *  nothing recorded silently disappears. Excludes sync-stub activities
    *  under 2 min. */
   secondaryActuals?: ActualWorkout[];
+  /** Structured, personalized workout attached by the plan-generator engine.
+   *  Optional — hand-authored legacy plans (mike-18k-plan, etc.) don't have
+   *  this; UI should fall back to the flat `workout` / `detail` strings. */
+  plannedWorkout?: import('../engines/planGenerator/types').PlannedWorkout;
 }
 
 /**

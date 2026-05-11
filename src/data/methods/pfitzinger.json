@@ -1,0 +1,669 @@
+{
+  "id": "pfitzinger",
+  "name": "Pfitzinger / Advanced Marathoning",
+  "coach": "Pete Pfitzinger",
+  "yearOfOrigin": 2001,
+  "keyBook": "Advanced Marathoning",
+  "citations": [
+    {
+      "source": "Pete Pfitzinger and Scott Douglas",
+      "title": "Advanced Marathoning (3rd Edition)",
+      "year": 2019
+    },
+    {
+      "source": "Pete Pfitzinger and Philip Latter",
+      "title": "Faster Road Racing: 5K to Half Marathon",
+      "year": 2014
+    }
+  ],
+  "description": "High-mileage, LT-anchored marathon system organized into four mesocycles. Built around medium-long runs (MLRs), lactate threshold runs of 4-7 miles at LT pace, and progressively long Sunday long runs. Plans available at 55, 70, and 85+ miles per week.",
+  "signature": "Lactate threshold-anchored mesocycles with MLR (Medium-Long Run) and LT runs at 15K-HM race pace",
+  "philosophyNarrative": "Pfitzinger's system is built for serious marathon runners and rests on three pillars: (1) high but progressive mileage — the more aerobic work you can absorb, the better you'll perform; (2) the lactate threshold is the single most important physiological marker for marathon — train it directly and often; (3) periodization through four mesocycles that systematically build endurance, then LT, then race-specific work, then taper. The signature workout is the LT run — typically 4-7 miles at lactate threshold pace (15K-HM race pace), preceded and followed by easy miles. The medium-long run (MLR) — a 12-15 mile run done mid-week — is what separates Pfitzinger from less aggressive marathon plans. It builds the cumulative aerobic load that prepares you for race day. Every plan culminates in race-specific tune-up races and a 3-week taper.",
+  "primaryAnchor": "recent_race_time",
+  "fallbackAnchor": "lthr_bpm",
+  "paceZones": [
+    {
+      "canonical": "recovery",
+      "displayName": "Recovery",
+      "abbreviation": "Rec",
+      "purpose": "Active recovery between hard sessions. Slower than General Aerobic — focus is recovery, not training stimulus.",
+      "paceFormula": {
+        "anchorType": "recent_race_time",
+        "strategy": "offset_from_anchor",
+        "expression": "marathon_pace + 90-120 sec/mile",
+        "offsetSecPerMile": { "min": 90, "max": 120 }
+      },
+      "rpeRange": { "min": 2, "max": 3, "description": "Effortless; could continue indefinitely" },
+      "hrRange": { "minPctLthr": 0.55, "maxPctLthr": 0.70 }
+    },
+    {
+      "canonical": "easy",
+      "displayName": "General Aerobic (GA)",
+      "abbreviation": "GA",
+      "purpose": "Bulk of weekly mileage. Aerobic development without recovery cost. Conversational throughout.",
+      "paceFormula": {
+        "anchorType": "recent_race_time",
+        "strategy": "offset_from_anchor",
+        "expression": "marathon_pace + 45-90 sec/mile",
+        "offsetSecPerMile": { "min": 45, "max": 90 }
+      },
+      "rpeRange": { "min": 4, "max": 5, "description": "Conversational; full sentences" },
+      "hrRange": { "minPctLthr": 0.70 , "maxPctLthr": 0.81 }
+    },
+    {
+      "canonical": "aerobic_threshold",
+      "displayName": "Endurance / MLR pace",
+      "abbreviation": "End",
+      "purpose": "Pace for medium-long runs and the bulk of long runs. Slightly faster than GA — pushes upper aerobic system.",
+      "paceFormula": {
+        "anchorType": "recent_race_time",
+        "strategy": "offset_from_anchor",
+        "expression": "marathon_pace + 30-60 sec/mile",
+        "offsetSecPerMile": { "min": 30, "max": 60 }
+      },
+      "rpeRange": { "min": 5, "max": 6, "description": "Comfortable but with intent; can speak in short sentences" },
+      "hrRange": { "minPctLthr": 0.75, "maxPctLthr": 0.85 }
+    },
+    {
+      "canonical": "marathon_pace",
+      "displayName": "Marathon Pace (MP)",
+      "abbreviation": "MP",
+      "purpose": "Race pace for marathon. Used in MP-segment long runs to build pace tolerance under fatigue.",
+      "paceFormula": {
+        "anchorType": "recent_race_time",
+        "strategy": "offset_from_anchor",
+        "expression": "marathon_goal_pace",
+        "offsetSecPerMile": { "min": 0, "max": 0 }
+      },
+      "rpeRange": { "min": 6, "max": 7, "description": "Comfortably hard; controlled and rhythmic" },
+      "hrRange": { "minPctLthr": 0.83, "maxPctLthr": 0.88 }
+    },
+    {
+      "canonical": "lactate_threshold",
+      "displayName": "Lactate Threshold (LT)",
+      "abbreviation": "LT",
+      "purpose": "15K to half-marathon race pace. The single most important pace for marathon performance. Done as continuous tempos of 4-7 miles.",
+      "paceFormula": {
+        "anchorType": "recent_race_time",
+        "strategy": "offset_from_anchor",
+        "expression": "half_marathon_pace ± 5 sec/mile",
+        "offsetSecPerMile": { "min": -5, "max": 10 }
+      },
+      "rpeRange": { "min": 7, "max": 8, "description": "Comfortably hard; about 1-hour race pace" },
+      "hrRange": { "minPctLthr": 0.95, "maxPctLthr": 1.00 }
+    },
+    {
+      "canonical": "vo2max",
+      "displayName": "VO2max",
+      "abbreviation": "V̇O₂",
+      "purpose": "3K-5K race pace. Used in 600m-1600m intervals during race-prep mesocycle. Develops aerobic ceiling.",
+      "paceFormula": {
+        "anchorType": "recent_race_time",
+        "strategy": "offset_from_anchor",
+        "expression": "5K race pace",
+        "offsetSecPerMile": { "min": -10, "max": 10 }
+      },
+      "rpeRange": { "min": 8, "max": 9, "description": "Hard; cannot speak more than a word" },
+      "hrRange": { "minPctLthr": 1.00, "maxPctLthr": 1.05 }
+    },
+    {
+      "canonical": "speed",
+      "displayName": "Speed",
+      "abbreviation": "Spd",
+      "purpose": "Faster than VO2max — for strides and short neuromuscular work. Mile race pace or slightly faster.",
+      "paceFormula": {
+        "anchorType": "recent_race_time",
+        "strategy": "offset_from_anchor",
+        "expression": "5K pace - 30 sec/mile",
+        "offsetSecPerMile": { "min": -45, "max": -20 }
+      },
+      "rpeRange": { "min": 9, "max": 9, "description": "Fast and crisp; not maximum sprint" }
+    },
+    {
+      "canonical": "race_pace",
+      "displayName": "Race Pace",
+      "abbreviation": "RP",
+      "purpose": "User's goal race pace. For marathon = MP. For shorter races = the pace for that distance.",
+      "paceFormula": {
+        "anchorType": "recent_race_time",
+        "strategy": "offset_from_anchor",
+        "expression": "user_goal_pace",
+        "offsetSecPerMile": { "min": 0, "max": 0 }
+      },
+      "rpeRange": { "min": 7, "max": 9, "description": "Race effort — varies by distance" }
+    }
+  ],
+  "workouts": [
+    {
+      "id": "pfitz_recovery_run",
+      "name": "Recovery Run",
+      "shortDescription": "Very easy recovery run between harder sessions",
+      "category": "recovery",
+      "primaryZone": "recovery",
+      "displayName": "Recovery",
+      "structure": {
+        "mainSet": [
+          {
+            "description": "Very easy steady run",
+            "duration": { "value": 35, "unit": "min" },
+            "paceZone": "recovery",
+            "cue": "Slower than General Aerobic. The point is recovery — should leave you feeling better."
+          }
+        ]
+      },
+      "approxDurationMinutes": { "min": 25, "max": 50 },
+      "approxDistanceMiles": { "min": 3, "max": 6 },
+      "purpose": "Promote recovery between hard sessions while maintaining aerobic work. Critical glue in high-mileage Pfitz plans.",
+      "cues": [
+        "If you don't feel better at the end, you ran too hard",
+        "Pace is irrelevant — RPE is the gauge",
+        "Skip if genuinely fatigued"
+      ],
+      "validPhaseIds": ["endurance", "lactate_threshold_endurance", "race_prep", "taper"]
+    },
+    {
+      "id": "pfitz_general_aerobic",
+      "name": "General Aerobic (GA)",
+      "shortDescription": "Standard aerobic run at GA pace, the bulk of weekly mileage",
+      "category": "easy",
+      "primaryZone": "easy",
+      "displayName": "GA",
+      "structure": {
+        "mainSet": [
+          {
+            "description": "Steady run at General Aerobic pace",
+            "duration": { "value": 60, "unit": "min" },
+            "paceZone": "easy",
+            "cue": "Conversational. Bulk of weekly mileage lives here — you'll do this 2-4× per week."
+          }
+        ]
+      },
+      "approxDurationMinutes": { "min": 45, "max": 90 },
+      "approxDistanceMiles": { "min": 5, "max": 12 },
+      "purpose": "Aerobic development. Builds capillary density, mitochondrial function, and fatigue resistance. The 'glue' workout of Pfitzinger plans.",
+      "cues": [
+        "Conversational pace — full sentences",
+        "Effort steady throughout",
+        "GA pace will feel slow at first; trust the system"
+      ],
+      "validPhaseIds": ["endurance", "lactate_threshold_endurance", "race_prep", "taper"]
+    },
+    {
+      "id": "pfitz_medium_long_run",
+      "name": "Medium-Long Run (MLR)",
+      "shortDescription": "Mid-week 12-15 mile run that separates Pfitzinger from less aggressive plans",
+      "category": "long",
+      "primaryZone": "aerobic_threshold",
+      "displayName": "MLR",
+      "structure": {
+        "mainSet": [
+          {
+            "description": "Continuous run at Endurance pace",
+            "duration": { "value": 100, "unit": "min" },
+            "paceZone": "aerobic_threshold",
+            "cue": "Mid-week long run — typically Wednesday. Builds cumulative aerobic load that prepares you for race day."
+          }
+        ]
+      },
+      "approxDurationMinutes": { "min": 80, "max": 130 },
+      "approxDistanceMiles": { "min": 10, "max": 16 },
+      "purpose": "Cumulative aerobic load. The MLR is what separates Pfitzinger from generic marathon plans — it doubles the aerobic stimulus by adding a mid-week long-ish effort.",
+      "cues": [
+        "Endurance pace, not Marathon pace — controlled effort",
+        "Fuel mid-run on anything over 90 minutes",
+        "If you feel labored at GA pace, slow down"
+      ],
+      "validPhaseIds": ["endurance", "lactate_threshold_endurance", "race_prep"],
+      "minimumExperience": "intermediate",
+      "requiresBaseMileage": 35
+    },
+    {
+      "id": "pfitz_long_run",
+      "name": "Long Run",
+      "shortDescription": "Sunday long run, 16-22 miles depending on phase",
+      "category": "long",
+      "primaryZone": "aerobic_threshold",
+      "displayName": "Long Run",
+      "structure": {
+        "mainSet": [
+          {
+            "description": "Long steady run at Endurance pace",
+            "duration": { "value": 150, "unit": "min" },
+            "paceZone": "aerobic_threshold",
+            "cue": "The marquee endurance workout. Build to 18-22 miles by mid-program. Practice race-day fueling."
+          }
+        ]
+      },
+      "approxDurationMinutes": { "min": 90, "max": 200 },
+      "approxDistanceMiles": { "min": 12, "max": 22 },
+      "purpose": "Develops the deep endurance base required to hold marathon pace for 26.2 miles. Pfitzinger's plans build to 20-22 mile peak long runs in advanced versions.",
+      "cues": [
+        "Time on feet matters more than pace",
+        "Practice your race-day nutrition strategy",
+        "Effort steady, not rising"
+      ],
+      "validPhaseIds": ["endurance", "lactate_threshold_endurance", "race_prep"]
+    },
+    {
+      "id": "pfitz_long_run_with_mp",
+      "name": "Long Run with Marathon-Pace Segment",
+      "shortDescription": "Long run with embedded MP miles for race specificity",
+      "category": "long",
+      "primaryZone": "marathon_pace",
+      "displayName": "LR + MP",
+      "structure": {
+        "warmup": {
+          "description": "Easy warmup at GA pace",
+          "duration": { "value": 30, "unit": "min" },
+          "paceZone": "easy"
+        },
+        "mainSet": [
+          {
+            "description": "Marathon-pace segment in middle of run",
+            "distance": { "value": 8, "unit": "mi" },
+            "paceZone": "marathon_pace",
+            "cue": "Lock into goal race pace. Should feel controlled, not strained."
+          },
+          {
+            "description": "Easy running to finish",
+            "duration": { "value": 45, "unit": "min" },
+            "paceZone": "easy"
+          }
+        ]
+      },
+      "approxDurationMinutes": { "min": 130, "max": 180 },
+      "approxDistanceMiles": { "min": 16, "max": 22 },
+      "purpose": "Race-specific fatigue + pace tolerance. Used in race-prep mesocycle. Tests goal pace under accumulated fatigue.",
+      "cues": [
+        "MP should feel sustainable — if labored, goal time is too aggressive",
+        "Practice race-day fueling during the run",
+        "Run final segment at planned race effort"
+      ],
+      "validPhaseIds": ["lactate_threshold_endurance", "race_prep"],
+      "minimumExperience": "intermediate",
+      "requiresBaseMileage": 40
+    },
+    {
+      "id": "pfitz_lactate_threshold",
+      "name": "Lactate Threshold Run (LT)",
+      "shortDescription": "Pfitzinger's signature workout: 4-7 miles at LT pace within a longer run",
+      "category": "tempo",
+      "primaryZone": "lactate_threshold",
+      "displayName": "LT Run",
+      "structure": {
+        "warmup": {
+          "description": "Warmup at GA pace",
+          "distance": { "value": 2, "unit": "mi" },
+          "paceZone": "easy"
+        },
+        "mainSet": [
+          {
+            "description": "Continuous run at Lactate Threshold pace",
+            "distance": { "value": 5, "unit": "mi" },
+            "paceZone": "lactate_threshold",
+            "cue": "15K-HM race pace. Comfortably hard but sustainable for the duration. Should not be a fight."
+          }
+        ],
+        "cooldown": {
+          "description": "Cooldown at GA pace",
+          "distance": { "value": 2, "unit": "mi" },
+          "paceZone": "easy"
+        }
+      },
+      "approxDurationMinutes": { "min": 65, "max": 90 },
+      "approxDistanceMiles": { "min": 8, "max": 12 },
+      "purpose": "Raises lactate threshold — the most important physiological adaptation for marathon. The 15K-HM pace is sustainable enough that you can do meaningful volume at it (4-7 miles) without overstressing.",
+      "cues": [
+        "Should feel like 15K race pace, not 5K pace",
+        "If you can converse in full sentences, you're going too easy",
+        "If you can't speak more than a word, you're going too hard",
+        "Volume builds across the program: start at 4 miles, peak at 7 miles"
+      ],
+      "validPhaseIds": ["lactate_threshold_endurance", "race_prep"]
+    },
+    {
+      "id": "pfitz_vo2max_intervals",
+      "name": "VO2max Intervals",
+      "shortDescription": "600m-1600m reps at VO2max pace with jog recovery",
+      "category": "vo2_intervals",
+      "primaryZone": "vo2max",
+      "displayName": "V̇O₂ Intervals",
+      "structure": {
+        "warmup": {
+          "description": "Warmup at GA pace + 4× strides",
+          "duration": { "value": 20, "unit": "min" },
+          "paceZone": "easy"
+        },
+        "mainSet": [
+          {
+            "description": "VO2max intervals",
+            "distance": { "value": 1000, "unit": "m" },
+            "paceZone": "vo2max",
+            "reps": 5,
+            "recovery": {
+              "type": "jog",
+              "duration": { "value": 3, "unit": "min" }
+            },
+            "cue": "5K race pace. Reps should be even — first rep at the same pace as the last."
+          }
+        ],
+        "cooldown": {
+          "description": "Cooldown at GA pace",
+          "duration": { "value": 15, "unit": "min" },
+          "paceZone": "easy"
+        }
+      },
+      "approxDurationMinutes": { "min": 65, "max": 85 },
+      "approxDistanceMiles": { "min": 7, "max": 11 },
+      "purpose": "Develops VO2max and running economy. Used in race-prep mesocycle. Critical for shorter Pfitzinger plans (5K/HM) and useful in late marathon prep.",
+      "cues": [
+        "First rep should feel almost too easy — pace stays the same throughout",
+        "If reps slow significantly, end the workout — don't grind",
+        "These workouts are non-negotiable in race-prep mesocycle"
+      ],
+      "validPhaseIds": ["lactate_threshold_endurance", "race_prep"]
+    },
+    {
+      "id": "pfitz_tune_up_race",
+      "name": "Tune-Up Race / Time Trial",
+      "shortDescription": "8K-15K race or simulated effort, used 3-5 weeks before goal race",
+      "category": "time_trial",
+      "primaryZone": "race_pace",
+      "displayName": "Tune-Up Race",
+      "structure": {
+        "warmup": {
+          "description": "Easy warmup + 4× strides",
+          "duration": { "value": 20, "unit": "min" },
+          "paceZone": "easy"
+        },
+        "mainSet": [
+          {
+            "description": "Race effort at race pace for the chosen distance",
+            "distance": { "value": 10, "unit": "km" },
+            "paceZone": "race_pace",
+            "cue": "Race effort. Useful as VDOT/LT recalibration and race-day rehearsal."
+          }
+        ],
+        "cooldown": {
+          "description": "Cooldown",
+          "duration": { "value": 10, "unit": "min" },
+          "paceZone": "easy"
+        }
+      },
+      "approxDurationMinutes": { "min": 50, "max": 90 },
+      "approxDistanceMiles": { "min": 5, "max": 12 },
+      "purpose": "Race-day rehearsal under real conditions. Recalibrates LT pace based on current fitness. Provides confidence and identifies pacing issues.",
+      "cues": [
+        "Treat as a real race — proper warmup, race effort, cool down",
+        "Use the result to recalibrate LT pace for the rest of the program",
+        "Don't schedule within 2 weeks of goal race"
+      ],
+      "validPhaseIds": ["race_prep"],
+      "minimumExperience": "intermediate"
+    },
+    {
+      "id": "pfitz_strides",
+      "name": "Strides",
+      "shortDescription": "8-10× ~100m at faster than 5K pace, full recovery",
+      "category": "strides",
+      "primaryZone": "speed",
+      "displayName": "Strides",
+      "structure": {
+        "mainSet": [
+          {
+            "description": "Strides at near-mile race pace",
+            "duration": { "value": 20, "unit": "sec" },
+            "paceZone": "speed",
+            "reps": 8,
+            "recovery": {
+              "type": "stand",
+              "duration": { "value": 60, "unit": "sec" }
+            },
+            "cue": "Smooth and fast — not maximum sprint. Build to top speed gradually, hold for ~10 sec, decelerate."
+          }
+        ]
+      },
+      "approxDurationMinutes": { "min": 8, "max": 12 },
+      "purpose": "Maintains neuromuscular sharpness and stride mechanics during heavy aerobic work. Tagged onto end of GA runs 1-2× per week.",
+      "cues": [
+        "Quick turnover, not stride length",
+        "Should feel energizing, never depleting",
+        "Skip if very fatigued"
+      ],
+      "validPhaseIds": ["endurance", "lactate_threshold_endurance", "race_prep", "taper"]
+    }
+  ],
+  "phases": [
+    {
+      "id": "endurance",
+      "name": "Mesocycle 1 — Endurance",
+      "order": 1,
+      "pctOfPlan": { "min": 0.20, "default": 0.30, "max": 0.40 },
+      "weekBounds": { "minWeeks": 3, "maxWeeks": 8 },
+      "focus": "Build aerobic base, accumulate mileage, introduce MLR. No threshold work yet.",
+      "intensityDistribution": { "easyPct": 92, "moderatePct": 5, "hardPct": 3 },
+      "keyWorkoutIds": ["pfitz_general_aerobic", "pfitz_medium_long_run", "pfitz_long_run", "pfitz_recovery_run", "pfitz_strides"],
+      "mileageBehavior": "build",
+      "athleteNarrative": "Welcome to Mesocycle 1 — Endurance. The goal here is mileage and aerobic base. Most weeks have a long run, a medium-long run (MLR), and several General Aerobic (GA) runs. The MLR is the workout that distinguishes this plan — a 12-15 mile mid-week effort that doubles your weekly aerobic stimulus. No threshold work yet — that comes next mesocycle. Trust the volume."
+    },
+    {
+      "id": "lactate_threshold_endurance",
+      "name": "Mesocycle 2 — Lactate Threshold + Endurance",
+      "order": 2,
+      "pctOfPlan": { "min": 0.25, "default": 0.30, "max": 0.35 },
+      "weekBounds": { "minWeeks": 4, "maxWeeks": 7 },
+      "focus": "Add LT work (4-7 mi at LT pace) while maintaining endurance. Long runs continue extending.",
+      "intensityDistribution": { "easyPct": 85, "moderatePct": 5, "hardPct": 10 },
+      "keyWorkoutIds": ["pfitz_general_aerobic", "pfitz_medium_long_run", "pfitz_long_run", "pfitz_long_run_with_mp", "pfitz_lactate_threshold", "pfitz_recovery_run", "pfitz_strides"],
+      "mileageBehavior": "build",
+      "athleteNarrative": "Mesocycle 2 is the heart of Pfitzinger's system. The signature LT run enters: 4-7 miles at lactate threshold pace, sandwiched between warmup and cooldown. This is the single most important workout for marathon performance. MLRs and long runs continue. Mileage is at or near peak. Long runs occasionally include marathon-pace segments to start building race-pace tolerance under fatigue."
+    },
+    {
+      "id": "race_prep",
+      "name": "Mesocycle 3 — Race Prep",
+      "order": 3,
+      "pctOfPlan": { "min": 0.20, "default": 0.25, "max": 0.30 },
+      "weekBounds": { "minWeeks": 3, "maxWeeks": 6 },
+      "focus": "Race-specific work: VO2max intervals, tune-up races, MP-segmented long runs. Mileage stays high.",
+      "intensityDistribution": { "easyPct": 80, "moderatePct": 8, "hardPct": 12 },
+      "keyWorkoutIds": ["pfitz_general_aerobic", "pfitz_long_run_with_mp", "pfitz_lactate_threshold", "pfitz_vo2max_intervals", "pfitz_tune_up_race", "pfitz_recovery_run", "pfitz_strides"],
+      "mileageBehavior": "peak",
+      "athleteNarrative": "Mesocycle 3 sharpens you for race day. VO2max intervals (1000m reps at 5K pace) build the aerobic ceiling. Tune-up races recalibrate your LT pace under real conditions. Long runs include MP segments to dial in race-day pacing. This is the most demanding mesocycle — pay close attention to recovery and listen to your body."
+    },
+    {
+      "id": "taper",
+      "name": "Mesocycle 4 — Taper",
+      "order": 4,
+      "pctOfPlan": { "min": 0.10, "default": 0.15, "max": 0.20 },
+      "weekBounds": { "minWeeks": 2, "maxWeeks": 3 },
+      "focus": "Reduce volume sharply while preserving intensity. Final tune-up race optional 10-14 days before.",
+      "intensityDistribution": { "easyPct": 80, "moderatePct": 10, "hardPct": 10 },
+      "keyWorkoutIds": ["pfitz_general_aerobic", "pfitz_lactate_threshold", "pfitz_recovery_run", "pfitz_strides"],
+      "mileageBehavior": "taper",
+      "athleteNarrative": "Mesocycle 4 — Taper. Volume drops to 70%, then 50%, then 35% of peak across the three weeks. Intensity is preserved (short LT efforts and strides) so you don't go flat. The work is done — sleep, eat, hydrate. Resist the urge to 'make up' missed training. Trust the program."
+    }
+  ],
+  "weeklyPatterns": [
+    {
+      "phaseId": "endurance",
+      "daysPerWeek": 6,
+      "weekType": "standard",
+      "schedule": [
+        { "dayOfWeek": 1, "category": "rest", "notes": "Optional 30 min cross-training" },
+        { "dayOfWeek": 2, "category": "easy", "preferredWorkoutIds": ["pfitz_general_aerobic"], "volumeModifier": "medium" },
+        { "dayOfWeek": 3, "category": "long", "preferredWorkoutIds": ["pfitz_medium_long_run"], "notes": "MLR — 12-15 mi" },
+        { "dayOfWeek": 4, "category": "recovery", "preferredWorkoutIds": ["pfitz_recovery_run"], "volumeModifier": "short" },
+        { "dayOfWeek": 5, "category": "easy", "preferredWorkoutIds": ["pfitz_general_aerobic", "pfitz_strides"], "volumeModifier": "medium" },
+        { "dayOfWeek": 6, "category": "easy", "preferredWorkoutIds": ["pfitz_general_aerobic"], "volumeModifier": "short" },
+        { "dayOfWeek": 7, "category": "long", "preferredWorkoutIds": ["pfitz_long_run"], "volumeModifier": "long" }
+      ],
+      "notes": "Endurance mesocycle. MLR Wednesday + long run Sunday creates the cumulative load. No quality work yet."
+    },
+    {
+      "phaseId": "lactate_threshold_endurance",
+      "daysPerWeek": 6,
+      "weekType": "standard",
+      "schedule": [
+        { "dayOfWeek": 1, "category": "rest" },
+        { "dayOfWeek": 2, "category": "easy", "preferredWorkoutIds": ["pfitz_general_aerobic"], "volumeModifier": "medium" },
+        { "dayOfWeek": 3, "category": "tempo", "preferredWorkoutIds": ["pfitz_lactate_threshold"], "notes": "LT Run — Pfitz signature" },
+        { "dayOfWeek": 4, "category": "recovery", "preferredWorkoutIds": ["pfitz_recovery_run"], "volumeModifier": "short" },
+        { "dayOfWeek": 5, "category": "long", "preferredWorkoutIds": ["pfitz_medium_long_run"], "notes": "MLR" },
+        { "dayOfWeek": 6, "category": "easy", "preferredWorkoutIds": ["pfitz_general_aerobic", "pfitz_strides"], "volumeModifier": "medium" },
+        { "dayOfWeek": 7, "category": "long", "preferredWorkoutIds": ["pfitz_long_run", "pfitz_long_run_with_mp"], "volumeModifier": "long" }
+      ],
+      "notes": "LT+Endurance: Tuesday LT run + Friday MLR + Sunday long run. The most demanding pattern — recovery between is critical."
+    },
+    {
+      "phaseId": "lactate_threshold_endurance",
+      "daysPerWeek": 5,
+      "weekType": "standard",
+      "schedule": [
+        { "dayOfWeek": 1, "category": "rest" },
+        { "dayOfWeek": 2, "category": "tempo", "preferredWorkoutIds": ["pfitz_lactate_threshold"], "notes": "LT Run" },
+        { "dayOfWeek": 3, "category": "recovery", "preferredWorkoutIds": ["pfitz_recovery_run"], "volumeModifier": "short" },
+        { "dayOfWeek": 4, "category": "long", "preferredWorkoutIds": ["pfitz_medium_long_run"], "notes": "MLR" },
+        { "dayOfWeek": 5, "category": "rest" },
+        { "dayOfWeek": 6, "category": "easy", "preferredWorkoutIds": ["pfitz_general_aerobic", "pfitz_strides"], "volumeModifier": "medium" },
+        { "dayOfWeek": 7, "category": "long", "preferredWorkoutIds": ["pfitz_long_run"], "volumeModifier": "long" }
+      ],
+      "notes": "5-day variant for time-limited runners. LT Tuesday, MLR Thursday, long run Sunday. Lower mileage but preserves Pfitzinger's structure."
+    },
+    {
+      "phaseId": "race_prep",
+      "daysPerWeek": 6,
+      "weekType": "standard",
+      "schedule": [
+        { "dayOfWeek": 1, "category": "rest" },
+        { "dayOfWeek": 2, "category": "vo2_intervals", "preferredWorkoutIds": ["pfitz_vo2max_intervals"], "notes": "V̇O₂ intervals" },
+        { "dayOfWeek": 3, "category": "easy", "preferredWorkoutIds": ["pfitz_general_aerobic"], "volumeModifier": "medium" },
+        { "dayOfWeek": 4, "category": "long", "preferredWorkoutIds": ["pfitz_medium_long_run"], "notes": "MLR" },
+        { "dayOfWeek": 5, "category": "tempo", "preferredWorkoutIds": ["pfitz_lactate_threshold"], "notes": "LT Run" },
+        { "dayOfWeek": 6, "category": "recovery", "preferredWorkoutIds": ["pfitz_recovery_run"], "volumeModifier": "short" },
+        { "dayOfWeek": 7, "category": "long", "preferredWorkoutIds": ["pfitz_long_run_with_mp"], "volumeModifier": "long" }
+      ],
+      "notes": "Race-prep meso: V̇O₂, MLR, LT, and MP-segmented long run all in same week. Peak demand."
+    },
+    {
+      "phaseId": "lactate_threshold_endurance",
+      "daysPerWeek": 6,
+      "weekType": "recovery",
+      "schedule": [
+        { "dayOfWeek": 1, "category": "rest" },
+        { "dayOfWeek": 2, "category": "easy", "preferredWorkoutIds": ["pfitz_general_aerobic"], "volumeModifier": "medium" },
+        { "dayOfWeek": 3, "category": "tempo", "preferredWorkoutIds": ["pfitz_lactate_threshold"], "notes": "Reduced LT — single short tempo" },
+        { "dayOfWeek": 4, "category": "recovery", "preferredWorkoutIds": ["pfitz_recovery_run"], "volumeModifier": "short" },
+        { "dayOfWeek": 5, "category": "easy", "preferredWorkoutIds": ["pfitz_general_aerobic"], "volumeModifier": "short" },
+        { "dayOfWeek": 6, "category": "easy", "preferredWorkoutIds": ["pfitz_general_aerobic"], "volumeModifier": "short" },
+        { "dayOfWeek": 7, "category": "long", "preferredWorkoutIds": ["pfitz_long_run"], "volumeModifier": "medium", "notes": "Cutback long run — 75% of normal" }
+      ],
+      "notes": "Recovery week — every 4th-5th week. MLR dropped, LT shortened, long run cut back."
+    }
+  ],
+  "mileageProgression": {
+    "startMileagePctOfPeak": 0.65,
+    "peakMileageRule": { "type": "multiplier_of_current", "value": 1.5 },
+    "maxWeeklyIncreasePct": 0.10,
+    "cutbackEveryNWeeks": 4,
+    "cutbackPct": 0.75,
+    "longRunPctCap": 0.30
+  },
+  "taper": {
+    "durationWeeks": 3,
+    "weeklyVolumePcts": [0.75, 0.55, 0.40],
+    "preserveIntensity": true,
+    "raceWeekSchedule": [
+      { "dayOfWeek": 1, "category": "rest" },
+      { "dayOfWeek": 2, "category": "easy", "preferredWorkoutIds": ["pfitz_general_aerobic"], "volumeModifier": "short", "notes": "5-6 mi GA + 4 strides" },
+      { "dayOfWeek": 3, "category": "rest" },
+      { "dayOfWeek": 4, "category": "easy", "preferredWorkoutIds": ["pfitz_general_aerobic"], "volumeModifier": "short", "notes": "4 mi GA" },
+      { "dayOfWeek": 5, "category": "easy", "preferredWorkoutIds": ["pfitz_general_aerobic"], "volumeModifier": "short", "notes": "3 mi with strides" },
+      { "dayOfWeek": 6, "category": "easy", "volumeModifier": "short", "notes": "2 mi shakeout" },
+      { "dayOfWeek": 7, "category": "race_pace", "notes": "RACE DAY" }
+    ],
+    "notes": "Pfitzinger's 3-week taper: 75% / 55% / 40% volume. Intensity preserved via short LT efforts and strides. The work is done."
+  },
+  "strengthRecommendation": {
+    "daysPerWeek": { "min": 0, "max": 2, "default": 1 },
+    "workoutIds": [],
+    "philosophy": "Pfitzinger and Douglas recommend 2× weekly strength sessions of 20-30 min focused on running-specific work: single-leg strength, core stability, hip mobility. Schedule on easy days, never adjacent to MLR or long run. Drop to maintenance during taper."
+  },
+  "crossTrainingRecommendation": {
+    "approvedModalities": ["cycling", "swimming", "elliptical", "rowing"],
+    "daysPerWeek": { "min": 0, "max": 1, "default": 0 },
+    "intensityGuidance": "Cross-training is supplemental, not a replacement. Use only on rest days at GA-equivalent effort, max 30-45 min. Pfitzinger's plans assume running is the primary stimulus."
+  },
+  "applicability": {
+    "byDistance": {
+      "5k": "OK",
+      "10k": "GOOD",
+      "half_marathon": "BEST",
+      "marathon": "BEST",
+      "50k": "CAUTION",
+      "50_mile": "NOT_SUITED",
+      "100k": "NOT_SUITED",
+      "100_mile": "NOT_SUITED",
+      "mountain_ultra": "NOT_SUITED"
+    },
+    "byExperience": {
+      "beginner": "NOT_SUITED",
+      "recreational": "CAUTION",
+      "intermediate": "GOOD",
+      "advanced": "BEST",
+      "elite": "BEST"
+    },
+    "byTerrain": {
+      "road": "BEST",
+      "track": "GOOD",
+      "trail_rolling": "OK",
+      "mountain_vertical": "NOT_SUITED",
+      "cross_country": "OK"
+    },
+    "weeklyHoursRange": { "min": 6, "max": 14 },
+    "daysPerWeekRange": { "min": 5, "max": 7, "ideal": 6 }
+  },
+  "restrictions": [
+    {
+      "type": "experience",
+      "rule": "Designed for serious marathoners with established mileage base (35+ mpw). Not appropriate for first-time marathon or low-mileage runners.",
+      "blocking": false,
+      "suggestedAlternativeId": "higdon",
+      "warningMessage": "Pfitzinger's plans assume 35+ mpw base and serious marathon focus. For first marathons or lower mileage, Higdon's beginner/intermediate plans may be a better fit."
+    },
+    {
+      "type": "distance",
+      "rule": "Built for the marathon (and the 5K-half marathon road races in Faster Road Racing). Not designed for ultras.",
+      "blocking": false,
+      "suggestedAlternativeId": "koop",
+      "warningMessage": "Pfitzinger's system is optimized for road races up to the marathon. For ultras, consider Koop or Roche."
+    },
+    {
+      "type": "time",
+      "rule": "Plans assume 6 days/week running availability with daily flexibility for MLR (12-15 mi mid-week). Hard for runners with rigid weekday constraints.",
+      "blocking": false,
+      "suggestedAlternativeId": "higdon",
+      "warningMessage": "Pfitzinger requires 6 days/week and a mid-week 12-15 mile run. If you can't run 6 days or do a 90+ minute weekday run, consider a 4-5 day plan like Higdon Intermediate."
+    }
+  ],
+  "generationRules": {
+    "defaultPlanWeeks": 18,
+    "supportedPlanWeeks": [12, 16, 18, 20, 24],
+    "qualityWorkoutsPerWeek": { "min": 1, "max": 3, "default": 2 },
+    "minDaysBetweenHardSessions": 2,
+    "allowsDoubles": true,
+    "compressionPriority": ["endurance", "lactate_threshold_endurance", "race_prep", "taper"],
+    "expansionPriority": ["endurance", "lactate_threshold_endurance", "race_prep", "taper"],
+    "invariants": [
+      "Long run must not exceed 30% of weekly mileage",
+      "MLR (Wed/Thu) must not be on consecutive day with LT or long run",
+      "Minimum 2 days between any two hard sessions",
+      "LT volume builds: 4 mi → 5 mi → 6 mi → 7 mi across mesocycle 2",
+      "Cutback every 4-5 weeks at 75% of prior week",
+      "Final 3 weeks must be taper (75% / 55% / 40%)",
+      "If user's currentWeeklyMileage < 35, recommend lower-mileage variant or alternative method",
+      "Tune-up race scheduled 3-5 weeks before goal race in race-prep mesocycle"
+    ]
+  },
+  "schemaVersion": "1.0.0",
+  "lastUpdated": "2026-05-09"
+}

@@ -1,0 +1,539 @@
+{
+  "id": "fitzgerald_8020",
+  "name": "80/20 Running (Fitzgerald)",
+  "coach": "Matt Fitzgerald",
+  "yearOfOrigin": 2014,
+  "keyBook": "80/20 Running",
+  "citations": [
+    { "source": "Matt Fitzgerald", "title": "80/20 Running: Run Stronger and Race Faster by Training Slower", "year": 2014 },
+    { "source": "Matt Fitzgerald", "title": "80/20 Triathlon", "year": 2018 },
+    { "source": "Matt Fitzgerald and David Warden", "title": "80/20 Endurance Plans", "url": "https://8020endurance.com/" }
+  ],
+  "description": "Polarized training applied to road runners: 80% of weekly running volume at low intensity (Z1-Z2), 20% at moderate-to-high intensity (Z3-Z5). Built on Stephen Seiler's research findings made accessible for amateurs. Explicit 5-zone heart-rate or pace system with plans for 5K through marathon.",
+  "signature": "80% easy / 20% moderate-to-hard volume distribution across a 5-zone HR system",
+  "philosophyNarrative": "Fitzgerald's 80/20 system translates Stephen Seiler's polarized-training research into practical plans for amateur runners. The core insight: most amateur runners run too hard on easy days and too easy on hard days — the dreaded 'gray zone' that produces neither aerobic adaptation nor high-intensity adaptation. Fix this by going EXPLICITLY easy 80% of the time and EXPLICITLY hard 20% of the time. The 5-zone system gives you precise targets: Z1 (recovery), Z2 (aerobic / GA), Z3 (moderate / threshold), Z4 (lactate threshold), Z5 (VO2max). The 80/20 ratio is measured by TIME (not workouts) — so a single hard interval session might count as moderate weekly volume despite hard effort. The system periodizes through Base → Build → Peak → Taper with explicit weekly hard/easy ratios at each phase.",
+  "primaryAnchor": "lthr_bpm",
+  "fallbackAnchor": "estimated_5k_time",
+  "paceZones": [
+    {
+      "canonical": "recovery",
+      "displayName": "Zone 1 (Recovery)",
+      "abbreviation": "Z1",
+      "purpose": "Slowest aerobic running. Heart rate <81% of LTHR. Used for active recovery and the easiest portions of warmup/cooldown.",
+      "paceFormula": {
+        "anchorType": "lthr_bpm",
+        "strategy": "pct_of_hr",
+        "expression": "<81% LTHR",
+        "pctOfLthr": { "min": 0.65, "max": 0.81 }
+      },
+      "rpeRange": { "min": 2, "max": 3, "description": "Very easy; effortless" },
+      "hrRange": { "minPctLthr": 0.65, "maxPctLthr": 0.81 }
+    },
+    {
+      "canonical": "easy",
+      "displayName": "Zone 2 (Aerobic)",
+      "abbreviation": "Z2",
+      "purpose": "Aerobic base development. The bulk of weekly mileage in 80/20. HR 81-89% LTHR. Conversational throughout.",
+      "paceFormula": {
+        "anchorType": "lthr_bpm",
+        "strategy": "pct_of_hr",
+        "expression": "81-89% LTHR",
+        "pctOfLthr": { "min": 0.81, "max": 0.89 }
+      },
+      "rpeRange": { "min": 4, "max": 5, "description": "Conversational; full sentences" },
+      "hrRange": { "minPctLthr": 0.81, "maxPctLthr": 0.89 }
+    },
+    {
+      "canonical": "marathon_pace",
+      "displayName": "Zone 3 (Moderate / MP)",
+      "abbreviation": "Z3",
+      "purpose": "Moderate aerobic — the 'gray zone' Fitzgerald warns against for easy days but uses deliberately for marathon-pace work. HR 90-95% LTHR.",
+      "paceFormula": {
+        "anchorType": "lthr_bpm",
+        "strategy": "pct_of_hr",
+        "expression": "90-95% LTHR",
+        "pctOfLthr": { "min": 0.90, "max": 0.95 }
+      },
+      "rpeRange": { "min": 5, "max": 7, "description": "Comfortably hard; rhythmic" },
+      "hrRange": { "minPctLthr": 0.90, "maxPctLthr": 0.95 }
+    },
+    {
+      "canonical": "lactate_threshold",
+      "displayName": "Zone 4 (Lactate Threshold)",
+      "abbreviation": "Z4",
+      "purpose": "Threshold pace, ~96-102% LTHR. Used in tempo runs and threshold intervals. Comfortably hard but not race effort.",
+      "paceFormula": {
+        "anchorType": "lthr_bpm",
+        "strategy": "pct_of_hr",
+        "expression": "96-102% LTHR",
+        "pctOfLthr": { "min": 0.96, "max": 1.02 }
+      },
+      "rpeRange": { "min": 7, "max": 8, "description": "Comfortably hard; ~1-hour race effort" },
+      "hrRange": { "minPctLthr": 0.96, "maxPctLthr": 1.02 }
+    },
+    {
+      "canonical": "vo2max",
+      "displayName": "Zone 5 (VO2max)",
+      "abbreviation": "Z5",
+      "purpose": "Hardest training intensity. >102% LTHR. Used in short intervals (3-5 min reps) at 5K-3K race pace.",
+      "paceFormula": {
+        "anchorType": "lthr_bpm",
+        "strategy": "pct_of_hr",
+        "expression": ">102% LTHR",
+        "pctOfLthr": { "min": 1.02, "max": 1.10 }
+      },
+      "rpeRange": { "min": 8, "max": 9, "description": "Hard; cannot speak more than a word" },
+      "hrRange": { "minPctLthr": 1.02, "maxPctLthr": 1.10 }
+    }
+  ],
+  "workouts": [
+    {
+      "id": "8020_easy_run",
+      "name": "Z2 Easy Run",
+      "shortDescription": "Aerobic run held strictly in Zone 2 — the workout that drives 80/20 distribution",
+      "category": "easy",
+      "primaryZone": "easy",
+      "displayName": "Z2 Easy",
+      "structure": {
+        "mainSet": [
+          {
+            "description": "Steady run at Zone 2",
+            "duration": { "value": 50, "unit": "min" },
+            "paceZone": "easy",
+            "cue": "Strictly Z2 — if HR drifts above 89% LTHR, slow down. The discipline of staying easy IS the workout."
+          }
+        ]
+      },
+      "approxDurationMinutes": { "min": 30, "max": 90 },
+      "approxDistanceMiles": { "min": 3, "max": 11 },
+      "purpose": "The cornerstone workout of 80/20. By holding strictly Z2, you accumulate aerobic adaptation without hidden moderate-intensity creep. This is what the 80% is.",
+      "cues": [
+        "If HR drifts above Z2, slow down — even if it feels too easy",
+        "Pace will rise as fitness improves at the same HR",
+        "Conversational pace throughout"
+      ],
+      "validPhaseIds": ["base", "build", "peak", "taper"]
+    },
+    {
+      "id": "8020_recovery_run",
+      "name": "Z1 Recovery Run",
+      "shortDescription": "Very easy short run held in Zone 1 — true recovery effort",
+      "category": "recovery",
+      "primaryZone": "recovery",
+      "displayName": "Z1 Recovery",
+      "structure": {
+        "mainSet": [
+          {
+            "description": "Very easy run at Zone 1",
+            "duration": { "value": 30, "unit": "min" },
+            "paceZone": "recovery",
+            "cue": "HR strictly below 81% LTHR. Walking is permitted if HR drifts up."
+          }
+        ]
+      },
+      "approxDurationMinutes": { "min": 20, "max": 45 },
+      "approxDistanceMiles": { "min": 2, "max": 5 },
+      "purpose": "True recovery. Even gentler than Z2. Used between hard sessions to enable adaptation.",
+      "cues": [
+        "Slower than your normal easy pace",
+        "Walk breaks fine if HR creeps up",
+        "Should feel restorative, not draining"
+      ],
+      "validPhaseIds": ["base", "build", "peak", "taper"]
+    },
+    {
+      "id": "8020_long_run",
+      "name": "Long Run (Z2)",
+      "shortDescription": "Long run held in Zone 2, with optional Z3 segments late in training",
+      "category": "long",
+      "primaryZone": "easy",
+      "displayName": "Long Run",
+      "structure": {
+        "mainSet": [
+          {
+            "description": "Long steady run at Z2",
+            "duration": { "value": 110, "unit": "min" },
+            "paceZone": "easy",
+            "cue": "Hold Z2 even as fatigue accumulates and HR drift wants to push you into Z3. Discipline matters most in the final hour."
+          }
+        ]
+      },
+      "approxDurationMinutes": { "min": 60, "max": 180 },
+      "approxDistanceMiles": { "min": 6, "max": 20 },
+      "purpose": "Endurance building at strict Z2. Late in training, can include 20-30 min in Z3 for marathon specificity.",
+      "cues": [
+        "Watch HR drift — pace must drop to keep HR in Z2",
+        "Practice race-day fueling on runs over 90 min",
+        "Time on feet matters more than pace"
+      ],
+      "validPhaseIds": ["base", "build", "peak"]
+    },
+    {
+      "id": "8020_z3_progression",
+      "name": "Z3 Progression Run",
+      "shortDescription": "Aerobic run building from Z2 to Z3 in the final third — moderate-intensity work",
+      "category": "progression",
+      "primaryZone": "marathon_pace",
+      "displayName": "Z3 Progression",
+      "structure": {
+        "warmup": {
+          "description": "Easy at Z1-Z2",
+          "duration": { "value": 15, "unit": "min" },
+          "paceZone": "easy"
+        },
+        "mainSet": [
+          {
+            "description": "Steady at Z2",
+            "duration": { "value": 25, "unit": "min" },
+            "paceZone": "easy"
+          },
+          {
+            "description": "Build to Z3 (marathon-pace effort)",
+            "duration": { "value": 20, "unit": "min" },
+            "paceZone": "marathon_pace",
+            "cue": "Build into Z3. HR should be in the 90-95% LTHR range."
+          }
+        ],
+        "cooldown": {
+          "description": "Easy cooldown",
+          "duration": { "value": 10, "unit": "min" },
+          "paceZone": "easy"
+        }
+      },
+      "approxDurationMinutes": { "min": 60, "max": 90 },
+      "approxDistanceMiles": { "min": 6, "max": 11 },
+      "purpose": "Bridges aerobic Z2 work with marathon-pace specificity. Used in late Build phase for marathon and HM runners.",
+      "cues": [
+        "Build gradually into Z3 — don't jump straight to MP",
+        "If HR exceeds Z3 (>95% LTHR), slow down",
+        "Counts toward the 20% hard portion of weekly volume"
+      ],
+      "validPhaseIds": ["build", "peak"]
+    },
+    {
+      "id": "8020_z4_threshold",
+      "name": "Z4 Threshold Tempo",
+      "shortDescription": "Continuous tempo run at lactate threshold (Z4)",
+      "category": "tempo",
+      "primaryZone": "lactate_threshold",
+      "displayName": "Z4 Threshold",
+      "structure": {
+        "warmup": {
+          "description": "Easy at Z1-Z2 + 4 strides",
+          "duration": { "value": 15, "unit": "min" },
+          "paceZone": "easy"
+        },
+        "mainSet": [
+          {
+            "description": "Continuous tempo at Zone 4",
+            "duration": { "value": 20, "unit": "min" },
+            "paceZone": "lactate_threshold",
+            "cue": "Hold Z4 (96-102% LTHR). About 1-hour race pace. Steady throughout."
+          }
+        ],
+        "cooldown": {
+          "description": "Easy cooldown",
+          "duration": { "value": 10, "unit": "min" },
+          "paceZone": "easy"
+        }
+      },
+      "approxDurationMinutes": { "min": 45, "max": 65 },
+      "approxDistanceMiles": { "min": 5, "max": 9 },
+      "purpose": "Lactate threshold development. 80/20 plans use this 1-2× per week in Build and Peak phases.",
+      "cues": [
+        "Tempo pace, not race pace — controlled",
+        "If HR drifts above Z4, ease off",
+        "Even effort across the duration"
+      ],
+      "validPhaseIds": ["build", "peak"]
+    },
+    {
+      "id": "8020_z5_intervals",
+      "name": "Z5 VO2max Intervals",
+      "shortDescription": "3-5 min reps at Zone 5 (>102% LTHR) with equal jog recovery",
+      "category": "vo2_intervals",
+      "primaryZone": "vo2max",
+      "displayName": "Z5 Intervals",
+      "structure": {
+        "warmup": {
+          "description": "Easy + 4 strides + 1× 60-sec at Z4",
+          "duration": { "value": 20, "unit": "min" },
+          "paceZone": "easy"
+        },
+        "mainSet": [
+          {
+            "description": "VO2max intervals",
+            "duration": { "value": 3, "unit": "min" },
+            "paceZone": "vo2max",
+            "reps": 5,
+            "recovery": { "type": "jog", "duration": { "value": 3, "unit": "min" } },
+            "cue": "Z5 effort — about 3K-5K race pace. Even pacing across all reps."
+          }
+        ],
+        "cooldown": {
+          "description": "Easy cooldown",
+          "duration": { "value": 10, "unit": "min" },
+          "paceZone": "easy"
+        }
+      },
+      "approxDurationMinutes": { "min": 50, "max": 70 },
+      "approxDistanceMiles": { "min": 6, "max": 9 },
+      "purpose": "VO2max development. Used 1× per week in Peak phase. Limited volume — Fitzgerald caps Z5 at 5-8% of weekly volume.",
+      "cues": [
+        "Z5 cap: keep total interval time small relative to weekly volume",
+        "First rep at the same effort as the last",
+        "End workout if reps slow significantly"
+      ],
+      "validPhaseIds": ["build", "peak"]
+    },
+    {
+      "id": "8020_strides",
+      "name": "Strides",
+      "shortDescription": "8× ~20-sec strides at Z5 effort with full standing recovery",
+      "category": "strides",
+      "primaryZone": "vo2max",
+      "displayName": "Strides",
+      "structure": {
+        "mainSet": [
+          {
+            "description": "Strides at Z5 effort",
+            "duration": { "value": 20, "unit": "sec" },
+            "paceZone": "vo2max",
+            "reps": 8,
+            "recovery": { "type": "stand", "duration": { "value": 60, "unit": "sec" } },
+            "cue": "Smooth and quick — not maximum sprint."
+          }
+        ]
+      },
+      "approxDurationMinutes": { "min": 8, "max": 12 },
+      "purpose": "Neuromuscular maintenance during high-volume Z2 work. Tagged onto end of Z2 runs 1-2× per week.",
+      "cues": ["Quick turnover, relaxed shoulders", "Skip if very fatigued"],
+      "validPhaseIds": ["base", "build", "peak", "taper"]
+    }
+  ],
+  "phases": [
+    {
+      "id": "base",
+      "name": "Base",
+      "order": 1,
+      "pctOfPlan": { "min": 0.20, "default": 0.30, "max": 0.40 },
+      "weekBounds": { "minWeeks": 3, "maxWeeks": 8 },
+      "focus": "Establish 80/20 distribution. Build aerobic base in Z2. Strides only as quality.",
+      "intensityDistribution": { "easyPct": 90, "moderatePct": 5, "hardPct": 5 },
+      "keyWorkoutIds": ["8020_easy_run", "8020_long_run", "8020_recovery_run", "8020_strides"],
+      "mileageBehavior": "build",
+      "athleteNarrative": "Welcome to 80/20. The first phase establishes the easy/hard distribution. Almost all running is in Zone 2 (HR 81-89% LTHR). Strides are the only quality. The discipline of staying STRICTLY easy on easy days is the foundational skill — many runners will need to slow their easy pace 30-60 sec/mile to hit Z2. Trust this. As fitness improves, your Z2 pace will get faster at the same HR."
+    },
+    {
+      "id": "build",
+      "name": "Build",
+      "order": 2,
+      "pctOfPlan": { "min": 0.25, "default": 0.30, "max": 0.35 },
+      "weekBounds": { "minWeeks": 3, "maxWeeks": 6 },
+      "focus": "Add Z4 threshold work and Z3 progression runs. Maintain 80/20 ratio.",
+      "intensityDistribution": { "easyPct": 80, "moderatePct": 8, "hardPct": 12 },
+      "keyWorkoutIds": ["8020_easy_run", "8020_long_run", "8020_recovery_run", "8020_z3_progression", "8020_z4_threshold", "8020_strides"],
+      "mileageBehavior": "build",
+      "athleteNarrative": "Build phase. Zone 4 threshold tempos enter (20 min continuous), and Zone 3 progression runs add marathon-specific work for the longer-race plans. Total time in Z3-Z5 stays at ~20% of weekly volume — measured by TIME, not number of workouts. Even with hard work added, the bulk of running is still strict Z2."
+    },
+    {
+      "id": "peak",
+      "name": "Peak",
+      "order": 3,
+      "pctOfPlan": { "min": 0.20, "default": 0.25, "max": 0.30 },
+      "weekBounds": { "minWeeks": 3, "maxWeeks": 5 },
+      "focus": "Add Z5 VO2max intervals. Peak Z4 tempo volume. Long runs at peak.",
+      "intensityDistribution": { "easyPct": 80, "moderatePct": 10, "hardPct": 10 },
+      "keyWorkoutIds": ["8020_easy_run", "8020_long_run", "8020_recovery_run", "8020_z5_intervals", "8020_z4_threshold", "8020_z3_progression", "8020_strides"],
+      "mileageBehavior": "peak",
+      "athleteNarrative": "Peak phase. Z5 VO2max intervals enter the rotation. Z4 tempo volume peaks. Long runs are at maximum. The 80/20 ratio holds — even with two hard sessions per week, the time-volume math still puts you at 80% easy. Recovery between hard sessions is critical."
+    },
+    {
+      "id": "taper",
+      "name": "Taper",
+      "order": 4,
+      "pctOfPlan": { "min": 0.10, "default": 0.15, "max": 0.20 },
+      "weekBounds": { "minWeeks": 2, "maxWeeks": 3 },
+      "focus": "Reduce Z2 volume sharply; preserve some Z4-Z5 intensity for sharpness.",
+      "intensityDistribution": { "easyPct": 80, "moderatePct": 10, "hardPct": 10 },
+      "keyWorkoutIds": ["8020_easy_run", "8020_recovery_run", "8020_z4_threshold", "8020_strides"],
+      "mileageBehavior": "taper",
+      "athleteNarrative": "Taper. Volume drops, but intensity is preserved (short Z4 efforts and strides) so you don't go flat. The work is done. Sleep, hydrate, trust the program."
+    }
+  ],
+  "weeklyPatterns": [
+    {
+      "phaseId": "base",
+      "daysPerWeek": 5,
+      "weekType": "standard",
+      "schedule": [
+        { "dayOfWeek": 1, "category": "rest" },
+        { "dayOfWeek": 2, "category": "easy", "preferredWorkoutIds": ["8020_easy_run"], "volumeModifier": "medium" },
+        { "dayOfWeek": 3, "category": "easy", "preferredWorkoutIds": ["8020_easy_run", "8020_strides"], "volumeModifier": "medium" },
+        { "dayOfWeek": 4, "category": "easy", "preferredWorkoutIds": ["8020_easy_run"], "volumeModifier": "medium" },
+        { "dayOfWeek": 5, "category": "rest" },
+        { "dayOfWeek": 6, "category": "recovery", "preferredWorkoutIds": ["8020_recovery_run"], "volumeModifier": "short" },
+        { "dayOfWeek": 7, "category": "long", "preferredWorkoutIds": ["8020_long_run"], "volumeModifier": "long" }
+      ],
+      "notes": "Base 5-day. All Z2 except strides on day 3. Builds the 'discipline of easy' that 80/20 requires."
+    },
+    {
+      "phaseId": "build",
+      "daysPerWeek": 5,
+      "weekType": "standard",
+      "schedule": [
+        { "dayOfWeek": 1, "category": "rest" },
+        { "dayOfWeek": 2, "category": "tempo", "preferredWorkoutIds": ["8020_z4_threshold"], "notes": "Z4 Threshold" },
+        { "dayOfWeek": 3, "category": "easy", "preferredWorkoutIds": ["8020_easy_run"], "volumeModifier": "medium" },
+        { "dayOfWeek": 4, "category": "progression", "preferredWorkoutIds": ["8020_z3_progression"], "notes": "Z3 Progression" },
+        { "dayOfWeek": 5, "category": "rest" },
+        { "dayOfWeek": 6, "category": "recovery", "preferredWorkoutIds": ["8020_recovery_run"], "volumeModifier": "short" },
+        { "dayOfWeek": 7, "category": "long", "preferredWorkoutIds": ["8020_long_run"], "volumeModifier": "long" }
+      ],
+      "notes": "Build 5-day. Two hard sessions (Tue Z4, Thu Z3) plus Sunday long run. 80/20 time ratio maintained."
+    },
+    {
+      "phaseId": "peak",
+      "daysPerWeek": 5,
+      "weekType": "standard",
+      "schedule": [
+        { "dayOfWeek": 1, "category": "rest" },
+        { "dayOfWeek": 2, "category": "vo2_intervals", "preferredWorkoutIds": ["8020_z5_intervals"], "notes": "Z5 Intervals" },
+        { "dayOfWeek": 3, "category": "easy", "preferredWorkoutIds": ["8020_easy_run"], "volumeModifier": "medium" },
+        { "dayOfWeek": 4, "category": "tempo", "preferredWorkoutIds": ["8020_z4_threshold"], "notes": "Z4 Threshold" },
+        { "dayOfWeek": 5, "category": "rest" },
+        { "dayOfWeek": 6, "category": "recovery", "preferredWorkoutIds": ["8020_recovery_run"], "volumeModifier": "short" },
+        { "dayOfWeek": 7, "category": "long", "preferredWorkoutIds": ["8020_long_run"], "volumeModifier": "long" }
+      ],
+      "notes": "Peak 5-day. Z5 intervals + Z4 threshold + long run. 48hr between hard sessions enforced."
+    },
+    {
+      "phaseId": "build",
+      "daysPerWeek": 6,
+      "weekType": "standard",
+      "schedule": [
+        { "dayOfWeek": 1, "category": "easy", "preferredWorkoutIds": ["8020_easy_run"], "volumeModifier": "short" },
+        { "dayOfWeek": 2, "category": "tempo", "preferredWorkoutIds": ["8020_z4_threshold"], "notes": "Z4" },
+        { "dayOfWeek": 3, "category": "easy", "preferredWorkoutIds": ["8020_easy_run", "8020_strides"], "volumeModifier": "medium" },
+        { "dayOfWeek": 4, "category": "progression", "preferredWorkoutIds": ["8020_z3_progression"], "notes": "Z3" },
+        { "dayOfWeek": 5, "category": "rest" },
+        { "dayOfWeek": 6, "category": "recovery", "preferredWorkoutIds": ["8020_recovery_run"], "volumeModifier": "short" },
+        { "dayOfWeek": 7, "category": "long", "preferredWorkoutIds": ["8020_long_run"], "volumeModifier": "long" }
+      ],
+      "notes": "Build 6-day. Adds short Monday recovery to increase weekly volume while maintaining 80/20 distribution."
+    },
+    {
+      "phaseId": "build",
+      "daysPerWeek": 5,
+      "weekType": "recovery",
+      "schedule": [
+        { "dayOfWeek": 1, "category": "rest" },
+        { "dayOfWeek": 2, "category": "easy", "preferredWorkoutIds": ["8020_easy_run"], "volumeModifier": "medium" },
+        { "dayOfWeek": 3, "category": "rest" },
+        { "dayOfWeek": 4, "category": "tempo", "preferredWorkoutIds": ["8020_z4_threshold"], "notes": "Reduced Z4 volume" },
+        { "dayOfWeek": 5, "category": "easy", "preferredWorkoutIds": ["8020_easy_run"], "volumeModifier": "short" },
+        { "dayOfWeek": 6, "category": "recovery", "preferredWorkoutIds": ["8020_recovery_run"], "volumeModifier": "short" },
+        { "dayOfWeek": 7, "category": "long", "preferredWorkoutIds": ["8020_long_run"], "volumeModifier": "medium", "notes": "Cutback long run" }
+      ],
+      "notes": "Recovery week. Single quality session, reduced overall volume."
+    }
+  ],
+  "mileageProgression": {
+    "startMileagePctOfPeak": 0.55,
+    "peakMileageRule": { "type": "multiplier_of_current", "value": 1.4 },
+    "maxWeeklyIncreasePct": 0.10,
+    "cutbackEveryNWeeks": 4,
+    "cutbackPct": 0.75,
+    "longRunPctCap": 0.30
+  },
+  "taper": {
+    "durationWeeks": 3,
+    "weeklyVolumePcts": [0.75, 0.55, 0.40],
+    "preserveIntensity": true,
+    "raceWeekSchedule": [
+      { "dayOfWeek": 1, "category": "rest" },
+      { "dayOfWeek": 2, "category": "tempo", "preferredWorkoutIds": ["8020_z4_threshold"], "volumeModifier": "short", "notes": "10 min Z4" },
+      { "dayOfWeek": 3, "category": "easy", "preferredWorkoutIds": ["8020_easy_run"], "volumeModifier": "short" },
+      { "dayOfWeek": 4, "category": "rest" },
+      { "dayOfWeek": 5, "category": "easy", "preferredWorkoutIds": ["8020_easy_run", "8020_strides"], "volumeModifier": "short" },
+      { "dayOfWeek": 6, "category": "easy", "volumeModifier": "short", "notes": "Shakeout 15-20 min" },
+      { "dayOfWeek": 7, "category": "race_pace", "notes": "RACE DAY" }
+    ],
+    "notes": "Standard 3-week 80/20 taper: 75% / 55% / 40%. Z4 effort preserved early in week 1 to keep intensity sharp."
+  },
+  "strengthRecommendation": {
+    "daysPerWeek": { "min": 0, "max": 2, "default": 1 },
+    "workoutIds": [],
+    "philosophy": "Fitzgerald supports 1-2× weekly strength, focused on running-specific work and core stability. 20-30 min sessions. Schedule on easy days, never adjacent to hard sessions."
+  },
+  "crossTrainingRecommendation": {
+    "approvedModalities": ["cycling", "swimming", "elliptical", "rowing"],
+    "daysPerWeek": { "min": 0, "max": 1, "default": 0 },
+    "intensityGuidance": "Cross-training is supplemental. Use only on rest days at Z1-Z2 effort. Counts as 'easy' time toward 80/20 distribution."
+  },
+  "applicability": {
+    "byDistance": {
+      "5k": "GOOD",
+      "10k": "BEST",
+      "half_marathon": "BEST",
+      "marathon": "BEST",
+      "50k": "GOOD",
+      "50_mile": "OK",
+      "100k": "OK",
+      "100_mile": "CAUTION",
+      "mountain_ultra": "OK"
+    },
+    "byExperience": {
+      "beginner": "OK",
+      "recreational": "GOOD",
+      "intermediate": "BEST",
+      "advanced": "BEST",
+      "elite": "GOOD"
+    },
+    "byTerrain": {
+      "road": "BEST",
+      "track": "GOOD",
+      "trail_rolling": "GOOD",
+      "mountain_vertical": "OK",
+      "cross_country": "GOOD"
+    },
+    "weeklyHoursRange": { "min": 4, "max": 12 },
+    "daysPerWeekRange": { "min": 4, "max": 7, "ideal": 5 }
+  },
+  "restrictions": [
+    {
+      "type": "general",
+      "rule": "Requires HR monitor or ability to self-regulate by RPE precisely. The 80/20 ratio depends on accurate intensity measurement.",
+      "blocking": false,
+      "warningMessage": "80/20 works best with a heart-rate monitor and known LTHR. Without HR data, you'll need to self-regulate by RPE/breath — possible but less precise."
+    },
+    {
+      "type": "experience",
+      "rule": "Beginners often run too hard on easy days; the 80/20 system is harder to apply for runners without baseline aerobic fitness.",
+      "blocking": false,
+      "suggestedAlternativeId": "higdon",
+      "warningMessage": "80/20 requires the discipline to run very easy. For first-time runners, Higdon Novice is gentler and doesn't require HR-zone discipline."
+    }
+  ],
+  "generationRules": {
+    "defaultPlanWeeks": 16,
+    "supportedPlanWeeks": [8, 12, 16, 18, 20, 24],
+    "qualityWorkoutsPerWeek": { "min": 0, "max": 2, "default": 2 },
+    "minDaysBetweenHardSessions": 2,
+    "allowsDoubles": false,
+    "compressionPriority": ["base", "build", "peak", "taper"],
+    "expansionPriority": ["base", "build", "peak", "taper"],
+    "invariants": [
+      "Total time at moderate-to-hard (Z3-Z5) must be ≤ 20% of weekly volume",
+      "Total time at easy (Z1-Z2) must be ≥ 80% of weekly volume",
+      "Z5 (VO2max) volume ≤ 8% of weekly volume",
+      "Z2 must be STRICT — slow down if HR drifts above 89% LTHR even if pace feels too easy",
+      "Long run capped at 30% of weekly mileage",
+      "Minimum 2 days between any two hard sessions",
+      "Cutback every 4 weeks at 75%",
+      "If user lacks HR monitor or LTHR data, fall back to RPE-based zone targeting"
+    ]
+  },
+  "schemaVersion": "1.0.0",
+  "lastUpdated": "2026-05-09"
+}

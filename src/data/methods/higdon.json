@@ -1,0 +1,553 @@
+{
+  "id": "higdon",
+  "name": "Hal Higdon Plans",
+  "coach": "Hal Higdon",
+  "yearOfOrigin": 1993,
+  "keyBook": "Hal Higdon's Marathon: The Ultimate Training Guide",
+  "citations": [
+    {
+      "source": "Hal Higdon",
+      "title": "Hal Higdon's Half Marathon Training",
+      "year": 2016
+    },
+    {
+      "source": "Hal Higdon",
+      "title": "Marathon: The Ultimate Training Guide",
+      "year": 2020,
+      "url": "https://www.halhigdon.com/training-programs/"
+    },
+    {
+      "source": "Hal Higdon",
+      "title": "Free training plans (Novice 1, Novice 2, Intermediate 1, Intermediate 2, Advanced 1, Advanced 2)",
+      "url": "https://www.halhigdon.com/training-programs/marathon-training/"
+    }
+  ],
+  "description": "Simple, accessible plans organized as Novice 1/2, Intermediate 1/2, Advanced 1/2 across all major race distances. Pace prescription is intentionally simple — most workouts use RPE or self-assessed pace. 4-5 days/week running typical. The most widely-used plans for first-time runners.",
+  "signature": "Six-tier accessibility (Novice 1 through Advanced 2) with RPE-driven, simple-language workouts",
+  "philosophyNarrative": "Higdon's plans have introduced more people to distance running than any other system. Their genius is simplicity: most runs are described as 'easy,' 'pace,' or 'long' — no complex VDOT calculations, no LT measurements, no double-threshold workouts. The progression across the six tiers handles the complexity: Novice 1 is for first-time runners with no speedwork at all; each tier up adds frequency, mileage, and quality. Higdon emphasizes consistency over intensity — show up 4-5 days a week, slowly increase mileage, do your long runs, and the marathon will take care of itself. Pace runs (at goal race pace) are introduced from Novice 2 onward; structured speedwork only enters Intermediate 2 and Advanced tiers. The long run is the centerpiece, building to 20 miles for marathon plans across 18 weeks.",
+  "primaryAnchor": "self_assessed_pace",
+  "fallbackAnchor": "none",
+  "paceZones": [
+    {
+      "canonical": "easy",
+      "displayName": "Easy",
+      "abbreviation": "Easy",
+      "purpose": "Conversational pace for the bulk of weekly mileage. Higdon describes this as 'easy enough that you can carry on a conversation.'",
+      "paceFormula": {
+        "anchorType": "self_assessed_pace",
+        "strategy": "rpe_only",
+        "expression": "conversational; 1-2 min slower than goal race pace"
+      },
+      "rpeRange": { "min": 4, "max": 5, "description": "Conversational; able to talk in full sentences" },
+      "hrRange": { "minPctLthr": 0.65, "maxPctLthr": 0.80 }
+    },
+    {
+      "canonical": "race_pace",
+      "displayName": "Pace (Goal Race Pace)",
+      "abbreviation": "Pace",
+      "purpose": "Goal race pace. Used in dedicated 'Pace' runs (typically Saturday) — 3-10 mi at race pace. The signature workout type from Novice 2 onward.",
+      "paceFormula": {
+        "anchorType": "self_assessed_pace",
+        "strategy": "offset_from_anchor",
+        "expression": "user_goal_race_pace",
+        "offsetSecPerMile": { "min": 0, "max": 0 }
+      },
+      "rpeRange": { "min": 6, "max": 7, "description": "Comfortably hard at goal race pace" },
+      "hrRange": { "minPctLthr": 0.83, "maxPctLthr": 0.92 }
+    },
+    {
+      "canonical": "aerobic_threshold",
+      "displayName": "Long",
+      "abbreviation": "Long",
+      "purpose": "Pace for the long run — typically 30-90 sec/mile slower than race pace. Higdon emphasizes RPE: 'go slower than you think.'",
+      "paceFormula": {
+        "anchorType": "self_assessed_pace",
+        "strategy": "rpe_only",
+        "expression": "easy + slightly steady"
+      },
+      "rpeRange": { "min": 4, "max": 6, "description": "Steady; conversation possible but not effortless" },
+      "hrRange": { "minPctLthr": 0.70, "maxPctLthr": 0.83 }
+    },
+    {
+      "canonical": "lactate_threshold",
+      "displayName": "Tempo",
+      "abbreviation": "Tempo",
+      "purpose": "Used only in Intermediate 2 and Advanced plans. ~30-40 minutes building to a fast middle 10-15 min. Roughly half-marathon to 10K race pace.",
+      "paceFormula": {
+        "anchorType": "self_assessed_pace",
+        "strategy": "rpe_only",
+        "expression": "comfortably hard; 10K-HM race pace"
+      },
+      "rpeRange": { "min": 7, "max": 8, "description": "Comfortably hard; speech limited to short phrases" },
+      "hrRange": { "minPctLthr": 0.88, "maxPctLthr": 0.95 }
+    },
+    {
+      "canonical": "vo2max",
+      "displayName": "Speedwork",
+      "abbreviation": "Speed",
+      "purpose": "Used in Advanced plans only. 400m-1600m intervals at 5K race pace. Optional in Intermediate 2.",
+      "paceFormula": {
+        "anchorType": "self_assessed_pace",
+        "strategy": "rpe_only",
+        "expression": "5K-10K race pace"
+      },
+      "rpeRange": { "min": 8, "max": 9, "description": "Hard; 5K-10K race pace" }
+    }
+  ],
+  "workouts": [
+    {
+      "id": "higdon_easy_run",
+      "name": "Easy Run",
+      "shortDescription": "Conversational run at easy pace",
+      "category": "easy",
+      "primaryZone": "easy",
+      "displayName": "Easy",
+      "structure": {
+        "mainSet": [
+          {
+            "description": "Steady run at conversational pace",
+            "duration": { "value": 40, "unit": "min" },
+            "paceZone": "easy",
+            "cue": "Easy enough to carry on a conversation. Don't watch the pace too closely — RPE is the gauge."
+          }
+        ]
+      },
+      "approxDurationMinutes": { "min": 25, "max": 60 },
+      "approxDistanceMiles": { "min": 3, "max": 7 },
+      "purpose": "Aerobic base building. The bulk of every Higdon plan is easy running. Higdon's mantra: 'go slow to run fast.'",
+      "cues": [
+        "Conversational pace — should be able to speak full sentences",
+        "Pace doesn't matter; effort does",
+        "If a particular day feels hard, slow down — don't grind"
+      ],
+      "validPhaseIds": ["base", "build", "peak", "taper"]
+    },
+    {
+      "id": "higdon_pace_run",
+      "name": "Pace Run (Goal Race Pace)",
+      "shortDescription": "Run at goal race pace — typically 3-10 mi",
+      "category": "race_pace",
+      "primaryZone": "race_pace",
+      "displayName": "Pace",
+      "structure": {
+        "warmup": {
+          "description": "Easy warmup",
+          "duration": { "value": 10, "unit": "min" },
+          "paceZone": "easy"
+        },
+        "mainSet": [
+          {
+            "description": "Continuous run at goal race pace",
+            "distance": { "value": 5, "unit": "mi" },
+            "paceZone": "race_pace",
+            "cue": "Hold goal race pace. This is where you practice exactly the pace you want on race day."
+          }
+        ],
+        "cooldown": {
+          "description": "Easy cooldown",
+          "duration": { "value": 10, "unit": "min" },
+          "paceZone": "easy"
+        }
+      },
+      "approxDurationMinutes": { "min": 35, "max": 90 },
+      "approxDistanceMiles": { "min": 4, "max": 11 },
+      "purpose": "Race pace specificity. The 'Pace' run is Higdon's signature workout from Novice 2 onward — it teaches you exactly what your goal pace feels like under conditions short of race day.",
+      "cues": [
+        "Hit goal race pace from the first mile — no easing in",
+        "If goal pace feels labored on a 5-mile pace run, your goal time may be too aggressive",
+        "Practice race-day fueling on pace runs over 60 minutes"
+      ],
+      "validPhaseIds": ["build", "peak"]
+    },
+    {
+      "id": "higdon_long_run",
+      "name": "Long Run",
+      "shortDescription": "Saturday or Sunday long run, building to 20 mi for marathon",
+      "category": "long",
+      "primaryZone": "aerobic_threshold",
+      "displayName": "Long",
+      "structure": {
+        "mainSet": [
+          {
+            "description": "Long steady run at conversational pace",
+            "distance": { "value": 14, "unit": "mi" },
+            "paceZone": "aerobic_threshold",
+            "cue": "Slower than you think. Higdon's rule: 30-90 seconds per mile slower than goal marathon pace."
+          }
+        ]
+      },
+      "approxDurationMinutes": { "min": 60, "max": 220 },
+      "approxDistanceMiles": { "min": 6, "max": 20 },
+      "purpose": "Endurance building. Higdon's marathon plans build to 20-mile long runs — the longest single workout in the program. 'The long run is everything.'",
+      "cues": [
+        "Slower than you think — most people run their long runs too fast",
+        "Practice race-day fueling on runs over 90 minutes",
+        "Time on feet matters more than pace"
+      ],
+      "validPhaseIds": ["base", "build", "peak"]
+    },
+    {
+      "id": "higdon_tempo_run",
+      "name": "Tempo Run",
+      "shortDescription": "30-40 min progression with comfortably-hard middle (Intermediate 2 / Advanced only)",
+      "category": "tempo",
+      "primaryZone": "lactate_threshold",
+      "displayName": "Tempo",
+      "structure": {
+        "warmup": {
+          "description": "Easy warmup",
+          "duration": { "value": 10, "unit": "min" },
+          "paceZone": "easy"
+        },
+        "mainSet": [
+          {
+            "description": "Build to comfortably-hard middle",
+            "duration": { "value": 15, "unit": "min" },
+            "paceZone": "lactate_threshold",
+            "cue": "Build into tempo effort gradually. Hold the firm pace for the middle 10-15 minutes."
+          }
+        ],
+        "cooldown": {
+          "description": "Easy cooldown",
+          "duration": { "value": 10, "unit": "min" },
+          "paceZone": "easy"
+        }
+      },
+      "approxDurationMinutes": { "min": 35, "max": 50 },
+      "approxDistanceMiles": { "min": 4, "max": 7 },
+      "purpose": "Lactate threshold development. Used in Intermediate 2 and Advanced plans only — Novice and Intermediate 1 do not include tempo work.",
+      "cues": [
+        "Build gradually into tempo effort",
+        "10K-HM race pace",
+        "Cool down properly — don't sprint to finish"
+      ],
+      "validPhaseIds": ["build", "peak"],
+      "minimumExperience": "intermediate"
+    },
+    {
+      "id": "higdon_speedwork",
+      "name": "Speedwork (Intervals)",
+      "shortDescription": "400m-1600m intervals at 5K pace — Advanced plans only",
+      "category": "vo2_intervals",
+      "primaryZone": "vo2max",
+      "displayName": "Speedwork",
+      "structure": {
+        "warmup": {
+          "description": "Easy warmup + dynamic drills",
+          "duration": { "value": 15, "unit": "min" },
+          "paceZone": "easy"
+        },
+        "mainSet": [
+          {
+            "description": "Speed intervals",
+            "distance": { "value": 800, "unit": "m" },
+            "paceZone": "vo2max",
+            "reps": 6,
+            "recovery": {
+              "type": "jog",
+              "distance": { "value": 400, "unit": "m" }
+            },
+            "cue": "5K race pace. Even pacing across all reps."
+          }
+        ],
+        "cooldown": {
+          "description": "Easy cooldown",
+          "duration": { "value": 10, "unit": "min" },
+          "paceZone": "easy"
+        }
+      },
+      "approxDurationMinutes": { "min": 50, "max": 70 },
+      "approxDistanceMiles": { "min": 6, "max": 9 },
+      "purpose": "VO2max and speed development. Higdon includes structured speedwork only in Advanced plans. Optional in Intermediate 2.",
+      "cues": [
+        "Even pacing — first rep at the same pace as last",
+        "If reps slow significantly, end the workout",
+        "Strides are a softer alternative for runners not ready for full speedwork"
+      ],
+      "validPhaseIds": ["build", "peak"],
+      "minimumExperience": "advanced"
+    },
+    {
+      "id": "higdon_strides",
+      "name": "Strides",
+      "shortDescription": "Optional 6-8× ~20-sec strides after easy runs",
+      "category": "strides",
+      "primaryZone": "vo2max",
+      "displayName": "Strides",
+      "structure": {
+        "mainSet": [
+          {
+            "description": "Strides at quick but controlled effort",
+            "duration": { "value": 20, "unit": "sec" },
+            "paceZone": "vo2max",
+            "reps": 6,
+            "recovery": {
+              "type": "stand",
+              "duration": { "value": 60, "unit": "sec" }
+            },
+            "cue": "Smooth and quick — never sprinting."
+          }
+        ]
+      },
+      "approxDurationMinutes": { "min": 6, "max": 10 },
+      "purpose": "Optional turnover work for runners who want a touch of speed in Novice/Intermediate plans without doing full speedwork.",
+      "cues": [
+        "Quick turnover, relaxed shoulders",
+        "Optional — skip if tired"
+      ],
+      "validPhaseIds": ["base", "build", "peak", "taper"]
+    },
+    {
+      "id": "higdon_cross_training",
+      "name": "Cross-Training",
+      "shortDescription": "30-60 min cycling, swimming, or elliptical",
+      "category": "cross_training",
+      "primaryZone": "easy",
+      "displayName": "Cross-Train",
+      "structure": {
+        "mainSet": [
+          {
+            "description": "Cross-training at easy effort",
+            "duration": { "value": 45, "unit": "min" },
+            "paceZone": "easy",
+            "cue": "Easy aerobic effort. Cycling, swimming, elliptical — anything non-impact."
+          }
+        ]
+      },
+      "approxDurationMinutes": { "min": 30, "max": 75 },
+      "purpose": "Aerobic supplement on non-running days. Higdon plans incorporate optional cross-training to build aerobic capacity without running impact.",
+      "cues": [
+        "Keep effort easy — this is supplemental",
+        "Skip if fatigued from running"
+      ],
+      "validPhaseIds": ["base", "build", "peak", "taper"]
+    }
+  ],
+  "phases": [
+    {
+      "id": "base",
+      "name": "Base",
+      "order": 1,
+      "pctOfPlan": { "min": 0.20, "default": 0.30, "max": 0.40 },
+      "weekBounds": { "minWeeks": 3, "maxWeeks": 8 },
+      "focus": "Establish 4-5 day running habit, build aerobic base, no quality work yet (Novice/Intermediate 1).",
+      "intensityDistribution": { "easyPct": 100, "moderatePct": 0, "hardPct": 0 },
+      "keyWorkoutIds": ["higdon_easy_run", "higdon_long_run", "higdon_strides", "higdon_cross_training"],
+      "mileageBehavior": "build",
+      "athleteNarrative": "Welcome to your Higdon training plan. The first phase is about consistency — show up 4 or 5 days a week, run easy, do your long run on the weekend. There's no speedwork yet. Trust this. The aerobic base you build now is what makes everything else possible. The hardest part of marathon training is showing up; the rest takes care of itself."
+    },
+    {
+      "id": "build",
+      "name": "Build",
+      "order": 2,
+      "pctOfPlan": { "min": 0.30, "default": 0.40, "max": 0.50 },
+      "weekBounds": { "minWeeks": 4, "maxWeeks": 10 },
+      "focus": "Add Pace runs (race-pace) and build long-run distance. Tempo for Intermediate 2+; Speedwork for Advanced.",
+      "intensityDistribution": { "easyPct": 85, "moderatePct": 10, "hardPct": 5 },
+      "keyWorkoutIds": ["higdon_easy_run", "higdon_long_run", "higdon_pace_run", "higdon_tempo_run", "higdon_speedwork", "higdon_strides", "higdon_cross_training"],
+      "mileageBehavior": "build",
+      "athleteNarrative": "Build phase. The Saturday Pace run becomes a regular fixture — it's where you practice exactly the pace you want on race day. The Sunday long run extends — for marathon plans, you'll build toward 20 miles. If you're on Intermediate 2 or Advanced, weekly tempo runs or speedwork are added. The plan is more demanding, but the structure is the same: show up consistently."
+    },
+    {
+      "id": "peak",
+      "name": "Peak",
+      "order": 3,
+      "pctOfPlan": { "min": 0.15, "default": 0.20, "max": 0.30 },
+      "weekBounds": { "minWeeks": 2, "maxWeeks": 6 },
+      "focus": "Maximum mileage. Peak long run (20 mi for marathon), final pace runs, race confidence.",
+      "intensityDistribution": { "easyPct": 80, "moderatePct": 15, "hardPct": 5 },
+      "keyWorkoutIds": ["higdon_easy_run", "higdon_long_run", "higdon_pace_run", "higdon_tempo_run", "higdon_speedwork", "higdon_strides"],
+      "mileageBehavior": "peak",
+      "athleteNarrative": "Peak phase. This is when you do your longest long run and your most demanding Pace runs. For marathon, you'll hit a 20-miler. The work is hard but you've earned it through consistency in the previous phases. After peak comes taper — but right now, focus on banking the work."
+    },
+    {
+      "id": "taper",
+      "name": "Taper",
+      "order": 4,
+      "pctOfPlan": { "min": 0.05, "default": 0.10, "max": 0.20 },
+      "weekBounds": { "minWeeks": 2, "maxWeeks": 3 },
+      "focus": "Reduce volume; preserve a touch of intensity; arrive fresh on race day.",
+      "intensityDistribution": { "easyPct": 90, "moderatePct": 8, "hardPct": 2 },
+      "keyWorkoutIds": ["higdon_easy_run", "higdon_pace_run", "higdon_strides"],
+      "mileageBehavior": "taper",
+      "athleteNarrative": "Taper. Volume drops sharply over the final 2-3 weeks. Higdon's taper preserves a Saturday Pace run (shorter — 2 mi) and the Sunday long run (cut to 8 mi, then 4 mi). The work is done. Focus on sleep, hydration, and not panicking. Trust the program."
+    }
+  ],
+  "weeklyPatterns": [
+    {
+      "phaseId": "base",
+      "daysPerWeek": 4,
+      "weekType": "standard",
+      "schedule": [
+        { "dayOfWeek": 1, "category": "rest" },
+        { "dayOfWeek": 2, "category": "easy", "preferredWorkoutIds": ["higdon_easy_run"], "volumeModifier": "medium", "notes": "3 mi easy" },
+        { "dayOfWeek": 3, "category": "rest", "notes": "Optional cross-training" },
+        { "dayOfWeek": 4, "category": "easy", "preferredWorkoutIds": ["higdon_easy_run"], "volumeModifier": "medium", "notes": "4 mi easy" },
+        { "dayOfWeek": 5, "category": "rest" },
+        { "dayOfWeek": 6, "category": "easy", "preferredWorkoutIds": ["higdon_easy_run"], "volumeModifier": "short", "notes": "3 mi easy" },
+        { "dayOfWeek": 7, "category": "long", "preferredWorkoutIds": ["higdon_long_run"], "volumeModifier": "long", "notes": "Long run" }
+      ],
+      "notes": "Novice 1 base pattern: 4 days running, 3 rest days. Most accessible plan in the system."
+    },
+    {
+      "phaseId": "build",
+      "daysPerWeek": 4,
+      "weekType": "standard",
+      "schedule": [
+        { "dayOfWeek": 1, "category": "rest" },
+        { "dayOfWeek": 2, "category": "easy", "preferredWorkoutIds": ["higdon_easy_run"], "volumeModifier": "medium", "notes": "3 mi easy" },
+        { "dayOfWeek": 3, "category": "rest", "notes": "Optional cross-training" },
+        { "dayOfWeek": 4, "category": "easy", "preferredWorkoutIds": ["higdon_easy_run"], "volumeModifier": "medium", "notes": "4 mi easy" },
+        { "dayOfWeek": 5, "category": "rest" },
+        { "dayOfWeek": 6, "category": "race_pace", "preferredWorkoutIds": ["higdon_pace_run"], "notes": "Pace run at goal race pace" },
+        { "dayOfWeek": 7, "category": "long", "preferredWorkoutIds": ["higdon_long_run"], "volumeModifier": "long" }
+      ],
+      "notes": "Novice 2 build pattern: introduces Saturday Pace run."
+    },
+    {
+      "phaseId": "build",
+      "daysPerWeek": 5,
+      "weekType": "standard",
+      "schedule": [
+        { "dayOfWeek": 1, "category": "rest" },
+        { "dayOfWeek": 2, "category": "easy", "preferredWorkoutIds": ["higdon_easy_run"], "volumeModifier": "medium" },
+        { "dayOfWeek": 3, "category": "easy", "preferredWorkoutIds": ["higdon_easy_run"], "volumeModifier": "medium" },
+        { "dayOfWeek": 4, "category": "easy", "preferredWorkoutIds": ["higdon_easy_run", "higdon_strides"], "volumeModifier": "medium" },
+        { "dayOfWeek": 5, "category": "rest" },
+        { "dayOfWeek": 6, "category": "race_pace", "preferredWorkoutIds": ["higdon_pace_run"] },
+        { "dayOfWeek": 7, "category": "long", "preferredWorkoutIds": ["higdon_long_run"], "volumeModifier": "long" }
+      ],
+      "notes": "Intermediate 1 build pattern: 5 days, no tempo, but Pace run on Saturday."
+    },
+    {
+      "phaseId": "build",
+      "daysPerWeek": 5,
+      "weekType": "standard",
+      "schedule": [
+        { "dayOfWeek": 1, "category": "rest" },
+        { "dayOfWeek": 2, "category": "tempo", "preferredWorkoutIds": ["higdon_tempo_run"], "notes": "Tempo (Intermediate 2/Advanced)" },
+        { "dayOfWeek": 3, "category": "easy", "preferredWorkoutIds": ["higdon_easy_run"], "volumeModifier": "medium" },
+        { "dayOfWeek": 4, "category": "easy", "preferredWorkoutIds": ["higdon_easy_run", "higdon_strides"], "volumeModifier": "medium" },
+        { "dayOfWeek": 5, "category": "rest" },
+        { "dayOfWeek": 6, "category": "race_pace", "preferredWorkoutIds": ["higdon_pace_run"] },
+        { "dayOfWeek": 7, "category": "long", "preferredWorkoutIds": ["higdon_long_run"], "volumeModifier": "long" }
+      ],
+      "notes": "Intermediate 2 / Advanced 1 build pattern: adds Tuesday Tempo to the base 5-day."
+    },
+    {
+      "phaseId": "build",
+      "daysPerWeek": 5,
+      "weekType": "recovery",
+      "schedule": [
+        { "dayOfWeek": 1, "category": "rest" },
+        { "dayOfWeek": 2, "category": "easy", "preferredWorkoutIds": ["higdon_easy_run"], "volumeModifier": "short" },
+        { "dayOfWeek": 3, "category": "easy", "preferredWorkoutIds": ["higdon_easy_run"], "volumeModifier": "medium" },
+        { "dayOfWeek": 4, "category": "easy", "preferredWorkoutIds": ["higdon_easy_run", "higdon_strides"], "volumeModifier": "medium" },
+        { "dayOfWeek": 5, "category": "rest" },
+        { "dayOfWeek": 6, "category": "easy", "preferredWorkoutIds": ["higdon_easy_run"], "volumeModifier": "short", "notes": "Skip Pace run this week" },
+        { "dayOfWeek": 7, "category": "long", "preferredWorkoutIds": ["higdon_long_run"], "volumeModifier": "medium", "notes": "Cutback long run" }
+      ],
+      "notes": "Recovery week. Higdon plans build long runs across the program with periodic cutback weeks."
+    }
+  ],
+  "mileageProgression": {
+    "startMileagePctOfPeak": 0.40,
+    "peakMileageRule": { "type": "multiplier_of_current", "value": 1.5 },
+    "maxWeeklyIncreasePct": 0.15,
+    "cutbackEveryNWeeks": 4,
+    "cutbackPct": 0.75,
+    "longRunPctCap": 0.40
+  },
+  "taper": {
+    "durationWeeks": 3,
+    "weeklyVolumePcts": [0.80, 0.55, 0.30],
+    "preserveIntensity": false,
+    "raceWeekSchedule": [
+      { "dayOfWeek": 1, "category": "rest" },
+      { "dayOfWeek": 2, "category": "easy", "preferredWorkoutIds": ["higdon_easy_run"], "volumeModifier": "short", "notes": "2 mi easy" },
+      { "dayOfWeek": 3, "category": "rest" },
+      { "dayOfWeek": 4, "category": "easy", "preferredWorkoutIds": ["higdon_easy_run"], "volumeModifier": "short", "notes": "2 mi easy" },
+      { "dayOfWeek": 5, "category": "rest" },
+      { "dayOfWeek": 6, "category": "easy", "preferredWorkoutIds": ["higdon_easy_run", "higdon_strides"], "volumeModifier": "short", "notes": "2 mi w/ optional strides" },
+      { "dayOfWeek": 7, "category": "race_pace", "notes": "RACE DAY" }
+    ],
+    "notes": "Higdon's gentle 3-week taper. Minimal intensity preservation — focus is on freshness over sharpness, suitable for novice and intermediate runners."
+  },
+  "strengthRecommendation": {
+    "daysPerWeek": { "min": 0, "max": 1, "default": 0 },
+    "workoutIds": [],
+    "philosophy": "Higdon doesn't formally prescribe strength, but encourages 'cross-training' on rest days which can include light strength work. If user opts in via onboarding, recommend simple bodyweight routine (lunges, planks, glute bridges) 1× per week, 15-20 minutes."
+  },
+  "crossTrainingRecommendation": {
+    "approvedModalities": ["cycling", "swimming", "elliptical", "rowing"],
+    "daysPerWeek": { "min": 0, "max": 2, "default": 1 },
+    "intensityGuidance": "Higdon explicitly incorporates cross-training as an alternative on rest days. Easy aerobic effort, 30-60 min. Cycling, swimming, or elliptical preferred. Skip if fatigued from running."
+  },
+  "applicability": {
+    "byDistance": {
+      "5k": "BEST",
+      "10k": "BEST",
+      "half_marathon": "BEST",
+      "marathon": "BEST",
+      "50k": "OK",
+      "50_mile": "CAUTION",
+      "100k": "NOT_SUITED",
+      "100_mile": "NOT_SUITED",
+      "mountain_ultra": "NOT_SUITED"
+    },
+    "byExperience": {
+      "beginner": "BEST",
+      "recreational": "BEST",
+      "intermediate": "GOOD",
+      "advanced": "OK",
+      "elite": "NOT_SUITED"
+    },
+    "byTerrain": {
+      "road": "BEST",
+      "track": "OK",
+      "trail_rolling": "GOOD",
+      "mountain_vertical": "CAUTION",
+      "cross_country": "OK"
+    },
+    "weeklyHoursRange": { "min": 3, "max": 8 },
+    "daysPerWeekRange": { "min": 4, "max": 5, "ideal": 5 }
+  },
+  "restrictions": [
+    {
+      "type": "experience",
+      "rule": "Higdon's accessibility is its strength but also its limit — Advanced runners may find even Advanced 2 lacks specificity vs. Pfitzinger or Daniels.",
+      "blocking": false,
+      "suggestedAlternativeId": "pfitzinger",
+      "warningMessage": "Higdon's Advanced plans are excellent but less specific than Pfitzinger or Daniels for high-performance goals. Consider Pfitzinger for serious BQ pursuits."
+    },
+    {
+      "type": "distance",
+      "rule": "Higdon has plans for ultras (50K, 50 mi) but they are essentially marathon-plus. Not suited for technical ultras or 100-mile distances.",
+      "blocking": false,
+      "suggestedAlternativeId": "koop",
+      "warningMessage": "For ultras, Koop's CTS Ultra system is more terrain-specific and ultra-focused than Higdon's plans."
+    }
+  ],
+  "generationRules": {
+    "defaultPlanWeeks": 18,
+    "supportedPlanWeeks": [8, 12, 16, 18, 20, 24],
+    "qualityWorkoutsPerWeek": { "min": 0, "max": 3, "default": 2 },
+    "minDaysBetweenHardSessions": 1,
+    "allowsDoubles": false,
+    "compressionPriority": ["base", "build", "peak", "taper"],
+    "expansionPriority": ["base", "build", "peak", "taper"],
+    "invariants": [
+      "Novice tier: NO speedwork, NO tempo runs — easy + long + optional pace only",
+      "Intermediate 1: pace runs allowed; no tempo/speed",
+      "Intermediate 2: tempo allowed; speedwork optional",
+      "Advanced: full quality menu (tempo + speedwork + pace)",
+      "Long run extends to 20 mi for marathon (regardless of tier)",
+      "Long run capped at 40% of weekly mileage (looser than Daniels' 30% — Higdon emphasizes the long run)",
+      "Cutback long run every 4 weeks at ~75% of prior",
+      "If user is beginner, force Novice 1 tier regardless of selected plan length",
+      "RPE-driven prescription — paces are guidance, not strict targets"
+    ]
+  },
+  "schemaVersion": "1.0.0",
+  "lastUpdated": "2026-05-09"
+}
