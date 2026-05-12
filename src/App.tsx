@@ -197,11 +197,13 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
       athleteId={athleteId}
       session={session}
       onLogout={onLogout}
+      onboarding={onboarding}
+      tutorial={tutorial}
     />
   )
 }
 
-function MainApp({ activePlan, athleteId, session, onLogout }: { activePlan: import('./types').TrainingPlan; athleteId: string; session: AuthSession | null; onLogout: () => void }) {
+function MainApp({ activePlan, athleteId, session, onLogout, onboarding, tutorial }: { activePlan: import('./types').TrainingPlan; athleteId: string; session: AuthSession | null; onLogout: () => void; onboarding: ReturnType<typeof useOnboarding>; tutorial: ReturnType<typeof useTutorial> }) {
   const [view, setView] = useState<ViewId>('summary')
   const [chatSeed, setChatSeed] = useState<string | null>(null)
   const theme = useTheme()
