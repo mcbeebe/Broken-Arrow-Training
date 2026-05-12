@@ -91,7 +91,11 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
   const [chatSeed, setChatSeed] = useState<string | null>(null)
   const theme = useTheme()
   const onboarding = useOnboarding(athleteId)
-  const plan = plans[athleteId]
+  // Seed athletes (Mike, Jim, Lori, Joel) have a hardcoded plan. We only fall
+  // back to it when the athlete hasn't completed onboarding and isn't actively
+  // redoing it — otherwise their new race goal would be ignored.
+  const hardcodedPlan = plans[athleteId]
+  const plan = onboarding.isOnboarded || onboarding.redoRequested ? undefined : hardcodedPlan
 
   if (!plan && !onboarding.isOnboarded) {
     return (
@@ -145,7 +149,7 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
             {onboarding.config?.raceType === 'trail' && ' Trail race plan generator is in development.'}
           </p>
           <div className="pt-4 space-y-2">
-            <button onClick={() => onboarding.clear()} className="text-teal-600 font-medium text-sm">Redo onboarding</button>
+            <button onClick={() => onboarding.requestRedo()} className="text-teal-600 font-medium text-sm">Redo onboarding</button>
             <br />
             <button onClick={onLogout} className="text-slate-400 font-medium text-sm">Sign out</button>
           </div>
@@ -796,6 +800,10 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
           onResetHRZones={handleResetHRZones}
           onClearCache={clearAllCachedData}
           onClearAll={clearAllAppData}
+          onResetOnboarding={() => {
+            onboarding.requestRedo()
+            setView('summary')
+          }}
           coachEnabled={coachEnabled}
           aboutMeText={coachMemory.aboutMe}
           onSaveAboutMe={coachMemory.saveAboutMe}
