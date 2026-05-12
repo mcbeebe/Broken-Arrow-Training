@@ -86,12 +86,17 @@ export default function App() {
 }
 
 function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; onLogout: () => void }) {
-  const [view, setView] = useState<ViewId>('summary')
   const [athleteId, setAthleteId] = useState(() => (session?.athleteId || getAthleteFromHash()).toLowerCase())
-  const [chatSeed, setChatSeed] = useState<string | null>(null)
-  const theme = useTheme()
   const onboarding = useOnboarding(athleteId)
   const plan = plans[athleteId]
+
+  useEffect(() => {
+    function onHashChange() {
+      setAthleteId(getAthleteFromHash())
+    }
+    window.addEventListener('hashchange', onHashChange)
+    return () => window.removeEventListener('hashchange', onHashChange)
+  }, [])
 
   if (!plan && !onboarding.isOnboarded) {
     return (
@@ -106,9 +111,7 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
 
   // Trail/road athletes pick a training method before plan generation.
   // Hyrox/general skip this and go straight to the legacy generator.
-  const needsMethodPick =
-    !plan && !!onboarding.config && !!onboarding.config.raceDistance && !onboarding.config.selectedMethodId
-  if (needsMethodPick && onboarding.config) {
+  if (!plan && onboarding.config?.raceDistance && !onboarding.config.selectedMethodId) {
     const cfg = onboarding.config
     return (
       <MethodSelection
@@ -121,16 +124,19 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
     )
   }
 
-  // Generate plan from onboarding config if no pre-built plan exists
-  const generatedPlan = useMemo(() => {
-    if (plan || !onboarding.config) return null
-    if (onboarding.config.raceType === 'hyrox') return generateHyroxPlan(onboarding.config)
-    if (onboarding.config.selectedMethodId) {
-      const method = getMethodById(onboarding.config.selectedMethodId)
-      if (method) return generatePlanFromMethod(method, onboarding.config)
+  let generatedPlan: import('./types').TrainingPlan | null = null
+  if (!plan && onboarding.config) {
+    try {
+      if (onboarding.config.raceType === 'hyrox') {
+        generatedPlan = generateHyroxPlan(onboarding.config)
+      } else if (onboarding.config.selectedMethodId) {
+        const method = getMethodById(onboarding.config.selectedMethodId)
+        if (method) generatedPlan = generatePlanFromMethod(method, onboarding.config)
+      }
+    } catch (err) {
+      console.error('Plan generation failed', err)
     }
-    return null
-  }, [plan, onboarding.config])
+  }
 
   const activePlan = plan || generatedPlan
 
@@ -153,17 +159,25 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
       </div>
     )
   }
+
+  return (
+    <MainApp
+      key={athleteId}
+      activePlan={activePlan}
+      athleteId={athleteId}
+      session={session}
+      onLogout={onLogout}
+    />
+  )
+}
+
+function MainApp({ activePlan, athleteId, session, onLogout }: { activePlan: import('./types').TrainingPlan; athleteId: string; session: AuthSession | null; onLogout: () => void }) {
+  const [view, setView] = useState<ViewId>('summary')
+  const [chatSeed, setChatSeed] = useState<string | null>(null)
+  const theme = useTheme()
   const strava = useStrava(athleteId)
   const garmin = useGarmin(athleteId)
 
-  useEffect(() => {
-    function onHashChange() {
-      setAthleteId(getAthleteFromHash())
-      setView('summary')
-    }
-    window.addEventListener('hashchange', onHashChange)
-    return () => window.removeEventListener('hashchange', onHashChange)
-  }, [])
   const manualLog = useManualLog(athleteId)
   const daySwap = useDaySwap(athleteId)
   const planOverrides = usePlanOverrides(athleteId)
