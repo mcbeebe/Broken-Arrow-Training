@@ -815,6 +815,9 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
           onSetMIMManual={mimCalibration.setManualOverride}
           onResetMIM={mimCalibration.resetOverride}
           onRecalibrateMIM={mimCalibration.calibrate}
+          activePlan={activePlan}
+          trainingMethod={onboarding.config?.selectedMethodId ? getMethodById(onboarding.config.selectedMethodId) : undefined}
+          onboardingConfig={onboarding.config ?? undefined}
         />
       )}
 

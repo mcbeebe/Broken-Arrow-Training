@@ -8,7 +8,9 @@ import AboutMe from './AboutMe'
 import CoachDiagnostics from './CoachDiagnostics'
 import DeployDiagnostics from './DeployDiagnostics'
 import Methodology from './Methodology'
-import type { HRZone, PendingInference, CoachPersona } from '../types'
+import type { HRZone, PendingInference, CoachPersona, TrainingPlan } from '../types'
+import type { TrainingMethod } from '../types/training-method'
+import type { OnboardingConfig } from '../hooks/useOnboarding'
 import type { MIMOverride } from '../hooks/useMIMCalibration'
 import { SPORT_LABELS } from '../hooks/useMIMCalibration'
 import CoachPersonaEditor from './CoachPersonaEditor'
@@ -54,6 +56,10 @@ interface SettingsProps {
   hrZonesMaxHRCustomized?: boolean
   onSaveHRZones?: (zones: HRZone[], maxHR: number) => void
   onResetHRZones?: () => void
+  // Training plan + method context for the dynamic Methodology section
+  activePlan?: TrainingPlan
+  trainingMethod?: TrainingMethod
+  onboardingConfig?: OnboardingConfig
   // Cache management
   onClearCache?: () => void
   onClearAll?: () => void
@@ -120,6 +126,9 @@ export default function Settings({
   onSetMIMManual,
   onResetMIM,
   onRecalibrateMIM,
+  activePlan,
+  trainingMethod,
+  onboardingConfig,
 }: SettingsProps) {
   void _pendingInferences
   void _onAcceptInference
@@ -328,7 +337,12 @@ export default function Settings({
 
       {/* ── Training Methodology section ── */}
       <SettingsSection title="Training Methodology">
-        <Methodology zones={hrZones} />
+        <Methodology
+          zones={hrZones}
+          plan={activePlan}
+          method={trainingMethod}
+          onboardingConfig={onboardingConfig}
+        />
       </SettingsSection>
 
       {/* ── MIM Calibration ── */}
