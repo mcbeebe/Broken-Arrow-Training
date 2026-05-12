@@ -16,7 +16,23 @@ import { parseTimeToSeconds } from '../utils/parseTime'
 interface Props {
   onComplete: (config: OnboardingConfig) => void
   onSkip?: () => void
+  // Duration (ms) to show the "generating your plan" screen after the user
+  // submits. Defaults to a short delay so the handoff to the next screen
+  // doesn't feel like a blank flash. Tests pass 0 to call onComplete
+  // synchronously.
+  loadingDurationMs?: number
 }
+
+const GENERATING_MESSAGES = [
+  'Lacing up your virtual shoes...',
+  'Negotiating with your VO₂ max...',
+  'Asking the trail gods for permission...',
+  'Brewing a fresh batch of intervals...',
+  'Counting hills so you don\'t have to...',
+  'Plotting your path to the finish line...',
+  'Sweet-talking your hamstrings...',
+  'Stretching the calendar to fit your goals...',
+] as const
 
 // Step indices. Race-distance (step 2) is conditional — only shown for trail/road races.
 // For hyrox/general, navigation skips index 2 (see visibleSteps below).
@@ -94,8 +110,12 @@ const TIME_OF_DAY_OPTIONS: { value: TrainingTimeOfDay; label: string; desc: stri
   { value: 'evening', label: 'Evening', desc: 'After 5pm' },
 ]
 
-export default function Onboarding({ onComplete, onSkip }: Props) {
+export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 1800 }: Props) {
   const [step, setStep] = useState(0)
+  const [isGenerating, setIsGenerating] = useState(false)
+  const [generatingMessage] = useState(
+    () => GENERATING_MESSAGES[Math.floor(Math.random() * GENERATING_MESSAGES.length)],
+  )
   const [raceType, setRaceType] = useState<RaceType | null>(null)
   const [raceName, setRaceName] = useState('')
   const [raceDate, setRaceDate] = useState('')
@@ -184,7 +204,7 @@ export default function Onboarding({ onComplete, onSkip }: Props) {
       }
     }
 
-    onComplete({
+    const config: OnboardingConfig = {
       raceType: raceType!,
       raceName: raceName.trim(),
       raceDate,
@@ -207,10 +227,34 @@ export default function Onboarding({ onComplete, onSkip }: Props) {
       preferredTrainingTimes: trainingTimes.length > 0 ? trainingTimes : undefined,
       scheduleConstraintsNote: scheduleNote.trim() || undefined,
       completedAt: '',
-    })
+    }
+
+    // Skip the loading screen entirely when consumers (tests) opt out.
+    // Otherwise show a brief generating screen so the handoff to the next
+    // view doesn't feel like a blank flash on mobile browsers.
+    if (loadingDurationMs <= 0) {
+      onComplete(config)
+      return
+    }
+    setIsGenerating(true)
+    setTimeout(() => onComplete(config), loadingDurationMs)
   }
 
   const selectedAnchor = ANCHOR_OPTIONS.find(o => o.value === anchorType)!
+
+  if (isGenerating) {
+    return (
+      <div className="fixed inset-0 z-50 bg-white flex flex-col items-center justify-center px-6 text-center">
+        <div className="relative w-16 h-16 mb-6">
+          <div className="absolute inset-0 rounded-full border-4 border-teal-100" />
+          <div className="absolute inset-0 rounded-full border-4 border-teal-500 border-t-transparent animate-spin" />
+        </div>
+        <h1 className="text-2xl font-bold text-slate-900">Building your plan</h1>
+        <p className="text-base text-slate-500 mt-3 max-w-xs">{generatingMessage}</p>
+        <p className="text-xs text-slate-400 mt-6">This only takes a moment.</p>
+      </div>
+    )
+  }
 
   return (
     <div className="fixed inset-0 z-50 bg-white flex flex-col">

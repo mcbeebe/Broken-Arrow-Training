@@ -288,7 +288,7 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
       <div className="absolute inset-0 bg-black/50" />
 
       <div
-        className="relative bg-white dark:bg-slate-800 rounded-t-2xl w-full max-h-[96vh] overflow-y-auto shadow-xl"
+        className="relative bg-white dark:bg-slate-800 rounded-t-2xl w-full max-h-[85dvh] overflow-y-auto shadow-xl"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
