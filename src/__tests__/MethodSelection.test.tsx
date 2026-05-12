@@ -135,6 +135,33 @@ describe('MethodSelection — interaction', () => {
     expect((cards[1] as HTMLButtonElement).getAttribute('aria-pressed')).toBe('true')
   })
 
+  it('exposes a per-card "How X works" toggle that reveals philosophy + key book', () => {
+    render(<MethodSelection config={makeConfig()} onConfirm={vi.fn()} />)
+    // Each of the three picks should expose its own elaboration toggle.
+    const toggles = screen.getAllByRole('button', { name: /how .* works/i })
+    expect(toggles.length).toBe(3)
+
+    // Open the first one. The details panel exposes Signature/Philosophy/Phases
+    // sections plus a "Reference" line.
+    fireEvent.click(toggles[0])
+    expect(screen.getByText(/^Signature$/i)).toBeInTheDocument()
+    expect(screen.getByText(/^Philosophy$/i)).toBeInTheDocument()
+    expect(screen.getByText(/^Phases$/i)).toBeInTheDocument()
+    expect(screen.getByText(/^Reference:/i)).toBeInTheDocument()
+
+    // The expanded toggle relabels itself for collapse.
+    expect(screen.getByRole('button', { name: /hide details/i })).toBeInTheDocument()
+  })
+
+  it('clicking the elaboration toggle does not select the card', () => {
+    render(<MethodSelection config={makeConfig()} onConfirm={vi.fn()} />)
+    const toggle = screen.getAllByRole('button', { name: /how .* works/i })[0]
+    fireEvent.click(toggle)
+    // After toggling, the primary Continue button should remain disabled —
+    // expansion is not the same as selection.
+    expect(screen.getByRole('button', { name: /use this method/i })).toBeDisabled()
+  })
+
   it('clicking back invokes onBack', () => {
     const onBack = vi.fn()
     render(<MethodSelection config={makeConfig()} onConfirm={vi.fn()} onBack={onBack} />)

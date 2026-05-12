@@ -79,6 +79,9 @@ export interface OnboardingConfig {
   // Free-text: travel weeks, vacations, work crunch, deload windows, etc.
   scheduleConstraintsNote?: string
   completedAt: string
+  // Timestamp of when the post-onboarding methodology primer was dismissed.
+  // Unset = primer should be shown the next time a plan is rendered.
+  primerSeenAt?: string
 }
 
 const STORAGE_KEY = 'ba_onboarding'
@@ -148,6 +151,15 @@ export function useOnboarding(athleteId?: string) {
     setRedoRequested(true)
   }, [athleteId])
 
+  const markPrimerSeen = useCallback(() => {
+    setConfig(prev => {
+      if (!prev || prev.primerSeenAt) return prev
+      const next = { ...prev, primerSeenAt: new Date().toISOString() }
+      try { localStorage.setItem(scopedKey(athleteId), JSON.stringify(next)) } catch { /* quota */ }
+      return next
+    })
+  }, [athleteId])
+
   return {
     config,
     isOnboarded: !!config,
@@ -155,5 +167,6 @@ export function useOnboarding(athleteId?: string) {
     save,
     clear,
     requestRedo,
+    markPrimerSeen,
   }
 }
