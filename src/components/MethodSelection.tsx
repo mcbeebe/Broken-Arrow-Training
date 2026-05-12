@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { OnboardingConfig } from '../hooks/useOnboarding'
 import type { TrainingMethod } from '../types/training-method'
 import { ALL_METHODS } from '../data/methods'
@@ -32,6 +32,14 @@ export default function MethodSelection({ config, onConfirm, onBack, methods = A
   }, [config, methods])
 
   const [selectedId, setSelectedId] = useState<string | null>(null)
+
+  // iOS Safari leaves the page body scrolled after the onboarding form
+  // (the keyboard scrolls focused inputs into view). When this screen
+  // mounts, that lingering scroll position can push the overlay above the
+  // visible viewport so the user sees a blank screen until they swipe.
+  useEffect(() => {
+    if (typeof window !== 'undefined') window.scrollTo(0, 0)
+  }, [])
 
   if (picks.length === 0) {
     return (
