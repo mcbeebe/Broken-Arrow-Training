@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type {
   RaceType,
   RaceDistance,
@@ -236,6 +236,15 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
       onComplete(config)
       return
     }
+    // iOS Safari leaves the document scrolled after a focused form input,
+    // which would push the next overlay above the viewport. Blur the
+    // active element and reset scroll BEFORE the loading screen mounts so
+    // the first paint already lands in the visible viewport.
+    if (typeof document !== 'undefined') {
+      const active = document.activeElement as HTMLElement | null
+      if (active && typeof active.blur === 'function') active.blur()
+    }
+    if (typeof window !== 'undefined') window.scrollTo(0, 0)
     setIsGenerating(true)
     setTimeout(() => onComplete(config), loadingDurationMs)
   }
@@ -243,17 +252,7 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
   const selectedAnchor = ANCHOR_OPTIONS.find(o => o.value === anchorType)!
 
   if (isGenerating) {
-    return (
-      <div className="fixed inset-0 z-50 bg-white flex flex-col items-center justify-center px-6 text-center">
-        <div className="relative w-16 h-16 mb-6">
-          <div className="absolute inset-0 rounded-full border-4 border-teal-100" />
-          <div className="absolute inset-0 rounded-full border-4 border-teal-500 border-t-transparent animate-spin" />
-        </div>
-        <h1 className="text-2xl font-bold text-slate-900">Building your plan</h1>
-        <p className="text-base text-slate-500 mt-3 max-w-xs">{generatingMessage}</p>
-        <p className="text-xs text-slate-400 mt-6">This only takes a moment.</p>
-      </div>
-    )
+    return <GeneratingScreen message={generatingMessage} />
   }
 
   return (
@@ -602,6 +601,36 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
           {isLastStep ? 'Create My Plan' : 'Continue'}
         </button>
       </div>
+    </div>
+  )
+}
+
+function GeneratingScreen({ message }: { message: string }) {
+  // iOS Safari scrolls the page body to keep focused inputs visible above
+  // the on-screen keyboard. That scroll persists across renders, so a
+  // newly mounted fixed overlay can end up above the visible viewport and
+  // the user sees a blank screen until they swipe down. Reset the scroll
+  // position (and any lingering input focus) so the screen renders where
+  // the user expects.
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      const active = document.activeElement as HTMLElement | null
+      if (active && typeof active.blur === 'function') active.blur()
+    }
+    if (typeof window !== 'undefined') {
+      window.scrollTo(0, 0)
+    }
+  }, [])
+
+  return (
+    <div className="fixed inset-0 z-50 bg-white flex flex-col items-center justify-center px-6 text-center">
+      <div className="relative w-16 h-16 mb-6">
+        <div className="absolute inset-0 rounded-full border-4 border-teal-100" />
+        <div className="absolute inset-0 rounded-full border-4 border-teal-500 border-t-transparent animate-spin" />
+      </div>
+      <h1 className="text-2xl font-bold text-slate-900">Building your plan</h1>
+      <p className="text-base text-slate-500 mt-3 max-w-xs">{message}</p>
+      <p className="text-xs text-slate-400 mt-6">This only takes a moment.</p>
     </div>
   )
 }
