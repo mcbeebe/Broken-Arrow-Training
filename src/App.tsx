@@ -14,6 +14,7 @@ import { useTutorial } from './hooks/useTutorial'
 import Onboarding from './components/Onboarding'
 import Tutorial from './components/Tutorial'
 import MethodSelection from './components/MethodSelection'
+import MethodologyPrimer from './components/MethodologyPrimer'
 import { getMethodById } from './data/methods'
 import { generatePlanFromMethod } from './engines/planGenerator/generatePlan'
 import { useSoreness } from './hooks/useSoreness'
@@ -140,6 +141,28 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
   }, [plan, onboarding.config])
 
   const activePlan = plan || generatedPlan
+
+  // First-time methodology primer: shown once after onboarding produces a
+  // plan, so the athlete understands the structure (phases, recovery week,
+  // taper, poles, etc.) before they start consuming workouts.
+  if (
+    activePlan &&
+    onboarding.config &&
+    !onboarding.config.primerSeenAt &&
+    onboarding.config.raceType !== 'hyrox'
+  ) {
+    const primerMethod = onboarding.config.selectedMethodId
+      ? getMethodById(onboarding.config.selectedMethodId)
+      : undefined
+    return (
+      <MethodologyPrimer
+        plan={activePlan}
+        method={primerMethod}
+        config={onboarding.config}
+        onContinue={onboarding.markPrimerSeen}
+      />
+    )
+  }
 
   if (!activePlan) {
     return (

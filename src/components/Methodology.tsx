@@ -9,6 +9,7 @@ import {
   type MethodologyContext,
   type MethodologyPhase,
 } from '../utils/methodologyContext'
+import MethodologyPhaseBar from './MethodologyPhaseBar'
 
 interface MethodologyProps {
   zones?: HRZone[]
@@ -35,7 +36,7 @@ export default function Methodology({ zones, plan, method, onboardingConfig }: M
       {/* Periodization */}
       <Section title="Periodization: Why the Weeks Are Structured This Way" defaultOpen>
         <p>{periodization?.summary ?? DEFAULT_PERIODIZATION_SUMMARY}</p>
-        <PhaseBar phases={ctx?.phases ?? DEFAULT_PHASES} />
+        <MethodologyPhaseBar phases={ctx?.phases ?? DEFAULT_PHASES} />
         <p>{periodization?.attribution ?? DEFAULT_PERIODIZATION_ATTRIBUTION}</p>
         <Citation
           text="The foundation of all endurance performance is aerobic capacity, built through consistent sub-threshold volume."
@@ -356,41 +357,3 @@ function Citation({ text, source }: { text: string; source: string }) {
   )
 }
 
-const PHASE_COLORS: Record<MethodologyPhase['id'], string> = {
-  base: 'bg-green-400',
-  build: 'bg-amber-400',
-  peak: 'bg-red-400',
-  taper: 'bg-blue-400',
-}
-
-function PhaseBar({ phases }: { phases: MethodologyPhase[] }) {
-  if (phases.length === 0) return null
-  // Renormalize widths so they always sum to 100 even with rounding drift.
-  const total = phases.reduce((s, p) => s + p.widthPct, 0) || 100
-  return (
-    <div className="my-3">
-      <div className="flex rounded-lg overflow-hidden h-7">
-        {phases.map(p => (
-          <div
-            key={p.id}
-            className={`${PHASE_COLORS[p.id]} flex items-center justify-center`}
-            style={{ width: `${(p.widthPct / total) * 100}%` }}
-          >
-            <span className="text-xs font-bold text-white">{p.label}</span>
-          </div>
-        ))}
-      </div>
-      <div className="flex mt-1">
-        {phases.map(p => (
-          <div
-            key={p.id}
-            className="text-center text-xs text-slate-500 dark:text-slate-400"
-            style={{ width: `${(p.widthPct / total) * 100}%` }}
-          >
-            {formatWeekRange(p.weekStart, p.weekEnd)}
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
