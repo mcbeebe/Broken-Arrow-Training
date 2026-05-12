@@ -72,7 +72,7 @@ function walkHappyPath(overrides: Partial<{
   }
 
   const onComplete = vi.fn()
-  render(<Onboarding onComplete={onComplete} />)
+  render(<Onboarding onComplete={onComplete} loadingDurationMs={0} />)
 
   // Step 0: Race type
   fireEvent.click(screen.getByText(o.raceType))
@@ -215,7 +215,7 @@ describe('Onboarding', () => {
   describe('race-distance step (Q1)', () => {
     it('shows the race-distance step when raceType is trail/road', () => {
       const onComplete = vi.fn()
-      render(<Onboarding onComplete={onComplete} />)
+      render(<Onboarding onComplete={onComplete} loadingDurationMs={0} />)
       fireEvent.click(screen.getByText(/Trail \/ Road Race/))
       clickContinue()
       fireEvent.change(screen.getByPlaceholderText(/Broken Arrow/), { target: { value: 'X' } })
@@ -227,7 +227,7 @@ describe('Onboarding', () => {
 
     it('skips the race-distance step for Hyrox', () => {
       const onComplete = vi.fn()
-      render(<Onboarding onComplete={onComplete} />)
+      render(<Onboarding onComplete={onComplete} loadingDurationMs={0} />)
       fireEvent.click(screen.getByText(/^Hyrox$/))
       clickContinue()
       fireEvent.change(screen.getByPlaceholderText(/Hyrox San Francisco/), { target: { value: 'Hyrox SF' } })
@@ -238,7 +238,7 @@ describe('Onboarding', () => {
 
     it('skips the race-distance step for General Fitness', () => {
       const onComplete = vi.fn()
-      render(<Onboarding onComplete={onComplete} />)
+      render(<Onboarding onComplete={onComplete} loadingDurationMs={0} />)
       fireEvent.click(screen.getByText(/General Fitness/))
       clickContinue()
       fireEvent.change(screen.getByPlaceholderText(/Summer Fitness/), { target: { value: 'Block' } })
@@ -265,7 +265,7 @@ describe('Onboarding', () => {
     })
 
     it('Back from experience returns to race-distance for trail', () => {
-      render(<Onboarding onComplete={vi.fn()} />)
+      render(<Onboarding onComplete={vi.fn()} loadingDurationMs={0} />)
       fireEvent.click(screen.getByText(/Trail \/ Road Race/))
       clickContinue()
       fireEvent.change(screen.getByPlaceholderText(/Broken Arrow/), { target: { value: 'Foo' } })
@@ -279,7 +279,7 @@ describe('Onboarding', () => {
     })
 
     it('Back from experience returns to race-name for hyrox (race-distance skipped)', () => {
-      render(<Onboarding onComplete={vi.fn()} />)
+      render(<Onboarding onComplete={vi.fn()} loadingDurationMs={0} />)
       fireEvent.click(screen.getByText(/^Hyrox$/))
       clickContinue()
       fireEvent.change(screen.getByPlaceholderText(/Hyrox San Francisco/), { target: { value: 'Foo' } })
@@ -299,7 +299,7 @@ describe('Onboarding', () => {
 
     it.each([3, 4, 5, 6, 7])('shows %i days option', (n) => {
       const onComplete = vi.fn()
-      render(<Onboarding onComplete={onComplete} />)
+      render(<Onboarding onComplete={onComplete} loadingDurationMs={0} />)
       fireEvent.click(screen.getByText('Trail / Road Race'))
       clickContinue()
       fireEvent.change(screen.getByPlaceholderText(/Broken Arrow/), { target: { value: 'X' } })
@@ -427,7 +427,7 @@ describe('Onboarding', () => {
   describe('gating / Continue button', () => {
     function advanceTo(stepName: 'baseline' | 'equipment' | 'strength' | 'schedule') {
       const onComplete = vi.fn()
-      render(<Onboarding onComplete={onComplete} />)
+      render(<Onboarding onComplete={onComplete} loadingDurationMs={0} />)
       // raceType
       fireEvent.click(screen.getByText('Trail / Road Race'))
       clickContinue()
@@ -501,7 +501,7 @@ describe('Onboarding', () => {
   describe('progress bar', () => {
     it('uses 11 visible steps before raceType is picked (race-distance hidden)', () => {
       const onComplete = vi.fn()
-      const { container } = render(<Onboarding onComplete={onComplete} />)
+      const { container } = render(<Onboarding onComplete={onComplete} loadingDurationMs={0} />)
       const progressFill = container.querySelector('.bg-teal-500.rounded-full') as HTMLElement
       // step 0 of 11 → width = 1/11 ≈ 9.09%
       expect(progressFill.style.width).toMatch(/^9\.09/)
@@ -509,7 +509,7 @@ describe('Onboarding', () => {
 
     it('expands to 12 visible steps after raceType=trail is picked', () => {
       const onComplete = vi.fn()
-      const { container } = render(<Onboarding onComplete={onComplete} />)
+      const { container } = render(<Onboarding onComplete={onComplete} loadingDurationMs={0} />)
       fireEvent.click(screen.getByText('Trail / Road Race'))
       const progressFill = container.querySelector('.bg-teal-500.rounded-full') as HTMLElement
       // Still on step 0 (idx 0 of 12) → 1/12 ≈ 8.33%
@@ -521,7 +521,7 @@ describe('Onboarding', () => {
     it('fires onSkip when the X button in the header is clicked', () => {
       const onComplete = vi.fn()
       const onSkip = vi.fn()
-      const { container } = render(<Onboarding onComplete={onComplete} onSkip={onSkip} />)
+      const { container } = render(<Onboarding onComplete={onComplete} onSkip={onSkip} loadingDurationMs={0} />)
       const buttons = Array.from(container.querySelectorAll('button'))
       const skipBtn = buttons.find(b =>
         b.querySelector('svg path[d^="M4 4l10 10"]') !== null

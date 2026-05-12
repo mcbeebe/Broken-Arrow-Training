@@ -10,8 +10,11 @@ import { usePlanOverrides } from './hooks/usePlanOverrides'
 import { useDaySwap } from './hooks/useDaySwap'
 import { useReadiness } from './hooks/useReadiness'
 import { useOnboarding } from './hooks/useOnboarding'
+import { useTutorial } from './hooks/useTutorial'
 import Onboarding from './components/Onboarding'
+import Tutorial from './components/Tutorial'
 import MethodSelection from './components/MethodSelection'
+import MethodologyPrimer from './components/MethodologyPrimer'
 import { getMethodById } from './data/methods'
 import { generatePlanFromMethod } from './engines/planGenerator/generatePlan'
 import { useSoreness } from './hooks/useSoreness'
@@ -88,7 +91,12 @@ export default function App() {
 function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; onLogout: () => void }) {
   const [athleteId, setAthleteId] = useState(() => (session?.athleteId || getAthleteFromHash()).toLowerCase())
   const onboarding = useOnboarding(athleteId)
-  const plan = plans[athleteId]
+  const tutorial = useTutorial(athleteId)
+  // Seed athletes (Mike, Jim, Lori, Joel) have a hardcoded plan. We only fall
+  // back to it when the athlete hasn't completed onboarding and isn't actively
+  // redoing it — otherwise their new race goal would be ignored.
+  const hardcodedPlan = plans[athleteId]
+  const plan = onboarding.isOnboarded || onboarding.redoRequested ? undefined : hardcodedPlan
 
   useEffect(() => {
     function onHashChange() {
@@ -140,6 +148,28 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
 
   const activePlan = plan || generatedPlan
 
+  // First-time methodology primer: shown once after onboarding produces a
+  // plan, so the athlete understands the structure (phases, recovery week,
+  // taper, poles, etc.) before they start consuming workouts.
+  if (
+    activePlan &&
+    onboarding.config &&
+    !onboarding.config.primerSeenAt &&
+    onboarding.config.raceType !== 'hyrox'
+  ) {
+    const primerMethod = onboarding.config.selectedMethodId
+      ? getMethodById(onboarding.config.selectedMethodId)
+      : undefined
+    return (
+      <MethodologyPrimer
+        plan={activePlan}
+        method={primerMethod}
+        config={onboarding.config}
+        onContinue={onboarding.markPrimerSeen}
+      />
+    )
+  }
+
   if (!activePlan) {
     return (
       <div className="min-h-screen bg-white flex flex-col items-center justify-center px-6">
@@ -151,7 +181,7 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
             {onboarding.config?.raceType === 'trail' && ' Trail race plan generator is in development.'}
           </p>
           <div className="pt-4 space-y-2">
-            <button onClick={() => onboarding.clear()} className="text-teal-600 font-medium text-sm">Redo onboarding</button>
+            <button onClick={() => onboarding.requestRedo()} className="text-teal-600 font-medium text-sm">Redo onboarding</button>
             <br />
             <button onClick={onLogout} className="text-slate-400 font-medium text-sm">Sign out</button>
           </div>
@@ -603,8 +633,19 @@ function MainApp({ activePlan, athleteId, session, onLogout }: { activePlan: imp
     planOverrides.removeOverride(overrideId)
   }, [planOverrides])
 
+  // First-time post-onboarding walkthrough — shown only when the athlete
+  // came in via the onboarding flow (so pre-built handcrafted plans like
+  // mike-18k skip it) and hasn't yet dismissed it.
+  const showTutorial = !!onboarding.config && !tutorial.seen
+
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 pb-24 dark:text-slate-200 transition-colors" style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" }}>
+      {showTutorial && (
+        <Tutorial
+          onClose={tutorial.markSeen}
+          athleteName={onboarding.config?.athleteName || activePlan.athlete.name}
+        />
+      )}
       {/* Header */}
       <div className="bg-slate-800 dark:bg-slate-900 text-white px-3 py-2.5">
         <div className="flex items-baseline justify-between">
@@ -810,6 +851,10 @@ function MainApp({ activePlan, athleteId, session, onLogout }: { activePlan: imp
           onResetHRZones={handleResetHRZones}
           onClearCache={clearAllCachedData}
           onClearAll={clearAllAppData}
+          onResetOnboarding={() => {
+            onboarding.requestRedo()
+            setView('summary')
+          }}
           coachEnabled={coachEnabled}
           aboutMeText={coachMemory.aboutMe}
           onSaveAboutMe={coachMemory.saveAboutMe}
@@ -829,6 +874,9 @@ function MainApp({ activePlan, athleteId, session, onLogout }: { activePlan: imp
           onSetMIMManual={mimCalibration.setManualOverride}
           onResetMIM={mimCalibration.resetOverride}
           onRecalibrateMIM={mimCalibration.calibrate}
+          activePlan={activePlan}
+          trainingMethod={onboarding.config?.selectedMethodId ? getMethodById(onboarding.config.selectedMethodId) : undefined}
+          onboardingConfig={onboarding.config ?? undefined}
         />
       )}
 

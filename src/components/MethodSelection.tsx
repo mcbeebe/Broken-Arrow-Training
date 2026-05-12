@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { OnboardingConfig } from '../hooks/useOnboarding'
 import type { TrainingMethod } from '../types/training-method'
 import { ALL_METHODS } from '../data/methods'
@@ -32,6 +32,14 @@ export default function MethodSelection({ config, onConfirm, onBack, methods = A
   }, [config, methods])
 
   const [selectedId, setSelectedId] = useState<string | null>(null)
+
+  // iOS Safari leaves the page body scrolled after the onboarding form
+  // (the keyboard scrolls focused inputs into view). When this screen
+  // mounts, that lingering scroll position can push the overlay above the
+  // visible viewport so the user sees a blank screen until they swipe.
+  useEffect(() => {
+    if (typeof window !== 'undefined') window.scrollTo(0, 0)
+  }, [])
 
   if (picks.length === 0) {
     return (
@@ -120,65 +128,116 @@ function MethodCard({
   onSelect: () => void
 }) {
   const m = pick.method
+  const [expanded, setExpanded] = useState(false)
   return (
-    <button
-      onClick={onSelect}
-      aria-pressed={selected}
-      className={`w-full text-left p-4 rounded-xl border-2 transition ${
-        selected ? 'border-teal-500 bg-teal-50' : 'border-slate-200 bg-slate-50 hover:border-slate-300'
+    <div
+      className={`rounded-xl border-2 transition ${
+        selected ? 'border-teal-500 bg-teal-50' : 'border-slate-200 bg-slate-50'
       }`}
     >
-      <div className="flex items-start gap-3">
-        <div className="flex-1">
-          <div className="flex items-center gap-2">
-            <span className={`text-xs font-bold uppercase tracking-wide ${selected ? 'text-teal-700' : 'text-slate-500'}`}>
-              {rank === 1 ? 'Top pick' : `#${rank}`}
-            </span>
-            <span className="text-xs text-slate-400">·</span>
-            <span className="text-xs text-slate-500">{m.coach}</span>
-          </div>
-          <p className={`font-semibold mt-1 ${selected ? 'text-teal-900' : 'text-slate-900'}`}>{m.name}</p>
+      <button
+        onClick={onSelect}
+        aria-pressed={selected}
+        className="w-full text-left p-4"
+      >
+        <div className="flex items-start gap-3">
+          <div className="flex-1">
+            <div className="flex items-center gap-2">
+              <span className={`text-xs font-bold uppercase tracking-wide ${selected ? 'text-teal-700' : 'text-slate-500'}`}>
+                {rank === 1 ? 'Top pick' : `#${rank}`}
+              </span>
+              <span className="text-xs text-slate-400">·</span>
+              <span className="text-xs text-slate-500">{m.coach}</span>
+            </div>
+            <p className={`font-semibold mt-1 ${selected ? 'text-teal-900' : 'text-slate-900'}`}>{m.name}</p>
 
-          <ul className="mt-2 space-y-1">
-            {pick.rationale.map((line, i) => (
-              <li
-                key={i}
-                className={`text-sm leading-snug ${
-                  line.startsWith('Heads-up')
-                    ? 'text-amber-700'
-                    : line.startsWith('Why we picked it')
-                    ? 'text-slate-700'
-                    : 'text-slate-600'
-                }`}
-              >
-                {line}
+            <ul className="mt-2 space-y-1">
+              {pick.rationale.map((line, i) => (
+                <li
+                  key={i}
+                  className={`text-sm leading-snug ${
+                    line.startsWith('Heads-up')
+                      ? 'text-amber-700'
+                      : line.startsWith('Why we picked it')
+                      ? 'text-slate-700'
+                      : 'text-slate-600'
+                  }`}
+                >
+                  {line}
+                </li>
+              ))}
+            </ul>
+
+            {pick.warnings.length > 0 && (
+              <div className="mt-2 p-2 rounded-lg bg-amber-50 border border-amber-200">
+                {pick.warnings.map((w, i) => (
+                  <p key={i} className="text-xs text-amber-800 leading-snug">
+                    {w}
+                  </p>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div
+            className={`w-5 h-5 rounded-full border-2 mt-0.5 flex items-center justify-center shrink-0 ${
+              selected ? 'border-teal-500 bg-teal-500' : 'border-slate-300'
+            }`}
+          >
+            {selected && (
+              <svg width="12" height="12" fill="white" viewBox="0 0 20 20">
+                <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" />
+              </svg>
+            )}
+          </div>
+        </div>
+      </button>
+
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation()
+          setExpanded(v => !v)
+        }}
+        aria-expanded={expanded}
+        className="w-full flex items-center justify-between px-4 py-2 text-xs font-medium text-teal-700 border-t border-slate-200/70 hover:bg-white/40 transition"
+      >
+        <span>{expanded ? `Hide details` : `How ${m.name.split(/[ —]/)[0]} works`}</span>
+        <span aria-hidden>{expanded ? '▴' : '▾'}</span>
+      </button>
+
+      {expanded && <MethodDetails method={m} />}
+    </div>
+  )
+}
+
+function MethodDetails({ method }: { method: TrainingMethod }) {
+  return (
+    <div className="px-4 pb-4 pt-1 space-y-3 text-sm text-slate-700 border-t border-slate-200/70">
+      <p className="text-xs uppercase tracking-wide font-bold text-slate-500">Signature</p>
+      <p className="text-sm leading-snug">{method.signature}</p>
+
+      <p className="text-xs uppercase tracking-wide font-bold text-slate-500">Philosophy</p>
+      <p className="text-sm leading-snug text-slate-700">{method.philosophyNarrative}</p>
+
+      {method.phases.length > 0 && (
+        <>
+          <p className="text-xs uppercase tracking-wide font-bold text-slate-500">Phases</p>
+          <ul className="space-y-1.5">
+            {method.phases.map(ph => (
+              <li key={ph.id} className="text-sm leading-snug">
+                <span className="font-semibold text-slate-800">{ph.name}.</span>{' '}
+                <span className="text-slate-600">{ph.focus}</span>
               </li>
             ))}
           </ul>
+        </>
+      )}
 
-          {pick.warnings.length > 0 && (
-            <div className="mt-2 p-2 rounded-lg bg-amber-50 border border-amber-200">
-              {pick.warnings.map((w, i) => (
-                <p key={i} className="text-xs text-amber-800 leading-snug">
-                  {w}
-                </p>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div
-          className={`w-5 h-5 rounded-full border-2 mt-0.5 flex items-center justify-center shrink-0 ${
-            selected ? 'border-teal-500 bg-teal-500' : 'border-slate-300'
-          }`}
-        >
-          {selected && (
-            <svg width="12" height="12" fill="white" viewBox="0 0 20 20">
-              <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" />
-            </svg>
-          )}
-        </div>
-      </div>
-    </button>
+      <p className="text-xs text-slate-500 italic">
+        Reference: {method.keyBook}
+        {method.yearOfOrigin ? ` (${method.yearOfOrigin})` : ''}
+      </p>
+    </div>
   )
 }

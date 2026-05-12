@@ -79,12 +79,20 @@ export interface OnboardingConfig {
   // Free-text: travel weeks, vacations, work crunch, deload windows, etc.
   scheduleConstraintsNote?: string
   completedAt: string
+  // Timestamp of when the post-onboarding methodology primer was dismissed.
+  // Unset = primer should be shown the next time a plan is rendered.
+  primerSeenAt?: string
 }
 
 const STORAGE_KEY = 'ba_onboarding'
+const REDO_KEY = 'ba_onboarding_redo'
 
 function scopedKey(athleteId?: string) {
   return athleteId ? `${STORAGE_KEY}_${athleteId}` : STORAGE_KEY
+}
+
+function scopedRedoKey(athleteId?: string) {
+  return athleteId ? `${REDO_KEY}_${athleteId}` : REDO_KEY
 }
 
 export function useOnboarding(athleteId?: string) {
@@ -94,31 +102,71 @@ export function useOnboarding(athleteId?: string) {
       return raw ? JSON.parse(raw) : null
     } catch { return null }
   })
+  // Set when the user explicitly chooses "Redo Onboarding" in Settings.
+  // Forces the onboarding flow even for seed athletes (Mike, Jim, etc.)
+  // whose hardcoded plan would otherwise short-circuit the redirect.
+  // Cleared on save() — completing onboarding always wins.
+  const [redoRequested, setRedoRequested] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem(scopedRedoKey(athleteId)) === '1'
+    } catch { return false }
+  })
 
   useEffect(() => {
     try {
       const raw = localStorage.getItem(scopedKey(athleteId))
       setConfig(raw ? JSON.parse(raw) : null)
-    } catch { setConfig(null) }
+      setRedoRequested(localStorage.getItem(scopedRedoKey(athleteId)) === '1')
+    } catch {
+      setConfig(null)
+      setRedoRequested(false)
+    }
   }, [athleteId])
 
   const save = useCallback((cfg: OnboardingConfig) => {
     const withTimestamp = { ...cfg, completedAt: new Date().toISOString() }
     try {
       localStorage.setItem(scopedKey(athleteId), JSON.stringify(withTimestamp))
+      localStorage.removeItem(scopedRedoKey(athleteId))
     } catch { /* quota */ }
     setConfig(withTimestamp)
+    setRedoRequested(false)
   }, [athleteId])
 
   const clear = useCallback(() => {
-    try { localStorage.removeItem(scopedKey(athleteId)) } catch {}
+    try {
+      localStorage.removeItem(scopedKey(athleteId))
+      localStorage.removeItem(scopedRedoKey(athleteId))
+    } catch {}
     setConfig(null)
+    setRedoRequested(false)
+  }, [athleteId])
+
+  const requestRedo = useCallback(() => {
+    try {
+      localStorage.setItem(scopedRedoKey(athleteId), '1')
+      localStorage.removeItem(scopedKey(athleteId))
+    } catch {}
+    setConfig(null)
+    setRedoRequested(true)
+  }, [athleteId])
+
+  const markPrimerSeen = useCallback(() => {
+    setConfig(prev => {
+      if (!prev || prev.primerSeenAt) return prev
+      const next = { ...prev, primerSeenAt: new Date().toISOString() }
+      try { localStorage.setItem(scopedKey(athleteId), JSON.stringify(next)) } catch { /* quota */ }
+      return next
+    })
   }, [athleteId])
 
   return {
     config,
     isOnboarded: !!config,
+    redoRequested,
     save,
     clear,
+    requestRedo,
+    markPrimerSeen,
   }
 }

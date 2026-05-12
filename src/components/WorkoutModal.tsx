@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import type { PlannedDay, HRZone, ReadinessScore, PerformanceMetrics, CoachSnapshot, TRIMPRecord } from '../types'
+import type { PlannedSegment } from '../engines/planGenerator/types'
 import { getWorkoutStyle, adaptBg } from '../utils/styles'
 import { getCoaching } from '../utils/coaching'
 import { generateWorkoutTake } from '../utils/coachNotes'
@@ -132,21 +133,46 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
   const actual = day.actual
   const isStrength = day.type === 'strength'
   const isQuality = day.type === 'quality'
+  const plannedWorkout = day.plannedWorkout
+
+  // When a structured PlannedWorkout is attached (generated plans), prefer
+  // its segment list + purpose/cues over the legacy detail-string parsers.
+  // The detail string for generated plans is a one-line summary, not a
+  // routine — feeding it through parseRoutine produces nonsense exercise
+  // cards like "Time on feet matters more than mileage".
+  const hasPlannedWorkout = !!plannedWorkout && plannedWorkout.segments.length > 0
 
   // When coach overrides (or plan data) provide specific exercises in the detail
   // field, show those as execution steps instead of generic type-based guidance.
   // Strength/quality workouts already parse detail into exercise/interval cards.
-  const hasCustomDetail = !isStrength && !isQuality && day.detail && day.detail.includes(' · ')
-  const coaching = hasCustomDetail
-    ? {
+  // Skip the fallback entirely when a structured PlannedWorkout is present.
+  const hasCustomDetail = !isStrength && !isQuality && !hasPlannedWorkout && day.detail && day.detail.includes(' · ')
+  const coaching = useMemo(() => {
+    // Prefer the method's purpose/cues when a PlannedWorkout is attached —
+    // they're tied to the specific workout template (e.g. "Hill repeats build
+    // race-specific power") rather than the generic type-level narrative.
+    if (hasPlannedWorkout) {
+      return {
+        ...baseCoaching,
+        purpose: plannedWorkout!.purpose || baseCoaching.purpose,
+        execution: plannedWorkout!.cues.length > 0 ? plannedWorkout!.cues : baseCoaching.execution,
+      }
+    }
+    if (hasCustomDetail) {
+      return {
         ...baseCoaching,
         execution: day.detail.split(' · ').map((s: string) => s.trim()).filter(Boolean),
       }
-    : baseCoaching
+    }
+    return baseCoaching
+  }, [baseCoaching, hasPlannedWorkout, plannedWorkout, hasCustomDetail, day.detail])
   const isRunType = ['run', 'quality', 'long'].includes(day.type)
   const exercises = isStrength ? parseRoutine(day.detail) : []
   const customExercises = hasCustomDetail ? parseRoutine(day.detail) : []
-  const intervals = isQuality ? parseIntervalWorkout(day.detail, day.zone) : []
+  // Legacy interval parsing is keyed off hard-coded patterns ("4×90 sec uphill")
+  // that don't match the generator's detail strings — suppress when the
+  // structured segment list is available instead.
+  const intervals = isQuality && !hasPlannedWorkout ? parseIntervalWorkout(day.detail, day.zone) : []
 
   // Per-exercise progression history. We build it once per modal render
   // and exclude THIS day from each entry so the "last session" line
@@ -262,7 +288,7 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
       <div className="absolute inset-0 bg-black/50" />
 
       <div
-        className="relative bg-white dark:bg-slate-800 rounded-t-2xl w-full max-h-[96vh] overflow-y-auto shadow-xl"
+        className="relative bg-white dark:bg-slate-800 rounded-t-2xl w-full max-h-[85dvh] overflow-y-auto shadow-xl"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
@@ -867,6 +893,21 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
             </div>
           )}
 
+          {/* Structured PlannedWorkout breakdown — generated plans */}
+          {hasPlannedWorkout && (
+            <div>
+              <p className="text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-2">⚡ Workout Breakdown</p>
+              <div className="space-y-1.5">
+                {plannedWorkout!.segments.map((seg, i) => (
+                  <PlannedSegmentCard key={i} segment={seg} index={i} />
+                ))}
+              </div>
+              {plannedWorkout!.notes && (
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 italic mt-2 leading-snug">{plannedWorkout!.notes}</p>
+              )}
+            </div>
+          )}
+
           {/* Drills + Myrtl for designated drill days */}
           {isDrillDay && (
             <div>
@@ -1183,6 +1224,114 @@ function IntervalSegment({ segment, index }: { segment: RunSegment; index: numbe
               </li>
             ))}
           </ul>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function formatDurationOrDistance(seg: PlannedSegment): string {
+  const parts: string[] = []
+  if (seg.duration) {
+    parts.push(`${seg.duration.value} ${seg.duration.unit}`)
+  }
+  if (seg.distance) {
+    parts.push(`${seg.distance.value} ${seg.distance.unit}`)
+  }
+  if (seg.reps && seg.reps > 1) {
+    parts.unshift(`${seg.reps} ×`)
+  }
+  return parts.join(' ')
+}
+
+function formatPaceSecondsPerMile(secs: number): string {
+  const m = Math.floor(secs / 60)
+  const s = Math.round(secs % 60)
+  return `${m}:${s.toString().padStart(2, '0')}/mi`
+}
+
+function formatPaceTarget(seg: PlannedSegment): string | null {
+  const t = seg.paceTarget
+  if (!t) return null
+  // Show the strongest signal first per `preferredMode`, but stack additional
+  // hints (HR + RPE) when available so the athlete has multiple cues.
+  const parts: string[] = []
+  if (t.paceSecPerMileLow != null && t.paceSecPerMileHigh != null) {
+    parts.push(`${formatPaceSecondsPerMile(t.paceSecPerMileHigh)} – ${formatPaceSecondsPerMile(t.paceSecPerMileLow)}`)
+  }
+  if (t.hrBpmLow != null && t.hrBpmHigh != null) {
+    parts.push(`${t.hrBpmLow}-${t.hrBpmHigh} bpm`)
+  }
+  if (t.rpeLow != null && t.rpeHigh != null) {
+    parts.push(`RPE ${t.rpeLow}-${t.rpeHigh}`)
+  }
+  return parts.length > 0 ? `${t.displayName} · ${parts.join(' · ')}` : t.displayName
+}
+
+function formatRecovery(seg: PlannedSegment): string | null {
+  const r = seg.recovery
+  if (!r) return null
+  const verb = r.type === 'walk' ? 'walk' : r.type === 'stand' ? 'standing rest' : 'easy jog'
+  if (r.duration) return `${r.duration.value} ${r.duration.unit} ${verb}`
+  if (r.distance) return `${r.distance.value} ${r.distance.unit} ${verb}`
+  return verb
+}
+
+function PlannedSegmentCard({ segment, index }: { segment: PlannedSegment; index: number }) {
+  const [expanded, setExpanded] = useState(false)
+  const isMain = segment.role === 'main'
+  const bgColor = isMain
+    ? 'bg-amber-50 border-amber-200 dark:bg-amber-950/30 dark:border-amber-900'
+    : 'bg-green-50 border-green-200 dark:bg-green-950/30 dark:border-green-900'
+  const numColor = isMain
+    ? 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-200'
+    : 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-200'
+
+  const label = segment.role === 'warmup' ? 'Warm-Up' : segment.role === 'cooldown' ? 'Cool-Down' : 'Main Set'
+  const dur = formatDurationOrDistance(segment)
+  const target = formatPaceTarget(segment)
+  const recovery = formatRecovery(segment)
+  const hasDetails = !!segment.description || !!segment.cue || !!recovery
+
+  return (
+    <div
+      className={`rounded-xl border overflow-hidden ${bgColor}`}
+      onClick={() => hasDetails && setExpanded(!expanded)}
+    >
+      <div className={`px-3 py-2 ${hasDetails ? 'cursor-pointer' : ''}`}>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className={`text-sm font-bold rounded-full w-6 h-6 flex items-center justify-center shrink-0 ${numColor}`}>
+              {index + 1}
+            </span>
+            <span className="text-base font-medium text-slate-800 dark:text-white truncate">{label}</span>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            {dur && <span className="text-sm text-slate-600 dark:text-slate-300">{dur}</span>}
+            {hasDetails && <span className="text-slate-400 text-sm">{expanded ? '▼' : '›'}</span>}
+          </div>
+        </div>
+        {target && (
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5 ml-8">{target}</p>
+        )}
+        {recovery && !expanded && (
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 ml-8">Recovery: {recovery}</p>
+        )}
+      </div>
+
+      {expanded && hasDetails && (
+        <div className="px-3 pb-2.5 border-t border-slate-200 dark:border-slate-700/50 pt-2 space-y-1.5">
+          {segment.description && (
+            <p className="text-sm text-slate-600 dark:text-slate-300">{segment.description}</p>
+          )}
+          {recovery && (
+            <p className="text-sm text-slate-600 dark:text-slate-300">
+              <span className="font-medium">Recovery:</span> {recovery}
+            </p>
+          )}
+          {segment.cue && (
+            <p className="text-sm text-slate-600 dark:text-slate-300 italic">💡 {segment.cue}</p>
+          )}
         </div>
       )}
     </div>

@@ -8,7 +8,9 @@ import AboutMe from './AboutMe'
 import CoachDiagnostics from './CoachDiagnostics'
 import DeployDiagnostics from './DeployDiagnostics'
 import Methodology from './Methodology'
-import type { HRZone, PendingInference, CoachPersona } from '../types'
+import type { HRZone, PendingInference, CoachPersona, TrainingPlan } from '../types'
+import type { TrainingMethod } from '../types/training-method'
+import type { OnboardingConfig } from '../hooks/useOnboarding'
 import type { MIMOverride } from '../hooks/useMIMCalibration'
 import { SPORT_LABELS } from '../hooks/useMIMCalibration'
 import CoachPersonaEditor from './CoachPersonaEditor'
@@ -54,9 +56,16 @@ interface SettingsProps {
   hrZonesMaxHRCustomized?: boolean
   onSaveHRZones?: (zones: HRZone[], maxHR: number) => void
   onResetHRZones?: () => void
+  // Training plan + method context for the dynamic Methodology section
+  activePlan?: TrainingPlan
+  trainingMethod?: TrainingMethod
+  onboardingConfig?: OnboardingConfig
   // Cache management
   onClearCache?: () => void
   onClearAll?: () => void
+  // Onboarding reset — restarts the onboarding flow so the athlete can
+  // pick a new target race after finishing their current one.
+  onResetOnboarding?: () => void
   setView?: (v: string) => void
   // Auth
   authSession?: AuthSession | null
@@ -101,6 +110,7 @@ export default function Settings({
   onResetHRZones,
   onClearCache,
   onClearAll,
+  onResetOnboarding,
   coachEnabled,
   aboutMeText,
   onSaveAboutMe,
@@ -120,6 +130,9 @@ export default function Settings({
   onSetMIMManual,
   onResetMIM,
   onRecalibrateMIM,
+  activePlan,
+  trainingMethod,
+  onboardingConfig,
 }: SettingsProps) {
   void _pendingInferences
   void _onAcceptInference
@@ -328,7 +341,12 @@ export default function Settings({
 
       {/* ── Training Methodology section ── */}
       <SettingsSection title="Training Methodology">
-        <Methodology zones={hrZones} />
+        <Methodology
+          zones={hrZones}
+          plan={activePlan}
+          method={trainingMethod}
+          onboardingConfig={onboardingConfig}
+        />
       </SettingsSection>
 
       {/* ── MIM Calibration ── */}
@@ -356,6 +374,32 @@ export default function Settings({
       {athleteId === 'mike' && (
         <SettingsSection title="Deploy Diagnostics">
           <DeployDiagnostics />
+        </SettingsSection>
+      )}
+
+      {/* ── Training Plan section ── */}
+      {onResetOnboarding && (
+        <SettingsSection title="Training Plan">
+          <div className="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700 space-y-3">
+            <div>
+              <p className="text-sm font-medium text-slate-800 dark:text-slate-100">Redo Onboarding</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
+                Finished your target race? Start a fresh onboarding to pick a new race, distance, and training method.
+                Your full training history carries forward — synced activities, HR zones, MIM/DOMS calibration, fatigue
+                (ATL/CTL/TSB), coach memory, and soreness logs are all preserved.
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                if (confirm('This will clear only your race goal and training method, then take you back to onboarding. All training history, activities, HR data, fatigue, and coach memory are preserved. Continue?')) {
+                  onResetOnboarding()
+                }
+              }}
+              className="text-sm font-medium px-3 py-1.5 rounded-lg bg-teal-100 text-teal-700 hover:bg-teal-200 dark:bg-teal-900 dark:text-teal-200 dark:hover:bg-teal-800 transition-colors"
+            >
+              Redo Onboarding
+            </button>
+          </div>
         </SettingsSection>
       )}
 
