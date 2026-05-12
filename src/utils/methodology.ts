@@ -111,11 +111,59 @@ export const METHODOLOGY: MethodologySection[] = [
 
 /** One compact paragraph summarizing the full methodology — suitable
  *  for inclusion in the coach system prompt. ~1200 chars, well under
- *  the per-turn context budget. */
-export function methodologyForCoach(): string {
-  const lines: string[] = [METHODOLOGY_INTRO]
-  for (const s of METHODOLOGY) {
-    lines.push(`- ${s.title}: ${s.summary}`)
+ *  the per-turn context budget.
+ *
+ *  When a `MethodologyContext` is supplied (built from the active plan,
+ *  selected method, and onboarding preferences) the summary lines are
+ *  rewritten to reference the user's actual plan rather than Mike's. */
+export function methodologyForCoach(context?: import('./methodologyContext').MethodologyContext): string {
+  if (!context) {
+    const lines: string[] = [METHODOLOGY_INTRO]
+    for (const s of METHODOLOGY) {
+      lines.push(`- ${s.title}: ${s.summary}`)
+    }
+    return lines.join('\n')
+  }
+
+  const lines: string[] = []
+  const methodPart = context.methodName ? ` (built on ${context.methodName})` : ''
+  lines.push(
+    `This ${context.totalWeeks}-week plan for ${context.raceName || context.raceDistance}${methodPart} ` +
+    `is grounded in periodization theory and sport-specific endurance research.`,
+  )
+  if (context.phases.length) {
+    const phasePart = context.phases
+      .map(p => `${p.label} ${p.weekStart === p.weekEnd ? `Wk ${p.weekStart}` : `Wk ${p.weekStart}-${p.weekEnd}`}`)
+      .join(', ')
+    lines.push(`- Periodization: ${phasePart}.`)
+  }
+  if (context.intensityDistribution) {
+    lines.push(
+      `- Intensity distribution (method-implied): ~${context.intensityDistribution.easyPct}% easy / ` +
+      `${context.intensityDistribution.moderatePct}% moderate / ${context.intensityDistribution.hardPct}% hard.`,
+    )
+  }
+  if (context.recoveryWeek) {
+    const drop = context.recoveryWeek.volumeDropPct ? ` (~${context.recoveryWeek.volumeDropPct}% volume drop)` : ''
+    lines.push(`- Recovery week: Week ${context.recoveryWeek.num}${drop} — supercompensation, not a step backward.`)
+  }
+  if (context.taper) {
+    const drop = context.taper.volumeDropPct ? `, ~${context.taper.volumeDropPct}% volume drop` : ''
+    lines.push(
+      `- Taper: weeks ${context.taper.startWeek}-${context.taper.endWeek}${drop}, intensity preserved.`,
+    )
+  }
+  if (context.polesStartWeek && context.hasPoles) {
+    lines.push(`- Trekking poles introduced in Week ${context.polesStartWeek}; emphasizes plant rhythm.`)
+  }
+  if (context.eccentricFocus) {
+    lines.push(
+      `- Eccentric strength (slow squats, Nordic curls, eccentric calf drops, step-downs) prepares quads ` +
+      `for ${context.descentLandmark ? `the ${context.descentLandmark} descent` : 'the race descent'}.`,
+    )
+  }
+  if (context.hasAltitude && context.raceElevationRange) {
+    lines.push(`- Altitude (${context.raceElevationRange}) shifts HR 5-10 bpm higher; on race day pace by perceived effort.`)
   }
   return lines.join('\n')
 }
