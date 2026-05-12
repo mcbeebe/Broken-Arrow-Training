@@ -370,12 +370,14 @@ export default function Settings({
             <div>
               <p className="text-sm font-medium text-slate-800 dark:text-slate-100">Redo Onboarding</p>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
-                Finished your target race? Start a fresh onboarding to pick a new race, distance, and training method. Your activity history stays intact.
+                Finished your target race? Start a fresh onboarding to pick a new race, distance, and training method.
+                Your full training history carries forward — synced activities, HR zones, MIM/DOMS calibration, fatigue
+                (ATL/CTL/TSB), coach memory, and soreness logs are all preserved.
               </p>
             </div>
             <button
               onClick={() => {
-                if (confirm('This will clear your current race goal and training method, then take you back to onboarding. Your synced activities and HR data are preserved. Continue?')) {
+                if (confirm('This will clear only your race goal and training method, then take you back to onboarding. All training history, activities, HR data, fatigue, and coach memory are preserved. Continue?')) {
                   onResetOnboarding()
                 }
               }}
