@@ -10,7 +10,9 @@ import { usePlanOverrides } from './hooks/usePlanOverrides'
 import { useDaySwap } from './hooks/useDaySwap'
 import { useReadiness } from './hooks/useReadiness'
 import { useOnboarding } from './hooks/useOnboarding'
+import { useTutorial } from './hooks/useTutorial'
 import Onboarding from './components/Onboarding'
+import Tutorial from './components/Tutorial'
 import MethodSelection from './components/MethodSelection'
 import { getMethodById } from './data/methods'
 import { generatePlanFromMethod } from './engines/planGenerator/generatePlan'
@@ -91,6 +93,7 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
   const [chatSeed, setChatSeed] = useState<string | null>(null)
   const theme = useTheme()
   const onboarding = useOnboarding(athleteId)
+  const tutorial = useTutorial(athleteId)
   const plan = plans[athleteId]
 
   if (!plan && !onboarding.isOnboarded) {
@@ -589,8 +592,19 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
     planOverrides.removeOverride(overrideId)
   }, [planOverrides])
 
+  // First-time post-onboarding walkthrough — shown only when the athlete
+  // came in via the onboarding flow (so pre-built handcrafted plans like
+  // mike-18k skip it) and hasn't yet dismissed it.
+  const showTutorial = !!onboarding.config && !tutorial.seen
+
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 pb-24 dark:text-slate-200 transition-colors" style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" }}>
+      {showTutorial && (
+        <Tutorial
+          onClose={tutorial.markSeen}
+          athleteName={onboarding.config?.athleteName || activePlan.athlete.name}
+        />
+      )}
       {/* Header */}
       <div className="bg-slate-800 dark:bg-slate-900 text-white px-3 py-2.5">
         <div className="flex items-baseline justify-between">
