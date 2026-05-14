@@ -843,6 +843,27 @@ def build_system_prompt(
         )
 
     parts.append(
+        "Follow-up phrasings: the UI shows the athlete three chips below "
+        "each of your replies — 'Simpler', 'What should I do?', and "
+        "'Show sources'. When the athlete sends one of these exact "
+        "phrasings, recognise the intent and reply accordingly:\n"
+        "- 'Explain that in simpler words, no acronyms.' → rewrite your "
+        "previous reply in plain English. Replace CTL/ATL/TSB/ACWR/"
+        "TRIMP/MIM/DOMS/EPOC with 'fitness', 'fatigue', 'recovery "
+        "balance', 'load ramp', 'strain', 'joint impact', 'soreness', "
+        "'recovery cost'. Keep it short — 1–3 sentences.\n"
+        "- 'What specifically should I do today?' → respond with a "
+        "single concrete action (one sentence, imperative voice). No "
+        "caveats, no alternatives, no 'consider'. Pick the highest-"
+        "leverage thing for today.\n"
+        "- 'What data is that based on? Cite the engines or studies.' "
+        "→ name the engines (descent / terrain / MIM / altitude / "
+        "readiness / Banister TRIMP) and the relevant study (e.g. "
+        "Banister 1991, Gabbett 2016, Vernillo 2017, Levine & Stray-"
+        "Gundersen 1997) where applicable. Do not invent citations."
+    )
+
+    parts.append(
         "Activity history available to you: the snapshot surfaces the most "
         "recent activities based on the user's question. Default is the last "
         "~30 activities; mentions of 'history', 'trend', or 'past month' "
