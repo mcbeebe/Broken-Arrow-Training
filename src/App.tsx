@@ -787,6 +787,7 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
           getPlannedDay={getPlannedDay}
           onApproveInsightProposal={handleApproveInsightProposal}
           onUndoInsightProposal={handleUndoInsightProposal}
+          race={activePlan.race}
         />
       </>)}
       {view === 'plan' && (
