@@ -521,10 +521,25 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
     }
   }, [readiness.todayScore, todayPlannedWorkout, tomorrowPlannedWorkout, currentWeekDays, todayDayIndex, latestPerf, todayHealth, readiness.trainingStateInfo])
 
+  // Wrap daySwap.swapDays to also re-anchor plan overrides. Without
+  // this, an override stays pinned to its original dayIndex and would
+  // merge into the wrong workout after a swap (manifesting as the
+  // destination day appearing as a Rest day).
+  const swapDaysWithOverrides = useCallback((weekNum: number, fromIndex: number, toIndex: number) => {
+    daySwap.swapDays(weekNum, fromIndex, toIndex)
+    planOverrides.swapDayIndices(weekNum, fromIndex, toIndex)
+  }, [daySwap, planOverrides])
+
+  const wrappedDaySwap = useMemo(() => ({
+    swapDays: swapDaysWithOverrides,
+    resetWeek: daySwap.resetWeek,
+    hasSwaps: daySwap.hasSwaps,
+  }), [swapDaysWithOverrides, daySwap.resetWeek, daySwap.hasSwaps])
+
   // Handler for coach swap
   const handleCoachSwap = useCallback((fromIndex: number, toIndex: number) => {
-    daySwap.swapDays(currentWeekNum, fromIndex, toIndex)
-  }, [daySwap, currentWeekNum])
+    swapDaysWithOverrides(currentWeekNum, fromIndex, toIndex)
+  }, [swapDaysWithOverrides, currentWeekNum])
 
   // Manual workout editor — writes through the same planOverrides hook the
   // Coach uses, so user edits compose with logs/swaps automatically.
@@ -875,7 +890,7 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
           weeks={weeks}
           zones={hrZones.zones}
           manualLog={manualLog}
-          daySwap={daySwap}
+          daySwap={wrappedDaySwap}
           planEdit={planEdit}
           weekReadiness={readiness.weekScores}
           athleteId={athleteId}

@@ -70,6 +70,23 @@ export function usePlanOverrides(athleteId?: string) {
     setOverrides([])
   }, [athleteId])
 
+  // Keep override anchors aligned with a day swap. Without this, an
+  // override sticks to its old slot — which after a swap holds a
+  // different base workout — and the override silently merges into
+  // the wrong day (e.g. an UPPER BODY edit lands on a Rest slot,
+  // making the swap destination appear empty).
+  const swapDayIndices = useCallback((weekNum: number, fromIndex: number, toIndex: number) => {
+    if (fromIndex === toIndex) return
+    const nextList = overrides.map(o => {
+      if (o.weekNum !== weekNum) return o
+      if (o.dayIndex === fromIndex) return { ...o, dayIndex: toIndex }
+      if (o.dayIndex === toIndex) return { ...o, dayIndex: fromIndex }
+      return o
+    })
+    writeOverrides(nextList, athleteId)
+    setOverrides(nextList)
+  }, [overrides, athleteId])
+
   const applyOverridesToWeeks = useCallback((weeks: TrainingWeek[]): TrainingWeek[] => {
     if (overrides.length === 0) return weeks
     return weeks.map(week => {
@@ -92,6 +109,7 @@ export function usePlanOverrides(athleteId?: string) {
     removeOverride,
     removeForDay,
     resetAll,
+    swapDayIndices,
     applyOverridesToWeeks,
   }
 }
