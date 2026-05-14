@@ -3,6 +3,7 @@ import type { TrainingWeek, PlannedDay, ActualWorkout, HRZone, ReadinessScore, P
 import { findTrimpRecord } from '../utils/trimp'
 import type { WeekCompliance } from '../hooks/useCompliance'
 import { getWorkoutStyle, adaptBg } from '../utils/styles'
+import { buildWeatherChip, forecastForDate } from '../utils/weatherChip'
 import DayCard from './DayCard'
 import VolumeChart from './VolumeChart'
 import WorkoutModal from './WorkoutModal'
@@ -251,6 +252,12 @@ export default function WeeklyPlan({
           const dayDateMatch = parseDayToDate(d.day, week.dates)
           const readiness = dayDateMatch ? readinessByDate.get(dayDateMatch) : undefined
           const trimpRecord = findTrimpRecord(dailyTrimp, dayDateMatch, d.actual?.name)
+          // Look up the home-location forecast for this day. Only the
+          // 14-day forecast window will have a match — earlier weeks
+          // return null, which the card renders as "no chip".
+          const weatherChip = buildWeatherChip(
+            forecastForDate(coachSnapshot?.weatherForecast, dayDateMatch),
+          )
 
           return (
             <div
@@ -279,6 +286,7 @@ export default function WeeklyPlan({
                 coachSnapshot={coachSnapshot}
                 onAskCoach={onAskCoach}
                 trimpRecord={trimpRecord}
+                weatherChip={weatherChip}
               />
             </div>
           )

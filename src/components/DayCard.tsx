@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import type { PlannedDay, ReadinessScore, CoachSnapshot, TRIMPRecord } from '../types'
+import type { WeatherChip } from '../utils/weatherChip'
 import { getWorkoutStyle, adaptBg } from '../utils/styles'
 import { formatMiles, formatSeconds, estimateRunTime } from '../utils/format'
 import { parsePlannedTargets } from '../utils/targets'
@@ -40,9 +41,15 @@ interface DayCardProps {
    *  Surfaces the engine's MIM tier, elevation bonus, and adjusted load
    *  on the card so the athlete can see how the workout was credited. */
   trimpRecord?: TRIMPRecord
+  /** Pre-resolved forecast for this day (parent looks up by ISO date).
+   *  When present, renders a compact ☀️/🌧/⚡ + temp chip and an
+   *  amber WARN / red SWAP banner under the workout title.
+   *  Only future / today days carry useful weather — past days are
+   *  intentionally null. */
+  weatherChip?: WeatherChip | null
 }
 
-export default function DayCard({ day, weekNum, onTap, onLog, onSwap, onEdit, hasEdit, isSwapSelected, isSwapTarget, readiness, coachEnabled, isToday, isPast, athleteId, coachSnapshot, onAskCoach, trimpRecord }: DayCardProps) {
+export default function DayCard({ day, weekNum, onTap, onLog, onSwap, onEdit, hasEdit, isSwapSelected, isSwapTarget, readiness, coachEnabled, isToday, isPast, athleteId, coachSnapshot, onAskCoach, trimpRecord, weatherChip }: DayCardProps) {
   const style = getWorkoutStyle(day.type)
   const actual = day.actual
   const timeEst = estimateRunTime(day.zone)
@@ -237,10 +244,44 @@ export default function DayCard({ day, weekNum, onTap, onLog, onSwap, onEdit, ha
           </div>
         </div>
 
-        {!cardCollapsed && day.zone !== '—' && (
+        {!cardCollapsed && (day.zone !== '—' || (weatherChip && !isCompleted)) && (
           <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2.5 text-sm text-slate-600 dark:text-slate-300">
-            <span>📊 {day.zone}{timeEst ? ` (${timeEst} running)` : ''}</span>
+            {day.zone !== '—' && (
+              <span>📊 {day.zone}{timeEst ? ` (${timeEst} running)` : ''}</span>
+            )}
             {day.route !== '—' && <span>📍 {day.route}</span>}
+            {weatherChip && !isCompleted && (
+              <span
+                className="inline-flex items-center gap-1"
+                title={weatherChip.warningLabel || weatherChip.conditionsLabel}
+              >
+                <span aria-hidden>{weatherChip.icon}</span>
+                <span>{weatherChip.tempLabel}</span>
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* Weather alert banner — surfaces the same WARN/SWAP severity
+            the coach reads from the snapshot. WARN tier is informational
+            (amber); SWAP tier means a storm is forecast and the coach
+            will propose an indoor swap (red). Past days get no banner
+            since the weather is already-history. */}
+        {!cardCollapsed && !isCompleted && weatherChip && weatherChip.accent !== 'neutral' && (
+          <div
+            className={`mt-2 px-2.5 py-1.5 rounded-md text-sm flex items-start gap-1.5 ${
+              weatherChip.accent === 'swap'
+                ? 'bg-red-100/70 text-red-800 dark:bg-red-950/40 dark:text-red-200'
+                : 'bg-amber-100/70 text-amber-800 dark:bg-amber-950/40 dark:text-amber-200'
+            }`}
+          >
+            <span aria-hidden>{weatherChip.accent === 'swap' ? '🚨' : '⚠️'}</span>
+            <span className="leading-snug">
+              <span className="font-semibold">
+                {weatherChip.accent === 'swap' ? 'Swap likely:' : 'Weather:'}
+              </span>{' '}
+              {weatherChip.warningLabel || weatherChip.conditionsLabel}
+            </span>
           </div>
         )}
 
