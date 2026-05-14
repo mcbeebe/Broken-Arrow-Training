@@ -15,8 +15,9 @@ import type { MIMOverride } from '../hooks/useMIMCalibration'
 import { SPORT_LABELS } from '../hooks/useMIMCalibration'
 import CoachPersonaEditor from './CoachPersonaEditor'
 import CoachMemoryPanel from './CoachMemoryPanel'
+import ExportDialog from './ExportDialog'
 import { useTerminologyMode } from '../hooks/useTerminologyMode'
-import type { ConversationTurn } from '../types'
+import type { ConversationTurn, PerformanceMetrics } from '../types'
 
 interface SettingsProps {
   // Coach (Mike-only for now)
@@ -87,6 +88,8 @@ interface SettingsProps {
   onSetMIMManual?: (sport: string, value: number | null) => void
   onResetMIM?: (sport: string) => void
   onRecalibrateMIM?: () => string
+  // Share with coach (PDF export)
+  performance?: PerformanceMetrics[]
 }
 
 export default function Settings({
@@ -144,7 +147,9 @@ export default function Settings({
   activePlan,
   trainingMethod,
   onboardingConfig,
+  performance,
 }: SettingsProps) {
+  const [exportOpen, setExportOpen] = useState(false)
   void _onAcceptInference
   void _onDismissInference
   const { showTechnicalNames, setShowTechnicalNames } = useTerminologyMode(athleteId)
@@ -447,6 +452,37 @@ export default function Settings({
             </button>
           </div>
         </SettingsSection>
+      )}
+
+      {/* ── Share section ── */}
+      {activePlan && (
+        <SettingsSection title="Share">
+          <div className="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700 space-y-3">
+            <div>
+              <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">Share with my coach</p>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                Download a printable summary — plan, fitness trend, recent sessions, race readiness — to send to a coach, physio, or training partner.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setExportOpen(true)}
+              className="text-sm font-medium px-4 py-2 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 transition-colors"
+            >
+              Download PDF
+            </button>
+          </div>
+        </SettingsSection>
+      )}
+      {activePlan && (
+        <ExportDialog
+          open={exportOpen}
+          onClose={() => setExportOpen(false)}
+          athleteName={activePlan.athlete?.name || ''}
+          race={activePlan.race}
+          weeks={activePlan.weeks}
+          performance={performance ?? []}
+        />
       )}
 
       {/* ── Data Management section ── */}
