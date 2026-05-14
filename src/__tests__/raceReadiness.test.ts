@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
-import { computeRaceReadiness } from '../utils/raceReadiness'
+import { buildRaceReadinessDetail, computeRaceReadiness } from '../utils/raceReadiness'
 import { daysUntilRace, weeksUntilRace } from '../utils/raceCountdown'
-import type { PerformanceMetrics, RaceInfo } from '../types'
+import type { PerformanceMetrics, RaceInfo, TrainingWeek } from '../types'
 
 function perf(ctl: number, tsb = 0): PerformanceMetrics[] {
   return [
@@ -110,5 +110,141 @@ describe('computeRaceReadiness', () => {
       expect(s?.pct).toBeGreaterThanOrEqual(0)
       expect(s?.pct).toBeLessThanOrEqual(100)
     }
+  })
+})
+
+// Sample plan slice — three consecutive weeks with the typical layout
+// (strength + easy + quality + long + cross). Used by detail-builder tests.
+function sampleWeeks(): TrainingWeek[] {
+  return [
+    {
+      num: 5, dates: 'May 11–17', miles: 14, focus: 'Vert build',
+      days: [
+        { day: 'Mon 5/11', type: 'strength', workout: 'STRENGTH', detail: 'Squats, lunges', zone: 'Z1', route: 'Gym', time: '1 hr' },
+        { day: 'Tue 5/12', type: 'run', workout: 'Easy run', detail: 'Conversational', zone: '3.0 mi · Z2', route: 'Park', time: '45 min' },
+        { day: 'Wed 5/13', type: 'rest', workout: 'Rest', detail: '', zone: '—', route: '—', time: '—' },
+        { day: 'Thu 5/14', type: 'quality', workout: 'Hill repeats', detail: '4×90s uphill', zone: 'Z3 intervals', route: 'Hill', time: '1 hr' },
+        { day: 'Fri 5/15', type: 'rest', workout: 'Rest', detail: '', zone: '—', route: '—', time: '—' },
+        { day: 'Sat 5/16', type: 'cross', workout: 'CROSS-TRAIN', detail: 'Bike + mobility', zone: 'Z2', route: 'Gym', time: '1 hr' },
+        { day: 'Sun 5/17', type: 'long', workout: 'LONG RUN — Hilly', detail: '~760 ft gain', zone: '5.0 mi · Z2', route: 'Canyon', time: '1 hr 30 min' },
+      ],
+    },
+    {
+      num: 6, dates: 'May 18–24', miles: 16, focus: 'Vert build',
+      days: [
+        { day: 'Mon 5/18', type: 'strength', workout: 'STRENGTH', detail: '', zone: 'Z1', route: 'Gym', time: '1 hr' },
+        { day: 'Tue 5/19', type: 'run', workout: 'Easy run', detail: '', zone: '3.5 mi · Z2', route: 'Park', time: '50 min' },
+        { day: 'Wed 5/20', type: 'rest', workout: 'Rest', detail: '', zone: '—', route: '—', time: '—' },
+        { day: 'Thu 5/21', type: 'quality', workout: 'Hill repeats', detail: '5×90s uphill', zone: 'Z3 intervals', route: 'Hill', time: '1 hr' },
+        { day: 'Fri 5/22', type: 'rest', workout: 'Rest', detail: '', zone: '—', route: '—', time: '—' },
+        { day: 'Sat 5/23', type: 'cross', workout: 'CROSS-TRAIN', detail: '', zone: 'Z2', route: 'Gym', time: '1 hr' },
+        { day: 'Sun 5/24', type: 'long', workout: 'LONG RUN — Hilly', detail: '~900 ft gain', zone: '6.0 mi · Z2', route: 'Canyon', time: '1 hr 50 min' },
+      ],
+    },
+    {
+      num: 7, dates: 'May 25–31', miles: 17, focus: 'Peak vert',
+      days: [
+        { day: 'Mon 5/25', type: 'strength', workout: 'STRENGTH', detail: '', zone: 'Z1', route: 'Gym', time: '1 hr' },
+        { day: 'Tue 5/26', type: 'run', workout: 'Easy run', detail: '', zone: '4.0 mi · Z2', route: 'Park', time: '55 min' },
+        { day: 'Wed 5/27', type: 'rest', workout: 'Rest', detail: '', zone: '—', route: '—', time: '—' },
+        { day: 'Thu 5/28', type: 'quality', workout: 'Hill repeats', detail: '6×2 min uphill', zone: 'Z3 intervals', route: 'Hill', time: '1 hr 10 min' },
+        { day: 'Fri 5/29', type: 'rest', workout: 'Rest', detail: '', zone: '—', route: '—', time: '—' },
+        { day: 'Sat 5/30', type: 'cross', workout: 'CROSS-TRAIN', detail: '', zone: 'Z2', route: 'Gym', time: '1 hr' },
+        { day: 'Sun 5/31', type: 'long', workout: 'LONG RUN — Hilly', detail: '~1100 ft gain', zone: '7.0 mi · Z2', route: 'Canyon', time: '2 hr' },
+      ],
+    },
+  ]
+}
+
+describe('buildRaceReadinessDetail', () => {
+  const baseNow = new Date('2026-05-14T12:00:00')
+
+  it('vert gap anchors prescription to the existing quality day and long run', () => {
+    const r = race('2026-06-19', 11.2, '3,800 ft') // Mike's exact race
+    const summary = computeRaceReadiness({ race: r, performance: perf(50), now: baseNow })!
+    expect(summary.gap).toBe('vert')
+
+    const detail = buildRaceReadinessDetail({
+      summary,
+      weeks: sampleWeeks(),
+      currentWeekNum: 5,
+      race: r,
+    })
+
+    // Names the actual planned day (Thu 5/14) and long run (Sun 5/17).
+    const allDayLabels = detail.weeks.flatMap(w => w.assignments.map(a => a.dayLabel))
+    expect(allDayLabels).toContain('Thu 5/14')
+    expect(allDayLabels).toContain('Sun 5/17')
+
+    // Targets the existing quality + long workouts (not easy / strength / cross).
+    const types = new Set(detail.weeks.flatMap(w => w.assignments.map(a => a.workoutType)))
+    expect(types.has('quality')).toBe(true)
+    expect(types.has('long')).toBe(true)
+    expect(types.has('strength')).toBe(false)
+    expect(types.has('cross')).toBe(false)
+
+    // Card summary line references real days, not generic "next 3 weeks".
+    expect(detail.specificNextAction).toMatch(/Thu/)
+    expect(detail.specificNextAction).toMatch(/Sun/)
+    expect(detail.specificNextAction).toMatch(/ft/)
+
+    // Per-workout guidance covers every category so easy / strength / cross
+    // get explicit "leave alone" instructions.
+    const categories = detail.guidance.map(g => g.category)
+    expect(categories).toEqual(expect.arrayContaining(['easy', 'long', 'quality', 'strength', 'cross']))
+    expect(detail.guidance.find(g => g.category === 'easy')!.text).toMatch(/flat|conversational|easy/i)
+  })
+
+  it('fitness gap anchors to cross-train and long-run slots', () => {
+    const r = race('2026-07-15') // ~9 weeks out
+    const summary = computeRaceReadiness({ race: r, performance: perf(25), now: baseNow })!
+    expect(summary.gap).toBe('fitness')
+
+    const detail = buildRaceReadinessDetail({
+      summary,
+      weeks: sampleWeeks(),
+      currentWeekNum: 5,
+      race: r,
+    })
+
+    const types = new Set(detail.weeks.flatMap(w => w.assignments.map(a => a.workoutType)))
+    expect(types.has('cross')).toBe(true)
+    expect(types.has('long')).toBe(true)
+    expect(detail.specificNextAction).toMatch(/CTL/)
+  })
+
+  it('taper gap restricts horizon and touches strength + long', () => {
+    const r = race('2026-05-21') // 7 days out
+    const summary = computeRaceReadiness({ race: r, performance: perf(55, -10), now: baseNow })!
+    expect(summary.gap).toBe('taper')
+
+    const detail = buildRaceReadinessDetail({
+      summary,
+      weeks: sampleWeeks(),
+      currentWeekNum: 5,
+      race: r,
+    })
+
+    expect(detail.horizonWeeks).toBeLessThanOrEqual(2)
+    const types = new Set(detail.weeks.flatMap(w => w.assignments.map(a => a.workoutType)))
+    expect(types.has('strength')).toBe(true) // taper guidance touches strength
+    expect(detail.guidance.find(g => g.category === 'strength')!.text).toMatch(/skip|maintenance|bodyweight/i)
+  })
+
+  it('falls back gracefully when no weeks supplied', () => {
+    const r = race('2026-07-15', 18.6, '8,000 ft')
+    const summary = computeRaceReadiness({ race: r, performance: perf(50), now: baseNow })!
+    const detail = buildRaceReadinessDetail({
+      summary,
+      weeks: [],
+      currentWeekNum: 1,
+      race: r,
+    })
+
+    // No planned weeks to anchor to → falls back to summary.nextAction.
+    expect(detail.weeks).toEqual([])
+    expect(detail.specificNextAction).toBe(summary.nextAction)
+    // Generic per-workout guidance still rendered.
+    expect(detail.guidance.length).toBeGreaterThan(0)
   })
 })

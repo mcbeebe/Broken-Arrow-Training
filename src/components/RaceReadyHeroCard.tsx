@@ -1,8 +1,14 @@
-import type { RaceReadinessSummary } from '../utils/raceReadiness'
+import type { RaceReadinessDetail, RaceReadinessSummary } from '../utils/raceReadiness'
 
 interface Props {
   race: { name: string; distance: string }
   summary: RaceReadinessSummary
+  /** Optional workout-anchored detail. When present, the card uses
+   *  `detail.specificNextAction` instead of the generic `summary.nextAction`
+   *  so the prescription names the specific days/workouts to change. */
+  detail?: RaceReadinessDetail | null
+  /** When provided, the card becomes a button that opens a detail view. */
+  onClick?: () => void
 }
 
 const GAP_TONE: Record<RaceReadinessSummary['gap'], { ring: string; pill: string; pillText: string }> = {
@@ -23,13 +29,16 @@ const GAP_LABEL: Record<RaceReadinessSummary['gap'], string> = {
  * Hero card pinned to the top of Summary in the final ~8 weeks before a race.
  * Answers the only question every athlete actually has: "Am I ready?".
  */
-export default function RaceReadyHeroCard({ race, summary }: Props) {
+export default function RaceReadyHeroCard({ race, summary, detail, onClick }: Props) {
   const tone = GAP_TONE[summary.gap]
   const circumference = 2 * Math.PI * 28
   const offset = circumference * (1 - summary.pct / 100)
+  const horizonWeeks = detail?.horizonWeeks ?? Math.min(summary.weeksLeft, 3)
+  const actionText = detail?.specificNextAction ?? summary.nextAction
+  const horizonLabel = horizonWeeks <= 1 ? 'This week' : `Next ${horizonWeeks} weeks`
 
-  return (
-    <div className="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700">
+  const inner = (
+    <>
       <div className="flex items-center gap-3">
         <div className="relative shrink-0">
           <svg width="72" height="72" viewBox="0 0 72 72" aria-hidden="true">
@@ -66,11 +75,37 @@ export default function RaceReadyHeroCard({ race, summary }: Props) {
             {race.name} · {race.distance}
           </p>
         </div>
+        {onClick && (
+          <span aria-hidden="true" className="text-slate-400 dark:text-slate-500 text-lg shrink-0">›</span>
+        )}
       </div>
       <p className="mt-3 text-sm text-slate-700 dark:text-slate-200 leading-relaxed border-t border-slate-100 dark:border-slate-700 pt-3">
-        <span className="font-semibold">Next {summary.weeksLeft > 3 ? '3 weeks' : `${summary.weeksLeft} ${summary.weeksLeft === 1 ? 'week' : 'weeks'}`}:</span>{' '}
-        {summary.nextAction}
+        <span className="font-semibold">{horizonLabel}:</span> {actionText}
       </p>
+      {onClick && (
+        <p className="mt-2 text-xs font-medium text-slate-500 dark:text-slate-400">
+          Tap for the full week-by-week breakdown →
+        </p>
+      )}
+    </>
+  )
+
+  if (onClick) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        aria-label={`Open race readiness details — ${summary.pct}% ready, ${GAP_LABEL[summary.gap]}`}
+        className="w-full text-left bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 hover:shadow-md transition-all"
+      >
+        {inner}
+      </button>
+    )
+  }
+
+  return (
+    <div className="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700">
+      {inner}
     </div>
   )
 }

@@ -12,7 +12,8 @@ import WorkoutModal from './WorkoutModal'
 import { getWorkoutStyle } from '../utils/styles'
 import Term from './TermGlossary'
 import RaceReadyHeroCard from './RaceReadyHeroCard'
-import { computeRaceReadiness } from '../utils/raceReadiness'
+import RaceReadinessDetailModal from './RaceReadinessDetailModal'
+import { buildRaceReadinessDetail, computeRaceReadiness } from '../utils/raceReadiness'
 import { weeksUntilRace } from '../utils/raceCountdown'
 
 interface SummaryProps {
@@ -266,6 +267,7 @@ export default function Summary({
   const [perfOpen, setPerfOpen] = useState(false)
   const [narrativeOpen, setNarrativeOpen] = useState(true)
   const [showTodayModal, setShowTodayModal] = useState(false)
+  const [showRaceReadinessModal, setShowRaceReadinessModal] = useState(false)
 
   const weekNarrative = useMemo(
     () => buildWeekNarrative(performance, dailyTrimp),
@@ -282,10 +284,36 @@ export default function Summary({
     return computeRaceReadiness({ race, performance })
   }, [race, performance])
 
+  // Workout-anchored detail — names specific days/workouts to change. Requires
+  // weeks + currentWeekNum from the plan; without them the card falls back to
+  // the generic summary.nextAction text.
+  const raceReadinessDetail = useMemo(() => {
+    if (!race || !raceReadiness || !weeks || weeks.length === 0) return null
+    return buildRaceReadinessDetail({
+      summary: raceReadiness,
+      weeks,
+      currentWeekNum: currentWeekNum ?? 1,
+      race,
+    })
+  }, [race, raceReadiness, weeks, currentWeekNum])
+
   return (
     <div className="px-3 py-4 space-y-3">
       {race && raceReadiness && (
-        <RaceReadyHeroCard race={{ name: race.name, distance: race.distance }} summary={raceReadiness} />
+        <RaceReadyHeroCard
+          race={{ name: race.name, distance: race.distance }}
+          summary={raceReadiness}
+          detail={raceReadinessDetail}
+          onClick={() => setShowRaceReadinessModal(true)}
+        />
+      )}
+      {race && raceReadiness && raceReadinessDetail && showRaceReadinessModal && (
+        <RaceReadinessDetailModal
+          race={race}
+          summary={raceReadiness}
+          detail={raceReadinessDetail}
+          onClose={() => setShowRaceReadinessModal(false)}
+        />
       )}
       {coachEnabled && (
         <CoachInsightCard
