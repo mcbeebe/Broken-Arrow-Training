@@ -14,6 +14,7 @@ import type { OnboardingConfig } from '../hooks/useOnboarding'
 import type { MIMOverride } from '../hooks/useMIMCalibration'
 import { SPORT_LABELS } from '../hooks/useMIMCalibration'
 import CoachPersonaEditor from './CoachPersonaEditor'
+import { useTerminologyMode } from '../hooks/useTerminologyMode'
 
 interface SettingsProps {
   // Coach (Mike-only for now)
@@ -137,6 +138,7 @@ export default function Settings({
   void _pendingInferences
   void _onAcceptInference
   void _onDismissInference
+  const { showTechnicalNames, setShowTechnicalNames } = useTerminologyMode(athleteId)
   return (
     <div className="px-2 py-3 space-y-3">
       <h2 className="text-xl font-bold text-slate-800 dark:text-white">Settings</h2>
@@ -194,6 +196,31 @@ export default function Settings({
             {themeMode === 'auto' && (
               <p className="text-[10px] text-slate-400 mt-2">Follows your device's system setting</p>
             )}
+          </div>
+          <div className="mt-3 bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Show technical names</p>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                  Plain-English labels by default ("Fitness", "Fatigue", "Recovery Balance"). Turn on to see the original acronyms (CTL, ATL, TSB, ACWR, TRIMP, MIM, DOMS).
+                </p>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={showTechnicalNames}
+                onClick={() => setShowTechnicalNames(!showTechnicalNames)}
+                className={`shrink-0 inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                  showTechnicalNames ? 'bg-blue-500' : 'bg-slate-300 dark:bg-slate-600'
+                }`}
+              >
+                <span
+                  className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
+                    showTechnicalNames ? 'translate-x-5' : 'translate-x-1'
+                  }`}
+                />
+              </button>
+            </div>
           </div>
         </SettingsSection>
       )}

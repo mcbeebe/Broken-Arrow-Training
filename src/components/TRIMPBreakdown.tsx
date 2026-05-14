@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { DailyTRIMP } from '../types'
 import { localDateStr } from '../utils/format'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
+import Term from './TermGlossary'
 
 export type TRIMPRange = '7d' | '30d' | '90d' | 'ytd' | 'all'
 
@@ -227,7 +228,7 @@ export default function TRIMPBreakdown({
       <div className="flex items-baseline justify-between mb-3">
         <div>
           <p className="text-base font-semibold text-slate-700">{labels.title}</p>
-          <p className="text-sm text-slate-500">Garmin EPOC · MIM-adjusted · DOMS &amp; soreness</p>
+          <p className="text-sm text-slate-500">Garmin <Term name="epoc" /> · <Term name="mim" />-adjusted · <Term name="doms" /> &amp; soreness</p>
         </div>
         <div className="text-right">
           <p className="text-2xl font-bold text-slate-800">{rangeTotal}</p>

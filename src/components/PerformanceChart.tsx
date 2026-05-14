@@ -7,6 +7,7 @@ import {
   ResponsiveContainer, ReferenceLine, ReferenceArea, CartesianGrid,
 } from 'recharts'
 import ChartExpandOverlay from './ChartExpandOverlay'
+import Term from './TermGlossary'
 
 interface PerformanceChartProps {
   performance: PerformanceMetrics[]
@@ -142,12 +143,12 @@ export default function PerformanceChart({
                 }}
                 formatter={(value, name) => [
                   typeof value === 'number' ? value.toFixed(name === 'load' || name === 'load7d' ? 0 : 1) : String(value),
-                  name === 'ctl' ? 'Fitness (CTL)' :
-                  name === 'atl' ? 'Fatigue (ATL)' :
+                  name === 'ctl' ? 'Fitness' :
+                  name === 'atl' ? 'Fatigue' :
                   name === 'load' ? 'Daily Load' :
                   name === 'load7d' ? '7-Day Load' :
-                  name === 'tsbSmooth' ? 'Recovery Balance (TSB)' :
-                  'Recovery Balance (TSB)',
+                  name === 'tsbSmooth' ? 'Recovery Balance' :
+                  'Recovery Balance',
                 ]}
               />
               {/* Training load line (right axis) — daily or 7-day trailing */}
@@ -246,9 +247,9 @@ export default function PerformanceChart({
       {/* Current stats cards with contextual notes */}
       <div className="grid grid-cols-2 gap-2">
         <PerfStatCard
-          label="Fitness"
+          label={<Term name="ctl" />}
           value={latest.ctl.toFixed(0)}
-          sub="CTL"
+          sub=""
           color="blue"
           note={
             latest.ctl < 20 ? 'Building base — keep training consistently'
@@ -258,9 +259,9 @@ export default function PerformanceChart({
           }
         />
         <PerfStatCard
-          label="Fatigue"
+          label={<Term name="atl" />}
           value={latest.atl.toFixed(0)}
-          sub="ATL"
+          sub=""
           color="red"
           note={
             latest.atl > latest.ctl * 1.5 ? 'Very high — consider an easy day soon'
@@ -270,7 +271,7 @@ export default function PerformanceChart({
           }
         />
         <PerfStatCard
-          label="Recovery Balance"
+          label={<Term name="tsb">Recovery Balance</Term>}
           value={`${latest.tsb >= 0 ? '+' : ''}${latest.tsb.toFixed(0)}`}
           sub={getTSBLabel(tsbState)}
           color={tsbState === 'peaked' || tsbState === 'well_rested' ? 'green' : tsbState === 'productive' ? 'slate' : 'red'}
@@ -283,7 +284,7 @@ export default function PerformanceChart({
           }
         />
         <PerfStatCard
-          label="ACWR"
+          label={<Term name="acwr">Load Ratio</Term>}
           value={latest.acwr.toFixed(2)}
           sub={getACWRLabel(acwrRisk)}
           color={acwrRisk === 'sweet_spot' ? 'green' : acwrRisk === 'caution' ? 'amber' : 'red'}
@@ -340,7 +341,7 @@ function MetricPill({ active, onClick, color, label }: {
 }
 
 function PerfStatCard({ label, value, sub, color, note }: {
-  label: string; value: string; sub: string; color: string; note?: string
+  label: React.ReactNode; value: string; sub: React.ReactNode; color: string; note?: string
 }) {
   const colorMap: Record<string, string> = {
     blue: 'text-blue-700',
