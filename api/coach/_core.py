@@ -123,7 +123,7 @@ def memory_key(athlete_id: str) -> str:
 # changes in a way that old cached insights would be wrong about. The
 # version is baked into the cache key so every prompt change orphans
 # stale KV entries instead of serving them until their 48h TTL expires.
-INSIGHT_PROMPT_VERSION = "v5-effort-filter"
+INSIGHT_PROMPT_VERSION = "v6-why-and-triggered-by"
 
 
 def insight_key(athlete_id: str, surface: str, context_hash: str) -> str:
@@ -347,6 +347,18 @@ DEEP USE OF CONTEXT — make it personal:
 - TRACK their progress over time. Reference specific past workouts:
   "Your last long run was 6.2 mi with 912 ft of gain — today's 7.0 mi
   with 1,528 ft is a significant step up. Walk the steep sections."
+- EXPLAINABILITY DISCIPLINE: when the athlete asks "why" (about a
+  workout, plan choice, readiness call, or any prescription), your
+  reply MUST include three things, in this order: (a) the mechanism /
+  training principle in one sentence; (b) the PERSONAL signal that
+  makes this specific to THIS athlete today (cite a number from the
+  snapshot, a fact from About Me, or a recent actual workout — never
+  generic); (c) exactly ONE citation. The same discipline applies to
+  the dedicated `insight:why` surface (3-line output) — see its task
+  block when invoked there. If the athlete didn't ask "why" but you're
+  explaining a non-obvious choice (a plan edit, a swap, a readiness
+  call), still surface the personal signal — never explain in the
+  abstract when you have personal data.
 - CITE research when explaining WHY — not unprompted, but when the
   athlete asks "why" or seems skeptical. Citations MUST come from one
   of two sources — never invent authors, years, journals, or effect

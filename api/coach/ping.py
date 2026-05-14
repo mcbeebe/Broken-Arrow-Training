@@ -32,7 +32,30 @@ COOLDOWN_SECONDS = {
     "readiness_shift": 24 * 3600,
     "skipped_workout": 24 * 3600,
     "weekly_recap": 6 * 24 * 3600,  # roughly once/week
+    "weekly_arc": 6 * 24 * 3600,    # fires Monday morning, ~weekly
+    # Sprint 2 — adverse-signal triggers that propose a plan edit.
+    "hrv_drop": 12 * 3600,
+    "acwr_spike": 24 * 3600,
+    "compliance_drift": 48 * 3600,
 }
+
+
+# Sprint 2 — adverse-signal triggers don't just inform; they negotiate.
+# We tell the model to emit a `proposal` block when the data warrants
+# one, using the same schema as in-chat proposals. The frontend's
+# existing proposal parser + ProposalCard render the apply/modify/reject
+# affordance. Athletica's "passive black box" complaint hinges on plans
+# being auto-modified without explanation; we invert this — the coach
+# initiates a conversation, the athlete approves.
+_PROPOSAL_DIRECTIVE = (
+    " If the data clearly warrants a workout change (RED readiness, "
+    "load spike, repeated misses), end your message with a `proposal` "
+    "block per the format in your system prompt — the athlete will see "
+    "an Apply / Modify / Keep original card. If you propose a change, "
+    "open the message with the specific signal that triggered it "
+    "(e.g. \"HRV down 22% vs baseline\") so the athlete sees the "
+    "evidence before the prescription."
+)
 
 
 TRIGGER_PROMPTS = {
@@ -44,7 +67,7 @@ TRIGGER_PROMPTS = {
     "readiness_shift": (
         "The athlete's readiness band shifted. Write a 1-2 sentence coach "
         "heads-up grounded in the specific drivers (HRV, RHR, sleep, load). "
-        "One concrete cue for today."
+        "One concrete cue for today." + _PROPOSAL_DIRECTIVE
     ),
     "skipped_workout": (
         "The athlete skipped today's scheduled workout. Write a 1-2 sentence "
@@ -56,6 +79,48 @@ TRIGGER_PROMPTS = {
         "week's specific numbers (mileage, time-in-zones, compliance, load "
         "trend). Highlight one thing that went well and one thing to watch "
         "next week."
+    ),
+    "weekly_arc": (
+        "It's the start of a new training week. Frame the week ahead in "
+        "2-3 sentences. Name the phase (Base / Build / Peak / Taper / "
+        "Recovery — pick from the plan context) and the ONE purpose of "
+        "this week's stress. Tell them what to expect physically (heavy "
+        "legs, hunger, sleep need). End with exactly ONE citation: either "
+        "a baked-in reference (Bompa, Seiler, Bosquet, Plews, Toyomura, "
+        "Vernillo, Pellegrini) or 'Source: core endurance methodology "
+        "(Uphill Athlete, TrainingPeaks)'. Never invent citations. No "
+        "proposal block — this is orientation, not adjustment."
+    ),
+    "hrv_drop": (
+        "The athlete's HRV has dropped meaningfully vs their 7-day "
+        "baseline. Open with the specific delta (\"HRV is down X% vs "
+        "your 7-day baseline of Yms\"). In 1-2 sentences, explain what "
+        "that signals (likely autonomic stress, illness incubating, "
+        "incomplete recovery from recent load) and whether today's "
+        "planned workout is still appropriate. Look at the planned "
+        "workout in the snapshot — if it's hard (quality / long / "
+        "race-sim) and HRV is down meaningfully, propose a swap to "
+        "easy or rest. If it's already easy, you may just acknowledge "
+        "and skip the proposal." + _PROPOSAL_DIRECTIVE
+    ),
+    "acwr_spike": (
+        "The athlete's Load Ratio (acute:chronic) has crossed into the "
+        "caution band (>1.3) or danger band (>1.5). Open with the "
+        "specific number from the snapshot. In 1-2 sentences, explain "
+        "what that means (acute load running too far ahead of chronic "
+        "base — injury risk window). Look at the next 2-3 planned days "
+        "in the snapshot — propose either a deload swap or moving "
+        "intensity later in the week to let chronic load catch up."
+        + _PROPOSAL_DIRECTIVE
+    ),
+    "compliance_drift": (
+        "The athlete has missed 2+ scheduled workouts in the last 7 "
+        "days. Open with the specific count and which workouts (from "
+        "the snapshot). Write 1-2 sentences — non-judgmental, curious. "
+        "Ask ONE specific question about what's getting in the way "
+        "(scheduling, motivation, life events, soreness). Don't "
+        "propose a plan change yet — get the context first. Compliance "
+        "drift is a relationship signal, not a load signal."
     ),
 }
 

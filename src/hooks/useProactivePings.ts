@@ -198,6 +198,108 @@ export function useProactivePings(inputs: Inputs) {
           if (!cancelled && result && !result.skipped) memory.refresh()
         }
       }
+
+      // ── weekly_arc ──────────────────────────────
+      // Monday morning orientation: phase + purpose + citation. Once per
+      // ISO week, fires on Monday (any time of day so an athlete checking
+      // in at 5am still gets it before their workout) up through Tuesday
+      // EOD as a grace window for people who skip Monday entirely.
+      const dow = nowDate.getDay()
+      const isMondayOrTuesday = dow === 1 || dow === 2
+      if (isMondayOrTuesday) {
+        const wk = isoWeekKey(nowDate)
+        const arcKey = `weekly_arc:${athleteId}:${wk}`
+        if (!lsGet(arcKey)) {
+          lsSet(arcKey, '1')
+          const result = await postPing(
+            athleteId,
+            {
+              type: 'weekly_arc',
+              payload: {
+                week: wk,
+                weekNum: snapshot?.currentWeekNum,
+              },
+            },
+            snapshot,
+          )
+          if (!cancelled && result && !result.skipped) memory.refresh()
+        }
+      }
+
+      // ── Sprint 2: adverse-signal triggers (negotiation, not fiat) ──
+      // Each fires once per cooldown window. The server prompt instructs
+      // the coach to attach a `proposal` block when warranted, so the
+      // athlete sees an Apply / Modify / Keep card rather than getting
+      // their plan silently rewritten. Per-day local-storage dedup so a
+      // re-trigger tomorrow (server cooldown also expired) can fire.
+      const todayDate = nowDate.toISOString().slice(0, 10)
+
+      // hrv_drop — HRV last night ≥ 20% below 7d baseline.
+      const hrvNow = snapshot?.todayHealth?.hrvLastNightMs
+      const hrvBase = snapshot?.todayHealth?.hrvWeeklyAvgMs
+      if (
+        typeof hrvNow === 'number' &&
+        typeof hrvBase === 'number' &&
+        hrvBase > 0 &&
+        hrvNow / hrvBase <= 0.80
+      ) {
+        const k = `hrv_drop:${athleteId}:${todayDate}`
+        if (!lsGet(k)) {
+          lsSet(k, '1')
+          const result = await postPing(
+            athleteId,
+            {
+              type: 'hrv_drop',
+              payload: {
+                lastNightMs: hrvNow,
+                baselineMs: hrvBase,
+                pctOfBaseline: Math.round((hrvNow / hrvBase) * 100),
+              },
+            },
+            snapshot,
+          )
+          if (!cancelled && result && !result.skipped) memory.refresh()
+        }
+      }
+
+      // acwr_spike — Load Ratio crosses the caution band (>1.3).
+      const acwr = snapshot?.performance?.acwr
+      if (typeof acwr === 'number' && acwr > 1.3) {
+        const band = acwr > 1.5 ? 'danger' : 'caution'
+        const k = `acwr_spike:${athleteId}:${todayDate}`
+        if (!lsGet(k)) {
+          lsSet(k, '1')
+          const result = await postPing(
+            athleteId,
+            {
+              type: 'acwr_spike',
+              payload: { acwr: Number(acwr.toFixed(2)), band },
+            },
+            snapshot,
+          )
+          if (!cancelled && result && !result.skipped) memory.refresh()
+        }
+      }
+
+      // compliance_drift — 2+ flagged misses across the analytics window.
+      // Coach checks in with a question (no proposal yet — get the human
+      // context first; this is a relationship signal, not a load signal).
+      const flagged = snapshot?.analytics?.complianceSummary?.flagged
+      if (typeof flagged === 'number' && flagged >= 2) {
+        const k = `compliance_drift:${athleteId}:${todayDate}`
+        if (!lsGet(k)) {
+          lsSet(k, '1')
+          const result = await postPing(
+            athleteId,
+            {
+              type: 'compliance_drift',
+              payload: { flagged },
+            },
+            snapshot,
+          )
+          if (!cancelled && result && !result.skipped) memory.refresh()
+        }
+      }
     }
 
     run()

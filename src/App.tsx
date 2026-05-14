@@ -638,6 +638,21 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
     return w.days[dayIndex] ?? null
   }, [activePlan.weeks])
 
+  // Sprint 2 — record what the athlete did with each proposal as a
+  // system-handoff turn so the coach can see the negotiation history
+  // and the inference engine can learn preferences over time. Best
+  // effort; appendTurn is a no-op offline so the apply path still
+  // works without a network.
+  const describeProposal = useCallback((action: CoachAction): string => {
+    const pe = action.proposedEdit
+    if (!pe) return 'unknown proposal'
+    const original = getPlannedDay(pe.weekNum, pe.dayIndex)
+    const fromLabel = original?.workout || 'current workout'
+    const toLabel = pe.updates.workout || pe.updates.detail || action.detail || 'modified workout'
+    const day = original?.day || `Wk ${pe.weekNum} D${pe.dayIndex}`
+    return `${day}: ${fromLabel} → ${toLabel}`
+  }, [getPlannedDay])
+
   const handleApproveAction = useCallback((turnId: string, action: CoachAction) => {
     if (action.type !== 'propose_edit' || !action.proposedEdit) return
     const overrideId = planOverrides.applyOverride({
@@ -647,15 +662,30 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
       rationale: action.proposedEdit.rationale,
     })
     coachMemory.updateTurn(turnId, { actionStatus: 'applied', actionOverrideId: overrideId })
-  }, [planOverrides, coachMemory])
+    coachMemory.appendTurn(
+      'system-handoff',
+      `[PLAN EDIT APPLIED] Athlete accepted the proposed swap → ${describeProposal(action)}. Override id ${overrideId}.`,
+    )
+  }, [planOverrides, coachMemory, describeProposal])
 
   const handleRejectAction = useCallback((turnId: string) => {
+    const turn = coachMemory.conversation.find(t => t.id === turnId)
+    const action = turn?.action
     coachMemory.updateTurn(turnId, { actionStatus: 'rejected' })
-  }, [coachMemory])
+    const swap = action ? ` → ${describeProposal(action)}` : ''
+    coachMemory.appendTurn(
+      'system-handoff',
+      `[PLAN EDIT DECLINED] Athlete kept the original instead of the proposed swap${swap}. They did not modify or apply — note this preference for similar future suggestions.`,
+    )
+  }, [coachMemory, describeProposal])
 
   const handleUndoAction = useCallback((turnId: string, overrideId: string) => {
     planOverrides.removeOverride(overrideId)
     coachMemory.updateTurn(turnId, { actionStatus: 'pending', actionOverrideId: undefined })
+    coachMemory.appendTurn(
+      'system-handoff',
+      `[PLAN EDIT REVERTED] Athlete undid a previously-applied swap (override ${overrideId}). Treat as a soft signal that the swap may not have worked for them.`,
+    )
   }, [planOverrides, coachMemory])
 
   // Daily-insight proposals don't live in coachMemory, so they get their
@@ -663,17 +693,26 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
   // tracks its own pending/applied/rejected status in localStorage.
   const handleApproveInsightProposal = useCallback((action: CoachAction): string | undefined => {
     if (action.type !== 'propose_edit' || !action.proposedEdit) return undefined
-    return planOverrides.applyOverride({
+    const overrideId = planOverrides.applyOverride({
       weekNum: action.proposedEdit.weekNum,
       dayIndex: action.proposedEdit.dayIndex,
       updates: action.proposedEdit.updates,
       rationale: action.proposedEdit.rationale,
     })
-  }, [planOverrides])
+    coachMemory.appendTurn(
+      'system-handoff',
+      `[PLAN EDIT APPLIED] Athlete accepted the proposed swap from a daily insight → ${describeProposal(action)}. Override id ${overrideId}.`,
+    )
+    return overrideId
+  }, [planOverrides, coachMemory, describeProposal])
 
   const handleUndoInsightProposal = useCallback((overrideId: string) => {
     planOverrides.removeOverride(overrideId)
-  }, [planOverrides])
+    coachMemory.appendTurn(
+      'system-handoff',
+      `[PLAN EDIT REVERTED] Athlete undid a daily-insight swap (override ${overrideId}).`,
+    )
+  }, [planOverrides, coachMemory])
 
   // First-time post-onboarding walkthrough — shown only when the athlete
   // came in via the onboarding flow (so pre-built handcrafted plans like

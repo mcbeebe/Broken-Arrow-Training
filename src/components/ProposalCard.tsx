@@ -12,10 +12,13 @@ interface Props {
   onApprove?: (action: CoachAction) => void
   onReject?: () => void
   onUndo?: (overrideId: string) => void
+  /** Seed the chat with a follow-up question about this proposal so the
+   *  athlete can ask "why this swap?" without losing context. */
+  onAsk?: (seed: string) => void
 }
 
 export default function ProposalCard({
-  action, status, overrideId, getPlannedDay, onApprove, onReject, onUndo,
+  action, status, overrideId, getPlannedDay, onApprove, onReject, onUndo, onAsk,
 }: Props) {
   if (action.type !== 'propose_edit' || !action.proposedEdit) return null
   const pe = action.proposedEdit
@@ -91,6 +94,19 @@ export default function ProposalCard({
             "{pe.rationale}"
           </div>
         )}
+        {onAsk && (() => {
+          const newLabel = pe.updates.workout || action.detail || 'the proposed change'
+          const fromLabel = original?.workout || 'current'
+          const seed = `Why this swap for ${dayLabel}? Walk me through the mechanism, why it's right for me today, and cite a source. (Swap: ${fromLabel} → ${newLabel}${pe.rationale ? ` · stated rationale: ${pe.rationale}` : ''})`
+          return (
+            <button
+              onClick={() => onAsk(seed)}
+              className="text-[11px] font-semibold text-indigo-700 dark:text-indigo-300 hover:text-indigo-900 dark:hover:text-indigo-100 pt-1"
+            >
+              🧠 Why this swap? →
+            </button>
+          )
+        })()}
       </div>
       <div className="flex gap-1 px-2 pb-2">
         <button
@@ -99,6 +115,25 @@ export default function ProposalCard({
         >
           ✓ Apply
         </button>
+        {/* Sprint 2 — Modify: open a negotiation. Pre-fills the composer
+            with the swap context so the athlete can counter ("keep it as
+            tempo but move to Saturday"). The coach replies with a fresh
+            proposal that the athlete then accepts. This is the "talk to
+            your coach, don't be talked to" loop — directly inverts
+            Athletica's silent-modify posture. */}
+        {onAsk && (() => {
+          const newLabel = pe.updates.workout || action.detail || 'the proposed change'
+          const fromLabel = original?.workout || 'current'
+          const seed = `I'd like to modify this swap for ${dayLabel}: ${fromLabel} → ${newLabel}. Here's what I want different: `
+          return (
+            <button
+              onClick={() => onAsk(seed)}
+              className="flex-1 text-xs font-medium py-2 rounded-lg bg-amber-50 dark:bg-amber-950 text-amber-800 dark:text-amber-200 hover:bg-amber-100 dark:hover:bg-amber-900 transition-colors border border-amber-200 dark:border-amber-900"
+            >
+              ✎ Modify
+            </button>
+          )
+        })()}
         <button
           onClick={() => onReject?.()}
           className="flex-1 text-xs font-medium py-2 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"

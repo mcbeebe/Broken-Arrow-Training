@@ -10,10 +10,23 @@ Streams SSE:
 After the stream completes, appends the assistant turn to memory and
 runs two best-effort post-processing steps (inference detection,
 conversation summary refresh).
+
+ALTERNATE BODY — voice transcription:
+{ athleteId, op: "transcribe", audio: { mediaType, data: base64 } }
+
+Returns JSON (not SSE) with `{ text, latencyMs }`. We dispatch this
+through the same endpoint so we don't add a separate Vercel function
+(Hobby-tier function-count limit). The audio path forwards to OpenAI
+Whisper and is budget-gated the same way as a chat call.
 """
 
+import base64
 import json
+import os
 import time
+import urllib.error
+import urllib.request
+import uuid
 from http.server import BaseHTTPRequestHandler
 
 from ._core import (
@@ -28,6 +41,7 @@ from ._core import (
     detect_inferences,
     fact_already_known,
     load_memory,
+    log_interaction,
     log_llm_call,
     log_sample_event,
     new_turn_id,
@@ -39,6 +53,181 @@ from ._core import (
     stream_anthropic,
     summarize_conversation,
 )
+
+
+# ─── Whisper transcription (voice input) ─────────────────────────
+# Folded into chat.py so /api/coach/voice doesn't burn a serverless-
+# function slot. The frontend POSTs to /api/coach/chat with
+# {op: "transcribe", audio: {mediaType, data}} and we dispatch based
+# on the `op` discriminator before falling into the SSE path.
+
+OPENAI_TRANSCRIBE_URL = "https://api.openai.com/v1/audio/transcriptions"
+WHISPER_MODEL = os.environ.get("OPENAI_WHISPER_MODEL", "whisper-1")
+MAX_AUDIO_BYTES = 10 * 1024 * 1024  # 10 MB; Whisper allows up to 25
+
+EXT_BY_MIME = {
+    "audio/webm": "webm",
+    "audio/webm;codecs=opus": "webm",
+    "audio/ogg": "ogg",
+    "audio/ogg;codecs=opus": "ogg",
+    "audio/mp4": "mp4",
+    "audio/mp4;codecs=mp4a.40.2": "mp4",
+    "audio/x-m4a": "m4a",
+    "audio/mpeg": "mp3",
+    "audio/mp3": "mp3",
+    "audio/wav": "wav",
+    "audio/wave": "wav",
+    "audio/x-wav": "wav",
+}
+
+
+def _build_whisper_multipart(
+    audio_bytes: bytes,
+    filename: str,
+    mime_type: str,
+    model: str,
+):
+    boundary = f"----CoachVoice{uuid.uuid4().hex}"
+    crlf = b"\r\n"
+    parts: list[bytes] = []
+
+    def field(name: str, value: str) -> None:
+        parts.append(f"--{boundary}".encode())
+        parts.append(
+            f'Content-Disposition: form-data; name="{name}"'.encode()
+        )
+        parts.append(b"")
+        parts.append(value.encode())
+
+    field("model", model)
+    field("response_format", "json")
+
+    parts.append(f"--{boundary}".encode())
+    parts.append(
+        f'Content-Disposition: form-data; name="file"; filename="{filename}"'.encode()
+    )
+    parts.append(f"Content-Type: {mime_type}".encode())
+    parts.append(b"")
+    parts.append(audio_bytes)
+    parts.append(f"--{boundary}--".encode())
+    parts.append(b"")
+
+    body = crlf.join(parts)
+    return body, f"multipart/form-data; boundary={boundary}"
+
+
+def _handle_transcribe(self, body):
+    """Whisper transcription branch. Reads {audio:{mediaType,data}} out
+    of the chat-endpoint body and returns JSON (not SSE). Shares the
+    same per-athlete daily budget as chat."""
+    athlete_id = str(body.get("athleteId", "")).strip()
+    audio = body.get("audio") or {}
+    media_type = str(audio.get("mediaType", "")).strip().lower()
+    data_b64 = str(audio.get("data", "")).strip()
+
+    if not athlete_id:
+        send_json(self, 400, {"error": "athleteId required"})
+        return
+    if not data_b64:
+        send_json(self, 400, {"error": "audio.data required (base64)"})
+        return
+
+    if data_b64.startswith("data:"):
+        try:
+            data_b64 = data_b64.split(",", 1)[1]
+        except IndexError:
+            send_json(self, 400, {"error": "malformed data URL"})
+            return
+
+    try:
+        audio_bytes = base64.b64decode(data_b64, validate=False)
+    except Exception:
+        send_json(self, 400, {"error": "invalid base64"})
+        return
+
+    if not audio_bytes:
+        send_json(self, 400, {"error": "empty audio"})
+        return
+    if len(audio_bytes) > MAX_AUDIO_BYTES:
+        send_json(
+            self,
+            413,
+            {"error": f"audio too large ({len(audio_bytes)} > {MAX_AUDIO_BYTES} bytes)"},
+        )
+        return
+
+    within, used, budget = check_and_increment_budget(athlete_id)
+    if not within:
+        send_json(self, 429, {"error": "budget_exceeded", "used": used, "budget": budget})
+        return
+
+    api_key = os.environ.get("OPENAI_API_KEY", "").strip()
+    if not api_key:
+        send_json(self, 503, {"error": "openai_api_key_unconfigured"})
+        return
+
+    ext = EXT_BY_MIME.get(media_type, "webm")
+    clean_mime = media_type.split(";", 1)[0] if media_type else f"audio/{ext}"
+    filename = f"voice.{ext}"
+
+    multipart_body, content_type = _build_whisper_multipart(
+        audio_bytes, filename, clean_mime, WHISPER_MODEL,
+    )
+
+    req = urllib.request.Request(
+        OPENAI_TRANSCRIBE_URL,
+        data=multipart_body,
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": content_type,
+        },
+        method="POST",
+    )
+
+    t0 = time.time()
+    try:
+        with urllib.request.urlopen(req, timeout=60) as resp:
+            raw = resp.read().decode("utf-8", errors="replace")
+    except urllib.error.HTTPError as e:
+        err_body = ""
+        try:
+            err_body = e.read().decode("utf-8", errors="replace")[:300]
+        except Exception:
+            pass
+        log_llm_call(
+            athlete_id=athlete_id, model=WHISPER_MODEL, surface="voice_transcription",
+            input_tokens=0, output_tokens=0,
+            latency_ms=int((time.time() - t0) * 1000), success=False,
+        )
+        send_json(self, 502, {"error": f"whisper_http_{e.code}", "detail": err_body})
+        return
+    except Exception as e:
+        log_llm_call(
+            athlete_id=athlete_id, model=WHISPER_MODEL, surface="voice_transcription",
+            input_tokens=0, output_tokens=0,
+            latency_ms=int((time.time() - t0) * 1000), success=False,
+        )
+        send_json(self, 502, {"error": f"whisper_unavailable: {e}"})
+        return
+
+    latency_ms = int((time.time() - t0) * 1000)
+    try:
+        parsed = json.loads(raw)
+    except Exception:
+        send_json(self, 502, {"error": "whisper_invalid_response"})
+        return
+
+    text = (parsed.get("text") or "").strip()
+    log_llm_call(
+        athlete_id=athlete_id, model=WHISPER_MODEL, surface="voice_transcription",
+        input_tokens=0, output_tokens=len(text) // 4,
+        latency_ms=latency_ms, success=True,
+    )
+    log_interaction(
+        athlete_id=athlete_id, kind="voice_transcription",
+        meta={"audioBytes": len(audio_bytes), "chars": len(text)},
+    )
+    send_json(self, 200, {"text": text, "latencyMs": latency_ms})
 
 
 def _write_sse(handler, obj: dict) -> None:
@@ -85,6 +274,13 @@ class handler(BaseHTTPRequestHandler):
         athlete_id = str(body.get("athleteId", "")).strip()
         incoming = body.get("messages") or []
         snapshot = body.get("snapshot") or {}
+
+        # Voice transcription path: dispatch before the SSE setup since
+        # this branch returns JSON. Folded into chat.py so we don't add
+        # a separate Vercel function (Hobby tier function-count limit).
+        if str(body.get("op", "")).strip() == "transcribe":
+            _handle_transcribe(self, body)
+            return
 
         if not athlete_id:
             send_json(self, 400, {"error": "athleteId required"})

@@ -14,6 +14,7 @@ import type { OnboardingConfig } from '../hooks/useOnboarding'
 import type { MIMOverride } from '../hooks/useMIMCalibration'
 import { SPORT_LABELS } from '../hooks/useMIMCalibration'
 import CoachPersonaEditor from './CoachPersonaEditor'
+import { isVoiceInputEnabled, setVoiceInputEnabled, voiceCaptureSupported } from '../utils/voiceInput'
 import CoachMemoryPanel from './CoachMemoryPanel'
 import ExportDialog from './ExportDialog'
 import { useTerminologyMode } from '../hooks/useTerminologyMode'
@@ -254,6 +255,7 @@ export default function Settings({
                 onSave={onSaveCoachPersona}
               />
             )}
+            <VoiceInputToggle />
             {onClearCoachConversation && (
               <CoachMemoryPanel
                 aboutMe={aboutMeText ?? ''}
@@ -815,6 +817,48 @@ function MIMTable({ overrides, lastCalibrated, onSetManual, onReset, onRecalibra
           </div>
         </div>
       </details>
+    </div>
+  )
+}
+
+function VoiceInputToggle() {
+  const supported = voiceCaptureSupported()
+  const [enabled, setEnabled] = useState(() => isVoiceInputEnabled())
+  return (
+    <div className="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium text-slate-800 dark:text-white flex items-center gap-1.5">
+            <span aria-hidden>🎙️</span> Voice input
+          </p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
+            {supported
+              ? 'Dictate messages to the coach instead of typing. Transcribed by Whisper. Same daily budget as chat.'
+              : "Your browser doesn't support microphone capture. Try Chrome or Safari."}
+          </p>
+        </div>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={enabled}
+          aria-label="Toggle voice input"
+          disabled={!supported}
+          onClick={() => {
+            const next = !enabled
+            setEnabled(next)
+            setVoiceInputEnabled(next)
+          }}
+          className={`relative w-10 h-6 rounded-full shrink-0 transition-colors disabled:opacity-40 ${
+            enabled ? 'bg-indigo-500' : 'bg-slate-200 dark:bg-slate-700'
+          }`}
+        >
+          <span
+            className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+              enabled ? 'translate-x-4' : 'translate-x-0.5'
+            }`}
+          />
+        </button>
+      </div>
     </div>
   )
 }
