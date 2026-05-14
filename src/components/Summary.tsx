@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import type { ReadinessScore, GarminHealthData, CoachRecommendation, PerformanceMetrics, DailyTRIMP, CoachInsight, PlannedDay, HRZone, CoachSnapshot, CoachAction } from '../types'
+import type { ReadinessScore, GarminHealthData, CoachRecommendation, PerformanceMetrics, DailyTRIMP, CoachInsight, PlannedDay, HRZone, CoachSnapshot, CoachAction, RaceInfo } from '../types'
 import type { RiskFlag } from '../utils/readiness'
 import type { SorenessLevel } from '../hooks/useSoreness'
 import { getTSBState, getTSBLabel, getACWRRisk, getACWRLabel } from '../utils/performance'
@@ -11,6 +11,9 @@ import CoachInsightCard from './CoachInsightCard'
 import WorkoutModal from './WorkoutModal'
 import { getWorkoutStyle } from '../utils/styles'
 import Term from './TermGlossary'
+import RaceReadyHeroCard from './RaceReadyHeroCard'
+import { computeRaceReadiness } from '../utils/raceReadiness'
+import { weeksUntilRace } from '../utils/raceCountdown'
 
 interface SummaryProps {
   athleteId: string
@@ -46,6 +49,8 @@ interface SummaryProps {
   getPlannedDay?: (weekNum: number, dayIndex: number) => PlannedDay | null
   onApproveInsightProposal?: (action: CoachAction) => string | undefined
   onUndoInsightProposal?: (overrideId: string) => void
+  /** Goal race — drives the race-ready hero card in the final ~8 weeks. */
+  race?: RaceInfo
 }
 
 // ─── Scale bar component ──────────────────────────────────────
@@ -255,6 +260,7 @@ export default function Summary({
   getPlannedDay,
   onApproveInsightProposal,
   onUndoInsightProposal,
+  race,
 }: SummaryProps) {
   const latestPerf = performance.length > 0 ? performance[performance.length - 1] : null
   const [perfOpen, setPerfOpen] = useState(false)
@@ -266,8 +272,21 @@ export default function Summary({
     [performance, dailyTrimp],
   )
 
+  // Race-ready hero is pinned to the top of Summary in the last ~8 weeks
+  // before a goal race. The window is wide enough to span a full taper
+  // (which begins ~2-3 weeks out) and the final build block.
+  const raceReadiness = useMemo(() => {
+    if (!race) return null
+    const weeks = weeksUntilRace(race.date)
+    if (weeks == null || weeks < 0 || weeks > 8) return null
+    return computeRaceReadiness({ race, performance })
+  }, [race, performance])
+
   return (
     <div className="px-3 py-4 space-y-3">
+      {race && raceReadiness && (
+        <RaceReadyHeroCard race={{ name: race.name, distance: race.distance }} summary={raceReadiness} />
+      )}
       {coachEnabled && (
         <CoachInsightCard
           insight={dailyInsight ?? null}
