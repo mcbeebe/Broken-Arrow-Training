@@ -32,6 +32,7 @@ COOLDOWN_SECONDS = {
     "readiness_shift": 24 * 3600,
     "skipped_workout": 24 * 3600,
     "weekly_recap": 6 * 24 * 3600,  # roughly once/week
+    "weekly_arc": 6 * 24 * 3600,    # fires Monday morning, ~weekly
 }
 
 
@@ -56,6 +57,17 @@ TRIGGER_PROMPTS = {
         "week's specific numbers (mileage, time-in-zones, compliance, load "
         "trend). Highlight one thing that went well and one thing to watch "
         "next week."
+    ),
+    "weekly_arc": (
+        "It's the start of a new training week. Frame the week ahead in "
+        "2-3 sentences. Name the phase (Base / Build / Peak / Taper / "
+        "Recovery — pick from the plan context) and the ONE purpose of "
+        "this week's stress. Tell them what to expect physically (heavy "
+        "legs, hunger, sleep need). End with exactly ONE citation: either "
+        "a baked-in reference (Bompa, Seiler, Bosquet, Plews, Toyomura, "
+        "Vernillo, Pellegrini) or 'Source: core endurance methodology "
+        "(Uphill Athlete, TrainingPeaks)'. Never invent citations. No "
+        "proposal block — this is orientation, not adjustment."
     ),
 }
 

@@ -648,6 +648,7 @@ export type CoachPingTriggerType =
   | 'readiness_shift'
   | 'skipped_workout'
   | 'weekly_recap'
+  | 'weekly_arc'
 
 export interface CoachPingTrigger {
   type: CoachPingTriggerType

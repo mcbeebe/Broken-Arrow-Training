@@ -5,6 +5,7 @@ import type { UseCoachMemoryReturn } from '../hooks/useCoachMemory'
 import { renderMarkdown } from '../utils/markdown'
 import { extractProposal, stripStreamingProposal } from '../utils/chatProposal'
 import { resizeImage, type ResizedImage } from '../utils/imageResize'
+import { isVoiceInputEnabled, startRecording, transcribeAudio, voiceCaptureSupported, type ActiveRecording, type VoiceCaptureError } from '../utils/voiceInput'
 import ProposalCard from './ProposalCard'
 
 /** Tiny toast that disappears after a beat. */
@@ -75,6 +76,17 @@ export default function CoachChat({ athleteId, memory, snapshot, seed, onSeedCon
   const [attachedImage, setAttachedImage] = useState<ResizedImage | null>(null)
   const [attaching, setAttaching] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  // Voice input — recorder live state. Idle/recording/transcribing form a
+  // simple FSM the mic button visualizes; an error state surfaces as a
+  // transient banner over the composer. The active recording handle
+  // lives in a ref so we can call stop() without forcing a re-render
+  // when capture chunks come in.
+  const [recordingState, setRecordingState] = useState<'idle' | 'recording' | 'transcribing'>('idle')
+  const [recordingMs, setRecordingMs] = useState(0)
+  const [voiceError, setVoiceError] = useState<string | null>(null)
+  const activeRecorderRef = useRef<ActiveRecording | null>(null)
+  const recordingTimerRef = useRef<number | null>(null)
+  const voiceEnabled = isVoiceInputEnabled() && voiceCaptureSupported()
   const [copiedToast, setCopiedToast] = useState(false)
   const [fontScale, setFontScaleState] = useState(() => readFontScale(athleteId))
   const scrollerRef = useRef<HTMLDivElement>(null)
@@ -113,6 +125,70 @@ export default function CoachChat({ athleteId, memory, snapshot, seed, onSeedCon
   useEffect(() => {
     scrollerRef.current?.scrollTo({ top: scrollerRef.current.scrollHeight, behavior: 'smooth' })
   }, [memory.conversation.length, liveReply])
+
+  async function handleMicTap() {
+    if (recordingState === 'transcribing') return
+    if (recordingState === 'recording') {
+      // Stop + transcribe path.
+      const rec = activeRecorderRef.current
+      if (!rec) return
+      if (recordingTimerRef.current !== null) {
+        window.clearInterval(recordingTimerRef.current)
+        recordingTimerRef.current = null
+      }
+      try {
+        const captured = await rec.stop()
+        activeRecorderRef.current = null
+        setRecordingState('transcribing')
+        setVoiceError(null)
+        const text = await transcribeAudio(athleteId, {
+          blob: captured.blob,
+          mediaType: captured.mediaType,
+        })
+        if (text) {
+          // Append to the current draft so the athlete can layer dictation
+          // onto a partial typed message instead of clobbering it.
+          setInput(prev => (prev.trim() ? `${prev.trim()} ${text}` : text))
+        } else {
+          setVoiceError("Couldn't hear that — try again.")
+        }
+      } catch (err) {
+        const e = err as VoiceCaptureError
+        setVoiceError(e?.message || 'Voice input failed.')
+      } finally {
+        setRecordingState('idle')
+        setRecordingMs(0)
+      }
+      return
+    }
+    // Start path
+    setVoiceError(null)
+    try {
+      const rec = await startRecording()
+      activeRecorderRef.current = rec
+      setRecordingState('recording')
+      setRecordingMs(0)
+      const startedAt = Date.now()
+      recordingTimerRef.current = window.setInterval(() => {
+        setRecordingMs(Date.now() - startedAt)
+      }, 100)
+    } catch (err) {
+      const e = err as VoiceCaptureError
+      setVoiceError(e?.message || "Couldn't start recording.")
+      setRecordingState('idle')
+    }
+  }
+
+  // Clean up any in-flight recording on unmount so the mic light goes off
+  // and we don't leak the media stream.
+  useEffect(() => {
+    return () => {
+      if (recordingTimerRef.current !== null) {
+        window.clearInterval(recordingTimerRef.current)
+      }
+      activeRecorderRef.current?.cancel()
+    }
+  }, [])
 
   async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -300,6 +376,13 @@ export default function CoachChat({ athleteId, memory, snapshot, seed, onSeedCon
             onApproveAction={onApproveAction}
             onRejectAction={onRejectAction}
             onUndoAction={onUndoAction}
+            onAskInline={(seed) => {
+              // Tapping "Why this swap?" inside a proposal pre-fills the
+              // composer instead of auto-sending so the athlete can tweak
+              // before asking. Focus the textarea so they see it land.
+              setInput(seed)
+              requestAnimationFrame(() => textareaRef.current?.focus())
+            }}
           />
         ))}
         {streaming && (
@@ -327,7 +410,32 @@ export default function CoachChat({ athleteId, memory, snapshot, seed, onSeedCon
         </div>
       )}
 
+      {voiceError && (
+        <div className="px-3 py-1.5 text-xs text-amber-800 bg-amber-50 border-t border-amber-100 flex items-center justify-between">
+          <span>🎙 {voiceError}</span>
+          <button
+            onClick={() => setVoiceError(null)}
+            aria-label="Dismiss voice error"
+            className="text-amber-700 hover:text-amber-900 font-bold"
+          >
+            ×
+          </button>
+        </div>
+      )}
+
       <div className="border-t border-slate-200 dark:border-slate-700 px-2 py-1.5 bg-white dark:bg-slate-800 shrink-0">
+        {recordingState !== 'idle' && (
+          <div className="px-1 pb-1.5 flex items-center gap-2 text-xs">
+            {recordingState === 'recording' ? (
+              <span className="text-red-600 font-medium flex items-center gap-1.5">
+                <span className="inline-block w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                Recording… {(recordingMs / 1000).toFixed(1)}s
+              </span>
+            ) : (
+              <span className="text-indigo-600 italic">Transcribing…</span>
+            )}
+          </div>
+        )}
         {(attachedImage || attaching) && (
           <div className="px-1 pb-1.5 flex items-center gap-2">
             {attaching && (
@@ -374,6 +482,37 @@ export default function CoachChat({ athleteId, memory, snapshot, seed, onSeedCon
               <path fillRule="evenodd" d="M4 5a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V7a2 2 0 00-2-2h-1.586a1 1 0 01-.707-.293l-1.121-1.121A2 2 0 0011.172 3H8.828a2 2 0 00-1.414.586L6.293 4.707A1 1 0 015.586 5H4zm6 9a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
             </svg>
           </button>
+          {voiceEnabled && (
+            <button
+              type="button"
+              onClick={handleMicTap}
+              disabled={!coachApiAvailable() || streaming || attaching || recordingState === 'transcribing'}
+              aria-label={
+                recordingState === 'recording'
+                  ? 'Stop recording'
+                  : recordingState === 'transcribing'
+                  ? 'Transcribing…'
+                  : 'Dictate a message'
+              }
+              title={recordingState === 'idle' ? 'Tap to dictate' : 'Tap to stop'}
+              className={`mr-1 mb-1 w-9 h-9 flex items-center justify-center rounded-full transition-colors disabled:opacity-40 ${
+                recordingState === 'recording'
+                  ? 'bg-red-500 text-white animate-pulse hover:bg-red-600'
+                  : recordingState === 'transcribing'
+                  ? 'bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-200'
+                  : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700'
+              }`}
+            >
+              {recordingState === 'transcribing' ? (
+                <span className="inline-block w-3.5 h-3.5 rounded-full border-2 border-indigo-500 border-t-transparent animate-spin" />
+              ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
+                  <path d="M10 2a3 3 0 00-3 3v5a3 3 0 006 0V5a3 3 0 00-3-3z" />
+                  <path d="M4.5 9.5a.75.75 0 011.5 0 4 4 0 008 0 .75.75 0 011.5 0 5.5 5.5 0 01-4.75 5.452V17.25a.75.75 0 01-1.5 0v-2.298A5.5 5.5 0 014.5 9.5z" />
+                </svg>
+              )}
+            </button>
+          )}
           <textarea
             ref={textareaRef}
             value={input}
@@ -448,6 +587,7 @@ function ChatTurn({
   onApproveAction,
   onRejectAction,
   onUndoAction,
+  onAskInline,
 }: {
   turn: ConversationTurn
   onCopy: (text: string) => void
@@ -457,6 +597,7 @@ function ChatTurn({
   onApproveAction?: (turnId: string, action: CoachAction) => void
   onRejectAction?: (turnId: string) => void
   onUndoAction?: (turnId: string, overrideId: string) => void
+  onAskInline?: (seed: string) => void
 }) {
   const [showActions, setShowActions] = useState(false)
   const [collapsed, setCollapsed] = useState(false)
@@ -587,6 +728,7 @@ function ChatTurn({
           onApprove={a => onApproveAction?.(turn.id, a)}
           onReject={() => onRejectAction?.(turn.id)}
           onUndo={id => onUndoAction?.(turn.id, id)}
+          onAsk={onAskInline}
         />
       )}
       {copyBtn}

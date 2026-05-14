@@ -198,6 +198,33 @@ export function useProactivePings(inputs: Inputs) {
           if (!cancelled && result && !result.skipped) memory.refresh()
         }
       }
+
+      // ── weekly_arc ──────────────────────────────
+      // Monday morning orientation: phase + purpose + citation. Once per
+      // ISO week, fires on Monday (any time of day so an athlete checking
+      // in at 5am still gets it before their workout) up through Tuesday
+      // EOD as a grace window for people who skip Monday entirely.
+      const dow = nowDate.getDay()
+      const isMondayOrTuesday = dow === 1 || dow === 2
+      if (isMondayOrTuesday) {
+        const wk = isoWeekKey(nowDate)
+        const arcKey = `weekly_arc:${athleteId}:${wk}`
+        if (!lsGet(arcKey)) {
+          lsSet(arcKey, '1')
+          const result = await postPing(
+            athleteId,
+            {
+              type: 'weekly_arc',
+              payload: {
+                week: wk,
+                weekNum: snapshot?.currentWeekNum,
+              },
+            },
+            snapshot,
+          )
+          if (!cancelled && result && !result.skipped) memory.refresh()
+        }
+      }
     }
 
     run()

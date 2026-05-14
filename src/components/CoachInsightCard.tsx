@@ -28,6 +28,30 @@ interface Props {
 const COLLAPSE_PREFIX = 'ba_coach_insight_collapsed'
 const PROPOSAL_STATE_PREFIX = 'ba_coach_insight_proposal_v1'
 
+// Matches the first line of a daily insight when the LLM prefixed it
+// with "Triggered by: <signal>" per the v6 insight prompt. Captured
+// group is the signal label. Tolerant of trailing whitespace and
+// optional bold/italic wrappers in case the model wraps it in markdown.
+const TRIGGERED_BY_RE = /^[*_\s]*triggered by:\s*([^\n]+?)[*_\s]*$/im
+
+interface TriggerExtract {
+  signal: string | null
+  body: string
+}
+
+function extractTriggerSignal(text: string): TriggerExtract {
+  const m = text.match(TRIGGERED_BY_RE)
+  if (!m) return { signal: null, body: text }
+  // The match is on the *first* line of the insight. Anything before
+  // the match is the model misbehaving; we keep it (rare) but strip the
+  // line itself plus a single trailing blank line.
+  const start = text.indexOf(m[0])
+  const end = start + m[0].length
+  let body = text.slice(0, start) + text.slice(end)
+  body = body.replace(/^\s*\n/, '') // trim leading blank line left by removal
+  return { signal: m[1].trim(), body: body.trim() }
+}
+
 function collapseKey(athleteId?: string): string {
   return athleteId ? `${COLLAPSE_PREFIX}_${athleteId}` : COLLAPSE_PREFIX
 }
@@ -104,6 +128,14 @@ export default function CoachInsightCard({
   )
   const action = parsed.action
 
+  // Strip the `Triggered by: ...` prefix from the body and surface it
+  // as a tappable chip. Only applies to surfaces (daily) where the
+  // prompt enforces the prefix — other surfaces won't match.
+  const triggerExtract = useMemo<TriggerExtract>(
+    () => extractTriggerSignal(parsed.content || (insight?.text ?? '')),
+    [parsed.content, insight],
+  )
+
   // Bump on user mutation so the next render re-reads localStorage. Avoids
   // a setState-in-effect for cross-render sync.
   const [stateVersion, setStateVersion] = useState(0)
@@ -149,7 +181,7 @@ export default function CoachInsightCard({
   }
   if (!insight || insight.silent || !insight.text) return null
 
-  const displayText = parsed.content || insight.text
+  const displayText = triggerExtract.body || parsed.content || insight.text
 
   // One-line preview for collapsed state — first sentence or ~80 chars
   const firstSentence = displayText.split(/(?<=[.!?])\s/)[0] || displayText
@@ -175,6 +207,22 @@ export default function CoachInsightCard({
           {collapsed ? '▾' : '▴'}
         </button>
       </div>
+
+      {/* Triggered-by chip — names the dominant signal that shaped this
+          read. Tapping it seeds chat with a follow-up about that signal,
+          so the athlete can drill into the "why" without losing the
+          insight context. */}
+      {!collapsed && triggerExtract.signal && (
+        <button
+          onClick={() => onAsk?.(`Tell me more about: ${triggerExtract.signal}`)}
+          disabled={!onAsk}
+          title={onAsk ? 'Ask the coach about this signal' : undefined}
+          className="mt-1 inline-flex items-center gap-1 max-w-full text-[10px] font-semibold uppercase tracking-wider text-indigo-700 dark:text-indigo-200 bg-indigo-100/80 dark:bg-indigo-900/60 border border-indigo-200 dark:border-indigo-800 rounded-full px-2 py-0.5 hover:bg-indigo-200 dark:hover:bg-indigo-900 transition-colors disabled:opacity-70 disabled:cursor-default"
+        >
+          <span aria-hidden>⚡</span>
+          <span className="truncate">{triggerExtract.signal}</span>
+        </button>
+      )}
 
       {/* Second row: action buttons. Only shown when expanded. */}
       {!collapsed && (onRegenerate || onAsk) && (
@@ -228,6 +276,7 @@ export default function CoachInsightCard({
               onApprove={handleApprove}
               onReject={handleReject}
               onUndo={handleUndo}
+              onAsk={onAsk}
             />
           )}
           {insight.tip && (
