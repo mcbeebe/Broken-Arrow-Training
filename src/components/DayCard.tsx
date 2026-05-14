@@ -19,6 +19,11 @@ interface DayCardProps {
   onTap: () => void
   onLog?: () => void
   onSwap?: () => void
+  /** Open the manual edit sheet for this day. */
+  onEdit?: () => void
+  /** True when this day has a user-applied override (vs. base plan). Used
+   *  to tint the pencil button so the athlete can spot edited days. */
+  hasEdit?: boolean
   isSwapSelected?: boolean
   isSwapTarget?: boolean
   readiness?: ReadinessScore
@@ -37,7 +42,7 @@ interface DayCardProps {
   trimpRecord?: TRIMPRecord
 }
 
-export default function DayCard({ day, weekNum, onTap, onLog, onSwap, isSwapSelected, isSwapTarget, readiness, coachEnabled, isToday, isPast, athleteId, coachSnapshot, onAskCoach, trimpRecord }: DayCardProps) {
+export default function DayCard({ day, weekNum, onTap, onLog, onSwap, onEdit, hasEdit, isSwapSelected, isSwapTarget, readiness, coachEnabled, isToday, isPast, athleteId, coachSnapshot, onAskCoach, trimpRecord }: DayCardProps) {
   const style = getWorkoutStyle(day.type)
   const actual = day.actual
   const timeEst = estimateRunTime(day.zone)
@@ -185,6 +190,19 @@ export default function DayCard({ day, weekNum, onTap, onLog, onSwap, isSwapSele
                   }`}
                 >
                   ⇄
+                </button>
+              )}
+              {onEdit && (
+                <button
+                  onClick={e => { e.stopPropagation(); onEdit() }}
+                  className={`text-xs font-medium px-2 py-1 rounded-full transition-colors ${
+                    hasEdit
+                      ? 'bg-amber-200 text-amber-800 hover:bg-amber-300'
+                      : 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-600'
+                  }`}
+                  title={hasEdit ? 'Workout has personal edits — tap to adjust' : 'Edit this workout'}
+                >
+                  ✏️
                 </button>
               )}
               {onLog && (
