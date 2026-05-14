@@ -8,7 +8,7 @@ import AboutMe from './AboutMe'
 import CoachDiagnostics from './CoachDiagnostics'
 import DeployDiagnostics from './DeployDiagnostics'
 import Methodology from './Methodology'
-import type { HRZone, PendingInference, CoachPersona, TrainingPlan } from '../types'
+import type { HRZone, PendingInference, CoachPersona, TrainingPlan, TrainingWeek } from '../types'
 import type { TrainingMethod } from '../types/training-method'
 import type { OnboardingConfig } from '../hooks/useOnboarding'
 import type { MIMOverride } from '../hooks/useMIMCalibration'
@@ -98,6 +98,11 @@ interface SettingsProps {
   onRecalibrateMIM?: () => string
   // Share with coach (PDF export)
   performance?: PerformanceMetrics[]
+  /** Plan weeks with matched activities (actuals) attached. App.tsx
+   *  builds this by running matchActivitiesToPlan + Garmin merge +
+   *  manual logs on top of the raw plan. Pass this through to the PDF
+   *  export so completed sessions render as DONE rather than MISS. */
+  mergedWeeks?: TrainingWeek[]
 }
 
 export default function Settings({
@@ -160,6 +165,7 @@ export default function Settings({
   trainingMethod,
   onboardingConfig,
   performance,
+  mergedWeeks,
 }: SettingsProps) {
   const [exportOpen, setExportOpen] = useState(false)
   void _onAcceptInference
@@ -497,7 +503,7 @@ export default function Settings({
           onClose={() => setExportOpen(false)}
           athleteName={activePlan.athlete?.name || ''}
           race={activePlan.race}
-          weeks={activePlan.weeks}
+          weeks={mergedWeeks ?? activePlan.weeks}
           performance={performance ?? []}
         />
       )}
