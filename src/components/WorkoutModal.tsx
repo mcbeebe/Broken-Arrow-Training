@@ -16,6 +16,7 @@ import { classifyRun, getSportMultiplier, describeMIMEngine, mapToSportType } fr
 import { cacheRunGAP, computeStreamGAPMIM } from '../utils/runGAP'
 import { computeEccentricLoad } from '../engines/descent/eccentric'
 import { cacheEccentric, getCachedEccentric, type CachedEccentric } from '../utils/runEccentric'
+import DescentForecastCard from './DescentForecastCard'
 import { SPORT_LABELS } from '../hooks/useMIMCalibration'
 import HRChart from './HRChart'
 import PaceChart from './PaceChart'
@@ -609,6 +610,18 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
                     ))}
                   </div>
                 )
+              })()}
+              {/* "Quads tomorrow" — descent-damage forecast in plain English.
+               *  Renders the cached eccentric result through the customer-language
+               *  summariser; null when the activity had no meaningful descent.
+               *  The eccentric cache is only populated by running/hiking streams
+               *  (see the `isRun` gate around computeEccentricLoad), so a plain
+               *  lookup is safe — non-running activities return null. */}
+              {(() => {
+                const cachedEcc = actual.startDate
+                  ? getCachedEccentric(actual.startDate.slice(0, 10), actual.name, athleteId)
+                  : null
+                return <DescentForecastCard eccentric={cachedEcc} />
               })()}
               {actual.deviceName && (
                 <p className="text-xs text-teal-600">📱 {actual.deviceName}</p>

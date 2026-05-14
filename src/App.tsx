@@ -339,8 +339,14 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
   // 7-Day Training Load chart). The matching layer prefers Garmin's
   // exercise sets when present (matching.ts), so day.actual.strengthLog
   // ends up Garmin-sourced whenever the watch has them — we detect that
-  // case by checking activity details for non-empty exerciseSets and skip
-  // the manual computation for those dates.
+  // case via two complementary signals (either is sufficient) and skip
+  // the manual computation for those dates:
+  //   1. Activity detail has non-empty exerciseSets (the Garmin parser
+  //      built strengthLog from these — most reliable when the detail is
+  //      cached).
+  //   2. Summary activity for the date maps to a strength_* sport type
+  //      (covers cases where the detail isn't cached yet but a
+  //      strength_* TRIMP record was already produced from the summary).
   const { rpeByDate, exerciseLoadByDate } = useMemo(() => {
     const garminStrengthDates = new Set<string>()
     for (const details of Object.values(garmin.activityDetails)) {
@@ -348,6 +354,18 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
         if (!d.exerciseSets?.length) continue
         const date = d.startTimeLocal?.slice(0, 10)
         if (date) garminStrengthDates.add(date)
+      }
+    }
+    for (const a of garmin.garminActivities) {
+      if (!a.date) continue
+      const normalized = (a.type ?? '').toLowerCase().replace(/\s+/g, '_')
+      if (
+        normalized === 'strength_training' ||
+        normalized === 'weighttraining' ||
+        normalized === 'workout' ||
+        normalized.startsWith('strength_')
+      ) {
+        garminStrengthDates.add(a.date)
       }
     }
 
@@ -367,7 +385,7 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
       }
     }
     return { rpeByDate: rpeMap, exerciseLoadByDate: exMap }
-  }, [weeks, garmin.activityDetails])
+  }, [weeks, garmin.activityDetails, garmin.garminActivities])
 
   // Tertiary HR fallback for the IF computation. The matching layer in
   // mergeGarminDetailIntoWeeks/matchActivitiesToPlan already wrote avgHR/maxHR
@@ -500,6 +518,24 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
   const handleCoachSwap = useCallback((fromIndex: number, toIndex: number) => {
     daySwap.swapDays(currentWeekNum, fromIndex, toIndex)
   }, [daySwap, currentWeekNum])
+
+  // Manual workout editor — writes through the same planOverrides hook the
+  // Coach uses, so user edits compose with logs/swaps automatically.
+  const planEdit = useMemo(() => ({
+    editDay: (weekNum: number, dayIndex: number, updates: import('./components/WorkoutEditor').WorkoutEdits) => {
+      planOverrides.applyOverride({
+        weekNum,
+        dayIndex,
+        updates,
+        rationale: 'Manual edit',
+      })
+    },
+    revertDay: (weekNum: number, dayIndex: number) => {
+      planOverrides.removeForDay(weekNum, dayIndex)
+    },
+    hasEdit: (weekNum: number, dayIndex: number) =>
+      planOverrides.overrides.some(o => o.weekNum === weekNum && o.dayIndex === dayIndex),
+  }), [planOverrides])
 
   // Assemble the CoachSnapshot for LLM calls
   const coachSnapshot: CoachSnapshot | null = useMemo(() => {
@@ -808,6 +844,7 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
           getPlannedDay={getPlannedDay}
           onApproveInsightProposal={handleApproveInsightProposal}
           onUndoInsightProposal={handleUndoInsightProposal}
+          race={activePlan.race}
         />
       </>)}
       {view === 'plan' && (
@@ -816,6 +853,7 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
           zones={hrZones.zones}
           manualLog={manualLog}
           daySwap={daySwap}
+          planEdit={planEdit}
           weekReadiness={readiness.weekScores}
           athleteId={athleteId}
           coachEnabled={coachEnabled}
@@ -909,6 +947,9 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
           onDismissInference={coachMemory.dismissInference}
           coachPersona={coachMemory.coachPersona}
           onSaveCoachPersona={coachMemory.saveCoachPersona}
+          coachConversation={coachMemory.conversation}
+          coachDailyArchives={coachMemory.dailyArchives}
+          onClearCoachConversation={coachMemory.clearConversation}
           athleteId={athleteId}
           authSession={session}
           onLogout={onLogout}
@@ -922,6 +963,7 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
           activePlan={activePlan}
           trainingMethod={onboarding.config?.selectedMethodId ? getMethodById(onboarding.config.selectedMethodId) : undefined}
           onboardingConfig={onboarding.config ?? undefined}
+          performance={readiness.performance}
         />
       )}
 

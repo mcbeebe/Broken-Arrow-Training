@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import type { ReadinessScore, GarminHealthData, CoachRecommendation, PerformanceMetrics, DailyTRIMP, CoachInsight, PlannedDay, HRZone, CoachSnapshot, CoachAction } from '../types'
+import type { ReadinessScore, GarminHealthData, CoachRecommendation, PerformanceMetrics, DailyTRIMP, CoachInsight, PlannedDay, HRZone, CoachSnapshot, CoachAction, RaceInfo } from '../types'
 import type { RiskFlag } from '../utils/readiness'
 import type { SorenessLevel } from '../hooks/useSoreness'
 import { getTSBState, getTSBLabel, getACWRRisk, getACWRLabel } from '../utils/performance'
@@ -10,6 +10,10 @@ import TRIMPBreakdown from './TRIMPBreakdown'
 import CoachInsightCard from './CoachInsightCard'
 import WorkoutModal from './WorkoutModal'
 import { getWorkoutStyle } from '../utils/styles'
+import Term from './TermGlossary'
+import RaceReadyHeroCard from './RaceReadyHeroCard'
+import { computeRaceReadiness } from '../utils/raceReadiness'
+import { weeksUntilRace } from '../utils/raceCountdown'
 
 interface SummaryProps {
   athleteId: string
@@ -45,6 +49,8 @@ interface SummaryProps {
   getPlannedDay?: (weekNum: number, dayIndex: number) => PlannedDay | null
   onApproveInsightProposal?: (action: CoachAction) => string | undefined
   onUndoInsightProposal?: (overrideId: string) => void
+  /** Goal race — drives the race-ready hero card in the final ~8 weeks. */
+  race?: RaceInfo
 }
 
 // ─── Scale bar component ──────────────────────────────────────
@@ -254,6 +260,7 @@ export default function Summary({
   getPlannedDay,
   onApproveInsightProposal,
   onUndoInsightProposal,
+  race,
 }: SummaryProps) {
   const latestPerf = performance.length > 0 ? performance[performance.length - 1] : null
   const [perfOpen, setPerfOpen] = useState(false)
@@ -265,8 +272,21 @@ export default function Summary({
     [performance, dailyTrimp],
   )
 
+  // Race-ready hero is pinned to the top of Summary in the last ~8 weeks
+  // before a goal race. The window is wide enough to span a full taper
+  // (which begins ~2-3 weeks out) and the final build block.
+  const raceReadiness = useMemo(() => {
+    if (!race) return null
+    const weeks = weeksUntilRace(race.date)
+    if (weeks == null || weeks < 0 || weeks > 8) return null
+    return computeRaceReadiness({ race, performance })
+  }, [race, performance])
+
   return (
     <div className="px-3 py-4 space-y-3">
+      {race && raceReadiness && (
+        <RaceReadyHeroCard race={{ name: race.name, distance: race.distance }} summary={raceReadiness} />
+      )}
       {coachEnabled && (
         <CoachInsightCard
           insight={dailyInsight ?? null}
@@ -405,7 +425,7 @@ export default function Summary({
                   </div>
                   <p className="text-xs text-blue-600 font-semibold"><Sparkline data={ctlSpark} color="#2563eb" />{fitnessLabel}</p>
                 </div>
-                <p className="text-xs font-medium text-slate-600 dark:text-slate-300">Fitness <span className="text-slate-400 font-normal">— 42-day training base (CTL)</span></p>
+                <p className="text-xs font-medium text-slate-600 dark:text-slate-300"><Term name="ctl" athleteId={athleteId} /> <span className="text-slate-400 font-normal">— 42-day training base</span></p>
                 <p className="text-[9px] text-slate-400 mt-0.5 italic">Cardiovascular + musculoskeletal load · EPOC + MIM + DOMS + soreness</p>
                 <GaugeBar
                   value={latestPerf.ctl}
@@ -424,7 +444,7 @@ export default function Summary({
                   </div>
                   <p className="text-xs text-red-500 font-semibold"><Sparkline data={atlSpark} color="#ef4444" />{fatigueLabel}</p>
                 </div>
-                <p className="text-xs font-medium text-slate-600 dark:text-slate-300">Fatigue <span className="text-slate-400 font-normal">— 7-day recent load (ATL)</span></p>
+                <p className="text-xs font-medium text-slate-600 dark:text-slate-300"><Term name="atl" athleteId={athleteId} /> <span className="text-slate-400 font-normal">— 7-day recent load</span></p>
                 <p className="text-[9px] text-slate-400 mt-0.5 italic">Includes DOMS carry-over + perceived soreness from check-in</p>
                 <GaugeBar
                   value={100 - latestPerf.atl}
@@ -459,7 +479,7 @@ export default function Summary({
                     : 'text-amber-600'
                   }`}><Sparkline data={tsbSpark} color="#059669" />{getTSBLabel(tsbState)}</p>
                 </div>
-                <p className="text-xs font-medium text-slate-600 dark:text-slate-300">Recovery Balance <span className="text-slate-400 font-normal">— are you fresh or fatigued? (TSB)</span></p>
+                <p className="text-xs font-medium text-slate-600 dark:text-slate-300"><Term name="tsb" athleteId={athleteId}>Recovery Balance</Term> <span className="text-slate-400 font-normal">— are you fresh or fatigued?</span></p>
                 <p className="text-[9px] text-slate-400 mt-0.5 italic">Fitness minus Fatigue · negative = cardio + muscle fatigue exceeds base</p>
                 <GaugeBar
                   value={latestPerf.tsb + 30}
@@ -496,7 +516,7 @@ export default function Summary({
                     : 'text-amber-600'
                   }`}><Sparkline data={acwrSpark} color="#d97706" />{getACWRLabel(acwrRisk)}</p>
                 </div>
-                <p className="text-xs font-medium text-slate-600 dark:text-slate-300">Load Ratio <span className="text-slate-400 font-normal">— acute vs chronic workload (ACWR)</span></p>
+                <p className="text-xs font-medium text-slate-600 dark:text-slate-300"><Term name="acwr" athleteId={athleteId}>Load Ratio</Term> <span className="text-slate-400 font-normal">— acute vs chronic workload</span></p>
                 <p className="text-[9px] text-slate-400 mt-0.5 italic">How fast you're ramping · includes all load: cardio, strength, DOMS, soreness</p>
                 <ACWRGaugeBar value={latestPerf.acwr} />
               </div>

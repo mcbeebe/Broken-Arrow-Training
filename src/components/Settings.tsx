@@ -15,6 +15,10 @@ import type { MIMOverride } from '../hooks/useMIMCalibration'
 import { SPORT_LABELS } from '../hooks/useMIMCalibration'
 import CoachPersonaEditor from './CoachPersonaEditor'
 import { isVoiceInputEnabled, setVoiceInputEnabled, voiceCaptureSupported } from '../utils/voiceInput'
+import CoachMemoryPanel from './CoachMemoryPanel'
+import ExportDialog from './ExportDialog'
+import { useTerminologyMode } from '../hooks/useTerminologyMode'
+import type { ConversationTurn, PerformanceMetrics } from '../types'
 
 interface SettingsProps {
   // Coach (Mike-only for now)
@@ -28,6 +32,11 @@ interface SettingsProps {
   coachPersona?: CoachPersona
   onSaveCoachPersona?: (p: CoachPersona) => void
   athleteId?: string
+  // Coach memory inspector — only rendered when coachEnabled and the
+  // bag of read-only memory inputs are provided.
+  coachConversation?: ConversationTurn[]
+  coachDailyArchives?: { id?: string; date?: string }[]
+  onClearCoachConversation?: () => void | Promise<void>
   // Strava
   connected: boolean
   configured: boolean
@@ -80,6 +89,8 @@ interface SettingsProps {
   onSetMIMManual?: (sport: string, value: number | null) => void
   onResetMIM?: (sport: string) => void
   onRecalibrateMIM?: () => string
+  // Share with coach (PDF export)
+  performance?: PerformanceMetrics[]
 }
 
 export default function Settings({
@@ -116,12 +127,15 @@ export default function Settings({
   aboutMeText,
   onSaveAboutMe,
   onClearAboutMe,
-  pendingInferences: _pendingInferences,
+  pendingInferences,
   onAcceptInference: _onAcceptInference,
   onDismissInference: _onDismissInference,
   coachPersona,
   onSaveCoachPersona,
   athleteId,
+  coachConversation,
+  coachDailyArchives,
+  onClearCoachConversation,
   authSession,
   onLogout,
   themeMode,
@@ -134,10 +148,12 @@ export default function Settings({
   activePlan,
   trainingMethod,
   onboardingConfig,
+  performance,
 }: SettingsProps) {
-  void _pendingInferences
+  const [exportOpen, setExportOpen] = useState(false)
   void _onAcceptInference
   void _onDismissInference
+  const { showTechnicalNames, setShowTechnicalNames } = useTerminologyMode(athleteId)
   return (
     <div className="px-2 py-3 space-y-3">
       <h2 className="text-xl font-bold text-slate-800 dark:text-white">Settings</h2>
@@ -196,6 +212,31 @@ export default function Settings({
               <p className="text-[10px] text-slate-400 mt-2">Follows your device's system setting</p>
             )}
           </div>
+          <div className="mt-3 bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Show technical names</p>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                  Plain-English labels by default ("Fitness", "Fatigue", "Recovery Balance"). Turn on to see the original acronyms (CTL, ATL, TSB, ACWR, TRIMP, MIM, DOMS).
+                </p>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={showTechnicalNames}
+                onClick={() => setShowTechnicalNames(!showTechnicalNames)}
+                className={`shrink-0 inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                  showTechnicalNames ? 'bg-blue-500' : 'bg-slate-300 dark:bg-slate-600'
+                }`}
+              >
+                <span
+                  className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
+                    showTechnicalNames ? 'translate-x-5' : 'translate-x-1'
+                  }`}
+                />
+              </button>
+            </div>
+          </div>
         </SettingsSection>
       )}
 
@@ -215,6 +256,16 @@ export default function Settings({
               />
             )}
             <VoiceInputToggle />
+            {onClearCoachConversation && (
+              <CoachMemoryPanel
+                aboutMe={aboutMeText ?? ''}
+                coachPersona={coachPersona ?? { name: '', traits: [] }}
+                conversation={coachConversation ?? []}
+                pendingInferences={pendingInferences ?? []}
+                dailyArchives={coachDailyArchives ?? []}
+                onClearConversation={onClearCoachConversation}
+              />
+            )}
           </div>
         </SettingsSection>
       )}
@@ -403,6 +454,37 @@ export default function Settings({
             </button>
           </div>
         </SettingsSection>
+      )}
+
+      {/* ── Share section ── */}
+      {activePlan && (
+        <SettingsSection title="Share">
+          <div className="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700 space-y-3">
+            <div>
+              <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">Share with my coach</p>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                Download a printable summary — plan, fitness trend, recent sessions, race readiness — to send to a coach, physio, or training partner.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setExportOpen(true)}
+              className="text-sm font-medium px-4 py-2 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 transition-colors"
+            >
+              Download PDF
+            </button>
+          </div>
+        </SettingsSection>
+      )}
+      {activePlan && (
+        <ExportDialog
+          open={exportOpen}
+          onClose={() => setExportOpen(false)}
+          athleteName={activePlan.athlete?.name || ''}
+          race={activePlan.race}
+          weeks={activePlan.weeks}
+          performance={performance ?? []}
+        />
       )}
 
       {/* ── Data Management section ── */}
