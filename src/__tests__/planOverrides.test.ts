@@ -105,6 +105,33 @@ describe('usePlanOverrides — manual edit flow', () => {
     expect(result2.current.overrides[0].updates.workout).toBe('Persisted edit')
   })
 
+  it('swapDayIndices re-anchors an override so it follows the workout, not the slot', () => {
+    const { result } = renderHook(() => usePlanOverrides('mike'))
+
+    act(() => {
+      result.current.applyOverride({
+        weekNum: 4,
+        dayIndex: 1,
+        updates: { workout: 'UPPER BODY #2', type: 'strength' },
+      })
+    })
+
+    act(() => result.current.swapDayIndices(4, 1, 0))
+
+    expect(result.current.overrides).toHaveLength(1)
+    expect(result.current.overrides[0].dayIndex).toBe(0)
+
+    const weeks = result.current.applyOverridesToWeeks(mkWeeks())
+    expect(weeks[0].days[0].workout).toBe('UPPER BODY #2')
+    expect(weeks[0].days[1].workout).toBe('Rest')
+  })
+
+  it('swapDayIndices with no override at either index is a no-op', () => {
+    const { result } = renderHook(() => usePlanOverrides('mike'))
+    act(() => result.current.swapDayIndices(4, 0, 1))
+    expect(result.current.overrides).toHaveLength(0)
+  })
+
   it('scopes overrides per athlete (no cross-bleed)', () => {
     const { result: mike } = renderHook(() => usePlanOverrides('mike'))
     act(() => {
