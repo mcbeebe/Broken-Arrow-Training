@@ -906,6 +906,7 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
           activePlan={activePlan}
           trainingMethod={onboarding.config?.selectedMethodId ? getMethodById(onboarding.config.selectedMethodId) : undefined}
           onboardingConfig={onboarding.config ?? undefined}
+          performance={readiness.performance}
         />
       )}
 
