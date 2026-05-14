@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from 'react'
 
 export type RaceType = 'trail' | 'hyrox' | 'general'
 export type ExperienceLevel = 'first_timer' | 'beginner' | 'intermediate' | 'advanced' | 'elite'
+export type StrengthExperience = 'none' | 'beginner' | 'intermediate' | 'advanced'
 
 export type WearableType = 'garmin' | 'apple_watch' | 'oura' | 'none'
 
@@ -72,6 +73,13 @@ export interface OnboardingConfig {
   equipmentAccess?: EquipmentAccess[]
   // 0 = none. Drives whether plan includes strength sessions and how many.
   strengthDaysPerWeek?: number
+  // Self-reported weight-lifting experience (separate from running experience).
+  // Drives starting-weight prescriptions via a per-exercise body-weight ratio.
+  strengthExperience?: StrengthExperience
+  // Body weight in pounds. Drives load prescriptions for compound lifts
+  // (Goblet Squat = 0.20 × BW, BB Back Squat = 0.65 × BW, etc.). Optional —
+  // when missing we fall back to the exercise guide's static weight string.
+  bodyWeightLb?: number
   // Cross-training modalities the athlete enjoys / wants substituted on easy days.
   crossTrainingModes?: CrossTrainingMode[]
   // When during the day the athlete typically trains (multi-select).

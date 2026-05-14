@@ -38,6 +38,7 @@ function walkHappyPath(overrides: Partial<{
   injury: string
   equipment: string[]
   strength: string
+  strengthExperience: string
   crossTraining: string[]
   trainingTimes: string[]
   scheduleNote: string
@@ -46,6 +47,7 @@ function walkHappyPath(overrides: Partial<{
   age: string
   maxHR: string
   ftp: string
+  bodyWeight: string
 }> = {}): OnboardingConfig {
   const o = {
     raceType: 'Trail / Road Race',
@@ -60,6 +62,7 @@ function walkHappyPath(overrides: Partial<{
     injury: 'No injuries',
     equipment: ['Track', 'Trails'],
     strength: '2x',
+    strengthExperience: 'Intermediate',
     crossTraining: ['Cycling'],
     trainingTimes: ['Early morning'],
     scheduleNote: '',
@@ -68,6 +71,7 @@ function walkHappyPath(overrides: Partial<{
     age: '41',
     maxHR: '',
     ftp: '',
+    bodyWeight: '',
     ...overrides,
   }
 
@@ -136,6 +140,10 @@ function walkHappyPath(overrides: Partial<{
 
   // Step 8: Strength + cross-training
   fireEvent.click(screen.getByRole('button', { name: o.strength }))
+  // Strength-experience selector only appears when strengthDays > 0
+  if (o.strength !== 'None') {
+    fireEvent.click(screen.getByText(o.strengthExperience))
+  }
   o.crossTraining.forEach(label => fireEvent.click(screen.getByText(label)))
   clickContinue()
 
@@ -164,6 +172,10 @@ function walkHappyPath(overrides: Partial<{
   if (o.ftp) {
     const ftpInput = screen.getByPlaceholderText(/250.*watts/)
     fireEvent.change(ftpInput, { target: { value: o.ftp } })
+  }
+  if (o.bodyWeight) {
+    const bwInput = screen.getByPlaceholderText('e.g. 160')
+    fireEvent.change(bwInput, { target: { value: o.bodyWeight } })
   }
   clickFinish()
 

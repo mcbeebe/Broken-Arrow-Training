@@ -9,6 +9,8 @@ import { useCoachInsight } from '../hooks/useCoachInsight'
 import { formatMiles, formatSeconds, formatPace, estimateRunTime } from '../utils/format'
 import { parseRoutine, type ParsedExercise } from '../utils/exercises'
 import { buildProgression, normalizeExerciseName, suggestNextTarget, type ExerciseProgression } from '../utils/strengthProgression'
+import { computeStartingWeight } from '../utils/strengthWeight'
+import { useOnboarding } from '../hooks/useOnboarding'
 import { parseIntervalWorkout, getDrillDay, RUNNING_DRILLS, MYRTL_ROUTINE, PRE_RUN_ACTIVATION, type RunSegment, type DrillGuide } from '../utils/drills'
 import { fetchActivityStreams, getTokens, isTokenExpired, refreshAccessToken, type StreamData } from '../utils/strava'
 import { fetchGarminActivityStream } from '../utils/garmin'
@@ -131,6 +133,9 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
   const style = getWorkoutStyle(day.type)
   const baseCoaching = getCoaching(day, weekNum)
   const actual = day.actual
+  const onboarding = useOnboarding(athleteId)
+  const bodyWeightLb = onboarding.config?.bodyWeightLb
+  const strengthExperience = onboarding.config?.strengthExperience
   const isStrength = day.type === 'strength'
   const isQuality = day.type === 'quality'
   const plannedWorkout = day.plannedWorkout
@@ -858,6 +863,8 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
                     exercise={ex}
                     index={i + 1}
                     progression={progressionByExercise?.get(normalizeExerciseName(ex.name)) ?? null}
+                    bodyWeightLb={bodyWeightLb}
+                    strengthExperience={strengthExperience}
                   />
                 ))}
               </div>
@@ -1013,14 +1020,21 @@ function DrillStatusBanner({ drills }: { drills?: { completed: boolean; items?: 
 }
 
 function ExerciseCard({
-  exercise, index, progression,
+  exercise, index, progression, bodyWeightLb, strengthExperience,
 }: {
   exercise: ParsedExercise
   index: number
   progression?: ExerciseProgression | null
+  bodyWeightLb?: number
+  strengthExperience?: import('../hooks/useOnboarding').StrengthExperience
 }) {
   const [expanded, setExpanded] = useState(false)
   const guide = exercise.guide
+  // Personalize the weight prescription from body weight + lifting
+  // experience. Falls back to the guide's static text when either input
+  // is missing or the exercise is bodyweight-only.
+  const personalizedWeight = computeStartingWeight(exercise.name, bodyWeightLb, strengthExperience)
+  const weightText = personalizedWeight ?? guide?.weight ?? ''
 
   const plannedSets = parseInt(exercise.sets || '0', 10) || 0
   const plannedReps = parseInt((exercise.reps || '0').toString(), 10) || 0
@@ -1053,7 +1067,7 @@ function ExerciseCard({
           </div>
         </div>
         {guide && !expanded && (
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5 ml-7">{guide.weight} · {guide.rest}</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5 ml-7">{weightText} · {guide.rest}</p>
         )}
         {!expanded && progression?.last && target && (
           <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 ml-7">
@@ -1071,7 +1085,7 @@ function ExerciseCard({
         <div className="px-3 pb-3 border-t border-purple-100 pt-2 space-y-2">
           <p className="text-sm text-slate-500 dark:text-slate-400 italic">{guide.aka}</p>
           <div className="flex gap-3 text-sm">
-            <span className="text-purple-700 bg-purple-50 rounded px-2 py-1">💪 {guide.weight}</span>
+            <span className="text-purple-700 bg-purple-50 rounded px-2 py-1">💪 {weightText}</span>
             <span className="text-purple-700 bg-purple-50 rounded px-2 py-1">⏸ {guide.rest}</span>
           </div>
           <div>

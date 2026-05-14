@@ -10,6 +10,7 @@ import type {
   EquipmentAccess,
   CrossTrainingMode,
   TrainingTimeOfDay,
+  StrengthExperience,
 } from '../hooks/useOnboarding'
 import { parseTimeToSeconds } from '../utils/parseTime'
 
@@ -102,6 +103,13 @@ const CROSS_TRAINING_OPTIONS: { value: CrossTrainingMode; label: string; icon: s
   { value: 'yoga', label: 'Yoga / Mobility', icon: '🧘' },
 ]
 
+const STRENGTH_EXPERIENCE_OPTIONS: { value: StrengthExperience; label: string; desc: string }[] = [
+  { value: 'none', label: 'New to lifting', desc: 'Never lifted regularly. Start light, focus on form.' },
+  { value: 'beginner', label: 'Beginner', desc: 'Some lifting, maybe inconsistent. Familiar with the basics.' },
+  { value: 'intermediate', label: 'Intermediate', desc: 'Lift regularly. Know your working weights for major lifts.' },
+  { value: 'advanced', label: 'Advanced', desc: "Years of consistent lifting. Comfortable with heavier loads." },
+]
+
 const TIME_OF_DAY_OPTIONS: { value: TrainingTimeOfDay; label: string; desc: string }[] = [
   { value: 'early_am', label: 'Early morning', desc: 'Before 7am' },
   { value: 'morning', label: 'Morning', desc: '7am – 11am' },
@@ -138,6 +146,8 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
   const [injury, setInjury] = useState<InjuryStatus | null>(null)
   const [equipment, setEquipment] = useState<EquipmentAccess[]>([])
   const [strengthDays, setStrengthDays] = useState<number | null>(null)
+  const [strengthExperience, setStrengthExperience] = useState<StrengthExperience | null>(null)
+  const [bodyWeight, setBodyWeight] = useState('')
   const [crossTraining, setCrossTraining] = useState<CrossTrainingMode[]>([])
   const [trainingTimes, setTrainingTimes] = useState<TrainingTimeOfDay[]>([])
   const [scheduleNote, setScheduleNote] = useState('')
@@ -182,7 +192,10 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
       case STEP_VARIANT: return raceType === 'trail' ? !!longRunDay : raceType === 'hyrox' ? !!weakStation : !!longRunDay
       case STEP_BASELINE: return !!injury // anchor + mileage are optional; injury is the gating answer
       case STEP_EQUIPMENT: return equipment.length > 0
-      case STEP_STRENGTH: return strengthDays !== null // cross-training is optional
+      case STEP_STRENGTH:
+        // Strength experience is required only when the athlete plans at
+        // least one strength session; cross-training stays optional.
+        return strengthDays !== null && (strengthDays === 0 || strengthExperience !== null)
       case STEP_SCHEDULE: return trainingTimes.length > 0 // schedule note is optional
       case STEP_WEARABLE: return !!wearable
       case STEP_PROFILE: return name.trim().length > 0 && age.trim().length > 0
@@ -223,6 +236,8 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
       injuryStatus: injury ?? undefined,
       equipmentAccess: equipment.length > 0 ? equipment : undefined,
       strengthDaysPerWeek: strengthDays ?? undefined,
+      strengthExperience: strengthDays && strengthDays > 0 ? strengthExperience ?? undefined : undefined,
+      bodyWeightLb: bodyWeight ? parseInt(bodyWeight) : undefined,
       crossTrainingModes: crossTraining.length > 0 ? crossTraining : undefined,
       preferredTrainingTimes: trainingTimes.length > 0 ? trainingTimes : undefined,
       scheduleConstraintsNote: scheduleNote.trim() || undefined,
@@ -472,6 +487,23 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
                   ))}
                 </div>
               </div>
+              {strengthDays !== null && strengthDays > 0 && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Your weight-lifting experience</label>
+                  <div className="space-y-2">
+                    {STRENGTH_EXPERIENCE_OPTIONS.map(opt => (
+                      <OptionCard
+                        key={opt.value}
+                        selected={strengthExperience === opt.value}
+                        onClick={() => setStrengthExperience(opt.value)}
+                        title={opt.label}
+                        desc={opt.desc}
+                      />
+                    ))}
+                  </div>
+                  <p className="text-xs text-slate-400 mt-2">Scales the starting weight prescription for each lift.</p>
+                </div>
+              )}
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">Cross-training you'd enjoy (optional)</label>
                 <div className="space-y-2">
@@ -557,6 +589,17 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
                   className="w-full px-3 py-3 text-base border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400"
                 />
                 <p className="text-xs text-slate-400 mt-1">Used for MAF formula and masters-athlete adjustments.</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Body weight (optional, lb)</label>
+                <input
+                  type="number"
+                  value={bodyWeight}
+                  onChange={e => setBodyWeight(e.target.value)}
+                  placeholder="e.g. 160"
+                  className="w-full px-3 py-3 text-base border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400"
+                />
+                <p className="text-xs text-slate-400 mt-1">Personalizes starting weights for strength sessions.</p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Max Heart Rate (optional)</label>
