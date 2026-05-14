@@ -283,10 +283,31 @@ export interface Taper {
 // Recommendations / applicability / restrictions
 // ---------------------------------------------------------------------------
 
+export type StrengthCategory =
+  | 'lower_compound'
+  | 'lower_singleleg'
+  | 'posterior'
+  | 'calves'
+  | 'eccentric'
+  | 'core'
+  | 'plyo'
+  | 'mobility';
+
+export interface StrengthRoutineOverrides {
+  /** Cap the exercise count below the default for the race profile. */
+  exerciseCap?: number;
+  /** Restrict the routine to bodyweight movements (minimal/equipment-free). */
+  bodyweightOnly?: boolean;
+  /** Categories the method emphasizes — picked first when assembling. */
+  emphasizeCategories?: StrengthCategory[];
+}
+
 export interface StrengthRecommendation {
   daysPerWeek: RangeMinMaxDefault;
   workoutIds: string[];
   philosophy: string;
+  /** Optional per-method overrides for the parametric routine builder. */
+  routineOverrides?: StrengthRoutineOverrides;
 }
 
 export interface CrossTrainingRecommendation {

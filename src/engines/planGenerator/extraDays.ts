@@ -16,6 +16,7 @@
 import type { TrainingMethod, Phase } from '../../types/training-method'
 import type { PlannedDay } from '../../types'
 import type { OnboardingConfig, CrossTrainingMode } from '../../hooks/useOnboarding'
+import { buildStrengthRoutineFor } from './strengthRoutine'
 
 export interface ExtraDaysOptions {
   phaseId: string
@@ -39,82 +40,116 @@ const CROSS_MODE_DEFAULT_DURATION: Record<CrossTrainingMode, number> = {
   yoga: 30,
 }
 
-// Base routine the modal's parseRoutine() can read directly — each ` · `-
-// separated item resolves to a guide entry in src/utils/exercises.ts.
-const BASE_STRENGTH_ROUTINE = [
-  'Goblet Squat 3×12',
-  'Bulgarian Split Squat 3×10/leg',
-  'RDL 3×10',
-  'Step-Up 3×10/leg',
-  'Calf Raise 3×15',
-  'Plank 3×45s',
-  'Dead Bug 3×10/side',
-]
-
-const TAPER_STRENGTH_ROUTINE = [
-  'Goblet Squat 2×10',
-  'Bulgarian Split Squat 2×8/leg',
-  'Calf Raise 2×12',
-  'Plank 2×30s',
-]
-
 /**
- * Build the strength detail string. Tapers get a lighter, maintenance-only
- * routine to preserve neuromuscular connections without creating fatigue.
+ * Build the strength detail string. Delegates to the parametric routine
+ * builder, which picks exercises based on race profile, experience,
+ * equipment, injury status, and phase.
  */
-export function buildStrengthDetail(opts: ExtraDaysOptions): string {
-  const routine = opts.isTaper ? TAPER_STRENGTH_ROUTINE : BASE_STRENGTH_ROUTINE
-  return routine.join(' · ')
+export function buildStrengthDetail(
+  config: OnboardingConfig,
+  method: TrainingMethod,
+  opts: ExtraDaysOptions,
+): string {
+  return buildStrengthRoutineFor(method, config, {
+    phaseId: opts.phaseId,
+    isTaper: opts.isTaper,
+    weekNumber: opts.weekNumber,
+  })
+}
+
+type CrossPhase = 'base' | 'build' | 'peak' | 'taper'
+
+function crossPhase(opts: ExtraDaysOptions): CrossPhase {
+  if (opts.isTaper) return 'taper'
+  const id = opts.phaseId.toLowerCase()
+  if (id.includes('taper')) return 'taper'
+  if (id.includes('peak') || id.includes('race')) return 'peak'
+  if (id.includes('build') || id.includes('specific') || id.includes('lactate') || id.includes('threshold')) return 'build'
+  return 'base'
 }
 
 /**
- * Build a cross-training detail string for the chosen modality. Picks the
- * first modality the user selected (the modalities list is multi-select so
- * the first is a reasonable default; the user can re-order in onboarding).
+ * Build a cross-training detail string for the chosen modality, the
+ * current phase, race profile, and injury status. Tailored items help
+ * the athlete understand the intent of the session (durability work in
+ * Base, race-specific durability in Peak, recovery in Taper).
+ *
+ * Items use the `·` separator so the ManualLog modal can list them as
+ * drill-style checkoffs.
  */
 export function buildCrossDetail(
   mode: CrossTrainingMode,
+  config: OnboardingConfig,
   opts: ExtraDaysOptions,
 ): { workout: string; detail: string; time: string; zone: string } {
   const label = CROSS_MODE_LABEL[mode]
   const baseMin = CROSS_MODE_DEFAULT_DURATION[mode]
-  const min = opts.isTaper ? Math.max(20, Math.round(baseMin * 0.6)) : baseMin
-  const max = opts.isTaper ? Math.max(30, Math.round(baseMin * 0.8)) : Math.round(baseMin * 1.3)
+  const phase = crossPhase(opts)
+  const injuryDownshift = config.injuryStatus === 'current'
 
-  // Per-modality detail items — these double as drill-style checkoffs in the
-  // ManualLog modal (parseDrillItems for cross days returns every `·`-item).
+  // Duration shifts by phase: longer in base/build for durability, shorter
+  // in peak/taper to preserve race-day freshness. Injury caps the upper end.
+  let min = baseMin
+  let max = Math.round(baseMin * 1.3)
+  if (phase === 'taper') { min = Math.max(20, Math.round(baseMin * 0.55)); max = Math.max(30, Math.round(baseMin * 0.75)) }
+  else if (phase === 'peak') { min = Math.round(baseMin * 0.8); max = Math.round(baseMin * 1.0) }
+  else if (phase === 'build') { min = baseMin; max = Math.round(baseMin * 1.4) }
+  if (injuryDownshift) { min = Math.round(min * 0.7); max = Math.round(max * 0.8) }
+
+  // Intensity zone shifts by phase. Trail/mountain athletes climbing on
+  // hikes deserve a higher target (Z2-3 for power-hiking) during build/peak.
+  const isMountain = config.raceType === 'trail' && config.raceDistance === 'mountain_ultra'
+  let zone = 'Z1-2'
+  if (phase === 'taper') zone = 'Z1'
+  else if (phase === 'build' && mode === 'cycling') zone = 'Z2-3'
+  else if (phase === 'build' && mode === 'rowing') zone = 'Z2-3'
+  else if ((phase === 'build' || phase === 'peak') && mode === 'hiking' && isMountain) zone = 'Z2-3'
+
+  // Per-(mode, phase) detail lines. Strings reference duration/zone above
+  // so the modal stays in sync.
+  const intent: Record<CrossPhase, string> = {
+    base: 'aerobic durability',
+    build: 'sustained Z2 with some pickups',
+    peak: 'race-specific durability',
+    taper: 'flush legs, stay loose',
+  }
+
   const items: Record<CrossTrainingMode, string[]> = {
     cycling: [
-      `${min} min easy spin · Z1-2`,
-      'Cadence 85-95 rpm, low resistance',
-      'Foam roll 5 min after',
+      `${min} min ride · ${zone} · ${intent[phase]}`,
+      phase === 'build' ? '3-5 × 5 min steady Z3 with full recovery between' : 'Cadence 85-95 rpm, low resistance',
+      injuryDownshift ? 'Stop early if anything pinches — this is auxiliary work' : 'Foam roll 5 min after',
     ],
     swimming: [
-      `${min} min continuous swim · easy effort`,
-      'Mix freestyle and kick sets',
+      `${min} min swim · easy effort · ${intent[phase]}`,
+      phase === 'build' ? 'Mix in a few 100m moderate pulls' : 'Mix freestyle and kick sets',
       'Focus on long, relaxed strokes',
     ],
     rowing: [
-      `${min} min steady erg · Z2`,
-      'Drive with legs, finish with arms',
+      `${min} min erg · ${zone} · ${intent[phase]}`,
+      phase === 'build' ? '4 × 4 min moderate, 2 min recovery' : 'Drive with legs, finish with arms',
       'Stretch hip flexors 2 min/side after',
     ],
     hiking: [
-      `${min}-${max} min uphill hike · steady Z2`,
-      'Use poles if available — plant rhythm',
-      'Power-hike posture: hands on thighs on steep bits',
+      isMountain
+        ? `${min}-${max} min uphill hike · ${zone} · pole-plant rhythm, race-specific climbing`
+        : `${min}-${max} min hike · ${zone} · steady aerobic effort`,
+      'Use poles if available — plant rhythm matches breathing',
+      phase === 'peak' && isMountain
+        ? 'Wear race shoes / pack you plan to race in — dress rehearsal'
+        : 'Power-hike posture: hands on thighs on steep bits',
     ],
     yoga: [
-      `${min} min flow or restorative session`,
+      `${min} min ${phase === 'taper' || phase === 'peak' ? 'restorative' : 'flow'} session`,
       'Focus on hips, hamstrings, calves',
-      'Pigeon, runner\'s lunge, downward dog',
+      injuryDownshift ? 'Skip any pose that aggravates the injury site' : "Pigeon, runner's lunge, downward dog",
     ],
   }
   return {
     workout: `Cross-train · ${label}`,
     detail: items[mode].join(' · '),
     time: `${min}-${max} min`,
-    zone: opts.isTaper ? 'Z1' : 'Z1-2',
+    zone,
   }
 }
 
@@ -169,7 +204,7 @@ export function injectExtraDays(
     const mode = pickCrossMode(config, method)
     if (mode && restIndices.length > cursor) {
       const idx = restIndices[cursor++]
-      const c = buildCrossDetail(mode, opts)
+      const c = buildCrossDetail(mode, config, opts)
       next[idx] = {
         ...next[idx],
         type: 'cross',
@@ -199,7 +234,7 @@ export function injectExtraDays(
         ...next[idx],
         type: 'strength',
         workout: 'Strength',
-        detail: buildStrengthDetail(opts),
+        detail: buildStrengthDetail(config, method, opts),
         zone: 'Z1',
         time: opts.isTaper ? '30 min' : '45-60 min',
         route: '',

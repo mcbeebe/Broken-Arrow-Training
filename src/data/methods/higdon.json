@@ -476,7 +476,12 @@
   "strengthRecommendation": {
     "daysPerWeek": { "min": 0, "max": 1, "default": 0 },
     "workoutIds": [],
-    "philosophy": "Higdon doesn't formally prescribe strength, but encourages 'cross-training' on rest days which can include light strength work. If user opts in via onboarding, recommend simple bodyweight routine (lunges, planks, glute bridges) 1× per week, 15-20 minutes."
+    "philosophy": "Higdon doesn't formally prescribe strength, but encourages 'cross-training' on rest days which can include light strength work. If user opts in via onboarding, recommend simple bodyweight routine (lunges, planks, glute bridges) 1× per week, 15-20 minutes.",
+    "routineOverrides": {
+      "exerciseCap": 4,
+      "bodyweightOnly": true,
+      "emphasizeCategories": ["lower_singleleg", "core", "posterior"]
+    }
   },
   "crossTrainingRecommendation": {
     "approvedModalities": ["cycling", "swimming", "elliptical", "rowing"],

@@ -489,7 +489,10 @@
   "strengthRecommendation": {
     "daysPerWeek": { "min": 1, "max": 3, "default": 2 },
     "workoutIds": [],
-    "philosophy": "Koop strongly recommends strength training for ultrarunners — single-leg work, hip/glute strength, core stability, posterior chain. 2× per week, 30-45 min sessions. Critical for durability and injury prevention given high training loads."
+    "philosophy": "Koop strongly recommends strength training for ultrarunners — single-leg work, hip/glute strength, core stability, posterior chain. 2× per week, 30-45 min sessions. Critical for durability and injury prevention given high training loads.",
+    "routineOverrides": {
+      "emphasizeCategories": ["lower_singleleg", "posterior", "eccentric", "core"]
+    }
   },
   "crossTrainingRecommendation": {
     "approvedModalities": ["cycling", "hiking", "swimming"],

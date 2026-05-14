@@ -432,7 +432,22 @@
       "properties": {
         "daysPerWeek": { "$ref": "#/$defs/rangeMinMaxDefault" },
         "workoutIds": { "type": "array", "items": { "type": "string" } },
-        "philosophy": { "type": "string" }
+        "philosophy": { "type": "string" },
+        "routineOverrides": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "exerciseCap": { "type": "integer", "minimum": 1 },
+            "bodyweightOnly": { "type": "boolean" },
+            "emphasizeCategories": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": ["lower_compound", "lower_singleleg", "posterior", "calves", "eccentric", "core", "plyo", "mobility"]
+              }
+            }
+          }
+        }
       }
     },
     "crossTrainingRecommendation": {
