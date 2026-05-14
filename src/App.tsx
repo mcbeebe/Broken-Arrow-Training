@@ -339,8 +339,14 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
   // 7-Day Training Load chart). The matching layer prefers Garmin's
   // exercise sets when present (matching.ts), so day.actual.strengthLog
   // ends up Garmin-sourced whenever the watch has them — we detect that
-  // case by checking activity details for non-empty exerciseSets and skip
-  // the manual computation for those dates.
+  // case via two complementary signals (either is sufficient) and skip
+  // the manual computation for those dates:
+  //   1. Activity detail has non-empty exerciseSets (the Garmin parser
+  //      built strengthLog from these — most reliable when the detail is
+  //      cached).
+  //   2. Summary activity for the date maps to a strength_* sport type
+  //      (covers cases where the detail isn't cached yet but a
+  //      strength_* TRIMP record was already produced from the summary).
   const { rpeByDate, exerciseLoadByDate } = useMemo(() => {
     const garminStrengthDates = new Set<string>()
     for (const details of Object.values(garmin.activityDetails)) {
@@ -348,6 +354,18 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
         if (!d.exerciseSets?.length) continue
         const date = d.startTimeLocal?.slice(0, 10)
         if (date) garminStrengthDates.add(date)
+      }
+    }
+    for (const a of garmin.garminActivities) {
+      if (!a.date) continue
+      const normalized = (a.type ?? '').toLowerCase().replace(/\s+/g, '_')
+      if (
+        normalized === 'strength_training' ||
+        normalized === 'weighttraining' ||
+        normalized === 'workout' ||
+        normalized.startsWith('strength_')
+      ) {
+        garminStrengthDates.add(a.date)
       }
     }
 
@@ -367,7 +385,7 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
       }
     }
     return { rpeByDate: rpeMap, exerciseLoadByDate: exMap }
-  }, [weeks, garmin.activityDetails])
+  }, [weeks, garmin.activityDetails, garmin.garminActivities])
 
   // Tertiary HR fallback for the IF computation. The matching layer in
   // mergeGarminDetailIntoWeeks/matchActivitiesToPlan already wrote avgHR/maxHR

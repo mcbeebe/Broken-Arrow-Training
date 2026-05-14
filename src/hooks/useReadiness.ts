@@ -238,8 +238,16 @@ export function useReadiness({
     const adjusted = base.map(day => {
       const recordSum = day.records.reduce((s, r) => s + r.adjustedTRIMP, 0)
       const domsCarry = Math.max(0, day.total - recordSum)
+      // De-dup: when a Garmin strength activity is on this day, its EPOC
+      // already captures the musculoskeletal load. Adding the manual
+      // exerciseLoad on top would double-count the same workout. The
+      // detection uses the actual TRIMP record sport type so it can't
+      // miss any strength variant (strength_full / strength_lower /
+      // strength_upper).
+      const hasStrengthRecord = day.records.some(r => r.sportType.startsWith('strength_'))
+      const exerciseLoad = hasStrengthRecord ? undefined : exerciseLoadByDate.get(day.date)
       const total = composeDayLoad(recordSum, domsCarry, {
-        exerciseLoad: exerciseLoadByDate.get(day.date),
+        exerciseLoad,
         rpeValue: rpeByDate.get(day.date),
         sorenessAdj: sorenessLoadByDate.get(day.date),
       })

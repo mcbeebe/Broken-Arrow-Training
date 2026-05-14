@@ -153,7 +153,13 @@ export default function TRIMPBreakdown({
   const breakdownByDate = new Map<string, Breakdown>()
   for (const day of filledDays) {
     const recordSum = day.records.reduce((s, r) => s + r.adjustedTRIMP, 0)
-    const exerciseLoad = exerciseLoadByDate?.get(day.date) ?? 0
+    // De-dup the manual-exercise segment when a Garmin strength activity
+    // is already present for the day — its EPOC TRIMP record covers the
+    // musculoskeletal load, so showing a separate "manual exercise" bar
+    // would double-count the same workout. Mirrors the day-total dedup
+    // in useReadiness so the segment sum stays equal to the day total.
+    const hasStrengthRecord = day.records.some(r => r.sportType.startsWith('strength_'))
+    const exerciseLoad = hasStrengthRecord ? 0 : (exerciseLoadByDate?.get(day.date) ?? 0)
     const rpeValue = rpeByDate?.get(day.date) ?? null
     const rpeMult = rpeValue ? 1 + 0.04 * (rpeValue - 5) : 1
     const rpeDelta = (recordSum + exerciseLoad) * (rpeMult - 1)
