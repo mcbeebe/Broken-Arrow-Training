@@ -1,5 +1,6 @@
 import type { ReadinessScore, ReadinessStatus, GarminHealthData } from '../types'
 import { LineChart, Line, ResponsiveContainer } from 'recharts'
+import Term from './TermGlossary'
 
 interface ReadinessBannerProps {
   todayScore: ReadinessScore
@@ -127,10 +128,10 @@ export default function ReadinessBanner({
           )}
         </div>
 
-        {/* ACWR warning */}
+        {/* Load-ramp warning (ACWR) */}
         {todayScore.acwr != null && todayScore.acwr > 1.3 && (
           <div className="mb-1.5 text-[10px] font-medium text-amber-700 bg-amber-100 px-2 py-1 rounded inline-block">
-            ⚠️ ACWR {todayScore.acwr.toFixed(2)} — {todayScore.acwr > 1.5 ? 'High injury risk' : 'Elevated'}
+            ⚠️ <Term name="acwr" /> {todayScore.acwr.toFixed(2)} — {todayScore.acwr > 1.5 ? 'High injury risk' : 'Elevated'}
           </div>
         )}
 
