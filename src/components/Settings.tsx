@@ -16,6 +16,8 @@ import { SPORT_LABELS } from '../hooks/useMIMCalibration'
 import CoachPersonaEditor from './CoachPersonaEditor'
 import { isVoiceInputEnabled, setVoiceInputEnabled, voiceCaptureSupported } from '../utils/voiceInput'
 import CoachMemoryPanel from './CoachMemoryPanel'
+import AthleteHomeLocation from './AthleteHomeLocation'
+import type { AthleteHomeLocation as AthleteHomeLocationType } from '../hooks/useAthleteLocation'
 import ExportDialog from './ExportDialog'
 import { useTerminologyMode } from '../hooks/useTerminologyMode'
 import type { ConversationTurn, PerformanceMetrics } from '../types'
@@ -44,6 +46,16 @@ interface SettingsProps {
   onAddCoachFact?: (text: string, sourceTurnId?: string) => void | Promise<void>
   onEditCoachFact?: (id: string, text: string) => void | Promise<void>
   onDeleteCoachFact?: (id: string) => void | Promise<void>
+  // Athlete home location ("Where do you train?") — drives the
+  // day-to-day forecast so the daily WARN/SWAP logic reflects training
+  // location rather than the (potentially distant) race destination.
+  athleteHomeLocation?: AthleteHomeLocationType | null
+  athleteHomeDetecting?: boolean
+  athleteHomeError?: string | null
+  raceLocationLabel?: string
+  onSaveAthleteHome?: (loc: Omit<AthleteHomeLocationType, 'setAt'>) => void
+  onClearAthleteHome?: () => void
+  onUseBrowserHomeLocation?: () => Promise<void>
   // Strava
   connected: boolean
   configured: boolean
@@ -144,6 +156,13 @@ export default function Settings({
   coachDailyArchives,
   onClearCoachConversation,
   coachAboutMeFacts,
+  athleteHomeLocation,
+  athleteHomeDetecting,
+  athleteHomeError,
+  raceLocationLabel,
+  onSaveAthleteHome,
+  onClearAthleteHome,
+  onUseBrowserHomeLocation,
   onAddCoachFact,
   onEditCoachFact,
   onDeleteCoachFact,
@@ -267,6 +286,17 @@ export default function Settings({
               />
             )}
             <VoiceInputToggle />
+            {onSaveAthleteHome && onClearAthleteHome && onUseBrowserHomeLocation && (
+              <AthleteHomeLocation
+                location={athleteHomeLocation ?? null}
+                detecting={athleteHomeDetecting ?? false}
+                detectError={athleteHomeError ?? null}
+                raceLabel={raceLocationLabel}
+                onSave={onSaveAthleteHome}
+                onClear={onClearAthleteHome}
+                onUseBrowser={onUseBrowserHomeLocation}
+              />
+            )}
             {onClearCoachConversation && (
               <CoachMemoryPanel
                 aboutMe={aboutMeText ?? ''}

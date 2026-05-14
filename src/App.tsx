@@ -34,6 +34,7 @@ import { generateMorningCoach, generateEveningCoach, getCoachTimeOfDay } from '.
 import { checkStorageVersion, clearAllCachedData, clearAllAppData } from './utils/storageVersion'
 import { buildCoachSnapshot } from './utils/coachSnapshot'
 import { useWeather } from './hooks/useWeather'
+import { useAthleteLocation } from './hooks/useAthleteLocation'
 import WeeklyPlan from './components/WeeklyPlan'
 import Summary from './components/Summary'
 import Dashboard from './components/Dashboard'
@@ -547,7 +548,11 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
   // null when race coordinates aren't configured (legacy plans), in
   // which case the weather block stays off the snapshot and the coach
   // doesn't change behavior.
-  const weatherBlock = useWeather(activePlan.race)
+  // Sprint 5 — home location lets the day-to-day forecast track where
+  // the athlete actually trains, not the race destination. When unset,
+  // useWeather falls back to race coords (legacy behavior).
+  const athleteLocation = useAthleteLocation(athleteId)
+  const weatherBlock = useWeather(activePlan.race, athleteLocation.location)
 
   // Assemble the CoachSnapshot for LLM calls
   const coachSnapshot: CoachSnapshot | null = useMemo(() => {
@@ -972,6 +977,13 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
           onAddCoachFact={coachMemory.addAboutMeFact}
           onEditCoachFact={coachMemory.editAboutMeFact}
           onDeleteCoachFact={coachMemory.deleteAboutMeFact}
+          athleteHomeLocation={athleteLocation.location}
+          athleteHomeDetecting={athleteLocation.detecting}
+          athleteHomeError={athleteLocation.detectError}
+          raceLocationLabel={activePlan.race.coordinates?.label}
+          onSaveAthleteHome={athleteLocation.save}
+          onClearAthleteHome={athleteLocation.clear}
+          onUseBrowserHomeLocation={athleteLocation.useBrowserLocation}
           athleteId={athleteId}
           authSession={session}
           onLogout={onLogout}

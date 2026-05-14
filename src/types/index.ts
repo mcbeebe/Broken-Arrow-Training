@@ -772,16 +772,29 @@ export interface CoachHealthToday {
  * Sprint 5 — weather block attached to the CoachSnapshot when race
  * coordinates exist. Drives the two-tier WARN/SWAP doctrine in
  * COACH_ROLE and the RaceConditionsForecast UI surface.
+ *
+ * Two locations: the `label`/`latitude`/`longitude` on this block is
+ * the *training* location (athlete's home base, or the race location
+ * when home is unset). `raceDay` carries forecast/climatology for the
+ * race location, which may differ from training.
  */
 export interface CoachWeatherBlock {
-  /** Coordinates the forecast was fetched for (training/race location).
-   *  Surfaces as a label in the prompt so the coach mentions the place. */
+  /** Coordinates the daily forecast was fetched for. Equal to the
+   *  athlete's configured home/training location when set; falls back
+   *  to race coordinates otherwise. Surfaced as a label in the prompt
+   *  so the coach mentions the place. */
   label: string
   latitude: number
   longitude: number
   /** ISO date when the forecast was last refreshed client-side. */
   fetchedAt: number
-  /** Up to 14 days of daily-resolution forecast. */
+  /** True when the daily forecast was fetched from the athlete's
+   *  configured home location (not race fallback). The prompt uses
+   *  this to phrase the forecast as "where you train" vs. "race
+   *  location" — different framing changes the recommendation. */
+  isHomeLocation?: boolean
+  /** Up to 14 days of daily-resolution forecast at the training
+   *  location. */
   daily: Array<{
     date: string
     tempHighF: number
@@ -797,13 +810,16 @@ export interface CoachWeatherBlock {
     severity: 'normal' | 'warn' | 'swap'
     reasons: string[]
   }>
-  /** Race-day climatology — present when race date is in the future. */
+  /** Race-day info. Present when race date is parseable. Carries
+   *  race-location coordinates + climatology + (within 14 days) a live
+   *  race-location forecast. */
   raceDay?: {
     /** ISO date (YYYY-MM-DD) of the race. */
     date: string
-    /** True when the daily forecast for the race date is within the
-     *  14-day horizon — the coach should lean on the forecast over the
-     *  archive aggregate. */
+    /** Label for the race location (e.g. "Palisades Tahoe, CA"). May
+     *  differ from the training-location label above. */
+    label?: string
+    /** True when race day is within the 14-day forecast window. */
     inForecastWindow: boolean
     /** 10-year aggregate (mean across past decade ± 2 days). Null when
      *  fetching the archive failed. */
@@ -815,6 +831,18 @@ export interface CoachWeatherBlock {
       meanWindMph: number
       conditionsLabel: 'hot+dry' | 'hot+humid' | 'warm+dry' | 'warm+wet' | 'cool+wet' | 'cool+dry' | 'cold+wet' | 'cold+dry'
       yearsSampled: number
+    }
+    /** Live single-day forecast at the race coordinates. Populated
+     *  when race day is within 14 days. Distinct from the training-
+     *  location daily block above. */
+    forecast?: {
+      tempHighF: number
+      tempLowF: number
+      precipIn: number
+      precipProbPct: number
+      windMaxMph: number
+      weatherCode: number
+      thunderRisk: boolean
     }
   }
 }
