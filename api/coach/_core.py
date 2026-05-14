@@ -1174,10 +1174,19 @@ def build_context_block(
     weather = snapshot.get("weatherForecast")
     if isinstance(weather, dict):
         wlabel = str(weather.get("label", "")).strip() or "training location"
+        is_home = bool(weather.get("isHomeLocation"))
+        # When the athlete has configured a home/training location
+        # distinct from the race, frame the daily forecast as "where
+        # you train" so the coach doesn't conflate training-day
+        # decisions with race-day expectations.
+        header_qualifier = " (your training location)" if is_home else ""
         daily = weather.get("daily") or []
         if daily:
             out.append("")
-            out.append(f"Weather — {wlabel} (next {min(len(daily), 14)} days):")
+            out.append(
+                f"Weather — {wlabel}{header_qualifier} "
+                f"(next {min(len(daily), 14)} days):"
+            )
             for day in daily[:14]:
                 d_date = day.get("date", "?")
                 hi = day.get("tempHighF")
@@ -1199,12 +1208,38 @@ def build_context_block(
         race_day = weather.get("raceDay") or {}
         if race_day:
             r_date = race_day.get("date", "")
+            r_label = str(race_day.get("label", "")).strip() or "race location"
             typical = race_day.get("typical")
+            race_forecast = race_day.get("forecast")
             in_forecast = bool(race_day.get("inForecastWindow"))
-            if typical:
+            # Three possible surfaces for race day, in priority order:
+            # 1. Live race-location forecast (within 14 days, home != race)
+            # 2. Climatology (race more than 7 days out, archive available)
+            # 3. Inside-window note (race within 14 days but no separate
+            #    forecast — typically because home == race so the daily
+            #    block above already covers it).
+            if race_forecast:
                 out.append("")
                 out.append(
-                    f"Race-day climatology ({r_date}, 10-year average): "
+                    f"Race day ({r_date}, {r_label}) live forecast: "
+                    f"H {race_forecast.get('tempHighF')}°F / "
+                    f"L {race_forecast.get('tempLowF')}°F, "
+                    f"precip {race_forecast.get('precipIn')}\" "
+                    f"({race_forecast.get('precipProbPct')}%), "
+                    f"wind {race_forecast.get('windMaxMph')} mph"
+                    + (" ⚡ thunder risk" if race_forecast.get("thunderRisk") else "")
+                    + "."
+                )
+                if is_home:
+                    out.append(
+                        f"  (The daily block above is your TRAINING location; "
+                        f"this line is the RACE location — they may differ.)"
+                    )
+            elif typical:
+                out.append("")
+                out.append(
+                    f"Race-day climatology ({r_date}, {r_label}, "
+                    f"10-year average): "
                     f"H {typical.get('meanHighF')}°F / L {typical.get('meanLowF')}°F, "
                     f"avg precip {typical.get('meanPrecipIn')}\" "
                     f"({int((typical.get('precipDayFraction') or 0) * 100)}% wet days), "
@@ -1214,8 +1249,8 @@ def build_context_block(
             elif in_forecast:
                 out.append("")
                 out.append(
-                    f"Race day ({r_date}) is inside the 14-day forecast window — "
-                    f"use the daily forecast above instead of climatology."
+                    f"Race day ({r_date}, {r_label}) is inside the 14-day "
+                    f"forecast window — see the daily block above."
                 )
         out.append("")
 

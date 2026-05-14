@@ -18,6 +18,7 @@
 
 const FORECAST_API = 'https://api.open-meteo.com/v1/forecast'
 const ARCHIVE_API = 'https://archive-api.open-meteo.com/v1/archive'
+const GEOCODING_API = 'https://geocoding-api.open-meteo.com/v1/search'
 
 const LS_FORECAST = 'ba_weather_forecast_v1:'
 const LS_CLIMATE = 'ba_weather_climate_v1:'
@@ -373,4 +374,70 @@ export function classifyDay(entry: DailyForecastEntry): WeatherSeverityResult {
   if (swap.length > 0) return { severity: 'swap', reasons: swap }
   if (warn.length > 0) return { severity: 'warn', reasons: warn }
   return { severity: 'normal', reasons: [] }
+}
+
+
+// ─── Geocoding (athlete home location) ──────────────────────────
+//
+// Used by the Settings → Coach → "Where do you train?" surface to
+// resolve a typed place name into coordinates. Open-Meteo's geocoding
+// API is CORS-friendly and free — same posture as the forecast and
+// archive endpoints.
+
+export interface PlaceMatch {
+  name: string
+  admin1?: string        // state / province
+  countryCode?: string
+  country?: string
+  latitude: number
+  longitude: number
+  elevation?: number     // meters
+  /** Composite label for the picker: "Oakland, California, US". */
+  label: string
+}
+
+/** Search for places matching a free-text query. Returns up to 5
+ *  matches sorted by Open-Meteo's relevance ranking. */
+export async function searchPlaces(query: string): Promise<PlaceMatch[]> {
+  const trimmed = query.trim()
+  if (trimmed.length < 2) return []
+  const params = new URLSearchParams({
+    name: trimmed,
+    count: '5',
+    language: 'en',
+    format: 'json',
+  })
+  try {
+    const res = await fetch(`${GEOCODING_API}?${params.toString()}`)
+    if (!res.ok) return []
+    const data = await res.json() as {
+      results?: Array<{
+        name?: string
+        admin1?: string
+        country?: string
+        country_code?: string
+        latitude?: number
+        longitude?: number
+        elevation?: number
+      }>
+    }
+    const results = data.results || []
+    return results
+      .filter(r => typeof r.latitude === 'number' && typeof r.longitude === 'number')
+      .map(r => {
+        const parts = [r.name, r.admin1, r.country_code].filter(Boolean) as string[]
+        return {
+          name: r.name || '',
+          admin1: r.admin1,
+          country: r.country,
+          countryCode: r.country_code,
+          latitude: r.latitude!,
+          longitude: r.longitude!,
+          elevation: r.elevation,
+          label: parts.join(', '),
+        }
+      })
+  } catch {
+    return []
+  }
 }
