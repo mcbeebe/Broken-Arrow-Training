@@ -14,7 +14,9 @@ import type { OnboardingConfig } from '../hooks/useOnboarding'
 import type { MIMOverride } from '../hooks/useMIMCalibration'
 import { SPORT_LABELS } from '../hooks/useMIMCalibration'
 import CoachPersonaEditor from './CoachPersonaEditor'
+import CoachMemoryPanel from './CoachMemoryPanel'
 import { useTerminologyMode } from '../hooks/useTerminologyMode'
+import type { ConversationTurn } from '../types'
 
 interface SettingsProps {
   // Coach (Mike-only for now)
@@ -28,6 +30,11 @@ interface SettingsProps {
   coachPersona?: CoachPersona
   onSaveCoachPersona?: (p: CoachPersona) => void
   athleteId?: string
+  // Coach memory inspector — only rendered when coachEnabled and the
+  // bag of read-only memory inputs are provided.
+  coachConversation?: ConversationTurn[]
+  coachDailyArchives?: { id?: string; date?: string }[]
+  onClearCoachConversation?: () => void | Promise<void>
   // Strava
   connected: boolean
   configured: boolean
@@ -116,12 +123,15 @@ export default function Settings({
   aboutMeText,
   onSaveAboutMe,
   onClearAboutMe,
-  pendingInferences: _pendingInferences,
+  pendingInferences,
   onAcceptInference: _onAcceptInference,
   onDismissInference: _onDismissInference,
   coachPersona,
   onSaveCoachPersona,
   athleteId,
+  coachConversation,
+  coachDailyArchives,
+  onClearCoachConversation,
   authSession,
   onLogout,
   themeMode,
@@ -135,7 +145,6 @@ export default function Settings({
   trainingMethod,
   onboardingConfig,
 }: SettingsProps) {
-  void _pendingInferences
   void _onAcceptInference
   void _onDismissInference
   const { showTechnicalNames, setShowTechnicalNames } = useTerminologyMode(athleteId)
@@ -238,6 +247,16 @@ export default function Settings({
               <CoachPersonaEditor
                 persona={coachPersona ?? { name: '', traits: [] }}
                 onSave={onSaveCoachPersona}
+              />
+            )}
+            {onClearCoachConversation && (
+              <CoachMemoryPanel
+                aboutMe={aboutMeText ?? ''}
+                coachPersona={coachPersona ?? { name: '', traits: [] }}
+                conversation={coachConversation ?? []}
+                pendingInferences={pendingInferences ?? []}
+                dailyArchives={coachDailyArchives ?? []}
+                onClearConversation={onClearCoachConversation}
               />
             )}
           </div>
