@@ -329,8 +329,28 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
     return [...remainingThisWeek, ...nextWeek]
   }, [currentWeekDays, todayDayIndex, weeks, currentWeekNum])
 
-  // Extract RPE ratings and manual exercise load from actuals
+  // Extract RPE ratings and manual exercise load from actuals.
+  //
+  // exerciseLoad is intentionally limited to *manually-logged* strength —
+  // Garmin's on-device EPOC already captures the musculoskeletal load when
+  // the watch records a strength activity, so adding it again as a
+  // "manual exercise" segment double-counts the same workout (the symptom:
+  // a strength_full bar PLUS an identical-day manual_exercise bar in the
+  // 7-Day Training Load chart). The matching layer prefers Garmin's
+  // exercise sets when present (matching.ts), so day.actual.strengthLog
+  // ends up Garmin-sourced whenever the watch has them — we detect that
+  // case by checking activity details for non-empty exerciseSets and skip
+  // the manual computation for those dates.
   const { rpeByDate, exerciseLoadByDate } = useMemo(() => {
+    const garminStrengthDates = new Set<string>()
+    for (const details of Object.values(garmin.activityDetails)) {
+      for (const d of details) {
+        if (!d.exerciseSets?.length) continue
+        const date = d.startTimeLocal?.slice(0, 10)
+        if (date) garminStrengthDates.add(date)
+      }
+    }
+
     const rpeMap = new Map<string, number>()
     const exMap = new Map<string, number>()
     for (const week of weeks) {
@@ -340,14 +360,14 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
         if (day.actual.rpe) {
           rpeMap.set(date, day.actual.rpe)
         }
-        if (day.actual.strengthLog?.length) {
+        if (day.actual.strengthLog?.length && !garminStrengthDates.has(date)) {
           const load = calculateExerciseLoad(day.actual.strengthLog)
           if (load > 0) exMap.set(date, load)
         }
       }
     }
     return { rpeByDate: rpeMap, exerciseLoadByDate: exMap }
-  }, [weeks])
+  }, [weeks, garmin.activityDetails])
 
   // Tertiary HR fallback for the IF computation. The matching layer in
   // mergeGarminDetailIntoWeeks/matchActivitiesToPlan already wrote avgHR/maxHR
