@@ -207,23 +207,64 @@ export async function transcribeAudio(
     } as VoiceCaptureError
   }
   if (!res.ok) {
-    let detail = ''
-    try {
-      detail = (await res.text()).slice(0, 200)
-    } catch {
-      /* ignore */
-    }
+    const { code, message } = await readErrorBody(res, 'transcribe')
     throw {
-      code: res.status === 429 ? 'http_error' : 'transcribe_failed',
+      code: res.status === 429 ? 'http_error' : code,
       status: res.status,
-      message:
-        res.status === 429
-          ? 'Daily coach budget reached. Try again later.'
-          : `Transcription failed (${res.status}). ${detail}`,
+      message,
     } as VoiceCaptureError
   }
   const data = (await res.json()) as { text?: string }
   return (data.text || '').trim()
+}
+
+/**
+ * Decode an error response from /api/coach/chat into a user-facing
+ * message. The backend returns JSON like {"error": "<machine_code>"}
+ * for known failure modes; we map the codes we care about to friendly
+ * copy so the athlete sees "Voice input isn't set up on this server"
+ * instead of raw JSON.
+ */
+async function readErrorBody(
+  res: Response,
+  surface: 'transcribe' | 'speak',
+): Promise<{ code: VoiceCaptureError['code'] | TTSError['code']; message: string }> {
+  let body = ''
+  try {
+    body = (await res.text()).slice(0, 500)
+  } catch {
+    /* ignore */
+  }
+  let errCode = ''
+  try {
+    errCode = (JSON.parse(body) as { error?: string }).error || ''
+  } catch {
+    /* not JSON — fall through to generic message */
+  }
+  if (res.status === 429) {
+    return {
+      code: 'http_error',
+      message: 'Daily coach budget reached. Try again later.',
+    }
+  }
+  if (errCode === 'openai_api_key_unconfigured') {
+    return {
+      code: surface === 'transcribe' ? 'transcribe_failed' : 'tts_failed',
+      message:
+        surface === 'transcribe'
+          ? "Voice input isn't set up on this server yet. Type your message instead."
+          : "Audio briefings aren't set up on this server yet.",
+    }
+  }
+  const fallback =
+    surface === 'transcribe' ? 'Transcription failed' : 'Audio briefing failed'
+  const trimmed = body.trim()
+  return {
+    code: surface === 'transcribe' ? 'transcribe_failed' : 'tts_failed',
+    message: trimmed
+      ? `${fallback} (${res.status}). ${trimmed}`
+      : `${fallback} (${res.status}).`,
+  }
 }
 
 
@@ -307,19 +348,11 @@ export async function fetchTTSAudio(
     } as TTSError
   }
   if (!res.ok) {
-    let detail = ''
-    try {
-      detail = (await res.text()).slice(0, 200)
-    } catch {
-      /* ignore */
-    }
+    const { code, message } = await readErrorBody(res, 'speak')
     throw {
-      code: res.status === 429 ? 'http_error' : 'tts_failed',
+      code: res.status === 429 ? 'http_error' : code,
       status: res.status,
-      message:
-        res.status === 429
-          ? 'Daily coach budget reached. Try again later.'
-          : `Audio briefing failed (${res.status}). ${detail}`,
+      message,
     } as TTSError
   }
   const data = (await res.json()) as { audio?: string; mediaType?: string }
