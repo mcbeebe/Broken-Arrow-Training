@@ -11,6 +11,7 @@ import CoachInsightCard from './CoachInsightCard'
 import WorkoutModal from './WorkoutModal'
 import { getWorkoutStyle } from '../utils/styles'
 import Term from './TermGlossary'
+import { buildWeatherChip, forecastForDate } from '../utils/weatherChip'
 import RaceReadyHeroCard from './RaceReadyHeroCard'
 import RaceReadinessDetailModal from './RaceReadinessDetailModal'
 import { buildRaceReadinessDetail, computeRaceReadiness } from '../utils/raceReadiness'
@@ -297,8 +298,46 @@ export default function Summary({
     })
   }, [race, raceReadiness, weeks, currentWeekNum])
 
+  // Today's weather at the training location — drawn from the same
+  // snapshot the coach reads. Renders only when the snapshot has the
+  // 14-day forecast block AND today's date matches one of the days.
+  // Past-day case is moot because the forecast window starts today.
+  const todayWeatherChip = useMemo(() => {
+    const todayISO = localDateStr()
+    return buildWeatherChip(forecastForDate(coachSnapshot?.weatherForecast, todayISO))
+  }, [coachSnapshot])
+  const weatherLocationLabel = coachSnapshot?.weatherForecast?.label
+
   return (
     <div className="px-3 py-4 space-y-3">
+      {todayWeatherChip && (
+        <div
+          className={`rounded-xl px-3 py-2 flex items-center gap-2.5 border ${
+            todayWeatherChip.accent === 'swap'
+              ? 'bg-red-50 dark:bg-red-950/40 border-red-200 dark:border-red-900 text-red-900 dark:text-red-100'
+              : todayWeatherChip.accent === 'warn'
+                ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-900 text-amber-900 dark:text-amber-100'
+                : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200'
+          }`}
+        >
+          <span className="text-xl leading-none shrink-0" aria-hidden>{todayWeatherChip.icon}</span>
+          <div className="flex-1 min-w-0 text-sm leading-snug">
+            <span className="font-semibold">{todayWeatherChip.tempLabel}</span>
+            {weatherLocationLabel && (
+              <span className="text-xs opacity-70"> · {weatherLocationLabel}</span>
+            )}
+            {' · '}
+            <span>
+              {todayWeatherChip.warningLabel || todayWeatherChip.conditionsLabel}
+            </span>
+          </div>
+          {todayWeatherChip.accent !== 'neutral' && (
+            <span className="text-[10px] uppercase tracking-wider font-semibold shrink-0">
+              {todayWeatherChip.accent === 'swap' ? '🚨 SWAP' : '⚠️ WARN'}
+            </span>
+          )}
+        </div>
+      )}
       {race && raceReadiness && (
         <RaceReadyHeroCard
           race={{ name: race.name, distance: race.distance }}

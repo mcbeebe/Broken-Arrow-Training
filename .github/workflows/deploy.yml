@@ -8,9 +8,21 @@ on:
 permissions:
   contents: write
 
+# Per-branch concurrency lane. A push to a feature branch shouldn't
+# cancel a deploy that's mid-flight from the default branch. Each ref
+# only cancels its OWN older runs. Side branches still pay test+build
+# cost so we catch breakage before merge, but only the default branch
+# (or a manual dispatch) actually publishes to gh-pages — see the
+# conditional on the publish step.
 concurrency:
-  group: pages
+  group: pages-${{ github.ref }}
   cancel-in-progress: true
+
+# Default branch that ships to gh-pages. Update when the branch is
+# renamed. `main` is kept for forward compatibility in case the repo
+# ever migrates to it.
+env:
+  PUBLISH_REF: refs/heads/claude/broken-arrow-training-app-P4N1p
 
 jobs:
   test:
@@ -44,7 +56,13 @@ jobs:
           # Git SHA baked into the bundle so the Deploy Diagnostics
           # panel in Settings can compare frontend vs. API version.
           VITE_GIT_COMMIT_SHA: ${{ github.sha }}
+      # Only the default branch (or a manual workflow_dispatch trigger)
+      # actually publishes to gh-pages. This prevents a feature
+      # branch's bundle from clobbering the production deploy — the
+      # exact failure mode that buried PR #92's home-location code
+      # under PR #93's side-branch pushes.
       - uses: peaceiris/actions-gh-pages@v4
+        if: github.ref == env.PUBLISH_REF || github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./dist

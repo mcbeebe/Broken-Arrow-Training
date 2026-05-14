@@ -89,7 +89,7 @@ function daysAgoISO(n: number): string {
 /** Parse "Mon 4/15" into an ISO date using the plan start year so we
  *  can compare against today / ranges. Returns null if the label
  *  doesn't contain an M/D pair. */
-function dayLabelToISO(label: string, planStartDate: string): string | null {
+export function dayLabelToISO(label: string, planStartDate: string): string | null {
   const m = label.match(/(\d{1,2})\/(\d{1,2})/)
   if (!m) return null
   const month = parseInt(m[1], 10)
