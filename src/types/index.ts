@@ -649,6 +649,9 @@ export type CoachPingTriggerType =
   | 'skipped_workout'
   | 'weekly_recap'
   | 'weekly_arc'
+  | 'hrv_drop'
+  | 'acwr_spike'
+  | 'compliance_drift'
 
 export interface CoachPingTrigger {
   type: CoachPingTriggerType
