@@ -632,8 +632,34 @@ export interface DailyChatArchive {
   turnCount: number
 }
 
+export interface AboutMeFact {
+  /** Stable id assigned at creation. Used for edit/delete operations
+   *  in the CoachMemoryPanel and for reconciling between client &
+   *  server. */
+  id: string
+  text: string
+  /** Unix ms — when this fact was first added. Inferences accepted
+   *  silently from chat carry their original `proposedAt`. */
+  learnedAt: number
+  /** Last edit timestamp if the athlete tweaked the wording in the
+   *  panel. Absent when the fact has never been edited. */
+  editedAt?: number
+  /** Id of the user turn that produced this fact, when known. Lets
+   *  the panel link a fact back to the conversation that taught it. */
+  sourceTurnId?: string
+}
+
 export interface CoachMemory {
+  /** Canonical join of `aboutMeFacts` — the prompt builder reads this
+   *  directly so it remains stable across the schema migration. Do NOT
+   *  write to this field from the client; mutate `aboutMeFacts` instead
+   *  and the server re-syncs the join. */
   aboutMe: string
+  /** Sprint 4 structured About Me. Each fact carries a learnedAt
+   *  timestamp + optional sourceTurnId for provenance. The legacy
+   *  flat-string memory is migrated to this shape on first server
+   *  read. */
+  aboutMeFacts?: AboutMeFact[]
   conversation: ConversationTurn[]
   conversationSummary: ConversationSummary | null
   pendingInferences: PendingInference[]
@@ -641,6 +667,11 @@ export interface CoachMemory {
   /** Auto-archived daily conversations — accessible via the Coach
    *  history drawer. Newest first. */
   dailyArchives?: DailyChatArchive[]
+  /** Sprint 4 — the moment the coach-athlete relationship started.
+   *  Server stamps this on first memory load (using oldest turn /
+   *  fact ts if available, otherwise current time). Drives the
+   *  anniversary ping trigger. */
+  athleteSinceMs?: number
 }
 
 export type CoachPingTriggerType =
@@ -652,6 +683,7 @@ export type CoachPingTriggerType =
   | 'hrv_drop'
   | 'acwr_spike'
   | 'compliance_drift'
+  | 'anniversary'
 
 export interface CoachPingTrigger {
   type: CoachPingTriggerType

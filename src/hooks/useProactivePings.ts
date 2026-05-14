@@ -300,6 +300,36 @@ export function useProactivePings(inputs: Inputs) {
           if (!cancelled && result && !result.skipped) memory.refresh()
         }
       }
+
+      // Sprint 4 — anniversary moments. Fires once per athlete per
+      // milestone day (30 / 60 / 90 / 180 / 365). The localStorage dedup
+      // key includes the milestone day so a future milestone doesn't
+      // share a key with an earlier one. Server cooldown is a long
+      // backstop in case the dedup key gets cleared.
+      const athleteSinceMs = memory.memory.athleteSinceMs
+      if (typeof athleteSinceMs === 'number' && athleteSinceMs > 0) {
+        const daysSince = Math.floor((Date.now() - athleteSinceMs) / (24 * 60 * 60 * 1000))
+        const milestones = [30, 60, 90, 180, 365]
+        // Find the largest milestone we've crossed but haven't yet
+        // celebrated. Iterating descending means a long-dormant athlete
+        // who comes back at day 200 gets the 180-day moment (not 90).
+        for (const m of [...milestones].sort((a, b) => b - a)) {
+          if (daysSince < m) continue
+          const k = `anniversary:${athleteId}:${m}`
+          if (lsGet(k)) continue
+          lsSet(k, '1')
+          const result = await postPing(
+            athleteId,
+            {
+              type: 'anniversary',
+              payload: { milestoneDays: m, daysSince },
+            },
+            snapshot,
+          )
+          if (!cancelled && result && !result.skipped) memory.refresh()
+          break
+        }
+      }
     }
 
     run()

@@ -37,6 +37,13 @@ interface SettingsProps {
   coachConversation?: ConversationTurn[]
   coachDailyArchives?: { id?: string; date?: string }[]
   onClearCoachConversation?: () => void | Promise<void>
+  // Sprint 4 — structured About Me facts + per-fact mutations. When
+  // provided, CoachMemoryPanel renders editable timestamped facts; when
+  // absent it falls back to the legacy plain-text rendering.
+  coachAboutMeFacts?: import('../types').AboutMeFact[]
+  onAddCoachFact?: (text: string, sourceTurnId?: string) => void | Promise<void>
+  onEditCoachFact?: (id: string, text: string) => void | Promise<void>
+  onDeleteCoachFact?: (id: string) => void | Promise<void>
   // Strava
   connected: boolean
   configured: boolean
@@ -136,6 +143,10 @@ export default function Settings({
   coachConversation,
   coachDailyArchives,
   onClearCoachConversation,
+  coachAboutMeFacts,
+  onAddCoachFact,
+  onEditCoachFact,
+  onDeleteCoachFact,
   authSession,
   onLogout,
   themeMode,
@@ -259,11 +270,15 @@ export default function Settings({
             {onClearCoachConversation && (
               <CoachMemoryPanel
                 aboutMe={aboutMeText ?? ''}
+                aboutMeFacts={coachAboutMeFacts}
                 coachPersona={coachPersona ?? { name: '', traits: [] }}
                 conversation={coachConversation ?? []}
                 pendingInferences={pendingInferences ?? []}
                 dailyArchives={coachDailyArchives ?? []}
                 onClearConversation={onClearCoachConversation}
+                onAddFact={onAddCoachFact}
+                onEditFact={onEditCoachFact}
+                onDeleteFact={onDeleteCoachFact}
               />
             )}
           </div>

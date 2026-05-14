@@ -950,6 +950,10 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
           coachConversation={coachMemory.conversation}
           coachDailyArchives={coachMemory.dailyArchives}
           onClearCoachConversation={coachMemory.clearConversation}
+          coachAboutMeFacts={coachMemory.aboutMeFacts}
+          onAddCoachFact={coachMemory.addAboutMeFact}
+          onEditCoachFact={coachMemory.editAboutMeFact}
+          onDeleteCoachFact={coachMemory.deleteAboutMeFact}
           athleteId={athleteId}
           authSession={session}
           onLogout={onLogout}

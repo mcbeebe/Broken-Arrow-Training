@@ -132,7 +132,7 @@ export function useCoachMemory(athleteId: string, enabled: boolean = true) {
 
   const clearAboutMe = useCallback(async () => {
     setMemory(m => {
-      const updated = { ...m, aboutMe: '' }
+      const updated = { ...m, aboutMe: '', aboutMeFacts: [] }
       writeLocal(athleteId, updated)
       return updated
     })
@@ -140,6 +140,37 @@ export function useCoachMemory(athleteId: string, enabled: boolean = true) {
       await mutate('clear_about_me')
     }
   }, [athleteId, apiAvailable, mutate])
+
+  // Sprint 4 — per-fact CRUD. These don't optimistically patch local
+  // state because the server is authoritative on fact IDs (it stamps a
+  // new uuid on add) and we want the panel to render the same view the
+  // server has. Mutate → server → setMemory(server). Fast enough since
+  // the actions are infrequent.
+  const addAboutMeFact = useCallback(
+    async (text: string, sourceTurnId?: string) => {
+      if (!apiAvailable) return
+      const body: Record<string, unknown> = { text }
+      if (sourceTurnId) body.sourceTurnId = sourceTurnId
+      await mutate('add_about_me_fact', body)
+    },
+    [apiAvailable, mutate],
+  )
+
+  const editAboutMeFact = useCallback(
+    async (id: string, text: string) => {
+      if (!apiAvailable) return
+      await mutate('edit_about_me_fact', { id, text })
+    },
+    [apiAvailable, mutate],
+  )
+
+  const deleteAboutMeFact = useCallback(
+    async (id: string) => {
+      if (!apiAvailable) return
+      await mutate('delete_about_me_fact', { id })
+    },
+    [apiAvailable, mutate],
+  )
 
   const appendTurn = useCallback(
     async (role: ConversationTurn['role'], content: string, trigger?: string) => {
@@ -262,6 +293,7 @@ export function useCoachMemory(athleteId: string, enabled: boolean = true) {
   return {
     memory,
     aboutMe: memory.aboutMe,
+    aboutMeFacts: memory.aboutMeFacts ?? [],
     coachPersona: memory.coachPersona ?? { name: '', traits: [] },
     conversation: memory.conversation,
     dailyArchives: (memory.dailyArchives ?? []) as DailyChatArchive[],
@@ -273,6 +305,9 @@ export function useCoachMemory(athleteId: string, enabled: boolean = true) {
     refresh,
     saveAboutMe,
     clearAboutMe,
+    addAboutMeFact,
+    editAboutMeFact,
+    deleteAboutMeFact,
     appendTurn,
     acceptInference,
     dismissInference,
