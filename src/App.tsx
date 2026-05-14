@@ -481,6 +481,24 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
     daySwap.swapDays(currentWeekNum, fromIndex, toIndex)
   }, [daySwap, currentWeekNum])
 
+  // Manual workout editor — writes through the same planOverrides hook the
+  // Coach uses, so user edits compose with logs/swaps automatically.
+  const planEdit = useMemo(() => ({
+    editDay: (weekNum: number, dayIndex: number, updates: import('./components/WorkoutEditor').WorkoutEdits) => {
+      planOverrides.applyOverride({
+        weekNum,
+        dayIndex,
+        updates,
+        rationale: 'Manual edit',
+      })
+    },
+    revertDay: (weekNum: number, dayIndex: number) => {
+      planOverrides.removeForDay(weekNum, dayIndex)
+    },
+    hasEdit: (weekNum: number, dayIndex: number) =>
+      planOverrides.overrides.some(o => o.weekNum === weekNum && o.dayIndex === dayIndex),
+  }), [planOverrides])
+
   // Assemble the CoachSnapshot for LLM calls
   const coachSnapshot: CoachSnapshot | null = useMemo(() => {
     if (!coachEnabled) return null
@@ -757,6 +775,7 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
           zones={hrZones.zones}
           manualLog={manualLog}
           daySwap={daySwap}
+          planEdit={planEdit}
           weekReadiness={readiness.weekScores}
           athleteId={athleteId}
           coachEnabled={coachEnabled}

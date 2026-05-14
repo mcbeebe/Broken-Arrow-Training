@@ -7,6 +7,7 @@ import DayCard from './DayCard'
 import VolumeChart from './VolumeChart'
 import WorkoutModal from './WorkoutModal'
 import ManualLog from './ManualLog'
+import WorkoutEditor, { type WorkoutEdits } from './WorkoutEditor'
 import RaceNarrative from './RaceNarrative'
 import RaceElevationProfile from './RaceElevationProfile'
 
@@ -20,6 +21,11 @@ interface WeeklyPlanProps {
     swapDays: (weekNum: number, fromIndex: number, toIndex: number) => void
     resetWeek: (weekNum: number) => void
     hasSwaps: (weekNum: number) => boolean
+  }
+  planEdit?: {
+    editDay: (weekNum: number, dayIndex: number, updates: WorkoutEdits) => void
+    revertDay: (weekNum: number, dayIndex: number) => void
+    hasEdit: (weekNum: number, dayIndex: number) => boolean
   }
   weekReadiness?: ReadinessScore[]
   athleteId?: string
@@ -45,6 +51,7 @@ export default function WeeklyPlan({
   zones,
   manualLog,
   daySwap,
+  planEdit,
   weekReadiness = [],
   athleteId,
   coachEnabled,
@@ -59,6 +66,7 @@ export default function WeeklyPlan({
   const [activeWeek, setActiveWeek] = useState(0)
   const [modalDay, setModalDay] = useState<PlannedDay | null>(null)
   const [logDay, setLogDay] = useState<PlannedDay | null>(null)
+  const [editDay, setEditDay] = useState<{ day: PlannedDay; index: number } | null>(null)
   const [swapSource, setSwapSource] = useState<number | null>(null)
   const [calMonth, setCalMonth] = useState(() => {
     // Start on current month
@@ -259,6 +267,8 @@ export default function WeeklyPlan({
                 onTap={isSwapMode ? () => handleSwapTap(i) : () => setModalDay(d)}
                 onLog={manualLog ? () => setLogDay(d) : undefined}
                 onSwap={daySwap ? () => handleSwapTap(i) : undefined}
+                onEdit={planEdit ? () => setEditDay({ day: d, index: i }) : undefined}
+                hasEdit={planEdit?.hasEdit(week.num, i)}
                 isSwapSelected={swapSource === i}
                 isSwapTarget={isSwapMode && swapSource !== i}
                 readiness={readiness}
@@ -372,6 +382,24 @@ export default function WeeklyPlan({
             setLogDay(null)
           }}
           onClose={() => setLogDay(null)}
+        />
+      )}
+
+      {/* Manual workout editor (planned prescription) */}
+      {editDay && planEdit && (
+        <WorkoutEditor
+          day={editDay.day}
+          weekNum={week.num}
+          hasOverride={planEdit.hasEdit(week.num, editDay.index)}
+          onSave={(updates) => {
+            planEdit.editDay(week.num, editDay.index, updates)
+            setEditDay(null)
+          }}
+          onRevert={() => {
+            planEdit.revertDay(week.num, editDay.index)
+            setEditDay(null)
+          }}
+          onClose={() => setEditDay(null)}
         />
       )}
     </div>
