@@ -43,6 +43,10 @@ COOLDOWN_SECONDS = {
     # localStorage; server cooldown is a belt-and-braces guard against
     # double-fires if the client retries on a network blip.
     "anniversary": 14 * 24 * 3600,
+    # Sprint 5 — weather alert. Day-level dedup happens client-side;
+    # 12h server cooldown so morning/evening fires for the same day
+    # don't double-up but a tomorrow swap can still propose.
+    "weather_alert": 12 * 3600,
 }
 
 
@@ -127,6 +131,21 @@ TRIGGER_PROMPTS = {
         "(scheduling, motivation, life events, soreness). Don't "
         "propose a plan change yet — get the context first. Compliance "
         "drift is a relationship signal, not a load signal."
+    ),
+    "weather_alert": (
+        "The client has detected a severe weather window in the "
+        "forecast (see Trigger payload for date, tier, and reasons). "
+        "Cross-check against the 'Weather — <location>' block in the "
+        "context snapshot. If the affected day's planned workout is "
+        "outdoor-exposure (run / long / quality / race / outdoor cross), "
+        "emit a `proposal` block swapping it to an indoor equivalent "
+        "per the WEATHER DOCTRINE + INDOOR SWAP TEMPLATES in your "
+        "system prompt. Open the message by naming the specific "
+        "trigger ('Thunderstorm risk 75% forecast for Saturday's long "
+        "run'). 1-2 sentences before the proposal block. If the "
+        "affected day is already indoor (strength, rest, travel), "
+        "acknowledge the weather but skip the proposal — no swap "
+        "needed." + _PROPOSAL_DIRECTIVE
     ),
     "anniversary": (
         "The athlete just crossed a training-relationship milestone "

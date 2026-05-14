@@ -32,6 +32,7 @@ import { localDateStr } from './utils/format'
 import { generateMorningCoach, generateEveningCoach, getCoachTimeOfDay } from './utils/coach'
 import { checkStorageVersion, clearAllCachedData, clearAllAppData } from './utils/storageVersion'
 import { buildCoachSnapshot } from './utils/coachSnapshot'
+import { useWeather } from './hooks/useWeather'
 import WeeklyPlan from './components/WeeklyPlan'
 import Summary from './components/Summary'
 import Dashboard from './components/Dashboard'
@@ -537,6 +538,12 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
       planOverrides.overrides.some(o => o.weekNum === weekNum && o.dayIndex === dayIndex),
   }), [planOverrides])
 
+  // Sprint 5 — fetch 14-day forecast + 10-year race-day climate. Returns
+  // null when race coordinates aren't configured (legacy plans), in
+  // which case the weather block stays off the snapshot and the coach
+  // doesn't change behavior.
+  const weatherBlock = useWeather(activePlan.race)
+
   // Assemble the CoachSnapshot for LLM calls
   const coachSnapshot: CoachSnapshot | null = useMemo(() => {
     if (!coachEnabled) return null
@@ -577,6 +584,11 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
     if (readiness.riskFlags && readiness.riskFlags.length > 0) {
       snap.riskFlags = readiness.riskFlags
     }
+    // Sprint 5 — attach weather forecast when configured. Drives the
+    // two-tier WARN/SWAP doctrine in COACH_ROLE.
+    if (weatherBlock) {
+      snap.weatherForecast = weatherBlock
+    }
     return snap
   }, [
     coachEnabled,
@@ -596,6 +608,7 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
     coachMemory.coachPersona,
     strava.activities,
     garmin.garminActivities,
+    weatherBlock,
   ])
 
   // Daily LLM insight (shared between Summary + Coach tab)

@@ -1,4 +1,5 @@
 import type { RaceInfo as RaceInfoType } from '../types'
+import RaceConditionsForecast from './RaceConditionsForecast'
 
 interface RaceInfoProps {
   race: RaceInfoType
@@ -16,6 +17,8 @@ export default function RaceInfo({ race }: RaceInfoProps) {
         <p><strong>Course:</strong> {race.course}</p>
         <p><strong>Cutoff:</strong> {race.cutoff}</p>
       </div>
+
+      <RaceConditionsForecast race={race} />
 
       <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-100">
         <h3 className="font-semibold text-base text-slate-800 mb-2">Course Landmarks</h3>

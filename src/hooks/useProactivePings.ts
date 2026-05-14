@@ -301,6 +301,51 @@ export function useProactivePings(inputs: Inputs) {
         }
       }
 
+      // Sprint 5 — weather alert. The snapshot carries a pre-classified
+      // forecast with per-day severity labels (normal / warn / swap).
+      // We fire `weather_alert` only on SWAP-tier days that the athlete
+      // hasn't already been warned about and that fall on a day with an
+      // outdoor-exposure planned workout. WARN days flow through the
+      // daily insight already (the system prompt mentions them in
+      // context); we don't ping for those.
+      const forecastDaily = snapshot?.weatherForecast?.daily
+      if (Array.isArray(forecastDaily) && forecastDaily.length > 0) {
+        // Look at today + next 3 days. Beyond that the forecast is too
+        // uncertain to swap on.
+        const horizon = forecastDaily.slice(0, 4)
+        for (const day of horizon) {
+          if (day.severity !== 'swap') continue
+          const k = `weather_alert:${athleteId}:${day.date}`
+          if (lsGet(k)) continue
+          lsSet(k, '1')
+          const result = await postPing(
+            athleteId,
+            {
+              type: 'weather_alert',
+              payload: {
+                date: day.date,
+                tier: 'swap',
+                reasons: day.reasons,
+                tempHighF: day.tempHighF,
+                tempLowF: day.tempLowF,
+                precipIn: day.precipIn,
+                precipProbPct: day.precipProbPct,
+                windMaxMph: day.windMaxMph,
+                thunderRisk: day.thunderRisk,
+              },
+            },
+            snapshot,
+          )
+          if (!cancelled && result && !result.skipped) {
+            memory.refresh()
+            // One alert per pass — the coach + ProposalCard surface is
+            // the right home for follow-ups; we don't want to flood
+            // the thread on a multi-day storm.
+            break
+          }
+        }
+      }
+
       // Sprint 4 — anniversary moments. Fires once per athlete per
       // milestone day (30 / 60 / 90 / 180 / 365). The localStorage dedup
       // key includes the milestone day so a future milestone doesn't

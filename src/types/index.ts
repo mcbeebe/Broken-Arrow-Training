@@ -236,6 +236,20 @@ export interface RaceInfo {
   gear: { item: string; required: boolean }[];
   nutrition: string;
   loriNote?: string;
+  /** Sprint 5 — race-day coordinates. Drives the Open-Meteo Forecast +
+   *  Archive calls (14-day forecast as race approaches, 10-year typical
+   *  conditions for the race date). Optional so legacy plans without
+   *  coordinates keep loading; weather features no-op when absent. */
+  coordinates?: {
+    latitude: number;
+    longitude: number;
+    /** Approximate elevation in meters above sea level. Used to label
+     *  the forecast as "altitude" when relevant (>2000m). */
+    elevationMeters?: number;
+    /** Human-readable label like "Palisades Tahoe, CA" — surfaced in
+     *  the RaceConditionsForecast card. */
+    label?: string;
+  };
 }
 
 export interface AthleteProfile {
@@ -684,6 +698,7 @@ export type CoachPingTriggerType =
   | 'acwr_spike'
   | 'compliance_drift'
   | 'anniversary'
+  | 'weather_alert'
 
 export interface CoachPingTrigger {
   type: CoachPingTriggerType
@@ -753,6 +768,57 @@ export interface CoachHealthToday {
   bodyBatteryDrained?: number           // amount drained today
 }
 
+/**
+ * Sprint 5 — weather block attached to the CoachSnapshot when race
+ * coordinates exist. Drives the two-tier WARN/SWAP doctrine in
+ * COACH_ROLE and the RaceConditionsForecast UI surface.
+ */
+export interface CoachWeatherBlock {
+  /** Coordinates the forecast was fetched for (training/race location).
+   *  Surfaces as a label in the prompt so the coach mentions the place. */
+  label: string
+  latitude: number
+  longitude: number
+  /** ISO date when the forecast was last refreshed client-side. */
+  fetchedAt: number
+  /** Up to 14 days of daily-resolution forecast. */
+  daily: Array<{
+    date: string
+    tempHighF: number
+    tempLowF: number
+    precipIn: number
+    precipProbPct: number
+    windMaxMph: number
+    windGustMaxMph?: number
+    weatherCode: number
+    thunderRisk: boolean
+    /** Pre-classified severity so the prompt can lean on the labels
+     *  rather than reimplementing the thresholds. */
+    severity: 'normal' | 'warn' | 'swap'
+    reasons: string[]
+  }>
+  /** Race-day climatology — present when race date is in the future. */
+  raceDay?: {
+    /** ISO date (YYYY-MM-DD) of the race. */
+    date: string
+    /** True when the daily forecast for the race date is within the
+     *  14-day horizon — the coach should lean on the forecast over the
+     *  archive aggregate. */
+    inForecastWindow: boolean
+    /** 10-year aggregate (mean across past decade ± 2 days). Null when
+     *  fetching the archive failed. */
+    typical?: {
+      meanHighF: number
+      meanLowF: number
+      meanPrecipIn: number
+      precipDayFraction: number
+      meanWindMph: number
+      conditionsLabel: 'hot+dry' | 'hot+humid' | 'warm+dry' | 'warm+wet' | 'cool+wet' | 'cool+dry' | 'cold+wet' | 'cold+dry'
+      yearsSampled: number
+    }
+  }
+}
+
 export interface CoachSnapshot {
   today: { date: string; period?: 'morning' | 'afternoon' | 'evening' }
   currentWeekNum?: number
@@ -804,6 +870,13 @@ export interface CoachSnapshot {
   /** Proactive injury risk flags from trend analysis — surfaced to the
    *  coach so it can raise concerns without waiting for the athlete to ask. */
   riskFlags?: { id: string; severity: 'watch' | 'warning' | 'alert'; title: string; message: string; metric?: string }[]
+  /** Sprint 5 — 14-day weather forecast at the training location +
+   *  race-day typical climate from a 10-year archive aggregate.
+   *  Conditional: only attached when race coordinates exist on the
+   *  active plan. The coach uses this to warn or propose indoor
+   *  swaps during severe forecast windows, and to frame race-day
+   *  expectations ("typically 72°F / dry / low wind for June 19"). */
+  weatherForecast?: CoachWeatherBlock | null
   /** Per-exercise strength-progression summary — derived from
    *  `actual.strengthLog` across all logged weeks. Lets the coach
    *  acknowledge real progression ("you've added 5 lb to goblet squat

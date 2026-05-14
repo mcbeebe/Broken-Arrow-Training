@@ -42,6 +42,16 @@ const mikePlan: TrainingPlan = {
     ],
     nutrition: '100–150 cal every 30 min from the start. Don\'t wait until hungry. 16+ oz water. Only consume nutrition tested in training.',
     loriNote: 'Saturday 6/20: Cheer Lori at her 11K at 8AM! She\'s a rockstar too.',
+    // Palisades Tahoe (formerly Squaw Valley) — the BA 18K start village.
+    // Elevation 1,890m at the village; the Washeshu Peak high point sits
+    // around 2,743m. Drives Open-Meteo forecast (14d during taper) and
+    // archive (10y typical race-day climate).
+    coordinates: {
+      latitude: 39.1969,
+      longitude: -120.2358,
+      elevationMeters: 1890,
+      label: 'Palisades Tahoe, CA',
+    },
   },
   weeks: [
     {

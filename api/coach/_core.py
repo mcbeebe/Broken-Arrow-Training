@@ -381,6 +381,50 @@ When the context includes "⚠️ ACTIVE RISK FLAGS," you have detected concerni
 - Don't be alarmist — state the signal, explain why it matters, suggest a concrete action.
 - If NO risk flags, don't invent problems. Only surface genuine concerns from the data.
 
+WEATHER DOCTRINE (two-tier ladder):
+When the context includes a "Weather — <location>" block, each day in
+the 14-day forecast is pre-labeled `[WARN-tier]`, `[SWAP-tier]`, or
+unlabeled (normal). Use those labels as ground truth — DO NOT
+re-classify the weather yourself or invent severity that wasn't
+labeled. Behavior by tier:
+
+- NORMAL — no mention unless the athlete asks. Don't force weather into
+  every reply.
+- WARN-tier — surface in the daily insight or chat reply when it's
+  relevant to today's or tomorrow's planned workout. Cue: "Heavy rain
+  expected — bring a layer" or "Z3 day in 95°F, drop pace 5-10s/mi or
+  shift earlier." Do NOT emit a proposal block for WARN days; the plan
+  stays.
+- SWAP-tier — emit a `proposal` block swapping the affected day to an
+  indoor equivalent. The swap is always to `type: cross` (or rarely
+  `strength`). Preserve the training stimulus — long run → treadmill
+  long; quality → treadmill intervals; easy run → elliptical or
+  treadmill easy; race → indoor shakeout. Quote the specific
+  triggering reason from the forecast block (e.g. "thunderstorm risk
+  75%") in the rationale.
+
+INDOOR SWAP TEMPLATES (use these as the basis of your proposal's
+`detail` string when emitting a SWAP-tier proposal):
+- `long` → `cross` "Treadmill 60-90 min @ Z2 · Manual incline 1-3% to
+  mimic trail cost · Foam roll 10 min"
+- `run` → `cross` "Elliptical or treadmill 40-50 min @ Z1-2 · Mobility 10 min"
+- `quality` → `cross` "Treadmill 5×3min @ Z4 effort w/ 2min jog
+  recovery · WU 15min · CD 10min · Foam roll 10 min"
+- `race` → `cross` "Treadmill or bike 25-30 min easy · Strides 4×20s ·
+  Mobility 10 min"
+- `cross` (outdoor hike etc) → `cross` "Stationary bike or rower 45-60
+  min @ Z1-2 · Core 10 min"
+- `strength`, `rest`, `limited`, `travel` — no swap (no outdoor exposure
+  to mitigate). Stick with the original plan.
+
+RACE-DAY CLIMATOLOGY:
+If a "Race-day climatology" line is present, use it to set
+expectations when the athlete asks about race day, race kit, or
+pacing in heat/cold/wet conditions. Quote specific numbers ("typically
+72°F high, 48°F low for June 19 across the past decade — bring a
+light layer for the descent"). If the race day has dropped into the
+live forecast window, prefer the live forecast over the climatology.
+
 PLAN EDITS — one-tap apply:
 When you want to suggest a specific workout change (e.g. "replace Monday's heavy strength with mobility", "swap in an easy recovery run"), you CAN propose the edit as a structured block and the user will see an "Apply this change" button in the chat. To propose an edit, emit a fenced code block using EXACTLY THREE BACKTICKS and the word proposal, at the END of your message. Critical: use TRIPLE backticks (```), not single (`) — the parser depends on this. Example:
 
@@ -1120,6 +1164,59 @@ def build_context_block(
             sev = f.get("severity", "warning").upper()
             metric = f" [{f['metric']}]" if f.get("metric") else ""
             out.append(f"  - [{sev}] {f.get('title', '')}{metric}: {f.get('message', '')}")
+
+    # Sprint 5 — weather block. Conditional: only present when the
+    # client has fetched a forecast for the race coordinates. Two
+    # surfaces: (1) next 7-14 days at the training/race location with
+    # per-day WARN/SWAP severity labels the coach can quote, and (2)
+    # race-day climatology (10-year archive average) for athletes
+    # planning gear and pacing months out.
+    weather = snapshot.get("weatherForecast")
+    if isinstance(weather, dict):
+        wlabel = str(weather.get("label", "")).strip() or "training location"
+        daily = weather.get("daily") or []
+        if daily:
+            out.append("")
+            out.append(f"Weather — {wlabel} (next {min(len(daily), 14)} days):")
+            for day in daily[:14]:
+                d_date = day.get("date", "?")
+                hi = day.get("tempHighF")
+                lo = day.get("tempLowF")
+                precip = day.get("precipIn", 0)
+                pprob = day.get("precipProbPct", 0)
+                wind = day.get("windMaxMph", 0)
+                sev = day.get("severity", "normal")
+                reasons = day.get("reasons") or []
+                sev_label = {
+                    "swap": " [SWAP-tier]",
+                    "warn": " [WARN-tier]",
+                }.get(sev, "")
+                reason_str = f" — {'; '.join(reasons)}" if reasons else ""
+                out.append(
+                    f"  {d_date}: H {hi}°F / L {lo}°F, precip {precip}\" "
+                    f"({pprob}%), wind {wind} mph{sev_label}{reason_str}"
+                )
+        race_day = weather.get("raceDay") or {}
+        if race_day:
+            r_date = race_day.get("date", "")
+            typical = race_day.get("typical")
+            in_forecast = bool(race_day.get("inForecastWindow"))
+            if typical:
+                out.append("")
+                out.append(
+                    f"Race-day climatology ({r_date}, 10-year average): "
+                    f"H {typical.get('meanHighF')}°F / L {typical.get('meanLowF')}°F, "
+                    f"avg precip {typical.get('meanPrecipIn')}\" "
+                    f"({int((typical.get('precipDayFraction') or 0) * 100)}% wet days), "
+                    f"wind {typical.get('meanWindMph')} mph — "
+                    f"label: {typical.get('conditionsLabel')}."
+                )
+            elif in_forecast:
+                out.append("")
+                out.append(
+                    f"Race day ({r_date}) is inside the 14-day forecast window — "
+                    f"use the daily forecast above instead of climatology."
+                )
         out.append("")
 
     if readiness:
