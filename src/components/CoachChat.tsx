@@ -6,6 +6,7 @@ import { renderMarkdown } from '../utils/markdown'
 import { extractProposal, stripStreamingProposal } from '../utils/chatProposal'
 import { resizeImage, type ResizedImage } from '../utils/imageResize'
 import ProposalCard from './ProposalCard'
+import CoachFollowUpChips from './CoachFollowUpChips'
 
 /** Tiny toast that disappears after a beat. */
 function CopiedToast({ visible }: { visible: boolean }) {
@@ -134,8 +135,8 @@ export default function CoachChat({ athleteId, memory, snapshot, seed, onSeedCon
     }
   }
 
-  async function send() {
-    const text = input.trim()
+  async function send(overrideText?: string) {
+    const text = (overrideText ?? input).trim()
     if ((!text && !attachedImage) || streaming || sendingRef.current) return
     sendingRef.current = true
     if (!coachApiAvailable()) {
@@ -289,19 +290,33 @@ export default function CoachChat({ athleteId, memory, snapshot, seed, onSeedCon
             </div>
           </div>
         )}
-        {turns.map(t => (
-          <ChatTurn
-            key={t.id}
-            turn={t}
-            onCopy={copyText}
-            coachName={coachName}
-            fontScale={fontScale}
-            getPlannedDay={getPlannedDay}
-            onApproveAction={onApproveAction}
-            onRejectAction={onRejectAction}
-            onUndoAction={onUndoAction}
-          />
-        ))}
+        {(() => {
+          // Index of the most recent assistant/coach turn — only that one
+          // shows follow-up chips so the thread stays clean.
+          let latestAssistantId: string | null = null
+          for (let i = turns.length - 1; i >= 0; i--) {
+            if (turns[i].role === 'assistant' || turns[i].role === 'coach') {
+              latestAssistantId = turns[i].id
+              break
+            }
+          }
+          return turns.map(t => (
+            <ChatTurn
+              key={t.id}
+              turn={t}
+              onCopy={copyText}
+              coachName={coachName}
+              fontScale={fontScale}
+              getPlannedDay={getPlannedDay}
+              onApproveAction={onApproveAction}
+              onRejectAction={onRejectAction}
+              onUndoAction={onUndoAction}
+              onFollowUp={seed => send(seed)}
+              followUpsDisabled={streaming}
+              isLatestAssistant={t.id === latestAssistantId}
+            />
+          ))
+        })()}
         {streaming && (
           <div className="flex flex-col gap-1">
             {liveStatus && !liveReply && (
@@ -391,7 +406,7 @@ export default function CoachChat({ athleteId, memory, snapshot, seed, onSeedCon
           />
           {canSend && (
             <button
-              onClick={send}
+              onClick={() => send()}
               aria-label="Send"
               className="absolute right-1.5 bottom-1.5 w-8 h-8 flex items-center justify-center rounded-full bg-indigo-600 text-white hover:bg-indigo-700 transition-colors shadow-sm"
             >
@@ -448,6 +463,9 @@ function ChatTurn({
   onApproveAction,
   onRejectAction,
   onUndoAction,
+  onFollowUp,
+  followUpsDisabled,
+  isLatestAssistant,
 }: {
   turn: ConversationTurn
   onCopy: (text: string) => void
@@ -457,6 +475,9 @@ function ChatTurn({
   onApproveAction?: (turnId: string, action: CoachAction) => void
   onRejectAction?: (turnId: string) => void
   onUndoAction?: (turnId: string, overrideId: string) => void
+  onFollowUp?: (seed: string) => void
+  followUpsDisabled?: boolean
+  isLatestAssistant?: boolean
 }) {
   const [showActions, setShowActions] = useState(false)
   const [collapsed, setCollapsed] = useState(false)
@@ -588,6 +609,11 @@ function ChatTurn({
           onReject={() => onRejectAction?.(turn.id)}
           onUndo={id => onUndoAction?.(turn.id, id)}
         />
+      )}
+      {/* Follow-up chips — only on the freshest assistant reply, so the
+       *  conversation doesn't sprout chips on every old turn. */}
+      {isLatestAssistant && onFollowUp && (
+        <CoachFollowUpChips onSelect={onFollowUp} disabled={followUpsDisabled} />
       )}
       {copyBtn}
     </div>
