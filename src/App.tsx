@@ -27,6 +27,7 @@ import { useCoachInsight } from './hooks/useCoachInsight'
 import { useProactivePings } from './hooks/useProactivePings'
 import { useCoachTelemetry } from './hooks/useCoachTelemetry'
 import { matchActivitiesToPlan, mergeGarminDetailIntoWeeks } from './utils/matching'
+import { rezoneWeeks } from './utils/rezone'
 import { calculateExerciseLoad } from './utils/trimp'
 import { localDateStr } from './utils/format'
 import { generateMorningCoach, generateEveningCoach, getCoachTimeOfDay } from './utils/coach'
@@ -258,8 +259,12 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
       w = mergeGarminDetailIntoWeeks(w, garmin.activityDetails)
     }
     w = manualLog.applyLogsToWeeks(w)
+    // Rewrite baked-in HR bpm refs in day.zone / day.detail against the
+    // athlete's current zones so a Settings change cascades to every
+    // display surface and to the compliance grader that reads day.zone.
+    w = rezoneWeeks(w, hrZones.zones)
     return w
-  }, [activePlan.weeks, strava.activities, showStrava, manualLog.applyLogsToWeeks, daySwap.applySwapsToWeeks, planOverrides.applyOverridesToWeeks, garmin.connected, garmin.activityDetails])
+  }, [activePlan.weeks, strava.activities, showStrava, manualLog.applyLogsToWeeks, daySwap.applySwapsToWeeks, planOverrides.applyOverridesToWeeks, garmin.connected, garmin.activityDetails, hrZones.zones])
 
   const compliance = useCompliance(weeks)
   const raceName = activePlan.race.name || (activePlan.race.distance.includes('18K') ? 'BROKEN ARROW 18K' : 'BROKEN ARROW 11K')
