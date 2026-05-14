@@ -889,6 +889,9 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
           onDismissInference={coachMemory.dismissInference}
           coachPersona={coachMemory.coachPersona}
           onSaveCoachPersona={coachMemory.saveCoachPersona}
+          coachConversation={coachMemory.conversation}
+          coachDailyArchives={coachMemory.dailyArchives}
+          onClearCoachConversation={coachMemory.clearConversation}
           athleteId={athleteId}
           authSession={session}
           onLogout={onLogout}
