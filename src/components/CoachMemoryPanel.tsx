@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { ConversationTurn, CoachPersona, PendingInference } from '../types'
+import type { ConversationTurn, CoachPersona, PendingInference, AboutMeFact } from '../types'
 
 interface DailyArchive {
   id?: string
@@ -8,11 +8,20 @@ interface DailyArchive {
 
 interface Props {
   aboutMe: string
+  /** Sprint 4 — structured facts. Optional so callers that don't have
+   *  the new schema yet (legacy / pre-migration memory) still render
+   *  the plain `aboutMe` string. */
+  aboutMeFacts?: AboutMeFact[]
   coachPersona: CoachPersona
   conversation: ConversationTurn[]
   pendingInferences: PendingInference[]
   dailyArchives: DailyArchive[]
   onClearConversation: () => void | Promise<void>
+  /** Per-fact mutations. Optional — when omitted, the facts list still
+   *  renders but read-only. */
+  onAddFact?: (text: string) => void | Promise<void>
+  onEditFact?: (id: string, text: string) => void | Promise<void>
+  onDeleteFact?: (id: string) => void | Promise<void>
 }
 
 /**
@@ -21,17 +30,23 @@ interface Props {
  * The persona review found users mistrust an AI they cannot audit. This panel
  * lists exactly what's stored on their behalf: their About Me text, the coach
  * persona, the recent conversation, pending observations, and daily archives.
- * The relevant edit/clear surfaces are the existing AboutMe and
- * CoachPersonaEditor components above this in Settings; this panel is read-
- * only except for "Clear conversation".
+ *
+ * Sprint 4 — About You is now structured. Each fact carries a learnedAt
+ * timestamp and can be edited or deleted inline. This activates the
+ * memory-as-switching-cost moat: every month the athlete stays, the cost
+ * of leaving grows because they'd have to re-teach a new system.
  */
 export default function CoachMemoryPanel({
   aboutMe,
+  aboutMeFacts,
   coachPersona,
   conversation,
   pendingInferences,
   dailyArchives,
   onClearConversation,
+  onAddFact,
+  onEditFact,
+  onDeleteFact,
 }: Props) {
   const [busy, setBusy] = useState(false)
   const [confirming, setConfirming] = useState(false)
@@ -40,6 +55,8 @@ export default function CoachMemoryPanel({
   const lastTurn = visibleTurns[visibleTurns.length - 1]
   const personaTraits = (coachPersona?.traits ?? []).filter(Boolean)
   const personaName = (coachPersona?.name || '').trim()
+  const factsAvailable = !!aboutMeFacts && aboutMeFacts.length > 0
+  const canEditFacts = !!onEditFact && !!onDeleteFact
 
   async function handleClear() {
     if (busy) return
@@ -57,14 +74,23 @@ export default function CoachMemoryPanel({
       <div>
         <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">What I remember about you</p>
         <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-          The coach uses this context on every reply. Edit or clear above; everything below is read-only.
+          The coach uses this context on every reply. Tap a fact to edit or remove it.
         </p>
       </div>
 
       <MemoryRow label="About you">
-        {aboutMe.trim()
-          ? <p className="text-sm text-slate-600 dark:text-slate-300 leading-snug whitespace-pre-wrap line-clamp-3">{aboutMe.trim()}</p>
-          : <Empty>You haven't shared anything yet.</Empty>}
+        {factsAvailable ? (
+          <FactsList
+            facts={aboutMeFacts!}
+            onEdit={onEditFact}
+            onDelete={onDeleteFact}
+          />
+        ) : aboutMe.trim() ? (
+          <p className="text-sm text-slate-600 dark:text-slate-300 leading-snug whitespace-pre-wrap line-clamp-3">{aboutMe.trim()}</p>
+        ) : (
+          <Empty>You haven't shared anything yet.</Empty>
+        )}
+        {onAddFact && canEditFacts && <AddFactInline onAdd={onAddFact} />}
       </MemoryRow>
 
       <MemoryRow label="Coach persona">
@@ -147,4 +173,231 @@ function MemoryRow({ label, children }: { label: string; children: React.ReactNo
 
 function Empty({ children }: { children: React.ReactNode }) {
   return <span className="text-sm italic text-slate-400 dark:text-slate-500">{children}</span>
+}
+
+/** Compact relative-time label for fact provenance ("2d ago", "5mo ago").
+ *  Keeps the panel scannable on a phone. */
+function relativeAge(ms: number): string {
+  const diff = Math.max(0, Date.now() - ms)
+  const sec = Math.floor(diff / 1000)
+  if (sec < 60) return 'just now'
+  const min = Math.floor(sec / 60)
+  if (min < 60) return `${min}m ago`
+  const hr = Math.floor(min / 60)
+  if (hr < 24) return `${hr}h ago`
+  const day = Math.floor(hr / 24)
+  if (day < 7) return `${day}d ago`
+  const wk = Math.floor(day / 7)
+  if (wk < 5) return `${wk}w ago`
+  const mo = Math.floor(day / 30)
+  if (mo < 12) return `${mo}mo ago`
+  return `${Math.floor(day / 365)}y ago`
+}
+
+function FactsList({
+  facts,
+  onEdit,
+  onDelete,
+}: {
+  facts: AboutMeFact[]
+  onEdit?: (id: string, text: string) => void | Promise<void>
+  onDelete?: (id: string) => void | Promise<void>
+}) {
+  // Newest first — that's what athletes intuitively scan for.
+  const sorted = [...facts].sort((a, b) => (b.learnedAt || 0) - (a.learnedAt || 0))
+  return (
+    <ul className="space-y-1.5">
+      {sorted.map(f => (
+        <FactRow
+          key={f.id}
+          fact={f}
+          onEdit={onEdit}
+          onDelete={onDelete}
+        />
+      ))}
+    </ul>
+  )
+}
+
+function FactRow({
+  fact,
+  onEdit,
+  onDelete,
+}: {
+  fact: AboutMeFact
+  onEdit?: (id: string, text: string) => void | Promise<void>
+  onDelete?: (id: string) => void | Promise<void>
+}) {
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(fact.text)
+  const [busy, setBusy] = useState(false)
+  const canEdit = !!onEdit
+  const canDelete = !!onDelete
+  const editedNote = fact.editedAt && fact.editedAt > fact.learnedAt ? ' · edited' : ''
+
+  async function commit() {
+    if (!onEdit) return
+    const next = draft.trim()
+    if (!next || next === fact.text) {
+      setEditing(false)
+      setDraft(fact.text)
+      return
+    }
+    setBusy(true)
+    try {
+      await onEdit(fact.id, next)
+      setEditing(false)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function remove() {
+    if (!onDelete) return
+    setBusy(true)
+    try {
+      await onDelete(fact.id)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  if (editing) {
+    return (
+      <li className="bg-slate-50 dark:bg-slate-900 rounded-md p-2 space-y-1.5">
+        <textarea
+          autoFocus
+          value={draft}
+          onChange={e => setDraft(e.target.value)}
+          rows={2}
+          className="w-full text-sm text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-teal-400"
+          onKeyDown={e => {
+            if (e.key === 'Escape') {
+              setEditing(false)
+              setDraft(fact.text)
+            }
+            if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+              e.preventDefault()
+              commit()
+            }
+          }}
+        />
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={commit}
+            disabled={busy || !draft.trim()}
+            className="text-xs font-medium px-2 py-1 rounded bg-teal-600 text-white hover:bg-teal-700 disabled:opacity-50"
+          >
+            {busy ? 'Saving…' : 'Save'}
+          </button>
+          <button
+            type="button"
+            onClick={() => { setEditing(false); setDraft(fact.text) }}
+            className="text-xs text-slate-500 hover:text-slate-700"
+          >
+            Cancel
+          </button>
+        </div>
+      </li>
+    )
+  }
+
+  return (
+    <li className="group flex items-start gap-2 py-1">
+      <span className="text-slate-300 dark:text-slate-600 mt-0.5 select-none">•</span>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm text-slate-700 dark:text-slate-200 leading-snug">{fact.text}</p>
+        <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">
+          {relativeAge(fact.learnedAt)}{editedNote}
+        </p>
+      </div>
+      {(canEdit || canDelete) && (
+        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+          {canEdit && (
+            <button
+              type="button"
+              onClick={() => setEditing(true)}
+              aria-label="Edit fact"
+              className="text-xs text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 px-1"
+            >
+              ✏️
+            </button>
+          )}
+          {canDelete && (
+            <button
+              type="button"
+              onClick={remove}
+              disabled={busy}
+              aria-label="Delete fact"
+              className="text-xs text-red-400 hover:text-red-600 px-1 disabled:opacity-50"
+            >
+              🗑
+            </button>
+          )}
+        </div>
+      )}
+    </li>
+  )
+}
+
+function AddFactInline({ onAdd }: { onAdd: (text: string) => void | Promise<void> }) {
+  const [open, setOpen] = useState(false)
+  const [text, setText] = useState('')
+  const [busy, setBusy] = useState(false)
+  async function commit() {
+    const t = text.trim()
+    if (!t) return
+    setBusy(true)
+    try {
+      await onAdd(t)
+      setText('')
+      setOpen(false)
+    } finally {
+      setBusy(false)
+    }
+  }
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="mt-2 text-xs font-medium text-teal-700 dark:text-teal-400 hover:text-teal-900 dark:hover:text-teal-200"
+      >
+        + Add something
+      </button>
+    )
+  }
+  return (
+    <div className="mt-2 space-y-1.5">
+      <input
+        autoFocus
+        value={text}
+        onChange={e => setText(e.target.value)}
+        placeholder="e.g. I prefer morning runs"
+        className="w-full text-sm text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-teal-400"
+        onKeyDown={e => {
+          if (e.key === 'Enter') { e.preventDefault(); commit() }
+          if (e.key === 'Escape') { setOpen(false); setText('') }
+        }}
+      />
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={commit}
+          disabled={busy || !text.trim()}
+          className="text-xs font-medium px-2 py-1 rounded bg-teal-600 text-white hover:bg-teal-700 disabled:opacity-50"
+        >
+          {busy ? 'Adding…' : 'Add'}
+        </button>
+        <button
+          type="button"
+          onClick={() => { setOpen(false); setText('') }}
+          className="text-xs text-slate-500 hover:text-slate-700"
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  )
 }

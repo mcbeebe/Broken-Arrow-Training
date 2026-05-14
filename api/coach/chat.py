@@ -44,6 +44,7 @@ from ._core import (
     log_interaction,
     log_llm_call,
     log_sample_event,
+    new_fact_id,
     new_turn_id,
     pick_model,
     read_json_body,
@@ -52,6 +53,7 @@ from ._core import (
     send_json,
     stream_anthropic,
     summarize_conversation,
+    sync_about_me_string,
 )
 
 
@@ -312,27 +314,39 @@ class handler(BaseHTTPRequestHandler):
         # About Me with dedup, then clear the list. The approve/dismiss UI has
         # been retired — we do this in the background now, so orphaned entries
         # from the old flow shouldn't linger forever in memory.
+        # Sprint 4 — folded inferences become structured facts that carry
+        # their original proposedAt and sourceTurnId so anniversary
+        # surfaces ("you mentioned this 47 days ago") can find provenance.
         legacy_pending = memory.get("pendingInferences") or []
         if legacy_pending:
+            facts_list = memory.setdefault("aboutMeFacts", [])
+            # Accumulate the existing aboutMe + new facts as one string
+            # for dedup probing, so paraphrases of profile/race/existing
+            # facts drop out before they become persisted facts.
             existing_about = memory.get("aboutMe", "") or ""
-            merged_lines: list[str] = []
-            if existing_about.strip():
-                merged_lines.append(existing_about.rstrip())
+            dedup_pool = [existing_about.rstrip()] if existing_about.strip() else []
             for p in legacy_pending:
                 t = str(p.get("text", "")).strip()
                 if not t:
                     continue
-                # Use the same dedup heuristic as the live detector so
-                # paraphrases of profile/race/existing facts drop out.
                 if fact_already_known(
                     t,
-                    "\n".join(merged_lines),
+                    "\n".join(dedup_pool),
                     snapshot.get("athleteProfile"),
                     snapshot.get("race"),
                 ):
                     continue
-                merged_lines.append(f"- {t}")
-            memory["aboutMe"] = "\n".join(merged_lines) if merged_lines else ""
+                fact: dict = {
+                    "id": new_fact_id(),
+                    "text": t,
+                    "learnedAt": int(p.get("proposedAt") or time.time() * 1000),
+                }
+                source_turn = p.get("sourceTurnId")
+                if isinstance(source_turn, str) and source_turn:
+                    fact["sourceTurnId"] = source_turn
+                facts_list.append(fact)
+                dedup_pool.append(f"- {t}")
+            sync_about_me_string(memory)
             memory["pendingInferences"] = []
             save_memory(athlete_id, memory)
 
@@ -605,13 +619,29 @@ class handler(BaseHTTPRequestHandler):
                     race=(snapshot or {}).get("race"),
                 )
                 if facts:
-                    existing = (memory.get("aboutMe") or "").rstrip()
-                    lines: list[str] = []
-                    if existing:
-                        lines.append(existing)
+                    # Sprint 4 — new facts land as structured entries that
+                    # carry the current timestamp + the user turn that
+                    # produced them, so the panel and anniversary engine
+                    # can show provenance.
+                    facts_list = memory.setdefault("aboutMeFacts", [])
+                    # Find the most recent user turn id so newly-detected
+                    # facts can reference where they came from.
+                    source_turn_id = None
+                    for t in reversed(memory.get("conversation") or []):
+                        if t.get("role") == "user":
+                            source_turn_id = t.get("id")
+                            break
+                    now_ms = int(time.time() * 1000)
                     for f in facts:
-                        lines.append(f"- {f}")
-                    memory["aboutMe"] = "\n".join(lines)
+                        new_f: dict = {
+                            "id": new_fact_id(),
+                            "text": f,
+                            "learnedAt": now_ms,
+                        }
+                        if isinstance(source_turn_id, str) and source_turn_id:
+                            new_f["sourceTurnId"] = source_turn_id
+                        facts_list.append(new_f)
+                    sync_about_me_string(memory)
 
             # Summarize if needed
             memory["conversationSummary"] = summarize_conversation(

@@ -209,6 +209,37 @@ def load_memory(athlete_id: str) -> dict[str, Any]:
     mem.setdefault("conversation", [])
     mem.setdefault("conversationSummary", None)
     mem.setdefault("pendingInferences", [])
+    mem.setdefault("aboutMeFacts", [])
+
+    # Sprint 4 migration: legacy memories carry a flat `aboutMe` string but
+    # no structured `aboutMeFacts` array. On first read, split the string
+    # into per-line facts so the CoachMemoryPanel can show timestamps and
+    # offer per-fact edit/delete. We can't recover the original learnedAt
+    # (the legacy schema didn't persist it) so we stamp the migration time.
+    if not mem["aboutMeFacts"] and isinstance(mem.get("aboutMe"), str) and mem["aboutMe"].strip():
+        mem["aboutMeFacts"] = _facts_from_text(mem["aboutMe"])
+        # Re-derive the canonical aboutMe string so the prompt-render path
+        # sees a consistent join (no-op for purely bullet-formatted text;
+        # ensures consistent spacing for free-prose paragraphs).
+        mem["aboutMe"] = _aboutme_from_facts(mem["aboutMeFacts"])
+
+    # Sprint 4 — "athlete since" anchor for anniversary moments. Use the
+    # earliest evidence we have (first turn or first fact) when there's
+    # any history; otherwise stamp the current time. This avoids back-
+    # dating brand-new athletes while preserving the actual start date
+    # for athletes who already have conversation history.
+    if "athleteSinceMs" not in mem:
+        candidates: list[int] = []
+        for t in mem.get("conversation") or []:
+            ts = t.get("ts")
+            if isinstance(ts, (int, float)):
+                candidates.append(int(ts))
+        for f in mem.get("aboutMeFacts") or []:
+            ts = f.get("learnedAt")
+            if isinstance(ts, (int, float)):
+                candidates.append(int(ts))
+        mem["athleteSinceMs"] = min(candidates) if candidates else int(time.time() * 1000)
+
     return mem
 
 
@@ -222,6 +253,87 @@ def new_turn_id() -> str:
 
 def new_inference_id() -> str:
     return f"i_{int(time.time() * 1000)}_{os.urandom(3).hex()}"
+
+
+def new_fact_id() -> str:
+    return f"f_{int(time.time() * 1000)}_{os.urandom(3).hex()}"
+
+
+# ─── About Me structured-facts helpers ───────────────────────────
+#
+# Sprint 4 promotes About Me from a flat string to a structured array of
+# `{id, text, learnedAt, sourceTurnId?}` facts so the panel can show
+# timestamps, per-fact edit, and (later) anniversary diffs. The legacy
+# `aboutMe` string stays in the memory blob — it's the join of all facts
+# and remains what the prompt builder reads. Helpers below keep the two
+# views in sync.
+
+# Cap on facts kept in About Me. Past ~200 the prompt context gets noisy
+# and dedup quality drops; we drop oldest. This is a soft ceiling and
+# never trims facts you've just edited.
+MAX_ABOUT_ME_FACTS = 200
+
+
+def _facts_from_text(text: str) -> list[dict[str, Any]]:
+    """Parse a free-form About Me string into structured facts.
+
+    - Lines that look like bullets (`- foo` / `* foo`) become one fact each.
+    - Free prose (no bullet markers) becomes a single fact carrying the
+      whole text — we don't want to fragment paragraphs into sentences.
+    """
+    if not text or not text.strip():
+        return []
+    lines = [l.strip() for l in text.splitlines()]
+    bullet_lines = [
+        l[2:].strip() for l in lines
+        if l.startswith("- ") or l.startswith("* ")
+    ]
+    now = int(time.time() * 1000)
+    if bullet_lines:
+        out = []
+        for t in bullet_lines:
+            if not t:
+                continue
+            out.append({
+                "id": new_fact_id(),
+                "text": t,
+                "learnedAt": now,
+            })
+            # Make sure two facts created in the same millisecond don't
+            # collide on `new_fact_id()` (os.urandom is already random,
+            # but be defensive against fast loops).
+            time.sleep(0)
+        return out
+    # Free prose — single fact
+    return [{
+        "id": new_fact_id(),
+        "text": text.strip(),
+        "learnedAt": now,
+    }]
+
+
+def _aboutme_from_facts(facts: list[dict[str, Any]]) -> str:
+    """Join a facts list back into the canonical `aboutMe` string used in
+    the system prompt. Bullet format so the LLM reads it cleanly."""
+    out_lines: list[str] = []
+    for f in facts:
+        t = str(f.get("text", "")).strip()
+        if not t:
+            continue
+        out_lines.append(f"- {t}")
+    return "\n".join(out_lines)
+
+
+def sync_about_me_string(mem: dict[str, Any]) -> None:
+    """Re-derive `mem['aboutMe']` from `mem['aboutMeFacts']` in place.
+    Trims to MAX_ABOUT_ME_FACTS (oldest first) when over budget."""
+    facts = mem.get("aboutMeFacts") or []
+    if len(facts) > MAX_ABOUT_ME_FACTS:
+        # Sort by learnedAt asc, keep newest MAX
+        facts_sorted = sorted(facts, key=lambda f: int(f.get("learnedAt") or 0))
+        facts = facts_sorted[-MAX_ABOUT_ME_FACTS:]
+        mem["aboutMeFacts"] = facts
+    mem["aboutMe"] = _aboutme_from_facts(facts)
 
 
 # ─── Hashing ─────────────────────────────────────────────────────

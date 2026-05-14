@@ -12,6 +12,7 @@ from http.server import BaseHTTPRequestHandler
 
 from ._core import (
     HAIKU_MODEL,
+    SONNET_MODEL,
     build_context_block,
     build_system_prompt,
     call_anthropic,
@@ -37,6 +38,11 @@ COOLDOWN_SECONDS = {
     "hrv_drop": 12 * 3600,
     "acwr_spike": 24 * 3600,
     "compliance_drift": 48 * 3600,
+    # Sprint 4 — anniversary moments. Long cooldown — milestones are
+    # multi-week apart and the client already dedups per-milestone in
+    # localStorage; server cooldown is a belt-and-braces guard against
+    # double-fires if the client retries on a network blip.
+    "anniversary": 14 * 24 * 3600,
 }
 
 
@@ -122,6 +128,23 @@ TRIGGER_PROMPTS = {
         "propose a plan change yet — get the context first. Compliance "
         "drift is a relationship signal, not a load signal."
     ),
+    "anniversary": (
+        "The athlete just crossed a training-relationship milestone "
+        "(see Trigger payload for the day count: 30 / 60 / 90 / 180 / "
+        "365). Write a 3-4 sentence anniversary note that:\n"
+        "1. Names the milestone explicitly ('30 days in', 'half a year "
+        "of training together', etc.).\n"
+        "2. Cites 1-2 CONCRETE changes since they started — pull from "
+        "the snapshot: Fitness delta, long-run distance/vert, "
+        "compliance %, or a specific About Me fact that's evolved. "
+        "Never generic ('you've made progress'). Always specific "
+        "numbers or a named fact.\n"
+        "3. Ends with one short forward look — what's the next phase "
+        "or focus.\n"
+        "Voice: warmer than normal, match the persona. No proposal "
+        "block — anniversaries are reflection, not adjustment. End "
+        "without a question; let the moment land."
+    ),
 }
 
 
@@ -172,12 +195,19 @@ class handler(BaseHTTPRequestHandler):
             f"Task: {instruction}"
         )
 
+        # Anniversary pings are infrequent and high-stakes — they're the
+        # athlete's emotional "the coach knows me" moment. Escalate to
+        # Sonnet for richer voice and better milestone narrative. Other
+        # pings keep Haiku for speed and cost.
+        ping_model = SONNET_MODEL if trigger_type == "anniversary" else HAIKU_MODEL
+        ping_max_tokens = 350 if trigger_type == "anniversary" else 200
+
         try:
             result = call_anthropic(
-                model=HAIKU_MODEL,
+                model=ping_model,
                 system=system,
                 messages=[{"role": "user", "content": user_msg}],
-                max_tokens=200,
+                max_tokens=ping_max_tokens,
                 temperature=0.2,
                 athlete_id=athlete_id,
                 surface=f"ping:{trigger_type}",

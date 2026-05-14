@@ -11,11 +11,14 @@ from urllib.parse import urlparse, parse_qs
 from ._core import (
     load_memory,
     save_memory,
+    new_fact_id,
     new_inference_id,
     new_turn_id,
     read_json_body,
     send_cors_preflight,
     send_json,
+    sync_about_me_string,
+    _facts_from_text,
 )
 
 
@@ -47,14 +50,82 @@ class handler(BaseHTTPRequestHandler):
         mem = load_memory(athlete_id)
 
         if action == "save_about_me":
+            # Wholesale-replace path used by the free-text AboutMe.tsx
+            # editor. Re-parses the supplied text into structured facts so
+            # subsequent edits/timestamps work, then re-derives the
+            # canonical aboutMe string. Existing fact IDs are NOT
+            # preserved — the legacy editor is "replace everything" by
+            # design. Per-fact edit/delete uses the new fact-CRUD actions
+            # below.
             text = str(body.get("text", ""))
-            mem["aboutMe"] = text
+            mem["aboutMeFacts"] = _facts_from_text(text)
+            sync_about_me_string(mem)
             save_memory(athlete_id, mem)
             send_json(self, 200, mem)
             return
 
         if action == "clear_about_me":
+            mem["aboutMeFacts"] = []
             mem["aboutMe"] = ""
+            save_memory(athlete_id, mem)
+            send_json(self, 200, mem)
+            return
+
+        # Sprint 4 — per-fact CRUD on About Me. Each action operates on a
+        # single fact by id, then re-syncs the joined aboutMe string so
+        # the prompt builder stays in lockstep.
+        if action == "add_about_me_fact":
+            text = str(body.get("text", "")).strip()
+            if not text:
+                send_json(self, 400, {"error": "text required"})
+                return
+            fact = {
+                "id": new_fact_id(),
+                "text": text,
+                "learnedAt": int(time.time() * 1000),
+            }
+            source_turn = body.get("sourceTurnId")
+            if isinstance(source_turn, str) and source_turn:
+                fact["sourceTurnId"] = source_turn
+            mem.setdefault("aboutMeFacts", []).append(fact)
+            sync_about_me_string(mem)
+            save_memory(athlete_id, mem)
+            send_json(self, 200, mem)
+            return
+
+        if action == "edit_about_me_fact":
+            fact_id = str(body.get("id", "")).strip()
+            text = str(body.get("text", "")).strip()
+            if not fact_id or not text:
+                send_json(self, 400, {"error": "id and text required"})
+                return
+            updated = False
+            for f in mem.get("aboutMeFacts", []) or []:
+                if f.get("id") == fact_id:
+                    f["text"] = text
+                    f["editedAt"] = int(time.time() * 1000)
+                    updated = True
+                    break
+            if not updated:
+                send_json(self, 404, {"error": "fact not found"})
+                return
+            sync_about_me_string(mem)
+            save_memory(athlete_id, mem)
+            send_json(self, 200, mem)
+            return
+
+        if action == "delete_about_me_fact":
+            fact_id = str(body.get("id", "")).strip()
+            if not fact_id:
+                send_json(self, 400, {"error": "id required"})
+                return
+            before = mem.get("aboutMeFacts", []) or []
+            after = [f for f in before if f.get("id") != fact_id]
+            if len(after) == len(before):
+                send_json(self, 404, {"error": "fact not found"})
+                return
+            mem["aboutMeFacts"] = after
+            sync_about_me_string(mem)
             save_memory(athlete_id, mem)
             send_json(self, 200, mem)
             return
@@ -96,17 +167,29 @@ class handler(BaseHTTPRequestHandler):
         if action == "accept_inference":
             inf_id = body.get("id")
             pending = mem.get("pendingInferences", [])
-            kept = []
-            accepted_text = None
+            kept: list = []
+            accepted = None
             for p in pending:
                 if p.get("id") == inf_id:
-                    accepted_text = p.get("text", "")
+                    accepted = p
                 else:
                     kept.append(p)
-            if accepted_text:
-                existing = (mem.get("aboutMe") or "").rstrip()
-                sep = "\n" if existing else ""
-                mem["aboutMe"] = f"{existing}{sep}- {accepted_text}"
+            if accepted and str(accepted.get("text", "")).strip():
+                # Preserve provenance: when an inference is accepted, the
+                # resulting fact carries the original proposedAt as its
+                # learnedAt and remembers the source turn so anniversaries
+                # / explainability surfaces can cite "you mentioned this
+                # on <date>".
+                fact: dict = {
+                    "id": new_fact_id(),
+                    "text": str(accepted.get("text", "")).strip(),
+                    "learnedAt": int(accepted.get("proposedAt") or time.time() * 1000),
+                }
+                source_turn = accepted.get("sourceTurnId")
+                if isinstance(source_turn, str) and source_turn:
+                    fact["sourceTurnId"] = source_turn
+                mem.setdefault("aboutMeFacts", []).append(fact)
+                sync_about_me_string(mem)
             mem["pendingInferences"] = kept
             save_memory(athlete_id, mem)
             send_json(self, 200, mem)
