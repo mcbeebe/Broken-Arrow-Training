@@ -1,5 +1,5 @@
 import jsPDF from 'jspdf'
-import type { RaceInfo, PerformanceMetrics, TrainingWeek } from '../types'
+import type { ActualWorkout, PlannedDay, PerformanceMetrics, RaceInfo, StrengthExerciseLog, TrainingWeek } from '../types'
 
 // Minimal readiness summary inlined here so this PR ships independently of
 // the race-ready hero card branch. When that branch lands, this can switch
@@ -29,10 +29,78 @@ export interface AthletePdfInput {
   generatedAt?: Date
 }
 
+// ─── Formatting helpers ─────────────────────────────────────────
+
+function formatPaceSecPerMile(distanceMi: number, movingSec: number): string | null {
+  if (!distanceMi || !movingSec || distanceMi <= 0 || movingSec <= 0) return null
+  const secPerMi = movingSec / distanceMi
+  const m = Math.floor(secPerMi / 60)
+  const s = Math.round(secPerMi % 60)
+  return `${m}:${String(s).padStart(2, '0')}/mi`
+}
+
+function formatHMS(seconds: number): string {
+  if (!seconds || seconds <= 0) return '—'
+  const h = Math.floor(seconds / 3600)
+  const m = Math.floor((seconds % 3600) / 60)
+  const s = Math.floor(seconds % 60)
+  if (h > 0) return `${h}h ${String(m).padStart(2, '0')}m`
+  if (m > 0) return `${m}m ${String(s).padStart(2, '0')}s`
+  return `${s}s`
+}
+
+function formatHrZoneSummary(zones: ActualWorkout['hrZoneSummary']): string | null {
+  if (!zones || zones.length === 0) return null
+  const total = zones.reduce((s, z) => s + (z.seconds || 0), 0)
+  if (total <= 0) return null
+  const parts = zones
+    .filter(z => z.seconds > 0)
+    .sort((a, b) => a.zone - b.zone)
+    .map(z => `${Math.round((z.seconds / total) * 100)}% Z${z.zone}`)
+  return parts.join(' · ')
+}
+
+function dayOfWeek(isoDate: string): string {
+  const d = new Date(isoDate + 'T12:00:00')
+  if (Number.isNaN(d.getTime())) return ''
+  return ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getDay()]
+}
+
+function summariseStrength(log: StrengthExerciseLog[]): string[] {
+  return log.slice(0, 12).map(ex => {
+    const sets = ex.sets || []
+    if (sets.length === 0) return `• ${ex.name}`
+    // Group by identical (reps, weight). For typical strength logs the
+    // pattern is "3×8 @ 135 lb" or "3×8, 1×6 @ varying". Show up to two
+    // (reps × weight) groupings inline.
+    const buckets = new Map<string, number>()
+    for (const s of sets) {
+      const key = `${s.reps}|${s.weight || ''}`
+      buckets.set(key, (buckets.get(key) ?? 0) + 1)
+    }
+    const summary = Array.from(buckets.entries()).slice(0, 2).map(([k, count]) => {
+      const [reps, weight] = k.split('|')
+      const w = weight ? ` @ ${weight}` : ''
+      return `${count}×${reps}${w}`
+    }).join(', ')
+    return `• ${ex.name} — ${summary}`
+  })
+}
+
+function plannedDayStatus(day: PlannedDay): string {
+  // ASCII-only so jsPDF's Helvetica font renders cleanly. Non-ASCII glyphs
+  // like ✓ ✗ · trigger letter-spaced rendering at small bold sizes.
+  if (day.type === 'rest') return 'REST'
+  if (day.actual) return 'DONE'
+  return 'MISS'
+}
+
+// ─── Main exporter ──────────────────────────────────────────────
+
 /**
- * Generate a printable PDF summary the athlete can hand to a human coach,
- * physio, or training partner. Text-only via jsPDF — no DOM scraping, no
- * html2canvas, no backend round-trip.
+ * Generate a printable PDF training-log summary the athlete can hand to a
+ * human coach, physio, or training partner. Text-only via jsPDF — no DOM
+ * scraping, no html2canvas, no backend round-trip.
  *
  * Returns a Blob ready to attach to a download anchor, save into a
  * `URL.createObjectURL`, or assert on in tests.
@@ -40,33 +108,42 @@ export interface AthletePdfInput {
 export function generateAthletePdf(input: AthletePdfInput): Blob {
   const { athleteName, race, weeks, performance, windowWeeks, generatedAt } = input
   const now = generatedAt ?? new Date()
-  const doc = new jsPDF({ unit: 'pt', format: 'letter' })
+  // Uncompressed streams: ~20% larger output but every coach reviewing
+  // these PDFs is on a desktop reader where size is irrelevant, and it
+  // makes the output reviewable / diffable / grep-able. Worth it.
+  const doc = new jsPDF({ unit: 'pt', format: 'letter', compress: false })
 
   const PAGE_LEFT = 48
   const PAGE_RIGHT = 564 // letter width 612 − 48 margin
-  const LINE = 16
+  const LINE = 14
   let y = 64
 
-  const writeHeading = (text: string, size = 16) => {
+  function pageBreakIfNeeded(reserve = LINE) {
+    if (y + reserve > 740) {
+      doc.addPage()
+      y = 64
+    }
+  }
+  function writeHeading(text: string, size = 16) {
+    pageBreakIfNeeded(size + 6)
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(size)
     doc.text(text, PAGE_LEFT, y)
     y += size + 6
   }
-  const writeLine = (text: string, opts: { bold?: boolean; size?: number; gap?: number } = {}) => {
+  function writeLine(text: string, opts: { bold?: boolean; size?: number; gap?: number; indent?: number } = {}) {
     doc.setFont('helvetica', opts.bold ? 'bold' : 'normal')
     doc.setFontSize(opts.size ?? 11)
-    const lines = doc.splitTextToSize(text, PAGE_RIGHT - PAGE_LEFT)
+    const left = PAGE_LEFT + (opts.indent ?? 0)
+    const wrapWidth = PAGE_RIGHT - left
+    const lines = doc.splitTextToSize(text, wrapWidth)
     for (const line of lines) {
-      if (y > 740) {
-        doc.addPage()
-        y = 64
-      }
-      doc.text(line, PAGE_LEFT, y)
+      pageBreakIfNeeded()
+      doc.text(line, left, y)
       y += opts.gap ?? LINE
     }
   }
-  const writeRule = () => {
+  function writeRule() {
     doc.setDrawColor(200)
     doc.line(PAGE_LEFT, y - 6, PAGE_RIGHT, y - 6)
     y += 6
@@ -110,13 +187,17 @@ export function generateAthletePdf(input: AthletePdfInput): Blob {
   }
   y += 4
 
-  // ── Weekly plan compliance ─────────────────────────────────────
+  // ── Plan adherence (aggregate) ─────────────────────────────────
   writeHeading('Plan adherence', 13)
   const cutoff = new Date(now)
   cutoff.setDate(cutoff.getDate() - windowWeeks * 7)
   const inWindow = weeks.filter(w => {
     if (!w.dates) return true
-    const start = new Date(w.dates.split(/[–-]/)[0]?.trim() ?? '')
+    // `dates` is a free-text range like "2026-05-01 - 2026-05-07" or
+    // "May 1 – May 7". Split on " – " / " - " / em-dash with spaces so we
+    // don't tear an ISO date apart on its inner hyphens.
+    const startStr = w.dates.split(/\s+[–-]\s+/)[0]?.trim() ?? w.dates.trim()
+    const start = new Date(startStr)
     return Number.isNaN(start.getTime()) ? true : start >= cutoff
   })
   let plannedCount = 0
@@ -134,41 +215,87 @@ export function generateAthletePdf(input: AthletePdfInput): Blob {
   } else {
     writeLine('No scheduled sessions in this window.')
   }
-  y += 4
-
-  // ── Recent completed sessions ──────────────────────────────────
-  writeHeading('Recent sessions', 13)
-  const recentActuals: { date: string; name: string; distance?: number; minutes?: number }[] = []
-  for (const week of inWindow) {
-    for (const day of week.days ?? []) {
-      if (!day.actual) continue
-      const seconds = day.actual.movingTime || day.actual.elapsedTime
-      recentActuals.push({
-        date: day.actual.startDate?.slice(0, 10) ?? '',
-        name: day.actual.name || day.workout || 'Session',
-        distance: day.actual.distance,
-        minutes: seconds ? Math.round(seconds / 60) : undefined,
-      })
-    }
-  }
-  recentActuals.sort((a, b) => (a.date < b.date ? 1 : -1))
-  if (recentActuals.length === 0) {
-    writeLine('No completed sessions in this window.')
-  } else {
-    for (const a of recentActuals.slice(0, 20)) {
-      const distance = a.distance ? `${a.distance.toFixed(1)} mi` : ''
-      const duration = a.minutes ? `${a.minutes} min` : ''
-      const bits = [a.date, a.name, distance, duration].filter(Boolean).join(' · ')
-      writeLine(bits, { size: 10, gap: 14 })
-    }
-  }
   y += 8
 
-  // ── Footer ─────────────────────────────────────────────────────
-  if (y > 700) {
-    doc.addPage()
-    y = 64
+  // ── Per-week training log ──────────────────────────────────────
+  //
+  // Each week renders: header line + every day with plan, actual stats, HR,
+  // pace, elevation, RPE, training effect, strength exercises, and notes.
+  // This is the section a human coach actually wants to read.
+  writeHeading('Training log', 13)
+  if (inWindow.length === 0) {
+    writeLine('No weeks in this window.')
   }
+
+  // Render oldest → newest so the document reads chronologically.
+  const orderedWeeks = [...inWindow].sort((a, b) => a.num - b.num)
+  for (const week of orderedWeeks) {
+    pageBreakIfNeeded(28)
+    y += 4
+    writeLine(
+      `Week ${week.num}${week.dates ? ` — ${week.dates}` : ''}${week.focus ? `  ·  ${week.focus}` : ''}${week.miles ? `  ·  ${week.miles} mi planned` : ''}`,
+      { bold: true, size: 11 },
+    )
+
+    for (const day of week.days ?? []) {
+      const actual = day.actual
+      const status = plannedDayStatus(day)
+      const dateIso = actual?.startDate?.slice(0, 10)
+      const dayLabel = dateIso ? `${dayOfWeek(dateIso)} ${dateIso.slice(5)}` : day.day
+      const plannedBits = [day.workout, day.zone, day.time].filter(b => b && b !== '—').join(' · ')
+
+      pageBreakIfNeeded(28)
+      writeLine(`${status} ${dayLabel}  ${(day.type || '').toString().toUpperCase()}`, { bold: true, size: 10 })
+      if (plannedBits) {
+        writeLine(`Planned: ${plannedBits}`, { size: 10, indent: 14 })
+      }
+      if (day.detail && day.detail !== day.workout) {
+        writeLine(day.detail, { size: 9, indent: 14 })
+      }
+
+      if (actual) {
+        const statBits: string[] = []
+        if (actual.distance > 0) statBits.push(`${actual.distance.toFixed(2)} mi`)
+        const sec = actual.movingTime || actual.elapsedTime
+        if (sec > 0) statBits.push(formatHMS(sec))
+        const pace = formatPaceSecPerMile(actual.distance, actual.movingTime || actual.elapsedTime)
+        if (pace) statBits.push(pace)
+        if (actual.avgHR) statBits.push(`${actual.avgHR} avg HR${actual.maxHR ? ` (${actual.maxHR} max)` : ''}`)
+        if (actual.elevationGain) statBits.push(`${Math.round(actual.elevationGain)} ft`)
+        if (statBits.length > 0) writeLine(statBits.join(' · '), { size: 10, indent: 14 })
+
+        const secondLine: string[] = []
+        if (actual.rpe) secondLine.push(`RPE ${actual.rpe}/10`)
+        const zoneSummary = formatHrZoneSummary(actual.hrZoneSummary)
+        if (zoneSummary) secondLine.push(zoneSummary)
+        if (actual.aerobicTE) secondLine.push(`Aerobic TE ${actual.aerobicTE.toFixed(1)}`)
+        if (actual.epoc) secondLine.push(`EPOC ${Math.round(actual.epoc)}`)
+        if (actual.calories) secondLine.push(`${Math.round(actual.calories)} kcal`)
+        if (secondLine.length > 0) writeLine(secondLine.join(' · '), { size: 9, indent: 14 })
+
+        if (actual.strengthLog && actual.strengthLog.length > 0) {
+          for (const ex of summariseStrength(actual.strengthLog)) {
+            writeLine(ex, { size: 9, indent: 20 })
+          }
+          if (actual.strengthLog.length > 12) {
+            writeLine(`(${actual.strengthLog.length - 12} more exercises)`, { size: 9, indent: 20 })
+          }
+        }
+
+        if (actual.notes && actual.notes.trim()) {
+          writeLine(`"${actual.notes.trim()}"`, { size: 9, indent: 14 })
+        }
+      } else if (day.type !== 'rest') {
+        writeLine('Missed.', { size: 9, indent: 14 })
+      }
+      y += 2
+    }
+    y += 4
+  }
+
+  // ── Footer ─────────────────────────────────────────────────────
+  pageBreakIfNeeded(40)
+  y += 8
   writeRule()
   writeLine('Share this with your coach, physio, or training partner.', { size: 9 })
   writeLine('Source: Broken Arrow Training', { size: 9 })
