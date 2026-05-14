@@ -171,8 +171,12 @@ export async function startRecording(): Promise<ActiveRecording> {
 }
 
 /**
- * Send a captured blob to the Whisper endpoint and return the
- * transcribed text. Throws VoiceCaptureError on failure.
+ * Send a captured blob to the chat endpoint's transcription branch and
+ * return the transcribed text. Throws VoiceCaptureError on failure.
+ *
+ * Voice transcription is folded into /api/coach/chat (with
+ * `op: 'transcribe'`) so we don't burn an extra Vercel serverless
+ * function slot. The endpoint dispatches before the SSE setup.
  */
 export async function transcribeAudio(
   athleteId: string,
@@ -187,11 +191,12 @@ export async function transcribeAudio(
   const base64 = await blobToBase64(audio.blob)
   let res: Response
   try {
-    res = await fetch(`${coachApiBase()}/api/coach/voice`, {
+    res = await fetch(`${coachApiBase()}/api/coach/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         athleteId,
+        op: 'transcribe',
         audio: { mediaType: audio.mediaType, data: base64 },
       }),
     })
