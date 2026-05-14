@@ -5,6 +5,7 @@ import { getWorkoutStyle, adaptBg } from '../utils/styles'
 import { getCoaching } from '../utils/coaching'
 import { generateWorkoutTake } from '../utils/coachNotes'
 import CoachWorkoutTakeView from './CoachWorkoutTake'
+import WorkoutDebriefPrompt from './WorkoutDebriefPrompt'
 import { useCoachInsight } from '../hooks/useCoachInsight'
 import { formatMiles, formatSeconds, formatPace, estimateRunTime } from '../utils/format'
 import { parseRoutine, type ParsedExercise } from '../utils/exercises'
@@ -359,6 +360,19 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
               athleteId={athleteId}
               coachSnapshot={coachSnapshot}
               onAsk={onAskCoach}
+            />
+          )}
+
+          {/* Sprint 7B — voice debrief prompt. Renders only for
+              completed workouts (day.actual present), only when voice
+              input is supported + enabled, and only when the athlete
+              hasn't already debriefed this workout. */}
+          {coachEnabled && athleteId && onAskCoach && day.actual && (
+            <WorkoutDebriefPrompt
+              athleteId={athleteId}
+              day={day}
+              coachName={coachSnapshot?.coachPersona?.name?.trim() || 'Coach'}
+              onAskCoach={onAskCoach}
             />
           )}
 
@@ -1449,6 +1463,8 @@ function CoachWorkoutTakeForDay({
       loading={useLLM ? loading : false}
       onAsk={onAsk}
       coachName={coachSnapshot?.coachPersona?.name?.trim() || 'Coach'}
+      athleteId={athleteId}
+      persona={coachSnapshot?.coachPersona}
     />
   )
 }

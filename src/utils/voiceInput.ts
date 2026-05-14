@@ -225,3 +225,127 @@ export async function transcribeAudio(
   const data = (await res.json()) as { text?: string }
   return (data.text || '').trim()
 }
+
+
+// ─── Sprint 7: TTS playback (pre-run audio briefings) ─────────────
+//
+// Server proxies OpenAI's TTS endpoint. We POST {text, voice} to
+// /api/coach/chat with op=speak and get back base64-encoded MP3 audio
+// which we play via HTMLAudioElement.
+//
+// Voice selection is persona-aware: the 11-trait CoachPersona maps to
+// one of OpenAI's 6 tts-1 voices so "Coach Chuck, direct + nerdy"
+// sounds different in the earbuds than "Coach Sarah, warm +
+// motivational". Same insight text, different voice — the persona
+// finally lives at the audio layer where it actually creates the
+// emotional bond Runna and Athletica can't.
+
+type OpenAIVoice = 'alloy' | 'echo' | 'fable' | 'onyx' | 'nova' | 'shimmer'
+
+/**
+ * Map a CoachPersona (name + 11-trait list) to one of OpenAI's tts-1
+ * voices. The mapping is intentionally simple — pick the first
+ * matching trait. Athlete persona always wins over default.
+ */
+export function pickCoachVoice(persona?: { traits?: string[] } | null): OpenAIVoice {
+  const traits = (persona?.traits || []).map(t => String(t).toLowerCase())
+  // Order matters — first match wins. Energy-forward traits map to
+  // brighter voices; serious traits map to lower/measured voices.
+  if (traits.includes('high-energy')) return 'shimmer'
+  if (traits.includes('funny') || traits.includes('lighthearted')) return 'fable'
+  if (traits.includes('strict') || traits.includes('demanding')) return 'onyx'
+  if (traits.includes('direct') || traits.includes('old-school')) return 'echo'
+  if (traits.includes('nerdy')) return 'echo'
+  if (traits.includes('motivational') || traits.includes('warm')) return 'nova'
+  if (traits.includes('chill')) return 'alloy'
+  // Default: warm female voice. Matches the default coach persona.
+  return 'nova'
+}
+
+export interface TTSError {
+  code: 'unsupported' | 'api_unavailable' | 'http_error' | 'tts_failed'
+  message: string
+  status?: number
+}
+
+/**
+ * Request TTS audio for the given text + voice. Returns an
+ * HTMLAudioElement ready to .play(). Throws TTSError on failure.
+ *
+ * Note: TTS responses are decent-sized (~30 KB for a 2-sentence
+ * briefing) — we don't cache them in localStorage because audio bytes
+ * blow the quota fast. The OpenAI cost is ~$15 per million chars so a
+ * 200-char briefing costs $0.003; just-in-time is the right tradeoff.
+ */
+export async function fetchTTSAudio(
+  athleteId: string,
+  text: string,
+  voice: OpenAIVoice,
+): Promise<HTMLAudioElement> {
+  if (!coachApiAvailable()) {
+    throw {
+      code: 'api_unavailable',
+      message: 'Coach API is offline — audio playback unavailable.',
+    } as TTSError
+  }
+  let res: Response
+  try {
+    res = await fetch(`${coachApiBase()}/api/coach/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        athleteId,
+        op: 'speak',
+        text,
+        voice,
+      }),
+    })
+  } catch (e) {
+    throw {
+      code: 'http_error',
+      message: (e as Error).message || 'Network error contacting TTS endpoint.',
+    } as TTSError
+  }
+  if (!res.ok) {
+    let detail = ''
+    try {
+      detail = (await res.text()).slice(0, 200)
+    } catch {
+      /* ignore */
+    }
+    throw {
+      code: res.status === 429 ? 'http_error' : 'tts_failed',
+      status: res.status,
+      message:
+        res.status === 429
+          ? 'Daily coach budget reached. Try again later.'
+          : `Audio briefing failed (${res.status}). ${detail}`,
+    } as TTSError
+  }
+  const data = (await res.json()) as { audio?: string; mediaType?: string }
+  if (!data.audio) {
+    throw { code: 'tts_failed', message: 'TTS returned no audio.' } as TTSError
+  }
+  // Build a playable Audio element. Using a blob URL (not a data URL)
+  // because data URLs blow past the URL-length limit on some browsers
+  // for longer briefings.
+  const audioBytes = base64ToBytes(data.audio)
+  // slice(0) returns a fresh ArrayBuffer (not SharedArrayBuffer), which
+  // is what Blob's BlobPart union expects under strict TS settings.
+  const blob = new Blob([audioBytes.buffer.slice(0) as ArrayBuffer], { type: data.mediaType || 'audio/mpeg' })
+  const url = URL.createObjectURL(blob)
+  const audio = new Audio(url)
+  // Free the blob URL when the audio ends so we don't leak memory if
+  // the athlete plays many briefings in one session.
+  audio.addEventListener('ended', () => URL.revokeObjectURL(url), { once: true })
+  audio.addEventListener('error', () => URL.revokeObjectURL(url), { once: true })
+  return audio
+}
+
+function base64ToBytes(b64: string): Uint8Array {
+  const bin = atob(b64)
+  const bytes = new Uint8Array(bin.length)
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i)
+  return bytes
+}
+

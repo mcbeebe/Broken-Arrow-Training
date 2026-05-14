@@ -241,6 +241,122 @@ def _write_sse(handler, obj: dict) -> None:
         pass
 
 
+# ─── OpenAI TTS (Sprint 7 pre-run audio briefing) ────────────────
+# Folded into chat.py for the same Vercel-function-cap reason as
+# transcribe. The frontend POSTs {op: "speak", text, voice} and we
+# return base64-encoded MP3 audio for the client to play with
+# HTMLAudioElement.
+#
+# Why server-side: we don't want to ship the OpenAI key to the
+# browser. The chat endpoint already proxies LLM calls; TTS rides the
+# same lane.
+
+OPENAI_TTS_URL = "https://api.openai.com/v1/audio/speech"
+TTS_MODEL = os.environ.get("OPENAI_TTS_MODEL", "tts-1")
+# OpenAI's tts-1 supports these 6 voices. The persona→voice mapping
+# happens client-side (see voiceInput.ts); we just validate here.
+ALLOWED_TTS_VOICES = {"alloy", "echo", "fable", "onyx", "nova", "shimmer"}
+DEFAULT_TTS_VOICE = "nova"
+
+# Cap input text. Briefings are 2-3 sentences; anything larger is a
+# bug. 1500 chars covers a long workout_take with headroom.
+MAX_TTS_CHARS = 1500
+
+
+def _handle_speak(self, body):
+    """OpenAI TTS branch. Reads {text, voice?} and returns base64-encoded
+    MP3 audio. Shares the same per-athlete daily budget as chat."""
+    import base64 as _base64
+
+    athlete_id = str(body.get("athleteId", "")).strip()
+    text = str(body.get("text", "")).strip()
+    voice = str(body.get("voice", "")).strip().lower() or DEFAULT_TTS_VOICE
+
+    if not athlete_id:
+        send_json(self, 400, {"error": "athleteId required"})
+        return
+    if not text:
+        send_json(self, 400, {"error": "text required"})
+        return
+    if len(text) > MAX_TTS_CHARS:
+        send_json(self, 413, {"error": f"text too long ({len(text)} > {MAX_TTS_CHARS} chars)"})
+        return
+    if voice not in ALLOWED_TTS_VOICES:
+        voice = DEFAULT_TTS_VOICE
+
+    within, used, budget = check_and_increment_budget(athlete_id)
+    if not within:
+        send_json(self, 429, {"error": "budget_exceeded", "used": used, "budget": budget})
+        return
+
+    api_key = os.environ.get("OPENAI_API_KEY", "").strip()
+    if not api_key:
+        send_json(self, 503, {"error": "openai_api_key_unconfigured"})
+        return
+
+    req_body = json.dumps({
+        "model": TTS_MODEL,
+        "voice": voice,
+        "input": text,
+        "response_format": "mp3",
+    }).encode()
+    req = urllib.request.Request(
+        OPENAI_TTS_URL,
+        data=req_body,
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        },
+        method="POST",
+    )
+
+    t0 = time.time()
+    try:
+        with urllib.request.urlopen(req, timeout=60) as resp:
+            audio_bytes = resp.read()
+    except urllib.error.HTTPError as e:
+        err_body = ""
+        try:
+            err_body = e.read().decode("utf-8", errors="replace")[:300]
+        except Exception:
+            pass
+        log_llm_call(
+            athlete_id=athlete_id, model=TTS_MODEL, surface="voice_tts",
+            input_tokens=len(text) // 4, output_tokens=0,
+            latency_ms=int((time.time() - t0) * 1000), success=False,
+        )
+        send_json(self, 502, {"error": f"tts_http_{e.code}", "detail": err_body})
+        return
+    except Exception as e:
+        log_llm_call(
+            athlete_id=athlete_id, model=TTS_MODEL, surface="voice_tts",
+            input_tokens=len(text) // 4, output_tokens=0,
+            latency_ms=int((time.time() - t0) * 1000), success=False,
+        )
+        send_json(self, 502, {"error": f"tts_unavailable: {e}"})
+        return
+
+    latency_ms = int((time.time() - t0) * 1000)
+    audio_b64 = _base64.b64encode(audio_bytes).decode()
+
+    log_llm_call(
+        athlete_id=athlete_id, model=TTS_MODEL, surface="voice_tts",
+        input_tokens=len(text) // 4, output_tokens=0,
+        latency_ms=latency_ms, success=True,
+    )
+    log_interaction(
+        athlete_id=athlete_id, kind="voice_tts",
+        meta={"chars": len(text), "voice": voice, "bytes": len(audio_bytes)},
+    )
+
+    send_json(self, 200, {
+        "audio": audio_b64,
+        "mediaType": "audio/mpeg",
+        "voice": voice,
+        "latencyMs": latency_ms,
+    })
+
+
 def _compose_messages(memory_turns, new_user_messages) -> list[dict]:
     """Turn stored memory turns + newly-sent messages into an Anthropic-shaped
     message list. `system-handoff` and `coach` roles are folded into user
@@ -280,8 +396,13 @@ class handler(BaseHTTPRequestHandler):
         # Voice transcription path: dispatch before the SSE setup since
         # this branch returns JSON. Folded into chat.py so we don't add
         # a separate Vercel function (Hobby tier function-count limit).
-        if str(body.get("op", "")).strip() == "transcribe":
+        op = str(body.get("op", "")).strip()
+        if op == "transcribe":
             _handle_transcribe(self, body)
+            return
+        if op == "speak":
+            # Sprint 7 — OpenAI TTS for pre-run audio briefings.
+            _handle_speak(self, body)
             return
 
         if not athlete_id:
