@@ -39,6 +39,28 @@ function formatPaceSecPerMile(distanceMi: number, movingSec: number): string | n
   return `${m}:${String(s).padStart(2, '0')}/mi`
 }
 
+// Split a free-text date range into its start half. Handles three formats
+// that show up in real plan data:
+//   - "2026-05-01 - 2026-05-07"  → split on " - " (hyphen + spaces)
+//   - "May 11–17"                → split on "–" (en-dash, no spaces)
+//   - "Apr 27–May 3"             → split on "–" (en-dash, no spaces)
+// Inner ISO hyphens (in "2026-05-01") are NOT separators because they have
+// no surrounding whitespace and aren't en/em-dashes.
+function parseWeekStart(dates: string | undefined, now: Date): Date {
+  if (!dates) return new Date(0)
+  const startStr = dates.split(/\s*[–—]\s*|\s+-\s+/)[0]?.trim() ?? dates.trim()
+  const d = new Date(startStr)
+  if (Number.isNaN(d.getTime())) return new Date(0)
+  // When the input has no explicit 4-digit year (e.g. "May 11"), `new
+  // Date` defaults to the system year. Override with `now`'s year so
+  // plans authored as "Apr 13–19" align with the export window in any
+  // year — and so tests with a fixed `generatedAt` are deterministic.
+  if (!/\d{4}/.test(startStr)) {
+    d.setFullYear(now.getFullYear())
+  }
+  return d
+}
+
 function formatHMS(seconds: number): string {
   if (!seconds || seconds <= 0) return '—'
   const h = Math.floor(seconds / 3600)
@@ -191,15 +213,7 @@ export function generateAthletePdf(input: AthletePdfInput): Blob {
   writeHeading('Plan adherence', 13)
   const cutoff = new Date(now)
   cutoff.setDate(cutoff.getDate() - windowWeeks * 7)
-  const inWindow = weeks.filter(w => {
-    if (!w.dates) return true
-    // `dates` is a free-text range like "2026-05-01 - 2026-05-07" or
-    // "May 1 – May 7". Split on " – " / " - " / em-dash with spaces so we
-    // don't tear an ISO date apart on its inner hyphens.
-    const startStr = w.dates.split(/\s+[–-]\s+/)[0]?.trim() ?? w.dates.trim()
-    const start = new Date(startStr)
-    return Number.isNaN(start.getTime()) ? true : start >= cutoff
-  })
+  const inWindow = weeks.filter(w => parseWeekStart(w.dates, now) >= cutoff)
   let plannedCount = 0
   let completedCount = 0
   for (const week of inWindow) {
