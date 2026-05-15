@@ -20,7 +20,11 @@ const FORECAST_API = 'https://api.open-meteo.com/v1/forecast'
 const ARCHIVE_API = 'https://archive-api.open-meteo.com/v1/archive'
 const GEOCODING_API = 'https://geocoding-api.open-meteo.com/v1/search'
 
-const LS_FORECAST = 'ba_weather_forecast_v1:'
+// v2 → bumped when hourly data was added to ForecastResult so stale
+// pre-hourly entries are invalidated immediately rather than waiting
+// out the 6h TTL with no hourly chip. Future schema changes that
+// expect new fields on the cached result should bump this again.
+const LS_FORECAST = 'ba_weather_forecast_v2:'
 const LS_CLIMATE = 'ba_weather_climate_v1:'
 
 const FORECAST_TTL_MS = 6 * 60 * 60 * 1000      // 6h
@@ -152,7 +156,11 @@ export async function getDailyForecast(
   const key = `${LS_FORECAST}${latitude.toFixed(3)}:${longitude.toFixed(3)}`
   if (!forceRefresh) {
     const cached = lsGet<ForecastResult>(key)
-    if (cached && isFresh(cached.fetchedAt, FORECAST_TTL_MS)) return cached
+    // Treat results missing `hourly` (from a stale schema) as a miss so
+    // we refetch a complete payload instead of falling back to daily-
+    // aggregate chips for the whole TTL window.
+    const isComplete = !!cached && Array.isArray(cached.hourly) && cached.hourly.length > 0
+    if (cached && isComplete && isFresh(cached.fetchedAt, FORECAST_TTL_MS)) return cached
   }
 
   // We request hourly resolution alongside daily so the day-card chip

@@ -113,22 +113,39 @@ export function useAthleteLocation(athleteId: string): UseAthleteLocationReturn 
       // coordinates into localStorage.
       const lat = Math.round(pos.coords.latitude * 100) / 100
       const lng = Math.round(pos.coords.longitude * 100) / 100
-      // Try to reverse-geocode for a friendly label via Open-Meteo's
-      // search API (it accepts a name, so we approximate by querying
-      // "lat,lng" — not always great; falls back to coords-as-label).
+      // Reverse-geocode for a friendly label. Open-Meteo's free
+      // geocoding API doesn't expose a reverse endpoint, so we use
+      // OpenStreetMap's Nominatim — CORS-friendly, free, no auth, with
+      // a 1-req/sec polite-use rate limit (we only hit it on explicit
+      // "Use my current location" taps so the cap is fine).
       let label = `${lat.toFixed(2)}°, ${lng.toFixed(2)}°`
       try {
-        const reverseRes = await fetch(
-          `https://geocoding-api.open-meteo.com/v1/reverse?latitude=${lat}&longitude=${lng}&format=json&language=en`,
-        )
+        const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&zoom=10&addressdetails=1`
+        const reverseRes = await fetch(url, {
+          headers: { Accept: 'application/json' },
+        })
         if (reverseRes.ok) {
           const json = await reverseRes.json() as {
-            results?: Array<{ name?: string; admin1?: string; country_code?: string }>
+            address?: {
+              city?: string; town?: string; village?: string; suburb?: string;
+              state?: string; country_code?: string
+            }
+            display_name?: string
           }
-          const top = json.results?.[0]
-          if (top) {
-            const parts = [top.name, top.admin1, top.country_code].filter(Boolean) as string[]
-            if (parts.length) label = parts.join(', ')
+          const a = json.address || {}
+          // City > town > village > suburb is Nominatim's canonical
+          // priority for the "where am I" answer.
+          const place = a.city || a.town || a.village || a.suburb
+          const parts = [
+            place,
+            a.state,
+            a.country_code ? a.country_code.toUpperCase() : undefined,
+          ].filter(Boolean) as string[]
+          if (parts.length) {
+            label = parts.join(', ')
+          } else if (json.display_name) {
+            // Fallback: first comma-segment of Nominatim's display name.
+            label = json.display_name.split(',')[0].trim()
           }
         }
       } catch {
