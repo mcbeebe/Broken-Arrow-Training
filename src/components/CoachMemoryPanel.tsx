@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import type { ConversationTurn, CoachPersona, PendingInference, AboutMeFact } from '../types'
 
 interface DailyArchive {
@@ -203,19 +203,42 @@ function FactsList({
   onEdit?: (id: string, text: string) => void | Promise<void>
   onDelete?: (id: string) => void | Promise<void>
 }) {
-  // Newest first — that's what athletes intuitively scan for.
-  const sorted = [...facts].sort((a, b) => (b.learnedAt || 0) - (a.learnedAt || 0))
+  // Newest first — that's what athletes intuitively scan for. Long
+  // memories (50+ facts) are common after a few months of chat, so
+  // collapse to a top slice by default and offer a "Show all" toggle.
+  const sorted = useMemo(
+    () => [...facts].sort((a, b) => (b.learnedAt || 0) - (a.learnedAt || 0)),
+    [facts],
+  )
+  const [showAll, setShowAll] = useState(false)
+  const COLLAPSED_COUNT = 6
+  const visible = showAll ? sorted : sorted.slice(0, COLLAPSED_COUNT)
+  const hiddenCount = sorted.length - visible.length
+
   return (
-    <ul className="space-y-1.5">
-      {sorted.map(f => (
-        <FactRow
-          key={f.id}
-          fact={f}
-          onEdit={onEdit}
-          onDelete={onDelete}
-        />
-      ))}
-    </ul>
+    <div>
+      <ul className="space-y-1.5">
+        {visible.map(f => (
+          <FactRow
+            key={f.id}
+            fact={f}
+            onEdit={onEdit}
+            onDelete={onDelete}
+          />
+        ))}
+      </ul>
+      {sorted.length > COLLAPSED_COUNT && (
+        <button
+          type="button"
+          onClick={() => setShowAll(v => !v)}
+          className="mt-2 text-xs font-medium text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-200"
+        >
+          {showAll
+            ? `Show fewer`
+            : `Show all ${sorted.length} facts (+${hiddenCount} more)`}
+        </button>
+      )}
+    </div>
   )
 }
 
