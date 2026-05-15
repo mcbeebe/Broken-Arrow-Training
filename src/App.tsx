@@ -35,6 +35,7 @@ import { checkStorageVersion, clearAllCachedData, clearAllAppData } from './util
 import { buildCoachSnapshot } from './utils/coachSnapshot'
 import { useWeather } from './hooks/useWeather'
 import { useAthleteLocation } from './hooks/useAthleteLocation'
+import { useWorkoutTimePreference } from './hooks/useWorkoutTimePreference'
 import WeeklyPlan from './components/WeeklyPlan'
 import Summary from './components/Summary'
 import Dashboard from './components/Dashboard'
@@ -567,7 +568,8 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
   // the athlete actually trains, not the race destination. When unset,
   // useWeather falls back to race coords (legacy behavior).
   const athleteLocation = useAthleteLocation(athleteId)
-  const weatherBlock = useWeather(activePlan.race, athleteLocation.location)
+  const workoutTimePref = useWorkoutTimePreference(athleteId)
+  const weatherBlock = useWeather(activePlan.race, athleteLocation.location, workoutTimePref.hour)
 
   // Assemble the CoachSnapshot for LLM calls
   const coachSnapshot: CoachSnapshot | null = useMemo(() => {
@@ -999,6 +1001,8 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
           onSaveAthleteHome={athleteLocation.save}
           onClearAthleteHome={athleteLocation.clear}
           onUseBrowserHomeLocation={athleteLocation.useBrowserLocation}
+          workoutTimeSlot={workoutTimePref.slot}
+          onSaveWorkoutTimeSlot={workoutTimePref.save}
           athleteId={athleteId}
           authSession={session}
           onLogout={onLogout}

@@ -3,13 +3,14 @@
  *
  * The weather block on the CoachSnapshot is already classified into
  * normal / warn / swap severity. These helpers turn a single forecast
- * day into the icon, accent class, and compact label the DayCard chip
- * and Summary weather strip render.
+ * day OR a single forecast hour into the icon, accent class, and
+ * compact label the DayCard chip and Summary weather strip render.
  */
 
 import type { CoachWeatherBlock } from '../types'
 
 export type ForecastDay = NonNullable<CoachWeatherBlock>['daily'][number]
+export type ForecastHour = NonNullable<NonNullable<CoachWeatherBlock>['hourly']>[number]
 
 /**
  * Look up the forecast entry for a given ISO date in the snapshot's
@@ -22,6 +23,39 @@ export function forecastForDate(
 ): ForecastDay | null {
   if (!weather || !isoDate) return null
   return weather.daily.find(d => d.date === isoDate) ?? null
+}
+
+/**
+ * Look up the hourly forecast closest to a target hour on a given
+ * date. Used when the athlete has a preferred training time — the
+ * chip then reflects what the weather is AT that hour, not the daily
+ * high. Returns null outside the ~7-day hourly horizon.
+ */
+export function forecastForHour(
+  weather: CoachWeatherBlock | null | undefined,
+  isoDate: string | null | undefined,
+  hour: number,
+): ForecastHour | null {
+  if (!weather || !isoDate || !weather.hourly) return null
+  let best: ForecastHour | null = null
+  let bestDistance = Infinity
+  for (const h of weather.hourly) {
+    if (h.date !== isoDate) continue
+    const distance = Math.abs(h.hour - hour)
+    if (distance < bestDistance) {
+      bestDistance = distance
+      best = h
+    }
+  }
+  return best
+}
+
+/** Format hour-of-day as "6am" / "12pm" / "5pm" for chip labels. */
+export function formatHourLabel(hour: number): string {
+  if (hour === 0) return '12am'
+  if (hour === 12) return '12pm'
+  if (hour < 12) return `${hour}am`
+  return `${hour - 12}pm`
 }
 
 /**
@@ -41,6 +75,13 @@ export interface WeatherChip {
   /** WARN-tier reasons concatenated, ready to render inline. Empty for
    *  normal days. */
   warningLabel: string
+  /** When the chip reflects a specific hour (vs daily aggregate), the
+   *  hour-of-day label "6am" / "5pm" so the UI can show "🌅 6am ·
+   *  55°" instead of just "55°". Absent for daily-aggregate chips. */
+  hourLabel?: string
+  /** True when the chip is sourced from per-hour data (athlete's
+   *  preferred training time), false for daily aggregate. */
+  isHourly: boolean
 }
 
 export function describeWeatherCode(code: number): { icon: string; label: string } {
@@ -74,5 +115,58 @@ export function buildWeatherChip(forecast: ForecastDay | null): WeatherChip | nu
   const warningLabel = (forecast.reasons || [])
     .map(r => r.charAt(0).toUpperCase() + r.slice(1))
     .join(' · ')
-  return { icon, tempLabel, conditionsLabel, accent, warningLabel }
+  return { icon, tempLabel, conditionsLabel, accent, warningLabel, isHourly: false }
+}
+
+/**
+ * Same as buildWeatherChip but for a specific hour. Used when the
+ * athlete has picked a preferred training time — the chip then shows
+ * what the weather is at THAT hour ("🌅 8am · 64°"), and the WARN /
+ * SWAP severity reflects the conditions during the planned workout,
+ * not the daily peak.
+ */
+export function buildWeatherChipFromHour(
+  forecast: ForecastHour | null,
+): WeatherChip | null {
+  if (!forecast) return null
+  const base = describeWeatherCode(forecast.weatherCode)
+  const icon = forecast.thunderRisk ? '⚡' : base.icon
+  const conditionsLabel = forecast.thunderRisk ? 'Thunderstorm risk' : base.label
+  const tempLabel = `${forecast.tempF}°`
+  const accent: WeatherChip['accent'] = forecast.severity === 'swap'
+    ? 'swap'
+    : forecast.severity === 'warn'
+      ? 'warn'
+      : 'neutral'
+  const warningLabel = (forecast.reasons || [])
+    .map(r => r.charAt(0).toUpperCase() + r.slice(1))
+    .join(' · ')
+  return {
+    icon,
+    tempLabel,
+    conditionsLabel,
+    accent,
+    warningLabel,
+    hourLabel: formatHourLabel(forecast.hour),
+    isHourly: true,
+  }
+}
+
+/**
+ * Convenience for callers that have a preferred hour — picks the
+ * hourly chip when within the 7-day hourly horizon, falls back to the
+ * daily aggregate when outside it. Returns null when neither has data
+ * for the date.
+ */
+export function buildWeatherChipForDate(
+  weather: CoachWeatherBlock | null | undefined,
+  isoDate: string | null | undefined,
+  preferredHour: number | null,
+): WeatherChip | null {
+  if (preferredHour !== null) {
+    const hourly = forecastForHour(weather, isoDate, preferredHour)
+    if (hourly) return buildWeatherChipFromHour(hourly)
+  }
+  const daily = forecastForDate(weather, isoDate)
+  return buildWeatherChip(daily)
 }

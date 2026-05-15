@@ -11,7 +11,7 @@ import CoachInsightCard from './CoachInsightCard'
 import WorkoutModal from './WorkoutModal'
 import { getWorkoutStyle } from '../utils/styles'
 import Term from './TermGlossary'
-import { buildWeatherChip, forecastForDate } from '../utils/weatherChip'
+import { buildWeatherChipForDate } from '../utils/weatherChip'
 import RaceReadyHeroCard from './RaceReadyHeroCard'
 import RaceReadinessDetailModal from './RaceReadinessDetailModal'
 import { buildRaceReadinessDetail, computeRaceReadiness } from '../utils/raceReadiness'
@@ -304,7 +304,11 @@ export default function Summary({
   // Past-day case is moot because the forecast window starts today.
   const todayWeatherChip = useMemo(() => {
     const todayISO = localDateStr()
-    return buildWeatherChip(forecastForDate(coachSnapshot?.weatherForecast, todayISO))
+    return buildWeatherChipForDate(
+      coachSnapshot?.weatherForecast,
+      todayISO,
+      coachSnapshot?.weatherForecast?.preferredHour ?? null,
+    )
   }, [coachSnapshot])
   const weatherLocationLabel = coachSnapshot?.weatherForecast?.label
 
@@ -322,6 +326,9 @@ export default function Summary({
         >
           <span className="text-xl leading-none shrink-0" aria-hidden>{todayWeatherChip.icon}</span>
           <div className="flex-1 min-w-0 text-sm leading-snug">
+            {todayWeatherChip.hourLabel && (
+              <span className="text-xs opacity-70 mr-1.5">{todayWeatherChip.hourLabel}</span>
+            )}
             <span className="font-semibold">{todayWeatherChip.tempLabel}</span>
             {weatherLocationLabel && (
               <span className="text-xs opacity-70"> · {weatherLocationLabel}</span>
