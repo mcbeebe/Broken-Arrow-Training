@@ -17,7 +17,9 @@ import CoachPersonaEditor from './CoachPersonaEditor'
 import { isVoiceInputEnabled, setVoiceInputEnabled, voiceCaptureSupported } from '../utils/voiceInput'
 import CoachMemoryPanel from './CoachMemoryPanel'
 import AthleteHomeLocation from './AthleteHomeLocation'
+import WorkoutTimePreference from './WorkoutTimePreference'
 import type { AthleteHomeLocation as AthleteHomeLocationType } from '../hooks/useAthleteLocation'
+import type { WorkoutTimeSlot } from '../hooks/useWorkoutTimePreference'
 import ExportDialog from './ExportDialog'
 import { useTerminologyMode } from '../hooks/useTerminologyMode'
 import type { ConversationTurn, PerformanceMetrics } from '../types'
@@ -56,6 +58,9 @@ interface SettingsProps {
   onSaveAthleteHome?: (loc: Omit<AthleteHomeLocationType, 'setAt'>) => void
   onClearAthleteHome?: () => void
   onUseBrowserHomeLocation?: () => Promise<void>
+  // When-do-you-train preference — drives the per-hour weather chip.
+  workoutTimeSlot?: WorkoutTimeSlot
+  onSaveWorkoutTimeSlot?: (slot: WorkoutTimeSlot) => void
   // Strava
   connected: boolean
   configured: boolean
@@ -163,6 +168,8 @@ export default function Settings({
   onSaveAthleteHome,
   onClearAthleteHome,
   onUseBrowserHomeLocation,
+  workoutTimeSlot,
+  onSaveWorkoutTimeSlot,
   onAddCoachFact,
   onEditCoachFact,
   onDeleteCoachFact,
@@ -295,6 +302,12 @@ export default function Settings({
                 onSave={onSaveAthleteHome}
                 onClear={onClearAthleteHome}
                 onUseBrowser={onUseBrowserHomeLocation}
+              />
+            )}
+            {workoutTimeSlot && onSaveWorkoutTimeSlot && (
+              <WorkoutTimePreference
+                slot={workoutTimeSlot}
+                onSave={onSaveWorkoutTimeSlot}
               />
             )}
             {onClearCoachConversation && (

@@ -384,9 +384,14 @@ When the context includes "⚠️ ACTIVE RISK FLAGS," you have detected concerni
 WEATHER DOCTRINE (two-tier ladder):
 When the context includes a "Weather — <location>" block, each day in
 the 14-day forecast is pre-labeled `[WARN-tier]`, `[SWAP-tier]`, or
-unlabeled (normal). Use those labels as ground truth — DO NOT
-re-classify the weather yourself or invent severity that wasn't
-labeled. Behavior by tier:
+unlabeled (normal). When the athlete has set a preferred training
+time, each day also carries a `@training hr:` annotation with the
+TEMP/PRECIP/WIND at that specific hour plus an `[@hr WARN]` or
+`[@hr SWAP]` label. PREFER the per-hour signal over the daily
+aggregate whenever it's present — a 4pm storm doesn't WARN a 7am
+run. Quote temp at that hour, not the daily high. Use the labels as
+ground truth; DO NOT re-classify the weather yourself or invent
+severity that wasn't labeled. Behavior by tier:
 
 - NORMAL — no mention unless the athlete asks. Don't force weather into
   every reply.
@@ -1175,11 +1180,20 @@ def build_context_block(
     if isinstance(weather, dict):
         wlabel = str(weather.get("label", "")).strip() or "training location"
         is_home = bool(weather.get("isHomeLocation"))
+        preferred_hour = weather.get("preferredHour")
         # When the athlete has configured a home/training location
         # distinct from the race, frame the daily forecast as "where
         # you train" so the coach doesn't conflate training-day
         # decisions with race-day expectations.
         header_qualifier = " (your training location)" if is_home else ""
+        if isinstance(preferred_hour, (int, float)):
+            hr = int(preferred_hour)
+            display_hr = "12am" if hr == 0 else (
+                "12pm" if hr == 12 else (
+                    f"{hr}am" if hr < 12 else f"{hr - 12}pm"
+                )
+            )
+            header_qualifier += f" · athlete trains around {display_hr}"
         daily = weather.get("daily") or []
         if daily:
             out.append("")
@@ -1187,6 +1201,28 @@ def build_context_block(
                 f"Weather — {wlabel}{header_qualifier} "
                 f"(next {min(len(daily), 14)} days):"
             )
+            # Build an index of hourly entries at the preferred hour so
+            # we can append "at Xam: 55°F" annotations to the per-day
+            # lines for days inside the ~7-day hourly horizon.
+            hour_index: dict[str, dict[str, Any]] = {}
+            hourly = weather.get("hourly") or []
+            if isinstance(preferred_hour, (int, float)) and isinstance(hourly, list):
+                target = int(preferred_hour)
+                # Pick the entry closest to target hour for each date.
+                best_for_date: dict[str, tuple[int, dict[str, Any]]] = {}
+                for h in hourly:
+                    if not isinstance(h, dict):
+                        continue
+                    d = str(h.get("date", ""))
+                    hh = h.get("hour")
+                    if not d or not isinstance(hh, (int, float)):
+                        continue
+                    distance = abs(int(hh) - target)
+                    prev = best_for_date.get(d)
+                    if prev is None or distance < prev[0]:
+                        best_for_date[d] = (distance, h)
+                hour_index = {d: t[1] for d, t in best_for_date.items()}
+
             for day in daily[:14]:
                 d_date = day.get("date", "?")
                 hi = day.get("tempHighF")
@@ -1201,9 +1237,24 @@ def build_context_block(
                     "warn": " [WARN-tier]",
                 }.get(sev, "")
                 reason_str = f" — {'; '.join(reasons)}" if reasons else ""
+                hour_note = ""
+                hentry = hour_index.get(str(d_date)) if hour_index else None
+                if hentry is not None:
+                    ht = hentry.get("tempF")
+                    hp = hentry.get("precipIn", 0)
+                    hw = hentry.get("windMph", 0)
+                    h_sev = hentry.get("severity", "normal")
+                    h_sev_label = {
+                        "swap": " [@hr SWAP]",
+                        "warn": " [@hr WARN]",
+                    }.get(h_sev, "")
+                    hour_note = (
+                        f" · @training hr: {ht}°F, precip {hp}\", "
+                        f"wind {hw} mph{h_sev_label}"
+                    )
                 out.append(
                     f"  {d_date}: H {hi}°F / L {lo}°F, precip {precip}\" "
-                    f"({pprob}%), wind {wind} mph{sev_label}{reason_str}"
+                    f"({pprob}%), wind {wind} mph{sev_label}{reason_str}{hour_note}"
                 )
         race_day = weather.get("raceDay") or {}
         if race_day:

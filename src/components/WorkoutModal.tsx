@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import type { PlannedDay, HRZone, ReadinessScore, PerformanceMetrics, CoachSnapshot, TRIMPRecord } from '../types'
+import { buildWeatherChipFromHour, forecastForHour, describeWeatherCode, formatHourLabel } from '../utils/weatherChip'
+import { dayLabelToISO } from '../utils/coachSnapshot'
 import type { PlannedSegment } from '../engines/planGenerator/types'
 import { getWorkoutStyle, adaptBg } from '../utils/styles'
 import { getCoaching } from '../utils/coaching'
@@ -389,6 +391,17 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
               onAsk={onAskCoach}
             />
           )}
+
+          {/* AM / PM weather decision strip — only shown for future
+              days inside the hourly forecast window (~7 days). Lets
+              the athlete pick when to fit in the workout based on
+              real per-hour conditions, not the daily peak. */}
+          {!actual && coachSnapshot?.weatherForecast?.hourly?.length ? (
+            <AmPmWeatherStrip
+              dayLabel={day.day}
+              hourly={coachSnapshot.weatherForecast.hourly}
+            />
+          ) : null}
 
           {/* Strava actual */}
           {actual && (
@@ -1466,6 +1479,78 @@ function CoachWorkoutTakeForDay({
       athleteId={athleteId}
       persona={coachSnapshot?.coachPersona}
     />
+  )
+}
+
+// ─── AmPmWeatherStrip ─────────────────────────────────────────
+// Side-by-side morning + evening forecast for the planned day. Lets
+// the athlete eyeball "I could go at 7am at 55°F or 5pm at 77°F" and
+// pick a slot before the workout. Only renders when the day falls in
+// the hourly forecast window (~7 days); past that, no chip — the
+// daily aggregate elsewhere is the right view.
+function AmPmWeatherStrip({
+  dayLabel,
+  hourly,
+}: {
+  dayLabel: string
+  hourly: NonNullable<NonNullable<CoachSnapshot['weatherForecast']>['hourly']>
+}) {
+  // Convert "Mon 4/15" → "2026-04-15" using the current year. Not
+  // perfect for plans that span Dec/Jan but the BA 18K plan stays in
+  // a single year and this surface is best-effort.
+  const isoDate = useMemo(() => {
+    const year = String(new Date().getFullYear())
+    return dayLabelToISO(dayLabel, `${year}-01-01`)
+  }, [dayLabel])
+  if (!isoDate) return null
+
+  const morning = forecastForHour({ hourly } as Parameters<typeof forecastForHour>[0], isoDate, 7)
+  const evening = forecastForHour({ hourly } as Parameters<typeof forecastForHour>[0], isoDate, 17)
+  if (!morning && !evening) return null
+
+  const morningChip = morning ? buildWeatherChipFromHour(morning) : null
+  const eveningChip = evening ? buildWeatherChipFromHour(evening) : null
+
+  function pillClass(accent?: 'neutral' | 'warn' | 'swap'): string {
+    if (accent === 'swap') return 'border-red-300 bg-red-50 dark:border-red-900 dark:bg-red-950/40'
+    if (accent === 'warn') return 'border-amber-300 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/40'
+    return 'border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800'
+  }
+
+  return (
+    <div className="bg-slate-50 dark:bg-slate-900/40 rounded-xl px-3 py-2.5 border border-slate-200 dark:border-slate-700">
+      <p className="text-[10px] uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-400 mb-2">
+        Pick your slot — forecast at the training location
+      </p>
+      <div className="grid grid-cols-2 gap-2">
+        {morningChip ? (
+          <div className={`rounded-lg border px-2 py-1.5 ${pillClass(morningChip.accent)}`}>
+            <p className="text-[10px] text-slate-500 dark:text-slate-400">🌅 Morning · {formatHourLabel(morning!.hour)}</p>
+            <p className="text-base font-semibold text-slate-800 dark:text-slate-100 mt-0.5">
+              {morningChip.icon} {morningChip.tempLabel}
+            </p>
+            <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
+              {morningChip.warningLabel || describeWeatherCode(morning!.weatherCode).label}
+            </p>
+          </div>
+        ) : (
+          <div className="rounded-lg border border-dashed border-slate-200 dark:border-slate-700 px-2 py-1.5 text-[11px] italic text-slate-400">No morning data</div>
+        )}
+        {eveningChip ? (
+          <div className={`rounded-lg border px-2 py-1.5 ${pillClass(eveningChip.accent)}`}>
+            <p className="text-[10px] text-slate-500 dark:text-slate-400">🌇 Evening · {formatHourLabel(evening!.hour)}</p>
+            <p className="text-base font-semibold text-slate-800 dark:text-slate-100 mt-0.5">
+              {eveningChip.icon} {eveningChip.tempLabel}
+            </p>
+            <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
+              {eveningChip.warningLabel || describeWeatherCode(evening!.weatherCode).label}
+            </p>
+          </div>
+        ) : (
+          <div className="rounded-lg border border-dashed border-slate-200 dark:border-slate-700 px-2 py-1.5 text-[11px] italic text-slate-400">No evening data</div>
+        )}
+      </div>
+    </div>
   )
 }
 

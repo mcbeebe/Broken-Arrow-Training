@@ -3,6 +3,7 @@ import type { CoachWeatherBlock, RaceInfo } from '../types'
 import type { AthleteHomeLocation } from './useAthleteLocation'
 import {
   classifyDay,
+  classifyHour,
   getDailyForecast,
   getTypicalClimate,
 } from '../utils/weather'
@@ -26,6 +27,11 @@ import {
 export function useWeather(
   race: RaceInfo | undefined,
   home: AthleteHomeLocation | null,
+  /** Preferred training hour (0-23) or null for "varies". When set,
+   *  the daily array's per-day severity is overridden by the per-hour
+   *  classification at this hour so DayCards reflect the actual
+   *  conditions during the planned workout time. */
+  preferredHour: number | null = null,
 ): CoachWeatherBlock | null {
   const raceCoords = race?.coordinates
   const raceDate = race?.date
@@ -69,6 +75,26 @@ export function useWeather(
         }
       })
 
+      // Classify each hourly entry. UI surfaces (DayCard chip, Summary
+      // strip) will look up the preferred hour and use this severity
+      // instead of the day-aggregate version when available.
+      const hourlyClassified = (forecast.hourly || []).map(h => {
+        const { severity, reasons } = classifyHour(h)
+        return {
+          time: h.time,
+          date: h.date,
+          hour: h.hour,
+          tempF: Math.round(h.tempF),
+          precipIn: Math.round(h.precipIn * 100) / 100,
+          precipProbPct: h.precipProbPct,
+          windMph: Math.round(h.windMph),
+          weatherCode: h.weatherCode,
+          thunderRisk: h.thunderRisk,
+          severity,
+          reasons,
+        }
+      })
+
       const out: CoachWeatherBlock = {
         label: trainLabel,
         latitude: trainLat!,
@@ -76,6 +102,8 @@ export function useWeather(
         fetchedAt: forecast.fetchedAt,
         isHomeLocation,
         daily: dailyClassified,
+        hourly: hourlyClassified,
+        preferredHour: preferredHour ?? undefined,
       }
 
       // Race-day surface. Requires a parseable race date AND race
@@ -173,7 +201,7 @@ export function useWeather(
   // We pass coords + the lat/lng directly; including the entire `home`
   // object would re-run every time the wrapping memory re-renders.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [trainLat, trainLng, trainLabel, isHomeLocation, raceCoords?.latitude, raceCoords?.longitude, raceCoords?.label, raceDate, home?.latitude, home?.longitude])
+  }, [trainLat, trainLng, trainLabel, isHomeLocation, preferredHour, raceCoords?.latitude, raceCoords?.longitude, raceCoords?.label, raceDate, home?.latitude, home?.longitude])
 
   return block
 }

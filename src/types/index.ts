@@ -810,6 +810,30 @@ export interface CoachWeatherBlock {
     severity: 'normal' | 'warn' | 'swap'
     reasons: string[]
   }>
+  /** Hourly resolution for ~7 days at the training location. Lets the
+   *  day-card chip show the forecast AT the athlete's training hour
+   *  rather than the daily high — Oakland 7am is 55°F vs the 77°F
+   *  daily peak. Empty array when the fetch didn't return hourly data.
+   *  Pre-classified per-hour severity matches the daily array's
+   *  format. */
+  hourly?: Array<{
+    time: string
+    date: string
+    hour: number
+    tempF: number
+    precipIn: number
+    precipProbPct: number
+    windMph: number
+    weatherCode: number
+    thunderRisk: boolean
+    severity: 'normal' | 'warn' | 'swap'
+    reasons: string[]
+  }>
+  /** Athlete's preferred training hour (0-23) propagated through the
+   *  snapshot so the server prompt and any consumer can frame the
+   *  per-hour forecast correctly. Absent when the athlete picked the
+   *  "varies" option. */
+  preferredHour?: number
   /** Race-day info. Present when race date is parseable. Carries
    *  race-location coordinates + climatology + (within 14 days) a live
    *  race-location forecast. */

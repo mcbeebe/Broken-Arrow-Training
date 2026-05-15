@@ -256,6 +256,11 @@ export default function DayCard({ day, weekNum, onTap, onLog, onSwap, onEdit, ha
                 title={weatherChip.warningLabel || weatherChip.conditionsLabel}
               >
                 <span aria-hidden>{weatherChip.icon}</span>
+                {weatherChip.hourLabel && (
+                  <span className="text-xs text-slate-500 dark:text-slate-400">
+                    {weatherChip.hourLabel}
+                  </span>
+                )}
                 <span>{weatherChip.tempLabel}</span>
               </span>
             )}

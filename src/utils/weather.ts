@@ -46,11 +46,38 @@ export interface DailyForecastEntry {
   thunderRisk: boolean
 }
 
+/**
+ * Hourly resolution for the next 7 days at the same location. Lets the
+ * day-card chip show the forecast AT the athlete's training time rather
+ * than the daily high — a 7am Lake Temescal loop sees Oakland's 55°F
+ * morning, not the 77°F daily peak that hits at 4pm.
+ */
+export interface HourlyForecastEntry {
+  /** ISO timestamp (YYYY-MM-DDTHH:00, local time at the forecast location). */
+  time: string
+  /** Calendar date portion of `time` — pre-extracted for fast lookup. */
+  date: string
+  /** Hour of day (0-23) at the forecast location. */
+  hour: number
+  tempF: number
+  precipIn: number
+  precipProbPct: number
+  windMph: number
+  weatherCode: number
+  /** Inferred thunder risk for this hour (WMO 95/96/99 or high-precip
+   *  shower). */
+  thunderRisk: boolean
+}
+
 export interface ForecastResult {
   fetchedAt: number
   latitude: number
   longitude: number
   daily: DailyForecastEntry[]
+  /** Hourly resolution for ~7 days. Open-Meteo's free tier returns 168
+   *  hours by default with a 14-day daily call. Empty when the fetch
+   *  failed to populate hourly data. */
+  hourly: HourlyForecastEntry[]
 }
 
 export interface TypicalClimate {
@@ -128,6 +155,11 @@ export async function getDailyForecast(
     if (cached && isFresh(cached.fetchedAt, FORECAST_TTL_MS)) return cached
   }
 
+  // We request hourly resolution alongside daily so the day-card chip
+  // can show the forecast AT the athlete's training time. Open-Meteo's
+  // free tier reliably returns 168h of hourly data with a 14-day daily
+  // call — anything past day-7 is interpolated and we treat it as
+  // less reliable in the UI.
   const params = new URLSearchParams({
     latitude: latitude.toString(),
     longitude: longitude.toString(),
@@ -138,6 +170,13 @@ export async function getDailyForecast(
       'precipitation_probability_max',
       'windspeed_10m_max',
       'windgusts_10m_max',
+      'weathercode',
+    ].join(','),
+    hourly: [
+      'temperature_2m',
+      'precipitation',
+      'precipitation_probability',
+      'windspeed_10m',
       'weathercode',
     ].join(','),
     timezone: 'auto',
@@ -156,6 +195,14 @@ export async function getDailyForecast(
         precipitation_probability_max?: number[]
         windspeed_10m_max?: number[]
         windgusts_10m_max?: number[]
+        weathercode?: number[]
+      }
+      hourly?: {
+        time?: string[]
+        temperature_2m?: number[]
+        precipitation?: number[]
+        precipitation_probability?: number[]
+        windspeed_10m?: number[]
         weathercode?: number[]
       }
     }
@@ -178,11 +225,35 @@ export async function getDailyForecast(
         thunderRisk: thunderRiskFromCode(code, precipProb),
       }
     })
+    const h = data.hourly
+    const hourly: HourlyForecastEntry[] = []
+    if (h && h.time) {
+      for (let i = 0; i < h.time.length; i++) {
+        const t = h.time[i]
+        // t = "2026-05-15T07:00" — slice the date and hour cheaply.
+        const date = t.slice(0, 10)
+        const hour = parseInt(t.slice(11, 13), 10)
+        const code = h.weathercode?.[i] ?? 0
+        const precipProb = h.precipitation_probability?.[i] ?? 0
+        hourly.push({
+          time: t,
+          date,
+          hour: Number.isFinite(hour) ? hour : 0,
+          tempF: cToF(h.temperature_2m?.[i] ?? 0),
+          precipIn: mmToIn(h.precipitation?.[i] ?? 0),
+          precipProbPct: precipProb,
+          windMph: kphToMph(h.windspeed_10m?.[i] ?? 0),
+          weatherCode: code,
+          thunderRisk: thunderRiskFromCode(code, precipProb),
+        })
+      }
+    }
     const result: ForecastResult = {
       fetchedAt: Date.now(),
       latitude,
       longitude,
       daily,
+      hourly,
     }
     lsSet(key, result)
     return result
@@ -374,6 +445,81 @@ export function classifyDay(entry: DailyForecastEntry): WeatherSeverityResult {
   if (swap.length > 0) return { severity: 'swap', reasons: swap }
   if (warn.length > 0) return { severity: 'warn', reasons: warn }
   return { severity: 'normal', reasons: [] }
+}
+
+/**
+ * Classify a single forecast HOUR against WARN/SWAP thresholds. Same
+ * doctrine as classifyDay but adapted for instantaneous values:
+ *
+ * - Daily aggregates have "precip total" and "wind max"; hourly has
+ *   raw precipitation depth in that hour and wind at that hour.
+ * - The temp at the athlete's training hour is the actual temp they'll
+ *   experience, so we apply the heat ladder directly.
+ *
+ * Thresholds intentionally a touch more lenient than the daily
+ * version: a 7am Z2 run in 0.3" of rain is "WARN bring a jacket," not
+ * "SWAP go indoors."
+ */
+export function classifyHour(entry: HourlyForecastEntry): WeatherSeverityResult {
+  const swap: string[] = []
+  const warn: string[] = []
+
+  if (entry.tempF > 100) swap.push(`heat ${Math.round(entry.tempF)}°F`)
+  else if (entry.tempF > 92) warn.push(`heat ${Math.round(entry.tempF)}°F`)
+
+  if (entry.tempF < 15) swap.push(`cold ${Math.round(entry.tempF)}°F`)
+  else if (entry.tempF < 28) warn.push(`cold ${Math.round(entry.tempF)}°F`)
+
+  // Windchill proxy: temp - 0.7 * wind. Hourly wind is closer to what
+  // the athlete actually experiences (vs. daily max which may peak at
+  // 3pm).
+  const windchillProxy = entry.tempF - (entry.windMph * 0.7)
+  if (windchillProxy < 15) swap.push(`windchill ~${Math.round(windchillProxy)}°F`)
+
+  if (entry.windMph > 30) swap.push(`wind ${Math.round(entry.windMph)} mph`)
+  else if (entry.windMph > 20) warn.push(`wind ${Math.round(entry.windMph)} mph`)
+
+  if (entry.precipIn > 0.4) swap.push(`heavy rain ${entry.precipIn.toFixed(2)}" this hr`)
+  else if (entry.precipIn > 0.1) warn.push(`rain ${entry.precipIn.toFixed(2)}" this hr`)
+
+  if (entry.thunderRisk && entry.precipProbPct >= 50) {
+    swap.push(`thunderstorm risk ${entry.precipProbPct}%`)
+  } else if (entry.thunderRisk || entry.precipProbPct >= 60) {
+    warn.push(`thunder/precip ${entry.precipProbPct}%`)
+  }
+
+  const snowCode = (entry.weatherCode >= 71 && entry.weatherCode <= 77) ||
+                   entry.weatherCode === 85 || entry.weatherCode === 86
+  if (snowCode && entry.precipIn > 0.05) swap.push(`snow forecast`)
+  else if (snowCode) warn.push('snow forecast')
+
+  if (swap.length > 0) return { severity: 'swap', reasons: swap }
+  if (warn.length > 0) return { severity: 'warn', reasons: warn }
+  return { severity: 'normal', reasons: [] }
+}
+
+/**
+ * Find the hourly entry closest to a target hour-of-day on a given
+ * date. Returns null when no entry exists for that date (outside the
+ * 7-day hourly horizon).
+ */
+export function findHourEntry(
+  hourly: HourlyForecastEntry[] | undefined,
+  date: string,
+  hour: number,
+): HourlyForecastEntry | null {
+  if (!hourly) return null
+  let best: HourlyForecastEntry | null = null
+  let bestDistance = Infinity
+  for (const h of hourly) {
+    if (h.date !== date) continue
+    const distance = Math.abs(h.hour - hour)
+    if (distance < bestDistance) {
+      bestDistance = distance
+      best = h
+    }
+  }
+  return best
 }
 
 
