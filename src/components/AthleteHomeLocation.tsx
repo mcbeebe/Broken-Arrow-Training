@@ -102,27 +102,39 @@ export default function AthleteHomeLocation({
         </p>
       </div>
 
-      {location ? (
-        <div className="rounded-lg border border-teal-200 dark:border-teal-900 bg-teal-50 dark:bg-teal-950 px-3 py-2 flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-sm font-medium text-teal-800 dark:text-teal-200 truncate">
-              {location.label}
-            </p>
-            <p className="text-[10px] text-teal-600 dark:text-teal-400 mt-0.5">
-              {location.latitude.toFixed(2)}°, {location.longitude.toFixed(2)}°
-              {location.elevationMeters !== undefined && ` · ${Math.round(location.elevationMeters)} m`}
-              {' · '}{location.source === 'browser' ? 'from browser' : 'searched'}
-            </p>
+      {location ? (() => {
+        // When reverse-geocoding failed and the label is "37.83°, -122.26°",
+        // the coord pair in the metadata line is redundant. Skip it; the
+        // label itself already conveys the location.
+        const labelIsCoords = /^-?\d+(\.\d+)?°,\s*-?\d+(\.\d+)?°$/.test(location.label.trim())
+        const metaParts: string[] = []
+        if (!labelIsCoords) {
+          metaParts.push(`${location.latitude.toFixed(2)}°, ${location.longitude.toFixed(2)}°`)
+        }
+        if (location.elevationMeters !== undefined) {
+          metaParts.push(`${Math.round(location.elevationMeters)} m`)
+        }
+        metaParts.push(location.source === 'browser' ? 'from browser' : 'searched')
+        return (
+          <div className="rounded-lg border border-teal-200 dark:border-teal-900 bg-teal-50 dark:bg-teal-950 px-3 py-2 flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-teal-800 dark:text-teal-200 truncate">
+                {location.label}
+              </p>
+              <p className="text-[10px] text-teal-600 dark:text-teal-400 mt-0.5">
+                {metaParts.join(' · ')}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={onClear}
+              className="text-xs font-medium text-teal-700 dark:text-teal-300 hover:text-teal-900 dark:hover:text-teal-100 shrink-0"
+            >
+              Clear
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={onClear}
-            className="text-xs font-medium text-teal-700 dark:text-teal-300 hover:text-teal-900 dark:hover:text-teal-100 shrink-0"
-          >
-            Clear
-          </button>
-        </div>
-      ) : (
+        )
+      })() : (
         raceLabel && (
           <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 px-3 py-2">
             <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-snug">
