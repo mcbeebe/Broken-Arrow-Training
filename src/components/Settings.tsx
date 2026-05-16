@@ -22,7 +22,7 @@ import type { AthleteHomeLocation as AthleteHomeLocationType } from '../hooks/us
 import type { WorkoutTimeSlot } from '../hooks/useWorkoutTimePreference'
 import ExportDialog from './ExportDialog'
 import { useTerminologyMode } from '../hooks/useTerminologyMode'
-import type { ConversationTurn, PerformanceMetrics } from '../types'
+import type { ConversationTurn, PerformanceMetrics, TrainingWeek } from '../types'
 
 interface SettingsProps {
   // Coach (Mike-only for now)
@@ -115,6 +115,11 @@ interface SettingsProps {
   onRecalibrateMIM?: () => string
   // Share with coach (PDF export)
   performance?: PerformanceMetrics[]
+  /** Plan weeks with matched activities (actuals) attached. App.tsx
+   *  builds this by running matchActivitiesToPlan + Garmin merge +
+   *  manual logs on top of the raw plan. Pass this through to the PDF
+   *  export so completed sessions render as DONE rather than MISS. */
+  mergedWeeks?: TrainingWeek[]
 }
 
 export default function Settings({
@@ -186,6 +191,7 @@ export default function Settings({
   trainingMethod,
   onboardingConfig,
   performance,
+  mergedWeeks,
 }: SettingsProps) {
   const [exportOpen, setExportOpen] = useState(false)
   void _onAcceptInference
@@ -540,7 +546,7 @@ export default function Settings({
           onClose={() => setExportOpen(false)}
           athleteName={activePlan.athlete?.name || ''}
           race={activePlan.race}
-          weeks={activePlan.weeks}
+          weeks={mergedWeeks ?? activePlan.weeks}
           performance={performance ?? []}
         />
       )}

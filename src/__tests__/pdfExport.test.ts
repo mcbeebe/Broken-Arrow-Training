@@ -317,6 +317,74 @@ describe('generateAthletePdf — per-week training log content', () => {
   })
 })
 
+describe('generateAthletePdf — date range filtering', () => {
+  // Build a week with the exact free-text date format the hardcoded plans
+  // use ("Apr 13–19" with an en-dash and no surrounding whitespace).
+  function ndashWeek(num: number, dates: string): TrainingWeek {
+    return {
+      num,
+      dates,
+      miles: 10,
+      focus: 'Focus',
+      days: [
+        day({ dayLabel: 'Mon', workout: 'Easy run' }),
+        day({ dayLabel: 'Tue', workout: 'Easy run' }),
+        day({ dayLabel: 'Wed', workout: 'Easy run' }),
+      ],
+    }
+  }
+
+  it('excludes weeks before the window when dates use the "Apr 13–19" en-dash format', async () => {
+    const weeks: TrainingWeek[] = [
+      ndashWeek(1, 'Apr 13–19'),  // Apr 13, 2026 → outside 4-week window
+      ndashWeek(2, 'Apr 20–26'),  // Apr 20 → outside
+      ndashWeek(3, 'Apr 27–May 3'),
+      ndashWeek(4, 'May 4–10'),
+      ndashWeek(5, 'May 11–17'),  // inside
+    ]
+    const blob = generateAthletePdf({
+      athleteName: 'Test', race: race(), weeks, performance: performance(30),
+      windowWeeks: 4, generatedAt: new Date('2026-05-15T12:00:00'),
+    })
+    const text = await pdfText(blob)
+    // Cutoff = May 15 − 28 days = Apr 17 2026. Week 1 (Apr 13) is OUT;
+    // Week 5 (May 11) is IN. Searching for ASCII substrings of the week
+    // headers — the en-dash character itself uses Windows-1252 encoding
+    // in the PDF stream and won't match a UTF-8 source regex.
+    expect(text).not.toMatch(/Apr 13/)
+    expect(text).toMatch(/May 11/)
+  })
+
+  it('reports a sane "X of Y completed" count instead of leaking the whole plan', async () => {
+    // Mike-style en-dash dates that match the real hardcoded plan format.
+    // 8 weeks of plan, 3 non-rest days each = 24 sessions total. With a
+    // 4-week window ending May 15, only Apr 20 onwards (5 weeks) should
+    // count = ~15 sessions max.
+    const weeks: TrainingWeek[] = [
+      ndashWeek(1, 'Apr 13–19'),     // OUT (before Apr 17 cutoff)
+      ndashWeek(2, 'Apr 20–26'),     // IN
+      ndashWeek(3, 'Apr 27–May 3'),  // IN
+      ndashWeek(4, 'May 4–10'),      // IN
+      ndashWeek(5, 'May 11–17'),     // IN
+      ndashWeek(6, 'May 18–24'),     // IN (after gen date — still counts as planned)
+      ndashWeek(7, 'May 25–31'),     // IN
+      ndashWeek(8, 'Jun 1–7'),       // IN
+    ]
+    const blob = generateAthletePdf({
+      athleteName: 'Test', race: race(), weeks, performance: performance(30),
+      windowWeeks: 4, generatedAt: new Date('2026-05-15T12:00:00'),
+    })
+    const text = await pdfText(blob)
+    const m = text.match(/(\d+)\s*of\s*(\d+)\s*scheduled sessions/)
+    expect(m).not.toBeNull()
+    const totalScheduled = parseInt(m![2], 10)
+    // Total = 8 weeks × 3 days = 24. With filter working, week 1 (Apr 13)
+    // is excluded → max 21. Assert strictly less than the full plan total
+    // so the test catches the "filter is letting all weeks through" bug.
+    expect(totalScheduled).toBeLessThan(24)
+  })
+})
+
 describe('pdfFilename', () => {
   it('safely formats athlete names and dates', () => {
     expect(pdfFilename('Mike McBeebe', new Date('2026-05-14T12:00:00')))
