@@ -12,6 +12,7 @@ import PerformanceChart from './PerformanceChart'
 import ComplianceWeekRow from './ComplianceWeekRow'
 import CalendarHeatmap from './CalendarHeatmap'
 import StrengthProgressSection from './StrengthProgressSection'
+import { buildBlockVerdict, classifyWeek, type BlockVerdict, type WeekVerdict, type VerdictTone } from '../utils/complianceNarrative'
 
 type DashSubTab = 'compliance' | 'readiness' | 'performance'
 
@@ -143,8 +144,20 @@ function ComplianceTab({
     : null
   const raceElevationFt = parseRaceElevationFt(race)
   const racePerMi = race && race.distanceMiles > 0 ? Math.round(raceElevationFt / race.distanceMiles) : 0
+  const blockVerdict = useMemo(() => buildBlockVerdict(compliance), [compliance])
+  const weekVerdicts = useMemo(() => {
+    const map = new Map<number, WeekVerdict>()
+    for (const w of compliance.weeks) {
+      const v = classifyWeek(w)
+      if (v) map.set(v.weekNum, v)
+    }
+    return map
+  }, [compliance])
   return (
     <div className="space-y-4">
+      {/* Block-level verdict — names what the numbers below add up to */}
+      {blockVerdict && <BlockVerdictCard verdict={blockVerdict} />}
+
       {/* Summary cards — now includes Distance & Duration compliance */}
       <div className="grid grid-cols-2 gap-3">
         <StatCard
@@ -219,16 +232,25 @@ function ComplianceTab({
       <div>
         <h3 className="text-base font-semibold text-slate-700 dark:text-slate-200 mb-2">Weekly Breakdown</h3>
         <div className="space-y-2">
-          {compliance.weeks.map((wk, i) => (
-            <ComplianceWeekRow
-              key={wk.weekNum}
-              week={wk}
-              weekLabel={weeks[i]?.dates}
-              weekFocus={weeks[i]?.focus}
-              planZones={planZones}
-              showVertical={showVertical}
-            />
-          ))}
+          {compliance.weeks.map((wk, i) => {
+            const verdict = weekVerdicts.get(wk.weekNum)
+            return (
+              <div key={wk.weekNum}>
+                {verdict && (
+                  <p className={`text-xs font-medium ${verdictTextClass(verdict.tone)} mb-1 ml-1`}>
+                    {verdict.headline}
+                  </p>
+                )}
+                <ComplianceWeekRow
+                  week={wk}
+                  weekLabel={weeks[i]?.dates}
+                  weekFocus={weeks[i]?.focus}
+                  planZones={planZones}
+                  showVertical={showVertical}
+                />
+              </div>
+            )
+          })}
         </div>
       </div>
 
@@ -631,6 +653,44 @@ function PerformanceGlossary() {
       )}
     </div>
   )
+}
+
+// ─── Block verdict card (top of Compliance tab) ─────────────────
+
+function BlockVerdictCard({ verdict }: { verdict: BlockVerdict }) {
+  const toneClasses = verdictBgClass(verdict.tone)
+  return (
+    <div className={`rounded-xl px-3 py-2.5 border ${toneClasses}`}>
+      <p className="text-sm font-semibold">{verdict.headline}</p>
+      <p className="text-xs mt-0.5 opacity-80">{verdict.detail}</p>
+    </div>
+  )
+}
+
+function verdictBgClass(tone: VerdictTone): string {
+  switch (tone) {
+    case 'win':
+      return 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-900 text-emerald-900 dark:text-emerald-100'
+    case 'on-track':
+      return 'bg-teal-50 dark:bg-teal-950/40 border-teal-200 dark:border-teal-900 text-teal-900 dark:text-teal-100'
+    case 'mixed':
+      return 'bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-900 text-amber-900 dark:text-amber-100'
+    case 'cold':
+      return 'bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-900 text-rose-900 dark:text-rose-100'
+  }
+}
+
+function verdictTextClass(tone: VerdictTone): string {
+  switch (tone) {
+    case 'win':
+      return 'text-emerald-700 dark:text-emerald-300'
+    case 'on-track':
+      return 'text-teal-700 dark:text-teal-300'
+    case 'mixed':
+      return 'text-amber-700 dark:text-amber-300'
+    case 'cold':
+      return 'text-rose-700 dark:text-rose-300'
+  }
 }
 
 // ─── Shared StatCard ────────────────────────────────────────────
