@@ -1,8 +1,29 @@
 import { useMemo } from 'react'
-import type { TrainingWeek, PlannedDay, DayCompliance, ComplianceGrade } from '../types'
+import type { TrainingWeek, PlannedDay, DayCompliance, ComplianceGrade, ActualWorkout, SportType } from '../types'
 import { getMilesNumber } from '../utils/format'
 import { parsePlannedTargets } from '../utils/targets'
 import { HR_ZONE_TOLERANCE_BPM } from '../utils/zones'
+import { mapToSportType } from '../utils/trimp'
+
+/** Sports whose elevation gain counts toward weekly vertical totals.
+ *  Cycling/strength/swimming etc. log climb that isn't running-leg load,
+ *  so we exclude them — only running and hiking variants train the legs
+ *  for race-day vert. */
+const VERT_COUNTING_SPORTS = new Set<SportType>([
+  'running',
+  'trail_running',
+  'running_steep',
+  'hiking',
+  'hiking_steep',
+])
+
+function countsVertical(actual: ActualWorkout): boolean {
+  const sport = mapToSportType(actual.type || '', {
+    name: actual.name,
+    elevationGainFt: actual.elevationGain,
+  })
+  return VERT_COUNTING_SPORTS.has(sport)
+}
 
 export interface WeekCompliance {
   weekNum: number
@@ -90,7 +111,11 @@ function computeCompliance(weeks: TrainingWeek[]): OverallCompliance {
       if (day.actual) {
         completed++
         actualMiles += day.actual.distance
-        actualElevation += day.actual.elevationGain
+        // Only running and hiking variants contribute to weekly vert —
+        // climbing 5,000 ft on a bike doesn't train running legs.
+        if (countsVertical(day.actual)) {
+          actualElevation += day.actual.elevationGain
+        }
 
         const rec = gradeWorkoutDay(day, targets)
         dayComplianceList.push(rec)
@@ -213,10 +238,12 @@ export function gradeWorkoutDay(day: PlannedDay, targets: ReturnType<typeof pars
 
   // Elevation gain (feet). Use the SHORTFALL_BAND below the target to flag —
   // overshooting climb on a planned hill day is fine (often desirable), so
-  // 'over' isn't flagged. Only graded when the plan detail carried a number.
+  // 'over' isn't flagged. Only graded when the plan detail carried a number
+  // AND the actual activity was running or hiking (cycling vert ≠ run vert).
   let elevationPct: number | undefined
   let elevationGrade: ComplianceGrade = 'na'
-  if (targets.elevationFt !== undefined && targets.elevationFt > 0) {
+  const vertCounts = countsVertical(actual)
+  if (vertCounts && targets.elevationFt !== undefined && targets.elevationFt > 0) {
     const pct = actual.elevationGain / targets.elevationFt
     elevationPct = pct
     elevationGrade = gradeRatio(pct)
@@ -345,7 +372,9 @@ export function gradeWorkoutDay(day: PlannedDay, targets: ReturnType<typeof pars
     durationActual: actual.movingTime > 0 ? Math.round(actual.movingTime / 60) : undefined,
     durationPct,
     durationGrade,
-    elevationActual: actual.elevationGain > 0 ? Math.round(actual.elevationGain) : undefined,
+    // Surface actual climb only for running/hiking — a 5,000 ft bike day
+    // shouldn't render as "bonus vert" in the week row.
+    elevationActual: vertCounts && actual.elevationGain > 0 ? Math.round(actual.elevationGain) : undefined,
     elevationPct,
     elevationGrade,
     hrInZonePct,

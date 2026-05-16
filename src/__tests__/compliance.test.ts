@@ -128,6 +128,38 @@ describe('gradeWorkoutDay — elevation grading', () => {
     expect(result.elevationGrade).toBe('over')
     expect(result.flagReasons.some(r => /vert/i.test(r))).toBe(false)
   })
+
+  it('counts hiking climb toward planned vert', () => {
+    const day = mkDay({
+      detail: '~1000 ft gain',
+      actual: mkActual({ type: 'Hike', elevationGain: 1000 }),
+    })
+    const result = gradeWorkoutDay(day, parsePlannedTargets(day))
+    expect(result.elevationGrade).toBe('hit')
+    expect(result.elevationActual).toBe(1000)
+  })
+
+  it('ignores cycling climb — bike vert does not train running legs', () => {
+    const day = mkDay({
+      detail: '~1000 ft gain',
+      actual: mkActual({ type: 'Ride', elevationGain: 5000 }),
+    })
+    const result = gradeWorkoutDay(day, parsePlannedTargets(day))
+    // 5000 ft on a bike must not grade as over-target
+    expect(result.elevationGrade).toBe('na')
+    expect(result.elevationPct).toBeUndefined()
+    expect(result.elevationActual).toBeUndefined()
+  })
+
+  it('ignores strength/cross-training climb', () => {
+    const day = mkDay({
+      detail: '~1000 ft gain',
+      actual: mkActual({ type: 'WeightTraining', elevationGain: 250 }),
+    })
+    const result = gradeWorkoutDay(day, parsePlannedTargets(day))
+    expect(result.elevationGrade).toBe('na')
+    expect(result.elevationActual).toBeUndefined()
+  })
 })
 
 describe('gradeWorkoutDay — HR grading', () => {
