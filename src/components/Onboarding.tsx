@@ -48,6 +48,7 @@ const STEP_STRENGTH = 8
 const STEP_SCHEDULE = 9
 const STEP_WEARABLE = 10
 const STEP_PROFILE = 11
+const STEP_REVIEW = 12
 
 const ALL_STEPS = [
   STEP_RACE_TYPE,
@@ -62,6 +63,7 @@ const ALL_STEPS = [
   STEP_SCHEDULE,
   STEP_WEARABLE,
   STEP_PROFILE,
+  STEP_REVIEW,
 ] as const
 
 const DISTANCE_OPTIONS: ReadonlyArray<{ value: RaceDistance; label: string; desc: string }> = [
@@ -186,6 +188,7 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
       case STEP_SCHEDULE: return trainingTimes.length > 0 // schedule note is optional
       case STEP_WEARABLE: return !!wearable
       case STEP_PROFILE: return name.trim().length > 0 && age.trim().length > 0
+      case STEP_REVIEW: return true
       default: return false
     }
   })()
@@ -476,7 +479,7 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Cross-training you'd enjoy (optional)</label>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Cross-training (optional)</label>
                 <div className="space-y-2">
                   {CROSS_TRAINING_OPTIONS.map(opt => (
                     <OptionCard
@@ -489,8 +492,15 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
                     />
                   ))}
                 </div>
-                <p className="text-xs text-slate-400 mt-2">We'll use these as easy-day swaps and recovery sessions.</p>
+                <p className="text-xs text-slate-400 mt-2">
+                  One cross-training day per week. Pick one or more modalities — we'll rotate through them on easy days.
+                </p>
               </div>
+              <WeekBreakdown
+                daysPerWeek={daysPerWeek}
+                strengthDays={strengthDays ?? 0}
+                hasCross={crossTraining.length > 0}
+              />
             </div>
           </StepContainer>
         )}
@@ -534,6 +544,28 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
             <OptionCard selected={wearable === 'apple_watch'} onClick={() => setWearable('apple_watch')} title="Apple Watch" desc="Syncs HRV, resting HR, and sleep via the companion iOS app." icon="apple" />
             <OptionCard selected={wearable === 'oura'} onClick={() => setWearable('oura')} title="Oura Ring" desc="Syncs HRV, resting HR, and sleep via Apple Health + iOS app." icon="oura" />
             <OptionCard selected={wearable === 'none'} onClick={() => setWearable('none')} title="No wearable" desc="You can still log workouts manually and use the coach." />
+          </StepContainer>
+        )}
+
+        {step === STEP_REVIEW && (
+          <StepContainer title="Review your plan setup" subtitle="Quick check before we build it. Tap Back to change anything.">
+            <ReviewSummary
+              raceType={raceType}
+              raceName={raceName}
+              raceDate={raceDate}
+              raceDistance={raceDistance}
+              showsDistanceStep={showsDistanceStep}
+              experience={experience}
+              daysPerWeek={daysPerWeek}
+              longRunDay={longRunDay}
+              weakStation={weakStation}
+              strengthDays={strengthDays}
+              crossTraining={crossTraining}
+              injury={injury}
+              wearable={wearable}
+              name={name}
+              age={age}
+            />
           </StepContainer>
         )}
 
@@ -634,6 +666,185 @@ function GeneratingScreen({ message }: { message: string }) {
       <h1 className="text-2xl font-bold text-slate-900">Building your plan</h1>
       <p className="text-base text-slate-500 mt-3 max-w-xs">{message}</p>
       <p className="text-xs text-slate-400 mt-6">This only takes a moment.</p>
+    </div>
+  )
+}
+
+/**
+ * Live preview of how the days/week budget will be allocated.
+ *
+ * The plan generator treats `trainingDaysPerWeek` as a TOTAL: strength
+ * and cross-training count against the budget rather than stacking on
+ * top. This panel makes that visible while the user is still on the
+ * Strength step so they can adjust before submission.
+ *
+ * The exact run count can shift after method selection (some methods
+ * have minimum running-day patterns) — the caption notes that without
+ * burying the user in detail.
+ */
+function WeekBreakdown({
+  daysPerWeek,
+  strengthDays,
+  hasCross,
+}: {
+  daysPerWeek: number | null
+  strengthDays: number
+  hasCross: boolean
+}) {
+  if (daysPerWeek == null) return null
+  const cross = hasCross ? 1 : 0
+  const extras = strengthDays + cross
+  const runs = Math.max(0, daysPerWeek - extras)
+  const over = extras > daysPerWeek
+
+  return (
+    <div className={`rounded-xl p-3 border ${over ? 'border-amber-300 bg-amber-50' : 'border-teal-200 bg-teal-50'}`}>
+      <p className={`text-xs font-semibold mb-1 ${over ? 'text-amber-800' : 'text-teal-800'}`}>
+        Your {daysPerWeek}-day week
+      </p>
+      <p className={`text-sm ${over ? 'text-amber-900' : 'text-teal-900'}`}>
+        {runs} running · {strengthDays} strength · {cross} cross-training
+      </p>
+      {over ? (
+        <p className="text-xs text-amber-700 mt-1">
+          Strength + cross exceed your {daysPerWeek}-day budget. We'll trim them to fit.
+        </p>
+      ) : (
+        <p className="text-xs text-teal-700 mt-1">
+          We'll pick a training method that matches this split — your exact run count may shift by ±1.
+        </p>
+      )}
+    </div>
+  )
+}
+
+const INJURY_LABELS: Record<InjuryStatus, string> = {
+  none: 'No injuries',
+  returning: 'Returning from injury',
+  current: 'Currently injured',
+}
+
+const CROSS_LABELS: Record<CrossTrainingMode, string> = {
+  cycling: 'Cycling',
+  swimming: 'Swimming',
+  rowing: 'Rowing',
+  hiking: 'Hiking',
+  yoga: 'Yoga / Mobility',
+}
+
+const RACE_TYPE_LABELS: Record<RaceType, string> = {
+  trail: 'Trail / Road Race',
+  hyrox: 'Hyrox',
+  general: 'General Fitness',
+}
+
+const DISTANCE_LABELS: Record<RaceDistance, string> = {
+  '5k': '5K',
+  '10k': '10K',
+  half_marathon: 'Half Marathon',
+  marathon: 'Marathon',
+  '50k': '50K',
+  '50_mile': '50 Mile',
+  '100k': '100K',
+  '100_mile': '100 Mile',
+  mountain_ultra: 'Mountain Ultra',
+}
+
+function ReviewSummary({
+  raceType,
+  raceName,
+  raceDate,
+  raceDistance,
+  showsDistanceStep,
+  experience,
+  daysPerWeek,
+  longRunDay,
+  weakStation,
+  strengthDays,
+  crossTraining,
+  injury,
+  wearable,
+  name,
+  age,
+}: {
+  raceType: RaceType | null
+  raceName: string
+  raceDate: string
+  raceDistance: RaceDistance | null
+  showsDistanceStep: boolean
+  experience: ExperienceLevel | null
+  daysPerWeek: number | null
+  longRunDay: string | null
+  weakStation: string | null
+  strengthDays: number | null
+  crossTraining: CrossTrainingMode[]
+  injury: InjuryStatus | null
+  wearable: WearableType | null
+  name: string
+  age: string
+}) {
+  const cross = crossTraining.length > 0 ? 1 : 0
+  const strength = strengthDays ?? 0
+  const total = daysPerWeek ?? 0
+  const runs = Math.max(0, total - strength - cross)
+  const injuryAdjustNote = injury === 'returning'
+    ? 'Capped at 4 total days with a gentler ramp.'
+    : injury === 'current'
+      ? 'Capped at 3 total days with extra recovery.'
+      : null
+
+  return (
+    <div className="space-y-3">
+      <SummaryCard label="Goal">
+        <p className="font-semibold text-slate-900">{raceName || 'Untitled plan'}</p>
+        <p className="text-sm text-slate-600">
+          {raceType ? RACE_TYPE_LABELS[raceType] : '—'}
+          {showsDistanceStep && raceDistance ? ` · ${DISTANCE_LABELS[raceDistance]}` : ''}
+          {raceDate ? ` · ${raceDate}` : ''}
+        </p>
+      </SummaryCard>
+
+      <SummaryCard label="Weekly volume">
+        <p className="font-semibold text-slate-900">{total} days/week</p>
+        <p className="text-sm text-slate-600">
+          {runs} running · {strength} strength · {cross} cross-training
+          {cross > 0 && crossTraining.length > 0 && (
+            <> · <span className="text-slate-500">{crossTraining.map(m => CROSS_LABELS[m]).join(', ')}</span></>
+          )}
+        </p>
+        {longRunDay && raceType !== 'hyrox' && (
+          <p className="text-sm text-slate-500 mt-1">Long day: {longRunDay}</p>
+        )}
+        {weakStation && raceType === 'hyrox' && (
+          <p className="text-sm text-slate-500 mt-1">Focus station: {weakStation}</p>
+        )}
+      </SummaryCard>
+
+      <SummaryCard label="Fitness & recovery">
+        <p className="text-sm text-slate-700">
+          {experience ? experience.replace(/_/g, ' ') : '—'}
+          {injury ? ` · ${INJURY_LABELS[injury]}` : ''}
+        </p>
+        {injuryAdjustNote && (
+          <p className="text-xs text-amber-700 mt-1">{injuryAdjustNote}</p>
+        )}
+      </SummaryCard>
+
+      <SummaryCard label="Profile">
+        <p className="text-sm text-slate-700">
+          {name || '—'}{age ? `, ${age}` : ''}
+          {wearable && wearable !== 'none' ? ` · ${wearable.replace('_', ' ')}` : ''}
+        </p>
+      </SummaryCard>
+    </div>
+  )
+}
+
+function SummaryCard({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-3">
+      <p className="text-xs uppercase tracking-wide font-bold text-slate-500 mb-1">{label}</p>
+      {children}
     </div>
   )
 }
