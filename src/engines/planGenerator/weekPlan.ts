@@ -162,6 +162,18 @@ export function phaseIdAtWeek(blocks: PhaseBlock[], weekIndex: number): string {
 }
 
 /**
+ * Optional adjustments to the mileage ramp — used by the orchestrator to
+ * honor `injuryStatus` (Conservative policy: gentler start, smaller weekly
+ * increments) without rewriting the method's JSON.
+ */
+export interface MileageProgressionAdjust {
+  /** Multiplier applied to the method's `startMileagePctOfPeak` (e.g. 0.8). */
+  startPctMultiplier?: number
+  /** Hard cap on weekly increase percent (e.g. 0.05). Takes the min with the method default. */
+  maxWeeklyIncreasePctCap?: number
+}
+
+/**
  * Compute weekly mileage targets — linear build from
  * `current × startMileagePctOfPeak` up to `current × peakMileageRule.value`,
  * with cutback weeks at `cutbackEveryNWeeks` and a final taper per
@@ -173,12 +185,17 @@ export function buildWeeklyMileage(
   totalWeeks: number,
   blocks: PhaseBlock[],
   currentWeeklyMileage: number,
+  adjust: MileageProgressionAdjust = {},
 ): WeekMileage[] {
   const mp = method.mileageProgression
   const peak = method.taper.preserveIntensity
     ? currentWeeklyMileage * mp.peakMileageRule.value
     : currentWeeklyMileage * mp.peakMileageRule.value
-  const start = peak * mp.startMileagePctOfPeak
+  const startPctMul = adjust.startPctMultiplier ?? 1
+  const start = peak * mp.startMileagePctOfPeak * startPctMul
+  const maxWeeklyIncreasePct = adjust.maxWeeklyIncreasePctCap != null
+    ? Math.min(mp.maxWeeklyIncreasePct, adjust.maxWeeklyIncreasePctCap)
+    : mp.maxWeeklyIncreasePct
   const taperWeeks = method.taper.durationWeeks
   const taperPcts = method.taper.weeklyVolumePcts
   const peakWeekIndex = totalWeeks - taperWeeks - 1  // last build week before taper
@@ -203,7 +220,7 @@ export function buildWeeklyMileage(
       const t = Math.min(1, w / span)
       const linear = start + (peak - start) * t
       // Cap week-over-week growth against the last NON-cutback build week
-      const cap = lastBuildMi * (1 + mp.maxWeeklyIncreasePct)
+      const cap = lastBuildMi * (1 + maxWeeklyIncreasePct)
       totalMi = Math.min(linear, cap)
       // Cutback week — drop to cutbackPct of the last build mileage, but
       // don't disturb the trend baseline for next week's cap calc.

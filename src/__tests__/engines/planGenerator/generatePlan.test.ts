@@ -28,12 +28,14 @@ import pfitzingerMethod from '../../../data/methods/pfitzinger.json'
 import koopMethod from '../../../data/methods/koop.json'
 import rocheMethod from '../../../data/methods/roche_swap.json'
 import higdonMethod from '../../../data/methods/higdon.json'
+import gallowayMethod from '../../../data/methods/galloway.json'
 
 const daniels = danielsMethod as unknown as TrainingMethod
 const pfitzinger = pfitzingerMethod as unknown as TrainingMethod
 const koop = koopMethod as unknown as TrainingMethod
 const roche = rocheMethod as unknown as TrainingMethod
 const higdon = higdonMethod as unknown as TrainingMethod
+const galloway = gallowayMethod as unknown as TrainingMethod
 
 const TODAY = '2026-05-10'
 
@@ -319,16 +321,25 @@ describe('generatePlanFromMethod — end-to-end', () => {
     expect(plan.athlete.weeklyStructure).toMatch(/days\/week/)
   })
 
-  it('zones are computed against the user\'s maxHR', () => {
-    const plan = generatePlanFromMethod(daniels, makeConfig({ maxHR: 200 }), TODAY)
-    // Z4 upper bound should be 90% of 200 = 180
-    expect(plan.zones.some(z => z.hr.includes('180'))).toBe(true)
+  it('zones are derived from the method\'s pace zones × resolved LTHR', () => {
+    // With maxHR=200, estimated LTHR = round(200 × 0.92) = 184. Pfitzinger's
+    // easy zone is 70-81% LTHR → ~129-149. Use Pfitzinger so we hit a method
+    // with declared hrRanges — confirms Settings zones match per-day text.
+    const plan = generatePlanFromMethod(pfitzinger, makeConfig({ maxHR: 200 }), TODAY)
+    const lthr = Math.round(200 * 0.92)
+    const easyZone = pfitzinger.paceZones.find(z => z.canonical === 'easy')!
+    const expectedLow = Math.round(easyZone.hrRange!.minPctLthr! * lthr)
+    const expectedHigh = Math.round(easyZone.hrRange!.maxPctLthr! * lthr)
+    const z2 = plan.zones.find(z => z.zone.includes('Z2'))!
+    expect(z2.hr).toBe(`${expectedLow}–${expectedHigh}`)
   })
 
-  it('injects strength sessions onto rest days when onboarding requests them', () => {
+  it('injects strength sessions onto rest days when budget allows', () => {
+    // trainingDaysPerWeek=7 leaves room for koop's 5 running days + 2 strength.
     const plan = generatePlanFromMethod(koop, makeConfig({
       raceDistance: '50k',
       experienceLevel: 'advanced',
+      trainingDaysPerWeek: 7,
       strengthDaysPerWeek: 2,
     }), TODAY)
     // A non-taper, non-cutback week should have the requested strength days.
@@ -346,6 +357,7 @@ describe('generatePlanFromMethod — end-to-end', () => {
     const plan = generatePlanFromMethod(koop, makeConfig({
       raceDistance: '50k',
       experienceLevel: 'advanced',
+      trainingDaysPerWeek: 6,
       crossTrainingModes: ['hiking'],
     }), TODAY)
     const buildWeek = plan.weeks.find(w => w.focus !== 'Taper' && w.focus !== 'Cutback')!
@@ -370,10 +382,64 @@ describe('generatePlanFromMethod — end-to-end', () => {
       .toEqual(planBase.weeks.map(w => w.days.map(d => d.type)))
   })
 
+  it('caps total activity days at trainingDaysPerWeek', () => {
+    // User asks for 5 total. Method's min running pattern is 5 (koop). So
+    // strength + cross requested should be dropped to stay within budget.
+    const plan = generatePlanFromMethod(koop, makeConfig({
+      raceDistance: '50k',
+      experienceLevel: 'advanced',
+      trainingDaysPerWeek: 5,
+      strengthDaysPerWeek: 2,
+      crossTrainingModes: ['cycling'],
+    }), TODAY)
+    const buildWeek = plan.weeks.find(w => w.focus !== 'Taper' && w.focus !== 'Cutback')!
+    const active = buildWeek.days.filter(d => d.type !== 'rest').length
+    expect(active).toBeLessThanOrEqual(5)
+  })
+
+  it('honors injuryStatus=returning by capping days and softening intensity', () => {
+    // Galloway has 3-day and 4-day patterns, so the 4-day injury cap is
+    // actually achievable. Onboarding asks for 7 days; a returning athlete
+    // should be capped at 4 total.
+    const plan = generatePlanFromMethod(galloway, makeConfig({
+      raceDistance: 'half_marathon',
+      experienceLevel: 'beginner',
+      trainingDaysPerWeek: 7,
+      strengthDaysPerWeek: 0,
+      injuryStatus: 'returning',
+    }), TODAY)
+    const week1 = plan.weeks[0]
+    const active = week1.days.filter(d => d.type !== 'rest').length
+    expect(active).toBeLessThanOrEqual(4)
+    // First 2 weeks should not include quality (tempo / vo2) workouts.
+    for (const wk of plan.weeks.slice(0, 2)) {
+      const hasQuality = wk.days.some(d => d.type === 'quality')
+      expect(hasQuality).toBe(false)
+    }
+  })
+
+  it('softens mileage ramp for returning athletes', () => {
+    const healthy = generatePlanFromMethod(daniels, makeConfig({
+      raceDistance: 'marathon',
+      experienceLevel: 'intermediate',
+      injuryStatus: 'none',
+    }), TODAY)
+    const returning = generatePlanFromMethod(daniels, makeConfig({
+      raceDistance: 'marathon',
+      experienceLevel: 'intermediate',
+      injuryStatus: 'returning',
+    }), TODAY)
+    // Starting mileage should be lower for returning athletes; growth slower
+    // means week 2 should also be lower.
+    expect(Number(returning.weeks[0].miles)).toBeLessThan(Number(healthy.weeks[0].miles))
+    expect(Number(returning.weeks[1].miles)).toBeLessThan(Number(healthy.weeks[1].miles))
+  })
+
   it('drops strength to maintenance during taper weeks', () => {
     const plan = generatePlanFromMethod(koop, makeConfig({
       raceDistance: '50k',
       experienceLevel: 'advanced',
+      trainingDaysPerWeek: 7,
       strengthDaysPerWeek: 3,
     }), TODAY)
     // Pick a taper week (excluding the race week, which uses raceWeekSchedule).

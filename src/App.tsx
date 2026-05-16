@@ -93,12 +93,18 @@ export default function App() {
 }
 
 function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; onLogout: () => void }) {
-  const [view, setView] = useState<ViewId>('summary')
   const [athleteId, setAthleteId] = useState(() => (session?.athleteId || getAthleteFromHash()).toLowerCase())
-  const [chatSeed, setChatSeed] = useState<string | null>(null)
-  const theme = useTheme()
   const onboarding = useOnboarding(athleteId)
   const tutorial = useTutorial(athleteId)
+
+  useEffect(() => {
+    function onHashChange() {
+      setAthleteId(getAthleteFromHash())
+    }
+    window.addEventListener('hashchange', onHashChange)
+    return () => window.removeEventListener('hashchange', onHashChange)
+  }, [])
+
   // Seed athletes (Mike, Jim, Lori, Joel) have a hardcoded plan. We only fall
   // back to it when the athlete hasn't completed onboarding and isn't actively
   // redoing it — otherwise their new race goal would be ignored.
@@ -133,17 +139,19 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
     )
   }
 
-  // Generate plan from onboarding config if no pre-built plan exists
-  const generatedPlan = useMemo(() => {
-    if (plan || !onboarding.config) return null
-    if (onboarding.config.raceType === 'hyrox') return generateHyroxPlan(onboarding.config)
-    if (onboarding.config.selectedMethodId) {
+  // Generate plan from onboarding config if no pre-built plan exists.
+  // NOTE: this is intentionally a plain expression — not `useMemo` — because
+  // earlier early-returns above mean hook call order would differ across
+  // renders. The cost is small and cached by `MainAppShell` below.
+  let generatedPlan: import('./types').TrainingPlan | null = null
+  if (!plan && onboarding.config) {
+    if (onboarding.config.raceType === 'hyrox') {
+      generatedPlan = generateHyroxPlan(onboarding.config)
+    } else if (onboarding.config.selectedMethodId) {
       const method = getMethodById(onboarding.config.selectedMethodId)
-      if (method) return generatePlanFromMethod(method, onboarding.config)
+      if (method) generatedPlan = generatePlanFromMethod(method, onboarding.config)
     }
-    return null
-  }, [plan, onboarding.config])
-
+  }
   const activePlan = plan || generatedPlan
 
   // First-time methodology primer: shown once after onboarding produces a
@@ -187,12 +195,41 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
       </div>
     )
   }
+
+  // Every conditional return above this point. The remaining hooks all
+  // depend on `activePlan` and were violating Rules of Hooks by being
+  // called after early returns. Mount them in a dedicated component that
+  // is only rendered when we have a plan in hand.
+  return (
+    <MainAppShell
+      session={session}
+      onLogout={onLogout}
+      athleteId={athleteId}
+      activePlan={activePlan}
+      onboarding={onboarding}
+      tutorial={tutorial}
+    />
+  )
+}
+
+interface MainAppShellProps {
+  session: AuthSession | null
+  onLogout: () => void
+  athleteId: string
+  activePlan: import('./types').TrainingPlan
+  onboarding: ReturnType<typeof useOnboarding>
+  tutorial: ReturnType<typeof useTutorial>
+}
+
+function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tutorial }: MainAppShellProps) {
+  const [view, setView] = useState<ViewId>('summary')
+  const [chatSeed, setChatSeed] = useState<string | null>(null)
+  const theme = useTheme()
   const strava = useStrava(athleteId)
   const garmin = useGarmin(athleteId)
 
   useEffect(() => {
     function onHashChange() {
-      setAthleteId(getAthleteFromHash())
       setView('summary')
     }
     window.addEventListener('hashchange', onHashChange)

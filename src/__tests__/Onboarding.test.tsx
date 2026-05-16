@@ -165,6 +165,9 @@ function walkHappyPath(overrides: Partial<{
     const ftpInput = screen.getByPlaceholderText(/250.*watts/)
     fireEvent.change(ftpInput, { target: { value: o.ftp } })
   }
+  // Profile is the second-to-last step; the next click advances to the
+  // pre-submit Review step. Review's only action is the final submit.
+  clickContinue()
   clickFinish()
 
   expect(onComplete).toHaveBeenCalledTimes(1)
@@ -498,22 +501,107 @@ describe('Onboarding', () => {
     })
   })
 
+  describe('day-budget breakdown', () => {
+    it('shows the live run/strength/cross split on the Strength step', () => {
+      const onComplete = vi.fn()
+      render(<Onboarding onComplete={onComplete} loadingDurationMs={0} />)
+      // Race type → Race name → Race distance → Experience → Days → Variant → Baseline → Equipment → Strength
+      fireEvent.click(screen.getByText('Trail / Road Race'))
+      clickContinue()
+      fireEvent.change(screen.getByPlaceholderText(/Broken Arrow|Hyrox|Summer Fitness/i), { target: { value: 'Test' } })
+      clickContinue()
+      fireEvent.click(screen.getByText(/^Marathon$/))
+      clickContinue()
+      fireEvent.click(screen.getByText('Intermediate'))
+      clickContinue()
+      fireEvent.click(screen.getByText('5 Days'))  // 5-day budget
+      clickContinue()
+      fireEvent.click(screen.getByText('Saturday'))
+      clickContinue()
+      fireEvent.click(screen.getByText('No injuries'))
+      clickContinue()
+      fireEvent.click(screen.getByText('Track'))
+      clickContinue()
+
+      // We're on STEP_STRENGTH now. Default breakdown with no strength + no cross → 5 running.
+      expect(screen.getByText(/Your 5-day week/)).toBeInTheDocument()
+      expect(screen.getByText(/5 running.*0 strength.*0 cross/)).toBeInTheDocument()
+
+      // Pick 2x strength + a cross modality.
+      fireEvent.click(screen.getByText('2x'))
+      fireEvent.click(screen.getByText('Cycling'))
+      expect(screen.getByText(/2 running.*2 strength.*1 cross/)).toBeInTheDocument()
+    })
+
+    it('warns when extras exceed the day budget', () => {
+      const onComplete = vi.fn()
+      render(<Onboarding onComplete={onComplete} loadingDurationMs={0} />)
+      fireEvent.click(screen.getByText('Trail / Road Race')); clickContinue()
+      fireEvent.change(screen.getByPlaceholderText(/Broken Arrow|Hyrox|Summer Fitness/i), { target: { value: 'Test' } }); clickContinue()
+      fireEvent.click(screen.getByText(/^Marathon$/)); clickContinue()
+      fireEvent.click(screen.getByText('Intermediate')); clickContinue()
+      fireEvent.click(screen.getByText('3 Days')); clickContinue()
+      fireEvent.click(screen.getByText('Saturday')); clickContinue()
+      fireEvent.click(screen.getByText('No injuries')); clickContinue()
+      fireEvent.click(screen.getByText('Track')); clickContinue()
+
+      // 3-day budget; pick 3x strength + cross → 4 extras > 3 budget → warning text.
+      fireEvent.click(screen.getByText('3+'))
+      fireEvent.click(screen.getByText('Cycling'))
+      expect(screen.getByText(/Strength \+ cross exceed/)).toBeInTheDocument()
+    })
+  })
+
+  describe('review step', () => {
+    it('renders a summary of key answers before Create My Plan', () => {
+      const onComplete = vi.fn()
+      render(<Onboarding onComplete={onComplete} loadingDurationMs={0} />)
+      // Walk to PROFILE
+      fireEvent.click(screen.getByText('Trail / Road Race')); clickContinue()
+      fireEvent.change(screen.getByPlaceholderText(/Broken Arrow|Hyrox|Summer Fitness/i), { target: { value: 'Skyrace' } }); clickContinue()
+      fireEvent.click(screen.getByText(/^Marathon$/)); clickContinue()
+      fireEvent.click(screen.getByText('Intermediate')); clickContinue()
+      fireEvent.click(screen.getByText('5 Days')); clickContinue()
+      fireEvent.click(screen.getByText('Saturday')); clickContinue()
+      fireEvent.click(screen.getByText('Returning from injury')); clickContinue()
+      fireEvent.click(screen.getByText('Track')); clickContinue()
+      fireEvent.click(screen.getByText('1x')); clickContinue()
+      fireEvent.click(screen.getByText('Early morning')); clickContinue()
+      fireEvent.click(screen.getByText('Garmin Watch')); clickContinue()
+      fireEvent.change(screen.getByPlaceholderText('e.g. Jenn'), { target: { value: 'Jenn' } })
+      fireEvent.change(screen.getByPlaceholderText('e.g. 41'), { target: { value: '40' } })
+      clickContinue()  // PROFILE → REVIEW
+
+      // Review step renders the summary.
+      expect(screen.getByText(/Review your plan setup/)).toBeInTheDocument()
+      expect(screen.getByText(/Skyrace/)).toBeInTheDocument()
+      // 5 - 1 strength - 0 cross = 4 running
+      expect(screen.getByText(/4 running.*1 strength.*0 cross-training/)).toBeInTheDocument()
+      // Injury banner explains the cap.
+      expect(screen.getByText(/Capped at 4 total days/)).toBeInTheDocument()
+
+      // Final submit fires onComplete.
+      clickFinish()
+      expect(onComplete).toHaveBeenCalledTimes(1)
+    })
+  })
+
   describe('progress bar', () => {
-    it('uses 11 visible steps before raceType is picked (race-distance hidden)', () => {
+    it('uses 12 visible steps before raceType is picked (race-distance hidden)', () => {
       const onComplete = vi.fn()
       const { container } = render(<Onboarding onComplete={onComplete} loadingDurationMs={0} />)
       const progressFill = container.querySelector('.bg-teal-500.rounded-full') as HTMLElement
-      // step 0 of 11 → width = 1/11 ≈ 9.09%
-      expect(progressFill.style.width).toMatch(/^9\.09/)
+      // step 0 of 12 → width = 1/12 ≈ 8.33%
+      expect(progressFill.style.width).toMatch(/^8\.33/)
     })
 
-    it('expands to 12 visible steps after raceType=trail is picked', () => {
+    it('expands to 13 visible steps after raceType=trail is picked', () => {
       const onComplete = vi.fn()
       const { container } = render(<Onboarding onComplete={onComplete} loadingDurationMs={0} />)
       fireEvent.click(screen.getByText('Trail / Road Race'))
       const progressFill = container.querySelector('.bg-teal-500.rounded-full') as HTMLElement
-      // Still on step 0 (idx 0 of 12) → 1/12 ≈ 8.33%
-      expect(progressFill.style.width).toMatch(/^8\.33/)
+      // Still on step 0 (idx 0 of 13) → 1/13 ≈ 7.69%
+      expect(progressFill.style.width).toMatch(/^7\.69/)
     })
   })
 
