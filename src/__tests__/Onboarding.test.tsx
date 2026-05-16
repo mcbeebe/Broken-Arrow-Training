@@ -605,6 +605,99 @@ describe('Onboarding', () => {
     })
   })
 
+  describe('iOS blank-screen scroll reset', () => {
+    // On iOS Safari, focusing an input scrolls the document up so the keyboard
+    // doesn't cover it. That scroll offset survives the step change and the
+    // next step's content paints above the visible viewport — a blank screen.
+    // The fix resets window scroll (and blurs the active input) on every step
+    // transition. These tests verify that wiring.
+    it('resets window scroll when advancing to the next step', () => {
+      const scrollSpy = vi.spyOn(window, 'scrollTo')
+      const onComplete = vi.fn()
+      render(<Onboarding onComplete={onComplete} loadingDurationMs={0} />)
+      scrollSpy.mockClear() // ignore mount-time reset
+
+      fireEvent.click(screen.getByText('Trail / Road Race'))
+      clickContinue()
+
+      // scrollTo(0, 0) should have been called as part of the step transition.
+      const called = scrollSpy.mock.calls.some(
+        ([x, y]) => x === 0 && y === 0,
+      )
+      expect(called).toBe(true)
+      scrollSpy.mockRestore()
+    })
+
+    it('resets window scroll when navigating back', () => {
+      const scrollSpy = vi.spyOn(window, 'scrollTo')
+      const onComplete = vi.fn()
+      const { container } = render(<Onboarding onComplete={onComplete} loadingDurationMs={0} />)
+
+      fireEvent.click(screen.getByText('Trail / Road Race'))
+      clickContinue()
+      // Now on race-name step. Click back.
+      scrollSpy.mockClear()
+      const backArrow = container.querySelector('.flex.items-center.justify-between button') as HTMLButtonElement
+      fireEvent.click(backArrow)
+
+      const called = scrollSpy.mock.calls.some(
+        ([x, y]) => x === 0 && y === 0,
+      )
+      expect(called).toBe(true)
+      scrollSpy.mockRestore()
+    })
+
+    it('blurs the focused input when the step changes', () => {
+      const onComplete = vi.fn()
+      render(<Onboarding onComplete={onComplete} loadingDurationMs={0} />)
+      fireEvent.click(screen.getByText('Trail / Road Race'))
+      clickContinue()
+
+      // Focus an input on the race-name step (simulating user typing).
+      const raceNameInput = screen.getByPlaceholderText(/Broken Arrow/) as HTMLInputElement
+      raceNameInput.focus()
+      expect(document.activeElement).toBe(raceNameInput)
+
+      fireEvent.change(raceNameInput, { target: { value: 'Foo' } })
+      clickContinue()
+
+      // After advancing, the previously-focused input should be blurred so
+      // iOS doesn't keep the document scrolled to clear the keyboard.
+      expect(document.activeElement).not.toBe(raceNameInput)
+    })
+
+    it('keeps every step rendering content after navigating through the flow', () => {
+      // Regression: walking forward and back through every step must keep the
+      // content area populated. If a step renders blank (e.g. step index falls
+      // through every conditional), this loop will fail to find the expected
+      // heading on that step.
+      const onComplete = vi.fn()
+      const { container } = render(<Onboarding onComplete={onComplete} loadingDurationMs={0} />)
+      const backArrow = () =>
+        container.querySelector('.flex.items-center.justify-between button') as HTMLButtonElement
+
+      fireEvent.click(screen.getByText('Trail / Road Race'))
+      clickContinue()
+      expect(screen.getByText(/tell us about your race/i)).toBeInTheDocument()
+
+      fireEvent.change(screen.getByPlaceholderText(/Broken Arrow/), { target: { value: 'Foo' } })
+      clickContinue()
+      expect(screen.getByText(/race distance/i)).toBeInTheDocument()
+
+      fireEvent.click(screen.getByText(/^Marathon$/))
+      clickContinue()
+      expect(screen.getByText(/how would you rate your fitness/i)).toBeInTheDocument()
+
+      // Walk back through every step and confirm content is present each time.
+      fireEvent.click(backArrow())
+      expect(screen.getByText(/race distance/i)).toBeInTheDocument()
+      fireEvent.click(backArrow())
+      expect(screen.getByText(/tell us about your race/i)).toBeInTheDocument()
+      fireEvent.click(backArrow())
+      expect(screen.getByText(/what are you training for/i)).toBeInTheDocument()
+    })
+  })
+
   describe('skip button', () => {
     it('fires onSkip when the X button in the header is clicked', () => {
       const onComplete = vi.fn()
