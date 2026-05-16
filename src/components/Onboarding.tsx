@@ -153,6 +153,20 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
   const visibleIdx = visibleSteps.indexOf(step)
   const isLastStep = visibleIdx === visibleSteps.length - 1
 
+  // iOS Safari scrolls the document up when an input is focused so the keyboard
+  // doesn't cover it. That scroll offset survives the step change, so the next
+  // step's content (which mounts inside our `fixed inset-0` overlay) ends up
+  // above the visible viewport — the user sees a blank screen with only the
+  // header and Continue button. Blur the active input and reset window scroll
+  // every time `step` changes so each new step paints in the visible area.
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      const active = document.activeElement as HTMLElement | null
+      if (active && typeof active.blur === 'function') active.blur()
+    }
+    if (typeof window !== 'undefined') window.scrollTo(0, 0)
+  }, [step])
+
   const next = () => {
     if (visibleIdx < visibleSteps.length - 1) {
       setStep(visibleSteps[visibleIdx + 1])
