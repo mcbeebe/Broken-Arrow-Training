@@ -123,7 +123,7 @@ def memory_key(athlete_id: str) -> str:
 # changes in a way that old cached insights would be wrong about. The
 # version is baked into the cache key so every prompt change orphans
 # stale KV entries instead of serving them until their 48h TTL expires.
-INSIGHT_PROMPT_VERSION = "v6-why-and-triggered-by"
+INSIGHT_PROMPT_VERSION = "v7-signal-reconciliation"
 
 
 def insight_key(athlete_id: str, surface: str, context_hash: str) -> str:
@@ -1048,6 +1048,20 @@ def build_system_prompt(
         "covers the whole block."
     )
 
+    parts.append(
+        "Signal coherence — the Summary screen renders three independent "
+        "verdict cards (load math, today's body, local soreness) plus a "
+        "banner that names disagreements. The snapshot includes a "
+        "`Signal coherence` line summarising that banner. When that line "
+        "says 'mixed', the athlete is staring at contradicting cards "
+        "right now — reconcile by quoting the cards in the athlete's "
+        "language ('load says X, body says Y') and explicitly state "
+        "which lens leads today. Never reach a conclusion that "
+        "contradicts the `todayCall` field — the on-screen banner is "
+        "the source of truth and your reply must agree. When coherence "
+        "is 'aligned' the cards already agree and you can speak freely."
+    )
+
     # Final voice reminder — placed LAST so it's the freshest instruction
     # the model sees before generating. This is the single biggest lever
     # for getting personality to land consistently.
@@ -1354,6 +1368,27 @@ def build_context_block(
             f"Fatigue {_fmt_num(perf.get('atl'))} · "
             f"Recovery Balance {_fmt_num(perf.get('tsb'))} · "
             f"Load Ratio {_fmt_num(perf.get('acwr'), 2)}"
+        )
+
+    # Three-axis signal coherence — same object the Summary banner
+    # reads from. Surfaced verbatim so the coach can quote the cards by
+    # name when they disagree, instead of generating a fourth verdict
+    # in different language than the on-screen UI.
+    signals = snapshot.get("trainingSignals")
+    if isinstance(signals, dict):
+        load = signals.get("load") or {}
+        body = signals.get("body") or {}
+        damage = signals.get("damage") or {}
+        coherence = signals.get("coherence", "aligned")
+        dominant = signals.get("dominant", "load")
+        today_call = signals.get("todayCall", "train")
+        reason = (signals.get("reason") or "").strip()
+        out.append(
+            f"Signal coherence ({coherence}): "
+            f"load={load.get('label', '?')} (sev {load.get('severity', 0)}), "
+            f"body={body.get('label', '?')} (sev {body.get('severity', 0)}), "
+            f"soreness={damage.get('label', '?')} (sev {damage.get('severity', 0)}). "
+            f"Today's call: {today_call}; {dominant} leads. {reason}"
         )
 
     if planned_today:

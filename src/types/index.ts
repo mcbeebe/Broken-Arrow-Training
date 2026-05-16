@@ -922,6 +922,21 @@ export interface CoachSnapshot {
   recentSoreness?: { date: string; summary: string }[]
   athleteProfile?: AthleteProfile
   race?: RaceInfo
+  /** Three-axis signal coherence — same object the Summary cards read
+   *  from. Lets the coach reconcile the load/body/damage cards by name
+   *  instead of generating a fourth independent verdict.
+   *  Typed loosely here because the canonical type lives in
+   *  utils/trainingSignals.ts and importing types across the utils
+   *  boundary would couple this file to the implementation. */
+  trainingSignals?: {
+    load: { state: string; label: string; severity: number }
+    body: { state: string; label: string; severity: number }
+    damage: { state: string; label: string; severity: number }
+    coherence: 'aligned' | 'mixed'
+    dominant: 'load' | 'body' | 'damage'
+    todayCall: 'rest' | 'easy' | 'monitor' | 'train'
+    reason: string
+  }
   /** Athlete's HR zone definitions from the plan — rendered dynamically
    *  in the Coach system prompt so each athlete gets their own zones. */
   zones?: HRZone[]
