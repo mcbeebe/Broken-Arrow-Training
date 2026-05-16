@@ -341,7 +341,10 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
         )}
 
         {step === STEP_DAYS && (
-          <StepContainer title="How many days per week do you want to train?" subtitle="This should be at most one more than you currently train to reduce injury risk">
+          <StepContainer
+            title="How many total days per week do you want to train?"
+            subtitle="Includes runs, strength, and cross-training. Should be at most one more than you currently train."
+          >
             {[3, 4, 5, 6, 7].map(n => (
               <OptionCard key={n} selected={daysPerWeek === n} onClick={() => setDaysPerWeek(n)} title={`${n} Days`}
                 desc={n === 3 ? 'Minimum effective dose. Great for busy schedules.' : n === 4 ? 'Balanced. Most popular choice.' : n === 5 ? 'Solid volume. Includes dedicated recovery.' : n === 6 ? 'High commitment. For experienced athletes.' : 'Daily training. Requires careful recovery management.'} />

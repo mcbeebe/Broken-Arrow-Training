@@ -23,6 +23,20 @@ export interface ExtraDaysOptions {
   weekNumber: number
 }
 
+/**
+ * Caps applied during supplemental-day injection. `maxExtras` is the upper
+ * bound on the total number of injected (strength + cross) sessions for
+ * the week — used by the generator to honor the user's
+ * `trainingDaysPerWeek` as a TOTAL-days cap (running + strength + cross),
+ * rather than the legacy behavior of treating it as running days only.
+ *
+ * When unset, behavior matches the historical "fill every rest day"
+ * pattern, preserved for the seed-plan / legacy callers.
+ */
+export interface ExtraDaysCaps {
+  maxExtras?: number
+}
+
 const CROSS_MODE_LABEL: Record<CrossTrainingMode, string> = {
   cycling: 'Cycling',
   swimming: 'Swimming',
@@ -148,6 +162,7 @@ export function injectExtraDays(
   method: TrainingMethod,
   phase: Phase | undefined,
   weekMileage: { isTaper: boolean; phaseId: string; weekNumber: number },
+  caps?: ExtraDaysCaps,
 ): PlannedDay[] {
   const wantCross = !!config.crossTrainingModes && config.crossTrainingModes.length > 0
   const wantStrength = (config.strengthDaysPerWeek ?? 0) > 0
@@ -164,8 +179,11 @@ export function injectExtraDays(
     .map((d, i) => (d.type === 'rest' ? i : -1))
     .filter(i => i >= 0)
   let cursor = 0
+  // Total cap on injected days. Allowed to be 0 (no injection).
+  const maxExtras = caps?.maxExtras ?? Number.POSITIVE_INFINITY
+  let injected = 0
 
-  if (wantCross) {
+  if (wantCross && injected < maxExtras) {
     const mode = pickCrossMode(config, method)
     if (mode && restIndices.length > cursor) {
       const idx = restIndices[cursor++]
@@ -179,6 +197,7 @@ export function injectExtraDays(
         time: c.time,
         route: '',
       }
+      injected += 1
     }
   }
 
@@ -193,7 +212,7 @@ export function injectExtraDays(
     const target = isTaperPhase || weekMileage.isTaper ? Math.min(1, capped) : capped
 
     let placed = 0
-    while (placed < target && cursor < restIndices.length) {
+    while (placed < target && cursor < restIndices.length && injected < maxExtras) {
       const idx = restIndices[cursor++]
       next[idx] = {
         ...next[idx],
@@ -205,6 +224,7 @@ export function injectExtraDays(
         route: '',
       }
       placed += 1
+      injected += 1
     }
   }
 
