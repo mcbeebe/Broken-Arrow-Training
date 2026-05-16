@@ -631,6 +631,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
       compliance,
       todaySoreness: soreness.todaySoreness,
       sorenessLog: [],
+      sorenessLoadByDate: soreness.sorenessLoadByDate,
       planStartDate: '2026-04-13',
       todayHealth,
       // Raw activity feeds so the coach can see workouts outside the
@@ -668,6 +669,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     readiness.dailyTrimp,
     compliance,
     soreness.todaySoreness,
+    soreness.sorenessLoadByDate,
     todayHealth,
     coachMemory.coachPersona,
     strava.activities,

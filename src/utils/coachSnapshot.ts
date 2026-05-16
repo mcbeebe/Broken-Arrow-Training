@@ -21,6 +21,7 @@ import type { SorenessLevel } from '../hooks/useSoreness'
 import { computeRaceProjection } from './raceProjection'
 import { localDateStr } from './format'
 import { buildProgression, suggestNextTarget } from './strengthProgression'
+import { buildTrainingSignals } from './trainingSignals'
 
 /**
  * Assemble the CoachSnapshot that's sent with every LLM call. The goal is
@@ -44,6 +45,9 @@ interface Inputs {
   compliance: OverallCompliance
   todaySoreness?: SorenessLevel | null
   sorenessLog?: { date: string; level: SorenessLevel }[]
+  /** Same map the Summary cards use to compute signal coherence.
+   *  Optional — when missing the damage axis falls back to 'fresh'. */
+  sorenessLoadByDate?: Map<string, number>
   planStartDate: string  // YYYY-MM-DD
   /** Raw Garmin health data for today (sleep hours, HRV ms, RHR bpm,
    *  body battery). The readiness engine already normalizes these into
@@ -515,11 +519,21 @@ export function buildCoachSnapshot(inputs: Inputs): CoachSnapshot {
     .sort((a, b) => b.sessions - a.sessions)
     .slice(0, 12)
 
+  // Three-axis signal coherence — derived from the same inputs the
+  // Summary banner reads from so the coach narrative and the on-screen
+  // cards always tell the same story.
+  const latestPerf = performance.length ? performance[performance.length - 1] : null
+  const trainingSignals = buildTrainingSignals({
+    performance: latestPerf,
+    readiness,
+    sorenessLoadByDate: inputs.sorenessLoadByDate,
+  })
+
   return {
     today: { date: todayISO(), period: currentDayPeriod() },
     currentWeekNum,
     readiness,
-    performance: performance.length ? performance[performance.length - 1] : null,
+    performance: latestPerf,
     todayHealth: projectHealth(todayHealth),
     plannedToday: plannedToday ?? null,
     plannedTomorrow: plannedTomorrow ?? null,
@@ -532,5 +546,6 @@ export function buildCoachSnapshot(inputs: Inputs): CoachSnapshot {
     zones: inputs.zones,
     analytics,
     strengthProgression: strengthProgression.length > 0 ? strengthProgression : undefined,
+    trainingSignals,
   }
 }
