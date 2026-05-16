@@ -364,78 +364,86 @@ function ReadinessGlossary() {
         onClick={() => setOpen(!open)}
         className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-slate-100 dark:bg-slate-700 transition-colors"
       >
-        <p className="text-sm font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wide">Understanding Your Readiness</p>
+        <p className="text-sm font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wide">What does this tab answer?</p>
         <span className="text-sm text-teal-600 ml-2 shrink-0">{open ? '▴ Hide' : '▾ Show'}</span>
       </button>
       {open && (
       <div className="px-4 pb-4 space-y-3 text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
         <div className="bg-blue-50 rounded-lg p-2.5 border border-blue-200">
-          <p className="font-semibold text-blue-800">Readiness vs Performance — Two Different Questions</p>
+          <p className="font-semibold text-blue-800">Why this is different from the Performance tab</p>
           <p className="text-blue-700 mt-1">
-            <strong>Readiness</strong> answers: <em>"How recovered is my body right now?"</em> — based on today's biometrics (HRV, RHR, sleep) plus training load ratio.
-            <strong> Performance</strong> answers: <em>"How does my accumulated fatigue compare to my fitness base?"</em> — based purely on training stress math (Banister model).
-            These systems are independent and can disagree. You can feel recovered (GREEN readiness) while carrying a large fatigue debt (negative Recovery Balance). Both are valid — check both.
+            <strong>Readiness</strong> answers <em>"How recovered is my body right now?"</em> — based on this morning's biometrics (sleep, HRV, resting heart rate).
+            <strong> Performance</strong> answers <em>"How does my fatigue debt compare to my fitness base?"</em> — based on weeks of training math.
+            They can disagree, and that's fine — read both before changing your plan.
           </p>
         </div>
+
         <div>
-          <p className="font-semibold text-slate-700 dark:text-slate-200">Readiness Score (0–100)</p>
-          <p>A composite biometric score from the ATE (Adaptive Training Engine). Internally scored on a -2.0 to +2.0 scale, then mapped to 0–100 for display. Combines four inputs from your Garmin watch, each weighted by its predictive importance for recovery.</p>
+          <p className="font-semibold text-slate-700 dark:text-slate-200">What's the 0–100 score?</p>
+          <p>A single number combining four signals from your watch: heart-rate variability, resting heart rate, sleep, and training load. Higher is better; under 50 means take it easy.</p>
         </div>
+
         <div>
-          <p className="font-semibold text-slate-700 dark:text-slate-200">HRV — Recovery Composite (40% weight)</p>
-          <p>A three-part recovery signal based on Firstbeat white paper WP-G1. Combines: (1) ln(RMSSD) z-score vs your rolling baseline (50%), (2) RHR deviation z-score (25%), and (3) Garmin HRV Status string — poor/low/balanced/good (25%). If your HRV coefficient of variation exceeds 10%, the score is capped to account for measurement noise.</p>
+          <p className="font-semibold text-slate-700 dark:text-slate-200">How recovered is my nervous system today? <span className="text-slate-400 text-xs font-normal">(heart-rate variability · 40% of the score)</span></p>
+          <p>The most responsive recovery signal — when HRV drops vs. your personal baseline, your body is still processing yesterday's stress. A noisy week (sick, traveling) can flatten the score; we cap it then so noise doesn't overweight.</p>
         </div>
+
         <div>
-          <p className="font-semibold text-slate-700 dark:text-slate-200">RHR — Resting Heart Rate (20% weight)</p>
-          <p>Deviation from your personal baseline. Scored in buckets: 5+ bpm below baseline = Excellent (+2), 2-5 below = Good (+1), within +5 = Normal (0), above +5 = Low (-1). An elevated RHR can signal fatigue, stress, dehydration, or illness.</p>
+          <p className="font-semibold text-slate-700 dark:text-slate-200">Is my engine idling higher than normal? <span className="text-slate-400 text-xs font-normal">(resting heart rate · 20%)</span></p>
+          <p>An elevated resting HR is a slow-moving fatigue signal. Could be training stress, dehydration, alcohol, illness, or stress. Trends matter more than single mornings.</p>
         </div>
+
         <div>
-          <p className="font-semibold text-slate-700 dark:text-slate-200">Sleep (20% weight)</p>
-          <p>Hours-based scoring aligned with sleep science consensus. Scored in buckets: 8.5+ hrs = Excellent (+2), 7+ hrs = Good (+1), 6+ hrs = Normal (0), under 6 hrs = Low (-1). Sleep under 6 hours also triggers an acute guardrail that forces Readiness to YELLOW regardless of other metrics.</p>
+          <p className="font-semibold text-slate-700 dark:text-slate-200">Did I sleep enough? <span className="text-slate-400 text-xs font-normal">(sleep duration · 20%)</span></p>
+          <p>8.5h+ counts as excellent, 7h+ good, 6h+ normal, under 6h drops you to "low." A night under 6h also forces YELLOW regardless of the other signals — no amount of fitness offsets sleep debt.</p>
         </div>
+
         <div>
-          <p className="font-semibold text-slate-700 dark:text-slate-200">Training Load — ACWR (20% weight)</p>
-          <p>Based on your Acute:Chronic Workload Ratio (Gabbett 2016). Uses a 7-day / 28-day span-based EWMA of your daily training load. Scored by zone: undertraining (&lt;0.8) = Good (+1), sweet spot (0.8–1.3) = Normal (0), caution (1.3–1.5) = Below (-0.5), danger (&gt;1.5) = Low (-1). This is fundamentally different from the Performance tab's Recovery Balance/TSB — ACWR measures your recent ramp rate, while TSB measures your net fatigue balance.</p>
+          <p className="font-semibold text-slate-700 dark:text-slate-200">Am I ramping safely? <span className="text-slate-400 text-xs font-normal">(load ratio · 20%)</span></p>
+          <p>Last 7 days of training stress vs. last 28 days. 0.8–1.3 is the sweet spot; above 1.5 elevates injury risk and forces YELLOW. Different from the Performance tab's Load Ratio — same idea, slightly different math window.</p>
         </div>
+
         <div className="pt-2 border-t border-slate-200 dark:border-slate-700">
-          <p className="font-semibold text-slate-700 dark:text-slate-200">Traffic Light Signals</p>
+          <p className="font-semibold text-slate-700 dark:text-slate-200">What does each color mean?</p>
           <p>
             <span className="inline-block w-2.5 h-2.5 rounded-full bg-indigo-500 mr-1 align-middle" />
-            <strong>PEAK:</strong> Top-tier recovery. Ideal for VO2max intervals, race-pace work, or time trials. Max 1 per 7 days (guardrail).
+            <strong>PEAK:</strong> top-tier recovery. Hit your hardest session of the week. Max 1 per week.
           </p>
           <p>
             <span className="inline-block w-2.5 h-2.5 rounded-full bg-green-500 mr-1 align-middle" />
-            <strong>GREEN:</strong> Execute your planned workout as written.
+            <strong>GREEN:</strong> execute the planned workout as written.
           </p>
           <p>
             <span className="inline-block w-2.5 h-2.5 rounded-full bg-amber-400 mr-1 align-middle" />
-            <strong>YELLOW:</strong> Reduce intensity or volume. Stay in Zone 1-2. Specific adjustments are shown.
+            <strong>YELLOW:</strong> dial back intensity. Stay easy. The adjustment chip tells you exactly what to change.
           </p>
           <p>
             <span className="inline-block w-2.5 h-2.5 rounded-full bg-red-500 mr-1 align-middle" />
-            <strong>RED:</strong> Swap for an easy walk or full rest day. Your body needs recovery.
+            <strong>RED:</strong> swap to an easy walk or take the day off. Body needs rest.
           </p>
         </div>
+
         <div className="pt-2 border-t border-slate-200 dark:border-slate-700">
-          <p className="font-semibold text-slate-700 dark:text-slate-200">Training States (Firstbeat WP-G2)</p>
-          <p>Alongside the traffic light, the engine classifies your overall training state:</p>
+          <p className="font-semibold text-slate-700 dark:text-slate-200">What are training states?</p>
+          <p>A higher-level read across multiple days — useful when a single day's color doesn't tell the whole story.</p>
           <ul className="mt-1 ml-3 space-y-0.5 list-disc">
-            <li><strong>State A — Well Recovered:</strong> Composite above baseline. Train as planned.</li>
-            <li><strong>State B — Not Fully Recovered:</strong> Maintain volume, reduce intensity 10-15%.</li>
-            <li><strong>State C — Overreaching:</strong> 48-72h easy block. Walk, yoga, or mobility only.</li>
-            <li><strong>State D — Overtrained:</strong> 5+ consecutive RED days or declining 7-day HRV. Triggers deload protocol and medical flag.</li>
+            <li><strong>Well recovered (A):</strong> train as planned.</li>
+            <li><strong>Not fully recovered (B):</strong> keep the volume, drop the intensity 10–15%.</li>
+            <li><strong>Overreaching (C):</strong> two to three easy days. Walking, yoga, mobility.</li>
+            <li><strong>Overtrained (D):</strong> five consecutive RED days or a falling 7-day HRV trend. Triggers a built-in deload.</li>
           </ul>
         </div>
+
         <div className="pt-2 border-t border-slate-200 dark:border-slate-700">
-          <p className="font-semibold text-slate-700 dark:text-slate-200">Guardrails</p>
-          <p>Automatic safety checks applied after scoring. Shown as italic notes when triggered:</p>
+          <p className="font-semibold text-slate-700 dark:text-slate-200">What are guardrails?</p>
+          <p>Automatic overrides — applied <em>after</em> scoring so a single dangerous signal can't be averaged away by good news elsewhere. Shown as italic notes on the day when triggered.</p>
           <ul className="mt-1 ml-3 space-y-0.5 list-disc">
-            <li><strong>ACWR cap:</strong> ACWR &gt;1.5 forces YELLOW; &gt;1.3 caps at GREEN</li>
-            <li><strong>Body Battery gate:</strong> Garmin Body Battery &lt;25 forces YELLOW</li>
-            <li><strong>Acute sleep:</strong> Sleep &lt;6h forces YELLOW</li>
-            <li><strong>RMSSD drop:</strong> HRV drops &gt;25% vs 7-day mean forces RED</li>
-            <li><strong>Consecutive limits:</strong> Max 2 consecutive GREEN/PEAK before forced YELLOW; max 2 consecutive RED before allowed YELLOW</li>
-            <li><strong>PEAK limit:</strong> Max 1 PEAK signal per 7 days</li>
+            <li>Load ratio above 1.5 forces YELLOW; above 1.3 caps at GREEN.</li>
+            <li>Body battery under 25 forces YELLOW.</li>
+            <li>Sleep under 6h forces YELLOW.</li>
+            <li>HRV drop &gt;25% vs 7-day baseline forces RED.</li>
+            <li>Max 2 GREEN/PEAK days in a row before a forced YELLOW; max 2 RED before YELLOW is allowed back.</li>
+            <li>Max 1 PEAK per 7 days.</li>
           </ul>
         </div>
       </div>
@@ -562,108 +570,62 @@ function PerformanceGlossary() {
         onClick={() => setOpen(!open)}
         className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-slate-100 dark:bg-slate-700 transition-colors"
       >
-        <p className="text-sm font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wide">Understanding Your Performance Metrics</p>
+        <p className="text-sm font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wide">What does this tab answer?</p>
         <span className="text-sm text-teal-600 ml-2 shrink-0">{open ? '▴ Hide' : '▾ Show'}</span>
       </button>
       {open && (
       <div className="px-4 pb-4 space-y-3 text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
         <div className="bg-blue-50 rounded-lg p-2.5 border border-blue-200">
-          <p className="font-semibold text-blue-800">Performance vs Readiness — Different Models, Same Load Data</p>
+          <p className="font-semibold text-blue-800">Why this is different from the Readiness tab</p>
           <p className="text-blue-700 mt-1">
-            The Performance tab uses the <strong>Banister impulse-response model</strong> (CTL/ATL/TSB) — a purely mathematical model of fitness vs fatigue accumulation over time. It does <em>not</em> look at your biometrics.
-            The Readiness tab uses the <strong>ATE engine</strong> — a biometric-first model using HRV, RHR, sleep, and ACWR.
-            Both consume the same daily training load (Garmin EPOC or Banister TRIMP), but they answer different questions.
-            It's normal for Recovery Balance to show "Danger Zone" while Readiness shows GREEN — that means your fatigue debt is high but your body is recovering well day-to-day. Respect both signals.
+            <strong>Performance</strong> is pure training math — fitness and fatigue accumulating over weeks. It doesn't look at your watch this morning.
+            <strong> Readiness</strong> is the opposite — today's biometrics, no math memory.
+            They can disagree, and that's fine. Recovery Balance can read "danger zone" while Readiness is GREEN — it just means your fatigue debt is high but your body is handling the day. Read both before changing your plan.
           </p>
         </div>
+
         <div>
-          <p className="font-semibold text-slate-700 dark:text-slate-200">Training Load Source</p>
-          <p><strong>Primary:</strong> Garmin's on-device EPOC (activityTrainingLoad) — calculated by Firstbeat from beat-by-beat R-R intervals on your watch. This is the most accurate per-activity load estimate available, capturing both aerobic and anaerobic cost.</p>
-          <p className="mt-1"><strong>Fallback:</strong> Banister TRIMP formula — used when Garmin EPOC is unavailable (e.g., Strava-only activities or activities without HR). Formula: duration × fHR × 0.64 × e^(1.92 × fHR), where fHR = (avgHR - restHR) / (maxHR - restHR).</p>
-          <p className="mt-1">Each activity uses one source — never both. The load is then adjusted by a sport-specific MIM (Musculoskeletal Impact Modifier) multiplier plus an elevation bonus.</p>
+          <p className="font-semibold text-slate-700 dark:text-slate-200">Am I getting fitter? <span className="text-slate-400 text-xs font-normal">(Fitness, a.k.a. CTL)</span></p>
+          <p>A rolling 42-day average of your training load. Slow to build, slow to lose — your fitness "bank account." If this is rising, you're getting fitter. If it's flat, you're maintaining. If it's dropping, you're losing fitness.</p>
         </div>
+
         <div>
-          <p className="font-semibold text-slate-700 dark:text-slate-200">Fitness (CTL) — Chronic Training Load</p>
-          <p>A 42-day exponentially weighted rolling average of your daily adjusted training load. It represents your accumulated fitness over roughly the past 6 weeks. CTL rises slowly with consistent training and decays slowly during rest. Think of it as your "fitness bank account" — it takes weeks to build and weeks to lose.</p>
+          <p className="font-semibold text-slate-700 dark:text-slate-200">Am I tired? <span className="text-slate-400 text-xs font-normal">(Fatigue, a.k.a. ATL)</span></p>
+          <p>A rolling 7-day average of your training load. Fast to build, fast to fade — a hard week spikes it, a rest day drops it. When Fatigue is well above Fitness, you're piling up stress faster than your base can absorb.</p>
         </div>
+
         <div>
-          <p className="font-semibold text-slate-700 dark:text-slate-200">Fatigue (ATL) — Acute Training Load</p>
-          <p>A 7-day exponentially weighted rolling average of your daily adjusted training load. It captures the fatigue from your most recent training. ATL responds quickly — a hard workout spikes it, and a rest day drops it. When ATL is much higher than CTL, you're accumulating fatigue faster than fitness.</p>
-        </div>
-        <div>
-          <p className="font-semibold text-slate-700 dark:text-slate-200">Recovery Balance (TSB) — Are You Fresh or Fatigued?</p>
-          <p>The difference between Fitness and Fatigue (CTL minus ATL). A positive TSB means you're fresher than your fitness level — ideal for racing. A deeply negative TSB means fatigue has outpaced your fitness base — normal in early build weeks when CTL hasn't had time to accumulate. For race day, the target is TSB between +15 and +25 ("peak form").</p>
+          <p className="font-semibold text-slate-700 dark:text-slate-200">Am I fresh or fatigued? <span className="text-slate-400 text-xs font-normal">(Recovery Balance, a.k.a. TSB)</span></p>
+          <p>Fitness minus Fatigue. Positive = fresher than your fitness level (ideal for racing). Deeply negative = fatigue has outrun your base. Common to see negative numbers early in a plan when fitness hasn't caught up yet — not a problem unless biometrics agree.</p>
           <ul className="mt-1 ml-3 space-y-0.5 list-disc">
-            <li><strong>+15 to +25:</strong> Peak form — race ready</li>
-            <li><strong>+5 to +14:</strong> Fresh — good for quality sessions</li>
-            <li><strong>-10 to +4:</strong> Productive training — building fitness</li>
-            <li><strong>-30 to -11:</strong> Tired — accumulating fatigue, normal in build weeks</li>
-            <li><strong>Below -30:</strong> Overreaching — fatigue greatly exceeds fitness base. Common early in a plan when CTL is still building. Check Readiness tab for biometric confirmation before changing your plan.</li>
+            <li><strong>+15 to +25:</strong> peak form — race ready.</li>
+            <li><strong>+5 to +14:</strong> fresh — good for quality sessions.</li>
+            <li><strong>−10 to +4:</strong> productive training — building fitness.</li>
+            <li><strong>−30 to −11:</strong> tired — normal in build weeks.</li>
+            <li><strong>Below −30:</strong> overreaching. Cross-check the Readiness tab before changing the plan.</li>
           </ul>
         </div>
+
         <div>
-          <p className="font-semibold text-slate-700 dark:text-slate-200">ACWR — Acute:Chronic Workload Ratio (Performance tab)</p>
-          <p>The ratio of your recent training load (ATL) to your long-term fitness (CTL). Uses tau-based EWMA (7d/42d). This is displayed on the Performance tab for trend visualization. Note: the Readiness tab uses a separate span-based ACWR (7d/28d) for its load scoring component — same concept, different math.</p>
+          <p className="font-semibold text-slate-700 dark:text-slate-200">Am I ramping safely? <span className="text-slate-400 text-xs font-normal">(Load Ratio, a.k.a. ACWR)</span></p>
+          <p>Last 7 days vs. last 42 days of training stress. Tells you whether this week is a normal load relative to your base or a spike.</p>
           <ul className="mt-1 ml-3 space-y-0.5 list-disc">
-            <li><strong>0.8–1.3:</strong> Sweet spot — safe and productive</li>
-            <li><strong>1.3–1.5:</strong> Caution — elevated injury risk</li>
-            <li><strong>Above 1.5:</strong> High risk — you've ramped up too fast</li>
-            <li><strong>Below 0.8:</strong> Detraining — you may be doing too little</li>
+            <li><strong>0.8–1.3:</strong> sweet spot.</li>
+            <li><strong>1.3–1.5:</strong> caution — injury risk climbing.</li>
+            <li><strong>Above 1.5:</strong> high risk — ramped too fast, back off.</li>
+            <li><strong>Below 0.8:</strong> detraining — load fell below your base.</li>
           </ul>
         </div>
-        <div>
-          <p className="font-semibold text-slate-700 dark:text-slate-200">MIM — Musculoskeletal Impact Modifiers</p>
-          <p>Different activities stress the body differently. Each sport type applies a validated multiplier (from the ATE engine) to the base training load:</p>
-          <div className="mt-1.5 overflow-hidden rounded-lg border border-slate-200 dark:border-slate-700">
-            <table className="w-full text-[10px]">
-              <thead>
-                <tr className="bg-slate-100 dark:bg-slate-700">
-                  <th className="text-left px-2 py-1 font-semibold text-slate-700 dark:text-slate-200">Sport</th>
-                  <th className="text-right px-2 py-1 font-semibold text-slate-700 dark:text-slate-200">MIM</th>
-                  <th className="text-left px-2 py-1 font-semibold text-slate-700 dark:text-slate-200">Why</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                <tr className="bg-white dark:bg-slate-800"><td className="px-2 py-1">Strength (Lower)</td><td className="text-right px-2 py-1 font-mono">2.00×</td><td className="px-2 py-1 text-slate-500 dark:text-slate-400">Heavy eccentric load — EPOC underestimates delayed muscle damage</td></tr>
-                <tr className="bg-slate-50 dark:bg-slate-900"><td className="px-2 py-1">HIIT / Cardio</td><td className="text-right px-2 py-1 font-mono">1.30×</td><td className="px-2 py-1 text-slate-500 dark:text-slate-400">Anaerobic + cardiovascular demand</td></tr>
-                <tr className="bg-white dark:bg-slate-800"><td className="px-2 py-1">Running (Steep)</td><td className="text-right px-2 py-1 font-mono">1.30×</td><td className="px-2 py-1 text-slate-500 dark:text-slate-400">Sustained climbing — auto-applied at ≥200 ft/mi (~3.8% avg grade)</td></tr>
-                <tr className="bg-slate-50 dark:bg-slate-900"><td className="px-2 py-1">Hiking (Steep)</td><td className="text-right px-2 py-1 font-mono">1.20×</td><td className="px-2 py-1 text-slate-500 dark:text-slate-400">&gt;500ft gain, eccentric descent loading</td></tr>
-                <tr className="bg-slate-50 dark:bg-slate-900"><td className="px-2 py-1">Strength (Full Body)</td><td className="text-right px-2 py-1 font-mono">1.20×</td><td className="px-2 py-1 text-slate-500 dark:text-slate-400">Mixed compound movements</td></tr>
-                <tr className="bg-white dark:bg-slate-800"><td className="px-2 py-1">Trail Running</td><td className="text-right px-2 py-1 font-mono">1.10×</td><td className="px-2 py-1 text-slate-500 dark:text-slate-400">Uneven terrain, elevation stress — auto-applied at ≥100 ft/mi (~1.9% avg grade)</td></tr>
-                <tr className="bg-slate-50 dark:bg-slate-900"><td className="px-2 py-1">Running</td><td className="text-right px-2 py-1 font-mono">1.00×</td><td className="px-2 py-1 text-slate-500 dark:text-slate-400">Baseline reference sport</td></tr>
-                <tr className="bg-white dark:bg-slate-800"><td className="px-2 py-1">Hiking (Flat)</td><td className="text-right px-2 py-1 font-mono">0.80×</td><td className="px-2 py-1 text-slate-500 dark:text-slate-400">Low impact, sustained aerobic</td></tr>
-                <tr className="bg-slate-50 dark:bg-slate-900"><td className="px-2 py-1">Mountain Biking</td><td className="text-right px-2 py-1 font-mono">0.80×</td><td className="px-2 py-1 text-slate-500 dark:text-slate-400">Non-weight-bearing but technical</td></tr>
-                <tr className="bg-white dark:bg-slate-800"><td className="px-2 py-1">Elliptical</td><td className="text-right px-2 py-1 font-mono">0.70×</td><td className="px-2 py-1 text-slate-500 dark:text-slate-400">Low impact cross-training</td></tr>
-                <tr className="bg-slate-50 dark:bg-slate-900"><td className="px-2 py-1">Cycling</td><td className="text-right px-2 py-1 font-mono">0.65×</td><td className="px-2 py-1 text-slate-500 dark:text-slate-400">Non-weight-bearing, less impact</td></tr>
-                <tr className="bg-white dark:bg-slate-800"><td className="px-2 py-1">E-Bike (default)</td><td className="text-right px-2 py-1 font-mono">0.30×</td><td className="px-2 py-1 text-slate-500 dark:text-slate-400">Pedal-assist covers most of the effort. Name ride "no/low assist" or "hard" to promote to regular Cycling 0.65× and capture grinding leg load that HR misses.</td></tr>
-                <tr className="bg-white dark:bg-slate-800"><td className="px-2 py-1">Walking</td><td className="text-right px-2 py-1 font-mono">0.40×</td><td className="px-2 py-1 text-slate-500 dark:text-slate-400">Recovery-level effort</td></tr>
-                <tr className="bg-slate-50 dark:bg-slate-900"><td className="px-2 py-1">Swimming</td><td className="text-right px-2 py-1 font-mono">0.35×</td><td className="px-2 py-1 text-slate-500 dark:text-slate-400">Non-weight-bearing, cooling effect</td></tr>
-                <tr className="bg-white dark:bg-slate-800"><td className="px-2 py-1">Yoga / Pilates</td><td className="text-right px-2 py-1 font-mono">0.30×</td><td className="px-2 py-1 text-slate-500 dark:text-slate-400">Flexibility/mobility, minimal stress</td></tr>
-                <tr className="bg-slate-50 dark:bg-slate-900"><td className="px-2 py-1">Strength (Upper)</td><td className="text-right px-2 py-1 font-mono">0.20×</td><td className="px-2 py-1 text-slate-500 dark:text-slate-400">Low running-muscle impact, low cardio</td></tr>
-                <tr className="bg-white dark:bg-slate-800"><td className="px-2 py-1">Running Drills</td><td className="text-right px-2 py-1 font-mono">0.50×</td><td className="px-2 py-1 text-slate-500 dark:text-slate-400">Plyometric impact + HR elevated during A-skips, bounding, strides</td></tr>
-                <tr className="bg-slate-50 dark:bg-slate-900"><td className="px-2 py-1">Myrtl</td><td className="text-right px-2 py-1 font-mono">0.10×</td><td className="px-2 py-1 text-slate-500 dark:text-slate-400">Hip activation — small but real muscular work on glutes/rotators</td></tr>
-                <tr className="bg-white dark:bg-slate-800"><td className="px-2 py-1">Breathwork</td><td className="text-right px-2 py-1 font-mono">0.00×</td><td className="px-2 py-1 text-slate-500 dark:text-slate-400">Pure breath work — tracked for compliance, no mechanical load</td></tr>
-              </tbody>
-            </table>
-          </div>
-          <p className="mt-1.5 text-slate-500 dark:text-slate-400 italic">Strength is auto-classified by activity name keywords (upper/lower/push/pull/legs) with HR inference fallback (&gt;60% HRR → lower body). Hiking is classified as steep when elevation gain exceeds 500 ft. Runs are auto-promoted to Trail Running (≥100 ft/mi) or Steep Running (≥200 ft/mi) based on the recorded elevation profile, even if Garmin/Strava tagged them as a flat road run. These values auto-calibrate from your soreness recovery patterns — see Settings → Training Load Multipliers.</p>
-        </div>
-        <div>
-          <p className="font-semibold text-slate-700 dark:text-slate-200">Elevation Bonus</p>
-          <p>Workouts with significant climbing get an additional <strong>+10 per 500 ft</strong> of elevation gain. This accounts for eccentric loading on descents, altitude stress, and the extra cardiovascular demand of vertical work — critical for Broken Arrow Skyrace prep.</p>
-        </div>
-        <div>
-          <p className="font-semibold text-slate-700 dark:text-slate-200">7-Day Training Load</p>
-          <p>Your total adjusted training load for the past 7 days, broken down by sport type. Uses Garmin EPOC (primary) or Banister TRIMP (fallback), adjusted by MIM multiplier + elevation bonus. The stacked bar chart shows the distribution — a balanced mix across running, strength, and cross-training is generally better than all-or-nothing training.</p>
-        </div>
-        <div>
-          <p className="font-semibold text-slate-700 dark:text-slate-200">Garmin Aerobic / Anaerobic Training Effect</p>
-          <p>Displayed alongside your training load as supplementary context. Aerobic TE (0–5.0) indicates cardiovascular stimulus; Anaerobic TE (0–5.0) indicates high-intensity/muscular stimulus. These are Garmin's proprietary metrics — useful for understanding session character but <em>not</em> used in the training load model to avoid double-counting.</p>
-        </div>
+
         <div className="pt-2 border-t border-slate-200 dark:border-slate-700">
-          <p className="font-semibold text-slate-700 dark:text-slate-200">The Impulse-Response Model (Banister et al., 1975)</p>
-          <p>CTL, ATL, and TSB come from the impulse-response framework used in sport science since the 1970s. The core idea: every workout produces both a <em>fitness</em> gain (slow to build, slow to fade — 42-day time constant) and a <em>fatigue</em> cost (fast to build, fast to fade — 7-day time constant). Your recovery balance at any moment is the difference between the two.</p>
-          <p className="mt-1">Early in a training plan, it's common to see deeply negative Recovery Balance (TSB &lt; -30) because fatigue accumulates quickly (7-day ATL ramps fast) while fitness builds slowly (42-day CTL needs weeks). This does <strong>not</strong> mean you're overtrained — check the Readiness tab for biometric confirmation. If Readiness is GREEN, your body is handling the load. Proper tapering before a race lets fatigue drop faster than fitness, producing peak performance.</p>
+          <p className="font-semibold text-slate-700 dark:text-slate-200">Where do the load numbers come from?</p>
+          <p>From your watch first (Garmin's on-device EPOC, the most accurate per-session estimate). If a session has no Garmin file — Strava-only, or no HR — we fall back to a published heart-rate-based formula (Banister TRIMP). Each session uses one source, never both. After that, every session is multiplied by a sport-specific weighting (climbing runs count for more than easy bike rides) plus a small bonus for vertical gain.</p>
+          <p className="mt-1.5 text-xs text-slate-500 dark:text-slate-400">The per-sport multipliers live in <strong>Settings → Training Load Multipliers (MIM)</strong> — you can see all 19 sports there and override any value.</p>
+        </div>
+
+        <div className="pt-2 border-t border-slate-200 dark:border-slate-700">
+          <p className="font-semibold text-slate-700 dark:text-slate-200">Why a "load ramp" model at all?</p>
+          <p>The math here (impulse-response, Banister et al. 1975) has been the workhorse of sport science for fifty years. The core idea: every workout produces both a slow-to-build fitness gain (~6-week time constant) and a fast-to-fade fatigue cost (~1-week time constant). Tapering before a race lets the fatigue drop while the fitness sticks — that's where peak performance comes from.</p>
         </div>
       </div>
       )}
