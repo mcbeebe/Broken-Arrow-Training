@@ -16,6 +16,8 @@ import RaceReadyHeroCard from './RaceReadyHeroCard'
 import RaceReadinessDetailModal from './RaceReadinessDetailModal'
 import { buildRaceReadinessDetail, computeRaceReadiness } from '../utils/raceReadiness'
 import { weeksUntilRace } from '../utils/raceCountdown'
+import { buildTrainingSignals, type TrainingSignals } from '../utils/trainingSignals'
+import SignalCoherenceBanner from './SignalCoherenceBanner'
 
 interface SummaryProps {
   athleteId: string
@@ -167,6 +169,7 @@ function Sparkline({ data, color }: { data: number[]; color: string }) {
 function buildWeekNarrative(
   performance: PerformanceMetrics[],
   dailyTrimp: DailyTRIMP[],
+  signals: TrainingSignals,
 ): string[] {
   const lines: string[] = []
   if (performance.length < 2) return lines
@@ -179,6 +182,19 @@ function buildWeekNarrative(
   const latest = performance[performance.length - 1]
 
   if (!weekAgo || !latest) return lines
+
+  // Today's biometric / damage signals can contradict a "fresher" load
+  // delta. When that happens we still report the direction (it's real
+  // load math) but append a one-clause qualifier so the user doesn't
+  // read "improving +14" as permission to push through a sleep-deficit
+  // morning.
+  const bodyRestrictive = signals.body.severity >= 2
+  const damageRestrictive = signals.damage.severity >= 2
+  const positiveQualifier = bodyRestrictive
+    ? ` Body still says rest — bank the gain tomorrow.`
+    : damageRestrictive
+      ? ` Soreness still flagged — don't bank it on a heavy session yet.`
+      : ''
 
   // CTL trend
   const ctlDelta = latest.ctl - weekAgo.ctl
@@ -206,7 +222,10 @@ function buildWeekNarrative(
   if (latest.atl > latest.ctl * 1.3) {
     lines.push(`⚡ Recent training intensity exceeds your base — fatigue is building faster than fitness. Normal in build weeks.`)
   } else if (latest.atl < latest.ctl * 0.7) {
-    lines.push(`🔋 Recovery mode — recent load is well below your fitness base. Good time for a quality session.`)
+    const baseLine = `🔋 Recovery mode — recent load is well below your fitness base. Good time for a quality session.`
+    lines.push(bodyRestrictive || damageRestrictive
+      ? `${baseLine}${positiveQualifier}`
+      : baseLine)
   }
 
   // Rest day count
@@ -220,11 +239,15 @@ function buildWeekNarrative(
   // Recovery Balance direction
   const tsbDelta = latest.tsb - weekAgo.tsb
   if (Math.abs(tsbDelta) >= 3) {
-    lines.push(
-      tsbDelta > 0
-        ? `🌱 Recovery Balance improving (+${Math.abs(tsbDelta).toFixed(0)}) — you're getting fresher.`
-        : `⬇️ Recovery Balance dropped (${tsbDelta.toFixed(0)}) — fatigue accumulating from training load.`
-    )
+    if (tsbDelta > 0) {
+      lines.push(
+        `🌱 Recovery Balance improving (+${Math.abs(tsbDelta).toFixed(0)}) — you're getting fresher.${positiveQualifier}`
+      )
+    } else {
+      lines.push(
+        `⬇️ Recovery Balance dropped (${tsbDelta.toFixed(0)}) — fatigue accumulating from training load.`
+      )
+    }
   }
 
   return lines
@@ -270,9 +293,22 @@ export default function Summary({
   const [showTodayModal, setShowTodayModal] = useState(false)
   const [showRaceReadinessModal, setShowRaceReadinessModal] = useState(false)
 
+  // Three-axis signal coherence — one object the cards (banner,
+  // Performance Snapshot label, What Changed qualifier) all read from
+  // so verdicts come from one place instead of each card inventing its
+  // own.
+  const trainingSignals = useMemo(
+    () => buildTrainingSignals({
+      performance: latestPerf,
+      readiness: todayScore,
+      sorenessLoadByDate,
+    }),
+    [latestPerf, todayScore, sorenessLoadByDate],
+  )
+
   const weekNarrative = useMemo(
-    () => buildWeekNarrative(performance, dailyTrimp),
-    [performance, dailyTrimp],
+    () => buildWeekNarrative(performance, dailyTrimp, trainingSignals),
+    [performance, dailyTrimp, trainingSignals],
   )
 
   // Race-ready hero is pinned to the top of Summary in the last ~8 weeks
@@ -314,6 +350,7 @@ export default function Summary({
 
   return (
     <div className="px-3 py-4 space-y-3">
+      <SignalCoherenceBanner signals={trainingSignals} />
       {todayWeatherChip && (
         <div
           className={`rounded-xl px-3 py-2 flex items-center gap-2.5 border ${
@@ -480,11 +517,19 @@ export default function Summary({
               <div className="flex-1 min-w-0">
                 <p className="text-base font-semibold text-slate-700 dark:text-slate-200">Performance Snapshot</p>
                 {!perfOpen && (
-                  <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-                    {fitnessLabel} fitness · {fatigueLabel} fatigue · {latestPerf.tsb >= 5 ? 'Fresh' : latestPerf.tsb >= -10 ? 'Balanced' : latestPerf.tsb >= -25 ? 'Tired' : 'Deep fatigue'}
-                  </p>
+                  <>
+                    <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+                      {fitnessLabel} fitness · {fatigueLabel} fatigue · {latestPerf.tsb >= 5 ? 'Fresh' : latestPerf.tsb >= -10 ? 'Balanced' : latestPerf.tsb >= -25 ? 'Tired' : 'Deep fatigue'}
+                      {trainingSignals.damage.severity >= 2 && (
+                        <span className="text-amber-600 dark:text-amber-400 font-medium"> · soreness flagged</span>
+                      )}
+                    </p>
+                    <p className="text-[10px] italic text-slate-400 mt-0.5">
+                      Chronic load view · 42d / 7d window
+                    </p>
+                  </>
                 )}
-                {perfOpen && <p className="text-xs text-slate-400 mt-0.5">Garmin EPOC · 42d / 7d EWMA</p>}
+                {perfOpen && <p className="text-xs text-slate-400 mt-0.5">Garmin EPOC · 42d / 7d EWMA · doesn't include today's biometrics</p>}
               </div>
               <span className="text-sm text-teal-600 ml-2 shrink-0">{perfOpen ? '▴ Hide' : '▾ Details'}</span>
             </button>
@@ -607,7 +652,10 @@ export default function Summary({
             onClick={() => setNarrativeOpen(!narrativeOpen)}
             className="w-full flex items-center justify-between p-4 text-left hover:bg-slate-50 dark:hover:bg-slate-700 dark:bg-slate-900 transition-colors"
           >
-            <p className="text-base font-semibold text-slate-700 dark:text-slate-200">What Changed This Week</p>
+            <div className="flex-1 min-w-0">
+              <p className="text-base font-semibold text-slate-700 dark:text-slate-200">What Changed This Week</p>
+              <p className="text-[10px] italic text-slate-400 mt-0.5">Week-over-week direction</p>
+            </div>
             <span className="text-sm text-teal-600 ml-2 shrink-0">{narrativeOpen ? '▴ Hide' : '▾ Show'}</span>
           </button>
           {narrativeOpen && (
@@ -667,7 +715,10 @@ function SummaryRiskFlags({ flags }: { flags: RiskFlag[] }) {
   const title = alerts.length > 0 ? 'Injury Risk Alert' : 'Heads up'
   return (
     <div className={`rounded-xl p-3 border ${bgClass}`}>
-      <p className="text-sm font-bold text-slate-800 dark:text-white mb-2">{icon} {title}</p>
+      <div className="mb-2">
+        <p className="text-sm font-bold text-slate-800 dark:text-white">{icon} {title}</p>
+        <p className="text-[10px] italic text-slate-500 dark:text-slate-400">Local muscular damage</p>
+      </div>
       <div className="space-y-2">
         {[...alerts, ...warnings].map(f => (
           <div key={f.id} className="bg-white/60 dark:bg-slate-900/40 rounded-lg p-2">
