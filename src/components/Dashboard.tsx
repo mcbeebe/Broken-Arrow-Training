@@ -355,11 +355,12 @@ function ReadinessTab({
         </div>
       )}
 
-      {/* Calibration notice */}
+      {/* Calibration notice — turns the bare "x/7 days" count into
+          a concrete CTA: keep wearing the watch, here's what changes. */}
       {todayScore && weekScores.length < 7 && weekScores.length > 0 && (
         <div className="bg-blue-50 rounded-xl p-3 border border-blue-200">
           <p className="text-sm text-blue-700">
-            <strong>Calibrating:</strong> {weekScores.length}/7 days of data. Scores will become more personalized as your baseline builds. Full calibration at 7+ days.
+            <strong>{7 - weekScores.length} more {7 - weekScores.length === 1 ? 'morning' : 'mornings'}</strong> until your scores are personalized — keep wearing the watch overnight. Today's number uses a generic baseline; once we have 7 days of <em>your</em> HRV and sleep, the score sharpens.
           </p>
         </div>
       )}

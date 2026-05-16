@@ -118,6 +118,31 @@ export default function CalendarHeatmap({ dailyTrimp, readinessScores = [], onDa
         <button onClick={next} className="w-7 h-7 flex items-center justify-center rounded-md text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700">›</button>
       </div>
 
+      {/* Reading key — placed above the grid so users know what they're
+          looking at before they decode the dots. Was previously a
+          jumbled footer that didn't surface the ring colors. */}
+      <div className="mb-2 pb-2 border-b border-slate-100 dark:border-slate-700">
+        <p className="text-[10px] text-slate-500 dark:text-slate-400">
+          <span className="font-semibold text-slate-600 dark:text-slate-300">Dot size</span> = training load ·{' '}
+          <span className="font-semibold text-slate-600 dark:text-slate-300">dot color</span> = sport ·{' '}
+          <span className="font-semibold text-slate-600 dark:text-slate-300">ring</span> = readiness
+        </p>
+        <div className="flex flex-wrap gap-x-2.5 gap-y-1 mt-1">
+          <span className="flex items-center gap-1 text-[10px] text-slate-500 dark:text-slate-400">
+            <span className="w-2.5 h-2.5 rounded-full" style={{ boxShadow: 'inset 0 0 0 1.5px #6366f1', backgroundColor: 'transparent' }} /> PEAK
+          </span>
+          <span className="flex items-center gap-1 text-[10px] text-slate-500 dark:text-slate-400">
+            <span className="w-2.5 h-2.5 rounded-full" style={{ boxShadow: 'inset 0 0 0 1.5px #22c55e', backgroundColor: 'transparent' }} /> GREEN
+          </span>
+          <span className="flex items-center gap-1 text-[10px] text-slate-500 dark:text-slate-400">
+            <span className="w-2.5 h-2.5 rounded-full" style={{ boxShadow: 'inset 0 0 0 1.5px #f59e0b', backgroundColor: 'transparent' }} /> YELLOW
+          </span>
+          <span className="flex items-center gap-1 text-[10px] text-slate-500 dark:text-slate-400">
+            <span className="w-2.5 h-2.5 rounded-full" style={{ boxShadow: 'inset 0 0 0 1.5px #ef4444', backgroundColor: 'transparent' }} /> RED
+          </span>
+        </div>
+      </div>
+
       <div className="grid grid-cols-7 gap-1 mb-1">
         {WEEKDAY_LABELS.map((d, i) => (
           <div key={i} className="text-center text-[10px] font-semibold text-slate-400 dark:text-slate-500">{d}</div>
@@ -169,7 +194,8 @@ export default function CalendarHeatmap({ dailyTrimp, readinessScores = [], onDa
         })}
       </div>
 
-      {/* Legend */}
+      {/* Sport-color reference (kept compact at the bottom — the
+          primary reading key is the header above) */}
       <div className="flex flex-wrap gap-x-3 gap-y-1 mt-3 pt-2 border-t border-slate-100 dark:border-slate-700">
         <span className="flex items-center gap-1 text-[10px] text-slate-500 dark:text-slate-400">
           <span className="w-2 h-2 rounded-full bg-emerald-600" /> Run
@@ -182,9 +208,6 @@ export default function CalendarHeatmap({ dailyTrimp, readinessScores = [], onDa
         </span>
         <span className="flex items-center gap-1 text-[10px] text-slate-500 dark:text-slate-400">
           <span className="w-2 h-2 rounded-full bg-amber-600" /> Hike
-        </span>
-        <span className="flex items-center gap-1 text-[10px] text-slate-500 dark:text-slate-400">
-          Size = load · Ring = readiness
         </span>
       </div>
     </div>
