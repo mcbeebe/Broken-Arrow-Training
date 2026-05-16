@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest'
-import { buildRaceReadinessDetail, computeRaceReadiness } from '../utils/raceReadiness'
+import {
+  buildRaceReadinessDetail,
+  computeRaceReadiness,
+  parseRaceElevationFt,
+  shouldTrackVerticalGain,
+  VERT_TRACKING_FT_PER_MI,
+} from '../utils/raceReadiness'
 import { daysUntilRace, weeksUntilRace } from '../utils/raceCountdown'
 import type { PerformanceMetrics, RaceInfo, TrainingWeek } from '../types'
 
@@ -48,6 +54,54 @@ describe('daysUntilRace / weeksUntilRace', () => {
   it('returns null for malformed dates', () => {
     expect(daysUntilRace('')).toBeNull()
     expect(daysUntilRace('not a date')).toBeNull()
+  })
+})
+
+describe('shouldTrackVerticalGain', () => {
+  it('is true when race elevation exceeds 100 ft/mi (Broken Arrow 18K ≈ 268 ft/mi)', () => {
+    expect(shouldTrackVerticalGain(race('2026-07-15', 11.2, '3,000 ft'))).toBe(true)
+  })
+
+  it('is true for a very steep race', () => {
+    expect(shouldTrackVerticalGain(race('2026-07-15', 18.6, '8,000 ft'))).toBe(true)
+  })
+
+  it('is false for a flat road race (~50 ft/mi)', () => {
+    expect(shouldTrackVerticalGain(race('2026-07-15', 13.1, '650 ft'))).toBe(false)
+  })
+
+  it('is false right at the 100 ft/mi boundary (strict >)', () => {
+    expect(shouldTrackVerticalGain(race('2026-07-15', 10, '1,000 ft'))).toBe(false)
+  })
+
+  it('is false when elevation is missing or distance is zero', () => {
+    expect(shouldTrackVerticalGain(race('2026-07-15', 0, '3,000 ft'))).toBe(false)
+    expect(shouldTrackVerticalGain(race('2026-07-15', 18.6, ''))).toBe(false)
+  })
+
+  it('is false for null/undefined race', () => {
+    expect(shouldTrackVerticalGain(null)).toBe(false)
+    expect(shouldTrackVerticalGain(undefined)).toBe(false)
+  })
+
+  it('uses the documented 100 ft/mi threshold constant', () => {
+    expect(VERT_TRACKING_FT_PER_MI).toBe(100)
+  })
+})
+
+describe('parseRaceElevationFt', () => {
+  it('parses "3,000 ft" to 3000', () => {
+    expect(parseRaceElevationFt(race('2026-07-15', 11.2, '3,000 ft'))).toBe(3000)
+  })
+
+  it('returns 0 when elevation is empty or unparseable', () => {
+    expect(parseRaceElevationFt(race('2026-07-15', 11.2, ''))).toBe(0)
+    expect(parseRaceElevationFt(race('2026-07-15', 11.2, 'TBD'))).toBe(0)
+  })
+
+  it('returns 0 for null/undefined race', () => {
+    expect(parseRaceElevationFt(null)).toBe(0)
+    expect(parseRaceElevationFt(undefined)).toBe(0)
   })
 })
 

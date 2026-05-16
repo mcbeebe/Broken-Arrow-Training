@@ -11,6 +11,7 @@ import ManualLog from './ManualLog'
 import WorkoutEditor, { type WorkoutEdits } from './WorkoutEditor'
 import RaceNarrative from './RaceNarrative'
 import RaceElevationProfile from './RaceElevationProfile'
+import { shouldTrackVerticalGain } from '../utils/raceReadiness'
 
 interface WeeklyPlanProps {
   weeks: TrainingWeek[]
@@ -298,7 +299,13 @@ export default function WeeklyPlan({
       </div>
 
       {/* Volume chart */}
-      <VolumeChart weeks={weeks} activeWeek={activeWeek} onWeekClick={setActiveWeek} compliance={compliance} />
+      <VolumeChart
+        weeks={weeks}
+        activeWeek={activeWeek}
+        onWeekClick={setActiveWeek}
+        compliance={compliance}
+        showVertical={shouldTrackVerticalGain(race)}
+      />
       </>
       )}
 

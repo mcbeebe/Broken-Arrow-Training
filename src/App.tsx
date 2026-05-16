@@ -910,6 +910,7 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
           weeks={weeks}
           compliance={compliance}
           raceDate={activePlan.race.date}
+          race={activePlan.race}
           planZones={hrZones.zones}
           athleteMaxHR={maxHROverride.maxHR}
           todayScore={readiness.todayScore}

@@ -73,6 +73,63 @@ describe('gradeWorkoutDay — distance grading', () => {
   })
 })
 
+describe('gradeWorkoutDay — elevation grading', () => {
+  // Plans encode planned vert in the free-text detail string. parsePlannedTargets
+  // extracts it as targets.elevationFt; gradeWorkoutDay should grade actual
+  // climb against it on the same hit/close/miss/over scale as distance.
+  const mkVertDay = (plannedFt: string, actualFt: number): PlannedDay =>
+    mkDay({
+      detail: `Hilly: ~${plannedFt} ft gain`,
+      actual: mkActual({ elevationGain: actualFt }),
+    })
+
+  it('grades exact match as hit', () => {
+    const day = mkVertDay('1000', 1000)
+    const result = gradeWorkoutDay(day, parsePlannedTargets(day))
+    expect(result.elevationGrade).toBe('hit')
+    expect(result.elevationPct).toBeCloseTo(1.0)
+    expect(result.elevationActual).toBe(1000)
+  })
+
+  it('grades +5% as hit (1000 → 1050)', () => {
+    const day = mkVertDay('1000', 1050)
+    const result = gradeWorkoutDay(day, parsePlannedTargets(day))
+    expect(result.elevationGrade).toBe('hit')
+  })
+
+  it('grades +15% as close', () => {
+    const day = mkVertDay('1000', 1150)
+    const result = gradeWorkoutDay(day, parsePlannedTargets(day))
+    expect(result.elevationGrade).toBe('close')
+  })
+
+  it('grades -40% as miss and flags', () => {
+    const day = mkVertDay('1000', 600)
+    const result = gradeWorkoutDay(day, parsePlannedTargets(day))
+    expect(result.elevationGrade).toBe('miss')
+    expect(result.flagged).toBe(true)
+    expect(result.flagReasons.some(r => /vert/i.test(r))).toBe(true)
+  })
+
+  it('returns na when the plan detail has no vert target', () => {
+    const day = mkDay({ detail: 'Conversational pace', actual: mkActual({ elevationGain: 250 }) })
+    const result = gradeWorkoutDay(day, parsePlannedTargets(day))
+    expect(result.elevationGrade).toBe('na')
+    expect(result.elevationPct).toBeUndefined()
+    // Actual still surfaced (so "bonus vert" can render in the week row)
+    expect(result.elevationActual).toBe(250)
+  })
+
+  it('does not flag bonus vert above target as over (overshooting climb is fine)', () => {
+    // gradeRatio gives 'over' for >+20%; we expose that grade but the flag is
+    // only for short-falls (see gradeWorkoutDay).
+    const day = mkVertDay('1000', 1500)
+    const result = gradeWorkoutDay(day, parsePlannedTargets(day))
+    expect(result.elevationGrade).toBe('over')
+    expect(result.flagReasons.some(r => /vert/i.test(r))).toBe(false)
+  })
+})
+
 describe('gradeWorkoutDay — HR grading', () => {
   it('marks HR hit when time-in-zone ≥ 75% (zone summary path)', () => {
     // 30 min of Z2 (in zone 108-148), 10 min Z3 (out) = 75% in zone

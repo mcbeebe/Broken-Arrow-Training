@@ -1,9 +1,10 @@
 import { useState, useMemo } from 'react'
-import type { TrainingWeek, ReadinessScore, GarminHealthData, DailyTRIMP, PerformanceMetrics, WeeklyRecommendation, HRZone } from '../types'
+import type { TrainingWeek, ReadinessScore, GarminHealthData, DailyTRIMP, PerformanceMetrics, WeeklyRecommendation, HRZone, RaceInfo } from '../types'
 import type { OverallCompliance } from '../hooks/useCompliance'
 import type { RiskFlag } from '../utils/readiness'
 import { parsePlanZones } from '../utils/zones'
 import { getMilesNumber } from '../utils/format'
+import { shouldTrackVerticalGain, parseRaceElevationFt } from '../utils/raceReadiness'
 import { filterByTimeWindow, type TimeWindow } from '../utils/performance'
 import ReadinessBanner from './ReadinessBanner'
 import TRIMPBreakdown from './TRIMPBreakdown'
@@ -18,6 +19,7 @@ interface DashboardProps {
   weeks: TrainingWeek[]
   compliance: OverallCompliance
   raceDate: string
+  race?: RaceInfo
   // Garmin/Readiness data (optional — renders only when available)
   todayScore?: ReadinessScore | null
   weekScores?: ReadinessScore[]
@@ -37,6 +39,7 @@ export default function Dashboard({
   weeks,
   compliance,
   raceDate,
+  race,
   todayScore,
   weekScores = [],
   todayHealth,
@@ -52,6 +55,7 @@ export default function Dashboard({
 }: DashboardProps) {
   const [subTab, setSubTab] = useState<DashSubTab>('compliance')
   const parsedPlanZones = parsePlanZones(planZones, athleteMaxHR)
+  const showVertical = shouldTrackVerticalGain(race)
 
 
   const SUB_TABS: { id: DashSubTab; label: string; available: boolean }[] = [
@@ -83,7 +87,13 @@ export default function Dashboard({
 
       {/* Sub-tab content */}
       {subTab === 'compliance' && (
-        <ComplianceTab weeks={weeks} compliance={compliance} planZones={parsedPlanZones} />
+        <ComplianceTab
+          weeks={weeks}
+          compliance={compliance}
+          planZones={parsedPlanZones}
+          showVertical={showVertical}
+          race={race}
+        />
       )}
       {subTab === 'readiness' && (
         <ReadinessTab
@@ -113,9 +123,26 @@ export default function Dashboard({
 
 // ─── Compliance Sub-Tab ────────────────────────────────────────
 
-function ComplianceTab({ weeks, compliance, planZones }: { weeks: TrainingWeek[]; compliance: OverallCompliance; planZones: ReturnType<typeof parsePlanZones> }) {
+function ComplianceTab({
+  weeks,
+  compliance,
+  planZones,
+  showVertical,
+  race,
+}: {
+  weeks: TrainingWeek[]
+  compliance: OverallCompliance
+  planZones: ReturnType<typeof parsePlanZones>
+  showVertical: boolean
+  race?: RaceInfo
+}) {
   // Only show past/current weeks in the weekly breakdown (up to current week #).
   // Future weeks have nothing to grade yet.
+  const vertPct = showVertical && compliance.totalPlannedElevation > 0
+    ? Math.round((compliance.totalActualElevation / compliance.totalPlannedElevation) * 100)
+    : null
+  const raceElevationFt = parseRaceElevationFt(race)
+  const racePerMi = race && race.distanceMiles > 0 ? Math.round(raceElevationFt / race.distanceMiles) : 0
   return (
     <div className="space-y-4">
       {/* Summary cards — now includes Distance & Duration compliance */}
@@ -148,6 +175,22 @@ function ComplianceTab({ weeks, compliance, planZones }: { weeks: TrainingWeek[]
           sub="of planned time"
           color="amber"
         />
+        {showVertical && (
+          <StatCard
+            label="Vertical"
+            value={
+              vertPct !== null
+                ? `${vertPct}%`
+                : `${formatFt(compliance.totalActualElevation)} ft`
+            }
+            sub={
+              compliance.totalPlannedElevation > 0
+                ? `${formatFt(compliance.totalActualElevation)} / ${formatFt(compliance.totalPlannedElevation)} ft climbed`
+                : `${formatFt(compliance.totalActualElevation)} ft climbed${racePerMi ? ` · race ${racePerMi} ft/mi` : ''}`
+            }
+            color="indigo"
+          />
+        )}
       </div>
 
       {/* Legend */}
@@ -183,6 +226,7 @@ function ComplianceTab({ weeks, compliance, planZones }: { weeks: TrainingWeek[]
               weekLabel={weeks[i]?.dates}
               weekFocus={weeks[i]?.focus}
               planZones={planZones}
+              showVertical={showVertical}
             />
           ))}
         </div>
@@ -629,12 +673,21 @@ function PerformanceGlossary() {
 
 // ─── Shared StatCard ────────────────────────────────────────────
 
+function formatFt(ft: number): string {
+  if (ft >= 1000) {
+    const k = ft / 1000
+    return `${k % 1 === 0 ? k : k.toFixed(1)}k`
+  }
+  return `${Math.round(ft)}`
+}
+
 function StatCard({ label, value, sub, color }: { label: string; value: string; sub: string; color: string }) {
   const colorMap: Record<string, string> = {
     teal: 'bg-teal-50 border-teal-200 text-teal-800',
     blue: 'bg-blue-50 border-blue-200 text-blue-800',
     amber: 'bg-amber-50 border-amber-200 text-amber-800',
     rose: 'bg-rose-50 border-rose-200 text-rose-800',
+    indigo: 'bg-indigo-50 border-indigo-200 text-indigo-800',
   }
   const classes = colorMap[color] || colorMap.teal
 

@@ -13,14 +13,18 @@ interface TargetVsActualProps {
 export default function TargetVsActual({ compliance }: TargetVsActualProps) {
   const { targets, distanceActual, distancePct, distanceGrade,
     durationActual, durationPct, durationGrade,
+    elevationActual, elevationPct, elevationGrade,
     hrAvg, hrInZonePct, hrGrade,
     drillGrade, drillsPlanned, drillsCompleted,
     flagReasons } = compliance
+
+  const hasElevationTarget = targets.elevationFt !== undefined && targets.elevationFt > 0
 
   // No structured targets to compare against — nothing to show
   const hasAnyTarget = targets.distanceMi !== undefined
     || targets.durationMin !== undefined
     || targets.hrLow !== undefined
+    || hasElevationTarget
     || drillsPlanned
   if (!hasAnyTarget) return null
 
@@ -28,6 +32,7 @@ export default function TargetVsActual({ compliance }: TargetVsActualProps) {
   const metricCount = [
     targets.distanceMi !== undefined,
     targets.durationMinLow !== undefined || targets.durationMin !== undefined,
+    hasElevationTarget,
     targets.hrLow !== undefined && targets.hrHigh !== undefined,
     drillsPlanned,
   ].filter(Boolean).length
@@ -61,6 +66,16 @@ export default function TargetVsActual({ compliance }: TargetVsActualProps) {
             actual={durationActual !== undefined ? formatSeconds(durationActual * 60) : '—'}
             pct={durationPct}
             grade={durationGrade}
+          />
+        )}
+        {/* Elevation */}
+        {hasElevationTarget && (
+          <MetricRow
+            label="Vert"
+            target={`${targets.elevationFt} ft`}
+            actual={elevationActual !== undefined ? `${elevationActual} ft` : '—'}
+            pct={elevationPct}
+            grade={elevationGrade}
           />
         )}
         {/* HR */}

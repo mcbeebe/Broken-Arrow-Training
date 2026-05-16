@@ -144,6 +144,13 @@ export interface DayCompliance {
   durationActual?: number
   durationPct?: number
   durationGrade: ComplianceGrade
+  // Elevation (feet of vertical gain). Graded only when the planned
+  // `detail` string carries a numeric target ("~760 ft gain") AND the
+  // race is climby enough to make weekly vert tracking meaningful
+  // (see utils/raceReadiness.shouldTrackVerticalGain).
+  elevationActual?: number
+  elevationPct?: number
+  elevationGrade: ComplianceGrade
   // HR: time-in-zone % (from hrZoneSummary when available, avgHR fallback)
   hrInZonePct?: number     // 0-100
   hrAvg?: number

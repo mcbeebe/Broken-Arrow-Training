@@ -62,6 +62,7 @@ function emptyCompliance(): OverallCompliance {
     completionRate: 0,
     totalPlannedMiles: 0,
     totalActualMiles: 0,
+    totalPlannedElevation: 0,
     totalActualElevation: 0,
     overallHRCompliance: 0,
     overallDistanceCompliance: 60,
