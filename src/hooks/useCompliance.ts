@@ -32,6 +32,7 @@ export interface OverallCompliance {
   completionRate: number
   totalPlannedMiles: number
   totalActualMiles: number
+  totalPlannedElevation: number
   totalActualElevation: number
   overallHRCompliance: number
   overallDistanceCompliance: number
@@ -149,6 +150,7 @@ function computeCompliance(weeks: TrainingWeek[]): OverallCompliance {
   const totalWorkouts = weekStats.reduce((s, w) => s + w.totalWorkouts, 0)
   const totalPlannedMiles = weekStats.reduce((s, w) => s + w.plannedMiles, 0)
   const totalActualMiles = weekStats.reduce((s, w) => s + w.actualMiles, 0)
+  const totalPlannedElevation = weekStats.reduce((s, w) => s + w.plannedElevation, 0)
   const totalActualElevation = weekStats.reduce((s, w) => s + w.actualElevation, 0)
   const totalFlagged = weekStats.reduce((s, w) => s + w.flaggedCount, 0)
 
@@ -181,6 +183,7 @@ function computeCompliance(weeks: TrainingWeek[]): OverallCompliance {
       : 0,
     totalPlannedMiles,
     totalActualMiles: Math.round(totalActualMiles * 10) / 10,
+    totalPlannedElevation,
     totalActualElevation,
     overallHRCompliance,
     overallDistanceCompliance,
@@ -205,6 +208,20 @@ export function gradeWorkoutDay(day: PlannedDay, targets: ReturnType<typeof pars
     distanceGrade = gradeRatio(pct)
     if (distanceGrade === 'miss' && pct < 1 - CLOSE_BAND) {
       flagReasons.push(`Distance ${actual.distance.toFixed(1)} mi vs ${targets.distanceMi} planned`)
+    }
+  }
+
+  // Elevation gain (feet). Use the SHORTFALL_BAND below the target to flag —
+  // overshooting climb on a planned hill day is fine (often desirable), so
+  // 'over' isn't flagged. Only graded when the plan detail carried a number.
+  let elevationPct: number | undefined
+  let elevationGrade: ComplianceGrade = 'na'
+  if (targets.elevationFt !== undefined && targets.elevationFt > 0) {
+    const pct = actual.elevationGain / targets.elevationFt
+    elevationPct = pct
+    elevationGrade = gradeRatio(pct)
+    if (elevationGrade === 'miss' && pct < 1 - CLOSE_BAND) {
+      flagReasons.push(`Vert ${Math.round(actual.elevationGain)} ft vs ${targets.elevationFt} planned`)
     }
   }
 
@@ -328,6 +345,9 @@ export function gradeWorkoutDay(day: PlannedDay, targets: ReturnType<typeof pars
     durationActual: actual.movingTime > 0 ? Math.round(actual.movingTime / 60) : undefined,
     durationPct,
     durationGrade,
+    elevationActual: actual.elevationGain > 0 ? Math.round(actual.elevationGain) : undefined,
+    elevationPct,
+    elevationGrade,
     hrInZonePct,
     hrAvg,
     hrGrade,
@@ -486,6 +506,7 @@ function buildRestDayCompliance(day: PlannedDay, targets: ReturnType<typeof pars
     targets,
     distanceGrade: 'na',
     durationGrade: 'na',
+    elevationGrade: 'na',
     hrGrade: 'na',
     drillGrade: 'na',
     drillsPlanned: false,
@@ -505,6 +526,7 @@ function buildSkippedDayCompliance(day: PlannedDay, targets: ReturnType<typeof p
     targets,
     distanceGrade: 'skipped',
     durationGrade: 'skipped',
+    elevationGrade: targets.elevationFt !== undefined && targets.elevationFt > 0 ? 'skipped' : 'na',
     hrGrade: 'skipped',
     drillGrade: drillsPlanned ? 'skipped' : 'na',
     drillsPlanned,
@@ -523,6 +545,7 @@ function buildUpcomingDayCompliance(day: PlannedDay, targets: ReturnType<typeof 
     targets,
     distanceGrade: 'na',
     durationGrade: 'na',
+    elevationGrade: 'na',
     hrGrade: 'na',
     drillGrade: 'na',
     drillsPlanned: (targets.drillItems?.length ?? 0) > 0,

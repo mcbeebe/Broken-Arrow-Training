@@ -7,6 +7,9 @@ interface ComplianceWeekRowProps {
   weekLabel?: string  // e.g. "Apr 13–19"
   weekFocus?: string  // week focus blurb
   planZones?: PlanZone[]  // athlete's own zone bands — bar renders in these
+  /** Surface the per-day "Elev" row + weekly vert footer. Caller decides
+   *  based on race profile — see utils/raceReadiness.shouldTrackVerticalGain. */
+  showVertical?: boolean
 }
 
 const ZONE_COLORS = ['#94A3B8', '#3B82F6', '#22C55E', '#F59E0B', '#EF4444'] // Z1..Z5
@@ -16,9 +19,16 @@ const ZONE_COLORS = ['#94A3B8', '#3B82F6', '#22C55E', '#F59E0B', '#EF4444'] // Z
  *   • Distance / Duration → fill-vs-target bar (dashed 100% target line)
  *   • HR → stacked zone-distribution bar with target-band outline
  */
-export default function ComplianceWeekRow({ week, weekLabel, weekFocus, planZones }: ComplianceWeekRowProps) {
+export default function ComplianceWeekRow({ week, weekLabel, weekFocus, planZones, showVertical }: ComplianceWeekRowProps) {
   const days = (week.days || []).slice(0, 7)
   const anyDrillsPlanned = days.some(d => d.drillsPlanned)
+  // Only render the Elev row when there's something to show — either the
+  // plan prescribed climb on any day this week, or the athlete actually
+  // logged climb (so a "bonus vert" day still surfaces).
+  const anyElevation = showVertical && days.some(d =>
+    (d.targets.elevationFt !== undefined && d.targets.elevationFt > 0)
+    || (d.elevationActual !== undefined && d.elevationActual > 0),
+  )
 
   return (
     <div className="bg-white dark:bg-slate-800 rounded-xl p-3 shadow-sm border border-slate-100 dark:border-slate-700">
@@ -77,6 +87,21 @@ export default function ComplianceWeekRow({ week, weekLabel, weekFocus, planZone
             : <RatioBar pct={d.durationPct} grade={d.durationGrade} />
         )} />
 
+        {/* Elev row — only for vert-heavy races, only when some day this week
+            either planned vert or logged it. */}
+        {anyElevation && (
+          <MetricRow label="Elev" days={days} render={d => (
+            isRestPlan(d.workoutType)
+              ? <RestCell workoutType={d.workoutType} isPast={isPastDate(d.date)} />
+              : <ElevationCell
+                  plannedFt={d.targets.elevationFt}
+                  actualFt={d.elevationActual}
+                  pct={d.elevationPct}
+                  grade={d.elevationGrade}
+                />
+          )} />
+        )}
+
         {/* HR row — stacked zone bar w/ target band */}
         <MetricRow label="HR" days={days} render={d => (
           isRestPlan(d.workoutType)
@@ -106,7 +131,20 @@ export default function ComplianceWeekRow({ week, weekLabel, weekFocus, planZone
 
       {/* Footer */}
       <div className="mt-2 pt-2 border-t border-slate-100 dark:border-slate-700 flex justify-between text-[10px] text-slate-500 dark:text-slate-400">
-        <span>{week.actualMiles} / {week.plannedMiles} mi</span>
+        <span className="flex flex-wrap items-center gap-x-2">
+          <span>{week.actualMiles} / {week.plannedMiles} mi</span>
+          {showVertical && (week.plannedElevation > 0 || week.actualElevation > 0) && (
+            <span
+              title={week.plannedElevation > 0
+                ? `Weekly vert: ${formatFt(week.actualElevation)} climbed / ${formatFt(week.plannedElevation)} planned`
+                : `Weekly vert: ${formatFt(week.actualElevation)} climbed (no per-day target)`
+              }
+            >
+              ↑ {formatFt(week.actualElevation)}
+              {week.plannedElevation > 0 ? ` / ${formatFt(week.plannedElevation)} ft` : ' ft'}
+            </span>
+          )}
+        </span>
         {week.hrCompliance > 0 && (
           <span>HR in zone: <strong className="text-slate-700 dark:text-slate-200">{week.hrCompliance}%</strong></span>
         )}
@@ -248,6 +286,58 @@ function ZoneBar({
       title={hrAvg ? `avg HR ${hrAvg}` : undefined}
     />
   )
+}
+
+/**
+ * Per-day elevation cell.
+ *   • If the day had a planned vert target → ratio bar (same scale as Dist/Dur).
+ *   • If only actual vert (bonus climb on a flat day) → muted indigo fill
+ *     proportional to how much was climbed, so the day still reads as "vert
+ *     happened" without faking a target.
+ *   • Otherwise → empty grey track.
+ */
+function ElevationCell({
+  plannedFt,
+  actualFt,
+  pct,
+  grade,
+}: {
+  plannedFt?: number
+  actualFt?: number
+  pct?: number
+  grade: ComplianceGrade
+}) {
+  if (plannedFt !== undefined && plannedFt > 0) {
+    const title = `${formatFt(actualFt ?? 0)} of ${formatFt(plannedFt)} ft planned`
+    return (
+      <div title={title} className="h-full">
+        <RatioBar pct={pct} grade={grade} />
+      </div>
+    )
+  }
+  if (actualFt !== undefined && actualFt > 0) {
+    // Bonus vert with no plan target — show a fixed-width indigo tick so the
+    // day reads as "climbed" without pretending the plan asked for it.
+    return (
+      <div
+        className="h-full rounded-sm bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center"
+        title={`+${formatFt(actualFt)} ft bonus vert (no plan target)`}
+      >
+        <span className="text-[8px] font-semibold text-indigo-700 dark:text-indigo-300 leading-none">
+          +{formatFt(actualFt)}
+        </span>
+      </div>
+    )
+  }
+  return <div className="h-full rounded-sm bg-slate-100 dark:bg-slate-700" title="No vert" />
+}
+
+function formatFt(ft: number): string {
+  if (ft >= 1000) {
+    const k = ft / 1000
+    return `${k % 1 === 0 ? k : k.toFixed(1)}k`
+  }
+  return `${Math.round(ft)}`
 }
 
 /**

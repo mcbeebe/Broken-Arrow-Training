@@ -49,6 +49,31 @@ function isVertHeavy(distanceMiles: number, elevationFt: number): boolean {
   return ftPerMi >= 150 // ≈ 30 m/km, the trail-running threshold
 }
 
+/** Per-mile elevation threshold above which we surface weekly vertical-gain
+ *  tracking (compliance row, volume chart, dashboard summary). Set lower
+ *  than the vert-heavy "this is your limiter" gap (150 ft/mi) so any race
+ *  with meaningful climb gets the metric in front of the athlete. */
+export const VERT_TRACKING_FT_PER_MI = 100
+
+/** True when a race profile is climby enough that the athlete should be
+ *  tracking weekly vertical gain alongside weekly mileage. Parses the
+ *  free-form `elevation` string ("3,000 ft") the same way the readiness
+ *  engine does. */
+export function shouldTrackVerticalGain(race: RaceInfo | null | undefined): boolean {
+  if (!race) return false
+  const distanceMiles = race.distanceMiles || 0
+  if (distanceMiles <= 0) return false
+  const elevationFt = parseRaceElevationFt(race)
+  if (elevationFt <= 0) return false
+  return elevationFt / distanceMiles > VERT_TRACKING_FT_PER_MI
+}
+
+/** Parse the race's elevation string ("3,000 ft", "8000 ft") to a number. */
+export function parseRaceElevationFt(race: RaceInfo | null | undefined): number {
+  if (!race) return 0
+  return parseInt((race.elevation || '0').replace(/[^0-9]/g, ''), 10) || 0
+}
+
 interface Inputs {
   race: RaceInfo
   performance: PerformanceMetrics[]
