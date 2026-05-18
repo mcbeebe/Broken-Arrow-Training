@@ -1,14 +1,16 @@
 import { useMemo } from 'react'
 import {
-  ComposedChart, Bar, XAxis, YAxis, ReferenceArea, ResponsiveContainer, Tooltip,
+  ComposedChart, Bar, XAxis, YAxis, ReferenceArea, ResponsiveContainer, Tooltip, Legend,
 } from 'recharts'
 import type { RaceInfo } from '../types'
 import type { CachedEccentric } from '../utils/runEccentric'
 import {
-  buildDescentTrend,
+  buildVerticalTrend,
   classifyAgainstBand,
-  describeDescentState,
-  descentTargetForCourse,
+  describeVerticalState,
+  verticalTargetsForCourse,
+  type BandState,
+  type VerticalBand,
 } from '../utils/descentTrend'
 import { resolveCourseForRace } from '../utils/resolveCourse'
 import { weeksUntilRace } from '../utils/raceCountdown'
@@ -23,7 +25,8 @@ interface Props {
   lookbackWeeks?: number
 }
 
-const METERS_PER_FOOT = 0.3048
+const ASCENT_FILL = '#2563EB'
+const DESCENT_FILL = '#EA580C'
 
 function deltaFor(currentMeters: number, previousMeters: number | null): MetricDelta | undefined {
   if (previousMeters === null) return undefined
@@ -33,94 +36,102 @@ function deltaFor(currentMeters: number, previousMeters: number | null): MetricD
   const diff = currentMeters - previousMeters
   if (Math.abs(diff) < 5) return { value: 'no change', direction: 'flat' }
   const abs = Math.round(Math.abs(diff))
-  return {
-    value: `${abs} m`,
-    direction: diff > 0 ? 'up' : 'down',
-  }
+  return { value: `${abs} m`, direction: diff > 0 ? 'up' : 'down' }
+}
+
+function metricTone(state: BandState | null): 'default' | 'positive' | 'warning' {
+  if (state === 'in-band') return 'positive'
+  if (state === 'below') return 'warning'
+  return 'default'
+}
+
+function bandSubtitle(side: 'ascent' | 'descent', band: VerticalBand | null): string {
+  if (!band) return 'No race target'
+  const word = side === 'ascent' ? 'climbs' : 'descends'
+  return `Race ${word} ${band.raceVerticalMeters} m · band ${band.minMetersPerWeek}–${band.maxMetersPerWeek} m/wk`
 }
 
 /**
- * "Descent Capacity" — the top-line metric we promoted out of WorkoutModal
- * (where it lived as a per-workout side card) onto the Dashboard.
+ * "Vertical workload" — the top-line training metric on Stats. Trail
+ * running's #1 race-day killer is quad failure on descents; the #2 is
+ * legs-cooked from underprepared climbing. We surface both as parallel
+ * metrics with race-ready bands derived from the user's course.
  *
- * Trail running's #1 race-day killer is quad failure on descents. Strava
- * shows you elevation gain (the easy part). Garmin doesn't model eccentric
- * load. TrainingPeaks shows the number but doesn't surface it. We have
- * the engine (PR #83) and now we surface it in customer language with a
- * race-ready target band derived from the user's course.
+ * Component filename remains `DescentCapacitySection` to minimise import
+ * churn; the rendered heading is "Vertical workload".
  */
 export default function DescentCapacitySection({
   eccentricByActivity, race, lookbackWeeks = 12,
 }: Props) {
   const trend = useMemo(
-    () => buildDescentTrend(eccentricByActivity, { lookbackWeeks }),
+    () => buildVerticalTrend(eccentricByActivity, { lookbackWeeks }),
     [eccentricByActivity, lookbackWeeks],
   )
 
   const resolution = race ? resolveCourseForRace(race) : null
-  const target = resolution ? descentTargetForCourse(resolution.course) : null
+  const targets = resolution
+    ? verticalTargetsForCourse(resolution.course)
+    : { ascent: null, descent: null }
   const weeksOut = race?.date ? weeksUntilRace(race.date) : null
 
-  // If the engine has never produced any descent data for this athlete,
-  // show nothing — promoting an empty chart would be noise.
-  if (trend.totalHardDescentMeters === 0 && (!trend.current || trend.current.runCount === 0)) {
-    return null
-  }
+  // Nothing to show if the engine has produced no vertical data at all.
+  const noData = trend.totalHardAscentMeters === 0
+    && trend.totalHardDescentMeters === 0
+    && (!trend.current || trend.current.runCount === 0)
+  if (noData) return null
 
-  const currentMeters = trend.current?.hardDescentMeters ?? 0
-  const previousMeters = trend.previous?.hardDescentMeters ?? null
-  const delta = deltaFor(currentMeters, previousMeters)
+  const currentAscent = trend.current?.hardAscentMeters ?? 0
+  const currentDescent = trend.current?.hardDescentMeters ?? 0
+  const prevAscent = trend.previous?.hardAscentMeters ?? null
+  const prevDescent = trend.previous?.hardDescentMeters ?? null
 
-  const bandState = target ? classifyAgainstBand(currentMeters, target) : null
-  const headlineTone: 'default' | 'positive' | 'warning' = bandState === 'in-band'
-    ? 'positive'
-    : bandState === 'below'
-      ? 'warning'
-      : 'default'
+  const ascentState = targets.ascent ? classifyAgainstBand(currentAscent, targets.ascent) : null
+  const descentState = targets.descent ? classifyAgainstBand(currentDescent, targets.descent) : null
 
-  const insightText = describeDescentState(trend, target, weeksOut)
-  const insightTone: 'positive' | 'warning' | 'intelligence' =
-    bandState === 'in-band' ? 'positive' : bandState === 'below' ? 'warning' : 'intelligence'
+  const insightText = describeVerticalState(trend, targets, weeksOut)
+  // Insight tone follows the more urgent of the two sides: below > above > in-band.
+  const states = [ascentState, descentState].filter(Boolean) as BandState[]
+  const insightTone: 'positive' | 'warning' | 'intelligence' = states.includes('below')
+    ? 'warning'
+    : states.every(s => s === 'in-band') && states.length > 0
+      ? 'positive'
+      : 'intelligence'
 
-  const subtitle = target
-    ? `Race-ready band: ${target.minMetersPerWeek}–${target.maxMetersPerWeek} m/week (race descends ${target.raceDescentMeters} m)`
-    : race
-      ? 'No race-ready band — this race has minimal descent.'
-      : 'Pick a target race to see the race-ready band.'
+  const subtitle = resolution
+    ? 'Stacked weekly vertical: climbing (blue) + descending (orange)'
+    : 'Pick a race on the Summary tab to see your race-ready bands.'
 
-  const raceFt = resolution ? Math.round(resolution.course.verticalLossFt) : 0
-  const raceMeters = Math.round(raceFt * METERS_PER_FOOT)
+  const chartData = trend.weeks.map(w => ({
+    weekStart: w.weekStart.slice(5),
+    hardAscentMeters: Math.round(w.hardAscentMeters),
+    hardDescentMeters: Math.round(w.hardDescentMeters),
+  }))
 
   return (
     <section className="space-y-2">
       <div className="grid grid-cols-2 gap-2">
         <MetricCard
-          label="Hard descent · week"
-          value={Math.round(currentMeters).toLocaleString()}
+          label="Hard climb · week"
+          value={Math.round(currentAscent).toLocaleString()}
           valueSuffix="m"
-          delta={delta}
-          subtitle={trend.current
-            ? `${trend.current.runCount} ${trend.current.runCount === 1 ? 'run' : 'runs'}`
-            : undefined}
-          tone={headlineTone}
+          delta={deltaFor(currentAscent, prevAscent)}
+          subtitle={bandSubtitle('ascent', targets.ascent)}
+          tone={metricTone(ascentState)}
           size="sm"
         />
         <MetricCard
-          label="Race demand"
-          value={raceMeters > 0 ? raceMeters.toLocaleString() : '—'}
-          valueSuffix={raceMeters > 0 ? 'm' : undefined}
-          subtitle={resolution
-            ? `${raceFt.toLocaleString()} ft of descent`
-            : 'Pick a race to see the target'}
-          context={weeksOut !== null && weeksOut >= 0
-            ? `${weeksOut} ${weeksOut === 1 ? 'wk' : 'wks'} to go`
-            : undefined}
+          label="Hard descent · week"
+          value={Math.round(currentDescent).toLocaleString()}
+          valueSuffix="m"
+          delta={deltaFor(currentDescent, prevDescent)}
+          subtitle={bandSubtitle('descent', targets.descent)}
+          tone={metricTone(descentState)}
           size="sm"
         />
       </div>
 
       <ChartWithInsight
-        title="Weekly hard-descent volume"
+        title="Weekly vertical workload"
         subtitle={subtitle}
         insight={insightText}
         insightTone={insightTone}
@@ -128,16 +139,13 @@ export default function DescentCapacitySection({
         <div className="h-32">
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart
-              data={trend.weeks.map(w => ({
-                weekStart: w.weekStart.slice(5),
-                hardDescentMeters: Math.round(w.hardDescentMeters),
-              }))}
+              data={chartData}
               margin={{ top: 4, right: 4, left: -8, bottom: 0 }}
             >
-              {target && (
+              {targets.descent && (
                 <ReferenceArea
-                  y1={target.minMetersPerWeek}
-                  y2={target.maxMetersPerWeek}
+                  y1={targets.descent.minMetersPerWeek}
+                  y2={targets.descent.maxMetersPerWeek}
                   {...rangeBandStyle('suggested')}
                 />
               )}
@@ -152,7 +160,6 @@ export default function DescentCapacitySection({
                 axisLine={false}
                 tickLine={false}
                 width={36}
-                tickFormatter={(v: number) => `${v}`}
               />
               <Tooltip
                 contentStyle={{
@@ -161,12 +168,31 @@ export default function DescentCapacitySection({
                   border: '1px solid #e2e8f0',
                   padding: '6px 10px',
                 }}
-                formatter={(value) => [`${value} m`, 'Hard descent']}
+                formatter={(value, name) => {
+                  const label = name === 'hardAscentMeters' ? 'Hard climb' : 'Hard descent'
+                  return [`${value} m`, label] as [string, string]
+                }}
                 labelFormatter={(label) => `Week of ${label}`}
+              />
+              <Legend
+                iconType="square"
+                iconSize={8}
+                wrapperStyle={{ fontSize: 10, paddingTop: 4 }}
+                formatter={(value) =>
+                  value === 'hardAscentMeters' ? 'Climb' : 'Descent'
+                }
+              />
+              <Bar
+                dataKey="hardAscentMeters"
+                stackId="vertical"
+                fill={ASCENT_FILL}
+                radius={[0, 0, 0, 0]}
+                isAnimationActive={false}
               />
               <Bar
                 dataKey="hardDescentMeters"
-                fill="#EA580C"
+                stackId="vertical"
+                fill={DESCENT_FILL}
                 radius={[3, 3, 0, 0]}
                 isAnimationActive={false}
               />

@@ -13,6 +13,8 @@ function ecc(overrides: Partial<CachedEccentric> = {}): CachedEccentric {
       moderate: overrides.buckets?.moderate ?? 0,
       severe: overrides.buckets?.severe ?? 0,
     },
+    hardAscentVerticalMeters: overrides.hardAscentVerticalMeters ?? 0,
+    hardDescentVerticalMeters: overrides.hardDescentVerticalMeters ?? 0,
   }
 }
 

@@ -50,6 +50,8 @@ export function cacheEccentric(
         moderate: Math.round(result.buckets.moderate),
         severe: Math.round(result.buckets.severe),
       },
+      hardAscentVerticalMeters: Math.round(result.hardAscentVerticalMeters),
+      hardDescentVerticalMeters: Math.round(result.hardDescentVerticalMeters),
     }
     localStorage.setItem(scopedKey(athleteId), JSON.stringify(cache))
   } catch {

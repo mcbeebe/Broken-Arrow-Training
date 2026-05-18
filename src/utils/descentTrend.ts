@@ -2,53 +2,76 @@ import type { CachedEccentric } from './runEccentric'
 import type { Course } from '../types/course'
 
 /**
- * Weekly descent-volume aggregation for the "Descent Capacity" top-line
- * metric on Progress. The eccentric engine (`src/engines/descent/eccentric.ts`)
- * already computes per-activity bucket meters; this module rolls them up
+ * Weekly vertical-workload aggregation for the "Vertical workload"
+ * top-line metric on Stats. The eccentric engine
+ * (`src/engines/descent/eccentric.ts`) already computes per-activity
+ * hard ascent + hard descent vertical meters; this module rolls them up
  * by ISO week so the surface can render a trend.
  *
  * Cache keys are "YYYY-MM-DD|activityName" — we recover the activity date
  * by splitting on the pipe.
+ *
+ * NOTE: prior versions of this file conflated `buckets.severe + .moderate`
+ * (horizontal meters of path through hard terrain) with vertical descent
+ * meters, then compared the result against a target derived from
+ * `verticalLossFt × m/ft`. Those are different physical quantities. The
+ * current pipeline reads `hardAscent/DescentVerticalMeters` from the
+ * engine — true vertical work, directly comparable to a course's
+ * vertical gain / loss. Older cached runs that pre-date the new fields
+ * surface as zero until they're re-bucketed.
  */
 
-export interface WeekDescentTotals {
+export interface WeekVerticalTotals {
   /** ISO week-start date (Sunday-anchored, YYYY-MM-DD). */
   weekStart: string
-  /** Sum of severe-bucket meters across all runs that week. The "real"
-   *  eccentric load — sustained steep descents that drive DOMS. */
-  severeMeters: number
-  /** Sum of moderate + severe meters — the headline number runners read.
-   *  Includes meaningful descent, excludes barely-sloped flats. */
+  /** Vertical meters of climbing on grades ≥ +10% across all runs that week.
+   *  Directly comparable to a course's vertical gain. */
+  hardAscentMeters: number
+  /** Vertical meters of descending on grades ≤ -10% across all runs that week.
+   *  Directly comparable to a course's vertical loss. */
   hardDescentMeters: number
-  /** Sum of all bucket meters (mild + moderate + severe). */
-  totalDescentMeters: number
   /** Sum of totalKmScore (km·eccentric-score) for the week. */
   eccentricLoad: number
   /** Number of runs that contributed to the week. */
   runCount: number
 }
 
-export interface DescentTrend {
+/** Legacy alias for code that still imports the old name. */
+export type WeekDescentTotals = WeekVerticalTotals
+
+export interface VerticalTrend {
   /** Most recent N weeks, oldest first. */
-  weeks: WeekDescentTotals[]
+  weeks: WeekVerticalTotals[]
   /** Current (most-recent, possibly partial) week. */
-  current: WeekDescentTotals | null
+  current: WeekVerticalTotals | null
   /** Week prior to current. */
-  previous: WeekDescentTotals | null
-  /** Sum hardDescentMeters over all returned weeks — useful for "you've
-   *  built X m of descent capacity this block" headlines. */
+  previous: WeekVerticalTotals | null
+  /** Sum hardAscentMeters over all returned weeks. */
+  totalHardAscentMeters: number
+  /** Sum hardDescentMeters over all returned weeks. */
   totalHardDescentMeters: number
 }
 
-export interface DescentTarget {
-  /** Lower edge of the suggested weekly hard-descent meters band (peak
-   *  training window). */
+/** Legacy alias. */
+export type DescentTrend = VerticalTrend
+
+export interface VerticalBand {
+  /** Lower edge of the suggested weekly meters band (peak training window). */
   minMetersPerWeek: number
   /** Upper edge of the band. */
   maxMetersPerWeek: number
-  /** The race's total descent in meters — the source the band scales from. */
-  raceDescentMeters: number
+  /** The race's total vertical (gain or loss) in meters — the source the
+   *  band scales from. */
+  raceVerticalMeters: number
 }
+
+export interface VerticalTargets {
+  ascent: VerticalBand | null
+  descent: VerticalBand | null
+}
+
+/** Legacy alias for descent band only. */
+export type DescentTarget = VerticalBand & { raceDescentMeters: number }
 
 const METERS_PER_FOOT = 0.3048
 
@@ -73,21 +96,19 @@ export function weekStartForDate(date: string): string {
   return `${y}-${m}-${dd}`
 }
 
-function emptyWeek(weekStart: string): WeekDescentTotals {
+function emptyWeek(weekStart: string): WeekVerticalTotals {
   return {
     weekStart,
-    severeMeters: 0,
+    hardAscentMeters: 0,
     hardDescentMeters: 0,
-    totalDescentMeters: 0,
     eccentricLoad: 0,
     runCount: 0,
   }
 }
 
-function addRunToWeek(week: WeekDescentTotals, e: CachedEccentric): void {
-  week.severeMeters += e.buckets.severe
-  week.hardDescentMeters += e.buckets.severe + e.buckets.moderate
-  week.totalDescentMeters += e.buckets.mild + e.buckets.moderate + e.buckets.severe
+function addRunToWeek(week: WeekVerticalTotals, e: CachedEccentric): void {
+  week.hardAscentMeters += e.hardAscentVerticalMeters ?? 0
+  week.hardDescentMeters += e.hardDescentVerticalMeters ?? 0
   week.eccentricLoad += e.totalKmScore
   week.runCount += 1
 }
@@ -97,16 +118,16 @@ function addRunToWeek(week: WeekDescentTotals, e: CachedEccentric): void {
  * last `lookbackWeeks` weeks. Weeks with no activity still appear with
  * zeros so the chart doesn't have gaps.
  */
-export function buildDescentTrend(
+export function buildVerticalTrend(
   cache: Record<string, CachedEccentric>,
   options?: { lookbackWeeks?: number; now?: Date },
-): DescentTrend {
+): VerticalTrend {
   const lookback = options?.lookbackWeeks ?? 12
   const now = options?.now ?? new Date()
   const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
   const currentWeekStart = weekStartForDate(todayStr)
 
-  const weeksMap = new Map<string, WeekDescentTotals>()
+  const weeksMap = new Map<string, WeekVerticalTotals>()
   const cursor = new Date(`${currentWeekStart}T00:00:00`)
   for (let i = 0; i < lookback; i++) {
     const y = cursor.getFullYear()
@@ -130,77 +151,106 @@ export function buildDescentTrend(
   )
   const current = weeks[weeks.length - 1] ?? null
   const previous = weeks[weeks.length - 2] ?? null
+  const totalHardAscentMeters = weeks.reduce((sum, w) => sum + w.hardAscentMeters, 0)
   const totalHardDescentMeters = weeks.reduce((sum, w) => sum + w.hardDescentMeters, 0)
 
-  return { weeks, current, previous, totalHardDescentMeters }
+  return { weeks, current, previous, totalHardAscentMeters, totalHardDescentMeters }
 }
 
+/** Legacy alias preserved so non-refactored callers keep working. */
+export const buildDescentTrend = buildVerticalTrend
+
 /**
- * Suggested weekly hard-descent meters band for peak training. Scaled
- * from the race's total descent — peak weeks should aim for 1.2–1.8× the
- * race's vertical loss so the user accumulates the necessary eccentric
- * adaptations before tapering.
+ * Suggested weekly vertical-work band for peak training. Scaled from the
+ * race's vertical gain / loss — peak weeks should aim for 1.2–1.8× each
+ * so the user accumulates the necessary adaptations before tapering.
  *
- * Returns null when the course carries no descent (flat road race) —
- * Descent Capacity isn't a useful metric for those.
+ * Returns `{ ascent: null, descent: null }` when the course has neither.
+ * Either side can be null independently (rare in trail racing but
+ * possible for point-to-point with one-way gradient).
  */
-export function descentTargetForCourse(course: Course): DescentTarget | null {
-  if (course.verticalLossFt < 100) return null
-  const raceDescentMeters = course.verticalLossFt * METERS_PER_FOOT
+export function verticalTargetsForCourse(course: Course): VerticalTargets {
+  const ascent = bandFromFt(course.verticalGainFt)
+  const descent = bandFromFt(course.verticalLossFt)
+  return { ascent, descent }
+}
+
+function bandFromFt(ft: number): VerticalBand | null {
+  if (ft < 100) return null
+  const raceVerticalMeters = ft * METERS_PER_FOOT
   return {
-    raceDescentMeters: Math.round(raceDescentMeters),
-    minMetersPerWeek: Math.round(raceDescentMeters * 1.2),
-    maxMetersPerWeek: Math.round(raceDescentMeters * 1.8),
+    raceVerticalMeters: Math.round(raceVerticalMeters),
+    minMetersPerWeek: Math.round(raceVerticalMeters * 1.2),
+    maxMetersPerWeek: Math.round(raceVerticalMeters * 1.8),
   }
 }
 
-export type DescentBandState = 'below' | 'in-band' | 'above'
+/** Legacy: descent-only target with the older `raceDescentMeters` field. */
+export function descentTargetForCourse(course: Course): DescentTarget | null {
+  const band = bandFromFt(course.verticalLossFt)
+  if (!band) return null
+  return { ...band, raceDescentMeters: band.raceVerticalMeters }
+}
 
-/** Classifies the current week against the race-ready band. */
+export type BandState = 'below' | 'in-band' | 'above'
+/** Legacy alias. */
+export type DescentBandState = BandState
+
+/** Classifies a weekly meters total against a band. */
 export function classifyAgainstBand(
-  hardDescentMeters: number,
-  target: DescentTarget,
-): DescentBandState {
-  if (hardDescentMeters < target.minMetersPerWeek) return 'below'
-  if (hardDescentMeters > target.maxMetersPerWeek) return 'above'
+  meters: number,
+  band: VerticalBand,
+): BandState {
+  if (meters < band.minMetersPerWeek) return 'below'
+  if (meters > band.maxMetersPerWeek) return 'above'
   return 'in-band'
 }
 
 /**
- * Plain-English coaching read for the Descent Capacity section. Renders
- * inside `<InsightNote>`. The headline classifier + race-context produces
- * one of a handful of canned narratives — kept terse and runner-spoken.
+ * Plain-English coaching read covering both ascent and descent for the
+ * current week. Renders inside `<InsightNote>`.
  */
-export function describeDescentState(
-  trend: DescentTrend,
-  target: DescentTarget | null,
+export function describeVerticalState(
+  trend: VerticalTrend,
+  targets: VerticalTargets,
   weeksToRace: number | null,
 ): string {
   const current = trend.current
   if (!current || current.runCount === 0) {
-    return 'No descent runs logged this week yet. A weekly downhill session is the single best insurance against quad blowup on race day.'
+    return 'No vertical work logged this week yet. A weekly hill session — climb + descent — is the single best insurance against quad blowup on race day.'
   }
-  const currentMeters = Math.round(current.hardDescentMeters)
-  const previousMeters = trend.previous ? Math.round(trend.previous.hardDescentMeters) : null
-
-  if (!target) {
-    const trendStr = previousMeters !== null
-      ? ` (${currentMeters > previousMeters ? 'up' : 'down'} from ${previousMeters} m last week)`
-      : ''
-    return `Logged ${currentMeters} m of hard descent this week${trendStr}. Without a target race we can't tell you whether that's enough — pick a race to see the target band.`
-  }
-
-  const state = classifyAgainstBand(current.hardDescentMeters, target)
   const raceContext = weeksToRace !== null && weeksToRace > 0
     ? ` with ${weeksToRace} week${weeksToRace === 1 ? '' : 's'} to race day`
     : ''
+  const ascentLine = sideRead('climb', current.hardAscentMeters, targets.ascent)
+  const descentLine = sideRead('descent', current.hardDescentMeters, targets.descent)
+  if (!targets.ascent && !targets.descent) {
+    return `${Math.round(current.hardAscentMeters)} m of hard climbing and ${Math.round(current.hardDescentMeters)} m of hard descent this week${raceContext ? ` —${raceContext}` : ''}. Pick a race to see the target bands.`
+  }
+  return `${ascentLine} · ${descentLine}${raceContext ? ` —${raceContext}.` : '.'}`
+}
 
-  if (state === 'in-band') {
-    return `${currentMeters} m of hard descent this week — squarely in the race-ready band (${target.minMetersPerWeek}–${target.maxMetersPerWeek} m)${raceContext}. Hold the line.`
-  }
+function sideRead(
+  side: 'climb' | 'descent',
+  meters: number,
+  band: VerticalBand | null,
+): string {
+  const m = Math.round(meters)
+  if (!band) return `${m} m of hard ${side}`
+  const state = classifyAgainstBand(meters, band)
+  if (state === 'in-band') return `${m} m of hard ${side} — in band (${band.minMetersPerWeek}–${band.maxMetersPerWeek} m)`
   if (state === 'below') {
-    const gap = target.minMetersPerWeek - current.hardDescentMeters
-    return `${currentMeters} m of hard descent this week — short of the ${target.minMetersPerWeek}–${target.maxMetersPerWeek} m race-ready band${raceContext}. Add about ${Math.round(gap)} m of downhill work next week.`
+    const gap = Math.round(band.minMetersPerWeek - meters)
+    return `${m} m of hard ${side} — short ${gap} m of the ${band.minMetersPerWeek}–${band.maxMetersPerWeek} m band`
   }
-  return `${currentMeters} m of hard descent this week — above the ${target.minMetersPerWeek}–${target.maxMetersPerWeek} m race-ready band${raceContext}. Strong week, but watch quad recovery before pushing higher.`
+  return `${m} m of hard ${side} — above the ${band.minMetersPerWeek}–${band.maxMetersPerWeek} m band`
+}
+
+/** Legacy single-axis read kept for callers that still use it. */
+export function describeDescentState(
+  trend: VerticalTrend,
+  target: VerticalBand | null,
+  weeksToRace: number | null,
+): string {
+  return describeVerticalState(trend, { ascent: null, descent: target }, weeksToRace)
 }
