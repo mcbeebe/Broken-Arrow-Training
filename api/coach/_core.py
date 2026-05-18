@@ -134,6 +134,15 @@ def ping_cooldown_key(athlete_id: str, trigger_type: str) -> str:
     return f"coach_ping_cooldown:{athlete_id}:{trigger_type}"
 
 
+# Bump when the summary-card prompt changes so stale cached cards drop
+# instead of serving the old wording until TTL expires.
+SUMMARY_CARD_PROMPT_VERSION = "v1-coach-knows"
+
+
+def summary_card_key(athlete_id: str, facts_hash: str) -> str:
+    return f"coach_summary_card:{athlete_id}:{SUMMARY_CARD_PROMPT_VERSION}:{facts_hash}"
+
+
 # ─── Per-athlete LLM budget ─────────────────────────────────────
 #
 # Soft daily cap on LLM calls per athlete. Not a hard wall — returns
@@ -2334,6 +2343,157 @@ def detect_inferences(
         return novel[:2]
     except Exception:
         return []
+
+
+# ─── Summary card curation ──────────────────────────────────────
+#
+# The Settings → Coach panel shows every fact, raw and timestamped — good
+# for inspection, bad for the Summary tab where the athlete just wants to
+# feel that their coach knows them. `build_summary_card` runs a Haiku pass
+# that picks 3-5 of the most relationally important facts and rewrites
+# each as one short line in customer language ("You recover fast from
+# tempo, slower from long runs."). Results are cached by a hash of the
+# input facts, so the LLM only runs when the underlying memory actually
+# changes — every other Summary render hits KV.
+
+
+def _facts_hash(facts: list[dict[str, Any]]) -> str:
+    """Stable digest of the fact ids + text, used as the cache key
+    suffix. Order-sensitive on purpose: the user's own ordering in
+    Settings is signal."""
+    h = hashlib.sha256()
+    for f in facts or []:
+        h.update(str(f.get("id", "")).encode())
+        h.update(b"\x1f")
+        h.update(str(f.get("text", "")).encode())
+        h.update(b"\x1e")
+    return h.hexdigest()[:16]
+
+
+def build_summary_card(
+    athlete_id: str,
+    facts: list[dict[str, Any]],
+    *,
+    force: bool = False,
+) -> dict[str, Any]:
+    """Return `{ facts: [str, ...], builtAt: ms, factsHash: str, source }`.
+
+    `source` is "cache", "llm", or "fallback" so the UI / telemetry can
+    tell what was served. Empty input → empty card. LLM failure falls
+    back to the first 3 raw facts truncated, so the Summary tab always
+    has something to show.
+    """
+    facts = facts or []
+    facts_hash = _facts_hash(facts)
+    empty_payload = {
+        "facts": [],
+        "builtAt": int(time.time() * 1000),
+        "factsHash": facts_hash,
+        "source": "empty",
+    }
+    if not facts:
+        return empty_payload
+
+    cache_key = summary_card_key(athlete_id, facts_hash)
+    if not force:
+        cached = kv_get_json(cache_key)
+        if isinstance(cached, dict) and isinstance(cached.get("facts"), list):
+            cached["source"] = "cache"
+            return cached
+
+    # Prompt: short, second person, plain runner language, no metric
+    # dumps. Picks at most 5 — the Summary card is glanceable, not a
+    # ledger. The model gets the full fact text and chooses which to
+    # promote.
+    raw_lines = []
+    for i, f in enumerate(facts, 1):
+        text = str(f.get("text", "")).strip()
+        if text:
+            raw_lines.append(f"{i}. {text}")
+    raw_block = "\n".join(raw_lines)
+
+    try:
+        result = call_anthropic(
+            model=HAIKU_MODEL,
+            system=(
+                "You write the 'Coach knows about you' card that appears on "
+                "the athlete's home screen. The athlete should read it and "
+                "feel that their coach actually knows them as a person and "
+                "an athlete, not as a database row.\n\n"
+                "INPUT: a numbered list of every fact the coach has learned "
+                "about this athlete, stored verbatim from chats and notes. "
+                "Many will be long, technical, or repetitive.\n\n"
+                "OUTPUT: a JSON array of 3 to 5 short strings — the facts "
+                "to surface on the home card. Rules:\n"
+                "• Second person, present tense. 'You ...' not 'I ...'.\n"
+                "• ≤90 chars each. One idea per line.\n"
+                "• Plain runner language. NO heart-rate numbers, NO zone "
+                "codes, NO dates, NO percentages. Translate metrics into "
+                "feel ('runs hot on hills', not 'avgHR 163 on steep terrain').\n"
+                "• Pick the facts that matter most for daily coaching — "
+                "patterns, preferences, constraints, life context. Skip "
+                "one-off observations.\n"
+                "• If two facts overlap, merge into one line.\n"
+                "• If you genuinely have fewer than 3 durable facts to "
+                "surface, return what you have — do not invent.\n\n"
+                "Output ONLY the JSON array. No prose, no fences."
+            ),
+            messages=[
+                {
+                    "role": "user",
+                    "content": (
+                        f"Facts the coach has learned about this athlete:\n\n"
+                        f"{raw_block}\n\n"
+                        f"Surface 3-5 as the home-card summary:"
+                    ),
+                }
+            ],
+            max_tokens=400,
+            temperature=0.3,
+            athlete_id=athlete_id,
+            surface="summary_card",
+        )
+        text = (result.get("text") or "").strip()
+        if text.startswith("```"):
+            text = re.sub(r"^```(?:json)?\s*", "", text)
+            text = re.sub(r"\s*```$", "", text)
+        parsed = json.loads(text) if text else []
+        lines = [str(s).strip() for s in parsed if isinstance(s, str) and str(s).strip()]
+        lines = lines[:5]
+        if not lines:
+            raise ValueError("empty curation result")
+        payload = {
+            "facts": lines,
+            "builtAt": int(time.time() * 1000),
+            "factsHash": facts_hash,
+            "source": "llm",
+        }
+        try:
+            kv_set_json(cache_key, payload, ex=86400 * 30)
+        except Exception:
+            pass
+        return payload
+    except Exception:
+        # Fallback: truncate first 3 facts so the card has *something*
+        # rather than being empty when Haiku is down or rate-limited.
+        # Not cached — we want a real curation next time the LLM is
+        # available.
+        fallback = []
+        for f in facts[:3]:
+            t = str(f.get("text", "")).strip()
+            if not t:
+                continue
+            cut = t.split(".", 1)[0].split("—", 1)[0].split(",", 1)[0].strip()
+            if len(cut) > 90:
+                cut = cut[:87].rstrip() + "…"
+            if cut:
+                fallback.append(cut)
+        return {
+            "facts": fallback,
+            "builtAt": int(time.time() * 1000),
+            "factsHash": facts_hash,
+            "source": "fallback",
+        }
 
 
 # ─── Request helpers ────────────────────────────────────────────

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import type { ReadinessScore, GarminHealthData, CoachRecommendation, PerformanceMetrics, DailyTRIMP, CoachInsight, PlannedDay, HRZone, CoachSnapshot, CoachAction, RaceInfo } from '../types'
+import type { ReadinessScore, GarminHealthData, CoachRecommendation, PerformanceMetrics, DailyTRIMP, CoachInsight, PlannedDay, HRZone, CoachSnapshot, CoachAction, RaceInfo, AboutMeFact } from '../types'
 import type { RiskFlag } from '../utils/readiness'
 import type { SorenessLevel } from '../hooks/useSoreness'
 import { getTSBState, getTSBLabel, getACWRRisk, getACWRLabel } from '../utils/performance'
@@ -8,6 +8,7 @@ import { findTrimpRecord } from '../utils/trimp'
 import TodayBriefing from './TodayBriefing'
 import TRIMPBreakdown from './TRIMPBreakdown'
 import CoachInsightCard from './CoachInsightCard'
+import CoachKnowsCard from './CoachKnowsCard'
 import WorkoutModal from './WorkoutModal'
 import { getWorkoutStyle } from '../utils/styles'
 import Term from './TermGlossary'
@@ -56,6 +57,11 @@ interface SummaryProps {
   onUndoInsightProposal?: (overrideId: string) => void
   /** Goal race — drives the race-ready hero card in the final ~8 weeks. */
   race?: RaceInfo
+  /** Coach-learned facts. Drives the "Coach knows about you" home-card;
+   *  refetch fingerprint updates when the user edits in Settings. */
+  coachAboutMeFacts?: AboutMeFact[]
+  /** Switches the app to Settings → Coach so the user can edit facts. */
+  onGoSettings?: () => void
 }
 
 // ─── Scale bar component ──────────────────────────────────────
@@ -287,6 +293,8 @@ export default function Summary({
   onApproveInsightProposal,
   onUndoInsightProposal,
   race,
+  coachAboutMeFacts,
+  onGoSettings,
 }: SummaryProps) {
   const latestPerf = performance.length > 0 ? performance[performance.length - 1] : null
   const [perfOpen, setPerfOpen] = useState(false)
@@ -398,6 +406,15 @@ export default function Summary({
           summary={raceReadiness}
           detail={raceReadinessDetail}
           onClose={() => setShowRaceReadinessModal(false)}
+        />
+      )}
+      {coachEnabled && (
+        <CoachKnowsCard
+          athleteId={athleteId}
+          facts={coachAboutMeFacts}
+          enabled={!!coachEnabled}
+          coachName={coachName}
+          onGoSettings={onGoSettings}
         />
       )}
       {coachEnabled && (
