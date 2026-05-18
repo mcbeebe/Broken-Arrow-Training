@@ -960,7 +960,6 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           riskFlags={readiness.riskFlags}
           garminConnected={garmin.connected}
           sorenessLoadByDate={soreness.sorenessLoadByDate}
-          eccentricByActivity={eccentricByActivity}
         />
       )}
       {view === 'coach' && coachEnabled && (

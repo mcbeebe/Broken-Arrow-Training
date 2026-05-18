@@ -13,7 +13,6 @@ import ComplianceWeekRow from './ComplianceWeekRow'
 import CalendarHeatmap from './CalendarHeatmap'
 import StrengthProgressSection from './StrengthProgressSection'
 import DescentCapacitySection from './DescentCapacitySection'
-import type { CachedEccentric } from '../utils/runEccentric'
 
 type DashSubTab = 'compliance' | 'readiness' | 'performance'
 
@@ -35,10 +34,6 @@ interface DashboardProps {
   sorenessLoadByDate?: Map<string, number>
   planZones?: HRZone[]
   athleteMaxHR?: number
-  /** Per-activity eccentric cache, plumbed from App.tsx loadEccentricCache().
-   *  Drives the Descent Capacity top-line section. Optional — section
-   *  hides itself when the map is empty. */
-  eccentricByActivity?: Record<string, CachedEccentric>
 }
 
 export default function Dashboard({
@@ -58,7 +53,6 @@ export default function Dashboard({
   sorenessLoadByDate,
   planZones = [],
   athleteMaxHR,
-  eccentricByActivity,
 }: DashboardProps) {
   const [subTab, setSubTab] = useState<DashSubTab>('compliance')
   const parsedPlanZones = parsePlanZones(planZones, athleteMaxHR)
@@ -75,9 +69,9 @@ export default function Dashboard({
     <div className="px-4 py-4 space-y-4">
       <h2 className="text-xl font-bold text-slate-800 dark:text-white">Dashboard</h2>
 
-      {eccentricByActivity && (
+      {compliance.weeks.length > 0 && (
         <DescentCapacitySection
-          eccentricByActivity={eccentricByActivity}
+          weeks={compliance.weeks}
           race={race}
         />
       )}
