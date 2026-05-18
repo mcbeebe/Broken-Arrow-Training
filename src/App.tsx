@@ -1087,8 +1087,6 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           }}
           coachEnabled={coachEnabled}
           aboutMeText={coachMemory.aboutMe}
-          onSaveAboutMe={coachMemory.saveAboutMe}
-          onClearAboutMe={coachMemory.clearAboutMe}
           pendingInferences={coachMemory.pendingInferences}
           onAcceptInference={coachMemory.acceptInference}
           onDismissInference={coachMemory.dismissInference}

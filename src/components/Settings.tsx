@@ -4,7 +4,6 @@ import GarminConnect from './GarminConnect'
 import HRZoneEditor from './HRZoneEditor'
 import type { AuthSession } from '../utils/auth'
 import type { ThemeMode } from '../hooks/useTheme'
-import AboutMe from './AboutMe'
 import CoachDiagnostics from './CoachDiagnostics'
 import DeployDiagnostics from './DeployDiagnostics'
 import Methodology from './Methodology'
@@ -27,9 +26,10 @@ import type { ConversationTurn, PerformanceMetrics, TrainingWeek } from '../type
 interface SettingsProps {
   // Coach (Mike-only for now)
   coachEnabled?: boolean
+  /** Joined About Me string. Read-only fallback for CoachMemoryPanel
+   *  when the structured `coachAboutMeFacts` array is absent (legacy
+   *  memories pre-Sprint 4 migration). */
   aboutMeText?: string
-  onSaveAboutMe?: (next: string) => void
-  onClearAboutMe?: () => void
   pendingInferences?: PendingInference[]
   onAcceptInference?: (id: string) => void
   onDismissInference?: (id: string) => void
@@ -154,8 +154,6 @@ export default function Settings({
   onResetOnboarding,
   coachEnabled,
   aboutMeText,
-  onSaveAboutMe,
-  onClearAboutMe,
   pendingInferences,
   onAcceptInference: _onAcceptInference,
   onDismissInference: _onDismissInference,
@@ -284,14 +282,14 @@ export default function Settings({
       )}
 
       {/* ── Coach section ── */}
-      {coachEnabled && onSaveAboutMe && onClearAboutMe && (
+      {/* Single canonical view of what the coach knows lives inside
+          CoachMemoryPanel below ("What I remember about you"). The
+          legacy free-form About Me editor used to live here too but
+          duplicated the same data; per-fact CRUD on the panel now
+          covers add/edit/delete without the parallel surface. */}
+      {coachEnabled && onClearCoachConversation && (
         <SettingsSection title="Coach" defaultOpen>
           <div className="space-y-4">
-            <AboutMe
-              value={aboutMeText ?? ''}
-              onSave={onSaveAboutMe}
-              onClear={onClearAboutMe}
-            />
             {onSaveCoachPersona && (
               <CoachPersonaEditor
                 persona={coachPersona ?? { name: '', traits: [] }}
@@ -316,20 +314,18 @@ export default function Settings({
                 onSave={onSaveWorkoutTimeSlot}
               />
             )}
-            {onClearCoachConversation && (
-              <CoachMemoryPanel
-                aboutMe={aboutMeText ?? ''}
-                aboutMeFacts={coachAboutMeFacts}
-                coachPersona={coachPersona ?? { name: '', traits: [] }}
-                conversation={coachConversation ?? []}
-                pendingInferences={pendingInferences ?? []}
-                dailyArchives={coachDailyArchives ?? []}
-                onClearConversation={onClearCoachConversation}
-                onAddFact={onAddCoachFact}
-                onEditFact={onEditCoachFact}
-                onDeleteFact={onDeleteCoachFact}
-              />
-            )}
+            <CoachMemoryPanel
+              aboutMe={aboutMeText ?? ''}
+              aboutMeFacts={coachAboutMeFacts}
+              coachPersona={coachPersona ?? { name: '', traits: [] }}
+              conversation={coachConversation ?? []}
+              pendingInferences={pendingInferences ?? []}
+              dailyArchives={coachDailyArchives ?? []}
+              onClearConversation={onClearCoachConversation}
+              onAddFact={onAddCoachFact}
+              onEditFact={onEditCoachFact}
+              onDeleteFact={onDeleteCoachFact}
+            />
           </div>
         </SettingsSection>
       )}
