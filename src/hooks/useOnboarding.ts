@@ -85,6 +85,11 @@ export interface OnboardingConfig {
   // Timestamp of when the post-onboarding methodology primer was dismissed.
   // Unset = primer should be shown the next time a plan is rendered.
   primerSeenAt?: string
+  // Timestamp of when the post-methodology zones primer was dismissed. Shown
+  // once after the methodology primer so the athlete sees their personalized
+  // bpm ranges and the method-specific framing for each zone before they
+  // start consuming workouts.
+  zonesPrimerSeenAt?: string
   // Timestamp of when the post-onboarding "connect your devices" step was
   // dismissed (either by connecting or skipping). Unset = step should be
   // shown the next time the app loads after onboarding completes.
@@ -167,6 +172,15 @@ export function useOnboarding(athleteId?: string) {
     })
   }, [athleteId])
 
+  const markZonesPrimerSeen = useCallback(() => {
+    setConfig(prev => {
+      if (!prev || prev.zonesPrimerSeenAt) return prev
+      const next = { ...prev, zonesPrimerSeenAt: new Date().toISOString() }
+      try { localStorage.setItem(scopedKey(athleteId), JSON.stringify(next)) } catch { /* quota */ }
+      return next
+    })
+  }, [athleteId])
+
   const markConnectStepSeen = useCallback(() => {
     setConfig(prev => {
       if (!prev || prev.connectStepSeenAt) return prev
@@ -184,6 +198,7 @@ export function useOnboarding(athleteId?: string) {
     clear,
     requestRedo,
     markPrimerSeen,
+    markZonesPrimerSeen,
     markConnectStepSeen,
   }
 }
