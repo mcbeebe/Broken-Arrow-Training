@@ -42,8 +42,8 @@ describe('<DescentCapacitySection>', () => {
       '2026-05-13|Trail Run': ecc(800, 1200),
     }
     render(<DescentCapacitySection eccentricByActivity={cache} race={brokenArrow18k()} />)
-    expect(screen.getByText(/hard descent this week/i)).toBeInTheDocument()
-    expect(screen.getByText(/race descent demand/i)).toBeInTheDocument()
+    expect(screen.getByText(/hard descent/i)).toBeInTheDocument()
+    expect(screen.getByText(/race demand/i)).toBeInTheDocument()
     expect(screen.getByText(/weekly hard-descent volume/i)).toBeInTheDocument()
   })
 
@@ -60,7 +60,7 @@ describe('<DescentCapacitySection>', () => {
       '2026-05-13|Trail Run': ecc(400, 400),
     }
     render(<DescentCapacitySection eccentricByActivity={cache} />)
-    expect(screen.getByText(/hard descent this week/i)).toBeInTheDocument()
+    expect(screen.getByText(/hard descent/i)).toBeInTheDocument()
     expect(screen.getByText(/pick a target race/i)).toBeInTheDocument()
   })
 })

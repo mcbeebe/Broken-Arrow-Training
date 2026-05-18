@@ -6,24 +6,15 @@ interface Props {
   /** Body text — one short paragraph of plain-English read. */
   children: ReactNode
   /** Eyebrow label — defaults to "Athlete Intelligence" to match the
-   *  Strava-style coaching read pattern. Override per-context if needed
-   *  ("Coach read", "Race-week brief", etc.). */
+   *  Strava-style coaching read pattern. */
   label?: string
-  /** Tone changes the accent color of the eyebrow + border. */
+  /** Tone changes the accent color of the eyebrow + accent stripe. */
   tone?: InsightTone
-  /** Optional inline action — e.g. "Tell me more →" — rendered after the body. */
+  /** Optional inline action — "Tell me more →". */
   action?: { label: string; onClick: () => void }
   /** Set false to drop the leading shield emoji. */
   showIcon?: boolean
   className?: string
-}
-
-const TONE_CONTAINER: Record<InsightTone, string> = {
-  intelligence: 'bg-intelligence-50 dark:bg-intelligence-950/40 border-intelligence-200 dark:border-intelligence-900',
-  positive: 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-900',
-  warning: 'bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-900',
-  critical: 'bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-900',
-  neutral: 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800',
 }
 
 const TONE_LABEL: Record<InsightTone, string> = {
@@ -32,6 +23,14 @@ const TONE_LABEL: Record<InsightTone, string> = {
   warning: 'text-amber-700 dark:text-amber-300',
   critical: 'text-rose-700 dark:text-rose-300',
   neutral: 'text-slate-600 dark:text-slate-400',
+}
+
+const TONE_ACCENT: Record<InsightTone, string> = {
+  intelligence: 'border-l-intelligence-400 dark:border-l-intelligence-600',
+  positive: 'border-l-emerald-400 dark:border-l-emerald-600',
+  warning: 'border-l-amber-400 dark:border-l-amber-600',
+  critical: 'border-l-rose-400 dark:border-l-rose-600',
+  neutral: 'border-l-slate-300 dark:border-l-slate-600',
 }
 
 const TONE_ACTION: Record<InsightTone, string> = {
@@ -43,22 +42,25 @@ const TONE_ACTION: Record<InsightTone, string> = {
 }
 
 export default function InsightNote({
-  children, label = 'Athlete Intelligence', tone = 'intelligence', action, showIcon = true, className = '',
+  children, label = 'Athlete Intelligence', tone = 'intelligence',
+  action, showIcon = true, className = '',
 }: Props) {
   return (
-    <div className={`rounded-xl border px-3.5 py-3 ${TONE_CONTAINER[tone]} ${className}`}>
-      <div className={`flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider ${TONE_LABEL[tone]}`}>
-        {showIcon && <span aria-hidden>🛡️</span>}
+    <div
+      className={`rounded-lg bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 border-l-4 px-3 py-2.5 ${TONE_ACCENT[tone]} ${className}`}
+    >
+      <div className={`flex items-center gap-1 text-[10px] font-medium uppercase tracking-wide ${TONE_LABEL[tone]}`}>
+        {showIcon && <span aria-hidden className="text-[11px]">🛡️</span>}
         <span>{label}</span>
       </div>
-      <p className="text-sm text-slate-800 dark:text-slate-100 leading-snug mt-1.5">
+      <p className="text-xs text-slate-700 dark:text-slate-200 leading-snug mt-1">
         {children}
       </p>
       {action && (
         <button
           type="button"
           onClick={action.onClick}
-          className={`text-xs font-semibold mt-2 transition-colors ${TONE_ACTION[tone]}`}
+          className={`text-[11px] font-semibold mt-1.5 transition-colors ${TONE_ACTION[tone]}`}
         >
           {action.label}
         </button>

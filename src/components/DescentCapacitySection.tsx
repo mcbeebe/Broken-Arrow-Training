@@ -92,28 +92,30 @@ export default function DescentCapacitySection({
   const raceMeters = Math.round(raceFt * METERS_PER_FOOT)
 
   return (
-    <section className="space-y-3">
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+    <section className="space-y-2">
+      <div className="grid grid-cols-2 gap-2">
         <MetricCard
-          label="Hard descent this week"
+          label="Hard descent · week"
           value={Math.round(currentMeters).toLocaleString()}
           valueSuffix="m"
           delta={delta}
           subtitle={trend.current
-            ? `${trend.current.runCount} ${trend.current.runCount === 1 ? 'run' : 'runs'} this week`
+            ? `${trend.current.runCount} ${trend.current.runCount === 1 ? 'run' : 'runs'}`
             : undefined}
           tone={headlineTone}
+          size="sm"
         />
         <MetricCard
-          label="Race descent demand"
+          label="Race demand"
           value={raceMeters > 0 ? raceMeters.toLocaleString() : '—'}
           valueSuffix={raceMeters > 0 ? 'm' : undefined}
           subtitle={resolution
-            ? `${resolution.course.name} drops ${raceFt.toLocaleString()} ft total`
-            : 'Set your race to see the target'}
+            ? `${raceFt.toLocaleString()} ft of descent`
+            : 'Pick a race to see the target'}
           context={weeksOut !== null && weeksOut >= 0
-            ? `${weeksOut} ${weeksOut === 1 ? 'week' : 'weeks'} to go`
+            ? `${weeksOut} ${weeksOut === 1 ? 'wk' : 'wks'} to go`
             : undefined}
+          size="sm"
         />
       </div>
 
@@ -123,7 +125,7 @@ export default function DescentCapacitySection({
         insight={insightText}
         insightTone={insightTone}
       >
-        <div className="h-44">
+        <div className="h-32">
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart
               data={trend.weeks.map(w => ({

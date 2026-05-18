@@ -33,26 +33,26 @@ export default function ChartWithInsight({
   insight, insightLabel, insightTone, insightAction, className = '',
 }: Props) {
   return (
-    <section className={`space-y-3 ${className}`}>
+    <section className={`space-y-2 ${className}`}>
       <header className="flex items-start justify-between gap-3 flex-wrap">
         <div className="min-w-0">
-          <h3 className="text-sm font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+          <h3 className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
             {title}
           </h3>
           {headlineValue !== undefined && (
-            <p className="text-3xl font-bold text-slate-900 dark:text-slate-50 mt-1 leading-none">
+            <p className="text-xl font-bold text-slate-900 dark:text-slate-50 mt-0.5 leading-tight">
               {headlineValue}
             </p>
           )}
           {subtitle && (
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
               {subtitle}
             </p>
           )}
         </div>
         {headerAction && <div className="shrink-0">{headerAction}</div>}
       </header>
-      <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3">
+      <div className="rounded-xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-2 shadow-sm">
         {children}
       </div>
       {insight !== undefined && insight !== null && insight !== '' && (
