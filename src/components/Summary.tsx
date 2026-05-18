@@ -17,6 +17,7 @@ import RaceReadyHeroCard from './RaceReadyHeroCard'
 import YourRaceCard from './YourRaceCard'
 import RaceReadinessDetailModal from './RaceReadinessDetailModal'
 import { buildRaceReadinessDetail, computeRaceReadiness } from '../utils/raceReadiness'
+import { formatLooksLikeLine, findBestCourseMatchForPlanned } from '../utils/workoutCourseMatch'
 import { weeksUntilRace } from '../utils/raceCountdown'
 import { buildTrainingSignals, type TrainingSignals } from '../utils/trainingSignals'
 import SignalCoherenceBanner from './SignalCoherenceBanner'
@@ -435,6 +436,13 @@ export default function Summary({
       {todayPlannedWorkout && todayPlannedWorkout.type !== 'rest' && (() => {
         const style = getWorkoutStyle(todayPlannedWorkout.type)
         const isCompleted = !!todayPlannedWorkout.actual
+        // Course-as-protagonist projection: when today's planned workout
+        // strongly matches a segment of the goal race course, surface it
+        // as one line under the workout title. Returns null (renders
+        // nothing) for rest days, courses we haven't curated, low-vert
+        // sessions that don't map cleanly, or score below threshold.
+        const courseMatch = findBestCourseMatchForPlanned(todayPlannedWorkout, race)
+        const looksLike = formatLooksLikeLine(courseMatch)
         return (
           <>
             <button
@@ -452,6 +460,12 @@ export default function Summary({
                     {todayPlannedWorkout.zone !== '—' && todayPlannedWorkout.zone}
                     {todayPlannedWorkout.time !== '—' && ` · ${todayPlannedWorkout.time}`}
                   </p>
+                  {looksLike && (
+                    <p className="text-xs font-medium text-indigo-700 dark:text-indigo-300 mt-1.5 flex items-start gap-1">
+                      <span aria-hidden>🏔️</span>
+                      <span>{looksLike}</span>
+                    </p>
+                  )}
                 </div>
                 <span className="text-2xl">{style.label}</span>
               </div>

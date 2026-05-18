@@ -143,6 +143,38 @@ def summary_card_key(athlete_id: str, facts_hash: str) -> str:
     return f"coach_summary_card:{athlete_id}:{SUMMARY_CARD_PROMPT_VERSION}:{facts_hash}"
 
 
+# Per-athlete record of which About Me facts the daily insight has
+# already acknowledged in narrative. Used so the coach mentions each
+# new learning at most once across the athlete's lifetime — no daily
+# "I noticed you said…" repetition.
+LEARNING_ACK_CAP = 400
+
+
+def learning_ack_key(athlete_id: str) -> str:
+    return f"coach_learning_ack:{athlete_id}"
+
+
+def load_learning_ack(athlete_id: str) -> dict[str, Any]:
+    """Returns `{ackedIds: [str, ...], initialized: bool}`.
+
+    `initialized` is False on first-ever read; the caller seeds the set
+    with the athlete's existing fact ids so the next daily insight
+    doesn't retroactively narrate the entire history.
+    """
+    raw = kv_get_json(learning_ack_key(athlete_id))
+    if isinstance(raw, dict) and isinstance(raw.get("ackedIds"), list):
+        return {"ackedIds": list(raw["ackedIds"]), "initialized": True}
+    return {"ackedIds": [], "initialized": False}
+
+
+def save_learning_ack(athlete_id: str, acked_ids: list[str]) -> None:
+    capped = acked_ids[-LEARNING_ACK_CAP:]
+    try:
+        kv_set_json(learning_ack_key(athlete_id), {"ackedIds": capped})
+    except Exception:
+        pass
+
+
 # ─── Per-athlete LLM budget ─────────────────────────────────────
 #
 # Soft daily cap on LLM calls per athlete. Not a hard wall — returns
