@@ -38,6 +38,7 @@ function walkHappyPath(overrides: Partial<{
   injury: string
   equipment: string[]
   strength: string
+  crossFrequency: string
   crossTraining: string[]
   trainingTimes: string[]
   scheduleNote: string
@@ -60,6 +61,7 @@ function walkHappyPath(overrides: Partial<{
     injury: 'No injuries',
     equipment: ['Track', 'Trails'],
     strength: '2x',
+    crossFrequency: '1x',
     crossTraining: ['Cycling'],
     trainingTimes: ['Early morning'],
     scheduleNote: '',
@@ -134,9 +136,15 @@ function walkHappyPath(overrides: Partial<{
   o.equipment.forEach(label => fireEvent.click(screen.getByText(label)))
   clickContinue()
 
-  // Step 8: Strength + cross-training
-  fireEvent.click(screen.getByRole('button', { name: o.strength }))
-  o.crossTraining.forEach(label => fireEvent.click(screen.getByText(label)))
+  // Step 8: Strength + cross-training. Both frequency selectors use the
+  // same button text ("None"/"1x"/"2x"/"3+") so we disambiguate via the
+  // aria-label set on each ("Strength 1x" vs "Cross-training 1x"). The
+  // modality checkboxes only render when cross-training frequency > 0.
+  fireEvent.click(screen.getByRole('button', { name: `Strength ${o.strength}` }))
+  fireEvent.click(screen.getByRole('button', { name: `Cross-training ${o.crossFrequency}` }))
+  if (o.crossFrequency !== 'None') {
+    o.crossTraining.forEach(label => fireEvent.click(screen.getByText(label)))
+  }
   clickContinue()
 
   // Step 9: Schedule & constraints
@@ -394,14 +402,32 @@ describe('Onboarding', () => {
       expect(cfg.strengthDaysPerWeek).toBe(expected)
     })
 
-    it('makes cross-training optional', () => {
-      const cfg = walkHappyPath({ crossTraining: [] })
+    it('makes cross-training optional (None means no modalities)', () => {
+      const cfg = walkHappyPath({ crossFrequency: 'None', crossTraining: [] })
+      expect(cfg.crossTrainingDaysPerWeek).toBe(0)
       expect(cfg.crossTrainingModes).toBeUndefined()
     })
 
     it('captures multiple cross-training modes', () => {
-      const cfg = walkHappyPath({ crossTraining: ['Cycling', 'Swimming', 'Yoga / Mobility'] })
+      const cfg = walkHappyPath({
+        crossFrequency: '2x',
+        crossTraining: ['Cycling', 'Swimming', 'Yoga / Mobility'],
+      })
+      expect(cfg.crossTrainingDaysPerWeek).toBe(2)
       expect(cfg.crossTrainingModes).toEqual(['cycling', 'swimming', 'yoga'])
+    })
+
+    it.each([
+      ['None', 0],
+      ['1x', 1],
+      ['2x', 2],
+      ['3+', 3],
+    ])('captures cross-training frequency %s as %i', (label, expected) => {
+      const cfg = walkHappyPath({
+        crossFrequency: label,
+        crossTraining: label === 'None' ? [] : ['Cycling'],
+      })
+      expect(cfg.crossTrainingDaysPerWeek).toBe(expected)
     })
   })
 
@@ -458,8 +484,9 @@ describe('Onboarding', () => {
       fireEvent.click(screen.getByText('Track'))
       clickContinue()
       if (stepName === 'strength') return
-      // strength
-      fireEvent.click(screen.getByRole('button', { name: 'None' }))
+      // strength (frequency) + cross-training (frequency = None)
+      fireEvent.click(screen.getByRole('button', { name: 'Strength None' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Cross-training None' }))
       clickContinue()
     }
 
@@ -477,10 +504,24 @@ describe('Onboarding', () => {
       expect(getContinueButton()?.disabled).toBe(false)
     })
 
-    it('disables Continue on the strength step until strength frequency is selected', () => {
+    it('disables Continue on the strength step until both frequencies are selected', () => {
       advanceTo('strength')
       expect(getContinueButton()?.disabled).toBe(true)
-      fireEvent.click(screen.getByRole('button', { name: 'None' }))
+      // Strength frequency alone isn't enough — cross-training frequency
+      // is also required (None counts as an answer).
+      fireEvent.click(screen.getByRole('button', { name: 'Strength None' }))
+      expect(getContinueButton()?.disabled).toBe(true)
+      fireEvent.click(screen.getByRole('button', { name: 'Cross-training None' }))
+      expect(getContinueButton()?.disabled).toBe(false)
+    })
+
+    it('blocks Continue when cross-training frequency > 0 but no modality is picked', () => {
+      advanceTo('strength')
+      fireEvent.click(screen.getByRole('button', { name: 'Strength None' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Cross-training 1x' }))
+      // Frequency picked but no modality → still disabled.
+      expect(getContinueButton()?.disabled).toBe(true)
+      fireEvent.click(screen.getByText('Cycling'))
       expect(getContinueButton()?.disabled).toBe(false)
     })
 
@@ -527,8 +568,9 @@ describe('Onboarding', () => {
       expect(screen.getByText(/Your 5-day week/)).toBeInTheDocument()
       expect(screen.getByText(/5 running.*0 strength.*0 cross/)).toBeInTheDocument()
 
-      // Pick 2x strength + a cross modality.
-      fireEvent.click(screen.getByText('2x'))
+      // Pick 2x strength + 1x cross-training (with a modality).
+      fireEvent.click(screen.getByRole('button', { name: 'Strength 2x' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Cross-training 1x' }))
       fireEvent.click(screen.getByText('Cycling'))
       expect(screen.getByText(/2 running.*2 strength.*1 cross/)).toBeInTheDocument()
     })
@@ -545,8 +587,9 @@ describe('Onboarding', () => {
       fireEvent.click(screen.getByText('No injuries')); clickContinue()
       fireEvent.click(screen.getByText('Track')); clickContinue()
 
-      // 3-day budget; pick 3x strength + cross → 4 extras > 3 budget → warning text.
-      fireEvent.click(screen.getByText('3+'))
+      // 3-day budget; pick 3x strength + 1x cross with modality → 4 extras > 3 budget → warning text.
+      fireEvent.click(screen.getByRole('button', { name: 'Strength 3+' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Cross-training 1x' }))
       fireEvent.click(screen.getByText('Cycling'))
       expect(screen.getByText(/Strength \+ cross exceed/)).toBeInTheDocument()
     })
@@ -565,7 +608,9 @@ describe('Onboarding', () => {
       fireEvent.click(screen.getByText('Saturday')); clickContinue()
       fireEvent.click(screen.getByText('Returning from injury')); clickContinue()
       fireEvent.click(screen.getByText('Track')); clickContinue()
-      fireEvent.click(screen.getByText('1x')); clickContinue()
+      fireEvent.click(screen.getByRole('button', { name: 'Strength 1x' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Cross-training None' }))
+      clickContinue()
       fireEvent.click(screen.getByText('Early morning')); clickContinue()
       fireEvent.click(screen.getByText('Garmin Watch')); clickContinue()
       fireEvent.change(screen.getByPlaceholderText('e.g. Jenn'), { target: { value: 'Jenn' } })

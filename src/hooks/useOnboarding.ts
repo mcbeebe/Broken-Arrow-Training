@@ -74,6 +74,9 @@ export interface OnboardingConfig {
   strengthDaysPerWeek?: number
   // Cross-training modalities the athlete enjoys / wants substituted on easy days.
   crossTrainingModes?: CrossTrainingMode[]
+  // 0 = none. Drives how many cross-training sessions get scheduled per week.
+  // If unset and `crossTrainingModes` is non-empty, falls back to 1 (legacy).
+  crossTrainingDaysPerWeek?: number
   // When during the day the athlete typically trains (multi-select).
   preferredTrainingTimes?: TrainingTimeOfDay[]
   // Free-text: travel weeks, vacations, work crunch, deload windows, etc.

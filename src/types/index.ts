@@ -269,6 +269,10 @@ export interface AthleteProfile {
   // cycling MIM formula. Optional; HR-reserve fallback applies when absent
   // or when an activity has no power data.
   ftpWatts?: number;
+  // Equipment / terrain the athlete has access to (from onboarding). Surfaces
+  // to the coach so it can recommend appropriate venues for intervals, hill
+  // work, indoor swaps, and strength routines.
+  equipmentAccess?: readonly string[];
 }
 
 export interface TrainingPlan {

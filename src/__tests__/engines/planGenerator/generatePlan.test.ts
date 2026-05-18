@@ -13,7 +13,7 @@ import {
   buildWeeklyMileage,
   estimateCurrentWeeklyMileage,
 } from '../../../engines/planGenerator/weekPlan'
-import { resolvePaces, resolveAnchor } from '../../../engines/planGenerator/paceTargets'
+import { resolvePaces, resolveAnchor, ESTIMATED_LTHR_PCT_OF_MAX } from '../../../engines/planGenerator/paceTargets'
 import {
   pickWeeklyPattern,
   pickWorkoutForDay,
@@ -191,7 +191,7 @@ describe('resolveAnchor / resolvePaces', () => {
     const cfg = makeConfig({ maxHR: 184 })
     const a = resolveAnchor(koop, cfg)
     expect(a.type).toBe('lthr_bpm')
-    expect(a.value).toBe(Math.round(184 * 0.92))
+    expect(a.value).toBe(Math.round(184 * ESTIMATED_LTHR_PCT_OF_MAX))
   })
   it('estimates AeT for AeT-anchored methods', () => {
     const a = resolveAnchor(roche, makeConfig({ maxHR: 184 }))
@@ -211,7 +211,7 @@ describe('resolveAnchor / resolvePaces', () => {
   it('PaceTarget bpm bounds use estimated LTHR for HR-range methods', () => {
     const cfg = makeConfig({ maxHR: 184 })
     const paces = resolvePaces(pfitzinger, cfg)
-    const lthr = Math.round(184 * 0.92)
+    const lthr = Math.round(184 * ESTIMATED_LTHR_PCT_OF_MAX)
     const easyZone = pfitzinger.paceZones.find(z => z.canonical === 'easy')
     if (easyZone && easyZone.hrRange?.minPctLthr && easyZone.hrRange?.maxPctLthr) {
       const t = paces.byZone.easy!
@@ -366,11 +366,11 @@ describe('generatePlanFromMethod — end-to-end', () => {
   })
 
   it('zones are derived from the method\'s pace zones × resolved LTHR', () => {
-    // With maxHR=200, estimated LTHR = round(200 × 0.92) = 184. Pfitzinger's
-    // easy zone is 70-81% LTHR → ~129-149. Use Pfitzinger so we hit a method
-    // with declared hrRanges — confirms Settings zones match per-day text.
+    // With maxHR=200, estimated LTHR = round(200 × ESTIMATED_LTHR_PCT_OF_MAX).
+    // Use Pfitzinger so we hit a method with declared hrRanges — confirms
+    // Settings zones match per-day text.
     const plan = generatePlanFromMethod(pfitzinger, makeConfig({ maxHR: 200 }), TODAY)
-    const lthr = Math.round(200 * 0.92)
+    const lthr = Math.round(200 * ESTIMATED_LTHR_PCT_OF_MAX)
     const easyZone = pfitzinger.paceZones.find(z => z.canonical === 'easy')!
     const expectedLow = Math.round(easyZone.hrRange!.minPctLthr! * lthr)
     const expectedHigh = Math.round(easyZone.hrRange!.maxPctLthr! * lthr)
@@ -519,6 +519,134 @@ describe('generatePlanFromMethod — end-to-end', () => {
     // means week 2 should also be lower.
     expect(Number(returning.weeks[0].miles)).toBeLessThan(Number(healthy.weeks[0].miles))
     expect(Number(returning.weeks[1].miles)).toBeLessThan(Number(healthy.weeks[1].miles))
+  })
+
+  it('schedules N cross-training days per week when crossTrainingDaysPerWeek is set', () => {
+    // 7-day budget with 2x cross-training requested. Previously the engine
+    // ignored crossTrainingDaysPerWeek and scheduled exactly one cross
+    // session per week regardless of preference.
+    const plan = generatePlanFromMethod(koop, makeConfig({
+      raceDistance: '50k',
+      experienceLevel: 'advanced',
+      trainingDaysPerWeek: 7,
+      strengthDaysPerWeek: 0,
+      crossTrainingDaysPerWeek: 2,
+      crossTrainingModes: ['hiking', 'cycling'],
+    }), TODAY)
+    const buildWeek = plan.weeks.find(w => w.focus !== 'Taper' && w.focus !== 'Cutback')!
+    const crossDays = buildWeek.days.filter(d => d.type === 'cross').length
+    expect(crossDays).toBe(2)
+  })
+
+  it('rotates cross-training modalities across multiple sessions per week', () => {
+    const plan = generatePlanFromMethod(koop, makeConfig({
+      raceDistance: '50k',
+      experienceLevel: 'advanced',
+      trainingDaysPerWeek: 7,
+      strengthDaysPerWeek: 0,
+      crossTrainingDaysPerWeek: 2,
+      crossTrainingModes: ['cycling', 'hiking'],
+    }), TODAY)
+    const buildWeek = plan.weeks.find(w => w.focus !== 'Taper' && w.focus !== 'Cutback')!
+    const crossWorkouts = buildWeek.days.filter(d => d.type === 'cross').map(d => d.workout.toLowerCase())
+    expect(crossWorkouts.length).toBe(2)
+    // The two cross sessions should be different modalities, not duplicates.
+    expect(new Set(crossWorkouts).size).toBe(2)
+  })
+
+  it('skips strength gym equipment when athlete has no gym access', () => {
+    const plan = generatePlanFromMethod(koop, makeConfig({
+      raceDistance: '50k',
+      experienceLevel: 'advanced',
+      trainingDaysPerWeek: 7,
+      strengthDaysPerWeek: 1,
+      crossTrainingModes: undefined,
+      equipmentAccess: ['trails'],  // no gym
+    }), TODAY)
+    const buildWeek = plan.weeks.find(w => w.focus !== 'Taper' && w.focus !== 'Cutback')!
+    const strengthDay = buildWeek.days.find(d => d.type === 'strength')!
+    // Bodyweight routines lead with "Bodyweight Squat" rather than the
+    // weighted "Goblet Squat" the gym routine prescribes.
+    expect(strengthDay.detail).toMatch(/Bodyweight Squat/)
+    expect(strengthDay.detail).not.toMatch(/Goblet Squat/)
+  })
+
+  it('uses weighted strength routine when gym is in equipment access', () => {
+    const plan = generatePlanFromMethod(koop, makeConfig({
+      raceDistance: '50k',
+      experienceLevel: 'advanced',
+      trainingDaysPerWeek: 7,
+      strengthDaysPerWeek: 1,
+      crossTrainingModes: undefined,
+      equipmentAccess: ['gym'],
+    }), TODAY)
+    const buildWeek = plan.weeks.find(w => w.focus !== 'Taper' && w.focus !== 'Cutback')!
+    const strengthDay = buildWeek.days.find(d => d.type === 'strength')!
+    expect(strengthDay.detail).toMatch(/Goblet Squat/)
+  })
+
+  it('easy-run time tightens with weekly mileage rather than the method-wide range', () => {
+    // For an early-block week (low mileage) vs a peak-block week (high
+    // mileage) on the same plan, the per-easy-run duration should differ.
+    // Previously every easy day showed the method's full
+    // approxDurationMinutes range, regardless of the week's volume.
+    const plan = generatePlanFromMethod(daniels, makeConfig({
+      raceDistance: 'marathon',
+      experienceLevel: 'intermediate',
+      currentWeeklyMileage: 25,
+      fitnessAnchor: { type: 'race_5k', valueSeconds: 21 * 60 + 30 },
+    }), TODAY)
+    // Pull an easy/recovery day from week 1 and a comparable one near peak.
+    const firstEasy = plan.weeks[0].days.find(d => d.plannedWorkout?.category === 'easy' || d.plannedWorkout?.category === 'recovery')
+    const peakWeek = plan.weeks[Math.floor(plan.weeks.length * 0.6)]
+    const peakEasy = peakWeek.days.find(d => d.plannedWorkout?.category === 'easy' || d.plannedWorkout?.category === 'recovery')
+    expect(firstEasy).toBeDefined()
+    expect(peakEasy).toBeDefined()
+    const parseRange = (t: string): [number, number] => {
+      const m = t.match(/(\d+)-(\d+)\s*min/)
+      return m ? [parseInt(m[1]), parseInt(m[2])] : [0, 0]
+    }
+    const [, firstHigh] = parseRange(firstEasy!.time)
+    const [, peakHigh] = parseRange(peakEasy!.time)
+    // Volume rises over the plan, so the peak easy run should be at least
+    // as long (and usually longer) than the week-1 easy run.
+    expect(peakHigh).toBeGreaterThanOrEqual(firstHigh)
+    // Sanity: ranges are bounded, not the method-wide 30-90 default.
+    expect(peakHigh - parseRange(peakEasy!.time)[0]).toBeLessThan(60)
+  })
+
+  it('annotates quality workouts with a venue hint from equipment access', () => {
+    const plan = generatePlanFromMethod(daniels, makeConfig({
+      raceDistance: 'marathon',
+      experienceLevel: 'intermediate',
+      equipmentAccess: ['track', 'hills'],
+      fitnessAnchor: { type: 'race_5k', valueSeconds: 19 * 60 },
+      currentWeeklyMileage: 35,
+    }), TODAY)
+    const allDays = plan.weeks.flatMap(w => w.days)
+    const interval = allDays.find(d =>
+      d.plannedWorkout?.category === 'vo2_intervals'
+      || d.plannedWorkout?.category === 'speed_repetitions',
+    )
+    expect(interval).toBeDefined()
+    expect(interval!.route).toMatch(/Track preferred/)
+  })
+
+  it('skips venue hints when equipment access is not provided', () => {
+    const plan = generatePlanFromMethod(daniels, makeConfig({
+      raceDistance: 'marathon',
+      experienceLevel: 'intermediate',
+      equipmentAccess: undefined,
+      fitnessAnchor: { type: 'race_5k', valueSeconds: 19 * 60 },
+      currentWeeklyMileage: 35,
+    }), TODAY)
+    const allDays = plan.weeks.flatMap(w => w.days)
+    const interval = allDays.find(d =>
+      d.plannedWorkout?.category === 'vo2_intervals'
+      || d.plannedWorkout?.category === 'speed_repetitions',
+    )
+    expect(interval).toBeDefined()
+    expect(interval!.route).toBe('')
   })
 
   it('drops strength to maintenance during taper weeks', () => {

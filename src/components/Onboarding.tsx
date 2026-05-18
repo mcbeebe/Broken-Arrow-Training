@@ -141,6 +141,7 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
   const [equipment, setEquipment] = useState<EquipmentAccess[]>([])
   const [strengthDays, setStrengthDays] = useState<number | null>(null)
   const [crossTraining, setCrossTraining] = useState<CrossTrainingMode[]>([])
+  const [crossDays, setCrossDays] = useState<number | null>(null)
   const [trainingTimes, setTrainingTimes] = useState<TrainingTimeOfDay[]>([])
   const [scheduleNote, setScheduleNote] = useState('')
 
@@ -210,7 +211,14 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
       case STEP_VARIANT: return raceType === 'trail' ? !!longRunDay : raceType === 'hyrox' ? !!weakStation : !!longRunDay
       case STEP_BASELINE: return !!injury // anchor + mileage are optional; injury is the gating answer
       case STEP_EQUIPMENT: return equipment.length > 0
-      case STEP_STRENGTH: return strengthDays !== null // cross-training is optional
+      case STEP_STRENGTH:
+        // Strength frequency is required. Cross-training frequency is also
+        // required (None is a valid answer); modalities are required only
+        // when crossDays > 0.
+        if (strengthDays === null) return false
+        if (crossDays === null) return false
+        if (crossDays > 0 && crossTraining.length === 0) return false
+        return true
       case STEP_SCHEDULE: return trainingTimes.length > 0 // schedule note is optional
       case STEP_WEARABLE: return !!wearable
       case STEP_PROFILE: return name.trim().length > 0 && age.trim().length > 0
@@ -253,6 +261,7 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
       equipmentAccess: equipment.length > 0 ? equipment : undefined,
       strengthDaysPerWeek: strengthDays ?? undefined,
       crossTrainingModes: crossTraining.length > 0 ? crossTraining : undefined,
+      crossTrainingDaysPerWeek: crossDays ?? undefined,
       preferredTrainingTimes: trainingTimes.length > 0 ? trainingTimes : undefined,
       scheduleConstraintsNote: scheduleNote.trim() || undefined,
       completedAt: '',
@@ -490,10 +499,11 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
             <div className="space-y-5">
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">Strength training per week</label>
-                <div className="grid grid-cols-4 gap-2">
+                <div className="grid grid-cols-4 gap-2" data-testid="strength-frequency">
                   {[0, 1, 2, 3].map(n => (
                     <button
                       key={n}
+                      aria-label={`Strength ${n === 0 ? 'None' : n === 3 ? '3+' : `${n}x`}`}
                       onClick={() => setStrengthDays(n)}
                       className={`py-3 rounded-xl border-2 text-base font-semibold transition ${
                         strengthDays === n ? 'border-teal-500 bg-teal-50 text-teal-800' : 'border-slate-200 bg-slate-50 text-slate-700'
@@ -505,27 +515,46 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Cross-training (optional)</label>
-                <div className="space-y-2">
-                  {CROSS_TRAINING_OPTIONS.map(opt => (
-                    <OptionCard
-                      key={opt.value}
-                      selected={crossTraining.includes(opt.value)}
-                      onClick={() => toggleCrossTraining(opt.value)}
-                      title={opt.label}
-                      icon={opt.icon}
-                      multi
-                    />
+                <label className="block text-sm font-medium text-slate-700 mb-2">Cross-training per week (optional)</label>
+                <div className="grid grid-cols-4 gap-2" data-testid="cross-frequency">
+                  {[0, 1, 2, 3].map(n => (
+                    <button
+                      key={n}
+                      aria-label={`Cross-training ${n === 0 ? 'None' : n === 3 ? '3+' : `${n}x`}`}
+                      onClick={() => setCrossDays(n)}
+                      className={`py-3 rounded-xl border-2 text-base font-semibold transition ${
+                        crossDays === n ? 'border-teal-500 bg-teal-50 text-teal-800' : 'border-slate-200 bg-slate-50 text-slate-700'
+                      }`}
+                    >
+                      {n === 0 ? 'None' : n === 3 ? '3+' : `${n}x`}
+                    </button>
                   ))}
                 </div>
-                <p className="text-xs text-slate-400 mt-2">
-                  One cross-training day per week. Pick one or more modalities — we'll rotate through them on easy days.
-                </p>
               </div>
+              {(crossDays ?? 0) > 0 && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Pick your modalities</label>
+                  <div className="space-y-2">
+                    {CROSS_TRAINING_OPTIONS.map(opt => (
+                      <OptionCard
+                        key={opt.value}
+                        selected={crossTraining.includes(opt.value)}
+                        onClick={() => toggleCrossTraining(opt.value)}
+                        title={opt.label}
+                        icon={opt.icon}
+                        multi
+                      />
+                    ))}
+                  </div>
+                  <p className="text-xs text-slate-400 mt-2">
+                    We'll rotate through these on your cross-training days.
+                  </p>
+                </div>
+              )}
               <WeekBreakdown
                 daysPerWeek={daysPerWeek}
                 strengthDays={strengthDays ?? 0}
-                hasCross={crossTraining.length > 0}
+                crossDays={(crossDays ?? 0) > 0 && crossTraining.length > 0 ? crossDays! : 0}
               />
             </div>
           </StepContainer>
@@ -587,6 +616,7 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
               weakStation={weakStation}
               strengthDays={strengthDays}
               crossTraining={crossTraining}
+              crossDays={crossDays}
               injury={injury}
               wearable={wearable}
               name={name}
@@ -631,6 +661,9 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
                 {age && !maxHR && (
                   <p className="text-xs text-slate-400 mt-1">Using estimated max HR: {220 - (parseInt(age) || 30)} bpm (220 - age)</p>
                 )}
+                <p className="text-xs text-slate-400 mt-1">
+                  We derive Z2 from your lactate threshold (~88% of max HR by default). For tighter zones, enter LTHR directly under "Fitness anchor" on the prior step.
+                </p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Cycling FTP (optional)</label>
@@ -711,14 +744,14 @@ function GeneratingScreen({ message }: { message: string }) {
 function WeekBreakdown({
   daysPerWeek,
   strengthDays,
-  hasCross,
+  crossDays,
 }: {
   daysPerWeek: number | null
   strengthDays: number
-  hasCross: boolean
+  crossDays: number
 }) {
   if (daysPerWeek == null) return null
-  const cross = hasCross ? 1 : 0
+  const cross = crossDays
   const extras = strengthDays + cross
   const runs = Math.max(0, daysPerWeek - extras)
   const over = extras > daysPerWeek
@@ -788,6 +821,7 @@ function ReviewSummary({
   weakStation,
   strengthDays,
   crossTraining,
+  crossDays,
   injury,
   wearable,
   name,
@@ -804,12 +838,13 @@ function ReviewSummary({
   weakStation: string | null
   strengthDays: number | null
   crossTraining: CrossTrainingMode[]
+  crossDays: number | null
   injury: InjuryStatus | null
   wearable: WearableType | null
   name: string
   age: string
 }) {
-  const cross = crossTraining.length > 0 ? 1 : 0
+  const cross = (crossDays ?? 0) > 0 && crossTraining.length > 0 ? crossDays! : 0
   const strength = strengthDays ?? 0
   const total = daysPerWeek ?? 0
   const runs = Math.max(0, total - strength - cross)
