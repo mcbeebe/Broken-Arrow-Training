@@ -328,10 +328,14 @@ export function generatePlanFromMethod(
   const desiredRunDays = requestedTotalDays - extrasRequested
   const runningDaysTarget = Math.max(minRunDays, Math.min(maxRunDays, desiredRunDays))
 
-  // Whatever's left after running fills with strength/cross — capped both
-  // by the user's request and by the total-days budget.
-  const extrasBudget = Math.max(0, requestedTotalDays - runningDaysTarget)
-  const extrasCap = Math.min(extrasRequested, extrasBudget)
+  // Strength + cross-training the user explicitly asked for. We honor the
+  // full request even when the method's running minimum pushed
+  // `runningDaysTarget` above `requestedTotalDays - extrasRequested` — the
+  // alternative is silently dropping a strength day the user just clicked,
+  // which was confusing in practice. The only hard cap is the calendar:
+  // never schedule more than 7 active days in a week.
+  const extrasInWeekCap = Math.max(0, 7 - runningDaysTarget)
+  const extrasCap = Math.min(extrasRequested, extrasInWeekCap)
 
   const raceDateAnchor = config.raceDate || addDays(today, totalWeeks * 7)
   const weeks: TrainingWeek[] = []

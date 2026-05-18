@@ -12,6 +12,7 @@ import { useReadiness } from './hooks/useReadiness'
 import { useOnboarding } from './hooks/useOnboarding'
 import { useTutorial } from './hooks/useTutorial'
 import Onboarding from './components/Onboarding'
+import OnboardingConnect from './components/OnboardingConnect'
 import Tutorial from './components/Tutorial'
 import MethodSelection from './components/MethodSelection'
 import MethodologyPrimer from './components/MethodologyPrimer'
@@ -118,6 +119,26 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
           onboarding.save(config)
         }}
         onSkip={onLogout}
+      />
+    )
+  }
+
+  // Final onboarding step: connect Garmin / Strava. Only shown to athletes
+  // who came through onboarding (not seed athletes with hardcoded plans) and
+  // haven't yet dismissed the screen. The OnboardingConnect component
+  // auto-dismisses if either integration is already connected (covers
+  // existing users who onboarded before this step existed) or if neither
+  // integration is configured in this environment.
+  if (
+    !plan &&
+    onboarding.config &&
+    !onboarding.config.connectStepSeenAt
+  ) {
+    return (
+      <OnboardingConnect
+        athleteId={athleteId}
+        onContinue={onboarding.markConnectStepSeen}
+        wearablePreference={onboarding.config.wearable}
       />
     )
   }

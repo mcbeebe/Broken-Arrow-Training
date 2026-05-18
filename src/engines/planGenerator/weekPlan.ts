@@ -20,8 +20,15 @@ const CURRENT_MILEAGE_BY_EXPERIENCE: Record<OnboardingExperienceLevel, number> =
   elite: 48,
 }
 
-/** Estimate user's current weekly running miles when onboarding doesn't capture it. */
+/** User's current weekly running miles — honors the value captured in
+ *  onboarding when present, otherwise falls back to an experience-level
+ *  estimate. Self-reported mileage drives ramp safety (the engine builds
+ *  from `start = peak × startPct`, so getting the baseline wrong is the
+ *  difference between a sane ramp and an injury). */
 export function estimateCurrentWeeklyMileage(config: OnboardingConfig): number {
+  if (config.currentWeeklyMileage != null && config.currentWeeklyMileage > 0) {
+    return config.currentWeeklyMileage
+  }
   return CURRENT_MILEAGE_BY_EXPERIENCE[config.experienceLevel]
 }
 
