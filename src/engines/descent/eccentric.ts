@@ -105,7 +105,8 @@ export interface EccentricResult {
   averageScore: number
   /** Sum of (eccentricScore × dDistanceKm) — total braking-work units (km·score). */
   totalKmScore: number
-  /** Distance covered at each eccentric severity bucket (meters). */
+  /** Distance covered at each eccentric severity bucket (horizontal meters
+   *  of path). Used by `WorkoutModal` for the per-run readout. */
   buckets: {
     /** Score < 2 — flat / moderate climb. Eccentric load minimal. */
     mild: number
@@ -114,14 +115,25 @@ export interface EccentricResult {
     /** Score ≥ 3 — steep descent / scramble. Drives most of the DOMS. */
     severe: number
   }
+  /** Vertical meters of climbing within segments steeper than +10% grade.
+   *  Directly comparable to a course's `verticalGainFt × m/ft`. */
+  hardAscentVerticalMeters: number
+  /** Vertical meters of descending within segments steeper than -10% grade.
+   *  Directly comparable to a course's `verticalLossFt × m/ft`. */
+  hardDescentVerticalMeters: number
 }
 
 const MILD_MAX = 2
 const MODERATE_MAX = 3
+/** Grade threshold (10%) at which we count vertical work as "hard". Matches
+ *  the eccentric table's score≥2 boundary so the climb and descent sides use
+ *  the same physical definition. */
+const HARD_GRADE = 0.10
 
 /**
  * Distance-weighted eccentric load over the activity's per-second
- * altitude+distance stream.
+ * altitude+distance stream, plus vertical-meters totals for hard climbing
+ * and hard descending segments.
  *
  * Returns null when the stream is too short or has no usable data —
  * caller should fall back to the static `DOMS_CARRY` heuristic.
@@ -136,6 +148,8 @@ export function computeEccentricLoad(stream: StreamData): EccentricResult | null
   let mildDist = 0
   let moderateDist = 0
   let severeDist = 0
+  let hardAscent = 0
+  let hardDescent = 0
 
   for (let i = 1; i < stream.distance.length; i++) {
     const dDist = stream.distance[i] - stream.distance[i - 1]
@@ -148,6 +162,8 @@ export function computeEccentricLoad(stream: StreamData): EccentricResult | null
     if (score < MILD_MAX) mildDist += dDist
     else if (score < MODERATE_MAX) moderateDist += dDist
     else severeDist += dDist
+    if (grade >= HARD_GRADE) hardAscent += dAlt
+    else if (grade <= -HARD_GRADE) hardDescent += -dAlt
   }
 
   if (totalDist <= 0) return null
@@ -160,5 +176,7 @@ export function computeEccentricLoad(stream: StreamData): EccentricResult | null
       moderate: moderateDist,
       severe: severeDist,
     },
+    hardAscentVerticalMeters: hardAscent,
+    hardDescentVerticalMeters: hardDescent,
   }
 }
