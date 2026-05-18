@@ -210,6 +210,9 @@ export function classifyAgainstBand(
  * Plain-English coaching read covering both ascent and descent for the
  * current week. Renders inside `<InsightNote>`.
  */
+const FEET_PER_METER = 3.2808
+const ftStr = (meters: number) => Math.round(meters * FEET_PER_METER).toLocaleString()
+
 export function describeVerticalState(
   trend: VerticalTrend,
   targets: VerticalTargets,
@@ -225,7 +228,7 @@ export function describeVerticalState(
   const ascentLine = sideRead('climb', current.hardAscentMeters, targets.ascent)
   const descentLine = sideRead('descent', current.hardDescentMeters, targets.descent)
   if (!targets.ascent && !targets.descent) {
-    return `${Math.round(current.hardAscentMeters)} m of hard climbing and ${Math.round(current.hardDescentMeters)} m of hard descent this week${raceContext ? ` —${raceContext}` : ''}. Pick a race to see the target bands.`
+    return `${ftStr(current.hardAscentMeters)} ft of hard climbing and ${ftStr(current.hardDescentMeters)} ft of hard descent this week${raceContext ? ` —${raceContext}` : ''}. Pick a race to see the target bands.`
   }
   return `${ascentLine} · ${descentLine}${raceContext ? ` —${raceContext}.` : '.'}`
 }
@@ -235,15 +238,15 @@ function sideRead(
   meters: number,
   band: VerticalBand | null,
 ): string {
-  const m = Math.round(meters)
-  if (!band) return `${m} m of hard ${side}`
+  if (!band) return `${ftStr(meters)} ft of hard ${side}`
   const state = classifyAgainstBand(meters, band)
-  if (state === 'in-band') return `${m} m of hard ${side} — in band (${band.minMetersPerWeek}–${band.maxMetersPerWeek} m)`
+  const bandStr = `${ftStr(band.minMetersPerWeek)}–${ftStr(band.maxMetersPerWeek)} ft`
+  if (state === 'in-band') return `${ftStr(meters)} ft of hard ${side} — in band (${bandStr})`
   if (state === 'below') {
-    const gap = Math.round(band.minMetersPerWeek - meters)
-    return `${m} m of hard ${side} — short ${gap} m of the ${band.minMetersPerWeek}–${band.maxMetersPerWeek} m band`
+    const gap = band.minMetersPerWeek - meters
+    return `${ftStr(meters)} ft of hard ${side} — short ${ftStr(gap)} ft of the ${bandStr} band`
   }
-  return `${m} m of hard ${side} — above the ${band.minMetersPerWeek}–${band.maxMetersPerWeek} m band`
+  return `${ftStr(meters)} ft of hard ${side} — above the ${bandStr} band`
 }
 
 /** Legacy single-axis read kept for callers that still use it. */
