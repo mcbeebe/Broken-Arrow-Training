@@ -647,6 +647,29 @@ describe('Onboarding', () => {
       scrollSpy.mockRestore()
     })
 
+    it('resets the inner scroll container when advancing to the next step', () => {
+      // Regression: the iOS fix that calls window.scrollTo(0,0) didn't
+      // reset the inner overflow-y-auto container's scrollTop. If the
+      // previous step's content overflowed (e.g. race-type cards on a
+      // short phone) and the user scrolled, the next step's shorter
+      // content would paint above the visible viewport — blank screen.
+      const onComplete = vi.fn()
+      const { container } = render(<Onboarding onComplete={onComplete} loadingDurationMs={0} />)
+
+      const scroller = container.querySelector('.overflow-y-auto') as HTMLDivElement
+      expect(scroller).toBeTruthy()
+      // Simulate the user having scrolled the race-type step.
+      scroller.scrollTop = 400
+      expect(scroller.scrollTop).toBe(400)
+
+      fireEvent.click(screen.getByText('Trail / Road Race'))
+      clickContinue()
+
+      // After the step transition, the next step's container starts at
+      // the top so its content is visible.
+      expect(scroller.scrollTop).toBe(0)
+    })
+
     it('blurs the focused input when the step changes', () => {
       const onComplete = vi.fn()
       render(<Onboarding onComplete={onComplete} loadingDurationMs={0} />)
