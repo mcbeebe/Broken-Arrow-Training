@@ -19,8 +19,10 @@ from ._core import (
     insight_key,
     kv_get_json,
     kv_set_json,
+    load_learning_ack,
     load_memory,
     read_json_body,
+    save_learning_ack,
     send_cors_preflight,
     send_json,
 )
@@ -169,9 +171,64 @@ class handler(BaseHTTPRequestHandler):
         if ":" in surface:
             day_label = surface.split(":", 1)[1]
 
+        # Daily-narrative-only: surface About Me facts the coach hasn't
+        # acknowledged yet, so they get noticed in the narrative exactly
+        # once instead of as a separate "the coach just learned X" UI
+        # affordance. Other surfaces (workout_take, day_card, why) are
+        # functional and skip this — they shouldn't drift into narrative.
+        new_learnings: list[dict] = []
+        ack_record: dict = {"ackedIds": [], "initialized": True}
+        if surface_root == "daily":
+            ack_record = load_learning_ack(athlete_id)
+            facts = memory.get("aboutMeFacts") or []
+            if not ack_record["initialized"]:
+                # First-ever read for this athlete — seed the set with
+                # every existing fact id so we don't suddenly narrate
+                # weeks of accumulated memory in the next insight. New
+                # facts added after this point will flow naturally.
+                seed_ids = [str(f.get("id")) for f in facts if f.get("id")]
+                save_learning_ack(athlete_id, seed_ids)
+                ack_record = {"ackedIds": seed_ids, "initialized": True}
+            else:
+                acked = set(ack_record["ackedIds"])
+                # Newest-first; the coach should notice the most recent
+                # learning first. Cap at 5 — more than that and the
+                # directive starts feeling like a checklist regardless
+                # of the "skip if forced" hedge in the prompt.
+                ordered = sorted(
+                    facts,
+                    key=lambda f: f.get("learnedAt") or 0,
+                    reverse=True,
+                )
+                for f in ordered:
+                    fid = str(f.get("id") or "")
+                    txt = str(f.get("text") or "").strip()
+                    if fid and txt and fid not in acked:
+                        new_learnings.append({"id": fid, "text": txt})
+                    if len(new_learnings) >= 5:
+                        break
+
+        learnings_block = ""
+        if new_learnings:
+            bullets = "\n".join(f"- {nl['text']}" for nl in new_learnings)
+            learnings_block = (
+                "\nRECENT LEARNINGS the athlete shared since your last "
+                "daily check-in — you have NOT acknowledged these yet:\n"
+                f"{bullets}\n\n"
+                "If — and only if — one of these is genuinely relevant to "
+                "today's read, weave in ONE brief natural acknowledgment "
+                "in your own voice (e.g. \"Noted the Sunday long-run "
+                "preference — that lines up with…\"). Hard rules: at "
+                "most one acknowledgment, never list them, never re-"
+                "summarize all of them, and skip entirely if it would "
+                "feel forced. The athlete should feel noticed, not "
+                "lectured.\n"
+            )
+
         user_msg = (
             f"Context snapshot:\n{context_block}\n\n"
             + (f"Target day: {day_label}\n\n" if day_label else "")
+            + learnings_block
             + "Task:\n"
             + instructions
         )
@@ -220,6 +277,16 @@ class handler(BaseHTTPRequestHandler):
         if not text:
             send_json(self, 204, {"error": "empty response"})
             return
+
+        # Mark surfaced learnings as acknowledged so the coach doesn't
+        # mention the same fact twice on subsequent daily insights. We
+        # add ALL surfaced ids — the LLM may have woven in only one,
+        # but the rest were available context and shouldn't queue back
+        # up day after day. New facts added after this call will flow
+        # through naturally on the next cache-miss generation.
+        if new_learnings and surface_root == "daily":
+            updated_ids = list(ack_record["ackedIds"]) + [nl["id"] for nl in new_learnings]
+            save_learning_ack(athlete_id, updated_ids)
 
         # SILENT = explicit suppression for day_card
         if text.strip().upper() == "SILENT":
