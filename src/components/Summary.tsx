@@ -13,6 +13,7 @@ import { getWorkoutStyle } from '../utils/styles'
 import Term from './TermGlossary'
 import { buildWeatherChipForDate } from '../utils/weatherChip'
 import RaceReadyHeroCard from './RaceReadyHeroCard'
+import YourRaceCard from './YourRaceCard'
 import RaceReadinessDetailModal from './RaceReadinessDetailModal'
 import { buildRaceReadinessDetail, computeRaceReadiness } from '../utils/raceReadiness'
 import { weeksUntilRace } from '../utils/raceCountdown'
@@ -382,6 +383,7 @@ export default function Summary({
           )}
         </div>
       )}
+      {race && <YourRaceCard race={race} />}
       {race && raceReadiness && (
         <RaceReadyHeroCard
           race={{ name: race.name, distance: race.distance }}
