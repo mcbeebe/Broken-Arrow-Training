@@ -1,7 +1,12 @@
 """Coach memory CRUD.
 
 GET  /api/coach/memory?athleteId=X
+GET  /api/coach/memory?athleteId=X&view=summary_card[&force=1]
 POST /api/coach/memory?athleteId=X  { action, ... }
+
+The `view` query param toggles read-only projections of the same
+underlying memory. Folded into this endpoint so the deployment stays
+under the Hobby-plan 12-function cap.
 """
 
 import time
@@ -9,6 +14,7 @@ from http.server import BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 
 from ._core import (
+    build_summary_card,
     load_memory,
     save_memory,
     new_fact_id,
@@ -28,6 +34,10 @@ def _athlete_id(handler) -> str:
     return (v[0] or "").strip()
 
 
+def _query(handler) -> dict:
+    return parse_qs(urlparse(handler.path).query)
+
+
 class handler(BaseHTTPRequestHandler):
     def do_OPTIONS(self):
         send_cors_preflight(self)
@@ -36,6 +46,15 @@ class handler(BaseHTTPRequestHandler):
         athlete_id = _athlete_id(self)
         if not athlete_id:
             send_json(self, 400, {"error": "athleteId required"})
+            return
+        q = _query(self)
+        view = (q.get("view", [""])[0] or "").strip()
+        if view == "summary_card":
+            force = (q.get("force", ["0"])[0] or "0") in ("1", "true", "yes")
+            mem = load_memory(athlete_id)
+            facts = mem.get("aboutMeFacts") or []
+            payload = build_summary_card(athlete_id, facts, force=force)
+            send_json(self, 200, payload)
             return
         mem = load_memory(athlete_id)
         send_json(self, 200, mem)
