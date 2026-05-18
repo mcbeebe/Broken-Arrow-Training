@@ -11,7 +11,7 @@ import {
   paceBoundsForZone,
   FITNESS_ANCHOR_DISTANCES,
 } from '../../../engines/planGenerator/vdot'
-import { resolveAnchor, resolvePaces } from '../../../engines/planGenerator/paceTargets'
+import { resolveAnchor, resolvePaces, ESTIMATED_LTHR_PCT_OF_MAX } from '../../../engines/planGenerator/paceTargets'
 import { generatePlanFromMethod } from '../../../engines/planGenerator/generatePlan'
 
 import type { TrainingMethod } from '../../../types/training-method'
@@ -129,7 +129,7 @@ describe('resolveAnchor — fitnessAnchor consumption', () => {
   it('falls back to estimated LTHR when no user LTHR is given', () => {
     const a = resolveAnchor(koop, cfg({ maxHR: 184 }))
     expect(a.type).toBe('lthr_bpm')
-    expect(a.value).toBe(Math.round(184 * 0.92))
+    expect(a.value).toBe(Math.round(184 * ESTIMATED_LTHR_PCT_OF_MAX))
     expect(a.sourceNote).toMatch(/estimated/i)
   })
 

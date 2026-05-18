@@ -32,7 +32,13 @@ import {
   ZONE_INTENSITY,
 } from './vdot'
 
-const ESTIMATED_LTHR_PCT_OF_MAX = 0.92
+// Default LTHR-to-HRmax ratio for the typical recreational runner. Real
+// values range 0.85–0.92; we land on the conservative side so a user who
+// enters only maxHR doesn't see Z2 ceilings climb into the 80%+ of HRmax
+// range (which contradicts the "easy / aerobic" framing the UI advertises).
+// Athletes with a higher actual ratio should enter LTHR directly under the
+// Fitness Anchor step — that path overrides this estimate entirely.
+export const ESTIMATED_LTHR_PCT_OF_MAX = 0.88
 const ESTIMATED_AET_PCT_OF_MAX = 0.78
 
 function userMaxHR(config: OnboardingConfig): number {

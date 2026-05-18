@@ -16,6 +16,7 @@ import OnboardingConnect from './components/OnboardingConnect'
 import Tutorial from './components/Tutorial'
 import MethodSelection from './components/MethodSelection'
 import MethodologyPrimer from './components/MethodologyPrimer'
+import ZonesPrimer from './components/ZonesPrimer'
 import { getMethodById } from './data/methods'
 import { generatePlanFromMethod } from './engines/planGenerator/generatePlan'
 import { useSoreness } from './hooks/useSoreness'
@@ -197,6 +198,37 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
     )
   }
 
+  // Zones primer: shown once after the methodology primer is dismissed so
+  // the athlete sees their personalized bpm ranges and the method-specific
+  // framing for each zone before they start consuming workouts. Skipped
+  // for Hyrox (no method-based zones) and for athletes who have already
+  // dismissed it.
+  if (
+    activePlan &&
+    onboarding.config &&
+    onboarding.config.primerSeenAt &&
+    !onboarding.config.zonesPrimerSeenAt &&
+    onboarding.config.raceType !== 'hyrox'
+  ) {
+    const primerMethod = onboarding.config.selectedMethodId
+      ? getMethodById(onboarding.config.selectedMethodId)
+      : undefined
+    return (
+      <ZonesPrimer
+        plan={activePlan}
+        method={primerMethod}
+        config={onboarding.config}
+        onContinue={onboarding.markZonesPrimerSeen}
+        onRefineZones={() => {
+          onboarding.markZonesPrimerSeen()
+          // sessionStorage so the next render of MainAppShell can open
+          // Settings without us re-mounting the whole app tree.
+          try { sessionStorage.setItem('ba_initial_view', 'settings') } catch { /* quota */ }
+        }}
+      />
+    )
+  }
+
   if (!activePlan) {
     return (
       <div className="min-h-screen bg-white flex flex-col items-center justify-center px-6">
@@ -243,7 +275,21 @@ interface MainAppShellProps {
 }
 
 function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tutorial }: MainAppShellProps) {
-  const [view, setView] = useState<ViewId>('summary')
+  const [view, setView] = useState<ViewId>(() => {
+    // Honor the one-shot initial-view hint set by the zones primer's
+    // "Refine zones in Settings" action. Read + clear immediately so a
+    // reload doesn't bounce back into Settings.
+    try {
+      const hint = sessionStorage.getItem('ba_initial_view')
+      if (hint) {
+        sessionStorage.removeItem('ba_initial_view')
+        if (hint === 'settings' || hint === 'plan' || hint === 'stats' || hint === 'coach') {
+          return hint as ViewId
+        }
+      }
+    } catch { /* ignored */ }
+    return 'summary'
+  })
   const [chatSeed, setChatSeed] = useState<string | null>(null)
   const theme = useTheme()
   const strava = useStrava(athleteId)

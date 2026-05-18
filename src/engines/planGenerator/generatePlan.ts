@@ -127,7 +127,19 @@ function computeZones(
     for (const c of candidates) {
       const target = paces.byZone[c]
       if (target && target.hrBpmLow != null && target.hrBpmHigh != null) {
-        resolved = { zone: slot.label, hr: `${target.hrBpmLow}–${target.hrBpmHigh}`, pct: slot.pct, desc: slot.desc }
+        // Derive the % label from the actual bpm range so the percentage
+        // is honest with the number — previously the bpm came from the
+        // method's %LTHR definition while the % label was a hard-coded
+        // %HRmax band, which contradicted each other (e.g. Z2 said
+        // "65–75%" but showed 149–164 = ~75–82% of a 200 max HR).
+        const pctLow = Math.round((target.hrBpmLow / maxHR) * 100)
+        const pctHigh = Math.round((target.hrBpmHigh / maxHR) * 100)
+        resolved = {
+          zone: slot.label,
+          hr: `${target.hrBpmLow}–${target.hrBpmHigh}`,
+          pct: `${pctLow}–${pctHigh}%`,
+          desc: slot.desc,
+        }
         break
       }
     }
@@ -150,6 +162,79 @@ function buildDetailString(pw: PlannedWorkout, paces: ResolvedPaces, weekMi: Wee
   return parts.join(' · ')
 }
 
+/**
+ * Compute a per-week duration window for an easy or recovery run.
+ *
+ * The method-level `approxDurationMinutes` is a method-wide range like
+ * 30–90 min — useful as a guardrail but useless to a runner trying to
+ * plan an actual workout. This helper narrows the window using:
+ *
+ *   - This week's running volume (totalMi) minus the long run, split
+ *     evenly across the easy / recovery days in the week's pattern.
+ *   - The athlete's easy-zone pace (when known) to translate miles → minutes.
+ *
+ * The result naturally ramps with the mileage progression — early weeks
+ * show shorter easy runs, peak weeks show longer ones — and stays inside
+ * the method's stated bounds so we never recommend something the method
+ * explicitly avoids.
+ */
+function computeEasyRunTime(
+  schedule: DaySchedule[],
+  weekMi: WeekMileage,
+  paces: ResolvedPaces,
+  fallback: { min: number; max: number },
+): { min: number; max: number } {
+  const easyDays = schedule.filter(
+    d => d.category === 'easy' || d.category === 'recovery',
+  ).length
+  if (easyDays === 0 || weekMi.totalMi <= 0) return fallback
+
+  const easyMiTotal = Math.max(0, weekMi.totalMi - weekMi.longRunMi)
+  const milesPerEasy = easyMiTotal / easyDays
+  if (milesPerEasy <= 0) return fallback
+
+  // Easy pace bounds are stored as sec/mile. The slower (higher number)
+  // bound translates to a longer time, the faster bound to a shorter time.
+  // Fall back to a typical recreational easy pace when no anchor exists.
+  const easy = paces.byZone.easy
+  const fastSec = easy?.paceSecPerMileHigh ?? 540   // 9:00/mi
+  const slowSec = easy?.paceSecPerMileLow ?? 600    // 10:00/mi
+
+  const minMinutes = Math.round((milesPerEasy * fastSec) / 60)
+  const maxMinutes = Math.round((milesPerEasy * slowSec) / 60)
+
+  // Clamp inside the method's stated window so we never advertise a
+  // duration the method's authors explicitly designed against.
+  const lo = Math.max(fallback.min, Math.min(minMinutes, maxMinutes))
+  const hi = Math.min(fallback.max, Math.max(minMinutes, maxMinutes))
+  if (hi < lo) return fallback
+  return { min: lo, max: hi }
+}
+
+/**
+ * Suggest a venue / route hint based on the workout category and the
+ * equipment the athlete said they have access to during onboarding. Pure
+ * UI hint — empty string when no useful suggestion can be made.
+ */
+function venueHintFor(
+  category: WorkoutCategory,
+  equipment: readonly string[] | undefined,
+): string {
+  if (!equipment || equipment.length === 0) return ''
+  const has = (e: string) => equipment.includes(e)
+  switch (category) {
+    case 'speed_repetitions':
+    case 'vo2_intervals':
+      return has('track') ? 'Track preferred' : has('treadmill') ? 'Treadmill or measured loop' : 'Flat measured loop'
+    case 'hills':
+      return has('hills') ? 'Hill route' : has('treadmill') ? 'Treadmill incline' : 'Hilly section if available'
+    case 'long':
+      return has('trails') ? 'Trails preferred' : ''
+    default:
+      return ''
+  }
+}
+
 function buildPlannedDay(
   date: string,
   daySchedule: DaySchedule,
@@ -158,6 +243,8 @@ function buildPlannedDay(
   workout: Workout | null,
   plannedWorkout: PlannedWorkout | null,
   substitutionNote?: string,
+  weekSchedule?: DaySchedule[],
+  equipment?: readonly string[],
 ): PlannedDay {
   const type = categoryToType(daySchedule.category)
   if (!workout || !plannedWorkout) {
@@ -174,6 +261,16 @@ function buildPlannedDay(
   }
 
   const target = paces.byZone[plannedWorkout.primaryZone]
+  // Personalize the displayed duration for easy / recovery runs so each
+  // week shows a tighter, mileage-aware range instead of the method's
+  // wide method-level window (e.g. 30–90 min). Quality workouts keep
+  // the method's range because their structure (intervals, recovery,
+  // etc.) is what determines the duration, not weekly mileage.
+  const category = plannedWorkout.category
+  const usesEasyDuration = category === 'easy' || category === 'recovery'
+  const timeRange = usesEasyDuration && weekSchedule
+    ? computeEasyRunTime(weekSchedule, weekMi, paces, plannedWorkout.approxDurationMinutes)
+    : plannedWorkout.approxDurationMinutes
   return {
     day: formatDayLabel(date),
     type,
@@ -181,8 +278,8 @@ function buildPlannedDay(
     detail: buildDetailString(plannedWorkout, paces, weekMi)
       + (substitutionNote ? ` · ${substitutionNote}` : ''),
     zone: target ? formatZoneString(target) : '—',
-    route: '',
-    time: `${plannedWorkout.approxDurationMinutes.min}-${plannedWorkout.approxDurationMinutes.max} min`,
+    route: venueHintFor(category, equipment),
+    time: `${timeRange.min}-${timeRange.max} min`,
     plannedWorkout,
   }
 }
@@ -217,6 +314,7 @@ function buildAthleteProfile(
     currentBase: `~${currentWeeklyMileage} mi/wk`,
     weeklyStructure: `${effectiveDaysPerWeek} days/week`,
     ftpWatts: config.ftpWatts,
+    equipmentAccess: config.equipmentAccess,
   }
 }
 
@@ -315,7 +413,12 @@ export function generatePlanFromMethod(
   // we ask the running pattern for, so the pattern's rest days line up
   // with the requested extras instead of being padded on top.
   const wantStrength = Math.max(0, config.strengthDaysPerWeek ?? 0)
-  const wantCross = (config.crossTrainingModes && config.crossTrainingModes.length > 0) ? 1 : 0
+  // Prefer the explicit per-week count when set; fall back to "1 if any
+  // modalities are selected" so older configs without crossTrainingDaysPerWeek
+  // still schedule a cross session (legacy behavior).
+  const explicitCrossDays = config.crossTrainingDaysPerWeek
+  const legacyCrossDays = (config.crossTrainingModes && config.crossTrainingModes.length > 0) ? 1 : 0
+  const wantCross = explicitCrossDays != null ? explicitCrossDays : legacyCrossDays
   const extrasRequested = wantStrength + wantCross
 
   // Clamp running days to what the method actually offers (derived from its
@@ -365,10 +468,10 @@ export function generatePlanFromMethod(
       const date = addDays(weekStart, dayOffset)
       const picked = pickWorkoutForDay(method, daySched, methodExp, weekMi.totalMi)
       if (!picked) {
-        days.push(buildPlannedDay(date, daySched, paces, weekMi, null, null))
+        days.push(buildPlannedDay(date, daySched, paces, weekMi, null, null, undefined, adjustedSchedule, config.equipmentAccess))
       } else {
         const pw = buildPlannedWorkout(method, picked.workout, paces, picked.reason)
-        days.push(buildPlannedDay(date, daySched, paces, weekMi, picked.workout, pw, picked.reason))
+        days.push(buildPlannedDay(date, daySched, paces, weekMi, picked.workout, pw, picked.reason, adjustedSchedule, config.equipmentAccess))
       }
     }
     // Sort by dayOfWeek (Mon..Sun) — schedule is already in order but be defensive

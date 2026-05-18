@@ -72,12 +72,40 @@ const TAPER_STRENGTH_ROUTINE = [
   'Plank 2×30s',
 ]
 
+// Bodyweight-only variants for athletes who selected no gym access. Keeps
+// the same movement pattern (squat / hinge / single-leg / core) so the
+// training stimulus is comparable, just unweighted.
+const BASE_BODYWEIGHT_ROUTINE = [
+  'Bodyweight Squat 3×20',
+  'Bulgarian Split Squat 3×10/leg',
+  'Single-Leg Glute Bridge 3×12/leg',
+  'Step-Up 3×10/leg',
+  'Calf Raise 3×20',
+  'Plank 3×45s',
+  'Dead Bug 3×10/side',
+]
+
+const TAPER_BODYWEIGHT_ROUTINE = [
+  'Bodyweight Squat 2×15',
+  'Bulgarian Split Squat 2×8/leg',
+  'Calf Raise 2×15',
+  'Plank 2×30s',
+]
+
 /**
  * Build the strength detail string. Tapers get a lighter, maintenance-only
  * routine to preserve neuromuscular connections without creating fatigue.
+ * Substitutes a bodyweight-only variant when the athlete didn't select gym
+ * access in onboarding — same movement pattern, no loaded equipment.
  */
-export function buildStrengthDetail(opts: ExtraDaysOptions): string {
-  const routine = opts.isTaper ? TAPER_STRENGTH_ROUTINE : BASE_STRENGTH_ROUTINE
+export function buildStrengthDetail(
+  opts: ExtraDaysOptions,
+  config?: OnboardingConfig,
+): string {
+  const hasGym = !!config?.equipmentAccess?.includes('gym')
+  const routine = opts.isTaper
+    ? (hasGym ? TAPER_STRENGTH_ROUTINE : TAPER_BODYWEIGHT_ROUTINE)
+    : (hasGym ? BASE_STRENGTH_ROUTINE : BASE_BODYWEIGHT_ROUTINE)
   return routine.join(' · ')
 }
 
@@ -133,18 +161,25 @@ export function buildCrossDetail(
 }
 
 /**
- * Pick a cross-training modality from the user's onboarding selection. Honors
- * the method's approved modalities (e.g. Koop endorses hiking + cycling).
- * Returns null when nothing fits.
+ * Pick the Nth cross-training modality, rotating through the user's
+ * selections so a 2x/week schedule gets two different modalities rather
+ * than repeating the same one. Method-approved modalities are preferred
+ * (first), then the rest of the user's list as fallback. Returns null
+ * when nothing fits.
  */
-export function pickCrossMode(
+export function pickCrossModeAt(
+  index: number,
   config: OnboardingConfig,
   method: TrainingMethod,
 ): CrossTrainingMode | null {
-  if (!config.crossTrainingModes || config.crossTrainingModes.length === 0) return null
+  const list = config.crossTrainingModes
+  if (!list || list.length === 0) return null
   const approved = new Set(method.crossTrainingRecommendation.approvedModalities)
-  const approvedSelection = config.crossTrainingModes.find(m => approved.has(m))
-  return approvedSelection ?? config.crossTrainingModes[0]
+  const ordered = [
+    ...list.filter(m => approved.has(m)),
+    ...list.filter(m => !approved.has(m)),
+  ]
+  return ordered[index % ordered.length]
 }
 
 /**
@@ -164,9 +199,14 @@ export function injectExtraDays(
   weekMileage: { isTaper: boolean; phaseId: string; weekNumber: number },
   caps?: ExtraDaysCaps,
 ): PlannedDay[] {
-  const wantCross = !!config.crossTrainingModes && config.crossTrainingModes.length > 0
+  // Cross-training frequency: prefer the explicit per-week count when set;
+  // fall back to the legacy "1 if any modalities selected" behavior so
+  // existing configs (and seed fixtures) keep working without re-onboarding.
+  const explicitCrossDays = config.crossTrainingDaysPerWeek
+  const legacyCrossDays = (config.crossTrainingModes && config.crossTrainingModes.length > 0) ? 1 : 0
+  const wantCrossDays = explicitCrossDays != null ? explicitCrossDays : legacyCrossDays
   const wantStrength = (config.strengthDaysPerWeek ?? 0) > 0
-  if (!wantCross && !wantStrength) return days
+  if (wantCrossDays === 0 && !wantStrength) return days
 
   const opts: ExtraDaysOptions = {
     phaseId: weekMileage.phaseId,
@@ -183,22 +223,29 @@ export function injectExtraDays(
   const maxExtras = caps?.maxExtras ?? Number.POSITIVE_INFINITY
   let injected = 0
 
-  if (wantCross && injected < maxExtras) {
-    const mode = pickCrossMode(config, method)
-    if (mode && restIndices.length > cursor) {
-      const idx = restIndices[cursor++]
-      const c = buildCrossDetail(mode, opts)
-      next[idx] = {
-        ...next[idx],
-        type: 'cross',
-        workout: c.workout,
-        detail: c.detail,
-        zone: c.zone,
-        time: c.time,
-        route: '',
-      }
-      injected += 1
+  // Drop to 1 cross-training day during taper regardless of user preference
+  // — the taper's whole purpose is reducing total load.
+  const crossTarget = weekMileage.isTaper
+    ? Math.min(1, wantCrossDays)
+    : wantCrossDays
+
+  let crossPlaced = 0
+  while (crossPlaced < crossTarget && cursor < restIndices.length && injected < maxExtras) {
+    const mode = pickCrossModeAt(crossPlaced, config, method)
+    if (!mode) break
+    const idx = restIndices[cursor++]
+    const c = buildCrossDetail(mode, opts)
+    next[idx] = {
+      ...next[idx],
+      type: 'cross',
+      workout: c.workout,
+      detail: c.detail,
+      zone: c.zone,
+      time: c.time,
+      route: '',
     }
+    crossPlaced += 1
+    injected += 1
   }
 
   if (wantStrength) {
@@ -218,7 +265,7 @@ export function injectExtraDays(
         ...next[idx],
         type: 'strength',
         workout: 'Strength',
-        detail: buildStrengthDetail(opts),
+        detail: buildStrengthDetail(opts, config),
         zone: 'Z1',
         time: opts.isTaper ? '30 min' : '45-60 min',
         route: '',
