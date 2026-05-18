@@ -179,7 +179,7 @@ describe('describeVerticalState', () => {
     const trend = baseTrend(100, 100)
     const text = describeVerticalState(trend, targets, 4)
     expect(text).toMatch(/short/i)
-    expect(text).toMatch(/\bm\b/)
+    expect(text).toMatch(/\bft\b/)
   })
 
   it('mentions weeks-to-race when known', () => {
@@ -192,9 +192,10 @@ describe('describeVerticalState', () => {
   })
 
   it('falls back gracefully when no target is set', () => {
+    // 500 m ≈ 1,640 ft (rounded by toLocaleString → "1,640").
     const trend = baseTrend(400, 500)
     const text = describeVerticalState(trend, { ascent: null, descent: null }, null)
-    expect(text).toMatch(/500 m/)
+    expect(text).toMatch(/1,640 ft/)
     expect(text).toMatch(/pick a race/i)
   })
 })

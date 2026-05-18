@@ -27,6 +27,17 @@ interface Props {
 
 const ASCENT_FILL = '#2563EB'
 const DESCENT_FILL = '#EA580C'
+const FEET_PER_METER = 3.2808
+
+/** Engine + Strava work in meters; US trail-running speaks feet. Convert
+ *  at the display boundary so internal math stays metric. */
+function mToFt(m: number): number {
+  return Math.round(m * FEET_PER_METER)
+}
+
+function fmtFt(m: number): string {
+  return mToFt(m).toLocaleString()
+}
 
 function deltaFor(currentMeters: number, previousMeters: number | null): MetricDelta | undefined {
   if (previousMeters === null) return undefined
@@ -34,9 +45,9 @@ function deltaFor(currentMeters: number, previousMeters: number | null): MetricD
     return { value: 'no change', direction: 'flat' }
   }
   const diff = currentMeters - previousMeters
+  // 5 m ≈ 16 ft — anything smaller rounds to "no change" at ft resolution.
   if (Math.abs(diff) < 5) return { value: 'no change', direction: 'flat' }
-  const abs = Math.round(Math.abs(diff))
-  return { value: `${abs} m`, direction: diff > 0 ? 'up' : 'down' }
+  return { value: `${fmtFt(Math.abs(diff))} ft`, direction: diff > 0 ? 'up' : 'down' }
 }
 
 function metricTone(state: BandState | null): 'default' | 'positive' | 'warning' {
@@ -48,7 +59,7 @@ function metricTone(state: BandState | null): 'default' | 'positive' | 'warning'
 function bandSubtitle(side: 'ascent' | 'descent', band: VerticalBand | null): string {
   if (!band) return 'No race target'
   const word = side === 'ascent' ? 'climbs' : 'descends'
-  return `Race ${word} ${band.raceVerticalMeters} m · band ${band.minMetersPerWeek}–${band.maxMetersPerWeek} m/wk`
+  return `Race ${word} ${fmtFt(band.raceVerticalMeters)} ft · band ${fmtFt(band.minMetersPerWeek)}–${fmtFt(band.maxMetersPerWeek)} ft/wk`
 }
 
 /**
@@ -101,10 +112,12 @@ export default function DescentCapacitySection({
     ? 'Stacked weekly vertical: climbing (blue) + descending (orange)'
     : 'Pick a race on the Summary tab to see your race-ready bands.'
 
+  // Chart axis + bars are in feet (US convention); rolling totals stay
+  // in meters internally so the engine stays metric.
   const chartData = trend.weeks.map(w => ({
     weekStart: w.weekStart.slice(5),
-    hardAscentMeters: Math.round(w.hardAscentMeters),
-    hardDescentMeters: Math.round(w.hardDescentMeters),
+    climbFt: mToFt(w.hardAscentMeters),
+    descentFt: mToFt(w.hardDescentMeters),
   }))
 
   return (
@@ -112,8 +125,8 @@ export default function DescentCapacitySection({
       <div className="grid grid-cols-2 gap-2">
         <MetricCard
           label="Hard climb · week"
-          value={Math.round(currentAscent).toLocaleString()}
-          valueSuffix="m"
+          value={fmtFt(currentAscent)}
+          valueSuffix="ft"
           delta={deltaFor(currentAscent, prevAscent)}
           subtitle={bandSubtitle('ascent', targets.ascent)}
           tone={metricTone(ascentState)}
@@ -121,8 +134,8 @@ export default function DescentCapacitySection({
         />
         <MetricCard
           label="Hard descent · week"
-          value={Math.round(currentDescent).toLocaleString()}
-          valueSuffix="m"
+          value={fmtFt(currentDescent)}
+          valueSuffix="ft"
           delta={deltaFor(currentDescent, prevDescent)}
           subtitle={bandSubtitle('descent', targets.descent)}
           tone={metricTone(descentState)}
@@ -144,8 +157,8 @@ export default function DescentCapacitySection({
             >
               {targets.descent && (
                 <ReferenceArea
-                  y1={targets.descent.minMetersPerWeek}
-                  y2={targets.descent.maxMetersPerWeek}
+                  y1={mToFt(targets.descent.minMetersPerWeek)}
+                  y2={mToFt(targets.descent.maxMetersPerWeek)}
                   {...rangeBandStyle('suggested')}
                 />
               )}
@@ -159,7 +172,8 @@ export default function DescentCapacitySection({
                 tick={{ fontSize: 9, fill: '#94a3b8' }}
                 axisLine={false}
                 tickLine={false}
-                width={36}
+                width={40}
+                tickFormatter={(v: number) => v >= 1000 ? `${(v / 1000).toFixed(1)}k` : `${v}`}
               />
               <Tooltip
                 contentStyle={{
@@ -169,8 +183,9 @@ export default function DescentCapacitySection({
                   padding: '6px 10px',
                 }}
                 formatter={(value, name) => {
-                  const label = name === 'hardAscentMeters' ? 'Hard climb' : 'Hard descent'
-                  return [`${value} m`, label] as [string, string]
+                  const label = name === 'climbFt' ? 'Hard climb' : 'Hard descent'
+                  const num = typeof value === 'number' ? value.toLocaleString() : String(value)
+                  return [`${num} ft`, label] as [string, string]
                 }}
                 labelFormatter={(label) => `Week of ${label}`}
               />
@@ -179,18 +194,18 @@ export default function DescentCapacitySection({
                 iconSize={8}
                 wrapperStyle={{ fontSize: 10, paddingTop: 4 }}
                 formatter={(value) =>
-                  value === 'hardAscentMeters' ? 'Climb' : 'Descent'
+                  value === 'climbFt' ? 'Climb' : 'Descent'
                 }
               />
               <Bar
-                dataKey="hardAscentMeters"
+                dataKey="climbFt"
                 stackId="vertical"
                 fill={ASCENT_FILL}
                 radius={[0, 0, 0, 0]}
                 isAnimationActive={false}
               />
               <Bar
-                dataKey="hardDescentMeters"
+                dataKey="descentFt"
                 stackId="vertical"
                 fill={DESCENT_FILL}
                 radius={[3, 3, 0, 0]}

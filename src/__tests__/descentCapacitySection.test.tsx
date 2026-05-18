@@ -49,13 +49,15 @@ describe('<DescentCapacitySection>', () => {
     expect(screen.getByText(/weekly vertical workload/i)).toBeInTheDocument()
   })
 
-  it('shows race-scaled band subtitles when a curated race is set', () => {
+  it('shows race-scaled band subtitles in feet when a curated race is set', () => {
     const cache: Record<string, CachedEccentric> = {
       '2026-05-13|Trail Run': ecc({ ascentM: 100, descentM: 100 }),
     }
     render(<DescentCapacitySection eccentricByActivity={cache} race={brokenArrow18k()} />)
     expect(screen.getByText(/race descends/i)).toBeInTheDocument()
     expect(screen.getByText(/race climbs/i)).toBeInTheDocument()
+    // Subtitles report the race-ready band in ft, not m.
+    expect(screen.getAllByText(/ft\/wk/i).length).toBeGreaterThan(0)
   })
 
   it('still renders without a curated race (subtitles say no target)', () => {
