@@ -922,6 +922,8 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           onApproveInsightProposal={handleApproveInsightProposal}
           onUndoInsightProposal={handleUndoInsightProposal}
           race={activePlan.race}
+          coachAboutMeFacts={coachMemory.aboutMeFacts}
+          onGoSettings={() => setView('settings')}
         />
       </>)}
       {view === 'plan' && (
