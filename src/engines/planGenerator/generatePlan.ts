@@ -127,7 +127,19 @@ function computeZones(
     for (const c of candidates) {
       const target = paces.byZone[c]
       if (target && target.hrBpmLow != null && target.hrBpmHigh != null) {
-        resolved = { zone: slot.label, hr: `${target.hrBpmLow}–${target.hrBpmHigh}`, pct: slot.pct, desc: slot.desc }
+        // Derive the % label from the actual bpm range so the percentage
+        // is honest with the number — previously the bpm came from the
+        // method's %LTHR definition while the % label was a hard-coded
+        // %HRmax band, which contradicted each other (e.g. Z2 said
+        // "65–75%" but showed 149–164 = ~75–82% of a 200 max HR).
+        const pctLow = Math.round((target.hrBpmLow / maxHR) * 100)
+        const pctHigh = Math.round((target.hrBpmHigh / maxHR) * 100)
+        resolved = {
+          zone: slot.label,
+          hr: `${target.hrBpmLow}–${target.hrBpmHigh}`,
+          pct: `${pctLow}–${pctHigh}%`,
+          desc: slot.desc,
+        }
         break
       }
     }

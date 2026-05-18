@@ -365,6 +365,20 @@ describe('generatePlanFromMethod — end-to-end', () => {
     expect(plan.athlete.weeklyStructure).toMatch(/days\/week/)
   })
 
+  it('zone percent labels match the displayed bpm range', () => {
+    // Regression: previously the Settings → HR Zones panel hard-coded
+    // each zone's % label (e.g. "65–75%") while showing bpm values
+    // derived from the method's % of LTHR — so Z2 on a maxHR=200 plan
+    // read "65–75%" but showed 149–164 bpm (≈ 75–82%). The label now
+    // derives from the actual bpm range so the two stay consistent.
+    const plan = generatePlanFromMethod(pfitzinger, makeConfig({ maxHR: 200 }), TODAY)
+    const z2 = plan.zones.find(z => z.zone.includes('Z2'))!
+    const [low, high] = z2.hr.split(/[–-]/).map(s => parseInt(s.trim(), 10))
+    const expectedLowPct = Math.round((low / 200) * 100)
+    const expectedHighPct = Math.round((high / 200) * 100)
+    expect(z2.pct).toBe(`${expectedLowPct}–${expectedHighPct}%`)
+  })
+
   it('zones are derived from the method\'s pace zones × resolved LTHR', () => {
     // With maxHR=200, estimated LTHR = round(200 × ESTIMATED_LTHR_PCT_OF_MAX).
     // Use Pfitzinger so we hit a method with declared hrRanges — confirms
