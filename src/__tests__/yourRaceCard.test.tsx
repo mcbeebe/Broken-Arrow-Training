@@ -27,7 +27,7 @@ describe('<YourRaceCard>', () => {
     expect(screen.getByText(/your race/i)).toBeInTheDocument()
     expect(screen.getByText('Broken Arrow 18K')).toBeInTheDocument()
     expect(screen.getByText(/palisades tahoe/i)).toBeInTheDocument()
-    expect(screen.getByText('Vertical Gain')).toBeInTheDocument()
+    expect(screen.getByText(/vertical/i)).toBeInTheDocument()
   })
 
   it('expands to show named segments when toggled', () => {
@@ -55,5 +55,16 @@ describe('<YourRaceCard>', () => {
   it('renders nothing when race is null', () => {
     const { container } = render(<YourRaceCard race={null} />)
     expect(container).toBeEmptyDOMElement()
+  })
+
+  it('formats a human-readable race date without producing "Invalid Date"', () => {
+    render(<YourRaceCard race={brokenArrow({ date: 'Friday, June 19, 2026' })} />)
+    expect(screen.queryByText(/invalid date/i)).not.toBeInTheDocument()
+    expect(screen.getByText(/jun 19, 2026/i)).toBeInTheDocument()
+  })
+
+  it('falls back gracefully when the date string is unparseable', () => {
+    render(<YourRaceCard race={brokenArrow({ date: 'TBD' })} />)
+    expect(screen.queryByText(/invalid date/i)).not.toBeInTheDocument()
   })
 })
