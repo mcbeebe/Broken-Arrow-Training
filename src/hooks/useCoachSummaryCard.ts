@@ -42,7 +42,7 @@ export function useCoachSummaryCard(athleteId: string, enabled: boolean, facts: 
     const p = (async () => {
       try {
         const server = await coachFetch<CoachSummaryCardPayload>(
-          `/api/coach/summary_card?athleteId=${encodeURIComponent(athleteId)}`,
+          `/api/coach/memory?athleteId=${encodeURIComponent(athleteId)}&view=summary_card`,
         )
         setPayload(server)
       } catch {
