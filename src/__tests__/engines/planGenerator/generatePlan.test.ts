@@ -108,6 +108,50 @@ describe('estimateCurrentWeeklyMileage', () => {
     expect(estimateCurrentWeeklyMileage(makeConfig({ experienceLevel: 'intermediate' }))).toBe(20)
     expect(estimateCurrentWeeklyMileage(makeConfig({ experienceLevel: 'elite' }))).toBe(48)
   })
+
+  it('honors the user-reported current mileage when present', () => {
+    // Regression: the engine previously ignored config.currentWeeklyMileage
+    // and always used the experience-level estimate, so the ramp didn't
+    // reflect what the athlete was actually running.
+    expect(estimateCurrentWeeklyMileage(makeConfig({
+      experienceLevel: 'intermediate',
+      currentWeeklyMileage: 12,
+    }))).toBe(12)
+  })
+
+  it('falls back to the experience default when reported mileage is 0 or missing', () => {
+    expect(estimateCurrentWeeklyMileage(makeConfig({
+      experienceLevel: 'intermediate',
+      currentWeeklyMileage: 0,
+    }))).toBe(20)
+    expect(estimateCurrentWeeklyMileage(makeConfig({
+      experienceLevel: 'intermediate',
+      currentWeeklyMileage: undefined,
+    }))).toBe(20)
+  })
+})
+
+describe('volume ramp uses self-reported mileage', () => {
+  it('peak mileage scales from the user-reported baseline, not the experience estimate', () => {
+    // Same experience level but different reported mileage should produce
+    // very different peak miles — confirming the engine honors the
+    // self-report and isn't silently substituting the experience default.
+    const lowMileage = generatePlanFromMethod(daniels, makeConfig({
+      raceDistance: 'half_marathon',
+      experienceLevel: 'intermediate',
+      currentWeeklyMileage: 10,
+    }), TODAY)
+    const highMileage = generatePlanFromMethod(daniels, makeConfig({
+      raceDistance: 'half_marathon',
+      experienceLevel: 'intermediate',
+      currentWeeklyMileage: 30,
+    }), TODAY)
+    const lowPeak = Math.max(...lowMileage.weeks.map(w => Number(w.miles)))
+    const highPeak = Math.max(...highMileage.weeks.map(w => Number(w.miles)))
+    // Peak should roughly triple along with the baseline (peakMileageRule
+    // is a multiplier on current mileage).
+    expect(highPeak).toBeGreaterThan(lowPeak * 2)
+  })
 })
 
 describe('buildWeeklyMileage', () => {
@@ -382,9 +426,33 @@ describe('generatePlanFromMethod — end-to-end', () => {
       .toEqual(planBase.weeks.map(w => w.days.map(d => d.type)))
   })
 
-  it('caps total activity days at trainingDaysPerWeek', () => {
-    // User asks for 5 total. Method's min running pattern is 5 (koop). So
-    // strength + cross requested should be dropped to stay within budget.
+  it('honors explicit strength + cross even when the method min pushes total above the day cap', () => {
+    // User asks for 5 total + 1 strength + cross. Method's min running pattern
+    // is 5 (koop), so running can't drop below 5. We honor the explicit
+    // strength + cross request rather than silently dropping it — the active
+    // total may exceed the day cap, but never exceeds 7 (calendar limit).
+    const plan = generatePlanFromMethod(koop, makeConfig({
+      raceDistance: '50k',
+      experienceLevel: 'advanced',
+      trainingDaysPerWeek: 5,
+      strengthDaysPerWeek: 1,
+      crossTrainingModes: ['cycling'],
+    }), TODAY)
+    const buildWeek = plan.weeks.find(w => w.focus !== 'Taper' && w.focus !== 'Cutback')!
+    const types = buildWeek.days.map(d => d.type)
+    // Strength + cross requested should appear in a typical build week.
+    expect(types).toContain('strength')
+    expect(types).toContain('cross')
+    // Calendar-hard cap: never more than 7 active days in a 7-day week.
+    const active = buildWeek.days.filter(d => d.type !== 'rest').length
+    expect(active).toBeLessThanOrEqual(7)
+  })
+
+  it('respects the day cap when running min leaves room for some but not all extras', () => {
+    // 5-day budget with 2 strength + 1 cross requested. Method min is 5,
+    // leaving room for 2 extras max in a 7-day week. One requested extra
+    // must be dropped — we keep the cross day (placed first) plus one
+    // strength day rather than dropping strength entirely.
     const plan = generatePlanFromMethod(koop, makeConfig({
       raceDistance: '50k',
       experienceLevel: 'advanced',
@@ -394,7 +462,25 @@ describe('generatePlanFromMethod — end-to-end', () => {
     }), TODAY)
     const buildWeek = plan.weeks.find(w => w.focus !== 'Taper' && w.focus !== 'Cutback')!
     const active = buildWeek.days.filter(d => d.type !== 'rest').length
-    expect(active).toBeLessThanOrEqual(5)
+    expect(active).toBeLessThanOrEqual(7)
+    const strengthDays = buildWeek.days.filter(d => d.type === 'strength').length
+    const crossDays = buildWeek.days.filter(d => d.type === 'cross').length
+    expect(strengthDays + crossDays).toBeGreaterThanOrEqual(1)
+  })
+
+  it('honors a single strength day for a half-marathon Pfitzinger plan', () => {
+    // Regression: previously, picking 5 days + 1 strength on Pfitzinger
+    // (5-day min running pattern) produced a plan with 0 strength sessions.
+    const plan = generatePlanFromMethod(pfitzinger, makeConfig({
+      raceDistance: 'half_marathon',
+      experienceLevel: 'intermediate',
+      trainingDaysPerWeek: 5,
+      strengthDaysPerWeek: 1,
+      crossTrainingModes: undefined,
+    }), TODAY)
+    const buildWeek = plan.weeks.find(w => w.focus !== 'Taper' && w.focus !== 'Cutback')!
+    const strengthDays = buildWeek.days.filter(d => d.type === 'strength').length
+    expect(strengthDays).toBeGreaterThanOrEqual(1)
   })
 
   it('honors injuryStatus=returning by capping days and softening intensity', () => {

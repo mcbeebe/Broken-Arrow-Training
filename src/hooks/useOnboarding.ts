@@ -82,6 +82,10 @@ export interface OnboardingConfig {
   // Timestamp of when the post-onboarding methodology primer was dismissed.
   // Unset = primer should be shown the next time a plan is rendered.
   primerSeenAt?: string
+  // Timestamp of when the post-onboarding "connect your devices" step was
+  // dismissed (either by connecting or skipping). Unset = step should be
+  // shown the next time the app loads after onboarding completes.
+  connectStepSeenAt?: string
 }
 
 const STORAGE_KEY = 'ba_onboarding'
@@ -160,6 +164,15 @@ export function useOnboarding(athleteId?: string) {
     })
   }, [athleteId])
 
+  const markConnectStepSeen = useCallback(() => {
+    setConfig(prev => {
+      if (!prev || prev.connectStepSeenAt) return prev
+      const next = { ...prev, connectStepSeenAt: new Date().toISOString() }
+      try { localStorage.setItem(scopedKey(athleteId), JSON.stringify(next)) } catch { /* quota */ }
+      return next
+    })
+  }, [athleteId])
+
   return {
     config,
     isOnboarded: !!config,
@@ -168,5 +181,6 @@ export function useOnboarding(athleteId?: string) {
     clear,
     requestRedo,
     markPrimerSeen,
+    markConnectStepSeen,
   }
 }
