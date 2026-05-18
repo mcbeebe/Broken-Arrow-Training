@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import type { ConversationTurn, CoachPersona, PendingInference, AboutMeFact } from '../types'
+import { useCoachSummaryCard } from '../hooks/useCoachSummaryCard'
 
 interface DailyArchive {
   id?: string
@@ -7,6 +8,10 @@ interface DailyArchive {
 }
 
 interface Props {
+  /** Athlete id — drives the curated "About you" distillation fetch.
+   *  When absent (or coach is off), the panel falls back to rendering
+   *  the raw fact list directly. */
+  athleteId?: string
   aboutMe: string
   /** Sprint 4 — structured facts. Optional so callers that don't have
    *  the new schema yet (legacy / pre-migration memory) still render
@@ -37,6 +42,7 @@ interface Props {
  * of leaving grows because they'd have to re-teach a new system.
  */
 export default function CoachMemoryPanel({
+  athleteId,
   aboutMe,
   aboutMeFacts,
   coachPersona,
@@ -50,6 +56,7 @@ export default function CoachMemoryPanel({
 }: Props) {
   const [busy, setBusy] = useState(false)
   const [confirming, setConfirming] = useState(false)
+  const [managing, setManaging] = useState(false)
 
   const visibleTurns = conversation.filter(t => t.role !== 'system-handoff')
   const lastTurn = visibleTurns[visibleTurns.length - 1]
@@ -57,6 +64,16 @@ export default function CoachMemoryPanel({
   const personaName = (coachPersona?.name || '').trim()
   const factsAvailable = !!aboutMeFacts && aboutMeFacts.length > 0
   const canEditFacts = !!onEditFact && !!onDeleteFact
+
+  // Curated 3-5 line distillation of `aboutMeFacts`, in customer
+  // language ("You run too hard on easy days") rather than raw verbatim
+  // ("Tuesday 52min avgHR 146, Friday 33min avgHR 147..."). Cached
+  // server-side by content hash, so the LLM only fires when the
+  // underlying facts change. Falls back to the raw list when the API
+  // isn't reachable or there's no athleteId.
+  const summaryCard = useCoachSummaryCard(athleteId ?? '', !!athleteId, aboutMeFacts)
+  const curatedAvailable = summaryCard.facts.length > 0
+  const curatedLoading = summaryCard.loading && !curatedAvailable
 
   async function handleClear() {
     if (busy) return
@@ -74,12 +91,35 @@ export default function CoachMemoryPanel({
       <div>
         <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">What I remember about you</p>
         <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-          The coach uses this context on every reply. Tap a fact to edit or remove it.
+          The coach uses this context on every reply.
         </p>
       </div>
 
       <MemoryRow label="About you">
-        {factsAvailable ? (
+        {/* Primary view: 3-5 curated lines in customer language. The
+            raw verbatim fact list is power-user territory and lives
+            behind the "Manage all facts" disclosure below. */}
+        {curatedLoading ? (
+          <div className="space-y-1.5 animate-pulse">
+            <div className="h-3 w-full bg-slate-200 dark:bg-slate-700 rounded" />
+            <div className="h-3 w-5/6 bg-slate-200 dark:bg-slate-700 rounded" />
+            <div className="h-3 w-3/4 bg-slate-200 dark:bg-slate-700 rounded" />
+          </div>
+        ) : curatedAvailable ? (
+          <ul className="space-y-1.5">
+            {summaryCard.facts.map((line, i) => (
+              <li
+                key={i}
+                className="text-sm text-slate-700 dark:text-slate-200 leading-snug flex gap-2"
+              >
+                <span className="text-slate-400 dark:text-slate-500 shrink-0" aria-hidden>•</span>
+                <span>{line}</span>
+              </li>
+            ))}
+          </ul>
+        ) : factsAvailable ? (
+          // No curated payload yet (API off, etc.) — render the raw
+          // facts inline so the panel always shows something.
           <FactsList
             facts={aboutMeFacts!}
             onEdit={onEditFact}
@@ -90,7 +130,38 @@ export default function CoachMemoryPanel({
         ) : (
           <Empty>You haven't shared anything yet.</Empty>
         )}
-        {onAddFact && canEditFacts && <AddFactInline onAdd={onAddFact} />}
+
+        {/* Power-user disclosure: full per-fact list with add/edit/delete.
+            Hidden by default so the primary card stays glanceable; only
+            opens when the athlete actually wants to fine-tune. Skipped
+            entirely when the curated view fell through to raw facts
+            above (avoid double-render). */}
+        {factsAvailable && curatedAvailable && canEditFacts && (
+          <div className="mt-3">
+            <button
+              type="button"
+              onClick={() => setManaging(m => !m)}
+              className="text-xs font-medium text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 underline-offset-2 underline decoration-dotted"
+            >
+              {managing ? 'Hide' : `Manage all ${aboutMeFacts!.length} ${aboutMeFacts!.length === 1 ? 'fact' : 'facts'}`} {managing ? '▴' : '▾'}
+            </button>
+            {managing && (
+              <div className="mt-2">
+                <FactsList
+                  facts={aboutMeFacts!}
+                  onEdit={onEditFact}
+                  onDelete={onDeleteFact}
+                />
+                {onAddFact && <AddFactInline onAdd={onAddFact} />}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* When there's no curated view (raw fallback rendered above),
+            still expose the add-fact affordance so the user can teach
+            the coach. */}
+        {!curatedAvailable && onAddFact && canEditFacts && <AddFactInline onAdd={onAddFact} />}
       </MemoryRow>
 
       <MemoryRow label="Coach persona">

@@ -315,6 +315,7 @@ export default function Settings({
               />
             )}
             <CoachMemoryPanel
+              athleteId={athleteId}
               aboutMe={aboutMeText ?? ''}
               aboutMeFacts={coachAboutMeFacts}
               coachPersona={coachPersona ?? { name: '', traits: [] }}
