@@ -3,6 +3,7 @@ import type { CoachInsight, CoachSnapshot, ConversationTurn, DailyChatArchive, C
 import type { UseCoachMemoryReturn } from '../hooks/useCoachMemory'
 import { localDateStr } from '../utils/format'
 import CoachChat from './CoachChat'
+import CoachInsightCard from './CoachInsightCard'
 
 interface Props {
   athleteId: string
@@ -20,6 +21,16 @@ interface Props {
   onApproveAction?: (turnId: string, action: CoachAction) => void
   onRejectAction?: (turnId: string) => void
   onUndoAction?: (turnId: string, overrideId: string) => void
+  /** Insight-card proposal handlers (Apply / Undo on the daily read).
+   *  Mirrors the per-turn proposal flow but keyed off the insight itself
+   *  rather than a specific chat turn. */
+  onApproveInsightProposal?: (action: CoachAction) => string | undefined
+  onUndoInsightProposal?: (overrideId: string) => void
+  /** Regenerate the daily insight (bust cache, refetch). */
+  onRegenerateInsight?: () => void
+  /** Seed chat with a follow-up prompt — wired to the insight card's
+   *  "Ask about this →" / triggered-by chip. */
+  onAskCoach?: (seed: string) => void
 }
 
 const DAILY_SEED_KEY = 'ba_coach_daily_seeded_v1'
@@ -45,8 +56,8 @@ export default function CoachTab({
   athleteId,
   memory,
   snapshot,
-  dailyInsight: _dailyInsight,
-  dailyInsightLoading: _dailyInsightLoading,
+  dailyInsight,
+  dailyInsightLoading,
   chatSeed,
   onChatSeedConsumed,
   onMarkRead,
@@ -56,14 +67,16 @@ export default function CoachTab({
   onApproveAction,
   onRejectAction,
   onUndoAction,
+  onApproveInsightProposal,
+  onUndoInsightProposal,
+  onRegenerateInsight,
+  onAskCoach,
 }: Props) {
   useEffect(() => {
     onMarkRead()
     onInteraction?.('coach_tab_opened')
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-  void _dailyInsight
-  void _dailyInsightLoading
 
   // Auto-rollover: when today is a different day than the newest
   // conversation turn, archive the current conversation under that prior
@@ -128,8 +141,28 @@ export default function CoachTab({
 
   void onGoSettings
 
+  const coachName = snapshot?.coachPersona?.name?.trim() || 'Coach'
+
   return (
     <div className="flex flex-col h-[calc(100vh-11rem)] px-0 py-0 gap-0 relative">
+
+      {/* Daily insight — full message lives here. Summary shows a 1-sentence
+          preview that links into this tab. */}
+      {(dailyInsight || dailyInsightLoading) && (
+        <div className="px-2 pt-2 shrink-0">
+          <CoachInsightCard
+            insight={dailyInsight}
+            loading={dailyInsightLoading}
+            onAsk={onAskCoach}
+            coachName={coachName}
+            onRegenerate={onRegenerateInsight}
+            athleteId={athleteId}
+            getPlannedDay={getPlannedDay}
+            onApproveProposal={onApproveInsightProposal}
+            onUndoProposal={onUndoInsightProposal}
+          />
+        </div>
+      )}
 
       {/* Action bar */}
       <div className="flex items-center justify-between shrink-0 px-2 py-1">

@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import type { CoachAction, CoachInsight, PlannedDay } from '../types'
 import { renderMarkdown } from '../utils/markdown'
 import { extractProposal } from '../utils/chatProposal'
+import { extractTriggerSignal, type TriggerExtract } from '../utils/coachInsightText'
 import ProposalCard, { type ProposalStatus } from './ProposalCard'
 
 interface Props {
@@ -27,30 +28,6 @@ interface Props {
 
 const COLLAPSE_PREFIX = 'ba_coach_insight_collapsed'
 const PROPOSAL_STATE_PREFIX = 'ba_coach_insight_proposal_v1'
-
-// Matches the first line of a daily insight when the LLM prefixed it
-// with "Triggered by: <signal>" per the v6 insight prompt. Captured
-// group is the signal label. Tolerant of trailing whitespace and
-// optional bold/italic wrappers in case the model wraps it in markdown.
-const TRIGGERED_BY_RE = /^[*_\s]*triggered by:\s*([^\n]+?)[*_\s]*$/im
-
-interface TriggerExtract {
-  signal: string | null
-  body: string
-}
-
-function extractTriggerSignal(text: string): TriggerExtract {
-  const m = text.match(TRIGGERED_BY_RE)
-  if (!m) return { signal: null, body: text }
-  // The match is on the *first* line of the insight. Anything before
-  // the match is the model misbehaving; we keep it (rare) but strip the
-  // line itself plus a single trailing blank line.
-  const start = text.indexOf(m[0])
-  const end = start + m[0].length
-  let body = text.slice(0, start) + text.slice(end)
-  body = body.replace(/^\s*\n/, '') // trim leading blank line left by removal
-  return { signal: m[1].trim(), body: body.trim() }
-}
 
 function collapseKey(athleteId?: string): string {
   return athleteId ? `${COLLAPSE_PREFIX}_${athleteId}` : COLLAPSE_PREFIX
