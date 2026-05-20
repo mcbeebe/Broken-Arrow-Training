@@ -160,6 +160,7 @@ export default function CoachTab({
             getPlannedDay={getPlannedDay}
             onApproveProposal={onApproveInsightProposal}
             onUndoProposal={onUndoInsightProposal}
+            initialExpanded
           />
         </div>
       )}

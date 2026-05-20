@@ -24,6 +24,10 @@ interface Props {
   onApproveProposal?: (action: CoachAction) => string | undefined
   /** Roll back a previously-applied override. */
   onUndoProposal?: (overrideId: string) => void
+  /** When true, ignore the persisted collapse flag and start expanded.
+   *  Used on the Coach tab where the full message IS the point of the
+   *  surface — the athlete tapped in specifically to read it. */
+  initialExpanded?: boolean
 }
 
 const COLLAPSE_PREFIX = 'ba_coach_insight_collapsed'
@@ -92,10 +96,12 @@ function writeProposalState(athleteId: string | undefined, action: CoachAction, 
 
 export default function CoachInsightCard({
   insight, loading, onAsk, coachName, onRegenerate, athleteId,
-  getPlannedDay, onApproveProposal, onUndoProposal,
+  getPlannedDay, onApproveProposal, onUndoProposal, initialExpanded,
 }: Props) {
   const name = coachName?.trim() || 'Coach'
-  const [collapsed, setCollapsed] = useState(() => readCollapsed(athleteId))
+  const [collapsed, setCollapsed] = useState(
+    () => initialExpanded ? false : readCollapsed(athleteId),
+  )
 
   // Parse a `proposal` block out of the insight text so the raw JSON
   // never reaches the markdown renderer.

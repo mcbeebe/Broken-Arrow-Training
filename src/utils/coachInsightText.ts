@@ -22,12 +22,20 @@ export function extractTriggerSignal(text: string): TriggerExtract {
   return { signal: m[1].trim(), body: body.trim() }
 }
 
+// Lines like "Good morning, Mike." or "Hey Mike 🫠" — informative for
+// the athlete on the Coach tab but useless as a Summary preview where
+// every character of real signal counts.
+const GREETING_RE = /^(good (morning|afternoon|evening)|hi|hey|hello|yo|howdy)\b[^.!?]{0,40}[.!?]?$/i
+
 /** Single-sentence preview (≤ ~100 chars) of an insight body — used on
  *  Summary to surface enough of the coach's read that the athlete can
- *  decide whether to open the full message in the Coach tab. */
+ *  decide whether to open the full message in the Coach tab. Skips
+ *  greetings so the preview shows the actual prescription, not "Good
+ *  afternoon, Mike." */
 export function firstSentencePreview(text: string, maxChars = 100): string {
-  const stripped = text.replace(/[*_`#>]/g, '').trim()
-  const sentence = stripped.split(/(?<=[.!?])\s/)[0] || stripped
+  const stripped = text.replace(/[*_`#>]/g, '').replace(/\s+/g, ' ').trim()
+  const sentences = stripped.split(/(?<=[.!?])\s+/)
+  const sentence = sentences.find(s => s && !GREETING_RE.test(s.trim())) || stripped
   if (sentence.length <= maxChars) return sentence
   return sentence.slice(0, maxChars - 1).replace(/\s+\S*$/, '') + '…'
 }

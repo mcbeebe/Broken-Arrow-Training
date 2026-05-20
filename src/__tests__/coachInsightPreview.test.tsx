@@ -65,6 +65,20 @@ describe('<CoachInsightPreview>', () => {
     expect(container).toBeEmptyDOMElement()
   })
 
+  it('skips the greeting line so the preview shows the actual prescription', () => {
+    render(
+      <CoachInsightPreview
+        insight={insight(
+          'Triggered by: YELLOW readiness\n\nGood afternoon, Mike. Your body is screaming for a break.',
+        )}
+        loading={false}
+        onOpenCoachTab={vi.fn()}
+      />,
+    )
+    expect(screen.getByText(/your body is screaming for a break/i)).toBeInTheDocument()
+    expect(screen.queryByText(/good afternoon, mike\./i)).not.toBeInTheDocument()
+  })
+
   it('renders nothing when there is no insight and not loading', () => {
     const { container } = render(
       <CoachInsightPreview insight={null} loading={false} onOpenCoachTab={vi.fn()} />,
