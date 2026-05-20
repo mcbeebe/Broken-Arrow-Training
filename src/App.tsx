@@ -976,18 +976,14 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           coachEnabled={coachEnabled}
           dailyInsight={dailyInsight.insight}
           dailyInsightLoading={dailyInsight.loading}
-          onAskCoach={handleAskCoach}
           coachName={coachMemory.coachPersona?.name}
-          onRegenerateDailyInsight={dailyInsight.regenerate}
+          onOpenCoachTab={() => setView('coach')}
           todayPlannedWorkout={todayPlannedWorkout}
           currentWeekNum={currentWeekNum}
           zones={hrZones.zones}
           coachSnapshot={coachSnapshot}
           riskFlags={readiness.riskFlags}
           weeks={weeks}
-          getPlannedDay={getPlannedDay}
-          onApproveInsightProposal={handleApproveInsightProposal}
-          onUndoInsightProposal={handleUndoInsightProposal}
           race={activePlan.race}
         />
       </>)}
@@ -1045,6 +1041,10 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           onApproveAction={handleApproveAction}
           onRejectAction={handleRejectAction}
           onUndoAction={handleUndoAction}
+          onApproveInsightProposal={handleApproveInsightProposal}
+          onUndoInsightProposal={handleUndoInsightProposal}
+          onRegenerateInsight={dailyInsight.regenerate}
+          onAskCoach={handleAskCoach}
         />
       )}
       {/* Methodology moved into Settings as a collapsible subsection */}

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import type { ReadinessScore, GarminHealthData, CoachRecommendation, PerformanceMetrics, DailyTRIMP, CoachInsight, PlannedDay, HRZone, CoachSnapshot, CoachAction, RaceInfo } from '../types'
+import type { ReadinessScore, GarminHealthData, CoachRecommendation, PerformanceMetrics, DailyTRIMP, CoachInsight, PlannedDay, HRZone, CoachSnapshot, RaceInfo } from '../types'
 import type { RiskFlag } from '../utils/readiness'
 import type { SorenessLevel } from '../hooks/useSoreness'
 import { getTSBState, getTSBLabel, getACWRRisk, getACWRLabel } from '../utils/performance'
@@ -7,13 +7,12 @@ import { localDateStr } from '../utils/format'
 import { findTrimpRecord } from '../utils/trimp'
 import TodayBriefing from './TodayBriefing'
 import TRIMPBreakdown from './TRIMPBreakdown'
-import CoachInsightCard from './CoachInsightCard'
+import CoachInsightPreview from './CoachInsightPreview'
 import WorkoutModal from './WorkoutModal'
 import { getWorkoutStyle } from '../utils/styles'
 import Term from './TermGlossary'
 import { buildWeatherChipForDate } from '../utils/weatherChip'
-import RaceReadyHeroCard from './RaceReadyHeroCard'
-import YourRaceCard from './YourRaceCard'
+import RaceCard from './RaceCard'
 import RaceReadinessDetailModal from './RaceReadinessDetailModal'
 import { buildRaceReadinessDetail, computeRaceReadiness } from '../utils/raceReadiness'
 import { formatLooksLikeLine, findBestCourseMatchForPlanned } from '../utils/workoutCourseMatch'
@@ -41,9 +40,11 @@ interface SummaryProps {
   coachEnabled?: boolean
   dailyInsight?: CoachInsight | null
   dailyInsightLoading?: boolean
-  onAskCoach?: (seed: string) => void
   coachName?: string
-  onRegenerateDailyInsight?: () => void
+  /** Switches the app to the Coach tab so the athlete can read the full
+   *  daily insight + reply in chat. The Summary surface only shows a
+   *  1-sentence preview now. */
+  onOpenCoachTab?: () => void
   todayPlannedWorkout?: PlannedDay | null
   currentWeekNum?: number
   /** Full plan weeks — passed through to WorkoutModal so the strength
@@ -52,9 +53,6 @@ interface SummaryProps {
   zones?: HRZone[]
   coachSnapshot?: CoachSnapshot | null
   riskFlags?: RiskFlag[]
-  getPlannedDay?: (weekNum: number, dayIndex: number) => PlannedDay | null
-  onApproveInsightProposal?: (action: CoachAction) => string | undefined
-  onUndoInsightProposal?: (overrideId: string) => void
   /** Goal race — drives the race-ready hero card in the final ~8 weeks. */
   race?: RaceInfo
 }
@@ -275,18 +273,14 @@ export default function Summary({
   coachEnabled,
   dailyInsight,
   dailyInsightLoading,
-  onAskCoach,
   coachName,
-  onRegenerateDailyInsight,
+  onOpenCoachTab,
   todayPlannedWorkout,
   currentWeekNum,
   weeks,
   zones,
   coachSnapshot,
   riskFlags = [],
-  getPlannedDay,
-  onApproveInsightProposal,
-  onUndoInsightProposal,
   race,
 }: SummaryProps) {
   const latestPerf = performance.length > 0 ? performance[performance.length - 1] : null
@@ -384,13 +378,12 @@ export default function Summary({
           )}
         </div>
       )}
-      {race && <YourRaceCard race={race} />}
-      {race && raceReadiness && (
-        <RaceReadyHeroCard
-          race={{ name: race.name, distance: race.distance }}
-          summary={raceReadiness}
-          detail={raceReadinessDetail}
-          onClick={() => setShowRaceReadinessModal(true)}
+      {race && (
+        <RaceCard
+          race={race}
+          readiness={raceReadiness}
+          readinessDetail={raceReadinessDetail}
+          onOpenReadiness={raceReadiness ? () => setShowRaceReadinessModal(true) : undefined}
         />
       )}
       {race && raceReadiness && raceReadinessDetail && showRaceReadinessModal && (
@@ -401,17 +394,12 @@ export default function Summary({
           onClose={() => setShowRaceReadinessModal(false)}
         />
       )}
-      {coachEnabled && (
-        <CoachInsightCard
+      {coachEnabled && onOpenCoachTab && (
+        <CoachInsightPreview
           insight={dailyInsight ?? null}
           loading={!!dailyInsightLoading}
-          onAsk={onAskCoach}
           coachName={coachName}
-          onRegenerate={onRegenerateDailyInsight}
-          athleteId={athleteId}
-          getPlannedDay={getPlannedDay}
-          onApproveProposal={onApproveInsightProposal}
-          onUndoProposal={onUndoInsightProposal}
+          onOpenCoachTab={onOpenCoachTab}
         />
       )}
 
