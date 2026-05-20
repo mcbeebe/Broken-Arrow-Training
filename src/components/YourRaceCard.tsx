@@ -4,6 +4,8 @@ import type { RaceInfo } from '../types'
 import type { CourseSegment } from '../types/course'
 import { resolveCourseForRace } from '../utils/resolveCourse'
 import { weeksUntilRace } from '../utils/raceCountdown'
+import { hasTerrainAsset } from '../data/terrain'
+import Course3DPreview from './Course3DPreview'
 
 interface Props {
   race: RaceInfo | null | undefined
@@ -49,9 +51,11 @@ function formatRaceDate(date: string | undefined): string | null {
  */
 export default function YourRaceCard({ race }: Props) {
   const [expanded, setExpanded] = useState(false)
+  const [show3D, setShow3D] = useState(false)
   const resolution = resolveCourseForRace(race ?? null)
   if (!resolution || !race) return null
   const { course } = resolution
+  const terrainAvailable = hasTerrainAsset(course.id)
 
   const weeksOut = weeksUntilRace(race.date)
   const countdown = weeksOut !== null && weeksOut >= 0
@@ -104,7 +108,7 @@ export default function YourRaceCard({ race }: Props) {
         </div>
       </dl>
 
-      {course.elevationProfile.length >= 2 && (
+      {course.elevationProfile.length >= 2 && !show3D && (
         <div className="mt-2 h-16">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={course.elevationProfile} margin={{ top: 4, right: 0, left: -28, bottom: -8 }}>
@@ -127,6 +131,22 @@ export default function YourRaceCard({ race }: Props) {
               />
             </AreaChart>
           </ResponsiveContainer>
+        </div>
+      )}
+
+      {terrainAvailable && (
+        <div className="mt-2">
+          {!show3D ? (
+            <button
+              type="button"
+              onClick={() => setShow3D(true)}
+              className="w-full text-xs font-medium px-3 py-1.5 rounded-md bg-intelligence-50 dark:bg-intelligence-950 text-intelligence-700 dark:text-intelligence-200 hover:bg-intelligence-100 dark:hover:bg-intelligence-900 transition-colors flex items-center justify-center gap-1.5"
+            >
+              <span aria-hidden>⛰</span> See your course
+            </button>
+          ) : (
+            <Course3DPreview course={course} onClose={() => setShow3D(false)} />
+          )}
         </div>
       )}
 

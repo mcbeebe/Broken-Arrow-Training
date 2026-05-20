@@ -50,6 +50,50 @@ export interface ElevationPoint {
   elevationFt: number
   /** Optional waypoint label — "Washeshu Peak", "Julia's Aid". */
   label?: string
+  /** Optional geographic position. When present on every point, the profile
+   *  doubles as a route polyline the 3D renderer can extrude over terrain. */
+  latitude?: number
+  longitude?: number
+}
+
+/** Versioned heightmap asset for the 3D course renderer. Authored offline
+ *  by `npm run fetch:terrain` from USGS 3DEP / SRTM tiles; lives in
+ *  `src/data/terrain/<courseId>.json`. Schema is stable so the renderer
+ *  can consume any future course's terrain without code changes. */
+export interface TerrainHeightmap {
+  /** Schema version. Bump on breaking changes; renderer guards against
+   *  mismatched versions rather than silently rendering garbage. */
+  version: 1
+  /** Course id this heightmap belongs to. */
+  courseId: string
+  /** Geographic bounds of the grid, WGS84. */
+  bounds: {
+    minLatitude: number
+    maxLatitude: number
+    minLongitude: number
+    maxLongitude: number
+  }
+  /** Grid width (columns / longitude steps). */
+  width: number
+  /** Grid height (rows / latitude steps). */
+  height: number
+  /** Row-major elevation samples in feet. Length must equal width * height.
+   *  Stored flat (not 2D) so the renderer can upload it to a Float32 buffer
+   *  without an extra copy. */
+  elevationsFt: number[]
+  /** Minimum / maximum elevation in the grid in feet — convenience for the
+   *  renderer's color ramp without a second pass over the samples. */
+  minElevationFt: number
+  maxElevationFt: number
+  /** Provenance — which dataset, when fetched. Keeps the seed honest. */
+  source: {
+    /** "USGS 3DEP" | "SRTM 30m" | "OpenTopoData srtm30m" | etc. */
+    dataset: string
+    /** ISO-8601 timestamp the fetch script ran. */
+    fetchedAt: string
+    /** Sampling resolution in meters between adjacent grid cells. */
+    resolutionMeters: number
+  }
 }
 
 export interface CourseSegment {
@@ -166,6 +210,12 @@ export interface Course {
   summary: string
   /** Extensible bucket for race-ops fields. */
   metadata?: CourseMetadata
+  /** Optional flag — true when this course has a terrain heightmap
+   *  registered in `src/data/terrain/`. The renderer uses
+   *  `hasTerrainAsset(courseId)` to do the actual lookup; this field exists
+   *  for seeds that want to assert the asset is required and fail loudly
+   *  if it ever goes missing. */
+  hasTerrain?: boolean
 }
 
 /** Year-agnostic anchor for a series of Courses. The thing year-over-year

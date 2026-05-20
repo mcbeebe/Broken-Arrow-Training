@@ -9,13 +9,17 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "fetch:terrain": "node scripts/fetch-terrain.mjs"
   },
   "dependencies": {
+    "@react-three/drei": "^10.7.7",
+    "@react-three/fiber": "^9.6.1",
     "jspdf": "^4.2.1",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
-    "recharts": "^3.8.1"
+    "recharts": "^3.8.1",
+    "three": "^0.171.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",
@@ -24,6 +28,7 @@
     "@types/node": "^24.12.2",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
+    "@types/three": "^0.171.0",
     "@vitejs/plugin-react": "^6.0.1",
     "ajv": "^8.20.0",
     "ajv-formats": "^3.0.1",
