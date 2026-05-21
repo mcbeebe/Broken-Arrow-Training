@@ -147,9 +147,10 @@ export default function CoachTab({
     <div className="flex flex-col h-[calc(100vh-11rem)] px-0 py-0 gap-0 relative">
 
       {/* Daily insight — full message lives here. Summary shows a 1-sentence
-          preview that links into this tab. */}
+          preview that links into this tab. Capped at ~45vh with internal
+          scroll so a long insight can't crowd out the chat composer. */}
       {(dailyInsight || dailyInsightLoading) && (
-        <div className="px-2 pt-2 shrink-0">
+        <div className="px-2 pt-2 shrink-0 max-h-[45vh] overflow-y-auto">
           <CoachInsightCard
             insight={dailyInsight}
             loading={dailyInsightLoading}
