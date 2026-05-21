@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useMemo } from 'react'
+import { useEffect, useRef, useState, useMemo, type ReactNode, type RefObject } from 'react'
 import type { ConversationTurn, CoachSnapshot, CoachAction, PlannedDay } from '../types'
 import { coachApiAvailable, coachApiBase } from '../utils/coachApi'
 import type { UseCoachMemoryReturn } from '../hooks/useCoachMemory'
@@ -19,6 +19,18 @@ function CopiedToast({ visible }: { visible: boolean }) {
   )
 }
 
+/**
+ * Parts the parent can lay out via `renderLayout`. The scroll container
+ * must wrap `messagesBody` and receive `scrollerRef` so auto-scroll on
+ * new turns / stream chunks still works.
+ */
+export interface CoachChatLayoutParts {
+  scrollerRef: RefObject<HTMLDivElement | null>
+  messagesBody: ReactNode
+  errorBanners: ReactNode
+  composer: ReactNode
+}
+
 interface Props {
   athleteId: string
   memory: UseCoachMemoryReturn
@@ -32,6 +44,11 @@ interface Props {
   onApproveAction?: (turnId: string, action: CoachAction) => void
   onRejectAction?: (turnId: string) => void
   onUndoAction?: (turnId: string, overrideId: string) => void
+  /** Custom layout — when provided, replaces the default flex-column
+   *  render. The parent decides where the scroll area, error banners,
+   *  and composer go (e.g. inserting a daily insight above the turns
+   *  in the same scroll container). */
+  renderLayout?: (parts: CoachChatLayoutParts) => ReactNode
 }
 
 /**
@@ -66,7 +83,7 @@ function writeFontScale(athleteId: string, scale: number) {
   }
 }
 
-export default function CoachChat({ athleteId, memory, snapshot, seed, onSeedConsumed, onSent, getPlannedDay, onApproveAction, onRejectAction, onUndoAction }: Props) {
+export default function CoachChat({ athleteId, memory, snapshot, seed, onSeedConsumed, onSent, getPlannedDay, onApproveAction, onRejectAction, onUndoAction, renderLayout }: Props) {
   const coachName = snapshot?.coachPersona?.name?.trim() || 'Coach'
   const [input, setInput] = useState('')
   const [streaming, setStreaming] = useState(false)
@@ -346,61 +363,60 @@ export default function CoachChat({ athleteId, memory, snapshot, seed, onSeedCon
   void adjustFontScale
   void fontScale
 
-  return (
-    <div className="flex flex-col h-full bg-white dark:bg-slate-800 overflow-hidden">
-      <div
-        ref={scrollerRef}
-        className="flex-1 overflow-y-auto px-2 py-1.5 space-y-2"
-      >
-        {(() => {
-          // Index of the most recent assistant/coach turn — only that one
-          // shows follow-up chips so the thread stays clean.
-          let latestAssistantId: string | null = null
-          for (let i = turns.length - 1; i >= 0; i--) {
-            if (turns[i].role === 'assistant' || turns[i].role === 'coach') {
-              latestAssistantId = turns[i].id
-              break
-            }
+  const messagesBody = (
+    <>
+      {(() => {
+        // Index of the most recent assistant/coach turn — only that one
+        // shows follow-up chips so the thread stays clean.
+        let latestAssistantId: string | null = null
+        for (let i = turns.length - 1; i >= 0; i--) {
+          if (turns[i].role === 'assistant' || turns[i].role === 'coach') {
+            latestAssistantId = turns[i].id
+            break
           }
-          return turns.map(t => (
-            <ChatTurn
-              key={t.id}
-              turn={t}
-              onCopy={copyText}
-              coachName={coachName}
-              fontScale={fontScale}
-              getPlannedDay={getPlannedDay}
-              onApproveAction={onApproveAction}
-              onRejectAction={onRejectAction}
-              onUndoAction={onUndoAction}
-              onAskInline={(seed) => {
-                // Tapping "Why this swap?" inside a proposal pre-fills the
-                // composer instead of auto-sending so the athlete can tweak
-                // before asking. Focus the textarea so they see it land.
-                setInput(seed)
-                requestAnimationFrame(() => textareaRef.current?.focus())
-              }}
-              onFollowUp={seed => send(seed)}
-              followUpsDisabled={streaming}
-              isLatestAssistant={t.id === latestAssistantId}
-            />
-          ))
-        })()}
-        {streaming && (
-          <div className="flex flex-col gap-1">
-            {liveStatus && !liveReply && (
-              <div className="text-xs text-indigo-500 italic px-1">{liveStatus}</div>
-            )}
-            <div
-              className="max-w-[92%] bg-indigo-50 text-slate-800 rounded-2xl rounded-tl-sm px-3 py-2 leading-relaxed"
-              style={{ fontSize: `${fontScale}rem` }}
-            >
-              {liveReply ? renderMarkdown(stripStreamingProposal(liveReply)) : <span className="text-indigo-400">…</span>}
-            </div>
+        }
+        return turns.map(t => (
+          <ChatTurn
+            key={t.id}
+            turn={t}
+            onCopy={copyText}
+            coachName={coachName}
+            fontScale={fontScale}
+            getPlannedDay={getPlannedDay}
+            onApproveAction={onApproveAction}
+            onRejectAction={onRejectAction}
+            onUndoAction={onUndoAction}
+            onAskInline={(seed) => {
+              // Tapping "Why this swap?" inside a proposal pre-fills the
+              // composer instead of auto-sending so the athlete can tweak
+              // before asking. Focus the textarea so they see it land.
+              setInput(seed)
+              requestAnimationFrame(() => textareaRef.current?.focus())
+            }}
+            onFollowUp={seed => send(seed)}
+            followUpsDisabled={streaming}
+            isLatestAssistant={t.id === latestAssistantId}
+          />
+        ))
+      })()}
+      {streaming && (
+        <div className="flex flex-col gap-1">
+          {liveStatus && !liveReply && (
+            <div className="text-xs text-indigo-500 italic px-1">{liveStatus}</div>
+          )}
+          <div
+            className="max-w-[92%] bg-indigo-50 text-slate-800 rounded-2xl rounded-tl-sm px-3 py-2 leading-relaxed"
+            style={{ fontSize: `${fontScale}rem` }}
+          >
+            {liveReply ? renderMarkdown(stripStreamingProposal(liveReply)) : <span className="text-indigo-400">…</span>}
           </div>
-        )}
-      </div>
+        </div>
+      )}
+    </>
+  )
 
+  const errorBanners = (
+    <>
       {error && (
         <div className="px-3 py-1.5 text-xs text-red-700 bg-red-50 border-t border-red-100">
           {error.includes('credit balance') || error.includes('billing')
@@ -423,8 +439,11 @@ export default function CoachChat({ athleteId, memory, snapshot, seed, onSeedCon
           </button>
         </div>
       )}
+    </>
+  )
 
-      <div className="border-t border-slate-200 dark:border-slate-700 px-2 py-1.5 bg-white dark:bg-slate-800 shrink-0">
+  const composer = (
+    <div className="border-t border-slate-200 dark:border-slate-700 px-2 py-1.5 bg-white dark:bg-slate-800 shrink-0">
         {recordingState !== 'idle' && (
           <div className="px-1 pb-1.5 flex items-center gap-2 text-xs">
             {recordingState === 'recording' ? (
@@ -546,6 +565,27 @@ export default function CoachChat({ athleteId, memory, snapshot, seed, onSeedCon
           )}
         </div>
       </div>
+  )
+
+  if (renderLayout) {
+    return (
+      <>
+        {renderLayout({ scrollerRef, messagesBody, errorBanners, composer })}
+        <CopiedToast visible={copiedToast} />
+      </>
+    )
+  }
+
+  return (
+    <div className="flex flex-col h-full bg-white dark:bg-slate-800 overflow-hidden">
+      <div
+        ref={scrollerRef}
+        className="flex-1 overflow-y-auto px-2 py-1.5 space-y-2"
+      >
+        {messagesBody}
+      </div>
+      {errorBanners}
+      {composer}
       <CopiedToast visible={copiedToast} />
     </div>
   )

@@ -108,7 +108,6 @@ export default function CoachTab({
   // The "Ask about this →" button on the Summary card is how the
   // athlete brings an insight into chat on demand.
 
-  const [chatMinimized, setChatMinimized] = useState(false)
   const [historyOpen, setHistoryOpen] = useState(false)
   const [viewingArchive, setViewingArchive] = useState<string | null>(null)
   const hasTurns = memory.conversation.filter(t => t.role !== 'system-handoff').length > 0
@@ -143,138 +142,109 @@ export default function CoachTab({
 
   const coachName = snapshot?.coachPersona?.name?.trim() || 'Coach'
 
-  return (
-    <div className="flex flex-col h-[calc(100vh-11rem)] px-0 py-0 gap-0 relative">
-
-      {/* Daily insight — full message lives here. Summary shows a 1-sentence
-          preview that links into this tab. Capped at ~45vh with internal
-          scroll so a long insight can't crowd out the chat composer. */}
-      {(dailyInsight || dailyInsightLoading) && (
-        <div className="px-2 pt-2 shrink-0 max-h-[45vh] overflow-y-auto">
-          <CoachInsightCard
-            insight={dailyInsight}
-            loading={dailyInsightLoading}
-            onAsk={onAskCoach}
-            coachName={coachName}
-            onRegenerate={onRegenerateInsight}
-            athleteId={athleteId}
-            getPlannedDay={getPlannedDay}
-            onApproveProposal={onApproveInsightProposal}
-            onUndoProposal={onUndoInsightProposal}
-            alwaysExpanded
-          />
+  const actionBar = (
+    <div className="flex items-center justify-between shrink-0 px-3 py-2 border-b border-slate-100 dark:border-slate-700">
+      <button
+        onClick={() => setHistoryOpen(true)}
+        className="text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors flex items-center gap-1"
+        title="View past conversations"
+      >
+        📅 History{archives.length > 0 ? ` (${archives.length})` : ''}
+      </button>
+      {hasTurns && (
+        <div className="flex items-center gap-3">
+          <button
+            onClick={async () => {
+              const today = snapshot?.today?.date || localDateStr()
+              if (!window.confirm(
+                `Archive this conversation under ${today} and start a fresh thread? You can always revisit it in History.`,
+              )) return
+              await memory.rolloverDay(today)
+              clearSeedDate(athleteId)
+              onInteraction?.('conversation_archived', { date: today })
+            }}
+            className="text-xs text-slate-400 hover:text-indigo-600 transition-colors"
+            title="Archive this chat to History and start fresh"
+          >
+            Archive
+          </button>
+          <button
+            onClick={() => saveConversation(memory.conversation, athleteId)}
+            className="text-xs text-slate-400 hover:text-indigo-600 transition-colors"
+            title="Download conversation as a text file"
+          >
+            Save
+          </button>
+          <button
+            onClick={() => copyConversation(memory.conversation, athleteId)}
+            className="text-xs text-slate-400 hover:text-indigo-600 transition-colors"
+            title="Copy conversation to clipboard"
+          >
+            Copy
+          </button>
+          <button
+            onClick={async () => {
+              if (!window.confirm(
+                'Clear the conversation? This removes all past turns so you can start fresh.',
+              )) return
+              await memory.clearConversation()
+              clearSeedDate(athleteId)
+              onInteraction?.('conversation_cleared')
+            }}
+            className="text-xs text-slate-400 hover:text-rose-600 transition-colors"
+            title="Clear all chat history"
+          >
+            Clear
+          </button>
         </div>
       )}
+    </div>
+  )
 
-      {/* Chat block — action bar (History etc) sits as a header inside
-          the same card as the chat messages, so History stays clearly
-          attached above the chat instead of floating between sections. */}
-      <div className={`${chatMinimized ? 'shrink-0' : 'flex-1 min-h-0'} flex flex-col mx-2 mb-2 mt-1 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden`}>
-        {/* Action bar — chat header */}
-        <div className="flex items-center justify-between shrink-0 px-3 py-2 border-b border-slate-100 dark:border-slate-700">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setHistoryOpen(true)}
-              className="text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:text-slate-200 transition-colors flex items-center gap-1"
-              title="View past conversations"
-            >
-              📅 History{archives.length > 0 ? ` (${archives.length})` : ''}
-            </button>
-            {hasTurns && (
-              <button
-                onClick={() => setChatMinimized(!chatMinimized)}
-                className="text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:text-slate-200 transition-colors"
-              >
-                {chatMinimized ? '▾ Show chat' : '▴ Minimize'}
-              </button>
-            )}
-          </div>
-          {hasTurns && (
-            <div className="flex items-center gap-3">
-              <button
-                onClick={async () => {
-                  const today = snapshot?.today?.date || localDateStr()
-                  if (!window.confirm(
-                    `Archive this conversation under ${today} and start a fresh thread? You can always revisit it in History.`,
-                  )) return
-                  await memory.rolloverDay(today)
-                  clearSeedDate(athleteId)
-                  onInteraction?.('conversation_archived', { date: today })
-                }}
-                className="text-xs text-slate-400 hover:text-indigo-600 transition-colors"
-                title="Archive this chat to History and start fresh"
-              >
-                Archive
-              </button>
-              <button
-                onClick={() => saveConversation(memory.conversation, athleteId)}
-                className="text-xs text-slate-400 hover:text-indigo-600 transition-colors"
-                title="Download conversation as a text file"
-              >
-                Save
-              </button>
-              <button
-                onClick={() => copyConversation(memory.conversation, athleteId)}
-                className="text-xs text-slate-400 hover:text-indigo-600 transition-colors"
-                title="Copy conversation to clipboard"
-              >
-                Copy
-              </button>
-              <button
-                onClick={async () => {
-                  if (!window.confirm(
-                    'Clear the conversation? This removes all past turns so you can start fresh.',
-                  )) return
-                  await memory.clearConversation()
-                  clearSeedDate(athleteId)
-                  onInteraction?.('conversation_cleared')
-                }}
-                className="text-xs text-slate-400 hover:text-rose-600 transition-colors"
-                title="Clear all chat history"
-              >
-                Clear
-              </button>
+  return (
+    <div className="flex flex-col h-[calc(100vh-11rem)] px-0 py-0 gap-0 relative">
+      {/* Single scroll surface: the daily insight is the top message and
+          scrolls naturally together with the chat history below it. The
+          composer pins to the bottom via CoachChat's renderLayout so the
+          full insight can be read without a 45vh truncation cap. */}
+      <CoachChat
+        athleteId={athleteId}
+        memory={memory}
+        snapshot={snapshot}
+        seed={chatSeed}
+        onSeedConsumed={onChatSeedConsumed}
+        onSent={() => onInteraction?.('chat_sent')}
+        getPlannedDay={getPlannedDay}
+        onApproveAction={onApproveAction}
+        onRejectAction={onRejectAction}
+        onUndoAction={onUndoAction}
+        renderLayout={({ scrollerRef, messagesBody, errorBanners, composer }) => (
+          <div className="flex flex-col h-full bg-white dark:bg-slate-800">
+            <div ref={scrollerRef} className="flex-1 min-h-0 overflow-y-auto">
+              {(dailyInsight || dailyInsightLoading) && (
+                <div className="px-2 pt-2">
+                  <CoachInsightCard
+                    insight={dailyInsight}
+                    loading={dailyInsightLoading}
+                    onAsk={onAskCoach}
+                    coachName={coachName}
+                    onRegenerate={onRegenerateInsight}
+                    athleteId={athleteId}
+                    getPlannedDay={getPlannedDay}
+                    onApproveProposal={onApproveInsightProposal}
+                    onUndoProposal={onUndoInsightProposal}
+                    alwaysExpanded
+                  />
+                </div>
+              )}
+              <div className="mt-2">{actionBar}</div>
+              <div className="px-2 py-2 space-y-2">{messagesBody}</div>
             </div>
-          )}
-        </div>
-
-        {/* Chat area */}
-        {!chatMinimized && (
-          <div className="flex-1 min-h-0">
-            <CoachChat
-              athleteId={athleteId}
-              memory={memory}
-              snapshot={snapshot}
-              seed={chatSeed}
-              onSeedConsumed={onChatSeedConsumed}
-              onSent={() => { onInteraction?.('chat_sent'); setChatMinimized(false) }}
-              getPlannedDay={getPlannedDay}
-              onApproveAction={onApproveAction}
-              onRejectAction={onRejectAction}
-              onUndoAction={onUndoAction}
-            />
+            {errorBanners}
+            {composer}
           </div>
         )}
-      </div>
-
-      {/* Minimized view: last message preview + tap to expand */}
-      {chatMinimized && hasTurns && (() => {
-        const visible = memory.conversation.filter(t => t.role !== 'system-handoff')
-        const last = visible[visible.length - 1]
-        if (!last) return null
-        const label = last.role === 'user' ? 'You' : 'Coach'
-        const preview = last.content.length > 120 ? last.content.slice(0, 117) + '…' : last.content
-        return (
-          <button
-            onClick={() => setChatMinimized(false)}
-            className="flex-1 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-3 text-left hover:bg-slate-50 dark:hover:bg-slate-700 dark:bg-slate-900 transition-colors min-h-0 overflow-hidden"
-          >
-            <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-0.5">{label}:</p>
-            <p className="text-sm text-slate-700 dark:text-slate-200 line-clamp-3">{preview}</p>
-            <p className="text-xs text-teal-600 mt-1">Tap to expand ›</p>
-          </button>
-        )
-      })()}
+      />
 
       {/* History drawer */}
       {historyOpen && (
