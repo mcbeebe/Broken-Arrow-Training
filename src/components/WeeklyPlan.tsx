@@ -5,13 +5,11 @@ import type { WeekCompliance } from '../hooks/useCompliance'
 import { getWorkoutStyle, adaptBg } from '../utils/styles'
 import { buildWeatherChipForDate } from '../utils/weatherChip'
 import DayCard from './DayCard'
-import VolumeChart from './VolumeChart'
 import WorkoutModal from './WorkoutModal'
 import ManualLog from './ManualLog'
 import WorkoutEditor, { type WorkoutEdits } from './WorkoutEditor'
 import RaceNarrative from './RaceNarrative'
 import RaceElevationProfile from './RaceElevationProfile'
-import { shouldTrackVerticalGain } from '../utils/raceReadiness'
 
 interface WeeklyPlanProps {
   weeks: TrainingWeek[]
@@ -298,14 +296,6 @@ export default function WeeklyPlan({
         })}
       </div>
 
-      {/* Volume chart */}
-      <VolumeChart
-        weeks={weeks}
-        activeWeek={activeWeek}
-        onWeekClick={setActiveWeek}
-        compliance={compliance}
-        showVertical={shouldTrackVerticalGain(race)}
-      />
       </>
       )}
 

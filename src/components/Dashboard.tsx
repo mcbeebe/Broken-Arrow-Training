@@ -13,6 +13,7 @@ import ComplianceWeekRow from './ComplianceWeekRow'
 import CalendarHeatmap from './CalendarHeatmap'
 import StrengthProgressSection from './StrengthProgressSection'
 import DescentCapacitySection from './DescentCapacitySection'
+import VolumeChart from './VolumeChart'
 
 type DashSubTab = 'compliance' | 'readiness' | 'performance'
 
@@ -55,6 +56,7 @@ export default function Dashboard({
   athleteMaxHR,
 }: DashboardProps) {
   const [subTab, setSubTab] = useState<DashSubTab>('compliance')
+  const [volumeActiveWeek, setVolumeActiveWeek] = useState(0)
   const parsedPlanZones = parsePlanZones(planZones, athleteMaxHR)
   const showVertical = shouldTrackVerticalGain(race)
 
@@ -75,6 +77,14 @@ export default function Dashboard({
           race={race}
         />
       )}
+
+      <VolumeChart
+        weeks={weeks}
+        activeWeek={volumeActiveWeek}
+        onWeekClick={setVolumeActiveWeek}
+        compliance={compliance.weeks}
+        showVertical={showVertical}
+      />
 
       {/* Sub-tab navigation */}
       <div className="flex gap-1 bg-slate-100 dark:bg-slate-700 rounded-lg p-1">
@@ -114,17 +124,18 @@ export default function Dashboard({
         />
       )}
       {subTab === 'performance' && (
-        <PerformanceTab
-          dailyTrimp={dailyTrimp}
-          performance={performance}
-          recommendations={weeklyRecommendations}
-          riskFlags={riskFlags}
-          raceDate={raceDate}
-          sorenessLoadByDate={sorenessLoadByDate}
-        />
+        <>
+          <PerformanceTab
+            dailyTrimp={dailyTrimp}
+            performance={performance}
+            recommendations={weeklyRecommendations}
+            riskFlags={riskFlags}
+            raceDate={raceDate}
+            sorenessLoadByDate={sorenessLoadByDate}
+          />
+          <StrengthProgressSection weeks={weeks} />
+        </>
       )}
-
-      <StrengthProgressSection weeks={weeks} />
     </div>
   )
 }
