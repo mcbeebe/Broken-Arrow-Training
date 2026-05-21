@@ -129,9 +129,18 @@ interface WorkoutModalProps {
   /** Full plan weeks — used to surface per-exercise progression history
    *  inside strength exercise cards (last session + suggested next target). */
   weeks?: import('../types').TrainingWeek[]
+  /** Race-readiness adjustment for this session, surfaced when the modal
+   *  is opened from a Race Readiness assignment row. Lets the athlete see
+   *  the race-day target attached to the same planned workout — not a
+   *  replacement, a bias. */
+  raceReadinessTarget?: {
+    gap: 'fitness' | 'vert' | 'taper' | 'on-track'
+    action: string
+    target: string
+  }
 }
 
-export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, coachEnabled, readiness, latestPerf, coachSnapshot, onAskCoach, trimpRecord, weeks }: WorkoutModalProps) {
+export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, coachEnabled, readiness, latestPerf, coachSnapshot, onAskCoach, trimpRecord, weeks, raceReadinessTarget }: WorkoutModalProps) {
   const style = getWorkoutStyle(day.type)
   const baseCoaching = getCoaching(day, weekNum)
   const actual = day.actual
@@ -352,6 +361,31 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
         </div>
 
         <div className="px-4 py-4 space-y-4">
+          {raceReadinessTarget && (() => {
+            const tone = {
+              vert: { bg: 'bg-violet-50 dark:bg-violet-950/40', border: 'border-violet-200 dark:border-violet-900', text: 'text-violet-700 dark:text-violet-300' },
+              fitness: { bg: 'bg-blue-50 dark:bg-blue-950/40', border: 'border-blue-200 dark:border-blue-900', text: 'text-blue-700 dark:text-blue-300' },
+              taper: { bg: 'bg-amber-50 dark:bg-amber-950/40', border: 'border-amber-200 dark:border-amber-900', text: 'text-amber-700 dark:text-amber-300' },
+              'on-track': { bg: 'bg-emerald-50 dark:bg-emerald-950/40', border: 'border-emerald-200 dark:border-emerald-900', text: 'text-emerald-700 dark:text-emerald-300' },
+            }[raceReadinessTarget.gap]
+            return (
+              <div className={`rounded-lg border px-3 py-2.5 ${tone.bg} ${tone.border}`}>
+                <p className={`text-xs font-semibold uppercase tracking-wide ${tone.text}`}>
+                  🎯 Race-day target
+                </p>
+                <p className="text-sm font-semibold text-slate-800 dark:text-white mt-0.5 leading-snug">
+                  {raceReadinessTarget.action}
+                </p>
+                <p className="text-xs text-slate-700 dark:text-slate-200 mt-0.5 leading-snug">
+                  {raceReadinessTarget.target}
+                </p>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1.5 leading-snug italic">
+                  This is the same {day.day.split(/\s+/)[0]} session below — biased to deliver the race-day target. If the planned structure already hits it on your route, you're set. Otherwise use the structure above.
+                </p>
+              </div>
+            )
+          })()}
+
           {/* Ambient Coach take — Mike-only, top of detail view */}
           {coachEnabled && (
             <CoachWorkoutTakeForDay

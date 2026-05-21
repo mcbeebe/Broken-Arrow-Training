@@ -14,7 +14,7 @@ import Term from './TermGlossary'
 import { buildWeatherChipForDate } from '../utils/weatherChip'
 import RaceCard from './RaceCard'
 import RaceReadinessDetailModal from './RaceReadinessDetailModal'
-import { buildRaceReadinessDetail, computeRaceReadiness } from '../utils/raceReadiness'
+import { buildRaceReadinessDetail, computeRaceReadiness, type ReadinessAssignment } from '../utils/raceReadiness'
 import { formatLooksLikeLine, findBestCourseMatchForPlanned } from '../utils/workoutCourseMatch'
 import { weeksUntilRace } from '../utils/raceCountdown'
 import { buildTrainingSignals, type TrainingSignals } from '../utils/trainingSignals'
@@ -288,6 +288,16 @@ export default function Summary({
   const [narrativeOpen, setNarrativeOpen] = useState(true)
   const [showTodayModal, setShowTodayModal] = useState(false)
   const [showRaceReadinessModal, setShowRaceReadinessModal] = useState(false)
+  // When the athlete taps a row in the Race Readiness modal we resolve it
+  // to the underlying PlannedDay and open the daily workout card with the
+  // race-readiness target attached as a banner. Single-source state — the
+  // readiness modal closes while this is open so the athlete doesn't get
+  // stacked sheets.
+  const [readinessWorkout, setReadinessWorkout] = useState<{
+    day: PlannedDay
+    weekNum: number
+    assignment: ReadinessAssignment
+  } | null>(null)
 
   // Three-axis signal coherence — one object the cards (banner,
   // Performance Snapshot label, What Changed qualifier) all read from
@@ -392,6 +402,31 @@ export default function Summary({
           summary={raceReadiness}
           detail={raceReadinessDetail}
           onClose={() => setShowRaceReadinessModal(false)}
+          onSelectAssignment={weeks ? (weekNum, assignment) => {
+            const week = weeks.find(w => w.num === weekNum)
+            const day = week?.days.find(d => d.day === assignment.dayLabel)
+            if (!day) return
+            setShowRaceReadinessModal(false)
+            setReadinessWorkout({ day, weekNum, assignment })
+          } : undefined}
+        />
+      )}
+      {readinessWorkout && (
+        <WorkoutModal
+          day={readinessWorkout.day}
+          weekNum={readinessWorkout.weekNum}
+          onClose={() => setReadinessWorkout(null)}
+          zones={zones || []}
+          weeks={weeks}
+          latestPerf={latestPerf}
+          coachSnapshot={coachSnapshot ?? undefined}
+          athleteId={athleteId}
+          coachEnabled={coachEnabled}
+          raceReadinessTarget={raceReadiness ? {
+            gap: raceReadiness.gap,
+            action: readinessWorkout.assignment.action,
+            target: readinessWorkout.assignment.target,
+          } : undefined}
         />
       )}
       {coachEnabled && onOpenCoachTab && (

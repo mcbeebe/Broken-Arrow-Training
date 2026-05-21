@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import type { RaceInfo } from '../types'
-import type { RaceReadinessDetail, RaceReadinessSummary } from '../utils/raceReadiness'
+import type { RaceReadinessDetail, RaceReadinessSummary, ReadinessAssignment } from '../utils/raceReadiness'
 import { getWorkoutStyle } from '../utils/styles'
 
 interface Props {
@@ -8,6 +8,9 @@ interface Props {
   summary: RaceReadinessSummary
   detail: RaceReadinessDetail
   onClose: () => void
+  /** When provided, each assignment row becomes a button that opens the
+   *  full daily workout card with the race-readiness target attached. */
+  onSelectAssignment?: (weekNum: number, assignment: ReadinessAssignment) => void
 }
 
 const GAP_TONE: Record<RaceReadinessSummary['gap'], { ring: string; pill: string; pillText: string; headerBg: string; headerBorder: string }> = {
@@ -24,7 +27,7 @@ const GAP_LABEL: Record<RaceReadinessSummary['gap'], string> = {
   taper: 'taper window',
 }
 
-export default function RaceReadinessDetailModal({ race, summary, detail, onClose }: Props) {
+export default function RaceReadinessDetailModal({ race, summary, detail, onClose, onSelectAssignment }: Props) {
   const tone = GAP_TONE[summary.gap]
   const circumference = 2 * Math.PI * 32
   const offset = circumference * (1 - summary.pct / 100)
@@ -144,27 +147,58 @@ export default function RaceReadinessDetailModal({ race, summary, detail, onClos
                       <ul className="divide-y divide-slate-100 dark:divide-slate-700">
                         {week.assignments.map((a, i) => {
                           const style = getWorkoutStyle(a.workoutType)
-                          return (
-                            <li key={i} className="px-3 py-2.5">
-                              <div className="flex items-start gap-2">
-                                <span className="text-lg leading-none mt-0.5" aria-hidden="true">{style.label}</span>
-                                <div className="min-w-0 flex-1">
-                                  <p className="text-sm font-semibold text-slate-800 dark:text-white">
-                                    {a.dayLabel} · {a.plannedName}
+                          const tappable = !!onSelectAssignment
+                          const rowInner = (
+                            <div className="flex items-start gap-2">
+                              <span className="text-lg leading-none mt-0.5" aria-hidden="true">{style.label}</span>
+                              <div className="min-w-0 flex-1">
+                                <p className="text-sm font-semibold text-slate-800 dark:text-white">
+                                  {a.dayLabel} · {a.plannedName}
+                                </p>
+                                {a.plannedDetail && (
+                                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 leading-snug">
+                                    <span className="font-medium">Planned:</span> {a.plannedDetail}
                                   </p>
-                                  {a.plannedDetail && (
-                                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 leading-snug">
-                                      Currently: {a.plannedDetail}
-                                    </p>
-                                  )}
-                                  <p className="text-sm text-slate-700 dark:text-slate-200 mt-1.5 leading-snug">
-                                    <span className="font-semibold">→ {a.action}</span>
+                                )}
+                                <div className={`mt-2 rounded-md px-2 py-1.5 ${tone.pill}`}>
+                                  <p className={`text-xs font-semibold uppercase tracking-wide ${tone.pillText}`}>
+                                    🎯 Race-day target
                                   </p>
-                                  <p className="text-xs text-slate-600 dark:text-slate-300 mt-0.5 leading-snug">
+                                  <p className="text-sm text-slate-800 dark:text-white mt-0.5 leading-snug font-semibold">
+                                    {a.action}
+                                  </p>
+                                  <p className="text-xs text-slate-700 dark:text-slate-200 mt-0.5 leading-snug">
                                     {a.target}
                                   </p>
+                                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-snug italic">
+                                    Same {a.dayLabel.split(/\s+/)[0]} session — bias it to deliver this. If your planned structure already hits the target, you're set.
+                                  </p>
                                 </div>
+                                {tappable && (
+                                  <p className="mt-1.5 text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                                    Tap for the full workout →
+                                  </p>
+                                )}
                               </div>
+                            </div>
+                          )
+                          if (tappable) {
+                            return (
+                              <li key={i}>
+                                <button
+                                  type="button"
+                                  onClick={() => onSelectAssignment!(week.weekNum, a)}
+                                  aria-label={`Open ${a.dayLabel} ${a.plannedName} — race-day target: ${a.action}`}
+                                  className="w-full text-left px-3 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-colors"
+                                >
+                                  {rowInner}
+                                </button>
+                              </li>
+                            )
+                          }
+                          return (
+                            <li key={i} className="px-3 py-2.5">
+                              {rowInner}
                             </li>
                           )
                         })}
