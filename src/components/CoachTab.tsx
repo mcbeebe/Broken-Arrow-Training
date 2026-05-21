@@ -166,88 +166,95 @@ export default function CoachTab({
         </div>
       )}
 
-      {/* Action bar */}
-      <div className="flex items-center justify-between shrink-0 px-2 py-1">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => setHistoryOpen(true)}
-            className="text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:text-slate-200 transition-colors flex items-center gap-1"
-            title="View past conversations"
-          >
-            📅 History{archives.length > 0 ? ` (${archives.length})` : ''}
-          </button>
-          {hasTurns && (
-            <button
-              onClick={() => setChatMinimized(!chatMinimized)}
-              className="text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:text-slate-200 transition-colors"
-            >
-              {chatMinimized ? '▾ Show chat' : '▴ Minimize'}
-            </button>
-          )}
-        </div>
-        {hasTurns && (
+      {/* Chat block — action bar (History etc) sits as a header inside
+          the same card as the chat messages, so History stays clearly
+          attached above the chat instead of floating between sections. */}
+      <div className={`${chatMinimized ? 'shrink-0' : 'flex-1 min-h-0'} flex flex-col mx-2 mb-2 mt-1 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden`}>
+        {/* Action bar — chat header */}
+        <div className="flex items-center justify-between shrink-0 px-3 py-2 border-b border-slate-100 dark:border-slate-700">
           <div className="flex items-center gap-3">
             <button
-              onClick={async () => {
-                const today = snapshot?.today?.date || localDateStr()
-                if (!window.confirm(
-                  `Archive this conversation under ${today} and start a fresh thread? You can always revisit it in History.`,
-                )) return
-                await memory.rolloverDay(today)
-                clearSeedDate(athleteId)
-                onInteraction?.('conversation_archived', { date: today })
-              }}
-              className="text-xs text-slate-400 hover:text-indigo-600 transition-colors"
-              title="Archive this chat to History and start fresh"
+              onClick={() => setHistoryOpen(true)}
+              className="text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:text-slate-200 transition-colors flex items-center gap-1"
+              title="View past conversations"
             >
-              Archive
+              📅 History{archives.length > 0 ? ` (${archives.length})` : ''}
             </button>
-            <button
-              onClick={() => saveConversation(memory.conversation, athleteId)}
-              className="text-xs text-slate-400 hover:text-indigo-600 transition-colors"
-              title="Download conversation as a text file"
-            >
-              Save
-            </button>
-            <button
-              onClick={() => copyConversation(memory.conversation, athleteId)}
-              className="text-xs text-slate-400 hover:text-indigo-600 transition-colors"
-              title="Copy conversation to clipboard"
-            >
-              Copy
-            </button>
-            <button
-              onClick={async () => {
-                if (!window.confirm(
-                  'Clear the conversation? This removes all past turns so you can start fresh.',
-                )) return
-                await memory.clearConversation()
-                clearSeedDate(athleteId)
-                onInteraction?.('conversation_cleared')
-              }}
-              className="text-xs text-slate-400 hover:text-rose-600 transition-colors"
-              title="Clear all chat history"
-            >
-              Clear
-            </button>
+            {hasTurns && (
+              <button
+                onClick={() => setChatMinimized(!chatMinimized)}
+                className="text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:text-slate-200 transition-colors"
+              >
+                {chatMinimized ? '▾ Show chat' : '▴ Minimize'}
+              </button>
+            )}
+          </div>
+          {hasTurns && (
+            <div className="flex items-center gap-3">
+              <button
+                onClick={async () => {
+                  const today = snapshot?.today?.date || localDateStr()
+                  if (!window.confirm(
+                    `Archive this conversation under ${today} and start a fresh thread? You can always revisit it in History.`,
+                  )) return
+                  await memory.rolloverDay(today)
+                  clearSeedDate(athleteId)
+                  onInteraction?.('conversation_archived', { date: today })
+                }}
+                className="text-xs text-slate-400 hover:text-indigo-600 transition-colors"
+                title="Archive this chat to History and start fresh"
+              >
+                Archive
+              </button>
+              <button
+                onClick={() => saveConversation(memory.conversation, athleteId)}
+                className="text-xs text-slate-400 hover:text-indigo-600 transition-colors"
+                title="Download conversation as a text file"
+              >
+                Save
+              </button>
+              <button
+                onClick={() => copyConversation(memory.conversation, athleteId)}
+                className="text-xs text-slate-400 hover:text-indigo-600 transition-colors"
+                title="Copy conversation to clipboard"
+              >
+                Copy
+              </button>
+              <button
+                onClick={async () => {
+                  if (!window.confirm(
+                    'Clear the conversation? This removes all past turns so you can start fresh.',
+                  )) return
+                  await memory.clearConversation()
+                  clearSeedDate(athleteId)
+                  onInteraction?.('conversation_cleared')
+                }}
+                className="text-xs text-slate-400 hover:text-rose-600 transition-colors"
+                title="Clear all chat history"
+              >
+                Clear
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Chat area */}
+        {!chatMinimized && (
+          <div className="flex-1 min-h-0">
+            <CoachChat
+              athleteId={athleteId}
+              memory={memory}
+              snapshot={snapshot}
+              seed={chatSeed}
+              onSeedConsumed={onChatSeedConsumed}
+              onSent={() => { onInteraction?.('chat_sent'); setChatMinimized(false) }}
+              getPlannedDay={getPlannedDay}
+              onApproveAction={onApproveAction}
+              onRejectAction={onRejectAction}
+              onUndoAction={onUndoAction}
+            />
           </div>
         )}
-      </div>
-
-      {/* Chat area */}
-      <div className={`${chatMinimized ? 'hidden' : 'flex-1 min-h-0'}`}>
-        <CoachChat
-          athleteId={athleteId}
-          memory={memory}
-          snapshot={snapshot}
-          seed={chatSeed}
-          onSeedConsumed={onChatSeedConsumed}
-          onSent={() => { onInteraction?.('chat_sent'); setChatMinimized(false) }}
-          getPlannedDay={getPlannedDay}
-          onApproveAction={onApproveAction}
-          onRejectAction={onRejectAction}
-          onUndoAction={onUndoAction}
-        />
       </div>
 
       {/* Minimized view: last message preview + tap to expand */}
