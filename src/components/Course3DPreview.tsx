@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import type { Course, TerrainHeightmap } from '../types/course'
 import { hasTerrainAsset, loadTerrain } from '../data/terrain'
 import { isWebGLAvailable } from './webgl'
@@ -7,10 +8,11 @@ const Course3DScene = lazy(() => import('./Course3DScene'))
 
 interface Props {
   course: Course
-  /** Height of the rendered canvas. Defaults to a portrait-ish 320px. */
+  /** Height of the rendered canvas while inline. Defaults to a
+   *  portrait-ish 320px. Fullscreen mode ignores this. */
   heightPx?: number
-  /** Called when the user collapses the preview. Lets parent components
-   *  swap back to a compact summary. */
+  /** Called when the user collapses the preview from inline mode.
+   *  Lets parent components swap back to a compact summary. */
   onClose?: () => void
 }
 
@@ -32,18 +34,18 @@ type LoadResult =
  *            the dynamic import resolves.
  *
  * The actual three.js scene lives in `Course3DScene.tsx` and is imported
- * lazily so it's split into its own chunk.
+ * lazily so it's split into its own chunk. Owns its fullscreen state so
+ * callers don't have to thread state through parent components.
  */
 export default function Course3DPreview({ course, heightPx = 320, onClose }: Props) {
   const courseSupported = hasTerrainAsset(course.id)
   const webglSupported = useMemo(() => isWebGLAvailable(), [])
   const [result, setResult] = useState<LoadResult>({ kind: 'loading' })
+  const [fullscreen, setFullscreen] = useState(false)
 
   useEffect(() => {
     if (!courseSupported || !webglSupported) return
     let cancelled = false
-    // Reset to loading when course.id changes so we don't flash the
-    // previous course's terrain while the new one is in flight.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setResult({ kind: 'loading' })
     loadTerrain(course.id)
@@ -64,13 +66,32 @@ export default function Course3DPreview({ course, heightPx = 320, onClose }: Pro
     }
   }, [course.id, courseSupported, webglSupported])
 
+  // Suppress page scroll under the fullscreen overlay so a pinch-zoom
+  // gesture on the canvas doesn't double up with mobile-safari rubber
+  // banding the page itself.
+  useEffect(() => {
+    if (!fullscreen || typeof document === 'undefined') return
+    const previous = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = previous
+    }
+  }, [fullscreen])
+
+  // Close fullscreen on Escape for keyboard users.
+  useEffect(() => {
+    if (!fullscreen) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setFullscreen(false)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [fullscreen])
+
   if (!courseSupported) return null
 
-  return (
-    <div
-      className="relative rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-900"
-      style={{ height: heightPx }}
-    >
+  const body = (
+    <>
       {!webglSupported && (
         <Fallback>
           3D preview needs WebGL — your browser doesn't support it. The
@@ -90,16 +111,40 @@ export default function Course3DPreview({ course, heightPx = 320, onClose }: Pro
         </Suspense>
       )}
 
-      {onClose && (
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Close 3D course preview"
-          className="absolute top-2 right-2 rounded-full bg-white/90 dark:bg-slate-800/90 text-slate-700 dark:text-slate-200 text-xs font-medium px-2 py-1 shadow-sm border border-slate-200 dark:border-slate-700 hover:bg-white"
-        >
-          Close
-        </button>
-      )}
+      <div className="absolute top-2 right-2 flex items-center gap-1.5">
+        {webglSupported && result.kind === 'ready' && (
+          <button
+            type="button"
+            onClick={() => setFullscreen(f => !f)}
+            aria-label={fullscreen ? 'Exit fullscreen' : 'View fullscreen'}
+            className="rounded-full bg-white/90 dark:bg-slate-800/90 text-slate-700 dark:text-slate-200 text-xs font-medium px-2 py-1 shadow-sm border border-slate-200 dark:border-slate-700 hover:bg-white flex items-center gap-1"
+          >
+            <span aria-hidden>{fullscreen ? '⤡' : '⤢'}</span>
+            <span>{fullscreen ? 'Exit' : 'Fullscreen'}</span>
+          </button>
+        )}
+        {fullscreen ? (
+          <button
+            type="button"
+            onClick={() => setFullscreen(false)}
+            aria-label="Close 3D course preview"
+            className="rounded-full bg-white/90 dark:bg-slate-800/90 text-slate-700 dark:text-slate-200 text-xs font-medium px-2 py-1 shadow-sm border border-slate-200 dark:border-slate-700 hover:bg-white"
+          >
+            Close
+          </button>
+        ) : (
+          onClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close 3D course preview"
+              className="rounded-full bg-white/90 dark:bg-slate-800/90 text-slate-700 dark:text-slate-200 text-xs font-medium px-2 py-1 shadow-sm border border-slate-200 dark:border-slate-700 hover:bg-white"
+            >
+              Close
+            </button>
+          )
+        )}
+      </div>
 
       {webglSupported && result.kind === 'ready' && (
         <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between text-[10px] text-slate-700 dark:text-slate-200 pointer-events-none">
@@ -111,6 +156,27 @@ export default function Course3DPreview({ course, heightPx = 320, onClose }: Pro
           </span>
         </div>
       )}
+    </>
+  )
+
+  if (fullscreen && typeof document !== 'undefined') {
+    return createPortal(
+      <div
+        className="fixed inset-0 z-50 bg-slate-100 dark:bg-slate-900"
+        style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}
+      >
+        <div className="relative w-full h-full">{body}</div>
+      </div>,
+      document.body,
+    )
+  }
+
+  return (
+    <div
+      className="relative rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-900"
+      style={{ height: heightPx }}
+    >
+      {body}
     </div>
   )
 }
