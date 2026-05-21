@@ -1,10 +1,5 @@
-/* eslint-disable react-hooks/immutability --
- * react-three-fiber's idiomatic API is mutation-based: callbacks like
- * useFrame receive the live scene-graph object and update its transform
- * in place. The React 19 hooks plugin's immutability rule conflicts with
- * that contract for this entire file. */
-import { useMemo, useRef, useEffect } from 'react'
-import { Canvas, useFrame, useThree } from '@react-three/fiber'
+import { useMemo, useEffect } from 'react'
+import { Canvas, useThree } from '@react-three/fiber'
 import { OrbitControls, Html } from '@react-three/drei'
 import * as THREE from 'three'
 import type {
@@ -22,9 +17,10 @@ import type {
  * Coordinate system: terrain is centered at (0, 0, 0). X axis runs
  * west→east, Z axis runs south→north (negated from latitude so larger
  * latitudes go toward -Z, matching map conventions where "up" is north).
- * Y is elevation (up). Everything is scaled so the terrain extent in
- * meters maps to world units divided by SCALE_METERS_PER_UNIT, giving
- * a manageable scene size for the orbit camera.
+ * Y is elevation (up). All elevations are offset by `minElevationFt`
+ * so the terrain "floor" sits at y = 0 — otherwise the mesh would
+ * float thousands of world units up at altitude and the camera would
+ * be staring at empty sky.
  */
 
 const SCALE_METERS_PER_UNIT = 50
@@ -41,6 +37,10 @@ interface ProjectedPoint {
   point: ElevationPoint
 }
 
+function elevFtToWorldY(elevFt: number, baselineFt: number): number {
+  return ((elevFt - baselineFt) * FEET_TO_METERS * VERTICAL_EXAGGERATION) / SCALE_METERS_PER_UNIT
+}
+
 function project(
   lat: number,
   lon: number,
@@ -54,26 +54,31 @@ function project(
 
   const xMeters = (lon - (bounds.minLongitude + bounds.maxLongitude) / 2) * lonMetersPerDeg
   const zMeters = ((bounds.minLatitude + bounds.maxLatitude) / 2 - lat) * latMetersPerDeg
-  const yMeters = elevFt * FEET_TO_METERS * VERTICAL_EXAGGERATION
 
   return [
     xMeters / SCALE_METERS_PER_UNIT,
-    yMeters / SCALE_METERS_PER_UNIT,
+    elevFtToWorldY(elevFt, terrain.minElevationFt),
     zMeters / SCALE_METERS_PER_UNIT,
   ]
 }
 
-function buildTerrainGeometry(terrain: TerrainHeightmap): THREE.BufferGeometry {
-  const { width, height, elevationsFt, bounds } = terrain
-  const meanLat = (bounds.minLatitude + bounds.maxLatitude) / 2
-  const latMeters = (bounds.maxLatitude - bounds.minLatitude) * 111000
+function sceneMetrics(terrain: TerrainHeightmap) {
+  const meanLat = (terrain.bounds.minLatitude + terrain.bounds.maxLatitude) / 2
+  const latMeters = (terrain.bounds.maxLatitude - terrain.bounds.minLatitude) * 111000
   const lonMeters =
-    (bounds.maxLongitude - bounds.minLongitude) *
+    (terrain.bounds.maxLongitude - terrain.bounds.minLongitude) *
     111000 *
     Math.cos((meanLat * Math.PI) / 180)
-
   const planeWidth = lonMeters / SCALE_METERS_PER_UNIT
   const planeHeight = latMeters / SCALE_METERS_PER_UNIT
+  const extent = Math.max(planeWidth, planeHeight)
+  const maxY = elevFtToWorldY(terrain.maxElevationFt, terrain.minElevationFt)
+  return { planeWidth, planeHeight, extent, maxY }
+}
+
+function buildTerrainGeometry(terrain: TerrainHeightmap): THREE.BufferGeometry {
+  const { width, height, elevationsFt, minElevationFt } = terrain
+  const { planeWidth, planeHeight } = sceneMetrics(terrain)
 
   const geometry = new THREE.PlaneGeometry(
     planeWidth,
@@ -81,20 +86,15 @@ function buildTerrainGeometry(terrain: TerrainHeightmap): THREE.BufferGeometry {
     width - 1,
     height - 1,
   )
-  // PlaneGeometry vertices are laid out row-by-row starting from top-left
-  // (i.e. max-y, min-x) when the plane lies in the XY plane before rotation.
-  // After we rotate to lie flat (XZ plane), we need to push the Y component
-  // (which was Z before rotation) by the elevation. The order matches our
-  // row-major elevationsFt: row 0 = northernmost = max latitude.
   const pos = geometry.attributes.position
   for (let i = 0; i < pos.count; i++) {
     const row = Math.floor(i / width)
     const col = i % width
-    // Sample row 0 = max latitude (north) which sits at -Z after rotation.
+    // PlaneGeometry vertices start at top-left (max Y in original XY).
+    // After rotateX(-π/2), that maps to min Z = north. The fetched
+    // heightmap stores row 0 = min latitude = south, so flip rows.
     const sampleIdx = (height - 1 - row) * width + col
-    const elevFt = elevationsFt[sampleIdx]
-    const elevWorld = (elevFt * FEET_TO_METERS * VERTICAL_EXAGGERATION) / SCALE_METERS_PER_UNIT
-    pos.setZ(i, elevWorld)
+    pos.setZ(i, elevFtToWorldY(elevationsFt[sampleIdx], minElevationFt))
   }
   geometry.rotateX(-Math.PI / 2)
   geometry.computeVertexNormals()
@@ -121,7 +121,6 @@ function buildTerrainColors(terrain: TerrainHeightmap, geometry: THREE.BufferGeo
 
 function elevationToColor(t: number): THREE.Color {
   // Sage (valley) → tan (mid-slope) → warm rock (ridge) → snow (peak).
-  // Stops chosen to evoke the Sierra at 6,200–9,000 ft.
   const stops: Array<{ t: number; color: THREE.Color }> = [
     { t: 0.0, color: new THREE.Color('#6b8e6b') },
     { t: 0.4, color: new THREE.Color('#c9a36b') },
@@ -147,7 +146,7 @@ function Terrain({ terrain }: { terrain: TerrainHeightmap }) {
   }, [terrain])
 
   return (
-    <mesh geometry={geometry} receiveShadow castShadow>
+    <mesh geometry={geometry}>
       <meshStandardMaterial
         vertexColors
         roughness={0.95}
@@ -159,26 +158,35 @@ function Terrain({ terrain }: { terrain: TerrainHeightmap }) {
 }
 
 function RoutePath({ course, terrain }: { course: Course; terrain: TerrainHeightmap }) {
+  const { extent } = sceneMetrics(terrain)
+  // Tube radius scales with extent so the route is visible on both
+  // tight (~3km) and wide (~10km) courses without manual tuning.
+  const tubeRadius = extent * 0.005
+  // Float the route slightly above terrain so it isn't z-fighting
+  // with the mesh. 30 ft in world units after exaggeration.
+  const floatFt = 30
+
   const projected = useMemo<ProjectedPoint[]>(() => {
     return course.elevationProfile
       .filter(p => p.latitude != null && p.longitude != null)
       .map(p => ({
         point: p,
-        position: project(p.latitude!, p.longitude!, p.elevationFt + 40, terrain),
+        position: project(p.latitude!, p.longitude!, p.elevationFt + floatFt, terrain),
       }))
   }, [course, terrain])
 
   const geometry = useMemo(() => {
+    if (projected.length < 2) return null
     const curve = new THREE.CatmullRomCurve3(
       projected.map(p => new THREE.Vector3(...p.position)),
       false,
       'centripetal',
       0.5,
     )
-    return new THREE.TubeGeometry(curve, Math.max(64, projected.length * 8), 0.08, 8, false)
-  }, [projected])
+    return new THREE.TubeGeometry(curve, Math.max(64, projected.length * 8), tubeRadius, 8, false)
+  }, [projected, tubeRadius])
 
-  if (projected.length < 2) return null
+  if (!geometry) return null
 
   return (
     <>
@@ -186,7 +194,7 @@ function RoutePath({ course, terrain }: { course: Course; terrain: TerrainHeight
         <meshStandardMaterial
           color="#ea580c"
           emissive="#ea580c"
-          emissiveIntensity={0.25}
+          emissiveIntensity={0.35}
           roughness={0.4}
           metalness={0.1}
         />
@@ -194,25 +202,38 @@ function RoutePath({ course, terrain }: { course: Course; terrain: TerrainHeight
       {projected
         .filter(p => p.point.label)
         .map(p => (
-          <Marker key={`${p.point.mile}-${p.point.label}`} position={p.position} label={p.point.label!} />
+          <Marker
+            key={`${p.point.mile}-${p.point.label}`}
+            position={p.position}
+            label={p.point.label!}
+            markerRadius={tubeRadius * 2.5}
+          />
         ))}
     </>
   )
 }
 
-function Marker({ position, label }: { position: [number, number, number]; label: string }) {
+function Marker({
+  position,
+  label,
+  markerRadius,
+}: {
+  position: [number, number, number]
+  label: string
+  markerRadius: number
+}) {
   const isPeak = label.includes('HIGH POINT') || label.includes('Peak')
   const isAid = label.includes('Aid')
   const color = isPeak ? '#fbbf24' : isAid ? '#22d3ee' : '#94a3b8'
   return (
     <group position={position}>
-      <mesh position={[0, 0.5, 0]}>
-        <sphereGeometry args={[0.16, 12, 12]} />
-        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.6} />
+      <mesh>
+        <sphereGeometry args={[markerRadius, 12, 12]} />
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.7} />
       </mesh>
       <Html
         center
-        position={[0, 1.1, 0]}
+        position={[0, markerRadius * 4, 0]}
         style={{
           pointerEvents: 'none',
           fontSize: 10,
@@ -232,70 +253,53 @@ function Marker({ position, label }: { position: [number, number, number]; label
   )
 }
 
-function AutoRotate({ enabled }: { enabled: boolean }) {
-  const { camera } = useThree()
-  const angle = useRef(0)
-  useFrame((_state, delta) => {
-    if (!enabled) return
-    angle.current += delta * 0.08
-    const radius = Math.hypot(camera.position.x, camera.position.z) || 18
-    const y = camera.position.y
-    camera.position.x = Math.cos(angle.current) * radius
-    camera.position.z = Math.sin(angle.current) * radius
-    camera.position.y = y
-    camera.lookAt(0, 1, 0)
-  })
-  return null
-}
-
 function FitCamera({ terrain }: { terrain: TerrainHeightmap }) {
   const { camera } = useThree()
-  const meanLat = (terrain.bounds.minLatitude + terrain.bounds.maxLatitude) / 2
-  const latMeters = (terrain.bounds.maxLatitude - terrain.bounds.minLatitude) * 111000
-  const lonMeters =
-    (terrain.bounds.maxLongitude - terrain.bounds.minLongitude) *
-    111000 *
-    Math.cos((meanLat * Math.PI) / 180)
-  const extent = Math.max(latMeters, lonMeters) / SCALE_METERS_PER_UNIT
+  const { extent, maxY } = sceneMetrics(terrain)
 
   useEffect(() => {
-    camera.position.set(extent * 0.9, extent * 0.7, extent * 0.9)
-    camera.lookAt(0, 1, 0)
+    // Orbit camera placed SE-and-above the terrain center, distance
+    // sized so the whole plane comfortably fits inside a 38° fov.
+    const dist = extent * 1.4
+    camera.position.set(dist * 0.7, dist * 0.55, dist * 0.7)
+    camera.lookAt(0, maxY * 0.4, 0)
     camera.updateProjectionMatrix()
-  }, [camera, extent])
+  }, [camera, extent, maxY])
 
   return null
 }
 
 export default function Course3DScene({ course, terrain }: SceneProps) {
+  const { extent, maxY } = sceneMetrics(terrain)
+  // Orbit limits chosen relative to scene scale so courses with very
+  // different extents (a 3km loop vs a 10km point-to-point) both
+  // behave sensibly. far plane keeps a wide buffer for orbit.
+  const minDistance = extent * 0.25
+  const maxDistance = extent * 4
+  const farPlane = extent * 12
+
   return (
     <Canvas
-      shadows
       dpr={[1, 2]}
       gl={{ antialias: true, powerPreference: 'high-performance' }}
-      camera={{ fov: 38, near: 0.1, far: 500 }}
+      camera={{ fov: 38, near: 0.1, far: farPlane }}
       style={{ width: '100%', height: '100%', background: 'linear-gradient(180deg,#dbeafe 0%,#fef3c7 80%,#fde68a 100%)' }}
     >
       <FitCamera terrain={terrain} />
-      <AutoRotate enabled />
-      <ambientLight intensity={0.55} />
-      <directionalLight
-        position={[20, 30, 10]}
-        intensity={1.4}
-        castShadow
-        shadow-mapSize-width={1024}
-        shadow-mapSize-height={1024}
-      />
+      <ambientLight intensity={0.7} />
+      <directionalLight position={[extent * 0.6, extent * 0.9, extent * 0.3]} intensity={1.3} />
       <hemisphereLight args={['#bae6fd', '#92400e', 0.35]} />
       <Terrain terrain={terrain} />
       <RoutePath course={course} terrain={terrain} />
       <OrbitControls
         enableDamping
         dampingFactor={0.08}
-        minDistance={4}
-        maxDistance={80}
+        minDistance={minDistance}
+        maxDistance={maxDistance}
         maxPolarAngle={Math.PI / 2.05}
-        target={[0, 1, 0]}
+        target={[0, maxY * 0.4, 0]}
+        autoRotate
+        autoRotateSpeed={0.5}
       />
     </Canvas>
   )
