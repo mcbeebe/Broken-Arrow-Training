@@ -347,7 +347,7 @@ export default function CoachChat({ athleteId, memory, snapshot, seed, onSeedCon
   void fontScale
 
   return (
-    <div className="flex flex-col h-full bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+    <div className="flex flex-col h-full bg-white dark:bg-slate-800 overflow-hidden">
       <div
         ref={scrollerRef}
         className="flex-1 overflow-y-auto px-2 py-1.5 space-y-2"
