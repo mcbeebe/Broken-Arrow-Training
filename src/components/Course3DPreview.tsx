@@ -1,7 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
-import type { Course, TerrainHeightmap } from '../types/course'
-import { hasTerrainAsset, loadTerrain } from '../data/terrain'
+import type { Course } from '../types/course'
 import { isWebGLAvailable } from './webgl'
 
 const Course3DScene = lazy(() => import('./Course3DScene'))
@@ -16,59 +15,33 @@ interface Props {
   onClose?: () => void
 }
 
-type LoadResult =
-  | { kind: 'loading' }
-  | { kind: 'ready'; terrain: TerrainHeightmap }
-  | { kind: 'failed'; reason: string }
-
 /**
- * The visible entry point for the 3D course renderer. Three layers of
- * gating, in order:
+ * The visible entry point for the 3D course renderer. Two gates:
  *
- *   1. Does a heightmap JSON exist for this course? (`hasTerrainAsset`)
- *      No  → render null (parent decides whether to show a CTA at all).
- *   2. Does the browser support WebGL?
- *      No  → render an explanatory fallback strip.
- *   3. Has the heightmap finished loading?
- *      No  → render a skeleton; main bundle stays free of three.js until
- *            the dynamic import resolves.
+ *   1. Does the browser support WebGL?
+ *      No  → render an explanatory fallback strip; Cesium never loads.
+ *   2. Has the Cesium chunk finished loading?
+ *      No  → render a skeleton.
  *
- * The actual three.js scene lives in `Course3DScene.tsx` and is imported
- * lazily so it's split into its own chunk. Owns its fullscreen state so
- * callers don't have to thread state through parent components.
+ * Cesium (≈2MB gzipped) lives in a dedicated lazy chunk so the main
+ * bundle never pays the cost. The terrain mesh and satellite imagery
+ * come from Cesium itself — no per-course heightmap fetch needed.
+ *
+ * Owns its fullscreen state so callers don't have to thread it
+ * through parent components.
  */
 export default function Course3DPreview({ course, heightPx = 320, onClose }: Props) {
-  const courseSupported = hasTerrainAsset(course.id)
+  const hasRouteData = useMemo(
+    () =>
+      course.elevationProfile.some(p => p.latitude != null && p.longitude != null),
+    [course],
+  )
   const webglSupported = useMemo(() => isWebGLAvailable(), [])
-  const [result, setResult] = useState<LoadResult>({ kind: 'loading' })
   const [fullscreen, setFullscreen] = useState(false)
 
-  useEffect(() => {
-    if (!courseSupported || !webglSupported) return
-    let cancelled = false
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setResult({ kind: 'loading' })
-    loadTerrain(course.id)
-      .then(terrain => {
-        if (cancelled) return
-        if (!terrain) {
-          setResult({ kind: 'failed', reason: 'no-terrain' })
-          return
-        }
-        setResult({ kind: 'ready', terrain })
-      })
-      .catch(err => {
-        if (cancelled) return
-        setResult({ kind: 'failed', reason: err?.message ?? 'load-failed' })
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [course.id, courseSupported, webglSupported])
-
-  // Suppress page scroll under the fullscreen overlay so a pinch-zoom
-  // gesture on the canvas doesn't double up with mobile-safari rubber
-  // banding the page itself.
+  // Suppress page scroll under the fullscreen overlay so pinch-zoom
+  // on the canvas doesn't double up with mobile-safari rubber-banding
+  // the page itself.
   useEffect(() => {
     if (!fullscreen || typeof document === 'undefined') return
     const previous = document.body.style.overflow
@@ -88,7 +61,7 @@ export default function Course3DPreview({ course, heightPx = 320, onClose }: Pro
     return () => window.removeEventListener('keydown', onKey)
   }, [fullscreen])
 
-  if (!courseSupported) return null
+  if (!hasRouteData) return null
 
   const body = (
     <>
@@ -98,21 +71,14 @@ export default function Course3DPreview({ course, heightPx = 320, onClose }: Pro
           elevation profile above shows every climb and descent.
         </Fallback>
       )}
-      {webglSupported && result.kind === 'failed' && (
-        <Fallback>
-          Couldn't load the 3D course data ({result.reason}). The elevation
-          profile above still works.
-        </Fallback>
-      )}
-      {webglSupported && result.kind === 'loading' && <Skeleton />}
-      {webglSupported && result.kind === 'ready' && (
+      {webglSupported && (
         <Suspense fallback={<Skeleton />}>
-          <Course3DScene course={course} terrain={result.terrain} />
+          <Course3DScene course={course} />
         </Suspense>
       )}
 
-      <div className="absolute top-2 right-2 flex items-center gap-1.5">
-        {webglSupported && result.kind === 'ready' && (
+      <div className="absolute top-2 right-2 flex items-center gap-1.5 z-10">
+        {webglSupported && (
           <button
             type="button"
             onClick={() => setFullscreen(f => !f)}
@@ -146,13 +112,13 @@ export default function Course3DPreview({ course, heightPx = 320, onClose }: Pro
         )}
       </div>
 
-      {webglSupported && result.kind === 'ready' && (
-        <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between text-[10px] text-slate-700 dark:text-slate-200 pointer-events-none">
+      {webglSupported && (
+        <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between text-[10px] text-slate-700 dark:text-slate-200 pointer-events-none z-10">
           <span className="bg-white/85 dark:bg-slate-800/85 px-2 py-0.5 rounded">
             Drag to rotate · pinch to zoom
           </span>
           <span className="bg-white/85 dark:bg-slate-800/85 px-2 py-0.5 rounded">
-            Vert. ×1.6
+            Satellite · real terrain
           </span>
         </div>
       )}
