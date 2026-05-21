@@ -352,20 +352,6 @@ export default function CoachChat({ athleteId, memory, snapshot, seed, onSeedCon
         ref={scrollerRef}
         className="flex-1 overflow-y-auto px-2 py-1.5 space-y-2"
       >
-        {turns.length === 0 && !streaming && (
-          <div className="flex">
-            <div className="max-w-[92%] bg-indigo-50 text-slate-800 rounded-2xl rounded-tl-sm px-3 py-2.5 text-base leading-relaxed">
-              <div className="flex items-center gap-2 mb-1">
-                <span className="text-xl leading-none" role="img" aria-label="coach">🧢</span>
-                <p className="text-xs uppercase font-bold tracking-wider text-indigo-700">{coachName}</p>
-              </div>
-              <p>Ready when you are.</p>
-              <p className="text-sm text-slate-500 mt-1.5">
-                Try <em>"What should I focus on this week?"</em> or <em>"How should I pace tomorrow's long run?"</em>
-              </p>
-            </div>
-          </div>
-        )}
         {(() => {
           // Index of the most recent assistant/coach turn — only that one
           // shows follow-up chips so the thread stays clean.
