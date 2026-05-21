@@ -28,6 +28,11 @@ interface Props {
    *  Used on the Coach tab where the full message IS the point of the
    *  surface — the athlete tapped in specifically to read it. */
   initialExpanded?: boolean
+  /** When true, render the card permanently expanded with NO collapse
+   *  toggle. Use on surfaces dedicated to the full message (the Coach
+   *  tab). Stronger than `initialExpanded`, which only seeds initial
+   *  state. */
+  alwaysExpanded?: boolean
 }
 
 const COLLAPSE_PREFIX = 'ba_coach_insight_collapsed'
@@ -96,12 +101,13 @@ function writeProposalState(athleteId: string | undefined, action: CoachAction, 
 
 export default function CoachInsightCard({
   insight, loading, onAsk, coachName, onRegenerate, athleteId,
-  getPlannedDay, onApproveProposal, onUndoProposal, initialExpanded,
+  getPlannedDay, onApproveProposal, onUndoProposal, initialExpanded, alwaysExpanded,
 }: Props) {
   const name = coachName?.trim() || 'Coach'
-  const [collapsed, setCollapsed] = useState(
-    () => initialExpanded ? false : readCollapsed(athleteId),
+  const [persistedCollapsed, setPersistedCollapsed] = useState(
+    () => initialExpanded || alwaysExpanded ? false : readCollapsed(athleteId),
   )
+  const collapsed = alwaysExpanded ? false : persistedCollapsed
 
   // Parse a `proposal` block out of the insight text so the raw JSON
   // never reaches the markdown renderer.
@@ -129,8 +135,9 @@ export default function CoachInsightCard({
   )
 
   function toggleCollapsed() {
+    if (alwaysExpanded) return
     const next = !collapsed
-    setCollapsed(next)
+    setPersistedCollapsed(next)
     writeCollapsed(next, athleteId)
   }
 
@@ -182,6 +189,7 @@ export default function CoachInsightCard({
             {name}
           </p>
         </div>
+        {!alwaysExpanded && (
         <button
           onClick={toggleCollapsed}
           className="w-7 h-7 flex items-center justify-center rounded-full text-indigo-600 hover:bg-indigo-100 transition-colors shrink-0"
@@ -189,6 +197,7 @@ export default function CoachInsightCard({
         >
           {collapsed ? '▾' : '▴'}
         </button>
+        )}
       </div>
 
       {/* Triggered-by chip — names the dominant signal that shaped this
