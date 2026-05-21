@@ -22,12 +22,10 @@ export function extractTriggerSignal(text: string): TriggerExtract {
   return { signal: m[1].trim(), body: body.trim() }
 }
 
-/** Single-sentence preview (≤ ~100 chars) of an insight body — used on
- *  Summary to surface enough of the coach's read that the athlete can
- *  decide whether to open the full message in the Coach tab. */
-export function firstSentencePreview(text: string, maxChars = 100): string {
+/** First full sentence of an insight body — used on Summary to surface
+ *  the coach's lede without truncation. Always returns the complete
+ *  sentence so the athlete reads a real thought, not a clipped phrase. */
+export function firstSentencePreview(text: string): string {
   const stripped = text.replace(/[*_`#>]/g, '').trim()
-  const sentence = stripped.split(/(?<=[.!?])\s/)[0] || stripped
-  if (sentence.length <= maxChars) return sentence
-  return sentence.slice(0, maxChars - 1).replace(/\s+\S*$/, '') + '…'
+  return stripped.split(/(?<=[.!?])\s/)[0] || stripped
 }

@@ -199,50 +199,24 @@ export default function CoachInsightCard({
         )}
       </div>
 
-      {/* Triggered-by chip — names the dominant signal that shaped this
-          read. Tapping it seeds chat with a follow-up about that signal,
-          so the athlete can drill into the "why" without losing the
-          insight context. */}
-      {!collapsed && triggerExtract.signal && (
-        <button
-          onClick={() => onAsk?.(`Tell me more about: ${triggerExtract.signal}`)}
-          disabled={!onAsk}
-          title={onAsk ? 'Ask the coach about this signal' : undefined}
-          className="mt-1 inline-flex items-center gap-1 max-w-full text-[10px] font-semibold uppercase tracking-wider text-indigo-700 dark:text-indigo-200 bg-indigo-100/80 dark:bg-indigo-900/60 border border-indigo-200 dark:border-indigo-800 rounded-full px-2 py-0.5 hover:bg-indigo-200 dark:hover:bg-indigo-900 transition-colors disabled:opacity-70 disabled:cursor-default"
-        >
-          <span aria-hidden>⚡</span>
-          <span className="truncate">{triggerExtract.signal}</span>
-        </button>
-      )}
-
       {/* Second row: action buttons. Only shown when expanded. */}
-      {!collapsed && (onRegenerate || onAsk) && (
+      {!collapsed && onRegenerate && (
         <div className="flex items-center gap-4 mt-1 mb-2 text-sm">
-          {onRegenerate && (
-            <button
-              onClick={onRegenerate}
-              disabled={loading}
-              className="text-indigo-600 hover:text-indigo-800 disabled:opacity-60 transition-colors flex items-center gap-1"
-              title="Regenerate with current persona and context"
-            >
-              {loading ? (
-                <>
-                  <span className="inline-block w-3 h-3 rounded-full border-2 border-indigo-400 border-t-transparent animate-spin" />
-                  <span>Generating…</span>
-                </>
-              ) : (
-                <>↻ Regenerate</>
-              )}
-            </button>
-          )}
-          {onAsk && (
-            <button
-              onClick={() => onAsk(displayText)}
-              className="font-medium text-indigo-700 hover:text-indigo-900 transition-colors ml-auto"
-            >
-              Ask about this →
-            </button>
-          )}
+          <button
+            onClick={onRegenerate}
+            disabled={loading}
+            className="text-indigo-600 hover:text-indigo-800 disabled:opacity-60 transition-colors flex items-center gap-1"
+            title="Regenerate with current persona and context"
+          >
+            {loading ? (
+              <>
+                <span className="inline-block w-3 h-3 rounded-full border-2 border-indigo-400 border-t-transparent animate-spin" />
+                <span>Generating…</span>
+              </>
+            ) : (
+              <>↻ Regenerate</>
+            )}
+          </button>
         </div>
       )}
 
