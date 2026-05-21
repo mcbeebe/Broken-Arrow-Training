@@ -76,6 +76,33 @@ function sceneMetrics(terrain: TerrainHeightmap) {
   return { planeWidth, planeHeight, extent, maxY }
 }
 
+/** Bounding box of the route polyline in world coordinates. The camera
+ *  fits to *this*, not the full terrain extent, so the loop fills the
+ *  frame instead of getting lost inside a bigger heightmap. */
+function routeBounds(course: Course, terrain: TerrainHeightmap) {
+  const pts = course.elevationProfile.filter(
+    p => p.latitude != null && p.longitude != null,
+  )
+  if (pts.length === 0) {
+    const { extent, maxY } = sceneMetrics(terrain)
+    return { centerX: 0, centerZ: 0, halfSpan: extent / 2, maxY }
+  }
+  let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity, maxRouteY = 0
+  for (const p of pts) {
+    const [x, y, z] = project(p.latitude!, p.longitude!, p.elevationFt, terrain)
+    if (x < minX) minX = x
+    if (x > maxX) maxX = x
+    if (z < minZ) minZ = z
+    if (z > maxZ) maxZ = z
+    if (y > maxRouteY) maxRouteY = y
+  }
+  const centerX = (minX + maxX) / 2
+  const centerZ = (minZ + maxZ) / 2
+  // Pad the span so the route doesn't kiss the edge of the frame.
+  const halfSpan = Math.max(maxX - minX, maxZ - minZ) / 2 * 1.35
+  return { centerX, centerZ, halfSpan, maxY: maxRouteY }
+}
+
 function buildTerrainGeometry(terrain: TerrainHeightmap): THREE.BufferGeometry {
   const { width, height, elevationsFt, minElevationFt } = terrain
   const { planeWidth, planeHeight } = sceneMetrics(terrain)
@@ -200,7 +227,7 @@ function RoutePath({ course, terrain }: { course: Course; terrain: TerrainHeight
         />
       </mesh>
       {projected
-        .filter(p => p.point.label)
+        .filter(p => isMajorLabel(p.point.label))
         .map(p => (
           <Marker
             key={`${p.point.mile}-${p.point.label}`}
@@ -211,6 +238,28 @@ function RoutePath({ course, terrain }: { course: Course; terrain: TerrainHeight
         ))}
     </>
   )
+}
+
+/** Keep label clutter low on small screens. Show only the peak, aid
+ *  stations, and the start/finish marker — six landmarks compressed
+ *  into a sub-300px canvas otherwise stack on top of each other. */
+function isMajorLabel(label: string | undefined): boolean {
+  if (!label) return false
+  return (
+    label.includes('HIGH POINT') ||
+    label.includes('Peak') ||
+    label.includes('Aid') ||
+    label.includes('Start') ||
+    label.includes('Finish')
+  )
+}
+
+function shortLabel(label: string): string {
+  return label
+    .replace(' (HIGH POINT)', '')
+    .replace(' Aid Station', '')
+    .replace(' (Base Area)', '')
+    .replace('! Ring das bell!', '')
 }
 
 function Marker({
@@ -247,34 +296,42 @@ function Marker({
           boxShadow: '0 1px 2px rgba(0,0,0,0.15)',
         }}
       >
-        {label.replace(' (HIGH POINT)', '')}
+        {shortLabel(label)}
       </Html>
     </group>
   )
 }
 
-function FitCamera({ terrain }: { terrain: TerrainHeightmap }) {
+interface CameraFitProps {
+  centerX: number
+  centerZ: number
+  targetY: number
+  distance: number
+}
+
+function FitCamera({ centerX, centerZ, targetY, distance }: CameraFitProps) {
   const { camera } = useThree()
-  const { extent, maxY } = sceneMetrics(terrain)
-
   useEffect(() => {
-    // Orbit camera placed SE-and-above the terrain center, distance
-    // sized so the whole plane comfortably fits inside a 38° fov.
-    const dist = extent * 1.4
-    camera.position.set(dist * 0.7, dist * 0.55, dist * 0.7)
-    camera.lookAt(0, maxY * 0.4, 0)
+    camera.position.set(
+      centerX + distance * 0.7,
+      targetY + distance * 0.55,
+      centerZ + distance * 0.7,
+    )
+    camera.lookAt(centerX, targetY, centerZ)
     camera.updateProjectionMatrix()
-  }, [camera, extent, maxY])
-
+  }, [camera, centerX, centerZ, targetY, distance])
   return null
 }
 
 export default function Course3DScene({ course, terrain }: SceneProps) {
-  const { extent, maxY } = sceneMetrics(terrain)
-  // Orbit limits chosen relative to scene scale so courses with very
-  // different extents (a 3km loop vs a 10km point-to-point) both
-  // behave sensibly. far plane keeps a wide buffer for orbit.
-  const minDistance = extent * 0.25
+  const { extent } = sceneMetrics(terrain)
+  const { centerX, centerZ, halfSpan, maxY } = routeBounds(course, terrain)
+  // Distance sized so the route's bounding diagonal comfortably fits
+  // inside a 38° fov on portrait viewports (where vertical fov is the
+  // binding constraint).
+  const fitDistance = halfSpan * 3.2
+  const targetY = maxY * 0.4
+  const minDistance = halfSpan * 0.8
   const maxDistance = extent * 4
   const farPlane = extent * 12
 
@@ -285,7 +342,7 @@ export default function Course3DScene({ course, terrain }: SceneProps) {
       camera={{ fov: 38, near: 0.1, far: farPlane }}
       style={{ width: '100%', height: '100%', background: 'linear-gradient(180deg,#dbeafe 0%,#fef3c7 80%,#fde68a 100%)' }}
     >
-      <FitCamera terrain={terrain} />
+      <FitCamera centerX={centerX} centerZ={centerZ} targetY={targetY} distance={fitDistance} />
       <ambientLight intensity={0.7} />
       <directionalLight position={[extent * 0.6, extent * 0.9, extent * 0.3]} intensity={1.3} />
       <hemisphereLight args={['#bae6fd', '#92400e', 0.35]} />
@@ -297,7 +354,7 @@ export default function Course3DScene({ course, terrain }: SceneProps) {
         minDistance={minDistance}
         maxDistance={maxDistance}
         maxPolarAngle={Math.PI / 2.05}
-        target={[0, maxY * 0.4, 0]}
+        target={[centerX, targetY, centerZ]}
         autoRotate
         autoRotateSpeed={0.5}
       />

@@ -34,36 +34,37 @@ const brokenArrow18k2026: Course = {
   summary:
     "A short skyrace with a heavy punch. Two miles of fire-road climb out of the base area, then a sustained singletrack push to Stairway to Heaven, a rocky scramble to Washeshu Peak at 9,000 ft, then a brutal technical descent down Siberia and Shirley Canyon before a runnable finish on the Western States Trail. Quads decide your finish time more than your engine does.",
   // Coordinates are approximate, hand-traced from publicly known course
-  // landmarks at Palisades Tahoe (base area ~39.1958/-120.2348, Washeshu
-  // Peak ~39.1798/-120.2598, Shirley Canyon descent line). The route
-  // walks roughly: base → KT-22 saddle (S) → Red Dog Ridge (W) → up to
-  // Washeshu (SW) → Siberia descent (NW) → Shirley Canyon (N) back to
-  // the base. Replace with an official GPX trace when one is published.
+  // landmarks at Palisades Tahoe. The two legs are deliberately offset so
+  // the loop reads as a loop in 3D: climb (mile 0–4.7) sweeps S/SW out of
+  // the base via KT-22 / Red Dog / Stairway; descent (mile 4.9–11.2)
+  // returns N/NE through the Siberia → Shirley Canyon → WST corridor on
+  // the *other* side of the ridge. Replace with an official GPX trace
+  // when one is published.
   elevationProfile: [
-    { mile: 0.0, elevationFt: 6200, label: 'Start (Base Area)', latitude: 39.1958, longitude: -120.2348 },
-    { mile: 0.5, elevationFt: 6450, latitude: 39.1924, longitude: -120.2362 },
-    { mile: 1.0, elevationFt: 6750, latitude: 39.1893, longitude: -120.2390 },
-    { mile: 1.5, elevationFt: 7100, latitude: 39.1865, longitude: -120.2425 },
-    { mile: 2.0, elevationFt: 7400, label: 'KT-22 Saddle', latitude: 39.1842, longitude: -120.2470 },
-    { mile: 2.5, elevationFt: 7650, latitude: 39.1828, longitude: -120.2510 },
-    { mile: 3.0, elevationFt: 7900, label: 'Red Dog Ridge', latitude: 39.1815, longitude: -120.2548 },
-    { mile: 3.5, elevationFt: 8300, latitude: 39.1808, longitude: -120.2575 },
-    { mile: 4.0, elevationFt: 8650, label: 'Stairway to Heaven', latitude: 39.1801, longitude: -120.2592 },
-    { mile: 4.5, elevationFt: 8950, latitude: 39.1796, longitude: -120.2602 },
-    { mile: 4.7, elevationFt: 9000, label: 'Washeshu Peak (HIGH POINT)', latitude: 39.1798, longitude: -120.2598 },
-    { mile: 4.9, elevationFt: 8850, label: 'Siberia Aid Station', latitude: 39.1815, longitude: -120.2580 },
-    { mile: 5.5, elevationFt: 8400, latitude: 39.1852, longitude: -120.2555 },
-    { mile: 6.0, elevationFt: 7900, latitude: 39.1882, longitude: -120.2522 },
-    { mile: 6.5, elevationFt: 7500, label: 'Shirley Canyon', latitude: 39.1910, longitude: -120.2490 },
-    { mile: 7.0, elevationFt: 7100, latitude: 39.1935, longitude: -120.2458 },
-    { mile: 7.6, elevationFt: 6800, label: "Julia's Aid Station", latitude: 39.1960, longitude: -120.2422 },
-    { mile: 8.0, elevationFt: 6650, latitude: 39.1972, longitude: -120.2400 },
-    { mile: 8.5, elevationFt: 6550, latitude: 39.1980, longitude: -120.2382 },
-    { mile: 9.0, elevationFt: 6450, label: 'Western States Trail', latitude: 39.1985, longitude: -120.2370 },
-    { mile: 9.5, elevationFt: 6380, latitude: 39.1980, longitude: -120.2360 },
-    { mile: 10.0, elevationFt: 6300, latitude: 39.1975, longitude: -120.2355 },
-    { mile: 10.5, elevationFt: 6250, latitude: 39.1968, longitude: -120.2352 },
-    { mile: 11.2, elevationFt: 6200, label: 'Finish! Ring das bell!', latitude: 39.1958, longitude: -120.2348 },
+    { mile: 0.0, elevationFt: 6200, label: 'Start (Base Area)', latitude: 39.1968, longitude: -120.2348 },
+    { mile: 0.5, elevationFt: 6450, latitude: 39.1940, longitude: -120.2360 },
+    { mile: 1.0, elevationFt: 6750, latitude: 39.1912, longitude: -120.2382 },
+    { mile: 1.5, elevationFt: 7100, latitude: 39.1887, longitude: -120.2415 },
+    { mile: 2.0, elevationFt: 7400, label: 'KT-22 Saddle', latitude: 39.1862, longitude: -120.2445 },
+    { mile: 2.5, elevationFt: 7650, latitude: 39.1842, longitude: -120.2480 },
+    { mile: 3.0, elevationFt: 7900, label: 'Red Dog Ridge', latitude: 39.1822, longitude: -120.2515 },
+    { mile: 3.5, elevationFt: 8300, latitude: 39.1805, longitude: -120.2548 },
+    { mile: 4.0, elevationFt: 8650, label: 'Stairway to Heaven', latitude: 39.1790, longitude: -120.2580 },
+    { mile: 4.5, elevationFt: 8950, latitude: 39.1782, longitude: -120.2610 },
+    { mile: 4.7, elevationFt: 9000, label: 'Washeshu Peak (HIGH POINT)', latitude: 39.1780, longitude: -120.2625 },
+    { mile: 4.9, elevationFt: 8850, label: 'Siberia Aid Station', latitude: 39.1810, longitude: -120.2640 },
+    { mile: 5.5, elevationFt: 8400, latitude: 39.1845, longitude: -120.2655 },
+    { mile: 6.0, elevationFt: 7900, latitude: 39.1882, longitude: -120.2655 },
+    { mile: 6.5, elevationFt: 7500, label: 'Shirley Canyon', latitude: 39.1918, longitude: -120.2630 },
+    { mile: 7.0, elevationFt: 7100, latitude: 39.1948, longitude: -120.2595 },
+    { mile: 7.6, elevationFt: 6800, label: "Julia's Aid Station", latitude: 39.1972, longitude: -120.2545 },
+    { mile: 8.0, elevationFt: 6650, latitude: 39.1985, longitude: -120.2510 },
+    { mile: 8.5, elevationFt: 6550, latitude: 39.1990, longitude: -120.2475 },
+    { mile: 9.0, elevationFt: 6450, label: 'Western States Trail', latitude: 39.1990, longitude: -120.2440 },
+    { mile: 9.5, elevationFt: 6380, latitude: 39.1985, longitude: -120.2412 },
+    { mile: 10.0, elevationFt: 6300, latitude: 39.1980, longitude: -120.2388 },
+    { mile: 10.5, elevationFt: 6250, latitude: 39.1975, longitude: -120.2368 },
+    { mile: 11.2, elevationFt: 6200, label: 'Finish! Ring das bell!', latitude: 39.1968, longitude: -120.2348 },
   ],
   segments: [
     {
