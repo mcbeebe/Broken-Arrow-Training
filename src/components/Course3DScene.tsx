@@ -153,6 +153,7 @@ function Terrain({ terrain }: { terrain: TerrainHeightmap }) {
         roughness={0.95}
         metalness={0.0}
         flatShading={false}
+        side={THREE.DoubleSide}
       />
     </mesh>
   )
@@ -259,7 +260,13 @@ function FitCamera({ terrain }: { terrain: TerrainHeightmap }) {
   const extent = Math.max(latMeters, lonMeters) / SCALE_METERS_PER_UNIT
 
   useEffect(() => {
-    camera.position.set(extent * 0.9, extent * 0.7, extent * 0.9)
+    // Pull the camera back enough that the full plane fits in the
+    // vertical FOV (38°). half_extent / tan(fov/2) gives the minimum
+    // distance; add a small margin so corners aren't grazing the edge.
+    const distance = (extent / 2) / Math.tan((38 * Math.PI) / 360) * 1.35
+    const elevation = distance * 0.55
+    const horizontal = Math.sqrt(Math.max(0, distance * distance - elevation * elevation))
+    camera.position.set(horizontal, elevation, horizontal)
     camera.lookAt(0, 1, 0)
     camera.updateProjectionMatrix()
   }, [camera, extent])
@@ -273,7 +280,7 @@ export default function Course3DScene({ course, terrain }: SceneProps) {
       shadows
       dpr={[1, 2]}
       gl={{ antialias: true, powerPreference: 'high-performance' }}
-      camera={{ fov: 38, near: 0.1, far: 500 }}
+      camera={{ fov: 38, near: 0.1, far: 2000 }}
       style={{ width: '100%', height: '100%', background: 'linear-gradient(180deg,#dbeafe 0%,#fef3c7 80%,#fde68a 100%)' }}
     >
       <FitCamera terrain={terrain} />
@@ -293,7 +300,7 @@ export default function Course3DScene({ course, terrain }: SceneProps) {
         enableDamping
         dampingFactor={0.08}
         minDistance={4}
-        maxDistance={80}
+        maxDistance={400}
         maxPolarAngle={Math.PI / 2.05}
         target={[0, 1, 0]}
       />
