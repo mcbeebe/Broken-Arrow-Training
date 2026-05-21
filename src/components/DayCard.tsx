@@ -88,160 +88,165 @@ export default function DayCard({ day, weekNum, onTap, onLog, onSwap, onEdit, ha
       onClick={onTap}
     >
       <div className="px-3.5 py-3">
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-base">{style.label}</span>
-              <span className="font-semibold text-base text-slate-800 dark:text-white">{day.day}</span>
-              {actual?.rpe && (
-                <span className="text-xs bg-white dark:bg-slate-800/60 text-slate-700 dark:text-slate-200 rounded-full px-2 py-0.5 font-medium">
-                  RPE {actual.rpe}
-                </span>
-              )}
-              {(() => {
-                const runTypes = new Set(['run', 'long', 'quality', 'race'])
-                if (!runTypes.has(day.type)) return null
-                const plannedDrills = getPlannedDrills(day)
-                const isScheduledDrillDay = weekNum !== undefined && getDrillDay(weekNum) === day.day
-                if (plannedDrills.length === 0 && !isScheduledDrillDay) return null
-                const items = actual?.drills?.items
-                const doneCount = items?.filter(i => i.done).length ?? 0
-                const totalCount = items?.length ?? plannedDrills.length
-                // Item-level completion takes precedence over the `completed` flag:
-                // an unchecked list with completed=true is still "partial".
-                const drillPct = items && items.length > 0
-                  ? doneCount / items.length
-                  : (actual?.drills?.completed ? 1 : 0)
-                if (drillPct >= 0.8) {
-                  return (
-                    <span className="text-xs bg-sky-100 text-sky-700 rounded-full px-2 py-0.5 font-medium"
-                      title={`Drills done (${doneCount}/${totalCount})`}>
-                      🤸 Drills ✓
-                    </span>
-                  )
-                }
-                if (actual && drillPct > 0) {
-                  return (
-                    <span className="text-xs bg-amber-100 text-amber-700 rounded-full px-2 py-0.5 font-medium"
-                      title={`Partial (${doneCount}/${totalCount})`}>
-                      🤸 Drills {doneCount}/{totalCount}
-                    </span>
-                  )
-                }
-                if (actual) {
-                  return (
-                    <span className="text-xs bg-amber-100 text-amber-700 rounded-full px-2 py-0.5 font-medium"
-                      title="Drills planned but not logged as completed">
-                      🤸 Drills —
-                    </span>
-                  )
-                }
+        {/* Header row — day label + status pills on the left, action
+            buttons on the right. Kept tight so the workout title below
+            can claim the full card width. */}
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-x-2 gap-y-1 flex-wrap min-w-0">
+            <span className="text-base">{style.label}</span>
+            <span className="font-semibold text-base text-slate-800 dark:text-white">{day.day}</span>
+            {actual?.rpe && (
+              <span className="text-xs bg-white dark:bg-slate-800/60 text-slate-700 dark:text-slate-200 rounded-full px-2 py-0.5 font-medium">
+                RPE {actual.rpe}
+              </span>
+            )}
+            {(() => {
+              const runTypes = new Set(['run', 'long', 'quality', 'race'])
+              if (!runTypes.has(day.type)) return null
+              const plannedDrills = getPlannedDrills(day)
+              const isScheduledDrillDay = weekNum !== undefined && getDrillDay(weekNum) === day.day
+              if (plannedDrills.length === 0 && !isScheduledDrillDay) return null
+              const items = actual?.drills?.items
+              const doneCount = items?.filter(i => i.done).length ?? 0
+              const totalCount = items?.length ?? plannedDrills.length
+              // Item-level completion takes precedence over the `completed` flag:
+              // an unchecked list with completed=true is still "partial".
+              const drillPct = items && items.length > 0
+                ? doneCount / items.length
+                : (actual?.drills?.completed ? 1 : 0)
+              if (drillPct >= 0.8) {
                 return (
-                  <span className="text-xs bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 rounded-full px-2 py-0.5 font-medium"
-                    title="Drills scheduled for this run">
-                    🤸 Drills
+                  <span className="text-xs bg-sky-100 text-sky-700 rounded-full px-2 py-0.5 font-medium"
+                    title={`Drills done (${doneCount}/${totalCount})`}>
+                    🤸 Drills ✓
                   </span>
                 )
-              })()}
-            </div>
-            <div className="mt-2">
-              <p className="font-medium text-base text-slate-800 dark:text-white">{day.workout}</p>
-              {day.detail && !cardCollapsed && (
-                <>
-                  <p className={`text-sm text-slate-700 dark:text-slate-200 mt-1 ${descExpanded ? '' : 'line-clamp-2'}`}>{day.detail}</p>
-                  {day.detail.length > 80 && (
-                    <button
-                      onClick={e => { e.stopPropagation(); setDescExpanded(!descExpanded) }}
-                      className="text-xs text-teal-700 hover:text-teal-900 font-medium mt-0.5"
-                    >
-                      {descExpanded ? 'Show less' : 'Show more'}
-                    </button>
-                  )}
-                </>
-              )}
-              {/* Compact summary line when collapsed */}
-              {cardCollapsed && actual && (
-                <p className="text-sm text-slate-600 dark:text-slate-300 mt-1 truncate">
-                  {actual.distance > 0 && <span>{formatMiles(actual.distance)} · </span>}
-                  {actual.movingTime > 0 && <span>{formatSeconds(actual.movingTime)}</span>}
-                  {actual.avgHR ? <span> · ❤️ {actual.avgHR}</span> : null}
-                </p>
-              )}
-            </div>
+              }
+              if (actual && drillPct > 0) {
+                return (
+                  <span className="text-xs bg-amber-100 text-amber-700 rounded-full px-2 py-0.5 font-medium"
+                    title={`Partial (${doneCount}/${totalCount})`}>
+                    🤸 Drills {doneCount}/{totalCount}
+                  </span>
+                )
+              }
+              if (actual) {
+                return (
+                  <span className="text-xs bg-amber-100 text-amber-700 rounded-full px-2 py-0.5 font-medium"
+                    title="Drills planned but not logged as completed">
+                    🤸 Drills —
+                  </span>
+                )
+              }
+              return (
+                <span className="text-xs bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 rounded-full px-2 py-0.5 font-medium"
+                  title="Drills scheduled for this run">
+                  🤸 Drills
+                </span>
+              )
+            })()}
           </div>
 
-          {/* Right column: Grade (large) + action buttons */}
-          <div className="flex flex-col items-end gap-1.5 shrink-0">
-            {gradeResult && (
-              <div className="flex items-center gap-1.5">
-                <span className={`text-xs leading-tight text-right max-w-[6rem] ${gradeResult.color} opacity-80`}>
-                  {gradeResult.reason}
-                </span>
-                <div className={`${gradeResult.bgColor} rounded-lg px-2.5 py-1 flex flex-col items-center min-w-[3.25rem]`}>
-                  <span className={`text-2xl font-black leading-tight ${gradeResult.color}`}>
-                    {gradeResult.grade}
-                  </span>
-                </div>
-              </div>
+          <div className="flex items-center gap-1.5 shrink-0">
+            {onSwap && (
+              <button
+                onClick={e => { e.stopPropagation(); onSwap() }}
+                className={`text-xs font-medium px-2 py-1 rounded-full transition-colors ${
+                  isSwapSelected
+                    ? 'bg-teal-500 text-white'
+                    : isSwapTarget
+                    ? 'bg-teal-100 text-teal-700 animate-pulse'
+                    : 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-600'
+                }`}
+              >
+                ⇄
+              </button>
             )}
-            <div className="flex items-center gap-1.5">
-              {onSwap && (
-                <button
-                  onClick={e => { e.stopPropagation(); onSwap() }}
-                  className={`text-xs font-medium px-2 py-1 rounded-full transition-colors ${
-                    isSwapSelected
-                      ? 'bg-teal-500 text-white'
-                      : isSwapTarget
-                      ? 'bg-teal-100 text-teal-700 animate-pulse'
-                      : 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-600'
-                  }`}
-                >
-                  ⇄
-                </button>
-              )}
-              {onEdit && (
-                <button
-                  onClick={e => { e.stopPropagation(); onEdit() }}
-                  className={`text-xs font-medium px-2 py-1 rounded-full transition-colors ${
-                    hasEdit
-                      ? 'bg-amber-200 text-amber-800 hover:bg-amber-300'
-                      : 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-600'
-                  }`}
-                  title={hasEdit ? 'Workout has personal edits — tap to adjust' : 'Edit this workout'}
-                >
-                  ✏️
-                </button>
-              )}
-              {onLog && (
-                <button
-                  onClick={e => { e.stopPropagation(); onLog() }}
-                  className={`text-xs font-medium px-2 py-1 rounded-full transition-colors ${
-                    actual
-                      ? 'bg-emerald-200 text-emerald-800 hover:bg-emerald-300'
-                      : 'bg-teal-100 text-teal-700 hover:bg-teal-200'
-                  }`}
-                >
-                  {actual ? '✏️ Edit' : '📝 Log'}
-                </button>
-              )}
-              {statusDot}
-              {day.time !== '—' && (
-                <span className="text-xs text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-800/60 rounded-full px-2 py-0.5">
-                  {day.time}
-                </span>
-              )}
-              {isCompleted && (
-                <button
-                  onClick={e => { e.stopPropagation(); setCardCollapsed(!cardCollapsed) }}
-                  className="text-xs font-medium text-teal-700 hover:text-teal-900 px-1.5 py-1 rounded"
-                  title={cardCollapsed ? 'Show details' : 'Collapse'}
-                >
-                  {cardCollapsed ? '▾' : '▴'}
-                </button>
-              )}
-              <span className="text-slate-400 text-sm">›</span>
-            </div>
+            {onEdit && (
+              <button
+                onClick={e => { e.stopPropagation(); onEdit() }}
+                className={`text-xs font-medium px-2 py-1 rounded-full transition-colors ${
+                  hasEdit
+                    ? 'bg-amber-200 text-amber-800 hover:bg-amber-300'
+                    : 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-600'
+                }`}
+                title={hasEdit ? 'Workout has personal edits — tap to adjust' : 'Edit this workout'}
+              >
+                ✏️
+              </button>
+            )}
+            {onLog && (
+              <button
+                onClick={e => { e.stopPropagation(); onLog() }}
+                className={`text-xs font-medium px-2 py-1 rounded-full transition-colors ${
+                  actual
+                    ? 'bg-emerald-200 text-emerald-800 hover:bg-emerald-300'
+                    : 'bg-teal-100 text-teal-700 hover:bg-teal-200'
+                }`}
+              >
+                {actual ? '✏️ Edit' : '📝 Log'}
+              </button>
+            )}
+            {statusDot}
+            {day.time !== '—' && (
+              <span className="text-xs text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-800/60 rounded-full px-2 py-0.5">
+                {day.time}
+              </span>
+            )}
+            {isCompleted && (
+              <button
+                onClick={e => { e.stopPropagation(); setCardCollapsed(!cardCollapsed) }}
+                className="text-xs font-medium text-teal-700 hover:text-teal-900 px-1.5 py-1 rounded"
+                title={cardCollapsed ? 'Show details' : 'Collapse'}
+              >
+                {cardCollapsed ? '▾' : '▴'}
+              </button>
+            )}
+            <span className="text-slate-400 text-sm">›</span>
           </div>
+        </div>
+
+        {/* Workout title row — full card width so titles like
+            "CROSS-TRAIN: E-Bike" stop wrapping into a narrow left
+            column. Grade pill sits on the right where it reads as the
+            outcome of the workout, not another button. */}
+        <div className="mt-2.5 flex items-start gap-3">
+          <div className="flex-1 min-w-0">
+            <p className="font-medium text-base text-slate-800 dark:text-white">{day.workout}</p>
+            {day.detail && !cardCollapsed && (
+              <>
+                <p className={`text-sm text-slate-700 dark:text-slate-200 mt-1 ${descExpanded ? '' : 'line-clamp-2'}`}>{day.detail}</p>
+                {day.detail.length > 80 && (
+                  <button
+                    onClick={e => { e.stopPropagation(); setDescExpanded(!descExpanded) }}
+                    className="text-xs text-teal-700 hover:text-teal-900 font-medium mt-0.5"
+                  >
+                    {descExpanded ? 'Show less' : 'Show more'}
+                  </button>
+                )}
+              </>
+            )}
+            {cardCollapsed && actual && (
+              <p className="text-sm text-slate-600 dark:text-slate-300 mt-1 truncate">
+                {actual.distance > 0 && <span>{formatMiles(actual.distance)} · </span>}
+                {actual.movingTime > 0 && <span>{formatSeconds(actual.movingTime)}</span>}
+                {actual.avgHR ? <span> · ❤️ {actual.avgHR}</span> : null}
+              </p>
+            )}
+          </div>
+
+          {gradeResult && (
+            <div className="flex items-center gap-1.5 shrink-0">
+              <span className={`text-xs leading-tight text-right max-w-[6rem] ${gradeResult.color} opacity-80`}>
+                {gradeResult.reason}
+              </span>
+              <div className={`${gradeResult.bgColor} rounded-lg px-2.5 py-1 flex flex-col items-center min-w-[3.25rem]`}>
+                <span className={`text-2xl font-black leading-tight ${gradeResult.color}`}>
+                  {gradeResult.grade}
+                </span>
+              </div>
+            </div>
+          )}
         </div>
 
         {!cardCollapsed && (day.zone !== '—' || (weatherChip && !isCompleted)) && (
