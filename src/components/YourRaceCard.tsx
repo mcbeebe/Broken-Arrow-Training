@@ -4,7 +4,6 @@ import type { RaceInfo } from '../types'
 import type { CourseSegment } from '../types/course'
 import { resolveCourseForRace } from '../utils/resolveCourse'
 import { weeksUntilRace } from '../utils/raceCountdown'
-import { hasTerrainAsset } from '../data/terrain'
 import Course3DPreview from './Course3DPreview'
 
 interface Props {
@@ -55,7 +54,9 @@ export default function YourRaceCard({ race }: Props) {
   const resolution = resolveCourseForRace(race ?? null)
   if (!resolution || !race) return null
   const { course } = resolution
-  const terrainAvailable = hasTerrainAsset(course.id)
+  const has3DCourseData = course.elevationProfile.some(
+    p => p.latitude != null && p.longitude != null,
+  )
 
   const weeksOut = weeksUntilRace(race.date)
   const countdown = weeksOut !== null && weeksOut >= 0
@@ -134,7 +135,7 @@ export default function YourRaceCard({ race }: Props) {
         </div>
       )}
 
-      {terrainAvailable && (
+      {has3DCourseData && (
         <div className="mt-2">
           {!show3D ? (
             <button
