@@ -26,7 +26,6 @@ import { loadEccentricCache } from './utils/runEccentric'
 import { useDOMSCalibration } from './hooks/useDOMSCalibration'
 import { useCoachMemory } from './hooks/useCoachMemory'
 import { useCoachInsight } from './hooks/useCoachInsight'
-import { useProactivePings } from './hooks/useProactivePings'
 import { useCoachTelemetry } from './hooks/useCoachTelemetry'
 import { matchActivitiesToPlan, mergeGarminDetailIntoWeeks } from './utils/matching'
 import { rezoneWeeks } from './utils/rezone'
@@ -45,7 +44,6 @@ import RaceInfo from './components/RaceInfo'
 // Methodology is now a subsection within Settings
 import Settings from './components/Settings'
 import CoachTab from './components/CoachTab'
-import CoachPingToast from './components/CoachPingToast'
 import LoginScreen from './components/LoginScreen'
 import InAppBrowserGate from './components/InAppBrowserGate'
 import { useHRZones } from './hooks/useHRZones'
@@ -586,21 +584,6 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
   const mimCalibration = useMIMCalibration(athleteId, readiness.dailyTrimp, soreness.sorenessLoadByDate)
   const domsCalibration = useDOMSCalibration(athleteId, readiness.dailyTrimp, soreness.sorenessLoadByDate)
 
-  // Yesterday's readiness score — for proactive ping trigger detection
-  const yesterdayScore = useMemo(() => {
-    const today = localDateStr()
-    const yesterday = localDateStr(new Date(Date.now() - 86400000))
-    // Find a score with yesterday's date in the full weekScores (sorted)
-    const match = readiness.weekScores.find(s => s.date === yesterday)
-    if (match) return match
-    // Fallback: if todayScore is the last entry, the one before it is yesterday
-    const scores = readiness.weekScores
-    if (scores.length >= 2 && scores[scores.length - 1].date === today) {
-      return scores[scores.length - 2]
-    }
-    return null
-  }, [readiness.weekScores])
-
   // AI Coach recommendation (legacy heuristic — still drives TodayBriefing)
   const coachRecommendation = useMemo(() => {
     const timeOfDay = getCoachTimeOfDay()
@@ -750,18 +733,16 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     enabled: coachEnabled && !!coachSnapshot,
   })
 
-  // Proactive pings driver (Mike-only)
-  useProactivePings({
-    athleteId,
-    enabled: coachEnabled,
-    snapshot: coachSnapshot,
-    stravaActivities: strava.activities,
-    garminActivities: garmin.garminActivities,
-    todayScore: readiness.todayScore,
-    yesterdayScore,
-    plannedToday: todayPlannedWorkout,
-    memory: coachMemory,
-  })
+  // Proactive pings are intentionally disabled — the daily insight (the
+  // blue "COACH PHIL ENGLISH" card on the Coach tab) is now THE coach's
+  // proactive voice, refreshing 3x daily (6 AM / 1 PM / 8 PM) via the
+  // dayPeriod() cache key inside useCoachInsight. Yellow ping cards
+  // (readiness_shift, new_workout, hrv_drop, etc.) cluttered the chat
+  // with messages that overlapped the daily read; the conversation
+  // surface is now reserved for the athlete's questions and the coach's
+  // direct replies. The detector helpers in useProactivePings stay
+  // exported for tests in case we want to revive scheduled briefings
+  // server-side later.
 
   // "Ask about this" → seed chat + open Coach tab
   const handleAskCoach = useCallback(
@@ -883,14 +864,9 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
         <p className="text-teal-400 text-[10px] mt-0.5">{activePlan.athlete.weeklyStructure}</p>
       </div>
 
-      {/* Proactive coach ping toast */}
-      {coachEnabled && (
-        <CoachPingToast
-          unreadCount={coachMemory.unreadCount}
-          onOpen={() => setView('coach')}
-          onDismiss={() => coachTelemetry.logInteraction('toast_dismissed')}
-        />
-      )}
+      {/* Proactive ping toast removed alongside the proactive pings
+          themselves — see the useProactivePings note above. The daily
+          insight on the Coach tab carries the proactive voice now. */}
 
       {/* Content */}
       {view === 'summary' && (<>

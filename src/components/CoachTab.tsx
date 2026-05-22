@@ -110,7 +110,13 @@ export default function CoachTab({
 
   const [historyOpen, setHistoryOpen] = useState(false)
   const [viewingArchive, setViewingArchive] = useState<string | null>(null)
-  const hasTurns = memory.conversation.filter(t => t.role !== 'system-handoff').length > 0
+  // Match CoachChat's display filter so the Save/Copy/Clear action row
+  // appears only when there's a visible conversation — legacy proactive
+  // ping turns (role:'coach') are hidden in the chat surface and
+  // shouldn't count toward "has turns".
+  const hasTurns = memory.conversation.some(
+    t => t.role !== 'system-handoff' && t.role !== 'coach',
+  )
   const archives = memory.dailyArchives ?? []
 
   // If viewing an archived chat, render the read-only transcript
