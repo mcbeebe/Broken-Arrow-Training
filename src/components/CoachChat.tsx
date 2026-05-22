@@ -332,10 +332,15 @@ export default function CoachChat({ athleteId, memory, snapshot, seed, onSeedCon
 
   // Show all turns. system-handoff turns mostly stay hidden, but the
   // PERSONA UPDATED markers render as a visible inline divider so the
-  // athlete sees the persona change took effect.
-  const turns = memory.conversation.filter(
-    t => t.role !== 'system-handoff' || t.content.startsWith('[PERSONA UPDATED]')
-  )
+  // athlete sees the persona change took effect. role:'coach' turns
+  // (proactive pings from the old yellow-card era) are filtered out —
+  // the daily insight card carries the proactive voice now, and these
+  // legacy turns are duplicative noise in the chat thread.
+  const turns = memory.conversation.filter(t => {
+    if (t.role === 'coach') return false
+    if (t.role === 'system-handoff') return t.content.startsWith('[PERSONA UPDATED]')
+    return true
+  })
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   // One-line snapshot chip above the composer. Derives from the same
