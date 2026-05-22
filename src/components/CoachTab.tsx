@@ -226,6 +226,11 @@ export default function CoachTab({
         onUndoAction={onUndoAction}
         renderLayout={({ scrollerRef, messagesBody, errorBanners, composer }) => (
           <div className="flex flex-col h-full bg-white dark:bg-slate-800">
+            {/* Action bar pinned at the very top — History / Archive /
+                Save / Copy / Clear stay in reach regardless of scroll
+                position, so the athlete never has to scroll the daily
+                insight back into view to access them. */}
+            {actionBar}
             <div ref={scrollerRef} className="flex-1 min-h-0 overflow-y-auto">
               {(dailyInsight || dailyInsightLoading) && (
                 <div className="px-2 pt-2">
@@ -243,7 +248,6 @@ export default function CoachTab({
                   />
                 </div>
               )}
-              <div className="mt-2">{actionBar}</div>
               <div className="px-2 py-2 space-y-2">{messagesBody}</div>
             </div>
             {errorBanners}
