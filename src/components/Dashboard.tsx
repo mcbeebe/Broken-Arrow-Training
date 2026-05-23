@@ -504,6 +504,7 @@ function PerformanceTab({
         dailyTrimp={dailyTrimp}
         sorenessLoadByDate={sorenessLoadByDate}
         range={timeWindow}
+        performance={performance}
       />
       <PerformanceGlossary />
     </div>
