@@ -58,17 +58,12 @@ const SPORT_COLORS: Record<string, string> = {
 const MANUAL_EXERCISE_COLOR = '#F59E0B'
 const DOMS_COLOR = '#FB923C'
 const SORENESS_COLOR = '#F87171'
-// Load-trend overlay. Trend line is a dark neutral so it reads cleanly over
-// any sport color; the optimal-range band uses green to signal "healthy zone"
-// (mirrors Garmin's Optimal Range and the app's Load-Ratio sweet spot).
+// Load-trend overlay. The line is acute load (ATL — the 7-day EWMA from the
+// performance timeline), drawn in a dark neutral so it reads over any sport
+// color. The optimal-range band uses green to signal "healthy zone" (0.8–1.3×
+// chronic load — the Load-Ratio sweet spot, mirroring Garmin's Optimal Range).
 const TREND_COLOR = '#334155'
 const ZONE_COLOR = '#22C55E'
-
-// Trailing-average window in days. Short on 7d/30d (matches a "2–3 day"
-// feel); widened on 90d/YTD so the line stays readable instead of spiky.
-function trendWindowFor(range: TRIMPRange): number {
-  return range === '7d' || range === '30d' ? 3 : 7
-}
 
 function getRangeDays(range: TRIMPRange, dailyTrimp: DailyTRIMP[]): string[] {
   const today = new Date()
@@ -158,34 +153,24 @@ export default function TRIMPBreakdown({
   const labels = RANGE_LABELS[range]
 
   // ── Load-trend overlay ────────────────────────────────────────────
-  // Trailing average of each day's total load. Computed against the full
-  // history (trimpByDate), not just the visible window, so the first days
-  // of a range get a real trailing value instead of a ramp-up artifact.
-  // Missing days count as 0 (rest) — a rest day genuinely lowers the average.
-  const trendWindow = trendWindowFor(range)
-  const trailingAvg = (date: string): number => {
-    const base = new Date(date + 'T00:00:00')
-    let sum = 0
-    for (let j = 0; j < trendWindow; j++) {
-      const d = new Date(base)
-      d.setDate(base.getDate() - j)
-      sum += trimpByDate.get(localDateStr(d))?.total ?? 0
-    }
-    return sum / trendWindow
-  }
-
-  // Optimal-range band = 0.8×–1.3× CTL (the Load-Ratio sweet spot). CTL moves
-  // slowly, so we forward-fill the most recent value across days the timeline
-  // doesn't cover, and back-fill the earliest value for days before it starts.
-  const ctlExact = new Map((performance ?? []).map(p => [p.date, p.ctl]))
-  const firstCtl = performance && performance.length > 0 ? performance[0].ctl : null
+  // Trend line = acute load (ATL, the 7-day EWMA). Optimal-range band =
+  // 0.8×–1.3× chronic load (CTL) — the Load-Ratio sweet spot. Both come from
+  // the performance timeline and move slowly, so we forward-fill the most
+  // recent value across days it doesn't cover and back-fill the earliest
+  // value for days before it starts.
+  const perfExact = new Map((performance ?? []).map(p => [p.date, p]))
+  const firstPerf = performance && performance.length > 0 ? performance[0] : null
+  const atlByDay = new Map<string, number>()
   const ctlByDay = new Map<string, number>()
-  let runningCtl: number | null = null
+  let runningPerf: PerformanceMetrics | null = null
   for (const date of rangeDays) {
-    const exact = ctlExact.get(date)
-    if (exact != null) runningCtl = exact
-    const v = runningCtl ?? firstCtl
-    if (v != null && v > 1) ctlByDay.set(date, v)
+    const exact = perfExact.get(date)
+    if (exact) runningPerf = exact
+    const p = runningPerf ?? firstPerf
+    if (p) {
+      if (p.atl > 0) atlByDay.set(date, p.atl)
+      if (p.ctl > 1) ctlByDay.set(date, p.ctl)
+    }
   }
 
   // Per-day decomposition. After useReadiness applies its dedup logic:
@@ -257,8 +242,8 @@ export default function TRIMPBreakdown({
     if (bd.dayTotal === 0) {
       entry['rest'] = 0
     }
-    const trend = Math.round(trailingAvg(day.date))
-    if (trend > 0) entry['trend'] = trend
+    const atl = atlByDay.get(day.date)
+    if (atl != null) entry['trend'] = Math.round(atl)
     const ctl = ctlByDay.get(day.date)
     if (ctl != null) entry['zone'] = [Math.round(ctl * 0.8), Math.round(ctl * 1.3)]
     return entry
@@ -454,7 +439,7 @@ export default function TRIMPBreakdown({
                     {trendVal !== null && (
                       <div className="flex items-center gap-2 mt-1">
                         <span className="w-2.5 h-[3px] rounded-full inline-block shrink-0" style={{ backgroundColor: TREND_COLOR }} />
-                        <span className="text-slate-600 dark:text-slate-300">{trendWindow}-day trend</span>
+                        <span className="text-slate-600 dark:text-slate-300">acute load</span>
                         <span className="ml-auto font-medium text-slate-700 dark:text-slate-200">{trendVal} TRIMP</span>
                       </div>
                     )}
@@ -565,7 +550,7 @@ export default function TRIMPBreakdown({
         {hasTrend && (
           <span className="flex items-center gap-1 text-xs text-slate-500">
             <span className="w-3 h-[3px] rounded-full inline-block" style={{ backgroundColor: TREND_COLOR }} />
-            {trendWindow}-day load trend
+            acute load
           </span>
         )}
         {hasZone && (
@@ -604,8 +589,9 @@ export default function TRIMPBreakdown({
       </div>
       {hasZone && (
         <p className="mt-2 text-[10px] text-slate-400 dark:text-slate-500 leading-snug">
-          <span className="font-semibold text-slate-500 dark:text-slate-400">Optimal range</span> = the healthy load zone for your current fitness
-          (0.8–1.3× your <Term name="acwr">chronic load</Term>). Trend inside the band = sustainable; above = ramping fast, below = backing off.
+          <span className="font-semibold text-slate-500 dark:text-slate-400">Acute load</span> = your rolling recent training load (7-day average).
+          {' '}<span className="font-semibold text-slate-500 dark:text-slate-400">Optimal range</span> = 0.8–1.3× your <Term name="acwr">chronic load</Term>.
+          Inside the band = sustainable; above = ramping fast, below = backing off.
         </p>
       )}
       {(hasDoms || hasSoreness) && (
