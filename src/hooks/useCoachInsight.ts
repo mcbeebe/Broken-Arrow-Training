@@ -26,11 +26,17 @@ export function hashFields(obj: unknown): string {
   return (h >>> 0).toString(36)
 }
 
-/** Returns 'morning' (before noon), 'afternoon' (noon–5pm), or 'evening' (5pm+). */
+/** Returns 'morning' (06:00–12:59), 'afternoon' (13:00–19:59), or
+ *  'evening' (20:00–05:59). The boundaries match the three daily
+ *  briefings the athlete expects: a 6 AM "wake-up read", a 1 PM
+ *  "midday recalibration", and an 8 PM "bedtime briefing". Changing
+ *  period busts the insight cache so a fresh LLM read fires when each
+ *  window opens. */
 export function dayPeriod(): 'morning' | 'afternoon' | 'evening' {
   const h = new Date().getHours()
-  if (h < 12) return 'morning'
-  if (h < 17) return 'afternoon'
+  if (h < 6) return 'evening'
+  if (h < 13) return 'morning'
+  if (h < 20) return 'afternoon'
   return 'evening'
 }
 
@@ -107,6 +113,19 @@ export function useCoachInsight(opts: UseCoachInsightOptions) {
   // automatic refreshes (snapshot/persona changes) still use cache.
   const [forceCount, setForceCount] = useState(0)
 
+  // Tick state that re-evaluates each minute. When dayPeriod() crosses
+  // a boundary (6 AM / 2 PM / 8 PM), this updates from e.g. 'morning'
+  // to 'afternoon', the contextHash re-derives, and the effect re-fires
+  // — fetching a fresh insight quietly while the user is in the app.
+  const [periodKey, setPeriodKey] = useState(dayPeriod())
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      const next = dayPeriod()
+      setPeriodKey(prev => (prev === next ? prev : next))
+    }, 60_000)
+    return () => window.clearInterval(id)
+  }, [])
+
   // Pre-compute the material context hash. The snapshot object identity
   // churns every render (upstream useMemo deps include non-memoized
   // callbacks/maps), but materialFields() distills it down to the inputs
@@ -117,7 +136,11 @@ export function useCoachInsight(opts: UseCoachInsightOptions) {
   const contextHash = useMemo(() => {
     if (!enabled || !snapshot) return ''
     return hashFields(materialFields(surface, snapshot))
-  }, [enabled, surface, snapshot])
+    // periodKey is intentionally in the dep list — materialFields() reads
+    // dayPeriod() at call time, so a period transition must force the
+    // memo to re-run even when the snapshot hasn't otherwise changed.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enabled, surface, snapshot, periodKey])
 
   // Snapshot is still needed to send in the request body. We hold it in
   // a ref so the fetch sees the latest reference without making it an
