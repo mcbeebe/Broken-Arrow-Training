@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import type { DailyTRIMP } from '../types'
+import type { DailyTRIMP, PerformanceMetrics } from '../types'
 import { localDateStr } from '../utils/format'
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
+import { ComposedChart, Bar, Line, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import Term from './TermGlossary'
 
 export type TRIMPRange = '7d' | '30d' | '90d' | 'ytd' | 'all'
@@ -19,6 +19,11 @@ interface TRIMPBreakdownProps {
    *  toggle (7d / 30d / 90d / YTD) and defaults to 7d. */
   range?: TRIMPRange
   onRangeChange?: (r: TRIMPRange) => void
+  /** CTL/ATL timeline from useReadiness. When provided, the chart overlays a
+   *  trailing-average load trend line and a lightly shaded "optimal range"
+   *  band — 0.8×–1.3× CTL, the Load-Ratio sweet spot already used elsewhere
+   *  in the app. Without it, the chart renders bars only. */
+  performance?: PerformanceMetrics[]
 }
 
 const SPORT_COLORS: Record<string, string> = {
@@ -53,6 +58,12 @@ const SPORT_COLORS: Record<string, string> = {
 const MANUAL_EXERCISE_COLOR = '#F59E0B'
 const DOMS_COLOR = '#FB923C'
 const SORENESS_COLOR = '#F87171'
+// Load-trend overlay. The line is acute load (ATL — the 7-day EWMA from the
+// performance timeline), drawn in a dark neutral so it reads over any sport
+// color. The optimal-range band uses green to signal "healthy zone" (0.8–1.3×
+// chronic load — the Load-Ratio sweet spot, mirroring Garmin's Optimal Range).
+const TREND_COLOR = '#334155'
+const ZONE_COLOR = '#22C55E'
 
 function getRangeDays(range: TRIMPRange, dailyTrimp: DailyTRIMP[]): string[] {
   const today = new Date()
@@ -116,6 +127,7 @@ export default function TRIMPBreakdown({
   domsCarryByDate,
   range: controlledRange,
   onRangeChange,
+  performance,
 }: TRIMPBreakdownProps) {
   const [internalRange, setInternalRange] = useState<TRIMPRange>('7d')
   const range = controlledRange ?? internalRange
@@ -139,6 +151,27 @@ export default function TRIMPBreakdown({
 
   const rangeTotal = Math.round(filledDays.reduce((s, d) => s + d.total, 0))
   const labels = RANGE_LABELS[range]
+
+  // ── Load-trend overlay ────────────────────────────────────────────
+  // Trend line = acute load (ATL, the 7-day EWMA). Optimal-range band =
+  // 0.8×–1.3× chronic load (CTL) — the Load-Ratio sweet spot. Both come from
+  // the performance timeline and move slowly, so we forward-fill the most
+  // recent value across days it doesn't cover and back-fill the earliest
+  // value for days before it starts.
+  const perfExact = new Map((performance ?? []).map(p => [p.date, p]))
+  const firstPerf = performance && performance.length > 0 ? performance[0] : null
+  const atlByDay = new Map<string, number>()
+  const ctlByDay = new Map<string, number>()
+  let runningPerf: PerformanceMetrics | null = null
+  for (const date of rangeDays) {
+    const exact = perfExact.get(date)
+    if (exact) runningPerf = exact
+    const p = runningPerf ?? firstPerf
+    if (p) {
+      if (p.atl > 0) atlByDay.set(date, p.atl)
+      if (p.ctl > 1) ctlByDay.set(date, p.ctl)
+    }
+  }
 
   // Per-day decomposition. After useReadiness applies its dedup logic:
   //   day.total = (recordSum + exerciseLoad) × rpeMult
@@ -184,7 +217,7 @@ export default function TRIMPBreakdown({
   // DOMS prediction plus only the *excess* soreness above prediction.
   const chartData = filledDays.map(day => {
     const bd = breakdownByDate.get(day.date)!
-    const entry: Record<string, string | number> = {
+    const entry: Record<string, string | number | number[]> = {
       date: day.date.slice(5),
       fullDate: day.date,
       _isRest: bd.dayTotal === 0 ? 1 : 0,
@@ -209,6 +242,10 @@ export default function TRIMPBreakdown({
     if (bd.dayTotal === 0) {
       entry['rest'] = 0
     }
+    const atl = atlByDay.get(day.date)
+    if (atl != null) entry['trend'] = Math.round(atl)
+    const ctl = ctlByDay.get(day.date)
+    if (ctl != null) entry['zone'] = [Math.round(ctl * 0.8), Math.round(ctl * 1.3)]
     return entry
   })
 
@@ -221,10 +258,14 @@ export default function TRIMPBreakdown({
   let hasManualExercise = false
   let hasDoms = false
   let hasSoreness = false
+  let hasTrend = false
+  let hasZone = false
   for (const entry of chartData) {
     if (entry['manual_exercise']) hasManualExercise = true
     if (entry['doms_carry']) hasDoms = true
     if (entry['soreness']) hasSoreness = true
+    if (entry['trend']) hasTrend = true
+    if (Array.isArray(entry['zone'])) hasZone = true
   }
 
   const rangeOptions: TRIMPRange[] = ['7d', '30d', '90d', 'ytd']
@@ -260,10 +301,16 @@ export default function TRIMPBreakdown({
       )}
       <div style={{ height: 180 }}>
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart
+          <ComposedChart
             data={chartData}
             barCategoryGap={range === '7d' ? '15%' : '5%'}
           >
+            <defs>
+              <linearGradient id="trimpZoneFill" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={ZONE_COLOR} stopOpacity={0.22} />
+                <stop offset="100%" stopColor={ZONE_COLOR} stopOpacity={0.08} />
+              </linearGradient>
+            </defs>
             <XAxis
               dataKey="date"
               tick={{ fontSize: 12, fill: '#94A3B8' }}
@@ -287,13 +334,21 @@ export default function TRIMPBreakdown({
               content={(props) => {
                 const { active, payload, label } = props as unknown as {
                   active?: boolean
-                  payload?: ReadonlyArray<{ payload?: { fullDate?: string } }>
+                  payload?: ReadonlyArray<{ payload?: { fullDate?: string; trend?: number; zone?: [number, number] } }>
                   label?: string | number
                 }
                 if (!active || !payload?.length) return null
-                const fullDate = payload[0]?.payload?.fullDate
+                const entry = payload[0]?.payload
+                const fullDate = entry?.fullDate
                 const bd = fullDate ? breakdownByDate.get(fullDate) : undefined
                 if (!bd || bd.dayTotal <= 0) return null
+                const trendVal = typeof entry?.trend === 'number' ? entry.trend : null
+                const zoneVal = Array.isArray(entry?.zone) ? entry!.zone : null
+                const zoneStatus = trendVal !== null && zoneVal
+                  ? trendVal < zoneVal[0] ? 'below range'
+                  : trendVal > zoneVal[1] ? 'above range'
+                  : 'in range'
+                  : null
                 const tooltipLabel = String(label ?? fullDate?.slice(5) ?? '')
 
                 interface Row { swatch: string; name: string; value: number; signed?: boolean; subtitle?: string }
@@ -381,6 +436,21 @@ export default function TRIMPBreakdown({
                       <span className="text-slate-700 dark:text-slate-200 font-semibold">Day total</span>
                       <span className="ml-auto font-semibold text-slate-700 dark:text-slate-200">{Math.round(bd.dayTotal)} TRIMP</span>
                     </div>
+                    {trendVal !== null && (
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="w-2.5 h-[3px] rounded-full inline-block shrink-0" style={{ backgroundColor: TREND_COLOR }} />
+                        <span className="text-slate-600 dark:text-slate-300">acute load</span>
+                        <span className="ml-auto font-medium text-slate-700 dark:text-slate-200">{trendVal} TRIMP</span>
+                      </div>
+                    )}
+                    {zoneVal && zoneStatus && (
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-snug mt-0.5">
+                        Optimal range {zoneVal[0]}–{zoneVal[1]} · <span className={
+                          zoneStatus === 'in range' ? 'text-emerald-600 dark:text-emerald-400 font-medium'
+                          : 'text-amber-600 dark:text-amber-400 font-medium'
+                        }>{zoneStatus}</span>
+                      </p>
+                    )}
                     {hasDayAdj && (
                       <div className="mt-1.5 pt-1.5 border-t border-slate-100 dark:border-slate-700 space-y-0.5">
                         <p className="text-[11px] text-slate-500 dark:text-slate-400 italic leading-snug">
@@ -395,6 +465,21 @@ export default function TRIMPBreakdown({
                 )
               }}
             />
+            {/* Optimal-range band — declared before the bars so it paints
+                behind them. Range area: each datum's `zone` is [low, high]. */}
+            {hasZone && (
+              <Area
+                dataKey="zone"
+                type="monotone"
+                stroke={ZONE_COLOR}
+                strokeOpacity={0.35}
+                strokeWidth={1}
+                fill="url(#trimpZoneFill)"
+                connectNulls
+                isAnimationActive={false}
+                activeDot={false}
+              />
+            )}
             {Array.from(sportTypes).map(type => (
               <Bar
                 key={type}
@@ -428,7 +513,21 @@ export default function TRIMPBreakdown({
                 radius={[2, 2, 0, 0]}
               />
             )}
-          </BarChart>
+            {/* Trailing-average load trend — declared last so it paints on
+                top of the bars and band. */}
+            {hasTrend && (
+              <Line
+                dataKey="trend"
+                type="monotone"
+                stroke={TREND_COLOR}
+                strokeWidth={2}
+                dot={range === '7d' ? { r: 2.5, fill: TREND_COLOR, strokeWidth: 0 } : false}
+                activeDot={{ r: 3.5 }}
+                connectNulls
+                isAnimationActive={false}
+              />
+            )}
+          </ComposedChart>
         </ResponsiveContainer>
       </div>
 
@@ -448,6 +547,18 @@ export default function TRIMPBreakdown({
 
       {/* Legend */}
       <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2">
+        {hasTrend && (
+          <span className="flex items-center gap-1 text-xs text-slate-500">
+            <span className="w-3 h-[3px] rounded-full inline-block" style={{ backgroundColor: TREND_COLOR }} />
+            acute load
+          </span>
+        )}
+        {hasZone && (
+          <span className="flex items-center gap-1 text-xs text-slate-500">
+            <span className="w-2.5 h-2.5 rounded-sm inline-block border" style={{ backgroundColor: `${ZONE_COLOR}28`, borderColor: `${ZONE_COLOR}88` }} />
+            optimal range
+          </span>
+        )}
         {Array.from(sportTypes).map(type => (
           <span key={type} className="flex items-center gap-1 text-xs text-slate-500">
             <span
@@ -476,6 +587,13 @@ export default function TRIMPBreakdown({
           </span>
         )}
       </div>
+      {hasZone && (
+        <p className="mt-2 text-[10px] text-slate-400 dark:text-slate-500 leading-snug">
+          <span className="font-semibold text-slate-500 dark:text-slate-400">Acute load</span> = your rolling recent training load (7-day average).
+          {' '}<span className="font-semibold text-slate-500 dark:text-slate-400">Optimal range</span> = 0.8–1.3× your <Term name="acwr">chronic load</Term>.
+          Inside the band = sustainable; above = ramping fast, below = backing off.
+        </p>
+      )}
       {(hasDoms || hasSoreness) && (
         <p className="mt-2 text-[10px] text-slate-400 dark:text-slate-500 leading-snug">
           <span className="font-semibold text-slate-500 dark:text-slate-400">DOMS</span> = predicted by your training (Peake 2017).

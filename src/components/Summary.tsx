@@ -648,6 +648,7 @@ export default function Summary({
           rpeByDate={rpeByDate}
           exerciseLoadByDate={exerciseLoadByDate}
           domsCarryByDate={domsCarryByDate}
+          performance={performance}
         />
       )}
 
