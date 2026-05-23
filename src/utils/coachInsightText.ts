@@ -1,6 +1,6 @@
-// Small text helpers shared between the full CoachInsightCard (Coach tab)
-// and the Summary-tab CoachInsightPreview. Kept side-effect-free so both
-// mount points display the same trigger pill / 1-sentence preview.
+// Small text helpers for the CoachInsightCard (Coach tab) — split the
+// trigger pill out of the insight body and build a 1-sentence preview.
+// Kept side-effect-free so they're easy to unit-test.
 
 const TRIGGERED_BY_RE = /^[*_\s]*triggered by:\s*([^\n]+?)[*_\s]*$/im
 

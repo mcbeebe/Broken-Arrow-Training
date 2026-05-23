@@ -26,6 +26,7 @@ import { loadEccentricCache } from './utils/runEccentric'
 import { useDOMSCalibration } from './hooks/useDOMSCalibration'
 import { useCoachMemory } from './hooks/useCoachMemory'
 import { useCoachInsight } from './hooks/useCoachInsight'
+import { useInsightReadState } from './hooks/useInsightReadState'
 import { useCoachTelemetry } from './hooks/useCoachTelemetry'
 import { matchActivitiesToPlan, mergeGarminDetailIntoWeeks } from './utils/matching'
 import { rezoneWeeks } from './utils/rezone'
@@ -44,6 +45,7 @@ import RaceInfo from './components/RaceInfo'
 // Methodology is now a subsection within Settings
 import Settings from './components/Settings'
 import CoachTab from './components/CoachTab'
+import CoachPingToast from './components/CoachPingToast'
 import LoginScreen from './components/LoginScreen'
 import InAppBrowserGate from './components/InAppBrowserGate'
 import { useHRZones } from './hooks/useHRZones'
@@ -744,6 +746,28 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
   // exported for tests in case we want to revive scheduled briefings
   // server-side later.
 
+  // The Summary tab no longer previews the coach message — the athlete
+  // reads + replies entirely on the Coach tab. The alert banner is how
+  // they learn a fresh daily insight is waiting: it fires whenever the
+  // insight is newer than the last one they opened on the Coach tab.
+  const { seenAt: seenInsightAt, markSeen: markInsightSeen } = useInsightReadState(athleteId)
+  const hasUnreadInsight = !!(
+    coachEnabled &&
+    dailyInsight.insight &&
+    !dailyInsight.insight.silent &&
+    dailyInsight.insight.text &&
+    dailyInsight.insight.generatedAt > seenInsightAt
+  )
+  // Landing on the Coach tab (via the banner or the nav) counts as
+  // reading the current insight. Re-runs if the insight refreshes while
+  // the athlete is already on the tab, so the banner never pops over a
+  // message they're actively looking at.
+  useEffect(() => {
+    if (view === 'coach') {
+      markInsightSeen(dailyInsight.insight?.generatedAt)
+    }
+  }, [view, dailyInsight.insight?.generatedAt, markInsightSeen])
+
   // "Ask about this" → seed chat + open Coach tab
   const handleAskCoach = useCallback(
     (seed: string) => {
@@ -864,9 +888,16 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
         <p className="text-teal-400 text-[10px] mt-0.5">{activePlan.athlete.weeklyStructure}</p>
       </div>
 
-      {/* Proactive ping toast removed alongside the proactive pings
-          themselves — see the useProactivePings note above. The daily
-          insight on the Coach tab carries the proactive voice now. */}
+      {/* Coach alert banner — surfaces a fresh daily insight the athlete
+          hasn't opened yet. Tapping "Open" jumps to the Coach tab, which
+          marks the insight read (see the hasUnreadInsight effect above). */}
+      {coachEnabled && (
+        <CoachPingToast
+          unreadCount={hasUnreadInsight ? 1 : 0}
+          onOpen={() => setView('coach')}
+          onDismiss={() => coachTelemetry.logInteraction('toast_dismissed')}
+        />
+      )}
 
       {/* Content */}
       {view === 'summary' && (<>
@@ -950,10 +981,6 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           exerciseLoadByDate={exerciseLoadByDate}
           domsCarryByDate={readiness.domsCarryByDate}
           coachEnabled={coachEnabled}
-          dailyInsight={dailyInsight.insight}
-          dailyInsightLoading={dailyInsight.loading}
-          coachName={coachMemory.coachPersona?.name}
-          onOpenCoachTab={() => setView('coach')}
           todayPlannedWorkout={todayPlannedWorkout}
           currentWeekNum={currentWeekNum}
           zones={hrZones.zones}
