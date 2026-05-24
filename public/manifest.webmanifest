@@ -1,0 +1,19 @@
+{
+  "name": "Broken Arrow Training",
+  "short_name": "Broken Arrow",
+  "description": "Your AI coach, readiness, and training plan for the Broken Arrow Skyrace.",
+  "start_url": "/?view=summary",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "any maskable"
+    }
+  ]
+}
