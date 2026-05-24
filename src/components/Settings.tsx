@@ -15,6 +15,7 @@ import { SPORT_LABELS } from '../hooks/useMIMCalibration'
 import CoachPersonaEditor from './CoachPersonaEditor'
 import { isVoiceInputEnabled, setVoiceInputEnabled, voiceCaptureSupported } from '../utils/voiceInput'
 import CoachMemoryPanel from './CoachMemoryPanel'
+import NotificationSettings from './NotificationSettings'
 import AthleteHomeLocation from './AthleteHomeLocation'
 import WorkoutTimePreference from './WorkoutTimePreference'
 import type { AthleteHomeLocation as AthleteHomeLocationType } from '../hooks/useAthleteLocation'
@@ -328,6 +329,12 @@ export default function Settings({
               onDeleteFact={onDeleteCoachFact}
             />
           </div>
+        </SettingsSection>
+      )}
+
+      {coachEnabled && athleteId && (
+        <SettingsSection title="Notifications">
+          <NotificationSettings athleteId={athleteId} />
         </SettingsSection>
       )}
 
