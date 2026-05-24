@@ -53,6 +53,11 @@ jobs:
           VITE_STRAVA_REDIRECT_URI: https://mcbeebe.github.io/Broken-Arrow-Training/
           VITE_GARMIN_API_URL: ${{ secrets.VITE_GARMIN_API_URL }}
           VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
+          # VAPID public key for Web Push (coach briefings). Must be
+          # baked in at build time — the Settings → Notifications panel
+          # gates the Enable button on its presence. Pair with the
+          # server-side VAPID_PRIVATE_KEY / VAPID_SUBJECT on Vercel.
+          VITE_VAPID_PUBLIC_KEY: ${{ secrets.VITE_VAPID_PUBLIC_KEY }}
           # Git SHA baked into the bundle so the Deploy Diagnostics
           # panel in Settings can compare frontend vs. API version.
           VITE_GIT_COMMIT_SHA: ${{ github.sha }}
