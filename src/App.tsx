@@ -380,12 +380,15 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
   // Merge Strava or manual log data into training plan
   const weeks = useMemo(() => {
     let w = activePlan.weeks
-    // Coach/manual structural edits (add/delete/update days & weeks) apply
-    // FIRST so they define the canonical week/day set everything else
-    // composes onto. Day labels on added days keep actuals/log matching
-    // (which is label-keyed) correct across structural changes.
-    w = planEdits.applyEditsToWeeks(w)
     w = daySwap.applySwapsToWeeks(w)
+    // Coach/manual plan edits (add/delete/update days & weeks) apply AFTER
+    // swaps and BEFORE actuals. This order is load-bearing: field edits
+    // (updateDay) must sit in post-swap coordinate space so swapDayIndices
+    // can re-anchor an edit to follow its workout to the swapped slot —
+    // putting edits before swaps reintroduces the "edit lands on the wrong
+    // day after a swap" bug. Actuals/logs match by day label, so they stay
+    // correct even when an edit adds/removes a day.
+    w = planEdits.applyEditsToWeeks(w)
     if (showStrava && strava.activities.length > 0) {
       w = matchActivitiesToPlan(w, strava.activities)
     }

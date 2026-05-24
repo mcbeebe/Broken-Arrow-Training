@@ -344,11 +344,38 @@ export function buildCoachSnapshot(inputs: Inputs): CoachSnapshot {
 
   // Full plan skeleton (always emitted on the snapshot — cheap in bytes,
   // and the brief only renders it when the user asks for it). One line
-  // per planned day + a compact per-week focus/miles header.
+  // per planned day + a compact per-week focus/miles header. Each day
+  // carries its (weekNum, dayIndex) so the coach can target edits by the
+  // EXACT plan coordinates instead of inferring a day index from the
+  // weekday name (which breaks once days are added/removed or reordered).
   const fullPlan: NonNullable<CoachSnapshot['fullPlan']> = {
     weeks: weeks.map(w => ({ num: w.num, dates: w.dates, miles: w.miles, focus: w.focus })),
-    days: weeks.flatMap(w => w.days.map(d => compactPlannedDay(d, dayLabelToISO(d.day, planStartDate) ?? undefined))),
+    days: weeks.flatMap(w => w.days.map((d, i) => ({
+      ...compactPlannedDay(d, dayLabelToISO(d.day, planStartDate) ?? undefined),
+      weekNum: w.num,
+      dayIndex: i,
+    }))),
   }
+
+  // Exact plan coordinates for "today" / "tomorrow" so the coach edits the
+  // right slot. Found by matching the day label's date to today/tomorrow.
+  const tomorrow = (() => {
+    const d = new Date()
+    d.setDate(d.getDate() + 1)
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  })()
+  const findCoord = (iso: string): { weekNum: number; dayIndex: number; dayLabel: string } | null => {
+    for (const w of weeks) {
+      for (let i = 0; i < w.days.length; i++) {
+        if (dayLabelToISO(w.days[i].day, planStartDate) === iso) {
+          return { weekNum: w.num, dayIndex: i, dayLabel: w.days[i].day }
+        }
+      }
+    }
+    return null
+  }
+  const todayCoord = findCoord(today)
+  const tomorrowCoord = findCoord(tomorrow)
 
   // Collect ALL activities from the last 120 days — matched AND
   // unmatched. Three sources, merged + deduped:
@@ -528,6 +555,8 @@ export function buildCoachSnapshot(inputs: Inputs): CoachSnapshot {
     plannedToday: plannedToday ?? null,
     plannedTomorrow: plannedTomorrow ?? null,
     plannedUpcoming,
+    todayCoord,
+    tomorrowCoord,
     fullPlan,
     recentActivities,
     recentSoreness,

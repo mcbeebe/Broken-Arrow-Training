@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 import { usePlanEdits, replayEdits } from '../hooks/usePlanEdits'
+import { useDaySwap } from '../hooks/useDaySwap'
 import type { TrainingWeek, PlanEdit } from '../types'
 
 const mkWeeks = (): TrainingWeek[] => [
@@ -133,6 +134,45 @@ describe('usePlanEdits — structural op-log', () => {
     expect(result.current.edits).toHaveLength(1)
     expect(result.current.edits[0].op.kind).toBe('updateDay')
     expect(result.current.applyEditsToWeeks(mkWeeks())[0].days[1].workout).toBe('Migrated')
+  })
+
+  // Regression: a day-swap must carry an existing edit to the new slot, and
+  // the vacated slot must NOT revert to the base workout. This locks the
+  // pipeline order (swaps → edits, with swapDayIndices re-anchoring) that a
+  // prior reorder broke ("edit lands on the wrong day after a swap").
+  it('an updateDay edit follows a day-swap instead of reverting to base', () => {
+    const base = (): TrainingWeek[] => [
+      week(6, [
+        { day: 'Sat 5/30', type: 'travel', workout: 'TRAVEL', detail: 'Drive', zone: '—', route: '—', time: '—' },
+        { day: 'Sun 5/31', type: 'long', workout: 'LONG RUN', detail: '9 mi', zone: 'Z2', route: 'Trail', time: '2 hr' },
+      ]),
+    ]
+    function week(num: number, days: TrainingWeek['days']): TrainingWeek {
+      return { num, dates: '', miles: 0, focus: '', days }
+    }
+
+    const edits = renderHook(() => usePlanEdits('mike'))
+    const swap = renderHook(() => useDaySwap('mike'))
+
+    // Athlete overrides Sun (dayIndex 1) → Rest.
+    act(() => { edits.result.current.applyOverride({ weekNum: 6, dayIndex: 1, updates: { type: 'rest', workout: 'Rest', detail: '—' } }) })
+
+    // Compose like App: swaps THEN edits. Pre-swap, Sun shows the override.
+    let composed = edits.result.current.applyEditsToWeeks(swap.result.current.applySwapsToWeeks(base()))
+    expect(composed[0].days[1].workout).toBe('Rest')
+
+    // Swap Sat(0) ↔ Sun(1) — App wires both the swap and the edit re-anchor.
+    act(() => {
+      swap.result.current.swapDays(6, 0, 1)
+      edits.result.current.swapDayIndices(6, 0, 1)
+    })
+
+    composed = edits.result.current.applyEditsToWeeks(swap.result.current.applySwapsToWeeks(base()))
+    // Override followed the swap to Sat; Sun shows the swapped-in TRAVEL —
+    // NOT the base LONG RUN (which would be the reverted-bug symptom).
+    expect(composed[0].days[0].workout).toBe('Rest')      // Sat slot
+    expect(composed[0].days[1].workout).toBe('TRAVEL')    // Sun slot — not "LONG RUN"
+    expect(composed[0].days[1].workout).not.toBe('LONG RUN')
   })
 
   it('replayEdits skips out-of-range targets gracefully', () => {

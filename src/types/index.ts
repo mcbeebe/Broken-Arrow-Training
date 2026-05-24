@@ -940,13 +940,19 @@ export interface CoachSnapshot {
    *  entry per planned day. Included by default so the coach can
    *  reason about the short-term schedule without being asked. */
   plannedUpcoming?: PlannedDay[]
+  /** Exact plan coordinates (weekNum + dayIndex) for today / tomorrow, so
+   *  the coach targets the right slot for a plan edit instead of inferring
+   *  a day index from the weekday name. */
+  todayCoord?: { weekNum: number; dayIndex: number; dayLabel: string } | null
+  tomorrowCoord?: { weekNum: number; dayIndex: number; dayLabel: string } | null
   /** Full plan skeleton — every day across all 10 weeks as a compact
-   *  one-line-per-day summary. Only included on demand (triggered by
-   *  keywords like "full plan", "all weeks") because it doubles token
-   *  use. */
+   *  one-line-per-day summary. Each day carries its (weekNum, dayIndex)
+   *  plan coordinates for precise edit targeting. Only rendered on demand
+   *  (triggered by keywords like "full plan", "all weeks") but the data is
+   *  always present so the brief can map any date → coordinates. */
   fullPlan?: {
     weeks: { num: number; dates: string; miles: number | string; focus: string }[]
-    days: { day: string; date?: string; type: string; workout: string; zone: string }[]
+    days: { day: string; date?: string; type: string; workout: string; zone: string; weekNum: number; dayIndex: number }[]
   } | null
   recentActivities?: {
     startDate: string
