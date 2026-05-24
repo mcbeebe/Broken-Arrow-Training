@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildAnalytics } from '../utils/coachSnapshot'
+import { buildAnalytics, buildCoachSnapshot } from '../utils/coachSnapshot'
 import type {
   AthleteProfile,
   DailyTRIMP,
@@ -213,5 +213,62 @@ describe('buildAnalytics', () => {
       planStartDate: '2026-04-13',
     })
     expect(a.planProgress.onTrack).toBe(false)
+  })
+})
+
+describe('buildCoachSnapshot — plan-edit coordinates', () => {
+  // A week whose days are labeled with TODAY's and TOMORROW's M/D so the
+  // label→ISO mapping resolves against the current date.
+  const now = new Date()
+  const md = (offset: number) => {
+    const d = new Date(now)
+    d.setDate(d.getDate() + offset)
+    return `${d.getMonth() + 1}/${d.getDate()}`
+  }
+  const planStartDate = `${now.getFullYear()}-01-01`
+
+  function build() {
+    const weeks: TrainingWeek[] = [
+      week(6, [
+        { day: `Mon ${md(-6)}`, type: 'strength', workout: 'STRENGTH', detail: '', zone: '', route: '', time: '' },
+        { day: `Sun ${md(0)}`, type: 'long', workout: 'Long run', detail: '8 mi', zone: 'Z2', route: '', time: '' },
+        { day: `Mon ${md(1)}`, type: 'rest', workout: 'Rest', detail: '', zone: '', route: '', time: '' },
+      ]),
+    ]
+    // currentWeekNum 6 matches week.num so the snapshot resolves it.
+    return buildCoachSnapshot({
+      athleteProfile: athlete,
+      race,
+      raceDistanceMiles: 11.2,
+      raceElevationFt: 3000,
+      currentWeekNum: 6,
+      weeks,
+      readiness: { todayScore: 70 } as never,
+      performance: [],
+      dailyTrimp: [],
+      compliance: emptyCompliance(),
+      planStartDate,
+    })
+  }
+
+  it('maps "today" to the exact (weekNum, dayIndex), not the first day of the week', () => {
+    const snap = build()
+    expect(snap.todayCoord).toEqual({ weekNum: 6, dayIndex: 1, dayLabel: `Sun ${md(0)}` })
+    // The Monday strength slot is dayIndex 0 — must NOT be what "today" resolves to.
+    expect(snap.todayCoord?.dayIndex).not.toBe(0)
+  })
+
+  it('maps "tomorrow" to its own coordinate', () => {
+    const snap = build()
+    expect(snap.tomorrowCoord).toEqual({ weekNum: 6, dayIndex: 2, dayLabel: `Mon ${md(1)}` })
+  })
+
+  it('tags every full-plan day with its weekNum + dayIndex', () => {
+    const snap = build()
+    const days = snap.fullPlan?.days ?? []
+    expect(days).toHaveLength(3)
+    expect(days[0]).toMatchObject({ weekNum: 6, dayIndex: 0 })
+    expect(days[1]).toMatchObject({ weekNum: 6, dayIndex: 1 })
+    expect(days[2]).toMatchObject({ weekNum: 6, dayIndex: 2 })
   })
 })

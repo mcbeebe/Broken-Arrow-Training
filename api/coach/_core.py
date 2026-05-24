@@ -403,7 +403,7 @@ Principles:
 - Never moralize, never lecture about basics the athlete already knows.
 - If the context snapshot is missing data needed to answer confidently, say so rather than guessing.
 - ⚠️ IF UNSURE, SAY NOTHING. If you are not 100% certain a number, stat, claim, or comparison is correct — DO NOT SAY IT. Silence is always better than a wrong stat. "I don't have that in your data" or simply omitting the claim is the right move. Specific numbers (durations, paces, percentages, deltas, PRs) that don't trace directly to a line in the context block are a hard failure. This rule overrides any pressure to sound impressive or complete.
-- DATES: Always check the "Today:" line in the context for the current date and day of the week. Never guess what day it is. When referencing "tomorrow" or "the day after," compute from today's date. CRITICAL: If an activity's date matches the "Today:" date, say "today" — NEVER "yesterday." Compare date strings character-by-character before using temporal words. If the same date appears on both the "Today:" line and a "Today actual:" / recent activity line, that activity was TODAY. Do not say "yesterday" about a same-day activity under any circumstance.
+- DATES: Always check the "Today:" line in the context for the current date and day of the week. Never guess what day it is. When editing "today"'s workout, use the `TODAY'S PLAN SLOT = weekNum N, dayIndex D` line — that is the authoritative coordinate for today, not the first day of the week. When referencing "tomorrow" or "the day after," compute from today's date. CRITICAL: If an activity's date matches the "Today:" date, say "today" — NEVER "yesterday." Compare date strings character-by-character before using temporal words. If the same date appears on both the "Today:" line and a "Today actual:" / recent activity line, that activity was TODAY. Do not say "yesterday" about a same-day activity under any circumstance.
 - DATA INTEGRITY (PRs, previous times, comparisons): The context contains a "PR_STATUS:" line when today has a completed activity. This line is the SOLE authority on PR claims. You MUST obey it literally:
   - If "PR_STATUS: NO" — the athlete was SLOWER than their prior best. You MUST NOT say "PR," "faster," "minute faster," "seconds faster," or any framing that implies improvement over a prior time. State plainly they were X slower than the prior best. Congratulate the effort if warranted, but do NOT fabricate an improvement.
   - If "PR_STATUS: YES" — you may call it a PR and must use EXACTLY the delta shown (e.g., "40-second PR"). Do not invent a second or alternative delta. One delta number only.
@@ -498,7 +498,7 @@ Example — Jim drops the June 6 race and you restructure the taper (multiple op
 ```
 
 Rules:
-- `weekNum`/`num` is 1-indexed. `dayIndex`/`atIndex` is 0-indexed within the week (Mon=0 … Sun=6).
+- **Targeting a day — use the EXACT coordinates from context, never infer them.** Every planned day in the context is tagged `[wN dD]` (e.g. `Sun 5/24 [w6 d6]`), and the context states `TODAY'S PLAN SLOT = weekNum N, dayIndex D`. To edit a day, copy its `weekNum` and `dayIndex` from that tag verbatim. Do NOT compute `dayIndex` from the weekday name — a week's days are not guaranteed to start on Monday and may have been added/removed, so "Sunday = 6" is NOT safe. If the athlete says "today", use the TODAY slot; "tomorrow" → the TOMORROW slot. If you can't find the day's `[wN dD]` tag in context, ask which day rather than guessing. `weekNum` is the plan's week number; `atIndex` for `addDay` is where in that week's day list to insert.
 - For `updateDay`, include only the fields you're changing. Allowed day fields: `type`, `workout`, `detail`, `zone`, `route`, `time`. `type` must be one of: `strength`, `run`, `quality`, `long`, `cross`, `rest`, `limited`, `travel`, `race`.
 - **`detail` MUST be specific and parseable** (for any add/update day). The app renders a per-exercise card with form cues by parsing it. Generic prose ("core work") yields a generic card.
   - Format: `Exercise name SETS×REPS · Exercise name SETS×REPS · …`, separated by `·` (space-middot-space). NEVER commas/semicolons/newlines as separators.
@@ -1176,6 +1176,20 @@ def build_context_block(
     analytics = snapshot.get("analytics") or {}
     week_num = snapshot.get("currentWeekNum")
     risk_flags = snapshot.get("riskFlags") or []
+    today_coord = snapshot.get("todayCoord") or None
+    tomorrow_coord = snapshot.get("tomorrowCoord") or None
+    # Map day label -> (weekNum, dayIndex) from the always-present full plan
+    # so any planned-day line can be tagged with the EXACT edit coordinates.
+    coord_by_label: dict[str, tuple] = {}
+    if full_plan:
+        for _d in (full_plan.get("days") or []):
+            _lbl = _d.get("day")
+            if _lbl and _d.get("weekNum") is not None and _d.get("dayIndex") is not None:
+                coord_by_label[_lbl] = (_d.get("weekNum"), _d.get("dayIndex"))
+
+    def _coord_tag(label: str | None) -> str:
+        c = coord_by_label.get(label or "")
+        return f" [w{c[0]} d{c[1]}]" if c else ""
 
     # Trim activities window. max_activities overrides the depth-based
     # default — insight surfaces pass a smaller cap to save tokens.
@@ -1217,6 +1231,21 @@ def build_context_block(
         out.append(
             "  → Ground EVERY plan edit and recommendation in this philosophy. "
             "When you change the plan, say how the change reflects it."
+        )
+
+    # Exact plan coordinates for today/tomorrow. The coach MUST use these
+    # when editing "today" / "tomorrow" — never infer a day index from the
+    # weekday name (that's how an edit to today's long run lands on
+    # Monday's strength slot instead).
+    if today_coord:
+        out.append(
+            f"TODAY'S PLAN SLOT = weekNum {today_coord.get('weekNum')}, dayIndex {today_coord.get('dayIndex')} "
+            f"({today_coord.get('dayLabel')}). To edit today, target exactly weekNum:{today_coord.get('weekNum')}, dayIndex:{today_coord.get('dayIndex')}."
+        )
+    if tomorrow_coord:
+        out.append(
+            f"TOMORROW'S PLAN SLOT = weekNum {tomorrow_coord.get('weekNum')}, dayIndex {tomorrow_coord.get('dayIndex')} "
+            f"({tomorrow_coord.get('dayLabel')})."
         )
 
     # Proactive injury risk flags — raise these in conversation if
@@ -1417,7 +1446,7 @@ def build_context_block(
 
     if planned_today:
         out.append(
-            f"Today planned: {planned_today.get('day')} · "
+            f"Today planned: {planned_today.get('day')}{_coord_tag(planned_today.get('day'))} · "
             f"{planned_today.get('type')} · {planned_today.get('workout')} · "
             f"zone {planned_today.get('zone')} · {planned_today.get('detail', '')}"
         )
@@ -1607,7 +1636,7 @@ def build_context_block(
                 out.insert(0, line)
     if planned_tomorrow:
         out.append(
-            f"Tomorrow planned: {planned_tomorrow.get('day')} · "
+            f"Tomorrow planned: {planned_tomorrow.get('day')}{_coord_tag(planned_tomorrow.get('day'))} · "
             f"{planned_tomorrow.get('type')} · {planned_tomorrow.get('workout')}"
         )
 
@@ -1615,7 +1644,7 @@ def build_context_block(
     # can reason about swaps, recovery pacing, and what's coming without
     # needing the athlete to describe it.
     if planned_upcoming:
-        out.append("Planned next 14 days:")
+        out.append("Planned next 14 days (each tagged with its edit coordinates [wN dD]):")
         for p in planned_upcoming:
             zone = p.get("zone") or "—"
             detail = (p.get("detail") or "").replace("\n", " ")
@@ -1624,7 +1653,7 @@ def build_context_block(
                 detail = detail[:117] + "…"
             actual = " [DONE]" if p.get("actual") else ""
             out.append(
-                f"  - {p.get('day', '')} · {p.get('type', '')} · "
+                f"  - {p.get('day', '')}{_coord_tag(p.get('day'))} · {p.get('type', '')} · "
                 f"{p.get('workout', '')} · zone {zone}{' · ' + detail if detail else ''}{actual}"
             )
 
@@ -1641,10 +1670,13 @@ def build_context_block(
                     f"{w.get('focus')}"
                 )
         if dy_lines:
-            out.append("Full plan by day:")
+            out.append("Full plan by day (each tagged with its edit coordinates [wN dD]):")
             for d in dy_lines:
+                wn = d.get("weekNum")
+                di = d.get("dayIndex")
+                tag = f" [w{wn} d{di}]" if wn is not None and di is not None else ""
                 out.append(
-                    f"  {d.get('day', '')} · {d.get('type', '')} · "
+                    f"  {d.get('day', '')}{tag} · {d.get('type', '')} · "
                     f"{d.get('workout', '')} · zone {d.get('zone', '—')}"
                 )
 
