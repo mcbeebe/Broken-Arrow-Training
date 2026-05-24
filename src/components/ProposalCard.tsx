@@ -1,4 +1,5 @@
 import type { CoachAction, PlannedDay } from '../types'
+import { summarizeOp } from '../utils/chatProposal'
 
 const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
@@ -22,8 +23,17 @@ export default function ProposalCard({
 }: Props) {
   if (action.type !== 'propose_edit' || !action.proposedEdit) return null
   const pe = action.proposedEdit
-  const original = getPlannedDay?.(pe.weekNum, pe.dayIndex) ?? null
-  const dayLabel = original?.day || `Wk ${pe.weekNum} ${DAY_LABELS[pe.dayIndex]}`
+  const ops = pe.ops ?? []
+  if (ops.length === 0) return null
+
+  // Single updateDay → keep the rich before→after card. Anything else
+  // (multiple ops, or a structural add/delete/week op) → summary list.
+  const single = ops.length === 1 && ops[0].op.kind === 'updateDay' ? ops[0].op : null
+  const su = single ? { weekNum: single.weekNum, dayIndex: single.dayIndex, updates: single.updates } : null
+  const original = su ? (getPlannedDay?.(su.weekNum, su.dayIndex) ?? null) : null
+  const headerLabel = su
+    ? (original?.day || `Wk ${su.weekNum} ${DAY_LABELS[su.dayIndex] ?? ''}`.trim())
+    : `${ops.length} changes`
 
   if (status === 'applied') {
     return (
@@ -32,7 +42,7 @@ export default function ProposalCard({
         onClick={e => e.stopPropagation()}
       >
         <span className="text-xs text-emerald-700 dark:text-emerald-300 font-medium">
-          ✓ Applied to {dayLabel}
+          ✓ Applied {su ? `to ${headerLabel}` : `${ops.length} changes`}
         </span>
         {overrideId && onUndo && (
           <button
@@ -53,7 +63,7 @@ export default function ProposalCard({
         onClick={e => e.stopPropagation()}
       >
         <span className="text-xs text-slate-500 dark:text-slate-400">
-          Kept original for {dayLabel}
+          {su ? `Kept original for ${headerLabel}` : 'Kept your plan unchanged'}
         </span>
       </div>
     )
@@ -66,65 +76,76 @@ export default function ProposalCard({
     >
       <div className="px-3 py-2 border-b border-indigo-100 dark:border-slate-700 bg-indigo-50 dark:bg-indigo-950">
         <p className="text-xs font-bold text-indigo-700 dark:text-indigo-300">
-          📋 Proposed change for {dayLabel}
+          📋 {su ? `Proposed change for ${headerLabel}` : `Proposed plan update · ${ops.length} changes`}
         </p>
       </div>
+
       <div className="px-3 py-2 space-y-1.5">
-        {original && (
-          <div className="text-[11px] text-slate-500 dark:text-slate-400">
-            <span className="font-semibold">Current:</span> {original.workout}
-          </div>
+        {su ? (
+          <>
+            {original && (
+              <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                <span className="font-semibold">Current:</span> {original.workout}
+              </div>
+            )}
+            <div className="text-xs text-slate-700 dark:text-slate-200">
+              <span className="font-semibold text-indigo-700 dark:text-indigo-300">New:</span>{' '}
+              {su.updates.workout || action.detail}
+            </div>
+            {su.updates.detail && (
+              <div className="text-[11px] text-slate-500 dark:text-slate-400 leading-snug">
+                {su.updates.detail}
+              </div>
+            )}
+            {su.updates.zone && (
+              <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                Zone: {su.updates.zone}{su.updates.time ? ` · ${su.updates.time}` : ''}
+              </div>
+            )}
+          </>
+        ) : (
+          <ul className="space-y-1">
+            {ops.map((o, i) => (
+              <li key={i} className="text-[11px] text-slate-700 dark:text-slate-200 leading-snug flex gap-1.5">
+                <span className="text-indigo-400 dark:text-indigo-500">•</span>
+                <span>{summarizeOp(o.op, getPlannedDay)}</span>
+              </li>
+            ))}
+          </ul>
         )}
-        <div className="text-xs text-slate-700 dark:text-slate-200">
-          <span className="font-semibold text-indigo-700 dark:text-indigo-300">New:</span>{' '}
-          {pe.updates.workout || action.detail}
-        </div>
-        {pe.updates.detail && (
-          <div className="text-[11px] text-slate-500 dark:text-slate-400 leading-snug">
-            {pe.updates.detail}
-          </div>
-        )}
-        {pe.updates.zone && (
-          <div className="text-[11px] text-slate-500 dark:text-slate-400">
-            Zone: {pe.updates.zone}{pe.updates.time ? ` · ${pe.updates.time}` : ''}
-          </div>
-        )}
+
         {pe.rationale && (
           <div className="text-[11px] italic text-slate-500 dark:text-slate-400 pt-1 border-t border-slate-100 dark:border-slate-700">
             "{pe.rationale}"
           </div>
         )}
+
         {onAsk && (() => {
-          const newLabel = pe.updates.workout || action.detail || 'the proposed change'
-          const fromLabel = original?.workout || 'current'
-          const seed = `Why this swap for ${dayLabel}? Walk me through the mechanism, why it's right for me today, and cite a source. (Swap: ${fromLabel} → ${newLabel}${pe.rationale ? ` · stated rationale: ${pe.rationale}` : ''})`
+          const seed = su
+            ? `Why this change for ${headerLabel}? Walk me through the mechanism, why it's right for me today, and cite a source.`
+            : `Why these ${ops.length} changes? Walk me through your reasoning, how it fits my training philosophy, and cite a source.`
           return (
             <button
               onClick={() => onAsk(seed)}
               className="text-[11px] font-semibold text-indigo-700 dark:text-indigo-300 hover:text-indigo-900 dark:hover:text-indigo-100 pt-1"
             >
-              🧠 Why this swap? →
+              🧠 Why? →
             </button>
           )
         })()}
       </div>
+
       <div className="flex gap-1 px-2 pb-2">
         <button
           onClick={() => onApprove?.(action)}
           className="flex-1 text-xs font-semibold py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors"
         >
-          ✓ Apply
+          ✓ {ops.length > 1 ? 'Apply all' : 'Apply'}
         </button>
-        {/* Sprint 2 — Modify: open a negotiation. Pre-fills the composer
-            with the swap context so the athlete can counter ("keep it as
-            tempo but move to Saturday"). The coach replies with a fresh
-            proposal that the athlete then accepts. This is the "talk to
-            your coach, don't be talked to" loop — directly inverts
-            Athletica's silent-modify posture. */}
         {onAsk && (() => {
-          const newLabel = pe.updates.workout || action.detail || 'the proposed change'
-          const fromLabel = original?.workout || 'current'
-          const seed = `I'd like to modify this swap for ${dayLabel}: ${fromLabel} → ${newLabel}. Here's what I want different: `
+          const seed = su
+            ? `I'd like to modify this change for ${headerLabel}. Here's what I want different: `
+            : `I'd like to adjust these proposed changes. Here's what I want different: `
           return (
             <button
               onClick={() => onAsk(seed)}

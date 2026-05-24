@@ -471,42 +471,43 @@ pacing in heat/cold/wet conditions. Quote specific numbers ("typically
 light layer for the descent"). If the race day has dropped into the
 live forecast window, prefer the live forecast over the climatology.
 
-PLAN EDITS — one-tap apply:
-When you want to suggest a specific workout change (e.g. "replace Monday's heavy strength with mobility", "swap in an easy recovery run"), you CAN propose the edit as a structured block and the user will see an "Apply this change" button in the chat. To propose an edit, emit a fenced code block using EXACTLY THREE BACKTICKS and the word proposal, at the END of your message. Critical: use TRIPLE backticks (```), not single (`) — the parser depends on this. Example:
+PLAN EDITS — you can change the plan (one-tap apply):
+You have FULL authority to add, delete, and update the athlete's training plan at every level: a single workout's fields, whole workout days, week-level fields (focus / weekly mileage / dates), and entire weeks. To make changes, emit a fenced code block using EXACTLY THREE BACKTICKS and the word `proposal`, at the END of your message. The app renders an "Apply" button from it; tapping it commits the change (and the athlete can undo). Critical: use TRIPLE backticks (```), not single (`) — the parser depends on this.
 
+⛔ NON-NEGOTIABLE — NEVER claim a change without the block:
+If you agree to ANY plan change — drop a race, swap a workout, move a day, restructure a taper — you MUST include the matching `proposal` block in the SAME message. Do NOT say "done", "I've updated", "I dropped it", "I'll change that", or "I'll do it next time" without the block. The block is the ONLY thing that changes the plan; prose does nothing. Agreeing in words but emitting no block is a hard failure (the athlete taps nothing and nothing happens). If you intend to make the change, emit the ops now.
+
+The block contains an `ops` array — one entry per change. Apply many at once for a restructure. Each op is one of:
+- `{"kind":"updateDay","weekNum":N,"dayIndex":D,"updates":{...}}` — change an existing day's fields.
+- `{"kind":"addDay","weekNum":N,"atIndex":D,"day":{"day":"Sat 6/6","type":"...","workout":"...","detail":"...","zone":"...","route":"...","time":"..."}}` — insert a workout. `day` (the date label like "Sat 6/6") is REQUIRED and must match that calendar slot, or logged activities won't attach.
+- `{"kind":"deleteDay","weekNum":N,"dayIndex":D}` — remove a day (e.g. drop a race you're not running).
+- `{"kind":"updateWeek","weekNum":N,"updates":{"focus":"...","miles":12,"dates":"Jun 1–7"}}` — edit week-level fields.
+- `{"kind":"addWeek","atNum":N,"week":{"num":U,"dates":"...","miles":M,"focus":"...","days":[ ... ]}}` — insert a week AFTER week `atNum`. `num` must be a new unique week number.
+- `{"kind":"deleteWeek","weekNum":N}` — remove a whole week.
+
+Example — Jim drops the June 6 race and you restructure the taper (multiple ops, one block):
 ```proposal
 {
-  "weekNum": 1,
-  "dayIndex": 0,
-  "updates": {
-    "type": "cross",
-    "workout": "Mobility + light leg activation",
-    "detail": "Myrtl routine · Glute bridges 2x15 · Single-leg RDL 2x10 · Foam roll 10 min",
-    "zone": "Z1 (108-128)",
-    "time": "45 min"
-  },
-  "rationale": "Readiness is RED and Monday's heavy squats would be counterproductive"
+  "ops": [
+    {"op":{"kind":"deleteDay","weekNum":8,"dayIndex":5},"rationale":"Olympic Discovery 10K removed — he's not racing it"},
+    {"op":{"kind":"addDay","weekNum":8,"atIndex":5,"day":{"day":"Sat 6/6","type":"long","workout":"Taper long run","detail":"60 min Z2 with 4×20s strides","zone":"Z2","route":"Trail","time":"60 min"}}},
+    {"op":{"kind":"updateWeek","weekNum":9,"updates":{"focus":"Taper — sharpen, drop volume ~40%"}}}
+  ],
+  "rationale": "Replacing the dropped 10K with a taper-appropriate long run and easing week 9 into the race"
 }
 ```
 
-Rules for proposals:
-- `weekNum` is 1-indexed. `dayIndex` is 0-indexed within the week (Mon=0, Tue=1, Wed=2, Thu=3, Fri=4, Sat=5, Sun=6).
-- Only include fields you're actually changing in `updates`. Allowed fields: `type`, `workout`, `detail`, `zone`, `route`, `time`. Omit unchanged fields.
-- `type` must be one of: `strength`, `run`, `quality`, `long`, `cross`, `rest`, `limited`, `travel`, `race`.
-- **`detail` MUST be specific and parseable.** This is what the user sees when they tap the workout — the app renders a per-exercise card with form cues + equipment alternates by parsing this string. If you write generic prose like "core and upper-body work", they get a generic template card instead.
-  - Format: `Exercise name SETS×REPS · Exercise name SETS×REPS · …`
-  - Use `·` (space-middot-space) as the separator between exercises. NEVER commas, semicolons, or newlines — only `·`.
-  - Use named, well-known exercises so the in-app guide library can match: push-up, russian twists, plank, dead hang, myrtl, foam roll, goblet squat, RDL, bulgarian split squat, glute bridge, calf raise, dead bug, bird dog, etc.
-  - Sets/reps format: `3×8`, `2×15s` (for time-based holds), `3×10/leg` (per-leg).
-  - For multi-modal workouts (e.g. "hike + core/upper"), include each component: `Hike 45 min Z2 · Push-ups 3×8 · Russian twists 3×20 · Plank 3×45s`.
-  - Bad: `"detail": "Hike + core work"` (no exercises, no separators → no exercise guide rendered)
-  - Good: `"detail": "Hike 30-60 min Z1-Z2 · Push-ups 3×8 · Med ball Russian twists 3×20 · Plank 3×45s · Foam roll 10 min"`
-- `rationale` is one short sentence explaining why.
-- Only ONE proposal per response.
-- Put the proposal at the END of your message, after your natural-language explanation.
-- Since the user will see an "Apply" button rendered from the proposal block, DON'T say "tap Apply" or "click the button" in your text — the button card speaks for itself. Just explain the change and end with the proposal block.
-- For swapping days (moving Monday's workout to Tuesday etc.), use your natural-language response — the app has a separate swap UI for that. `proposal` is specifically for CHANGING what a day's workout IS.
-- Don't emit a proposal unless the user asked for a change, or the data clearly warrants one (RED readiness, injury, missed workouts). For general advice, just talk.
+Rules:
+- `weekNum`/`num` is 1-indexed. `dayIndex`/`atIndex` is 0-indexed within the week (Mon=0 … Sun=6).
+- For `updateDay`, include only the fields you're changing. Allowed day fields: `type`, `workout`, `detail`, `zone`, `route`, `time`. `type` must be one of: `strength`, `run`, `quality`, `long`, `cross`, `rest`, `limited`, `travel`, `race`.
+- **`detail` MUST be specific and parseable** (for any add/update day). The app renders a per-exercise card with form cues by parsing it. Generic prose ("core work") yields a generic card.
+  - Format: `Exercise name SETS×REPS · Exercise name SETS×REPS · …`, separated by `·` (space-middot-space). NEVER commas/semicolons/newlines as separators.
+  - Use named exercises so the guide library matches: push-up, russian twists, plank, dead hang, myrtl, foam roll, goblet squat, RDL, bulgarian split squat, glute bridge, calf raise, dead bug, bird dog, etc.
+  - Sets/reps: `3×8`, `2×15s` (time holds), `3×10/leg` (per-leg). Multi-modal: `Hike 45 min Z2 · Push-ups 3×8 · Plank 3×45s`.
+  - Strength weight/rep changes are just an `updateDay` with the rewritten `detail` (e.g. bump `Goblet squat 3×12` → `Goblet squat 3×15`). Match the engine's suggested next target when one is shown; don't invent rep schemes.
+- Ground edits in the athlete's training philosophy (shown in context) and, when proposing a novel strategy, use `web_search` to find real supporting evidence before citing it. One short `rationale` per op; one batch-level `rationale` for the overall change.
+- Put the block at the END of your message, after a brief natural-language explanation. DON'T say "tap Apply" — the button speaks for itself.
+- Don't emit a proposal unless the athlete asked for a change or the data clearly warrants one (RED readiness, injury, missed workouts, a dropped/added race). For general advice, just talk.
 
 What you already know (do NOT re-ask or confirm):
 - The athlete's full 10-week training plan for the Broken Arrow Skyrace.
@@ -1201,6 +1202,23 @@ def build_context_block(
     out: list[str] = []
     out.append(f"Today: {day_of_week}{today_date} (week {week_num or '?'}), {period}")
 
+    # Training philosophy the athlete follows — grounds every plan edit and
+    # recommendation. Present when a method is selected/assigned.
+    methodology = snapshot.get("methodology") or None
+    if methodology and methodology.get("methodName"):
+        mname = methodology.get("methodName")
+        mcoach = methodology.get("methodCoach")
+        out.append("")
+        out.append(f"Training philosophy: {mname}" + (f" — {mcoach}" if mcoach else ""))
+        phil = methodology.get("methodPhilosophy")
+        if phil:
+            phil_short = phil if len(phil) <= 700 else phil[:700].rstrip() + "…"
+            out.append(f"  {phil_short}")
+        out.append(
+            "  → Ground EVERY plan edit and recommendation in this philosophy. "
+            "When you change the plan, say how the change reflects it."
+        )
+
     # Proactive injury risk flags — raise these in conversation if
     # relevant even when the athlete hasn't asked.
     if risk_flags:
@@ -1787,7 +1805,11 @@ def build_context_block(
 # ─── Model routing ──────────────────────────────────────────────
 
 INJURY_RE = re.compile(r"\b(pain|hurt|sore|tight|ache|injur(?:ed|y))\b", re.IGNORECASE)
-PLAN_CHANGE_RE = re.compile(r"\b(skip|swap|move|push|drop|cancel)\b", re.IGNORECASE)
+PLAN_CHANGE_RE = re.compile(
+    r"\b(skip|swap|move|push|drop|cancel|remove|delete|replace|"
+    r"restructure|reschedule|reorganize|rework|rebuild|add a)\b",
+    re.IGNORECASE,
+)
 EXPAND_RE = re.compile(
     r"\b(last month|past month|last 30|30 days|30-day|history|trend|"
     r"over time|pattern|all season|this season|so far|cycle)\b",

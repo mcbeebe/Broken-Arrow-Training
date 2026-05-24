@@ -229,6 +229,43 @@ export interface TrainingWeek {
   days: PlannedDay[];
 }
 
+// ─── Structural plan edits (Coach + manual) ─────────────────────
+// The plan is edited via an ordered op-log replayed over the immutable
+// base plan (see usePlanEdits). One op = one add/delete/update at the day
+// or week level. Strength edits (sets/reps/weight) ride inside an
+// `updateDay` op's rewritten `detail` string — no dedicated op kind.
+
+/** Fields of a planned day the coach/user may patch. `day` (the date
+ *  label) and `actual` (logged data) are never edited this way. */
+export type DayUpdates = Partial<Omit<PlannedDay, 'day' | 'actual' | 'secondaryActuals' | 'plannedWorkout'>>;
+
+/** Week-level fields editable as a unit (focus text, weekly volume, dates). */
+export type WeekUpdates = Partial<Pick<TrainingWeek, 'dates' | 'miles' | 'focus'>>;
+
+export type PlanEditOp =
+  | { kind: 'updateDay'; weekNum: number; dayIndex: number; updates: DayUpdates }
+  | { kind: 'addDay'; weekNum: number; atIndex: number; day: PlannedDay }
+  | { kind: 'deleteDay'; weekNum: number; dayIndex: number }
+  | { kind: 'updateWeek'; weekNum: number; updates: WeekUpdates }
+  | { kind: 'addWeek'; atNum: number; week: TrainingWeek }
+  | { kind: 'deleteWeek'; weekNum: number };
+
+/** A single op as proposed by the coach, with its own one-line rationale. */
+export interface PlanEditOpInput {
+  op: PlanEditOp;
+  rationale?: string;
+}
+
+/** A persisted edit: one op, tagged with the batch it was applied in so a
+ *  whole coach proposal can be undone as a unit. */
+export interface PlanEdit {
+  id: string;
+  batchId: string;
+  op: PlanEditOp;
+  rationale?: string;
+  appliedAt: number;
+}
+
 export interface RaceInfo {
   name: string;
   date: string;
@@ -578,12 +615,18 @@ export interface CoachAction {
   swapFromIndex?: number
   swapToIndex?: number
   swapWeekNum?: number
-  /** For 'propose_edit' actions: which day to modify and what to change. */
+  /** For 'propose_edit' actions: the batch of plan edits to apply. `ops`
+   *  is the source of truth (length ≥ 1) and may include any structural
+   *  op (add/delete/update at day or week level). The legacy
+   *  `weekNum`/`dayIndex`/`updates` mirror is populated ONLY when the
+   *  batch is a single `updateDay` op, so older single-edit UI/state code
+   *  keeps working unchanged. */
   proposedEdit?: {
-    weekNum: number
-    dayIndex: number
-    updates: Partial<Omit<PlannedDay, 'day' | 'actual'>>
+    ops: PlanEditOpInput[]
     rationale?: string
+    weekNum?: number
+    dayIndex?: number
+    updates?: DayUpdates
   }
 }
 
@@ -957,6 +1000,16 @@ export interface CoachSnapshot {
     suggestedTarget?: { weightLb: number; reps: number; sets: number; tier: 'progress' | 'hold' | 'deload' | 'starting'; rationale: string }
   }[]
   coachPersona?: CoachPersona | null
+  /** The training philosophy the athlete is following (selected at
+   *  onboarding, or the default assigned to a seed athlete). Lets the
+   *  coach ground every plan edit in the athlete's chosen methodology
+   *  instead of generic endurance doctrine. */
+  methodology?: {
+    methodName?: string
+    methodCoach?: string
+    methodKeyBook?: string
+    methodPhilosophy?: string
+  } | null
 }
 
 export interface CoachInsight {

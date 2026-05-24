@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { OnboardingConfig } from '../hooks/useOnboarding'
 import type { TrainingMethod } from '../types/training-method'
-import { ALL_METHODS } from '../data/methods'
+import { RECOMMENDABLE_METHODS } from '../data/methods'
 import {
   inputsFromOnboarding,
   selectMethods,
@@ -12,7 +12,8 @@ interface Props {
   config: OnboardingConfig
   onConfirm: (methodId: string) => void
   onBack?: () => void
-  /** Override for tests. Defaults to the full 8-method library. */
+  /** Override for tests. Defaults to the recommendable method library
+   *  (excludes coaching-only philosophies like TrainingPeaks). */
   methods?: readonly TrainingMethod[]
 }
 
@@ -25,7 +26,7 @@ interface Props {
  * to render it). If the screen is rendered without a raceDistance, it
  * falls back to a guidance message rather than crashing.
  */
-export default function MethodSelection({ config, onConfirm, onBack, methods = ALL_METHODS }: Props) {
+export default function MethodSelection({ config, onConfirm, onBack, methods = RECOMMENDABLE_METHODS }: Props) {
   const picks = useMemo<MethodPick[]>(() => {
     const inputs = inputsFromOnboarding(config)
     return inputs ? selectMethods(methods, inputs) : []

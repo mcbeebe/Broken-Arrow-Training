@@ -6,7 +6,7 @@ import { useStrava } from './hooks/useStrava'
 import { useGarmin } from './hooks/useGarmin'
 import { useCompliance } from './hooks/useCompliance'
 import { useManualLog } from './hooks/useManualLog'
-import { usePlanOverrides } from './hooks/usePlanOverrides'
+import { usePlanEdits } from './hooks/usePlanEdits'
 import { useDaySwap } from './hooks/useDaySwap'
 import { useReadiness } from './hooks/useReadiness'
 import { useOnboarding } from './hooks/useOnboarding'
@@ -18,6 +18,8 @@ import MethodSelection from './components/MethodSelection'
 import MethodologyPrimer from './components/MethodologyPrimer'
 import ZonesPrimer from './components/ZonesPrimer'
 import { getMethodById } from './data/methods'
+import { summarizeOp } from './utils/chatProposal'
+import { resolveMethodId } from './utils/resolveMethod'
 import { generatePlanFromMethod } from './engines/planGenerator/generatePlan'
 import { useSoreness } from './hooks/useSoreness'
 import { useMIMCalibration } from './hooks/useMIMCalibration'
@@ -328,7 +330,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
   }, [])
   const manualLog = useManualLog(athleteId)
   const daySwap = useDaySwap(athleteId)
-  const planOverrides = usePlanOverrides(athleteId)
+  const planEdits = usePlanEdits(athleteId)
   const soreness = useSoreness(athleteId)
   const hrZones = useHRZones(athleteId, activePlan.zones)
   const maxHROverride = useMaxHR(athleteId, activePlan.athlete.maxHR)
@@ -378,10 +380,12 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
   // Merge Strava or manual log data into training plan
   const weeks = useMemo(() => {
     let w = activePlan.weeks
+    // Coach/manual structural edits (add/delete/update days & weeks) apply
+    // FIRST so they define the canonical week/day set everything else
+    // composes onto. Day labels on added days keep actuals/log matching
+    // (which is label-keyed) correct across structural changes.
+    w = planEdits.applyEditsToWeeks(w)
     w = daySwap.applySwapsToWeeks(w)
-    // Coach-proposed plan overrides (e.g. swap strength for mobility)
-    // apply BEFORE actuals so actual matches still line up by day label.
-    w = planOverrides.applyOverridesToWeeks(w)
     if (showStrava && strava.activities.length > 0) {
       w = matchActivitiesToPlan(w, strava.activities)
     }
@@ -395,7 +399,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     // display surface and to the compliance grader that reads day.zone.
     w = rezoneWeeks(w, hrZones.zones)
     return w
-  }, [activePlan.weeks, strava.activities, showStrava, manualLog.applyLogsToWeeks, daySwap.applySwapsToWeeks, planOverrides.applyOverridesToWeeks, garmin.connected, garmin.activityDetails, hrZones.zones])
+  }, [activePlan.weeks, strava.activities, showStrava, manualLog.applyLogsToWeeks, daySwap.applySwapsToWeeks, planEdits.applyEditsToWeeks, garmin.connected, garmin.activityDetails, hrZones.zones])
 
   const compliance = useCompliance(weeks)
   const raceName = activePlan.race.name || (activePlan.race.distance.includes('18K') ? 'BROKEN ARROW 18K' : 'BROKEN ARROW 11K')
@@ -641,8 +645,8 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
   // destination day appearing as a Rest day).
   const swapDaysWithOverrides = useCallback((weekNum: number, fromIndex: number, toIndex: number) => {
     daySwap.swapDays(weekNum, fromIndex, toIndex)
-    planOverrides.swapDayIndices(weekNum, fromIndex, toIndex)
-  }, [daySwap, planOverrides])
+    planEdits.swapDayIndices(weekNum, fromIndex, toIndex)
+  }, [daySwap, planEdits])
 
   const wrappedDaySwap = useMemo(() => ({
     swapDays: swapDaysWithOverrides,
@@ -655,11 +659,11 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     swapDaysWithOverrides(currentWeekNum, fromIndex, toIndex)
   }, [swapDaysWithOverrides, currentWeekNum])
 
-  // Manual workout editor — writes through the same planOverrides hook the
+  // Manual workout editor — writes through the same planEdits hook the
   // Coach uses, so user edits compose with logs/swaps automatically.
   const planEdit = useMemo(() => ({
     editDay: (weekNum: number, dayIndex: number, updates: import('./components/WorkoutEditor').WorkoutEdits) => {
-      planOverrides.applyOverride({
+      planEdits.applyOverride({
         weekNum,
         dayIndex,
         updates,
@@ -667,11 +671,11 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
       })
     },
     revertDay: (weekNum: number, dayIndex: number) => {
-      planOverrides.removeForDay(weekNum, dayIndex)
+      planEdits.removeForDay(weekNum, dayIndex)
     },
     hasEdit: (weekNum: number, dayIndex: number) =>
-      planOverrides.overrides.some(o => o.weekNum === weekNum && o.dayIndex === dayIndex),
-  }), [planOverrides])
+      planEdits.hasEditForDay(weekNum, dayIndex),
+  }), [planEdits])
 
   // Sprint 5 — fetch 14-day forecast + 10-year race-day climate. Returns
   // null when race coordinates aren't configured (legacy plans), in
@@ -683,6 +687,14 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
   const athleteLocation = useAthleteLocation(athleteId)
   const workoutTimePref = useWorkoutTimePreference(athleteId)
   const weatherBlock = useWeather(activePlan.race, athleteLocation.location, workoutTimePref.hour)
+
+  // The training philosophy this athlete follows — their onboarding pick,
+  // or the seed-athlete default (TrainingPeaks). Grounds the coach's plan
+  // edits in the chosen methodology and drives the Methodology screen.
+  const trainingMethod = useMemo(() => {
+    const id = resolveMethodId(athleteId, onboarding.config)
+    return id ? getMethodById(id) : undefined
+  }, [athleteId, onboarding.config])
 
   // Assemble the CoachSnapshot for LLM calls
   const coachSnapshot: CoachSnapshot | null = useMemo(() => {
@@ -714,6 +726,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
       stravaActivities: strava.activities,
       garminActivities: garmin.garminActivities,
       garminActivityDetails: garmin.activityDetails,
+      trainingMethod,
     })
     // Attach persona so the API can shape the system prompt voice
     const persona = coachMemory.coachPersona
@@ -749,6 +762,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     strava.activities,
     garmin.garminActivities,
     weatherBlock,
+    trainingMethod,
   ])
 
   // Daily LLM insight (shared between Summary + Coach tab)
@@ -818,28 +832,19 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
   // works without a network.
   const describeProposal = useCallback((action: CoachAction): string => {
     const pe = action.proposedEdit
-    if (!pe) return 'unknown proposal'
-    const original = getPlannedDay(pe.weekNum, pe.dayIndex)
-    const fromLabel = original?.workout || 'current workout'
-    const toLabel = pe.updates.workout || pe.updates.detail || action.detail || 'modified workout'
-    const day = original?.day || `Wk ${pe.weekNum} D${pe.dayIndex}`
-    return `${day}: ${fromLabel} → ${toLabel}`
+    if (!pe || !pe.ops?.length) return 'unknown proposal'
+    return pe.ops.map(o => summarizeOp(o.op, getPlannedDay)).join(' · ')
   }, [getPlannedDay])
 
   const handleApproveAction = useCallback((turnId: string, action: CoachAction) => {
-    if (action.type !== 'propose_edit' || !action.proposedEdit) return
-    const overrideId = planOverrides.applyOverride({
-      weekNum: action.proposedEdit.weekNum,
-      dayIndex: action.proposedEdit.dayIndex,
-      updates: action.proposedEdit.updates,
-      rationale: action.proposedEdit.rationale,
-    })
+    if (action.type !== 'propose_edit' || !action.proposedEdit?.ops?.length) return
+    const overrideId = planEdits.applyBatch(action.proposedEdit.ops)
     coachMemory.updateTurn(turnId, { actionStatus: 'applied', actionOverrideId: overrideId })
     coachMemory.appendTurn(
       'system-handoff',
-      `[PLAN EDIT APPLIED] Athlete accepted the proposed swap → ${describeProposal(action)}. Override id ${overrideId}.`,
+      `[PLAN EDIT APPLIED] Athlete accepted the proposed change → ${describeProposal(action)}. Batch id ${overrideId}.`,
     )
-  }, [planOverrides, coachMemory, describeProposal])
+  }, [planEdits, coachMemory, describeProposal])
 
   const handleRejectAction = useCallback((turnId: string) => {
     const turn = coachMemory.conversation.find(t => t.id === turnId)
@@ -853,39 +858,34 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
   }, [coachMemory, describeProposal])
 
   const handleUndoAction = useCallback((turnId: string, overrideId: string) => {
-    planOverrides.removeOverride(overrideId)
+    planEdits.removeOverride(overrideId)
     coachMemory.updateTurn(turnId, { actionStatus: 'pending', actionOverrideId: undefined })
     coachMemory.appendTurn(
       'system-handoff',
-      `[PLAN EDIT REVERTED] Athlete undid a previously-applied swap (override ${overrideId}). Treat as a soft signal that the swap may not have worked for them.`,
+      `[PLAN EDIT REVERTED] Athlete undid a previously-applied change (batch ${overrideId}). Treat as a soft signal that the change may not have worked for them.`,
     )
-  }, [planOverrides, coachMemory])
+  }, [planEdits, coachMemory])
 
   // Daily-insight proposals don't live in coachMemory, so they get their
-  // own approve/undo path that just touches planOverrides. The card
+  // own approve/undo path that just touches planEdits. The card
   // tracks its own pending/applied/rejected status in localStorage.
   const handleApproveInsightProposal = useCallback((action: CoachAction): string | undefined => {
-    if (action.type !== 'propose_edit' || !action.proposedEdit) return undefined
-    const overrideId = planOverrides.applyOverride({
-      weekNum: action.proposedEdit.weekNum,
-      dayIndex: action.proposedEdit.dayIndex,
-      updates: action.proposedEdit.updates,
-      rationale: action.proposedEdit.rationale,
-    })
+    if (action.type !== 'propose_edit' || !action.proposedEdit?.ops?.length) return undefined
+    const overrideId = planEdits.applyBatch(action.proposedEdit.ops)
     coachMemory.appendTurn(
       'system-handoff',
-      `[PLAN EDIT APPLIED] Athlete accepted the proposed swap from a daily insight → ${describeProposal(action)}. Override id ${overrideId}.`,
+      `[PLAN EDIT APPLIED] Athlete accepted the proposed change from a daily insight → ${describeProposal(action)}. Batch id ${overrideId}.`,
     )
     return overrideId
-  }, [planOverrides, coachMemory, describeProposal])
+  }, [planEdits, coachMemory, describeProposal])
 
   const handleUndoInsightProposal = useCallback((overrideId: string) => {
-    planOverrides.removeOverride(overrideId)
+    planEdits.removeOverride(overrideId)
     coachMemory.appendTurn(
       'system-handoff',
-      `[PLAN EDIT REVERTED] Athlete undid a daily-insight swap (override ${overrideId}).`,
+      `[PLAN EDIT REVERTED] Athlete undid a daily-insight change (batch ${overrideId}).`,
     )
-  }, [planOverrides, coachMemory])
+  }, [planEdits, coachMemory])
 
   // First-time post-onboarding walkthrough — shown only when the athlete
   // came in via the onboarding flow (so pre-built handcrafted plans like
@@ -1144,7 +1144,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           onResetMIM={mimCalibration.resetOverride}
           onRecalibrateMIM={mimCalibration.calibrate}
           activePlan={activePlan}
-          trainingMethod={onboarding.config?.selectedMethodId ? getMethodById(onboarding.config.selectedMethodId) : undefined}
+          trainingMethod={trainingMethod}
           onboardingConfig={onboarding.config ?? undefined}
           performance={readiness.performance}
           mergedWeeks={weeks}
