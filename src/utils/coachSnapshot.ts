@@ -18,6 +18,7 @@ import type {
 } from '../types'
 import type { OverallCompliance } from '../hooks/useCompliance'
 import type { SorenessLevel } from '../hooks/useSoreness'
+import type { TrainingMethod } from '../types/training-method'
 import { computeRaceProjection } from './raceProjection'
 import { localDateStr } from './format'
 import { buildProgression, suggestNextTarget } from './strengthProgression'
@@ -60,6 +61,9 @@ interface Inputs {
   /** Garmin activity details keyed by date — enriches activities with
    *  distance, HR zones, training effects, VO2max. */
   garminActivityDetails?: Record<string, GarminActivityDetail[]>
+  /** The training philosophy the athlete follows. Surfaced so the coach
+   *  grounds plan edits in the chosen methodology. */
+  trainingMethod?: TrainingMethod
 }
 
 function currentDayPeriod(): 'morning' | 'afternoon' | 'evening' {
@@ -532,5 +536,13 @@ export function buildCoachSnapshot(inputs: Inputs): CoachSnapshot {
     zones: inputs.zones,
     analytics,
     strengthProgression: strengthProgression.length > 0 ? strengthProgression : undefined,
+    methodology: inputs.trainingMethod
+      ? {
+          methodName: inputs.trainingMethod.name,
+          methodCoach: inputs.trainingMethod.coach,
+          methodKeyBook: inputs.trainingMethod.keyBook,
+          methodPhilosophy: inputs.trainingMethod.philosophyNarrative,
+        }
+      : null,
   }
 }

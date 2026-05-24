@@ -58,11 +58,24 @@ interface ProposalState {
   overrideId?: string
 }
 
+function hashStr(s: string): string {
+  let h = 0
+  for (let i = 0; i < s.length; i++) {
+    h = (Math.imul(31, h) + s.charCodeAt(i)) | 0
+  }
+  return (h >>> 0).toString(36)
+}
+
 function proposalStateKey(athleteId: string | undefined, action: CoachAction): string | null {
   const pe = action.proposedEdit
-  if (!pe) return null
+  if (!pe || !pe.ops?.length) return null
   const scope = athleteId || 'default'
-  return `${PROPOSAL_STATE_PREFIX}:${scope}:w${pe.weekNum}d${pe.dayIndex}`
+  // Single-day updates keep the legacy stable key (continuity with any
+  // already-persisted state). Batches hash their ops for a stable key.
+  if (pe.weekNum != null && pe.dayIndex != null) {
+    return `${PROPOSAL_STATE_PREFIX}:${scope}:w${pe.weekNum}d${pe.dayIndex}`
+  }
+  return `${PROPOSAL_STATE_PREFIX}:${scope}:b${hashStr(JSON.stringify(pe.ops))}`
 }
 
 function readProposalState(athleteId: string | undefined, action: CoachAction): ProposalState {
