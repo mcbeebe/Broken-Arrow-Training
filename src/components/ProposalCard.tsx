@@ -35,26 +35,7 @@ export default function ProposalCard({
     ? (original?.day || `Wk ${su.weekNum} ${DAY_LABELS[su.dayIndex] ?? ''}`.trim())
     : `${ops.length} changes`
 
-  if (status === 'applied') {
-    return (
-      <div
-        className="mt-2 w-full flex items-center justify-between px-3 py-2 rounded-xl bg-emerald-50 dark:bg-emerald-950 border border-emerald-200 dark:border-emerald-900"
-        onClick={e => e.stopPropagation()}
-      >
-        <span className="text-xs text-emerald-700 dark:text-emerald-300 font-medium">
-          ✓ Applied {su ? `to ${headerLabel}` : `${ops.length} changes`}
-        </span>
-        {overrideId && onUndo && (
-          <button
-            onClick={() => onUndo(overrideId)}
-            className="text-xs font-semibold text-emerald-700 dark:text-emerald-300 underline"
-          >
-            Undo
-          </button>
-        )}
-      </div>
-    )
-  }
+  const applied = status === 'applied'
 
   if (status === 'rejected') {
     return (
@@ -71,12 +52,22 @@ export default function ProposalCard({
 
   return (
     <div
-      className="mt-2 w-full rounded-xl bg-white dark:bg-slate-800 border-2 border-indigo-300 dark:border-indigo-700 overflow-hidden"
+      className={`mt-2 w-full rounded-xl overflow-hidden border-2 ${
+        applied
+          ? 'bg-emerald-50 dark:bg-emerald-950 border-emerald-300 dark:border-emerald-700'
+          : 'bg-white dark:bg-slate-800 border-indigo-300 dark:border-indigo-700'
+      }`}
       onClick={e => e.stopPropagation()}
     >
-      <div className="px-3 py-2 border-b border-indigo-100 dark:border-slate-700 bg-indigo-50 dark:bg-indigo-950">
-        <p className="text-xs font-bold text-indigo-700 dark:text-indigo-300">
-          📋 {su ? `Proposed change for ${headerLabel}` : `Proposed plan update · ${ops.length} changes`}
+      <div className={`px-3 py-2 border-b ${
+        applied
+          ? 'border-emerald-200 dark:border-emerald-900 bg-emerald-100/60 dark:bg-emerald-900/40'
+          : 'border-indigo-100 dark:border-slate-700 bg-indigo-50 dark:bg-indigo-950'
+      }`}>
+        <p className={`text-xs font-bold ${applied ? 'text-emerald-700 dark:text-emerald-300' : 'text-indigo-700 dark:text-indigo-300'}`}>
+          {applied
+            ? `✓ Applied${su ? ` to ${headerLabel}` : ` · ${ops.length} changes`} — your plan is updated`
+            : `📋 ${su ? `Proposed change for ${headerLabel}` : `Proposed plan update · ${ops.length} changes`}`}
         </p>
       </div>
 
@@ -135,6 +126,20 @@ export default function ProposalCard({
         })()}
       </div>
 
+      {applied ? (
+        <div className="px-2 pb-2">
+          {overrideId && onUndo ? (
+            <button
+              onClick={() => onUndo(overrideId)}
+              className="w-full text-xs font-semibold py-2 rounded-lg bg-emerald-100 dark:bg-emerald-900 text-emerald-800 dark:text-emerald-200 hover:bg-emerald-200 dark:hover:bg-emerald-800 transition-colors border border-emerald-300 dark:border-emerald-700"
+            >
+              ↩ Undo this change
+            </button>
+          ) : (
+            <p className="text-center text-[11px] text-emerald-700 dark:text-emerald-300 py-1">Applied to your plan</p>
+          )}
+        </div>
+      ) : (
       <div className="flex gap-1 px-2 pb-2">
         <button
           onClick={() => onApprove?.(action)}
@@ -162,6 +167,7 @@ export default function ProposalCard({
           Keep original
         </button>
       </div>
+      )}
     </div>
   )
 }

@@ -41,6 +41,43 @@ function writeLocal(athleteId: string, mem: CoachMemory) {
   }
 }
 
+// Proposal apply-state (actionStatus / actionOverrideId) is UI state the
+// server never stores. Without a separate home it gets wiped the moment a
+// server sync (refresh / mutate) replaces the conversation — which is why
+// the green "Applied" confirmation used to flash and vanish. We persist
+// these per-turn fields in their own key and re-merge them onto the
+// conversation after every server sync.
+const TURN_UI_KEY_PREFIX = 'ba_coach_turn_ui_v1:'
+type TurnUi = { actionStatus?: ConversationTurn['actionStatus']; actionOverrideId?: string }
+
+function readTurnUi(athleteId: string): Record<string, TurnUi> {
+  try {
+    const raw = localStorage.getItem(TURN_UI_KEY_PREFIX + athleteId)
+    return raw ? JSON.parse(raw) : {}
+  } catch {
+    return {}
+  }
+}
+
+function writeTurnUi(athleteId: string, map: Record<string, TurnUi>) {
+  try {
+    localStorage.setItem(TURN_UI_KEY_PREFIX + athleteId, JSON.stringify(map))
+  } catch {
+    // best effort
+  }
+}
+
+/** Re-apply persisted per-turn UI fields onto a (server-sourced) memory so
+ *  proposal apply-state survives syncs. */
+function applyTurnUi(athleteId: string, mem: CoachMemory): CoachMemory {
+  const ui = readTurnUi(athleteId)
+  if (!mem.conversation?.length || Object.keys(ui).length === 0) return mem
+  return {
+    ...mem,
+    conversation: mem.conversation.map(t => (ui[t.id] ? { ...t, ...ui[t.id] } : t)),
+  }
+}
+
 export function useCoachMemory(athleteId: string, enabled: boolean = true) {
   const [memory, setMemory] = useState<CoachMemory>(() => readLocal(athleteId))
   const [loaded, setLoaded] = useState(false)
@@ -60,8 +97,9 @@ export function useCoachMemory(athleteId: string, enabled: boolean = true) {
         const server = await coachFetch<CoachMemory>(
           `/api/coach/memory?athleteId=${encodeURIComponent(athleteId)}`,
         )
-        setMemory(server)
-        writeLocal(athleteId, server)
+        const merged = applyTurnUi(athleteId, server)
+        setMemory(merged)
+        writeLocal(athleteId, merged)
         setOnline(true)
       } catch {
         setOnline(false)
@@ -105,8 +143,9 @@ export function useCoachMemory(athleteId: string, enabled: boolean = true) {
             body: JSON.stringify({ action, ...extra }),
           },
         )
-        setMemory(server)
-        writeLocal(athleteId, server)
+        const merged = applyTurnUi(athleteId, server)
+        setMemory(merged)
+        writeLocal(athleteId, merged)
         setOnline(true)
       } catch {
         setOnline(false)
@@ -278,6 +317,17 @@ export function useCoachMemory(athleteId: string, enabled: boolean = true) {
    *  the right home. */
   const updateTurn = useCallback(
     (turnId: string, patch: Partial<ConversationTurn>) => {
+      // Persist the UI-only fields in the overlay so a later server sync
+      // can't wipe the proposal's apply-state (the "green flash" bug).
+      if ('actionStatus' in patch || 'actionOverrideId' in patch) {
+        const ui = readTurnUi(athleteId)
+        ui[turnId] = {
+          ...(ui[turnId] || {}),
+          ...('actionStatus' in patch ? { actionStatus: patch.actionStatus } : {}),
+          ...('actionOverrideId' in patch ? { actionOverrideId: patch.actionOverrideId } : {}),
+        }
+        writeTurnUi(athleteId, ui)
+      }
       setMemory(m => {
         const updated: CoachMemory = {
           ...m,
