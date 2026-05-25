@@ -312,6 +312,52 @@ function projectHealth(h: GarminHealthData | null | undefined): CoachHealthToday
   return hasAny ? out : null
 }
 
+/**
+ * Build the post-workout "debrief target" payload for a single completed
+ * planned day — planned-vs-actual, the letter grade, and the athlete's
+ * subjective RPE + notes. Shared by `buildCoachSnapshot` (for the globally
+ * most-recent completed day) and the WorkoutModal debrief card (for the
+ * specific day the athlete is viewing), so the LLM debriefs the workout in
+ * front of them rather than the today-centric snapshot default. Returns
+ * null when the day has no completed actual.
+ */
+export function buildCompletedWorkoutPayload(
+  day: PlannedDay,
+  weekNum: number,
+  dayIndex: number,
+): NonNullable<CoachSnapshot['lastCompletedWorkout']> | null {
+  const a = day.actual
+  if (!a?.startDate) return null
+  const g = calculateGrade(day)
+  return {
+    key: a.startDate,
+    dayLabel: day.day,
+    date: a.startDate.slice(0, 10),
+    weekNum,
+    dayIndex,
+    type: day.type,
+    plannedWorkout: day.workout,
+    plannedDetail: day.detail,
+    plannedZone: day.zone,
+    plannedTime: day.time,
+    grade: g ? { grade: g.grade, score: g.score, reason: g.reason } : null,
+    actual: {
+      name: a.name,
+      distance: a.distance,
+      movingTime: a.movingTime,
+      avgHR: a.avgHR,
+      maxHR: a.maxHR,
+      elevationGain: a.elevationGain,
+      rpe: a.rpe,
+      notes: a.notes,
+      drillNotes: a.drills?.notes,
+      aerobicTE: a.aerobicTE,
+      vo2max: a.vo2max,
+      hrZones: a.hrZoneSummary?.filter(z => z.seconds > 0).map(z => ({ zone: z.zone, seconds: z.seconds })),
+    },
+  }
+}
+
 export function buildCoachSnapshot(inputs: Inputs): CoachSnapshot {
   const { weeks, plannedToday, plannedTomorrow, readiness, performance, athleteProfile, race, currentWeekNum, todayHealth, planStartDate, stravaActivities, garminActivities } = inputs
 
@@ -565,34 +611,7 @@ export function buildCoachSnapshot(inputs: Inputs): CoachSnapshot {
       if (!a?.startDate) continue
       if (a.startDate <= lcwBest) continue
       lcwBest = a.startDate
-      const g = calculateGrade(d)
-      lastCompletedWorkout = {
-        key: a.startDate,
-        dayLabel: d.day,
-        date: a.startDate.slice(0, 10),
-        weekNum: w.num,
-        dayIndex: i,
-        type: d.type,
-        plannedWorkout: d.workout,
-        plannedDetail: d.detail,
-        plannedZone: d.zone,
-        plannedTime: d.time,
-        grade: g ? { grade: g.grade, score: g.score, reason: g.reason } : null,
-        actual: {
-          name: a.name,
-          distance: a.distance,
-          movingTime: a.movingTime,
-          avgHR: a.avgHR,
-          maxHR: a.maxHR,
-          elevationGain: a.elevationGain,
-          rpe: a.rpe,
-          notes: a.notes,
-          drillNotes: a.drills?.notes,
-          aerobicTE: a.aerobicTE,
-          vo2max: a.vo2max,
-          hrZones: a.hrZoneSummary?.filter(z => z.seconds > 0).map(z => ({ zone: z.zone, seconds: z.seconds })),
-        },
-      }
+      lastCompletedWorkout = buildCompletedWorkoutPayload(d, w.num, i)
     }
   }
 

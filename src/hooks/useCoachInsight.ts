@@ -46,6 +46,37 @@ export function dayPeriod(): 'morning' | 'afternoon' | 'evening' {
  * bust the cache, but real signal changes should.
  */
 export function materialFields(surface: string, snapshot: CoachSnapshot): unknown {
+  // The workout debrief reflects on a FIXED past workout, so its cache keys
+  // on that workout's identity + the athlete's subjective inputs (editing
+  // RPE/notes regenerates it) + persona/zones — and deliberately OMITS
+  // time-of-day, which would otherwise bust a stable past-workout read every
+  // few hours.
+  if (surface.startsWith('workout_debrief')) {
+    const w = snapshot.lastCompletedWorkout
+    const persona = snapshot.coachPersona
+    return {
+      surface,
+      workout: w
+        ? {
+            key: w.key,
+            grade: w.grade?.grade ?? null,
+            rpe: w.actual?.rpe ?? null,
+            notes: (w.actual?.notes || '').trim(),
+            drillNotes: (w.actual?.drillNotes || '').trim(),
+            distance: w.actual?.distance ? Math.round(w.actual.distance * 10) / 10 : 0,
+            movingTime: w.actual?.movingTime ?? 0,
+            avgHR: w.actual?.avgHR ?? null,
+            maxHR: w.actual?.maxHR ?? null,
+            elev: w.actual?.elevationGain ?? null,
+          }
+        : null,
+      persona: persona
+        ? { name: persona.name?.trim() || '', traits: [...(persona.traits || [])].sort() }
+        : null,
+      zones: snapshot.zones?.map(z => z.hr) ?? null,
+    }
+  }
+
   const r = snapshot.readiness
   const p = snapshot.performance
   const t = snapshot.plannedToday
