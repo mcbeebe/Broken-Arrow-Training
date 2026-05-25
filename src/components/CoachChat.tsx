@@ -5,6 +5,7 @@ import type { UseCoachMemoryReturn } from '../hooks/useCoachMemory'
 import { renderMarkdown } from '../utils/markdown'
 import { extractProposal, stripStreamingProposal } from '../utils/chatProposal'
 import { resizeImage, type ResizedImage } from '../utils/imageResize'
+import { markCoachActivity } from '../utils/coachActivity'
 import { isVoiceInputEnabled, startRecording, transcribeAudio, voiceCaptureSupported, type ActiveRecording, type VoiceCaptureError } from '../utils/voiceInput'
 import ProposalCard from './ProposalCard'
 import CoachFollowUpChips from './CoachFollowUpChips'
@@ -46,9 +47,13 @@ interface Props {
   onUndoAction?: (turnId: string, overrideId: string) => void
   /** Custom layout — when provided, replaces the default flex-column
    *  render. The parent decides where the scroll area, error banners,
-   *  and composer go (e.g. inserting a daily insight above the turns
+   *  and composer go (e.g. inserting a daily insight below the turns
    *  in the same scroll container). */
   renderLayout?: (parts: CoachChatLayoutParts) => ReactNode
+  /** Bumps the auto-scroll-to-bottom effect when the parent inserts new
+   *  content below the turns (e.g. the daily insight card loading in), so
+   *  the freshest coach message lands in view on open. */
+  scrollDep?: number | string
 }
 
 /**
@@ -83,7 +88,7 @@ function writeFontScale(athleteId: string, scale: number) {
   }
 }
 
-export default function CoachChat({ athleteId, memory, snapshot, seed, onSeedConsumed, onSent, getPlannedDay, onApproveAction, onRejectAction, onUndoAction, renderLayout }: Props) {
+export default function CoachChat({ athleteId, memory, snapshot, seed, onSeedConsumed, onSent, getPlannedDay, onApproveAction, onRejectAction, onUndoAction, renderLayout, scrollDep }: Props) {
   const coachName = snapshot?.coachPersona?.name?.trim() || 'Coach'
   const [input, setInput] = useState('')
   const [streaming, setStreaming] = useState(false)
@@ -139,10 +144,12 @@ export default function CoachChat({ athleteId, memory, snapshot, seed, onSeedCon
     }
   }, [seed, memory, onSeedConsumed])
 
-  // Auto-scroll to bottom on new turns / stream chunks
+  // Auto-scroll to bottom on new turns / stream chunks. `scrollDep` lets
+  // the parent nudge this when it appends content below the turns (the
+  // daily insight card) so the newest coach message lands in view.
   useEffect(() => {
     scrollerRef.current?.scrollTo({ top: scrollerRef.current.scrollHeight, behavior: 'smooth' })
-  }, [memory.conversation.length, liveReply])
+  }, [memory.conversation.length, liveReply, scrollDep])
 
   async function handleMicTap() {
     if (recordingState === 'transcribing') return
@@ -231,6 +238,7 @@ export default function CoachChat({ athleteId, memory, snapshot, seed, onSeedCon
   async function send(overrideText?: string) {
     const text = (overrideText ?? input).trim()
     if ((!text && !attachedImage) || streaming || sendingRef.current) return
+    markCoachActivity()
     sendingRef.current = true
     if (!coachApiAvailable()) {
       sendingRef.current = false
@@ -541,7 +549,8 @@ export default function CoachChat({ athleteId, memory, snapshot, seed, onSeedCon
           <textarea
             ref={textareaRef}
             value={input}
-            onChange={e => setInput(e.target.value)}
+            onChange={e => { markCoachActivity(); setInput(e.target.value) }}
+            onFocus={() => markCoachActivity()}
             onKeyDown={e => {
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault()

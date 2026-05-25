@@ -27,6 +27,7 @@ import { loadRunGAPCache } from './utils/runGAP'
 import { loadEccentricCache } from './utils/runEccentric'
 import { useDOMSCalibration } from './hooks/useDOMSCalibration'
 import { useCoachMemory } from './hooks/useCoachMemory'
+import { useDailyAutoArchive } from './hooks/useDailyAutoArchive'
 import { useCoachInsight } from './hooks/useCoachInsight'
 import { useInsightReadState } from './hooks/useInsightReadState'
 import { useCoachTelemetry } from './hooks/useCoachTelemetry'
@@ -360,6 +361,22 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
   const coachEnabled = true
   const coachMemory = useCoachMemory(athleteId, coachEnabled)
   const coachTelemetry = useCoachTelemetry(athleteId, coachEnabled)
+
+  // Archive the coach thread once per day (midnight rollover + catch-up on
+  // launch). Lives here, above the tab switch, so it runs no matter which
+  // tab is active.
+  useDailyAutoArchive({
+    athleteId,
+    enabled: coachEnabled,
+    loaded: coachMemory.loaded,
+    conversation: coachMemory.conversation,
+    rolloverDay: coachMemory.rolloverDay,
+    onArchived: date =>
+      coachTelemetry.logInteraction(
+        'day_rolled_over' as Parameters<typeof coachTelemetry.logInteraction>[0],
+        { archivedDate: date },
+      ),
+  })
 
   const TABS: { id: ViewId; label: string; badge?: number }[] = useMemo(() => {
     const base: { id: ViewId; label: string; badge?: number }[] = [
