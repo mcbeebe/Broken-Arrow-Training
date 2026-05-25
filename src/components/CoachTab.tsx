@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import type { CoachInsight, CoachSnapshot, ConversationTurn, DailyChatArchive, CoachAction, PlannedDay } from '../types'
 import type { UseCoachMemoryReturn } from '../hooks/useCoachMemory'
 import { localDateStr } from '../utils/format'
+import { renderMarkdown } from '../utils/markdown'
+import { extractProposal } from '../utils/chatProposal'
 import type { OnboardingConfig } from '../hooks/useOnboarding'
 import CoachChat from './CoachChat'
 import CoachInsightCard from './CoachInsightCard'
@@ -216,15 +218,16 @@ export default function CoachTab({
         onRejectAction={onRejectAction}
         onUndoAction={onUndoAction}
         scrollDep={dailyInsight?.generatedAt ?? (dailyInsightLoading ? 'loading' : 0)}
-        renderLayout={({ scrollerRef, messagesBody, errorBanners, composer }) => (
-          <div className="flex flex-col h-full bg-white dark:bg-slate-800">
-            {/* Action bar pinned at the very top — History / Archive /
-                Save / Copy / Clear stay in reach regardless of scroll
-                position. */}
-            {actionBar}
-            <div ref={scrollerRef} className="flex-1 min-h-0 overflow-y-auto">
-              {(dailyInsight || dailyInsightLoading) && (
-                <div className="px-2 pt-2">
+        proactiveInsight={
+          dailyInsight || dailyInsightLoading
+            ? {
+                // Anchor the card in the thread by when the insight was
+                // generated, so a fresh 3x-daily update slots in at the
+                // bottom (newest) and later replies flow below it. While
+                // loading, treat it as "now" so the skeleton sits at the
+                // bottom where the fresh read will land.
+                ts: dailyInsight?.generatedAt ?? Date.now(),
+                node: (
                   <CoachInsightCard
                     insight={dailyInsight}
                     loading={dailyInsightLoading}
@@ -237,8 +240,17 @@ export default function CoachTab({
                     onUndoProposal={onUndoInsightProposal}
                     alwaysExpanded
                   />
-                </div>
-              )}
+                ),
+              }
+            : null
+        }
+        renderLayout={({ scrollerRef, messagesBody, errorBanners, composer }) => (
+          <div className="flex flex-col h-full bg-white dark:bg-slate-800">
+            {/* Action bar pinned at the very top — History / Archive /
+                Save / Copy / Clear stay in reach regardless of scroll
+                position. */}
+            {actionBar}
+            <div ref={scrollerRef} className="flex-1 min-h-0 overflow-y-auto">
               <div className="px-2 py-2 space-y-2">
                 {isFirstRun && (
                   <CoachWelcomeCard
@@ -287,11 +299,15 @@ function ArchiveViewer({ archive, coachName }: { archive: DailyChatArchive; coac
             return (
               <div key={t.id} className="flex justify-end">
                 <div className="max-w-[85%] bg-indigo-600 text-white rounded-2xl rounded-tr-sm px-3 py-2 text-base leading-relaxed">
-                  {t.content}
+                  {renderMarkdown(t.content)}
                 </div>
               </div>
             )
           }
+          // Coach/assistant turns: strip any ```proposal block (so the raw
+          // JSON doesn't show) and render the remaining text as markdown,
+          // matching the live chat surface.
+          const { content: clean } = extractProposal(t.content)
           if (t.role === 'coach') {
             return (
               <div key={t.id} className="flex">
@@ -302,15 +318,15 @@ function ArchiveViewer({ archive, coachName }: { archive: DailyChatArchive; coac
                       {coachName}{t.trigger ? ` · ${t.trigger.replace(/_/g, ' ')}` : ''}
                     </p>
                   </div>
-                  <p className="whitespace-pre-wrap">{t.content}</p>
+                  {renderMarkdown(clean)}
                 </div>
               </div>
             )
           }
           return (
             <div key={t.id} className="flex">
-              <div className="max-w-[85%] bg-indigo-50 text-slate-800 dark:text-white rounded-2xl rounded-tl-sm px-3 py-2 text-base whitespace-pre-wrap leading-relaxed">
-                {t.content}
+              <div className="max-w-[85%] bg-indigo-50 text-slate-800 dark:text-white rounded-2xl rounded-tl-sm px-3 py-2 text-base leading-relaxed">
+                {renderMarkdown(clean)}
               </div>
             </div>
           )
