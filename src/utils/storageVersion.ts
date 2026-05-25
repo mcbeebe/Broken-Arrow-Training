@@ -43,10 +43,22 @@ export function checkStorageVersion(): void {
  * (so user stays authenticated) but forces a fresh sync.
  */
 export function clearAllCachedData(): void {
-  // Preserve auth tokens AND user-entered data (manual logs, day swaps, soreness).
-  // These are NOT caches — they're user input that shouldn't be lost on sync refresh.
+  // Preserve auth tokens AND user-entered data. These are NOT caches —
+  // they're user input/decisions that must survive a sync refresh or a
+  // version migration. Plan edits (coach-approved + manual workout
+  // adjustments) and the proposal apply-state belong here alongside
+  // manual logs, day swaps, and soreness: losing them is the
+  // "my adjustments reverted after syncing" bug.
   const preserveKeys = ['ba_strava_tokens', 'ba_garmin_connected', VERSION_KEY]
-  const preservePrefixes = ['ba_manual_logs', 'ba_day_swaps', 'ba_soreness']
+  const preservePrefixes = [
+    'ba_manual_logs',
+    'ba_day_swaps',
+    'ba_soreness',
+    'ba_plan_edits',
+    'ba_plan_overrides',
+    'ba_coach_turn_ui_v1',
+    'ba_coach_insight_proposal_v1',
+  ]
 
   for (const key of ALL_BA_KEYS) {
     if (!preserveKeys.includes(key) && !preservePrefixes.some(p => key.startsWith(p))) {
