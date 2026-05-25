@@ -90,41 +90,32 @@ export function useProactivePings(inputs: Inputs) {
     let cancelled = false
 
     async function run() {
-      // ── new_workout ─────────────────────────────
-      const latestStravaId = stravaActivities[0]?.id
-      const latestGarminDate = garminActivities[0]?.date
-      const lastSeenStrava = lsGet(`strava_id:${athleteId}`)
-      const lastSeenGarmin = lsGet(`garmin_date:${athleteId}`)
-
-      let newWorkoutPayload: Record<string, unknown> | null = null
-      if (latestStravaId && String(latestStravaId) !== lastSeenStrava) {
-        newWorkoutPayload = {
-          source: 'strava',
-          name: stravaActivities[0]?.name,
-          distance: stravaActivities[0]?.distance,
-          movingTime: stravaActivities[0]?.moving_time,
-        }
-        lsSet(`strava_id:${athleteId}`, String(latestStravaId))
-      } else if (
-        latestGarminDate &&
-        latestGarminDate !== lastSeenGarmin
-      ) {
-        newWorkoutPayload = {
-          source: 'garmin',
-          name: garminActivities[0]?.name,
-          date: latestGarminDate,
-        }
-        lsSet(`garmin_date:${athleteId}`, latestGarminDate)
-      }
-
-      if (!cancelled && newWorkoutPayload) {
-        const result = await postPing(
-          athleteId,
-          { type: 'new_workout', payload: newWorkoutPayload },
-          snapshot,
-        )
-        if (result && !result.skipped) {
-          memory.refresh()
+      // ── new_workout (debrief) ───────────────────
+      // Fire whenever the most-recently-completed workout changes. The
+      // snapshot's `lastCompletedWorkout` is derived from fully-merged
+      // actuals, so a single key covers Strava, Garmin, AND manual logs
+      // (the old strava-id / garmin-date triggers never caught manual
+      // logs). The server's 1h cooldown is the double-fire backstop.
+      const lcw = snapshot?.lastCompletedWorkout
+      if (!cancelled && lcw?.key) {
+        const lastSeen = lsGet(`debrief:${athleteId}`)
+        if (String(lcw.key) !== lastSeen) {
+          lsSet(`debrief:${athleteId}`, String(lcw.key))
+          const result = await postPing(
+            athleteId,
+            {
+              type: 'new_workout',
+              payload: {
+                dayLabel: lcw.dayLabel,
+                type: lcw.type,
+                workout: lcw.plannedWorkout,
+                grade: lcw.grade?.grade,
+                rpe: lcw.actual?.rpe,
+              },
+            },
+            snapshot,
+          )
+          if (result && !result.skipped) memory.refresh()
         }
       }
 

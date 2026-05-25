@@ -16,15 +16,18 @@ from ._core import (
     build_context_block,
     build_system_prompt,
     call_anthropic,
+    detect_workout_inferences,
     kv_get,
     kv_set,
     load_memory,
+    new_fact_id,
     new_turn_id,
     ping_cooldown_key,
     read_json_body,
     save_memory,
     send_cors_preflight,
     send_json,
+    sync_about_me_string,
 )
 
 
@@ -70,9 +73,22 @@ _PROPOSAL_DIRECTIVE = (
 
 TRIGGER_PROMPTS = {
     "new_workout": (
-        "The athlete just synced a new workout. Write a 1-2 sentence coach "
-        "reaction: acknowledge what they did (specific numbers), one concrete "
-        "observation or question grounded in the snapshot. No generic praise."
+        "The athlete just completed a workout — debrief it like their personal "
+        "coach. The 'JUST COMPLETED — debrief target' block in the context has "
+        "the planned-vs-actual, the objective letter grade, and the athlete's "
+        "own RPE + notes. In 3-5 sentences:\n"
+        "1. Acknowledge the specific effort with real numbers (distance, time, "
+        "pace, HR, vert) — no generic praise.\n"
+        "2. Read planned-vs-actual using the grade as evidence, but RECONCILE it "
+        "with the athlete's RPE and written notes. When subjective and objective "
+        "diverge (a solid grade but high RPE, or a note about pain / heavy legs / "
+        "hard breathing), trust the subjective signal and name it.\n"
+        "3. One line on how this session fits the week and the training block "
+        "ahead (use the Training block / phase context).\n"
+        "4. End with ONE concrete forward cue for the next session or recovery.\n"
+        "No proposal block — this is reflection, not a plan change. Deliver the "
+        "whole debrief in your established coach persona and voice; never fall "
+        "back to a neutral coaching template."
     ),
     "readiness_shift": (
         "The athlete's readiness band shifted. Write a 1-2 sentence coach "
@@ -167,6 +183,31 @@ TRIGGER_PROMPTS = {
 }
 
 
+def _recent_actuals_summary(snapshot: dict) -> str:
+    """Compact recent-activity digest fed to the workout learning step so it
+    can spot patterns across sessions (not just the one just completed).
+    Includes RPE + notes — the subjective thread we want the coach to learn
+    from. Plus today's readiness band when present."""
+    lines: list[str] = []
+    for a in (snapshot.get("recentActivities") or [])[:8]:
+        date = (a.get("startDate") or "")[:10]
+        dist = round(a.get("distance") or 0, 1)
+        rpe = a.get("rpe")
+        note = (a.get("notes") or "").replace("\n", " ").strip()
+        if len(note) > 120:
+            note = note[:119] + "…"
+        seg = f"{date}: {a.get('name', '')} {dist}mi, avgHR {a.get('avgHR') or '—'}"
+        if rpe:
+            seg += f", RPE {rpe}"
+        if note:
+            seg += f', note: "{note}"'
+        lines.append(seg)
+    readiness = snapshot.get("readiness") or {}
+    if readiness.get("status"):
+        lines.append(f"Today readiness: {readiness.get('status')}")
+    return "\n".join(lines)
+
+
 class handler(BaseHTTPRequestHandler):
     def do_OPTIONS(self):
         send_cors_preflight(self)
@@ -202,7 +243,13 @@ class handler(BaseHTTPRequestHandler):
             coach_persona=snapshot.get("coachPersona") or memory.get("coachPersona"),
             zones=snapshot.get("zones"),
         )
-        ctx = build_context_block(snapshot, depth="7d")
+        # The debrief needs a wider activity window so the coach (and the
+        # learning step) can spot patterns across recent sessions, not just
+        # this one. Other pings stay tight.
+        ctx = build_context_block(
+            snapshot,
+            depth="30d" if trigger_type == "new_workout" else "7d",
+        )
         instruction = TRIGGER_PROMPTS[trigger_type]
         payload_block = ""
         if payload:
@@ -214,12 +261,17 @@ class handler(BaseHTTPRequestHandler):
             f"Task: {instruction}"
         )
 
-        # Anniversary pings are infrequent and high-stakes — they're the
-        # athlete's emotional "the coach knows me" moment. Escalate to
-        # Sonnet for richer voice and better milestone narrative. Other
-        # pings keep Haiku for speed and cost.
-        ping_model = SONNET_MODEL if trigger_type == "anniversary" else HAIKU_MODEL
-        ping_max_tokens = 350 if trigger_type == "anniversary" else 200
+        # Anniversary pings and post-workout debriefs are the high-stakes
+        # "the coach knows me" moments — escalate to Sonnet for richer voice
+        # and the multi-part debrief reasoning. Other pings keep Haiku for
+        # speed and cost.
+        rich_triggers = {"anniversary", "new_workout"}
+        ping_model = SONNET_MODEL if trigger_type in rich_triggers else HAIKU_MODEL
+        ping_max_tokens = (
+            550 if trigger_type == "new_workout"
+            else 350 if trigger_type == "anniversary"
+            else 200
+        )
 
         try:
             result = call_anthropic(
@@ -248,9 +300,10 @@ class handler(BaseHTTPRequestHandler):
             pass
 
         # Append coach turn
+        coach_turn_id = new_turn_id()
         memory["conversation"].append(
             {
-                "id": new_turn_id(),
+                "id": coach_turn_id,
                 "role": "coach",
                 "content": text,
                 "ts": int(time.time() * 1000),
@@ -258,5 +311,40 @@ class handler(BaseHTTPRequestHandler):
                 "trigger": trigger_type,
             }
         )
+
+        # Learning loop — after a completed-workout debrief, extract durable
+        # training patterns ("what helps / what hurts") and fold them into
+        # About Me so every future debrief and chat is more personalized.
+        # Reuses the same dedup + storage path as the chat inference detector.
+        if trigger_type == "new_workout":
+            last_completed = snapshot.get("lastCompletedWorkout")
+            if last_completed:
+                try:
+                    recent = _recent_actuals_summary(snapshot)
+                    facts = detect_workout_inferences(
+                        athlete_id,
+                        last_completed,
+                        text,
+                        recent_summary=recent,
+                        existing_about_me=memory.get("aboutMe", "") or "",
+                        athlete_profile=snapshot.get("athleteProfile"),
+                        race=snapshot.get("race"),
+                    )
+                    if facts:
+                        facts_list = memory.setdefault("aboutMeFacts", [])
+                        now_ms = int(time.time() * 1000)
+                        for f in facts:
+                            facts_list.append(
+                                {
+                                    "id": new_fact_id(),
+                                    "text": f,
+                                    "learnedAt": now_ms,
+                                    "sourceTurnId": coach_turn_id,
+                                }
+                            )
+                        sync_about_me_string(memory)
+                except Exception:
+                    pass
+
         save_memory(athlete_id, memory)
         send_json(self, 200, memory)

@@ -1151,6 +1151,81 @@ def _fmt_date_with_dow(date_str: str) -> str:
         return ymd
 
 
+def _clean_note(s: Any, limit: int = 220) -> str:
+    """Flatten + trim a free-text athlete note for the context block."""
+    t = str(s or "").replace("\n", " ").strip()
+    if len(t) > limit:
+        t = t[: limit - 1] + "…"
+    return t
+
+
+def _completed_workout_lines(lcw: dict[str, Any]) -> list[str]:
+    """Render the most-recently-completed workout as a planned-vs-actual
+    debrief block — objective execution + the letter grade + the athlete's
+    own subjective inputs (RPE + notes). The post-workout debrief ping reads
+    this to reconcile how the session went against how it felt."""
+    a = lcw.get("actual") or {}
+    out: list[str] = []
+    date = lcw.get("date") or ""
+    out.append(
+        f"JUST COMPLETED — debrief target ({_fmt_date_with_dow(date).strip() or date}, "
+        f"week {lcw.get('weekNum', '?')}):"
+    )
+    planned = f"  Planned: {lcw.get('type', '')} · {lcw.get('plannedWorkout', '')}"
+    if lcw.get("plannedZone"):
+        planned += f" · zone {lcw.get('plannedZone')}"
+    if lcw.get("plannedTime"):
+        planned += f" · {lcw.get('plannedTime')}"
+    out.append(planned)
+    pdetail = _clean_note(lcw.get("plannedDetail"), 160)
+    if pdetail:
+        out.append(f"    detail: {pdetail}")
+
+    dist = a.get("distance") or 0
+    tsec = a.get("movingTime") or 0
+    pace = "—"
+    if dist > 0 and tsec > 0:
+        ps = tsec / dist
+        pace = f"{int(ps) // 60}:{int(ps) % 60:02d}/mi"
+    actual = (
+        f"  Actual: {a.get('name', '') or 'activity'} · "
+        f"{_fmt_num(dist)}mi · {_fmt_seconds_as_min(tsec)} · pace {pace} · "
+        f"avgHR {a.get('avgHR') or '—'}"
+    )
+    if a.get("maxHR"):
+        actual += f" maxHR {a['maxHR']}"
+    actual += f" · elev {a.get('elevationGain') or 0}ft"
+    if a.get("aerobicTE"):
+        actual += f" · TE {_fmt_num(a['aerobicTE'])}"
+    out.append(actual)
+
+    # Subjective inputs — the heart of the debrief.
+    note = _clean_note(a.get("notes"))
+    out.append(
+        f"  Subjective: RPE {a.get('rpe') or '—'} · "
+        + (f'note: "{note}"' if note else "note: (none)")
+    )
+    drill_note = _clean_note(a.get("drillNotes"))
+    if drill_note:
+        out.append(f'  Drill note: "{drill_note}"')
+
+    grade = lcw.get("grade") or None
+    if grade and grade.get("grade"):
+        out.append(
+            f"  Objective grade: {grade.get('grade')} (score {grade.get('score')}) — {grade.get('reason', '')}"
+        )
+    out.append(
+        "  → Reconcile the objective grade against RPE + the athlete's note. "
+        "If they diverge (solid grade but high RPE, or a note about pain / "
+        "heavy legs / hard breathing), trust the subjective signal and say so."
+    )
+    zones = a.get("hrZones") or []
+    if zones:
+        zparts = [f"Z{z['zone']}:{_fmt_seconds_as_min(z['seconds'])}" for z in zones]
+        out.append(f"  Time in zone: {' · '.join(zparts)}")
+    return out
+
+
 def build_context_block(
     snapshot: dict[str, Any],
     depth: str = "7d",
@@ -1232,6 +1307,33 @@ def build_context_block(
             "  → Ground EVERY plan edit and recommendation in this philosophy. "
             "When you change the plan, say how the change reflects it."
         )
+
+    # Training-block framing — current phase, weeks to race, and the phase
+    # arc. Lets a debrief/orientation situate a workout in the macro plan.
+    plan_blocks = snapshot.get("planBlocks") or None
+    if plan_blocks and plan_blocks.get("phases"):
+        phases = plan_blocks.get("phases") or []
+        arc = " → ".join(
+            f"{p.get('label')} (wk {p.get('weekStart')}-{p.get('weekEnd')})" for p in phases
+        )
+        cur = plan_blocks.get("currentPhase")
+        wtr = plan_blocks.get("weeksToRace")
+        line = "Training block:"
+        if cur:
+            line += f" currently {cur}"
+        if isinstance(wtr, (int, float)):
+            line += f" · {int(wtr)} wk(s) to race"
+        out.append("")
+        out.append(line)
+        out.append(f"  Phase arc: {arc}")
+
+    # Most recently completed workout — the debrief target. Rendered near the
+    # top so a post-workout ping reads planned-vs-actual + the athlete's
+    # RPE/notes before anything else.
+    last_completed = snapshot.get("lastCompletedWorkout") or None
+    if last_completed:
+        out.append("")
+        out.extend(_completed_workout_lines(last_completed))
 
     # Exact plan coordinates for today/tomorrow. The coach MUST use these
     # when editing "today" / "tomorrow" — never infer a day index from the
@@ -1700,6 +1802,12 @@ def build_context_block(
             if a.get('vo2max'):
                 line += f" · VO2max {_fmt_num(a['vo2max'], 0)}"
             out.append(line)
+
+            # Athlete's own note/comment — subjective signal the coach should
+            # weigh alongside the objective metrics.
+            note = _clean_note(a.get('notes'))
+            if note:
+                out.append(f'    note: "{note}"')
 
             # Detailed data for recent activities (last 7 to keep tokens bounded)
             if i < 7:
@@ -2426,6 +2534,111 @@ def detect_inferences(
                     for _ in [0]
                 ):
                     novel.append(c)
+        return novel[:2]
+    except Exception:
+        return []
+
+
+def detect_workout_inferences(
+    athlete_id: str,
+    last_completed: dict[str, Any],
+    coach_debrief: str,
+    recent_summary: str = "",
+    existing_about_me: str = "",
+    athlete_profile: dict[str, Any] | None = None,
+    race: dict[str, Any] | None = None,
+) -> list[str]:
+    """Workout-tuned sibling of `detect_inferences`. After a completed
+    workout + the coach's debrief, extract DURABLE training patterns — how
+    this athlete responds to load, terrain, intensity and recovery, and how
+    their RPE/notes relate to objective output — so the coach keeps learning
+    what helps and what hurts. Unlike the chat detector this is fed workout
+    telemetry, but it shares the same dedup + folds results into About Me.
+    Skips one-off states (today's fatigue, a single bad night). Returns up
+    to 2 novel first-person facts.
+    """
+    if not last_completed:
+        return []
+    try:
+        a = last_completed.get("actual") or {}
+        grade = last_completed.get("grade") or {}
+        workout_lines = [
+            f"Type: {last_completed.get('type', '')} · planned: {last_completed.get('plannedWorkout', '')}"
+            + (f" (zone {last_completed.get('plannedZone')})" if last_completed.get("plannedZone") else ""),
+            f"Actual: {_fmt_num(a.get('distance'))}mi · {_fmt_seconds_as_min(a.get('movingTime'))} · "
+            f"avgHR {a.get('avgHR') or '—'} · elev {a.get('elevationGain') or 0}ft",
+            f'Subjective: RPE {a.get("rpe") or "—"} · note: "{_clean_note(a.get("notes")) or "(none)"}"',
+        ]
+        if grade.get("grade"):
+            workout_lines.append(f"Objective grade: {grade.get('grade')} — {grade.get('reason', '')}")
+        workout_block = "\n".join(workout_lines)
+
+        known_lines: list[str] = []
+        if athlete_profile:
+            known_lines.append(
+                f"- Athlete: {athlete_profile.get('name') or 'Athlete'}, "
+                f"max HR {athlete_profile.get('maxHR') or '?'}"
+            )
+        if existing_about_me and existing_about_me.strip():
+            known_lines.append("- Existing About Me:")
+            for b in _about_me_bullets(existing_about_me):
+                known_lines.append(f"    • {b}")
+        known_block = "\n".join(known_lines) if known_lines else "(none)"
+
+        user_content = (
+            f"KNOWN CONTEXT (do not re-extract):\n{known_block}\n\n"
+            f"COMPLETED WORKOUT:\n{workout_block}\n\n"
+        )
+        if recent_summary and recent_summary.strip():
+            user_content += f"RECENT CONTEXT:\n{recent_summary.strip()}\n\n"
+        user_content += (
+            f"COACH'S DEBRIEF:\n{coach_debrief}\n\n"
+            "Durable training patterns, if any:"
+        )
+
+        result = call_anthropic(
+            model=HAIKU_MODEL,
+            system=(
+                "You learn DURABLE training patterns about an endurance athlete "
+                "from one completed workout plus its recent context, so the coach "
+                "gets smarter about what helps and what hurts this athlete. "
+                "Respond ONLY with a JSON array.\n\n"
+                "EXTRACT (durable — likely true across future sessions): how they "
+                "respond to load / terrain / intensity (e.g. 'recovers slowly "
+                "after big-vert long runs'), pacing or effort tendencies (e.g. "
+                "'runs easy days too hard — RPE high on Z2'), recurring discomfort "
+                "or injury signals (e.g. 'knee complaints on long descents'), "
+                "fueling or sleep responses that recur, and how their RPE / notes "
+                "relate to objective output. Phrase each as a standing tendency, "
+                "not a one-time event.\n\n"
+                "DO NOT EXTRACT (one-off / transient): 'felt tired today', a single "
+                "bad night's sleep, a one-time schedule conflict, the raw stats of "
+                "this one workout, or anything already in About Me or the athlete "
+                "profile. Paraphrases of known facts are duplicates — skip them.\n\n"
+                "Most workouts yield NOTHING durable — an empty array `[]` is the "
+                "correct and common answer. Max 2 items. Output ONLY the JSON "
+                "array of short first-person statements."
+            ),
+            messages=[{"role": "user", "content": user_content}],
+            max_tokens=200,
+            athlete_id=athlete_id,
+            surface="workout_inference_detect",
+        )
+        text = (result.get("text") or "").strip()
+        if text.startswith("```"):
+            text = re.sub(r"^```(?:json)?\s*", "", text)
+            text = re.sub(r"\s*```$", "", text)
+        parsed = json.loads(text) if text else []
+        if not isinstance(parsed, list):
+            return []
+        candidates = [str(s).strip() for s in parsed if str(s).strip()]
+        novel: list[str] = []
+        for c in candidates:
+            if fact_already_known(c, existing_about_me, athlete_profile, race):
+                continue
+            if fact_already_known(c, "\n".join(novel), None, None):
+                continue
+            novel.append(c)
         return novel[:2]
     except Exception:
         return []
