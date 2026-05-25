@@ -35,6 +35,7 @@ import {
 } from './weekPlan'
 import { pickWeeklyPattern, pickWorkoutForDay, buildPlannedWorkout } from './workouts'
 import { injectExtraDays } from './extraDays'
+import { INJURY_LEADIN_WEEKS } from '../../utils/injuryRamp'
 
 const DAY_OF_WEEK_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const
 
@@ -347,13 +348,13 @@ function injuryPolicyFor(status: InjuryStatus | undefined): InjuryPolicy {
       return {
         maxTrainingDaysPerWeek: 4,
         mileageAdjust: { startPctMultiplier: 0.8, maxWeeklyIncreasePctCap: 0.05 },
-        forceEasyLeadInWeeks: 2,
+        forceEasyLeadInWeeks: INJURY_LEADIN_WEEKS.returning,
       }
     case 'current':
       return {
         maxTrainingDaysPerWeek: 3,
         mileageAdjust: { startPctMultiplier: 0.7, maxWeeklyIncreasePctCap: 0.03 },
-        forceEasyLeadInWeeks: 4,
+        forceEasyLeadInWeeks: INJURY_LEADIN_WEEKS.current,
       }
     case 'none':
     case undefined:

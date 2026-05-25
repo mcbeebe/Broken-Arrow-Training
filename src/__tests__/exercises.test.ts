@@ -1,5 +1,37 @@
 import { describe, it, expect } from 'vitest'
-import { parseRoutine, getExerciseGuide } from '../utils/exercises'
+import { parseRoutine, getExerciseGuide, calibrateGuideWeight } from '../utils/exercises'
+
+describe('calibrateGuideWeight — scales default loads to lifting background', () => {
+  it('leaves weights unchanged for experienced lifters', () => {
+    expect(calibrateGuideWeight('20-30 lb dumbbell (focus on control, not load)', 'experienced'))
+      .toBe('20-30 lb dumbbell (focus on control, not load)')
+  })
+
+  it('leaves weights unchanged when no level is given (seed athletes)', () => {
+    expect(calibrateGuideWeight('95-115 lb (moderate — muscular endurance focus)'))
+      .toBe('95-115 lb (moderate — muscular endurance focus)')
+  })
+
+  it('halves loads for new lifters, rounding to the nearest 5 lb', () => {
+    // 20*0.5=10, 30*0.5=15
+    expect(calibrateGuideWeight('20-30 lb dumbbell', 'new')).toBe('10-15 lb dumbbell')
+    // 95*0.5=47.5→50, 115*0.5=57.5→60
+    expect(calibrateGuideWeight('95-115 lb', 'new')).toBe('50-60 lb')
+  })
+
+  it('scales recreational loads to ~75%', () => {
+    // 20*0.75=15, 30*0.75=22.5→25(round half up of 4.5)→ Math.round(22.5/5)=Math.round(4.5)=5 → 25
+    expect(calibrateGuideWeight('20-30 lb dumbbell', 'recreational')).toBe('15-25 lb dumbbell')
+  })
+
+  it('keeps a 5 lb floor and never produces 0', () => {
+    expect(calibrateGuideWeight('5 lb', 'new')).toBe('5 lb')
+  })
+
+  it('passes bodyweight prescriptions through untouched', () => {
+    expect(calibrateGuideWeight('Bodyweight', 'new')).toBe('Bodyweight')
+  })
+})
 
 describe('parseRoutine — Custom AI-coach routines match guides', () => {
   it('matches "Push-ups 3×8 · Med ball Russian twists 3×20 · Dead hang 2×15s · Plank 3×45s"', () => {

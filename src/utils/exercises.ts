@@ -1,3 +1,5 @@
+import type { StrengthExperience } from '../hooks/useOnboarding'
+
 export interface ExerciseAlternate {
   /** Short label for the substitute exercise. */
   name: string
@@ -531,4 +533,35 @@ function findGuide(exerciseText: string): ExerciseGuide | null {
 
 export function getExerciseGuide(name: string): ExerciseGuide | null {
   return findGuide(name)
+}
+
+// Multiplier applied to the guide's default load per lifting background.
+// Experienced (and unspecified, e.g. seed athletes) keep the library default;
+// less-experienced lifters get scaled-down starting weights so the defaults
+// aren't intimidating or unsafe.
+const CALIBRATION_FACTOR: Record<StrengthExperience, number> = {
+  new: 0.5,
+  recreational: 0.75,
+  experienced: 1,
+}
+
+/**
+ * Scale the numeric load(s) in a guide's `weight` string to the athlete's
+ * lifting background. Weight strings only ever contain weight numbers (e.g.
+ * "20-30 lb dumbbell", "95-115 lb (moderate)"), so scaling every numeric
+ * token is safe. Bodyweight-only strings have no numbers and pass through
+ * unchanged. Rounds to the nearest 5 lb with a 5 lb floor.
+ */
+export function calibrateGuideWeight(
+  weight: string,
+  level?: StrengthExperience,
+): string {
+  if (!level || level === 'experienced') return weight
+  const factor = CALIBRATION_FACTOR[level]
+  return weight.replace(/\d+(?:\.\d+)?/g, (m) => {
+    const n = parseFloat(m)
+    if (!Number.isFinite(n)) return m
+    const scaled = Math.max(5, Math.round((n * factor) / 5) * 5)
+    return String(scaled)
+  })
 }

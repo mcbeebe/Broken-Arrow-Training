@@ -35,6 +35,11 @@ export interface FitnessAnchor {
 
 export type InjuryStatus = 'none' | 'returning' | 'current'
 
+// How much weight-training background the athlete has. Drives how aggressively
+// we prescribe default strength loads — a brand-new lifter should not see the
+// same numbers as a seasoned one.
+export type StrengthExperience = 'new' | 'recreational' | 'experienced'
+
 export type EquipmentAccess = 'track' | 'hills' | 'treadmill' | 'trails' | 'gym'
 
 export type CrossTrainingMode = 'cycling' | 'swimming' | 'rowing' | 'hiking' | 'yoga'
@@ -69,6 +74,16 @@ export interface OnboardingConfig {
   // Current weekly running mileage (miles). Used to cap volume ramp safely.
   currentWeeklyMileage?: number
   injuryStatus?: InjuryStatus
+  // Injury follow-ups — only collected when injuryStatus is 'returning' or
+  // 'current'. They personalize the training ramp messaging and the coach's
+  // greeting. All optional; absence just means a less specific message.
+  injuryArea?: string
+  injuryTimeframe?: string
+  injuryNote?: string
+  // Weight-training background. Calibrates default strength loads at display
+  // time (newer lifters see lighter prescriptions). Only collected when the
+  // athlete asked for at least one strength day.
+  strengthExperience?: StrengthExperience
   // Detail-level preset chosen at onboarding. Seeds useDisplayPreferences so the
   // whole app (and the coach) matches how much data/jargon the athlete wants.
   detailLevel?: DetailLevel
@@ -98,6 +113,10 @@ export interface OnboardingConfig {
   // dismissed (either by connecting or skipping). Unset = step should be
   // shown the next time the app loads after onboarding completes.
   connectStepSeenAt?: string
+  // Timestamp of when the post-onboarding "power of the app" value-prop
+  // screen was dismissed. Unset = screen should be shown once, before the
+  // connect-your-devices step.
+  valuePropsSeenAt?: string
 }
 
 const STORAGE_KEY = 'ba_onboarding'
@@ -194,6 +213,15 @@ export function useOnboarding(athleteId?: string) {
     })
   }, [athleteId])
 
+  const markValuePropsSeen = useCallback(() => {
+    setConfig(prev => {
+      if (!prev || prev.valuePropsSeenAt) return prev
+      const next = { ...prev, valuePropsSeenAt: new Date().toISOString() }
+      try { localStorage.setItem(scopedKey(athleteId), JSON.stringify(next)) } catch { /* quota */ }
+      return next
+    })
+  }, [athleteId])
+
   return {
     config,
     isOnboarded: !!config,
@@ -204,5 +232,6 @@ export function useOnboarding(athleteId?: string) {
     markPrimerSeen,
     markZonesPrimerSeen,
     markConnectStepSeen,
+    markValuePropsSeen,
   }
 }
