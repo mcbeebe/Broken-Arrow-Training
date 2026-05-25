@@ -30,18 +30,11 @@ export function formatPace(miles: number, seconds: number): string {
   return `${mins}:${secs.toString().padStart(2, '0')}/mi`
 }
 
-// Precision-aware variants for the display "detail level". Additive — existing
-// callers keep using formatMiles/formatSeconds unchanged.
-export function formatMilesP(miles: number, precision: 'low' | 'normal' | 'high'): string {
-  if (precision === 'low') return `${Math.round(miles)} mi`
-  if (precision === 'high') return `${miles.toFixed(2)} mi`
-  return formatMiles(miles)
-}
-
+// Precision-aware load formatter for the "number precision" detail setting.
+// low/normal show whole numbers; high adds one decimal. Used for CTL/ATL/TSB
+// style load values across the performance surfaces.
 export function formatLoadP(load: number, precision: 'low' | 'normal' | 'high'): string {
-  if (precision === 'low') return `${Math.round(load / 5) * 5}`
-  if (precision === 'high') return `${load.toFixed(1)}`
-  return `${Math.round(load)}`
+  return precision === 'high' ? load.toFixed(1) : `${Math.round(load)}`
 }
 
 export function getMilesNumber(miles: number | string): number {

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { PerformanceMetrics, WeeklyRecommendation, DailyTRIMP } from '../types'
 import { getTSBState, getTSBLabel, getACWRRisk, getACWRLabel } from '../utils/performance'
-import { localDateStr } from '../utils/format'
+import { localDateStr, formatLoadP } from '../utils/format'
 import {
   ComposedChart, Area, XAxis, YAxis, Tooltip,
   ResponsiveContainer, ReferenceLine, ReferenceArea, CartesianGrid,
@@ -262,7 +262,7 @@ export default function PerformanceChart({
       <div className="grid grid-cols-2 gap-2">
         <PerfStatCard
           label={<Term name="ctl" />}
-          value={latest.ctl.toFixed(0)}
+          value={formatLoadP(latest.ctl, flags.numericPrecision)}
           sub=""
           color="blue"
           note={
@@ -274,7 +274,7 @@ export default function PerformanceChart({
         />
         <PerfStatCard
           label={<Term name="atl" />}
-          value={latest.atl.toFixed(0)}
+          value={formatLoadP(latest.atl, flags.numericPrecision)}
           sub=""
           color="red"
           note={
@@ -286,7 +286,7 @@ export default function PerformanceChart({
         />
         <PerfStatCard
           label={<Term name="tsb">Recovery Balance</Term>}
-          value={`${latest.tsb >= 0 ? '+' : ''}${latest.tsb.toFixed(0)}`}
+          value={`${latest.tsb >= 0 ? '+' : ''}${formatLoadP(latest.tsb, flags.numericPrecision)}`}
           sub={getTSBLabel(tsbState)}
           color={tsbState === 'peaked' || tsbState === 'well_rested' ? 'green' : tsbState === 'productive' ? 'slate' : 'red'}
           note={
@@ -299,7 +299,7 @@ export default function PerformanceChart({
         />
         <PerfStatCard
           label={<Term name="acwr">Load Ratio</Term>}
-          value={latest.acwr.toFixed(2)}
+          value={latest.acwr.toFixed(flags.numericPrecision === 'low' ? 1 : 2)}
           sub={getACWRLabel(acwrRisk)}
           color={acwrRisk === 'sweet_spot' ? 'green' : acwrRisk === 'caution' ? 'amber' : 'red'}
           note={

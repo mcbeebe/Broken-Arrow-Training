@@ -60,7 +60,10 @@ export default function Dashboard({
 }: DashboardProps) {
   const [subTab, setSubTab] = useState<DashSubTab>('compliance')
   const [volumeActiveWeek, setVolumeActiveWeek] = useState(0)
-  const { isSectionVisible } = useDisplayPreferences(athleteId)
+  const { isSectionVisible, flags } = useDisplayPreferences(athleteId)
+  // Newcomers (high verbosity) get the "what does this answer?" explainers
+  // open by default; everyone else keeps them collapsed.
+  const glossaryDefaultOpen = flags.explanationVerbosity === 'high'
   const parsedPlanZones = parsePlanZones(planZones, athleteMaxHR)
   const showVertical = shouldTrackVerticalGain(race)
 
@@ -138,6 +141,7 @@ export default function Dashboard({
           healthHistory={healthHistory}
           dailyTrimp={dailyTrimp}
           riskFlags={riskFlags}
+          glossaryDefaultOpen={glossaryDefaultOpen}
         />
       )}
       {subTab === 'performance' && (
@@ -321,6 +325,7 @@ function ReadinessTab({
   healthHistory,
   dailyTrimp,
   riskFlags,
+  glossaryDefaultOpen = false,
 }: {
   todayScore?: ReadinessScore | null
   weekScores: ReadinessScore[]
@@ -328,6 +333,7 @@ function ReadinessTab({
   healthHistory: GarminHealthData[]
   dailyTrimp: DailyTRIMP[]
   riskFlags: RiskFlag[]
+  glossaryDefaultOpen?: boolean
 }) {
   return (
     <div className="space-y-4">
@@ -386,15 +392,15 @@ function ReadinessTab({
       )}
 
       {/* Glossary */}
-      <ReadinessGlossary />
+      <ReadinessGlossary defaultOpen={glossaryDefaultOpen} />
     </div>
   )
 }
 
 // ─── Readiness Glossary ────────────────────────────────────────
 
-function ReadinessGlossary() {
-  const [open, setOpen] = useState(false)
+function ReadinessGlossary({ defaultOpen = false }: { defaultOpen?: boolean }) {
+  const [open, setOpen] = useState(defaultOpen)
   return (
     <div className="bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
       <button
@@ -509,7 +515,7 @@ function PerformanceTab({
   athleteId?: string
 }) {
   const [timeWindow, setTimeWindow] = useState<TimeWindow>('all')
-  const { isSectionVisible } = useDisplayPreferences(athleteId)
+  const { isSectionVisible, flags } = useDisplayPreferences(athleteId)
   const filteredPerformance = useMemo(() => filterByTimeWindow(performance, timeWindow), [performance, timeWindow])
   return (
     <div className="space-y-4">
@@ -533,7 +539,7 @@ function PerformanceTab({
           athleteId={athleteId}
         />
       )}
-      <PerformanceGlossary />
+      <PerformanceGlossary defaultOpen={flags.explanationVerbosity === 'high'} />
     </div>
   )
 }
@@ -609,8 +615,8 @@ function RiskFlagsCard({ flags, showAllClear = false }: { flags: RiskFlag[]; sho
 
 // ─── Performance Glossary ──────────────────────────────────────
 
-function PerformanceGlossary() {
-  const [open, setOpen] = useState(false)
+function PerformanceGlossary({ defaultOpen = false }: { defaultOpen?: boolean }) {
+  const [open, setOpen] = useState(defaultOpen)
   return (
     <div className="bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
       <button
