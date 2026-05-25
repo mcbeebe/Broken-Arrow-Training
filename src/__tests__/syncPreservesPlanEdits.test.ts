@@ -1,7 +1,8 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeEach } from 'vitest'
 import { replayEdits } from '../hooks/usePlanEdits'
 import { mergeGarminDetailIntoWeeks } from '../utils/matching'
 import { rezoneWeeks } from '../utils/rezone'
+import { clearGarminData } from '../utils/garmin'
 import { mikePlan } from '../data'
 import type { PlanEdit, GarminActivityDetail, HRZone, TrainingWeek } from '../types'
 
@@ -121,5 +122,41 @@ describe('Garmin re-sync preserves coach/manual plan edits', () => {
     expect(w[0].days[1].type).toBe('rest')
     expect(w[0].days[1].workout).toBe('Rest')
     expect(w[0].days[1].actual).toBeUndefined()
+  })
+})
+
+describe('disconnect → reconnect Garmin preserves plan edits', () => {
+  beforeEach(() => localStorage.clear())
+
+  it('clearGarminData (the disconnect path) leaves ba_plan_edits intact', () => {
+    localStorage.setItem('ba_plan_edits_mike', JSON.stringify(restructureBatch()))
+    localStorage.setItem('ba_garmin_activity_details_mike', JSON.stringify({ '2026-04-13': [garminRun()] }))
+    localStorage.setItem('ba_garmin_health_mike', JSON.stringify([{ date: '2026-04-13' }]))
+
+    clearGarminData('mike')
+
+    // Garmin caches gone…
+    expect(localStorage.getItem('ba_garmin_activity_details_mike')).toBeNull()
+    expect(localStorage.getItem('ba_garmin_health_mike')).toBeNull()
+    // …but the athlete's adjustments survive the disconnect.
+    expect(localStorage.getItem('ba_plan_edits_mike')).not.toBeNull()
+    expect(JSON.parse(localStorage.getItem('ba_plan_edits_mike')!)).toHaveLength(2)
+  })
+
+  it('the restructure shows while disconnected and after reconnecting', () => {
+    const edits = restructureBatch()
+
+    // Disconnected: no Garmin details merged. The edit still applies.
+    const offline = rezoneWeeks(mergeGarminDetailIntoWeeks(replayEdits(mikePlan.weeks, edits), {}), loweredZones)
+    expect(offline[0].days[0].workout).toBe('Easy run')
+
+    // Reconnected: Garmin details flow back in. The edit is unchanged;
+    // only day.actual is added.
+    const online = rezoneWeeks(
+      mergeGarminDetailIntoWeeks(replayEdits(mikePlan.weeks, edits), { '2026-04-13': [garminRun()] }),
+      loweredZones,
+    )
+    expect(online[0].days[0].workout).toBe('Easy run')
+    expect(online[0].days[0].actual?.garminId).toBe(42)
   })
 })
