@@ -3,6 +3,7 @@ import type { DailyTRIMP, PerformanceMetrics } from '../types'
 import { localDateStr } from '../utils/format'
 import { ComposedChart, Bar, Line, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import Term from './TermGlossary'
+import { useDisplayPreferences } from '../hooks/useDisplayPreferences'
 
 export type TRIMPRange = '7d' | '30d' | '90d' | 'ytd' | 'all'
 
@@ -24,6 +25,7 @@ interface TRIMPBreakdownProps {
    *  band — 0.8×–1.3× CTL, the Load-Ratio sweet spot already used elsewhere
    *  in the app. Without it, the chart renders bars only. */
   performance?: PerformanceMetrics[]
+  athleteId?: string
 }
 
 const SPORT_COLORS: Record<string, string> = {
@@ -128,7 +130,9 @@ export default function TRIMPBreakdown({
   range: controlledRange,
   onRangeChange,
   performance,
+  athleteId,
 }: TRIMPBreakdownProps) {
+  const { flags } = useDisplayPreferences(athleteId)
   const [internalRange, setInternalRange] = useState<TRIMPRange>('7d')
   const range = controlledRange ?? internalRange
   const setRange = (r: TRIMPRange) => {
@@ -266,6 +270,12 @@ export default function TRIMPBreakdown({
     if (entry['soreness']) hasSoreness = true
     if (entry['trend']) hasTrend = true
     if (Array.isArray(entry['zone'])) hasZone = true
+  }
+  // The acute-load trend line and optimal-range band are advanced overlays —
+  // hide them in the simplest view so the chart is just the load bars.
+  if (!flags.showAdvancedCharts) {
+    hasTrend = false
+    hasZone = false
   }
 
   const rangeOptions: TRIMPRange[] = ['7d', '30d', '90d', 'ytd']

@@ -1,4 +1,5 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
+import { useDisplayPreferences } from '../hooks/useDisplayPreferences'
 import type { TrainingWeek, ReadinessScore, GarminHealthData, DailyTRIMP, PerformanceMetrics, WeeklyRecommendation, HRZone, RaceInfo } from '../types'
 import type { OverallCompliance } from '../hooks/useCompliance'
 import type { RiskFlag } from '../utils/readiness'
@@ -35,6 +36,7 @@ interface DashboardProps {
   sorenessLoadByDate?: Map<string, number>
   planZones?: HRZone[]
   athleteMaxHR?: number
+  athleteId?: string
 }
 
 export default function Dashboard({
@@ -54,41 +56,56 @@ export default function Dashboard({
   sorenessLoadByDate,
   planZones = [],
   athleteMaxHR,
+  athleteId,
 }: DashboardProps) {
   const [subTab, setSubTab] = useState<DashSubTab>('compliance')
   const [volumeActiveWeek, setVolumeActiveWeek] = useState(0)
+  const { isSectionVisible } = useDisplayPreferences(athleteId)
   const parsedPlanZones = parsePlanZones(planZones, athleteMaxHR)
   const showVertical = shouldTrackVerticalGain(race)
 
-
   const SUB_TABS: { id: DashSubTab; label: string; available: boolean }[] = [
     { id: 'compliance', label: 'Compliance', available: true },
-    { id: 'readiness', label: 'Readiness', available: garminConnected },
-    { id: 'performance', label: 'Performance', available: garminConnected || dailyTrimp.length > 0 },
+    { id: 'readiness', label: 'Readiness', available: garminConnected && isSectionVisible('dash.tabReadiness') },
+    { id: 'performance', label: 'Performance', available: (garminConnected || dailyTrimp.length > 0) && isSectionVisible('dash.tabPerformance') },
   ]
+  const visibleSubTabs = SUB_TABS.filter(t => t.available)
+
+  // If the active sub-tab gets hidden (decluttered), fall back to the first
+  // visible one — compliance is never hideable, so this can't go empty.
+  const visibleIds = visibleSubTabs.map(t => t.id).join(',')
+  useEffect(() => {
+    if (!visibleSubTabs.some(t => t.id === subTab)) {
+      setSubTab(visibleSubTabs[0]?.id ?? 'compliance')
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visibleIds, subTab])
 
   return (
     <div className="px-4 py-4 space-y-4">
       <h2 className="text-xl font-bold text-slate-800 dark:text-white">Dashboard</h2>
 
-      {compliance.weeks.length > 0 && (
+      {compliance.weeks.length > 0 && isSectionVisible('dash.descentCapacity') && (
         <DescentCapacitySection
           weeks={compliance.weeks}
           race={race}
         />
       )}
 
-      <VolumeChart
-        weeks={weeks}
-        activeWeek={volumeActiveWeek}
-        onWeekClick={setVolumeActiveWeek}
-        compliance={compliance.weeks}
-        showVertical={showVertical}
-      />
+      {isSectionVisible('dash.volume') && (
+        <VolumeChart
+          weeks={weeks}
+          activeWeek={volumeActiveWeek}
+          onWeekClick={setVolumeActiveWeek}
+          compliance={compliance.weeks}
+          showVertical={showVertical}
+          athleteId={athleteId}
+        />
+      )}
 
       {/* Sub-tab navigation */}
       <div className="flex gap-1 bg-slate-100 dark:bg-slate-700 rounded-lg p-1">
-        {SUB_TABS.filter(t => t.available).map(t => (
+        {visibleSubTabs.map(t => (
           <button
             key={t.id}
             onClick={() => setSubTab(t.id)}
@@ -132,8 +149,9 @@ export default function Dashboard({
             riskFlags={riskFlags}
             raceDate={raceDate}
             sorenessLoadByDate={sorenessLoadByDate}
+            athleteId={athleteId}
           />
-          <StrengthProgressSection weeks={weeks} />
+          {isSectionVisible('dash.strengthProgress') && <StrengthProgressSection weeks={weeks} />}
         </>
       )}
     </div>
@@ -480,6 +498,7 @@ function PerformanceTab({
   riskFlags,
   raceDate,
   sorenessLoadByDate,
+  athleteId,
 }: {
   dailyTrimp: DailyTRIMP[]
   performance: PerformanceMetrics[]
@@ -487,25 +506,33 @@ function PerformanceTab({
   riskFlags: RiskFlag[]
   raceDate: string
   sorenessLoadByDate?: Map<string, number>
+  athleteId?: string
 }) {
   const [timeWindow, setTimeWindow] = useState<TimeWindow>('all')
+  const { isSectionVisible } = useDisplayPreferences(athleteId)
   const filteredPerformance = useMemo(() => filterByTimeWindow(performance, timeWindow), [performance, timeWindow])
   return (
     <div className="space-y-4">
       <RiskFlagsCard flags={riskFlags} />
       <TimeWindowToggle value={timeWindow} onChange={setTimeWindow} />
-      <PerformanceChart
-        performance={filteredPerformance}
-        recommendations={recommendations}
-        raceDate={raceDate}
-        dailyTrimp={dailyTrimp}
-      />
-      <TRIMPBreakdown
-        dailyTrimp={dailyTrimp}
-        sorenessLoadByDate={sorenessLoadByDate}
-        range={timeWindow}
-        performance={performance}
-      />
+      {isSectionVisible('dash.performanceChart') && (
+        <PerformanceChart
+          performance={filteredPerformance}
+          recommendations={recommendations}
+          raceDate={raceDate}
+          dailyTrimp={dailyTrimp}
+          athleteId={athleteId}
+        />
+      )}
+      {isSectionVisible('dash.trimpBreakdown') && (
+        <TRIMPBreakdown
+          dailyTrimp={dailyTrimp}
+          sorenessLoadByDate={sorenessLoadByDate}
+          range={timeWindow}
+          performance={performance}
+          athleteId={athleteId}
+        />
+      )}
       <PerformanceGlossary />
     </div>
   )

@@ -21,7 +21,9 @@ import WorkoutTimePreference from './WorkoutTimePreference'
 import type { AthleteHomeLocation as AthleteHomeLocationType } from '../hooks/useAthleteLocation'
 import type { WorkoutTimeSlot } from '../hooks/useWorkoutTimePreference'
 import ExportDialog from './ExportDialog'
-import { useTerminologyMode } from '../hooks/useTerminologyMode'
+import { useDisplayPreferences } from '../hooks/useDisplayPreferences'
+import { DETAIL_LEVELS, type DisplayFlags, type SectionId } from '../types'
+import { PALETTES, type PaletteId } from '../palettes'
 import type { ConversationTurn, PerformanceMetrics, TrainingWeek } from '../types'
 
 interface SettingsProps {
@@ -108,6 +110,9 @@ interface SettingsProps {
   // Theme
   themeMode?: ThemeMode
   onSetThemeMode?: (mode: ThemeMode) => void
+  // Color palette
+  paletteId?: PaletteId
+  onSetPalette?: (id: PaletteId) => void
   // MIM Calibration
   mimOverrides?: MIMOverride[]
   mimLastCalibrated?: string
@@ -181,6 +186,8 @@ export default function Settings({
   onLogout,
   themeMode,
   onSetThemeMode,
+  paletteId,
+  onSetPalette,
   mimOverrides,
   mimLastCalibrated,
   onSetMIMManual,
@@ -195,7 +202,7 @@ export default function Settings({
   const [exportOpen, setExportOpen] = useState(false)
   void _onAcceptInference
   void _onDismissInference
-  const { showTechnicalNames, setShowTechnicalNames } = useTerminologyMode(athleteId)
+  const display = useDisplayPreferences(athleteId)
   return (
     <div className="px-2 py-3 space-y-3">
       <h2 className="text-xl font-bold text-slate-800 dark:text-white">Settings</h2>
@@ -254,33 +261,146 @@ export default function Settings({
               <p className="text-[10px] text-slate-400 mt-2">Follows your device's system setting</p>
             )}
           </div>
-          <div className="mt-3 bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Show technical names</p>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                  Plain-English labels by default ("Fitness", "Fatigue", "Recovery Balance"). Turn on to see the original acronyms (CTL, ATL, TSB, ACWR, TRIMP, MIM, DOMS).
-                </p>
+          {onSetPalette && (
+            <div className="mt-3 bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700">
+              <p className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-3">Color theme</p>
+              <div className="grid grid-cols-2 gap-2">
+                {PALETTES.map(p => {
+                  const active = (paletteId ?? 'classic') === p.id
+                  return (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => onSetPalette(p.id)}
+                      className={`flex items-center gap-2 rounded-lg border-2 p-2 text-left transition-colors ${
+                        active
+                          ? 'border-accent bg-accent-soft'
+                          : 'border-slate-200 dark:border-slate-700 hover:border-slate-300'
+                      }`}
+                    >
+                      <span className="flex shrink-0 -space-x-1">
+                        {[p.light.accent, p.light.chart2, p.light.chart3].map((c, i) => (
+                          <span key={i} className="h-5 w-5 rounded-full border border-white dark:border-slate-800" style={{ backgroundColor: c }} />
+                        ))}
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block text-xs font-semibold text-slate-700 dark:text-slate-200 truncate">{p.name}</span>
+                        <span className="block text-[10px] text-slate-400 truncate">{p.desc}</span>
+                      </span>
+                    </button>
+                  )
+                })}
               </div>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={showTechnicalNames}
-                onClick={() => setShowTechnicalNames(!showTechnicalNames)}
-                className={`shrink-0 inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                  showTechnicalNames ? 'bg-blue-500' : 'bg-slate-300 dark:bg-slate-600'
-                }`}
-              >
-                <span
-                  className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
-                    showTechnicalNames ? 'translate-x-5' : 'translate-x-1'
-                  }`}
-                />
-              </button>
             </div>
-          </div>
+          )}
         </SettingsSection>
       )}
+
+      {/* ── Display & detail section ── */}
+      <SettingsSection title="Display & detail" defaultOpen>
+        <div className="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700">
+          <p className="text-sm font-medium text-slate-700 dark:text-slate-300">How much detail do you want to see?</p>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 mb-3">
+            Sets how much data and jargon the app shows. {DETAIL_LEVELS.find(d => d.id === display.detailLevel)?.desc}
+          </p>
+          <div className="flex gap-1 bg-slate-100 dark:bg-slate-700 rounded-lg p-0.5">
+            {DETAIL_LEVELS.map(opt => (
+              <button
+                key={opt.id}
+                onClick={() => display.setDetailLevel(opt.id)}
+                className={`flex-1 text-xs font-medium py-2 rounded-md transition-colors ${
+                  display.detailLevel === opt.id
+                    ? 'bg-white dark:bg-slate-600 text-slate-800 dark:text-white shadow-sm'
+                    : 'text-slate-500 dark:text-slate-400'
+                }`}
+              >
+                {opt.emoji} {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <details className="mt-3 bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700">
+          <summary className="text-sm font-medium text-slate-700 dark:text-slate-300 cursor-pointer">Fine-tune (optional)</summary>
+          <div className="mt-3 space-y-3">
+            <PrefToggle
+              label="Show technical names"
+              desc='Original acronyms (CTL, ATL, TSB…) instead of plain labels like "Fitness".'
+              checked={display.flags.showTechnicalNames}
+              onChange={v => display.setFlagOverride('showTechnicalNames', v)}
+            />
+            <PrefToggle
+              label="Show advanced metrics"
+              desc="Detailed numbers like recovery cost, training effect, and load internals."
+              checked={display.flags.showAdvancedMetrics}
+              onChange={v => display.setFlagOverride('showAdvancedMetrics', v)}
+            />
+            <PrefToggle
+              label="Show advanced charts"
+              desc="Extra trend lines, overlays, and chart controls."
+              checked={display.flags.showAdvancedCharts}
+              onChange={v => display.setFlagOverride('showAdvancedCharts', v)}
+            />
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Number precision</p>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">How many decimals to show on distances and load.</p>
+              </div>
+              <div className="flex gap-1 bg-slate-100 dark:bg-slate-700 rounded-lg p-0.5 shrink-0">
+                {(['low', 'normal', 'high'] as const).map(p => (
+                  <button
+                    key={p}
+                    onClick={() => display.setFlagOverride('numericPrecision', p as DisplayFlags['numericPrecision'])}
+                    className={`text-[11px] font-medium px-2 py-1 rounded-md capitalize transition-colors ${
+                      display.flags.numericPrecision === p
+                        ? 'bg-white dark:bg-slate-600 text-slate-800 dark:text-white shadow-sm'
+                        : 'text-slate-500 dark:text-slate-400'
+                    }`}
+                  >
+                    {p}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <button
+              onClick={display.resetOverrides}
+              className="text-xs font-medium text-accent hover:underline"
+            >
+              Reset to preset defaults
+            </button>
+          </div>
+        </details>
+      </SettingsSection>
+
+      {/* ── Sections / Declutter ── */}
+      <SettingsSection title="Sections">
+        <div className="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700 space-y-4">
+          <p className="text-[11px] text-slate-500 dark:text-slate-400">
+            Hide data-heavy sections to declutter. Your today view, plan, and grades always stay visible.
+          </p>
+          {SECTION_GROUPS.map(grp => (
+            <div key={grp.group}>
+              <p className="text-xs uppercase tracking-wide font-bold text-slate-400 mb-2">{grp.group}</p>
+              <div className="space-y-3">
+                {grp.items.map(item => (
+                  <PrefToggle
+                    key={item.id}
+                    label={item.label}
+                    checked={display.isSectionVisible(item.id)}
+                    onChange={v => display.setSectionOverride(item.id, v)}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
+          <button
+            onClick={display.resetOverrides}
+            className="text-xs font-medium text-accent hover:underline"
+          >
+            Reset to preset defaults
+          </button>
+        </div>
+      </SettingsSection>
 
       {/* ── Coach section ── */}
       {/* Single canonical view of what the coach knows lives inside
@@ -885,6 +1005,61 @@ function MIMTable({ overrides, lastCalibrated, onSetManual, onReset, onRecalibra
           </div>
         </div>
       </details>
+    </div>
+  )
+}
+
+// Hideable sections, grouped by surface, in customer language. Order matches
+// how they appear on each screen.
+const SECTION_GROUPS: { group: string; items: { id: SectionId; label: string }[] }[] = [
+  {
+    group: 'Dashboard',
+    items: [
+      { id: 'dash.tabReadiness', label: 'Readiness tab' },
+      { id: 'dash.tabPerformance', label: 'Performance tab' },
+      { id: 'dash.descentCapacity', label: 'Descent capacity' },
+      { id: 'dash.volume', label: 'Volume chart' },
+      { id: 'dash.performanceChart', label: 'Fitness & fatigue trend' },
+      { id: 'dash.trimpBreakdown', label: 'Training-load breakdown' },
+      { id: 'dash.strengthProgress', label: 'Strength progress' },
+    ],
+  },
+  {
+    group: 'Summary',
+    items: [
+      { id: 'summary.perfSnapshot', label: 'Performance snapshot' },
+      { id: 'summary.whatChanged', label: 'What changed this week' },
+      { id: 'summary.trainingLoad', label: '7-day training load' },
+      { id: 'summary.readinessTrend', label: 'Week readiness trend' },
+    ],
+  },
+]
+
+function PrefToggle({ label, desc, checked, onChange }: {
+  label: string; desc?: string; checked: boolean; onChange: (v: boolean) => void
+}) {
+  return (
+    <div className="flex items-start justify-between gap-3">
+      <div className="min-w-0">
+        <p className="text-sm font-medium text-slate-700 dark:text-slate-300">{label}</p>
+        {desc && <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">{desc}</p>}
+      </div>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        aria-label={label}
+        onClick={() => onChange(!checked)}
+        className={`shrink-0 inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+          checked ? 'bg-accent' : 'bg-slate-300 dark:bg-slate-600'
+        }`}
+      >
+        <span
+          className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
+            checked ? 'translate-x-5' : 'translate-x-1'
+          }`}
+        />
+      </button>
     </div>
   )
 }

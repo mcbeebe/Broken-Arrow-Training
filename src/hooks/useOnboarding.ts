@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from 'react'
+import type { DetailLevel } from '../types'
 
 export type RaceType = 'trail' | 'hyrox' | 'general'
 export type ExperienceLevel = 'first_timer' | 'beginner' | 'intermediate' | 'advanced' | 'elite'
@@ -68,6 +69,9 @@ export interface OnboardingConfig {
   // Current weekly running mileage (miles). Used to cap volume ramp safely.
   currentWeeklyMileage?: number
   injuryStatus?: InjuryStatus
+  // Detail-level preset chosen at onboarding. Seeds useDisplayPreferences so the
+  // whole app (and the coach) matches how much data/jargon the athlete wants.
+  detailLevel?: DetailLevel
   // Multi-select: which terrain/equipment the athlete can train on.
   equipmentAccess?: EquipmentAccess[]
   // 0 = none. Drives whether plan includes strength sessions and how many.

@@ -21,6 +21,7 @@ import { computeEccentricLoad } from '../engines/descent/eccentric'
 import { cacheEccentric, getCachedEccentric, type CachedEccentric } from '../utils/runEccentric'
 import DescentForecastCard from './DescentForecastCard'
 import { SPORT_LABELS } from '../hooks/useMIMCalibration'
+import { useDisplayPreferences } from '../hooks/useDisplayPreferences'
 import HRChart from './HRChart'
 import PaceChart from './PaceChart'
 import ElevationChart from './ElevationChart'
@@ -142,6 +143,7 @@ interface WorkoutModalProps {
 
 export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, coachEnabled, readiness, latestPerf, coachSnapshot, onAskCoach, trimpRecord, weeks, raceReadinessTarget }: WorkoutModalProps) {
   const style = getWorkoutStyle(day.type)
+  const { flags } = useDisplayPreferences(athleteId)
   const baseCoaching = getCoaching(day, weekNum)
   const actual = day.actual
   const isStrength = day.type === 'strength'
@@ -478,8 +480,10 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
               })()}
               {/* Load-impact callouts — MIM tier (every logged activity)
                   + elevation bonus (when ≥+10). Mirrors DayCard so the
-                  athlete sees the same credit math here and on the card. */}
-              {trimpRecord && trimpRecord.adjustedTRIMP > 0 && (() => {
+                  athlete sees the same credit math here and on the card.
+                  Gated as an advanced metric — the Total Load math + IF/MIM
+                  source is the most technical readout in the modal. */}
+              {flags.showAdvancedMetrics && trimpRecord && trimpRecord.adjustedTRIMP > 0 && (() => {
                 // Reconstruct: adjusted = base × MIM + elev_bonus (unless
                 // MIN_LOAD_FLOOR clamped it). Show the math so the athlete
                 // can see exactly where Total Load came from.
@@ -689,7 +693,7 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
               )}
 
               {/* Garmin Training Metrics */}
-              {(actual.aerobicTE || actual.anaerobicTE || actual.epoc) && (
+              {flags.showAdvancedMetrics && (actual.aerobicTE || actual.anaerobicTE || actual.epoc) && (
                 <div className="flex flex-wrap gap-2 mt-2">
                   {actual.aerobicTE != null && (
                     <span className={`text-xs px-2 py-1 rounded-lg font-medium ${

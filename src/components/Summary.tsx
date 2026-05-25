@@ -17,6 +17,7 @@ import { formatLooksLikeLine, findBestCourseMatchForPlanned } from '../utils/wor
 import { weeksUntilRace } from '../utils/raceCountdown'
 import { buildTrainingSignals, type TrainingSignals } from '../utils/trainingSignals'
 import SignalCoherenceBanner from './SignalCoherenceBanner'
+import { useDisplayPreferences } from '../hooks/useDisplayPreferences'
 
 interface SummaryProps {
   athleteId: string
@@ -270,6 +271,7 @@ export default function Summary({
   riskFlags = [],
   race,
 }: SummaryProps) {
+  const { flags, isSectionVisible } = useDisplayPreferences(athleteId)
   const latestPerf = performance.length > 0 ? performance[performance.length - 1] : null
   const [perfOpen, setPerfOpen] = useState(false)
   const [narrativeOpen, setNarrativeOpen] = useState(true)
@@ -459,7 +461,7 @@ export default function Summary({
       {riskFlags.length > 0 && <SummaryRiskFlags flags={riskFlags} />}
 
       {/* Quick performance snapshot with scale bars */}
-      {latestPerf && (() => {
+      {latestPerf && isSectionVisible('summary.perfSnapshot') && (() => {
         const tsbState = getTSBState(latestPerf.tsb)
         const acwrRisk = getACWRRisk(latestPerf.acwr)
         // CTL labels: coaching convention (Coggan/Allen 2010, TrainingPeaks).
@@ -483,7 +485,7 @@ export default function Summary({
         return (
           <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
             <button
-              onClick={() => setPerfOpen(!perfOpen)}
+              onClick={() => flags.showAdvancedMetrics && setPerfOpen(!perfOpen)}
               className="w-full flex items-center justify-between p-4 text-left hover:bg-slate-50 dark:hover:bg-slate-700 dark:bg-slate-900 transition-colors"
             >
               <div className="flex-1 min-w-0">
@@ -503,9 +505,11 @@ export default function Summary({
                 )}
                 {perfOpen && <p className="text-xs text-slate-400 mt-0.5">Garmin EPOC · 42d / 7d EWMA · doesn't include today's biometrics</p>}
               </div>
-              <span className="text-sm text-teal-600 ml-2 shrink-0">{perfOpen ? '▴ Hide' : '▾ Details'}</span>
+              {flags.showAdvancedMetrics && (
+                <span className="text-sm text-teal-600 ml-2 shrink-0">{perfOpen ? '▴ Hide' : '▾ Details'}</span>
+              )}
             </button>
-            {perfOpen && (
+            {perfOpen && flags.showAdvancedMetrics && (
             <div className="px-4 pb-4 space-y-5">
               {/* Fitness (CTL) — 0-100 scale, 6 equal segments, midpoint at 50 */}
               <div className="bg-blue-50 dark:bg-blue-950 rounded-lg p-4">
@@ -618,7 +622,7 @@ export default function Summary({
       })()}
 
       {/* What Changed This Week */}
-      {weekNarrative.length > 0 && (
+      {weekNarrative.length > 0 && isSectionVisible('summary.whatChanged') && (
         <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
           <button
             onClick={() => setNarrativeOpen(!narrativeOpen)}
@@ -641,7 +645,7 @@ export default function Summary({
       )}
 
       {/* 7-day training load */}
-      {dailyTrimp.length > 0 && (
+      {dailyTrimp.length > 0 && isSectionVisible('summary.trainingLoad') && (
         <TRIMPBreakdown
           dailyTrimp={dailyTrimp}
           sorenessLoadByDate={sorenessLoadByDate}
@@ -649,11 +653,12 @@ export default function Summary({
           exerciseLoadByDate={exerciseLoadByDate}
           domsCarryByDate={domsCarryByDate}
           performance={performance}
+          athleteId={athleteId}
         />
       )}
 
       {/* Week readiness trend */}
-      {weekScores.length > 1 && (
+      {weekScores.length > 1 && isSectionVisible('summary.readinessTrend') && (
         <div className="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700">
           <p className="text-base font-semibold text-slate-700 dark:text-slate-200 mb-2">This Week's Readiness</p>
           <div className="flex gap-1">
