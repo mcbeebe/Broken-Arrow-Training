@@ -44,7 +44,17 @@ export default function CoachWelcomeCard({ coachName, athleteName, config, onCus
         )}
 
         <p className="mt-2">
-          Two quick things: give me a name and a personality in{' '}
+          Here's what I can do for you:
+        </p>
+        <ul className="mt-1 space-y-1 list-disc pl-5">
+          <li>Suggest and tweak workouts — and reshape the week when life gets in the way</li>
+          <li>Research race-day strategy: pacing, fueling, gear, and how to attack the course</li>
+          <li>Read your training load and recovery so you rest when you should and push when you can</li>
+          <li>Explain the <em>why</em> behind any session in plain language</li>
+        </ul>
+
+        <p className="mt-2">
+          First, give me a name and a personality in{' '}
           {onCustomize ? (
             <button
               onClick={onCustomize}
@@ -55,9 +65,7 @@ export default function CoachWelcomeCard({ coachName, athleteName, config, onCus
           ) : (
             <span className="font-semibold">Settings</span>
           )}{' '}
-          so I talk to you the way you like — and then just ask me anything. Swap a workout,
-          explain a zone, gut-check how you're feeling. I've got your plan and your data in front
-          of me.
+          so I talk to you the way you like. I've got your plan and your data in front of me.
         </p>
 
         <p className="mt-2 text-slate-600 dark:text-slate-300">

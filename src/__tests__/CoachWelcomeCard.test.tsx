@@ -29,6 +29,13 @@ describe('CoachWelcomeCard', () => {
     expect(screen.getByText(/welcome aboard/i)).toBeInTheDocument()
   })
 
+  it('spells out what the coach can do (workouts, strategy, recovery)', () => {
+    render(<CoachWelcomeCard coachName="Coach" athleteName="Jenn" config={makeConfig()} />)
+    expect(screen.getByText(/Suggest and tweak workouts/i)).toBeInTheDocument()
+    expect(screen.getByText(/race-day strategy/i)).toBeInTheDocument()
+    expect(screen.getByText(/recovery/i)).toBeInTheDocument()
+  })
+
   it('uses the custom coach name when one is set', () => {
     render(<CoachWelcomeCard coachName="Coach Chuck" athleteName="Jenn" config={makeConfig()} />)
     expect(screen.getByText(/Coach Chuck · Welcome/)).toBeInTheDocument()
