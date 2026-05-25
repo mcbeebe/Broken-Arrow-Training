@@ -31,10 +31,12 @@ ship now, and what still needs to happen before external use.
   invalid athleteIds to generate Vercel function invocations. Add a
   per-IP rate limiter (e.g. Upstash Redis INCR with TTL) before
   public release.
-- ⚠️ **No account management**. Athletes are identified by URL hash
-  (`#mike`, `#lori`). Fine for a trusted group, but a stranger could
-  pick an in-use athleteId and hijack their memory. Fix: auth +
-  account creation flow.
+- ✅ **Account management (admin-controlled).** Owner adds/removes
+  athletes by email in **Settings → Athletes**, backed by KV
+  (`auth:athlete_emails`) so no env-var edit or redeploy is needed.
+  Login merges the KV allowlist over the `ATHLETE_EMAILS` env seed.
+  Still gated to invited emails — not open self-serve signup (see
+  rate-limiting blocker above before opening that up).
 
 ## Nice-to-haves for scale
 

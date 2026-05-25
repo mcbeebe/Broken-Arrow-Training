@@ -24,14 +24,63 @@ import urllib.request
 import urllib.parse
 
 
+# Runtime-managed allowlist. Admin-added athletes live here so a new athlete
+# can be onboarded without editing the ATHLETE_EMAILS env var + redeploying.
+KV_ATHLETE_EMAILS_KEY = "auth:athlete_emails"
+
+# Only this athlete may read/write the allowlist via /api/auth/athletes.
+ADMIN_ATHLETE_ID = os.environ.get("ADMIN_ATHLETE_ID", "mike").lower()
+
+
 def get_jwt_secret() -> str:
     return os.environ.get("OAUTH_JWT_SECRET", "")
 
 
-def get_email_to_athlete_map() -> dict[str, str]:
-    """Load email→athleteId mapping from env var.
+def _kv_base() -> str | None:
+    return os.environ.get("KV_REST_API_URL", "") or None
 
-    Format: ATHLETE_EMAILS=mike:mike@email.com,joel:joel@email.com,lori:lori@email.com,jim:jim@email.com
+
+def _kv_get(key: str) -> str | None:
+    url = _kv_base()
+    token = os.environ.get("KV_REST_API_TOKEN", "")
+    if not url or not token:
+        return None
+    req = urllib.request.Request(
+        f"{url}/get/{urllib.parse.quote(key, safe='')}",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            return json.loads(resp.read().decode()).get("result")
+    except Exception:
+        return None
+
+
+def _kv_set(key: str, value: str) -> None:
+    url = _kv_base()
+    token = os.environ.get("KV_REST_API_TOKEN", "")
+    if not url or not token:
+        raise RuntimeError("KV not configured")
+    set_url = f"{url}/set/{urllib.parse.quote(key, safe='')}/{urllib.parse.quote(value, safe='')}"
+    req = urllib.request.Request(set_url, headers={"Authorization": f"Bearer {token}"}, method="POST")
+    with urllib.request.urlopen(req, timeout=10) as resp:
+        resp.read()
+
+
+def _normalize_map(data: object) -> dict[str, str]:
+    if not isinstance(data, dict):
+        return {}
+    return {
+        str(email).strip().lower(): str(athlete_id).strip().lower()
+        for email, athlete_id in data.items()
+        if str(email).strip() and str(athlete_id).strip()
+    }
+
+
+def get_env_email_map() -> dict[str, str]:
+    """email→athleteId from the ATHLETE_EMAILS env seed (read-only).
+
+    Format: ATHLETE_EMAILS=mike:mike@email.com,joel:joel@email.com
     """
     raw = os.environ.get("ATHLETE_EMAILS", "")
     mapping: dict[str, str] = {}
@@ -44,9 +93,44 @@ def get_email_to_athlete_map() -> dict[str, str]:
     return mapping
 
 
+def get_kv_email_map() -> dict[str, str]:
+    """email→athleteId added at runtime via the admin panel (KV-backed)."""
+    raw = _kv_get(KV_ATHLETE_EMAILS_KEY)
+    if not raw:
+        return {}
+    try:
+        return _normalize_map(json.loads(raw))
+    except Exception:
+        return {}
+
+
+def set_kv_email_map(mapping: dict[str, str]) -> None:
+    _kv_set(KV_ATHLETE_EMAILS_KEY, json.dumps(_normalize_map(mapping), separators=(",", ":")))
+
+
+def get_email_to_athlete_map() -> dict[str, str]:
+    """Merged allowlist used at login. Admin-added (KV) entries override the
+    env seed so the same email can be re-pointed without a redeploy."""
+    merged = get_env_email_map()
+    merged.update(get_kv_email_map())
+    return merged
+
+
 def lookup_athlete(email: str) -> str | None:
-    email_map = get_email_to_athlete_map()
-    return email_map.get(email.lower())
+    return get_email_to_athlete_map().get(email.lower())
+
+
+def verify_admin(auth_header: str | None) -> str | None:
+    """Return the admin athleteId iff the bearer token is valid and maps to
+    the admin account; otherwise None."""
+    if not auth_header or not auth_header.lower().startswith("bearer "):
+        return None
+    token = auth_header.split(" ", 1)[1].strip()
+    payload = verify_session_token(token)
+    if not payload:
+        return None
+    sub = str(payload.get("sub", "")).lower()
+    return sub if sub == ADMIN_ATHLETE_ID else None
 
 
 def create_session_token(athlete_id: str, email: str, provider: str) -> str:

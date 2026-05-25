@@ -6,6 +6,7 @@ import type { AuthSession } from '../utils/auth'
 import type { ThemeMode } from '../hooks/useTheme'
 import CoachDiagnostics from './CoachDiagnostics'
 import DeployDiagnostics from './DeployDiagnostics'
+import AthleteAdmin from './AthleteAdmin'
 import Methodology from './Methodology'
 import type { HRZone, PendingInference, CoachPersona, TrainingPlan } from '../types'
 import type { TrainingMethod } from '../types/training-method'
@@ -615,6 +616,14 @@ export default function Settings({
       {athleteId === 'mike' && (
         <SettingsSection title="Deploy Diagnostics">
           <DeployDiagnostics />
+        </SettingsSection>
+      )}
+
+      {/* ── Athletes (owner-only, Mike) — add/remove who can sign in,
+          backed by KV so new athletes need no env-var edit or redeploy. ── */}
+      {athleteId === 'mike' && (
+        <SettingsSection title="Athletes">
+          <AthleteAdmin />
         </SettingsSection>
       )}
 
