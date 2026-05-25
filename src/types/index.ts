@@ -687,6 +687,80 @@ export const COACH_TRAITS = [
   { id: 'chill', label: 'Chill', emoji: '🧘', desc: 'Calm, low-key approach' },
 ] as const
 
+// ---------------------------------------------------------------------------
+// Platform personalization — "detail level" + display preferences.
+//
+// A single axis the athlete picks at onboarding and refines in Settings that
+// drives how much data/jargon the whole app shows. A preset expands into a set
+// of granular display flags; explicit per-flag and per-section overrides layer
+// on top (overrides win). `balanced` is a no-op equal to today's behavior so
+// existing users see no change until they opt in.
+// ---------------------------------------------------------------------------
+
+export type DetailLevel = 'simple' | 'balanced' | 'detailed'
+
+export interface DisplayFlags {
+  /** CTL/ATL vs Fitness/Fatigue. Mirrored to the legacy ba_show_technical_terms key. */
+  showTechnicalNames: boolean
+  /** EPOC, Aerobic/Anaerobic TE, IF/MIM source, ACWR internals, raw metric cards. */
+  showAdvancedMetrics: boolean
+  /** Extra chart series/overlays/toggles (CTL/ATL trend bands, load-mode toggle…). */
+  showAdvancedCharts: boolean
+  numericPrecision: 'low' | 'normal' | 'high'
+  /** Depth of glossary / "what does this answer?" explanation blocks. */
+  explanationVerbosity: 'high' | 'normal' | 'low'
+}
+
+/** Data-heavy units that can be hidden to declutter. Essentials (today's
+ *  workout, race card, briefing, compliance grid) are intentionally absent so
+ *  they can never be hidden into a broken empty screen. */
+export type SectionId =
+  | 'dash.descentCapacity'
+  | 'dash.volume'
+  | 'dash.tabReadiness'
+  | 'dash.tabPerformance'
+  | 'dash.performanceChart'
+  | 'dash.trimpBreakdown'
+  | 'dash.strengthProgress'
+  | 'summary.perfSnapshot'
+  | 'summary.whatChanged'
+  | 'summary.trainingLoad'
+  | 'summary.readinessTrend'
+
+export interface DisplayPreferences {
+  detailLevel: DetailLevel
+  /** Sparse map of explicit per-flag overrides. Absent keys follow the preset. */
+  overrides?: Partial<DisplayFlags>
+  /** Sparse map of explicit show/hide. Absent keys follow the preset for the level. */
+  sectionOverrides?: Partial<Record<SectionId, boolean>>
+}
+
+/** Customer-language options for the onboarding question + Settings picker. */
+export const DETAIL_LEVELS: ReadonlyArray<{
+  id: DetailLevel
+  label: string
+  emoji: string
+  desc: string
+}> = [
+  { id: 'simple', label: 'Just the basics', emoji: '🌱', desc: 'Plain language, fewer numbers, more guidance. Great if you are new.' },
+  { id: 'balanced', label: 'Balanced', emoji: '⚖️', desc: 'A clear mix of guidance and data. Recommended for most people.' },
+  { id: 'detailed', label: 'Show me everything', emoji: '🔬', desc: 'Technical names, full precision, every chart and metric.' },
+] as const
+
+export const DETAIL_LEVEL_PRESETS: Record<DetailLevel, DisplayFlags> = {
+  simple: { showTechnicalNames: false, showAdvancedMetrics: false, showAdvancedCharts: false, numericPrecision: 'low', explanationVerbosity: 'high' },
+  balanced: { showTechnicalNames: false, showAdvancedMetrics: true, showAdvancedCharts: true, numericPrecision: 'normal', explanationVerbosity: 'normal' },
+  detailed: { showTechnicalNames: true, showAdvancedMetrics: true, showAdvancedCharts: true, numericPrecision: 'high', explanationVerbosity: 'low' },
+}
+
+/** One-line directive injected into the coach snapshot so the AI Coach matches
+ *  the athlete's preferred depth. */
+export const DETAIL_DIRECTIVES: Record<DetailLevel, string> = {
+  simple: 'The athlete prefers plain language. Avoid acronyms and raw numbers; explain in everyday terms, concrete and encouraging.',
+  balanced: 'The athlete wants a clear mix of guidance and key numbers. Plain terms first, cite metrics sparingly when they matter.',
+  detailed: 'The athlete is a data enthusiast. Use technical terms (CTL/ATL/TSB/ACWR), exact numbers, and deeper physiological reasoning freely.',
+}
+
 /** A conversation archived under a specific date so it can be reviewed
  *  later. Populated when the live conversation rolls over to a new day. */
 export interface DailyChatArchive {
@@ -1059,6 +1133,11 @@ export interface CoachSnapshot {
     methodKeyBook?: string
     methodPhilosophy?: string
   } | null
+  /** The athlete's preferred detail level — drives how deep/technical the
+   *  coach's prose should be. */
+  detailLevel?: DetailLevel
+  /** One-line directive derived from detailLevel, ready for the system prompt. */
+  detailLevelDirective?: string
 }
 
 export interface CoachInsight {

@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import type { TrainingWeek, SportType } from '../types'
+import type { TrainingWeek, SportType, DisplayFlags } from '../types'
 import type { WeekCompliance } from '../hooks/useCompliance'
 import { getMilesNumber } from '../utils/format'
 import { mapToSportType, getSportMultiplier } from '../utils/trimp'
+import { useDisplayPreferences } from '../hooks/useDisplayPreferences'
 
 interface VolumeChartProps {
   weeks: TrainingWeek[]
@@ -12,6 +13,7 @@ interface VolumeChartProps {
   /** Enables the Mileage / Vertical toggle. Caller decides based on race
    *  profile — see utils/raceReadiness.shouldTrackVerticalGain. */
   showVertical?: boolean
+  athleteId?: string
 }
 
 /**
@@ -73,10 +75,14 @@ function weekMiles(week: TrainingWeek, mode: 'running' | 'combined'): number {
   return Math.round(miles * 10) / 10
 }
 
-export default function VolumeChart({ weeks, activeWeek, onWeekClick, compliance, showVertical }: VolumeChartProps) {
+export default function VolumeChart({ weeks, activeWeek, onWeekClick, compliance, showVertical, athleteId }: VolumeChartProps) {
+  const { flags: displayFlags } = useDisplayPreferences(athleteId)
+  const advanced = displayFlags.showAdvancedCharts
   const [mode, setMode] = useState<'running' | 'combined'>('running')
   const [metric, setMetric] = useState<'mileage' | 'vertical'>('mileage')
-  const effectiveMetric: 'mileage' | 'vertical' = showVertical ? metric : 'mileage'
+  // The vertical-gain view and the running/combined split are advanced; the
+  // simplest view shows just planned-vs-actual running miles.
+  const effectiveMetric: 'mileage' | 'vertical' = showVertical && advanced ? metric : 'mileage'
 
   const byNum = new Map<number, WeekCompliance>()
   for (const c of compliance ?? []) byNum.set(c.weekNum, c)
@@ -133,7 +139,7 @@ export default function VolumeChart({ weeks, activeWeek, onWeekClick, compliance
       <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
         <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200">{headline}</h3>
         <div className="flex items-center gap-2">
-          {showVertical && (
+          {showVertical && advanced && (
             <div className="inline-flex rounded-full border border-slate-200 dark:border-slate-700 overflow-hidden text-[10px] font-medium" role="tablist">
               <button
                 type="button"
@@ -156,7 +162,7 @@ export default function VolumeChart({ weeks, activeWeek, onWeekClick, compliance
               </button>
             </div>
           )}
-          {!isVert && (
+          {!isVert && advanced && (
             <div className="inline-flex rounded-full border border-slate-200 dark:border-slate-700 overflow-hidden text-[10px] font-medium" role="tablist">
               <button
                 type="button"
@@ -204,8 +210,8 @@ export default function VolumeChart({ weeks, activeWeek, onWeekClick, compliance
           const barPct = maxY > 0 ? (barVal / maxY) * 100 : 0
           const plannedPct = maxY > 0 ? (planned / maxY) * 100 : 0
           const isActive = activeWeek === i
-          const actualLabel = formatBarValue(actual, isVert)
-          const plannedLabel = formatBarValue(planned, isVert)
+          const actualLabel = formatBarValue(actual, isVert, displayFlags.numericPrecision)
+          const plannedLabel = formatBarValue(planned, isVert, displayFlags.numericPrecision)
           return (
             <div key={w.num} className="flex-1 min-w-0 grid" style={{ gridTemplateRows: 'auto 1fr auto' }}>
               {/* Top row: actual or planned mileage label */}
@@ -262,8 +268,8 @@ export default function VolumeChart({ weeks, activeWeek, onWeekClick, compliance
   )
 }
 
-function formatBarValue(value: number, isVert: boolean): string {
-  if (!isVert) return String(value)
+function formatBarValue(value: number, isVert: boolean, precision: DisplayFlags['numericPrecision'] = 'normal'): string {
+  if (!isVert) return precision === 'low' ? String(Math.round(value)) : String(value)
   if (value >= 1000) {
     const k = value / 1000
     return `${k % 1 === 0 ? k : k.toFixed(1)}k`

@@ -8,12 +8,15 @@ import {
 } from 'recharts'
 import ChartExpandOverlay from './ChartExpandOverlay'
 import Term from './TermGlossary'
+import { useDisplayPreferences } from '../hooks/useDisplayPreferences'
+import { getChartColors } from '../utils/chartColors'
 
 interface PerformanceChartProps {
   performance: PerformanceMetrics[]
   recommendations: WeeklyRecommendation[]
   raceDate: string
   dailyTrimp?: DailyTRIMP[]
+  athleteId?: string
 }
 
 type MetricKey = 'ctl' | 'atl' | 'tsb' | 'load'
@@ -31,8 +34,12 @@ export default function PerformanceChart({
   recommendations,
   raceDate,
   dailyTrimp = [],
+  athleteId,
 }: PerformanceChartProps) {
-  const [visible, setVisible] = useState<Record<MetricKey, boolean>>(DEFAULT_METRICS)
+  const { flags } = useDisplayPreferences(athleteId)
+  const [visible, setVisible] = useState<Record<MetricKey, boolean>>(() =>
+    flags.showAdvancedCharts ? DEFAULT_METRICS : { ctl: true, atl: true, tsb: false, load: false },
+  )
   const [loadMode, setLoadMode] = useState<LoadMode>('7d')
   const toggle = (k: MetricKey) => setVisible(v => ({ ...v, [k]: !v[k] }))
   if (performance.length === 0) {
@@ -93,6 +100,10 @@ export default function PerformanceChart({
   const renderChart = (expanded: boolean) => {
     const chartData = expanded ? rawData : smoothedData
     const isDark = document.documentElement.classList.contains('dark')
+    const colors = getChartColors(isDark)
+    const loadColor = colors.chart2
+    const ctlColor = colors.chart3
+    const atlColor = colors.chart4
     const showBands = visible.tsb // TSB bands only meaningful when TSB is shown
     return (
       <div>
@@ -125,11 +136,11 @@ export default function PerformanceChart({
                   yAxisId="right"
                   orientation="right"
                   domain={[0, fixedLoadMax]}
-                  tick={{ fontSize: expanded ? 11 : 10, fill: isDark ? '#fbbf24' : '#d97706' }}
+                  tick={{ fontSize: expanded ? 11 : 10, fill: loadColor }}
                   axisLine={false}
                   tickLine={false}
                   width={36}
-                  label={expanded ? { value: 'Daily Load', angle: 90, position: 'insideRight', fontSize: 11, fill: isDark ? '#fbbf24' : '#d97706' } : undefined}
+                  label={expanded ? { value: 'Daily Load', angle: 90, position: 'insideRight', fontSize: 11, fill: loadColor } : undefined}
                 />
               )}
               <Tooltip
@@ -153,7 +164,7 @@ export default function PerformanceChart({
               />
               {/* Training load line (right axis) — daily or 7-day trailing */}
               {visible.load && (
-                <Area yAxisId="right" type="natural" dataKey={loadMode === '7d' ? 'load7d' : 'load'} stroke="#d97706" fill="none" strokeWidth={expanded ? 2.5 : 2} dot={false} isAnimationActive={false} />
+                <Area yAxisId="right" type="natural" dataKey={loadMode === '7d' ? 'load7d' : 'load'} stroke={loadColor} fill="none" strokeWidth={expanded ? 2.5 : 2} dot={false} isAnimationActive={false} />
               )}
               {/* Training band: productive overreach zone (TSB -30 to -10) */}
               {showBands && (
@@ -190,27 +201,30 @@ export default function PerformanceChart({
               {/* ACWR corridor: 0.8×CTL to 1.3×CTL — only when CTL is visible */}
               {visible.ctl && <Area yAxisId="left" type="natural" dataKey="acwrHigh" stroke="#7c3aed" strokeWidth={1} strokeDasharray="4 4" strokeOpacity={0.5} fill="none" dot={false} isAnimationActive={false} />}
               {visible.ctl && <Area yAxisId="left" type="natural" dataKey="acwrLow" stroke="#7c3aed" strokeWidth={1} strokeDasharray="4 4" strokeOpacity={0.5} fill="none" dot={false} isAnimationActive={false} />}
-              {visible.ctl && <Area yAxisId="left" type="natural" dataKey="ctl" stroke="#3B82F6" fill="none" strokeWidth={expanded ? 2.5 : 2} dot={false} isAnimationActive={false} />}
-              {visible.atl && <Area yAxisId="left" type="natural" dataKey="atl" stroke="#EF4444" fill="none" strokeWidth={expanded ? 2.5 : 2} dot={false} isAnimationActive={false} />}
+              {visible.ctl && <Area yAxisId="left" type="natural" dataKey="ctl" stroke={ctlColor} fill="none" strokeWidth={expanded ? 2.5 : 2} dot={false} isAnimationActive={false} />}
+              {visible.atl && <Area yAxisId="left" type="natural" dataKey="atl" stroke={atlColor} fill="none" strokeWidth={expanded ? 2.5 : 2} dot={false} isAnimationActive={false} />}
               {visible.tsb && <Area yAxisId="left" type="natural" dataKey={expanded ? 'tsb' : 'tsbSmooth'} stroke="#059669" fill="#059669" fillOpacity={0.15} strokeWidth={expanded ? 2.5 : 2} dot={false} isAnimationActive={false} />}
             </ComposedChart>
           </ResponsiveContainer>
         </div>
-        {/* Metric toggle pills (also acts as legend) */}
-        <div className="flex flex-wrap justify-center gap-1.5 mt-2">
-          <MetricPill active={visible.ctl} onClick={() => toggle('ctl')} color="blue" label="Fitness" />
-          <MetricPill active={visible.atl} onClick={() => toggle('atl')} color="red" label="Fatigue" />
-          <MetricPill active={visible.tsb} onClick={() => toggle('tsb')} color="green" label="Recovery" />
-          <MetricPill active={visible.load} onClick={() => toggle('load')} color="amber" label={loadMode === '7d' ? '7d Load' : 'Daily Load'} />
-          {visible.load && (
-            <button
-              onClick={() => setLoadMode(m => m === 'daily' ? '7d' : 'daily')}
-              className="text-[10px] px-1.5 py-0.5 rounded border border-amber-300 text-amber-600 bg-amber-50"
-            >
-              {loadMode === '7d' ? '→ daily' : '→ 7-day'}
-            </button>
-          )}
-        </div>
+        {/* Metric toggle pills (also acts as legend). Hidden in the simplest
+            view to reduce clutter — the chart still shows fitness + fatigue. */}
+        {flags.showAdvancedCharts && (
+          <div className="flex flex-wrap justify-center gap-1.5 mt-2">
+            <MetricPill active={visible.ctl} onClick={() => toggle('ctl')} color="blue" label="Fitness" />
+            <MetricPill active={visible.atl} onClick={() => toggle('atl')} color="red" label="Fatigue" />
+            <MetricPill active={visible.tsb} onClick={() => toggle('tsb')} color="green" label="Recovery" />
+            <MetricPill active={visible.load} onClick={() => toggle('load')} color="amber" label={loadMode === '7d' ? '7d Load' : 'Daily Load'} />
+            {visible.load && (
+              <button
+                onClick={() => setLoadMode(m => m === 'daily' ? '7d' : 'daily')}
+                className="text-[10px] px-1.5 py-0.5 rounded border border-amber-300 text-amber-600 bg-amber-50"
+              >
+                {loadMode === '7d' ? '→ daily' : '→ 7-day'}
+              </button>
+            )}
+          </div>
+        )}
         {expanded && (
           <div className="flex flex-wrap justify-center gap-x-4 gap-y-1 mt-1 text-xs text-slate-500 dark:text-slate-400">
             <span className="flex items-center gap-1">

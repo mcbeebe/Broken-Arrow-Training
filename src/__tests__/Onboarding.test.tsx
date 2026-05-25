@@ -101,6 +101,9 @@ function walkHappyPath(overrides: Partial<{
   fireEvent.click(screen.getByText(o.experience))
   clickContinue()
 
+  // Step 3b: Detail level — pre-selected from the experience answer; advance.
+  clickContinue()
+
   // Step 4: Days per week
   fireEvent.click(screen.getByText(`${o.daysPerWeek} Days`))
   clickContinue()
@@ -320,6 +323,8 @@ describe('Onboarding', () => {
       clickContinue()
       fireEvent.click(screen.getByText('Intermediate'))
       clickContinue()
+      // detail level (pre-selected from experience)
+      clickContinue()
       expect(screen.getByText(`${n} Days`)).toBeInTheDocument()
     })
   })
@@ -469,6 +474,8 @@ describe('Onboarding', () => {
       // experience
       fireEvent.click(screen.getByText('Intermediate'))
       clickContinue()
+      // detail level (pre-selected from experience)
+      clickContinue()
       // days
       fireEvent.click(screen.getByText('5 Days'))
       clickContinue()
@@ -555,6 +562,7 @@ describe('Onboarding', () => {
       clickContinue()
       fireEvent.click(screen.getByText('Intermediate'))
       clickContinue()
+      clickContinue()  // detail level (pre-selected)
       fireEvent.click(screen.getByText('5 Days'))  // 5-day budget
       clickContinue()
       fireEvent.click(screen.getByText('Saturday'))
@@ -582,6 +590,7 @@ describe('Onboarding', () => {
       fireEvent.change(screen.getByPlaceholderText(/Broken Arrow|Hyrox|Summer Fitness/i), { target: { value: 'Test' } }); clickContinue()
       fireEvent.click(screen.getByText(/^Marathon$/)); clickContinue()
       fireEvent.click(screen.getByText('Intermediate')); clickContinue()
+      clickContinue()  // detail level (pre-selected)
       fireEvent.click(screen.getByText('3 Days')); clickContinue()
       fireEvent.click(screen.getByText('Saturday')); clickContinue()
       fireEvent.click(screen.getByText('No injuries')); clickContinue()
@@ -604,6 +613,7 @@ describe('Onboarding', () => {
       fireEvent.change(screen.getByPlaceholderText(/Broken Arrow|Hyrox|Summer Fitness/i), { target: { value: 'Skyrace' } }); clickContinue()
       fireEvent.click(screen.getByText(/^Marathon$/)); clickContinue()
       fireEvent.click(screen.getByText('Intermediate')); clickContinue()
+      clickContinue()  // detail level (pre-selected)
       fireEvent.click(screen.getByText('5 Days')); clickContinue()
       fireEvent.click(screen.getByText('Saturday')); clickContinue()
       fireEvent.click(screen.getByText('Returning from injury')); clickContinue()
@@ -632,21 +642,21 @@ describe('Onboarding', () => {
   })
 
   describe('progress bar', () => {
-    it('uses 12 visible steps before raceType is picked (race-distance hidden)', () => {
+    it('uses 13 visible steps before raceType is picked (race-distance hidden)', () => {
       const onComplete = vi.fn()
       const { container } = render(<Onboarding onComplete={onComplete} loadingDurationMs={0} />)
       const progressFill = container.querySelector('.bg-teal-500.rounded-full') as HTMLElement
-      // step 0 of 12 → width = 1/12 ≈ 8.33%
-      expect(progressFill.style.width).toMatch(/^8\.33/)
+      // step 0 of 13 → width = 1/13 ≈ 7.69%
+      expect(progressFill.style.width).toMatch(/^7\.69/)
     })
 
-    it('expands to 13 visible steps after raceType=trail is picked', () => {
+    it('expands to 14 visible steps after raceType=trail is picked', () => {
       const onComplete = vi.fn()
       const { container } = render(<Onboarding onComplete={onComplete} loadingDurationMs={0} />)
       fireEvent.click(screen.getByText('Trail / Road Race'))
       const progressFill = container.querySelector('.bg-teal-500.rounded-full') as HTMLElement
-      // Still on step 0 (idx 0 of 13) → 1/13 ≈ 7.69%
-      expect(progressFill.style.width).toMatch(/^7\.69/)
+      // Still on step 0 (idx 0 of 14) → 1/14 ≈ 7.14%
+      expect(progressFill.style.width).toMatch(/^7\.14/)
     })
   })
 

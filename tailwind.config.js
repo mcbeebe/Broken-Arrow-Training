@@ -5,6 +5,15 @@ export default {
   theme: {
     extend: {
       colors: {
+        // Palette-driven accent tokens. Mapped to CSS custom properties set by
+        // usePalette so `bg-accent`, `text-accent`, `border-accent`, `ring-accent`
+        // (and the strong/soft/on variants) re-theme in one place.
+        accent: {
+          DEFAULT: 'var(--color-accent)',
+          strong: 'var(--color-accent-strong)',
+          soft: 'var(--color-accent-soft)',
+          on: 'var(--color-on-accent)',
+        },
         // Semantic accent for plain-English coaching reads layered over
         // charts ("Athlete Intelligence" pattern). Maps to Tailwind orange
         // today so existing utilities keep working; promoting it to a token

@@ -2,6 +2,29 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Default palette (Classic Teal) so accent tokens resolve on first paint,
+   before usePalette runs. Overridden at runtime by usePalette per selection. */
+:root {
+  --color-accent: #0d9488;
+  --color-accent-strong: #0f766e;
+  --color-accent-soft: #f0fdfa;
+  --color-on-accent: #ffffff;
+  --chart-1: #0d9488;
+  --chart-2: #d97706;
+  --chart-3: #3b82f6;
+  --chart-4: #ef4444;
+}
+.dark {
+  --color-accent: #2dd4bf;
+  --color-accent-strong: #5eead4;
+  --color-accent-soft: #134e4a;
+  --color-on-accent: #042f2e;
+  --chart-1: #2dd4bf;
+  --chart-2: #fbbf24;
+  --chart-3: #60a5fa;
+  --chart-4: #f87171;
+}
+
 body {
   margin: 0;
 }

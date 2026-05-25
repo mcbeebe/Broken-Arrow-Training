@@ -11,6 +11,7 @@ import type {
   CrossTrainingMode,
   TrainingTimeOfDay,
 } from '../hooks/useOnboarding'
+import { DETAIL_LEVELS, type DetailLevel } from '../types'
 import { parseTimeToSeconds } from '../utils/parseTime'
 
 interface Props {
@@ -40,21 +41,23 @@ const STEP_RACE_TYPE = 0
 const STEP_RACE_NAME = 1
 const STEP_RACE_DISTANCE = 2
 const STEP_EXPERIENCE = 3
-const STEP_DAYS = 4
-const STEP_VARIANT = 5
-const STEP_BASELINE = 6
-const STEP_EQUIPMENT = 7
-const STEP_STRENGTH = 8
-const STEP_SCHEDULE = 9
-const STEP_WEARABLE = 10
-const STEP_PROFILE = 11
-const STEP_REVIEW = 12
+const STEP_DETAIL = 4
+const STEP_DAYS = 5
+const STEP_VARIANT = 6
+const STEP_BASELINE = 7
+const STEP_EQUIPMENT = 8
+const STEP_STRENGTH = 9
+const STEP_SCHEDULE = 10
+const STEP_WEARABLE = 11
+const STEP_PROFILE = 12
+const STEP_REVIEW = 13
 
 const ALL_STEPS = [
   STEP_RACE_TYPE,
   STEP_RACE_NAME,
   STEP_RACE_DISTANCE,
   STEP_EXPERIENCE,
+  STEP_DETAIL,
   STEP_DAYS,
   STEP_VARIANT,
   STEP_BASELINE,
@@ -123,6 +126,7 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
   const [raceDate, setRaceDate] = useState('')
   const [raceDistance, setRaceDistance] = useState<RaceDistance | null>(null)
   const [experience, setExperience] = useState<ExperienceLevel | null>(null)
+  const [detailLevel, setDetailLevel] = useState<DetailLevel | null>(null)
   const [daysPerWeek, setDaysPerWeek] = useState<number | null>(null)
   const [longRunDay, setLongRunDay] = useState<string | null>(null)
   const [weakStation, setWeakStation] = useState<string | null>(null)
@@ -180,6 +184,11 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
     if (contentRef.current) contentRef.current.scrollTop = 0
   }, [step])
 
+  // Pre-select a sensible detail level from the experience answer (derived,
+  // not stored) so the question comes up pre-filled but stays overridable —
+  // a manual pick in `detailLevel` always wins.
+  const effectiveDetail: DetailLevel = detailLevel ?? defaultDetailLevel(experience)
+
   const next = () => {
     if (visibleIdx < visibleSteps.length - 1) {
       setStep(visibleSteps[visibleIdx + 1])
@@ -207,6 +216,7 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
       case STEP_RACE_NAME: return raceName.trim().length > 0
       case STEP_RACE_DISTANCE: return !!raceDistance
       case STEP_EXPERIENCE: return !!experience
+      case STEP_DETAIL: return !!effectiveDetail
       case STEP_DAYS: return !!daysPerWeek
       case STEP_VARIANT: return raceType === 'trail' ? !!longRunDay : raceType === 'hyrox' ? !!weakStation : !!longRunDay
       case STEP_BASELINE: return !!injury // anchor + mileage are optional; injury is the gating answer
@@ -247,6 +257,7 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
       raceDate,
       raceDistance: showsDistanceStep ? (raceDistance ?? undefined) : undefined,
       experienceLevel: experience!,
+      detailLevel: effectiveDetail,
       trainingDaysPerWeek: daysPerWeek!,
       longRunDay: longRunDay ?? undefined,
       weakStation: weakStation ?? undefined,
@@ -375,6 +386,20 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
               desc={raceType === 'hyrox' ? 'Experienced with CrossFit or functional training. Run 5+ miles.' : 'You regularly run at least 6mi and do structured training (intervals, tempo)'} />
             <OptionCard selected={experience === 'elite'} onClick={() => setExperience('elite')} title="Elite"
               desc={raceType === 'hyrox' ? 'Competitive Hyrox finisher or high-level CrossFit athlete.' : 'You regularly run half-marathons or further with structured periodization'} />
+          </StepContainer>
+        )}
+
+        {step === STEP_DETAIL && (
+          <StepContainer title="How much detail do you want to see?" subtitle="Sets how much data and jargon the app shows you. You can change this anytime in Settings.">
+            {DETAIL_LEVELS.map(opt => (
+              <OptionCard
+                key={opt.id}
+                selected={effectiveDetail === opt.id}
+                onClick={() => setDetailLevel(opt.id)}
+                title={`${opt.emoji}  ${opt.label}`}
+                desc={opt.desc}
+              />
+            ))}
           </StepContainer>
         )}
 
@@ -611,6 +636,7 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
               raceDistance={raceDistance}
               showsDistanceStep={showsDistanceStep}
               experience={experience}
+              detailLevel={effectiveDetail}
               daysPerWeek={daysPerWeek}
               longRunDay={longRunDay}
               weakStation={weakStation}
@@ -777,6 +803,14 @@ function WeekBreakdown({
   )
 }
 
+// Sensible default detail level derived from the experience answer. Newer
+// athletes default to the simplest view; seasoned athletes to the fullest.
+function defaultDetailLevel(exp: ExperienceLevel | null): DetailLevel {
+  if (exp === 'first_timer' || exp === 'beginner') return 'simple'
+  if (exp === 'advanced' || exp === 'elite') return 'detailed'
+  return 'balanced'
+}
+
 const INJURY_LABELS: Record<InjuryStatus, string> = {
   none: 'No injuries',
   returning: 'Returning from injury',
@@ -816,6 +850,7 @@ function ReviewSummary({
   raceDistance,
   showsDistanceStep,
   experience,
+  detailLevel,
   daysPerWeek,
   longRunDay,
   weakStation,
@@ -833,6 +868,7 @@ function ReviewSummary({
   raceDistance: RaceDistance | null
   showsDistanceStep: boolean
   experience: ExperienceLevel | null
+  detailLevel: DetailLevel | null
   daysPerWeek: number | null
   longRunDay: string | null
   weakStation: string | null
@@ -885,6 +921,7 @@ function ReviewSummary({
         <p className="text-sm text-slate-700">
           {experience ? experience.replace(/_/g, ' ') : '—'}
           {injury ? ` · ${INJURY_LABELS[injury]}` : ''}
+          {detailLevel ? ` · ${DETAIL_LEVELS.find(d => d.id === detailLevel)?.label}` : ''}
         </p>
         {injuryAdjustNote && (
           <p className="text-xs text-amber-700 mt-1">{injuryAdjustNote}</p>

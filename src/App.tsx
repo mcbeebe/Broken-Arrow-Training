@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useCallback } from 'react'
 import type { ViewId, CoachSnapshot, CoachAction, PlannedDay } from './types'
+import { DETAIL_DIRECTIVES } from './types'
 import { plans } from './data'
 import { generateHyroxPlan } from './utils/planGenerator'
 import { useStrava } from './hooks/useStrava'
@@ -56,6 +57,8 @@ import { useMaxHR } from './hooks/useMaxHR'
 import { getStoredSession, clearSession, type AuthSession } from './utils/auth'
 import { isInAppBrowser, isBypassed } from './utils/inAppBrowser'
 import { useTheme } from './hooks/useTheme'
+import { usePalette } from './hooks/usePalette'
+import { useDisplayPreferences } from './hooks/useDisplayPreferences'
 
 // Auto-clear stale caches on app startup when data format changes
 checkStorageVersion()
@@ -304,6 +307,8 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
   })
   const [chatSeed, setChatSeed] = useState<string | null>(null)
   const theme = useTheme()
+  const palette = usePalette(theme.resolved)
+  const displayPrefs = useDisplayPreferences(athleteId)
   const strava = useStrava(athleteId)
   const garmin = useGarmin(athleteId)
 
@@ -762,6 +767,9 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     if (weatherBlock) {
       snap.weatherForecast = weatherBlock
     }
+    // Match the coach's voice to the athlete's chosen detail level.
+    snap.detailLevel = displayPrefs.detailLevel
+    snap.detailLevelDirective = DETAIL_DIRECTIVES[displayPrefs.detailLevel]
     return snap
   }, [
     coachEnabled,
@@ -783,6 +791,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     garmin.garminActivities,
     weatherBlock,
     trainingMethod,
+    displayPrefs.detailLevel,
   ])
 
   // Daily LLM insight (shared between Summary + Coach tab)
@@ -1070,6 +1079,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           riskFlags={readiness.riskFlags}
           garminConnected={garmin.connected}
           sorenessLoadByDate={soreness.sorenessLoadByDate}
+          athleteId={athleteId}
         />
       )}
       {view === 'coach' && coachEnabled && (
@@ -1158,6 +1168,8 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           onLogout={onLogout}
           themeMode={theme.mode}
           onSetThemeMode={theme.setMode}
+          paletteId={palette.paletteId}
+          onSetPalette={palette.setPalette}
           mimOverrides={mimCalibration.allOverrides}
           mimLastCalibrated={mimCalibration.lastCalibrated}
           onSetMIMManual={mimCalibration.setManualOverride}
