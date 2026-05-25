@@ -198,12 +198,12 @@ export default function CoachTab({
 
   return (
     <div className="flex flex-col h-[calc(100vh-11rem)] px-0 py-0 gap-0 relative">
-      {/* Single scroll surface: the chat history renders first and the
-          daily insight — the newest coach message — sits at the BOTTOM,
-          below any earlier turns (e.g. an applied plan-update card), like
-          the most recent message in a normal chat thread. CoachChat
-          auto-scrolls to the bottom so it lands in view on open. The
-          composer pins below it via CoachChat's renderLayout. */}
+      {/* Single scroll surface: the daily insight (the proactive coach
+          read, refreshed 3x daily) pins at the TOP, and the chat history
+          flows continuously below it so a new reply always lands at the
+          BOTTOM of the thread — like the most recent message in a normal
+          chat. CoachChat auto-scrolls to the bottom so the freshest reply
+          stays in view. The composer pins below it via renderLayout. */}
       <CoachChat
         athleteId={athleteId}
         memory={memory}
@@ -223,19 +223,8 @@ export default function CoachTab({
                 position. */}
             {actionBar}
             <div ref={scrollerRef} className="flex-1 min-h-0 overflow-y-auto">
-              <div className="px-2 py-2 space-y-2">
-                {isFirstRun && (
-                  <CoachWelcomeCard
-                    coachName={coachName}
-                    athleteName={onboardingConfig?.athleteName}
-                    config={onboardingConfig}
-                    onCustomize={onGoSettings}
-                  />
-                )}
-                {messagesBody}
-              </div>
               {(dailyInsight || dailyInsightLoading) && (
-                <div className="px-2 pb-2">
+                <div className="px-2 pt-2">
                   <CoachInsightCard
                     insight={dailyInsight}
                     loading={dailyInsightLoading}
@@ -250,6 +239,17 @@ export default function CoachTab({
                   />
                 </div>
               )}
+              <div className="px-2 py-2 space-y-2">
+                {isFirstRun && (
+                  <CoachWelcomeCard
+                    coachName={coachName}
+                    athleteName={onboardingConfig?.athleteName}
+                    config={onboardingConfig}
+                    onCustomize={onGoSettings}
+                  />
+                )}
+                {messagesBody}
+              </div>
             </div>
             {errorBanners}
             {composer}
