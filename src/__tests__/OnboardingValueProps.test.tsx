@@ -13,11 +13,16 @@ describe('OnboardingValueProps', () => {
     expect(screen.getByText(/You're in, Joe/i)).toBeInTheDocument()
   })
 
-  it('emphasizes the unique features (personalization, editing, coach suggestions, display)', () => {
+  it('emphasizes the unique features (personalization, editing, coach suggestions)', () => {
     render(<OnboardingValueProps onContinue={vi.fn()} />)
     expect(screen.getByText(/Personalized to you/i)).toBeInTheDocument()
     expect(screen.getByText(/Edit any workout yourself, or let your coach propose changes/i)).toBeInTheDocument()
-    expect(screen.getByText(/See it your way/i)).toBeInTheDocument()
+  })
+
+  it('still surfaces the wearable and customization cards', () => {
+    render(<OnboardingValueProps onContinue={vi.fn()} />)
+    expect(screen.getByText(/Connect your wearable/i)).toBeInTheDocument()
+    expect(screen.getByText(/Make it yours/i)).toBeInTheDocument()
   })
 
   it('fires onContinue from the CTA', () => {

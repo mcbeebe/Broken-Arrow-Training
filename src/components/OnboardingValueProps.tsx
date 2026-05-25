@@ -22,8 +22,13 @@ const CARDS: { icon: string; title: string; body: string }[] = [
     body: 'Edit any workout yourself, or let your coach propose changes you approve with a tap. The plan bends to your life — not the other way around.',
   },
   {
+    icon: '⌚',
+    title: 'Connect your wearable',
+    body: 'Sync HR, sleep, HRV, and recovery so the app scores your readiness and adapts the plan to how you actually feel — not just the calendar.',
+  },
+  {
     icon: '🎛',
-    title: 'See it your way',
+    title: 'Make it yours',
     body: 'Name your coach and pick its personality. Dial how much data and jargon you see, from simple to deep. The more you tune it, the more it fits you.',
   },
 ]
@@ -75,9 +80,7 @@ export default function OnboardingValueProps({ onContinue, athleteName }: Props)
         </div>
 
         <p className="text-xs text-slate-400 mt-6">
-          Next, connect a wearable to unlock readiness scoring and recovery
-          tracking — or skip it and set everything up later from Settings and
-          the Coach tab.
+          You can set all of this up now, or anytime from Settings and the Coach tab.
         </p>
       </div>
 
