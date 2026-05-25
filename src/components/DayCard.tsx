@@ -10,6 +10,8 @@ import { calculateGrade } from '../utils/grading'
 import { classifyRun, getSportMultiplier, calculateElevationBonus } from '../utils/trimp'
 import { SPORT_LABELS } from '../hooks/useMIMCalibration'
 import { generateDayCardNote } from '../utils/coachNotes'
+import { injuryRampNote } from '../utils/injuryRamp'
+import type { InjuryStatus } from '../hooks/useOnboarding'
 import { useCoachInsight } from '../hooks/useCoachInsight'
 import TargetVsActual from './TargetVsActual'
 import CoachDayNoteView from './CoachDayNote'
@@ -47,9 +49,12 @@ interface DayCardProps {
    *  Only future / today days carry useful weather — past days are
    *  intentionally null. */
   weatherChip?: WeatherChip | null
+  /** Athlete's injury status from onboarding. Drives the return-from-injury
+   *  ramp note that explains where they are in the gentle build-up. */
+  injuryStatus?: InjuryStatus
 }
 
-export default function DayCard({ day, weekNum, onTap, onLog, onSwap, onEdit, hasEdit, isSwapSelected, isSwapTarget, readiness, coachEnabled, isToday, isPast, athleteId, coachSnapshot, onAskCoach, trimpRecord, weatherChip }: DayCardProps) {
+export default function DayCard({ day, weekNum, onTap, onLog, onSwap, onEdit, hasEdit, isSwapSelected, isSwapTarget, readiness, coachEnabled, isToday, isPast, athleteId, coachSnapshot, onAskCoach, trimpRecord, weatherChip, injuryStatus }: DayCardProps) {
   const style = getWorkoutStyle(day.type)
   const actual = day.actual
   const timeEst = estimateRunTime(day.zone)
@@ -63,6 +68,11 @@ export default function DayCard({ day, weekNum, onTap, onLog, onSwap, onEdit, ha
   const [detailsExpanded, setDetailsExpanded] = useState(false)
   const [descExpanded, setDescExpanded] = useState(false)
   const [cardCollapsed, setCardCollapsed] = useState(isCompleted)
+
+  // Return-from-injury ramp context — explains where the athlete is in the
+  // gentle build-up and how it progresses. Null for healthy athletes, rest
+  // days, completed workouts, and once they're well past the ramp.
+  const rampNote = injuryRampNote(injuryStatus, weekNum, day.type, isCompleted)
 
   // When completed (or rested-as-planned), use a more saturated emerald
   // background but preserve the workout-type color as the left border
@@ -306,6 +316,22 @@ export default function DayCard({ day, weekNum, onTap, onLog, onSwap, onEdit, ha
               : 'bg-red-100/60 text-red-700'
           }`}>
             💡 {readiness.adjustment}
+          </div>
+        )}
+
+        {/* Return-from-injury ramp note — surfaces the gentle build-up the
+            plan generator applies after an injury so the athlete knows where
+            they are and how it progresses. */}
+        {!cardCollapsed && rampNote && (
+          <div className={`mt-2 px-2.5 py-1.5 rounded-md text-sm flex items-start gap-1.5 ${
+            rampNote.tone === 'flag'
+              ? 'bg-red-100/70 text-red-800 dark:bg-red-950/40 dark:text-red-200'
+              : rampNote.tone === 'heads_up'
+              ? 'bg-amber-100/70 text-amber-800 dark:bg-amber-950/40 dark:text-amber-200'
+              : 'bg-indigo-100/60 text-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-200'
+          }`}>
+            <span aria-hidden>🩹</span>
+            <span className="leading-snug">{rampNote.text}</span>
           </div>
         )}
 

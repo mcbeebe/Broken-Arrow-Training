@@ -10,7 +10,8 @@ import CoachWorkoutTakeView from './CoachWorkoutTake'
 import WorkoutDebriefPrompt from './WorkoutDebriefPrompt'
 import { useCoachInsight } from '../hooks/useCoachInsight'
 import { formatMiles, formatSeconds, formatPace, estimateRunTime } from '../utils/format'
-import { parseRoutine, type ParsedExercise } from '../utils/exercises'
+import { parseRoutine, calibrateGuideWeight, type ParsedExercise } from '../utils/exercises'
+import type { StrengthExperience } from '../hooks/useOnboarding'
 import { buildProgression, normalizeExerciseName, suggestNextTarget, type ExerciseProgression } from '../utils/strengthProgression'
 import { parseIntervalWorkout, getDrillDay, RUNNING_DRILLS, MYRTL_ROUTINE, PRE_RUN_ACTIVATION, type RunSegment, type DrillGuide } from '../utils/drills'
 import { fetchActivityStreams, getTokens, isTokenExpired, refreshAccessToken, type StreamData } from '../utils/strava'
@@ -130,6 +131,9 @@ interface WorkoutModalProps {
   /** Full plan weeks — used to surface per-exercise progression history
    *  inside strength exercise cards (last session + suggested next target). */
   weeks?: import('../types').TrainingWeek[]
+  /** Athlete's lifting background — calibrates the default strength loads
+   *  shown per exercise (newer lifters see lighter prescriptions). */
+  strengthLevel?: StrengthExperience
   /** Race-readiness adjustment for this session, surfaced when the modal
    *  is opened from a Race Readiness assignment row. Lets the athlete see
    *  the race-day target attached to the same planned workout — not a
@@ -141,7 +145,7 @@ interface WorkoutModalProps {
   }
 }
 
-export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, coachEnabled, readiness, latestPerf, coachSnapshot, onAskCoach, trimpRecord, weeks, raceReadinessTarget }: WorkoutModalProps) {
+export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, coachEnabled, readiness, latestPerf, coachSnapshot, onAskCoach, trimpRecord, weeks, raceReadinessTarget, strengthLevel }: WorkoutModalProps) {
   const style = getWorkoutStyle(day.type)
   const { flags } = useDisplayPreferences(athleteId)
   const baseCoaching = getCoaching(day, weekNum)
@@ -943,6 +947,16 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
           {isStrength && exercises.length > 0 && (
             <div>
               <p className="text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-2">🏋️ Exercise Guide (tap for form cues)</p>
+              {(strengthLevel === 'new' || strengthLevel === 'recreational') && (
+                <div className="mb-2 px-3 py-2 rounded-lg bg-teal-50 dark:bg-teal-950/40 border border-teal-200 dark:border-teal-900 text-sm text-teal-800 dark:text-teal-200 flex items-start gap-1.5">
+                  <span aria-hidden>🎚</span>
+                  <span className="leading-snug">
+                    {strengthLevel === 'new'
+                      ? 'Weights below are calibrated for someone newer to lifting. Start at the low end — nail the form for every rep before you add load.'
+                      : 'Weights below are dialed back to match your experience. Pick a load you can move cleanly, and add only when form holds.'}
+                  </span>
+                </div>
+              )}
               <div className="space-y-2">
                 {exercises.map((ex, i) => (
                   <ExerciseCard
@@ -950,6 +964,7 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
                     exercise={ex}
                     index={i + 1}
                     progression={progressionByExercise?.get(normalizeExerciseName(ex.name)) ?? null}
+                    strengthLevel={strengthLevel}
                   />
                 ))}
               </div>
@@ -1105,14 +1120,19 @@ function DrillStatusBanner({ drills }: { drills?: { completed: boolean; items?: 
 }
 
 function ExerciseCard({
-  exercise, index, progression,
+  exercise, index, progression, strengthLevel,
 }: {
   exercise: ParsedExercise
   index: number
   progression?: ExerciseProgression | null
+  strengthLevel?: StrengthExperience
 }) {
   const [expanded, setExpanded] = useState(false)
   const guide = exercise.guide
+  // Default loads in the guide are calibrated to the athlete's lifting
+  // background (newer lifters get lighter prescriptions). Display-only —
+  // never mutates the plan.
+  const displayWeight = guide ? calibrateGuideWeight(guide.weight, strengthLevel) : ''
 
   const plannedSets = parseInt(exercise.sets || '0', 10) || 0
   const plannedReps = parseInt((exercise.reps || '0').toString(), 10) || 0
@@ -1145,7 +1165,7 @@ function ExerciseCard({
           </div>
         </div>
         {guide && !expanded && (
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5 ml-7">{guide.weight} · {guide.rest}</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5 ml-7">{displayWeight} · {guide.rest}</p>
         )}
         {!expanded && progression?.last && target && (
           <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 ml-7">
@@ -1163,7 +1183,7 @@ function ExerciseCard({
         <div className="px-3 pb-3 border-t border-purple-100 pt-2 space-y-2">
           <p className="text-sm text-slate-500 dark:text-slate-400 italic">{guide.aka}</p>
           <div className="flex gap-3 text-sm">
-            <span className="text-purple-700 bg-purple-50 rounded px-2 py-1">💪 {guide.weight}</span>
+            <span className="text-purple-700 bg-purple-50 rounded px-2 py-1">💪 {displayWeight}</span>
             <span className="text-purple-700 bg-purple-50 rounded px-2 py-1">⏸ {guide.rest}</span>
           </div>
           <div>

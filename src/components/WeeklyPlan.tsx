@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useMemo } from 'react'
 import type { TrainingWeek, PlannedDay, ActualWorkout, HRZone, ReadinessScore, PerformanceMetrics, CoachSnapshot, RaceInfo, DailyTRIMP } from '../types'
 import { findTrimpRecord } from '../utils/trimp'
 import type { WeekCompliance } from '../hooks/useCompliance'
+import type { InjuryStatus, StrengthExperience } from '../hooks/useOnboarding'
 import { getWorkoutStyle, adaptBg } from '../utils/styles'
 import { buildWeatherChipForDate } from '../utils/weatherChip'
 import DayCard from './DayCard'
@@ -36,6 +37,12 @@ interface WeeklyPlanProps {
   race?: RaceInfo
   compliance?: WeekCompliance[]
   dailyTrimp?: DailyTRIMP[]
+  /** Athlete's injury status — drives the return-from-injury ramp note on
+   *  workout cards. */
+  injuryStatus?: InjuryStatus
+  /** Athlete's lifting background — calibrates default strength loads shown
+   *  in the workout modal. */
+  strengthLevel?: StrengthExperience
 }
 
 function todayDateString(): string {
@@ -61,6 +68,8 @@ export default function WeeklyPlan({
   race,
   compliance,
   dailyTrimp,
+  injuryStatus,
+  strengthLevel,
 }: WeeklyPlanProps) {
   const [viewMode, setViewMode] = useState<'list' | 'calendar' | 'race'>('list')
   const [activeWeek, setActiveWeek] = useState(0)
@@ -290,6 +299,7 @@ export default function WeeklyPlan({
                 onAskCoach={onAskCoach}
                 trimpRecord={trimpRecord}
                 weatherChip={weatherChip}
+                injuryStatus={injuryStatus}
               />
             </div>
           )
@@ -372,6 +382,7 @@ export default function WeeklyPlan({
           latestPerf={latestPerf}
           coachSnapshot={coachSnapshot}
           onAskCoach={onAskCoach}
+          strengthLevel={strengthLevel}
           trimpRecord={(() => {
             const d = parseDayToDate(modalDay.day, week.dates)
             return findTrimpRecord(dailyTrimp, d, modalDay.actual?.name)

@@ -36,8 +36,12 @@ function walkHappyPath(overrides: Partial<{
   anchorBpm: string
   weeklyMileage: string
   injury: string
+  injuryArea: string
+  injuryTimeframe: string
+  injuryNote: string
   equipment: string[]
   strength: string
+  strengthExperience: string
   crossFrequency: string
   crossTraining: string[]
   trainingTimes: string[]
@@ -59,8 +63,12 @@ function walkHappyPath(overrides: Partial<{
     anchorTime: '21:30',
     weeklyMileage: '20',
     injury: 'No injuries',
+    injuryArea: '',
+    injuryTimeframe: '',
+    injuryNote: '',
     equipment: ['Track', 'Trails'],
     strength: '2x',
+    strengthExperience: 'Some experience',
     crossFrequency: '1x',
     crossTraining: ['Cycling'],
     trainingTimes: ['Early morning'],
@@ -133,6 +141,19 @@ function walkHappyPath(overrides: Partial<{
     fireEvent.change(mileageInput, { target: { value: o.weeklyMileage } })
   }
   fireEvent.click(screen.getByText(o.injury))
+  // Injury follow-ups only render for returning/current.
+  if (o.injury !== 'No injuries') {
+    if (o.injuryArea) {
+      fireEvent.change(screen.getByLabelText('Injury area'), { target: { value: o.injuryArea } })
+    }
+    if (o.injuryTimeframe) {
+      fireEvent.change(screen.getByLabelText('Injury timeframe'), { target: { value: o.injuryTimeframe } })
+    }
+    if (o.injuryNote) {
+      const noteInput = screen.getByPlaceholderText(/still some pain/i)
+      fireEvent.change(noteInput, { target: { value: o.injuryNote } })
+    }
+  }
   clickContinue()
 
   // Step 7: Equipment access (multi-select)
@@ -144,6 +165,10 @@ function walkHappyPath(overrides: Partial<{
   // aria-label set on each ("Strength 1x" vs "Cross-training 1x"). The
   // modality checkboxes only render when cross-training frequency > 0.
   fireEvent.click(screen.getByRole('button', { name: `Strength ${o.strength}` }))
+  // Lifting-background question only renders when strength > 0.
+  if (o.strength !== 'None') {
+    fireEvent.click(screen.getByText(o.strengthExperience))
+  }
   fireEvent.click(screen.getByRole('button', { name: `Cross-training ${o.crossFrequency}` }))
   if (o.crossFrequency !== 'None') {
     o.crossTraining.forEach(label => fireEvent.click(screen.getByText(label)))
@@ -436,6 +461,103 @@ describe('Onboarding', () => {
     })
   })
 
+  describe('strength experience', () => {
+    it.each([
+      ['New to lifting', 'new'],
+      ['Some experience', 'recreational'],
+      ['Experienced lifter', 'experienced'],
+    ])('captures %s as %s', (label, expected) => {
+      const cfg = walkHappyPath({ strength: '2x', strengthExperience: label })
+      expect(cfg.strengthExperience).toBe(expected)
+    })
+
+    it('omits strengthExperience when no strength days are selected', () => {
+      const cfg = walkHappyPath({ strength: 'None' })
+      expect(cfg.strengthDaysPerWeek).toBe(0)
+      expect(cfg.strengthExperience).toBeUndefined()
+    })
+
+    it('hides the lifting-background question until strength > 0', () => {
+      const onComplete = vi.fn()
+      render(<Onboarding onComplete={onComplete} loadingDurationMs={0} />)
+      fireEvent.click(screen.getByText('Trail / Road Race')); clickContinue()
+      fireEvent.change(screen.getByPlaceholderText(/Broken Arrow|Hyrox|Summer Fitness/i), { target: { value: 'X' } }); clickContinue()
+      fireEvent.click(screen.getByText(/^Marathon$/)); clickContinue()
+      fireEvent.click(screen.getByText('Intermediate')); clickContinue()
+      clickContinue() // detail level
+      fireEvent.click(screen.getByText('5 Days')); clickContinue()
+      fireEvent.click(screen.getByText('Saturday')); clickContinue()
+      fireEvent.click(screen.getByText('No injuries')); clickContinue()
+      fireEvent.click(screen.getByText('Track')); clickContinue()
+
+      // On STEP_STRENGTH. No strength frequency picked yet → no question.
+      expect(screen.queryByText(/lifting experience/i)).not.toBeInTheDocument()
+      fireEvent.click(screen.getByRole('button', { name: 'Strength None' }))
+      expect(screen.queryByText(/lifting experience/i)).not.toBeInTheDocument()
+      fireEvent.click(screen.getByRole('button', { name: 'Strength 2x' }))
+      expect(screen.getByText(/lifting experience/i)).toBeInTheDocument()
+    })
+
+    it('blocks Continue when strength > 0 but no lifting background is picked', () => {
+      const onComplete = vi.fn()
+      render(<Onboarding onComplete={onComplete} loadingDurationMs={0} />)
+      fireEvent.click(screen.getByText('Trail / Road Race')); clickContinue()
+      fireEvent.change(screen.getByPlaceholderText(/Broken Arrow|Hyrox|Summer Fitness/i), { target: { value: 'X' } }); clickContinue()
+      fireEvent.click(screen.getByText(/^Marathon$/)); clickContinue()
+      fireEvent.click(screen.getByText('Intermediate')); clickContinue()
+      clickContinue()
+      fireEvent.click(screen.getByText('5 Days')); clickContinue()
+      fireEvent.click(screen.getByText('Saturday')); clickContinue()
+      fireEvent.click(screen.getByText('No injuries')); clickContinue()
+      fireEvent.click(screen.getByText('Track')); clickContinue()
+
+      fireEvent.click(screen.getByRole('button', { name: 'Strength 2x' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Cross-training None' }))
+      // Frequencies set but no lifting background → still blocked.
+      expect(getContinueButton()?.disabled).toBe(true)
+      fireEvent.click(screen.getByText('Some experience'))
+      expect(getContinueButton()?.disabled).toBe(false)
+    })
+  })
+
+  describe('injury follow-ups', () => {
+    it('does not show follow-ups for "No injuries"', () => {
+      const onComplete = vi.fn()
+      render(<Onboarding onComplete={onComplete} loadingDurationMs={0} />)
+      fireEvent.click(screen.getByText('Trail / Road Race')); clickContinue()
+      fireEvent.change(screen.getByPlaceholderText(/Broken Arrow|Hyrox|Summer Fitness/i), { target: { value: 'X' } }); clickContinue()
+      fireEvent.click(screen.getByText(/^Marathon$/)); clickContinue()
+      fireEvent.click(screen.getByText('Intermediate')); clickContinue()
+      clickContinue()
+      fireEvent.click(screen.getByText('5 Days')); clickContinue()
+      fireEvent.click(screen.getByText('Saturday')); clickContinue()
+      fireEvent.click(screen.getByText('No injuries'))
+      expect(screen.queryByLabelText('Injury area')).not.toBeInTheDocument()
+      fireEvent.click(screen.getByText('Returning from injury'))
+      expect(screen.getByLabelText('Injury area')).toBeInTheDocument()
+    })
+
+    it('captures injury area, timeframe, and note for a returning athlete', () => {
+      const cfg = walkHappyPath({
+        injury: 'Returning from injury',
+        injuryArea: 'knee',
+        injuryTimeframe: 'Cleared 1-2 weeks ago',
+        injuryNote: 'still cautious on downhills',
+      })
+      expect(cfg.injuryStatus).toBe('returning')
+      expect(cfg.injuryArea).toBe('knee')
+      expect(cfg.injuryTimeframe).toBe('Cleared 1-2 weeks ago')
+      expect(cfg.injuryNote).toBe('still cautious on downhills')
+    })
+
+    it('omits injury detail fields when the athlete is healthy', () => {
+      const cfg = walkHappyPath({ injury: 'No injuries' })
+      expect(cfg.injuryArea).toBeUndefined()
+      expect(cfg.injuryTimeframe).toBeUndefined()
+      expect(cfg.injuryNote).toBeUndefined()
+    })
+  })
+
   describe('schedule & constraints', () => {
     it('captures multiple training-time preferences', () => {
       const cfg = walkHappyPath({ trainingTimes: ['Early morning', 'Evening'] })
@@ -619,6 +741,7 @@ describe('Onboarding', () => {
       fireEvent.click(screen.getByText('Returning from injury')); clickContinue()
       fireEvent.click(screen.getByText('Track')); clickContinue()
       fireEvent.click(screen.getByRole('button', { name: 'Strength 1x' }))
+      fireEvent.click(screen.getByText('Some experience'))
       fireEvent.click(screen.getByRole('button', { name: 'Cross-training None' }))
       clickContinue()
       fireEvent.click(screen.getByText('Early morning')); clickContinue()

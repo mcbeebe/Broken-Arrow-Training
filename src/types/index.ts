@@ -1138,6 +1138,10 @@ export interface CoachSnapshot {
   detailLevel?: DetailLevel
   /** One-line directive derived from detailLevel, ready for the system prompt. */
   detailLevelDirective?: string
+  /** One-line injury context from onboarding (e.g. "coming back from a knee
+   *  injury · cleared 1-2 weeks ago"). Lets the coach speak to the athlete's
+   *  recovery without a wearable telling it. */
+  injuryContext?: string
 }
 
 export interface CoachInsight {

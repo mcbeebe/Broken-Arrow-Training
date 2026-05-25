@@ -13,6 +13,7 @@ import { useReadiness } from './hooks/useReadiness'
 import { useOnboarding } from './hooks/useOnboarding'
 import { useTutorial } from './hooks/useTutorial'
 import Onboarding from './components/Onboarding'
+import OnboardingValueProps from './components/OnboardingValueProps'
 import OnboardingConnect from './components/OnboardingConnect'
 import Tutorial from './components/Tutorial'
 import MethodSelection from './components/MethodSelection'
@@ -39,6 +40,7 @@ import { localDateStr } from './utils/format'
 import { generateMorningCoach, generateEveningCoach, getCoachTimeOfDay } from './utils/coach'
 import { checkStorageVersion, clearAllCachedData, clearAllAppData } from './utils/storageVersion'
 import { buildCoachSnapshot } from './utils/coachSnapshot'
+import { injurySummaryLine } from './utils/injuryRamp'
 import { useWeather } from './hooks/useWeather'
 import { useAthleteLocation } from './hooks/useAthleteLocation'
 import { useWorkoutTimePreference } from './hooks/useWorkoutTimePreference'
@@ -126,6 +128,22 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
           onboarding.save(config)
         }}
         onSkip={onLogout}
+      />
+    )
+  }
+
+  // Post-onboarding value-prop screen: sells why the app is powerful (connect
+  // a wearable, talk to the coach, customize it). Shown once after the plan is
+  // created and before the connect step. Skipped for seed athletes.
+  if (
+    !plan &&
+    onboarding.config &&
+    !onboarding.config.valuePropsSeenAt
+  ) {
+    return (
+      <OnboardingValueProps
+        onContinue={onboarding.markValuePropsSeen}
+        athleteName={onboarding.config.athleteName}
       />
     )
   }
@@ -770,6 +788,9 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     // Match the coach's voice to the athlete's chosen detail level.
     snap.detailLevel = displayPrefs.detailLevel
     snap.detailLevelDirective = DETAIL_DIRECTIVES[displayPrefs.detailLevel]
+    // Carry the athlete's injury context so the coach can speak to it.
+    const injuryContext = injurySummaryLine(onboarding.config)
+    if (injuryContext) snap.injuryContext = injuryContext
     return snap
   }, [
     coachEnabled,
@@ -792,6 +813,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     weatherBlock,
     trainingMethod,
     displayPrefs.detailLevel,
+    onboarding.config,
   ])
 
   // Daily LLM insight (shared between Summary + Coach tab)
@@ -1059,6 +1081,8 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           race={activePlan.race}
           compliance={compliance.weeks}
           dailyTrimp={readiness.dailyTrimp}
+          injuryStatus={onboarding.config?.injuryStatus}
+          strengthLevel={onboarding.config?.strengthExperience}
         />
       )}
       {view === 'dashboard' && (
@@ -1102,6 +1126,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           onUndoInsightProposal={handleUndoInsightProposal}
           onRegenerateInsight={dailyInsight.regenerate}
           onAskCoach={handleAskCoach}
+          onboardingConfig={onboarding.config}
         />
       )}
       {/* Methodology moved into Settings as a collapsible subsection */}

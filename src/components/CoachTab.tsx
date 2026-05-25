@@ -2,8 +2,10 @@ import { useEffect, useState } from 'react'
 import type { CoachInsight, CoachSnapshot, ConversationTurn, DailyChatArchive, CoachAction, PlannedDay } from '../types'
 import type { UseCoachMemoryReturn } from '../hooks/useCoachMemory'
 import { localDateStr } from '../utils/format'
+import type { OnboardingConfig } from '../hooks/useOnboarding'
 import CoachChat from './CoachChat'
 import CoachInsightCard from './CoachInsightCard'
+import CoachWelcomeCard from './CoachWelcomeCard'
 
 interface Props {
   athleteId: string
@@ -31,6 +33,9 @@ interface Props {
   /** Seed chat with a follow-up prompt — wired to the insight card's
    *  "Ask about this →" / triggered-by chip. */
   onAskCoach?: (seed: string) => void
+  /** Onboarding answers — used to personalize the first-run welcome card
+   *  (athlete name + injury acknowledgement). */
+  onboardingConfig?: OnboardingConfig | null
 }
 
 const DAILY_SEED_KEY = 'ba_coach_daily_seeded_v1'
@@ -71,6 +76,7 @@ export default function CoachTab({
   onUndoInsightProposal,
   onRegenerateInsight,
   onAskCoach,
+  onboardingConfig,
 }: Props) {
   useEffect(() => {
     onMarkRead()
@@ -124,9 +130,12 @@ export default function CoachTab({
     }
   }
 
-  void onGoSettings
-
   const coachName = snapshot?.coachPersona?.name?.trim() || 'Coach'
+
+  // First run: no conversation yet and nothing archived. Show a warm welcome
+  // card that greets the athlete, invites them to customize the coach, and
+  // nudges them to send a message. It disappears once `hasTurns` flips true.
+  const isFirstRun = !hasTurns && archives.length === 0
 
   const actionBar = (
     <div className="flex items-center justify-between shrink-0 px-3 py-2 border-b border-slate-100 dark:border-slate-700">
@@ -214,7 +223,17 @@ export default function CoachTab({
                 position. */}
             {actionBar}
             <div ref={scrollerRef} className="flex-1 min-h-0 overflow-y-auto">
-              <div className="px-2 py-2 space-y-2">{messagesBody}</div>
+              <div className="px-2 py-2 space-y-2">
+                {isFirstRun && (
+                  <CoachWelcomeCard
+                    coachName={coachName}
+                    athleteName={onboardingConfig?.athleteName}
+                    config={onboardingConfig}
+                    onCustomize={onGoSettings}
+                  />
+                )}
+                {messagesBody}
+              </div>
               {(dailyInsight || dailyInsightLoading) && (
                 <div className="px-2 pb-2">
                   <CoachInsightCard

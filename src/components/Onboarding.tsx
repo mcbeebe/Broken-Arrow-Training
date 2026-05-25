@@ -7,6 +7,7 @@ import type {
   OnboardingConfig,
   FitnessAnchorType,
   InjuryStatus,
+  StrengthExperience,
   EquipmentAccess,
   CrossTrainingMode,
   TrainingTimeOfDay,
@@ -107,6 +108,41 @@ const CROSS_TRAINING_OPTIONS: { value: CrossTrainingMode; label: string; icon: s
   { value: 'yoga', label: 'Yoga / Mobility', icon: '🧘' },
 ]
 
+const STRENGTH_EXPERIENCE_OPTIONS: { value: StrengthExperience; label: string; desc: string }[] = [
+  { value: 'new', label: 'New to lifting', desc: "Little or no weight training. We'll start light and build form first." },
+  { value: 'recreational', label: 'Some experience', desc: 'You lift occasionally and know the basic movements.' },
+  { value: 'experienced', label: 'Experienced lifter', desc: 'You train with weights regularly and know your working loads.' },
+]
+
+const INJURY_AREA_OPTIONS: { value: string; label: string }[] = [
+  { value: '', label: 'Select area (optional)' },
+  { value: 'knee', label: 'Knee' },
+  { value: 'achilles_calf', label: 'Achilles / calf' },
+  { value: 'hamstring', label: 'Hamstring' },
+  { value: 'hip', label: 'Hip / glute' },
+  { value: 'foot', label: 'Foot / plantar' },
+  { value: 'shin', label: 'Shin' },
+  { value: 'it_band', label: 'IT band' },
+  { value: 'back', label: 'Back' },
+  { value: 'other', label: 'Other' },
+]
+
+const RETURNING_TIMEFRAME_OPTIONS: { value: string; label: string }[] = [
+  { value: '', label: 'When were you cleared? (optional)' },
+  { value: 'Cleared this week', label: 'This week' },
+  { value: 'Cleared 1-2 weeks ago', label: '1–2 weeks ago' },
+  { value: 'Cleared 3-4 weeks ago', label: '3–4 weeks ago' },
+  { value: 'Cleared over a month ago', label: 'Over a month ago' },
+]
+
+const CURRENT_TIMEFRAME_OPTIONS: { value: string; label: string }[] = [
+  { value: '', label: 'How long has it been going on? (optional)' },
+  { value: 'Less than a week', label: 'Less than a week' },
+  { value: '1-2 weeks', label: '1–2 weeks' },
+  { value: '3-4 weeks', label: '3–4 weeks' },
+  { value: 'Over a month', label: 'Over a month' },
+]
+
 const TIME_OF_DAY_OPTIONS: { value: TrainingTimeOfDay; label: string; desc: string }[] = [
   { value: 'early_am', label: 'Early morning', desc: 'Before 7am' },
   { value: 'morning', label: 'Morning', desc: '7am – 11am' },
@@ -142,8 +178,12 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
   const [anchorBpm, setAnchorBpm] = useState('')
   const [weeklyMileage, setWeeklyMileage] = useState('')
   const [injury, setInjury] = useState<InjuryStatus | null>(null)
+  const [injuryArea, setInjuryArea] = useState('')
+  const [injuryTimeframe, setInjuryTimeframe] = useState('')
+  const [injuryNote, setInjuryNote] = useState('')
   const [equipment, setEquipment] = useState<EquipmentAccess[]>([])
   const [strengthDays, setStrengthDays] = useState<number | null>(null)
+  const [strengthExperience, setStrengthExperience] = useState<StrengthExperience | null>(null)
   const [crossTraining, setCrossTraining] = useState<CrossTrainingMode[]>([])
   const [crossDays, setCrossDays] = useState<number | null>(null)
   const [trainingTimes, setTrainingTimes] = useState<TrainingTimeOfDay[]>([])
@@ -224,8 +264,10 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
       case STEP_STRENGTH:
         // Strength frequency is required. Cross-training frequency is also
         // required (None is a valid answer); modalities are required only
-        // when crossDays > 0.
+        // when crossDays > 0. Lifting background is required only when the
+        // athlete asked for at least one strength day.
         if (strengthDays === null) return false
+        if (strengthDays > 0 && strengthExperience === null) return false
         if (crossDays === null) return false
         if (crossDays > 0 && crossTraining.length === 0) return false
         return true
@@ -269,8 +311,12 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
       fitnessAnchor,
       currentWeeklyMileage: weeklyMileage ? parseFloat(weeklyMileage) : undefined,
       injuryStatus: injury ?? undefined,
+      injuryArea: injury && injury !== 'none' && injuryArea ? injuryArea : undefined,
+      injuryTimeframe: injury && injury !== 'none' && injuryTimeframe ? injuryTimeframe : undefined,
+      injuryNote: injury && injury !== 'none' && injuryNote.trim() ? injuryNote.trim() : undefined,
       equipmentAccess: equipment.length > 0 ? equipment : undefined,
       strengthDaysPerWeek: strengthDays ?? undefined,
+      strengthExperience: (strengthDays ?? 0) > 0 ? (strengthExperience ?? undefined) : undefined,
       crossTrainingModes: crossTraining.length > 0 ? crossTraining : undefined,
       crossTrainingDaysPerWeek: crossDays ?? undefined,
       preferredTrainingTimes: trainingTimes.length > 0 ? trainingTimes : undefined,
@@ -498,6 +544,55 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
                   <OptionCard selected={injury === 'returning'} onClick={() => setInjury('returning')} title="Returning from injury" desc="Recently cleared. We'll ramp gently." />
                   <OptionCard selected={injury === 'current'} onClick={() => setInjury('current')} title="Currently injured" desc="We'll prioritize recovery & cross-training." />
                 </div>
+
+                {/* Injury follow-ups — only when returning/current. Optional,
+                    but they let us shape the ramp and the coach's greeting to
+                    the actual injury. */}
+                {(injury === 'returning' || injury === 'current') && (
+                  <div className="mt-3 space-y-3 rounded-xl border border-amber-200 bg-amber-50 p-3">
+                    <p className="text-xs text-amber-800">
+                      A few details help us adapt your ramp and brief your coach. All optional.
+                    </p>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">What area?</label>
+                      <select
+                        aria-label="Injury area"
+                        value={injuryArea}
+                        onChange={e => setInjuryArea(e.target.value)}
+                        className="w-full px-3 py-2.5 text-base border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400 bg-white"
+                      >
+                        {INJURY_AREA_OPTIONS.map(o => (
+                          <option key={o.value} value={o.value}>{o.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">
+                        {injury === 'returning' ? 'When were you cleared?' : 'How long has it been going on?'}
+                      </label>
+                      <select
+                        aria-label="Injury timeframe"
+                        value={injuryTimeframe}
+                        onChange={e => setInjuryTimeframe(e.target.value)}
+                        className="w-full px-3 py-2.5 text-base border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400 bg-white"
+                      >
+                        {(injury === 'returning' ? RETURNING_TIMEFRAME_OPTIONS : CURRENT_TIMEFRAME_OPTIONS).map(o => (
+                          <option key={o.value} value={o.value}>{o.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Anything else we should know?</label>
+                      <textarea
+                        value={injuryNote}
+                        onChange={e => setInjuryNote(e.target.value)}
+                        placeholder="e.g. still some pain on downhills, cleared for flat running only"
+                        rows={2}
+                        className="w-full px-3 py-2.5 text-base border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400 resize-none"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </StepContainer>
@@ -539,6 +634,23 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
                   ))}
                 </div>
               </div>
+              {(strengthDays ?? 0) > 0 && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">How much lifting experience do you have?</label>
+                  <p className="text-xs text-slate-400 mb-2">We use this to set your starting weights — too heavy too soon is how people get hurt.</p>
+                  <div className="space-y-2">
+                    {STRENGTH_EXPERIENCE_OPTIONS.map(opt => (
+                      <OptionCard
+                        key={opt.value}
+                        selected={strengthExperience === opt.value}
+                        onClick={() => setStrengthExperience(opt.value)}
+                        title={opt.label}
+                        desc={opt.desc}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">Cross-training per week (optional)</label>
                 <div className="grid grid-cols-4 gap-2" data-testid="cross-frequency">
@@ -641,9 +753,11 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
               longRunDay={longRunDay}
               weakStation={weakStation}
               strengthDays={strengthDays}
+              strengthExperience={strengthExperience}
               crossTraining={crossTraining}
               crossDays={crossDays}
               injury={injury}
+              injuryArea={injuryArea}
               wearable={wearable}
               name={name}
               age={age}
@@ -817,6 +931,24 @@ const INJURY_LABELS: Record<InjuryStatus, string> = {
   current: 'Currently injured',
 }
 
+const STRENGTH_EXP_LABELS: Record<StrengthExperience, string> = {
+  new: 'New to lifting',
+  recreational: 'Some lifting experience',
+  experienced: 'Experienced lifter',
+}
+
+const INJURY_AREA_LABELS: Record<string, string> = {
+  knee: 'knee',
+  achilles_calf: 'Achilles/calf',
+  hamstring: 'hamstring',
+  hip: 'hip',
+  foot: 'foot',
+  shin: 'shin',
+  it_band: 'IT band',
+  back: 'back',
+  other: 'other',
+}
+
 const CROSS_LABELS: Record<CrossTrainingMode, string> = {
   cycling: 'Cycling',
   swimming: 'Swimming',
@@ -855,9 +987,11 @@ function ReviewSummary({
   longRunDay,
   weakStation,
   strengthDays,
+  strengthExperience,
   crossTraining,
   crossDays,
   injury,
+  injuryArea,
   wearable,
   name,
   age,
@@ -873,9 +1007,11 @@ function ReviewSummary({
   longRunDay: string | null
   weakStation: string | null
   strengthDays: number | null
+  strengthExperience: StrengthExperience | null
   crossTraining: CrossTrainingMode[]
   crossDays: number | null
   injury: InjuryStatus | null
+  injuryArea: string
   wearable: WearableType | null
   name: string
   age: string
@@ -921,8 +1057,12 @@ function ReviewSummary({
         <p className="text-sm text-slate-700">
           {experience ? experience.replace(/_/g, ' ') : '—'}
           {injury ? ` · ${INJURY_LABELS[injury]}` : ''}
+          {injury && injury !== 'none' && injuryArea ? ` (${INJURY_AREA_LABELS[injuryArea] ?? injuryArea})` : ''}
           {detailLevel ? ` · ${DETAIL_LEVELS.find(d => d.id === detailLevel)?.label}` : ''}
         </p>
+        {strength > 0 && strengthExperience && (
+          <p className="text-sm text-slate-600 mt-1">Strength: {STRENGTH_EXP_LABELS[strengthExperience]} — weights calibrated to match</p>
+        )}
         {injuryAdjustNote && (
           <p className="text-xs text-amber-700 mt-1">{injuryAdjustNote}</p>
         )}
