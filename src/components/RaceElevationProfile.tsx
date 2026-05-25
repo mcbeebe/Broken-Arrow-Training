@@ -58,6 +58,12 @@ const PROFILE_11K: ProfilePoint[] = [
 ]
 
 export default function RaceElevationProfile({ race }: ElevationProfileProps) {
+  // These profiles are hand-authored Broken Arrow course data (KT-22,
+  // Washeshu Peak, Shirley Canyon…). They're meaningless for any other race,
+  // so only render for an actual Broken Arrow course. Generated plans (and
+  // future non-BA races) get nothing rather than a wrong chart.
+  if (!/broken\s*arrow/i.test(race.name)) return null
+
   const is18K = race.distanceMiles >= 10
   const profile = is18K ? PROFILE_18K : PROFILE_11K
   const peakElev = Math.max(...profile.map(p => p.elevation))

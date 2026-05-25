@@ -7,19 +7,24 @@ interface Props {
 
 const CARDS: { icon: string; title: string; body: string }[] = [
   {
-    icon: '⌚',
-    title: 'Connect your wearable',
-    body: 'Sync HR, sleep, HRV, and recovery so the app scores your readiness and adapts the plan to how you actually feel — not just the calendar.',
+    icon: '🎯',
+    title: 'Personalized to you',
+    body: 'Your plan is built around your race, your schedule, and your experience — and it recalibrates as your fitness changes. Not a one-size-fits-all template.',
   },
   {
     icon: '💬',
     title: 'Talk to your coach',
-    body: 'Ask anything — swap a workout, explain a zone, gut-check a niggle. Your coach knows your plan, your data, and your history, and answers in plain language.',
+    body: 'Ask anything — swap a workout, research a race-day strategy, gut-check a niggle. It knows your plan, your data, and your history, and answers in plain language.',
+  },
+  {
+    icon: '✏️',
+    title: "You're in control",
+    body: 'Edit any workout yourself, or let your coach propose changes you approve with a tap. The plan bends to your life — not the other way around.',
   },
   {
     icon: '🎛',
-    title: 'Make it yours',
-    body: 'Name your coach and pick its personality. Dial how much data and jargon you see. The more you tune it, the more it feels like training with someone who gets you.',
+    title: 'See it your way',
+    body: 'Name your coach and pick its personality. Dial how much data and jargon you see, from simple to deep. The more you tune it, the more it fits you.',
   },
 ]
 
@@ -47,11 +52,11 @@ export default function OnboardingValueProps({ onContinue, athleteName }: Props)
           {athleteName ? `You're in, ${athleteName}` : "You're in"}
         </p>
         <h1 className="text-2xl font-bold text-slate-900 dark:text-white leading-tight mt-1">
-          Here's what makes it powerful
+          A coach in your pocket
         </h1>
         <p className="text-sm text-slate-500 dark:text-slate-300 mt-2">
-          A plan is just the start. Three things turn this into a coach that
-          adapts to you:
+          You've got more than a training plan. It's built around you, adapts as
+          you go, and you stay in control:
         </p>
 
         <div className="mt-6 space-y-3">
@@ -70,7 +75,9 @@ export default function OnboardingValueProps({ onContinue, athleteName }: Props)
         </div>
 
         <p className="text-xs text-slate-400 mt-6">
-          You can set all of this up now, or anytime from Settings and the Coach tab.
+          Next, connect a wearable to unlock readiness scoring and recovery
+          tracking — or skip it and set everything up later from Settings and
+          the Coach tab.
         </p>
       </div>
 

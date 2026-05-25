@@ -20,7 +20,9 @@ export function useTheme() {
   const [mode, setModeState] = useState<ThemeMode>(() => {
     const stored = localStorage.getItem(STORAGE_KEY)
     if (stored === 'light' || stored === 'dark' || stored === 'auto') return stored
-    return 'auto'
+    // Default to light: dark mode isn't fully polished yet, so don't inherit
+    // a system dark preference. Users can still pick dark/auto in Settings.
+    return 'light'
   })
 
   const resolved = mode === 'auto' ? getSystemPreference() : mode
