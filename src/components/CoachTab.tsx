@@ -78,29 +78,9 @@ export default function CoachTab({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Auto-rollover: when today is a different day than the newest
-  // conversation turn, archive the current conversation under that prior
-  // date so today starts a fresh thread. Uses localStorage to avoid
-  // double-firing in the same session.
-  useEffect(() => {
-    const today = snapshot?.today?.date
-    if (!today) return
-    const visible = memory.conversation.filter(t => t.role !== 'system-handoff')
-    if (visible.length === 0) return
-    // Find the date of the newest turn from its ts
-    const lastTurn = visible[visible.length - 1]
-    if (!lastTurn.ts) return
-    const lastDate = localDateStr(new Date(lastTurn.ts))
-    if (lastDate === today) return  // same day, nothing to do
-    // Prior-day content exists — archive it
-    const rolloverKey = `ba_coach_last_rollover:${athleteId}`
-    if (localStorage.getItem(rolloverKey) === today) return
-    try { localStorage.setItem(rolloverKey, today) } catch { /* quota */ }
-    memory.rolloverDay(lastDate)
-    // Reset the seed flag so today's insight seeds into the fresh thread
-    clearSeedDate(athleteId)
-    onInteraction?.('day_rolled_over', { archivedDate: lastDate })
-  }, [snapshot?.today?.date, memory, athleteId, onInteraction])
+  // Daily rollover (archive yesterday's thread, including the midnight
+  // timer + 5-min inactivity grace) is centralized in useDailyAutoArchive,
+  // mounted at the App level so it runs regardless of the active tab.
 
   // NOTE: daily insight is intentionally NOT seeded into the chat
   // thread anymore. It lives on the Summary tab only — mixing it into
@@ -209,10 +189,12 @@ export default function CoachTab({
 
   return (
     <div className="flex flex-col h-[calc(100vh-11rem)] px-0 py-0 gap-0 relative">
-      {/* Single scroll surface: the daily insight is the top message and
-          scrolls naturally together with the chat history below it. The
-          composer pins to the bottom via CoachChat's renderLayout so the
-          full insight can be read without a 45vh truncation cap. */}
+      {/* Single scroll surface: the chat history renders first and the
+          daily insight — the newest coach message — sits at the BOTTOM,
+          below any earlier turns (e.g. an applied plan-update card), like
+          the most recent message in a normal chat thread. CoachChat
+          auto-scrolls to the bottom so it lands in view on open. The
+          composer pins below it via CoachChat's renderLayout. */}
       <CoachChat
         athleteId={athleteId}
         memory={memory}
@@ -224,16 +206,17 @@ export default function CoachTab({
         onApproveAction={onApproveAction}
         onRejectAction={onRejectAction}
         onUndoAction={onUndoAction}
+        scrollDep={dailyInsight?.generatedAt ?? (dailyInsightLoading ? 'loading' : 0)}
         renderLayout={({ scrollerRef, messagesBody, errorBanners, composer }) => (
           <div className="flex flex-col h-full bg-white dark:bg-slate-800">
             {/* Action bar pinned at the very top — History / Archive /
                 Save / Copy / Clear stay in reach regardless of scroll
-                position, so the athlete never has to scroll the daily
-                insight back into view to access them. */}
+                position. */}
             {actionBar}
             <div ref={scrollerRef} className="flex-1 min-h-0 overflow-y-auto">
+              <div className="px-2 py-2 space-y-2">{messagesBody}</div>
               {(dailyInsight || dailyInsightLoading) && (
-                <div className="px-2 pt-2">
+                <div className="px-2 pb-2">
                   <CoachInsightCard
                     insight={dailyInsight}
                     loading={dailyInsightLoading}
@@ -248,7 +231,6 @@ export default function CoachTab({
                   />
                 </div>
               )}
-              <div className="px-2 py-2 space-y-2">{messagesBody}</div>
             </div>
             {errorBanners}
             {composer}

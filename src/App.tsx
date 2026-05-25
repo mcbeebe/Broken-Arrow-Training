@@ -27,6 +27,7 @@ import { loadRunGAPCache } from './utils/runGAP'
 import { loadEccentricCache } from './utils/runEccentric'
 import { useDOMSCalibration } from './hooks/useDOMSCalibration'
 import { useCoachMemory } from './hooks/useCoachMemory'
+import { useDailyAutoArchive } from './hooks/useDailyAutoArchive'
 import { useCoachInsight } from './hooks/useCoachInsight'
 import { useInsightReadState } from './hooks/useInsightReadState'
 import { useCoachTelemetry } from './hooks/useCoachTelemetry'
@@ -278,6 +279,15 @@ interface MainAppShellProps {
 
 function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tutorial }: MainAppShellProps) {
   const [view, setView] = useState<ViewId>(() => {
+    // A ?view= param wins — set by the PWA start_url and by a tapped
+    // push notification's openWindow target. It's an explicit deep-link
+    // into a specific tab.
+    try {
+      const param = new URLSearchParams(window.location.search).get('view')
+      if (param === 'summary' || param === 'plan' || param === 'dashboard' || param === 'coach' || param === 'settings') {
+        return param as ViewId
+      }
+    } catch { /* ignored */ }
     // Honor the one-shot initial-view hint set by the zones primer's
     // "Refine zones in Settings" action. Read + clear immediately so a
     // reload doesn't bounce back into Settings.
@@ -303,6 +313,21 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     }
     window.addEventListener('hashchange', onHashChange)
     return () => window.removeEventListener('hashchange', onHashChange)
+  }, [])
+
+  // When the athlete taps a coach push notification, the service worker
+  // posts a message asking us to jump to the Coach tab (the app was
+  // already open, so a URL navigation alone wouldn't change the view).
+  useEffect(() => {
+    if (!('serviceWorker' in navigator)) return
+    function onMessage(e: MessageEvent) {
+      const data = e.data as { type?: string; view?: string } | null
+      if (data?.type === 'NOTIFICATION_CLICK' && data.view === 'coach') {
+        setView('coach')
+      }
+    }
+    navigator.serviceWorker.addEventListener('message', onMessage)
+    return () => navigator.serviceWorker.removeEventListener('message', onMessage)
   }, [])
   const manualLog = useManualLog(athleteId)
   const daySwap = useDaySwap(athleteId)
@@ -336,6 +361,22 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
   const coachEnabled = true
   const coachMemory = useCoachMemory(athleteId, coachEnabled)
   const coachTelemetry = useCoachTelemetry(athleteId, coachEnabled)
+
+  // Archive the coach thread once per day (midnight rollover + catch-up on
+  // launch). Lives here, above the tab switch, so it runs no matter which
+  // tab is active.
+  useDailyAutoArchive({
+    athleteId,
+    enabled: coachEnabled,
+    loaded: coachMemory.loaded,
+    conversation: coachMemory.conversation,
+    rolloverDay: coachMemory.rolloverDay,
+    onArchived: date =>
+      coachTelemetry.logInteraction(
+        'day_rolled_over' as Parameters<typeof coachTelemetry.logInteraction>[0],
+        { archivedDate: date },
+      ),
+  })
 
   const TABS: { id: ViewId; label: string; badge?: number }[] = useMemo(() => {
     const base: { id: ViewId; label: string; badge?: number }[] = [
