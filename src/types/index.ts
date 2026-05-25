@@ -963,6 +963,9 @@ export interface CoachSnapshot {
     maxHR?: number
     elevationGain?: number
     rpe?: number
+    /** Athlete's free-text note/comment on the workout (manual log, or a
+     *  synced Strava description). The coach reads these as subjective signal. */
+    notes?: string
     /** Per-lap/split breakdown (from Strava laps or Garmin splits). */
     laps?: { distance: number; movingTime: number; avgHR?: number; avgSpeed?: number; elev?: number }[]
     /** Time-in-zone breakdown (from Garmin activity detail). */
@@ -973,6 +976,46 @@ export interface CoachSnapshot {
     vo2max?: number
   }[]
   recentSoreness?: { date: string; summary: string }[]
+  /** The most recently completed planned day — the target of the
+   *  post-workout debrief ping. Carries planned-vs-actual, the letter
+   *  grade, and the athlete's subjective inputs (RPE + notes) so the coach
+   *  can reconcile objective execution against how the session felt. `key`
+   *  is a stable id the client uses to fire the debrief exactly once per
+   *  completion (covers Strava / Garmin / manual logs). */
+  lastCompletedWorkout?: {
+    key: string
+    dayLabel: string
+    date: string
+    weekNum: number
+    dayIndex: number
+    type: string
+    plannedWorkout: string
+    plannedDetail?: string
+    plannedZone?: string
+    plannedTime?: string
+    grade?: { grade: string; score: number; reason: string } | null
+    actual: {
+      name?: string
+      distance?: number
+      movingTime?: number
+      avgHR?: number
+      maxHR?: number
+      elevationGain?: number
+      rpe?: number
+      notes?: string
+      drillNotes?: string
+      aerobicTE?: number
+      vo2max?: number
+      hrZones?: { zone: number; seconds: number }[]
+    }
+  } | null
+  /** Compact training-block framing — current phase, weeks to race, and the
+   *  full phase arc — so proactive pings can situate a workout in the plan. */
+  planBlocks?: {
+    currentPhase?: string
+    weeksToRace?: number
+    phases: { label: string; weekStart: number; weekEnd: number }[]
+  } | null
   athleteProfile?: AthleteProfile
   race?: RaceInfo
   /** Athlete's HR zone definitions from the plan — rendered dynamically

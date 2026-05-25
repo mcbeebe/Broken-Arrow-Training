@@ -105,6 +105,7 @@ function stravaToActual(activity: StravaActivity): ActualWorkout {
     type: activity.type,
     name: activity.name,
     startDate: activity.start_date_local,
+    notes: activity.description?.trim() || undefined,
     deviceName: activity.device_name,
     splits: activity.splits_metric?.map(s => ({
       split: s.split,

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import type { PlannedDay, HRZone, ReadinessScore, PerformanceMetrics, CoachSnapshot, TRIMPRecord } from '../types'
 import { buildWeatherChipFromHour, forecastForHour, describeWeatherCode, formatHourLabel } from '../utils/weatherChip'
-import { dayLabelToISO } from '../utils/coachSnapshot'
+import { dayLabelToISO, buildCompletedWorkoutPayload } from '../utils/coachSnapshot'
 import type { PlannedSegment } from '../engines/planGenerator/types'
 import { getWorkoutStyle, adaptBg } from '../utils/styles'
 import { getCoaching } from '../utils/coaching'
@@ -1481,24 +1481,34 @@ function CoachWorkoutTakeForDay({
 }) {
   const fallback = generateWorkoutTake(day, weekNum, readiness, latestPerf ?? null)
 
-  // LLM insight only fires for TODAY's upcoming workout. Two reasons
-  // to disable it otherwise:
-  //   1. Completed days — the snapshot is today-centric so the LLM
-  //      would comment on today's readiness instead of the past run.
-  //      The heuristic (buildCompletedTake) already gives a great
-  //      execution-focused reflection.
-  //   2. Future days — same problem. "Tomorrow's walk is fine" is
-  //      useless copy when the athlete opened Thu 5/14's easy run.
-  //      The heuristic generateWorkoutTake is day-specific and reads
-  //      naturally for any day.
+  // This card slot serves two LLM modes plus a heuristic fallback:
+  //   1. Completed day → a post-workout DEBRIEF (workout_debrief surface).
+  //      We hand the LLM *this* day's planned-vs-actual + RPE/notes payload
+  //      as lastCompletedWorkout so it reflects on the run in front of the
+  //      athlete — which fixes the old today-centric problem that forced the
+  //      LLM off for completed days. Reconciles the grade against RPE/notes
+  //      and learns durable patterns server-side.
+  //   2. Today's upcoming day → the pre-run "Coach's take" (workout_take).
+  //   3. Any other day → the day-specific heuristic (generateWorkoutTake).
   const isCompleted = !!day.actual
   const todayLabel = coachSnapshot?.plannedToday?.day
   const isToday = !!todayLabel && todayLabel === day.day
-  const useLLM = isToday && !isCompleted
+
+  // For a completed day, build a snapshot whose lastCompletedWorkout is THIS
+  // workout (not the globally-most-recent one), so the debrief targets it.
+  const debriefSnapshot = useMemo(() => {
+    if (!isCompleted || !coachSnapshot) return null
+    const payload = buildCompletedWorkoutPayload(day, weekNum, 0)
+    return payload ? { ...coachSnapshot, lastCompletedWorkout: payload } : null
+  }, [isCompleted, coachSnapshot, day, weekNum])
+
+  const useDebrief = isCompleted && !!debriefSnapshot
+  const useTake = isToday && !isCompleted
+  const useLLM = useDebrief || useTake
   const { insight, loading } = useCoachInsight({
     athleteId: athleteId || '',
-    surface: `workout_take:${day.day}`,
-    snapshot: coachSnapshot ?? null,
+    surface: useDebrief ? `workout_debrief:${day.day}` : `workout_take:${day.day}`,
+    snapshot: useDebrief ? debriefSnapshot : (coachSnapshot ?? null),
     enabled: useLLM && !!athleteId && !!coachSnapshot,
     fallbackText: fallback.text,
     fallbackTip: fallback.tip,

@@ -16,15 +16,19 @@ from ._core import (
     build_context_block,
     build_system_prompt,
     call_anthropic,
+    detect_workout_inferences,
     insight_key,
     kv_get_json,
     kv_set_json,
     load_learning_ack,
     load_memory,
+    new_fact_id,
     read_json_body,
     save_learning_ack,
+    save_memory,
     send_cors_preflight,
     send_json,
+    sync_about_me_string,
 )
 
 
@@ -76,6 +80,32 @@ SURFACE_INSTRUCTIONS = {
         "humor; Motivational → fire them up; Data Nerd → cite numbers). "
         "End with one short optional tip on a new line prefixed with "
         "'Tip: '."
+    ),
+    "workout_debrief": (
+        "Debrief the workout in the 'JUST COMPLETED — debrief target' block "
+        "of the context — the one the athlete just finished and is looking "
+        "at right now. This is a post-workout reflection on a PAST effort, "
+        "NOT a read on today's readiness. Write 3-5 sentences:\n"
+        "1. Acknowledge the specific effort by name and the headline numbers "
+        "(distance, time, climb, HR).\n"
+        "2. Read planned-vs-actual using the letter grade as objective "
+        "evidence, then EXPLICITLY reconcile it against the athlete's "
+        "subjective inputs — their RPE and their own note. When they diverge "
+        "(a solid grade but RPE 8, or a note about pain / heavy legs / hard "
+        "breathing), trust the subjective signal and say so out loud — that "
+        "is the most valuable part of the debrief.\n"
+        "3. One line on how this session fits the current training block / "
+        "phase (use the 'Training block' context if present).\n"
+        "4. One concrete forward-looking cue (recovery, fuel, what the next "
+        "session should respect).\n"
+        "Ground every claim in the numbers and the note from the context — "
+        "never invent details. Do NOT propose a plan change here; this is a "
+        "reflection. This is structure, NOT voice: deliver the whole thing "
+        "in your configured persona (Funny → rib them; Motivational → fire "
+        "them up; Data Nerd → cite the numbers; demanding → be blunt). Do "
+        "NOT default to a flat, neutral coaching tone — that contradicts the "
+        "persona the athlete configured. Markdown bold/emojis fine for "
+        "playful personas. No greeting line, no 'Triggered by:' chip."
     ),
     "why": (
         "Explain WHY this prescription makes sense for this athlete right "
@@ -254,12 +284,19 @@ class handler(BaseHTTPRequestHandler):
         if "PR_STATUS:" in context_block:
             model_to_use = SONNET_MODEL
 
+        # The workout debrief reconciles the objective grade against the
+        # athlete's subjective RPE/note and is a primary persona-visible
+        # surface — Haiku's flat voice and weaker reconciliation hurt it.
+        # Always Sonnet, with a little more room than the daily read.
+        if surface_root == "workout_debrief":
+            model_to_use = SONNET_MODEL
+
         try:
             result = call_anthropic(
                 model=model_to_use,
                 system=system,
                 messages=[{"role": "user", "content": user_msg}],
-                max_tokens=400,
+                max_tokens=500 if surface_root == "workout_debrief" else 400,
                 # Low temperature on the daily summary: it states facts
                 # about PR status, dates, pace, and readiness. We need
                 # the model to follow the PR_STATUS line in the context
@@ -287,6 +324,42 @@ class handler(BaseHTTPRequestHandler):
         if new_learnings and surface_root == "daily":
             updated_ids = list(ack_record["ackedIds"]) + [nl["id"] for nl in new_learnings]
             save_learning_ack(athlete_id, updated_ids)
+
+        # Learning loop — the workout debrief is the one surface fed a full
+        # planned-vs-actual + RPE/notes payload, so it's where the coach
+        # learns durable training patterns ("what helps / what hurts this
+        # athlete"). Extract them from the completed workout + the debrief we
+        # just wrote, dedup against existing About Me, and fold the novel ones
+        # in. They surface naturally in a later daily insight via the
+        # learning-ack block above. Cache-miss only (cached replays returned
+        # earlier), so we don't re-learn on every render.
+        if surface_root == "workout_debrief":
+            lcw = snapshot.get("lastCompletedWorkout")
+            if lcw:
+                try:
+                    facts = detect_workout_inferences(
+                        athlete_id,
+                        lcw,
+                        text,
+                        existing_about_me=memory.get("aboutMe", "") or "",
+                        athlete_profile=snapshot.get("athleteProfile"),
+                        race=snapshot.get("race"),
+                    )
+                except Exception:
+                    facts = []
+                if facts:
+                    facts_list = memory.setdefault("aboutMeFacts", [])
+                    now_ms = int(time.time() * 1000)
+                    src = f"workout:{lcw.get('key') or lcw.get('date') or ''}"
+                    for f in facts:
+                        facts_list.append({
+                            "id": new_fact_id(),
+                            "text": f,
+                            "learnedAt": now_ms,
+                            "sourceTurnId": src,
+                        })
+                    sync_about_me_string(memory)
+                    save_memory(athlete_id, memory)
 
         # SILENT = explicit suppression for day_card
         if text.strip().upper() == "SILENT":

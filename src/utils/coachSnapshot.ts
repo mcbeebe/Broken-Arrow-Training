@@ -15,6 +15,7 @@ import type {
   DailyTRIMP,
   StravaActivity,
   GarminActivity,
+  TrainingPlan,
 } from '../types'
 import type { OverallCompliance } from '../hooks/useCompliance'
 import type { SorenessLevel } from '../hooks/useSoreness'
@@ -22,6 +23,8 @@ import type { TrainingMethod } from '../types/training-method'
 import { computeRaceProjection } from './raceProjection'
 import { localDateStr } from './format'
 import { buildProgression, suggestNextTarget } from './strengthProgression'
+import { calculateGrade } from './grading'
+import { buildMethodologyContext } from './methodologyContext'
 
 /**
  * Assemble the CoachSnapshot that's sent with every LLM call. The goal is
@@ -309,6 +312,52 @@ function projectHealth(h: GarminHealthData | null | undefined): CoachHealthToday
   return hasAny ? out : null
 }
 
+/**
+ * Build the post-workout "debrief target" payload for a single completed
+ * planned day — planned-vs-actual, the letter grade, and the athlete's
+ * subjective RPE + notes. Shared by `buildCoachSnapshot` (for the globally
+ * most-recent completed day) and the WorkoutModal debrief card (for the
+ * specific day the athlete is viewing), so the LLM debriefs the workout in
+ * front of them rather than the today-centric snapshot default. Returns
+ * null when the day has no completed actual.
+ */
+export function buildCompletedWorkoutPayload(
+  day: PlannedDay,
+  weekNum: number,
+  dayIndex: number,
+): NonNullable<CoachSnapshot['lastCompletedWorkout']> | null {
+  const a = day.actual
+  if (!a?.startDate) return null
+  const g = calculateGrade(day)
+  return {
+    key: a.startDate,
+    dayLabel: day.day,
+    date: a.startDate.slice(0, 10),
+    weekNum,
+    dayIndex,
+    type: day.type,
+    plannedWorkout: day.workout,
+    plannedDetail: day.detail,
+    plannedZone: day.zone,
+    plannedTime: day.time,
+    grade: g ? { grade: g.grade, score: g.score, reason: g.reason } : null,
+    actual: {
+      name: a.name,
+      distance: a.distance,
+      movingTime: a.movingTime,
+      avgHR: a.avgHR,
+      maxHR: a.maxHR,
+      elevationGain: a.elevationGain,
+      rpe: a.rpe,
+      notes: a.notes,
+      drillNotes: a.drills?.notes,
+      aerobicTE: a.aerobicTE,
+      vo2max: a.vo2max,
+      hrZones: a.hrZoneSummary?.filter(z => z.seconds > 0).map(z => ({ zone: z.zone, seconds: z.seconds })),
+    },
+  }
+}
+
 export function buildCoachSnapshot(inputs: Inputs): CoachSnapshot {
   const { weeks, plannedToday, plannedTomorrow, readiness, performance, athleteProfile, race, currentWeekNum, todayHealth, planStartDate, stravaActivities, garminActivities } = inputs
 
@@ -420,6 +469,7 @@ export function buildCoachSnapshot(inputs: Inputs): CoachSnapshot {
         maxHR: a.maxHR,
         elevationGain: a.elevationGain,
         rpe: a.rpe,
+        notes: a.notes,
         laps: a.laps?.map(l => ({
           distance: l.distance,
           movingTime: 0,
@@ -546,6 +596,46 @@ export function buildCoachSnapshot(inputs: Inputs): CoachSnapshot {
     .sort((a, b) => b.sessions - a.sessions)
     .slice(0, 12)
 
+  // Most recently completed planned day — the debrief target. Scan every
+  // planned day, keep the one with the latest actual.startDate. Carries
+  // planned-vs-actual, the letter grade, and the athlete's RPE + notes so
+  // the coach can reconcile objective execution against how it felt. The
+  // `key` (the actual's startDate) lets the client fire the debrief exactly
+  // once per completion, regardless of source (Strava / Garmin / manual).
+  let lastCompletedWorkout: CoachSnapshot['lastCompletedWorkout'] = null
+  let lcwBest = ''
+  for (const w of weeks) {
+    for (let i = 0; i < w.days.length; i++) {
+      const d = w.days[i]
+      const a = d.actual
+      if (!a?.startDate) continue
+      if (a.startDate <= lcwBest) continue
+      lcwBest = a.startDate
+      lastCompletedWorkout = buildCompletedWorkoutPayload(d, w.num, i)
+    }
+  }
+
+  // Training-block framing — current phase, weeks to race, and the full
+  // phase arc. Derived from the same methodology engine the Methodology
+  // screen renders, so proactive pings situate a workout consistently.
+  let planBlocks: CoachSnapshot['planBlocks'] = null
+  try {
+    const planForCtx: TrainingPlan = {
+      athlete: athleteProfile,
+      weeks,
+      zones: inputs.zones ?? [],
+      race,
+    }
+    const methodCtx = buildMethodologyContext(planForCtx, inputs.trainingMethod)
+    planBlocks = {
+      currentPhase: methodCtx.phases.find(p => currentWeekNum >= p.weekStart && currentWeekNum <= p.weekEnd)?.label,
+      weeksToRace: Math.max(0, methodCtx.totalWeeks - currentWeekNum + 1),
+      phases: methodCtx.phases.map(p => ({ label: p.label, weekStart: p.weekStart, weekEnd: p.weekEnd })),
+    }
+  } catch {
+    planBlocks = null
+  }
+
   return {
     today: { date: todayISO(), period: currentDayPeriod() },
     currentWeekNum,
@@ -560,6 +650,8 @@ export function buildCoachSnapshot(inputs: Inputs): CoachSnapshot {
     fullPlan,
     recentActivities,
     recentSoreness,
+    lastCompletedWorkout,
+    planBlocks,
     athleteProfile,
     race,
     zones: inputs.zones,
