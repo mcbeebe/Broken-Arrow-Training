@@ -3,7 +3,7 @@ import type { ReadinessScore, GarminHealthData, CoachRecommendation, Performance
 import type { RiskFlag } from '../utils/readiness'
 import type { SorenessLevel } from '../hooks/useSoreness'
 import { getTSBState, getTSBLabel, getACWRRisk, getACWRLabel } from '../utils/performance'
-import { localDateStr } from '../utils/format'
+import { localDateStr, formatLoadP } from '../utils/format'
 import { findTrimpRecord } from '../utils/trimp'
 import TodayBriefing from './TodayBriefing'
 import TRIMPBreakdown from './TRIMPBreakdown'
@@ -515,7 +515,7 @@ export default function Summary({
               <div className="bg-blue-50 dark:bg-blue-950 rounded-lg p-4">
                 <div className="flex items-baseline justify-between">
                   <div>
-                    <span className="text-2xl font-bold text-blue-700">{latestPerf.ctl.toFixed(0)}</span>
+                    <span className="text-2xl font-bold text-blue-700">{formatLoadP(latestPerf.ctl, flags.numericPrecision)}</span>
                     <span className="text-xs text-slate-500 dark:text-slate-400 ml-2">/ 100</span>
                   </div>
                   <p className="text-xs text-blue-600 font-semibold"><Sparkline data={ctlSpark} color="#2563eb" />{fitnessLabel}</p>
@@ -534,8 +534,8 @@ export default function Summary({
               <div className="bg-red-50 dark:bg-red-950 rounded-lg p-4">
                 <div className="flex items-baseline justify-between">
                   <div>
-                    <span className="text-2xl font-bold text-red-600">{latestPerf.atl.toFixed(0)}</span>
-                    <span className="text-xs text-slate-500 dark:text-slate-400 ml-2">vs fitness {latestPerf.ctl.toFixed(0)}</span>
+                    <span className="text-2xl font-bold text-red-600">{formatLoadP(latestPerf.atl, flags.numericPrecision)}</span>
+                    <span className="text-xs text-slate-500 dark:text-slate-400 ml-2">vs fitness {formatLoadP(latestPerf.ctl, flags.numericPrecision)}</span>
                   </div>
                   <p className="text-xs text-red-500 font-semibold"><Sparkline data={atlSpark} color="#ef4444" />{fatigueLabel}</p>
                 </div>
@@ -565,7 +565,7 @@ export default function Summary({
                       latestPerf.tsb >= 5 ? 'text-green-700'
                       : latestPerf.tsb >= -10 ? 'text-slate-700 dark:text-slate-200'
                       : 'text-amber-700'
-                    }`}>{latestPerf.tsb >= 0 ? '+' : ''}{latestPerf.tsb.toFixed(0)}</span>
+                    }`}>{latestPerf.tsb >= 0 ? '+' : ''}{formatLoadP(latestPerf.tsb, flags.numericPrecision)}</span>
                     <span className="text-xs text-slate-500 dark:text-slate-400 ml-2">range: -30 to +25</span>
                   </div>
                   <p className={`text-xs font-semibold ${
@@ -602,7 +602,7 @@ export default function Summary({
                       acwrRisk === 'sweet_spot' ? 'text-green-700'
                       : acwrRisk === 'high_risk' ? 'text-red-600'
                       : 'text-amber-600'
-                    }`}>{latestPerf.acwr.toFixed(2)}</span>
+                    }`}>{latestPerf.acwr.toFixed(flags.numericPrecision === 'low' ? 1 : 2)}</span>
                     <span className="text-xs text-slate-500 dark:text-slate-400 ml-2">sweet spot: 0.8–1.3</span>
                   </div>
                   <p className={`text-xs font-semibold ${
