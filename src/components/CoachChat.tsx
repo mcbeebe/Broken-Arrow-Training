@@ -6,6 +6,7 @@ import { renderMarkdown } from '../utils/markdown'
 import { extractProposal, stripStreamingProposal } from '../utils/chatProposal'
 import { resizeImage, type ResizedImage } from '../utils/imageResize'
 import { markCoachActivity } from '../utils/coachActivity'
+import { proactiveInsightIndex } from '../utils/coachThreadOrder'
 import { isVoiceInputEnabled, startRecording, transcribeAudio, voiceCaptureSupported, type ActiveRecording, type VoiceCaptureError } from '../utils/voiceInput'
 import ProposalCard from './ProposalCard'
 import CoachFollowUpChips from './CoachFollowUpChips'
@@ -54,6 +55,11 @@ interface Props {
    *  content below the turns (e.g. the daily insight card loading in), so
    *  the freshest coach message lands in view on open. */
   scrollDep?: number | string
+  /** A proactive coach message (the daily insight card) woven into the
+   *  thread at its generation time. Positioned by `ts` against each turn's
+   *  timestamp so the freshest message — a chat reply OR a fresh daily
+   *  update — always lands at the bottom of a continuous conversation. */
+  proactiveInsight?: { node: ReactNode; ts: number } | null
 }
 
 /**
@@ -88,7 +94,7 @@ function writeFontScale(athleteId: string, scale: number) {
   }
 }
 
-export default function CoachChat({ athleteId, memory, snapshot, seed, onSeedConsumed, onSent, getPlannedDay, onApproveAction, onRejectAction, onUndoAction, renderLayout, scrollDep }: Props) {
+export default function CoachChat({ athleteId, memory, snapshot, seed, onSeedConsumed, onSent, getPlannedDay, onApproveAction, onRejectAction, onUndoAction, renderLayout, scrollDep, proactiveInsight }: Props) {
   const coachName = snapshot?.coachPersona?.name?.trim() || 'Coach'
   const [input, setInput] = useState('')
   const [streaming, setStreaming] = useState(false)
@@ -388,7 +394,7 @@ export default function CoachChat({ athleteId, memory, snapshot, seed, onSeedCon
             break
           }
         }
-        return turns.map(t => (
+        const renderTurn = (t: ConversationTurn) => (
           <ChatTurn
             key={t.id}
             turn={t}
@@ -410,7 +416,24 @@ export default function CoachChat({ athleteId, memory, snapshot, seed, onSeedCon
             followUpsDisabled={streaming}
             isLatestAssistant={t.id === latestAssistantId}
           />
-        ))
+        )
+        // Weave the proactive daily insight into the thread at its
+        // generation time: it sits just before the first turn newer than
+        // it, so a fresh daily update lands at the bottom (newest) and any
+        // later reply flows in below it — a continuous conversation rather
+        // than a card pinned to the top or bottom.
+        const insightTs = proactiveInsight?.ts
+        const insertAt = insightTs != null
+          ? proactiveInsightIndex(turns.map(t => t.ts), insightTs)
+          : -1
+        const insightNode = <div key="__daily_insight">{proactiveInsight?.node}</div>
+        const items: ReactNode[] = []
+        turns.forEach((t, idx) => {
+          if (idx === insertAt) items.push(insightNode)
+          items.push(renderTurn(t))
+        })
+        if (insertAt >= turns.length) items.push(insightNode)
+        return items
       })()}
       {streaming && (
         <div className="flex flex-col gap-1">
