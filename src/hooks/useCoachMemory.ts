@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { CoachMemory, CoachPersona, ConversationTurn, DailyChatArchive } from '../types'
+import { DEFAULT_COACH_NAME } from '../types'
 import { coachApiAvailable, coachFetch } from '../utils/coachApi'
 
 /**
@@ -278,7 +279,7 @@ export function useCoachMemory(athleteId: string, enabled: boolean = true) {
         // persona takes several turns (or a clear) to show up.
         const visibleTurns = memory.conversation.filter(t => t.role !== 'system-handoff')
         if (visibleTurns.length > 0) {
-          const name = persona.name?.trim() || 'Coach'
+          const name = persona.name?.trim() || DEFAULT_COACH_NAME
           const traits = (persona.traits || []).join(', ') || 'none set'
           const note =
             `[PERSONA UPDATED] The athlete just changed the coach's identity in Settings. ` +

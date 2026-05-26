@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { CoachWorkoutTake } from '../utils/coachNotes'
 import type { CoachInsight, CoachPersona } from '../types'
+import { DEFAULT_COACH_NAME } from '../types'
 import { renderMarkdown } from '../utils/markdown'
 import { fetchTTSAudio, pickCoachVoice, type TTSError } from '../utils/voiceInput'
 
@@ -11,7 +12,7 @@ interface Props {
   insight?: CoachInsight | null
   loading?: boolean
   onAsk?: (seed: string) => void
-  /** Persona name; defaults to "Coach". */
+  /** Persona name; defaults to the app's default coach name. */
   coachName?: string
   /** Sprint 7 — when both are provided, a "Play briefing" button
    *  renders next to "Ask →" and streams a persona-voiced TTS
@@ -25,7 +26,7 @@ interface Props {
  * insight when available; otherwise falls back to the heuristic take.
  */
 export default function CoachWorkoutTakeView({ take, insight, loading, onAsk, coachName, athleteId, persona }: Props) {
-  const name = coachName?.trim() || 'Coach'
+  const name = coachName?.trim() || DEFAULT_COACH_NAME
   const text = (insight && !insight.silent && insight.text) || take?.text || ''
   const tip = (insight && insight.tip) || take?.tip
 

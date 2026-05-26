@@ -725,7 +725,7 @@ export default function Settings({
       <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-100">
         <h3 className="text-sm font-semibold text-slate-700 mb-2">About</h3>
         <div className="text-sm text-slate-500 space-y-1">
-          <p>Broken Arrow 18K Training App</p>
+          <p>Attune · Broken Arrow 18K plan</p>
           <p>10-week plan: Apr 13 – Jun 21, 2026</p>
           <p>Race: Friday June 19, 12PM at Palisades Tahoe</p>
           <p className="text-slate-400">Engine: ATE v2 (EPOC + Banister fallback)</p>

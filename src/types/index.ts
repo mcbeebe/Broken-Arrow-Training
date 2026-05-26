@@ -671,6 +671,10 @@ export interface CoachPersona {
   traits: string[]
 }
 
+/** Default coach name shown until the athlete renames it in Settings.
+ *  Stored persona.name stays empty until renamed; this is the display fallback. */
+export const DEFAULT_COACH_NAME = 'Mira'
+
 /** Available trait chips for the persona picker. Each trait shapes the
  *  coach's voice via the system prompt. Multiple can be active. */
 export const COACH_TRAITS = [

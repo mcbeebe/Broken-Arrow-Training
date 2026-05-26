@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { CoachPersona } from '../types'
-import { COACH_TRAITS } from '../types'
+import { COACH_TRAITS, DEFAULT_COACH_NAME } from '../types'
 
 interface Props {
   persona: CoachPersona
@@ -99,7 +99,7 @@ export default function CoachPersonaEditor({ persona, onSave }: Props) {
       {(name.trim() || traits.size > 0) && (
         <div className="bg-indigo-50/50 border border-indigo-100 rounded-xl px-3 py-2.5">
           <p className="text-sm text-slate-600 dark:text-slate-300">
-            <span className="font-medium text-indigo-700">{name.trim() || 'Coach'}</span>
+            <span className="font-medium text-indigo-700">{name.trim() || DEFAULT_COACH_NAME}</span>
             {traits.size > 0 && (
               <> will be {Array.from(traits).map(id => {
                 const t = COACH_TRAITS.find(x => x.id === id)

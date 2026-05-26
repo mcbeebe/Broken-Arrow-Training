@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import type { PlannedDay, HRZone, ReadinessScore, PerformanceMetrics, CoachSnapshot, TRIMPRecord } from '../types'
+import { DEFAULT_COACH_NAME } from '../types'
 import { buildWeatherChipFromHour, forecastForHour, describeWeatherCode, formatHourLabel } from '../utils/weatherChip'
 import { dayLabelToISO, buildCompletedWorkoutPayload } from '../utils/coachSnapshot'
 import type { PlannedSegment } from '../engines/planGenerator/types'
@@ -413,7 +414,7 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
             <WorkoutDebriefPrompt
               athleteId={athleteId}
               day={day}
-              coachName={coachSnapshot?.coachPersona?.name?.trim() || 'Coach'}
+              coachName={coachSnapshot?.coachPersona?.name?.trim() || DEFAULT_COACH_NAME}
               onAskCoach={onAskCoach}
             />
           )}
@@ -1543,7 +1544,7 @@ function CoachWorkoutTakeForDay({
       insight={useLLM ? insight : null}
       loading={useLLM ? loading : false}
       onAsk={onAsk}
-      coachName={coachSnapshot?.coachPersona?.name?.trim() || 'Coach'}
+      coachName={coachSnapshot?.coachPersona?.name?.trim() || DEFAULT_COACH_NAME}
       athleteId={athleteId}
       persona={coachSnapshot?.coachPersona}
     />

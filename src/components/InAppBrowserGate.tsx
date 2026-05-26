@@ -38,8 +38,8 @@ export default function InAppBrowserGate({ onBypass }: InAppBrowserGateProps) {
          style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" }}>
       <div className="w-full max-w-sm space-y-6">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-slate-800 dark:text-white tracking-tight">BROKEN ARROW</h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Training Plan</p>
+          <h1 className="text-2xl font-bold text-slate-800 dark:text-white tracking-tight">ATTUNE</h1>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">A coach in your pocket</p>
         </div>
 
         <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 space-y-5">
