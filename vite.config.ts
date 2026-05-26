@@ -24,7 +24,7 @@ export default defineConfig({
       ],
     }),
   ],
-  base: '/Broken-Arrow-Training/',
+  base: '/',
   test: {
     globals: true,
     environment: 'jsdom',
