@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import type { ConversationTurn, CoachPersona, PendingInference, AboutMeFact } from '../types'
+import { DEFAULT_COACH_NAME } from '../types'
 import { useCoachSummaryCard } from '../hooks/useCoachSummaryCard'
 
 interface DailyArchive {
@@ -167,7 +168,7 @@ export default function CoachMemoryPanel({
       <MemoryRow label="Coach persona">
         {(personaName || personaTraits.length) ? (
           <p className="text-sm text-slate-600 dark:text-slate-300">
-            {personaName || 'Coach'}{personaTraits.length ? ` · ${personaTraits.join(' · ')}` : ''}
+            {personaName || DEFAULT_COACH_NAME}{personaTraits.length ? ` · ${personaTraits.join(' · ')}` : ''}
           </p>
         ) : (
           <Empty>Default voice.</Empty>

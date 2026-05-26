@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import type { CoachAction, CoachInsight, PlannedDay } from '../types'
+import { DEFAULT_COACH_NAME } from '../types'
 import { renderMarkdown } from '../utils/markdown'
 import { extractProposal } from '../utils/chatProposal'
 import { extractTriggerSignal, type TriggerExtract } from '../utils/coachInsightText'
@@ -9,7 +10,7 @@ interface Props {
   insight: CoachInsight | null
   loading: boolean
   onAsk?: (seed: string) => void
-  /** Persona name from CoachMemory.coachPersona.name (falls back to "Coach"). */
+  /** Persona name from CoachMemory.coachPersona.name (falls back to the default coach name). */
   coachName?: string
   /** Optional regenerate handler — when provided, shows a ↻ button that
    *  busts the insight cache and refetches. Lets the athlete pull a
@@ -112,7 +113,7 @@ export default function CoachInsightCard({
   insight, loading, onAsk, coachName, onRegenerate, athleteId,
   getPlannedDay, onApproveProposal, onUndoProposal, alwaysExpanded,
 }: Props) {
-  const name = coachName?.trim() || 'Coach'
+  const name = coachName?.trim() || DEFAULT_COACH_NAME
   const [persistedCollapsed, setPersistedCollapsed] = useState(
     () => alwaysExpanded ? false : readCollapsed(athleteId),
   )

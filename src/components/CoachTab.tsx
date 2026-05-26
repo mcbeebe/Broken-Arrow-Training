@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { CoachInsight, CoachSnapshot, ConversationTurn, DailyChatArchive, CoachAction, PlannedDay } from '../types'
+import { DEFAULT_COACH_NAME } from '../types'
 import type { UseCoachMemoryReturn } from '../hooks/useCoachMemory'
 import { localDateStr } from '../utils/format'
 import { renderMarkdown } from '../utils/markdown'
@@ -126,13 +127,13 @@ export default function CoachTab({
               })}
             </p>
           </div>
-          <ArchiveViewer archive={archive} coachName={snapshot?.coachPersona?.name?.trim() || 'Coach'} />
+          <ArchiveViewer archive={archive} coachName={snapshot?.coachPersona?.name?.trim() || DEFAULT_COACH_NAME} />
         </div>
       )
     }
   }
 
-  const coachName = snapshot?.coachPersona?.name?.trim() || 'Coach'
+  const coachName = snapshot?.coachPersona?.name?.trim() || DEFAULT_COACH_NAME
 
   // First run: no conversation yet and nothing archived. Show a warm welcome
   // card that greets the athlete, invites them to customize the coach, and
@@ -401,7 +402,7 @@ function formatConversation(
 
   const lines: string[] = []
   const now = new Date()
-  lines.push(`Broken Arrow Training — Coach Chat`)
+  lines.push(`Attune — Coach Chat`)
   lines.push(`Athlete: ${athleteId} · Exported ${now.toLocaleDateString()} ${now.toLocaleTimeString()}`)
   lines.push('─'.repeat(40))
 
@@ -417,7 +418,7 @@ function formatConversation(
   }
   lines.push('')
   lines.push('─'.repeat(40))
-  lines.push('Shared from Broken Arrow Training App')
+  lines.push('Shared from Attune')
   return lines.join('\n')
 }
 

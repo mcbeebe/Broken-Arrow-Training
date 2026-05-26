@@ -1,4 +1,5 @@
 import type { OnboardingConfig } from '../hooks/useOnboarding'
+import { DEFAULT_COACH_NAME } from '../types'
 import { injurySummaryLine } from '../utils/injuryRamp'
 
 interface Props {
@@ -17,7 +18,7 @@ interface Props {
  * ask something, and acknowledges any injury they shared in onboarding.
  */
 export default function CoachWelcomeCard({ coachName, athleteName, config, onCustomize }: Props) {
-  const named = coachName && coachName !== 'Coach'
+  const displayName = coachName?.trim() || DEFAULT_COACH_NAME
   const greeting = athleteName ? `Hey ${athleteName} — ` : 'Hey there — '
   const injury = injurySummaryLine(config)
 
@@ -27,12 +28,12 @@ export default function CoachWelcomeCard({ coachName, athleteName, config, onCus
         <div className="flex items-center gap-1.5 mb-1.5">
           <span className="text-base leading-none" role="img" aria-label="coach">🧢</span>
           <p className="text-xs uppercase font-bold tracking-wider text-amber-700 dark:text-amber-400">
-            {named ? coachName : 'Your Coach'} · Welcome
+            {displayName} · Welcome
           </p>
         </div>
 
         <p>
-          {greeting}welcome aboard. {named ? `I'm ${coachName}, your` : "I'm your"} coach, and I'm
+          {greeting}welcome aboard. I'm {displayName}, your coach, and I'm
           here to help you train smart and show up on race day ready.
         </p>
 
@@ -54,7 +55,7 @@ export default function CoachWelcomeCard({ coachName, athleteName, config, onCus
         </ul>
 
         <p className="mt-2">
-          First, give me a name and a personality in{' '}
+          Want to make me yours? Rename me and pick a personality in{' '}
           {onCustomize ? (
             <button
               onClick={onCustomize}

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useMemo, type ReactNode, type RefObject } from 'react'
 import type { ConversationTurn, CoachSnapshot, CoachAction, PlannedDay } from '../types'
+import { DEFAULT_COACH_NAME } from '../types'
 import { coachApiAvailable, coachApiBase } from '../utils/coachApi'
 import type { UseCoachMemoryReturn } from '../hooks/useCoachMemory'
 import { renderMarkdown } from '../utils/markdown'
@@ -95,7 +96,7 @@ function writeFontScale(athleteId: string, scale: number) {
 }
 
 export default function CoachChat({ athleteId, memory, snapshot, seed, onSeedConsumed, onSent, getPlannedDay, onApproveAction, onRejectAction, onUndoAction, renderLayout, scrollDep, proactiveInsight }: Props) {
-  const coachName = snapshot?.coachPersona?.name?.trim() || 'Coach'
+  const coachName = snapshot?.coachPersona?.name?.trim() || DEFAULT_COACH_NAME
   const [input, setInput] = useState('')
   const [streaming, setStreaming] = useState(false)
   const sendingRef = useRef(false)
@@ -659,7 +660,7 @@ const COLLAPSE_CHAR_THRESHOLD = 400
 function ChatTurn({
   turn,
   onCopy,
-  coachName = 'Coach',
+  coachName = DEFAULT_COACH_NAME,
   fontScale = 1.0,
   getPlannedDay,
   onApproveAction,

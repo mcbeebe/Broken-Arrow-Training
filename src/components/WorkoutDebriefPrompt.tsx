@@ -7,6 +7,7 @@ import {
   voiceCaptureSupported,
 } from '../utils/voiceInput'
 import type { PlannedDay } from '../types'
+import { DEFAULT_COACH_NAME } from '../types'
 
 interface Props {
   athleteId: string
@@ -43,7 +44,7 @@ function lsKey(athleteId: string, day: PlannedDay): string {
 export default function WorkoutDebriefPrompt({
   athleteId,
   day,
-  coachName = 'Coach',
+  coachName = DEFAULT_COACH_NAME,
   onAskCoach,
 }: Props) {
   const [state, setState] = useState<'idle' | 'recording' | 'transcribing'>('idle')
