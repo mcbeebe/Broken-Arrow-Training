@@ -3,6 +3,9 @@
   "outputDirectory": "",
   "framework": null,
   "installCommand": "echo 'Skipping frontend install — API only'",
+  "rewrites": [
+    { "source": "/api/auth/athletes", "destination": "/api/auth/google" }
+  ],
   "functions": {
     "api/garmin/*.py": {
       "maxDuration": 30

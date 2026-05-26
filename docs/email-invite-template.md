@@ -57,8 +57,10 @@ hit reply with questions or just dive in. stoked to have you on it.
 ## Notes for sender
 
 - **App URL:** https://broken-arrow-training.vercel.app
-- **[ATHLETE_ID]** — the slug pre-seeded for this athlete (e.g. `lori`,
-  `joel`, `jim`). Coordinate with the athlete-list seed before sending.
+- **[ATHLETE_ID]** — the slug for this athlete (e.g. `lori`, `joel`, `jim`).
+  Before sending, add the athlete's Google email in
+  **Settings → Athletes** (owner-only). They're recognized on first
+  sign-in — no redeploy. Their plan builds itself through onboarding.
 - Send one at a time so replies stay personal; do not BCC a list.
 - Until auth ships, do not forward this email to anyone outside the
   intended athlete.
