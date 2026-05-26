@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://attune.coach/schemas/training-method.json",
+  "$id": "https://broken-arrow-training.app/schemas/training-method.json",
   "title": "TrainingMethod",
   "description": "Schema for a single running training philosophy (Daniels, Pfitzinger, ...) consumed by the Broken Arrow plan-generator engine.",
   "type": "object",
