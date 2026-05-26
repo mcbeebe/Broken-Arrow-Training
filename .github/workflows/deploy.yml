@@ -50,7 +50,7 @@ jobs:
         env:
           VITE_STRAVA_CLIENT_ID: ${{ secrets.VITE_STRAVA_CLIENT_ID }}
           VITE_STRAVA_TOKEN_EXCHANGE_URL: ${{ secrets.VITE_STRAVA_TOKEN_EXCHANGE_URL }}
-          VITE_STRAVA_REDIRECT_URI: https://mcbeebe.github.io/Broken-Arrow-Training/
+          VITE_STRAVA_REDIRECT_URI: https://attune.run/
           VITE_GARMIN_API_URL: ${{ secrets.VITE_GARMIN_API_URL }}
           VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
           # VAPID public key for Web Push (coach briefings). Must be
