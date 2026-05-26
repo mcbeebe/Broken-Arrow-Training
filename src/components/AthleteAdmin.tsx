@@ -24,14 +24,14 @@ export default function AthleteAdmin() {
 
   const base = coachApiBase()
 
-  const call = useCallback(async (method: 'GET' | 'POST' | 'DELETE', body?: object) => {
+  const call = useCallback(async (action: 'list' | 'add' | 'remove', extra?: Record<string, string>) => {
     const token = getStoredSession()?.token
     if (!base) throw new Error('API URL not configured (VITE_GARMIN_API_URL missing)')
     if (!token) throw new Error('Not signed in')
     const res = await fetch(`${base}/api/auth/athletes`, {
-      method,
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: body ? JSON.stringify(body) : undefined,
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, token, ...extra }),
     })
     const data = await res.json().catch(() => ({}))
     if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`)
@@ -42,7 +42,7 @@ export default function AthleteAdmin() {
     setLoading(true)
     setError(null)
     try {
-      const data = await call('GET')
+      const data = await call('list')
       setRows(data.athletes || [])
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load athletes')
@@ -62,7 +62,7 @@ export default function AthleteAdmin() {
     setBusy(true)
     setError(null)
     try {
-      const data = await call('POST', { email: email.trim(), athleteId: athleteId.trim() })
+      const data = await call('add', { email: email.trim(), athleteId: athleteId.trim() })
       setRows(data.athletes || [])
       setEmail('')
       setAthleteId('')
@@ -79,7 +79,7 @@ export default function AthleteAdmin() {
     setBusy(true)
     setError(null)
     try {
-      const data = await call('DELETE', { email: target })
+      const data = await call('remove', { email: target })
       setRows(data.athletes || [])
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to remove athlete')

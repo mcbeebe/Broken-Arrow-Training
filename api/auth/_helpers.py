@@ -120,12 +120,11 @@ def lookup_athlete(email: str) -> str | None:
     return get_email_to_athlete_map().get(email.lower())
 
 
-def verify_admin(auth_header: str | None) -> str | None:
-    """Return the admin athleteId iff the bearer token is valid and maps to
+def verify_admin(token: str | None) -> str | None:
+    """Return the admin athleteId iff the session token is valid and maps to
     the admin account; otherwise None."""
-    if not auth_header or not auth_header.lower().startswith("bearer "):
+    if not token:
         return None
-    token = auth_header.split(" ", 1)[1].strip()
     payload = verify_session_token(token)
     if not payload:
         return None
