@@ -139,6 +139,28 @@ export function cacheGarminActivities(activities: GarminActivity[], athleteId?: 
   localStorage.setItem(scopedKey(STORAGE_KEYS.activities, athleteId), JSON.stringify(activities))
 }
 
+/**
+ * Merge freshly-fetched activities into the cached set, keyed by a stable
+ * identity. A sync only ever returns activities inside its fetch window, so
+ * replacing the cache outright would silently drop older completed sessions.
+ * Merging keeps history monotonic — a short or partial fetch can never erase
+ * activities the user already has. Incoming entries win on conflict (fresher
+ * data from Garmin).
+ */
+export function mergeGarminActivities(
+  existing: GarminActivity[],
+  incoming: GarminActivity[],
+): GarminActivity[] {
+  const keyOf = (a: GarminActivity): string =>
+    a.activityId != null
+      ? `id:${a.activityId}`
+      : `d:${a.date}|${a.type}|${a.name}|${a.durationMinutes}`
+  const byKey = new Map<string, GarminActivity>()
+  for (const a of existing) byKey.set(keyOf(a), a)
+  for (const a of incoming) byKey.set(keyOf(a), a)
+  return Array.from(byKey.values()).sort((a, b) => b.date.localeCompare(a.date))
+}
+
 // ─── Activity Detail API & Cache ───────────────────────────────
 
 export async function fetchActivityDetail(date: string, athleteId?: string): Promise<GarminActivityDetail[]> {

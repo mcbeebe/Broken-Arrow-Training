@@ -18,6 +18,7 @@ import {
   isSyncStale,
   getCachedGarminActivities,
   cacheGarminActivities,
+  mergeGarminActivities,
   getCachedActivityDetails,
   cacheActivityDetails,
   getGarminDisplayName,
@@ -95,8 +96,9 @@ export function useGarmin(athleteId?: string): UseGarminReturn {
     setHealthData(merged)
 
     const today = localDateStr()
-    const thirtyAgo = localDateStr(new Date(Date.now() - 120 * 24 * 60 * 60 * 1000))
-    const activities = await fetchGarminActivities(thirtyAgo, today, athleteId)
+    const historyStart = localDateStr(new Date(Date.now() - 120 * 24 * 60 * 60 * 1000))
+    const fetched = await fetchGarminActivities(historyStart, today, athleteId)
+    const activities = mergeGarminActivities(getCachedGarminActivities(athleteId), fetched)
     cacheGarminActivities(activities, athleteId)
     setGarminActivities(activities)
 
@@ -221,8 +223,9 @@ export function useGarmin(athleteId?: string): UseGarminReturn {
       setHealthData(merged)
 
       const today = localDateStr()
-      const thirtyAgo = localDateStr(new Date(Date.now() - 120 * 24 * 60 * 60 * 1000))
-      const activities = await fetchGarminActivities(thirtyAgo, today, athleteId)
+      const historyStart = localDateStr(new Date(Date.now() - 120 * 24 * 60 * 60 * 1000))
+      const fetched = await fetchGarminActivities(historyStart, today, athleteId)
+      const activities = mergeGarminActivities(getCachedGarminActivities(athleteId), fetched)
       cacheGarminActivities(activities, athleteId)
       setGarminActivities(activities)
 
