@@ -115,7 +115,7 @@ export default function CoachTab({
       return (
         <div
           className="flex flex-col px-3 py-3 gap-2"
-          style={{ height: 'calc(100dvh - 8rem - env(safe-area-inset-top) - max(env(safe-area-inset-bottom), 14px))' }}
+          style={{ height: 'calc(var(--app-vh) - var(--app-header-h) - var(--app-tabbar-h))' }}
         >
           <div className="flex items-center justify-between shrink-0">
             <button
@@ -205,7 +205,7 @@ export default function CoachTab({
   return (
     <div
       className="flex flex-col px-0 py-0 gap-0 relative"
-      style={{ height: 'calc(100dvh - 8rem - env(safe-area-inset-top) - max(env(safe-area-inset-bottom), 14px))' }}
+      style={{ height: 'calc(var(--app-vh) - var(--app-header-h) - var(--app-tabbar-h))' }}
     >
       {/* Single scroll surface: the daily insight (the proactive coach
           read, refreshed 3x daily) pins at the TOP, and the chat history

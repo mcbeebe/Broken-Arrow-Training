@@ -13,6 +13,13 @@
   --chart-2: #d97706;
   --chart-3: #3b82f6;
   --chart-4: #ef4444;
+  /* Visible viewport height — overwritten at runtime by useVisualViewport so
+     keyboard-aware surfaces (e.g. the Coach composer) shrink above the OSK. */
+  --app-vh: 100dvh;
+  --app-keyboard: 0px;
+  /* App chrome heights — single source of truth for per-tab height math. */
+  --app-header-h: 5.5rem;
+  --app-tabbar-h: 4.875rem;
 }
 .dark {
   --color-accent: #2dd4bf;

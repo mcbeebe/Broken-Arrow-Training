@@ -60,6 +60,7 @@ import { getStoredSession, clearSession, type AuthSession } from './utils/auth'
 import { isInAppBrowser, isBypassed } from './utils/inAppBrowser'
 import { useTheme } from './hooks/useTheme'
 import { usePalette } from './hooks/usePalette'
+import { useVisualViewport } from './hooks/useVisualViewport'
 import { useDisplayPreferences } from './hooks/useDisplayPreferences'
 
 // Auto-clear stale caches on app startup when data format changes
@@ -326,6 +327,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
   const [chatSeed, setChatSeed] = useState<string | null>(null)
   const theme = useTheme()
   const palette = usePalette(theme.resolved)
+  useVisualViewport()
   const displayPrefs = useDisplayPreferences(athleteId)
   const strava = useStrava(athleteId)
   const garmin = useGarmin(athleteId)
