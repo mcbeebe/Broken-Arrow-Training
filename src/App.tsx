@@ -952,7 +952,10 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
         />
       )}
       {/* Header */}
-      <div className="bg-slate-800 dark:bg-slate-900 text-white px-3 py-2.5">
+      <div
+        className="bg-slate-800 dark:bg-slate-900 text-white px-3 pb-2.5"
+        style={{ paddingTop: 'max(env(safe-area-inset-top), 0.625rem)' }}
+      >
         <div className="flex items-baseline justify-between">
           <h1 className="text-lg font-bold tracking-tight leading-tight">{raceName}</h1>
           <span className="text-teal-400 text-sm font-semibold">{daysUntilRace} days</span>
