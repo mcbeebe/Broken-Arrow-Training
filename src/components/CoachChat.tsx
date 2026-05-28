@@ -520,7 +520,7 @@ export default function CoachChat({ athleteId, memory, snapshot, seed, onSeedCon
             )}
           </div>
         )}
-        <div className="relative flex items-end">
+        <div className="flex items-end gap-1.5">
           <input
             ref={fileInputRef}
             type="file"
@@ -533,64 +533,65 @@ export default function CoachChat({ athleteId, memory, snapshot, seed, onSeedCon
             onClick={() => fileInputRef.current?.click()}
             disabled={!coachApiAvailable() || streaming || attaching}
             aria-label="Attach photo"
-            className="mr-1 mb-1 w-9 h-9 flex items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-40 transition-colors"
+            className="shrink-0 mb-0.5 w-9 h-9 flex items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-40 transition-colors"
           >
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
               <path fillRule="evenodd" d="M4 5a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V7a2 2 0 00-2-2h-1.586a1 1 0 01-.707-.293l-1.121-1.121A2 2 0 0011.172 3H8.828a2 2 0 00-1.414.586L6.293 4.707A1 1 0 015.586 5H4zm6 9a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
             </svg>
           </button>
-          {voiceEnabled && (
-            <button
-              type="button"
-              onClick={handleMicTap}
-              disabled={!coachApiAvailable() || streaming || attaching || recordingState === 'transcribing'}
-              aria-label={
-                recordingState === 'recording'
-                  ? 'Stop recording'
-                  : recordingState === 'transcribing'
-                  ? 'Transcribing…'
-                  : 'Dictate a message'
-              }
-              title={recordingState === 'idle' ? 'Tap to dictate' : 'Tap to stop'}
-              className={`mr-1 mb-1 w-9 h-9 flex items-center justify-center rounded-full transition-colors disabled:opacity-40 ${
-                recordingState === 'recording'
-                  ? 'bg-red-500 text-white animate-pulse hover:bg-red-600'
-                  : recordingState === 'transcribing'
-                  ? 'bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-200'
-                  : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700'
-              }`}
-            >
-              {recordingState === 'transcribing' ? (
-                <span className="inline-block w-3.5 h-3.5 rounded-full border-2 border-indigo-500 border-t-transparent animate-spin" />
-              ) : (
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
-                  <path d="M10 2a3 3 0 00-3 3v5a3 3 0 006 0V5a3 3 0 00-3-3z" />
-                  <path d="M4.5 9.5a.75.75 0 011.5 0 4 4 0 008 0 .75.75 0 011.5 0 5.5 5.5 0 01-4.75 5.452V17.25a.75.75 0 01-1.5 0v-2.298A5.5 5.5 0 014.5 9.5z" />
-                </svg>
-              )}
-            </button>
-          )}
-          <textarea
-            ref={textareaRef}
-            value={input}
-            onChange={e => { markCoachActivity(); setInput(e.target.value) }}
-            onFocus={() => markCoachActivity()}
-            onKeyDown={e => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault()
-                send()
-              }
-            }}
-            placeholder={coachApiAvailable() ? 'Ask the coach…' : 'Coach is offline.'}
-            rows={1}
-            disabled={!coachApiAvailable() || streaming}
-            className="flex-1 resize-none pl-3 pr-11 py-2 text-base border border-slate-200 dark:border-slate-600 rounded-2xl focus:outline-none focus:ring-1 focus:ring-indigo-400 bg-white dark:bg-slate-700 dark:text-white disabled:bg-slate-100 max-h-[120px] leading-relaxed"
-          />
-          {canSend && (
+          <div className="flex-1 flex items-end gap-1 rounded-2xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 focus-within:ring-1 focus-within:ring-indigo-400 pl-3 pr-1.5 py-1">
+            <textarea
+              ref={textareaRef}
+              value={input}
+              onChange={e => { markCoachActivity(); setInput(e.target.value) }}
+              onFocus={() => markCoachActivity()}
+              onKeyDown={e => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault()
+                  send()
+                }
+              }}
+              placeholder={coachApiAvailable() ? 'Ask the coach…' : 'Coach is offline.'}
+              rows={1}
+              disabled={!coachApiAvailable() || streaming}
+              className="flex-1 resize-none bg-transparent border-0 focus:outline-none py-1.5 text-base text-slate-800 dark:text-white placeholder:text-slate-400 disabled:opacity-60 max-h-[120px] leading-relaxed"
+            />
+            {voiceEnabled && (
+              <button
+                type="button"
+                onClick={handleMicTap}
+                disabled={!coachApiAvailable() || streaming || attaching || recordingState === 'transcribing'}
+                aria-label={
+                  recordingState === 'recording'
+                    ? 'Stop recording'
+                    : recordingState === 'transcribing'
+                    ? 'Transcribing…'
+                    : 'Dictate a message'
+                }
+                title={recordingState === 'idle' ? 'Tap to dictate' : 'Tap to stop'}
+                className={`shrink-0 mb-0.5 w-8 h-8 flex items-center justify-center rounded-full transition-colors disabled:opacity-40 ${
+                  recordingState === 'recording'
+                    ? 'bg-red-500 text-white animate-pulse hover:bg-red-600'
+                    : recordingState === 'transcribing'
+                    ? 'bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-200'
+                    : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700'
+                }`}
+              >
+                {recordingState === 'transcribing' ? (
+                  <span className="inline-block w-3.5 h-3.5 rounded-full border-2 border-indigo-500 border-t-transparent animate-spin" />
+                ) : (
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
+                    <path d="M10 2a3 3 0 00-3 3v5a3 3 0 006 0V5a3 3 0 00-3-3z" />
+                    <path d="M4.5 9.5a.75.75 0 011.5 0 4 4 0 008 0 .75.75 0 011.5 0 5.5 5.5 0 01-4.75 5.452V17.25a.75.75 0 01-1.5 0v-2.298A5.5 5.5 0 014.5 9.5z" />
+                  </svg>
+                )}
+              </button>
+            )}
             <button
               onClick={() => send()}
+              disabled={!canSend}
               aria-label="Send"
-              className="absolute right-1.5 bottom-1.5 w-8 h-8 flex items-center justify-center rounded-full bg-indigo-600 text-white hover:bg-indigo-700 transition-colors shadow-sm"
+              className="shrink-0 mb-0.5 w-8 h-8 flex items-center justify-center rounded-full bg-indigo-600 text-white hover:bg-indigo-700 disabled:bg-slate-200 dark:disabled:bg-slate-600 disabled:text-slate-400 dark:disabled:text-slate-400 transition-colors shadow-sm"
             >
               {streaming ? (
                 <span className="text-sm">…</span>
@@ -600,7 +601,7 @@ export default function CoachChat({ athleteId, memory, snapshot, seed, onSeedCon
                 </svg>
               )}
             </button>
-          )}
+          </div>
         </div>
       </div>
   )

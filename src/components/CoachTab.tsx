@@ -113,7 +113,10 @@ export default function CoachTab({
     const archive = archives.find(a => a.date === viewingArchive)
     if (archive) {
       return (
-        <div className="flex flex-col h-[calc(100vh-9rem)] px-3 py-3 gap-2">
+        <div
+          className="flex flex-col px-3 py-3 gap-2"
+          style={{ height: 'calc(100dvh - 8rem - env(safe-area-inset-top) - max(env(safe-area-inset-bottom), 14px))' }}
+        >
           <div className="flex items-center justify-between shrink-0">
             <button
               onClick={() => setViewingArchive(null)}
@@ -141,7 +144,7 @@ export default function CoachTab({
   const isFirstRun = !hasTurns && archives.length === 0
 
   const actionBar = (
-    <div className="flex items-center justify-between shrink-0 px-3 py-2 border-b border-slate-100 dark:border-slate-700">
+    <div className="flex items-center justify-between shrink-0 px-3 py-1.5 border-b border-slate-100 dark:border-slate-700">
       <button
         onClick={() => setHistoryOpen(true)}
         className="text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors flex items-center gap-1"
@@ -200,7 +203,10 @@ export default function CoachTab({
   )
 
   return (
-    <div className="flex flex-col h-[calc(100vh-11rem)] px-0 py-0 gap-0 relative">
+    <div
+      className="flex flex-col px-0 py-0 gap-0 relative"
+      style={{ height: 'calc(100dvh - 8rem - env(safe-area-inset-top) - max(env(safe-area-inset-bottom), 14px))' }}
+    >
       {/* Single scroll surface: the daily insight (the proactive coach
           read, refreshed 3x daily) pins at the TOP, and the chat history
           flows continuously below it so a new reply always lands at the
