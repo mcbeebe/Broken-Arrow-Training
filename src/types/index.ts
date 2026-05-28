@@ -361,6 +361,7 @@ export interface GarminHealthData {
 
 export interface GarminActivity {
   date: string;
+  activityId?: number;     // Garmin's stable per-activity id (used to de-dupe on merge)
   type: string;            // Garmin activity type string
   name: string;
   durationMinutes: number;
