@@ -48,6 +48,7 @@ import { useAthleteLocation } from './hooks/useAthleteLocation'
 import { useWorkoutTimePreference } from './hooks/useWorkoutTimePreference'
 import WeeklyPlan from './components/WeeklyPlan'
 import Summary from './components/Summary'
+import Journal from './components/Journal'
 import Dashboard from './components/Dashboard'
 import RaceInfo from './components/RaceInfo'
 // Methodology is now a subsection within Settings
@@ -417,7 +418,8 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
       // the onMarkRead() effect will clear unread flags anyway.
       base.push({ id: 'coach', label: 'Coach', badge: view === 'coach' ? 0 : coachMemory.unreadCount })
     }
-    base.push({ id: 'settings', label: 'Settings' })
+    // Settings has moved to the header gear to keep the bottom bar at five.
+    base.push({ id: 'journal', label: 'Journal' })
     return base
   }, [coachEnabled, coachMemory.unreadCount, view])
 
@@ -1002,7 +1004,21 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
       >
         <div className="flex items-baseline justify-between">
           <h1 className="text-lg font-bold tracking-tight leading-tight">{raceName}</h1>
-          <span className="text-teal-400 text-sm font-semibold">{daysUntilRace} days</span>
+          <div className="flex items-center gap-2.5 shrink-0">
+            <span className="text-teal-400 text-sm font-semibold">{daysUntilRace} days</span>
+            <button
+              type="button"
+              onClick={() => setView('settings')}
+              aria-label="Settings"
+              aria-current={view === 'settings' ? 'page' : undefined}
+              className="self-center -my-1 p-1 rounded-full text-slate-300 hover:text-white hover:bg-white/10 transition-colors"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={view === 'settings' ? '#5eead4' : 'currentColor'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="3" />
+                <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" />
+              </svg>
+            </button>
+          </div>
         </div>
         <p className="text-slate-300 text-xs mt-0.5">
           {activePlan.athlete.name} · {activePlan.race.date}
@@ -1182,6 +1198,20 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
         />
         </div>
       )}
+      {view === 'journal' && (
+        <Journal
+          weeks={weeks}
+          athleteId={athleteId}
+          coachEnabled={coachEnabled}
+          coachSnapshot={coachSnapshot}
+          zones={hrZones.zones}
+          latestPerf={latestPerf}
+          strengthLevel={onboarding.config?.strengthExperience}
+          onAskCoach={handleAskCoach}
+          onShareNote={shareWorkoutNote}
+          manualLog={manualLog}
+        />
+      )}
       {/* Methodology moved into Settings as a collapsible subsection */}
       {view === 'info' && <RaceInfo race={activePlan.race} />}
       {view === 'settings' && showStrava && (
@@ -1305,6 +1335,8 @@ function TabIcon({ id, active }: { id: string; active: boolean }) {
       return <svg {...common}><line x1="18" y1="20" x2="18" y2="10" /><line x1="12" y1="20" x2="12" y2="4" /><line x1="6" y1="20" x2="6" y2="14" /></svg>
     case 'coach':
       return <svg {...common}><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" /></svg>
+    case 'journal':
+      return <svg {...common}><path d="M4 19.5A2.5 2.5 0 016.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z" /></svg>
     case 'settings':
       return <svg {...common}><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" /></svg>
     default:
