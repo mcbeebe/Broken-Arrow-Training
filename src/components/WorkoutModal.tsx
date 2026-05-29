@@ -120,6 +120,12 @@ interface WorkoutModalProps {
   day: PlannedDay
   weekNum: number
   onClose: () => void
+  /** Opens the workout completion editor (ManualLog) for this day. When
+   *  provided, a "Log / Edit workout" pill is shown in the header so the
+   *  athlete can jump straight from reviewing the workout to logging what
+   *  they actually did — no need to close the modal and hunt for the log
+   *  button on the day card. */
+  onLog?: () => void
   zones?: HRZone[]
   athleteId?: string
   coachEnabled?: boolean
@@ -146,7 +152,7 @@ interface WorkoutModalProps {
   }
 }
 
-export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, coachEnabled, readiness, latestPerf, coachSnapshot, onAskCoach, trimpRecord, weeks, raceReadinessTarget, strengthLevel }: WorkoutModalProps) {
+export default function WorkoutModal({ day, weekNum, onClose, onLog, zones, athleteId, coachEnabled, readiness, latestPerf, coachSnapshot, onAskCoach, trimpRecord, weeks, raceReadinessTarget, strengthLevel }: WorkoutModalProps) {
   const style = getWorkoutStyle(day.type)
   const { flags } = useDisplayPreferences(athleteId)
   const baseCoaching = getCoaching(day, weekNum)
@@ -323,12 +329,22 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
                 <p className="font-bold text-base text-slate-800 dark:text-white leading-tight">{day.day} <span className="font-normal text-sm text-slate-500 dark:text-slate-400">Wk {weekNum}</span></p>
               </div>
             </div>
-            <button
-              onClick={onClose}
-              className="w-7 h-7 flex items-center justify-center rounded-full bg-white dark:bg-slate-800/70 text-slate-600 dark:text-slate-300 hover:bg-white dark:bg-slate-800 transition-colors"
-            >
-              ✕
-            </button>
+            <div className="flex items-center gap-1.5">
+              {onLog && (
+                <button
+                  onClick={onLog}
+                  className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full bg-white dark:bg-slate-800/70 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800 hover:bg-teal-50 dark:hover:bg-slate-700 transition-colors"
+                >
+                  ✏️ {actual ? 'Edit' : 'Log'} workout
+                </button>
+              )}
+              <button
+                onClick={onClose}
+                className="w-7 h-7 flex items-center justify-center rounded-full bg-white dark:bg-slate-800/70 text-slate-600 dark:text-slate-300 hover:bg-white dark:bg-slate-800 transition-colors"
+              >
+                ✕
+              </button>
+            </div>
           </div>
           <p className="font-semibold text-base text-slate-800 dark:text-white mt-1">{day.workout}</p>
           {/* Distance + estimated running time pulled from the zone
