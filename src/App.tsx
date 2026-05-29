@@ -40,6 +40,8 @@ import { localDateStr } from './utils/format'
 import { generateMorningCoach, generateEveningCoach, getCoachTimeOfDay } from './utils/coach'
 import { checkStorageVersion, clearAllCachedData, clearAllAppData } from './utils/storageVersion'
 import { buildCoachSnapshot } from './utils/coachSnapshot'
+import { sendCoachMessageBackground, coachApiAvailable } from './utils/coachApi'
+import { buildJournalSeed } from './utils/journal'
 import { injurySummaryLine } from './utils/injuryRamp'
 import { useWeather } from './hooks/useWeather'
 import { useAthleteLocation } from './hooks/useAthleteLocation'
@@ -869,6 +871,30 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     [coachTelemetry],
   )
 
+  // Share a workout journal note with the coach in the BACKGROUND — no
+  // navigation. The note has already been persisted onto the workout
+  // (actual.notes) by the caller; this posts it as a coach turn so the
+  // coach receives + analyzes it (durable facts extracted server-side) and
+  // its reply waits in the Coach tab. Best-effort: a failed send leaves the
+  // note saved. Skips when nothing changed so re-saving the same note (or
+  // saving a workout without touching notes) doesn't spam the coach.
+  const shareWorkoutNote = useCallback(
+    async (day: PlannedDay, note: string) => {
+      const trimmed = note.trim()
+      if (!trimmed) return
+      if (trimmed === (day.actual?.notes?.trim() || '')) return
+      if (!coachSnapshot || !coachApiAvailable()) return
+      try {
+        await sendCoachMessageBackground(athleteId, buildJournalSeed(day, trimmed), coachSnapshot)
+        await coachMemory.refresh()
+        coachTelemetry.logInteraction('ask_tapped', { source: 'journal_note' })
+      } catch {
+        // Note is persisted regardless; coach share is best-effort.
+      }
+    },
+    [athleteId, coachSnapshot, coachMemory, coachTelemetry],
+  )
+
   // Resolve a planned day by (weekNum, dayIndex). Uses base plan days
   // (pre-override) so the ProposalCard can show a "before → after" diff
   // with the original workout.
@@ -1070,6 +1096,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           race={activePlan.race}
           manualLog={manualLog}
           onAskCoach={handleAskCoach}
+          onShareNote={shareWorkoutNote}
         />
       </>)}
       {view === 'plan' && (
@@ -1085,6 +1112,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           latestPerf={latestPerf}
           coachSnapshot={coachSnapshot}
           onAskCoach={handleAskCoach}
+          onShareNote={shareWorkoutNote}
           race={activePlan.race}
           compliance={compliance.weeks}
           dailyTrimp={readiness.dailyTrimp}
