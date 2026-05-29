@@ -1545,24 +1545,36 @@ function CoachWorkoutTakeForDay({
 
   const useDebrief = isCompleted && !!debriefSnapshot
   const useTake = isToday && !isCompleted
-  const useLLM = useDebrief || useTake
+
+  // The completed-workout debrief is long-form and costs LLM tokens, so we
+  // keep it collapsed by default and only fetch it when the athlete taps
+  // "Tell me more". The pre-run take (today, not yet done) stays eager —
+  // it's the thing the athlete opened the modal to read.
+  const [debriefExpanded, setDebriefExpanded] = useState(false)
+  const fetchDebrief = useDebrief && debriefExpanded
+  const fetchLLM = useTake || fetchDebrief
   const { insight, loading } = useCoachInsight({
     athleteId: athleteId || '',
     surface: useDebrief ? `workout_debrief:${day.day}` : `workout_take:${day.day}`,
     snapshot: useDebrief ? debriefSnapshot : (coachSnapshot ?? null),
-    enabled: useLLM && !!athleteId && !!coachSnapshot,
+    enabled: fetchLLM && !!athleteId && !!coachSnapshot,
     fallbackText: fallback.text,
     fallbackTip: fallback.tip,
   })
   return (
     <CoachWorkoutTakeView
       take={fallback}
-      insight={useLLM ? insight : null}
-      loading={useLLM ? loading : false}
+      // When collapsed, pass no insight so the minimal heuristic summary
+      // shows; expanding swaps in the long-form LLM debrief.
+      insight={fetchLLM ? insight : null}
+      loading={fetchLLM ? loading : false}
       onAsk={onAsk}
       coachName={coachSnapshot?.coachPersona?.name?.trim() || DEFAULT_COACH_NAME}
       athleteId={athleteId}
       persona={coachSnapshot?.coachPersona}
+      expandable={useDebrief}
+      expanded={debriefExpanded}
+      onToggleExpand={() => setDebriefExpanded(v => !v)}
     />
   )
 }
