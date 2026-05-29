@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from 'react'
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import type { ViewId, CoachSnapshot, CoachAction, PlannedDay } from './types'
 import { DETAIL_DIRECTIVES } from './types'
 import { plans } from './data'
@@ -327,7 +327,9 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
   const [chatSeed, setChatSeed] = useState<string | null>(null)
   const theme = useTheme()
   const palette = usePalette(theme.resolved)
-  useVisualViewport()
+  const headerRef = useRef<HTMLDivElement>(null)
+  const tabbarRef = useRef<HTMLElement>(null)
+  useVisualViewport({ headerRef, tabbarRef })
   const displayPrefs = useDisplayPreferences(athleteId)
   const strava = useStrava(athleteId)
   const garmin = useGarmin(athleteId)
@@ -955,6 +957,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
       )}
       {/* Header */}
       <div
+        ref={headerRef}
         className="bg-slate-800 dark:bg-slate-900 text-white px-3 pb-2.5"
         style={{ paddingTop: 'max(env(safe-area-inset-top), 0.625rem)' }}
       >
@@ -1217,6 +1220,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
 
       {/* Bottom Tab Bar */}
       <nav
+        ref={tabbarRef}
         className="fixed bottom-0 left-0 right-0 z-40 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-700 flex"
         style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 14px)' }}
       >
