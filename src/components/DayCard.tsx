@@ -188,7 +188,7 @@ export default function DayCard({ day, weekNum, onTap, onLog, onSwap, onEdit, ha
             {onLog && (
               <button
                 onClick={e => { e.stopPropagation(); onLog() }}
-                className={`text-xs font-medium px-2 py-1 rounded-full transition-colors ${
+                className={`text-sm font-semibold px-2.5 py-1.5 rounded-full transition-colors ${
                   actual
                     ? 'bg-emerald-200 text-emerald-800 hover:bg-emerald-300'
                     : 'bg-teal-100 text-teal-700 hover:bg-teal-200'
