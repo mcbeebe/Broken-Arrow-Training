@@ -17,9 +17,16 @@
      keyboard-aware surfaces (e.g. the Coach composer) shrink above the OSK. */
   --app-vh: 100dvh;
   --app-keyboard: 0px;
-  /* App chrome heights — single source of truth for per-tab height math. */
-  --app-header-h: 5.5rem;
-  --app-tabbar-h: 4.875rem;
+  /* App chrome heights — single source of truth for per-tab height math.
+     Safe-area-aware so they track the real header/tab-bar height per device
+     (notch / Dynamic Island top inset + home-indicator bottom inset) instead
+     of a fixed guess. The rem parts are the fixed content:
+       header  = top safe area + ~4.5rem (race title + 2 sub-lines + padding)
+       tab bar = bottom safe-area padding (min 14px, matches the nav) + 3.75rem
+                 (60px buttons). Leans slightly high so the composer rests just
+                 above the keyboard rather than behind it. */
+  --app-header-h: calc(env(safe-area-inset-top) + 4.5rem);
+  --app-tabbar-h: calc(max(env(safe-area-inset-bottom), 14px) + 3.75rem);
 }
 .dark {
   --color-accent: #2dd4bf;
