@@ -441,7 +441,7 @@ export default function ManualLog({ dayLabel, existing, planned, weekNum, onSave
             <p className="text-[10px] text-slate-400 mt-1">1 = barely felt it · 5 = moderate · 8 = very hard · 10 = max effort</p>
           </div>
 
-          <Field label="Notes" placeholder={mode === 'strength' ? 'How did it feel? Energy level? Anything to remember...' : 'Felt good, walked the steep hills...'} value={notes} onChange={setNotes} />
+          <Field label="Notes — tell your coach how it went" placeholder={mode === 'strength' ? 'How did it feel? Energy level? Anything to remember...' : 'Felt good, walked the steep hills...'} value={notes} onChange={setNotes} multiline rows={4} />
 
           <button
             onClick={handleSave}
@@ -542,19 +542,30 @@ function ExerciseEntry({ exercise, index, onUpdate, onRemove, onAddSet, onUpdate
   )
 }
 
-function Field({ label, placeholder, value, onChange, type = 'text' }: {
+function Field({ label, placeholder, value, onChange, type = 'text', multiline = false, rows = 4 }: {
   label: string; placeholder: string; value: string; onChange: (v: string) => void; type?: string
+  multiline?: boolean; rows?: number
 }) {
   return (
     <div>
       <label className="text-xs font-medium text-slate-600 dark:text-slate-300 block mb-1">{label}</label>
-      <input
-        type={type}
-        placeholder={placeholder}
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-      />
+      {multiline ? (
+        <textarea
+          placeholder={placeholder}
+          value={value}
+          onChange={e => onChange(e.target.value)}
+          rows={rows}
+          className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent resize-y leading-relaxed"
+        />
+      ) : (
+        <input
+          type={type}
+          placeholder={placeholder}
+          value={value}
+          onChange={e => onChange(e.target.value)}
+          className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+        />
+      )}
     </div>
   )
 }
