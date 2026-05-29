@@ -34,3 +34,43 @@ export async function coachFetch<T = unknown>(
   }
   return res.json() as Promise<T>
 }
+
+/**
+ * Post a user message to the coach chat WITHOUT a chat UI mounted, and
+ * discard the streamed reply. The server still persists the user turn +
+ * the assistant's reply and runs durable-fact extraction (detect_inferences)
+ * — so the coach "receives and analyzes" the message and its reply waits in
+ * the Coach tab. Used to share a workout journal note in the background
+ * without yanking the athlete out of the workout view.
+ *
+ * Caller should refresh coach memory afterward to surface the new turn +
+ * any learned facts. Best-effort: throws on network/HTTP failure so the
+ * caller can decide whether to surface it (the journal note itself is
+ * persisted independently).
+ */
+export async function sendCoachMessageBackground(
+  athleteId: string,
+  content: string,
+  snapshot: unknown,
+): Promise<void> {
+  const base = coachApiBase()
+  if (!base) throw new Error('coach_api_unavailable')
+  const res = await fetch(`${base}/api/coach/chat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      athleteId,
+      messages: [{ role: 'user', content }],
+      snapshot,
+    }),
+  })
+  if (!res.ok || !res.body) throw new Error(`coach_chat_error ${res.status}`)
+  // Drain the SSE stream so the server finishes generating + persisting the
+  // reply (and runs fact extraction). We don't render the deltas.
+  const reader = res.body.getReader()
+  let streamDone = false
+  while (!streamDone) {
+    const { done } = await reader.read()
+    streamDone = done
+  }
+}

@@ -59,6 +59,9 @@ interface SummaryProps {
    *  coach take's "Ask →" / "Play" actions work the same as on the Plan
    *  page. */
   onAskCoach?: (seed: string) => void
+  /** Share a workout journal note with the coach in the background — used by
+   *  the inline journal on the workout modals and the log editor. */
+  onShareNote?: (day: PlannedDay, note: string) => void | Promise<void>
 }
 
 // ─── Scale bar component ──────────────────────────────────────
@@ -284,6 +287,7 @@ export default function Summary({
   race,
   manualLog,
   onAskCoach,
+  onShareNote,
 }: SummaryProps) {
   const { flags, isSectionVisible } = useDisplayPreferences(athleteId)
   const latestPerf = performance.length > 0 ? performance[performance.length - 1] : null
@@ -388,6 +392,10 @@ export default function Summary({
             setLogTarget({ day: readinessWorkout.day, weekNum: readinessWorkout.weekNum })
             setReadinessWorkout(null)
           } : undefined}
+          onSaveNote={manualLog && readinessWorkout.day.actual ? async (note) => {
+            manualLog.logWorkout(readinessWorkout.day.day, { ...readinessWorkout.day.actual!, notes: note })
+            await onShareNote?.(readinessWorkout.day, note)
+          } : undefined}
           raceReadinessTarget={raceReadiness ? {
             gap: raceReadiness.gap,
             action: readinessWorkout.assignment.action,
@@ -405,6 +413,7 @@ export default function Summary({
           weekNum={logTarget.weekNum}
           onSave={(data) => {
             manualLog.logWorkout(logTarget.day.day, data)
+            if (data.notes?.trim()) onShareNote?.(logTarget.day, data.notes)
             setLogTarget(null)
           }}
           onClose={() => setLogTarget(null)}
@@ -464,6 +473,10 @@ export default function Summary({
                 onLog={manualLog ? () => {
                   setLogTarget({ day: todayPlannedWorkout, weekNum: currentWeekNum ?? 1 })
                   setShowTodayModal(false)
+                } : undefined}
+                onSaveNote={manualLog && todayPlannedWorkout.actual ? async (note) => {
+                  manualLog.logWorkout(todayPlannedWorkout.day, { ...todayPlannedWorkout.actual!, notes: note })
+                  await onShareNote?.(todayPlannedWorkout, note)
                 } : undefined}
                 trimpRecord={findTrimpRecord(
                   dailyTrimp,

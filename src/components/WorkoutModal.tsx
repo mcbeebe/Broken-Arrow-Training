@@ -126,6 +126,10 @@ interface WorkoutModalProps {
    *  they actually did — no need to close the modal and hunt for the log
    *  button on the day card. */
   onLog?: () => void
+  /** Persist + share the workout journal note (actual.notes). When provided
+   *  (and the workout is completed), the inline Workout Journal card renders.
+   *  Saving writes the note and shares it with the coach in the background. */
+  onSaveNote?: (note: string) => void | Promise<void>
   zones?: HRZone[]
   athleteId?: string
   coachEnabled?: boolean
@@ -152,7 +156,7 @@ interface WorkoutModalProps {
   }
 }
 
-export default function WorkoutModal({ day, weekNum, onClose, onLog, zones, athleteId, coachEnabled, readiness, latestPerf, coachSnapshot, onAskCoach, trimpRecord, weeks, raceReadinessTarget, strengthLevel }: WorkoutModalProps) {
+export default function WorkoutModal({ day, weekNum, onClose, onLog, onSaveNote, zones, athleteId, coachEnabled, readiness, latestPerf, coachSnapshot, onAskCoach, trimpRecord, weeks, raceReadinessTarget, strengthLevel }: WorkoutModalProps) {
   const style = getWorkoutStyle(day.type)
   const { flags } = useDisplayPreferences(athleteId)
   const baseCoaching = getCoaching(day, weekNum)
@@ -422,16 +426,17 @@ export default function WorkoutModal({ day, weekNum, onClose, onLog, zones, athl
             />
           )}
 
-          {/* Sprint 7B — voice debrief prompt. Renders only for
-              completed workouts (day.actual present), only when voice
-              input is supported + enabled, and only when the athlete
-              hasn't already debriefed this workout. */}
-          {coachEnabled && athleteId && onAskCoach && day.actual && (
+          {/* Workout journal — the single source of truth for this
+              workout's notes (actual.notes). Renders for completed workouts
+              when a save handler is wired (manual log available). Saving
+              persists the note and shares it with the coach in the
+              background; durable facts get remembered server-side. */}
+          {coachEnabled && athleteId && onSaveNote && day.actual && (
             <WorkoutDebriefPrompt
               athleteId={athleteId}
               day={day}
               coachName={coachSnapshot?.coachPersona?.name?.trim() || DEFAULT_COACH_NAME}
-              onAskCoach={onAskCoach}
+              onSaveNote={onSaveNote}
             />
           )}
 

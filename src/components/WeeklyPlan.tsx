@@ -34,6 +34,10 @@ interface WeeklyPlanProps {
   latestPerf?: PerformanceMetrics | null
   coachSnapshot?: CoachSnapshot | null
   onAskCoach?: (seed: string) => void
+  /** Share a workout journal note with the coach in the background. Used by
+   *  the inline journal on the workout modal and to auto-seed a coach turn
+   *  when the log editor's notes change. */
+  onShareNote?: (day: PlannedDay, note: string) => void | Promise<void>
   race?: RaceInfo
   compliance?: WeekCompliance[]
   dailyTrimp?: DailyTRIMP[]
@@ -65,6 +69,7 @@ export default function WeeklyPlan({
   latestPerf,
   coachSnapshot,
   onAskCoach,
+  onShareNote,
   race,
   compliance,
   dailyTrimp,
@@ -372,6 +377,10 @@ export default function WeeklyPlan({
           weekNum={week.num}
           onClose={() => setModalDay(null)}
           onLog={manualLog ? () => { setLogDay(modalDay); setModalDay(null) } : undefined}
+          onSaveNote={manualLog && modalDay.actual ? async (note) => {
+            manualLog.logWorkout(modalDay.day, { ...modalDay.actual!, notes: note })
+            await onShareNote?.(modalDay, note)
+          } : undefined}
           zones={zones}
           athleteId={athleteId}
           coachEnabled={coachEnabled}
@@ -400,6 +409,10 @@ export default function WeeklyPlan({
           weekNum={week.num}
           onSave={(data) => {
             manualLog.logWorkout(logDay.day, data)
+            // Auto-seed the coach with the journal note when it changed, so
+            // typing in the log editor reaches the coach just like the
+            // inline journal does.
+            if (data.notes?.trim()) onShareNote?.(logDay, data.notes)
             setLogDay(null)
           }}
           onClose={() => setLogDay(null)}
