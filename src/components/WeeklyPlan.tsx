@@ -371,6 +371,7 @@ export default function WeeklyPlan({
           day={modalDay}
           weekNum={week.num}
           onClose={() => setModalDay(null)}
+          onLog={manualLog ? () => { setLogDay(modalDay); setModalDay(null) } : undefined}
           zones={zones}
           athleteId={athleteId}
           coachEnabled={coachEnabled}

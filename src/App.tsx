@@ -1068,6 +1068,8 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           riskFlags={readiness.riskFlags}
           weeks={weeks}
           race={activePlan.race}
+          manualLog={manualLog}
+          onAskCoach={handleAskCoach}
         />
       </>)}
       {view === 'plan' && (
