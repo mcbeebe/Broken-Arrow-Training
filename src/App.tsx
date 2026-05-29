@@ -946,7 +946,23 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
   const showTutorial = !!onboarding.config && !tutorial.seen
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 pb-24 dark:text-slate-200 transition-colors" style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" }}>
+    <div
+      className={`${
+        view === 'coach'
+          // Coach is a self-contained app shell: a fixed-height (visible
+          // viewport) flex column that does NOT scroll at the document
+          // level. The header sits at its real measured height, the chat
+          // is the only scroll region, and the composer pins to the bottom.
+          // This avoids both (a) the previous tab's document scroll bleeding
+          // in so the composer lands below the fold, and (b) relying on a
+          // hardcoded header-height token that never matches every device.
+          ? 'h-[var(--app-vh)] overflow-hidden flex flex-col'
+          // Every other tab keeps the normal scrolling document + bottom
+          // padding so content clears the fixed nav.
+          : 'min-h-screen pb-24'
+      } bg-slate-50 dark:bg-slate-950 dark:text-slate-200 transition-colors`}
+      style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" }}
+    >
       {showTutorial && (
         <Tutorial
           onClose={tutorial.markSeen}
@@ -955,7 +971,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
       )}
       {/* Header */}
       <div
-        className="bg-slate-800 dark:bg-slate-900 text-white px-3 pb-2.5"
+        className="bg-slate-800 dark:bg-slate-900 text-white px-3 pb-2.5 shrink-0"
         style={{ paddingTop: 'max(env(safe-area-inset-top), 0.625rem)' }}
       >
         <div className="flex items-baseline justify-between">
@@ -1114,6 +1130,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
         />
       )}
       {view === 'coach' && coachEnabled && (
+        <div className="flex-1 min-h-0 overflow-hidden">
         <CoachTab
           athleteId={athleteId}
           memory={coachMemory}
@@ -1135,6 +1152,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           onAskCoach={handleAskCoach}
           onboardingConfig={onboarding.config}
         />
+        </div>
       )}
       {/* Methodology moved into Settings as a collapsible subsection */}
       {view === 'info' && <RaceInfo race={activePlan.race} />}
