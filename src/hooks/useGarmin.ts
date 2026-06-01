@@ -22,6 +22,7 @@ import {
   getCachedActivityDetails,
   cacheActivityDetails,
   getGarminDisplayName,
+  GarminAuthError,
 } from '../utils/garmin'
 
 export interface UseGarminReturn {
@@ -258,7 +259,16 @@ export function useGarmin(athleteId?: string): UseGarminReturn {
 
       setLastSync(new Date().toISOString())
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Sync failed')
+      if (err instanceof GarminAuthError) {
+        // Session expired — flip back to the disconnected state so the UI
+        // shows the reconnect form. Cached health/activity data is kept so
+        // the athlete still sees their last readiness while reconnecting.
+        setGarminConnected(false, athleteId)
+        setConnected(false)
+        setError(err.message)
+      } else {
+        setError(err instanceof Error ? err.message : 'Sync failed')
+      }
     } finally {
       setLoading(false)
     }

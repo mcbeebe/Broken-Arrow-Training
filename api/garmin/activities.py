@@ -8,7 +8,7 @@ GET /api/garmin/activities?start=YYYY-MM-DD&end=YYYY-MM-DD&athlete=mike
 import json
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
-from ._session import get_client, get_athlete_from_query
+from ._session import get_client, get_athlete_from_query, GarminSessionExpired
 
 
 def _meters_to_feet(meters: float) -> float:
@@ -89,6 +89,16 @@ class handler(BaseHTTPRequestHandler):
             self.send_header("Access-Control-Allow-Origin", "*")
             self.end_headers()
             self.wfile.write(json.dumps({"activities": activities}).encode())
+
+        except GarminSessionExpired:
+            self.send_response(401)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.end_headers()
+            self.wfile.write(json.dumps({
+                "error": "Garmin session expired. Please reconnect your Garmin account.",
+                "reauth": True,
+            }).encode())
 
         except Exception as e:
             self.send_response(500)

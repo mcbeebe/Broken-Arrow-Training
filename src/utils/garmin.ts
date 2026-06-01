@@ -17,6 +17,37 @@ function scopedKey(base: string, athleteId?: string): string {
   return athleteId ? `${base}_${athleteId}` : base
 }
 
+/**
+ * Thrown when the backend can't authenticate to Garmin — the saved session
+ * token has expired or been invalidated. This is recoverable by reconnecting,
+ * so callers should prompt re-auth rather than surface it as a server error.
+ */
+export class GarminAuthError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'GarminAuthError'
+  }
+}
+
+/**
+ * Build an Error from a failed Garmin API response. Reads the backend's
+ * `{ error, reauth }` JSON body for a human-readable message and returns a
+ * GarminAuthError for session-expired (401 / reauth) responses so the UI can
+ * prompt reconnection instead of showing a raw status code.
+ */
+async function garminFetchError(res: Response, fallback: string): Promise<Error> {
+  let message = fallback
+  let reauth = false
+  try {
+    const body = await res.json()
+    if (body?.error) message = body.error
+    if (body?.reauth) reauth = true
+  } catch {
+    // Non-JSON body (e.g. a gateway error page) — keep the fallback message.
+  }
+  return res.status === 401 || reauth ? new GarminAuthError(message) : new Error(message)
+}
+
 // ─── API Functions ──────────────────────────────────────────────
 
 export async function checkGarminAuth(
@@ -51,7 +82,7 @@ export async function fetchHealthData(days: number = 1, athleteId?: string): Pro
   const tzOffset = Math.round(-new Date().getTimezoneOffset() / 60)  // e.g., -7 for Pacific
   const athleteParam = athleteId ? `&athlete=${athleteId}` : ''
   const res = await fetch(`${GARMIN_API_URL}/api/garmin/health?days=${days}&tz=${tzOffset}${athleteParam}`)
-  if (!res.ok) throw new Error(`Garmin health fetch failed: ${res.status}`)
+  if (!res.ok) throw await garminFetchError(res, `Garmin health fetch failed: ${res.status}`)
 
   const data = await res.json()
   return data.dates || []
@@ -62,7 +93,7 @@ export async function fetchGarminActivities(start: string, end: string, athleteI
 
   const athleteParam = athleteId ? `&athlete=${athleteId}` : ''
   const res = await fetch(`${GARMIN_API_URL}/api/garmin/activities?start=${start}&end=${end}${athleteParam}`)
-  if (!res.ok) throw new Error(`Garmin activities fetch failed: ${res.status}`)
+  if (!res.ok) throw await garminFetchError(res, `Garmin activities fetch failed: ${res.status}`)
 
   const data = await res.json()
   return data.activities || []
