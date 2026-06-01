@@ -68,6 +68,13 @@ const ACUTE_RMSSD_DROP_PCT = 25.0   // Plews 2013: acute drop = sympathetic domi
 const MAX_CONSEC_HIGH = 2           // Prevents score inflation from stable metrics
 const MAX_PEAK_PER_WEEK = 1         // Same — conservative peak allocation
 const BODY_BATTERY_GATE = 25        // Garmin proprietary — no published cutoff
+// A prior high-readiness day only contributes structural load if the athlete
+// actually trained that day. We count a day as "trained" when its TRIMP is at
+// least this fraction of the athlete's typical active-day load — a rest/easy
+// day (well below that) carries no musculoskeletal fatigue to manage, so it
+// should not count toward the consecutive-high cap. Self-calibrating: no magic
+// absolute TRIMP number, scales to the individual athlete.
+const STRUCTURAL_LOAD_FRACTION = 0.5
 
 // Training state thresholds (Meeusen et al. 2013 ECSS/ACSM framework)
 const STATE_B_THRESHOLD = 0.25
@@ -400,15 +407,60 @@ export function computeDeloadProgram(): DeloadDay[] {
 
 // ─── Guardrails (ATE-aligned) ───────────────────────────────────
 
+// Display-score bounds for each status band, derived from the same composite
+// thresholds used to classify status. Used to keep the shown number honest
+// after a guardrail downgrades the status (e.g. avoid "YELLOW 70/100").
+const STATUS_DISPLAY_BANDS: Record<ReadinessStatus, [number, number]> = {
+  PEAK: [compositeToDisplayScore(THRESHOLD_PEAK), 100],
+  GREEN: [compositeToDisplayScore(THRESHOLD_GREEN), compositeToDisplayScore(THRESHOLD_PEAK)],
+  YELLOW: [compositeToDisplayScore(THRESHOLD_YELLOW), compositeToDisplayScore(THRESHOLD_GREEN)],
+  RED: [0, compositeToDisplayScore(THRESHOLD_YELLOW)],
+}
+
+/** Clamp a display score into the band for `status` so badge and number agree. */
+function clampDisplayScoreToStatus(displayScore: number, status: ReadinessStatus): number {
+  const [min, max] = STATUS_DISPLAY_BANDS[status]
+  return Math.min(max, Math.max(min, displayScore))
+}
+
+/**
+ * Athlete's typical active-day training load: the mean of positive daily TRIMP
+ * totals. Rest days (zero load) are excluded so they don't drag the reference
+ * down. Returns 0 when there is no training history to compare against.
+ */
+function referenceActiveLoad(dailyTrimp: DailyTRIMP[]): number {
+  const active = dailyTrimp.map(d => d.total).filter(t => t > 0)
+  if (active.length === 0) return 0
+  return active.reduce((s, v) => s + v, 0) / active.length
+}
+
+/**
+ * Whether the athlete actually trained on `date` hard enough for it to carry
+ * structural (musculoskeletal) load. A rest or easy day — well below the
+ * athlete's typical active-day load — returns false. With no usable reference
+ * load we cannot establish that a day was hard, so we return false rather than
+ * assume it was.
+ */
+function dayCarriedStructuralLoad(
+  date: string,
+  dailyTrimp: DailyTRIMP[],
+  referenceLoad: number,
+): boolean {
+  if (referenceLoad <= 0) return false
+  const total = dailyTrimp.find(t => t.date === date)?.total ?? 0
+  return total >= STRUCTURAL_LOAD_FRACTION * referenceLoad
+}
+
 export function applyGuardrails(
   scores: ReadinessScore[],
   healthHistory: GarminHealthData[],
-  _dailyTrimp: DailyTRIMP[],
+  dailyTrimp: DailyTRIMP[],
   acwr: number,
 ): ReadinessScore[] {
   if (scores.length === 0) return scores
 
   const result = [...scores.map(s => ({ ...s, guardrailsTriggered: [...(s.guardrailsTriggered || [])] }))]
+  const referenceLoad = referenceActiveLoad(dailyTrimp)
 
   for (let i = 0; i < result.length; i++) {
     const score = result[i]
@@ -459,13 +511,17 @@ export function applyGuardrails(
     }
 
     // 4. Consecutive guardrails (ATE apply_consecutive_guardrails)
-    // Max 2 consecutive GREEN/PEAK → force YELLOW
+    // After 2 hard-trained high-readiness days, force an easy day so
+    // musculoskeletal load (which HRV/RHR can't see) doesn't accumulate.
+    // Only counts days the athlete actually trained — resting or easy days
+    // carry no structural load, so they should NOT trip this cap.
     if (i >= MAX_CONSEC_HIGH) {
-      const prevStatuses = [result[i - 1]?.status, result[i - 2]?.status]
-      const allHigh = prevStatuses.every(s => s === 'GREEN' || s === 'PEAK')
-      if (allHigh && (score.status === 'GREEN' || score.status === 'PEAK')) {
+      const prevDays = [result[i - 1], result[i - 2]]
+      const allHigh = prevDays.every(d => d?.status === 'GREEN' || d?.status === 'PEAK')
+      const allTrained = prevDays.every(d => d && dayCarriedStructuralLoad(d.date, dailyTrimp, referenceLoad))
+      if (allHigh && allTrained && (score.status === 'GREEN' || score.status === 'PEAK')) {
         score.status = 'YELLOW'
-        score.guardrailsTriggered!.push('3+ consecutive GREEN/PEAK — forced YELLOW (structural fatigue management)')
+        score.guardrailsTriggered!.push('2 hard-trained days in a row — easy day for structural recovery')
       }
     }
 
@@ -489,8 +545,10 @@ export function applyGuardrails(
       }
     }
 
-    // Update displayScore after guardrail adjustments
-    // (displayScore maps from status, not composite, after guardrails)
+    // Keep the displayed number consistent with the (possibly downgraded)
+    // status so we never show e.g. "YELLOW 70/100". No-op when the status
+    // was not changed, since the composite-derived score is already in band.
+    score.displayScore = clampDisplayScoreToStatus(score.displayScore, score.status)
   }
 
   return result
