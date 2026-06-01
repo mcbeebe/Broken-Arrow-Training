@@ -545,12 +545,6 @@ export default function CoachChat({ athleteId, memory, snapshot, seed, onSeedCon
               value={input}
               onChange={e => { markCoachActivity(); setInput(e.target.value) }}
               onFocus={() => markCoachActivity()}
-              onKeyDown={e => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault()
-                  send()
-                }
-              }}
               placeholder={coachApiAvailable() ? 'Ask the coach…' : 'Coach is offline.'}
               rows={1}
               disabled={!coachApiAvailable() || streaming}
