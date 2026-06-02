@@ -15,6 +15,8 @@ import type {
   DurationValue,
   DistanceValue,
 } from '../../types/training-method'
+import type { PlannedDay, WorkoutType } from '../../types'
+import { parsePlannedTargets } from '../../utils/targets'
 
 /** Garmin sport bucket. Run-family workouts get full structured fidelity;
  *  strength and cross-training degrade to timed steps (Garmin Connect can't
@@ -206,4 +208,85 @@ export function plannedWorkoutToGarminPayload(
     estimatedDurationSecs,
     steps,
   }
+}
+
+// ─── Legacy (text-plan) fallback ───────────────────────────────────
+// Hand-authored plans store workouts as free-text (`zone`/`detail`/`time`)
+// without a structured `plannedWorkout`. We still want those athletes to push
+// to their watch, so we parse the same numeric targets the compliance engine
+// uses (parsePlannedTargets) into a single-step Garmin workout.
+
+/** WorkoutType → Garmin sport. Types absent from the map (rest, travel) aren't
+ *  pushable. */
+const LEGACY_SPORT: Partial<Record<WorkoutType, GarminSport>> = {
+  run: 'running',
+  quality: 'running',
+  long: 'running',
+  race: 'running',
+  limited: 'running',
+  strength: 'strength',
+  cross: 'cardio',
+}
+
+/**
+ * Build a Garmin payload from a legacy text-plan day. Returns null when the
+ * day isn't pushable — a non-workout type (rest/travel), or no distance or
+ * duration to anchor a step (nothing concrete to send the watch).
+ */
+export function legacyDayToGarminPayload(
+  day: PlannedDay,
+  isoDate: string,
+): GarminWorkoutPayload | null {
+  const sport = LEGACY_SPORT[day.type]
+  if (!sport) return null
+
+  const t = parsePlannedTargets(day)
+
+  let endCondition: GarminEndCondition
+  if (t.distanceMi != null && t.distanceMi > 0) {
+    endCondition = { type: 'distance', value: Math.round(t.distanceMi * METERS_PER_MILE) }
+  } else if (t.durationMin != null && t.durationMin > 0) {
+    endCondition = { type: 'time', value: Math.round(t.durationMin * 60) }
+  } else {
+    return null
+  }
+
+  const target: GarminTarget =
+    t.hrLow != null && t.hrHigh != null
+      ? { type: 'heart.rate', low: t.hrLow, high: t.hrHigh }
+      : { type: 'open' }
+
+  const estimatedDurationSecs =
+    t.durationMin != null && t.durationMin > 0 ? Math.round(t.durationMin * 60) : undefined
+
+  return {
+    name: day.workout || 'Workout',
+    sport,
+    scheduleDate: isoDate,
+    estimatedDurationSecs,
+    steps: [
+      {
+        stepType: 'interval',
+        endCondition,
+        target,
+        description: day.detail || undefined,
+      },
+    ],
+  }
+}
+
+/**
+ * Resolve a Garmin payload for any planned day: the structured `plannedWorkout`
+ * when present (full fidelity), otherwise the legacy text-plan fallback.
+ * Returns null when the day can't be pushed. This is the single entry point the
+ * UI should use.
+ */
+export function buildGarminPayloadForDay(
+  day: PlannedDay,
+  isoDate: string,
+): GarminWorkoutPayload | null {
+  if (isPushableWorkout(day.plannedWorkout)) {
+    return plannedWorkoutToGarminPayload(day.plannedWorkout, isoDate)
+  }
+  return legacyDayToGarminPayload(day, isoDate)
 }
