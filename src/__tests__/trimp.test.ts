@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import {
   calculateBanisterTRIMP,
   getSportMultiplier,
@@ -269,25 +269,18 @@ describe('calculateAdjustedTRIMP', () => {
 
 describe('aggregateDailyTRIMP', () => {
   it('aggregates multiple activities on same day', () => {
-    // aggregateDailyTRIMP infills rest days from the last activity up to
-    // "today", so a hardcoded activity date becomes a time bomb: once the
-    // wall clock passes it, infill adds extra DailyTRIMP entries. Pin the
-    // clock just before the activity date so infill never fires and the
-    // length assertion stays deterministic.
-    vi.useFakeTimers()
-    vi.setSystemTime(new Date('2026-05-31T12:00:00'))
-    try {
-      const records = [
-        { date: '2026-06-01', activityName: 'Run', sportType: 'running' as const, baseTRIMP: 50, sportMultiplier: 1, elevationBonus: 0, adjustedTRIMP: 50 },
-        { date: '2026-06-01', activityName: 'Strength', sportType: 'strength_full' as const, baseTRIMP: 30, sportMultiplier: 1.0, elevationBonus: 0, adjustedTRIMP: 30 },
-      ]
-      const daily = aggregateDailyTRIMP(records)
-      expect(daily).toHaveLength(1)
-      expect(daily[0].total).toBe(80)
-      expect(daily[0].records).toHaveLength(2)
-    } finally {
-      vi.useRealTimers()
-    }
+    // Use a genuinely far-future date so rest-day infill to "today" doesn't
+    // add an unexpected second DailyTRIMP entry and break the length
+    // assertion. (A near-future date like the race year becomes "past" once
+    // the clock catches up, which silently reintroduces the infill.)
+    const records = [
+      { date: '2099-06-01', activityName: 'Run', sportType: 'running' as const, baseTRIMP: 50, sportMultiplier: 1, elevationBonus: 0, adjustedTRIMP: 50 },
+      { date: '2099-06-01', activityName: 'Strength', sportType: 'strength_full' as const, baseTRIMP: 30, sportMultiplier: 1.0, elevationBonus: 0, adjustedTRIMP: 30 },
+    ]
+    const daily = aggregateDailyTRIMP(records)
+    expect(daily).toHaveLength(1)
+    expect(daily[0].total).toBe(80)
+    expect(daily[0].records).toHaveLength(2)
   })
 
   it('sorts by date ascending', () => {
