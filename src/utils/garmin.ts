@@ -66,7 +66,24 @@ export async function checkGarminAuth(
     headers: body ? { 'Content-Type': 'application/json' } : undefined,
     body,
   })
-  return res.json()
+
+  // The handler always responds with JSON, but a crashed serverless function or
+  // an upstream gateway can return a plain-text body (e.g. "An error occurred").
+  // Calling res.json() on that throws "Unexpected token 'A'… is not valid JSON",
+  // which leaked into the sign-in form. Parse defensively and surface a clean,
+  // human-readable error via the `error` field instead.
+  const text = await res.text()
+  try {
+    return text ? JSON.parse(text) : { authenticated: false, error: `Garmin authentication failed (${res.status})` }
+  } catch {
+    const detail = text.trim()
+    // Show the server's text only when it's a short plain message, not an HTML
+    // error page — fall back to a status-code message otherwise.
+    const message = detail && !detail.startsWith('<') && detail.length <= 200
+      ? detail
+      : `Garmin authentication failed (${res.status})`
+    return { authenticated: false, error: message }
+  }
 }
 
 export async function disconnectGarmin(athleteId?: string): Promise<void> {
