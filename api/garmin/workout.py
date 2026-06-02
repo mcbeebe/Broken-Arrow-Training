@@ -194,6 +194,10 @@ class handler(BaseHTTPRequestHandler):
             client = get_client(athlete)  # raises GarminSessionExpired
 
             workout_dict = _build_workout(body)
+            # Use the low-level connectapi POST (present in the pinned
+            # garminconnect) rather than the typed workout models — that keeps
+            # the serverless function free of the pydantic [workout] extra and
+            # gives full control over distance/pace targets.
             created = client.connectapi(_WORKOUT_URL, method="POST", json=workout_dict)
             workout_id = (created or {}).get("workoutId")
             if not workout_id:
