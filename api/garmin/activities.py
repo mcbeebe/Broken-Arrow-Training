@@ -159,6 +159,23 @@ def _build_workout(body):
     }
 
 
+def _post_json(client, path, payload):
+    """POST a JSON body to a Connect path and return the parsed JSON (or None).
+
+    Mirrors how garminconnect's own write methods (add_weigh_in,
+    set_blood_pressure) issue POSTs: the bundled HTTP client's
+    post(subdomain, path, json=...). `client.client` is that HTTP client
+    (same object _session.py serializes via client.client.dumps()).
+    """
+    resp = client.client.post("connectapi", path, json=payload)
+    if resp is None:
+        return None
+    try:
+        return resp.json()
+    except Exception:
+        return None
+
+
 class handler(BaseHTTPRequestHandler):
     def do_OPTIONS(self):
         self.send_response(200)
@@ -273,11 +290,13 @@ class handler(BaseHTTPRequestHandler):
             client = get_client(athlete)  # raises GarminSessionExpired
 
             workout_dict = _build_workout(body)
-            # Use the low-level connectapi POST (present in the pinned
-            # garminconnect) rather than the typed workout models — that keeps
-            # the serverless function free of the pydantic [workout] extra and
-            # gives full control over distance/pace targets.
-            created = client.connectapi(_WORKOUT_URL, method="POST", json=workout_dict)
+            # POST via the bundled HTTP client's `post` (signature:
+            # post(subdomain, path, json=...)). The garminconnect client's
+            # connectapi() helper is GET-only — passing method="POST" collides
+            # with its internal call ("got multiple values for argument
+            # 'method'"). This raw POST also keeps the function free of the
+            # pydantic [workout] extra while giving full control over targets.
+            created = _post_json(client, _WORKOUT_URL, workout_dict)
             workout_id = (created or {}).get("workoutId")
             if not workout_id:
                 self._send_json(502, {"error": "Garmin did not return a workout id.", "garmin": created})
@@ -286,11 +305,7 @@ class handler(BaseHTTPRequestHandler):
             scheduled = False
             schedule_date = body.get("scheduleDate")
             if schedule_date:
-                client.connectapi(
-                    f"{_SCHEDULE_URL}/{workout_id}",
-                    method="POST",
-                    json={"date": schedule_date},
-                )
+                _post_json(client, f"{_SCHEDULE_URL}/{workout_id}", {"date": schedule_date})
                 scheduled = True
 
             self._send_json(200, {
