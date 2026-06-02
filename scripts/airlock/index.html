@@ -16,7 +16,10 @@
     .bar { height: 6px; background: #e2e8f0; border-radius: 999px; overflow: hidden; margin: 1.5rem auto; max-width: 12rem; }
     .bar > i { display: block; height: 100%; width: 33%; background: #14b8a6; animation: slide 1.2s ease-in-out infinite; }
     @keyframes slide { 0% { margin-left: -33%; } 100% { margin-left: 100%; } }
-    a.btn { display: inline-block; margin-top: 0.5rem; padding: 0.6rem 1.1rem; background: #0f766e; color: #fff; text-decoration: none; border-radius: 0.4rem; font-weight: 600; font-size: 0.9rem; }
+    .row { display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: center; margin-top: 1rem; }
+    button.btn, a.btn { display: inline-block; padding: 0.6rem 1.1rem; background: #0f766e; color: #fff; text-decoration: none; border-radius: 0.4rem; font-weight: 600; font-size: 0.9rem; border: 0; cursor: pointer; font-family: inherit; }
+    button.btn-secondary { background: transparent; color: #0f766e; border: 1px solid #0f766e; }
+    a.btn-link { display: inline-block; color: #64748b; text-decoration: underline; font-size: 0.85rem; padding: 0.6rem 0; }
     .err { color: #b91c1c; }
   </style>
 </head>
@@ -25,7 +28,11 @@
     <h1>attune.coach</h1>
     <p id="msg">Bringing your training history with you…</p>
     <div class="bar" id="bar"><i></i></div>
-    <a class="btn" id="manual" href="https://attune.coach/" hidden>Continue to attune.coach</a>
+    <div class="row" id="actions" hidden>
+      <button class="btn" id="retry">Try again</button>
+      <button class="btn btn-secondary" id="download">Download backup</button>
+    </div>
+    <div><a class="btn-link" id="manual" href="https://attune.coach/" hidden>Continue without my data</a></div>
   </div>
 
 <script>
@@ -33,6 +40,7 @@
   var TARGET = 'https://attune.coach';
   var msg = document.getElementById('msg');
   var bar = document.getElementById('bar');
+  var actions = document.getElementById('actions');
   var manual = document.getElementById('manual');
 
   // Preserve allowlist — mirror of src/utils/migrate.ts. Keep in sync.
@@ -116,40 +124,78 @@
     return;
   }
 
-  var popup;
-  try {
-    popup = window.open(TARGET + '/?__migrate=1', 'attune-migrate', 'width=520,height=560');
-  } catch (e) { popup = null; }
-
-  if (!popup) {
-    msg.innerHTML = 'Your browser blocked the migration popup. <br/>Tap below to continue — your data will move when you sign in.';
+  function showFallback() {
     bar.hidden = true;
+    actions.hidden = false;
     manual.hidden = false;
-    return;
+    msg.innerHTML = 'Your browser blocked the migration popup.<br/>' +
+      'Tap <b>Try again</b> — your second tap counts as a user gesture and the popup will open. ' +
+      'Or <b>Download backup</b> and upload the file on attune.coach.';
   }
 
-  var acked = false;
-  var to = setTimeout(function () {
-    if (acked) return;
-    msg.textContent = 'Took longer than expected. Continuing to attune.coach…';
-    try { popup.close(); } catch (e) {}
-    forward();
-  }, 15000);
-
-  function onMessage(ev) {
-    if (ev.origin !== TARGET) return;
-    var data = ev.data || {};
-    if (data.type === 'MIGRATE_READY') {
-      popup.postMessage({ type: 'MIGRATE_DATA', payload: payload }, TARGET);
-    } else if (data.type === 'MIGRATE_ACK') {
-      acked = true;
-      clearTimeout(to);
-      try { popup.close(); } catch (e) {}
-      window.removeEventListener('message', onMessage);
-      forward();
+  function downloadBackup() {
+    try {
+      var blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      var stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+      a.href = url;
+      a.download = 'attune-migration-' + stamp + '.json';
+      a.click();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+      msg.innerHTML = 'Backup downloaded. <a href="' + TARGET + '/?__migrate=1">Open attune.coach</a> and upload the file when prompted.';
+    } catch (e) {
+      msg.innerHTML = '<span class="err">Could not generate backup. Use "Continue without my data" and re-sign-in.</span>';
     }
   }
-  window.addEventListener('message', onMessage);
+
+  function startMigration() {
+    var popup;
+    try {
+      popup = window.open(TARGET + '/?__migrate=1', 'attune-migrate', 'width=520,height=560');
+    } catch (e) { popup = null; }
+
+    if (!popup) {
+      showFallback();
+      return;
+    }
+
+    msg.textContent = 'Bringing your training history with you…';
+    bar.hidden = false;
+    actions.hidden = true;
+    manual.hidden = true;
+
+    var acked = false;
+    var to = setTimeout(function () {
+      if (acked) return;
+      msg.textContent = 'Took longer than expected. Continuing to attune.coach…';
+      try { popup.close(); } catch (e) {}
+      forward();
+    }, 15000);
+
+    function onMessage(ev) {
+      if (ev.origin !== TARGET) return;
+      var data = ev.data || {};
+      if (data.type === 'MIGRATE_READY') {
+        popup.postMessage({ type: 'MIGRATE_DATA', payload: payload }, TARGET);
+      } else if (data.type === 'MIGRATE_ACK') {
+        acked = true;
+        clearTimeout(to);
+        try { popup.close(); } catch (e) {}
+        window.removeEventListener('message', onMessage);
+        forward();
+      }
+    }
+    window.addEventListener('message', onMessage);
+  }
+
+  document.getElementById('retry').addEventListener('click', startMigration);
+  document.getElementById('download').addEventListener('click', downloadBackup);
+
+  // First attempt happens at page-load (popup will likely be blocked
+  // on mobile Safari, but desktop browsers with default settings
+  // usually allow it). The fallback UI catches the blocked case.
+  startMigration();
 })();
 </script>
 </body>
