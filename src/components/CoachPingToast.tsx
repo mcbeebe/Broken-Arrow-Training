@@ -27,7 +27,8 @@ export default function CoachPingToast({ unreadCount, onOpen, onDismiss }: Props
 
   return (
     <div
-      className="fixed top-3 left-1/2 -translate-x-1/2 z-50 max-w-sm w-[92%] bg-amber-50 border border-amber-200 rounded-xl shadow-lg px-3 py-2.5 flex items-center gap-3 animate-in fade-in slide-in-from-top-4"
+      className="fixed left-1/2 -translate-x-1/2 z-50 max-w-sm w-[92%] bg-amber-50 border border-amber-200 rounded-xl shadow-lg px-3 py-2.5 flex items-center gap-3 animate-in fade-in slide-in-from-top-4"
+      style={{ top: 'max(0.75rem, calc(env(safe-area-inset-top) + 0.25rem))' }}
       role="status"
     >
       <span className="text-lg">🤖</span>

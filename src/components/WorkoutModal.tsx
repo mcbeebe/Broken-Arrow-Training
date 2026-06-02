@@ -120,6 +120,16 @@ interface WorkoutModalProps {
   day: PlannedDay
   weekNum: number
   onClose: () => void
+  /** Opens the workout completion editor (ManualLog) for this day. When
+   *  provided, a "Log / Edit workout" pill is shown in the header so the
+   *  athlete can jump straight from reviewing the workout to logging what
+   *  they actually did — no need to close the modal and hunt for the log
+   *  button on the day card. */
+  onLog?: () => void
+  /** Persist + share the workout journal note (actual.notes). When provided
+   *  (and the workout is completed), the inline Workout Journal card renders.
+   *  Saving writes the note and shares it with the coach in the background. */
+  onSaveNote?: (note: string) => void | Promise<void>
   zones?: HRZone[]
   athleteId?: string
   coachEnabled?: boolean
@@ -146,7 +156,7 @@ interface WorkoutModalProps {
   }
 }
 
-export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, coachEnabled, readiness, latestPerf, coachSnapshot, onAskCoach, trimpRecord, weeks, raceReadinessTarget, strengthLevel }: WorkoutModalProps) {
+export default function WorkoutModal({ day, weekNum, onClose, onLog, onSaveNote, zones, athleteId, coachEnabled, readiness, latestPerf, coachSnapshot, onAskCoach, trimpRecord, weeks, raceReadinessTarget, strengthLevel }: WorkoutModalProps) {
   const style = getWorkoutStyle(day.type)
   const { flags } = useDisplayPreferences(athleteId)
   const baseCoaching = getCoaching(day, weekNum)
@@ -323,12 +333,22 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
                 <p className="font-bold text-base text-slate-800 dark:text-white leading-tight">{day.day} <span className="font-normal text-sm text-slate-500 dark:text-slate-400">Wk {weekNum}</span></p>
               </div>
             </div>
-            <button
-              onClick={onClose}
-              className="w-7 h-7 flex items-center justify-center rounded-full bg-white dark:bg-slate-800/70 text-slate-600 dark:text-slate-300 hover:bg-white dark:bg-slate-800 transition-colors"
-            >
-              ✕
-            </button>
+            <div className="flex items-center gap-1.5">
+              {onLog && (
+                <button
+                  onClick={onLog}
+                  className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full bg-white dark:bg-slate-800/70 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800 hover:bg-teal-50 dark:hover:bg-slate-700 transition-colors"
+                >
+                  ✏️ {actual ? 'Edit' : 'Log'} workout
+                </button>
+              )}
+              <button
+                onClick={onClose}
+                className="w-7 h-7 flex items-center justify-center rounded-full bg-white dark:bg-slate-800/70 text-slate-600 dark:text-slate-300 hover:bg-white dark:bg-slate-800 transition-colors"
+              >
+                ✕
+              </button>
+            </div>
           </div>
           <p className="font-semibold text-base text-slate-800 dark:text-white mt-1">{day.workout}</p>
           {/* Distance + estimated running time pulled from the zone
@@ -406,16 +426,17 @@ export default function WorkoutModal({ day, weekNum, onClose, zones, athleteId, 
             />
           )}
 
-          {/* Sprint 7B — voice debrief prompt. Renders only for
-              completed workouts (day.actual present), only when voice
-              input is supported + enabled, and only when the athlete
-              hasn't already debriefed this workout. */}
-          {coachEnabled && athleteId && onAskCoach && day.actual && (
+          {/* Workout journal — the single source of truth for this
+              workout's notes (actual.notes). Renders for completed workouts
+              when a save handler is wired (manual log available). Saving
+              persists the note and shares it with the coach in the
+              background; durable facts get remembered server-side. */}
+          {coachEnabled && athleteId && onSaveNote && day.actual && (
             <WorkoutDebriefPrompt
               athleteId={athleteId}
               day={day}
               coachName={coachSnapshot?.coachPersona?.name?.trim() || DEFAULT_COACH_NAME}
-              onAskCoach={onAskCoach}
+              onSaveNote={onSaveNote}
             />
           )}
 
@@ -1529,24 +1550,36 @@ function CoachWorkoutTakeForDay({
 
   const useDebrief = isCompleted && !!debriefSnapshot
   const useTake = isToday && !isCompleted
-  const useLLM = useDebrief || useTake
+
+  // The completed-workout debrief is long-form and costs LLM tokens, so we
+  // keep it collapsed by default and only fetch it when the athlete taps
+  // "Tell me more". The pre-run take (today, not yet done) stays eager —
+  // it's the thing the athlete opened the modal to read.
+  const [debriefExpanded, setDebriefExpanded] = useState(false)
+  const fetchDebrief = useDebrief && debriefExpanded
+  const fetchLLM = useTake || fetchDebrief
   const { insight, loading } = useCoachInsight({
     athleteId: athleteId || '',
     surface: useDebrief ? `workout_debrief:${day.day}` : `workout_take:${day.day}`,
     snapshot: useDebrief ? debriefSnapshot : (coachSnapshot ?? null),
-    enabled: useLLM && !!athleteId && !!coachSnapshot,
+    enabled: fetchLLM && !!athleteId && !!coachSnapshot,
     fallbackText: fallback.text,
     fallbackTip: fallback.tip,
   })
   return (
     <CoachWorkoutTakeView
       take={fallback}
-      insight={useLLM ? insight : null}
-      loading={useLLM ? loading : false}
+      // When collapsed, pass no insight so the minimal heuristic summary
+      // shows; expanding swaps in the long-form LLM debrief.
+      insight={fetchLLM ? insight : null}
+      loading={fetchLLM ? loading : false}
       onAsk={onAsk}
       coachName={coachSnapshot?.coachPersona?.name?.trim() || DEFAULT_COACH_NAME}
       athleteId={athleteId}
       persona={coachSnapshot?.coachPersona}
+      expandable={useDebrief}
+      expanded={debriefExpanded}
+      onToggleExpand={() => setDebriefExpanded(v => !v)}
     />
   )
 }

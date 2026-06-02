@@ -19,13 +19,20 @@ interface Props {
    *  rendering of the take text. */
   athleteId?: string
   persona?: CoachPersona | null
+  /** When true, renders a "Tell me more" / "Show less" toggle so the
+   *  athlete can opt in to the long-form coach debrief instead of it
+   *  expanding (and fetching) automatically. Used for completed-workout
+   *  debriefs, which default to the minimal summary. */
+  expandable?: boolean
+  expanded?: boolean
+  onToggleExpand?: () => void
 }
 
 /**
  * Coach's take rendered at the top of the WorkoutModal. Prefers the LLM
  * insight when available; otherwise falls back to the heuristic take.
  */
-export default function CoachWorkoutTakeView({ take, insight, loading, onAsk, coachName, athleteId, persona }: Props) {
+export default function CoachWorkoutTakeView({ take, insight, loading, onAsk, coachName, athleteId, persona, expandable, expanded, onToggleExpand }: Props) {
   const name = coachName?.trim() || DEFAULT_COACH_NAME
   const text = (insight && !insight.silent && insight.text) || take?.text || ''
   const tip = (insight && insight.tip) || take?.tip
@@ -70,6 +77,17 @@ export default function CoachWorkoutTakeView({ take, insight, loading, onAsk, co
         <div className="mt-2 text-sm text-indigo-700/90 leading-relaxed">
           <span className="font-semibold">Tip:</span> {renderMarkdown(tip)}
         </div>
+      )}
+      {expandable && onToggleExpand && (
+        <button
+          onClick={onToggleExpand}
+          className="mt-2.5 inline-flex items-center gap-1 text-xs font-semibold text-indigo-700 hover:text-indigo-900 dark:text-indigo-300 dark:hover:text-indigo-100"
+        >
+          {expanded ? '▴ Show less' : '💬 Tell me more'}
+          {expanded && loading && (
+            <span className="ml-1 font-normal text-indigo-500 dark:text-indigo-400 animate-pulse">· coach is thinking…</span>
+          )}
+        </button>
       )}
     </div>
   )

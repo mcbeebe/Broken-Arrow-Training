@@ -1,5 +1,8 @@
 import type { GarminHealthData, GarminActivity, GarminActivityDetail, GarminSplit, ActualWorkout, StrengthExerciseLog, StrengthSet } from '../types'
 import type { StreamData } from './strava'
+import type { GarminWorkoutPayload } from '../engines/planGenerator/garminWorkout'
+
+export type { GarminWorkoutPayload } from '../engines/planGenerator/garminWorkout'
 
 const GARMIN_API_URL = import.meta.env.VITE_GARMIN_API_URL || ''
 
@@ -15,6 +18,37 @@ const STORAGE_KEYS = {
 
 function scopedKey(base: string, athleteId?: string): string {
   return athleteId ? `${base}_${athleteId}` : base
+}
+
+/**
+ * Thrown when the backend can't authenticate to Garmin — the saved session
+ * token has expired or been invalidated. This is recoverable by reconnecting,
+ * so callers should prompt re-auth rather than surface it as a server error.
+ */
+export class GarminAuthError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'GarminAuthError'
+  }
+}
+
+/**
+ * Build an Error from a failed Garmin API response. Reads the backend's
+ * `{ error, reauth }` JSON body for a human-readable message and returns a
+ * GarminAuthError for session-expired (401 / reauth) responses so the UI can
+ * prompt reconnection instead of showing a raw status code.
+ */
+async function garminFetchError(res: Response, fallback: string): Promise<Error> {
+  let message = fallback
+  let reauth = false
+  try {
+    const body = await res.json()
+    if (body?.error) message = body.error
+    if (body?.reauth) reauth = true
+  } catch {
+    // Non-JSON body (e.g. a gateway error page) — keep the fallback message.
+  }
+  return res.status === 401 || reauth ? new GarminAuthError(message) : new Error(message)
 }
 
 // ─── API Functions ──────────────────────────────────────────────
@@ -51,7 +85,7 @@ export async function fetchHealthData(days: number = 1, athleteId?: string): Pro
   const tzOffset = Math.round(-new Date().getTimezoneOffset() / 60)  // e.g., -7 for Pacific
   const athleteParam = athleteId ? `&athlete=${athleteId}` : ''
   const res = await fetch(`${GARMIN_API_URL}/api/garmin/health?days=${days}&tz=${tzOffset}${athleteParam}`)
-  if (!res.ok) throw new Error(`Garmin health fetch failed: ${res.status}`)
+  if (!res.ok) throw await garminFetchError(res, `Garmin health fetch failed: ${res.status}`)
 
   const data = await res.json()
   return data.dates || []
@@ -62,10 +96,36 @@ export async function fetchGarminActivities(start: string, end: string, athleteI
 
   const athleteParam = athleteId ? `&athlete=${athleteId}` : ''
   const res = await fetch(`${GARMIN_API_URL}/api/garmin/activities?start=${start}&end=${end}${athleteParam}`)
-  if (!res.ok) throw new Error(`Garmin activities fetch failed: ${res.status}`)
+  if (!res.ok) throw await garminFetchError(res, `Garmin activities fetch failed: ${res.status}`)
 
   const data = await res.json()
   return data.activities || []
+}
+
+/**
+ * Push a structured workout to Garmin Connect and (when the payload carries a
+ * `scheduleDate`) schedule it on the calendar so the watch surfaces it as that
+ * day's workout on its next sync. Throws GarminAuthError on an expired session
+ * so the caller can prompt reconnection.
+ */
+export async function pushWorkoutToGarmin(
+  payload: GarminWorkoutPayload,
+  athleteId?: string,
+): Promise<{ success: boolean; workoutId?: string; scheduled?: boolean }> {
+  if (!GARMIN_API_URL) throw new Error('Garmin API URL not configured')
+
+  // POSTed to the activities endpoint (not a dedicated /workout route): the
+  // Vercel Hobby plan caps the deployment at 12 serverless functions and the
+  // API is already at the limit, so the push handler is co-located there.
+  const params = athleteId ? `?athlete=${athleteId}` : ''
+  const res = await fetch(`${GARMIN_API_URL}/api/garmin/activities${params}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  if (!res.ok) throw await garminFetchError(res, `Garmin workout push failed: ${res.status}`)
+
+  return res.json()
 }
 
 // ─── localStorage Cache ─────────────────────────────────────────
@@ -137,6 +197,28 @@ export function getCachedGarminActivities(athleteId?: string): GarminActivity[] 
 
 export function cacheGarminActivities(activities: GarminActivity[], athleteId?: string): void {
   localStorage.setItem(scopedKey(STORAGE_KEYS.activities, athleteId), JSON.stringify(activities))
+}
+
+/**
+ * Merge freshly-fetched activities into the cached set, keyed by a stable
+ * identity. A sync only ever returns activities inside its fetch window, so
+ * replacing the cache outright would silently drop older completed sessions.
+ * Merging keeps history monotonic — a short or partial fetch can never erase
+ * activities the user already has. Incoming entries win on conflict (fresher
+ * data from Garmin).
+ */
+export function mergeGarminActivities(
+  existing: GarminActivity[],
+  incoming: GarminActivity[],
+): GarminActivity[] {
+  const keyOf = (a: GarminActivity): string =>
+    a.activityId != null
+      ? `id:${a.activityId}`
+      : `d:${a.date}|${a.type}|${a.name}|${a.durationMinutes}`
+  const byKey = new Map<string, GarminActivity>()
+  for (const a of existing) byKey.set(keyOf(a), a)
+  for (const a of incoming) byKey.set(keyOf(a), a)
+  return Array.from(byKey.values()).sort((a, b) => b.date.localeCompare(a.date))
 }
 
 // ─── Activity Detail API & Cache ───────────────────────────────

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import type { ReadinessScore, GarminHealthData, CoachRecommendation, PerformanceMetrics, DailyTRIMP, PlannedDay, HRZone, CoachSnapshot, RaceInfo } from '../types'
+import type { ReadinessScore, GarminHealthData, CoachRecommendation, PerformanceMetrics, DailyTRIMP, PlannedDay, HRZone, CoachSnapshot, RaceInfo, ActualWorkout } from '../types'
 import type { RiskFlag } from '../utils/readiness'
 import type { SorenessLevel } from '../hooks/useSoreness'
 import { getTSBState, getTSBLabel, getACWRRisk, getACWRLabel } from '../utils/performance'
@@ -8,6 +8,7 @@ import { findTrimpRecord } from '../utils/trimp'
 import TodayBriefing from './TodayBriefing'
 import TRIMPBreakdown from './TRIMPBreakdown'
 import WorkoutModal from './WorkoutModal'
+import ManualLog from './ManualLog'
 import { getWorkoutStyle } from '../utils/styles'
 import Term from './TermGlossary'
 import RaceCard from './RaceCard'
@@ -47,6 +48,20 @@ interface SummaryProps {
   riskFlags?: RiskFlag[]
   /** Goal race — drives the race-ready hero card in the final ~8 weeks. */
   race?: RaceInfo
+  /** Logs / edits a completed workout. When provided, the workout detail
+   *  modals opened from Summary surface a "Log / Edit workout" pill so the
+   *  athlete can log what they actually did without leaving the page —
+   *  matching the Plan page's modal. */
+  manualLog?: {
+    logWorkout: (dayLabel: string, data: ActualWorkout) => void
+  }
+  /** Seeds the coach chat. Threaded into the workout detail modals so the
+   *  coach take's "Ask →" / "Play" actions work the same as on the Plan
+   *  page. */
+  onAskCoach?: (seed: string) => void
+  /** Share a workout journal note with the coach in the background — used by
+   *  the inline journal on the workout modals and the log editor. */
+  onShareNote?: (day: PlannedDay, note: string) => void | Promise<void>
 }
 
 // ─── Scale bar component ──────────────────────────────────────
@@ -270,6 +285,9 @@ export default function Summary({
   coachSnapshot,
   riskFlags = [],
   race,
+  manualLog,
+  onAskCoach,
+  onShareNote,
 }: SummaryProps) {
   const { flags, isSectionVisible } = useDisplayPreferences(athleteId)
   const latestPerf = performance.length > 0 ? performance[performance.length - 1] : null
@@ -277,6 +295,9 @@ export default function Summary({
   const [narrativeOpen, setNarrativeOpen] = useState(true)
   const [showTodayModal, setShowTodayModal] = useState(false)
   const [showRaceReadinessModal, setShowRaceReadinessModal] = useState(false)
+  // Workout completion editor target — opened from the "Log / Edit workout"
+  // pill in either of the workout detail modals below.
+  const [logTarget, setLogTarget] = useState<{ day: PlannedDay; weekNum: number } | null>(null)
   // When the athlete taps a row in the Race Readiness modal we resolve it
   // to the underlying PlannedDay and open the daily workout card with the
   // race-readiness target attached as a banner. Single-source state — the
@@ -366,11 +387,36 @@ export default function Summary({
           coachSnapshot={coachSnapshot ?? undefined}
           athleteId={athleteId}
           coachEnabled={coachEnabled}
+          onAskCoach={onAskCoach}
+          onLog={manualLog ? () => {
+            setLogTarget({ day: readinessWorkout.day, weekNum: readinessWorkout.weekNum })
+            setReadinessWorkout(null)
+          } : undefined}
+          onSaveNote={manualLog && readinessWorkout.day.actual ? async (note) => {
+            manualLog.logWorkout(readinessWorkout.day.day, { ...readinessWorkout.day.actual!, notes: note })
+            await onShareNote?.(readinessWorkout.day, note)
+          } : undefined}
           raceReadinessTarget={raceReadiness ? {
             gap: raceReadiness.gap,
             action: readinessWorkout.assignment.action,
             target: readinessWorkout.assignment.target,
           } : undefined}
+        />
+      )}
+      {/* Workout completion editor — opened from the "Log / Edit workout"
+          pill in the detail modals above. */}
+      {logTarget && manualLog && (
+        <ManualLog
+          dayLabel={logTarget.day.day}
+          existing={logTarget.day.actual}
+          planned={logTarget.day}
+          weekNum={logTarget.weekNum}
+          onSave={(data) => {
+            manualLog.logWorkout(logTarget.day.day, data)
+            if (data.notes?.trim()) onShareNote?.(logTarget.day, data.notes)
+            setLogTarget(null)
+          }}
+          onClose={() => setLogTarget(null)}
         />
       )}
       {/* Today's Workout CTA */}
@@ -422,6 +468,16 @@ export default function Summary({
                 latestPerf={latestPerf}
                 coachSnapshot={coachSnapshot ?? undefined}
                 athleteId={athleteId}
+                coachEnabled={coachEnabled}
+                onAskCoach={onAskCoach}
+                onLog={manualLog ? () => {
+                  setLogTarget({ day: todayPlannedWorkout, weekNum: currentWeekNum ?? 1 })
+                  setShowTodayModal(false)
+                } : undefined}
+                onSaveNote={manualLog && todayPlannedWorkout.actual ? async (note) => {
+                  manualLog.logWorkout(todayPlannedWorkout.day, { ...todayPlannedWorkout.actual!, notes: note })
+                  await onShareNote?.(todayPlannedWorkout, note)
+                } : undefined}
                 trimpRecord={findTrimpRecord(
                   dailyTrimp,
                   localDateStr(),

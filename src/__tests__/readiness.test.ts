@@ -285,15 +285,41 @@ describe('applyGuardrails (ATE guardrail system)', () => {
     expect(result[0].status).toBe('GREEN')
   })
 
-  it('forces YELLOW after 3 consecutive GREEN/PEAK days', () => {
+  it('forces YELLOW on the 3rd high day when the prior 2 were actually trained', () => {
     const scores = [
       makeScore('GREEN', '2026-04-13'),
       makeScore('GREEN', '2026-04-14'),
       makeScore('GREEN', '2026-04-15'),
     ]
-    const result = applyGuardrails(scores, [], [], 1.0)
+    const trimp = [
+      { date: '2026-04-13', total: 100, records: [] },
+      { date: '2026-04-14', total: 100, records: [] },
+      { date: '2026-04-15', total: 100, records: [] },
+    ]
+    const result = applyGuardrails(scores, [], trimp, 1.0)
     expect(result[2].status).toBe('YELLOW')
-    expect(result[2].guardrailsTriggered!.some(g => g.includes('structural fatigue'))).toBe(true)
+    expect(result[2].guardrailsTriggered!.some(g => g.includes('structural recovery'))).toBe(true)
+    // displayed number is clamped into the YELLOW band, not left in the GREEN band
+    expect(result[2].displayScore).toBeLessThanOrEqual(compositeToDisplayScore(0.25))
+  })
+
+  it('stays GREEN on the 3rd high day when the prior 2 were rest/easy days', () => {
+    const scores = [
+      makeScore('GREEN', '2026-04-13'),
+      makeScore('GREEN', '2026-04-14'),
+      makeScore('GREEN', '2026-04-15'),
+    ]
+    // Athlete's typical active-day load is ~100 (earlier days), but the two days
+    // before today were rest (0 load) — no structural fatigue to manage.
+    const trimp = [
+      { date: '2026-04-10', total: 100, records: [] },
+      { date: '2026-04-11', total: 100, records: [] },
+      { date: '2026-04-13', total: 0, records: [] },
+      { date: '2026-04-14', total: 0, records: [] },
+    ]
+    const result = applyGuardrails(scores, [], trimp, 1.0)
+    expect(result[2].status).toBe('GREEN')
+    expect(result[2].guardrailsTriggered!.some(g => g.includes('structural recovery'))).toBe(false)
   })
 
   it('forces YELLOW after 3 consecutive RED days', () => {

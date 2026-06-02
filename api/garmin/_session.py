@@ -21,6 +21,19 @@ from garminconnect import Garmin
 _client_cache: dict[str, Garmin] = {}
 
 
+class GarminSessionExpired(RuntimeError):
+    """No valid Garmin session could be restored for an athlete.
+
+    This is an authentication problem, not a server fault: the saved
+    session token is missing or has been expired/invalidated by Garmin, so
+    the user needs to reconnect. Endpoints map it to HTTP 401 (not 500) so
+    the frontend can tell "please reconnect" apart from a real outage.
+
+    Subclasses RuntimeError so existing ``except RuntimeError`` handlers
+    (e.g. auth.py's saved-session probe) keep working unchanged.
+    """
+
+
 def _get_kv_headers():
     token = os.environ.get("KV_REST_API_TOKEN", "")
     return {
@@ -159,7 +172,7 @@ def get_client(athlete: str | None = None) -> Garmin:
         except Exception:
             pass
 
-    raise RuntimeError(
+    raise GarminSessionExpired(
         "No valid Garmin session found. "
         "Please authenticate first via POST /api/garmin/auth"
         + (f"?athlete={athlete}" if athlete else "")

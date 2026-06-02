@@ -40,12 +40,15 @@ import { localDateStr } from './utils/format'
 import { generateMorningCoach, generateEveningCoach, getCoachTimeOfDay } from './utils/coach'
 import { checkStorageVersion, clearAllCachedData, clearAllAppData } from './utils/storageVersion'
 import { buildCoachSnapshot } from './utils/coachSnapshot'
+import { sendCoachMessageBackground, coachApiAvailable } from './utils/coachApi'
+import { buildJournalSeed } from './utils/journal'
 import { injurySummaryLine } from './utils/injuryRamp'
 import { useWeather } from './hooks/useWeather'
 import { useAthleteLocation } from './hooks/useAthleteLocation'
 import { useWorkoutTimePreference } from './hooks/useWorkoutTimePreference'
 import WeeklyPlan from './components/WeeklyPlan'
 import Summary from './components/Summary'
+import Journal from './components/Journal'
 import Dashboard from './components/Dashboard'
 import RaceInfo from './components/RaceInfo'
 // Methodology is now a subsection within Settings
@@ -60,6 +63,7 @@ import { getStoredSession, clearSession, type AuthSession } from './utils/auth'
 import { isInAppBrowser, isBypassed } from './utils/inAppBrowser'
 import { useTheme } from './hooks/useTheme'
 import { usePalette } from './hooks/usePalette'
+import { useVisualViewport } from './hooks/useVisualViewport'
 import { useDisplayPreferences } from './hooks/useDisplayPreferences'
 
 // Auto-clear stale caches on app startup when data format changes
@@ -326,6 +330,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
   const [chatSeed, setChatSeed] = useState<string | null>(null)
   const theme = useTheme()
   const palette = usePalette(theme.resolved)
+  useVisualViewport()
   const displayPrefs = useDisplayPreferences(athleteId)
   const strava = useStrava(athleteId)
   const garmin = useGarmin(athleteId)
@@ -413,7 +418,8 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
       // the onMarkRead() effect will clear unread flags anyway.
       base.push({ id: 'coach', label: 'Coach', badge: view === 'coach' ? 0 : coachMemory.unreadCount })
     }
-    base.push({ id: 'settings', label: 'Settings' })
+    // Settings has moved to the header gear to keep the bottom bar at five.
+    base.push({ id: 'journal', label: 'Journal' })
     return base
   }, [coachEnabled, coachMemory.unreadCount, view])
 
@@ -867,6 +873,30 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     [coachTelemetry],
   )
 
+  // Share a workout journal note with the coach in the BACKGROUND — no
+  // navigation. The note has already been persisted onto the workout
+  // (actual.notes) by the caller; this posts it as a coach turn so the
+  // coach receives + analyzes it (durable facts extracted server-side) and
+  // its reply waits in the Coach tab. Best-effort: a failed send leaves the
+  // note saved. Skips when nothing changed so re-saving the same note (or
+  // saving a workout without touching notes) doesn't spam the coach.
+  const shareWorkoutNote = useCallback(
+    async (day: PlannedDay, note: string) => {
+      const trimmed = note.trim()
+      if (!trimmed) return
+      if (trimmed === (day.actual?.notes?.trim() || '')) return
+      if (!coachSnapshot || !coachApiAvailable()) return
+      try {
+        await sendCoachMessageBackground(athleteId, buildJournalSeed(day, trimmed), coachSnapshot)
+        await coachMemory.refresh()
+        coachTelemetry.logInteraction('ask_tapped', { source: 'journal_note' })
+      } catch {
+        // Note is persisted regardless; coach share is best-effort.
+      }
+    },
+    [athleteId, coachSnapshot, coachMemory, coachTelemetry],
+  )
+
   // Resolve a planned day by (weekNum, dayIndex). Uses base plan days
   // (pre-override) so the ProposalCard can show a "before → after" diff
   // with the original workout.
@@ -944,7 +974,23 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
   const showTutorial = !!onboarding.config && !tutorial.seen
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 pb-24 dark:text-slate-200 transition-colors" style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" }}>
+    <div
+      className={`${
+        view === 'coach'
+          // Coach is a self-contained app shell: a fixed-height (visible
+          // viewport) flex column that does NOT scroll at the document
+          // level. The header sits at its real measured height, the chat
+          // is the only scroll region, and the composer pins to the bottom.
+          // This avoids both (a) the previous tab's document scroll bleeding
+          // in so the composer lands below the fold, and (b) relying on a
+          // hardcoded header-height token that never matches every device.
+          ? 'h-[var(--app-vh)] overflow-hidden flex flex-col'
+          // Every other tab keeps the normal scrolling document + bottom
+          // padding so content clears the fixed nav.
+          : 'min-h-screen pb-24'
+      } bg-slate-50 dark:bg-slate-950 dark:text-slate-200 transition-colors`}
+      style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" }}
+    >
       {showTutorial && (
         <Tutorial
           onClose={tutorial.markSeen}
@@ -952,10 +998,27 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
         />
       )}
       {/* Header */}
-      <div className="bg-slate-800 dark:bg-slate-900 text-white px-3 py-2.5">
+      <div
+        className="bg-slate-800 dark:bg-slate-900 text-white px-3 pb-2.5 shrink-0"
+        style={{ paddingTop: 'max(env(safe-area-inset-top), 0.625rem)' }}
+      >
         <div className="flex items-baseline justify-between">
           <h1 className="text-lg font-bold tracking-tight leading-tight">{raceName}</h1>
-          <span className="text-teal-400 text-sm font-semibold">{daysUntilRace} days</span>
+          <div className="flex items-center gap-2.5 shrink-0">
+            <span className="text-teal-400 text-sm font-semibold">{daysUntilRace} days</span>
+            <button
+              type="button"
+              onClick={() => setView('settings')}
+              aria-label="Settings"
+              aria-current={view === 'settings' ? 'page' : undefined}
+              className="self-center -my-1 p-1 rounded-full text-slate-300 hover:text-white hover:bg-white/10 transition-colors"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={view === 'settings' ? '#5eead4' : 'currentColor'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="3" />
+                <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" />
+              </svg>
+            </button>
+          </div>
         </div>
         <p className="text-slate-300 text-xs mt-0.5">
           {activePlan.athlete.name} · {activePlan.race.date}
@@ -1063,6 +1126,9 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           riskFlags={readiness.riskFlags}
           weeks={weeks}
           race={activePlan.race}
+          manualLog={manualLog}
+          onAskCoach={handleAskCoach}
+          onShareNote={shareWorkoutNote}
         />
       </>)}
       {view === 'plan' && (
@@ -1078,6 +1144,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           latestPerf={latestPerf}
           coachSnapshot={coachSnapshot}
           onAskCoach={handleAskCoach}
+          onShareNote={shareWorkoutNote}
           race={activePlan.race}
           compliance={compliance.weeks}
           dailyTrimp={readiness.dailyTrimp}
@@ -1107,6 +1174,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
         />
       )}
       {view === 'coach' && coachEnabled && (
+        <div className="flex-1 min-h-0 overflow-hidden">
         <CoachTab
           athleteId={athleteId}
           memory={coachMemory}
@@ -1127,6 +1195,21 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           onRegenerateInsight={dailyInsight.regenerate}
           onAskCoach={handleAskCoach}
           onboardingConfig={onboarding.config}
+        />
+        </div>
+      )}
+      {view === 'journal' && (
+        <Journal
+          weeks={weeks}
+          athleteId={athleteId}
+          coachEnabled={coachEnabled}
+          coachSnapshot={coachSnapshot}
+          zones={hrZones.zones}
+          latestPerf={latestPerf}
+          strengthLevel={onboarding.config?.strengthExperience}
+          onAskCoach={handleAskCoach}
+          onShareNote={shareWorkoutNote}
+          manualLog={manualLog}
         />
       )}
       {/* Methodology moved into Settings as a collapsible subsection */}
@@ -1252,6 +1335,8 @@ function TabIcon({ id, active }: { id: string; active: boolean }) {
       return <svg {...common}><line x1="18" y1="20" x2="18" y2="10" /><line x1="12" y1="20" x2="12" y2="4" /><line x1="6" y1="20" x2="6" y2="14" /></svg>
     case 'coach':
       return <svg {...common}><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" /></svg>
+    case 'journal':
+      return <svg {...common}><path d="M4 19.5A2.5 2.5 0 016.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z" /></svg>
     case 'settings':
       return <svg {...common}><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" /></svg>
     default:
