@@ -13,6 +13,8 @@ import { generateDayCardNote } from '../utils/coachNotes'
 import { injuryRampNote } from '../utils/injuryRamp'
 import type { InjuryStatus } from '../hooks/useOnboarding'
 import { useCoachInsight } from '../hooks/useCoachInsight'
+import { pushWorkoutToGarmin, GarminAuthError, isGarminConnected } from '../utils/garmin'
+import { plannedWorkoutToGarminPayload, isPushableWorkout } from '../engines/planGenerator/garminWorkout'
 import TargetVsActual from './TargetVsActual'
 import CoachDayNoteView from './CoachDayNote'
 
@@ -52,9 +54,12 @@ interface DayCardProps {
   /** Athlete's injury status from onboarding. Drives the return-from-injury
    *  ramp note that explains where they are in the gentle build-up. */
   injuryStatus?: InjuryStatus
+  /** ISO date (YYYY-MM-DD) this card represents. Required to schedule a
+   *  pushed workout on the right Garmin calendar day. */
+  isoDate?: string
 }
 
-export default function DayCard({ day, weekNum, onTap, onLog, onSwap, onEdit, hasEdit, isSwapSelected, isSwapTarget, readiness, coachEnabled, isToday, isPast, athleteId, coachSnapshot, onAskCoach, trimpRecord, weatherChip, injuryStatus }: DayCardProps) {
+export default function DayCard({ day, weekNum, onTap, onLog, onSwap, onEdit, hasEdit, isSwapSelected, isSwapTarget, readiness, coachEnabled, isToday, isPast, athleteId, coachSnapshot, onAskCoach, trimpRecord, weatherChip, injuryStatus, isoDate }: DayCardProps) {
   const style = getWorkoutStyle(day.type)
   const actual = day.actual
   const timeEst = estimateRunTime(day.zone)
@@ -68,6 +73,38 @@ export default function DayCard({ day, weekNum, onTap, onLog, onSwap, onEdit, ha
   const [detailsExpanded, setDetailsExpanded] = useState(false)
   const [descExpanded, setDescExpanded] = useState(false)
   const [cardCollapsed, setCardCollapsed] = useState(isCompleted)
+
+  // ── Send-to-watch (Garmin push) ──────────────────────────────
+  const [pushStatus, setPushStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
+  const [pushMsg, setPushMsg] = useState<string | null>(null)
+  // Offer the push only when there's a structured workout to send, this card
+  // has a real calendar date to schedule against, it's not already in the
+  // past, and the athlete has Garmin connected.
+  const canPushToWatch =
+    !isCompleted &&
+    !isPast &&
+    !!isoDate &&
+    isPushableWorkout(day.plannedWorkout) &&
+    isGarminConnected(athleteId)
+
+  async function handlePushToWatch() {
+    if (!isoDate || !isPushableWorkout(day.plannedWorkout)) return
+    setPushStatus('sending')
+    setPushMsg(null)
+    try {
+      const payload = plannedWorkoutToGarminPayload(day.plannedWorkout, isoDate)
+      await pushWorkoutToGarmin(payload, athleteId)
+      setPushStatus('sent')
+      setPushMsg('Sent — syncs to your watch on next Garmin sync.')
+    } catch (err) {
+      setPushStatus('error')
+      setPushMsg(
+        err instanceof GarminAuthError
+          ? 'Garmin disconnected — reconnect in Settings, then try again.'
+          : err instanceof Error ? err.message : 'Could not send to watch.',
+      )
+    }
+  }
 
   // Return-from-injury ramp context — explains where the athlete is in the
   // gentle build-up and how it progresses. Null for healthy athletes, rest
@@ -197,6 +234,25 @@ export default function DayCard({ day, weekNum, onTap, onLog, onSwap, onEdit, ha
                 {actual ? '✏️ Edit' : '📝 Log'}
               </button>
             )}
+            {canPushToWatch && (
+              <button
+                onClick={e => { e.stopPropagation(); handlePushToWatch() }}
+                disabled={pushStatus === 'sending'}
+                className={`text-sm font-semibold px-2.5 py-1.5 rounded-full transition-colors ${
+                  pushStatus === 'sent'
+                    ? 'bg-emerald-200 text-emerald-800'
+                    : pushStatus === 'error'
+                    ? 'bg-red-100 text-red-700 hover:bg-red-200'
+                    : 'bg-sky-100 text-sky-700 hover:bg-sky-200 disabled:opacity-60'
+                }`}
+                title="Send this workout to your Garmin watch"
+              >
+                {pushStatus === 'sending' ? '⌚ …'
+                  : pushStatus === 'sent' ? '⌚ ✓'
+                  : pushStatus === 'error' ? '⌚ !'
+                  : '⌚ Send'}
+              </button>
+            )}
             {statusDot}
             {day.time !== '—' && (
               <span className="text-xs text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-800/60 rounded-full px-2 py-0.5">
@@ -215,6 +271,20 @@ export default function DayCard({ day, weekNum, onTap, onLog, onSwap, onEdit, ha
             <span className="text-slate-400 text-sm">›</span>
           </div>
         </div>
+
+        {/* Send-to-watch result — confirms the workout reached Garmin
+            (it surfaces on the watch at next sync) or explains why it
+            didn't. */}
+        {pushMsg && (
+          <div className={`mt-2 px-2.5 py-1.5 rounded-md text-sm flex items-start gap-1.5 ${
+            pushStatus === 'error'
+              ? 'bg-red-100/70 text-red-800 dark:bg-red-950/40 dark:text-red-200'
+              : 'bg-sky-100/70 text-sky-800 dark:bg-sky-950/40 dark:text-sky-200'
+          }`}>
+            <span aria-hidden>⌚</span>
+            <span className="leading-snug">{pushMsg}</span>
+          </div>
+        )}
 
         {/* Workout title row — full card width so titles like
             "CROSS-TRAIN: E-Bike" stop wrapping into a narrow left
