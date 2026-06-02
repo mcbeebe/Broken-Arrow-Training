@@ -114,8 +114,11 @@ export async function pushWorkoutToGarmin(
 ): Promise<{ success: boolean; workoutId?: string; scheduled?: boolean }> {
   if (!GARMIN_API_URL) throw new Error('Garmin API URL not configured')
 
+  // POSTed to the activities endpoint (not a dedicated /workout route): the
+  // Vercel Hobby plan caps the deployment at 12 serverless functions and the
+  // API is already at the limit, so the push handler is co-located there.
   const params = athleteId ? `?athlete=${athleteId}` : ''
-  const res = await fetch(`${GARMIN_API_URL}/api/garmin/workout${params}`, {
+  const res = await fetch(`${GARMIN_API_URL}/api/garmin/activities${params}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
