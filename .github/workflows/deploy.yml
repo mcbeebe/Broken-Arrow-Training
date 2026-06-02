@@ -36,46 +36,33 @@ jobs:
       - run: npm ci
       - run: npm test
 
-  build-and-deploy:
+  # Cutover airlock — REPLACED the legacy `build-and-deploy` job at
+  # cutover. The legacy origin (mcbeebe.github.io/Broken-Arrow-Training/)
+  # now serves the standalone migration airlock from scripts/airlock/.
+  # When users visit any legacy URL, the airlock collects their
+  # localStorage payload, transfers it to attune.coach via postMessage,
+  # and forwards them with deep links preserved.
+  #
+  # To roll back: git-revert this commit (restores the previous
+  # build-and-deploy job, which rebuilds the regular app to gh-pages).
+  cutover-airlock:
     needs: test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: npm
-      - run: npm ci
-      - run: npm run build
-        env:
-          VITE_BASE_PATH: /Broken-Arrow-Training/
-          VITE_STRAVA_CLIENT_ID: ${{ secrets.VITE_STRAVA_CLIENT_ID }}
-          VITE_STRAVA_TOKEN_EXCHANGE_URL: ${{ secrets.VITE_STRAVA_TOKEN_EXCHANGE_URL }}
-          VITE_STRAVA_REDIRECT_URI: https://mcbeebe.github.io/Broken-Arrow-Training/
-          VITE_GARMIN_API_URL: ${{ secrets.VITE_GARMIN_API_URL }}
-          VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
-          # VAPID public key for Web Push (coach briefings). Must be
-          # baked in at build time — the Settings → Notifications panel
-          # gates the Enable button on its presence. Pair with the
-          # server-side VAPID_PRIVATE_KEY / VAPID_SUBJECT on Vercel.
-          VITE_VAPID_PUBLIC_KEY: ${{ secrets.VITE_VAPID_PUBLIC_KEY }}
-          # Git SHA baked into the bundle so the Deploy Diagnostics
-          # panel in Settings can compare frontend vs. API version.
-          VITE_GIT_COMMIT_SHA: ${{ github.sha }}
-          # During the attune.coach cutover, the banner shown by the
-          # legacy build invites users to one-tap their data over.
-          # Empty/unset = no banner.
-          VITE_TARGET_ORIGIN: https://attune.coach
-      # Only the default branch (or a manual workflow_dispatch trigger)
-      # actually publishes to gh-pages. This prevents a feature
-      # branch's bundle from clobbering the production deploy — the
-      # exact failure mode that buried PR #92's home-location code
-      # under PR #93's side-branch pushes.
+      - run: |
+          mkdir -p ./airlock-dist
+          cp scripts/airlock/index.html ./airlock-dist/index.html
+          cp scripts/airlock/404.html ./airlock-dist/404.html
       - uses: peaceiris/actions-gh-pages@v4
         if: github.ref == env.PUBLISH_REF || github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./dist
+          publish_dir: ./airlock-dist
+          # Orphan the gh-pages history so the legacy app's old commits
+          # don't pile up; the airlock is the only thing this branch
+          # should ever serve from here on.
+          force_orphan: true
 
   # Parallel build for the attune.coach custom domain. Always runs to
   # catch breakage on PR/branch pushes, but only PUBLISHES when the
