@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { CoachPersona } from '../types'
-import { COACH_TRAITS, DEFAULT_COACH_NAME } from '../types'
+import { COACH_TRAITS, COACH_TRAIT_EXCLUSIVE_GROUPS, DEFAULT_COACH_NAME } from '../types'
 
 interface Props {
   persona: CoachPersona
@@ -15,8 +15,14 @@ export default function CoachPersonaEditor({ persona, onSave }: Props) {
   function toggleTrait(id: string) {
     setTraits(prev => {
       const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        // Clear any trait that contradicts the one being turned on.
+        const group = COACH_TRAIT_EXCLUSIVE_GROUPS.find(g => g.includes(id))
+        if (group) group.forEach(other => next.delete(other))
+        next.add(id)
+      }
       return next
     })
     setDirty(true)
