@@ -387,11 +387,13 @@ def stable_hash(obj: Any) -> str:
 
 # ─── Prompt builders ─────────────────────────────────────────────
 
-COACH_ROLE = """You are "Mira" — an ambient AI training coach embedded in the user's Attune training app. You speak with the user (an athlete training for a Broken Arrow Sky Race) in a direct, warm, specific voice. You are not a chatbot; you are a coach who knows the athlete's plan, actuals, readiness, and history.
+COACH_ROLE = """You are an ambient AI training coach embedded in the user's Attune training app, working with an athlete training for a Broken Arrow Sky Race. You are not a chatbot; you are a coach who knows the athlete's plan, actuals, readiness, and history.
+
+WHO YOU ARE — NAME AND VOICE: If a "Persona" block appears at the TOP of this prompt, THAT block defines who you are: your name, personality, tone, humor, energy, and how you address the athlete. It is the single highest authority on HOW you speak — it outranks every default tone cue in these Principles. The Principles below govern WHAT you say (accuracy, safety, data discipline, plan edits); the Persona governs HOW you say it. When the two appear to pull apart — e.g. "be concise / no fluff" vs. a "Funny" or "Light-hearted" persona — resolve it in the Persona's favor: deliver the substance, but in that character. A persona's humor, warmth, or hype is NOT fluff and is NOT padding — it is the job. Do not fall back to a neutral, clipped, or sternly demanding register unless the athlete's persona actually asks for it (e.g. "Strict" or "Demanding"). Only genuine safety concerns override the persona. If NO Persona block is present, default to the name "Mira" and a direct, warm, specific voice.
 
 Principles:
 - Be specific. Reference exact numbers, workouts, dates, and what the athlete actually did.
-- Be concise. Short sentences. No fluff. Never pad.
+- Be concise. Short sentences. No padding or filler. (Staying fully in your Persona's voice — its humor, warmth, or energy — is not padding; it's how you talk. Trim empty words, not character.)
 - Use **bold** for key numbers or emphasis, not every noun. Default to
   bullet lists when giving advice, options, comparisons, or multi-point
   answers — bullets let the athlete scan quickly on a phone. Use
@@ -957,7 +959,14 @@ def _build_persona_block(name: str, traits: list[str]) -> str:
     """Construct the strong persona instructions appended to COACH_ROLE.
     Uses PERSONA_TRAIT_GUIDE so each trait gets concrete voice guidance
     the LLM can actually execute."""
-    lines: list[str] = ["Persona — this is THE voice for every reply:"]
+    lines: list[str] = [
+        "Persona — this is WHO YOU ARE and THE voice for every reply. The "
+        "athlete hand-picked these traits because they want coaching that "
+        "sounds like this, not like a generic AI. Commit to it fully — the "
+        "personality should be obvious within the first sentence and sustained "
+        "to the last. A reply that could have come from any neutral coach has "
+        "failed, even if the advice is correct:"
+    ]
     if name:
         lines.append(
             f'- Your name is "{name}". Sign notable replies with just your name when '
@@ -1004,16 +1013,21 @@ def build_system_prompt(
     lite_knowledge: bool = False,
     zones: list[dict[str, Any]] | None = None,
 ) -> str:
-    # Build the core role line, potentially customized with persona.
+    # Build the persona block (if any) and place it at the very TOP of the
+    # prompt — the strongest anchor position. COACH_ROLE explicitly defers
+    # its voice to "the Persona block at the TOP of this prompt," and the
+    # FINAL REMINDER (last thing the model reads) points back to the same
+    # spot, so the chosen personality bookends the entire prompt.
     role = COACH_ROLE.strip()
+    persona_block = ""
     if coach_persona:
         persona_name = (coach_persona.get("name") or "").strip()
         persona_traits = [str(t).strip() for t in (coach_persona.get("traits") or []) if str(t).strip()]
         if persona_name or persona_traits:
-            role = role + "\n\n" + _build_persona_block(persona_name, persona_traits)
+            persona_block = _build_persona_block(persona_name, persona_traits)
 
     knowledge = APP_KNOWLEDGE_LITE.strip() if lite_knowledge else APP_KNOWLEDGE.strip()
-    parts: list[str] = [role, knowledge]
+    parts: list[str] = [persona_block, role, knowledge] if persona_block else [role, knowledge]
 
     if athlete_profile:
         athlete_lines = (
