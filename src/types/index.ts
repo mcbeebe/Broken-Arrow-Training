@@ -690,6 +690,19 @@ export const COACH_TRAITS = [
   { id: 'old-school', label: 'Old School', emoji: '🧓', desc: 'Classic coaching wisdom' },
   { id: 'high-energy', label: 'High Energy', emoji: '🔥', desc: 'Pump-you-up vibes' },
   { id: 'chill', label: 'Chill', emoji: '🧘', desc: 'Calm, low-key approach' },
+  { id: 'positive', label: 'Positive', emoji: '😊', desc: 'Upbeat, encouraging' },
+  { id: 'relaxed', label: 'Relaxed', emoji: '😌', desc: 'Easygoing, no pressure' },
+  { id: 'concise', label: 'Concise', emoji: '✂️', desc: 'Short and to the point' },
+  { id: 'detailed', label: 'Detailed', emoji: '🔍', desc: 'Thorough, covers the why' },
+  { id: 'bullets', label: 'Bullets', emoji: '📋', desc: 'Scannable lists' },
+  { id: 'narrative', label: 'Narrative', emoji: '📝', desc: 'Flowing prose' },
+] as const
+
+/** Trait pairs that contradict each other — selecting one clears the
+ *  other so the coach never gets opposing format/length instructions. */
+export const COACH_TRAIT_EXCLUSIVE_GROUPS: readonly (readonly string[])[] = [
+  ['concise', 'detailed'],
+  ['bullets', 'narrative'],
 ] as const
 
 // ---------------------------------------------------------------------------
