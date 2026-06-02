@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest'
-import { gradeWorkoutDay, computeHRTimeInZone } from '../hooks/useCompliance'
+import { renderHook } from '@testing-library/react'
+import { gradeWorkoutDay, computeHRTimeInZone, useCompliance } from '../hooks/useCompliance'
 import { parsePlannedTargets } from '../utils/targets'
-import type { PlannedDay, ActualWorkout } from '../types'
+import type { PlannedDay, ActualWorkout, TrainingWeek } from '../types'
 
 // ─── Helpers ─────────────────────────────────────────────────────
 
@@ -327,6 +328,45 @@ describe('computeHRTimeInZone', () => {
 
   it('returns 0 when summary missing and avgHR out of range', () => {
     expect(computeHRTimeInZone(undefined, 108, 148, 155)).toBe(0)
+  })
+})
+
+// ─── weekly duration aggregation (Time view) ─────────────────────
+
+describe('useCompliance — weekly duration aggregation', () => {
+  it('sums actual moving time and planned duration per week (minutes)', () => {
+    const week: TrainingWeek = {
+      num: 1,
+      dates: 'Apr 13–19',
+      miles: 6,
+      focus: 'Base',
+      days: [
+        // 45 min planned (range midpoint), 50 min actual
+        mkDay({ time: '45 min', actual: mkActual({ movingTime: 50 * 60 }) }),
+        // 30 min planned, 28 min actual
+        mkDay({ time: '30 min', zone: '2.0 mi · Z1–2 (108–148)', actual: mkActual({ movingTime: 28 * 60 }) }),
+        // rest day contributes nothing
+        mkDay({ type: 'rest', workout: 'Rest', zone: '', time: '', actual: undefined }),
+      ],
+    }
+    const { result } = renderHook(() => useCompliance([week]))
+    const wc = result.current.weeks[0]
+    expect(wc.actualDuration).toBe(78) // 50 + 28
+    expect(wc.plannedDuration).toBeGreaterThan(0)
+  })
+
+  it('counts planned duration for upcoming days with no actual logged', () => {
+    const week: TrainingWeek = {
+      num: 1,
+      dates: 'Apr 13–19',
+      miles: 6,
+      focus: 'Base',
+      days: [mkDay({ day: 'Mon 1/1', time: '60 min', actual: undefined })],
+    }
+    const { result } = renderHook(() => useCompliance([week]))
+    const wc = result.current.weeks[0]
+    expect(wc.actualDuration).toBe(0)
+    expect(wc.plannedDuration).toBeGreaterThan(0)
   })
 
   it('uses device-reported zone boundaries when present (fractional overlap)', () => {
