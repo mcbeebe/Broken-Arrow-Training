@@ -14,6 +14,8 @@ export interface WeekCompliance {
   actualMiles: number
   plannedElevation: number
   actualElevation: number
+  plannedDuration: number  // planned moving time for the week, minutes
+  actualDuration: number   // actual moving time summed from synced workouts, minutes
   hrCompliance: number // avg time-in-zone % across HR-checked workouts
   hrCheckedWorkouts: number // # workouts with HR measurement against a target zone
   hrInZoneTotal: number // sum of hrInZonePct across checked workouts
@@ -65,6 +67,8 @@ function computeCompliance(weeks: TrainingWeek[]): OverallCompliance {
     let restDays = 0
     let actualMiles = 0
     let actualElevation = 0
+    let plannedDuration = 0
+    let actualDuration = 0
 
     // Avg time-in-zone across HR-checked workouts (not binary pass/fail)
     let hrInZoneTotal = 0
@@ -87,10 +91,19 @@ function computeCompliance(weeks: TrainingWeek[]): OverallCompliance {
         continue
       }
 
+      // Planned time-on-feet for the week. Mirror the duration-grading basis:
+      // prefer the estimated run-time range midpoint (GPS-comparable), else the
+      // plan's stated duration. Summed across every training day so the planned
+      // bar reflects the whole week, not just days already logged.
+      plannedDuration += targets.durationMinLow !== undefined && targets.durationMinHigh !== undefined
+        ? (targets.durationMinLow + targets.durationMinHigh) / 2
+        : targets.durationMin ?? 0
+
       if (day.actual) {
         completed++
         actualMiles += day.actual.distance
         actualElevation += day.actual.elevationGain
+        actualDuration += (day.actual.movingTime ?? 0) / 60
 
         const rec = gradeWorkoutDay(day, targets)
         dayComplianceList.push(rec)
@@ -135,6 +148,8 @@ function computeCompliance(weeks: TrainingWeek[]): OverallCompliance {
       actualMiles: Math.round(actualMiles * 10) / 10,
       plannedElevation,
       actualElevation,
+      plannedDuration: Math.round(plannedDuration),
+      actualDuration: Math.round(actualDuration),
       hrCompliance,
       hrCheckedWorkouts,
       hrInZoneTotal,

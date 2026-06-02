@@ -23,6 +23,7 @@ interface VolumeChartProps {
  *   >25% off     → 'flag'   (red, with warning badge)
  */
 type Band = 'ok' | 'warn' | 'flag' | 'future'
+type Metric = 'mileage' | 'vertical' | 'time'
 
 function classify(actual: number, planned: number, hasStarted: boolean): Band {
   if (!hasStarted) return 'future'
@@ -79,10 +80,15 @@ export default function VolumeChart({ weeks, activeWeek, onWeekClick, compliance
   const { flags: displayFlags } = useDisplayPreferences(athleteId)
   const advanced = displayFlags.showAdvancedCharts
   const [mode, setMode] = useState<'running' | 'combined'>('running')
-  const [metric, setMetric] = useState<'mileage' | 'vertical'>('mileage')
-  // The vertical-gain view and the running/combined split are advanced; the
-  // simplest view shows just planned-vs-actual running miles.
-  const effectiveMetric: 'mileage' | 'vertical' = showVertical && advanced ? metric : 'mileage'
+  const [metric, setMetric] = useState<Metric>('mileage')
+  // Metric toggles (vertical, time) and the running/combined split are
+  // advanced; the simplest view shows just planned-vs-actual running miles.
+  // Vertical is only offered when the target race warrants it.
+  const effectiveMetric: Metric = !advanced
+    ? 'mileage'
+    : metric === 'vertical' && !showVertical
+      ? 'mileage'
+      : metric
 
   const byNum = new Map<number, WeekCompliance>()
   for (const c of compliance ?? []) byNum.set(c.weekNum, c)
@@ -92,8 +98,9 @@ export default function VolumeChart({ weeks, activeWeek, onWeekClick, compliance
   const actualByWeek = new Map<number, number>()
   for (const w of weeks) {
     if (effectiveMetric === 'vertical') {
-      const wc = byNum.get(w.num)
-      actualByWeek.set(w.num, wc?.actualElevation ?? 0)
+      actualByWeek.set(w.num, byNum.get(w.num)?.actualElevation ?? 0)
+    } else if (effectiveMetric === 'time') {
+      actualByWeek.set(w.num, byNum.get(w.num)?.actualDuration ?? 0)
     } else {
       actualByWeek.set(w.num, weekMiles(w, mode))
     }
@@ -103,6 +110,9 @@ export default function VolumeChart({ weeks, activeWeek, onWeekClick, compliance
   function plannedFor(w: TrainingWeek): number {
     if (effectiveMetric === 'vertical') {
       return byNum.get(w.num)?.plannedElevation ?? 0
+    }
+    if (effectiveMetric === 'time') {
+      return byNum.get(w.num)?.plannedDuration ?? 0
     }
     return getMilesNumber(w.miles)
   }
@@ -131,38 +141,51 @@ export default function VolumeChart({ weeks, activeWeek, onWeekClick, compliance
   const flags = rows.filter(r => r.band === 'flag')
 
   const isVert = effectiveMetric === 'vertical'
-  const unit = isVert ? 'ft' : 'mi'
-  const headline = isVert ? 'Vertical Progression' : 'Volume Progression'
+  const isTime = effectiveMetric === 'time'
+  const unit = isVert ? 'ft' : isTime ? 'h' : 'mi'
+  const headline = isVert ? 'Vertical Progression' : isTime ? 'Time Progression' : 'Volume Progression'
 
   return (
     <div className="px-4 mt-6">
       <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
         <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200">{headline}</h3>
         <div className="flex items-center gap-2">
-          {showVertical && advanced && (
+          {advanced && (
             <div className="inline-flex rounded-full border border-slate-200 dark:border-slate-700 overflow-hidden text-[10px] font-medium" role="tablist">
               <button
                 type="button"
                 role="tab"
-                aria-selected={metric === 'mileage'}
+                aria-selected={effectiveMetric === 'mileage'}
                 onClick={() => setMetric('mileage')}
-                className={`px-2 py-0.5 transition-colors ${metric === 'mileage' ? 'bg-indigo-600 text-white' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'}`}
+                className={`px-2 py-0.5 transition-colors ${effectiveMetric === 'mileage' ? 'bg-indigo-600 text-white' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'}`}
               >
                 Mileage
               </button>
+              {showVertical && (
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={effectiveMetric === 'vertical'}
+                  onClick={() => setMetric('vertical')}
+                  className={`px-2 py-0.5 transition-colors ${effectiveMetric === 'vertical' ? 'bg-indigo-600 text-white' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'}`}
+                  title="Weekly elevation gain (climb). Planned values are parsed from the plan's per-day vert notes; actual is summed from synced workouts."
+                >
+                  Vertical
+                </button>
+              )}
               <button
                 type="button"
                 role="tab"
-                aria-selected={metric === 'vertical'}
-                onClick={() => setMetric('vertical')}
-                className={`px-2 py-0.5 transition-colors ${metric === 'vertical' ? 'bg-indigo-600 text-white' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'}`}
-                title="Weekly elevation gain (climb). Planned values are parsed from the plan's per-day vert notes; actual is summed from synced workouts."
+                aria-selected={effectiveMetric === 'time'}
+                onClick={() => setMetric('time')}
+                className={`px-2 py-0.5 transition-colors ${effectiveMetric === 'time' ? 'bg-indigo-600 text-white' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'}`}
+                title="Weekly moving time (hours). Planned values come from the plan's per-day durations; actual is summed from synced workouts."
               >
-                Vertical
+                Time
               </button>
             </div>
           )}
-          {!isVert && advanced && (
+          {effectiveMetric === 'mileage' && advanced && (
             <div className="inline-flex rounded-full border border-slate-200 dark:border-slate-700 overflow-hidden text-[10px] font-medium" role="tablist">
               <button
                 type="button"
@@ -210,8 +233,10 @@ export default function VolumeChart({ weeks, activeWeek, onWeekClick, compliance
           const barPct = maxY > 0 ? (barVal / maxY) * 100 : 0
           const plannedPct = maxY > 0 ? (planned / maxY) * 100 : 0
           const isActive = activeWeek === i
-          const actualLabel = formatBarValue(actual, isVert, displayFlags.numericPrecision)
-          const plannedLabel = formatBarValue(planned, isVert, displayFlags.numericPrecision)
+          const actualLabel = formatBarValue(actual, effectiveMetric, displayFlags.numericPrecision)
+          const plannedLabel = formatBarValue(planned, effectiveMetric, displayFlags.numericPrecision)
+          // Time labels carry their own h/m suffix; other metrics append the unit.
+          const us = isTime ? '' : ` ${unit}`
           return (
             <div key={w.num} className="flex-1 min-w-0 grid" style={{ gridTemplateRows: 'auto 1fr auto' }}>
               {/* Top row: actual or planned mileage label */}
@@ -222,7 +247,7 @@ export default function VolumeChart({ weeks, activeWeek, onWeekClick, compliance
               <div
                 className="relative cursor-pointer"
                 onClick={() => onWeekClick(i)}
-                title={`Wk ${w.num}: ${actualLabel} ${unit}${!isVert && mode === 'combined' ? ' equiv' : ''} actual / ${plannedLabel} ${unit} planned`}
+                title={`Wk ${w.num}: ${actualLabel}${us}${effectiveMetric === 'mileage' && mode === 'combined' ? ' equiv' : ''} actual / ${plannedLabel}${us} planned`}
               >
                 <div
                   className="absolute inset-x-0 bottom-0 rounded-t transition-all"
@@ -243,7 +268,7 @@ export default function VolumeChart({ weeks, activeWeek, onWeekClick, compliance
                       height: 0,
                       borderTop: '1.5px dashed #475569',
                     }}
-                    title={`Plan target: ${plannedLabel} ${unit}`}
+                    title={`Plan target: ${plannedLabel}${us}`}
                   />
                 )}
               </div>
@@ -258,6 +283,8 @@ export default function VolumeChart({ weeks, activeWeek, onWeekClick, compliance
       <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-2">
         {isVert ? (
           <>Solid bars = actual climb (ft) summed from synced workouts. Dashed outlines = upcoming weeks at planned climb (parsed from the plan's per-day vert notes). The dashed horizontal line on past/current weeks marks the plan target.</>
+        ) : isTime ? (
+          <>Solid bars = actual moving time (hours) summed from synced workouts, all sports. Dashed outlines = upcoming weeks at planned duration (from the plan's per-day times). The dashed horizontal line on past/current weeks marks the plan target for that week.</>
         ) : mode === 'running' ? (
           <>Solid bars = actual run miles only. Dashed outlines = upcoming weeks at planned mileage. The dashed horizontal line on past/current weeks marks the plan target for that week.</>
         ) : (
@@ -268,11 +295,20 @@ export default function VolumeChart({ weeks, activeWeek, onWeekClick, compliance
   )
 }
 
-function formatBarValue(value: number, isVert: boolean, precision: DisplayFlags['numericPrecision'] = 'normal'): string {
-  if (!isVert) return precision === 'low' ? String(Math.round(value)) : String(value)
+function formatBarValue(value: number, metric: Metric, precision: DisplayFlags['numericPrecision'] = 'normal'): string {
+  if (metric === 'time') return formatMinutes(value)
+  if (metric === 'mileage') return precision === 'low' ? String(Math.round(value)) : String(value)
+  // vertical (feet)
   if (value >= 1000) {
     const k = value / 1000
     return `${k % 1 === 0 ? k : k.toFixed(1)}k`
   }
   return String(Math.round(value))
+}
+
+/** Compact moving-time label: "45m", "1.5h", "6h". Input is minutes. */
+function formatMinutes(min: number): string {
+  if (min < 60) return `${Math.round(min)}m`
+  const hours = min / 60
+  return hours < 10 ? `${(Math.round(hours * 10) / 10)}h` : `${Math.round(hours)}h`
 }

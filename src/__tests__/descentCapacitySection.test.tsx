@@ -17,6 +17,8 @@ function wk(num: number, actualFt: number, plannedFt = 0): WeekCompliance {
     actualMiles: 0,
     plannedElevation: plannedFt,
     actualElevation: actualFt,
+    plannedDuration: 0,
+    actualDuration: 0,
     hrCompliance: 0,
     hrCheckedWorkouts: 0,
     hrInZoneTotal: 0,
