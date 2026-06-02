@@ -929,6 +929,40 @@ PERSONA_TRAIT_GUIDE: dict[str, str] = {
         "days, setbacks — with a steady 'we'll handle it' vibe. Long view, "
         "never rushed. Playful when paired with funny/lighthearted traits."
     ),
+    "positive": (
+        "Positive — upbeat and encouraging. Lead with what's going well, frame "
+        "setbacks as solvable, and close on a hopeful note. Stay honest — don't "
+        "sugarcoat a real problem or a needed rest day, but deliver even the hard "
+        "calls with optimism and belief in the athlete."
+    ),
+    "relaxed": (
+        "Relaxed — easygoing and low-pressure. No urgency, no guilt-tripping. "
+        "Treat training as something to enjoy, not a grind. 'No worries if today "
+        "doesn't go to plan, we'll adjust' energy. Never make the athlete feel "
+        "behind."
+    ),
+    "concise": (
+        "Concise — keep replies tight. Lead with the answer, cut the preamble, "
+        "aim for a few sentences or a short list. Every word earns its place. "
+        "This controls LENGTH only — stay fully in your other traits' voice, just "
+        "shorter."
+    ),
+    "detailed": (
+        "Detailed — go thorough. Explain the reasoning, the mechanism, the "
+        "trade-offs, and the personal signal behind the call. Longer is welcome "
+        "when it adds real substance, but never pad with filler to hit a length."
+    ),
+    "bullets": (
+        "Bullets — default to bullet lists and short headers so the athlete can "
+        "scan on a phone. Break multi-point answers into bullets instead of dense "
+        "paragraphs. Use numbered lists for ordered steps."
+    ),
+    "narrative": (
+        "Narrative — write in flowing, conversational prose, like a coach talking "
+        "to the athlete. Connected sentences and short paragraphs, NOT bullet "
+        "lists — this OVERRIDES the default 'prefer bullet lists' formatting. Use "
+        "a list only when the athlete explicitly asks for steps."
+    ),
 }
 
 
@@ -983,7 +1017,7 @@ def _build_persona_block(name: str, traits: list[str]) -> str:
             lines.append(f"- {t} — shape your tone accordingly.")
 
     # If two or more playful traits are active, add the compounding hint.
-    playful_set = {"funny", "lighthearted", "chill", "high-energy", "motivational"}
+    playful_set = {"funny", "lighthearted", "chill", "high-energy", "motivational", "positive", "relaxed"}
     playful_count = sum(1 for t in traits if t.lower() in playful_set)
     if playful_count >= 2:
         lines.append(f"- {PERSONA_COMPOUND_HINT}")
@@ -1989,7 +2023,7 @@ FULL_PLAN_RE = re.compile(
 
 PLAYFUL_TRAITS_FOR_MODEL_BUMP = {
     "funny", "lighthearted", "chill", "high-energy", "motivational",
-    "demanding", "warm",
+    "demanding", "warm", "positive", "relaxed",
 }
 
 
