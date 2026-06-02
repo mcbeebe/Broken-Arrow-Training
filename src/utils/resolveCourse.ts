@@ -63,6 +63,18 @@ function distanceProximity(a: number, b: number): number {
   return 1 - Math.abs(a - b) / maxMag
 }
 
+/**
+ * Minimum distance proximity required to accept a keyword match when the race
+ * distance is known. Without this gate a keyword hit alone ("broken arrow")
+ * floored the score at 0.6, so a distance with no curated course — e.g. a 46K
+ * (~28.6 mi) before its course was seeded — would silently resolve to the
+ * nearest seeded distance (the 18K) and surface that course's name, distance,
+ * vert, and segments. 0.7 ≈ "within 30% of the course's distance", which keeps
+ * legitimate matches (an 18K entered anywhere from ~8 to ~14.5 mi) while
+ * rejecting a different race that merely shares the series name.
+ */
+const MIN_DISTANCE_PROXIMITY = 0.7
+
 function matchCurated(race: RaceInfo): { family: CourseFamily; score: number } | null {
   const name = normalize(race.name)
   if (!name) return null
@@ -70,13 +82,17 @@ function matchCurated(race: RaceInfo): { family: CourseFamily; score: number } |
   for (const rule of CURATED_RULES) {
     const keywordHit = rule.keywords.some(k => name.includes(k))
     if (!keywordHit) continue
-    const distScore =
-      race.distanceMiles > 0
-        ? distanceProximity(race.distanceMiles, rule.expectedDistanceMi)
-        : 0.7
-    const score = 0.6 + 0.4 * distScore
-    if (!best || score > best.score) {
-      best = { family: rule.family, score }
+    // When the race carries a distance, it must be plausibly *this* course.
+    // A name keyword alone isn't enough — otherwise a 46K matches the 18K.
+    if (race.distanceMiles > 0) {
+      const distScore = distanceProximity(race.distanceMiles, rule.expectedDistanceMi)
+      if (distScore < MIN_DISTANCE_PROXIMITY) continue
+      const score = 0.6 + 0.4 * distScore
+      if (!best || score > best.score) best = { family: rule.family, score }
+    } else {
+      // No distance to disambiguate — fall back to keyword-only matching.
+      const score = 0.6 + 0.4 * 0.7
+      if (!best || score > best.score) best = { family: rule.family, score }
     }
   }
   return best

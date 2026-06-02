@@ -3,6 +3,7 @@ import {
   COURSE_FAMILIES,
   brokenArrow11k2026,
   brokenArrow18k2026,
+  brokenArrow46k2026,
   getCourseById,
   getCourseFamily,
   getEditionForYear,
@@ -79,6 +80,10 @@ describe('Course schema integrity', () => {
 
   it('Broken Arrow 11K (2026) passes shape checks', () => {
     assertCourseShape(brokenArrow11k2026)
+  })
+
+  it('Broken Arrow 46K (2026) passes shape checks', () => {
+    assertCourseShape(brokenArrow46k2026)
   })
 
   it('all registered courses pass shape checks', () => {
