@@ -38,11 +38,44 @@ describe('resolveCourseForRace — curated matching', () => {
     expect(res?.course.familyId).toBe('broken-arrow-11k')
   })
 
-  it('disambiguates between 11K and 18K by distance when both keyword-match', () => {
+  it('matches Broken Arrow 46K by name + distance', () => {
+    const res = resolveCourseForRace(race({
+      name: 'Broken Arrow 46K',
+      distance: '46K',
+      distanceMiles: 28.6,
+    }))
+    expect(res?.course.familyId).toBe('broken-arrow-46k')
+    expect(res?.course.name).toBe('Broken Arrow 46K')
+  })
+
+  it('disambiguates between 11K, 18K, and 46K by distance when all keyword-match', () => {
     const eighteen = resolveCourseForRace(race({ name: 'broken arrow', distanceMiles: 11.2 }))
     const eleven = resolveCourseForRace(race({ name: 'broken arrow', distanceMiles: 6.8 }))
+    const fortySix = resolveCourseForRace(race({ name: 'broken arrow', distanceMiles: 28.6 }))
     expect(eighteen?.course.familyId).toBe('broken-arrow-18k')
     expect(eleven?.course.familyId).toBe('broken-arrow-11k')
+    expect(fortySix?.course.familyId).toBe('broken-arrow-46k')
+  })
+
+  it('does NOT match a 46K to the 18K course (regression: distance gate)', () => {
+    // Before the distance gate, "Broken Arrow 46K" (~28.6 mi) fell through to
+    // the nearest seeded distance (18K) and the race card showed "Broken Arrow
+    // 18K" with 18K stats. It must now resolve to the actual 46K course.
+    const res = resolveCourseForRace(race({
+      name: 'Broken Arrow 46K',
+      distance: '46K',
+      distanceMiles: 28.6,
+    }))
+    expect(res?.course.familyId).toBe('broken-arrow-46k')
+    expect(res?.course.familyId).not.toBe('broken-arrow-18k')
+  })
+
+  it('rejects a curated keyword match when the distance is far from every seeded course', () => {
+    // A "Broken Arrow" race at an unseeded distance (e.g. a hypothetical ~50 mi
+    // ultra) should not borrow another distance's course — better no card than
+    // a wrong one.
+    const res = resolveCourseForRace(race({ name: 'Broken Arrow Ultra', distanceMiles: 50 }))
+    expect(res).toBeNull()
   })
 
   it('returns the year edition matching the race date', () => {

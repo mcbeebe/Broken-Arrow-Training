@@ -1,4 +1,5 @@
 import type { Course, CourseFamily, CourseLookup, RaceCategory } from '../../types/course'
+import brokenArrow46k2026 from './broken-arrow-46k-2026'
 import brokenArrow18k2026 from './broken-arrow-18k-2026'
 import brokenArrow11k2026 from './broken-arrow-11k-2026'
 
@@ -13,6 +14,13 @@ import brokenArrow11k2026 from './broken-arrow-11k-2026'
  */
 
 export const COURSE_FAMILIES: CourseFamily[] = [
+  {
+    id: 'broken-arrow-46k',
+    name: 'Broken Arrow 46K',
+    category: 'skyrace',
+    defaultDistanceMi: 28.6,
+    editions: [brokenArrow46k2026],
+  },
   {
     id: 'broken-arrow-18k',
     name: 'Broken Arrow 18K',
@@ -76,4 +84,4 @@ export function listAllCourses(): Course[] {
   return COURSE_FAMILIES.flatMap(f => f.editions)
 }
 
-export { brokenArrow18k2026, brokenArrow11k2026 }
+export { brokenArrow46k2026, brokenArrow18k2026, brokenArrow11k2026 }
