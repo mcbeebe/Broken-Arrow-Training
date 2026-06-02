@@ -32,7 +32,7 @@ techy 4k-vert day, which is most of why I built it.
 
 to get going:
 
-1. hit https://broken-arrow-training.vercel.app
+1. hit https://attune.coach
 2. pick **[ATHLETE_ID]** from the athlete dropdown — I already set you up
 3. Settings → Integrations → connect whatever you use
 4. give it a day or two to sync, then check the Today view
@@ -56,7 +56,7 @@ hit reply with questions or just dive in. stoked to have you on it.
 
 ## Notes for sender
 
-- **App URL:** https://broken-arrow-training.vercel.app
+- **App URL:** https://attune.coach
 - **[ATHLETE_ID]** — the slug for this athlete (e.g. `lori`, `joel`, `jim`).
   Before sending, add the athlete's Google email in
   **Settings → Athletes** (owner-only). They're recognized on first

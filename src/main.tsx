@@ -2,16 +2,37 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App'
+import MigrationBanner from './components/MigrationBanner'
+import MigrationReceive from './components/MigrationReceive'
+import { isMigrationReceive } from './utils/migrate'
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
-)
+const root = createRoot(document.getElementById('root')!)
+
+if (isMigrationReceive()) {
+  // Receiver short-circuit: ?__migrate=1 means another origin is
+  // postMessaging us a data payload. Render the receiver UI ONLY —
+  // don't boot the regular app (which would run checkStorageVersion
+  // and other init side-effects).
+  root.render(
+    <StrictMode>
+      <MigrationReceive />
+    </StrictMode>,
+  )
+} else {
+  const targetOrigin = import.meta.env.VITE_TARGET_ORIGIN as string | undefined
+  root.render(
+    <StrictMode>
+      {targetOrigin ? <MigrationBanner targetOrigin={targetOrigin} /> : null}
+      <App />
+    </StrictMode>,
+  )
+}
 
 // Register the service worker that handles Web Push (coach briefings).
 // Non-fatal if it fails — the app works fine without notifications.
-if ('serviceWorker' in navigator) {
+// Skipped in the migration receiver branch since we never reach the
+// real app in that render.
+if ('serviceWorker' in navigator && !isMigrationReceive()) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js').catch(() => {
       /* push just won't be available */

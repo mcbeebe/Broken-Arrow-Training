@@ -144,7 +144,8 @@ used — you can remove it.)
 1. Plug in your iPhone, select it as the run destination.
 2. Build + Run (`⌘R`).
 3. On first launch, enter the API URL
-   (`https://broken-arrow-training.vercel.app` by default) and tap
+   (`https://broken-arrow-training.vercel.app` by default — the Vercel
+   API host is unchanged by the attune.coach frontend cutover) and tap
    **Sign in with Google**. Pick the account tied to your athlete email.
 4. Tap **Grant HealthKit access** and allow HRV, RHR, and Sleep.
    (If you accidentally deny, fix it at

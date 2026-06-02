@@ -24,7 +24,10 @@ export default defineConfig({
       ],
     }),
   ],
-  base: '/Broken-Arrow-Training/',
+  // Parameterized so the same source ships two builds during the
+  // attune.coach cutover: legacy GH Pages project site keeps
+  // `/Broken-Arrow-Training/`; the attune.coach build sets `/`.
+  base: process.env.VITE_BASE_PATH ?? '/Broken-Arrow-Training/',
   test: {
     globals: true,
     environment: 'jsdom',

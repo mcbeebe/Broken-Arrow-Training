@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Moving to attune.coach…</title>
+  <meta name="robots" content="noindex" />
+  <noscript>
+    <meta http-equiv="refresh" content="0;url=https://attune.coach/" />
+  </noscript>
+  <style>
+    html, body { margin: 0; padding: 0; min-height: 100%; background: #f8fafc; color: #0f172a; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
+    .wrap { max-width: 28rem; margin: 0 auto; padding: 4rem 1.5rem; text-align: center; }
+    h1 { font-size: 1.5rem; margin: 0 0 0.5rem; letter-spacing: -0.02em; }
+    p { color: #475569; margin: 0 0 1rem; }
+    .bar { height: 6px; background: #e2e8f0; border-radius: 999px; overflow: hidden; margin: 1.5rem auto; max-width: 12rem; }
+    .bar > i { display: block; height: 100%; width: 33%; background: #14b8a6; animation: slide 1.2s ease-in-out infinite; }
+    @keyframes slide { 0% { margin-left: -33%; } 100% { margin-left: 100%; } }
+    a.btn { display: inline-block; margin-top: 0.5rem; padding: 0.6rem 1.1rem; background: #0f766e; color: #fff; text-decoration: none; border-radius: 0.4rem; font-weight: 600; font-size: 0.9rem; }
+    .err { color: #b91c1c; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>attune.coach</h1>
+    <p id="msg">Bringing your training history with you…</p>
+    <div class="bar" id="bar"><i></i></div>
+    <a class="btn" id="manual" href="https://attune.coach/" hidden>Continue to attune.coach</a>
+  </div>
+
+<script>
+(function () {
+  var TARGET = 'https://attune.coach';
+  var msg = document.getElementById('msg');
+  var bar = document.getElementById('bar');
+  var manual = document.getElementById('manual');
+
+  // Preserve allowlist — mirror of src/utils/migrate.ts. Keep in sync.
+  var PREFIXES = [
+    'ba_plan_edits_','ba_plan_overrides_','ba_manual_logs_','ba_day_swaps_',
+    'ba_soreness_','ba_onboarding_','ba_onboarding_redo_','ba_display_prefs_v1_',
+    'ba_show_technical_terms_','ba_coach_memory_v1_','ba_coach_turn_ui_v1_',
+    'ba_coach_insight_proposal_v1_','ba_coach_daily_seeded_v1_',
+    'ba_coach_insight_seen_v1_','ba_coach_ping_v1_','ba_hr_zones_override_',
+    'ba_max_hr_override_','ba_mim_calibration_','ba_doms_calibration_',
+    'ba_run_eccentric_v1_','ba_run_gap_v1_','ba_workout_time_pref_v1_',
+    'ba_athlete_home_v1_','ba_coach_font_scale_','ba_tutorial_seen_',
+    'ba_strava_tokens_','ba_garmin_connected_','ba_garmin_display_name_'
+  ];
+  var EXACT = ['ba_theme','ba_palette','ba_auth_session','ba_storage_version'];
+  var SESSION_EXACT = ['ba_initial_view'];
+
+  function isPreserved(k) {
+    if (EXACT.indexOf(k) !== -1) return true;
+    for (var i = 0; i < PREFIXES.length; i++) if (k.indexOf(PREFIXES[i]) === 0) return true;
+    return false;
+  }
+
+  function collectPayload() {
+    var items = {};
+    try {
+      for (var i = 0; i < localStorage.length; i++) {
+        var k = localStorage.key(i);
+        if (!k || !isPreserved(k)) continue;
+        var v = localStorage.getItem(k);
+        if (v !== null) items[k] = v;
+      }
+    } catch (e) { /* private mode etc. */ }
+    var session = {};
+    try {
+      for (var j = 0; j < SESSION_EXACT.length; j++) {
+        var sk = SESSION_EXACT[j];
+        var sv = sessionStorage.getItem(sk);
+        if (sv !== null) session[sk] = sv;
+      }
+    } catch (e) { /* ignore */ }
+    return { v: 1, ts: Date.now(), items: items, session: session };
+  }
+
+  function forward() {
+    // Strip the legacy /Broken-Arrow-Training prefix from the path so
+    // deep links like /Broken-Arrow-Training/ → / on attune.coach.
+    var path = (location.pathname || '/').replace(/^\/Broken-Arrow-Training\/?/, '/');
+    if (path.charAt(0) !== '/') path = '/' + path;
+    location.replace(TARGET + path + location.search + location.hash);
+  }
+
+  function cleanupOldOrigin() {
+    // Unregister legacy SW so it stops intercepting requests and
+    // holding push subscriptions on this origin.
+    try {
+      if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) {
+        navigator.serviceWorker.getRegistrations().then(function (regs) {
+          regs.forEach(function (r) { try { r.unregister(); } catch (e) {} });
+        });
+      }
+    } catch (e) { /* ignore */ }
+    // Clear any cached app shell.
+    try {
+      if (window.caches && caches.keys) {
+        caches.keys().then(function (keys) {
+          keys.forEach(function (k) { try { caches.delete(k); } catch (e) {} });
+        });
+      }
+    } catch (e) { /* ignore */ }
+  }
+
+  cleanupOldOrigin();
+
+  var payload = collectPayload();
+  var hasData = Object.keys(payload.items).length > 0 || Object.keys(payload.session).length > 0;
+
+  if (!hasData) {
+    // Nothing to bring; just forward.
+    forward();
+    return;
+  }
+
+  var popup;
+  try {
+    popup = window.open(TARGET + '/?__migrate=1', 'attune-migrate', 'width=520,height=560');
+  } catch (e) { popup = null; }
+
+  if (!popup) {
+    msg.innerHTML = 'Your browser blocked the migration popup. <br/>Tap below to continue — your data will move when you sign in.';
+    bar.hidden = true;
+    manual.hidden = false;
+    return;
+  }
+
+  var acked = false;
+  var to = setTimeout(function () {
+    if (acked) return;
+    msg.textContent = 'Took longer than expected. Continuing to attune.coach…';
+    try { popup.close(); } catch (e) {}
+    forward();
+  }, 15000);
+
+  function onMessage(ev) {
+    if (ev.origin !== TARGET) return;
+    var data = ev.data || {};
+    if (data.type === 'MIGRATE_READY') {
+      popup.postMessage({ type: 'MIGRATE_DATA', payload: payload }, TARGET);
+    } else if (data.type === 'MIGRATE_ACK') {
+      acked = true;
+      clearTimeout(to);
+      try { popup.close(); } catch (e) {}
+      window.removeEventListener('message', onMessage);
+      forward();
+    }
+  }
+  window.addEventListener('message', onMessage);
+})();
+</script>
+</body>
+</html>

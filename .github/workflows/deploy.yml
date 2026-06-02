@@ -48,6 +48,7 @@ jobs:
       - run: npm ci
       - run: npm run build
         env:
+          VITE_BASE_PATH: /Broken-Arrow-Training/
           VITE_STRAVA_CLIENT_ID: ${{ secrets.VITE_STRAVA_CLIENT_ID }}
           VITE_STRAVA_TOKEN_EXCHANGE_URL: ${{ secrets.VITE_STRAVA_TOKEN_EXCHANGE_URL }}
           VITE_STRAVA_REDIRECT_URI: https://mcbeebe.github.io/Broken-Arrow-Training/
@@ -61,6 +62,10 @@ jobs:
           # Git SHA baked into the bundle so the Deploy Diagnostics
           # panel in Settings can compare frontend vs. API version.
           VITE_GIT_COMMIT_SHA: ${{ github.sha }}
+          # During the attune.coach cutover, the banner shown by the
+          # legacy build invites users to one-tap their data over.
+          # Empty/unset = no banner.
+          VITE_TARGET_ORIGIN: https://attune.coach
       # Only the default branch (or a manual workflow_dispatch trigger)
       # actually publishes to gh-pages. This prevents a feature
       # branch's bundle from clobbering the production deploy — the
@@ -70,4 +75,49 @@ jobs:
         if: github.ref == env.PUBLISH_REF || github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist
+
+  # Parallel build for the attune.coach custom domain. Always runs to
+  # catch breakage on PR/branch pushes, but only PUBLISHES when the
+  # repo variable ATTUNE_PUBLISH_ENABLED is 'true' AND the deploy
+  # token secret is set. The publish target is a separate repo
+  # (mcbeebe/attune-coach) so the legacy GH Pages site keeps serving
+  # under its current URL during the cutover window. See
+  # /root/.claude/plans/please-give-me-step-delightful-micali.md
+  # for the cutover sequence.
+  build-and-deploy-attune:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+        env:
+          # Apex domain — no subpath.
+          VITE_BASE_PATH: /
+          VITE_STRAVA_CLIENT_ID: ${{ secrets.VITE_STRAVA_CLIENT_ID }}
+          VITE_STRAVA_TOKEN_EXCHANGE_URL: ${{ secrets.VITE_STRAVA_TOKEN_EXCHANGE_URL }}
+          VITE_STRAVA_REDIRECT_URI: https://attune.coach/
+          VITE_GARMIN_API_URL: ${{ secrets.VITE_GARMIN_API_URL }}
+          VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
+          VITE_VAPID_PUBLIC_KEY: ${{ secrets.VITE_VAPID_PUBLIC_KEY }}
+          VITE_GIT_COMMIT_SHA: ${{ github.sha }}
+          # Migration receiver's origin allowlist — accept postMessage
+          # bridges from the legacy GH Pages origin only.
+          VITE_SOURCE_ORIGIN: https://mcbeebe.github.io
+      # Inject CNAME file so GitHub Pages keeps the custom domain set.
+      # Must NOT live in public/ — it'd land in the legacy build too.
+      - run: echo "attune.coach" > ./dist/CNAME
+      - uses: peaceiris/actions-gh-pages@v4
+        if: >-
+          vars.ATTUNE_PUBLISH_ENABLED == 'true' &&
+          (github.ref == env.PUBLISH_REF || github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch')
+        with:
+          personal_token: ${{ secrets.ATTUNE_DEPLOY_TOKEN }}
+          external_repository: mcbeebe/attune-coach
+          publish_branch: gh-pages
           publish_dir: ./dist
