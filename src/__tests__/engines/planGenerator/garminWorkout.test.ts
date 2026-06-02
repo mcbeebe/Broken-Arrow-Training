@@ -10,9 +10,25 @@ import {
   plannedWorkoutToGarminPayload,
   garminSportForCategory,
   isPushableWorkout,
+  legacyDayToGarminPayload,
+  buildGarminPayloadForDay,
 } from '../../../engines/planGenerator/garminWorkout'
 import type { PlannedWorkout, PlannedSegment, PaceTarget } from '../../../engines/planGenerator/types'
 import type { WorkoutCategory, CanonicalPaceZone } from '../../../types/training-method'
+import type { PlannedDay } from '../../../types'
+
+function legacyDay(overrides: Partial<PlannedDay> = {}): PlannedDay {
+  return {
+    day: 'Mon',
+    type: 'run',
+    workout: 'Easy Run',
+    detail: 'Keep it conversational',
+    zone: '5.0 mi · Z2 (130–150)',
+    route: '—',
+    time: '50 min',
+    ...overrides,
+  }
+}
 
 const METERS_PER_MILE = 1609.344
 
@@ -171,5 +187,69 @@ describe('plannedWorkoutToGarminPayload', () => {
     const segments: PlannedSegment[] = [{ role: 'main', description: 'fartlek by feel' }]
     const payload = plannedWorkoutToGarminPayload(workout({ category: 'fartlek', segments }), '2026-06-03')
     expect(payload.steps[0].endCondition).toEqual({ type: 'lap.button' })
+  })
+})
+
+describe('legacyDayToGarminPayload', () => {
+  it('builds a distance + HR step from a legacy run day', () => {
+    const payload = legacyDayToGarminPayload(legacyDay(), '2026-06-03')
+    expect(payload).not.toBeNull()
+    expect(payload!.sport).toBe('running')
+    expect(payload!.name).toBe('Easy Run')
+    expect(payload!.scheduleDate).toBe('2026-06-03')
+    expect(payload!.steps).toHaveLength(1)
+    // 5.0 mi → meters
+    expect(payload!.steps[0].endCondition).toEqual({ type: 'distance', value: Math.round(5 * METERS_PER_MILE) })
+    // Z2 (130–150) → HR target
+    expect(payload!.steps[0].target).toEqual({ type: 'heart.rate', low: 130, high: 150 })
+    expect(payload!.estimatedDurationSecs).toBe(50 * 60)
+  })
+
+  it('falls back to a time-based step when there is no distance (e.g. strength)', () => {
+    const payload = legacyDayToGarminPayload(
+      legacyDay({ type: 'strength', workout: 'Lower Body', zone: 'Z1', time: '45 min', detail: 'squats + lunges' }),
+      '2026-06-03',
+    )
+    expect(payload).not.toBeNull()
+    expect(payload!.sport).toBe('strength')
+    expect(payload!.steps[0].endCondition).toEqual({ type: 'time', value: 45 * 60 })
+    expect(payload!.steps[0].target).toEqual({ type: 'open' })
+  })
+
+  it('maps cross-training to cardio', () => {
+    const payload = legacyDayToGarminPayload(
+      legacyDay({ type: 'cross', workout: 'Spin', zone: 'Z2 (120–140)', time: '40 min' }),
+      '2026-06-03',
+    )
+    expect(payload!.sport).toBe('cardio')
+    expect(payload!.steps[0].endCondition).toEqual({ type: 'time', value: 40 * 60 })
+  })
+
+  it('returns null for rest/travel days', () => {
+    expect(legacyDayToGarminPayload(legacyDay({ type: 'rest', zone: '—', time: '—' }), '2026-06-03')).toBeNull()
+    expect(legacyDayToGarminPayload(legacyDay({ type: 'travel', zone: '—', time: '—' }), '2026-06-03')).toBeNull()
+  })
+
+  it('returns null when there is no distance or duration to anchor a step', () => {
+    expect(legacyDayToGarminPayload(legacyDay({ zone: 'Z2 (130–150)', time: '—' }), '2026-06-03')).toBeNull()
+  })
+})
+
+describe('buildGarminPayloadForDay', () => {
+  it('prefers the structured workout when present', () => {
+    const structured = workout({ name: 'Structured', segments: [{ role: 'main', description: 'x', duration: { value: 30, unit: 'min' } }] })
+    const day = legacyDay({ plannedWorkout: structured })
+    const payload = buildGarminPayloadForDay(day, '2026-06-03')
+    expect(payload!.name).toBe('Structured')
+  })
+
+  it('falls back to the legacy mapping when there is no structured workout', () => {
+    const payload = buildGarminPayloadForDay(legacyDay(), '2026-06-03')
+    expect(payload!.name).toBe('Easy Run')
+    expect(payload!.steps[0].target).toEqual({ type: 'heart.rate', low: 130, high: 150 })
+  })
+
+  it('returns null for an unpushable legacy day', () => {
+    expect(buildGarminPayloadForDay(legacyDay({ type: 'rest', zone: '—', time: '—' }), '2026-06-03')).toBeNull()
   })
 })

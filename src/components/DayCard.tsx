@@ -14,7 +14,7 @@ import { injuryRampNote } from '../utils/injuryRamp'
 import type { InjuryStatus } from '../hooks/useOnboarding'
 import { useCoachInsight } from '../hooks/useCoachInsight'
 import { pushWorkoutToGarmin, GarminAuthError, isGarminConnected } from '../utils/garmin'
-import { plannedWorkoutToGarminPayload, isPushableWorkout } from '../engines/planGenerator/garminWorkout'
+import { buildGarminPayloadForDay } from '../engines/planGenerator/garminWorkout'
 import TargetVsActual from './TargetVsActual'
 import CoachDayNoteView from './CoachDayNote'
 
@@ -77,23 +77,24 @@ export default function DayCard({ day, weekNum, onTap, onLog, onSwap, onEdit, ha
   // ── Send-to-watch (Garmin push) ──────────────────────────────
   const [pushStatus, setPushStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
   const [pushMsg, setPushMsg] = useState<string | null>(null)
-  // Offer the push only when there's a structured workout to send, this card
-  // has a real calendar date to schedule against, it's not already in the
-  // past, and the athlete has Garmin connected.
+  // Resolve a Garmin payload for this day — structured workout when present,
+  // otherwise the legacy text-plan fallback. Null means there's nothing
+  // pushable (rest/travel, or no date/distance/duration to anchor a workout).
+  const garminPayload = isoDate ? buildGarminPayloadForDay(day, isoDate) : null
+  // Offer the push only when there's a workout to send, it's not already in
+  // the past or completed, and the athlete has Garmin connected.
   const canPushToWatch =
     !isCompleted &&
     !isPast &&
-    !!isoDate &&
-    isPushableWorkout(day.plannedWorkout) &&
+    !!garminPayload &&
     isGarminConnected(athleteId)
 
   async function handlePushToWatch() {
-    if (!isoDate || !isPushableWorkout(day.plannedWorkout)) return
+    if (!garminPayload) return
     setPushStatus('sending')
     setPushMsg(null)
     try {
-      const payload = plannedWorkoutToGarminPayload(day.plannedWorkout, isoDate)
-      await pushWorkoutToGarmin(payload, athleteId)
+      await pushWorkoutToGarmin(garminPayload, athleteId)
       setPushStatus('sent')
       setPushMsg('Sent — syncs to your watch on next Garmin sync.')
     } catch (err) {
