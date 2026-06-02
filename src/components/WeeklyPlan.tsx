@@ -305,6 +305,7 @@ export default function WeeklyPlan({
                 trimpRecord={trimpRecord}
                 weatherChip={weatherChip}
                 injuryStatus={injuryStatus}
+                isoDate={dayDateMatch ?? undefined}
               />
             </div>
           )

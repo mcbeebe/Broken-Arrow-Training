@@ -1,5 +1,8 @@
 import type { GarminHealthData, GarminActivity, GarminActivityDetail, GarminSplit, ActualWorkout, StrengthExerciseLog, StrengthSet } from '../types'
 import type { StreamData } from './strava'
+import type { GarminWorkoutPayload } from '../engines/planGenerator/garminWorkout'
+
+export type { GarminWorkoutPayload } from '../engines/planGenerator/garminWorkout'
 
 const GARMIN_API_URL = import.meta.env.VITE_GARMIN_API_URL || ''
 
@@ -97,6 +100,32 @@ export async function fetchGarminActivities(start: string, end: string, athleteI
 
   const data = await res.json()
   return data.activities || []
+}
+
+/**
+ * Push a structured workout to Garmin Connect and (when the payload carries a
+ * `scheduleDate`) schedule it on the calendar so the watch surfaces it as that
+ * day's workout on its next sync. Throws GarminAuthError on an expired session
+ * so the caller can prompt reconnection.
+ */
+export async function pushWorkoutToGarmin(
+  payload: GarminWorkoutPayload,
+  athleteId?: string,
+): Promise<{ success: boolean; workoutId?: string; scheduled?: boolean }> {
+  if (!GARMIN_API_URL) throw new Error('Garmin API URL not configured')
+
+  // POSTed to the activities endpoint (not a dedicated /workout route): the
+  // Vercel Hobby plan caps the deployment at 12 serverless functions and the
+  // API is already at the limit, so the push handler is co-located there.
+  const params = athleteId ? `?athlete=${athleteId}` : ''
+  const res = await fetch(`${GARMIN_API_URL}/api/garmin/activities${params}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  if (!res.ok) throw await garminFetchError(res, `Garmin workout push failed: ${res.status}`)
+
+  return res.json()
 }
 
 // ─── localStorage Cache ─────────────────────────────────────────
