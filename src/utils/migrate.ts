@@ -24,38 +24,45 @@
 export const MIGRATE_PROTOCOL_VERSION = 1
 
 /**
- * Allowlist of keys to migrate. Prefixes match `<prefix><athleteId>` or
- * `<prefix><athleteId>_<extra>` patterns; exact keys are global.
+ * Allowlist of keys to migrate. Prefixes match `<prefix>_<athleteId>...` or
+ * `<prefix>:<athleteId>...` patterns — the same hook authors use both
+ * separators inconsistently (e.g., `usePlanEdits` writes
+ * `ba_plan_edits_mike` while `useCoachMemory` writes
+ * `ba_coach_memory_v1:mike`). Exact keys are global.
+ *
+ * Each prefix is stored WITHOUT its trailing separator;
+ * `isPreservedKey` checks for both `_` and `:` after the prefix root.
  */
 const PRESERVE_PREFIXES = [
-  'ba_plan_edits_',
-  'ba_plan_overrides_',
-  'ba_manual_logs_',
-  'ba_day_swaps_',
-  'ba_soreness_',
-  'ba_onboarding_',
-  'ba_onboarding_redo_',
-  'ba_display_prefs_v1_',
-  'ba_show_technical_terms_',
-  'ba_coach_memory_v1_',
-  'ba_coach_turn_ui_v1_',
-  'ba_coach_insight_proposal_v1_',
-  'ba_coach_daily_seeded_v1_',
-  'ba_coach_insight_seen_v1_',
-  'ba_coach_ping_v1_',
-  'ba_hr_zones_override_',
-  'ba_max_hr_override_',
-  'ba_mim_calibration_',
-  'ba_doms_calibration_',
-  'ba_run_eccentric_v1_',
-  'ba_run_gap_v1_',
-  'ba_workout_time_pref_v1_',
-  'ba_athlete_home_v1_',
-  'ba_coach_font_scale_',
-  'ba_tutorial_seen_',
-  'ba_strava_tokens_',
-  'ba_garmin_connected_',
-  'ba_garmin_display_name_',
+  'ba_plan_edits',
+  'ba_plan_overrides',
+  'ba_manual_logs',
+  'ba_day_swaps',
+  'ba_soreness',
+  'ba_onboarding',
+  'ba_onboarding_redo',
+  'ba_display_prefs_v1',
+  'ba_show_technical_terms',
+  'ba_coach_memory_v1',
+  'ba_coach_turn_ui_v1',
+  'ba_coach_insight_v1',
+  'ba_coach_insight_proposal_v1',
+  'ba_coach_daily_seeded_v1',
+  'ba_coach_insight_seen_v1',
+  'ba_coach_ping_v1',
+  'ba_hr_zones_override',
+  'ba_max_hr_override',
+  'ba_mim_calibration',
+  'ba_doms_calibration',
+  'ba_run_eccentric_v1',
+  'ba_run_gap_v1',
+  'ba_workout_time_pref_v1',
+  'ba_athlete_home_v1',
+  'ba_coach_font_scale',
+  'ba_tutorial_seen',
+  'ba_strava_tokens',
+  'ba_garmin_connected',
+  'ba_garmin_display_name',
 ] as const
 
 const PRESERVE_EXACT = [
@@ -76,7 +83,7 @@ export interface MigrationPayload {
 
 function isPreservedKey(key: string): boolean {
   if (PRESERVE_EXACT.includes(key as (typeof PRESERVE_EXACT)[number])) return true
-  return PRESERVE_PREFIXES.some(p => key.startsWith(p))
+  return PRESERVE_PREFIXES.some(p => key.startsWith(p + '_') || key.startsWith(p + ':'))
 }
 
 export function collectMigrationPayload(): MigrationPayload {
