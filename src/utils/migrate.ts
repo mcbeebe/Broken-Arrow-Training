@@ -81,7 +81,7 @@ export interface MigrationPayload {
   session: Record<string, string>
 }
 
-function isPreservedKey(key: string): boolean {
+export function isPreservedKey(key: string): boolean {
   if (PRESERVE_EXACT.includes(key as (typeof PRESERVE_EXACT)[number])) return true
   return PRESERVE_PREFIXES.some(p => key.startsWith(p + '_') || key.startsWith(p + ':'))
 }

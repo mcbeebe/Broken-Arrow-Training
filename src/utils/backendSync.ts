@@ -9,6 +9,7 @@
  */
 
 import type { AuthSession } from './auth'
+import { isPreservedKey } from './migrate'
 import {
   listStampedKeys,
   readStamp,
@@ -189,11 +190,17 @@ export async function pullFromServer(session: AuthSession): Promise<{ pulled: nu
 }
 
 /** Ship a single batch of items. Wraps the auth + backoff layer so
- *  `pushAll` can call this once per chunk. */
+ *  `pushAll` can call this once per chunk. On non-2xx, surfaces the
+ *  server's response body in the thrown error so the UI can show the
+ *  actual rejection reason (which key tripped the allowlist, etc.)
+ *  rather than the bare status code. */
 async function pushChunk(session: AuthSession, items: RemoteItem[]): Promise<PushResult> {
   return withBackoff(async () => {
     const res = await authedFetch(session, 'PUT', { items })
-    if (!res.ok) throw new Error(`sync PUT failed: ${res.status}`)
+    if (!res.ok) {
+      const body = await res.text().catch(() => '')
+      throw new Error(`sync PUT failed: ${res.status}${body ? ` — ${body}` : ''}`)
+    }
     return (await res.json()) as PushResult
   })
 }
@@ -207,6 +214,13 @@ async function pushChunk(session: AuthSession, items: RemoteItem[]): Promise<Pus
 export async function pushAll(session: AuthSession): Promise<PushResult> {
   const pending: RemoteItem[] = []
   for (const key of listStampedKeys()) {
+    // Defense in depth: the server rejects non-allowlisted keys with
+    // 400, but we filter client-side too so a stale stamp on a
+    // regenerable-cache key (Garmin streams, Strava activities) can't
+    // poison a whole chunk. The two allowlists are required to stay in
+    // lockstep — `isPreservedKey` is the TS source of truth that
+    // `api/_sync/allowlist.py` mirrors.
+    if (!isPreservedKey(key)) continue
     const stamp = readStamp(key)
     const lastUp = readLastUploadedStamp(key)
     if (stamp <= lastUp) continue
