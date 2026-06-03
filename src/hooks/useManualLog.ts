@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import type { ActualWorkout, TrainingWeek } from '../types'
 import { stampKey } from '../utils/syncStamps'
 
@@ -22,6 +22,17 @@ function saveLogs(athleteId: string, logs: ManualLogs): void {
 
 export function useManualLog(athleteId: string) {
   const [logs, setLogs] = useState<ManualLogs>(() => loadLogs(athleteId))
+
+  // Re-read on cross-device sync pulls (synthetic `storage` events).
+  useEffect(() => {
+    const watched = `${STORAGE_KEY}_${athleteId}`
+    function onStorage(e: StorageEvent) {
+      if (e.key !== watched) return
+      setLogs(loadLogs(athleteId))
+    }
+    window.addEventListener('storage', onStorage)
+    return () => window.removeEventListener('storage', onStorage)
+  }, [athleteId])
 
   const logWorkout = useCallback((dayLabel: string, data: ActualWorkout) => {
     setLogs(prev => {

@@ -239,13 +239,24 @@ export async function pushAll(session: AuthSession): Promise<PushResult> {
   // backfill the data is invisible to the sync system until the
   // athlete touches each item again. Stamp with "now" so a single
   // Sync-now recovers a device that's been editing offline for days.
+  //
+  // Snapshot the keys BEFORE we start stamping, because `stampKey`
+  // calls `localStorage.setItem` which mutates the same collection
+  // we're iterating — in Safari that shifts indices mid-loop and
+  // silently skips original entries. The two-step (snapshot, then
+  // mutate) keeps the loop deterministic.
   const now = Date.now()
-  let backfilled = 0
+  const allKeys: string[] = []
   for (let i = 0; i < localStorage.length; i++) {
-    const key = localStorage.key(i)
-    if (!key) continue
+    const k = localStorage.key(i)
+    if (k) allKeys.push(k)
+  }
+  let backfilled = 0
+  let scanned = 0
+  for (const key of allKeys) {
     if (seen.has(key)) continue
     if (!isPreservedKey(key)) continue
+    scanned++
     const value = localStorage.getItem(key)
     if (value === null) continue
     stampKey(key, now)
@@ -256,9 +267,12 @@ export async function pushAll(session: AuthSession): Promise<PushResult> {
     })
     backfilled++
   }
-  if (backfilled > 0) {
-    console.debug(`[sync] backfilled stamps on ${backfilled} pre-existing key(s)`)
-  }
+  console.debug(
+    `[sync] pushAll: stamped=${seen.size} ` +
+    `total_localStorage=${allKeys.length} ` +
+    `allowlisted_unstamped=${scanned} backfilled=${backfilled} ` +
+    `pending=${pending.length}`,
+  )
 
   if (pending.length === 0) return { written: 0, skipped: 0 }
 

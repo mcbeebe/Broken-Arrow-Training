@@ -5,11 +5,15 @@ import { hydrateFromServer, pushAll } from '../utils/backendSync'
 /**
  * Background cross-device sync driver.
  *
- * On mount with a valid session, hydrates from the server once, then
- * runs a periodic push every 60 seconds while the tab is visible and
- * a debounced push on every visibility-change → visible. Failures are
- * logged at debug level and swallowed — sync must never block the UI
- * or surface errors to the athlete.
+ * On mount with a valid session, runs an initial hydrate-then-push,
+ * then on every visibility-change and every 60 seconds while the tab
+ * is visible runs a push-then-pull round-trip so edits propagate in
+ * both directions. The push has to happen before the pull so a local
+ * edit lands on the server before the server's view (which doesn't
+ * yet include our edit) overwrites it.
+ *
+ * Failures are logged at debug level and swallowed — sync must never
+ * block the UI or surface errors to the athlete.
  *
  * One instance is enough; mount it inside `AuthenticatedApp`. The
  * Settings "Sync now" / "Pull from server" buttons call
@@ -17,7 +21,7 @@ import { hydrateFromServer, pushAll } from '../utils/backendSync'
  * they don't depend on this hook being mounted.
  */
 
-const PUSH_INTERVAL_MS = 60_000
+const SYNC_INTERVAL_MS = 60_000
 const VISIBILITY_DEBOUNCE_MS = 1_000
 
 export function useBackendSync(session: AuthSession | null): void {
@@ -31,8 +35,7 @@ export function useBackendSync(session: AuthSession | null): void {
     let visibilityTimer: number | undefined
 
     async function safePush(reason: string): Promise<void> {
-      if (cancelled || inflightRef.current || !session) return
-      inflightRef.current = true
+      if (cancelled || !session) return
       try {
         const result = await pushAll(session)
         if (!cancelled && (result.written > 0 || result.skipped > 0)) {
@@ -40,24 +43,49 @@ export function useBackendSync(session: AuthSession | null): void {
         }
       } catch (e) {
         console.debug('[sync] push failed:', e)
+      }
+    }
+
+    async function safePull(reason: string): Promise<void> {
+      if (cancelled || !session) return
+      try {
+        const { pulled } = await hydrateFromServer(session)
+        if (!cancelled && pulled > 0) {
+          console.debug(`[sync] pull (${reason}): ${pulled} key(s) updated`)
+        }
+      } catch (e) {
+        console.debug('[sync] pull failed:', e)
+      }
+    }
+
+    /** Push-then-pull, single-flight per tick. Used by every sync
+     *  trigger except the initial boot hydrate. */
+    async function safeRoundTrip(reason: string): Promise<void> {
+      if (cancelled || inflightRef.current || !session) return
+      inflightRef.current = true
+      try {
+        await safePush(reason)
+        await safePull(reason)
       } finally {
         inflightRef.current = false
       }
     }
 
     async function bootHydrate(): Promise<void> {
-      if (hydratedRef.current || cancelled || !session) return
+      if (hydratedRef.current || cancelled || inflightRef.current || !session) return
+      inflightRef.current = true
       try {
         const { pulled } = await hydrateFromServer(session)
         if (cancelled) return
         hydratedRef.current = true
         if (pulled > 0) console.debug(`[sync] hydrated ${pulled} key(s)`)
-        // Push anything we might have written locally before the
-        // hydrate completed, so the round-trip is symmetric.
+        // Push anything written locally before the hydrate completed.
         await safePush('post-hydrate')
       } catch (e) {
         console.debug('[sync] hydrate failed:', e)
         // Try again on the next visibility / interval tick.
+      } finally {
+        inflightRef.current = false
       }
     }
 
@@ -68,7 +96,7 @@ export function useBackendSync(session: AuthSession | null): void {
         if (!hydratedRef.current) {
           bootHydrate()
         } else {
-          safePush('visibility')
+          safeRoundTrip('visibility')
         }
       }, VISIBILITY_DEBOUNCE_MS)
     }
@@ -80,9 +108,9 @@ export function useBackendSync(session: AuthSession | null): void {
       if (!hydratedRef.current) {
         bootHydrate()
       } else {
-        safePush('interval')
+        safeRoundTrip('interval')
       }
-    }, PUSH_INTERVAL_MS)
+    }, SYNC_INTERVAL_MS)
 
     document.addEventListener('visibilitychange', onVisibility)
 

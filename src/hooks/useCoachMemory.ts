@@ -138,6 +138,23 @@ export function useCoachMemory(athleteId: string, enabled: boolean = true) {
     return () => window.removeEventListener('focus', onFocus)
   }, [refresh, enabled, apiAvailable])
 
+  // Re-read on cross-device sync pulls (synthetic `storage` events).
+  // Both keys are scoped per-athlete; either changing means the local
+  // copy is fresh and the in-memory state should rehydrate. We re-read
+  // from local rather than calling `refresh()` because the sync pull
+  // already wrote the authoritative value to localStorage.
+  useEffect(() => {
+    const memoryK = LS_KEY_PREFIX + athleteId
+    const turnUiK = TURN_UI_KEY_PREFIX + athleteId
+    function onStorage(e: StorageEvent) {
+      if (e.key !== memoryK && e.key !== turnUiK) return
+      const fresh = readLocal(athleteId)
+      setMemory(applyTurnUi(athleteId, fresh))
+    }
+    window.addEventListener('storage', onStorage)
+    return () => window.removeEventListener('storage', onStorage)
+  }, [athleteId])
+
   const mutate = useCallback(
     async (action: string, extra: Record<string, unknown> = {}) => {
       if (!apiAvailable) return

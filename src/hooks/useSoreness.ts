@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo, useEffect } from 'react'
 import { localDateStr } from '../utils/format'
 import { stampKey } from '../utils/syncStamps'
 
@@ -49,6 +49,17 @@ export function useSoreness(athleteId: string) {
   const [entries, setEntries] = useState<Record<string, SorenessEntry>>(
     () => loadEntries(athleteId)
   )
+
+  // Re-read on cross-device sync pulls (synthetic `storage` events).
+  useEffect(() => {
+    const watched = `${STORAGE_KEY}_${athleteId}`
+    function onStorage(e: StorageEvent) {
+      if (e.key !== watched) return
+      setEntries(loadEntries(athleteId))
+    }
+    window.addEventListener('storage', onStorage)
+    return () => window.removeEventListener('storage', onStorage)
+  }, [athleteId])
 
   const logSoreness = useCallback((date: string, level: SorenessLevel) => {
     setEntries(prev => {

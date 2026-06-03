@@ -160,6 +160,19 @@ export function usePlanEdits(athleteId?: string) {
     setEdits(readEdits(athleteId))
   }, [athleteId])
 
+  // Re-read when the backend sync layer writes to our key (the sync
+  // hook dispatches synthetic `storage` events after a successful pull
+  // so cross-device edits show up without a refresh).
+  useEffect(() => {
+    const watched = scopedKey(STORAGE_KEY, athleteId)
+    function onStorage(e: StorageEvent) {
+      if (e.key !== watched) return
+      setEdits(readEdits(athleteId))
+    }
+    window.addEventListener('storage', onStorage)
+    return () => window.removeEventListener('storage', onStorage)
+  }, [athleteId])
+
   const commit = useCallback((next: PlanEdit[]) => {
     writeEdits(next, athleteId)
     setEdits(next)
