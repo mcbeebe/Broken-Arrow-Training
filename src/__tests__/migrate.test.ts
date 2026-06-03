@@ -2,6 +2,8 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import {
   collectMigrationPayload,
   applyMigrationPayload,
+  encodeMigrationHash,
+  parseMigrationHash,
   MIGRATE_PROTOCOL_VERSION,
   type MigrationPayload,
 } from '../utils/migrate'
@@ -233,5 +235,55 @@ describe('collect + apply round-trip', () => {
     expect(localStorage.getItem('ba_coach_memory_v1_mike')).toBe('{"turns":[]}')
     expect(localStorage.getItem('ba_garmin_streams_abc_mike')).toBeNull()
     expect(localStorage.getItem('ba_weather_forecast_v2:39.1:-119.4')).toBeNull()
+  })
+})
+
+describe('migration hash bridge (iOS same-tab redirect)', () => {
+  const samplePayload = (): MigrationPayload => ({
+    v: MIGRATE_PROTOCOL_VERSION,
+    ts: 1717180800000,
+    items: {
+      ba_plan_edits_mike: '{"ops":[{"op":"updateDay"}]}',
+      'ba_coach_memory_v1:mike': '{"turns":[{"role":"user","text":"hi & bye? x=1#2"}]}',
+      ba_auth_session: '{"email":"m@x.com","athleteId":"mike"}',
+    },
+    session: { ba_initial_view: 'readiness' },
+  })
+
+  it('round-trips payload + dest through encode/parse', () => {
+    const payload = samplePayload()
+    const dest = '/?view=readiness#mike'
+    const parsed = parseMigrationHash('#' + encodeMigrationHash(payload, dest))
+    expect(parsed).not.toBeNull()
+    expect(parsed!.dest).toBe(dest)
+    expect(parsed!.payload).toEqual(payload)
+  })
+
+  it('tolerates a fragment with no leading hash', () => {
+    const payload = samplePayload()
+    const encoded = encodeMigrationHash(payload, '/')
+    expect(parseMigrationHash(encoded)).not.toBeNull()
+  })
+
+  it('defaults dest to "/" when empty', () => {
+    const parsed = parseMigrationHash('#' + encodeMigrationHash(samplePayload(), ''))
+    expect(parsed!.dest).toBe('/')
+  })
+
+  it('returns null for non-migration fragments', () => {
+    expect(parseMigrationHash('#mike')).toBeNull()
+    expect(parseMigrationHash('')).toBeNull()
+    expect(parseMigrationHash('#view=readiness')).toBeNull()
+  })
+
+  it('returns null for a truncated/garbled fragment instead of throwing', () => {
+    const full = '#' + encodeMigrationHash(samplePayload(), '/')
+    const clipped = full.slice(0, full.length - 20)
+    expect(parseMigrationHash(clipped)).toBeNull()
+  })
+
+  it('rejects a mismatched protocol version', () => {
+    const bad = { ...samplePayload(), v: 999 } as unknown as MigrationPayload
+    expect(parseMigrationHash('#' + encodeMigrationHash(bad, '/'))).toBeNull()
   })
 })

@@ -271,3 +271,60 @@ export function isMigrationReceive(): boolean {
     return false
   }
 }
+
+export interface HashMigration {
+  payload: MigrationPayload
+  /** Same-origin path+search+hash to land the user on after applying. */
+  dest: string
+}
+
+const HASH_PARAM = '__attune_migrate'
+
+/**
+ * Tier-1b fallback: encode a payload + post-migration destination into a
+ * URL fragment (returned WITHOUT the leading `#`).
+ *
+ * The popup/postMessage bridge in `sendMigration` is unreliable on iOS —
+ * a standalone home-screen PWA blocks `window.open`, so the popup never
+ * opens and the user dead-ends on the "Try again" fallback. A top-level
+ * same-tab navigation has no such restriction, so the airlock on the
+ * legacy origin redirects here with the data in the fragment instead.
+ * Fragments are never sent to the server, so the payload stays
+ * client-side. The airlock inlines a copy of this exact format (it's a
+ * dependency-free static page) — keep the two in sync.
+ */
+export function encodeMigrationHash(payload: MigrationPayload, dest: string): string {
+  return `${HASH_PARAM}=${encodeURIComponent(JSON.stringify({ p: payload, d: dest }))}`
+}
+
+/**
+ * Parse a `#__attune_migrate=...` fragment back into a payload + dest.
+ * Returns null for any non-migration or malformed fragment — a truncated
+ * URL (e.g. a browser that silently clipped an over-long one) fails
+ * JSON.parse here and degrades to the file-upload fallback rather than
+ * importing corrupt data.
+ */
+export function parseMigrationHash(hash: string): HashMigration | null {
+  try {
+    const body = hash.replace(/^#/, '')
+    const prefix = `${HASH_PARAM}=`
+    if (!body.startsWith(prefix)) return null
+    const env = JSON.parse(decodeURIComponent(body.slice(prefix.length))) as {
+      p?: MigrationPayload
+      d?: string
+    }
+    if (!env?.p || env.p.v !== MIGRATE_PROTOCOL_VERSION) return null
+    return { payload: env.p, dest: typeof env.d === 'string' && env.d ? env.d : '/' }
+  } catch {
+    return null
+  }
+}
+
+/** Read a migration payload from the live URL fragment, if present. */
+export function readMigrationFromHash(): HashMigration | null {
+  try {
+    return parseMigrationHash(window.location.hash)
+  } catch {
+    return null
+  }
+}

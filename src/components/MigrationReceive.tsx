@@ -1,5 +1,11 @@
 import { useEffect, useState, useRef } from 'react'
-import { receiveMigration, importFromFile, isPreservedKey } from '../utils/migrate'
+import {
+  receiveMigration,
+  importFromFile,
+  isPreservedKey,
+  applyMigrationPayload,
+  readMigrationFromHash,
+} from '../utils/migrate'
 import { getStoredSession } from '../utils/auth'
 import { pushAll } from '../utils/backendSync'
 import { stampKey } from '../utils/syncStamps'
@@ -56,8 +62,35 @@ export default function MigrationReceive() {
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
   useEffect(() => {
-    if (!sourceOrigin) return
     let cancelled = false
+
+    // Tier-1b: data handed over via the URL fragment (iOS same-tab
+    // redirect path — no popup, no postMessage). Apply it synchronously
+    // and land the user on their original deep link. Checked first so it
+    // works even on builds without a configured postMessage origin.
+    const hashMig = readMigrationFromHash()
+    if (hashMig) {
+      const { written } = applyMigrationPayload(hashMig.payload)
+      pushMigratedToBackend()
+      // Defer the state flips out of the effect body (a synchronous
+      // setState here would trigger a cascading render); the work above
+      // is what actually matters and is already done.
+      const shown = window.setTimeout(() => {
+        if (cancelled) return
+        setCount(written)
+        setStatus('done')
+      }, 0)
+      const redirect = window.setTimeout(() => {
+        if (!cancelled) window.location.replace(hashMig.dest || '/')
+      }, 600)
+      return () => {
+        cancelled = true
+        window.clearTimeout(shown)
+        window.clearTimeout(redirect)
+      }
+    }
+
+    if (!sourceOrigin) return
     receiveMigration(sourceOrigin).then(({ count: c }) => {
       if (cancelled) return
       setCount(c)

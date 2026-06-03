@@ -91,12 +91,35 @@
     return { v: 1, ts: Date.now(), items: items, session: session };
   }
 
-  function forward() {
+  function destRel() {
     // Strip the legacy /Broken-Arrow-Training prefix from the path so
     // deep links like /Broken-Arrow-Training/ → / on attune.coach.
     var path = (location.pathname || '/').replace(/^\/Broken-Arrow-Training\/?/, '/');
     if (path.charAt(0) !== '/') path = '/' + path;
-    location.replace(TARGET + path + location.search + location.hash);
+    return path + location.search + location.hash;
+  }
+
+  function forward() {
+    location.replace(TARGET + destRel());
+  }
+
+  // Same-tab redirect carrying the payload in the URL fragment. This is
+  // the reliable cross-origin migration path on iOS, where window.open
+  // popups are blocked in standalone home-screen PWAs and the postMessage
+  // bridge never opens. Mirror of encodeMigrationHash() in
+  // src/utils/migrate.ts — keep the format in sync. Fragments are never
+  // sent to the server, so the data stays client-side.
+  function redirectWithPayload() {
+    var hash = '__attune_migrate=' +
+      encodeURIComponent(JSON.stringify({ p: payload, d: destRel() }));
+    var url = TARGET + '/?__migrate=1#' + hash;
+    // Guard pathological URL lengths. The receiver also validates
+    // (JSON.parse + version check), so a clipped URL degrades to the
+    // file-upload fallback rather than corrupting data — but we'd rather
+    // route oversized payloads straight to the file path.
+    if (url.length > 1800000) { showFallback(); return false; }
+    location.replace(url);
+    return true;
   }
 
   function cleanupOldOrigin() {
@@ -134,9 +157,9 @@
     bar.hidden = true;
     actions.hidden = false;
     manual.hidden = false;
-    msg.innerHTML = 'Your browser blocked the migration popup.<br/>' +
-      'Tap <b>Try again</b> — your second tap counts as a user gesture and the popup will open. ' +
-      'Or <b>Download backup</b> and upload the file on attune.coach.';
+    msg.innerHTML = 'Your training history is too large to move automatically.<br/>' +
+      'Tap <b>Download backup</b>, then open attune.coach and upload the file when prompted. ' +
+      'Or <b>Try again</b>.';
   }
 
   function downloadBackup() {
@@ -162,7 +185,11 @@
     } catch (e) { popup = null; }
 
     if (!popup) {
-      showFallback();
+      // Popup blocked — the common iOS / standalone-PWA case. Fall back
+      // to a same-tab redirect that carries the data in the fragment
+      // instead of dead-ending on a "Try again" loop that re-opens the
+      // same blocked popup.
+      redirectWithPayload();
       return;
     }
 
@@ -174,9 +201,12 @@
     var acked = false;
     var to = setTimeout(function () {
       if (acked) return;
-      msg.textContent = 'Took longer than expected. Continuing to attune.coach…';
+      // Popup opened but never acked (e.g. iOS opened it as a detached
+      // Safari tab with no opener bridge). Don't drop the data with a
+      // bare forward() — carry it across via the same-tab redirect.
+      msg.textContent = 'Bringing your training history with you…';
       try { popup.close(); } catch (e) {}
-      forward();
+      redirectWithPayload();
     }, 15000);
 
     function onMessage(ev) {
