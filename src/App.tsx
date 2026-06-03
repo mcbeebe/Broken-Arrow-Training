@@ -65,6 +65,7 @@ import { useTheme } from './hooks/useTheme'
 import { usePalette } from './hooks/usePalette'
 import { useVisualViewport } from './hooks/useVisualViewport'
 import { useDisplayPreferences } from './hooks/useDisplayPreferences'
+import { useBackendSync } from './hooks/useBackendSync'
 
 // Auto-clear stale caches on app startup when data format changes
 checkStorageVersion()
@@ -110,6 +111,9 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
   const [athleteId, setAthleteId] = useState(() => (session?.athleteId || getAthleteFromHash()).toLowerCase())
   const onboarding = useOnboarding(athleteId)
   const tutorial = useTutorial(athleteId)
+  // Cross-device sync — hydrates from Postgres on mount, then pushes
+  // local writes every 60s while visible. No-op without a session.
+  useBackendSync(session)
 
   useEffect(() => {
     function onHashChange() {

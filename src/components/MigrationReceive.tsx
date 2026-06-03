@@ -1,5 +1,34 @@
 import { useEffect, useState, useRef } from 'react'
 import { receiveMigration, importFromFile } from '../utils/migrate'
+import { getStoredSession } from '../utils/auth'
+import { pushAll } from '../utils/backendSync'
+import { stampKey } from '../utils/syncStamps'
+
+/**
+ * Push freshly-migrated localStorage data straight up to Postgres so
+ * the athlete's other devices see it on the next 60s tick, instead of
+ * waiting for them to make an edit. The migration bridge writes
+ * directly to localStorage without going through the instrumented
+ * hooks, so we have to stamp every key here too — without a stamp the
+ * periodic push has no idea anything changed.
+ */
+async function pushMigratedToBackend(): Promise<void> {
+  const session = getStoredSession()
+  if (!session?.token) return
+  const now = Date.now()
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i)
+      if (!k || k.startsWith('__attune_meta:')) continue
+      stampKey(k, now)
+    }
+  } catch { /* ignore */ }
+  try {
+    await pushAll(session)
+  } catch (e) {
+    console.debug('[migration] post-ack sync failed:', e)
+  }
+}
 
 /**
  * Full-screen receiver mounted on the NEW origin when the URL is
@@ -29,6 +58,7 @@ export default function MigrationReceive() {
       if (cancelled) return
       setCount(c)
       setStatus('done')
+      pushMigratedToBackend()
       // Clean the URL and reload into the regular app, preserving hash.
       const hash = window.location.hash
       window.setTimeout(() => {

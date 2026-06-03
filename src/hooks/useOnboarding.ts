@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react'
 import type { DetailLevel } from '../types'
+import { stampKey } from '../utils/syncStamps'
 
 export type RaceType = 'trail' | 'hyrox' | 'general'
 export type ExperienceLevel = 'first_timer' | 'beginner' | 'intermediate' | 'advanced' | 'elite'
@@ -160,8 +161,10 @@ export function useOnboarding(athleteId?: string) {
 
   const save = useCallback((cfg: OnboardingConfig) => {
     const withTimestamp = { ...cfg, completedAt: new Date().toISOString() }
+    const k = scopedKey(athleteId)
     try {
-      localStorage.setItem(scopedKey(athleteId), JSON.stringify(withTimestamp))
+      localStorage.setItem(k, JSON.stringify(withTimestamp))
+      stampKey(k)
       localStorage.removeItem(scopedRedoKey(athleteId))
     } catch { /* quota */ }
     setConfig(withTimestamp)
@@ -178,8 +181,10 @@ export function useOnboarding(athleteId?: string) {
   }, [athleteId])
 
   const requestRedo = useCallback(() => {
+    const redoK = scopedRedoKey(athleteId)
     try {
-      localStorage.setItem(scopedRedoKey(athleteId), '1')
+      localStorage.setItem(redoK, '1')
+      stampKey(redoK)
       localStorage.removeItem(scopedKey(athleteId))
     } catch {}
     setConfig(null)
@@ -190,7 +195,8 @@ export function useOnboarding(athleteId?: string) {
     setConfig(prev => {
       if (!prev || prev.primerSeenAt) return prev
       const next = { ...prev, primerSeenAt: new Date().toISOString() }
-      try { localStorage.setItem(scopedKey(athleteId), JSON.stringify(next)) } catch { /* quota */ }
+      const k = scopedKey(athleteId)
+      try { localStorage.setItem(k, JSON.stringify(next)); stampKey(k) } catch { /* quota */ }
       return next
     })
   }, [athleteId])
@@ -199,7 +205,8 @@ export function useOnboarding(athleteId?: string) {
     setConfig(prev => {
       if (!prev || prev.zonesPrimerSeenAt) return prev
       const next = { ...prev, zonesPrimerSeenAt: new Date().toISOString() }
-      try { localStorage.setItem(scopedKey(athleteId), JSON.stringify(next)) } catch { /* quota */ }
+      const k = scopedKey(athleteId)
+      try { localStorage.setItem(k, JSON.stringify(next)); stampKey(k) } catch { /* quota */ }
       return next
     })
   }, [athleteId])
@@ -208,7 +215,8 @@ export function useOnboarding(athleteId?: string) {
     setConfig(prev => {
       if (!prev || prev.connectStepSeenAt) return prev
       const next = { ...prev, connectStepSeenAt: new Date().toISOString() }
-      try { localStorage.setItem(scopedKey(athleteId), JSON.stringify(next)) } catch { /* quota */ }
+      const k = scopedKey(athleteId)
+      try { localStorage.setItem(k, JSON.stringify(next)); stampKey(k) } catch { /* quota */ }
       return next
     })
   }, [athleteId])
@@ -217,7 +225,8 @@ export function useOnboarding(athleteId?: string) {
     setConfig(prev => {
       if (!prev || prev.valuePropsSeenAt) return prev
       const next = { ...prev, valuePropsSeenAt: new Date().toISOString() }
-      try { localStorage.setItem(scopedKey(athleteId), JSON.stringify(next)) } catch { /* quota */ }
+      const k = scopedKey(athleteId)
+      try { localStorage.setItem(k, JSON.stringify(next)); stampKey(k) } catch { /* quota */ }
       return next
     })
   }, [athleteId])

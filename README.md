@@ -71,3 +71,36 @@ export default defineConfig([
   },
 ])
 ```
+
+## Database setup (one-time, per environment)
+
+The cross-device sync layer (`/api/sync`) stores per-(athlete, key)
+JSONB rows in a Vercel Postgres (Neon) database. Provisioning the
+database via Vercel automatically injects `POSTGRES_URL`,
+`POSTGRES_URL_NON_POOLING`, and `POSTGRES_PRISMA_URL` into the
+project's env vars; the schema still has to be applied once per fresh
+database:
+
+```bash
+# 1. Pull the env vars Vercel injected into this project
+vercel env pull .env.local
+
+# 2. Apply the schema (idempotent — re-running is safe)
+psql "$(grep '^POSTGRES_URL_NON_POOLING=' .env.local | cut -d= -f2- | tr -d '"')" \
+  -f scripts/db/init.sql
+```
+
+Use the **non-pooling** URL for DDL like this (the pooled URL goes
+through PgBouncer in transaction mode and rejects some DDL). The
+serverless functions in `api/sync.py` use the pooled `POSTGRES_URL`
+because they're short-lived.
+
+To verify:
+
+```bash
+psql "$POSTGRES_URL_NON_POOLING" -c '\dt'
+# expect to see user_state in the list
+```
+
+Full PR scope, verification matrix, and follow-up roadmap (PR B / C /
+D) live in [`docs/pr-a-sync-plan.md`](./docs/pr-a-sync-plan.md).

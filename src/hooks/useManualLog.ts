@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react'
 import type { ActualWorkout, TrainingWeek } from '../types'
+import { stampKey } from '../utils/syncStamps'
 
 const STORAGE_KEY = 'ba_manual_logs'
 
@@ -14,7 +15,9 @@ function loadLogs(athleteId: string): ManualLogs {
 }
 
 function saveLogs(athleteId: string, logs: ManualLogs): void {
-  localStorage.setItem(`${STORAGE_KEY}_${athleteId}`, JSON.stringify(logs))
+  const key = `${STORAGE_KEY}_${athleteId}`
+  localStorage.setItem(key, JSON.stringify(logs))
+  stampKey(key)
 }
 
 export function useManualLog(athleteId: string) {
