@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
-import { receiveMigration, importFromFile } from '../utils/migrate'
+import { receiveMigration, importFromFile, isPreservedKey } from '../utils/migrate'
 import { getStoredSession } from '../utils/auth'
 import { pushAll } from '../utils/backendSync'
 import { stampKey } from '../utils/syncStamps'
@@ -10,7 +10,10 @@ import { stampKey } from '../utils/syncStamps'
  * waiting for them to make an edit. The migration bridge writes
  * directly to localStorage without going through the instrumented
  * hooks, so we have to stamp every key here too — without a stamp the
- * periodic push has no idea anything changed.
+ * periodic push has no idea anything changed. Only stamp keys that are
+ * actually on the sync allowlist; regenerable caches (Garmin streams,
+ * Strava activities) carry over via the migration bridge for offline
+ * reuse but aren't worth uploading.
  */
 async function pushMigratedToBackend(): Promise<void> {
   const session = getStoredSession()
@@ -20,6 +23,7 @@ async function pushMigratedToBackend(): Promise<void> {
     for (let i = 0; i < localStorage.length; i++) {
       const k = localStorage.key(i)
       if (!k || k.startsWith('__attune_meta:')) continue
+      if (!isPreservedKey(k)) continue
       stampKey(k, now)
     }
   } catch { /* ignore */ }
