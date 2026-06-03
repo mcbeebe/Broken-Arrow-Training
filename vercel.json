@@ -4,7 +4,8 @@
   "framework": null,
   "installCommand": "echo 'Skipping frontend install — API only'",
   "rewrites": [
-    { "source": "/api/auth/athletes", "destination": "/api/auth/google" }
+    { "source": "/api/auth/athletes", "destination": "/api/auth/google" },
+    { "source": "/api/version", "destination": "/api/sync?__endpoint=version" }
   ],
   "functions": {
     "api/garmin/*.py": {

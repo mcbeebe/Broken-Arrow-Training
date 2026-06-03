@@ -2,9 +2,10 @@
 
 GET  /api/sync           → {items: [{key, value, updatedAt}], serverNow}
 PUT  /api/sync           → {written: N, skipped: M}
+GET  /api/version        → {commit, message, deployedAt, ...}
 
-Both methods require a Bearer session token (HMAC-signed; minted by
-`api/auth/google.py`). The token's `sub` claim is the authoritative
+Both sync methods require a Bearer session token (HMAC-signed; minted
+by `api/auth/google.py`). The token's `sub` claim is the authoritative
 athlete id — clients can't override it via query string.
 
 The PUT body shape is `{items: [{key, value, updatedAt}]}` where every
@@ -13,6 +14,10 @@ timestamp. Stale rows (server `updated_at` newer than incoming) are
 skipped without error so an idempotent retry stays safe.
 
 Body cap: 1 MB. Per-key allowlist: `api/_sync/allowlist.py`.
+
+`/api/version` rides this same function (routed via a vercel.json
+rewrite that appends `?__endpoint=version`) so we stay within the
+Hobby-plan 12-function limit. Dispatch happens at the top of `do_GET`.
 """
 
 from __future__ import annotations
@@ -21,6 +26,7 @@ import json
 import os
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler
+from urllib.parse import parse_qs, urlparse
 
 import psycopg
 from psycopg.types.json import Jsonb
@@ -83,13 +89,59 @@ def _parse_iso(s: str) -> datetime | None:
         return None
 
 
+def _is_version_request(handler: BaseHTTPRequestHandler) -> bool:
+    """True when this request was routed here by the /api/version
+    rewrite (`?__endpoint=version`). Using a query-param signal instead
+    of `self.path` since Vercel's rewrite layer may or may not surface
+    the original URL to the handler — the query string always survives."""
+    try:
+        qs = parse_qs(urlparse(handler.path).query)
+        return qs.get("__endpoint", [""])[0] == "version"
+    except Exception:
+        return False
+
+
+def _serve_version(handler: BaseHTTPRequestHandler) -> None:
+    """Live deploy metadata — same payload the dropped api/version.py
+    used to serve. Vercel injects VERCEL_GIT_COMMIT_* into every
+    function's runtime env on each deploy."""
+    full_sha = os.environ.get("VERCEL_GIT_COMMIT_SHA", "")
+    short_sha = full_sha[:7] if full_sha else "unknown"
+    message = os.environ.get("VERCEL_GIT_COMMIT_MESSAGE", "")
+    subject = message.split("\n", 1)[0] if message else ""
+    branch = os.environ.get("VERCEL_GIT_COMMIT_REF", "")
+    deployed_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    payload = {
+        "commit": short_sha,
+        "commitFull": full_sha,
+        "message": subject,
+        "branch": branch,
+        "deployedAt": deployed_at,
+        "runtime": "vercel-python",
+    }
+    handler.send_response(200)
+    handler.send_header("Content-Type", "application/json")
+    handler.send_header("Access-Control-Allow-Origin", "*")
+    handler.send_header("Access-Control-Allow-Methods", "GET,OPTIONS")
+    handler.send_header("Access-Control-Allow-Headers", "Content-Type")
+    # The whole point of this endpoint is to confirm a fresh deploy —
+    # caching it would defeat the purpose.
+    handler.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
+    handler.end_headers()
+    handler.wfile.write(json.dumps(payload).encode())
+
+
 class handler(BaseHTTPRequestHandler):
     # ── CORS preflight ──────────────────────────────────────────
     def do_OPTIONS(self):
         send_cors_preflight(self)
 
-    # ── GET: dump everything we have for this athlete ───────────
+    # ── GET: dispatch to /api/version (rewritten) or sync read ──
     def do_GET(self):
+        if _is_version_request(self):
+            _serve_version(self)
+            return
+
         athlete_id = _authenticate(self)
         if athlete_id is None:
             return
