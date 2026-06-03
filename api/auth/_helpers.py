@@ -154,6 +154,15 @@ def create_session_token(athlete_id: str, email: str, provider: str) -> str:
     return f"{payload_b64}.{sig}"
 
 
+def decode_session_token(token: str | None) -> dict | None:
+    """Public alias for `verify_session_token`. Named for the sync
+    endpoint where "decode" reads more naturally than "verify" — both
+    refer to the same HMAC-check-then-deserialize operation."""
+    if not token:
+        return None
+    return verify_session_token(token)
+
+
 def verify_session_token(token: str) -> dict | None:
     """Verify and decode a session token. Returns payload or None."""
     secret = get_jwt_secret()

@@ -4,7 +4,8 @@
   "framework": null,
   "installCommand": "echo 'Skipping frontend install — API only'",
   "rewrites": [
-    { "source": "/api/auth/athletes", "destination": "/api/auth/google" }
+    { "source": "/api/auth/athletes", "destination": "/api/auth/google" },
+    { "source": "/api/version", "destination": "/api/sync?__endpoint=version" }
   ],
   "functions": {
     "api/garmin/*.py": {
@@ -18,6 +19,9 @@
     },
     "api/apple/*.py": {
       "maxDuration": 30
+    },
+    "api/sync.py": {
+      "maxDuration": 15
     }
   },
   "headers": [
@@ -25,8 +29,8 @@
       "source": "/api/(.*)",
       "headers": [
         { "key": "Access-Control-Allow-Origin", "value": "*" },
-        { "key": "Access-Control-Allow-Methods", "value": "GET,POST,OPTIONS" },
-        { "key": "Access-Control-Allow-Headers", "value": "Content-Type" }
+        { "key": "Access-Control-Allow-Methods", "value": "GET,POST,PUT,OPTIONS" },
+        { "key": "Access-Control-Allow-Headers", "value": "Authorization,Content-Type" }
       ]
     }
   ]

@@ -8,6 +8,7 @@ import CoachDiagnostics from './CoachDiagnostics'
 import DeployDiagnostics from './DeployDiagnostics'
 import AthleteAdmin from './AthleteAdmin'
 import Methodology from './Methodology'
+import SyncSettings from './SyncSettings'
 import type { HRZone, PendingInference, CoachPersona, TrainingPlan } from '../types'
 import type { TrainingMethod } from '../types/training-method'
 import type { OnboardingConfig } from '../hooks/useOnboarding'
@@ -603,6 +604,11 @@ export default function Settings({
           />
         </SettingsSection>
       )}
+
+      {/* ── Cross-device Sync (all athletes) ── */}
+      <SettingsSection title="Sync">
+        <SyncSettings />
+      </SettingsSection>
 
       {/* ── Diagnostics (owner-only) ── */}
       {coachEnabled && athleteId === 'mike' && (

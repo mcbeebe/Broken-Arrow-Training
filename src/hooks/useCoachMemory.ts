@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { CoachMemory, CoachPersona, ConversationTurn, DailyChatArchive } from '../types'
 import { DEFAULT_COACH_NAME } from '../types'
 import { coachApiAvailable, coachFetch } from '../utils/coachApi'
+import { stampKey } from '../utils/syncStamps'
 
 /**
  * Server-backed Coach memory (replaces useAboutMe). Persisted in Upstash KV
@@ -35,8 +36,10 @@ function readLocal(athleteId: string): CoachMemory {
 }
 
 function writeLocal(athleteId: string, mem: CoachMemory) {
+  const key = LS_KEY_PREFIX + athleteId
   try {
-    localStorage.setItem(LS_KEY_PREFIX + athleteId, JSON.stringify(mem))
+    localStorage.setItem(key, JSON.stringify(mem))
+    stampKey(key)
   } catch {
     // best effort
   }
@@ -61,8 +64,10 @@ function readTurnUi(athleteId: string): Record<string, TurnUi> {
 }
 
 function writeTurnUi(athleteId: string, map: Record<string, TurnUi>) {
+  const key = TURN_UI_KEY_PREFIX + athleteId
   try {
-    localStorage.setItem(TURN_UI_KEY_PREFIX + athleteId, JSON.stringify(map))
+    localStorage.setItem(key, JSON.stringify(map))
+    stampKey(key)
   } catch {
     // best effort
   }

@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react'
 import type { TrainingWeek, PlannedDay } from '../types'
+import { stampKey } from '../utils/syncStamps'
 
 const STORAGE_KEY = 'ba_day_swaps'
 
@@ -16,7 +17,9 @@ function loadSwaps(athleteId: string): DaySwap[] {
 }
 
 function saveSwaps(athleteId: string, swaps: DaySwap[]): void {
-  localStorage.setItem(`${STORAGE_KEY}_${athleteId}`, JSON.stringify(swaps))
+  const key = `${STORAGE_KEY}_${athleteId}`
+  localStorage.setItem(key, JSON.stringify(swaps))
+  stampKey(key)
 }
 
 /**

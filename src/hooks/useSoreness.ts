@@ -1,5 +1,6 @@
 import { useState, useCallback, useMemo } from 'react'
 import { localDateStr } from '../utils/format'
+import { stampKey } from '../utils/syncStamps'
 
 // ─── Muscle Soreness Check-In ─────────────────────────────────
 //
@@ -39,7 +40,9 @@ function loadEntries(athleteId: string): Record<string, SorenessEntry> {
 }
 
 function saveEntries(athleteId: string, entries: Record<string, SorenessEntry>): void {
-  localStorage.setItem(`${STORAGE_KEY}_${athleteId}`, JSON.stringify(entries))
+  const key = `${STORAGE_KEY}_${athleteId}`
+  localStorage.setItem(key, JSON.stringify(entries))
+  stampKey(key)
 }
 
 export function useSoreness(athleteId: string) {
