@@ -64,6 +64,53 @@ describe('collectMigrationPayload', () => {
     expect(items).toEqual({})
   })
 
+  it('picks up keys with colon separators (the cutover hotfix case)', () => {
+    // These hooks write `<prefix>:<athleteId>` instead of `<prefix>_<athleteId>`.
+    // The original cutover allowlist only checked underscore-terminated
+    // prefixes, so these were silently dropped during migration. The
+    // hotfix accepts both separators.
+    localStorage.setItem('ba_coach_memory_v1:mike', '{"turns":[]}')
+    localStorage.setItem('ba_coach_turn_ui_v1:mike', '{"applied":{}}')
+    localStorage.setItem('ba_coach_insight_v1:mike:daily:abc123', '{"text":"..."}')
+    localStorage.setItem('ba_coach_insight_seen_v1:mike', '1717180800000')
+    localStorage.setItem('ba_display_prefs_v1:mike', '{"detailLevel":"high"}')
+    localStorage.setItem('ba_workout_time_pref_v1:mike', 'morning')
+    localStorage.setItem('ba_athlete_home_v1:mike', '{"lat":1,"lng":2}')
+    localStorage.setItem('ba_coach_font_scale:mike', '1.1')
+
+    const { items } = collectMigrationPayload()
+    expect(items).toMatchObject({
+      'ba_coach_memory_v1:mike': '{"turns":[]}',
+      'ba_coach_turn_ui_v1:mike': '{"applied":{}}',
+      'ba_coach_insight_v1:mike:daily:abc123': '{"text":"..."}',
+      'ba_coach_insight_seen_v1:mike': '1717180800000',
+      'ba_display_prefs_v1:mike': '{"detailLevel":"high"}',
+      'ba_workout_time_pref_v1:mike': 'morning',
+      'ba_athlete_home_v1:mike': '{"lat":1,"lng":2}',
+      'ba_coach_font_scale:mike': '1.1',
+    })
+  })
+
+  it('does not greedy-match a prefix root against a longer prefix', () => {
+    // `ba_onboarding` and `ba_onboarding_redo` are both on the allowlist.
+    // A key like `ba_onboarding_redo_mike` must be collected (either
+    // match is fine), but a key like `ba_onboarding_unknown_mike` would
+    // match the shorter prefix — that's by design (anything starting
+    // with the root is preserved). The regression we're guarding here
+    // is that a colon-style coach key doesn't accidentally collide with
+    // a different prefix root.
+    localStorage.setItem('ba_onboarding_redo_mike', '1')
+    localStorage.setItem('ba_coach_insight_v1:mike:daily:x', '{}')
+    localStorage.setItem('ba_coach_insight_proposal_v1_mike', '{}')
+
+    const { items } = collectMigrationPayload()
+    expect(Object.keys(items).sort()).toEqual([
+      'ba_coach_insight_proposal_v1_mike',
+      'ba_coach_insight_v1:mike:daily:x',
+      'ba_onboarding_redo_mike',
+    ])
+  })
+
   it('preserves selected sessionStorage entries', () => {
     sessionStorage.setItem('ba_initial_view', 'coach')
     sessionStorage.setItem('ba_inapp_bypass', '1')
