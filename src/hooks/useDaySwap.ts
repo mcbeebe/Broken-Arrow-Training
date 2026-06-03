@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import type { TrainingWeek, PlannedDay } from '../types'
 import { stampKey } from '../utils/syncStamps'
 
@@ -34,6 +34,17 @@ function swapDayContent(dayA: PlannedDay, dayB: PlannedDay): [PlannedDay, Planne
 
 export function useDaySwap(athleteId: string) {
   const [swaps, setSwaps] = useState<DaySwap[]>(() => loadSwaps(athleteId))
+
+  // Re-read on cross-device sync pulls (synthetic `storage` events).
+  useEffect(() => {
+    const watched = `${STORAGE_KEY}_${athleteId}`
+    function onStorage(e: StorageEvent) {
+      if (e.key !== watched) return
+      setSwaps(loadSwaps(athleteId))
+    }
+    window.addEventListener('storage', onStorage)
+    return () => window.removeEventListener('storage', onStorage)
+  }, [athleteId])
 
   const swapDays = useCallback((weekNum: number, fromIndex: number, toIndex: number) => {
     if (fromIndex === toIndex) return

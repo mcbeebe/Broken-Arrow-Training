@@ -159,6 +159,24 @@ export function useOnboarding(athleteId?: string) {
     }
   }, [athleteId])
 
+  // Re-read on cross-device sync pulls (synthetic `storage` events).
+  useEffect(() => {
+    const cfgK = scopedKey(athleteId)
+    const redoK = scopedRedoKey(athleteId)
+    function onStorage(e: StorageEvent) {
+      if (e.key !== cfgK && e.key !== redoK) return
+      try {
+        const raw = localStorage.getItem(cfgK)
+        setConfig(raw ? JSON.parse(raw) : null)
+        setRedoRequested(localStorage.getItem(redoK) === '1')
+      } catch (err) {
+        console.debug('[useOnboarding] storage-event reload failed:', err)
+      }
+    }
+    window.addEventListener('storage', onStorage)
+    return () => window.removeEventListener('storage', onStorage)
+  }, [athleteId])
+
   const save = useCallback((cfg: OnboardingConfig) => {
     const withTimestamp = { ...cfg, completedAt: new Date().toISOString() }
     const k = scopedKey(athleteId)
