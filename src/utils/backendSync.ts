@@ -213,13 +213,13 @@ async function pushChunk(session: AuthSession, items: RemoteItem[]): Promise<Pus
  *  that did make it through. */
 export async function pushAll(session: AuthSession): Promise<PushResult> {
   const pending: RemoteItem[] = []
+  const seen = new Set<string>()
+
+  // First pass: keys with existing stamps (the normal "write-then-
+  // sync" flow). Anything the instrumented hooks touched since the
+  // new bundle loaded lives here.
   for (const key of listStampedKeys()) {
-    // Defense in depth: the server rejects non-allowlisted keys with
-    // 400, but we filter client-side too so a stale stamp on a
-    // regenerable-cache key (Garmin streams, Strava activities) can't
-    // poison a whole chunk. The two allowlists are required to stay in
-    // lockstep — `isPreservedKey` is the TS source of truth that
-    // `api/_sync/allowlist.py` mirrors.
+    seen.add(key)
     if (!isPreservedKey(key)) continue
     const stamp = readStamp(key)
     const lastUp = readLastUploadedStamp(key)
@@ -232,6 +232,34 @@ export async function pushAll(session: AuthSession): Promise<PushResult> {
       updatedAt: new Date(stamp).toISOString(),
     })
   }
+
+  // Second pass: allowlisted localStorage entries that have NO stamp.
+  // These are usually edits that pre-date the sync layer — written by
+  // the old bundle, or by an uninstrumented write path. Without this
+  // backfill the data is invisible to the sync system until the
+  // athlete touches each item again. Stamp with "now" so a single
+  // Sync-now recovers a device that's been editing offline for days.
+  const now = Date.now()
+  let backfilled = 0
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i)
+    if (!key) continue
+    if (seen.has(key)) continue
+    if (!isPreservedKey(key)) continue
+    const value = localStorage.getItem(key)
+    if (value === null) continue
+    stampKey(key, now)
+    pending.push({
+      key,
+      value,
+      updatedAt: new Date(now).toISOString(),
+    })
+    backfilled++
+  }
+  if (backfilled > 0) {
+    console.debug(`[sync] backfilled stamps on ${backfilled} pre-existing key(s)`)
+  }
+
   if (pending.length === 0) return { written: 0, skipped: 0 }
 
   let written = 0
