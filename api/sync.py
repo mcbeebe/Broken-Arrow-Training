@@ -32,7 +32,7 @@ import psycopg
 from psycopg.types.json import Jsonb
 
 from .auth._helpers import decode_session_token
-from .coach._core import read_json_body, send_cors_preflight, send_json
+from .coach._core import read_json_body, send_json
 from ._sync.allowlist import is_preserved
 
 
@@ -133,8 +133,18 @@ def _serve_version(handler: BaseHTTPRequestHandler) -> None:
 
 class handler(BaseHTTPRequestHandler):
     # ── CORS preflight ──────────────────────────────────────────
+    # Inline (not via the shared `send_cors_preflight` helper) because
+    # this endpoint accepts PUT + Authorization, neither of which the
+    # shared helper advertises. Safari rejects the preflight when the
+    # function-emitted headers don't include the methods/headers the
+    # browser is about to use, even if vercel.json layers them on top.
     def do_OPTIONS(self):
-        send_cors_preflight(self)
+        self.send_response(204)
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "GET, PUT, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Authorization, Content-Type")
+        self.send_header("Access-Control-Max-Age", "86400")
+        self.end_headers()
 
     # ── GET: dispatch to /api/version (rewritten) or sync read ──
     def do_GET(self):
