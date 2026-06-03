@@ -19,6 +19,11 @@ import {
 
 const API_URL = (import.meta.env.VITE_GARMIN_API_URL || '').replace(/\/$/, '')
 const LAST_SYNC_KEY = '__attune_meta:__lastSync'
+// Keep each PUT body comfortably under the server's 4 MB cap (which is
+// itself comfortably under Vercel's 4.5 MB request-body hard limit).
+// Two days of coach memory + plan edits routinely top a megabyte; this
+// gives plenty of headroom while keeping individual requests fast.
+const MAX_CHUNK_BYTES = 800_000
 
 export interface RemoteItem {
   key: string
@@ -183,38 +188,69 @@ export async function pullFromServer(session: AuthSession): Promise<{ pulled: nu
   return { pulled }
 }
 
+/** Ship a single batch of items. Wraps the auth + backoff layer so
+ *  `pushAll` can call this once per chunk. */
+async function pushChunk(session: AuthSession, items: RemoteItem[]): Promise<PushResult> {
+  return withBackoff(async () => {
+    const res = await authedFetch(session, 'PUT', { items })
+    if (!res.ok) throw new Error(`sync PUT failed: ${res.status}`)
+    return (await res.json()) as PushResult
+  })
+}
+
 /** Gather every stamped key whose stamp has advanced past its last
- *  uploaded marker, build a PUT body, and ship it. Updates the
- *  lastUploaded markers on success so a no-op push next tick costs
- *  nothing. */
+ *  uploaded marker, build a PUT body, and ship it. Splits into chunks
+ *  so a giant `ba_coach_memory_v1:*` value doesn't blow past the
+ *  server body cap. Updates the lastUploaded markers per-chunk so a
+ *  partial failure mid-batch still records progress for the chunks
+ *  that did make it through. */
 export async function pushAll(session: AuthSession): Promise<PushResult> {
-  const items: RemoteItem[] = []
+  const pending: RemoteItem[] = []
   for (const key of listStampedKeys()) {
     const stamp = readStamp(key)
     const lastUp = readLastUploadedStamp(key)
     if (stamp <= lastUp) continue
     const value = localStorage.getItem(key)
     if (value === null) continue
-    items.push({
+    pending.push({
       key,
       value,
       updatedAt: new Date(stamp).toISOString(),
     })
   }
-  if (items.length === 0) return { written: 0, skipped: 0 }
+  if (pending.length === 0) return { written: 0, skipped: 0 }
 
-  const result = await withBackoff(async () => {
-    const res = await authedFetch(session, 'PUT', { items })
-    if (!res.ok) throw new Error(`sync PUT failed: ${res.status}`)
-    return (await res.json()) as PushResult
-  })
+  let written = 0
+  let skipped = 0
+  let batch: RemoteItem[] = []
+  let batchBytes = 0
 
-  // Mark every shipped key as uploaded — both successful writes and
-  // server-rejected stale rows are now reconciled with the server's
-  // view, so the next push has no reason to re-send them.
-  for (const item of items) {
-    writeLastUploadedStamp(item.key, Date.parse(item.updatedAt))
+  const flush = async () => {
+    if (batch.length === 0) return
+    const r = await pushChunk(session, batch)
+    written += r.written
+    skipped += r.skipped
+    // Mark uploaded per-chunk so a later chunk failing doesn't force a
+    // re-push of the chunks that already landed.
+    for (const item of batch) {
+      writeLastUploadedStamp(item.key, Date.parse(item.updatedAt))
+    }
+    batch = []
+    batchBytes = 0
   }
+
+  for (const item of pending) {
+    // Per-item size approximated by its JSON length; close enough
+    // because `value` (the raw localStorage string) dominates.
+    const itemBytes = JSON.stringify(item).length
+    if (batchBytes > 0 && batchBytes + itemBytes > MAX_CHUNK_BYTES) {
+      await flush()
+    }
+    batch.push(item)
+    batchBytes += itemBytes
+  }
+  await flush()
+
   setLastSyncedAt(Date.now())
-  return result
+  return { written, skipped }
 }

@@ -36,7 +36,11 @@ from .coach._core import read_json_body, send_json
 from ._sync.allowlist import is_preserved
 
 
-MAX_BODY_BYTES = 1_000_000  # 1 MB hard cap on PUT payloads
+MAX_BODY_BYTES = 4_000_000  # 4 MB hard cap on PUT payloads (Vercel's
+                            # request-body limit is 4.5 MB; the client
+                            # chunks at 800 KB so most PUTs are smaller,
+                            # but coach memory + a fresh device's first
+                            # push can spike higher).
 
 # Reuse a single connection per warmed Vercel function instance. Python
 # serverless on Vercel serves one request per process at a time, so a
