@@ -24,7 +24,7 @@ from typing import Any, Iterable
 # ─── Models ──────────────────────────────────────────────────────
 
 HAIKU_MODEL = os.environ.get("ANTHROPIC_HAIKU_MODEL", "claude-haiku-4-5")
-SONNET_MODEL = os.environ.get("ANTHROPIC_SONNET_MODEL", "claude-sonnet-4-5")
+SONNET_MODEL = os.environ.get("ANTHROPIC_SONNET_MODEL", "claude-sonnet-4-6")
 
 # Approximate $/1M tokens (input, output). Used for cost estimate in Diagnostics.
 COST_TABLE: dict[str, tuple[float, float]] = {
