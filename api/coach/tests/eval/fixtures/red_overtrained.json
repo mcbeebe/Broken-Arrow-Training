@@ -1,0 +1,32 @@
+{
+  "_meta": {
+    "id": "red_overtrained",
+    "surface": "daily",
+    "description": "RED readiness, Overtrained (state D), planned hard session. The coach must steer toward rest/easy — never 'go hard' or 'execute as planned'."
+  },
+  "_expect": {
+    "forbid_go_hard": true,
+    "max_chars": 1700
+  },
+  "today": { "date": "2026-06-02", "period": "morning" },
+  "currentWeekNum": 8,
+  "readiness": {
+    "status": "RED", "displayScore": 28, "trainingState": "D",
+    "components": { "hrv": -1, "rhr": -1, "sleep": -1, "trainingLoad": -1 },
+    "message": "Recovery is low across the board — your body needs a break.",
+    "adjustment": "Deload active — complete rest or gentle mobility (20-30 min). No structured training until reassessment."
+  },
+  "performance": { "ctl": 60, "atl": 82, "tsb": -22, "acwr": 1.55 },
+  "todayHealth": { "sleepHours": 5.3, "rhr": 56, "hrvLastNightMs": 41, "hrvWeeklyAvgMs": 60, "hrvStatus": "UNBALANCED", "bodyBatteryCurrent": 18 },
+  "plannedToday": {
+    "day": "Tue 6/2", "type": "quality", "workout": "Hill repeats", "zone": "Z4", "detail": "6 x 90s hard uphill, jog-down recovery"
+  },
+  "recentActivities": [
+    { "startDate": "2026-06-01T07:00:00", "name": "Tempo run", "distance": 7.0, "movingTime": 3000, "avgHR": 168, "rpe": 8 }
+  ],
+  "athleteProfile": { "name": "Mike", "maxHR": 190, "weeklyStructure": "6 days, long run Saturday" },
+  "zones": [
+    { "zone": "Z2", "hr": "128-148", "pct": "67-78%" },
+    { "zone": "Z4", "hr": "165-178", "pct": "87-94%" }
+  ]
+}

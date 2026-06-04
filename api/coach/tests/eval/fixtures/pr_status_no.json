@@ -1,0 +1,33 @@
+{
+  "_meta": {
+    "id": "pr_status_no",
+    "surface": "daily",
+    "description": "Race-effort today is SLOWER than a prior race-effort baseline at the same distance → PR_STATUS: NO. The coach must not claim a PR or 'faster'."
+  },
+  "_expect": {
+    "pr_status_expected": "NO",
+    "forbid_pr_language": true,
+    "max_chars": 1700
+  },
+  "today": { "date": "2026-06-01", "period": "morning" },
+  "currentWeekNum": 7,
+  "readiness": {
+    "status": "GREEN", "displayScore": 64, "trainingState": "A",
+    "components": { "hrv": 1, "rhr": 1, "sleep": 1, "trainingLoad": 0 },
+    "message": "Solid recovery across the board."
+  },
+  "performance": { "ctl": 55, "atl": 58, "tsb": -3, "acwr": 1.1 },
+  "todayHealth": { "sleepHours": 7.6, "rhr": 48, "hrvLastNightMs": 70, "hrvWeeklyAvgMs": 69, "hrvStatus": "BALANCED" },
+  "plannedToday": {
+    "day": "Mon 6/1", "type": "race", "workout": "Local 5K", "zone": "Z4-5", "detail": "5K time trial",
+    "actual": { "name": "Saturday 5K Race", "distance": 3.1, "movingTime": 1500, "avgHR": 178, "rpe": 9, "startDate": "2026-06-01T08:00:00" }
+  },
+  "recentActivities": [
+    { "startDate": "2026-05-10T08:00:00", "name": "5K Race", "distance": 3.1, "movingTime": 1380, "avgHR": 176, "rpe": 9 }
+  ],
+  "athleteProfile": { "name": "Mike", "maxHR": 190, "weeklyStructure": "6 days, long run Saturday" },
+  "zones": [
+    { "zone": "Z2", "hr": "128-148", "pct": "67-78%" },
+    { "zone": "Z4", "hr": "165-178", "pct": "87-94%" }
+  ]
+}

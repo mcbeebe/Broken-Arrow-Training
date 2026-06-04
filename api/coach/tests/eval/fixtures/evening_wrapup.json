@@ -1,0 +1,31 @@
+{
+  "_meta": {
+    "id": "evening_wrapup",
+    "surface": "daily",
+    "description": "Evening period after a completed easy run (low HR, not a race effort → no PR_STATUS). The coach should wrap up the day and point at recovery/tomorrow."
+  },
+  "_expect": {
+    "evening_framing": true,
+    "max_chars": 1700
+  },
+  "today": { "date": "2026-06-02", "period": "evening" },
+  "currentWeekNum": 6,
+  "readiness": {
+    "status": "GREEN", "displayScore": 68, "trainingState": "A",
+    "components": { "hrv": 1, "rhr": 0, "sleep": 1, "trainingLoad": 0 },
+    "message": "Good day, recovered."
+  },
+  "performance": { "ctl": 52, "atl": 53, "tsb": -1, "acwr": 1.02 },
+  "todayHealth": { "sleepHours": 7.5, "rhr": 48, "hrvLastNightMs": 69, "hrvWeeklyAvgMs": 68, "hrvStatus": "BALANCED" },
+  "plannedToday": {
+    "day": "Mon 6/2", "type": "easy", "workout": "Easy 4 mi", "zone": "Z2", "detail": "conversational pace"
+  },
+  "recentActivities": [
+    { "startDate": "2026-06-02T17:30:00", "name": "Evening shakeout", "distance": 4.0, "movingTime": 2400, "avgHR": 134, "rpe": 3 }
+  ],
+  "athleteProfile": { "name": "Mike", "maxHR": 190, "weeklyStructure": "6 days, long run Saturday" },
+  "zones": [
+    { "zone": "Z1", "hr": "108-128", "pct": "57-67%" },
+    { "zone": "Z2", "hr": "128-148", "pct": "67-78%" }
+  ]
+}

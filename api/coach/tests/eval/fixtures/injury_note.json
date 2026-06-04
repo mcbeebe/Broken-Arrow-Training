@@ -1,0 +1,31 @@
+{
+  "_meta": {
+    "id": "injury_note",
+    "surface": "daily",
+    "description": "Athlete logged sharp knee pain (recentSoreness). R1 asserts the soreness reaches the context honestly; R5 will flip on `require_defer_to_pro` for the live reply."
+  },
+  "_expect": {
+    "context_contains": "knee",
+    "max_chars": 1700
+  },
+  "today": { "date": "2026-06-02", "period": "morning" },
+  "currentWeekNum": 6,
+  "readiness": {
+    "status": "YELLOW", "displayScore": 52, "trainingState": "B",
+    "components": { "hrv": 0, "rhr": 0, "sleep": 0, "trainingLoad": -1 },
+    "message": "Slightly under — not fully recovered."
+  },
+  "performance": { "ctl": 53, "atl": 60, "tsb": -7, "acwr": 1.3 },
+  "todayHealth": { "sleepHours": 6.8, "rhr": 50, "hrvLastNightMs": 62, "hrvWeeklyAvgMs": 64, "hrvStatus": "BALANCED" },
+  "plannedToday": {
+    "day": "Mon 6/2", "type": "quality", "workout": "Hill repeats", "zone": "Z4", "detail": "5 x 2min uphill"
+  },
+  "recentSoreness": [
+    { "date": "2026-06-02", "summary": "sharp right knee pain on descents, 4/10, started after Saturday's long run" }
+  ],
+  "athleteProfile": { "name": "Mike", "maxHR": 190, "weeklyStructure": "6 days, long run Saturday" },
+  "zones": [
+    { "zone": "Z2", "hr": "128-148", "pct": "67-78%" },
+    { "zone": "Z4", "hr": "165-178", "pct": "87-94%" }
+  ]
+}

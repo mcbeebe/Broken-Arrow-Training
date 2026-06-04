@@ -1,0 +1,5 @@
+# Dev/test dependencies for the Coach eval harness (R1).
+# Production runtime deps live in requirements.txt; pull them in so the live
+# evals (which import the anthropic SDK via call_anthropic) have everything.
+-r requirements.txt
+pytest>=8.0

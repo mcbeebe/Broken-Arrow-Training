@@ -1,0 +1,14 @@
+{
+  "_meta": {
+    "id": "missing_data_empty",
+    "surface": "daily",
+    "description": "No readiness, no health, no activities. The coach must acknowledge the missing data instead of fabricating numbers (anti-hallucination floor)."
+  },
+  "_expect": {
+    "acknowledge_missing": true,
+    "max_chars": 1700
+  },
+  "today": { "date": "2026-06-02", "period": "morning" },
+  "currentWeekNum": 7,
+  "athleteProfile": { "name": "Mike", "maxHR": 190, "weeklyStructure": "6 days, long run Saturday" }
+}
