@@ -7,6 +7,9 @@
     { "source": "/api/auth/athletes", "destination": "/api/auth/google" },
     { "source": "/api/version", "destination": "/api/sync?__endpoint=version" }
   ],
+  "crons": [
+    { "path": "/api/coach/scheduled_push", "schedule": "0 * * * *" }
+  ],
   "functions": {
     "api/garmin/*.py": {
       "maxDuration": 30

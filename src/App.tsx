@@ -31,6 +31,7 @@ import { useDOMSCalibration } from './hooks/useDOMSCalibration'
 import { useCoachMemory } from './hooks/useCoachMemory'
 import { useDailyAutoArchive } from './hooks/useDailyAutoArchive'
 import { useCoachInsight } from './hooks/useCoachInsight'
+import { useDailyBriefingLog, priorBriefings } from './hooks/useDailyBriefingLog'
 import { useInsightReadState } from './hooks/useInsightReadState'
 import { useCoachTelemetry } from './hooks/useCoachTelemetry'
 import { matchActivitiesToPlan, mergeGarminDetailIntoWeeks } from './utils/matching'
@@ -834,6 +835,13 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     enabled: coachEnabled && !!coachSnapshot,
   })
 
+  // Record each period's briefing so an earlier read (e.g. the morning
+  // briefing) isn't silently overwritten when dayPeriod() flips. The live
+  // card shows the current period; these earlier reads surface as read-only
+  // cards at the top of the Coach thread.
+  const briefingLog = useDailyBriefingLog(athleteId, dailyInsight.insight)
+  const earlierBriefings = priorBriefings(briefingLog, dailyInsight.insight)
+
   // Proactive pings are intentionally disabled — the daily insight (the
   // blue "COACH PHIL ENGLISH" card on the Coach tab) is now THE coach's
   // proactive voice, refreshing 3x daily (6 AM / 1 PM / 8 PM) via the
@@ -1185,6 +1193,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           snapshot={coachSnapshot}
           dailyInsight={dailyInsight.insight}
           dailyInsightLoading={dailyInsight.loading}
+          priorBriefings={earlierBriefings}
           chatSeed={chatSeed}
           onChatSeedConsumed={() => setChatSeed(null)}
           onMarkRead={() => coachMemory.markRead()}

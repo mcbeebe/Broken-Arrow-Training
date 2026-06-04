@@ -6,9 +6,11 @@ import { localDateStr } from '../utils/format'
 import { renderMarkdown } from '../utils/markdown'
 import { extractProposal } from '../utils/chatProposal'
 import type { OnboardingConfig } from '../hooks/useOnboarding'
+import type { BriefingLogEntry } from '../hooks/useDailyBriefingLog'
 import CoachChat from './CoachChat'
 import CoachInsightCard from './CoachInsightCard'
 import CoachWelcomeCard from './CoachWelcomeCard'
+import PastBriefingCard from './PastBriefingCard'
 
 interface Props {
   athleteId: string
@@ -16,6 +18,10 @@ interface Props {
   snapshot: CoachSnapshot | null
   dailyInsight: CoachInsight | null
   dailyInsightLoading: boolean
+  /** Earlier briefings from today (morning/afternoon reads that the live
+   *  insight card has since rolled past). Rendered as read-only cards at
+   *  the top of the thread so they aren't silently dropped. */
+  priorBriefings?: BriefingLogEntry[]
   chatSeed: string | null
   onChatSeedConsumed: () => void
   onMarkRead: () => void
@@ -66,6 +72,7 @@ export default function CoachTab({
   snapshot,
   dailyInsight,
   dailyInsightLoading,
+  priorBriefings,
   chatSeed,
   onChatSeedConsumed,
   onMarkRead,
@@ -266,6 +273,13 @@ export default function CoachTab({
                     config={onboardingConfig}
                     onCustomize={onGoSettings}
                   />
+                )}
+                {priorBriefings && priorBriefings.length > 0 && (
+                  <div className="space-y-2">
+                    {priorBriefings.map(b => (
+                      <PastBriefingCard key={`${b.period}:${b.generatedAt}`} entry={b} />
+                    ))}
+                  </div>
                 )}
                 {messagesBody}
               </div>

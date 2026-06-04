@@ -7,8 +7,9 @@ POST /api/coach/push   body { action, athleteId, ... }
 GET  /api/coach/push?athleteId=mike → { subscribed, count, timezone, vapidConfigured }
 
 Subscriptions are stored per-athlete (a list of device records) with the
-device timezone + desired periods, so the Phase-3 scheduler can fan out
-6 AM / 1 PM / 8 PM pushes in each athlete's local time. Follows the
+device timezone + desired periods, which the cron in scheduled_push.py
+reads to fan out 6 AM / 1 PM / 8 PM nudges in each athlete's local time.
+Follows the
 existing coach-API convention of trusting athleteId in the body (no JWT)
 — consistent with memory.py / insight.py.
 """
