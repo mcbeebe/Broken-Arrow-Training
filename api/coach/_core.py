@@ -123,7 +123,7 @@ def memory_key(athlete_id: str) -> str:
 # changes in a way that old cached insights would be wrong about. The
 # version is baked into the cache key so every prompt change orphans
 # stale KV entries instead of serving them until their 48h TTL expires.
-INSIGHT_PROMPT_VERSION = "v6-why-and-triggered-by"
+INSIGHT_PROMPT_VERSION = "v7-persona-format-directive"
 
 
 def insight_key(athlete_id: str, surface: str, context_hash: str) -> str:

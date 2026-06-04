@@ -64,7 +64,9 @@ SURFACE_INSTRUCTIONS = {
         "you're Motivational → fire them up with the data, don't suppress "
         "it. If Data Nerd → cite the numbers with precision. Do NOT default "
         "to a flat, neutral tone — that contradicts the persona the "
-        "athlete configured. Markdown bold/emojis fine. Short paragraphs."
+        "athlete configured. Markdown bold/emojis fine. Default to short "
+        "paragraphs UNLESS a FORMAT line below tells you the athlete picked "
+        "a Bullets persona — in that case use a scannable bullet list."
     ),
     "day_card": (
         "Write a one-sentence, high-specificity note for this day's card on "
@@ -108,7 +110,9 @@ SURFACE_INSTRUCTIONS = {
         "them up; Data Nerd → cite the numbers; demanding → be blunt). Do "
         "NOT default to a flat, neutral coaching tone — that contradicts the "
         "persona the athlete configured. Markdown bold/emojis fine for "
-        "playful personas. No greeting line, no 'Triggered by:' chip."
+        "playful personas. No greeting line, no 'Triggered by:' chip. If a "
+        "FORMAT line below says the athlete picked a Bullets persona, deliver "
+        "the debrief as a scannable bullet list instead of paragraphs."
     ),
     "why": (
         "Explain WHY this prescription makes sense for this athlete right "
@@ -139,6 +143,43 @@ SURFACE_INSTRUCTIONS = {
 def _surface_key(surface: str) -> str:
     # surface can be "daily" or "day_card:<label>" or "workout_take:<label>"
     return surface.split(":", 1)[0]
+
+
+def _format_directive(persona: dict | None) -> str:
+    """Derive an explicit FORMAT instruction from the athlete's persona.
+
+    The narrative-leaning surfaces (daily read, workout debrief) describe
+    their shape as sentences/paragraphs in their task block, which is the
+    freshest thing the model reads and can override the Bullets/Concise
+    formatting baked into the system prompt's Persona block. So when the
+    athlete picked Bullets/Concise/Narrative, restate it here as the last
+    word on format. Returns "" when the persona has no format preference.
+    """
+    if not persona:
+        return ""
+    traits = {str(t).lower() for t in (persona.get("traits") or [])}
+    parts: list[str] = []
+    # bullets vs narrative are mutually exclusive in the UI; bullets wins
+    # if both somehow appear.
+    if "bullets" in traits:
+        parts.append(
+            "the athlete picked a BULLETS persona — deliver this as a short, "
+            "scannable bullet list (a one-line lead is fine, then bullets), "
+            "NOT flowing paragraphs. This overrides any 'short paragraphs' "
+            "default in the task above."
+        )
+    elif "narrative" in traits:
+        parts.append(
+            "the athlete picked a NARRATIVE persona — short connected "
+            "paragraphs, no bullet lists."
+        )
+    if "concise" in traits:
+        parts.append(
+            "keep it tight — lead with the takeaway and cut the preamble."
+        )
+    if not parts:
+        return ""
+    return "FORMAT — " + " ".join(parts)
 
 
 def _parse_take(text: str) -> dict:
@@ -258,12 +299,25 @@ class handler(BaseHTTPRequestHandler):
                 "lectured.\n"
             )
 
+        # Restate the athlete's format preference (Bullets/Concise/Narrative)
+        # as the last word on shape for the narrative-leaning surfaces — their
+        # task block describes sentences/paragraphs and would otherwise drown
+        # out the Persona block's formatting in the system prompt.
+        format_block = ""
+        if surface_root in ("daily", "workout_debrief"):
+            directive = _format_directive(
+                snapshot.get("coachPersona") or memory.get("coachPersona")
+            )
+            if directive:
+                format_block = "\n\n" + directive
+
         user_msg = (
             f"Context snapshot:\n{context_block}\n\n"
             + (f"Target day: {day_label}\n\n" if day_label else "")
             + learnings_block
             + "Task:\n"
             + instructions
+            + format_block
         )
 
         # Route to Sonnet when the athlete has a playful/rich persona —
