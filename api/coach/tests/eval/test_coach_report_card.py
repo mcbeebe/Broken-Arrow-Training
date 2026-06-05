@@ -61,6 +61,8 @@ def test_report_card(path: str) -> None:
         assertions.assert_context_contains(ctx, expect["context_contains"])
     if expect.get("readiness_max_intensity"):  # R2
         assertions.assert_context_has_readiness_directive(ctx, expect["readiness_max_intensity"])
+    if expect.get("safe_disposition"):  # R5
+        assertions.assert_context_has_safe_disposition(ctx, expect["safe_disposition"])
 
     # Scenario-specific behavioral assertions.
     if expect.get("forbid_pr_language"):

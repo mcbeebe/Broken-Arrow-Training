@@ -575,6 +575,7 @@ class handler(BaseHTTPRequestHandler):
             snapshot,
             depth=depth,
             include_full_plan=include_full_plan,
+            user_msg=last_user_msg,  # R5 — injury floor reads the athlete's message
         )
         plan_note = "full-plan" if include_full_plan else "14-day"
         ctx_text = (
@@ -647,7 +648,7 @@ class handler(BaseHTTPRequestHandler):
 
         # If model said it needs more history and we weren't already 30d, retry
         if full_text.strip().startswith("[NEED_MORE_HISTORY]") and depth != "30d":
-            ctx = build_context_block(snapshot, depth="30d")
+            ctx = build_context_block(snapshot, depth="30d", user_msg=last_user_msg)
             system_full = [
                 {"type": "text", "text": system, "cache_control": {"type": "ephemeral"}},
                 {"type": "text", "text": f"\n\n---\n\nCurrent context snapshot (30d):\n{ctx}"},
