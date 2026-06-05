@@ -12,6 +12,7 @@ import { useDaySwap } from './hooks/useDaySwap'
 import { useReadiness } from './hooks/useReadiness'
 import { useOnboarding } from './hooks/useOnboarding'
 import { useAthleteProfile } from './hooks/useAthleteProfile'
+import { getReadinessTuning } from './utils/engineConfig'
 import { useTutorial } from './hooks/useTutorial'
 import Onboarding from './components/Onboarding'
 import OnboardingValueProps from './components/OnboardingValueProps'
@@ -647,6 +648,9 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
   }, [weeks])
 
   // Readiness engine (combines Garmin health data + Strava/Garmin activities)
+  // R8 — age/experience tuning for the readiness engine (defaults when the
+  // profile has no birthDate/experienceLevel, so behavior is unchanged then).
+  const readinessTuning = useMemo(() => getReadinessTuning(effectiveAthlete), [effectiveAthlete])
   const readiness = useReadiness({
     healthData: garmin.healthData,
     stravaActivities: strava.activities,
@@ -665,6 +669,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     runGAPByActivity,
     eccentricByActivity,
     upcomingPlannedDays,
+    readinessTuning,
   })
 
   // Today's health data for banner
