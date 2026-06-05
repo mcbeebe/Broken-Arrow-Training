@@ -158,3 +158,12 @@ def assert_context_has_readiness_directive(ctx: str, max_intensity: str) -> None
     assert f"MAX_INTENSITY={max_intensity}" in ctx, (
         f"expected MAX_INTENSITY={max_intensity} in context block; got:\n{ctx}"
     )
+
+
+def assert_context_has_safe_disposition(ctx: str, kind: str) -> None:
+    """R5 fixture-honesty: the code-level safety floor renders. `kind` is
+    'OVERTRAINING' (state D, any surface) or 'INJURY' (pain language, chat)."""
+    assert "SAFE_DISPOSITION:" in ctx, f"no SAFE_DISPOSITION in context block; got:\n{ctx}"
+    assert kind.upper() in ctx, (
+        f"expected SAFE_DISPOSITION kind {kind!r} in context block; got:\n{ctx}"
+    )
