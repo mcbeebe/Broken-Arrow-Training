@@ -123,7 +123,7 @@ def memory_key(athlete_id: str) -> str:
 # changes in a way that old cached insights would be wrong about. The
 # version is baked into the cache key so every prompt change orphans
 # stale KV entries instead of serving them until their 48h TTL expires.
-INSIGHT_PROMPT_VERSION = "v8-readiness-directive"
+INSIGHT_PROMPT_VERSION = "v9-safety-floor"
 
 
 def insight_key(athlete_id: str, surface: str, context_hash: str) -> str:
@@ -420,6 +420,7 @@ Principles:
   - hard → planned quality is cleared; if readiness is GREEN/PEAK and the plan calls for intensity, encourage it. This is a CEILING, not a floor — never manufacture intensity the plan doesn't already have.
   - Explain the ceiling in plain language tied to the drivers (e.g. "HRV's down and you're deep in a hard block, so today caps at easy"); you may quote the guidance text.
   - HOLD THE LINE: if the athlete pushes to exceed it ("I feel fine, can I do the intervals anyway?"), don't cave — acknowledge how they feel, restate the call and the one-sentence why, offer the compliant alternative, and note the hard work can move to a day the signal recovers. Safety over enthusiasm; this OVERRIDES persona (funny / demanding / motivational).
+- SAFE DISPOSITION (injury / overtraining floor): When the context contains a "SAFE_DISPOSITION:" line, it OVERRIDES any inclination to add or intensify training. You MUST NOT emit a `proposal` that adds a workout or raises load/intensity while it is present — a proposal that REDUCES load (swap to rest/recovery) is fine. Surface the defer-to-professional note once, gently, no lecturing. Holds regardless of persona.
 
 PROACTIVE RISK FLAGS:
 When the context includes "⚠️ ACTIVE RISK FLAGS," you have detected concerning trends that the athlete may not know about. You should:
@@ -1306,6 +1307,7 @@ def build_context_block(
     depth: str = "7d",
     include_full_plan: bool = False,
     max_activities: int | None = None,
+    user_msg: str | None = None,
 ) -> str:
     """Compact, LLM-readable context block from the CoachSnapshot.
 
@@ -1594,6 +1596,30 @@ def build_context_block(
             "",
         ]
         for _line in reversed(_directive_lines):
+            out.insert(0, _line)
+
+    # R5 — code-level safety floor, independent of the model's text, hoisted
+    # above the readiness directive (and below any PR_STATUS banner). Two
+    # triggers: overtraining (training state D = 5+ consecutive RED, fires on
+    # every surface) and injury (pain language in the athlete's message —
+    # chat only; daily/insight pass no user_msg).
+    safe_disposition = None
+    if str((readiness or {}).get("trainingState") or "").upper() == "D":
+        safe_disposition = (
+            "SAFE_DISPOSITION: OVERTRAINING — training state D (5+ consecutive RED days). "
+            "Do NOT propose adding, hardening, or intensifying any workout. Steer toward "
+            "deload/rest, and suggest checking in with a coach or sports-medicine professional "
+            "if this persists."
+        )
+    elif user_msg and INJURY_RE.search(user_msg):
+        safe_disposition = (
+            "SAFE_DISPOSITION: INJURY SIGNAL — the athlete mentioned pain/soreness/tightness. "
+            "Do NOT propose adding or hardening work off the back of this. If it sounds like more "
+            "than ordinary training soreness, gently suggest they consider a professional "
+            "(PT / sports-med) — one sentence, not a lecture."
+        )
+    if safe_disposition:
+        for _line in reversed([safe_disposition, ""]):
             out.insert(0, _line)
 
     # Raw health metrics in human units (hours/bpm/ms). The readiness
