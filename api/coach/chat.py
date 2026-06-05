@@ -542,6 +542,13 @@ class handler(BaseHTTPRequestHandler):
 
         persona_for_model = snapshot.get("coachPersona") or memory.get("coachPersona")
         model = pick_model(messages, coach_persona=persona_for_model)
+        # Last athlete message — computed BEFORE the system prompt so R6's
+        # keyword-gated knowledge modules can be injected; reused for depth.
+        last_user_msg = ""
+        for m in reversed(incoming):
+            if m.get("role") == "user":
+                last_user_msg = str(m.get("content", ""))
+                break
         system = build_system_prompt(
             about_me=memory.get("aboutMe", ""),
             pending_inferences=memory.get("pendingInferences", []),
@@ -553,14 +560,10 @@ class handler(BaseHTTPRequestHandler):
             # session still applies if the client hasn't synced yet.
             coach_persona=snapshot.get("coachPersona") or memory.get("coachPersona"),
             zones=snapshot.get("zones"),
+            user_msg=last_user_msg,  # R6 — keyword-gated knowledge modules
         )
 
         # Decide depth
-        last_user_msg = ""
-        for m in reversed(incoming):
-            if m.get("role") == "user":
-                last_user_msg = str(m.get("content", ""))
-                break
         # Depth tiers: 120d for multi-month/whole-block questions,
         # 30d (→60 activities) for history/trend/pattern keywords,
         # 7d (→30 activities) as the new default baseline.
