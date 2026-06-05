@@ -57,6 +57,29 @@ def test_fixture_builds_expected_context(path: str) -> None:
         assertions.assert_context_has_readiness_directive(ctx, expect["readiness_max_intensity"])
     if expect.get("safe_disposition"):  # R5
         assertions.assert_context_has_safe_disposition(ctx, expect["safe_disposition"])
+    for needle in expect.get("athlete_directive_contains", []):  # R7
+        assert "ATHLETE_PROFILE_DIRECTIVE:" in system, f"no ATHLETE_PROFILE_DIRECTIVE in system prompt"
+        assert needle in system, f"expected {needle!r} in system prompt; got the directive line missing it"
+
+
+def test_athlete_profile_directive_helper() -> None:
+    """R7: the pure directive builder renders age/experience/injury/goal, and
+    returns None when there's nothing structured (older profiles unaffected)."""
+    from api.coach._core import _athlete_profile_directive
+
+    assert _athlete_profile_directive(None) is None
+    assert _athlete_profile_directive({"name": "x", "maxHR": 190}) is None
+    d = _athlete_profile_directive({
+        "birthDate": "1972-03-01",
+        "experienceLevel": "intermediate",
+        "injuryHistory": [{"region": "right knee", "status": "chronic"}],
+        "goals": [{"text": "sub-2h half", "priority": "primary"}],
+    })
+    assert d is not None
+    assert "masters" in d
+    assert "experience intermediate" in d
+    assert "right knee (chronic)" in d
+    assert "sub-2h half" in d
 
 
 def test_injury_floor_is_chat_only() -> None:

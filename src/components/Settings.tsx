@@ -17,6 +17,8 @@ import { SPORT_LABELS } from '../hooks/useMIMCalibration'
 import CoachPersonaEditor from './CoachPersonaEditor'
 import { isVoiceInputEnabled, setVoiceInputEnabled, voiceCaptureSupported } from '../utils/voiceInput'
 import CoachMemoryPanel from './CoachMemoryPanel'
+import AthleteProfileEditor from './AthleteProfileEditor'
+import type { AthleteProfileExtras } from '../hooks/useAthleteProfile'
 import NotificationSettings from './NotificationSettings'
 import AthleteHomeLocation from './AthleteHomeLocation'
 import WorkoutTimePreference from './WorkoutTimePreference'
@@ -66,6 +68,8 @@ interface SettingsProps {
   // When-do-you-train preference — drives the per-hour weather chip.
   workoutTimeSlot?: WorkoutTimeSlot
   onSaveWorkoutTimeSlot?: (slot: WorkoutTimeSlot) => void
+  athleteProfileExtras?: AthleteProfileExtras
+  onSaveAthleteProfile?: (next: AthleteProfileExtras) => void
   // Strava
   connected: boolean
   configured: boolean
@@ -181,6 +185,8 @@ export default function Settings({
   onUseBrowserHomeLocation,
   workoutTimeSlot,
   onSaveWorkoutTimeSlot,
+  athleteProfileExtras,
+  onSaveAthleteProfile,
   onAddCoachFact,
   onEditCoachFact,
   onDeleteCoachFact,
@@ -435,6 +441,12 @@ export default function Settings({
               <WorkoutTimePreference
                 slot={workoutTimeSlot}
                 onSave={onSaveWorkoutTimeSlot}
+              />
+            )}
+            {onSaveAthleteProfile && (
+              <AthleteProfileEditor
+                profile={athleteProfileExtras ?? {}}
+                onSave={onSaveAthleteProfile}
               />
             )}
             <CoachMemoryPanel

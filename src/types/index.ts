@@ -310,6 +310,20 @@ export interface AthleteProfile {
   // to the coach so it can recommend appropriate venues for intervals, hill
   // work, indoor swaps, and strength routines.
   equipmentAccess?: readonly string[];
+  // ── R7: structured individualization (all optional). The backend derives a
+  // binding ATHLETE_PROFILE_DIRECTIVE from these; the readiness engine (R8)
+  // also tunes by age/experience. Absent fields → the coach makes no claim. ──
+  /** ISO 'YYYY-MM-DD'. Age is computed on read so it never goes stale. */
+  birthDate?: string;
+  sex?: 'male' | 'female' | 'other';
+  weightKg?: number;
+  /** Persisted from onboarding so the coach can tune progression/recovery. */
+  experienceLevel?: 'first_timer' | 'beginner' | 'intermediate' | 'advanced' | 'elite';
+  trainingAgeYears?: number;
+  /** Structured injury history — the coach avoids loading active/chronic regions. */
+  injuryHistory?: { region: string; status: 'active' | 'chronic' | 'resolved'; note?: string }[];
+  /** The 'why' behind training (race facts live in RaceInfo). */
+  goals?: { text: string; priority?: 'primary' | 'secondary' }[];
 }
 
 export interface TrainingPlan {
