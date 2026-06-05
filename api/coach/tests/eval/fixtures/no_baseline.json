@@ -1,0 +1,33 @@
+{
+  "_meta": {
+    "id": "no_baseline",
+    "surface": "daily",
+    "description": "Race-effort today with NO prior activity at this distance in the window → PR_STATUS: NO BASELINE. The coach must not cite a previous time or claim a PR."
+  },
+  "_expect": {
+    "pr_status_expected": "NO BASELINE",
+    "forbid_pr_language": true,
+    "max_chars": 1700
+  },
+  "today": { "date": "2026-06-01", "period": "morning" },
+  "currentWeekNum": 4,
+  "readiness": {
+    "status": "GREEN", "displayScore": 66, "trainingState": "A",
+    "components": { "hrv": 1, "rhr": 0, "sleep": 1, "trainingLoad": 0 },
+    "message": "Recovered and ready."
+  },
+  "performance": { "ctl": 48, "atl": 50, "tsb": -2, "acwr": 1.05 },
+  "todayHealth": { "sleepHours": 7.4, "rhr": 49, "hrvLastNightMs": 68, "hrvWeeklyAvgMs": 67, "hrvStatus": "BALANCED" },
+  "plannedToday": {
+    "day": "Mon 6/1", "type": "race", "workout": "First 5K", "zone": "Z4-5", "detail": "5K time trial",
+    "actual": { "name": "First 5K Race", "distance": 3.1, "movingTime": 1460, "avgHR": 177, "rpe": 9, "startDate": "2026-06-01T08:00:00" }
+  },
+  "recentActivities": [
+    { "startDate": "2026-05-28T07:00:00", "name": "Easy long run", "distance": 6.2, "movingTime": 3600, "avgHR": 138, "rpe": 4 }
+  ],
+  "athleteProfile": { "name": "Mike", "maxHR": 190, "weeklyStructure": "5 days" },
+  "zones": [
+    { "zone": "Z2", "hr": "128-148", "pct": "67-78%" },
+    { "zone": "Z4", "hr": "165-178", "pct": "87-94%" }
+  ]
+}

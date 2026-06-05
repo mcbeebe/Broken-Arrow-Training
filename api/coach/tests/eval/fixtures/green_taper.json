@@ -1,0 +1,28 @@
+{
+  "_meta": {
+    "id": "green_taper",
+    "surface": "daily",
+    "description": "GREEN readiness in taper week with a positive Recovery Balance and low-volume plan. Sanity baseline — the coach should proceed calmly, no PR/injury/overtraining edge cases."
+  },
+  "_expect": {
+    "max_chars": 1700
+  },
+  "today": { "date": "2026-06-15", "period": "morning" },
+  "currentWeekNum": 10,
+  "readiness": {
+    "status": "GREEN", "displayScore": 78, "trainingState": "A",
+    "components": { "hrv": 1, "rhr": 1, "sleep": 2, "trainingLoad": 1 },
+    "message": "Fresh and sharpening — taper is doing its job."
+  },
+  "performance": { "ctl": 62, "atl": 44, "tsb": 18, "acwr": 0.85 },
+  "todayHealth": { "sleepHours": 8.4, "rhr": 45, "hrvLastNightMs": 78, "hrvWeeklyAvgMs": 72, "hrvStatus": "BALANCED", "bodyBatteryCurrent": 88 },
+  "plannedToday": {
+    "day": "Mon 6/15", "type": "easy", "workout": "Taper shakeout", "zone": "Z2", "detail": "30 min easy with 4 x 20s strides"
+  },
+  "race": { "name": "Broken Arrow 18K", "date": "2026-06-20", "distance": "18K", "elevation": "3,800 ft", "course": "Palisades Tahoe" },
+  "athleteProfile": { "name": "Mike", "maxHR": 190, "weeklyStructure": "6 days, long run Saturday" },
+  "zones": [
+    { "zone": "Z1", "hr": "108-128", "pct": "57-67%" },
+    { "zone": "Z2", "hr": "128-148", "pct": "67-78%" }
+  ]
+}

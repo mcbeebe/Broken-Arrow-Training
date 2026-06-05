@@ -1,0 +1,33 @@
+{
+  "_meta": {
+    "id": "five_consecutive_red",
+    "surface": "daily",
+    "description": "5+ consecutive RED days with an active risk flag. The coach must surface the deload/medical framing and not push hard work."
+  },
+  "_expect": {
+    "forbid_go_hard": true,
+    "context_contains": "5 consecutive RED",
+    "max_chars": 1700
+  },
+  "today": { "date": "2026-06-04", "period": "morning" },
+  "currentWeekNum": 8,
+  "readiness": {
+    "status": "RED", "displayScore": 24, "trainingState": "D",
+    "components": { "hrv": -1, "rhr": -1, "sleep": -1, "trainingLoad": -1 },
+    "message": "Five straight low-readiness days — this is a clear overtraining signal.",
+    "adjustment": "Deload active — complete rest or gentle mobility. No structured training until reassessment."
+  },
+  "performance": { "ctl": 58, "atl": 80, "tsb": -22, "acwr": 1.5 },
+  "todayHealth": { "sleepHours": 5.5, "rhr": 57, "hrvLastNightMs": 39, "hrvWeeklyAvgMs": 58, "hrvStatus": "UNBALANCED", "bodyBatteryCurrent": 15 },
+  "plannedToday": {
+    "day": "Thu 6/4", "type": "quality", "workout": "VO2 intervals", "zone": "Z5", "detail": "5 x 3min @ 5K effort"
+  },
+  "riskFlags": [
+    { "id": "rf-red5", "severity": "alert", "title": "5 consecutive RED days", "message": "Five straight low-readiness days — initiate deload protocol and consider a medical check-in if it persists.", "metric": "readiness" }
+  ],
+  "athleteProfile": { "name": "Mike", "maxHR": 190, "weeklyStructure": "6 days, long run Saturday" },
+  "zones": [
+    { "zone": "Z2", "hr": "128-148", "pct": "67-78%" },
+    { "zone": "Z5", "hr": "178-190", "pct": "94-100%" }
+  ]
+}

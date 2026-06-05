@@ -1,0 +1,31 @@
+{
+  "_meta": {
+    "id": "add_hard_session",
+    "surface": "daily",
+    "description": "Athlete asks to add a hard session. R1 checks the basic daily-surface contract; R2 tightens this to assert the answer respects the readiness ceiling rather than a blanket yes."
+  },
+  "_expect": {
+    "user_question": "Can I add a hard interval session tomorrow on top of the plan?",
+    "max_chars": 1700
+  },
+  "today": { "date": "2026-06-02", "period": "afternoon" },
+  "currentWeekNum": 6,
+  "readiness": {
+    "status": "YELLOW", "displayScore": 50, "trainingState": "B",
+    "components": { "hrv": 0, "rhr": 0, "sleep": -1, "trainingLoad": -1 },
+    "message": "Not fully recovered — load is climbing."
+  },
+  "performance": { "ctl": 54, "atl": 64, "tsb": -10, "acwr": 1.38 },
+  "todayHealth": { "sleepHours": 6.1, "rhr": 51, "hrvLastNightMs": 60, "hrvWeeklyAvgMs": 65, "hrvStatus": "BALANCED" },
+  "plannedToday": {
+    "day": "Mon 6/2", "type": "easy", "workout": "Easy 5 mi", "zone": "Z2", "detail": "recovery pace"
+  },
+  "plannedTomorrow": {
+    "day": "Tue 6/3", "type": "long", "workout": "Long run", "zone": "Z2", "detail": "100 min aerobic"
+  },
+  "athleteProfile": { "name": "Mike", "maxHR": 190, "weeklyStructure": "6 days, long run Saturday" },
+  "zones": [
+    { "zone": "Z2", "hr": "128-148", "pct": "67-78%" },
+    { "zone": "Z4", "hr": "165-178", "pct": "87-94%" }
+  ]
+}
