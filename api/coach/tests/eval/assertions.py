@@ -147,3 +147,14 @@ def assert_context_has_pr_status(ctx: str, expected: str) -> None:
 
 def assert_context_contains(ctx: str, needle: str) -> None:
     assert needle in ctx, f"expected {needle!r} in context block; got:\n{ctx}"
+
+
+def assert_context_has_readiness_directive(ctx: str, max_intensity: str) -> None:
+    """R2 fixture-honesty: the readiness engine's intensity ceiling renders as
+    a binding READINESS_DIRECTIVE with the expected MAX_INTENSITY (easy/
+    moderate/hard), so the COACH_ROLE 'READINESS CEILING' rule has something
+    real to bind to."""
+    assert "READINESS_DIRECTIVE:" in ctx, f"no READINESS_DIRECTIVE in context block; got:\n{ctx}"
+    assert f"MAX_INTENSITY={max_intensity}" in ctx, (
+        f"expected MAX_INTENSITY={max_intensity} in context block; got:\n{ctx}"
+    )

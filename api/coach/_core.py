@@ -123,7 +123,7 @@ def memory_key(athlete_id: str) -> str:
 # changes in a way that old cached insights would be wrong about. The
 # version is baked into the cache key so every prompt change orphans
 # stale KV entries instead of serving them until their 48h TTL expires.
-INSIGHT_PROMPT_VERSION = "v7-persona-format-directive"
+INSIGHT_PROMPT_VERSION = "v8-readiness-directive"
 
 
 def insight_key(athlete_id: str, surface: str, context_hash: str) -> str:
@@ -414,6 +414,12 @@ Principles:
   - Never output two different delta numbers (e.g., "a minute faster" and "40-second PR" in the same reply). The PR_STATUS line has ONE delta; use ONLY that one.
   - Never infer baselines from activity names, planned workouts, or memory. The PR_STATUS line is ground truth.
 - PACE MATH: Never compute pace yourself. The "Today actual" and "Prior best" lines include a pre-computed "pace X:XX/mi" field — quote it verbatim. Do not divide time by distance in your head; you get it wrong.
+- READINESS CEILING (intensity authority): When the context contains a "READINESS_DIRECTIVE:" line, its MAX_INTENSITY value (easy | moderate | hard) is the SOLE authority on how hard today's session may be. You MUST obey it:
+  - easy → only easy aerobic (Z1-2), mobility, or rest. NO tempo, intervals, threshold, hill repeats, race-pace, or heavy strength. Any `proposal` you emit must be recovery/rest/Z1-2.
+  - moderate → steady aerobic up to ~Z3 at reduced volume. No VO2max, no race-pace intervals, no heavy max-strength.
+  - hard → planned quality is cleared; if readiness is GREEN/PEAK and the plan calls for intensity, encourage it. This is a CEILING, not a floor — never manufacture intensity the plan doesn't already have.
+  - Explain the ceiling in plain language tied to the drivers (e.g. "HRV's down and you're deep in a hard block, so today caps at easy"); you may quote the guidance text.
+  - HOLD THE LINE: if the athlete pushes to exceed it ("I feel fine, can I do the intervals anyway?"), don't cave — acknowledge how they feel, restate the call and the one-sentence why, offer the compliant alternative, and note the hard work can move to a day the signal recovers. Safety over enthusiasm; this OVERRIDES persona (funny / demanding / motivational).
 
 PROACTIVE RISK FLAGS:
 When the context includes "⚠️ ACTIVE RISK FLAGS," you have detected concerning trends that the athlete may not know about. You should:
@@ -1274,6 +1280,27 @@ def _completed_workout_lines(lcw: dict[str, Any]) -> list[str]:
     return out
 
 
+def _max_intensity(status: Any, training_state: Any) -> str:
+    """Categorical intensity ceiling derived straight from the readiness engine.
+
+    The coach must never prescribe above this (see COACH_ROLE "READINESS
+    CEILING"). A CEILING, not a floor — PEAK/GREEN still clear hard work.
+    Mirrors suggestDailyAdjustment in src/utils/readiness.ts. Returns a
+    conservative "moderate" when status is missing/unrecognized.
+    """
+    s = str(status or "").upper()
+    st = str(training_state or "").upper()
+    if s == "RED" or st == "D":
+        return "easy"          # rest / easy walk only
+    if s == "YELLOW":
+        return "easy" if st == "C" else "moderate"
+    if s == "GREEN":
+        return "moderate" if st == "B" else "hard"
+    if s == "PEAK":
+        return "hard"          # the one day a genuinely hard session is encouraged
+    return "moderate"
+
+
 def build_context_block(
     snapshot: dict[str, Any],
     depth: str = "7d",
@@ -1554,6 +1581,20 @@ def build_context_block(
         )
         if readiness.get("adjustment"):
             out.append(f"Adjustment: {readiness['adjustment']}")
+        # R2 — binding intensity ceiling. Hoisted to the top (like the
+        # PR_STATUS banner) so a short-attention model can't bury it. The
+        # readiness data line above stays as data; THIS is the directive the
+        # COACH_ROLE "READINESS CEILING" rule binds to. Inserted before the
+        # PR banner runs, so PR_STATUS still lands above it.
+        _maxint = _max_intensity(readiness.get("status"), readiness.get("trainingState"))
+        _guidance = (readiness.get("adjustment") or readiness.get("message") or "").strip()
+        _directive_lines = [
+            f"READINESS_DIRECTIVE: status={readiness.get('status')} · MAX_INTENSITY={_maxint}"
+            + (f" · guidance: {_guidance}" if _guidance else ""),
+            "",
+        ]
+        for _line in reversed(_directive_lines):
+            out.insert(0, _line)
 
     # Raw health metrics in human units (hours/bpm/ms). The readiness
     # "components" numbers above are bucketed scores, not the real values —
