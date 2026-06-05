@@ -145,7 +145,7 @@ export function useCoachInsight(opts: UseCoachInsightOptions) {
   const [forceCount, setForceCount] = useState(0)
 
   // Tick state that re-evaluates each minute. When dayPeriod() crosses
-  // a boundary (6 AM / 2 PM / 8 PM), this updates from e.g. 'morning'
+  // a boundary (6 AM / 1 PM / 8 PM), this updates from e.g. 'morning'
   // to 'afternoon', the contextHash re-derives, and the effect re-fires
   // — fetching a fresh insight quietly while the user is in the app.
   const [periodKey, setPeriodKey] = useState(dayPeriod())
