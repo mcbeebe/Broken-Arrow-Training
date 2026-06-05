@@ -123,7 +123,7 @@ def memory_key(athlete_id: str) -> str:
 # changes in a way that old cached insights would be wrong about. The
 # version is baked into the cache key so every prompt change orphans
 # stale KV entries instead of serving them until their 48h TTL expires.
-INSIGHT_PROMPT_VERSION = "v9-safety-floor"
+INSIGHT_PROMPT_VERSION = "v10-athlete-profile"
 
 
 def insight_key(athlete_id: str, surface: str, context_hash: str) -> str:
@@ -421,6 +421,7 @@ Principles:
   - Explain the ceiling in plain language tied to the drivers (e.g. "HRV's down and you're deep in a hard block, so today caps at easy"); you may quote the guidance text.
   - HOLD THE LINE: if the athlete pushes to exceed it ("I feel fine, can I do the intervals anyway?"), don't cave — acknowledge how they feel, restate the call and the one-sentence why, offer the compliant alternative, and note the hard work can move to a day the signal recovers. Safety over enthusiasm; this OVERRIDES persona (funny / demanding / motivational).
 - SAFE DISPOSITION (injury / overtraining floor): When the context contains a "SAFE_DISPOSITION:" line, it OVERRIDES any inclination to add or intensify training. You MUST NOT emit a `proposal` that adds a workout or raises load/intensity while it is present — a proposal that REDUCES load (swap to rest/recovery) is fine. Surface the defer-to-professional note once, gently, no lecturing. Holds regardless of persona.
+- ATHLETE PROFILE (personalize within this): When the system prompt contains an "ATHLETE_PROFILE_DIRECTIVE:" line, adapt to it and never contradict it: masters athletes (40+) need more recovery and a conservative intensity/progression bias; beginners / first-timers need cautious progression (~8%/week) and more easy volume; for an active or chronic injury region, avoid loading it and weave caution in unprompted; honor the stated goal. If a field is ABSENT, make no claim about it — never guess the athlete's age or experience. The readiness engine also adapts to age/experience, so your words and the numbers should agree.
 
 PROACTIVE RISK FLAGS:
 When the context includes "⚠️ ACTIVE RISK FLAGS," you have detected concerning trends that the athlete may not know about. You should:
@@ -1044,6 +1045,53 @@ def _build_persona_block(name: str, traits: list[str]) -> str:
     return "\n".join(lines)
 
 
+def _athlete_profile_directive(profile: dict[str, Any] | None) -> str | None:
+    """R7 — render a binding ATHLETE_PROFILE_DIRECTIVE from the structured
+    profile (age from birthDate, experience, sex, active/chronic injuries,
+    primary goal). The COACH_ROLE "ATHLETE PROFILE" rule binds to it. Returns
+    None when there's nothing structured to say (so older profiles are
+    unaffected and the coach makes no claims it can't support)."""
+    if not profile:
+        return None
+    bits: list[str] = []
+    bd = profile.get("birthDate")
+    if bd:
+        try:
+            from datetime import date as _date
+            y, m, d = (int(x) for x in str(bd)[:10].split("-"))
+            t = _date.today()
+            age = t.year - y - ((t.month, t.day) < (m, d))
+            bits.append(f"age {age}" + (" (masters)" if age >= 40 else ""))
+        except Exception:
+            pass
+    exp = profile.get("experienceLevel")
+    if exp:
+        bits.append(f"experience {exp}")
+    sex = profile.get("sex")
+    if sex:
+        bits.append(f"sex {sex}")
+    injuries = profile.get("injuryHistory") or []
+    flagged = [
+        i for i in injuries
+        if str(i.get("status", "")).lower() in ("active", "chronic") and i.get("region")
+    ]
+    if flagged:
+        bits.append(
+            "injuries: " + ", ".join(f"{i.get('region')} ({i.get('status')})" for i in flagged)
+        )
+    goals = profile.get("goals") or []
+    if goals:
+        primary = next(
+            (g for g in goals if str(g.get("priority", "")).lower() == "primary"),
+            goals[0],
+        )
+        if primary.get("text"):
+            bits.append(f"goal: {primary['text']}")
+    if not bits:
+        return None
+    return "ATHLETE_PROFILE_DIRECTIVE: " + " · ".join(bits)
+
+
 def build_system_prompt(
     about_me: str,
     pending_inferences: list[dict[str, Any]],
@@ -1084,6 +1132,12 @@ def build_system_prompt(
             ]
             athlete_lines += "\n- HR Zones: " + " · ".join(zone_strs)
         parts.append(athlete_lines)
+        # R7 — binding personalization directive derived from the structured
+        # profile (age/experience/injury/goal). Present only when there's
+        # structured data; the COACH_ROLE "ATHLETE PROFILE" rule binds to it.
+        _profile_directive = _athlete_profile_directive(athlete_profile)
+        if _profile_directive:
+            parts.append(_profile_directive)
 
     if race:
         parts.append(

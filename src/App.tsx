@@ -11,6 +11,7 @@ import { usePlanEdits } from './hooks/usePlanEdits'
 import { useDaySwap } from './hooks/useDaySwap'
 import { useReadiness } from './hooks/useReadiness'
 import { useOnboarding } from './hooks/useOnboarding'
+import { useAthleteProfile } from './hooks/useAthleteProfile'
 import { useTutorial } from './hooks/useTutorial'
 import Onboarding from './components/Onboarding'
 import OnboardingValueProps from './components/OnboardingValueProps'
@@ -368,9 +369,21 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
   const soreness = useSoreness(athleteId)
   const hrZones = useHRZones(athleteId, activePlan.zones)
   const maxHROverride = useMaxHR(athleteId, activePlan.athlete.maxHR)
+  const athleteProfileExtras = useAthleteProfile(athleteId)
   const effectiveAthlete = useMemo(
-    () => ({ ...activePlan.athlete, maxHR: maxHROverride.maxHR }),
-    [activePlan.athlete, maxHROverride.maxHR],
+    () => {
+      const extras = athleteProfileExtras.profile
+      return {
+        ...activePlan.athlete,
+        maxHR: maxHROverride.maxHR,
+        ...extras,
+        // R7 — experienceLevel falls back to onboarding when the profile editor
+        // hasn't set it, so generated plans personalize out of the box.
+        experienceLevel:
+          extras.experienceLevel ?? onboarding.config?.experienceLevel ?? activePlan.athlete.experienceLevel,
+      }
+    },
+    [activePlan.athlete, maxHROverride.maxHR, athleteProfileExtras.profile, onboarding.config],
   )
   const handleSaveHRZones = useCallback(
     (zones: import('./types').HRZone[], nextMaxHR: number) => {
@@ -1284,6 +1297,8 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           onUseBrowserHomeLocation={athleteLocation.useBrowserLocation}
           workoutTimeSlot={workoutTimePref.slot}
           onSaveWorkoutTimeSlot={workoutTimePref.save}
+          athleteProfileExtras={athleteProfileExtras.profile}
+          onSaveAthleteProfile={athleteProfileExtras.save}
           athleteId={athleteId}
           authSession={session}
           onLogout={onLogout}
