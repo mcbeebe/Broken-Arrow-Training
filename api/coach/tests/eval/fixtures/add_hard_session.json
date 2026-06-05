@@ -6,6 +6,7 @@
   },
   "_expect": {
     "user_question": "Can I add a hard interval session tomorrow on top of the plan?",
+    "readiness_max_intensity": "moderate",
     "max_chars": 1700
   },
   "today": { "date": "2026-06-02", "period": "afternoon" },
