@@ -1,3 +1,4 @@
+import { DEFAULT_READINESS_TUNING, type ReadinessTuning } from './engineConfig'
 import type {
   GarminHealthData,
   ReadinessScore,
@@ -78,8 +79,9 @@ const STRUCTURAL_LOAD_FRACTION = 0.5
 
 // Training state thresholds (Meeusen et al. 2013 ECSS/ACSM framework)
 const STATE_B_THRESHOLD = 0.25
-const STATE_C_ACWR_MIN = 1.3        // Gabbett 2016: above sweet spot
-const STATE_D_CONSECUTIVE_RED = 5    // Meeusen 2013: persistent signs → NFOR
+// R8 — the ACWR sweet-spot top and the consecutive-RED→D threshold moved to
+// engineConfig's ReadinessTuning so they can flex by age/experience (defaults
+// 1.3 / 5, matching Gabbett 2016 / Meeusen 2013).
 
 // ─── Baseline Calculation ───────────────────────────────────────
 
@@ -214,12 +216,12 @@ export function scoreSleep(sleep: GarminHealthData['sleep'] | undefined): number
 /**
  * Score Load: ACWR-based (Gabbett 2016 zones, ATE score_load).
  */
-export function scoreLoad(acwr: number): number {
+export function scoreLoad(acwr: number, tuning: ReadinessTuning = DEFAULT_READINESS_TUNING): number {
   if (acwr <= 0) return 0.0 // insufficient data
-  if (acwr < 0.8) return 1.0   // undertraining
-  if (acwr <= 1.3) return 0.0  // sweet spot
-  if (acwr <= 1.5) return -0.5 // caution
-  return -1.0                    // danger
+  if (acwr < 0.8) return 1.0                    // undertraining
+  if (acwr <= tuning.acwrSweetTop) return 0.0   // sweet spot
+  if (acwr <= tuning.acwrDanger) return -0.5    // caution
+  return -1.0                                    // danger
 }
 
 /** Floor on the eccentric-load dampening factor — caps attenuation at 30 %. */
@@ -282,11 +284,12 @@ export function calculateReadiness(
   acwr: number,
   hrvCV: number,
   loadDampening: number = 1,
+  tuning: ReadinessTuning = DEFAULT_READINESS_TUNING,
 ): ReadinessScore {
   const hrvScore = scoreHRV(today, baselines, hrvCV)
   const rhrScore = scoreRHR(today.rhr, baselines.rhr)
   const sleepScore = scoreSleep(today.sleep)
-  const loadScore = scoreLoad(acwr)
+  const loadScore = scoreLoad(acwr, tuning)
 
   const composite =
     hrvScore * WEIGHT_HRV +
@@ -324,14 +327,15 @@ export function classifyTrainingState(
   acwr: number,
   consecutiveRedDays: number,
   trend7dDeclining: boolean,
+  tuning: ReadinessTuning = DEFAULT_READINESS_TUNING,
 ): TrainingState {
   // Priority: D > C > B > A (worst state wins)
 
   // State D: Overtrained
-  if (consecutiveRedDays >= STATE_D_CONSECUTIVE_RED || trend7dDeclining) return 'D'
+  if (consecutiveRedDays >= tuning.stateDConsecutiveRed || trend7dDeclining) return 'D'
 
   // State C: Overreaching
-  if (composite < 0 || (composite < STATE_B_THRESHOLD && acwr > STATE_C_ACWR_MIN)) return 'C'
+  if (composite < 0 || (composite < STATE_B_THRESHOLD && acwr > tuning.acwrSweetTop)) return 'C'
 
   // State B: Not fully recovered
   if (composite >= 0 && composite < STATE_B_THRESHOLD) return 'B'
@@ -456,6 +460,7 @@ export function applyGuardrails(
   healthHistory: GarminHealthData[],
   dailyTrimp: DailyTRIMP[],
   acwr: number,
+  tuning: ReadinessTuning = DEFAULT_READINESS_TUNING,
 ): ReadinessScore[] {
   if (scores.length === 0) return scores
 
@@ -467,12 +472,12 @@ export function applyGuardrails(
     const dayHealth = healthHistory.find(h => h.date === score.date)
 
     // 1. ACWR guardrail (ATE apply_acwr_guardrail)
-    if (acwr > 1.5 && (score.status === 'PEAK' || score.status === 'GREEN')) {
+    if (acwr > tuning.acwrDanger && (score.status === 'PEAK' || score.status === 'GREEN')) {
       score.status = 'YELLOW'
-      score.guardrailsTriggered!.push(`ACWR ${acwr.toFixed(2)} > 1.5 — capped at YELLOW`)
-    } else if (acwr > 1.3 && score.status === 'PEAK') {
+      score.guardrailsTriggered!.push(`ACWR ${acwr.toFixed(2)} > ${tuning.acwrDanger} — capped at YELLOW`)
+    } else if (acwr > tuning.acwrSweetTop && score.status === 'PEAK') {
       score.status = 'GREEN'
-      score.guardrailsTriggered!.push(`ACWR ${acwr.toFixed(2)} > 1.3 — capped at GREEN`)
+      score.guardrailsTriggered!.push(`ACWR ${acwr.toFixed(2)} > ${tuning.acwrSweetTop} — capped at GREEN`)
     }
 
     // 2. Body Battery gate (ATE apply_body_battery_gate)
