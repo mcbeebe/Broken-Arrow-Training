@@ -2146,6 +2146,96 @@ def _get_anthropic_client():
     return Anthropic(api_key=api_key)
 
 
+# ─── R3: post-generation PR-claim validator ─────────────────────
+# Guards the OUTPUT, not just the prompt: scans a reply for PR / "faster" /
+# time-delta claims inconsistent with the precomputed PR_STATUS line and
+# strips/regenerates them. Pure + deterministic so it unit-tests without the
+# API. Lets us keep Haiku on PR days (the Sonnet bump is dropped in
+# insight.py) while still closing the hallucination hole.
+
+_PR_STATUS_VERDICT_RE = re.compile(
+    r"PR_STATUS:\s*(YES|NO RACE BASELINE|NO BASELINE|NO|TIE|UNKNOWN)\b",
+    re.IGNORECASE,
+)
+_PR_MANDATED_DELTA_RE = re.compile(r"exactly\s*'(\d+)\s*m\s*PR'", re.IGNORECASE)
+
+# Claim shapes forbidden unless PR_STATUS is YES. Comparative forms only
+# (never bare "fast"/"faster") so we don't strip legit coaching like
+# "you can run faster with more base".
+_PR_CLAIM_PATTERNS = [
+    re.compile(r"\bpersonal record\b", re.IGNORECASE),
+    re.compile(r"\bpersonal best\b", re.IGNORECASE),
+    re.compile(r"\bnew best\b", re.IGNORECASE),
+    re.compile(r"\bPR(?:'?d|s)?\b"),                                  # case-sensitive PR/PRs/PR'd
+    re.compile(r"\bfaster than\b", re.IGNORECASE),
+    re.compile(r"\bquicker than\b", re.IGNORECASE),
+    re.compile(r"\b(?:minutes?|seconds?)\s+faster\b", re.IGNORECASE),
+    re.compile(r"\b\d+\s*[-\s]?(?:min(?:ute)?|sec(?:ond)?)s?\s+(?:faster|quicker)\b", re.IGNORECASE),
+    re.compile(r"\bshaved\b", re.IGNORECASE),
+    re.compile(r"\bknocked\s+(?:off|\d)", re.IGNORECASE),
+    re.compile(r"\bcrushed (?:your|the) (?:previous|prior|last|best|pr)\b", re.IGNORECASE),
+    re.compile(r"\bbeat (?:your|the|my) (?:previous|prior|last|best|pr|time)\b", re.IGNORECASE),
+]
+
+_PR_CORRECTION = (
+    "SYSTEM CORRECTION: your previous reply made a PR / 'faster' / time-delta "
+    "claim that contradicts the PR_STATUS line in the context. Rewrite the reply "
+    "with that claim removed. Do NOT say 'PR', 'faster', or any time delta unless "
+    "PR_STATUS says YES, and then use ONLY its exact delta."
+)
+
+
+def _split_sentences(text: str) -> list[str]:
+    return re.split(r"(?<=[.!?])\s+", text)
+
+
+def validate_pr_claims(text: str, context_block: str) -> tuple[str, bool]:
+    """Return (clean_text, violated). Strips whole sentences making a PR /
+    faster / time-delta claim inconsistent with the PR_STATUS verdict. When
+    PR_STATUS is YES, only a delta different from the mandated one is a
+    violation. No PR_STATUS line → text unchanged. Pure + deterministic."""
+    if not context_block or "PR_STATUS:" not in context_block:
+        return text, False
+    m = _PR_STATUS_VERDICT_RE.search(context_block)
+    if not m:
+        return text, False
+    pr_allowed = m.group(1).upper() == "YES"
+    mandated: int | None = None
+    if pr_allowed:
+        dm = _PR_MANDATED_DELTA_RE.search(context_block)
+        mandated = int(dm.group(1)) if dm else None
+
+    def _violates(sentence: str) -> bool:
+        if not any(p.search(sentence) for p in _PR_CLAIM_PATTERNS):
+            return False
+        if not pr_allowed:
+            return True
+        # YES: a claim is fine UNLESS it cites a delta != the mandated one.
+        for num in re.findall(r"\b(\d+)\s*[-\s]?(?:m|mins?|minutes?|secs?|seconds?)\b", sentence, re.IGNORECASE):
+            if mandated is None or int(num) != mandated:
+                return True
+        return False
+
+    sentences = _split_sentences(text)
+    kept = [s for s in sentences if not _violates(s)]
+    violated = len(kept) != len(sentences)
+    clean = " ".join(kept).strip()
+    return (clean if clean else text), violated
+
+
+def _create_and_concat(client: Any, kwargs: dict[str, Any]) -> tuple[str, int, int]:
+    resp = client.messages.create(**kwargs)
+    text = ""
+    for block in resp.content:
+        if getattr(block, "type", None) == "text":
+            text += block.text
+    return (
+        text,
+        getattr(resp.usage, "input_tokens", 0) or 0,
+        getattr(resp.usage, "output_tokens", 0) or 0,
+    )
+
+
 def call_anthropic(
     *,
     model: str,
@@ -2156,32 +2246,58 @@ def call_anthropic(
     athlete_id: str | None = None,
     surface: str = "unknown",
     log_sample: bool = False,
+    validate_context: str | None = None,
+    validate_regenerate: bool = True,
 ) -> dict[str, Any]:
     """Non-streaming Anthropic call. Logs telemetry. Returns {text, usage}.
-    `system` can be a string or a list of content blocks (for prompt caching)."""
+    `system` can be a string or a list of content blocks (for prompt caching).
+
+    If `validate_context` contains a PR_STATUS line, the reply is scanned for
+    PR / pace / time-delta claims that contradict it (R3): on a violation we
+    regenerate once on the same model, else strip the offending sentence(s)."""
     client = _get_anthropic_client()
     t0 = time.time()
     success = True
     text = ""
     usage_in = 0
     usage_out = 0
-    kwargs: dict[str, Any] = {
+    validation_action: str | None = None
+    base_kwargs: dict[str, Any] = {
         "model": model,
         "system": system,
         "messages": messages,
         "max_tokens": max_tokens,
     }
     if temperature is not None:
-        kwargs["temperature"] = temperature
+        base_kwargs["temperature"] = temperature
     try:
-        resp = client.messages.create(**kwargs)
-        # Concat text blocks
-        for block in resp.content:
-            if getattr(block, "type", None) == "text":
-                text += block.text
-        usage_in = getattr(resp.usage, "input_tokens", 0) or 0
-        usage_out = getattr(resp.usage, "output_tokens", 0) or 0
-    except Exception as e:
+        text, usage_in, usage_out = _create_and_concat(client, base_kwargs)
+        # R3 — guard the output. Only when the caller passes the context (so
+        # we can read the PR_STATUS verdict). Other callers are untouched.
+        if validate_context and "PR_STATUS:" in validate_context:
+            clean, violated = validate_pr_claims(text, validate_context)
+            if violated:
+                regenerated = False
+                if validate_regenerate:
+                    try:
+                        regen_kwargs = dict(base_kwargs)
+                        regen_kwargs["messages"] = list(messages) + [
+                            {"role": "assistant", "content": text},
+                            {"role": "user", "content": _PR_CORRECTION},
+                        ]
+                        rtext, rin, rout = _create_and_concat(client, regen_kwargs)
+                        usage_in += rin
+                        usage_out += rout
+                        rclean, rviol = validate_pr_claims(rtext, validate_context)
+                        text, validation_action = (
+                            (rclean, "regenerate+strip") if rviol else (rtext, "regenerate")
+                        )
+                        regenerated = True
+                    except Exception:
+                        pass
+                if not regenerated:
+                    text, validation_action = clean, "strip"
+    except Exception:
         success = False
         text = ""
         raise
@@ -2206,6 +2322,12 @@ def call_anthropic(
                         system_prompt=system,
                         messages=messages,
                         response=text,
+                    )
+                if validation_action:
+                    log_interaction(
+                        athlete_id=athlete_id,
+                        kind="pr_validation",
+                        meta={"action": validation_action, "surface": surface},
                     )
             except Exception:
                 pass
