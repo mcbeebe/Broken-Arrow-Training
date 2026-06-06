@@ -29,6 +29,7 @@ import {
   buildTrainingStateInfo,
   computeDeloadProgram,
 } from '../utils/readiness'
+import { DEFAULT_READINESS_TUNING, type ReadinessTuning } from '../utils/engineConfig'
 import type { PlannedDay } from '../types'
 
 interface UseReadinessProps {
@@ -41,6 +42,9 @@ interface UseReadinessProps {
   sorenessLoadByDate: Map<string, number>
   maxHR: number
   ftpWatts?: number
+  /** R8 — age/experience tuning for the readiness/load engine. Defaults to
+   *  the universal constants when unset (byte-identical behavior). */
+  readinessTuning?: ReadinessTuning
   /** Optional — drives per-athlete DOMS calibration AND per-athlete MIM
    *  override lookups (cycling MIM, hiking MIM). When unset, defaults are
    *  used. */
@@ -99,6 +103,7 @@ export function useReadiness({
   sorenessLoadByDate,
   maxHR,
   ftpWatts,
+  readinessTuning = DEFAULT_READINESS_TUNING,
   athleteId,
   todayPlannedWorkout,
   currentWeekNum,
@@ -307,19 +312,19 @@ export function useReadiness({
 
     // Calculate raw scores
     const rawScores = recentHealth.map(day => {
-      const score = calculateReadiness(day, baselines, acwr, hrvStability.cv)
+      const score = calculateReadiness(day, baselines, acwr, hrvStability.cv, 1, readinessTuning)
       return score
     })
 
     // Apply guardrails (ACWR, body battery, acute overrides, consecutive limits)
-    const guarded = applyGuardrails(rawScores, healthData, dailyTrimp, acwr)
+    const guarded = applyGuardrails(rawScores, healthData, dailyTrimp, acwr, readinessTuning)
 
     // Classify training state and fill messages
     const consecutiveRed = countConsecutiveRedDays(guarded)
     const declining = check7dDecliningTrend(healthData)
 
     return guarded.map(score => {
-      const state = classifyTrainingState(score.composite, acwr, consecutiveRed, declining)
+      const state = classifyTrainingState(score.composite, acwr, consecutiveRed, declining, readinessTuning)
       score.trainingState = state
       score.message = generateReadinessMessage(score, todayPlannedWorkout)
       if (todayPlannedWorkout) {

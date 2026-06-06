@@ -123,7 +123,7 @@ def memory_key(athlete_id: str) -> str:
 # changes in a way that old cached insights would be wrong about. The
 # version is baked into the cache key so every prompt change orphans
 # stale KV entries instead of serving them until their 48h TTL expires.
-INSIGHT_PROMPT_VERSION = "v10-athlete-profile"
+INSIGHT_PROMPT_VERSION = "v11-knowledge-modules"
 
 
 def insight_key(athlete_id: str, surface: str, context_hash: str) -> str:
@@ -837,6 +837,31 @@ Trail running specifics:
 Pole use:
 - Pellegrini et al. (2015): Effects of poles on metabolic cost in uphill walking. EJAP. ~15-20% reduction in lower limb muscle damage.
 
+Masters / aging:
+- Tanaka & Seals (2008): Endurance performance in masters athletes — peak holds to ~35, modest decline to 50-60, steeper after; driven largely by reduced training intensity/volume. J Physiol.
+
+Female physiology:
+- McNulty et al. (2020): Menstrual cycle phase & exercise performance, meta-analysis — effect is trivial with large between-athlete variation; individualize, don't prescribe by cycle. Sports Med.
+- Mountjoy et al. (2018): IOC consensus on Relative Energy Deficiency in Sport (RED-S) — low energy availability harms bone, hormonal, metabolic, immune & performance. BJSM.
+
+Return-to-run / load progression:
+- Nielsen et al. (2014): Novice runners increasing weekly distance >30% over 2 weeks had higher distance-related injury risk than those under 10%. JOSPT.
+
+VO2max & intervals:
+- Buchheit & Laursen (2013): High-Intensity Interval Training — solutions to the programming puzzle (work/recovery, intensity, density). Sports Med.
+
+Strength for endurance:
+- Rønnestad & Mujika (2014): Heavy strength training improves running/cycling economy and endurance performance without added bulk. Scand J Med Sci Sports.
+
+Fueling:
+- Jeukendrup (2014): ~30-60 g carbs/h for efforts beyond ~60-90 min (up to ~90 g/h with multiple transportable carbs for ultra). Sports Med.
+
+Sleep:
+- Walsh et al. (2021): Athletes prone to short (<7h)/fragmented sleep; individualize rather than a one-size 7-9h rule. BJSM expert consensus.
+
+Heat:
+- Périard et al. (2015): Heat acclimatization takes ~1-2 weeks — plasma volume up, HR & core temp down, sweat rate up; pace by effort early. Scand J Med Sci Sports.
+
 --- Palisades Tahoe race conditions (June) ---
 
 Weather: Typical June at 6,200-9,000 ft — 55-75°F at base, 40-60°F
@@ -1045,6 +1070,131 @@ def _build_persona_block(name: str, traits: list[str]) -> str:
     return "\n".join(lines)
 
 
+# ─── R6: deepened, relevance-gated training-science knowledge ────
+# Topic modules appended to the always-on core (APP_KNOWLEDGE / _LITE) only
+# when the athlete's profile or message makes them relevant — keeps the prompt
+# token-light and per-athlete relevant. Written as coaching PRINCIPLES; they
+# reuse the baked-in Research citations (Gabbett, Seiler, Bosquet/Mujika,
+# Hulin, Toyomura, Pellegrini, Plews, Firstbeat) where they apply and otherwise
+# state general principles plainly — no unverified citations (anti-fabrication
+# floor). Verified domain-specific citations can be added later.
+
+KB_MASTERS = """\
+Masters / age 40+:
+- VO2max and recovery capacity decline with age, but the rate is blunted by continued training — program by readiness and recent tolerance, not by birthday (Tanaka & Seals 2008).
+- Recovery between hard sessions takes longer: bias toward more easy days between quality, and treat 48-72h between hard lower-body sessions as a floor. The conservative read of YELLOW/RED is right more often for a masters athlete.
+- Connective tissue (tendon/bone) adapts slower than muscle and aerobic fitness, so ramp eccentric/impact load gradually — the legs feel ready before the tendons are.
+- Strength and power fade faster than aerobic capacity, so maintaining brief heavy strength work matters MORE with age, not less."""
+
+KB_SEX_FEMALE = """\
+Female-specific considerations:
+- Menstrual-cycle phase can affect perceived effort, thermoregulation, and recovery for some athletes, but response varies widely and the evidence does not support rigid cycle-based prescription — treat it as one input and track how YOU respond (McNulty et al. 2020).
+- If readiness dips and it lines up with the late-luteal / pre-menstrual phase, that's plausibly hormonal, not just training fatigue — don't force a hard session through it.
+- Low energy availability (under-fueling for the training load) carries real bone/hormonal/performance risk and shows up earlier in female athletes — eat enough to match the load, especially in build weeks. State it as a factor to watch; don't over-coach it (IOC RED-S; Mountjoy et al. 2018)."""
+
+KB_RETURN_TO_RUN = """\
+Return-to-run / progressive loading after a layoff or injury:
+- Aerobic fitness returns fast after time off; tendons, bone, and any previously injured area do NOT. Most re-injury is the legs cashing a cheque the tissue can't cover (training-injury prevention paradox — Gabbett 2016).
+- Progress ONE variable at a time — distance OR pace OR vert, never all three in a week — and keep weekly increases conservative, backing off if pain rises (Nielsen et al. 2014: >30%/2wk raises injury risk).
+- Pain rule: discomfort at/below a low level that settles by next morning is usually OK; pain that climbs through the run, alters gait, or is worse the next day means stop and regress. Pain that changes how you move is a hard stop.
+- Reintroduce downhill/technical terrain LAST — eccentric/impact load is the highest-risk stimulus after a layoff. For acute or worsening pain, see a professional."""
+
+KB_VO2MAX = """\
+VO2max & interval prescription:
+- VO2max is the ceiling on aerobic power; intervals near it raise the ceiling while easy volume builds the base under it — you need both, which is why the plan is polarized (Seiler 2006), not all-tempo.
+- Classic VO2max work: ~3-5 min hard reps at an effort you could hold ~8-12 min all-out, near-equal recovery, ~15-25 min total hard time. On this course, hill repeats are the specific expression (Buchheit & Laursen 2013).
+- These sessions are costly: PEAK/GREEN days only (the engine caps PEAK at 1/7), never back-to-back, always after a full warm-up. "Time near VO2max" is the driver, not raw speed — if you can't hold the prescribed effort across reps, cut reps rather than grind junk intervals."""
+
+KB_STRENGTH = """\
+Strength programming for endurance:
+- For a runner, strength is supportive: maximal-strength and tissue robustness with minimal added fatigue — heavy-ish, low-rep, low-volume, high quality, not a bodybuilding pump that wrecks the legs for the long run (Rønnestad & Mujika 2014).
+- Linear progression (a little more load each week) works until it stalls; then undulate or hold. The app's strength engine already suggests the next target per exercise — match it rather than free-lancing reps.
+- Autoregulate by readiness: on a YELLOW day drop a set or 10-15% load rather than skip; if a heavy day collides with a key quality run, the run wins and strength holds. Near the race, strength shifts to maintenance (same logic as the taper)."""
+
+KB_FUELING = """\
+Fueling for endurance:
+- For efforts over ~60-90 min, carbohydrate sustains pace — a common target is ~30-60 g carbs/hour, trained toward the top of that range for long races. Practice race fueling on long runs; the gut adapts and race day is the wrong time to discover a gel sits badly (Jeukendrup 2014: ~30-60 g/h).
+- Hydrate to thirst plus electrolytes; over-drinking plain water on long days is a real risk. The race rule (100-150 cal / 30 min, 16+ oz water, only what's been tested) is the operational version."""
+
+KB_SLEEP = """\
+Sleep & recovery:
+- Sleep is the single largest recovery lever; chronic short sleep blunts adaptation and raises injury/illness risk — the readiness engine forces YELLOW under 6h for this reason. Protect sleep before adding load (Walsh et al. 2021).
+- A short dip the night before a race is normal and doesn't wreck performance — the bank of good sleep in the weeks before matters more than one bad night."""
+
+KB_HEAT = """\
+Heat & humidity:
+- Heat adaptation takes roughly 1-2 weeks of repeated exposure; early heat sessions feel disproportionately hard and HR drifts up for the same pace — pace by effort, not pace/HR (same caveat as altitude; Périard et al. 2015).
+- On hot days pre-hydrate, slow down, and treat HR targets as unreliable. At altitude the sun/UV load is often a bigger factor than ambient heat."""
+
+KB_MODULES: dict[str, str] = {
+    "masters": KB_MASTERS,
+    "sex_female": KB_SEX_FEMALE,
+    "return_to_run": KB_RETURN_TO_RUN,
+    "vo2max": KB_VO2MAX,
+    "strength": KB_STRENGTH,
+    "fueling": KB_FUELING,
+    "sleep": KB_SLEEP,
+    "heat": KB_HEAT,
+}
+
+
+def _age_from_birthdate(bd: Any) -> int | None:
+    if not bd:
+        return None
+    try:
+        from datetime import date as _date
+        y, m, d = (int(x) for x in str(bd)[:10].split("-"))
+        t = _date.today()
+        return t.year - y - ((t.month, t.day) < (m, d))
+    except Exception:
+        return None
+
+
+def select_knowledge(
+    *,
+    lite: bool,
+    profile: dict[str, Any] | None = None,
+    user_msg: str = "",
+) -> str:
+    """Assemble the knowledge block: always-on core + relevance-gated modules.
+
+    Profile-gated modules (age/sex/injury/experience) are stable across a chat
+    session, so they don't hurt the cross-turn prompt cache. Message-gated
+    modules only apply when there's a user message (chat); insight passes "".
+    """
+    parts: list[str] = [APP_KNOWLEDGE_LITE.strip() if lite else APP_KNOWLEDGE.strip()]
+    active: list[str] = []
+
+    p = profile or {}
+    age = _age_from_birthdate(p.get("birthDate"))
+    if age is not None and age >= 40:
+        active.append("masters")
+    if str(p.get("sex", "")).lower() == "female":
+        active.append("sex_female")
+    exp = str(p.get("experienceLevel", "")).lower()
+    if p.get("injuryHistory") or exp in ("first_timer", "beginner"):
+        active.append("return_to_run")
+
+    blob = (user_msg or "").lower()
+    if any(k in blob for k in ("vo2", "interval", "speed work", "track session")):
+        active.append("vo2max")
+    if any(k in blob for k in ("strength", "lift", "weights", "squat", "deadlift", "gym")):
+        active.append("strength")
+    if any(k in blob for k in ("fuel", "nutrition", "carb", "gel", " eat", "calorie")):
+        active.append("fueling")
+    if any(k in blob for k in ("sleep", "insomnia", "tired", "exhausted")):
+        active.append("sleep")
+    if any(k in blob for k in ("heat", " hot", "humid", "sweat")):
+        active.append("heat")
+
+    seen: set[str] = set()
+    for key in active:
+        if key in KB_MODULES and key not in seen:
+            seen.add(key)
+            parts.append(KB_MODULES[key].strip())
+    return "\n\n".join(parts)
+
+
 def _athlete_profile_directive(profile: dict[str, Any] | None) -> str | None:
     """R7 — render a binding ATHLETE_PROFILE_DIRECTIVE from the structured
     profile (age from birthDate, experience, sex, active/chronic injuries,
@@ -1054,16 +1204,9 @@ def _athlete_profile_directive(profile: dict[str, Any] | None) -> str | None:
     if not profile:
         return None
     bits: list[str] = []
-    bd = profile.get("birthDate")
-    if bd:
-        try:
-            from datetime import date as _date
-            y, m, d = (int(x) for x in str(bd)[:10].split("-"))
-            t = _date.today()
-            age = t.year - y - ((t.month, t.day) < (m, d))
-            bits.append(f"age {age}" + (" (masters)" if age >= 40 else ""))
-        except Exception:
-            pass
+    age = _age_from_birthdate(profile.get("birthDate"))
+    if age is not None:
+        bits.append(f"age {age}" + (" (masters)" if age >= 40 else ""))
     exp = profile.get("experienceLevel")
     if exp:
         bits.append(f"experience {exp}")
@@ -1101,6 +1244,7 @@ def build_system_prompt(
     coach_persona: dict[str, Any] | None = None,
     lite_knowledge: bool = False,
     zones: list[dict[str, Any]] | None = None,
+    user_msg: str = "",
 ) -> str:
     # Build the persona block (if any) and place it at the very TOP of the
     # prompt — the strongest anchor position. COACH_ROLE explicitly defers
@@ -1115,7 +1259,12 @@ def build_system_prompt(
         if persona_name or persona_traits:
             persona_block = _build_persona_block(persona_name, persona_traits)
 
-    knowledge = APP_KNOWLEDGE_LITE.strip() if lite_knowledge else APP_KNOWLEDGE.strip()
+    # R6 — core (full/lite) + relevance-gated topic modules.
+    knowledge = select_knowledge(
+        lite=lite_knowledge,
+        profile=athlete_profile,
+        user_msg=user_msg,
+    )
     parts: list[str] = [persona_block, role, knowledge] if persona_block else [role, knowledge]
 
     if athlete_profile:
