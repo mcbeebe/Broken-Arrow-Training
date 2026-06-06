@@ -6,6 +6,8 @@
   },
   "_expect": {
     "forbid_go_hard": true,
+    "readiness_max_intensity": "easy",
+    "safe_disposition": "OVERTRAINING",
     "max_chars": 1700
   },
   "today": { "date": "2026-06-02", "period": "morning" },

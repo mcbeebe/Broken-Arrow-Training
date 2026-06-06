@@ -123,7 +123,7 @@ def memory_key(athlete_id: str) -> str:
 # changes in a way that old cached insights would be wrong about. The
 # version is baked into the cache key so every prompt change orphans
 # stale KV entries instead of serving them until their 48h TTL expires.
-INSIGHT_PROMPT_VERSION = "v7-persona-format-directive"
+INSIGHT_PROMPT_VERSION = "v9-safety-floor"
 
 
 def insight_key(athlete_id: str, surface: str, context_hash: str) -> str:
@@ -414,6 +414,13 @@ Principles:
   - Never output two different delta numbers (e.g., "a minute faster" and "40-second PR" in the same reply). The PR_STATUS line has ONE delta; use ONLY that one.
   - Never infer baselines from activity names, planned workouts, or memory. The PR_STATUS line is ground truth.
 - PACE MATH: Never compute pace yourself. The "Today actual" and "Prior best" lines include a pre-computed "pace X:XX/mi" field — quote it verbatim. Do not divide time by distance in your head; you get it wrong.
+- READINESS CEILING (intensity authority): When the context contains a "READINESS_DIRECTIVE:" line, its MAX_INTENSITY value (easy | moderate | hard) is the SOLE authority on how hard today's session may be. You MUST obey it:
+  - easy → only easy aerobic (Z1-2), mobility, or rest. NO tempo, intervals, threshold, hill repeats, race-pace, or heavy strength. Any `proposal` you emit must be recovery/rest/Z1-2.
+  - moderate → steady aerobic up to ~Z3 at reduced volume. No VO2max, no race-pace intervals, no heavy max-strength.
+  - hard → planned quality is cleared; if readiness is GREEN/PEAK and the plan calls for intensity, encourage it. This is a CEILING, not a floor — never manufacture intensity the plan doesn't already have.
+  - Explain the ceiling in plain language tied to the drivers (e.g. "HRV's down and you're deep in a hard block, so today caps at easy"); you may quote the guidance text.
+  - HOLD THE LINE: if the athlete pushes to exceed it ("I feel fine, can I do the intervals anyway?"), don't cave — acknowledge how they feel, restate the call and the one-sentence why, offer the compliant alternative, and note the hard work can move to a day the signal recovers. Safety over enthusiasm; this OVERRIDES persona (funny / demanding / motivational).
+- SAFE DISPOSITION (injury / overtraining floor): When the context contains a "SAFE_DISPOSITION:" line, it OVERRIDES any inclination to add or intensify training. You MUST NOT emit a `proposal` that adds a workout or raises load/intensity while it is present — a proposal that REDUCES load (swap to rest/recovery) is fine. Surface the defer-to-professional note once, gently, no lecturing. Holds regardless of persona.
 
 PROACTIVE RISK FLAGS:
 When the context includes "⚠️ ACTIVE RISK FLAGS," you have detected concerning trends that the athlete may not know about. You should:
@@ -1274,11 +1281,33 @@ def _completed_workout_lines(lcw: dict[str, Any]) -> list[str]:
     return out
 
 
+def _max_intensity(status: Any, training_state: Any) -> str:
+    """Categorical intensity ceiling derived straight from the readiness engine.
+
+    The coach must never prescribe above this (see COACH_ROLE "READINESS
+    CEILING"). A CEILING, not a floor — PEAK/GREEN still clear hard work.
+    Mirrors suggestDailyAdjustment in src/utils/readiness.ts. Returns a
+    conservative "moderate" when status is missing/unrecognized.
+    """
+    s = str(status or "").upper()
+    st = str(training_state or "").upper()
+    if s == "RED" or st == "D":
+        return "easy"          # rest / easy walk only
+    if s == "YELLOW":
+        return "easy" if st == "C" else "moderate"
+    if s == "GREEN":
+        return "moderate" if st == "B" else "hard"
+    if s == "PEAK":
+        return "hard"          # the one day a genuinely hard session is encouraged
+    return "moderate"
+
+
 def build_context_block(
     snapshot: dict[str, Any],
     depth: str = "7d",
     include_full_plan: bool = False,
     max_activities: int | None = None,
+    user_msg: str | None = None,
 ) -> str:
     """Compact, LLM-readable context block from the CoachSnapshot.
 
@@ -1554,6 +1583,44 @@ def build_context_block(
         )
         if readiness.get("adjustment"):
             out.append(f"Adjustment: {readiness['adjustment']}")
+        # R2 — binding intensity ceiling. Hoisted to the top (like the
+        # PR_STATUS banner) so a short-attention model can't bury it. The
+        # readiness data line above stays as data; THIS is the directive the
+        # COACH_ROLE "READINESS CEILING" rule binds to. Inserted before the
+        # PR banner runs, so PR_STATUS still lands above it.
+        _maxint = _max_intensity(readiness.get("status"), readiness.get("trainingState"))
+        _guidance = (readiness.get("adjustment") or readiness.get("message") or "").strip()
+        _directive_lines = [
+            f"READINESS_DIRECTIVE: status={readiness.get('status')} · MAX_INTENSITY={_maxint}"
+            + (f" · guidance: {_guidance}" if _guidance else ""),
+            "",
+        ]
+        for _line in reversed(_directive_lines):
+            out.insert(0, _line)
+
+    # R5 — code-level safety floor, independent of the model's text, hoisted
+    # above the readiness directive (and below any PR_STATUS banner). Two
+    # triggers: overtraining (training state D = 5+ consecutive RED, fires on
+    # every surface) and injury (pain language in the athlete's message —
+    # chat only; daily/insight pass no user_msg).
+    safe_disposition = None
+    if str((readiness or {}).get("trainingState") or "").upper() == "D":
+        safe_disposition = (
+            "SAFE_DISPOSITION: OVERTRAINING — training state D (5+ consecutive RED days). "
+            "Do NOT propose adding, hardening, or intensifying any workout. Steer toward "
+            "deload/rest, and suggest checking in with a coach or sports-medicine professional "
+            "if this persists."
+        )
+    elif user_msg and INJURY_RE.search(user_msg):
+        safe_disposition = (
+            "SAFE_DISPOSITION: INJURY SIGNAL — the athlete mentioned pain/soreness/tightness. "
+            "Do NOT propose adding or hardening work off the back of this. If it sounds like more "
+            "than ordinary training soreness, gently suggest they consider a professional "
+            "(PT / sports-med) — one sentence, not a lecture."
+        )
+    if safe_disposition:
+        for _line in reversed([safe_disposition, ""]):
+            out.insert(0, _line)
 
     # Raw health metrics in human units (hours/bpm/ms). The readiness
     # "components" numbers above are bucketed scores, not the real values —
@@ -2105,6 +2172,96 @@ def _get_anthropic_client():
     return Anthropic(api_key=api_key)
 
 
+# ─── R3: post-generation PR-claim validator ─────────────────────
+# Guards the OUTPUT, not just the prompt: scans a reply for PR / "faster" /
+# time-delta claims inconsistent with the precomputed PR_STATUS line and
+# strips/regenerates them. Pure + deterministic so it unit-tests without the
+# API. Lets us keep Haiku on PR days (the Sonnet bump is dropped in
+# insight.py) while still closing the hallucination hole.
+
+_PR_STATUS_VERDICT_RE = re.compile(
+    r"PR_STATUS:\s*(YES|NO RACE BASELINE|NO BASELINE|NO|TIE|UNKNOWN)\b",
+    re.IGNORECASE,
+)
+_PR_MANDATED_DELTA_RE = re.compile(r"exactly\s*'(\d+)\s*m\s*PR'", re.IGNORECASE)
+
+# Claim shapes forbidden unless PR_STATUS is YES. Comparative forms only
+# (never bare "fast"/"faster") so we don't strip legit coaching like
+# "you can run faster with more base".
+_PR_CLAIM_PATTERNS = [
+    re.compile(r"\bpersonal record\b", re.IGNORECASE),
+    re.compile(r"\bpersonal best\b", re.IGNORECASE),
+    re.compile(r"\bnew best\b", re.IGNORECASE),
+    re.compile(r"\bPR(?:'?d|s)?\b"),                                  # case-sensitive PR/PRs/PR'd
+    re.compile(r"\bfaster than\b", re.IGNORECASE),
+    re.compile(r"\bquicker than\b", re.IGNORECASE),
+    re.compile(r"\b(?:minutes?|seconds?)\s+faster\b", re.IGNORECASE),
+    re.compile(r"\b\d+\s*[-\s]?(?:min(?:ute)?|sec(?:ond)?)s?\s+(?:faster|quicker)\b", re.IGNORECASE),
+    re.compile(r"\bshaved\b", re.IGNORECASE),
+    re.compile(r"\bknocked\s+(?:off|\d)", re.IGNORECASE),
+    re.compile(r"\bcrushed (?:your|the) (?:previous|prior|last|best|pr)\b", re.IGNORECASE),
+    re.compile(r"\bbeat (?:your|the|my) (?:previous|prior|last|best|pr|time)\b", re.IGNORECASE),
+]
+
+_PR_CORRECTION = (
+    "SYSTEM CORRECTION: your previous reply made a PR / 'faster' / time-delta "
+    "claim that contradicts the PR_STATUS line in the context. Rewrite the reply "
+    "with that claim removed. Do NOT say 'PR', 'faster', or any time delta unless "
+    "PR_STATUS says YES, and then use ONLY its exact delta."
+)
+
+
+def _split_sentences(text: str) -> list[str]:
+    return re.split(r"(?<=[.!?])\s+", text)
+
+
+def validate_pr_claims(text: str, context_block: str) -> tuple[str, bool]:
+    """Return (clean_text, violated). Strips whole sentences making a PR /
+    faster / time-delta claim inconsistent with the PR_STATUS verdict. When
+    PR_STATUS is YES, only a delta different from the mandated one is a
+    violation. No PR_STATUS line → text unchanged. Pure + deterministic."""
+    if not context_block or "PR_STATUS:" not in context_block:
+        return text, False
+    m = _PR_STATUS_VERDICT_RE.search(context_block)
+    if not m:
+        return text, False
+    pr_allowed = m.group(1).upper() == "YES"
+    mandated: int | None = None
+    if pr_allowed:
+        dm = _PR_MANDATED_DELTA_RE.search(context_block)
+        mandated = int(dm.group(1)) if dm else None
+
+    def _violates(sentence: str) -> bool:
+        if not any(p.search(sentence) for p in _PR_CLAIM_PATTERNS):
+            return False
+        if not pr_allowed:
+            return True
+        # YES: a claim is fine UNLESS it cites a delta != the mandated one.
+        for num in re.findall(r"\b(\d+)\s*[-\s]?(?:m|mins?|minutes?|secs?|seconds?)\b", sentence, re.IGNORECASE):
+            if mandated is None or int(num) != mandated:
+                return True
+        return False
+
+    sentences = _split_sentences(text)
+    kept = [s for s in sentences if not _violates(s)]
+    violated = len(kept) != len(sentences)
+    clean = " ".join(kept).strip()
+    return (clean if clean else text), violated
+
+
+def _create_and_concat(client: Any, kwargs: dict[str, Any]) -> tuple[str, int, int]:
+    resp = client.messages.create(**kwargs)
+    text = ""
+    for block in resp.content:
+        if getattr(block, "type", None) == "text":
+            text += block.text
+    return (
+        text,
+        getattr(resp.usage, "input_tokens", 0) or 0,
+        getattr(resp.usage, "output_tokens", 0) or 0,
+    )
+
+
 def call_anthropic(
     *,
     model: str,
@@ -2115,32 +2272,58 @@ def call_anthropic(
     athlete_id: str | None = None,
     surface: str = "unknown",
     log_sample: bool = False,
+    validate_context: str | None = None,
+    validate_regenerate: bool = True,
 ) -> dict[str, Any]:
     """Non-streaming Anthropic call. Logs telemetry. Returns {text, usage}.
-    `system` can be a string or a list of content blocks (for prompt caching)."""
+    `system` can be a string or a list of content blocks (for prompt caching).
+
+    If `validate_context` contains a PR_STATUS line, the reply is scanned for
+    PR / pace / time-delta claims that contradict it (R3): on a violation we
+    regenerate once on the same model, else strip the offending sentence(s)."""
     client = _get_anthropic_client()
     t0 = time.time()
     success = True
     text = ""
     usage_in = 0
     usage_out = 0
-    kwargs: dict[str, Any] = {
+    validation_action: str | None = None
+    base_kwargs: dict[str, Any] = {
         "model": model,
         "system": system,
         "messages": messages,
         "max_tokens": max_tokens,
     }
     if temperature is not None:
-        kwargs["temperature"] = temperature
+        base_kwargs["temperature"] = temperature
     try:
-        resp = client.messages.create(**kwargs)
-        # Concat text blocks
-        for block in resp.content:
-            if getattr(block, "type", None) == "text":
-                text += block.text
-        usage_in = getattr(resp.usage, "input_tokens", 0) or 0
-        usage_out = getattr(resp.usage, "output_tokens", 0) or 0
-    except Exception as e:
+        text, usage_in, usage_out = _create_and_concat(client, base_kwargs)
+        # R3 — guard the output. Only when the caller passes the context (so
+        # we can read the PR_STATUS verdict). Other callers are untouched.
+        if validate_context and "PR_STATUS:" in validate_context:
+            clean, violated = validate_pr_claims(text, validate_context)
+            if violated:
+                regenerated = False
+                if validate_regenerate:
+                    try:
+                        regen_kwargs = dict(base_kwargs)
+                        regen_kwargs["messages"] = list(messages) + [
+                            {"role": "assistant", "content": text},
+                            {"role": "user", "content": _PR_CORRECTION},
+                        ]
+                        rtext, rin, rout = _create_and_concat(client, regen_kwargs)
+                        usage_in += rin
+                        usage_out += rout
+                        rclean, rviol = validate_pr_claims(rtext, validate_context)
+                        text, validation_action = (
+                            (rclean, "regenerate+strip") if rviol else (rtext, "regenerate")
+                        )
+                        regenerated = True
+                    except Exception:
+                        pass
+                if not regenerated:
+                    text, validation_action = clean, "strip"
+    except Exception:
         success = False
         text = ""
         raise
@@ -2165,6 +2348,12 @@ def call_anthropic(
                         system_prompt=system,
                         messages=messages,
                         response=text,
+                    )
+                if validation_action:
+                    log_interaction(
+                        athlete_id=athlete_id,
+                        kind="pr_validation",
+                        meta={"action": validation_action, "surface": surface},
                     )
             except Exception:
                 pass

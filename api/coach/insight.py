@@ -333,13 +333,10 @@ class handler(BaseHTTPRequestHandler):
             if (has_name and playful_count >= 1) or playful_count >= 2:
                 model_to_use = SONNET_MODEL
 
-        # Race-result days are high-stakes for accuracy. Haiku tends to
-        # hallucinate PR deltas regardless of the PR_STATUS directive; the
-        # athlete calls these mistakes out in every testing session.
-        # Upgrade to Sonnet whenever the context includes a PR_STATUS line
-        # (i.e. today has a completed activity with a distance baseline).
-        if "PR_STATUS:" in context_block:
-            model_to_use = SONNET_MODEL
+        # R3 — the unconditional Haiku→Sonnet bump on PR days is retired. The
+        # post-generation validator in call_anthropic (validate_context below)
+        # now scrubs any PR / pace / delta hallucination regardless of model,
+        # so PR-day routing stays persona-driven and cheap.
 
         # The workout debrief reconciles the objective grade against the
         # athlete's subjective RPE/note and is a primary persona-visible
@@ -362,6 +359,8 @@ class handler(BaseHTTPRequestHandler):
                 athlete_id=athlete_id,
                 surface=f"insight:{surface_root}",
                 log_sample=True,
+                # R3 — gate PR/pace/delta claims against the PR_STATUS line.
+                validate_context=context_block,
             )
             text = (result.get("text") or "").strip()
         except Exception as e:

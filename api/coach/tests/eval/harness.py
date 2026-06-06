@@ -68,8 +68,9 @@ def pick_model_for_daily(snapshot: dict[str, Any], context_block: str) -> str:
     """Mirror insight.py's daily model routing (persona bump + PR_STATUS bump).
 
     Kept in lock-step with insight.py so the eval tests whatever model
-    production would actually use. NOTE: the PR_STATUS→Sonnet bump here is
-    the one R3 removes; when R3 lands, drop the final branch to match.
+    production would actually use. R3 retired the PR_STATUS→Sonnet bump (the
+    output validator now guards PR claims on any model), so PR-day routing is
+    persona-driven only — matching insight.py.
     """
     persona = snapshot.get("coachPersona")
     model = HAIKU_MODEL
@@ -79,8 +80,6 @@ def pick_model_for_daily(snapshot: dict[str, Any], context_block: str) -> str:
         playful = sum(1 for t in traits if t in PLAYFUL_TRAITS_FOR_MODEL_BUMP)
         if (has_name and playful >= 1) or playful >= 2:
             model = SONNET_MODEL
-    if "PR_STATUS:" in context_block:
-        model = SONNET_MODEL
     return model
 
 
@@ -105,5 +104,6 @@ def run_fixture(
         temperature=temperature,
         athlete_id=None,
         surface="eval:daily",
+        validate_context=ctx,  # R3 — exercise the output validator end-to-end
     )
     return (result.get("text") or "").strip(), ctx, model

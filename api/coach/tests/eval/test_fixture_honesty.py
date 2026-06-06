@@ -53,3 +53,35 @@ def test_fixture_builds_expected_context(path: str) -> None:
         assertions.assert_context_has_pr_status(ctx, expect["pr_status_expected"])
     if expect.get("context_contains"):
         assertions.assert_context_contains(ctx, expect["context_contains"])
+    if expect.get("readiness_max_intensity"):  # R2
+        assertions.assert_context_has_readiness_directive(ctx, expect["readiness_max_intensity"])
+    if expect.get("safe_disposition"):  # R5
+        assertions.assert_context_has_safe_disposition(ctx, expect["safe_disposition"])
+
+
+def test_injury_floor_is_chat_only() -> None:
+    """R5: the injury floor reads the athlete's message, so it must NOT fire on
+    a daily snapshot (no user_msg) but MUST fire when a pain message is passed."""
+    from api.coach._core import build_context_block
+
+    snap = {
+        "today": {"date": "2026-06-02", "period": "morning"},
+        "readiness": {"status": "YELLOW", "trainingState": "B", "components": {}, "message": "ok"},
+    }
+    assert "SAFE_DISPOSITION: INJURY" not in build_context_block(snap)
+    # INJURY_RE matches whole words (pain/hurt/sore/tight/ache/injured/injury);
+    # note it does NOT match "hurting"/"aching" — a known narrowness we reuse.
+    ctx = build_context_block(snap, user_msg="my right knee is in real pain on the descents")
+    assertions.assert_context_has_safe_disposition(ctx, "INJURY")
+
+
+def test_overtraining_floor_fires_without_user_message() -> None:
+    """R5: the overtraining floor (training state D) fires on every surface,
+    no athlete message required."""
+    from api.coach._core import build_context_block
+
+    snap = {
+        "today": {"date": "2026-06-02", "period": "morning"},
+        "readiness": {"status": "RED", "trainingState": "D", "components": {}, "message": "overtrained"},
+    }
+    assertions.assert_context_has_safe_disposition(build_context_block(snap), "OVERTRAINING")

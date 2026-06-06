@@ -5,6 +5,7 @@
     "description": "GREEN readiness in taper week with a positive Recovery Balance and low-volume plan. Sanity baseline — the coach should proceed calmly, no PR/injury/overtraining edge cases."
   },
   "_expect": {
+    "readiness_max_intensity": "hard",
     "max_chars": 1700
   },
   "today": { "date": "2026-06-15", "period": "morning" },
