@@ -1,0 +1,5 @@
+# Office / binary documents — never normalize line endings
+*.docx binary
+*.xlsx binary
+*.pptx binary
+*.pdf binary
