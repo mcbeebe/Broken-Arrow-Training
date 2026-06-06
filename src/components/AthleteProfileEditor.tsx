@@ -25,9 +25,14 @@ const EXPERIENCE_OPTS: { value: NonNullable<AthleteProfileExtras['experienceLeve
   { value: 'elite', label: 'Elite' },
 ]
 
-const inputCls =
-  'w-full rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 ' +
+// Base field styling WITHOUT a width, so flex rows can size their own
+// children. The full-width grid fields opt in via `inputCls`; the
+// injury/goal rows give the text input `flex-1` and the dropdown a fixed
+// width instead — otherwise `w-full` on both collapses the text input.
+const fieldBase =
+  'rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 ' +
   'px-2.5 py-1.5 text-sm text-slate-900 dark:text-slate-100'
+const inputCls = 'w-full ' + fieldBase
 const labelCls = 'block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1'
 
 export default function AthleteProfileEditor({ profile, onSave }: Props) {
@@ -62,6 +67,17 @@ export default function AthleteProfileEditor({ profile, onSave }: Props) {
   }
   function removeGoal(i: number) {
     patch({ goals: goals.filter((_, idx) => idx !== i) })
+  }
+
+  // Height is stored as total inches; the UI edits it as feet + inches.
+  const totalIn = draft.heightIn
+  const heightFt = totalIn != null ? Math.floor(totalIn / 12) : ''
+  const heightInch = totalIn != null ? totalIn % 12 : ''
+  function setHeight(ft: number | '', inch: number | '') {
+    const f = ft === '' ? 0 : Number(ft)
+    const i = inch === '' ? 0 : Number(inch)
+    const total = f * 12 + i
+    patch({ heightIn: total > 0 ? total : undefined })
   }
 
   function handleSave() {
@@ -128,15 +144,43 @@ export default function AthleteProfileEditor({ profile, onSave }: Props) {
           </select>
         </div>
         <div>
-          <label className={labelCls} htmlFor="ap-weight">Weight (kg)</label>
+          <label className={labelCls} htmlFor="ap-weight">Weight (lb)</label>
           <input
             id="ap-weight"
             type="number"
             min={0}
             className={inputCls}
-            value={draft.weightKg ?? ''}
-            onChange={e => patch({ weightKg: e.target.value ? Number(e.target.value) : undefined })}
+            value={draft.weightLb ?? ''}
+            onChange={e => patch({ weightLb: e.target.value ? Number(e.target.value) : undefined })}
           />
+        </div>
+        <div>
+          <label className={labelCls} htmlFor="ap-height-ft">Height</label>
+          <div className="flex gap-2">
+            <div className="flex items-center gap-1 flex-1">
+              <input
+                id="ap-height-ft"
+                type="number"
+                min={0}
+                className={fieldBase + ' w-full min-w-0'}
+                value={heightFt}
+                onChange={e => setHeight(e.target.value ? Number(e.target.value) : '', heightInch)}
+              />
+              <span className="text-xs text-slate-500 dark:text-slate-400">ft</span>
+            </div>
+            <div className="flex items-center gap-1 flex-1">
+              <input
+                aria-label="Height (inches)"
+                type="number"
+                min={0}
+                max={11}
+                className={fieldBase + ' w-full min-w-0'}
+                value={heightInch}
+                onChange={e => setHeight(heightFt, e.target.value ? Number(e.target.value) : '')}
+              />
+              <span className="text-xs text-slate-500 dark:text-slate-400">in</span>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -154,13 +198,13 @@ export default function AthleteProfileEditor({ profile, onSave }: Props) {
           {injuries.map((inj, i) => (
             <div key={i} className="flex gap-2 items-center">
               <input
-                className={inputCls + ' flex-1'}
+                className={fieldBase + ' flex-1 min-w-0'}
                 placeholder="Region (e.g. right knee)"
                 value={inj.region}
                 onChange={e => setInjury(i, { region: e.target.value })}
               />
               <select
-                className={inputCls + ' w-28'}
+                className={fieldBase + ' w-28 shrink-0'}
                 value={inj.status}
                 onChange={e => setInjury(i, { status: e.target.value as Injury['status'] })}
               >
@@ -192,13 +236,13 @@ export default function AthleteProfileEditor({ profile, onSave }: Props) {
           {goals.map((g, i) => (
             <div key={i} className="flex gap-2 items-center">
               <input
-                className={inputCls + ' flex-1'}
+                className={fieldBase + ' flex-1 min-w-0'}
                 placeholder="Goal (e.g. finish Broken Arrow 18K strong)"
                 value={g.text}
                 onChange={e => setGoal(i, { text: e.target.value })}
               />
               <select
-                className={inputCls + ' w-28'}
+                className={fieldBase + ' w-28 shrink-0'}
                 value={g.priority ?? 'primary'}
                 onChange={e => setGoal(i, { priority: e.target.value as Goal['priority'] })}
               >

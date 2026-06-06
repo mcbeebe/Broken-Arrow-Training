@@ -316,7 +316,9 @@ export interface AthleteProfile {
   /** ISO 'YYYY-MM-DD'. Age is computed on read so it never goes stale. */
   birthDate?: string;
   sex?: 'male' | 'female' | 'other';
-  weightKg?: number;
+  weightLb?: number;
+  /** Total height in inches (the profile editor edits it as feet + inches). */
+  heightIn?: number;
   /** Persisted from onboarding so the coach can tune progression/recovery. */
   experienceLevel?: 'first_timer' | 'beginner' | 'intermediate' | 'advanced' | 'elite';
   trainingAgeYears?: number;

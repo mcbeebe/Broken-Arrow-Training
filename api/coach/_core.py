@@ -1213,6 +1213,12 @@ def _athlete_profile_directive(profile: dict[str, Any] | None) -> str | None:
     sex = profile.get("sex")
     if sex:
         bits.append(f"sex {sex}")
+    weight = profile.get("weightLb")
+    if weight:
+        bits.append(f"weight {int(weight)} lb")
+    height_in = profile.get("heightIn")
+    if height_in:
+        bits.append(f"height {int(height_in) // 12}'{int(height_in) % 12}\"")
     injuries = profile.get("injuryHistory") or []
     flagged = [
         i for i in injuries
