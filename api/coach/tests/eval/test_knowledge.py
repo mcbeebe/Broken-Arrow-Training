@@ -9,7 +9,7 @@ from api.coach._core import select_knowledge, APP_KNOWLEDGE, APP_KNOWLEDGE_LITE
 
 _MASTERS = "Masters / age 40+:"
 _FEMALE = "Female-specific considerations:"
-_RTR = "Return-to-run"
+_RTR = "Return-to-run / progressive loading"  # module header (distinct from the citation header)
 _VO2 = "VO2max & interval prescription:"
 _STRENGTH = "Strength programming for endurance:"
 
