@@ -272,8 +272,8 @@ describe('aggregateDailyTRIMP', () => {
     // Use a far-future date so rest-day infill to "today" doesn't add
     // an unexpected second DailyTRIMP entry and break the length assertion.
     const records = [
-      { date: '2026-06-01', activityName: 'Run', sportType: 'running' as const, baseTRIMP: 50, sportMultiplier: 1, elevationBonus: 0, adjustedTRIMP: 50 },
-      { date: '2026-06-01', activityName: 'Strength', sportType: 'strength_full' as const, baseTRIMP: 30, sportMultiplier: 1.0, elevationBonus: 0, adjustedTRIMP: 30 },
+      { date: '2030-06-01', activityName: 'Run', sportType: 'running' as const, baseTRIMP: 50, sportMultiplier: 1, elevationBonus: 0, adjustedTRIMP: 50 },
+      { date: '2030-06-01', activityName: 'Strength', sportType: 'strength_full' as const, baseTRIMP: 30, sportMultiplier: 1.0, elevationBonus: 0, adjustedTRIMP: 30 },
     ]
     const daily = aggregateDailyTRIMP(records)
     expect(daily).toHaveLength(1)
