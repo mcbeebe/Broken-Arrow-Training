@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type {
   RaceType,
+  GeneralGoal,
   RaceDistance,
   ExperienceLevel,
   WearableType,
@@ -52,11 +53,16 @@ const STEP_SCHEDULE = 10
 const STEP_WEARABLE = 11
 const STEP_PROFILE = 12
 const STEP_REVIEW = 13
+// General-fitness goal step (raceType === 'general' only). Kept out of the 0-13
+// range so existing step IDs are untouched; order comes from ALL_STEPS, and all
+// navigation/progress is index-based (visibleSteps.indexOf), not value-based.
+const STEP_GENERAL_GOAL = 14
 
 const ALL_STEPS = [
   STEP_RACE_TYPE,
   STEP_RACE_NAME,
   STEP_RACE_DISTANCE,
+  STEP_GENERAL_GOAL,
   STEP_EXPERIENCE,
   STEP_DETAIL,
   STEP_DAYS,
@@ -161,6 +167,7 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
   const [raceName, setRaceName] = useState('')
   const [raceDate, setRaceDate] = useState('')
   const [raceDistance, setRaceDistance] = useState<RaceDistance | null>(null)
+  const [generalGoal, setGeneralGoal] = useState<GeneralGoal | null>(null)
   const [experience, setExperience] = useState<ExperienceLevel | null>(null)
   const [detailLevel, setDetailLevel] = useState<DetailLevel | null>(null)
   const [daysPerWeek, setDaysPerWeek] = useState<number | null>(null)
@@ -196,12 +203,16 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
   // the user sees a blank white screen even though the markup is there.
   const contentRef = useRef<HTMLDivElement | null>(null)
 
-  // Race-distance step only shows for trail/road races. Hyrox is its own fixed format,
-  // general fitness has no target distance.
+  // Race-distance step only shows for trail/road races (hyrox is a fixed format,
+  // general fitness has no target distance). The general-goal step is the mirror
+  // image — shown only for general fitness.
   const showsDistanceStep = raceType === 'trail'
-  const visibleSteps: readonly number[] = showsDistanceStep
-    ? ALL_STEPS
-    : ALL_STEPS.filter(s => s !== STEP_RACE_DISTANCE)
+  const showsGoalStep = raceType === 'general'
+  const visibleSteps: readonly number[] = ALL_STEPS.filter(s => {
+    if (s === STEP_RACE_DISTANCE) return showsDistanceStep
+    if (s === STEP_GENERAL_GOAL) return showsGoalStep
+    return true
+  })
   const visibleIdx = visibleSteps.indexOf(step)
   const isLastStep = visibleIdx === visibleSteps.length - 1
 
@@ -255,6 +266,7 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
       case STEP_RACE_TYPE: return !!raceType
       case STEP_RACE_NAME: return raceName.trim().length > 0
       case STEP_RACE_DISTANCE: return !!raceDistance
+      case STEP_GENERAL_GOAL: return !!generalGoal
       case STEP_EXPERIENCE: return !!experience
       case STEP_DETAIL: return !!effectiveDetail
       case STEP_DAYS: return !!daysPerWeek
@@ -298,6 +310,7 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
       raceName: raceName.trim(),
       raceDate,
       raceDistance: showsDistanceStep ? (raceDistance ?? undefined) : undefined,
+      generalGoal: showsGoalStep ? (generalGoal ?? undefined) : undefined,
       experienceLevel: experience!,
       detailLevel: effectiveDetail,
       trainingDaysPerWeek: daysPerWeek!,
@@ -417,6 +430,15 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
                 desc={opt.desc}
               />
             ))}
+          </StepContainer>
+        )}
+
+        {step === STEP_GENERAL_GOAL && (
+          <StepContainer title="What's your main goal?" subtitle="We'll shape your plan around this — you can change it later">
+            <OptionCard selected={generalGoal === 'stay_healthy'} onClick={() => setGeneralGoal('stay_healthy')} title="Stay Healthy & Fit" desc="Balanced cardio, strength, and mobility for overall health and longevity." icon="general" />
+            <OptionCard selected={generalGoal === 'lose_fat'} onClick={() => setGeneralGoal('lose_fat')} title="Lose Fat" desc="Keep your muscle while leaning out — strength plus efficient cardio." icon="general" />
+            <OptionCard selected={generalGoal === 'build_muscle'} onClick={() => setGeneralGoal('build_muscle')} title="Build Muscle" desc="Strength-focused with higher lifting volume; cardio kept for health." icon="general" />
+            <OptionCard selected={generalGoal === 'build_endurance'} onClick={() => setGeneralGoal('build_endurance')} title="Build Endurance" desc="More aerobic volume and intervals, with strength to support it." icon="general" />
           </StepContainer>
         )}
 
@@ -746,6 +768,7 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
               raceName={raceName}
               raceDate={raceDate}
               raceDistance={raceDistance}
+              generalGoal={generalGoal}
               showsDistanceStep={showsDistanceStep}
               experience={experience}
               detailLevel={effectiveDetail}
@@ -963,6 +986,13 @@ const RACE_TYPE_LABELS: Record<RaceType, string> = {
   general: 'General Fitness',
 }
 
+const GENERAL_GOAL_LABELS: Record<GeneralGoal, string> = {
+  stay_healthy: 'Stay Healthy & Fit',
+  lose_fat: 'Lose Fat',
+  build_muscle: 'Build Muscle',
+  build_endurance: 'Build Endurance',
+}
+
 const DISTANCE_LABELS: Record<RaceDistance, string> = {
   '5k': '5K',
   '10k': '10K',
@@ -980,6 +1010,7 @@ function ReviewSummary({
   raceName,
   raceDate,
   raceDistance,
+  generalGoal,
   showsDistanceStep,
   experience,
   detailLevel,
@@ -1000,6 +1031,7 @@ function ReviewSummary({
   raceName: string
   raceDate: string
   raceDistance: RaceDistance | null
+  generalGoal: GeneralGoal | null
   showsDistanceStep: boolean
   experience: ExperienceLevel | null
   detailLevel: DetailLevel | null
@@ -1033,6 +1065,7 @@ function ReviewSummary({
         <p className="text-sm text-slate-600">
           {raceType ? RACE_TYPE_LABELS[raceType] : '—'}
           {showsDistanceStep && raceDistance ? ` · ${DISTANCE_LABELS[raceDistance]}` : ''}
+          {raceType === 'general' && generalGoal ? ` · ${GENERAL_GOAL_LABELS[generalGoal]}` : ''}
           {raceDate ? ` · ${raceDate}` : ''}
         </p>
       </SummaryCard>

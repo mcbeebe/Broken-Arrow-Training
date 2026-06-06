@@ -3,6 +3,10 @@ import type { DetailLevel } from '../types'
 import { stampKey } from '../utils/syncStamps'
 
 export type RaceType = 'trail' | 'hyrox' | 'general'
+// Goal for the General Fitness path (raceType === 'general'). Selects which
+// preset re-weights the shared 4-pillar engine (Zone 2 / VO2max / strength /
+// mobility). See docs/GENERAL_FITNESS_ENGINE_DESIGN.md.
+export type GeneralGoal = 'stay_healthy' | 'lose_fat' | 'build_muscle' | 'build_endurance'
 export type ExperienceLevel = 'first_timer' | 'beginner' | 'intermediate' | 'advanced' | 'elite'
 
 export type WearableType = 'garmin' | 'apple_watch' | 'oura' | 'none'
@@ -58,6 +62,9 @@ export interface OnboardingConfig {
   // 'koop', 'roche_swap'). Only set for trail/road flows; hyrox/general skip
   // method selection and use the existing generateHyroxPlan path.
   selectedMethodId?: string
+  // Goal for the General Fitness path (raceType === 'general'). Selects which
+  // preset re-weights the shared 4-pillar engine. Omitted for trail/hyrox.
+  generalGoal?: GeneralGoal
   experienceLevel: ExperienceLevel
   trainingDaysPerWeek: number
   longRunDay?: string

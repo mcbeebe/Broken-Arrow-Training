@@ -27,6 +27,7 @@ function getContinueButton() {
 function walkHappyPath(overrides: Partial<{
   raceType: 'Trail / Road Race' | 'Hyrox' | 'General Fitness'
   raceDistance: string
+  generalGoal: string
   experience: string
   daysPerWeek: number
   longRunDay: string
@@ -55,6 +56,7 @@ function walkHappyPath(overrides: Partial<{
   const o = {
     raceType: 'Trail / Road Race',
     raceDistance: 'Marathon',
+    generalGoal: 'Build Muscle',
     experience: 'Intermediate',
     daysPerWeek: 5,
     longRunDay: 'Saturday',
@@ -102,6 +104,12 @@ function walkHappyPath(overrides: Partial<{
         ? screen.getByText(/^5K$/)
         : screen.getByText(o.raceDistance)
     fireEvent.click(target)
+    clickContinue()
+  }
+
+  // Step 2b (general only): goal selection — shown for General Fitness via visibleSteps
+  if (o.raceType === 'General Fitness') {
+    fireEvent.click(screen.getByText(o.generalGoal))
     clickContinue()
   }
 
@@ -275,14 +283,19 @@ describe('Onboarding', () => {
       expect(screen.getByText(/how would you rate your fitness/i)).toBeInTheDocument()
     })
 
-    it('skips the race-distance step for General Fitness', () => {
+    it('skips the race-distance step for General Fitness (goal step instead)', () => {
       const onComplete = vi.fn()
       render(<Onboarding onComplete={onComplete} loadingDurationMs={0} />)
       fireEvent.click(screen.getByText(/General Fitness/))
       clickContinue()
       fireEvent.change(screen.getByPlaceholderText(/Summer Fitness/), { target: { value: 'Block' } })
       clickContinue()
+      // Distance is skipped; general fitness goes to the goal step instead.
       expect(screen.queryByText(/race distance/i)).not.toBeInTheDocument()
+      expect(screen.getByText(/what's your main goal/i)).toBeInTheDocument()
+      // Goal step → experience.
+      fireEvent.click(screen.getByText('Build Muscle'))
+      clickContinue()
       expect(screen.getByText(/how would you rate your fitness/i)).toBeInTheDocument()
     })
 
@@ -296,6 +309,12 @@ describe('Onboarding', () => {
       const cfg = walkHappyPath({ raceType: 'General Fitness' })
       expect(cfg.raceType).toBe('general')
       expect(cfg.raceDistance).toBeUndefined()
+    })
+
+    it('captures the selected goal for General Fitness', () => {
+      const cfg = walkHappyPath({ raceType: 'General Fitness', generalGoal: 'Lose Fat' })
+      expect(cfg.raceType).toBe('general')
+      expect(cfg.generalGoal).toBe('lose_fat')
     })
 
     it('captures the user-selected race distance for trail races', () => {
