@@ -5,10 +5,8 @@
   "installCommand": "echo 'Skipping frontend install — API only'",
   "rewrites": [
     { "source": "/api/auth/athletes", "destination": "/api/auth/google" },
-    { "source": "/api/version", "destination": "/api/sync?__endpoint=version" }
-  ],
-  "crons": [
-    { "path": "/api/coach/scheduled_push", "schedule": "0 * * * *" }
+    { "source": "/api/version", "destination": "/api/sync?__endpoint=version" },
+    { "source": "/api/coach/scheduled_push", "destination": "/api/coach/push?__cron=1" }
   ],
   "functions": {
     "api/garmin/*.py": {

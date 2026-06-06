@@ -1,0 +1,42 @@
+name: Coach Scheduled Push
+
+# Replaces the Vercel cron for /api/coach/scheduled_push. That cron ran hourly
+# (`0 * * * *`), which fails to deploy on the Vercel HOBBY plan — Hobby caps
+# crons at once/day, and the briefing fan-out must run every hour to catch each
+# device's LOCAL morning/afternoon/evening (scheduled_push.py is timezone-aware).
+#
+# GitHub Actions schedules are best-effort and can lag ~5-15 min under load —
+# fine for a briefing nudge. The endpoint is idempotent per local-day/hour
+# (coach_push_sent:* dedup keys), so an occasional double-fire is harmless.
+#
+# Secrets used:
+#   VITE_GARMIN_API_URL  — API base (already configured for the frontend build)
+#   CRON_SECRET          — must match the Vercel env var of the same name; the
+#                          endpoint requires `Authorization: Bearer <CRON_SECRET>`
+#                          when set, and is open when unset.
+on:
+  schedule:
+    - cron: '0 * * * *' # top of every hour (UTC), best-effort
+  workflow_dispatch: {}
+
+concurrency:
+  group: coach-scheduled-push
+  cancel-in-progress: false
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger hourly briefing fan-out
+        env:
+          API_URL: ${{ secrets.VITE_GARMIN_API_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$API_URL" ]; then
+            echo "::error::VITE_GARMIN_API_URL secret is not set — cannot reach the API."
+            exit 1
+          fi
+          echo "Pinging ${API_URL%/}/api/coach/scheduled_push"
+          curl -fsS --max-time 60 -X GET "${API_URL%/}/api/coach/scheduled_push" \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            -H "User-Agent: gha-coach-scheduled-push"
