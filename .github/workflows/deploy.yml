@@ -99,6 +99,11 @@ jobs:
       # Inject CNAME file so GitHub Pages keeps the custom domain set.
       # Must NOT live in public/ — it'd land in the legacy build too.
       - run: echo "attune.coach" > ./dist/CNAME
+      # Stamp the published build's commit SHA so the running app can ask
+      # "is the bundle I'm executing the one GH Pages is serving?" — the
+      # signal Deploy Diagnostics uses to tell a stale browser apart from
+      # a stale backend. Same value baked into VITE_GIT_COMMIT_SHA above.
+      - run: echo '{"commit":"${{ github.sha }}"}' > ./dist/version.json
       - uses: peaceiris/actions-gh-pages@v4
         if: >-
           vars.ATTUNE_PUBLISH_ENABLED == 'true' &&

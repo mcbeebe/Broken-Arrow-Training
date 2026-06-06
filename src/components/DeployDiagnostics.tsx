@@ -24,6 +24,11 @@ export default function DeployDiagnostics() {
   const [api, setApi] = useState<VersionInfo | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  // Short SHA the GH Pages origin is *currently* serving, read from a
+  // same-origin /version.json the deploy workflow stamps with the build
+  // commit. Lets us tell a stale-browser mismatch apart from a stale
+  // backend one. null = not yet known (or this build predates the file).
+  const [published, setPublished] = useState<string | null>(null)
 
   const front = (import.meta.env.VITE_GIT_COMMIT_SHA as string | undefined)?.slice(0, 7) || 'dev'
 
@@ -44,12 +49,42 @@ export default function DeployDiagnostics() {
     }
   }
 
-  useEffect(() => { fetchVersion() }, [])
+  // What SHA is GH Pages publishing right now? Same-origin fetch, so no
+  // CORS, and the service worker has no fetch handler — this always hits
+  // the network (cache-busted + no-store) and returns the live build.
+  async function fetchPublished() {
+    try {
+      const res = await fetch(`/version.json?t=${Date.now()}`, { cache: 'no-store' })
+      if (!res.ok) return
+      const data = await res.json()
+      if (typeof data?.commit === 'string') setPublished(data.commit.slice(0, 7))
+    } catch {
+      // Non-fatal: without the published SHA we fall back to the generic
+      // mismatch hint that names both possible culprits.
+    }
+  }
+
+  useEffect(() => {
+    fetchVersion()
+    fetchPublished()
+  }, [])
 
   const apiShort = api?.commit || '—'
   const hasFront = front !== 'dev'
   const hasApi = apiShort !== '—' && apiShort !== 'unknown'
   const inSync = hasFront && hasApi && front === apiShort
+
+  // Can we trust the "which side is stale" verdict? Only when we know
+  // what GH Pages is actually serving.
+  const knowPublished = hasFront && published !== null
+  // Running bundle is older than what GH Pages serves → THIS client is a
+  // cached copy. The one case a reopen/hard-refresh actually fixes.
+  const clientStale = knowPublished && published !== front
+  // Running bundle matches what's published, yet it disagrees with the
+  // API → the backend (Vercel) is the side that's behind. A refresh
+  // can't touch a server-side deploy.
+  const apiBehind = knowPublished && !clientStale && hasApi && front !== apiShort
+
   const statusColor = inSync
     ? 'text-green-700 bg-green-50 border-green-200'
     : 'text-amber-700 bg-amber-50 border-amber-200'
@@ -62,16 +97,30 @@ export default function DeployDiagnostics() {
     statusText = 'ℹ️ Frontend SHA not injected (dev build)'
   } else if (!hasApi) {
     statusText = '⚠️ API SHA unavailable — check Vercel deploy / env vars'
+  } else if (clientStale) {
+    statusText = '⚠️ Your app is a cached older build'
+    hint =
+      `GH Pages is already serving a newer frontend (${published}) than ` +
+      `the copy running on your device (${front}). Close and reopen the ` +
+      `PWA — or hard-refresh (Cmd+Shift+R / Ctrl+F5) — to load it.`
+  } else if (apiBehind) {
+    statusText = "⚠️ Backend is behind — reopening won't help"
+    hint =
+      "Your app is already on the latest frontend, so a refresh changes " +
+      "nothing. The API on Vercel is still serving an older deploy. Open " +
+      "Vercel → Deployments and confirm the Production deployment is on " +
+      "the latest commit — production may be pinned to an old branch, or a " +
+      "deploy may have failed."
   } else {
-    // Both present but mismatched. We don't have a strict ordering
-    // of SHAs, but the most common cause is simply a stale client
-    // bundle. Recommend a hard refresh first.
+    // Mismatch, but we couldn't confirm the published frontend SHA, so we
+    // can't say which side is stale. Name both, in the order the user can
+    // check fastest.
     statusText = '⚠️ Frontend and API are on different commits'
     hint =
-      "This usually means your browser is still running a cached copy " +
-      "of the frontend. Hard-refresh (Cmd+Shift+R / Ctrl+F5, or close + " +
-      "reopen the PWA). If it persists after that, the slower side " +
-      "(usually GH Pages Actions) is still finishing its deploy."
+      "Either your browser is running a cached frontend — reopen / " +
+      "hard-refresh the PWA — or the backend (Vercel) hasn't finished " +
+      "promoting its deploy. If the frontend SHA above doesn't change " +
+      "after reopening, it's the backend: check Vercel's Deployments tab."
   }
 
   return (
@@ -120,7 +169,7 @@ export default function DeployDiagnostics() {
       )}
 
       <button
-        onClick={fetchVersion}
+        onClick={() => { fetchVersion(); fetchPublished() }}
         disabled={loading}
         className="text-sm font-medium px-3 py-1.5 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 disabled:opacity-50 transition-colors"
       >
