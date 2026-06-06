@@ -1,0 +1,42 @@
+{
+  "_meta": {
+    "id": "masters_athlete",
+    "surface": "daily",
+    "description": "55yo intermediate athlete with a chronic knee. R7 asserts the ATHLETE_PROFILE_DIRECTIVE renders (masters + experience + injury) in the system prompt; the live read should lean conservative and mind the knee."
+  },
+  "_expect": {
+    "athlete_directive_contains": ["age", "masters", "experience intermediate", "knee (chronic)"],
+    "readiness_max_intensity": "moderate",
+    "max_chars": 1700
+  },
+  "today": { "date": "2026-06-02", "period": "morning" },
+  "currentWeekNum": 6,
+  "readiness": {
+    "status": "YELLOW", "displayScore": 54, "trainingState": "B",
+    "components": { "hrv": 0, "rhr": 0, "sleep": 0, "trainingLoad": -1 },
+    "message": "Not fully recovered — load is climbing."
+  },
+  "performance": { "ctl": 42, "atl": 50, "tsb": -8, "acwr": 1.3 },
+  "todayHealth": { "sleepHours": 7.0, "rhr": 52, "hrvLastNightMs": 48, "hrvWeeklyAvgMs": 50, "hrvStatus": "BALANCED" },
+  "plannedToday": {
+    "day": "Mon 6/2", "type": "quality", "workout": "Hill repeats", "zone": "Z4", "detail": "6 x 90s uphill"
+  },
+  "athleteProfile": {
+    "name": "Dana",
+    "maxHR": 175,
+    "weeklyStructure": "4 days, long run Sunday",
+    "birthDate": "1971-03-15",
+    "sex": "female",
+    "experienceLevel": "intermediate",
+    "injuryHistory": [
+      { "region": "right knee", "status": "chronic", "note": "patellar tendinopathy, flares on steep descents" }
+    ],
+    "goals": [
+      { "text": "finish the Broken Arrow 18K strong", "priority": "primary" }
+    ]
+  },
+  "zones": [
+    { "zone": "Z2", "hr": "118-136", "pct": "67-78%" },
+    { "zone": "Z4", "hr": "152-164", "pct": "87-94%" }
+  ]
+}
