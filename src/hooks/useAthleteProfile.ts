@@ -10,7 +10,7 @@ import type { AthleteProfile } from '../types'
 export type AthleteProfileExtras = Partial<
   Pick<
     AthleteProfile,
-    'birthDate' | 'sex' | 'weightKg' | 'experienceLevel' | 'trainingAgeYears' | 'injuryHistory' | 'goals'
+    'birthDate' | 'sex' | 'weightLb' | 'heightIn' | 'experienceLevel' | 'trainingAgeYears' | 'injuryHistory' | 'goals'
   >
 >
 
