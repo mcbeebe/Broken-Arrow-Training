@@ -1,0 +1,175 @@
+import { describe, it, expect } from 'vitest'
+import { generateGeneralFitnessPlan } from '../../../engines/generalFitness'
+import { weeklyRoles } from '../../../engines/generalFitness/presets'
+import type { OnboardingConfig } from '../../../hooks/useOnboarding'
+import type { GeneralGoal } from '../../../hooks/useOnboarding'
+
+const TODAY = '2026-06-08'
+const GOALS: GeneralGoal[] = ['stay_healthy', 'lose_fat', 'build_muscle', 'build_endurance']
+
+function makeConfig(overrides: Partial<OnboardingConfig> = {}): OnboardingConfig {
+  return {
+    raceType: 'general',
+    raceName: 'My Fitness Plan',
+    raceDate: '',
+    generalGoal: 'stay_healthy',
+    experienceLevel: 'intermediate',
+    trainingDaysPerWeek: 4,
+    longRunDay: 'Saturday',
+    wearable: 'none',
+    athleteName: 'Test',
+    age: 38,
+    maxHR: 184,
+    completedAt: '',
+    ...overrides,
+  }
+}
+
+const activeDays = (days: { type: string }[]) => days.filter(d => d.type !== 'rest')
+const strengthDays = (days: { type: string }[]) => days.filter(d => d.type === 'strength')
+
+describe('generateGeneralFitnessPlan — structure', () => {
+  it('defaults to an open-ended rolling block of 12 weeks when no target date is set', () => {
+    const plan = generateGeneralFitnessPlan(makeConfig(), TODAY)
+    expect(plan.weeks).toHaveLength(12)
+  })
+
+  it('sizes the block to a target date and clamps to 16 weeks max', () => {
+    const near = generateGeneralFitnessPlan(makeConfig({ raceDate: '2026-07-20' }), TODAY)
+    expect(near.weeks.length).toBeGreaterThanOrEqual(4)
+    expect(near.weeks.length).toBeLessThan(12)
+    const far = generateGeneralFitnessPlan(makeConfig({ raceDate: '2027-06-01' }), TODAY)
+    expect(far.weeks).toHaveLength(16)
+  })
+
+  it('every week has exactly 7 days', () => {
+    for (const goal of GOALS) {
+      const plan = generateGeneralFitnessPlan(makeConfig({ generalGoal: goal }), TODAY)
+      for (const w of plan.weeks) expect(w.days).toHaveLength(7)
+    }
+  })
+
+  it('active (non-rest) day count equals trainingDaysPerWeek for 3–6 days', () => {
+    for (const days of [3, 4, 5, 6]) {
+      const plan = generateGeneralFitnessPlan(makeConfig({ trainingDaysPerWeek: days }), TODAY)
+      for (const w of plan.weeks) expect(activeDays(w.days)).toHaveLength(days)
+    }
+  })
+
+  it('produces a valid plan for all four goals', () => {
+    for (const goal of GOALS) {
+      const plan = generateGeneralFitnessPlan(makeConfig({ generalGoal: goal }), TODAY)
+      expect(plan.weeks).toHaveLength(12)
+      expect(plan.zones.length).toBeGreaterThan(0)
+      expect(plan.athlete.name).toBe('Test')
+      // Each day carries the required flat fields.
+      for (const d of plan.weeks[0].days) {
+        expect(typeof d.workout).toBe('string')
+        expect(typeof d.zone).toBe('string')
+      }
+    }
+  })
+
+  it('is deterministic for the same (config, today)', () => {
+    const a = generateGeneralFitnessPlan(makeConfig({ generalGoal: 'lose_fat' }), TODAY)
+    const b = generateGeneralFitnessPlan(makeConfig({ generalGoal: 'lose_fat' }), TODAY)
+    expect(JSON.stringify(a)).toBe(JSON.stringify(b))
+  })
+
+  it('falls back to stay_healthy when generalGoal is unset', () => {
+    const cfg = makeConfig()
+    delete (cfg as Partial<OnboardingConfig>).generalGoal
+    const plan = generateGeneralFitnessPlan(cfg, TODAY)
+    expect(plan.weeks).toHaveLength(12)
+    expect(plan.athlete.currentBase).toContain('Stay Healthy')
+  })
+})
+
+describe('generateGeneralFitnessPlan — pillars by goal', () => {
+  it('honors the ≥2 strength-days health floor for non-endurance goals', () => {
+    for (const goal of ['stay_healthy', 'lose_fat', 'build_muscle'] as GeneralGoal[]) {
+      const plan = generateGeneralFitnessPlan(makeConfig({ generalGoal: goal, trainingDaysPerWeek: 4 }), TODAY)
+      for (const w of plan.weeks) expect(strengthDays(w.days).length).toBeGreaterThanOrEqual(2)
+    }
+  })
+
+  it('keeps Build Endurance strength near the floor (≥1), below Build Muscle', () => {
+    const endurance = generateGeneralFitnessPlan(makeConfig({ generalGoal: 'build_endurance', trainingDaysPerWeek: 5 }), TODAY)
+    const muscle = generateGeneralFitnessPlan(makeConfig({ generalGoal: 'build_muscle', trainingDaysPerWeek: 5 }), TODAY)
+    const endStr = strengthDays(endurance.weeks[0].days).length
+    const musStr = strengthDays(muscle.weeks[0].days).length
+    expect(endStr).toBeGreaterThanOrEqual(1)
+    expect(musStr).toBeGreaterThan(endStr)
+  })
+
+  it('Build Endurance carries more cardio than Build Muscle at the same days/week', () => {
+    const endurance = generateGeneralFitnessPlan(makeConfig({ generalGoal: 'build_endurance', trainingDaysPerWeek: 5 }), TODAY)
+    const muscle = generateGeneralFitnessPlan(makeConfig({ generalGoal: 'build_muscle', trainingDaysPerWeek: 5 }), TODAY)
+    const cardio = (days: { type: string }[]) => days.filter(d => ['run', 'long', 'cross', 'quality'].includes(d.type)).length
+    expect(cardio(endurance.weeks[0].days)).toBeGreaterThan(cardio(muscle.weeks[0].days))
+  })
+
+  it('strength days carry a parseable, prescriptive detail', () => {
+    const plan = generateGeneralFitnessPlan(makeConfig({ generalGoal: 'build_muscle' }), TODAY)
+    const s = plan.weeks[0].days.find(d => d.type === 'strength')!
+    expect(s.detail).toContain(' · ')
+    expect(s.workout.toLowerCase()).toContain('strength')
+  })
+
+  it('weeklyRoles length always equals the (clamped) days/week', () => {
+    for (const goal of GOALS) {
+      for (const days of [3, 4, 5, 6]) {
+        expect(weeklyRoles(goal, days)).toHaveLength(days)
+      }
+    }
+  })
+})
+
+describe('generateGeneralFitnessPlan — progression, zones, athlete, race', () => {
+  it('inserts a deload every 4th week', () => {
+    const plan = generateGeneralFitnessPlan(makeConfig(), TODAY)
+    for (const w of plan.weeks) {
+      if (w.num % 4 === 0) expect(w.focus.toLowerCase()).toContain('deload')
+      else expect(w.focus.toLowerCase()).not.toContain('deload')
+    }
+  })
+
+  it('zone percent labels match the displayed bpm range', () => {
+    const plan = generateGeneralFitnessPlan(makeConfig({ maxHR: 200 }), TODAY)
+    const z2 = plan.zones.find(z => z.zone.includes('Z2'))!
+    const [loHr, hiHr] = z2.hr.split(/[–-]/).map(s => parseInt(s, 10))
+    const [loPct, hiPct] = z2.pct.split(/[–-]/).map(s => parseInt(s, 10))
+    expect(Math.round((loHr / 200) * 100)).toBe(loPct)
+    expect(Math.round((hiHr / 200) * 100)).toBe(hiPct)
+  })
+
+  it('derives maxHR from age when not provided', () => {
+    const cfg = makeConfig({ age: 40 })
+    delete (cfg as Partial<OnboardingConfig>).maxHR
+    const plan = generateGeneralFitnessPlan(cfg, TODAY)
+    expect(plan.athlete.maxHR).toBe(180) // 220 - 40
+  })
+
+  it('athlete profile reflects onboarding inputs', () => {
+    const plan = generateGeneralFitnessPlan(makeConfig({ athleteName: 'Jenn', maxHR: 180, trainingDaysPerWeek: 5 }), TODAY)
+    expect(plan.athlete.name).toBe('Jenn')
+    expect(plan.athlete.maxHR).toBe(180)
+    expect(plan.athlete.weeklyStructure).toMatch(/days\/week/)
+  })
+
+  it('synthesizes a well-formed, event-less RaceInfo', () => {
+    const plan = generateGeneralFitnessPlan(makeConfig({ generalGoal: 'lose_fat', raceName: 'Summer Cut' }), TODAY)
+    expect(plan.race.name).toBe('Summer Cut')
+    expect(plan.race.distanceMiles).toBe(0)
+    expect(Array.isArray(plan.race.landmarks)).toBe(true)
+    expect(Array.isArray(plan.race.gear)).toBe(true)
+  })
+
+  it('anchors the long session to the preferred long day when it is a training day', () => {
+    // 5 days → training weekdays Mon,Tue,Wed,Fri,Sat. Saturday is a slot.
+    const plan = generateGeneralFitnessPlan(makeConfig({ generalGoal: 'build_endurance', trainingDaysPerWeek: 5, longRunDay: 'Saturday' }), TODAY)
+    const longDay = plan.weeks[0].days.find(d => d.type === 'long')
+    expect(longDay).toBeTruthy()
+    expect(longDay!.day).toContain('Sat')
+  })
+})

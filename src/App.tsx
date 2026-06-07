@@ -25,6 +25,7 @@ import { getMethodById } from './data/methods'
 import { summarizeOp } from './utils/chatProposal'
 import { resolveMethodId } from './utils/resolveMethod'
 import { generatePlanFromMethod } from './engines/planGenerator/generatePlan'
+import { generateGeneralFitnessPlan } from './engines/generalFitness'
 import { useSoreness } from './hooks/useSoreness'
 import { useMIMCalibration } from './hooks/useMIMCalibration'
 import { loadRunGAPCache } from './utils/runGAP'
@@ -204,6 +205,8 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
   if (!plan && onboarding.config) {
     if (onboarding.config.raceType === 'hyrox') {
       generatedPlan = generateHyroxPlan(onboarding.config)
+    } else if (onboarding.config.raceType === 'general') {
+      generatedPlan = generateGeneralFitnessPlan(onboarding.config)
     } else if (onboarding.config.selectedMethodId) {
       const method = getMethodById(onboarding.config.selectedMethodId)
       if (method) generatedPlan = generatePlanFromMethod(method, onboarding.config)
@@ -218,7 +221,7 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
     activePlan &&
     onboarding.config &&
     !onboarding.config.primerSeenAt &&
-    onboarding.config.raceType !== 'hyrox'
+    onboarding.config.raceType === 'trail'
   ) {
     const primerMethod = onboarding.config.selectedMethodId
       ? getMethodById(onboarding.config.selectedMethodId)
