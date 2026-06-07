@@ -1508,6 +1508,58 @@ def _max_intensity(status: Any, training_state: Any) -> str:
     return "moderate"
 
 
+# Generic activity-name tokens that carry no route identity. Auto-named
+# activities ("Morning Run", "Lunch Hike") are mostly these, so we strip
+# them before comparing names — otherwise two unrelated "Morning Run"s
+# would look like the same route.
+_GENERIC_NAME_TOKENS = frozenset({
+    "run", "running", "walk", "walking", "hike", "hiking", "ride", "cycling",
+    "bike", "jog", "morning", "afternoon", "evening", "lunch", "lunchtime",
+    "night", "am", "pm", "workout", "activity", "session", "easy", "recovery",
+})
+
+
+def _normalize_route_name(name: str | None) -> str:
+    """Lowercase, strip punctuation, collapse whitespace. Pure."""
+    if not name:
+        return ""
+    return re.sub(r"[^a-z0-9]+", " ", name.lower()).strip()
+
+
+def _route_names_match(name_a: str | None, name_b: str | None) -> bool:
+    """True when two activity names plausibly refer to the SAME route.
+
+    A strong (≥0.6 Jaccard) overlap of their non-generic tokens — which
+    covers exact matches of real route names too (Jaccard 1.0). Two
+    activities whose only shared tokens are generic ("Morning Run") do NOT
+    match — that's not route identity. Pure."""
+    ta = set(_normalize_route_name(name_a).split()) - _GENERIC_NAME_TOKENS
+    tb = set(_normalize_route_name(name_b).split()) - _GENERIC_NAME_TOKENS
+    if not ta or not tb:
+        return False
+    union = ta | tb
+    return len(ta & tb) / len(union) >= 0.6
+
+
+# A PR baseline must be the SAME route, not just the same distance. An 8mi
+# mountain race (3,700ft) and an 8mi flat road run are not comparable. Treat
+# a prior effort as the same route when its total elevation gain is within
+# ±20% (or ±250ft, whichever is larger — absorbs GPS noise / treadmill 0s)
+# of today's, OR its name matches today's route name.
+_PR_ELEV_REL_TOL = 0.20
+_PR_ELEV_ABS_TOL_FT = 250
+
+
+def _same_route_profile(today: dict[str, Any], prev: dict[str, Any]) -> bool:
+    """True when `prev` is comparable to `today` for PR purposes: similar
+    elevation profile, or a matching route name. Pure."""
+    today_elev = today.get("elevationGain") or 0
+    prev_elev = prev.get("elevationGain") or 0
+    tol = max(_PR_ELEV_ABS_TOL_FT, today_elev * _PR_ELEV_REL_TOL)
+    elev_comparable = abs(prev_elev - today_elev) <= tol
+    return elev_comparable or _route_names_match(today.get("name"), prev.get("name"))
+
+
 def build_context_block(
     snapshot: dict[str, Any],
     depth: str = "7d",
@@ -1941,6 +1993,7 @@ def build_context_block(
         if today_dist > 0:
             lo, hi = today_dist * 0.9, today_dist * 1.1
             today_hr = a.get("avgHR") or 0
+            today_elev = a.get("elevationGain") or 0
             today_name = (a.get("name") or "").lower()
             # Minimum HR for a prior activity to count as race-effort.
             # Use 85% of today's avg HR when we have it, otherwise a
@@ -1951,6 +2004,7 @@ def build_context_block(
 
             prior_best: dict[str, Any] | None = None
             prior_best_rejected_easy: dict[str, Any] | None = None  # for debug line
+            prior_best_rejected_route: dict[str, Any] | None = None  # different route/profile
             for prev in activities:
                 prev_date = (prev.get("startDate") or "")[:10]
                 if prev_date == today_date_key:
@@ -1971,6 +2025,14 @@ def build_context_block(
                     # but don't let it be the PR baseline.
                     if prior_best_rejected_easy is None or t < (prior_best_rejected_easy.get("movingTime") or 0):
                         prior_best_rejected_easy = prev
+                    continue
+                # Route filter: same distance is NOT the same route. A flat
+                # road effort can't be a PR baseline for a mountain race at
+                # the same mileage. Require a comparable elevation profile or
+                # a matching route name.
+                if not _same_route_profile(a, prev):
+                    if prior_best_rejected_route is None or t < (prior_best_rejected_route.get("movingTime") or 0):
+                        prior_best_rejected_route = prev
                     continue
                 if prior_best is None or t < (prior_best.get("movingTime") or 0):
                     prior_best = prev
@@ -2036,6 +2098,21 @@ def build_context_block(
                     out.append(
                         f"Prior efforts at ~{_fmt_num(today_dist)}mi: only easy-pace runs in the context window, no race-effort baseline."
                     )
+                elif prior_best_rejected_route is not None:
+                    rej = prior_best_rejected_route
+                    rej_elev = rej.get("elevationGain") or 0
+                    pr_status = (
+                        "PR_STATUS: NO ROUTE BASELINE — there ARE prior race-effort activities at ~"
+                        f"{_fmt_num(today_dist)}mi but on a DIFFERENT route/profile (e.g. "
+                        f"{_fmt_date_with_dow(rej.get('startDate', ''))} · {rej.get('name', '')} · "
+                        f"{rej_elev}ft vs {today_elev}ft today). Same distance is NOT the same route. "
+                        "DO NOT compare different routes. DO NOT claim a PR."
+                    )
+                    out.append(
+                        f"Prior efforts at ~{_fmt_num(today_dist)}mi: only different-route/profile "
+                        f"efforts in the context window (e.g. {rej_elev}ft vs {today_elev}ft today), "
+                        "no same-route baseline."
+                    )
                 else:
                     pr_status = (
                         "PR_STATUS: NO BASELINE — do NOT claim a PR or cite any previous time for this distance."
@@ -2052,7 +2129,7 @@ def build_context_block(
             banner_lines = [
                 "⚠️ CRITICAL — READ BEFORE WRITING ANY PR / PACE CLAIM ⚠️",
                 pr_status,
-                "If PR_STATUS says NO/TIE/NO BASELINE/UNKNOWN, you MUST NOT say any of: 'PR', 'faster', 'X-minute PR', 'X-second PR', 'crushed your previous'. Silence on PRs is the correct move. If you write a delta or PR claim that doesn't match the PR_STATUS line verbatim, the reply is broken.",
+                "If PR_STATUS says NO/TIE/NO BASELINE/NO RACE BASELINE/NO ROUTE BASELINE/UNKNOWN, you MUST NOT say any of: 'PR', 'faster', 'X-minute PR', 'X-second PR', 'crushed your previous'. Silence on PRs is the correct move. If you write a delta or PR claim that doesn't match the PR_STATUS line verbatim, the reply is broken.",
                 "",
             ]
             for line in reversed(banner_lines):
@@ -2386,7 +2463,7 @@ def _get_anthropic_client():
 # insight.py) while still closing the hallucination hole.
 
 _PR_STATUS_VERDICT_RE = re.compile(
-    r"PR_STATUS:\s*(YES|NO RACE BASELINE|NO BASELINE|NO|TIE|UNKNOWN)\b",
+    r"PR_STATUS:\s*(YES|NO RACE BASELINE|NO ROUTE BASELINE|NO BASELINE|NO|TIE|UNKNOWN)\b",
     re.IGNORECASE,
 )
 _PR_MANDATED_DELTA_RE = re.compile(r"exactly\s*'(\d+)\s*m\s*PR'", re.IGNORECASE)
