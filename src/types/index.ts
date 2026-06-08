@@ -279,6 +279,11 @@ export interface RaceInfo {
   landmarks: { segment: string; description: string }[];
   gear: { item: string; required: boolean }[];
   nutrition: string;
+  /** Athlete's free-text description of the race/event (terrain, elevation,
+   *  climate, context) from onboarding. The coach reads it on every surface. */
+  description?: string;
+  /** Athlete's free-text goal/target for the race/event, from onboarding. */
+  athleteGoal?: string;
   loriNote?: string;
   /** Sprint 5 — race-day coordinates. Drives the Open-Meteo Forecast +
    *  Archive calls (14-day forecast as race approaches, 10-year typical

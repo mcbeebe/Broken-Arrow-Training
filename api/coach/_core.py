@@ -1094,6 +1094,13 @@ def build_system_prompt(
             f"- Elevation: {race.get('elevation', '')}\n"
             f"- Course: {race.get('course', '')}"
         )
+        if race.get("description") or race.get("athleteGoal"):
+            ctx = "Athlete's own words about this race/goal (weave into your guidance):"
+            if race.get("athleteGoal"):
+                ctx += f"\n- Their goal: {race.get('athleteGoal')}"
+            if race.get("description"):
+                ctx += f"\n- Their description: {race.get('description')}"
+            parts.append(ctx)
 
     if about_me and about_me.strip():
         parts.append(f"About this athlete (their own words):\n{about_me.strip()}")
