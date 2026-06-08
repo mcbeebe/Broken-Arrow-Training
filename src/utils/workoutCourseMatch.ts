@@ -88,16 +88,16 @@ export function findBestCourseMatchForPlanned(
 /** Render-ready one-liner. Returns null when there's no good match.
  *  Format: "Today's run is like the KT-22 Climb — miles 2.3–4.8 on race day"
  *  Falls back to a generic phrasing when the segment name is unavailable. */
-export function formatLooksLikeLine(match: WorkoutCourseMatch | null): string | null {
+export function formatLooksLikeLine(match: WorkoutCourseMatch | null, subjectLabel = "Today's"): string | null {
   if (!match) return null
   const { segment } = match
   const start = formatMile(segment.startMile)
   const end = formatMile(segment.endMile)
   const name = segment.name?.trim()
   if (name) {
-    return `Today's workout is like the ${name} — miles ${start}–${end} on race day`
+    return `${subjectLabel} workout is like the ${name} — miles ${start}–${end} on race day`
   }
-  return `Today's workout is like miles ${start}–${end} of the course`
+  return `${subjectLabel} workout is like miles ${start}–${end} of the course`
 }
 
 function formatMile(mi: number): string {

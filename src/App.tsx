@@ -1153,6 +1153,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           domsCarryByDate={readiness.domsCarryByDate}
           coachEnabled={coachEnabled}
           todayPlannedWorkout={todayPlannedWorkout}
+          tomorrowPlannedWorkout={tomorrowPlannedWorkout}
           currentWeekNum={currentWeekNum}
           zones={hrZones.zones}
           coachSnapshot={coachSnapshot}
