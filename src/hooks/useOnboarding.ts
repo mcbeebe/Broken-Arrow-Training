@@ -58,6 +58,13 @@ export interface OnboardingConfig {
   raceType: RaceType
   raceName: string
   raceDate: string
+  // Free-text athlete narrative about the race/event/goal (terrain, elevation,
+  // climate, context). Collected for ALL flows; required (10+ chars). The coach
+  // reads this to tailor the plan and the welcome letter.
+  raceDescription?: string
+  // Free-text personal goal/target for the race/event (e.g. "sub-4:00", "just
+  // finish"). Collected for all flows. The coach incorporates it into guidance.
+  athleteGoal?: string
   // Target race distance — required for trail/road races, omitted for hyrox/general.
   // Drives method selection via applicability.byDistance in the plan-generator engine.
   raceDistance?: RaceDistance
@@ -131,6 +138,9 @@ export interface OnboardingConfig {
   // screen was dismissed. Unset = screen should be shown once, before the
   // connect-your-devices step.
   valuePropsSeenAt?: string
+  // Timestamp of when the post-onboarding "Letter from your Coach" was
+  // dismissed. Unset = shown once at the end of onboarding.
+  welcomeLetterSeenAt?: string
 }
 
 const STORAGE_KEY = 'ba_onboarding'
@@ -262,6 +272,16 @@ export function useOnboarding(athleteId?: string) {
     })
   }, [athleteId])
 
+  const markWelcomeLetterSeen = useCallback(() => {
+    setConfig(prev => {
+      if (!prev || prev.welcomeLetterSeenAt) return prev
+      const next = { ...prev, welcomeLetterSeenAt: new Date().toISOString() }
+      const k = scopedKey(athleteId)
+      try { localStorage.setItem(k, JSON.stringify(next)); stampKey(k) } catch { /* quota */ }
+      return next
+    })
+  }, [athleteId])
+
   return {
     config,
     isOnboarded: !!config,
@@ -273,5 +293,6 @@ export function useOnboarding(athleteId?: string) {
     markZonesPrimerSeen,
     markConnectStepSeen,
     markValuePropsSeen,
+    markWelcomeLetterSeen,
   }
 }
