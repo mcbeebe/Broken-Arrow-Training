@@ -316,6 +316,16 @@ export function getCoachTimeOfDay(): CoachTimeOfDay {
 }
 
 /**
+ * Evening preview window: at/after 8 PM local we surface tomorrow's planned
+ * workout on Summary. Computed non-reactively at render (matching
+ * todayPlannedWorkout) — the card appears on the first render after 20:00;
+ * there is no live timer that auto-pops it in mid-session.
+ */
+export function isEveningPreviewWindow(now: Date = new Date()): boolean {
+  return now.getHours() >= 20
+}
+
+/**
  * Find a swap target day (rest/easy) later in the week.
  */
 function findSwapTarget(weekDays: PlannedDay[], currentIndex: number): number | null {
