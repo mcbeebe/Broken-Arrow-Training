@@ -28,6 +28,7 @@ function walkHappyPath(overrides: Partial<{
   raceType: 'Trail / Road Race' | 'Hyrox' | 'General Fitness'
   raceDistance: string
   generalGoal: string
+  cardioModality: string
   experience: string
   daysPerWeek: number
   longRunDay: string
@@ -57,6 +58,7 @@ function walkHappyPath(overrides: Partial<{
     raceType: 'Trail / Road Race',
     raceDistance: 'Marathon',
     generalGoal: 'Build Muscle',
+    cardioModality: 'Running',
     experience: 'Intermediate',
     daysPerWeek: 5,
     longRunDay: 'Saturday',
@@ -110,6 +112,9 @@ function walkHappyPath(overrides: Partial<{
   // Step 2b (general only): goal selection — shown for General Fitness via visibleSteps
   if (o.raceType === 'General Fitness') {
     fireEvent.click(screen.getByText(o.generalGoal))
+    clickContinue()
+    // Step 2c (general only): primary cardio modality
+    fireEvent.click(screen.getByText(o.cardioModality))
     clickContinue()
   }
 
@@ -293,8 +298,11 @@ describe('Onboarding', () => {
       // Distance is skipped; general fitness goes to the goal step instead.
       expect(screen.queryByText(/race distance/i)).not.toBeInTheDocument()
       expect(screen.getByText(/what's your main goal/i)).toBeInTheDocument()
-      // Goal step → experience.
+      // Goal step → cardio step → experience.
       fireEvent.click(screen.getByText('Build Muscle'))
+      clickContinue()
+      expect(screen.getByText(/what's your main cardio/i)).toBeInTheDocument()
+      fireEvent.click(screen.getByText('Running'))
       clickContinue()
       expect(screen.getByText(/how would you rate your fitness/i)).toBeInTheDocument()
     })

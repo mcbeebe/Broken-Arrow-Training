@@ -1075,6 +1075,7 @@ def build_system_prompt(
             "Athlete:\n"
             f"- Name: {athlete_profile.get('name', 'Athlete')}\n"
             f"- Max HR: {athlete_profile.get('maxHR', 'unknown')}\n"
+            f"- Base: {athlete_profile.get('currentBase', '')}\n"
             f"- Structure: {athlete_profile.get('weeklyStructure', '')}"
         )
         if zones:

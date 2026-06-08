@@ -180,6 +180,23 @@ function resolveBlockWeeks(config: OnboardingConfig, today: string): number {
 
 const CARDIO_BIAS_FACTOR = { low: 0.85, normal: 1.0, high: 1.2 } as const
 
+/** Display label for cardio sessions from the explicit modality pick, falling
+ *  back to inference (cross-training/equipment) when unset — keeps plans
+ *  generated before the cardioModality field existed valid. */
+function resolveModality(config: OnboardingConfig): string {
+  switch (config.cardioModality) {
+    case 'running': return 'Running'
+    case 'cycling': return 'Cycling'
+    case 'rowing': return 'Rowing'
+    case 'swimming': return 'Swimming'
+    case 'mixed': return 'Run / bike / row — your choice'
+    default:
+      return config.crossTrainingModes && config.crossTrainingModes.length > 0
+        ? 'Run / bike / row / your cross-training'
+        : 'Run / bike / row'
+  }
+}
+
 /**
  * Generate a personalized General-Fitness TrainingPlan from onboarding inputs.
  *
@@ -204,9 +221,7 @@ export function generateGeneralFitnessPlan(
   const slots = trainingDayNumbers(daysPerWeek)
   const scale = experienceScale(config.experienceLevel)
   const bias = CARDIO_BIAS_FACTOR[preset.cardioBias]
-  const modality = config.crossTrainingModes && config.crossTrainingModes.length > 0
-    ? 'Run / bike / row / your cross-training'
-    : 'Run / bike / row'
+  const modality = resolveModality(config)
 
   // Anchor the week's long session to the athlete's preferred long day when
   // that weekday is one of the training slots.

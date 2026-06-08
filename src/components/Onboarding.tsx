@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type {
   RaceType,
   GeneralGoal,
+  CardioModality,
   RaceDistance,
   ExperienceLevel,
   WearableType,
@@ -57,12 +58,14 @@ const STEP_REVIEW = 13
 // range so existing step IDs are untouched; order comes from ALL_STEPS, and all
 // navigation/progress is index-based (visibleSteps.indexOf), not value-based.
 const STEP_GENERAL_GOAL = 14
+const STEP_GENERAL_CARDIO = 15
 
 const ALL_STEPS = [
   STEP_RACE_TYPE,
   STEP_RACE_NAME,
   STEP_RACE_DISTANCE,
   STEP_GENERAL_GOAL,
+  STEP_GENERAL_CARDIO,
   STEP_EXPERIENCE,
   STEP_DETAIL,
   STEP_DAYS,
@@ -168,6 +171,7 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
   const [raceDate, setRaceDate] = useState('')
   const [raceDistance, setRaceDistance] = useState<RaceDistance | null>(null)
   const [generalGoal, setGeneralGoal] = useState<GeneralGoal | null>(null)
+  const [cardioModality, setCardioModality] = useState<CardioModality | null>(null)
   const [experience, setExperience] = useState<ExperienceLevel | null>(null)
   const [detailLevel, setDetailLevel] = useState<DetailLevel | null>(null)
   const [daysPerWeek, setDaysPerWeek] = useState<number | null>(null)
@@ -211,6 +215,7 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
   const visibleSteps: readonly number[] = ALL_STEPS.filter(s => {
     if (s === STEP_RACE_DISTANCE) return showsDistanceStep
     if (s === STEP_GENERAL_GOAL) return showsGoalStep
+    if (s === STEP_GENERAL_CARDIO) return showsGoalStep
     return true
   })
   const visibleIdx = visibleSteps.indexOf(step)
@@ -267,6 +272,7 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
       case STEP_RACE_NAME: return raceName.trim().length > 0
       case STEP_RACE_DISTANCE: return !!raceDistance
       case STEP_GENERAL_GOAL: return !!generalGoal
+      case STEP_GENERAL_CARDIO: return !!cardioModality
       case STEP_EXPERIENCE: return !!experience
       case STEP_DETAIL: return !!effectiveDetail
       case STEP_DAYS: return !!daysPerWeek
@@ -311,6 +317,7 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
       raceDate,
       raceDistance: showsDistanceStep ? (raceDistance ?? undefined) : undefined,
       generalGoal: showsGoalStep ? (generalGoal ?? undefined) : undefined,
+      cardioModality: showsGoalStep ? (cardioModality ?? undefined) : undefined,
       experienceLevel: experience!,
       detailLevel: effectiveDetail,
       trainingDaysPerWeek: daysPerWeek!,
@@ -414,6 +421,11 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
                   onChange={e => setRaceDate(e.target.value)}
                   className="w-full px-3 py-3 text-base border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400"
                 />
+                {raceType === 'general' && (
+                  <p className="text-xs text-slate-400 mt-1">
+                    Leave blank for an ongoing rolling plan. Set a date to build toward it.
+                  </p>
+                )}
               </div>
             </div>
           </StepContainer>
@@ -439,6 +451,16 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
             <OptionCard selected={generalGoal === 'lose_fat'} onClick={() => setGeneralGoal('lose_fat')} title="Lose Fat" desc="Keep your muscle while leaning out — strength plus efficient cardio." icon="general" />
             <OptionCard selected={generalGoal === 'build_muscle'} onClick={() => setGeneralGoal('build_muscle')} title="Build Muscle" desc="Strength-focused with higher lifting volume; cardio kept for health." icon="general" />
             <OptionCard selected={generalGoal === 'build_endurance'} onClick={() => setGeneralGoal('build_endurance')} title="Build Endurance" desc="More aerobic volume and intervals, with strength to support it." icon="general" />
+          </StepContainer>
+        )}
+
+        {step === STEP_GENERAL_CARDIO && (
+          <StepContainer title="What's your main cardio?" subtitle="We'll build your aerobic and interval sessions around this">
+            <OptionCard selected={cardioModality === 'running'} onClick={() => setCardioModality('running')} title="Running" desc="Road, trail, or treadmill." icon="general" />
+            <OptionCard selected={cardioModality === 'cycling'} onClick={() => setCardioModality('cycling')} title="Cycling" desc="Outdoor or indoor bike. Low impact." icon="general" />
+            <OptionCard selected={cardioModality === 'rowing'} onClick={() => setCardioModality('rowing')} title="Rowing" desc="Erg or water. Full-body, low impact." icon="general" />
+            <OptionCard selected={cardioModality === 'swimming'} onClick={() => setCardioModality('swimming')} title="Swimming" desc="Pool or open water. Zero impact." icon="general" />
+            <OptionCard selected={cardioModality === 'mixed'} onClick={() => setCardioModality('mixed')} title="Mix it up" desc="A blend — we'll vary your cardio across run, bike, and row." icon="general" />
           </StepContainer>
         )}
 
