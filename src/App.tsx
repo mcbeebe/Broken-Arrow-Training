@@ -19,6 +19,7 @@ import Tutorial from './components/Tutorial'
 import MethodSelection from './components/MethodSelection'
 import MethodologyPrimer from './components/MethodologyPrimer'
 import ZonesPrimer from './components/ZonesPrimer'
+import CoachLetter from './components/CoachLetter'
 import { getMethodById } from './data/methods'
 import { summarizeOp } from './utils/chatProposal'
 import { resolveMethodId } from './utils/resolveMethod'
@@ -282,6 +283,19 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
           </div>
         </div>
       </div>
+    )
+  }
+
+  // Final onboarding screen: a one-time AI letter from the coach, now that a
+  // plan exists. Shown for every flow; gated by welcomeLetterSeenAt.
+  if (onboarding.config && !onboarding.config.welcomeLetterSeenAt) {
+    return (
+      <CoachLetter
+        plan={activePlan}
+        config={onboarding.config}
+        athleteId={athleteId}
+        onContinue={onboarding.markWelcomeLetterSeen}
+      />
     )
   }
 
