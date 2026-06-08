@@ -175,7 +175,11 @@ function buildWhyNarrative(
     }
 
     if (day3 && day3.date === d3 && hasRecentStrength(day3) && day3.total > 80) {
-      lines.push(`Heavy strength from 3 days ago may still have residual DOMS effects.`)
+      // Name the actual eccentric activity (could be steep hiking, not strength)
+      // instead of hardcoding "Heavy strength" — see strengthSports above.
+      const domsRecord = day3.records.find(r => strengthSports.includes(r.sportType)) ?? day3.records[0]
+      const sport = cap(domsRecord ? domsRecord.sportType.replace(/_/g, ' ') : 'workout')
+      lines.push(`${sport} from 3 days ago may still have residual DOMS effects.`)
     }
   }
 
