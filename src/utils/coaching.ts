@@ -1,6 +1,8 @@
 import type { PlannedDay } from '../types'
+import type { GeneralGoal, ExperienceLevel } from '../hooks/useOnboarding'
+import { getGeneralFitnessCoaching } from '../engines/generalFitness/coaching'
 
-interface CoachingNarrative {
+export interface CoachingNarrative {
   title: string
   purpose: string
   execution: string[]
@@ -9,7 +11,21 @@ interface CoachingNarrative {
   recovery: string
 }
 
-export function getCoaching(day: PlannedDay, weekNum: number): CoachingNarrative {
+/** Optional goal context. When `generalGoal` is set the day belongs to a
+ *  General Fitness plan, so coaching routes to the goal-appropriate,
+ *  race-free narratives instead of the trail/mountain-race copy below. */
+export interface CoachingOptions {
+  generalGoal?: GeneralGoal
+  experienceLevel?: ExperienceLevel
+}
+
+export function getCoaching(day: PlannedDay, weekNum: number, opts?: CoachingOptions): CoachingNarrative {
+  // General Fitness plans reuse this entry point but must NOT inherit the
+  // race/mountain copy below — delegate to the goal-aware narratives.
+  if (opts?.generalGoal) {
+    return getGeneralFitnessCoaching(day, opts.generalGoal, opts.experienceLevel)
+  }
+
   const phase = getPhase(weekNum)
   const base = getTypeCoaching(day, phase)
 

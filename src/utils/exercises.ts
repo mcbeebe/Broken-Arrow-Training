@@ -20,6 +20,45 @@ export interface ExerciseGuide {
 }
 
 const GUIDES: Record<string, ExerciseGuide> = {
+  'db row': {
+    name: 'Dumbbell Row',
+    aka: 'A bent-over pulling exercise — you row a dumbbell up toward your ribs',
+    weight: '15-25 lb dumbbell (one arm at a time)',
+    rest: '60 sec between sets',
+    form: [
+      'Put your left knee and left hand on a bench. Right foot flat on the floor.',
+      'Hold a dumbbell in your right hand, arm hanging straight down.',
+      'Keep your back flat and roughly parallel to the floor — like a tabletop.',
+      'Pull the dumbbell up to the side of your ribs, leading with your elbow.',
+      'Squeeze your shoulder blade at the top. Don\'t twist your torso to heave it up.',
+      'Lower under control until your arm is straight again.',
+      'Do all reps on one side, then switch. Rows balance out all the pushing you do.',
+    ],
+    alternates: [
+      { name: 'Bent-over row (both arms)', equipment: 'Two dumbbells or a barbell', notes: 'Hinge at the hips, row both weights to your ribs.' },
+      { name: 'Resistance-band row', equipment: 'Band', notes: 'Anchor at chest height, step back, pull the handles to your ribs.' },
+      { name: 'Inverted row', equipment: 'Bar or rings/TRX', notes: 'Bodyweight pull under a waist-height bar — scale by walking your feet in or out.' },
+    ],
+  },
+  'farmer carry': {
+    name: 'Farmer Carry',
+    aka: 'Walking tall while holding a heavy weight in each hand',
+    weight: '20-40 lb dumbbells or kettlebells (one in each hand)',
+    rest: '60 sec between rounds',
+    form: [
+      'Hold a weight in each hand at your sides — like carrying two heavy suitcases.',
+      'Stand tall: chest up, shoulders back and down, core braced.',
+      'Walk with short, controlled steps for the prescribed time (e.g. 40 sec).',
+      'Keep the weights from swinging — grip hard and stay steady.',
+      'Breathe normally; don\'t hold your breath.',
+      'Builds grip, core stability, and posture — direct carryover to everyday lifting and carrying.',
+    ],
+    alternates: [
+      { name: 'Suitcase carry', equipment: 'One dumbbell', notes: 'Carry on one side only for anti-tip core work. Switch hands each round.' },
+      { name: 'Front-rack carry', equipment: 'Two dumbbells', notes: 'Hold the weights at your shoulders to shift the demand onto your core.' },
+      { name: 'Loaded march in place', equipment: 'Dumbbells', notes: 'No room to walk? March in place holding the weights.' },
+    ],
+  },
   'goblet squat': {
     name: 'Goblet Squat',
     aka: 'A squat holding a dumbbell at your chest',

@@ -1,3 +1,5 @@
+import type { GeneralGoal } from '../hooks/useOnboarding';
+
 export type WorkoutType =
   | "strength"
   | "run"
@@ -322,6 +324,12 @@ export interface TrainingPlan {
   weeks: TrainingWeek[];
   zones: HRZone[];
   race: RaceInfo;
+  /** Set only by the General Fitness engine (raceType === 'general'). Marks
+   *  this as a goal-based, method-less plan and carries which goal preset was
+   *  chosen, so downstream content (workout coaching, methodology pages) can
+   *  swap race/mountain copy for goal-appropriate, general-fitness copy.
+   *  Absent on trail/hyrox/hand-authored plans. */
+  generalGoal?: GeneralGoal;
 }
 
 export interface WorkoutStyle {

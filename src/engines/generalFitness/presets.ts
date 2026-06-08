@@ -21,9 +21,15 @@ export interface GoalPreset {
   label: string
   /** One-line emphasis shown in the plan's weekly focus. */
   emphasis: string
-  /** Strength dosing for this goal (sets/reps text surfaced on strength days). */
+  /** Strength dosing for this goal (sets/reps text surfaced in coaching prose). */
   strengthSets: string
   strengthReps: string
+  /** Numeric dosing for the concrete per-exercise list (sets × rep target).
+   *  Kept separate from the prose above because `strengthReps` carries caveats
+   *  ("1–3 reps in reserve", "heavy, for economy") that can't go in a `3×10`
+   *  cell. Time-based moves (carries, planks) ignore the rep target. */
+  strengthSetsN: number
+  strengthRepTarget: number
   /** Aerobic volume bias — scales Zone-2 / long-session minutes. */
   cardioBias: 'low' | 'normal' | 'high'
   /** Goal-specific coaching note appended to the weekly focus. */
@@ -37,6 +43,8 @@ export const GOAL_PRESETS: Record<GeneralGoal, GoalPreset> = {
     emphasis: 'Balanced cardio, strength, and mobility',
     strengthSets: '2–3 sets',
     strengthReps: '8–12 reps',
+    strengthSetsN: 3,
+    strengthRepTarget: 10,
     cardioBias: 'normal',
     note: 'Hit the health floor: 150+ min cardio and 2 strength days a week.',
   },
@@ -46,6 +54,8 @@ export const GOAL_PRESETS: Record<GeneralGoal, GoalPreset> = {
     emphasis: 'Cardio volume up, strength to spare lean mass',
     strengthSets: '3 sets',
     strengthReps: '8–12 reps',
+    strengthSetsN: 3,
+    strengthRepTarget: 10,
     cardioBias: 'high',
     note: 'Diet drives the deficit — training preserves muscle. Keep ~8,500 steps/day.',
   },
@@ -55,6 +65,8 @@ export const GOAL_PRESETS: Record<GeneralGoal, GoalPreset> = {
     emphasis: 'Strength-focused, higher lifting volume',
     strengthSets: '3–4 sets',
     strengthReps: '6–12 reps, 1–3 reps in reserve',
+    strengthSetsN: 4,
+    strengthRepTarget: 10,
     cardioBias: 'low',
     note: 'Train each muscle ~2×/week; cardio kept light so it doesn’t blunt gains.',
   },
@@ -64,6 +76,8 @@ export const GOAL_PRESETS: Record<GeneralGoal, GoalPreset> = {
     emphasis: 'Aerobic volume and intervals, strength to support',
     strengthSets: '3–4 sets',
     strengthReps: '4–6 reps (heavy, for economy)',
+    strengthSetsN: 3,
+    strengthRepTarget: 6,
     cardioBias: 'high',
     note: 'Most volume easy (~80/20). One weekly threshold/interval accent.',
   },
