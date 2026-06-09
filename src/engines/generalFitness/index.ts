@@ -93,9 +93,23 @@ interface SessionCtx {
   /** Combined experience × goal-bias × week-progression scale on minutes. */
   cardioFactor: number
   isDeload: boolean
-  loadingCue: string
   modality: string
 }
+
+/** Beginner-safe full-body strength template for the General Fitness path.
+ *  Each entry maps one movement pattern to a CONCRETE exercise whose name
+ *  contains a form-cue guide key in utils/exercises (so every row is
+ *  tap-for-cues, not "No detailed guide available"). Time-based moves (carry,
+ *  core) use a seconds hold instead of the rep target. Beginners get easier
+ *  swaps via each guide's `alternates`. */
+const STRENGTH_TEMPLATE: { name: string; hold?: boolean }[] = [
+  { name: 'Goblet squat' },              // squat
+  { name: 'RDL' },                       // hinge
+  { name: 'DB row' },                    // pull
+  { name: 'Push-up' },                   // push
+  { name: 'Farmer carry', hold: true },  // carry
+  { name: 'Plank', hold: true },         // core
+]
 
 /** Build one training day's content for a pillar role. Returns everything but
  *  the `day` label (spread in by the caller), mirroring the Hyrox generator. */
@@ -103,8 +117,15 @@ function sessionContent(role: PillarRole, ctx: SessionCtx): Omit<PlannedDay, 'da
   const { z1, z2, z4, isDeload, modality } = ctx
   switch (role) {
     case 'strength': {
-      const sets = isDeload ? '2 sets (lighter)' : ctx.preset.strengthSets
-      const detail = `${sets} × ${ctx.preset.strengthReps} · squat / hinge / push / pull / carry · ${ctx.loadingCue}`
+      // Concrete, guide-matching exercise list (see STRENGTH_TEMPLATE). The
+      // nuanced loading guidance ("reps in reserve", "heavy for economy") lives
+      // in the coaching layer, not these cells. Deload trims to 2 lighter sets.
+      const sets = isDeload ? 2 : ctx.preset.strengthSetsN
+      const reps = ctx.preset.strengthRepTarget
+      const holdSec = isDeload ? 30 : 40
+      const detail = STRENGTH_TEMPLATE
+        .map(m => `${m.name} ${sets}×${m.hold ? `${holdSec}s` : reps}`)
+        .join(' · ')
       return {
         type: 'strength' as WorkoutType,
         workout: isDeload ? 'Strength — deload' : 'Strength — full body',
@@ -247,7 +268,7 @@ export function generateGeneralFitnessPlan(
     // Progressive overload across the block; deloads dip to ~60%.
     const cardioFactor = isDeload ? 0.6 : 0.9 + 0.2 * (weekNum / totalWeeks)
 
-    const ctx: SessionCtx = { preset, z1, z2, z4, cardioFactor: cardioFactor * scale.durationFactor * bias, isDeload, loadingCue: scale.loadingCue, modality }
+    const ctx: SessionCtx = { preset, z1, z2, z4, cardioFactor: cardioFactor * scale.durationFactor * bias, isDeload, modality }
 
     const days: PlannedDay[] = []
     let roleIdx = 0
@@ -302,5 +323,5 @@ export function generateGeneralFitnessPlan(
     nutrition: preset.note,
   }
 
-  return { athlete, zones, race, weeks }
+  return { athlete, zones, race, weeks, generalGoal: goal }
 }

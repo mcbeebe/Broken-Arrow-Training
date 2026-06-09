@@ -172,6 +172,8 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
   const [raceDistance, setRaceDistance] = useState<RaceDistance | null>(null)
   const [generalGoal, setGeneralGoal] = useState<GeneralGoal | null>(null)
   const [cardioModality, setCardioModality] = useState<CardioModality | null>(null)
+  const [raceDescription, setRaceDescription] = useState('')
+  const [athleteGoal, setAthleteGoal] = useState('')
   const [experience, setExperience] = useState<ExperienceLevel | null>(null)
   const [detailLevel, setDetailLevel] = useState<DetailLevel | null>(null)
   const [daysPerWeek, setDaysPerWeek] = useState<number | null>(null)
@@ -269,7 +271,7 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
   const canContinue = (() => {
     switch (step) {
       case STEP_RACE_TYPE: return !!raceType
-      case STEP_RACE_NAME: return raceName.trim().length > 0
+      case STEP_RACE_NAME: return raceName.trim().length > 0 && raceDescription.trim().length >= 10 && athleteGoal.trim().length > 0
       case STEP_RACE_DISTANCE: return !!raceDistance
       case STEP_GENERAL_GOAL: return !!generalGoal
       case STEP_GENERAL_CARDIO: return !!cardioModality
@@ -318,6 +320,8 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
       raceDistance: showsDistanceStep ? (raceDistance ?? undefined) : undefined,
       generalGoal: showsGoalStep ? (generalGoal ?? undefined) : undefined,
       cardioModality: showsGoalStep ? (cardioModality ?? undefined) : undefined,
+      raceDescription: raceDescription.trim() || undefined,
+      athleteGoal: athleteGoal.trim() || undefined,
       experienceLevel: experience!,
       detailLevel: effectiveDetail,
       trainingDaysPerWeek: daysPerWeek!,
@@ -426,6 +430,33 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
                     Leave blank for an ongoing rolling plan. Set a date to build toward it.
                   </p>
                 )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  {raceType === 'general' ? 'Tell us about your situation & what you’re working toward' : 'Tell us about it — terrain, elevation, climate, the course'}
+                </label>
+                <textarea
+                  value={raceDescription}
+                  onChange={e => setRaceDescription(e.target.value)}
+                  rows={3}
+                  placeholder="Terrain, elevation, climate, the course, why it matters — anything helps"
+                  className="w-full px-3 py-3 text-base border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400 resize-none"
+                />
+                <p className="text-xs text-slate-400 mt-1">
+                  At least 10 characters — the more your coach knows, the better your plan. ({raceDescription.trim().length}/10)
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  {raceType === 'general' ? 'What’s your goal?' : 'What’s your goal for it?'}
+                </label>
+                <textarea
+                  value={athleteGoal}
+                  onChange={e => setAthleteGoal(e.target.value)}
+                  rows={2}
+                  placeholder="e.g. finish strong, a sub-4:00, top 10 — or just feel great"
+                  className="w-full px-3 py-3 text-base border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400 resize-none"
+                />
               </div>
             </div>
           </StepContainer>

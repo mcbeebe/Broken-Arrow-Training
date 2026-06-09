@@ -10,6 +10,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
     "name": "Test",
     "weeklyStructure": "5 days/week — aerobic volume and intervals, strength to support",
   },
+  "generalGoal": "build_endurance",
   "race": {
     "course": "—",
     "cutoff": "—",
@@ -66,7 +67,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
         },
         {
           "day": "Fri 6/12",
-          "detail": "3–4 sets × 4–6 reps (heavy, for economy) · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 3×6 · RDL 3×6 · DB row 3×6 · Push-up 3×6 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -137,7 +138,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
         },
         {
           "day": "Fri 6/19",
-          "detail": "3–4 sets × 4–6 reps (heavy, for economy) · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 3×6 · RDL 3×6 · DB row 3×6 · Push-up 3×6 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -208,7 +209,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
         },
         {
           "day": "Fri 6/26",
-          "detail": "3–4 sets × 4–6 reps (heavy, for economy) · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 3×6 · RDL 3×6 · DB row 3×6 · Push-up 3×6 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -279,7 +280,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
         },
         {
           "day": "Fri 7/3",
-          "detail": "2 sets (lighter) × 4–6 reps (heavy, for economy) · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 2×6 · RDL 2×6 · DB row 2×6 · Push-up 2×6 · Farmer carry 2×30s · Plank 2×30s",
           "route": "Gym / home",
           "time": "35 min",
           "type": "strength",
@@ -350,7 +351,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
         },
         {
           "day": "Fri 7/10",
-          "detail": "3–4 sets × 4–6 reps (heavy, for economy) · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 3×6 · RDL 3×6 · DB row 3×6 · Push-up 3×6 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -421,7 +422,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
         },
         {
           "day": "Fri 7/17",
-          "detail": "3–4 sets × 4–6 reps (heavy, for economy) · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 3×6 · RDL 3×6 · DB row 3×6 · Push-up 3×6 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -492,7 +493,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
         },
         {
           "day": "Fri 7/24",
-          "detail": "3–4 sets × 4–6 reps (heavy, for economy) · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 3×6 · RDL 3×6 · DB row 3×6 · Push-up 3×6 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -563,7 +564,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
         },
         {
           "day": "Fri 7/31",
-          "detail": "2 sets (lighter) × 4–6 reps (heavy, for economy) · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 2×6 · RDL 2×6 · DB row 2×6 · Push-up 2×6 · Farmer carry 2×30s · Plank 2×30s",
           "route": "Gym / home",
           "time": "35 min",
           "type": "strength",
@@ -633,6 +634,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
     "name": "Test",
     "weeklyStructure": "5 days/week — aerobic volume and intervals, strength to support",
   },
+  "generalGoal": "build_endurance",
   "race": {
     "course": "—",
     "cutoff": "—",
@@ -689,7 +691,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
         },
         {
           "day": "Fri 6/12",
-          "detail": "3–4 sets × 4–6 reps (heavy, for economy) · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 3×6 · RDL 3×6 · DB row 3×6 · Push-up 3×6 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -760,7 +762,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
         },
         {
           "day": "Fri 6/19",
-          "detail": "3–4 sets × 4–6 reps (heavy, for economy) · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 3×6 · RDL 3×6 · DB row 3×6 · Push-up 3×6 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -831,7 +833,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
         },
         {
           "day": "Fri 6/26",
-          "detail": "3–4 sets × 4–6 reps (heavy, for economy) · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 3×6 · RDL 3×6 · DB row 3×6 · Push-up 3×6 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -902,7 +904,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
         },
         {
           "day": "Fri 7/3",
-          "detail": "2 sets (lighter) × 4–6 reps (heavy, for economy) · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 2×6 · RDL 2×6 · DB row 2×6 · Push-up 2×6 · Farmer carry 2×30s · Plank 2×30s",
           "route": "Gym / home",
           "time": "35 min",
           "type": "strength",
@@ -973,7 +975,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
         },
         {
           "day": "Fri 7/10",
-          "detail": "3–4 sets × 4–6 reps (heavy, for economy) · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 3×6 · RDL 3×6 · DB row 3×6 · Push-up 3×6 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -1044,7 +1046,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
         },
         {
           "day": "Fri 7/17",
-          "detail": "3–4 sets × 4–6 reps (heavy, for economy) · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 3×6 · RDL 3×6 · DB row 3×6 · Push-up 3×6 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -1115,7 +1117,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
         },
         {
           "day": "Fri 7/24",
-          "detail": "3–4 sets × 4–6 reps (heavy, for economy) · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 3×6 · RDL 3×6 · DB row 3×6 · Push-up 3×6 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -1186,7 +1188,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
         },
         {
           "day": "Fri 7/31",
-          "detail": "2 sets (lighter) × 4–6 reps (heavy, for economy) · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 2×6 · RDL 2×6 · DB row 2×6 · Push-up 2×6 · Farmer carry 2×30s · Plank 2×30s",
           "route": "Gym / home",
           "time": "35 min",
           "type": "strength",
@@ -1257,7 +1259,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
         },
         {
           "day": "Fri 8/7",
-          "detail": "3–4 sets × 4–6 reps (heavy, for economy) · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 3×6 · RDL 3×6 · DB row 3×6 · Push-up 3×6 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -1328,7 +1330,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
         },
         {
           "day": "Fri 8/14",
-          "detail": "3–4 sets × 4–6 reps (heavy, for economy) · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 3×6 · RDL 3×6 · DB row 3×6 · Push-up 3×6 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -1399,7 +1401,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
         },
         {
           "day": "Fri 8/21",
-          "detail": "3–4 sets × 4–6 reps (heavy, for economy) · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 3×6 · RDL 3×6 · DB row 3×6 · Push-up 3×6 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -1470,7 +1472,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
         },
         {
           "day": "Fri 8/28",
-          "detail": "2 sets (lighter) × 4–6 reps (heavy, for economy) · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 2×6 · RDL 2×6 · DB row 2×6 · Push-up 2×6 · Farmer carry 2×30s · Plank 2×30s",
           "route": "Gym / home",
           "time": "35 min",
           "type": "strength",
@@ -1540,6 +1542,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
     "name": "Test",
     "weeklyStructure": "4 days/week — strength-focused, higher lifting volume",
   },
+  "generalGoal": "build_muscle",
   "race": {
     "course": "—",
     "cutoff": "—",
@@ -1560,7 +1563,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
       "days": [
         {
           "day": "Mon 6/8",
-          "detail": "3–4 sets × 6–12 reps, 1–3 reps in reserve · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 4×10 · RDL 4×10 · DB row 4×10 · Push-up 4×10 · Farmer carry 4×40s · Plank 4×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -1569,7 +1572,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
         },
         {
           "day": "Tue 6/9",
-          "detail": "3–4 sets × 6–12 reps, 1–3 reps in reserve · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 4×10 · RDL 4×10 · DB row 4×10 · Push-up 4×10 · Farmer carry 4×40s · Plank 4×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -1605,7 +1608,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
         },
         {
           "day": "Sat 6/13",
-          "detail": "3–4 sets × 6–12 reps, 1–3 reps in reserve · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 4×10 · RDL 4×10 · DB row 4×10 · Push-up 4×10 · Farmer carry 4×40s · Plank 4×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -1631,7 +1634,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
       "days": [
         {
           "day": "Mon 6/15",
-          "detail": "3–4 sets × 6–12 reps, 1–3 reps in reserve · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 4×10 · RDL 4×10 · DB row 4×10 · Push-up 4×10 · Farmer carry 4×40s · Plank 4×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -1640,7 +1643,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
         },
         {
           "day": "Tue 6/16",
-          "detail": "3–4 sets × 6–12 reps, 1–3 reps in reserve · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 4×10 · RDL 4×10 · DB row 4×10 · Push-up 4×10 · Farmer carry 4×40s · Plank 4×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -1676,7 +1679,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
         },
         {
           "day": "Sat 6/20",
-          "detail": "3–4 sets × 6–12 reps, 1–3 reps in reserve · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 4×10 · RDL 4×10 · DB row 4×10 · Push-up 4×10 · Farmer carry 4×40s · Plank 4×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -1702,7 +1705,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
       "days": [
         {
           "day": "Mon 6/22",
-          "detail": "3–4 sets × 6–12 reps, 1–3 reps in reserve · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 4×10 · RDL 4×10 · DB row 4×10 · Push-up 4×10 · Farmer carry 4×40s · Plank 4×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -1711,7 +1714,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
         },
         {
           "day": "Tue 6/23",
-          "detail": "3–4 sets × 6–12 reps, 1–3 reps in reserve · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 4×10 · RDL 4×10 · DB row 4×10 · Push-up 4×10 · Farmer carry 4×40s · Plank 4×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -1747,7 +1750,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
         },
         {
           "day": "Sat 6/27",
-          "detail": "3–4 sets × 6–12 reps, 1–3 reps in reserve · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 4×10 · RDL 4×10 · DB row 4×10 · Push-up 4×10 · Farmer carry 4×40s · Plank 4×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -1773,7 +1776,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
       "days": [
         {
           "day": "Mon 6/29",
-          "detail": "2 sets (lighter) × 6–12 reps, 1–3 reps in reserve · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 2×10 · RDL 2×10 · DB row 2×10 · Push-up 2×10 · Farmer carry 2×30s · Plank 2×30s",
           "route": "Gym / home",
           "time": "35 min",
           "type": "strength",
@@ -1782,7 +1785,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
         },
         {
           "day": "Tue 6/30",
-          "detail": "2 sets (lighter) × 6–12 reps, 1–3 reps in reserve · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 2×10 · RDL 2×10 · DB row 2×10 · Push-up 2×10 · Farmer carry 2×30s · Plank 2×30s",
           "route": "Gym / home",
           "time": "35 min",
           "type": "strength",
@@ -1818,7 +1821,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
         },
         {
           "day": "Sat 7/4",
-          "detail": "2 sets (lighter) × 6–12 reps, 1–3 reps in reserve · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 2×10 · RDL 2×10 · DB row 2×10 · Push-up 2×10 · Farmer carry 2×30s · Plank 2×30s",
           "route": "Gym / home",
           "time": "35 min",
           "type": "strength",
@@ -1844,7 +1847,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
       "days": [
         {
           "day": "Mon 7/6",
-          "detail": "3–4 sets × 6–12 reps, 1–3 reps in reserve · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 4×10 · RDL 4×10 · DB row 4×10 · Push-up 4×10 · Farmer carry 4×40s · Plank 4×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -1853,7 +1856,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
         },
         {
           "day": "Tue 7/7",
-          "detail": "3–4 sets × 6–12 reps, 1–3 reps in reserve · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 4×10 · RDL 4×10 · DB row 4×10 · Push-up 4×10 · Farmer carry 4×40s · Plank 4×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -1889,7 +1892,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
         },
         {
           "day": "Sat 7/11",
-          "detail": "3–4 sets × 6–12 reps, 1–3 reps in reserve · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 4×10 · RDL 4×10 · DB row 4×10 · Push-up 4×10 · Farmer carry 4×40s · Plank 4×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -1915,7 +1918,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
       "days": [
         {
           "day": "Mon 7/13",
-          "detail": "3–4 sets × 6–12 reps, 1–3 reps in reserve · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 4×10 · RDL 4×10 · DB row 4×10 · Push-up 4×10 · Farmer carry 4×40s · Plank 4×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -1924,7 +1927,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
         },
         {
           "day": "Tue 7/14",
-          "detail": "3–4 sets × 6–12 reps, 1–3 reps in reserve · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 4×10 · RDL 4×10 · DB row 4×10 · Push-up 4×10 · Farmer carry 4×40s · Plank 4×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -1960,7 +1963,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
         },
         {
           "day": "Sat 7/18",
-          "detail": "3–4 sets × 6–12 reps, 1–3 reps in reserve · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 4×10 · RDL 4×10 · DB row 4×10 · Push-up 4×10 · Farmer carry 4×40s · Plank 4×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -1986,7 +1989,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
       "days": [
         {
           "day": "Mon 7/20",
-          "detail": "3–4 sets × 6–12 reps, 1–3 reps in reserve · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 4×10 · RDL 4×10 · DB row 4×10 · Push-up 4×10 · Farmer carry 4×40s · Plank 4×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -1995,7 +1998,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
         },
         {
           "day": "Tue 7/21",
-          "detail": "3–4 sets × 6–12 reps, 1–3 reps in reserve · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 4×10 · RDL 4×10 · DB row 4×10 · Push-up 4×10 · Farmer carry 4×40s · Plank 4×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -2031,7 +2034,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
         },
         {
           "day": "Sat 7/25",
-          "detail": "3–4 sets × 6–12 reps, 1–3 reps in reserve · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 4×10 · RDL 4×10 · DB row 4×10 · Push-up 4×10 · Farmer carry 4×40s · Plank 4×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -2057,7 +2060,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
       "days": [
         {
           "day": "Mon 7/27",
-          "detail": "2 sets (lighter) × 6–12 reps, 1–3 reps in reserve · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 2×10 · RDL 2×10 · DB row 2×10 · Push-up 2×10 · Farmer carry 2×30s · Plank 2×30s",
           "route": "Gym / home",
           "time": "35 min",
           "type": "strength",
@@ -2066,7 +2069,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
         },
         {
           "day": "Tue 7/28",
-          "detail": "2 sets (lighter) × 6–12 reps, 1–3 reps in reserve · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 2×10 · RDL 2×10 · DB row 2×10 · Push-up 2×10 · Farmer carry 2×30s · Plank 2×30s",
           "route": "Gym / home",
           "time": "35 min",
           "type": "strength",
@@ -2102,7 +2105,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
         },
         {
           "day": "Sat 8/1",
-          "detail": "2 sets (lighter) × 6–12 reps, 1–3 reps in reserve · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 2×10 · RDL 2×10 · DB row 2×10 · Push-up 2×10 · Farmer carry 2×30s · Plank 2×30s",
           "route": "Gym / home",
           "time": "35 min",
           "type": "strength",
@@ -2128,7 +2131,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
       "days": [
         {
           "day": "Mon 8/3",
-          "detail": "3–4 sets × 6–12 reps, 1–3 reps in reserve · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 4×10 · RDL 4×10 · DB row 4×10 · Push-up 4×10 · Farmer carry 4×40s · Plank 4×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -2137,7 +2140,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
         },
         {
           "day": "Tue 8/4",
-          "detail": "3–4 sets × 6–12 reps, 1–3 reps in reserve · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 4×10 · RDL 4×10 · DB row 4×10 · Push-up 4×10 · Farmer carry 4×40s · Plank 4×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -2173,7 +2176,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
         },
         {
           "day": "Sat 8/8",
-          "detail": "3–4 sets × 6–12 reps, 1–3 reps in reserve · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 4×10 · RDL 4×10 · DB row 4×10 · Push-up 4×10 · Farmer carry 4×40s · Plank 4×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -2199,7 +2202,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
       "days": [
         {
           "day": "Mon 8/10",
-          "detail": "3–4 sets × 6–12 reps, 1–3 reps in reserve · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 4×10 · RDL 4×10 · DB row 4×10 · Push-up 4×10 · Farmer carry 4×40s · Plank 4×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -2208,7 +2211,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
         },
         {
           "day": "Tue 8/11",
-          "detail": "3–4 sets × 6–12 reps, 1–3 reps in reserve · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 4×10 · RDL 4×10 · DB row 4×10 · Push-up 4×10 · Farmer carry 4×40s · Plank 4×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -2244,7 +2247,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
         },
         {
           "day": "Sat 8/15",
-          "detail": "3–4 sets × 6–12 reps, 1–3 reps in reserve · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 4×10 · RDL 4×10 · DB row 4×10 · Push-up 4×10 · Farmer carry 4×40s · Plank 4×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -2270,7 +2273,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
       "days": [
         {
           "day": "Mon 8/17",
-          "detail": "3–4 sets × 6–12 reps, 1–3 reps in reserve · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 4×10 · RDL 4×10 · DB row 4×10 · Push-up 4×10 · Farmer carry 4×40s · Plank 4×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -2279,7 +2282,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
         },
         {
           "day": "Tue 8/18",
-          "detail": "3–4 sets × 6–12 reps, 1–3 reps in reserve · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 4×10 · RDL 4×10 · DB row 4×10 · Push-up 4×10 · Farmer carry 4×40s · Plank 4×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -2315,7 +2318,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
         },
         {
           "day": "Sat 8/22",
-          "detail": "3–4 sets × 6–12 reps, 1–3 reps in reserve · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 4×10 · RDL 4×10 · DB row 4×10 · Push-up 4×10 · Farmer carry 4×40s · Plank 4×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -2341,7 +2344,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
       "days": [
         {
           "day": "Mon 8/24",
-          "detail": "2 sets (lighter) × 6–12 reps, 1–3 reps in reserve · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 2×10 · RDL 2×10 · DB row 2×10 · Push-up 2×10 · Farmer carry 2×30s · Plank 2×30s",
           "route": "Gym / home",
           "time": "35 min",
           "type": "strength",
@@ -2350,7 +2353,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
         },
         {
           "day": "Tue 8/25",
-          "detail": "2 sets (lighter) × 6–12 reps, 1–3 reps in reserve · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 2×10 · RDL 2×10 · DB row 2×10 · Push-up 2×10 · Farmer carry 2×30s · Plank 2×30s",
           "route": "Gym / home",
           "time": "35 min",
           "type": "strength",
@@ -2386,7 +2389,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
         },
         {
           "day": "Sat 8/29",
-          "detail": "2 sets (lighter) × 6–12 reps, 1–3 reps in reserve · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 2×10 · RDL 2×10 · DB row 2×10 · Push-up 2×10 · Farmer carry 2×30s · Plank 2×30s",
           "route": "Gym / home",
           "time": "35 min",
           "type": "strength",
@@ -2447,6 +2450,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
     "name": "Test",
     "weeklyStructure": "6 days/week — cardio volume up, strength to spare lean mass",
   },
+  "generalGoal": "lose_fat",
   "race": {
     "course": "—",
     "cutoff": "—",
@@ -2467,7 +2471,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
       "days": [
         {
           "day": "Mon 6/8",
-          "detail": "3 sets × 8–12 reps · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -2494,7 +2498,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
         },
         {
           "day": "Thu 6/11",
-          "detail": "3 sets × 8–12 reps · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -2538,7 +2542,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
       "days": [
         {
           "day": "Mon 6/15",
-          "detail": "3 sets × 8–12 reps · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -2565,7 +2569,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
         },
         {
           "day": "Thu 6/18",
-          "detail": "3 sets × 8–12 reps · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -2609,7 +2613,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
       "days": [
         {
           "day": "Mon 6/22",
-          "detail": "3 sets × 8–12 reps · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -2636,7 +2640,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
         },
         {
           "day": "Thu 6/25",
-          "detail": "3 sets × 8–12 reps · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -2680,7 +2684,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
       "days": [
         {
           "day": "Mon 6/29",
-          "detail": "2 sets (lighter) × 8–12 reps · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 2×10 · RDL 2×10 · DB row 2×10 · Push-up 2×10 · Farmer carry 2×30s · Plank 2×30s",
           "route": "Gym / home",
           "time": "35 min",
           "type": "strength",
@@ -2707,7 +2711,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
         },
         {
           "day": "Thu 7/2",
-          "detail": "2 sets (lighter) × 8–12 reps · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 2×10 · RDL 2×10 · DB row 2×10 · Push-up 2×10 · Farmer carry 2×30s · Plank 2×30s",
           "route": "Gym / home",
           "time": "35 min",
           "type": "strength",
@@ -2751,7 +2755,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
       "days": [
         {
           "day": "Mon 7/6",
-          "detail": "3 sets × 8–12 reps · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -2778,7 +2782,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
         },
         {
           "day": "Thu 7/9",
-          "detail": "3 sets × 8–12 reps · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -2822,7 +2826,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
       "days": [
         {
           "day": "Mon 7/13",
-          "detail": "3 sets × 8–12 reps · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -2849,7 +2853,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
         },
         {
           "day": "Thu 7/16",
-          "detail": "3 sets × 8–12 reps · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -2893,7 +2897,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
       "days": [
         {
           "day": "Mon 7/20",
-          "detail": "3 sets × 8–12 reps · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -2920,7 +2924,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
         },
         {
           "day": "Thu 7/23",
-          "detail": "3 sets × 8–12 reps · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -2964,7 +2968,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
       "days": [
         {
           "day": "Mon 7/27",
-          "detail": "2 sets (lighter) × 8–12 reps · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 2×10 · RDL 2×10 · DB row 2×10 · Push-up 2×10 · Farmer carry 2×30s · Plank 2×30s",
           "route": "Gym / home",
           "time": "35 min",
           "type": "strength",
@@ -2991,7 +2995,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
         },
         {
           "day": "Thu 7/30",
-          "detail": "2 sets (lighter) × 8–12 reps · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 2×10 · RDL 2×10 · DB row 2×10 · Push-up 2×10 · Farmer carry 2×30s · Plank 2×30s",
           "route": "Gym / home",
           "time": "35 min",
           "type": "strength",
@@ -3035,7 +3039,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
       "days": [
         {
           "day": "Mon 8/3",
-          "detail": "3 sets × 8–12 reps · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -3062,7 +3066,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
         },
         {
           "day": "Thu 8/6",
-          "detail": "3 sets × 8–12 reps · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -3106,7 +3110,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
       "days": [
         {
           "day": "Mon 8/10",
-          "detail": "3 sets × 8–12 reps · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -3133,7 +3137,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
         },
         {
           "day": "Thu 8/13",
-          "detail": "3 sets × 8–12 reps · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -3177,7 +3181,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
       "days": [
         {
           "day": "Mon 8/17",
-          "detail": "3 sets × 8–12 reps · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -3204,7 +3208,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
         },
         {
           "day": "Thu 8/20",
-          "detail": "3 sets × 8–12 reps · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -3248,7 +3252,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
       "days": [
         {
           "day": "Mon 8/24",
-          "detail": "2 sets (lighter) × 8–12 reps · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 2×10 · RDL 2×10 · DB row 2×10 · Push-up 2×10 · Farmer carry 2×30s · Plank 2×30s",
           "route": "Gym / home",
           "time": "35 min",
           "type": "strength",
@@ -3275,7 +3279,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
         },
         {
           "day": "Thu 8/27",
-          "detail": "2 sets (lighter) × 8–12 reps · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 2×10 · RDL 2×10 · DB row 2×10 · Push-up 2×10 · Farmer carry 2×30s · Plank 2×30s",
           "route": "Gym / home",
           "time": "35 min",
           "type": "strength",
@@ -3354,6 +3358,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 3 day
     "name": "Test",
     "weeklyStructure": "3 days/week — balanced cardio, strength, and mobility",
   },
+  "generalGoal": "stay_healthy",
   "race": {
     "course": "—",
     "cutoff": "—",
@@ -3374,7 +3379,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 3 day
       "days": [
         {
           "day": "Mon 6/8",
-          "detail": "2–3 sets × 8–12 reps · squat / hinge / push / pull / carry · Leave 2–3 reps in reserve; add load only once form is clean.",
+          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -3392,7 +3397,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 3 day
         },
         {
           "day": "Wed 6/10",
-          "detail": "2–3 sets × 8–12 reps · squat / hinge / push / pull / carry · Leave 2–3 reps in reserve; add load only once form is clean.",
+          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -3445,7 +3450,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 3 day
       "days": [
         {
           "day": "Mon 6/15",
-          "detail": "2–3 sets × 8–12 reps · squat / hinge / push / pull / carry · Leave 2–3 reps in reserve; add load only once form is clean.",
+          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -3463,7 +3468,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 3 day
         },
         {
           "day": "Wed 6/17",
-          "detail": "2–3 sets × 8–12 reps · squat / hinge / push / pull / carry · Leave 2–3 reps in reserve; add load only once form is clean.",
+          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -3516,7 +3521,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 3 day
       "days": [
         {
           "day": "Mon 6/22",
-          "detail": "2–3 sets × 8–12 reps · squat / hinge / push / pull / carry · Leave 2–3 reps in reserve; add load only once form is clean.",
+          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -3534,7 +3539,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 3 day
         },
         {
           "day": "Wed 6/24",
-          "detail": "2–3 sets × 8–12 reps · squat / hinge / push / pull / carry · Leave 2–3 reps in reserve; add load only once form is clean.",
+          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -3587,7 +3592,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 3 day
       "days": [
         {
           "day": "Mon 6/29",
-          "detail": "2 sets (lighter) × 8–12 reps · squat / hinge / push / pull / carry · Leave 2–3 reps in reserve; add load only once form is clean.",
+          "detail": "Goblet squat 2×10 · RDL 2×10 · DB row 2×10 · Push-up 2×10 · Farmer carry 2×30s · Plank 2×30s",
           "route": "Gym / home",
           "time": "35 min",
           "type": "strength",
@@ -3605,7 +3610,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 3 day
         },
         {
           "day": "Wed 7/1",
-          "detail": "2 sets (lighter) × 8–12 reps · squat / hinge / push / pull / carry · Leave 2–3 reps in reserve; add load only once form is clean.",
+          "detail": "Goblet squat 2×10 · RDL 2×10 · DB row 2×10 · Push-up 2×10 · Farmer carry 2×30s · Plank 2×30s",
           "route": "Gym / home",
           "time": "35 min",
           "type": "strength",
@@ -3658,7 +3663,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 3 day
       "days": [
         {
           "day": "Mon 7/6",
-          "detail": "2–3 sets × 8–12 reps · squat / hinge / push / pull / carry · Leave 2–3 reps in reserve; add load only once form is clean.",
+          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -3676,7 +3681,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 3 day
         },
         {
           "day": "Wed 7/8",
-          "detail": "2–3 sets × 8–12 reps · squat / hinge / push / pull / carry · Leave 2–3 reps in reserve; add load only once form is clean.",
+          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -3729,7 +3734,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 3 day
       "days": [
         {
           "day": "Mon 7/13",
-          "detail": "2–3 sets × 8–12 reps · squat / hinge / push / pull / carry · Leave 2–3 reps in reserve; add load only once form is clean.",
+          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -3747,7 +3752,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 3 day
         },
         {
           "day": "Wed 7/15",
-          "detail": "2–3 sets × 8–12 reps · squat / hinge / push / pull / carry · Leave 2–3 reps in reserve; add load only once form is clean.",
+          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -3800,7 +3805,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 3 day
       "days": [
         {
           "day": "Mon 7/20",
-          "detail": "2–3 sets × 8–12 reps · squat / hinge / push / pull / carry · Leave 2–3 reps in reserve; add load only once form is clean.",
+          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -3818,7 +3823,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 3 day
         },
         {
           "day": "Wed 7/22",
-          "detail": "2–3 sets × 8–12 reps · squat / hinge / push / pull / carry · Leave 2–3 reps in reserve; add load only once form is clean.",
+          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -3871,7 +3876,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 3 day
       "days": [
         {
           "day": "Mon 7/27",
-          "detail": "2 sets (lighter) × 8–12 reps · squat / hinge / push / pull / carry · Leave 2–3 reps in reserve; add load only once form is clean.",
+          "detail": "Goblet squat 2×10 · RDL 2×10 · DB row 2×10 · Push-up 2×10 · Farmer carry 2×30s · Plank 2×30s",
           "route": "Gym / home",
           "time": "35 min",
           "type": "strength",
@@ -3889,7 +3894,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 3 day
         },
         {
           "day": "Wed 7/29",
-          "detail": "2 sets (lighter) × 8–12 reps · squat / hinge / push / pull / carry · Leave 2–3 reps in reserve; add load only once form is clean.",
+          "detail": "Goblet squat 2×10 · RDL 2×10 · DB row 2×10 · Push-up 2×10 · Farmer carry 2×30s · Plank 2×30s",
           "route": "Gym / home",
           "time": "35 min",
           "type": "strength",
@@ -3942,7 +3947,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 3 day
       "days": [
         {
           "day": "Mon 8/3",
-          "detail": "2–3 sets × 8–12 reps · squat / hinge / push / pull / carry · Leave 2–3 reps in reserve; add load only once form is clean.",
+          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -3960,7 +3965,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 3 day
         },
         {
           "day": "Wed 8/5",
-          "detail": "2–3 sets × 8–12 reps · squat / hinge / push / pull / carry · Leave 2–3 reps in reserve; add load only once form is clean.",
+          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -4013,7 +4018,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 3 day
       "days": [
         {
           "day": "Mon 8/10",
-          "detail": "2–3 sets × 8–12 reps · squat / hinge / push / pull / carry · Leave 2–3 reps in reserve; add load only once form is clean.",
+          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -4031,7 +4036,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 3 day
         },
         {
           "day": "Wed 8/12",
-          "detail": "2–3 sets × 8–12 reps · squat / hinge / push / pull / carry · Leave 2–3 reps in reserve; add load only once form is clean.",
+          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -4084,7 +4089,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 3 day
       "days": [
         {
           "day": "Mon 8/17",
-          "detail": "2–3 sets × 8–12 reps · squat / hinge / push / pull / carry · Leave 2–3 reps in reserve; add load only once form is clean.",
+          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -4102,7 +4107,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 3 day
         },
         {
           "day": "Wed 8/19",
-          "detail": "2–3 sets × 8–12 reps · squat / hinge / push / pull / carry · Leave 2–3 reps in reserve; add load only once form is clean.",
+          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -4155,7 +4160,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 3 day
       "days": [
         {
           "day": "Mon 8/24",
-          "detail": "2 sets (lighter) × 8–12 reps · squat / hinge / push / pull / carry · Leave 2–3 reps in reserve; add load only once form is clean.",
+          "detail": "Goblet squat 2×10 · RDL 2×10 · DB row 2×10 · Push-up 2×10 · Farmer carry 2×30s · Plank 2×30s",
           "route": "Gym / home",
           "time": "35 min",
           "type": "strength",
@@ -4173,7 +4178,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 3 day
         },
         {
           "day": "Wed 8/26",
-          "detail": "2 sets (lighter) × 8–12 reps · squat / hinge / push / pull / carry · Leave 2–3 reps in reserve; add load only once form is clean.",
+          "detail": "Goblet squat 2×10 · RDL 2×10 · DB row 2×10 · Push-up 2×10 · Farmer carry 2×30s · Plank 2×30s",
           "route": "Gym / home",
           "time": "35 min",
           "type": "strength",
@@ -4261,6 +4266,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
     "name": "Test",
     "weeklyStructure": "4 days/week — balanced cardio, strength, and mobility",
   },
+  "generalGoal": "stay_healthy",
   "race": {
     "course": "—",
     "cutoff": "—",
@@ -4281,7 +4287,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
       "days": [
         {
           "day": "Mon 6/8",
-          "detail": "2–3 sets × 8–12 reps · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -4326,7 +4332,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
         },
         {
           "day": "Sat 6/13",
-          "detail": "2–3 sets × 8–12 reps · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -4352,7 +4358,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
       "days": [
         {
           "day": "Mon 6/15",
-          "detail": "2–3 sets × 8–12 reps · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -4397,7 +4403,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
         },
         {
           "day": "Sat 6/20",
-          "detail": "2–3 sets × 8–12 reps · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -4423,7 +4429,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
       "days": [
         {
           "day": "Mon 6/22",
-          "detail": "2–3 sets × 8–12 reps · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -4468,7 +4474,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
         },
         {
           "day": "Sat 6/27",
-          "detail": "2–3 sets × 8–12 reps · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -4494,7 +4500,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
       "days": [
         {
           "day": "Mon 6/29",
-          "detail": "2 sets (lighter) × 8–12 reps · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 2×10 · RDL 2×10 · DB row 2×10 · Push-up 2×10 · Farmer carry 2×30s · Plank 2×30s",
           "route": "Gym / home",
           "time": "35 min",
           "type": "strength",
@@ -4539,7 +4545,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
         },
         {
           "day": "Sat 7/4",
-          "detail": "2 sets (lighter) × 8–12 reps · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 2×10 · RDL 2×10 · DB row 2×10 · Push-up 2×10 · Farmer carry 2×30s · Plank 2×30s",
           "route": "Gym / home",
           "time": "35 min",
           "type": "strength",
@@ -4565,7 +4571,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
       "days": [
         {
           "day": "Mon 7/6",
-          "detail": "2–3 sets × 8–12 reps · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -4610,7 +4616,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
         },
         {
           "day": "Sat 7/11",
-          "detail": "2–3 sets × 8–12 reps · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -4636,7 +4642,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
       "days": [
         {
           "day": "Mon 7/13",
-          "detail": "2–3 sets × 8–12 reps · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -4681,7 +4687,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
         },
         {
           "day": "Sat 7/18",
-          "detail": "2–3 sets × 8–12 reps · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -4707,7 +4713,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
       "days": [
         {
           "day": "Mon 7/20",
-          "detail": "2–3 sets × 8–12 reps · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -4752,7 +4758,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
         },
         {
           "day": "Sat 7/25",
-          "detail": "2–3 sets × 8–12 reps · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -4778,7 +4784,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
       "days": [
         {
           "day": "Mon 7/27",
-          "detail": "2 sets (lighter) × 8–12 reps · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 2×10 · RDL 2×10 · DB row 2×10 · Push-up 2×10 · Farmer carry 2×30s · Plank 2×30s",
           "route": "Gym / home",
           "time": "35 min",
           "type": "strength",
@@ -4823,7 +4829,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
         },
         {
           "day": "Sat 8/1",
-          "detail": "2 sets (lighter) × 8–12 reps · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 2×10 · RDL 2×10 · DB row 2×10 · Push-up 2×10 · Farmer carry 2×30s · Plank 2×30s",
           "route": "Gym / home",
           "time": "35 min",
           "type": "strength",
@@ -4849,7 +4855,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
       "days": [
         {
           "day": "Mon 8/3",
-          "detail": "2–3 sets × 8–12 reps · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -4894,7 +4900,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
         },
         {
           "day": "Sat 8/8",
-          "detail": "2–3 sets × 8–12 reps · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -4920,7 +4926,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
       "days": [
         {
           "day": "Mon 8/10",
-          "detail": "2–3 sets × 8–12 reps · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -4965,7 +4971,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
         },
         {
           "day": "Sat 8/15",
-          "detail": "2–3 sets × 8–12 reps · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -4991,7 +4997,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
       "days": [
         {
           "day": "Mon 8/17",
-          "detail": "2–3 sets × 8–12 reps · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -5036,7 +5042,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
         },
         {
           "day": "Sat 8/22",
-          "detail": "2–3 sets × 8–12 reps · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -5062,7 +5068,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
       "days": [
         {
           "day": "Mon 8/24",
-          "detail": "2 sets (lighter) × 8–12 reps · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 2×10 · RDL 2×10 · DB row 2×10 · Push-up 2×10 · Farmer carry 2×30s · Plank 2×30s",
           "route": "Gym / home",
           "time": "35 min",
           "type": "strength",
@@ -5107,7 +5113,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
         },
         {
           "day": "Sat 8/29",
-          "detail": "2 sets (lighter) × 8–12 reps · squat / hinge / push / pull / carry · Progress load when you can complete all sets at the top of the rep range.",
+          "detail": "Goblet squat 2×10 · RDL 2×10 · DB row 2×10 · Push-up 2×10 · Farmer carry 2×30s · Plank 2×30s",
           "route": "Gym / home",
           "time": "35 min",
           "type": "strength",

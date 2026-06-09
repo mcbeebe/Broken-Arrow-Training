@@ -24,6 +24,7 @@ import { cacheEccentric, getCachedEccentric, type CachedEccentric } from '../uti
 import DescentForecastCard from './DescentForecastCard'
 import { SPORT_LABELS } from '../hooks/useMIMCalibration'
 import { useDisplayPreferences } from '../hooks/useDisplayPreferences'
+import { useOnboarding } from '../hooks/useOnboarding'
 import HRChart from './HRChart'
 import PaceChart from './PaceChart'
 import ElevationChart from './ElevationChart'
@@ -159,7 +160,15 @@ interface WorkoutModalProps {
 export default function WorkoutModal({ day, weekNum, onClose, onLog, onSaveNote, zones, athleteId, coachEnabled, readiness, latestPerf, coachSnapshot, onAskCoach, trimpRecord, weeks, raceReadinessTarget, strengthLevel }: WorkoutModalProps) {
   const style = getWorkoutStyle(day.type)
   const { flags } = useDisplayPreferences(athleteId)
-  const baseCoaching = getCoaching(day, weekNum)
+  // General Fitness plans (raceType 'general') get goal-aware, race-free
+  // coaching; trail/hyrox/seed plans keep the existing race narratives.
+  const { config: onboardingConfig } = useOnboarding(athleteId)
+  const generalGoal = onboardingConfig?.raceType === 'general' ? onboardingConfig.generalGoal : undefined
+  const baseCoaching = getCoaching(
+    day,
+    weekNum,
+    generalGoal ? { generalGoal, experienceLevel: onboardingConfig?.experienceLevel } : undefined,
+  )
   const actual = day.actual
   const isStrength = day.type === 'strength'
   const isQuality = day.type === 'quality'
