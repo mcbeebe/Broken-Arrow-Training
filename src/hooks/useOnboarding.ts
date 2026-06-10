@@ -187,19 +187,31 @@ export function useOnboarding(athleteId?: string) {
   const save = useCallback((cfg: OnboardingConfig) => {
     const withTimestamp = { ...cfg, completedAt: new Date().toISOString() }
     const k = scopedKey(athleteId)
+    const redoK = scopedRedoKey(athleteId)
     try {
       localStorage.setItem(k, JSON.stringify(withTimestamp))
       stampKey(k)
-      localStorage.removeItem(scopedRedoKey(athleteId))
+      localStorage.removeItem(redoK)
+      // Tombstone the cleared redo flag so a stale server copy (a prior
+      // redo that was never deleted server-side) can't be re-pulled by a
+      // background sync and bounce the athlete back into onboarding right
+      // after they finished. See hydrateFromServer's tombstone rule.
+      stampKey(redoK)
     } catch { /* quota */ }
     setConfig(withTimestamp)
     setRedoRequested(false)
   }, [athleteId])
 
   const clear = useCallback(() => {
+    const cfgK = scopedKey(athleteId)
+    const redoK = scopedRedoKey(athleteId)
     try {
-      localStorage.removeItem(scopedKey(athleteId))
-      localStorage.removeItem(scopedRedoKey(athleteId))
+      localStorage.removeItem(cfgK)
+      localStorage.removeItem(redoK)
+      // Tombstone both keys so a background sync pull can't resurrect what
+      // we just cleared (which would warp the athlete out of the flow).
+      stampKey(cfgK)
+      stampKey(redoK)
     } catch {}
     setConfig(null)
     setRedoRequested(false)
@@ -207,10 +219,17 @@ export function useOnboarding(athleteId?: string) {
 
   const requestRedo = useCallback(() => {
     const redoK = scopedRedoKey(athleteId)
+    const cfgK = scopedKey(athleteId)
     try {
       localStorage.setItem(redoK, '1')
       stampKey(redoK)
-      localStorage.removeItem(scopedKey(athleteId))
+      localStorage.removeItem(cfgK)
+      // Tombstone the cleared config. Without a stamp newer than the
+      // server's copy, the 60s background sync (or a visibility-change
+      // pull) would rewrite the previously-completed onboarding back into
+      // localStorage, flip `isOnboarded` true, and unmount the in-progress
+      // redo — warping the athlete back to their old plan mid-flow.
+      stampKey(cfgK)
     } catch {}
     setConfig(null)
     setRedoRequested(true)
