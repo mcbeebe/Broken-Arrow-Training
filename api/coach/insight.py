@@ -137,6 +137,26 @@ SURFACE_INSTRUCTIONS = {
         "Hard rule: no opening greeting, no persona voice, no 'Hey' / 'Look' "
         "/ 'Listen' — just the 3 lines. Total length under 90 words."
     ),
+    "welcome_letter": (
+        "Write a warm, personal start-of-season letter to an athlete who just "
+        "finished onboarding — their first message from you as their coach. "
+        "Address them by name. In ~4-6 short paragraphs (markdown, ~300-500 words):\n"
+        "1. Open with genuine energy and make THEIR GOAL the spine of the letter — "
+        "name it explicitly (their event + date if set, or their general-fitness goal "
+        "such as 'lose fat' / 'build muscle' / 'stay healthy').\n"
+        "2. Reflect back THEIR OWN WORDS — weave in specifics from their description "
+        "and stated goal (terrain, elevation, target, motivation). Show you read and "
+        "understood them.\n"
+        "3. If the context includes an INJURY/HEALTH NOTE, acknowledge it warmly and "
+        "briefly — reassure them the plan respects it and you'll watch their load. Do "
+        "NOT dwell, alarm, or diagnose; one or two supportive sentences is enough.\n"
+        "4. Give a brief, concrete overview of how their plan is built (its weekly "
+        "rhythm / the training pillars) and WHY it fits their goal and what they told you.\n"
+        "5. Set the tone for how you'll coach them — readiness-driven and honest, in "
+        "your persona's voice — and close with a short, sincere pump-up: why they've got this.\n"
+        "Be specific and grounded in the snapshot; avoid generic platitudes. This is a "
+        "motivational season-opener, not a data dump. Do NOT include a 'Triggered by' line."
+    ),
 }
 
 
@@ -344,13 +364,15 @@ class handler(BaseHTTPRequestHandler):
         # Always Sonnet, with a little more room than the daily read.
         if surface_root == "workout_debrief":
             model_to_use = SONNET_MODEL
+        if surface_root == "welcome_letter":
+            model_to_use = SONNET_MODEL
 
         try:
             result = call_anthropic(
                 model=model_to_use,
                 system=system,
                 messages=[{"role": "user", "content": user_msg}],
-                max_tokens=500 if surface_root == "workout_debrief" else 400,
+                max_tokens=900 if surface_root == "welcome_letter" else (500 if surface_root == "workout_debrief" else 400),
                 # Low temperature on the daily summary: it states facts
                 # about PR status, dates, pace, and readiness. We need
                 # the model to follow the PR_STATUS line in the context

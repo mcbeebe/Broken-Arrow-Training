@@ -12,7 +12,8 @@
 
 import type { PlannedDay, TrainingPlan, TrainingWeek } from '../types'
 import type { TrainingMethod } from '../types/training-method'
-import type { OnboardingConfig } from '../hooks/useOnboarding'
+import type { OnboardingConfig, GeneralGoal } from '../hooks/useOnboarding'
+import { GOAL_PRESETS } from '../engines/generalFitness/presets'
 
 export type MethodologyPhaseId = 'base' | 'build' | 'peak' | 'taper'
 
@@ -73,6 +74,16 @@ export interface MethodologyContext {
   methodCoach?: string
   methodKeyBook?: string
   methodPhilosophy?: string
+  /** Discriminates the General Fitness path (method-less, goal-based) from
+   *  race plans, so the methodology UI swaps mountain-race copy and citations
+   *  for plain-language, goal-appropriate general-fitness sections. */
+  goalKind: 'race' | 'general'
+  /** The chosen general-fitness goal id, present only when goalKind ===
+   *  'general'. Lets the UI look up preset emphasis/notes. */
+  generalGoal?: GeneralGoal
+  /** Human label of the chosen general-fitness goal (e.g. "Lose Fat"), present
+   *  only when goalKind === 'general'. */
+  generalGoalLabel?: string
 }
 
 // ---------------------------------------------------------------------------
@@ -370,6 +381,9 @@ export function buildMethodologyContext(
     methodCoach: method?.coach,
     methodKeyBook: method?.keyBook,
     methodPhilosophy: method?.philosophyNarrative,
+    goalKind: plan.generalGoal ? 'general' : 'race',
+    generalGoal: plan.generalGoal,
+    generalGoalLabel: plan.generalGoal ? GOAL_PRESETS[plan.generalGoal].label : undefined,
   }
 }
 

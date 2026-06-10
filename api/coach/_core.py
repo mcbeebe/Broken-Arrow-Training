@@ -1275,6 +1275,7 @@ def build_system_prompt(
             "Athlete:\n"
             f"- Name: {athlete_profile.get('name', 'Athlete')}\n"
             f"- Max HR: {athlete_profile.get('maxHR', 'unknown')}\n"
+            f"- Base: {athlete_profile.get('currentBase', '')}\n"
             f"- Structure: {athlete_profile.get('weeklyStructure', '')}"
         )
         if zones:
@@ -1299,6 +1300,13 @@ def build_system_prompt(
             f"- Elevation: {race.get('elevation', '')}\n"
             f"- Course: {race.get('course', '')}"
         )
+        if race.get("description") or race.get("athleteGoal"):
+            ctx = "Athlete's own words about this race/goal (weave into your guidance):"
+            if race.get("athleteGoal"):
+                ctx += f"\n- Their goal: {race.get('athleteGoal')}"
+            if race.get("description"):
+                ctx += f"\n- Their description: {race.get('description')}"
+            parts.append(ctx)
 
     if about_me and about_me.strip():
         parts.append(f"About this athlete (their own words):\n{about_me.strip()}")
@@ -1641,6 +1649,18 @@ def build_context_block(
         out.append(
             "  → Ground EVERY plan edit and recommendation in this philosophy. "
             "When you change the plan, say how the change reflects it."
+        )
+
+    # Pertinent personal context from onboarding (injury / coming-back status).
+    # Surfaced on every coach surface so guidance respects it; the welcome
+    # letter acknowledges it warmly rather than writing around it.
+    injury_context = snapshot.get("injuryContext")
+    if injury_context and str(injury_context).strip():
+        out.append("")
+        out.append(
+            f"INJURY/HEALTH NOTE: the athlete is {str(injury_context).strip()}. "
+            "Acknowledge it supportively, keep prescribed load appropriate, and "
+            "never be alarmist or diagnose."
         )
 
     # Training-block framing — current phase, weeks to race, and the phase

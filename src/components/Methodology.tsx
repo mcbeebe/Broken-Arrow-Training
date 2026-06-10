@@ -10,6 +10,7 @@ import {
   type MethodologyPhase,
 } from '../utils/methodologyContext'
 import MethodologyPhaseBar from './MethodologyPhaseBar'
+import { GOAL_PRESETS } from '../engines/generalFitness/presets'
 
 interface MethodologyProps {
   zones?: HRZone[]
@@ -23,6 +24,12 @@ export default function Methodology({ zones, plan, method, onboardingConfig }: M
     () => (plan ? buildMethodologyContext(plan, method, onboardingConfig) : null),
     [plan, method, onboardingConfig],
   )
+
+  // General Fitness plans are method-less and goal-based — render a lean,
+  // plain-language explainer instead of the trail-race periodization deep-dive.
+  if (ctx?.goalKind === 'general') {
+    return <GeneralFitnessMethodology ctx={ctx} zones={zones} />
+  }
 
   const intro = ctx ? buildIntro(ctx) : DEFAULT_INTRO
   const periodization = ctx ? buildPeriodizationCopy(ctx) : null
@@ -227,6 +234,83 @@ export default function Methodology({ zones, plan, method, onboardingConfig }: M
           <p>Seiler, S. (2010). Training Intensity and Duration Distribution. <em>IJSPP</em>, 5(3), 276-291.</p>
           {(ctx?.eccentricFocus ?? true) && <p>Toyomura, J., et al. (2018). Eccentric Training and Downhill Running. <em>European Journal of Sport Science</em>, 18(10).</p>}
           {ctx?.methodName && ctx.methodKeyBook && <p>{ctx.methodCoach ?? ctx.methodName}. <em>{ctx.methodKeyBook}</em>.</p>}
+        </div>
+      </Section>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// General Fitness — lean, plain-language explainer (method-less, goal-based).
+// No periodization-for-racing, taper, poles, altitude, or Uphill-Athlete copy.
+// ---------------------------------------------------------------------------
+
+function GeneralFitnessMethodology({ ctx, zones }: { ctx: MethodologyContext; zones?: HRZone[] }) {
+  const preset = ctx.generalGoal ? GOAL_PRESETS[ctx.generalGoal] : null
+  return (
+    <div className="px-4 py-4 space-y-5 pb-8">
+      <h2 className="text-xl font-bold text-slate-800 dark:text-white">How your plan works</h2>
+      <p className="text-base text-slate-600 dark:text-slate-300">
+        No jargon, no race to train for — just the handful of things that actually move your fitness
+        and health, a few days a week
+        {ctx.generalGoalLabel ? <>, tuned to your goal: <strong>{ctx.generalGoalLabel}</strong></> : ''}.
+      </p>
+
+      {/* The four pillars */}
+      <Section title="The four ingredients of your week" defaultOpen>
+        <p>Every week is built from four simple pieces:</p>
+        <ul className="space-y-2 text-base text-slate-700 dark:text-slate-200">
+          <li className="flex gap-2"><span className="text-teal-600 font-bold shrink-0 w-28">Easy cardio</span><span>Most of your cardio, kept conversational (Zone 2). Builds the aerobic engine without wearing you down.</span></li>
+          <li className="flex gap-2"><span className="text-teal-600 font-bold shrink-0 w-28">Hard cardio</span><span>One short, harder interval session a week to raise your ceiling.</span></li>
+          <li className="flex gap-2"><span className="text-teal-600 font-bold shrink-0 w-28">Strength</span><span>Full-body lifting to keep muscle, bone, and everyday strength.</span></li>
+          <li className="flex gap-2"><span className="text-teal-600 font-bold shrink-0 w-28">Mobility</span><span>A few minutes of warm-up and stretching built into each session.</span></li>
+        </ul>
+        <p>
+          Each week nudges a little harder than the last — slightly more time or load — so your body
+          keeps adapting. Every fourth week is a lighter <strong>deload</strong> week: that's when
+          your body absorbs the work and comes back stronger. It's planned, not a setback.
+        </p>
+      </Section>
+
+      {/* 80/20 — applies broadly, kept in plain language */}
+      <Section title="Most cardio is easy — on purpose">
+        <p>
+          About <strong>80% of your cardio should feel easy</strong> — relaxed enough to hold a
+          conversation. Only the interval session pushes hard. That easy-heavy mix is how endurance
+          is actually built, and it's what keeps training sustainable week after week.
+        </p>
+      </Section>
+
+      {/* Goal-specific emphasis */}
+      {preset && (
+        <Section title={`Your goal: ${ctx.generalGoalLabel}`}>
+          <p>{preset.emphasis}.</p>
+          <p>{preset.note}</p>
+        </Section>
+      )}
+
+      {/* Heart-rate zones — kept, with trail/altitude framing removed */}
+      <Section title="Heart-rate zones: your effort gauge">
+        <p>
+          Heart rate is a simple way to keep each session honest — easy days truly easy, hard days
+          hard. No heart-rate monitor? The Talk Test works too: easy means you can speak in full
+          sentences.
+        </p>
+        <div className="bg-white dark:bg-slate-800 rounded-xl p-3 border border-slate-100 dark:border-slate-700 space-y-1.5 text-base">
+          {zones && zones.length > 0 ? (
+            zones.map((z) => (
+              <div key={z.zone} className="flex justify-between">
+                <strong>{z.zone} ({z.hr})</strong><span>{z.desc}</span>
+              </div>
+            ))
+          ) : (
+            <>
+              <div className="flex justify-between"><strong>Z1</strong><span>Recovery / warm-up</span></div>
+              <div className="flex justify-between"><strong>Z2</strong><span>Easy aerobic (most of your cardio)</span></div>
+              <div className="flex justify-between"><strong>Z3</strong><span>Tempo / comfortably hard</span></div>
+              <div className="flex justify-between"><strong>Z4</strong><span>Hard intervals</span></div>
+            </>
+          )}
         </div>
       </Section>
     </div>

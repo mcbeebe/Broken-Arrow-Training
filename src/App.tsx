@@ -21,6 +21,7 @@ import Tutorial from './components/Tutorial'
 import MethodSelection from './components/MethodSelection'
 import MethodologyPrimer from './components/MethodologyPrimer'
 import ZonesPrimer from './components/ZonesPrimer'
+import CoachLetter from './components/CoachLetter'
 import { getMethodById } from './data/methods'
 import { summarizeOp } from './utils/chatProposal'
 import { resolveMethodId } from './utils/resolveMethod'
@@ -284,6 +285,19 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
           </div>
         </div>
       </div>
+    )
+  }
+
+  // Final onboarding screen: a one-time AI letter from the coach, now that a
+  // plan exists. Shown for every flow; gated by welcomeLetterSeenAt.
+  if (onboarding.config && !onboarding.config.welcomeLetterSeenAt) {
+    return (
+      <CoachLetter
+        plan={activePlan}
+        config={onboarding.config}
+        athleteId={athleteId}
+        onContinue={onboarding.markWelcomeLetterSeen}
+      />
     )
   }
 
@@ -823,6 +837,12 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     // Carry the athlete's injury context so the coach can speak to it.
     const injuryContext = injurySummaryLine(onboarding.config)
     if (injuryContext) snap.injuryContext = injuryContext
+    // Carry the athlete's free-text race description + goal so the coach can
+    // weave them into every surface (and the welcome letter).
+    if (onboarding.config && snap.race && (onboarding.config.raceDescription || onboarding.config.athleteGoal)) {
+      snap.race.description = onboarding.config.raceDescription
+      snap.race.athleteGoal = onboarding.config.athleteGoal
+    }
     return snap
   }, [
     coachEnabled,

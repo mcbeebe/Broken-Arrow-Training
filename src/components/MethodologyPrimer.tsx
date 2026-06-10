@@ -9,6 +9,7 @@ import {
   type MethodologyContext,
 } from '../utils/methodologyContext'
 import MethodologyPhaseBar from './MethodologyPhaseBar'
+import { GOAL_PRESETS } from '../engines/generalFitness/presets'
 
 interface Props {
   plan: TrainingPlan
@@ -30,6 +31,9 @@ export default function MethodologyPrimer({ plan, method, config, onContinue }: 
     () => buildMethodologyContext(plan, method, config),
     [plan, method, config],
   )
+  // General Fitness plans are method-less and goal-based — drop the race phase
+  // bar and the periodization/race cards for a plain-language version.
+  const isGeneral = ctx.goalKind === 'general'
 
   return (
     <div className="fixed inset-0 z-50 bg-white dark:bg-slate-900 flex flex-col">
@@ -39,26 +43,37 @@ export default function MethodologyPrimer({ plan, method, config, onContinue }: 
           Here's how it's structured
         </h1>
         <p className="text-sm text-slate-500 dark:text-slate-300 mt-2">
-          A {ctx.totalWeeks}-week plan for {ctx.raceName || ctx.raceDistance}
-          {ctx.methodName ? ` built on ${ctx.methodName} (${ctx.methodCoach ?? 'method'})` : ''}.
-          Take 30 seconds — knowing the shape of the plan makes every easy day make sense.
+          {isGeneral ? (
+            <>
+              A {ctx.totalWeeks}-week plan{ctx.generalGoalLabel ? <> tuned to your goal: <span className="font-semibold">{ctx.generalGoalLabel}</span></> : ''}.
+              {' '}Take 30 seconds — knowing the shape of the plan makes every easy day make sense.
+            </>
+          ) : (
+            <>
+              A {ctx.totalWeeks}-week plan for {ctx.raceName || ctx.raceDistance}
+              {ctx.methodName ? ` built on ${ctx.methodName} (${ctx.methodCoach ?? 'method'})` : ''}.
+              {' '}Take 30 seconds — knowing the shape of the plan makes every easy day make sense.
+            </>
+          )}
         </p>
 
-        <div className="mt-6">
-          <MethodologyPhaseBar phases={ctx.phases} />
-        </div>
+        {!isGeneral && (
+          <div className="mt-6">
+            <MethodologyPhaseBar phases={ctx.phases} />
+          </div>
+        )}
 
         <div className="mt-6 space-y-3">
-          {buildPrimerCards(ctx).map(card => (
+          {(isGeneral ? buildGeneralPrimerCards(ctx) : buildPrimerCards(ctx)).map(card => (
             <PrimerCard key={card.id} title={card.title} body={card.body} />
           ))}
         </div>
 
         <div className="mt-6 p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
           <p className="text-sm text-slate-600 dark:text-slate-300">
-            <span className="font-semibold">Want the full methodology?</span>{' '}
+            <span className="font-semibold">Want the full breakdown?</span>{' '}
             Open <span className="font-semibold">Settings → Training Methodology</span> any time
-            for the deep dive with citations.
+            for the {isGeneral ? 'full version' : 'deep dive with citations'}.
           </p>
         </div>
       </div>
@@ -196,6 +211,49 @@ function buildPrimerCards(ctx: MethodologyContext): PrimerCardData[] {
         `it by training too hard. Sleep, hydrate, visualize the race.`,
     })
   }
+
+  return cards
+}
+
+/** General Fitness primer cards — the short-form of GeneralFitnessMethodology
+ *  in Methodology.tsx. Plain language, no race/periodization/poles. */
+function buildGeneralPrimerCards(ctx: MethodologyContext): PrimerCardData[] {
+  const cards: PrimerCardData[] = []
+
+  cards.push({
+    id: 'pillars',
+    title: 'Four ingredients, a few days a week',
+    body:
+      'Your week mixes four simple pieces: easy cardio (most of it), one harder interval session, ' +
+      'full-body strength, and a little mobility. Each week nudges slightly harder than the last, and ' +
+      'every fourth week is a lighter deload so your body absorbs the work and comes back stronger.',
+  })
+
+  cards.push({
+    id: '80-20',
+    title: 'Most cardio is easy — on purpose',
+    body:
+      'About 80% of your cardio should feel easy — relaxed enough to hold a conversation. Only the ' +
+      'interval session pushes hard. That easy-heavy mix is how endurance is actually built, and it ' +
+      'keeps training sustainable.',
+  })
+
+  const preset = ctx.generalGoal ? GOAL_PRESETS[ctx.generalGoal] : null
+  if (preset) {
+    cards.push({
+      id: 'goal',
+      title: `Your goal: ${ctx.generalGoalLabel}`,
+      body: `${preset.emphasis}. ${preset.note}`,
+    })
+  }
+
+  cards.push({
+    id: 'hr',
+    title: 'Heart rate keeps it honest',
+    body:
+      'Heart-rate zones keep each session at the right effort — easy days truly easy, hard days hard. ' +
+      'No monitor? The Talk Test works: easy means you can speak in full sentences.',
+  })
 
   return cards
 }
