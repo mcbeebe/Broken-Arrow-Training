@@ -1393,6 +1393,18 @@ def build_context_block(
             "When you change the plan, say how the change reflects it."
         )
 
+    # Pertinent personal context from onboarding (injury / coming-back status).
+    # Surfaced on every coach surface so guidance respects it; the welcome
+    # letter acknowledges it warmly rather than writing around it.
+    injury_context = snapshot.get("injuryContext")
+    if injury_context and str(injury_context).strip():
+        out.append("")
+        out.append(
+            f"INJURY/HEALTH NOTE: the athlete is {str(injury_context).strip()}. "
+            "Acknowledge it supportively, keep prescribed load appropriate, and "
+            "never be alarmist or diagnose."
+        )
+
     # Training-block framing — current phase, weeks to race, and the phase
     # arc. Lets a debrief/orientation situate a workout in the macro plan.
     plan_blocks = snapshot.get("planBlocks") or None

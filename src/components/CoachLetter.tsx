@@ -3,6 +3,8 @@ import type { TrainingPlan, CoachSnapshot } from '../types'
 import type { OnboardingConfig } from '../hooks/useOnboarding'
 import { useCoachInsight } from '../hooks/useCoachInsight'
 import { coachApiAvailable } from '../utils/coachApi'
+import { injurySummaryLine } from '../utils/injuryRamp'
+import { GOAL_PRESETS } from '../engines/generalFitness/presets'
 
 interface Props {
   plan: TrainingPlan
@@ -31,17 +33,30 @@ export default function CoachLetter({ plan, config, athleteId, onContinue }: Pro
 
   const apiAvailable = coachApiAvailable()
 
+  // Personalize the letter. Lead with the athlete's GOAL — for General Fitness
+  // that's the preset (e.g. "Lose Fat"), optionally with their free-text goal;
+  // for a race it's their stated race goal. And surface pertinent personal
+  // context (injury) so the coach acknowledges it instead of writing generically.
+  const goalText =
+    config.raceType === 'general'
+      ? [GOAL_PRESETS[config.generalGoal ?? 'stay_healthy'].label, config.athleteGoal?.trim()]
+          .filter(Boolean)
+          .join(' — ')
+      : config.athleteGoal
+  const injuryLine = injurySummaryLine(config) || undefined
+
   // Lean snapshot: at onboarding end there's no readiness/activity data yet, so
-  // hand the coach just the plan + the athlete's own words. The insight endpoint
-  // and context builder are defensive about missing fields.
+  // hand the coach just the plan + the athlete's own words + their goal/injury.
+  // The insight endpoint and context builder are defensive about missing fields.
   const snapshot = useMemo(() => ({
     athleteProfile: plan.athlete,
-    race: { ...plan.race, description: config.raceDescription, athleteGoal: config.athleteGoal },
+    race: { ...plan.race, description: config.raceDescription, athleteGoal: goalText },
     zones: plan.zones,
     weeks: plan.weeks,
     currentWeekNum: 1,
     detailLevel: config.detailLevel,
-  } as unknown as CoachSnapshot), [plan, config])
+    injuryContext: injuryLine,
+  } as unknown as CoachSnapshot), [plan, config, goalText, injuryLine])
 
   const { insight, loading, error } = useCoachInsight({
     athleteId,
@@ -54,9 +69,13 @@ export default function CoachLetter({ plan, config, athleteId, onContinue }: Pro
   const ready = !apiAvailable || (!loading && (insight !== null || error !== null))
   const letter = insight?.text?.trim()
 
+  const goalPhrase = goalText?.trim() || config.raceName || 'your goal'
+  const injurySentence = injuryLine
+    ? ` I see you're ${injuryLine} — we'll ease in and keep an eye on it so it holds up.`
+    : ''
   const fallback =
     `Welcome, ${plan.athlete.name || 'athlete'} — your plan is built and ready.\n\n` +
-    `It's ${plan.weeks.length} weeks shaped around "${config.raceName || 'your goal'}". ` +
+    `It's ${plan.weeks.length} weeks built around ${goalPhrase}.${injurySentence} ` +
     `Trust the process, show up for the easy days as much as the hard ones, and we'll get there together.\n\n` +
     `I'm in the Coach tab whenever you want to talk it through. Let's get to work.`
 

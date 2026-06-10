@@ -149,7 +149,16 @@ export async function hydrateFromServer(session: AuthSession): Promise<{ pulled:
     if (!Number.isFinite(serverMs)) continue
     const localRaw = localStorage.getItem(item.key)
     const localStamp = readStamp(item.key)
-    const shouldWrite = localRaw === null || serverMs > localStamp
+    // Last-write-wins by timestamp: pull only when the server's copy is
+    // strictly newer than our last local write. A key that is absent
+    // locally but still carries a stamp >= the server's is an intentional
+    // local deletion (a tombstone — e.g. "Redo onboarding" clears
+    // `ba_onboarding`). Resurrecting it would warp the athlete out of an
+    // in-progress redo and back into their old plan. Genuinely fresh
+    // devices have no stamp (localStamp === 0), so server data still
+    // hydrates normally. The explicit "Pull from server" button uses
+    // `pullFromServer`, which overwrites unconditionally.
+    const shouldWrite = serverMs > localStamp
     if (!shouldWrite) continue
     try {
       localStorage.setItem(item.key, item.value)
