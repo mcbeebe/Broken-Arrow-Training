@@ -77,6 +77,41 @@ export function materialFields(surface: string, snapshot: CoachSnapshot): unknow
     }
   }
 
+  // The welcome letter is a one-time, start-of-season note generated from the
+  // freshly-built plan + the athlete's own words. There's no readiness/activity
+  // data yet, so key the cache on the plan identity + those words (NOT
+  // time-of-day) — the letter stays stable while the screen is open and only
+  // regenerates if the athlete redoes onboarding with materially different
+  // inputs. The snapshot is a bespoke onboarding-time shape (see CoachLetter),
+  // so read it through a loose cast.
+  if (surface === 'welcome_letter') {
+    const s = snapshot as unknown as {
+      athleteProfile?: { name?: string }
+      weeks?: unknown[]
+      race?: { name?: string; distance?: string; description?: string; athleteGoal?: string }
+      detailLevel?: string
+      coachPersona?: { name?: string; traits?: string[] }
+      zones?: { hr?: string }[]
+    }
+    const wlPersona = s.coachPersona
+    return {
+      surface,
+      athlete: s.athleteProfile?.name?.trim() || '',
+      weeks: s.weeks?.length ?? 0,
+      race: {
+        name: s.race?.name || '',
+        distance: s.race?.distance || '',
+        description: (s.race?.description || '').trim(),
+        athleteGoal: (s.race?.athleteGoal || '').trim(),
+      },
+      detailLevel: s.detailLevel ?? null,
+      persona: wlPersona
+        ? { name: wlPersona.name?.trim() || '', traits: [...(wlPersona.traits || [])].sort() }
+        : null,
+      zones: s.zones?.map(z => z.hr) ?? null,
+    }
+  }
+
   const r = snapshot.readiness
   const p = snapshot.performance
   const t = snapshot.plannedToday

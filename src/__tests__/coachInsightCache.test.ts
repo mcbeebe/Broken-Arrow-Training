@@ -119,3 +119,55 @@ describe('materialFields', () => {
     )
   })
 })
+
+// The welcome letter is a one-time, onboarding-time note. Its snapshot is a
+// bespoke shape (plan + the athlete's own words), with no readiness/activity
+// data yet — so its cache key must be stable against transient signals and
+// only bust when the athlete redoes onboarding with different inputs.
+describe('materialFields — welcome_letter', () => {
+  function wlSnap(overrides: Record<string, unknown> = {}): CoachSnapshot {
+    return {
+      athleteProfile: { name: 'Pat', maxHR: 165, currentBase: '', weeklyStructure: '' },
+      race: {
+        name: 'Summer fitness',
+        distance: 'General fitness — no race',
+        description: 'Back in shape after years off.',
+        athleteGoal: 'Build a consistent habit.',
+      },
+      zones: [{ zone: 'Z1', hr: '91-107', pct: '', desc: '' }],
+      weeks: [{}, {}, {}],
+      detailLevel: 'simple',
+      currentWeekNum: 1,
+      ...overrides,
+    } as unknown as CoachSnapshot
+  }
+
+  it('keys on the plan + the athlete\'s words, not transient signals', () => {
+    const plain = wlSnap()
+    // Same plan + words, but with readiness/perf/today layered on — these must
+    // NOT change the welcome-letter cache key.
+    const withSignals = wlSnap({
+      readiness: { status: 'YELLOW', displayScore: 40, trainingState: 1 },
+      performance: { ctl: 12, atl: 30, tsb: -18, acwr: 1.4 },
+      today: { date: '2026-06-08' },
+    })
+    expect(hashFields(materialFields('welcome_letter', plain))).toBe(
+      hashFields(materialFields('welcome_letter', withSignals)),
+    )
+  })
+
+  it('busts when the athlete\'s goal / own words change (redo onboarding)', () => {
+    const a = wlSnap()
+    const b = wlSnap({
+      race: {
+        name: 'Fall 10K',
+        distance: '10K',
+        description: 'Training for my first 10K race.',
+        athleteGoal: 'Finish under an hour.',
+      },
+    })
+    expect(hashFields(materialFields('welcome_letter', a))).not.toBe(
+      hashFields(materialFields('welcome_letter', b)),
+    )
+  })
+})
