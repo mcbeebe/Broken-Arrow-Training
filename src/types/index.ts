@@ -1047,7 +1047,7 @@ export interface CoachWeatherBlock {
 }
 
 export interface CoachSnapshot {
-  today: { date: string; period?: 'morning' | 'afternoon' | 'evening' }
+  today: { date: string; period?: 'morning' | 'evening' }
   currentWeekNum?: number
   readiness?: ReadinessScore | null
   performance?: PerformanceMetrics | null

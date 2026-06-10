@@ -22,6 +22,7 @@ import type { AthleteProfileExtras } from '../hooks/useAthleteProfile'
 import NotificationSettings from './NotificationSettings'
 import AthleteHomeLocation from './AthleteHomeLocation'
 import WorkoutTimePreference from './WorkoutTimePreference'
+import ProactiveTimingSettings from './ProactiveTimingSettings'
 import type { AthleteHomeLocation as AthleteHomeLocationType } from '../hooks/useAthleteLocation'
 import type { WorkoutTimeSlot } from '../hooks/useWorkoutTimePreference'
 import ExportDialog from './ExportDialog'
@@ -68,6 +69,12 @@ interface SettingsProps {
   // When-do-you-train preference — drives the per-hour weather chip.
   workoutTimeSlot?: WorkoutTimeSlot
   onSaveWorkoutTimeSlot?: (slot: WorkoutTimeSlot) => void
+  // Proactive-coaching timing — when the Summary tab reveals tomorrow's
+  // workout, and when the coach's evening read begins.
+  cardHour?: number
+  coachEveningHour?: number
+  onSaveCardHour?: (hour: number) => void
+  onSaveCoachEveningHour?: (hour: number) => void
   athleteProfileExtras?: AthleteProfileExtras
   onSaveAthleteProfile?: (next: AthleteProfileExtras) => void
   // Strava
@@ -185,6 +192,10 @@ export default function Settings({
   onUseBrowserHomeLocation,
   workoutTimeSlot,
   onSaveWorkoutTimeSlot,
+  cardHour,
+  coachEveningHour,
+  onSaveCardHour,
+  onSaveCoachEveningHour,
   athleteProfileExtras,
   onSaveAthleteProfile,
   onAddCoachFact,
@@ -441,6 +452,14 @@ export default function Settings({
               <WorkoutTimePreference
                 slot={workoutTimeSlot}
                 onSave={onSaveWorkoutTimeSlot}
+              />
+            )}
+            {cardHour !== undefined && coachEveningHour !== undefined && onSaveCardHour && onSaveCoachEveningHour && (
+              <ProactiveTimingSettings
+                cardHour={cardHour}
+                coachEveningHour={coachEveningHour}
+                onSaveCardHour={onSaveCardHour}
+                onSaveCoachEveningHour={onSaveCoachEveningHour}
               />
             )}
             {onSaveAthleteProfile && (

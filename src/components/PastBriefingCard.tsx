@@ -6,9 +6,10 @@ import { extractTriggerSignal } from '../utils/coachInsightText'
 
 const PERIOD_META: Record<BriefingLogEntry['period'], { emoji: string; label: string }> = {
   morning: { emoji: '☀️', label: 'Morning briefing' },
-  afternoon: { emoji: '🌤️', label: 'Afternoon check-in' },
   evening: { emoji: '🌙', label: 'Evening wrap-up' },
 }
+
+const FALLBACK_META = { emoji: '🌙', label: 'Earlier briefing' }
 
 function timeLabel(ts: number): string {
   try {
@@ -27,7 +28,9 @@ function timeLabel(ts: number): string {
  */
 export default function PastBriefingCard({ entry }: { entry: BriefingLogEntry }) {
   const [open, setOpen] = useState(false)
-  const meta = PERIOD_META[entry.period]
+  // Fallback guards any briefing logged under the legacy 'afternoon' period
+  // before the model was reduced to morning/evening (same-day logs only).
+  const meta = PERIOD_META[entry.period] ?? FALLBACK_META
 
   // Mirror CoachInsightCard's text handling: strip any ```proposal block
   // and the "Triggered by:" prefix so the body reads cleanly.

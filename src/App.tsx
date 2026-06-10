@@ -51,6 +51,7 @@ import { injurySummaryLine } from './utils/injuryRamp'
 import { useWeather } from './hooks/useWeather'
 import { useAthleteLocation } from './hooks/useAthleteLocation'
 import { useWorkoutTimePreference } from './hooks/useWorkoutTimePreference'
+import { useProactiveTimingPreference } from './hooks/useProactiveTimingPreference'
 import WeeklyPlan from './components/WeeklyPlan'
 import Summary from './components/Summary'
 import Journal from './components/Journal'
@@ -703,9 +704,14 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
   const mimCalibration = useMIMCalibration(athleteId, readiness.dailyTrimp, soreness.sorenessLoadByDate)
   const domsCalibration = useDOMSCalibration(athleteId, readiness.dailyTrimp, soreness.sorenessLoadByDate)
 
+  // Athlete-configurable proactive-coaching timing (Settings → Proactive
+  // coaching): when Summary reveals tomorrow's card, and when the coach flips
+  // morning→evening. Drives getCoachTimeOfDay + the daily briefing period.
+  const proactiveTiming = useProactiveTimingPreference(athleteId)
+
   // AI Coach recommendation (legacy heuristic — still drives TodayBriefing)
   const coachRecommendation = useMemo(() => {
-    const timeOfDay = getCoachTimeOfDay()
+    const timeOfDay = getCoachTimeOfDay(proactiveTiming.coachEveningHour)
     if (timeOfDay === 'morning') {
       return generateMorningCoach(
         readiness.todayScore,
@@ -726,7 +732,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
         readiness.trainingStateInfo,
       )
     }
-  }, [readiness.todayScore, todayPlannedWorkout, tomorrowPlannedWorkout, currentWeekDays, todayDayIndex, latestPerf, todayHealth, readiness.trainingStateInfo])
+  }, [readiness.todayScore, todayPlannedWorkout, tomorrowPlannedWorkout, currentWeekDays, todayDayIndex, latestPerf, todayHealth, readiness.trainingStateInfo, proactiveTiming.coachEveningHour])
 
   // Wrap daySwap.swapDays to also re-anchor plan overrides. Without
   // this, an override stays pinned to its original dayIndex and would
@@ -816,6 +822,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
       garminActivities: garmin.garminActivities,
       garminActivityDetails: garmin.activityDetails,
       trainingMethod,
+      coachEveningHour: proactiveTiming.coachEveningHour,
     })
     // Attach persona so the API can shape the system prompt voice
     const persona = coachMemory.coachPersona
@@ -866,6 +873,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     trainingMethod,
     displayPrefs.detailLevel,
     onboarding.config,
+    proactiveTiming.coachEveningHour,
   ])
 
   // Daily LLM insight (shared between Summary + Coach tab)
@@ -874,19 +882,21 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     surface: 'daily',
     snapshot: coachSnapshot,
     enabled: coachEnabled && !!coachSnapshot,
+    eveningStartHour: proactiveTiming.coachEveningHour,
   })
 
   // Record each period's briefing so an earlier read (e.g. the morning
   // briefing) isn't silently overwritten when dayPeriod() flips. The live
   // card shows the current period; these earlier reads surface as read-only
   // cards at the top of the Coach thread.
-  const briefingLog = useDailyBriefingLog(athleteId, dailyInsight.insight)
-  const earlierBriefings = priorBriefings(briefingLog, dailyInsight.insight)
+  const briefingLog = useDailyBriefingLog(athleteId, dailyInsight.insight, proactiveTiming.coachEveningHour)
+  const earlierBriefings = priorBriefings(briefingLog, dailyInsight.insight, proactiveTiming.coachEveningHour)
 
   // Proactive pings are intentionally disabled — the daily insight (the
   // blue "COACH PHIL ENGLISH" card on the Coach tab) is now THE coach's
-  // proactive voice, refreshing 3x daily (6 AM / 1 PM / 8 PM) via the
-  // dayPeriod() cache key inside useCoachInsight. Yellow ping cards
+  // proactive voice, refreshing twice daily — a morning read and an evening
+  // read at the athlete-configured hour — via the dayPeriod() cache key inside
+  // useCoachInsight. Yellow ping cards
   // (readiness_shift, new_workout, hrv_drop, etc.) cluttered the chat
   // with messages that overlapped the daily read; the conversation
   // surface is now reserved for the athlete's questions and the coach's
@@ -1174,6 +1184,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           coachEnabled={coachEnabled}
           todayPlannedWorkout={todayPlannedWorkout}
           tomorrowPlannedWorkout={tomorrowPlannedWorkout}
+          cardPreviewHour={proactiveTiming.cardHour}
           currentWeekNum={currentWeekNum}
           zones={hrZones.zones}
           coachSnapshot={coachSnapshot}
@@ -1326,6 +1337,10 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           onUseBrowserHomeLocation={athleteLocation.useBrowserLocation}
           workoutTimeSlot={workoutTimePref.slot}
           onSaveWorkoutTimeSlot={workoutTimePref.save}
+          cardHour={proactiveTiming.cardHour}
+          coachEveningHour={proactiveTiming.coachEveningHour}
+          onSaveCardHour={proactiveTiming.saveCardHour}
+          onSaveCoachEveningHour={proactiveTiming.saveCoachEveningHour}
           athleteProfileExtras={athleteProfileExtras.profile}
           onSaveAthleteProfile={athleteProfileExtras.save}
           athleteId={athleteId}
