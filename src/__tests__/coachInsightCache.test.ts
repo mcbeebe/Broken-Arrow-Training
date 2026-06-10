@@ -170,4 +170,12 @@ describe('materialFields — welcome_letter', () => {
       hashFields(materialFields('welcome_letter', b)),
     )
   })
+
+  it('busts when the injury / health note changes', () => {
+    const healthy = wlSnap()
+    const injured = wlSnap({ injuryContext: 'coming back from a knee injury · cleared 2 weeks ago' })
+    expect(hashFields(materialFields('welcome_letter', healthy))).not.toBe(
+      hashFields(materialFields('welcome_letter', injured)),
+    )
+  })
 })
