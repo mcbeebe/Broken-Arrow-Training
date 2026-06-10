@@ -57,6 +57,29 @@ def test_fixture_builds_expected_context(path: str) -> None:
         assertions.assert_context_has_readiness_directive(ctx, expect["readiness_max_intensity"])
     if expect.get("safe_disposition"):  # R5
         assertions.assert_context_has_safe_disposition(ctx, expect["safe_disposition"])
+    for needle in expect.get("athlete_directive_contains", []):  # R7
+        assert "ATHLETE_PROFILE_DIRECTIVE:" in system, f"no ATHLETE_PROFILE_DIRECTIVE in system prompt"
+        assert needle in system, f"expected {needle!r} in system prompt; got the directive line missing it"
+
+
+def test_athlete_profile_directive_helper() -> None:
+    """R7: the pure directive builder renders age/experience/injury/goal, and
+    returns None when there's nothing structured (older profiles unaffected)."""
+    from api.coach._core import _athlete_profile_directive
+
+    assert _athlete_profile_directive(None) is None
+    assert _athlete_profile_directive({"name": "x", "maxHR": 190}) is None
+    d = _athlete_profile_directive({
+        "birthDate": "1972-03-01",
+        "experienceLevel": "intermediate",
+        "injuryHistory": [{"region": "right knee", "status": "chronic"}],
+        "goals": [{"text": "sub-2h half", "priority": "primary"}],
+    })
+    assert d is not None
+    assert "masters" in d
+    assert "experience intermediate" in d
+    assert "right knee (chronic)" in d
+    assert "sub-2h half" in d
 
 
 def test_injury_floor_is_chat_only() -> None:
@@ -85,3 +108,75 @@ def test_overtraining_floor_fires_without_user_message() -> None:
         "readiness": {"status": "RED", "trainingState": "D", "components": {}, "message": "overtrained"},
     }
     assertions.assert_context_has_safe_disposition(build_context_block(snap), "OVERTRAINING")
+
+
+# ── PR baseline must be the SAME route, not just the same distance ──
+
+
+def test_route_name_match_helper() -> None:
+    """Same-route name detection: exact match, strong token overlap, and the
+    generic-token guard so two 'Morning Run's don't look like one route."""
+    from api.coach._core import _route_names_match
+
+    assert _route_names_match("Granite Mtn", "Granite Mtn")
+    assert _route_names_match("Granite Mtn Loop", "Granite Mtn")            # 2/3 overlap
+    assert not _route_names_match("Morning Run", "Morning Run")             # only generic tokens
+    assert not _route_names_match("Granite Mtn", "Mailbox Peak")           # different routes
+    assert not _route_names_match("", "Granite Mtn")
+
+
+def test_same_route_profile_helper() -> None:
+    """Elevation-or-name comparability: a flat run is not the same route as a
+    mountain race at the same distance; a same-vert repeat is."""
+    from api.coach._core import _same_route_profile
+
+    mountain = {"name": "Broken Arrow Skyrace 18K", "elevationGain": 3763}
+    flat = {"name": "Tempo Run", "elevationGain": 200}
+    repeat = {"name": "Trail Repeat", "elevationGain": 3500}              # within ±20%
+    named_repeat = {"name": "Broken Arrow Skyrace 18K", "elevationGain": 0}
+
+    assert not _same_route_profile(mountain, flat)
+    assert _same_route_profile(mountain, repeat)
+    assert _same_route_profile(mountain, named_repeat)                    # name carries it
+
+
+def _mountain_snap(prior: dict) -> dict:
+    """Daily snapshot: today is a mountain race, with one prior effort."""
+    return {
+        "today": {"date": "2026-06-07", "period": "evening"},
+        "readiness": {"status": "GREEN", "trainingState": "B", "components": {}, "message": "ok"},
+        "plannedToday": {
+            "day": "Sat", "type": "Race", "workout": "Skyrace", "zone": "Z4",
+            "actual": {
+                "name": "Broken Arrow Skyrace 18K", "startDate": "2026-06-07T08:00:00",
+                "distance": 8.6, "movingTime": 5700, "avgHR": 154, "elevationGain": 3763,
+            },
+        },
+        "recentActivities": [prior],
+    }
+
+
+def test_pr_status_no_route_baseline_for_flat_prior() -> None:
+    """The reported bug: a flat road effort at the same distance must NOT be a
+    PR baseline for a mountain race — engine emits NO ROUTE BASELINE."""
+    from api.coach._core import build_context_block
+
+    flat_prior = {
+        "name": "Riverfront Tempo", "startDate": "2026-04-12T07:00:00",
+        "distance": 8.5, "movingTime": 4200, "avgHR": 150, "elevationGain": 180,
+    }
+    ctx = build_context_block(_mountain_snap(flat_prior))
+    assertions.assert_context_has_pr_status(ctx, "NO ROUTE BASELINE")
+
+
+def test_pr_status_yes_for_same_route_repeat() -> None:
+    """A same-route, same-vert prior that's slower still yields a real PR."""
+    from api.coach._core import build_context_block
+
+    same_route = {
+        "name": "Broken Arrow Skyrace 18K", "startDate": "2025-06-21T08:00:00",
+        "distance": 8.6, "movingTime": 6300, "avgHR": 158, "elevationGain": 3700,
+    }
+    ctx = build_context_block(_mountain_snap(same_route))
+    assertions.assert_context_has_pr_status(ctx, "YES")
+    assert "'10m PR'" in ctx  # 6300-5700 = 600s = 10m, mandated delta

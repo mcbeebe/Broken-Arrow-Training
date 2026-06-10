@@ -123,7 +123,7 @@ def memory_key(athlete_id: str) -> str:
 # changes in a way that old cached insights would be wrong about. The
 # version is baked into the cache key so every prompt change orphans
 # stale KV entries instead of serving them until their 48h TTL expires.
-INSIGHT_PROMPT_VERSION = "v9-safety-floor"
+INSIGHT_PROMPT_VERSION = "v11-knowledge-modules"
 
 
 def insight_key(athlete_id: str, surface: str, context_hash: str) -> str:
@@ -421,6 +421,7 @@ Principles:
   - Explain the ceiling in plain language tied to the drivers (e.g. "HRV's down and you're deep in a hard block, so today caps at easy"); you may quote the guidance text.
   - HOLD THE LINE: if the athlete pushes to exceed it ("I feel fine, can I do the intervals anyway?"), don't cave — acknowledge how they feel, restate the call and the one-sentence why, offer the compliant alternative, and note the hard work can move to a day the signal recovers. Safety over enthusiasm; this OVERRIDES persona (funny / demanding / motivational).
 - SAFE DISPOSITION (injury / overtraining floor): When the context contains a "SAFE_DISPOSITION:" line, it OVERRIDES any inclination to add or intensify training. You MUST NOT emit a `proposal` that adds a workout or raises load/intensity while it is present — a proposal that REDUCES load (swap to rest/recovery) is fine. Surface the defer-to-professional note once, gently, no lecturing. Holds regardless of persona.
+- ATHLETE PROFILE (personalize within this): When the system prompt contains an "ATHLETE_PROFILE_DIRECTIVE:" line, adapt to it and never contradict it: masters athletes (40+) need more recovery and a conservative intensity/progression bias; beginners / first-timers need cautious progression (~8%/week) and more easy volume; for an active or chronic injury region, avoid loading it and weave caution in unprompted; honor the stated goal. If a field is ABSENT, make no claim about it — never guess the athlete's age or experience. The readiness engine also adapts to age/experience, so your words and the numbers should agree.
 
 PROACTIVE RISK FLAGS:
 When the context includes "⚠️ ACTIVE RISK FLAGS," you have detected concerning trends that the athlete may not know about. You should:
@@ -836,6 +837,31 @@ Trail running specifics:
 Pole use:
 - Pellegrini et al. (2015): Effects of poles on metabolic cost in uphill walking. EJAP. ~15-20% reduction in lower limb muscle damage.
 
+Masters / aging:
+- Tanaka & Seals (2008): Endurance performance in masters athletes — peak holds to ~35, modest decline to 50-60, steeper after; driven largely by reduced training intensity/volume. J Physiol.
+
+Female physiology:
+- McNulty et al. (2020): Menstrual cycle phase & exercise performance, meta-analysis — effect is trivial with large between-athlete variation; individualize, don't prescribe by cycle. Sports Med.
+- Mountjoy et al. (2018): IOC consensus on Relative Energy Deficiency in Sport (RED-S) — low energy availability harms bone, hormonal, metabolic, immune & performance. BJSM.
+
+Return-to-run / load progression:
+- Nielsen et al. (2014): Novice runners increasing weekly distance >30% over 2 weeks had higher distance-related injury risk than those under 10%. JOSPT.
+
+VO2max & intervals:
+- Buchheit & Laursen (2013): High-Intensity Interval Training — solutions to the programming puzzle (work/recovery, intensity, density). Sports Med.
+
+Strength for endurance:
+- Rønnestad & Mujika (2014): Heavy strength training improves running/cycling economy and endurance performance without added bulk. Scand J Med Sci Sports.
+
+Fueling:
+- Jeukendrup (2014): ~30-60 g carbs/h for efforts beyond ~60-90 min (up to ~90 g/h with multiple transportable carbs for ultra). Sports Med.
+
+Sleep:
+- Walsh et al. (2021): Athletes prone to short (<7h)/fragmented sleep; individualize rather than a one-size 7-9h rule. BJSM expert consensus.
+
+Heat:
+- Périard et al. (2015): Heat acclimatization takes ~1-2 weeks — plasma volume up, HR & core temp down, sweat rate up; pace by effort early. Scand J Med Sci Sports.
+
 --- Palisades Tahoe race conditions (June) ---
 
 Weather: Typical June at 6,200-9,000 ft — 55-75°F at base, 40-60°F
@@ -1044,6 +1070,174 @@ def _build_persona_block(name: str, traits: list[str]) -> str:
     return "\n".join(lines)
 
 
+# ─── R6: deepened, relevance-gated training-science knowledge ────
+# Topic modules appended to the always-on core (APP_KNOWLEDGE / _LITE) only
+# when the athlete's profile or message makes them relevant — keeps the prompt
+# token-light and per-athlete relevant. Written as coaching PRINCIPLES; they
+# reuse the baked-in Research citations (Gabbett, Seiler, Bosquet/Mujika,
+# Hulin, Toyomura, Pellegrini, Plews, Firstbeat) where they apply and otherwise
+# state general principles plainly — no unverified citations (anti-fabrication
+# floor). Verified domain-specific citations can be added later.
+
+KB_MASTERS = """\
+Masters / age 40+:
+- VO2max and recovery capacity decline with age, but the rate is blunted by continued training — program by readiness and recent tolerance, not by birthday (Tanaka & Seals 2008).
+- Recovery between hard sessions takes longer: bias toward more easy days between quality, and treat 48-72h between hard lower-body sessions as a floor. The conservative read of YELLOW/RED is right more often for a masters athlete.
+- Connective tissue (tendon/bone) adapts slower than muscle and aerobic fitness, so ramp eccentric/impact load gradually — the legs feel ready before the tendons are.
+- Strength and power fade faster than aerobic capacity, so maintaining brief heavy strength work matters MORE with age, not less."""
+
+KB_SEX_FEMALE = """\
+Female-specific considerations:
+- Menstrual-cycle phase can affect perceived effort, thermoregulation, and recovery for some athletes, but response varies widely and the evidence does not support rigid cycle-based prescription — treat it as one input and track how YOU respond (McNulty et al. 2020).
+- If readiness dips and it lines up with the late-luteal / pre-menstrual phase, that's plausibly hormonal, not just training fatigue — don't force a hard session through it.
+- Low energy availability (under-fueling for the training load) carries real bone/hormonal/performance risk and shows up earlier in female athletes — eat enough to match the load, especially in build weeks. State it as a factor to watch; don't over-coach it (IOC RED-S; Mountjoy et al. 2018)."""
+
+KB_RETURN_TO_RUN = """\
+Return-to-run / progressive loading after a layoff or injury:
+- Aerobic fitness returns fast after time off; tendons, bone, and any previously injured area do NOT. Most re-injury is the legs cashing a cheque the tissue can't cover (training-injury prevention paradox — Gabbett 2016).
+- Progress ONE variable at a time — distance OR pace OR vert, never all three in a week — and keep weekly increases conservative, backing off if pain rises (Nielsen et al. 2014: >30%/2wk raises injury risk).
+- Pain rule: discomfort at/below a low level that settles by next morning is usually OK; pain that climbs through the run, alters gait, or is worse the next day means stop and regress. Pain that changes how you move is a hard stop.
+- Reintroduce downhill/technical terrain LAST — eccentric/impact load is the highest-risk stimulus after a layoff. For acute or worsening pain, see a professional."""
+
+KB_VO2MAX = """\
+VO2max & interval prescription:
+- VO2max is the ceiling on aerobic power; intervals near it raise the ceiling while easy volume builds the base under it — you need both, which is why the plan is polarized (Seiler 2006), not all-tempo.
+- Classic VO2max work: ~3-5 min hard reps at an effort you could hold ~8-12 min all-out, near-equal recovery, ~15-25 min total hard time. On this course, hill repeats are the specific expression (Buchheit & Laursen 2013).
+- These sessions are costly: PEAK/GREEN days only (the engine caps PEAK at 1/7), never back-to-back, always after a full warm-up. "Time near VO2max" is the driver, not raw speed — if you can't hold the prescribed effort across reps, cut reps rather than grind junk intervals."""
+
+KB_STRENGTH = """\
+Strength programming for endurance:
+- For a runner, strength is supportive: maximal-strength and tissue robustness with minimal added fatigue — heavy-ish, low-rep, low-volume, high quality, not a bodybuilding pump that wrecks the legs for the long run (Rønnestad & Mujika 2014).
+- Linear progression (a little more load each week) works until it stalls; then undulate or hold. The app's strength engine already suggests the next target per exercise — match it rather than free-lancing reps.
+- Autoregulate by readiness: on a YELLOW day drop a set or 10-15% load rather than skip; if a heavy day collides with a key quality run, the run wins and strength holds. Near the race, strength shifts to maintenance (same logic as the taper)."""
+
+KB_FUELING = """\
+Fueling for endurance:
+- For efforts over ~60-90 min, carbohydrate sustains pace — a common target is ~30-60 g carbs/hour, trained toward the top of that range for long races. Practice race fueling on long runs; the gut adapts and race day is the wrong time to discover a gel sits badly (Jeukendrup 2014: ~30-60 g/h).
+- Hydrate to thirst plus electrolytes; over-drinking plain water on long days is a real risk. The race rule (100-150 cal / 30 min, 16+ oz water, only what's been tested) is the operational version."""
+
+KB_SLEEP = """\
+Sleep & recovery:
+- Sleep is the single largest recovery lever; chronic short sleep blunts adaptation and raises injury/illness risk — the readiness engine forces YELLOW under 6h for this reason. Protect sleep before adding load (Walsh et al. 2021).
+- A short dip the night before a race is normal and doesn't wreck performance — the bank of good sleep in the weeks before matters more than one bad night."""
+
+KB_HEAT = """\
+Heat & humidity:
+- Heat adaptation takes roughly 1-2 weeks of repeated exposure; early heat sessions feel disproportionately hard and HR drifts up for the same pace — pace by effort, not pace/HR (same caveat as altitude; Périard et al. 2015).
+- On hot days pre-hydrate, slow down, and treat HR targets as unreliable. At altitude the sun/UV load is often a bigger factor than ambient heat."""
+
+KB_MODULES: dict[str, str] = {
+    "masters": KB_MASTERS,
+    "sex_female": KB_SEX_FEMALE,
+    "return_to_run": KB_RETURN_TO_RUN,
+    "vo2max": KB_VO2MAX,
+    "strength": KB_STRENGTH,
+    "fueling": KB_FUELING,
+    "sleep": KB_SLEEP,
+    "heat": KB_HEAT,
+}
+
+
+def _age_from_birthdate(bd: Any) -> int | None:
+    if not bd:
+        return None
+    try:
+        from datetime import date as _date
+        y, m, d = (int(x) for x in str(bd)[:10].split("-"))
+        t = _date.today()
+        return t.year - y - ((t.month, t.day) < (m, d))
+    except Exception:
+        return None
+
+
+def select_knowledge(
+    *,
+    lite: bool,
+    profile: dict[str, Any] | None = None,
+    user_msg: str = "",
+) -> str:
+    """Assemble the knowledge block: always-on core + relevance-gated modules.
+
+    Profile-gated modules (age/sex/injury/experience) are stable across a chat
+    session, so they don't hurt the cross-turn prompt cache. Message-gated
+    modules only apply when there's a user message (chat); insight passes "".
+    """
+    parts: list[str] = [APP_KNOWLEDGE_LITE.strip() if lite else APP_KNOWLEDGE.strip()]
+    active: list[str] = []
+
+    p = profile or {}
+    age = _age_from_birthdate(p.get("birthDate"))
+    if age is not None and age >= 40:
+        active.append("masters")
+    if str(p.get("sex", "")).lower() == "female":
+        active.append("sex_female")
+    exp = str(p.get("experienceLevel", "")).lower()
+    if p.get("injuryHistory") or exp in ("first_timer", "beginner"):
+        active.append("return_to_run")
+
+    blob = (user_msg or "").lower()
+    if any(k in blob for k in ("vo2", "interval", "speed work", "track session")):
+        active.append("vo2max")
+    if any(k in blob for k in ("strength", "lift", "weights", "squat", "deadlift", "gym")):
+        active.append("strength")
+    if any(k in blob for k in ("fuel", "nutrition", "carb", "gel", " eat", "calorie")):
+        active.append("fueling")
+    if any(k in blob for k in ("sleep", "insomnia", "tired", "exhausted")):
+        active.append("sleep")
+    if any(k in blob for k in ("heat", " hot", "humid", "sweat")):
+        active.append("heat")
+
+    seen: set[str] = set()
+    for key in active:
+        if key in KB_MODULES and key not in seen:
+            seen.add(key)
+            parts.append(KB_MODULES[key].strip())
+    return "\n\n".join(parts)
+
+
+def _athlete_profile_directive(profile: dict[str, Any] | None) -> str | None:
+    """R7 — render a binding ATHLETE_PROFILE_DIRECTIVE from the structured
+    profile (age from birthDate, experience, sex, active/chronic injuries,
+    primary goal). The COACH_ROLE "ATHLETE PROFILE" rule binds to it. Returns
+    None when there's nothing structured to say (so older profiles are
+    unaffected and the coach makes no claims it can't support)."""
+    if not profile:
+        return None
+    bits: list[str] = []
+    age = _age_from_birthdate(profile.get("birthDate"))
+    if age is not None:
+        bits.append(f"age {age}" + (" (masters)" if age >= 40 else ""))
+    exp = profile.get("experienceLevel")
+    if exp:
+        bits.append(f"experience {exp}")
+    sex = profile.get("sex")
+    if sex:
+        bits.append(f"sex {sex}")
+    # weightLb / heightIn are collected in the profile editor but deliberately
+    # NOT surfaced to the coach — kept private (matching R7's treatment of
+    # weight) so the coach never editorializes on body weight.
+    injuries = profile.get("injuryHistory") or []
+    flagged = [
+        i for i in injuries
+        if str(i.get("status", "")).lower() in ("active", "chronic") and i.get("region")
+    ]
+    if flagged:
+        bits.append(
+            "injuries: " + ", ".join(f"{i.get('region')} ({i.get('status')})" for i in flagged)
+        )
+    goals = profile.get("goals") or []
+    if goals:
+        primary = next(
+            (g for g in goals if str(g.get("priority", "")).lower() == "primary"),
+            goals[0],
+        )
+        if primary.get("text"):
+            bits.append(f"goal: {primary['text']}")
+    if not bits:
+        return None
+    return "ATHLETE_PROFILE_DIRECTIVE: " + " · ".join(bits)
+
+
 def build_system_prompt(
     about_me: str,
     pending_inferences: list[dict[str, Any]],
@@ -1053,6 +1247,7 @@ def build_system_prompt(
     coach_persona: dict[str, Any] | None = None,
     lite_knowledge: bool = False,
     zones: list[dict[str, Any]] | None = None,
+    user_msg: str = "",
 ) -> str:
     # Build the persona block (if any) and place it at the very TOP of the
     # prompt — the strongest anchor position. COACH_ROLE explicitly defers
@@ -1067,7 +1262,12 @@ def build_system_prompt(
         if persona_name or persona_traits:
             persona_block = _build_persona_block(persona_name, persona_traits)
 
-    knowledge = APP_KNOWLEDGE_LITE.strip() if lite_knowledge else APP_KNOWLEDGE.strip()
+    # R6 — core (full/lite) + relevance-gated topic modules.
+    knowledge = select_knowledge(
+        lite=lite_knowledge,
+        profile=athlete_profile,
+        user_msg=user_msg,
+    )
     parts: list[str] = [persona_block, role, knowledge] if persona_block else [role, knowledge]
 
     if athlete_profile:
@@ -1085,6 +1285,12 @@ def build_system_prompt(
             ]
             athlete_lines += "\n- HR Zones: " + " · ".join(zone_strs)
         parts.append(athlete_lines)
+        # R7 — binding personalization directive derived from the structured
+        # profile (age/experience/injury/goal). Present only when there's
+        # structured data; the COACH_ROLE "ATHLETE PROFILE" rule binds to it.
+        _profile_directive = _athlete_profile_directive(athlete_profile)
+        if _profile_directive:
+            parts.append(_profile_directive)
 
     if race:
         parts.append(
@@ -1308,6 +1514,58 @@ def _max_intensity(status: Any, training_state: Any) -> str:
     if s == "PEAK":
         return "hard"          # the one day a genuinely hard session is encouraged
     return "moderate"
+
+
+# Generic activity-name tokens that carry no route identity. Auto-named
+# activities ("Morning Run", "Lunch Hike") are mostly these, so we strip
+# them before comparing names — otherwise two unrelated "Morning Run"s
+# would look like the same route.
+_GENERIC_NAME_TOKENS = frozenset({
+    "run", "running", "walk", "walking", "hike", "hiking", "ride", "cycling",
+    "bike", "jog", "morning", "afternoon", "evening", "lunch", "lunchtime",
+    "night", "am", "pm", "workout", "activity", "session", "easy", "recovery",
+})
+
+
+def _normalize_route_name(name: str | None) -> str:
+    """Lowercase, strip punctuation, collapse whitespace. Pure."""
+    if not name:
+        return ""
+    return re.sub(r"[^a-z0-9]+", " ", name.lower()).strip()
+
+
+def _route_names_match(name_a: str | None, name_b: str | None) -> bool:
+    """True when two activity names plausibly refer to the SAME route.
+
+    A strong (≥0.6 Jaccard) overlap of their non-generic tokens — which
+    covers exact matches of real route names too (Jaccard 1.0). Two
+    activities whose only shared tokens are generic ("Morning Run") do NOT
+    match — that's not route identity. Pure."""
+    ta = set(_normalize_route_name(name_a).split()) - _GENERIC_NAME_TOKENS
+    tb = set(_normalize_route_name(name_b).split()) - _GENERIC_NAME_TOKENS
+    if not ta or not tb:
+        return False
+    union = ta | tb
+    return len(ta & tb) / len(union) >= 0.6
+
+
+# A PR baseline must be the SAME route, not just the same distance. An 8mi
+# mountain race (3,700ft) and an 8mi flat road run are not comparable. Treat
+# a prior effort as the same route when its total elevation gain is within
+# ±20% (or ±250ft, whichever is larger — absorbs GPS noise / treadmill 0s)
+# of today's, OR its name matches today's route name.
+_PR_ELEV_REL_TOL = 0.20
+_PR_ELEV_ABS_TOL_FT = 250
+
+
+def _same_route_profile(today: dict[str, Any], prev: dict[str, Any]) -> bool:
+    """True when `prev` is comparable to `today` for PR purposes: similar
+    elevation profile, or a matching route name. Pure."""
+    today_elev = today.get("elevationGain") or 0
+    prev_elev = prev.get("elevationGain") or 0
+    tol = max(_PR_ELEV_ABS_TOL_FT, today_elev * _PR_ELEV_REL_TOL)
+    elev_comparable = abs(prev_elev - today_elev) <= tol
+    return elev_comparable or _route_names_match(today.get("name"), prev.get("name"))
 
 
 def build_context_block(
@@ -1755,6 +2013,7 @@ def build_context_block(
         if today_dist > 0:
             lo, hi = today_dist * 0.9, today_dist * 1.1
             today_hr = a.get("avgHR") or 0
+            today_elev = a.get("elevationGain") or 0
             today_name = (a.get("name") or "").lower()
             # Minimum HR for a prior activity to count as race-effort.
             # Use 85% of today's avg HR when we have it, otherwise a
@@ -1765,6 +2024,7 @@ def build_context_block(
 
             prior_best: dict[str, Any] | None = None
             prior_best_rejected_easy: dict[str, Any] | None = None  # for debug line
+            prior_best_rejected_route: dict[str, Any] | None = None  # different route/profile
             for prev in activities:
                 prev_date = (prev.get("startDate") or "")[:10]
                 if prev_date == today_date_key:
@@ -1785,6 +2045,14 @@ def build_context_block(
                     # but don't let it be the PR baseline.
                     if prior_best_rejected_easy is None or t < (prior_best_rejected_easy.get("movingTime") or 0):
                         prior_best_rejected_easy = prev
+                    continue
+                # Route filter: same distance is NOT the same route. A flat
+                # road effort can't be a PR baseline for a mountain race at
+                # the same mileage. Require a comparable elevation profile or
+                # a matching route name.
+                if not _same_route_profile(a, prev):
+                    if prior_best_rejected_route is None or t < (prior_best_rejected_route.get("movingTime") or 0):
+                        prior_best_rejected_route = prev
                     continue
                 if prior_best is None or t < (prior_best.get("movingTime") or 0):
                     prior_best = prev
@@ -1850,6 +2118,21 @@ def build_context_block(
                     out.append(
                         f"Prior efforts at ~{_fmt_num(today_dist)}mi: only easy-pace runs in the context window, no race-effort baseline."
                     )
+                elif prior_best_rejected_route is not None:
+                    rej = prior_best_rejected_route
+                    rej_elev = rej.get("elevationGain") or 0
+                    pr_status = (
+                        "PR_STATUS: NO ROUTE BASELINE — there ARE prior race-effort activities at ~"
+                        f"{_fmt_num(today_dist)}mi but on a DIFFERENT route/profile (e.g. "
+                        f"{_fmt_date_with_dow(rej.get('startDate', ''))} · {rej.get('name', '')} · "
+                        f"{rej_elev}ft vs {today_elev}ft today). Same distance is NOT the same route. "
+                        "DO NOT compare different routes. DO NOT claim a PR."
+                    )
+                    out.append(
+                        f"Prior efforts at ~{_fmt_num(today_dist)}mi: only different-route/profile "
+                        f"efforts in the context window (e.g. {rej_elev}ft vs {today_elev}ft today), "
+                        "no same-route baseline."
+                    )
                 else:
                     pr_status = (
                         "PR_STATUS: NO BASELINE — do NOT claim a PR or cite any previous time for this distance."
@@ -1866,7 +2149,7 @@ def build_context_block(
             banner_lines = [
                 "⚠️ CRITICAL — READ BEFORE WRITING ANY PR / PACE CLAIM ⚠️",
                 pr_status,
-                "If PR_STATUS says NO/TIE/NO BASELINE/UNKNOWN, you MUST NOT say any of: 'PR', 'faster', 'X-minute PR', 'X-second PR', 'crushed your previous'. Silence on PRs is the correct move. If you write a delta or PR claim that doesn't match the PR_STATUS line verbatim, the reply is broken.",
+                "If PR_STATUS says NO/TIE/NO BASELINE/NO RACE BASELINE/NO ROUTE BASELINE/UNKNOWN, you MUST NOT say any of: 'PR', 'faster', 'X-minute PR', 'X-second PR', 'crushed your previous'. Silence on PRs is the correct move. If you write a delta or PR claim that doesn't match the PR_STATUS line verbatim, the reply is broken.",
                 "",
             ]
             for line in reversed(banner_lines):
@@ -2200,7 +2483,7 @@ def _get_anthropic_client():
 # insight.py) while still closing the hallucination hole.
 
 _PR_STATUS_VERDICT_RE = re.compile(
-    r"PR_STATUS:\s*(YES|NO RACE BASELINE|NO BASELINE|NO|TIE|UNKNOWN)\b",
+    r"PR_STATUS:\s*(YES|NO RACE BASELINE|NO ROUTE BASELINE|NO BASELINE|NO|TIE|UNKNOWN)\b",
     re.IGNORECASE,
 )
 _PR_MANDATED_DELTA_RE = re.compile(r"exactly\s*'(\d+)\s*m\s*PR'", re.IGNORECASE)

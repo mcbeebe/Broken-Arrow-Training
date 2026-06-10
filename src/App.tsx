@@ -11,6 +11,8 @@ import { usePlanEdits } from './hooks/usePlanEdits'
 import { useDaySwap } from './hooks/useDaySwap'
 import { useReadiness } from './hooks/useReadiness'
 import { useOnboarding } from './hooks/useOnboarding'
+import { useAthleteProfile } from './hooks/useAthleteProfile'
+import { getReadinessTuning } from './utils/engineConfig'
 import { useTutorial } from './hooks/useTutorial'
 import Onboarding from './components/Onboarding'
 import OnboardingValueProps from './components/OnboardingValueProps'
@@ -385,9 +387,21 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
   const soreness = useSoreness(athleteId)
   const hrZones = useHRZones(athleteId, activePlan.zones)
   const maxHROverride = useMaxHR(athleteId, activePlan.athlete.maxHR)
+  const athleteProfileExtras = useAthleteProfile(athleteId)
   const effectiveAthlete = useMemo(
-    () => ({ ...activePlan.athlete, maxHR: maxHROverride.maxHR }),
-    [activePlan.athlete, maxHROverride.maxHR],
+    () => {
+      const extras = athleteProfileExtras.profile
+      return {
+        ...activePlan.athlete,
+        maxHR: maxHROverride.maxHR,
+        ...extras,
+        // R7 — experienceLevel falls back to onboarding when the profile editor
+        // hasn't set it, so generated plans personalize out of the box.
+        experienceLevel:
+          extras.experienceLevel ?? onboarding.config?.experienceLevel ?? activePlan.athlete.experienceLevel,
+      }
+    },
+    [activePlan.athlete, maxHROverride.maxHR, athleteProfileExtras.profile, onboarding.config],
   )
   const handleSaveHRZones = useCallback(
     (zones: import('./types').HRZone[], nextMaxHR: number) => {
@@ -652,6 +666,9 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
   }, [weeks])
 
   // Readiness engine (combines Garmin health data + Strava/Garmin activities)
+  // R8 — age/experience tuning for the readiness engine (defaults when the
+  // profile has no birthDate/experienceLevel, so behavior is unchanged then).
+  const readinessTuning = useMemo(() => getReadinessTuning(effectiveAthlete), [effectiveAthlete])
   const readiness = useReadiness({
     healthData: garmin.healthData,
     stravaActivities: strava.activities,
@@ -670,6 +687,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     runGAPByActivity,
     eccentricByActivity,
     upcomingPlannedDays,
+    readinessTuning,
   })
 
   // Today's health data for banner
@@ -1155,6 +1173,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           domsCarryByDate={readiness.domsCarryByDate}
           coachEnabled={coachEnabled}
           todayPlannedWorkout={todayPlannedWorkout}
+          tomorrowPlannedWorkout={tomorrowPlannedWorkout}
           currentWeekNum={currentWeekNum}
           zones={hrZones.zones}
           coachSnapshot={coachSnapshot}
@@ -1307,6 +1326,8 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           onUseBrowserHomeLocation={athleteLocation.useBrowserLocation}
           workoutTimeSlot={workoutTimePref.slot}
           onSaveWorkoutTimeSlot={workoutTimePref.save}
+          athleteProfileExtras={athleteProfileExtras.profile}
+          onSaveAthleteProfile={athleteProfileExtras.save}
           athleteId={athleteId}
           authSession={session}
           onLogout={onLogout}

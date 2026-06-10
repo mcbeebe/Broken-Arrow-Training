@@ -10,6 +10,7 @@ import TRIMPBreakdown from './TRIMPBreakdown'
 import WorkoutModal from './WorkoutModal'
 import ManualLog from './ManualLog'
 import { getWorkoutStyle } from '../utils/styles'
+import { isEveningPreviewWindow } from '../utils/coach'
 import Term from './TermGlossary'
 import RaceCard from './RaceCard'
 import RaceReadinessDetailModal from './RaceReadinessDetailModal'
@@ -39,6 +40,7 @@ interface SummaryProps {
   domsCarryByDate?: Map<string, number>
   coachEnabled?: boolean
   todayPlannedWorkout?: PlannedDay | null
+  tomorrowPlannedWorkout?: PlannedDay | null
   currentWeekNum?: number
   /** Full plan weeks — passed through to WorkoutModal so the strength
    *  progression display inside exercise cards has history to look up. */
@@ -279,6 +281,7 @@ export default function Summary({
   domsCarryByDate,
   coachEnabled,
   todayPlannedWorkout,
+  tomorrowPlannedWorkout,
   currentWeekNum,
   weeks,
   zones,
@@ -294,6 +297,7 @@ export default function Summary({
   const [perfOpen, setPerfOpen] = useState(false)
   const [narrativeOpen, setNarrativeOpen] = useState(true)
   const [showTodayModal, setShowTodayModal] = useState(false)
+  const [showTomorrowModal, setShowTomorrowModal] = useState(false)
   const [showRaceReadinessModal, setShowRaceReadinessModal] = useState(false)
   // Workout completion editor target — opened from the "Log / Edit workout"
   // pill in either of the workout detail modals below.
@@ -419,6 +423,62 @@ export default function Summary({
           onClose={() => setLogTarget(null)}
         />
       )}
+      {/* Tomorrow's Workout preview — evening only (≥ 8 PM local) */}
+      {isEveningPreviewWindow() && tomorrowPlannedWorkout && (() => {
+        const style = getWorkoutStyle(tomorrowPlannedWorkout.type)
+        const courseMatch = findBestCourseMatchForPlanned(tomorrowPlannedWorkout, race)
+        const looksLike = formatLooksLikeLine(courseMatch, "Tomorrow's")
+        // Tomorrow may fall in a different plan week than today — derive its
+        // week number by identity match so the detail modal's strength
+        // progression lookup resolves correctly.
+        const tomorrowWeekNum =
+          weeks?.find(w => w.days.includes(tomorrowPlannedWorkout))?.num
+          ?? currentWeekNum ?? 1
+        return (
+          <>
+            <button
+              onClick={() => setShowTomorrowModal(true)}
+              className="w-full text-left rounded-xl border-2 px-3 py-2.5 transition-colors"
+              style={{ borderColor: style.border, backgroundColor: 'white' }}
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide">
+                    Tomorrow's Workout
+                  </p>
+                  <p className="font-bold text-slate-800 dark:text-white mt-0.5">{tomorrowPlannedWorkout.workout}</p>
+                  <p className="text-sm text-slate-600 dark:text-slate-300 mt-0.5">
+                    {tomorrowPlannedWorkout.zone !== '—' && tomorrowPlannedWorkout.zone}
+                    {tomorrowPlannedWorkout.time !== '—' && ` · ${tomorrowPlannedWorkout.time}`}
+                  </p>
+                  {looksLike && (
+                    <p className="text-xs font-medium text-indigo-700 dark:text-indigo-300 mt-1.5 flex items-start gap-1">
+                      <span aria-hidden>🏔️</span>
+                      <span>{looksLike}</span>
+                    </p>
+                  )}
+                </div>
+                <span className="text-2xl">{style.label}</span>
+              </div>
+            </button>
+            {showTomorrowModal && (
+              <WorkoutModal
+                day={tomorrowPlannedWorkout}
+                weekNum={tomorrowWeekNum}
+                onClose={() => setShowTomorrowModal(false)}
+                zones={zones || []}
+                weeks={weeks}
+                latestPerf={latestPerf}
+                coachSnapshot={coachSnapshot ?? undefined}
+                athleteId={athleteId}
+                coachEnabled={coachEnabled}
+                onAskCoach={onAskCoach}
+              />
+            )}
+          </>
+        )
+      })()}
+
       {/* Today's Workout CTA */}
       {todayPlannedWorkout && todayPlannedWorkout.type !== 'rest' && (() => {
         const style = getWorkoutStyle(todayPlannedWorkout.type)

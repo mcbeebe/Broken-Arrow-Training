@@ -120,4 +120,18 @@ describe('formatLooksLikeLine', () => {
     expect(line).toMatch(/miles \d/)
     expect(line).toContain('on race day')
   })
+
+  it('defaults the subject label to "Today\'s"', () => {
+    const day = makeDay({ type: 'quality', zone: '2 mi Z3', detail: '~1,200 ft gain — hill repeats' })
+    const match = findBestCourseMatchForPlanned(day, BROKEN_ARROW_RACE)
+    expect(formatLooksLikeLine(match)).toContain("Today's workout is like")
+  })
+
+  it('honors a custom subject label (used by the tomorrow preview)', () => {
+    const day = makeDay({ type: 'quality', zone: '2 mi Z3', detail: '~1,200 ft gain — hill repeats' })
+    const match = findBestCourseMatchForPlanned(day, BROKEN_ARROW_RACE)
+    const line = formatLooksLikeLine(match, "Tomorrow's")
+    expect(line).toContain("Tomorrow's workout is like")
+    expect(line).not.toContain("Today's")
+  })
 })
