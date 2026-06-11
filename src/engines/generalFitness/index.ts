@@ -16,6 +16,7 @@ import type {
 } from '../../types'
 import type { OnboardingConfig } from '../../hooks/useOnboarding'
 import { GOAL_PRESETS, weeklyRoles, experienceScale, type PillarRole } from './presets'
+import { INJURY_LEADIN_WEEKS } from '../../utils/injuryRamp'
 
 // ── Defaults ──────────────────────────────────────────────────────────────
 /** Rolling block length when no target date is set. The plan re-bases from
@@ -94,6 +95,11 @@ interface SessionCtx {
   cardioFactor: number
   isDeload: boolean
   modality: string
+  /** 1-based week within the block — drives the VO₂max on-ramp. */
+  weekNum: number
+  /** Leading weeks held easy after injury (0 when healthy). Hard intervals
+   *  are downgraded to easy aerobic for these weeks. */
+  injuryLeadInWeeks: number
 }
 
 /** Beginner-safe full-body strength template for the General Fitness path.
@@ -111,6 +117,22 @@ const STRENGTH_TEMPLATE: { name: string; hold?: boolean }[] = [
   { name: 'Plank', hold: true },         // core
 ]
 
+/** Direct-ab finisher appended for fat-loss / aesthetic goals. Visible abs come
+ *  from the calorie deficit, but trained, thicker abs read better once lean — so
+ *  a "lose fat / look good / six-pack" athlete gets an extra dedicated core
+ *  movement (dynamic flexion + rotation) on top of the anti-extension plank. */
+const ABS_FINISHER: { name: string; hold?: boolean }[] = [
+  { name: 'Dead bug' },        // anti-extension / deep core control
+  { name: 'Russian twists' },  // rotation / obliques
+]
+
+/** The strength movement list for a goal. Fat-loss adds direct ab work. */
+function strengthMovements(goalId: string): { name: string; hold?: boolean }[] {
+  return goalId === 'lose_fat'
+    ? [...STRENGTH_TEMPLATE, ...ABS_FINISHER]
+    : STRENGTH_TEMPLATE
+}
+
 /** Build one training day's content for a pillar role. Returns everything but
  *  the `day` label (spread in by the caller), mirroring the Hyrox generator. */
 function sessionContent(role: PillarRole, ctx: SessionCtx): Omit<PlannedDay, 'day'> {
@@ -123,7 +145,7 @@ function sessionContent(role: PillarRole, ctx: SessionCtx): Omit<PlannedDay, 'da
       const sets = isDeload ? 2 : ctx.preset.strengthSetsN
       const reps = ctx.preset.strengthRepTarget
       const holdSec = isDeload ? 30 : 40
-      const detail = STRENGTH_TEMPLATE
+      const detail = strengthMovements(ctx.preset.id)
         .map(m => `${m.name} ${sets}×${m.hold ? `${holdSec}s` : reps}`)
         .join(' · ')
       return {
@@ -158,14 +180,45 @@ function sessionContent(role: PillarRole, ctx: SessionCtx): Omit<PlannedDay, 'da
       }
     }
     case 'vo2max': {
-      const work = isDeload ? '2 × 4 min hard' : '4 × 4 min hard'
+      // Returning from injury: hold hard intervals through the lead-in weeks so
+      // the actual workout matches the "intensity stays easy" card note instead
+      // of contradicting it with a full 4×4. Swap in an easy aerobic session.
+      if (ctx.weekNum <= ctx.injuryLeadInWeeks) {
+        return {
+          ...sessionContent('zone2', ctx),
+          workout: 'Zone 2 — easy aerobic (intervals on hold)',
+        }
+      }
+      // Build INTO VO₂max work rather than opening at a punishing 4×4 — that's
+      // too much for most general-fitness athletes, and especially for someone
+      // fresh off an injury lead-in. Ramp reps first, then duration, over the
+      // opening hard weeks; 4×4 is the destination, not the starting line.
+      const activeWeek = ctx.weekNum - ctx.injuryLeadInWeeks
+      let reps: number
+      let mins: number
+      if (isDeload) {
+        reps = 2; mins = 3
+      } else if (activeWeek <= 2) {
+        reps = 3; mins = 3
+      } else if (activeWeek <= 4) {
+        reps = 4; mins = 3
+      } else {
+        reps = 4; mins = 4
+      }
+      // work + 3-min recoveries between reps + ~20 min warm-up/cool-down.
+      const totalMin = round5(reps * mins + (reps - 1) * 3 + 20)
+      const building = !isDeload && (reps < 4 || mins < 4)
       return {
         type: 'quality' as WorkoutType,
         workout: 'VO₂max intervals',
-        detail: `${work} @ ~90–95% max HR, 3 min easy between · or 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.`,
+        detail:
+          `${reps} × ${mins} min hard @ ~90–95% max HR, 3 min easy jog between` +
+          (building ? ' (building toward 4 × 4)' : '') +
+          ' · prefer shorter reps? 8–10 × (1 min hard / 1 min easy) · ' +
+          '10 min warm-up + cool-down.',
         zone: z4,
         route: modality,
-        time: isDeload ? '30 min' : '~40 min',
+        time: `~${totalMin} min`,
       }
     }
     case 'cross': {
@@ -258,6 +311,10 @@ export function generateGeneralFitnessPlan(
   }
 
   const totalWeeks = resolveBlockWeeks(config, today)
+  // Hold hard intervals easy for the opening weeks when the athlete is coming
+  // back from / managing an injury, matching the injury-ramp note the day
+  // cards surface (utils/injuryRamp). Healthy athletes get 0.
+  const injuryLeadInWeeks = INJURY_LEADIN_WEEKS[config.injuryStatus ?? 'none'] ?? 0
   const firstMonday = mondayOf(today)
   const weeks: TrainingWeek[] = []
 
@@ -268,7 +325,7 @@ export function generateGeneralFitnessPlan(
     // Progressive overload across the block; deloads dip to ~60%.
     const cardioFactor = isDeload ? 0.6 : 0.9 + 0.2 * (weekNum / totalWeeks)
 
-    const ctx: SessionCtx = { preset, z1, z2, z4, cardioFactor: cardioFactor * scale.durationFactor * bias, isDeload, modality }
+    const ctx: SessionCtx = { preset, z1, z2, z4, cardioFactor: cardioFactor * scale.durationFactor * bias, isDeload, modality, weekNum, injuryLeadInWeeks }
 
     const days: PlannedDay[] = []
     let roleIdx = 0

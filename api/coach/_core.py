@@ -1931,7 +1931,12 @@ def build_context_block(
     else:
         out.append("Health today: no Garmin data synced for today yet.")
 
-    if perf:
+    # Load metrics (Fitness/Fatigue/etc.) are only meaningful when there is
+    # actual logged activity behind them. A disconnected/stale wearable can
+    # leave a self-consistent but phantom `perf` in the snapshot with NO
+    # activities — surfacing those numbers makes the coach narrate training
+    # that never happened. Gate on activities so we never present orphaned load.
+    if perf and activities:
         out.append(
             f"Load: Fitness {_fmt_num(perf.get('ctl'))} · "
             f"Fatigue {_fmt_num(perf.get('atl'))} · "
@@ -2253,6 +2258,18 @@ def build_context_block(
                         elev = f" +{lap['elev']}ft" if lap.get('elev') else ""
                         lap_parts.append(f"{j+1}){dist}mi{pace}{hr}{elev}")
                     out.append(f"    laps: {' · '.join(lap_parts)}")
+    else:
+        # No activity history at all — the athlete hasn't synced a wearable or
+        # logged a workout. Be explicit so the model never fills the void with
+        # a plausible-sounding but fabricated session ("that tour looked epic").
+        out.append(
+            "Recent activities: NONE in the snapshot — the athlete has not "
+            "synced a wearable or logged any workouts yet. Do NOT reference, "
+            "name, invent, or imply ANY specific past activity, race, trip, or "
+            "'tour', and do NOT cite any Fitness/Fatigue/Load numbers — there is "
+            "no training history to draw on. Speak only to the plan ahead and "
+            "what they told you in onboarding."
+        )
 
     if soreness:
         out.append("Recent soreness:")

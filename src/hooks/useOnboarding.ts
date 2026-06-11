@@ -240,6 +240,12 @@ export function useOnboarding(athleteId?: string) {
       localStorage.setItem(redoK, '1')
       stampKey(redoK)
       localStorage.removeItem(cfgK)
+      // The post-onboarding tutorial walkthrough is keyed by its own
+      // localStorage flag (`ba_tutorial_seen_<athleteId>`), NOT the
+      // onboarding config — so clearing the config alone leaves it marked
+      // seen and an existing user refreshing their plan never re-sees the
+      // walkthrough. Clear it too so the redo flow mirrors a fresh start.
+      localStorage.removeItem(`ba_tutorial_seen_${athleteId}`)
       // Tombstone the cleared config. Without a stamp newer than the
       // server's copy, the 60s background sync (or a visibility-change
       // pull) would rewrite the previously-completed onboarding back into
