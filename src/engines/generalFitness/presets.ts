@@ -57,7 +57,7 @@ export const GOAL_PRESETS: Record<GeneralGoal, GoalPreset> = {
     strengthSetsN: 3,
     strengthRepTarget: 10,
     cardioBias: 'high',
-    note: 'Diet drives the deficit — training preserves muscle. Keep ~8,500 steps/day.',
+    note: 'Diet drives the deficit — training preserves muscle and builds the core that shows once you lean out. Keep ~8,500 steps/day.',
   },
   build_muscle: {
     id: 'build_muscle',

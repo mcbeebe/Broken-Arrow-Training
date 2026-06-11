@@ -243,12 +243,18 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
   // framing for each zone before they start consuming workouts. Skipped
   // for Hyrox (no method-based zones) and for athletes who have already
   // dismissed it.
+  // General-fitness athletes never see the trail-only methodology primer, so
+  // `primerSeenAt` is never set for them — which previously meant they ALSO
+  // skipped this zones/plan-overview screen and dropped straight from the
+  // value props into the coach letter with no look at how their plan is built.
+  // Show it to them too (gated on raceType === 'general'); trail still requires
+  // the methodology primer first, hyrox still opts out entirely.
   if (
     activePlan &&
     onboarding.config &&
-    onboarding.config.primerSeenAt &&
     !onboarding.config.zonesPrimerSeenAt &&
-    onboarding.config.raceType !== 'hyrox'
+    onboarding.config.raceType !== 'hyrox' &&
+    (onboarding.config.primerSeenAt || onboarding.config.raceType === 'general')
   ) {
     const primerMethod = onboarding.config.selectedMethodId
       ? getMethodById(onboarding.config.selectedMethodId)
@@ -797,7 +803,19 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     // Wait for Garmin sync to finish before building the snapshot so the
     // coach sees fresh data, not stale cache from the previous session.
     if (garmin.connected && garmin.loading) return null
-    if (!readiness.todayScore && readiness.performance.length === 0) return null
+    // Only feed wearable-derived signals (readiness, load/performance, raw
+    // activity feeds, today's health) to the coach when a data source is
+    // actually CONNECTED. A session can expire — flipping `connected` false
+    // while last-known health/activity data lingers in localStorage cache —
+    // and the readiness engine will happily compute a self-consistent but
+    // phantom Fitness/Fatigue/Load Ratio off that stale cache. Surfacing it
+    // makes the coach narrate training that never happened (e.g. inventing a
+    // "tour" to explain the numbers) while the UI correctly says "Connect
+    // Garmin". Gate on the live connection so the coach's view matches it.
+    const wearableConnected = garmin.connected || strava.connected
+    const effReadiness = wearableConnected ? readiness.todayScore : null
+    const effPerformance = wearableConnected ? readiness.performance : []
+    if (!effReadiness && effPerformance.length === 0) return null
     const snap = buildCoachSnapshot({
       athleteProfile: effectiveAthlete,
       race: activePlan.race,
@@ -808,19 +826,19 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
       weeks,
       plannedToday: todayPlannedWorkout,
       plannedTomorrow: tomorrowPlannedWorkout,
-      readiness: readiness.todayScore,
-      performance: readiness.performance,
-      dailyTrimp: readiness.dailyTrimp,
+      readiness: effReadiness,
+      performance: effPerformance,
+      dailyTrimp: wearableConnected ? readiness.dailyTrimp : [],
       compliance,
       todaySoreness: soreness.todaySoreness,
       sorenessLog: [],
       planStartDate: '2026-04-13',
-      todayHealth,
+      todayHealth: wearableConnected ? todayHealth : undefined,
       // Raw activity feeds so the coach can see workouts outside the
       // plan window (pre-plan base, non-plan-day bonus runs, etc.)
-      stravaActivities: strava.activities,
-      garminActivities: garmin.garminActivities,
-      garminActivityDetails: garmin.activityDetails,
+      stravaActivities: wearableConnected ? strava.activities : [],
+      garminActivities: wearableConnected ? garmin.garminActivities : [],
+      garminActivityDetails: wearableConnected ? garmin.activityDetails : {},
       trainingMethod,
       coachEveningHour: proactiveTiming.coachEveningHour,
     })
@@ -868,7 +886,9 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     todayHealth,
     coachMemory.coachPersona,
     strava.activities,
+    strava.connected,
     garmin.garminActivities,
+    garmin.connected,
     weatherBlock,
     trainingMethod,
     displayPrefs.detailLevel,
