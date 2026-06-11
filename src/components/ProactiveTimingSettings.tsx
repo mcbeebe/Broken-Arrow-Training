@@ -1,11 +1,11 @@
 import type { TimeOption } from '../hooks/useProactiveTimingPreference'
-import { CARD_TIME_OPTIONS, COACH_EVENING_OPTIONS } from '../hooks/useProactiveTimingPreference'
+import { MORNING_OPTIONS, EVENING_OPTIONS } from '../hooks/useProactiveTimingPreference'
 
 interface Props {
-  cardHour: number
-  coachEveningHour: number
-  onSaveCardHour: (hour: number) => void
-  onSaveCoachEveningHour: (hour: number) => void
+  morningHour: number
+  eveningHour: number
+  onSaveMorningHour: (hour: number) => void
+  onSaveEveningHour: (hour: number) => void
 }
 
 function TimeGrid({
@@ -42,16 +42,16 @@ function TimeGrid({
 }
 
 /**
- * "Proactive coaching" — Settings → Coach surface for WHEN the app speaks up:
- * when the Summary tab reveals tomorrow's workout, and when the coach flips
- * from its morning read to its evening read. The coach speaks twice a day
- * (morning + evening); the post-workout debrief is separate and unaffected.
+ * "Proactive coaching" — Settings → Coach surface for WHEN the coach speaks.
+ * Your coach gives a morning read and an evening read; pick when each begins.
+ * The evening time is also when Summary reveals tomorrow's workout. The
+ * post-workout debrief is separate and unaffected.
  */
 export default function ProactiveTimingSettings({
-  cardHour,
-  coachEveningHour,
-  onSaveCardHour,
-  onSaveCoachEveningHour,
+  morningHour,
+  eveningHour,
+  onSaveMorningHour,
+  onSaveEveningHour,
 }: Props) {
   return (
     <div className="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700 space-y-4">
@@ -60,30 +60,26 @@ export default function ProactiveTimingSettings({
           <span aria-hidden>⏱️</span> Proactive coaching
         </p>
         <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-snug">
-          When the app speaks up. Your coach gives a morning read and an evening read —
-          pick when evening begins. The post-workout debrief is separate.
+          Your coach gives a morning read and an evening read — pick when each begins.
+          The post-workout debrief is separate.
         </p>
       </div>
 
       <div className="space-y-1.5">
-        <p className="text-xs font-medium text-slate-700 dark:text-slate-300">
-          Show tomorrow's workout at
-        </p>
+        <p className="text-xs font-medium text-slate-700 dark:text-slate-300">Morning</p>
         <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-snug">
-          Reveals tomorrow's session on the Summary tab so you can plan the evening.
+          When the morning read (today's plan) begins.
         </p>
-        <TimeGrid options={CARD_TIME_OPTIONS} selected={cardHour} onSelect={onSaveCardHour} />
+        <TimeGrid options={MORNING_OPTIONS} selected={morningHour} onSelect={onSaveMorningHour} />
       </div>
 
       <div className="space-y-1.5">
-        <p className="text-xs font-medium text-slate-700 dark:text-slate-300">
-          Evening coaching starts at
-        </p>
+        <p className="text-xs font-medium text-slate-700 dark:text-slate-300">Evening</p>
         <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-snug">
-          Before this it's a morning read (today's plan); at/after, an evening read
-          (tomorrow + recovery).
+          When the evening read (tomorrow + recovery) begins — and when tomorrow's
+          workout appears on the Summary tab.
         </p>
-        <TimeGrid options={COACH_EVENING_OPTIONS} selected={coachEveningHour} onSelect={onSaveCoachEveningHour} />
+        <TimeGrid options={EVENING_OPTIONS} selected={eveningHour} onSelect={onSaveEveningHour} />
       </div>
     </div>
   )

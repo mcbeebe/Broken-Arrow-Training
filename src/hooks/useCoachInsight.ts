@@ -26,13 +26,16 @@ export function hashFields(obj: unknown): string {
   return (h >>> 0).toString(36)
 }
 
-/** Returns 'morning' (before `eveningStartHour`) or 'evening' (at/after it).
- *  The coach speaks in two windows — a morning "today's plan" read and an
- *  evening "tomorrow + recovery" read. The boundary is athlete-configurable
- *  (Settings → Proactive coaching); default 2 PM. Changing period busts the
- *  insight cache so a fresh LLM read fires when the evening window opens. */
-export function dayPeriod(eveningStartHour: number = 14, now: Date = new Date()): 'morning' | 'evening' {
-  return now.getHours() < eveningStartHour ? 'morning' : 'evening'
+/** Returns 'morning' (from `morningHour` until `eveningHour`) or 'evening'
+ *  (from `eveningHour` until the next morning; the small hours before
+ *  `morningHour` carry the prior evening's read). Two configurable windows
+ *  (Settings → Proactive coaching; defaults 7 AM / 6 PM). Changing period busts
+ *  the insight cache so a fresh LLM read fires when each window opens. */
+export function dayPeriod(morningHour: number = 7, eveningHour: number = 18, now: Date = new Date()): 'morning' | 'evening' {
+  const h = now.getHours()
+  if (h >= eveningHour) return 'evening'
+  if (h >= morningHour) return 'morning'
+  return 'evening'
 }
 
 /**
@@ -40,7 +43,7 @@ export function dayPeriod(eveningStartHour: number = 14, now: Date = new Date())
  * hash them. The goal is *stability* — trivial field changes shouldn't
  * bust the cache, but real signal changes should.
  */
-export function materialFields(surface: string, snapshot: CoachSnapshot, eveningStartHour: number = 14): unknown {
+export function materialFields(surface: string, snapshot: CoachSnapshot, morningHour: number = 7, eveningHour: number = 18): unknown {
   // The workout debrief reflects on a FIXED past workout, so its cache keys
   // on that workout's identity + the athlete's subjective inputs (editing
   // RPE/notes regenerates it) + persona/zones — and deliberately OMITS
@@ -117,7 +120,7 @@ export function materialFields(surface: string, snapshot: CoachSnapshot, evening
   return {
     surface,
     date: snapshot.today?.date,
-    period: dayPeriod(eveningStartHour),
+    period: dayPeriod(morningHour, eveningHour),
     readiness: r
       ? {
           status: r.status,
@@ -162,15 +165,16 @@ interface UseCoachInsightOptions {
   enabled: boolean
   fallbackText?: string
   fallbackTip?: string
-  /** Hour at/after which the daily 'period' flips morning→evening, busting the
-   *  cache for a fresh evening read. Athlete-configurable; default 2 PM. Only
-   *  meaningful for the time-of-day-keyed 'daily' surface (debrief/welcome
-   *  surfaces omit period from their cache key). */
-  eveningStartHour?: number
+  /** Hours bounding the daily 'period' (morning/evening), which busts the cache
+   *  for a fresh read when each window opens. Athlete-configurable; defaults
+   *  7 AM / 6 PM. Only meaningful for the time-of-day-keyed 'daily' surface
+   *  (debrief/welcome surfaces omit period from their cache key). */
+  morningHour?: number
+  eveningHour?: number
 }
 
 export function useCoachInsight(opts: UseCoachInsightOptions) {
-  const { athleteId, surface, snapshot, enabled, fallbackText, fallbackTip, eveningStartHour = 14 } = opts
+  const { athleteId, surface, snapshot, enabled, fallbackText, fallbackTip, morningHour = 7, eveningHour = 18 } = opts
   const [insight, setInsight] = useState<CoachInsight | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -185,14 +189,14 @@ export function useCoachInsight(opts: UseCoachInsightOptions) {
   // configured evening boundary, this flips from 'morning' to 'evening', the
   // contextHash re-derives, and the effect re-fires — fetching a fresh evening
   // read quietly while the user is in the app.
-  const [periodKey, setPeriodKey] = useState(() => dayPeriod(eveningStartHour))
+  const [periodKey, setPeriodKey] = useState(() => dayPeriod(morningHour, eveningHour))
   useEffect(() => {
     const id = window.setInterval(() => {
-      const next = dayPeriod(eveningStartHour)
+      const next = dayPeriod(morningHour, eveningHour)
       setPeriodKey(prev => (prev === next ? prev : next))
     }, 60_000)
     return () => window.clearInterval(id)
-  }, [eveningStartHour])
+  }, [morningHour, eveningHour])
 
   // Pre-compute the material context hash. The snapshot object identity
   // churns every render (upstream useMemo deps include non-memoized
@@ -203,12 +207,12 @@ export function useCoachInsight(opts: UseCoachInsightOptions) {
   // abort/restart cycle that flickers the loading skeleton.
   const contextHash = useMemo(() => {
     if (!enabled || !snapshot) return ''
-    return hashFields(materialFields(surface, snapshot, eveningStartHour))
+    return hashFields(materialFields(surface, snapshot, morningHour, eveningHour))
     // periodKey is intentionally in the dep list — materialFields() reads
     // dayPeriod() at call time, so a period transition must force the
     // memo to re-run even when the snapshot hasn't otherwise changed.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled, surface, snapshot, periodKey, eveningStartHour])
+  }, [enabled, surface, snapshot, periodKey, morningHour, eveningHour])
 
   // Snapshot is still needed to send in the request body. We hold it in
   // a ref so the fetch sees the latest reference without making it an

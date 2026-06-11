@@ -717,7 +717,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
 
   // AI Coach recommendation (legacy heuristic — still drives TodayBriefing)
   const coachRecommendation = useMemo(() => {
-    const timeOfDay = getCoachTimeOfDay(proactiveTiming.coachEveningHour)
+    const timeOfDay = getCoachTimeOfDay(proactiveTiming.morningHour, proactiveTiming.eveningHour)
     if (timeOfDay === 'morning') {
       return generateMorningCoach(
         readiness.todayScore,
@@ -738,7 +738,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
         readiness.trainingStateInfo,
       )
     }
-  }, [readiness.todayScore, todayPlannedWorkout, tomorrowPlannedWorkout, currentWeekDays, todayDayIndex, latestPerf, todayHealth, readiness.trainingStateInfo, proactiveTiming.coachEveningHour])
+  }, [readiness.todayScore, todayPlannedWorkout, tomorrowPlannedWorkout, currentWeekDays, todayDayIndex, latestPerf, todayHealth, readiness.trainingStateInfo, proactiveTiming.morningHour, proactiveTiming.eveningHour])
 
   // Wrap daySwap.swapDays to also re-anchor plan overrides. Without
   // this, an override stays pinned to its original dayIndex and would
@@ -840,7 +840,8 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
       garminActivities: wearableConnected ? garmin.garminActivities : [],
       garminActivityDetails: wearableConnected ? garmin.activityDetails : {},
       trainingMethod,
-      coachEveningHour: proactiveTiming.coachEveningHour,
+      morningHour: proactiveTiming.morningHour,
+      eveningHour: proactiveTiming.eveningHour,
     })
     // Attach persona so the API can shape the system prompt voice
     const persona = coachMemory.coachPersona
@@ -893,7 +894,8 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     trainingMethod,
     displayPrefs.detailLevel,
     onboarding.config,
-    proactiveTiming.coachEveningHour,
+    proactiveTiming.morningHour,
+    proactiveTiming.eveningHour,
   ])
 
   // Daily LLM insight (shared between Summary + Coach tab)
@@ -902,15 +904,16 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     surface: 'daily',
     snapshot: coachSnapshot,
     enabled: coachEnabled && !!coachSnapshot,
-    eveningStartHour: proactiveTiming.coachEveningHour,
+    morningHour: proactiveTiming.morningHour,
+    eveningHour: proactiveTiming.eveningHour,
   })
 
   // Record each period's briefing so an earlier read (e.g. the morning
   // briefing) isn't silently overwritten when dayPeriod() flips. The live
   // card shows the current period; these earlier reads surface as read-only
   // cards at the top of the Coach thread.
-  const briefingLog = useDailyBriefingLog(athleteId, dailyInsight.insight, proactiveTiming.coachEveningHour)
-  const earlierBriefings = priorBriefings(briefingLog, dailyInsight.insight, proactiveTiming.coachEveningHour)
+  const briefingLog = useDailyBriefingLog(athleteId, dailyInsight.insight, proactiveTiming.morningHour, proactiveTiming.eveningHour)
+  const earlierBriefings = priorBriefings(briefingLog, dailyInsight.insight, proactiveTiming.morningHour, proactiveTiming.eveningHour)
 
   // Proactive pings are intentionally disabled — the daily insight (the
   // blue "COACH PHIL ENGLISH" card on the Coach tab) is now THE coach's
@@ -1204,7 +1207,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           coachEnabled={coachEnabled}
           todayPlannedWorkout={todayPlannedWorkout}
           tomorrowPlannedWorkout={tomorrowPlannedWorkout}
-          cardPreviewHour={proactiveTiming.cardHour}
+          cardPreviewHour={proactiveTiming.eveningHour}
           currentWeekNum={currentWeekNum}
           zones={hrZones.zones}
           coachSnapshot={coachSnapshot}
@@ -1357,10 +1360,10 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           onUseBrowserHomeLocation={athleteLocation.useBrowserLocation}
           workoutTimeSlot={workoutTimePref.slot}
           onSaveWorkoutTimeSlot={workoutTimePref.save}
-          cardHour={proactiveTiming.cardHour}
-          coachEveningHour={proactiveTiming.coachEveningHour}
-          onSaveCardHour={proactiveTiming.saveCardHour}
-          onSaveCoachEveningHour={proactiveTiming.saveCoachEveningHour}
+          morningHour={proactiveTiming.morningHour}
+          eveningHour={proactiveTiming.eveningHour}
+          onSaveMorningHour={proactiveTiming.saveMorningHour}
+          onSaveEveningHour={proactiveTiming.saveEveningHour}
           athleteProfileExtras={athleteProfileExtras.profile}
           onSaveAthleteProfile={athleteProfileExtras.save}
           athleteId={athleteId}
