@@ -34,11 +34,14 @@ const PERIOD_ORDER: Record<BriefingPeriod, number> = {
   evening: 1,
 }
 
-/** Map a timestamp to its briefing period. The boundary matches dayPeriod() in
- *  useCoachInsight: morning before `eveningStartHour`, evening at/after — so a
- *  logged read lands in the same bucket it was generated for. */
-export function periodForTs(ts: number, eveningStartHour: number = 14): BriefingPeriod {
-  return new Date(ts).getHours() < eveningStartHour ? 'morning' : 'evening'
+/** Map a timestamp to its briefing period. The boundaries match dayPeriod() in
+ *  useCoachInsight: morning from `morningHour` until `eveningHour`, evening
+ *  otherwise — so a logged read lands in the same bucket it was generated for. */
+export function periodForTs(ts: number, morningHour: number = 7, eveningHour: number = 18): BriefingPeriod {
+  const h = new Date(ts).getHours()
+  if (h >= eveningHour) return 'evening'
+  if (h >= morningHour) return 'morning'
+  return 'evening'
 }
 
 function lsKey(athleteId: string, date: string): string {
@@ -47,7 +50,7 @@ function lsKey(athleteId: string, date: string): string {
 
 /** Upsert a briefing into the log by period. A regenerate within the same
  *  period replaces the prior read; other periods are untouched. Result is
- *  ordered morning → afternoon → evening. Pure (exported for tests). */
+ *  ordered morning → evening. Pure (exported for tests). */
 export function mergeBriefing(
   existing: BriefingLogEntry[],
   entry: BriefingLogEntry,
@@ -64,10 +67,11 @@ export function mergeBriefing(
 export function priorBriefings(
   log: BriefingLogEntry[],
   currentInsight: CoachInsight | null,
-  eveningStartHour: number = 14,
+  morningHour: number = 7,
+  eveningHour: number = 18,
 ): BriefingLogEntry[] {
   if (!currentInsight?.generatedAt) return log
-  const rank = PERIOD_ORDER[periodForTs(currentInsight.generatedAt, eveningStartHour)]
+  const rank = PERIOD_ORDER[periodForTs(currentInsight.generatedAt, morningHour, eveningHour)]
   return log.filter(e => PERIOD_ORDER[e.period] < rank)
 }
 
@@ -85,7 +89,8 @@ function read(athleteId: string, date: string): BriefingLogEntry[] {
 export function useDailyBriefingLog(
   athleteId: string,
   insight: CoachInsight | null,
-  eveningStartHour: number = 14,
+  morningHour: number = 7,
+  eveningHour: number = 18,
 ): BriefingLogEntry[] {
   const today = localDateStr()
   const [log, setLog] = useState<BriefingLogEntry[]>(() => read(athleteId, today))
@@ -100,7 +105,7 @@ export function useDailyBriefingLog(
   useEffect(() => {
     if (!insight || insight.silent || !insight.text || !insight.generatedAt) return
     const entry: BriefingLogEntry = {
-      period: periodForTs(insight.generatedAt, eveningStartHour),
+      period: periodForTs(insight.generatedAt, morningHour, eveningHour),
       generatedAt: insight.generatedAt,
       text: insight.text,
       tip: insight.tip,

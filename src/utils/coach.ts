@@ -310,12 +310,17 @@ export function generateEveningCoach(
 
 /**
  * Determine which coach read to show based on time of day. The coach speaks in
- * two windows — a MORNING read (today's plan) before `eveningStartHour`, and an
- * EVENING read (tomorrow + recovery) at/after it. The hour is athlete-
- * configurable (Settings → Proactive coaching); default 2 PM.
+ * two windows, each with its own configurable start hour (Settings → Proactive
+ * coaching; defaults 7 AM / 6 PM): a MORNING read (today's plan) from
+ * `morningHour` until `eveningHour`, then an EVENING read (tomorrow + recovery)
+ * until the next morning. The small hours before `morningHour` carry the prior
+ * evening's read.
  */
-export function getCoachTimeOfDay(eveningStartHour: number = 14, now: Date = new Date()): CoachTimeOfDay {
-  return now.getHours() < eveningStartHour ? 'morning' : 'evening'
+export function getCoachTimeOfDay(morningHour: number = 7, eveningHour: number = 18, now: Date = new Date()): CoachTimeOfDay {
+  const h = now.getHours()
+  if (h >= eveningHour) return 'evening'
+  if (h >= morningHour) return 'morning'
+  return 'evening'
 }
 
 /**

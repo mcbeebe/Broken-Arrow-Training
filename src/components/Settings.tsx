@@ -69,12 +69,12 @@ interface SettingsProps {
   // When-do-you-train preference — drives the per-hour weather chip.
   workoutTimeSlot?: WorkoutTimeSlot
   onSaveWorkoutTimeSlot?: (slot: WorkoutTimeSlot) => void
-  // Proactive-coaching timing — when the Summary tab reveals tomorrow's
-  // workout, and when the coach's evening read begins.
-  cardHour?: number
-  coachEveningHour?: number
-  onSaveCardHour?: (hour: number) => void
-  onSaveCoachEveningHour?: (hour: number) => void
+  // Proactive-coaching timing — when the coach's morning + evening reads
+  // begin (the evening time also reveals tomorrow's workout on Summary).
+  morningHour?: number
+  eveningHour?: number
+  onSaveMorningHour?: (hour: number) => void
+  onSaveEveningHour?: (hour: number) => void
   athleteProfileExtras?: AthleteProfileExtras
   onSaveAthleteProfile?: (next: AthleteProfileExtras) => void
   // Strava
@@ -192,10 +192,10 @@ export default function Settings({
   onUseBrowserHomeLocation,
   workoutTimeSlot,
   onSaveWorkoutTimeSlot,
-  cardHour,
-  coachEveningHour,
-  onSaveCardHour,
-  onSaveCoachEveningHour,
+  morningHour,
+  eveningHour,
+  onSaveMorningHour,
+  onSaveEveningHour,
   athleteProfileExtras,
   onSaveAthleteProfile,
   onAddCoachFact,
@@ -454,12 +454,12 @@ export default function Settings({
                 onSave={onSaveWorkoutTimeSlot}
               />
             )}
-            {cardHour !== undefined && coachEveningHour !== undefined && onSaveCardHour && onSaveCoachEveningHour && (
+            {morningHour !== undefined && eveningHour !== undefined && onSaveMorningHour && onSaveEveningHour && (
               <ProactiveTimingSettings
-                cardHour={cardHour}
-                coachEveningHour={coachEveningHour}
-                onSaveCardHour={onSaveCardHour}
-                onSaveCoachEveningHour={onSaveCoachEveningHour}
+                morningHour={morningHour}
+                eveningHour={eveningHour}
+                onSaveMorningHour={onSaveMorningHour}
+                onSaveEveningHour={onSaveEveningHour}
               />
             )}
             {onSaveAthleteProfile && (

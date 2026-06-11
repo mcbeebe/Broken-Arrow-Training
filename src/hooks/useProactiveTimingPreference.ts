@@ -1,27 +1,22 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 /**
- * Proactive-coaching timing preferences (per-athlete, per-device
- * localStorage — same posture as useWorkoutTimePreference).
+ * Proactive-coaching timing preferences (per-athlete, per-device localStorage —
+ * same posture as useWorkoutTimePreference).
  *
- * Two independently-configurable hours let the athlete decide WHEN the app
- * speaks up proactively:
+ * The coach speaks in two windows, each with a configurable start hour:
+ *  - `morningHour` (5–9 AM) — when the MORNING read begins (today's plan).
+ *  - `eveningHour` (5–9 PM) — when the EVENING read begins (tomorrow +
+ *    recovery). This is ALSO when Summary reveals the "Tomorrow's Workout"
+ *    preview card.
  *
- *  - `cardHour` — hour-of-day (0–23) at/after which the Summary tab surfaces
- *    the "Tomorrow's Workout" preview card. Default 20 (8 PM).
- *
- *  - `coachEveningHour` — hour-of-day at/after which the coach switches from
- *    its MORNING read to its EVENING read. Drives both the TodayBriefing
- *    recommendation and the daily AI briefing's regeneration. Default 14
- *    (2 PM). Before this hour = morning; at/after = evening.
- *
- * The coach speaks in exactly two windows — morning and evening (no
- * afternoon) — plus the existing post-workout debrief, which is unaffected.
+ * The small hours before `morningHour` read as evening — the prior night's
+ * read carries over. The post-workout debrief is separate and unaffected.
  */
 
 export interface ProactiveTiming {
-  cardHour: number
-  coachEveningHour: number
+  morningHour: number
+  eveningHour: number
 }
 
 export interface TimeOption {
@@ -29,8 +24,17 @@ export interface TimeOption {
   label: string
 }
 
-/** Presets for "show tomorrow's workout at" — evening hours. */
-export const CARD_TIME_OPTIONS: TimeOption[] = [
+/** Morning-read start — 5–9 AM. */
+export const MORNING_OPTIONS: TimeOption[] = [
+  { hour: 5, label: '5 AM' },
+  { hour: 6, label: '6 AM' },
+  { hour: 7, label: '7 AM' },
+  { hour: 8, label: '8 AM' },
+  { hour: 9, label: '9 AM' },
+]
+
+/** Evening-read start (and tomorrow-card reveal) — 5–9 PM. */
+export const EVENING_OPTIONS: TimeOption[] = [
   { hour: 17, label: '5 PM' },
   { hour: 18, label: '6 PM' },
   { hour: 19, label: '7 PM' },
@@ -38,17 +42,8 @@ export const CARD_TIME_OPTIONS: TimeOption[] = [
   { hour: 21, label: '9 PM' },
 ]
 
-/** Presets for "evening coaching starts at" — midday → evening. */
-export const COACH_EVENING_OPTIONS: TimeOption[] = [
-  { hour: 12, label: '12 PM' },
-  { hour: 14, label: '2 PM' },
-  { hour: 16, label: '4 PM' },
-  { hour: 18, label: '6 PM' },
-  { hour: 20, label: '8 PM' },
-]
-
-export const DEFAULT_CARD_HOUR = 20
-export const DEFAULT_COACH_EVENING_HOUR = 14
+export const DEFAULT_MORNING_HOUR = 7
+export const DEFAULT_EVENING_HOUR = 18
 
 const LS_PREFIX = 'ba_proactive_timing_v1:'
 
@@ -61,14 +56,14 @@ function clampHour(n: unknown, fallback: number): number {
 }
 
 function read(athleteId: string): ProactiveTiming {
-  const fallback = { cardHour: DEFAULT_CARD_HOUR, coachEveningHour: DEFAULT_COACH_EVENING_HOUR }
+  const fallback = { morningHour: DEFAULT_MORNING_HOUR, eveningHour: DEFAULT_EVENING_HOUR }
   try {
     const raw = localStorage.getItem(lsKey(athleteId))
     if (!raw) return fallback
     const p = JSON.parse(raw) as Partial<ProactiveTiming>
     return {
-      cardHour: clampHour(p.cardHour, DEFAULT_CARD_HOUR),
-      coachEveningHour: clampHour(p.coachEveningHour, DEFAULT_COACH_EVENING_HOUR),
+      morningHour: clampHour(p.morningHour, DEFAULT_MORNING_HOUR),
+      eveningHour: clampHour(p.eveningHour, DEFAULT_EVENING_HOUR),
     }
   } catch {
     return fallback
@@ -84,8 +79,8 @@ function write(athleteId: string, v: ProactiveTiming) {
 }
 
 export interface UseProactiveTimingReturn extends ProactiveTiming {
-  saveCardHour: (hour: number) => void
-  saveCoachEveningHour: (hour: number) => void
+  saveMorningHour: (hour: number) => void
+  saveEveningHour: (hour: number) => void
 }
 
 export function useProactiveTimingPreference(athleteId: string): UseProactiveTimingReturn {
@@ -101,17 +96,17 @@ export function useProactiveTimingPreference(athleteId: string): UseProactiveTim
   const timingRef = useRef(timing)
   timingRef.current = timing
 
-  const saveCardHour = useCallback((hour: number) => {
-    const next = { ...timingRef.current, cardHour: clampHour(hour, DEFAULT_CARD_HOUR) }
+  const saveMorningHour = useCallback((hour: number) => {
+    const next = { ...timingRef.current, morningHour: clampHour(hour, DEFAULT_MORNING_HOUR) }
     write(athleteId, next)
     setTiming(next)
   }, [athleteId])
 
-  const saveCoachEveningHour = useCallback((hour: number) => {
-    const next = { ...timingRef.current, coachEveningHour: clampHour(hour, DEFAULT_COACH_EVENING_HOUR) }
+  const saveEveningHour = useCallback((hour: number) => {
+    const next = { ...timingRef.current, eveningHour: clampHour(hour, DEFAULT_EVENING_HOUR) }
     write(athleteId, next)
     setTiming(next)
   }, [athleteId])
 
-  return { ...timing, saveCardHour, saveCoachEveningHour }
+  return { ...timing, saveMorningHour, saveEveningHour }
 }

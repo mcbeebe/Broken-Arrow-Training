@@ -67,13 +67,18 @@ interface Inputs {
   /** The training philosophy the athlete follows. Surfaced so the coach
    *  grounds plan edits in the chosen methodology. */
   trainingMethod?: TrainingMethod
-  /** Hour at/after which 'today.period' reads as evening (else morning).
-   *  Athlete-configurable (Settings → Proactive coaching); default 2 PM. */
-  coachEveningHour?: number
+  /** Hours bounding 'today.period' — morning from `morningHour` until
+   *  `eveningHour`, else evening. Athlete-configurable (Settings → Proactive
+   *  coaching); defaults 7 AM / 6 PM. */
+  morningHour?: number
+  eveningHour?: number
 }
 
-function currentDayPeriod(eveningStartHour: number = 14): 'morning' | 'evening' {
-  return new Date().getHours() < eveningStartHour ? 'morning' : 'evening'
+function currentDayPeriod(morningHour: number = 7, eveningHour: number = 18): 'morning' | 'evening' {
+  const h = new Date().getHours()
+  if (h >= eveningHour) return 'evening'
+  if (h >= morningHour) return 'morning'
+  return 'evening'
 }
 
 function todayISO(): string {
@@ -637,7 +642,7 @@ export function buildCoachSnapshot(inputs: Inputs): CoachSnapshot {
   }
 
   return {
-    today: { date: todayISO(), period: currentDayPeriod(inputs.coachEveningHour) },
+    today: { date: todayISO(), period: currentDayPeriod(inputs.morningHour, inputs.eveningHour) },
     currentWeekNum,
     readiness,
     performance: performance.length ? performance[performance.length - 1] : null,
