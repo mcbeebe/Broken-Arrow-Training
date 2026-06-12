@@ -272,3 +272,51 @@ describe('buildCoachSnapshot — plan-edit coordinates', () => {
     expect(days[2]).toMatchObject({ weekNum: 6, dayIndex: 2 })
   })
 })
+
+describe('buildCoachSnapshot — general-fitness framing (no race phases)', () => {
+  const genRace: RaceInfo = {
+    ...race, name: 'Build Muscle', date: '', distance: 'General fitness — no race',
+    distanceMiles: 0, elevation: '—',
+  }
+  const weeks: TrainingWeek[] = [
+    week(1, [{ day: 'Mon 4/13', type: 'strength', workout: 'Strength — full body', detail: '', zone: '', route: '', time: '' }]),
+    week(4, [{ day: 'Mon 5/4', type: 'strength', workout: 'Strength — deload', detail: '', zone: '', route: '', time: '' }]),
+  ]
+  weeks[1].focus = 'Deload week — volume down ~40%.'
+
+  function buildGeneral(currentWeekNum: number) {
+    return buildCoachSnapshot({
+      athleteProfile: athlete,
+      race: genRace,
+      raceDistanceMiles: 0,
+      raceElevationFt: 0,
+      currentWeekNum,
+      weeks,
+      generalGoal: 'build_muscle',
+      readiness: { todayScore: 70 } as never,
+      performance: [],
+      dailyTrimp: [],
+      compliance: emptyCompliance(),
+      planStartDate: '2026-04-13',
+    })
+  }
+
+  it('carries the general goal + label so the coach drops race framing', () => {
+    const snap = buildGeneral(1)
+    expect(snap.generalGoal).toBe('build_muscle')
+    expect(snap.generalGoalLabel).toBe('Build Muscle')
+  })
+
+  it('never emits race-style Base/Build/Peak/Taper phases or a weeks-to-race count', () => {
+    const snap = buildGeneral(1)
+    const labels = (snap.planBlocks?.phases ?? []).map(p => p.label)
+    expect(labels).not.toContain('Peak')
+    expect(labels).not.toContain('Taper')
+    expect(snap.planBlocks?.weeksToRace).toBeUndefined()
+  })
+
+  it('frames the current phase as the block rhythm (Build block / Deload week)', () => {
+    expect(buildGeneral(1).planBlocks?.currentPhase).toBe('Build block')
+    expect(buildGeneral(4).planBlocks?.currentPhase).toBe('Deload week')
+  })
+})

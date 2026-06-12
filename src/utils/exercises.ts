@@ -540,6 +540,178 @@ const GUIDES: Record<string, ExerciseGuide> = {
       { name: 'Couch / wall stretch', equipment: 'Bodyweight', notes: 'If you have no roller — couch quad stretch (rear foot on couch, lunge forward) hits the rec fem and quads similarly.' },
     ],
   },
+  // ── Upper-body hypertrophy / goal-emphasis movements ───────────────
+  // Added for the General Fitness engine's goal personalization: when an
+  // athlete's stated goal names a muscle ("big biceps", "wider back", "bigger
+  // chest"), the plan adds direct work for it. Each needs a form guide so the
+  // row is tap-for-cues, not "No detailed guide available."
+  'bench press': {
+    name: 'Dumbbell Bench Press',
+    aka: 'Lying on a bench and pressing two dumbbells up over your chest',
+    weight: '20-35 lb dumbbells (one in each hand)',
+    rest: '60-90 sec between sets',
+    form: [
+      'Lie back on a flat bench, a dumbbell in each hand at chest level, palms facing your feet.',
+      'Plant your feet, keep a small natural arch in your lower back, shoulder blades pinched.',
+      'Press both dumbbells straight up until your arms are nearly straight — don\'t clack them together.',
+      'Lower under control until your elbows are just below the bench line. Feel the chest stretch.',
+      'Elbows track at about 45° from your body — not flared straight out.',
+      'The press is the main chest builder; controlled lowering is where much of the growth happens.',
+    ],
+    alternates: [
+      { name: 'Push-up', equipment: 'Bodyweight', notes: 'No bench or weights? Same horizontal push. Elevate your feet to add difficulty.' },
+      { name: 'DB floor press', equipment: 'Dumbbells', notes: 'Press from the floor — elbows stop at the ground. Shoulder-friendly, no bench needed.' },
+      { name: 'Barbell bench press', equipment: 'Barbell + rack', notes: 'Same pattern with a bar for heavier loading; use a spotter.' },
+    ],
+  },
+  'chest fly': {
+    name: 'Dumbbell Chest Fly',
+    aka: 'Lying on a bench, opening and closing your arms in a wide hugging arc',
+    weight: '10-20 lb dumbbells (lighter than you press)',
+    rest: '60 sec between sets',
+    form: [
+      'Lie on a flat bench, a dumbbell in each hand pressed up over your chest, palms facing each other.',
+      'Keep a soft, fixed bend in your elbows — it doesn\'t change the whole set.',
+      'Open your arms out in a wide arc until you feel a stretch across your chest.',
+      'Bring the dumbbells back together over your chest like you\'re hugging a barrel.',
+      'Go light and controlled — this is a stretch-and-squeeze move, not a press.',
+      'Isolates the chest; pairs well after pressing for extra growth.',
+    ],
+    alternates: [
+      { name: 'Resistance-band fly', equipment: 'Band', notes: 'Anchor behind you at chest height and bring the handles together in front.' },
+      { name: 'Cable crossover', equipment: 'Cable machine', notes: 'Same arc from a cable stack — constant tension through the squeeze.' },
+      { name: 'Deep push-up', equipment: 'Bodyweight + handles', notes: 'Push-ups on handles or books for a deeper chest stretch at the bottom.' },
+    ],
+  },
+  'overhead press': {
+    name: 'Dumbbell Overhead Press',
+    aka: 'Pressing weights straight overhead — the main shoulder builder',
+    weight: '15-25 lb dumbbells (one in each hand)',
+    rest: '60-90 sec between sets',
+    form: [
+      'Stand tall (or sit on an upright bench). Dumbbells at shoulder height, palms facing forward.',
+      'Brace your core and squeeze your glutes so you don\'t lean back.',
+      'Press both dumbbells straight overhead until your arms are nearly locked out.',
+      'Lower under control back to shoulder height.',
+      'Keep your ribs down — don\'t arch your lower back to heave the weight up.',
+      'Builds round, capped shoulders and pressing strength overhead.',
+    ],
+    alternates: [
+      { name: 'Pike push-up', equipment: 'Bodyweight', notes: 'Hips high in an inverted-V, lower your head toward the floor. Bodyweight shoulder press.' },
+      { name: 'Barbell overhead press', equipment: 'Barbell', notes: 'Same vertical press with a bar for heavier loading.' },
+      { name: 'Resistance-band press', equipment: 'Band', notes: 'Stand on the band, press the handles overhead. Scales easily.' },
+    ],
+  },
+  'lateral raise': {
+    name: 'Dumbbell Lateral Raise',
+    aka: 'Raising light dumbbells out to your sides to build shoulder width',
+    weight: '5-15 lb dumbbells (go lighter than you think)',
+    rest: '45-60 sec between sets',
+    form: [
+      'Stand tall, a light dumbbell in each hand at your sides, a slight bend in your elbows.',
+      'Raise both arms out to the sides until they\'re about level with your shoulders.',
+      'Lead with your elbows, not your hands — imagine pouring water from the dumbbells at the top.',
+      'Lower slowly under control. Don\'t swing or use momentum.',
+      'Light weight, strict form — this is the move that builds shoulder width.',
+    ],
+    alternates: [
+      { name: 'Band lateral raise', equipment: 'Mini band', notes: 'Stand on the band, raise the handles out to the sides. Smooth resistance.' },
+      { name: 'Plate / water-jug raise', equipment: 'Any light weight', notes: 'No dumbbells? Any light object works — the pattern matters more than the tool.' },
+    ],
+  },
+  'lat pulldown': {
+    name: 'Lat Pulldown',
+    aka: 'Pulling a bar down to your chest to build a wider back',
+    weight: 'Machine — start around half your bodyweight and adjust',
+    rest: '60-90 sec between sets',
+    form: [
+      'Sit at the pulldown machine, thighs under the pads. Grab the bar wider than your shoulders.',
+      'Start with arms fully extended overhead, chest tall, a slight lean back.',
+      'Pull the bar down to your upper chest, driving your elbows down and back.',
+      'Squeeze your shoulder blades together at the bottom. Don\'t yank with your arms.',
+      'Let the bar rise back up under control until your arms are straight and you feel the lat stretch.',
+      'The go-to move for building a wide, V-tapered back.',
+    ],
+    alternates: [
+      { name: 'Pull-up / assisted pull-up', equipment: 'Bar or band', notes: 'Same vertical pull with bodyweight. Loop a band under your feet to assist.' },
+      { name: 'Resistance-band pulldown', equipment: 'Band', notes: 'Anchor a band overhead, kneel, and pull the handles to your chest.' },
+      { name: 'Dumbbell pullover', equipment: 'Dumbbell + bench', notes: 'Lying on a bench, lower a dumbbell behind your head and pull it back over your chest.' },
+    ],
+  },
+  'bicep curl': {
+    name: 'Dumbbell Biceps Curl',
+    aka: 'Curling dumbbells up to build the front of your arms',
+    weight: '15-25 lb dumbbells (one in each hand)',
+    rest: '45-60 sec between sets',
+    form: [
+      'Stand tall, a dumbbell in each hand at your sides, palms facing forward.',
+      'Keep your elbows pinned to your sides — they shouldn\'t drift forward.',
+      'Curl the dumbbells up toward your shoulders, squeezing the biceps at the top.',
+      'Lower all the way down under control until your arms are straight.',
+      'No swinging or leaning back — if you have to cheat the weight up, go lighter.',
+      'A full stretch at the bottom and a hard squeeze at the top is what grows the muscle.',
+    ],
+    alternates: [
+      { name: 'Resistance-band curl', equipment: 'Band', notes: 'Stand on the band, curl the handles up. Smooth tension, easy on the joints.' },
+      { name: 'Barbell / EZ-bar curl', equipment: 'Barbell', notes: 'Both arms at once with a bar for heavier loading.' },
+      { name: 'Chin-up', equipment: 'Bar', notes: 'Palms-toward-you pull-up — hammers the biceps with bodyweight.' },
+    ],
+  },
+  'hammer curl': {
+    name: 'Hammer Curl',
+    aka: 'A biceps curl with palms facing in — builds arm thickness',
+    weight: '15-25 lb dumbbells (one in each hand)',
+    rest: '45-60 sec between sets',
+    form: [
+      'Stand tall, a dumbbell in each hand, palms facing each other (like holding two hammers).',
+      'Keep your elbows pinned to your sides.',
+      'Curl the dumbbells up without rotating your wrists — palms stay facing in the whole time.',
+      'Squeeze at the top, then lower under control to a full stretch.',
+      'Hits the biceps plus the brachialis underneath, which pushes the peak up and adds arm thickness.',
+    ],
+    alternates: [
+      { name: 'Band hammer curl', equipment: 'Band', notes: 'Stand on the band, curl with palms facing in.' },
+      { name: 'Cross-body curl', equipment: 'Dumbbells', notes: 'Curl each dumbbell across toward the opposite shoulder. Same neutral-grip emphasis.' },
+    ],
+  },
+  'tricep': {
+    name: 'Overhead Triceps Extension',
+    aka: 'Lowering a dumbbell behind your head to build the back of your arms',
+    weight: '15-25 lb dumbbell (held with both hands)',
+    rest: '45-60 sec between sets',
+    form: [
+      'Hold one dumbbell with both hands, pressed straight up overhead.',
+      'Keep your elbows pointing forward and tucked in — not flared out wide.',
+      'Lower the dumbbell behind your head by bending only at the elbows.',
+      'Go until you feel a stretch in the back of your arms, then press back to the top.',
+      'Only your forearms move; your upper arms stay still and vertical.',
+      'The triceps are two-thirds of your arm — train them and your arms get noticeably bigger.',
+    ],
+    alternates: [
+      { name: 'Bench dips', equipment: 'Bench / chair', notes: 'Hands on a bench behind you, lower and press your bodyweight. Scale with foot position.' },
+      { name: 'Band pushdown', equipment: 'Band', notes: 'Anchor a band overhead, push the handle down until your arm is straight.' },
+      { name: 'Close-grip push-up', equipment: 'Bodyweight', notes: 'Push-up with hands close together — shifts the load onto the triceps.' },
+    ],
+  },
+  'leg curl': {
+    name: 'Hamstring Curl',
+    aka: 'Curling your heels toward your glutes to build the back of your legs',
+    weight: 'Machine, or a dumbbell squeezed between your feet',
+    rest: '60 sec between sets',
+    form: [
+      'On a leg-curl machine: lie face down, pad just above your heels.',
+      'Curl your heels toward your glutes, squeezing the hamstrings at the top.',
+      'Lower under control — don\'t let the weight drop.',
+      'No machine? Lie face down and squeeze a dumbbell between your feet, or use a sliding towel on a smooth floor.',
+      'Keep your hips pressed down so you isolate the hamstrings.',
+      'Balances out all the quad work from squats and builds the back of the leg.',
+    ],
+    alternates: [
+      { name: 'Nordic curl', equipment: 'Bodyweight + anchor', notes: 'Kneel, anchor your feet, lower your torso slowly. Brutal hamstring builder — scale the range.' },
+      { name: 'Slider leg curl', equipment: 'Towel / sliders', notes: 'Lie on your back in a glute bridge, slide your heels out and curl them back in.' },
+      { name: 'Band leg curl', equipment: 'Band', notes: 'Anchor a band at floor level, loop it around your ankle, curl your heel back.' },
+    ],
+  },
 }
 
 export interface ParsedExercise {

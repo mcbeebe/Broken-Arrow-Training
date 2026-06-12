@@ -16,6 +16,7 @@ import type {
 } from '../../types'
 import type { OnboardingConfig } from '../../hooks/useOnboarding'
 import { GOAL_PRESETS, weeklyRoles, experienceScale, type PillarRole } from './presets'
+import { buildStrengthDay, parseGoalEmphasis, emphasisLabel, type MuscleEmphasis } from './strength'
 import { INJURY_LEADIN_WEEKS } from '../../utils/injuryRamp'
 
 // ── Defaults ──────────────────────────────────────────────────────────────
@@ -100,52 +101,28 @@ interface SessionCtx {
   /** Leading weeks held easy after injury (0 when healthy). Hard intervals
    *  are downgraded to easy aerobic for these weeks. */
   injuryLeadInWeeks: number
-}
-
-/** Beginner-safe full-body strength template for the General Fitness path.
- *  Each entry maps one movement pattern to a CONCRETE exercise whose name
- *  contains a form-cue guide key in utils/exercises (so every row is
- *  tap-for-cues, not "No detailed guide available"). Time-based moves (carry,
- *  core) use a seconds hold instead of the rep target. Beginners get easier
- *  swaps via each guide's `alternates`. */
-const STRENGTH_TEMPLATE: { name: string; hold?: boolean }[] = [
-  { name: 'Goblet squat' },              // squat
-  { name: 'RDL' },                       // hinge
-  { name: 'DB row' },                    // pull
-  { name: 'Push-up' },                   // push
-  { name: 'Farmer carry', hold: true },  // carry
-  { name: 'Plank', hold: true },         // core
-]
-
-/** Direct-ab finisher appended for fat-loss / aesthetic goals. Visible abs come
- *  from the calorie deficit, but trained, thicker abs read better once lean — so
- *  a "lose fat / look good / six-pack" athlete gets an extra dedicated core
- *  movement (dynamic flexion + rotation) on top of the anti-extension plank. */
-const ABS_FINISHER: { name: string; hold?: boolean }[] = [
-  { name: 'Dead bug' },        // anti-extension / deep core control
-  { name: 'Russian twists' },  // rotation / obliques
-]
-
-/** The strength movement list for a goal. Fat-loss adds direct ab work. */
-function strengthMovements(goalId: string): { name: string; hold?: boolean }[] {
-  return goalId === 'lose_fat'
-    ? [...STRENGTH_TEMPLATE, ...ABS_FINISHER]
-    : STRENGTH_TEMPLATE
+  /** Muscle groups the athlete named in their free-text goal — drives the
+   *  direct accessory work appended to each strength day (empty = none named). */
+  emphases: MuscleEmphasis[]
 }
 
 /** Build one training day's content for a pillar role. Returns everything but
- *  the `day` label (spread in by the caller), mirroring the Hyrox generator. */
-function sessionContent(role: PillarRole, ctx: SessionCtx): Omit<PlannedDay, 'day'> {
+ *  the `day` label (spread in by the caller), mirroring the Hyrox generator.
+ *  `strengthIndex` is the running count of strength days from the start of the
+ *  block; it alternates the A/B session and rotates emphasis accessories. */
+function sessionContent(role: PillarRole, ctx: SessionCtx, strengthIndex: number): Omit<PlannedDay, 'day'> {
   const { z1, z2, z4, isDeload, modality } = ctx
   switch (role) {
     case 'strength': {
-      // Concrete, guide-matching exercise list (see STRENGTH_TEMPLATE). The
-      // nuanced loading guidance ("reps in reserve", "heavy for economy") lives
-      // in the coaching layer, not these cells. Deload trims to 2 lighter sets.
+      // Goal-personalized, varied exercise list (see ./strength). Two full-body
+      // sessions rotate so consecutive strength days differ, and the athlete's
+      // named muscles get direct accessory work. The nuanced loading guidance
+      // ("reps in reserve", "heavy for economy") lives in the coaching layer,
+      // not these cells. Deload trims to 2 lighter sets.
       const sets = isDeload ? 2 : ctx.preset.strengthSetsN
       const reps = ctx.preset.strengthRepTarget
       const holdSec = isDeload ? 30 : 40
-      const detail = strengthMovements(ctx.preset.id)
+      const detail = buildStrengthDay(ctx.preset.id, ctx.emphases, strengthIndex)
         .map(m => `${m.name} ${sets}×${m.hold ? `${holdSec}s` : reps}`)
         .join(' · ')
       return {
@@ -185,7 +162,7 @@ function sessionContent(role: PillarRole, ctx: SessionCtx): Omit<PlannedDay, 'da
       // of contradicting it with a full 4×4. Swap in an easy aerobic session.
       if (ctx.weekNum <= ctx.injuryLeadInWeeks) {
         return {
-          ...sessionContent('zone2', ctx),
+          ...sessionContent('zone2', ctx, strengthIndex),
           workout: 'Zone 2 — easy aerobic (intervals on hold)',
         }
       }
@@ -315,8 +292,17 @@ export function generateGeneralFitnessPlan(
   // back from / managing an injury, matching the injury-ramp note the day
   // cards surface (utils/injuryRamp). Healthy athletes get 0.
   const injuryLeadInWeeks = INJURY_LEADIN_WEEKS[config.injuryStatus ?? 'none'] ?? 0
+  // Read the athlete's free-text goal ("big biceps", "wider back") for the
+  // muscle(s) to emphasize. Drives the direct accessory work on every strength
+  // day so the plan visibly serves THEIR goal, not just the preset bucket.
+  const emphases = parseGoalEmphasis(config.athleteGoal)
+  const emphasisText = emphasisLabel(emphases)
   const firstMonday = mondayOf(today)
   const weeks: TrainingWeek[] = []
+  // Running count of strength days across the whole block — alternates the A/B
+  // session and rotates emphasis accessories so workouts vary continuously,
+  // not just within a single week.
+  let strengthIndex = 0
 
   for (let w = 0; w < totalWeeks; w++) {
     const weekNum = w + 1
@@ -325,7 +311,7 @@ export function generateGeneralFitnessPlan(
     // Progressive overload across the block; deloads dip to ~60%.
     const cardioFactor = isDeload ? 0.6 : 0.9 + 0.2 * (weekNum / totalWeeks)
 
-    const ctx: SessionCtx = { preset, z1, z2, z4, cardioFactor: cardioFactor * scale.durationFactor * bias, isDeload, modality, weekNum, injuryLeadInWeeks }
+    const ctx: SessionCtx = { preset, z1, z2, z4, cardioFactor: cardioFactor * scale.durationFactor * bias, isDeload, modality, weekNum, injuryLeadInWeeks, emphases }
 
     const days: PlannedDay[] = []
     let roleIdx = 0
@@ -339,19 +325,25 @@ export function generateGeneralFitnessPlan(
       }
       const role = roles[roleIdx] ?? 'zone2'
       roleIdx++
-      const content = sessionContent(role, ctx)
+      const content = sessionContent(role, ctx, strengthIndex)
+      if (role === 'strength') strengthIndex++
       const m = parseInt(content.time)
       if (!Number.isNaN(m) && (role === 'zone2' || role === 'long' || role === 'cross' || role === 'vo2max')) weekCardioMin += m
       days.push({ day: label, ...content })
     }
 
+    // Week-1 focus names the goal emphasis so the athlete immediately sees the
+    // plan is built around what they asked for (e.g. direct arm volume).
+    const emphasisNote = emphasisText
+      ? ` Extra direct ${emphasisText} work in every strength session to target your goal.`
+      : ''
     weeks.push({
       num: weekNum,
       dates: `${formatDay(weekStart).slice(4)} – ${formatDay(addDays(weekStart, 6)).slice(4)}`,
       miles: `~${weekCardioMin} min cardio`,
       focus: isDeload
         ? 'Deload week — volume down ~40%. Ease off and let adaptations land.'
-        : `${preset.emphasis}.${weekNum === 1 ? ' ' + preset.note : ''}`,
+        : `${preset.emphasis}.${weekNum === 1 ? ' ' + preset.note + emphasisNote : ''}`,
       days,
     })
   }
@@ -360,7 +352,7 @@ export function generateGeneralFitnessPlan(
     name: config.athleteName,
     maxHR,
     ftpWatts: config.ftpWatts,
-    currentBase: `${config.experienceLevel} · ${daysPerWeek} days/week · goal: ${preset.label}`,
+    currentBase: `${config.experienceLevel} · ${daysPerWeek} days/week · goal: ${preset.label}${emphasisText ? ` (${emphasisText} focus)` : ''}`,
     weeklyStructure: `${daysPerWeek} days/week — ${preset.emphasis.toLowerCase()}`,
     equipmentAccess: config.equipmentAccess,
   }

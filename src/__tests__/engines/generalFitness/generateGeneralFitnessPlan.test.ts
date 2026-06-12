@@ -146,6 +146,44 @@ describe('generateGeneralFitnessPlan — fat-loss core work', () => {
   })
 })
 
+describe('generateGeneralFitnessPlan — goal personalization', () => {
+  it('reads the free-text goal and targets the named muscle every strength day', () => {
+    const plan = generateGeneralFitnessPlan(
+      makeConfig({ generalGoal: 'build_muscle', athleteGoal: 'I want big biceps', trainingDaysPerWeek: 5 }),
+      TODAY,
+    )
+    const strength = plan.weeks[0].days.filter(d => d.type === 'strength')
+    expect(strength.length).toBeGreaterThan(0)
+    // Direct arm work appears on EVERY strength day, not just the first.
+    for (const d of strength) {
+      expect(d.detail, d.detail).toMatch(/bicep curl|hammer curl|tricep/i)
+    }
+    // The plan surfaces the personalization so the athlete sees it.
+    expect(plan.weeks[0].focus.toLowerCase()).toContain('arms')
+    expect(plan.athlete.currentBase.toLowerCase()).toContain('arms focus')
+  })
+
+  it('varies the session day to day instead of repeating one template', () => {
+    const plan = generateGeneralFitnessPlan(
+      makeConfig({ generalGoal: 'build_muscle', trainingDaysPerWeek: 5 }),
+      TODAY,
+    )
+    const strength = plan.weeks[0].days.filter(d => d.type === 'strength')
+    expect(strength.length).toBeGreaterThanOrEqual(2)
+    // Consecutive strength days are NOT identical (the original-bug regression).
+    expect(strength[0].detail).not.toBe(strength[1].detail)
+  })
+
+  it('leaves the focus generic when no muscle is named', () => {
+    const plan = generateGeneralFitnessPlan(
+      makeConfig({ generalGoal: 'build_muscle', athleteGoal: 'just get stronger' }),
+      TODAY,
+    )
+    expect(plan.weeks[0].focus.toLowerCase()).not.toMatch(/target your goal/)
+    expect(plan.athlete.currentBase.toLowerCase()).not.toContain('focus)')
+  })
+})
+
 describe('generateGeneralFitnessPlan — pillars by goal', () => {
   it('honors the ≥2 strength-days health floor for non-endurance goals', () => {
     for (const goal of ['stay_healthy', 'lose_fat', 'build_muscle'] as GeneralGoal[]) {

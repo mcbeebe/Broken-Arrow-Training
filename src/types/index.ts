@@ -1139,6 +1139,12 @@ export interface CoachSnapshot {
   } | null
   athleteProfile?: AthleteProfile
   race?: RaceInfo
+  /** When the plan is a General-Fitness goal (not a race), the chosen goal id
+   *  and human label. Their presence tells the coach to drop race/taper/peak
+   *  framing and endurance load-metric language for these athletes, and to
+   *  speak to the goal (build muscle / lose fat / etc.) instead. */
+  generalGoal?: string
+  generalGoalLabel?: string
   /** Athlete's HR zone definitions from the plan — rendered dynamically
    *  in the Coach system prompt so each athlete gets their own zones. */
   zones?: HRZone[]
