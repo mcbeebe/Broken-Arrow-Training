@@ -13,7 +13,7 @@ import {
   buildWeeklyMileage,
   estimateCurrentWeeklyMileage,
 } from '../../../engines/planGenerator/weekPlan'
-import { resolvePaces, resolveAnchor, athleteCurrentVdot, blendGoalPaces, ESTIMATED_LTHR_PCT_OF_MAX } from '../../../engines/planGenerator/paceTargets'
+import { resolvePaces, resolveAnchor, athleteCurrentVdot, blendGoalPaces, normalizeEasyPaceSecPerMile, formatZoneString, ESTIMATED_LTHR_PCT_OF_MAX } from '../../../engines/planGenerator/paceTargets'
 import {
   pickWeeklyPattern,
   pickWorkoutForDay,
@@ -181,6 +181,72 @@ describe('buildWeeklyMileage', () => {
     for (const w of weeks) {
       expect(w.longRunMi).toBeLessThanOrEqual(w.totalMi * daniels.mileageProgression.longRunPctCap + 0.01)
     }
+  })
+})
+
+describe('easy-pace anchor sanitization (regression: impossible "0:11 /mi")', () => {
+  it('normalizes a minutes-as-seconds easy pace (12 → 12:00 /mi)', () => {
+    // unit
+    expect(normalizeEasyPaceSecPerMile(12)).toBe(720)   // minutes → seconds
+    expect(normalizeEasyPaceSecPerMile(11)).toBe(660)
+    expect(normalizeEasyPaceSecPerMile(11 * 60)).toBe(660) // already seconds → unchanged
+    // implausible either-way values are rejected so we fall back to HR/RPE
+    expect(normalizeEasyPaceSecPerMile(90)).toBeNull()
+    expect(normalizeEasyPaceSecPerMile(0)).toBeNull()
+    expect(normalizeEasyPaceSecPerMile(undefined)).toBeNull()
+  })
+
+  it('a corrupted easy-pace anchor never renders an impossible sub-minute pace', () => {
+    // Bad legacy/hand-entered data: "12:00 /mi" stored as 12 in the sec/mile
+    // field. Previously this rendered "0:11-0:13 /mi" (≈ 327 mph).
+    const paces = resolvePaces(galloway, makeConfig({
+      raceDistance: 'half_marathon',
+      fitnessAnchor: { type: 'easy_pace', valueSeconds: 12 },
+    }))
+    const easy = paces.byZone.easy!
+    expect(easy.paceSecPerMileLow!).toBeGreaterThanOrEqual(240) // ≥ 4:00 /mi
+    expect(easy.paceSecPerMileLow!).toBeLessThanOrEqual(1500)
+    expect(formatZoneString(easy)).not.toMatch(/\b0:\d\d\s*\/?mi/) // no "0:11 /mi"
+  })
+
+  it('drops an implausible easy-pace anchor instead of emitting nonsense', () => {
+    const paces = resolvePaces(galloway, makeConfig({
+      raceDistance: 'half_marathon',
+      fitnessAnchor: { type: 'easy_pace', valueSeconds: 90 },
+    }))
+    expect(paces.byZone.easy!.paceSecPerMileLow).toBeUndefined()
+  })
+})
+
+describe('mileage ramp off a low base (regression: starts below current / peaks too low)', () => {
+  const lowBaseHalf = () => makeConfig({
+    raceType: 'trail',
+    raceDistance: 'half_marathon',
+    experienceLevel: 'beginner',
+    currentWeeklyMileage: 10,
+    raceDate: '2026-09-13', // 18 weeks from TODAY
+  })
+
+  it('opens at the athlete\'s current weekly mileage, never below it', () => {
+    const plan = generatePlanFromMethod(galloway, lowBaseHalf(), TODAY)
+    // Previously week 1 opened at 7.2 mi (below the 10 mi/wk the athlete
+    // already runs), detraining them for the first month.
+    expect(Number(plan.weeks[0].miles)).toBeGreaterThanOrEqual(10)
+  })
+
+  it('peaks at a half-appropriate volume (≥ 25 mi), not a 10K-sized 18 mi', () => {
+    const plan = generatePlanFromMethod(galloway, lowBaseHalf(), TODAY)
+    const peak = Math.max(...plan.weeks.map(w => Number(w.miles)))
+    expect(peak).toBeGreaterThanOrEqual(25)
+  })
+
+  it('still scales peak with the baseline for higher-base athletes', () => {
+    // The floor must not flatten everyone to 25 — a 30 mi/wk athlete still
+    // peaks well above the low-base athlete.
+    const low = generatePlanFromMethod(galloway, lowBaseHalf(), TODAY)
+    const high = generatePlanFromMethod(galloway, { ...lowBaseHalf(), currentWeeklyMileage: 30 }, TODAY)
+    const peakOf = (p: typeof low) => Math.max(...p.weeks.map(w => Number(w.miles)))
+    expect(peakOf(high)).toBeGreaterThan(peakOf(low))
   })
 })
 
