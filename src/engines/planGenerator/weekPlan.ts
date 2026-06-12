@@ -212,6 +212,25 @@ const DISTANCE_PEAK_MULT: Record<RaceDistance, number> = {
   mountain_ultra: 2.8,
 }
 
+/**
+ * Absolute FLOOR on peak weekly mileage (mi), by goal distance. The
+ * multiplier-of-current model alone leaves a low-base athlete with a peak
+ * that's far too low for the goal — a 10 mi/wk runner training for a half
+ * peaks at 10 × 1.8 = 18 mi/wk, barely a 10K block, with a long run that
+ * never reaches race distance. A distance floor pins the peak to a
+ * race-appropriate minimum (~2× race distance for the half, matching the
+ * widely-taught "peak ≈ twice the race distance" heuristic and published
+ * 10 mi/wk-base half plans that top out near 25–30 mi/wk).
+ *
+ * This is only a floor — a higher-base athlete's multiplier-driven peak still
+ * wins — and the per-week ramp cap in `buildWeeklyMileage` keeps the climb
+ * toward it injury-safe. Distances without an entry keep the pure-multiplier
+ * behavior (their multipliers already yield sane peaks off any real base).
+ */
+const DISTANCE_PEAK_FLOOR_MI: Partial<Record<RaceDistance, number>> = {
+  half_marathon: 25,
+}
+
 const LONG_PCT: Record<RaceDistance, number> = {
   '5k': 0.30,
   '10k': 0.30,
@@ -306,9 +325,21 @@ export function buildWeeklyMileage(
   // this is exactly the method's value, preserving prior behavior.
   const distancePeakMult = opts.raceDistance ? DISTANCE_PEAK_MULT[opts.raceDistance] : 0
   const peakMult = Math.max(mp.peakMileageRule.value, distancePeakMult)
-  const peak = currentWeeklyMileage * peakMult
+  // Floor the peak at a distance-appropriate minimum so low-base athletes still
+  // build real race-specific volume (see DISTANCE_PEAK_FLOOR_MI).
+  const distancePeakFloor = opts.raceDistance ? (DISTANCE_PEAK_FLOOR_MI[opts.raceDistance] ?? 0) : 0
+  const peak = Math.max(currentWeeklyMileage * peakMult, distancePeakFloor)
   const startPctMul = adjust.startPctMultiplier ?? 1
-  const start = peak * mp.startMileagePctOfPeak * startPctMul
+  // Never open the plan *below* what the athlete already runs each week — they
+  // do that volume safely today, so starting lower just detrains them for the
+  // first month (the reported "ramp too slow" bug: a 10 mi/wk runner opening at
+  // 7.2). Floor the start at current mileage — the method's start% still wins
+  // when it's higher — then apply any injury de-load via startPctMul.
+  const startBaseline = Math.min(
+    Math.max(peak * mp.startMileagePctOfPeak, currentWeeklyMileage),
+    peak,
+  )
+  const start = startBaseline * startPctMul
   const maxWeeklyIncreasePct = adjust.maxWeeklyIncreasePctCap != null
     ? Math.min(mp.maxWeeklyIncreasePct, adjust.maxWeeklyIncreasePctCap)
     : mp.maxWeeklyIncreasePct
