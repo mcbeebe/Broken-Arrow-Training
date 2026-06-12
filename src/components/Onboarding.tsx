@@ -9,6 +9,7 @@ import type {
   OnboardingConfig,
   FitnessAnchorType,
   InjuryStatus,
+  BiologicalSex,
   MenopauseStatus,
   StrengthExperience,
   EquipmentAccess,
@@ -175,6 +176,12 @@ const TIME_OF_DAY_OPTIONS: { value: TrainingTimeOfDay; label: string; desc: stri
   { value: 'evening', label: 'Evening', desc: 'After 5pm' },
 ]
 
+const SEX_OPTIONS: { value: BiologicalSex; label: string }[] = [
+  { value: 'female', label: 'Female' },
+  { value: 'male', label: 'Male' },
+  { value: 'prefer_not_to_say', label: 'Prefer not to say' },
+]
+
 const MENOPAUSE_STATUS_OPTIONS: { value: MenopauseStatus; label: string; desc: string }[] = [
   { value: 'premenopause', label: 'Premenopausal', desc: 'Regular cycles, no menopause signs yet — build your base ahead of the transition.' },
   { value: 'perimenopause', label: 'Perimenopause', desc: 'Cycles changing or irregular; symptoms may be starting.' },
@@ -214,6 +221,7 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
   const [wearable, setWearable] = useState<WearableType | null>(null)
   const [name, setName] = useState('')
   const [age, setAge] = useState('')
+  const [sex, setSex] = useState<BiologicalSex | null>(null)
   const [maxHR, setMaxHR] = useState('')
   const [ftp, setFtp] = useState('')
 
@@ -252,10 +260,12 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
   const showsGoalStep = raceType === 'general'
   // Menopause step is age-gated: shown to athletes 40+ (age is entered on the
   // prior PROFILE step) — the menopause transition can begin in the early 40s,
-  // and premenopausal women benefit from building the base ahead of it.
-  // 'not_applicable' / 'prefer not to say' let anyone who sees it opt out, and
-  // the whole step is skippable.
-  const showsMenopauseStep = (parseInt(age) || 0) >= 40
+  // and premenopausal women benefit from building the base ahead of it. It is
+  // also sex-gated: an explicit 'male' answer skips it outright (it can't
+  // apply), while 'female'/'prefer not to say'/unset keep the age default.
+  // 'not_applicable' / 'prefer not to say' let anyone who still sees it opt
+  // out, and the whole step is skippable.
+  const showsMenopauseStep = (parseInt(age) || 0) >= 40 && sex !== 'male'
   const visibleSteps: readonly number[] = ALL_STEPS.filter(s => {
     if (s === STEP_RACE_DISTANCE) return showsDistanceStep
     if (s === STEP_GENERAL_GOAL) return showsGoalStep
@@ -378,6 +388,7 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
       wearable: wearable || 'none',
       athleteName: name.trim(),
       age: ageNum,
+      sex: sex ?? undefined,
       maxHR: maxHR ? parseInt(maxHR) : 220 - ageNum,
       ftpWatts: ftp ? parseInt(ftp) : undefined,
       fitnessAnchor,
@@ -950,6 +961,26 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
                   className="w-full px-3 py-3 text-base border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400"
                 />
                 <p className="text-xs text-slate-400 mt-1">Used for MAF formula and masters-athlete adjustments.</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Biological sex (optional)</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {SEX_OPTIONS.map(opt => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setSex(sex === opt.value ? null : opt.value)}
+                      className={`${opt.value === 'prefer_not_to_say' ? 'col-span-2' : ''} px-3 py-2.5 text-sm font-medium rounded-xl border-2 transition ${
+                        sex === opt.value
+                          ? 'border-teal-500 bg-teal-50 text-teal-800'
+                          : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-slate-400 mt-1">Lets us skip questions that don't apply to you.</p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Max Heart Rate (optional)</label>
