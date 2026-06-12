@@ -167,6 +167,25 @@ function lthrForHrMath(anchor: AnchorState, config: OnboardingConfig): number {
  * intensity). This is rough but better than RPE-only when no race time
  * exists.
  */
+/**
+ * Sanitize a self-reported easy pace before it feeds the pace math.
+ *
+ * Onboarding stores this anchor as **seconds per mile** (parseTimeToSeconds),
+ * but legacy / hand-entered athlete records sometimes carry a *minutes* value
+ * in the same field — e.g. `11` meaning "11:00 /mi". Left alone, the pace math
+ * faithfully renders that as an impossible "0:11 /mi" (≈ 327 mph). A per-mile
+ * pace under a minute is physically impossible, so any sub-60 value is read as
+ * minutes and scaled up. Anything still outside a sane easy-pace window
+ * (4:00–25:00 /mi) is rejected so we fall back to HR/RPE rather than print a
+ * nonsense number.
+ */
+export function normalizeEasyPaceSecPerMile(valueSeconds: number | undefined | null): number | null {
+  if (valueSeconds == null || valueSeconds <= 0) return null
+  const sec = valueSeconds < 60 ? valueSeconds * 60 : valueSeconds
+  if (sec < 240 || sec > 1500) return null
+  return Math.round(sec)
+}
+
 function paceBoundsFromEasyPace(
   easyPaceSecPerMile: number,
   zone: CanonicalPaceZone,
@@ -211,7 +230,7 @@ export function resolvePaces(
       : (anchor.value ?? null)
 
   const easyPaceSecPerMile =
-    fa?.type === 'easy_pace' && fa.valueSeconds ? fa.valueSeconds : null
+    fa?.type === 'easy_pace' ? normalizeEasyPaceSecPerMile(fa.valueSeconds) : null
 
   const byZone: Partial<Record<CanonicalPaceZone, PaceTarget>> = {}
   for (const z of method.paceZones) {
