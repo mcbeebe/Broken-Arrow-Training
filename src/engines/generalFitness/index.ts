@@ -17,6 +17,7 @@ import type {
 import type { OnboardingConfig } from '../../hooks/useOnboarding'
 import { GOAL_PRESETS, weeklyRoles, experienceScale, type PillarRole } from './presets'
 import { buildStrengthDay, parseGoalEmphasis, emphasisLabel, type MuscleEmphasis } from './strength'
+import { hasMenopauseContext } from '../../utils/menopause'
 import { INJURY_LEADIN_WEEKS } from '../../utils/injuryRamp'
 
 // ── Defaults ──────────────────────────────────────────────────────────────
@@ -87,6 +88,26 @@ function trainingDayNumbers(daysPerWeek: number): number[] {
 
 const round5 = (n: number) => Math.max(15, Math.round(n / 5) * 5)
 
+/** Midlife (menopause) re-dial of the shared engine. Composes with every goal
+ *  preset rather than replacing it: strength keeps the goal's volume and ADDS a
+ *  heavy bone-loading finisher, the hard cardio day is expressed as short sprint
+ *  intervals, and a symptom-keyed recovery nudge is surfaced. Grounded in
+ *  docs/research/Menopause_Training_Evidence_Foundation_v1.md (heavy load =
+ *  Strong for bone; SIT = Moderate; recovery individualized to symptoms, never
+ *  status-gated). The contested "limit cardio for cortisol" claim is NOT applied. */
+interface MenopauseOverlay {
+  /** Heavy, low-rep finisher appended to strength days (bone loading). */
+  strengthBoneCue: string
+  /** SIT prescription that replaces the default VO₂max protocol on full weeks. */
+  sitWorkout: string
+  sitDetail: string
+  /** One-line rationale surfaced in the week focus. */
+  focusNote: string
+  /** Symptom-responsive recovery nudge — present only when the athlete reported
+   *  sleep/energy symptoms (never gated on menopausal status alone). */
+  recoveryNudge?: string
+}
+
 interface SessionCtx {
   preset: typeof GOAL_PRESETS[keyof typeof GOAL_PRESETS]
   z1: string
@@ -104,6 +125,8 @@ interface SessionCtx {
   /** Muscle groups the athlete named in their free-text goal — drives the
    *  direct accessory work appended to each strength day (empty = none named). */
   emphases: MuscleEmphasis[]
+  /** Active midlife re-dial, or null when no stage was disclosed. */
+  overlay: MenopauseOverlay | null
 }
 
 /** Build one training day's content for a pillar role. Returns everything but
@@ -122,12 +145,17 @@ function sessionContent(role: PillarRole, ctx: SessionCtx, strengthIndex: number
       const sets = isDeload ? 2 : ctx.preset.strengthSetsN
       const reps = ctx.preset.strengthRepTarget
       const holdSec = isDeload ? 30 : 40
-      const detail = buildStrengthDay(ctx.preset.id, ctx.emphases, strengthIndex)
+      let detail = buildStrengthDay(ctx.preset.id, ctx.emphases, strengthIndex)
         .map(m => `${m.name} ${sets}×${m.hold ? `${holdSec}s` : reps}`)
         .join(' · ')
+      // Midlife overlay: keep the goal's volume, then add a heavy bone-loading
+      // finisher (skipped on deload weeks). Heavy load is the strongest lever
+      // for bone, which estrogen loss thins.
+      const boned = !!ctx.overlay && !isDeload
+      if (boned) detail += ` · ${ctx.overlay!.strengthBoneCue}`
       return {
         type: 'strength' as WorkoutType,
-        workout: isDeload ? 'Strength — deload' : 'Strength — full body',
+        workout: isDeload ? 'Strength — deload' : boned ? 'Strength — full body + bone' : 'Strength — full body',
         detail,
         zone: z1,
         route: 'Gym / home',
@@ -164,6 +192,19 @@ function sessionContent(role: PillarRole, ctx: SessionCtx, strengthIndex: number
         return {
           ...sessionContent('zone2', ctx, strengthIndex),
           workout: 'Zone 2 — easy aerobic (intervals on hold)',
+        }
+      }
+      // Midlife overlay expresses the hard day as short sprint intervals (SIT)
+      // on full weeks — better for body composition and muscle retention in
+      // midlife. Deload keeps the gentler on-ramp protocol below.
+      if (ctx.overlay && !isDeload) {
+        return {
+          type: 'quality' as WorkoutType,
+          workout: ctx.overlay.sitWorkout,
+          detail: ctx.overlay.sitDetail,
+          zone: z4,
+          route: modality,
+          time: '~30 min',
         }
       }
       // Build INTO VO₂max work rather than opening at a punishing 4×4 — that's
@@ -248,6 +289,29 @@ function resolveModality(config: OnboardingConfig): string {
   }
 }
 
+/** Build the midlife (menopause) overlay from onboarding inputs, or null when no
+ *  stage was disclosed (premenopause through postmenopause all qualify via
+ *  hasMenopauseContext). Composes with any goal preset — it adds bone-loading +
+ *  SIT + a symptom-keyed recovery nudge without changing the goal's pillar
+ *  weighting or strength volume. Recovery is keyed to SYMPTOMS, not status, per
+ *  the evidence, so the deload cadence (DELOAD_EVERY) is left untouched. */
+function menopauseOverlay(config: OnboardingConfig): MenopauseOverlay | null {
+  if (!hasMenopauseContext(config)) return null
+  const symptoms = config.menopauseSymptoms ?? []
+  const lowReserve = symptoms.includes('sleep_disruption') || symptoms.includes('low_energy')
+  return {
+    strengthBoneCue: 'heavy finish: 1–2×5 on a main lift (load bone)',
+    sitWorkout: 'Sprint intervals (SIT)',
+    sitDetail:
+      '8–10 × 20s near-max effort, 90s easy between · 10 min warm-up + cool-down. Short, hard sprints protect muscle and metabolism in midlife — keep them; high intensity is good for you here.',
+    focusNote:
+      'Midlife tuning: strength adds heavy bone-loading sets, the hard day is short sprints, and recovery flexes to how you feel.',
+    recoveryNudge: lowReserve
+      ? 'Recovery: midlife sleep and energy can dip — protect your sleep and don’t force a hard day after a bad night.'
+      : undefined,
+  }
+}
+
 /**
  * Generate a personalized General-Fitness TrainingPlan from onboarding inputs.
  *
@@ -297,6 +361,7 @@ export function generateGeneralFitnessPlan(
   // day so the plan visibly serves THEIR goal, not just the preset bucket.
   const emphases = parseGoalEmphasis(config.athleteGoal)
   const emphasisText = emphasisLabel(emphases)
+  const overlay = menopauseOverlay(config)
   const firstMonday = mondayOf(today)
   const weeks: TrainingWeek[] = []
   // Running count of strength days across the whole block — alternates the A/B
@@ -311,7 +376,7 @@ export function generateGeneralFitnessPlan(
     // Progressive overload across the block; deloads dip to ~60%.
     const cardioFactor = isDeload ? 0.6 : 0.9 + 0.2 * (weekNum / totalWeeks)
 
-    const ctx: SessionCtx = { preset, z1, z2, z4, cardioFactor: cardioFactor * scale.durationFactor * bias, isDeload, modality, weekNum, injuryLeadInWeeks, emphases }
+    const ctx: SessionCtx = { preset, z1, z2, z4, cardioFactor: cardioFactor * scale.durationFactor * bias, isDeload, modality, weekNum, injuryLeadInWeeks, emphases, overlay }
 
     const days: PlannedDay[] = []
     let roleIdx = 0
@@ -337,13 +402,20 @@ export function generateGeneralFitnessPlan(
     const emphasisNote = emphasisText
       ? ` Extra direct ${emphasisText} work in every strength session to target your goal.`
       : ''
+    let focus = isDeload
+      ? 'Deload week — volume down ~40%. Ease off and let adaptations land.'
+      : `${preset.emphasis}.${weekNum === 1 ? ' ' + preset.note + emphasisNote : ''}`
+    // Surface the midlife tuning rationale once, on week 1, plus the
+    // symptom-keyed recovery nudge when the athlete reported it.
+    if (overlay && weekNum === 1) {
+      focus += ` ${overlay.focusNote}`
+      if (overlay.recoveryNudge) focus += ` ${overlay.recoveryNudge}`
+    }
     weeks.push({
       num: weekNum,
       dates: `${formatDay(weekStart).slice(4)} – ${formatDay(addDays(weekStart, 6)).slice(4)}`,
       miles: `~${weekCardioMin} min cardio`,
-      focus: isDeload
-        ? 'Deload week — volume down ~40%. Ease off and let adaptations land.'
-        : `${preset.emphasis}.${weekNum === 1 ? ' ' + preset.note + emphasisNote : ''}`,
+      focus,
       days,
     })
   }
