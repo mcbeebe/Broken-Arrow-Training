@@ -43,11 +43,13 @@ export interface FitnessAnchor {
 
 export type InjuryStatus = 'none' | 'returning' | 'current'
 
-// Menopause stage for midlife tailoring (general context, all paths). Optional
-// and self-identifying — collected age-gated (>=45) in onboarding so no separate
-// biological-sex field is needed. 'not_applicable' / 'prefer_not_to_say' are
-// explicit non-answers that carry no coach personalization.
+// Midlife training stage across the menopause continuum (general context, all
+// paths). Optional and self-identifying — collected age-gated (40+) in
+// onboarding so no separate biological-sex field is needed. 'premenopause'
+// captures women approaching the transition (build/bank the base before it).
+// The two non-answers carry no coach personalization.
 export type MenopauseStatus =
+  | 'premenopause'
   | 'perimenopause'
   | 'menopause'
   | 'postmenopause'
@@ -117,9 +119,9 @@ export interface OnboardingConfig {
   injuryArea?: string
   injuryTimeframe?: string
   injuryNote?: string
-  // Menopause context — optional midlife tailoring, collected age-gated (>=45)
+  // Menopause context — optional midlife tailoring, collected age-gated (40+)
   // in onboarding. menopauseStatus self-identifies (no separate sex field);
-  // symptoms/note are only collected for a real stage (peri/meno/post) and
+  // symptoms/note are only collected for a real stage (pre/peri/meno/post) and
   // personalize the coach's greeting + snapshot. See src/utils/menopause.ts.
   menopauseStatus?: MenopauseStatus
   menopauseSymptoms?: string[]

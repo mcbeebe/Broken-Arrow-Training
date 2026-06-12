@@ -176,6 +176,7 @@ const TIME_OF_DAY_OPTIONS: { value: TrainingTimeOfDay; label: string; desc: stri
 ]
 
 const MENOPAUSE_STATUS_OPTIONS: { value: MenopauseStatus; label: string; desc: string }[] = [
+  { value: 'premenopause', label: 'Premenopausal', desc: 'Regular cycles, no menopause signs yet — build your base ahead of the transition.' },
   { value: 'perimenopause', label: 'Perimenopause', desc: 'Cycles changing or irregular; symptoms may be starting.' },
   { value: 'menopause', label: 'Menopause', desc: 'Around the 12-month mark since your last period.' },
   { value: 'postmenopause', label: 'Postmenopause', desc: 'Past the menopause transition.' },
@@ -249,10 +250,12 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
   // image — shown only for general fitness.
   const showsDistanceStep = raceType === 'trail'
   const showsGoalStep = raceType === 'general'
-  // Menopause step is age-gated: shown only to athletes 45+ (age is entered on
-  // the prior PROFILE step). 'not_applicable' / 'prefer not to say' let anyone
-  // who sees it opt out, and the whole step is skippable.
-  const showsMenopauseStep = (parseInt(age) || 0) >= 45
+  // Menopause step is age-gated: shown to athletes 40+ (age is entered on the
+  // prior PROFILE step) — the menopause transition can begin in the early 40s,
+  // and premenopausal women benefit from building the base ahead of it.
+  // 'not_applicable' / 'prefer not to say' let anyone who sees it opt out, and
+  // the whole step is skippable.
+  const showsMenopauseStep = (parseInt(age) || 0) >= 40
   const visibleSteps: readonly number[] = ALL_STEPS.filter(s => {
     if (s === STEP_RACE_DISTANCE) return showsDistanceStep
     if (s === STEP_GENERAL_GOAL) return showsGoalStep
@@ -982,7 +985,7 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
         {step === STEP_MENOPAUSE && (
           <StepContainer
             title="A quick personal note"
-            subtitle="If menopause is part of your life right now, your coach can tailor your training for it. Totally optional — skip if it doesn't apply."
+            subtitle="The menopause transition — and the years before it — change what training works best. If that's relevant to you, your coach will tailor your plan. Totally optional — skip if it doesn't apply."
           >
             <div className="space-y-2">
               {MENOPAUSE_STATUS_OPTIONS.map(opt => (
@@ -996,7 +999,7 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
               ))}
             </div>
 
-            {(menopause === 'perimenopause' || menopause === 'menopause' || menopause === 'postmenopause') && (
+            {isRealMenopauseStage(menopause) && (
               <div className="mt-3 space-y-3 rounded-xl border border-teal-200 bg-teal-50 p-3">
                 <p className="text-xs text-teal-800">
                   A few details help your coach be specific. All optional.
@@ -1138,10 +1141,15 @@ function defaultDetailLevel(exp: ExperienceLevel | null): DetailLevel {
   return 'balanced'
 }
 
-// A "real" menopause stage carries coach personalization; the non-answers
-// ('not_applicable' / 'prefer_not_to_say') and null do not.
+// A "real" stage on the menopause continuum carries coach personalization; the
+// non-answers ('not_applicable' / 'prefer_not_to_say') and null do not.
 function isRealMenopauseStage(s: MenopauseStatus | null): boolean {
-  return s === 'perimenopause' || s === 'menopause' || s === 'postmenopause'
+  return (
+    s === 'premenopause' ||
+    s === 'perimenopause' ||
+    s === 'menopause' ||
+    s === 'postmenopause'
+  )
 }
 
 const INJURY_LABELS: Record<InjuryStatus, string> = {
