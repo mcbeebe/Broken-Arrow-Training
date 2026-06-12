@@ -6,6 +6,7 @@ import { coachApiAvailable } from '../utils/coachApi'
 import { injurySummaryLine } from '../utils/injuryRamp'
 import { menopauseSummaryLine } from '../utils/menopause'
 import { GOAL_PRESETS } from '../engines/generalFitness/presets'
+import { renderMarkdown } from '../utils/markdown'
 
 interface Props {
   plan: TrainingPlan
@@ -101,10 +102,8 @@ export default function CoachLetter({ plan, config, athleteId, onContinue }: Pro
         )}
 
         {ready && (
-          <div className="mt-5 space-y-3 text-[15px] leading-relaxed text-slate-700 dark:text-slate-200 whitespace-pre-line">
-            {(letter || fallback).split(/\n{2,}/).map((para, i) => (
-              <p key={i}>{para.trim()}</p>
-            ))}
+          <div className="mt-5 space-y-3 text-[15px] leading-relaxed text-slate-700 dark:text-slate-200">
+            {renderMarkdown(letter || fallback)}
           </div>
         )}
       </div>

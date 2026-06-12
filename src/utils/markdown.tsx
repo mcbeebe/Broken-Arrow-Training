@@ -19,11 +19,11 @@ export function renderMarkdown(text: string): ReactNode {
     // Headers (single-line paragraphs only)
     if (lines.length === 1) {
       const h3 = lines[0].match(/^###\s+(.+)/)
-      if (h3) return <p key={pi} className="text-base font-bold text-slate-800 mt-2 mb-0.5">{renderInline(h3[1])}</p>
+      if (h3) return <p key={pi} className="text-base font-bold text-slate-800 dark:text-slate-100 mt-2 mb-0.5">{renderInline(h3[1])}</p>
       const h2 = lines[0].match(/^##\s+(.+)/)
-      if (h2) return <p key={pi} className="text-lg font-bold text-slate-800 mt-2 mb-0.5">{renderInline(h2[1])}</p>
+      if (h2) return <p key={pi} className="text-lg font-bold text-slate-800 dark:text-slate-100 mt-2 mb-0.5">{renderInline(h2[1])}</p>
       const h1 = lines[0].match(/^#\s+(.+)/)
-      if (h1) return <p key={pi} className="text-xl font-bold text-slate-800 mt-2 mb-0.5">{renderInline(h1[1])}</p>
+      if (h1) return <p key={pi} className="text-xl font-bold text-slate-800 dark:text-slate-100 mt-2 mb-0.5">{renderInline(h1[1])}</p>
     }
 
     // Bullet list (every non-blank line starts with -, •, or *)
