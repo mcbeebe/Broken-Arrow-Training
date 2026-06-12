@@ -223,9 +223,12 @@ function walkHappyPath(overrides: Partial<{
     const ftpInput = screen.getByPlaceholderText(/250.*watts/)
     fireEvent.change(ftpInput, { target: { value: o.ftp } })
   }
-  // Profile is the second-to-last step; the next click advances to the
-  // pre-submit Review step. Review's only action is the final submit.
+  // Profile advances to the optional menopause step (athletes 40+), then to the
+  // pre-submit Review step. Skip the menopause step when it appears.
   clickContinue()
+  if (screen.queryByText(/a quick personal note/i)) {
+    clickContinue() // menopause → review (skipped, no selection)
+  }
   clickFinish()
 
   expect(onComplete).toHaveBeenCalledTimes(1)
@@ -791,7 +794,8 @@ describe('Onboarding', () => {
       fireEvent.click(screen.getByText('Early morning')); clickContinue()
       fireEvent.click(screen.getByText('Garmin Watch')); clickContinue()
       fireEvent.change(screen.getByPlaceholderText('e.g. Jenn'), { target: { value: 'Jenn' } })
-      fireEvent.change(screen.getByPlaceholderText('e.g. 41'), { target: { value: '40' } })
+      // Under 40 so the optional menopause step doesn't appear before review.
+      fireEvent.change(screen.getByPlaceholderText('e.g. 41'), { target: { value: '39' } })
       clickContinue()  // PROFILE → REVIEW
 
       // Review step renders the summary.
@@ -985,14 +989,14 @@ describe('Onboarding', () => {
       return onComplete
     }
 
-    it('hides the menopause step for athletes under 45', () => {
-      walkToProfile('40')
+    it('hides the menopause step for athletes under 40', () => {
+      walkToProfile('38')
       clickContinue() // PROFILE → (menopause hidden) → REVIEW
       expect(screen.queryByText(/a quick personal note/i)).not.toBeInTheDocument()
       expect(screen.getByText(/review your plan setup/i)).toBeInTheDocument()
     })
 
-    it('shows the menopause step for athletes 45+ and captures stage + symptoms', () => {
+    it('shows the menopause step for athletes 40+ and captures stage + symptoms', () => {
       const onComplete = walkToProfile('52')
       clickContinue() // PROFILE → MENOPAUSE
       expect(screen.getByText(/a quick personal note/i)).toBeInTheDocument()
@@ -1004,6 +1008,17 @@ describe('Onboarding', () => {
       const cfg = onComplete.mock.calls[0][0] as OnboardingConfig
       expect(cfg.menopauseStatus).toBe('perimenopause')
       expect(cfg.menopauseSymptoms).toEqual(['hot_flashes'])
+    })
+
+    it('captures the premenopausal stage (40+) for base-building', () => {
+      const onComplete = walkToProfile('42')
+      clickContinue() // PROFILE → MENOPAUSE (age 42 ≥ 40)
+      expect(screen.getByText(/a quick personal note/i)).toBeInTheDocument()
+      fireEvent.click(screen.getByText('Premenopausal'))
+      clickContinue() // MENOPAUSE → REVIEW
+      clickFinish()
+      const cfg = onComplete.mock.calls[0][0] as OnboardingConfig
+      expect(cfg.menopauseStatus).toBe('premenopause')
     })
 
     it('is skippable — advancing with no selection records no context', () => {
@@ -1028,8 +1043,8 @@ describe('Onboarding', () => {
       expect(cfg.menopauseSymptoms).toBeUndefined()
     })
 
-    it('omits menopause fields for the default under-45 happy path', () => {
-      const cfg = walkHappyPath() // age 41
+    it('omits menopause fields when the optional step is skipped', () => {
+      const cfg = walkHappyPath() // age 41 → step shows but is skipped
       expect(cfg.menopauseStatus).toBeUndefined()
       expect(cfg.menopauseSymptoms).toBeUndefined()
       expect(cfg.menopauseNote).toBeUndefined()

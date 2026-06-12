@@ -14,6 +14,7 @@
 import type { MenopauseStatus, OnboardingConfig } from '../hooks/useOnboarding'
 
 const STAGE_LABELS: Record<MenopauseStatus, string | null> = {
+  premenopause: 'premenopausal',
   perimenopause: 'in perimenopause',
   menopause: 'in menopause',
   postmenopause: 'postmenopausal',
@@ -29,12 +30,18 @@ const SYMPTOM_LABELS: Record<string, string> = {
   brain_fog: 'brain fog',
 }
 
-/** True when the athlete disclosed an actual stage (not n/a or declined). */
+/** True when the athlete disclosed an actual stage on the menopause continuum
+ *  (premenopause through postmenopause) — not n/a or declined. */
 export function hasMenopauseContext(
   config: Pick<OnboardingConfig, 'menopauseStatus'> | null | undefined,
 ): boolean {
   const s = config?.menopauseStatus
-  return s === 'perimenopause' || s === 'menopause' || s === 'postmenopause'
+  return (
+    s === 'premenopause' ||
+    s === 'perimenopause' ||
+    s === 'menopause' ||
+    s === 'postmenopause'
+  )
 }
 
 /**
