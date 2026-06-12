@@ -43,9 +43,16 @@ export interface FitnessAnchor {
 
 export type InjuryStatus = 'none' | 'returning' | 'current'
 
+// Biological sex — optional, asked on the profile step. Its one functional job
+// today is to gate the menopause step: 'male' skips it outright, regardless of
+// age. 'female', 'prefer_not_to_say', and leaving it unset all preserve the
+// age-gated default (40+ sees the step). Kept distinct from the self-identifying
+// menopauseStatus below — this only decides whether we ask, not the stage.
+export type BiologicalSex = 'male' | 'female' | 'prefer_not_to_say'
+
 // Midlife training stage across the menopause continuum (general context, all
-// paths). Optional and self-identifying — collected age-gated (40+) in
-// onboarding so no separate biological-sex field is needed. 'premenopause'
+// paths). Optional and self-identifying. Collected age-gated (40+) in
+// onboarding, and skipped entirely when biological sex is 'male'. 'premenopause'
 // captures women approaching the transition (build/bank the base before it).
 // The two non-answers carry no coach personalization.
 export type MenopauseStatus =
@@ -103,6 +110,10 @@ export interface OnboardingConfig {
   wearable: WearableType
   athleteName: string
   age: number
+  // Optional biological sex (profile step). Gates the menopause step: 'male'
+  // skips it regardless of age; 'female'/'prefer_not_to_say'/unset keep the
+  // 40+ default. See BiologicalSex above.
+  sex?: BiologicalSex
   maxHR?: number
   // Optional cycling FTP (watts). Drives the cycling MIM intensity factor
   // when an activity has power-meter data; HR-reserve falls back when absent.
@@ -120,9 +131,10 @@ export interface OnboardingConfig {
   injuryTimeframe?: string
   injuryNote?: string
   // Menopause context — optional midlife tailoring, collected age-gated (40+)
-  // in onboarding. menopauseStatus self-identifies (no separate sex field);
-  // symptoms/note are only collected for a real stage (pre/peri/meno/post) and
-  // personalize the coach's greeting + snapshot. See src/utils/menopause.ts.
+  // in onboarding and only when sex isn't 'male' (men skip the step). The
+  // status self-identifies the stage; symptoms/note are only collected for a
+  // real stage (pre/peri/meno/post) and personalize the coach's greeting +
+  // snapshot. See src/utils/menopause.ts.
   menopauseStatus?: MenopauseStatus
   menopauseSymptoms?: string[]
   menopauseNote?: string
