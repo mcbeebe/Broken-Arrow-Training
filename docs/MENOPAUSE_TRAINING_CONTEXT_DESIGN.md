@@ -10,7 +10,7 @@
 
 ## 1. Goal & the core decision
 
-Add a **menopause training context**: an optional, athlete-disclosed signal (perimenopause / menopause / postmenopause) that makes the app's training **and** coaching reflect the physiology of the menopause transition — when standard advice ("lighter weights, more cardio, eat less") actively works against the athlete.
+Add a **menopause training context**: an optional, athlete-disclosed signal (premenopause / perimenopause / menopause / postmenopause) that makes the app's training **and** coaching reflect the physiology of the menopause transition — when standard advice ("lighter weights, more cardio, eat less") actively works against the athlete.
 
 **Central architecture decision — menopause is an _overlay modifier_, not a goal and not a constraint:**
 
@@ -64,7 +64,7 @@ Add to `OnboardingConfig` (`src/hooks/useOnboarding.ts`), mirroring the injury f
 
 ```ts
 export type MenopauseStatus =
-  | 'perimenopause' | 'menopause' | 'postmenopause'
+  | 'premenopause' | 'perimenopause' | 'menopause' | 'postmenopause'
   | 'not_applicable' | 'prefer_not_to_say'
 
 // in OnboardingConfig:
@@ -82,8 +82,8 @@ No separate biological-sex field is added — the question self-identifies and i
 ## 5. Onboarding capture — P0
 
 - **New conditional step** in `src/components/Onboarding.tsx`, mirroring the injury block at `STEP_BASELINE` (lines 614–674).
-- **Age-gated visibility:** shown only when `config.age >= 45`, via the existing index-based `visibleSteps` filter (lines 214–222). New steps insert without renumbering. *(Open decision §11: 45 vs 40 — rec 45, with "not applicable" so 40–44 self-selects.)*
-- **Structure:** primary self-select card (Perimenopause / Menopause / Postmenopause / Not applicable / Prefer not to say) → optional symptom multi-select → optional free text. Mirrors injury's "collapsed amber detail box" for the follow-ups.
+- **Age-gated visibility:** shown when `config.age >= 40`, via the existing index-based `visibleSteps` filter. New steps insert without renumbering. (The transition can begin in the early 40s, and premenopausal women benefit from building the base ahead of it.)
+- **Structure:** primary self-select card (Premenopausal / Perimenopause / Menopause / Postmenopause / Not applicable / Prefer not to say) → optional symptom multi-select → optional free text (shown for any real stage). Mirrors injury's "collapsed detail box" for the follow-ups.
 - **Skippable:** all fields optional; `canContinue` returns `true` regardless (the step can be advanced without an answer).
 - **Framing (customer language, §8):** "This helps your coach tailor your training for midlife. Totally optional — skip if it doesn't apply." No clinical language.
 - Written into the completion payload (lines ~316–349) and editable later in Settings/Profile (story A2).
@@ -141,7 +141,7 @@ Passes all three. The one thing held back from defaults is the contested cardio 
 
 | # | Story | Acceptance criteria |
 |---|---|---|
-| A1 | As a midlife athlete, I'm *optionally* asked in onboarding whether I'm in peri/meno/postmenopause, so training can be tailored. | Step appears only when `age >= 45`; can be advanced with no selection; selection persists to `OnboardingConfig.menopauseStatus`. |
+| A1 | As a midlife athlete (40+), I'm *optionally* asked in onboarding where I am on the menopause continuum (pre/peri/meno/post), so training can be tailored. | Step appears when `age >= 40`; can be advanced with no selection; selection persists to `OnboardingConfig.menopauseStatus`. |
 | A2 | As any athlete, I can add/edit/clear my menopause status later in Settings/Profile. | Settings exposes the same field; edits round-trip to storage + sync; clearing removes coach personalization. |
 | A3 | As a privacy-conscious user, I see "prefer not to say / not applicable" + non-clinical framing. | Both options present; copy contains no diagnostic/medical language; skipping leaves status unset. |
 | A4 | As an athlete, I can optionally note symptoms + free text. | Symptom multi-select + free-text only shown when status ∈ {peri, meno, post}; both optional; persist to `menopauseSymptoms` / `menopauseNote`. |
@@ -191,7 +191,7 @@ Passes all three. The one thing held back from defaults is the contested cardio 
 ## 11. Open decisions (with recommendations)
 
 - **Profile mirror + Settings editor timing** — *rec:* `OnboardingConfig` field + Settings edit in P0; `AthleteProfile` mirror in P1.
-- **Age gate 45 vs 40** — *rec:* 45, with "not applicable" so 40–44 self-selects in.
+- **Age gate** — resolved to **40** (the transition can start in the early 40s; premenopausal base-building benefits). "not applicable" / "prefer not to say" keep it opt-out.
 - **Overlay aggressiveness** — pin each dial's magnitude to its research-doc grade; Strong → default, Moderate → gentle, Contested → nudge only.
 - **Impact as new `PillarRole` vs folded into strength day** — *rec:* fold into a strength day for v1 to avoid `TEMPLATES` combinatorial growth (`presets.ts`).
 

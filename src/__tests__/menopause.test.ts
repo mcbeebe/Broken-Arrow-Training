@@ -11,6 +11,7 @@ describe('menopauseSummaryLine', () => {
   })
 
   it('summarizes a bare stage with a sentence-ready phrase', () => {
+    expect(menopauseSummaryLine({ menopauseStatus: 'premenopause' })).toBe('premenopausal')
     expect(menopauseSummaryLine({ menopauseStatus: 'perimenopause' })).toBe('in perimenopause')
     expect(menopauseSummaryLine({ menopauseStatus: 'menopause' })).toBe('in menopause')
     expect(menopauseSummaryLine({ menopauseStatus: 'postmenopause' })).toBe('postmenopausal')
@@ -48,6 +49,7 @@ describe('menopauseSummaryLine', () => {
 
 describe('hasMenopauseContext', () => {
   it('is true only for a real stage', () => {
+    expect(hasMenopauseContext({ menopauseStatus: 'premenopause' })).toBe(true)
     expect(hasMenopauseContext({ menopauseStatus: 'perimenopause' })).toBe(true)
     expect(hasMenopauseContext({ menopauseStatus: 'menopause' })).toBe(true)
     expect(hasMenopauseContext({ menopauseStatus: 'postmenopause' })).toBe(true)
