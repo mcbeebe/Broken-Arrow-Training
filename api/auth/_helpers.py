@@ -167,6 +167,107 @@ def get_email_to_athlete_map() -> dict[str, str]:
     return merged
 
 
+# ─── Notifications (transactional email via Resend) ──────────────
+# Both ends of the access-request loop are closed by email: the admin is
+# alerted when a request arrives, and the requester is told when they're
+# approved (they aren't signed in yet, so push can't reach them). Sends are
+# best-effort — a failed email must never break queueing or approval.
+#
+# Config (all optional; email is skipped entirely if RESEND_API_KEY is unset):
+#   RESEND_API_KEY — Resend API key
+#   EMAIL_FROM     — verified sender, e.g. "Attune <noreply@attune.coach>".
+#                    The default uses Resend's sandbox sender, which only
+#                    delivers to your own Resend account email — set a verified
+#                    domain to reach real users.
+#   NOTIFY_EMAIL   — where new-request alerts go (defaults to the admin's
+#                    allowlisted email)
+#   APP_URL        — sign-in link used in emails (default https://attune.coach)
+
+
+def _esc(s: str) -> str:
+    """Minimal HTML escape for user-supplied text dropped into email bodies."""
+    return (
+        s.replace("&", "&amp;").replace("<", "&lt;")
+        .replace(">", "&gt;").replace('"', "&quot;")
+    )
+
+
+def app_url() -> str:
+    return os.environ.get("APP_URL", "https://attune.coach").rstrip("/")
+
+
+def get_admin_email() -> str | None:
+    """Where new-request alerts go: NOTIFY_EMAIL if set, else the email that
+    maps to the admin athlete in the allowlist."""
+    override = os.environ.get("NOTIFY_EMAIL", "").strip().lower()
+    if override:
+        return override
+    for email, athlete_id in get_email_to_athlete_map().items():
+        if athlete_id == ADMIN_ATHLETE_ID:
+            return email
+    return None
+
+
+def send_email(to: str, subject: str, html: str, text: str | None = None) -> bool:
+    """Best-effort transactional email via Resend. Returns True on a 2xx,
+    False otherwise (including when unconfigured). Never raises."""
+    api_key = os.environ.get("RESEND_API_KEY", "").strip()
+    sender = os.environ.get("EMAIL_FROM", "Attune <onboarding@resend.dev>").strip()
+    if not api_key or not to:
+        return False
+    payload = {"from": sender, "to": [to], "subject": subject, "html": html}
+    if text:
+        payload["text"] = text
+    req = urllib.request.Request(
+        "https://api.resend.com/emails",
+        data=json.dumps(payload).encode(),
+        headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            return 200 <= resp.status < 300
+    except Exception:
+        return False
+
+
+def notify_admin_of_request(requester_email: str, note: str) -> None:
+    """Email the admin that someone asked for access. Best-effort."""
+    admin_email = get_admin_email()
+    if not admin_email:
+        return
+    note = note.strip()
+    note_html = (
+        f"<p style='margin:8px 0;color:#475569'>Note: {_esc(note)}</p>" if note else ""
+    )
+    html = (
+        f"<p>New Attune access request from <strong>{_esc(requester_email)}</strong>.</p>"
+        f"{note_html}"
+        f"<p>Open <a href='{app_url()}'>Attune</a> → Settings → Athletes to approve or dismiss.</p>"
+    )
+    text = (
+        f"New Attune access request from {requester_email}."
+        + (f"\n\nNote: {note}" if note else "")
+        + f"\n\nApprove in Attune → Settings → Athletes: {app_url()}"
+    )
+    send_email(admin_email, f"New Attune access request: {requester_email}", html, text)
+
+
+def notify_user_approved(user_email: str) -> None:
+    """Email a newly-approved athlete that they can sign in now. Best-effort."""
+    url = app_url()
+    html = (
+        "<p>You're in! Your Attune account is ready.</p>"
+        f"<p>Sign in with Google at <a href='{url}'>{url}</a> using this email address.</p>"
+        "<p style='color:#475569'>— Mike</p>"
+    )
+    text = (
+        "You're in! Your Attune account is ready.\n\n"
+        f"Sign in with Google at {url} using this email address.\n\n— Mike"
+    )
+    send_email(user_email, "You're in — your Attune account is ready", html, text)
+
+
 def lookup_athlete(email: str) -> str | None:
     return get_email_to_athlete_map().get(email.lower())
 
