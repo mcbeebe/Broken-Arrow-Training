@@ -96,17 +96,17 @@ The engine layer (P1) and content layer (P2). Baseline = whatever the chosen goa
 
 | Pillar / dial | Baseline (goal preset) | Menopause overlay | Tier | Evidence grade |
 |---|---|---|---|---|
-| **Strength load** | `strengthRepTarget` 6–10, generic loading cue | Bias heavier: lower rep target / explicit progressive-load + intent cue, while preserving the goal's hypertrophy intent | P1 | Strong |
-| **Bone / impact** | none today | Add impact / plyometric loading (jumps, hops, landings) folded into a strength day | P2 | Moderate–Strong (postmenopause) |
+| **Strength load** | `strengthRepTarget` 6–10, generic loading cue | Heavier progressive load for **bone/strength**; **also keep adequate volume + effort for muscle** (load alone doesn't drive mass) | P1 | Strong (bone); for mass, volume ≥ load |
+| **Bone / impact** | none today | Add impact loading (jumps, hops, landings) folded into a strength day. **Peri:** impact alone is osteogenic at the hip. **Post:** pair impact with heavy load (HiRIT) — impact-alone is blunted | P2 | Moderate (peri hip; post via HiRIT) |
 | **VO₂max / SIT** | 1×/wk intervals (`vo2max` pillar) | Express one hard session as short sprint intervals (SIT, 10–30 s efforts) | P1 | Moderate |
-| **Recovery** | fixed `DELOAD_EVERY = 4` | More deliberate recovery; symptom-responsive rest; parameterize the deload cadence | P1 | Moderate |
-| **Protein** | minimal prose | Surface protein-forward guidance (g/kg) in coaching | P2 | Moderate |
-| **Pelvic floor** | none | Optional pelvic-floor track + reassurance that impact/heavy work is generally safe (per RCTs) | P2 | Moderate |
-| **Cardio / cortisol** | n/a | **Soft nudge only — do NOT hard-cap HIIT.** Surface as optional guidance, never as engine logic | nudge | **Contested** |
+| **Recovery** | fixed `DELOAD_EVERY = 4` | **Symptom-responsive** recovery keyed to sleep/VMS — *not* a blanket extra rest day by status. Surface recovery nudges; keep deload parameterizable | P1 | Limited (individualize, don't status-gate) |
+| **Protein** | minimal prose | Surface ~**1.2–1.6 g/kg/day**, ~**0.4 g/kg/meal** (3–4 meals) guidance in coaching; cap claims at 1.6 g/kg | P2 | Moderate–Strong (direction) |
+| **Pelvic floor** | none | Optional pelvic-floor track + reassurance that impact/heavy work is generally safe (per the MEDEX-OP RCT) | P2 | Moderate |
+| **Cardio / cortisol** | n/a | **Soft nudge only — do NOT hard-cap HIIT.** Claim is unsubstantiated and **partly mis-attributed** (Sims promotes HIIT; her concern is chronic steady-state cardio). Never engine logic | nudge | **Contested** |
 
 **Implementation:** `applyMenopauseOverlay(preset, ctx, status)` in `src/engines/generalFitness/index.ts`, called after preset resolution in `generateGeneralFitnessPlan()` (line ~229–234), composing with all four goals — never a new preset.
 
-**Peri vs. post:** perimenopause emphasizes building the strength/impact base (the "power window") and symptom-aware recovery; postmenopause emphasizes bone + muscle *preservation* and leans harder on impact + recovery. The overlay reads `status` to set emphasis.
+**Peri vs. post:** perimenopause can still build bone with impact *alone* (osteogenic at the hip) plus symptom-aware recovery; postmenopause emphasizes bone + muscle *preservation* via **heavy load + impact together (HiRIT)** — impact-alone is blunted post-menopause. The overlay reads `status` to set emphasis. (Caveat: status does **not** clearly moderate the *resistance-training* BMD response — the firm peri/post split is specifically about impact-alone loading.)
 
 ---
 
@@ -158,8 +158,8 @@ Passes all three. The one thing held back from defaults is the contested cardio 
 
 | # | Story | Acceptance criteria |
 |---|---|---|
-| C1 | As a menopausal athlete on *any* goal, my strength biases toward heavier load / clear intent. | Overlay adjusts loading cue / rep target for all four goals without overriding goal intent; verified by snapshot test per goal. |
-| C2 | As a menopausal athlete, recovery is more deliberate. | Deload cadence is parameterized and dialed by the overlay; rationale surfaced in the week focus. |
+| C1 | As a menopausal athlete on *any* goal, my strength uses heavier progressive load for bone **and** keeps adequate volume/effort for muscle. | Overlay adjusts loading cue / rep target **and preserves weekly volume** for all four goals without overriding goal intent; verified by snapshot test per goal. |
+| C2 | As a menopausal athlete, recovery adapts to my **sleep/symptoms**, not just my menopausal status. | Recovery nudges key off symptom/sleep input (not status alone); deload stays parameterizable; rationale surfaced in the week focus. |
 | C3 | As a menopausal athlete, some hard cardio is expressed as short sprint intervals. | At least one `vo2max` session renders as SIT when overlay active. |
 | C4 | As a menopausal athlete, plan notes explain *why* changes were made. | Each overlaid change carries a one-line "why" in the plan/coaching prose. |
 
