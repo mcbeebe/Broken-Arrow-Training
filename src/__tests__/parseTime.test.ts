@@ -50,6 +50,28 @@ describe('parseTimeToSeconds', () => {
     })
   })
 
+  describe('digit-only form (no colon — mobile numeric keypad)', () => {
+    it('parses 3-4 digit input as mm:ss', () => {
+      expect(parseTimeToSeconds('900')).toBe(9 * 60)        // 9:00
+      expect(parseTimeToSeconds('830')).toBe(8 * 60 + 30)   // 8:30
+      expect(parseTimeToSeconds('1230')).toBe(12 * 60 + 30) // 12:30
+    })
+
+    it('parses 5-6 digit input as hh:mm:ss', () => {
+      expect(parseTimeToSeconds('13015')).toBe(1 * 3600 + 30 * 60 + 15)
+      expect(parseTimeToSeconds('33015')).toBe(3 * 3600 + 30 * 60 + 15)
+    })
+
+    it('rejects a digit-only seconds component >= 60', () => {
+      expect(parseTimeToSeconds('190')).toBeUndefined()  // would be 1:90
+    })
+
+    it('still rejects 1-2 digit input as ambiguous', () => {
+      expect(parseTimeToSeconds('9')).toBeUndefined()
+      expect(parseTimeToSeconds('21')).toBeUndefined()
+    })
+  })
+
   describe('rejects invalid input', () => {
     it('returns undefined for empty string', () => {
       expect(parseTimeToSeconds('')).toBeUndefined()

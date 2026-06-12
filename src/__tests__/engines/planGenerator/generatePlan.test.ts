@@ -13,7 +13,7 @@ import {
   buildWeeklyMileage,
   estimateCurrentWeeklyMileage,
 } from '../../../engines/planGenerator/weekPlan'
-import { resolvePaces, resolveAnchor, ESTIMATED_LTHR_PCT_OF_MAX } from '../../../engines/planGenerator/paceTargets'
+import { resolvePaces, resolveAnchor, athleteCurrentVdot, blendGoalPaces, ESTIMATED_LTHR_PCT_OF_MAX } from '../../../engines/planGenerator/paceTargets'
 import {
   pickWeeklyPattern,
   pickWorkoutForDay,
@@ -184,6 +184,89 @@ describe('buildWeeklyMileage', () => {
   })
 })
 
+describe('pickWeeklyPattern — phase fallback (no blank weeks)', () => {
+  const methods: [string, TrainingMethod][] = [
+    ['daniels', daniels], ['pfitzinger', pfitzinger], ['koop', koop],
+    ['roche', roche], ['higdon', higdon], ['galloway', galloway],
+  ]
+  it('resolves a non-null pattern for every phase of every method', () => {
+    for (const [, method] of methods) {
+      for (const phase of method.phases) {
+        const p = pickWeeklyPattern(method, phase.id, 5, false)
+        expect(p).not.toBeNull()
+        expect(p!.schedule.length).toBeGreaterThan(0)
+      }
+    }
+  })
+
+  it('falls back to the nearest phase when the requested phase has no patterns', () => {
+    // An unknown phase id has no patterns; we still borrow the nearest phase's.
+    const p = pickWeeklyPattern(daniels, '__nonexistent_phase__', 5, false)
+    expect(p).not.toBeNull()
+    expect(p!.schedule.length).toBeGreaterThan(0)
+  })
+})
+
+describe('regression: the reported marathon config', () => {
+  // Reproduces the exact onboarding that surfaced the bugs: Daniels · marathon
+  // · 20 mpw · advanced · Sunday long run · ~24 weeks out.
+  const reported = () => makeConfig({
+    raceType: 'trail',
+    raceDistance: 'marathon',
+    experienceLevel: 'advanced',
+    currentWeeklyMileage: 20,
+    longRunDay: 'Sunday',
+    raceDate: '2026-11-22',  // a Sunday, ~28w from TODAY → snaps to 24
+    fitnessAnchor: { type: 'race_marathon', valueSeconds: 3 * 3600 + 30 * 60 },
+  })
+
+  it('never produces a blank (zero-day) non-final week', () => {
+    const plan = generatePlanFromMethod(daniels, reported(), TODAY)
+    for (const w of plan.weeks.slice(0, -1)) {
+      expect(w.days.length).toBeGreaterThan(0)
+    }
+  })
+
+  it('places the long run on the chosen weekday (Sunday) and labels weeks Mon–Sun', () => {
+    const plan = generatePlanFromMethod(daniels, reported(), TODAY)
+    // Use a mid-build week (not taper/race week) where a long run exists.
+    const buildWeek = plan.weeks.find(w => w.focus !== 'Taper' && w.days.some(d => d.type === 'long'))!
+    const longDay = buildWeek.days.find(d => d.type === 'long')!
+    expect(longDay.day.startsWith('Sun')).toBe(true)
+    expect(buildWeek.dates.startsWith('Mon')).toBe(true)
+  })
+
+  it('builds real marathon volume off a 20 mpw base (peak ≥ 40, long run ≥ 18)', () => {
+    const plan = generatePlanFromMethod(daniels, reported(), TODAY)
+    const peakMiles = Math.max(...plan.weeks.map(w => Number(w.miles)))
+    expect(peakMiles).toBeGreaterThanOrEqual(40)
+    // Longest long run across the plan.
+    const longestLong = Math.max(
+      ...plan.weeks.flatMap(w => w.days.filter(d => d.type === 'long'))
+        .map(d => {
+          const m = d.detail.match(/Long run ~([\d.]+) mi/)
+          return m ? parseFloat(m[1]) : 0
+        }),
+    )
+    expect(longestLong).toBeGreaterThanOrEqual(18)
+    // Never exceeds the marathon long-run distance ceiling.
+    expect(longestLong).toBeLessThanOrEqual(22)
+  })
+
+  it('stamps exactly one drill day (first easy run) per non-final week', () => {
+    const plan = generatePlanFromMethod(daniels, reported(), TODAY)
+    for (const w of plan.weeks.slice(0, -1)) {
+      const drillDays = w.days.filter(d => d.isDrillDay)
+      // At most one; present whenever the week has any easy run.
+      expect(drillDays.length).toBeLessThanOrEqual(1)
+      if (w.days.some(d => d.type === 'run')) {
+        expect(drillDays.length).toBe(1)
+        expect(drillDays[0].type).toBe('run')
+      }
+    }
+  })
+})
+
 describe('resolveAnchor / resolvePaces', () => {
   it('estimates LTHR for LTHR-anchored methods', () => {
     // Koop is the LTHR-anchored example in the library (Pfitzinger uses
@@ -218,6 +301,69 @@ describe('resolveAnchor / resolvePaces', () => {
       expect(t.hrBpmLow).toBe(Math.round(easyZone.hrRange.minPctLthr * lthr))
       expect(t.hrBpmHigh).toBe(Math.round(easyZone.hrRange.maxPctLthr * lthr))
     }
+  })
+})
+
+describe('goal-pace personalization', () => {
+  const anchored = makeConfig({
+    raceDistance: 'marathon',
+    currentWeeklyMileage: 30,
+    fitnessAnchor: { type: 'race_5k', valueSeconds: 22 * 60 },
+  })
+
+  it('athleteCurrentVdot returns a vdot for a race anchor, null without one', () => {
+    expect(athleteCurrentVdot(anchored)!).toBeGreaterThan(0)
+    expect(athleteCurrentVdot(makeConfig({ fitnessAnchor: undefined }))).toBeNull()
+  })
+
+  it('blendGoalPaces keeps easy current, sharpens threshold current→goal, pins M-pace to goal', () => {
+    const current = resolvePaces(daniels, anchored)
+    const goalVdot = athleteCurrentVdot(anchored)! + 4
+    const goal = resolvePaces(daniels, anchored, { vdotOverride: goalVdot })
+    const early = blendGoalPaces(current, goal, 0)
+    const late = blendGoalPaces(current, goal, 1)
+
+    // Easy pace is current-fitness at every point in the build.
+    expect(early.byZone.easy!.paceSecPerMileHigh).toBe(current.byZone.easy!.paceSecPerMileHigh)
+    expect(late.byZone.easy!.paceSecPerMileHigh).toBe(current.byZone.easy!.paceSecPerMileHigh)
+
+    // Threshold sharpens across the block (smaller sec/mi = faster).
+    const lt = (rp: typeof current) => rp.byZone.lactate_threshold?.paceSecPerMileHigh
+    if (lt(current) != null && lt(goal) != null) {
+      expect(lt(early)).toBe(lt(current))
+      expect(lt(late)).toBe(lt(goal))
+      expect(lt(late)!).toBeLessThanOrEqual(lt(early)!)
+    }
+
+    // Marathon pace is goal effort by definition — goal pace even at week 0.
+    const mp = (rp: typeof current) => rp.byZone.marathon_pace?.paceSecPerMileHigh
+    if (mp(goal) != null) expect(mp(early)).toBe(mp(goal))
+  })
+
+  it('end-to-end: a goal finish time alters quality paces vs no goal', () => {
+    const base = makeConfig({
+      raceDistance: 'marathon',
+      currentWeeklyMileage: 30,
+      fitnessAnchor: { type: 'race_5k', valueSeconds: 22 * 60 },
+      raceDate: '2026-11-22',
+    })
+    const noGoal = generatePlanFromMethod(daniels, base, TODAY)
+    const withGoal = generatePlanFromMethod(daniels, { ...base, goalRaceTimeSeconds: 3 * 3600 + 10 * 60 }, TODAY)
+    // Quality paces sharpen, so the serialized plans differ.
+    expect(JSON.stringify(withGoal.weeks)).not.toBe(JSON.stringify(noGoal.weeks))
+  })
+
+  it('ignores a goal that is not a stretch beyond current fitness', () => {
+    const base = makeConfig({
+      raceDistance: 'marathon',
+      currentWeeklyMileage: 30,
+      fitnessAnchor: { type: 'race_5k', valueSeconds: 20 * 60 },
+      raceDate: '2026-11-22',
+    })
+    const noGoal = generatePlanFromMethod(daniels, base, TODAY)
+    // A very slow goal marathon (5h) is easier than current fitness → no change.
+    const slowGoal = generatePlanFromMethod(daniels, { ...base, goalRaceTimeSeconds: 5 * 3600 }, TODAY)
+    expect(JSON.stringify(slowGoal.weeks)).toBe(JSON.stringify(noGoal.weeks))
   })
 })
 

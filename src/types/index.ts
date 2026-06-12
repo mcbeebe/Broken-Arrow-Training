@@ -103,6 +103,10 @@ export interface PlannedDay {
    *  Optional — hand-authored legacy plans (mike-18k-plan, etc.) don't have
    *  this; UI should fall back to the flat `workout` / `detail` strings. */
   plannedWorkout?: import('../engines/planGenerator/types').PlannedWorkout;
+  /** True on the one day each week chosen to carry the running-drills + Myrtl
+   *  add-on (the first easy run of the week). Stamped by the plan generator so
+   *  the UI doesn't need a hard-coded calendar of drill dates. */
+  isDrillDay?: boolean;
 }
 
 /**

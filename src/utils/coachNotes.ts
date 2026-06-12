@@ -1,5 +1,5 @@
 import type { PlannedDay, ReadinessScore, PerformanceMetrics } from '../types'
-import { getPlannedDrills, getDrillDay } from './drills'
+import { getPlannedDrills } from './drills'
 
 /**
  * Pure heuristic note generators used by the ambient Coach surfaces
@@ -36,7 +36,7 @@ export interface CoachWorkoutTake {
  */
 export function generateDayCardNote(
   day: PlannedDay,
-  weekNum: number | undefined,
+  _weekNum: number | undefined,
   readiness: ReadinessScore | undefined,
   raceWeek: boolean,
 ): CoachDayNote | null {
@@ -48,7 +48,7 @@ export function generateDayCardNote(
   // post-execution reflection via buildCompletedTake.
   if (day.actual) return null
 
-  const drillDay = weekNum !== undefined && getDrillDay(weekNum) === day.day
+  const drillDay = !!day.isDrillDay
   const plannedDrills = getPlannedDrills(day)
 
   // Race-week flagging: be loud about tissue load on limited days
@@ -124,7 +124,7 @@ import { parseZoneRange } from './zones'
  * Focuses on what happened — distance, time, HR, effort — not today's
  * readiness or what the athlete should do next.
  */
-function buildCompletedTake(day: PlannedDay, _weekNum: number): CoachWorkoutTake {
+function buildCompletedTake(day: PlannedDay): CoachWorkoutTake {
   const a = day.actual!
   const { type } = day
   const parts: string[] = []
@@ -213,17 +213,16 @@ function buildCompletedTake(day: PlannedDay, _weekNum: number): CoachWorkoutTake
  */
 export function generateWorkoutTake(
   day: PlannedDay,
-  weekNum: number,
   readiness: ReadinessScore | undefined,
   latestPerf: PerformanceMetrics | null,
 ): CoachWorkoutTake {
   const { type } = day
-  const drillDay = getDrillDay(weekNum) === day.day
+  const drillDay = !!day.isDrillDay
   const hasActual = !!day.actual
 
   // Already logged — reflect on execution, not today's readiness
   if (hasActual) {
-    return buildCompletedTake(day, weekNum)
+    return buildCompletedTake(day)
   }
 
   // Readiness context frames everything

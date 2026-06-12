@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { ActualWorkout, PlannedDay, StrengthExerciseLog, StrengthSet, DrillLog } from '../types'
-import { getPlannedDrills, getDrillDay } from '../utils/drills'
+import { getPlannedDrills } from '../utils/drills'
 
 // Fallback drill menu shown on run days when plan detail doesn't spell out
 // specific drills — matches the routine described in WorkoutModal's drill
@@ -109,7 +109,7 @@ function parsePlannedTime(timeStr: string): number {
   return numMatch ? parseInt(numMatch[1]) : 0
 }
 
-export default function ManualLog({ dayLabel, existing, planned, weekNum, onSave, onClose }: ManualLogProps) {
+export default function ManualLog({ dayLabel, existing, planned, onSave, onClose }: ManualLogProps) {
   const isStrength = existing?.strengthLog?.length
     || existing?.type?.toLowerCase().includes('strength')
     || existing?.name?.toLowerCase().includes('strength')
@@ -148,9 +148,7 @@ export default function ManualLog({ dayLabel, existing, planned, weekNum, onSave
   const isRunDay = planned ? runTypes.has(planned.type) : mode === 'run'
   const isCrossDay = planned?.type === 'cross'
   const plannedDrillsFromDetail = planned ? getPlannedDrills(planned) : []
-  const isScheduledDrillDay = weekNum !== undefined && planned
-    ? getDrillDay(weekNum) === planned.day
-    : false
+  const isScheduledDrillDay = !!planned?.isDrillDay
   const fallbackDrills = isScheduledDrillDay
     ? DEFAULT_DRILL_ITEMS
     : isRunDay

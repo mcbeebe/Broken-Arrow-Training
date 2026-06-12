@@ -5,7 +5,7 @@ import { getWorkoutStyle, adaptBg } from '../utils/styles'
 import { formatMiles, formatSeconds, estimateRunTime } from '../utils/format'
 import { parsePlannedTargets } from '../utils/targets'
 import { gradeWorkoutDay } from '../hooks/useCompliance'
-import { getPlannedDrills, getDrillDay } from '../utils/drills'
+import { getPlannedDrills } from '../utils/drills'
 import { calculateGrade } from '../utils/grading'
 import { classifyRun, getSportMultiplier, calculateElevationBonus } from '../utils/trimp'
 import { SPORT_LABELS } from '../hooks/useMIMCalibration'
@@ -152,7 +152,7 @@ export default function DayCard({ day, weekNum, onTap, onLog, onSwap, onEdit, ha
               const runTypes = new Set(['run', 'long', 'quality', 'race'])
               if (!runTypes.has(day.type)) return null
               const plannedDrills = getPlannedDrills(day)
-              const isScheduledDrillDay = weekNum !== undefined && getDrillDay(weekNum) === day.day
+              const isScheduledDrillDay = !!day.isDrillDay
               if (plannedDrills.length === 0 && !isScheduledDrillDay) return null
               const items = actual?.drills?.items
               const doneCount = items?.filter(i => i.done).length ?? 0
