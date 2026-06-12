@@ -9,12 +9,19 @@ interface AthleteRow {
   managed: boolean
 }
 
+interface AccessRequest {
+  email: string
+  note: string
+  ts: number
+}
+
 function deriveAthleteId(email: string): string {
   return email.split('@')[0].toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 40)
 }
 
 export default function AthleteAdmin() {
   const [rows, setRows] = useState<AthleteRow[]>([])
+  const [requests, setRequests] = useState<AccessRequest[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -24,7 +31,10 @@ export default function AthleteAdmin() {
 
   const base = coachApiBase()
 
-  const call = useCallback(async (action: 'list' | 'add' | 'remove', extra?: Record<string, string>) => {
+  const call = useCallback(async (
+    action: 'list' | 'add' | 'remove' | 'requests_approve' | 'requests_dismiss',
+    extra?: Record<string, string>,
+  ) => {
     const token = getStoredSession()?.token
     if (!base) throw new Error('API URL not configured (VITE_GARMIN_API_URL missing)')
     if (!token) throw new Error('Not signed in')
@@ -35,7 +45,7 @@ export default function AthleteAdmin() {
     })
     const data = await res.json().catch(() => ({}))
     if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`)
-    return data as { athletes: AthleteRow[] }
+    return data as { athletes: AthleteRow[]; requests?: AccessRequest[] }
   }, [base])
 
   const load = useCallback(async () => {
@@ -44,6 +54,7 @@ export default function AthleteAdmin() {
     try {
       const data = await call('list')
       setRows(data.athletes || [])
+      setRequests(data.requests || [])
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load athletes')
     } finally {
@@ -88,10 +99,78 @@ export default function AthleteAdmin() {
     }
   }
 
+  const handleApprove = async (req: AccessRequest) => {
+    setBusy(true)
+    setError(null)
+    try {
+      const data = await call('requests_approve', { email: req.email, athleteId: deriveAthleteId(req.email) })
+      setRows(data.athletes || [])
+      setRequests(data.requests || [])
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to approve request')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const handleDismiss = async (target: string) => {
+    if (!confirm(`Dismiss the access request from ${target}?`)) return
+    setBusy(true)
+    setError(null)
+    try {
+      const data = await call('requests_dismiss', { email: target })
+      setRows(data.athletes || [])
+      setRequests(data.requests || [])
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to dismiss request')
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const canAdd = !busy && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim()) && /^[a-z0-9][a-z0-9-]*$/.test(athleteId.trim())
 
   return (
     <div className="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700 space-y-4">
+      {requests.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-xs font-semibold text-amber-700 dark:text-amber-400">
+            {requests.length} pending access {requests.length === 1 ? 'request' : 'requests'}
+          </p>
+          <ul className="space-y-1.5">
+            {requests.map(req => (
+              <li
+                key={req.email}
+                className="flex items-start justify-between gap-2 text-sm py-2 px-2.5 rounded-lg bg-amber-50 dark:bg-amber-900/15 border border-amber-100 dark:border-amber-900/30"
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-slate-700 dark:text-slate-200">{req.email}</p>
+                  {req.note && (
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 break-words">{req.note}</p>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={() => void handleApprove(req)}
+                    disabled={busy}
+                    className="text-xs font-medium px-2 py-1 rounded-md bg-teal-600 text-white hover:bg-teal-700 disabled:opacity-40"
+                  >
+                    Approve
+                  </button>
+                  <button
+                    onClick={() => void handleDismiss(req.email)}
+                    disabled={busy}
+                    className="text-xs text-slate-500 dark:text-slate-400 hover:underline disabled:opacity-40"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
         Add an athlete by email. They sign in with Google and are recognized instantly — no redeploy.
         Their plan builds itself through onboarding on first login.

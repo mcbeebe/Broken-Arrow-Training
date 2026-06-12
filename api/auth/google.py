@@ -20,6 +20,9 @@ from ._helpers import (
     get_env_email_map,
     get_kv_email_map,
     set_kv_email_map,
+    get_access_requests,
+    add_access_request,
+    remove_access_request,
 )
 
 # Admin allowlist management is served from this same function (routed here
@@ -27,7 +30,7 @@ from ._helpers import (
 # Hobby-plan 12-function limit. Admin ops are dispatched by the "action"
 # field and carry the caller's session token in the body, so they ride the
 # existing POST + Content-Type CORS config — no extra method/header needed.
-ADMIN_ACTIONS = {"list", "add", "remove"}
+ADMIN_ACTIONS = {"list", "add", "remove", "requests_approve", "requests_dismiss"}
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 ATHLETE_ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,39}$")
 
@@ -45,7 +48,15 @@ class handler(BaseHTTPRequestHandler):
             content_length = int(self.headers.get("Content-Length", 0))
             body = json.loads(self.rfile.read(content_length).decode()) if content_length > 0 else {}
 
-            if body.get("action") in ADMIN_ACTIONS:
+            action = body.get("action")
+            # Public, unauthenticated: a would-be athlete asks Mike for access
+            # from the login screen. Dispatched before the admin gate so it
+            # needs no token — it just lands in the review queue.
+            if action == "request_access":
+                self._handle_access_request(body)
+                return
+
+            if action in ADMIN_ACTIONS:
                 self._handle_admin(body)
                 return
 
@@ -106,8 +117,31 @@ class handler(BaseHTTPRequestHandler):
         except Exception as e:
             self._send_json(500, {"error": f"Google auth failed: {str(e)}"})
 
+    def _handle_access_request(self, body: dict):
+        """Public: queue an access request for the admin to review.
+
+        Always answers 200 for a valid email — without revealing whether the
+        email is already on the roster — so this endpoint can't be used to
+        probe membership. Invalid emails get a 400 so the form can correct."""
+        email = str(body.get("email", "")).strip().lower()
+        note = str(body.get("note", ""))
+        if not EMAIL_RE.match(email):
+            self._send_json(400, {"error": "Please enter a valid email address."})
+            return
+        # Already permitted → nothing to queue, but don't disclose that.
+        if email in get_email_to_athlete_map():
+            self._send_json(200, {"ok": True})
+            return
+        try:
+            add_access_request(email, note)
+        except RuntimeError:
+            self._send_json(503, {"error": "Requests are temporarily unavailable — please email Mike directly."})
+            return
+        self._send_json(200, {"ok": True})
+
     def _handle_admin(self, body: dict):
-        """Owner-only athlete allowlist management (list / add / remove)."""
+        """Owner-only allowlist + request-queue management
+        (list / add / remove / requests_approve / requests_dismiss)."""
         if not verify_admin(body.get("token")):
             self._send_json(403, {"error": "Admin access required"})
             return
@@ -147,7 +181,38 @@ class handler(BaseHTTPRequestHandler):
                 self._send_json(503, {"error": "Allowlist storage (KV) is not configured"})
                 return
 
-        self._send_json(200, {"athletes": self._athlete_list()})
+        elif action == "requests_approve":
+            # Approve a pending request: add to the allowlist, then clear it
+            # from the queue. athleteId is supplied by the caller (derived from
+            # the email client-side) and validated here.
+            email = str(body.get("email", "")).strip().lower()
+            athlete_id = str(body.get("athleteId", "")).strip().lower()
+            if not EMAIL_RE.match(email):
+                self._send_json(400, {"error": "A valid email is required"})
+                return
+            if not ATHLETE_ID_RE.match(athlete_id):
+                self._send_json(400, {"error": "athleteId must be lowercase letters, numbers, or hyphens"})
+                return
+            try:
+                # Env-seeded emails can already sign in; only KV needs the add.
+                if email not in get_env_email_map():
+                    kv_map = get_kv_email_map()
+                    kv_map[email] = athlete_id
+                    set_kv_email_map(kv_map)
+                remove_access_request(email)
+            except RuntimeError:
+                self._send_json(503, {"error": "Allowlist storage (KV) is not configured"})
+                return
+
+        elif action == "requests_dismiss":
+            email = str(body.get("email", "")).strip().lower()
+            try:
+                remove_access_request(email)
+            except RuntimeError:
+                self._send_json(503, {"error": "Allowlist storage (KV) is not configured"})
+                return
+
+        self._send_json(200, {"athletes": self._athlete_list(), "requests": get_access_requests()})
 
     def _athlete_list(self) -> list:
         env_map = get_env_email_map()
