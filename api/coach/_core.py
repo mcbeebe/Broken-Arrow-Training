@@ -1634,6 +1634,33 @@ def build_context_block(
     out: list[str] = []
     out.append(f"Today: {day_of_week}{today_date} (week {week_num or '?'}), {period}")
 
+    # General-fitness framing — STRONG anchor near the top. These athletes have
+    # no race; the plan is an open-ended rolling block with periodic deloads.
+    # Without this, the race-flavored system prompt drifts into "you're in Peak
+    # phase" and narrates endurance load metrics ("fatigue debt") that confuse a
+    # build-muscle / lose-fat / stay-healthy user who never asked about them.
+    general_goal_label = snapshot.get("generalGoalLabel")
+    if snapshot.get("generalGoal"):
+        goal_phrase = f"a '{general_goal_label}' goal" if general_goal_label else "a general-fitness goal"
+        out.append("")
+        out.append(
+            f"GENERAL-FITNESS ATHLETE — they are training for {goal_phrase}, "
+            "NOT a race. The plan is an open-ended rolling block with periodic "
+            "deload weeks; there is no taper, no peak, no race day, no countdown. "
+            "HARD RULES for this athlete:\n"
+            "- NEVER use race/periodization language: no 'taper', 'peak phase', "
+            "'build phase', 'race week', 'weeks to race', or 'goal race'. Talk in "
+            "terms of their block and the next deload.\n"
+            "- Do NOT lead with or alarm them about endurance load metrics. "
+            "Fitness / Fatigue / Recovery Balance (CTL/ATL/TSB) are endurance "
+            "constructs; this athlete cares about progressive overload, muscular "
+            "soreness, sleep, and protein. Only cite those load numbers if they "
+            "explicitly ask, and NEVER frame a normal training week as a "
+            "'fatigue debt'.\n"
+            "- Anchor your read to their goal and what's on the plan today, in "
+            "the plain words they'd use."
+        )
+
     # Training philosophy the athlete follows — grounds every plan edit and
     # recommendation. Present when a method is selected/assigned.
     methodology = snapshot.get("methodology") or None
@@ -1936,7 +1963,10 @@ def build_context_block(
     # leave a self-consistent but phantom `perf` in the snapshot with NO
     # activities — surfacing those numbers makes the coach narrate training
     # that never happened. Gate on activities so we never present orphaned load.
-    if perf and activities:
+    # Also skip entirely for general-fitness athletes: CTL/ATL/TSB are
+    # endurance constructs that confuse a build-muscle / lose-fat user (this is
+    # the "fatigue debt I have no idea where it came from" leak).
+    if perf and activities and not snapshot.get("generalGoal"):
         out.append(
             f"Load: Fitness {_fmt_num(perf.get('ctl'))} · "
             f"Fatigue {_fmt_num(perf.get('atl'))} · "
@@ -2351,7 +2381,9 @@ def build_context_block(
                 f"hr {_fmt_num((comp.get('hrPct') or 0) * 100, 0)}% · "
                 f"flagged {comp.get('flagged', 0)}"
             )
-        if trend:
+        if trend and not snapshot.get("generalGoal"):
+            # Endurance load trend — skipped for general-fitness athletes (see
+            # the Load-line gate above; same CTL/ATL/TSB confusion).
             out.append(
                 f"  Trend: Fitness {_fmt_num(trend.get('ctl'))} "
                 f"(Δ7d {_fmt_num(trend.get('ctlDelta7d'))}) · "

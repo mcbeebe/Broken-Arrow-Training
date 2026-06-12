@@ -824,6 +824,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
       raceElevationFt: parseInt((activePlan.race.elevation || '0').replace(/[^0-9]/g, ''), 10) || 0,
       currentWeekNum,
       weeks,
+      generalGoal: activePlan.generalGoal,
       plannedToday: todayPlannedWorkout,
       plannedTomorrow: tomorrowPlannedWorkout,
       readiness: effReadiness,
