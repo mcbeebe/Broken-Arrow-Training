@@ -143,7 +143,7 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
           <div className="text-center space-y-1">
             <p className="text-sm font-medium text-teal-700 dark:text-teal-400">Request sent ✓</p>
             <p className="text-xs text-slate-400">
-              Thanks — Mike will review and add you. You'll be able to sign in once you're approved.
+              Thanks — Mike will review your request. We'll email you the moment you're approved, then you can sign in.
             </p>
           </div>
         ) : showRequest ? (

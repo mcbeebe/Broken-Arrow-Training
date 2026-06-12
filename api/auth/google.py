@@ -23,6 +23,8 @@ from ._helpers import (
     get_access_requests,
     add_access_request,
     remove_access_request,
+    notify_admin_of_request,
+    notify_user_approved,
 )
 
 # Admin allowlist management is served from this same function (routed here
@@ -137,6 +139,12 @@ class handler(BaseHTTPRequestHandler):
         except RuntimeError:
             self._send_json(503, {"error": "Requests are temporarily unavailable — please email Mike directly."})
             return
+        # Best-effort: alert the admin. The request is already safely queued, so
+        # an email failure must not turn into an error for the requester.
+        try:
+            notify_admin_of_request(email, note)
+        except Exception:
+            pass
         self._send_json(200, {"ok": True})
 
     def _handle_admin(self, body: dict):
@@ -203,6 +211,12 @@ class handler(BaseHTTPRequestHandler):
             except RuntimeError:
                 self._send_json(503, {"error": "Allowlist storage (KV) is not configured"})
                 return
+            # Best-effort: tell the athlete they're in. Already approved, so an
+            # email failure must not fail the request.
+            try:
+                notify_user_approved(email)
+            except Exception:
+                pass
 
         elif action == "requests_dismiss":
             email = str(body.get("email", "")).strip().lower()
