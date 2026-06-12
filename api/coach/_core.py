@@ -1663,6 +1663,23 @@ def build_context_block(
             "never be alarmist or diagnose."
         )
 
+    # Menopause context (midlife tailoring). Self-disclosed in onboarding;
+    # personalize training without medicalizing it. The evidence-led reframe is
+    # progressive strength + bone-loading, keep intervals, fuel with protein,
+    # and individualize recovery around sleep/symptoms — see
+    # docs/MENOPAUSE_TRAINING_CONTEXT_DESIGN.md.
+    menopause_context = snapshot.get("menopauseContext")
+    if menopause_context and str(menopause_context).strip():
+        out.append("")
+        out.append(
+            f"MENOPAUSE NOTE: the athlete is {str(menopause_context).strip()}. "
+            "Tailor training for midlife: favor progressive strength and bone-loading, "
+            "keep high-intensity intervals (they help — do NOT cut them for cortisol), "
+            "support protein intake, and individualize recovery around sleep and symptoms. "
+            "Acknowledge it supportively in plain language; never medicalize, diagnose, or "
+            "give HRT advice — defer clinical questions to their clinician."
+        )
+
     # Training-block framing — current phase, weeks to race, and the phase
     # arc. Lets a debrief/orientation situate a workout in the macro plan.
     plan_blocks = snapshot.get("planBlocks") or None

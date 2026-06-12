@@ -9,6 +9,7 @@ import type {
   OnboardingConfig,
   FitnessAnchorType,
   InjuryStatus,
+  MenopauseStatus,
   StrengthExperience,
   EquipmentAccess,
   CrossTrainingMode,
@@ -59,6 +60,10 @@ const STEP_REVIEW = 13
 // navigation/progress is index-based (visibleSteps.indexOf), not value-based.
 const STEP_GENERAL_GOAL = 14
 const STEP_GENERAL_CARDIO = 15
+// Menopause context step — age-gated (>=45). Kept out of the 0-13 range like the
+// general-fitness steps; order comes from ALL_STEPS. Placed after PROFILE (where
+// age is entered) so the age gate has a value to read.
+const STEP_MENOPAUSE = 16
 
 const ALL_STEPS = [
   STEP_RACE_TYPE,
@@ -76,6 +81,7 @@ const ALL_STEPS = [
   STEP_SCHEDULE,
   STEP_WEARABLE,
   STEP_PROFILE,
+  STEP_MENOPAUSE,
   STEP_REVIEW,
 ] as const
 
@@ -160,6 +166,22 @@ const TIME_OF_DAY_OPTIONS: { value: TrainingTimeOfDay; label: string; desc: stri
   { value: 'evening', label: 'Evening', desc: 'After 5pm' },
 ]
 
+const MENOPAUSE_STATUS_OPTIONS: { value: MenopauseStatus; label: string; desc: string }[] = [
+  { value: 'perimenopause', label: 'Perimenopause', desc: 'Cycles changing or irregular; symptoms may be starting.' },
+  { value: 'menopause', label: 'Menopause', desc: 'Around the 12-month mark since your last period.' },
+  { value: 'postmenopause', label: 'Postmenopause', desc: 'Past the menopause transition.' },
+  { value: 'not_applicable', label: 'Not applicable', desc: "This doesn't apply to me." },
+  { value: 'prefer_not_to_say', label: 'Prefer not to say', desc: 'Skip this — no problem.' },
+]
+
+const MENOPAUSE_SYMPTOM_OPTIONS: { value: string; label: string }[] = [
+  { value: 'hot_flashes', label: 'Hot flashes' },
+  { value: 'sleep_disruption', label: 'Sleep disruption' },
+  { value: 'joint_pain', label: 'Joint pain' },
+  { value: 'low_energy', label: 'Low energy' },
+  { value: 'brain_fog', label: 'Brain fog' },
+]
+
 export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 1800 }: Props) {
   const [step, setStep] = useState(0)
   const [isGenerating, setIsGenerating] = useState(false)
@@ -201,6 +223,9 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
   const [crossDays, setCrossDays] = useState<number | null>(null)
   const [trainingTimes, setTrainingTimes] = useState<TrainingTimeOfDay[]>([])
   const [scheduleNote, setScheduleNote] = useState('')
+  const [menopause, setMenopause] = useState<MenopauseStatus | null>(null)
+  const [menopauseSymptoms, setMenopauseSymptoms] = useState<string[]>([])
+  const [menopauseNote, setMenopauseNote] = useState('')
 
   // Ref on the inner scrollable content area. Without resetting its
   // scrollTop on step change, a previous step that overflowed (e.g. the
@@ -214,10 +239,15 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
   // image — shown only for general fitness.
   const showsDistanceStep = raceType === 'trail'
   const showsGoalStep = raceType === 'general'
+  // Menopause step is age-gated: shown only to athletes 45+ (age is entered on
+  // the prior PROFILE step). 'not_applicable' / 'prefer not to say' let anyone
+  // who sees it opt out, and the whole step is skippable.
+  const showsMenopauseStep = (parseInt(age) || 0) >= 45
   const visibleSteps: readonly number[] = ALL_STEPS.filter(s => {
     if (s === STEP_RACE_DISTANCE) return showsDistanceStep
     if (s === STEP_GENERAL_GOAL) return showsGoalStep
     if (s === STEP_GENERAL_CARDIO) return showsGoalStep
+    if (s === STEP_MENOPAUSE) return showsMenopauseStep
     return true
   })
   const visibleIdx = visibleSteps.indexOf(step)
@@ -267,6 +297,9 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
   const toggleTrainingTime = (t: TrainingTimeOfDay) => {
     setTrainingTimes(prev => prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t])
   }
+  const toggleMenopauseSymptom = (s: string) => {
+    setMenopauseSymptoms(prev => prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s])
+  }
 
   const canContinue = (() => {
     switch (step) {
@@ -294,6 +327,7 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
       case STEP_SCHEDULE: return trainingTimes.length > 0 // schedule note is optional
       case STEP_WEARABLE: return !!wearable
       case STEP_PROFILE: return name.trim().length > 0 && age.trim().length > 0
+      case STEP_MENOPAUSE: return true // fully optional — can advance with no selection
       case STEP_REVIEW: return true
       default: return false
     }
@@ -345,6 +379,15 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
       crossTrainingDaysPerWeek: crossDays ?? undefined,
       preferredTrainingTimes: trainingTimes.length > 0 ? trainingTimes : undefined,
       scheduleConstraintsNote: scheduleNote.trim() || undefined,
+      menopauseStatus: showsMenopauseStep ? (menopause ?? undefined) : undefined,
+      menopauseSymptoms:
+        showsMenopauseStep && isRealMenopauseStage(menopause) && menopauseSymptoms.length > 0
+          ? menopauseSymptoms
+          : undefined,
+      menopauseNote:
+        showsMenopauseStep && isRealMenopauseStage(menopause) && menopauseNote.trim()
+          ? menopauseNote.trim()
+          : undefined,
       completedAt: '',
     }
 
@@ -895,6 +938,60 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
             </div>
           </StepContainer>
         )}
+
+        {step === STEP_MENOPAUSE && (
+          <StepContainer
+            title="A quick personal note"
+            subtitle="If menopause is part of your life right now, your coach can tailor your training for it. Totally optional — skip if it doesn't apply."
+          >
+            <div className="space-y-2">
+              {MENOPAUSE_STATUS_OPTIONS.map(opt => (
+                <OptionCard
+                  key={opt.value}
+                  selected={menopause === opt.value}
+                  onClick={() => setMenopause(opt.value)}
+                  title={opt.label}
+                  desc={opt.desc}
+                />
+              ))}
+            </div>
+
+            {(menopause === 'perimenopause' || menopause === 'menopause' || menopause === 'postmenopause') && (
+              <div className="mt-3 space-y-3 rounded-xl border border-teal-200 bg-teal-50 p-3">
+                <p className="text-xs text-teal-800">
+                  A few details help your coach be specific. All optional.
+                </p>
+                <div>
+                  <p className="text-xs font-medium text-slate-600 mb-1.5">Noticing any of these?</p>
+                  <div className="space-y-2">
+                    {MENOPAUSE_SYMPTOM_OPTIONS.map(opt => (
+                      <OptionCard
+                        key={opt.value}
+                        selected={menopauseSymptoms.includes(opt.value)}
+                        onClick={() => toggleMenopauseSymptom(opt.value)}
+                        title={opt.label}
+                        multi
+                      />
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Anything else we should know?</label>
+                  <textarea
+                    value={menopauseNote}
+                    onChange={e => setMenopauseNote(e.target.value)}
+                    placeholder="e.g. sleep's been rough, joints feel stiff in the mornings"
+                    rows={2}
+                    className="w-full px-3 py-2.5 text-base border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400 resize-none"
+                  />
+                </div>
+                <p className="text-[11px] text-slate-500">
+                  This tailors your training and coaching — it isn't medical advice. Check with your clinician for anything clinical.
+                </p>
+              </div>
+            )}
+          </StepContainer>
+        )}
       </div>
 
       {/* Continue button */}
@@ -999,6 +1096,12 @@ function defaultDetailLevel(exp: ExperienceLevel | null): DetailLevel {
   if (exp === 'first_timer' || exp === 'beginner') return 'simple'
   if (exp === 'advanced' || exp === 'elite') return 'detailed'
   return 'balanced'
+}
+
+// A "real" menopause stage carries coach personalization; the non-answers
+// ('not_applicable' / 'prefer_not_to_say') and null do not.
+function isRealMenopauseStage(s: MenopauseStatus | null): boolean {
+  return s === 'perimenopause' || s === 'menopause' || s === 'postmenopause'
 }
 
 const INJURY_LABELS: Record<InjuryStatus, string> = {

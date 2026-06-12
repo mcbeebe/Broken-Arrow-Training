@@ -959,4 +959,80 @@ describe('Onboarding', () => {
       expect(onSkip).toHaveBeenCalledTimes(1)
     })
   })
+
+  describe('menopause context (age-gated)', () => {
+    // Walk the trail flow to the PROFILE step and fill name + the given age,
+    // leaving the user on PROFILE ready to Continue. Returns the onComplete spy.
+    function walkToProfile(age: string) {
+      const onComplete = vi.fn()
+      render(<Onboarding onComplete={onComplete} loadingDurationMs={0} />)
+      fireEvent.click(screen.getByText('Trail / Road Race')); clickContinue()
+      fireEvent.change(screen.getByPlaceholderText(/Broken Arrow|Hyrox|Summer Fitness/i), { target: { value: 'Race' } }); fillRaceContext(); clickContinue()
+      fireEvent.click(screen.getByText(/^Marathon$/)); clickContinue()
+      fireEvent.click(screen.getByText('Intermediate')); clickContinue()
+      clickContinue() // detail level (pre-selected)
+      fireEvent.click(screen.getByText('5 Days')); clickContinue()
+      fireEvent.click(screen.getByText('Saturday')); clickContinue()
+      fireEvent.click(screen.getByText('No injuries')); clickContinue()
+      fireEvent.click(screen.getByText('Track')); clickContinue()
+      fireEvent.click(screen.getByRole('button', { name: 'Strength None' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Cross-training None' }))
+      clickContinue()
+      fireEvent.click(screen.getByText('Early morning')); clickContinue()
+      fireEvent.click(screen.getByText('Garmin Watch')); clickContinue()
+      fireEvent.change(screen.getByPlaceholderText('e.g. Jenn'), { target: { value: 'Jenn' } })
+      fireEvent.change(screen.getByPlaceholderText('e.g. 41'), { target: { value: age } })
+      return onComplete
+    }
+
+    it('hides the menopause step for athletes under 45', () => {
+      walkToProfile('40')
+      clickContinue() // PROFILE → (menopause hidden) → REVIEW
+      expect(screen.queryByText(/a quick personal note/i)).not.toBeInTheDocument()
+      expect(screen.getByText(/review your plan setup/i)).toBeInTheDocument()
+    })
+
+    it('shows the menopause step for athletes 45+ and captures stage + symptoms', () => {
+      const onComplete = walkToProfile('52')
+      clickContinue() // PROFILE → MENOPAUSE
+      expect(screen.getByText(/a quick personal note/i)).toBeInTheDocument()
+      fireEvent.click(screen.getByText('Perimenopause'))
+      fireEvent.click(screen.getByText('Hot flashes')) // follow-up appears for a real stage
+      clickContinue() // MENOPAUSE → REVIEW
+      clickFinish()
+      expect(onComplete).toHaveBeenCalledTimes(1)
+      const cfg = onComplete.mock.calls[0][0] as OnboardingConfig
+      expect(cfg.menopauseStatus).toBe('perimenopause')
+      expect(cfg.menopauseSymptoms).toEqual(['hot_flashes'])
+    })
+
+    it('is skippable — advancing with no selection records no context', () => {
+      const onComplete = walkToProfile('50')
+      clickContinue() // PROFILE → MENOPAUSE
+      expect(getContinueButton()?.disabled).toBe(false) // optional, never gated
+      clickContinue() // MENOPAUSE → REVIEW with no selection
+      clickFinish()
+      const cfg = onComplete.mock.calls[0][0] as OnboardingConfig
+      expect(cfg.menopauseStatus).toBeUndefined()
+    })
+
+    it('records "prefer not to say" with no symptom follow-ups', () => {
+      const onComplete = walkToProfile('50')
+      clickContinue()
+      fireEvent.click(screen.getByText('Prefer not to say'))
+      expect(screen.queryByText(/Noticing any of these/i)).not.toBeInTheDocument()
+      clickContinue()
+      clickFinish()
+      const cfg = onComplete.mock.calls[0][0] as OnboardingConfig
+      expect(cfg.menopauseStatus).toBe('prefer_not_to_say')
+      expect(cfg.menopauseSymptoms).toBeUndefined()
+    })
+
+    it('omits menopause fields for the default under-45 happy path', () => {
+      const cfg = walkHappyPath() // age 41
+      expect(cfg.menopauseStatus).toBeUndefined()
+      expect(cfg.menopauseSymptoms).toBeUndefined()
+      expect(cfg.menopauseNote).toBeUndefined()
+    })
+  })
 })
