@@ -79,6 +79,42 @@ function addDays(dateStr: string, days: number): string {
   return d.toISOString().slice(0, 10)
 }
 
+/**
+ * The Monday on or before a given date. Weeks are anchored to Monday so the
+ * schedule's `dayOfWeek` (1..7 = Mon..Sun) maps onto real weekdays — without
+ * this, anchoring directly to the race date (often a Sat/Sun) shifted every
+ * day by the race weekday, landing e.g. a Saturday long run on Friday.
+ */
+function mondayOnOrBefore(dateStr: string): string {
+  const d = new Date(dateStr + 'T12:00:00')
+  const jsDow = d.getDay()          // 0=Sun … 6=Sat
+  const sinceMonday = (jsDow + 6) % 7 // 0=Mon … 6=Sun
+  return addDays(dateStr, -sinceMonday)
+}
+
+/** Map the onboarding `longRunDay` label onto a schedule dayOfWeek (1=Mon…7=Sun). */
+const LONG_RUN_DOW: Record<string, number> = {
+  monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6, sunday: 7,
+}
+
+/**
+ * Move the week's long run onto the athlete's preferred weekday by swapping
+ * the `dayOfWeek` of the `long` day with whatever currently occupies the
+ * desired weekday. Hard/easy spacing within the rest of the week is preserved
+ * (only the two affected slots trade places). Returns a new array — never
+ * mutates the method's shared schedule objects.
+ */
+function remapLongRunDay(schedule: DaySchedule[], desiredDow: number): DaySchedule[] {
+  const longDay = schedule.find(d => d.category === 'long')
+  if (!longDay || longDay.dayOfWeek === desiredDow) return schedule
+  const longDow = longDay.dayOfWeek
+  return schedule.map(d => {
+    if (d.category === 'long') return { ...d, dayOfWeek: desiredDow }
+    if (d.dayOfWeek === desiredDow) return { ...d, dayOfWeek: longDow }
+    return d
+  })
+}
+
 function formatDayLabel(dateStr: string): string {
   const d = new Date(dateStr + 'T12:00:00')
   const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -400,8 +436,18 @@ export function generatePlanFromMethod(
   const blocks = allocatePhaseWeeks(method, totalWeeks)
   const currentWeeklyMileage = estimateCurrentWeeklyMileage(config)
   const policy = injuryPolicyFor(config.injuryStatus)
-  const mileage = buildWeeklyMileage(method, totalWeeks, blocks, currentWeeklyMileage, policy.mileageAdjust)
+  const mileage = buildWeeklyMileage(method, totalWeeks, blocks, currentWeeklyMileage, policy.mileageAdjust, {
+    raceDistance: config.raceDistance,
+    // Slow end of the easy zone (sec/mile) — used to translate the long-run
+    // time cap into a distance for this athlete.
+    easyPaceSecPerMile: paces.byZone.easy?.paceSecPerMileLow,
+  })
   const methodExp = mapToMethodExperience(config.experienceLevel)
+
+  // Preferred long-run weekday (1=Mon…7=Sun), when the athlete chose one.
+  const longRunDow = config.longRunDay
+    ? LONG_RUN_DOW[config.longRunDay.trim().toLowerCase()]
+    : undefined
 
   // Total training-day budget (running + strength + cross), capped by the
   // injury policy so 'returning' doesn't get a 7-day-a-week schedule no
@@ -442,12 +488,16 @@ export function generatePlanFromMethod(
   const extrasCap = Math.min(extrasRequested, extrasInWeekCap)
 
   const raceDateAnchor = config.raceDate || addDays(today, totalWeeks * 7)
+  // Anchor every week to the Monday of race week, then count back. This puts
+  // the race on its true weekday in the final week and makes dayOfWeek 1..7
+  // line up with Mon..Sun in every prior week (fixing the off-by-one that
+  // pushed long runs a day early).
+  const raceMonday = mondayOnOrBefore(raceDateAnchor)
   const weeks: TrainingWeek[] = []
 
   for (let w = 0; w < totalWeeks; w++) {
     const weekMi = mileage[w]
-    const weeksOut = totalWeeks - w
-    const weekStart = addDays(raceDateAnchor, -weeksOut * 7)
+    const weekStart = addDays(raceMonday, -(totalWeeks - 1 - w) * 7)
 
     const isFinalWeek = w === totalWeeks - 1
     // Race week uses the method's raceWeekSchedule directly
@@ -463,16 +513,22 @@ export function generatePlanFromMethod(
       ? schedule.map(d => FORCE_EASY_CATEGORIES.has(d.category) ? { ...d, category: 'easy' as WorkoutCategory } : d)
       : schedule
 
+    // Honor the athlete's preferred long-run weekday on normal weeks. Race
+    // week is hand-authored (taper.raceWeekSchedule) and left untouched.
+    const weekSchedule = (!isFinalWeek && longRunDow != null)
+      ? remapLongRunDay(adjustedSchedule, longRunDow)
+      : adjustedSchedule
+
     const days: PlannedDay[] = []
-    for (const daySched of adjustedSchedule) {
+    for (const daySched of weekSchedule) {
       const dayOffset = (daySched.dayOfWeek - 1)  // dayOfWeek 1..7 → Mon..Sun
       const date = addDays(weekStart, dayOffset)
       const picked = pickWorkoutForDay(method, daySched, methodExp, weekMi.totalMi)
       if (!picked) {
-        days.push(buildPlannedDay(date, daySched, paces, weekMi, null, null, undefined, adjustedSchedule, config.equipmentAccess))
+        days.push(buildPlannedDay(date, daySched, paces, weekMi, null, null, undefined, weekSchedule, config.equipmentAccess))
       } else {
         const pw = buildPlannedWorkout(method, picked.workout, paces, picked.reason)
-        days.push(buildPlannedDay(date, daySched, paces, weekMi, picked.workout, pw, picked.reason, adjustedSchedule, config.equipmentAccess))
+        days.push(buildPlannedDay(date, daySched, paces, weekMi, picked.workout, pw, picked.reason, weekSchedule, config.equipmentAccess))
       }
     }
     // Sort by dayOfWeek (Mon..Sun) — schedule is already in order but be defensive
@@ -499,6 +555,11 @@ export function generatePlanFromMethod(
           },
           { maxExtras: extrasCap },
         )
+    // Stamp the week's drill day (first easy run) so the UI can surface the
+    // running-drills + Myrtl tip on the right day without a hard-coded date map.
+    const drillIdx = withExtras.findIndex(d => d.type === 'run')
+    if (drillIdx >= 0) withExtras[drillIdx] = { ...withExtras[drillIdx], isDrillDay: true }
+
     weeks.push({
       num: w + 1,
       dates: `${formatDayLabel(weekStart)} – ${formatDayLabel(addDays(weekStart, 6))}`,

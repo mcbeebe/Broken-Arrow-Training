@@ -14,7 +14,7 @@ import { formatMiles, formatSeconds, formatPace, estimateRunTime } from '../util
 import { parseRoutine, calibrateGuideWeight, type ParsedExercise } from '../utils/exercises'
 import type { StrengthExperience } from '../hooks/useOnboarding'
 import { buildProgression, normalizeExerciseName, suggestNextTarget, type ExerciseProgression } from '../utils/strengthProgression'
-import { parseIntervalWorkout, getDrillDay, RUNNING_DRILLS, MYRTL_ROUTINE, PRE_RUN_ACTIVATION, type RunSegment, type DrillGuide } from '../utils/drills'
+import { parseIntervalWorkout, RUNNING_DRILLS, MYRTL_ROUTINE, PRE_RUN_ACTIVATION, type RunSegment, type DrillGuide } from '../utils/drills'
 import { fetchActivityStreams, getTokens, isTokenExpired, refreshAccessToken, type StreamData } from '../utils/strava'
 import { fetchGarminActivityStream } from '../utils/garmin'
 import { classifyRun, getSportMultiplier, describeMIMEngine, mapToSportType } from '../utils/trimp'
@@ -227,7 +227,10 @@ export default function WorkoutModal({ day, weekNum, onClose, onLog, onSaveNote,
       : weeks
     return buildProgression(filteredWeeks)
   }, [weeks, day.actual?.startDate])
-  const isDrillDay = getDrillDay(weekNum) === day.day
+  const isDrillDay = !!day.isDrillDay
+  // Label of this week's drill day (first easy run), for the "drills are
+  // scheduled for your <day> run" nudge shown on other run days.
+  const drillDayLabel = weeks?.[weekNum - 1]?.days.find(d => d.isDrillDay)?.day ?? ''
   const [stream, setStream] = useState<StreamData | null>(null)
   const [streamLoading, setStreamLoading] = useState(false)
 
@@ -1072,11 +1075,11 @@ export default function WorkoutModal({ day, weekNum, onClose, onLog, onSaveNote,
           )}
 
           {/* Myrtl recommendation for non-drill run days */}
-          {isRunType && !isDrillDay && (
+          {isRunType && !isDrillDay && drillDayLabel && (
             <div className="bg-blue-50 rounded-xl p-3 border border-blue-200">
               <p className="text-sm font-semibold text-blue-800">💡 Drills & Myrtl Tip</p>
               <p className="text-sm text-blue-700 mt-1">
-                Running drills and the Myrtl hip routine are scheduled for your {getDrillDay(weekNum)} run this week.
+                Running drills and the Myrtl hip routine are scheduled for your {drillDayLabel} run this week.
                 If you want extra hip work today, do the Myrtl routine post-run (10 min).
               </p>
             </div>

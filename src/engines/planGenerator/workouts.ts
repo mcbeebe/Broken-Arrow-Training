@@ -33,9 +33,38 @@ function expRank(level: MethodExperienceLevel): number {
 }
 
 /**
+ * Pick the phase whose patterns we should borrow when the requested phase
+ * declares none. Chooses the nearest phase (by `order`) that actually has
+ * weekly patterns; ties prefer the LATER phase (more race-specific). Returns
+ * null only when the method has no patterns at all.
+ */
+function nearestPhaseWithPatterns(method: TrainingMethod, phaseId: string): string | null {
+  const phasesWithPatterns = method.phases
+    .filter(ph => method.weeklyPatterns.some(p => p.phaseId === ph.id))
+    .sort((a, b) => a.order - b.order)
+  if (phasesWithPatterns.length === 0) return null
+
+  const targetOrder = method.phases.find(p => p.id === phaseId)?.order
+  if (targetOrder == null) return phasesWithPatterns[0].id
+
+  return phasesWithPatterns.reduce((best, ph) => {
+    const d = Math.abs(ph.order - targetOrder)
+    const bd = Math.abs(best.order - targetOrder)
+    // Closer wins; on a tie, prefer the later (higher-order) phase.
+    if (d < bd || (d === bd && ph.order > best.order)) return ph
+    return best
+  }, phasesWithPatterns[0]).id
+}
+
+/**
  * Find the weekly pattern in `method.weeklyPatterns` whose `phaseId` matches
  * the current week's phase and whose `daysPerWeek` is closest to the user's
  * preference. For cutback weeks, prefer a pattern with `weekType: 'recovery'`.
+ *
+ * When the requested phase has no patterns of its own (common — many method
+ * JSONs only author patterns for a subset of phases, leaving e.g. taper/peak
+ * to inherit), we borrow the nearest phase's patterns rather than returning
+ * null, which previously produced blank weeks with zero scheduled days.
  */
 export function pickWeeklyPattern(
   method: TrainingMethod,
@@ -43,7 +72,12 @@ export function pickWeeklyPattern(
   preferredDaysPerWeek: number,
   isCutback: boolean,
 ): WeeklyPattern | null {
-  const inPhase = method.weeklyPatterns.filter(p => p.phaseId === phaseId)
+  let inPhase = method.weeklyPatterns.filter(p => p.phaseId === phaseId)
+  if (inPhase.length === 0) {
+    const fallbackPhaseId = nearestPhaseWithPatterns(method, phaseId)
+    if (fallbackPhaseId == null) return null
+    inPhase = method.weeklyPatterns.filter(p => p.phaseId === fallbackPhaseId)
+  }
   if (inPhase.length === 0) return null
 
   const candidates = isCutback
