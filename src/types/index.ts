@@ -103,6 +103,10 @@ export interface PlannedDay {
    *  Optional — hand-authored legacy plans (mike-18k-plan, etc.) don't have
    *  this; UI should fall back to the flat `workout` / `detail` strings. */
   plannedWorkout?: import('../engines/planGenerator/types').PlannedWorkout;
+  /** True on the one day each week chosen to carry the running-drills + Myrtl
+   *  add-on (the first easy run of the week). Stamped by the plan generator so
+   *  the UI doesn't need a hard-coded calendar of drill dates. */
+  isDrillDay?: boolean;
 }
 
 /**
@@ -1047,7 +1051,7 @@ export interface CoachWeatherBlock {
 }
 
 export interface CoachSnapshot {
-  today: { date: string; period?: 'morning' | 'afternoon' | 'evening' }
+  today: { date: string; period?: 'morning' | 'evening' }
   currentWeekNum?: number
   readiness?: ReadinessScore | null
   performance?: PerformanceMetrics | null
@@ -1139,6 +1143,12 @@ export interface CoachSnapshot {
   } | null
   athleteProfile?: AthleteProfile
   race?: RaceInfo
+  /** When the plan is a General-Fitness goal (not a race), the chosen goal id
+   *  and human label. Their presence tells the coach to drop race/taper/peak
+   *  framing and endurance load-metric language for these athletes, and to
+   *  speak to the goal (build muscle / lose fat / etc.) instead. */
+  generalGoal?: string
+  generalGoalLabel?: string
   /** Athlete's HR zone definitions from the plan — rendered dynamically
    *  in the Coach system prompt so each athlete gets their own zones. */
   zones?: HRZone[]

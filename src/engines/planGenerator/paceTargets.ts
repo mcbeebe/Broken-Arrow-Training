@@ -190,7 +190,11 @@ function paceBoundsFromEasyPace(
  * something for every declared pace zone — even when only descriptive RPE
  * targets are computable.
  */
-export function resolvePaces(method: TrainingMethod, config: OnboardingConfig): ResolvedPaces {
+export function resolvePaces(
+  method: TrainingMethod,
+  config: OnboardingConfig,
+  opts: { vdotOverride?: number } = {},
+): ResolvedPaces {
   const anchor = resolveAnchor(method, config)
   const lthrBpm = lthrForHrMath(anchor, config)
   const fa = config.fitnessAnchor
@@ -198,10 +202,13 @@ export function resolvePaces(method: TrainingMethod, config: OnboardingConfig): 
   // Concrete VDOT for pace math, if we can get one. Anchors that already
   // resolved to a VDOT value (race-time methods) live in anchor.value;
   // for HR/AeT-anchored methods, we still try VDOT from the user's race
-  // time so pace numbers can land on the JSON's pace zones.
-  const vdot = (anchor.type === 'lthr_bpm' || anchor.type === 'aet_bpm')
-    ? computeVdotIfPossible(fa)
-    : (anchor.value ?? null)
+  // time so pace numbers can land on the JSON's pace zones. A caller can
+  // force a specific VDOT (e.g. the athlete's GOAL fitness) via vdotOverride.
+  const vdot = opts.vdotOverride != null
+    ? opts.vdotOverride
+    : (anchor.type === 'lthr_bpm' || anchor.type === 'aet_bpm')
+      ? computeVdotIfPossible(fa)
+      : (anchor.value ?? null)
 
   const easyPaceSecPerMile =
     fa?.type === 'easy_pace' && fa.valueSeconds ? fa.valueSeconds : null
@@ -241,6 +248,70 @@ export function resolvePaces(method: TrainingMethod, config: OnboardingConfig): 
   }
 
   return { byZone, anchor }
+}
+
+/**
+ * The athlete's CURRENT VDOT, derived from a recent-race fitness anchor.
+ * Returns null when no race anchor exists (so callers can decide whether
+ * goal-pace progression is even possible).
+ */
+export function athleteCurrentVdot(config: OnboardingConfig): number | null {
+  return computeVdotIfPossible(config.fitnessAnchor)
+}
+
+// Zones whose target IS goal-effort by definition — always shown at goal pace.
+const GOAL_DIRECT_ZONES: ReadonlySet<CanonicalPaceZone> = new Set<CanonicalPaceZone>([
+  'marathon_pace', 'race_pace',
+])
+// Quality zones that should sharpen from current → goal fitness across the
+// block. Easy / recovery / aerobic-threshold stay anchored to current fitness
+// (you recover at the ability you have today, not the one you're chasing).
+const GOAL_BLEND_ZONES: ReadonlySet<CanonicalPaceZone> = new Set<CanonicalPaceZone>([
+  'lactate_threshold', 'critical_velocity', 'vo2max', 'speed',
+])
+
+function mergePaceToward(cur: PaceTarget, goal: PaceTarget, p: number): PaceTarget {
+  if (
+    cur.paceSecPerMileLow == null || cur.paceSecPerMileHigh == null ||
+    goal.paceSecPerMileLow == null || goal.paceSecPerMileHigh == null
+  ) {
+    return cur
+  }
+  const lerp = (a: number, b: number) => Math.round(a + (b - a) * p)
+  return {
+    ...cur,
+    paceSecPerMileLow: lerp(cur.paceSecPerMileLow, goal.paceSecPerMileLow),
+    paceSecPerMileHigh: lerp(cur.paceSecPerMileHigh, goal.paceSecPerMileHigh),
+  }
+}
+
+/**
+ * Blend a week's pace targets from current fitness toward goal fitness.
+ * `progress` ∈ [0,1] is how far into the build this week sits:
+ *   - marathon/race pace → goal pace throughout (that's what they're for)
+ *   - threshold / VO2 / rep → lerp current → goal by `progress`
+ *   - everything else (easy, recovery, aerobic) → unchanged (current fitness)
+ * Only the concrete pace bounds move; HR/RPE stay current-fitness based.
+ */
+export function blendGoalPaces(
+  current: ResolvedPaces,
+  goal: ResolvedPaces,
+  progress: number,
+): ResolvedPaces {
+  const p = Math.max(0, Math.min(1, progress))
+  const byZone: Partial<Record<CanonicalPaceZone, PaceTarget>> = {}
+  for (const key of Object.keys(current.byZone) as CanonicalPaceZone[]) {
+    const cur = current.byZone[key]!
+    const gl = goal.byZone[key]
+    if (gl && GOAL_DIRECT_ZONES.has(key)) {
+      byZone[key] = mergePaceToward(cur, gl, 1)
+    } else if (gl && GOAL_BLEND_ZONES.has(key)) {
+      byZone[key] = mergePaceToward(cur, gl, p)
+    } else {
+      byZone[key] = cur
+    }
+  }
+  return { byZone, anchor: current.anchor }
 }
 
 function formatPaceSec(secPerMile: number): string {

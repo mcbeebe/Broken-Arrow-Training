@@ -107,6 +107,15 @@ const ANCHOR_OPTIONS: { value: FitnessAnchorType; label: string; placeholder: st
   { value: 'none', label: "I don't know yet", placeholder: '', kind: 'none' },
 ]
 
+/** Format a seconds total back into mm:ss or h:mm:ss for an input echo. */
+function formatSecondsLabel(total: number): string {
+  const h = Math.floor(total / 3600)
+  const m = Math.floor((total % 3600) / 60)
+  const s = total % 60
+  const pad = (n: number) => n.toString().padStart(2, '0')
+  return h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`
+}
+
 const EQUIPMENT_OPTIONS: { value: EquipmentAccess; label: string; desc: string; icon: string }[] = [
   { value: 'track', label: 'Track', desc: 'Measured intervals, repeats', icon: '🏟' },
   { value: 'hills', label: 'Hills', desc: 'For climbs, hill repeats', icon: '⛰' },
@@ -211,6 +220,7 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
   const [anchorType, setAnchorType] = useState<FitnessAnchorType>('none')
   const [anchorTime, setAnchorTime] = useState('')
   const [anchorBpm, setAnchorBpm] = useState('')
+  const [goalRaceTime, setGoalRaceTime] = useState('')
   const [weeklyMileage, setWeeklyMileage] = useState('')
   const [injury, setInjury] = useState<InjuryStatus | null>(null)
   const [injuryArea, setInjuryArea] = useState('')
@@ -356,6 +366,7 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
       cardioModality: showsGoalStep ? (cardioModality ?? undefined) : undefined,
       raceDescription: raceDescription.trim() || undefined,
       athleteGoal: athleteGoal.trim() || undefined,
+      goalRaceTimeSeconds: showsDistanceStep ? parseTimeToSeconds(goalRaceTime) : undefined,
       experienceLevel: experience!,
       detailLevel: effectiveDetail,
       trainingDaysPerWeek: daysPerWeek!,
@@ -619,14 +630,21 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
                   ))}
                 </select>
                 {selectedAnchor.kind === 'time' && (
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    value={anchorTime}
-                    onChange={e => setAnchorTime(e.target.value)}
-                    placeholder={selectedAnchor.placeholder}
-                    className="mt-2 w-full px-3 py-3 text-base border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400"
-                  />
+                  <>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={anchorTime}
+                      onChange={e => setAnchorTime(e.target.value)}
+                      placeholder={`${selectedAnchor.placeholder} — e.g. 21:30 or 2130`}
+                      className="mt-2 w-full px-3 py-3 text-base border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400"
+                    />
+                    {anchorTime.trim() && (
+                      parseTimeToSeconds(anchorTime) != null
+                        ? <p className="text-xs text-teal-600 mt-1">Reading this as {formatSecondsLabel(parseTimeToSeconds(anchorTime)!)}.</p>
+                        : <p className="text-xs text-amber-600 mt-1">Enter as mm:ss (e.g. 21:30) — the “:” is optional.</p>
+                    )}
+                  </>
                 )}
                 {selectedAnchor.kind === 'bpm' && (
                   <input
@@ -639,6 +657,28 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
                 )}
                 <p className="text-xs text-slate-400 mt-1">Helps us set accurate paces and HR zones.</p>
               </div>
+
+              {/* Goal finish time — road/trail races only. Drives goal-pace
+                  personalization when paired with the fitness anchor above. */}
+              {showsDistanceStep && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Goal finish time (optional)</label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={goalRaceTime}
+                    onChange={e => setGoalRaceTime(e.target.value)}
+                    placeholder="e.g. 3:25:00 or 32500"
+                    className="w-full px-3 py-3 text-base border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400"
+                  />
+                  {goalRaceTime.trim() && (
+                    parseTimeToSeconds(goalRaceTime) != null
+                      ? <p className="text-xs text-teal-600 mt-1">Goal: {formatSecondsLabel(parseTimeToSeconds(goalRaceTime)!)}. We’ll build your quality paces toward it.</p>
+                      : <p className="text-xs text-amber-600 mt-1">Enter as hh:mm:ss (e.g. 3:25:00) — the “:” is optional.</p>
+                  )}
+                  <p className="text-xs text-slate-400 mt-1">If you have a target, we progress your workout paces from current fitness toward it.</p>
+                </div>
+              )}
 
               {/* Weekly mileage */}
               <div>

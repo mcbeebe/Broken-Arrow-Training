@@ -8,7 +8,7 @@ import { localDateStr } from '../utils/format'
  *
  * The live insight card (CoachInsightCard on the Coach tab) only ever
  * shows the CURRENT period's read. Without this log, the morning briefing
- * is replaced the moment the clock crosses 1 PM (afternoon) and is
+ * is replaced the moment the clock crosses into the evening window and is
  * unrecoverable — exactly the "where did my morning briefing go?" report.
  *
  * We keep a per-athlete, per-local-date log keyed by period. It self-clears
@@ -18,7 +18,7 @@ import { localDateStr } from '../utils/format'
  * back to them.
  */
 
-export type BriefingPeriod = 'morning' | 'afternoon' | 'evening'
+export type BriefingPeriod = 'morning' | 'evening'
 
 export interface BriefingLogEntry {
   period: BriefingPeriod
@@ -31,19 +31,16 @@ const LS_PREFIX = 'ba_coach_briefing_log_v1:'
 
 const PERIOD_ORDER: Record<BriefingPeriod, number> = {
   morning: 0,
-  afternoon: 1,
-  evening: 2,
+  evening: 1,
 }
 
-/** Map a timestamp to its briefing period. Boundaries match dayPeriod() in
- *  useCoachInsight (morning 06:00–12:59, afternoon 13:00–19:59, evening
- *  20:00–05:59) so a logged read lands in the same bucket it was generated
- *  for. */
-export function periodForTs(ts: number): BriefingPeriod {
+/** Map a timestamp to its briefing period. The boundaries match dayPeriod() in
+ *  useCoachInsight: morning from `morningHour` until `eveningHour`, evening
+ *  otherwise — so a logged read lands in the same bucket it was generated for. */
+export function periodForTs(ts: number, morningHour: number = 7, eveningHour: number = 18): BriefingPeriod {
   const h = new Date(ts).getHours()
-  if (h < 6) return 'evening'
-  if (h < 13) return 'morning'
-  if (h < 20) return 'afternoon'
+  if (h >= eveningHour) return 'evening'
+  if (h >= morningHour) return 'morning'
   return 'evening'
 }
 
@@ -53,7 +50,7 @@ function lsKey(athleteId: string, date: string): string {
 
 /** Upsert a briefing into the log by period. A regenerate within the same
  *  period replaces the prior read; other periods are untouched. Result is
- *  ordered morning → afternoon → evening. Pure (exported for tests). */
+ *  ordered morning → evening. Pure (exported for tests). */
 export function mergeBriefing(
   existing: BriefingLogEntry[],
   entry: BriefingLogEntry,
@@ -70,9 +67,11 @@ export function mergeBriefing(
 export function priorBriefings(
   log: BriefingLogEntry[],
   currentInsight: CoachInsight | null,
+  morningHour: number = 7,
+  eveningHour: number = 18,
 ): BriefingLogEntry[] {
   if (!currentInsight?.generatedAt) return log
-  const rank = PERIOD_ORDER[periodForTs(currentInsight.generatedAt)]
+  const rank = PERIOD_ORDER[periodForTs(currentInsight.generatedAt, morningHour, eveningHour)]
   return log.filter(e => PERIOD_ORDER[e.period] < rank)
 }
 
@@ -90,6 +89,8 @@ function read(athleteId: string, date: string): BriefingLogEntry[] {
 export function useDailyBriefingLog(
   athleteId: string,
   insight: CoachInsight | null,
+  morningHour: number = 7,
+  eveningHour: number = 18,
 ): BriefingLogEntry[] {
   const today = localDateStr()
   const [log, setLog] = useState<BriefingLogEntry[]>(() => read(athleteId, today))
@@ -104,7 +105,7 @@ export function useDailyBriefingLog(
   useEffect(() => {
     if (!insight || insight.silent || !insight.text || !insight.generatedAt) return
     const entry: BriefingLogEntry = {
-      period: periodForTs(insight.generatedAt),
+      period: periodForTs(insight.generatedAt, morningHour, eveningHour),
       generatedAt: insight.generatedAt,
       text: insight.text,
       tip: insight.tip,

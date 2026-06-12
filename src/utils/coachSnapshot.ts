@@ -39,6 +39,10 @@ interface Inputs {
   raceElevationFt: number
   currentWeekNum: number
   weeks: TrainingWeek[]
+  /** Goal id for a General-Fitness plan (absent for races). Routes the
+   *  training-block framing away from race phases and the coach away from
+   *  race/load-metric language. */
+  generalGoal?: TrainingPlan['generalGoal']
   zones?: HRZone[]
   plannedToday?: PlannedDay
   plannedTomorrow?: PlannedDay
@@ -67,12 +71,17 @@ interface Inputs {
   /** The training philosophy the athlete follows. Surfaced so the coach
    *  grounds plan edits in the chosen methodology. */
   trainingMethod?: TrainingMethod
+  /** Hours bounding 'today.period' — morning from `morningHour` until
+   *  `eveningHour`, else evening. Athlete-configurable (Settings → Proactive
+   *  coaching); defaults 7 AM / 6 PM. */
+  morningHour?: number
+  eveningHour?: number
 }
 
-function currentDayPeriod(): 'morning' | 'afternoon' | 'evening' {
+function currentDayPeriod(morningHour: number = 7, eveningHour: number = 18): 'morning' | 'evening' {
   const h = new Date().getHours()
-  if (h < 12) return 'morning'
-  if (h < 17) return 'afternoon'
+  if (h >= eveningHour) return 'evening'
+  if (h >= morningHour) return 'morning'
   return 'evening'
 }
 
@@ -615,29 +624,48 @@ export function buildCoachSnapshot(inputs: Inputs): CoachSnapshot {
     }
   }
 
-  // Training-block framing — current phase, weeks to race, and the full
-  // phase arc. Derived from the same methodology engine the Methodology
-  // screen renders, so proactive pings situate a workout consistently.
+  // Training-block framing — current phase and the phase arc. Derived from the
+  // same methodology engine the Methodology screen renders, so proactive pings
+  // situate a workout consistently.
   let planBlocks: CoachSnapshot['planBlocks'] = null
+  let generalGoal: string | undefined
+  let generalGoalLabel: string | undefined
   try {
     const planForCtx: TrainingPlan = {
       athlete: athleteProfile,
       weeks,
       zones: inputs.zones ?? [],
       race,
+      generalGoal: inputs.generalGoal,
     }
     const methodCtx = buildMethodologyContext(planForCtx, inputs.trainingMethod)
-    planBlocks = {
-      currentPhase: methodCtx.phases.find(p => currentWeekNum >= p.weekStart && currentWeekNum <= p.weekEnd)?.label,
-      weeksToRace: Math.max(0, methodCtx.totalWeeks - currentWeekNum + 1),
-      phases: methodCtx.phases.map(p => ({ label: p.label, weekStart: p.weekStart, weekEnd: p.weekEnd })),
+    if (methodCtx.goalKind === 'general') {
+      // General-fitness plans are open-ended rolling blocks with periodic
+      // deloads — NOT a countdown to a race. Emitting the race-style
+      // Base→Build→Peak→Taper arc here is what made the coach tell a
+      // build-muscle athlete they were "in Peak phase, N weeks to race." Frame
+      // it as the block rhythm instead, and never surface a weeks-to-race count.
+      generalGoal = methodCtx.generalGoal
+      generalGoalLabel = methodCtx.generalGoalLabel
+      const curWeek = weeks.find(w => w.num === currentWeekNum)
+      const inDeload = !!curWeek && /deload/i.test(curWeek.focus)
+      planBlocks = {
+        currentPhase: inDeload ? 'Deload week' : 'Build block',
+        phases: [{ label: 'Rolling block', weekStart: 1, weekEnd: methodCtx.totalWeeks }],
+      }
+    } else {
+      planBlocks = {
+        currentPhase: methodCtx.phases.find(p => currentWeekNum >= p.weekStart && currentWeekNum <= p.weekEnd)?.label,
+        weeksToRace: Math.max(0, methodCtx.totalWeeks - currentWeekNum + 1),
+        phases: methodCtx.phases.map(p => ({ label: p.label, weekStart: p.weekStart, weekEnd: p.weekEnd })),
+      }
     }
   } catch {
     planBlocks = null
   }
 
   return {
-    today: { date: todayISO(), period: currentDayPeriod() },
+    today: { date: todayISO(), period: currentDayPeriod(inputs.morningHour, inputs.eveningHour) },
     currentWeekNum,
     readiness,
     performance: performance.length ? performance[performance.length - 1] : null,
@@ -654,6 +682,8 @@ export function buildCoachSnapshot(inputs: Inputs): CoachSnapshot {
     planBlocks,
     athleteProfile,
     race,
+    generalGoal,
+    generalGoalLabel,
     zones: inputs.zones,
     analytics,
     strengthProgression: strengthProgression.length > 0 ? strengthProgression : undefined,

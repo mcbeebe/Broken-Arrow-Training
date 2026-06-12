@@ -40,9 +40,9 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
         },
         {
           "day": "Tue 6/9",
-          "detail": "4 × 4 min hard @ ~90–95% max HR, 3 min easy between · or 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
+          "detail": "3 × 3 min hard @ ~90–95% max HR, 3 min easy jog between (building toward 4 × 4) · prefer shorter reps? 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
           "route": "Running",
-          "time": "~40 min",
+          "time": "~35 min",
           "type": "quality",
           "workout": "VO₂max intervals",
           "zone": "Z4 (166–175)",
@@ -67,7 +67,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
         },
         {
           "day": "Fri 6/12",
-          "detail": "Goblet squat 3×6 · RDL 3×6 · DB row 3×6 · Push-up 3×6 · Farmer carry 3×40s · Plank 3×40s",
+          "detail": "Goblet squat 3×6 · RDL 3×6 · DB bench press 3×6 · DB row 3×6 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -111,9 +111,9 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
         },
         {
           "day": "Tue 6/16",
-          "detail": "4 × 4 min hard @ ~90–95% max HR, 3 min easy between · or 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
+          "detail": "3 × 3 min hard @ ~90–95% max HR, 3 min easy jog between (building toward 4 × 4) · prefer shorter reps? 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
           "route": "Running",
-          "time": "~40 min",
+          "time": "~35 min",
           "type": "quality",
           "workout": "VO₂max intervals",
           "zone": "Z4 (166–175)",
@@ -138,7 +138,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
         },
         {
           "day": "Fri 6/19",
-          "detail": "Goblet squat 3×6 · RDL 3×6 · DB row 3×6 · Push-up 3×6 · Farmer carry 3×40s · Plank 3×40s",
+          "detail": "Bulgarian split squat 3×6 · Weighted hip thrust 3×6 · Overhead press 3×6 · Lat pulldown 3×6 · Walking lunge 3×6 · Dead bug 3×6",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -182,7 +182,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
         },
         {
           "day": "Tue 6/23",
-          "detail": "4 × 4 min hard @ ~90–95% max HR, 3 min easy between · or 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
+          "detail": "4 × 3 min hard @ ~90–95% max HR, 3 min easy jog between (building toward 4 × 4) · prefer shorter reps? 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
           "route": "Running",
           "time": "~40 min",
           "type": "quality",
@@ -209,7 +209,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
         },
         {
           "day": "Fri 6/26",
-          "detail": "Goblet squat 3×6 · RDL 3×6 · DB row 3×6 · Push-up 3×6 · Farmer carry 3×40s · Plank 3×40s",
+          "detail": "Goblet squat 3×6 · RDL 3×6 · DB bench press 3×6 · DB row 3×6 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -253,9 +253,9 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
         },
         {
           "day": "Tue 6/30",
-          "detail": "2 × 4 min hard @ ~90–95% max HR, 3 min easy between · or 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
+          "detail": "2 × 3 min hard @ ~90–95% max HR, 3 min easy jog between · prefer shorter reps? 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
           "route": "Running",
-          "time": "30 min",
+          "time": "~30 min",
           "type": "quality",
           "workout": "VO₂max intervals",
           "zone": "Z4 (166–175)",
@@ -280,7 +280,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
         },
         {
           "day": "Fri 7/3",
-          "detail": "Goblet squat 2×6 · RDL 2×6 · DB row 2×6 · Push-up 2×6 · Farmer carry 2×30s · Plank 2×30s",
+          "detail": "Bulgarian split squat 2×6 · Weighted hip thrust 2×6 · Overhead press 2×6 · Lat pulldown 2×6 · Walking lunge 2×6 · Dead bug 2×6",
           "route": "Gym / home",
           "time": "35 min",
           "type": "strength",
@@ -307,7 +307,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
         },
       ],
       "focus": "Deload week — volume down ~40%. Ease off and let adaptations land.",
-      "miles": "~135 min cardio",
+      "miles": "~105 min cardio",
       "num": 4,
     },
     {
@@ -324,9 +324,9 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
         },
         {
           "day": "Tue 7/7",
-          "detail": "4 × 4 min hard @ ~90–95% max HR, 3 min easy between · or 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
+          "detail": "4 × 4 min hard @ ~90–95% max HR, 3 min easy jog between · prefer shorter reps? 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
           "route": "Running",
-          "time": "~40 min",
+          "time": "~45 min",
           "type": "quality",
           "workout": "VO₂max intervals",
           "zone": "Z4 (166–175)",
@@ -351,7 +351,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
         },
         {
           "day": "Fri 7/10",
-          "detail": "Goblet squat 3×6 · RDL 3×6 · DB row 3×6 · Push-up 3×6 · Farmer carry 3×40s · Plank 3×40s",
+          "detail": "Goblet squat 3×6 · RDL 3×6 · DB bench press 3×6 · DB row 3×6 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -395,9 +395,9 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
         },
         {
           "day": "Tue 7/14",
-          "detail": "4 × 4 min hard @ ~90–95% max HR, 3 min easy between · or 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
+          "detail": "4 × 4 min hard @ ~90–95% max HR, 3 min easy jog between · prefer shorter reps? 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
           "route": "Running",
-          "time": "~40 min",
+          "time": "~45 min",
           "type": "quality",
           "workout": "VO₂max intervals",
           "zone": "Z4 (166–175)",
@@ -422,7 +422,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
         },
         {
           "day": "Fri 7/17",
-          "detail": "Goblet squat 3×6 · RDL 3×6 · DB row 3×6 · Push-up 3×6 · Farmer carry 3×40s · Plank 3×40s",
+          "detail": "Bulgarian split squat 3×6 · Weighted hip thrust 3×6 · Overhead press 3×6 · Lat pulldown 3×6 · Walking lunge 3×6 · Dead bug 3×6",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -466,9 +466,9 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
         },
         {
           "day": "Tue 7/21",
-          "detail": "4 × 4 min hard @ ~90–95% max HR, 3 min easy between · or 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
+          "detail": "4 × 4 min hard @ ~90–95% max HR, 3 min easy jog between · prefer shorter reps? 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
           "route": "Running",
-          "time": "~40 min",
+          "time": "~45 min",
           "type": "quality",
           "workout": "VO₂max intervals",
           "zone": "Z4 (166–175)",
@@ -493,7 +493,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
         },
         {
           "day": "Fri 7/24",
-          "detail": "Goblet squat 3×6 · RDL 3×6 · DB row 3×6 · Push-up 3×6 · Farmer carry 3×40s · Plank 3×40s",
+          "detail": "Goblet squat 3×6 · RDL 3×6 · DB bench press 3×6 · DB row 3×6 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -537,9 +537,9 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
         },
         {
           "day": "Tue 7/28",
-          "detail": "2 × 4 min hard @ ~90–95% max HR, 3 min easy between · or 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
+          "detail": "2 × 3 min hard @ ~90–95% max HR, 3 min easy jog between · prefer shorter reps? 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
           "route": "Running",
-          "time": "30 min",
+          "time": "~30 min",
           "type": "quality",
           "workout": "VO₂max intervals",
           "zone": "Z4 (166–175)",
@@ -564,7 +564,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
         },
         {
           "day": "Fri 7/31",
-          "detail": "Goblet squat 2×6 · RDL 2×6 · DB row 2×6 · Push-up 2×6 · Farmer carry 2×30s · Plank 2×30s",
+          "detail": "Bulgarian split squat 2×6 · Weighted hip thrust 2×6 · Overhead press 2×6 · Lat pulldown 2×6 · Walking lunge 2×6 · Dead bug 2×6",
           "route": "Gym / home",
           "time": "35 min",
           "type": "strength",
@@ -591,7 +591,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
         },
       ],
       "focus": "Deload week — volume down ~40%. Ease off and let adaptations land.",
-      "miles": "~135 min cardio",
+      "miles": "~105 min cardio",
       "num": 8,
     },
   ],
@@ -664,9 +664,9 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
         },
         {
           "day": "Tue 6/9",
-          "detail": "4 × 4 min hard @ ~90–95% max HR, 3 min easy between · or 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
+          "detail": "3 × 3 min hard @ ~90–95% max HR, 3 min easy jog between (building toward 4 × 4) · prefer shorter reps? 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
           "route": "Rowing",
-          "time": "~40 min",
+          "time": "~35 min",
           "type": "quality",
           "workout": "VO₂max intervals",
           "zone": "Z4 (166–175)",
@@ -691,7 +691,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
         },
         {
           "day": "Fri 6/12",
-          "detail": "Goblet squat 3×6 · RDL 3×6 · DB row 3×6 · Push-up 3×6 · Farmer carry 3×40s · Plank 3×40s",
+          "detail": "Goblet squat 3×6 · RDL 3×6 · DB bench press 3×6 · DB row 3×6 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -735,9 +735,9 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
         },
         {
           "day": "Tue 6/16",
-          "detail": "4 × 4 min hard @ ~90–95% max HR, 3 min easy between · or 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
+          "detail": "3 × 3 min hard @ ~90–95% max HR, 3 min easy jog between (building toward 4 × 4) · prefer shorter reps? 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
           "route": "Rowing",
-          "time": "~40 min",
+          "time": "~35 min",
           "type": "quality",
           "workout": "VO₂max intervals",
           "zone": "Z4 (166–175)",
@@ -762,7 +762,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
         },
         {
           "day": "Fri 6/19",
-          "detail": "Goblet squat 3×6 · RDL 3×6 · DB row 3×6 · Push-up 3×6 · Farmer carry 3×40s · Plank 3×40s",
+          "detail": "Bulgarian split squat 3×6 · Weighted hip thrust 3×6 · Overhead press 3×6 · Lat pulldown 3×6 · Walking lunge 3×6 · Dead bug 3×6",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -806,7 +806,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
         },
         {
           "day": "Tue 6/23",
-          "detail": "4 × 4 min hard @ ~90–95% max HR, 3 min easy between · or 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
+          "detail": "4 × 3 min hard @ ~90–95% max HR, 3 min easy jog between (building toward 4 × 4) · prefer shorter reps? 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
           "route": "Rowing",
           "time": "~40 min",
           "type": "quality",
@@ -833,7 +833,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
         },
         {
           "day": "Fri 6/26",
-          "detail": "Goblet squat 3×6 · RDL 3×6 · DB row 3×6 · Push-up 3×6 · Farmer carry 3×40s · Plank 3×40s",
+          "detail": "Goblet squat 3×6 · RDL 3×6 · DB bench press 3×6 · DB row 3×6 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -877,9 +877,9 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
         },
         {
           "day": "Tue 6/30",
-          "detail": "2 × 4 min hard @ ~90–95% max HR, 3 min easy between · or 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
+          "detail": "2 × 3 min hard @ ~90–95% max HR, 3 min easy jog between · prefer shorter reps? 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
           "route": "Rowing",
-          "time": "30 min",
+          "time": "~30 min",
           "type": "quality",
           "workout": "VO₂max intervals",
           "zone": "Z4 (166–175)",
@@ -904,7 +904,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
         },
         {
           "day": "Fri 7/3",
-          "detail": "Goblet squat 2×6 · RDL 2×6 · DB row 2×6 · Push-up 2×6 · Farmer carry 2×30s · Plank 2×30s",
+          "detail": "Bulgarian split squat 2×6 · Weighted hip thrust 2×6 · Overhead press 2×6 · Lat pulldown 2×6 · Walking lunge 2×6 · Dead bug 2×6",
           "route": "Gym / home",
           "time": "35 min",
           "type": "strength",
@@ -931,7 +931,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
         },
       ],
       "focus": "Deload week — volume down ~40%. Ease off and let adaptations land.",
-      "miles": "~135 min cardio",
+      "miles": "~105 min cardio",
       "num": 4,
     },
     {
@@ -948,9 +948,9 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
         },
         {
           "day": "Tue 7/7",
-          "detail": "4 × 4 min hard @ ~90–95% max HR, 3 min easy between · or 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
+          "detail": "4 × 4 min hard @ ~90–95% max HR, 3 min easy jog between · prefer shorter reps? 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
           "route": "Rowing",
-          "time": "~40 min",
+          "time": "~45 min",
           "type": "quality",
           "workout": "VO₂max intervals",
           "zone": "Z4 (166–175)",
@@ -975,7 +975,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
         },
         {
           "day": "Fri 7/10",
-          "detail": "Goblet squat 3×6 · RDL 3×6 · DB row 3×6 · Push-up 3×6 · Farmer carry 3×40s · Plank 3×40s",
+          "detail": "Goblet squat 3×6 · RDL 3×6 · DB bench press 3×6 · DB row 3×6 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -1019,9 +1019,9 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
         },
         {
           "day": "Tue 7/14",
-          "detail": "4 × 4 min hard @ ~90–95% max HR, 3 min easy between · or 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
+          "detail": "4 × 4 min hard @ ~90–95% max HR, 3 min easy jog between · prefer shorter reps? 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
           "route": "Rowing",
-          "time": "~40 min",
+          "time": "~45 min",
           "type": "quality",
           "workout": "VO₂max intervals",
           "zone": "Z4 (166–175)",
@@ -1046,7 +1046,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
         },
         {
           "day": "Fri 7/17",
-          "detail": "Goblet squat 3×6 · RDL 3×6 · DB row 3×6 · Push-up 3×6 · Farmer carry 3×40s · Plank 3×40s",
+          "detail": "Bulgarian split squat 3×6 · Weighted hip thrust 3×6 · Overhead press 3×6 · Lat pulldown 3×6 · Walking lunge 3×6 · Dead bug 3×6",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -1090,9 +1090,9 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
         },
         {
           "day": "Tue 7/21",
-          "detail": "4 × 4 min hard @ ~90–95% max HR, 3 min easy between · or 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
+          "detail": "4 × 4 min hard @ ~90–95% max HR, 3 min easy jog between · prefer shorter reps? 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
           "route": "Rowing",
-          "time": "~40 min",
+          "time": "~45 min",
           "type": "quality",
           "workout": "VO₂max intervals",
           "zone": "Z4 (166–175)",
@@ -1117,7 +1117,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
         },
         {
           "day": "Fri 7/24",
-          "detail": "Goblet squat 3×6 · RDL 3×6 · DB row 3×6 · Push-up 3×6 · Farmer carry 3×40s · Plank 3×40s",
+          "detail": "Goblet squat 3×6 · RDL 3×6 · DB bench press 3×6 · DB row 3×6 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -1161,9 +1161,9 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
         },
         {
           "day": "Tue 7/28",
-          "detail": "2 × 4 min hard @ ~90–95% max HR, 3 min easy between · or 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
+          "detail": "2 × 3 min hard @ ~90–95% max HR, 3 min easy jog between · prefer shorter reps? 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
           "route": "Rowing",
-          "time": "30 min",
+          "time": "~30 min",
           "type": "quality",
           "workout": "VO₂max intervals",
           "zone": "Z4 (166–175)",
@@ -1188,7 +1188,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
         },
         {
           "day": "Fri 7/31",
-          "detail": "Goblet squat 2×6 · RDL 2×6 · DB row 2×6 · Push-up 2×6 · Farmer carry 2×30s · Plank 2×30s",
+          "detail": "Bulgarian split squat 2×6 · Weighted hip thrust 2×6 · Overhead press 2×6 · Lat pulldown 2×6 · Walking lunge 2×6 · Dead bug 2×6",
           "route": "Gym / home",
           "time": "35 min",
           "type": "strength",
@@ -1215,7 +1215,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
         },
       ],
       "focus": "Deload week — volume down ~40%. Ease off and let adaptations land.",
-      "miles": "~135 min cardio",
+      "miles": "~105 min cardio",
       "num": 8,
     },
     {
@@ -1232,9 +1232,9 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
         },
         {
           "day": "Tue 8/4",
-          "detail": "4 × 4 min hard @ ~90–95% max HR, 3 min easy between · or 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
+          "detail": "4 × 4 min hard @ ~90–95% max HR, 3 min easy jog between · prefer shorter reps? 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
           "route": "Rowing",
-          "time": "~40 min",
+          "time": "~45 min",
           "type": "quality",
           "workout": "VO₂max intervals",
           "zone": "Z4 (166–175)",
@@ -1259,7 +1259,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
         },
         {
           "day": "Fri 8/7",
-          "detail": "Goblet squat 3×6 · RDL 3×6 · DB row 3×6 · Push-up 3×6 · Farmer carry 3×40s · Plank 3×40s",
+          "detail": "Goblet squat 3×6 · RDL 3×6 · DB bench press 3×6 · DB row 3×6 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -1303,9 +1303,9 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
         },
         {
           "day": "Tue 8/11",
-          "detail": "4 × 4 min hard @ ~90–95% max HR, 3 min easy between · or 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
+          "detail": "4 × 4 min hard @ ~90–95% max HR, 3 min easy jog between · prefer shorter reps? 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
           "route": "Rowing",
-          "time": "~40 min",
+          "time": "~45 min",
           "type": "quality",
           "workout": "VO₂max intervals",
           "zone": "Z4 (166–175)",
@@ -1330,7 +1330,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
         },
         {
           "day": "Fri 8/14",
-          "detail": "Goblet squat 3×6 · RDL 3×6 · DB row 3×6 · Push-up 3×6 · Farmer carry 3×40s · Plank 3×40s",
+          "detail": "Bulgarian split squat 3×6 · Weighted hip thrust 3×6 · Overhead press 3×6 · Lat pulldown 3×6 · Walking lunge 3×6 · Dead bug 3×6",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -1374,9 +1374,9 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
         },
         {
           "day": "Tue 8/18",
-          "detail": "4 × 4 min hard @ ~90–95% max HR, 3 min easy between · or 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
+          "detail": "4 × 4 min hard @ ~90–95% max HR, 3 min easy jog between · prefer shorter reps? 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
           "route": "Rowing",
-          "time": "~40 min",
+          "time": "~45 min",
           "type": "quality",
           "workout": "VO₂max intervals",
           "zone": "Z4 (166–175)",
@@ -1401,7 +1401,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
         },
         {
           "day": "Fri 8/21",
-          "detail": "Goblet squat 3×6 · RDL 3×6 · DB row 3×6 · Push-up 3×6 · Farmer carry 3×40s · Plank 3×40s",
+          "detail": "Goblet squat 3×6 · RDL 3×6 · DB bench press 3×6 · DB row 3×6 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -1445,9 +1445,9 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
         },
         {
           "day": "Tue 8/25",
-          "detail": "2 × 4 min hard @ ~90–95% max HR, 3 min easy between · or 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
+          "detail": "2 × 3 min hard @ ~90–95% max HR, 3 min easy jog between · prefer shorter reps? 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
           "route": "Rowing",
-          "time": "30 min",
+          "time": "~30 min",
           "type": "quality",
           "workout": "VO₂max intervals",
           "zone": "Z4 (166–175)",
@@ -1472,7 +1472,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
         },
         {
           "day": "Fri 8/28",
-          "detail": "Goblet squat 2×6 · RDL 2×6 · DB row 2×6 · Push-up 2×6 · Farmer carry 2×30s · Plank 2×30s",
+          "detail": "Bulgarian split squat 2×6 · Weighted hip thrust 2×6 · Overhead press 2×6 · Lat pulldown 2×6 · Walking lunge 2×6 · Dead bug 2×6",
           "route": "Gym / home",
           "time": "35 min",
           "type": "strength",
@@ -1499,7 +1499,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
         },
       ],
       "focus": "Deload week — volume down ~40%. Ease off and let adaptations land.",
-      "miles": "~135 min cardio",
+      "miles": "~105 min cardio",
       "num": 12,
     },
   ],
@@ -1563,7 +1563,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
       "days": [
         {
           "day": "Mon 6/8",
-          "detail": "Goblet squat 4×10 · RDL 4×10 · DB row 4×10 · Push-up 4×10 · Farmer carry 4×40s · Plank 4×40s",
+          "detail": "Goblet squat 4×10 · RDL 4×10 · DB bench press 4×10 · DB row 4×10 · Farmer carry 4×40s · Plank 4×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -1572,7 +1572,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
         },
         {
           "day": "Tue 6/9",
-          "detail": "Goblet squat 4×10 · RDL 4×10 · DB row 4×10 · Push-up 4×10 · Farmer carry 4×40s · Plank 4×40s",
+          "detail": "Bulgarian split squat 4×10 · Weighted hip thrust 4×10 · Overhead press 4×10 · Lat pulldown 4×10 · Walking lunge 4×10 · Dead bug 4×10",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -1608,7 +1608,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
         },
         {
           "day": "Sat 6/13",
-          "detail": "Goblet squat 4×10 · RDL 4×10 · DB row 4×10 · Push-up 4×10 · Farmer carry 4×40s · Plank 4×40s",
+          "detail": "Goblet squat 4×10 · RDL 4×10 · DB bench press 4×10 · DB row 4×10 · Farmer carry 4×40s · Plank 4×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -1634,7 +1634,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
       "days": [
         {
           "day": "Mon 6/15",
-          "detail": "Goblet squat 4×10 · RDL 4×10 · DB row 4×10 · Push-up 4×10 · Farmer carry 4×40s · Plank 4×40s",
+          "detail": "Bulgarian split squat 4×10 · Weighted hip thrust 4×10 · Overhead press 4×10 · Lat pulldown 4×10 · Walking lunge 4×10 · Dead bug 4×10",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -1643,7 +1643,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
         },
         {
           "day": "Tue 6/16",
-          "detail": "Goblet squat 4×10 · RDL 4×10 · DB row 4×10 · Push-up 4×10 · Farmer carry 4×40s · Plank 4×40s",
+          "detail": "Goblet squat 4×10 · RDL 4×10 · DB bench press 4×10 · DB row 4×10 · Farmer carry 4×40s · Plank 4×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -1679,7 +1679,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
         },
         {
           "day": "Sat 6/20",
-          "detail": "Goblet squat 4×10 · RDL 4×10 · DB row 4×10 · Push-up 4×10 · Farmer carry 4×40s · Plank 4×40s",
+          "detail": "Bulgarian split squat 4×10 · Weighted hip thrust 4×10 · Overhead press 4×10 · Lat pulldown 4×10 · Walking lunge 4×10 · Dead bug 4×10",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -1705,7 +1705,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
       "days": [
         {
           "day": "Mon 6/22",
-          "detail": "Goblet squat 4×10 · RDL 4×10 · DB row 4×10 · Push-up 4×10 · Farmer carry 4×40s · Plank 4×40s",
+          "detail": "Goblet squat 4×10 · RDL 4×10 · DB bench press 4×10 · DB row 4×10 · Farmer carry 4×40s · Plank 4×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -1714,7 +1714,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
         },
         {
           "day": "Tue 6/23",
-          "detail": "Goblet squat 4×10 · RDL 4×10 · DB row 4×10 · Push-up 4×10 · Farmer carry 4×40s · Plank 4×40s",
+          "detail": "Bulgarian split squat 4×10 · Weighted hip thrust 4×10 · Overhead press 4×10 · Lat pulldown 4×10 · Walking lunge 4×10 · Dead bug 4×10",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -1750,7 +1750,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
         },
         {
           "day": "Sat 6/27",
-          "detail": "Goblet squat 4×10 · RDL 4×10 · DB row 4×10 · Push-up 4×10 · Farmer carry 4×40s · Plank 4×40s",
+          "detail": "Goblet squat 4×10 · RDL 4×10 · DB bench press 4×10 · DB row 4×10 · Farmer carry 4×40s · Plank 4×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -1776,7 +1776,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
       "days": [
         {
           "day": "Mon 6/29",
-          "detail": "Goblet squat 2×10 · RDL 2×10 · DB row 2×10 · Push-up 2×10 · Farmer carry 2×30s · Plank 2×30s",
+          "detail": "Bulgarian split squat 2×10 · Weighted hip thrust 2×10 · Overhead press 2×10 · Lat pulldown 2×10 · Walking lunge 2×10 · Dead bug 2×10",
           "route": "Gym / home",
           "time": "35 min",
           "type": "strength",
@@ -1785,7 +1785,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
         },
         {
           "day": "Tue 6/30",
-          "detail": "Goblet squat 2×10 · RDL 2×10 · DB row 2×10 · Push-up 2×10 · Farmer carry 2×30s · Plank 2×30s",
+          "detail": "Goblet squat 2×10 · RDL 2×10 · DB bench press 2×10 · DB row 2×10 · Farmer carry 2×30s · Plank 2×30s",
           "route": "Gym / home",
           "time": "35 min",
           "type": "strength",
@@ -1821,7 +1821,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
         },
         {
           "day": "Sat 7/4",
-          "detail": "Goblet squat 2×10 · RDL 2×10 · DB row 2×10 · Push-up 2×10 · Farmer carry 2×30s · Plank 2×30s",
+          "detail": "Bulgarian split squat 2×10 · Weighted hip thrust 2×10 · Overhead press 2×10 · Lat pulldown 2×10 · Walking lunge 2×10 · Dead bug 2×10",
           "route": "Gym / home",
           "time": "35 min",
           "type": "strength",
@@ -1847,7 +1847,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
       "days": [
         {
           "day": "Mon 7/6",
-          "detail": "Goblet squat 4×10 · RDL 4×10 · DB row 4×10 · Push-up 4×10 · Farmer carry 4×40s · Plank 4×40s",
+          "detail": "Goblet squat 4×10 · RDL 4×10 · DB bench press 4×10 · DB row 4×10 · Farmer carry 4×40s · Plank 4×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -1856,7 +1856,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
         },
         {
           "day": "Tue 7/7",
-          "detail": "Goblet squat 4×10 · RDL 4×10 · DB row 4×10 · Push-up 4×10 · Farmer carry 4×40s · Plank 4×40s",
+          "detail": "Bulgarian split squat 4×10 · Weighted hip thrust 4×10 · Overhead press 4×10 · Lat pulldown 4×10 · Walking lunge 4×10 · Dead bug 4×10",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -1892,7 +1892,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
         },
         {
           "day": "Sat 7/11",
-          "detail": "Goblet squat 4×10 · RDL 4×10 · DB row 4×10 · Push-up 4×10 · Farmer carry 4×40s · Plank 4×40s",
+          "detail": "Goblet squat 4×10 · RDL 4×10 · DB bench press 4×10 · DB row 4×10 · Farmer carry 4×40s · Plank 4×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -1918,7 +1918,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
       "days": [
         {
           "day": "Mon 7/13",
-          "detail": "Goblet squat 4×10 · RDL 4×10 · DB row 4×10 · Push-up 4×10 · Farmer carry 4×40s · Plank 4×40s",
+          "detail": "Bulgarian split squat 4×10 · Weighted hip thrust 4×10 · Overhead press 4×10 · Lat pulldown 4×10 · Walking lunge 4×10 · Dead bug 4×10",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -1927,7 +1927,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
         },
         {
           "day": "Tue 7/14",
-          "detail": "Goblet squat 4×10 · RDL 4×10 · DB row 4×10 · Push-up 4×10 · Farmer carry 4×40s · Plank 4×40s",
+          "detail": "Goblet squat 4×10 · RDL 4×10 · DB bench press 4×10 · DB row 4×10 · Farmer carry 4×40s · Plank 4×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -1963,7 +1963,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
         },
         {
           "day": "Sat 7/18",
-          "detail": "Goblet squat 4×10 · RDL 4×10 · DB row 4×10 · Push-up 4×10 · Farmer carry 4×40s · Plank 4×40s",
+          "detail": "Bulgarian split squat 4×10 · Weighted hip thrust 4×10 · Overhead press 4×10 · Lat pulldown 4×10 · Walking lunge 4×10 · Dead bug 4×10",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -1989,7 +1989,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
       "days": [
         {
           "day": "Mon 7/20",
-          "detail": "Goblet squat 4×10 · RDL 4×10 · DB row 4×10 · Push-up 4×10 · Farmer carry 4×40s · Plank 4×40s",
+          "detail": "Goblet squat 4×10 · RDL 4×10 · DB bench press 4×10 · DB row 4×10 · Farmer carry 4×40s · Plank 4×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -1998,7 +1998,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
         },
         {
           "day": "Tue 7/21",
-          "detail": "Goblet squat 4×10 · RDL 4×10 · DB row 4×10 · Push-up 4×10 · Farmer carry 4×40s · Plank 4×40s",
+          "detail": "Bulgarian split squat 4×10 · Weighted hip thrust 4×10 · Overhead press 4×10 · Lat pulldown 4×10 · Walking lunge 4×10 · Dead bug 4×10",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -2034,7 +2034,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
         },
         {
           "day": "Sat 7/25",
-          "detail": "Goblet squat 4×10 · RDL 4×10 · DB row 4×10 · Push-up 4×10 · Farmer carry 4×40s · Plank 4×40s",
+          "detail": "Goblet squat 4×10 · RDL 4×10 · DB bench press 4×10 · DB row 4×10 · Farmer carry 4×40s · Plank 4×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -2060,7 +2060,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
       "days": [
         {
           "day": "Mon 7/27",
-          "detail": "Goblet squat 2×10 · RDL 2×10 · DB row 2×10 · Push-up 2×10 · Farmer carry 2×30s · Plank 2×30s",
+          "detail": "Bulgarian split squat 2×10 · Weighted hip thrust 2×10 · Overhead press 2×10 · Lat pulldown 2×10 · Walking lunge 2×10 · Dead bug 2×10",
           "route": "Gym / home",
           "time": "35 min",
           "type": "strength",
@@ -2069,7 +2069,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
         },
         {
           "day": "Tue 7/28",
-          "detail": "Goblet squat 2×10 · RDL 2×10 · DB row 2×10 · Push-up 2×10 · Farmer carry 2×30s · Plank 2×30s",
+          "detail": "Goblet squat 2×10 · RDL 2×10 · DB bench press 2×10 · DB row 2×10 · Farmer carry 2×30s · Plank 2×30s",
           "route": "Gym / home",
           "time": "35 min",
           "type": "strength",
@@ -2105,7 +2105,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
         },
         {
           "day": "Sat 8/1",
-          "detail": "Goblet squat 2×10 · RDL 2×10 · DB row 2×10 · Push-up 2×10 · Farmer carry 2×30s · Plank 2×30s",
+          "detail": "Bulgarian split squat 2×10 · Weighted hip thrust 2×10 · Overhead press 2×10 · Lat pulldown 2×10 · Walking lunge 2×10 · Dead bug 2×10",
           "route": "Gym / home",
           "time": "35 min",
           "type": "strength",
@@ -2131,7 +2131,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
       "days": [
         {
           "day": "Mon 8/3",
-          "detail": "Goblet squat 4×10 · RDL 4×10 · DB row 4×10 · Push-up 4×10 · Farmer carry 4×40s · Plank 4×40s",
+          "detail": "Goblet squat 4×10 · RDL 4×10 · DB bench press 4×10 · DB row 4×10 · Farmer carry 4×40s · Plank 4×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -2140,7 +2140,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
         },
         {
           "day": "Tue 8/4",
-          "detail": "Goblet squat 4×10 · RDL 4×10 · DB row 4×10 · Push-up 4×10 · Farmer carry 4×40s · Plank 4×40s",
+          "detail": "Bulgarian split squat 4×10 · Weighted hip thrust 4×10 · Overhead press 4×10 · Lat pulldown 4×10 · Walking lunge 4×10 · Dead bug 4×10",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -2176,7 +2176,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
         },
         {
           "day": "Sat 8/8",
-          "detail": "Goblet squat 4×10 · RDL 4×10 · DB row 4×10 · Push-up 4×10 · Farmer carry 4×40s · Plank 4×40s",
+          "detail": "Goblet squat 4×10 · RDL 4×10 · DB bench press 4×10 · DB row 4×10 · Farmer carry 4×40s · Plank 4×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -2202,7 +2202,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
       "days": [
         {
           "day": "Mon 8/10",
-          "detail": "Goblet squat 4×10 · RDL 4×10 · DB row 4×10 · Push-up 4×10 · Farmer carry 4×40s · Plank 4×40s",
+          "detail": "Bulgarian split squat 4×10 · Weighted hip thrust 4×10 · Overhead press 4×10 · Lat pulldown 4×10 · Walking lunge 4×10 · Dead bug 4×10",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -2211,7 +2211,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
         },
         {
           "day": "Tue 8/11",
-          "detail": "Goblet squat 4×10 · RDL 4×10 · DB row 4×10 · Push-up 4×10 · Farmer carry 4×40s · Plank 4×40s",
+          "detail": "Goblet squat 4×10 · RDL 4×10 · DB bench press 4×10 · DB row 4×10 · Farmer carry 4×40s · Plank 4×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -2247,7 +2247,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
         },
         {
           "day": "Sat 8/15",
-          "detail": "Goblet squat 4×10 · RDL 4×10 · DB row 4×10 · Push-up 4×10 · Farmer carry 4×40s · Plank 4×40s",
+          "detail": "Bulgarian split squat 4×10 · Weighted hip thrust 4×10 · Overhead press 4×10 · Lat pulldown 4×10 · Walking lunge 4×10 · Dead bug 4×10",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -2273,7 +2273,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
       "days": [
         {
           "day": "Mon 8/17",
-          "detail": "Goblet squat 4×10 · RDL 4×10 · DB row 4×10 · Push-up 4×10 · Farmer carry 4×40s · Plank 4×40s",
+          "detail": "Goblet squat 4×10 · RDL 4×10 · DB bench press 4×10 · DB row 4×10 · Farmer carry 4×40s · Plank 4×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -2282,7 +2282,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
         },
         {
           "day": "Tue 8/18",
-          "detail": "Goblet squat 4×10 · RDL 4×10 · DB row 4×10 · Push-up 4×10 · Farmer carry 4×40s · Plank 4×40s",
+          "detail": "Bulgarian split squat 4×10 · Weighted hip thrust 4×10 · Overhead press 4×10 · Lat pulldown 4×10 · Walking lunge 4×10 · Dead bug 4×10",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -2318,7 +2318,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
         },
         {
           "day": "Sat 8/22",
-          "detail": "Goblet squat 4×10 · RDL 4×10 · DB row 4×10 · Push-up 4×10 · Farmer carry 4×40s · Plank 4×40s",
+          "detail": "Goblet squat 4×10 · RDL 4×10 · DB bench press 4×10 · DB row 4×10 · Farmer carry 4×40s · Plank 4×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -2344,7 +2344,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
       "days": [
         {
           "day": "Mon 8/24",
-          "detail": "Goblet squat 2×10 · RDL 2×10 · DB row 2×10 · Push-up 2×10 · Farmer carry 2×30s · Plank 2×30s",
+          "detail": "Bulgarian split squat 2×10 · Weighted hip thrust 2×10 · Overhead press 2×10 · Lat pulldown 2×10 · Walking lunge 2×10 · Dead bug 2×10",
           "route": "Gym / home",
           "time": "35 min",
           "type": "strength",
@@ -2353,7 +2353,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
         },
         {
           "day": "Tue 8/25",
-          "detail": "Goblet squat 2×10 · RDL 2×10 · DB row 2×10 · Push-up 2×10 · Farmer carry 2×30s · Plank 2×30s",
+          "detail": "Goblet squat 2×10 · RDL 2×10 · DB bench press 2×10 · DB row 2×10 · Farmer carry 2×30s · Plank 2×30s",
           "route": "Gym / home",
           "time": "35 min",
           "type": "strength",
@@ -2389,7 +2389,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
         },
         {
           "day": "Sat 8/29",
-          "detail": "Goblet squat 2×10 · RDL 2×10 · DB row 2×10 · Push-up 2×10 · Farmer carry 2×30s · Plank 2×30s",
+          "detail": "Bulgarian split squat 2×10 · Weighted hip thrust 2×10 · Overhead press 2×10 · Lat pulldown 2×10 · Walking lunge 2×10 · Dead bug 2×10",
           "route": "Gym / home",
           "time": "35 min",
           "type": "strength",
@@ -2462,7 +2462,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
     "gear": [],
     "landmarks": [],
     "name": "My Fitness Plan",
-    "nutrition": "Diet drives the deficit — training preserves muscle. Keep ~8,500 steps/day.",
+    "nutrition": "Diet drives the deficit — training preserves muscle and builds the core that shows once you lean out. Keep ~8,500 steps/day.",
     "startTime": "",
   },
   "weeks": [
@@ -2471,7 +2471,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
       "days": [
         {
           "day": "Mon 6/8",
-          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
+          "detail": "Goblet squat 3×10 · RDL 3×10 · DB bench press 3×10 · DB row 3×10 · Farmer carry 3×40s · Plank 3×40s · Dead bug 3×10 · Russian twists 3×10",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -2480,9 +2480,9 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
         },
         {
           "day": "Tue 6/9",
-          "detail": "4 × 4 min hard @ ~90–95% max HR, 3 min easy between · or 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
+          "detail": "3 × 3 min hard @ ~90–95% max HR, 3 min easy jog between (building toward 4 × 4) · prefer shorter reps? 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
           "route": "Cycling",
-          "time": "~40 min",
+          "time": "~35 min",
           "type": "quality",
           "workout": "VO₂max intervals",
           "zone": "Z4 (166–175)",
@@ -2498,7 +2498,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
         },
         {
           "day": "Thu 6/11",
-          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
+          "detail": "Bulgarian split squat 3×10 · Weighted hip thrust 3×10 · Overhead press 3×10 · Lat pulldown 3×10 · Walking lunge 3×10 · Dead bug 3×10 · Russian twists 3×10",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -2507,9 +2507,9 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
         },
         {
           "day": "Fri 6/12",
-          "detail": "4 × 4 min hard @ ~90–95% max HR, 3 min easy between · or 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
+          "detail": "3 × 3 min hard @ ~90–95% max HR, 3 min easy jog between (building toward 4 × 4) · prefer shorter reps? 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
           "route": "Cycling",
-          "time": "~40 min",
+          "time": "~35 min",
           "type": "quality",
           "workout": "VO₂max intervals",
           "zone": "Z4 (166–175)",
@@ -2533,7 +2533,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
           "zone": "—",
         },
       ],
-      "focus": "Cardio volume up, strength to spare lean mass. Diet drives the deficit — training preserves muscle. Keep ~8,500 steps/day.",
+      "focus": "Cardio volume up, strength to spare lean mass. Diet drives the deficit — training preserves muscle and builds the core that shows once you lean out. Keep ~8,500 steps/day.",
       "miles": "~115 min cardio",
       "num": 1,
     },
@@ -2542,7 +2542,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
       "days": [
         {
           "day": "Mon 6/15",
-          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
+          "detail": "Goblet squat 3×10 · RDL 3×10 · DB bench press 3×10 · DB row 3×10 · Farmer carry 3×40s · Plank 3×40s · Dead bug 3×10 · Russian twists 3×10",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -2551,9 +2551,9 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
         },
         {
           "day": "Tue 6/16",
-          "detail": "4 × 4 min hard @ ~90–95% max HR, 3 min easy between · or 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
+          "detail": "3 × 3 min hard @ ~90–95% max HR, 3 min easy jog between (building toward 4 × 4) · prefer shorter reps? 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
           "route": "Cycling",
-          "time": "~40 min",
+          "time": "~35 min",
           "type": "quality",
           "workout": "VO₂max intervals",
           "zone": "Z4 (166–175)",
@@ -2569,7 +2569,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
         },
         {
           "day": "Thu 6/18",
-          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
+          "detail": "Bulgarian split squat 3×10 · Weighted hip thrust 3×10 · Overhead press 3×10 · Lat pulldown 3×10 · Walking lunge 3×10 · Dead bug 3×10 · Russian twists 3×10",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -2578,9 +2578,9 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
         },
         {
           "day": "Fri 6/19",
-          "detail": "4 × 4 min hard @ ~90–95% max HR, 3 min easy between · or 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
+          "detail": "3 × 3 min hard @ ~90–95% max HR, 3 min easy jog between (building toward 4 × 4) · prefer shorter reps? 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
           "route": "Cycling",
-          "time": "~40 min",
+          "time": "~35 min",
           "type": "quality",
           "workout": "VO₂max intervals",
           "zone": "Z4 (166–175)",
@@ -2613,7 +2613,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
       "days": [
         {
           "day": "Mon 6/22",
-          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
+          "detail": "Goblet squat 3×10 · RDL 3×10 · DB bench press 3×10 · DB row 3×10 · Farmer carry 3×40s · Plank 3×40s · Dead bug 3×10 · Russian twists 3×10",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -2622,7 +2622,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
         },
         {
           "day": "Tue 6/23",
-          "detail": "4 × 4 min hard @ ~90–95% max HR, 3 min easy between · or 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
+          "detail": "4 × 3 min hard @ ~90–95% max HR, 3 min easy jog between (building toward 4 × 4) · prefer shorter reps? 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
           "route": "Cycling",
           "time": "~40 min",
           "type": "quality",
@@ -2640,7 +2640,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
         },
         {
           "day": "Thu 6/25",
-          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
+          "detail": "Bulgarian split squat 3×10 · Weighted hip thrust 3×10 · Overhead press 3×10 · Lat pulldown 3×10 · Walking lunge 3×10 · Dead bug 3×10 · Russian twists 3×10",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -2649,7 +2649,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
         },
         {
           "day": "Fri 6/26",
-          "detail": "4 × 4 min hard @ ~90–95% max HR, 3 min easy between · or 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
+          "detail": "4 × 3 min hard @ ~90–95% max HR, 3 min easy jog between (building toward 4 × 4) · prefer shorter reps? 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
           "route": "Cycling",
           "time": "~40 min",
           "type": "quality",
@@ -2684,7 +2684,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
       "days": [
         {
           "day": "Mon 6/29",
-          "detail": "Goblet squat 2×10 · RDL 2×10 · DB row 2×10 · Push-up 2×10 · Farmer carry 2×30s · Plank 2×30s",
+          "detail": "Goblet squat 2×10 · RDL 2×10 · DB bench press 2×10 · DB row 2×10 · Farmer carry 2×30s · Plank 2×30s · Dead bug 2×10 · Russian twists 2×10",
           "route": "Gym / home",
           "time": "35 min",
           "type": "strength",
@@ -2693,9 +2693,9 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
         },
         {
           "day": "Tue 6/30",
-          "detail": "2 × 4 min hard @ ~90–95% max HR, 3 min easy between · or 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
+          "detail": "2 × 3 min hard @ ~90–95% max HR, 3 min easy jog between · prefer shorter reps? 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
           "route": "Cycling",
-          "time": "30 min",
+          "time": "~30 min",
           "type": "quality",
           "workout": "VO₂max intervals",
           "zone": "Z4 (166–175)",
@@ -2711,7 +2711,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
         },
         {
           "day": "Thu 7/2",
-          "detail": "Goblet squat 2×10 · RDL 2×10 · DB row 2×10 · Push-up 2×10 · Farmer carry 2×30s · Plank 2×30s",
+          "detail": "Bulgarian split squat 2×10 · Weighted hip thrust 2×10 · Overhead press 2×10 · Lat pulldown 2×10 · Walking lunge 2×10 · Dead bug 2×10 · Russian twists 2×10",
           "route": "Gym / home",
           "time": "35 min",
           "type": "strength",
@@ -2720,9 +2720,9 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
         },
         {
           "day": "Fri 7/3",
-          "detail": "2 × 4 min hard @ ~90–95% max HR, 3 min easy between · or 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
+          "detail": "2 × 3 min hard @ ~90–95% max HR, 3 min easy jog between · prefer shorter reps? 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
           "route": "Cycling",
-          "time": "30 min",
+          "time": "~30 min",
           "type": "quality",
           "workout": "VO₂max intervals",
           "zone": "Z4 (166–175)",
@@ -2747,7 +2747,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
         },
       ],
       "focus": "Deload week — volume down ~40%. Ease off and let adaptations land.",
-      "miles": "~135 min cardio",
+      "miles": "~75 min cardio",
       "num": 4,
     },
     {
@@ -2755,7 +2755,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
       "days": [
         {
           "day": "Mon 7/6",
-          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
+          "detail": "Goblet squat 3×10 · RDL 3×10 · DB bench press 3×10 · DB row 3×10 · Farmer carry 3×40s · Plank 3×40s · Dead bug 3×10 · Russian twists 3×10",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -2764,9 +2764,9 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
         },
         {
           "day": "Tue 7/7",
-          "detail": "4 × 4 min hard @ ~90–95% max HR, 3 min easy between · or 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
+          "detail": "4 × 4 min hard @ ~90–95% max HR, 3 min easy jog between · prefer shorter reps? 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
           "route": "Cycling",
-          "time": "~40 min",
+          "time": "~45 min",
           "type": "quality",
           "workout": "VO₂max intervals",
           "zone": "Z4 (166–175)",
@@ -2782,7 +2782,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
         },
         {
           "day": "Thu 7/9",
-          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
+          "detail": "Bulgarian split squat 3×10 · Weighted hip thrust 3×10 · Overhead press 3×10 · Lat pulldown 3×10 · Walking lunge 3×10 · Dead bug 3×10 · Russian twists 3×10",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -2791,9 +2791,9 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
         },
         {
           "day": "Fri 7/10",
-          "detail": "4 × 4 min hard @ ~90–95% max HR, 3 min easy between · or 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
+          "detail": "4 × 4 min hard @ ~90–95% max HR, 3 min easy jog between · prefer shorter reps? 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
           "route": "Cycling",
-          "time": "~40 min",
+          "time": "~45 min",
           "type": "quality",
           "workout": "VO₂max intervals",
           "zone": "Z4 (166–175)",
@@ -2826,7 +2826,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
       "days": [
         {
           "day": "Mon 7/13",
-          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
+          "detail": "Goblet squat 3×10 · RDL 3×10 · DB bench press 3×10 · DB row 3×10 · Farmer carry 3×40s · Plank 3×40s · Dead bug 3×10 · Russian twists 3×10",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -2835,9 +2835,9 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
         },
         {
           "day": "Tue 7/14",
-          "detail": "4 × 4 min hard @ ~90–95% max HR, 3 min easy between · or 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
+          "detail": "4 × 4 min hard @ ~90–95% max HR, 3 min easy jog between · prefer shorter reps? 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
           "route": "Cycling",
-          "time": "~40 min",
+          "time": "~45 min",
           "type": "quality",
           "workout": "VO₂max intervals",
           "zone": "Z4 (166–175)",
@@ -2853,7 +2853,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
         },
         {
           "day": "Thu 7/16",
-          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
+          "detail": "Bulgarian split squat 3×10 · Weighted hip thrust 3×10 · Overhead press 3×10 · Lat pulldown 3×10 · Walking lunge 3×10 · Dead bug 3×10 · Russian twists 3×10",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -2862,9 +2862,9 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
         },
         {
           "day": "Fri 7/17",
-          "detail": "4 × 4 min hard @ ~90–95% max HR, 3 min easy between · or 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
+          "detail": "4 × 4 min hard @ ~90–95% max HR, 3 min easy jog between · prefer shorter reps? 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
           "route": "Cycling",
-          "time": "~40 min",
+          "time": "~45 min",
           "type": "quality",
           "workout": "VO₂max intervals",
           "zone": "Z4 (166–175)",
@@ -2897,7 +2897,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
       "days": [
         {
           "day": "Mon 7/20",
-          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
+          "detail": "Goblet squat 3×10 · RDL 3×10 · DB bench press 3×10 · DB row 3×10 · Farmer carry 3×40s · Plank 3×40s · Dead bug 3×10 · Russian twists 3×10",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -2906,9 +2906,9 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
         },
         {
           "day": "Tue 7/21",
-          "detail": "4 × 4 min hard @ ~90–95% max HR, 3 min easy between · or 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
+          "detail": "4 × 4 min hard @ ~90–95% max HR, 3 min easy jog between · prefer shorter reps? 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
           "route": "Cycling",
-          "time": "~40 min",
+          "time": "~45 min",
           "type": "quality",
           "workout": "VO₂max intervals",
           "zone": "Z4 (166–175)",
@@ -2924,7 +2924,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
         },
         {
           "day": "Thu 7/23",
-          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
+          "detail": "Bulgarian split squat 3×10 · Weighted hip thrust 3×10 · Overhead press 3×10 · Lat pulldown 3×10 · Walking lunge 3×10 · Dead bug 3×10 · Russian twists 3×10",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -2933,9 +2933,9 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
         },
         {
           "day": "Fri 7/24",
-          "detail": "4 × 4 min hard @ ~90–95% max HR, 3 min easy between · or 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
+          "detail": "4 × 4 min hard @ ~90–95% max HR, 3 min easy jog between · prefer shorter reps? 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
           "route": "Cycling",
-          "time": "~40 min",
+          "time": "~45 min",
           "type": "quality",
           "workout": "VO₂max intervals",
           "zone": "Z4 (166–175)",
@@ -2968,7 +2968,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
       "days": [
         {
           "day": "Mon 7/27",
-          "detail": "Goblet squat 2×10 · RDL 2×10 · DB row 2×10 · Push-up 2×10 · Farmer carry 2×30s · Plank 2×30s",
+          "detail": "Goblet squat 2×10 · RDL 2×10 · DB bench press 2×10 · DB row 2×10 · Farmer carry 2×30s · Plank 2×30s · Dead bug 2×10 · Russian twists 2×10",
           "route": "Gym / home",
           "time": "35 min",
           "type": "strength",
@@ -2977,9 +2977,9 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
         },
         {
           "day": "Tue 7/28",
-          "detail": "2 × 4 min hard @ ~90–95% max HR, 3 min easy between · or 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
+          "detail": "2 × 3 min hard @ ~90–95% max HR, 3 min easy jog between · prefer shorter reps? 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
           "route": "Cycling",
-          "time": "30 min",
+          "time": "~30 min",
           "type": "quality",
           "workout": "VO₂max intervals",
           "zone": "Z4 (166–175)",
@@ -2995,7 +2995,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
         },
         {
           "day": "Thu 7/30",
-          "detail": "Goblet squat 2×10 · RDL 2×10 · DB row 2×10 · Push-up 2×10 · Farmer carry 2×30s · Plank 2×30s",
+          "detail": "Bulgarian split squat 2×10 · Weighted hip thrust 2×10 · Overhead press 2×10 · Lat pulldown 2×10 · Walking lunge 2×10 · Dead bug 2×10 · Russian twists 2×10",
           "route": "Gym / home",
           "time": "35 min",
           "type": "strength",
@@ -3004,9 +3004,9 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
         },
         {
           "day": "Fri 7/31",
-          "detail": "2 × 4 min hard @ ~90–95% max HR, 3 min easy between · or 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
+          "detail": "2 × 3 min hard @ ~90–95% max HR, 3 min easy jog between · prefer shorter reps? 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
           "route": "Cycling",
-          "time": "30 min",
+          "time": "~30 min",
           "type": "quality",
           "workout": "VO₂max intervals",
           "zone": "Z4 (166–175)",
@@ -3031,7 +3031,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
         },
       ],
       "focus": "Deload week — volume down ~40%. Ease off and let adaptations land.",
-      "miles": "~135 min cardio",
+      "miles": "~75 min cardio",
       "num": 8,
     },
     {
@@ -3039,7 +3039,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
       "days": [
         {
           "day": "Mon 8/3",
-          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
+          "detail": "Goblet squat 3×10 · RDL 3×10 · DB bench press 3×10 · DB row 3×10 · Farmer carry 3×40s · Plank 3×40s · Dead bug 3×10 · Russian twists 3×10",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -3048,9 +3048,9 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
         },
         {
           "day": "Tue 8/4",
-          "detail": "4 × 4 min hard @ ~90–95% max HR, 3 min easy between · or 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
+          "detail": "4 × 4 min hard @ ~90–95% max HR, 3 min easy jog between · prefer shorter reps? 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
           "route": "Cycling",
-          "time": "~40 min",
+          "time": "~45 min",
           "type": "quality",
           "workout": "VO₂max intervals",
           "zone": "Z4 (166–175)",
@@ -3066,7 +3066,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
         },
         {
           "day": "Thu 8/6",
-          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
+          "detail": "Bulgarian split squat 3×10 · Weighted hip thrust 3×10 · Overhead press 3×10 · Lat pulldown 3×10 · Walking lunge 3×10 · Dead bug 3×10 · Russian twists 3×10",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -3075,9 +3075,9 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
         },
         {
           "day": "Fri 8/7",
-          "detail": "4 × 4 min hard @ ~90–95% max HR, 3 min easy between · or 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
+          "detail": "4 × 4 min hard @ ~90–95% max HR, 3 min easy jog between · prefer shorter reps? 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
           "route": "Cycling",
-          "time": "~40 min",
+          "time": "~45 min",
           "type": "quality",
           "workout": "VO₂max intervals",
           "zone": "Z4 (166–175)",
@@ -3110,7 +3110,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
       "days": [
         {
           "day": "Mon 8/10",
-          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
+          "detail": "Goblet squat 3×10 · RDL 3×10 · DB bench press 3×10 · DB row 3×10 · Farmer carry 3×40s · Plank 3×40s · Dead bug 3×10 · Russian twists 3×10",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -3119,9 +3119,9 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
         },
         {
           "day": "Tue 8/11",
-          "detail": "4 × 4 min hard @ ~90–95% max HR, 3 min easy between · or 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
+          "detail": "4 × 4 min hard @ ~90–95% max HR, 3 min easy jog between · prefer shorter reps? 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
           "route": "Cycling",
-          "time": "~40 min",
+          "time": "~45 min",
           "type": "quality",
           "workout": "VO₂max intervals",
           "zone": "Z4 (166–175)",
@@ -3137,7 +3137,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
         },
         {
           "day": "Thu 8/13",
-          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
+          "detail": "Bulgarian split squat 3×10 · Weighted hip thrust 3×10 · Overhead press 3×10 · Lat pulldown 3×10 · Walking lunge 3×10 · Dead bug 3×10 · Russian twists 3×10",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -3146,9 +3146,9 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
         },
         {
           "day": "Fri 8/14",
-          "detail": "4 × 4 min hard @ ~90–95% max HR, 3 min easy between · or 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
+          "detail": "4 × 4 min hard @ ~90–95% max HR, 3 min easy jog between · prefer shorter reps? 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
           "route": "Cycling",
-          "time": "~40 min",
+          "time": "~45 min",
           "type": "quality",
           "workout": "VO₂max intervals",
           "zone": "Z4 (166–175)",
@@ -3181,7 +3181,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
       "days": [
         {
           "day": "Mon 8/17",
-          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
+          "detail": "Goblet squat 3×10 · RDL 3×10 · DB bench press 3×10 · DB row 3×10 · Farmer carry 3×40s · Plank 3×40s · Dead bug 3×10 · Russian twists 3×10",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -3190,9 +3190,9 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
         },
         {
           "day": "Tue 8/18",
-          "detail": "4 × 4 min hard @ ~90–95% max HR, 3 min easy between · or 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
+          "detail": "4 × 4 min hard @ ~90–95% max HR, 3 min easy jog between · prefer shorter reps? 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
           "route": "Cycling",
-          "time": "~40 min",
+          "time": "~45 min",
           "type": "quality",
           "workout": "VO₂max intervals",
           "zone": "Z4 (166–175)",
@@ -3208,7 +3208,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
         },
         {
           "day": "Thu 8/20",
-          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
+          "detail": "Bulgarian split squat 3×10 · Weighted hip thrust 3×10 · Overhead press 3×10 · Lat pulldown 3×10 · Walking lunge 3×10 · Dead bug 3×10 · Russian twists 3×10",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -3217,9 +3217,9 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
         },
         {
           "day": "Fri 8/21",
-          "detail": "4 × 4 min hard @ ~90–95% max HR, 3 min easy between · or 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
+          "detail": "4 × 4 min hard @ ~90–95% max HR, 3 min easy jog between · prefer shorter reps? 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
           "route": "Cycling",
-          "time": "~40 min",
+          "time": "~45 min",
           "type": "quality",
           "workout": "VO₂max intervals",
           "zone": "Z4 (166–175)",
@@ -3252,7 +3252,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
       "days": [
         {
           "day": "Mon 8/24",
-          "detail": "Goblet squat 2×10 · RDL 2×10 · DB row 2×10 · Push-up 2×10 · Farmer carry 2×30s · Plank 2×30s",
+          "detail": "Goblet squat 2×10 · RDL 2×10 · DB bench press 2×10 · DB row 2×10 · Farmer carry 2×30s · Plank 2×30s · Dead bug 2×10 · Russian twists 2×10",
           "route": "Gym / home",
           "time": "35 min",
           "type": "strength",
@@ -3261,9 +3261,9 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
         },
         {
           "day": "Tue 8/25",
-          "detail": "2 × 4 min hard @ ~90–95% max HR, 3 min easy between · or 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
+          "detail": "2 × 3 min hard @ ~90–95% max HR, 3 min easy jog between · prefer shorter reps? 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
           "route": "Cycling",
-          "time": "30 min",
+          "time": "~30 min",
           "type": "quality",
           "workout": "VO₂max intervals",
           "zone": "Z4 (166–175)",
@@ -3279,7 +3279,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
         },
         {
           "day": "Thu 8/27",
-          "detail": "Goblet squat 2×10 · RDL 2×10 · DB row 2×10 · Push-up 2×10 · Farmer carry 2×30s · Plank 2×30s",
+          "detail": "Bulgarian split squat 2×10 · Weighted hip thrust 2×10 · Overhead press 2×10 · Lat pulldown 2×10 · Walking lunge 2×10 · Dead bug 2×10 · Russian twists 2×10",
           "route": "Gym / home",
           "time": "35 min",
           "type": "strength",
@@ -3288,9 +3288,9 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
         },
         {
           "day": "Fri 8/28",
-          "detail": "2 × 4 min hard @ ~90–95% max HR, 3 min easy between · or 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
+          "detail": "2 × 3 min hard @ ~90–95% max HR, 3 min easy jog between · prefer shorter reps? 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
           "route": "Cycling",
-          "time": "30 min",
+          "time": "~30 min",
           "type": "quality",
           "workout": "VO₂max intervals",
           "zone": "Z4 (166–175)",
@@ -3315,7 +3315,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
         },
       ],
       "focus": "Deload week — volume down ~40%. Ease off and let adaptations land.",
-      "miles": "~135 min cardio",
+      "miles": "~75 min cardio",
       "num": 12,
     },
   ],
@@ -3379,7 +3379,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 3 day
       "days": [
         {
           "day": "Mon 6/8",
-          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
+          "detail": "Goblet squat 3×10 · RDL 3×10 · DB bench press 3×10 · DB row 3×10 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -3397,7 +3397,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 3 day
         },
         {
           "day": "Wed 6/10",
-          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
+          "detail": "Bulgarian split squat 3×10 · Weighted hip thrust 3×10 · Overhead press 3×10 · Lat pulldown 3×10 · Walking lunge 3×10 · Dead bug 3×10",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -3450,7 +3450,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 3 day
       "days": [
         {
           "day": "Mon 6/15",
-          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
+          "detail": "Goblet squat 3×10 · RDL 3×10 · DB bench press 3×10 · DB row 3×10 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -3468,7 +3468,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 3 day
         },
         {
           "day": "Wed 6/17",
-          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
+          "detail": "Bulgarian split squat 3×10 · Weighted hip thrust 3×10 · Overhead press 3×10 · Lat pulldown 3×10 · Walking lunge 3×10 · Dead bug 3×10",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -3521,7 +3521,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 3 day
       "days": [
         {
           "day": "Mon 6/22",
-          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
+          "detail": "Goblet squat 3×10 · RDL 3×10 · DB bench press 3×10 · DB row 3×10 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -3539,7 +3539,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 3 day
         },
         {
           "day": "Wed 6/24",
-          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
+          "detail": "Bulgarian split squat 3×10 · Weighted hip thrust 3×10 · Overhead press 3×10 · Lat pulldown 3×10 · Walking lunge 3×10 · Dead bug 3×10",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -3592,7 +3592,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 3 day
       "days": [
         {
           "day": "Mon 6/29",
-          "detail": "Goblet squat 2×10 · RDL 2×10 · DB row 2×10 · Push-up 2×10 · Farmer carry 2×30s · Plank 2×30s",
+          "detail": "Goblet squat 2×10 · RDL 2×10 · DB bench press 2×10 · DB row 2×10 · Farmer carry 2×30s · Plank 2×30s",
           "route": "Gym / home",
           "time": "35 min",
           "type": "strength",
@@ -3610,7 +3610,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 3 day
         },
         {
           "day": "Wed 7/1",
-          "detail": "Goblet squat 2×10 · RDL 2×10 · DB row 2×10 · Push-up 2×10 · Farmer carry 2×30s · Plank 2×30s",
+          "detail": "Bulgarian split squat 2×10 · Weighted hip thrust 2×10 · Overhead press 2×10 · Lat pulldown 2×10 · Walking lunge 2×10 · Dead bug 2×10",
           "route": "Gym / home",
           "time": "35 min",
           "type": "strength",
@@ -3663,7 +3663,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 3 day
       "days": [
         {
           "day": "Mon 7/6",
-          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
+          "detail": "Goblet squat 3×10 · RDL 3×10 · DB bench press 3×10 · DB row 3×10 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -3681,7 +3681,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 3 day
         },
         {
           "day": "Wed 7/8",
-          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
+          "detail": "Bulgarian split squat 3×10 · Weighted hip thrust 3×10 · Overhead press 3×10 · Lat pulldown 3×10 · Walking lunge 3×10 · Dead bug 3×10",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -3734,7 +3734,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 3 day
       "days": [
         {
           "day": "Mon 7/13",
-          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
+          "detail": "Goblet squat 3×10 · RDL 3×10 · DB bench press 3×10 · DB row 3×10 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -3752,7 +3752,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 3 day
         },
         {
           "day": "Wed 7/15",
-          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
+          "detail": "Bulgarian split squat 3×10 · Weighted hip thrust 3×10 · Overhead press 3×10 · Lat pulldown 3×10 · Walking lunge 3×10 · Dead bug 3×10",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -3805,7 +3805,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 3 day
       "days": [
         {
           "day": "Mon 7/20",
-          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
+          "detail": "Goblet squat 3×10 · RDL 3×10 · DB bench press 3×10 · DB row 3×10 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -3823,7 +3823,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 3 day
         },
         {
           "day": "Wed 7/22",
-          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
+          "detail": "Bulgarian split squat 3×10 · Weighted hip thrust 3×10 · Overhead press 3×10 · Lat pulldown 3×10 · Walking lunge 3×10 · Dead bug 3×10",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -3876,7 +3876,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 3 day
       "days": [
         {
           "day": "Mon 7/27",
-          "detail": "Goblet squat 2×10 · RDL 2×10 · DB row 2×10 · Push-up 2×10 · Farmer carry 2×30s · Plank 2×30s",
+          "detail": "Goblet squat 2×10 · RDL 2×10 · DB bench press 2×10 · DB row 2×10 · Farmer carry 2×30s · Plank 2×30s",
           "route": "Gym / home",
           "time": "35 min",
           "type": "strength",
@@ -3894,7 +3894,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 3 day
         },
         {
           "day": "Wed 7/29",
-          "detail": "Goblet squat 2×10 · RDL 2×10 · DB row 2×10 · Push-up 2×10 · Farmer carry 2×30s · Plank 2×30s",
+          "detail": "Bulgarian split squat 2×10 · Weighted hip thrust 2×10 · Overhead press 2×10 · Lat pulldown 2×10 · Walking lunge 2×10 · Dead bug 2×10",
           "route": "Gym / home",
           "time": "35 min",
           "type": "strength",
@@ -3947,7 +3947,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 3 day
       "days": [
         {
           "day": "Mon 8/3",
-          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
+          "detail": "Goblet squat 3×10 · RDL 3×10 · DB bench press 3×10 · DB row 3×10 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -3965,7 +3965,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 3 day
         },
         {
           "day": "Wed 8/5",
-          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
+          "detail": "Bulgarian split squat 3×10 · Weighted hip thrust 3×10 · Overhead press 3×10 · Lat pulldown 3×10 · Walking lunge 3×10 · Dead bug 3×10",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -4018,7 +4018,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 3 day
       "days": [
         {
           "day": "Mon 8/10",
-          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
+          "detail": "Goblet squat 3×10 · RDL 3×10 · DB bench press 3×10 · DB row 3×10 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -4036,7 +4036,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 3 day
         },
         {
           "day": "Wed 8/12",
-          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
+          "detail": "Bulgarian split squat 3×10 · Weighted hip thrust 3×10 · Overhead press 3×10 · Lat pulldown 3×10 · Walking lunge 3×10 · Dead bug 3×10",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -4089,7 +4089,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 3 day
       "days": [
         {
           "day": "Mon 8/17",
-          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
+          "detail": "Goblet squat 3×10 · RDL 3×10 · DB bench press 3×10 · DB row 3×10 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -4107,7 +4107,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 3 day
         },
         {
           "day": "Wed 8/19",
-          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
+          "detail": "Bulgarian split squat 3×10 · Weighted hip thrust 3×10 · Overhead press 3×10 · Lat pulldown 3×10 · Walking lunge 3×10 · Dead bug 3×10",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -4160,7 +4160,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 3 day
       "days": [
         {
           "day": "Mon 8/24",
-          "detail": "Goblet squat 2×10 · RDL 2×10 · DB row 2×10 · Push-up 2×10 · Farmer carry 2×30s · Plank 2×30s",
+          "detail": "Goblet squat 2×10 · RDL 2×10 · DB bench press 2×10 · DB row 2×10 · Farmer carry 2×30s · Plank 2×30s",
           "route": "Gym / home",
           "time": "35 min",
           "type": "strength",
@@ -4178,7 +4178,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 3 day
         },
         {
           "day": "Wed 8/26",
-          "detail": "Goblet squat 2×10 · RDL 2×10 · DB row 2×10 · Push-up 2×10 · Farmer carry 2×30s · Plank 2×30s",
+          "detail": "Bulgarian split squat 2×10 · Weighted hip thrust 2×10 · Overhead press 2×10 · Lat pulldown 2×10 · Walking lunge 2×10 · Dead bug 2×10",
           "route": "Gym / home",
           "time": "35 min",
           "type": "strength",
@@ -4287,7 +4287,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
       "days": [
         {
           "day": "Mon 6/8",
-          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
+          "detail": "Goblet squat 3×10 · RDL 3×10 · DB bench press 3×10 · DB row 3×10 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -4314,9 +4314,9 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
         },
         {
           "day": "Thu 6/11",
-          "detail": "4 × 4 min hard @ ~90–95% max HR, 3 min easy between · or 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
+          "detail": "3 × 3 min hard @ ~90–95% max HR, 3 min easy jog between (building toward 4 × 4) · prefer shorter reps? 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
           "route": "Running",
-          "time": "~40 min",
+          "time": "~35 min",
           "type": "quality",
           "workout": "VO₂max intervals",
           "zone": "Z4 (166–175)",
@@ -4332,7 +4332,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
         },
         {
           "day": "Sat 6/13",
-          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
+          "detail": "Bulgarian split squat 3×10 · Weighted hip thrust 3×10 · Overhead press 3×10 · Lat pulldown 3×10 · Walking lunge 3×10 · Dead bug 3×10",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -4358,7 +4358,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
       "days": [
         {
           "day": "Mon 6/15",
-          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
+          "detail": "Goblet squat 3×10 · RDL 3×10 · DB bench press 3×10 · DB row 3×10 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -4385,9 +4385,9 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
         },
         {
           "day": "Thu 6/18",
-          "detail": "4 × 4 min hard @ ~90–95% max HR, 3 min easy between · or 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
+          "detail": "3 × 3 min hard @ ~90–95% max HR, 3 min easy jog between (building toward 4 × 4) · prefer shorter reps? 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
           "route": "Running",
-          "time": "~40 min",
+          "time": "~35 min",
           "type": "quality",
           "workout": "VO₂max intervals",
           "zone": "Z4 (166–175)",
@@ -4403,7 +4403,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
         },
         {
           "day": "Sat 6/20",
-          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
+          "detail": "Bulgarian split squat 3×10 · Weighted hip thrust 3×10 · Overhead press 3×10 · Lat pulldown 3×10 · Walking lunge 3×10 · Dead bug 3×10",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -4429,7 +4429,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
       "days": [
         {
           "day": "Mon 6/22",
-          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
+          "detail": "Goblet squat 3×10 · RDL 3×10 · DB bench press 3×10 · DB row 3×10 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -4456,7 +4456,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
         },
         {
           "day": "Thu 6/25",
-          "detail": "4 × 4 min hard @ ~90–95% max HR, 3 min easy between · or 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
+          "detail": "4 × 3 min hard @ ~90–95% max HR, 3 min easy jog between (building toward 4 × 4) · prefer shorter reps? 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
           "route": "Running",
           "time": "~40 min",
           "type": "quality",
@@ -4474,7 +4474,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
         },
         {
           "day": "Sat 6/27",
-          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
+          "detail": "Bulgarian split squat 3×10 · Weighted hip thrust 3×10 · Overhead press 3×10 · Lat pulldown 3×10 · Walking lunge 3×10 · Dead bug 3×10",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -4500,7 +4500,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
       "days": [
         {
           "day": "Mon 6/29",
-          "detail": "Goblet squat 2×10 · RDL 2×10 · DB row 2×10 · Push-up 2×10 · Farmer carry 2×30s · Plank 2×30s",
+          "detail": "Goblet squat 2×10 · RDL 2×10 · DB bench press 2×10 · DB row 2×10 · Farmer carry 2×30s · Plank 2×30s",
           "route": "Gym / home",
           "time": "35 min",
           "type": "strength",
@@ -4527,9 +4527,9 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
         },
         {
           "day": "Thu 7/2",
-          "detail": "2 × 4 min hard @ ~90–95% max HR, 3 min easy between · or 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
+          "detail": "2 × 3 min hard @ ~90–95% max HR, 3 min easy jog between · prefer shorter reps? 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
           "route": "Running",
-          "time": "30 min",
+          "time": "~30 min",
           "type": "quality",
           "workout": "VO₂max intervals",
           "zone": "Z4 (166–175)",
@@ -4545,7 +4545,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
         },
         {
           "day": "Sat 7/4",
-          "detail": "Goblet squat 2×10 · RDL 2×10 · DB row 2×10 · Push-up 2×10 · Farmer carry 2×30s · Plank 2×30s",
+          "detail": "Bulgarian split squat 2×10 · Weighted hip thrust 2×10 · Overhead press 2×10 · Lat pulldown 2×10 · Walking lunge 2×10 · Dead bug 2×10",
           "route": "Gym / home",
           "time": "35 min",
           "type": "strength",
@@ -4563,7 +4563,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
         },
       ],
       "focus": "Deload week — volume down ~40%. Ease off and let adaptations land.",
-      "miles": "~55 min cardio",
+      "miles": "~25 min cardio",
       "num": 4,
     },
     {
@@ -4571,7 +4571,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
       "days": [
         {
           "day": "Mon 7/6",
-          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
+          "detail": "Goblet squat 3×10 · RDL 3×10 · DB bench press 3×10 · DB row 3×10 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -4598,9 +4598,9 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
         },
         {
           "day": "Thu 7/9",
-          "detail": "4 × 4 min hard @ ~90–95% max HR, 3 min easy between · or 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
+          "detail": "4 × 4 min hard @ ~90–95% max HR, 3 min easy jog between · prefer shorter reps? 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
           "route": "Running",
-          "time": "~40 min",
+          "time": "~45 min",
           "type": "quality",
           "workout": "VO₂max intervals",
           "zone": "Z4 (166–175)",
@@ -4616,7 +4616,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
         },
         {
           "day": "Sat 7/11",
-          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
+          "detail": "Bulgarian split squat 3×10 · Weighted hip thrust 3×10 · Overhead press 3×10 · Lat pulldown 3×10 · Walking lunge 3×10 · Dead bug 3×10",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -4642,7 +4642,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
       "days": [
         {
           "day": "Mon 7/13",
-          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
+          "detail": "Goblet squat 3×10 · RDL 3×10 · DB bench press 3×10 · DB row 3×10 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -4669,9 +4669,9 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
         },
         {
           "day": "Thu 7/16",
-          "detail": "4 × 4 min hard @ ~90–95% max HR, 3 min easy between · or 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
+          "detail": "4 × 4 min hard @ ~90–95% max HR, 3 min easy jog between · prefer shorter reps? 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
           "route": "Running",
-          "time": "~40 min",
+          "time": "~45 min",
           "type": "quality",
           "workout": "VO₂max intervals",
           "zone": "Z4 (166–175)",
@@ -4687,7 +4687,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
         },
         {
           "day": "Sat 7/18",
-          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
+          "detail": "Bulgarian split squat 3×10 · Weighted hip thrust 3×10 · Overhead press 3×10 · Lat pulldown 3×10 · Walking lunge 3×10 · Dead bug 3×10",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -4713,7 +4713,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
       "days": [
         {
           "day": "Mon 7/20",
-          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
+          "detail": "Goblet squat 3×10 · RDL 3×10 · DB bench press 3×10 · DB row 3×10 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -4740,9 +4740,9 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
         },
         {
           "day": "Thu 7/23",
-          "detail": "4 × 4 min hard @ ~90–95% max HR, 3 min easy between · or 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
+          "detail": "4 × 4 min hard @ ~90–95% max HR, 3 min easy jog between · prefer shorter reps? 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
           "route": "Running",
-          "time": "~40 min",
+          "time": "~45 min",
           "type": "quality",
           "workout": "VO₂max intervals",
           "zone": "Z4 (166–175)",
@@ -4758,7 +4758,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
         },
         {
           "day": "Sat 7/25",
-          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
+          "detail": "Bulgarian split squat 3×10 · Weighted hip thrust 3×10 · Overhead press 3×10 · Lat pulldown 3×10 · Walking lunge 3×10 · Dead bug 3×10",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -4784,7 +4784,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
       "days": [
         {
           "day": "Mon 7/27",
-          "detail": "Goblet squat 2×10 · RDL 2×10 · DB row 2×10 · Push-up 2×10 · Farmer carry 2×30s · Plank 2×30s",
+          "detail": "Goblet squat 2×10 · RDL 2×10 · DB bench press 2×10 · DB row 2×10 · Farmer carry 2×30s · Plank 2×30s",
           "route": "Gym / home",
           "time": "35 min",
           "type": "strength",
@@ -4811,9 +4811,9 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
         },
         {
           "day": "Thu 7/30",
-          "detail": "2 × 4 min hard @ ~90–95% max HR, 3 min easy between · or 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
+          "detail": "2 × 3 min hard @ ~90–95% max HR, 3 min easy jog between · prefer shorter reps? 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
           "route": "Running",
-          "time": "30 min",
+          "time": "~30 min",
           "type": "quality",
           "workout": "VO₂max intervals",
           "zone": "Z4 (166–175)",
@@ -4829,7 +4829,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
         },
         {
           "day": "Sat 8/1",
-          "detail": "Goblet squat 2×10 · RDL 2×10 · DB row 2×10 · Push-up 2×10 · Farmer carry 2×30s · Plank 2×30s",
+          "detail": "Bulgarian split squat 2×10 · Weighted hip thrust 2×10 · Overhead press 2×10 · Lat pulldown 2×10 · Walking lunge 2×10 · Dead bug 2×10",
           "route": "Gym / home",
           "time": "35 min",
           "type": "strength",
@@ -4847,7 +4847,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
         },
       ],
       "focus": "Deload week — volume down ~40%. Ease off and let adaptations land.",
-      "miles": "~55 min cardio",
+      "miles": "~25 min cardio",
       "num": 8,
     },
     {
@@ -4855,7 +4855,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
       "days": [
         {
           "day": "Mon 8/3",
-          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
+          "detail": "Goblet squat 3×10 · RDL 3×10 · DB bench press 3×10 · DB row 3×10 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -4882,9 +4882,9 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
         },
         {
           "day": "Thu 8/6",
-          "detail": "4 × 4 min hard @ ~90–95% max HR, 3 min easy between · or 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
+          "detail": "4 × 4 min hard @ ~90–95% max HR, 3 min easy jog between · prefer shorter reps? 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
           "route": "Running",
-          "time": "~40 min",
+          "time": "~45 min",
           "type": "quality",
           "workout": "VO₂max intervals",
           "zone": "Z4 (166–175)",
@@ -4900,7 +4900,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
         },
         {
           "day": "Sat 8/8",
-          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
+          "detail": "Bulgarian split squat 3×10 · Weighted hip thrust 3×10 · Overhead press 3×10 · Lat pulldown 3×10 · Walking lunge 3×10 · Dead bug 3×10",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -4926,7 +4926,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
       "days": [
         {
           "day": "Mon 8/10",
-          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
+          "detail": "Goblet squat 3×10 · RDL 3×10 · DB bench press 3×10 · DB row 3×10 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -4953,9 +4953,9 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
         },
         {
           "day": "Thu 8/13",
-          "detail": "4 × 4 min hard @ ~90–95% max HR, 3 min easy between · or 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
+          "detail": "4 × 4 min hard @ ~90–95% max HR, 3 min easy jog between · prefer shorter reps? 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
           "route": "Running",
-          "time": "~40 min",
+          "time": "~45 min",
           "type": "quality",
           "workout": "VO₂max intervals",
           "zone": "Z4 (166–175)",
@@ -4971,7 +4971,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
         },
         {
           "day": "Sat 8/15",
-          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
+          "detail": "Bulgarian split squat 3×10 · Weighted hip thrust 3×10 · Overhead press 3×10 · Lat pulldown 3×10 · Walking lunge 3×10 · Dead bug 3×10",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -4997,7 +4997,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
       "days": [
         {
           "day": "Mon 8/17",
-          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
+          "detail": "Goblet squat 3×10 · RDL 3×10 · DB bench press 3×10 · DB row 3×10 · Farmer carry 3×40s · Plank 3×40s",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -5024,9 +5024,9 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
         },
         {
           "day": "Thu 8/20",
-          "detail": "4 × 4 min hard @ ~90–95% max HR, 3 min easy between · or 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
+          "detail": "4 × 4 min hard @ ~90–95% max HR, 3 min easy jog between · prefer shorter reps? 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
           "route": "Running",
-          "time": "~40 min",
+          "time": "~45 min",
           "type": "quality",
           "workout": "VO₂max intervals",
           "zone": "Z4 (166–175)",
@@ -5042,7 +5042,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
         },
         {
           "day": "Sat 8/22",
-          "detail": "Goblet squat 3×10 · RDL 3×10 · DB row 3×10 · Push-up 3×10 · Farmer carry 3×40s · Plank 3×40s",
+          "detail": "Bulgarian split squat 3×10 · Weighted hip thrust 3×10 · Overhead press 3×10 · Lat pulldown 3×10 · Walking lunge 3×10 · Dead bug 3×10",
           "route": "Gym / home",
           "time": "45–60 min",
           "type": "strength",
@@ -5068,7 +5068,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
       "days": [
         {
           "day": "Mon 8/24",
-          "detail": "Goblet squat 2×10 · RDL 2×10 · DB row 2×10 · Push-up 2×10 · Farmer carry 2×30s · Plank 2×30s",
+          "detail": "Goblet squat 2×10 · RDL 2×10 · DB bench press 2×10 · DB row 2×10 · Farmer carry 2×30s · Plank 2×30s",
           "route": "Gym / home",
           "time": "35 min",
           "type": "strength",
@@ -5095,9 +5095,9 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
         },
         {
           "day": "Thu 8/27",
-          "detail": "2 × 4 min hard @ ~90–95% max HR, 3 min easy between · or 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
+          "detail": "2 × 3 min hard @ ~90–95% max HR, 3 min easy jog between · prefer shorter reps? 8–10 × (1 min hard / 1 min easy) · 10 min warm-up + cool-down.",
           "route": "Running",
-          "time": "30 min",
+          "time": "~30 min",
           "type": "quality",
           "workout": "VO₂max intervals",
           "zone": "Z4 (166–175)",
@@ -5113,7 +5113,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
         },
         {
           "day": "Sat 8/29",
-          "detail": "Goblet squat 2×10 · RDL 2×10 · DB row 2×10 · Push-up 2×10 · Farmer carry 2×30s · Plank 2×30s",
+          "detail": "Bulgarian split squat 2×10 · Weighted hip thrust 2×10 · Overhead press 2×10 · Lat pulldown 2×10 · Walking lunge 2×10 · Dead bug 2×10",
           "route": "Gym / home",
           "time": "35 min",
           "type": "strength",
@@ -5131,7 +5131,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
         },
       ],
       "focus": "Deload week — volume down ~40%. Ease off and let adaptations land.",
-      "miles": "~55 min cardio",
+      "miles": "~25 min cardio",
       "num": 12,
     },
   ],

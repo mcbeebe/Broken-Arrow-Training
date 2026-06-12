@@ -52,6 +52,7 @@ import { menopauseSummaryLine } from './utils/menopause'
 import { useWeather } from './hooks/useWeather'
 import { useAthleteLocation } from './hooks/useAthleteLocation'
 import { useWorkoutTimePreference } from './hooks/useWorkoutTimePreference'
+import { useProactiveTimingPreference } from './hooks/useProactiveTimingPreference'
 import WeeklyPlan from './components/WeeklyPlan'
 import Summary from './components/Summary'
 import Journal from './components/Journal'
@@ -243,12 +244,18 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
   // framing for each zone before they start consuming workouts. Skipped
   // for Hyrox (no method-based zones) and for athletes who have already
   // dismissed it.
+  // General-fitness athletes never see the trail-only methodology primer, so
+  // `primerSeenAt` is never set for them — which previously meant they ALSO
+  // skipped this zones/plan-overview screen and dropped straight from the
+  // value props into the coach letter with no look at how their plan is built.
+  // Show it to them too (gated on raceType === 'general'); trail still requires
+  // the methodology primer first, hyrox still opts out entirely.
   if (
     activePlan &&
     onboarding.config &&
-    onboarding.config.primerSeenAt &&
     !onboarding.config.zonesPrimerSeenAt &&
-    onboarding.config.raceType !== 'hyrox'
+    onboarding.config.raceType !== 'hyrox' &&
+    (onboarding.config.primerSeenAt || onboarding.config.raceType === 'general')
   ) {
     const primerMethod = onboarding.config.selectedMethodId
       ? getMethodById(onboarding.config.selectedMethodId)
@@ -704,9 +711,14 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
   const mimCalibration = useMIMCalibration(athleteId, readiness.dailyTrimp, soreness.sorenessLoadByDate)
   const domsCalibration = useDOMSCalibration(athleteId, readiness.dailyTrimp, soreness.sorenessLoadByDate)
 
+  // Athlete-configurable proactive-coaching timing (Settings → Proactive
+  // coaching): when Summary reveals tomorrow's card, and when the coach flips
+  // morning→evening. Drives getCoachTimeOfDay + the daily briefing period.
+  const proactiveTiming = useProactiveTimingPreference(athleteId)
+
   // AI Coach recommendation (legacy heuristic — still drives TodayBriefing)
   const coachRecommendation = useMemo(() => {
-    const timeOfDay = getCoachTimeOfDay()
+    const timeOfDay = getCoachTimeOfDay(proactiveTiming.morningHour, proactiveTiming.eveningHour)
     if (timeOfDay === 'morning') {
       return generateMorningCoach(
         readiness.todayScore,
@@ -727,7 +739,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
         readiness.trainingStateInfo,
       )
     }
-  }, [readiness.todayScore, todayPlannedWorkout, tomorrowPlannedWorkout, currentWeekDays, todayDayIndex, latestPerf, todayHealth, readiness.trainingStateInfo])
+  }, [readiness.todayScore, todayPlannedWorkout, tomorrowPlannedWorkout, currentWeekDays, todayDayIndex, latestPerf, todayHealth, readiness.trainingStateInfo, proactiveTiming.morningHour, proactiveTiming.eveningHour])
 
   // Wrap daySwap.swapDays to also re-anchor plan overrides. Without
   // this, an override stays pinned to its original dayIndex and would
@@ -792,7 +804,19 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     // Wait for Garmin sync to finish before building the snapshot so the
     // coach sees fresh data, not stale cache from the previous session.
     if (garmin.connected && garmin.loading) return null
-    if (!readiness.todayScore && readiness.performance.length === 0) return null
+    // Only feed wearable-derived signals (readiness, load/performance, raw
+    // activity feeds, today's health) to the coach when a data source is
+    // actually CONNECTED. A session can expire — flipping `connected` false
+    // while last-known health/activity data lingers in localStorage cache —
+    // and the readiness engine will happily compute a self-consistent but
+    // phantom Fitness/Fatigue/Load Ratio off that stale cache. Surfacing it
+    // makes the coach narrate training that never happened (e.g. inventing a
+    // "tour" to explain the numbers) while the UI correctly says "Connect
+    // Garmin". Gate on the live connection so the coach's view matches it.
+    const wearableConnected = garmin.connected || strava.connected
+    const effReadiness = wearableConnected ? readiness.todayScore : null
+    const effPerformance = wearableConnected ? readiness.performance : []
+    if (!effReadiness && effPerformance.length === 0) return null
     const snap = buildCoachSnapshot({
       athleteProfile: effectiveAthlete,
       race: activePlan.race,
@@ -801,22 +825,25 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
       raceElevationFt: parseInt((activePlan.race.elevation || '0').replace(/[^0-9]/g, ''), 10) || 0,
       currentWeekNum,
       weeks,
+      generalGoal: activePlan.generalGoal,
       plannedToday: todayPlannedWorkout,
       plannedTomorrow: tomorrowPlannedWorkout,
-      readiness: readiness.todayScore,
-      performance: readiness.performance,
-      dailyTrimp: readiness.dailyTrimp,
+      readiness: effReadiness,
+      performance: effPerformance,
+      dailyTrimp: wearableConnected ? readiness.dailyTrimp : [],
       compliance,
       todaySoreness: soreness.todaySoreness,
       sorenessLog: [],
       planStartDate: '2026-04-13',
-      todayHealth,
+      todayHealth: wearableConnected ? todayHealth : undefined,
       // Raw activity feeds so the coach can see workouts outside the
       // plan window (pre-plan base, non-plan-day bonus runs, etc.)
-      stravaActivities: strava.activities,
-      garminActivities: garmin.garminActivities,
-      garminActivityDetails: garmin.activityDetails,
+      stravaActivities: wearableConnected ? strava.activities : [],
+      garminActivities: wearableConnected ? garmin.garminActivities : [],
+      garminActivityDetails: wearableConnected ? garmin.activityDetails : {},
       trainingMethod,
+      morningHour: proactiveTiming.morningHour,
+      eveningHour: proactiveTiming.eveningHour,
     })
     // Attach persona so the API can shape the system prompt voice
     const persona = coachMemory.coachPersona
@@ -865,11 +892,15 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     todayHealth,
     coachMemory.coachPersona,
     strava.activities,
+    strava.connected,
     garmin.garminActivities,
+    garmin.connected,
     weatherBlock,
     trainingMethod,
     displayPrefs.detailLevel,
     onboarding.config,
+    proactiveTiming.morningHour,
+    proactiveTiming.eveningHour,
   ])
 
   // Daily LLM insight (shared between Summary + Coach tab)
@@ -878,19 +909,22 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     surface: 'daily',
     snapshot: coachSnapshot,
     enabled: coachEnabled && !!coachSnapshot,
+    morningHour: proactiveTiming.morningHour,
+    eveningHour: proactiveTiming.eveningHour,
   })
 
   // Record each period's briefing so an earlier read (e.g. the morning
   // briefing) isn't silently overwritten when dayPeriod() flips. The live
   // card shows the current period; these earlier reads surface as read-only
   // cards at the top of the Coach thread.
-  const briefingLog = useDailyBriefingLog(athleteId, dailyInsight.insight)
-  const earlierBriefings = priorBriefings(briefingLog, dailyInsight.insight)
+  const briefingLog = useDailyBriefingLog(athleteId, dailyInsight.insight, proactiveTiming.morningHour, proactiveTiming.eveningHour)
+  const earlierBriefings = priorBriefings(briefingLog, dailyInsight.insight, proactiveTiming.morningHour, proactiveTiming.eveningHour)
 
   // Proactive pings are intentionally disabled — the daily insight (the
   // blue "COACH PHIL ENGLISH" card on the Coach tab) is now THE coach's
-  // proactive voice, refreshing 3x daily (6 AM / 1 PM / 8 PM) via the
-  // dayPeriod() cache key inside useCoachInsight. Yellow ping cards
+  // proactive voice, refreshing twice daily — a morning read and an evening
+  // read at the athlete-configured hour — via the dayPeriod() cache key inside
+  // useCoachInsight. Yellow ping cards
   // (readiness_shift, new_workout, hrv_drop, etc.) cluttered the chat
   // with messages that overlapped the daily read; the conversation
   // surface is now reserved for the athlete's questions and the coach's
@@ -1178,6 +1212,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           coachEnabled={coachEnabled}
           todayPlannedWorkout={todayPlannedWorkout}
           tomorrowPlannedWorkout={tomorrowPlannedWorkout}
+          cardPreviewHour={proactiveTiming.eveningHour}
           currentWeekNum={currentWeekNum}
           zones={hrZones.zones}
           coachSnapshot={coachSnapshot}
@@ -1330,6 +1365,10 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           onUseBrowserHomeLocation={athleteLocation.useBrowserLocation}
           workoutTimeSlot={workoutTimePref.slot}
           onSaveWorkoutTimeSlot={workoutTimePref.save}
+          morningHour={proactiveTiming.morningHour}
+          eveningHour={proactiveTiming.eveningHour}
+          onSaveMorningHour={proactiveTiming.saveMorningHour}
+          onSaveEveningHour={proactiveTiming.saveEveningHour}
           athleteProfileExtras={athleteProfileExtras.profile}
           onSaveAthleteProfile={athleteProfileExtras.save}
           athleteId={athleteId}

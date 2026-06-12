@@ -309,20 +309,29 @@ export function generateEveningCoach(
 }
 
 /**
- * Determine which recommendation to show based on time of day.
+ * Determine which coach read to show based on time of day. The coach speaks in
+ * two windows, each with its own configurable start hour (Settings → Proactive
+ * coaching; defaults 7 AM / 6 PM): a MORNING read (today's plan) from
+ * `morningHour` until `eveningHour`, then an EVENING read (tomorrow + recovery)
+ * until the next morning. The small hours before `morningHour` carry the prior
+ * evening's read.
  */
-export function getCoachTimeOfDay(): CoachTimeOfDay {
-  return new Date().getHours() < 14 ? 'morning' : 'evening'
+export function getCoachTimeOfDay(morningHour: number = 7, eveningHour: number = 18, now: Date = new Date()): CoachTimeOfDay {
+  const h = now.getHours()
+  if (h >= eveningHour) return 'evening'
+  if (h >= morningHour) return 'morning'
+  return 'evening'
 }
 
 /**
- * Evening preview window: at/after 8 PM local we surface tomorrow's planned
- * workout on Summary. Computed non-reactively at render (matching
- * todayPlannedWorkout) — the card appears on the first render after 20:00;
- * there is no live timer that auto-pops it in mid-session.
+ * Evening preview window: at/after `startHour` local we surface tomorrow's
+ * planned workout on Summary. The hour is athlete-configurable (Settings →
+ * Proactive coaching); default 8 PM. Computed non-reactively at render
+ * (matching todayPlannedWorkout) — the card appears on the first render after
+ * the hour; there is no live timer that auto-pops it in mid-session.
  */
-export function isEveningPreviewWindow(now: Date = new Date()): boolean {
-  return now.getHours() >= 20
+export function isEveningPreviewWindow(now: Date = new Date(), startHour: number = 20): boolean {
+  return now.getHours() >= startHour
 }
 
 /**

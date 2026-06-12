@@ -85,6 +85,105 @@ describe('generateGeneralFitnessPlan — structure', () => {
   })
 })
 
+describe('generateGeneralFitnessPlan — VO₂max on-ramp', () => {
+  const vo2Detail = (plan: ReturnType<typeof generateGeneralFitnessPlan>, weekNum: number) =>
+    plan.weeks[weekNum - 1].days.find(d => d.workout === 'VO₂max intervals')?.detail ?? ''
+
+  it('builds into VO₂max work instead of opening at a full 4×4', () => {
+    // lose_fat trains VO₂max from week 1 (template: strength · vo2max · …).
+    const plan = generateGeneralFitnessPlan(makeConfig({ generalGoal: 'lose_fat' }), TODAY)
+    // Opening hard weeks start at 3×3, never the brutal 4×4.
+    expect(vo2Detail(plan, 1)).toContain('3 × 3 min hard')
+    expect(vo2Detail(plan, 1)).toContain('building toward 4 × 4')
+    // Reps grow before duration; 4×4 only arrives later in the block.
+    expect(vo2Detail(plan, 3)).toContain('4 × 3 min hard')
+    expect(vo2Detail(plan, 5)).toContain('4 × 4 min hard')
+  })
+})
+
+describe('generateGeneralFitnessPlan — injury lead-in', () => {
+  const isHardInterval = (detail: string) => /min hard @/.test(detail)
+
+  it('holds hard intervals easy through the returning-from-injury lead-in (2 wk)', () => {
+    const plan = generateGeneralFitnessPlan(
+      makeConfig({ generalGoal: 'lose_fat', injuryStatus: 'returning' }),
+      TODAY,
+    )
+    // Weeks 1–2: any VO₂max slot is swapped to easy aerobic — no hard intervals.
+    for (const weekNum of [1, 2]) {
+      for (const d of plan.weeks[weekNum - 1].days) {
+        expect(isHardInterval(d.detail)).toBe(false)
+      }
+      const swapped = plan.weeks[weekNum - 1].days.find(d => d.workout.includes('intervals on hold'))
+      expect(swapped).toBeTruthy()
+    }
+    // Week 3: intensity is back, and it re-enters gently (3×3, not 4×4).
+    const w3 = plan.weeks[2].days.find(d => d.workout === 'VO₂max intervals')?.detail ?? ''
+    expect(w3).toContain('3 × 3 min hard')
+  })
+
+  it('keeps full intensity from week 1 for healthy athletes', () => {
+    const plan = generateGeneralFitnessPlan(
+      makeConfig({ generalGoal: 'lose_fat', injuryStatus: 'none' }),
+      TODAY,
+    )
+    expect(plan.weeks[0].days.some(d => d.workout === 'VO₂max intervals')).toBe(true)
+  })
+})
+
+describe('generateGeneralFitnessPlan — fat-loss core work', () => {
+  it('adds direct ab work to fat-loss strength days', () => {
+    const plan = generateGeneralFitnessPlan(makeConfig({ generalGoal: 'lose_fat' }), TODAY)
+    const strength = plan.weeks[0].days.find(d => d.type === 'strength')
+    expect(strength?.detail).toContain('Dead bug')
+    expect(strength?.detail).toContain('Russian twists')
+  })
+
+  it('does not add the ab finisher to other goals', () => {
+    const plan = generateGeneralFitnessPlan(makeConfig({ generalGoal: 'stay_healthy' }), TODAY)
+    const strength = plan.weeks[0].days.find(d => d.type === 'strength')
+    expect(strength?.detail).not.toContain('Dead bug')
+  })
+})
+
+describe('generateGeneralFitnessPlan — goal personalization', () => {
+  it('reads the free-text goal and targets the named muscle every strength day', () => {
+    const plan = generateGeneralFitnessPlan(
+      makeConfig({ generalGoal: 'build_muscle', athleteGoal: 'I want big biceps', trainingDaysPerWeek: 5 }),
+      TODAY,
+    )
+    const strength = plan.weeks[0].days.filter(d => d.type === 'strength')
+    expect(strength.length).toBeGreaterThan(0)
+    // Direct arm work appears on EVERY strength day, not just the first.
+    for (const d of strength) {
+      expect(d.detail, d.detail).toMatch(/bicep curl|hammer curl|tricep/i)
+    }
+    // The plan surfaces the personalization so the athlete sees it.
+    expect(plan.weeks[0].focus.toLowerCase()).toContain('arms')
+    expect(plan.athlete.currentBase.toLowerCase()).toContain('arms focus')
+  })
+
+  it('varies the session day to day instead of repeating one template', () => {
+    const plan = generateGeneralFitnessPlan(
+      makeConfig({ generalGoal: 'build_muscle', trainingDaysPerWeek: 5 }),
+      TODAY,
+    )
+    const strength = plan.weeks[0].days.filter(d => d.type === 'strength')
+    expect(strength.length).toBeGreaterThanOrEqual(2)
+    // Consecutive strength days are NOT identical (the original-bug regression).
+    expect(strength[0].detail).not.toBe(strength[1].detail)
+  })
+
+  it('leaves the focus generic when no muscle is named', () => {
+    const plan = generateGeneralFitnessPlan(
+      makeConfig({ generalGoal: 'build_muscle', athleteGoal: 'just get stronger' }),
+      TODAY,
+    )
+    expect(plan.weeks[0].focus.toLowerCase()).not.toMatch(/target your goal/)
+    expect(plan.athlete.currentBase.toLowerCase()).not.toContain('focus)')
+  })
+})
+
 describe('generateGeneralFitnessPlan — pillars by goal', () => {
   it('honors the ≥2 strength-days health floor for non-endurance goals', () => {
     for (const goal of ['stay_healthy', 'lose_fat', 'build_muscle'] as GeneralGoal[]) {

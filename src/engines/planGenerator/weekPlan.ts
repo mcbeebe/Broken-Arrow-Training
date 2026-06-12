@@ -6,7 +6,7 @@
  * final taper applied per the method's `taper` block.
  */
 import type { TrainingMethod, Phase, ExperienceLevel as MethodExperienceLevel } from '../../types/training-method'
-import type { OnboardingConfig, ExperienceLevel as OnboardingExperienceLevel } from '../../hooks/useOnboarding'
+import type { OnboardingConfig, ExperienceLevel as OnboardingExperienceLevel, RaceDistance } from '../../hooks/useOnboarding'
 import type { PhaseBlock, WeekMileage } from './types'
 
 /** Default current weekly mileage by Onboarding experience level, in miles.
@@ -181,6 +181,111 @@ export interface MileageProgressionAdjust {
 }
 
 /**
+ * Distance-aware volume tuning. Methods declare a single `peakMileageRule`
+ * and `longRunPctCap`, but the right peak volume and long-run length depend
+ * heavily on the goal distance — a marathon block needs far more aerobic
+ * volume and a much longer long run than a 5K block off the same base.
+ *
+ * These are applied only when the orchestrator passes a `raceDistance`
+ * (direct unit-test callers don't, so method defaults are preserved):
+ *
+ *  - `DISTANCE_PEAK_MULT` is a FLOOR on the peak multiplier-of-current. The
+ *    method value still wins when higher. The weekly ramp cap and the plan's
+ *    runway naturally limit how much of an aggressive peak is actually
+ *    reached, so this stays ramp-safe.
+ *  - The long run is the min of three caps: a distance-appropriate share of
+ *    weekly volume (`LONG_PCT`, raised for endurance so low-mileage marathoners
+ *    still get real time-on-feet), an absolute distance ceiling
+ *    (`LONG_MAX_MI`), and a time ceiling (`LONG_TIME_CAP_MIN`, translated to
+ *    miles via the athlete's easy pace). This matches the widely-taught
+ *    "20–30% of weekly, capped at ~2.5–3 h / 20–22 mi" guidance.
+ */
+const DISTANCE_PEAK_MULT: Record<RaceDistance, number> = {
+  '5k': 1.3,
+  '10k': 1.5,
+  half_marathon: 1.8,
+  marathon: 2.3,
+  '50k': 2.5,
+  '50_mile': 2.8,
+  '100k': 3.0,
+  '100_mile': 3.2,
+  mountain_ultra: 2.8,
+}
+
+const LONG_PCT: Record<RaceDistance, number> = {
+  '5k': 0.30,
+  '10k': 0.30,
+  half_marathon: 0.35,
+  marathon: 0.40,
+  '50k': 0.40,
+  '50_mile': 0.40,
+  '100k': 0.40,
+  '100_mile': 0.40,
+  mountain_ultra: 0.40,
+}
+
+const LONG_MAX_MI: Record<RaceDistance, number> = {
+  '5k': 10,
+  '10k': 12,
+  half_marathon: 15,
+  marathon: 22,
+  '50k': 26,
+  '50_mile': 30,
+  '100k': 32,
+  '100_mile': 34,
+  mountain_ultra: 30,
+}
+
+const LONG_TIME_CAP_MIN: Record<RaceDistance, number> = {
+  '5k': 90,
+  '10k': 110,
+  half_marathon: 150,
+  marathon: 180,
+  '50k': 210,
+  '50_mile': 240,
+  '100k': 270,
+  '100_mile': 300,
+  mountain_ultra: 240,
+}
+
+/** Distance-aware inputs the orchestrator threads into the volume builder. */
+export interface VolumeDistanceOpts {
+  /** Goal race distance — drives peak multiplier floor + long-run caps. */
+  raceDistance?: RaceDistance
+  /** Athlete's easy pace (sec/mile), used to convert the long-run time cap
+   *  into a distance. Falls back to a 10:00/mi default when unknown. */
+  easyPaceSecPerMile?: number
+}
+
+const DEFAULT_EASY_PACE_SEC_PER_MILE = 600 // 10:00/mi
+
+/**
+ * Long-run miles for a build week. With no goal distance we fall back to the
+ * method's flat `longRunPctCap × total` (legacy behavior, ≤ 1-decimal floor).
+ * With a goal distance we take the min of three evidence-based caps so the
+ * long run scales with weekly volume but never overruns the distance- /
+ * time-appropriate ceiling.
+ */
+function longRunMilesFor(
+  totalMi: number,
+  methodPctCap: number,
+  opts: VolumeDistanceOpts,
+): number {
+  const floor1 = (mi: number) => Math.floor(mi * 10) / 10
+  if (!opts.raceDistance) return floor1(totalMi * methodPctCap)
+
+  const pct = LONG_PCT[opts.raceDistance]
+  const easyPaceMinPerMile = (opts.easyPaceSecPerMile ?? DEFAULT_EASY_PACE_SEC_PER_MILE) / 60
+  const timeCapMi = LONG_TIME_CAP_MIN[opts.raceDistance] / easyPaceMinPerMile
+  const maxMi = LONG_MAX_MI[opts.raceDistance]
+  const target = Math.min(totalMi * pct, maxMi, timeCapMi)
+  // Never go below what the flat method cap would have produced (the
+  // distance-aware path should only lengthen the long run), but never exceed
+  // the absolute distance ceiling either.
+  return floor1(Math.min(Math.max(target, totalMi * methodPctCap), maxMi))
+}
+
+/**
  * Compute weekly mileage targets — linear build from
  * `current × startMileagePctOfPeak` up to `current × peakMileageRule.value`,
  * with cutback weeks at `cutbackEveryNWeeks` and a final taper per
@@ -193,11 +298,15 @@ export function buildWeeklyMileage(
   blocks: PhaseBlock[],
   currentWeeklyMileage: number,
   adjust: MileageProgressionAdjust = {},
+  opts: VolumeDistanceOpts = {},
 ): WeekMileage[] {
   const mp = method.mileageProgression
-  const peak = method.taper.preserveIntensity
-    ? currentWeeklyMileage * mp.peakMileageRule.value
-    : currentWeeklyMileage * mp.peakMileageRule.value
+  // Distance-aware peak: take the larger of the method's multiplier and the
+  // goal-distance floor. With no distance supplied (direct unit-test callers)
+  // this is exactly the method's value, preserving prior behavior.
+  const distancePeakMult = opts.raceDistance ? DISTANCE_PEAK_MULT[opts.raceDistance] : 0
+  const peakMult = Math.max(mp.peakMileageRule.value, distancePeakMult)
+  const peak = currentWeeklyMileage * peakMult
   const startPctMul = adjust.startPctMultiplier ?? 1
   const start = peak * mp.startMileagePctOfPeak * startPctMul
   const maxWeeklyIncreasePct = adjust.maxWeeklyIncreasePctCap != null
@@ -242,7 +351,9 @@ export function buildWeeklyMileage(
     // Round total to 1 decimal first, then floor longRunMi against the
     // rounded total — preserves the invariant longRunMi ≤ totalMi × pctCap.
     const totalRounded = Math.round(totalMi * 10) / 10
-    const longRunRounded = Math.floor(totalRounded * mp.longRunPctCap * 10) / 10
+    const longRunRounded = isTaperWeek
+      ? Math.floor(totalRounded * mp.longRunPctCap * 10) / 10
+      : longRunMilesFor(totalRounded, mp.longRunPctCap, opts)
     out.push({
       weekIndex: w,
       weekNumber: w + 1,

@@ -379,23 +379,3 @@ export function parseIntervalWorkout(detail: string, zone: string): RunSegment[]
   return segments
 }
 
-/**
- * Determine which day in a week should get the drills/Myrtl add-on.
- * Prefer easy run days (type 'run') earlier in the week.
- */
-export function getDrillDay(weekNum: number): string {
-  // Recommend drills on easy run days — typically Tue or Wed
-  const drillDays: Record<number, string> = {
-    1: 'Tue 4/14',   // Easy run
-    2: 'Tue 4/21',   // Easy run
-    3: 'Wed 4/29',   // Easy run (Costa Rica)
-    4: 'Tue 5/5',    // Easy run
-    5: 'Thu 5/14',   // Easy run + strides
-    6: 'Wed 5/20',   // Easy run
-    7: 'Tue 5/26',   // Easy run
-    8: 'Tue 6/2',    // Easy run + strides
-    9: 'Tue 6/9',    // Easy run
-    10: 'Tue 6/16',  // Easy run + strides
-  }
-  return drillDays[weekNum] || ''
-}

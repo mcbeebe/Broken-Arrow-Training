@@ -41,6 +41,9 @@ interface SummaryProps {
   coachEnabled?: boolean
   todayPlannedWorkout?: PlannedDay | null
   tomorrowPlannedWorkout?: PlannedDay | null
+  /** Hour (0–23) at/after which the Tomorrow's-workout preview card shows.
+   *  Athlete-configurable (Settings → Proactive coaching); default 8 PM. */
+  cardPreviewHour?: number
   currentWeekNum?: number
   /** Full plan weeks — passed through to WorkoutModal so the strength
    *  progression display inside exercise cards has history to look up. */
@@ -282,6 +285,7 @@ export default function Summary({
   coachEnabled,
   todayPlannedWorkout,
   tomorrowPlannedWorkout,
+  cardPreviewHour,
   currentWeekNum,
   weeks,
   zones,
@@ -423,8 +427,8 @@ export default function Summary({
           onClose={() => setLogTarget(null)}
         />
       )}
-      {/* Tomorrow's Workout preview — evening only (≥ 8 PM local) */}
-      {isEveningPreviewWindow() && tomorrowPlannedWorkout && (() => {
+      {/* Tomorrow's Workout preview — evening only (athlete-configured hour) */}
+      {isEveningPreviewWindow(new Date(), cardPreviewHour) && tomorrowPlannedWorkout && (() => {
         const style = getWorkoutStyle(tomorrowPlannedWorkout.type)
         const courseMatch = findBestCourseMatchForPlanned(tomorrowPlannedWorkout, race)
         const looksLike = formatLooksLikeLine(courseMatch, "Tomorrow's")

@@ -138,7 +138,7 @@ SURFACE_INSTRUCTIONS = {
         "/ 'Listen' — just the 3 lines. Total length under 90 words."
     ),
     "welcome_letter": (
-        "Write a warm, personal start-of-season letter to an athlete who just "
+        "Write a warm, personal start-of-season note to an athlete who just "
         "finished onboarding — their first message from you as their coach. "
         "Address them by name. In ~4-6 short paragraphs (markdown, ~300-500 words):\n"
         "1. Open with genuine energy and make THEIR GOAL the spine of the letter — "
@@ -376,7 +376,7 @@ class handler(BaseHTTPRequestHandler):
                 model=model_to_use,
                 system=system,
                 messages=[{"role": "user", "content": user_msg}],
-                max_tokens=900 if surface_root == "welcome_letter" else (500 if surface_root == "workout_debrief" else 400),
+                max_tokens=400 if surface_root == "welcome_letter" else (500 if surface_root == "workout_debrief" else 400),
                 # Low temperature on the daily summary: it states facts
                 # about PR status, dates, pace, and readiness. We need
                 # the model to follow the PR_STATUS line in the context

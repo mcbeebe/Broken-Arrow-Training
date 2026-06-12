@@ -76,6 +76,11 @@ export interface OnboardingConfig {
   // Free-text personal goal/target for the race/event (e.g. "sub-4:00", "just
   // finish"). Collected for all flows. The coach incorporates it into guidance.
   athleteGoal?: string
+  // Optional explicit goal finish time (seconds) for road/trail races. When set
+  // alongside a current fitness anchor, the plan engine progresses quality paces
+  // from current fitness toward this goal across the build (goal-pace
+  // personalization). Distinct from the free-text athleteGoal.
+  goalRaceTimeSeconds?: number
   // Target race distance — required for trail/road races, omitted for hyrox/general.
   // Drives method selection via applicability.byDistance in the plan-generator engine.
   raceDistance?: RaceDistance
@@ -258,6 +263,12 @@ export function useOnboarding(athleteId?: string) {
       localStorage.setItem(redoK, '1')
       stampKey(redoK)
       localStorage.removeItem(cfgK)
+      // The post-onboarding tutorial walkthrough is keyed by its own
+      // localStorage flag (`ba_tutorial_seen_<athleteId>`), NOT the
+      // onboarding config — so clearing the config alone leaves it marked
+      // seen and an existing user refreshing their plan never re-sees the
+      // walkthrough. Clear it too so the redo flow mirrors a fresh start.
+      localStorage.removeItem(`ba_tutorial_seen_${athleteId}`)
       // Tombstone the cleared config. Without a stamp newer than the
       // server's copy, the 60s background sync (or a visibility-change
       // pull) would rewrite the previously-completed onboarding back into
