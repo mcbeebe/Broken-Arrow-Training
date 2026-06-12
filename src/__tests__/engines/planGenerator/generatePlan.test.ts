@@ -13,7 +13,7 @@ import {
   buildWeeklyMileage,
   estimateCurrentWeeklyMileage,
 } from '../../../engines/planGenerator/weekPlan'
-import { resolvePaces, resolveAnchor, ESTIMATED_LTHR_PCT_OF_MAX } from '../../../engines/planGenerator/paceTargets'
+import { resolvePaces, resolveAnchor, athleteCurrentVdot, blendGoalPaces, ESTIMATED_LTHR_PCT_OF_MAX } from '../../../engines/planGenerator/paceTargets'
 import {
   pickWeeklyPattern,
   pickWorkoutForDay,
@@ -301,6 +301,69 @@ describe('resolveAnchor / resolvePaces', () => {
       expect(t.hrBpmLow).toBe(Math.round(easyZone.hrRange.minPctLthr * lthr))
       expect(t.hrBpmHigh).toBe(Math.round(easyZone.hrRange.maxPctLthr * lthr))
     }
+  })
+})
+
+describe('goal-pace personalization', () => {
+  const anchored = makeConfig({
+    raceDistance: 'marathon',
+    currentWeeklyMileage: 30,
+    fitnessAnchor: { type: 'race_5k', valueSeconds: 22 * 60 },
+  })
+
+  it('athleteCurrentVdot returns a vdot for a race anchor, null without one', () => {
+    expect(athleteCurrentVdot(anchored)!).toBeGreaterThan(0)
+    expect(athleteCurrentVdot(makeConfig({ fitnessAnchor: undefined }))).toBeNull()
+  })
+
+  it('blendGoalPaces keeps easy current, sharpens threshold current→goal, pins M-pace to goal', () => {
+    const current = resolvePaces(daniels, anchored)
+    const goalVdot = athleteCurrentVdot(anchored)! + 4
+    const goal = resolvePaces(daniels, anchored, { vdotOverride: goalVdot })
+    const early = blendGoalPaces(current, goal, 0)
+    const late = blendGoalPaces(current, goal, 1)
+
+    // Easy pace is current-fitness at every point in the build.
+    expect(early.byZone.easy!.paceSecPerMileHigh).toBe(current.byZone.easy!.paceSecPerMileHigh)
+    expect(late.byZone.easy!.paceSecPerMileHigh).toBe(current.byZone.easy!.paceSecPerMileHigh)
+
+    // Threshold sharpens across the block (smaller sec/mi = faster).
+    const lt = (rp: typeof current) => rp.byZone.lactate_threshold?.paceSecPerMileHigh
+    if (lt(current) != null && lt(goal) != null) {
+      expect(lt(early)).toBe(lt(current))
+      expect(lt(late)).toBe(lt(goal))
+      expect(lt(late)!).toBeLessThanOrEqual(lt(early)!)
+    }
+
+    // Marathon pace is goal effort by definition — goal pace even at week 0.
+    const mp = (rp: typeof current) => rp.byZone.marathon_pace?.paceSecPerMileHigh
+    if (mp(goal) != null) expect(mp(early)).toBe(mp(goal))
+  })
+
+  it('end-to-end: a goal finish time alters quality paces vs no goal', () => {
+    const base = makeConfig({
+      raceDistance: 'marathon',
+      currentWeeklyMileage: 30,
+      fitnessAnchor: { type: 'race_5k', valueSeconds: 22 * 60 },
+      raceDate: '2026-11-22',
+    })
+    const noGoal = generatePlanFromMethod(daniels, base, TODAY)
+    const withGoal = generatePlanFromMethod(daniels, { ...base, goalRaceTimeSeconds: 3 * 3600 + 10 * 60 }, TODAY)
+    // Quality paces sharpen, so the serialized plans differ.
+    expect(JSON.stringify(withGoal.weeks)).not.toBe(JSON.stringify(noGoal.weeks))
+  })
+
+  it('ignores a goal that is not a stretch beyond current fitness', () => {
+    const base = makeConfig({
+      raceDistance: 'marathon',
+      currentWeeklyMileage: 30,
+      fitnessAnchor: { type: 'race_5k', valueSeconds: 20 * 60 },
+      raceDate: '2026-11-22',
+    })
+    const noGoal = generatePlanFromMethod(daniels, base, TODAY)
+    // A very slow goal marathon (5h) is easier than current fitness → no change.
+    const slowGoal = generatePlanFromMethod(daniels, { ...base, goalRaceTimeSeconds: 5 * 3600 }, TODAY)
+    expect(JSON.stringify(slowGoal.weeks)).toBe(JSON.stringify(noGoal.weeks))
   })
 })
 

@@ -124,7 +124,7 @@ import { parseZoneRange } from './zones'
  * Focuses on what happened — distance, time, HR, effort — not today's
  * readiness or what the athlete should do next.
  */
-function buildCompletedTake(day: PlannedDay, _weekNum: number): CoachWorkoutTake {
+function buildCompletedTake(day: PlannedDay): CoachWorkoutTake {
   const a = day.actual!
   const { type } = day
   const parts: string[] = []
@@ -213,7 +213,6 @@ function buildCompletedTake(day: PlannedDay, _weekNum: number): CoachWorkoutTake
  */
 export function generateWorkoutTake(
   day: PlannedDay,
-  weekNum: number,
   readiness: ReadinessScore | undefined,
   latestPerf: PerformanceMetrics | null,
 ): CoachWorkoutTake {
@@ -223,7 +222,7 @@ export function generateWorkoutTake(
 
   // Already logged — reflect on execution, not today's readiness
   if (hasActual) {
-    return buildCompletedTake(day, weekNum)
+    return buildCompletedTake(day)
   }
 
   // Readiness context frames everything

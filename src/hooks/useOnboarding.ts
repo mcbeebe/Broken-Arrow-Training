@@ -65,6 +65,11 @@ export interface OnboardingConfig {
   // Free-text personal goal/target for the race/event (e.g. "sub-4:00", "just
   // finish"). Collected for all flows. The coach incorporates it into guidance.
   athleteGoal?: string
+  // Optional explicit goal finish time (seconds) for road/trail races. When set
+  // alongside a current fitness anchor, the plan engine progresses quality paces
+  // from current fitness toward this goal across the build (goal-pace
+  // personalization). Distinct from the free-text athleteGoal.
+  goalRaceTimeSeconds?: number
   // Target race distance — required for trail/road races, omitted for hyrox/general.
   // Drives method selection via applicability.byDistance in the plan-generator engine.
   raceDistance?: RaceDistance

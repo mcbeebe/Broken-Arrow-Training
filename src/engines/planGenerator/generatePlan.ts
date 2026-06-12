@@ -24,7 +24,8 @@ import type {
 } from '../../types/training-method'
 import type { OnboardingConfig, RaceDistance, InjuryStatus } from '../../hooks/useOnboarding'
 import type { PlannedWorkout, ResolvedPaces, WeekMileage } from './types'
-import { resolvePaces, formatZoneString } from './paceTargets'
+import { resolvePaces, formatZoneString, athleteCurrentVdot, blendGoalPaces } from './paceTargets'
+import { vdotFromRace } from './vdot'
 import {
   chooseTotalWeeks,
   allocatePhaseWeeks,
@@ -449,6 +450,24 @@ export function generatePlanFromMethod(
     ? LONG_RUN_DOW[config.longRunDay.trim().toLowerCase()]
     : undefined
 
+  // Goal-pace personalization: when the athlete gave both a current race
+  // anchor and a goal finish time, sharpen quality paces from current fitness
+  // toward goal fitness across the block. A realism cap keeps the goal within
+  // ~8% VDOT of current fitness (roughly the most a focused block yields), so
+  // we never prescribe paces the athlete has no path to hit.
+  const currentVdot = athleteCurrentVdot(config)
+  const raceMiles = config.raceDistance ? RACE_DISTANCE_LABELS[config.raceDistance].miles : 0
+  const rawGoalVdot = (config.goalRaceTimeSeconds && config.goalRaceTimeSeconds > 0 && raceMiles > 0)
+    ? vdotFromRace({ distanceMiles: raceMiles, timeSeconds: config.goalRaceTimeSeconds })
+    : null
+  // Only progress paces when the goal is an actual stretch beyond current
+  // fitness — a goal at/below current fitness shouldn't slow the prescription.
+  const goalIsStretch = rawGoalVdot != null && currentVdot != null && rawGoalVdot > currentVdot
+  const goalPaces = goalIsStretch
+    ? resolvePaces(method, config, { vdotOverride: Math.min(rawGoalVdot!, currentVdot! * 1.08) })
+    : null
+  const lastBuildWeekIndex = Math.max(1, totalWeeks - method.taper.durationWeeks - 1)
+
   // Total training-day budget (running + strength + cross), capped by the
   // injury policy so 'returning' doesn't get a 7-day-a-week schedule no
   // matter what was clicked in onboarding.
@@ -498,6 +517,11 @@ export function generatePlanFromMethod(
   for (let w = 0; w < totalWeeks; w++) {
     const weekMi = mileage[w]
     const weekStart = addDays(raceMonday, -(totalWeeks - 1 - w) * 7)
+    // Per-week pace targets: blend current → goal fitness for quality zones as
+    // the build progresses (falls back to current-fitness paces when no goal).
+    const weekPaces = goalPaces
+      ? blendGoalPaces(paces, goalPaces, Math.min(1, w / lastBuildWeekIndex))
+      : paces
 
     const isFinalWeek = w === totalWeeks - 1
     // Race week uses the method's raceWeekSchedule directly
@@ -525,10 +549,10 @@ export function generatePlanFromMethod(
       const date = addDays(weekStart, dayOffset)
       const picked = pickWorkoutForDay(method, daySched, methodExp, weekMi.totalMi)
       if (!picked) {
-        days.push(buildPlannedDay(date, daySched, paces, weekMi, null, null, undefined, weekSchedule, config.equipmentAccess))
+        days.push(buildPlannedDay(date, daySched, weekPaces, weekMi, null, null, undefined, weekSchedule, config.equipmentAccess))
       } else {
-        const pw = buildPlannedWorkout(method, picked.workout, paces, picked.reason)
-        days.push(buildPlannedDay(date, daySched, paces, weekMi, picked.workout, pw, picked.reason, weekSchedule, config.equipmentAccess))
+        const pw = buildPlannedWorkout(method, picked.workout, weekPaces, picked.reason)
+        days.push(buildPlannedDay(date, daySched, weekPaces, weekMi, picked.workout, pw, picked.reason, weekSchedule, config.equipmentAccess))
       }
     }
     // Sort by dayOfWeek (Mon..Sun) — schedule is already in order but be defensive

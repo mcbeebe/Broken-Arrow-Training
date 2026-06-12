@@ -1537,7 +1537,7 @@ function CoachWorkoutTakeForDay({
   coachSnapshot?: CoachSnapshot | null
   onAsk?: (seed: string) => void
 }) {
-  const fallback = generateWorkoutTake(day, weekNum, readiness, latestPerf ?? null)
+  const fallback = generateWorkoutTake(day, readiness, latestPerf ?? null)
 
   // This card slot serves two LLM modes plus a heuristic fallback:
   //   1. Completed day → a post-workout DEBRIEF (workout_debrief surface).
