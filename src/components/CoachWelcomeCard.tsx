@@ -1,6 +1,7 @@
 import type { OnboardingConfig } from '../hooks/useOnboarding'
 import { DEFAULT_COACH_NAME } from '../types'
 import { injurySummaryLine } from '../utils/injuryRamp'
+import { menopauseSummaryLine } from '../utils/menopause'
 
 interface Props {
   coachName: string
@@ -21,6 +22,7 @@ export default function CoachWelcomeCard({ coachName, athleteName, config, onCus
   const displayName = coachName?.trim() || DEFAULT_COACH_NAME
   const greeting = athleteName ? `Hey ${athleteName} — ` : 'Hey there — '
   const injury = injurySummaryLine(config)
+  const menopause = menopauseSummaryLine(config)
 
   return (
     <div className="flex">
@@ -41,6 +43,13 @@ export default function CoachWelcomeCard({ coachName, athleteName, config, onCus
           <p className="mt-2">
             I see you're {injury}. We'll build back gradually and keep an eye on it — tell me
             the moment anything feels off and we'll adjust.
+          </p>
+        )}
+
+        {menopause && (
+          <p className="mt-2">
+            And since you're {menopause}, I'll tailor your training for midlife — strength to
+            protect muscle and bone, your hard days kept, and recovery that respects how you feel.
           </p>
         )}
 

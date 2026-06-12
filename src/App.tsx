@@ -48,6 +48,7 @@ import { buildCoachSnapshot } from './utils/coachSnapshot'
 import { sendCoachMessageBackground, coachApiAvailable } from './utils/coachApi'
 import { buildJournalSeed } from './utils/journal'
 import { injurySummaryLine } from './utils/injuryRamp'
+import { menopauseSummaryLine } from './utils/menopause'
 import { useWeather } from './hooks/useWeather'
 import { useAthleteLocation } from './hooks/useAthleteLocation'
 import { useWorkoutTimePreference } from './hooks/useWorkoutTimePreference'
@@ -864,6 +865,9 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     // Carry the athlete's injury context so the coach can speak to it.
     const injuryContext = injurySummaryLine(onboarding.config)
     if (injuryContext) snap.injuryContext = injuryContext
+    // Carry the athlete's menopause context (midlife tailoring) the same way.
+    const menopauseContext = menopauseSummaryLine(onboarding.config)
+    if (menopauseContext) snap.menopauseContext = menopauseContext
     // Carry the athlete's free-text race description + goal so the coach can
     // weave them into every surface (and the welcome letter).
     if (onboarding.config && snap.race && (onboarding.config.raceDescription || onboarding.config.athleteGoal)) {

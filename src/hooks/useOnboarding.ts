@@ -43,6 +43,17 @@ export interface FitnessAnchor {
 
 export type InjuryStatus = 'none' | 'returning' | 'current'
 
+// Menopause stage for midlife tailoring (general context, all paths). Optional
+// and self-identifying — collected age-gated (>=45) in onboarding so no separate
+// biological-sex field is needed. 'not_applicable' / 'prefer_not_to_say' are
+// explicit non-answers that carry no coach personalization.
+export type MenopauseStatus =
+  | 'perimenopause'
+  | 'menopause'
+  | 'postmenopause'
+  | 'not_applicable'
+  | 'prefer_not_to_say'
+
 // How much weight-training background the athlete has. Drives how aggressively
 // we prescribe default strength loads — a brand-new lifter should not see the
 // same numbers as a seasoned one.
@@ -106,6 +117,13 @@ export interface OnboardingConfig {
   injuryArea?: string
   injuryTimeframe?: string
   injuryNote?: string
+  // Menopause context — optional midlife tailoring, collected age-gated (>=45)
+  // in onboarding. menopauseStatus self-identifies (no separate sex field);
+  // symptoms/note are only collected for a real stage (peri/meno/post) and
+  // personalize the coach's greeting + snapshot. See src/utils/menopause.ts.
+  menopauseStatus?: MenopauseStatus
+  menopauseSymptoms?: string[]
+  menopauseNote?: string
   // Weight-training background. Calibrates default strength loads at display
   // time (newer lifters see lighter prescriptions). Only collected when the
   // athlete asked for at least one strength day.

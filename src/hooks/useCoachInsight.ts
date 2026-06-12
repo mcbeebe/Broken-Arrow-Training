@@ -89,6 +89,7 @@ export function materialFields(surface: string, snapshot: CoachSnapshot, morning
       race?: { name?: string; distance?: string; description?: string; athleteGoal?: string }
       detailLevel?: string
       injuryContext?: string
+      menopauseContext?: string
       coachPersona?: { name?: string; traits?: string[] }
       zones?: { hr?: string }[]
     }
@@ -104,6 +105,7 @@ export function materialFields(surface: string, snapshot: CoachSnapshot, morning
         athleteGoal: (s.race?.athleteGoal || '').trim(),
       },
       injury: (s.injuryContext || '').trim(),
+      menopause: (s.menopauseContext || '').trim(),
       detailLevel: s.detailLevel ?? null,
       persona: wlPersona
         ? { name: wlPersona.name?.trim() || '', traits: [...(wlPersona.traits || [])].sort() }

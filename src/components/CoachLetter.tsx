@@ -4,6 +4,7 @@ import type { OnboardingConfig } from '../hooks/useOnboarding'
 import { useCoachInsight } from '../hooks/useCoachInsight'
 import { coachApiAvailable } from '../utils/coachApi'
 import { injurySummaryLine } from '../utils/injuryRamp'
+import { menopauseSummaryLine } from '../utils/menopause'
 import { GOAL_PRESETS } from '../engines/generalFitness/presets'
 
 interface Props {
@@ -44,6 +45,7 @@ export default function CoachLetter({ plan, config, athleteId, onContinue }: Pro
           .join(' — ')
       : config.athleteGoal
   const injuryLine = injurySummaryLine(config) || undefined
+  const menopauseLine = menopauseSummaryLine(config) || undefined
 
   // Lean snapshot: at onboarding end there's no readiness/activity data yet, so
   // hand the coach just the plan + the athlete's own words + their goal/injury.
@@ -56,7 +58,8 @@ export default function CoachLetter({ plan, config, athleteId, onContinue }: Pro
     currentWeekNum: 1,
     detailLevel: config.detailLevel,
     injuryContext: injuryLine,
-  } as unknown as CoachSnapshot), [plan, config, goalText, injuryLine])
+    menopauseContext: menopauseLine,
+  } as unknown as CoachSnapshot), [plan, config, goalText, injuryLine, menopauseLine])
 
   const { insight, loading, error } = useCoachInsight({
     athleteId,
@@ -73,9 +76,12 @@ export default function CoachLetter({ plan, config, athleteId, onContinue }: Pro
   const injurySentence = injuryLine
     ? ` I see you're ${injuryLine} — we'll ease in and keep an eye on it so it holds up.`
     : ''
+  const menopauseSentence = menopauseLine
+    ? ` I also see you're ${menopauseLine} — the old "more cardio, lighter weights" advice works against you in midlife, so we'll lean into strength, keep your hard days, and protect your recovery.`
+    : ''
   const fallback =
     `Welcome, ${plan.athlete.name || 'athlete'} — your plan is built and ready.\n\n` +
-    `It's ${plan.weeks.length} weeks built around ${goalPhrase}.${injurySentence} ` +
+    `It's ${plan.weeks.length} weeks built around ${goalPhrase}.${injurySentence}${menopauseSentence} ` +
     `Trust the process, show up for the easy days as much as the hard ones, and we'll get there together.\n\n` +
     `I'm in the Coach tab whenever you want to talk it through. Let's get to work.`
 

@@ -1199,6 +1199,10 @@ export interface CoachSnapshot {
    *  injury · cleared 1-2 weeks ago"). Lets the coach speak to the athlete's
    *  recovery without a wearable telling it. */
   injuryContext?: string
+  /** One-line menopause context from onboarding (e.g. "in perimenopause ·
+   *  managing hot flashes and sleep disruption"). Lets the coach tailor
+   *  midlife training without medicalizing it. */
+  menopauseContext?: string
 }
 
 export interface CoachInsight {
