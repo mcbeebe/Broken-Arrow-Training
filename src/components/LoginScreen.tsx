@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { loginWithGoogle, getGoogleClientId, type AuthSession } from '../utils/auth'
+import { coachApiBase } from '../utils/coachApi'
 
 interface LoginScreenProps {
   onLogin: (session: AuthSession) => void
@@ -9,6 +10,45 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const googleClientId = getGoogleClientId()
+
+  // "Request access" — someone who isn't on the allowlist yet can send Mike a
+  // request right here; it lands in his Settings → Athletes review queue. No
+  // account or backend auth needed to ask.
+  const [showRequest, setShowRequest] = useState(false)
+  const [reqEmail, setReqEmail] = useState('')
+  const [reqNote, setReqNote] = useState('')
+  const [reqBusy, setReqBusy] = useState(false)
+  const [reqError, setReqError] = useState<string | null>(null)
+  const [reqSent, setReqSent] = useState(false)
+
+  const submitRequest = useCallback(async () => {
+    const email = reqEmail.trim()
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+      setReqError('Please enter a valid email address.')
+      return
+    }
+    const base = coachApiBase()
+    if (!base) {
+      setReqError('Requests aren’t available right now — please email Mike directly.')
+      return
+    }
+    setReqBusy(true)
+    setReqError(null)
+    try {
+      const res = await fetch(`${base}/api/auth/athletes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'request_access', email, note: reqNote.trim() }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`)
+      setReqSent(true)
+    } catch (e) {
+      setReqError(e instanceof Error ? e.message : 'Something went wrong. Please try again.')
+    } finally {
+      setReqBusy(false)
+    }
+  }, [reqEmail, reqNote])
 
   const handleGoogleResponse = useCallback(async (response: { credential?: string }) => {
     if (!response.credential) {
@@ -99,9 +139,63 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
           )}
         </div>
 
-        <p className="text-xs text-slate-400 text-center">
-          Don't have an account? Ask Mike to add your email.
-        </p>
+        {reqSent ? (
+          <div className="text-center space-y-1">
+            <p className="text-sm font-medium text-teal-700 dark:text-teal-400">Request sent ✓</p>
+            <p className="text-xs text-slate-400">
+              Thanks — Mike will review and add you. You'll be able to sign in once you're approved.
+            </p>
+          </div>
+        ) : showRequest ? (
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-5 space-y-3">
+            <div className="text-center">
+              <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">Request access</p>
+              <p className="text-xs text-slate-400 mt-0.5">Mike gets your request and adds you — no account needed to ask.</p>
+            </div>
+            <input
+              type="email"
+              value={reqEmail}
+              onChange={e => setReqEmail(e.target.value)}
+              placeholder="you@email.com"
+              autoComplete="email"
+              className="w-full text-sm px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-teal-400"
+            />
+            <textarea
+              value={reqNote}
+              onChange={e => setReqNote(e.target.value)}
+              placeholder="Anything Mike should know? (optional)"
+              rows={2}
+              className="w-full text-sm px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-teal-400 resize-none"
+            />
+            {reqError && <p className="text-xs text-red-600 dark:text-red-400">{reqError}</p>}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => { setShowRequest(false); setReqError(null) }}
+                disabled={reqBusy}
+                className="flex-1 text-sm font-medium px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/40 disabled:opacity-40 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => void submitRequest()}
+                disabled={reqBusy}
+                className="flex-1 text-sm font-medium px-3 py-2 rounded-lg bg-teal-600 text-white hover:bg-teal-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                {reqBusy ? 'Sending…' : 'Send request'}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <p className="text-xs text-slate-400 text-center">
+            Don't have an account?{' '}
+            <button
+              onClick={() => setShowRequest(true)}
+              className="font-medium text-teal-600 dark:text-teal-400 hover:underline"
+            >
+              Request access
+            </button>
+          </p>
+        )}
       </div>
     </div>
   )

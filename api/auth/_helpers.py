@@ -108,6 +108,57 @@ def set_kv_email_map(mapping: dict[str, str]) -> None:
     _kv_set(KV_ATHLETE_EMAILS_KEY, json.dumps(_normalize_map(mapping), separators=(",", ":")))
 
 
+# ─── Access requests ─────────────────────────────────────────────
+# Would-be athletes submit an "add me" request from the login screen; it lands
+# here (KV-backed) for the admin to approve (→ allowlist) or dismiss in the
+# Settings → Athletes panel. Writes are unauthenticated, so we de-dupe by email
+# and cap the queue to bound storage and abuse.
+KV_ACCESS_REQUESTS_KEY = "auth:access_requests"
+MAX_ACCESS_REQUESTS = 50
+MAX_REQUEST_NOTE_LEN = 200
+
+
+def get_access_requests() -> list[dict]:
+    """Pending access requests, oldest first. [] if none or KV unconfigured."""
+    raw = _kv_get(KV_ACCESS_REQUESTS_KEY)
+    if not raw:
+        return []
+    try:
+        data = json.loads(raw)
+    except Exception:
+        return []
+    return data if isinstance(data, list) else []
+
+
+def set_access_requests(requests: list[dict]) -> None:
+    _kv_set(KV_ACCESS_REQUESTS_KEY, json.dumps(requests, separators=(",", ":")))
+
+
+def add_access_request(email: str, note: str) -> None:
+    """Queue a request, de-duped by email (an existing one is refreshed) and
+    capped at MAX_ACCESS_REQUESTS (oldest dropped first under a flood)."""
+    email = email.strip().lower()
+    note = note.strip()[:MAX_REQUEST_NOTE_LEN]
+    requests = [
+        r for r in get_access_requests()
+        if str(r.get("email", "")).strip().lower() != email
+    ]
+    requests.append({"email": email, "note": note, "ts": int(time.time())})
+    set_access_requests(requests[-MAX_ACCESS_REQUESTS:])
+
+
+def remove_access_request(email: str) -> None:
+    """Drop a queued request (on approve or dismiss). No KV write if absent."""
+    email = email.strip().lower()
+    requests = get_access_requests()
+    remaining = [
+        r for r in requests
+        if str(r.get("email", "")).strip().lower() != email
+    ]
+    if len(remaining) != len(requests):
+        set_access_requests(remaining)
+
+
 def get_email_to_athlete_map() -> dict[str, str]:
     """Merged allowlist used at login. Admin-added (KV) entries override the
     env seed so the same email can be re-pointed without a redeploy."""
