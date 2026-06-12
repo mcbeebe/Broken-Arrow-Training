@@ -1010,6 +1010,29 @@ describe('Onboarding', () => {
       expect(cfg.menopauseSymptoms).toEqual(['hot_flashes'])
     })
 
+    it('skips the menopause step when biological sex is male, regardless of age', () => {
+      const onComplete = walkToProfile('58') // well past the 40 age gate
+      fireEvent.click(screen.getByText('Male'))
+      clickContinue() // PROFILE → (menopause skipped for male) → REVIEW
+      expect(screen.queryByText(/a quick personal note/i)).not.toBeInTheDocument()
+      expect(screen.getByText(/review your plan setup/i)).toBeInTheDocument()
+      clickFinish()
+      const cfg = onComplete.mock.calls[0][0] as OnboardingConfig
+      expect(cfg.sex).toBe('male')
+      expect(cfg.menopauseStatus).toBeUndefined()
+    })
+
+    it('keeps the menopause step for a female athlete 40+ and records sex', () => {
+      const onComplete = walkToProfile('50')
+      fireEvent.click(screen.getByText('Female'))
+      clickContinue() // PROFILE → MENOPAUSE (female, 50)
+      expect(screen.getByText(/a quick personal note/i)).toBeInTheDocument()
+      clickContinue() // skip the selection — still optional
+      clickFinish()
+      const cfg = onComplete.mock.calls[0][0] as OnboardingConfig
+      expect(cfg.sex).toBe('female')
+    })
+
     it('captures the premenopausal stage (40+) for base-building', () => {
       const onComplete = walkToProfile('42')
       clickContinue() // PROFILE → MENOPAUSE (age 42 ≥ 40)
