@@ -1,7 +1,8 @@
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine, ReferenceArea } from 'recharts'
 import type { HRZone, SportType } from '../types'
 import type { StreamData } from '../utils/strava'
-import { parseZoneRange, HR_ZONE_TOLERANCE_BPM } from '../utils/zones'
+import { parseZoneRange } from '../utils/zones'
+import { computeZoneCompliance, isIntervalSession } from '../utils/timeInZone'
 import ChartExpandOverlay from './ChartExpandOverlay'
 import ZoneBreakdownTable from './ZoneBreakdownTable'
 
@@ -9,13 +10,18 @@ interface HRChartProps {
   stream: StreamData
   zones?: HRZone[]
   targetZone?: string
+  /** Plan day type + detail — lets the compliance summary credit interval
+   *  work (time at/above target) and label warm-up exclusion, matching how
+   *  the workout grade reads the same session. */
+  workoutType?: string
+  workoutDetail?: string
   /** When set, the minute-by-minute table picks up Grade + MIM columns
    *  (running variants → Minetti run polynomial; hiking variants →
    *  Minetti walk; other sports show grade only). */
   sportType?: SportType
 }
 
-export default function HRChart({ stream, zones, targetZone, sportType }: HRChartProps) {
+export default function HRChart({ stream, zones, targetZone, workoutType, workoutDetail, sportType }: HRChartProps) {
   if (!stream.heartrate.length || !stream.time.length) {
     return <p className="text-xs text-slate-400 italic">No heart rate data available</p>
   }
@@ -176,6 +182,8 @@ export default function HRChart({ stream, zones, targetZone, sportType }: HRChar
           times={stream.time}
           zones={zones}
           targetZone={targetZone}
+          workoutType={workoutType}
+          workoutDetail={workoutDetail}
         />
       )}
 
@@ -196,30 +204,35 @@ export default function HRChart({ stream, zones, targetZone, sportType }: HRChar
 const ZONE_COLORS = ['#22c55e', '#84cc16', '#eab308', '#f97316', '#ef4444']
 
 function ZoneComplianceSummary({
-  heartrates, times, zones, targetZone,
+  heartrates, times, zones, targetZone, workoutType, workoutDetail,
 }: {
   heartrates: number[]
   times: number[]
   zones: HRZone[]
   targetZone?: string
+  workoutType?: string
+  workoutDetail?: string
 }) {
   const target = targetZone ? parseZoneRange(targetZone) : null
+  const interval = isIntervalSession(workoutType || '', workoutDetail)
+
+  // Target compliance uses the warm-up/cool-down-aware util so the bar
+  // matches the workout grade. Interval/quality sessions read "working"
+  // time (at or above target — the hard reps count); steady runs read
+  // strict in-band time. The per-zone breakdown below stays whole-session.
+  const compliance = target
+    ? computeZoneCompliance({ time: times, heartrate: heartrates }, target)
+    : null
 
   const zoneTimes: Record<string, number> = {}
   zones.forEach(z => { zoneTimes[z.zone] = 0 })
 
-  let inTargetSeconds = 0
   let totalSeconds = 0
-
   for (let i = 1; i < heartrates.length; i++) {
     const hr = heartrates[i]
     const dt = times[i] - times[i - 1]
     if (dt <= 0 || dt > 30) continue
     totalSeconds += dt
-
-    if (target && hr >= target.low - HR_ZONE_TOLERANCE_BPM && hr <= target.high + HR_ZONE_TOLERANCE_BPM) {
-      inTargetSeconds += dt
-    }
 
     for (const z of zones) {
       const match = z.hr.match(/(\d+)\s*[–-]\s*(\d+)/)
@@ -236,9 +249,14 @@ function ZoneComplianceSummary({
 
   if (totalSeconds === 0) return null
 
-  const inTargetPct = target ? Math.round((inTargetSeconds / totalSeconds) * 100) : null
-  const inTargetMin = Math.round(inTargetSeconds / 60)
-  const totalMin = Math.round(totalSeconds / 60)
+  const rawPct = compliance ? (interval ? compliance.workingPct : compliance.inZonePct) : null
+  const inTargetPct = rawPct === null ? null : Math.round(rawPct)
+  const inTargetMin = compliance ? Math.round((rawPct! / 100) * compliance.trimmedSec / 60) : 0
+  const totalMin = compliance ? Math.round(compliance.trimmedSec / 60) : Math.round(totalSeconds / 60)
+  const warmupTrimmed = !!compliance && compliance.warmupSec >= 60
+
+  const complianceTitle = interval ? 'Work Zone Compliance' : 'Target Zone Compliance'
+  const complianceUnit = interval ? 'working' : 'in zone'
 
   const complianceColor =
     inTargetPct === null ? '#94a3b8' :
@@ -258,8 +276,11 @@ function ZoneComplianceSummary({
         <div className="bg-slate-50 dark:bg-slate-900 rounded-xl p-3 mb-2 border border-slate-100 dark:border-slate-700">
           <div className="flex items-center justify-between mb-2">
             <div>
-              <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Target Zone Compliance</p>
-              <p className="text-[11px] text-slate-400">{target.low}–{target.high} bpm</p>
+              <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">{complianceTitle}</p>
+              <p className="text-[11px] text-slate-400">
+                {interval ? `≥ ${target.low} bpm` : `${target.low}–${target.high} bpm`}
+                {warmupTrimmed ? ' · warm-up excluded' : ''}
+              </p>
             </div>
             <div className="text-right">
               <p className="text-2xl font-bold" style={{ color: complianceColor }}>{inTargetPct}%</p>
@@ -277,7 +298,7 @@ function ZoneComplianceSummary({
             <div className="absolute inset-y-0 left-[75%] w-px bg-slate-400/60" />
           </div>
           <div className="flex justify-between mt-1">
-            <span className="text-[10px] text-slate-400">{inTargetMin} of {totalMin} min in zone</span>
+            <span className="text-[10px] text-slate-400">{inTargetMin} of {totalMin} min {complianceUnit}</span>
             <span className="text-[10px] text-slate-400">75% goal</span>
           </div>
         </div>

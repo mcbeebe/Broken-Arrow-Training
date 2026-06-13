@@ -66,9 +66,22 @@ describe('checkInjuryRisk — easing soreness is not flagged as escalating', () 
     expect(flags.find(f => f.id === 'escalating_soreness')).toBeUndefined()
   })
 
-  it('still raises the flag when soreness is climbing', () => {
+  it('still raises the flag when soreness is climbing, framed as RISING', () => {
     const flags = checkInjuryRisk([], [], sorenessMap([65, 40, 20]))
-    expect(flags.find(f => f.id === 'escalating_soreness')).toBeDefined()
+    const flag = flags.find(f => f.id === 'escalating_soreness')
+    expect(flag).toBeDefined()
+    expect(flag!.message).toContain('RISING')
+    expect(['warning', 'alert']).toContain(flag!.severity)
+  })
+
+  it('downgrades elevated-but-flat soreness to a low-key watch, framed as FLAT', () => {
+    // Steady level-3 soreness for 3 days: elevated but not climbing.
+    const flags = checkInjuryRisk([], [], sorenessMap([20, 20, 20]))
+    const flag = flags.find(f => f.id === 'escalating_soreness')
+    expect(flag).toBeDefined()
+    expect(flag!.severity).toBe('watch')
+    expect(flag!.message).toContain('FLAT')
+    expect(flag!.message).not.toContain('trending up')
   })
 })
 

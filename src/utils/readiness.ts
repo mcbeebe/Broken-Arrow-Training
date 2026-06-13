@@ -847,30 +847,49 @@ export function checkInjuryRisk(
     // climbing" read the athlete shouldn't see. The improving-but-elevated
     // state is still surfaced neutrally via the snapshot's soreness trend.
     if (soreness.escalating && soreness.direction !== 'falling') {
-      const severity: RiskFlag['severity'] = soreness.trending && soreness.last >= 35 ? 'alert' : 'warning'
+      // The eccentric-overload alarm only makes sense when soreness is
+      // actually RISING. Elevated-but-FLAT means the body is holding, not
+      // falling behind — surface it as a low-key watch, not an escalation,
+      // so the coach doesn't tell a steady (or improving) athlete their
+      // soreness is "climbing." Direction is stated literally in the message
+      // so the coach quotes it verbatim and can't invert it.
+      const rising = soreness.direction === 'rising'
       const nextQuad = daysAhead ? findNextQuadLoadingSession(daysAhead) : null
       const todayClear = isLowQuadLoadDay(todayPlanned)
 
-      const todayLine = todayClear
-        ? `Today's ${todayPlanned?.workout ?? 'session'} is fine — easy aerobic work doesn't add quad load.`
-        : `Today's ${todayPlanned?.workout ?? 'session'} loads the quads — drop intensity or swap if soreness is climbing.`
+      let severity: RiskFlag['severity']
+      let title: string
+      let trendLine: string
+      let todayLine: string
+      let watchLine: string
 
-      const watchLine = nextQuad
-        ? ` Watching ${nextQuad.day}'s ${nextQuad.workout} — if soreness is still trending up tomorrow, that's the one we cut.`
-        : ` If soreness keeps climbing, the next quad-loading session (heavy squats, bounding, downhill) gets pulled.`
-
-      const trendLine = soreness.trending
-        ? `Soreness has been elevated and trending up for 3 days — classic eccentric-overload signal.`
-        : `Elevated soreness on ${soreness.elevatedDays}/5 recent days — recovery lagging behind training stimulus.`
-
-      const title = todayClear ? 'Quad-loading at risk' : 'Muscle soreness escalating'
+      if (rising) {
+        severity = soreness.last >= 35 ? 'alert' : 'warning'
+        title = todayClear ? 'Quad-loading at risk' : 'Muscle soreness escalating'
+        trendLine = `Soreness is RISING — elevated and trending up over recent days, a classic eccentric-overload signal.`
+        todayLine = todayClear
+          ? `Today's ${todayPlanned?.workout ?? 'session'} is fine — easy aerobic work doesn't add quad load.`
+          : `Today's ${todayPlanned?.workout ?? 'session'} loads the quads — drop intensity or swap while soreness is climbing.`
+        watchLine = nextQuad
+          ? ` Watching ${nextQuad.day}'s ${nextQuad.workout} — if soreness keeps climbing tomorrow, that's the one we cut.`
+          : ` If soreness keeps climbing, the next quad-loading session (heavy squats, bounding, downhill) gets pulled.`
+      } else {
+        // direction === 'flat' (falling is already suppressed above)
+        severity = 'watch'
+        title = 'Muscle soreness elevated (holding)'
+        trendLine = `Soreness is FLAT — elevated but holding steady on ${soreness.elevatedDays}/5 recent days, not climbing.`
+        todayLine = todayClear
+          ? `Today's ${todayPlanned?.workout ?? 'session'} is fine — easy aerobic work doesn't add quad load.`
+          : `Today's ${todayPlanned?.workout ?? 'session'} loads the quads — fine to proceed, just keep an eye on how it responds.`
+        watchLine = ` No need to cut load on this alone; we'll only act if it starts rising.`
+      }
 
       flags.push({
         id: 'escalating_soreness',
         severity,
         title,
         message: `${trendLine} ${todayLine}${watchLine}`,
-        metric: `soreness adj +${soreness.last}`,
+        metric: `soreness adj +${soreness.last} · ${soreness.direction}`,
       })
     }
   }

@@ -2,6 +2,7 @@ import type { PlannedDay } from '../types'
 import { parseZoneRange } from './zones'
 import { getMilesNumber } from './format'
 import { getPlannedDrills } from './drills'
+import { computeZoneCompliance, isIntervalSession } from './timeInZone'
 
 function hasPlannedDrills(day: PlannedDay): boolean {
   return getPlannedDrills(day).length > 0 || !!day.actual?.drills?.items?.length
@@ -37,31 +38,6 @@ function getCachedHRStream(activityId: number | string | undefined): { time: num
     }
   }
   return null
-}
-
-/**
- * Compute % of time where HR was within the target band, using per-second
- * stream data against PLAN zones (Uphill Athlete). This is the same math as
- * the "Time in Zone" bar in the workout modal.
- */
-function computeTimeInZoneFromStream(
-  stream: { time: number[]; heartrate: number[] },
-  low: number,
-  high: number,
-): number {
-  const hrs = stream.heartrate
-  const times = stream.time
-  if (hrs.length < 2) return 0
-  let inZoneSec = 0
-  let totalSec = 0
-  for (let i = 1; i < hrs.length; i++) {
-    const hr = hrs[i]
-    const dt = times[i] - times[i - 1]
-    if (dt <= 0 || dt > 60) continue  // skip gaps
-    totalSec += dt
-    if (hr >= low && hr <= high) inZoneSec += dt
-  }
-  return totalSec > 0 ? (inZoneSec / totalSec) * 100 : 0
 }
 
 export type Grade = 'A+' | 'A' | 'A-' | 'B+' | 'B' | 'B-' | 'C+' | 'C' | 'C-' | 'D+' | 'D' | 'N/A'
@@ -101,7 +77,7 @@ export function calculateGrade(day: PlannedDay): GradeResult | null {
   }
 
   // Score components (each worth up to 1.0)
-  let completionScore = 1.0  // We have an actual workout = showed up
+  const completionScore = 1.0  // We have an actual workout = showed up
   let effortScore = 0.5      // Default neutral if we can't measure
   let hrScore = 0.5          // Default neutral
   let structureScore = 0.5   // Default neutral
@@ -136,36 +112,53 @@ export function calculateGrade(day: PlannedDay): GradeResult | null {
     }
 
     // HR zone compliance (30% weight) — always uses PLAN zones (Uphill Athlete).
-    // Preferred: per-second HR stream bucketed into plan zones (exact, matches
-    // "Time in Zone" bar in modal). Fallback: avgHR vs plan zone band.
-    // We deliberately IGNORE Garmin's hrZoneSummary since those use Garmin's
-    // default zones (% of max HR), not the plan's Uphill Athlete zones.
+    // Preferred: per-second HR stream, warm-up/cool-down excluded. Fallback:
+    // avgHR vs plan zone band. We deliberately IGNORE Garmin's hrZoneSummary
+    // since those use Garmin's default zones (% of max HR), not the plan's
+    // Uphill Athlete zones.
+    //
+    // Interval/sharpener days are graded on time AT OR ABOVE the target (the
+    // hard reps are the point — spiking into Z4/Z5 is success, not a miss).
+    // Steady runs are graded on strict in-band time. Either way the leading
+    // easy warm-up and trailing cool-down are trimmed out so they don't drag
+    // the number down — the athlete shouldn't be penalized for warming up.
     if (day.zone !== '—') {
       const range = parseZoneRange(day.zone)
 
       if (range) {
+        const interval = isIntervalSession(day.type, day.detail)
         const stream = getCachedHRStream(actual.stravaId || actual.garminId)
         if (stream) {
-          // Use per-second stream data against PLAN zones with ±3 bpm grace
-          const tizPct = computeTimeInZoneFromStream(stream, range.low - 3, range.high + 3)
-          if (tizPct >= 80) {
+          const c = computeZoneCompliance(stream, range)
+          const pct = interval ? c.workingPct : c.inZonePct
+          const label = interval ? 'working' : 'HR in zone'
+          const note = c.warmupSec >= 60 ? ', warm-up excluded' : ''
+          if (pct >= 80) {
             hrScore = 1.0
-            reasons.push(`${Math.round(tizPct)}% HR in zone`)
-          } else if (tizPct >= 65) {
+          } else if (pct >= 65) {
             hrScore = 0.9
-            reasons.push(`${Math.round(tizPct)}% HR in zone`)
-          } else if (tizPct >= 50) {
+          } else if (pct >= 50) {
             hrScore = 0.75
-            reasons.push(`${Math.round(tizPct)}% HR in zone`)
           } else {
             hrScore = 0.6
-            reasons.push(`${Math.round(tizPct)}% HR in zone`)
           }
+          reasons.push(`${Math.round(pct)}% ${label}${note}`)
         } else if (actual.avgHR) {
-          // Fallback: grade on avg HR with wider grace for easy runs
+          // Fallback: no per-second stream, so we can't see warm-up shape.
+          // For interval/quality days a whole-session average naturally lands
+          // BELOW the work zone (warm-up + recoveries pull it down) — a low
+          // average is expected, not a failure, so don't penalize it.
           const expandedLow = range.low - 5
           const expandedHigh = range.high + 5
-          if (actual.avgHR >= expandedLow && actual.avgHR <= expandedHigh) {
+          if (interval) {
+            if (actual.avgHR > expandedHigh + 10) {
+              hrScore = 0.85
+              reasons.push('avg HR above target (no stream)')
+            } else {
+              hrScore = 0.9
+              reasons.push('intervals logged (avg HR only)')
+            }
+          } else if (actual.avgHR >= expandedLow && actual.avgHR <= expandedHigh) {
             hrScore = 1.0
             reasons.push('HR in zone (avg)')
           } else if (actual.avgHR < expandedLow) {
@@ -299,7 +292,7 @@ export function calculateGrade(day: PlannedDay): GradeResult | null {
         const stream = getCachedHRStream(actual.stravaId || actual.garminId)
         let tizPct: number | null = null
         if (stream) {
-          tizPct = computeTimeInZoneFromStream(stream, range.low - 3, range.high + 3)
+          tizPct = computeZoneCompliance(stream, range).inZonePct
         }
         if (tizPct !== null) {
           if (tizPct < 75) {
