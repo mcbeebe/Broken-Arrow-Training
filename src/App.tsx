@@ -503,13 +503,34 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     return Math.max(0, Math.ceil((raceDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
   }, [activePlan.race.date])
 
-  // Determine current week number
+  // Determine the current training week from the plan's actual calendar.
+  // Anchor week 1's Monday off the race date (mirrors plan generation, which
+  // counts back from the Monday on/before race day) so "this week" tracks the
+  // real date instead of a hard-coded start clamped to 10. Falls back to
+  // matching today's date label, then week 1, when there's no parseable race
+  // date (e.g. open-ended general-fitness plans).
   const currentWeekNum = useMemo(() => {
+    const totalWeeks = weeks.length
+    if (totalWeeks === 0) return 1
+    const raceStr = activePlan.race.date.match(/\w+,\s*(.+)/)?.[1] || activePlan.race.date
+    // Parse a bare ISO date at noon-local so a negative UTC offset doesn't shift
+    // the anchor back a day (mirrors plan generation's 'T12:00:00' anchoring).
+    const raceDate = new Date(
+      /^\d{4}-\d{2}-\d{2}$/.test(raceStr.trim()) ? `${raceStr.trim()}T12:00:00` : raceStr,
+    )
+    if (!isNaN(raceDate.getTime())) {
+      const raceMonday = new Date(raceDate)
+      raceMonday.setDate(raceDate.getDate() - ((raceDate.getDay() + 6) % 7))
+      const week1Monday = new Date(raceMonday)
+      week1Monday.setDate(raceMonday.getDate() - (totalWeeks - 1) * 7)
+      const elapsed = Math.floor((Date.now() - week1Monday.getTime()) / (7 * 24 * 60 * 60 * 1000))
+      return Math.max(1, Math.min(totalWeeks, elapsed + 1))
+    }
     const now = new Date()
-    const planStart = new Date('2026-04-13')
-    const weeksSinceStart = Math.floor((now.getTime() - planStart.getTime()) / (7 * 24 * 60 * 60 * 1000))
-    return Math.max(1, Math.min(10, weeksSinceStart + 1))
-  }, [])
+    const mmdd = `${now.getMonth() + 1}/${now.getDate()}`
+    const idx = weeks.findIndex(w => w.days.some(d => d.day.includes(mmdd)))
+    return idx >= 0 ? weeks[idx].num : 1
+  }, [weeks, activePlan.race.date])
 
   // Find today's planned workout
   const todayPlannedWorkout = useMemo(() => {

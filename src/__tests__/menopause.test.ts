@@ -11,8 +11,13 @@ describe('menopauseStrengthCue (heavy bone-loading)', () => {
       expect(cue!.framing).toMatch(/bone/i)
     }
   })
-  it('returns null for premenopause, n/a, declined, and unset', () => {
-    expect(menopauseStrengthCue({ menopauseStatus: 'premenopause' })).toBeNull()
+  it('returns a distinct bank-the-base cue for premenopause (not the active-loss finisher)', () => {
+    const cue = menopauseStrengthCue({ menopauseStatus: 'premenopause' })
+    expect(cue).not.toBeNull()
+    expect(cue!.gymFinisher.join(' ')).not.toMatch(/Farmer Carry/)
+    expect(cue!.framing).toMatch(/bank|base/i)
+  })
+  it('returns null for non-answers and unset', () => {
     expect(menopauseStrengthCue({ menopauseStatus: 'not_applicable' })).toBeNull()
     expect(menopauseStrengthCue({ menopauseStatus: 'prefer_not_to_say' })).toBeNull()
     expect(menopauseStrengthCue({})).toBeNull()

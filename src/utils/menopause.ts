@@ -101,16 +101,31 @@ export function menopauseStrengthCue(
   config: Pick<OnboardingConfig, 'menopauseStatus'> | null | undefined,
 ): MenopauseStrengthCue | null {
   const s = config?.menopauseStatus
-  if (!s || !BONE_LOSS_STAGES.has(s)) return null
-  return {
-    // Beginner-safe heavy loaders (the athlete may be new to lifting): a loaded
-    // carry is high compressive load with low injury/skill risk; jumps give an
-    // osteogenic impact stimulus when no weights are available.
-    gymFinisher: ['Farmer Carry 3×30s'],
-    bodyweightFinisher: ['Squat Jump 3×8'],
-    framing:
-      'Bone-loading priority (midlife): as estrogen drops, heavy load — low reps, hard but clean — is the strongest lever for bone density; light, high-rep work alone won’t protect it. Start at a load you control and progress it across the block.',
+  if (!s || s === 'not_applicable') return null
+  // Premenopause: estrogen hasn't dropped yet, so the highest-leverage move is
+  // to BANK bone density now — progressive loading as prevention, ahead of the
+  // transition. (Distinct, lighter-framed from the active-loss stages below.)
+  if (s === 'premenopause') {
+    return {
+      gymFinisher: ['Trap-Bar Deadlift 2×6'],
+      bodyweightFinisher: ['Pogo Hops 3×20'],
+      framing:
+        'Bank your bone base now: you’re ahead of the transition, so this is the cheapest time to build bone density. Progressively load a main lift — banking it before estrogen declines beats trying to rebuild after.',
+    }
   }
+  // Peri / menopause / postmenopause: estrogen is dropping, so bone is the
+  // active priority. Beginner-safe heavy loaders (the athlete may be new to
+  // lifting): a loaded carry is high compressive load with low injury/skill
+  // risk; jumps give an osteogenic impact stimulus when no weights are available.
+  if (BONE_LOSS_STAGES.has(s)) {
+    return {
+      gymFinisher: ['Farmer Carry 3×30s'],
+      bodyweightFinisher: ['Squat Jump 3×8'],
+      framing:
+        'Bone-loading priority (midlife): as estrogen drops, heavy load — low reps, hard but clean — is the strongest lever for bone density; light, high-rep work alone won’t protect it. Start at a load you control and progress it across the block.',
+    }
+  }
+  return null
 }
 
 function joinList(items: string[]): string {
