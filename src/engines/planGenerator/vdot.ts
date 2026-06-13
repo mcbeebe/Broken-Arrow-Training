@@ -31,6 +31,35 @@ export interface RaceTimeInput {
   timeSeconds: number
 }
 
+/**
+ * Fastest per-mile pace any human sustains (≈ mile world-record pace). A race
+ * time implying anything faster is corrupt data, not a real performance.
+ */
+export const MIN_HUMAN_PACE_SEC_PER_MILE = 240 // 4:00 /mi
+
+/**
+ * Guard a race time (seconds) against the "2:30" mm:ss / h:mm:ss ambiguity.
+ *
+ * A 2 h 30 m half-marathon goal typed as "2:30" parses to 150 s (mm:ss), which
+ * implies an ~11 sec/mile pace — impossible — and yields an absurd VDOT (~7600)
+ * that poisons every derived pace ("0:17 /mi"). When the implied pace is faster
+ * than any human, we re-read the value as if the user meant the next unit up
+ * (mm:ss → h:mm, i.e. ×60) and use that when it lands in a runnable range.
+ * Slow times are never altered (ultras are legitimately slow). Returns null
+ * only when the value is impossible even after rescaling, so callers fall back
+ * to RPE/HR instead of emitting garbage.
+ */
+export function sanitizeRaceTimeSeconds(
+  seconds: number | undefined | null,
+  distanceMiles: number,
+): number | null {
+  if (seconds == null || seconds <= 0 || distanceMiles <= 0) return null
+  if (seconds / distanceMiles >= MIN_HUMAN_PACE_SEC_PER_MILE) return Math.round(seconds)
+  const scaled = seconds * 60 // mm:ss → h:mm reinterpretation
+  if (scaled / distanceMiles >= MIN_HUMAN_PACE_SEC_PER_MILE) return Math.round(scaled)
+  return null
+}
+
 /** Compute VDOT from a single race performance. */
 export function vdotFromRace(input: RaceTimeInput): number {
   const meters = input.distanceMiles * METERS_PER_MILE

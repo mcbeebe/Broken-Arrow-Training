@@ -18,6 +18,7 @@ import type {
 } from '../hooks/useOnboarding'
 import { DETAIL_LEVELS, type DetailLevel } from '../types'
 import { parseTimeToSeconds } from '../utils/parseTime'
+import { sanitizeRaceTimeSeconds } from '../engines/planGenerator/vdot'
 
 interface Props {
   onComplete: (config: OnboardingConfig) => void
@@ -97,6 +98,13 @@ const DISTANCE_OPTIONS: ReadonlyArray<{ value: RaceDistance; label: string; desc
   { value: '100_mile',       label: '100 Mile',        desc: '100 mi · all-day-and-night ultra' },
   { value: 'mountain_ultra', label: 'Mountain Ultra',  desc: 'Vertical-heavy, technical terrain' },
 ]
+
+/** Approx race distance in miles — used only to sanity-check a goal finish
+ *  time (catch a "2:30" that means 2 h 30 m, not 2 m 30 s). */
+const RACE_DISTANCE_MILES: Record<RaceDistance, number> = {
+  '5k': 3.1, '10k': 6.2, half_marathon: 13.1, marathon: 26.2,
+  '50k': 31.1, '50_mile': 50, '100k': 62.1, '100_mile': 100, mountain_ultra: 31,
+}
 
 const ANCHOR_OPTIONS: { value: FitnessAnchorType; label: string; placeholder: string; kind: 'time' | 'bpm' | 'none' }[] = [
   { value: 'race_5k', label: 'Recent 5K time', placeholder: 'mm:ss', kind: 'time' },
@@ -379,7 +387,11 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
       cardioModality: showsGoalStep ? (cardioModality ?? undefined) : undefined,
       raceDescription: raceDescription.trim() || undefined,
       athleteGoal: athleteGoal.trim() || undefined,
-      goalRaceTimeSeconds: showsDistanceStep ? parseTimeToSeconds(goalRaceTime) : undefined,
+      // Store the sanitized goal so every consumer sees the corrected value
+      // ("2:30" for a half → 9000 s, not 150 s); null/invalid → omitted.
+      goalRaceTimeSeconds: showsDistanceStep && raceDistance
+        ? (sanitizeRaceTimeSeconds(parseTimeToSeconds(goalRaceTime), RACE_DISTANCE_MILES[raceDistance]) ?? undefined)
+        : undefined,
       experienceLevel: experience!,
       detailLevel: effectiveDetail,
       trainingDaysPerWeek: daysPerWeek!,
@@ -685,11 +697,19 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
                     placeholder="e.g. 3:25:00 or 32500"
                     className="w-full px-3 py-3 text-base border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400"
                   />
-                  {goalRaceTime.trim() && (
-                    parseTimeToSeconds(goalRaceTime) != null
-                      ? <p className="text-xs text-teal-600 mt-1">Goal: {formatSecondsLabel(parseTimeToSeconds(goalRaceTime)!)}. We’ll build your quality paces toward it.</p>
-                      : <p className="text-xs text-amber-600 mt-1">Enter as hh:mm:ss (e.g. 3:25:00) — the “:” is optional.</p>
-                  )}
+                  {goalRaceTime.trim() && (() => {
+                    const parsed = parseTimeToSeconds(goalRaceTime)
+                    if (parsed == null) {
+                      return <p className="text-xs text-amber-600 mt-1">Enter as hh:mm:ss (e.g. 3:25:00) — the “:” is optional.</p>
+                    }
+                    const miles = raceDistance ? RACE_DISTANCE_MILES[raceDistance] : 0
+                    const sane = miles > 0 ? sanitizeRaceTimeSeconds(parsed, miles) : parsed
+                    if (miles > 0 && sane != null && sane !== parsed) {
+                      // Ambiguous mm:ss vs hh:mm:ss (e.g. "2:30" → impossibly fast).
+                      return <p className="text-xs text-amber-600 mt-1">{formatSecondsLabel(parsed)} is impossibly fast for a {DISTANCE_OPTIONS.find(o => o.value === raceDistance)?.label} — reading it as <strong>{formatSecondsLabel(sane)}</strong>. Use hh:mm:ss to be exact.</p>
+                    }
+                    return <p className="text-xs text-teal-600 mt-1">Goal: {formatSecondsLabel(sane ?? parsed)}. We’ll build your quality paces toward it.</p>
+                  })()}
                   <p className="text-xs text-slate-400 mt-1">If you have a target, we progress your workout paces from current fitness toward it.</p>
                 </div>
               )}

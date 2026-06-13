@@ -24,8 +24,8 @@ import type {
 } from '../../types/training-method'
 import type { OnboardingConfig, RaceDistance, InjuryStatus } from '../../hooks/useOnboarding'
 import type { PlannedWorkout, ResolvedPaces, WeekMileage } from './types'
-import { resolvePaces, formatZoneString, athleteCurrentVdot, blendGoalPaces } from './paceTargets'
-import { vdotFromRace } from './vdot'
+import { resolvePaces, formatZoneString, athleteCurrentVdot, blendGoalPaces, isDisplayablePace } from './paceTargets'
+import { sanitizeRaceTimeSeconds, vdotFromRace } from './vdot'
 import {
   chooseTotalWeeks,
   allocatePhaseWeeks,
@@ -231,13 +231,7 @@ function computeEasyRunTime(
   const milesPerEasy = easyMiTotal / easyDays
   if (milesPerEasy <= 0) return fallback
 
-  // Easy pace bounds are stored as sec/mile. The slower (higher number)
-  // bound translates to a longer time, the faster bound to a shorter time.
-  // Fall back to a typical recreational easy pace when no anchor exists.
-  const easy = paces.byZone.easy
-  const fastSec = easy?.paceSecPerMileHigh ?? 540   // 9:00/mi
-  const slowSec = easy?.paceSecPerMileLow ?? 600    // 10:00/mi
-
+  const { fastSec, slowSec } = easyPaceSecBounds(paces)
   const minMinutes = Math.round((milesPerEasy * fastSec) / 60)
   const maxMinutes = Math.round((milesPerEasy * slowSec) / 60)
 
@@ -247,6 +241,48 @@ function computeEasyRunTime(
   const hi = Math.min(fallback.max, Math.max(minMinutes, maxMinutes))
   if (hi < lo) return fallback
   return { min: lo, max: hi }
+}
+
+/**
+ * Easy / long-run pace bounds (sec/mile) for translating miles → minutes.
+ * The slower (higher) bound gives the longer time; the faster bound the
+ * shorter. Guards against implausible (corrupt) pace data and falls back to a
+ * typical recreational easy pace when no usable anchor exists.
+ */
+function easyPaceSecBounds(paces: ResolvedPaces): { fastSec: number; slowSec: number } {
+  const easy = paces.byZone.easy
+  if (isDisplayablePace(easy?.paceSecPerMileLow, easy?.paceSecPerMileHigh)) {
+    return { fastSec: easy!.paceSecPerMileHigh!, slowSec: easy!.paceSecPerMileLow! }
+  }
+  return { fastSec: 540, slowSec: 600 } // 9:00–10:00/mi
+}
+
+/**
+ * Per-week duration window for the long run, from the week's actual long-run
+ * distance × easy/long pace — so the card shows e.g. "~150–175 min" for a
+ * 13 mi long run instead of the method-wide 60–360 placeholder. Clamped into
+ * the method's stated window. Mirrors `computeEasyRunTime` but keys off
+ * `longRunMi` (the long run is one effort, not split across easy days).
+ */
+function computeLongRunTime(
+  weekMi: WeekMileage,
+  paces: ResolvedPaces,
+  fallback: { min: number; max: number },
+): { min: number; max: number } {
+  const miles = weekMi.longRunMi
+  if (miles <= 0) return fallback
+  const { fastSec, slowSec } = easyPaceSecBounds(paces)
+  const minMinutes = Math.round((miles * fastSec) / 60)
+  const maxMinutes = Math.round((miles * slowSec) / 60)
+  if (minMinutes <= 0) return fallback
+  // Unlike easy runs we do NOT floor at the method's stated minimum: an early
+  // 4-mi long run is legitimately ~45 min, and flooring it to the method's
+  // 60-min "typical long run" min (then failing the lo<=hi check) is exactly
+  // what produced the useless 60–360 placeholder. Only cap the upper bound so
+  // a big ultra long run never exceeds the method's max.
+  const lo = Math.min(minMinutes, maxMinutes)
+  const hi = Math.min(fallback.max, Math.max(minMinutes, maxMinutes))
+  return { min: lo, max: Math.max(lo, hi) }
 }
 
 /**
@@ -305,10 +341,16 @@ function buildPlannedDay(
   // the method's range because their structure (intervals, recovery,
   // etc.) is what determines the duration, not weekly mileage.
   const category = plannedWorkout.category
-  const usesEasyDuration = category === 'easy' || category === 'recovery'
-  const timeRange = usesEasyDuration && weekSchedule
-    ? computeEasyRunTime(weekSchedule, weekMi, paces, plannedWorkout.approxDurationMinutes)
-    : plannedWorkout.approxDurationMinutes
+  // Personalize the displayed duration from the week's actual volume:
+  //  - long runs → from this week's long-run distance × easy/long pace
+  //  - easy / recovery → from the week's easy miles split across easy days
+  // Quality workouts keep the method's range (their structure sets the time).
+  const timeRange =
+    category === 'long'
+      ? computeLongRunTime(weekMi, paces, plannedWorkout.approxDurationMinutes)
+      : (category === 'easy' || category === 'recovery') && weekSchedule
+        ? computeEasyRunTime(weekSchedule, weekMi, paces, plannedWorkout.approxDurationMinutes)
+        : plannedWorkout.approxDurationMinutes
   return {
     day: formatDayLabel(date),
     type,
@@ -384,7 +426,12 @@ function injuryPolicyFor(status: InjuryStatus | undefined): InjuryPolicy {
     case 'returning':
       return {
         maxTrainingDaysPerWeek: 4,
-        mileageAdjust: { startPctMultiplier: 0.8, maxWeeklyIncreasePctCap: 0.05 },
+        // Returning (cleared, easing back): keep the start at/below current and
+        // ramp gently, but not so gently the build never reaches race-ready
+        // volume. 8%/wk (vs the 5% used for actively-injured) lets an 18-week
+        // half build from ~current up to a real race peak + near-race-distance
+        // long run by taper, while still honoring the every-N-week cutbacks.
+        mileageAdjust: { startPctMultiplier: 0.8, maxWeeklyIncreasePctCap: 0.08 },
         forceEasyLeadInWeeks: INJURY_LEADIN_WEEKS.returning,
       }
     case 'current':
@@ -457,8 +504,11 @@ export function generatePlanFromMethod(
   // we never prescribe paces the athlete has no path to hit.
   const currentVdot = athleteCurrentVdot(config)
   const raceMiles = config.raceDistance ? RACE_DISTANCE_LABELS[config.raceDistance].miles : 0
-  const rawGoalVdot = (config.goalRaceTimeSeconds && config.goalRaceTimeSeconds > 0 && raceMiles > 0)
-    ? vdotFromRace({ distanceMiles: raceMiles, timeSeconds: config.goalRaceTimeSeconds })
+  // Guard the goal time the same way (a half goal typed "2:30" → 150 s would
+  // otherwise yield an absurd goal VDOT and corrupt the goal-pace blend).
+  const goalSeconds = raceMiles > 0 ? sanitizeRaceTimeSeconds(config.goalRaceTimeSeconds, raceMiles) : null
+  const rawGoalVdot = goalSeconds != null
+    ? vdotFromRace({ distanceMiles: raceMiles, timeSeconds: goalSeconds })
     : null
   // Only progress paces when the goal is an actual stretch beyond current
   // fitness — a goal at/below current fitness shouldn't slow the prescription.

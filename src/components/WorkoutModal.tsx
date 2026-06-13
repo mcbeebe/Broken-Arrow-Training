@@ -4,6 +4,7 @@ import { DEFAULT_COACH_NAME } from '../types'
 import { buildWeatherChipFromHour, forecastForHour, describeWeatherCode, formatHourLabel } from '../utils/weatherChip'
 import { dayLabelToISO, buildCompletedWorkoutPayload } from '../utils/coachSnapshot'
 import type { PlannedSegment } from '../engines/planGenerator/types'
+import { isDisplayablePace } from '../engines/planGenerator/paceTargets'
 import { getWorkoutStyle, adaptBg } from '../utils/styles'
 import { getCoaching } from '../utils/coaching'
 import { generateWorkoutTake } from '../utils/coachNotes'
@@ -12,6 +13,7 @@ import WorkoutDebriefPrompt from './WorkoutDebriefPrompt'
 import { useCoachInsight } from '../hooks/useCoachInsight'
 import { formatMiles, formatSeconds, formatPace, estimateRunTime } from '../utils/format'
 import { parseRoutine, calibrateGuideWeight, type ParsedExercise } from '../utils/exercises'
+import { menopauseStrengthCue } from '../utils/menopause'
 import type { StrengthExperience } from '../hooks/useOnboarding'
 import { buildProgression, normalizeExerciseName, suggestNextTarget, type ExerciseProgression } from '../utils/strengthProgression'
 import { parseIntervalWorkout, RUNNING_DRILLS, MYRTL_ROUTINE, PRE_RUN_ACTIVATION, type RunSegment, type DrillGuide } from '../utils/drills'
@@ -206,6 +208,8 @@ export default function WorkoutModal({ day, weekNum, onClose, onLog, onSaveNote,
     return baseCoaching
   }, [baseCoaching, hasPlannedWorkout, plannedWorkout, hasCustomDetail, day.detail])
   const isRunType = ['run', 'quality', 'long'].includes(day.type)
+  // Midlife bone-loading framing for the strength day (peri/menopause/post).
+  const boneCue = isStrength ? menopauseStrengthCue(onboardingConfig) : null
   const exercises = isStrength ? parseRoutine(day.detail) : []
   const customExercises = hasCustomDetail ? parseRoutine(day.detail) : []
   // Legacy interval parsing is keyed off hard-coded patterns ("4×90 sec uphill")
@@ -983,6 +987,12 @@ export default function WorkoutModal({ day, weekNum, onClose, onLog, onSaveNote,
           {isStrength && exercises.length > 0 && (
             <div>
               <p className="text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-2">🏋️ Exercise Guide (tap for form cues)</p>
+              {boneCue && (
+                <div className="mb-2 px-3 py-2 rounded-lg bg-violet-50 dark:bg-violet-950/40 border border-violet-200 dark:border-violet-900 text-sm text-violet-800 dark:text-violet-200 flex items-start gap-1.5">
+                  <span aria-hidden>🦴</span>
+                  <span className="leading-snug">{boneCue.framing}</span>
+                </div>
+              )}
               {(strengthLevel === 'new' || strengthLevel === 'recreational') && (
                 <div className="mb-2 px-3 py-2 rounded-lg bg-teal-50 dark:bg-teal-950/40 border border-teal-200 dark:border-teal-900 text-sm text-teal-800 dark:text-teal-200 flex items-start gap-1.5">
                   <span aria-hidden>🎚</span>
@@ -1404,8 +1414,10 @@ function formatPaceTarget(seg: PlannedSegment): string | null {
   // Show the strongest signal first per `preferredMode`, but stack additional
   // hints (HR + RPE) when available so the athlete has multiple cues.
   const parts: string[] = []
-  if (t.paceSecPerMileLow != null && t.paceSecPerMileHigh != null) {
-    parts.push(`${formatPaceSecondsPerMile(t.paceSecPerMileHigh)} – ${formatPaceSecondsPerMile(t.paceSecPerMileLow)}`)
+  // Suppress physically-impossible (corrupt) sub-minute paces — show HR/RPE
+  // instead of rendering "0:17/mi".
+  if (isDisplayablePace(t.paceSecPerMileLow, t.paceSecPerMileHigh)) {
+    parts.push(`${formatPaceSecondsPerMile(t.paceSecPerMileHigh!)} – ${formatPaceSecondsPerMile(t.paceSecPerMileLow!)}`)
   }
   if (t.hrBpmLow != null && t.hrBpmHigh != null) {
     parts.push(`${t.hrBpmLow}-${t.hrBpmHigh} bpm`)

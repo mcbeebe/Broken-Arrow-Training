@@ -70,6 +70,49 @@ export function menopauseSummaryLine(
   return parts.join(' · ')
 }
 
+/**
+ * Heavy bone-loading strength guidance for the active bone-loss stages
+ * (perimenopause, menopause, postmenopause). As estrogen falls, bone-mineral
+ * density drops and stress-fracture risk climbs; heavy, low-rep resistance and
+ * impact are the strongest countermeasures — light/high-rep volume alone is
+ * insufficient. Premenopause (still "banking" bone) and n/a keep the standard
+ * routine, so this returns null for them.
+ *
+ * Consumed by the method-based plan generator (extraDays) and surfaced on the
+ * strength day. Symptom-/recovery-keying lives elsewhere (coach + GF overlay);
+ * this is strictly the strength/bone lever.
+ */
+export interface MenopauseStrengthCue {
+  /** Guide-backed finisher appended to a gym routine (axial/compressive load). */
+  gymFinisher: readonly string[]
+  /** Finisher for bodyweight-only athletes — impact over external load. */
+  bodyweightFinisher: readonly string[]
+  /** Short "why", shown on the strength day. */
+  framing: string
+}
+
+const BONE_LOSS_STAGES: ReadonlySet<MenopauseStatus> = new Set<MenopauseStatus>([
+  'perimenopause',
+  'menopause',
+  'postmenopause',
+])
+
+export function menopauseStrengthCue(
+  config: Pick<OnboardingConfig, 'menopauseStatus'> | null | undefined,
+): MenopauseStrengthCue | null {
+  const s = config?.menopauseStatus
+  if (!s || !BONE_LOSS_STAGES.has(s)) return null
+  return {
+    // Beginner-safe heavy loaders (the athlete may be new to lifting): a loaded
+    // carry is high compressive load with low injury/skill risk; jumps give an
+    // osteogenic impact stimulus when no weights are available.
+    gymFinisher: ['Farmer Carry 3×30s'],
+    bodyweightFinisher: ['Squat Jump 3×8'],
+    framing:
+      'Bone-loading priority (midlife): as estrogen drops, heavy load — low reps, hard but clean — is the strongest lever for bone density; light, high-rep work alone won’t protect it. Start at a load you control and progress it across the block.',
+  }
+}
+
 function joinList(items: string[]): string {
   if (items.length <= 1) return items.join('')
   if (items.length === 2) return `${items[0]} and ${items[1]}`

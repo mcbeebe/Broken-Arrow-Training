@@ -1,5 +1,24 @@
 import { describe, it, expect } from 'vitest'
-import { menopauseSummaryLine, hasMenopauseContext } from '../utils/menopause'
+import { menopauseSummaryLine, hasMenopauseContext, menopauseStrengthCue } from '../utils/menopause'
+
+describe('menopauseStrengthCue (heavy bone-loading)', () => {
+  it('returns a bone-loading cue for the active bone-loss stages', () => {
+    for (const s of ['perimenopause', 'menopause', 'postmenopause'] as const) {
+      const cue = menopauseStrengthCue({ menopauseStatus: s })
+      expect(cue).not.toBeNull()
+      expect(cue!.gymFinisher.length).toBeGreaterThan(0)
+      expect(cue!.bodyweightFinisher.length).toBeGreaterThan(0)
+      expect(cue!.framing).toMatch(/bone/i)
+    }
+  })
+  it('returns null for premenopause, n/a, declined, and unset', () => {
+    expect(menopauseStrengthCue({ menopauseStatus: 'premenopause' })).toBeNull()
+    expect(menopauseStrengthCue({ menopauseStatus: 'not_applicable' })).toBeNull()
+    expect(menopauseStrengthCue({ menopauseStatus: 'prefer_not_to_say' })).toBeNull()
+    expect(menopauseStrengthCue({})).toBeNull()
+    expect(menopauseStrengthCue(null)).toBeNull()
+  })
+})
 
 describe('menopauseSummaryLine', () => {
   it('returns null for missing, empty, or non-answers', () => {

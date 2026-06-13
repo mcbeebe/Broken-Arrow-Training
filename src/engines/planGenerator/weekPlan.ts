@@ -331,15 +331,15 @@ export function buildWeeklyMileage(
   const peak = Math.max(currentWeeklyMileage * peakMult, distancePeakFloor)
   const startPctMul = adjust.startPctMultiplier ?? 1
   // Never open the plan *below* what the athlete already runs each week — they
-  // do that volume safely today, so starting lower just detrains them for the
-  // first month (the reported "ramp too slow" bug: a 10 mi/wk runner opening at
-  // 7.2). Floor the start at current mileage — the method's start% still wins
-  // when it's higher — then apply any injury de-load via startPctMul.
-  const startBaseline = Math.min(
-    Math.max(peak * mp.startMileagePctOfPeak, currentWeeklyMileage),
+  // do that volume safely today, so starting lower just detrains them. Apply
+  // any injury de-load to the method's start FIRST, then floor at current
+  // weekly mileage: a returning athlete already at 10 mi/wk opens at 10, not 8
+  // (the de-load only bites when the method start would otherwise sit *above*
+  // current). Capped at peak.
+  const start = Math.min(
+    Math.max(peak * mp.startMileagePctOfPeak * startPctMul, currentWeeklyMileage),
     peak,
   )
-  const start = startBaseline * startPctMul
   const maxWeeklyIncreasePct = adjust.maxWeeklyIncreasePctCap != null
     ? Math.min(mp.maxWeeklyIncreasePct, adjust.maxWeeklyIncreasePctCap)
     : mp.maxWeeklyIncreasePct

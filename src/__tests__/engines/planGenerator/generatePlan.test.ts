@@ -890,3 +890,102 @@ describe('generatePlanFromMethod — end-to-end', () => {
     }
   })
 })
+
+describe('returning-from-injury ramp reaches a real half peak (regression)', () => {
+  const returningHalf = (overrides = {}) => makeConfig({
+    raceType: 'trail',
+    raceDistance: 'half_marathon',
+    experienceLevel: 'beginner',
+    currentWeeklyMileage: 10,
+    raceDate: '2026-09-13', // 18 weeks from TODAY
+    injuryStatus: 'returning',
+    ...overrides,
+  })
+
+  it('opens at current mileage (not below it) despite the injury de-load', () => {
+    const plan = generatePlanFromMethod(galloway, returningHalf(), TODAY)
+    // Previously the 0.8 de-load pulled the start to 8 (below the 10 the
+    // athlete already runs). It must now open at >= current.
+    expect(Number(plan.weeks[0].miles)).toBeGreaterThanOrEqual(10)
+  })
+
+  it('builds to a half-appropriate peak (>= 20 mi), not a 16-mi 10K block', () => {
+    const plan = generatePlanFromMethod(galloway, returningHalf(), TODAY)
+    const peak = Math.max(...plan.weeks.map(w => Number(w.miles)))
+    expect(peak).toBeGreaterThanOrEqual(20)
+  })
+
+  it('stays gentler than the same athlete healthy (still injury-aware)', () => {
+    const returning = generatePlanFromMethod(galloway, returningHalf(), TODAY)
+    const healthy = generatePlanFromMethod(galloway, returningHalf({ injuryStatus: 'none' }), TODAY)
+    const peak = (p: typeof returning) => Math.max(...p.weeks.map(w => Number(w.miles)))
+    expect(peak(returning)).toBeLessThan(peak(healthy))
+  })
+})
+
+describe('corrupt race time never yields an impossible pace (regression: "0:17 /mi")', () => {
+  it('a half anchor entered as "2:30" (150 s) resolves to a sane easy pace', () => {
+    const paces = resolvePaces(galloway, makeConfig({
+      raceDistance: 'half_marathon',
+      fitnessAnchor: { type: 'race_hm', valueSeconds: 150 },
+    }))
+    const easy = paces.byZone.easy!
+    // 150 s is rescaled to 9000 s (2:30:00) → a real easy pace, not 17 sec/mi.
+    expect(easy.paceSecPerMileHigh!).toBeGreaterThanOrEqual(240)
+    expect(formatZoneString(easy)).not.toMatch(/\b0:\d\d\b/)
+  })
+
+  it('the corrupt anchor produces the same pace as the correctly-typed 2:30:00', () => {
+    const corrupt = resolvePaces(galloway, makeConfig({ raceDistance: 'half_marathon', fitnessAnchor: { type: 'race_hm', valueSeconds: 150 } }))
+    const ok = resolvePaces(galloway, makeConfig({ raceDistance: 'half_marathon', fitnessAnchor: { type: 'race_hm', valueSeconds: 9000 } }))
+    expect(corrupt.byZone.easy!.paceSecPerMileHigh).toBe(ok.byZone.easy!.paceSecPerMileHigh)
+  })
+})
+
+describe('strength adapts to menopause stage (regression)', () => {
+  const strengthDay = (menopauseStatus: OnboardingConfig['menopauseStatus']) => {
+    const plan = generatePlanFromMethod(galloway, makeConfig({
+      raceDistance: 'half_marathon', experienceLevel: 'beginner', currentWeeklyMileage: 10,
+      injuryStatus: 'none', trainingDaysPerWeek: 6, strengthDaysPerWeek: 1,
+      equipmentAccess: ['gym'], menopauseStatus,
+    }), TODAY)
+    const wk = plan.weeks.find(w => w.focus !== 'Taper' && w.days.some(d => d.type === 'strength'))!
+    return wk.days.find(d => d.type === 'strength')!
+  }
+
+  it('peri/post-menopause append a heavy bone-loading finisher', () => {
+    for (const stage of ['perimenopause', 'postmenopause'] as const) {
+      const s = strengthDay(stage)
+      expect(s.detail).toMatch(/Farmer Carry/)
+      expect(s.workout).toBe('Strength + bone')
+    }
+  })
+
+  it('premenopause / not-applicable keep the standard routine', () => {
+    for (const stage of ['premenopause', 'not_applicable'] as const) {
+      const s = strengthDay(stage)
+      expect(s.detail).not.toMatch(/Farmer Carry/)
+      expect(s.workout).toBe('Strength')
+    }
+  })
+})
+
+describe('long-run duration is personalized, not the method-wide 60-360 (regression)', () => {
+  it('shows a narrow time range scaled to the week\'s long-run distance', () => {
+    const plan = generatePlanFromMethod(galloway, makeConfig({
+      raceDistance: 'half_marathon', experienceLevel: 'beginner', currentWeeklyMileage: 10,
+      injuryStatus: 'none', raceDate: '2026-09-13',
+      fitnessAnchor: { type: 'race_hm', valueSeconds: 9000 },
+    }), TODAY)
+    const longDays = plan.weeks.flatMap(w => w.days.filter(d => d.type === 'long'))
+    expect(longDays.length).toBeGreaterThan(0)
+    for (const d of longDays) {
+      const m = d.time.match(/(\d+)-(\d+)\s*min/)
+      expect(m).not.toBeNull()
+      const [lo, hi] = [parseInt(m![1]), parseInt(m![2])]
+      // Not the raw method window, and a sane window (< 90 min wide).
+      expect(`${lo}-${hi}`).not.toBe('60-360')
+      expect(hi - lo).toBeLessThan(90)
+    }
+  })
+})
