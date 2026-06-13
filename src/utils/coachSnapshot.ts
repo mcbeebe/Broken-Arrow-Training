@@ -25,6 +25,8 @@ import { localDateStr } from './format'
 import { buildProgression, suggestNextTarget } from './strengthProgression'
 import { calculateGrade } from './grading'
 import { buildMethodologyContext } from './methodologyContext'
+import { sorenessTrendDirection } from './readiness'
+import { SORENESS_LOAD_ADJUSTMENT } from '../hooks/useSoreness'
 
 /**
  * Assemble the CoachSnapshot that's sent with every LLM call. The goal is
@@ -558,11 +560,25 @@ export function buildCoachSnapshot(inputs: Inputs): CoachSnapshot {
   void sevenAgo
   void thirtyAgo
 
-  const recentSoreness =
-    (inputs.sorenessLog || [])
-      .filter(s => s.date >= sevenAgo)
-      .slice(-5)
-      .map(s => ({ date: s.date, summary: `level ${s.level}` }))
+  const recentSorenessLog = (inputs.sorenessLog || [])
+    .filter(s => s.date >= sevenAgo)
+    .slice(-5)
+  const recentSoreness = recentSorenessLog.map(s => ({ date: s.date, summary: `level ${s.level}` }))
+
+  // Pre-compute the soreness trend direction so the coach states it from
+  // ground truth instead of eyeballing the levels (which produced false
+  // "trending up" reads while soreness was actually easing). Direction runs
+  // on the load-adjustment scale, consistent with the readiness engine.
+  const sorenessTrend = recentSorenessLog.length > 0
+    ? {
+        direction: sorenessTrendDirection(
+          recentSorenessLog.map(s => SORENESS_LOAD_ADJUSTMENT[s.level]),
+        ),
+        elevated: recentSorenessLog.some(s => s.level >= 3),
+        latestLevel: recentSorenessLog[recentSorenessLog.length - 1].level,
+        recent: recentSorenessLog.map(s => ({ date: s.date, level: s.level })),
+      }
+    : undefined
 
   const analytics = buildAnalytics(inputs)
 
@@ -678,6 +694,7 @@ export function buildCoachSnapshot(inputs: Inputs): CoachSnapshot {
     fullPlan,
     recentActivities,
     recentSoreness,
+    sorenessTrend,
     lastCompletedWorkout,
     planBlocks,
     athleteProfile,

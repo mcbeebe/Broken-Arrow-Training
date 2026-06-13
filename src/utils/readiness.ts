@@ -673,17 +673,55 @@ export function checkRecoveryFailure(healthHistory: GarminHealthData[]): {
   }
 }
 
+/** Direction a soreness series is moving in. `falling` = the athlete is
+ *  recovering (soreness easing), `rising` = getting worse. */
+export type SorenessDirection = 'rising' | 'falling' | 'flat'
+
+/**
+ * Sign of the linear-regression slope over a soreness series ordered
+ * oldest→newest, with a deadband so noise reads as `flat`. Values are in
+ * load-adjustment units (the SORENESS_LOAD_ADJUSTMENT scale), where the
+ * smallest meaningful step is 15, so a per-day slope of ±1 is a safe
+ * deadband — any real day-over-day change clears it.
+ */
+export function sorenessTrendDirection(series: number[]): SorenessDirection {
+  if (series.length < 2) return 'flat'
+  const n = series.length
+  const meanX = (n - 1) / 2
+  const meanY = series.reduce((s, v) => s + v, 0) / n
+  let num = 0
+  let den = 0
+  for (let i = 0; i < n; i++) {
+    num += (i - meanX) * (series[i] - meanY)
+    den += (i - meanX) ** 2
+  }
+  const slope = den > 0 ? num / den : 0
+  if (slope > 1) return 'rising'
+  if (slope < -1) return 'falling'
+  return 'flat'
+}
+
 /**
  * Check for escalating DOMS/soreness — user-reported soreness elevated
  * on 3+ of the last 5 days OR increasing for 3 consecutive days. These
  * patterns correlate with eccentric overload (Twist & Highton 2013) and
  * raise injury risk if training continues at the same intensity.
+ *
+ * `direction` reports which way reported soreness is actually moving over
+ * the recent window. Elevated soreness that is FALLING means the athlete
+ * is recovering — callers must not frame it as escalation.
  */
 export function checkEscalatingSoreness(
   sorenessLoadByDate: Map<string, number>,
-): { escalating: boolean; elevatedDays: number; trending: boolean; last: number } {
+): {
+  escalating: boolean
+  elevatedDays: number
+  trending: boolean
+  direction: SorenessDirection
+  last: number
+} {
   const today = new Date()
-  const recent: { date: string; adj: number }[] = []
+  const recent: { date: string; adj: number; reported: boolean }[] = []
   for (let i = 0; i < 5; i++) {
     const d = new Date(today)
     d.setDate(d.getDate() - i)
@@ -691,7 +729,7 @@ export function checkEscalatingSoreness(
     const m = String(d.getMonth() + 1).padStart(2, '0')
     const day = String(d.getDate()).padStart(2, '0')
     const key = `${y}-${m}-${day}`
-    recent.push({ date: key, adj: sorenessLoadByDate.get(key) ?? 0 })
+    recent.push({ date: key, adj: sorenessLoadByDate.get(key) ?? 0, reported: sorenessLoadByDate.has(key) })
   }
   // Soreness adjustment > 0 means user reported moderate-or-worse soreness
   // (Level 3 = +15, Level 4 = +35, Level 5 = +65; Level 2 = 0; Level 1 = -15)
@@ -702,10 +740,17 @@ export function checkEscalatingSoreness(
     last3.every(r => r.adj > 0) &&
     last3[0].adj >= last3[1].adj &&
     last3[1].adj >= last3[2].adj
+  // Direction from the days the athlete actually reported, oldest→newest.
+  // Fall back to the zero-filled window only when we have too few reports
+  // to read a slope.
+  const reportedSeries = recent.filter(r => r.reported).map(r => r.adj).reverse()
+  const series = reportedSeries.length >= 2 ? reportedSeries : recent.map(r => r.adj).reverse()
+  const direction = sorenessTrendDirection(series)
   return {
     escalating: elevatedDays >= 3 || trending,
     elevatedDays,
     trending,
+    direction,
     last: recent[0].adj,
   }
 }
@@ -796,7 +841,12 @@ export function checkInjuryRisk(
 
   if (sorenessLoadByDate) {
     const soreness = checkEscalatingSoreness(sorenessLoadByDate)
-    if (soreness.escalating) {
+    // Only flag escalation when soreness is NOT already easing. Elevated
+    // soreness that's trending DOWN is recovery in progress, not an
+    // eccentric-overload alarm — flagging it produces the false "soreness
+    // climbing" read the athlete shouldn't see. The improving-but-elevated
+    // state is still surfaced neutrally via the snapshot's soreness trend.
+    if (soreness.escalating && soreness.direction !== 'falling') {
       const severity: RiskFlag['severity'] = soreness.trending && soreness.last >= 35 ? 'alert' : 'warning'
       const nextQuad = daysAhead ? findNextQuadLoadingSession(daysAhead) : null
       const todayClear = isLowQuadLoadDay(todayPlanned)

@@ -123,7 +123,7 @@ def memory_key(athlete_id: str) -> str:
 # changes in a way that old cached insights would be wrong about. The
 # version is baked into the cache key so every prompt change orphans
 # stale KV entries instead of serving them until their 48h TTL expires.
-INSIGHT_PROMPT_VERSION = "v11-knowledge-modules"
+INSIGHT_PROMPT_VERSION = "v12-hr-pattern-soreness-direction"
 
 
 def insight_key(athlete_id: str, surface: str, context_hash: str) -> str:
@@ -431,6 +431,18 @@ When the context includes "⚠️ ACTIVE RISK FLAGS," you have detected concerni
 - If a risk flag indicates deload/rest, consider emitting a `proposal` block to swap a hard day for recovery.
 - Don't be alarmist — state the signal, explain why it matters, suggest a concrete action.
 - If NO risk flags, don't invent problems. Only surface genuine concerns from the data.
+
+HR PATTERN READING (warm-ups, cool-downs, intervals):
+A single average HR — or a "% time in zone" — describes the WHOLE session, warm-up and cool-down included. Athletes routinely jog easy for 10-15 min before the real work starts, which drags the average down and inflates low-zone time. Before you judge a session as "HR too low," "below target," "missed the zone," or "poor zone discipline":
+- Read the SHAPE, not just the average. Use laps/splits and the HR pattern across the session. An easy-start-then-rising profile is a warm-up doing its job — not a miss. A low overall average with a strong, on-target work portion is a GOOD session; say so.
+- Low Z3/Z4 percentage on a session that opened with easy jogging is expected, not a discipline problem. Don't flag it as one.
+- If the snapshot doesn't tell you whether a warm-up was included or how the session was structured, ASK before judging ("Did you warm up first? How was this one built — warm-up, work, cool-down?"). Pose the question instead of asserting a negative HR verdict you can't support from the data. This follows the IF UNSURE, SAY NOTHING rule: a wrong "you missed it" is worse than a question.
+
+SORENESS DIRECTION INTEGRITY:
+When the context contains a "Soreness trend" line, it is the SOLE authority on which way soreness is moving — exactly like PR_STATUS for PRs. You MUST obey it:
+- Never say soreness is "trending up," "climbing," "creeping up," or "N days straight" unless the line says RISING.
+- FALLING means the athlete is recovering — frame it as soreness easing / quads coming back, and do NOT prescribe pulling load on that basis. Elevated-but-falling is good news, not an eccentric-overload alarm.
+- Do not infer direction from the day-by-day levels yourself; quote the trend line's direction.
 
 WEATHER DOCTRINE (two-tier ladder):
 When the context includes a "Weather — <location>" block, each day in
@@ -2322,6 +2334,23 @@ def build_context_block(
         out.append("Recent soreness:")
         for s in soreness[:5]:
             out.append(f"  - {_fmt_date_with_dow(s.get('date', ''))}: {s.get('summary', '')}")
+
+    # Pre-computed soreness DIRECTION — ground truth so the coach never
+    # infers "trending up/down" from the raw levels above (which produced
+    # false "soreness climbing" reads while it was actually easing).
+    soreness_trend = snapshot.get("sorenessTrend") or None
+    if soreness_trend and soreness_trend.get("direction"):
+        direction = soreness_trend.get("direction")
+        dir_phrase = {
+            "rising": "RISING — soreness getting worse",
+            "falling": "FALLING — soreness easing, athlete recovering",
+            "flat": "FLAT — soreness holding steady",
+        }.get(direction, direction)
+        elevated = " (currently elevated)" if soreness_trend.get("elevated") else ""
+        out.append(
+            f"  Soreness trend{elevated}: {dir_phrase}. This is the authority on "
+            "direction — do NOT call soreness 'rising'/'climbing' unless it says RISING."
+        )
 
     # Strength progression — per-exercise trajectory + the engine's
     # research-grounded next-session target. Lets the coach acknowledge

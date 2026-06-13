@@ -148,8 +148,12 @@ export function classifyDamage(
   }
   const sore = checkEscalatingSoreness(sorenessLoadByDate)
   let state: DamageState
-  if (sore.escalating && sore.trending && sore.last >= 35) state = 'escalating'
-  else if (sore.escalating) state = 'elevated'
+  // Soreness that's actively easing (direction 'falling') is recovery in
+  // progress — never surface it as escalating/elevated even if it's still
+  // above baseline on paper. Cap it at 'mild' so the verdict reflects that
+  // the body is catching up, not falling behind.
+  if (sore.escalating && sore.trending && sore.last >= 35 && sore.direction !== 'falling') state = 'escalating'
+  else if (sore.escalating && sore.direction !== 'falling') state = 'elevated'
   else if (sore.last > 0) state = 'mild'
   else state = 'fresh'
   return { state, label: DAMAGE_LABEL[state], severity: DAMAGE_SEVERITY[state] }
