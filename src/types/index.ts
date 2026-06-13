@@ -1101,6 +1101,17 @@ export interface CoachSnapshot {
     vo2max?: number
   }[]
   recentSoreness?: { date: string; summary: string }[]
+  /** Pre-computed direction of recent reported soreness so the coach states
+   *  it correctly instead of inferring "trending up/down" from the raw
+   *  levels above. `falling` = the athlete is recovering (soreness easing). */
+  sorenessTrend?: {
+    direction: 'rising' | 'falling' | 'flat'
+    /** Any recent reported day at level 3+ (moderate-or-worse soreness). */
+    elevated: boolean
+    latestLevel: number | null
+    /** Reported levels over the recent window, oldest→newest. */
+    recent: { date: string; level: number }[]
+  }
   /** The most recently completed planned day — the target of the
    *  post-workout debrief ping. Carries planned-vs-actual, the letter
    *  grade, and the athlete's subjective inputs (RPE + notes) so the coach
