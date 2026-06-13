@@ -218,6 +218,49 @@ describe('easy-pace anchor sanitization (regression: impossible "0:11 /mi")', ()
   })
 })
 
+describe('menopause-aware strength (regression: strength must reflect the stage)', () => {
+  const base = (over: Partial<OnboardingConfig> = {}) => makeConfig({
+    raceType: 'trail',
+    raceDistance: 'half_marathon',
+    experienceLevel: 'beginner',
+    trainingDaysPerWeek: 7,
+    strengthDaysPerWeek: 2,
+    equipmentAccess: ['gym'],
+    ...over,
+  })
+  const buildWeekStrengthDetail = (cfg: OnboardingConfig): string => {
+    const plan = generatePlanFromMethod(galloway, cfg, TODAY)
+    const wk = plan.weeks.find(w => w.focus !== 'Taper' && w.focus !== 'Cutback')!
+    return wk.days.find(d => d.type === 'strength')!.detail
+  }
+
+  it('appends a heavy bone-loading finisher for perimenopause/menopause/postmenopause', () => {
+    for (const stage of ['perimenopause', 'menopause', 'postmenopause'] as const) {
+      const detail = buildWeekStrengthDetail(base({ menopauseStatus: stage }))
+      expect(detail, stage).toMatch(/Farmer Carry/) // gym bone-loading finisher
+    }
+  })
+
+  it('gives premenopause a distinct "bank the base" finisher (not the heavy peri+ one)', () => {
+    const baseline = buildWeekStrengthDetail(base())
+    const premeno = buildWeekStrengthDetail(base({ menopauseStatus: 'premenopause' }))
+    expect(premeno).not.toBe(baseline)        // premenopause still adapts strength
+    expect(premeno).not.toMatch(/Farmer Carry/) // but not the active-loss finisher
+    expect(premeno).toMatch(/Trap-Bar/)        // its own bone-banking lift
+  })
+
+  it('adds no finisher when stage is unset or not_applicable (baseline)', () => {
+    const baseline = buildWeekStrengthDetail(base())
+    expect(baseline).not.toMatch(/Farmer Carry|Trap-Bar|Pogo Hops|Squat Jump/)
+    expect(buildWeekStrengthDetail(base({ menopauseStatus: 'not_applicable' }))).toBe(baseline)
+  })
+
+  it('uses a bodyweight bone-loading finisher when no gym access', () => {
+    const detail = buildWeekStrengthDetail(base({ equipmentAccess: ['trails'], menopauseStatus: 'menopause' }))
+    expect(detail).toMatch(/Squat Jump/)
+  })
+})
+
 describe('mileage ramp off a low base (regression: starts below current / peaks too low)', () => {
   const lowBaseHalf = () => makeConfig({
     raceType: 'trail',
@@ -961,10 +1004,14 @@ describe('strength adapts to menopause stage (regression)', () => {
     }
   })
 
-  it('premenopause / not-applicable keep the standard routine', () => {
-    for (const stage of ['premenopause', 'not_applicable'] as const) {
+  it('premenopause banks the base with a distinct lift; non-answers keep the standard routine', () => {
+    const premeno = strengthDay('premenopause')
+    expect(premeno.detail).toMatch(/Trap-Bar/)         // bank-the-base lift
+    expect(premeno.detail).not.toMatch(/Farmer Carry/) // not the active-loss carry
+    expect(premeno.workout).toBe('Strength + bone')
+    for (const stage of ['not_applicable', 'prefer_not_to_say'] as const) {
       const s = strengthDay(stage)
-      expect(s.detail).not.toMatch(/Farmer Carry/)
+      expect(s.detail).not.toMatch(/Farmer Carry|Trap-Bar/)
       expect(s.workout).toBe('Strength')
     }
   })
