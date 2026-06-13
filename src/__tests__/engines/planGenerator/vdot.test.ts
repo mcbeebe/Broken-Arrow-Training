@@ -9,6 +9,7 @@ import {
   vdotFromRace,
   paceSecPerMileFromVdot,
   paceBoundsForZone,
+  sanitizeRaceTimeSeconds,
   FITNESS_ANCHOR_DISTANCES,
 } from '../../../engines/planGenerator/vdot'
 import { resolveAnchor, resolvePaces, ESTIMATED_LTHR_PCT_OF_MAX } from '../../../engines/planGenerator/paceTargets'
@@ -24,6 +25,24 @@ import pfitzingerMethod from '../../../data/methods/pfitzinger.json'
 const daniels = danielsMethod as unknown as TrainingMethod
 const koop = koopMethod as unknown as TrainingMethod
 const pfitzinger = pfitzingerMethod as unknown as TrainingMethod
+
+describe('sanitizeRaceTimeSeconds (regression: "2:30" mm:ss / h:mm:ss ambiguity)', () => {
+  it('rescales an impossibly-fast race time (mm:ss meant as h:mm)', () => {
+    // A 2:30 half typed "2:30" parses to 150 s → ~11 sec/mi (impossible).
+    expect(sanitizeRaceTimeSeconds(150, 13.10937)).toBe(9000) // → 2:30:00
+    expect(sanitizeRaceTimeSeconds(105, 26.21875)).toBe(6300) // "1:45" marathon → 1:45:00
+  })
+  it('leaves a plausible race time unchanged (incl. slow ultras)', () => {
+    expect(sanitizeRaceTimeSeconds(9000, 13.10937)).toBe(9000)   // legit 2:30 half
+    expect(sanitizeRaceTimeSeconds(25 * 60, 3.10686)).toBe(1500) // 25:00 5K
+    expect(sanitizeRaceTimeSeconds(30 * 3600, 100)).toBe(108000) // 30h 100-miler (slow, valid)
+  })
+  it('returns null for impossible-even-after-rescale or empty input', () => {
+    expect(sanitizeRaceTimeSeconds(5, 13.1)).toBeNull()
+    expect(sanitizeRaceTimeSeconds(undefined, 13.1)).toBeNull()
+    expect(sanitizeRaceTimeSeconds(1000, 0)).toBeNull()
+  })
+})
 
 function cfg(overrides: Partial<OnboardingConfig> = {}): OnboardingConfig {
   return {

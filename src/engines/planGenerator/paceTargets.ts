@@ -27,7 +27,9 @@ import type { OnboardingConfig, FitnessAnchor } from '../../hooks/useOnboarding'
 import type { AnchorState, PaceTarget, ResolvedPaces, PaceTargetMode } from './types'
 import {
   FITNESS_ANCHOR_DISTANCES,
+  MIN_HUMAN_PACE_SEC_PER_MILE,
   paceBoundsForZone,
+  sanitizeRaceTimeSeconds,
   vdotFromRace,
   ZONE_INTENSITY,
 } from './vdot'
@@ -115,10 +117,12 @@ function anchorLabel(t: FitnessAnchor['type']): string {
 function computeVdotIfPossible(fa: FitnessAnchor | undefined): number | null {
   if (!fa || !fa.valueSeconds) return null
   if (fa.type in FITNESS_ANCHOR_DISTANCES) {
-    return vdotFromRace({
-      distanceMiles: FITNESS_ANCHOR_DISTANCES[fa.type],
-      timeSeconds: fa.valueSeconds,
-    })
+    const distanceMiles = FITNESS_ANCHOR_DISTANCES[fa.type]
+    // Guard against a misentered race time (e.g. a half typed "2:30" → 150 s)
+    // that would otherwise yield an absurd VDOT and poison every pace.
+    const timeSeconds = sanitizeRaceTimeSeconds(fa.valueSeconds, distanceMiles)
+    if (timeSeconds == null) return null
+    return vdotFromRace({ distanceMiles, timeSeconds })
   }
   return null
 }
@@ -343,14 +347,25 @@ function formatPaceSec(secPerMile: number): string {
  * Tiny helper for the orchestrator: rendering legacy PlannedDay.zone strings
  * from a resolved PaceTarget — e.g. "E pace · 8:35-9:15 /mi · 130-148 bpm".
  */
+/**
+ * Whether a resolved pace range is physically plausible to display. Corrupt
+ * inputs (e.g. a misparsed race time) can produce sub-minute "paces"; rather
+ * than render an impossible "0:17 /mi", callers suppress the pace and fall back
+ * to HR/RPE. The faster (smaller) bound is `paceSecPerMileHigh`.
+ */
+export function isDisplayablePace(low?: number, high?: number): boolean {
+  return low != null && high != null && high >= MIN_HUMAN_PACE_SEC_PER_MILE
+}
+
 export function formatZoneString(t: PaceTarget): string {
   const parts: string[] = [t.displayName]
-  if (t.paceSecPerMileLow != null && t.paceSecPerMileHigh != null) {
-    parts.push(`${formatPaceSec(t.paceSecPerMileHigh)}-${formatPaceSec(t.paceSecPerMileLow)} /mi`)
+  const showPace = isDisplayablePace(t.paceSecPerMileLow, t.paceSecPerMileHigh)
+  if (showPace) {
+    parts.push(`${formatPaceSec(t.paceSecPerMileHigh!)}-${formatPaceSec(t.paceSecPerMileLow!)} /mi`)
   }
   if (t.hrBpmLow != null && t.hrBpmHigh != null) {
     parts.push(`${t.hrBpmLow}-${t.hrBpmHigh} bpm`)
-  } else if (t.paceSecPerMileLow == null && t.rpeLow != null && t.rpeHigh != null) {
+  } else if (!showPace && t.rpeLow != null && t.rpeHigh != null) {
     parts.push(`RPE ${t.rpeLow}-${t.rpeHigh}`)
   }
   return parts.join(' · ')

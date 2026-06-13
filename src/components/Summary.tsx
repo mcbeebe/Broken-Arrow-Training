@@ -19,6 +19,7 @@ import { formatLooksLikeLine, findBestCourseMatchForPlanned } from '../utils/wor
 import { weeksUntilRace } from '../utils/raceCountdown'
 import { buildTrainingSignals, type TrainingSignals } from '../utils/trainingSignals'
 import SignalCoherenceBanner from './SignalCoherenceBanner'
+import PlanAtAGlance from './PlanAtAGlance'
 import { useDisplayPreferences } from '../hooks/useDisplayPreferences'
 
 interface SummaryProps {
@@ -369,6 +370,16 @@ export default function Summary({
           onOpenReadiness={raceReadiness ? () => setShowRaceReadinessModal(true) : undefined}
         />
       )}
+      {/* Plan-at-a-glance fills the Summary with useful, engaging context when
+          there's no Garmin/readiness data to show (this week, next key session,
+          phase coach note). */}
+      {!garminConnected && weeks && weeks.length > 0 && (
+        <PlanAtAGlance
+          weeks={weeks}
+          currentWeekNum={currentWeekNum ?? 1}
+          todayPlannedWorkout={todayPlannedWorkout}
+        />
+      )}
       {race && raceReadiness && raceReadinessDetail && showRaceReadinessModal && (
         <RaceReadinessDetailModal
           race={race}
@@ -566,15 +577,19 @@ export default function Summary({
           todaySoreness={todaySoreness}
           onLogSoreness={onLogSoreness}
         />
-      ) : (
+      ) : garminConnected ? (
         <div className="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700">
           <p className="text-base font-semibold text-slate-700 dark:text-slate-200">Readiness</p>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            {garminConnected
-              ? 'Syncing Garmin data — readiness score will appear after first sync completes.'
-              : 'Connect Garmin in Settings to see daily readiness scoring.'}
+            Syncing Garmin data — readiness score will appear after first sync completes.
           </p>
         </div>
+      ) : (
+        // No Garmin: the plan-at-a-glance above carries the page; keep this a
+        // quiet, optional prompt rather than a prominent empty card.
+        <p className="text-xs text-center text-slate-400 dark:text-slate-500 px-3">
+          📡 Connect Garmin in Settings to add daily readiness scoring.
+        </p>
       )}
 
       {/* Forward-looking risk alerts — only renders when active flags present */}

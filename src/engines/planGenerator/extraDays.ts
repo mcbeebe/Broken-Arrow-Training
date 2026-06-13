@@ -16,6 +16,7 @@
 import type { TrainingMethod, Phase } from '../../types/training-method'
 import type { PlannedDay } from '../../types'
 import type { OnboardingConfig, CrossTrainingMode } from '../../hooks/useOnboarding'
+import { menopauseStrengthCue } from '../../utils/menopause'
 
 export interface ExtraDaysOptions {
   phaseId: string
@@ -106,7 +107,12 @@ export function buildStrengthDetail(
   const routine = opts.isTaper
     ? (hasGym ? TAPER_STRENGTH_ROUTINE : TAPER_BODYWEIGHT_ROUTINE)
     : (hasGym ? BASE_STRENGTH_ROUTINE : BASE_BODYWEIGHT_ROUTINE)
-  return routine.join(' · ')
+  // Midlife (peri/menopause/postmenopause): append a heavy bone-loading
+  // finisher to the standard routine — bone is the priority as estrogen drops.
+  // Skipped on taper (maintenance only). Premenopause/none keep the base.
+  const boneCue = opts.isTaper ? null : menopauseStrengthCue(config)
+  const finisher = boneCue ? (hasGym ? boneCue.gymFinisher : boneCue.bodyweightFinisher) : []
+  return [...routine, ...finisher].join(' · ')
 }
 
 /**
@@ -261,10 +267,11 @@ export function injectExtraDays(
     let placed = 0
     while (placed < target && cursor < restIndices.length && injected < maxExtras) {
       const idx = restIndices[cursor++]
+      const boneFocus = !opts.isTaper && !!menopauseStrengthCue(config)
       next[idx] = {
         ...next[idx],
         type: 'strength',
-        workout: 'Strength',
+        workout: boneFocus ? 'Strength + bone' : 'Strength',
         detail: buildStrengthDetail(opts, config),
         zone: 'Z1',
         time: opts.isTaper ? '30 min' : '45-60 min',
