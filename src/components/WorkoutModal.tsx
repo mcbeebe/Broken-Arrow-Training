@@ -880,6 +880,8 @@ export default function WorkoutModal({ day, weekNum, onClose, onLog, onSaveNote,
                     stream={stream}
                     zones={zones}
                     targetZone={day.zone}
+                    workoutType={day.type}
+                    workoutDetail={day.detail}
                     sportType={trimpRecord?.sportType ?? (actual ? mapToSportType(actual.type || '', { name: actual.name, elevationGainFt: actual.elevationGain, distanceMi: actual.distance }) : undefined)}
                   />
                 </div>

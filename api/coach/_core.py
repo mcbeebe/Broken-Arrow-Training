@@ -1498,7 +1498,11 @@ def _completed_workout_lines(lcw: dict[str, Any]) -> list[str]:
     out.append(
         "  → Reconcile the objective grade against RPE + the athlete's note. "
         "If they diverge (solid grade but high RPE, or a note about pain / "
-        "heavy legs / hard breathing), trust the subjective signal and say so."
+        "heavy legs / hard breathing), trust the subjective signal and say so. "
+        "NOTE: the grade already excludes the warm-up/cool-down and, for "
+        "interval/quality days, already credits time at or above target — so "
+        "do NOT re-ding a low average HR or low single-zone % as a 'miss' on "
+        "those sessions; that's the warm-up and the recoveries, by design."
     )
     zones = a.get("hrZones") or []
     if zones:
