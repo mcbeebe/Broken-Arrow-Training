@@ -10,6 +10,7 @@
 
 import type { AuthSession } from './auth'
 import { isPreservedKey } from './migrate'
+import { isMergeableCollectionKey, mergeCollection } from './syncMerge'
 import {
   listStampedKeys,
   readStamp,
@@ -149,6 +150,33 @@ export async function hydrateFromServer(session: AuthSession): Promise<{ pulled:
     if (!Number.isFinite(serverMs)) continue
     const localRaw = localStorage.getItem(item.key)
     const localStamp = readStamp(item.key)
+
+    // Keyed-collection keys (e.g. `ba_manual_logs_<id>`) are written from
+    // multiple devices and must be UNIONED, not last-write-wins replaced —
+    // otherwise the device that syncs last erases the other's entries (the
+    // "my journal note never showed up on my phone" bug). We merge whenever
+    // the server's copy differs, regardless of which side is newer, so
+    // entries unique to either device propagate. Stamp the merged result
+    // with `now` (and DON'T advance lastUploaded) so the next push ships the
+    // union back to the server and the other device converges too.
+    if (localRaw !== null && isMergeableCollectionKey(item.key)) {
+      const merged = mergeCollection(localRaw, item.value, serverMs > localStamp)
+      if (merged && merged.changed) {
+        try {
+          localStorage.setItem(item.key, merged.value)
+          stampKey(item.key, Date.now())
+          dispatchLocalStorage(item.key, localRaw, merged.value)
+          pulled++
+        } catch {
+          // quota / disabled storage — skip
+        }
+      }
+      // A mergeable key never falls through to the replace path below.
+      if (merged) continue
+      // mergeCollection returned null (unexpected non-object shape) — fall
+      // back to the standard LWW handling.
+    }
+
     // Last-write-wins by timestamp: pull only when the server's copy is
     // strictly newer than our last local write. A key that is absent
     // locally but still carries a stamp >= the server's is an intentional
