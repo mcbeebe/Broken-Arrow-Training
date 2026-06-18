@@ -20,6 +20,17 @@ import { buildStrengthDay, parseGoalEmphasis, emphasisLabel, type MuscleEmphasis
 import { hasMenopauseContext } from '../../utils/menopause'
 import { INJURY_LEADIN_WEEKS } from '../../utils/injuryRamp'
 import { computeMaxHR } from '../../utils/heartRate'
+import { athleteCurrentVdot } from '../planGenerator/paceTargets'
+import { paceBoundsForZone, type VdotPaceBounds } from '../planGenerator/vdot'
+
+/** Format a VDOT pace band as " · 8:30–9:45/mi" (fast–slow), or '' when absent.
+ *  P2-10: lets the General Fitness engine anchor cardio intensity to a recent
+ *  race effort instead of HR zones only. */
+function formatPaceRange(b: VdotPaceBounds | null): string {
+  if (!b) return ''
+  const fmt = (s: number) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')}`
+  return ` · ${fmt(b.paceSecPerMileHigh)}–${fmt(b.paceSecPerMileLow)}/mi`
+}
 
 // ── Defaults ──────────────────────────────────────────────────────────────
 /** Rolling block length when no target date is set. The plan re-bases from
@@ -329,9 +340,15 @@ export function generateGeneralFitnessPlan(
   const preset = GOAL_PRESETS[goal]
   const maxHR = computeMaxHR(config)
   const zones = computeZones(maxHR)
+  // P2-10: if the athlete entered a recent race, anchor cardio intensity to it
+  // (concrete paces) rather than HR zones only — the GF engine otherwise ignores
+  // fitnessAnchor entirely.
+  const vdot = athleteCurrentVdot(config)
+  const easyPace = vdot ? formatPaceRange(paceBoundsForZone(vdot, 'easy')) : ''
+  const vo2Pace = vdot ? formatPaceRange(paceBoundsForZone(vdot, 'vo2max')) : ''
   const z1 = `Z1 (${Math.round(maxHR * 0.55)}–${Math.round(maxHR * 0.65)})`
-  const z2 = `Z2 (${Math.round(maxHR * 0.65)}–${Math.round(maxHR * 0.75)})`
-  const z4 = `Z4 (${Math.round(maxHR * 0.90)}–${Math.round(maxHR * 0.95)})`
+  const z2 = `Z2 (${Math.round(maxHR * 0.65)}–${Math.round(maxHR * 0.75)})${easyPace}`
+  const z4 = `Z4 (${Math.round(maxHR * 0.90)}–${Math.round(maxHR * 0.95)})${vo2Pace}`
 
   const daysPerWeek = Math.min(6, Math.max(3, config.trainingDaysPerWeek))
   const slots = trainingDayNumbers(daysPerWeek)

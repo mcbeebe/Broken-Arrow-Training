@@ -1,6 +1,6 @@
 # Onboarding → Plan-Generation Improvements — PRD & Build Plan
 
-> **Status:** P0 ✅ · P1 ✅ · P2 planned ⬜  
+> **Status:** P0 ✅ · P1 ✅ · P2 ✅ — all 11 improvements shipped; all 12 weaknesses resolved.  
 > **Created:** 2026-06-14 · **Owner:** engineering  
 > **Companion doc:** [`docs/onboarding-logic-flow.html`](./onboarding-logic-flow.html) — the audited logic
 > map (3 engines, 50-scenario audit, weaknesses, live explorer). This file is the actionable build plan
@@ -126,7 +126,12 @@ count). Rewrote it to terminate on a no-progress pass; locked with a regression 
 
 ---
 
-## P2 — planned ⬜ (follow-up PR)
+## P2 — shipped ✅
+
+> Implemented: method tie-breaks on profile fit (experience → terrain → distance, `methodSelection.ts`);
+> General-Fitness cardio paces anchored to a recent race (`generalFitness/index.ts`); long-runway
+> base-building so the plan starts today (`generatePlan.ts`); cross-distance extrapolation already flagged
+> by the P0 advisory. Tests in `src/__tests__/engines/p2-improvements.test.ts`.
 
 - **P2-8 · Base-build the long runway** → #8. When `weeksUntilRace > max supported`, prepend repeating
   foundation weeks so the plan starts today instead of leaving a dead zone. (`weekPlan.ts` + anchor in
@@ -151,17 +156,17 @@ count). Rewrote it to terminate on a no-progress pass; locked with a regression 
 | 5 | Road scored as trail | P1-4 | Full | ✅ |
 | 6 | Hyrox blind spots | P1-6 | Substantial (equipment/anchor lower-value) | ✅ |
 | 7 | maxHR 220−age / floor | P1-7 | Full | ✅ |
-| 8 | Long-runway dead zone | P2-8 | Full | ⬜ |
-| 9 | Cross-distance extrapolation | P0-3 / P2-11 | Full (flagged) | P0 ✅ |
-| 10 | Alphabetical tie-break | P2-9 | Full | ⬜ |
-| 11 | GF can't anchor | P2-10 | Full | ⬜ |
+| 8 | Long-runway dead zone | P2-8 | Full | ✅ |
+| 9 | Cross-distance extrapolation | P0-3 / P2-11 | Full (flagged) | ✅ |
+| 10 | Alphabetical tie-break | P2-9 | Full | ✅ |
+| 11 | GF can't anchor | P2-10 | Full | ✅ |
 | 12 | Experience over-leverage | P0-3 cross-check + P1-7 prompt | Substantial | ✅ |
 
 ## Rollout (PRs)
 - **PR-1 (P0) ✅** — advisories model + MethodSelection/Summary plumbing, `feasibility.ts`, runway guard,
   goal-never-dropped, `allocatePhaseWeeks` loop fix.
 - **PR-2 (P1) ✅** — road type, volume cap, Hyrox midlife/injury + gate widening, `heartRate.ts` (Tanaka).
-- **PR-3 (P2) ⬜** — base-build long runway, tie-breaks, GF anchoring, cross-distance flag.
+- **PR-3 (P2) ✅** — base-build long runway, tie-breaks, GF anchoring, cross-distance flag.
 
 ## Verification
 - **Unit tests** mirror `src/__tests__/engines/planGenerator/generatePlan.test.ts`. P0 added
