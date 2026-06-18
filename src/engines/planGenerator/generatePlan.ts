@@ -510,20 +510,41 @@ export function generatePlanFromMethod(
   // back-counted calendar can never start before today (a race closer than the
   // method minimum compresses into the weeks actually available).
   const snappedWeeks = chooseTotalWeeks(method, config.raceDate || undefined, today)
-  let totalWeeks = snappedWeeks
+  let coreWeeks = snappedWeeks
+  let baseWeeks = 0
   if (config.raceDate) {
     const weeksAvailable = Math.floor(daysBetween(mondayOnOrBefore(today), mondayOnOrBefore(config.raceDate)) / 7) + 1
-    if (weeksAvailable < totalWeeks) totalWeeks = Math.max(1, weeksAvailable)
+    if (weeksAvailable < coreWeeks) {
+      coreWeeks = Math.max(1, weeksAvailable) // P0-1 short runway: compress, never back-date
+    } else {
+      // P2-8 long runway: fill the gap with foundation base weeks (capped) so the
+      // plan starts ~today, not weeks in the future. The −1 absorbs the calendar's
+      // "start this week" allowance, so an exactly-right runway adds no base weeks.
+      baseWeeks = Math.min(Math.max(0, weeksAvailable - 1 - coreWeeks), 16)
+    }
   }
-  const blocks = allocatePhaseWeeks(method, totalWeeks)
+  const totalWeeks = coreWeeks + baseWeeks
   const currentWeeklyMileage = estimateCurrentWeeklyMileage(config)
   const policy = injuryPolicyFor(config.injuryStatus)
-  const mileage = buildWeeklyMileage(method, totalWeeks, blocks, currentWeeklyMileage, policy.mileageAdjust, {
+  const coreBlocks = allocatePhaseWeeks(method, coreWeeks)
+  const coreMileage = buildWeeklyMileage(method, coreWeeks, coreBlocks, currentWeeklyMileage, policy.mileageAdjust, {
     raceDistance: config.raceDistance,
     // Slow end of the easy zone (sec/mile) — used to translate the long-run
     // time cap into a distance for this athlete.
     easyPaceSecPerMile: paces.byZone.easy?.paceSecPerMileLow,
   })
+  // Front-pad steady base weeks for a long runway. The per-week loop reads each
+  // week's phase from the mileage row below, so no separate block list is needed.
+  const mileage = baseWeeks > 0
+    ? [
+        ...Array.from({ length: baseWeeks }, (_, i) => ({
+          weekIndex: i, weekNumber: i + 1,
+          totalMi: coreMileage[0].totalMi, longRunMi: coreMileage[0].longRunMi,
+          isCutback: false, isTaper: false, phaseId: coreBlocks[0].phaseId,
+        })),
+        ...coreMileage.map(w => ({ ...w, weekIndex: w.weekIndex + baseWeeks, weekNumber: w.weekNumber + baseWeeks })),
+      ]
+    : coreMileage
   const methodExp = mapToMethodExperience(config.experienceLevel)
 
   // Preferred long-run weekday (1=Mon…7=Sun), when the athlete chose one.

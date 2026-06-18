@@ -256,8 +256,10 @@ export function scoreMethods(
 /**
  * Top-3 method picks. Filters out methods whose distance rating is
  * NOT_SUITED unless fewer than 3 viable candidates remain (in which case
- * the lowest-scoring viable methods round out the slate). Stable sort:
- * ties break on `method.id` alphabetically for deterministic output.
+ * the lowest-scoring viable methods round out the slate). Equal total scores
+ * break on profile fit — experience, then terrain, then distance — so a tie is
+ * decided by how well the method suits the athlete, not the alphabet; the id is
+ * only the final, deterministic fallback when every axis is identical too.
  */
 export function selectMethods(
   methods: ReadonlyArray<TrainingMethod>,
@@ -268,6 +270,9 @@ export function selectMethods(
   const pool = viable.length >= 3 ? viable : all
   const sorted = [...pool].sort((a, b) => {
     if (b.score !== a.score) return b.score - a.score
+    if (b.axes.experience.points !== a.axes.experience.points) return b.axes.experience.points - a.axes.experience.points
+    if (b.axes.terrain.points !== a.axes.terrain.points) return b.axes.terrain.points - a.axes.terrain.points
+    if (b.axes.distance.points !== a.axes.distance.points) return b.axes.distance.points - a.axes.distance.points
     return a.methodId.localeCompare(b.methodId)
   })
   return sorted.slice(0, 3)
