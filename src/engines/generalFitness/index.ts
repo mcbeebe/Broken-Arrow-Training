@@ -19,6 +19,7 @@ import { GOAL_PRESETS, weeklyRoles, experienceScale, type PillarRole } from './p
 import { buildStrengthDay, parseGoalEmphasis, emphasisLabel, type MuscleEmphasis } from './strength'
 import { hasMenopauseContext } from '../../utils/menopause'
 import { INJURY_LEADIN_WEEKS } from '../../utils/injuryRamp'
+import { computeMaxHR } from '../../utils/heartRate'
 
 // ── Defaults ──────────────────────────────────────────────────────────────
 /** Rolling block length when no target date is set. The plan re-bases from
@@ -326,7 +327,7 @@ export function generateGeneralFitnessPlan(
 ): TrainingPlan {
   const goal = config.generalGoal ?? 'stay_healthy'
   const preset = GOAL_PRESETS[goal]
-  const maxHR = config.maxHR || (220 - config.age)
+  const maxHR = computeMaxHR(config)
   const zones = computeZones(maxHR)
   const z1 = `Z1 (${Math.round(maxHR * 0.55)}–${Math.round(maxHR * 0.65)})`
   const z2 = `Z2 (${Math.round(maxHR * 0.65)}–${Math.round(maxHR * 0.75)})`

@@ -1,6 +1,6 @@
 # Onboarding → Plan-Generation Improvements — PRD & Build Plan
 
-> **Status:** P0 implemented ✅ · P1 / P2 planned ⬜  
+> **Status:** P0 ✅ · P1 ✅ · P2 planned ⬜  
 > **Created:** 2026-06-14 · **Owner:** engineering  
 > **Companion doc:** [`docs/onboarding-logic-flow.html`](./onboarding-logic-flow.html) — the audited logic
 > map (3 engines, 50-scenario audit, weaknesses, live explorer). This file is the actionable build plan
@@ -89,7 +89,12 @@ count). Rewrote it to terminate on a no-progress pass; locked with a regression 
 
 ---
 
-## P1 — planned ⬜ (follow-up PR)
+## P1 — shipped ✅
+
+> Implemented: peak volume cap (`DISTANCE_PEAK_CAP_MI` in `weekPlan.ts`); the `'road'` race type
+> (`useOnboarding.ts` + `Onboarding.tsx` + `App.tsx`); Hyrox bone finisher + injury lead-in and the
+> menopause gate widened to 38 (`utils/planGenerator.ts`, `Onboarding.tsx`); unified Tanaka maxHR
+> (`utils/heartRate.ts` → all four engine sites). Tests in `src/__tests__/engines/p1-improvements.test.ts`.
 
 ### P1-4 · Add a "Road" race type → resolves #5 (road races scored as trail)
 - **User story:** *As a road marathoner, I want road-specialist methods (Daniels, Pfitzinger, Hansons) to
@@ -142,20 +147,20 @@ count). Rewrote it to terminate on a no-progress pass; locked with a regression 
 | 1 | Short runway back-dates | P0-1 | Full | ✅ |
 | 2 | No feasibility gate | P0-3 | Full (warn+alt) | ✅ |
 | 3 | Goal ignored w/o anchor | P0-2 | Full | ✅ |
-| 4 | Goal not validated vs base | P0-3 + P1-5 | Full | P0 ✅ / P1 ⬜ |
-| 5 | Road scored as trail | P1-4 | Full | ⬜ |
-| 6 | Hyrox blind spots | P1-6 | Substantial (equipment/anchor lower-value) | ⬜ |
-| 7 | maxHR 220−age / floor | P1-7 | Full | ⬜ |
+| 4 | Goal not validated vs base | P0-3 + P1-5 | Full | ✅ |
+| 5 | Road scored as trail | P1-4 | Full | ✅ |
+| 6 | Hyrox blind spots | P1-6 | Substantial (equipment/anchor lower-value) | ✅ |
+| 7 | maxHR 220−age / floor | P1-7 | Full | ✅ |
 | 8 | Long-runway dead zone | P2-8 | Full | ⬜ |
 | 9 | Cross-distance extrapolation | P0-3 / P2-11 | Full (flagged) | P0 ✅ |
 | 10 | Alphabetical tie-break | P2-9 | Full | ⬜ |
 | 11 | GF can't anchor | P2-10 | Full | ⬜ |
-| 12 | Experience over-leverage | P0-3 cross-check + P1-7 prompt | Substantial | P0 ✅ / P1 ⬜ |
+| 12 | Experience over-leverage | P0-3 cross-check + P1-7 prompt | Substantial | ✅ |
 
 ## Rollout (PRs)
 - **PR-1 (P0) ✅** — advisories model + MethodSelection/Summary plumbing, `feasibility.ts`, runway guard,
   goal-never-dropped, `allocatePhaseWeeks` loop fix.
-- **PR-2 (P1) ⬜** — road type, volume cap, Hyrox midlife/injury + gate widening, `heartRate.ts` (Tanaka).
+- **PR-2 (P1) ✅** — road type, volume cap, Hyrox midlife/injury + gate widening, `heartRate.ts` (Tanaka).
 - **PR-3 (P2) ⬜** — base-build long runway, tie-breaks, GF anchoring, cross-distance flag.
 
 ## Verification

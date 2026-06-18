@@ -32,7 +32,7 @@ function getContinueButton() {
 // Walks every step picking the "happy path" answers needed to reach the final
 // step, optionally overriding values. Returns the captured config from onComplete.
 function walkHappyPath(overrides: Partial<{
-  raceType: 'Trail / Road Race' | 'Hyrox' | 'General Fitness'
+  raceType: 'Trail / Ultra' | 'Hyrox' | 'General Fitness'
   raceDistance: string
   generalGoal: string
   cardioModality: string
@@ -62,7 +62,7 @@ function walkHappyPath(overrides: Partial<{
   ftp: string
 }> = {}): OnboardingConfig {
   const o = {
-    raceType: 'Trail / Road Race',
+    raceType: 'Trail / Ultra',
     raceDistance: 'Marathon',
     generalGoal: 'Build Muscle',
     cardioModality: 'Running',
@@ -107,7 +107,7 @@ function walkHappyPath(overrides: Partial<{
   clickContinue()
 
   // Step 2 (trail only): Race distance — skipped for hyrox/general via visibleSteps
-  if (o.raceType === 'Trail / Road Race') {
+  if (o.raceType === 'Trail / Ultra') {
     // Distance options use exact-match labels for short names (5K, 10K, Marathon)
     const target = o.raceDistance === 'Marathon'
       ? screen.getByText(/^Marathon$/)
@@ -280,7 +280,7 @@ describe('Onboarding', () => {
     it('shows the race-distance step when raceType is trail/road', () => {
       const onComplete = vi.fn()
       render(<Onboarding onComplete={onComplete} loadingDurationMs={0} />)
-      fireEvent.click(screen.getByText(/Trail \/ Road Race/))
+      fireEvent.click(screen.getByText('Trail / Ultra'))
       clickContinue()
       fireEvent.change(screen.getByPlaceholderText(/Broken Arrow/), { target: { value: 'X' } })
       fillRaceContext()
@@ -347,7 +347,7 @@ describe('Onboarding', () => {
 
     it('Back from experience returns to race-distance for trail', () => {
       render(<Onboarding onComplete={vi.fn()} loadingDurationMs={0} />)
-      fireEvent.click(screen.getByText(/Trail \/ Road Race/))
+      fireEvent.click(screen.getByText('Trail / Ultra'))
       clickContinue()
       fireEvent.change(screen.getByPlaceholderText(/Broken Arrow/), { target: { value: 'Foo' } })
       fillRaceContext()
@@ -383,7 +383,7 @@ describe('Onboarding', () => {
     it.each([3, 4, 5, 6, 7])('shows %i days option', (n) => {
       const onComplete = vi.fn()
       render(<Onboarding onComplete={onComplete} loadingDurationMs={0} />)
-      fireEvent.click(screen.getByText('Trail / Road Race'))
+      fireEvent.click(screen.getByText('Trail / Ultra'))
       clickContinue()
       fireEvent.change(screen.getByPlaceholderText(/Broken Arrow/), { target: { value: 'X' } })
       fillRaceContext()
@@ -525,7 +525,7 @@ describe('Onboarding', () => {
     it('hides the lifting-background question until strength > 0', () => {
       const onComplete = vi.fn()
       render(<Onboarding onComplete={onComplete} loadingDurationMs={0} />)
-      fireEvent.click(screen.getByText('Trail / Road Race')); clickContinue()
+      fireEvent.click(screen.getByText('Trail / Ultra')); clickContinue()
       fireEvent.change(screen.getByPlaceholderText(/Broken Arrow|Hyrox|Summer Fitness/i), { target: { value: 'X' } }); fillRaceContext(); clickContinue()
       fireEvent.click(screen.getByText(/^Marathon$/)); clickContinue()
       fireEvent.click(screen.getByText('Intermediate')); clickContinue()
@@ -546,7 +546,7 @@ describe('Onboarding', () => {
     it('blocks Continue when strength > 0 but no lifting background is picked', () => {
       const onComplete = vi.fn()
       render(<Onboarding onComplete={onComplete} loadingDurationMs={0} />)
-      fireEvent.click(screen.getByText('Trail / Road Race')); clickContinue()
+      fireEvent.click(screen.getByText('Trail / Ultra')); clickContinue()
       fireEvent.change(screen.getByPlaceholderText(/Broken Arrow|Hyrox|Summer Fitness/i), { target: { value: 'X' } }); fillRaceContext(); clickContinue()
       fireEvent.click(screen.getByText(/^Marathon$/)); clickContinue()
       fireEvent.click(screen.getByText('Intermediate')); clickContinue()
@@ -569,7 +569,7 @@ describe('Onboarding', () => {
     it('does not show follow-ups for "No injuries"', () => {
       const onComplete = vi.fn()
       render(<Onboarding onComplete={onComplete} loadingDurationMs={0} />)
-      fireEvent.click(screen.getByText('Trail / Road Race')); clickContinue()
+      fireEvent.click(screen.getByText('Trail / Ultra')); clickContinue()
       fireEvent.change(screen.getByPlaceholderText(/Broken Arrow|Hyrox|Summer Fitness/i), { target: { value: 'X' } }); fillRaceContext(); clickContinue()
       fireEvent.click(screen.getByText(/^Marathon$/)); clickContinue()
       fireEvent.click(screen.getByText('Intermediate')); clickContinue()
@@ -630,7 +630,7 @@ describe('Onboarding', () => {
       const onComplete = vi.fn()
       render(<Onboarding onComplete={onComplete} loadingDurationMs={0} />)
       // raceType
-      fireEvent.click(screen.getByText('Trail / Road Race'))
+      fireEvent.click(screen.getByText('Trail / Ultra'))
       clickContinue()
       // raceName
       fireEvent.change(screen.getByPlaceholderText(/Broken Arrow/), { target: { value: 'X' } })
@@ -722,7 +722,7 @@ describe('Onboarding', () => {
       const onComplete = vi.fn()
       render(<Onboarding onComplete={onComplete} loadingDurationMs={0} />)
       // Race type → Race name → Race distance → Experience → Days → Variant → Baseline → Equipment → Strength
-      fireEvent.click(screen.getByText('Trail / Road Race'))
+      fireEvent.click(screen.getByText('Trail / Ultra'))
       clickContinue()
       fireEvent.change(screen.getByPlaceholderText(/Broken Arrow|Hyrox|Summer Fitness/i), { target: { value: 'Test' } })
       fillRaceContext()
@@ -755,7 +755,7 @@ describe('Onboarding', () => {
     it('warns when extras exceed the day budget', () => {
       const onComplete = vi.fn()
       render(<Onboarding onComplete={onComplete} loadingDurationMs={0} />)
-      fireEvent.click(screen.getByText('Trail / Road Race')); clickContinue()
+      fireEvent.click(screen.getByText('Trail / Ultra')); clickContinue()
       fireEvent.change(screen.getByPlaceholderText(/Broken Arrow|Hyrox|Summer Fitness/i), { target: { value: 'Test' } }); fillRaceContext(); clickContinue()
       fireEvent.click(screen.getByText(/^Marathon$/)); clickContinue()
       fireEvent.click(screen.getByText('Intermediate')); clickContinue()
@@ -778,7 +778,7 @@ describe('Onboarding', () => {
       const onComplete = vi.fn()
       render(<Onboarding onComplete={onComplete} loadingDurationMs={0} />)
       // Walk to PROFILE
-      fireEvent.click(screen.getByText('Trail / Road Race')); clickContinue()
+      fireEvent.click(screen.getByText('Trail / Ultra')); clickContinue()
       fireEvent.change(screen.getByPlaceholderText(/Broken Arrow|Hyrox|Summer Fitness/i), { target: { value: 'Skyrace' } }); fillRaceContext(); clickContinue()
       fireEvent.click(screen.getByText(/^Marathon$/)); clickContinue()
       fireEvent.click(screen.getByText('Intermediate')); clickContinue()
@@ -794,8 +794,8 @@ describe('Onboarding', () => {
       fireEvent.click(screen.getByText('Early morning')); clickContinue()
       fireEvent.click(screen.getByText('Garmin Watch')); clickContinue()
       fireEvent.change(screen.getByPlaceholderText('e.g. Jenn'), { target: { value: 'Jenn' } })
-      // Under 40 so the optional menopause step doesn't appear before review.
-      fireEvent.change(screen.getByPlaceholderText('e.g. 41'), { target: { value: '39' } })
+      // Under 38 so the optional menopause step doesn't appear before review.
+      fireEvent.change(screen.getByPlaceholderText('e.g. 41'), { target: { value: '37' } })
       clickContinue()  // PROFILE → REVIEW
 
       // Review step renders the summary.
@@ -824,7 +824,7 @@ describe('Onboarding', () => {
     it('expands to 14 visible steps after raceType=trail is picked', () => {
       const onComplete = vi.fn()
       const { container } = render(<Onboarding onComplete={onComplete} loadingDurationMs={0} />)
-      fireEvent.click(screen.getByText('Trail / Road Race'))
+      fireEvent.click(screen.getByText('Trail / Ultra'))
       const progressFill = container.querySelector('.bg-teal-500.rounded-full') as HTMLElement
       // Still on step 0 (idx 0 of 14) → 1/14 ≈ 7.14%
       expect(progressFill.style.width).toMatch(/^7\.14/)
@@ -843,7 +843,7 @@ describe('Onboarding', () => {
       render(<Onboarding onComplete={onComplete} loadingDurationMs={0} />)
       scrollSpy.mockClear() // ignore mount-time reset
 
-      fireEvent.click(screen.getByText('Trail / Road Race'))
+      fireEvent.click(screen.getByText('Trail / Ultra'))
       clickContinue()
 
       // scrollTo(0, 0) should have been called as part of the step transition.
@@ -859,7 +859,7 @@ describe('Onboarding', () => {
       const onComplete = vi.fn()
       const { container } = render(<Onboarding onComplete={onComplete} loadingDurationMs={0} />)
 
-      fireEvent.click(screen.getByText('Trail / Road Race'))
+      fireEvent.click(screen.getByText('Trail / Ultra'))
       clickContinue()
       // Now on race-name step. Click back.
       scrollSpy.mockClear()
@@ -888,7 +888,7 @@ describe('Onboarding', () => {
       scroller.scrollTop = 400
       expect(scroller.scrollTop).toBe(400)
 
-      fireEvent.click(screen.getByText('Trail / Road Race'))
+      fireEvent.click(screen.getByText('Trail / Ultra'))
       clickContinue()
 
       // After the step transition, the next step's container starts at
@@ -899,7 +899,7 @@ describe('Onboarding', () => {
     it('blurs the focused input when the step changes', () => {
       const onComplete = vi.fn()
       render(<Onboarding onComplete={onComplete} loadingDurationMs={0} />)
-      fireEvent.click(screen.getByText('Trail / Road Race'))
+      fireEvent.click(screen.getByText('Trail / Ultra'))
       clickContinue()
 
       // Focus an input on the race-name step (simulating user typing).
@@ -926,7 +926,7 @@ describe('Onboarding', () => {
       const backArrow = () =>
         container.querySelector('.flex.items-center.justify-between button') as HTMLButtonElement
 
-      fireEvent.click(screen.getByText('Trail / Road Race'))
+      fireEvent.click(screen.getByText('Trail / Ultra'))
       clickContinue()
       expect(screen.getByText(/tell us about your race/i)).toBeInTheDocument()
 
@@ -970,7 +970,7 @@ describe('Onboarding', () => {
     function walkToProfile(age: string) {
       const onComplete = vi.fn()
       render(<Onboarding onComplete={onComplete} loadingDurationMs={0} />)
-      fireEvent.click(screen.getByText('Trail / Road Race')); clickContinue()
+      fireEvent.click(screen.getByText('Trail / Ultra')); clickContinue()
       fireEvent.change(screen.getByPlaceholderText(/Broken Arrow|Hyrox|Summer Fitness/i), { target: { value: 'Race' } }); fillRaceContext(); clickContinue()
       fireEvent.click(screen.getByText(/^Marathon$/)); clickContinue()
       fireEvent.click(screen.getByText('Intermediate')); clickContinue()
@@ -989,8 +989,8 @@ describe('Onboarding', () => {
       return onComplete
     }
 
-    it('hides the menopause step for athletes under 40', () => {
-      walkToProfile('38')
+    it('hides the menopause step for athletes under 38', () => {
+      walkToProfile('37')
       clickContinue() // PROFILE → (menopause hidden) → REVIEW
       expect(screen.queryByText(/a quick personal note/i)).not.toBeInTheDocument()
       expect(screen.getByText(/review your plan setup/i)).toBeInTheDocument()

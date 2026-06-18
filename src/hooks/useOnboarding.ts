@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect } from 'react'
 import type { DetailLevel } from '../types'
 import { stampKey } from '../utils/syncStamps'
 
-export type RaceType = 'trail' | 'hyrox' | 'general'
+export type RaceType = 'trail' | 'road' | 'hyrox' | 'general'
 // Goal for the General Fitness path (raceType === 'general'). Selects which
 // preset re-weights the shared 4-pillar engine (Zone 2 / VO2max / strength /
 // mobility). See docs/GENERAL_FITNESS_ENGINE_DESIGN.md.

@@ -236,6 +236,26 @@ const DISTANCE_PEAK_FLOOR_MI: Partial<Record<RaceDistance, number>> = {
   half_marathon: 25,
 }
 
+/**
+ * Absolute CEILING on peak weekly mileage (mi), by goal distance — the inverse
+ * of the floor. The multiplier-of-current model has no upper bound, so a very
+ * high self-reported base scales into an impossible peak (a 90 mi/wk marathoner
+ * → 90 × 2.3 = 207 mi/wk). These caps are generous — set at the realistic elite
+ * ceiling for each distance, so they only clip the absurd, never a legitimately
+ * high-mileage athlete. No-distance callers (direct unit tests) are uncapped.
+ */
+const DISTANCE_PEAK_CAP_MI: Record<RaceDistance, number> = {
+  '5k': 80,
+  '10k': 90,
+  half_marathon: 100,
+  marathon: 140,
+  '50k': 150,
+  '50_mile': 160,
+  '100k': 170,
+  '100_mile': 170,
+  mountain_ultra: 160,
+}
+
 const LONG_PCT: Record<RaceDistance, number> = {
   '5k': 0.30,
   '10k': 0.30,
@@ -333,7 +353,10 @@ export function buildWeeklyMileage(
   // Floor the peak at a distance-appropriate minimum so low-base athletes still
   // build real race-specific volume (see DISTANCE_PEAK_FLOOR_MI).
   const distancePeakFloor = opts.raceDistance ? (DISTANCE_PEAK_FLOOR_MI[opts.raceDistance] ?? 0) : 0
-  const peak = Math.max(currentWeeklyMileage * peakMult, distancePeakFloor)
+  // Floor at a race-appropriate minimum, then cap at a sane ceiling so a very
+  // high base can't scale into an impossible peak. Uncapped without a distance.
+  const distancePeakCap = opts.raceDistance ? DISTANCE_PEAK_CAP_MI[opts.raceDistance] : Infinity
+  const peak = Math.min(Math.max(currentWeeklyMileage * peakMult, distancePeakFloor), distancePeakCap)
   const startPctMul = adjust.startPctMultiplier ?? 1
   // Never open the plan *below* what the athlete already runs each week — they
   // do that volume safely today, so starting lower just detrains them. Apply

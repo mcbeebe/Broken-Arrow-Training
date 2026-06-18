@@ -264,16 +264,16 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
   // Race-distance step only shows for trail/road races (hyrox is a fixed format,
   // general fitness has no target distance). The general-goal step is the mirror
   // image — shown only for general fitness.
-  const showsDistanceStep = raceType === 'trail'
+  const showsDistanceStep = raceType === 'trail' || raceType === 'road'
   const showsGoalStep = raceType === 'general'
-  // Menopause step is age-gated: shown to athletes 40+ (age is entered on the
-  // prior PROFILE step) — the menopause transition can begin in the early 40s,
-  // and premenopausal women benefit from building the base ahead of it. It is
-  // also sex-gated: an explicit 'male' answer skips it outright (it can't
-  // apply), while 'female'/'prefer not to say'/unset keep the age default.
-  // 'not_applicable' / 'prefer not to say' let anyone who still sees it opt
-  // out, and the whole step is skippable.
-  const showsMenopauseStep = (parseInt(age) || 0) >= 40 && sex !== 'male'
+  // Menopause step is age-gated from 38 (age is entered on the prior PROFILE
+  // step) — early perimenopause can begin in the late 30s, so a 40-only gate
+  // missed it; premenopausal women also benefit from building bone ahead of the
+  // transition. It is also sex-gated: an explicit 'male' answer skips it outright
+  // (it can't apply), while 'female'/'prefer not to say'/unset keep the age
+  // default. 'not_applicable' / 'prefer not to say' let anyone who still sees it
+  // opt out, and the whole step is skippable.
+  const showsMenopauseStep = (parseInt(age) || 0) >= 38 && sex !== 'male'
   const visibleSteps: readonly number[] = ALL_STEPS.filter(s => {
     if (s === STEP_RACE_DISTANCE) return showsDistanceStep
     if (s === STEP_GENERAL_GOAL) return showsGoalStep
@@ -476,7 +476,8 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
       <div ref={contentRef} className="flex-1 overflow-y-auto px-5 pt-4 pb-24">
         {step === STEP_RACE_TYPE && (
           <StepContainer title="What are you training for?" subtitle="Pick the type that matches your goal">
-            <OptionCard selected={raceType === 'trail'} onClick={() => setRaceType('trail')} title="Trail / Road Race" desc="Sky races, ultras, marathons, half marathons, 10K, 5K" icon="mountain" />
+            <OptionCard selected={raceType === 'road'} onClick={() => setRaceType('road')} title="Road Race" desc="Marathon, half, 10K, 5K — paved, flat-to-rolling." icon="🛣️" />
+            <OptionCard selected={raceType === 'trail'} onClick={() => setRaceType('trail')} title="Trail / Ultra" desc="Sky races, ultras, technical and mountain terrain." icon="mountain" />
             <OptionCard selected={raceType === 'hyrox'} onClick={() => setRaceType('hyrox')} title="Hyrox" desc="8 stations + 8km running. Functional fitness racing." icon="hyrox" />
             <OptionCard selected={raceType === 'general'} onClick={() => setRaceType('general')} title="General Fitness" desc="No specific race. Build endurance, strength, and health." icon="general" />
           </StepContainer>
@@ -491,7 +492,7 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
                   type="text"
                   value={raceName}
                   onChange={e => setRaceName(e.target.value)}
-                  placeholder={raceType === 'hyrox' ? 'e.g. Hyrox San Francisco' : raceType === 'trail' ? 'e.g. Broken Arrow Skyrace 18K' : 'e.g. Summer Fitness Block'}
+                  placeholder={raceType === 'hyrox' ? 'e.g. Hyrox San Francisco' : raceType === 'road' ? 'e.g. Boston Marathon' : raceType === 'trail' ? 'e.g. Broken Arrow Skyrace 18K' : 'e.g. Summer Fitness Block'}
                   className="w-full px-3 py-3 text-base border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400"
                 />
               </div>
@@ -616,7 +617,7 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
           </StepContainer>
         )}
 
-        {step === STEP_VARIANT && raceType === 'trail' && (
+        {step === STEP_VARIANT && (raceType === 'trail' || raceType === 'road') && (
           <StepContainer title="Which day do you want to do your long runs?" subtitle="Choose one to continue">
             {['Saturday', 'Sunday', 'Tuesday', 'Friday'].map(d => (
               <OptionCard key={d} selected={longRunDay === d} onClick={() => setLongRunDay(d)} title={d} />
@@ -1236,7 +1237,8 @@ const CROSS_LABELS: Record<CrossTrainingMode, string> = {
 }
 
 const RACE_TYPE_LABELS: Record<RaceType, string> = {
-  trail: 'Trail / Road Race',
+  road: 'Road Race',
+  trail: 'Trail / Ultra',
   hyrox: 'Hyrox',
   general: 'General Fitness',
 }
