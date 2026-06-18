@@ -1237,6 +1237,11 @@ export interface CoachSnapshot {
    *  managing hot flashes and sleep disruption"). Lets the coach tailor
    *  midlife training without medicalizing it. */
   menopauseContext?: string
+  /** Honest plan advisories (feasibility, runway, goal-derived paces) summarized
+   *  for the coach so the welcome letter acknowledges them plainly — e.g. "Tight
+   *  runway: the race is ~3 weeks away, so the plan is compressed". Mirrors the
+   *  PlanAdvisory list surfaced in the UI. */
+  advisoriesContext?: string
 }
 
 export interface CoachInsight {
