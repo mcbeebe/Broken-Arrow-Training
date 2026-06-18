@@ -20,6 +20,8 @@ import { weeksUntilRace } from '../utils/raceCountdown'
 import { buildTrainingSignals, type TrainingSignals } from '../utils/trainingSignals'
 import SignalCoherenceBanner from './SignalCoherenceBanner'
 import PlanAtAGlance from './PlanAtAGlance'
+import InsightNote from './primitives/InsightNote'
+import type { PlanAdvisory } from '../types'
 import { useDisplayPreferences } from '../hooks/useDisplayPreferences'
 
 interface SummaryProps {
@@ -52,6 +54,8 @@ interface SummaryProps {
   zones?: HRZone[]
   coachSnapshot?: CoachSnapshot | null
   riskFlags?: RiskFlag[]
+  /** Honest plan-level notes (feasibility, runway, goal-derived paces). */
+  advisories?: PlanAdvisory[]
   /** Goal race — drives the race-ready hero card in the final ~8 weeks. */
   race?: RaceInfo
   /** Logs / edits a completed workout. When provided, the workout detail
@@ -292,6 +296,7 @@ export default function Summary({
   zones,
   coachSnapshot,
   riskFlags = [],
+  advisories = [],
   race,
   manualLog,
   onAskCoach,
@@ -369,6 +374,23 @@ export default function Summary({
           readinessDetail={raceReadinessDetail}
           onOpenReadiness={raceReadiness ? () => setShowRaceReadinessModal(true) : undefined}
         />
+      )}
+      {/* Honest plan-level advisories (feasibility, runway, goal-derived paces).
+          Shown regardless of Garmin so the athlete keeps seeing the reality of
+          their plan, not just at method selection. */}
+      {advisories.length > 0 && (
+        <div className="space-y-2">
+          {advisories.map((a) => (
+            <InsightNote
+              key={a.id}
+              tone={a.severity === 'critical' ? 'critical' : a.severity === 'caution' ? 'warning' : 'neutral'}
+              label={a.title}
+            >
+              {a.detail}
+              {a.suggestion ? <span className="block mt-1 opacity-90">→ {a.suggestion}</span> : null}
+            </InsightNote>
+          ))}
+        </div>
       )}
       {/* Plan-at-a-glance fills the Summary with useful, engaging context when
           there's no Garmin/readiness data to show (this week, next key session,

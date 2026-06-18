@@ -100,6 +100,15 @@ describe('allocatePhaseWeeks', () => {
       expect(blocks[i].startWeekIndex).toBe(blocks[i - 1].endWeekIndex + 1)
     }
   })
+  it('terminates for a plan shorter than the phase count (runway-compressed)', () => {
+    // Regression: the old delta-distribution loop wrapped forever when every
+    // phase was already at its 1-week floor (totalWeeks < phases.length).
+    for (const wk of [1, 2, 3]) {
+      const blocks = allocatePhaseWeeks(daniels, wk)
+      expect(blocks.length).toBeGreaterThanOrEqual(1)
+      expect(blocks[0].startWeekIndex).toBe(0)
+    }
+  })
 })
 
 describe('estimateCurrentWeeklyMileage', () => {
@@ -180,6 +189,27 @@ describe('buildWeeklyMileage', () => {
     const weeks = buildWeeklyMileage(daniels, 18, blocks, 20)
     for (const w of weeks) {
       expect(w.longRunMi).toBeLessThanOrEqual(w.totalMi * daniels.mileageProgression.longRunPctCap + 0.01)
+    }
+  })
+  it('keeps the single longest long run in the build, never the taper (ultra)', () => {
+    // Koop / 100-mile: longRunPctCap (0.45) is high enough that the prior flat
+    // taper formula (total × pctCap) overran LONG_MAX_MI['100_mile'] (34 mi) and
+    // landed the plan's longest run in the first taper week. Build weeks cap at
+    // 34; the taper must step DOWN from there, not introduce a new longest run.
+    const blocks = allocatePhaseWeeks(koop, 28)
+    const weeks = buildWeeklyMileage(koop, 28, blocks, 40, {}, { raceDistance: '100_mile' })
+    const buildLongs = weeks.filter(w => !w.isTaper).map(w => w.longRunMi)
+    const taperLongs = weeks.filter(w => w.isTaper).map(w => w.longRunMi)
+    expect(taperLongs.length).toBeGreaterThan(0)
+    // The peak long run belongs in the build — no taper week ties or exceeds it.
+    expect(Math.max(...taperLongs)).toBeLessThan(Math.max(...buildLongs))
+    // Every taper long run honors the distance ceiling (LONG_MAX_MI['100_mile']).
+    for (const lr of taperLongs) {
+      expect(lr).toBeLessThanOrEqual(34)
+    }
+    // Taper long runs step down week over week.
+    for (let i = 1; i < taperLongs.length; i++) {
+      expect(taperLongs[i]).toBeLessThan(taperLongs[i - 1])
     }
   })
 })
@@ -473,6 +503,27 @@ describe('goal-pace personalization', () => {
     // A very slow goal marathon (5h) is easier than current fitness → no change.
     const slowGoal = generatePlanFromMethod(daniels, { ...base, goalRaceTimeSeconds: 5 * 3600 }, TODAY)
     expect(JSON.stringify(slowGoal.weeks)).toBe(JSON.stringify(noGoal.weeks))
+  })
+})
+
+describe('P0: runway guard + goal never dropped', () => {
+  const T = '2026-06-14'
+  it('never back-dates: a race sooner than the method minimum compresses the plan', () => {
+    // daniels' shortest supported build is 8 wk; this race is only ~2 wk out.
+    const plan = generatePlanFromMethod(daniels, makeConfig({ raceDate: '2026-06-28' }), T)
+    expect(plan.weeks.length).toBeLessThanOrEqual(3) // clamped to weeks available, not snapped to 8
+    expect(plan.weeks.length).toBeGreaterThanOrEqual(1)
+    expect((plan.advisories ?? []).some(a => a.id === 'runway_short')).toBe(true)
+  })
+  it('ample runway snaps normally and raises no runway advisory', () => {
+    const plan = generatePlanFromMethod(daniels, makeConfig({ raceDate: '2026-10-18' }), T) // ~18 wk
+    expect(plan.weeks.length).toBeGreaterThanOrEqual(16)
+    expect((plan.advisories ?? []).some(a => a.id === 'runway_short')).toBe(false)
+  })
+  it('a goal time with no anchor still yields concrete paces (not RPE/HR only) + advisory', () => {
+    const plan = generatePlanFromMethod(daniels, makeConfig({ currentWeeklyMileage: 30, goalRaceTimeSeconds: 3 * 3600 }), T)
+    expect(plan.weeks.some(w => w.days.some(d => /\/mi/.test(d.zone)))).toBe(true)
+    expect((plan.advisories ?? []).some(a => a.id === 'goal_no_anchor')).toBe(true)
   })
 })
 

@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { OnboardingConfig } from '../hooks/useOnboarding'
 import type { TrainingMethod } from '../types/training-method'
+import type { PlanAdvisory } from '../types'
 import { RECOMMENDABLE_METHODS } from '../data/methods'
 import {
   inputsFromOnboarding,
   selectMethods,
   type MethodSelection as MethodPick,
 } from '../engines/planGenerator/methodSelection'
+import { assessFeasibility } from '../engines/planGenerator/feasibility'
 
 interface Props {
   config: OnboardingConfig
@@ -33,6 +35,14 @@ export default function MethodSelection({ config, onConfirm, onBack, methods = R
   }, [config, methods])
 
   const [selectedId, setSelectedId] = useState<string | null>(null)
+
+  // Honest, plan-level advisories (goal realism, runway, goal-derived paces,
+  // cross-distance) shown at the decision point. Uses the top pick's method for
+  // the runway check; the rest are method-agnostic.
+  const advisories = useMemo<PlanAdvisory[]>(
+    () => assessFeasibility(config, new Date().toISOString().slice(0, 10), picks[0]?.method),
+    [config, picks],
+  )
 
   // iOS Safari leaves the page body scrolled after the onboarding form
   // (the keyboard scrolls focused inputs into view). When this screen
@@ -67,6 +77,8 @@ export default function MethodSelection({ config, onConfirm, onBack, methods = R
         <p className="text-sm text-slate-500 mt-1 mb-5">
           Based on your race and experience, here are the three philosophies that fit best.
         </p>
+
+        {advisories.length > 0 && <AdvisoryBlock advisories={advisories} />}
 
         <div className="space-y-3 mt-4">
           {picks.map((pick, idx) => (
@@ -113,6 +125,34 @@ function Header({ onBack, progress }: { onBack?: () => void; progress: number })
         <div className="h-full bg-teal-500 rounded-full transition-all duration-300" style={{ width: `${progress * 100}%` }} />
       </div>
       <div className="w-8" />
+    </div>
+  )
+}
+
+const ADVISORY_STYLE: Record<PlanAdvisory['severity'], { box: string; label: string; text: string; tag: string }> = {
+  info: { box: 'bg-slate-50 border-slate-200', label: 'text-slate-500', text: 'text-slate-700', tag: 'Note' },
+  caution: { box: 'bg-amber-50 border-amber-200', label: 'text-amber-700', text: 'text-amber-900', tag: 'Heads-up' },
+  critical: { box: 'bg-rose-50 border-rose-200', label: 'text-rose-700', text: 'text-rose-900', tag: 'Reality check' },
+}
+
+/** Plan-level honesty notes shown above the method cards. */
+function AdvisoryBlock({ advisories }: { advisories: PlanAdvisory[] }) {
+  return (
+    <div className="space-y-2 mb-5">
+      {advisories.map((a) => {
+        const s = ADVISORY_STYLE[a.severity]
+        return (
+          <div key={a.id} className={`rounded-xl border px-3 py-2.5 ${s.box}`}>
+            <p className={`text-[10px] font-semibold uppercase tracking-wide ${s.label}`}>
+              {s.tag} · {a.title}
+            </p>
+            <p className={`text-sm leading-snug mt-0.5 ${s.text}`}>{a.detail}</p>
+            {a.suggestion && (
+              <p className={`text-xs leading-snug mt-1 ${s.text} opacity-90`}>→ {a.suggestion}</p>
+            )}
+          </div>
+        )
+      })}
     </div>
   )
 }

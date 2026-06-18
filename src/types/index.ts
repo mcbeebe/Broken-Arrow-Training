@@ -339,6 +339,26 @@ export interface AthleteProfile {
   goals?: { text: string; priority?: 'primary' | 'secondary' }[];
 }
 
+/**
+ * An honest, plan-level note surfaced to the athlete: feasibility of the goal,
+ * how tight the runway is, whether paces are goal-derived (no recent result),
+ * cross-distance pace extrapolation, etc. Computed by the feasibility module
+ * (`src/engines/planGenerator/feasibility.ts`) and attached to the plan + shown
+ * at the decision point (MethodSelection) and on the plan/coach surfaces.
+ */
+export interface PlanAdvisory {
+  /** Stable id so the UI can de-dupe / dismiss (e.g. 'runway', 'goal_ambitious'). */
+  id: string;
+  /** Drives tone: info (neutral fact), caution (notable gap), critical (likely wrong). */
+  severity: 'info' | 'caution' | 'critical';
+  /** Short headline, e.g. "Tight runway" or "Ambitious goal". */
+  title: string;
+  /** One- or two-sentence plain-language explanation. */
+  detail: string;
+  /** Optional concrete, realistic alternative the athlete can act on. */
+  suggestion?: string;
+}
+
 export interface TrainingPlan {
   athlete: AthleteProfile;
   weeks: TrainingWeek[];
@@ -350,6 +370,9 @@ export interface TrainingPlan {
    *  swap race/mountain copy for goal-appropriate, general-fitness copy.
    *  Absent on trail/hyrox/hand-authored plans. */
   generalGoal?: GeneralGoal;
+  /** Honest, plan-level notes (feasibility, runway, goal-derived paces). Surfaced
+   *  at method selection and on the plan/coach surfaces. Empty/absent = no concerns. */
+  advisories?: PlanAdvisory[];
 }
 
 export interface WorkoutStyle {
