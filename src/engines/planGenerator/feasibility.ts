@@ -13,7 +13,7 @@
  * so the numbers match what the plan generator computes.
  */
 import type { PlanAdvisory } from '../../types'
-import type { OnboardingConfig, RaceDistance } from '../../hooks/useOnboarding'
+import type { OnboardingConfig, RaceDistance, ExperienceLevel } from '../../hooks/useOnboarding'
 import type { TrainingMethod } from '../../types/training-method'
 import { athleteCurrentVdot } from './paceTargets'
 import { vdotFromRace, sanitizeRaceTimeSeconds, FITNESS_ANCHOR_DISTANCES } from './vdot'
@@ -42,6 +42,23 @@ const ANCHOR_LABELS: Record<string, string> = {
 
 /** Realistic single-block fitness gain: ~8% VDOT (mirrors the goal-pace cap). */
 const REALISTIC_VDOT_GAIN = 1.08
+
+/** Experience levels, easiest → hardest, for measuring the gap between what an
+ *  athlete *says* they are and what their training volume *implies*. */
+const EXPERIENCE_ORDER: ExperienceLevel[] = ['first_timer', 'beginner', 'intermediate', 'advanced', 'elite']
+const EXPERIENCE_LABEL: Record<ExperienceLevel, string> = {
+  first_timer: 'first-timer', beginner: 'beginner', intermediate: 'intermediate', advanced: 'advanced', elite: 'elite',
+}
+/** The experience band a measured weekly mileage points to. Boundaries sit
+ *  between the per-level typical volumes the generator already assumes
+ *  (estimateCurrentWeeklyMileage: 6 / 10 / 20 / 32 / 48 mi). */
+function impliedLevelFromMileage(mi: number): number {
+  if (mi < 8) return 0   // first_timer
+  if (mi < 15) return 1  // beginner
+  if (mi < 26) return 2  // intermediate
+  if (mi < 40) return 3  // advanced
+  return 4               // elite
+}
 
 function formatClock(seconds: number): string {
   const s = Math.round(seconds)
@@ -136,6 +153,34 @@ export function assessFeasibility(
       detail: `An ultra is a major step for a ${config.experienceLevel.replace('_', ' ')} runner — the weekly volume and time-on-feet are well beyond a first build.`,
       suggestion: 'Consider a 50K or a road marathon first, or budget roughly a year of consistent base before committing to the ultra.',
     })
+  }
+
+  // Stated experience vs. measured base mileage. A self-reported level over-drives
+  // the plan (method fit, mileage ramp), so when the athlete's actual weekly volume
+  // points to a clearly different level (≥2 bands off), say so plainly and name the
+  // fix — don't let a miscalibrated dropdown silently set the ramp. Only fires when
+  // there's a measured mileage to compare against.
+  const weeklyMi = config.currentWeeklyMileage
+  if (weeklyMi != null && weeklyMi > 0) {
+    const statedIdx = EXPERIENCE_ORDER.indexOf(config.experienceLevel)
+    const impliedIdx = impliedLevelFromMileage(weeklyMi)
+    if (statedIdx >= 0 && Math.abs(statedIdx - impliedIdx) >= 2) {
+      const statedLabel = EXPERIENCE_LABEL[config.experienceLevel]
+      const impliedLabel = EXPERIENCE_LABEL[EXPERIENCE_ORDER[impliedIdx]]
+      const overClaim = statedIdx > impliedIdx
+      const mi = Math.round(weeklyMi)
+      out.push({
+        id: 'experience_mismatch',
+        severity: overClaim ? 'caution' : 'info',
+        title: 'Experience vs. mileage',
+        detail: overClaim
+          ? `You picked “${statedLabel}”, but about ${mi} mi/wk is closer to a ${impliedLabel} base — the plan leans on the level you chose, so it may ramp faster than your current volume supports.`
+          : `You picked “${statedLabel}”, but about ${mi} mi/wk is well above a typical ${statedLabel} base, so the plan may start more conservatively than you need.`,
+        suggestion: overClaim
+          ? `If ${mi} mi/wk is right, choosing ${impliedLabel} — or adding a recent race time — will match the ramp to your fitness.`
+          : `If that mileage is right, choosing ${impliedLabel} — or adding a recent race time — will better match your base.`,
+      })
+    }
   }
 
   // Cross-distance anchor extrapolation.

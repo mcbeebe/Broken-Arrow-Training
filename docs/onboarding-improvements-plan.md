@@ -1,6 +1,7 @@
 # Onboarding → Plan-Generation Improvements — PRD & Build Plan
 
-> **Status:** P0 ✅ · P1 ✅ · P2 ✅ — all 11 improvements shipped; all 12 weaknesses resolved.
+> **Status:** P0 ✅ · P1 ✅ · P2 ✅ · P3 ✅ — all improvements shipped; **all 12 weaknesses now Full**
+> (the last two — Hyrox blind spots #6 and experience over-leverage #12 — pushed Substantial → Full in P3).
 > Coach welcome-letter narration of advisories also shipped (PR #250), completing all three advisory surfaces.  
 > **Created:** 2026-06-14 · **Owner:** engineering  
 > **Companion doc:** [`docs/onboarding-logic-flow.html`](./onboarding-logic-flow.html) — the audited logic
@@ -149,6 +150,28 @@ count). Rewrote it to terminate on a no-progress pass; locked with a regression 
 
 ---
 
+## P3 — Substantial → Full ✅
+
+> The two weaknesses the P0–P2 work left at "Substantial." Implemented in
+> `src/utils/planGenerator.ts` (Hyrox) and `src/engines/planGenerator/feasibility.ts`; tests in
+> `src/__tests__/engines/full-coverage.test.ts`.
+
+- **P3-13 · Close the Hyrox blind spots** → #6 (Substantial → **Full**).
+  - **fitnessAnchor:** Hyrox run days now show pace targets derived from a recent race
+    (`athleteCurrentVdot` + `paceBoundsForZone`, mirroring P2-10), not just heart-rate zones. Easy runs →
+    easy pace, tempo → threshold, 1 km repeats → critical-velocity. HR-only is preserved when there's no
+    anchor.
+  - **equipment:** `EquipmentAccess` is running-facilities, and Hyrox is gym-dependent. When the athlete
+    didn't list `gym`, the plan keeps its structure but appends home substitutions to strength/station days
+    and attaches a `hyrox_no_gym` advisory (which also reaches Summary + the coach welcome letter).
+- **P3-14 · Cross-check stated experience against measured mileage** → #12 (Substantial → **Full**).
+  A self-reported level over-drives the plan, so when `currentWeeklyMileage` implies a level ≥2 bands away
+  from the chosen `experienceLevel`, `feasibility.ts` emits an `experience_mismatch` advisory (over-claim →
+  caution, under-claim → info) naming the gap and the fix (correct the level, or add a recent race).
+  Reaches MethodSelection, Summary, and the coach automatically.
+
+---
+
 ## Weakness → resolution coverage (all 12)
 
 | # | Weakness | Improvement(s) | Coverage | Status |
@@ -158,13 +181,13 @@ count). Rewrote it to terminate on a no-progress pass; locked with a regression 
 | 3 | Goal ignored w/o anchor | P0-2 | Full | ✅ |
 | 4 | Goal not validated vs base | P0-3 + P1-5 | Full | ✅ |
 | 5 | Road scored as trail | P1-4 | Full | ✅ |
-| 6 | Hyrox blind spots | P1-6 | Substantial (equipment/anchor lower-value) | ✅ |
+| 6 | Hyrox blind spots | P1-6 + P3-13 | Full | ✅ |
 | 7 | maxHR 220−age / floor | P1-7 | Full | ✅ |
 | 8 | Long-runway dead zone | P2-8 | Full | ✅ |
 | 9 | Cross-distance extrapolation | P0-3 / P2-11 | Full (flagged) | ✅ |
 | 10 | Alphabetical tie-break | P2-9 | Full | ✅ |
 | 11 | GF can't anchor | P2-10 | Full | ✅ |
-| 12 | Experience over-leverage | P0-3 cross-check + P1-7 prompt | Substantial | ✅ |
+| 12 | Experience over-leverage | P0-3 + P1-7 + P3-14 | Full | ✅ |
 
 ## Rollout (PRs)
 - **PR-1 (P0) ✅** — advisories model + MethodSelection/Summary plumbing, `feasibility.ts`, runway guard,
