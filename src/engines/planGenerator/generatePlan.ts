@@ -37,6 +37,7 @@ import {
 import { pickWeeklyPattern, pickWorkoutForDay, buildPlannedWorkout } from './workouts'
 import { injectExtraDays } from './extraDays'
 import { INJURY_LEADIN_WEEKS } from '../../utils/injuryRamp'
+import { assessFeasibility } from './feasibility'
 
 const DAY_OF_WEEK_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const
 
@@ -78,6 +79,13 @@ function addDays(dateStr: string, days: number): string {
   const d = new Date(dateStr + 'T12:00:00')
   d.setDate(d.getDate() + days)
   return d.toISOString().slice(0, 10)
+}
+
+/** Whole days from `aIso` to `bIso` (negative if b is before a). */
+function daysBetween(aIso: string, bIso: string): number {
+  return Math.round(
+    (new Date(bIso + 'T12:00:00').getTime() - new Date(aIso + 'T12:00:00').getTime()) / 86400000,
+  )
 }
 
 /**
@@ -479,8 +487,33 @@ export function generatePlanFromMethod(
   config: OnboardingConfig,
   today: string = new Date().toISOString().slice(0, 10),
 ): TrainingPlan {
-  const paces = resolvePaces(method, config)
-  const totalWeeks = chooseTotalWeeks(method, config.raceDate || undefined, today)
+  // ── Fitness anchor & goal (computed up front so paces can use them) ──────
+  // currentVdot from a recent-race anchor (null if none). Guard the goal time
+  // against the "2:30" mm:ss/h:mm:ss ambiguity before it becomes a VDOT.
+  const currentVdot = athleteCurrentVdot(config)
+  const raceMiles = config.raceDistance ? RACE_DISTANCE_LABELS[config.raceDistance].miles : 0
+  const goalSeconds = raceMiles > 0 ? sanitizeRaceTimeSeconds(config.goalRaceTimeSeconds, raceMiles) : null
+  const rawGoalVdot = goalSeconds != null
+    ? vdotFromRace({ distanceMiles: raceMiles, timeSeconds: goalSeconds })
+    : null
+
+  // Never silently drop the goal: with a goal time but NO recent result, build
+  // paces FROM the goal (an advisory flags they're goal-derived) rather than
+  // falling back to RPE/HR with the goal effectively ignored.
+  const goalOnly = currentVdot == null && rawGoalVdot != null
+  const paces = goalOnly
+    ? resolvePaces(method, config, { vdotOverride: rawGoalVdot! })
+    : resolvePaces(method, config)
+
+  // Runway guard: snap to the method's supported lengths, then clamp so the
+  // back-counted calendar can never start before today (a race closer than the
+  // method minimum compresses into the weeks actually available).
+  const snappedWeeks = chooseTotalWeeks(method, config.raceDate || undefined, today)
+  let totalWeeks = snappedWeeks
+  if (config.raceDate) {
+    const weeksAvailable = Math.floor(daysBetween(mondayOnOrBefore(today), mondayOnOrBefore(config.raceDate)) / 7) + 1
+    if (weeksAvailable < totalWeeks) totalWeeks = Math.max(1, weeksAvailable)
+  }
   const blocks = allocatePhaseWeeks(method, totalWeeks)
   const currentWeeklyMileage = estimateCurrentWeeklyMileage(config)
   const policy = injuryPolicyFor(config.injuryStatus)
@@ -497,21 +530,9 @@ export function generatePlanFromMethod(
     ? LONG_RUN_DOW[config.longRunDay.trim().toLowerCase()]
     : undefined
 
-  // Goal-pace personalization: when the athlete gave both a current race
-  // anchor and a goal finish time, sharpen quality paces from current fitness
-  // toward goal fitness across the block. A realism cap keeps the goal within
-  // ~8% VDOT of current fitness (roughly the most a focused block yields), so
-  // we never prescribe paces the athlete has no path to hit.
-  const currentVdot = athleteCurrentVdot(config)
-  const raceMiles = config.raceDistance ? RACE_DISTANCE_LABELS[config.raceDistance].miles : 0
-  // Guard the goal time the same way (a half goal typed "2:30" → 150 s would
-  // otherwise yield an absurd goal VDOT and corrupt the goal-pace blend).
-  const goalSeconds = raceMiles > 0 ? sanitizeRaceTimeSeconds(config.goalRaceTimeSeconds, raceMiles) : null
-  const rawGoalVdot = goalSeconds != null
-    ? vdotFromRace({ distanceMiles: raceMiles, timeSeconds: goalSeconds })
-    : null
-  // Only progress paces when the goal is an actual stretch beyond current
-  // fitness — a goal at/below current fitness shouldn't slow the prescription.
+  // Goal-pace personalization: when BOTH a current anchor and a goal exist and
+  // the goal is a stretch, sharpen quality paces from current → goal across the
+  // block, capped at ~8% VDOT (the most a focused block tends to yield).
   const goalIsStretch = rawGoalVdot != null && currentVdot != null && rawGoalVdot > currentVdot
   const goalPaces = goalIsStretch
     ? resolvePaces(method, config, { vdotOverride: Math.min(rawGoalVdot!, currentVdot! * 1.08) })
@@ -649,10 +670,12 @@ export function generatePlanFromMethod(
 
   const effectiveDaysPerWeek = runningDaysTarget + extrasCap
   const athlete = buildAthleteProfile(config, currentWeeklyMileage, effectiveDaysPerWeek)
+  const advisories = assessFeasibility(config, today, method)
   return {
     athlete,
     weeks,
     zones: computeZones(athlete.maxHR, paces, method),
     race: buildRaceInfo(config),
+    ...(advisories.length > 0 ? { advisories } : {}),
   }
 }

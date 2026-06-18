@@ -1238,6 +1238,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           zones={hrZones.zones}
           coachSnapshot={coachSnapshot}
           riskFlags={readiness.riskFlags}
+          advisories={activePlan.advisories}
           weeks={weeks}
           race={activePlan.race}
           manualLog={manualLog}

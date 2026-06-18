@@ -78,22 +78,27 @@ export function allocatePhaseWeeks(method: TrainingMethod, totalWeeks: number): 
   const raw = phases.map(p => p.pctOfPlan.default * totalWeeks)
   let weeks = raw.map(r => Math.max(1, Math.round(r)))
 
-  // Adjust to sum exactly
+  // Adjust to sum exactly totalWeeks. Distribute the remainder across phases —
+  // later phases first — adding when short and trimming (never below 1) when
+  // over. Stop as soon as a full pass makes no change, which happens when the
+  // plan is shorter than the phase count (every phase already at its 1-week
+  // floor): without this guard the old wrap-around looped forever for a very
+  // short, runway-compressed plan.
   let delta = totalWeeks - weeks.reduce((s, w) => s + w, 0)
-  // Distribute the delta: positive → add to later phases; negative → subtract from later
-  let i = phases.length - 1
-  while (delta !== 0 && i >= 0) {
-    if (delta > 0) {
-      weeks[i] += 1
-      delta -= 1
-    } else {
-      if (weeks[i] > 1) {
-        weeks[i] -= 1
+  while (delta !== 0) {
+    let changed = false
+    for (let k = phases.length - 1; k >= 0 && delta !== 0; k--) {
+      if (delta > 0) {
+        weeks[k] += 1
+        delta -= 1
+        changed = true
+      } else if (weeks[k] > 1) {
+        weeks[k] -= 1
         delta += 1
+        changed = true
       }
     }
-    i -= 1
-    if (i < 0 && delta !== 0) i = phases.length - 1  // wrap
+    if (!changed) break
   }
 
   // Compress to weekBounds.minWeeks floor if total too small
@@ -352,6 +357,10 @@ export function buildWeeklyMileage(
   // stunt the cap-based growth — week N+1 after a cutback can build back up
   // toward the trend, not just toward the cut value.
   let lastBuildMi = start
+  // Track the longest BUILD-week long run so the taper can step DOWN from it and
+  // never introduce a new longest run. Build weeks always precede taper weeks,
+  // so this is fully populated before the first taper week is computed.
+  let peakBuildLongMi = 0
   for (let w = 0; w < totalWeeks; w++) {
     const phaseId = phaseIdAtWeek(blocks, w)
     const isTaperWeek = w >= totalWeeks - taperWeeks
@@ -379,12 +388,31 @@ export function buildWeeklyMileage(
       }
     }
 
-    // Round total to 1 decimal first, then floor longRunMi against the
-    // rounded total — preserves the invariant longRunMi ≤ totalMi × pctCap.
+    // Round total to 1 decimal first, then derive longRunMi against the rounded
+    // total.
     const totalRounded = Math.round(totalMi * 10) / 10
-    const longRunRounded = isTaperWeek
-      ? Math.floor(totalRounded * mp.longRunPctCap * 10) / 10
-      : longRunMilesFor(totalRounded, mp.longRunPctCap, opts)
+    let longRunRounded: number
+    if (isTaperWeek) {
+      // The long run tapers DOWN with weekly volume, anchored to the peak build
+      // long run and never exceeding it — a taper must not introduce a new
+      // longest run. It stays under the same distance / time ceilings as the
+      // build too: the prior flat `total × longRunPctCap` skipped LONG_MAX_MI,
+      // so a high-volume taper week (e.g. an ultra's first taper week) could
+      // emit a long run longer than any capped build week. Falls back to the
+      // flat cap only in the degenerate case of a plan with no build weeks.
+      const taperIdx = w - (totalWeeks - taperWeeks)
+      const taperPct = taperPcts[taperIdx] ?? taperPcts[taperPcts.length - 1]
+      const taperedLong = peakBuildLongMi > 0
+        ? peakBuildLongMi * Math.min(1, taperPct)
+        : totalRounded * mp.longRunPctCap
+      longRunRounded = Math.min(
+        Math.floor(taperedLong * 10) / 10,
+        longRunMilesFor(totalRounded, mp.longRunPctCap, opts),
+      )
+    } else {
+      longRunRounded = longRunMilesFor(totalRounded, mp.longRunPctCap, opts)
+      peakBuildLongMi = Math.max(peakBuildLongMi, longRunRounded)
+    }
     out.push({
       weekIndex: w,
       weekNumber: w + 1,
