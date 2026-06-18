@@ -1,6 +1,7 @@
 # Onboarding → Plan-Generation Improvements — PRD & Build Plan
 
-> **Status:** P0 ✅ · P1 ✅ · P2 ✅ — all 11 improvements shipped; all 12 weaknesses resolved.  
+> **Status:** P0 ✅ · P1 ✅ · P2 ✅ — all 11 improvements shipped; all 12 weaknesses resolved.
+> Coach welcome-letter narration of advisories also shipped (PR #250), completing all three advisory surfaces.  
 > **Created:** 2026-06-14 · **Owner:** engineering  
 > **Companion doc:** [`docs/onboarding-logic-flow.html`](./onboarding-logic-flow.html) — the audited logic
 > map (3 engines, 50-scenario audit, weaknesses, live explorer). This file is the actionable build plan
@@ -35,12 +36,15 @@ visceral solve · customer language).
      boxes — a plan-level advisories block sits above the cards.
    - **Summary** — advisories render with the existing `InsightNote` primitive
      (`src/components/primitives/InsightNote.tsx`) above `PlanAtAGlance`.
-   - **Coach** (planned) — extend the `CoachSnapshot` build (`src/App.tsx`, alongside `injuryContext` /
-     `menopauseContext`) so the welcome letter narrates the advisories. *(Needs backend prompt work.)*
+   - **Coach** ✅ — the `CoachSnapshot` build (`src/App.tsx`, alongside `injuryContext` /
+     `menopauseContext`) summarizes the advisories into `advisoriesContext`, and
+     `build_context_block` (`api/coach/_core.py`) emits a `PLAN ADVISORIES:` line so the welcome
+     letter acknowledges them plainly instead of writing around them. Keyless harness test locks
+     the rendering + gating. *(PR #250.)*
 2. **Feasibility module** — `src/engines/planGenerator/feasibility.ts`: pure `assessFeasibility(config,
    today, method?) → PlanAdvisory[]`. Reuses `athleteCurrentVdot()` / `vdotFromRace()` and a
    `predictRaceTime()` inverse to translate a "realistic VDOT" into a concrete suggested time.
-3. **Shared heart-rate util** (planned, P1-7) — `src/utils/heartRate.ts`: `computeMaxHR(config)`
+3. **Shared heart-rate util** ✅ (P1-7) — `src/utils/heartRate.ts`: `computeMaxHR(config)`
    (Tanaka + one floor) and `computeHrZones(maxHR)` (single 5-zone source of truth). Replaces the 4
    duplicate maxHR sites and 3 divergent zone copies.
 
