@@ -889,6 +889,15 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     // Carry the athlete's menopause context (midlife tailoring) the same way.
     const menopauseContext = menopauseSummaryLine(onboarding.config)
     if (menopauseContext) snap.menopauseContext = menopauseContext
+    // Carry the plan's honest advisories (feasibility, runway, goal-derived
+    // paces) so the welcome letter can acknowledge them plainly rather than
+    // writing around them. They already surface in MethodSelection + Summary.
+    const planAdvisories = activePlan.advisories ?? []
+    if (planAdvisories.length > 0) {
+      snap.advisoriesContext = planAdvisories
+        .map(a => `${a.title}: ${a.detail}${a.suggestion ? ` ${a.suggestion}` : ''}`)
+        .join(' · ')
+    }
     // Carry the athlete's free-text race description + goal so the coach can
     // weave them into every surface (and the welcome letter).
     if (onboarding.config && snap.race && (onboarding.config.raceDescription || onboarding.config.athleteGoal)) {

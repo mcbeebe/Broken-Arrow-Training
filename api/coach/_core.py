@@ -1723,6 +1723,21 @@ def build_context_block(
             "give HRT advice — defer clinical questions to their clinician."
         )
 
+    # Plan advisories — honest feasibility / runway / goal-derived-pace notes
+    # computed at plan generation. The welcome letter should reflect them plainly
+    # rather than writing around them (they also surface in the app UI).
+    advisories_context = snapshot.get("advisoriesContext")
+    if advisories_context and str(advisories_context).strip():
+        out.append("")
+        out.append(
+            f"PLAN ADVISORIES: {str(advisories_context).strip()}. "
+            "Acknowledge these honestly and supportively in plain language: if the goal is "
+            "ambitious or the runway is tight, say so kindly and point to the realistic "
+            "alternative; if paces are built from a goal rather than a recent result, note "
+            "they're a starting estimate to confirm with a tune-up. Never over-promise, and "
+            "never bury the caveat."
+        )
+
     # Training-block framing — current phase, weeks to race, and the phase
     # arc. Lets a debrief/orientation situate a workout in the macro plan.
     plan_blocks = snapshot.get("planBlocks") or None
