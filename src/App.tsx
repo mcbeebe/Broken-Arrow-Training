@@ -224,7 +224,7 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
     activePlan &&
     onboarding.config &&
     !onboarding.config.primerSeenAt &&
-    onboarding.config.raceType === 'trail'
+    (onboarding.config.raceType === 'trail' || onboarding.config.raceType === 'road')
   ) {
     const primerMethod = onboarding.config.selectedMethodId
       ? getMethodById(onboarding.config.selectedMethodId)
@@ -280,7 +280,7 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
     return (
       <div className="min-h-screen bg-white flex flex-col items-center justify-center px-6">
         <div className="text-center space-y-4">
-          <span className="text-5xl">{onboarding.config?.raceType === 'hyrox' ? '🏋️' : onboarding.config?.raceType === 'trail' ? '🏔' : '💪'}</span>
+          <span className="text-5xl">{onboarding.config?.raceType === 'hyrox' ? '🏋️' : onboarding.config?.raceType === 'trail' ? '🏔' : onboarding.config?.raceType === 'road' ? '🏃' : '💪'}</span>
           <h1 className="text-2xl font-bold text-slate-800">Welcome, {onboarding.config?.athleteName || athleteId}!</h1>
           <p className="text-slate-500">
             Plan generation for <strong>{onboarding.config?.raceType || 'your goal'}</strong> is coming soon.

@@ -25,6 +25,7 @@ import type {
 } from '../../types/training-method'
 import type { OnboardingConfig, FitnessAnchor } from '../../hooks/useOnboarding'
 import type { AnchorState, PaceTarget, ResolvedPaces, PaceTargetMode } from './types'
+import { computeMaxHR } from '../../utils/heartRate'
 import {
   FITNESS_ANCHOR_DISTANCES,
   MIN_HUMAN_PACE_SEC_PER_MILE,
@@ -44,7 +45,7 @@ export const ESTIMATED_LTHR_PCT_OF_MAX = 0.88
 const ESTIMATED_AET_PCT_OF_MAX = 0.78
 
 function userMaxHR(config: OnboardingConfig): number {
-  return config.maxHR ?? Math.max(120, 220 - (config.age ?? 30))
+  return computeMaxHR(config)
 }
 
 /**

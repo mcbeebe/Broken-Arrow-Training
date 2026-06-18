@@ -1,5 +1,8 @@
 import type { TrainingPlan, TrainingWeek, PlannedDay, HRZone } from '../types'
 import type { OnboardingConfig, ExperienceLevel } from '../hooks/useOnboarding'
+import { menopauseStrengthCue } from './menopause'
+import { INJURY_LEADIN_WEEKS } from './injuryRamp'
+import { computeMaxHR } from './heartRate'
 
 function computeZones(maxHR: number): HRZone[] {
   return [
@@ -123,7 +126,7 @@ function getLevelParams(level: ExperienceLevel): LevelParams {
 }
 
 export function generateHyroxPlan(config: OnboardingConfig): TrainingPlan {
-  const maxHR = config.maxHR || (220 - config.age)
+  const maxHR = computeMaxHR(config)
   const zones = computeZones(maxHR)
   const z1 = `Z1 (${Math.round(maxHR * 0.55)}–${Math.round(maxHR * 0.65)})`
   const z2 = `Z2 (${Math.round(maxHR * 0.65)}–${Math.round(maxHR * 0.75)})`
@@ -135,6 +138,14 @@ export function generateHyroxPlan(config: OnboardingConfig): TrainingPlan {
   const totalWeeks = P.totalWeeks
   const daysPerWeek = config.trainingDaysPerWeek
   const weakStation = config.weakStation || 'Wall Balls'
+
+  // P1-6 — bring the running engine's tailoring to Hyrox: a midlife bone-loading
+  // finisher on strength days (menopause-aware), and an injury lead-in that eases
+  // the hard days for the first N weeks.
+  const hasGym = !!config.equipmentAccess?.includes('gym')
+  const boneCue = menopauseStrengthCue(config)
+  const boneFinisher = boneCue ? (hasGym ? boneCue.gymFinisher : boneCue.bodyweightFinisher) : []
+  const injuryLeadIn = INJURY_LEADIN_WEEKS[config.injuryStatus ?? 'none'] ?? 0
 
   const baseEnd = Math.round(totalWeeks * 0.3)
   const buildEnd = Math.round(totalWeeks * 0.7)
@@ -177,8 +188,18 @@ export function generateHyroxPlan(config: OnboardingConfig): TrainingPlan {
 
       const role = roles[roleIdx] || 'run'
       roleIdx++
-      const workout = getHyroxWorkoutByRole(role, phase, isRecovery, P, weakStation, z1, z2, z3, z4)
-      days.push({ day: dayLabel, ...workout })
+      const base = getHyroxWorkoutByRole(role, phase, isRecovery, P, weakStation, z1, z2, z3, z4)
+      let day: PlannedDay = { day: dayLabel, ...base }
+      // Menopause: append a bone-loading finisher to real strength days (skip
+      // recovery/taper — maintenance only).
+      if (boneFinisher.length > 0 && !isRecovery && phase !== 'taper' && base.type === 'strength') {
+        day = { ...day, workout: `${base.workout} + bone`, detail: `${base.detail} · ${boneFinisher.join(' · ')}` }
+      }
+      // Injury lead-in: ease the hard days (quality/strength) for the first N weeks.
+      if (injuryLeadIn > 0 && weekNum <= injuryLeadIn && !isRecovery && (base.type === 'quality' || base.type === 'strength')) {
+        day = { ...day, workout: `${day.workout} — easing back`, detail: `Returning from injury: keep effort easy and form-focused. ${day.detail}`, zone: z1 }
+      }
+      days.push(day)
     }
 
     const baseMiles = isRecovery ? Math.round(P.baseRunMi * 4) : phase === 'base' ? Math.round(P.baseRunMi * daysPerWeek) : phase === 'build' ? Math.round(P.buildRunMi * daysPerWeek) : Math.round(P.peakRunMi * daysPerWeek)
@@ -187,11 +208,12 @@ export function generateHyroxPlan(config: OnboardingConfig): TrainingPlan {
       num: weekNum,
       dates: `${formatDay(weekStart).slice(4)} – ${formatDay(addDays(weekStart, 6)).slice(4)}`,
       miles: isRecovery ? `~${Math.round(baseMiles * 0.6)}` : `~${baseMiles}`,
-      focus: isRecovery ? 'RECOVERY WEEK. Volume drops 40%. Absorb adaptations.'
+      focus: (isRecovery ? 'RECOVERY WEEK. Volume drops 40%. Absorb adaptations.'
         : phase === 'base' ? `Build aerobic base + station familiarity. ${config.experienceLevel === 'beginner' ? 'Focus on form over speed.' : ''}`
         : phase === 'build' ? `Race-specific station work + running intervals. ${P.sledNote}`
         : phase === 'peak' ? `Full simulations + intensity. ${P.simStations.peak} stations at race effort.`
-        : 'Taper. Reduce volume, maintain sharpness. Trust your fitness.',
+        : 'Taper. Reduce volume, maintain sharpness. Trust your fitness.')
+        + (injuryLeadIn > 0 && weekNum <= injuryLeadIn ? ' Easing back from injury — intensity is dialed down this week.' : ''),
       days,
     })
   }

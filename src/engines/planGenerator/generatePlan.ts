@@ -38,6 +38,7 @@ import { pickWeeklyPattern, pickWorkoutForDay, buildPlannedWorkout } from './wor
 import { injectExtraDays } from './extraDays'
 import { INJURY_LEADIN_WEEKS } from '../../utils/injuryRamp'
 import { assessFeasibility } from './feasibility'
+import { computeMaxHR } from '../../utils/heartRate'
 
 const DAY_OF_WEEK_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const
 
@@ -395,7 +396,7 @@ function buildAthleteProfile(
   currentWeeklyMileage: number,
   effectiveDaysPerWeek: number,
 ): AthleteProfile {
-  const maxHR = config.maxHR ?? Math.max(120, 220 - (config.age ?? 30))
+  const maxHR = computeMaxHR(config)
   return {
     name: config.athleteName,
     maxHR,
