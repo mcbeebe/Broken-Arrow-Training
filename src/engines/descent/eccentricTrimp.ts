@@ -29,6 +29,31 @@ import type { EccentricDose, TerrainSegment } from '../../types'
 /** Calibration constant: total dose ÷ this gives doseAU. */
 export const ECCENTRIC_TRIMP_CALIBRATION = 250
 
+/**
+ * doseAU per metre of steep-descent vertical (grade ≤ −10 %), i.e. the
+ * `EccentricResult.hardDescentVerticalMeters` field. The full
+ * {@link eccentricTrimpForActivity} needs the raw `TerrainSegment[]`, which is
+ * only in memory while the WorkoutModal stream is open; the per-activity
+ * localStorage cache keeps just the summary. This single spec-anchored constant
+ * recovers a doseAU from the one cached field that is unambiguously
+ * DOMS-relevant — steep *descent* vertical (concentric climbs and flat road
+ * running both yield 0, so dampening fires only on genuine quad loading).
+ *
+ * Anchor: a hard BA Skyrace 23K (≈110 doseAU, spec §8.5) carries on the order
+ * of ~1.1 km of steep descent → ~0.1 AU/m. Approximate but monotonic in the
+ * exact quantity that drives DOMS.
+ */
+export const DOSE_AU_PER_STEEP_DESCENT_M = 0.1
+
+/**
+ * Recover a canonical `doseAU` from cached steep-descent vertical metres when
+ * the raw segments {@link eccentricTrimpForActivity} needs are gone. Returns 0
+ * for non-positive input. See {@link DOSE_AU_PER_STEEP_DESCENT_M}.
+ */
+export function doseAUFromSteepDescent(hardDescentVerticalMeters: number): number {
+  return hardDescentVerticalMeters > 0 ? hardDescentVerticalMeters * DOSE_AU_PER_STEEP_DESCENT_M : 0
+}
+
 const PACE_FACTOR_MIN = 0.6
 const PACE_FACTOR_MAX = 1.6
 
