@@ -28,7 +28,9 @@ import {
   check7dDecliningTrend,
   buildTrainingStateInfo,
   computeDeloadProgram,
+  computeLoadDampening,
 } from '../utils/readiness'
+import { doseAUFromSteepDescent } from '../engines/descent/eccentricTrimp'
 import { DEFAULT_READINESS_TUNING, type ReadinessTuning } from '../utils/engineConfig'
 import type { PlannedDay } from '../types'
 
@@ -64,8 +66,10 @@ interface UseReadinessProps {
   /** Per-activity eccentric load keyed by `${date}|${name}`. Populated by
    *  WorkoutModal when the GPS stream loads. Used by `applyDOMSCarryForward`
    *  to compute research-backed DOMS carry from actual descent damage
-   *  instead of the static T4 per-sport coefficient. */
-  eccentricByActivity?: Record<string, { averageScore: number }>
+   *  instead of the static T4 per-sport coefficient. `hardDescentVerticalMeters`
+   *  (steep-descent vertical) additionally feeds the readiness load-dampening
+   *  pipeline via `doseAUFromSteepDescent` → `computeLoadDampening`. */
+  eccentricByActivity?: Record<string, { averageScore: number; hardDescentVerticalMeters?: number }>
   /** Upcoming planned days from today onward (typically the rest of the
    *  current week + next week). Used by `checkInjuryRisk` to name the next
    *  quad-loading session in the soreness alert. */
@@ -301,6 +305,22 @@ export function useReadiness({
     return calculateBaselines(healthData, trimpRecords)
   }, [healthData, trimpRecords])
 
+  // Per-day canonical eccentric dose (AU) from cached descent-stream summaries,
+  // for the readiness load-dampening pipeline. Keyed by activity date; doses on
+  // the same day sum. Empty when no descent streams have been opened — in which
+  // case `computeLoadDampening` returns 1 and readiness is unchanged.
+  const doseAUByDate = useMemo(() => {
+    const m = new Map<string, number>()
+    if (!eccentricByActivity) return m
+    for (const [key, ecc] of Object.entries(eccentricByActivity)) {
+      const dose = doseAUFromSteepDescent(ecc.hardDescentVerticalMeters ?? 0)
+      if (dose <= 0) continue
+      const date = key.split('|')[0]
+      m.set(date, (m.get(date) ?? 0) + dose)
+    }
+    return m
+  }, [eccentricByActivity])
+
   // Calculate readiness scores for the last 7 days
   const weekScores = useMemo(() => {
     if (!baselines || healthData.length === 0) return []
@@ -310,9 +330,11 @@ export function useReadiness({
       .sort((a, b) => a.date.localeCompare(b.date))
       .slice(-7)
 
-    // Calculate raw scores
+    // Calculate raw scores — Load component dampened by recent eccentric
+    // (descent) DOMS so a big downhill day tempers tomorrow's readiness.
     const rawScores = recentHealth.map(day => {
-      const score = calculateReadiness(day, baselines, acwr, hrvStability.cv, 1, readinessTuning)
+      const dampening = computeLoadDampening(doseAUByDate, day.date)
+      const score = calculateReadiness(day, baselines, acwr, hrvStability.cv, dampening, readinessTuning)
       return score
     })
 
@@ -332,7 +354,7 @@ export function useReadiness({
       }
       return score
     })
-  }, [healthData, baselines, dailyTrimp, acwr, hrvStability.cv, todayPlannedWorkout])
+  }, [healthData, baselines, dailyTrimp, acwr, hrvStability.cv, todayPlannedWorkout, doseAUByDate])
 
   // Today's score
   const todayScore = useMemo(() => {

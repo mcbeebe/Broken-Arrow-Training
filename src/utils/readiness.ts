@@ -16,6 +16,9 @@ import type {
   PerformanceMetrics,
 } from '../types'
 import { aggregateDailyTRIMP } from './trimp'
+import { forecastDOMS } from '../engines/descent/forecast'
+import { repeatedBoutProtection, REPEATED_BOUT_DEFAULT_REFERENCE_DOSE } from '../engines/descent/repeatedBout'
+import type { EccentricBoutRecord, EccentricDose } from '../types'
 
 // ─── ATE Engine Constants ───────────────────────────────────────
 // Adaptive Training Engine — biometric-first readiness model.
@@ -248,6 +251,67 @@ export function loadDampeningFactor(
   if (!(referenceDose > 0)) return 1
   if (!(forecast24h > 0)) return 1
   return Math.max(LOAD_DAMPENING_FLOOR, 1 - forecast24h / referenceDose)
+}
+
+/** Prior days whose eccentric bouts still project DOMS onto the scored day —
+ *  the descent kinetic curve spans +24…+120 h (1–5 days). */
+const DOMS_CARRY_DAYS = 5
+
+/** Reusable empty descent histogram (forecastDOMS only reads `doseAU`). */
+const EMPTY_BUCKET_HISTOGRAM: EccentricDose['bucketHistogram'] = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
+
+/**
+ * Derive the {@link loadDampeningFactor} for a scored day from recent eccentric
+ * (descent) bouts — the "forecast24h from recent activities" pipeline that
+ * PR-13 deferred (see `readinessDampening.test.ts` header).
+ *
+ * For each bout in the prior {@link DOMS_CARRY_DAYS} days we project its DOMS
+ * onto `forDate` through the descent engine's kinetic curve ({@link forecastDOMS},
+ * peaks +24 h → decays by +120 h), attenuated by {@link repeatedBoutProtection},
+ * and sum. The summed forecast feeds {@link loadDampeningFactor} against the
+ * engine reference dose.
+ *
+ * `doseAUByDate` maps ISO date → canonical doseAU for that day (see
+ * `doseAUFromSteepDescent`). Empty input, no in-window bouts, or an unparseable
+ * date all return 1 (no dampening) — so an athlete with no cached descent data
+ * is byte-identical to the undampened baseline.
+ */
+export function computeLoadDampening(
+  doseAUByDate: ReadonlyMap<string, number>,
+  forDate: string,
+  referenceDose: number = REPEATED_BOUT_DEFAULT_REFERENCE_DOSE,
+): number {
+  if (doseAUByDate.size === 0) return 1
+  const todayMs = Date.parse(forDate)
+  if (Number.isNaN(todayMs)) return 1
+  const todayDay = Math.floor(todayMs / 86_400_000)
+
+  const bouts: EccentricBoutRecord[] = []
+  for (const [date, doseAU] of doseAUByDate) {
+    if (doseAU > 0) bouts.push({ date, doseAU })
+  }
+  if (bouts.length === 0) return 1
+
+  // One protection state for the scored day, applied to every bout's forecast.
+  const state = repeatedBoutProtection({ today: new Date(forDate), bouts })
+
+  let forecast = 0
+  for (const bout of bouts) {
+    const boutMs = Date.parse(bout.date)
+    if (Number.isNaN(boutMs)) continue
+    const days = todayDay - Math.floor(boutMs / 86_400_000)
+    if (days < 1 || days > DOMS_CARRY_DAYS) continue // same-day work hasn't happened at AM measurement
+    const dose: EccentricDose = {
+      activityId: bout.date,
+      doseAU: bout.doseAU,
+      bucketHistogram: EMPTY_BUCKET_HISTOGRAM,
+      meanDescentGrade: 0,
+      descentDistanceM: 0,
+    }
+    forecast += forecastDOMS(dose, state, days * 24) // 24/48/72/96/120 h horizons
+  }
+
+  return loadDampeningFactor(forecast, referenceDose)
 }
 
 // ─── Composite Score & Signal ───────────────────────────────────
