@@ -1749,6 +1749,17 @@ def build_context_block(
             "hydration as drink-to-thirst rather than a fixed hourly volume."
         )
 
+    # Recovery guidance (R5) — post-race rest/sleep formula + overtraining framing.
+    recovery_context = snapshot.get("recoveryContext")
+    if recovery_context and str(recovery_context).strip():
+        out.append("")
+        out.append(
+            f"RECOVERY: {str(recovery_context).strip()}. "
+            "Use this when the athlete asks about recovery or comes off a goal race — give the "
+            "rest-day and sleep numbers plainly, and if readiness is trending down, advise a "
+            "deload rather than pushing through."
+        )
+
     # Training-block framing — current phase, weeks to race, and the phase
     # arc. Lets a debrief/orientation situate a workout in the macro plan.
     plan_blocks = snapshot.get("planBlocks") or None

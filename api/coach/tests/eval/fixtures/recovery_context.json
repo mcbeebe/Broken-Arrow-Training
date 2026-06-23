@@ -1,0 +1,24 @@
+{
+  "_meta": {
+    "id": "recovery_context",
+    "surface": "daily",
+    "description": "R5 — post-race recovery guidance must render as a RECOVERY section so the coach can give concrete rest/sleep numbers and a deload framing."
+  },
+  "_expect": {
+    "context_contains": "RECOVERY"
+  },
+  "today": { "date": "2026-06-04", "period": "morning" },
+  "currentWeekNum": 12,
+  "readiness": {
+    "status": "YELLOW", "displayScore": 48, "trainingState": "B",
+    "components": { "hrv": 0, "rhr": 0, "sleep": 0, "trainingLoad": 0 },
+    "message": "Still absorbing recent work."
+  },
+  "performance": { "ctl": 60, "atl": 70, "tsb": -10, "acwr": 1.2 },
+  "todayHealth": { "sleepHours": 7.0, "rhr": 50, "hrvLastNightMs": 55, "hrvWeeklyAvgMs": 58, "hrvStatus": "BALANCED", "bodyBatteryCurrent": 55 },
+  "recoveryContext": "after the race take about 10 days off running and add an extra hour of sleep for ~10 nights, then rebuild in reverse taper (volume back before speed). If readiness trends into overreaching or overtraining (State C/D, rising resting HR, falling HRV/sleep), back off and deload rather than pushing through.",
+  "athleteProfile": { "name": "Mike", "maxHR": 185, "weeklyStructure": "6 days, long run Saturday" },
+  "zones": [
+    { "zone": "Z2", "hr": "128-148", "pct": "67-78%" }
+  ]
+}
