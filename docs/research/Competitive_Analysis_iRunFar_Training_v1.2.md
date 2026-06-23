@@ -1,9 +1,9 @@
 # Competitive Analysis — iRunFar Training Methodology vs. Attune.coach Engine
 
-**Version:** 1.1 · **Date:** 2026-06-22 · **Owner:** product/engineering
-**Executive HTML companion (polished, for executive reading):** `docs/research/Competitive_Analysis_iRunFar_Training_v1.1.html`
+**Version:** 1.2 · **Date:** 2026-06-22 · **Owner:** product/engineering
+**Executive HTML companion (polished, for executive reading):** `docs/research/Competitive_Analysis_iRunFar_Training_v1.2.html`
 **Scope:** Read and synthesize iRunFar.com's training-guidance corpus (`/category/training` + sub-hubs), compare it to the methodology and logic in our plan-generation + coach engine, and produce a ranked list of updates.
-**Method:** 5 parallel source sweeps across ~75 iRunFar articles (workouts/periodization, fueling/hydration/environment, durability/strength/form/recovery, mental/pacing/execution, house philosophy + special populations) — **including a v1.1 review of the "Ultramarathon Training: A Guide to Everything" pillar hub (15 sections) and its sleep/overtraining sub-pages**; our side ground-truthed against the codebase (`src/engines/**`, `src/data/methods/*.json`, `api/coach/_core.py`, `docs/research/**`).
+**Method:** 6 source sweeps across ~80 iRunFar articles (workouts/periodization, fueling/hydration/environment, durability/strength/form/recovery, mental/pacing/execution, house philosophy + special populations) — **v1.2 reviewed every one of the ~55 articles linked from the "Ultramarathon Training: A Guide to Everything" pillar hub (all 15 sections); see the §7 coverage checklist**; our side ground-truthed against the codebase (`src/engines/**`, `src/data/methods/*.json`, `api/coach/_core.py`, `docs/research/**`).
 
 ---
 
@@ -177,6 +177,28 @@ Ranked by **impact × leverage**, with the CLAUDE.md **Witchel 3-rule check** (m
 iRunFar **cannot generate or adapt a plan, can't personalize to your data, contradicts itself across authors, and has no feasibility/honesty layer.** Keep leaning into: **adaptive multi-method generation**, the **honesty advisories** (feasibility/runway/goal/experience), **VDOT pace precision**, **readiness/TRIMP + (once wired) terrain/descent analytics**, and **multi-modal** coverage (Hyrox/GF). The strategy is to **absorb iRunFar's craft into our engine as rules, content, and coach knowledge** — pairing their field wisdom with our automation and our physics.
 
 ---
+
+## 7. Guide-to-Everything coverage checklist (all ~55 linked articles) — v1.2
+
+Direct confirmation that **every** article linked from iRunFar's "Ultramarathon Training: A Guide to Everything" is reflected, with the net-new specifics the v1.2 full-link sweep surfaced. A few are *thematic* (a principle already captured, no distinct trainable protocol).
+
+- **1 · Overviews & Principles** — training-for-your-first-ultra (§1 canon) · a-newbies-guide (4–6 h/wk; B2B every 2–3 wknds, day-2 at 50–75%) · stress-and-running (*thematic*) · balance-and-running (*thematic*) · ultrarunning-training-for-busy-people (specificity > volume, minimum effective dose) · pursuing-the-patient-path (6-mo season; recovery wks; **don't combine speedwork + long-run building**; ramp ≤5–10 mi/wk) · patience-and-the-ultramarathoner (§1 / R10).
+- **2 · Goals & Motivation** — the-two-questions (*thematic*, individualization) · try-something-new (*thematic*).
+- **3 · Types of Runs** — essential-elements-of-successful-ultra-training (§1, the four workout families).
+- **4 · Volume & Intensity** — ultramarathon-training-volume (**base ~50 mi / 8 h-wk → ceiling 60–70 mi / 8–10 h**; long run by distance — 50K 3–4 h · 50M/100K 4–5 h · 100M 5–6 h · 200+ 5–10+ h; **B2B = cut 25–50% off day-1**; recovery wk −50%) · two-a-days (**75+ mi/wk or plateaued; 20–60 min easy; 1–2 → 3–4/wk**) · worth-the-effort (RPE; fartlek 12×1 or 6×2 min hard, equal easy) · an-inconvenient-truth + listen-to-your-heart (**MAF 180−age / 200−age AnT / 210−age VO2**; 2–3 mo to set zones) · process-to-outcome 1 (process > outcome) & 2 (*thematic*).
+- **5 · Long Runs & Endurance** — endurance-based-workouts (§1) · using-races-to-prepare (**tune-up timing — 100M: 50K ~12 wk out, 50M/100K ~6 wk; distance-matching ladder**) · group-workouts (**head-start, adventure-run, surprise-surge fartlek, bagel-run formats**).
+- **6 · Speedwork** — stamina-based · taking-progression-workouts-to-trails (**out-and-back benchmark**; thirds / fast-finish / long-gradual subtypes) · speed-based · sprint-hill-predictor · gear-changing — all §1 canon.
+- **7 · Recovery** — sleep-the-missing-ingredient (7–9 h; +1 h → gains; gradual extension) · sleep-and-running-performance (**circadian low 02:00–06:00, peak 17:00–20:00; bedroom 64–74°F; no screens 60 min; jet-lag ~24 h/tz; altitude 5,000 m disrupts ~4 wk**) · recovery-bag-of-tricks (**refuel 30–45 min: 0.8–1 g carb + 0.2–0.4 g protein/kg**) · DOMS (**onset 12–24 h, peak 24–72 h**) · rest-and-recovery (**HRV tracking** — validates our readiness asset) · post-ultra-downtime (by experience) · recover-better-10-rules (1 rest/10 mi; +1 h sleep/10 mi) · returning-to-normal (**wk-by-wk: days 1–7 walk → wk 2–3 ≤1 h jogs ~2 of 3 days → wk 3+ rebuild**) · on-taking-a-break (annual 1 mo+; 2 wk full + 2 mo low-volume). → **R5**.
+- **8 · Specificity** — race-specific-training (vert tiers Flat<120 / Mountainous 120–240 / Colossal >240 ft/mi) · using-what-youve-got (*thematic*) · avoiding-quadraphenia (**downhill-after-uphill repeats; aid-station transition runs; form-check every 15 min**) · dont-let-downhills (eccentric / quad-seasoning) · protect-and-preserve-quadriceps (chest-over-knee alignment) · altitude-training-and-racing (**6,000 ft AMS ~6 h; 7,000 ft +20–30 s/mi; pre-altitude VO2 work 2–3 wk before**) · surviving-first-hundred-1 (**time-on-feet 20+ h; course-specific 50M training day; injury-free ≥4 wk before**) · multi-stage-1 (**24-wk cycle; Fri/Sat/Sun cluster runs spaced 2–3 wk**). → **R1 / R13 / §1**.
+- **9 · Peaking & Tapering** — difficult-art-of-peaking (**2-wk window; last long run 90 min easy 1 wk out; peak-week session cuts 10–20 → 20–30 min; confidence workout 10 d–2 wk out**). → §1.
+- **10 · Mental** — head-games (**Necessary / Possible / Impossible** framework) · learning-to-embrace-the-pain (**M-fit attention training**) · ultrarunning-skills-1–5 (*thematic* + forgiveness protocol, conservative early positioning) · overcoming-anxiety (**running streak; gamification; lower-barrier-entry**). → **R10**.
+- **11 · Cross-Training & Lifting** — strength-training-for-runners (heavy periodized) · building-a-trail-worthy-body 1 (**core 5-min circuit ×3/wk**) & 2 (**plyometric / multi-planar / balance blocks**) · "stay-the-course" / Uhan (form, durability). → **R8 / R9**.
+- **12 · Injuries** — running-injuries-explained-and-overcome (**Uhan's Three Laws; Economics model**) · injury-recognition-treatment-and-recovery (**adaptive-vs-restrictive damage; return-to-run walk 45 min → 1 mi → +1 mi/day → hills → speed → pavement → race; cadence ~180**). → **R5 / §6**.
+- **13 · Overtraining** — parts 1 (**morning HR >5 bpm; 25% fiber damage / 10–12 wk repair; emotional/physical symptoms; non-functional overreaching**), 2 (cut 75–100%; periodize life stress), 3 (**Torrence Green/Yellow/Red tracking; 1–3 hard races/yr cap**). → **R5**.
+- **14 · Offseason** — turning-on-to-the-off-season (**1–2 mo; "rest until hungry" +4–7 d; optional 4-month weakness-focused phase**). → §1.
+- **15 · Continuing Education** — become-a-student-of-the-sport (*thematic*).
+
+*Also folded in (not Guide-linked, but completing the picture): the Fueling/Hydration, Heat/Altitude, Form (Uhan), Pacing (Rule of Thirds), and Masters / Women's-cycle sub-hubs → §1, R2/R3/R6/R9/R11/R12.*
 
 ## Appendix — primary sources (all iRunFar.com)
 Workouts/periodization: endurance-based · stamina-based · speed-based · sprint-based-hill-and-predictor · gear-changing · periodization-it-isnt-rocket-science · the-basics-of-creating-a-training-plan · race-specific-training · on-peaking-for-an-ultramarathon · eight-steps-for-your-best-trail-running-off-season · ultramarathon-training-a-guide-to-everything · your-ultra-training-bag-of-tricks-downhills.
