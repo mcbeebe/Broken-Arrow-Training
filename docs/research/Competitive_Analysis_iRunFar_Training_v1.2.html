@@ -133,8 +133,8 @@
     <h1>iRunFar Training Methodology vs. Our Engine</h1>
     <p class="lede">A read of trail/ultrarunning's deepest training library, compared field-for-field to the methodology we've built — with a ranked roadmap of where to invest next.</p>
     <div class="meta">
-      <span class="tag">v1.1 · 2026-06-22</span>
-      <span class="tag">~75 iRunFar articles + the "Guide to Everything" canon</span>
+      <span class="tag">v1.2 · 2026-06-22</span>
+      <span class="tag">All ~55 "Guide to Everything" linked articles reviewed</span>
       <span class="tag">Ground-truthed against our codebase</span>
       <span class="tag lime">14 ranked updates · 3 tiers</span>
     </div>
@@ -153,6 +153,7 @@
     <a href="#roadmap"><b>07</b> Ranked roadmap</a>
     <a href="#moat"><b>08</b> Our moat</a>
     <a href="#method"><b>09</b> Method &amp; sources</a>
+    <a href="#coverage"><b>10</b> Coverage map</a>
   </nav>
 
   <!-- 01 EXEC SUMMARY -->
@@ -226,11 +227,11 @@
       <div class="card canon">
         <h4 style="font-size:14px;margin-bottom:8px">Engine &amp; structure</h4>
         <ul class="tight">
-          <li><b>Aerobic "foundation-first," polarized</b> — easy stays easy; gray-zone drift ("Aerobic Deficiency Syndrome") is the enemy.</li>
-          <li><b>A 4-family workout taxonomy</b> (Torrence) with concrete numbers: Endurance (&lt;75% HRmax; carb-depleting ≤3 h; fast-finish final 2–10 mi @ marathon pace), Stamina/LT (83–90% HRmax), Speed/VO2 (1–6 min @ 94–98%), Sprint/Hill (strides; hill reps).</li>
-          <li><b>Periodization:</b> base → introductory → specific (race-specific, taper last 1–3 wk) → recovery; <b>≤10–15%/wk</b>; "save the spicy work — back-to-backs, mountain climbs, quad-seasoning descents — for late."</li>
-          <li><b>Volume:</b> long run 20–30% of week; <b>4–6 h/wk → first 50K</b>; back-to-backs every 3–4 wk; run by <b>time-on-feet</b> on trail.</li>
-          <li><b>Predictor / dress rehearsal</b> 4–6 wk out at ~30–60% of course.</li>
+          <li><b>Aerobic "foundation-first," polarized</b> — easy stays easy; gray-zone drift ("Aerobic Deficiency Syndrome") is the enemy. HR via <b>MAF 180−age</b> (max-aerobic; 200/210−age for AnT/VO2).</li>
+          <li><b>A 4-family workout taxonomy</b> (Torrence): Endurance (&lt;75% HRmax; carb-depleting ≤3 h; fast-finish final 2–10 mi @ MP), Stamina/LT (83–90%), Speed/VO2 (1–6 min @ 94–98%), Sprint/Hill — plus <b>two-a-days</b> (75+ mi/wk; 20–60 min), <b>group/fartlek</b> &amp; <b>out-and-back benchmark</b> runs.</li>
+          <li><b>Periodization:</b> base → introductory → specific → recovery; <b>≤10–15%/wk</b>, recovery wk −50%; "spicy work — back-to-backs, climbs, quad-seasoning descents — late." <b>Peak window ~2 wk</b> (last long run 90 min easy 1 wk out); off-season 1–2 mo ("rest until hungry, +4–7 d").</li>
+          <li><b>Volume by distance:</b> base ~50 mi / 8 h-wk → ceiling 60–70 mi / 8–10 h; long run = 50K 3–4 h · 100M 5–6 h · 200+ 5–10+ h; back-to-backs cut 25–50% off day-1; run by <b>time-on-feet</b>.</li>
+          <li><b>Race-specific tune-ups on a schedule</b> (100M: 50K ~12 wk out, 50M/100K ~6 wk) + a <b>dress-rehearsal predictor</b> 4–6 wk out at ~30–60% of course.</li>
         </ul>
       </div>
       <div class="card canon">
@@ -321,7 +322,7 @@
     <div class="rec t1">
       <div class="top"><span class="rid">R1</span><h4>Wire the Terrain + Descent engine into plan <i>prescription</i></h4>
         <span class="badges"><span class="eff md">Effort: Medium</span><span class="lev">Wire existing</span></span></div>
-      <p class="what">Generate weekly <b>vert targets</b> and scheduled <b>downhill-repeat / mountain-climb</b> sessions from the race elevation profile, driven by the descent engine's repeated-bout / DOMS forecast (re-stimulate every 10–14 days; spicy work late). Turn <code>descentCapacity</code> from a passive metric into a programmed progression.</p>
+      <p class="what">Generate weekly <b>vert targets</b> and scheduled <b>downhill-repeat / mountain-climb</b> sessions from the race elevation profile, driven by the descent engine's repeated-bout / DOMS forecast (re-stimulate every 10–14 days; spicy work late). Turn <code>descentCapacity</code> from a passive metric into a programmed progression. Bake in iRunFar's quad protocols — <b>downhill-after-uphill repeats</b>, aid-station transition runs, form-checks at cadence ~180 — to bulletproof the legs ("dead quads").</p>
       <div class="witchel"><b>Witchel</b> · market: trail/ultra is our core · solve: "my plan never trained climbing or descending and my quads blew up" · language: "vert," "climbing legs," "blown quads," "downhill reps."</div>
     </div>
     <div class="rec t1">
@@ -339,18 +340,18 @@
 
     <div class="tier t2" style="margin-top:20px"><span class="badge">Tier 2 · high value</span><span class="desc">craft layers — content/coach + light engine</span></div>
     <div class="rec t2"><div class="top"><span class="rid">R4</span><h4>Structured trail-workout taxonomy</h4><span class="badges"><span class="eff md">Medium</span></span></div><p class="what">Replace generic "quality" with iRunFar-style sessions keyed to phase + vert tier — hill/downhill reps, gear-changing, strides, and a 4–6-wk-out <b>dress-rehearsal predictor</b>. (Overlaps R1 on hills/descents.)</p></div>
-    <div class="rec t2"><div class="top"><span class="rid">R5</span><h4>Recovery, sleep &amp; overtraining protection</h4><span class="badges"><span class="eff lo">Low–Med</span><span class="lev">Wire readiness</span></span></div><p class="what">Post-race <b>rest-day (1/10 mi)</b> + <b>sleep (+1 h/10 mi; 7–9 h baseline)</b> formulas, reverse-taper rebuild, Stoplight return-to-run; and <b>wire the readiness/TRIMP engine</b> into overtraining flags + light plan auto-adjustment (our second dormant asset).</p></div>
+    <div class="rec t2"><div class="top"><span class="rid">R5</span><h4>Recovery, sleep &amp; overtraining protection</h4><span class="badges"><span class="eff lo">Low–Med</span><span class="lev">Wire readiness</span></span></div><p class="what">Post-race <b>rest-day (1/10 mi)</b> + <b>sleep (+1 h/10 mi; 7–9 h baseline, circadian/environment hygiene)</b> formulas, a week-by-week <b>return-to-normal</b> (days 1–7 walk → wk 2–3 ≤1 h jogs → rebuild), reverse-taper, Stoplight return-to-run; and <b>wire the readiness/HRV engine</b> into overtraining flags — Torrence's <b>Green/Yellow/Red</b> color-code, a <b>1–3 hard-races/yr</b> cap, morning-HR &gt;5 bpm — + light plan auto-adjustment (our second dormant asset).</p></div>
     <div class="rec t2"><div class="top"><span class="rid">R6</span><h4>Pacing &amp; race-execution plan</h4><span class="badges"><span class="eff md">Medium</span></span></div><p class="what">A Rule-of-Thirds effort-cap pacing card (HR/RPE cap first third → even → finish), power-hike grade thresholds (&gt;15–20%), and an aid-station / fuel-per-segment card generated from the course.</p></div>
     <div class="rec t2"><div class="top"><span class="rid">R7</span><h4>Power-hiking as a prescribed skill</h4><span class="badges"><span class="eff lo">Low (after R1)</span><span class="lev">Wire existing</span></span></div><p class="what">Schedule power-hike sessions (20–30 → 90 min, &gt;15–20% grade) and "hike-up/run-down" to keep big-vert days aerobic — uses the hiking-locomotion engine already built.</p></div>
-    <div class="rec t2"><div class="top"><span class="rid">R8</span><h4>Runner strength periodization</h4><span class="badges"><span class="eff md">Medium</span></span></div><p class="what">Off-season heavy maximal block (70%+ 1RM, 2×/wk, 6–9 wk) → in-season power → drop race week, with the masters/menopause variants we partly have.</p></div>
+    <div class="rec t2"><div class="top"><span class="rid">R8</span><h4>Runner strength periodization</h4><span class="badges"><span class="eff md">Medium</span></span></div><p class="what">Off-season heavy maximal block (70%+ 1RM, 2×/wk, 6–9 wk) → in-season power → drop race week — plus the <b>Trail-Worthy-Body</b> bodyweight / plyo / balance circuits (core 5-min ×3/wk, plyometric, multi-planar, balance) as the durability layer; with the masters/menopause variants we partly have.</p></div>
     <div class="rec t2"><div class="top"><span class="rid">R9</span><h4>Form &amp; cadence coaching layer</h4><span class="badges"><span class="eff lo">Low</span></span></div><p class="what">Cadence target (~170–180, + on descents), hip-hinge / braking-vs-COM / stride cues in the coach, optional cadence target on workouts, a morning mobility flow.</p></div>
 
     <div class="tier t3" style="margin-top:20px"><span class="badge">Tier 3 · differentiation</span><span class="desc">depth &amp; special populations</span></div>
     <div class="grid g2">
-      <div class="rec t3"><div class="top"><span class="rid">R10</span><h4>Mental-training curriculum</h4></div><p class="what">Mantras (≤8 words), aid-station segmenting, imagery + breath cue, process &gt; outcome goals — rehearsed in training, narrated by the coach.</p></div>
+      <div class="rec t3"><div class="top"><span class="rid">R10</span><h4>Mental-training curriculum</h4></div><p class="what">Mantras (≤8 words), aid-station segmenting, imagery + breath cue, process &gt; outcome goals, plus iRunFar's frameworks — <b>Necessary/Possible/Impossible</b>, mindfulness <b>M-fit</b> attention training, and <b>running-streak / gamification</b> for consistency — rehearsed in training, narrated by the coach.</p></div>
       <div class="rec t3"><div class="top"><span class="rid">R11</span><h4>Women's menstrual-cycle awareness</h4></div><p class="what">Follicular/luteal training-fuel-recovery nuance, RED-S screen (amenorrhea ≥3 mo), evidence-humble + self-tracking; reuse our menopause-research house style.</p></div>
       <div class="rec t3"><div class="top"><span class="rid">R12</span><h4>Masters load logic</h4></div><p class="what">Beyond Tanaka maxHR: optional 1 hard session/week, longer recovery, protein emphasis, strength priority for 40+.</p></div>
-      <div class="rec t3"><div class="top"><span class="rid">R13</span><h4>Build out the altitude module</h4></div><p class="what">From the stub: per-elevation arrival windows, ferritin gate, live-high/train-low, VO2 penalty; advisory + coach.</p></div>
+      <div class="rec t3"><div class="top"><span class="rid">R13</span><h4>Build out the altitude module</h4></div><p class="what">From the stub: per-elevation arrival windows (6,000 ft AMS ~6 h; 7,000 ft +20–30 s/mi), <b>pre-altitude VO2 work 2–3 wk before</b>, ferritin gate, live-high/train-low, VO2 −8–11%/1,000 m; advisory + coach.</p></div>
       <div class="rec t3"><div class="top"><span class="rid">R14</span><h4>Trail-first framing</h4></div><p class="what">Offer time-on-feet as the primary long-run/volume metric (we own the time cap + GAP) and make periodization intent visible.</p></div>
     </div>
   </section>
@@ -366,7 +367,7 @@
   <!-- 09 METHOD -->
   <section id="method">
     <div class="kicker"><span class="n">09</span><h2>Method &amp; sources</h2></div>
-    <p class="sub">Five parallel research sweeps read ~75 iRunFar articles spanning their "Guide to Everything" canon (15 sections) and the Workouts/Periodization, Fueling/Hydration/Environment, Durability/Strength/Form/Recovery, Mental/Pacing/Execution, and Philosophy/Special-Populations sub-hubs. Our side was ground-truthed against the codebase.</p>
+    <p class="sub">Six research sweeps read ~80 iRunFar articles — including <b>every one of the ~55 articles linked from the "Guide to Everything" hub</b> (all 15 sections) plus the Fueling/Hydration/Environment, Durability/Strength/Form/Recovery, Mental/Pacing/Execution, and Philosophy/Special-Populations sub-hubs. The per-article coverage map is in §10. Our side was ground-truthed against the codebase.</p>
     <div class="grid g2" style="margin-top:6px">
       <div class="card">
         <h4 style="font-size:13px;margin-bottom:7px">Representative iRunFar sources (irunfar.com)</h4>
@@ -377,9 +378,95 @@
         <p class="src" style="line-height:1.7"><code>src/engines/planGenerator/**</code> · <code>src/engines/terrain/**</code> (Minetti, hiking, vertical efficiency) · <code>src/engines/descent/**</code> (eccentric, repeated-bout, DOMS, PR-07→11) · <code>src/engines/{altitude,readiness,mim,cycling}/**</code> · <code>src/utils/readiness.ts</code> (HRV/RHR/sleep/Body-Battery) · <code>src/data/methods/*.json</code> · <code>src/types/index.ts</code> (elevation compliance fields) · <code>api/coach/_core.py</code> · <code>docs/research/{Hill_Running_Load_*, Menopause_*, General_Fitness_*}</code>.</p>
       </div>
     </div>
-    <div class="foot">
-      Companion working doc: <code>docs/research/Competitive_Analysis_iRunFar_Training_v1.1.md</code> (cited markdown). · Prepared for executive review · attune.coach competitive strategy · v1.1.
+    <p class="src" style="margin-top:12px">Companion cited markdown (fuller detail + full source list): <code>docs/research/Competitive_Analysis_iRunFar_Training_v1.2.md</code>.</p>
+  </section>
+
+  <!-- 10 COVERAGE MAP -->
+  <section id="coverage">
+    <div class="kicker"><span class="n">10</span><h2>Coverage map — every Guide section &amp; linked article</h2></div>
+    <p class="sub">The direct answer to "is it all reflected?" — every article linked from iRunFar's "Ultramarathon Training: A Guide to Everything," mapped to where it lands here. A few are <span class="pill p-low">thematic</span> (a principle already captured, no distinct trainable protocol).</p>
+    <div class="tscroll" style="margin-top:12px">
+      <table>
+        <thead><tr><th style="width:60%">Guide section · linked article</th><th>Reflected in</th></tr></thead>
+        <tbody>
+          <tr style="background:#e2e8f0"><td colspan="2" style="font-weight:800;color:#0f172a">1 · Overviews &amp; Overarching Principles</td></tr>
+          <tr><td>How to Train for an Ultramarathon</td><td>§04 canon</td></tr>
+          <tr><td>A Newbie's Guide to Ultramarathons</td><td>§04 (4–6 h/wk; B2B every 2–3 wknds)</td></tr>
+          <tr><td>Stress and Running</td><td><span class="pill p-low">thematic</span> life-stress (§04)</td></tr>
+          <tr><td>Balance and Running</td><td><span class="pill p-low">thematic</span> (§04)</td></tr>
+          <tr><td>Ultrarunning Training for Busy People</td><td>§04 / R-specificity (min effective dose)</td></tr>
+          <tr><td>Pursuing the Patient Path</td><td>§04 (6-mo season; no speed+long-run combo)</td></tr>
+          <tr><td>Patience and the Ultrarunner</td><td>§04 / R10</td></tr>
+          <tr style="background:#e2e8f0"><td colspan="2" style="font-weight:800;color:#0f172a">2 · Goals &amp; Motivation</td></tr>
+          <tr><td>The Two Questions: Needs &amp; Motivations</td><td><span class="pill p-low">thematic</span> individualization (§04)</td></tr>
+          <tr><td>Try Something New</td><td><span class="pill p-low">thematic</span> (§04)</td></tr>
+          <tr style="background:#e2e8f0"><td colspan="2" style="font-weight:800;color:#0f172a">3 · Types of Training Runs</td></tr>
+          <tr><td>Essential Elements of Successful Ultra Training</td><td>§04 canon (4 workout families)</td></tr>
+          <tr style="background:#e2e8f0"><td colspan="2" style="font-weight:800;color:#0f172a">4 · Volume &amp; Intensity</td></tr>
+          <tr><td>Ultramarathon Training Volume</td><td>§04 (base 50/8h → ceiling 60–70; by-distance hrs; B2B cut 25–50%)</td></tr>
+          <tr><td>Two-a-Days</td><td>§04 (75+ mi/wk; 20–60 min; 1–2→3–4/wk)</td></tr>
+          <tr><td>Worth the Effort</td><td>§04 (RPE fartlek 12×1 / 6×2 min)</td></tr>
+          <tr><td>An Inconvenient Truth: Why HR Always Matters</td><td>§04 (MAF zones)</td></tr>
+          <tr><td>Listen to Your Heart</td><td>§04 (MAF 180 / 200 / 210−age)</td></tr>
+          <tr><td>Process to Outcome, Part 1</td><td>§04 / R10 (process &gt; outcome)</td></tr>
+          <tr><td>Process to Outcome, Part 2</td><td><span class="pill p-low">thematic</span> (§04)</td></tr>
+          <tr style="background:#e2e8f0"><td colspan="2" style="font-weight:800;color:#0f172a">5 · Long Runs &amp; Endurance</td></tr>
+          <tr><td>Endurance-Based Workouts</td><td>§04 canon</td></tr>
+          <tr><td>Using Races to Prepare for Your Goal Event</td><td>§04 (tune-up timing schedule)</td></tr>
+          <tr><td>Group Workouts</td><td>§04 (group / fartlek formats)</td></tr>
+          <tr style="background:#e2e8f0"><td colspan="2" style="font-weight:800;color:#0f172a">6 · Speedwork</td></tr>
+          <tr><td>Stamina-Based Workouts</td><td>§04 canon</td></tr>
+          <tr><td>Taking Progression Workouts to the Trails</td><td>§04 (out-and-back benchmark)</td></tr>
+          <tr><td>Speed-Based Workouts</td><td>§04 canon</td></tr>
+          <tr><td>Sprint &amp; Hill-Based Workouts</td><td>§04 canon (+ predictor)</td></tr>
+          <tr><td>Gear-Changing Workouts</td><td>§04 canon</td></tr>
+          <tr style="background:#e2e8f0"><td colspan="2" style="font-weight:800;color:#0f172a">7 · Recovery</td></tr>
+          <tr><td>Sleep: The Missing Ingredient</td><td>§04 / R5 (7–9 h; +1 h → gains)</td></tr>
+          <tr><td>Sleep and Running Performance</td><td>R5 (circadian; bedroom 64–74°F; jet-lag)</td></tr>
+          <tr><td>Recovery (bag of tricks)</td><td>R5 (refuel 30–45 min)</td></tr>
+          <tr><td>Delayed-Onset Muscle Soreness &amp; Recovery</td><td>R5 (DOMS 12–24 h onset / 24–72 h peak)</td></tr>
+          <tr><td>Rest and Recovery</td><td>R5 (HRV tracking — validates our asset)</td></tr>
+          <tr><td>Post-Ultra Downtime: How Much Is Enough?</td><td>R5 (downtime by experience)</td></tr>
+          <tr><td>Recover Better: 10 Rules</td><td>R5 (rest 1/10 mi; sleep +1 h/10 mi)</td></tr>
+          <tr><td>Returning to Normal</td><td>R5 (week-by-week return-to-normal)</td></tr>
+          <tr><td>On Taking a Break</td><td>R5 (annual 1 mo+; 2 wk + 2 mo)</td></tr>
+          <tr style="background:#e2e8f0"><td colspan="2" style="font-weight:800;color:#0f172a">8 · Specificity</td></tr>
+          <tr><td>Race-Specific Training</td><td>§04 (vert tiers Flat/Mountainous/Colossal)</td></tr>
+          <tr><td>Using What You've Got</td><td><span class="pill p-low">thematic</span> (§04)</td></tr>
+          <tr><td>Avoiding Quadraphenia</td><td>R1 (downhill-after-uphill; transition; form-checks)</td></tr>
+          <tr><td>Don't Let Downhills Be Your Downfall</td><td>R1 (eccentric / quad-seasoning)</td></tr>
+          <tr><td>Protect &amp; Preserve: Quadriceps Training</td><td>R1 (chest-over-knee alignment)</td></tr>
+          <tr><td>Altitude Training and Racing</td><td>R13 (6,000 ft AMS ~6 h; pre-altitude VO2)</td></tr>
+          <tr><td>Surviving Your First Hundred, Part 1</td><td>§04 (time-on-feet 20+ h; course-specific day)</td></tr>
+          <tr><td>Multi-Stage Race Performance, Part 1</td><td>§04 (24-wk cycle; Fri/Sat/Sun cluster runs)</td></tr>
+          <tr style="background:#e2e8f0"><td colspan="2" style="font-weight:800;color:#0f172a">9 · Peaking &amp; Tapering</td></tr>
+          <tr><td>The Difficult Art of Peaking</td><td>§04 (2-wk window; confidence workout 10 d–2 wk)</td></tr>
+          <tr style="background:#e2e8f0"><td colspan="2" style="font-weight:800;color:#0f172a">10 · Mental Training</td></tr>
+          <tr><td>Head Games</td><td>R10 (Necessary / Possible / Impossible)</td></tr>
+          <tr><td>Learning to Embrace the Pain</td><td>R10 (M-fit attention training)</td></tr>
+          <tr><td>Ultrarunning Skills 1–5 (Persistence…Grit)</td><td>R10 <span class="pill p-low">thematic</span> + forgiveness, conservative positioning</td></tr>
+          <tr><td>Overcoming Anxiety: Getting Out the Door</td><td>R10 (running streak; gamification)</td></tr>
+          <tr style="background:#e2e8f0"><td colspan="2" style="font-weight:800;color:#0f172a">11 · Cross Training &amp; Weight Lifting</td></tr>
+          <tr><td>Strength Training for Runners</td><td>R8 (heavy periodized)</td></tr>
+          <tr><td>Building a Trail-Worthy Body, Part 1</td><td>R8 (core 5-min circuit ×3/wk)</td></tr>
+          <tr><td>Building a Trail-Worthy Body, Part 2</td><td>R8 (plyo / multi-planar / balance)</td></tr>
+          <tr><td>"Stay the Course" column (Uhan)</td><td>§04 / R9 (form, durability)</td></tr>
+          <tr style="background:#e2e8f0"><td colspan="2" style="font-weight:800;color:#0f172a">12 · Injuries</td></tr>
+          <tr><td>Running Injuries Explained &amp; Overcome</td><td>§06 / R5 (Uhan's Three Laws; Economics model)</td></tr>
+          <tr><td>Injury Recognition, Treatment &amp; Recovery</td><td>R5 (adaptive-vs-restrictive; return-to-run ramp)</td></tr>
+          <tr style="background:#e2e8f0"><td colspan="2" style="font-weight:800;color:#0f172a">13 · Overtraining</td></tr>
+          <tr><td>Overtraining Syndrome, Part 1</td><td>R5 (morning HR &gt;5 bpm; cellular 10–12 wk)</td></tr>
+          <tr><td>Overtraining Syndrome, Part 2</td><td>R5 (cut 75–100%; periodize life stress)</td></tr>
+          <tr><td>Overtraining Syndrome, Part 3</td><td>R5 (Green/Yellow/Red; 1–3 hard races/yr)</td></tr>
+          <tr style="background:#e2e8f0"><td colspan="2" style="font-weight:800;color:#0f172a">14 · Offseason</td></tr>
+          <tr><td>Turning On to the Off-Season</td><td>§04 (1–2 mo; rest-until-hungry +4–7 d)</td></tr>
+          <tr style="background:#e2e8f0"><td colspan="2" style="font-weight:800;color:#0f172a">15 · Continuing Education</td></tr>
+          <tr><td>Becoming a Student of the Sport</td><td><span class="pill p-low">thematic</span> (§04 keep-learning)</td></tr>
+        </tbody>
+      </table>
     </div>
+    <p class="sub" style="margin-top:10px;font-size:13px">Beyond the hub, the analysis also folds in iRunFar's dedicated <b>Fueling/Hydration</b>, <b>Heat/Altitude</b>, <b>Form (Uhan)</b>, <b>Pacing (Rule of Thirds)</b>, and <b>Masters / Women's-cycle</b> sub-hubs (§04, R2/R3/R6/R9/R11/R12) — these are not Guide-linked but complete the picture.</p>
+    <div class="foot">Reviewed all ~55 "Guide to Everything" linked articles. · Companion: <code>Competitive_Analysis_iRunFar_Training_v1.2.md</code> · Prepared for executive review · attune.coach competitive strategy · v1.2 · 2026-06-22.</div>
   </section>
 
 </div>
