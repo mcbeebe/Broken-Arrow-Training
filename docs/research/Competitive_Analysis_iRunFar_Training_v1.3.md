@@ -1,9 +1,10 @@
 # Competitive Analysis — iRunFar Training Methodology vs. Attune.coach Engine
 
-**Version:** 1.2 · **Date:** 2026-06-22 · **Owner:** product/engineering
-**Executive HTML companion (polished, for executive reading):** `docs/research/Competitive_Analysis_iRunFar_Training_v1.2.html`
+**Version:** 1.3 · **Date:** 2026-06-22 · **Owner:** product/engineering
+**Executive HTML companion (polished, for executive reading):** `docs/research/Competitive_Analysis_iRunFar_Training_v1.3.html`
+**Fact-check provenance:** every cited figure was re-checked against the source articles (verbatim quotes) and the science citations against PubMed/journals (June 2026). All science is real and correctly attributed (Hyldahl 2017 PMID 27782911 · Tanaka 2001, JACC · Mah 2011, Sleep); v1.3 applied 7 precision corrections — flagged inline with *(fact-check)*-style parentheticals.
 **Scope:** Read and synthesize iRunFar.com's training-guidance corpus (`/category/training` + sub-hubs), compare it to the methodology and logic in our plan-generation + coach engine, and produce a ranked list of updates.
-**Method:** 6 source sweeps across ~80 iRunFar articles (workouts/periodization, fueling/hydration/environment, durability/strength/form/recovery, mental/pacing/execution, house philosophy + special populations) — **v1.2 reviewed every one of the ~55 articles linked from the "Ultramarathon Training: A Guide to Everything" pillar hub (all 15 sections); see the §7 coverage checklist**; our side ground-truthed against the codebase (`src/engines/**`, `src/data/methods/*.json`, `api/coach/_core.py`, `docs/research/**`).
+**Method:** 6 source sweeps across ~80 iRunFar articles (workouts/periodization, fueling/hydration/environment, durability/strength/form/recovery, mental/pacing/execution, house philosophy + special populations) — **reviewed every one of the ~55 articles linked from the "Ultramarathon Training: A Guide to Everything" pillar hub (all 15 sections), each figure fact-checked against the source; see the §7 coverage checklist**; our side ground-truthed against the codebase (`src/engines/**`, `src/data/methods/*.json`, `api/coach/_core.py`, `docs/research/**`).
 
 ---
 
@@ -20,7 +21,7 @@ iRunFar's house consensus, across Ian Torrence, Joe Uhan (PT), David & Megan Roc
 ### 1.1 Training structure & workouts
 - **Aerobic "foundation-first," polarized.** Easy stays genuinely easy; hard is concentrated. Uhan's "Aerobic Deficiency Syndrome" warns against gray-zone drift. [steep-and-high, a-foundation-first-approach, intervals]
 - **A 4-family workout taxonomy with concrete prescriptions** (Torrence): Endurance (easy <75% HRmax; carb-depleting ≤3 h fasted every 3–4 wks; fast-finish 2–3→8–10 mi; pace-changers), Stamina/LT (steady-state 83–87% HRmax; tempo 15–40 min @ 85–90%; "thirds" progressions), Speed/VO2 (1–6 min reps @ 94–98% HRmax, 10–30 min total), Sprint/Hill (6–8×15–20 s strides; short hill reps 30–90 s @ ~5K; long hill reps 90 s–3 min). [endurance-based, stamina-based, speed-based, sprint-based-hill]
-- **Downhill conditioning is first-class and perishable** — short downhill reps (1–2 min on 6–10%), long descents (¼–6 mi) "at least every 10–14 days at peak"; muscle memory "fades after ~2–3 weeks"; "dead quads" cited as the #1 Western States DNF cause. [sprint-based-hill, your-ultra-training-bag-of-tricks-downhills]
+- **Downhill conditioning is first-class and perishable** — short downhill reps (1–2 min on 6–10%), long descents (¼–6 mi) touched regularly through peak; "trashed quadriceps lead to many ultra DNFs." The ~14-day re-stimulus cadence is grounded in the **eccentric repeated-bout effect (Hyldahl 2017, PMID 27782911)**, which our descent engine models — not stated as a fixed interval by iRunFar. [sprint-based-hill, your-ultra-training-bag-of-tricks-downhills]
 - **Periodization = base (1–3 mo) → introductory (4–6 wk) → specific (8–12 wk, race-specific, taper last 1–3 wk) → recovery (1–2 mo)**, ≤10–15%/wk increases, 3-up-1-down weeks (down ≈70% of peak). **"Save the spicy work — B2B long runs, mountain climbs, quad-seasoning descents — for late."** [periodization-it-isnt-rocket-science, the-basics-of-creating-a-training-plan, eight-steps]
 - **Predictor / dress-rehearsal workout**: 4–6 wk out, run ~30–60% of course distance mimicking terrain/equipment/fuel/pacing, then re-test. [sprint-based-hill]
 
@@ -31,10 +32,10 @@ iRunFar's house consensus, across Ian Torrence, Joe Uhan (PT), David & Megan Roc
 - **Power-hiking is a trained skill and a winning tactic** (Laney power-hiked 46% of UTMB → 4th): build 20–30 → 90 min on >15–20% grade; "hike the ups" to keep big-vert days aerobic; walk crossover ~3–4 mph flat / >15.8° grade. [an-introduction-to-powerhiking, steep-and-high]
 
 ### 1.3 Fueling, hydration, environment (their most science-cited pillar)
-- **Carbs: 150–300 cal/hr; multiple-transportable carbs (glucose:fructose ~2:1) lift the ceiling from ~60 → 75–90 g/hr; start ≤45 min; train the gut 4–6 wks out (SGLT1 upregulates in ~3 days).** Protein **1.6–2.2 g/kg/day (up to 2.5 for peak ultra; female/peri upper range); 5–10 g/hr in 3 h+ efforts.** [fuel-up, ultras-or-eating-competitions, protein-for-runners]
-- **Hydration (signature contrarian stance): "drink to thirst," 400–800 ml/hr; sodium supplementation prevents neither hyponatremia nor cramps — overdrinking + ADH is the danger.** [exercise-associated-hyponatremia, waterlogged-part-ii]
+- **Carbs: 200–300 cal/hr (150–200 when going hard); multiple-transportable carbs (glucose + fructose) lift the ceiling from ~60 → ~90 g/hr; start ≤45 min; train the gut 4–6 wks out (SGLT1 upregulates in ~3 days).** Protein **1.6–2.2 g/kg/day (up to 2.5 for peak ultra; female/peri upper range); 5–10 g/hr in 3 h+ efforts.** [fuel-up, ultras-or-eating-competitions, protein-for-runners] *(the often-quoted 2:1 glucose:fructose ratio is standard sports-nutrition, not stated in these iRunFar pieces.)*
+- **Hydration (signature contrarian stance): "drink to thirst" — the cited articles deliberately prescribe NO fixed hourly volume; sodium supplementation prevents neither hyponatremia nor cramps — overdrinking + ADH is the danger.** [exercise-associated-hyponatremia, waterlogged-part-ii] *(the 400–800 ml/hr figure is Noakes' book, not these iRunFar articles.)*
 - **Caffeine 3–6 mg/kg, 60 min pre, re-dose for 2 h+ efforts; habituation/abstinence is a myth.** [caffeine-and-performance]
-- **Heat: 7–10 days, 50–100 min/day easy in heat (or post-run sauna 20–30 min), start ~2 wk out, maintain every 3rd day; plasma vol +4.5–13%, sweat rate +50–100%.** [handle-the-heat, heat-acclimation]
+- **Heat: 7–10 days, 50–100 min/day easy in heat (or a post-run sauna / passive-heat block), start ~2 wk out, maintain every 3rd day; plasma vol +4.5–13%, sweat rate +50–100%.** [handle-the-heat, heat-acclimation]
 - **Altitude: full benefit 21–28 days; live-high/train-low; ferritin <35 ng/mL gates response; per-elevation arrival windows; VO2 −8–11%/1,000 m.** Cold/BAT adaptation also covered. [into-thin-air, shivering-science]
 
 ### 1.4 Durability — strength, form, injury, recovery (PT-led, Joe Uhan)
@@ -93,7 +94,7 @@ iRunFar's house consensus, across Ian Torrence, Joe Uhan (PT), David & Megan Roc
 | Dimension | iRunFar depth | Our coverage | Gap | Leverage |
 |---|---|---|---|---|
 | Vert specificity & periodization | Very high | Physics built, **not prescribed** | **High** | **Wire existing** |
-| Downhill / eccentric conditioning | Very high (perishable, #1 DNF) | Physics built, tracked only | **High** | **Wire existing** |
+| Downhill / eccentric conditioning | Very high (perishable) | Physics built, tracked only | **High** | **Wire existing** |
 | Fueling / hydration / caffeine | Very high (signature) | None | **Critical** | Build new (rules) |
 | Heat acclimation | High (best single protocol) | None | **High** | Build new (small) |
 | Structured trail workouts | High | Generic | Medium-High | Build content |
@@ -135,12 +136,12 @@ Ranked by **impact × leverage**, with the CLAUDE.md **Witchel 3-rule check** (m
 - *Witchel:* market = trail/ultra is our core · visceral = "my plan never trained climbing or descending and my quads blew up" · language = "vert," "climbing legs," "blown quads," "downhill reps."
 
 **R2. Add a Fueling & Hydration engine.**
-- *Do:* race-duration/intensity → **carb g/hr** target (ramp 60→90 g/hr, 2:1 glucose:fructose, start ≤45 min, 150–300 cal/hr); a **4–6-week gut-training** progression + a tagged **long-run fueling rehearsal**; **protein** targets (1.6–2.2, up to 2.5 g/kg; female/peri upper); **hydration** "drink to thirst" 400–800 ml/hr + hyponatremia caution; **caffeine** 3–6 mg/kg, re-dose 2 h+. Surface in plan + coach.
+- *Do:* race-duration/intensity → **carb g/hr** target (ramp ~60→90 g/hr via multiple-transportable carbs, start ≤45 min, 200–300 cal/hr); a **4–6-week gut-training** progression + a tagged **long-run fueling rehearsal**; **protein** targets (1.6–2.2, up to 2.5 g/kg; female/peri upper); **hydration** "drink to thirst" + hyponatremia caution; **caffeine** 3–6 mg/kg, re-dose for 2 h+ efforts. Surface in plan + coach.
 - *Why:* iRunFar's deepest pillar; the #1 athlete question; we have zero. *Effort: Medium.*
 - *Witchel:* market = every endurance athlete · visceral = "I bonked / my gut shut down" · language = "bonk," "carbs per hour," "drink to thirst," "gut training."
 
 **R3. Heat-acclimation protocol module.**
-- *Do:* when the goal race is hot (or flagged), insert a **7–10 day** protocol (50–100 min/day easy in heat, or post-run **sauna 20–30 min**) starting **~2 weeks out**, maintain **every 3rd day**, with decay rules; advisory + coach narration + calendar blocks. Pairs with our taper/advisory machinery.
+- *Do:* when the goal race is hot (or flagged), insert a **7–10 day** protocol (50–100 min/day easy in heat, or a post-run **sauna / passive-heat block**) starting **~2 weeks out**, maintain **every 3rd day**, with decay rules; advisory + coach narration + calendar blocks. Pairs with our taper/advisory machinery.
 - *Why:* highest-stakes single protocol, seasonal, currently absent. *Effort: Low–Medium.*
 - *Witchel:* market = every hot goal race · visceral = "I cooked and DNF'd in the heat" · language = "heat training," "sauna protocol," "acclimatize."
 
@@ -178,15 +179,15 @@ iRunFar **cannot generate or adapt a plan, can't personalize to your data, contr
 
 ---
 
-## 7. Guide-to-Everything coverage checklist (all ~55 linked articles) — v1.2
+## 7. Guide-to-Everything coverage checklist (all ~55 linked articles) — v1.3
 
-Direct confirmation that **every** article linked from iRunFar's "Ultramarathon Training: A Guide to Everything" is reflected, with the net-new specifics the v1.2 full-link sweep surfaced. A few are *thematic* (a principle already captured, no distinct trainable protocol).
+Direct confirmation that **every** article linked from iRunFar's "Ultramarathon Training: A Guide to Everything" is reflected, with the net-new specifics the full-link sweep surfaced. A few are *thematic* (a principle already captured, no distinct trainable protocol).
 
 - **1 · Overviews & Principles** — training-for-your-first-ultra (§1 canon) · a-newbies-guide (4–6 h/wk; B2B every 2–3 wknds, day-2 at 50–75%) · stress-and-running (*thematic*) · balance-and-running (*thematic*) · ultrarunning-training-for-busy-people (specificity > volume, minimum effective dose) · pursuing-the-patient-path (6-mo season; recovery wks; **don't combine speedwork + long-run building**; ramp ≤5–10 mi/wk) · patience-and-the-ultramarathoner (§1 / R10).
 - **2 · Goals & Motivation** — the-two-questions (*thematic*, individualization) · try-something-new (*thematic*).
 - **3 · Types of Runs** — essential-elements-of-successful-ultra-training (§1, the four workout families).
 - **4 · Volume & Intensity** — ultramarathon-training-volume (**base ~50 mi / 8 h-wk → ceiling 60–70 mi / 8–10 h**; long run by distance — 50K 3–4 h · 50M/100K 4–5 h · 100M 5–6 h · 200+ 5–10+ h; **B2B = cut 25–50% off day-1**; recovery wk −50%) · two-a-days (**75+ mi/wk or plateaued; 20–60 min easy; 1–2 → 3–4/wk**) · worth-the-effort (RPE; fartlek 12×1 or 6×2 min hard, equal easy) · an-inconvenient-truth + listen-to-your-heart (**MAF 180−age / 200−age AnT / 210−age VO2**; 2–3 mo to set zones) · process-to-outcome 1 (process > outcome) & 2 (*thematic*).
-- **5 · Long Runs & Endurance** — endurance-based-workouts (§1) · using-races-to-prepare (**tune-up timing — 100M: 50K ~12 wk out, 50M/100K ~6 wk; distance-matching ladder**) · group-workouts (**head-start, adventure-run, surprise-surge fartlek, bagel-run formats**).
+- **5 · Long Runs & Endurance** — endurance-based-workouts (§1) · using-races-to-prepare (**tune-up timing — 100M: a 50K/50-mile ~11–14 wk out, a 50-mile/100K ~5–7 wk; distance-matching ladder**) · group-workouts (**head-start, adventure-run, surprise-surge fartlek, bagel-run formats**).
 - **6 · Speedwork** — stamina-based · taking-progression-workouts-to-trails (**out-and-back benchmark**; thirds / fast-finish / long-gradual subtypes) · speed-based · sprint-hill-predictor · gear-changing — all §1 canon.
 - **7 · Recovery** — sleep-the-missing-ingredient (7–9 h; +1 h → gains; gradual extension) · sleep-and-running-performance (**circadian low 02:00–06:00, peak 17:00–20:00; bedroom 64–74°F; no screens 60 min; jet-lag ~24 h/tz; altitude 5,000 m disrupts ~4 wk**) · recovery-bag-of-tricks (**refuel 30–45 min: 0.8–1 g carb + 0.2–0.4 g protein/kg**) · DOMS (**onset 12–24 h, peak 24–72 h**) · rest-and-recovery (**HRV tracking** — validates our readiness asset) · post-ultra-downtime (by experience) · recover-better-10-rules (1 rest/10 mi; +1 h sleep/10 mi) · returning-to-normal (**wk-by-wk: days 1–7 walk → wk 2–3 ≤1 h jogs ~2 of 3 days → wk 3+ rebuild**) · on-taking-a-break (annual 1 mo+; 2 wk full + 2 mo low-volume). → **R5**.
 - **8 · Specificity** — race-specific-training (vert tiers Flat<120 / Mountainous 120–240 / Colossal >240 ft/mi) · using-what-youve-got (*thematic*) · avoiding-quadraphenia (**downhill-after-uphill repeats; aid-station transition runs; form-check every 15 min**) · dont-let-downhills (eccentric / quad-seasoning) · protect-and-preserve-quadriceps (chest-over-knee alignment) · altitude-training-and-racing (**6,000 ft AMS ~6 h; 7,000 ft +20–30 s/mi; pre-altitude VO2 work 2–3 wk before**) · surviving-first-hundred-1 (**time-on-feet 20+ h; course-specific 50M training day; injury-free ≥4 wk before**) · multi-stage-1 (**24-wk cycle; Fri/Sat/Sun cluster runs spaced 2–3 wk**). → **R1 / R13 / §1**.
@@ -194,7 +195,7 @@ Direct confirmation that **every** article linked from iRunFar's "Ultramarathon 
 - **10 · Mental** — head-games (**Necessary / Possible / Impossible** framework) · learning-to-embrace-the-pain (**M-fit attention training**) · ultrarunning-skills-1–5 (*thematic* + forgiveness protocol, conservative early positioning) · overcoming-anxiety (**running streak; gamification; lower-barrier-entry**). → **R10**.
 - **11 · Cross-Training & Lifting** — strength-training-for-runners (heavy periodized) · building-a-trail-worthy-body 1 (**core 5-min circuit ×3/wk**) & 2 (**plyometric / multi-planar / balance blocks**) · "stay-the-course" / Uhan (form, durability). → **R8 / R9**.
 - **12 · Injuries** — running-injuries-explained-and-overcome (**Uhan's Three Laws; Economics model**) · injury-recognition-treatment-and-recovery (**adaptive-vs-restrictive damage; return-to-run walk 45 min → 1 mi → +1 mi/day → hills → speed → pavement → race; cadence ~180**). → **R5 / §6**.
-- **13 · Overtraining** — parts 1 (**morning HR >5 bpm; 25% fiber damage / 10–12 wk repair; emotional/physical symptoms; non-functional overreaching**), 2 (cut 75–100%; periodize life stress), 3 (**Torrence Green/Yellow/Red tracking; 1–3 hard races/yr cap**). → **R5**.
+- **13 · Overtraining** — parts 1 (**elevated morning/resting HR; 25% fiber damage / 10–12 wk repair; emotional/physical symptoms; non-functional overreaching**), 2 (cut 75–100%; periodize life stress), 3 (**Torrence Green/Yellow/Red tracking; 1–3 hard races/yr cap**). → **R5**.
 - **14 · Offseason** — turning-on-to-the-off-season (**1–2 mo; "rest until hungry" +4–7 d; optional 4-month weakness-focused phase**). → §1.
 - **15 · Continuing Education** — become-a-student-of-the-sport (*thematic*).
 
