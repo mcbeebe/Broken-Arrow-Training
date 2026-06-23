@@ -1,0 +1,29 @@
+{
+  "_meta": {
+    "id": "fueling_context",
+    "surface": "daily",
+    "description": "R2 — a long-race fueling context must render as a FUELING section in the coach prompt, so the coach can give concrete carb/hydration guidance."
+  },
+  "_expect": {
+    "context_contains": "FUELING"
+  },
+  "today": { "date": "2026-06-04", "period": "morning" },
+  "currentWeekNum": 10,
+  "readiness": {
+    "status": "GREEN", "displayScore": 72, "trainingState": "A",
+    "components": { "hrv": 1, "rhr": 0, "sleep": 1, "trainingLoad": 0 },
+    "message": "Recovered and ready for the planned work."
+  },
+  "performance": { "ctl": 55, "atl": 50, "tsb": 5, "acwr": 1.0 },
+  "todayHealth": { "sleepHours": 7.8, "rhr": 48, "hrvLastNightMs": 62, "hrvWeeklyAvgMs": 60, "hrvStatus": "BALANCED", "bodyBatteryCurrent": 78 },
+  "plannedToday": {
+    "day": "Sat 6/6", "type": "long", "workout": "Long run", "zone": "Z2",
+    "detail": "Long run ~22 mi · Z2 · Fuel ~75 g carb/hr (practice race nutrition)"
+  },
+  "fuelingContext": "aim for ~75 g carbohydrate/hour on long efforts (multiple-transportable carbs, gut-trained 4-6 weeks out), drink to thirst, and consider caffeine 3-6 mg/kg",
+  "athleteProfile": { "name": "Mike", "maxHR": 185, "weeklyStructure": "6 days, long run Saturday" },
+  "zones": [
+    { "zone": "Z2", "hr": "128-148", "pct": "67-78%" },
+    { "zone": "Z4", "hr": "165-175", "pct": "87-92%" }
+  ]
+}

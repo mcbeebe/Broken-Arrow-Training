@@ -49,6 +49,7 @@ import { sendCoachMessageBackground, coachApiAvailable } from './utils/coachApi'
 import { buildJournalSeed } from './utils/journal'
 import { injurySummaryLine } from './utils/injuryRamp'
 import { menopauseSummaryLine } from './utils/menopause'
+import { fuelingSummaryLine } from './utils/fueling'
 import { useWeather } from './hooks/useWeather'
 import { useAthleteLocation } from './hooks/useAthleteLocation'
 import { useWorkoutTimePreference } from './hooks/useWorkoutTimePreference'
@@ -889,6 +890,10 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     // Carry the athlete's menopause context (midlife tailoring) the same way.
     const menopauseContext = menopauseSummaryLine(onboarding.config)
     if (menopauseContext) snap.menopauseContext = menopauseContext
+    // Carry fueling guidance (R2) so the coach can give concrete carb/hydration
+    // advice; null for short races that don't need per-hour fueling.
+    const fuelingContext = fuelingSummaryLine(activePlan.race?.distanceMiles ?? 0)
+    if (fuelingContext) snap.fuelingContext = fuelingContext
     // Carry the plan's honest advisories (feasibility, runway, goal-derived
     // paces) so the welcome letter can acknowledge them plainly rather than
     // writing around them. They already surface in MethodSelection + Summary.
