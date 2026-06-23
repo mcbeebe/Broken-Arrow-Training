@@ -39,7 +39,8 @@ import { injectExtraDays } from './extraDays'
 import { INJURY_LEADIN_WEEKS } from '../../utils/injuryRamp'
 import { assessFeasibility } from './feasibility'
 import { computeMaxHR } from '../../utils/heartRate'
-import { configVertGainFt } from '../../utils/raceVert'
+import { configVertGainFt, raceVertGainFt } from '../../utils/raceVert'
+import { applyVertPrescription, isClimbyDensity } from './vertPrescription'
 
 const DAY_OF_WEEK_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const
 
@@ -611,6 +612,16 @@ export function generatePlanFromMethod(
   // line up with Mon..Sun in every prior week (fixing the off-by-one that
   // pushed long runs a day early).
   const raceMonday = mondayOnOrBefore(raceDateAnchor)
+
+  // R1 — race climb density drives the climbing/descending prescription. Use a
+  // nominal distance for mountain ultras (whose RACE_DISTANCE_LABELS miles is 0)
+  // so a structured/described vert still yields a per-mile density.
+  const raceForVert = buildRaceInfo(config)
+  const raceVertGain = raceVertGainFt(raceForVert)
+  const effRaceMiles = raceForVert.distanceMiles > 0 ? raceForVert.distanceMiles : 31
+  const vertFtPerMi = raceVertGain > 0 ? raceVertGain / effRaceMiles : 0
+  const isClimby = isClimbyDensity(vertFtPerMi)
+
   const weeks: TrainingWeek[] = []
 
   for (let w = 0; w < totalWeeks; w++) {
@@ -683,6 +694,17 @@ export function generatePlanFromMethod(
     const drillIdx = withExtras.findIndex(d => d.type === 'run')
     if (drillIdx >= 0) withExtras[drillIdx] = { ...withExtras[drillIdx], isDrillDay: true }
 
+    // R1 — emit weekly vert targets on the long run + schedule downhill / quad-
+    // seasoning sessions through build/peak (flat races pass through unchanged).
+    const withVert = applyVertPrescription(withExtras, {
+      vertFtPerMile: vertFtPerMi,
+      isClimby,
+      longRunMi: weekMi.longRunMi,
+      isTaper: weekMi.isTaper,
+      weekIndex: w,
+      peakWeekIndex: lastBuildWeekIndex,
+    })
+
     weeks.push({
       num: w + 1,
       dates: `${formatDayLabel(weekStart)} – ${formatDayLabel(addDays(weekStart, 6))}`,
@@ -692,7 +714,7 @@ export function generatePlanFromMethod(
         : weekMi.isCutback
           ? 'Cutback'
           : (phase?.name ?? 'Build'),
-      days: withExtras,
+      days: withVert,
     })
   }
 
@@ -703,7 +725,7 @@ export function generatePlanFromMethod(
     athlete,
     weeks,
     zones: computeZones(athlete.maxHR, paces, method),
-    race: buildRaceInfo(config),
+    race: raceForVert,
     ...(advisories.length > 0 ? { advisories } : {}),
   }
 }
