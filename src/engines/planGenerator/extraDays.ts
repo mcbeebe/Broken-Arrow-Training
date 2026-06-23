@@ -99,6 +99,24 @@ const TAPER_BODYWEIGHT_ROUTINE = [
  * Substitutes a bodyweight-only variant when the athlete didn't select gym
  * access in onboarding — same movement pattern, no loaded equipment.
  */
+/**
+ * R8 — strength periodization emphasis by training phase: heavy maximal strength
+ * in the base / off-season, an explosive-power emphasis as the race nears, and a
+ * strength-to-power transition in between. Taper is maintenance-only. Matches the
+ * fact-checked iRunFar/CSCS model (heavy → power → drop race week).
+ */
+export function strengthPhaseEmphasis(phaseId: string, isTaper: boolean): string {
+  if (isTaper) return 'maintenance only — keep it light and sharp'
+  const id = phaseId.toLowerCase()
+  if (/base|foundation|general|off.?season/.test(id)) {
+    return 'heavy maximal strength (4–6 reps, build toward a 4–5RM)'
+  }
+  if (/peak|sharp|final|race|specific|special/.test(id)) {
+    return 'explosive power (box jumps, med-ball, light & fast); drop the heavy loads'
+  }
+  return 'strength-to-power transition (moderate loads, add some speed)'
+}
+
 export function buildStrengthDetail(
   opts: ExtraDaysOptions,
   config?: OnboardingConfig,
@@ -107,12 +125,14 @@ export function buildStrengthDetail(
   const routine = opts.isTaper
     ? (hasGym ? TAPER_STRENGTH_ROUTINE : TAPER_BODYWEIGHT_ROUTINE)
     : (hasGym ? BASE_STRENGTH_ROUTINE : BASE_BODYWEIGHT_ROUTINE)
+  // R8 — phase emphasis leads the routine (heavy in base → power near the race).
+  const emphasis = opts.isTaper ? [] : [`Emphasis: ${strengthPhaseEmphasis(opts.phaseId, false)}`]
   // Midlife (peri/menopause/postmenopause): append a heavy bone-loading
   // finisher to the standard routine — bone is the priority as estrogen drops.
   // Skipped on taper (maintenance only). Premenopause/none keep the base.
   const boneCue = opts.isTaper ? null : menopauseStrengthCue(config)
   const finisher = boneCue ? (hasGym ? boneCue.gymFinisher : boneCue.bodyweightFinisher) : []
-  return [...routine, ...finisher].join(' · ')
+  return [...emphasis, ...routine, ...finisher].join(' · ')
 }
 
 /**

@@ -1253,6 +1253,9 @@ export interface CoachSnapshot {
   /** Post-race recovery guidance (R5) — rest-day + sleep formula, reverse-taper
    *  rebuild, and the overtraining/deload framing. Absent for short races. */
   recoveryContext?: string
+  /** Running form & cadence cues (R9) so the coach can answer form/efficiency/
+   *  injury-prevention questions with concrete cues. */
+  formContext?: string
 }
 
 export interface CoachInsight {

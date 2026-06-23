@@ -1,0 +1,22 @@
+{
+  "_meta": {
+    "id": "form_context",
+    "surface": "daily",
+    "description": "R9 — running form/cadence cues must render as a FORM section so the coach can answer form questions concretely."
+  },
+  "_expect": {
+    "context_contains": "FORM"
+  },
+  "today": { "date": "2026-06-04", "period": "morning" },
+  "currentWeekNum": 6,
+  "readiness": {
+    "status": "GREEN", "displayScore": 70, "trainingState": "A",
+    "components": { "hrv": 1, "rhr": 0, "sleep": 1, "trainingLoad": 0 },
+    "message": "Good to go."
+  },
+  "performance": { "ctl": 50, "atl": 48, "tsb": 2, "acwr": 1.0 },
+  "todayHealth": { "sleepHours": 7.5, "rhr": 49, "hrvLastNightMs": 60, "hrvWeeklyAvgMs": 60, "hrvStatus": "BALANCED", "bodyBatteryCurrent": 72 },
+  "formContext": "cadence around 170-180 spm (quicker on descents); a tall hip-hinge posture; land under your center of mass - fixing braking/overstride matters more than foot-strike; and a short morning mobility flow to stay durable",
+  "athleteProfile": { "name": "Mike", "maxHR": 185 },
+  "zones": [ { "zone": "Z2", "hr": "128-148", "pct": "67-78%" } ]
+}
