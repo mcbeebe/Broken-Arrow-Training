@@ -279,6 +279,10 @@ export interface RaceInfo {
   distance: string;
   distanceMiles: number;
   elevation: string;
+  /** Structured total vertical gain (feet) for the race. Populated from the
+   *  onboarding `elevationGainFt` or parsed from the free-text description.
+   *  Drives the climbing/descending prescription (R1). Undefined when unknown. */
+  elevationGainFt?: number;
   elevationRange: string;
   course: string;
   cutoff: string;
