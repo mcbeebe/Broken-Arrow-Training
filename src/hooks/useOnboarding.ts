@@ -93,6 +93,10 @@ export interface OnboardingConfig {
   // Target race distance — required for trail/road races, omitted for hyrox/general.
   // Drives method selection via applicability.byDistance in the plan-generator engine.
   raceDistance?: RaceDistance
+  // Total race vertical gain in feet (structured). Drives the climbing/descending
+  // prescription (R1) when present; otherwise the engine falls back to parsing the
+  // free-text raceDescription. Optional — flat/road races leave it unset.
+  elevationGainFt?: number
   // Training method the user picked from the top-3 recommendation (e.g. 'daniels',
   // 'koop', 'roche_swap'). Only set for trail/road flows; hyrox/general skip
   // method selection and use the existing generateHyroxPlan path.

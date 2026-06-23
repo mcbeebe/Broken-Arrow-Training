@@ -39,6 +39,7 @@ import { injectExtraDays } from './extraDays'
 import { INJURY_LEADIN_WEEKS } from '../../utils/injuryRamp'
 import { assessFeasibility } from './feasibility'
 import { computeMaxHR } from '../../utils/heartRate'
+import { configVertGainFt } from '../../utils/raceVert'
 
 const DAY_OF_WEEK_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const
 
@@ -375,19 +376,24 @@ function buildPlannedDay(
 
 function buildRaceInfo(config: OnboardingConfig): RaceInfo {
   const dist = config.raceDistance ? RACE_DISTANCE_LABELS[config.raceDistance] : { label: '', miles: 0 }
+  // Structured race vert — from the onboarding field or parsed from the free-text
+  // description — so the plan can prescribe climbing/descending work (R1).
+  const vertFt = configVertGainFt(config)
   return {
     name: config.raceName || 'Goal Race',
     date: config.raceDate || '',
     startTime: '',
     distance: dist.label,
     distanceMiles: dist.miles,
-    elevation: '',
+    elevation: vertFt > 0 ? `${vertFt} ft` : '',
+    ...(vertFt > 0 ? { elevationGainFt: vertFt } : {}),
     elevationRange: '',
     course: '',
     cutoff: '',
     landmarks: [],
     gear: [],
     nutrition: '',
+    description: config.raceDescription,
   }
 }
 
