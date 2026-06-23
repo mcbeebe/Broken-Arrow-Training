@@ -1,8 +1,9 @@
 # Competitive Analysis — iRunFar Training Methodology vs. Attune.coach Engine
 
-**Version:** 1.0 · **Date:** 2026-06-22 · **Owner:** product/engineering
+**Version:** 1.1 · **Date:** 2026-06-22 · **Owner:** product/engineering
+**Executive HTML companion (polished, for executive reading):** `docs/research/Competitive_Analysis_iRunFar_Training_v1.1.html`
 **Scope:** Read and synthesize iRunFar.com's training-guidance corpus (`/category/training` + sub-hubs), compare it to the methodology and logic in our plan-generation + coach engine, and produce a ranked list of updates.
-**Method:** 5 parallel source sweeps across ~70 iRunFar articles (workouts/periodization, fueling/hydration/environment, durability/strength/form/recovery, mental/pacing/execution, house philosophy + special populations); our side ground-truthed against the codebase (`src/engines/**`, `src/data/methods/*.json`, `api/coach/_core.py`, `docs/research/**`).
+**Method:** 5 parallel source sweeps across ~75 iRunFar articles (workouts/periodization, fueling/hydration/environment, durability/strength/form/recovery, mental/pacing/execution, house philosophy + special populations) — **including a v1.1 review of the "Ultramarathon Training: A Guide to Everything" pillar hub (15 sections) and its sleep/overtraining sub-pages**; our side ground-truthed against the codebase (`src/engines/**`, `src/data/methods/*.json`, `api/coach/_core.py`, `docs/research/**`).
 
 ---
 
@@ -41,6 +42,8 @@ iRunFar's house consensus, across Ian Torrence, Joe Uhan (PT), David & Megan Roc
 - **Form system:** cadence ~180 (faster downhill), **hip-hinge posture**, **"braking vs. center-of-mass," not foot-strike**, seven stride cues, a morning traction-based mobility flow. [keys-to-quick-cadence, hip-hinge, give-it-a-brake, seven-stride-cues, joes-running-mobility-routine]
 - **Return-to-run "Stoplight" by 24-h symptom trajectory** (green = repeat; yellow = −10–20% / cross-train; red = stop); **"injury vs. dysfunction — rest doesn't fix a movement problem."** [joes-stoplight-system, when-your-chronic-running-injury-wont-heal]
 - **Recovery formulas:** **1 rest day / 10 mi raced (1/10 km if high-vert); +1 h sleep/night /10 mi (≥10 days post-100); reverse-taper rebuild then re-add speed; active recovery (3–5 mi) > full rest.** [recover-better-10-rules, six-strategies, running-post-race-recovery]
+- **Sleep = "the missing ingredient"** — **7–9 h/night** baseline; Stanford data: **+1 h/night measurably improves reaction time, mood, accuracy, sprint speed**; extend **gradually** (shift bedtime 30 min every few days), don't cram-bank; track monthly (PSQI/Epworth) and schedule sleep alongside workouts. [sleep-the-missing-ingredient]
+- **Overtraining detection (whole 3-part section):** leading indicators = **sleep disturbance** + **declining pace at the same HR** (Maffetone/MAF); treatment = **cut volume 75–100%** + eliminate intensity; prevention = **periodize life stress** + parasympathetic work; distinguish brief **overreaching** (can supercompensate) from true **overtraining** (systemic, needs full rest). [overtraining-syndrome-part-two]
 - **Cross-training is training stress, and a hidden injury trap** (Uhan): in acute phases do *less* aerobic cross-training, rotate modalities, shift to mobility/strength. [cross-training-sabotage]
 
 ### 1.5 Mind, pacing, race execution
@@ -110,7 +113,7 @@ iRunFar's house consensus, across Ian Torrence, Joe Uhan (PT), David & Megan Roc
 
 ## 4. Gaps & weaknesses (honest)
 
-1. **Built-but-dormant trail IP.** Our most differentiated, research-cited work (terrain GAP, eccentric/descent, vertical efficiency, repeated-bout, DOMS forecast) is largely invisible in the plan the athlete trains by. We *track* descent capacity but never *prescribe* a downhill workout; we model cost-of-gradient but the ramp is still flat mileage.
+1. **Built-but-dormant IP — twice over.** (a) Our most differentiated, research-cited trail work (terrain GAP, eccentric/descent, vertical efficiency, repeated-bout, DOMS forecast) is largely invisible in the plan the athlete trains by — we *track* descent capacity but never *prescribe* a downhill workout; we model cost-of-gradient but the ramp is still flat mileage. (b) Our **readiness/TRIMP engine already ingests sleep, HRV, resting HR & Body Battery** (`src/utils/readiness.ts`) yet only displays scores — it never **prescribes sleep, flags overtraining, or auto-adjusts the plan**, exactly the Recovery / Sleep / Overtraining triad iRunFar devotes three sections to.
 2. **No fuel/hydration layer at all** — the single most-asked endurance question, and iRunFar's deepest content, is absent from our plans and coach.
 3. **No environmental prep** — heat (high-stakes, seasonal) is missing; altitude is a stub.
 4. **The "execution" half of the sport is missing** — pacing discipline, aid-station/fuel-per-segment planning, power-hiking, and the mental curriculum that iRunFar argues *is the differentiator* in ultras.
@@ -145,7 +148,7 @@ Ranked by **impact × leverage**, with the CLAUDE.md **Witchel 3-rule check** (m
 
 **R4. Structured trail-workout taxonomy** — replace generic "quality" with iRunFar-style sessions keyed to phase + vert tier (Flat/Mountainous/Colossal): short/long hill reps, downhill reps, gear-changing, strides, and a **4–6-week-out dress-rehearsal "predictor"** workout. *Effort: Medium* (overlaps R1 on hills/descents).
 
-**R5. Recovery & return-to-run protocols** — post-race **rest-day (1/10 mi; 1/10 km high-vert)** and **sleep (+1 h/10 mi)** formulas, **reverse-taper** rebuild, and a **Stoplight** 24-h symptom-trajectory return-to-run. Extends our injury lead-in into the post-race and comeback windows. *Effort: Low–Medium.*
+**R5. Recovery, sleep & overtraining protection** — post-race **rest-day (1/10 mi; 1/10 km high-vert)** and **sleep (+1 h/10 mi; 7–9 h baseline, gradual extension)** formulas, **reverse-taper** rebuild, **Stoplight** 24-h symptom-trajectory return-to-run, **and wire the existing readiness/TRIMP engine** into overtraining flags + light plan auto-adjustment (our *second* dormant asset). Extends our injury lead-in into the post-race, sleep, and comeback windows. *Effort: Low–Medium (part wiring existing).*
 
 **R6. Pacing & race-execution plan** — an effort-based **Rule-of-Thirds** pacing card (HR/RPE cap first third → even → finish), **power-hike grade thresholds** (>15–20%), and an **aid-station / fuel-per-segment** plan generated from the course. *Effort: Medium.*
 
@@ -179,6 +182,7 @@ iRunFar **cannot generate or adapt a plan, can't personalize to your data, contr
 Workouts/periodization: endurance-based · stamina-based · speed-based · sprint-based-hill-and-predictor · gear-changing · periodization-it-isnt-rocket-science · the-basics-of-creating-a-training-plan · race-specific-training · on-peaking-for-an-ultramarathon · eight-steps-for-your-best-trail-running-off-season · ultramarathon-training-a-guide-to-everything · your-ultra-training-bag-of-tricks-downhills.
 Fuel/environment: fuel-up · ultras-or-eating-competitions · eat-on-the-run · protein-for-runners · caffeine-and-performance · exercise-associated-hyponatremia · waterlogged-part-ii · handle-the-heat · heat-acclimation · into-thin-air · shivering-science.
 Durability: pumping-iron · strength-training-for-runners · joes-stoplight-system · when-your-chronic-running-injury-wont-heal · hip-hinge · keys-to-quick-cadence · seven-stride-cues · give-it-a-brake · joes-running-mobility-routine · cross-training-sabotage · recover-better-10-rules · six-strategies-for-mid-season-recovery · running-post-race-recovery · sprained-ankle-rehab-balance-boards · early-range-hip-flexor-strength · where-the-rubber-meets-the-road · an-open-letter-to-masters-runners.
+Pillar hub + recovery/overtraining (v1.1): ultramarathon-training-a-guide-to-everything · sleep-the-missing-ingredient · sleep-and-running-performance · overtraining-syndrome (parts 1–3) · post-ultra-downtime-how-much-is-enough · returning-to-normal · rest-and-recovery · turning-on-to-the-off-season.
 Mind/pacing/execution: the-rule-of-thirds · rethinking-the-aid-station · an-introduction-to-powerhiking · mantras-for-your-mental-game · imagery-for-performance-enhancement · surviving-your-first-hundred-part-2 · process-to-outcome-part-1 · emergent-methods-for-determining-ultramarathon-race-day-pacing · psychological-factors-in-multi-day-ultramarathons · patience-and-the-ultramarathoner.
 Philosophy/populations: steep-and-high · a-foundation-first-approach · intervals · the-masters-athlete · what-we-know-about-menstruation · women-rule · dr-stacy-sims-profile · equations-for-running-a-conversation-with-david-roche.
 

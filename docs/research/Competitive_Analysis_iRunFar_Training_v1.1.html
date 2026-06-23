@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Competitive Analysis — iRunFar Training vs. Attune.coach</title>
+<style>
+  :root{
+    --ink:#0f172a; --body:#334155; --muted:#64748b; --faint:#94a3b8;
+    --line:#e5e9f0; --bg:#f7f8fa; --card:#ffffff;
+    --teal:#0d9488; --teal-d:#0f766e; --emerald:#047857; --emerald-bg:#ecfdf5; --emerald-line:#a7f3d0;
+    --amber:#b45309; --amber-bg:#fffbeb; --amber-line:#fde68a;
+    --red:#b91c1c; --red-bg:#fef2f2; --red-line:#fecaca;
+    --blue:#1d4ed8; --blue-bg:#eff6ff; --violet:#6d28d9; --violet-bg:#f5f3ff;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--bg);color:var(--body);
+    font:15px/1.62 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;}
+  .wrap{max-width:1000px;margin:0 auto;padding:0 22px 80px}
+  h1,h2,h3,h4{color:var(--ink);line-height:1.25;margin:0}
+  a{color:var(--teal-d);text-decoration:none}
+  a:hover{text-decoration:underline}
+  code{font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace;font-size:.86em;
+    background:#f1f5f9;border:1px solid #e2e8f0;border-radius:5px;padding:.5px 5px;color:#0f172a}
+  .mono{font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace}
+
+  /* ---- cover ---- */
+  header.cover{background:linear-gradient(135deg,#0f172a 0%,#155e63 100%);color:#fff;
+    border-radius:0 0 22px 22px;padding:46px 22px 40px;margin-bottom:30px}
+  header.cover .inner{max-width:1000px;margin:0 auto;padding:0}
+  .brand{display:flex;align-items:center;gap:9px;font-weight:700;letter-spacing:.2px;margin-bottom:22px;color:#cbeae6}
+  .brand .dot{width:11px;height:11px;border-radius:3px;background:#34d399;display:inline-block}
+  .eyebrow{text-transform:uppercase;letter-spacing:2.4px;font-size:11.5px;font-weight:700;color:#7dd3c8;margin-bottom:12px}
+  header.cover h1{color:#fff;font-size:33px;letter-spacing:-.4px;max-width:18ch}
+  header.cover p.lede{color:#d7e3e6;font-size:16px;margin:14px 0 0;max-width:70ch}
+  .meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:22px}
+  .tag{background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.18);color:#eaf3f3;
+    border-radius:999px;padding:5px 12px;font-size:12px;font-weight:500}
+  .tag.lime{background:rgba(52,211,153,.16);border-color:rgba(52,211,153,.4);color:#bbf7d0}
+
+  /* ---- toc ---- */
+  nav.toc{display:flex;flex-wrap:wrap;gap:6px 16px;padding:14px 18px;background:var(--card);
+    border:1px solid var(--line);border-radius:12px;margin-bottom:30px;font-size:13px}
+  nav.toc a{color:var(--muted);font-weight:600}
+  nav.toc a:hover{color:var(--teal-d)}
+  nav.toc b{color:var(--faint);font-weight:700;margin-right:2px}
+
+  section{margin:0 0 34px}
+  .kicker{display:flex;align-items:baseline;gap:11px;margin-bottom:14px;padding-bottom:9px;border-bottom:2px solid var(--line)}
+  .kicker .n{font-family:"SF Mono",monospace;font-size:13px;font-weight:700;color:var(--teal)}
+  .kicker h2{font-size:21px;letter-spacing:-.2px}
+  p{margin:0 0 13px}
+  .sub{color:var(--muted);font-size:14px}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px 20px}
+  .grid{display:grid;gap:14px}
+  .g2{grid-template-columns:1fr 1fr}
+  .g3{grid-template-columns:1fr 1fr 1fr}
+  @media(max-width:760px){.g2,.g3{grid-template-columns:1fr}}
+
+  /* ---- callout ---- */
+  .callout{border-radius:14px;padding:20px 22px;border:1px solid;position:relative}
+  .callout.key{background:linear-gradient(180deg,#ecfdf5,#f7fefb);border-color:var(--emerald-line)}
+  .callout h3{font-size:17px;margin-bottom:8px;color:#064e3b}
+  .callout .lab{text-transform:uppercase;letter-spacing:1.6px;font-size:11px;font-weight:800;color:var(--emerald);margin-bottom:7px}
+  .callout.exec{background:#fff;border-color:var(--line);box-shadow:0 1px 0 rgba(15,23,42,.03)}
+
+  ul.tight{margin:6px 0 0;padding-left:20px}
+  ul.tight li{margin:5px 0}
+  .lead-num{font-size:30px;font-weight:800;color:var(--teal-d);line-height:1}
+
+  /* ---- tables ---- */
+  table{width:100%;border-collapse:collapse;font-size:13.3px;background:var(--card);
+    border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  thead th{background:#f1f5f9;color:#334155;text-align:left;font-weight:700;font-size:12px;
+    text-transform:uppercase;letter-spacing:.4px;padding:10px 12px;border-bottom:1px solid var(--line)}
+  td{padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+  tbody tr:last-child td{border-bottom:none}
+  tbody tr:nth-child(even){background:#fcfdfe}
+  .tscroll{overflow-x:auto;border-radius:12px}
+
+  /* severity + status pills */
+  .pill{display:inline-block;border-radius:999px;padding:2px 9px;font-size:11px;font-weight:700;white-space:nowrap;border:1px solid}
+  .p-crit{background:var(--red-bg);color:var(--red);border-color:var(--red-line)}
+  .p-high{background:var(--amber-bg);color:var(--amber);border-color:var(--amber-line)}
+  .p-med{background:#fefce8;color:#a16207;border-color:#fef08a}
+  .p-low{background:#f1f5f9;color:#475569;border-color:#e2e8f0}
+  .p-moat{background:var(--emerald-bg);color:var(--emerald);border-color:var(--emerald-line)}
+  .p-built{background:var(--blue-bg);color:var(--blue);border-color:#bfdbfe}
+  .p-none{background:var(--red-bg);color:var(--red);border-color:var(--red-line)}
+  .p-yes{background:var(--emerald-bg);color:var(--emerald);border-color:var(--emerald-line)}
+
+  /* ---- roadmap cards ---- */
+  .tier{margin-bottom:8px;display:flex;align-items:center;gap:10px}
+  .tier .badge{font-size:12px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;
+    color:#fff;border-radius:7px;padding:4px 11px}
+  .tier.t1 .badge{background:var(--teal-d)} .tier.t2 .badge{background:var(--amber)} .tier.t3 .badge{background:var(--violet)}
+  .tier .desc{font-size:13px;color:var(--muted)}
+  .rec{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--teal);border-radius:10px;
+    padding:14px 16px;margin-bottom:12px}
+  .rec.t2{border-left-color:var(--amber)} .rec.t3{border-left-color:var(--violet)}
+  .rec .top{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:6px}
+  .rec .rid{font-family:"SF Mono",monospace;font-weight:800;color:var(--ink);font-size:14px}
+  .rec h4{font-size:15px}
+  .rec .what{font-size:13.5px;margin:3px 0 0}
+  .rec .badges{display:flex;gap:6px;flex-wrap:wrap;margin-left:auto}
+  .rec .witchel{margin-top:9px;font-size:12.3px;color:var(--muted);background:#f8fafc;border:1px solid var(--line);
+    border-radius:8px;padding:8px 11px}
+  .rec .witchel b{color:#475569}
+  .eff{font-size:11px;font-weight:700;border-radius:6px;padding:2px 8px;border:1px solid}
+  .eff.lo{background:var(--emerald-bg);color:var(--emerald);border-color:var(--emerald-line)}
+  .eff.md{background:#fefce8;color:#a16207;border-color:#fef08a}
+  .lev{font-size:11px;font-weight:700;border-radius:6px;padding:2px 8px;border:1px solid;background:var(--blue-bg);color:var(--blue);border-color:#bfdbfe}
+
+  .two-col-list{columns:2;column-gap:26px}
+  @media(max-width:760px){.two-col-list{columns:1}}
+  .canon{font-size:13px}
+  .canon b{color:var(--ink)}
+  .src{color:var(--faint);font-size:12px}
+  .foot{margin-top:30px;padding-top:16px;border-top:1px solid var(--line);color:var(--faint);font-size:12px}
+  .hl{background:linear-gradient(180deg,transparent 62%,#fef08a 62%);padding:0 1px}
+  .strong-ink{color:var(--ink);font-weight:600}
+</style>
+</head>
+<body>
+
+<header class="cover">
+  <div class="inner">
+    <div class="brand"><span class="dot"></span> attune<span style="color:#5eead4">·coach</span> &nbsp;·&nbsp; <span style="font-weight:500;color:#9fd6cf">Competitive Strategy</span></div>
+    <div class="eyebrow">Competitive Market Analysis</div>
+    <h1>iRunFar Training Methodology vs. Our Engine</h1>
+    <p class="lede">A read of trail/ultrarunning's deepest training library, compared field-for-field to the methodology we've built — with a ranked roadmap of where to invest next.</p>
+    <div class="meta">
+      <span class="tag">v1.1 · 2026-06-22</span>
+      <span class="tag">~75 iRunFar articles + the "Guide to Everything" canon</span>
+      <span class="tag">Ground-truthed against our codebase</span>
+      <span class="tag lime">14 ranked updates · 3 tiers</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <nav class="toc">
+    <a href="#tldr"><b>01</b> Executive summary</a>
+    <a href="#finding"><b>02</b> The decisive finding</a>
+    <a href="#scorecard"><b>03</b> Scorecard</a>
+    <a href="#irunfar"><b>04</b> What iRunFar teaches</a>
+    <a href="#us"><b>05</b> What we deliver</a>
+    <a href="#gaps"><b>06</b> Gaps</a>
+    <a href="#roadmap"><b>07</b> Ranked roadmap</a>
+    <a href="#moat"><b>08</b> Our moat</a>
+    <a href="#method"><b>09</b> Method &amp; sources</a>
+  </nav>
+
+  <!-- 01 EXEC SUMMARY -->
+  <section id="tldr">
+    <div class="kicker"><span class="n">01</span><h2>Executive summary</h2></div>
+    <div class="callout exec">
+      <p style="margin:0 0 10px"><span class="strong-ink">iRunFar is not a plan generator</span> — it is the trail/ultra world's deepest, field-tested <span class="strong-ink">craft library</span> (fueling, vert &amp; descent execution, heat/altitude, power-hiking, form, recovery formulas, mind, special populations), written by the same coaching tradition <span class="strong-ink">two of our own methods</span> come from (<span class="hl">Koop</span> and the Roches' <span class="hl">SWAP</span>). We are the inverse: an <span class="strong-ink">adaptive plan + AI-coach engine</span> with strong physiology — VDOT pacing, a distance-aware ramp, an honesty/feasibility advisory layer, and a research-cited terrain &amp; descent engine — that they structurally cannot match.</p>
+      <p style="margin:0"><span class="strong-ink">The competitive frame is their craft vs. our engine.</span> We don't need to out-write iRunFar; we need to <span class="hl">absorb their craft into our engine as rules, content, and coach knowledge</span> — and switch on the physiology we've already built but left dormant.</p>
+    </div>
+    <div class="grid g3" style="margin-top:14px">
+      <div class="card"><div class="lead-num">2</div><p class="sub" style="margin:6px 0 0">sophisticated engines we built and <b>left dormant</b> — terrain/descent &amp; readiness/sleep — that map directly to iRunFar's top emphases.</p></div>
+      <div class="card"><div class="lead-num">6</div><p class="sub" style="margin:6px 0 0">craft layers we carry <b>none</b> of: fueling, hydration, heat, pacing/execution, recovery protocols, form.</p></div>
+      <div class="card"><div class="lead-num">R1+R2</div><p class="sub" style="margin:6px 0 0">the two highest-ROI moves: <b>wire our terrain/descent engine</b> into the plan, then <b>add a fueling engine</b>.</p></div>
+    </div>
+  </section>
+
+  <!-- 02 DECISIVE FINDING -->
+  <section id="finding">
+    <div class="kicker"><span class="n">02</span><h2>The decisive finding</h2></div>
+    <div class="callout key">
+      <div class="lab">Our biggest gap is leverage, not capability</div>
+      <p style="margin:0 0 10px;color:#0f172a;font-size:15px">Twice over, we have <span class="strong-ink">already built the exact physiology iRunFar's most-read content proves athletes care about — and left it disconnected from the plan an athlete actually trains by.</span></p>
+      <div class="grid g2" style="margin-top:4px">
+        <div class="card" style="border-color:var(--emerald-line)">
+          <h4 style="font-size:14px">① Terrain &amp; Descent physics <span class="pill p-built">BUILT · DORMANT</span></h4>
+          <p class="sub" style="margin:7px 0 0">Minetti cost-of-gradient GAP, hiking locomotion, Vertical Efficiency (<code>terrain/</code>) and eccentric load + <b>repeated-bout</b> protection (Hyldahl 2017) + DOMS forecast (<code>descent/</code>) — research-cited, real, a PR-07→11 series. But <b>no generated workout prescribes a climb or a downhill rep</b>; <code>descentCapacity</code> is only a passive Dashboard metric. iRunFar dedicates <b>three</b> articles to quads/descending and calls "dead quads" the #1 DNF cause.</p>
+        </div>
+        <div class="card" style="border-color:var(--emerald-line)">
+          <h4 style="font-size:14px">② Readiness / TRIMP / sleep <span class="pill p-built">BUILT · UNDER-USED</span></h4>
+          <p class="sub" style="margin:7px 0 0">Our readiness engine already ingests <b>HRV, resting HR, sleep quality &amp; Body Battery</b> and shows scores on the Dashboard. But it doesn't <b>prescribe sleep</b>, <b>flag overtraining</b>, or <b>auto-adjust the plan</b> — exactly the Recovery / Overtraining / Sleep ("the missing ingredient") triad iRunFar devotes whole sections to.</p>
+        </div>
+      </div>
+      <p style="margin:12px 0 0;color:#064e3b;font-weight:600">⇒ Highest-ROI work is <span class="hl">wire what we built + add fueling</span> — not invent new science.</p>
+    </div>
+  </section>
+
+  <!-- 03 SCORECARD -->
+  <section id="scorecard">
+    <div class="kicker"><span class="n">03</span><h2>At-a-glance scorecard</h2></div>
+    <p class="sub">Every training dimension iRunFar treats as first-class, scored against what we ship today.</p>
+    <div class="tscroll" style="margin-top:12px">
+      <table>
+        <thead><tr><th>Dimension</th><th>iRunFar depth</th><th>Our coverage</th><th>Gap</th><th>Leverage</th></tr></thead>
+        <tbody>
+          <tr><td><b>Vert specificity &amp; periodization</b></td><td>Very high</td><td>Physics built, not prescribed</td><td><span class="pill p-high">High</span></td><td><span class="pill p-built">Wire existing</span></td></tr>
+          <tr><td><b>Downhill / eccentric conditioning</b></td><td>Very high (#1 DNF)</td><td>Tracked only</td><td><span class="pill p-high">High</span></td><td><span class="pill p-built">Wire existing</span></td></tr>
+          <tr><td><b>Fueling / hydration / caffeine</b></td><td>Very high (signature)</td><td>None</td><td><span class="pill p-crit">Critical</span></td><td>Build (rules)</td></tr>
+          <tr><td><b>Heat acclimation</b></td><td>High (best protocol)</td><td>None</td><td><span class="pill p-high">High</span></td><td>Build (small)</td></tr>
+          <tr><td><b>Pacing &amp; race execution</b></td><td>High (Rule of Thirds)</td><td>None</td><td><span class="pill p-high">High</span></td><td>Build content</td></tr>
+          <tr><td><b>Recovery / sleep / overtraining</b></td><td>High (3 sections)</td><td>Readiness built, under-used</td><td><span class="pill p-high">High</span></td><td><span class="pill p-built">Wire existing</span></td></tr>
+          <tr><td><b>Structured trail workouts</b></td><td>High</td><td>Generic quality</td><td><span class="pill p-med">Med-High</span></td><td>Build content</td></tr>
+          <tr><td><b>Power-hiking</b></td><td>High</td><td>Physics only</td><td><span class="pill p-med">Med-High</span></td><td>Wire + content</td></tr>
+          <tr><td><b>Strength periodization</b></td><td>High</td><td>Partial</td><td><span class="pill p-med">Medium</span></td><td>Build content</td></tr>
+          <tr><td><b>Form / cadence</b></td><td>High (Uhan)</td><td>None</td><td><span class="pill p-med">Medium</span></td><td>Coach knowledge</td></tr>
+          <tr><td><b>Mental training</b></td><td>High</td><td>Ad-hoc narration</td><td><span class="pill p-med">Medium</span></td><td>Build content</td></tr>
+          <tr><td><b>Masters / women's cycle</b></td><td>High, evidence-humble</td><td>Menopause only</td><td><span class="pill p-med">Medium</span></td><td>Build content</td></tr>
+          <tr><td><b>Altitude / cold</b></td><td>High</td><td>Empty stub</td><td><span class="pill p-low">Low-Med</span></td><td>Build new</td></tr>
+          <tr style="background:var(--emerald-bg)"><td><b>Adaptive plan generation</b></td><td>None (editorial)</td><td><b>Strong</b></td><td><span class="pill p-moat">Our moat</span></td><td>Protect</td></tr>
+          <tr style="background:var(--emerald-bg)"><td><b>Honesty / feasibility advisories</b></td><td>None</td><td><b>Strong</b></td><td><span class="pill p-moat">Our moat</span></td><td>Protect</td></tr>
+          <tr style="background:var(--emerald-bg)"><td><b>VDOT precision &amp; method pluralism</b></td><td>Philosophy only</td><td><b>Strong</b></td><td><span class="pill p-moat">Our moat</span></td><td>Protect</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 04 IRUNFAR CANON -->
+  <section id="irunfar">
+    <div class="kicker"><span class="n">04</span><h2>What iRunFar teaches — the canon</h2></div>
+    <p class="sub">Their "Guide to Everything" organizes the sport into 15 sections; the house consensus across Torrence, Uhan (PT), the Roches (SWAP), Koop (CTS), and Malcolm, with the prescriptions that recur.</p>
+    <div class="grid g2" style="margin-top:12px">
+      <div class="card canon">
+        <h4 style="font-size:14px;margin-bottom:8px">Engine &amp; structure</h4>
+        <ul class="tight">
+          <li><b>Aerobic "foundation-first," polarized</b> — easy stays easy; gray-zone drift ("Aerobic Deficiency Syndrome") is the enemy.</li>
+          <li><b>A 4-family workout taxonomy</b> (Torrence) with concrete numbers: Endurance (&lt;75% HRmax; carb-depleting ≤3 h; fast-finish final 2–10 mi @ marathon pace), Stamina/LT (83–90% HRmax), Speed/VO2 (1–6 min @ 94–98%), Sprint/Hill (strides; hill reps).</li>
+          <li><b>Periodization:</b> base → introductory → specific (race-specific, taper last 1–3 wk) → recovery; <b>≤10–15%/wk</b>; "save the spicy work — back-to-backs, mountain climbs, quad-seasoning descents — for late."</li>
+          <li><b>Volume:</b> long run 20–30% of week; <b>4–6 h/wk → first 50K</b>; back-to-backs every 3–4 wk; run by <b>time-on-feet</b> on trail.</li>
+          <li><b>Predictor / dress rehearsal</b> 4–6 wk out at ~30–60% of course.</li>
+        </ul>
+      </div>
+      <div class="card canon">
+        <h4 style="font-size:14px;margin-bottom:8px">Trail / mountain craft</h4>
+        <ul class="tight">
+          <li><b>Vert tiers</b> drive the plan: Flat &lt;120 ft/mi · Mountainous 120–240 · "Colossal" &gt;240.</li>
+          <li><b>Downhill is first-class &amp; perishable</b> — reps 1–2 min on 6–10%, long descents, "at least every 10–14 days"; muscle memory fades in ~2–3 wks; "dead quads" = #1 DNF.</li>
+          <li><b>Power-hiking is a trained skill &amp; a winning tactic</b> (46% of a UTMB podium) — build 20–30 → 90 min on &gt;15–20% grade; "hike the ups" to keep big-vert days aerobic.</li>
+          <li><b>Effort over pace, always</b> — HR / RPE / breath govern, not GPS.</li>
+        </ul>
+      </div>
+      <div class="card canon">
+        <h4 style="font-size:14px;margin-bottom:8px">Fueling, hydration &amp; environment <span class="pill p-crit">their science pillar</span></h4>
+        <ul class="tight">
+          <li><b>Carbs 150–300 cal/hr;</b> multiple-transportable (glucose:fructose ~2:1) lifts the ceiling 60 → <b>75–90 g/hr</b>; start ≤45 min; <b>train the gut 4–6 wk out</b> (SGLT1 upregulates in ~3 days). Protein <b>1.6–2.2 g/kg</b> (→2.5 peak; female/peri upper).</li>
+          <li><b>Hydration (contrarian): "drink to thirst," 400–800 ml/hr;</b> sodium prevents neither hyponatremia nor cramps — overdrinking is the danger.</li>
+          <li><b>Caffeine 3–6 mg/kg, 60 min pre, re-dose 2 h+;</b> habituation is a myth.</li>
+          <li><b>Heat: 7–10 days, 50–100 min/day in heat</b> (or post-run sauna 20–30 min), start ~2 wk out, maintain every 3rd day. <b>Altitude:</b> 21–28 days, live-high/train-low, ferritin &lt;35 gates response.</li>
+        </ul>
+      </div>
+      <div class="card canon">
+        <h4 style="font-size:14px;margin-bottom:8px">Durability, recovery &amp; mind</h4>
+        <ul class="tight">
+          <li><b>Strength = heavy &amp; periodized</b> (70%+ 1RM, 2×/wk, 6–9 wk) → power in-season → drop race week.</li>
+          <li><b>Form (Uhan):</b> cadence ~180, hip-hinge, "braking vs. center-of-mass, not foot-strike," a morning mobility flow.</li>
+          <li><b>Recovery formulas:</b> 1 rest day / 10 mi; <b>+1 h sleep / 10 mi</b>; reverse-taper rebuild; Stoplight return-to-run by 24-h symptom trajectory; "injury vs. dysfunction."</li>
+          <li><b>Sleep = "the missing ingredient"</b> — 7–9 h; +1 h measurably improves performance; extend gradually.</li>
+          <li><b>Overtraining:</b> sleep disturbance + HR-drift-at-same-pace are leading indicators; cut volume 75–100%; <b>periodize life stress.</b></li>
+          <li><b>Mind, rehearsed in training:</b> mantras (≤8 words), aid-station segmenting, multisensory imagery, <b>process &gt; outcome</b> goals.</li>
+        </ul>
+      </div>
+    </div>
+    <p class="src" style="margin-top:10px">Sources: the "Ultramarathon Training: A Guide to Everything" hub + its ~50 linked articles, plus the Fueling/Hydration, Heat, Strength, Form, Recovery, Mental, and Aging/Women's sub-hubs. Full list in §09.</p>
+  </section>
+
+  <!-- 05 OUR SIDE -->
+  <section id="us">
+    <div class="kicker"><span class="n">05</span><h2>What we deliver — and what's dormant</h2></div>
+    <div class="grid g2">
+      <div class="card">
+        <h4 style="font-size:14px;margin-bottom:8px;color:var(--emerald)">✓ Shipped &amp; strong</h4>
+        <ul class="tight" style="font-size:13px">
+          <li>9-method adaptive running engine (incl. <b>Koop</b> &amp; <b>SWAP</b>), VDOT zones, distance-aware ramp, taper, goal-pace blend</li>
+          <li><b>Honesty advisories</b> — feasibility, runway, goal-vs-fitness, experience-mismatch, cross-distance + AI-coach narration</li>
+          <li>Injury policy; menopause/bone overlay; Tanaka maxHR; Hyrox + General-Fitness engines</li>
+          <li>Back-to-back long runs (in 4 methods); long-run <b>time cap</b> (partial time-on-feet)</li>
+          <li>Readiness + TRIMP + <code>descentCapacity</code> analytics on the Dashboard</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h4 style="font-size:14px;margin-bottom:8px;color:var(--blue)">◐ Built but not wired into the plan</h4>
+        <ul class="tight" style="font-size:13px">
+          <li><b>Terrain engine</b> — Minetti GAP, hiking locomotion, Vertical Efficiency (no plan workout emits a vert target)</li>
+          <li><b>Descent engine</b> — eccentric TRIMP, repeated-bout, DOMS forecast (only the capacity <i>metric</i> is shown)</li>
+          <li><b>Readiness/sleep</b> — ingests sleep/HRV/RHR but never prescribes sleep, flags overtraining, or adjusts the plan</li>
+          <li><b>Altitude</b> — empty <code>export {}</code> stub</li>
+        </ul>
+        <h4 style="font-size:14px;margin:13px 0 8px;color:var(--red)">✗ Absent entirely</h4>
+        <p style="font-size:13px;margin:0">Fueling/hydration · heat acclimation · structured trail-workout taxonomy · pacing/race-execution · power-hiking prescription · runner strength periodization · form/cadence · post-race recovery &amp; return-to-run · mental curriculum · women's menstrual cycle · masters load logic</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 06 GAPS -->
+  <section id="gaps">
+    <div class="kicker"><span class="n">06</span><h2>Gaps &amp; weaknesses (honest)</h2></div>
+    <div class="grid g2">
+      <div class="card"><ul class="tight" style="margin:0;font-size:13.4px">
+        <li><b>Built-but-dormant IP.</b> Our most differentiated work (terrain/descent physics; readiness/sleep) is largely invisible in the plan the athlete trains by.</li>
+        <li><b>No fuel/hydration layer at all</b> — the single most-asked endurance question, and iRunFar's deepest content, is missing.</li>
+        <li><b>No environmental prep</b> — heat is absent; altitude is a stub.</li>
+      </ul></div>
+      <div class="card"><ul class="tight" style="margin:0;font-size:13.4px">
+        <li><b>The "execution" half of the sport is missing</b> — pacing discipline, aid-station planning, power-hiking, the mental curriculum iRunFar argues <i>is</i> the ultra differentiator.</li>
+        <li><b>Durability is thin</b> — no periodized runner strength, no form/cadence, no post-race recovery/sleep or return-to-run.</li>
+        <li><b>Metric framing</b> — iRunFar leads with effort/time-on-feet for trail; we lead with pace/mileage despite owning the pieces.</li>
+      </ul></div>
+    </div>
+  </section>
+
+  <!-- 07 ROADMAP -->
+  <section id="roadmap">
+    <div class="kicker"><span class="n">07</span><h2>Ranked roadmap — 14 updates</h2></div>
+    <p class="sub">Ranked by <b>impact × leverage</b>. Each carries the CLAUDE.md <b>Witchel 3-rule check</b> (massive market · visceral solve · customer language); "wire existing" items rank up because the science is already built and tested.</p>
+
+    <div class="tier t1" style="margin-top:16px"><span class="badge">Tier 1 · do first</span><span class="desc">highest impact, strongest leverage</span></div>
+
+    <div class="rec t1">
+      <div class="top"><span class="rid">R1</span><h4>Wire the Terrain + Descent engine into plan <i>prescription</i></h4>
+        <span class="badges"><span class="eff md">Effort: Medium</span><span class="lev">Wire existing</span></span></div>
+      <p class="what">Generate weekly <b>vert targets</b> and scheduled <b>downhill-repeat / mountain-climb</b> sessions from the race elevation profile, driven by the descent engine's repeated-bout / DOMS forecast (re-stimulate every 10–14 days; spicy work late). Turn <code>descentCapacity</code> from a passive metric into a programmed progression.</p>
+      <div class="witchel"><b>Witchel</b> · market: trail/ultra is our core · solve: "my plan never trained climbing or descending and my quads blew up" · language: "vert," "climbing legs," "blown quads," "downhill reps."</div>
+    </div>
+    <div class="rec t1">
+      <div class="top"><span class="rid">R2</span><h4>Add a Fueling &amp; Hydration engine</h4>
+        <span class="badges"><span class="eff md">Effort: Medium</span><span class="lev" style="background:var(--red-bg);color:var(--red);border-color:var(--red-line)">Biggest market gap</span></span></div>
+      <p class="what">Race duration/intensity → <b>carb g/hr</b> (ramp 60→90, 2:1 glucose:fructose, start ≤45 min, 150–300 cal/hr) + a 4–6-wk <b>gut-training</b> progression + a tagged long-run fueling rehearsal; protein targets; hydration "drink to thirst" 400–800 ml/hr + hyponatremia caution; caffeine 3–6 mg/kg. Surface in plan + coach.</p>
+      <div class="witchel"><b>Witchel</b> · market: every endurance athlete · solve: "I bonked / my gut shut down" · language: "bonk," "carbs per hour," "drink to thirst," "gut training."</div>
+    </div>
+    <div class="rec t1">
+      <div class="top"><span class="rid">R3</span><h4>Heat-acclimation protocol module</h4>
+        <span class="badges"><span class="eff lo">Effort: Low–Med</span><span class="lev">Pairs w/ taper engine</span></span></div>
+      <p class="what">Hot goal race → insert a 7–10 day protocol (50–100 min/day easy in heat, or post-run sauna 20–30 min) starting ~2 wk out, maintain every 3rd day, with decay rules; advisory + coach narration + calendar blocks.</p>
+      <div class="witchel"><b>Witchel</b> · market: every hot goal race · solve: "I cooked and DNF'd in the heat" · language: "heat training," "sauna protocol," "acclimatize."</div>
+    </div>
+
+    <div class="tier t2" style="margin-top:20px"><span class="badge">Tier 2 · high value</span><span class="desc">craft layers — content/coach + light engine</span></div>
+    <div class="rec t2"><div class="top"><span class="rid">R4</span><h4>Structured trail-workout taxonomy</h4><span class="badges"><span class="eff md">Medium</span></span></div><p class="what">Replace generic "quality" with iRunFar-style sessions keyed to phase + vert tier — hill/downhill reps, gear-changing, strides, and a 4–6-wk-out <b>dress-rehearsal predictor</b>. (Overlaps R1 on hills/descents.)</p></div>
+    <div class="rec t2"><div class="top"><span class="rid">R5</span><h4>Recovery, sleep &amp; overtraining protection</h4><span class="badges"><span class="eff lo">Low–Med</span><span class="lev">Wire readiness</span></span></div><p class="what">Post-race <b>rest-day (1/10 mi)</b> + <b>sleep (+1 h/10 mi; 7–9 h baseline)</b> formulas, reverse-taper rebuild, Stoplight return-to-run; and <b>wire the readiness/TRIMP engine</b> into overtraining flags + light plan auto-adjustment (our second dormant asset).</p></div>
+    <div class="rec t2"><div class="top"><span class="rid">R6</span><h4>Pacing &amp; race-execution plan</h4><span class="badges"><span class="eff md">Medium</span></span></div><p class="what">A Rule-of-Thirds effort-cap pacing card (HR/RPE cap first third → even → finish), power-hike grade thresholds (&gt;15–20%), and an aid-station / fuel-per-segment card generated from the course.</p></div>
+    <div class="rec t2"><div class="top"><span class="rid">R7</span><h4>Power-hiking as a prescribed skill</h4><span class="badges"><span class="eff lo">Low (after R1)</span><span class="lev">Wire existing</span></span></div><p class="what">Schedule power-hike sessions (20–30 → 90 min, &gt;15–20% grade) and "hike-up/run-down" to keep big-vert days aerobic — uses the hiking-locomotion engine already built.</p></div>
+    <div class="rec t2"><div class="top"><span class="rid">R8</span><h4>Runner strength periodization</h4><span class="badges"><span class="eff md">Medium</span></span></div><p class="what">Off-season heavy maximal block (70%+ 1RM, 2×/wk, 6–9 wk) → in-season power → drop race week, with the masters/menopause variants we partly have.</p></div>
+    <div class="rec t2"><div class="top"><span class="rid">R9</span><h4>Form &amp; cadence coaching layer</h4><span class="badges"><span class="eff lo">Low</span></span></div><p class="what">Cadence target (~170–180, + on descents), hip-hinge / braking-vs-COM / stride cues in the coach, optional cadence target on workouts, a morning mobility flow.</p></div>
+
+    <div class="tier t3" style="margin-top:20px"><span class="badge">Tier 3 · differentiation</span><span class="desc">depth &amp; special populations</span></div>
+    <div class="grid g2">
+      <div class="rec t3"><div class="top"><span class="rid">R10</span><h4>Mental-training curriculum</h4></div><p class="what">Mantras (≤8 words), aid-station segmenting, imagery + breath cue, process &gt; outcome goals — rehearsed in training, narrated by the coach.</p></div>
+      <div class="rec t3"><div class="top"><span class="rid">R11</span><h4>Women's menstrual-cycle awareness</h4></div><p class="what">Follicular/luteal training-fuel-recovery nuance, RED-S screen (amenorrhea ≥3 mo), evidence-humble + self-tracking; reuse our menopause-research house style.</p></div>
+      <div class="rec t3"><div class="top"><span class="rid">R12</span><h4>Masters load logic</h4></div><p class="what">Beyond Tanaka maxHR: optional 1 hard session/week, longer recovery, protein emphasis, strength priority for 40+.</p></div>
+      <div class="rec t3"><div class="top"><span class="rid">R13</span><h4>Build out the altitude module</h4></div><p class="what">From the stub: per-elevation arrival windows, ferritin gate, live-high/train-low, VO2 penalty; advisory + coach.</p></div>
+      <div class="rec t3"><div class="top"><span class="rid">R14</span><h4>Trail-first framing</h4></div><p class="what">Offer time-on-feet as the primary long-run/volume metric (we own the time cap + GAP) and make periodization intent visible.</p></div>
+    </div>
+  </section>
+
+  <!-- 08 MOAT -->
+  <section id="moat">
+    <div class="kicker"><span class="n">08</span><h2>What to protect — our moat</h2></div>
+    <div class="callout exec">
+      <p style="margin:0">iRunFar <span class="strong-ink">cannot generate or adapt a plan, can't personalize to your data, contradicts itself across authors, and has no feasibility/honesty layer.</span> Keep leaning into <span class="hl">adaptive multi-method generation</span>, the <span class="hl">honesty advisories</span> (feasibility/runway/goal/experience), <span class="hl">VDOT precision</span>, <span class="hl">readiness/TRIMP + (once wired) terrain/descent analytics</span>, and <span class="hl">multi-modal coverage</span> (Hyrox / General Fitness). The strategy is to <span class="strong-ink">absorb iRunFar's field-tested craft into our engine</span> — pairing their wisdom with our automation and our physics.</p>
+    </div>
+  </section>
+
+  <!-- 09 METHOD -->
+  <section id="method">
+    <div class="kicker"><span class="n">09</span><h2>Method &amp; sources</h2></div>
+    <p class="sub">Five parallel research sweeps read ~75 iRunFar articles spanning their "Guide to Everything" canon (15 sections) and the Workouts/Periodization, Fueling/Hydration/Environment, Durability/Strength/Form/Recovery, Mental/Pacing/Execution, and Philosophy/Special-Populations sub-hubs. Our side was ground-truthed against the codebase.</p>
+    <div class="grid g2" style="margin-top:6px">
+      <div class="card">
+        <h4 style="font-size:13px;margin-bottom:7px">Representative iRunFar sources (irunfar.com)</h4>
+        <p class="src" style="line-height:1.7">ultramarathon-training-a-guide-to-everything · endurance/stamina/speed/sprint-based-workouts · periodization-it-isnt-rocket-science · race-specific-training · your-ultra-training-bag-of-tricks-downhills · on-peaking · fuel-up · ultras-or-eating-competitions · protein-for-runners · caffeine-and-performance · exercise-associated-hyponatremia · handle-the-heat · into-thin-air · pumping-iron · strength-training-for-runners · joes-stoplight-system · hip-hinge · seven-stride-cues · give-it-a-brake · recover-better-10-rules · sleep-the-missing-ingredient · overtraining-syndrome (1–3) · the-rule-of-thirds · rethinking-the-aid-station · an-introduction-to-powerhiking · mantras-for-your-mental-game · process-to-outcome · steep-and-high · the-masters-athlete · what-we-know-about-menstruation.</p>
+      </div>
+      <div class="card">
+        <h4 style="font-size:13px;margin-bottom:7px">Our codebase (ground truth)</h4>
+        <p class="src" style="line-height:1.7"><code>src/engines/planGenerator/**</code> · <code>src/engines/terrain/**</code> (Minetti, hiking, vertical efficiency) · <code>src/engines/descent/**</code> (eccentric, repeated-bout, DOMS, PR-07→11) · <code>src/engines/{altitude,readiness,mim,cycling}/**</code> · <code>src/utils/readiness.ts</code> (HRV/RHR/sleep/Body-Battery) · <code>src/data/methods/*.json</code> · <code>src/types/index.ts</code> (elevation compliance fields) · <code>api/coach/_core.py</code> · <code>docs/research/{Hill_Running_Load_*, Menopause_*, General_Fitness_*}</code>.</p>
+      </div>
+    </div>
+    <div class="foot">
+      Companion working doc: <code>docs/research/Competitive_Analysis_iRunFar_Training_v1.1.md</code> (cited markdown). · Prepared for executive review · attune.coach competitive strategy · v1.1.
+    </div>
+  </section>
+
+</div>
+</body>
+</html>
