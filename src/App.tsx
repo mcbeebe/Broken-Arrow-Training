@@ -50,6 +50,7 @@ import { buildJournalSeed } from './utils/journal'
 import { injurySummaryLine } from './utils/injuryRamp'
 import { menopauseSummaryLine } from './utils/menopause'
 import { fuelingSummaryLine } from './utils/fueling'
+import { recoverySummaryLine } from './utils/recovery'
 import { useWeather } from './hooks/useWeather'
 import { useAthleteLocation } from './hooks/useAthleteLocation'
 import { useWorkoutTimePreference } from './hooks/useWorkoutTimePreference'
@@ -894,6 +895,10 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     // advice; null for short races that don't need per-hour fueling.
     const fuelingContext = fuelingSummaryLine(activePlan.race?.distanceMiles ?? 0)
     if (fuelingContext) snap.fuelingContext = fuelingContext
+    // Carry post-race recovery guidance (R5) so the coach can answer recovery
+    // and overtraining questions with concrete formulas.
+    const recoveryContext = recoverySummaryLine(activePlan.race?.distanceMiles ?? 0)
+    if (recoveryContext) snap.recoveryContext = recoveryContext
     // Carry the plan's honest advisories (feasibility, runway, goal-derived
     // paces) so the welcome letter can acknowledge them plainly rather than
     // writing around them. They already surface in MethodSelection + Summary.

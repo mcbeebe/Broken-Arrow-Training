@@ -1250,6 +1250,9 @@ export interface CoachSnapshot {
    *  hydration — so the coach can give concrete fueling advice. Null/absent for
    *  short races that don't need per-hour fueling. */
   fuelingContext?: string
+  /** Post-race recovery guidance (R5) — rest-day + sleep formula, reverse-taper
+   *  rebuild, and the overtraining/deload framing. Absent for short races. */
+  recoveryContext?: string
 }
 
 export interface CoachInsight {
