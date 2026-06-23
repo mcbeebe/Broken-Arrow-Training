@@ -36,6 +36,22 @@ export function applyPredictorRehearsal(days: PlannedDay[], raceMiles: number, w
 }
 
 /**
+ * R14 — trail-first framing: lead the long run with time-on-feet (run by time, not
+ * pace) for trail races, where pace is meaningless. Road races are unchanged.
+ */
+export function applyTimeOnFeet(days: PlannedDay[], isTrail: boolean): PlannedDay[] {
+  if (!isTrail) return days
+  let tagged = false
+  return days.map(d => {
+    if (!tagged && d.type === 'long') {
+      tagged = true
+      return { ...d, detail: appendDetail(d.detail, 'Run by time on feet, not pace') }
+    }
+    return d
+  })
+}
+
+/**
  * Add a power-hiking emphasis to the long run on climby races through the build/
  * peak (not the taper). Flat races are returned unchanged.
  */

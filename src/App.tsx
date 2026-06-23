@@ -52,6 +52,7 @@ import { menopauseSummaryLine } from './utils/menopause'
 import { fuelingSummaryLine } from './utils/fueling'
 import { recoverySummaryLine } from './utils/recovery'
 import { formSummaryLine } from './utils/form'
+import { raceExecutionSummaryLine, mentalSummaryLine, cycleContextLine, mastersContextLine } from './utils/coachGuidance'
 import { useWeather } from './hooks/useWeather'
 import { useAthleteLocation } from './hooks/useAthleteLocation'
 import { useWorkoutTimePreference } from './hooks/useWorkoutTimePreference'
@@ -902,6 +903,15 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     if (recoveryContext) snap.recoveryContext = recoveryContext
     // Carry running form / cadence cues (R9) so the coach can answer form questions.
     snap.formContext = formSummaryLine()
+    // Carry race-execution/pacing (R6), mental skills (R10), and gated cycle (R11)
+    // and masters (R12) guidance so the coach can speak to each concretely.
+    const raceExecutionContext = raceExecutionSummaryLine(activePlan.race?.distanceMiles ?? 0, onboarding.config?.raceType === 'trail')
+    if (raceExecutionContext) snap.raceExecutionContext = raceExecutionContext
+    snap.mentalContext = mentalSummaryLine()
+    const cycleContext = cycleContextLine(onboarding.config)
+    if (cycleContext) snap.cycleContext = cycleContext
+    const mastersContext = mastersContextLine(onboarding.config)
+    if (mastersContext) snap.mastersContext = mastersContext
     // Carry the plan's honest advisories (feasibility, runway, goal-derived
     // paces) so the welcome letter can acknowledge them plainly rather than
     // writing around them. They already surface in MethodSelection + Summary.

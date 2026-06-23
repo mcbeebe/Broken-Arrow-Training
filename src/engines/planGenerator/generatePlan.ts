@@ -43,7 +43,7 @@ import { configVertGainFt, raceVertGainFt } from '../../utils/raceVert'
 import { applyVertPrescription, isClimbyDensity } from './vertPrescription'
 import { applyFuelingToWeek } from '../../utils/fueling'
 import { detectHeat, environmentAdvisories, applyHeatBlock } from '../../utils/environmentPrep'
-import { applyPredictorRehearsal, applyPowerHike } from './trailSessions'
+import { applyPredictorRehearsal, applyPowerHike, applyTimeOnFeet } from './trailSessions'
 
 const DAY_OF_WEEK_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const
 
@@ -719,6 +719,7 @@ export function generatePlanFromMethod(
     // R4 — dress-rehearsal predictor 4–6 wk out; R7 — power-hiking on climby races.
     withVert = applyPredictorRehearsal(withVert, effRaceMiles, weeksToRace)
     withVert = applyPowerHike(withVert, isClimby, weekMi.isTaper)
+    withVert = applyTimeOnFeet(withVert, config.raceType === 'trail') // R14 — trail-first framing
 
     weeks.push({
       num: w + 1,
