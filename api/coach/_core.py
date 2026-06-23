@@ -1760,6 +1760,16 @@ def build_context_block(
             "deload rather than pushing through."
         )
 
+    # Running form & cadence cues (R9).
+    form_context = snapshot.get("formContext")
+    if form_context and str(form_context).strip():
+        out.append("")
+        out.append(
+            f"FORM: {str(form_context).strip()}. "
+            "Offer these as concrete cues when the athlete asks about form, efficiency, or "
+            "nagging niggles — keep it to one or two cues at a time, in plain language."
+        )
+
     # Training-block framing — current phase, weeks to race, and the phase
     # arc. Lets a debrief/orientation situate a workout in the macro plan.
     plan_blocks = snapshot.get("planBlocks") or None

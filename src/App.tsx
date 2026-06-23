@@ -51,6 +51,7 @@ import { injurySummaryLine } from './utils/injuryRamp'
 import { menopauseSummaryLine } from './utils/menopause'
 import { fuelingSummaryLine } from './utils/fueling'
 import { recoverySummaryLine } from './utils/recovery'
+import { formSummaryLine } from './utils/form'
 import { useWeather } from './hooks/useWeather'
 import { useAthleteLocation } from './hooks/useAthleteLocation'
 import { useWorkoutTimePreference } from './hooks/useWorkoutTimePreference'
@@ -899,6 +900,8 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     // and overtraining questions with concrete formulas.
     const recoveryContext = recoverySummaryLine(activePlan.race?.distanceMiles ?? 0)
     if (recoveryContext) snap.recoveryContext = recoveryContext
+    // Carry running form / cadence cues (R9) so the coach can answer form questions.
+    snap.formContext = formSummaryLine()
     // Carry the plan's honest advisories (feasibility, runway, goal-derived
     // paces) so the welcome letter can acknowledge them plainly rather than
     // writing around them. They already surface in MethodSelection + Summary.
