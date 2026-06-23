@@ -1770,6 +1770,43 @@ def build_context_block(
             "nagging niggles — keep it to one or two cues at a time, in plain language."
         )
 
+    # Race execution / pacing (R6).
+    race_execution_context = snapshot.get("raceExecutionContext")
+    if race_execution_context and str(race_execution_context).strip():
+        out.append("")
+        out.append(
+            f"RACE EXECUTION: {str(race_execution_context).strip()}. "
+            "Use this for race-strategy and pacing questions — emphasize going out controlled."
+        )
+
+    # Mental skills (R10).
+    mental_context = snapshot.get("mentalContext")
+    if mental_context and str(mental_context).strip():
+        out.append("")
+        out.append(
+            f"MENTAL SKILLS: {str(mental_context).strip()}. "
+            "Bring these up for confidence, motivation, or low-patch questions — concrete and rehearsable."
+        )
+
+    # Menstrual-cycle awareness (R11) — evidence-humble, premenopausal female only.
+    cycle_context = snapshot.get("cycleContext")
+    if cycle_context and str(cycle_context).strip():
+        out.append("")
+        out.append(
+            f"CYCLE: {str(cycle_context).strip()}. "
+            "Raise this supportively only if relevant; stay evidence-humble, never prescriptive, "
+            "and defer clinical questions (RED-S, amenorrhea) to a clinician."
+        )
+
+    # Masters load (R12).
+    masters_context = snapshot.get("mastersContext")
+    if masters_context and str(masters_context).strip():
+        out.append("")
+        out.append(
+            f"MASTERS: {str(masters_context).strip()}. "
+            "Frame recovery-forward training positively for the 50-plus athlete."
+        )
+
     # Training-block framing — current phase, weeks to race, and the phase
     # arc. Lets a debrief/orientation situate a workout in the macro plan.
     plan_blocks = snapshot.get("planBlocks") or None

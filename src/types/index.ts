@@ -1256,6 +1256,15 @@ export interface CoachSnapshot {
   /** Running form & cadence cues (R9) so the coach can answer form/efficiency/
    *  injury-prevention questions with concrete cues. */
   formContext?: string
+  /** Race-execution / pacing guidance (R6) — Rule of Thirds, power-hike
+   *  thresholds, aid-station planning. Absent for short races. */
+  raceExecutionContext?: string
+  /** Mental-skills curriculum (R10) — mantras, segmenting, imagery, process goals. */
+  mentalContext?: string
+  /** Menstrual-cycle awareness (R11), evidence-humble. Premenopausal female only. */
+  cycleContext?: string
+  /** Masters load guidance (R12) — recover more, keep intensity, protein. Age ≥ 50. */
+  mastersContext?: string
 }
 
 export interface CoachInsight {
