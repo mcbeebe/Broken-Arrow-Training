@@ -1738,6 +1738,17 @@ def build_context_block(
             "never bury the caveat."
         )
 
+    # Fueling guidance (R2) — concrete carbohydrate / hydration targets for the race.
+    fueling_context = snapshot.get("fuelingContext")
+    if fueling_context and str(fueling_context).strip():
+        out.append("")
+        out.append(
+            f"FUELING: {str(fueling_context).strip()}. "
+            "When the athlete asks about race fueling, give these as concrete, practical "
+            "targets — emphasize practicing them on long runs (training the gut), and frame "
+            "hydration as drink-to-thirst rather than a fixed hourly volume."
+        )
+
     # Training-block framing — current phase, weeks to race, and the phase
     # arc. Lets a debrief/orientation situate a workout in the macro plan.
     plan_blocks = snapshot.get("planBlocks") or None

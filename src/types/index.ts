@@ -1246,6 +1246,10 @@ export interface CoachSnapshot {
    *  runway: the race is ~3 weeks away, so the plan is compressed". Mirrors the
    *  PlanAdvisory list surfaced in the UI. */
   advisoriesContext?: string
+  /** Fueling guidance for the race (R2) — carbohydrate g/hr target, gut-training,
+   *  hydration — so the coach can give concrete fueling advice. Null/absent for
+   *  short races that don't need per-hour fueling. */
+  fuelingContext?: string
 }
 
 export interface CoachInsight {
