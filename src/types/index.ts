@@ -227,6 +227,27 @@ export interface StrengthSet {
   notes?: string;
 }
 
+// ─── Free-standing journal entries ──────────────────────────────
+// A reflection the athlete writes that ISN'T tied to a completed
+// workout (rest-day thoughts, sleep, mood, pre-race nerves). Stored in
+// its own keyed collection (`ba_journal_notes_<id>`, see useJournalNotes)
+// and merged into the Journal feed alongside workout notes. Deletion is
+// a soft tombstone (`deleted: true`) so the cross-device union-merge in
+// syncMerge.ts can't resurrect an entry removed on another device.
+export interface JournalNote {
+  id: string;
+  /** ISO date (defaults to creation time); drives feed sort order. */
+  dateISO: string;
+  text: string;
+  /** Optional 1–5 self-report. Stored as a number; shown as emoji/labels. */
+  mood?: number;
+  energy?: number;
+  createdAt: string;
+  updatedAt: string;
+  /** Soft-delete tombstone — kept in the collection, hidden from the feed. */
+  deleted?: boolean;
+}
+
 export interface TrainingWeek {
   num: number;
   dates: string;

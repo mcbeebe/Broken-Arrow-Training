@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from 'react'
-import type { ViewId, CoachSnapshot, CoachAction, PlannedDay } from './types'
+import type { ViewId, CoachSnapshot, CoachAction, PlannedDay, JournalNote } from './types'
 import { DETAIL_DIRECTIVES } from './types'
 import { plans } from './data'
 import { generateHyroxPlan } from './utils/planGenerator'
@@ -7,6 +7,7 @@ import { useStrava } from './hooks/useStrava'
 import { useGarmin } from './hooks/useGarmin'
 import { useCompliance } from './hooks/useCompliance'
 import { useManualLog } from './hooks/useManualLog'
+import { useJournalNotes } from './hooks/useJournalNotes'
 import { usePlanEdits } from './hooks/usePlanEdits'
 import { useDaySwap } from './hooks/useDaySwap'
 import { useReadiness } from './hooks/useReadiness'
@@ -46,7 +47,7 @@ import { generateMorningCoach, generateEveningCoach, getCoachTimeOfDay } from '.
 import { checkStorageVersion, clearAllCachedData, clearAllAppData } from './utils/storageVersion'
 import { buildCoachSnapshot } from './utils/coachSnapshot'
 import { sendCoachMessageBackground, coachApiAvailable } from './utils/coachApi'
-import { buildJournalSeed } from './utils/journal'
+import { buildJournalSeed, buildStandaloneJournalSeed } from './utils/journal'
 import { injurySummaryLine } from './utils/injuryRamp'
 import { menopauseSummaryLine } from './utils/menopause'
 import { fuelingSummaryLine } from './utils/fueling'
@@ -394,6 +395,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     return () => navigator.serviceWorker.removeEventListener('message', onMessage)
   }, [])
   const manualLog = useManualLog(athleteId)
+  const journalNotes = useJournalNotes(athleteId)
   const daySwap = useDaySwap(athleteId)
   const planEdits = usePlanEdits(athleteId)
   const soreness = useSoreness(athleteId)
@@ -1041,6 +1043,24 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     [athleteId, coachSnapshot, coachMemory, coachTelemetry],
   )
 
+  // Free-standing journal entries (the "+ New entry" button) auto-share to the
+  // coach when coach is on — same best-effort background path as a workout
+  // note, but with no planned-vs-actual context (see buildStandaloneJournalSeed).
+  const shareJournalNote = useCallback(
+    async (note: JournalNote) => {
+      if (!note.text.trim()) return
+      if (!coachSnapshot || !coachApiAvailable()) return
+      try {
+        await sendCoachMessageBackground(athleteId, buildStandaloneJournalSeed(note), coachSnapshot)
+        await coachMemory.refresh()
+        coachTelemetry.logInteraction('ask_tapped', { source: 'journal_entry' })
+      } catch {
+        // Entry is persisted regardless; coach share is best-effort.
+      }
+    },
+    [athleteId, coachSnapshot, coachMemory, coachTelemetry],
+  )
+
   // Resolve a planned day by (weekNum, dayIndex). Uses base plan days
   // (pre-override) so the ProposalCard can show a "before → after" diff
   // with the original workout.
@@ -1358,6 +1378,8 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           onAskCoach={handleAskCoach}
           onShareNote={shareWorkoutNote}
           manualLog={manualLog}
+          journalNotes={journalNotes}
+          onShareEntry={shareJournalNote}
         />
       )}
       {/* Methodology moved into Settings as a collapsible subsection */}
