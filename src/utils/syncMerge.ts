@@ -27,7 +27,15 @@
  *  unioned across devices rather than last-write-wins replaced. Matches the
  *  athlete-scoped form (`<prefix>_<id>` or `<prefix>:<id>`). */
 export function isMergeableCollectionKey(key: string): boolean {
-  return key.startsWith('ba_manual_logs_') || key.startsWith('ba_manual_logs:')
+  return (
+    key.startsWith('ba_manual_logs_') ||
+    key.startsWith('ba_manual_logs:') ||
+    // Free-standing journal entries — same multi-device union concern as
+    // manual logs: write a note on the phone, another on the laptop, and a
+    // last-write-wins replace would erase one. Union by entry id instead.
+    key.startsWith('ba_journal_notes_') ||
+    key.startsWith('ba_journal_notes:')
+  )
 }
 
 function parseObject(raw: string | null): Record<string, unknown> | null {
