@@ -5,6 +5,7 @@ import { plans } from './data'
 import { generateHyroxPlan } from './utils/planGenerator'
 import { useStrava } from './hooks/useStrava'
 import { useGarmin } from './hooks/useGarmin'
+import { useApple } from './hooks/useApple'
 import { useCompliance } from './hooks/useCompliance'
 import { useManualLog } from './hooks/useManualLog'
 import { useJournalNotes } from './hooks/useJournalNotes'
@@ -39,7 +40,7 @@ import { useCoachInsight } from './hooks/useCoachInsight'
 import { useDailyBriefingLog, priorBriefings } from './hooks/useDailyBriefingLog'
 import { useInsightReadState } from './hooks/useInsightReadState'
 import { useCoachTelemetry } from './hooks/useCoachTelemetry'
-import { matchActivitiesToPlan, mergeGarminDetailIntoWeeks } from './utils/matching'
+import { matchActivitiesToPlan, mergeGarminDetailIntoWeeks, mergeAppleActivitiesIntoWeeks } from './utils/matching'
 import { rezoneWeeks } from './utils/rezone'
 import { calculateExerciseLoad } from './utils/trimp'
 import { localDateStr } from './utils/format'
@@ -371,6 +372,10 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
   const displayPrefs = useDisplayPreferences(athleteId)
   const strava = useStrava(athleteId)
   const garmin = useGarmin(athleteId)
+  // Apple Health / Apple Watch — the iOS companion app uploads HRV/RHR/sleep
+  // and workouts; this hook reads them back and feeds the same pipelines as
+  // Garmin (readiness, training load, descent/DOMS).
+  const apple = useApple(athleteId)
 
   useEffect(() => {
     function onHashChange() {
@@ -492,13 +497,19 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     if (garmin.connected && Object.keys(garmin.activityDetails).length > 0) {
       w = mergeGarminDetailIntoWeeks(w, garmin.activityDetails)
     }
+    // Apple Watch workouts fill plan days Strava/Garmin didn't cover (for
+    // athletes whose only wearable is an Apple Watch). Runs last so the
+    // richer sources always win.
+    if (apple.appleActivities.length > 0) {
+      w = mergeAppleActivitiesIntoWeeks(w, apple.appleActivities)
+    }
     w = manualLog.applyLogsToWeeks(w)
     // Rewrite baked-in HR bpm refs in day.zone / day.detail against the
     // athlete's current zones so a Settings change cascades to every
     // display surface and to the compliance grader that reads day.zone.
     w = rezoneWeeks(w, hrZones.zones)
     return w
-  }, [activePlan.weeks, strava.activities, showStrava, manualLog.applyLogsToWeeks, daySwap.applySwapsToWeeks, planEdits.applyEditsToWeeks, garmin.connected, garmin.activityDetails, hrZones.zones])
+  }, [activePlan.weeks, strava.activities, showStrava, manualLog.applyLogsToWeeks, daySwap.applySwapsToWeeks, planEdits.applyEditsToWeeks, garmin.connected, garmin.activityDetails, apple.appleActivities, hrZones.zones])
 
   const compliance = useCompliance(weeks)
   const raceName = activePlan.race.name || (activePlan.race.distance.includes('18K') ? 'BROKEN ARROW 18K' : 'BROKEN ARROW 11K')
@@ -679,9 +690,11 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     return () => window.removeEventListener('ba:run-eccentric-cache-updated', onUpdate)
   }, [])
   const eccentricByActivity = useMemo(
-    () => loadEccentricCache(athleteId),
+    // Local per-second GPS-stream cache (full eccentric profile) wins over
+    // Apple's on-device steep-descent scalar — spread last — when both exist.
+    () => ({ ...apple.eccentricByActivity, ...loadEccentricCache(athleteId) }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [athleteId, runEccentricVersion],
+    [athleteId, runEccentricVersion, apple.eccentricByActivity],
   )
 
   const actualHRByDate = useMemo(() => {
@@ -700,14 +713,50 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     return m
   }, [weeks])
 
-  // Readiness engine (combines Garmin health data + Strava/Garmin activities)
+  // Merge Apple Health into Garmin for the readiness engine. Garmin wins on
+  // date conflicts (Firstbeat-derived HRV/RHR/Body Battery are richer); Apple
+  // fills gaps and is the sole source for Apple-only athletes.
+  const combinedHealth = useMemo(() => {
+    if (apple.healthData.length === 0) return garmin.healthData
+    if (garmin.healthData.length === 0) return apple.healthData
+    const byDate = new Map(apple.healthData.map(d => [d.date, d] as const))  // Apple base
+    for (const d of garmin.healthData) byDate.set(d.date, d)                 // Garmin wins
+    return Array.from(byDate.values()).sort((a, b) => b.date.localeCompare(a.date))
+  }, [apple.healthData, garmin.healthData])
+
+  // Combined activity feed for training load + coach. Apple workouts that
+  // duplicate a Garmin/Strava session (same day, sport family, ~duration) are
+  // dropped — those sources are richer (EPOC, zones, splits) and win. Apple
+  // adds only workouts they don't have (notably for Apple-only athletes).
+  const combinedActivities = useMemo(() => {
+    if (apple.appleActivities.length === 0) return garmin.garminActivities
+    const fam = (t: string): string => {
+      const s = (t || '').toLowerCase()
+      if (/run|jog/.test(s)) return 'run'
+      if (/cycl|bike|ride/.test(s)) return 'ride'
+      if (/hik/.test(s)) return 'hike'
+      if (/walk/.test(s)) return 'walk'
+      if (/swim/.test(s)) return 'swim'
+      if (/strength|weight|workout/.test(s)) return 'strength'
+      return 'other'
+    }
+    const dupOfRicher = (a: (typeof apple.appleActivities)[number]): boolean =>
+      garmin.garminActivities.some(g =>
+        g.date === a.date &&
+        fam(g.type) === fam(a.type) &&
+        Math.abs((g.durationMinutes || 0) - (a.durationMinutes || 0)) <= Math.max(5, (g.durationMinutes || 0) * 0.15),
+      )
+    return [...garmin.garminActivities, ...apple.appleActivities.filter(a => !dupOfRicher(a))]
+  }, [garmin.garminActivities, apple.appleActivities])
+
+  // Readiness engine (combines Garmin + Apple health data and activities)
   // R8 — age/experience tuning for the readiness engine (defaults when the
   // profile has no birthDate/experienceLevel, so behavior is unchanged then).
   const readinessTuning = useMemo(() => getReadinessTuning(effectiveAthlete), [effectiveAthlete])
   const readiness = useReadiness({
-    healthData: garmin.healthData,
+    healthData: combinedHealth,
     stravaActivities: strava.activities,
-    garminActivities: garmin.garminActivities,
+    garminActivities: combinedActivities,
     garminActivityDetails: garmin.activityDetails,
     rpeByDate,
     exerciseLoadByDate,
@@ -728,8 +777,8 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
   // Today's health data for banner
   const todayHealth = useMemo(() => {
     const today = localDateStr()
-    return garmin.healthData.find(d => d.date === today)
-  }, [garmin.healthData])
+    return combinedHealth.find(d => d.date === today)
+  }, [combinedHealth])
 
   const latestPerf = useMemo(
     () => (readiness.performance.length > 0 ? readiness.performance[readiness.performance.length - 1] : null),
@@ -830,7 +879,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     if (!coachEnabled) return null
     // Wait for Garmin sync to finish before building the snapshot so the
     // coach sees fresh data, not stale cache from the previous session.
-    if (garmin.connected && garmin.loading) return null
+    if ((garmin.connected && garmin.loading) || (apple.connected && apple.loading)) return null
     // Only feed wearable-derived signals (readiness, load/performance, raw
     // activity feeds, today's health) to the coach when a data source is
     // actually CONNECTED. A session can expire — flipping `connected` false
@@ -840,7 +889,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     // makes the coach narrate training that never happened (e.g. inventing a
     // "tour" to explain the numbers) while the UI correctly says "Connect
     // Garmin". Gate on the live connection so the coach's view matches it.
-    const wearableConnected = garmin.connected || strava.connected
+    const wearableConnected = garmin.connected || strava.connected || apple.connected
     const effReadiness = wearableConnected ? readiness.todayScore : null
     const effPerformance = wearableConnected ? readiness.performance : []
     if (!effReadiness && effPerformance.length === 0) return null
@@ -866,7 +915,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
       // Raw activity feeds so the coach can see workouts outside the
       // plan window (pre-plan base, non-plan-day bonus runs, etc.)
       stravaActivities: wearableConnected ? strava.activities : [],
-      garminActivities: wearableConnected ? garmin.garminActivities : [],
+      garminActivities: wearableConnected ? combinedActivities : [],
       garminActivityDetails: wearableConnected ? garmin.activityDetails : {},
       trainingMethod,
       morningHour: proactiveTiming.morningHour,
@@ -948,8 +997,11 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     coachMemory.coachPersona,
     strava.activities,
     strava.connected,
-    garmin.garminActivities,
+    combinedActivities,
     garmin.connected,
+    garmin.loading,
+    apple.connected,
+    apple.loading,
     weatherBlock,
     trainingMethod,
     displayPrefs.detailLevel,
@@ -1270,8 +1322,8 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           todayScore={readiness.todayScore}
           weekScores={readiness.weekScores}
           todayHealth={todayHealth}
-          healthHistory={garmin.healthData}
-          garminConnected={garmin.connected}
+          healthHistory={combinedHealth}
+          garminConnected={garmin.connected || apple.connected}
           coachRecommendation={coachRecommendation}
           onCoachSwap={handleCoachSwap}
           dailyTrimp={readiness.dailyTrimp}
@@ -1330,12 +1382,12 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           todayScore={readiness.todayScore}
           weekScores={readiness.weekScores}
           todayHealth={todayHealth}
-          healthHistory={garmin.healthData}
+          healthHistory={combinedHealth}
           dailyTrimp={readiness.dailyTrimp}
           performance={readiness.performance}
           weeklyRecommendations={readiness.weeklyRecommendations}
           riskFlags={readiness.riskFlags}
-          garminConnected={garmin.connected}
+          garminConnected={garmin.connected || apple.connected}
           sorenessLoadByDate={soreness.sorenessLoadByDate}
           athleteId={athleteId}
         />
@@ -1406,6 +1458,9 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           onGarminSubmitMfa={garmin.submitMfa}
           onGarminDisconnect={garmin.disconnect}
           onGarminSync={garmin.sync}
+          appleConnected={apple.connected}
+          appleLastSync={apple.lastSync}
+          onAppleSync={apple.sync}
           hrZones={hrZones.zones}
           hrZonesCustomized={hrZones.isCustomized}
           hrZonesMaxHR={maxHROverride.maxHR}

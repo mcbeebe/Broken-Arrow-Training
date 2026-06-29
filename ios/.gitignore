@@ -1,0 +1,14 @@
+# The Xcode project is generated from project.yml by XcodeGen — it's a build
+# artifact, not source. Run `xcodegen generate` to (re)create it.
+*.xcodeproj/
+
+# Xcode user state / build output
+xcuserdata/
+*.xcuserstate
+DerivedData/
+build/
+.build/
+
+# Stray local scratch files
+code .env
+.env

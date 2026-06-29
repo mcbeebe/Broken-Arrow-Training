@@ -99,6 +99,11 @@ interface SettingsProps {
   onGarminSubmitMfa: (code: string) => Promise<void>
   onGarminDisconnect: () => void
   onGarminSync: () => Promise<void>
+  // Apple Watch / Apple Health (read via the iOS companion app — no connect
+  // flow here, just status + a manual refresh).
+  appleConnected: boolean
+  appleLastSync: string | null
+  onAppleSync: () => Promise<void>
   // HR Zones
   hrZones?: HRZone[]
   hrZonesCustomized?: boolean
@@ -162,6 +167,9 @@ export default function Settings({
   onGarminSubmitMfa,
   onGarminDisconnect,
   onGarminSync,
+  appleConnected,
+  appleLastSync,
+  onAppleSync,
   hrZones,
   hrZonesCustomized,
   hrZonesMaxHR,
@@ -523,6 +531,36 @@ export default function Settings({
               onDisconnect={onGarminDisconnect}
               onSync={onGarminSync}
             />
+          </div>
+          <div>
+            <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-2">Apple Watch</h4>
+            <p className="text-xs text-slate-400 mb-2">
+              HRV, resting HR, sleep, and workouts from Apple Health for readiness and training load.
+            </p>
+            <div className="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700">
+              {appleConnected ? (
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400">Connected</p>
+                    {appleLastSync && (
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        Last synced: {new Date(appleLastSync).toLocaleString()}
+                      </p>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => { void onAppleSync() }}
+                    className="text-xs px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 font-medium"
+                  >
+                    Sync now
+                  </button>
+                </div>
+              ) : (
+                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                  Open the <span className="font-medium">Broken Arrow Health</span> app on your iPhone and sign in with the same account — it syncs your Apple Watch data here automatically. No setup needed on this screen.
+                </p>
+              )}
+            </div>
           </div>
           {connected && (
             <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-100 space-y-3">

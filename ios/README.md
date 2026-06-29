@@ -1,8 +1,10 @@
 # Broken Arrow Health — iOS Companion App
 
-A minimal SwiftUI app that reads HRV, resting heart rate, and sleep from
-Apple Health and uploads them to the Broken Arrow Training backend so the
-readiness engine can use Apple Watch data alongside (or instead of) Garmin.
+A minimal SwiftUI app that reads HRV, resting heart rate, sleep, **and
+workouts** from Apple Health and uploads them to the Broken Arrow Training
+backend so the readiness engine can use Apple Watch data alongside (or instead
+of) Garmin. Sync runs **automatically in the background** via HealthKit
+background delivery — the "Sync Now" button is just a manual fallback.
 
 ## What it does
 
@@ -12,78 +14,80 @@ readiness engine can use Apple Watch data alongside (or instead of) Garmin.
    which maps the verified email to an athleteId.
 2. The session JWT is stored in the iOS Keychain (device-only, no
    iCloud sync).
-3. The app asks for HealthKit read permission for:
+3. The app asks for HealthKit read permission for recovery metrics:
    - `HKQuantityTypeIdentifierHeartRateVariabilitySDNN`
    - `HKQuantityTypeIdentifierRestingHeartRate`
    - `HKCategoryTypeIdentifierSleepAnalysis`
-4. On **Sync**, it queries HealthKit per-day, averages HRV/RHR, sums
-   sleep stages, and POSTs the batch to `POST {API}/api/apple/health`
-   with `Authorization: Bearer <session-jwt>`. The server reads the
-   athleteId from the JWT — clients can't write to anyone else's data.
-5. The backend stores the normalized records in Upstash KV under
-   `apple_health_{athlete}_{date}`, then the web app reads them back via
-   `GET /api/apple/health?days=7` and feeds them into the same
-   readiness pipeline as Garmin.
+   …and for workouts (training load + descent):
+   - `HKObjectType.workoutType()` and `HKSeriesType.workoutRoute()`
+   - `HKQuantityTypeIdentifierHeartRate`, `distanceWalkingRunning`,
+     `distanceCycling`, `activeEnergyBurned`
+4. **Recovery** is POSTed per-day to `POST {API}/api/apple/health`
+   (averages HRV/RHR, sums sleep stages). **Workouts** are PUT to the same
+   endpoint (`PUT /api/apple/health`, co-located to stay under the Vercel
+   12-function cap): for each HKWorkout it sends sport, duration, distance,
+   avg/max HR, energy, elevation gain, and the **steep-descent vertical**
+   (grade ≤ −10%) computed on-device from the workout route — the quantity
+   that drives the readiness DOMS / load-dampening engine. Both requests
+   carry `Authorization: Bearer <session-jwt>`; the server derives the
+   athleteId from the token, so clients can't write to anyone else's data.
+5. The backend normalizes recovery to the `GarminHealthData` shape and
+   workouts to the `GarminActivity` shape, stores them in Upstash KV, and the
+   web app reads them back (`GET /api/apple/health?days=N` and
+   `?kind=activities`) and feeds them into the same readiness + training-load
+   pipeline as Garmin.
+6. **Background delivery**: the app registers `HKObserverQuery`s + enables
+   background delivery at launch, so new HealthKit data triggers an automatic
+   upload without opening the app. (Best-effort — iOS throttles quantity-type
+   delivery to ~hourly and it never fires in the Simulator.)
 
 ## Project layout
 
 ```
 ios/BrokenArrowHealth/
+  project.yml                           # XcodeGen spec (source of truth)
   BrokenArrowHealth/
-    BrokenArrowHealthApp.swift          # @main entry point, URL handler
+    BrokenArrowHealthApp.swift          # @main + AppDelegate (bg observers)
     ContentView.swift                   # Sign-in + sync UI
     AuthManager.swift                   # Google Sign-In → session JWT
-    HealthManager.swift                 # HKHealthStore queries + upload
+    HealthManager.swift                 # HRV/RHR/sleep queries + bg delivery
+    WorkoutManager.swift                # HKWorkout + route → descent + upload
     KeychainStore.swift                 # Keychain wrapper for JWT
     Info.plist                          # usage strings + URL scheme
-    BrokenArrowHealth.entitlements      # HealthKit capability
+    BrokenArrowHealth.entitlements      # HealthKit + background-delivery
     Assets.xcassets/                    # AppIcon + AccentColor
     Preview Content/
 ```
 
-No `.xcodeproj` is checked in. You create one in Xcode the first time
-(see below) and check the resulting files in if you want to.
+The `.xcodeproj` is **generated** from `project.yml` by
+[XcodeGen](https://github.com/yonaskolb/XcodeGen) and is git-ignored — never
+edit it by hand; change `project.yml` instead.
 
-## First-time Xcode setup
+## First-time setup (XcodeGen)
 
-1. Open Xcode (16+ recommended) → **File → New → Project**.
-2. Choose **iOS → App**. Click Next.
-3. Use these settings:
-   - Product Name: `BrokenArrowHealth`
-   - Team: your Apple Developer team
-   - Organization Identifier: `com.yourdomain` (anything unique)
-   - Interface: **SwiftUI**
-   - Language: **Swift**
-   - Storage: **None**
-4. Save it somewhere temporary (NOT inside this repo yet) — you'll copy
-   the `.xcodeproj` over in a second.
-5. In Finder, **delete** the generated `BrokenArrowHealthApp.swift`,
-   `ContentView.swift`, `Assets.xcassets`, `Preview Content`, and
-   `Info.plist` from Xcode's template output.
-6. Move Xcode's generated `.xcodeproj` into
-   `ios/BrokenArrowHealth/` so it sits next to the `BrokenArrowHealth/`
-   source folder in this repo.
-7. Re-open the `.xcodeproj` in Xcode. In the left sidebar, right-click
-   the `BrokenArrowHealth` group → **Add Files…** → select every file
-   under `ios/BrokenArrowHealth/BrokenArrowHealth/`. Make sure
-   **Copy items if needed** is OFF and **Create groups** is ON.
-8. In the target's **Signing & Capabilities** tab:
-   - Select your team.
-   - Click **+ Capability** → **HealthKit** (this auto-wires the
-     entitlement; our file is already there so Xcode will accept it).
-9. In the target's **Build Settings**:
-   - Set **Info.plist File** to `BrokenArrowHealth/Info.plist`.
-   - Set **Code Signing Entitlements** to
-     `BrokenArrowHealth/BrokenArrowHealth.entitlements`.
-10. Minimum deployment: iOS 17.0.
+```sh
+brew install xcodegen          # once
+cd ios/BrokenArrowHealth
+xcodegen generate              # creates BrokenArrowHealth.xcodeproj
+open BrokenArrowHealth.xcodeproj
+```
 
-## Add the Google Sign-In SDK (Swift Package Manager)
+`project.yml` already wires up iOS 17 deployment, the `Info.plist` +
+`BrokenArrowHealth.entitlements` paths, and the GoogleSignIn-iOS Swift Package
+(≥ 7.1.0). After generating, in Xcode:
 
-1. In Xcode, select the project → **Package Dependencies** tab → **+**.
-2. Paste `https://github.com/google/GoogleSignIn-iOS` and click Add.
-3. Choose **Up to Next Major** starting at `7.1.0` (or later).
-4. Pick the `GoogleSignIn` library and add it to the
-   `BrokenArrowHealth` target.
+1. Select the **BrokenArrowHealth** target → **Signing & Capabilities** →
+   choose your **Team**. (Set `DEVELOPMENT_TEAM` in `project.yml` to skip this
+   on every regenerate.)
+2. Confirm the **HealthKit** capability shows with **Background Delivery**
+   checked — it reads `BrokenArrowHealth.entitlements`, already in the repo. If
+   Xcode doesn't show it, click **+ Capability → HealthKit**.
+3. Make sure `PRODUCT_BUNDLE_IDENTIFIER` (default `com.brokenarrow.health`)
+   matches the bundle id on your Google iOS OAuth client (next section).
+
+Re-run `xcodegen generate` whenever you add/rename source files or change build
+settings — your signing selection persists in the project's user data. The
+GoogleSignIn package resolves automatically on first open.
 
 ## Create the iOS OAuth client in Google Cloud
 

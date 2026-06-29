@@ -175,7 +175,7 @@ export interface DayCompliance {
 export interface ActualWorkout {
   stravaId: number;
   garminId?: number;
-  source?: 'strava' | 'garmin' | 'manual';
+  source?: 'strava' | 'garmin' | 'manual' | 'apple';
   distance: number;
   movingTime: number;
   elapsedTime: number;

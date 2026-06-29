@@ -22,6 +22,9 @@ class HealthManager: ObservableObject {
     /// athleteId from the JWT, so we don't track it separately here.
     private var apiUrl: String = ""
     private var sessionToken: String = ""
+    /// Long-lived observer queries for background delivery. Retained so ARC
+    /// doesn't release them — releasing stops background updates.
+    private var observerQueries: [HKObserverQuery] = []
 
     @Published var isAuthorized = false
     @Published var isSyncing = false
@@ -52,6 +55,16 @@ class HealthManager: ObservableObject {
             HKQuantityType(.heartRateVariabilitySDNN),
             HKQuantityType(.restingHeartRate),
             HKCategoryType(.sleepAnalysis),
+            // Workouts (training load) + the metrics needed to characterize
+            // them. Requested here so the user sees ONE permission sheet
+            // covering recovery AND workout data — HealthKit won't re-prompt
+            // for types added in a later build, so include them all up front.
+            HKObjectType.workoutType(),
+            HKSeriesType.workoutRoute(),
+            HKQuantityType(.heartRate),
+            HKQuantityType(.distanceWalkingRunning),
+            HKQuantityType(.distanceCycling),
+            HKQuantityType(.activeEnergyBurned),
         ]
 
         store.requestAuthorization(toShare: nil, read: readTypes) { [weak self] success, error in
@@ -60,10 +73,67 @@ class HealthManager: ObservableObject {
                     self?.isAuthorized = true
                     self?.lastError = nil
                     await self?.syncNow()
+                    // Arm background delivery now so the first grant starts
+                    // auto-syncing without waiting for a relaunch.
+                    self?.enableBackgroundDelivery()
+                    self?.startObservers()
                 } else {
                     self?.lastError = error?.localizedDescription ?? "Authorization denied"
                 }
             }
+        }
+    }
+
+    /// Restore apiUrl (UserDefaults) + session token (Keychain) directly,
+    /// bypassing the SwiftUI view graph — needed when iOS relaunches the app
+    /// in the background to deliver a HealthKit update (no view lifecycle runs).
+    func configureFromKeychain() {
+        let url = UserDefaults.standard.string(forKey: "apiUrl") ?? ""
+        let token = KeychainStore.get("session_token") ?? ""
+        if !url.isEmpty, !token.isEmpty {
+            configure(apiUrl: url, sessionToken: token)
+        }
+    }
+
+    /// Ask HealthKit to wake the app when new recovery samples arrive.
+    /// Best-effort: iOS throttles non-workout types to ~hourly and never
+    /// delivers in the Simulator. Safe to call repeatedly.
+    func enableBackgroundDelivery() {
+        guard HKHealthStore.isHealthDataAvailable() else { return }
+        let types: [HKObjectType] = [
+            HKQuantityType(.heartRateVariabilitySDNN),
+            HKQuantityType(.restingHeartRate),
+            HKCategoryType(.sleepAnalysis),
+        ]
+        for type in types {
+            store.enableBackgroundDelivery(for: type, frequency: .hourly) { _, _ in }
+        }
+    }
+
+    /// Register one observer per recovery type so a new sample triggers an
+    /// upload. Re-register on every (cold/background) launch — the queries
+    /// don't survive process death. The observer's completion handler MUST be
+    /// called or iOS stops delivering, so we call it in every path.
+    func startObservers() {
+        guard HKHealthStore.isHealthDataAvailable() else { return }
+        for q in observerQueries { store.stop(q) }
+        observerQueries.removeAll()
+        let types: [HKSampleType] = [
+            HKQuantityType(.heartRateVariabilitySDNN),
+            HKQuantityType(.restingHeartRate),
+            HKCategoryType(.sleepAnalysis),
+        ]
+        for type in types {
+            let query = HKObserverQuery(sampleType: type, predicate: nil) { [weak self] _, completionHandler, error in
+                guard error == nil else { completionHandler(); return }
+                Task { @MainActor in
+                    self?.configureFromKeychain()
+                    await self?.syncNow()
+                    completionHandler()
+                }
+            }
+            store.execute(query)
+            observerQueries.append(query)
         }
     }
 
