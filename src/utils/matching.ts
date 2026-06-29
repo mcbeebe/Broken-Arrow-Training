@@ -1,5 +1,6 @@
 import type { StravaActivity, TrainingWeek, ActualWorkout, PlannedDay, WorkoutType, GarminActivityDetail } from '../types'
 import { garminDetailToActual } from './garmin'
+import type { AppleActivity } from './apple'
 
 /**
  * Match Strava activities to planned workout days by date and type.
@@ -249,5 +250,66 @@ function getExpectedGarminTypes(type: WorkoutType): string[] {
       return ['strength', 'cardio', 'hiit']
     default:
       return []
+  }
+}
+
+// ─── Apple Watch Activity Merge ────────────────────────────────
+
+/**
+ * Attach Apple Watch workouts to planned days that have no actual yet. Runs
+ * AFTER Strava/Garmin matching so those richer sources (real EPOC, HR zones,
+ * splits) always win; Apple fills the gap for athletes whose only wearable is
+ * an Apple Watch.
+ */
+export function mergeAppleActivitiesIntoWeeks(
+  weeks: TrainingWeek[],
+  activities: AppleActivity[],
+): TrainingWeek[] {
+  if (activities.length === 0) return weeks
+  const byDate = new Map<string, AppleActivity[]>()
+  for (const a of activities) {
+    if (a.durationMinutes * 60 < MIN_ACTIVITY_DURATION_SEC) continue
+    const existing = byDate.get(a.date) || []
+    existing.push(a)
+    byDate.set(a.date, existing)
+  }
+  return weeks.map(week => ({
+    ...week,
+    days: week.days.map(day => {
+      if (day.actual) return day  // Strava/Garmin/manual already populated this day
+      const dayDate = parseDayDate(day.day)
+      if (!dayDate) return day
+      const dayActivities = byDate.get(dayDate)
+      if (!dayActivities || dayActivities.length === 0) return day
+      return { ...day, actual: appleActivityToActual(pickBestApple(day, dayActivities)) }
+    }),
+  }))
+}
+
+function pickBestApple(day: PlannedDay, activities: AppleActivity[]): AppleActivity {
+  if (activities.length === 1) return activities[0]
+  // getExpectedStravaTypes' keyword set works for Apple's lowercase types too.
+  const expected = getExpectedStravaTypes(day.type)
+  const typed = activities.find(a => expected.some(t => a.type.toLowerCase().includes(t)))
+  return typed || [...activities].sort((a, b) => b.durationMinutes - a.durationMinutes)[0]
+}
+
+function appleActivityToActual(a: AppleActivity): ActualWorkout {
+  const sec = Math.round(a.durationMinutes * 60)
+  return {
+    stravaId: 0,
+    source: 'apple',
+    distance: a.distanceMi ?? 0,
+    movingTime: sec,
+    elapsedTime: sec,
+    avgHR: a.avgHR,
+    maxHR: a.maxHR,
+    calories: a.calories,
+    elevationGain: a.elevationGainFt,
+    type: a.type,
+    name: a.name,
+    // Apple normalization carries only the local day; noon keeps date math
+    // stable (slice(0,10) → the day; new Date() → local noon, not prior-day UTC).
+    startDate: `${a.date}T12:00:00`,
   }
 }

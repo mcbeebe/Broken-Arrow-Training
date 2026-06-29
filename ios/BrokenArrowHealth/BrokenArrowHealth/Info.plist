@@ -38,7 +38,7 @@
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 	<key>NSHealthShareUsageDescription</key>
-	<string>Broken Arrow Health reads your HRV, resting heart rate, and sleep from Apple Health so your training coach can calculate daily readiness.</string>
+	<string>Broken Arrow Health reads your HRV, resting heart rate, sleep, and workouts (including route elevation) from Apple Health so your training coach can calculate daily readiness and training load.</string>
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>Broken Arrow Health does not write data back to Apple Health.</string>
 	<key>UIBackgroundModes</key>

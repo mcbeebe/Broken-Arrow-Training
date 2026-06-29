@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ContentView: View {
     @EnvironmentObject var health: HealthManager
+    @EnvironmentObject var workouts: WorkoutManager
     @EnvironmentObject var auth: AuthManager
 
     var body: some View {
@@ -18,12 +19,18 @@ struct ContentView: View {
         }
         .onAppear { wireUp() }
         .onChange(of: auth.sessionToken) { _, _ in wireUp() }
+        .onChange(of: health.isAuthorized) { _, authed in
+            // Once HealthKit access is granted, back-fill ~90 days of workouts
+            // once (incremental syncs after that come from the observer).
+            if authed { Task { await workouts.syncWorkouts(daysBack: 90) } }
+        }
     }
 
     private func wireUp() {
         guard auth.isSignedIn, !auth.apiUrl.isEmpty,
               let token = auth.sessionToken else { return }
         health.configure(apiUrl: auth.apiUrl, sessionToken: token)
+        workouts.configure(apiUrl: auth.apiUrl, sessionToken: token)
         health.requestAuthorization()
     }
 
@@ -34,7 +41,7 @@ struct ContentView: View {
                 .foregroundColor(.green)
             Text("Connect to Broken Arrow")
                 .font(.title2).bold()
-            Text("Sign in with the Google account your coach uses. The app will sync your Apple Watch HRV, RHR, and sleep into Broken Arrow Training.")
+            Text("Sign in with the Google account your coach uses. The app will sync your Apple Watch HRV, resting HR, sleep, and workouts into Broken Arrow Training.")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
@@ -113,13 +120,16 @@ struct ContentView: View {
             }
             Spacer()
             Button {
-                Task { await health.syncNow() }
+                Task {
+                    await health.syncNow()
+                    await workouts.syncWorkouts()
+                }
             } label: {
                 HStack {
-                    if health.isSyncing {
+                    if health.isSyncing || workouts.isSyncing {
                         ProgressView().tint(.white)
                     }
-                    Text(health.isSyncing ? "Syncing…" : "Sync Now")
+                    Text(health.isSyncing || workouts.isSyncing ? "Syncing…" : "Sync Now")
                 }
                 .font(.headline)
                 .frame(maxWidth: .infinity)
@@ -128,10 +138,11 @@ struct ContentView: View {
                 .foregroundColor(.white)
                 .cornerRadius(12)
             }
-            .disabled(health.isSyncing || !health.isAuthorized)
+            .disabled(health.isSyncing || workouts.isSyncing || !health.isAuthorized)
             Button("Sign out") {
                 auth.signOut()
                 health.disconnect()
+                workouts.disconnect()
             }
             .font(.subheadline)
             .foregroundColor(.secondary)
@@ -153,5 +164,6 @@ func rootViewController() -> UIViewController? {
 #Preview {
     ContentView()
         .environmentObject(HealthManager())
+        .environmentObject(WorkoutManager())
         .environmentObject(AuthManager())
 }

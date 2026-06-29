@@ -1,0 +1,43 @@
+# XcodeGen spec — the single source of truth for the Xcode project.
+#
+# Generate the project with:   xcodegen generate
+# (the produced BrokenArrowHealth.xcodeproj is git-ignored — never edit it by
+# hand; change THIS file instead). This replaces the old 10-step manual Xcode
+# setup so the project is reproducible and survives adding new files/targets.
+name: BrokenArrowHealth
+
+options:
+  bundleIdPrefix: com.brokenarrow
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+
+packages:
+  GoogleSignIn:
+    url: https://github.com/google/GoogleSignIn-iOS
+    from: "7.1.0"
+
+targets:
+  BrokenArrowHealth:
+    type: application
+    platform: iOS
+    sources:
+      - path: BrokenArrowHealth
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.brokenarrow.health
+        INFOPLIST_FILE: BrokenArrowHealth/Info.plist
+        CODE_SIGN_ENTITLEMENTS: BrokenArrowHealth/BrokenArrowHealth.entitlements
+        CODE_SIGN_STYLE: Automatic
+        GENERATE_INFOPLIST_FILE: "NO"
+        MARKETING_VERSION: "1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        SWIFT_VERSION: "5.0"
+        TARGETED_DEVICE_FAMILY: "1"
+        # Set your Apple Developer team here (or pick it in Xcode →
+        # Signing & Capabilities after generating). Must match the team that
+        # owns the iOS OAuth client's bundle id.
+        # DEVELOPMENT_TEAM: XXXXXXXXXX
+    dependencies:
+      - package: GoogleSignIn
+        product: GoogleSignIn
