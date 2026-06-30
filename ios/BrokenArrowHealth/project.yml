@@ -34,10 +34,10 @@ targets:
         CURRENT_PROJECT_VERSION: "1"
         SWIFT_VERSION: "5.0"
         TARGETED_DEVICE_FAMILY: "1"
-        # Set your Apple Developer team here (or pick it in Xcode →
-        # Signing & Capabilities after generating). Must match the team that
-        # owns the iOS OAuth client's bundle id.
-        # DEVELOPMENT_TEAM: XXXXXXXXXX
+        # Apple Developer team (Mike Beebe). Auto-applied on every regenerate so
+        # signing needs no manual selection. Must match the team that owns the
+        # iOS OAuth client's bundle id. (Team IDs aren't secret.)
+        DEVELOPMENT_TEAM: 3DAS7G543U
     dependencies:
       - package: GoogleSignIn
         product: GoogleSignIn
