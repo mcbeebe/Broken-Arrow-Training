@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Competitive Analysis — Coaching Apps vs. Attune.coach</title>
+<style>
+  :root{
+    --ink:#0f172a; --body:#334155; --muted:#64748b; --faint:#94a3b8;
+    --line:#e5e9f0; --bg:#f7f8fa; --card:#ffffff;
+    --teal:#0d9488; --teal-d:#0f766e; --emerald:#047857; --emerald-bg:#ecfdf5; --emerald-line:#a7f3d0;
+    --amber:#b45309; --amber-bg:#fffbeb; --amber-line:#fde68a;
+    --red:#b91c1c; --red-bg:#fef2f2; --red-line:#fecaca;
+    --blue:#1d4ed8; --blue-bg:#eff6ff; --violet:#6d28d9; --violet-bg:#f5f3ff;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--bg);color:var(--body);
+    font:15px/1.62 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;}
+  .wrap{max-width:1060px;margin:0 auto;padding:0 22px 80px}
+  h1,h2,h3,h4{color:var(--ink);line-height:1.25;margin:0}
+  a{color:var(--teal-d);text-decoration:none}
+  a:hover{text-decoration:underline}
+  code{font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace;font-size:.86em;
+    background:#f1f5f9;border:1px solid #e2e8f0;border-radius:5px;padding:.5px 5px;color:#0f172a}
+  header.cover{background:linear-gradient(135deg,#0f172a 0%,#155e63 100%);color:#fff;
+    border-radius:0 0 22px 22px;padding:46px 22px 40px;margin-bottom:30px}
+  header.cover .inner{max-width:1060px;margin:0 auto;padding:0}
+  .brand{display:flex;align-items:center;gap:9px;font-weight:700;letter-spacing:.2px;margin-bottom:22px;color:#cbeae6}
+  .brand .dot{width:11px;height:11px;border-radius:3px;background:#34d399;display:inline-block}
+  .eyebrow{text-transform:uppercase;letter-spacing:2.4px;font-size:11.5px;font-weight:700;color:#7dd3c8;margin-bottom:12px}
+  header.cover h1{color:#fff;font-size:33px;letter-spacing:-.4px;max-width:24ch}
+  header.cover p.lede{color:#d7e3e6;font-size:16px;margin:14px 0 0;max-width:78ch}
+  .meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:22px}
+  .tag{background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.18);color:#eaf3f3;
+    border-radius:999px;padding:5px 12px;font-size:12px;font-weight:500}
+  .tag.lime{background:rgba(52,211,153,.16);border-color:rgba(52,211,153,.4);color:#bbf7d0}
+  nav.toc{display:flex;flex-wrap:wrap;gap:6px 16px;padding:14px 18px;background:var(--card);
+    border:1px solid var(--line);border-radius:12px;margin-bottom:30px;font-size:13px}
+  nav.toc a{color:var(--muted);font-weight:600}
+  nav.toc a:hover{color:var(--teal-d)}
+  nav.toc b{color:var(--faint);font-weight:700;margin-right:2px}
+  section{margin:0 0 34px}
+  .kicker{display:flex;align-items:baseline;gap:11px;margin-bottom:14px;padding-bottom:9px;border-bottom:2px solid var(--line)}
+  .kicker .n{font-family:"SF Mono",monospace;font-size:13px;font-weight:700;color:var(--teal)}
+  .kicker h2{font-size:21px;letter-spacing:-.2px}
+  p{margin:0 0 13px}
+  .sub{color:var(--muted);font-size:14px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px 20px}
+  .grid{display:grid;gap:14px}
+  .g2{grid-template-columns:1fr 1fr}
+  @media(max-width:760px){.g2{grid-template-columns:1fr}}
+  .callout{border-radius:12px;padding:16px 18px;border:1px solid var(--line);background:var(--card);margin-bottom:14px}
+  .callout.win{background:var(--emerald-bg);border-color:var(--emerald-line)}
+  .callout.warn{background:var(--amber-bg);border-color:var(--amber-line)}
+  .callout.risk{background:var(--red-bg);border-color:var(--red-line)}
+  .callout.info{background:var(--blue-bg);border-color:#bfdbfe}
+  .callout h4{font-size:14px;margin-bottom:6px}
+  table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);
+    border-radius:12px;overflow:hidden;font-size:13.5px}
+  .tblwrap{overflow-x:auto;border-radius:12px;margin-bottom:14px}
+  th{background:#f1f5f9;color:var(--ink);text-align:left;font-size:12px;text-transform:uppercase;
+    letter-spacing:.6px;padding:9px 11px;border-bottom:2px solid var(--line);white-space:nowrap}
+  td{padding:9px 11px;border-bottom:1px solid var(--line);vertical-align:top}
+  tr:last-child td{border-bottom:none}
+  td.c{text-align:center;white-space:nowrap}
+  .dot-full{color:var(--emerald);font-weight:700}
+  .dot-part{color:var(--amber);font-weight:700}
+  .dot-none{color:#cbd5e1;font-weight:700}
+  .pill{display:inline-block;border-radius:999px;padding:2px 9px;font-size:11px;font-weight:700;letter-spacing:.3px}
+  .pill.g{background:var(--emerald-bg);color:var(--emerald);border:1px solid var(--emerald-line)}
+  .pill.a{background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-line)}
+  .pill.r{background:var(--red-bg);color:var(--red);border:1px solid var(--red-line)}
+  .pill.b{background:var(--blue-bg);color:var(--blue);border:1px solid #bfdbfe}
+  .pill.v{background:var(--violet-bg);color:var(--violet);border:1px solid #ddd6fe}
+  .profile{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px 20px;margin-bottom:14px}
+  .profile h3{font-size:16.5px;display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+  .profile .price{font-family:"SF Mono",monospace;font-size:12px;color:var(--muted);margin-left:auto}
+  .profile ul{margin:10px 0 0;padding-left:19px}
+  .profile li{margin-bottom:6px}
+  .gap{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--teal);
+    border-radius:10px;padding:15px 18px;margin-bottom:12px}
+  .gap h4{font-size:15px;margin-bottom:6px}
+  .gap .w{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 0}
+  .flow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:14px 0}
+  .flow .st{background:#0f172a;color:#e2f5f1;border-radius:9px;padding:9px 13px;font-size:12.5px;
+    font-weight:700;letter-spacing:.3px;font-family:"SF Mono",monospace}
+  .flow .st small{display:block;color:#7dd3c8;font-weight:500;font-size:10.5px;letter-spacing:.2px;margin-top:2px}
+  .flow .arr{color:var(--faint);font-weight:700}
+  .foot{border-top:2px solid var(--line);padding-top:18px;color:var(--muted);font-size:12.5px}
+  .num{font-family:"SF Mono",monospace}
+  ul.tight{margin:6px 0 12px;padding-left:20px}
+  ul.tight li{margin-bottom:6px}
+</style>
+</head>
+<body>
+<header class="cover"><div class="inner">
+  <div class="brand"><span class="dot"></span> Attune.coach — Product Research</div>
+  <div class="eyebrow">Competitive Market Analysis · v1.0 · July 6, 2026</div>
+  <h1>Coaching Apps vs. Attune.coach — the Gap Map</h1>
+  <p class="lede">Five competitors profiled in depth (TrainingPeaks · Runna · Garmin · Athletica · Vert.run) plus the rest of the field, with two cross-cutting lenses: leading UX/UI practice, and intelligent periodization across multiple events (half&nbsp;marathon → Hyrox → marathon). Every load-bearing claim adversarially verified against live sources, July 2026.</p>
+  <div class="meta">
+    <span class="tag lime">≈120 research subagents</span>
+    <span class="tag">3-vote adversarial verification</span>
+    <span class="tag">Pricing live-fetched Jul 5–6 2026</span>
+    <span class="tag">Attune column ground-truthed in code</span>
+    <span class="tag">Twin: Competitive_Analysis_Coaching_Apps_v1.0.md</span>
+  </div>
+</div></header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <a href="#s0"><b>0</b> Takeaway</a>
+  <a href="#s1"><b>1</b> Market landscape</a>
+  <a href="#s2"><b>2</b> Competitor profiles</a>
+  <a href="#s3"><b>3</b> Feature-gap matrix</a>
+  <a href="#s4"><b>4</b> Where Attune wins</a>
+  <a href="#s5"><b>5</b> Ranked gaps (Witchel)</a>
+  <a href="#s6"><b>6</b> UX/UI practice</a>
+  <a href="#s7"><b>7</b> Multi-event engine</a>
+  <a href="#s8"><b>8</b> Provenance</a>
+</nav>
+
+<section id="s0">
+  <div class="kicker"><span class="n">00</span><h2>The one-paragraph takeaway</h2></div>
+  <div class="callout info">
+    <p style="margin:0">The market splits into four camps — the <b>analytics incumbent</b> (TrainingPeaks: human coaching at $149–359/mo), the <b>consumer champion</b> (Runna: best-in-class onboarding &amp; watch handoff, but pace-targets-only adaptivity, <i>no biometrics</i>, ultras capped at 50K), the <b>free device-native substitute</b> (Garmin: readiness-driven daily workouts, periodized strength, PacePro — free with the watch), and the <b>AI-native cohort</b> (Athletica, Vert.run, TriDot, Humango: $15–29/mo, season grammar, advisory AI). Attune's verified differentiators are real and rare: <b>methodology depth, trail/ultra physics wired into prescription, a readiness engine biometrics actually <i>drive</i>, an LLM coach that proposes one-tap plan edits with honest advisories, and midlife/masters depth nobody else has.</b> The two verified open lanes: <b>① multi-event season periodization</b> — premium-monetized across the market, missing in Runna/Garmin, and <i>no app periodizes a running race + a Hyrox in one season</i> (Runna, the official Hyrox partner, resolves it with advice, not product — Attune already owns both engines); <b>② the execution loop</b> — watch-first delivery is where consumer trust is won, and web-first delivery is Attune's largest structural exposure (its Garmin workout push already exists, underleveraged).</p>
+  </div>
+</section>
+
+<section id="s1">
+  <div class="kicker"><span class="n">01</span><h2>Market landscape — verified July 2026</h2></div>
+  <div class="tblwrap"><table>
+    <tr><th>Tier</th><th>Price anchor</th><th>Who</th></tr>
+    <tr><td><b>Free floor</b></td><td class="num">$0</td><td>Nike Run Club (~300 audio runs, static plans) · Garmin DSW + Coach + PacePro (free w/ watch) · COROS plans + Training Hub (intensity-adaptive only)</td></tr>
+    <tr><td><b>Self-serve algorithmic</b></td><td class="num">$19.90–19.95/mo · $119–189/yr<br>(= $9.90–15.75/mo)</td><td>Runna $17.99/$109.99 · TrainingPeaks Premium $19.95/$134.99 · Athletica $19.90/$189 · Vert.run PRO $9.90–19.90 · AI Endurance ~$20 · Humango Essential $16.99 · JOIN €16.99 · TriDot from $14.99</td></tr>
+    <tr><td><b>Multi-goal / premium AI</b></td><td class="num">$28.99–99/mo</td><td>Humango Premium $28.99 (multi-goal gate) · TriDot Complete $99</td></tr>
+    <tr><td><b>Human hybrid</b></td><td class="num">$33–45/mo</td><td>Vert.run COACHING (24 h human review + chat)</td></tr>
+    <tr><td><b>Full human coaching</b></td><td class="num">$149–359/mo</td><td>TrainingPeaks Coach Match Bronze/Silver/Gold</td></tr>
+  </table></div>
+  <div class="grid g2">
+    <div class="callout warn"><h4>Structural fact #1 — personalization pricing</h4><p style="margin:0">Adaptive personalization at TrainingPeaks is <b>human</b> ($149–359/mo) — 10–30× the algorithmic products. Multi-event support is consistently a <b>paid differentiator</b> (TP ATP Premium-gated; Humango gates multi-goal to $28.99/mo).</p></div>
+    <div class="callout warn"><h4>Structural fact #2 — the free substitute</h4><p style="margin:0">Garmin anchors adaptive coaching at <b>$0 for watch owners</b>. A paid app wins only on what Garmin doesn't do: <b>run/ultra fueling (none on the platform), injury accommodation (no input exists), multi-race planning (one primary race; documented post-race "stuck in recovery" failures), methodology choice, human-legible rationale.</b> Line for line, Attune's strengths.</p></div>
+  </div>
+  <div class="callout info"><h4>The Strava–Runna axis</h4><p style="margin:0">Acquisition closed <b>May 22, 2025</b>; apps kept separate "for the foreseeable future" (still true 14 months on). The <b>$149.99/yr bundle</b> (annual-only, sold exclusively through Strava) anchors "social + AI training plans." Strava — 100M+ users — <i>bought</i> coaching rather than building it.</p></div>
+</section>
+
+<section id="s2">
+  <div class="kicker"><span class="n">02</span><h2>Competitor profiles</h2></div>
+
+  <div class="profile"><h3>TrainingPeaks <span class="pill b">analytics incumbent</span><span class="pill v">no plan-gen AI</span><span class="price">$19.95/mo · $134.99/yr · Coach $149–359/mo</span></h3>
+    <ul class="tight">
+      <li><b>ATP</b> is the season-planning reference: forced A/B/C tags, only A races peak/taper, auto weekly load, A races ≤32 wk apart — but <b>load-level chaining, not workout-level</b>, and Premium-gated.</li>
+      <li>No native daily adaptivity — the human tiers are the adaptive product.</li>
+      <li>2025 "Athlete Home": renamed CTL/ATL/TSB → <b>Fitness/Fatigue/Form</b> ("Fresh", "Optimal", "Overloading") — the data-first incumbent retrofitting the readiness-narrative pattern; legacy calendar UX documented as cluttered by independent redesign case studies.</li>
+    </ul></div>
+
+  <div class="profile"><h3>Runna <span class="pill b">consumer champion</span><span class="pill v">Strava-owned</span><span class="price">$17.99/mo · $109.99/yr · bundle $149.99/yr</span></h3>
+    <ul class="tight">
+      <li>Human-coach templates parameterized by the "Runna Engine" ("coach-led programming and AI", A/B-tested at population scale). Key input: Estimated Race Time.</li>
+      <li><b>Adaptivity = one signal</b> (verified): achieved-vs-prescribed paces in speed sessions → opt-in pace-target suggestions only, never structure. 2026: Adapt-for-Heat, Mileage Insights. <b>Verified absent: HR influence (display-only), RPE input, HRV, sleep, readiness</b> — named as roadmap by founders years ago, unshipped.</li>
+      <li>No AI chat (24/7 chat is human). <b>Ultra capped at 50K</b>; no trail plan type or vert targets. 8-wk Hyrox plans (official partner) but a Hyrox can't be a B-race in a marathon plan — dual-goal athletes told to self-rebalance.</li>
+      <li>Fueling = editorial guides; race execution = avg-pace + km-split cues, <b>explicitly no split-by-split pacing</b>.</li>
+      <li><b>UX benchmark</b>: ~30-screen belief-building onboarding w/ value preview; realignment prompt (after &gt;3 misses); watch handoff to 5 brands. Complaints are coaching-logic: aggressive paces, workout-heavy weeks, weak mid-plan recalibration → <i>"polished UX buys trust that harsh training logic then burns."</i></li>
+    </ul></div>
+
+  <div class="profile"><h3>Garmin <span class="pill g">free w/ watch</span><span class="pill b">device-native</span><span class="price">$0 + hardware · Connect+ $6.99/mo (AI only)</span></h3>
+    <ul class="tight">
+      <li><b>DSW</b> driven by VO2max, Training Status, acute/chronic load, Recovery Time, <b>Training Readiness (sleep + HRV + stress)</b>; periodizes base→taper toward <b>one</b> primary race; free on watches from FR55 up.</li>
+      <li>Five adaptive Coach lines incl. marathon (Sept 2024), triathlon (May 2025), and <b>genuinely periodized strength</b> (accumulation/intensification/deload). <b>One plan at a time.</b></li>
+      <li>Illness/life stress invisible unless it moves HRV/RHR/Body Battery; <b>no injury input exists</b>; documented post-race "stuck in recovery" seam.</li>
+      <li><b>PacePro</b>: grade-adjusted per-split course pacing bands + ClimbPro — the reference computed race-execution stack, free.</li>
+      <li>Fueling: cycling-only Edge alerts; <b>nothing for runners anywhere</b>. Connect+ AI insights panned ("woefully basic"); CEO confirms future AI features will be paywalled; write-APIs withheld from third parties.</li>
+    </ul></div>
+
+  <div class="profile"><h3>Athletica.ai <span class="pill v">AI-native scientist</span><span class="price">$19.90/mo · $189/yr — single tier</span></h3>
+    <ul class="tight">
+      <li>Algorithmic plans; <b>unlimited A races</b> w/ B/C in any sport; founder-confirmed edge case: B race &lt;~2 wk before A gets no sport-specific taper.</li>
+      <li><b>The nuance that matters:</b> ingests nocturnal HRV/RHR/wellness → Recovery Profile w/ push/caution/rest flags — but verbatim, the AI <i>"does not change your training load (yet). It advises."</i> Workout Reserve (EJSS 2026) uses performance-output only. <b>Readiness is displayed, not wired into prescription.</b></li>
+      <li>AI chat is advisory-only ("explain, analyze, and suggest, not act"); users apply suggestions manually.</li>
+      <li><b>No native Apple Watch/Health</b> — third-party Watchletic bridge only.</li>
+    </ul></div>
+
+  <div class="profile"><h3>Vert.run <span class="pill g">trail/ultra niche</span><span class="pill a">human-hybrid</span><span class="price">PRO $9.90/mo yr · COACHING $33/mo · 1:1 $99/mo</span></h3>
+    <ul class="tight">
+      <li>Hybrid model (verification <b>refuted</b> "no AI" characterizations 0-3): coach-built plans, every PRO plan human-reviewed within 24 h, shipped AI Coach &amp; Chat (July 2026), 5 free human-chat messages.</li>
+      <li>Structurally trail-specific: gain <i>and</i> descent, time-on-feet, power-hiking, technical terrain, durability strength; proprietary <b>Mountain Index</b>.</li>
+      <li><b>Depth gap:</b> Nutrition Planner + Race Time Predictor are <b>free standalone web calculators</b> — hourly cal/carb estimates and optimistic/realistic/conservative finish scenarios, not integrated prescription or checkpoint pacing. Sentiment: "programs feel generic," slow Android.</li>
+      <li>Validates the category — and its free calculators are an acquisition funnel worth copying.</li>
+    </ul></div>
+
+  <div class="card"><h3 style="font-size:15px;margin-bottom:8px">Rest of field (one line each, verified)</h3>
+    <p class="sub" style="margin:0"><b>TriDot</b> $14.99–249/mo, tri-only, Season Planner w/ what-if race staging (unique) · <b>Humango</b> $16.99/$28.99 — multi-goal is the Premium gate · <b>AI Endurance</b> ~$20/mo, DFA-α1 thresholds, LLM chat that <i>can</i> edit workouts · <b>JOIN</b> €16.99 cycling; JOIN Running is "not a standalone running app" · <b>COROS</b> free, intensity-adaptive only · <b>NRC</b> free floor, zero adaptivity · <b>TrainerRoad</b> (cycling): most explicit auto-chaining (A ≥8 wk apart; B race-week taper; C no change) — its complaint threads double as a requirements list.</p></div>
+</section>
+
+<section id="s3">
+  <div class="kicker"><span class="n">03</span><h2>Feature-gap matrix</h2></div>
+  <p class="sub">● full · ◐ partial · ○ none. Attune column ground-truthed in code (absences verified by grep); competitor columns cited in §2. Full Attune baseline inventory in the markdown twin.</p>
+  <div class="tblwrap"><table>
+    <tr><th>Capability</th><th>Attune</th><th>TrainingPeaks</th><th>Runna</th><th>Garmin (free)</th><th>Athletica</th><th>Vert.run</th></tr>
+    <tr><td>Named, cited methodologies (choice)</td><td class="c dot-full">● 9</td><td class="c dot-part">◐ market</td><td class="c dot-none">○</td><td class="c dot-none">○</td><td class="c dot-none">○</td><td class="c dot-part">◐</td></tr>
+    <tr><td>Generated personalized race plan</td><td class="c dot-full">●</td><td class="c dot-none">○</td><td class="c dot-full">●</td><td class="c dot-full">●</td><td class="c dot-full">●</td><td class="c dot-full">●</td></tr>
+    <tr><td>Day-to-day adaptivity from performance</td><td class="c dot-part">◐</td><td class="c dot-none">○</td><td class="c dot-part">◐ paces</td><td class="c dot-full">●</td><td class="c dot-full">●</td><td class="c dot-part">◐</td></tr>
+    <tr><td><b>Biometric readiness exists</b></td><td class="c dot-full">●</td><td class="c dot-part">◐ display</td><td class="c dot-none">○ <b>none</b></td><td class="c dot-full">●</td><td class="c dot-part">◐ advisory</td><td class="c dot-none">○</td></tr>
+    <tr><td><b>Readiness DRIVES prescription</b></td><td class="c dot-full">●</td><td class="c dot-none">○</td><td class="c dot-none">○</td><td class="c dot-full">●</td><td class="c dot-none">○ "advises"</td><td class="c dot-none">○</td></tr>
+    <tr><td>Descent/eccentric DOMS modeling</td><td class="c dot-full">● unique</td><td class="c dot-none">○</td><td class="c dot-none">○</td><td class="c dot-none">○</td><td class="c dot-none">○</td><td class="c dot-none">○</td></tr>
+    <tr><td>Trail/ultra plan structure</td><td class="c dot-full">●</td><td class="c dot-part">◐</td><td class="c dot-none">○ 50K cap</td><td class="c dot-part">◐ exec only</td><td class="c dot-part">◐</td><td class="c dot-full">●</td></tr>
+    <tr><td>Integrated fueling prescription</td><td class="c dot-full">●</td><td class="c dot-none">○</td><td class="c dot-part">◐ editorial</td><td class="c dot-none">○</td><td class="c dot-none">○</td><td class="c dot-part">◐ free calc</td></tr>
+    <tr><td>Heat / altitude prep</td><td class="c dot-full">●</td><td class="c dot-none">○</td><td class="c dot-part">◐ heat pace</td><td class="c dot-none">○</td><td class="c dot-none">○</td><td class="c dot-none">○</td></tr>
+    <tr><td>Strength: periodized + integrated</td><td class="c dot-full">●</td><td class="c dot-part">◐</td><td class="c dot-part">◐ add-on</td><td class="c dot-full">●</td><td class="c dot-part">◐</td><td class="c dot-part">◐</td></tr>
+    <tr><td>LLM coach chat (grounded)</td><td class="c dot-full">●</td><td class="c dot-none">○</td><td class="c dot-none">○ human</td><td class="c dot-part">◐ panned</td><td class="c dot-part">◐ advisory</td><td class="c dot-part">◐ new</td></tr>
+    <tr><td>Coach can change the plan</td><td class="c dot-full">● one-tap</td><td class="c dot-none">○</td><td class="c dot-none">○</td><td class="c">n/a</td><td class="c dot-none">○ confirmed</td><td class="c">?</td></tr>
+    <tr><td>Honest advisories / feasibility</td><td class="c dot-full">●</td><td class="c dot-none">○</td><td class="c dot-none">○</td><td class="c dot-none">○</td><td class="c dot-part">◐</td><td class="c dot-part">◐ human</td></tr>
+    <tr style="background:var(--red-bg)"><td><b>Multi-event season (A/B/C, chaining)</b></td><td class="c dot-none">○ <b>single race</b></td><td class="c dot-full">● ATP</td><td class="c dot-part">◐ B-race</td><td class="c dot-part">◐ 1 primary</td><td class="c dot-full">● unltd A</td><td class="c dot-part">◐</td></tr>
+    <tr style="background:var(--red-bg)"><td><b>Running + Hyrox in one season</b></td><td class="c dot-none">○ owns both engines!</td><td class="c dot-none">○</td><td class="c dot-none">○ advice</td><td class="c dot-none">○</td><td class="c dot-none">○</td><td class="c dot-none">○</td></tr>
+    <tr style="background:var(--red-bg)"><td><b>Watch execution loop</b></td><td class="c dot-part">◐ Garmin push built</td><td class="c dot-full">●</td><td class="c dot-full">● 5 brands</td><td class="c dot-full">● native</td><td class="c dot-full">●</td><td class="c dot-part">◐</td></tr>
+    <tr style="background:var(--red-bg)"><td><b>Native mobile apps</b></td><td class="c dot-none">○ web + iOS sync</td><td class="c dot-full">●</td><td class="c dot-full">●</td><td class="c dot-full">●</td><td class="c dot-full">●</td><td class="c dot-full">●</td></tr>
+    <tr><td>Computed race pacing (course splits)</td><td class="c dot-part">◐ guidance</td><td class="c dot-part">◐</td><td class="c dot-none">○ explicit no</td><td class="c dot-full">● PacePro</td><td class="c dot-none">○</td><td class="c dot-none">○ scenarios</td></tr>
+    <tr><td>Menopause / masters tailoring</td><td class="c dot-full">● unique</td><td class="c dot-none">○</td><td class="c dot-part">◐ post-natal</td><td class="c dot-none">○</td><td class="c dot-none">○</td><td class="c dot-none">○</td></tr>
+    <tr><td>Injury accommodation</td><td class="c dot-full">●</td><td class="c dot-part">◐ human</td><td class="c dot-part">◐ manual</td><td class="c dot-none">○ no input</td><td class="c dot-part">◐</td><td class="c dot-part">◐ human</td></tr>
+    <tr><td>Multi-metric compliance grading</td><td class="c dot-full">●</td><td class="c dot-part">◐</td><td class="c dot-part">◐</td><td class="c dot-part">◐</td><td class="c dot-part">◐</td><td class="c dot-part">◐</td></tr>
+    <tr><td>Social / community</td><td class="c dot-none">○</td><td class="c dot-part">◐</td><td class="c dot-part">◐</td><td class="c dot-part">◐</td><td class="c dot-part">◐</td><td class="c dot-part">◐</td></tr>
+  </table></div>
+  <div class="callout warn"><p style="margin:0"><b>Reading the matrix:</b> Attune's column is the strongest in the <i>physiology rows</i> — and the weakest in the three highlighted <i>delivery rows</i> (multi-event, watch loop, native mobile). That is the whole strategic picture in one table.</p></div>
+</section>
+
+<section id="s4">
+  <div class="kicker"><span class="n">04</span><h2>Where Attune wins today (verified)</h2></div>
+  <div class="grid g2">
+    <div class="callout win"><h4>1 · Readiness that acts</h4><p style="margin:0">Only Garmin and Attune wire biometrics into what the athlete is told to do — and Garmin can't take an injury input, explain itself, or converse. Athletica "advises, not acts"; Runna has none (verified).</p></div>
+    <div class="callout win"><h4>2 · Descent/DOMS science</h4><p style="margin:0">Eccentric dose → kinetic curve → repeated-bout protection → load dampening. No competitor analog (Vert's Mountain Index is a progress tracker, not a recovery model).</p></div>
+    <div class="callout win"><h4>3 · Integrated trail craft</h4><p style="margin:0">Per-race fueling (g/hr + gut training), heat/altitude blocks, vert + downhill prescription, power-hiking, dress rehearsal — vs. Vert's standalone calculators, Runna's 50K cap, Garmin's total fueling absence.</p></div>
+    <div class="callout win"><h4>4 · The honest LLM coach</h4><p style="margin:0">Market-validated by counterexample: Strava/Garmin AI text is mocked for restating numbers, fixed tone, no training narrative (2026 r/Strava study). Attune's grounded-context + persona + integrity architecture is the published antidote pattern.</p></div>
+    <div class="callout win"><h4>5 · Methodology pluralism</h4><p style="margin:0">Nine cited methods with fit-based selection vs. one house algorithm everywhere else.</p></div>
+    <div class="callout win"><h4>6 · Midlife/masters depth</h4><p style="margin:0">Menopause status + symptoms + bone-loading finishers + masters recovery doctrine + evidence-humble cycle awareness. Runna's post-natal plans are the only comparable gesture in the set.</p></div>
+  </div>
+</section>
+
+<section id="s5">
+  <div class="kicker"><span class="n">05</span><h2>Ranked gaps &amp; opportunities — Witchel check inline</h2></div>
+
+  <div class="gap"><h4>G1 · Multi-event season engine (A/B/C races, recover→bridge→build chaining)</h4>
+    <p style="margin:0">The market's premium feature (TP ATP, Humango's $28.99 gate), absent in Runna/Garmin — and <b>nobody chains running + Hyrox</b>. Attune already owns both engines, post-race recovery formulas, phase-aware strength, and a real TSB engine (Friel's tier targets directly implementable). Design in §7.</p>
+    <div class="w"><span class="pill g">✅ Massive — every racer books multiple events/yr; hybrid is the fastest-growing segment</span><span class="pill g">✅ Visceral — the post-race "now what?" void; Garmin's stuck-in-recovery threads show it live</span><span class="pill g">✅ Customer words — "plan my season," "my A race"</span></div></div>
+
+  <div class="gap"><h4>G2 · Close the execution loop (watch-first delivery)</h4>
+    <p style="margin:0">Runna's moat; the industry's trust surface. Attune already pushes structured workouts to Garmin — underleveraged: surface it, extend windows, auto-resync on edit. Then Apple Watch push (WorkoutKit) + a glanceable today surface.</p>
+    <div class="w"><span class="pill g">✅ Massive — execution happens on-wrist</span><span class="pill g">✅ Visceral — nobody memorizes intervals</span><span class="pill g">✅ "Send it to my watch"</span></div></div>
+
+  <div class="gap"><h4>G3 · Onboarding as belief-building + time-to-first-value</h4>
+    <p style="margin:0">Runna's ~30-screen flow with a value preview is the category benchmark; fitness apps lose ~75%+ of users in 3 days; NN/g: ask only what changes the plan, teach in context. Attune's onboarding is information-rich but form-like; the welcome letter is a strong asset arriving late. Redesign: goal-first, live plan preview mid-flow, defer nice-to-haves into contextual asks.</p>
+    <div class="w"><span class="pill g">✅✅✅ — "show me my plan before you ask me to believe"</span></div></div>
+
+  <div class="gap"><h4>G4 · Plan realignment as first-class UI</h4>
+    <p style="margin:0">Runna's trust moment (fires only after &gt;3 misses — beatable). Silent drift is one failure mode; silent auto-change is the other (most-criticized AI pattern). Prompt + explain + one-tap is the verified sweet spot — and Attune's plan-edit proposal machinery already exists. Build: missed-workout detector → coach-authored realignment card.</p>
+    <div class="w"><span class="pill g">✅✅✅</span></div></div>
+
+  <div class="gap"><h4>G5 · Performance-adaptive pace targets</h4>
+    <p style="margin:0">Runna's one true adaptive signal ("Pace Insights"). Attune has richer inputs (compliance grades, GAP, time-in-zone) + a VDOT engine but never recalibrates targets from actuals. Opt-in, targets-only, explained.</p>
+    <div class="w"><span class="pill g">✅✅✅ — "my paces got stale"</span></div></div>
+
+  <div class="gap"><h4>G6 · Course-aware race pacing — PacePro-for-trail</h4>
+    <p style="margin:0">Garmin computes grade-adjusted split bands (road-strong, free); Vert offers finish scenarios; Runna explicitly declines. Attune has course segments + Minetti GAP + vert physics — a <b>trail</b> pace-band generator with fueling checkpoints would be category-first. Start with the 3 BA courses.</p>
+    <div class="w"><span class="pill g">✅ Massive — race day is the point</span><span class="pill g">✅ Visceral — blowing up from bad pacing</span><span class="pill g">✅ "What pace on the climbs?"</span></div></div>
+
+  <div class="gap"><h4>G7 · Intensity-distribution monitor ("gray-zone guard") + durability metric</h4>
+    <p style="margin:0">We have per-session time-in-zone + method targets; nobody in the set computes polarization compliance or aerobic decoupling for athletes. "Your easy days are too hard" is the most-quoted coaching truth in the category — Garmin's DSW praise centers on exactly this.</p>
+    <div class="w"><span class="pill g">✅✅✅</span></div></div>
+
+  <div class="gap"><h4>G8 · Readiness UX hardening</h4>
+    <p style="margin:0">Orthosomnia-safe red states (pair every red with a concrete action — the deload program exists, surface it), trend-over-number, non-color redundant encoding (~8% of men are red-green colorblind; masters-skewed), plain-language metric names at default detail level (TP renamed CTL/ATL/TSB — we already have detail levels). Cheap polish pass.</p>
+    <div class="w"><span class="pill g">✅✅</span><span class="pill a">retention more than acquisition</span></div></div>
+
+  <div class="gap"><h4>G9 · Flexible-consistency mechanics (not streaks)</h4>
+    <p style="margin:0">Rigid streaks verifiably backfire where rest is programmed (BJHP 2025; Milkman 2021). "Sessions completed vs planned this week — rest counts as compliance" + grace framing. Small feature on the existing compliance engine.</p>
+    <div class="w"><span class="pill g">✅✅✅</span></div></div>
+
+  <div class="gap"><h4>G10 · Free standalone tools as acquisition funnel</h4>
+    <p style="margin:0">Vert runs free calculators at standalone URLs as top-of-funnel. Attune's fueling/vert/heat research is deeper — publish 2–3 free tools (trail fueling planner, vert-adjusted finish predictor, race-day heat planner).</p>
+    <div class="w"><span class="pill g">✅ reach</span><span class="pill g">✅ real pre-purchase job</span><span class="pill g">✅ customer words</span></div></div>
+
+  <div class="callout info"><p style="margin:0"><b>Deliberately not ranked:</b> social feed (Strava owns it), human-coach marketplace (TP owns it), audio-guided runs (NRC gives them away), triathlon depth (TriDot/Athletica's lane).</p></div>
+</section>
+
+<section id="s6">
+  <div class="kicker"><span class="n">06</span><h2>UX/UI — the five patterns that won (2024–2026)</h2></div>
+  <div class="grid g2">
+    <div class="card"><h4>1 · Verdict-first, data underneath</h4><p class="sub" style="margin:6px 0 0">One large score/state + short narrative + progressive disclosure (WHOOP's 72-pt score, 3 tiers; Garmin Morning Report; TP's Fresh/Optimal/Overloading renames). <b>Attune:</b> has score + narrative; polish per G8.</p></div>
+    <div class="card"><h4>2 · Proactive morning narrative</h4><p class="sub" style="margin:6px 0 0">WHOOP Daily Outlook, Oura Advisor (user-selectable tone — Attune's persona editor already exceeds this), Garmin Morning Report. <b>Attune:</b> proactive pings exist; package as a true morning-report surface.</p></div>
+    <div class="card"><h4>3 · Adaptation prompts as first-class UI</h4><p class="sub" style="margin:6px 0 0">Runna's realignment prompt is the trust moment reviewers cite. <b>Attune:</b> G4.</p></div>
+    <div class="card"><h4>4 · AI text that adds context, never restates stats</h4><p class="sub" style="margin:6px 0 0">The 2026 r/Strava study's four tensions (numerical-vs-contextual, isolated-vs-narrative, fixed tone, one-voice) are design requirements. Garmin Connect+ shows the cost of shipping beneath the bar — and of paywalling before clearing it. <b>Attune:</b> architecture aligned; hold the bar.</p></div>
+    <div class="card" style="grid-column:1/-1"><h4>5 · Belief-building onboarding with value preview</h4><p class="sub" style="margin:6px 0 0">Runna: goal-first contextual questions, real-race lookup, "with/without" race-time preview, social proof clustered pre-paywall — it beat Garmin at plan creation <i>despite Garmin owning years of the athlete's data</i>. <b>Attune:</b> G3.</p></div>
+  </div>
+  <div class="card" style="margin-top:14px"><h4 style="font-size:14px;margin-bottom:8px">Design-science checklist (evidence-based)</h4>
+    <ul class="tight" style="margin-bottom:0">
+      <li>Ask only what changes the plan; teach contextually (NN/g) · first completed workout inside week one is the retention hinge (~75%+ 3-day DAU loss; day-30 ~5–12%, top ~25%).</li>
+      <li>First-class BCT objects: goals, self-monitoring, feedback, prompts, social support (PMC10545861) · <b>no rigid streaks</b> — weekly consistency with rest-as-compliance (BJHP 2025; Milkman MS 2021).</li>
+      <li>Few, smart notifications (evening preview + morning readiness); generic nudges verifiably don't move behavior.</li>
+      <li>Readiness: traffic-light + expandable factors; orthosomnia-safe reds (concrete action, trend-first) · "why this workout" one-liner w/ optional depth; never silent plan changes.</li>
+      <li>Masters accessibility: 16px+ body floor, generous targets, WCAG 4.5:1, <b>non-color redundancy on every zone/status color</b> · measure sessions-completed-as-prescribed, not DAU.</li>
+    </ul></div>
+</section>
+
+<section id="s7">
+  <div class="kicker"><span class="n">07</span><h2>Multi-event periodization — grammar, science, and the Attune Season Engine</h2></div>
+
+  <h3 style="font-size:16px;margin-bottom:10px">7.1 The converged product grammar (verified across 7 apps)</h3>
+  <ul class="tight">
+    <li>Only <b>A races</b> get a full peak + taper; <b>B races</b> get a race-week mini-taper + enforced post-race recovery; <b>C races</b> are trained through.</li>
+    <li><b>≥8 weeks between peaks</b> (TrainerRoad hard rule; TriDot guidance); A-to-A within ~32 weeks (TP).</li>
+    <li>Proximity threshold below which a secondary race is trained through: ~7–10 days (Runna) to ~2 weeks (Athletica, founder-confirmed).</li>
+    <li><b>The post-race state machine is where engines break in production</b> (Garmin stuck-in-recovery; TrainerRoad VO2-after-race). Explicit inter-event transitions are a requirement.</li>
+  </ul>
+
+  <h3 style="font-size:16px;margin:18px 0 10px">7.2 The science layer</h3>
+  <div class="tblwrap"><table>
+    <tr><th>Finding</th><th>Numbers</th><th>Source</th><th>Type</th></tr>
+    <tr><td>Residual training effects — the basis for bridging event types</td><td class="num">aerobic 30±5 d · max strength 30±5 d · glycolytic 18±4 d · strength-endurance 15±5 d · speed 5±3 d</td><td>Issurin, Sports Med 2010</td><td><span class="pill b">science</span></td></tr>
+    <tr><td>Running (not cycling) interferes with strength/power, dose-dependent; emerges ~wk 8 of concurrent overload</td><td class="num">power ES 0.55 vs 0.91</td><td>Wilson 2012 (PMID 22002517); Hickson 1980</td><td><span class="pill b">science</span></td></tr>
+    <tr><td>Maintenance doses: strength holds at 1×/wk (older adults need more — masters-relevant); aerobic holds if <b>intensity</b> preserved</td><td class="num">1×/wk · 2–4 d/wk</td><td>Bickel 2011 (PMID 21131862); Hickson 1981 (PMID 7219129)</td><td><span class="pill b">science</span></td></tr>
+    <tr><td>1–2 A races/season; taper depth by tier via TSB; post-race ~1 easy day/mile + reverse taper; 2nd peak = 1–2 wk recovery + ~8-wk compressed rebuild; tune-ups ~6/4/2 wk out</td><td class="num">TSB: A +15..+25 · B −10..0 · C &lt;−10</td><td>Friel; TrainingPeaks "The Double"; Pfitzinger</td><td><span class="pill a">convention</span></td></tr>
+    <tr><td>Hyrox: running is the dominant demand; a runner's aerobic base is the asset — the differentiating qualities (strength-endurance, glycolytic) have the <i>shortest</i> residuals → train them last</td><td class="num">~51 of ~84 min running; VO2max strongest correlate</td><td>Frontiers Physiol 2025</td><td><span class="pill b">science</span></td></tr>
+  </table></div>
+
+  <h3 style="font-size:16px;margin:18px 0 10px">7.3 Design sketch — the Attune Season Engine (half → Hyrox → marathon)</h3>
+  <div class="flow">
+    <span class="st">RACE<small>A/B/C tagged</small></span><span class="arr">→</span>
+    <span class="st">RECOVER<small>1 d/mi · reverse taper (shipped R5)</small></span><span class="arr">→</span>
+    <span class="st">BRIDGE<small>residual-aware quality swap</small></span><span class="arr">→</span>
+    <span class="st">BUILD<small>compressed · ≥8 wk to peak</small></span><span class="arr">→</span>
+    <span class="st">TAPER<small>TSB tier targets (shipped engine)</small></span><span class="arr">→</span>
+    <span class="st">RACE<small>next event</small></span>
+  </div>
+  <ul class="tight">
+    <li><b>Race calendar w/ A/B/C priorities.</b> A races get full blocks; B races get a mini-taper inside the active block + tune-up placement 4–6 wk out feeding the existing predictor rehearsal; C races get a day-type stamp.</li>
+    <li><b>Residual-aware bridges — the category-first piece.</b> Half→Hyrox: hold aerobic with 1–2 intensity touches (Hickson '81) while concentrating strength-endurance/glycolytic (shortest residuals → last). Hyrox→marathon: hold strength at 1×/wk (Bickel) while rebuilding run volume (Wilson: acceptable — strength is maintenance-only). Every component engine already exists in Attune.</li>
+    <li><b>Season-level feasibility honesty</b> — extend the shipped advisory layer: "two A races 5 weeks apart — the second gets a compressed build; consider B-tagging one" (the exact failure TrainerRoad/Athletica users hit).</li>
+    <li><b>Coach narration</b> — a SEASON context section: where the athlete is in the chain, what quality this block protects, why today serves the <i>next</i> race. No competitor's AI can explain a season.</li>
+    <li><b>Monetization:</b> the market prices this as premium (Humango $28.99/mo gate; TP Premium).</li>
+  </ul>
+</section>
+
+<section id="s8">
+  <div class="kicker"><span class="n">08</span><h2>Provenance</h2></div>
+  <div class="foot">
+    <p>Three multi-agent research passes + three targeted gap-fills (≈120 subagents). Competitor sweep: 128 claims extracted → 25 verified by 3-vote adversarial panels → 22 confirmed, 3 refuted-and-corrected (all three had <i>underestimated</i> Vert.run). UX/multi-event sweep: 4 angles × adversarial fact-check (notable corrections: Runna realignment fires after &gt;3 misses, not instantly; Fitbit gets no workout push; "20–40% progressive-disclosure" statistic is untraceable folklore — dropped; day-30 retention restated to ~5–12%). Failed coverage was re-sourced, not papered over: the first pass's verifier reported "nothing survived" on Runna/Garmin feature depth — those columns were rebuilt by dedicated agents against primary support docs.</p>
+    <p>Key primary sources: trainingpeaks.com pricing/help · press.strava.com · support.runna.com (12+ articles) · Garmin manuals/FAQ, the5krunner teardowns, Garmin forums · athletica.ai + engineering posts + forum (founder replies) · vert.run + standalone tools · Issurin Sports Med 2010 · Wilson 2012 (PMID 22002517) · Hickson 1980/1981 · Bickel 2011 (PMID 21131862) · Frontiers Physiol 2025 (Hyrox) · NN/g · Milkman, Management Science 2021 · BJHP 2025 · arXiv 2604.23830 (r/Strava AI-summary study). Attune's column ground-truthed against the codebase 2026-07-06 (absences verified by grep).</p>
+    <p><b>Limits:</b> capability rows describe what vendors market — execution quality is unverified except where user sentiment is cited; pricing is promo-cycle volatile (re-verify before external use); runnersworld.com excluded (blocks our crawler).</p>
+    <p style="margin-top:14px;color:var(--faint)">Attune.coach product research · v1.0 · 2026-07-06 · twin markdown: <code>docs/research/Competitive_Analysis_Coaching_Apps_v1.0.md</code></p>
+  </div>
+</section>
+
+</div>
+</body>
+</html>
