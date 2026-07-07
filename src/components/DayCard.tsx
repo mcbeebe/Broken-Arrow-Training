@@ -15,6 +15,7 @@ import type { InjuryStatus } from '../hooks/useOnboarding'
 import { useCoachInsight } from '../hooks/useCoachInsight'
 import { pushWorkoutToGarmin, GarminAuthError, isGarminConnected } from '../utils/garmin'
 import { buildGarminPayloadForDay } from '../engines/planGenerator/garminWorkout'
+import { recordPushed } from '../utils/garminRepush'
 import TargetVsActual from './TargetVsActual'
 import CoachDayNoteView from './CoachDayNote'
 
@@ -95,6 +96,9 @@ export default function DayCard({ day, weekNum, onTap, onLog, onSwap, onEdit, ha
     setPushMsg(null)
     try {
       await pushWorkoutToGarmin(garminPayload, athleteId)
+      // Ledger entry lets the auto re-push engine keep this day current
+      // if the plan changes later (garminRepush.repushChangedWorkouts).
+      if (isoDate) recordPushed(isoDate, garminPayload, athleteId)
       setPushStatus('sent')
       setPushMsg('Sent — syncs to your watch on next Garmin sync.')
     } catch (err) {

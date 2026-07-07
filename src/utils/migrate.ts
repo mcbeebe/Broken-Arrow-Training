@@ -37,6 +37,7 @@ const PRESERVE_PREFIXES = [
   'ba_plan_edits',
   'ba_plan_overrides',
   'ba_season_v1',
+  'ba_garmin_pushed_v1',
   'ba_manual_logs',
   'ba_journal_notes',
   'ba_day_swaps',
