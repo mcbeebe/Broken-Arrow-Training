@@ -131,22 +131,8 @@ function walkHappyPath(overrides: Partial<{
   fireEvent.click(screen.getByText(o.experience))
   clickContinue()
 
-  // Step 3b: Detail level — pre-selected from the experience answer; advance.
-  clickContinue()
-
-  // Step 4: Days per week
-  fireEvent.click(screen.getByText(`${o.daysPerWeek} Days`))
-  clickContinue()
-
-  // Step 5: Long run day OR weak station
-  if (o.raceType === 'Hyrox') {
-    fireEvent.click(screen.getByText(o.weakStation))
-  } else {
-    fireEvent.click(screen.getByText(o.longRunDay))
-  }
-  clickContinue()
-
-  // Step 6: Fitness baseline (anchor + mileage + injury)
+  // Step 4 (G3 order): Fitness baseline (anchor + mileage + injury) — pulled
+  // forward so the mid-flow preview is personal.
   const anchorSelect = screen.getByRole('combobox')
   fireEvent.change(anchorSelect, { target: { value: o.anchorOption } })
   if (o.anchorOption !== 'none') {
@@ -178,7 +164,22 @@ function walkHappyPath(overrides: Partial<{
   }
   clickContinue()
 
-  // Step 7: Equipment access (multi-select)
+  // Step 5 (G3): the live plan preview — informational, just advance.
+  clickContinue()
+
+  // Step 6: Days per week
+  fireEvent.click(screen.getByText(`${o.daysPerWeek} Days`))
+  clickContinue()
+
+  // Step 7: Long run day OR weak station
+  if (o.raceType === 'Hyrox') {
+    fireEvent.click(screen.getByText(o.weakStation))
+  } else {
+    fireEvent.click(screen.getByText(o.longRunDay))
+  }
+  clickContinue()
+
+  // Step 8: Equipment access (multi-select)
   o.equipment.forEach(label => fireEvent.click(screen.getByText(label)))
   clickContinue()
 
@@ -205,11 +206,7 @@ function walkHappyPath(overrides: Partial<{
   }
   clickContinue()
 
-  // Step 10: Wearable
-  fireEvent.click(screen.getByText(o.wearable))
-  clickContinue()
-
-  // Step 11: Personal data
+  // Step 10: Personal data
   const nameInput = screen.getByPlaceholderText('e.g. Jenn')
   fireEvent.change(nameInput, { target: { value: o.name } })
   const ageInput = screen.getByPlaceholderText('e.g. 41')
@@ -223,12 +220,20 @@ function walkHappyPath(overrides: Partial<{
     const ftpInput = screen.getByPlaceholderText(/250.*watts/)
     fireEvent.change(ftpInput, { target: { value: o.ftp } })
   }
-  // Profile advances to the optional menopause step (athletes 40+), then to the
-  // pre-submit Review step. Skip the menopause step when it appears.
+  // Profile advances to the optional menopause step (athletes 40+). Skip it
+  // when it appears.
   clickContinue()
   if (screen.queryByText(/a quick personal note/i)) {
-    clickContinue() // menopause → review (skipped, no selection)
+    clickContinue() // menopause → detail (skipped, no selection)
   }
+
+  // Step 11 (G3: prefs last): Detail level — pre-selected from experience.
+  clickContinue()
+
+  // Step 12: Wearable
+  fireEvent.click(screen.getByText(o.wearable))
+  clickContinue()
+
   clickFinish()
 
   expect(onComplete).toHaveBeenCalledTimes(1)
@@ -393,7 +398,10 @@ describe('Onboarding', () => {
       clickContinue()
       fireEvent.click(screen.getByText('Intermediate'))
       clickContinue()
-      // detail level (pre-selected from experience)
+      // baseline (G3 order) — injury is the gating answer
+      fireEvent.click(screen.getByText('No injuries'))
+      clickContinue()
+      // plan preview (informational)
       clickContinue()
       expect(screen.getByText(`${n} Days`)).toBeInTheDocument()
     })
@@ -529,10 +537,10 @@ describe('Onboarding', () => {
       fireEvent.change(screen.getByPlaceholderText(/Broken Arrow|Hyrox|Summer Fitness/i), { target: { value: 'X' } }); fillRaceContext(); clickContinue()
       fireEvent.click(screen.getByText(/^Marathon$/)); clickContinue()
       fireEvent.click(screen.getByText('Intermediate')); clickContinue()
-      clickContinue() // detail level
+      fireEvent.click(screen.getByText('No injuries')); clickContinue() // baseline (G3 order)
+      clickContinue() // plan preview
       fireEvent.click(screen.getByText('5 Days')); clickContinue()
       fireEvent.click(screen.getByText('Saturday')); clickContinue()
-      fireEvent.click(screen.getByText('No injuries')); clickContinue()
       fireEvent.click(screen.getByText('Track')); clickContinue()
 
       // On STEP_STRENGTH. No strength frequency picked yet → no question.
@@ -550,10 +558,10 @@ describe('Onboarding', () => {
       fireEvent.change(screen.getByPlaceholderText(/Broken Arrow|Hyrox|Summer Fitness/i), { target: { value: 'X' } }); fillRaceContext(); clickContinue()
       fireEvent.click(screen.getByText(/^Marathon$/)); clickContinue()
       fireEvent.click(screen.getByText('Intermediate')); clickContinue()
-      clickContinue()
+      fireEvent.click(screen.getByText('No injuries')); clickContinue() // baseline (G3 order)
+      clickContinue() // plan preview
       fireEvent.click(screen.getByText('5 Days')); clickContinue()
       fireEvent.click(screen.getByText('Saturday')); clickContinue()
-      fireEvent.click(screen.getByText('No injuries')); clickContinue()
       fireEvent.click(screen.getByText('Track')); clickContinue()
 
       fireEvent.click(screen.getByRole('button', { name: 'Strength 2x' }))
@@ -573,9 +581,7 @@ describe('Onboarding', () => {
       fireEvent.change(screen.getByPlaceholderText(/Broken Arrow|Hyrox|Summer Fitness/i), { target: { value: 'X' } }); fillRaceContext(); clickContinue()
       fireEvent.click(screen.getByText(/^Marathon$/)); clickContinue()
       fireEvent.click(screen.getByText('Intermediate')); clickContinue()
-      clickContinue()
-      fireEvent.click(screen.getByText('5 Days')); clickContinue()
-      fireEvent.click(screen.getByText('Saturday')); clickContinue()
+      // baseline comes right after experience in the G3 order
       fireEvent.click(screen.getByText('No injuries'))
       expect(screen.queryByLabelText('Injury area')).not.toBeInTheDocument()
       fireEvent.click(screen.getByText('Returning from injury'))
@@ -642,17 +648,17 @@ describe('Onboarding', () => {
       // experience
       fireEvent.click(screen.getByText('Intermediate'))
       clickContinue()
-      // detail level (pre-selected from experience)
+      if (stepName === 'baseline') return
+      // baseline (injury) — G3 order: pulled forward, before the preview
+      fireEvent.click(screen.getByText('No injuries'))
+      clickContinue()
+      // plan preview (informational)
       clickContinue()
       // days
       fireEvent.click(screen.getByText('5 Days'))
       clickContinue()
       // variant (long-run day)
       fireEvent.click(screen.getByText('Saturday'))
-      clickContinue()
-      if (stepName === 'baseline') return
-      // baseline (injury)
-      fireEvent.click(screen.getByText('No injuries'))
       clickContinue()
       if (stepName === 'equipment') return
       // equipment
@@ -731,12 +737,12 @@ describe('Onboarding', () => {
       clickContinue()
       fireEvent.click(screen.getByText('Intermediate'))
       clickContinue()
-      clickContinue()  // detail level (pre-selected)
+      fireEvent.click(screen.getByText('No injuries'))  // baseline (G3 order)
+      clickContinue()
+      clickContinue()  // plan preview
       fireEvent.click(screen.getByText('5 Days'))  // 5-day budget
       clickContinue()
       fireEvent.click(screen.getByText('Saturday'))
-      clickContinue()
-      fireEvent.click(screen.getByText('No injuries'))
       clickContinue()
       fireEvent.click(screen.getByText('Track'))
       clickContinue()
@@ -759,10 +765,10 @@ describe('Onboarding', () => {
       fireEvent.change(screen.getByPlaceholderText(/Broken Arrow|Hyrox|Summer Fitness/i), { target: { value: 'Test' } }); fillRaceContext(); clickContinue()
       fireEvent.click(screen.getByText(/^Marathon$/)); clickContinue()
       fireEvent.click(screen.getByText('Intermediate')); clickContinue()
-      clickContinue()  // detail level (pre-selected)
+      fireEvent.click(screen.getByText('No injuries')); clickContinue() // baseline (G3 order)
+      clickContinue()  // plan preview
       fireEvent.click(screen.getByText('3 Days')); clickContinue()
       fireEvent.click(screen.getByText('Saturday')); clickContinue()
-      fireEvent.click(screen.getByText('No injuries')); clickContinue()
       fireEvent.click(screen.getByText('Track')); clickContinue()
 
       // 3-day budget; pick 3x strength + 1x cross with modality → 4 extras > 3 budget → warning text.
@@ -782,21 +788,22 @@ describe('Onboarding', () => {
       fireEvent.change(screen.getByPlaceholderText(/Broken Arrow|Hyrox|Summer Fitness/i), { target: { value: 'Skyrace' } }); fillRaceContext(); clickContinue()
       fireEvent.click(screen.getByText(/^Marathon$/)); clickContinue()
       fireEvent.click(screen.getByText('Intermediate')); clickContinue()
-      clickContinue()  // detail level (pre-selected)
+      fireEvent.click(screen.getByText('Returning from injury')); clickContinue() // baseline (G3 order)
+      clickContinue()  // plan preview
       fireEvent.click(screen.getByText('5 Days')); clickContinue()
       fireEvent.click(screen.getByText('Saturday')); clickContinue()
-      fireEvent.click(screen.getByText('Returning from injury')); clickContinue()
       fireEvent.click(screen.getByText('Track')); clickContinue()
       fireEvent.click(screen.getByRole('button', { name: 'Strength 1x' }))
       fireEvent.click(screen.getByText('Some experience'))
       fireEvent.click(screen.getByRole('button', { name: 'Cross-training None' }))
       clickContinue()
       fireEvent.click(screen.getByText('Early morning')); clickContinue()
-      fireEvent.click(screen.getByText('Garmin Watch')); clickContinue()
       fireEvent.change(screen.getByPlaceholderText('e.g. Jenn'), { target: { value: 'Jenn' } })
       // Under 38 so the optional menopause step doesn't appear before review.
       fireEvent.change(screen.getByPlaceholderText('e.g. 41'), { target: { value: '37' } })
-      clickContinue()  // PROFILE → REVIEW
+      clickContinue()  // PROFILE → DETAIL (prefs last in the G3 order)
+      clickContinue()  // DETAIL (pre-selected) → WEARABLE
+      fireEvent.click(screen.getByText('Garmin Watch')); clickContinue() // → REVIEW
 
       // Review step renders the summary.
       expect(screen.getByText(/Review your plan setup/)).toBeInTheDocument()
@@ -813,21 +820,21 @@ describe('Onboarding', () => {
   })
 
   describe('progress bar', () => {
-    it('uses 13 visible steps before raceType is picked (race-distance hidden)', () => {
+    it('uses 14 visible steps before raceType is picked (race-distance hidden)', () => {
       const onComplete = vi.fn()
       const { container } = render(<Onboarding onComplete={onComplete} loadingDurationMs={0} />)
       const progressFill = container.querySelector('.bg-teal-500.rounded-full') as HTMLElement
-      // step 0 of 13 → width = 1/13 ≈ 7.69%
-      expect(progressFill.style.width).toMatch(/^7\.69/)
+      // step 0 of 14 (incl. the G3 preview step) → width = 1/14 ≈ 7.14%
+      expect(progressFill.style.width).toMatch(/^7\.14/)
     })
 
-    it('expands to 14 visible steps after raceType=trail is picked', () => {
+    it('expands to 15 visible steps after raceType=trail is picked', () => {
       const onComplete = vi.fn()
       const { container } = render(<Onboarding onComplete={onComplete} loadingDurationMs={0} />)
       fireEvent.click(screen.getByText('Trail / Ultra'))
       const progressFill = container.querySelector('.bg-teal-500.rounded-full') as HTMLElement
-      // Still on step 0 (idx 0 of 14) → 1/14 ≈ 7.14%
-      expect(progressFill.style.width).toMatch(/^7\.14/)
+      // Still on step 0 (idx 0 of 15) → 1/15 ≈ 6.67%
+      expect(progressFill.style.width).toMatch(/^6\.6/)
     })
   })
 
@@ -974,25 +981,32 @@ describe('Onboarding', () => {
       fireEvent.change(screen.getByPlaceholderText(/Broken Arrow|Hyrox|Summer Fitness/i), { target: { value: 'Race' } }); fillRaceContext(); clickContinue()
       fireEvent.click(screen.getByText(/^Marathon$/)); clickContinue()
       fireEvent.click(screen.getByText('Intermediate')); clickContinue()
-      clickContinue() // detail level (pre-selected)
+      fireEvent.click(screen.getByText('No injuries')); clickContinue() // baseline (G3 order)
+      clickContinue() // plan preview
       fireEvent.click(screen.getByText('5 Days')); clickContinue()
       fireEvent.click(screen.getByText('Saturday')); clickContinue()
-      fireEvent.click(screen.getByText('No injuries')); clickContinue()
       fireEvent.click(screen.getByText('Track')); clickContinue()
       fireEvent.click(screen.getByRole('button', { name: 'Strength None' }))
       fireEvent.click(screen.getByRole('button', { name: 'Cross-training None' }))
       clickContinue()
       fireEvent.click(screen.getByText('Early morning')); clickContinue()
-      fireEvent.click(screen.getByText('Garmin Watch')); clickContinue()
       fireEvent.change(screen.getByPlaceholderText('e.g. Jenn'), { target: { value: 'Jenn' } })
       fireEvent.change(screen.getByPlaceholderText('e.g. 41'), { target: { value: age } })
       return onComplete
     }
 
+    // G3 order puts the display prefs (detail level, wearable) AFTER the
+    // menopause step — this walks them to land on REVIEW.
+    function finishPrefs() {
+      clickContinue() // DETAIL (pre-selected from experience)
+      fireEvent.click(screen.getByText('Garmin Watch')); clickContinue() // WEARABLE → REVIEW
+    }
+
     it('hides the menopause step for athletes under 38', () => {
       walkToProfile('37')
-      clickContinue() // PROFILE → (menopause hidden) → REVIEW
+      clickContinue() // PROFILE → (menopause hidden) → DETAIL
       expect(screen.queryByText(/a quick personal note/i)).not.toBeInTheDocument()
+      finishPrefs()
       expect(screen.getByText(/review your plan setup/i)).toBeInTheDocument()
     })
 
@@ -1002,7 +1016,8 @@ describe('Onboarding', () => {
       expect(screen.getByText(/a quick personal note/i)).toBeInTheDocument()
       fireEvent.click(screen.getByText('Perimenopause'))
       fireEvent.click(screen.getByText('Hot flashes')) // follow-up appears for a real stage
-      clickContinue() // MENOPAUSE → REVIEW
+      clickContinue() // MENOPAUSE → DETAIL
+      finishPrefs()
       clickFinish()
       expect(onComplete).toHaveBeenCalledTimes(1)
       const cfg = onComplete.mock.calls[0][0] as OnboardingConfig
@@ -1013,8 +1028,9 @@ describe('Onboarding', () => {
     it('skips the menopause step when biological sex is male, regardless of age', () => {
       const onComplete = walkToProfile('58') // well past the 40 age gate
       fireEvent.click(screen.getByText('Male'))
-      clickContinue() // PROFILE → (menopause skipped for male) → REVIEW
+      clickContinue() // PROFILE → (menopause skipped for male) → DETAIL
       expect(screen.queryByText(/a quick personal note/i)).not.toBeInTheDocument()
+      finishPrefs()
       expect(screen.getByText(/review your plan setup/i)).toBeInTheDocument()
       clickFinish()
       const cfg = onComplete.mock.calls[0][0] as OnboardingConfig
@@ -1028,6 +1044,7 @@ describe('Onboarding', () => {
       clickContinue() // PROFILE → MENOPAUSE (female, 50)
       expect(screen.getByText(/a quick personal note/i)).toBeInTheDocument()
       clickContinue() // skip the selection — still optional
+      finishPrefs()
       clickFinish()
       const cfg = onComplete.mock.calls[0][0] as OnboardingConfig
       expect(cfg.sex).toBe('female')
@@ -1038,7 +1055,8 @@ describe('Onboarding', () => {
       clickContinue() // PROFILE → MENOPAUSE (age 42 ≥ 40)
       expect(screen.getByText(/a quick personal note/i)).toBeInTheDocument()
       fireEvent.click(screen.getByText('Premenopausal'))
-      clickContinue() // MENOPAUSE → REVIEW
+      clickContinue() // MENOPAUSE → DETAIL
+      finishPrefs()
       clickFinish()
       const cfg = onComplete.mock.calls[0][0] as OnboardingConfig
       expect(cfg.menopauseStatus).toBe('premenopause')
@@ -1048,7 +1066,8 @@ describe('Onboarding', () => {
       const onComplete = walkToProfile('50')
       clickContinue() // PROFILE → MENOPAUSE
       expect(getContinueButton()?.disabled).toBe(false) // optional, never gated
-      clickContinue() // MENOPAUSE → REVIEW with no selection
+      clickContinue() // MENOPAUSE → DETAIL with no selection
+      finishPrefs()
       clickFinish()
       const cfg = onComplete.mock.calls[0][0] as OnboardingConfig
       expect(cfg.menopauseStatus).toBeUndefined()
@@ -1060,6 +1079,7 @@ describe('Onboarding', () => {
       fireEvent.click(screen.getByText('Prefer not to say'))
       expect(screen.queryByText(/Noticing any of these/i)).not.toBeInTheDocument()
       clickContinue()
+      finishPrefs()
       clickFinish()
       const cfg = onComplete.mock.calls[0][0] as OnboardingConfig
       expect(cfg.menopauseStatus).toBe('prefer_not_to_say')

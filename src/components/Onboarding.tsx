@@ -19,6 +19,7 @@ import type {
 import { DETAIL_LEVELS, type DetailLevel } from '../types'
 import { parseTimeToSeconds } from '../utils/parseTime'
 import { sanitizeRaceTimeSeconds } from '../engines/planGenerator/vdot'
+import OnboardingPlanPreview from './OnboardingPlanPreview'
 
 interface Props {
   onComplete: (config: OnboardingConfig) => void
@@ -66,7 +67,21 @@ const STEP_GENERAL_CARDIO = 15
 // general-fitness steps; order comes from ALL_STEPS. Placed after PROFILE (where
 // age is entered) so the age gate has a value to read.
 const STEP_MENOPAUSE = 16
+// G3 — the belief-building moment: a real week-1 preview generated from the
+// answers so far, shown BEFORE the schedule/equipment/profile questions so
+// the athlete sees value before they finish investing.
+const STEP_PREVIEW = 17
 
+// G3 ordering (goal-first, preview mid-flow, prefs last):
+//   1. goal block — race type/name/distance (or general goal) + experience;
+//   2. fitness anchor (BASELINE) pulled forward so the preview is personal;
+//   3. PREVIEW — the live week-1 render, before 50% of questions are asked;
+//   4. plan-shaping answers that refine it (days/variant/equipment/strength/
+//      schedule/profile/menopause);
+//   5. display prefs that change no plan output (detail level, wearable) sit
+//      last, just ahead of review.
+// The golden ground-truth harness proves identical answers ⇒ identical final
+// plan regardless of this ordering (generation reads the finished config).
 const ALL_STEPS = [
   STEP_RACE_TYPE,
   STEP_RACE_NAME,
@@ -74,16 +89,17 @@ const ALL_STEPS = [
   STEP_GENERAL_GOAL,
   STEP_GENERAL_CARDIO,
   STEP_EXPERIENCE,
-  STEP_DETAIL,
+  STEP_BASELINE,
+  STEP_PREVIEW,
   STEP_DAYS,
   STEP_VARIANT,
-  STEP_BASELINE,
   STEP_EQUIPMENT,
   STEP_STRENGTH,
   STEP_SCHEDULE,
-  STEP_WEARABLE,
   STEP_PROFILE,
   STEP_MENOPAUSE,
+  STEP_DETAIL,
+  STEP_WEARABLE,
   STEP_REVIEW,
 ] as const
 
@@ -359,24 +375,61 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
       case STEP_WEARABLE: return !!wearable
       case STEP_PROFILE: return name.trim().length > 0 && age.trim().length > 0
       case STEP_MENOPAUSE: return true // fully optional — can advance with no selection
+      case STEP_PREVIEW: return true // informational — nothing to answer
       case STEP_REVIEW: return true
       default: return false
     }
   })()
 
-  const handleComplete = () => {
-    const ageNum = parseInt(age) || 30
+  const buildFitnessAnchor = (): OnboardingConfig['fitnessAnchor'] => {
     const anchorOpt = ANCHOR_OPTIONS.find(o => o.value === anchorType)!
-    let fitnessAnchor: OnboardingConfig['fitnessAnchor']
     if (anchorType !== 'none') {
       if (anchorOpt.kind === 'time') {
         const secs = parseTimeToSeconds(anchorTime)
-        if (secs) fitnessAnchor = { type: anchorType, valueSeconds: secs }
+        if (secs) return { type: anchorType, valueSeconds: secs }
       } else if (anchorOpt.kind === 'bpm') {
         const bpm = parseInt(anchorBpm)
-        if (bpm > 0) fitnessAnchor = { type: anchorType, bpm }
+        if (bpm > 0) return { type: anchorType, bpm }
       }
     }
+    return undefined
+  }
+
+  // Provisional config for the mid-flow preview (G3): the answers so far
+  // plus neutral defaults for everything not yet asked. Assembled only on
+  // the preview step — nothing is saved, and the final config is built
+  // exclusively by handleComplete from the full answer set.
+  const provisionalConfig: OnboardingConfig | null =
+    step === STEP_PREVIEW && raceType && experience
+      ? {
+          raceType,
+          raceName: raceName.trim() || 'Your race',
+          raceDate,
+          raceDistance: showsDistanceStep ? (raceDistance ?? undefined) : undefined,
+          generalGoal: showsGoalStep ? (generalGoal ?? undefined) : undefined,
+          cardioModality: showsGoalStep ? (cardioModality ?? undefined) : undefined,
+          raceDescription: raceDescription.trim() || undefined,
+          athleteGoal: athleteGoal.trim() || undefined,
+          goalRaceTimeSeconds: showsDistanceStep && raceDistance
+            ? (sanitizeRaceTimeSeconds(parseTimeToSeconds(goalRaceTime), RACE_DISTANCE_MILES[raceDistance]) ?? undefined)
+            : undefined,
+          experienceLevel: experience,
+          detailLevel: effectiveDetail,
+          trainingDaysPerWeek: daysPerWeek ?? 4,
+          wearable: 'none',
+          athleteName: name.trim(),
+          age: parseInt(age) || 40,
+          maxHR: maxHR ? parseInt(maxHR) : 220 - (parseInt(age) || 40),
+          fitnessAnchor: buildFitnessAnchor(),
+          currentWeeklyMileage: weeklyMileage ? parseFloat(weeklyMileage) : undefined,
+          injuryStatus: injury ?? undefined,
+          completedAt: '',
+        }
+      : null
+
+  const handleComplete = () => {
+    const ageNum = parseInt(age) || 30
+    const fitnessAnchor = buildFitnessAnchor()
 
     const config: OnboardingConfig = {
       raceType: raceType!,
@@ -788,6 +841,21 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
                 )}
               </div>
             </div>
+          </StepContainer>
+        )}
+
+        {step === STEP_PREVIEW && (
+          <StepContainer
+            title="Here's your plan taking shape"
+            subtitle="A real preview built from your answers — not a template"
+          >
+            {provisionalConfig ? (
+              <OnboardingPlanPreview config={provisionalConfig} />
+            ) : (
+              <p className="text-sm text-slate-500">
+                Keep going — your plan takes shape from the next few answers.
+              </p>
+            )}
           </StepContainer>
         )}
 
