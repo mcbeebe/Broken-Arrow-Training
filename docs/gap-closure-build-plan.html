@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Close &amp; Win — the G1–G10 Build Plan · Attune.coach</title>
+<style>
+  :root{
+    --ink:#0f172a; --body:#334155; --muted:#64748b; --faint:#94a3b8;
+    --line:#e5e9f0; --bg:#f7f8fa; --card:#ffffff;
+    --teal:#0d9488; --teal-d:#0f766e; --emerald:#047857; --emerald-bg:#ecfdf5; --emerald-line:#a7f3d0;
+    --amber:#b45309; --amber-bg:#fffbeb; --amber-line:#fde68a;
+    --red:#b91c1c; --red-bg:#fef2f2; --red-line:#fecaca;
+    --blue:#1d4ed8; --blue-bg:#eff6ff; --violet:#6d28d9; --violet-bg:#f5f3ff;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--bg);color:var(--body);
+    font:15px/1.62 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;}
+  .wrap{max-width:1060px;margin:0 auto;padding:0 22px 80px}
+  h1,h2,h3,h4{color:var(--ink);line-height:1.25;margin:0}
+  a{color:var(--teal-d);text-decoration:none}
+  a:hover{text-decoration:underline}
+  code{font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace;font-size:.86em;
+    background:#f1f5f9;border:1px solid #e2e8f0;border-radius:5px;padding:.5px 5px;color:#0f172a}
+  header.cover{background:linear-gradient(135deg,#0f172a 0%,#155e63 100%);color:#fff;
+    border-radius:0 0 22px 22px;padding:46px 22px 40px;margin-bottom:30px}
+  header.cover .inner{max-width:1060px;margin:0 auto;padding:0}
+  .brand{display:flex;align-items:center;gap:9px;font-weight:700;letter-spacing:.2px;margin-bottom:22px;color:#cbeae6}
+  .brand .dot{width:11px;height:11px;border-radius:3px;background:#34d399;display:inline-block}
+  .eyebrow{text-transform:uppercase;letter-spacing:2.4px;font-size:11.5px;font-weight:700;color:#7dd3c8;margin-bottom:12px}
+  header.cover h1{color:#fff;font-size:33px;letter-spacing:-.4px;max-width:26ch}
+  header.cover p.lede{color:#d7e3e6;font-size:16px;margin:14px 0 0;max-width:78ch}
+  .meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:22px}
+  .tag{background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.18);color:#eaf3f3;
+    border-radius:999px;padding:5px 12px;font-size:12px;font-weight:500}
+  .tag.lime{background:rgba(52,211,153,.16);border-color:rgba(52,211,153,.4);color:#bbf7d0}
+  nav.toc{display:flex;flex-wrap:wrap;gap:6px 16px;padding:14px 18px;background:var(--card);
+    border:1px solid var(--line);border-radius:12px;margin-bottom:30px;font-size:13px}
+  nav.toc a{color:var(--muted);font-weight:600}
+  nav.toc a:hover{color:var(--teal-d)}
+  nav.toc b{color:var(--faint);font-weight:700;margin-right:2px}
+  section{margin:0 0 34px}
+  .kicker{display:flex;align-items:baseline;gap:11px;margin-bottom:14px;padding-bottom:9px;border-bottom:2px solid var(--line)}
+  .kicker .n{font-family:"SF Mono",monospace;font-size:13px;font-weight:700;color:var(--teal)}
+  .kicker h2{font-size:21px;letter-spacing:-.2px}
+  p{margin:0 0 13px}
+  .sub{color:var(--muted);font-size:14px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px 20px}
+  .grid{display:grid;gap:14px}
+  .g2{grid-template-columns:1fr 1fr}
+  @media(max-width:760px){.g2{grid-template-columns:1fr}}
+  .callout{border-radius:12px;padding:16px 18px;border:1px solid var(--line);background:var(--card);margin-bottom:14px}
+  .callout.win{background:var(--emerald-bg);border-color:var(--emerald-line)}
+  .callout.warn{background:var(--amber-bg);border-color:var(--amber-line)}
+  .callout.risk{background:var(--red-bg);border-color:var(--red-line)}
+  .callout.info{background:var(--blue-bg);border-color:#bfdbfe}
+  .callout h4{font-size:14px;margin-bottom:6px}
+  table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);
+    border-radius:12px;overflow:hidden;font-size:13.5px}
+  .tblwrap{overflow-x:auto;border-radius:12px;margin-bottom:14px}
+  th{background:#f1f5f9;color:var(--ink);text-align:left;font-size:12px;text-transform:uppercase;
+    letter-spacing:.6px;padding:9px 11px;border-bottom:2px solid var(--line);white-space:nowrap}
+  td{padding:9px 11px;border-bottom:1px solid var(--line);vertical-align:top}
+  tr:last-child td{border-bottom:none}
+  td.c{text-align:center;white-space:nowrap}
+  .pill{display:inline-block;border-radius:999px;padding:2px 9px;font-size:11px;font-weight:700;letter-spacing:.3px}
+  .pill.g{background:var(--emerald-bg);color:var(--emerald);border:1px solid var(--emerald-line)}
+  .pill.a{background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-line)}
+  .pill.r{background:var(--red-bg);color:var(--red);border:1px solid var(--red-line)}
+  .pill.b{background:var(--blue-bg);color:var(--blue);border:1px solid #bfdbfe}
+  .pill.v{background:var(--violet-bg);color:var(--violet);border:1px solid #ddd6fe}
+  .gap{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--teal);
+    border-radius:10px;padding:15px 18px;margin-bottom:12px}
+  .gap h4{font-size:15px;margin-bottom:6px}
+  .gap .w{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 0}
+  .flow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:14px 0}
+  .flow .st{background:#0f172a;color:#e2f5f1;border-radius:9px;padding:9px 13px;font-size:12.5px;
+    font-weight:700;letter-spacing:.3px;font-family:"SF Mono",monospace}
+  .flow .st small{display:block;color:#7dd3c8;font-weight:500;font-size:10.5px;letter-spacing:.2px;margin-top:2px}
+  .flow .arr{color:var(--faint);font-weight:700}
+  .foot{border-top:2px solid var(--line);padding-top:18px;color:var(--muted);font-size:12.5px}
+  .num{font-family:"SF Mono",monospace}
+  ul.tight{margin:6px 0 12px;padding-left:20px}
+  ul.tight li{margin-bottom:6px}
+  .wave{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin-bottom:12px}
+  .wave h3{font-size:15.5px;margin-bottom:8px}
+  .wave .wv{font-family:"SF Mono",monospace;font-size:11.5px;color:var(--teal);font-weight:700;letter-spacing:1px;text-transform:uppercase}
+</style>
+</head>
+<body>
+<header class="cover"><div class="inner">
+  <div class="brand"><span class="dot"></span> Attune.coach — Product &amp; Engineering</div>
+  <div class="eyebrow">Gap-Closure Build Plan · v1.0 · July 7, 2026</div>
+  <h1>Close &amp; Win — the G1–G10 Build Plan</h1>
+  <p class="lede">The 10 ranked strategic gaps from the July 2026 competitive analysis, turned into buildable specs and sequenced into <b>12 PRs across 3 waves</b>. Every gap has two bars: <b>Close</b> (parity with the market benchmark) and <b>Win</b> (the verified differentiator that beats the named competitor). The two centerpieces: the <b>multi-race Season Engine</b> (half&nbsp;marathon → Hyrox → marathon in one chained plan — no app on the market can represent it) and the <b>UX/UI conformance workstream</b> (the five patterns that won 2024–2026, enforced with tests).</p>
+  <div class="meta">
+    <span class="tag lime">12 PRs · 3 waves · 14 specs</span>
+    <span class="tag">Every spec: story · acceptance · L1–L4 tests · Witchel</span>
+    <span class="tag">8 locked architecture decisions</span>
+    <span class="tag">Grounded in verified code seams</span>
+    <span class="tag">Twin: gap-closure-build-plan.md</span>
+  </div>
+</div></header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <a href="#s0"><b>0</b> The plan in one paragraph</a>
+  <a href="#s1"><b>1</b> Close vs. Win ledger</a>
+  <a href="#s2"><b>2</b> The Season Engine</a>
+  <a href="#s3"><b>3</b> UX/UI workstream</a>
+  <a href="#s4"><b>4</b> The 14 specs</a>
+  <a href="#s5"><b>5</b> PR rollout — 3 waves</a>
+  <a href="#s6"><b>6</b> Architecture decisions</a>
+  <a href="#s7"><b>7</b> Testing &amp; traceability</a>
+  <a href="#s8"><b>8</b> Risks &amp; monetization</a>
+</nav>
+
+<section id="s0">
+  <div class="kicker"><span class="n">§0</span><h2>The plan in one paragraph</h2></div>
+  <div class="callout info">
+    <p style="margin:0">Wave 1 ships <b>four user-visible trust wins in weeks, not months</b> — week-batch Garmin push with auto re-push on every plan edit (nobody in the market re-pushes on adaptation), a realignment card that fires at 1–2 misses (Runna waits for &gt;3), readiness reds that always carry a one-tap action, and three free public calculators as the acquisition funnel — while the Season Engine's data model lands invisibly underneath. Wave 2 builds the centerpiece: a derived-state season engine that chains <b>RACE → RECOVER → BRIDGE → BUILD → TAPER</b> with residual-aware bridges (Issurin · Bickel · Hickson · Friel, all pinned in tests), able to periodize a running race and a Hyrox in one season — which no app on the market can represent. Wave 3 stacks the differentiators on top: GAP-corrected adaptive pace targets, a trail race-pacing card with fueling checkpoints that Garmin doesn't produce and Runna explicitly declines, a gray-zone guard, and Apple WorkoutKit from the same structured-workout source as Garmin.</p>
+  </div>
+  <div class="callout warn">
+    <h4>The non-negotiable</h4>
+    <p style="margin:0">A feature is "done" only when a test asserts the <b>athlete-facing output changes correctly and conditionally</b> — a three-race season chains through explicit blocks <i>and</i> a single-race athlete's plan is byte-identical to today's; a missed key session produces a realignment card within 24&nbsp;h <i>and</i> a completed one produces nothing; a plan edit re-pushes changed workouts <i>and</i> untouched days are not re-sent. For delivery gaps: <b>the workout reaches the wrist/screen and never goes stale.</b></p>
+  </div>
+</section>
+
+<section id="s1">
+  <div class="kicker"><span class="n">§1</span><h2>The Close vs. Win ledger</h2></div>
+  <p class="sub">Close = parity with the benchmark. Win = the differentiator, with a measurable win condition naming the competitor it beats.</p>
+  <div class="tblwrap"><table>
+    <tr><th>Gap</th><th>Close (parity)</th><th>Win (differentiator)</th><th>Win condition vs. benchmark</th></tr>
+    <tr><td><b>G1</b> season</td><td>A/B/C calendar + post-race recovery (TP ATP parity)</td><td><b>Residual-aware bridges chaining running + Hyrox</b>; derived state machine; coach narrates the season</td><td>A valid half→Hyrox→marathon season <b>no app can represent</b>; post-race state can never wedge (vs. Garmin's stuck-in-recovery threads)</td></tr>
+    <tr><td><b>G2</b> execution</td><td>Week-batch push to Garmin, surfaced (Runna pushes 2 wks)</td><td><b>Auto re-push on every edit — the wrist is never stale</b>; Apple WorkoutKit from one intermediate</td><td>Nobody re-pushes on adaptation; stale window after an applied edit ≈ 0</td></tr>
+    <tr><td><b>G3</b> onboarding</td><td>Goal-first flow + value preview (Runna benchmark)</td><td><b>Live personalized week-1 preview</b> — Runna previews a template, we preview <i>your</i> plan</td><td>Preview before 50% of questions; identical answers ⇒ identical plan (golden guard)</td></tr>
+    <tr><td><b>G4</b> realignment</td><td>Prompt + explain + one-tap (Runna parity)</td><td>Fires at <b>1 key / 2 any misses</b> (Runna: &gt;3), coach-authored why, undo, <b>chained to watch re-push</b></td><td>Offer within 24 h of the qualifying miss; zero silent changes (guard test)</td></tr>
+    <tr><td><b>G5</b> paces</td><td>Recalibration from actuals (Runna Pace Insights parity)</td><td><b>GAP-corrected trail inputs</b> + compliance filtering + evidence-cited proposal; opt-in, targets-only</td><td>Recalibrates from <i>trail</i> runs via Minetti GAP — Runna's signal is road-only</td></tr>
+    <tr><td><b>G6</b> race pacing</td><td>Grade-adjusted split bands (Garmin PacePro parity)</td><td>Trail Minetti bands + <b>fueling checkpoints</b> + heat/altitude cautions, calibrated to the adaptive VDOT — 3 BA courses first</td><td>A pacing+fueling card <b>Garmin doesn't produce, Runna explicitly declines</b></td></tr>
+    <tr><td><b>G7</b> intensity</td><td>Weekly easy/hard truth in plain language (Garmin DSW-adjacent)</td><td><b>Polarization compliance vs. the athlete's own method's target</b> + decoupling durability trend</td><td>Nobody computes method-specific distribution <i>compliance</i>; "easy days too hard" with receipts</td></tr>
+    <tr><td><b>G8</b> readiness UX</td><td>Verdict-first, trend-first, plain language (WHOOP/TP)</td><td><b>Every red pairs with a one-tap action</b> (the deload program exists — surface it); orthosomnia-safe</td><td>Audit 100%: action-paired reds, non-color redundancy, plain-language defaults</td></tr>
+    <tr><td><b>G9</b> consistency</td><td>Weekly completed-vs-planned view</td><td><b>Rest-as-compliance + grace, no streaks by design</b> (BJHP 2025; Milkman 2021)</td><td>Planned rest renders ✓; a negative test asserts no streak counter exists</td></tr>
+    <tr><td><b>G10</b> free tools</td><td>Free calculators at public URLs (Vert.run parity)</td><td><b>Deeper engines behind them</b> (Minetti prediction, g/hr fueling tiers, heat protocol) + CTA funnel</td><td>3 tools live unauthenticated, <b>zero new API surface</b>; tool→signup measurable</td></tr>
+  </table></div>
+</section>
+
+<section id="s2">
+  <div class="kicker"><span class="n">§2</span><h2>Centerpiece 1 — the multi-race Season Engine (G1)</h2></div>
+  <p>The market's premium feature (TrainingPeaks ATP; Humango's $28.99/mo tier), absent in Runna and Garmin — and <b>nobody periodizes running + Hyrox in one season</b>. Attune already owns both engines, the post-race recovery formulas, phase-aware strength, and a real TSB engine. The Season Engine chains them:</p>
+  <div class="flow">
+    <span class="st">RACE<small>A/B/C priority</small></span><span class="arr">→</span>
+    <span class="st">RECOVER<small>shipped R5 · reverse taper</small></span><span class="arr">→</span>
+    <span class="st">BRIDGE<small>residual-aware · category-first</small></span><span class="arr">→</span>
+    <span class="st">BUILD<small>compressed · ≥8 wk to peak</small></span><span class="arr">→</span>
+    <span class="st">TAPER<small>TSB tiers A +15..25 · B −10..0</small></span><span class="arr">→</span>
+    <span class="st">RACE<small>next event</small></span>
+  </div>
+  <div class="grid g2">
+    <div class="card"><h4>The science, pinned in tests</h4>
+      <ul class="tight">
+        <li><b>Issurin residuals</b> (Sports Med 2010): aerobic 30±5 d · max strength 30±5 d · glycolytic 18±4 d · strength-endurance 15±5 d · speed 5±3 d — bridge content chosen by <i>next-race demands vs. decaying residuals</i>.</li>
+        <li><b>Bickel 2011:</b> strength holds at 1×/wk once built → the Hyrox→marathon bridge keeps exactly one strength day while run volume rebuilds.</li>
+        <li><b>Hickson 1981:</b> aerobic holds on 2–4 d/wk if intensity is preserved → the half→Hyrox bridge keeps 1–2 intensity touches while strength-endurance/glycolytic (15–18 d residuals) train <i>last</i>.</li>
+        <li><b>Friel taper tiers via TSB:</b> A +15..+25 · B −10..0 · C trained through — computable today from the shipped performance engine.</li>
+      </ul>
+    </div>
+    <div class="card"><h4>The design decision that beats Garmin</h4>
+      <p style="margin-bottom:8px">Season state is <b>derived, never stored</b> — recomputed from <code>(races, today, loggedActuals)</code> on every read. No mutable "current state" means the engine <b>cannot wedge</b>: the explicit answer to Garmin's documented post-race "stuck in recovery" failures.</p>
+      <p style="margin:0">Plus <b>season-level feasibility honesty</b>: "two A races 5 weeks apart — the second gets a compressed build; consider B-tagging one" (the exact failure TrainerRoad/Athletica users hit), and a <b>SEASON coach section</b> — no competitor's AI can explain a season.</p>
+    </div>
+  </div>
+</section>
+
+<section id="s3">
+  <div class="kicker"><span class="n">§3</span><h2>Centerpiece 2 — the UX/UI conformance workstream (§6 of the analysis)</h2></div>
+  <p class="sub">The five patterns that won 2024–2026, mapped to owning specs — plus the design-science checklist enforced as standing requirements with tests (⚙).</p>
+  <div class="tblwrap"><table>
+    <tr><th>Winning pattern (benchmark)</th><th>Lands in</th><th>Result</th></tr>
+    <tr><td>Verdict-first, data-underneath (WHOOP · Garmin Morning Report · TP renames)</td><td class="c"><span class="pill b">G8</span></td><td>Action-paired reds, trend-first, plain-language defaults ⚙</td></tr>
+    <tr><td>Proactive morning narrative (WHOOP Daily Outlook · Oura Advisor)</td><td class="c"><span class="pill b">G2b</span></td><td>The shipped 6 AM push becomes a named <b>Morning Report</b> deep-linking to a today-first surface</td></tr>
+    <tr><td>Adaptation prompts as first-class UI (Runna realignment)</td><td class="c"><span class="pill b">G4</span></td><td>Tighter threshold than Runna + undo + watch re-push ⚙</td></tr>
+    <tr><td>AI text adds context, never restates stats (2026 r/Strava study)</td><td class="c"><span class="pill v">standing</span></td><td>Every new coach section (SEASON, RACE_PACING, INTENSITY) is L4 fixture-honesty tested ⚙</td></tr>
+    <tr><td>Belief-building onboarding with value preview (Runna)</td><td class="c"><span class="pill b">G3</span></td><td>Live <i>personalized</i> week-1 preview beats Runna's template preview ⚙</td></tr>
+  </table></div>
+  <div class="callout info"><h4>Design-science checklist (each row auditable, most with tests)</h4>
+    <p style="margin:0">Ask only what changes the plan (⚙ question→plan-input coverage map) · time-to-first-value inside week 1 · BCT first-class objects (goals→G1 calendar, self-monitoring→G7/G9, feedback→G5 evidence proposals, prompts→G4) · <b>no rigid streaks</b> (⚙ negative guard) · few smart notifications (morning report + evening preview only — no new generic nudges anywhere in this plan) · orthosomnia-safe reds (⚙) · "why this workout" one-liner, never silent plan changes (⚙ plan-hash guards in G4 and G5) · masters accessibility: 16px+ body, WCAG 4.5:1, non-color redundancy on every zone/status color (⚙) · measure sessions-completed-as-prescribed, not DAU.</p>
+  </div>
+</section>
+
+<section id="s4">
+  <div class="kicker"><span class="n">§4</span><h2>The 14 specs (summaries — full specs in the markdown twin)</h2></div>
+
+  <div class="gap"><h4>G1a — Season Engine: state machine + residual-aware bridges <span class="pill r">L</span> <span class="pill v">PR-6</span></h4>
+    <p style="margin:0">Pure-TS <code>src/engines/season/</code>: <code>planSeason(races, config, today)</code> chains RECOVER (wraps shipped R5 formulas into generated weeks) → BRIDGE (Issurin residual table + Bickel/Hickson maintenance doses select content by next-race demands) → BUILD (existing generators, compressed runway, ≥8 wk to peak) → TAPER (Friel TSB tiers). B races: mini-taper + tune-ups 4–6 wk out; C races trained through; &lt;10-day proximity rule. Season feasibility advisories. Guard: a single-race plan is byte-identical to today's.</p>
+    <div class="w"><span class="pill g">✅ massive — every racer books multiple events; hybrid is fastest-growing</span><span class="pill g">✅ visceral — the post-race "now what?" void</span><span class="pill g">✅ "plan my season" · "my A race"</span></div></div>
+
+  <div class="gap"><h4>G1b — Season surface: race calendar + multi-race onboarding + SEASON coach narration <span class="pill a">M/L</span> <span class="pill v">PR-7</span></h4>
+    <p style="margin:0">A/B/C race calendar with block-timeline strip; B-race taper + tune-up stamps in the plan; onboarding gains "add another race?"; <code>build_context_block</code> gains a SEASON section — the coach explains why today serves the <i>next</i> race. Single-race athletes see no season UI (guard).</p></div>
+
+  <div class="gap"><h4>G2a — Garmin push UX: week batch + auto re-push on edit <span class="pill g">S/M</span> <span class="pill v">PR-2 · ship first</span></h4>
+    <p style="margin:0">"Send week to watch" batching the shipped payload builder; pushed-day ledger diffs on every applied plan edit (one seam catches coach proposals, realignment, repace, season re-chain) and re-pushes exactly the changed days. Offered at onboarding-complete and after every applied proposal.</p>
+    <div class="w"><span class="pill g">✅ execution happens on-wrist</span><span class="pill g">✅ "my watch still has the old workout"</span><span class="pill g">✅ "send it to my watch"</span></div></div>
+
+  <div class="gap"><h4>G4 — Realignment card at 1 key / 2 any misses <span class="pill a">M</span> <span class="pill v">PR-3</span></h4>
+    <p style="margin:0">Wires the shipped detectors (<code>skipped_workout</code>, <code>compliance_drift</code>) to author plan-edit proposals rendered as the shipped ProposalCard (Apply / Modify / Keep + undo + why). Never silent (plan-hash guard); "keep" suppresses for the week; applying re-pushes to the watch.</p></div>
+
+  <div class="gap"><h4>G3 — Onboarding as belief-building: goal-first + live personalized preview <span class="pill a">M/L</span> <span class="pill v">PR-G3</span></h4>
+    <p style="margin:0">Race/goal first; after ~5 questions a real generated week-1 preview + top-3 method match renders and visibly refines as questions continue; coach letter moves earlier; every non-plan-changing question deferred to contextual asks (NN/g). Golden harness proves identical answers ⇒ identical plan.</p></div>
+
+  <div class="gap"><h4>G5 — Performance-adaptive pace targets (trail-true) <span class="pill a">M</span> <span class="pill v">PR-8</span></h4>
+    <p style="margin:0">Rolling effective-VDOT from logged actuals — compliance-grade filtered, HR-compliant, <b>GAP-corrected for trail</b> (the input Runna doesn't have). Delivered only as an evidence-cited proposal ("your last 3 tempos ran 8 s/mi fast at compliant HR"); apply ⇒ <code>repace.ts</code> rewrites future targets only. Opt-in, targets-only, never restructures.</p></div>
+
+  <div class="gap"><h4>G6 — Course-aware trail pace bands + fueling checkpoints <span class="pill a">M/L</span> <span class="pill v">PR-9</span></h4>
+    <p style="margin:0">Per-segment grade-adjusted bands for the 3 Broken Arrow courses through Minetti cost, calibrated to the athlete's adaptive VDOT, with power-hike flags, fueling checkpoints summing to the race g/hr target, and heat/altitude cautions — a race card in race week + RACE_PACING coach section. Unmatched course ⇒ absent (guard).</p></div>
+
+  <div class="gap"><h4>G7 — Gray-zone guard + durability metric <span class="pill a">M</span> <span class="pill v">PR-10</span></h4>
+    <p style="margin:0">Weekly easy/hard split vs. a new per-method <code>intensityTarget</code> in all 9 method files ("Koop's plan wants your easy days easy: 82% target, you ran 61%"); aerobic decoupling (GAP-corrected pace:HR halves) on long runs → durability trend; INTENSITY coach section.</p></div>
+
+  <div class="gap"><h4>G8 — Readiness UX hardening <span class="pill g">S</span> <span class="pill v">PR-4</span></h4>
+    <p style="margin:0">Every red pairs with a one-tap concrete action (the deload program and daily adjustment already exist — make them the CTA); trend arrows everywhere; uncertainty framing; the two known color-only offenders fixed; plain-language defaults confirmed at every render.</p></div>
+
+  <div class="gap"><h4>G9 — Flexible consistency, no streaks <span class="pill g">S</span> <span class="pill v">PR-4</span></h4>
+    <p style="margin:0">"N of M sessions — rest days count" as the headline metric (planned rest already renders ✓); grace framing (1 flexed session doesn't fail the week); 4-week trend. Design rule encoded as a test: no streak counter, ever.</p></div>
+
+  <div class="gap"><h4>G10 — Free public calculators as the funnel <span class="pill a">M</span> <span class="pill v">PR-5</span></h4>
+    <p style="margin:0">Trail fueling planner, vert-adjusted finish predictor, race-day heat planner — pure-client Vite entries sharing the in-app engines (no copies), zero API calls (tested), shareable results, "get the full plan" CTA with referral param through signup.</p></div>
+
+  <div class="gap"><h4>G2b — Today surface + Morning Report <span class="pill g">S/M</span> <span class="pill v">PR-11</span></h4>
+    <p style="margin:0">Summary hardened into a today-first glanceable screen (readiness verdict → today's workout → "why this workout" one-liner); the shipped 6 AM push becomes the Morning Report deep-linking to it; the 8 PM push becomes tomorrow's evening preview; PWA shortcuts. Native widgets explicitly deferred.</p></div>
+
+  <div class="gap"><h4>G2c — Apple WorkoutKit push <span class="pill r">L</span> <span class="pill v">PR-11</span></h4>
+    <p style="margin:0">First factor a platform-neutral <code>structuredWorkout.ts</code> intermediate out of the Garmin builder (Garmin provably unchanged via payload snapshots), then WorkoutKit (iOS 17+) composes the same steps for the watch; auto re-push reuses the G2a diff. TestFlight-internal first; App Store review is an explicit external dependency.</p></div>
+</section>
+
+<section id="s5">
+  <div class="kicker"><span class="n">§5</span><h2>PR rollout — 12 PRs in 3 waves</h2></div>
+  <div class="wave"><span class="wv">Wave 1 · momentum + foundation</span>
+    <h3>Four user-visible trust wins ship while the season foundation lands invisibly</h3>
+    <p style="margin:0"><b>PR-1</b> season data model + golden personas (zero behavior change) · <b>PR-2</b> Garmin week push + auto re-push · <b>PR-3</b> realignment card · <b>PR-4</b> readiness hardening + flexible consistency · <b>PR-5</b> free calculators · <b>PR-G3</b> onboarding reorder + live preview (isolated — golden harness proves plan-identity).</p></div>
+  <div class="wave"><span class="wv">Wave 2 · the strategic centerpiece</span>
+    <h3>The Season Engine, decomposed</h3>
+    <p style="margin:0"><b>PR-6</b> state machine + residual-aware bridges (engine only) · <b>PR-7</b> season UI + multi-race onboarding + SEASON coach section · <b>PR-8</b> adaptive pace recalibration (feeds Wave 3).</p></div>
+  <div class="wave"><span class="wv">Wave 3 · differentiators on top</span>
+    <h3>The race-day and platform wins</h3>
+    <p style="margin:0"><b>PR-9</b> trail pace bands + fueling checkpoints (needs PR-8's calibrated VDOT) · <b>PR-10</b> intensity monitor (parallel) · <b>PR-11</b> today/morning surface + Apple WorkoutKit (external gatekeepers last).</p></div>
+  <div class="flow">
+    <span class="st">PR-1</span><span class="arr">→</span><span class="st">PR-2</span><span class="arr">→</span><span class="st">PR-3</span><span class="arr">→</span><span class="st">PR-4</span><span class="arr">→</span><span class="st">PR-5 ∥ PR-G3</span><span class="arr">→</span><span class="st">PR-6</span><span class="arr">→</span><span class="st">PR-7</span><span class="arr">→</span><span class="st">PR-8</span><span class="arr">→</span><span class="st">PR-9 ∥ PR-10</span><span class="arr">→</span><span class="st">PR-11</span>
+  </div>
+</section>
+
+<section id="s6">
+  <div class="kicker"><span class="n">§6</span><h2>The eight locked architecture decisions</h2></div>
+  <div class="grid g2">
+    <div class="card"><h4>D1 · Season model, plan untouched</h4><p style="margin:0"><code>Season{races, blocks}</code> is new top-level state; <code>TrainingPlan</code> stays the unit of generation/rendering tagged <code>seasonBlockId</code>. A single-race athlete is the degenerate one-race season — ~90 existing test files, compliance, push, and coach snapshot untouched.</p></div>
+    <div class="card"><h4>D2 · Derived, never stored, state</h4><p style="margin:0">The block machine recomputes from <code>(races, today, actuals)</code> on every read — no stored state to wedge. The anti-Garmin decision.</p></div>
+    <div class="card"><h4>D3 · Regeneration never destroys history</h4><p style="margin:0">Past weeks immutable; every regeneration splices future weeks only and flows through the one atomic proposal+undo write seam.</p></div>
+    <div class="card"><h4>D4 · Pace write-back via the rezone seam</h4><p style="margin:0"><code>rezone.ts</code> (HR strings) gets a <code>repace.ts</code> sibling for pace strings; <code>calibratedVdot</code> carries provenance; opt-in only.</p></div>
+    <div class="card"><h4>D5 · One workout source, every watch</h4><p style="margin:0">A platform-neutral structured-workout intermediate factored from the Garmin builder; Garmin and Apple render from it — a third platform is a renderer, not a rewrite.</p></div>
+    <div class="card"><h4>D6 · Public calculators are pure-client</h4><p style="margin:0">Extra Vite HTML entries, zero API calls — the MULTI_USER_TODO auth/rate-limit blockers stay out of the critical path. A calculator needing an API is out of scope by rule.</p></div>
+    <div class="card"><h4>D7 · Vercel 12-function standing rule</h4><p style="margin:0">No PR adds a serverless function; new behavior multiplexes into existing action switches.</p></div>
+    <div class="card"><h4>D8 · Coach sections follow the shipped pattern</h4><p style="margin:0">SEASON, RACE_PACING, INTENSITY join the ~20 named sections via <code>buildCoachSnapshot → build_context_block</code>, each locked by an L4 fixture-honesty test.</p></div>
+  </div>
+</section>
+
+<section id="s7">
+  <div class="kicker"><span class="n">§7</span><h2>Testing &amp; traceability (the bar every PR clears)</h2></div>
+  <p><b>L1</b> science math pinned to fact-checked values · <b>L2</b> output-behavioral with a mandatory negative guard (single race ⇒ no season; completed workout ⇒ no ping; road course ⇒ no bands) · <b>L3</b> golden-plan regression with three new season personas + a <code>single-race-unchanged</code> guard · <b>L4</b> coach fixture-honesty for every new prompt section. A PR cannot merge if any cited theory lacks a passing test — the full Theory → Manifestation → Test matrix (17 rows: Issurin, Bickel, Hickson, Wilson, Friel tiers, 8-wk spacing, Runna's &gt;3 threshold, no-streaks evidence, NN/g, Minetti, fueling tiers, non-color redundancy, orthosomnia-safe reds…) is in the markdown twin.</p>
+  <div class="callout warn"><h4>Golden-churn rule</h4><p style="margin:0">PR-G3, PR-6, and PR-8 each regenerate <code>docs/onboarding-ground-truth.json</code> — never two of them in flight at once; every regeneration reviewed as a diff.</p></div>
+</section>
+
+<section id="s8">
+  <div class="kicker"><span class="n">§8</span><h2>Risks &amp; the monetization note</h2></div>
+  <div class="grid g2">
+    <div class="callout risk"><h4>Top risks</h4>
+      <ul class="tight" style="margin-bottom:0">
+        <li><b>G1 is the biggest lift and the headline</b> — mitigated by Wave 1's four visible wins while PR-1 lands quietly.</li>
+        <li><b>Monolith pressure</b> — App.tsx (1,577 lines) and Onboarding.tsx both get touched; rule: no router introduction inside a feature PR.</li>
+        <li><b>Apple is externally gated</b> (iOS 17+, App Store review) — scheduled last, internal-first.</li>
+        <li><b>Recalibration trust</b> — G5 is opt-in + proposal-only, encoded as a plan-hash guard test (a target can never change without an applied card).</li>
+        <li><b>Storage migration</b> — the season key is additive with a lazy shim; two-devices-one-migrated sync-merge tested.</li>
+      </ul>
+    </div>
+    <div class="callout win"><h4>Monetization (flag, not scope)</h4>
+      <p style="margin:0">The market prices exactly this plan's centerpiece as premium: multi-event is TrainingPeaks-Premium-gated and Humango's $28.99/mo tier gate; self-serve anchors at ~$19.90/mo. <b>The Season Engine (G1) + execution loop (G2) are the natural premium tier when pricing lands.</b> No billing code in these 12 PRs — the one decision this plan forces: don't give G1 away by default once signup opens beyond the allowlist.</p>
+    </div>
+  </div>
+  <div class="callout info"><h4>Coverage check — nothing ranked is unowned</h4>
+    <p style="margin:0">G1→PR-1/6/7 · G2→PR-2/11 · G3→PR-G3 · G4→PR-3 · G5→PR-8 · G6→PR-9 · G7→PR-10 · G8/G9→PR-4 · G10→PR-5. All five §6.1 UX patterns and every §6.2 checklist row are mapped in §3. The §7.3 Season Engine sketch (calendar · state machine · bridges · feasibility honesty · coach narration) lands in G1a/G1b.</p>
+  </div>
+  <div class="foot">
+    <p>Attune.coach product &amp; engineering · Gap-Closure Build Plan v1.0 · 2026-07-07 · canonical spec twin: <code>docs/gap-closure-build-plan.md</code> · source of truth: <code>docs/research/Competitive_Analysis_Coaching_Apps_v1.0.{md,html}</code> (§5 ranked gaps · §6 UX/UI · §7 season science) · house style: <code>docs/irunfar-roadmap-build-plan.md</code> (shipped as PRs #259–#266).</p>
+  </div>
+</section>
+
+</div>
+</body>
+</html>
