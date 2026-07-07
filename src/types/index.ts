@@ -384,11 +384,71 @@ export interface PlanAdvisory {
   suggestion?: string;
 }
 
+// ─── Season (multi-race) model — G1 foundation ──────────────────
+// A Season is a NEW top-level state object; TrainingPlan stays the unit of
+// generation and rendering (one plan per BUILD/BRIDGE/RECOVER block segment,
+// tagged via `seasonBlockId`). A single-race athlete is the degenerate
+// one-race season (see `seasonFromSingleRace` in src/engines/season/), so
+// every existing consumer of TrainingPlan is untouched. Season *state* is
+// always DERIVED from (races, today, logged actuals) — never stored as a
+// mutable "current block" — so the engine can't wedge post-race.
+
+/** Only A races get a full peak + taper; B races get a race-week mini-taper
+ *  + enforced post-race recovery; C races are trained through. */
+export type RacePriority = 'A' | 'B' | 'C';
+
+export type SeasonRaceStatus = 'upcoming' | 'completed' | 'skipped';
+
+export interface SeasonRace {
+  /** Stable id so blocks can reference their race across regenerations. */
+  id: string;
+  priority: RacePriority;
+  raceInfo: RaceInfo;
+  status: SeasonRaceStatus;
+}
+
+/** The inter-event state machine's vocabulary:
+ *  RACE → RECOVER → BRIDGE → BUILD → TAPER → RACE … */
+export type SeasonBlockKind = 'BUILD' | 'TAPER' | 'RACE' | 'RECOVER' | 'BRIDGE';
+
+/** Residual training effects carried into a BRIDGE block (Issurin, Sports
+ *  Med 2010) — days of residual remaining per quality at block start, used
+ *  by the bridge content selector (PR-6). All optional: absent = unknown. */
+export interface ResidualProfile {
+  aerobicDays?: number;
+  maxStrengthDays?: number;
+  glycolyticDays?: number;
+  strengthEnduranceDays?: number;
+  speedDays?: number;
+}
+
+export interface SeasonBlock {
+  /** Stable id; TrainingPlan.seasonBlockId points here. */
+  id: string;
+  kind: SeasonBlockKind;
+  /** The race this block serves (the NEXT race for BRIDGE/BUILD/TAPER,
+   *  the just-run race for RACE/RECOVER). */
+  raceId: string;
+  /** ISO 'YYYY-MM-DD' inclusive start / end. */
+  startDate: string;
+  endDate: string;
+  residualsCarried?: ResidualProfile;
+}
+
+export interface Season {
+  races: SeasonRace[];
+  blocks: SeasonBlock[];
+}
+
 export interface TrainingPlan {
   athlete: AthleteProfile;
   weeks: TrainingWeek[];
   zones: HRZone[];
   race: RaceInfo;
+  /** When this plan is one block segment of a multi-race Season, the id of
+   *  the SeasonBlock it implements. Absent on single-race plans (the
+   *  degenerate one-race season) — every existing consumer keeps working. */
+  seasonBlockId?: string;
   /** Set only by the General Fitness engine (raceType === 'general'). Marks
    *  this as a goal-based, method-less plan and carries which goal preset was
    *  chosen, so downstream content (workout coaching, methodology pages) can
