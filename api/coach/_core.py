@@ -1723,6 +1723,28 @@ def build_context_block(
             "give HRT advice — defer clinical questions to their clinician."
         )
 
+    # Realignment (G4) — the client detected 1 missed key session or 2+
+    # missed sessions in the trailing 7 days. The coach OFFERS a rebalanced
+    # week as a proposal card (prompt + explain + one-tap + undo) — the
+    # verified trust pattern. Silent drift and silent auto-change are both
+    # failure modes; the proposal card is the sweet spot between them.
+    realignment_context = snapshot.get("realignmentContext")
+    if realignment_context and str(realignment_context).strip():
+        out.append("")
+        out.append(
+            f"REALIGNMENT: {str(realignment_context).strip()}. "
+            "The plan and reality have drifted — OFFER a rebalanced week as a "
+            "`proposal` block: ops on FUTURE days only (never rewrite the past), "
+            "typically redistributing or trimming what was missed rather than "
+            "cramming it all back in. Explain in one or two plain sentences WHY "
+            "this rebalance serves the goal (protect the key session, don't "
+            "stack fatigue). Respect the readiness directive — never propose "
+            "added intensity on a compromised day. Tone: matter-of-fact and "
+            "kind; missing workouts is normal life, not a failing. Never "
+            "lecture, never guilt. If the athlete previously kept the original "
+            "plan, respect that choice — offer once, cleanly."
+        )
+
     # Plan advisories — honest feasibility / runway / goal-derived-pace notes
     # computed at plan generation. The welcome letter should reflect them plainly
     # rather than writing around them (they also surface in the app UI).

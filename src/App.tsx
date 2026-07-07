@@ -6,6 +6,8 @@ import { generateHyroxPlan } from './utils/planGenerator'
 import { useStrava } from './hooks/useStrava'
 import { useGarmin } from './hooks/useGarmin'
 import { repushChangedWorkouts } from './utils/garminRepush'
+import { realignmentContextForWeeks } from './utils/realignment'
+import { todayDateString } from './utils/planDates'
 import { useApple } from './hooks/useApple'
 import { useCompliance } from './hooks/useCompliance'
 import { useManualLog } from './hooks/useManualLog'
@@ -988,6 +990,12 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     if (cycleContext) snap.cycleContext = cycleContext
     const mastersContext = mastersContextLine(onboarding.config)
     if (mastersContext) snap.mastersContext = mastersContext
+    // Realignment signal (G4): 1 missed key session or 2+ missed of any
+    // type in the trailing 7 days → the coach is prompted to OFFER a
+    // rebalanced week as a proposal card. Absent when on track, so a
+    // compliant athlete never sees a phantom realignment nudge.
+    const realignmentContext = realignmentContextForWeeks(weeks, todayDateString())
+    if (realignmentContext) snap.realignmentContext = realignmentContext
     // Carry the plan's honest advisories (feasibility, runway, goal-derived
     // paces) so the welcome letter can acknowledge them plainly rather than
     // writing around them. They already surface in MethodSelection + Summary.

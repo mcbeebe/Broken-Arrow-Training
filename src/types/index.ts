@@ -1346,6 +1346,11 @@ export interface CoachSnapshot {
   cycleContext?: string
   /** Masters load guidance (R12) — recover more, keep intensity, protein. Age ≥ 50. */
   mastersContext?: string
+  /** Realignment signal (G4) — set when the athlete missed 1 key session or
+   *  2+ sessions of any type in the trailing 7 days. The coach is instructed
+   *  to OFFER a rebalanced week as a proposal (future days only) — prompt +
+   *  explain + one-tap, never a silent rewrite. Absent when on track. */
+  realignmentContext?: string
 }
 
 export interface CoachInsight {
