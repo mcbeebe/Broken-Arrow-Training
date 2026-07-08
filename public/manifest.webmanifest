@@ -15,5 +15,25 @@
       "sizes": "any",
       "purpose": "any maskable"
     }
+  ],
+  "shortcuts": [
+    {
+      "name": "Today",
+      "short_name": "Today",
+      "description": "Today's readiness and workout",
+      "url": "./?view=summary"
+    },
+    {
+      "name": "Coach",
+      "short_name": "Coach",
+      "description": "Talk to your coach",
+      "url": "./?view=coach"
+    },
+    {
+      "name": "This week's plan",
+      "short_name": "Plan",
+      "description": "The week's training plan",
+      "url": "./?view=plan"
+    }
   ]
 }
