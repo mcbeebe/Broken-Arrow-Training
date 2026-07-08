@@ -1093,4 +1093,80 @@ describe('Onboarding', () => {
       expect(cfg.menopauseNote).toBeUndefined()
     })
   })
+
+  describe('multi-race capture (G1b)', () => {
+    it('GUARD: skipping the optional second race leaves additionalRaces undefined', () => {
+      const cfg = walkHappyPath()
+      expect(cfg.additionalRaces).toBeUndefined()
+    })
+
+    it('captures a second race (name/date/priority/miles) into config.additionalRaces', () => {
+      const onComplete = vi.fn()
+      render(<Onboarding onComplete={onComplete} loadingDurationMs={0} />)
+      fireEvent.click(screen.getByText('Trail / Ultra')); clickContinue()
+      fireEvent.change(screen.getByPlaceholderText(/Broken Arrow/), { target: { value: 'Summer Half' } })
+      fillRaceContext()
+      // Expand and fill the optional second race.
+      fireEvent.click(screen.getByText('＋ I have another race after this one'))
+      fireEvent.change(screen.getByPlaceholderText(/Second race name/), { target: { value: 'Hyrox LA' } })
+      fireEvent.change(screen.getByLabelText('Second race date'), { target: { value: '2026-11-07' } })
+      fireEvent.change(screen.getByLabelText('Second race distance in miles'), { target: { value: '8' } })
+      fireEvent.click(screen.getByRole('radio', { name: /A — full build/ }))
+      clickContinue()
+      // Finish the flow with the standard happy-path answers.
+      fireEvent.click(screen.getByText(/^Marathon$/)); clickContinue()
+      fireEvent.click(screen.getByText('Intermediate')); clickContinue()
+      fireEvent.click(screen.getByText('No injuries')); clickContinue()
+      clickContinue() // preview
+      fireEvent.click(screen.getByText('5 Days')); clickContinue()
+      fireEvent.click(screen.getByText('Saturday')); clickContinue()
+      fireEvent.click(screen.getByText('Track')); clickContinue()
+      fireEvent.click(screen.getByRole('button', { name: 'Strength None' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Cross-training None' }))
+      clickContinue()
+      fireEvent.click(screen.getByText('Early morning')); clickContinue()
+      fireEvent.change(screen.getByPlaceholderText('e.g. Jenn'), { target: { value: 'Jenn' } })
+      fireEvent.change(screen.getByPlaceholderText('e.g. 41'), { target: { value: '37' } })
+      clickContinue() // profile → detail (under 38: no menopause step)
+      clickContinue() // detail
+      fireEvent.click(screen.getByText('Garmin Watch')); clickContinue()
+      clickFinish()
+
+      const cfg = onComplete.mock.calls[0][0] as OnboardingConfig
+      expect(cfg.additionalRaces).toEqual([
+        { name: 'Hyrox LA', date: '2026-11-07', priority: 'A', distanceMiles: 8 },
+      ])
+    })
+
+    it('GUARD: a half-filled second race (no date) is dropped silently', () => {
+      const onComplete = vi.fn()
+      render(<Onboarding onComplete={onComplete} loadingDurationMs={0} />)
+      fireEvent.click(screen.getByText('Trail / Ultra')); clickContinue()
+      fireEvent.change(screen.getByPlaceholderText(/Broken Arrow/), { target: { value: 'X' } })
+      fillRaceContext()
+      fireEvent.click(screen.getByText('＋ I have another race after this one'))
+      fireEvent.change(screen.getByPlaceholderText(/Second race name/), { target: { value: 'Mystery Race' } })
+      // no date filled
+      clickContinue()
+      fireEvent.click(screen.getByText(/^Marathon$/)); clickContinue()
+      fireEvent.click(screen.getByText('Intermediate')); clickContinue()
+      fireEvent.click(screen.getByText('No injuries')); clickContinue()
+      clickContinue()
+      fireEvent.click(screen.getByText('5 Days')); clickContinue()
+      fireEvent.click(screen.getByText('Saturday')); clickContinue()
+      fireEvent.click(screen.getByText('Track')); clickContinue()
+      fireEvent.click(screen.getByRole('button', { name: 'Strength None' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Cross-training None' }))
+      clickContinue()
+      fireEvent.click(screen.getByText('Early morning')); clickContinue()
+      fireEvent.change(screen.getByPlaceholderText('e.g. Jenn'), { target: { value: 'J' } })
+      fireEvent.change(screen.getByPlaceholderText('e.g. 41'), { target: { value: '37' } })
+      clickContinue()
+      clickContinue()
+      fireEvent.click(screen.getByText('Garmin Watch')); clickContinue()
+      clickFinish()
+      const cfg = onComplete.mock.calls[0][0] as OnboardingConfig
+      expect(cfg.additionalRaces).toBeUndefined()
+    })
+  })
 })

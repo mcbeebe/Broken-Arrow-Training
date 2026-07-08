@@ -67,6 +67,25 @@ describe('<SeasonPanel />', () => {
     expect(cButton.getAttribute('aria-checked')).toBe('true')
   })
 
+  it('seeds onboarding-captured races exactly once (removal survives re-mounts)', () => {
+    function SeededHarness() {
+      const seasonState = useSeason(planRace, 'testathlete', [
+        { name: 'Hyrox LA', date: '2026-11-07', priority: 'A', distanceMiles: 8 },
+      ])
+      return <SeasonPanel seasonState={seasonState} />
+    }
+    const first = render(<SeededHarness />)
+    // Seeded on first mount → the season UI appears with the captured race.
+    expect(screen.getByText('Hyrox LA')).toBeInTheDocument()
+    // Athlete removes it…
+    fireEvent.click(screen.getByLabelText('Remove Hyrox LA'))
+    expect(screen.queryByText('Hyrox LA')).toBeNull()
+    first.unmount()
+    // …and a re-mount with the same config does NOT re-seed (the stamp).
+    render(<SeededHarness />)
+    expect(screen.queryByText('Hyrox LA')).toBeNull()
+  })
+
   it('the anchor (plan) race cannot be removed; added races can', () => {
     render(<Harness />)
     fireEvent.click(screen.getByText('+ Add another race'))

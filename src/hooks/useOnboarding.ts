@@ -74,6 +74,16 @@ export type CrossTrainingMode = 'cycling' | 'swimming' | 'rowing' | 'hiking' | '
 
 export type TrainingTimeOfDay = 'early_am' | 'morning' | 'midday' | 'afternoon' | 'evening'
 
+/** A second (or third…) race captured at onboarding — enough to place it
+ *  on the season calendar; the season panel manages it from there. */
+export interface AdditionalRace {
+  name: string
+  /** ISO YYYY-MM-DD. */
+  date: string
+  priority: 'A' | 'B' | 'C'
+  distanceMiles?: number
+}
+
 export interface OnboardingConfig {
   raceType: RaceType
   raceName: string
@@ -162,6 +172,10 @@ export interface OnboardingConfig {
   preferredTrainingTimes?: TrainingTimeOfDay[]
   // Free-text: travel weeks, vacations, work crunch, deload windows, etc.
   scheduleConstraintsNote?: string
+  // G1b — optional additional races captured at onboarding ("racing again
+  // later this season?"). Seeded ONCE into the season calendar (useSeason);
+  // add/remove afterward happens on the season panel, never re-seeded.
+  additionalRaces?: AdditionalRace[]
   completedAt: string
   // Timestamp of when the post-onboarding methodology primer was dismissed.
   // Unset = primer should be shown the next time a plan is rendered.

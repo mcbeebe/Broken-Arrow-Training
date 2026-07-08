@@ -54,12 +54,49 @@ export interface UseSeasonReturn {
   removeRace: (raceId: string) => void
 }
 
-export function useSeason(activeRace: RaceInfo, athleteId?: string): UseSeasonReturn {
+export function useSeason(
+  activeRace: RaceInfo,
+  athleteId?: string,
+  /** Races captured at onboarding (config.additionalRaces) — seeded into
+   *  the calendar exactly ONCE per athlete (stamped), so removing one on
+   *  the season panel is never undone by a re-seed. */
+  seedRaces?: { name: string; date: string; priority: RacePriority; distanceMiles?: number }[],
+): UseSeasonReturn {
   const [stored, setStored] = useState<Season | null>(() => readSeason(athleteId))
 
   useEffect(() => {
     setStored(readSeason(athleteId))
   }, [athleteId])
+
+  // One-time onboarding seed (G1b). The stamp — not the race list — is
+  // what makes this idempotent across renders, devices, and removals.
+  useEffect(() => {
+    if (!seedRaces || seedRaces.length === 0) return
+    const stampKeyName = `ba_season_seeded_v1_${athleteId ?? ''}`
+    try {
+      if (localStorage.getItem(stampKeyName)) return
+      const current = readSeason(athleteId) ?? { races: [], blocks: [] }
+      const additions: SeasonRace[] = []
+      for (const s of seedRaces) {
+        const raceInfo: RaceInfo = {
+          name: s.name, date: s.date, startTime: '',
+          distance: s.distanceMiles ? `${s.distanceMiles} mi` : '',
+          distanceMiles: s.distanceMiles ?? 0,
+          elevation: '', elevationRange: '', course: '', cutoff: '',
+          landmarks: [], gear: [], nutrition: '',
+        }
+        const id = seasonRaceId(raceInfo)
+        if (current.races.some(r => r.id === id)) continue
+        additions.push({ id, priority: s.priority, raceInfo, status: 'upcoming' })
+      }
+      if (additions.length > 0) {
+        const next: Season = { races: [...current.races, ...additions], blocks: [] }
+        writeSeason(next, athleteId)
+        setStored(next)
+      }
+      localStorage.setItem(stampKeyName, new Date().toISOString())
+    } catch { /* seeding is best-effort */ }
+  }, [seedRaces, athleteId])
 
   // Cross-device sync writes dispatch synthetic storage events (same
   // pattern as usePlanEdits) — pick them up without a refresh.
