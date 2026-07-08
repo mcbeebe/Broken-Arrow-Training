@@ -15,6 +15,10 @@ import { assessRecalibration } from './engines/planGenerator/recalibration'
 import { buildRepaceOps } from './utils/repace'
 import { getCachedRunGAP } from './utils/runGAP'
 import RecalibrationCard from './components/RecalibrationCard'
+import { buildRacePacingPlan, buildRacePacingContext } from './engines/racePacing'
+import { resolveCourseForRace } from './utils/resolveCourse'
+import { athleteCurrentVdot } from './engines/planGenerator/paceTargets'
+import { predictRaceTime } from './engines/planGenerator/feasibility'
 import { useApple } from './hooks/useApple'
 import { useCompliance } from './hooks/useCompliance'
 import { useManualLog } from './hooks/useManualLog'
@@ -565,6 +569,20 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
   const recalDismissed = (() => {
     try { return localStorage.getItem(recalDismissKey) === recalEvidenceKey } catch { return false }
   })()
+
+  // ── G6: course-aware race pacing ──────────────────────────────
+  // Only for curated courses (the 3 Broken Arrow editions today) and only
+  // when the athlete has a fitness anchor to pace from — unmatched course
+  // or no anchor → no card, no section (the guard).
+  const racePacingPlan = useMemo(() => {
+    const resolution = resolveCourseForRace(activePlan.race)
+    const vdot = onboarding.config ? athleteCurrentVdot(onboarding.config) : null
+    if (!resolution || !vdot) return null
+    const raceMiles = activePlan.race.distanceMiles
+    if (!raceMiles || raceMiles <= 0) return null
+    const flatPace = predictRaceTime(vdot, raceMiles) / raceMiles
+    return buildRacePacingPlan(resolution.course, flatPace)
+  }, [activePlan.race, onboarding.config])
   const raceName = activePlan.race.name || (activePlan.race.distance.includes('18K') ? 'BROKEN ARROW 18K' : 'BROKEN ARROW 11K')
 
   const daysUntilRace = useMemo(() => {
@@ -1026,6 +1044,11 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     // — where they are in the chain and why today serves the NEXT race.
     const seasonContext = buildSeasonContext(seasonState.planResult, todayDateString())
     if (seasonContext) snap.seasonContext = seasonContext
+    // Race pacing (G6): the segment-band plan reaches the coach in the
+    // final 2 weeks — when "what pace on the climbs?" gets asked.
+    if (racePacingPlan && daysUntilRace <= 14) {
+      snap.racePacingContext = buildRacePacingContext(racePacingPlan)
+    }
     // Carry the plan's honest advisories (feasibility, runway, goal-derived
     // paces) so the welcome letter can acknowledge them plainly rather than
     // writing around them. They already surface in MethodSelection + Summary.
@@ -1447,6 +1470,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           dailyTrimp={readiness.dailyTrimp}
           injuryStatus={onboarding.config?.injuryStatus}
           strengthLevel={onboarding.config?.strengthExperience}
+          racePacing={racePacingPlan}
         />
       )}
       {view === 'dashboard' && (
