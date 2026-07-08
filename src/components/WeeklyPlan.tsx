@@ -9,6 +9,8 @@ import { parseDayToDate, todayDateString } from '../utils/planDates'
 import { pushWeekToGarmin, collectPushableDays } from '../utils/garminRepush'
 import { isGarminConnected, GarminAuthError } from '../utils/garmin'
 import DayCard from './DayCard'
+import RacePacingCard from './RacePacingCard'
+import type { RacePacingPlan } from '../engines/racePacing'
 import WorkoutModal from './WorkoutModal'
 import ManualLog from './ManualLog'
 import WorkoutEditor, { type WorkoutEdits } from './WorkoutEditor'
@@ -50,6 +52,9 @@ interface WeeklyPlanProps {
   /** Athlete's lifting background — calibrates default strength loads shown
    *  in the workout modal. */
   strengthLevel?: StrengthExperience
+  /** G6 — per-segment pace bands + fueling checkpoints for curated courses.
+   *  Null for unmatched courses (the guard: no card renders). */
+  racePacing?: RacePacingPlan | null
 }
 
 
@@ -71,6 +76,7 @@ export default function WeeklyPlan({
   dailyTrimp,
   injuryStatus,
   strengthLevel,
+  racePacing,
 }: WeeklyPlanProps) {
   const [viewMode, setViewMode] = useState<'list' | 'calendar' | 'race'>('list')
   const [activeWeek, setActiveWeek] = useState(0)
@@ -373,6 +379,7 @@ export default function WeeklyPlan({
       {/* ── Race prep view ── */}
       {viewMode === 'race' && race && (
         <div className="px-3 pt-3">
+          {racePacing && <RacePacingCard plan={racePacing} />}
           <RaceNarrative
             race={race}
             weekNum={week.num}

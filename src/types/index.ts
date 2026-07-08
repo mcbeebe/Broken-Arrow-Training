@@ -1355,6 +1355,14 @@ export interface CoachSnapshot {
    *  the current block and what it protects, days to the next race, and any
    *  season-level advisories. Absent for single-race athletes (guard). */
   seasonContext?: string
+  /** Race pacing (G6) — per-segment pace bands + fueling checkpoints for
+   *  curated courses, set in the final ~2 weeks before race day. Absent
+   *  for unmatched courses and far-out races (guard). */
+  racePacingContext?: string
+  /** Intensity distribution (G7) — the measured weekly easy/hard split vs
+   *  the method's phase target (+ optional long-run decoupling). Absent
+   *  without a method or enough HR-measured sessions (guard). */
+  intensityContext?: string
 }
 
 export interface CoachInsight {

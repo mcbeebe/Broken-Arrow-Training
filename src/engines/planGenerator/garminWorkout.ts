@@ -18,49 +18,42 @@ import type {
 import type { PlannedDay, WorkoutType } from '../../types'
 import { parsePlannedTargets } from '../../utils/targets'
 
+// The step model is the PLATFORM-NEUTRAL intermediate (D5): canonical
+// types live in structuredWorkout.ts; the Garmin names below are aliases,
+// so this refactor is provably payload-identical (snapshot test) and a
+// future Apple WorkoutKit renderer consumes the exact same shapes.
+import type {
+  StructuredSport,
+  StructuredStepType,
+  StructuredEndConditionType,
+  StructuredTargetType,
+  StructuredEndCondition,
+  StructuredTarget,
+  StructuredStep,
+} from './structuredWorkout'
+
 /** Garmin sport bucket. Run-family workouts get full structured fidelity;
  *  strength and cross-training degrade to timed steps (Garmin Connect can't
  *  represent reps via its workout API). */
-export type GarminSport = 'running' | 'cycling' | 'strength' | 'cardio'
+export type GarminSport = StructuredSport
 
-export type GarminStepType = 'warmup' | 'interval' | 'recovery' | 'cooldown'
+export type GarminStepType = StructuredStepType
 
 /** `time` → value is seconds; `distance` → value is meters; `lap.button`
  *  means "until the athlete presses lap" (no value). */
-export type GarminEndConditionType = 'time' | 'distance' | 'lap.button'
+export type GarminEndConditionType = StructuredEndConditionType
 
 /** `pace` → low/high in seconds-per-meter; `heart.rate` → low/high in bpm;
  *  `open` → no target (free effort). */
-export type GarminTargetType = 'pace' | 'heart.rate' | 'open'
+export type GarminTargetType = StructuredTargetType
 
-export interface GarminEndCondition {
-  type: GarminEndConditionType
-  value?: number
-}
+export type GarminEndCondition = StructuredEndCondition
 
-export interface GarminTarget {
-  type: GarminTargetType
-  low?: number
-  high?: number
-}
+export type GarminTarget = StructuredTarget
 
-export interface GarminStep {
-  stepType: GarminStepType
-  endCondition: GarminEndCondition
-  target: GarminTarget
-  description?: string
-  /** When present, this step is a repeat group: `count` rounds of `steps`. */
-  repeat?: { count: number; steps: GarminStep[] }
-}
+export type GarminStep = StructuredStep
 
-export interface GarminWorkoutPayload {
-  name: string
-  sport: GarminSport
-  /** ISO date (YYYY-MM-DD) to schedule the workout on. */
-  scheduleDate?: string
-  estimatedDurationSecs?: number
-  steps: GarminStep[]
-}
+export type GarminWorkoutPayload = import('./structuredWorkout').StructuredWorkout
 
 const METERS_PER_MILE = 1609.344
 
