@@ -11,6 +11,10 @@ import { todayDateString } from './utils/planDates'
 import { useSeason } from './hooks/useSeason'
 import { buildSeasonContext } from './engines/season/coachContext'
 import SeasonPanel from './components/SeasonPanel'
+import { assessRecalibration } from './engines/planGenerator/recalibration'
+import { buildRepaceOps } from './utils/repace'
+import { getCachedRunGAP } from './utils/runGAP'
+import RecalibrationCard from './components/RecalibrationCard'
 import { useApple } from './hooks/useApple'
 import { useCompliance } from './hooks/useCompliance'
 import { useManualLog } from './hooks/useManualLog'
@@ -545,6 +549,22 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
   }, [weeks, garmin.connected, athleteId])
 
   const compliance = useCompliance(weeks)
+
+  // ── G5: performance-adaptive pace targets ─────────────────────
+  // Assessed from completed sessions (GAP-corrected via the cached
+  // Minetti multiplier — the trail-true input); dismissal is remembered
+  // per evidence-set so declining doesn't nag, and new evidence re-offers.
+  const recalAssessment = useMemo(
+    () => assessRecalibration(weeks, todayDateString(), {
+      gapFactor: (isoDate, name) => getCachedRunGAP(isoDate, name, athleteId),
+    }),
+    [weeks, athleteId],
+  )
+  const recalDismissKey = `ba_recal_dismissed_v1_${athleteId}`
+  const recalEvidenceKey = recalAssessment.evidence.join('|')
+  const recalDismissed = (() => {
+    try { return localStorage.getItem(recalDismissKey) === recalEvidenceKey } catch { return false }
+  })()
   const raceName = activePlan.race.name || (activePlan.race.distance.includes('18K') ? 'BROKEN ARROW 18K' : 'BROKEN ARROW 11K')
 
   const daysUntilRace = useMemo(() => {
@@ -1298,6 +1318,21 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
 
       {/* Content */}
       {view === 'summary' && (<>
+        {recalAssessment.qualifies && !recalDismissed && (
+          <div className="px-3 mb-3">
+            <RecalibrationCard
+              assessment={recalAssessment}
+              onApply={() => planEdits.applyBatch(buildRepaceOps(
+                weeks,
+                recalAssessment.suggestedFactor,
+                todayDateString(),
+                `Pace recalibration: ${recalAssessment.evidence[0]}`,
+              ))}
+              onDismiss={() => { try { localStorage.setItem(recalDismissKey, recalEvidenceKey) } catch { /* quota */ } }}
+              onUndo={(batchId) => planEdits.undoBatch(batchId)}
+            />
+          </div>
+        )}
         {mimCalibration.pendingSuggestions.length > 0 && (
           <div className="px-3 mb-3 space-y-2">
             {mimCalibration.pendingSuggestions.map(s => (
