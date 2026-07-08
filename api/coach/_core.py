@@ -1744,6 +1744,22 @@ def build_context_block(
             "compressed build or a trained-through race."
         )
 
+    # Intensity distribution (G7) — the measured weekly easy/hard split vs
+    # the athlete's OWN method's phase target, plus long-run decoupling.
+    # "Your easy days are too hard" said with receipts, never with vibes.
+    intensity_context = snapshot.get("intensityContext")
+    if intensity_context and str(intensity_context).strip():
+        out.append("")
+        out.append(
+            f"INTENSITY: {str(intensity_context).strip()}. "
+            "When a GRAY-ZONE FLAG is present, raise it kindly and concretely — "
+            "the fix is slowing the easy days, never cutting the hard ones "
+            "(intensity is what the easy share protects). Quote the athlete's "
+            "own numbers and their method's own target. Frame decoupling as a "
+            "durability trend, not a verdict — one hot or under-fueled long run "
+            "can spike it."
+        )
+
     # Race pacing (G6) — segment pace bands + fueling checkpoints for a
     # curated course, present only in the final ~2 weeks. This is the
     # answer to "what pace on the climbs?" — give the athlete's own bands,

@@ -16,6 +16,7 @@ import { buildRepaceOps } from './utils/repace'
 import { getCachedRunGAP } from './utils/runGAP'
 import RecalibrationCard from './components/RecalibrationCard'
 import { buildRacePacingPlan, buildRacePacingContext } from './engines/racePacing'
+import { weeklyIntensitySplit, methodEasyTarget, buildIntensityContext, decouplingFromSplits } from './utils/intensityDistribution'
 import { resolveCourseForRace } from './utils/resolveCourse'
 import { athleteCurrentVdot } from './engines/planGenerator/paceTargets'
 import { predictRaceTime } from './engines/planGenerator/feasibility'
@@ -1048,6 +1049,25 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     // final 2 weeks — when "what pace on the climbs?" gets asked.
     if (racePacingPlan && daysUntilRace <= 14) {
       snap.racePacingContext = buildRacePacingContext(racePacingPlan)
+    }
+    // Intensity distribution (G7): the athlete's measured weekly easy/hard
+    // split vs their own method's phase target, plus long-run decoupling
+    // when lap data exists. Quiet without a method or enough HR data.
+    const g7Method = onboarding.config?.selectedMethodId
+      ? getMethodById(onboarding.config.selectedMethodId) : undefined
+    const g7Week = compliance.weeks.find(w => w.weekNum === snap.currentWeekNum)
+    if (g7Method && g7Week) {
+      const split = weeklyIntensitySplit(g7Week.days)
+      const target = methodEasyTarget(g7Method, snap.planBlocks?.currentPhase)
+      const longDay = [...weeks].reverse().flatMap(w => w.days)
+        .find(d => d.type === 'long' && d.actual)
+      const longDetail = longDay?.actual
+        ? Object.values(garmin.activityDetails).flat()
+            .find(det => det.name === longDay.actual!.name)
+        : undefined
+      const decoupling = decouplingFromSplits(longDetail?.splits)
+      const intensityContext = buildIntensityContext(split, target, g7Method.name, decoupling)
+      if (intensityContext) snap.intensityContext = intensityContext
     }
     // Carry the plan's honest advisories (feasibility, runway, goal-derived
     // paces) so the welcome letter can acknowledge them plainly rather than
