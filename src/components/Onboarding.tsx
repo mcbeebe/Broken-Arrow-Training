@@ -237,6 +237,12 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
   const [cardioModality, setCardioModality] = useState<CardioModality | null>(null)
   const [raceDescription, setRaceDescription] = useState('')
   const [athleteGoal, setAthleteGoal] = useState('')
+  // G1b — optional second race captured inline on the race step.
+  const [showExtraRace, setShowExtraRace] = useState(false)
+  const [extraRaceName, setExtraRaceName] = useState('')
+  const [extraRaceDate, setExtraRaceDate] = useState('')
+  const [extraRaceMiles, setExtraRaceMiles] = useState('')
+  const [extraRacePriority, setExtraRacePriority] = useState<'A' | 'B' | 'C'>('B')
   const [experience, setExperience] = useState<ExperienceLevel | null>(null)
   const [detailLevel, setDetailLevel] = useState<DetailLevel | null>(null)
   const [daysPerWeek, setDaysPerWeek] = useState<number | null>(null)
@@ -478,6 +484,17 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
         showsMenopauseStep && isRealMenopauseStage(menopause) && menopauseNote.trim()
           ? menopauseNote.trim()
           : undefined,
+      // Optional second race → the season calendar (needs name + date;
+      // half-filled entries are dropped silently — it's optional).
+      additionalRaces:
+        raceType !== 'general' && extraRaceName.trim() && extraRaceDate
+          ? [{
+              name: extraRaceName.trim(),
+              date: extraRaceDate,
+              priority: extraRacePriority,
+              distanceMiles: parseFloat(extraRaceMiles) || undefined,
+            }]
+          : undefined,
       completedAt: '',
     }
 
@@ -592,6 +609,71 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
                   className="w-full px-3 py-3 text-base border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400 resize-none"
                 />
               </div>
+
+              {/* G1b — optional multi-race capture. Fully skippable; the
+                  season panel can always add races later. Not shown for
+                  general fitness (no race to chain from). */}
+              {raceType !== 'general' && !showExtraRace && (
+                <button
+                  type="button"
+                  onClick={() => setShowExtraRace(true)}
+                  className="text-sm font-semibold text-teal-700 hover:text-teal-900"
+                >
+                  ＋ I have another race after this one
+                </button>
+              )}
+              {raceType !== 'general' && showExtraRace && (
+                <div className="rounded-xl border border-teal-200 bg-teal-50/50 p-3 space-y-2">
+                  <p className="text-xs text-slate-600">
+                    Racing again later this season? Your plan will chain them:
+                    recover, bridge, rebuild, taper — on purpose. (Optional —
+                    leave blank to skip.)
+                  </p>
+                  <input
+                    type="text"
+                    value={extraRaceName}
+                    onChange={e => setExtraRaceName(e.target.value)}
+                    placeholder="Second race name (e.g. Hyrox LA, CIM Marathon)"
+                    className="w-full px-3 py-2.5 text-base border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400"
+                  />
+                  <div className="flex gap-2">
+                    <input
+                      type="date"
+                      value={extraRaceDate}
+                      onChange={e => setExtraRaceDate(e.target.value)}
+                      aria-label="Second race date"
+                      className="flex-1 px-3 py-2.5 text-base border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400"
+                    />
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      value={extraRaceMiles}
+                      onChange={e => setExtraRaceMiles(e.target.value)}
+                      placeholder="miles"
+                      aria-label="Second race distance in miles"
+                      className="w-24 px-3 py-2.5 text-base border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400"
+                    />
+                  </div>
+                  <div className="flex gap-1.5" role="radiogroup" aria-label="Second race priority">
+                    {([
+                      ['A', 'A — full build + taper'],
+                      ['B', 'B — mini-taper'],
+                      ['C', 'C — train through'],
+                    ] as const).map(([p, label]) => (
+                      <button
+                        key={p}
+                        type="button"
+                        role="radio"
+                        aria-checked={extraRacePriority === p}
+                        onClick={() => setExtraRacePriority(p)}
+                        className={`flex-1 rounded-lg border px-2 py-1.5 text-xs font-bold ${
+                          extraRacePriority === p ? 'border-teal-500 bg-teal-100 text-teal-800' : 'border-slate-200 text-slate-500'
+                        }`}
+                      >{label}</button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </StepContainer>
         )}
