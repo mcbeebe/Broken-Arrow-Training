@@ -5,6 +5,9 @@ import { plans } from './data'
 import { generateHyroxPlan } from './utils/planGenerator'
 import { useStrava } from './hooks/useStrava'
 import { useGarmin } from './hooks/useGarmin'
+import { repushChangedWorkouts } from './utils/garminRepush'
+import { realignmentContextForWeeks } from './utils/realignment'
+import { todayDateString } from './utils/planDates'
 import { useApple } from './hooks/useApple'
 import { useCompliance } from './hooks/useCompliance'
 import { useManualLog } from './hooks/useManualLog'
@@ -511,6 +514,30 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     return w
   }, [activePlan.weeks, strava.activities, showStrava, manualLog.applyLogsToWeeks, daySwap.applySwapsToWeeks, planEdits.applyEditsToWeeks, garmin.connected, garmin.activityDetails, apple.appleActivities, hrZones.zones])
 
+  // ── Auto re-push (G2a): whenever the derived plan changes, re-send any
+  // previously-pushed FUTURE workout whose content no longer matches what
+  // the watch has (coach proposal, realignment, manual edit, swap, undo —
+  // one seam catches them all). The ledger diff makes this a no-op unless
+  // a pushed day genuinely changed, so the watch never holds a stale plan
+  // and untouched days are never re-sent. Debounced: rapid successive
+  // edits (an applied multi-op proposal) collapse into one pass.
+  useEffect(() => {
+    if (!garmin.connected) return
+    const timer = setTimeout(() => {
+      repushChangedWorkouts(weeks, athleteId)
+        .then(result => {
+          if (result.sent > 0) {
+            console.info(`[garmin] plan changed — re-sent ${result.sent} workout(s) to watch`)
+          }
+          if (result.failed > 0) {
+            console.warn(`[garmin] re-push: ${result.failed} failed`, result.errors)
+          }
+        })
+        .catch(() => { /* re-push is best-effort; next edit retries */ })
+    }, 2500)
+    return () => clearTimeout(timer)
+  }, [weeks, garmin.connected, athleteId])
+
   const compliance = useCompliance(weeks)
   const raceName = activePlan.race.name || (activePlan.race.distance.includes('18K') ? 'BROKEN ARROW 18K' : 'BROKEN ARROW 11K')
 
@@ -963,6 +990,12 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     if (cycleContext) snap.cycleContext = cycleContext
     const mastersContext = mastersContextLine(onboarding.config)
     if (mastersContext) snap.mastersContext = mastersContext
+    // Realignment signal (G4): 1 missed key session or 2+ missed of any
+    // type in the trailing 7 days → the coach is prompted to OFFER a
+    // rebalanced week as a proposal card. Absent when on track, so a
+    // compliant athlete never sees a phantom realignment nudge.
+    const realignmentContext = realignmentContextForWeeks(weeks, todayDateString())
+    if (realignmentContext) snap.realignmentContext = realignmentContext
     // Carry the plan's honest advisories (feasibility, runway, goal-derived
     // paces) so the welcome letter can acknowledge them plainly rather than
     // writing around them. They already surface in MethodSelection + Summary.

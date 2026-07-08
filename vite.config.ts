@@ -1,4 +1,5 @@
 /// <reference types="vitest/config" />
+import { resolve } from 'node:path'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { viteStaticCopy } from 'vite-plugin-static-copy'
@@ -28,6 +29,20 @@ export default defineConfig({
   // attune.coach cutover: legacy GH Pages project site keeps
   // `/Broken-Arrow-Training/`; the attune.coach build sets `/`.
   base: process.env.VITE_BASE_PATH ?? '/Broken-Arrow-Training/',
+  // Free public calculators (G10) — extra HTML entries served pre-auth at
+  // /tools/*. PURE CLIENT by locked rule (plan §1-D6): they share the app's
+  // engines but make zero API calls, so the MULTI_USER_TODO auth/rate-limit
+  // blockers stay out of their critical path.
+  build: {
+    rollupOptions: {
+      input: {
+        main: resolve(__dirname, 'index.html'),
+        'tools-fueling': resolve(__dirname, 'tools/fueling.html'),
+        'tools-predictor': resolve(__dirname, 'tools/predictor.html'),
+        'tools-heat': resolve(__dirname, 'tools/heat.html'),
+      },
+    },
+  },
   test: {
     globals: true,
     environment: 'jsdom',

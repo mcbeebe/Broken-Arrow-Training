@@ -68,6 +68,23 @@ function getScoreLabel(score: number): { label: string; color: string } {
   return SCORE_LABELS['-1']
 }
 
+/** Default concrete action when the engine produced no per-workout
+ *  adjustment (e.g. no planned workout today). One day of data is never a
+ *  verdict on fitness — the action keeps a red morning actionable instead
+ *  of just alarming. */
+function fallbackAction(score: ReadinessScore): string {
+  if (score.trainingState === 'D') {
+    return 'Recovery is the training today: rest or 20-30 min very easy Z1. ' +
+      'A 7-day deload program is ready — ask your coach for it.'
+  }
+  if (score.status === 'RED') {
+    return 'Keep today easy: Z1-2 movement or full rest. One red day is a ' +
+      'signal to absorb training, not a setback — watch the trend, not the number.'
+  }
+  return 'Trim intensity today — keep the session but cap effort at ' +
+    'comfortable Z2 and reassess tomorrow.'
+}
+
 function Sparkline({ data, color }: { data: number[]; color: string }) {
   if (data.length < 2) return null
   const chartData = data.map((v, i) => ({ v, i }))
@@ -139,10 +156,14 @@ export default function ReadinessBanner({
           {todayScore.message || 'Calculating readiness...'}
         </p>
 
-        {todayScore.adjustment && todayScore.status !== 'GREEN' && todayScore.status !== 'PEAK' && (
+        {/* G8 (orthosomnia-safe): a YELLOW/RED verdict must always ship with
+            a concrete next step — a red number with no action breeds anxiety,
+            not adaptation. Falls back to a state-appropriate default when the
+            engine had no planned workout to tailor an adjustment against. */}
+        {todayScore.status !== 'GREEN' && todayScore.status !== 'PEAK' && (
           <div className={`mt-2 px-3 py-1.5 rounded-lg ${style.bg} border ${style.border} inline-block`}>
             <p className={`text-xs font-medium ${style.text}`}>
-              💡 {todayScore.adjustment}
+              💡 {todayScore.adjustment || fallbackAction(todayScore)}
             </p>
           </div>
         )}

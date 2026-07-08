@@ -15,6 +15,7 @@ import type { InjuryStatus } from '../hooks/useOnboarding'
 import { useCoachInsight } from '../hooks/useCoachInsight'
 import { pushWorkoutToGarmin, GarminAuthError, isGarminConnected } from '../utils/garmin'
 import { buildGarminPayloadForDay } from '../engines/planGenerator/garminWorkout'
+import { recordPushed } from '../utils/garminRepush'
 import TargetVsActual from './TargetVsActual'
 import CoachDayNoteView from './CoachDayNote'
 
@@ -95,6 +96,9 @@ export default function DayCard({ day, weekNum, onTap, onLog, onSwap, onEdit, ha
     setPushMsg(null)
     try {
       await pushWorkoutToGarmin(garminPayload, athleteId)
+      // Ledger entry lets the auto re-push engine keep this day current
+      // if the plan changes later (garminRepush.repushChangedWorkouts).
+      if (isoDate) recordPushed(isoDate, garminPayload, athleteId)
       setPushStatus('sent')
       setPushMsg('Sent — syncs to your watch on next Garmin sync.')
     } catch (err) {
@@ -122,11 +126,20 @@ export default function DayCard({ day, weekNum, onTap, onLog, onSwap, onEdit, ha
     : readiness?.status === 'RED' ? 'bg-red-500'
     : null
 
+  // Non-color redundancy (G8): ~8% of men are red-green colorblind and the
+  // athlete base skews masters, so the dot carries a distinct glyph per
+  // status — ★ peak, ! caution, ‼ stop — readable without hue.
+  const dotGlyph = readiness?.status === 'PEAK' ? '★'
+    : readiness?.status === 'YELLOW' ? '!'
+    : readiness?.status === 'RED' ? '‼'
+    : ''
+
   const statusDot = readiness && dotColor ? (
     <span
-      className={`w-3 h-3 rounded-full inline-block ${dotColor}`}
+      className={`w-3.5 h-3.5 rounded-full inline-flex items-center justify-center text-white text-[8px] font-bold leading-none ${dotColor}`}
       title={`Readiness: ${readiness.status} (${readiness.displayScore}/100) — State ${readiness.trainingState}`}
-    />
+      aria-label={`Readiness ${readiness.status}`}
+    >{dotGlyph}</span>
   ) : null
 
   return (

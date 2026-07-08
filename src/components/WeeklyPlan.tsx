@@ -5,6 +5,9 @@ import type { WeekCompliance } from '../hooks/useCompliance'
 import type { InjuryStatus, StrengthExperience } from '../hooks/useOnboarding'
 import { getWorkoutStyle, adaptBg } from '../utils/styles'
 import { buildWeatherChipForDate } from '../utils/weatherChip'
+import { parseDayToDate, todayDateString } from '../utils/planDates'
+import { pushWeekToGarmin, collectPushableDays } from '../utils/garminRepush'
+import { isGarminConnected, GarminAuthError } from '../utils/garmin'
 import DayCard from './DayCard'
 import WorkoutModal from './WorkoutModal'
 import ManualLog from './ManualLog'
@@ -49,13 +52,6 @@ interface WeeklyPlanProps {
   strengthLevel?: StrengthExperience
 }
 
-function todayDateString(): string {
-  const d = new Date()
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const dd = String(d.getDate()).padStart(2, '0')
-  return `${y}-${m}-${dd}`
-}
 
 export default function WeeklyPlan({
   weeks,
@@ -89,6 +85,46 @@ export default function WeeklyPlan({
   })
   const scrollRef = useRef<HTMLDivElement>(null)
   const week = weeks[activeWeek]
+
+  // ── Send-week-to-watch (G2a): batch push every pushable future day of
+  // the visible week. Offered only when Garmin is connected and the week
+  // still has something sendable; per-day buttons on the cards remain.
+  const [weekPushStatus, setWeekPushStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
+  const [weekPushMsg, setWeekPushMsg] = useState<string | null>(null)
+  const weekPushableCount = useMemo(
+    () => (week ? collectPushableDays([week]).length : 0),
+    [week],
+  )
+  const canPushWeek = weekPushableCount > 0 && isGarminConnected(athleteId)
+
+  async function handlePushWeek() {
+    if (!week) return
+    setWeekPushStatus('sending')
+    setWeekPushMsg(null)
+    try {
+      const result = await pushWeekToGarmin(week, athleteId)
+      if (result.failed === 0) {
+        setWeekPushStatus('sent')
+        setWeekPushMsg(`${result.sent} workout${result.sent === 1 ? '' : 's'} sent — syncs to your watch on next Garmin sync.`)
+      } else {
+        setWeekPushStatus('error')
+        setWeekPushMsg(`${result.sent} sent, ${result.failed} failed — ${result.errors[0] ?? 'try again.'}`)
+      }
+    } catch (err) {
+      setWeekPushStatus('error')
+      setWeekPushMsg(
+        err instanceof GarminAuthError
+          ? 'Garmin disconnected — reconnect in Settings, then try again.'
+          : err instanceof Error ? err.message : 'Could not send week to watch.',
+      )
+    }
+  }
+
+  // Reset the push status when the athlete flips to another week.
+  useEffect(() => {
+    setWeekPushStatus('idle')
+    setWeekPushMsg(null)
+  }, [activeWeek])
 
   // Build a date→PlannedDay lookup for the calendar
   const daysByDate = useMemo(() => {
@@ -247,15 +283,34 @@ export default function WeeklyPlan({
             </div>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{week.focus}</p>
           </div>
-          {showResetButton && (
-            <button
-              onClick={() => daySwap?.resetWeek(week.num)}
-              className="text-xs text-amber-600 hover:text-amber-800 font-medium px-2 py-1 rounded-lg border border-amber-200 hover:bg-amber-50 transition-colors"
-            >
-              ↩ Reset
-            </button>
-          )}
+          <div className="flex items-center gap-2">
+            {canPushWeek && (
+              <button
+                onClick={handlePushWeek}
+                disabled={weekPushStatus === 'sending'}
+                className="text-xs text-teal-700 hover:text-teal-900 font-medium px-2 py-1 rounded-lg border border-teal-200 hover:bg-teal-50 transition-colors disabled:opacity-50"
+                title={`Send this week's ${weekPushableCount} remaining workout${weekPushableCount === 1 ? '' : 's'} to your Garmin watch`}
+              >
+                {weekPushStatus === 'sending' ? 'Sending…'
+                  : weekPushStatus === 'sent' ? '✓ Week on watch'
+                  : '⌚ Send week to watch'}
+              </button>
+            )}
+            {showResetButton && (
+              <button
+                onClick={() => daySwap?.resetWeek(week.num)}
+                className="text-xs text-amber-600 hover:text-amber-800 font-medium px-2 py-1 rounded-lg border border-amber-200 hover:bg-amber-50 transition-colors"
+              >
+                ↩ Reset
+              </button>
+            )}
+          </div>
         </div>
+        {weekPushMsg && (
+          <p className={`text-xs mt-1 ${weekPushStatus === 'error' ? 'text-red-600' : 'text-teal-700'}`}>
+            {weekPushMsg}
+          </p>
+        )}
       </div>
 
       {/* Day cards */}
@@ -439,17 +494,6 @@ export default function WeeklyPlan({
       )}
     </div>
   )
-}
-
-/**
- * Parse a day label like "Mon 4/13" into a YYYY-MM-DD string.
- */
-function parseDayToDate(dayLabel: string, _weekDates: string): string | null {
-  const match = dayLabel.match(/(\d{1,2})\/(\d{1,2})/)
-  if (!match) return null
-  const month = match[1].padStart(2, '0')
-  const day = match[2].padStart(2, '0')
-  return `2026-${month}-${day}`
 }
 
 // ─── Calendar Grid ──────────────────────────────────────────────

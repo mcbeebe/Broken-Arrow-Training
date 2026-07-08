@@ -22,6 +22,24 @@ const ZONE_COLORS = ['#94A3B8', '#3B82F6', '#22C55E', '#F59E0B', '#EF4444'] // Z
 export default function ComplianceWeekRow({ week, weekLabel, weekFocus, planZones, showVertical }: ComplianceWeekRowProps) {
   const days = (week.days || []).slice(0, 7)
   const anyDrillsPlanned = days.some(d => d.drillsPlanned)
+
+  // ── G9: flexible consistency, not streaks ──────────────────────
+  // The headline metric is sessions-done-vs-planned over days that have
+  // actually happened — and a planned rest day KEPT counts as done (rest
+  // is compliance, not a gap; BJHP 2025 / Milkman 2021: rigid streaks
+  // backfire where rest is programmed). Grace: one flexed non-key session
+  // doesn't take the week off track.
+  const pastDays = days.filter(d => isPastDate(d.date))
+  const restKept = pastDays.filter(d => isRestPlan(d.workoutType) && !d.hasActual).length
+  const sessionsDone = week.completed + restKept
+  const sessionsPlanned = pastDays.length
+  const KEY_TYPES = new Set(['long', 'quality', 'race'])
+  const missedPast = pastDays.filter(d =>
+    !isRestPlan(d.workoutType) && !d.hasActual,
+  )
+  const missedKeyCount = missedPast.filter(d => KEY_TYPES.has(d.workoutType)).length
+  const onTrack = missedPast.length === 0
+    || (missedPast.length === 1 && missedKeyCount === 0)
   // Only render the Elev row when there's something to show — either the
   // plan prescribed climb on any day this week, or the athlete actually
   // logged climb (so a "bonus vert" day still surfaces).
@@ -56,6 +74,19 @@ export default function ComplianceWeekRow({ week, weekLabel, weekFocus, planZone
           )}
         </div>
       </div>
+
+      {/* G9 consistency headline — sessions vs planned, rest counts, grace
+          for one flexed session. Deliberately NOT a streak. */}
+      {sessionsPlanned > 0 && (
+        <p className="text-[10px] text-slate-500 dark:text-slate-400 mb-2">
+          <span className="font-semibold text-slate-700 dark:text-slate-200">
+            {sessionsDone} of {sessionsPlanned} sessions
+          </span>
+          {' '}— rest days count
+          {onTrack && missedPast.length === 1 && ' · on track (1 flexed session is fine)'}
+          {onTrack && missedPast.length === 0 && sessionsPlanned >= 3 && ' · on track'}
+        </p>
+      )}
 
       {weekFocus && (
         <p className="text-[10px] text-slate-500 dark:text-slate-400 italic mb-2 line-clamp-1">{weekFocus}</p>
@@ -189,12 +220,22 @@ function MetricRow({
  *   • Fill = min(pct, 1.3) so overshoots are visible but bounded
  *   • Color = grade color
  */
+/** Non-color redundancy (G8): the ✗ glyph distinguishes "skipped" from
+ *  "no target" without relying on the two grays being tellable apart. */
+function SkippedCell() {
+  return (
+    <div className="h-full rounded-sm bg-slate-300 flex items-center justify-center" title="Skipped">
+      <span className="text-[7px] leading-none text-slate-600 font-bold">✗</span>
+    </div>
+  )
+}
+
 function RatioBar({ pct, grade }: { pct?: number; grade: ComplianceGrade }) {
   if (pct === undefined || grade === 'na') {
     return <div className="h-full rounded-sm bg-slate-100 dark:bg-slate-700" title="No target" />
   }
   if (grade === 'skipped') {
-    return <div className="h-full rounded-sm bg-slate-300" title="Skipped" />
+    return <SkippedCell />
   }
   const displayPct = Math.min(pct, 1.3)
   const fillWidth = (displayPct / 1.3) * 100  // scale so 130% fills the track
@@ -238,7 +279,7 @@ function ZoneBar({
     return <div className="h-full rounded-sm bg-slate-100 dark:bg-slate-700" title="No HR target" />
   }
   if (grade === 'skipped') {
-    return <div className="h-full rounded-sm bg-slate-300" title="Skipped" />
+    return <SkippedCell />
   }
 
   const { hrLow, hrHigh } = targets

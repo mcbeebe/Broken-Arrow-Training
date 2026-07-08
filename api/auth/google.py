@@ -26,13 +26,23 @@ from ._helpers import (
     notify_admin_of_request,
     notify_user_approved,
 )
+from ._entitlements import (
+    default_tier,
+    get_entitlements_map,
+    set_athlete_tier,
+    FEATURE_TIERS,
+)
 
 # Admin allowlist management is served from this same function (routed here
 # from /api/auth/athletes via a vercel.json rewrite) to stay within the
 # Hobby-plan 12-function limit. Admin ops are dispatched by the "action"
 # field and carry the caller's session token in the body, so they ride the
 # existing POST + Content-Type CORS config — no extra method/header needed.
-ADMIN_ACTIONS = {"list", "add", "remove", "requests_approve", "requests_dismiss"}
+# The billing_* actions manage the BACKEND-ONLY entitlements scaffold
+# (api/auth/_entitlements.py): admin-gated, never surfaced in any user
+# response or client code by explicit product decision.
+ADMIN_ACTIONS = {"list", "add", "remove", "requests_approve", "requests_dismiss",
+                 "billing_list", "billing_set_tier"}
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 ATHLETE_ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,39}$")
 
@@ -155,6 +165,38 @@ class handler(BaseHTTPRequestHandler):
             return
 
         action = body.get("action")
+
+        # ── Backend-only billing/entitlements (admin-gated, no user surface).
+        # Responds with the billing payload and returns early — these actions
+        # don't touch (or re-send) the allowlist/requests state below.
+        if action == "billing_list":
+            self._send_json(200, {
+                "defaultTier": default_tier(),
+                "entitlements": get_entitlements_map(),
+                "features": FEATURE_TIERS,
+            })
+            return
+
+        if action == "billing_set_tier":
+            athlete_id = str(body.get("athleteId", "")).strip().lower()
+            tier = str(body.get("tier", "")).strip().lower()
+            if not ATHLETE_ID_RE.match(athlete_id):
+                self._send_json(400, {"error": "athleteId must be lowercase letters, numbers, or hyphens"})
+                return
+            try:
+                entitlements = set_athlete_tier(athlete_id, tier, str(body.get("note", "")))
+            except ValueError as e:
+                self._send_json(400, {"error": str(e)})
+                return
+            except RuntimeError:
+                self._send_json(503, {"error": "Entitlements storage (KV) is not configured"})
+                return
+            self._send_json(200, {
+                "defaultTier": default_tier(),
+                "entitlements": entitlements,
+                "features": FEATURE_TIERS,
+            })
+            return
 
         if action == "add":
             email = str(body.get("email", "")).strip().lower()
