@@ -8,6 +8,9 @@ import { useGarmin } from './hooks/useGarmin'
 import { repushChangedWorkouts } from './utils/garminRepush'
 import { realignmentContextForWeeks } from './utils/realignment'
 import { todayDateString } from './utils/planDates'
+import { useSeason } from './hooks/useSeason'
+import { buildSeasonContext } from './engines/season/coachContext'
+import SeasonPanel from './components/SeasonPanel'
 import { useApple } from './hooks/useApple'
 import { useCompliance } from './hooks/useCompliance'
 import { useManualLog } from './hooks/useManualLog'
@@ -405,6 +408,9 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
   const manualLog = useManualLog(athleteId)
   const journalNotes = useJournalNotes(athleteId)
   const daySwap = useDaySwap(athleteId)
+  // Season (G1b): the race calendar + derived block timeline. The plan's
+  // race is always race #1 (degenerate one-race season = no season UI).
+  const seasonState = useSeason(activePlan.race, athleteId)
   const planEdits = usePlanEdits(athleteId)
   const soreness = useSoreness(athleteId)
   const hrZones = useHRZones(athleteId, activePlan.zones)
@@ -996,6 +1002,10 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     // compliant athlete never sees a phantom realignment nudge.
     const realignmentContext = realignmentContextForWeeks(weeks, todayDateString())
     if (realignmentContext) snap.realignmentContext = realignmentContext
+    // Season narration (G1b): only multi-race athletes get a SEASON section
+    // — where they are in the chain and why today serves the NEXT race.
+    const seasonContext = buildSeasonContext(seasonState.planResult, todayDateString())
+    if (seasonContext) snap.seasonContext = seasonContext
     // Carry the plan's honest advisories (feasibility, runway, goal-derived
     // paces) so the welcome letter can acknowledge them plainly rather than
     // writing around them. They already surface in MethodSelection + Summary.
@@ -1468,7 +1478,12 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
         />
       )}
       {/* Methodology moved into Settings as a collapsible subsection */}
-      {view === 'info' && <RaceInfo race={activePlan.race} />}
+      {view === 'info' && (
+        <div className="px-3 pt-3">
+          <SeasonPanel seasonState={seasonState} />
+          <RaceInfo race={activePlan.race} />
+        </div>
+      )}
       {view === 'settings' && showStrava && (
         <Settings
           connected={strava.connected}

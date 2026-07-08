@@ -1723,6 +1723,27 @@ def build_context_block(
             "give HRT advice — defer clinical questions to their clinician."
         )
 
+    # Season narration (G1b) — multi-race athletes only. No competitor's AI
+    # can explain a season: narrate where the athlete is in the chain, what
+    # this block protects (residual doctrine), and why today serves the NEXT
+    # race. The client only sets this for 2+ race calendars, so single-race
+    # athletes never grow a phantom SEASON section.
+    season_context = snapshot.get("seasonContext")
+    if season_context and str(season_context).strip():
+        out.append("")
+        out.append(
+            f"SEASON: {str(season_context).strip()}. "
+            "Use this to frame guidance at season altitude: connect today's work "
+            "to the CURRENT block's purpose and to the next race in the chain "
+            "(e.g. why a bridge day protects the aerobic base for the race after "
+            "this one). During RECOVER blocks, recovery IS the training — never "
+            "propose quality. During BRIDGE blocks, respect the residual doctrine "
+            "in the context (hold long-residual qualities with maintenance doses; "
+            "the short-residual work is why the schedule looks the way it does). "
+            "Acknowledge season advisories honestly — never paper over a "
+            "compressed build or a trained-through race."
+        )
+
     # Realignment (G4) — the client detected 1 missed key session or 2+
     # missed sessions in the trailing 7 days. The coach OFFERS a rebalanced
     # week as a proposal card (prompt + explain + one-tap + undo) — the

@@ -1351,6 +1351,10 @@ export interface CoachSnapshot {
    *  to OFFER a rebalanced week as a proposal (future days only) — prompt +
    *  explain + one-tap, never a silent rewrite. Absent when on track. */
   realignmentContext?: string
+  /** Season narration (G1b) — multi-race athletes only: the race calendar,
+   *  the current block and what it protects, days to the next race, and any
+   *  season-level advisories. Absent for single-race athletes (guard). */
+  seasonContext?: string
 }
 
 export interface CoachInsight {
