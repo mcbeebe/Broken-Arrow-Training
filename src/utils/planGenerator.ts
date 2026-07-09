@@ -151,7 +151,10 @@ function getLevelParams(level: ExperienceLevel): LevelParams {
   }
 }
 
-export function generateHyroxPlan(config: OnboardingConfig): TrainingPlan {
+export function generateHyroxPlan(
+  config: OnboardingConfig,
+  today: string = new Date().toISOString().slice(0, 10),
+): TrainingPlan {
   const maxHR = computeMaxHR(config)
   const zones = computeZones(maxHR)
   const z1 = `Z1 (${Math.round(maxHR * 0.55)}–${Math.round(maxHR * 0.65)})`
@@ -161,7 +164,17 @@ export function generateHyroxPlan(config: OnboardingConfig): TrainingPlan {
 
   const raceDate = config.raceDate || addDays(new Date().toISOString().slice(0, 10), 84)
   const P = getLevelParams(config.experienceLevel)
-  const totalWeeks = P.totalWeeks
+  // Runway clamp (P0): the level template is a MAXIMUM, never a mandate.
+  // Back-counting a fixed 8–20-week template from race day used to start
+  // plans in the past — and, in a multi-race season, ON TOP of the
+  // previous race's build (the week-numbering corruption bug). The plan
+  // can never begin before `today`.
+  const weeksAvailable = Math.max(
+    1,
+    Math.floor((Date.parse(`${raceDate}T12:00:00`) - Date.parse(`${today}T12:00:00`)) / (7 * 86_400_000)),
+  )
+  const totalWeeks = Math.min(P.totalWeeks, Math.max(1, weeksAvailable))
+  const runwayClamped = totalWeeks < P.totalWeeks
   const daysPerWeek = config.trainingDaysPerWeek
   const weakStation = config.weakStation || 'Wall Balls'
 
@@ -262,6 +275,15 @@ export function generateHyroxPlan(config: OnboardingConfig): TrainingPlan {
   // running plan. Today that's the equipment gap: Hyrox can't really be trained
   // without facility access, so flag it rather than prescribe kit they lack.
   const advisories: PlanAdvisory[] = []
+  if (runwayClamped) {
+    advisories.push({
+      id: 'runway_short',
+      severity: totalWeeks < Math.round(P.totalWeeks / 2) ? 'critical' : 'caution',
+      title: 'Tight runway',
+      detail: `Your level's full Hyrox build is ${P.totalWeeks} weeks; race day is ${totalWeeks} week${totalWeeks === 1 ? '' : 's'} away, so the plan is compressed into the time available.`,
+      suggestion: 'The essentials survive the squeeze — station familiarity and race-pace running come first.',
+    })
+  }
   if (!hasGym) {
     advisories.push({
       id: 'hyrox_no_gym',

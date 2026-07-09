@@ -6,6 +6,7 @@ import { bridgeWeeks, recoverWeeks } from './blockWeeks'
 import { getMethodById, RECOMMENDABLE_METHODS } from '../../data/methods'
 import { generatePlanFromMethod } from '../planGenerator/generatePlan'
 import { generateHyroxPlan } from '../../utils/planGenerator'
+import { parseDayToDate } from '../../utils/planDates'
 import { raceDateToIso } from './index'
 
 /**
@@ -97,6 +98,13 @@ export function spliceSeasonWeeks(
       const plan = safeGenerate(raceConfig, genToday)
       if (!plan) continue
       for (const w of plan.weeks) {
+        // Hard guarantee (P0): a spliced week may NEVER predate its block —
+        // a generator that back-counts past the block start (the Hyrox
+        // template bug) would otherwise stack its weeks on top of the
+        // previous race's build, corrupting week numbering and dates.
+        // Runway clamps in the generators make this a no-op today; the
+        // trim stands as the safety net for any future generator.
+        if (weekStartsBefore(w, genToday)) continue
         out.push({
           ...w,
           num: nextWeekNum++,
@@ -125,6 +133,7 @@ function configForSeasonRace(
     raceType: hyrox ? 'hyrox' : (config.raceType === 'general' ? 'road' : config.raceType),
     raceName: race.raceInfo.name,
     raceDate: iso,
+    raceDescription: race.raceInfo.description ?? undefined,
     raceDistance: hyrox ? undefined
       : nearestRaceDistance(race.raceInfo.distanceMiles || 13.1),
     // Goal time was for the anchor race — never re-aim it at a different
@@ -135,13 +144,22 @@ function configForSeasonRace(
 
 function safeGenerate(config: OnboardingConfig, today: string) {
   try {
-    if (config.raceType === 'hyrox') return generateHyroxPlan(config)
+    if (config.raceType === 'hyrox') return generateHyroxPlan(config, today)
     const method = (config.selectedMethodId && getMethodById(config.selectedMethodId)) || RECOMMENDABLE_METHODS[0]
     if (!method) return null
     return generatePlanFromMethod(method, config, today)
   } catch {
     return null // a broken subsequent-race config never breaks the anchor plan
   }
+}
+
+/** True when a generated week's first parseable day predates `minIso`. */
+function weekStartsBefore(week: TrainingWeek, minIso: string): boolean {
+  for (const d of week.days) {
+    const iso = parseDayToDate(d.day)
+    if (iso) return iso < minIso
+  }
+  return false // undatable weeks are kept — never silently drop content
 }
 
 function appendLabeled(out: TrainingWeek[], weeks: TrainingWeek[], label: string) {

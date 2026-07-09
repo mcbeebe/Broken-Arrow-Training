@@ -10,13 +10,14 @@ import type {
 } from '../types'
 import type { StrengthExperience } from '../hooks/useOnboarding'
 import type { JournalNotesApi } from '../hooks/useJournalNotes'
+import { manualLogKey } from '../hooks/useManualLog'
 import WorkoutModal from './WorkoutModal'
 import JournalEntryModal from './JournalEntryModal'
 
 /** One row in the journal feed — either a reflection saved on a workout, or a
  *  free-standing entry written from the "+ New entry" button. */
 type FeedItem =
-  | { kind: 'workout'; day: PlannedDay; weekNum: number; sortKey: string; tieKey: string }
+  | { kind: 'workout'; day: PlannedDay; weekNum: number; sortKey: string; tieKey: string; orphan?: boolean }
   | { kind: 'note'; note: JournalNote; sortKey: string; tieKey: string }
 
 interface JournalProps {
@@ -32,6 +33,10 @@ interface JournalProps {
   onShareNote?: (day: PlannedDay, note: string) => void | Promise<void>
   manualLog?: {
     logWorkout: (dayLabel: string, data: ActualWorkout) => void
+    /** The raw logged-workout map (ISO-date keyed). The feed uses it to
+     *  surface entries from PREVIOUS plans — a plan rebuild must never
+     *  make a reflection disappear (the P0 this fixed). */
+    logs?: Record<string, ActualWorkout>
   }
   /** Free-standing journal entries (create/edit/delete + the visible list). */
   journalNotes?: JournalNotesApi
@@ -93,10 +98,14 @@ export default function Journal({
   const [composer, setComposer] = useState<{ mode: 'new' } | { mode: 'edit'; note: JournalNote } | null>(null)
 
   const standaloneNotes = journalNotes?.notes
+  const loggedMap = manualLog?.logs
   const feed = useMemo<FeedItem[]>(() => {
     const out: FeedItem[] = []
+    const consumedLogKeys = new Set<string>()
     for (const week of weeks) {
       for (const day of week.days) {
+        consumedLogKeys.add(manualLogKey(day.day))
+        consumedLogKeys.add(day.day)
         if (day.actual?.notes?.trim()) {
           const iso = day.actual.startDate || ''
           out.push({
@@ -108,6 +117,29 @@ export default function Journal({
           })
         }
       }
+    }
+    // Reflections from PREVIOUS plans: logged workouts whose day no longer
+    // exists in the current plan (an onboarding redo rebuilds every day
+    // label). The athlete's words outlive any plan — they render here with
+    // a "previous plan" tag instead of silently disappearing.
+    for (const [key, actual] of Object.entries(loggedMap ?? {})) {
+      if (consumedLogKeys.has(key)) continue
+      if (!actual?.notes?.trim()) continue
+      const iso = /^\d{4}-\d{2}-\d{2}$/.test(key) ? key : (actual.startDate || '').slice(0, 10)
+      out.push({
+        kind: 'workout',
+        orphan: true,
+        day: {
+          day: iso ? fmtNoteDate(`${iso}T12:00:00`) : key,
+          type: 'run',
+          workout: actual.name || 'Logged workout',
+          detail: '', zone: '—', route: '', time: '—',
+          actual,
+        },
+        weekNum: 0,
+        sortKey: iso,
+        tieKey: iso,
+      })
     }
     for (const note of standaloneNotes ?? []) {
       out.push({
@@ -123,7 +155,7 @@ export default function Journal({
       const byDate = b.sortKey.localeCompare(a.sortKey)
       return byDate !== 0 ? byDate : b.tieKey.localeCompare(a.tieKey)
     })
-  }, [weeks, standaloneNotes])
+  }, [weeks, standaloneNotes, loggedMap])
 
   const summary =
     feed.length > 0
@@ -216,7 +248,7 @@ export default function Journal({
                     {item.day.workout}
                   </p>
                   <p className="text-xs text-slate-400 dark:text-slate-500">
-                    {item.day.day} · Wk {item.weekNum}
+                    {item.day.day}{item.orphan ? ' · previous plan' : ` · Wk ${item.weekNum}`}
                   </p>
                 </div>
                 <span className="text-slate-300 dark:text-slate-600 text-sm shrink-0">›</span>

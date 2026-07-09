@@ -42,6 +42,10 @@ export default function SeasonPanel({ seasonState }: { seasonState: UseSeasonRet
   const [date, setDate] = useState('')
   const [miles, setMiles] = useState('')
   const [priority, setPri] = useState<RacePriority>('B')
+  const [description, setDescription] = useState('')
+
+  const anchorIso = raceDateToIso(season.races[0]?.raceInfo.date ?? '')
+  const datedBeforeAnchor = !!date && !!anchorIso && date <= anchorIso
 
   function submitAdd() {
     if (!name.trim() || !date) return
@@ -53,10 +57,11 @@ export default function SeasonPanel({ seasonState }: { seasonState: UseSeasonRet
       distanceMiles: parseFloat(miles) || 0,
       elevation: '', elevationRange: '', course: '', cutoff: '',
       landmarks: [], gear: [], nutrition: '',
+      description: description.trim() || undefined,
     }
     addRace(race, priority)
     setAdding(false)
-    setName(''); setDate(''); setMiles(''); setPri('B')
+    setName(''); setDate(''); setMiles(''); setPri('B'); setDescription('')
   }
 
   return (
@@ -105,6 +110,20 @@ export default function SeasonPanel({ seasonState }: { seasonState: UseSeasonRet
               >{PRIORITY_HELP[p]}</button>
             ))}
           </div>
+          <textarea
+            value={description}
+            onChange={e => setDescription(e.target.value)}
+            rows={2}
+            placeholder="Tell us about it — format, goal, terrain (e.g. Hyrox open, first one, goal to finish strong)"
+            aria-label="Race details"
+            className="w-full rounded-lg border border-slate-300 px-2 py-1.5 text-sm resize-none"
+          />
+          {datedBeforeAnchor && (
+            <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5">
+              ⚠️ This date is on or before your current plan's race — the season chains races in
+              date order. Double-check it if this race should come after.
+            </p>
+          )}
           <div className="flex gap-2">
             <button onClick={submitAdd} disabled={!name.trim() || !date}
               className="rounded-lg bg-teal-700 text-white text-sm font-semibold px-3 py-1.5 disabled:opacity-50">

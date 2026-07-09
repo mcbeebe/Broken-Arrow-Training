@@ -82,6 +82,10 @@ export interface AdditionalRace {
   date: string
   priority: 'A' | 'B' | 'C'
   distanceMiles?: number
+  /** Free-text event details (format, goal, terrain — e.g. "Hyrox open,
+   *  first one, goal is to finish strong"). Feeds the coach and the
+   *  Hyrox-format detection, same as the main race's description. */
+  description?: string
 }
 
 export interface OnboardingConfig {

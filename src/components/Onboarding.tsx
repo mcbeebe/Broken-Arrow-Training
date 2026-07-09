@@ -243,6 +243,7 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
   const [extraRaceDate, setExtraRaceDate] = useState('')
   const [extraRaceMiles, setExtraRaceMiles] = useState('')
   const [extraRacePriority, setExtraRacePriority] = useState<'A' | 'B' | 'C'>('B')
+  const [extraRaceDescription, setExtraRaceDescription] = useState('')
   const [experience, setExperience] = useState<ExperienceLevel | null>(null)
   const [detailLevel, setDetailLevel] = useState<DetailLevel | null>(null)
   const [daysPerWeek, setDaysPerWeek] = useState<number | null>(null)
@@ -493,6 +494,7 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
               date: extraRaceDate,
               priority: extraRacePriority,
               distanceMiles: parseFloat(extraRaceMiles) || undefined,
+              description: extraRaceDescription.trim() || undefined,
             }]
           : undefined,
       completedAt: '',
@@ -672,6 +674,21 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
                       >{label}</button>
                     ))}
                   </div>
+                  <textarea
+                    value={extraRaceDescription}
+                    onChange={e => setExtraRaceDescription(e.target.value)}
+                    rows={2}
+                    placeholder="Tell us about it — format, goal, terrain (e.g. Hyrox open, first one, goal is to finish strong)"
+                    aria-label="Second race details"
+                    className="w-full px-3 py-2.5 text-base border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400 resize-none"
+                  />
+                  {extraRaceDate && raceDate && extraRaceDate <= raceDate && (
+                    <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5">
+                      ⚠️ This date is on or before your main race ({raceDate}). The season chains
+                      races in date order — double-check both dates if this second race should
+                      come after.
+                    </p>
+                  )}
                 </div>
               )}
             </div>
