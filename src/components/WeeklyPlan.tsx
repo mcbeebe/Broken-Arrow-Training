@@ -6,6 +6,8 @@ import type { InjuryStatus, StrengthExperience } from '../hooks/useOnboarding'
 import { getWorkoutStyle, adaptBg } from '../utils/styles'
 import { buildWeatherChipForDate } from '../utils/weatherChip'
 import { parseDayToDate, todayDateString } from '../utils/planDates'
+import { formatWeekMilesChip, formatWeekMilesHeader } from '../utils/format'
+import { BLOCK_STYLE } from '../utils/blockStyles'
 import { pushWeekToGarmin, collectPushableDays } from '../utils/garminRepush'
 import { isGarminConnected, GarminAuthError } from '../utils/garmin'
 import DayCard from './DayCard'
@@ -16,6 +18,18 @@ import ManualLog from './ManualLog'
 import WorkoutEditor, { type WorkoutEdits } from './WorkoutEditor'
 import RaceNarrative from './RaceNarrative'
 import RaceElevationProfile from './RaceElevationProfile'
+
+/** "10/24" from an ISO date (noon-anchored — never a day off). */
+function fmtIsoShort(iso: string): string {
+  const d = new Date(`${iso}T12:00:00`)
+  return `${d.getMonth() + 1}/${d.getDate()}`
+}
+
+/** Whole days from today to an ISO date (0 floor). */
+function daysUntilIso(iso: string): number {
+  const ms = new Date(`${iso}T12:00:00`).getTime() - Date.now()
+  return Math.max(0, Math.ceil(ms / 86_400_000))
+}
 
 interface WeeklyPlanProps {
   weeks: TrainingWeek[]
@@ -144,6 +158,23 @@ export default function WeeklyPlan({
     return map
   }, [weeks])
 
+  // Season strip segments: consecutive weeks sharing the same target race +
+  // block kind collapse into one tappable chip ("Build → Hyrox - Anaheim").
+  // Anchor weeks (no seasonRace stamp) form the leading segment.
+  const seasonSegments = useMemo(() => {
+    const segs: { label: string; title: string; bg: string; firstIndex: number; count: number }[] = []
+    weeks.forEach((w, i) => {
+      const sr = w.seasonRace
+      const label = sr ? `${BLOCK_STYLE[sr.blockKind].label} → ${sr.name}` : 'Race plan'
+      const bg = sr ? BLOCK_STYLE[sr.blockKind].bg : 'bg-slate-700'
+      const title = sr ? `${BLOCK_STYLE[sr.blockKind].label} block toward ${sr.name}` : 'Your main race build'
+      const prev = segs[segs.length - 1]
+      if (prev && prev.label === label) prev.count++
+      else segs.push({ label, title, bg, firstIndex: i, count: 1 })
+    })
+    return segs
+  }, [weeks])
+
   useEffect(() => {
     if (scrollRef.current) {
       const activeBtn = scrollRef.current.children[activeWeek] as HTMLElement
@@ -243,6 +274,25 @@ export default function WeeklyPlan({
       {/* ── List view (existing) ── */}
       {viewMode === 'list' && (
       <>
+      {/* Season strip — one segment per block of consecutive weeks aimed at
+          the same race/block. Rendered only for multi-race seasons; tapping
+          a segment jumps to its first week. */}
+      {seasonSegments.length > 1 && (
+        <div className="flex overflow-x-auto gap-1 px-3 pt-2 bg-white dark:bg-slate-800">
+          {seasonSegments.map(seg => (
+            <button
+              key={`${seg.label}-${seg.firstIndex}`}
+              onClick={() => setActiveWeek(seg.firstIndex)}
+              className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-medium text-white ${seg.bg} ${
+                activeWeek >= seg.firstIndex && activeWeek < seg.firstIndex + seg.count ? '' : 'opacity-50'
+              }`}
+              title={seg.title}
+            >
+              {seg.label}
+            </button>
+          ))}
+        </div>
+      )}
       {/* Week selector */}
       <div ref={scrollRef} className="flex overflow-x-auto gap-1.5 px-3 py-3 bg-white dark:bg-slate-800 border-b border-slate-100 dark:border-slate-700">
         {weeks.map((w, i) => (
@@ -257,7 +307,7 @@ export default function WeeklyPlan({
           >
             <div>Wk {w.num}</div>
             <div className="text-[10px] opacity-75">
-              {typeof w.miles === 'number' ? `${w.miles} mi` : w.miles}
+              {formatWeekMilesChip(w.miles)}
             </div>
           </button>
         ))}
@@ -278,6 +328,19 @@ export default function WeeklyPlan({
         </div>
       )}
 
+      {/* Block boundary strip — the selected week starts a NEW season block
+          (or hands off from the anchor build). */}
+      {week.seasonRace && weeks[activeWeek - 1] &&
+        (weeks[activeWeek - 1].seasonRace?.blockKind !== week.seasonRace.blockKind ||
+         weeks[activeWeek - 1].seasonRace?.name !== week.seasonRace.name) && (
+        <div className="mx-4 mt-3 px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-700 text-xs text-slate-600 dark:text-slate-300">
+          <span className={`inline-block px-1.5 py-0.5 rounded text-white text-[10px] font-semibold mr-1.5 ${BLOCK_STYLE[week.seasonRace.blockKind].bg}`}>
+            {BLOCK_STYLE[week.seasonRace.blockKind].label}
+          </span>
+          New block — {BLOCK_STYLE[week.seasonRace.blockKind].label.toLowerCase()} toward {week.seasonRace.name}
+        </div>
+      )}
+
       {/* Week header */}
       <div className="px-4 pt-4 pb-2">
         <div className="flex items-center justify-between">
@@ -285,8 +348,13 @@ export default function WeeklyPlan({
             <div className="flex items-baseline gap-2">
               <span className="text-lg font-bold text-slate-800 dark:text-white">Week {week.num}</span>
               <span className="text-sm text-slate-500 dark:text-slate-400">{week.dates}</span>
-              <span className="text-sm font-semibold text-teal-600">~{week.miles} mi</span>
+              <span className="text-sm font-semibold text-teal-600">{formatWeekMilesHeader(week.miles)}</span>
             </div>
+            {week.seasonRace && (
+              <p className="text-xs font-medium text-slate-600 dark:text-slate-300 mt-1">
+                → {week.seasonRace.name} · {fmtIsoShort(week.seasonRace.dateIso)} · {daysUntilIso(week.seasonRace.dateIso)} days
+              </p>
+            )}
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{week.focus}</p>
           </div>
           <div className="flex items-center gap-2">
