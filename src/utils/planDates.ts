@@ -16,6 +16,14 @@ export function parseDayToDate(dayLabel: string, _weekDates?: string): string | 
   return `2026-${month}-${day}`
 }
 
+/** The date a plan actually begins: the athlete's chosen start when it's
+ *  in the future, otherwise today. The clamp is one-directional by design —
+ *  a stale/past start date can never back-date a regenerated plan (the
+ *  P0-1 "week 1 already happened" trust-killer). */
+export function effectivePlanStart(planStartDate: string | undefined, today: string): string {
+  return planStartDate && planStartDate > today ? planStartDate : today
+}
+
 /** Today as YYYY-MM-DD in the athlete's local timezone. */
 export function todayDateString(): string {
   const d = new Date()

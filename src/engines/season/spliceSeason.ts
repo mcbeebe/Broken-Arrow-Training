@@ -134,6 +134,9 @@ function configForSeasonRace(
     raceName: race.raceInfo.name,
     raceDate: iso,
     raceDescription: race.raceInfo.description ?? undefined,
+    // The athlete's chosen plan start applies to the ANCHOR plan only —
+    // subsequent blocks start when the state machine says they start.
+    planStartDate: undefined,
     raceDistance: hyrox ? undefined
       : nearestRaceDistance(race.raceInfo.distanceMiles || 13.1),
     // Goal time was for the anchor race — never re-aim it at a different

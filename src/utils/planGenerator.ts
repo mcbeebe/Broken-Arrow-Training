@@ -1,6 +1,7 @@
 import type { TrainingPlan, TrainingWeek, PlannedDay, HRZone, PlanAdvisory } from '../types'
 import type { OnboardingConfig, ExperienceLevel } from '../hooks/useOnboarding'
 import { menopauseStrengthCue } from './menopause'
+import { effectivePlanStart } from './planDates'
 import { INJURY_LEADIN_WEEKS } from './injuryRamp'
 import { computeMaxHR } from './heartRate'
 import { athleteCurrentVdot } from '../engines/planGenerator/paceTargets'
@@ -155,6 +156,8 @@ export function generateHyroxPlan(
   config: OnboardingConfig,
   today: string = new Date().toISOString().slice(0, 10),
 ): TrainingPlan {
+  // Athlete-chosen plan start (one-way clamp: never back-dates).
+  today = effectivePlanStart(config.planStartDate, today)
   const maxHR = computeMaxHR(config)
   const zones = computeZones(maxHR)
   const z1 = `Z1 (${Math.round(maxHR * 0.55)}–${Math.round(maxHR * 0.65)})`

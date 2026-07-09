@@ -244,6 +244,16 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
   const [extraRaceMiles, setExtraRaceMiles] = useState('')
   const [extraRacePriority, setExtraRacePriority] = useState<'A' | 'B' | 'C'>('B')
   const [extraRaceDescription, setExtraRaceDescription] = useState('')
+  // Plan start control: '' = right away (default). Computed once at mount so
+  // the "Next Monday" chip is stable through the flow.
+  const [planStart, setPlanStart] = useState('')
+  const [nextMondayIso] = useState(() => {
+    const d = new Date()
+    d.setDate(d.getDate() + ((8 - d.getDay()) % 7 || 7))
+    const m = String(d.getMonth() + 1).padStart(2, '0')
+    const dd = String(d.getDate()).padStart(2, '0')
+    return `${d.getFullYear()}-${m}-${dd}`
+  })
   const [experience, setExperience] = useState<ExperienceLevel | null>(null)
   const [detailLevel, setDetailLevel] = useState<DetailLevel | null>(null)
   const [daysPerWeek, setDaysPerWeek] = useState<number | null>(null)
@@ -476,6 +486,7 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
       crossTrainingDaysPerWeek: crossDays ?? undefined,
       preferredTrainingTimes: trainingTimes.length > 0 ? trainingTimes : undefined,
       scheduleConstraintsNote: scheduleNote.trim() || undefined,
+      planStartDate: planStart || undefined,
       menopauseStatus: showsMenopauseStep ? (menopause ?? undefined) : undefined,
       menopauseSymptoms:
         showsMenopauseStep && isRealMenopauseStage(menopause) && menopauseSymptoms.length > 0
@@ -1074,6 +1085,33 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
                     />
                   ))}
                 </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">When should training start?</label>
+                <div className="flex gap-1.5 mb-2" role="radiogroup" aria-label="Plan start">
+                  <button type="button" role="radio" aria-checked={planStart === ''}
+                    onClick={() => setPlanStart('')}
+                    className={`flex-1 rounded-lg border px-2 py-2 text-sm font-semibold ${
+                      planStart === '' ? 'border-teal-500 bg-teal-50 text-teal-800' : 'border-slate-200 text-slate-500'
+                    }`}>Right away</button>
+                  <button type="button" role="radio" aria-checked={planStart === nextMondayIso}
+                    onClick={() => setPlanStart(nextMondayIso)}
+                    className={`flex-1 rounded-lg border px-2 py-2 text-sm font-semibold ${
+                      planStart === nextMondayIso ? 'border-teal-500 bg-teal-50 text-teal-800' : 'border-slate-200 text-slate-500'
+                    }`}>Next Monday</button>
+                </div>
+                <input
+                  type="date"
+                  value={planStart}
+                  onChange={e => setPlanStart(e.target.value)}
+                  aria-label="Custom plan start date"
+                  className="w-full px-3 py-2.5 text-base border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400"
+                />
+                <p className="text-xs text-slate-400 mt-1">
+                  Coming back from vacation or finishing a rest block? Pick the day week 1 should
+                  begin — a later start means less runway to race day, and your plan will say so
+                  honestly.
+                </p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Travel, blackout dates, or other constraints (optional)</label>
