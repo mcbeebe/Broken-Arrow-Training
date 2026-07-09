@@ -157,3 +157,23 @@ describe('isHyroxRaceInfo — one predicate for routing AND bridge emphasis', ()
     expect(isHyroxRaceInfo({ name: 'Anaheim Open' })).toBe(false)
   })
 })
+
+describe('splice stamps week-scoped season race context (PR-2)', () => {
+  const anchor = sr('half', 'A', { name: 'Summer Half', date: '2026-08-02' })
+  const second = sr('fall', 'A', { name: 'Fall Marathon', date: '2026-11-01', distance: 'Marathon', distanceMiles: 26.2 })
+
+  it('appended weeks carry the race they build toward; anchor weeks do not', () => {
+    const result = planSeason([anchor, second], TODAY)
+    const spliced = spliceSeasonWeeks([baseWeek(1)], result, config, TODAY)
+    expect(spliced[0].seasonRace).toBeUndefined() // anchor untouched
+    const appended = spliced.slice(1)
+    expect(appended.length).toBeGreaterThan(0)
+    for (const w of appended) {
+      expect(w.seasonRace?.name).toBe('Fall Marathon')
+      expect(w.seasonRace?.dateIso).toBe('2026-11-01')
+    }
+    // Block kinds progress RECOVER → BRIDGE → BUILD/TAPER through the chain.
+    expect(appended[0].seasonRace?.blockKind).toBe('RECOVER')
+    expect(appended.some(w => w.seasonRace?.blockKind === 'BUILD')).toBe(true)
+  })
+})

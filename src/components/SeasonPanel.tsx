@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import type { RaceInfo, RacePriority, SeasonBlockKind } from '../types'
+import type { RaceInfo, RacePriority } from '../types'
 import type { UseSeasonReturn } from '../hooks/useSeason'
 import { raceDateToIso } from '../engines/season'
+import { BLOCK_STYLE } from '../utils/blockStyles'
 
 /**
  * The race calendar (G1b): A/B/C races + the derived block timeline.
@@ -17,14 +18,6 @@ const PRIORITY_HELP: Record<RacePriority, string> = {
   A: 'A — full build + 2-week taper',
   B: 'B — race-week mini-taper, trained through otherwise',
   C: 'C — trained through, no taper',
-}
-
-const BLOCK_STYLE: Record<SeasonBlockKind, { bg: string; label: string }> = {
-  BUILD: { bg: 'bg-teal-600', label: 'Build' },
-  TAPER: { bg: 'bg-indigo-500', label: 'Taper' },
-  RACE: { bg: 'bg-slate-900', label: 'Race' },
-  RECOVER: { bg: 'bg-emerald-600', label: 'Recover' },
-  BRIDGE: { bg: 'bg-amber-600', label: 'Bridge' },
 }
 
 function fmtRange(startIso: string, endIso: string): string {

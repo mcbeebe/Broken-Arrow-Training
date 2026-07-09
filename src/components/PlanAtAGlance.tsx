@@ -1,5 +1,6 @@
 import type { TrainingWeek, PlannedDay } from '../types'
 import { getWorkoutStyle } from '../utils/styles'
+import { formatWeekMilesHeader } from '../utils/format'
 
 /**
  * "Plan at a glance" — the engaging, no-Garmin-required snapshot for the
@@ -53,7 +54,7 @@ export default function PlanAtAGlance({ weeks, currentWeekNum, todayPlannedWorko
         <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Week {week.num} of {weeks.length}</p>
       </div>
       <p className="text-sm text-slate-600 dark:text-slate-300 -mt-1">
-        <span className="font-semibold">{week.focus}</span> · ~{week.miles} mi planned
+        <span className="font-semibold">{week.focus}</span> · {formatWeekMilesHeader(week.miles)} planned
       </p>
 
       {/* Day-by-day chips, today ringed */}

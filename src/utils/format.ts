@@ -13,6 +13,27 @@ export function formatMiles(miles: number): string {
   return miles % 1 === 0 ? `${miles} mi` : `${miles.toFixed(1)} mi`
 }
 
+/** TrainingWeek.miles is numeric from every generator now, but stored
+ *  legacy plans may still carry strings (some "~"-prefixed — the source
+ *  of the field "~~7 mi" header). One parser, two presentations. */
+function weekMilesNumber(miles: number | string): number | null {
+  if (typeof miles === 'number') return miles
+  const n = parseFloat(String(miles).replace(/[^\d.]/g, ''))
+  return Number.isFinite(n) ? n : null
+}
+
+/** Week header form: "~20 mi" (planned volumes are estimates). */
+export function formatWeekMilesHeader(miles: number | string): string {
+  const n = weekMilesNumber(miles)
+  return n === null ? String(miles) : `~${n} mi`
+}
+
+/** Week chip form: "20 mi" — compact, always carries the unit. */
+export function formatWeekMilesChip(miles: number | string): string {
+  const n = weekMilesNumber(miles)
+  return n === null ? String(miles) : `${n} mi`
+}
+
 export function formatSeconds(seconds: number): string {
   const hrs = Math.floor(seconds / 3600)
   const mins = Math.floor((seconds % 3600) / 60)

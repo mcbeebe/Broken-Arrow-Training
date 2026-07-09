@@ -196,6 +196,27 @@ export function spliceSeasonWeeks(
     stampRaceDay(appended, iso, race)
   }
 
+  // Week-scoped race context: stamp each appended week with the race it
+  // builds toward (the next race on/after the week's first day) and the
+  // block kind it sits in — the plan view renders this so a season week
+  // never masquerades as an anchor-race week. Derived per render.
+  const raceDates = season.races
+    .map(r => ({ race: r, iso: raceDateToIso(r.raceInfo.date) }))
+    .filter((x): x is { race: (typeof season.races)[number]; iso: string } => x.iso !== null)
+    .sort((a, b) => a.iso.localeCompare(b.iso))
+  for (const w of appended) {
+    const first = firstDayIso(w, anchorIso ?? today)
+    if (!first) continue
+    const next = raceDates.find(x => x.iso >= first)
+    if (!next) continue
+    const block = season.blocks.find(b => b.startDate <= first && first <= b.endDate)
+    w.seasonRace = {
+      name: next.race.raceInfo.name,
+      dateIso: next.iso,
+      blockKind: block?.kind ?? 'BUILD',
+    }
+  }
+
   // Continuous numbering after the (possibly trimmed) anchor weeks.
   let nextWeekNum = trimmedBase.reduce((m, w) => Math.max(m, w.num), 0) + 1
   return [...trimmedBase, ...appended.map(w => ({ ...w, num: nextWeekNum++ }))]

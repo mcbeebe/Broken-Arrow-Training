@@ -263,6 +263,16 @@ export interface TrainingWeek {
   miles: number | string;
   focus: string;
   days: PlannedDay[];
+  /** Stamped by the season splice (derived per render, never persisted)
+   *  on weeks belonging to a non-anchor block: which race this week is
+   *  building toward and what kind of block it sits in. Drives the plan
+   *  view's week-scoped race context — without it, an 18-week two-race
+   *  season renders entirely under the anchor race's title. */
+  seasonRace?: {
+    name: string;
+    dateIso: string;
+    blockKind: SeasonBlockKind;
+  };
 }
 
 // ─── Structural plan edits (Coach + manual) ─────────────────────
