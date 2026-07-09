@@ -93,6 +93,42 @@ def _parse_iso(s: str) -> datetime | None:
         return None
 
 
+def partition_items(items: list) -> tuple[list[tuple[str, str, datetime]], list[dict]]:
+    """Split a PUT batch into valid rows and per-item rejections.
+
+    FAIL-SOFT BY DESIGN (P0 postmortem): the old behavior 400'd the ENTIRE
+    batch when any single item failed validation — so one key missing from
+    the allowlist silently poisoned every push from a device for weeks
+    (nothing synced, the UI said nothing). One bad item must never block
+    the other 99: it gets skipped and REPORTED, the client surfaces it,
+    and the allowlist-parity test keeps drift from happening again.
+    """
+    rows: list[tuple[str, str, datetime]] = []
+    rejected: list[dict] = []
+    for i, item in enumerate(items):
+        if not isinstance(item, dict):
+            rejected.append({"index": i, "key": None, "reason": "not an object"})
+            continue
+        key = item.get("key")
+        value = item.get("value")
+        updated_at_raw = item.get("updatedAt")
+        if not isinstance(key, str) or not key:
+            rejected.append({"index": i, "key": None, "reason": "invalid key"})
+            continue
+        if not is_preserved(key):
+            rejected.append({"index": i, "key": key, "reason": "not on allowlist"})
+            continue
+        if not isinstance(value, str):
+            rejected.append({"index": i, "key": key, "reason": "value must be a string"})
+            continue
+        updated_at = _parse_iso(updated_at_raw) if isinstance(updated_at_raw, str) else None
+        if updated_at is None:
+            rejected.append({"index": i, "key": key, "reason": "invalid updatedAt"})
+            continue
+        rows.append((key, value, updated_at))
+    return rows, rejected
+
+
 def _is_version_request(handler: BaseHTTPRequestHandler) -> bool:
     """True when this request was routed here by the /api/version
     rewrite (`?__endpoint=version`). Using a query-param signal instead
@@ -206,30 +242,7 @@ class handler(BaseHTTPRequestHandler):
             send_json(self, 400, {"error": "items must be a list"})
             return
 
-        # Pre-validate every row before opening a DB transaction so a bad
-        # batch fails fast and atomically (we don't half-write).
-        rows: list[tuple[str, str, datetime]] = []
-        for i, item in enumerate(items):
-            if not isinstance(item, dict):
-                send_json(self, 400, {"error": f"items[{i}] not an object"})
-                return
-            key = item.get("key")
-            value = item.get("value")
-            updated_at_raw = item.get("updatedAt")
-            if not isinstance(key, str) or not key:
-                send_json(self, 400, {"error": f"items[{i}].key invalid"})
-                return
-            if not is_preserved(key):
-                send_json(self, 400, {"error": f"items[{i}].key not on allowlist: {key}"})
-                return
-            if not isinstance(value, str):
-                send_json(self, 400, {"error": f"items[{i}].value must be a string"})
-                return
-            updated_at = _parse_iso(updated_at_raw) if isinstance(updated_at_raw, str) else None
-            if updated_at is None:
-                send_json(self, 400, {"error": f"items[{i}].updatedAt invalid ISO timestamp"})
-                return
-            rows.append((key, value, updated_at))
+        rows, rejected = partition_items(items)
 
         written = 0
         skipped = 0
@@ -256,4 +269,4 @@ class handler(BaseHTTPRequestHandler):
             send_json(self, 500, {"error": f"db write failed: {type(e).__name__}"})
             return
 
-        send_json(self, 200, {"written": written, "skipped": skipped})
+        send_json(self, 200, {"written": written, "skipped": skipped, "rejected": rejected})

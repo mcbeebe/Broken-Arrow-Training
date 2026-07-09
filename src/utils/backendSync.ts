@@ -19,7 +19,11 @@ import {
   writeLastUploadedStamp,
 } from './syncStamps'
 
-const API_URL = (import.meta.env.VITE_GARMIN_API_URL || '').replace(/\/$/, '')
+/** Read lazily (not at module load) so env stubs in tests — and any
+ *  future runtime configuration — take effect. */
+function apiUrl(): string {
+  return (import.meta.env.VITE_GARMIN_API_URL || '').replace(/\/$/, '')
+}
 const LAST_SYNC_KEY = '__attune_meta:__lastSync'
 // Keep each PUT body comfortably under the server's 4 MB cap (which is
 // itself comfortably under Vercel's 4.5 MB request-body hard limit).
@@ -41,6 +45,53 @@ export interface RemoteState {
 export interface PushResult {
   written: number
   skipped: number
+  /** Keys the server refused (allowlist/shape). These are NOT marked
+   *  uploaded — they retry, and the error surfaces in Settings → Sync. */
+  rejectedKeys?: string[]
+}
+
+// ── Persistent, VISIBLE sync health (P0 postmortem) ─────────────
+// Background sync used to swallow every failure at debug level — a device
+// whose pushes were 100% failing showed nothing anywhere. Every failure
+// (background or manual) now lands here, and Settings → Sync renders it.
+export interface SyncError {
+  at: number
+  message: string
+}
+
+const SYNC_ERROR_KEY = '__attune_meta:__lastSyncError'
+type ErrorListener = (err: SyncError | null) => void
+const errorListeners = new Set<ErrorListener>()
+
+export function getLastSyncError(): SyncError | null {
+  try {
+    const raw = localStorage.getItem(SYNC_ERROR_KEY)
+    return raw ? (JSON.parse(raw) as SyncError) : null
+  } catch {
+    return null
+  }
+}
+
+export function recordSyncError(message: string): void {
+  const err: SyncError = { at: Date.now(), message }
+  try {
+    localStorage.setItem(SYNC_ERROR_KEY, JSON.stringify(err))
+  } catch { /* best effort */ }
+  for (const l of errorListeners) l(err)
+}
+
+export function clearSyncError(): void {
+  try {
+    localStorage.removeItem(SYNC_ERROR_KEY)
+  } catch { /* best effort */ }
+  for (const l of errorListeners) l(null)
+}
+
+export function subscribeSyncError(cb: ErrorListener): () => void {
+  errorListeners.add(cb)
+  return () => {
+    errorListeners.delete(cb)
+  }
 }
 
 /** Cross-component subscription for "last synced X ago" UI strings. */
@@ -99,8 +150,9 @@ async function authedFetch(
   method: 'GET' | 'PUT',
   body?: unknown,
 ): Promise<Response> {
-  if (!API_URL) throw new Error('API URL not configured')
-  return fetch(`${API_URL}/api/sync`, {
+  const base = apiUrl()
+  if (!base) throw new Error('API URL not configured')
+  return fetch(`${base}/api/sync`, {
     method,
     headers: {
       'Authorization': `Bearer ${session.token}`,
@@ -238,7 +290,14 @@ async function pushChunk(session: AuthSession, items: RemoteItem[]): Promise<Pus
       const body = await res.text().catch(() => '')
       throw new Error(`sync PUT failed: ${res.status}${body ? ` — ${body}` : ''}`)
     }
-    return (await res.json()) as PushResult
+    const parsed = (await res.json()) as PushResult & { rejected?: { key: string | null; reason: string }[] }
+    return {
+      written: parsed.written ?? 0,
+      skipped: parsed.skipped ?? 0,
+      rejectedKeys: (parsed.rejected ?? [])
+        .map(r => r.key)
+        .filter((k): k is string => typeof k === 'string'),
+    }
   })
 }
 
@@ -315,6 +374,7 @@ export async function pushAll(session: AuthSession): Promise<PushResult> {
 
   let written = 0
   let skipped = 0
+  const allRejected: string[] = []
   let batch: RemoteItem[] = []
   let batchBytes = 0
 
@@ -323,27 +383,45 @@ export async function pushAll(session: AuthSession): Promise<PushResult> {
     const r = await pushChunk(session, batch)
     written += r.written
     skipped += r.skipped
+    const rejected = new Set(r.rejectedKeys ?? [])
+    for (const k of rejected) allRejected.push(k)
     // Mark uploaded per-chunk so a later chunk failing doesn't force a
-    // re-push of the chunks that already landed.
+    // re-push of the chunks that already landed. Rejected keys are NOT
+    // marked — they retry every sync until the server accepts them, and
+    // the failure stays visible instead of silently vanishing.
     for (const item of batch) {
+      if (rejected.has(item.key)) continue
       writeLastUploadedStamp(item.key, Date.parse(item.updatedAt))
     }
     batch = []
     batchBytes = 0
   }
 
-  for (const item of pending) {
-    // Per-item size approximated by its JSON length; close enough
-    // because `value` (the raw localStorage string) dominates.
-    const itemBytes = JSON.stringify(item).length
-    if (batchBytes > 0 && batchBytes + itemBytes > MAX_CHUNK_BYTES) {
-      await flush()
+  try {
+    for (const item of pending) {
+      // Per-item size approximated by its JSON length; close enough
+      // because `value` (the raw localStorage string) dominates.
+      const itemBytes = JSON.stringify(item).length
+      if (batchBytes > 0 && batchBytes + itemBytes > MAX_CHUNK_BYTES) {
+        await flush()
+      }
+      batch.push(item)
+      batchBytes += itemBytes
     }
-    batch.push(item)
-    batchBytes += itemBytes
+    await flush()
+  } catch (e) {
+    recordSyncError(e instanceof Error ? e.message : 'sync push failed')
+    throw e
   }
-  await flush()
 
+  if (allRejected.length > 0) {
+    recordSyncError(
+      `Server refused ${allRejected.length} item(s): ${[...new Set(allRejected)].slice(0, 3).join(', ')}` +
+      (allRejected.length > 3 ? '…' : '') + ' — these retry each sync; if this persists, it needs a fix.',
+    )
+  } else {
+    clearSyncError()
+  }
   setLastSyncedAt(Date.now())
-  return { written, skipped }
+  return { written, skipped, rejectedKeys: allRejected }
 }
