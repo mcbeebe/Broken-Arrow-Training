@@ -10,6 +10,7 @@ import { realignmentContextForWeeks } from './utils/realignment'
 import { todayDateString } from './utils/planDates'
 import { useSeason } from './hooks/useSeason'
 import { spliceSeasonWeeks } from './engines/season/spliceSeason'
+import { raceDateToIso } from './engines/season'
 import { buildSeasonContext } from './engines/season/coachContext'
 import SeasonPanel from './components/SeasonPanel'
 import { assessRecalibration } from './engines/planGenerator/recalibration'
@@ -595,9 +596,13 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
   const raceName = activePlan.race.name || (activePlan.race.distance.includes('18K') ? 'BROKEN ARROW 18K' : 'BROKEN ARROW 11K')
 
   const daysUntilRace = useMemo(() => {
-    const raceStr = activePlan.race.date.match(/\w+,\s*(.+)/)?.[1] || activePlan.race.date
-    const raceDate = new Date(raceStr)
-    return Math.max(0, Math.ceil((raceDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+    // TZ-safe: bare-ISO race dates must never hit `new Date("YYYY-MM-DD")`
+    // (UTC-midnight parse — shifts a day west of UTC). raceDateToIso owns
+    // that rule; anchor the countdown at local noon.
+    const iso = raceDateToIso(activePlan.race.date)
+    if (!iso) return 0
+    const raceMs = new Date(`${iso}T12:00:00`).getTime()
+    return Math.max(0, Math.ceil((raceMs - Date.now()) / (1000 * 60 * 60 * 24)))
   }, [activePlan.race.date])
 
   // Determine the current training week from the plan's actual calendar.

@@ -95,7 +95,7 @@ export function collectPushableDays(
   for (const week of weeks) {
     for (const day of week.days) {
       if (day.actual) continue // completed — never push over a logged workout
-      const isoDate = parseDayToDate(day.day, week.dates)
+      const isoDate = parseDayToDate(day.day, week.dates, fromIso)
       if (!isoDate || isoDate < fromIso) continue
       const payload = buildGarminPayloadForDay(day, isoDate)
       if (payload) out.push({ isoDate, payload })

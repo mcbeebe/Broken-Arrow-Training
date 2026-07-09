@@ -1087,3 +1087,94 @@ describe('long-run duration is personalized, not the method-wide 60-360 (regress
     }
   })
 })
+
+// ── Race-week remap: race day lands on the ACTUAL race weekday ──────
+// (Field P0: methods author race day as Sunday (dayOfWeek 7); a Saturday
+// race got its card on Sunday — the same date the season recovery block
+// starts, which then overwrote it.)
+
+describe('race-week remap to the actual race weekday', () => {
+  it('a SATURDAY race puts the race card on Saturday, with nothing after it', () => {
+    const plan = generatePlanFromMethod(higdon, makeConfig({
+      raceDate: '2026-10-24', // a Saturday
+      raceDistance: 'half_marathon',
+    }), '2026-07-08')
+    const last = plan.weeks[plan.weeks.length - 1]
+    const raceDay = last.days[last.days.length - 1]
+    expect(raceDay.type).toBe('race')
+    expect(raceDay.day).toBe('Sat 10/24')
+    // No plan day is dated after race day (post-race belongs to recovery).
+    expect(last.days.some(d => d.day.startsWith('Sun 10/25'))).toBe(false)
+    // The week header ends at race day, not the phantom Sunday.
+    expect(last.dates.endsWith('10/24')).toBe(true)
+  })
+
+  it('NEGATIVE GUARD: a SUNDAY race keeps the method schedule as authored', () => {
+    const plan = generatePlanFromMethod(higdon, makeConfig({
+      raceDate: '2026-10-25', // a Sunday — remap is a no-op
+      raceDistance: 'half_marathon',
+    }), '2026-07-08')
+    const last = plan.weeks[plan.weeks.length - 1]
+    expect(last.days.length).toBe(higdon.taper.raceWeekSchedule.length)
+    expect(last.days[last.days.length - 1].day).toBe('Sun 10/25')
+  })
+
+  it('a MONDAY race compresses race week to the race day alone', () => {
+    const plan = generatePlanFromMethod(higdon, makeConfig({
+      raceDate: '2026-10-26', // a Monday
+      raceDistance: 'half_marathon',
+    }), '2026-07-08')
+    const last = plan.weeks[plan.weeks.length - 1]
+    expect(last.days).toHaveLength(1)
+    expect(last.days[0].type).toBe('race')
+    expect(last.days[0].day).toBe('Mon 10/26')
+  })
+})
+
+// ── Injury lead-in eases PINNED workouts too ────────────────────────
+// (Field P0: roche_swap pins 30-30s/hill strides by preferredWorkoutIds;
+// the lead-in downgraded the category but the picker honors pins first,
+// so a day labeled easy still carried the full VO2 body under a note
+// claiming "intensity stays easy".)
+
+describe('injury lead-in honesty (pinned workouts)', () => {
+  const HARD_PINNED = new Set(['roche_aerobic_30_30', 'roche_hill_strides'])
+
+  it('a returning athlete gets NO pinned VO2 content in the lead-in weeks', () => {
+    const plan = generatePlanFromMethod(roche, makeConfig({
+      injuryStatus: 'returning', // lead-in = 2 weeks
+    }), TODAY)
+    for (const w of plan.weeks.slice(0, 2)) {
+      for (const d of w.days) {
+        if (d.plannedWorkout) {
+          expect(HARD_PINNED.has(d.plannedWorkout.workoutId),
+            `week ${w.num} "${d.workout}" still carries pinned hard workout ${d.plannedWorkout.workoutId}`,
+          ).toBe(false)
+        }
+        if (d.type === 'run' || d.type === 'long') {
+          expect(d.workout).not.toMatch(/30-30|VO2/i)
+        }
+      }
+      // The downgraded days carry the generator's own stamp — the ramp
+      // note keys off it so the claim can never contradict the content.
+      expect(w.days.some(d => d.leadInEased)).toBe(true)
+    }
+  })
+
+  it('NEGATIVE GUARD: week 3+ has the pinned hard work back', () => {
+    const plan = generatePlanFromMethod(roche, makeConfig({
+      injuryStatus: 'returning',
+    }), TODAY)
+    const laterPinned = plan.weeks.slice(2, 6).flatMap(w => w.days)
+      .some(d => d.plannedWorkout && HARD_PINNED.has(d.plannedWorkout.workoutId))
+    expect(laterPinned).toBe(true)
+  })
+
+  it('NEGATIVE GUARD: a healthy athlete keeps pinned work from week 1', () => {
+    const plan = generatePlanFromMethod(roche, makeConfig({ injuryStatus: 'none' }), TODAY)
+    const week1Pinned = plan.weeks[0].days
+      .some(d => d.plannedWorkout && HARD_PINNED.has(d.plannedWorkout.workoutId))
+    expect(week1Pinned).toBe(true)
+    expect(plan.weeks[0].days.some(d => d.leadInEased)).toBe(false)
+  })
+})

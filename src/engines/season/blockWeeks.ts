@@ -19,13 +19,13 @@ function shiftIso(iso: string, days: number): string {
   return `${d.getFullYear()}-${m}-${dd}`
 }
 
-function dayLabel(iso: string): string {
+export function dayLabel(iso: string): string {
   const d = new Date(`${iso}T12:00:00`)
   const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
   return `${days[d.getDay()]} ${d.getMonth() + 1}/${d.getDate()}`
 }
 
-function weekDates(startIso: string, endIso: string): string {
+export function weekDates(startIso: string, endIso: string): string {
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
   const s = new Date(`${startIso}T12:00:00`)
   const e = new Date(`${endIso}T12:00:00`)
@@ -66,34 +66,63 @@ function toWeeks(days: PlannedDay[], dates: string[], startWeekNum: number, focu
   return weeks
 }
 
+/** A dated day plus the (unlabeled) week-focus text it belongs to. The
+ *  splice assembler concatenates streams across blocks and re-chunks them
+ *  at Monday boundaries so season weeks share the anchor plan's Mon–Sun
+ *  convention (the field bug's 3-day and Fri→Thu weeks came from chunking
+ *  per-block instead). */
+export interface StreamDay {
+  iso: string
+  day: PlannedDay
+  focus: string
+}
+
+export const RECOVER_FOCUS =
+  'Post-race recovery — absorb the race. Rest first, then easy movement; speed waits.'
+
 /**
  * RECOVER block → scheduled days: the R5 rest days first (1/10 mi raced —
  * 1/10 km when high-vert — with the extra-sleep prescription written into
  * each day), then reverse-taper easy movement (volume before speed).
  */
+export function recoverDayStream(
+  block: SeasonBlock,
+  raceMiles: number,
+  opts: { highVert?: boolean } = {},
+): StreamDay[] {
+  const r = postRaceRecovery(raceMiles, { highVert: opts.highVert })
+  const dates = blockDates(block)
+  return dates.map((iso, i) => {
+    if (i < r.restDays) {
+      return {
+        iso,
+        focus: RECOVER_FOCUS,
+        day: day(iso, 'rest', 'Post-race rest',
+          `Full rest day ${i + 1} of ${r.restDays} (1 per ${opts.highVert ? '10 km' : '10 mi'} raced). ` +
+          `Sleep +${r.sleepExtraHrPerNight} hr tonight (${r.sleepExtraNights} nights total). Walking is fine; running is not.`),
+      }
+    }
+    const rebuildDay = i - r.restDays
+    return {
+      iso,
+      focus: RECOVER_FOCUS,
+      day: rebuildDay % 3 === 2
+        ? day(iso, 'rest', 'Rest', 'Reverse taper: recovery still outranks volume.')
+        : day(iso, 'run', 'Easy recovery jog',
+            `Reverse taper day ${rebuildDay + 1}: ${20 + rebuildDay * 5}–${30 + rebuildDay * 5} min very easy (Z1). ` +
+            'Volume comes back before speed — no quality until this block ends.',
+            'Z1 · very easy', `${25 + rebuildDay * 5} min`),
+    }
+  })
+}
+
 export function recoverWeeks(
   block: SeasonBlock,
   raceMiles: number,
   opts: { highVert?: boolean; startWeekNum?: number } = {},
 ): TrainingWeek[] {
-  const r = postRaceRecovery(raceMiles, { highVert: opts.highVert })
-  const dates = blockDates(block)
-  const days: PlannedDay[] = dates.map((iso, i) => {
-    if (i < r.restDays) {
-      return day(iso, 'rest', 'Post-race rest',
-        `Full rest day ${i + 1} of ${r.restDays} (1 per ${opts.highVert ? '10 km' : '10 mi'} raced). ` +
-        `Sleep +${r.sleepExtraHrPerNight} hr tonight (${r.sleepExtraNights} nights total). Walking is fine; running is not.`)
-    }
-    const rebuildDay = i - r.restDays
-    return rebuildDay % 3 === 2
-      ? day(iso, 'rest', 'Rest', 'Reverse taper: recovery still outranks volume.')
-      : day(iso, 'run', 'Easy recovery jog',
-          `Reverse taper day ${rebuildDay + 1}: ${20 + rebuildDay * 5}–${30 + rebuildDay * 5} min very easy (Z1). ` +
-          'Volume comes back before speed — no quality until this block ends.',
-          'Z1 · very easy', `${25 + rebuildDay * 5} min`)
-  })
-  return toWeeks(days, dates, opts.startWeekNum ?? 1,
-    'Post-race recovery — absorb the race. Rest first, then easy movement; speed waits.')
+  const stream = recoverDayStream(block, raceMiles, opts)
+  return toWeeks(stream.map(s => s.day), stream.map(s => s.iso), opts.startWeekNum ?? 1, RECOVER_FOCUS)
 }
 
 /**
@@ -104,16 +133,24 @@ export function recoverWeeks(
  *  - toward a running race: hold strength at 1×/wk (Bickel '11) while run
  *    volume rebuilds (Wilson '12: maintenance-dose interference is noise).
  */
-export function bridgeWeeks(
-  block: SeasonBlock,
+export function bridgeDayStream(
+  startIso: string,
+  endIso: string,
   nextIsHyrox: boolean,
-  opts: { startWeekNum?: number } = {},
-): TrainingWeek[] {
+  patternOffset = 0,
+): StreamDay[] {
   const emphasis = bridgeEmphasis(nextIsHyrox)
-  const dates = blockDates(block)
+  const focus = `Bridge — ${emphasis.rationale}`
+  const dates: string[] = []
+  let cur = startIso
+  while (cur <= endIso) {
+    dates.push(cur)
+    cur = shiftIso(cur, 1)
+  }
 
-  // A 7-slot pattern applied cyclically (Mon-anchored patterns aren't
-  // needed — the bridge is transition work, not a peaking microcycle).
+  // A 7-slot pattern applied cyclically. `patternOffset` lets the splice
+  // EXTEND a bridge past its block's end (filling the boundary gap before
+  // a Monday-snapped build plan) without repeating the same slot twice.
   const pattern: ((iso: string) => PlannedDay)[] = nextIsHyrox
     ? [
         iso => day(iso, 'run', 'Aerobic hold run', 'Easy Z2 run — the maintenance dose that keeps your base.', 'Z2 · easy', '40 min'),
@@ -134,7 +171,19 @@ export function bridgeWeeks(
         iso => day(iso, 'rest', 'Rest', 'Adaptation happens here.'),
       ]
 
-  const days = dates.map((iso, i) => pattern[i % 7](iso))
-  return toWeeks(days, dates, opts.startWeekNum ?? 1,
-    `Bridge — ${emphasis.rationale}`)
+  return dates.map((iso, i) => ({
+    iso,
+    focus,
+    day: pattern[(i + patternOffset) % 7](iso),
+  }))
+}
+
+export function bridgeWeeks(
+  block: SeasonBlock,
+  nextIsHyrox: boolean,
+  opts: { startWeekNum?: number } = {},
+): TrainingWeek[] {
+  const stream = bridgeDayStream(block.startDate, block.endDate, nextIsHyrox)
+  return toWeeks(stream.map(s => s.day), stream.map(s => s.iso), opts.startWeekNum ?? 1,
+    stream[0]?.focus ?? `Bridge — ${bridgeEmphasis(nextIsHyrox).rationale}`)
 }

@@ -29,12 +29,20 @@ const RUNNING_TYPES = new Set(['run', 'long', 'quality', 'limited'])
  * Decide whether a workout card should carry an injury-ramp note, and what it
  * should say. Returns null when there's nothing useful to add (healthy
  * athlete, rest day, completed workout, or well past the ramp).
+ *
+ * `eased` is the generator's own stamp (`PlannedDay.leadInEased`) saying it
+ * actually downgraded this day. During the lead-in the "intensity stays
+ * easy" claim renders ONLY on days that were genuinely eased or were never
+ * hard to begin with — a day the generator failed to ease (a pinned VO2
+ * workout, in the field report) must not carry a note contradicting its
+ * own body. Pass `undefined` from plans that predate the stamp.
  */
 export function injuryRampNote(
   status: InjuryStatus | undefined,
   weekNum: number | undefined,
   dayType: string,
   completed?: boolean,
+  eased?: boolean,
 ): CoachDayNote | null {
   if (!status || status === 'none') return null
   if (completed) return null
@@ -44,6 +52,10 @@ export function injuryRampNote(
   const leadIn = INJURY_LEADIN_WEEKS[status]
 
   if (weekNum <= leadIn) {
+    // A quality-typed day the generator did NOT ease can't honestly claim
+    // "intensity stays easy" — stay silent rather than contradict the
+    // workout the athlete is looking at.
+    if (dayType === 'quality' && eased !== true) return null
     if (status === 'current') {
       return {
         text: `Recovery-first plan · Week ${weekNum} of ${leadIn}: easy aerobic and cross-training only while you heal — no hard intensity yet. Volume stays conservative and builds slowly. Flag any pain to your coach.`,

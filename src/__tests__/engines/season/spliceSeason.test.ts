@@ -99,3 +99,61 @@ describe('spliceSeasonWeeks', () => {
     expect(nearestRaceDistance(100)).toBe('100_mile')
   })
 })
+
+// ── Race-day guarantees for non-anchor races (field bug: the second
+//    race had NO race day anywhere — TAPER/RACE blocks were silently
+//    dropped by the splice) ─────────────────────────────────────────
+
+import { parseDayToDate } from '../../../utils/planDates'
+import { isHyroxRaceInfo } from '../../../engines/season/planSeason'
+
+describe('splice race-day guarantees', () => {
+  const anchor = sr('half', 'A', { name: 'Summer Half', date: '2026-08-02' })
+  const second = sr('fall', 'A', { name: 'Fall Marathon', date: '2026-11-01', distance: 'Marathon', distanceMiles: 26.2 })
+
+  it('every chained non-anchor race gets exactly one race-day card on its date', () => {
+    const result = planSeason([anchor, second], TODAY)
+    const spliced = spliceSeasonWeeks([baseWeek(1)], result, config, TODAY)
+    const raceDays = spliced.flatMap(w => w.days)
+      .filter(d => d.type === 'race' && parseDayToDate(d.day, undefined, '2026-11-01') === '2026-11-01')
+    expect(raceDays).toHaveLength(1)
+    expect(raceDays[0].workout).toContain('Fall Marathon')
+  })
+
+  it('a C-priority train-through race between two chained races gets a race-day stamp', () => {
+    const turkey = sr('trot', 'C', { name: 'Turkey Trot', date: '2026-09-20', distance: '10K', distanceMiles: 6.2 })
+    const result = planSeason([anchor, turkey, second], TODAY)
+    const spliced = spliceSeasonWeeks([baseWeek(1)], result, config, TODAY)
+    const trotDays = spliced.flatMap(w => w.days)
+      .filter(d => d.type === 'race' && parseDayToDate(d.day, undefined, '2026-09-20') === '2026-09-20')
+    expect(trotDays).toHaveLength(1)
+    expect(trotDays[0].workout).toContain('Turkey Trot')
+    expect(trotDays[0].detail).toMatch(/train|tired legs/i)
+    // The C race spawns no recovery/build of its own — the marathon build
+    // still arrives intact.
+    expect(spliced.some(w => w.focus.startsWith('[Fall Marathon]'))).toBe(true)
+  })
+
+  it('no calendar date appears in two weeks across the whole splice', () => {
+    const result = planSeason([anchor, second], TODAY)
+    const spliced = spliceSeasonWeeks([baseWeek(1)], result, config, TODAY)
+    const seen = new Map<string, number>()
+    for (const w of spliced.slice(1)) { // fixture anchor week has loose dates
+      for (const d of w.days) {
+        const iso = parseDayToDate(d.day, w.dates, '2026-08-02')
+        if (!iso) continue
+        expect(seen.has(iso), `date ${iso} in week ${w.num} AND ${seen.get(iso)}`).toBe(false)
+        seen.set(iso, w.num)
+      }
+    }
+  })
+})
+
+describe('isHyroxRaceInfo — one predicate for routing AND bridge emphasis', () => {
+  it('detects hyrox from name, distance, or description alone', () => {
+    expect(isHyroxRaceInfo({ name: 'Hyrox Anaheim' })).toBe(true)
+    expect(isHyroxRaceInfo({ name: 'Anaheim Open', distance: 'Hyrox' })).toBe(true)
+    expect(isHyroxRaceInfo({ name: 'Anaheim Open', description: 'my first hyrox' })).toBe(true)
+    expect(isHyroxRaceInfo({ name: 'Anaheim Open' })).toBe(false)
+  })
+})

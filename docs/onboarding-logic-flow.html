@@ -218,7 +218,6 @@
     <div class="brand"><span class="dot"></span> attune<span style="color:var(--faint);font-weight:500">·logic map</span></div>
     <nav class="toc">
       <a href="#summary">Summary</a>
-      <a href="#status">Status</a>
       <a href="#routing">Routing</a>
       <a href="#matrix">Matrix</a>
       <a href="#engine-run">Running</a>
@@ -247,7 +246,6 @@
       <span class="tag">Daniels VDOT pace math</span>
       <span class="tag">Distance-aware volume ramp</span>
       <span class="tag">Midlife / menopause overlays</span>
-      <span class="tag" style="background:#ecfdf5;color:#047857;border-color:#a7f3d0">✓ All 12 audit gaps resolved · P0–P3</span>
       <span class="tag" id="genTag">Verified · —</span>
     </div>
   </div>
@@ -259,70 +257,20 @@
         <h4>The one fork that decides everything</h4>
         <p class="sub" style="font-size:14px">The first onboarding question — <b>“What are you training for?”</b> — routes the athlete to one of three independent engines. Everything downstream depends on this choice.</p>
         <div class="chips" style="margin-top:10px">
-          <span class="pill teal">Road · Trail / Ultra → method engine</span>
+          <span class="pill teal">Trail / Road Race → method engine</span>
           <span class="pill amber">Hyrox → template engine</span>
           <span class="pill violet">General Fitness → 4-pillar engine</span>
         </div>
       </div>
       <div class="card">
         <h4>Where your three examples land</h4>
-        <p class="sub" style="font-size:14px"><b>Road</b> and <b>Trail / Ultra</b> are now <b>separate race-type cards</b> (P1-4, PR #248) — the split feeds the right terrain into method scoring (<code>road</code> vs <code>trail_rolling</code>). Both still run through the <b>same method-based running engine</b>, so all three examples — the 2:50 marathoner, the 55-year-old, and the 100-mile ultra — land there, differing by distance, goal time, terrain, and demographics.</p>
+        <p class="sub" style="font-size:14px">There is <b>no separate “road” type</b>. A road marathon is <code>Trail / Road Race</code> + <code>marathon</code>. So all three of your examples — the 2:50 marathoner, the 55-year-old, and the 100-mile ultra — run through the <b>same method-based running engine</b>, differing only by distance, goal time, and demographics.</p>
       </div>
       <div class="card">
         <h4>How correctness is confirmed</h4>
         <p class="sub" style="font-size:14px">A harness runs the <b>real engine functions</b> over fixed personas and writes deterministic JSON. This page embeds that output as ground truth, and the live explorer below re-derives the same numbers in your browser — every persona is checked <span class="check ok">✓</span> against the engine in <a href="#correctness">§11</a>.</p>
       </div>
     </div>
-  </section>
-
-  <!-- 00. IMPLEMENTATION STATUS -->
-  <section id="status">
-    <div class="kicker"><span class="num">00</span><h2>Implementation status — what shipped &amp; what’s left</h2></div>
-    <p class="sub">This map began as an <b>audit</b>: 50 scenarios across the three engines surfaced <b>12 structural weaknesses</b>. They have since all been fixed and shipped across <b>PRs #247–#252</b> (P0 → P3 plus coach narration). The sections below — the decisioning matrix, the live explorer, and the 50-scenario audit — reproduce the engine <b>as originally audited (pre-improvement)</b>, because the explorer is verified field-for-field against the ground-truth captured then; each section carries inline <span class="pill green" style="font-size:10px">✓ now</span> notes pointing to the fix. This panel is the authoritative current state.</p>
-
-    <div class="tableScroll" style="margin-top:14px">
-      <table>
-        <thead><tr><th>#</th><th>Weakness (as audited)</th><th>What shipped</th><th class="mono">Fix · PR</th><th>Status</th></tr></thead>
-        <tbody>
-          <tr><td class="mono">1</td><td>Short runway back-dates the plan</td><td>Runway computed first; plan clamps to the real weeks (week 1 never in the past) + a “tight runway” advisory.</td><td class="src">P0-1 · #247</td><td><span class="pill green">✓ Full</span></td></tr>
-          <tr><td class="mono">2</td><td>No feasibility gate on distance × experience</td><td><code>assessFeasibility()</code> warns + suggests a realistic alternative on the picks, summary &amp; coach — never blocks.</td><td class="src">P0-3 · #247</td><td><span class="pill green">✓ Full</span></td></tr>
-          <tr><td class="mono">3</td><td>Goal time silently ignored without an anchor</td><td>A goal with no anchor derives goal-based paces + an advisory to confirm with a tune-up.</td><td class="src">P0-2 · #247</td><td><span class="pill green">✓ Full</span></td></tr>
-          <tr><td class="mono">4</td><td>Goal never validated against the base</td><td>Per-distance peak cap + an “ambitious goal” advisory naming a realistic alternative time.</td><td class="src">P0-3 / P1-5 · #247/#248</td><td><span class="pill green">✓ Full</span></td></tr>
-          <tr><td class="mono">5</td><td>Road races scored as trail</td><td>A dedicated Road race type infers road terrain so road-specialist methods score on the right axis.</td><td class="src">P1-4 · #248</td><td><span class="pill green">✓ Full</span></td></tr>
-          <tr><td class="mono">6</td><td>Hyrox ignores most of onboarding</td><td>Hyrox reads menopause (bone), injury (lead-in), a fitness anchor (run paces) &amp; gym access (home subs + advisory).</td><td class="src">P1-6 / P3 · #248/#252</td><td><span class="pill green">✓ Full</span></td></tr>
-          <tr><td class="mono">7</td><td>maxHR = 220−age, inconsistent floor</td><td>One shared <code>computeMaxHR()</code> — Tanaka 208−0.7·age, floor 120 — across every engine; measured maxHR/LTHR can replace it.</td><td class="src">P1-7 · #248</td><td><span class="pill green">✓ Full</span></td></tr>
-          <tr><td class="mono">8</td><td>Long runway leaves a dead zone</td><td>A long runway prepends base / foundation weeks so the plan starts today.</td><td class="src">P2-8 · #249</td><td><span class="pill green">✓ Full</span></td></tr>
-          <tr><td class="mono">9</td><td>Cross-distance VDOT extrapolation</td><td>An anchor ≥ 4× from the race distance raises an info advisory that the paces are an estimate.</td><td class="src">P0-3 / P2-11 · #247/#249</td><td><span class="pill green">✓ Full</span></td></tr>
-          <tr><td class="mono">10</td><td>Alphabetical tie-break decides the method</td><td>Ties break on profile fit — experience → terrain → distance — and only the id when every axis is equal.</td><td class="src">P2-9 · #249</td><td><span class="pill green">✓ Full</span></td></tr>
-          <tr><td class="mono">11</td><td>General Fitness can’t use a tested effort</td><td>GF reads a fitness anchor and shows pace targets on its cardio pillars, not HR-only.</td><td class="src">P2-10 · #249</td><td><span class="pill green">✓ Full</span></td></tr>
-          <tr><td class="mono">12</td><td>Experience level is over-leveraged</td><td>Measured mileage ≥ 2 bands off the chosen level raises an advisory naming the gap &amp; the fix.</td><td class="src">P0-3 / P3 · #247/#252</td><td><span class="pill green">✓ Full</span></td></tr>
-          <tr><td class="mono">+</td><td>Honesty advisories never reached the coach</td><td>The welcome letter now narrates the plan’s advisories plainly (a <code>PLAN ADVISORIES</code> snapshot line).</td><td class="src">Coach · #250</td><td><span class="pill green">✓ Full</span></td></tr>
-        </tbody>
-      </table>
-    </div>
-
-    <h3 style="margin-top:20px">Remaining gaps &amp; deliberate non-goals</h3>
-    <p class="sub">What the improvements <i>did not</i> close — the honest edge of the current engine.</p>
-    <div class="grid g2" style="margin-top:10px">
-      <div class="card" style="border-left:3px solid #f59e0b">
-        <h4 style="margin-top:0">Open gaps</h4>
-        <ul style="margin:6px 0 0;padding-left:18px;font-size:13px;line-height:1.55">
-          <li><b>Youth / under-18:</b> no youth-specific load or volume guardrails — an under-18 athlete is handed the adult model.</li>
-          <li><b>Injury bluntness:</b> a currently-injured athlete is still capped at 3 days/week even for an ultra, and there is no medical hard-stop or referral path; the goal-vs-injury conflict is not surfaced.</li>
-          <li><b>Hyrox equipment depth:</b> handled as binary gym / no-gym — a specific equipment inventory (which stations you can access) is not modelled, and weak-station stays a label.</li>
-          <li><b>Cross-distance anchor:</b> flagged with an advisory, but the engine still uses the single anchor rather than auto-preferring a same-distance one.</li>
-        </ul>
-      </div>
-      <div class="card" style="border-left:3px solid #64748b">
-        <h4 style="margin-top:0">Deliberate non-goals (working as intended)</h4>
-        <ul style="margin:6px 0 0;padding-left:18px;font-size:13px;line-height:1.55">
-          <li><b>Volume is not inflated to chase a goal.</b> An ambitious goal is warned and given a realistic alternative; pace gain is capped at ~+8% VDOT per block and weekly volume follows a ramp-safe curve, by design.</li>
-          <li><b>Mountain-ultra has no goal-time pacing</b> (its distance is set to 0) — terrain and vert dominate, so a clock target is not modelled.</li>
-          <li><b>Experience stays a valid input.</b> The mismatch advisory reduces silent over-reliance; it does not override the athlete’s stated level.</li>
-        </ul>
-      </div>
-    </div>
-    <p class="sub" style="font-size:12.5px;margin-top:12px">Full build plan &amp; weakness-by-weakness coverage: <code>docs/onboarding-improvements-plan.md</code>.</p>
   </section>
 
   <!-- 1. ROUTING -->
@@ -351,7 +299,7 @@
         <path class="ln" d="M190,150 C250,150 250,245 320,245"/>
         <!-- trail -->
         <rect x="320" y="25" width="250" height="64" rx="11" fill="#fff" stroke="#0d9488" stroke-width="1.6"/>
-        <text x="334" y="48" class="lbl">Road · Trail / Ultra</text>
+        <text x="334" y="48" class="lbl">Trail / Road Race</text>
         <text x="334" y="66" class="sm">marathons · ultras · halves · 10K · 5K</text>
         <text x="334" y="82" class="fn">generatePlanFromMethod()</text>
         <!-- hyrox -->
@@ -387,9 +335,9 @@
     <h3>Each pathway, step by step</h3>
     <div class="lanes">
       <div class="lane l-trail">
-        <div class="lh">🏔 Road · Trail / Ultra</div>
+        <div class="lh">🏔 Trail / Road Race</div>
         <ol>
-          <li><b>Race distance</b> <span class="g">gate: road / trail</span> — 5K…100mi/mtn. Sets terrain (<code>road</code> vs <code>trail_rolling</code>, P1-4) &amp; eligible methods.<span class="fnx">inferTerrain() · applicability.byDistance</span></li>
+          <li><b>Race distance</b> <span class="g">gate: trail</span> — 5K…100mi/mtn. Sets terrain &amp; eligible methods.<span class="fnx">inferTerrain() · applicability.byDistance</span></li>
           <li><b>Method selection</b> (post-onboarding screen) scores all 8 methods, shows top-3.<span class="fnx">selectMethods() → 3·dist + 2·exp + 1·terrain</span></li>
           <li><b>Athlete picks one</b> of the three → <code>selectedMethodId</code>.</li>
           <li><b>Generate</b> periodized plan: paces, phases, ramp, taper.<span class="fnx">generatePlanFromMethod()</span></li>
@@ -433,7 +381,7 @@
           <tr><td>Variant step</td><td class="src">Onboarding.tsx:345</td><td>trail/general → long-run day · hyrox → weak station</td></tr>
           <tr><td>Detail-level default</td><td class="src">Onboarding.tsx:309</td><td>Pre-selected from experience (simple/balanced/detailed)</td></tr>
           <tr><td class="mono">distance rating === NOT_SUITED</td><td class="src">methodSelection.ts:267</td><td>Method dropped from top-3 (unless &lt;3 viable remain)</td></tr>
-          <tr><td>Score tie</td><td class="src">methodSelection.ts:271</td><td>Broken alphabetically by method id <span class="pill green" style="font-size:10px">now: by fit — experience → terrain → distance (P2-9 · PR #249)</span></td></tr>
+          <tr><td>Score tie</td><td class="src">methodSelection.ts:271</td><td>Broken alphabetically by method id</td></tr>
           <tr><td class="mono">COACHING_ONLY_METHOD_IDS</td><td class="src">data/methods/index.ts:38</td><td>trainingpeaks excluded from the recommender</td></tr>
           <tr><td class="mono">injuryStatus ∈ {returning, current}</td><td class="src">generatePlan.ts:424</td><td>Day cap · start × · ramp cap · easy lead-in weeks</td></tr>
           <tr><td>Anchor AND goal AND goal&gt;current</td><td class="src">generatePlan.ts:515</td><td>Activates goal-pace blend (capped +8% VDOT)</td></tr>
@@ -460,7 +408,7 @@
         <tbody id="matrixBody"></tbody>
       </table>
     </div>
-    <div class="note" style="margin-top:12px"><b>Read this way (as audited):</b> the running engine reacts to the most inputs (distance, anchor, goal time, mileage, injury, menopause). Hyrox read only experience, days/week, and weak-station label — it <b>ignored</b> menopause, sex, injury, equipment, and strength/cross counts. General Fitness keys off the goal preset, days, modality, and the menopause overlay.<br><span style="color:#047857"><b>✓ Now shipped:</b> Hyrox reads menopause (bone finisher), injury (easy lead-in), a fitness anchor (run-day paces) and gym access (home substitutions + a no-gym advisory); General Fitness reads a fitness anchor for cardio pace targets. (PR #248 / #249 / #252)</span></p>
+    <div class="note" style="margin-top:12px"><b>Read this way:</b> the running engine reacts to the most inputs (distance, anchor, goal time, mileage, injury, menopause). Hyrox reads only experience, days/week, and weak-station label — it <b>ignores</b> menopause, sex, injury, equipment, and strength/cross counts. General Fitness keys off the goal preset, days, modality, and the menopause overlay.</p>
 
     <h3>Reverse view — what determines each plan output</h3>
     <p class="sub">The same logic read output-first: for each thing the plan decides, the inputs that drive it and the function that computes it. This is the column-and-row complement to the matrix above.</p>
@@ -479,9 +427,9 @@
           <tr><td><b>Taper</b></td><td>method.taper duration + weeklyVolumePcts</td><td class="src">buildWeeklyMileage()</td></tr>
           <tr><td><b>Pace zones</b></td><td>race anchor → VDOT (or easy-pace / LTHR / RPE fallback)</td><td class="src">resolvePaces() · vdot.ts</td></tr>
           <tr><td><b>Goal paces</b></td><td>anchor + goal + stretch · capped +8% VDOT</td><td class="src">blendGoalPaces()</td></tr>
-          <tr><td><b>HR zones</b></td><td>maxHR (entered or <s>220−age</s> → <b>Tanaka 208−0.7·age</b>, unified floor 120) × fixed % bands</td><td class="src">computeMaxHR() · heartRate.ts</td></tr>
+          <tr><td><b>HR zones</b></td><td>maxHR (entered or 220−age) × fixed % bands</td><td class="src">maxHrPercentZones()</td></tr>
           <tr><td><b>Strength prescription</b></td><td>equipment (gym/bw) · menopause stage · taper</td><td class="src">buildStrengthDetail() · menopause.ts</td></tr>
-          <tr><td><b>Hyrox structure</b></td><td>experience level (length / structure) <span class="pill green" style="font-size:10px">+ menopause · injury · anchor · gym (P1-6 / P3)</span></td><td class="src">getLevelParams()</td></tr>
+          <tr><td><b>Hyrox structure</b></td><td>experience level (only)</td><td class="src">getLevelParams()</td></tr>
           <tr><td><b>GF weekly shape</b></td><td>generalGoal preset · days/week · menopause overlay</td><td class="src">GOAL_PRESETS · TEMPLATES</td></tr>
         </tbody>
       </table>
@@ -533,7 +481,7 @@
     </div>
 
     <h3>Method selection — a weighted score, then top-3</h3>
-    <p class="sub"><code>score = 3·distance + 2·experience + 1·terrain</code> (<span class="src">methodSelection.ts</span>; BEST 4 · GOOD 3 · OK 2 · CAUTION 1 · NOT_SUITED 0). Methods that are <code>NOT_SUITED</code> for the distance are dropped unless fewer than three remain; ties now break on <b>profile fit</b> — experience, then terrain, then distance — and only fall back to the id when every axis is equal. <span class="pill green" style="font-size:10px">P2-9 · PR #249</span></p>
+    <p class="sub"><code>score = 3·distance + 2·experience + 1·terrain</code> (<span class="src">methodSelection.ts</span>; BEST 4 · GOOD 3 · OK 2 · CAUTION 1 · NOT_SUITED 0). Methods that are <code>NOT_SUITED</code> for the distance are dropped unless fewer than three remain; ties break alphabetically by id.</p>
     <div class="tableScroll" style="margin-top:10px">
       <table id="applicTable">
         <thead><tr><th>Method</th><th class="mono">anchor</th><th class="mono">peak×</th><th class="mono">weeks</th><th>5K</th><th>10K</th><th>Half</th><th>Mara</th><th>50K</th><th>50mi</th><th>100K</th><th>100mi</th><th>Mtn</th></tr></thead>
@@ -560,18 +508,16 @@
             <tr><td>Elite</td><td class="mono">8</td><td class="mono">2 / 3 / 2</td><td class="mono">3,6</td></tr>
           </tbody>
         </table></div>
-        <p class="sub" style="font-size:12.5px;margin-top:8px"><code>trainingDaysPerWeek</code> maps to a fixed role list (3 → run · strength+stations · long … 6 → six roles). <code>maxHR = computeMaxHR()</code> — Tanaka 208−0.7·age, floor 120 (shipped P1-7). <span class="pill green" style="font-size:10px">now also reads menopause · injury · anchor · gym (P1-6 / P3)</span></p>
+        <p class="sub" style="font-size:12.5px;margin-top:8px"><code>trainingDaysPerWeek</code> maps to a fixed role list (3 → run · strength+stations · long … 6 → six roles). <code>maxHR = config.maxHR || 220 − age</code>.</p>
       </div>
       <div class="card">
-        <h4>What Hyrox reads <span class="pill green" style="font-size:11px">updated P1-6 / P3</span></h4>
+        <h4>What Hyrox ignores (by design)</h4>
         <div class="chips">
-          <span class="chip" style="background:#ecfdf5;border-color:#a7f3d0">✓ menopause → bone finisher</span>
-          <span class="chip" style="background:#ecfdf5;border-color:#a7f3d0">✓ injury → easy lead-in</span>
-          <span class="chip" style="background:#ecfdf5;border-color:#a7f3d0">✓ fitness anchor → run paces</span>
-          <span class="chip" style="background:#ecfdf5;border-color:#a7f3d0">✓ gym access → home subs + advisory</span>
-          <span class="chip">biological sex (gates menopause)</span><span class="chip">strength days / wk</span><span class="chip">cross-training</span>
+          <span class="chip">menopause</span><span class="chip">biological sex</span><span class="chip">injury status</span>
+          <span class="chip">equipment access</span><span class="chip">strength days / wk</span><span class="chip">cross-training</span>
+          <span class="chip">fitness anchor</span><span class="chip">goal time</span><span class="chip">current mileage</span>
         </div>
-        <div class="note" style="margin-top:12px;border-left-color:#10b981;background:#ecfdf5">A midlife or injured Hyrox athlete now gets the same bone-loading finisher and easy injury lead-in the running engine gives, and a recent race time sets run-day pace targets (P1-6 / P3, PR #248 / #252). <b>Residual gap:</b> specific equipment inventory beyond gym / no-gym, and the strength/cross day counts, are still not modelled; weak-station stays a label.</div>
+        <div class="warn note" style="margin-top:12px">Because the menopause overlay never reaches this engine, a midlife athlete on the Hyrox path gets <b>no bone-loading or recovery tailoring</b> — a gap worth flagging if midlife Hyrox is a target segment.</div>
       </div>
     </div>
   </section>
@@ -579,7 +525,7 @@
   <!-- 5. GENERAL FITNESS -->
   <section id="engine-gf">
     <div class="kicker"><span class="num">05</span><h2>Engine C — General Fitness <span class="pill violet" style="vertical-align:middle">rolling 4-pillar</span></h2></div>
-    <p class="sub"><code>generateGeneralFitnessPlan(config, today)</code> (<span class="src">src/engines/generalFitness/index.ts:323</span>). A method-less, goal-weighted engine over four pillars — Zone&nbsp;2, VO₂max, strength, mobility. With a date it sizes a block (clamped 4–16 weeks); with none it runs a <b>rolling 12-week</b> block. Deload every 4th week. <code>maxHR = computeMaxHR()</code> — Tanaka 208−0.7·age, floor 120 (P1-7). <span class="pill green" style="font-size:10px">now reads a fitness anchor → cardio pace targets (P2-10)</span></p>
+    <p class="sub"><code>generateGeneralFitnessPlan(config, today)</code> (<span class="src">src/engines/generalFitness/index.ts:323</span>). A method-less, goal-weighted engine over four pillars — Zone&nbsp;2, VO₂max, strength, mobility. With a date it sizes a block (clamped 4–16 weeks); with none it runs a <b>rolling 12-week</b> block. Deload every 4th week. <code>maxHR = config.maxHR || 220 − age</code>.</p>
     <div class="grid g2" style="margin-top:12px">
       <div class="card">
         <h4>Goal presets (strength sets×reps · cardio bias)</h4>
@@ -619,15 +565,13 @@
   <section id="explorer">
     <div class="kicker"><span class="num">07</span><h2>Live decision explorer</h2></div>
     <p class="sub">Change any input and the full decision path recomputes in your browser — the <b>ordered function trace</b>, the chosen engine and method (with scores), HR zones, phase split, the weekly-volume ramp, goal-pace logic, resolved paces, and any warnings the inputs trigger. This is a faithful port of the engine’s decision math, proven field-for-field against the live engine in <a href="#correctness">§11</a>. It renders the numeric envelope, not the per-day workout text.</p>
-    <div class="note" style="margin-top:10px;border-left-color:#2563eb;background:#eff6ff;font-size:12.5px"><b>Baseline:</b> this explorer reproduces the engine <b>as originally audited</b> (the version the ground-truth was captured against, so the §11 checks stay exact). The P0–P3 improvements — runway clamp, goal-from-goal paces, volume cap, Tanaka maxHR, fit tie-break, Hyrox &amp; GF anchoring, equipment honesty — are now shipped; see <a href="#status">§00 Implementation status</a> for current behavior. The <b>Road race</b> type (P1-4) is wired into the picker here.</div>
     <p class="sub" style="font-size:13px;margin-top:6px">Load a worked example, then tweak it:</p>
     <div class="presets" id="presetBar"></div>
     <div class="card explorer" style="margin-top:4px">
       <div class="form" id="explorerForm">
         <div class="row"><label>What are you training for?</label>
           <select id="f-raceType">
-            <option value="road">Road race</option>
-            <option value="trail">Trail / Ultra</option>
+            <option value="trail">Trail / Road Race</option>
             <option value="hyrox">Hyrox</option>
             <option value="general">General Fitness</option>
           </select></div>
@@ -693,7 +637,6 @@
   <section id="audit">
     <div class="kicker"><span class="num">08</span><h2>Audit matrix — 50 scenarios in 8 groups</h2></div>
     <p class="sub">50 representative athletes run through the same verified port the explorer uses, organized into 8 groups. Each group leads with the <b>weakness it reveals</b>; each row is the real decision outcome plus any issues the logic produces — graded <span class="sev sev-high">high</span> (wrong/misleading output), <span class="sev sev-med">med</span> (notable gap), <span class="sev sev-low">low</span> (caveat), or <span class="sev sev-ok">clean</span>. Detection is heuristic (<span class="src">auditIssues()</span> in this page) — load any row into the <a href="#explorer">explorer</a> to inspect.</p>
-    <div class="note" style="margin-top:10px;border-left-color:#10b981;background:#ecfdf5;font-size:12.5px"><b>✓ Now resolved:</b> the grades below describe the engine <b>as audited</b>. Every group header now carries a green “Now resolved” line mapping the weakness to its shipped fix (PRs #247–#252); the residual gaps are called out inline and in <a href="#status">§00</a>.</div>
     <div id="auditSummary" class="statline" style="margin-top:12px"></div>
     <div class="tableScroll" style="margin-top:6px">
       <table id="auditTable">
@@ -706,14 +649,14 @@
   <!-- 9. WEAKNESSES -->
   <section id="weaknesses">
     <div class="kicker"><span class="num">09</span><h2>Weaknesses in the logic &amp; routing</h2></div>
-    <p class="sub">Structural issues the review surfaced — patterns, not one-off bugs. Each is reproducible in the audit matrix above and the explorer. Severity reflects how often it bites a paying user and how wrong the output is. <b>Every card below now carries its shipped resolution</b> — all 12 are fixed across PRs #247–#252 (see <a href="#status">§00</a>).</p>
+    <p class="sub">Structural issues the review surfaced — patterns, not one-off bugs. Each is reproducible in the audit matrix above and the explorer. Severity reflects how often it bites a paying user and how wrong the output is.</p>
     <div class="grid g2" id="weakGrid" style="margin-top:14px"></div>
   </section>
 
   <!-- 10. IMPROVEMENTS -->
   <section id="improvements">
     <div class="kicker"><span class="num">10</span><h2>Prioritized improvements</h2></div>
-    <p class="sub">A roadmap mapping the weaknesses to concrete fixes, ordered by impact × how often it bites a paying user. The top tier (P0) runs the <b>Witchel 3-rule check</b> inline — massive market · visceral solve · customer language — so each one earns its place. <b>All eleven have since shipped</b> (P0 → P3); each card is tagged <span class="pill green" style="font-size:10px">✓ SHIPPED</span> with its PR.</p>
+    <p class="sub">A roadmap mapping the weaknesses to concrete fixes, ordered by impact × how often it bites a paying user. The top tier (P0) runs the <b>Witchel 3-rule check</b> inline — massive market · visceral solve · customer language — so each one earns its place.</p>
     <div id="impList" style="margin-top:16px"></div>
   </section>
 
@@ -723,7 +666,7 @@
     <p class="sub">Three layers of evidence: (1) a harness runs the <b>actual engine</b>, (2) the in-browser explorer independently re-derives the same headline numbers, and (3) the harness surfaces behaviors that disagree with the spec.</p>
 
     <h3>Explorer re-derivation vs the live engine</h3>
-    <p class="sub">For every persona, the explorer’s port is fed the persona’s inputs and its outputs are compared to the engine’s recorded output. All-green means the documented math matches the code <b>at the time this baseline was captured</b> (pre-improvement); the P0–P3 fixes are tracked in <a href="#status">§00</a>, not re-baked here, so these field-for-field checks stay exact.</p>
+    <p class="sub">For every persona, the explorer’s port is fed the persona’s inputs and its outputs are compared to the engine’s recorded output. All-green means the documented math matches the shipping code.</p>
     <div class="tableScroll" style="margin-top:10px">
       <table id="verifyTable">
         <thead><tr><th>Persona</th><th>Engine</th><th>Method / weeks</th><th>maxHR</th><th>peak mi</th><th>long mi</th><th>VDOT cur→cap</th><th>Match</th></tr></thead>
@@ -1871,35 +1814,35 @@
       "chosenMethodId": "fitzgerald_8020",
       "chosenMethodName": "80/20 Running (Fitzgerald)",
       "primaryAnchor": "lthr_bpm",
-      "maxHR": 186,
+      "maxHR": 184,
       "zones": [
         {
           "zone": "Z1 – Recovery",
-          "hr": "107–133",
-          "pct": "58–72%",
+          "hr": "105–131",
+          "pct": "57–71%",
           "desc": "Very easy, full conversation"
         },
         {
           "zone": "Z2 – Aerobic",
-          "hr": "133–146",
-          "pct": "72–78%",
+          "hr": "131–144",
+          "pct": "71–78%",
           "desc": "Comfortable, sustainable"
         },
         {
           "zone": "Z3 – Tempo",
-          "hr": "148–156",
-          "pct": "80–84%",
+          "hr": "146–154",
+          "pct": "79–84%",
           "desc": "Comfortably hard"
         },
         {
           "zone": "Z4 – Threshold",
-          "hr": "157–167",
-          "pct": "84–90%",
+          "hr": "156–165",
+          "pct": "85–90%",
           "desc": "Hard. A few words at most"
         },
         {
           "zone": "Z5 – VO2 / Max",
-          "hr": "167–180",
+          "hr": "165–178",
           "pct": "90–97%",
           "desc": "Hard. A word or two at a time"
         }
@@ -2098,8 +2041,8 @@
       ],
       "paceAnchor": {
         "type": "lthr_bpm",
-        "value": 164,
-        "sourceNote": "Estimated LTHR = 0.88 × maxHR (186)"
+        "value": 162,
+        "sourceNote": "Estimated LTHR = 0.88 × maxHR (184)"
       },
       "goalPace": {
         "currentVdot": 50.2,
@@ -2114,60 +2057,60 @@
           "displayName": "Zone 1 (Recovery)",
           "paceSecLow": 597,
           "paceSecHigh": 522,
-          "hrLow": 107,
-          "hrHigh": 133,
+          "hrLow": 105,
+          "hrHigh": 131,
           "rpeLow": 2,
           "rpeHigh": 3,
           "preferredMode": "pace",
-          "formatted": "Zone 1 (Recovery) · 8:42-9:57 /mi · 107-133 bpm"
+          "formatted": "Zone 1 (Recovery) · 8:42-9:57 /mi · 105-131 bpm"
         },
         {
           "zone": "easy",
           "displayName": "Zone 2 (Aerobic)",
           "paceSecLow": 522,
           "paceSecHigh": 447,
-          "hrLow": 133,
-          "hrHigh": 146,
+          "hrLow": 131,
+          "hrHigh": 144,
           "rpeLow": 4,
           "rpeHigh": 5,
           "preferredMode": "pace",
-          "formatted": "Zone 2 (Aerobic) · 7:27-8:42 /mi · 133-146 bpm"
+          "formatted": "Zone 2 (Aerobic) · 7:27-8:42 /mi · 131-144 bpm"
         },
         {
           "zone": "marathon_pace",
           "displayName": "Zone 3 (Moderate / MP)",
           "paceSecLow": 447,
           "paceSecHigh": 425,
-          "hrLow": 148,
-          "hrHigh": 156,
+          "hrLow": 146,
+          "hrHigh": 154,
           "rpeLow": 5,
           "rpeHigh": 7,
           "preferredMode": "pace",
-          "formatted": "Zone 3 (Moderate / MP) · 7:05-7:27 /mi · 148-156 bpm"
+          "formatted": "Zone 3 (Moderate / MP) · 7:05-7:27 /mi · 146-154 bpm"
         },
         {
           "zone": "lactate_threshold",
           "displayName": "Zone 4 (Lactate Threshold)",
           "paceSecLow": 417,
           "paceSecHigh": 395,
-          "hrLow": 157,
-          "hrHigh": 167,
+          "hrLow": 156,
+          "hrHigh": 165,
           "rpeLow": 7,
           "rpeHigh": 8,
           "preferredMode": "pace",
-          "formatted": "Zone 4 (Lactate Threshold) · 6:35-6:57 /mi · 157-167 bpm"
+          "formatted": "Zone 4 (Lactate Threshold) · 6:35-6:57 /mi · 156-165 bpm"
         },
         {
           "zone": "vo2max",
           "displayName": "Zone 5 (VO2max)",
           "paceSecLow": 385,
           "paceSecHigh": 369,
-          "hrLow": 167,
-          "hrHigh": 180,
+          "hrLow": 165,
+          "hrHigh": 178,
           "rpeLow": 8,
           "rpeHigh": 9,
           "preferredMode": "pace",
-          "formatted": "Zone 5 (VO2max) · 6:09-6:25 /mi · 167-180 bpm"
+          "formatted": "Zone 5 (VO2max) · 6:09-6:25 /mi · 165-178 bpm"
         }
       ],
       "sampleWeekNumber": 15,
@@ -2178,31 +2121,31 @@
           "workout": "Strength",
           "zone": "Z1",
           "time": "45-60 min",
-          "detail": "Goblet Squat 3×12 · Bulgarian Split Squat 3×10/leg · RDL 3×10 · Step-Up 3×10/leg · Calf Raise 3×15 · Plank 3×45s · Dead Bug 3×10/side"
+          "detail": "Emphasis: explosive power (box jumps, med-ball, light & fast); drop the heavy loads · Goblet Squat 3×12 · Bulgarian Split Squat 3×10/leg · RDL 3×10 · Step-Up 3×10/leg · Calf Raise 3×15 · Plank 3×45s · Dead Bug 3×10/side"
         },
         {
           "day": "Tue 9/22",
           "type": "quality",
           "workout": "Z5 Intervals",
-          "zone": "Zone 5 (VO2max) · 5:47-6:01 /mi · 167-180 bpm",
+          "zone": "Zone 5 (VO2max) · 5:47-6:01 /mi · 165-178 bpm",
           "time": "50-70 min",
-          "detail": "Zone 5 (VO2max) · 5:47-6:01 /mi · 167-180 bpm · Z5 cap: keep total interval time small relative to weekly volume"
+          "detail": "Zone 5 (VO2max) · 5:47-6:01 /mi · 165-178 bpm · Z5 cap: keep total interval time small relative to weekly volume"
         },
         {
           "day": "Wed 9/23",
           "type": "run",
           "workout": "Z2 Easy",
-          "zone": "Zone 2 (Aerobic) · 7:27-8:42 /mi · 133-146 bpm",
+          "zone": "Zone 2 (Aerobic) · 7:27-8:42 /mi · 131-144 bpm",
           "time": "77-90 min",
-          "detail": "Zone 2 (Aerobic) · 7:27-8:42 /mi · 133-146 bpm · If HR drifts above Z2, slow down — even if it feels too easy"
+          "detail": "Zone 2 (Aerobic) · 7:27-8:42 /mi · 131-144 bpm · If HR drifts above Z2, slow down — even if it feels too easy"
         },
         {
           "day": "Thu 9/24",
           "type": "quality",
           "workout": "Z4 Threshold",
-          "zone": "Zone 4 (Lactate Threshold) · 6:11-6:32 /mi · 157-167 bpm",
+          "zone": "Zone 4 (Lactate Threshold) · 6:11-6:32 /mi · 156-165 bpm",
           "time": "45-65 min",
-          "detail": "Zone 4 (Lactate Threshold) · 6:11-6:32 /mi · 157-167 bpm · Tempo pace, not race pace — controlled"
+          "detail": "Zone 4 (Lactate Threshold) · 6:11-6:32 /mi · 156-165 bpm · Tempo pace, not race pace — controlled"
         },
         {
           "day": "Fri 9/25",
@@ -2210,23 +2153,23 @@
           "workout": "Strength",
           "zone": "Z1",
           "time": "45-60 min",
-          "detail": "Goblet Squat 3×12 · Bulgarian Split Squat 3×10/leg · RDL 3×10 · Step-Up 3×10/leg · Calf Raise 3×15 · Plank 3×45s · Dead Bug 3×10/side"
+          "detail": "Emphasis: explosive power (box jumps, med-ball, light & fast); drop the heavy loads · Goblet Squat 3×12 · Bulgarian Split Squat 3×10/leg · RDL 3×10 · Step-Up 3×10/leg · Calf Raise 3×15 · Plank 3×45s · Dead Bug 3×10/side"
         },
         {
           "day": "Sat 9/26",
           "type": "run",
           "workout": "Z1 Recovery",
-          "zone": "Zone 1 (Recovery) · 8:42-9:57 /mi · 107-133 bpm",
+          "zone": "Zone 1 (Recovery) · 8:42-9:57 /mi · 105-131 bpm",
           "time": "20-45 min",
-          "detail": "Zone 1 (Recovery) · 8:42-9:57 /mi · 107-133 bpm · Slower than your normal easy pace"
+          "detail": "Zone 1 (Recovery) · 8:42-9:57 /mi · 105-131 bpm · Slower than your normal easy pace"
         },
         {
           "day": "Sun 9/27",
           "type": "long",
           "workout": "Long Run",
-          "zone": "Zone 2 (Aerobic) · 7:27-8:42 /mi · 133-146 bpm",
+          "zone": "Zone 2 (Aerobic) · 7:27-8:42 /mi · 131-144 bpm",
           "time": "103-120 min",
-          "detail": "Long run ~13.8 mi · Zone 2 (Aerobic) · 7:27-8:42 /mi · 133-146 bpm · Watch HR drift — pace must drop to keep HR in Z2"
+          "detail": "Long run ~13.8 mi · Zone 2 (Aerobic) · 7:27-8:42 /mi · 131-144 bpm · Watch HR drift — pace must drop to keep HR in Z2 · Fuel ~60 g carb/hr · Run by time on feet, not pace"
         }
       ]
     },
@@ -2282,35 +2225,35 @@
       "chosenMethodId": "fitzgerald_8020",
       "chosenMethodName": "80/20 Running (Fitzgerald)",
       "primaryAnchor": "lthr_bpm",
-      "maxHR": 186,
+      "maxHR": 184,
       "zones": [
         {
           "zone": "Z1 – Recovery",
-          "hr": "107–133",
-          "pct": "58–72%",
+          "hr": "105–131",
+          "pct": "57–71%",
           "desc": "Very easy, full conversation"
         },
         {
           "zone": "Z2 – Aerobic",
-          "hr": "133–146",
-          "pct": "72–78%",
+          "hr": "131–144",
+          "pct": "71–78%",
           "desc": "Comfortable, sustainable"
         },
         {
           "zone": "Z3 – Tempo",
-          "hr": "148–156",
-          "pct": "80–84%",
+          "hr": "146–154",
+          "pct": "79–84%",
           "desc": "Comfortably hard"
         },
         {
           "zone": "Z4 – Threshold",
-          "hr": "157–167",
-          "pct": "84–90%",
+          "hr": "156–165",
+          "pct": "85–90%",
           "desc": "Hard. A few words at most"
         },
         {
           "zone": "Z5 – VO2 / Max",
-          "hr": "167–180",
+          "hr": "165–178",
           "pct": "90–97%",
           "desc": "Hard. A word or two at a time"
         }
@@ -2509,8 +2452,8 @@
       ],
       "paceAnchor": {
         "type": "lthr_bpm",
-        "value": 164,
-        "sourceNote": "Estimated LTHR = 0.88 × maxHR (186)"
+        "value": 162,
+        "sourceNote": "Estimated LTHR = 0.88 × maxHR (184)"
       },
       "goalPace": {
         "currentVdot": null,
@@ -2523,52 +2466,52 @@
         {
           "zone": "recovery",
           "displayName": "Zone 1 (Recovery)",
-          "hrLow": 107,
-          "hrHigh": 133,
+          "hrLow": 105,
+          "hrHigh": 131,
           "rpeLow": 2,
           "rpeHigh": 3,
           "preferredMode": "hr",
-          "formatted": "Zone 1 (Recovery) · 107-133 bpm"
+          "formatted": "Zone 1 (Recovery) · 105-131 bpm"
         },
         {
           "zone": "easy",
           "displayName": "Zone 2 (Aerobic)",
-          "hrLow": 133,
-          "hrHigh": 146,
+          "hrLow": 131,
+          "hrHigh": 144,
           "rpeLow": 4,
           "rpeHigh": 5,
           "preferredMode": "hr",
-          "formatted": "Zone 2 (Aerobic) · 133-146 bpm"
+          "formatted": "Zone 2 (Aerobic) · 131-144 bpm"
         },
         {
           "zone": "marathon_pace",
           "displayName": "Zone 3 (Moderate / MP)",
-          "hrLow": 148,
-          "hrHigh": 156,
+          "hrLow": 146,
+          "hrHigh": 154,
           "rpeLow": 5,
           "rpeHigh": 7,
           "preferredMode": "hr",
-          "formatted": "Zone 3 (Moderate / MP) · 148-156 bpm"
+          "formatted": "Zone 3 (Moderate / MP) · 146-154 bpm"
         },
         {
           "zone": "lactate_threshold",
           "displayName": "Zone 4 (Lactate Threshold)",
-          "hrLow": 157,
-          "hrHigh": 167,
+          "hrLow": 156,
+          "hrHigh": 165,
           "rpeLow": 7,
           "rpeHigh": 8,
           "preferredMode": "hr",
-          "formatted": "Zone 4 (Lactate Threshold) · 157-167 bpm"
+          "formatted": "Zone 4 (Lactate Threshold) · 156-165 bpm"
         },
         {
           "zone": "vo2max",
           "displayName": "Zone 5 (VO2max)",
-          "hrLow": 167,
-          "hrHigh": 180,
+          "hrLow": 165,
+          "hrHigh": 178,
           "rpeLow": 8,
           "rpeHigh": 9,
           "preferredMode": "hr",
-          "formatted": "Zone 5 (VO2max) · 167-180 bpm"
+          "formatted": "Zone 5 (VO2max) · 165-178 bpm"
         }
       ],
       "sampleWeekNumber": 15,
@@ -2579,31 +2522,31 @@
           "workout": "Strength",
           "zone": "Z1",
           "time": "45-60 min",
-          "detail": "Goblet Squat 3×12 · Bulgarian Split Squat 3×10/leg · RDL 3×10 · Step-Up 3×10/leg · Calf Raise 3×15 · Plank 3×45s · Dead Bug 3×10/side"
+          "detail": "Emphasis: explosive power (box jumps, med-ball, light & fast); drop the heavy loads · Goblet Squat 3×12 · Bulgarian Split Squat 3×10/leg · RDL 3×10 · Step-Up 3×10/leg · Calf Raise 3×15 · Plank 3×45s · Dead Bug 3×10/side"
         },
         {
           "day": "Tue 9/22",
           "type": "quality",
           "workout": "Z5 Intervals",
-          "zone": "Zone 5 (VO2max) · 167-180 bpm",
+          "zone": "Zone 5 (VO2max) · 5:32-5:46 /mi · 165-178 bpm",
           "time": "50-70 min",
-          "detail": "Zone 5 (VO2max) · 167-180 bpm · Z5 cap: keep total interval time small relative to weekly volume"
+          "detail": "Zone 5 (VO2max) · 5:32-5:46 /mi · 165-178 bpm · Z5 cap: keep total interval time small relative to weekly volume"
         },
         {
           "day": "Wed 9/23",
           "type": "run",
           "workout": "Z2 Easy",
-          "zone": "Zone 2 (Aerobic) · 133-146 bpm",
-          "time": "30-90 min",
-          "detail": "Zone 2 (Aerobic) · 133-146 bpm · If HR drifts above Z2, slow down — even if it feels too easy"
+          "zone": "Zone 2 (Aerobic) · 6:42-7:50 /mi · 131-144 bpm",
+          "time": "69-81 min",
+          "detail": "Zone 2 (Aerobic) · 6:42-7:50 /mi · 131-144 bpm · If HR drifts above Z2, slow down — even if it feels too easy"
         },
         {
           "day": "Thu 9/24",
           "type": "quality",
           "workout": "Z4 Threshold",
-          "zone": "Zone 4 (Lactate Threshold) · 157-167 bpm",
+          "zone": "Zone 4 (Lactate Threshold) · 5:55-6:15 /mi · 156-165 bpm",
           "time": "45-65 min",
-          "detail": "Zone 4 (Lactate Threshold) · 157-167 bpm · Tempo pace, not race pace — controlled"
+          "detail": "Zone 4 (Lactate Threshold) · 5:55-6:15 /mi · 156-165 bpm · Tempo pace, not race pace — controlled"
         },
         {
           "day": "Fri 9/25",
@@ -2611,23 +2554,23 @@
           "workout": "Strength",
           "zone": "Z1",
           "time": "45-60 min",
-          "detail": "Goblet Squat 3×12 · Bulgarian Split Squat 3×10/leg · RDL 3×10 · Step-Up 3×10/leg · Calf Raise 3×15 · Plank 3×45s · Dead Bug 3×10/side"
+          "detail": "Emphasis: explosive power (box jumps, med-ball, light & fast); drop the heavy loads · Goblet Squat 3×12 · Bulgarian Split Squat 3×10/leg · RDL 3×10 · Step-Up 3×10/leg · Calf Raise 3×15 · Plank 3×45s · Dead Bug 3×10/side"
         },
         {
           "day": "Sat 9/26",
           "type": "run",
           "workout": "Z1 Recovery",
-          "zone": "Zone 1 (Recovery) · 107-133 bpm",
+          "zone": "Zone 1 (Recovery) · 7:50-8:58 /mi · 105-131 bpm",
           "time": "20-45 min",
-          "detail": "Zone 1 (Recovery) · 107-133 bpm · Slower than your normal easy pace"
+          "detail": "Zone 1 (Recovery) · 7:50-8:58 /mi · 105-131 bpm · Slower than your normal easy pace"
         },
         {
           "day": "Sun 9/27",
           "type": "long",
           "workout": "Long Run",
-          "zone": "Zone 2 (Aerobic) · 133-146 bpm",
-          "time": "124-138 min",
-          "detail": "Long run ~13.8 mi · Zone 2 (Aerobic) · 133-146 bpm · Watch HR drift — pace must drop to keep HR in Z2"
+          "zone": "Zone 2 (Aerobic) · 6:42-7:50 /mi · 131-144 bpm",
+          "time": "92-108 min",
+          "detail": "Long run ~13.8 mi · Zone 2 (Aerobic) · 6:42-7:50 /mi · 131-144 bpm · Watch HR drift — pace must drop to keep HR in Z2 · Fuel ~60 g carb/hr · Run by time on feet, not pace"
         }
       ]
     },
@@ -2673,52 +2616,52 @@
           "terrain": "GOOD"
         },
         {
-          "methodId": "galloway",
-          "score": 22,
-          "distance": "BEST",
-          "experience": "GOOD",
-          "terrain": "BEST"
-        },
-        {
           "methodId": "hansons",
           "score": 22,
           "distance": "BEST",
           "experience": "BEST",
           "terrain": "OK"
+        },
+        {
+          "methodId": "galloway",
+          "score": 22,
+          "distance": "BEST",
+          "experience": "GOOD",
+          "terrain": "BEST"
         }
       ],
       "chosenMethodId": "fitzgerald_8020",
       "chosenMethodName": "80/20 Running (Fitzgerald)",
       "primaryAnchor": "lthr_bpm",
-      "maxHR": 165,
+      "maxHR": 170,
       "zones": [
         {
           "zone": "Z1 – Recovery",
-          "hr": "94–117",
-          "pct": "57–71%",
+          "hr": "98–122",
+          "pct": "58–72%",
           "desc": "Very easy, full conversation"
         },
         {
           "zone": "Z2 – Aerobic",
-          "hr": "117–129",
-          "pct": "71–78%",
+          "hr": "122–134",
+          "pct": "72–79%",
           "desc": "Comfortable, sustainable"
         },
         {
           "zone": "Z3 – Tempo",
-          "hr": "131–138",
+          "hr": "135–143",
           "pct": "79–84%",
           "desc": "Comfortably hard"
         },
         {
           "zone": "Z4 – Threshold",
-          "hr": "139–148",
-          "pct": "84–90%",
+          "hr": "144–153",
+          "pct": "85–90%",
           "desc": "Hard. A few words at most"
         },
         {
           "zone": "Z5 – VO2 / Max",
-          "hr": "148–160",
+          "hr": "153–165",
           "pct": "90–97%",
           "desc": "Hard. A word or two at a time"
         }
@@ -2917,8 +2860,8 @@
       ],
       "paceAnchor": {
         "type": "lthr_bpm",
-        "value": 145,
-        "sourceNote": "Estimated LTHR = 0.88 × maxHR (165)"
+        "value": 150,
+        "sourceNote": "Estimated LTHR = 0.88 × maxHR (170)"
       },
       "goalPace": {
         "currentVdot": 34.7,
@@ -2933,60 +2876,60 @@
           "displayName": "Zone 1 (Recovery)",
           "paceSecLow": 794,
           "paceSecHigh": 699,
-          "hrLow": 94,
-          "hrHigh": 117,
+          "hrLow": 98,
+          "hrHigh": 122,
           "rpeLow": 2,
           "rpeHigh": 3,
           "preferredMode": "pace",
-          "formatted": "Zone 1 (Recovery) · 11:39-13:14 /mi · 94-117 bpm"
+          "formatted": "Zone 1 (Recovery) · 11:39-13:14 /mi · 98-122 bpm"
         },
         {
           "zone": "easy",
           "displayName": "Zone 2 (Aerobic)",
           "paceSecLow": 699,
           "paceSecHigh": 600,
-          "hrLow": 117,
-          "hrHigh": 129,
+          "hrLow": 122,
+          "hrHigh": 134,
           "rpeLow": 4,
           "rpeHigh": 5,
           "preferredMode": "pace",
-          "formatted": "Zone 2 (Aerobic) · 10:00-11:39 /mi · 117-129 bpm"
+          "formatted": "Zone 2 (Aerobic) · 10:00-11:39 /mi · 122-134 bpm"
         },
         {
           "zone": "marathon_pace",
           "displayName": "Zone 3 (Moderate / MP)",
           "paceSecLow": 600,
           "paceSecHigh": 571,
-          "hrLow": 131,
-          "hrHigh": 138,
+          "hrLow": 135,
+          "hrHigh": 143,
           "rpeLow": 5,
           "rpeHigh": 7,
           "preferredMode": "pace",
-          "formatted": "Zone 3 (Moderate / MP) · 9:31-10:00 /mi · 131-138 bpm"
+          "formatted": "Zone 3 (Moderate / MP) · 9:31-10:00 /mi · 135-143 bpm"
         },
         {
           "zone": "lactate_threshold",
           "displayName": "Zone 4 (Lactate Threshold)",
           "paceSecLow": 561,
           "paceSecHigh": 531,
-          "hrLow": 139,
-          "hrHigh": 148,
+          "hrLow": 144,
+          "hrHigh": 153,
           "rpeLow": 7,
           "rpeHigh": 8,
           "preferredMode": "pace",
-          "formatted": "Zone 4 (Lactate Threshold) · 8:51-9:21 /mi · 139-148 bpm"
+          "formatted": "Zone 4 (Lactate Threshold) · 8:51-9:21 /mi · 144-153 bpm"
         },
         {
           "zone": "vo2max",
           "displayName": "Zone 5 (VO2max)",
           "paceSecLow": 518,
           "paceSecHigh": 497,
-          "hrLow": 148,
-          "hrHigh": 160,
+          "hrLow": 153,
+          "hrHigh": 165,
           "rpeLow": 8,
           "rpeHigh": 9,
           "preferredMode": "pace",
-          "formatted": "Zone 5 (VO2max) · 8:17-8:38 /mi · 148-160 bpm"
+          "formatted": "Zone 5 (VO2max) · 8:17-8:38 /mi · 153-165 bpm"
         }
       ],
       "sampleWeekNumber": 15,
@@ -2997,31 +2940,31 @@
           "workout": "Strength + bone",
           "zone": "Z1",
           "time": "45-60 min",
-          "detail": "Goblet Squat 3×12 · Bulgarian Split Squat 3×10/leg · RDL 3×10 · Step-Up 3×10/leg · Calf Raise 3×15 · Plank 3×45s · Dead Bug 3×10/side · Farmer Carry 3×30s"
+          "detail": "Emphasis: explosive power (box jumps, med-ball, light & fast); drop the heavy loads · Goblet Squat 3×12 · Bulgarian Split Squat 3×10/leg · RDL 3×10 · Step-Up 3×10/leg · Calf Raise 3×15 · Plank 3×45s · Dead Bug 3×10/side · Farmer Carry 3×30s"
         },
         {
           "day": "Tue 9/22",
           "type": "quality",
           "workout": "Z5 Intervals",
-          "zone": "Zone 5 (VO2max) · 8:17-8:38 /mi · 148-160 bpm",
+          "zone": "Zone 5 (VO2max) · 8:17-8:38 /mi · 153-165 bpm",
           "time": "50-70 min",
-          "detail": "Zone 5 (VO2max) · 8:17-8:38 /mi · 148-160 bpm · Z5 cap: keep total interval time small relative to weekly volume"
+          "detail": "Zone 5 (VO2max) · 8:17-8:38 /mi · 153-165 bpm · Z5 cap: keep total interval time small relative to weekly volume"
         },
         {
           "day": "Wed 9/23",
           "type": "run",
           "workout": "Z2 Easy",
-          "zone": "Zone 2 (Aerobic) · 10:00-11:39 /mi · 117-129 bpm",
+          "zone": "Zone 2 (Aerobic) · 10:00-11:39 /mi · 122-134 bpm",
           "time": "30-90 min",
-          "detail": "Zone 2 (Aerobic) · 10:00-11:39 /mi · 117-129 bpm · If HR drifts above Z2, slow down — even if it feels too easy"
+          "detail": "Zone 2 (Aerobic) · 10:00-11:39 /mi · 122-134 bpm · If HR drifts above Z2, slow down — even if it feels too easy"
         },
         {
           "day": "Thu 9/24",
           "type": "quality",
           "workout": "Z4 Threshold",
-          "zone": "Zone 4 (Lactate Threshold) · 8:51-9:21 /mi · 139-148 bpm",
+          "zone": "Zone 4 (Lactate Threshold) · 8:51-9:21 /mi · 144-153 bpm",
           "time": "45-65 min",
-          "detail": "Zone 4 (Lactate Threshold) · 8:51-9:21 /mi · 139-148 bpm · Tempo pace, not race pace — controlled"
+          "detail": "Zone 4 (Lactate Threshold) · 8:51-9:21 /mi · 144-153 bpm · Tempo pace, not race pace — controlled"
         },
         {
           "day": "Fri 9/25",
@@ -3029,23 +2972,23 @@
           "workout": "Strength + bone",
           "zone": "Z1",
           "time": "45-60 min",
-          "detail": "Goblet Squat 3×12 · Bulgarian Split Squat 3×10/leg · RDL 3×10 · Step-Up 3×10/leg · Calf Raise 3×15 · Plank 3×45s · Dead Bug 3×10/side · Farmer Carry 3×30s"
+          "detail": "Emphasis: explosive power (box jumps, med-ball, light & fast); drop the heavy loads · Goblet Squat 3×12 · Bulgarian Split Squat 3×10/leg · RDL 3×10 · Step-Up 3×10/leg · Calf Raise 3×15 · Plank 3×45s · Dead Bug 3×10/side · Farmer Carry 3×30s"
         },
         {
           "day": "Sat 9/26",
           "type": "long",
           "workout": "Long Run",
-          "zone": "Zone 2 (Aerobic) · 10:00-11:39 /mi · 117-129 bpm",
+          "zone": "Zone 2 (Aerobic) · 10:00-11:39 /mi · 122-134 bpm",
           "time": "154-179 min",
-          "detail": "Long run ~15.4 mi · Zone 2 (Aerobic) · 10:00-11:39 /mi · 117-129 bpm · Watch HR drift — pace must drop to keep HR in Z2"
+          "detail": "Long run ~15.4 mi · Zone 2 (Aerobic) · 10:00-11:39 /mi · 122-134 bpm · Watch HR drift — pace must drop to keep HR in Z2 · Fuel ~60 g carb/hr · Run by time on feet, not pace"
         },
         {
           "day": "Sun 9/27",
           "type": "run",
           "workout": "Z1 Recovery",
-          "zone": "Zone 1 (Recovery) · 11:39-13:14 /mi · 94-117 bpm",
+          "zone": "Zone 1 (Recovery) · 11:39-13:14 /mi · 98-122 bpm",
           "time": "20-45 min",
-          "detail": "Zone 1 (Recovery) · 11:39-13:14 /mi · 94-117 bpm · Slower than your normal easy pace"
+          "detail": "Zone 1 (Recovery) · 11:39-13:14 /mi · 98-122 bpm · Slower than your normal easy pace"
         }
       ]
     },
@@ -3100,36 +3043,36 @@
       "chosenMethodId": "koop",
       "chosenMethodName": "Koop / CTS Ultra",
       "primaryAnchor": "lthr_bpm",
-      "maxHR": 195,
+      "maxHR": 191,
       "zones": [
         {
           "zone": "Z1 – Recovery",
-          "hr": "103–138",
-          "pct": "53–71%",
+          "hr": "101–134",
+          "pct": "53–70%",
           "desc": "Very easy, full conversation"
         },
         {
           "zone": "Z2 – Aerobic",
-          "hr": "138–155",
-          "pct": "71–79%",
+          "hr": "134–151",
+          "pct": "70–79%",
           "desc": "Comfortable, sustainable"
         },
         {
           "zone": "Z3 – Tempo",
-          "hr": "155–163",
+          "hr": "151–160",
           "pct": "79–84%",
           "desc": "Comfortably hard"
         },
         {
           "zone": "Z4 – Threshold",
-          "hr": "163–172",
+          "hr": "160–168",
           "pct": "84–88%",
           "desc": "Hard. A few words at most"
         },
         {
           "zone": "Z5 – VO2 / Max",
-          "hr": "172–181",
-          "pct": "88–93%",
+          "hr": "168–176",
+          "pct": "88–92%",
           "desc": "Hard. A word or two at a time"
         }
       ],
@@ -3387,29 +3330,28 @@
       ],
       "planWeeksMiles": [
         64,
-        66.7,
+        66.8,
         46.7,
-        72,
-        74.7,
-        52.3,
-        80,
-        82.7,
-        57.9,
-        88,
-        90.7,
-        63.5,
-        96,
-        98.7,
-        69.1,
-        104,
-        106.7,
-        74.7,
-        112,
-        114.7,
-        80.3,
-        120,
-        122.7,
-        85.9,
+        72.3,
+        75.1,
+        52.6,
+        80.7,
+        83.5,
+        58.4,
+        89,
+        91.8,
+        64.3,
+        97.4,
+        100.2,
+        70.1,
+        105.7,
+        108.5,
+        76,
+        114.1,
+        116.9,
+        81.8,
+        122.4,
+        125.2,
         128,
         89.6,
         64,
@@ -3417,8 +3359,8 @@
       ],
       "paceAnchor": {
         "type": "lthr_bpm",
-        "value": 172,
-        "sourceNote": "Estimated LTHR = 0.88 × maxHR (195)"
+        "value": 168,
+        "sourceNote": "Estimated LTHR = 0.88 × maxHR (191)"
       },
       "goalPace": {
         "currentVdot": null,
@@ -3431,111 +3373,111 @@
         {
           "zone": "recovery",
           "displayName": "Recovery (Zone 1)",
-          "hrLow": 103,
-          "hrHigh": 138,
+          "hrLow": 101,
+          "hrHigh": 134,
           "rpeLow": 2,
           "rpeHigh": 3,
           "preferredMode": "hr",
-          "formatted": "Recovery (Zone 1) · 103-138 bpm"
+          "formatted": "Recovery (Zone 1) · 101-134 bpm"
         },
         {
           "zone": "easy",
           "displayName": "Endurance (Zone 2)",
-          "hrLow": 138,
-          "hrHigh": 155,
+          "hrLow": 134,
+          "hrHigh": 151,
           "rpeLow": 4,
           "rpeHigh": 6,
           "preferredMode": "hr",
-          "formatted": "Endurance (Zone 2) · 138-155 bpm"
+          "formatted": "Endurance (Zone 2) · 134-151 bpm"
         },
         {
           "zone": "aerobic_threshold",
           "displayName": "Tempo (Zone 3)",
-          "hrLow": 155,
-          "hrHigh": 163,
+          "hrLow": 151,
+          "hrHigh": 160,
           "rpeLow": 6,
           "rpeHigh": 7,
           "preferredMode": "hr",
-          "formatted": "Tempo (Zone 3) · 155-163 bpm"
+          "formatted": "Tempo (Zone 3) · 151-160 bpm"
         },
         {
           "zone": "lactate_threshold",
           "displayName": "SteadyState (Zone 4)",
-          "hrLow": 163,
-          "hrHigh": 172,
+          "hrLow": 160,
+          "hrHigh": 168,
           "rpeLow": 7,
           "rpeHigh": 8,
           "preferredMode": "hr",
-          "formatted": "SteadyState (Zone 4) · 163-172 bpm"
+          "formatted": "SteadyState (Zone 4) · 160-168 bpm"
         },
         {
           "zone": "vo2max",
           "displayName": "ClimbingRepeats (Zone 5)",
-          "hrLow": 172,
-          "hrHigh": 181,
+          "hrLow": 168,
+          "hrHigh": 176,
           "rpeLow": 8,
           "rpeHigh": 9,
           "preferredMode": "hr",
-          "formatted": "ClimbingRepeats (Zone 5) · 172-181 bpm"
+          "formatted": "ClimbingRepeats (Zone 5) · 168-176 bpm"
         }
       ],
       "sampleWeekNumber": 25,
       "sampleWeekDays": [
         {
-          "day": "Mon 11/16",
+          "day": "Mon 11/23",
           "type": "cross",
           "workout": "Cross-train · Hiking",
-          "zone": "Z1-2",
-          "time": "60-78 min",
-          "detail": "60-78 min uphill hike · steady Z2 · Use poles if available — plant rhythm · Power-hike posture: hands on thighs on steep bits"
+          "zone": "Z1",
+          "time": "36-48 min",
+          "detail": "36-48 min uphill hike · steady Z2 · Use poles if available — plant rhythm · Power-hike posture: hands on thighs on steep bits"
         },
         {
-          "day": "Tue 11/17",
+          "day": "Tue 11/24",
           "type": "quality",
           "workout": "SteadyState",
-          "zone": "SteadyState (Zone 4) · 163-172 bpm",
+          "zone": "SteadyState (Zone 4) · 160-168 bpm",
           "time": "60-90 min",
-          "detail": "SteadyState (Zone 4) · 163-172 bpm · Even effort across all reps"
+          "detail": "SteadyState (Zone 4) · 160-168 bpm · Even effort across all reps"
         },
         {
-          "day": "Wed 11/18",
+          "day": "Wed 11/25",
           "type": "run",
           "workout": "Endurance",
-          "zone": "Endurance (Zone 2) · 138-155 bpm",
+          "zone": "Endurance (Zone 2) · 134-151 bpm",
           "time": "45-120 min",
-          "detail": "Endurance (Zone 2) · 138-155 bpm · Slow down or hike on climbs to keep HR in Z2"
+          "detail": "Endurance (Zone 2) · 134-151 bpm · Slow down or hike on climbs to keep HR in Z2"
         },
         {
-          "day": "Thu 11/19",
+          "day": "Thu 11/26",
           "type": "quality",
           "workout": "ClimbingRepeats",
-          "zone": "ClimbingRepeats (Zone 5) · 172-181 bpm",
+          "zone": "ClimbingRepeats (Zone 5) · 168-176 bpm",
           "time": "60-90 min",
-          "detail": "ClimbingRepeats (Zone 5) · 172-181 bpm · Choose a hill ~6-10% grade"
+          "detail": "ClimbingRepeats (Zone 5) · 168-176 bpm · Choose a hill ~6-10% grade"
         },
         {
-          "day": "Fri 11/20",
+          "day": "Fri 11/27",
           "type": "run",
           "workout": "Recovery",
-          "zone": "Recovery (Zone 1) · 103-138 bpm",
+          "zone": "Recovery (Zone 1) · 101-134 bpm",
           "time": "20-50 min",
-          "detail": "Recovery (Zone 1) · 103-138 bpm · Walk if HR drifts up"
+          "detail": "Recovery (Zone 1) · 101-134 bpm · Walk if HR drifts up"
         },
         {
-          "day": "Sat 11/21",
+          "day": "Sat 11/28",
           "type": "long",
           "workout": "B2B Long",
-          "zone": "Endurance (Zone 2) · 138-155 bpm",
-          "time": "306-340 min",
-          "detail": "Long run ~34 mi · Endurance (Zone 2) · 138-155 bpm · Saturday: target race-distance practice (longer for shorter races)"
+          "zone": "Endurance (Zone 2) · 134-151 bpm",
+          "time": "213-237 min",
+          "detail": "Long run ~23.7 mi · Endurance (Zone 2) · 134-151 bpm · Saturday: target race-distance practice (longer for shorter races) · Fuel ~90 g carb/hr · Run by time on feet, not pace"
         },
         {
-          "day": "Sun 11/22",
+          "day": "Sun 11/29",
           "type": "long",
           "workout": "B2B Long",
-          "zone": "Endurance (Zone 2) · 138-155 bpm",
-          "time": "306-340 min",
-          "detail": "Long run ~34 mi · Endurance (Zone 2) · 138-155 bpm · Saturday: target race-distance practice (longer for shorter races)"
+          "zone": "Endurance (Zone 2) · 134-151 bpm",
+          "time": "213-237 min",
+          "detail": "Long run ~23.7 mi · Endurance (Zone 2) · 134-151 bpm · Saturday: target race-distance practice (longer for shorter races) · Fuel ~90 g carb/hr"
         }
       ]
     },
@@ -3558,29 +3500,29 @@
           "gym"
         ]
       },
-      "maxHR": 190,
+      "maxHR": 187,
       "zones": [
         {
           "zone": "Z1 – Recovery",
-          "hr": "105–124",
+          "hr": "103–122",
           "pct": "55–65%",
           "desc": "Very easy, full conversation"
         },
         {
           "zone": "Z2 – Aerobic",
-          "hr": "124–143",
+          "hr": "122–140",
           "pct": "65–75%",
           "desc": "Comfortable, sustainable"
         },
         {
           "zone": "Z3 – Tempo",
-          "hr": "143–162",
+          "hr": "140–159",
           "pct": "75–85%",
           "desc": "Comfortably hard"
         },
         {
           "zone": "Z4 – Threshold",
-          "hr": "162–171",
+          "hr": "159–168",
           "pct": "85–90%",
           "desc": "Hard. A few words at most"
         }
@@ -3589,79 +3531,71 @@
       "weeks": [
         {
           "num": 1,
-          "miles": "~12",
-          "focus": "Build aerobic base + station familiarity. "
+          "miles": 12,
+          "focus": "Build aerobic base + station familiarity.  Easing back from injury — intensity is dialed down this week."
         },
         {
           "num": 2,
-          "miles": "~12",
-          "focus": "Build aerobic base + station familiarity. "
+          "miles": 12,
+          "focus": "Build aerobic base + station familiarity.  Easing back from injury — intensity is dialed down this week."
         },
         {
           "num": 3,
-          "miles": "~12",
+          "miles": 12,
           "focus": "Build aerobic base + station familiarity. "
         },
         {
           "num": 4,
-          "miles": "~7",
+          "miles": 7,
           "focus": "RECOVERY WEEK. Volume drops 40%. Absorb adaptations."
         },
         {
           "num": 5,
-          "miles": "~14",
+          "miles": 14,
           "focus": "Race-specific station work + running intervals. Competition sled weight"
         },
         {
           "num": 6,
-          "miles": "~14",
+          "miles": 14,
           "focus": "Race-specific station work + running intervals. Competition sled weight"
         },
         {
           "num": 7,
-          "miles": "~14",
+          "miles": 14,
           "focus": "Race-specific station work + running intervals. Competition sled weight"
         },
         {
           "num": 8,
-          "miles": "~7",
+          "miles": 7,
           "focus": "RECOVERY WEEK. Volume drops 40%. Absorb adaptations."
         },
         {
           "num": 9,
-          "miles": "~16",
+          "miles": 16,
           "focus": "Full simulations + intensity. 8 stations at race effort."
         },
         {
           "num": 10,
-          "miles": "~16",
+          "miles": 16,
           "focus": "Full simulations + intensity. 8 stations at race effort."
         },
         {
           "num": 11,
-          "miles": "~16",
+          "miles": 16,
           "focus": "Full simulations + intensity. 8 stations at race effort."
         },
         {
           "num": 12,
-          "miles": "~16",
-          "focus": "Taper. Reduce volume, maintain sharpness. Trust your fitness."
+          "miles": 16,
+          "focus": "Race week. Stay sharp, stay rested — Hyrox SF on Sun 9/6."
         }
       ],
       "sampleWeekDays": [
         {
-          "day": "Sun 7/12",
-          "type": "rest",
-          "workout": "Rest",
-          "zone": "—",
-          "time": "—",
-          "detail": ""
-        },
-        {
           "day": "Mon 7/13",
           "type": "quality",
           "workout": "1km repeats",
-          "zone": "4.5 mi · Z3 (143–162)",
+          "zone": "4.5 mi · Z3 (140–159)",
           "time": "50 min",
           "detail": "4×1km @ race pace, 90 sec rest. Simulate Hyrox run legs."
         },
@@ -3669,7 +3603,7 @@
           "day": "Tue 7/14",
           "type": "strength",
           "workout": "STRENGTH: Hyrox-specific",
-          "zone": "Z2 (124–143)",
+          "zone": "Z2 (122–140)",
           "time": "1 hr",
           "detail": "Wall balls 3×20 (6 kg) · Sled push 3×25m · Farmer carry 3×50m · Sandbag lunges 3×10/leg · Burpee broad jump 3×8 · Plank 3×60s"
         },
@@ -3685,7 +3619,7 @@
           "day": "Thu 7/16",
           "type": "cross",
           "workout": "Station circuit (4 stations)",
-          "zone": "Z3 (143–162)",
+          "zone": "Z3 (140–159)",
           "time": "55 min",
           "detail": "4 stations at race effort · Wall balls 75 (6 kg) · Sled Push extra set · Competition sled weight · 90 sec rest between"
         },
@@ -3701,9 +3635,17 @@
           "day": "Sat 7/18",
           "type": "long",
           "workout": "Long run + station finisher",
-          "zone": "5 mi · Z2 (124–143)",
+          "zone": "5 mi · Z2 (122–140)",
           "time": "85 min",
           "detail": "5 mi run then 3 station circuits at moderate effort. Running on tired legs into stations."
+        },
+        {
+          "day": "Sun 7/19",
+          "type": "rest",
+          "workout": "Rest",
+          "zone": "—",
+          "time": "—",
+          "detail": ""
         }
       ]
     },
@@ -3734,29 +3676,29 @@
         "athleteGoal": "build bigger arms and feel strong"
       },
       "generalGoal": "build_muscle",
-      "maxHR": 172,
+      "maxHR": 174,
       "zones": [
         {
           "zone": "Z1 – Recovery",
-          "hr": "95–112",
+          "hr": "96–113",
           "pct": "55–65%",
           "desc": "Very easy, full conversation"
         },
         {
           "zone": "Z2 – Aerobic",
-          "hr": "112–129",
+          "hr": "113–131",
           "pct": "65–75%",
           "desc": "Easy. Can speak in sentences (Talk Test)"
         },
         {
           "zone": "Z3 – Tempo",
-          "hr": "129–146",
+          "hr": "131–148",
           "pct": "75–85%",
           "desc": "Comfortably hard"
         },
         {
           "zone": "Z4 – VO₂max",
-          "hr": "155–163",
+          "hr": "157–165",
           "pct": "90–95%",
           "desc": "Hard. A few words at most"
         }
@@ -3829,7 +3771,7 @@
           "day": "Mon 6/8",
           "type": "strength",
           "workout": "Strength — full body + bone",
-          "zone": "Z1 (95–112)",
+          "zone": "Z1 (96–113)",
           "time": "45–60 min",
           "detail": "Goblet squat 4×10 · RDL 4×10 · DB bench press 4×10 · DB row 4×10 · Farmer carry 4×40s · Plank 4×40s · Bicep curl 4×10 · Hammer curl 4×10 · heavy finish: 1–2×5 on a main lift (load bone)"
         },
@@ -3837,7 +3779,7 @@
           "day": "Tue 6/9",
           "type": "strength",
           "workout": "Strength — full body + bone",
-          "zone": "Z1 (95–112)",
+          "zone": "Z1 (96–113)",
           "time": "45–60 min",
           "detail": "Bulgarian split squat 4×10 · Weighted hip thrust 4×10 · Overhead press 4×10 · Lat pulldown 4×10 · Walking lunge 4×10 · Dead bug 4×10 · Hammer curl 4×10 · Overhead tricep extension 4×10 · heavy finish: 1–2×5 on a main lift (load bone)"
         },
@@ -3845,7 +3787,7 @@
           "day": "Wed 6/10",
           "type": "run",
           "workout": "Zone 2 — easy aerobic",
-          "zone": "30 min · Z2 (112–129)",
+          "zone": "30 min · Z2 (113–131)",
           "time": "30 min",
           "detail": "Conversational pace (Talk Test: full sentences, can’t sing). Your choice of cardio."
         },
@@ -3853,7 +3795,7 @@
           "day": "Thu 6/11",
           "type": "strength",
           "workout": "Strength — full body + bone",
-          "zone": "Z1 (95–112)",
+          "zone": "Z1 (96–113)",
           "time": "45–60 min",
           "detail": "Goblet squat 4×10 · RDL 4×10 · DB bench press 4×10 · DB row 4×10 · Farmer carry 4×40s · Plank 4×40s · Overhead tricep extension 4×10 · Bicep curl 4×10 · heavy finish: 1–2×5 on a main lift (load bone)"
         },
@@ -3861,7 +3803,7 @@
           "day": "Fri 6/12",
           "type": "strength",
           "workout": "Strength — full body + bone",
-          "zone": "Z1 (95–112)",
+          "zone": "Z1 (96–113)",
           "time": "45–60 min",
           "detail": "Bulgarian split squat 4×10 · Weighted hip thrust 4×10 · Overhead press 4×10 · Lat pulldown 4×10 · Walking lunge 4×10 · Dead bug 4×10 · Bicep curl 4×10 · Hammer curl 4×10 · heavy finish: 1–2×5 on a main lift (load bone)"
         },
@@ -3869,7 +3811,7 @@
           "day": "Sat 6/13",
           "type": "quality",
           "workout": "Sprint intervals (SIT)",
-          "zone": "Z4 (155–163)",
+          "zone": "Z4 (157–165)",
           "time": "~30 min",
           "detail": "8–10 × 20s near-max effort, 90s easy between · 10 min warm-up + cool-down. Short, hard sprints protect muscle and metabolism in midlife — keep them; high intensity is good for you here."
         },
@@ -4072,15 +4014,15 @@ function renderMatrix(){
     ['raceType','Selects the engine','Selects the engine','Selects the engine'],
     ['raceDistance','Drives method pick, peak ×, long-run caps','—','—'],
     ['goalRaceTime','Sharpens quality paces (+8% VDOT cap)','—','—'],
-    ['fitnessAnchor','VDOT → concrete paces; enables goal blend','Run-day paces (P3)','Cardio paces (P2-10)'],
+    ['fitnessAnchor','VDOT → concrete paces; enables goal blend','—','—'],
     ['currentWeeklyMileage','Sets ramp start &amp; peak ceiling','—','—'],
     ['experienceLevel','Method score; mileage fallback; workout gates','Sets total weeks &amp; whole structure','Session duration ×0.8/1.0/1.1'],
     ['trainingDaysPerWeek','Running days vs strength/cross split','Role list per week','Pillar template per week'],
-    ['age','maxHR = Tanaka 208−0.7·age (floor 120); menopause gate','maxHR = Tanaka 208−0.7·age','maxHR = Tanaka 208−0.7·age'],
+    ['age','maxHR = 220−age (floor 120); menopause gate','maxHR = 220−age','maxHR = 220−age'],
     ['sex','Gates menopause step','—','Gates menopause step'],
-    ['menopauseStatus','“Strength + bone” finisher','Bone finisher on strength days (P1-6)','Bone finisher + SIT + recovery nudge'],
-    ['injuryStatus','Day cap, start ×, ramp cap, easy lead-in','Easy lead-in weeks (P1-6)','Easy lead-in weeks'],
-    ['equipmentAccess','Gym vs bodyweight strength variant','Gym vs home subs + no-gym advisory (P3)','Gym vs home labeling'],
+    ['menopauseStatus','“Strength + bone” finisher','— (ignored)','Bone finisher + SIT + recovery nudge'],
+    ['injuryStatus','Day cap, start ×, ramp cap, easy lead-in','— (ignored)','Easy lead-in weeks'],
+    ['equipmentAccess','Gym vs bodyweight strength variant','— (ignored)','Gym vs home labeling'],
     ['weakStation','—','Workout focus label (no branch)','—'],
     ['generalGoal','—','—','Preset: sets×reps + cardio bias'],
     ['cardioModality','—','—','Labels cardio sessions'],
@@ -4276,13 +4218,12 @@ function readForm(){
 }
 function syncFormVisibility(){
   var rt=el('f-raceType').value;
-  var isMethod=(rt==='trail'||rt==='road'); // both run the method-based running engine (P1-4)
-  el('wrap-distance').classList.toggle('hide',!isMethod);
+  el('wrap-distance').classList.toggle('hide',rt!=='trail');
   el('wrap-goalGF').classList.toggle('hide',rt!=='general');
   el('wrap-mileage').classList.toggle('hide',rt==='hyrox');
-  el('wrap-anchor').classList.toggle('hide',!isMethod);
-  el('wrap-anchorTime').classList.toggle('hide',!isMethod||el('f-anchorType').value==='none');
-  el('wrap-goal').classList.toggle('hide',!isMethod);
+  el('wrap-anchor').classList.toggle('hide',rt!=='trail');
+  el('wrap-anchorTime').classList.toggle('hide',rt!=='trail'||el('f-anchorType').value==='none');
+  el('wrap-goal').classList.toggle('hide',rt!=='trail');
   el('wrap-weeks').classList.toggle('hide',rt==='hyrox'||rt==='general');
   var age=parseInt(el('f-age').value,10)||0,sex=el('f-sex').value;
   el('wrap-meno').classList.toggle('hide',!(age>=40&&sex!=='male'));
@@ -4498,19 +4439,6 @@ var AUDIT_GROUPS=[
  {key:'general',title:'General Fitness pathway',weak:'The 4-pillar engine re-weights well by goal and applies the midlife overlay — but it never reads a fitness anchor or goal time, so intensity stays HR-zone-only even for an athlete who just entered a recent race. Pace targets and VDOT are unavailable on this path.'},
  {key:'extremes',title:'Anchors & input extremes',weak:'The mm:ss/h:mm:ss guard correctly rescues a mis-typed time, and an explicit maxHR overrides the estimate — the robust cases. But the peak-mileage model (current × multiplier) has no upper sanity cap, so a very high base scales straight into an impossible weekly volume.'}
 ];
-// Per-group resolution (shipped after this audit). Embeds the residual gap inline
-// where one genuinely remains (midlife → youth, injury → blunt cap / no hard-stop,
-// hyrox → equipment inventory).
-var GROUP_FIX={
- goal:'A goal with no anchor now derives goal-based paces; an ambitious goal raises an advisory with a realistic alternative time; cross-distance anchors are flagged as estimates. (P0-2 / P0-3, PR #247)',
- runway:'Runway is clamped so week 1 never back-dates, and a long runway prepends base weeks so the plan starts today — each with an advisory. (P0-1 / P2-8, PR #247/#249)',
- feasibility:'assessFeasibility() now warns when distance × experience is a big jump and suggests a realistic interim target; it informs, never blocks. (P0-3, PR #247)',
- midlife:'maxHR is now Tanaka 208−0.7·age with one floor across engines; the menopause step opens from age 38; a measured maxHR / LTHR can replace the estimate. (P1-7 / P1-6, PR #248). Residual gap: under-18 athletes still get the adult load model.',
- injury:'The method and Hyrox engines both de-load and add an easy lead-in for returning / current injury. Residual gap: the day-cap stays blunt (3 days even for an ultra) and there is no medical hard-stop or referral path.',
- hyrox:'Hyrox now reads menopause (bone finisher), injury (lead-in), a fitness anchor (run paces) and gym access (home subs + advisory). Residual gap: specific equipment inventory beyond gym / no-gym is not modelled, and weak-station stays a label. (P1-6 / P3, PR #248/#252)',
- general:'General Fitness now reads a fitness anchor and shows pace targets on its cardio pillars. (P2-10, PR #249)',
- extremes:'Peak volume is now capped per distance (no more 207 mi/wk), so a very high base no longer scales into an impossible peak. (P1-5, PR #248)'
-};
 function worstSev(issues){var r='ok';for(var i=0;i<issues.length;i++){var s=issues[i].sev;if(s==='high')return 'high';if(s==='med')r='med';else if(s==='low'&&r==='ok')r='low';}return r;}
 function envelope(o){
   if(o.engine==='method-based')return o.totalWeeks+' wk · peak '+o.peakMi+' · long '+o.peakLong+' mi';
@@ -4547,8 +4475,7 @@ function renderAudit(){
   var body=el('auditTable').querySelector('tbody');var rows='';var counts={high:0,med:0,low:0,ok:0};var n=0;
   AUDIT_GROUPS.forEach(function(grp){
     var items=AUDIT_SCENARIOS.filter(function(s){return s.g===grp.key;});
-    var gfix=GROUP_FIX[grp.key]?'<div class="ghweak" style="border-left-color:#10b981;background:#ecfdf5;margin-top:6px"><b style="color:#047857">✓ Now resolved:</b> '+GROUP_FIX[grp.key]+'</div>':'';
-    rows+='<tr class="grouphead"><td colspan="5"><span class="ghtitle">'+esc(grp.title)+'</span> <span class="src">'+items.length+' scenarios</span><div class="ghweak"><b>Weakness (as audited):</b> '+grp.weak+'</div>'+gfix+'</td></tr>';
+    rows+='<tr class="grouphead"><td colspan="5"><span class="ghtitle">'+esc(grp.title)+'</span> <span class="src">'+items.length+' scenarios</span><div class="ghweak"><b>Weakness:</b> '+grp.weak+'</div></td></tr>';
     items.forEach(function(s){n++;var r=auditRowHtml(s,n);counts[r.ws]++;rows+=r.html;});
   });
   body.innerHTML=rows;
@@ -4608,29 +4535,8 @@ var WEAKNESSES=[
  {sev:'low',title:'General Fitness can’t use a tested effort',body:'The GF engine never reads <code>fitnessAnchor</code> or a goal time, so intensity stays HR-zone-only even for an athlete who entered a recent race — no pace targets, no VDOT.',src:'engines/generalFitness/index.ts'},
  {sev:'low',title:'Experience level is over-leveraged',body:'One coarse, self-rated dropdown drives the mileage fallback, the method experience score, the entire Hyrox structure and the GF duration factor — a single mis-click cascades across the whole plan.',src:'multiple · experienceLevel'}
 ];
-// ── Resolution overlay (shipped after this audit) ─────────────────────────
-// Keyed by weakness title so the audited array above stays untouched. Every
-// one of the 12 is now resolved across PRs #247–#252.
-var WEAK_FIX={
- 'Short runway back-dates the plan':{fix:'Runway is computed first; the plan clamps to the real weeks (week 1 never lands in the past) and a “tight runway” advisory states how compressed it is.',pr:'P0-1 · PR #247'},
- 'No feasibility gate on distance × experience':{fix:'assessFeasibility() scores distance × experience × goal × runway and surfaces honest advisories — warn + a realistic alternative, never a hard block — on the method picks, the plan summary and the coach letter.',pr:'P0-3 · PR #247'},
- 'Goal time silently ignored without an anchor':{fix:'A goal with no anchor now derives paces from the goal itself (labelled goal-based) plus an advisory to confirm with a tune-up. The goal is never dropped.',pr:'P0-2 · PR #247'},
- 'Goal never validated against the base':{fix:'Peak volume is capped per distance and an “ambitious goal” advisory names a realistic alternative time when the goal outruns current fitness.',pr:'P0-3 + P1-5 · PR #247/#248'},
- 'Road races are scored as trail':{fix:'A dedicated Road race type now infers road terrain, so road-specialist methods score on the right axis; Trail / Ultra is a separate card.',pr:'P1-4 · PR #248'},
- 'Hyrox ignores most of onboarding':{fix:'Hyrox now reads menopause (bone finisher), injury (easy lead-in), a fitness anchor (run-day paces) and gym access (home substitutions + a no-gym advisory).',pr:'P1-6 + P3 · PR #248/#252'},
- 'maxHR = 220 − age, inconsistently floored':{fix:'One shared computeMaxHR() — Tanaka 208−0.7·age with a single floor of 120 — across every engine; a measured maxHR / LTHR entered in Settings replaces the estimate.',pr:'P1-7 · PR #248'},
- 'Long runway leaves a dead zone':{fix:'A long runway now prepends base / foundation weeks so the plan starts today instead of quietly starting late.',pr:'P2-8 · PR #249'},
- 'Cross-distance VDOT extrapolation':{fix:'A cross-distance anchor (≥ 4× gap) now raises an info advisory that the paces are an estimate to sharpen with a closer effort.',pr:'P0-3 / P2-11 · PR #247/#249'},
- 'Alphabetical tie-break decides the method':{fix:'Score ties now break on profile fit — experience, then terrain, then distance — and only fall back to the id when every axis is equal.',pr:'P2-9 · PR #249'},
- 'General Fitness can’t use a tested effort':{fix:'General Fitness now reads a fitness anchor and shows pace targets on its cardio pillars, not HR-only.',pr:'P2-10 · PR #249'},
- 'Experience level is over-leveraged':{fix:'A measured weekly mileage that disagrees with the chosen level (≥ 2 bands) now raises an advisory naming the gap and the fix; the mileage ramp already prefers the measured value.',pr:'P0-3 + P3 · PR #247/#252'}
-};
 function renderWeak(){
-  el('weakGrid').innerHTML=WEAKNESSES.map(function(w){
-    var f=WEAK_FIX[w.title];
-    var resolved=f?('<div style="margin-top:10px;padding-top:9px;border-top:1px solid #e5e9f0"><span class="pill green">✓ RESOLVED</span> <span style="font-size:12.5px">'+f.fix+'</span><span class="src" style="display:block;margin-top:3px">'+esc(f.pr)+'</span></div>'):'';
-    return '<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><h4 style="margin:0">'+esc(w.title)+'</h4><span class="sev sev-'+w.sev+'">'+w.sev+'</span></div><p class="sub" style="font-size:13px;margin-top:6px">'+w.body+'</p><p class="src" style="margin-top:8px">'+esc(w.src)+'</p>'+resolved+'</div>';
-  }).join('');
+  el('weakGrid').innerHTML=WEAKNESSES.map(function(w){return '<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><h4 style="margin:0">'+esc(w.title)+'</h4><span class="sev sev-'+w.sev+'">'+w.sev+'</span></div><p class="sub" style="font-size:13px;margin-top:6px">'+w.body+'</p><p class="src" style="margin-top:8px">'+esc(w.src)+'</p></div>';}).join('');
 }
 var SEQ=[
  {n:1,t:'Race type'},{n:2,t:'Name & context'},
@@ -4693,20 +4599,6 @@ var IMPROVEMENTS=[
   problem:'One anchor of any distance sets every pace zone, so a 5K time silently drives marathon paces.',
   fix:'Prefer a same-distance anchor, and surface a confidence note when extrapolating across a large distance gap.'}
 ];
-// Shipped status per improvement (keyed by title). All eleven shipped, P0→P3.
-var IMP_PR={
- 'Guard the minimum runway':'P0-1 · PR #247',
- 'Never silently drop the goal time':'P0-2 · PR #247',
- 'Add an honest feasibility check':'P0-3 · PR #247',
- 'Add a road race type (fix terrain)':'P1-4 · PR #248',
- 'Sanity-cap volume &amp; band the goal':'P1-5 · PR #248',
- 'Bring midlife tailoring to every path':'P1-6 · PR #248',
- 'Unify &amp; improve maxHR':'P1-7 · PR #248',
- 'Base-build the long runway':'P2-8 · PR #249',
- 'Smarter method tie-breaks':'P2-9 · PR #249',
- 'Let General Fitness use a tested effort':'P2-10 · PR #249',
- 'Flag cross-distance extrapolation':'P2-11 · PR #249'
-};
 function renderImprovements(){
   el('impList').innerHTML=IMPROVEMENTS.map(function(m){
     var w=m.witchel?('<div class="witchel">'+
@@ -4715,7 +4607,7 @@ function renderImprovements(){
       '<div class="w"><div class="wl">Customer language</div><span class="wc">✓</span>'+m.witchel.language+'</div>'+
       '</div>'):'';
     return '<div class="imp '+m.pri+'">'+
-      '<div class="imphead"><span class="pri '+m.pri+'">'+m.pri.toUpperCase()+'</span><h3>'+m.title+'</h3>'+(IMP_PR[m.title]?'<span class="pill green" style="white-space:nowrap">✓ SHIPPED · '+esc(IMP_PR[m.title])+'</span>':'')+'<span class="impmeta">impact '+m.impact+' · effort '+m.effort+' · fixes “'+esc(m.weak)+'”</span></div>'+
+      '<div class="imphead"><span class="pri '+m.pri+'">'+m.pri.toUpperCase()+'</span><h3>'+m.title+'</h3><span class="impmeta">impact '+m.impact+' · effort '+m.effort+' · fixes “'+esc(m.weak)+'”</span></div>'+
       '<div class="grid g2" style="margin-top:10px">'+
         '<div class="fixrow"><span class="k">Problem</span>'+m.problem+'</div>'+
         '<div class="fixrow"><span class="k">Fix</span>'+m.fix+'</div>'+

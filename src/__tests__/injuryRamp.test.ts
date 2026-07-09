@@ -70,3 +70,28 @@ describe('injurySummaryLine', () => {
     expect(line).toMatch(/currently managing an injury/)
   })
 })
+
+// ── Fixture honesty: the "intensity stays easy" claim may only render on
+//    content that IS easy (field bug: the note sat over a pinned VO2 body).
+
+describe('injuryRampNote — eased-content honesty', () => {
+  it('a lead-in QUALITY day the generator did not ease gets NO note', () => {
+    expect(injuryRampNote('returning', 1, 'quality', false, undefined)).toBeNull()
+    expect(injuryRampNote('returning', 2, 'quality', false, false)).toBeNull()
+  })
+
+  it('a lead-in quality day the generator DID ease keeps the note', () => {
+    const note = injuryRampNote('returning', 1, 'quality', false, true)
+    expect(note).not.toBeNull()
+    expect(note!.text).toMatch(/intensity stays easy/)
+  })
+
+  it('plain run/long days never needed the stamp — note unaffected', () => {
+    expect(injuryRampNote('returning', 1, 'run', false, undefined)).not.toBeNull()
+    expect(injuryRampNote('returning', 2, 'long', false, undefined)).not.toBeNull()
+  })
+
+  it('past the lead-in the honesty gate no longer applies (info note)', () => {
+    expect(injuryRampNote('returning', 3, 'quality', false, undefined)?.tone).toBe('info')
+  })
+})

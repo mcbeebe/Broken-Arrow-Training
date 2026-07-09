@@ -1123,35 +1123,35 @@
       "chosenMethodId": "fitzgerald_8020",
       "chosenMethodName": "80/20 Running (Fitzgerald)",
       "primaryAnchor": "lthr_bpm",
-      "maxHR": 186,
+      "maxHR": 184,
       "zones": [
         {
           "zone": "Z1 – Recovery",
-          "hr": "107–133",
-          "pct": "58–72%",
+          "hr": "105–131",
+          "pct": "57–71%",
           "desc": "Very easy, full conversation"
         },
         {
           "zone": "Z2 – Aerobic",
-          "hr": "133–146",
-          "pct": "72–78%",
+          "hr": "131–144",
+          "pct": "71–78%",
           "desc": "Comfortable, sustainable"
         },
         {
           "zone": "Z3 – Tempo",
-          "hr": "148–156",
-          "pct": "80–84%",
+          "hr": "146–154",
+          "pct": "79–84%",
           "desc": "Comfortably hard"
         },
         {
           "zone": "Z4 – Threshold",
-          "hr": "157–167",
-          "pct": "84–90%",
+          "hr": "156–165",
+          "pct": "85–90%",
           "desc": "Hard. A few words at most"
         },
         {
           "zone": "Z5 – VO2 / Max",
-          "hr": "167–180",
+          "hr": "165–178",
           "pct": "90–97%",
           "desc": "Hard. A word or two at a time"
         }
@@ -1350,8 +1350,8 @@
       ],
       "paceAnchor": {
         "type": "lthr_bpm",
-        "value": 164,
-        "sourceNote": "Estimated LTHR = 0.88 × maxHR (186)"
+        "value": 162,
+        "sourceNote": "Estimated LTHR = 0.88 × maxHR (184)"
       },
       "goalPace": {
         "currentVdot": 50.2,
@@ -1366,60 +1366,60 @@
           "displayName": "Zone 1 (Recovery)",
           "paceSecLow": 597,
           "paceSecHigh": 522,
-          "hrLow": 107,
-          "hrHigh": 133,
+          "hrLow": 105,
+          "hrHigh": 131,
           "rpeLow": 2,
           "rpeHigh": 3,
           "preferredMode": "pace",
-          "formatted": "Zone 1 (Recovery) · 8:42-9:57 /mi · 107-133 bpm"
+          "formatted": "Zone 1 (Recovery) · 8:42-9:57 /mi · 105-131 bpm"
         },
         {
           "zone": "easy",
           "displayName": "Zone 2 (Aerobic)",
           "paceSecLow": 522,
           "paceSecHigh": 447,
-          "hrLow": 133,
-          "hrHigh": 146,
+          "hrLow": 131,
+          "hrHigh": 144,
           "rpeLow": 4,
           "rpeHigh": 5,
           "preferredMode": "pace",
-          "formatted": "Zone 2 (Aerobic) · 7:27-8:42 /mi · 133-146 bpm"
+          "formatted": "Zone 2 (Aerobic) · 7:27-8:42 /mi · 131-144 bpm"
         },
         {
           "zone": "marathon_pace",
           "displayName": "Zone 3 (Moderate / MP)",
           "paceSecLow": 447,
           "paceSecHigh": 425,
-          "hrLow": 148,
-          "hrHigh": 156,
+          "hrLow": 146,
+          "hrHigh": 154,
           "rpeLow": 5,
           "rpeHigh": 7,
           "preferredMode": "pace",
-          "formatted": "Zone 3 (Moderate / MP) · 7:05-7:27 /mi · 148-156 bpm"
+          "formatted": "Zone 3 (Moderate / MP) · 7:05-7:27 /mi · 146-154 bpm"
         },
         {
           "zone": "lactate_threshold",
           "displayName": "Zone 4 (Lactate Threshold)",
           "paceSecLow": 417,
           "paceSecHigh": 395,
-          "hrLow": 157,
-          "hrHigh": 167,
+          "hrLow": 156,
+          "hrHigh": 165,
           "rpeLow": 7,
           "rpeHigh": 8,
           "preferredMode": "pace",
-          "formatted": "Zone 4 (Lactate Threshold) · 6:35-6:57 /mi · 157-167 bpm"
+          "formatted": "Zone 4 (Lactate Threshold) · 6:35-6:57 /mi · 156-165 bpm"
         },
         {
           "zone": "vo2max",
           "displayName": "Zone 5 (VO2max)",
           "paceSecLow": 385,
           "paceSecHigh": 369,
-          "hrLow": 167,
-          "hrHigh": 180,
+          "hrLow": 165,
+          "hrHigh": 178,
           "rpeLow": 8,
           "rpeHigh": 9,
           "preferredMode": "pace",
-          "formatted": "Zone 5 (VO2max) · 6:09-6:25 /mi · 167-180 bpm"
+          "formatted": "Zone 5 (VO2max) · 6:09-6:25 /mi · 165-178 bpm"
         }
       ],
       "sampleWeekNumber": 15,
@@ -1430,31 +1430,31 @@
           "workout": "Strength",
           "zone": "Z1",
           "time": "45-60 min",
-          "detail": "Goblet Squat 3×12 · Bulgarian Split Squat 3×10/leg · RDL 3×10 · Step-Up 3×10/leg · Calf Raise 3×15 · Plank 3×45s · Dead Bug 3×10/side"
+          "detail": "Emphasis: explosive power (box jumps, med-ball, light & fast); drop the heavy loads · Goblet Squat 3×12 · Bulgarian Split Squat 3×10/leg · RDL 3×10 · Step-Up 3×10/leg · Calf Raise 3×15 · Plank 3×45s · Dead Bug 3×10/side"
         },
         {
           "day": "Tue 9/22",
           "type": "quality",
           "workout": "Z5 Intervals",
-          "zone": "Zone 5 (VO2max) · 5:47-6:01 /mi · 167-180 bpm",
+          "zone": "Zone 5 (VO2max) · 5:47-6:01 /mi · 165-178 bpm",
           "time": "50-70 min",
-          "detail": "Zone 5 (VO2max) · 5:47-6:01 /mi · 167-180 bpm · Z5 cap: keep total interval time small relative to weekly volume"
+          "detail": "Zone 5 (VO2max) · 5:47-6:01 /mi · 165-178 bpm · Z5 cap: keep total interval time small relative to weekly volume"
         },
         {
           "day": "Wed 9/23",
           "type": "run",
           "workout": "Z2 Easy",
-          "zone": "Zone 2 (Aerobic) · 7:27-8:42 /mi · 133-146 bpm",
+          "zone": "Zone 2 (Aerobic) · 7:27-8:42 /mi · 131-144 bpm",
           "time": "77-90 min",
-          "detail": "Zone 2 (Aerobic) · 7:27-8:42 /mi · 133-146 bpm · If HR drifts above Z2, slow down — even if it feels too easy"
+          "detail": "Zone 2 (Aerobic) · 7:27-8:42 /mi · 131-144 bpm · If HR drifts above Z2, slow down — even if it feels too easy"
         },
         {
           "day": "Thu 9/24",
           "type": "quality",
           "workout": "Z4 Threshold",
-          "zone": "Zone 4 (Lactate Threshold) · 6:11-6:32 /mi · 157-167 bpm",
+          "zone": "Zone 4 (Lactate Threshold) · 6:11-6:32 /mi · 156-165 bpm",
           "time": "45-65 min",
-          "detail": "Zone 4 (Lactate Threshold) · 6:11-6:32 /mi · 157-167 bpm · Tempo pace, not race pace — controlled"
+          "detail": "Zone 4 (Lactate Threshold) · 6:11-6:32 /mi · 156-165 bpm · Tempo pace, not race pace — controlled"
         },
         {
           "day": "Fri 9/25",
@@ -1462,23 +1462,23 @@
           "workout": "Strength",
           "zone": "Z1",
           "time": "45-60 min",
-          "detail": "Goblet Squat 3×12 · Bulgarian Split Squat 3×10/leg · RDL 3×10 · Step-Up 3×10/leg · Calf Raise 3×15 · Plank 3×45s · Dead Bug 3×10/side"
+          "detail": "Emphasis: explosive power (box jumps, med-ball, light & fast); drop the heavy loads · Goblet Squat 3×12 · Bulgarian Split Squat 3×10/leg · RDL 3×10 · Step-Up 3×10/leg · Calf Raise 3×15 · Plank 3×45s · Dead Bug 3×10/side"
         },
         {
           "day": "Sat 9/26",
           "type": "run",
           "workout": "Z1 Recovery",
-          "zone": "Zone 1 (Recovery) · 8:42-9:57 /mi · 107-133 bpm",
+          "zone": "Zone 1 (Recovery) · 8:42-9:57 /mi · 105-131 bpm",
           "time": "20-45 min",
-          "detail": "Zone 1 (Recovery) · 8:42-9:57 /mi · 107-133 bpm · Slower than your normal easy pace"
+          "detail": "Zone 1 (Recovery) · 8:42-9:57 /mi · 105-131 bpm · Slower than your normal easy pace"
         },
         {
           "day": "Sun 9/27",
           "type": "long",
           "workout": "Long Run",
-          "zone": "Zone 2 (Aerobic) · 7:27-8:42 /mi · 133-146 bpm",
+          "zone": "Zone 2 (Aerobic) · 7:27-8:42 /mi · 131-144 bpm",
           "time": "103-120 min",
-          "detail": "Long run ~13.8 mi · Zone 2 (Aerobic) · 7:27-8:42 /mi · 133-146 bpm · Watch HR drift — pace must drop to keep HR in Z2"
+          "detail": "Long run ~13.8 mi · Zone 2 (Aerobic) · 7:27-8:42 /mi · 131-144 bpm · Watch HR drift — pace must drop to keep HR in Z2 · Fuel ~60 g carb/hr · Run by time on feet, not pace"
         }
       ]
     },
@@ -1534,35 +1534,35 @@
       "chosenMethodId": "fitzgerald_8020",
       "chosenMethodName": "80/20 Running (Fitzgerald)",
       "primaryAnchor": "lthr_bpm",
-      "maxHR": 186,
+      "maxHR": 184,
       "zones": [
         {
           "zone": "Z1 – Recovery",
-          "hr": "107–133",
-          "pct": "58–72%",
+          "hr": "105–131",
+          "pct": "57–71%",
           "desc": "Very easy, full conversation"
         },
         {
           "zone": "Z2 – Aerobic",
-          "hr": "133–146",
-          "pct": "72–78%",
+          "hr": "131–144",
+          "pct": "71–78%",
           "desc": "Comfortable, sustainable"
         },
         {
           "zone": "Z3 – Tempo",
-          "hr": "148–156",
-          "pct": "80–84%",
+          "hr": "146–154",
+          "pct": "79–84%",
           "desc": "Comfortably hard"
         },
         {
           "zone": "Z4 – Threshold",
-          "hr": "157–167",
-          "pct": "84–90%",
+          "hr": "156–165",
+          "pct": "85–90%",
           "desc": "Hard. A few words at most"
         },
         {
           "zone": "Z5 – VO2 / Max",
-          "hr": "167–180",
+          "hr": "165–178",
           "pct": "90–97%",
           "desc": "Hard. A word or two at a time"
         }
@@ -1761,8 +1761,8 @@
       ],
       "paceAnchor": {
         "type": "lthr_bpm",
-        "value": 164,
-        "sourceNote": "Estimated LTHR = 0.88 × maxHR (186)"
+        "value": 162,
+        "sourceNote": "Estimated LTHR = 0.88 × maxHR (184)"
       },
       "goalPace": {
         "currentVdot": null,
@@ -1775,52 +1775,52 @@
         {
           "zone": "recovery",
           "displayName": "Zone 1 (Recovery)",
-          "hrLow": 107,
-          "hrHigh": 133,
+          "hrLow": 105,
+          "hrHigh": 131,
           "rpeLow": 2,
           "rpeHigh": 3,
           "preferredMode": "hr",
-          "formatted": "Zone 1 (Recovery) · 107-133 bpm"
+          "formatted": "Zone 1 (Recovery) · 105-131 bpm"
         },
         {
           "zone": "easy",
           "displayName": "Zone 2 (Aerobic)",
-          "hrLow": 133,
-          "hrHigh": 146,
+          "hrLow": 131,
+          "hrHigh": 144,
           "rpeLow": 4,
           "rpeHigh": 5,
           "preferredMode": "hr",
-          "formatted": "Zone 2 (Aerobic) · 133-146 bpm"
+          "formatted": "Zone 2 (Aerobic) · 131-144 bpm"
         },
         {
           "zone": "marathon_pace",
           "displayName": "Zone 3 (Moderate / MP)",
-          "hrLow": 148,
-          "hrHigh": 156,
+          "hrLow": 146,
+          "hrHigh": 154,
           "rpeLow": 5,
           "rpeHigh": 7,
           "preferredMode": "hr",
-          "formatted": "Zone 3 (Moderate / MP) · 148-156 bpm"
+          "formatted": "Zone 3 (Moderate / MP) · 146-154 bpm"
         },
         {
           "zone": "lactate_threshold",
           "displayName": "Zone 4 (Lactate Threshold)",
-          "hrLow": 157,
-          "hrHigh": 167,
+          "hrLow": 156,
+          "hrHigh": 165,
           "rpeLow": 7,
           "rpeHigh": 8,
           "preferredMode": "hr",
-          "formatted": "Zone 4 (Lactate Threshold) · 157-167 bpm"
+          "formatted": "Zone 4 (Lactate Threshold) · 156-165 bpm"
         },
         {
           "zone": "vo2max",
           "displayName": "Zone 5 (VO2max)",
-          "hrLow": 167,
-          "hrHigh": 180,
+          "hrLow": 165,
+          "hrHigh": 178,
           "rpeLow": 8,
           "rpeHigh": 9,
           "preferredMode": "hr",
-          "formatted": "Zone 5 (VO2max) · 167-180 bpm"
+          "formatted": "Zone 5 (VO2max) · 165-178 bpm"
         }
       ],
       "sampleWeekNumber": 15,
@@ -1831,31 +1831,31 @@
           "workout": "Strength",
           "zone": "Z1",
           "time": "45-60 min",
-          "detail": "Goblet Squat 3×12 · Bulgarian Split Squat 3×10/leg · RDL 3×10 · Step-Up 3×10/leg · Calf Raise 3×15 · Plank 3×45s · Dead Bug 3×10/side"
+          "detail": "Emphasis: explosive power (box jumps, med-ball, light & fast); drop the heavy loads · Goblet Squat 3×12 · Bulgarian Split Squat 3×10/leg · RDL 3×10 · Step-Up 3×10/leg · Calf Raise 3×15 · Plank 3×45s · Dead Bug 3×10/side"
         },
         {
           "day": "Tue 9/22",
           "type": "quality",
           "workout": "Z5 Intervals",
-          "zone": "Zone 5 (VO2max) · 5:32-5:46 /mi · 167-180 bpm",
+          "zone": "Zone 5 (VO2max) · 5:32-5:46 /mi · 165-178 bpm",
           "time": "50-70 min",
-          "detail": "Zone 5 (VO2max) · 5:32-5:46 /mi · 167-180 bpm · Z5 cap: keep total interval time small relative to weekly volume"
+          "detail": "Zone 5 (VO2max) · 5:32-5:46 /mi · 165-178 bpm · Z5 cap: keep total interval time small relative to weekly volume"
         },
         {
           "day": "Wed 9/23",
           "type": "run",
           "workout": "Z2 Easy",
-          "zone": "Zone 2 (Aerobic) · 6:42-7:50 /mi · 133-146 bpm",
+          "zone": "Zone 2 (Aerobic) · 6:42-7:50 /mi · 131-144 bpm",
           "time": "69-81 min",
-          "detail": "Zone 2 (Aerobic) · 6:42-7:50 /mi · 133-146 bpm · If HR drifts above Z2, slow down — even if it feels too easy"
+          "detail": "Zone 2 (Aerobic) · 6:42-7:50 /mi · 131-144 bpm · If HR drifts above Z2, slow down — even if it feels too easy"
         },
         {
           "day": "Thu 9/24",
           "type": "quality",
           "workout": "Z4 Threshold",
-          "zone": "Zone 4 (Lactate Threshold) · 5:55-6:15 /mi · 157-167 bpm",
+          "zone": "Zone 4 (Lactate Threshold) · 5:55-6:15 /mi · 156-165 bpm",
           "time": "45-65 min",
-          "detail": "Zone 4 (Lactate Threshold) · 5:55-6:15 /mi · 157-167 bpm · Tempo pace, not race pace — controlled"
+          "detail": "Zone 4 (Lactate Threshold) · 5:55-6:15 /mi · 156-165 bpm · Tempo pace, not race pace — controlled"
         },
         {
           "day": "Fri 9/25",
@@ -1863,23 +1863,23 @@
           "workout": "Strength",
           "zone": "Z1",
           "time": "45-60 min",
-          "detail": "Goblet Squat 3×12 · Bulgarian Split Squat 3×10/leg · RDL 3×10 · Step-Up 3×10/leg · Calf Raise 3×15 · Plank 3×45s · Dead Bug 3×10/side"
+          "detail": "Emphasis: explosive power (box jumps, med-ball, light & fast); drop the heavy loads · Goblet Squat 3×12 · Bulgarian Split Squat 3×10/leg · RDL 3×10 · Step-Up 3×10/leg · Calf Raise 3×15 · Plank 3×45s · Dead Bug 3×10/side"
         },
         {
           "day": "Sat 9/26",
           "type": "run",
           "workout": "Z1 Recovery",
-          "zone": "Zone 1 (Recovery) · 7:50-8:58 /mi · 107-133 bpm",
+          "zone": "Zone 1 (Recovery) · 7:50-8:58 /mi · 105-131 bpm",
           "time": "20-45 min",
-          "detail": "Zone 1 (Recovery) · 7:50-8:58 /mi · 107-133 bpm · Slower than your normal easy pace"
+          "detail": "Zone 1 (Recovery) · 7:50-8:58 /mi · 105-131 bpm · Slower than your normal easy pace"
         },
         {
           "day": "Sun 9/27",
           "type": "long",
           "workout": "Long Run",
-          "zone": "Zone 2 (Aerobic) · 6:42-7:50 /mi · 133-146 bpm",
+          "zone": "Zone 2 (Aerobic) · 6:42-7:50 /mi · 131-144 bpm",
           "time": "92-108 min",
-          "detail": "Long run ~13.8 mi · Zone 2 (Aerobic) · 6:42-7:50 /mi · 133-146 bpm · Watch HR drift — pace must drop to keep HR in Z2"
+          "detail": "Long run ~13.8 mi · Zone 2 (Aerobic) · 6:42-7:50 /mi · 131-144 bpm · Watch HR drift — pace must drop to keep HR in Z2 · Fuel ~60 g carb/hr · Run by time on feet, not pace"
         }
       ]
     },
@@ -1925,52 +1925,52 @@
           "terrain": "GOOD"
         },
         {
-          "methodId": "galloway",
-          "score": 22,
-          "distance": "BEST",
-          "experience": "GOOD",
-          "terrain": "BEST"
-        },
-        {
           "methodId": "hansons",
           "score": 22,
           "distance": "BEST",
           "experience": "BEST",
           "terrain": "OK"
+        },
+        {
+          "methodId": "galloway",
+          "score": 22,
+          "distance": "BEST",
+          "experience": "GOOD",
+          "terrain": "BEST"
         }
       ],
       "chosenMethodId": "fitzgerald_8020",
       "chosenMethodName": "80/20 Running (Fitzgerald)",
       "primaryAnchor": "lthr_bpm",
-      "maxHR": 165,
+      "maxHR": 170,
       "zones": [
         {
           "zone": "Z1 – Recovery",
-          "hr": "94–117",
-          "pct": "57–71%",
+          "hr": "98–122",
+          "pct": "58–72%",
           "desc": "Very easy, full conversation"
         },
         {
           "zone": "Z2 – Aerobic",
-          "hr": "117–129",
-          "pct": "71–78%",
+          "hr": "122–134",
+          "pct": "72–79%",
           "desc": "Comfortable, sustainable"
         },
         {
           "zone": "Z3 – Tempo",
-          "hr": "131–138",
+          "hr": "135–143",
           "pct": "79–84%",
           "desc": "Comfortably hard"
         },
         {
           "zone": "Z4 – Threshold",
-          "hr": "139–148",
-          "pct": "84–90%",
+          "hr": "144–153",
+          "pct": "85–90%",
           "desc": "Hard. A few words at most"
         },
         {
           "zone": "Z5 – VO2 / Max",
-          "hr": "148–160",
+          "hr": "153–165",
           "pct": "90–97%",
           "desc": "Hard. A word or two at a time"
         }
@@ -2169,8 +2169,8 @@
       ],
       "paceAnchor": {
         "type": "lthr_bpm",
-        "value": 145,
-        "sourceNote": "Estimated LTHR = 0.88 × maxHR (165)"
+        "value": 150,
+        "sourceNote": "Estimated LTHR = 0.88 × maxHR (170)"
       },
       "goalPace": {
         "currentVdot": 34.7,
@@ -2185,60 +2185,60 @@
           "displayName": "Zone 1 (Recovery)",
           "paceSecLow": 794,
           "paceSecHigh": 699,
-          "hrLow": 94,
-          "hrHigh": 117,
+          "hrLow": 98,
+          "hrHigh": 122,
           "rpeLow": 2,
           "rpeHigh": 3,
           "preferredMode": "pace",
-          "formatted": "Zone 1 (Recovery) · 11:39-13:14 /mi · 94-117 bpm"
+          "formatted": "Zone 1 (Recovery) · 11:39-13:14 /mi · 98-122 bpm"
         },
         {
           "zone": "easy",
           "displayName": "Zone 2 (Aerobic)",
           "paceSecLow": 699,
           "paceSecHigh": 600,
-          "hrLow": 117,
-          "hrHigh": 129,
+          "hrLow": 122,
+          "hrHigh": 134,
           "rpeLow": 4,
           "rpeHigh": 5,
           "preferredMode": "pace",
-          "formatted": "Zone 2 (Aerobic) · 10:00-11:39 /mi · 117-129 bpm"
+          "formatted": "Zone 2 (Aerobic) · 10:00-11:39 /mi · 122-134 bpm"
         },
         {
           "zone": "marathon_pace",
           "displayName": "Zone 3 (Moderate / MP)",
           "paceSecLow": 600,
           "paceSecHigh": 571,
-          "hrLow": 131,
-          "hrHigh": 138,
+          "hrLow": 135,
+          "hrHigh": 143,
           "rpeLow": 5,
           "rpeHigh": 7,
           "preferredMode": "pace",
-          "formatted": "Zone 3 (Moderate / MP) · 9:31-10:00 /mi · 131-138 bpm"
+          "formatted": "Zone 3 (Moderate / MP) · 9:31-10:00 /mi · 135-143 bpm"
         },
         {
           "zone": "lactate_threshold",
           "displayName": "Zone 4 (Lactate Threshold)",
           "paceSecLow": 561,
           "paceSecHigh": 531,
-          "hrLow": 139,
-          "hrHigh": 148,
+          "hrLow": 144,
+          "hrHigh": 153,
           "rpeLow": 7,
           "rpeHigh": 8,
           "preferredMode": "pace",
-          "formatted": "Zone 4 (Lactate Threshold) · 8:51-9:21 /mi · 139-148 bpm"
+          "formatted": "Zone 4 (Lactate Threshold) · 8:51-9:21 /mi · 144-153 bpm"
         },
         {
           "zone": "vo2max",
           "displayName": "Zone 5 (VO2max)",
           "paceSecLow": 518,
           "paceSecHigh": 497,
-          "hrLow": 148,
-          "hrHigh": 160,
+          "hrLow": 153,
+          "hrHigh": 165,
           "rpeLow": 8,
           "rpeHigh": 9,
           "preferredMode": "pace",
-          "formatted": "Zone 5 (VO2max) · 8:17-8:38 /mi · 148-160 bpm"
+          "formatted": "Zone 5 (VO2max) · 8:17-8:38 /mi · 153-165 bpm"
         }
       ],
       "sampleWeekNumber": 15,
@@ -2249,31 +2249,31 @@
           "workout": "Strength + bone",
           "zone": "Z1",
           "time": "45-60 min",
-          "detail": "Goblet Squat 3×12 · Bulgarian Split Squat 3×10/leg · RDL 3×10 · Step-Up 3×10/leg · Calf Raise 3×15 · Plank 3×45s · Dead Bug 3×10/side · Farmer Carry 3×30s"
+          "detail": "Emphasis: explosive power (box jumps, med-ball, light & fast); drop the heavy loads · Goblet Squat 3×12 · Bulgarian Split Squat 3×10/leg · RDL 3×10 · Step-Up 3×10/leg · Calf Raise 3×15 · Plank 3×45s · Dead Bug 3×10/side · Farmer Carry 3×30s"
         },
         {
           "day": "Tue 9/22",
           "type": "quality",
           "workout": "Z5 Intervals",
-          "zone": "Zone 5 (VO2max) · 8:17-8:38 /mi · 148-160 bpm",
+          "zone": "Zone 5 (VO2max) · 8:17-8:38 /mi · 153-165 bpm",
           "time": "50-70 min",
-          "detail": "Zone 5 (VO2max) · 8:17-8:38 /mi · 148-160 bpm · Z5 cap: keep total interval time small relative to weekly volume"
+          "detail": "Zone 5 (VO2max) · 8:17-8:38 /mi · 153-165 bpm · Z5 cap: keep total interval time small relative to weekly volume"
         },
         {
           "day": "Wed 9/23",
           "type": "run",
           "workout": "Z2 Easy",
-          "zone": "Zone 2 (Aerobic) · 10:00-11:39 /mi · 117-129 bpm",
+          "zone": "Zone 2 (Aerobic) · 10:00-11:39 /mi · 122-134 bpm",
           "time": "30-90 min",
-          "detail": "Zone 2 (Aerobic) · 10:00-11:39 /mi · 117-129 bpm · If HR drifts above Z2, slow down — even if it feels too easy"
+          "detail": "Zone 2 (Aerobic) · 10:00-11:39 /mi · 122-134 bpm · If HR drifts above Z2, slow down — even if it feels too easy"
         },
         {
           "day": "Thu 9/24",
           "type": "quality",
           "workout": "Z4 Threshold",
-          "zone": "Zone 4 (Lactate Threshold) · 8:51-9:21 /mi · 139-148 bpm",
+          "zone": "Zone 4 (Lactate Threshold) · 8:51-9:21 /mi · 144-153 bpm",
           "time": "45-65 min",
-          "detail": "Zone 4 (Lactate Threshold) · 8:51-9:21 /mi · 139-148 bpm · Tempo pace, not race pace — controlled"
+          "detail": "Zone 4 (Lactate Threshold) · 8:51-9:21 /mi · 144-153 bpm · Tempo pace, not race pace — controlled"
         },
         {
           "day": "Fri 9/25",
@@ -2281,23 +2281,23 @@
           "workout": "Strength + bone",
           "zone": "Z1",
           "time": "45-60 min",
-          "detail": "Goblet Squat 3×12 · Bulgarian Split Squat 3×10/leg · RDL 3×10 · Step-Up 3×10/leg · Calf Raise 3×15 · Plank 3×45s · Dead Bug 3×10/side · Farmer Carry 3×30s"
+          "detail": "Emphasis: explosive power (box jumps, med-ball, light & fast); drop the heavy loads · Goblet Squat 3×12 · Bulgarian Split Squat 3×10/leg · RDL 3×10 · Step-Up 3×10/leg · Calf Raise 3×15 · Plank 3×45s · Dead Bug 3×10/side · Farmer Carry 3×30s"
         },
         {
           "day": "Sat 9/26",
           "type": "long",
           "workout": "Long Run",
-          "zone": "Zone 2 (Aerobic) · 10:00-11:39 /mi · 117-129 bpm",
+          "zone": "Zone 2 (Aerobic) · 10:00-11:39 /mi · 122-134 bpm",
           "time": "154-179 min",
-          "detail": "Long run ~15.4 mi · Zone 2 (Aerobic) · 10:00-11:39 /mi · 117-129 bpm · Watch HR drift — pace must drop to keep HR in Z2"
+          "detail": "Long run ~15.4 mi · Zone 2 (Aerobic) · 10:00-11:39 /mi · 122-134 bpm · Watch HR drift — pace must drop to keep HR in Z2 · Fuel ~60 g carb/hr · Run by time on feet, not pace"
         },
         {
           "day": "Sun 9/27",
           "type": "run",
           "workout": "Z1 Recovery",
-          "zone": "Zone 1 (Recovery) · 11:39-13:14 /mi · 94-117 bpm",
+          "zone": "Zone 1 (Recovery) · 11:39-13:14 /mi · 98-122 bpm",
           "time": "20-45 min",
-          "detail": "Zone 1 (Recovery) · 11:39-13:14 /mi · 94-117 bpm · Slower than your normal easy pace"
+          "detail": "Zone 1 (Recovery) · 11:39-13:14 /mi · 98-122 bpm · Slower than your normal easy pace"
         }
       ]
     },
@@ -2352,36 +2352,36 @@
       "chosenMethodId": "koop",
       "chosenMethodName": "Koop / CTS Ultra",
       "primaryAnchor": "lthr_bpm",
-      "maxHR": 195,
+      "maxHR": 191,
       "zones": [
         {
           "zone": "Z1 – Recovery",
-          "hr": "103–138",
-          "pct": "53–71%",
+          "hr": "101–134",
+          "pct": "53–70%",
           "desc": "Very easy, full conversation"
         },
         {
           "zone": "Z2 – Aerobic",
-          "hr": "138–155",
-          "pct": "71–79%",
+          "hr": "134–151",
+          "pct": "70–79%",
           "desc": "Comfortable, sustainable"
         },
         {
           "zone": "Z3 – Tempo",
-          "hr": "155–163",
+          "hr": "151–160",
           "pct": "79–84%",
           "desc": "Comfortably hard"
         },
         {
           "zone": "Z4 – Threshold",
-          "hr": "163–172",
+          "hr": "160–168",
           "pct": "84–88%",
           "desc": "Hard. A few words at most"
         },
         {
           "zone": "Z5 – VO2 / Max",
-          "hr": "172–181",
-          "pct": "88–93%",
+          "hr": "168–176",
+          "pct": "88–92%",
           "desc": "Hard. A word or two at a time"
         }
       ],
@@ -2668,8 +2668,8 @@
       ],
       "paceAnchor": {
         "type": "lthr_bpm",
-        "value": 172,
-        "sourceNote": "Estimated LTHR = 0.88 × maxHR (195)"
+        "value": 168,
+        "sourceNote": "Estimated LTHR = 0.88 × maxHR (191)"
       },
       "goalPace": {
         "currentVdot": null,
@@ -2682,52 +2682,52 @@
         {
           "zone": "recovery",
           "displayName": "Recovery (Zone 1)",
-          "hrLow": 103,
-          "hrHigh": 138,
+          "hrLow": 101,
+          "hrHigh": 134,
           "rpeLow": 2,
           "rpeHigh": 3,
           "preferredMode": "hr",
-          "formatted": "Recovery (Zone 1) · 103-138 bpm"
+          "formatted": "Recovery (Zone 1) · 101-134 bpm"
         },
         {
           "zone": "easy",
           "displayName": "Endurance (Zone 2)",
-          "hrLow": 138,
-          "hrHigh": 155,
+          "hrLow": 134,
+          "hrHigh": 151,
           "rpeLow": 4,
           "rpeHigh": 6,
           "preferredMode": "hr",
-          "formatted": "Endurance (Zone 2) · 138-155 bpm"
+          "formatted": "Endurance (Zone 2) · 134-151 bpm"
         },
         {
           "zone": "aerobic_threshold",
           "displayName": "Tempo (Zone 3)",
-          "hrLow": 155,
-          "hrHigh": 163,
+          "hrLow": 151,
+          "hrHigh": 160,
           "rpeLow": 6,
           "rpeHigh": 7,
           "preferredMode": "hr",
-          "formatted": "Tempo (Zone 3) · 155-163 bpm"
+          "formatted": "Tempo (Zone 3) · 151-160 bpm"
         },
         {
           "zone": "lactate_threshold",
           "displayName": "SteadyState (Zone 4)",
-          "hrLow": 163,
-          "hrHigh": 172,
+          "hrLow": 160,
+          "hrHigh": 168,
           "rpeLow": 7,
           "rpeHigh": 8,
           "preferredMode": "hr",
-          "formatted": "SteadyState (Zone 4) · 163-172 bpm"
+          "formatted": "SteadyState (Zone 4) · 160-168 bpm"
         },
         {
           "zone": "vo2max",
           "displayName": "ClimbingRepeats (Zone 5)",
-          "hrLow": 172,
-          "hrHigh": 181,
+          "hrLow": 168,
+          "hrHigh": 176,
           "rpeLow": 8,
           "rpeHigh": 9,
           "preferredMode": "hr",
-          "formatted": "ClimbingRepeats (Zone 5) · 172-181 bpm"
+          "formatted": "ClimbingRepeats (Zone 5) · 168-176 bpm"
         }
       ],
       "sampleWeekNumber": 25,
@@ -2744,49 +2744,49 @@
           "day": "Tue 11/24",
           "type": "quality",
           "workout": "SteadyState",
-          "zone": "SteadyState (Zone 4) · 163-172 bpm",
+          "zone": "SteadyState (Zone 4) · 160-168 bpm",
           "time": "60-90 min",
-          "detail": "SteadyState (Zone 4) · 163-172 bpm · Even effort across all reps"
+          "detail": "SteadyState (Zone 4) · 160-168 bpm · Even effort across all reps"
         },
         {
           "day": "Wed 11/25",
           "type": "run",
           "workout": "Endurance",
-          "zone": "Endurance (Zone 2) · 138-155 bpm",
+          "zone": "Endurance (Zone 2) · 134-151 bpm",
           "time": "45-120 min",
-          "detail": "Endurance (Zone 2) · 138-155 bpm · Slow down or hike on climbs to keep HR in Z2"
+          "detail": "Endurance (Zone 2) · 134-151 bpm · Slow down or hike on climbs to keep HR in Z2"
         },
         {
           "day": "Thu 11/26",
           "type": "quality",
           "workout": "ClimbingRepeats",
-          "zone": "ClimbingRepeats (Zone 5) · 172-181 bpm",
+          "zone": "ClimbingRepeats (Zone 5) · 168-176 bpm",
           "time": "60-90 min",
-          "detail": "ClimbingRepeats (Zone 5) · 172-181 bpm · Choose a hill ~6-10% grade"
+          "detail": "ClimbingRepeats (Zone 5) · 168-176 bpm · Choose a hill ~6-10% grade"
         },
         {
           "day": "Fri 11/27",
           "type": "run",
           "workout": "Recovery",
-          "zone": "Recovery (Zone 1) · 103-138 bpm",
+          "zone": "Recovery (Zone 1) · 101-134 bpm",
           "time": "20-50 min",
-          "detail": "Recovery (Zone 1) · 103-138 bpm · Walk if HR drifts up"
+          "detail": "Recovery (Zone 1) · 101-134 bpm · Walk if HR drifts up"
         },
         {
           "day": "Sat 11/28",
           "type": "long",
           "workout": "B2B Long",
-          "zone": "Endurance (Zone 2) · 138-155 bpm",
+          "zone": "Endurance (Zone 2) · 134-151 bpm",
           "time": "213-237 min",
-          "detail": "Long run ~23.7 mi · Endurance (Zone 2) · 138-155 bpm · Saturday: target race-distance practice (longer for shorter races)"
+          "detail": "Long run ~23.7 mi · Endurance (Zone 2) · 134-151 bpm · Saturday: target race-distance practice (longer for shorter races) · Fuel ~90 g carb/hr · Run by time on feet, not pace"
         },
         {
           "day": "Sun 11/29",
           "type": "long",
           "workout": "B2B Long",
-          "zone": "Endurance (Zone 2) · 138-155 bpm",
+          "zone": "Endurance (Zone 2) · 134-151 bpm",
           "time": "213-237 min",
-          "detail": "Long run ~23.7 mi · Endurance (Zone 2) · 138-155 bpm · Saturday: target race-distance practice (longer for shorter races)"
+          "detail": "Long run ~23.7 mi · Endurance (Zone 2) · 134-151 bpm · Saturday: target race-distance practice (longer for shorter races) · Fuel ~90 g carb/hr"
         }
       ]
     },
@@ -2809,29 +2809,29 @@
           "gym"
         ]
       },
-      "maxHR": 190,
+      "maxHR": 187,
       "zones": [
         {
           "zone": "Z1 – Recovery",
-          "hr": "105–124",
+          "hr": "103–122",
           "pct": "55–65%",
           "desc": "Very easy, full conversation"
         },
         {
           "zone": "Z2 – Aerobic",
-          "hr": "124–143",
+          "hr": "122–140",
           "pct": "65–75%",
           "desc": "Comfortable, sustainable"
         },
         {
           "zone": "Z3 – Tempo",
-          "hr": "143–162",
+          "hr": "140–159",
           "pct": "75–85%",
           "desc": "Comfortably hard"
         },
         {
           "zone": "Z4 – Threshold",
-          "hr": "162–171",
+          "hr": "159–168",
           "pct": "85–90%",
           "desc": "Hard. A few words at most"
         }
@@ -2840,79 +2840,71 @@
       "weeks": [
         {
           "num": 1,
-          "miles": "~12",
-          "focus": "Build aerobic base + station familiarity. "
+          "miles": 12,
+          "focus": "Build aerobic base + station familiarity.  Easing back from injury — intensity is dialed down this week."
         },
         {
           "num": 2,
-          "miles": "~12",
-          "focus": "Build aerobic base + station familiarity. "
+          "miles": 12,
+          "focus": "Build aerobic base + station familiarity.  Easing back from injury — intensity is dialed down this week."
         },
         {
           "num": 3,
-          "miles": "~12",
+          "miles": 12,
           "focus": "Build aerobic base + station familiarity. "
         },
         {
           "num": 4,
-          "miles": "~7",
+          "miles": 7,
           "focus": "RECOVERY WEEK. Volume drops 40%. Absorb adaptations."
         },
         {
           "num": 5,
-          "miles": "~14",
+          "miles": 14,
           "focus": "Race-specific station work + running intervals. Competition sled weight"
         },
         {
           "num": 6,
-          "miles": "~14",
+          "miles": 14,
           "focus": "Race-specific station work + running intervals. Competition sled weight"
         },
         {
           "num": 7,
-          "miles": "~14",
+          "miles": 14,
           "focus": "Race-specific station work + running intervals. Competition sled weight"
         },
         {
           "num": 8,
-          "miles": "~7",
+          "miles": 7,
           "focus": "RECOVERY WEEK. Volume drops 40%. Absorb adaptations."
         },
         {
           "num": 9,
-          "miles": "~16",
+          "miles": 16,
           "focus": "Full simulations + intensity. 8 stations at race effort."
         },
         {
           "num": 10,
-          "miles": "~16",
+          "miles": 16,
           "focus": "Full simulations + intensity. 8 stations at race effort."
         },
         {
           "num": 11,
-          "miles": "~16",
+          "miles": 16,
           "focus": "Full simulations + intensity. 8 stations at race effort."
         },
         {
           "num": 12,
-          "miles": "~16",
-          "focus": "Taper. Reduce volume, maintain sharpness. Trust your fitness."
+          "miles": 16,
+          "focus": "Race week. Stay sharp, stay rested — Hyrox SF on Sun 9/6."
         }
       ],
       "sampleWeekDays": [
         {
-          "day": "Sun 7/12",
-          "type": "rest",
-          "workout": "Rest",
-          "zone": "—",
-          "time": "—",
-          "detail": ""
-        },
-        {
           "day": "Mon 7/13",
           "type": "quality",
           "workout": "1km repeats",
-          "zone": "4.5 mi · Z3 (143–162)",
+          "zone": "4.5 mi · Z3 (140–159)",
           "time": "50 min",
           "detail": "4×1km @ race pace, 90 sec rest. Simulate Hyrox run legs."
         },
@@ -2920,7 +2912,7 @@
           "day": "Tue 7/14",
           "type": "strength",
           "workout": "STRENGTH: Hyrox-specific",
-          "zone": "Z2 (124–143)",
+          "zone": "Z2 (122–140)",
           "time": "1 hr",
           "detail": "Wall balls 3×20 (6 kg) · Sled push 3×25m · Farmer carry 3×50m · Sandbag lunges 3×10/leg · Burpee broad jump 3×8 · Plank 3×60s"
         },
@@ -2936,7 +2928,7 @@
           "day": "Thu 7/16",
           "type": "cross",
           "workout": "Station circuit (4 stations)",
-          "zone": "Z3 (143–162)",
+          "zone": "Z3 (140–159)",
           "time": "55 min",
           "detail": "4 stations at race effort · Wall balls 75 (6 kg) · Sled Push extra set · Competition sled weight · 90 sec rest between"
         },
@@ -2952,9 +2944,17 @@
           "day": "Sat 7/18",
           "type": "long",
           "workout": "Long run + station finisher",
-          "zone": "5 mi · Z2 (124–143)",
+          "zone": "5 mi · Z2 (122–140)",
           "time": "85 min",
           "detail": "5 mi run then 3 station circuits at moderate effort. Running on tired legs into stations."
+        },
+        {
+          "day": "Sun 7/19",
+          "type": "rest",
+          "workout": "Rest",
+          "zone": "—",
+          "time": "—",
+          "detail": ""
         }
       ]
     },
@@ -2985,29 +2985,29 @@
         "athleteGoal": "build bigger arms and feel strong"
       },
       "generalGoal": "build_muscle",
-      "maxHR": 172,
+      "maxHR": 174,
       "zones": [
         {
           "zone": "Z1 – Recovery",
-          "hr": "95–112",
+          "hr": "96–113",
           "pct": "55–65%",
           "desc": "Very easy, full conversation"
         },
         {
           "zone": "Z2 – Aerobic",
-          "hr": "112–129",
+          "hr": "113–131",
           "pct": "65–75%",
           "desc": "Easy. Can speak in sentences (Talk Test)"
         },
         {
           "zone": "Z3 – Tempo",
-          "hr": "129–146",
+          "hr": "131–148",
           "pct": "75–85%",
           "desc": "Comfortably hard"
         },
         {
           "zone": "Z4 – VO₂max",
-          "hr": "155–163",
+          "hr": "157–165",
           "pct": "90–95%",
           "desc": "Hard. A few words at most"
         }
@@ -3080,7 +3080,7 @@
           "day": "Mon 6/8",
           "type": "strength",
           "workout": "Strength — full body + bone",
-          "zone": "Z1 (95–112)",
+          "zone": "Z1 (96–113)",
           "time": "45–60 min",
           "detail": "Goblet squat 4×10 · RDL 4×10 · DB bench press 4×10 · DB row 4×10 · Farmer carry 4×40s · Plank 4×40s · Bicep curl 4×10 · Hammer curl 4×10 · heavy finish: 1–2×5 on a main lift (load bone)"
         },
@@ -3088,7 +3088,7 @@
           "day": "Tue 6/9",
           "type": "strength",
           "workout": "Strength — full body + bone",
-          "zone": "Z1 (95–112)",
+          "zone": "Z1 (96–113)",
           "time": "45–60 min",
           "detail": "Bulgarian split squat 4×10 · Weighted hip thrust 4×10 · Overhead press 4×10 · Lat pulldown 4×10 · Walking lunge 4×10 · Dead bug 4×10 · Hammer curl 4×10 · Overhead tricep extension 4×10 · heavy finish: 1–2×5 on a main lift (load bone)"
         },
@@ -3096,7 +3096,7 @@
           "day": "Wed 6/10",
           "type": "run",
           "workout": "Zone 2 — easy aerobic",
-          "zone": "30 min · Z2 (112–129)",
+          "zone": "30 min · Z2 (113–131)",
           "time": "30 min",
           "detail": "Conversational pace (Talk Test: full sentences, can’t sing). Your choice of cardio."
         },
@@ -3104,7 +3104,7 @@
           "day": "Thu 6/11",
           "type": "strength",
           "workout": "Strength — full body + bone",
-          "zone": "Z1 (95–112)",
+          "zone": "Z1 (96–113)",
           "time": "45–60 min",
           "detail": "Goblet squat 4×10 · RDL 4×10 · DB bench press 4×10 · DB row 4×10 · Farmer carry 4×40s · Plank 4×40s · Overhead tricep extension 4×10 · Bicep curl 4×10 · heavy finish: 1–2×5 on a main lift (load bone)"
         },
@@ -3112,7 +3112,7 @@
           "day": "Fri 6/12",
           "type": "strength",
           "workout": "Strength — full body + bone",
-          "zone": "Z1 (95–112)",
+          "zone": "Z1 (96–113)",
           "time": "45–60 min",
           "detail": "Bulgarian split squat 4×10 · Weighted hip thrust 4×10 · Overhead press 4×10 · Lat pulldown 4×10 · Walking lunge 4×10 · Dead bug 4×10 · Bicep curl 4×10 · Hammer curl 4×10 · heavy finish: 1–2×5 on a main lift (load bone)"
         },
@@ -3120,7 +3120,7 @@
           "day": "Sat 6/13",
           "type": "quality",
           "workout": "Sprint intervals (SIT)",
-          "zone": "Z4 (155–163)",
+          "zone": "Z4 (157–165)",
           "time": "~30 min",
           "detail": "8–10 × 20s near-max effort, 90s easy between · 10 min warm-up + cool-down. Short, hard sprints protect muscle and metabolism in midlife — keep them; high intensity is good for you here."
         },
