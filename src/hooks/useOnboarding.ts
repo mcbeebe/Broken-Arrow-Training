@@ -86,12 +86,19 @@ export interface AdditionalRace {
    *  first one, goal is to finish strong"). Feeds the coach and the
    *  Hyrox-format detection, same as the main race's description. */
   description?: string
+  /** Asked and confirmed at capture for format-specific races (Hyrox):
+   *  'layered' weaves 1–2 race-specific sessions/week into the current
+   *  build now; 'sequential' starts after the previous race (legacy). */
+  integration?: 'layered' | 'sequential'
 }
 
 export interface OnboardingConfig {
   raceType: RaceType
   raceName: string
   raceDate: string
+  /** Upfront training framing: one goal race, or a season of races (the
+   *  season race-builder step). Absent on legacy configs = 'race'. */
+  goalMode?: 'race' | 'season'
   // Free-text athlete narrative about the race/event/goal (terrain, elevation,
   // climate, context). Collected for ALL flows; required (10+ chars). The coach
   // reads this to tailor the plan and the welcome letter.

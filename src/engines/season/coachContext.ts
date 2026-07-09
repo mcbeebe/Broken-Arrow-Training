@@ -54,6 +54,16 @@ export function buildSeasonContext(result: SeasonPlanResult, today: string): str
   const parts: string[] = [`Season calendar: ${calendar}.`]
   if (current) parts.push(`Current block: ${blockPurpose(current, result)}`)
   if (nextRace) parts.push(`Next race: ${nextRace.r.raceInfo.name} in ${daysBetween(today, nextRace.iso)} days.`)
+  // Layered preparation (asked-and-confirmed): the coach must know the
+  // athlete's build carries woven-in sessions for a later race.
+  const layered = season.races.filter(r => r.integration === 'layered' && r.status === 'upcoming')
+  for (const r of layered) {
+    parts.push(
+      `${r.raceInfo.name} preparation is LAYERED into the current build — 1–2 station/strength sessions per week ` +
+      `woven into existing strength/cross slots (running volume untouched), escalating after the anchor race. ` +
+      `Layered sessions never appear in the anchor's final two pre-race weeks.`,
+    )
+  }
   const seasonAdvisories = advisories.filter(a => a.id.startsWith('season_') || a.id.startsWith('b_race_'))
   if (seasonAdvisories.length > 0) {
     parts.push(`Season advisories: ${seasonAdvisories.map(a => `${a.title} — ${a.detail}`).join(' · ')}`)

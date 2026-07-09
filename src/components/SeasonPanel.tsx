@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { RaceInfo, RacePriority } from '../types'
 import type { UseSeasonReturn } from '../hooks/useSeason'
 import { raceDateToIso } from '../engines/season'
+import { isHyroxRaceInfo } from '../engines/season/planSeason'
 import { BLOCK_STYLE } from '../utils/blockStyles'
 
 /**
@@ -29,16 +30,25 @@ function fmtRange(startIso: string, endIso: string): string {
 }
 
 export default function SeasonPanel({ seasonState }: { seasonState: UseSeasonReturn }) {
-  const { season, planResult, isMultiRace, addRace, setPriority, removeRace } = seasonState
+  const { season, planResult, isMultiRace, addRace, setPriority, setIntegration, removeRace } = seasonState
   const [adding, setAdding] = useState(false)
   const [name, setName] = useState('')
   const [date, setDate] = useState('')
   const [miles, setMiles] = useState('')
   const [priority, setPri] = useState<RacePriority>('B')
   const [description, setDescription] = useState('')
+  const [integration, setIntegrationChoice] = useState<'layered' | 'sequential'>('layered')
 
   const anchorIso = raceDateToIso(season.races[0]?.raceInfo.date ?? '')
   const datedBeforeAnchor = !!date && !!anchorIso && date <= anchorIso
+  // The integration ask is defined for format-specific (Hyrox) races.
+  const addFormIsHyrox = isHyroxRaceInfo({ name, description })
+
+  // One-time confirm for races captured before the integration choice
+  // existed: never silently change an athlete's plan — ask.
+  const pendingIntegration = season.races
+    .slice(1)
+    .find(r => r.integration === undefined && isHyroxRaceInfo(r.raceInfo) && r.status === 'upcoming')
 
   function submitAdd() {
     if (!name.trim() || !date) return
@@ -52,9 +62,9 @@ export default function SeasonPanel({ seasonState }: { seasonState: UseSeasonRet
       landmarks: [], gear: [], nutrition: '',
       description: description.trim() || undefined,
     }
-    addRace(race, priority)
+    addRace(race, priority, addFormIsHyrox ? integration : 'sequential')
     setAdding(false)
-    setName(''); setDate(''); setMiles(''); setPri('B'); setDescription('')
+    setName(''); setDate(''); setMiles(''); setPri('B'); setDescription(''); setIntegrationChoice('layered')
   }
 
   return (
@@ -111,6 +121,29 @@ export default function SeasonPanel({ seasonState }: { seasonState: UseSeasonRet
             aria-label="Race details"
             className="w-full rounded-lg border border-slate-300 px-2 py-1.5 text-sm resize-none"
           />
+          {addFormIsHyrox && (
+            <div>
+              <p className="text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
+                When should this race’s training start?
+              </p>
+              <div className="flex gap-1.5" role="radiogroup" aria-label="Training integration">
+                <button type="button" role="radio" aria-checked={integration === 'layered'}
+                  onClick={() => setIntegrationChoice('layered')}
+                  className={`flex-1 rounded-lg border px-2 py-1.5 text-xs font-semibold ${
+                    integration === 'layered' ? 'border-teal-500 bg-teal-50 text-teal-800' : 'border-slate-200 text-slate-500'
+                  }`}>
+                  Layer into my build now (recommended)
+                </button>
+                <button type="button" role="radio" aria-checked={integration === 'sequential'}
+                  onClick={() => setIntegrationChoice('sequential')}
+                  className={`flex-1 rounded-lg border px-2 py-1.5 text-xs font-semibold ${
+                    integration === 'sequential' ? 'border-teal-500 bg-teal-50 text-teal-800' : 'border-slate-200 text-slate-500'
+                  }`}>
+                  After my current race
+                </button>
+              </div>
+            </div>
+          )}
           {datedBeforeAnchor && (
             <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5">
               ⚠️ This date is on or before your current plan's race — the season chains races in
@@ -123,6 +156,33 @@ export default function SeasonPanel({ seasonState }: { seasonState: UseSeasonRet
               Add race
             </button>
             <button onClick={() => setAdding(false)} className="text-sm text-slate-500 px-2">Cancel</button>
+          </div>
+        </div>
+      )}
+
+      {/* One-time integration confirm for pre-existing Hyrox-format races
+          (captured before the layered option existed). Ask — never
+          silently regenerate the athlete's plan. */}
+      {pendingIntegration && !adding && (
+        <div className="mt-2 rounded-lg border border-teal-200 bg-teal-50 dark:bg-teal-950 dark:border-teal-800 px-3 py-2" data-testid="integration-confirm">
+          <p className="text-xs font-medium text-teal-900 dark:text-teal-100">
+            Layer {pendingIntegration.raceInfo.name} prep into your current build?
+          </p>
+          <p className="text-[11px] text-teal-800 dark:text-teal-200 mt-0.5">
+            1–2 station/strength sessions a week woven in now (your running stays
+            untouched) — or keep everything after your current race.
+          </p>
+          <div className="flex gap-2 mt-1.5">
+            <button
+              onClick={() => setIntegration(pendingIntegration.id, 'layered')}
+              className="rounded-lg bg-teal-700 text-white text-xs font-semibold px-2.5 py-1">
+              Layer it in
+            </button>
+            <button
+              onClick={() => setIntegration(pendingIntegration.id, 'sequential')}
+              className="rounded-lg border border-teal-300 text-teal-800 dark:text-teal-200 text-xs font-semibold px-2.5 py-1">
+              Keep it after
+            </button>
           </div>
         </div>
       )}
