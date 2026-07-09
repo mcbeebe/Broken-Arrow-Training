@@ -34,6 +34,7 @@ from psycopg.types.json import Jsonb
 from .auth._helpers import decode_session_token
 from .coach._core import read_json_body, send_json
 from ._sync.allowlist import is_preserved
+from ._sync.upsert import build_upsert, dedupe_rows
 
 
 MAX_BODY_BYTES = 4_000_000  # 4 MB hard cap on PUT payloads (Vercel's
@@ -233,7 +234,7 @@ class handler(BaseHTTPRequestHandler):
         # circuit oversize uploads before pulling them into memory.
         length = int(self.headers.get("Content-Length", "0") or "0")
         if length > MAX_BODY_BYTES:
-            send_json(self, 413, {"error": "body exceeds 1MB limit"})
+            send_json(self, 413, {"error": "body exceeds 4MB limit"})
             return
 
         body = read_json_body(self)
@@ -243,30 +244,25 @@ class handler(BaseHTTPRequestHandler):
             return
 
         rows, rejected = partition_items(items)
+        rows = dedupe_rows(rows)
 
+        # One multi-row INSERT = one database round trip (P0 postmortem,
+        # part two: per-row execute × backlog × Neon latency blew the
+        # function's time budget → 504, and the backlog could never
+        # drain). rowcount counts inserts + LWW updates; rows blocked by
+        # the WHERE-guard (stale incoming) are the skipped remainder.
         written = 0
         skipped = 0
-        try:
-            conn = _get_conn()
-            with conn.cursor() as cur:
-                for key, value, updated_at in rows:
-                    cur.execute(
-                        "INSERT INTO user_state (athlete_id, key, value, updated_at) "
-                        "VALUES (%s, %s, %s, %s) "
-                        "ON CONFLICT (athlete_id, key) DO UPDATE SET "
-                        "  value = EXCLUDED.value, "
-                        "  updated_at = EXCLUDED.updated_at "
-                        "WHERE user_state.updated_at < EXCLUDED.updated_at",
-                        (athlete_id, key, Jsonb(value), updated_at),
-                    )
-                    # rowcount == 1 for fresh insert or successful LWW update;
-                    # 0 when the WHERE-guard blocked an older incoming row.
-                    if cur.rowcount == 1:
-                        written += 1
-                    else:
-                        skipped += 1
-        except Exception as e:
-            send_json(self, 500, {"error": f"db write failed: {type(e).__name__}"})
-            return
+        if rows:
+            try:
+                sql, params = build_upsert(athlete_id, rows, wrap_value=Jsonb)
+                conn = _get_conn()
+                with conn.cursor() as cur:
+                    cur.execute(sql, params)
+                    written = max(cur.rowcount, 0)
+                skipped = len(rows) - written
+            except Exception as e:
+                send_json(self, 500, {"error": f"db write failed: {type(e).__name__}"})
+                return
 
         send_json(self, 200, {"written": written, "skipped": skipped, "rejected": rejected})

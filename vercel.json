@@ -22,7 +22,7 @@
       "maxDuration": 30
     },
     "api/sync.py": {
-      "maxDuration": 15
+      "maxDuration": 60
     }
   },
   "headers": [

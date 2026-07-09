@@ -25,11 +25,31 @@ function apiUrl(): string {
   return (import.meta.env.VITE_GARMIN_API_URL || '').replace(/\/$/, '')
 }
 const LAST_SYNC_KEY = '__attune_meta:__lastSync'
-// Keep each PUT body comfortably under the server's 4 MB cap (which is
-// itself comfortably under Vercel's 4.5 MB request-body hard limit).
-// Two days of coach memory + plan edits routinely top a megabyte; this
-// gives plenty of headroom while keeping individual requests fast.
-const MAX_CHUNK_BYTES = 800_000
+// Chunk sizing (P0 postmortem, part two — the 504): a first-sync or
+// post-outage backlog can be megabytes across hundreds of keys. Each
+// PUT must finish — mobile upload included — inside the serverless
+// function's time budget, and progress is stamped per chunk, so small
+// chunks make the backlog drain incrementally instead of timing out as
+// one giant request. A single value larger than the byte cap still
+// ships alone; the server's one-round-trip batched write handles it.
+const MAX_CHUNK_BYTES = 300_000
+const MAX_CHUNK_ITEMS = 120
+
+// Statuses where re-sending the identical payload can't succeed but a
+// smaller one can: the function ran out of time mid-batch (504/408) or
+// the body tripped a size limit (413). 502/503 ride along — a gateway
+// hiccup heals on the retry the split provides. Deliberately NOT 500
+// (a deterministic server bug would turn splitting into a request
+// storm) and not network-layer failures (offline is offline).
+const SPLIT_STATUSES = new Set([408, 413, 502, 503, 504])
+
+class HttpError extends Error {
+  readonly status: number
+  constructor(message: string, status: number) {
+    super(message)
+    this.status = status
+  }
+}
 
 export interface RemoteItem {
   key: string
@@ -165,6 +185,7 @@ async function authedFetch(
 async function withBackoff<T>(
   fn: () => Promise<T>,
   maxAttempts = 3,
+  shouldRetry: (e: unknown) => boolean = () => true,
 ): Promise<T> {
   let lastErr: unknown
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
@@ -172,6 +193,7 @@ async function withBackoff<T>(
       return await fn()
     } catch (e) {
       lastErr = e
+      if (!shouldRetry(e)) throw e
       if (attempt < maxAttempts - 1) {
         const delay = 500 * Math.pow(2, attempt)
         await new Promise(r => setTimeout(r, delay))
@@ -284,21 +306,61 @@ export async function pullFromServer(session: AuthSession): Promise<{ pulled: nu
  *  actual rejection reason (which key tripped the allowlist, etc.)
  *  rather than the bare status code. */
 async function pushChunk(session: AuthSession, items: RemoteItem[]): Promise<PushResult> {
-  return withBackoff(async () => {
-    const res = await authedFetch(session, 'PUT', { items })
-    if (!res.ok) {
-      const body = await res.text().catch(() => '')
-      throw new Error(`sync PUT failed: ${res.status}${body ? ` — ${body}` : ''}`)
+  // A multi-item chunk that hits a split-eligible status must NOT burn
+  // backoff retries on the identical payload — pushChunkResilient
+  // halves it instead. A single item can't split, so it keeps full
+  // retries as its only recourse.
+  const splitEligible = items.length > 1
+  return withBackoff(
+    async () => {
+      const res = await authedFetch(session, 'PUT', { items })
+      if (!res.ok) {
+        const body = await res.text().catch(() => '')
+        throw new HttpError(`sync PUT failed: ${res.status}${body ? ` — ${body}` : ''}`, res.status)
+      }
+      const parsed = (await res.json()) as PushResult & { rejected?: { key: string | null; reason: string }[] }
+      return {
+        written: parsed.written ?? 0,
+        skipped: parsed.skipped ?? 0,
+        rejectedKeys: (parsed.rejected ?? [])
+          .map(r => r.key)
+          .filter((k): k is string => typeof k === 'string'),
+      }
+    },
+    3,
+    e => !(splitEligible && e instanceof HttpError && SPLIT_STATUSES.has(e.status)),
+  )
+}
+
+/** Push a chunk; when the server times out or rejects the size
+ *  (SPLIT_STATUSES), halve and recurse — down to one item per request —
+ *  so a backlog that can't clear the function's time budget in one
+ *  request still drains in smaller pieces. `onSuccess` fires per landed
+ *  sub-chunk so progress persists even if a later piece fails.
+ *  Network-layer errors (no HTTP status) do NOT split: offline is
+ *  offline, and halving would just multiply dead requests. */
+async function pushChunkResilient(
+  session: AuthSession,
+  items: RemoteItem[],
+  onSuccess: (sent: RemoteItem[], r: PushResult) => void,
+): Promise<PushResult> {
+  try {
+    const r = await pushChunk(session, items)
+    onSuccess(items, r)
+    return r
+  } catch (e) {
+    if (items.length > 1 && e instanceof HttpError && SPLIT_STATUSES.has(e.status)) {
+      const mid = Math.ceil(items.length / 2)
+      const a = await pushChunkResilient(session, items.slice(0, mid), onSuccess)
+      const b = await pushChunkResilient(session, items.slice(mid), onSuccess)
+      return {
+        written: a.written + b.written,
+        skipped: a.skipped + b.skipped,
+        rejectedKeys: [...(a.rejectedKeys ?? []), ...(b.rejectedKeys ?? [])],
+      }
     }
-    const parsed = (await res.json()) as PushResult & { rejected?: { key: string | null; reason: string }[] }
-    return {
-      written: parsed.written ?? 0,
-      skipped: parsed.skipped ?? 0,
-      rejectedKeys: (parsed.rejected ?? [])
-        .map(r => r.key)
-        .filter((k): k is string => typeof k === 'string'),
-    }
-  })
+    throw e
+  }
 }
 
 /** Gather every stamped key whose stamp has advanced past its last
@@ -380,21 +442,23 @@ export async function pushAll(session: AuthSession): Promise<PushResult> {
 
   const flush = async () => {
     if (batch.length === 0) return
-    const r = await pushChunk(session, batch)
-    written += r.written
-    skipped += r.skipped
-    const rejected = new Set(r.rejectedKeys ?? [])
-    for (const k of rejected) allRejected.push(k)
-    // Mark uploaded per-chunk so a later chunk failing doesn't force a
-    // re-push of the chunks that already landed. Rejected keys are NOT
-    // marked — they retry every sync until the server accepts them, and
-    // the failure stays visible instead of silently vanishing.
-    for (const item of batch) {
-      if (rejected.has(item.key)) continue
-      writeLastUploadedStamp(item.key, Date.parse(item.updatedAt))
-    }
+    const items = batch
     batch = []
     batchBytes = 0
+    const r = await pushChunkResilient(session, items, (sent, res) => {
+      const rejected = new Set(res.rejectedKeys ?? [])
+      for (const k of rejected) allRejected.push(k)
+      // Mark uploaded per landed (sub-)chunk so a later piece failing
+      // doesn't force a re-push of what already made it. Rejected keys
+      // are NOT marked — they retry every sync until the server accepts
+      // them, and the failure stays visible instead of silently vanishing.
+      for (const item of sent) {
+        if (rejected.has(item.key)) continue
+        writeLastUploadedStamp(item.key, Date.parse(item.updatedAt))
+      }
+    })
+    written += r.written
+    skipped += r.skipped
   }
 
   try {
@@ -402,7 +466,7 @@ export async function pushAll(session: AuthSession): Promise<PushResult> {
       // Per-item size approximated by its JSON length; close enough
       // because `value` (the raw localStorage string) dominates.
       const itemBytes = JSON.stringify(item).length
-      if (batchBytes > 0 && batchBytes + itemBytes > MAX_CHUNK_BYTES) {
+      if (batchBytes > 0 && (batchBytes + itemBytes > MAX_CHUNK_BYTES || batch.length >= MAX_CHUNK_ITEMS)) {
         await flush()
       }
       batch.push(item)
