@@ -43,7 +43,7 @@ export function buildRepaceOps(
   if (factor === 1) return ops
   for (const week of weeks) {
     week.days.forEach((day, dayIndex) => {
-      const isoDate = parseDayToDate(day.day, week.dates)
+      const isoDate = parseDayToDate(day.day, week.dates, fromIso)
       if (!isoDate || isoDate < fromIso) return
       if (day.actual) return
       const zone = repaceString(day.zone, factor)

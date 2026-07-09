@@ -79,23 +79,27 @@ export function generateDayCardNote(
   // (day.actual is always undefined here because of the early return
   // above, so we don't need to check completion status — by definition
   // drills can't have been done yet on a not-yet-done workout.)
-  if ((type === 'run' || type === 'long') && drillDay) {
+  if ((type === 'run' || type === 'long') && drillDay && !day.userEdited) {
     return {
       text: `Drill day. A-skips + strides are the single highest-leverage form cue for your stride — don't skip them.`,
       tone: 'info',
     }
   }
 
-  // Quality workout priming (always worth noting on quality)
-  if (type === 'quality' && (!readiness || readiness.status === 'GREEN' || readiness.status === 'PEAK')) {
+  // Quality workout priming — but only when day.type still describes the
+  // content. A day the athlete rewrote (userEdited) may say `quality`
+  // while its body is a hike; "hit the zone splits" there reads as the
+  // coach not looking at the workout. Readiness warnings above stay —
+  // effort caution is valid regardless of what the content became.
+  if (type === 'quality' && !day.userEdited && (!readiness || readiness.status === 'GREEN' || readiness.status === 'PEAK')) {
     return {
       text: `Quality day — the prescription matters more than the volume. Hit the zone splits, recover fully between.`,
       tone: 'info',
     }
   }
 
-  // Long run on peak readiness
-  if (type === 'long' && readiness?.status === 'PEAK') {
+  // Long run on peak readiness (same user-edit guard as above)
+  if (type === 'long' && !day.userEdited && readiness?.status === 'PEAK') {
     return {
       text: `You're peaked — this is the day to go long without fear. Hold Z2 for the bulk and let it stretch.`,
       tone: 'info',
@@ -104,7 +108,7 @@ export function generateDayCardNote(
 
   // Explicit planned drills — day.actual is always undefined here due to
   // the early return above, so no completion check is needed.
-  if (plannedDrills.length > 0 && (type === 'run' || type === 'quality')) {
+  if (plannedDrills.length > 0 && (type === 'run' || type === 'quality') && !day.userEdited) {
     return {
       text: `Plan has drills prescribed — they're cheap insurance and the single easiest way to protect form as volume climbs.`,
       tone: 'info',

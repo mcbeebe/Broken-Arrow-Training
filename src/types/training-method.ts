@@ -243,6 +243,11 @@ export interface DaySchedule {
   preferredWorkoutIds?: string[];
   volumeModifier?: VolumeModifier;
   notes?: string;
+  /** Set by the generator (never authored in method JSON) when the injury
+   *  lead-in downgraded this slot from a hard category — flows onto
+   *  PlannedDay.leadInEased so the day-card note only claims "intensity
+   *  stays easy" about genuinely eased content. */
+  leadInEased?: boolean;
 }
 
 export interface WeeklyPattern {

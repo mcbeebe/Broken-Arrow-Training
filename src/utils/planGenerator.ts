@@ -52,8 +52,33 @@ function formatDay(dateStr: string): string {
   return `${days[d.getDay()]} ${d.getMonth() + 1}/${d.getDate()}`
 }
 
-function getWeekStart(raceDate: string, weeksOut: number): string {
-  return addDays(raceDate, -weeksOut * 7)
+/** Whole days from `aIso` to `bIso` (negative if b is before a). */
+function daysBetween(aIso: string, bIso: string): number {
+  return Math.round(
+    (Date.parse(`${bIso}T12:00:00`) - Date.parse(`${aIso}T12:00:00`)) / 86_400_000,
+  )
+}
+
+/** The Monday on or before a date. Weeks are Monday-anchored (matching the
+ *  running engine) — anchoring to race day itself made every Hyrox week run
+ *  on the race's weekday (the field bug's Fri→Thu weeks). */
+function mondayOnOrBefore(dateStr: string): string {
+  const d = new Date(dateStr + 'T12:00:00')
+  const sinceMonday = (d.getDay() + 6) % 7 // 0=Mon … 6=Sun
+  return addDays(dateStr, -sinceMonday)
+}
+
+/** Recovery-week placement for a runway-clamped plan. The level templates'
+ *  fixed indices (e.g. [4, 8]) assume the FULL build; in a clamped plan they
+ *  landed a "volume drops 40%" week right before the taper (the field
+ *  periodization inversion). Derived rule: no recovery weeks at all in a
+ *  short (≤6-week) plan, otherwise every 4th week but never within the
+ *  final 2 pre-race weeks. */
+function deriveRecoveryWeeks(totalWeeks: number): number[] {
+  if (totalWeeks <= 6) return []
+  const out: number[] = []
+  for (let w = 4; w <= totalWeeks - 2; w += 4) out.push(w)
+  return out
 }
 
 interface LevelParams {
@@ -167,15 +192,19 @@ export function generateHyroxPlan(
 
   const raceDate = config.raceDate || addDays(new Date().toISOString().slice(0, 10), 84)
   const P = getLevelParams(config.experienceLevel)
+  // Weeks are Monday-anchored; the final week is the Monday-anchored week
+  // that CONTAINS race day and ends on it (a race-day card is emitted, and
+  // nothing is scheduled after the race).
+  const raceMonday = mondayOnOrBefore(raceDate)
   // Runway clamp (P0): the level template is a MAXIMUM, never a mandate.
   // Back-counting a fixed 8–20-week template from race day used to start
   // plans in the past — and, in a multi-race season, ON TOP of the
   // previous race's build (the week-numbering corruption bug). The plan
-  // can never begin before `today`.
-  const weeksAvailable = Math.max(
-    1,
-    Math.floor((Date.parse(`${raceDate}T12:00:00`) - Date.parse(`${today}T12:00:00`)) / (7 * 86_400_000)),
-  )
+  // can never begin before `today` (a race-week edge where today falls
+  // mid-race-week is clamped per-day in the loop below).
+  const weeksAvailable = raceMonday >= today
+    ? Math.floor(daysBetween(today, raceMonday) / 7) + 1
+    : 1
   const totalWeeks = Math.min(P.totalWeeks, Math.max(1, weeksAvailable))
   const runwayClamped = totalWeeks < P.totalWeeks
   const daysPerWeek = config.trainingDaysPerWeek
@@ -215,21 +244,60 @@ export function generateHyroxPlan(
   const roles = rolesByDays[daysPerWeek] || rolesByDays[4]
   const trainingDayNumbers = getTrainingDayNumbers(daysPerWeek)
 
+  // Recovery placement must follow the CLAMPED length, not the full
+  // template — fixed indices put a recovery week right before the race.
+  const recoveryWeeks = runwayClamped ? deriveRecoveryWeeks(totalWeeks) : P.recoveryWeeks
+
   const weeks: TrainingWeek[] = []
 
   for (let w = 0; w < totalWeeks; w++) {
     const weekNum = w + 1
-    const weekStart = getWeekStart(raceDate, totalWeeks - w)
+    const weekStart = addDays(raceMonday, -(totalWeeks - 1 - w) * 7)
+    const isFinalWeek = w === totalWeeks - 1
+    // Offset of race day within its Monday-anchored week (0=Mon … 6=Sun).
+    const raceOffset = daysBetween(raceMonday, raceDate)
     const phase = weekNum <= baseEnd ? 'base' : weekNum <= buildEnd ? 'build' : weekNum <= peakEnd ? 'peak' : 'taper'
-    const isRecovery = P.recoveryWeeks.includes(weekNum)
+    const isRecovery = recoveryWeeks.includes(weekNum)
 
     const days: PlannedDay[] = []
     let roleIdx = 0
 
     for (let d = 0; d < 7; d++) {
       const dateStr = addDays(weekStart, d)
+      // P0 invariant: the plan never schedules a day before `today` (only
+      // reachable when today falls inside race week itself).
+      if (w === 0 && dateStr < today) continue
       const dayLabel = formatDay(dateStr)
       const dayOfWeek = new Date(dateStr + 'T12:00:00').getDay()
+
+      if (isFinalWeek) {
+        // Race week: light shakeout days through race eve, the race itself
+        // on race day, and NOTHING after — post-race belongs to recovery.
+        if (d > raceOffset) break
+        if (d === raceOffset) {
+          days.push({
+            day: dayLabel,
+            type: 'race',
+            workout: `RACE DAY — ${config.raceName || 'Hyrox'}`,
+            detail: 'Start controlled through runs 1–4, then empty the tank. Nothing new today — race-week rehearsed gear, fueling, and pacing only.',
+            zone: `${z3}–${z4}`,
+            route: 'Race venue',
+            time: '~90 min',
+          })
+          continue
+        }
+        if (!trainingDayNumbers.includes(dayOfWeek)) {
+          days.push({ day: dayLabel, type: 'rest', workout: 'Rest', detail: 'Race week — feet up.', zone: '—', route: '—', time: '—' })
+          continue
+        }
+        // Reuse the recovery-role bodies: easy runs / light station form
+        // work — exactly the right race-week dose.
+        const role = roles[roleIdx] || 'run'
+        roleIdx++
+        const shakeout = getHyroxWorkoutByRole(role, 'taper', true, P, weakStation, z1, z2, z3, z4, easyPace, tempoPace, cvPace)
+        days.push({ day: dayLabel, ...shakeout })
+        continue
+      }
 
       if (!trainingDayNumbers.includes(dayOfWeek)) {
         days.push({ day: dayLabel, type: 'rest', workout: 'Rest', detail: '', zone: '—', route: '—', time: '—' })
@@ -247,7 +315,7 @@ export function generateHyroxPlan(
       }
       // Injury lead-in: ease the hard days (quality/strength) for the first N weeks.
       if (injuryLeadIn > 0 && weekNum <= injuryLeadIn && !isRecovery && (base.type === 'quality' || base.type === 'strength')) {
-        day = { ...day, workout: `${day.workout} — easing back`, detail: `Returning from injury: keep effort easy and form-focused. ${day.detail}`, zone: z1 }
+        day = { ...day, workout: `${day.workout} — easing back`, detail: `Returning from injury: keep effort easy and form-focused. ${day.detail}`, zone: z1, leadInEased: true }
       }
       // Equipment: no gym → strength/station prescriptions assume kit they don't
       // have. Keep the structure, append the home substitutions.
@@ -259,12 +327,16 @@ export function generateHyroxPlan(
     }
 
     const baseMiles = isRecovery ? Math.round(P.baseRunMi * 4) : phase === 'base' ? Math.round(P.baseRunMi * daysPerWeek) : phase === 'build' ? Math.round(P.buildRunMi * daysPerWeek) : Math.round(P.peakRunMi * daysPerWeek)
+    const weekEnd = isFinalWeek ? raceDate : addDays(weekStart, 6)
 
     weeks.push({
       num: weekNum,
-      dates: `${formatDay(weekStart).slice(4)} – ${formatDay(addDays(weekStart, 6)).slice(4)}`,
-      miles: isRecovery ? `~${Math.round(baseMiles * 0.6)}` : `~${baseMiles}`,
-      focus: (isRecovery ? 'RECOVERY WEEK. Volume drops 40%. Absorb adaptations.'
+      dates: `${formatDay(weekStart).slice(4)} – ${formatDay(weekEnd).slice(4)}`,
+      // Numeric like every other generator — the UI owns the "~" prefix
+      // (a baked-in "~" string double-rendered as "~~7 mi" in the field).
+      miles: isRecovery ? Math.round(baseMiles * 0.6) : baseMiles,
+      focus: (isFinalWeek ? `Race week. Stay sharp, stay rested — ${config.raceName || 'Hyrox'} on ${formatDay(raceDate)}.`
+        : isRecovery ? 'RECOVERY WEEK. Volume drops 40%. Absorb adaptations.'
         : phase === 'base' ? `Build aerobic base + station familiarity. ${config.experienceLevel === 'beginner' ? 'Focus on form over speed.' : ''}`
         : phase === 'build' ? `Race-specific station work + running intervals. ${P.sledNote}`
         : phase === 'peak' ? `Full simulations + intensity. ${P.simStations.peak} stations at race effort.`

@@ -116,7 +116,17 @@ export function replayEdits(base: TrainingWeek[], edits: PlanEdit[]): TrainingWe
       case 'updateDay': {
         const w = weeks.find(x => x.num === op.weekNum)
         if (w && op.dayIndex >= 0 && op.dayIndex < w.days.length) {
-          w.days[op.dayIndex] = { ...w.days[op.dayIndex], ...op.updates }
+          // A type/workout rewrite means day.type no longer describes the
+          // content — mark it so type-keyed generic coach notes stay quiet
+          // ("Quality day — hit the zone splits" on a hand-edited hike).
+          // Detail/zone-only updates (incl. system repace batches) are NOT
+          // marked. Derived at replay, never persisted.
+          const rewrote = op.updates.type !== undefined || op.updates.workout !== undefined
+          w.days[op.dayIndex] = {
+            ...w.days[op.dayIndex],
+            ...op.updates,
+            ...(rewrote ? { userEdited: true } : {}),
+          }
         }
         break
       }
@@ -124,7 +134,7 @@ export function replayEdits(base: TrainingWeek[], edits: PlanEdit[]): TrainingWe
         const w = weeks.find(x => x.num === op.weekNum)
         if (w) {
           const at = Math.max(0, Math.min(op.atIndex, w.days.length))
-          w.days.splice(at, 0, { ...op.day })
+          w.days.splice(at, 0, { ...op.day, userEdited: true })
         }
         break
       }

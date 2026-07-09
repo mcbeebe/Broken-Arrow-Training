@@ -26,17 +26,52 @@ export function isFuelingRehearsalWeek(weeksToRace: number): boolean {
   return weeksToRace >= 4 && weeksToRace <= 6
 }
 
+/** Per-hour fueling only makes sense on runs long enough to need it — the
+ *  module's own doctrine says under ~90 min needs none. Gate at 75 min so
+ *  runs approaching the line still practice the habit. */
+const MIN_FUELED_RUN_MINUTES = 75
+
+/** Estimated duration in minutes of a plan day, from its `time` string
+ *  ("45-52 min" / "1 hr 10 min" / "~90 min" → midpoint/total), else from a
+ *  mileage estimate at easy pace. Null when neither is available. */
+export function estimateRunMinutes(day: Pick<PlannedDay, 'time'>, fallbackMiles?: number, easyPaceMinPerMile = 11): number | null {
+  const time = day.time || ''
+  const hrMatch = time.match(/(\d+(?:\.\d+)?)\s*hr/)
+  const minMatches = time.match(/(\d+)(?:\s*[-–]\s*(\d+))?\s*min/)
+  if (hrMatch || minMatches) {
+    const hrs = hrMatch ? parseFloat(hrMatch[1]) * 60 : 0
+    const lo = minMatches ? parseInt(minMatches[1], 10) : 0
+    const hi = minMatches?.[2] ? parseInt(minMatches[2], 10) : lo
+    return hrs + (lo + hi) / 2
+  }
+  if (fallbackMiles && fallbackMiles > 0) return fallbackMiles * easyPaceMinPerMile
+  return null
+}
+
 /**
  * Append the carb target (and the rehearsal flag in the 4–6-week window) to the
- * long-run days of one week. Short races (target 0) are returned unchanged.
+ * long-run days of one week. Short races (target 0) are returned unchanged —
+ * and so is any individual long run too short to need per-hour fueling (a
+ * 4-mile early-build "long" run got carb-per-hour advice in the field; the
+ * gate is on the RUN, not just the race).
  */
-export function applyFuelingToWeek(days: PlannedDay[], raceMiles: number, weeksToRace: number): PlannedDay[] {
+export function applyFuelingToWeek(
+  days: PlannedDay[],
+  raceMiles: number,
+  weeksToRace: number,
+  opts: { longRunMi?: number; easyPaceMinPerMile?: number } = {},
+): PlannedDay[] {
   const g = carbTargetForRaceMiles(raceMiles)
   if (g <= 0) return days
   const rehearsal = isFuelingRehearsalWeek(weeksToRace)
-  return days.map(d => d.type === 'long'
-    ? { ...d, detail: appendDetail(d.detail, `Fuel ~${g} g carb/hr${rehearsal ? ' (practice race nutrition)' : ''}`) }
-    : d)
+  return days.map(d => {
+    if (d.type !== 'long') return d
+    const minutes = estimateRunMinutes(d, opts.longRunMi, opts.easyPaceMinPerMile)
+    // No duration signal at all → skip: better to omit advice than to
+    // stamp a possibly 40-minute run with hourly fueling.
+    if (minutes === null || minutes < MIN_FUELED_RUN_MINUTES) return d
+    return { ...d, detail: appendDetail(d.detail, `Fuel ~${g} g carb/hr${rehearsal ? ' (practice race nutrition)' : ''}`) }
+  })
 }
 
 /**

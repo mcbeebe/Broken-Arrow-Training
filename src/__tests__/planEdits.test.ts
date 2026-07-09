@@ -184,3 +184,39 @@ describe('usePlanEdits — structural op-log', () => {
     expect(weeks[0].days[0].workout).toBe('STRENGTH')  // unchanged
   })
 })
+
+// ── userEdited marker (field bug: "Quality day — hit the zone splits"
+//    coach note on a day the athlete rewrote into a hike) ─────────────
+
+describe('replayEdits — userEdited marker', () => {
+  const base = (): TrainingWeek[] => [{
+    num: 1, dates: '', miles: 0, focus: '',
+    days: [
+      { day: 'Thu 9/24', type: 'quality', workout: 'Intervals', detail: '6×800', zone: 'Z4', route: '', time: '50 min' },
+      { day: 'Sat 9/26', type: 'long', workout: 'Long run', detail: '10 mi', zone: 'Z2', route: '', time: '2 hr' },
+    ],
+  }]
+  const edit = (op: PlanEdit['op'], at = 1): PlanEdit => ({ id: `e${at}`, batchId: `b${at}`, appliedAt: at, op })
+
+  it('a type/workout rewrite marks the day userEdited', () => {
+    const out = replayEdits(base(), [
+      edit({ kind: 'updateDay', weekNum: 1, dayIndex: 0, updates: { workout: 'Tiger Mtn 3', detail: 'Tiger Mtn 3 climb · Poles' } }),
+    ])
+    expect(out[0].days[0].userEdited).toBe(true)
+    expect(out[0].days[1].userEdited).toBeUndefined()
+  })
+
+  it('a detail/zone-only update (system repace shape) does NOT mark the day', () => {
+    const out = replayEdits(base(), [
+      edit({ kind: 'updateDay', weekNum: 1, dayIndex: 0, updates: { detail: '6×800 @ 7:10-7:25/mi', zone: 'Z4 · 7:10-7:25/mi' } }),
+    ])
+    expect(out[0].days[0].userEdited).toBeUndefined()
+  })
+
+  it('an added day is always userEdited', () => {
+    const out = replayEdits(base(), [
+      edit({ kind: 'addDay', weekNum: 1, atIndex: 2, day: { day: 'Sun 9/27', type: 'cross', workout: 'Mtn bike', detail: '', zone: '—', route: '', time: '1 hr' } }),
+    ])
+    expect(out[0].days[2].userEdited).toBe(true)
+  })
+})

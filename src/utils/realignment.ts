@@ -66,7 +66,7 @@ export function assessRealignment(
     for (const day of week.days) {
       if (!MISSABLE_TYPES.has(day.type)) continue
       if (day.actual) continue
-      const isoDate = parseDayToDate(day.day, week.dates)
+      const isoDate = parseDayToDate(day.day, week.dates, todayIso)
       if (!isoDate || isoDate >= todayIso || isoDate < windowStart) continue
       missed.push({
         isoDate,

@@ -107,6 +107,15 @@ export interface PlannedDay {
    *  add-on (the first easy run of the week). Stamped by the plan generator so
    *  the UI doesn't need a hard-coded calendar of drill dates. */
   isDrillDay?: boolean;
+  /** Stamped by the generator when the injury lead-in downgraded this day
+   *  from a hard workout to easy content. The "intensity stays easy" ramp
+   *  note keys off this so it can never claim easy over a VO2 body. */
+  leadInEased?: boolean;
+  /** Derived at plan-edit replay (never persisted) when the athlete
+   *  rewrote this day's type/workout. Generic type-keyed coach notes
+   *  ("Quality day — hit the zone splits") are suppressed for these days
+   *  since day.type no longer describes the actual content. */
+  userEdited?: boolean;
 }
 
 /**

@@ -66,10 +66,18 @@ function daysBetween(aIso: string, bIso: string): number {
   return Math.round((Date.parse(`${bIso}T12:00:00`) - Date.parse(`${aIso}T12:00:00`)) / 86_400_000)
 }
 
+/** Detect a Hyrox event from race facts. The ONE shared predicate — the
+ *  bridge-emphasis and generator-routing decisions must agree (they once
+ *  checked different field subsets, so a race flagged Hyrox for bridge
+ *  work could still be routed through the running generator). */
+export function isHyroxRaceInfo(info: { name: string; distance?: string; description?: string }): boolean {
+  const text = `${info.name} ${info.distance ?? ''} ${info.description ?? ''}`.toLowerCase()
+  return text.includes('hyrox')
+}
+
 /** Detect a Hyrox event from the race facts (drives bridge emphasis). */
 export function isHyroxRace(race: SeasonRace): boolean {
-  const text = `${race.raceInfo.name} ${race.raceInfo.distance} ${race.raceInfo.description ?? ''}`.toLowerCase()
-  return text.includes('hyrox')
+  return isHyroxRaceInfo(race.raceInfo)
 }
 
 export function planSeason(

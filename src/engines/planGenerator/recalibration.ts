@@ -83,7 +83,7 @@ export function assessRecalibration(
       const actual = day.actual
       if (!actual || !actual.distance || !actual.movingTime) continue
       if (day.type !== 'run' && day.type !== 'quality' && day.type !== 'long' && day.type !== 'race') continue
-      const isoDate = parseDayToDate(day.day, week.dates)
+      const isoDate = parseDayToDate(day.day, week.dates, todayIso)
       if (!isoDate || isoDate < windowStart || isoDate > todayIso) continue
 
       const targets = parsePlannedTargets(day)

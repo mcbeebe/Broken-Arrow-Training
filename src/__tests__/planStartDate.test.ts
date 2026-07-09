@@ -108,3 +108,20 @@ describe('season splice strips planStartDate (subsequent blocks obey the state m
     expect(hyroxWeeks.length).toBeGreaterThanOrEqual(4)
   })
 })
+
+// ── parseDayToDate year inference (season crossing a year boundary) ──
+
+describe('parseDayToDate year inference', () => {
+  it('a December label seen from January resolves to LAST year', () => {
+    expect(parseDayToDate('Mon 12/28', undefined, '2027-01-02')).toBe('2026-12-28')
+  })
+  it('a January label seen from December resolves to NEXT year', () => {
+    expect(parseDayToDate('Sat 1/2', undefined, '2026-12-30')).toBe('2027-01-02')
+  })
+  it('same-year labels stay in the anchor year', () => {
+    expect(parseDayToDate('Sat 10/24', undefined, '2026-07-08')).toBe('2026-10-24')
+  })
+  it('LEGACY GUARD: no anchor keeps the hardcoded 2026 (manual-log keys depend on it)', () => {
+    expect(parseDayToDate('Sat 7/4')).toBe('2026-07-04')
+  })
+})

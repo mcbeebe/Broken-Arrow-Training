@@ -137,6 +137,32 @@ function formatDayLabel(dateStr: string): string {
   return `${days[d.getDay()]} ${d.getMonth() + 1}/${d.getDate()}`
 }
 
+/** Weekday index 1..7 (Mon..Sun) of an ISO date — the schedule convention. */
+function mondayIndexOf(dateStr: string): number {
+  const d = new Date(dateStr + 'T12:00:00')
+  return ((d.getDay() + 6) % 7) + 1
+}
+
+/**
+ * Align the method's hand-authored race-week schedule to the race's actual
+ * weekday. Every method pins race day at dayOfWeek 7 (Sunday), so a Saturday
+ * race got its 🏆 card a day late — on the same date the season's post-race
+ * recovery block starts, which then overwrote it (the field P0 where race
+ * day showed "Post-race rest"). The whole schedule shifts by one offset so
+ * pre-race days keep their relative spacing; entries pushed past race day
+ * are dropped (post-race belongs to the recovery block), and entries pushed
+ * before Monday fall off the front.
+ */
+function remapRaceWeekSchedule(schedule: DaySchedule[], raceDow: number): DaySchedule[] {
+  const raceEntry = [...schedule].reverse().find(d => d.category === 'race_pace')
+    ?? schedule[schedule.length - 1]
+  if (!raceEntry || raceEntry.dayOfWeek === raceDow) return schedule
+  const shift = raceDow - raceEntry.dayOfWeek
+  return schedule
+    .map(d => ({ ...d, dayOfWeek: d.dayOfWeek + shift }))
+    .filter(d => d.dayOfWeek >= 1 && d.dayOfWeek <= raceDow)
+}
+
 function maxHrPercentZones(maxHR: number): HRZone[] {
   return [
     { zone: 'Z1 – Recovery', hr: `${Math.round(maxHR * 0.55)}–${Math.round(maxHR * 0.65)}`, pct: '55–65%', desc: 'Very easy, full conversation' },
@@ -646,17 +672,28 @@ export function generatePlanFromMethod(
       : paces
 
     const isFinalWeek = w === totalWeeks - 1
-    // Race week uses the method's raceWeekSchedule directly
+    // Race week uses the method's raceWeekSchedule, remapped so the race
+    // entry lands on the race's actual weekday (methods author it as
+    // Sunday; the race may be any day). No configured race date → schedule
+    // as authored (open-ended plans keep their Sunday convention).
     const schedule: DaySchedule[] = isFinalWeek && method.taper.raceWeekSchedule.length > 0
-      ? method.taper.raceWeekSchedule
+      ? (config.raceDate
+          ? remapRaceWeekSchedule(method.taper.raceWeekSchedule, mondayIndexOf(config.raceDate))
+          : method.taper.raceWeekSchedule)
       : (pickWeeklyPattern(method, weekMi.phaseId, runningDaysTarget, weekMi.isCutback)?.schedule ?? [])
 
     // Injury lead-in: rewrite intensity categories to 'easy' during the
     // first N weeks so a returning athlete doesn't get dropped straight
     // into tempo/intervals. Long runs and recovery runs are left alone.
+    // The pinned-workout ids must go too — the picker honors
+    // preferredWorkoutIds before category, so leaving them meant a day
+    // whose label said easy still carried the full VO2 body (the field
+    // report's "intensity stays easy" note over 30-30s).
     const isLeadIn = !isFinalWeek && policy.forceEasyLeadInWeeks > 0 && w < policy.forceEasyLeadInWeeks
     const adjustedSchedule: DaySchedule[] = isLeadIn
-      ? schedule.map(d => FORCE_EASY_CATEGORIES.has(d.category) ? { ...d, category: 'easy' as WorkoutCategory } : d)
+      ? schedule.map(d => FORCE_EASY_CATEGORIES.has(d.category)
+          ? { ...d, category: 'easy' as WorkoutCategory, preferredWorkoutIds: undefined, leadInEased: true }
+          : d)
       : schedule
 
     // Honor the athlete's preferred long-run weekday on normal weeks. Race
@@ -670,12 +707,12 @@ export function generatePlanFromMethod(
       const dayOffset = (daySched.dayOfWeek - 1)  // dayOfWeek 1..7 → Mon..Sun
       const date = addDays(weekStart, dayOffset)
       const picked = pickWorkoutForDay(method, daySched, methodExp, weekMi.totalMi)
-      if (!picked) {
-        days.push(buildPlannedDay(date, daySched, weekPaces, weekMi, null, null, undefined, weekSchedule, config.equipmentAccess))
-      } else {
-        const pw = buildPlannedWorkout(method, picked.workout, weekPaces, picked.reason)
-        days.push(buildPlannedDay(date, daySched, weekPaces, weekMi, picked.workout, pw, picked.reason, weekSchedule, config.equipmentAccess))
-      }
+      const built = picked
+        ? buildPlannedDay(date, daySched, weekPaces, weekMi, picked.workout,
+            buildPlannedWorkout(method, picked.workout, weekPaces, picked.reason),
+            picked.reason, weekSchedule, config.equipmentAccess)
+        : buildPlannedDay(date, daySched, weekPaces, weekMi, null, null, undefined, weekSchedule, config.equipmentAccess)
+      days.push(daySched.leadInEased ? { ...built, leadInEased: true } : built)
     }
     // Sort by dayOfWeek (Mon..Sun) — schedule is already in order but be defensive
     days.sort((a, b) => DAY_OF_WEEK_LABELS.indexOf(a.day.split(' ')[0] as (typeof DAY_OF_WEEK_LABELS)[number])
@@ -719,16 +756,27 @@ export function generatePlanFromMethod(
     // R2 — fueling targets on long runs (rehearsal 4–6 wk out); R3 — heat block
     // on an easy day in the final ~2 weeks. weeksToRace counts back from race week.
     const weeksToRace = totalWeeks - (w + 1)
-    withVert = applyFuelingToWeek(withVert, effRaceMiles, weeksToRace)
+    withVert = applyFuelingToWeek(withVert, effRaceMiles, weeksToRace, {
+      longRunMi: weekMi.longRunMi,
+      easyPaceMinPerMile: weekPaces.byZone.easy?.paceSecPerMileLow != null
+        ? weekPaces.byZone.easy.paceSecPerMileLow / 60
+        : undefined,
+    })
     withVert = applyHeatBlock(withVert, raceIsHot, weeksToRace)
     // R4 — dress-rehearsal predictor 4–6 wk out; R7 — power-hiking on climby races.
     withVert = applyPredictorRehearsal(withVert, effRaceMiles, weeksToRace)
     withVert = applyPowerHike(withVert, isClimby, weekMi.isTaper)
     withVert = applyTimeOnFeet(withVert, config.raceType === 'trail') // R14 — trail-first framing
 
+    // The final week ends AT race day — after the race-week remap there are
+    // no plan days past it, and the header must not advertise a Sunday the
+    // week no longer contains.
+    const weekEndOffset = isFinalWeek && config.raceDate
+      ? mondayIndexOf(config.raceDate) - 1
+      : 6
     weeks.push({
       num: w + 1,
-      dates: `${formatDayLabel(weekStart)} – ${formatDayLabel(addDays(weekStart, 6))}`,
+      dates: `${formatDayLabel(weekStart)} – ${formatDayLabel(addDays(weekStart, weekEndOffset))}`,
       miles: weekMi.totalMi,
       focus: weekMi.isTaper
         ? 'Taper'

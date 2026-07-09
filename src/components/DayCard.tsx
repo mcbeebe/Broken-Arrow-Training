@@ -114,7 +114,7 @@ export default function DayCard({ day, weekNum, onTap, onLog, onSwap, onEdit, ha
   // Return-from-injury ramp context — explains where the athlete is in the
   // gentle build-up and how it progresses. Null for healthy athletes, rest
   // days, completed workouts, and once they're well past the ramp.
-  const rampNote = injuryRampNote(injuryStatus, weekNum, day.type, isCompleted)
+  const rampNote = injuryRampNote(injuryStatus, weekNum, day.type, isCompleted, day.leadInEased)
 
   // When completed (or rested-as-planned), use a more saturated emerald
   // background but preserve the workout-type color as the left border

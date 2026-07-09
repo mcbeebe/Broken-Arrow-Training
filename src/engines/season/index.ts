@@ -27,9 +27,19 @@ export const SEASON_STORAGE_KEY = 'ba_season_v1'
 
 /** Parse the free-text RaceInfo.date ("Sunday, June 21, 2026" or
  *  "2026-06-21") to ISO YYYY-MM-DD. Null when unparseable — callers must
- *  tolerate legacy hand-authored dates. */
+ *  tolerate legacy hand-authored dates.
+ *
+ *  TZ trap (field P0): `new Date("YYYY-MM-DD")` parses a bare ISO date as
+ *  UTC MIDNIGHT, so reading local components shifts it one day early for
+ *  every athlete west of UTC — recover blocks started ON race day and the
+ *  whole second-race build ran Fri→Thu. Bare ISO therefore never touches
+ *  `Date` at all; everything else gets a noon anchor so no realistic UTC
+ *  offset can cross a date boundary. */
 export function raceDateToIso(raceDate: string): string | null {
-  const raw = raceDate.match(/\w+,\s*(.+)/)?.[1] || raceDate
+  const raw = (raceDate.match(/\w+,\s*(.+)/)?.[1] || raceDate).trim()
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+    return isNaN(new Date(`${raw}T12:00:00`).getTime()) ? null : raw
+  }
   const parsed = new Date(raw)
   if (isNaN(parsed.getTime())) return null
   const y = parsed.getFullYear()

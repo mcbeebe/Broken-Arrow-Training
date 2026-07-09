@@ -137,7 +137,7 @@ export default function WeeklyPlan({
     const map = new Map<string, PlannedDay>()
     for (const w of weeks) {
       for (const d of w.days) {
-        const iso = parseDayToDate(d.day, w.dates)
+        const iso = parseDayToDate(d.day, w.dates, todayDateString())
         if (iso) map.set(iso, d)
       }
     }
@@ -323,7 +323,7 @@ export default function WeeklyPlan({
       <div className="px-3 space-y-2">
         {week.days.map((d, i) => {
           // Match readiness to day by parsing day label to date
-          const dayDateMatch = parseDayToDate(d.day, week.dates)
+          const dayDateMatch = parseDayToDate(d.day, week.dates, todayDateString())
           const readiness = dayDateMatch ? readinessByDate.get(dayDateMatch) : undefined
           const trimpRecord = findTrimpRecord(dailyTrimp, dayDateMatch, d.actual?.name)
           // Look up the home-location forecast for this day. Prefer
@@ -449,7 +449,7 @@ export default function WeeklyPlan({
           coachEnabled={coachEnabled}
           weeks={weeks}
           readiness={(() => {
-            const d = parseDayToDate(modalDay.day, week.dates)
+            const d = parseDayToDate(modalDay.day, week.dates, todayDateString())
             return d ? readinessByDate.get(d) : undefined
           })()}
           latestPerf={latestPerf}
@@ -457,7 +457,7 @@ export default function WeeklyPlan({
           onAskCoach={onAskCoach}
           strengthLevel={strengthLevel}
           trimpRecord={(() => {
-            const d = parseDayToDate(modalDay.day, week.dates)
+            const d = parseDayToDate(modalDay.day, week.dates, todayDateString())
             return findTrimpRecord(dailyTrimp, d, modalDay.actual?.name)
           })()}
         />

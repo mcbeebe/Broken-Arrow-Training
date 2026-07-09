@@ -192,7 +192,10 @@ function runMethodPersona(id: string, label: string, note: string, config: Onboa
 }
 
 function runHyroxPersona(id: string, label: string, note: string, config: OnboardingConfig) {
-  const plan = generateHyroxPlan(config)
+  // TODAY must be pinned here like every other persona — without it the
+  // runway clamp reads the wall clock and the "deterministic" ground
+  // truth drifts with the date of regeneration.
+  const plan = generateHyroxPlan(config, TODAY)
   return {
     id,
     label,
