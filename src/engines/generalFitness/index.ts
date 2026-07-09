@@ -20,6 +20,7 @@ import { buildStrengthDay, parseGoalEmphasis, emphasisLabel, type MuscleEmphasis
 import { hasMenopauseContext } from '../../utils/menopause'
 import { INJURY_LEADIN_WEEKS } from '../../utils/injuryRamp'
 import { computeMaxHR } from '../../utils/heartRate'
+import { effectivePlanStart } from '../../utils/planDates'
 import { athleteCurrentVdot } from '../planGenerator/paceTargets'
 import { paceBoundsForZone, type VdotPaceBounds } from '../planGenerator/vdot'
 
@@ -336,6 +337,8 @@ export function generateGeneralFitnessPlan(
   config: OnboardingConfig,
   today: string = new Date().toISOString().slice(0, 10),
 ): TrainingPlan {
+  // Athlete-chosen plan start (one-way clamp: never back-dates).
+  today = effectivePlanStart(config.planStartDate, today)
   const goal = config.generalGoal ?? 'stay_healthy'
   const preset = GOAL_PRESETS[goal]
   const maxHR = computeMaxHR(config)

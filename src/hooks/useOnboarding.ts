@@ -82,6 +82,10 @@ export interface AdditionalRace {
   date: string
   priority: 'A' | 'B' | 'C'
   distanceMiles?: number
+  /** Free-text event details (format, goal, terrain — e.g. "Hyrox open,
+   *  first one, goal is to finish strong"). Feeds the coach and the
+   *  Hyrox-format detection, same as the main race's description. */
+  description?: string
 }
 
 export interface OnboardingConfig {
@@ -172,6 +176,10 @@ export interface OnboardingConfig {
   preferredTrainingTimes?: TrainingTimeOfDay[]
   // Free-text: travel weeks, vacations, work crunch, deload windows, etc.
   scheduleConstraintsNote?: string
+  // ISO YYYY-MM-DD the athlete wants training to BEGIN (e.g. after a
+  // vacation or a planned rest block). Unset = start right away. The
+  // generators clamp one-way: a past date never back-dates a plan.
+  planStartDate?: string
   // G1b — optional additional races captured at onboarding ("racing again
   // later this season?"). Seeded ONCE into the season calendar (useSeason);
   // add/remove afterward happens on the season panel, never re-seeded.
