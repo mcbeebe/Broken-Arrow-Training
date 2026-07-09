@@ -424,6 +424,12 @@ export interface SeasonRace {
   priority: RacePriority;
   raceInfo: RaceInfo;
   status: SeasonRaceStatus;
+  /** How this race's preparation integrates with the anchor build:
+   *  'layered' weaves 1–2 race-specific sessions/week into the anchor's
+   *  build weeks now; 'sequential' (and unset — the legacy default)
+   *  starts its dedicated block after the previous race. Asked and
+   *  confirmed with the athlete — never silently applied. */
+  integration?: 'layered' | 'sequential';
 }
 
 /** The inter-event state machine's vocabulary:

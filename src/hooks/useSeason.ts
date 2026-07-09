@@ -49,8 +49,11 @@ export interface UseSeasonReturn {
   /** Derived block timeline + season advisories (recomputed, never stored). */
   planResult: SeasonPlanResult
   isMultiRace: boolean
-  addRace: (race: RaceInfo, priority: RacePriority) => void
+  addRace: (race: RaceInfo, priority: RacePriority, integration?: 'layered' | 'sequential') => void
   setPriority: (raceId: string, priority: RacePriority) => void
+  /** Set/confirm how a race integrates with the anchor build ('layered'
+   *  weaves sessions in now). Asked, never silently applied. */
+  setIntegration: (raceId: string, integration: 'layered' | 'sequential') => void
   removeRace: (raceId: string) => void
 }
 
@@ -60,7 +63,7 @@ export function useSeason(
   /** Races captured at onboarding (config.additionalRaces) — seeded into
    *  the calendar exactly ONCE per athlete (stamped), so removing one on
    *  the season panel is never undone by a re-seed. */
-  seedRaces?: { name: string; date: string; priority: RacePriority; distanceMiles?: number; description?: string }[],
+  seedRaces?: { name: string; date: string; priority: RacePriority; distanceMiles?: number; description?: string; integration?: 'layered' | 'sequential' }[],
 ): UseSeasonReturn {
   const [stored, setStored] = useState<Season | null>(() => readSeason(athleteId))
 
@@ -88,7 +91,7 @@ export function useSeason(
         }
         const id = seasonRaceId(raceInfo)
         if (current.races.some(r => r.id === id)) continue
-        additions.push({ id, priority: s.priority, raceInfo, status: 'upcoming' })
+        additions.push({ id, priority: s.priority, raceInfo, status: 'upcoming', integration: s.integration })
       }
       if (additions.length > 0) {
         const next: Season = { races: [...current.races, ...additions], blocks: [] }
@@ -134,12 +137,13 @@ export function useSeason(
     setStored(next)
   }, [athleteId])
 
-  const addRace = useCallback((race: RaceInfo, priority: RacePriority) => {
+  const addRace = useCallback((race: RaceInfo, priority: RacePriority, integration?: 'layered' | 'sequential') => {
     const newRace: SeasonRace = {
       id: seasonRaceId(race),
       priority,
       raceInfo: race,
       status: 'upcoming',
+      integration,
     }
     if (season.races.some(r => r.id === newRace.id)) return // idempotent
     commit([...season.races, newRace])
@@ -147,6 +151,10 @@ export function useSeason(
 
   const setPriority = useCallback((raceId: string, priority: RacePriority) => {
     commit(season.races.map(r => (r.id === raceId ? { ...r, priority } : r)))
+  }, [season, commit])
+
+  const setIntegration = useCallback((raceId: string, integration: 'layered' | 'sequential') => {
+    commit(season.races.map(r => (r.id === raceId ? { ...r, integration } : r)))
   }, [season, commit])
 
   const removeRace = useCallback((raceId: string) => {
@@ -161,6 +169,7 @@ export function useSeason(
     isMultiRace: season.races.length > 1,
     addRace,
     setPriority,
+    setIntegration,
     removeRace,
   }
 }

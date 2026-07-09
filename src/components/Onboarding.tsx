@@ -17,6 +17,7 @@ import type {
   TrainingTimeOfDay,
 } from '../hooks/useOnboarding'
 import { DETAIL_LEVELS, type DetailLevel } from '../types'
+import { isHyroxRaceInfo } from '../engines/season/planSeason'
 import { parseTimeToSeconds } from '../utils/parseTime'
 import { sanitizeRaceTimeSeconds } from '../engines/planGenerator/vdot'
 import OnboardingPlanPreview from './OnboardingPlanPreview'
@@ -71,6 +72,10 @@ const STEP_MENOPAUSE = 16
 // answers so far, shown BEFORE the schedule/equipment/profile questions so
 // the athlete sees value before they finish investing.
 const STEP_PREVIEW = 17
+// Season-first onboarding (user-directed): upfront choice between one goal
+// race and a season of races, then the multi-race builder for season mode.
+const STEP_GOAL_MODE = 18
+const STEP_SEASON_RACES = 19
 
 // G3 ordering (goal-first, preview mid-flow, prefs last):
 //   1. goal block — race type/name/distance (or general goal) + experience;
@@ -84,7 +89,9 @@ const STEP_PREVIEW = 17
 // plan regardless of this ordering (generation reads the finished config).
 const ALL_STEPS = [
   STEP_RACE_TYPE,
+  STEP_GOAL_MODE,
   STEP_RACE_NAME,
+  STEP_SEASON_RACES,
   STEP_RACE_DISTANCE,
   STEP_GENERAL_GOAL,
   STEP_GENERAL_CARDIO,
@@ -131,6 +138,23 @@ const ANCHOR_OPTIONS: { value: FitnessAnchorType; label: string; placeholder: st
   { value: 'lthr', label: 'Lactate threshold HR (LTHR)', placeholder: 'bpm', kind: 'bpm' },
   { value: 'none', label: "I don't know yet", placeholder: '', kind: 'none' },
 ]
+
+/** One row of the season race builder — AdditionalRace-shaped with the
+ *  miles field kept as raw input text and a local key for React lists. */
+interface SeasonRaceRow {
+  key: number
+  name: string
+  date: string
+  miles: string
+  priority: 'A' | 'B' | 'C'
+  description: string
+  integration: 'layered' | 'sequential'
+}
+
+let seasonRowKey = 0
+function newSeasonRaceRow(): SeasonRaceRow {
+  return { key: ++seasonRowKey, name: '', date: '', miles: '', priority: 'B', description: '', integration: 'layered' }
+}
 
 /** Format a seconds total back into mm:ss or h:mm:ss for an input echo. */
 function formatSecondsLabel(total: number): string {
@@ -244,6 +268,11 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
   const [extraRaceMiles, setExtraRaceMiles] = useState('')
   const [extraRacePriority, setExtraRacePriority] = useState<'A' | 'B' | 'C'>('B')
   const [extraRaceDescription, setExtraRaceDescription] = useState('')
+  // Season-first onboarding: the upfront race-vs-season choice + the
+  // multi-race builder rows (season mode). Rows are AdditionalRace-shaped
+  // with miles kept as raw input text.
+  const [goalMode, setGoalMode] = useState<'race' | 'season' | null>(null)
+  const [seasonRaces, setSeasonRaces] = useState<SeasonRaceRow[]>([])
   // Plan start control: '' = right away (default). Computed once at mount so
   // the "Next Monday" chip is stable through the flow.
   const [planStart, setPlanStart] = useState('')
@@ -312,6 +341,10 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
     if (s === STEP_GENERAL_GOAL) return showsGoalStep
     if (s === STEP_GENERAL_CARDIO) return showsGoalStep
     if (s === STEP_MENOPAUSE) return showsMenopauseStep
+    // Season-first: the race-vs-season choice applies to race flows only;
+    // the multi-race builder shows only when the athlete chose a season.
+    if (s === STEP_GOAL_MODE) return raceType !== 'general'
+    if (s === STEP_SEASON_RACES) return raceType !== 'general' && goalMode === 'season'
     return true
   })
   const visibleIdx = visibleSteps.indexOf(step)
@@ -393,6 +426,8 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
       case STEP_PROFILE: return name.trim().length > 0 && age.trim().length > 0
       case STEP_MENOPAUSE: return true // fully optional — can advance with no selection
       case STEP_PREVIEW: return true // informational — nothing to answer
+      case STEP_GOAL_MODE: return !!goalMode
+      case STEP_SEASON_RACES: return true // races beyond the anchor are optional
       case STEP_REVIEW: return true
       default: return false
     }
@@ -496,10 +531,31 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
         showsMenopauseStep && isRealMenopauseStage(menopause) && menopauseNote.trim()
           ? menopauseNote.trim()
           : undefined,
-      // Optional second race → the season calendar (needs name + date;
-      // half-filled entries are dropped silently — it's optional).
-      additionalRaces:
-        raceType !== 'general' && extraRaceName.trim() && extraRaceDate
+      goalMode: raceType === 'general' ? undefined : (goalMode ?? 'race'),
+      // Additional races → the season calendar. Season mode uses the
+      // multi-race builder rows; race mode keeps the single optional
+      // second-race capture. Half-filled entries (no name or date) are
+      // dropped silently — they're optional.
+      additionalRaces: (() => {
+        if (raceType === 'general') return undefined
+        if (goalMode === 'season') {
+          const rows = seasonRaces
+            .filter(r => r.name.trim() && r.date)
+            .map(r => ({
+              name: r.name.trim(),
+              date: r.date,
+              priority: r.priority,
+              distanceMiles: parseFloat(r.miles) || undefined,
+              description: r.description.trim() || undefined,
+              // The integration ask applies to format-specific (Hyrox)
+              // races; others run sequential (the only defined behavior).
+              integration: isHyroxRaceInfo({ name: r.name, description: r.description })
+                ? r.integration
+                : 'sequential' as const,
+            }))
+          return rows.length > 0 ? rows : undefined
+        }
+        return extraRaceName.trim() && extraRaceDate
           ? [{
               name: extraRaceName.trim(),
               date: extraRaceDate,
@@ -507,7 +563,8 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
               distanceMiles: parseFloat(extraRaceMiles) || undefined,
               description: extraRaceDescription.trim() || undefined,
             }]
-          : undefined,
+          : undefined
+      })(),
       completedAt: '',
     }
 
@@ -625,8 +682,9 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
 
               {/* G1b — optional multi-race capture. Fully skippable; the
                   season panel can always add races later. Not shown for
-                  general fitness (no race to chain from). */}
-              {raceType !== 'general' && !showExtraRace && (
+                  general fitness (no race to chain from) — nor in season
+                  mode, where the dedicated builder step owns it. */}
+              {raceType !== 'general' && goalMode !== 'season' && !showExtraRace && (
                 <button
                   type="button"
                   onClick={() => setShowExtraRace(true)}
@@ -635,7 +693,7 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
                   ＋ I have another race after this one
                 </button>
               )}
-              {raceType !== 'general' && showExtraRace && (
+              {raceType !== 'general' && goalMode !== 'season' && showExtraRace && (
                 <div className="rounded-xl border border-teal-200 bg-teal-50/50 p-3 space-y-2">
                   <p className="text-xs text-slate-600">
                     Racing again later this season? Your plan will chain them:
@@ -702,6 +760,187 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
                   )}
                 </div>
               )}
+            </div>
+          </StepContainer>
+        )}
+
+        {step === STEP_GOAL_MODE && (
+          <StepContainer
+            title="What are you training for?"
+            subtitle="One goal race, or a season? Either way you can add races later."
+          >
+            <OptionCard
+              selected={goalMode === 'race'}
+              onClick={() => setGoalMode('race')}
+              title="A specific race"
+              desc="One goal event. Your whole plan builds toward it."
+            />
+            <OptionCard
+              selected={goalMode === 'season'}
+              onClick={() => setGoalMode('season')}
+              title="A season of races"
+              desc="Two or more events. We plan the whole arc — builds, tapers, recovery, and the bridges between races."
+            />
+          </StepContainer>
+        )}
+
+        {step === STEP_SEASON_RACES && (
+          <StepContainer
+            title="Your season calendar"
+            subtitle={`${raceName.trim() || 'Your main race'} is race #1. Add the rest — including anything far out you're planning toward.`}
+          >
+            <div className="space-y-3">
+              {seasonRaces.map((row, i) => {
+                const rowIsHyrox = isHyroxRaceInfo({ name: row.name, description: row.description })
+                const update = (patch: Partial<SeasonRaceRow>) =>
+                  setSeasonRaces(rs => rs.map(r => (r.key === row.key ? { ...r, ...patch } : r)))
+                return (
+                  <div key={row.key} className="rounded-xl border border-teal-200 bg-teal-50/50 p-3 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-semibold text-slate-600">Race #{i + 2}</p>
+                      <button
+                        type="button"
+                        onClick={() => setSeasonRaces(rs => rs.filter(r => r.key !== row.key))}
+                        className="text-xs text-slate-400 hover:text-rose-600"
+                        aria-label={`Remove race ${i + 2}`}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                    <input
+                      type="text"
+                      value={row.name}
+                      onChange={e => update({ name: e.target.value })}
+                      placeholder="Race name (e.g. Hyrox LA, CIM Marathon)"
+                      aria-label={`Race ${i + 2} name`}
+                      className="w-full px-3 py-2.5 text-base border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400"
+                    />
+                    <div className="flex gap-2">
+                      <input
+                        type="date"
+                        value={row.date}
+                        onChange={e => update({ date: e.target.value })}
+                        aria-label={`Race ${i + 2} date`}
+                        className="flex-1 px-3 py-2.5 text-base border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400"
+                      />
+                      <input
+                        type="number"
+                        inputMode="decimal"
+                        value={row.miles}
+                        onChange={e => update({ miles: e.target.value })}
+                        placeholder="miles"
+                        aria-label={`Race ${i + 2} distance in miles`}
+                        className="w-24 px-3 py-2.5 text-base border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400"
+                      />
+                    </div>
+                    <div className="flex gap-1.5" role="radiogroup" aria-label={`Race ${i + 2} priority`}>
+                      {([
+                        ['A', 'A — full build + taper'],
+                        ['B', 'B — mini-taper'],
+                        ['C', 'C — train through'],
+                      ] as const).map(([p, label]) => (
+                        <button
+                          key={p}
+                          type="button"
+                          role="radio"
+                          aria-checked={row.priority === p}
+                          onClick={() => update({ priority: p })}
+                          className={`flex-1 rounded-lg border px-2 py-1.5 text-xs font-bold ${
+                            row.priority === p ? 'border-teal-500 bg-teal-100 text-teal-800' : 'border-slate-200 text-slate-500'
+                          }`}
+                        >{label}</button>
+                      ))}
+                    </div>
+                    <textarea
+                      value={row.description}
+                      onChange={e => update({ description: e.target.value })}
+                      rows={2}
+                      placeholder="Tell us about it — format, goal, terrain (e.g. Hyrox open, first one, goal is to finish strong)"
+                      aria-label={`Race ${i + 2} details`}
+                      className="w-full px-3 py-2.5 text-base border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400 resize-none"
+                    />
+                    {rowIsHyrox && (
+                      <div>
+                        <p className="text-xs font-medium text-slate-600 mb-1">
+                          When should {row.name.trim() || 'this race'}’s training start?
+                        </p>
+                        <div className="flex gap-1.5" role="radiogroup" aria-label={`Race ${i + 2} training start`}>
+                          <button
+                            type="button"
+                            role="radio"
+                            aria-checked={row.integration === 'layered'}
+                            onClick={() => update({ integration: 'layered' })}
+                            className={`flex-1 rounded-lg border px-2 py-1.5 text-xs font-semibold ${
+                              row.integration === 'layered' ? 'border-teal-500 bg-teal-100 text-teal-800' : 'border-slate-200 text-slate-500'
+                            }`}
+                          >
+                            Layer it into my build now (recommended)
+                          </button>
+                          <button
+                            type="button"
+                            role="radio"
+                            aria-checked={row.integration === 'sequential'}
+                            onClick={() => update({ integration: 'sequential' })}
+                            className={`flex-1 rounded-lg border px-2 py-1.5 text-xs font-semibold ${
+                              row.integration === 'sequential' ? 'border-teal-500 bg-teal-100 text-teal-800' : 'border-slate-200 text-slate-500'
+                            }`}
+                          >
+                            After my main race
+                          </button>
+                        </div>
+                        <p className="text-[11px] text-slate-500 mt-1">
+                          Layered = 1–2 station/strength sessions a week woven into your current
+                          build (your running stays untouched), ramping after race #1.
+                        </p>
+                      </div>
+                    )}
+                    {row.date && raceDate && row.date <= raceDate && (
+                      <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5">
+                        ⚠️ This date is on or before your main race ({raceDate}). The season
+                        chains races in date order — double-check both dates.
+                      </p>
+                    )}
+                  </div>
+                )
+              })}
+
+              {/* Inline mirrors of the season engine's spacing rules — the
+                  engine re-checks for real after onboarding (planSeason
+                  advisories); these just catch it while the dates are
+                  still on screen. */}
+              {(() => {
+                const dated = [
+                  ...(raceDate ? [{ date: raceDate, priority: 'A' as const, name: raceName || 'Main race' }] : []),
+                  ...seasonRaces.filter(r => r.date).map(r => ({ date: r.date, priority: r.priority, name: r.name || 'race' })),
+                ].sort((a, b) => a.date.localeCompare(b.date))
+                const notes: string[] = []
+                for (let i = 1; i < dated.length; i++) {
+                  const gapDays = Math.round((Date.parse(`${dated[i].date}T12:00:00`) - Date.parse(`${dated[i - 1].date}T12:00:00`)) / 86_400_000)
+                  if (dated[i].priority === 'A' && dated[i - 1].priority === 'A' && gapDays < 56) {
+                    notes.push(`${dated[i - 1].name} → ${dated[i].name}: ${Math.round(gapDays / 7)} weeks apart — two full peaks usually need 8+. We'll treat the second build as compressed.`)
+                  } else if (gapDays <= 10) {
+                    notes.push(`${dated[i].name} is only ${gapDays} days after ${dated[i - 1].name} — it'll be treated as a train-through effort.`)
+                  }
+                }
+                return notes.length > 0 ? (
+                  <div className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5 space-y-1">
+                    {notes.map(n => <p key={n}>· {n}</p>)}
+                  </div>
+                ) : null
+              })()}
+
+              <button
+                type="button"
+                onClick={() => setSeasonRaces(rs => [...rs, newSeasonRaceRow()])}
+                className="text-sm font-semibold text-teal-700 hover:text-teal-900"
+              >
+                ＋ Add another race
+              </button>
+              <p className="text-xs text-slate-500">
+                Add everything — even races far in the future. They live on your
+                season timeline and enter the plan automatically when they're in
+                range. You can always add, remove, or reprioritize later.
+              </p>
             </div>
           </StepContainer>
         )}

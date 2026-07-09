@@ -9,6 +9,7 @@ import {
   weekDates,
   type StreamDay,
 } from './blockWeeks'
+import { layerSecondaryWork } from './layerSecondaryWork'
 import { getMethodById, RECOMMENDABLE_METHODS } from '../../data/methods'
 import { generatePlanFromMethod } from '../planGenerator/generatePlan'
 import { generateHyroxPlan } from '../../utils/planGenerator'
@@ -74,7 +75,7 @@ export function spliceSeasonWeeks(
   // race-week remap in the generator makes this a no-op for freshly
   // generated plans; it stands as the safety net for stored ones. Anchor
   // weeks are otherwise byte-identical.
-  const trimmedBase = anchorIso
+  let trimmedBase = anchorIso
     ? baseWeeks
         .map(w => {
           const days = w.days.filter(d => {
@@ -85,6 +86,18 @@ export function spliceSeasonWeeks(
         })
         .filter(w => w.days.length > 0)
     : baseWeeks
+
+  // Layered multi-race preparation (opt-in, asked-and-confirmed): races
+  // marked integration:'layered' weave their race-specific sessions into
+  // the anchor build's existing strength/cross slots. Unset/sequential
+  // races leave the anchor byte-identical (guarded by tests).
+  if (anchorIso) {
+    for (const race of season.races.slice(1)) {
+      if (race.integration === 'layered') {
+        trimmedBase = layerSecondaryWork(trimmedBase, race, anchorIso, today)
+      }
+    }
+  }
 
   // Blocks strictly after the anchor race, future-only, in date order.
   const laterBlocks = season.blocks

@@ -99,3 +99,42 @@ describe('<SeasonPanel />', () => {
     expect(screen.queryByTestId('season-timeline')).toBeNull()
   })
 })
+
+describe('layered-integration controls', () => {
+  it('a Hyrox-named race in the add form shows the integration ask and stores the choice', () => {
+    render(<Harness />)
+    fireEvent.click(screen.getByText('+ Add another race'))
+    fireEvent.change(screen.getByPlaceholderText(/Race name/), { target: { value: 'Hyrox Anaheim' } })
+    fireEvent.change(document.querySelector('input[type="date"]')!, { target: { value: '2026-12-12' } })
+    // The ask appears once the name reads as Hyrox.
+    expect(screen.getByText(/layer into my build now/i)).toBeInTheDocument()
+    fireEvent.click(screen.getByText('Add race'))
+    // Confirmed at add time → no pending confirm chip.
+    expect(screen.queryByTestId('integration-confirm')).toBeNull()
+  })
+
+  it('a pre-existing Hyrox race with no integration gets the one-time confirm — never a silent change', () => {
+    function SeededHarness() {
+      const seasonState = useSeason(planRace, 'testathlete', [
+        { name: 'Hyrox LA', date: '2026-11-07', priority: 'A', distanceMiles: 8 }, // no integration (pre-feature)
+      ])
+      return <SeasonPanel seasonState={seasonState} />
+    }
+    render(<SeededHarness />)
+    const confirm = screen.getByTestId('integration-confirm')
+    expect(confirm.textContent).toContain('Layer Hyrox LA prep into your current build?')
+    fireEvent.click(screen.getByText('Layer it in'))
+    // Answered → the chip is gone for good (stored on the race).
+    expect(screen.queryByTestId('integration-confirm')).toBeNull()
+  })
+
+  it('GUARD: non-Hyrox races see no integration ask and no confirm chip', () => {
+    render(<Harness />)
+    fireEvent.click(screen.getByText('+ Add another race'))
+    fireEvent.change(screen.getByPlaceholderText(/Race name/), { target: { value: 'CIM Marathon' } })
+    fireEvent.change(document.querySelector('input[type="date"]')!, { target: { value: '2026-12-06' } })
+    expect(screen.queryByText(/layer into my build now/i)).toBeNull()
+    fireEvent.click(screen.getByText('Add race'))
+    expect(screen.queryByTestId('integration-confirm')).toBeNull()
+  })
+})

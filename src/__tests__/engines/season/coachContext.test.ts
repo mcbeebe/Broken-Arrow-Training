@@ -60,3 +60,25 @@ describe('buildSeasonContext (G1b — the SEASON coach section)', () => {
     expect(buildSeasonContext(result, '2026-07-01')).toBeNull()
   })
 })
+
+describe('layered-preparation narration', () => {
+  it('tells the coach a race is layered into the current build', () => {
+    const races: SeasonRace[] = [
+      sr('half', 'A', { name: 'Summer Half', date: '2026-08-02' }),
+      { ...sr('hyrox', 'A', { name: 'Hyrox LA', date: '2026-10-03', distance: 'Hyrox', description: 'Hyrox open' }), integration: 'layered' },
+    ]
+    const result = planSeason(races, '2026-06-22')
+    const ctx = buildSeasonContext(result, '2026-07-01')!
+    expect(ctx).toContain('Hyrox LA preparation is LAYERED into the current build')
+    expect(ctx).toContain('running volume untouched')
+  })
+
+  it('GUARD: sequential/unset races produce no layered narration', () => {
+    const races: SeasonRace[] = [
+      sr('half', 'A', { name: 'Summer Half', date: '2026-08-02' }),
+      sr('hyrox', 'A', { name: 'Hyrox LA', date: '2026-10-03', distance: 'Hyrox' }),
+    ]
+    const ctx = buildSeasonContext(planSeason(races, '2026-06-22'), '2026-07-01')!
+    expect(ctx).not.toContain('LAYERED')
+  })
+})
