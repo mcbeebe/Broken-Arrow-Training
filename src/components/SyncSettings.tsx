@@ -3,8 +3,12 @@ import { getStoredSession } from '../utils/auth'
 import {
   pushAll,
   pullFromServer,
+  hydrateFromServer,
   getLastSyncedAt,
   subscribeLastSyncedAt,
+  getLastSyncError,
+  subscribeSyncError,
+  type SyncError,
 } from '../utils/backendSync'
 
 /**
@@ -36,15 +40,18 @@ function formatAgo(ms: number | null): string {
 export default function SyncSettings() {
   const [lastSyncedAt, setLastSyncedAt] = useState<number | null>(() => getLastSyncedAt())
   const [status, setStatus] = useState<Status>({ kind: 'idle' })
+  const [syncError, setSyncError] = useState<SyncError | null>(() => getLastSyncError())
   // Re-render once a minute so the "X ago" stays roughly accurate
   // without a tight setInterval.
   const [, setTick] = useState(0)
 
   useEffect(() => {
     const unsub = subscribeLastSyncedAt(setLastSyncedAt)
+    const unsubErr = subscribeSyncError(setSyncError)
     const id = window.setInterval(() => setTick(t => t + 1), 30_000)
     return () => {
       unsub()
+      unsubErr()
       window.clearInterval(id)
     }
   }, [])
@@ -56,10 +63,18 @@ export default function SyncSettings() {
     if (!session) return
     setStatus({ kind: 'syncing' })
     try {
+      // Full round-trip (P0 postmortem): "Sync now" used to only PUSH, so
+      // it could truthfully report success while this device never
+      // received the other device's changes. Push first (so our edits
+      // reach the server before we read), then pull.
       const r = await pushAll(session)
+      const { pulled } = await hydrateFromServer(session)
+      const rejectedNote = r.rejectedKeys && r.rejectedKeys.length > 0
+        ? ` ⚠️ ${r.rejectedKeys.length} rejected by server.`
+        : ''
       setStatus({
         kind: 'ok',
-        msg: `Synced — ${r.written} written, ${r.skipped} already current.`,
+        msg: `Synced — ${r.written} sent, ${pulled} received, ${r.skipped} already current.${rejectedNote}`,
       })
     } catch (e) {
       setStatus({
@@ -123,6 +138,16 @@ export default function SyncSettings() {
       <p className="text-xs text-slate-500 dark:text-slate-400">
         Last synced: {formatAgo(lastSyncedAt)}
       </p>
+
+      {/* Persistent sync health (P0 postmortem): background pushes were
+          failing 100% for weeks with zero indication anywhere. The last
+          background OR manual failure stays visible here until a sync
+          fully succeeds. */}
+      {syncError && (
+        <p className="text-xs text-rose-700 dark:text-rose-400 bg-rose-50 dark:bg-rose-950 border border-rose-200 dark:border-rose-800 rounded-lg px-2.5 py-1.5">
+          ⚠️ Sync problem ({formatAgo(syncError.at)}): {syncError.message}
+        </p>
+      )}
 
       {status.kind === 'ok' && (
         <p className="text-xs text-teal-700 dark:text-teal-400">{status.msg}</p>

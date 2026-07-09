@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import type { AuthSession } from '../utils/auth'
-import { hydrateFromServer, pushAll } from '../utils/backendSync'
+import { hydrateFromServer, pushAll, recordSyncError } from '../utils/backendSync'
 
 /**
  * Background cross-device sync driver.
@@ -42,6 +42,10 @@ export function useBackendSync(session: AuthSession | null): void {
           console.debug(`[sync] push (${reason}):`, result)
         }
       } catch (e) {
+        // Still non-blocking, but never invisible (P0 postmortem: pushes
+        // failed 100% for weeks with only a debug log). The persistent
+        // error renders in Settings → Sync until a sync succeeds.
+        recordSyncError(e instanceof Error ? e.message : 'background push failed')
         console.debug('[sync] push failed:', e)
       }
     }
