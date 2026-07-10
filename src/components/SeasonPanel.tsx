@@ -38,11 +38,14 @@ export default function SeasonPanel({ seasonState }: { seasonState: UseSeasonRet
   const [priority, setPri] = useState<RacePriority>('B')
   const [description, setDescription] = useState('')
   const [integration, setIntegrationChoice] = useState<'layered' | 'sequential'>('layered')
+  // Explicit format chips (null = untapped → fall back to name detection,
+  // so typing "Hyrox Anaheim" still asks the integration question).
+  const [format, setFormat] = useState<'road' | 'trail' | 'hyrox' | null>(null)
 
   const anchorIso = raceDateToIso(season.races[0]?.raceInfo.date ?? '')
   const datedBeforeAnchor = !!date && !!anchorIso && date <= anchorIso
   // The integration ask is defined for format-specific (Hyrox) races.
-  const addFormIsHyrox = isHyroxRaceInfo({ name, description })
+  const addFormIsHyrox = format ? format === 'hyrox' : isHyroxRaceInfo({ name, description })
 
   // One-time confirm for races captured before the integration choice
   // existed: never silently change an athlete's plan — ask.
@@ -52,19 +55,21 @@ export default function SeasonPanel({ seasonState }: { seasonState: UseSeasonRet
 
   function submitAdd() {
     if (!name.trim() || !date) return
+    const effectiveFormat = format ?? (addFormIsHyrox ? 'hyrox' : undefined)
     const race: RaceInfo = {
       name: name.trim(),
       date,
       startTime: '',
-      distance: miles ? `${miles} mi` : '',
+      distance: effectiveFormat === 'hyrox' ? 'Hyrox' : miles ? `${miles} mi` : '',
       distanceMiles: parseFloat(miles) || 0,
       elevation: '', elevationRange: '', course: '', cutoff: '',
       landmarks: [], gear: [], nutrition: '',
       description: description.trim() || undefined,
+      format: effectiveFormat,
     }
     addRace(race, priority, addFormIsHyrox ? integration : 'sequential')
     setAdding(false)
-    setName(''); setDate(''); setMiles(''); setPri('B'); setDescription(''); setIntegrationChoice('layered')
+    setName(''); setDate(''); setMiles(''); setPri('B'); setDescription(''); setIntegrationChoice('layered'); setFormat(null)
   }
 
   return (
@@ -100,6 +105,17 @@ export default function SeasonPanel({ seasonState }: { seasonState: UseSeasonRet
               value={date} onChange={e => setDate(e.target.value)} />
             <input type="number" inputMode="decimal" className="w-24 rounded-lg border border-slate-300 px-2 py-1.5 text-sm"
               placeholder="miles" value={miles} onChange={e => setMiles(e.target.value)} />
+          </div>
+          <div className="flex gap-1.5" role="radiogroup" aria-label="Race format">
+            {(['road', 'trail', 'hyrox'] as const).map(k => (
+              <button key={k}
+                type="button" role="radio" aria-checked={format === k}
+                onClick={() => setFormat(k)}
+                className={`flex-1 rounded-lg border px-2 py-1.5 text-xs font-bold capitalize ${
+                  format === k ? 'border-teal-500 bg-teal-50 text-teal-800' : 'border-slate-200 text-slate-500'
+                }`}
+              >{k}</button>
+            ))}
           </div>
           <div className="flex gap-1.5" role="radiogroup" aria-label="Race priority">
             {(['A', 'B', 'C'] as const).map(p => (

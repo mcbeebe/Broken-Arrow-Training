@@ -1305,3 +1305,76 @@ describe('season mode (multi-race builder)', () => {
     expect(screen.queryByText(/your season calendar/i)).not.toBeInTheDocument()
   })
 })
+
+// ── Season mode: multi-select race kinds + per-race format ───────────
+
+describe('season mode: race kinds are multi-select', () => {
+  it('a mixed trail + Hyrox season captures the anchor kind and explicit per-race formats', () => {
+    const onComplete = vi.fn()
+    render(<Onboarding onComplete={onComplete} loadingDurationMs={0} />)
+    fireEvent.click(screen.getByText('A season of races')); clickContinue()
+
+    // Multi-select: both kinds stay selected.
+    expect(screen.getByText(/what kinds of races/i)).toBeInTheDocument()
+    fireEvent.click(screen.getByText('Trail / Ultra'))
+    fireEvent.click(screen.getByText('Hyrox'))
+    clickContinue()
+
+    // Race #1 format chips appear for the mixed season (defaults to the
+    // first selection — Trail).
+    const fmtGroup = screen.getByRole('radiogroup', { name: 'Race 1 format' })
+    expect(fmtGroup).toBeInTheDocument()
+    const trailChip = Array.from(fmtGroup.querySelectorAll('button')).find(b => b.textContent === 'Trail')!
+    expect(trailChip.getAttribute('aria-checked')).toBe('true')
+
+    fireEvent.change(screen.getByPlaceholderText(/Broken Arrow/), { target: { value: 'Oakland Hills Half' } })
+    fireEvent.change(document.querySelectorAll('input[type="date"]')[0], { target: { value: '2026-10-24' } })
+    fillRaceContext()
+    clickContinue() // → season builder
+
+    // Add a race and pick Hyrox EXPLICITLY via the format chips — no
+    // "hyrox" anywhere in the name.
+    fireEvent.click(screen.getByText('＋ Add another race'))
+    fireEvent.change(screen.getByLabelText('Race 2 name'), { target: { value: 'Anaheim Open' } })
+    fireEvent.change(screen.getByLabelText('Race 2 date'), { target: { value: '2026-12-12' } })
+    const rowFmt = screen.getByRole('radiogroup', { name: 'Race 2 format' })
+    fireEvent.click(Array.from(rowFmt.querySelectorAll('button')).find(b => b.textContent === 'Hyrox')!)
+    // The explicit format alone triggers the integration ask.
+    expect(screen.getByText(/layer it into my build now/i)).toBeInTheDocument()
+    clickContinue()
+
+    // Finish the trail flow.
+    fireEvent.click(screen.getByText(/^Marathon$/)); clickContinue()
+    fireEvent.click(screen.getByText('Intermediate')); clickContinue()
+    fireEvent.click(screen.getByText('No injuries')); clickContinue()
+    clickContinue() // preview
+    fireEvent.click(screen.getByText('5 Days')); clickContinue()
+    fireEvent.click(screen.getByText('Saturday')); clickContinue()
+    fireEvent.click(screen.getByText('Track')); clickContinue()
+    fireEvent.click(screen.getByRole('button', { name: 'Strength None' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Cross-training None' }))
+    clickContinue()
+    fireEvent.click(screen.getByText('Early morning')); clickContinue()
+    fireEvent.change(screen.getByPlaceholderText('e.g. Jenn'), { target: { value: 'Mike' } })
+    fireEvent.change(screen.getByPlaceholderText('e.g. 41'), { target: { value: '30' } })
+    clickContinue()
+    clickContinue() // detail
+    fireEvent.click(screen.getByText('Garmin Watch')); clickContinue()
+    clickFinish()
+
+    const config = onComplete.mock.calls[0][0] as OnboardingConfig
+    expect(config.raceType).toBe('trail')          // anchor kind
+    expect(config.raceKinds).toEqual(['trail', 'hyrox'])
+    expect(config.additionalRaces![0]).toMatchObject({
+      name: 'Anaheim Open', format: 'hyrox', integration: 'layered',
+    })
+  })
+
+  it('GUARD: single-race mode keeps the single-select step ("What kind of race?")', () => {
+    const onComplete = vi.fn()
+    render(<Onboarding onComplete={onComplete} loadingDurationMs={0} />)
+    fireEvent.click(screen.getByText('A specific race')); clickContinue()
+    expect(screen.getByText(/what kind of race\?/i)).toBeInTheDocument()
+    expect(screen.queryByText(/select all that apply/i)).toBeNull()
+  })
+})
