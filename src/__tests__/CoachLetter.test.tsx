@@ -6,12 +6,16 @@ import type { TrainingPlan } from '../types'
 // Render the letter from a known markdown body by stubbing the coach API +
 // insight hook. The fix under test: the letter must render markdown (**bold**,
 // # headings, - bullets) instead of printing the raw asterisks/hashes.
-const { insightRef } = vi.hoisted(() => ({
+const { insightRef, capturedRef } = vi.hoisted(() => ({
   insightRef: { current: null as { text: string } | null },
+  capturedRef: { current: null as { snapshot?: Record<string, unknown> } | null },
 }))
 vi.mock('../utils/coachApi', () => ({ coachApiAvailable: () => true }))
 vi.mock('../hooks/useCoachInsight', () => ({
-  useCoachInsight: () => ({ insight: insightRef.current, loading: false, error: null }),
+  useCoachInsight: (opts: { snapshot?: Record<string, unknown> }) => {
+    capturedRef.current = opts
+    return { insight: insightRef.current, loading: false, error: null }
+  },
 }))
 
 import CoachLetter from '../components/CoachLetter'
@@ -50,5 +54,41 @@ describe('CoachLetter markdown rendering', () => {
     const { container } = renderLetter()
     expect(container.textContent).not.toContain('# Welcome')
     expect(screen.getByText('Welcome to Your MDI Half Campaign')).toBeInTheDocument()
+  })
+})
+
+
+// ── The letter must see the WHOLE season (field bug: an athlete listed 4
+//    races and the letter only talked about one) ─────────────────────────
+
+describe('CoachLetter season context', () => {
+  it('hands the coach every season race with format, priority, and integration', () => {
+    insightRef.current = { text: 'ok' }
+    const seasonConfig = {
+      ...config,
+      goalMode: 'season',
+      athleteGoal: 'sub-1:45 and a strong first Hyrox',
+      additionalRaces: [
+        { name: 'Anaheim Open', date: '2026-12-12', priority: 'A', format: 'hyrox', integration: 'layered', description: 'first Hyrox, finish strong' },
+        { name: 'Turkey Trot', date: '2026-11-26', priority: 'C', format: 'road' },
+        { name: 'CIM Marathon', date: '2027-04-11', priority: 'A', format: 'road' },
+      ],
+    } as unknown as OnboardingConfig
+    render(<CoachLetter plan={plan} config={seasonConfig} athleteId="a1" onContinue={() => {}} />)
+
+    const season = String((capturedRef.current?.snapshot as { seasonContext?: string })?.seasonContext ?? '')
+    expect(season).toContain('4-race season')
+    expect(season).toContain('MDI Half')          // anchor, race 1
+    expect(season).toContain('Anaheim Open')
+    expect(season).toContain('LAYERED into the current build')
+    expect(season).toContain('Turkey Trot')
+    expect(season).toContain('CIM Marathon')
+    expect(season).toContain('first Hyrox, finish strong') // descriptions travel too
+  })
+
+  it('GUARD: a single-race athlete sends no season context (no phantom season)', () => {
+    insightRef.current = { text: 'ok' }
+    render(<CoachLetter plan={plan} config={config} athleteId="a1" onContinue={() => {}} />)
+    expect((capturedRef.current?.snapshot as { seasonContext?: string })?.seasonContext).toBeUndefined()
   })
 })

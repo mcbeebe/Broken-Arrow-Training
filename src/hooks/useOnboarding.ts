@@ -285,6 +285,16 @@ export function useOnboarding(athleteId?: string) {
     try {
       localStorage.setItem(k, JSON.stringify(withTimestamp))
       stampKey(k)
+      // A new plan generation invalidates day-level customizations of the
+      // OLD plan: the edit/swap op-logs are keyed by week/day INDEX, so
+      // replaying them onto a rebuilt calendar scattered June's custom
+      // workouts across random September days (field P0). Logged history
+      // is untouched — actuals/notes live in the ISO-keyed manual logs.
+      for (const editKey of ['ba_plan_edits', 'ba_day_swaps', 'ba_plan_overrides']) {
+        const ek = athleteId ? `${editKey}_${athleteId}` : editKey
+        localStorage.removeItem(ek)
+        stampKey(ek) // tombstone so a sync pull can't resurrect them
+      }
       localStorage.removeItem(redoK)
       // Tombstone the cleared redo flag so a stale server copy (a prior
       // redo that was never deleted server-side) can't be re-pulled by a

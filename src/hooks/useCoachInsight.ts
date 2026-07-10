@@ -90,6 +90,7 @@ export function materialFields(surface: string, snapshot: CoachSnapshot, morning
       detailLevel?: string
       injuryContext?: string
       menopauseContext?: string
+      seasonContext?: string
       coachPersona?: { name?: string; traits?: string[] }
       zones?: { hr?: string }[]
     }
@@ -106,6 +107,9 @@ export function materialFields(surface: string, snapshot: CoachSnapshot, morning
       },
       injury: (s.injuryContext || '').trim(),
       menopause: (s.menopauseContext || '').trim(),
+      // Season in the cache key: redoing onboarding with different races
+      // must regenerate the letter, not serve the single-race cached one.
+      season: (s.seasonContext || '').trim(),
       detailLevel: s.detailLevel ?? null,
       persona: wlPersona
         ? { name: wlPersona.name?.trim() || '', traits: [...(wlPersona.traits || [])].sort() }

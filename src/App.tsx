@@ -421,7 +421,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
   const daySwap = useDaySwap(athleteId)
   // Season (G1b): the race calendar + derived block timeline. The plan's
   // race is always race #1 (degenerate one-race season = no season UI).
-  const seasonState = useSeason(activePlan.race, athleteId, onboarding.config?.additionalRaces)
+  const seasonState = useSeason(activePlan.race, athleteId, onboarding.config?.additionalRaces, onboarding.config?.completedAt)
   const planEdits = usePlanEdits(athleteId)
   const soreness = useSoreness(athleteId)
   const hrZones = useHRZones(athleteId, activePlan.zones)

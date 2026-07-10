@@ -25,6 +25,11 @@ import OnboardingPlanPreview from './OnboardingPlanPreview'
 interface Props {
   onComplete: (config: OnboardingConfig) => void
   onSkip?: () => void
+  /** The athlete's existing config when REDOING onboarding: basic info
+   *  (name/age/sex/HR/FTP) and stable preferences are prefilled, and the
+   *  profile step is skipped entirely — an account holder shouldn't
+   *  retype who they are to change what they're training for. */
+  previousConfig?: OnboardingConfig | null
   // Duration (ms) to show the "generating your plan" screen after the user
   // submits. Defaults to a short delay so the handoff to the next screen
   // doesn't feel like a blank flash. Tests pass 0 to call onComplete
@@ -43,11 +48,11 @@ const GENERATING_MESSAGES = [
   'Stretching the calendar to fit your goals...',
 ] as const
 
-// Step indices. Race-distance (step 2) is conditional — only shown for trail/road races.
-// For hyrox/general, navigation skips index 2 (see visibleSteps below).
+// Step indices. STEP_RACE_DISTANCE is retired — distance is captured on
+// the race step itself (a separate screen re-asking what the race name
+// already said was redundant). The constant stays so old ids never shift.
 const STEP_RACE_TYPE = 0
 const STEP_RACE_NAME = 1
-const STEP_RACE_DISTANCE = 2
 const STEP_EXPERIENCE = 3
 const STEP_DETAIL = 4
 const STEP_DAYS = 5
@@ -92,7 +97,6 @@ const ALL_STEPS = [
   STEP_RACE_TYPE,
   STEP_RACE_NAME,
   STEP_SEASON_RACES,
-  STEP_RACE_DISTANCE,
   STEP_GENERAL_GOAL,
   STEP_GENERAL_CARDIO,
   STEP_EXPERIENCE,
@@ -254,12 +258,15 @@ const MENOPAUSE_SYMPTOM_OPTIONS: { value: string; label: string }[] = [
   { value: 'brain_fog', label: 'Brain fog' },
 ]
 
-export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 1800 }: Props) {
+export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 1800, previousConfig }: Props) {
   const [step, setStep] = useState(STEP_GOAL_MODE) // ALL_STEPS[0] — the flow's first question
   const [isGenerating, setIsGenerating] = useState(false)
   const [generatingMessage] = useState(
     () => GENERATING_MESSAGES[Math.floor(Math.random() * GENERATING_MESSAGES.length)],
   )
+  // Redo prefills: who the athlete IS doesn't change between redos.
+  const prev = previousConfig ?? null
+  const hasProfilePrefill = !!(prev?.athleteName && prev?.age)
   const [raceType, setRaceType] = useState<RaceType | null>(null)
   const [raceName, setRaceName] = useState('')
   const [raceDate, setRaceDate] = useState('')
@@ -322,12 +329,12 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
   const [daysPerWeek, setDaysPerWeek] = useState<number | null>(null)
   const [longRunDay, setLongRunDay] = useState<string | null>(null)
   const [weakStation, setWeakStation] = useState<string | null>(null)
-  const [wearable, setWearable] = useState<WearableType | null>(null)
-  const [name, setName] = useState('')
-  const [age, setAge] = useState('')
-  const [sex, setSex] = useState<BiologicalSex | null>(null)
-  const [maxHR, setMaxHR] = useState('')
-  const [ftp, setFtp] = useState('')
+  const [wearable, setWearable] = useState<WearableType | null>(prev?.wearable ?? null)
+  const [name, setName] = useState(prev?.athleteName ?? '')
+  const [age, setAge] = useState(prev?.age ? String(prev.age) : '')
+  const [sex, setSex] = useState<BiologicalSex | null>(prev?.sex ?? null)
+  const [maxHR, setMaxHR] = useState(prev?.maxHR && prev.maxHR !== 220 - (prev.age ?? 0) ? String(prev.maxHR) : '')
+  const [ftp, setFtp] = useState(prev?.ftpWatts ? String(prev.ftpWatts) : '')
 
   // Fitness baseline + constraints
   const [anchorType, setAnchorType] = useState<FitnessAnchorType>('none')
@@ -339,12 +346,12 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
   const [injuryArea, setInjuryArea] = useState('')
   const [injuryTimeframe, setInjuryTimeframe] = useState('')
   const [injuryNote, setInjuryNote] = useState('')
-  const [equipment, setEquipment] = useState<EquipmentAccess[]>([])
-  const [strengthDays, setStrengthDays] = useState<number | null>(null)
-  const [strengthExperience, setStrengthExperience] = useState<StrengthExperience | null>(null)
-  const [crossTraining, setCrossTraining] = useState<CrossTrainingMode[]>([])
-  const [crossDays, setCrossDays] = useState<number | null>(null)
-  const [trainingTimes, setTrainingTimes] = useState<TrainingTimeOfDay[]>([])
+  const [equipment, setEquipment] = useState<EquipmentAccess[]>(prev?.equipmentAccess ?? [])
+  const [strengthDays, setStrengthDays] = useState<number | null>(prev?.strengthDaysPerWeek ?? null)
+  const [strengthExperience, setStrengthExperience] = useState<StrengthExperience | null>(prev?.strengthExperience ?? null)
+  const [crossTraining, setCrossTraining] = useState<CrossTrainingMode[]>(prev?.crossTrainingModes ?? [])
+  const [crossDays, setCrossDays] = useState<number | null>(prev?.crossTrainingDaysPerWeek ?? null)
+  const [trainingTimes, setTrainingTimes] = useState<TrainingTimeOfDay[]>(prev?.preferredTrainingTimes ?? [])
   const [scheduleNote, setScheduleNote] = useState('')
   const [menopause, setMenopause] = useState<MenopauseStatus | null>(null)
   const [menopauseSymptoms, setMenopauseSymptoms] = useState<string[]>([])
@@ -371,10 +378,11 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
   // opt out, and the whole step is skippable.
   const showsMenopauseStep = (parseInt(age) || 0) >= 38 && sex !== 'male'
   const visibleSteps: readonly number[] = ALL_STEPS.filter(s => {
-    if (s === STEP_RACE_DISTANCE) return showsDistanceStep
     if (s === STEP_GENERAL_GOAL) return showsGoalStep
     if (s === STEP_GENERAL_CARDIO) return showsGoalStep
     if (s === STEP_MENOPAUSE) return showsMenopauseStep
+    // Account holders redoing onboarding never retype who they are.
+    if (s === STEP_PROFILE) return !hasProfilePrefill
     // Season-first: the goal-mode question is ALWAYS step 1. Choosing
     // general fitness there fixes raceType and skips the race-type step;
     // the multi-race builder shows only for a season.
@@ -436,8 +444,7 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
   const canContinue = (() => {
     switch (step) {
       case STEP_RACE_TYPE: return goalMode === 'season' ? raceKinds.length > 0 && !!raceType : !!raceType
-      case STEP_RACE_NAME: return raceName.trim().length > 0 && raceDescription.trim().length >= 10 && athleteGoal.trim().length > 0
-      case STEP_RACE_DISTANCE: return !!raceDistance
+      case STEP_RACE_NAME: return raceName.trim().length > 0 && raceDescription.trim().length >= 10 && athleteGoal.trim().length > 0 && (!showsDistanceStep || !!raceDistance)
       case STEP_GENERAL_GOAL: return !!generalGoal
       case STEP_GENERAL_CARDIO: return !!cardioModality
       case STEP_EXPERIENCE: return !!experience
@@ -721,6 +728,22 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
                   </p>
                 )}
               </div>
+              {showsDistanceStep && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Race distance</label>
+                  <select
+                    value={raceDistance ?? ''}
+                    onChange={e => setRaceDistance((e.target.value || null) as RaceDistance | null)}
+                    aria-label="Race distance"
+                    className="w-full px-3 py-3 text-base border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400 bg-white"
+                  >
+                    <option value="">Select distance…</option>
+                    {DISTANCE_OPTIONS.map(o => (
+                      <option key={o.value} value={o.value}>{o.label} — {o.desc}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">
                   {raceType === 'general' ? 'Tell us about your situation & what you’re working toward' : 'Tell us about it — terrain, elevation, climate, the course'}
@@ -1034,20 +1057,6 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
                 range. You can always add, remove, or reprioritize later.
               </p>
             </div>
-          </StepContainer>
-        )}
-
-        {step === STEP_RACE_DISTANCE && showsDistanceStep && (
-          <StepContainer title="What's your race distance?" subtitle="We'll match you with training methods designed for that distance">
-            {DISTANCE_OPTIONS.map(opt => (
-              <OptionCard
-                key={opt.value}
-                selected={raceDistance === opt.value}
-                onClick={() => setRaceDistance(opt.value)}
-                title={opt.label}
-                desc={opt.desc}
-              />
-            ))}
           </StepContainer>
         )}
 
@@ -1474,6 +1483,9 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
               raceType={raceType}
               raceName={raceName}
               raceDate={raceDate}
+              raceDescription={raceDescription}
+              athleteGoal={athleteGoal}
+              seasonRaces={goalMode === 'season' ? seasonRaces.filter(r => r.name.trim() && r.date) : []}
               raceDistance={raceDistance}
               generalGoal={generalGoal}
               showsDistanceStep={showsDistanceStep}
@@ -1802,6 +1814,9 @@ function ReviewSummary({
   raceType,
   raceName,
   raceDate,
+  raceDescription,
+  athleteGoal,
+  seasonRaces,
   raceDistance,
   generalGoal,
   showsDistanceStep,
@@ -1823,6 +1838,9 @@ function ReviewSummary({
   raceType: RaceType | null
   raceName: string
   raceDate: string
+  raceDescription: string
+  athleteGoal: string
+  seasonRaces: SeasonRaceRow[]
   raceDistance: RaceDistance | null
   generalGoal: GeneralGoal | null
   showsDistanceStep: boolean
@@ -1853,7 +1871,7 @@ function ReviewSummary({
 
   return (
     <div className="space-y-3">
-      <SummaryCard label="Goal">
+      <SummaryCard label={seasonRaces.length > 0 ? `Season · ${seasonRaces.length + 1} races` : 'Goal'}>
         <p className="font-semibold text-slate-900">{raceName || 'Untitled plan'}</p>
         <p className="text-sm text-slate-600">
           {raceType ? RACE_TYPE_LABELS[raceType] : '—'}
@@ -1861,6 +1879,27 @@ function ReviewSummary({
           {raceType === 'general' && generalGoal ? ` · ${GENERAL_GOAL_LABELS[generalGoal]}` : ''}
           {raceDate ? ` · ${raceDate}` : ''}
         </p>
+        {raceDescription.trim() && (
+          <p className="text-sm text-slate-500 mt-0.5">{raceDescription.trim()}</p>
+        )}
+        {athleteGoal.trim() && (
+          <p className="text-sm text-slate-600 mt-0.5">Goal: <span className="text-slate-800">{athleteGoal.trim()}</span></p>
+        )}
+        {seasonRaces.map(r => {
+          const fmt = r.format ?? (isHyroxRaceInfo({ name: r.name, description: r.description }) ? 'hyrox' : null)
+          return (
+            <div key={r.key} className="mt-2 pt-2 border-t border-slate-100">
+              <p className="font-semibold text-slate-900">{r.name.trim()}</p>
+              <p className="text-sm text-slate-600">
+                {fmt ? `${RACE_FORMAT_LABEL[fmt]} · ` : ''}Priority {r.priority} · {r.date}
+                {fmt === 'hyrox' ? ` · ${r.integration === 'layered' ? 'training layered into your build now' : 'training starts after the previous race'}` : ''}
+              </p>
+              {r.description.trim() && (
+                <p className="text-sm text-slate-500 mt-0.5">{r.description.trim()}</p>
+              )}
+            </div>
+          )
+        })}
       </SummaryCard>
 
       <SummaryCard label="Weekly volume">
