@@ -88,8 +88,8 @@ const STEP_SEASON_RACES = 19
 // The golden ground-truth harness proves identical answers ⇒ identical final
 // plan regardless of this ordering (generation reads the finished config).
 const ALL_STEPS = [
+  STEP_GOAL_MODE, // the very first question: one race, a season, or no race
   STEP_RACE_TYPE,
-  STEP_GOAL_MODE,
   STEP_RACE_NAME,
   STEP_SEASON_RACES,
   STEP_RACE_DISTANCE,
@@ -248,7 +248,7 @@ const MENOPAUSE_SYMPTOM_OPTIONS: { value: string; label: string }[] = [
 ]
 
 export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 1800 }: Props) {
-  const [step, setStep] = useState(0)
+  const [step, setStep] = useState(STEP_GOAL_MODE) // ALL_STEPS[0] — the flow's first question
   const [isGenerating, setIsGenerating] = useState(false)
   const [generatingMessage] = useState(
     () => GENERATING_MESSAGES[Math.floor(Math.random() * GENERATING_MESSAGES.length)],
@@ -268,11 +268,22 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
   const [extraRaceMiles, setExtraRaceMiles] = useState('')
   const [extraRacePriority, setExtraRacePriority] = useState<'A' | 'B' | 'C'>('B')
   const [extraRaceDescription, setExtraRaceDescription] = useState('')
-  // Season-first onboarding: the upfront race-vs-season choice + the
-  // multi-race builder rows (season mode). Rows are AdditionalRace-shaped
-  // with miles kept as raw input text.
-  const [goalMode, setGoalMode] = useState<'race' | 'season' | null>(null)
+  // Season-first onboarding: the upfront choice (THE first question) —
+  // one race, a season of races, or general fitness — plus the multi-race
+  // builder rows (season mode). Rows are AdditionalRace-shaped with miles
+  // kept as raw input text. 'general' routes into the existing
+  // general-fitness path (raceType 'general'); config.goalMode maps it to
+  // undefined, exactly the legacy shape.
+  const [goalMode, setGoalMode] = useState<'race' | 'season' | 'general' | null>(null)
   const [seasonRaces, setSeasonRaces] = useState<SeasonRaceRow[]>([])
+
+  // Back-navigation-safe selection: picking general fixes raceType; moving
+  // back to a race framing after general must re-ask the race type.
+  function chooseGoalMode(mode: 'race' | 'season' | 'general') {
+    setGoalMode(mode)
+    if (mode === 'general') setRaceType('general')
+    else if (raceType === 'general') setRaceType(null)
+  }
   // Plan start control: '' = right away (default). Computed once at mount so
   // the "Next Monday" chip is stable through the flow.
   const [planStart, setPlanStart] = useState('')
@@ -341,10 +352,11 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
     if (s === STEP_GENERAL_GOAL) return showsGoalStep
     if (s === STEP_GENERAL_CARDIO) return showsGoalStep
     if (s === STEP_MENOPAUSE) return showsMenopauseStep
-    // Season-first: the race-vs-season choice applies to race flows only;
-    // the multi-race builder shows only when the athlete chose a season.
-    if (s === STEP_GOAL_MODE) return raceType !== 'general'
-    if (s === STEP_SEASON_RACES) return raceType !== 'general' && goalMode === 'season'
+    // Season-first: the goal-mode question is ALWAYS step 1. Choosing
+    // general fitness there fixes raceType and skips the race-type step;
+    // the multi-race builder shows only for a season.
+    if (s === STEP_RACE_TYPE) return goalMode !== 'general'
+    if (s === STEP_SEASON_RACES) return goalMode === 'season'
     return true
   })
   const visibleIdx = visibleSteps.indexOf(step)
@@ -531,7 +543,9 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
         showsMenopauseStep && isRealMenopauseStage(menopause) && menopauseNote.trim()
           ? menopauseNote.trim()
           : undefined,
-      goalMode: raceType === 'general' ? undefined : (goalMode ?? 'race'),
+      goalMode: goalMode === 'general' || raceType === 'general'
+        ? undefined // general fitness has no race framing (legacy shape)
+        : (goalMode ?? 'race'),
       // Additional races → the season calendar. Season mode uses the
       // multi-race builder rows; race mode keeps the single optional
       // second-race capture. Half-filled entries (no name or date) are
@@ -615,11 +629,10 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
       {/* Content */}
       <div ref={contentRef} className="flex-1 overflow-y-auto px-5 pt-4 pb-24">
         {step === STEP_RACE_TYPE && (
-          <StepContainer title="What are you training for?" subtitle="Pick the type that matches your goal">
+          <StepContainer title="What kind of race?" subtitle="Pick the type that matches your goal event">
             <OptionCard selected={raceType === 'road'} onClick={() => setRaceType('road')} title="Road Race" desc="Marathon, half, 10K, 5K — paved, flat-to-rolling." icon="🛣️" />
             <OptionCard selected={raceType === 'trail'} onClick={() => setRaceType('trail')} title="Trail / Ultra" desc="Sky races, ultras, technical and mountain terrain." icon="mountain" />
             <OptionCard selected={raceType === 'hyrox'} onClick={() => setRaceType('hyrox')} title="Hyrox" desc="8 stations + 8km running. Functional fitness racing." icon="hyrox" />
-            <OptionCard selected={raceType === 'general'} onClick={() => setRaceType('general')} title="General Fitness" desc="No specific race. Build endurance, strength, and health." icon="general" />
           </StepContainer>
         )}
 
@@ -767,19 +780,26 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
         {step === STEP_GOAL_MODE && (
           <StepContainer
             title="What are you training for?"
-            subtitle="One goal race, or a season? Either way you can add races later."
+            subtitle="One goal race, a season, or just fitness — this shapes everything that follows."
           >
             <OptionCard
               selected={goalMode === 'race'}
-              onClick={() => setGoalMode('race')}
+              onClick={() => chooseGoalMode('race')}
               title="A specific race"
               desc="One goal event. Your whole plan builds toward it."
             />
             <OptionCard
               selected={goalMode === 'season'}
-              onClick={() => setGoalMode('season')}
+              onClick={() => chooseGoalMode('season')}
               title="A season of races"
               desc="Two or more events. We plan the whole arc — builds, tapers, recovery, and the bridges between races."
+            />
+            <OptionCard
+              selected={goalMode === 'general'}
+              onClick={() => chooseGoalMode('general')}
+              title="General fitness"
+              desc="No race on the calendar. Build endurance, strength, and health."
+              icon="general"
             />
           </StepContainer>
         )}
