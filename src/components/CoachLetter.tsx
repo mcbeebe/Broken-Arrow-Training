@@ -48,6 +48,21 @@ export default function CoachLetter({ plan, config, athleteId, onContinue }: Pro
   const injuryLine = injurySummaryLine(config) || undefined
   const menopauseLine = menopauseSummaryLine(config) || undefined
 
+  // The whole season, in the coach's SEASON section: an athlete who listed
+  // four races must get a letter about their season, not just race #1.
+  const extraRaces = config.additionalRaces ?? []
+  const seasonLine = extraRaces.length > 0
+    ? [
+        `The athlete is training for a ${extraRaces.length + 1}-race season${config.goalMode === 'season' ? ' (they chose season-mode onboarding)' : ''}.`,
+        `Race 1 (anchor — this plan): ${plan.race.name}${config.raceDate ? ` on ${config.raceDate}` : ''}${config.athleteGoal?.trim() ? ` — goal: ${config.athleteGoal.trim()}` : ''}.`,
+        ...extraRaces.map((r, i) =>
+          `Race ${i + 2}: ${r.name} on ${r.date} (${r.format ?? 'race'}, priority ${r.priority})` +
+          `${r.description?.trim() ? ` — ${r.description.trim()}` : ''}` +
+          `${r.integration === 'layered' ? ' — its specific prep is LAYERED into the current build (1–2 sessions/week now, ramping after race 1)' : ' — its dedicated block starts after the previous race'}.`),
+        'The season chains: build → race → recover → bridge → next build; every race gets its own race week.',
+      ].join(' ')
+    : undefined
+
   // Lean snapshot: at onboarding end there's no readiness/activity data yet, so
   // hand the coach just the plan + the athlete's own words + their goal/injury.
   // The insight endpoint and context builder are defensive about missing fields.
@@ -60,7 +75,8 @@ export default function CoachLetter({ plan, config, athleteId, onContinue }: Pro
     detailLevel: config.detailLevel,
     injuryContext: injuryLine,
     menopauseContext: menopauseLine,
-  } as unknown as CoachSnapshot), [plan, config, goalText, injuryLine, menopauseLine])
+    seasonContext: seasonLine,
+  } as unknown as CoachSnapshot), [plan, config, goalText, injuryLine, menopauseLine, seasonLine])
 
   const { insight, loading, error } = useCoachInsight({
     athleteId,

@@ -64,6 +64,11 @@ export function useSeason(
    *  the calendar exactly ONCE per athlete (stamped), so removing one on
    *  the season panel is never undone by a re-seed. */
   seedRaces?: { name: string; date: string; priority: RacePriority; distanceMiles?: number; description?: string; integration?: 'layered' | 'sequential'; format?: 'road' | 'trail' | 'hyrox' }[],
+  /** The config generation that produced `seedRaces` (config.completedAt).
+   *  Seeding is idempotent PER GENERATION: a redo (new completedAt) seeds
+   *  the newly captured races; within a generation the stamp keeps panel
+   *  removals from being undone by re-renders. */
+  seedGenerationId?: string,
 ): UseSeasonReturn {
   const [stored, setStored] = useState<Season | null>(() => readSeason(athleteId))
 
@@ -71,15 +76,19 @@ export function useSeason(
     setStored(readSeason(athleteId))
   }, [athleteId])
 
-  // One-time onboarding seed (G1b). The stamp — not the race list — is
-  // what makes this idempotent across renders, devices, and removals.
+  // Onboarding seed (G1b) — idempotent PER PLAN GENERATION. The original
+  // once-per-athlete-forever stamp was a field bug: an athlete who REDID
+  // onboarding with four races kept their year-old single-race season
+  // because the stamp blocked the re-seed.
   useEffect(() => {
     if (!seedRaces || seedRaces.length === 0) return
     const stampKeyName = `ba_season_seeded_v1_${athleteId ?? ''}`
+    const generation = seedGenerationId || 'legacy'
     try {
-      if (localStorage.getItem(stampKeyName)) return
+      if (localStorage.getItem(stampKeyName) === generation) return
       const current = readSeason(athleteId) ?? { races: [], blocks: [] }
       const additions: SeasonRace[] = []
+      let races = current.races
       for (const s of seedRaces) {
         const raceInfo: RaceInfo = {
           name: s.name, date: s.date, startTime: '',
@@ -91,17 +100,28 @@ export function useSeason(
           format: s.format,
         }
         const id = seasonRaceId(raceInfo)
-        if (current.races.some(r => r.id === id)) continue
+        const existing = races.find(r => r.id === id)
+        if (existing) {
+          // Re-captured race (same name+date): adopt the fresh answers —
+          // priority, integration, format, description — without duplicating.
+          races = races.map(r => r.id === id ? {
+            ...r,
+            priority: s.priority,
+            integration: s.integration ?? r.integration,
+            raceInfo: { ...r.raceInfo, description: s.description ?? r.raceInfo.description, format: s.format ?? r.raceInfo.format },
+          } : r)
+          continue
+        }
         additions.push({ id, priority: s.priority, raceInfo, status: 'upcoming', integration: s.integration })
       }
-      if (additions.length > 0) {
-        const next: Season = { races: [...current.races, ...additions], blocks: [] }
+      if (additions.length > 0 || races !== current.races) {
+        const next: Season = { races: [...races, ...additions], blocks: [] }
         writeSeason(next, athleteId)
         setStored(next)
       }
-      localStorage.setItem(stampKeyName, new Date().toISOString())
+      localStorage.setItem(stampKeyName, generation)
     } catch { /* seeding is best-effort */ }
-  }, [seedRaces, athleteId])
+  }, [seedRaces, athleteId, seedGenerationId])
 
   // Cross-device sync writes dispatch synthetic storage events (same
   // pattern as usePlanEdits) — pick them up without a refresh.
