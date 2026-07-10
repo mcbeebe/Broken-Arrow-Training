@@ -223,6 +223,10 @@ export interface OnboardingConfig {
 
 const STORAGE_KEY = 'ba_onboarding'
 const REDO_KEY = 'ba_onboarding_redo'
+// Snapshot of the config taken at requestRedo() time, so the redo flow can
+// prefill profile basics (name, age, gear…) even though the live config key
+// is deleted for the duration of the redo. Local-only — never synced.
+const PREV_KEY = 'ba_onboarding_prev'
 
 function scopedKey(athleteId?: string) {
   return athleteId ? `${STORAGE_KEY}_${athleteId}` : STORAGE_KEY
@@ -230,6 +234,10 @@ function scopedKey(athleteId?: string) {
 
 function scopedRedoKey(athleteId?: string) {
   return athleteId ? `${REDO_KEY}_${athleteId}` : REDO_KEY
+}
+
+function scopedPrevKey(athleteId?: string) {
+  return athleteId ? `${PREV_KEY}_${athleteId}` : PREV_KEY
 }
 
 export function useOnboarding(athleteId?: string) {
@@ -248,15 +256,26 @@ export function useOnboarding(athleteId?: string) {
       return localStorage.getItem(scopedRedoKey(athleteId)) === '1'
     } catch { return false }
   })
+  // The pre-redo config snapshot (see PREV_KEY). Read from storage so a
+  // mid-redo page refresh keeps the profile prefill.
+  const [previousConfig, setPreviousConfig] = useState<OnboardingConfig | null>(() => {
+    try {
+      const raw = localStorage.getItem(scopedPrevKey(athleteId))
+      return raw ? JSON.parse(raw) : null
+    } catch { return null }
+  })
 
   useEffect(() => {
     try {
       const raw = localStorage.getItem(scopedKey(athleteId))
       setConfig(raw ? JSON.parse(raw) : null)
       setRedoRequested(localStorage.getItem(scopedRedoKey(athleteId)) === '1')
+      const prevRaw = localStorage.getItem(scopedPrevKey(athleteId))
+      setPreviousConfig(prevRaw ? JSON.parse(prevRaw) : null)
     } catch {
       setConfig(null)
       setRedoRequested(false)
+      setPreviousConfig(null)
     }
   }, [athleteId])
 
@@ -301,9 +320,12 @@ export function useOnboarding(athleteId?: string) {
       // background sync and bounce the athlete back into onboarding right
       // after they finished. See hydrateFromServer's tombstone rule.
       stampKey(redoK)
+      // The redo is complete — the snapshot has served its purpose.
+      localStorage.removeItem(scopedPrevKey(athleteId))
     } catch { /* quota */ }
     setConfig(withTimestamp)
     setRedoRequested(false)
+    setPreviousConfig(null)
   }, [athleteId])
 
   const clear = useCallback(() => {
@@ -312,6 +334,7 @@ export function useOnboarding(athleteId?: string) {
     try {
       localStorage.removeItem(cfgK)
       localStorage.removeItem(redoK)
+      localStorage.removeItem(scopedPrevKey(athleteId))
       // Tombstone both keys so a background sync pull can't resurrect what
       // we just cleared (which would warp the athlete out of the flow).
       stampKey(cfgK)
@@ -319,12 +342,20 @@ export function useOnboarding(athleteId?: string) {
     } catch {}
     setConfig(null)
     setRedoRequested(false)
+    setPreviousConfig(null)
   }, [athleteId])
 
   const requestRedo = useCallback(() => {
     const redoK = scopedRedoKey(athleteId)
     const cfgK = scopedKey(athleteId)
     try {
+      // Snapshot the outgoing config BEFORE deleting it so the redo flow
+      // can prefill profile basics instead of re-asking them.
+      const outgoing = localStorage.getItem(cfgK)
+      if (outgoing) {
+        localStorage.setItem(scopedPrevKey(athleteId), outgoing)
+        setPreviousConfig(JSON.parse(outgoing))
+      }
       localStorage.setItem(redoK, '1')
       stampKey(redoK)
       localStorage.removeItem(cfgK)
@@ -399,6 +430,7 @@ export function useOnboarding(athleteId?: string) {
     config,
     isOnboarded: !!config,
     redoRequested,
+    previousConfig,
     save,
     clear,
     requestRedo,

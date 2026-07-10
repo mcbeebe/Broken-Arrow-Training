@@ -166,6 +166,7 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
           onboarding.save(config)
         }}
         onSkip={onLogout}
+        previousConfig={onboarding.previousConfig}
       />
     )
   }
