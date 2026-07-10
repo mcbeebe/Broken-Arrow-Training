@@ -63,7 +63,7 @@ export function useSeason(
   /** Races captured at onboarding (config.additionalRaces) — seeded into
    *  the calendar exactly ONCE per athlete (stamped), so removing one on
    *  the season panel is never undone by a re-seed. */
-  seedRaces?: { name: string; date: string; priority: RacePriority; distanceMiles?: number; description?: string; integration?: 'layered' | 'sequential' }[],
+  seedRaces?: { name: string; date: string; priority: RacePriority; distanceMiles?: number; description?: string; integration?: 'layered' | 'sequential'; format?: 'road' | 'trail' | 'hyrox' }[],
 ): UseSeasonReturn {
   const [stored, setStored] = useState<Season | null>(() => readSeason(athleteId))
 
@@ -83,11 +83,12 @@ export function useSeason(
       for (const s of seedRaces) {
         const raceInfo: RaceInfo = {
           name: s.name, date: s.date, startTime: '',
-          distance: s.distanceMiles ? `${s.distanceMiles} mi` : '',
+          distance: s.format === 'hyrox' ? 'Hyrox' : s.distanceMiles ? `${s.distanceMiles} mi` : '',
           distanceMiles: s.distanceMiles ?? 0,
           elevation: '', elevationRange: '', course: '', cutoff: '',
           landmarks: [], gear: [], nutrition: '',
           description: s.description,
+          format: s.format,
         }
         const id = seasonRaceId(raceInfo)
         if (current.races.some(r => r.id === id)) continue

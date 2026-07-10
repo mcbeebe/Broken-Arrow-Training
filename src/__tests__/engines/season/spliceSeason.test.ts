@@ -177,3 +177,26 @@ describe('splice stamps week-scoped season race context (PR-2)', () => {
     expect(appended.some(w => w.seasonRace?.blockKind === 'BUILD')).toBe(true)
   })
 })
+
+describe('explicit per-race format routes generation (no name-sniffing)', () => {
+  const anchor = sr('half', 'A', { name: 'Summer Half', date: '2026-08-02' })
+
+  it('"Anaheim Open" with format hyrox goes through the Hyrox engine', () => {
+    const open = sr('open', 'A', { name: 'Anaheim Open', date: '2026-11-01', distanceMiles: 8, format: 'hyrox' })
+    const result = planSeason([anchor, open], TODAY)
+    const spliced = spliceSeasonWeeks([baseWeek(1)], result, config, TODAY)
+    const openWeeks = spliced.filter(w => w.focus.startsWith('[Anaheim Open]'))
+    expect(openWeeks.length).toBeGreaterThan(0)
+    // Hyrox engine fingerprint: station work in the build.
+    expect(openWeeks.some(w => w.days.some(d => /station/i.test(d.workout) || /station/i.test(d.detail)))).toBe(true)
+  })
+
+  it('a race NAMED "Hyrox tune-up" with explicit format trail is NOT routed to the Hyrox engine', () => {
+    const trail = sr('tune', 'B', { name: 'Hyrox tune-up trail 10k', date: '2026-11-01', distanceMiles: 6.2, format: 'trail' })
+    const result = planSeason([anchor, trail], TODAY)
+    const spliced = spliceSeasonWeeks([baseWeek(1)], result, config, TODAY)
+    const tuneWeeks = spliced.filter(w => w.focus.startsWith('[Hyrox tune-up trail 10k]'))
+    expect(tuneWeeks.length).toBeGreaterThan(0)
+    expect(tuneWeeks.some(w => w.days.some(d => /wall ball|sled|SkiErg/i.test(d.detail)))).toBe(false)
+  })
+})

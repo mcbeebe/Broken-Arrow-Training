@@ -90,6 +90,10 @@ export interface AdditionalRace {
    *  'layered' weaves 1–2 race-specific sessions/week into the current
    *  build now; 'sequential' starts after the previous race (legacy). */
   integration?: 'layered' | 'sequential'
+  /** Explicit event format, from the season builder's per-race chips.
+   *  Routes generation directly (no name-sniffing). Absent on legacy
+   *  captures — detection falls back to name/description. */
+  format?: 'road' | 'trail' | 'hyrox'
 }
 
 export interface OnboardingConfig {
@@ -99,6 +103,10 @@ export interface OnboardingConfig {
   /** Upfront training framing: one goal race, or a season of races (the
    *  season race-builder step). Absent on legacy configs = 'race'. */
   goalMode?: 'race' | 'season'
+  /** Season mode only: ALL race kinds in the season (the multi-select on
+   *  the race-kind step — a season can mix trail + Hyrox). `raceType`
+   *  stays the ANCHOR race's kind and drives its plan generation. */
+  raceKinds?: RaceType[]
   // Free-text athlete narrative about the race/event/goal (terrain, elevation,
   // climate, context). Collected for ALL flows; required (10+ chars). The coach
   // reads this to tailor the plan and the welcome letter.

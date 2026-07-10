@@ -69,8 +69,12 @@ function daysBetween(aIso: string, bIso: string): number {
 /** Detect a Hyrox event from race facts. The ONE shared predicate — the
  *  bridge-emphasis and generator-routing decisions must agree (they once
  *  checked different field subsets, so a race flagged Hyrox for bridge
- *  work could still be routed through the running generator). */
-export function isHyroxRaceInfo(info: { name: string; distance?: string; description?: string }): boolean {
+ *  work could still be routed through the running generator). An explicit
+ *  `format` (season builder chips) is authoritative in both directions —
+ *  "Anaheim Open" with format 'hyrox' IS one; a trail race that happens
+ *  to be named "Hyrox tune-up" with format 'trail' is NOT. */
+export function isHyroxRaceInfo(info: { name: string; distance?: string; description?: string; format?: 'road' | 'trail' | 'hyrox' }): boolean {
+  if (info.format) return info.format === 'hyrox'
   const text = `${info.name} ${info.distance ?? ''} ${info.description ?? ''}`.toLowerCase()
   return text.includes('hyrox')
 }

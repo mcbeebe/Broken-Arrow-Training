@@ -149,11 +149,18 @@ interface SeasonRaceRow {
   priority: 'A' | 'B' | 'C'
   description: string
   integration: 'layered' | 'sequential'
+  /** null = no chip tapped yet — format is inferred from name/description
+   *  (so a row named "Hyrox LA" routes correctly without a tap). */
+  format: 'road' | 'trail' | 'hyrox' | null
 }
 
 let seasonRowKey = 0
 function newSeasonRaceRow(): SeasonRaceRow {
-  return { key: ++seasonRowKey, name: '', date: '', miles: '', priority: 'B', description: '', integration: 'layered' }
+  return { key: ++seasonRowKey, name: '', date: '', miles: '', priority: 'B', description: '', integration: 'layered', format: null }
+}
+
+const RACE_FORMAT_LABEL: Record<'road' | 'trail' | 'hyrox', string> = {
+  road: 'Road', trail: 'Trail', hyrox: 'Hyrox',
 }
 
 /** Format a seconds total back into mm:ss or h:mm:ss for an input echo. */
@@ -276,6 +283,22 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
   // undefined, exactly the legacy shape.
   const [goalMode, setGoalMode] = useState<'race' | 'season' | 'general' | null>(null)
   const [seasonRaces, setSeasonRaces] = useState<SeasonRaceRow[]>([])
+  // Season mode: ALL race kinds in the season (multi-select — a season can
+  // mix trail + Hyrox). The anchor race's own kind (raceType) defaults to
+  // the first selection and is adjustable on the race-name step when the
+  // season mixes kinds.
+  const [raceKinds, setRaceKinds] = useState<Exclude<RaceType, 'general'>[]>([])
+
+  function toggleRaceKind(kind: Exclude<RaceType, 'general'>) {
+    setRaceKinds(prev => {
+      const next = prev.includes(kind) ? prev.filter(k => k !== kind) : [...prev, kind]
+      // Anchor kind follows the first selection; if the anchor's kind was
+      // just deselected, fall back to the new first selection.
+      if (next.length === 0) setRaceType(null)
+      else if (!raceType || !next.includes(raceType as Exclude<RaceType, 'general'>)) setRaceType(next[0])
+      return next
+    })
+  }
 
   // Back-navigation-safe selection: picking general fixes raceType; moving
   // back to a race framing after general must re-ask the race type.
@@ -412,7 +435,7 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
 
   const canContinue = (() => {
     switch (step) {
-      case STEP_RACE_TYPE: return !!raceType
+      case STEP_RACE_TYPE: return goalMode === 'season' ? raceKinds.length > 0 && !!raceType : !!raceType
       case STEP_RACE_NAME: return raceName.trim().length > 0 && raceDescription.trim().length >= 10 && athleteGoal.trim().length > 0
       case STEP_RACE_DISTANCE: return !!raceDistance
       case STEP_GENERAL_GOAL: return !!generalGoal
@@ -546,6 +569,7 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
       goalMode: goalMode === 'general' || raceType === 'general'
         ? undefined // general fitness has no race framing (legacy shape)
         : (goalMode ?? 'race'),
+      raceKinds: goalMode === 'season' && raceKinds.length > 0 ? raceKinds : undefined,
       // Additional races → the season calendar. Season mode uses the
       // multi-race builder rows; race mode keeps the single optional
       // second-race capture. Half-filled entries (no name or date) are
@@ -561,9 +585,12 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
               priority: r.priority,
               distanceMiles: parseFloat(r.miles) || undefined,
               description: r.description.trim() || undefined,
+              // Untapped chips defer to name detection — never seed an
+              // explicit format the athlete didn't choose.
+              format: r.format ?? (isHyroxRaceInfo({ name: r.name, description: r.description }) ? 'hyrox' as const : undefined),
               // The integration ask applies to format-specific (Hyrox)
               // races; others run sequential (the only defined behavior).
-              integration: isHyroxRaceInfo({ name: r.name, description: r.description })
+              integration: (r.format ? r.format === 'hyrox' : isHyroxRaceInfo({ name: r.name, description: r.description }))
                 ? r.integration
                 : 'sequential' as const,
             }))
@@ -628,7 +655,7 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
 
       {/* Content */}
       <div ref={contentRef} className="flex-1 overflow-y-auto px-5 pt-4 pb-24">
-        {step === STEP_RACE_TYPE && (
+        {step === STEP_RACE_TYPE && goalMode !== 'season' && (
           <StepContainer title="What kind of race?" subtitle="Pick the type that matches your goal event">
             <OptionCard selected={raceType === 'road'} onClick={() => setRaceType('road')} title="Road Race" desc="Marathon, half, 10K, 5K — paved, flat-to-rolling." icon="🛣️" />
             <OptionCard selected={raceType === 'trail'} onClick={() => setRaceType('trail')} title="Trail / Ultra" desc="Sky races, ultras, technical and mountain terrain." icon="mountain" />
@@ -636,9 +663,38 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
           </StepContainer>
         )}
 
+        {step === STEP_RACE_TYPE && goalMode === 'season' && (
+          <StepContainer title="What kinds of races?" subtitle="Select all that apply — a season can mix formats (e.g. a trail half + a Hyrox)">
+            <OptionCard selected={raceKinds.includes('road')} onClick={() => toggleRaceKind('road')} title="Road Race" desc="Marathon, half, 10K, 5K — paved, flat-to-rolling." icon="🛣️" />
+            <OptionCard selected={raceKinds.includes('trail')} onClick={() => toggleRaceKind('trail')} title="Trail / Ultra" desc="Sky races, ultras, technical and mountain terrain." icon="mountain" />
+            <OptionCard selected={raceKinds.includes('hyrox')} onClick={() => toggleRaceKind('hyrox')} title="Hyrox" desc="8 stations + 8km running. Functional fitness racing." icon="hyrox" />
+          </StepContainer>
+        )}
+
         {step === STEP_RACE_NAME && (
-          <StepContainer title={raceType === 'general' ? 'Give your training plan a name' : 'Tell us about your race'} subtitle={raceType === 'general' ? 'Something to keep you motivated' : 'We\'ll build your plan around race day'}>
+          <StepContainer title={raceType === 'general' ? 'Give your training plan a name' : goalMode === 'season' ? 'Tell us about race #1' : 'Tell us about your race'} subtitle={raceType === 'general' ? 'Something to keep you motivated' : goalMode === 'season' ? 'Your next race anchors the plan — the rest of the season comes next' : 'We\'ll build your plan around race day'}>
             <div className="space-y-4">
+              {/* Mixed-format seasons: which kind is race #1? (defaults to
+                  the first kind selected on the previous step) */}
+              {goalMode === 'season' && raceKinds.length > 1 && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Race #1 is a…</label>
+                  <div className="flex gap-1.5" role="radiogroup" aria-label="Race 1 format">
+                    {raceKinds.map(k => (
+                      <button
+                        key={k}
+                        type="button"
+                        role="radio"
+                        aria-checked={raceType === k}
+                        onClick={() => setRaceType(k)}
+                        className={`flex-1 rounded-lg border px-2 py-1.5 text-xs font-bold ${
+                          raceType === k ? 'border-teal-500 bg-teal-100 text-teal-800' : 'border-slate-200 text-slate-500'
+                        }`}
+                      >{RACE_FORMAT_LABEL[k]}</button>
+                    ))}
+                  </div>
+                </div>
+              )}
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">{raceType === 'general' ? 'Plan name' : 'Race name'}</label>
                 <input
@@ -811,7 +867,9 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
           >
             <div className="space-y-3">
               {seasonRaces.map((row, i) => {
-                const rowIsHyrox = isHyroxRaceInfo({ name: row.name, description: row.description })
+                // Explicit format wins; name detection is the fallback so a
+                // row named "Hyrox LA" still asks even before a chip tap.
+                const rowIsHyrox = row.format ? row.format === 'hyrox' : isHyroxRaceInfo({ name: row.name, description: row.description })
                 const update = (patch: Partial<SeasonRaceRow>) =>
                   setSeasonRaces(rs => rs.map(r => (r.key === row.key ? { ...r, ...patch } : r)))
                 return (
@@ -826,6 +884,20 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
                       >
                         Remove
                       </button>
+                    </div>
+                    <div className="flex gap-1.5" role="radiogroup" aria-label={`Race ${i + 2} format`}>
+                      {(['road', 'trail', 'hyrox'] as const).map(k => (
+                        <button
+                          key={k}
+                          type="button"
+                          role="radio"
+                          aria-checked={row.format === k}
+                          onClick={() => update({ format: k })}
+                          className={`flex-1 rounded-lg border px-2 py-1.5 text-xs font-bold ${
+                            row.format === k ? 'border-teal-500 bg-teal-100 text-teal-800' : 'border-slate-200 text-slate-500'
+                          }`}
+                        >{RACE_FORMAT_LABEL[k]}</button>
+                      ))}
                     </div>
                     <input
                       type="text"

@@ -344,14 +344,19 @@ function raceDayCard(iso: string, raceName: string, trainThrough: boolean): Plan
  *  generator (no date). */
 function configForSeasonRace(
   config: OnboardingConfig,
-  race: { raceInfo: { name: string; date: string; distance?: string; distanceMiles: number; description?: string } },
+  race: { raceInfo: { name: string; date: string; distance?: string; distanceMiles: number; description?: string; format?: 'road' | 'trail' | 'hyrox' } },
 ): (OnboardingConfig & { raceDate: string }) | null {
   const iso = raceDateToIso(race.raceInfo.date)
   if (!iso) return null
   const hyrox = isHyroxRaceInfo(race.raceInfo)
+  // Explicit per-race format (season builder chips) routes generation
+  // directly; legacy races fall back to the athlete's anchor race type.
+  const runType = race.raceInfo.format === 'trail' ? 'trail'
+    : race.raceInfo.format === 'road' ? 'road'
+    : (config.raceType === 'general' ? 'road' : config.raceType)
   return {
     ...config,
-    raceType: hyrox ? 'hyrox' : (config.raceType === 'general' ? 'road' : config.raceType),
+    raceType: hyrox ? 'hyrox' : runType,
     raceName: race.raceInfo.name,
     raceDate: iso,
     raceDescription: race.raceInfo.description ?? undefined,

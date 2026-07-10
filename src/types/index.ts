@@ -332,6 +332,12 @@ export interface RaceInfo {
   /** Athlete's free-text description of the race/event (terrain, elevation,
    *  climate, context) from onboarding. The coach reads it on every surface. */
   description?: string;
+  /** Explicit event format for season races ('road' | 'trail' | 'hyrox').
+   *  Set by the season race builder / panel; when present it routes the
+   *  race's generation directly instead of name-sniffing ("Anaheim Open"
+   *  with format 'hyrox' goes through the Hyrox engine). Absent on legacy
+   *  races — detection falls back to name/distance/description. */
+  format?: 'road' | 'trail' | 'hyrox';
   /** Athlete's free-text goal/target for the race/event, from onboarding. */
   athleteGoal?: string;
   loriNote?: string;
