@@ -113,3 +113,11 @@ jobs:
           external_repository: mcbeebe/attune-coach
           publish_branch: gh-pages
           publish_dir: ./dist
+          # Keep previous deploys' hashed bundles alive. Without this,
+          # every publish wipes the branch, so any browser holding a
+          # cached index.html points at assets that no longer exist and
+          # renders a blank page until its HTML cache expires (the field
+          # P0 after a run of rapid successive deploys). Content-hashed
+          # filenames make the leftovers harmless; index.html, CNAME and
+          # version.json are still overwritten each deploy.
+          keep_files: true

@@ -74,6 +74,31 @@ describe('completing onboarding invalidates old-plan day customizations', () => 
     expect(localStorage.getItem('__attune_meta:__stamp:ba_plan_edits_t')).not.toBeNull()
   })
 
+  it('requestRedo snapshots the outgoing config so the redo can prefill basics', () => {
+    const old = {
+      raceType: 'trail', raceName: 'Old Race', raceDate: '2026-08-01',
+      experienceLevel: 'intermediate', trainingDaysPerWeek: 5, wearable: 'garmin',
+      athleteName: 'Mike', age: 42, completedAt: '2026-06-01T00:00:00.000Z',
+    } as OnboardingConfig
+    localStorage.setItem('ba_onboarding_t', JSON.stringify(old))
+    const { result } = renderHook(() => useOnboarding('t'))
+    act(() => result.current.requestRedo())
+    // The live config is gone (redo in progress)…
+    expect(result.current.config).toBeNull()
+    // …but the snapshot carries the profile forward, and survives a refresh.
+    expect(result.current.previousConfig?.athleteName).toBe('Mike')
+    expect(result.current.previousConfig?.age).toBe(42)
+    expect(JSON.parse(localStorage.getItem('ba_onboarding_prev_t')!).athleteName).toBe('Mike')
+    // Completing the redo disposes of the snapshot.
+    act(() => result.current.save({
+      raceType: 'trail', raceName: 'New Race', raceDate: '2026-10-24',
+      experienceLevel: 'intermediate', trainingDaysPerWeek: 5, wearable: 'garmin',
+      athleteName: 'Mike', age: 42, completedAt: '',
+    } as OnboardingConfig))
+    expect(result.current.previousConfig).toBeNull()
+    expect(localStorage.getItem('ba_onboarding_prev_t')).toBeNull()
+  })
+
   it('GUARD: manual logs (the journal) survive a save untouched', () => {
     localStorage.setItem('ba_manual_logs_t', JSON.stringify({ '2026-06-05': { notes: 'Granite Mtn with pack' } }))
     const { result } = renderHook(() => useOnboarding('t'))
