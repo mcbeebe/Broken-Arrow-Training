@@ -39,11 +39,16 @@ function day(iso: string, type: WorkoutType, workout: string, detail: string, zo
   return { day: dayLabel(iso), type, workout, detail, zone, route: '', time }
 }
 
+// Hard iteration guard for the day-by-day walkers. No legitimate block
+// spans years — if a corrupt or absurd date range reaches this layer the
+// stream must TRUNCATE, never freeze the tab walking millions of days.
+const MAX_STREAM_DAYS = 800
+
 /** Slice a block's date range into 7-day weeks (last week may be short). */
 function blockDates(block: SeasonBlock): string[] {
   const out: string[] = []
   let cur = block.startDate
-  while (cur <= block.endDate) {
+  while (cur <= block.endDate && out.length < MAX_STREAM_DAYS) {
     out.push(cur)
     cur = shiftIso(cur, 1)
   }
@@ -143,7 +148,7 @@ export function bridgeDayStream(
   const focus = `Bridge — ${emphasis.rationale}`
   const dates: string[] = []
   let cur = startIso
-  while (cur <= endIso) {
+  while (cur <= endIso && dates.length < MAX_STREAM_DAYS) {
     dates.push(cur)
     cur = shiftIso(cur, 1)
   }

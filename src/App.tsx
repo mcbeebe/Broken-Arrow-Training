@@ -508,7 +508,13 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     // layer (swaps, edits, actuals, rezone, compliance, watch push,
     // realignment, repace) treats season weeks as plain plan weeks.
     // Single-race seasons return the base weeks untouched (the guard).
-    w = spliceSeasonWeeks(w, seasonState.planResult, onboarding.config, todayDateString())
+    // A splice failure (e.g. a poisoned race record arriving via sync)
+    // must degrade to the base plan — never take the whole app down.
+    try {
+      w = spliceSeasonWeeks(w, seasonState.planResult, onboarding.config, todayDateString())
+    } catch (err) {
+      console.error('[season] splice failed — falling back to the base plan:', err)
+    }
     w = daySwap.applySwapsToWeeks(w)
     // Coach/manual plan edits (add/delete/update days & weeks) apply AFTER
     // swaps and BEFORE actuals. This order is load-bearing: field edits

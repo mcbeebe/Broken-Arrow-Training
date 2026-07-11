@@ -84,6 +84,15 @@ export function isHyroxRace(race: SeasonRace): boolean {
   return isHyroxRaceInfo(race.raceInfo)
 }
 
+// Sanity window for race dates. A parseable-but-wrong date — a fat-fingered
+// year like 0206 or 2036 in a date input, or a corrupt value arriving via
+// cross-device sync — would otherwise generate blocks spanning years and
+// freeze the tab in the day-by-day block walkers. Outside this window a
+// race is excluded from planning with an advisory, exactly like an
+// unparseable date.
+const MAX_PAST_DAYS = 730
+const MAX_FUTURE_DAYS = 1100
+
 export function planSeason(
   races: SeasonRace[],
   today: string,
@@ -101,6 +110,17 @@ export function planSeason(
         title: 'Race has no readable date',
         detail: `"${race.raceInfo.name}" has no parseable date, so the season plan can't place it.`,
         suggestion: 'Add a date to include it in the chained season.',
+      })
+      continue
+    }
+    const distance = daysBetween(today, iso)
+    if (!Number.isFinite(distance) || distance < -MAX_PAST_DAYS || distance > MAX_FUTURE_DAYS) {
+      advisories.push({
+        id: `season_date_out_of_range_${race.id}`,
+        severity: 'caution',
+        title: 'Race date looks wrong',
+        detail: `"${race.raceInfo.name}" is dated ${race.raceInfo.date} — outside the plannable window, so the season plan can't place it.`,
+        suggestion: 'Double-check the year on that race date.',
       })
       continue
     }

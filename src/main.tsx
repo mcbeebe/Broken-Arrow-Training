@@ -2,6 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App'
+import ErrorBoundary from './components/ErrorBoundary'
 import MigrationBanner from './components/MigrationBanner'
 import MigrationReceive from './components/MigrationReceive'
 import { isMigrationReceive } from './utils/migrate'
@@ -32,8 +33,10 @@ if (isMigrationReceive()) {
   const targetOrigin = import.meta.env.VITE_TARGET_ORIGIN as string | undefined
   root.render(
     <StrictMode>
-      {targetOrigin ? <MigrationBanner targetOrigin={targetOrigin} /> : null}
-      <App />
+      <ErrorBoundary>
+        {targetOrigin ? <MigrationBanner targetOrigin={targetOrigin} /> : null}
+        <App />
+      </ErrorBoundary>
     </StrictMode>,
   )
 }
