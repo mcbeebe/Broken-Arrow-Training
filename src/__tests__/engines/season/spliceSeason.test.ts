@@ -200,3 +200,34 @@ describe('explicit per-race format routes generation (no name-sniffing)', () => 
     expect(tuneWeeks.some(w => w.days.some(d => /wall ball|sled|SkiErg/i.test(d.detail)))).toBe(false)
   })
 })
+
+describe('seasonRace stamp carries the race format for coaching routing', () => {
+  const anchor = sr('half', 'A', { name: 'Summer Half', date: '2026-08-02' })
+
+  it('a Hyrox block week is stamped format hyrox (explicit format)', () => {
+    const open = sr('open', 'A', { name: 'Anaheim Open', date: '2026-11-01', distanceMiles: 8, format: 'hyrox' })
+    const result = planSeason([anchor, open], TODAY)
+    const spliced = spliceSeasonWeeks([baseWeek(1)], result, config, TODAY)
+    const openWeeks = spliced.filter(w => w.seasonRace?.name === 'Anaheim Open')
+    expect(openWeeks.length).toBeGreaterThan(0)
+    for (const w of openWeeks) expect(w.seasonRace?.format).toBe('hyrox')
+  })
+
+  it('a name-sniffed Hyrox (no explicit format) is stamped hyrox too', () => {
+    const hyrox = sr('hy', 'A', { name: 'Hyrox - Anaheim', date: '2026-11-01', distanceMiles: 8 })
+    const result = planSeason([anchor, hyrox], TODAY)
+    const spliced = spliceSeasonWeeks([baseWeek(1)], result, config, TODAY)
+    const weeks = spliced.filter(w => w.seasonRace?.name === 'Hyrox - Anaheim')
+    expect(weeks.length).toBeGreaterThan(0)
+    for (const w of weeks) expect(w.seasonRace?.format).toBe('hyrox')
+  })
+
+  it('a road race week is never stamped hyrox', () => {
+    const second = sr('fall', 'A', { name: 'Fall Marathon', date: '2026-11-01', distance: 'Marathon', distanceMiles: 26.2, format: 'road' })
+    const result = planSeason([anchor, second], TODAY)
+    const spliced = spliceSeasonWeeks([baseWeek(1)], result, config, TODAY)
+    const weeks = spliced.filter(w => w.seasonRace?.name === 'Fall Marathon')
+    expect(weeks.length).toBeGreaterThan(0)
+    for (const w of weeks) expect(w.seasonRace?.format).toBe('road')
+  })
+})

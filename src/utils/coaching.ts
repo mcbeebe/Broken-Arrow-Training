@@ -1,6 +1,7 @@
 import type { PlannedDay } from '../types'
 import type { GeneralGoal, ExperienceLevel } from '../hooks/useOnboarding'
 import { getGeneralFitnessCoaching } from '../engines/generalFitness/coaching'
+import { getHyroxCoaching } from '../engines/hyrox/coaching'
 
 export interface CoachingNarrative {
   title: string
@@ -11,12 +12,33 @@ export interface CoachingNarrative {
   recovery: string
 }
 
+/** The race a day builds toward — week.seasonRace for spliced season
+ *  blocks, or the anchor race for single-race plans. Lets coaching route
+ *  Hyrox days to Hyrox narratives and keeps one race's course copy off
+ *  another race's cards. */
+export interface RaceCoachingContext {
+  name?: string
+  format?: 'road' | 'trail' | 'hyrox'
+}
+
 /** Optional goal context. When `generalGoal` is set the day belongs to a
  *  General Fitness plan, so coaching routes to the goal-appropriate,
  *  race-free narratives instead of the trail/mountain-race copy below. */
 export interface CoachingOptions {
   generalGoal?: GeneralGoal
   experienceLevel?: ExperienceLevel
+  race?: RaceCoachingContext
+}
+
+/** Whether a day should get Hyrox narratives. An explicit race format is
+ *  authoritative both ways (a trail race named "Hyrox tune-up" is NOT
+ *  hijacked — mirrors isHyroxRaceInfo precedence). Without one, fall back
+ *  to name-sniffing the race and the workout itself, which catches
+ *  "RACE DAY — Hyrox - Anaheim" cards and layered "Hyrox prep" days in
+ *  anchor weeks that carry no seasonRace stamp. */
+export function isHyroxContext(day: PlannedDay, race?: RaceCoachingContext): boolean {
+  if (race?.format) return race.format === 'hyrox'
+  return /hyrox/i.test(`${race?.name ?? ''} ${day.workout}`)
 }
 
 export function getCoaching(day: PlannedDay, weekNum: number, opts?: CoachingOptions): CoachingNarrative {
@@ -26,8 +48,15 @@ export function getCoaching(day: PlannedDay, weekNum: number, opts?: CoachingOpt
     return getGeneralFitnessCoaching(day, opts.generalGoal, opts.experienceLevel)
   }
 
+  // Hyrox days (anchor plans and spliced season blocks alike) get the
+  // Hyrox narratives — running-race-with-interruptions framing, station
+  // guidance, and a Hyrox race day. Never the mountain copy.
+  if (isHyroxContext(day, opts?.race)) {
+    return getHyroxCoaching(day, weekNum, opts?.race?.name)
+  }
+
   const phase = getPhase(weekNum)
-  const base = getTypeCoaching(day, phase)
+  const base = getTypeCoaching(day, phase, opts?.race)
 
   return {
     ...base,
@@ -46,7 +75,7 @@ function getPhase(weekNum: number): Phase {
   return 'race'
 }
 
-function getTypeCoaching(day: PlannedDay, phase: Phase): Omit<CoachingNarrative, 'nutrition' | 'recovery'> {
+function getTypeCoaching(day: PlannedDay, phase: Phase, race?: RaceCoachingContext): Omit<CoachingNarrative, 'nutrition' | 'recovery'> {
   switch (day.type) {
     case 'strength':
       return {
@@ -187,20 +216,28 @@ function getTypeCoaching(day: PlannedDay, phase: Phase): Omit<CoachingNarrative,
         mindset: 'Travel is part of the adventure. Protect your hydration and sleep, and tomorrow\'s workout will go fine.',
       }
 
-    case 'race':
-      return {
-        title: 'RACE DAY',
-        purpose: day.workout.includes('5K')
-          ? 'This 5K is a fitness benchmark and a chance to practice race-day nerves. Don\'t overthink it — warm up well, run hard, and see where you are.'
-          : 'This is it. 10 weeks of training for this moment. You\'ve done the work — the hay is in the barn. Today is about executing the plan and enjoying the mountain.',
-        execution: day.workout.includes('5K')
-          ? [
+    case 'race': {
+      if (day.workout.includes('5K')) {
+        return {
+          title: 'RACE DAY',
+          purpose: 'This 5K is a fitness benchmark and a chance to practice race-day nerves. Don\'t overthink it — warm up well, run hard, and see where you are.',
+          execution: [
             'Warm up 10 min easy jog + dynamic stretches.',
             'Start controlled — don\'t go out too fast in the first 400m.',
             'Settle into rhythm by mile 1. Push the last mile.',
             'Cool down 10 min easy.',
-          ]
-          : [
+          ],
+          mindset: 'Race hard, learn something, and have fun. This is practice for June.',
+        }
+      }
+      // The Broken Arrow course copy (aid stations, named descents, the
+      // bell) belongs ONLY to Broken Arrow — any other race day gets the
+      // course-neutral narrative below with its own name.
+      if (/broken arrow/i.test(`${race?.name ?? ''} ${day.workout}`)) {
+        return {
+          title: 'RACE DAY',
+          purpose: 'This is it. 10 weeks of training for this moment. You\'ve done the work — the hay is in the barn. Today is about executing the plan and enjoying the mountain.',
+          execution: [
             'Eat breakfast 3 hours before start (practiced foods only).',
             'Start fueling at mile 1 — don\'t wait. 100-150 cal every 30 min.',
             'Hike the climbs with poles. Run the flats and downhills.',
@@ -208,10 +245,23 @@ function getTypeCoaching(day: PlannedDay, phase: Phase): Omit<CoachingNarrative,
             'Protect your quads on the Shirley Canyon descent — short steps, slight forward lean.',
             'The last 3 miles are all downhill. Empty the tank. RING DAS BELL! 🔔',
           ],
-        mindset: day.workout.includes('5K')
-          ? 'Race hard, learn something, and have fun. This is practice for June.'
-          : 'You trained for this. You hiked the hills, ran the miles, dialed the nutrition. Trust your body. When it hurts at mile 7, remember: you\'ve done harder things in training. Finish strong.',
+          mindset: 'You trained for this. You hiked the hills, ran the miles, dialed the nutrition. Trust your body. When it hurts at mile 7, remember: you\'ve done harder things in training. Finish strong.',
+        }
       }
+      const raceName = race?.name ?? day.workout.match(/RACE DAY\s*—\s*(.+)$/i)?.[1]?.trim() ?? 'your race'
+      return {
+        title: 'RACE DAY',
+        purpose: `This is it — ${raceName}. The work is banked; today is about executing a plan you've already rehearsed: even pacing, practiced fueling, nothing new.`,
+        execution: [
+          'Eat breakfast 2-3 hours before the start — practiced foods only, nothing new today.',
+          'First third deliberately controlled. If you feel great, hold back anyway — that energy is for the finish.',
+          'Fuel early and on schedule — don\'t wait until you feel you need it; by then it\'s too late.',
+          'Run the mile you\'re in: effort discipline on hills and into wind, no hero surges.',
+          'Final third: this is what the training was for. Empty the tank and finish strong.',
+        ],
+        mindset: 'You trained for this. When it gets hard, remember: you\'ve done harder things in training. Trust the plan and finish strong.',
+      }
+    }
   }
 }
 

@@ -1534,6 +1534,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           injuryStatus={onboarding.config?.injuryStatus}
           strengthLevel={onboarding.config?.strengthExperience}
           racePacing={racePacingPlan}
+          season={seasonState.season}
         />
       )}
       {view === 'dashboard' && (

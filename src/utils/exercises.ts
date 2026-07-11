@@ -712,7 +712,151 @@ const GUIDES: Record<string, ExerciseGuide> = {
       { name: 'Band leg curl', equipment: 'Band', notes: 'Anchor a band at floor level, loop it around your ankle, curl your heel back.' },
     ],
   },
+  // ── Hyrox stations ─────────────────────────────────────────────
+  // Race-spec loads live in the form cues (fixed by the event, never
+  // calibrated); the `weight` strings stay digit-free so lifting-level
+  // calibration passes them through untouched.
+  'wall ball': {
+    name: 'Wall Balls',
+    aka: 'A full squat, then throw the med ball up to a target on the wall — catch and repeat',
+    weight: 'Your division race ball — go lighter in training if it keeps sets unbroken',
+    rest: 'Break into planned sets before your legs decide for you',
+    form: [
+      'Race spec (open): six kg ball for men, four kg for women, to a ten-foot / nine-foot target. The final station of Hyrox.',
+      'Hold the ball at your chest, elbows tucked. Feet shoulder-width.',
+      'Squat to full depth — hip crease below the knee — keeping your chest tall.',
+      'Drive up through your heels and use the leg momentum to throw the ball to the target. Legs power the throw, not arms.',
+      'Catch the ball high and ride it straight down into the next squat — one smooth rhythm.',
+      'Pick a breakdown (e.g. sets of fifteen to twenty with three breaths between) from rep one and stick to it.',
+      'No-rep killers: missing depth and missing the target. Groove full range at every weight.',
+    ],
+    alternates: [
+      { name: 'Med-ball squat-to-press', equipment: 'Any med ball', notes: 'Same pattern without the wall target — squat deep, press the ball overhead.' },
+      { name: 'Backpack thruster', equipment: 'Loaded backpack', notes: 'Hug it to your chest, squat, drive up into a press.' },
+      { name: 'Jump squat + press-up reach', equipment: 'Bodyweight', notes: 'Keeps the legs-then-arms rhythm when you have no load.' },
+    ],
+  },
+  'sled push': {
+    name: 'Sled Push',
+    aka: 'Drive a weighted sled down the track with your body low and arms locked',
+    weight: 'Heavy — a load you can keep moving without stopping mid-length',
+    rest: 'Walk the turnaround; heart rate spikes hard here',
+    form: [
+      'Race spec (open): about one hundred fifty kg for men / one hundred kg for women including the sled, over fifty meters.',
+      'Arms locked long or stacked low on the poles — pick one and commit; don\'t bounce between grips.',
+      'Get LOW: hips below shoulders, body at roughly forty-five degrees, on the balls of your feet.',
+      'Short, fast, punchy steps — like sprinting in slow motion. Long strides stall the sled.',
+      'Brace your trunk and push through the whole foot strike; the sled rewards constant pressure.',
+      'Your legs will feel wooden on the run after — normal, it fades within a few hundred meters.',
+    ],
+    alternates: [
+      { name: 'Hill sprints', equipment: 'A steep hill', notes: 'Ten to twenty seconds, driving with the same low posture and short steps.' },
+      { name: 'Band-resisted runs', equipment: 'Heavy band + partner/anchor', notes: 'Lean into the band and drive the knees.' },
+      { name: 'Car-park plate push', equipment: 'Towel + smooth floor + plates', notes: 'Push a plate on a towel across a smooth floor.' },
+    ],
+  },
+  'sled pull': {
+    name: 'Sled Pull',
+    aka: 'Drag the sled toward you hand-over-hand with a rope, walking backwards',
+    weight: 'Heavy — grip and posterior chain do the work',
+    rest: 'Shake your grip out before the next station',
+    form: [
+      'Race spec (open): about one hundred kg for men / seventy-five kg for women including the sled, over fifty meters.',
+      'Stay inside your zone: lean back with straight arms, then row the rope in as you walk backwards.',
+      'Use your legs and bodyweight as the anchor — lean, step, pull. Arms alone burn out fast.',
+      'Long pulls beat frantic short ones: fewer grip cycles, less forearm pump.',
+      'Keep your chest up and core braced; don\'t round into the pull.',
+      'Manage grip for the whole race — this station and the farmer carry share the same forearms.',
+    ],
+    alternates: [
+      { name: 'Band face-pull + row combo', equipment: 'Heavy band', notes: 'Anchor low, walk back under tension, row in.' },
+      { name: 'Towel plate drag', equipment: 'Towel + plates + rope/strap', notes: 'Drag a loaded towel across smooth floor hand-over-hand.' },
+      { name: 'Inverted row', equipment: 'Bar or rings/TRX', notes: 'Builds the same pulling endurance when you can\'t drag anything.' },
+    ],
+  },
+  'burpee broad jump': {
+    name: 'Burpee Broad Jumps',
+    aka: 'A burpee, then jump forward as far as you can — repeat down the track',
+    weight: 'Bodyweight',
+    rest: 'Find a sustainable rhythm; this station punishes sprinters',
+    form: [
+      'Race spec: eighty meters of continuous burpee broad jumps — chest to floor on every rep.',
+      'Step or snap down, chest and thighs touch the floor, then stand into an immediate forward jump.',
+      'Jump for honest distance (about a meter), not maximum distance — max jumps cost double later.',
+      'Land soft with bent knees, hands straight back down. No pause at either end.',
+      'Set a metronome pace you could hold for five minutes; breathe every rep.',
+      'This is the station where pacing errors from the sleds surface — if you\'re redlined, slow the descent, not the rhythm.',
+    ],
+    alternates: [
+      { name: 'Burpee + tuck step-forward', equipment: 'Bodyweight', notes: 'Low ceiling or no runway? Burpee, then two big lunge steps forward.' },
+      { name: 'Standard burpees', equipment: 'Bodyweight', notes: 'Match total reps (roughly forty to fifty per eighty meters).' },
+    ],
+  },
+  'skierg': {
+    name: 'SkiErg',
+    aka: 'A standing pull-down machine — like double-poling on skis',
+    weight: 'Bodyweight — set the damper moderate, not maxed',
+    rest: 'Long steady pulls; this opens the race',
+    form: [
+      'Race spec: one thousand meters. Station one — it sets your heart rate for the whole event.',
+      'Start tall with arms high, hinge at the hips as you drive the handles down past your thighs.',
+      'Power comes from the hinge — lats and trunk crunch down; arms just finish the stroke.',
+      'Let the recovery be as long as the pull: rushed short strokes waste watts.',
+      'Hold a pace you could double — the race hasn\'t started yet at station one.',
+      'Keep a slight knee bend and bounce; stiff legs kill the rhythm.',
+    ],
+    alternates: [
+      { name: 'Band pull-downs', equipment: 'Band over a door/bar', notes: 'Same hinge-and-drive pattern, high anchor.' },
+      { name: 'Hard jump rope', equipment: 'Rope', notes: 'Matches the sustained upper-body cardio when no erg is available.' },
+      { name: 'Burpees (steady)', equipment: 'Bodyweight', notes: 'Two minutes steady replaces five hundred meters.' },
+    ],
+  },
+  'sandbag lunge': {
+    name: 'Sandbag Lunges',
+    aka: 'Walking lunges with a sandbag carried on your shoulders',
+    weight: 'Your division race bag — bodyweight lunges beat ugly loaded ones',
+    rest: 'Unbroken if possible; standing rest with the bag ON costs less than re-shouldering',
+    form: [
+      'Race spec (open): twenty kg bag for men / ten kg for women, one hundred meters. Station seven — right before wall balls.',
+      'Bag high on the shoulders behind your neck, hands on top to pin it. Chest tall.',
+      'Step long enough that your front shin stays vertical; back knee kisses the floor every rep.',
+      'Drive through the front heel to stand fully between steps — no half-standing shuffle.',
+      'Small controlled steps of even length beat lurching — your quads must still throw one hundred wall balls.',
+      'If you must rest, rest standing with the bag on; dropping and re-shouldering is the expensive part.',
+    ],
+    alternates: [
+      { name: 'Backpack walking lunges', equipment: 'Loaded backpack', notes: 'Wear it or shoulder it — same pattern.' },
+      { name: 'DB front-rack lunges', equipment: 'Two dumbbells', notes: 'Weights at the shoulders to mimic the high carry.' },
+      { name: 'Bodyweight walking lunges', equipment: 'Bodyweight', notes: 'Double the distance to match the stimulus.' },
+    ],
+  },
 }
+
+// The rowing station shares one guide registered under several safe keys.
+// NEVER key a bare 'row' — substring matching would hijack 'narrow',
+// 'db row', and any sentence containing the word.
+const ROW_GUIDE: ExerciseGuide = {
+  name: 'Rowing (Erg)',
+  aka: 'The rowing machine — legs, then body, then arms, every stroke',
+  weight: 'Bodyweight — damper moderate; technique beats resistance',
+  rest: 'The mid-race breather station if you row smart',
+  form: [
+    'Race spec: one thousand meters. Station five — the halfway mark and your one chance to settle your heart rate.',
+    'Order every stroke: legs drive, body swings back, arms finish. Reverse it on the way up the slide.',
+    'Long, patient strokes around twenty-four to twenty-six per minute; frantic high stroke rates waste energy.',
+    'Push the machine away with your legs — eighty percent of the power is legs, not arms.',
+    'Strap in loose enough to move, sit tall, and breathe on a fixed rhythm.',
+    'Hold a pace you can hold conversation-adjacent — runs five to eight still have to happen.',
+  ],
+  alternates: [
+    { name: 'Bike erg / spin bike', equipment: 'Any bike', notes: 'Match the duration at the same steady effort.' },
+    { name: 'Band low rows', equipment: 'Band', notes: 'Low anchor, legs braced, same legs-body-arms order.' },
+    { name: 'Steady burpees', equipment: 'Bodyweight', notes: 'Two minutes steady replaces five hundred meters.' },
+  ],
+}
+GUIDES['rowing'] = ROW_GUIDE
+GUIDES['row 500'] = ROW_GUIDE
+GUIDES['row 1000'] = ROW_GUIDE
 
 export interface ParsedExercise {
   name: string
@@ -730,6 +874,14 @@ export function parseRoutine(detail: string): ParsedExercise[] {
     const guide = findGuide(part)
     return { name: part, sets, reps, guide }
   })
+}
+
+/** parseRoutine filtered to fragments that matched a guide. Custom-detail
+ *  (cross/station) days render guide cards only for real movements —
+ *  instruction fragments like "90 sec rest between stations" would
+ *  otherwise each render a useless "No detailed guide" card. */
+export function guideMatchedExercises(detail: string): ParsedExercise[] {
+  return parseRoutine(detail).filter(e => e.guide)
 }
 
 function findGuide(exerciseText: string): ExerciseGuide | null {

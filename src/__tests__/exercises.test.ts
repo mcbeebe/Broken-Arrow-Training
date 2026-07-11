@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parseRoutine, getExerciseGuide, calibrateGuideWeight } from '../utils/exercises'
+import { parseRoutine, getExerciseGuide, guideMatchedExercises, calibrateGuideWeight } from '../utils/exercises'
 
 describe('calibrateGuideWeight — scales default loads to lifting background', () => {
   it('leaves weights unchanged for experienced lifters', () => {
@@ -87,5 +87,37 @@ describe('parseRoutine — Custom AI-coach routines match guides', () => {
     const guide = getExerciseGuide('Push-up')
     expect(guide?.name).toBe('Push-Up')
     expect(guide?.alternates).toBeDefined()
+  })
+})
+
+describe('Hyrox station guides', () => {
+  it('every generator station fragment resolves a guide', () => {
+    expect(getExerciseGuide('SkiErg 500m')?.name).toBe('SkiErg')
+    expect(getExerciseGuide('Sled push 25m')?.name).toBe('Sled Push')
+    expect(getExerciseGuide('Sled pull 25m')?.name).toBe('Sled Pull')
+    expect(getExerciseGuide('Burpee broad jumps 40m')?.name).toBe('Burpee Broad Jumps')
+    expect(getExerciseGuide('Row 500m')?.name).toBe('Rowing (Erg)')
+    expect(getExerciseGuide('Farmer carry 100m')?.name).toBe('Farmer Carry')
+    expect(getExerciseGuide('Sandbag lunges 50m')?.name).toBe('Sandbag Lunges')
+    expect(getExerciseGuide('Wall balls 75 (6 kg)')?.name).toBe('Wall Balls')
+  })
+
+  it('station guides carry race-spec cues and home alternates', () => {
+    const wb = getExerciseGuide('Wall balls 30 (6 kg)')!
+    expect(wb.form.join(' ')).toMatch(/Race spec/i)
+    expect(wb.alternates!.length).toBeGreaterThanOrEqual(2)
+    const sled = getExerciseGuide('Sled push 25m')!
+    expect(sled.alternates!.some(a => /hill/i.test(a.name))).toBe(true)
+  })
+
+  it('rowing keys never false-match other movements', () => {
+    expect(getExerciseGuide('DB row 3×10')?.name).toBe('Dumbbell Row')
+    expect(getExerciseGuide('Narrow push-up 3×10')?.name).toBe('Push-Up')
+  })
+
+  it('guideMatchedExercises drops instruction fragments, keeps movements', () => {
+    const out = guideMatchedExercises('SkiErg 500m · 90 sec rest between stations · Competition sled weight')
+    expect(out).toHaveLength(1)
+    expect(out[0].guide?.name).toBe('SkiErg')
   })
 })

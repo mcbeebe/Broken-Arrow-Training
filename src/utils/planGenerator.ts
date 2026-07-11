@@ -23,6 +23,25 @@ const NO_GYM_STRENGTH_SUB =
 const NO_GYM_STATION_SUB =
   'No gym? Approximate stations: wall balls → med-ball/backpack squat-to-press; sled → hill sprints or resisted-band runs; ski/row → hard jump rope or burpees; farmer carry → heavy jugs/backpack.'
 
+// The eight Hyrox stations in race order (wall balls close the race and are
+// always listed separately with reps). Training days use half race distance;
+// simulations call for full distance in the surrounding copy.
+const HYROX_STATION_ORDER = [
+  'SkiErg 500m',
+  'Sled push 25m',
+  'Sled pull 25m',
+  'Burpee broad jumps 40m',
+  'Row 500m',
+  'Farmer carry 100m',
+  'Sandbag lunges 50m',
+] as const
+
+/** The first `n` stations (race order) as a ` · `-joined list — the workout
+ *  detail format WorkoutModal splits into execution steps + guide cards. */
+function buildStationList(n: number): string {
+  return HYROX_STATION_ORDER.slice(0, Math.max(1, Math.min(n, HYROX_STATION_ORDER.length))).join(' · ')
+}
+
 /** The home-substitution note for a given workout role (empty for pure runs). */
 function equipmentSubFor(role: string): string {
   if (role === 'strength') return NO_GYM_STRENGTH_SUB
@@ -479,7 +498,7 @@ function getHyroxWorkoutByRole(
       return { type: 'strength', workout: 'STRENGTH + Station intro', detail: `${P.strengthDetail.base} · Then: SkiErg 500m · Wall balls ${P.wallBallReps.base} (${P.wallBallWeight})`, zone: z2, route: 'Gym', time: '1 hr' }
     }
     const wb = phase === 'build' ? P.wallBallReps.build : P.wallBallReps.peak
-    return { type: 'strength', workout: 'STRENGTH + Station circuit', detail: `${P.strengthDetail.build} · Then: ${P.simStations[phase === 'build' ? 'build' : 'peak']} stations at race effort · Wall balls ${wb} (${P.wallBallWeight}) · ${weakStation} focus`, zone: z3, route: 'Gym', time: '1 hr 15 min' }
+    return { type: 'strength', workout: 'STRENGTH + Station circuit', detail: `${P.strengthDetail.build} · Then at race effort: ${buildStationList(P.simStations[phase === 'build' ? 'build' : 'peak'])} · Wall balls ${wb} (${P.wallBallWeight}) · ${weakStation} focus`, zone: z3, route: 'Gym', time: '1 hr 15 min' }
   }
 
   // RUN_CONDITIONING: Second run day with conditioning
@@ -498,9 +517,9 @@ function getHyroxWorkoutByRole(
     }
     const sims = phase === 'build' ? P.simStations.build : P.simStations.peak
     if (phase === 'build') {
-      return { type: 'cross', workout: `Station circuit (${sims} stations)`, detail: `${sims} stations at race effort · Wall balls ${wb} (${P.wallBallWeight}) · ${weakStation} extra set · ${P.sledNote} · 90 sec rest between`, zone: z3, route: 'Gym', time: '55 min' }
+      return { type: 'cross', workout: `Station circuit (${sims} stations)`, detail: `${buildStationList(sims)} · Wall balls ${wb} (${P.wallBallWeight}) · ${weakStation} extra set · ${P.sledNote} · 90 sec rest between stations`, zone: z3, route: 'Gym', time: '55 min' }
     }
-    return { type: 'cross', workout: `Simulation (${sims} stations)`, detail: `${sims} stations at race effort + ${sims}×1km runs between. Full race weight. Practice transitions.`, zone: `${z3}–${z4}`, route: 'Gym', time: '1 hr 10 min' }
+    return { type: 'cross', workout: `Simulation (${sims} stations)`, detail: `${sims}×(1km run + station) in race order at race effort · ${buildStationList(sims)} — full race distance · Wall balls ${wb} (${P.wallBallWeight}) · Full race weight · Practice roxzone transitions`, zone: `${z3}–${z4}`, route: 'Gym', time: '1 hr 10 min' }
   }
 
   // EASY: Active recovery day
@@ -514,10 +533,12 @@ function getHyroxWorkoutByRole(
       return { type: 'long', workout: 'Long run', detail: 'Build endurance. Conversational pace throughout.', zone: `${P.longRunMi} mi · ${z2}${easyPace}`, route: 'Any route', time: `${Math.round(P.longRunMi * 12)} min` }
     }
     if (phase === 'build') {
-      return { type: 'long', workout: 'Long run + station finisher', detail: `${P.longRunMi} mi run then ${P.simStations.build > 4 ? '4' : '3'} station circuits at moderate effort. Running on tired legs into stations.`, zone: `${P.longRunMi} mi · ${z2}${easyPace}`, route: 'Run + Gym', time: `${Math.round(P.longRunMi * 12) + 25} min` }
+      // Sentence form on purpose (no ' · '): the modal shows the Hyrox
+      // long-run narrative as execution, with this line as the summary.
+      return { type: 'long', workout: 'Long run + station finisher', detail: `${P.longRunMi} mi run, then straight into ${P.simStations.build > 4 ? '4' : '3'} rounds of wall balls, sandbag lunges and burpee broad jumps at moderate effort — no break between run and stations. Running on tired legs into stations is the race demand.`, zone: `${P.longRunMi} mi · ${z2}${easyPace}`, route: 'Run + Gym', time: `${Math.round(P.longRunMi * 12) + 25} min` }
     }
     if (phase === 'peak') {
-      return { type: 'long', workout: 'FULL HYROX SIMULATION', detail: `8×1km runs + all 8 stations at race effort. ${P.wallBallWeight} wall balls. ${P.sledNote}. Full dress rehearsal.`, zone: `8km + stations · ${z3}`, route: 'Gym', time: '1 hr 30 min' }
+      return { type: 'long', workout: 'FULL HYROX SIMULATION', detail: `8×1km runs + all 8 stations in race order at race effort. ${P.wallBallWeight} wall balls. ${P.sledNote}. Full dress rehearsal.`, zone: `8km + stations · ${z3}`, route: 'Gym', time: '1 hr 30 min' }
     }
     return { type: 'run', workout: 'Easy shakeout', detail: 'Taper. Short and easy. Stay sharp.', zone: `2.0 mi · ${z1}`, route: 'Flat route', time: '25 min' }
   }

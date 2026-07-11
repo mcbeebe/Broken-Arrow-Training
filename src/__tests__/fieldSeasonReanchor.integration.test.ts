@@ -8,6 +8,7 @@ import { spliceSeasonWeeks, nearestRaceDistance } from '../engines/season/splice
 import { normalizeSeasonConfig } from '../utils/seasonConfig'
 import { seasonRaceId } from '../engines/season'
 import { dayIsoInWeek } from '../utils/planDates'
+import { getCoaching } from '../utils/coaching'
 
 /**
  * THE field case (screenshots of 7/12): athlete entered Hyrox Anaheim
@@ -104,5 +105,21 @@ describe('field re-anchor: entered Hyrox 12/5 (primary) + earlier half 10/24 + s
       .map(({ d, w }) => dayIsoInWeek(d.day, w))
       .filter(iso => iso !== null && iso > '2026-10-24' && iso !== '2026-12-05')
     expect(strays).toEqual([])
+  })
+
+  it('END-TO-END: the Hyrox race day coaches Hyrox, not Broken Arrow (the field screenshot)', () => {
+    // The exact path the workout modal takes: the spliced week's stamped
+    // seasonRace becomes the coaching race context for its race day.
+    const hit = weeks.flatMap(w => w.days.map(d => ({ d, w })))
+      .find(({ d, w }) => d.type === 'race' && dayIsoInWeek(d.day, w) === '2026-12-05')!
+    expect(hit.w.seasonRace?.format).toBe('hyrox')
+    const coaching = getCoaching(hit.d, hit.w.num, {
+      race: { name: hit.w.seasonRace!.name, format: hit.w.seasonRace!.format },
+    })
+    const all = [coaching.purpose, ...coaching.execution, coaching.mindset, coaching.nutrition].join(' ')
+    expect(all).not.toMatch(/Siberia|Shirley Canyon|DAS BELL|mountain|poles/i)
+    expect(all).toMatch(/roxzone/i)
+    expect(all).toMatch(/wall balls/i)
+    expect(coaching.purpose).toContain('Hyrox Anaheim')
   })
 })

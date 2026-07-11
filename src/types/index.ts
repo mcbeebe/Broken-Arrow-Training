@@ -281,6 +281,11 @@ export interface TrainingWeek {
     name: string;
     dateIso: string;
     blockKind: SeasonBlockKind;
+    /** Race discipline — lets day-level coaching narratives route to
+     *  format-appropriate copy (a Hyrox block's days must never inherit
+     *  trail-race guidance). Optional: legacy renders lack it and fall
+     *  back to workout-name sniffing. */
+    format?: 'road' | 'trail' | 'hyrox';
   };
 }
 
