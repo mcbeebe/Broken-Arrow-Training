@@ -64,6 +64,9 @@ export function seasonFromSingleRace(race: RaceInfo, today?: string): Season {
       priority: 'A',
       raceInfo: race,
       status,
+      // A single-race season's race is trivially the main goal. Multi-race
+      // composition (useSeason) overrides this when another race claims it.
+      isPrimary: true,
     }],
     blocks: [],
   }

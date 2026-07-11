@@ -17,8 +17,8 @@ import { BLOCK_STYLE } from '../utils/blockStyles'
 
 const PRIORITY_HELP: Record<RacePriority, string> = {
   A: 'A — full build + 2-week taper',
-  B: 'B — race-week mini-taper, trained through otherwise',
-  C: 'C — trained through, no taper',
+  B: 'Key race — short taper, trained through otherwise',
+  C: 'Tune-up — trained through, no taper',
 }
 
 function fmtRange(startIso: string, endIso: string): string {
@@ -30,7 +30,7 @@ function fmtRange(startIso: string, endIso: string): string {
 }
 
 export default function SeasonPanel({ seasonState }: { seasonState: UseSeasonReturn }) {
-  const { season, planResult, isMultiRace, addRace, setPriority, setIntegration, removeRace } = seasonState
+  const { season, planResult, isMultiRace, addRace, setPriority, setIntegration, setPrimary, removeRace } = seasonState
   const [adding, setAdding] = useState(false)
   const [name, setName] = useState('')
   const [date, setDate] = useState('')
@@ -205,24 +205,36 @@ export default function SeasonPanel({ seasonState }: { seasonState: UseSeasonRet
 
       {isMultiRace && (
         <>
-          {/* Race list with A/B/C priority control */}
+          {/* Race list: main-goal star + role control. The main goal is
+              always a full build; other races pick Key race / Tune-up. */}
           <div className="mt-2 space-y-1.5">
             {season.races.map((r, idx) => (
               <div key={r.id} className="flex items-center gap-2 text-sm">
-                <div className="flex gap-0.5" role="radiogroup" aria-label={`${r.raceInfo.name} priority`}>
-                  {(['A', 'B', 'C'] as const).map(p => (
-                    <button key={p}
-                      role="radio" aria-checked={r.priority === p}
-                      onClick={() => setPriority(r.id, p)}
-                      title={PRIORITY_HELP[p]}
-                      className={`w-6 h-6 rounded text-[11px] font-bold border ${
-                        r.priority === p
-                          ? 'bg-slate-800 text-white border-slate-800'
-                          : 'text-slate-400 border-slate-200'
-                      }`}
-                    >{p}</button>
-                  ))}
-                </div>
+                <button
+                  onClick={() => { if (!r.isPrimary) setPrimary(r.id) }}
+                  aria-pressed={!!r.isPrimary}
+                  aria-label={r.isPrimary ? `${r.raceInfo.name} is your main goal` : `Make ${r.raceInfo.name} your main goal`}
+                  title={r.isPrimary ? 'Your main goal — full build + taper' : 'Make this your main goal'}
+                  className={`w-6 h-6 rounded text-[13px] border ${
+                    r.isPrimary ? 'bg-teal-600 text-white border-teal-600' : 'text-slate-300 border-slate-200 hover:text-teal-500'
+                  }`}
+                >★</button>
+                {!r.isPrimary && (
+                  <div className="flex gap-0.5" role="radiogroup" aria-label={`${r.raceInfo.name} role`}>
+                    {(['B', 'C'] as const).map(p => (
+                      <button key={p}
+                        role="radio" aria-checked={r.priority === p}
+                        onClick={() => setPriority(r.id, p)}
+                        title={PRIORITY_HELP[p]}
+                        className={`w-6 h-6 rounded text-[11px] font-bold border ${
+                          r.priority === p
+                            ? 'bg-slate-800 text-white border-slate-800'
+                            : 'text-slate-400 border-slate-200'
+                        }`}
+                      >{p === 'B' ? 'K' : 'T'}</button>
+                    ))}
+                  </div>
+                )}
                 <span className="font-medium text-slate-700 dark:text-slate-200 truncate">{r.raceInfo.name}</span>
                 <span className="text-xs text-slate-400 ml-auto shrink-0">
                   {raceDateToIso(r.raceInfo.date) ?? r.raceInfo.date}
@@ -233,6 +245,10 @@ export default function SeasonPanel({ seasonState }: { seasonState: UseSeasonRet
                 )}
               </div>
             ))}
+            <p className="text-[11px] text-slate-400">
+              ★ main goal (full build + taper) · K key race (short taper) · T tune-up (train through).
+              Starring a race makes the old main goal a key race.
+            </p>
           </div>
 
           {/* Derived block timeline */}

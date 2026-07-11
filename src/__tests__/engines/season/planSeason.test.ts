@@ -255,3 +255,47 @@ describe('date-sanity window (the frozen-tab guard)', () => {
     expect(weeks.flatMap(w => w.days).length).toBeLessThanOrEqual(800)
   })
 })
+
+describe('primary-race prioritization (the explicit "main goal" answer)', () => {
+  const season = (primaryId?: string): SeasonRace[] => [
+    { ...sr('half', 'A', { name: 'Summer Half', date: '2026-08-02' }), isPrimary: primaryId === 'half' },
+    { ...sr('marathon', 'A', { name: 'Fall Marathon', date: '2026-12-06', distance: 'Marathon', distanceMiles: 26.2 }), isPrimary: primaryId === 'marathon' },
+  ]
+
+  it('the primary race gets the full 14-day taper', () => {
+    const { season: s } = planSeason(season('marathon'), TODAY)
+    const taper = s.blocks.find(b => b.kind === 'TAPER' && b.raceId === 'marathon')!
+    const race = s.blocks.find(b => b.kind === 'RACE' && b.raceId === 'marathon')!
+    const days = Math.round((Date.parse(`${race.startDate}T12:00:00`) - Date.parse(`${taper.startDate}T12:00:00`)) / 86_400_000)
+    expect(days).toBe(TAPER_DAYS.A)
+  })
+
+  it('a non-primary A race is capped at effective B (7-day taper) — the stepping stone', () => {
+    const { season: s } = planSeason(season('marathon'), TODAY)
+    const taper = s.blocks.find(b => b.kind === 'TAPER' && b.raceId === 'half')!
+    const race = s.blocks.find(b => b.kind === 'RACE' && b.raceId === 'half')!
+    const days = Math.round((Date.parse(`${race.startDate}T12:00:00`) - Date.parse(`${taper.startDate}T12:00:00`)) / 86_400_000)
+    expect(days).toBe(TAPER_DAYS.B)
+  })
+
+  it('an explicit C stays a tune-up under a primary', () => {
+    const races: SeasonRace[] = [
+      { ...sr('half', 'A', { name: 'Summer Half', date: '2026-08-02' }), isPrimary: true },
+      { ...sr('trot', 'C', { name: 'Turkey Trot', date: '2026-11-26', distanceMiles: 3.1 }) },
+    ]
+    const { season: s } = planSeason(races, TODAY)
+    // C = trained through: RACE stamp only, no taper of its own.
+    expect(s.blocks.some(b => b.kind === 'TAPER' && b.raceId === 'trot')).toBe(false)
+  })
+
+  it('LEGACY: zero primaries anywhere leaves priorities at face value (two full A tapers)', () => {
+    const races = season(undefined).map(r => ({ ...r, isPrimary: undefined }))
+    const { season: s } = planSeason(races, TODAY)
+    for (const id of ['half', 'marathon']) {
+      const taper = s.blocks.find(b => b.kind === 'TAPER' && b.raceId === id)!
+      const race = s.blocks.find(b => b.kind === 'RACE' && b.raceId === id)!
+      const days = Math.round((Date.parse(`${race.startDate}T12:00:00`) - Date.parse(`${taper.startDate}T12:00:00`)) / 86_400_000)
+      expect(days, id).toBe(TAPER_DAYS.A)
+    }
+  })
+})

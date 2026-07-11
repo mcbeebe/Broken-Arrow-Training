@@ -93,15 +93,31 @@ export function isHyroxRace(race: SeasonRace): boolean {
 const MAX_PAST_DAYS = 730
 const MAX_FUTURE_DAYS = 1100
 
+/** Prioritize-within-the-chain (the explicit "main goal" answer): the
+ *  primary race is always a full 'A' (14-day taper, full build); when
+ *  exactly one primary exists, every OTHER race caps at 'B' — a stepping
+ *  stone with a mini-taper. An explicit 'C' (train through) stays 'C'.
+ *  No primary anywhere (legacy stored data) = priorities at face value. */
+function effectivePriority(race: SeasonRace, hasPrimary: boolean): SeasonRace['priority'] {
+  if (!hasPrimary) return race.priority
+  if (race.isPrimary) return 'A'
+  return race.priority === 'C' ? 'C' : 'B'
+}
+
 export function planSeason(
   races: SeasonRace[],
   today: string,
 ): SeasonPlanResult {
   const advisories: PlanAdvisory[] = []
+  const hasPrimary = races.filter(r => r.isPrimary).length === 1
+  const effRaces = races.map(r => {
+    const eff = effectivePriority(r, hasPrimary)
+    return eff === r.priority ? r : { ...r, priority: eff }
+  })
 
   // ── Resolve, sort, and classify the calendar ────────────────────
   const dated: DatedRace[] = []
-  for (const race of sortedSeasonRaces({ races, blocks: [] })) {
+  for (const race of sortedSeasonRaces({ races: effRaces, blocks: [] })) {
     const iso = raceDateToIso(race.raceInfo.date)
     if (!iso) {
       advisories.push({
