@@ -1443,45 +1443,86 @@ describe('redo with previousConfig', () => {
     equipmentAccess: ['track', 'gym'], strengthDaysPerWeek: 1,
     strengthExperience: 'some', crossTrainingDaysPerWeek: 0,
     preferredTrainingTimes: ['early_am'],
+    fitnessAnchor: { type: 'race_5k', valueSeconds: 21 * 60 + 30 },
+    currentWeeklyMileage: 18,
   } as unknown as OnboardingConfig
 
-  it('skips the profile step entirely and carries the known basics into the config', () => {
+  function walkRedoToBaseline(derived?: { weeklyMileage4wk: number | null; longestRecentRunMi: number | null }) {
     const onComplete = vi.fn()
-    render(<Onboarding onComplete={onComplete} loadingDurationMs={0} previousConfig={previousConfig} />)
+    render(<Onboarding onComplete={onComplete} loadingDurationMs={0} previousConfig={previousConfig} derivedFitness={derived ?? null} />)
     fireEvent.click(screen.getByText('A specific race')); clickContinue()
     fireEvent.click(screen.getByText('Trail / Ultra')); clickContinue()
     fireEvent.change(screen.getByPlaceholderText(/Broken Arrow/), { target: { value: 'New Race' } })
     pickDistance('Marathon')
     fillRaceContext()
     clickContinue()
-    fireEvent.click(screen.getByText('Intermediate')); clickContinue()
+    // The EXPERIENCE step is skipped (carried over) — we land on BASELINE.
+    expect(screen.getByText(/Here's what we detected/i)).toBeInTheDocument()
+    return onComplete
+  }
+
+  function finishFromBaseline(onComplete: ReturnType<typeof vi.fn>) {
     fireEvent.click(screen.getByText('No injuries')); clickContinue()
     clickContinue() // preview
     fireEvent.click(screen.getByText('5 Days')); clickContinue()
     fireEvent.click(screen.getByText('Saturday')); clickContinue()
-    // Equipment / strength / times arrive prefilled — continue straight through.
-    clickContinue() // equipment (prefilled track+gym)
-    clickContinue() // strength (prefilled 1x + some experience + cross none)
-    clickContinue() // schedule (prefilled early_am)
-    // PROFILE is SKIPPED (sex male also skips menopause) → detail → wearable → review.
+    clickContinue() // equipment (prefilled)
+    clickContinue() // strength (prefilled)
+    clickContinue() // schedule (prefilled)
     expect(screen.queryByText(/tell us about yourself/i)).not.toBeInTheDocument()
-    clickContinue() // detail (pre-selected from experience)
-    clickContinue() // wearable (prefilled garmin)
+    clickContinue() // detail
+    clickContinue() // wearable
     clickFinish()
-    const cfg = onComplete.mock.calls[0][0] as OnboardingConfig
+    return onComplete.mock.calls[0][0] as OnboardingConfig
+  }
+
+  it('skips profile AND experience; the baseline confirms carried-over fitness', () => {
+    const onComplete = walkRedoToBaseline()
+    // The summary shows the previous answers in customer language.
+    expect(screen.getByText(/~18 mi\/week/)).toBeInTheDocument()
+    expect(screen.getByText(/21:30/)).toBeInTheDocument()
+    expect(screen.getByText(/From your previous setup/i)).toBeInTheDocument()
+    const cfg = finishFromBaseline(onComplete)
     expect(cfg.athleteName).toBe('Mike')
-    expect(cfg.age).toBe(42)
-    expect(cfg.sex).toBe('male')
-    expect(cfg.maxHR).toBe(178)
-    expect(cfg.wearable).toBe('garmin')
-    expect(cfg.raceName).toBe('New Race') // the race itself is fresh
+    expect(cfg.experienceLevel).toBe('intermediate') // carried, never re-asked
+    expect(cfg.currentWeeklyMileage).toBe(18)
+    expect(cfg.fitnessAnchor).toMatchObject({ type: 'race_5k', valueSeconds: 21 * 60 + 30 })
+    expect(cfg.raceName).toBe('New Race')
   })
 
-  it('GUARD: fresh onboarding (no previousConfig) still asks for basics', () => {
+  it('history-derived mileage overrides the previous answer and says where it came from', () => {
+    const onComplete = walkRedoToBaseline({ weeklyMileage4wk: 32.5, longestRecentRunMi: 10.2 })
+    expect(screen.getByText(/~32.5 mi\/week/)).toBeInTheDocument()
+    expect(screen.getByText(/long run 10.2 mi/)).toBeInTheDocument()
+    expect(screen.getByText(/last 4 weeks of logged training/i)).toBeInTheDocument()
+    const cfg = finishFromBaseline(onComplete)
+    expect(cfg.currentWeeklyMileage).toBe(32.5)
+  })
+
+  it('Adjust expands the full controls, edits stick, and experience is editable inline', () => {
+    const onComplete = walkRedoToBaseline({ weeklyMileage4wk: 32.5, longestRecentRunMi: 10.2 })
+    fireEvent.click(screen.getByText('Adjust'))
+    // Full controls now visible — change the mileage and the level.
+    const mileageInput = screen.getByPlaceholderText('e.g. 20')
+    fireEvent.change(mileageInput, { target: { value: '25' } })
+    fireEvent.click(screen.getByRole('radio', { name: 'advanced' }))
+    const cfg = finishFromBaseline(onComplete)
+    expect(cfg.currentWeeklyMileage).toBe(25)
+    expect(cfg.experienceLevel).toBe('advanced')
+  })
+
+  it('the injury question still gates the baseline step on a redo', () => {
+    walkRedoToBaseline()
+    // No injury answer → Continue is disabled.
+    const btn = screen.getByRole('button', { name: /continue/i })
+    expect(btn).toBeDisabled()
+  })
+
+  it('GUARD: fresh onboarding (no previousConfig) still asks for basics and experience', () => {
     render(<Onboarding onComplete={vi.fn()} loadingDurationMs={0} />)
     fireEvent.click(screen.getByText('A specific race')); clickContinue()
     fireEvent.click(screen.getByText('Trail / Ultra')); clickContinue()
-    // The profile step is in the visible flow (walk helpers prove it end-to-end).
     expect(screen.getByPlaceholderText(/Broken Arrow/)).toBeInTheDocument()
+    expect(screen.queryByText(/Here's what we detected/i)).not.toBeInTheDocument()
   })
 })
