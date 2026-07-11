@@ -1502,6 +1502,8 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           advisories={activePlan.advisories}
           weeks={weeks}
           race={activePlan.race}
+          season={seasonState.season}
+          primaryGoalText={onboarding.config?.athleteGoal}
           manualLog={manualLog}
           onAskCoach={handleAskCoach}
           onShareNote={shareWorkoutNote}

@@ -13,6 +13,7 @@ import { getWorkoutStyle } from '../utils/styles'
 import { isEveningPreviewWindow } from '../utils/coach'
 import Term from './TermGlossary'
 import RaceCard from './RaceCard'
+import SeasonRacesCard from './SeasonRacesCard'
 import RaceReadinessDetailModal from './RaceReadinessDetailModal'
 import { buildRaceReadinessDetail, computeRaceReadiness, type ReadinessAssignment } from '../utils/raceReadiness'
 import { formatLooksLikeLine, findBestCourseMatchForPlanned } from '../utils/workoutCourseMatch'
@@ -58,6 +59,11 @@ interface SummaryProps {
   advisories?: PlanAdvisory[]
   /** Goal race — drives the race-ready hero card in the final ~8 weeks. */
   race?: RaceInfo
+  /** The whole season — renders the multi-race overview card (countdowns,
+   *  main goal, roles). Absent/single-race = no card (RaceCard covers it). */
+  season?: import('../types').Season | null
+  /** The athlete's goal words for the main-goal race (config.athleteGoal). */
+  primaryGoalText?: string
   /** Logs / edits a completed workout. When provided, the workout detail
    *  modals opened from Summary surface a "Log / Edit workout" pill so the
    *  athlete can log what they actually did without leaving the page —
@@ -297,7 +303,7 @@ export default function Summary({
   coachSnapshot,
   riskFlags = [],
   advisories = [],
-  race,
+  race, season, primaryGoalText,
   manualLog,
   onAskCoach,
   onShareNote,
@@ -375,6 +381,7 @@ export default function Summary({
           onOpenReadiness={raceReadiness ? () => setShowRaceReadinessModal(true) : undefined}
         />
       )}
+      {season && <SeasonRacesCard season={season} primaryGoalText={primaryGoalText} />}
       {/* Honest plan-level advisories (feasibility, runway, goal-derived paces).
           Shown regardless of Garmin so the athlete keeps seeing the reality of
           their plan, not just at method selection. */}
