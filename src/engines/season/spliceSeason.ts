@@ -227,6 +227,7 @@ export function spliceSeasonWeeks(
       name: next.race.raceInfo.name,
       dateIso: next.iso,
       blockKind: block?.kind ?? 'BUILD',
+      format: next.race.raceInfo.format ?? (isHyroxRaceInfo(next.race.raceInfo) ? 'hyrox' : undefined),
     }
   }
 

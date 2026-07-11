@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from 'react'
-import type { TrainingWeek, PlannedDay, ActualWorkout, HRZone, ReadinessScore, PerformanceMetrics, CoachSnapshot, RaceInfo, DailyTRIMP } from '../types'
+import type { TrainingWeek, PlannedDay, ActualWorkout, HRZone, ReadinessScore, PerformanceMetrics, CoachSnapshot, RaceInfo, DailyTRIMP, Season } from '../types'
 import { findTrimpRecord } from '../utils/trimp'
 import type { WeekCompliance } from '../hooks/useCompliance'
 import type { InjuryStatus, StrengthExperience } from '../hooks/useOnboarding'
@@ -73,6 +73,9 @@ interface WeeklyPlanProps {
   /** G6 — per-segment pace bands + fueling checkpoints for curated courses.
    *  Null for unmatched courses (the guard: no card renders). */
   racePacing?: RacePacingPlan | null
+  /** Full season — the Race tab narrative names the main goal and this
+   *  race's role for multi-race athletes. */
+  season?: Season | null
 }
 
 
@@ -95,6 +98,7 @@ export default function WeeklyPlan({
   injuryStatus,
   strengthLevel,
   racePacing,
+  season,
 }: WeeklyPlanProps) {
   const [viewMode, setViewMode] = useState<'list' | 'calendar' | 'race'>('list')
   const [activeWeek, setActiveWeek] = useState(0)
@@ -465,6 +469,7 @@ export default function WeeklyPlan({
             weeks={weeks}
             compliance={compliance}
             perf={latestPerf}
+            season={season}
           />
 
           {/* Elevation profile */}

@@ -104,3 +104,36 @@ describe('generateHyroxPlan — Monday-anchored calendar with a real race week',
     expect(raceDays).toHaveLength(1)
   })
 })
+
+describe('station-day details name the real stations', () => {
+  // A long runway gives the plan a full build phase to inspect.
+  const plan = generateHyroxPlan(config, '2026-08-03')
+  const days = plan.weeks.flatMap(w => w.days)
+
+  it('build-phase station circuits list race-order stations plus the load prescriptions', () => {
+    const circuit = days.find(d => /^Station circuit \(\d+ stations\)$/.test(d.workout))
+    expect(circuit, 'no build-phase station circuit found').toBeDefined()
+    expect(circuit!.detail).toMatch(/SkiErg/)
+    expect(circuit!.detail).toMatch(/Sled push/)
+    expect(circuit!.detail).toMatch(/Sled pull/)
+    expect(circuit!.detail).toMatch(/Burpee broad jumps/)
+    // The personalization survives: weak-station extra work + sled note + wall-ball weight.
+    expect(circuit!.detail).toMatch(/extra set/)
+    expect(circuit!.detail).toMatch(/\(6 kg\)/)
+  })
+
+  it('long run + station finisher stays sentence-form (no " · ") so the Hyrox narrative renders', () => {
+    const finisher = days.find(d => d.workout === 'Long run + station finisher')
+    expect(finisher, 'no station-finisher long run found').toBeDefined()
+    expect(finisher!.detail).not.toContain(' · ')
+    expect(finisher!.detail).toMatch(/no break between run and stations/i)
+  })
+
+  it('peak simulation detail is fragment-form with race-order framing', () => {
+    const sim = days.find(d => /^Simulation \(\d+ stations\)$/.test(d.workout))
+    expect(sim, 'no peak simulation found').toBeDefined()
+    expect(sim!.detail).toContain(' · ')
+    expect(sim!.detail).toMatch(/race order/)
+    expect(sim!.detail).toMatch(/roxzone/i)
+  })
+})

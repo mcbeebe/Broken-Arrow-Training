@@ -1,5 +1,8 @@
-import type { RaceInfo, TrainingWeek, PerformanceMetrics } from '../types'
+import type { RaceInfo, TrainingWeek, PerformanceMetrics, Season } from '../types'
 import type { WeekCompliance } from '../hooks/useCompliance'
+import { raceDateToIso } from '../engines/season'
+import { isHyroxRaceInfo } from '../engines/season/planSeason'
+import { todayDateString } from './planDates'
 
 interface NarrativeInput {
   race: RaceInfo
@@ -8,15 +11,25 @@ interface NarrativeInput {
   weeks: TrainingWeek[]
   compliance?: WeekCompliance[]
   perf?: PerformanceMetrics | null
+  /** Full season — when the athlete has more races than the anchor, the
+   *  narrative names the main goal and frames this race's place in the
+   *  chain instead of pretending the season is one race. */
+  season?: Season | null
+  /** Injectable "today" (ISO) for deterministic tests; defaults to now. */
+  todayIso?: string
 }
 
 export function generateRaceNarrative(input: NarrativeInput): { title: string; paragraphs: string[] } {
-  const { race, weekNum, totalWeeks, weeks, compliance, perf } = input
+  const { race, weekNum, totalWeeks, weeks, compliance, perf, season, todayIso } = input
   const weeksToRace = totalWeeks - weekNum
   const paragraphs: string[] = []
 
   const phase = getPhase(weekNum, totalWeeks)
   paragraphs.push(getPhaseNarrative(phase, race, weeksToRace))
+
+  const seasonParagraph = getSeasonNarrative(season, race, todayIso ?? todayDateString())
+  if (seasonParagraph) paragraphs.push(seasonParagraph)
+
   paragraphs.push(getTrainingPurpose(phase, race, weeks, weekNum))
 
   const progressParagraph = getProgressNarrative(compliance, perf, weekNum, race)
@@ -52,9 +65,9 @@ function getPhaseNarrative(phase: Phase, race: RaceInfo, weeksToRace: number): s
 
   switch (phase) {
     case 'base':
-      return `You're in the base-building phase of your ${raceName} preparation. These early weeks are about establishing aerobic fitness and getting your body used to consistent training. The ${dist} course with ${elevation} of climbing demands a strong aerobic engine — that's what we're building right now. Don't worry about speed yet. Every easy mile is building the foundation that race day depends on.`
+      return `You're in the base-building phase of your ${raceName} preparation. These early weeks are about establishing aerobic fitness and getting your body used to consistent training. The ${dist || 'race'} course${elevation ? ` with ${elevation} of climbing` : ''} demands a strong aerobic engine — that's what we're building right now. Don't worry about speed yet. Every easy mile is building the foundation that race day depends on.`
     case 'build':
-      return `You're in the build phase with ${weeksToRace} weeks until ${raceName}. This is where the training gets race-specific — more vertical gain, longer efforts, and quality sessions that teach your body to handle sustained climbing. The course gains ${elevation} across ${dist}, so the hill work you're doing now is directly preparing your legs and lungs for race day.`
+      return `You're in the build phase with ${weeksToRace} weeks until ${raceName}. This is where the training gets race-specific — longer efforts and quality sessions that teach your body to hold race effort. ${elevation ? `The course gains ${elevation} across ${dist || 'the distance'}, so the hill work you're doing now is directly preparing your legs and lungs for race day.` : 'The long efforts and quality sessions you\'re doing now are directly preparing your legs and lungs for race day.'}`
     case 'peak':
       return `This is your peak week — the biggest training load of the plan. After this, volume drops as your body absorbs the fitness you've built. It might feel hard, and that's by design. The fatigue you feel now will convert to strength over the next two weeks. Trust the process: the hay is almost in the barn.`
     case 'taper':
@@ -62,6 +75,36 @@ function getPhaseNarrative(phase: Phase, race: RaceInfo, weeksToRace: number): s
     case 'race':
       return `This is race week. ${raceName} is here. The training is done — nothing you do this week makes you fitter, but you can absolutely hurt your race by overdoing it. Keep everything easy and short. Focus on sleep, hydration, and logistics. Your only job is to arrive at the start line rested, fueled, and ready.`
   }
+}
+
+/** Multi-race seasons: name the ★ main goal with a countdown and frame the
+ *  displayed race's role in the chain. Null for single-race athletes (or
+ *  unparseable dates) — their narrative is complete without it. */
+function getSeasonNarrative(season: Season | null | undefined, race: RaceInfo, todayIso: string): string | null {
+  if (!season) return null
+  const dated = season.races
+    .map(r => ({ r, iso: raceDateToIso(r.raceInfo.date) }))
+    .filter((x): x is { r: (typeof season.races)[number]; iso: string } => x.iso !== null)
+    .sort((a, b) => a.iso.localeCompare(b.iso))
+  if (dated.length < 2) return null
+
+  const primary = dated.find(x => x.r.isPrimary) ?? dated[dated.length - 1]
+  const primaryName = primary.r.raceInfo.name
+  const displayedIsPrimary = primaryName === race.name
+  const daysOut = Math.max(0, Math.round(
+    (Date.parse(`${primary.iso}T12:00:00`) - Date.parse(`${todayIso}T12:00:00`)) / 86_400_000,
+  ))
+  const primaryDate = new Date(`${primary.iso}T12:00:00`)
+    .toLocaleDateString(undefined, { month: 'long', day: 'numeric' })
+
+  if (displayedIsPrimary) {
+    const others = dated.filter(x => x.r.raceInfo.name !== primaryName)
+    const trainedThrough = others.filter(x => x.r.priority === 'C').length
+    return `${primaryName} is your main goal this season — ${daysOut} days out on ${primaryDate}. The other ${others.length === 1 ? 'race is a stepping stone' : `${others.length} races are stepping stones`} on the way${trainedThrough > 0 ? ', some raced on training legs by design' : ''}: each one banks fitness and race practice that this block converts into your best performance.`
+  }
+
+  const primaryIsHyrox = isHyroxRaceInfo(primary.r.raceInfo)
+  return `This block builds toward ${race.name || 'this race'}, but it's one stop in a ${dated.length}-race season. Your main goal is ${primaryName} on ${primaryDate} — ${daysOut} days out. ${race.name || 'This race'} does double duty: the aerobic engine you're building carries straight into the ${primaryName} block${primaryIsHyrox ? ' — Hyrox is 8×1km of compromised running, and that race is won on the base you\'re laying now' : ''}. After race day you'll recover briefly, then the plan pivots to ${primaryName}-specific work.`
 }
 
 function getTrainingPurpose(phase: Phase, race: RaceInfo, weeks: TrainingWeek[], weekNum: number): string {

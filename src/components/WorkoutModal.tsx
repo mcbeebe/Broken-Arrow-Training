@@ -12,7 +12,7 @@ import CoachWorkoutTakeView from './CoachWorkoutTake'
 import WorkoutDebriefPrompt from './WorkoutDebriefPrompt'
 import { useCoachInsight } from '../hooks/useCoachInsight'
 import { formatMiles, formatSeconds, formatPace, estimateRunTime } from '../utils/format'
-import { parseRoutine, calibrateGuideWeight, type ParsedExercise } from '../utils/exercises'
+import { parseRoutine, guideMatchedExercises, calibrateGuideWeight, type ParsedExercise } from '../utils/exercises'
 import { menopauseStrengthCue } from '../utils/menopause'
 import type { StrengthExperience } from '../hooks/useOnboarding'
 import { buildProgression, normalizeExerciseName, suggestNextTarget, type ExerciseProgression } from '../utils/strengthProgression'
@@ -166,10 +166,23 @@ export default function WorkoutModal({ day, weekNum, onClose, onLog, onSaveNote,
   // coaching; trail/hyrox/seed plans keep the existing race narratives.
   const { config: onboardingConfig } = useOnboarding(athleteId)
   const generalGoal = onboardingConfig?.raceType === 'general' ? onboardingConfig.generalGoal : undefined
+  // The race this day builds toward: Hyrox anchor plans declare it in
+  // config; spliced season weeks carry a seasonRace stamp. Routes coaching
+  // to race-appropriate narratives (a Hyrox card must never get another
+  // race's course copy, and vice versa).
+  const modalWeek = weeks?.find(w => w.num === weekNum)
+  const raceCtx: import('../utils/coaching').RaceCoachingContext | undefined =
+    modalWeek?.seasonRace
+      ? { name: modalWeek.seasonRace.name, format: modalWeek.seasonRace.format }
+      : onboardingConfig?.raceType === 'hyrox'
+        ? { name: onboardingConfig.raceName, format: 'hyrox' }
+        : undefined
   const baseCoaching = getCoaching(
     day,
     weekNum,
-    generalGoal ? { generalGoal, experienceLevel: onboardingConfig?.experienceLevel } : undefined,
+    generalGoal
+      ? { generalGoal, experienceLevel: onboardingConfig?.experienceLevel }
+      : raceCtx ? { race: raceCtx } : undefined,
   )
   const actual = day.actual
   const isStrength = day.type === 'strength'
@@ -211,7 +224,10 @@ export default function WorkoutModal({ day, weekNum, onClose, onLog, onSaveNote,
   // Midlife bone-loading framing for the strength day (peri/menopause/post).
   const boneCue = isStrength ? menopauseStrengthCue(onboardingConfig) : null
   const exercises = isStrength ? parseRoutine(day.detail) : []
-  const customExercises = hasCustomDetail ? parseRoutine(day.detail) : []
+  // Custom-detail (cross/station) days show guide cards only for fragments
+  // that matched a real movement — instruction fragments like "90 sec rest
+  // between stations" would otherwise render empty "No detailed guide" cards.
+  const customExercises = hasCustomDetail ? guideMatchedExercises(day.detail) : []
   // Legacy interval parsing is keyed off hard-coded patterns ("4×90 sec uphill")
   // that don't match the generator's detail strings — suppress when the
   // structured segment list is available instead.
