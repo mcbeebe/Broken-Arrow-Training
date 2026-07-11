@@ -62,6 +62,7 @@ function toWeeks(days: PlannedDay[], dates: string[], startWeekNum: number, focu
     const chunkDates = dates.slice(i, i + 7)
     weeks.push({
       num: startWeekNum + weeks.length,
+      startIso: chunkDates[0],
       dates: weekDates(chunkDates[0], chunkDates[chunkDates.length - 1]),
       miles: chunk.filter(d => d.type !== 'rest' && d.type !== 'strength').length * 3, // rough, refined by PR-7 wiring
       focus,

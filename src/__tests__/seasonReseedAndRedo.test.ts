@@ -110,3 +110,40 @@ describe('completing onboarding invalidates old-plan day customizations', () => 
     expect(JSON.parse(localStorage.getItem('ba_manual_logs_t')!)['2026-06-05'].notes).toBe('Granite Mtn with pack')
   })
 })
+
+describe('near-duplicate race hygiene (typo dedupe)', () => {
+  it('a typo variant of a stored race is REPLACED (corrected name), never duplicated', () => {
+    // Stored under the typo'd name; the redo re-captures it spelled right.
+    const first = renderHook(() => useSeason(planRace, 't',
+      [{ name: 'Tamalpais Trail Maraton', date: '2026-11-07', priority: 'A' as const }], 'gen-1'))
+    expect(first.result.current.season.races).toHaveLength(2)
+    first.unmount()
+    const second = renderHook(() => useSeason(planRace, 't',
+      [{ name: 'Tamalpais Trail Marathon', date: '2026-11-07', priority: 'B' as const }], 'gen-2'))
+    const names = second.result.current.season.races.map(r => r.raceInfo.name)
+    expect(names.filter(n => n.startsWith('Tamalpais'))).toEqual(['Tamalpais Trail Marathon'])
+    expect(second.result.current.season.races.find(r => r.raceInfo.name === 'Tamalpais Trail Marathon')!.priority).toBe('B')
+  })
+
+  it('a stored typo variant of the ANCHOR race never rides along as a second race', () => {
+    localStorage.setItem('ba_season_v1_t', JSON.stringify({
+      races: [
+        { id: 'oakland-hills-half-maraton_2026-10-24', priority: 'A', status: 'upcoming', raceInfo: { name: 'Oakland Hills Half Maraton', date: '2026-10-24', startTime: '', distance: 'Half Marathon', distanceMiles: 13.1, elevation: '', elevationRange: '', course: '', cutoff: '', landmarks: [], gear: [], nutrition: '' } },
+      ],
+      blocks: [],
+    }))
+    // The anchor is the correctly spelled race on the same date.
+    const anchor: RaceInfo = { ...planRace, name: 'Oakland Hills Half Marathon' }
+    const { result } = renderHook(() => useSeason(anchor, 't'))
+    const names = result.current.season.races.map(r => r.raceInfo.name)
+    expect(names.filter(n => n.startsWith('Oakland Hills'))).toEqual(['Oakland Hills Half Marathon'])
+  })
+
+  it('GUARD: same name on DIFFERENT dates is a legitimate series, not a duplicate', () => {
+    const { result } = renderHook(() => useSeason(planRace, 't', [
+      { name: 'Hyrox LA', date: '2026-11-07', priority: 'B' as const },
+      { name: 'Hyrox LA', date: '2027-03-06', priority: 'B' as const },
+    ], 'gen-1'))
+    expect(result.current.season.races.filter(r => r.raceInfo.name === 'Hyrox LA')).toHaveLength(2)
+  })
+})

@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react'
 import type { ActualWorkout, TrainingWeek } from '../types'
 import { stampKey } from '../utils/syncStamps'
-import { parseDayToDate } from '../utils/planDates'
+import { dayIsoInWeek, parseDayToDate } from '../utils/planDates'
 
 const STORAGE_KEY = 'ba_manual_logs'
 
@@ -71,9 +71,14 @@ export function useManualLog(athleteId: string) {
     return () => window.removeEventListener('storage', onStorage)
   }, [athleteId])
 
-  const logWorkout = useCallback((dayLabel: string, data: ActualWorkout) => {
+  // `dayIso` is the week-anchored exact date (dayIsoInWeek) when the caller
+  // has the week in hand. Labels carry no year, so without it a June-2027
+  // log would store under the legacy 2026 key and collide with last year's
+  // entry. Existing 2026-keyed data is untouched — 2026 days resolve to the
+  // same key either way.
+  const logWorkout = useCallback((dayLabel: string, data: ActualWorkout, dayIso?: string | null) => {
     setLogs(prev => {
-      const next = { ...prev, [manualLogKey(dayLabel)]: data }
+      const next = { ...prev, [dayIso ?? manualLogKey(dayLabel)]: data }
       saveLogs(athleteId, next)
       return next
     })
@@ -83,9 +88,14 @@ export function useManualLog(athleteId: string) {
     return weeks.map(week => ({
       ...week,
       days: week.days.map(day => {
-        // ISO-date lookup first (survives plan rebuilds), label fallback
-        // for anything the migration couldn't parse.
-        const logged = logs[manualLogKey(day.day)] ?? logs[day.day]
+        // Exact week-anchored date first (immune to the cross-year key
+        // collision — a 2026-keyed log must NOT attach to the same M/D in
+        // 2027), legacy key chain for weeks without startIso, raw label
+        // last for anything the migration couldn't parse.
+        const iso = dayIsoInWeek(day.day, week)
+        const logged = week.startIso
+          ? (iso ? logs[iso] : undefined) ?? logs[day.day]
+          : logs[manualLogKey(day.day)] ?? logs[day.day]
         if (!logged) return day
         // Merge: preserve Garmin biometrics (garminId, source, epoc, TE, HR
         // zones) from the existing actual, layer manual edits on top

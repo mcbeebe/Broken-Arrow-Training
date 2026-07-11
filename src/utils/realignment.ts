@@ -1,5 +1,5 @@
 import type { TrainingWeek, WorkoutType } from '../types'
-import { parseDayToDate } from './planDates'
+import { dayIsoInWeek } from './planDates'
 
 /**
  * Realignment detection (G4 — docs/gap-closure-build-plan.md §3).
@@ -66,7 +66,7 @@ export function assessRealignment(
     for (const day of week.days) {
       if (!MISSABLE_TYPES.has(day.type)) continue
       if (day.actual) continue
-      const isoDate = parseDayToDate(day.day, week.dates, todayIso)
+      const isoDate = dayIsoInWeek(day.day, week, todayIso)
       if (!isoDate || isoDate >= todayIso || isoDate < windowStart) continue
       missed.push({
         isoDate,

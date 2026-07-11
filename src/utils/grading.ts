@@ -56,14 +56,17 @@ const REST_TYPES = new Set(['rest', 'travel'])
  * Calculate a letter grade for a workout based on completion and execution quality.
  * Uses existing palette: emerald/teal (A's), amber (B/C), rose/red (D), slate (N/A).
  */
-export function calculateGrade(day: PlannedDay): GradeResult | null {
+export function calculateGrade(day: PlannedDay, dayIso?: string): GradeResult | null {
   // Rest/travel/limited days don't get graded
   if (REST_TYPES.has(day.type)) return null
 
   const actual = day.actual
   if (!actual) {
-    // Check if day is in the past — if so, it was skipped (N/A)
-    const dayDate = parseDayDate(day.day)
+    // Check if day is in the past — if so, it was skipped (N/A).
+    // Callers with the week in hand pass the exact `dayIso` (labels carry
+    // no year; the legacy parser guesses 2026 and marked NEXT YEAR's days
+    // "Skipped" in a season spanning a year boundary).
+    const dayDate = dayIso ?? parseDayDate(day.day)
     if (dayDate && dayDate < todayStr()) {
       return {
         grade: 'N/A',

@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import type { TrainingWeek, PlannedDay, DayCompliance, ComplianceGrade } from '../types'
+import { dayIsoInWeek } from '../utils/planDates'
 import { getMilesNumber } from '../utils/format'
 import { parsePlannedTargets } from '../utils/targets'
 import { HR_ZONE_TOLERANCE_BPM } from '../utils/zones'
@@ -83,11 +84,15 @@ function computeCompliance(weeks: TrainingWeek[]): OverallCompliance {
 
     for (const day of week.days) {
       const targets = parsePlannedTargets(day)
+      // Week-anchored: labels carry no year, and the legacy 2026-hardcoded
+      // parse marked next year's days "missed" in a season spanning a
+      // year boundary.
+      const dayIso = dayIsoInWeek(day.day, week)
 
       if (REST_TYPES.has(day.type)) {
         restDays++
         // Rest/travel/limited: minimal compliance row, for display only
-        dayComplianceList.push(buildRestDayCompliance(day, targets))
+        dayComplianceList.push(buildRestDayCompliance(day, targets, dayIso))
         continue
       }
 
@@ -105,7 +110,7 @@ function computeCompliance(weeks: TrainingWeek[]): OverallCompliance {
         actualElevation += day.actual.elevationGain
         actualDuration += (day.actual.movingTime ?? 0) / 60
 
-        const rec = gradeWorkoutDay(day, targets)
+        const rec = gradeWorkoutDay(day, targets, dayIso)
         dayComplianceList.push(rec)
 
         if (rec.distancePct !== undefined) distancePcts.push(rec.distancePct)
@@ -117,13 +122,12 @@ function computeCompliance(weeks: TrainingWeek[]): OverallCompliance {
         if (rec.flagged) flaggedCount++
       } else {
         // Only count as missed if the day is in the past
-        const dayDate = parseDayDate(day.day)
-        const isPast = dayDate !== null && dayDate < todayStr()
+        const isPast = dayIso !== null && dayIso < todayStr()
         if (isPast) {
           missed++
-          dayComplianceList.push(buildSkippedDayCompliance(day, targets))
+          dayComplianceList.push(buildSkippedDayCompliance(day, targets, dayIso))
         } else {
-          dayComplianceList.push(buildUpcomingDayCompliance(day, targets))
+          dayComplianceList.push(buildUpcomingDayCompliance(day, targets, dayIso))
         }
       }
     }
@@ -209,9 +213,9 @@ function computeCompliance(weeks: TrainingWeek[]): OverallCompliance {
 
 // ─── Per-day grading ────────────────────────────────────────────
 
-export function gradeWorkoutDay(day: PlannedDay, targets: ReturnType<typeof parsePlannedTargets>): DayCompliance {
+export function gradeWorkoutDay(day: PlannedDay, targets: ReturnType<typeof parsePlannedTargets>, dayIso?: string | null): DayCompliance {
   const actual = day.actual!
-  const dayDate = parseDayDate(day.day) || ''
+  const dayDate = dayIso ?? parseDayDate(day.day) ?? ''
   const flagReasons: string[] = []
 
   // Distance
@@ -512,9 +516,9 @@ export function computeHRTimeInZone(
 
 // ─── Builders for non-completed days ────────────────────────────
 
-function buildRestDayCompliance(day: PlannedDay, targets: ReturnType<typeof parsePlannedTargets>): DayCompliance {
+function buildRestDayCompliance(day: PlannedDay, targets: ReturnType<typeof parsePlannedTargets>, dayIso?: string | null): DayCompliance {
   return {
-    date: parseDayDate(day.day) || '',
+    date: dayIso ?? parseDayDate(day.day) ?? '',
     day: day.day,
     workoutType: day.type,
     hasActual: !!day.actual,
@@ -531,10 +535,10 @@ function buildRestDayCompliance(day: PlannedDay, targets: ReturnType<typeof pars
   }
 }
 
-function buildSkippedDayCompliance(day: PlannedDay, targets: ReturnType<typeof parsePlannedTargets>): DayCompliance {
+function buildSkippedDayCompliance(day: PlannedDay, targets: ReturnType<typeof parsePlannedTargets>, dayIso?: string | null): DayCompliance {
   const drillsPlanned = (targets.drillItems?.length ?? 0) > 0
   return {
-    date: parseDayDate(day.day) || '',
+    date: dayIso ?? parseDayDate(day.day) ?? '',
     day: day.day,
     workoutType: day.type,
     hasActual: false,
@@ -551,9 +555,9 @@ function buildSkippedDayCompliance(day: PlannedDay, targets: ReturnType<typeof p
   }
 }
 
-function buildUpcomingDayCompliance(day: PlannedDay, targets: ReturnType<typeof parsePlannedTargets>): DayCompliance {
+function buildUpcomingDayCompliance(day: PlannedDay, targets: ReturnType<typeof parsePlannedTargets>, dayIso?: string | null): DayCompliance {
   return {
-    date: parseDayDate(day.day) || '',
+    date: dayIso ?? parseDayDate(day.day) ?? '',
     day: day.day,
     workoutType: day.type,
     hasActual: false,

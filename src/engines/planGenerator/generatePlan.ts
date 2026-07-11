@@ -706,6 +706,23 @@ export function generatePlanFromMethod(
     for (const daySched of weekSchedule) {
       const dayOffset = (daySched.dayOfWeek - 1)  // dayOfWeek 1..7 → Mon..Sun
       const date = addDays(weekStart, dayOffset)
+      // Race day is hard-stamped, never resolved. The picker substitutes a
+      // race_pace slot away when the method's race workout doesn't clear the
+      // athlete's level/mileage gates (field bug: the anchor race day read
+      // "Easy · Substituted higdon_easy_run"). Mirrors the Hyrox generator's
+      // guaranteed card.
+      if (isFinalWeek && daySched.category === 'race_pace') {
+        days.push({
+          day: formatDayLabel(date),
+          type: 'race',
+          workout: `RACE DAY — ${config.raceName || raceForVert.name || 'Race'}`,
+          detail: 'Race day. Nothing new — rehearsed gear, fueling, and pacing only. Start controlled and run your plan.',
+          zone: '—',
+          route: config.raceName || 'Race venue',
+          time: '—',
+        })
+        continue
+      }
       const picked = pickWorkoutForDay(method, daySched, methodExp, weekMi.totalMi)
       const built = picked
         ? buildPlannedDay(date, daySched, weekPaces, weekMi, picked.workout,
@@ -776,6 +793,7 @@ export function generatePlanFromMethod(
       : 6
     weeks.push({
       num: w + 1,
+      startIso: weekStart,
       dates: `${formatDayLabel(weekStart)} – ${formatDayLabel(addDays(weekStart, weekEndOffset))}`,
       miles: weekMi.totalMi,
       focus: weekMi.isTaper

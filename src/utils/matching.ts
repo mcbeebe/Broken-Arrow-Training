@@ -1,6 +1,7 @@
 import type { StravaActivity, TrainingWeek, ActualWorkout, PlannedDay, WorkoutType, GarminActivityDetail } from '../types'
 import { garminDetailToActual } from './garmin'
 import type { AppleActivity } from './apple'
+import { dayIsoInWeek } from './planDates'
 
 /**
  * Match Strava activities to planned workout days by date and type.
@@ -22,7 +23,7 @@ export function matchActivitiesToPlan(
   return weeks.map(week => ({
     ...week,
     days: week.days.map(day => {
-      const dayDate = parseDayDate(day.day)
+      const dayDate = dayIsoInWeek(day.day, week)
       if (!dayDate) return day
 
       const dayActivities = byDate.get(dayDate)
@@ -34,18 +35,6 @@ export function matchActivitiesToPlan(
       return { ...day, actual: stravaToActual(bestMatch) }
     }),
   }))
-}
-
-/**
- * Parse "Mon 4/13" style day label into "2026-04-13" ISO date.
- * Assumes 2026 training year.
- */
-function parseDayDate(dayLabel: string): string | null {
-  const match = dayLabel.match(/(\d+)\/(\d+)/)
-  if (!match) return null
-  const month = parseInt(match[1], 10)
-  const date = parseInt(match[2], 10)
-  return `2026-${String(month).padStart(2, '0')}-${String(date).padStart(2, '0')}`
 }
 
 /**
@@ -155,7 +144,7 @@ export function mergeGarminDetailIntoWeeks(
   return weeks.map(week => ({
     ...week,
     days: week.days.map(day => {
-      const dayDate = parseDayDate(day.day)
+      const dayDate = dayIsoInWeek(day.day, week)
       if (!dayDate) return day
 
       const allDetails = detailsByDate[dayDate]
@@ -277,7 +266,7 @@ export function mergeAppleActivitiesIntoWeeks(
     ...week,
     days: week.days.map(day => {
       if (day.actual) return day  // Strava/Garmin/manual already populated this day
-      const dayDate = parseDayDate(day.day)
+      const dayDate = dayIsoInWeek(day.day, week)
       if (!dayDate) return day
       const dayActivities = byDate.get(dayDate)
       if (!dayActivities || dayActivities.length === 0) return day

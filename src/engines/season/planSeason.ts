@@ -5,7 +5,7 @@ import type {
   SeasonRace,
 } from '../../types'
 import { postRaceRecovery } from '../../utils/recovery'
-import { raceDateToIso, sortedSeasonRaces } from './index'
+import { isNearDuplicateRace, raceDateToIso, sortedSeasonRaces } from './index'
 import {
   BRIDGE_MAX_DAYS,
   BRIDGE_MIN_DAYS,
@@ -125,6 +125,30 @@ export function planSeason(
       continue
     }
     if (race.status === 'skipped') continue
+    // Defense in depth against the same race typed twice (typo'd name,
+    // same date) — a duplicate would chain its own build over the real
+    // one's. Storage-side dedupe (useSeason) heals the data; this guard
+    // keeps a synced-in duplicate from ever reaching block construction.
+    // Higher priority (A<B<C) wins; ties keep the first (earlier-stored).
+    const dupIdx = dated.findIndex(d => isNearDuplicateRace(
+      { name: d.race.raceInfo.name, date: d.race.raceInfo.date },
+      { name: race.raceInfo.name, date: race.raceInfo.date },
+    ))
+    if (dupIdx >= 0) {
+      const kept = dated[dupIdx].race.priority <= race.priority ? dated[dupIdx].race : race
+      const dropped = kept === race ? dated[dupIdx].race : race
+      if (kept !== dated[dupIdx].race) {
+        dated[dupIdx] = { race: kept, iso, chains: kept.priority !== 'C' }
+      }
+      advisories.push({
+        id: `season_duplicate_race_${dropped.id}`,
+        severity: 'info',
+        title: 'Duplicate race merged',
+        detail: `"${dropped.raceInfo.name}" and "${kept.raceInfo.name}" share the same date and look like the same race — the season plans it once.`,
+        suggestion: 'Remove or rename one on the Season panel if they really are different events.',
+      })
+      continue
+    }
     dated.push({ race, iso, chains: race.priority !== 'C' })
   }
 

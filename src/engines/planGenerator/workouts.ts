@@ -131,12 +131,17 @@ export function pickWorkoutForDay(
   }
 
   // Fallback: try to find any workout matching the day's category that the
-  // user is allowed to run, else any easy-run substitute.
-  const fallback = method.workouts.find(w => {
+  // user is allowed to run, else any easy-run substitute. Two passes — a
+  // same-category match must WIN over an easy run that merely appears
+  // earlier in the method's workout array (a single find let higdon's
+  // race_pace day resolve to "Easy" purely by ordering).
+  const allowed = (w: Workout) => {
     const minExpOk = !w.minimumExperience || expRank(w.minimumExperience) <= userRank
     const baseMiOk = !w.requiresBaseMileage || currentWeekMileage >= w.requiresBaseMileage
-    return minExpOk && baseMiOk && (w.category === day.category || w.category === 'easy')
-  })
+    return minExpOk && baseMiOk
+  }
+  const fallback = method.workouts.find(w => allowed(w) && w.category === day.category)
+    ?? method.workouts.find(w => allowed(w) && w.category === 'easy')
   if (fallback) {
     return {
       workout: fallback,

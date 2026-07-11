@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { RaceInfo, RacePriority, Season, SeasonRace } from '../types'
 import {
   SEASON_STORAGE_KEY,
+  isNearDuplicateRace,
   parseSeason,
   seasonFromSingleRace,
   seasonRaceId,
@@ -112,6 +113,24 @@ export function useSeason(
           } : r)
           continue
         }
+        // Same date + near-identical name = the same race typed with a typo
+        // ("Maraton" → "Marathon"): REPLACE the stored entry (corrected name,
+        // fresh id, adopted answers) instead of duplicating it — a duplicate
+        // chains its own build and corrupts the whole season timeline.
+        const nearDup = races.find(r => isNearDuplicateRace(
+          { name: r.raceInfo.name, date: r.raceInfo.date },
+          { name: s.name, date: s.date },
+        ))
+        if (nearDup) {
+          races = races.map(r => r.id === nearDup.id ? {
+            ...r,
+            id,
+            priority: s.priority,
+            integration: s.integration ?? r.integration,
+            raceInfo: { ...r.raceInfo, ...raceInfo, description: s.description ?? r.raceInfo.description },
+          } : r)
+          continue
+        }
         additions.push({ id, priority: s.priority, raceInfo, status: 'upcoming', integration: s.integration })
       }
       if (additions.length > 0 || races !== current.races) {
@@ -140,7 +159,13 @@ export function useSeason(
     const base = seasonFromSingleRace(activeRace, todayDateString())
     if (!stored || stored.races.length === 0) return base
     const anchorId = base.races[0].id
-    const extras = stored.races.filter(r => r.id !== anchorId)
+    // Near-dup guard alongside the exact-id filter: a stored race that is
+    // the anchor with a typo'd name must not ride along as a second race.
+    const extras = stored.races.filter(r => r.id !== anchorId &&
+      !isNearDuplicateRace(
+        { name: r.raceInfo.name, date: r.raceInfo.date },
+        { name: activeRace.name, date: activeRace.date },
+      ))
     // Preserve a stored priority override for the anchor race.
     const anchorStored = stored.races.find(r => r.id === anchorId)
     const anchor = anchorStored ? { ...base.races[0], priority: anchorStored.priority } : base.races[0]

@@ -17,6 +17,7 @@ import type {
   GarminActivity,
   TrainingPlan,
 } from '../types'
+import { dayIsoInWeek } from './planDates'
 import type { OverallCompliance } from '../hooks/useCompliance'
 import type { SorenessLevel } from '../hooks/useSoreness'
 import type { TrainingMethod } from '../types/training-method'
@@ -107,7 +108,10 @@ function daysAgoISO(n: number): string {
 /** Parse "Mon 4/15" into an ISO date using the plan start year so we
  *  can compare against today / ranges. Returns null if the label
  *  doesn't contain an M/D pair. */
-export function dayLabelToISO(label: string, planStartDate: string): string | null {
+export function dayLabelToISO(label: string, planStartDate: string, week?: { startIso?: string }): string | null {
+  // Exact when the week carries its real start date (labels have no year);
+  // the plan-start-year heuristic below stays as the legacy fallback.
+  if (week?.startIso) return dayIsoInWeek(label, week)
   const m = label.match(/(\d{1,2})\/(\d{1,2})/)
   if (!m) return null
   const month = parseInt(m[1], 10)
@@ -394,7 +398,7 @@ export function buildCoachSnapshot(inputs: Inputs): CoachSnapshot {
   const plannedUpcoming: PlannedDay[] = []
   for (const w of weeks) {
     for (const d of w.days) {
-      const iso = dayLabelToISO(d.day, planStartDate)
+      const iso = dayLabelToISO(d.day, planStartDate, w)
       if (!iso) continue
       if (iso >= today && iso <= ahead14) {
         plannedUpcoming.push(d)
@@ -411,7 +415,7 @@ export function buildCoachSnapshot(inputs: Inputs): CoachSnapshot {
   const fullPlan: NonNullable<CoachSnapshot['fullPlan']> = {
     weeks: weeks.map(w => ({ num: w.num, dates: w.dates, miles: w.miles, focus: w.focus })),
     days: weeks.flatMap(w => w.days.map((d, i) => ({
-      ...compactPlannedDay(d, dayLabelToISO(d.day, planStartDate) ?? undefined),
+      ...compactPlannedDay(d, dayLabelToISO(d.day, planStartDate, w) ?? undefined),
       weekNum: w.num,
       dayIndex: i,
     }))),
@@ -427,7 +431,7 @@ export function buildCoachSnapshot(inputs: Inputs): CoachSnapshot {
   const findCoord = (iso: string): { weekNum: number; dayIndex: number; dayLabel: string } | null => {
     for (const w of weeks) {
       for (let i = 0; i < w.days.length; i++) {
-        if (dayLabelToISO(w.days[i].day, planStartDate) === iso) {
+        if (dayLabelToISO(w.days[i].day, planStartDate, w) === iso) {
           return { weekNum: w.num, dayIndex: i, dayLabel: w.days[i].day }
         }
       }
