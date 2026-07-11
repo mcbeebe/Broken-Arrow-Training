@@ -214,3 +214,44 @@ describe('block week generation — RECOVER and BRIDGE content', () => {
     expect(bridgeEmphasis(false).holdDose).toContain('Bickel')
   })
 })
+
+describe('date-sanity window (the frozen-tab guard)', () => {
+  it('a fat-fingered year is excluded with an advisory instead of generating years of blocks', () => {
+    const { season, advisories } = planSeason([
+      sr('half', 'A', { name: 'Summer Half', date: '2026-08-02' }),
+      // Typo'd year — parseable, absurd. Pre-guard this produced a BUILD
+      // block spanning a decade and froze the tab in the day walkers.
+      sr('typo', 'A', { name: 'Hyrox LA', date: '2036-12-12', distance: 'Hyrox', distanceMiles: 8 }),
+    ], TODAY)
+    expect(season.blocks.every(b => b.raceId !== 'typo')).toBe(true)
+    expect(advisories.some(a => a.id === 'season_date_out_of_range_typo')).toBe(true)
+  })
+
+  it('an ancient-past year is excluded the same way', () => {
+    const { season, advisories } = planSeason([
+      sr('half', 'A', { name: 'Summer Half', date: '2026-08-02' }),
+      sr('ancient', 'C', { name: 'Turkey Trot', date: '0206-11-26' }),
+    ], TODAY)
+    expect(season.blocks.every(b => b.raceId !== 'ancient')).toBe(true)
+    expect(advisories.some(a => a.id === 'season_date_out_of_range_ancient')).toBe(true)
+  })
+
+  it('legitimate far-out races (a marathon 9 months ahead) still plan normally', () => {
+    const { season, advisories } = planSeason([
+      sr('half', 'A', { name: 'Summer Half', date: '2026-08-02' }),
+      sr('cim', 'A', { name: 'CIM Marathon', date: '2027-04-11', distance: 'Marathon', distanceMiles: 26.2 }),
+    ], TODAY)
+    expect(season.blocks.some(b => b.raceId === 'cim' && b.kind === 'RACE')).toBe(true)
+    expect(advisories.some(a => a.id.startsWith('season_date_out_of_range'))).toBe(false)
+  })
+
+  it('GUARD: even a corrupt block reaching the day walkers truncates instead of freezing', () => {
+    const start = Date.now()
+    const weeks = bridgeWeeks({
+      id: 'bridge_corrupt', kind: 'BRIDGE' as const, raceId: 'x',
+      startDate: '2026-08-06', endDate: '2096-08-06', // 70 years
+    }, true)
+    expect(Date.now() - start).toBeLessThan(5000)
+    expect(weeks.flatMap(w => w.days).length).toBeLessThanOrEqual(800)
+  })
+})

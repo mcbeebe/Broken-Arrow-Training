@@ -41,6 +41,40 @@
         }, true)
         // Vite dispatches this when a lazy chunk's fetch fails mid-session.
         window.addEventListener('vite:preloadError', recover)
+        // A runtime crash BEFORE React mounts (module-level throw, boot
+        // exception) would otherwise leave a silent white page. Paint the
+        // error into the page so a screenshot of the failure carries the
+        // diagnosis. React's own ErrorBoundary handles post-mount crashes.
+        function paintError(msg) {
+          var root = document.getElementById('root')
+          if (!root || root.childElementCount > 0) return
+          root.innerHTML = ''
+          var box = document.createElement('div')
+          box.setAttribute('style', 'min-height:100vh;display:flex;align-items:center;justify-content:center;background:#0f172a;color:#e2e8f0;font-family:system-ui,sans-serif;padding:24px')
+          var inner = document.createElement('div')
+          inner.setAttribute('style', 'max-width:560px')
+          var h = document.createElement('h1')
+          h.setAttribute('style', 'font-size:20px;font-weight:700;margin-bottom:8px')
+          h.textContent = 'The app failed to start'
+          var p = document.createElement('p')
+          p.setAttribute('style', 'font-size:14px;color:#94a3b8;margin-bottom:16px')
+          p.textContent = 'Your training data is safe. Try reloading — if this keeps happening, send your coach a screenshot of this screen.'
+          var pre = document.createElement('pre')
+          pre.setAttribute('style', 'font-size:12px;background:#1e293b;border-radius:8px;padding:12px;white-space:pre-wrap;overflow-x:auto;margin-bottom:16px')
+          pre.textContent = String(msg).slice(0, 600)
+          var btn = document.createElement('button')
+          btn.setAttribute('style', 'background:#0ea5e9;color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:14px;font-weight:600;cursor:pointer')
+          btn.textContent = 'Reload the app'
+          btn.onclick = function () { window.location.reload() }
+          inner.appendChild(h); inner.appendChild(p); inner.appendChild(pre); inner.appendChild(btn)
+          box.appendChild(inner); root.appendChild(box)
+        }
+        window.addEventListener('error', function (e) {
+          if (e.message) paintError(e.message + (e.filename ? '\n' + e.filename + ':' + e.lineno : ''))
+        })
+        window.addEventListener('unhandledrejection', function (e) {
+          paintError('Unhandled rejection: ' + (e.reason && e.reason.message ? e.reason.message : e.reason))
+        })
         function checkMount() {
           var root = document.getElementById('root')
           if (root && root.childElementCount > 0) {
