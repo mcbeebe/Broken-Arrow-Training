@@ -64,8 +64,10 @@ describe('App boots against the field state', () => {
   it('renders the plan (never a blank screen) with the 4-race season seeded', async () => {
     seedFieldState()
     render(<App />)
-    // The app shell renders — the anchor race title is in the header.
-    expect(await screen.findByText(/Oakland Hills Half Maraton/i, {}, { timeout: 8000 })).toBeInTheDocument()
+    // The app shell renders — the anchor race title is in the header (and
+    // again in the Summary season-races card, so match all occurrences).
+    const titles = await screen.findAllByText(/Oakland Hills Half Maraton/i, {}, { timeout: 8000 })
+    expect(titles.length).toBeGreaterThanOrEqual(1)
     // The per-generation re-seed ran at boot: the stored season now
     // carries ALL FOUR races (it had two before this generation).
     const season = JSON.parse(localStorage.getItem('ba_season_v1_mike')!)
