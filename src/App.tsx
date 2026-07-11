@@ -435,11 +435,15 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
   }, [])
   const manualLog = useManualLog(athleteId)
   const journalNotes = useJournalNotes(athleteId)
-  const daySwap = useDaySwap(athleteId)
+  // Day swaps and plan edits are index-keyed against the CURRENT plan —
+  // config.completedAt is the plan's birth stamp, and both hooks prune
+  // anything older at load (June's edits must never replay onto a
+  // September rebuild, even when a sync pull resurrects them).
+  const daySwap = useDaySwap(athleteId, onboarding.config?.completedAt)
   // Season (G1b): the race calendar + derived block timeline. The plan's
   // race is always race #1 (degenerate one-race season = no season UI).
   const seasonState = useSeason(activePlan.race, athleteId, onboarding.config?.additionalRaces, onboarding.config?.completedAt)
-  const planEdits = usePlanEdits(athleteId)
+  const planEdits = usePlanEdits(athleteId, onboarding.config?.completedAt)
   const soreness = useSoreness(athleteId)
   const hrZones = useHRZones(athleteId, activePlan.zones)
   const maxHROverride = useMaxHR(athleteId, activePlan.athlete.maxHR)

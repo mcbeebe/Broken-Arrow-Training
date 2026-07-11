@@ -59,16 +59,38 @@ function migrateLegacy(athleteId?: string): PlanEdit[] {
   }
 }
 
-function readEdits(athleteId?: string): PlanEdit[] {
+/** Drop ops that predate the current plan generation. Edits are keyed by
+ *  weekNum/dayIndex against the plan that existed when they were made — an
+ *  op applied BEFORE this plan was generated cannot describe it, it can
+ *  only stamp last season's workout onto whatever now occupies that slot
+ *  (the field bug: June's "Tiger Mtn" edits scattered across a September
+ *  rebuild). Runs at every load, so a stale log resurrected by a sync
+ *  pull is re-pruned before it can ever render. No generation → no-op
+ *  (seed athletes have no onboarding stamp). */
+export function pruneStaleEdits(edits: PlanEdit[], planGeneration?: string): PlanEdit[] {
+  if (!planGeneration) return edits
+  const genMs = Date.parse(planGeneration)
+  if (!Number.isFinite(genMs)) return edits
+  return edits.filter(e => e.appliedAt >= genMs)
+}
+
+function readEdits(athleteId?: string, planGeneration?: string): PlanEdit[] {
   try {
     const raw = localStorage.getItem(scopedKey(STORAGE_KEY, athleteId))
     if (raw) {
       const parsed = JSON.parse(raw)
-      return Array.isArray(parsed) ? parsed : []
+      const all = Array.isArray(parsed) ? (parsed as PlanEdit[]) : []
+      const live = pruneStaleEdits(all, planGeneration)
+      if (live.length !== all.length) {
+        // Persist the prune (stamped) so the cleaned log wins the sync
+        // LWW and other devices stop replaying the stale ops too.
+        writeEdits(live, athleteId)
+      }
+      return live
     }
     // First run on this device with no new-format data — fold in any
     // edits the athlete made under the old single-day override system.
-    const migrated = migrateLegacy(athleteId)
+    const migrated = pruneStaleEdits(migrateLegacy(athleteId), planGeneration)
     if (migrated.length > 0) {
       localStorage.setItem(scopedKey(STORAGE_KEY, athleteId), JSON.stringify(migrated))
     }
@@ -163,12 +185,15 @@ export function replayEdits(base: TrainingWeek[], edits: PlanEdit[]): TrainingWe
   return weeks
 }
 
-export function usePlanEdits(athleteId?: string) {
-  const [edits, setEdits] = useState<PlanEdit[]>(() => readEdits(athleteId))
+/** `planGeneration` is the current plan's birth stamp (onboarding
+ *  config.completedAt) — ops older than it are pruned at load; see
+ *  pruneStaleEdits. Omit for seed athletes with no generated plan. */
+export function usePlanEdits(athleteId?: string, planGeneration?: string) {
+  const [edits, setEdits] = useState<PlanEdit[]>(() => readEdits(athleteId, planGeneration))
 
   useEffect(() => {
-    setEdits(readEdits(athleteId))
-  }, [athleteId])
+    setEdits(readEdits(athleteId, planGeneration))
+  }, [athleteId, planGeneration])
 
   // Re-read when the backend sync layer writes to our key (the sync
   // hook dispatches synthetic `storage` events after a successful pull
@@ -177,11 +202,11 @@ export function usePlanEdits(athleteId?: string) {
     const watched = scopedKey(STORAGE_KEY, athleteId)
     function onStorage(e: StorageEvent) {
       if (e.key !== watched) return
-      setEdits(readEdits(athleteId))
+      setEdits(readEdits(athleteId, planGeneration))
     }
     window.addEventListener('storage', onStorage)
     return () => window.removeEventListener('storage', onStorage)
-  }, [athleteId])
+  }, [athleteId, planGeneration])
 
   const commit = useCallback((next: PlanEdit[]) => {
     writeEdits(next, athleteId)

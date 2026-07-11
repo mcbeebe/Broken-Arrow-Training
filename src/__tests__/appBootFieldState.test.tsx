@@ -81,5 +81,12 @@ describe('App boots against the field state', () => {
     expect(season.races).toHaveLength(3)
     // And the re-captured Hyrox adopted its layered integration.
     expect(season.races.find((r: { raceInfo: { name: string } }) => r.raceInfo.name === 'Hyrox - Anaheim').integration).toBe('layered')
+    // The leftover June plan edit (appliedAt predates this plan's
+    // completedAt) is pruned at load — "Tiger Mtn 3" must not be stamped
+    // onto the regenerated calendar (the field bug: last season's custom
+    // workouts scattered across the new plan), and the pruned log is
+    // persisted so sync propagates the cleanup.
+    expect(screen.queryByText(/Tiger Mtn 3/)).toBeNull()
+    expect(JSON.parse(localStorage.getItem('ba_plan_edits_mike')!)).toHaveLength(0)
   }, 20000)
 })
