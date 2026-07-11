@@ -157,7 +157,11 @@ export function aerobicDecoupling(input: DecouplingInput): number | null {
 export function decouplingFromSplits(
   splits: { distance?: number; duration?: number; averageHR?: number; splitType?: string }[] | undefined,
 ): number | null {
-  if (!splits || splits.length < 8) return null
+  // Array.isArray, not a truthiness check: splits arrive from the SYNCED
+  // Garmin detail cache, and a cached entry holding the raw API object
+  // shape sails past `!splits` AND past `length < 8` (undefined < 8 is
+  // false) straight into `.filter` — the field white-screen of 7/11.
+  if (!Array.isArray(splits) || splits.length < 8) return null
   const active = splits.filter(s =>
     (s.distance ?? 0) > 0 && (s.duration ?? 0) > 0 && (s.averageHR ?? 0) > 0 &&
     (!s.splitType || /active/i.test(s.splitType)),
