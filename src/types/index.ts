@@ -445,6 +445,12 @@ export interface SeasonRace {
    *  starts its dedicated block after the previous race. Asked and
    *  confirmed with the athlete — never silently applied. */
   integration?: 'layered' | 'sequential';
+  /** The season's MAIN GOAL — asked explicitly at capture ("Which race is
+   *  your main goal?"). At most one race carries it. When set, planSeason
+   *  gives this race the full build + 14-day taper and caps every other
+   *  race at effective B (stepping stones). Unset everywhere = legacy
+   *  behavior, priorities taken at face value. */
+  isPrimary?: boolean;
 }
 
 /** The inter-event state machine's vocabulary:

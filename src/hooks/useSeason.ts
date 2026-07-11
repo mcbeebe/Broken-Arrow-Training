@@ -55,6 +55,9 @@ export interface UseSeasonReturn {
   /** Set/confirm how a race integrates with the anchor build ('layered'
    *  weaves sessions in now). Asked, never silently applied. */
   setIntegration: (raceId: string, integration: 'layered' | 'sequential') => void
+  /** Move the season's main goal to `raceId` — the old primary is demoted
+   *  to a key race (B). One atomic write; at most one primary ever. */
+  setPrimary: (raceId: string) => void
   removeRace: (raceId: string) => void
 }
 
@@ -64,7 +67,7 @@ export function useSeason(
   /** Races captured at onboarding (config.additionalRaces) — seeded into
    *  the calendar exactly ONCE per athlete (stamped), so removing one on
    *  the season panel is never undone by a re-seed. */
-  seedRaces?: { name: string; date: string; priority: RacePriority; distanceMiles?: number; description?: string; integration?: 'layered' | 'sequential'; format?: 'road' | 'trail' | 'hyrox' }[],
+  seedRaces?: { name: string; date: string; priority: RacePriority; distanceMiles?: number; description?: string; integration?: 'layered' | 'sequential'; format?: 'road' | 'trail' | 'hyrox'; isPrimary?: boolean }[],
   /** The config generation that produced `seedRaces` (config.completedAt).
    *  Seeding is idempotent PER GENERATION: a redo (new completedAt) seeds
    *  the newly captured races; within a generation the stamp keeps panel
@@ -109,6 +112,7 @@ export function useSeason(
             ...r,
             priority: s.priority,
             integration: s.integration ?? r.integration,
+            isPrimary: s.isPrimary ?? r.isPrimary,
             raceInfo: { ...r.raceInfo, description: s.description ?? r.raceInfo.description, format: s.format ?? r.raceInfo.format },
           } : r)
           continue
@@ -127,11 +131,12 @@ export function useSeason(
             id,
             priority: s.priority,
             integration: s.integration ?? r.integration,
+            isPrimary: s.isPrimary ?? r.isPrimary,
             raceInfo: { ...r.raceInfo, ...raceInfo, description: s.description ?? r.raceInfo.description },
           } : r)
           continue
         }
-        additions.push({ id, priority: s.priority, raceInfo, status: 'upcoming', integration: s.integration })
+        additions.push({ id, priority: s.priority, raceInfo, status: 'upcoming', integration: s.integration, isPrimary: s.isPrimary })
       }
       if (additions.length > 0 || races !== current.races) {
         const next: Season = { races: [...races, ...additions], blocks: [] }
@@ -166,9 +171,16 @@ export function useSeason(
         { name: r.raceInfo.name, date: r.raceInfo.date },
         { name: activeRace.name, date: activeRace.date },
       ))
-    // Preserve a stored priority override for the anchor race.
+    // Preserve stored overrides for the anchor race (priority, main-goal
+    // flag). Without a stored override, the anchor is the main goal only
+    // when no other race claims it — at most one primary, always.
     const anchorStored = stored.races.find(r => r.id === anchorId)
-    const anchor = anchorStored ? { ...base.races[0], priority: anchorStored.priority } : base.races[0]
+    const anchorIsPrimary = anchorStored?.isPrimary ?? !extras.some(e => e.isPrimary)
+    const anchor = {
+      ...base.races[0],
+      ...(anchorStored ? { priority: anchorStored.priority } : {}),
+      isPrimary: anchorIsPrimary,
+    }
     return { races: [anchor, ...extras], blocks: [] }
   }, [stored, activeRace])
 
@@ -203,6 +215,17 @@ export function useSeason(
     commit(season.races.map(r => (r.id === raceId ? { ...r, integration } : r)))
   }, [season, commit])
 
+  // Move the season's MAIN GOAL. One atomic write: the target gains the
+  // flag and priority 'A'; the former primary is demoted to 'B' (a key
+  // race with a short taper); everyone else just loses the flag — so no
+  // dual-primary state can ever persist or sync.
+  const setPrimary = useCallback((raceId: string) => {
+    if (!season.races.some(r => r.id === raceId)) return
+    commit(season.races.map(r => r.id === raceId
+      ? { ...r, isPrimary: true, priority: 'A' as RacePriority }
+      : { ...r, isPrimary: false, priority: r.isPrimary ? 'B' as RacePriority : r.priority }))
+  }, [season, commit])
+
   const removeRace = useCallback((raceId: string) => {
     // The anchor (plan) race can't be removed here — it IS the plan.
     if (season.races[0]?.id === raceId) return
@@ -216,6 +239,7 @@ export function useSeason(
     addRace,
     setPriority,
     setIntegration,
+    setPrimary,
     removeRace,
   }
 }

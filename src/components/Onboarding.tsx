@@ -290,6 +290,11 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
   // undefined, exactly the legacy shape.
   const [goalMode, setGoalMode] = useState<'race' | 'season' | 'general' | null>(null)
   const [seasonRaces, setSeasonRaces] = useState<SeasonRaceRow[]>([])
+  // Season mode: which race is the MAIN GOAL — the anchor (nearest race,
+  // the plan we generate first) by default, or any added row by key. Asked
+  // explicitly; drives priority mapping (primary = full build + taper,
+  // everything else a stepping stone).
+  const [primaryKey, setPrimaryKey] = useState<'anchor' | number>('anchor')
   // Season mode: ALL race kinds in the season (multi-select — a season can
   // mix trail + Hyrox). The anchor race's own kind (raceType) defaults to
   // the first selection and is adjustable on the race-name step when the
@@ -577,6 +582,9 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
         ? undefined // general fitness has no race framing (legacy shape)
         : (goalMode ?? 'race'),
       raceKinds: goalMode === 'season' && raceKinds.length > 0 ? raceKinds : undefined,
+      // Explicit main-goal answer. Undefined outside season mode (legacy
+      // shape); in season mode the anchor is the default main goal.
+      anchorIsPrimary: goalMode === 'season' ? primaryKey === 'anchor' : undefined,
       // Additional races → the season calendar. Season mode uses the
       // multi-race builder rows; race mode keeps the single optional
       // second-race capture. Half-filled entries (no name or date) are
@@ -589,7 +597,10 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
             .map(r => ({
               name: r.name.trim(),
               date: r.date,
-              priority: r.priority,
+              // The main goal is always a full 'A'; other rows carry their
+              // role chip (Key race = B, Tune-up = C).
+              priority: primaryKey === r.key ? 'A' as const : r.priority,
+              isPrimary: primaryKey === r.key || undefined,
               distanceMiles: parseFloat(r.miles) || undefined,
               description: r.description.trim() || undefined,
               // Untapped chips defer to name detection — never seed an
@@ -871,7 +882,7 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
               selected={goalMode === 'season'}
               onClick={() => chooseGoalMode('season')}
               title="A season of races"
-              desc="Two or more events. We plan the whole arc — builds, tapers, recovery, and the bridges between races."
+              desc="Two or more events. You'll pick your main goal, and we plan the whole arc around it — builds, tapers, recovery, and the bridges between races."
             />
             <OptionCard
               selected={goalMode === 'general'}
@@ -886,9 +897,48 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
         {step === STEP_SEASON_RACES && (
           <StepContainer
             title="Your season calendar"
-            subtitle={`${raceName.trim() || 'Your main race'} is race #1. Add the rest — including anything far out you're planning toward.`}
+            subtitle={`${raceName.trim() || 'Your nearest race'} starts the plan. Add the rest — including anything far out you're planning toward.`}
           >
             <div className="space-y-3">
+              {/* THE season question: which race is everything building
+                  toward? Customer language only — priorities are derived. */}
+              <div className="rounded-xl border border-slate-200 bg-white p-3 space-y-2">
+                <p className="text-sm font-semibold text-slate-700">Which race is your main goal this season?</p>
+                <p className="text-xs text-slate-500">
+                  This is the one everything builds toward — it gets the full build and
+                  a proper taper. The others become stepping stones along the way.
+                </p>
+                <div className="space-y-1.5" role="radiogroup" aria-label="Main goal race">
+                  <button
+                    type="button"
+                    role="radio"
+                    aria-checked={primaryKey === 'anchor'}
+                    onClick={() => setPrimaryKey('anchor')}
+                    className={`w-full text-left rounded-lg border px-3 py-2 text-sm font-semibold ${
+                      primaryKey === 'anchor' ? 'border-teal-500 bg-teal-50 text-teal-900' : 'border-slate-200 text-slate-600'
+                    }`}
+                  >
+                    {primaryKey === 'anchor' ? '★ ' : ''}{raceName.trim() || 'Your nearest race'}
+                    {raceDate ? <span className="font-normal text-slate-500"> · {raceDate}</span> : null}
+                  </button>
+                  {seasonRaces.filter(r => r.name.trim()).map(r => (
+                    <button
+                      key={r.key}
+                      type="button"
+                      role="radio"
+                      aria-checked={primaryKey === r.key}
+                      onClick={() => setPrimaryKey(r.key)}
+                      className={`w-full text-left rounded-lg border px-3 py-2 text-sm font-semibold ${
+                        primaryKey === r.key ? 'border-teal-500 bg-teal-50 text-teal-900' : 'border-slate-200 text-slate-600'
+                      }`}
+                    >
+                      {primaryKey === r.key ? '★ ' : ''}{r.name.trim()}
+                      {r.date ? <span className="font-normal text-slate-500"> · {r.date}</span> : null}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {seasonRaces.map((row, i) => {
                 // Explicit format wins; name detection is the fallback so a
                 // row named "Hyrox LA" still asks even before a chip tap.
@@ -898,10 +948,15 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
                 return (
                   <div key={row.key} className="rounded-xl border border-teal-200 bg-teal-50/50 p-3 space-y-2">
                     <div className="flex items-center justify-between">
-                      <p className="text-xs font-semibold text-slate-600">Race #{i + 2}</p>
+                      <p className="text-xs font-semibold text-slate-600">
+                        {primaryKey === row.key ? '★ Main goal' : `Added race ${i + 1}`}
+                      </p>
                       <button
                         type="button"
-                        onClick={() => setSeasonRaces(rs => rs.filter(r => r.key !== row.key))}
+                        onClick={() => {
+                          if (primaryKey === row.key) setPrimaryKey('anchor')
+                          setSeasonRaces(rs => rs.filter(r => r.key !== row.key))
+                        }}
                         className="text-xs text-slate-400 hover:text-rose-600"
                         aria-label={`Remove race ${i + 2}`}
                       >
@@ -948,24 +1003,29 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
                         className="w-24 px-3 py-2.5 text-base border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400"
                       />
                     </div>
-                    <div className="flex gap-1.5" role="radiogroup" aria-label={`Race ${i + 2} priority`}>
-                      {([
-                        ['A', 'A — full build + taper'],
-                        ['B', 'B — mini-taper'],
-                        ['C', 'C — train through'],
-                      ] as const).map(([p, label]) => (
-                        <button
-                          key={p}
-                          type="button"
-                          role="radio"
-                          aria-checked={row.priority === p}
-                          onClick={() => update({ priority: p })}
-                          className={`flex-1 rounded-lg border px-2 py-1.5 text-xs font-bold ${
-                            row.priority === p ? 'border-teal-500 bg-teal-100 text-teal-800' : 'border-slate-200 text-slate-500'
-                          }`}
-                        >{label}</button>
-                      ))}
-                    </div>
+                    {primaryKey === row.key ? (
+                      <p className="text-xs font-semibold text-teal-800 bg-teal-100 border border-teal-200 rounded-lg px-2.5 py-1.5">
+                        ★ Main goal — full build + taper
+                      </p>
+                    ) : (
+                      <div className="flex gap-1.5" role="radiogroup" aria-label={`Race ${i + 2} role`}>
+                        {([
+                          ['B', 'Key race — short taper'],
+                          ['C', 'Tune-up — train through'],
+                        ] as const).map(([p, label]) => (
+                          <button
+                            key={p}
+                            type="button"
+                            role="radio"
+                            aria-checked={row.priority === p}
+                            onClick={() => update({ priority: p })}
+                            className={`flex-1 rounded-lg border px-2 py-1.5 text-xs font-bold ${
+                              row.priority === p ? 'border-teal-500 bg-teal-100 text-teal-800' : 'border-slate-200 text-slate-500'
+                            }`}
+                          >{label}</button>
+                        ))}
+                      </div>
+                    )}
                     <textarea
                       value={row.description}
                       onChange={e => update({ description: e.target.value })}
@@ -1025,8 +1085,10 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
                   still on screen. */}
               {(() => {
                 const dated = [
-                  ...(raceDate ? [{ date: raceDate, priority: 'A' as const, name: raceName || 'Main race' }] : []),
-                  ...seasonRaces.filter(r => r.date).map(r => ({ date: r.date, priority: r.priority, name: r.name || 'race' })),
+                  // Effective priorities mirror the engine: the main goal is
+                  // the full 'A'; everything else is at most a key race.
+                  ...(raceDate ? [{ date: raceDate, priority: (primaryKey === 'anchor' ? 'A' : 'B') as 'A' | 'B' | 'C', name: raceName || 'First race' }] : []),
+                  ...seasonRaces.filter(r => r.date).map(r => ({ date: r.date, priority: (primaryKey === r.key ? 'A' : r.priority) as 'A' | 'B' | 'C', name: r.name || 'race' })),
                 ].sort((a, b) => a.date.localeCompare(b.date))
                 const notes: string[] = []
                 for (let i = 1; i < dated.length; i++) {
@@ -1486,6 +1548,7 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
               raceDescription={raceDescription}
               athleteGoal={athleteGoal}
               seasonRaces={goalMode === 'season' ? seasonRaces.filter(r => r.name.trim() && r.date) : []}
+              primaryKey={goalMode === 'season' ? primaryKey : 'anchor'}
               raceDistance={raceDistance}
               generalGoal={generalGoal}
               showsDistanceStep={showsDistanceStep}
@@ -1817,6 +1880,7 @@ function ReviewSummary({
   raceDescription,
   athleteGoal,
   seasonRaces,
+  primaryKey,
   raceDistance,
   generalGoal,
   showsDistanceStep,
@@ -1841,6 +1905,7 @@ function ReviewSummary({
   raceDescription: string
   athleteGoal: string
   seasonRaces: SeasonRaceRow[]
+  primaryKey: 'anchor' | number
   raceDistance: RaceDistance | null
   generalGoal: GeneralGoal | null
   showsDistanceStep: boolean
@@ -1872,7 +1937,12 @@ function ReviewSummary({
   return (
     <div className="space-y-3">
       <SummaryCard label={seasonRaces.length > 0 ? `Season · ${seasonRaces.length + 1} races` : 'Goal'}>
-        <p className="font-semibold text-slate-900">{raceName || 'Untitled plan'}</p>
+        <p className="font-semibold text-slate-900">
+          {raceName || 'Untitled plan'}
+          {seasonRaces.length > 0 && primaryKey === 'anchor' && (
+            <span className="ml-1.5 text-xs font-bold text-teal-700">★ Main goal</span>
+          )}
+        </p>
         <p className="text-sm text-slate-600">
           {raceType ? RACE_TYPE_LABELS[raceType] : '—'}
           {showsDistanceStep && raceDistance ? ` · ${DISTANCE_LABELS[raceDistance]}` : ''}
@@ -1889,9 +1959,15 @@ function ReviewSummary({
           const fmt = r.format ?? (isHyroxRaceInfo({ name: r.name, description: r.description }) ? 'hyrox' : null)
           return (
             <div key={r.key} className="mt-2 pt-2 border-t border-slate-100">
-              <p className="font-semibold text-slate-900">{r.name.trim()}</p>
+              <p className="font-semibold text-slate-900">
+                {r.name.trim()}
+                {primaryKey === r.key && (
+                  <span className="ml-1.5 text-xs font-bold text-teal-700">★ Main goal</span>
+                )}
+              </p>
               <p className="text-sm text-slate-600">
-                {fmt ? `${RACE_FORMAT_LABEL[fmt]} · ` : ''}Priority {r.priority} · {r.date}
+                {fmt ? `${RACE_FORMAT_LABEL[fmt]} · ` : ''}
+                {primaryKey === r.key ? 'Full build + taper' : r.priority === 'C' ? 'Tune-up — train through' : 'Key race — short taper'} · {r.date}
                 {fmt === 'hyrox' ? ` · ${r.integration === 'layered' ? 'training layered into your build now' : 'training starts after the previous race'}` : ''}
               </p>
               {r.description.trim() && (

@@ -54,17 +54,17 @@ describe('<SeasonPanel />', () => {
     expect(timeline.textContent).toContain('Race')
   })
 
-  it('priority is letter-encoded and editable per race', () => {
+  it('role is letter-encoded and editable per race (K key race / T tune-up)', () => {
     render(<Harness />)
     fireEvent.click(screen.getByText('+ Add another race'))
     fireEvent.change(screen.getByPlaceholderText(/Race name/), { target: { value: 'Tune-up 10K' } })
     fireEvent.change(document.querySelector('input[type="date"]')!, { target: { value: '2026-09-12' } })
     fireEvent.click(screen.getByText('Add race'))
 
-    const group = screen.getByRole('radiogroup', { name: /Tune-up 10K priority/ })
-    const cButton = Array.from(group.querySelectorAll('button')).find(b => b.textContent === 'C')!
-    fireEvent.click(cButton)
-    expect(cButton.getAttribute('aria-checked')).toBe('true')
+    const group = screen.getByRole('radiogroup', { name: /Tune-up 10K role/ })
+    const tButton = Array.from(group.querySelectorAll('button')).find(b => b.textContent === 'T')!
+    fireEvent.click(tButton)
+    expect(tButton.getAttribute('aria-checked')).toBe('true')
   })
 
   it('seeds onboarding-captured races exactly once (removal survives re-mounts)', () => {
@@ -136,5 +136,36 @@ describe('layered-integration controls', () => {
     expect(screen.queryByText(/layer into my build now/i)).toBeNull()
     fireEvent.click(screen.getByText('Add race'))
     expect(screen.queryByTestId('integration-confirm')).toBeNull()
+  })
+})
+
+describe('main-goal star control', () => {
+  function addRace(name: string, date: string) {
+    fireEvent.click(screen.getByText('+ Add another race'))
+    fireEvent.change(screen.getByPlaceholderText(/Race name/), { target: { value: name } })
+    const dateInput = document.querySelector('input[type="date"]')!
+    fireEvent.change(dateInput, { target: { value: date } })
+    fireEvent.click(screen.getByText('Add race'))
+  }
+
+  it('the anchor starts as the main goal; starring another race moves it and demotes the anchor', () => {
+    render(<Harness />)
+    addRace('Hyrox LA', '2026-10-03')
+    // Anchor holds the star.
+    expect(screen.getByLabelText('Broken Arrow 18K is your main goal')).toBeInTheDocument()
+    // Star the added race.
+    fireEvent.click(screen.getByLabelText('Make Hyrox LA your main goal'))
+    expect(screen.getByLabelText('Hyrox LA is your main goal')).toBeInTheDocument()
+    // The anchor is a key race now — its role radios render (K selected).
+    expect(screen.getByLabelText('Make Broken Arrow 18K your main goal')).toBeInTheDocument()
+    const anchorRole = screen.getByRole('radiogroup', { name: 'Broken Arrow 18K role' })
+    expect(anchorRole).toBeInTheDocument()
+  })
+
+  it('the main goal row hides the role radios (it is always the full build)', () => {
+    render(<Harness />)
+    addRace('Hyrox LA', '2026-10-03')
+    expect(screen.queryByRole('radiogroup', { name: 'Broken Arrow 18K role' })).toBeNull()
+    expect(screen.getByRole('radiogroup', { name: 'Hyrox LA role' })).toBeInTheDocument()
   })
 })

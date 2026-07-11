@@ -33,6 +33,10 @@ function daysUntilIso(iso: string): number {
 
 interface WeeklyPlanProps {
   weeks: TrainingWeek[]
+  /** The season's MAIN GOAL race (from the explicit capture). Shown as a
+   *  persistent one-liner on weeks that build toward a DIFFERENT race, so
+   *  a stepping-stone block still answers "what is all this for". */
+  primaryRace?: { name: string; dateIso: string } | null
   zones?: HRZone[]
   manualLog?: {
     logWorkout: (dayLabel: string, data: ActualWorkout, dayIso?: string | null) => void
@@ -73,7 +77,7 @@ interface WeeklyPlanProps {
 
 
 export default function WeeklyPlan({
-  weeks,
+  weeks, primaryRace,
   zones,
   manualLog,
   daySwap,
@@ -353,6 +357,12 @@ export default function WeeklyPlan({
             {week.seasonRace && (
               <p className="text-xs font-medium text-slate-600 dark:text-slate-300 mt-1">
                 → {week.seasonRace.name} · {fmtIsoShort(week.seasonRace.dateIso)} · {daysUntilIso(week.seasonRace.dateIso)} days
+              </p>
+            )}
+            {week.seasonRace && primaryRace && primaryRace.name !== week.seasonRace.name &&
+              daysUntilIso(primaryRace.dateIso) > 0 && (
+              <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">
+                Main goal: {primaryRace.name} · {daysUntilIso(primaryRace.dateIso)} days
               </p>
             )}
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{week.focus}</p>

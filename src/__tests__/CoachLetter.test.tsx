@@ -84,6 +84,27 @@ describe('CoachLetter season context', () => {
     expect(season).toContain('Turkey Trot')
     expect(season).toContain('CIM Marathon')
     expect(season).toContain('first Hyrox, finish strong') // descriptions travel too
+    // No explicit primary anywhere → the anchor is framed as the main goal.
+    expect(season).toContain('Their MAIN GOAL is MDI Half')
+  })
+
+  it('a non-anchor MAIN GOAL reframes the season around it', () => {
+    insightRef.current = { text: 'ok' }
+    const seasonConfig = {
+      ...config,
+      goalMode: 'season',
+      anchorIsPrimary: false,
+      additionalRaces: [
+        { name: 'Broken Arrow 46k', date: '2027-06-19', priority: 'A', format: 'trail', isPrimary: true },
+        { name: 'Turkey Trot', date: '2026-11-26', priority: 'C', format: 'road' },
+      ],
+    } as unknown as OnboardingConfig
+    render(<CoachLetter plan={plan} config={seasonConfig} athleteId="a1" onContinue={() => {}} />)
+    const season = String((capturedRef.current?.snapshot as { seasonContext?: string })?.seasonContext ?? '')
+    expect(season).toContain('Their MAIN GOAL is Broken Arrow 46k')
+    expect(season).toContain('THE MAIN GOAL — full build + taper')
+    expect(season).toContain('tune-up, trained through')
+    expect(season).toContain('stepping stones')
   })
 
   it('GUARD: a single-race athlete sends no season context (no phantom season)', () => {

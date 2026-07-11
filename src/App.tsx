@@ -1494,6 +1494,11 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
       {view === 'plan' && (
         <WeeklyPlan
           weeks={weeks}
+          primaryRace={(() => {
+            const p = seasonState.season.races.find(r => r.isPrimary)
+            const iso = p ? raceDateToIso(p.raceInfo.date) : null
+            return p && iso ? { name: p.raceInfo.name, dateIso: iso } : null
+          })()}
           zones={hrZones.zones}
           manualLog={manualLog}
           daySwap={wrappedDaySwap}

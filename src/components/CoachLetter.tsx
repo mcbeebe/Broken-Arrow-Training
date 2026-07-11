@@ -51,12 +51,17 @@ export default function CoachLetter({ plan, config, athleteId, onContinue }: Pro
   // The whole season, in the coach's SEASON section: an athlete who listed
   // four races must get a letter about their season, not just race #1.
   const extraRaces = config.additionalRaces ?? []
+  // The explicit main-goal answer: an added race with isPrimary, else the
+  // anchor (anchorIsPrimary undefined = legacy = anchor).
+  const primaryExtra = extraRaces.find(r => r.isPrimary)
+  const primaryName = config.anchorIsPrimary === false && primaryExtra ? primaryExtra.name : plan.race.name
   const seasonLine = extraRaces.length > 0
     ? [
         `The athlete is training for a ${extraRaces.length + 1}-race season${config.goalMode === 'season' ? ' (they chose season-mode onboarding)' : ''}.`,
-        `Race 1 (anchor — this plan): ${plan.race.name}${config.raceDate ? ` on ${config.raceDate}` : ''}${config.athleteGoal?.trim() ? ` — goal: ${config.athleteGoal.trim()}` : ''}.`,
+        `Their MAIN GOAL is ${primaryName} — the season is built around it; the other races are stepping stones the letter should frame that way.`,
+        `Race 1 (nearest — this plan): ${plan.race.name}${config.raceDate ? ` on ${config.raceDate}` : ''}${config.athleteGoal?.trim() ? ` — goal: ${config.athleteGoal.trim()}` : ''}${primaryName === plan.race.name ? ' (the main goal)' : ''}.`,
         ...extraRaces.map((r, i) =>
-          `Race ${i + 2}: ${r.name} on ${r.date} (${r.format ?? 'race'}, priority ${r.priority})` +
+          `Race ${i + 2}: ${r.name} on ${r.date} (${r.format ?? 'race'}, ${r.isPrimary ? 'THE MAIN GOAL — full build + taper' : r.priority === 'C' ? 'tune-up, trained through' : 'key race, short taper'})` +
           `${r.description?.trim() ? ` — ${r.description.trim()}` : ''}` +
           `${r.integration === 'layered' ? ' — its specific prep is LAYERED into the current build (1–2 sessions/week now, ramping after race 1)' : ' — its dedicated block starts after the previous race'}.`),
         'The season chains: build → race → recover → bridge → next build; every race gets its own race week.',

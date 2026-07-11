@@ -147,3 +147,39 @@ describe('near-duplicate race hygiene (typo dedupe)', () => {
     expect(result.current.season.races.filter(r => r.raceInfo.name === 'Hyrox LA')).toHaveLength(2)
   })
 })
+
+describe('main-goal (isPrimary) capture and movement', () => {
+  it('a seeded primary makes the anchor a stepping stone; re-seed preserves it', () => {
+    const seeds = [{ name: 'Broken Arrow 46k', date: '2027-06-19', priority: 'A' as const, isPrimary: true }]
+    const first = renderHook(() => useSeason(planRace, 't', seeds, 'gen-1'))
+    const races = first.result.current.season.races
+    expect(races.find(r => r.raceInfo.name === 'Broken Arrow 46k')?.isPrimary).toBe(true)
+    expect(races[0].isPrimary).toBe(false) // the anchor stands down
+    first.unmount()
+    // Re-mount within the generation: primary survives.
+    const second = renderHook(() => useSeason(planRace, 't', seeds, 'gen-1'))
+    expect(second.result.current.season.races.find(r => r.raceInfo.name === 'Broken Arrow 46k')?.isPrimary).toBe(true)
+  })
+
+  it('setPrimary moves the star atomically and demotes the old primary to a key race', () => {
+    const seeds = [{ name: 'Broken Arrow 46k', date: '2027-06-19', priority: 'A' as const, isPrimary: true }]
+    const { result } = renderHook(() => useSeason(planRace, 't', seeds, 'gen-1'))
+    const anchorId = result.current.season.races[0].id
+    act(() => result.current.setPrimary(anchorId))
+    const races = result.current.season.races
+    expect(races[0].isPrimary).toBe(true)
+    expect(races[0].priority).toBe('A')
+    const demoted = races.find(r => r.raceInfo.name === 'Broken Arrow 46k')!
+    expect(demoted.isPrimary).toBe(false)
+    expect(demoted.priority).toBe('B')
+    // Exactly one primary, always.
+    expect(races.filter(r => r.isPrimary)).toHaveLength(1)
+  })
+
+  it('LEGACY: a stored season with no primaries anywhere keeps the anchor as main goal', () => {
+    const { result } = renderHook(() => useSeason(planRace, 't',
+      [{ name: 'Hyrox LA', date: '2026-12-12', priority: 'B' as const }], 'gen-1'))
+    expect(result.current.season.races[0].isPrimary).toBe(true)
+    expect(result.current.season.races.filter(r => r.isPrimary)).toHaveLength(1)
+  })
+})

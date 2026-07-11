@@ -94,6 +94,10 @@ export interface AdditionalRace {
    *  Routes generation directly (no name-sniffing). Absent on legacy
    *  captures — detection falls back to name/description. */
   format?: 'road' | 'trail' | 'hyrox'
+  /** This race is the season's MAIN GOAL (the explicit "Which race is
+   *  your main goal?" answer). At most one across anchor + additions;
+   *  when set here, `anchorIsPrimary` is false. */
+  isPrimary?: boolean
 }
 
 export interface OnboardingConfig {
@@ -107,6 +111,11 @@ export interface OnboardingConfig {
    *  the race-kind step — a season can mix trail + Hyrox). `raceType`
    *  stays the ANCHOR race's kind and drives its plan generation. */
   raceKinds?: RaceType[]
+  /** Season mode: the anchor race is the season's main goal. Undefined =
+   *  true (legacy configs behave exactly as today). False only when the
+   *  athlete explicitly picked a later race as the main goal — that race
+   *  carries `isPrimary` in `additionalRaces`. */
+  anchorIsPrimary?: boolean
   // Free-text athlete narrative about the race/event/goal (terrain, elevation,
   // climate, context). Collected for ALL flows; required (10+ chars). The coach
   // reads this to tailor the plan and the welcome letter.

@@ -1275,13 +1275,45 @@ describe('season mode (multi-race builder)', () => {
     expect(cim).toMatchObject({ name: 'CIM Marathon', date: '2027-04-11', distanceMiles: 26.2, integration: 'sequential' })
   })
 
-  it('warns inline when races are too close for two full peaks', () => {
+  it('warns inline when a race lands right on top of the previous one', () => {
     walkToSeasonBuilder()
     fireEvent.click(screen.getByText('＋ Add another race'))
     fireEvent.change(screen.getByLabelText('Race 2 name'), { target: { value: 'Another Half' } })
-    fireEvent.change(screen.getByLabelText('Race 2 date'), { target: { value: '2026-11-21' } }) // 4 weeks after anchor
-    fireEvent.click(screen.getByRole('radio', { name: 'A — full build + taper' }))
-    expect(screen.getByText(/weeks apart — two full peaks usually need 8\+/i)).toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('Race 2 date'), { target: { value: '2026-10-31' } }) // 7 days after anchor
+    expect(screen.getByText(/days after .* train-through/i)).toBeInTheDocument()
+  })
+
+  it('captures the MAIN GOAL: a non-anchor primary flips anchorIsPrimary and carries isPrimary + full priority', () => {
+    const onComplete = walkToSeasonBuilder()
+    // Default: the anchor is the main goal.
+    expect(screen.getByRole('radio', { name: /Oakland Hills Half/ })).toHaveAttribute('aria-checked', 'true')
+
+    fireEvent.click(screen.getByText('＋ Add another race'))
+    fireEvent.change(screen.getByLabelText('Race 2 name'), { target: { value: 'Broken Arrow 46k' } })
+    fireEvent.change(screen.getByLabelText('Race 2 date'), { target: { value: '2027-06-19' } })
+    // The named row appears in the main-goal picker — choose it.
+    fireEvent.click(screen.getByRole('radio', { name: /Broken Arrow 46k/ }))
+    // Its row now shows the main-goal badge instead of role chips.
+    expect(screen.getByText('★ Main goal — full build + taper')).toBeInTheDocument()
+    expect(screen.queryByRole('radio', { name: 'Key race — short taper' })).not.toBeInTheDocument()
+
+    clickContinue()
+    const config = finishFromDistance(onComplete)
+    expect(config.anchorIsPrimary).toBe(false)
+    expect(config.additionalRaces![0]).toMatchObject({ name: 'Broken Arrow 46k', isPrimary: true, priority: 'A' })
+  })
+
+  it('GUARD: the untouched flow keeps the anchor as the main goal', () => {
+    const onComplete = walkToSeasonBuilder()
+    fireEvent.click(screen.getByText('＋ Add another race'))
+    fireEvent.change(screen.getByLabelText('Race 2 name'), { target: { value: 'Turkey Trot' } })
+    fireEvent.change(screen.getByLabelText('Race 2 date'), { target: { value: '2026-11-26' } })
+    fireEvent.click(screen.getByRole('radio', { name: 'Tune-up — train through' }))
+    clickContinue()
+    const config = finishFromDistance(onComplete)
+    expect(config.anchorIsPrimary).toBe(true)
+    expect(config.additionalRaces![0]).toMatchObject({ name: 'Turkey Trot', priority: 'C' })
+    expect(config.additionalRaces![0].isPrimary).toBeUndefined()
   })
 
   it('GUARD: race mode keeps the single second-race capture and no builder step', () => {
