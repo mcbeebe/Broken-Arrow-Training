@@ -484,6 +484,12 @@ export interface SeasonBlock {
 export interface Season {
   races: SeasonRace[];
   blocks: SeasonBlock[];
+  /** The onboarding generation (config.completedAt) whose captured races
+   *  this calendar reflects. Lives IN the synced blob — whole-blob
+   *  last-write-wins makes the redo's replace-seed idempotent across
+   *  devices (a device-local stamp caused each device to re-apply it).
+   *  Absent on pre-replace blobs (migration path in useSeason). */
+  seededGeneration?: string;
 }
 
 export interface TrainingPlan {

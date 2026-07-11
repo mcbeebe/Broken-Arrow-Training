@@ -7,6 +7,7 @@ import type {
   ExperienceLevel,
   WearableType,
   OnboardingConfig,
+  AdditionalRace,
   FitnessAnchorType,
   InjuryStatus,
   BiologicalSex,
@@ -18,6 +19,7 @@ import type {
 } from '../hooks/useOnboarding'
 import { DETAIL_LEVELS, type DetailLevel } from '../types'
 import { isHyroxRaceInfo } from '../engines/season/planSeason'
+import { RACE_DISTANCE_MILES, normalizeSeasonConfig } from '../utils/seasonConfig'
 import { parseTimeToSeconds } from '../utils/parseTime'
 import { sanitizeRaceTimeSeconds } from '../engines/planGenerator/vdot'
 import OnboardingPlanPreview from './OnboardingPlanPreview'
@@ -126,12 +128,6 @@ const DISTANCE_OPTIONS: ReadonlyArray<{ value: RaceDistance; label: string; desc
   { value: 'mountain_ultra', label: 'Mountain Ultra',  desc: 'Vertical-heavy, technical terrain' },
 ]
 
-/** Approx race distance in miles — used only to sanity-check a goal finish
- *  time (catch a "2:30" that means 2 h 30 m, not 2 m 30 s). */
-const RACE_DISTANCE_MILES: Record<RaceDistance, number> = {
-  '5k': 3.1, '10k': 6.2, half_marathon: 13.1, marathon: 26.2,
-  '50k': 31.1, '50_mile': 50, '100k': 62.1, '100_mile': 100, mountain_ultra: 31,
-}
 
 const ANCHOR_OPTIONS: { value: FitnessAnchorType; label: string; placeholder: string; kind: 'time' | 'bpm' | 'none' }[] = [
   { value: 'race_5k', label: 'Recent 5K time', placeholder: 'mm:ss', kind: 'time' },
@@ -161,6 +157,57 @@ interface SeasonRaceRow {
 let seasonRowKey = 0
 function newSeasonRaceRow(): SeasonRaceRow {
   return { key: ++seasonRowKey, name: '', date: '', miles: '', priority: 'B', description: '', integration: 'layered', format: null }
+}
+
+
+/** Season-mode rows (and race-mode's single extra) → AdditionalRace list.
+ *  Shared by handleComplete and the preview's provisionalConfig so both
+ *  feed the SAME season shape into normalizeSeasonConfig. */
+function assembleAdditionalRaces(args: {
+  raceType: RaceType | null
+  goalMode: 'race' | 'season' | 'general' | null
+  seasonRaces: SeasonRaceRow[]
+  primaryKey: 'anchor' | number
+  extraRaceName: string
+  extraRaceDate: string
+  extraRacePriority: 'A' | 'B' | 'C'
+  extraRaceMiles: string
+  extraRaceDescription: string
+}): AdditionalRace[] | undefined {
+  const { raceType, goalMode, seasonRaces, primaryKey } = args
+  if (raceType === 'general') return undefined
+  if (goalMode === 'season') {
+    const rows = seasonRaces
+      .filter(r => r.name.trim() && r.date)
+      .map(r => ({
+        name: r.name.trim(),
+        date: r.date,
+        // The main goal is always a full 'A'; other rows carry their
+        // role chip (Key race = B, Tune-up = C).
+        priority: primaryKey === r.key ? 'A' as const : r.priority,
+        isPrimary: primaryKey === r.key || undefined,
+        distanceMiles: parseFloat(r.miles) || undefined,
+        description: r.description.trim() || undefined,
+        // Untapped chips defer to name detection — never seed an
+        // explicit format the athlete didn't choose.
+        format: r.format ?? (isHyroxRaceInfo({ name: r.name, description: r.description }) ? 'hyrox' as const : undefined),
+        // The integration ask applies to format-specific (Hyrox)
+        // races; others run sequential (the only defined behavior).
+        integration: (r.format ? r.format === 'hyrox' : isHyroxRaceInfo({ name: r.name, description: r.description }))
+          ? r.integration
+          : 'sequential' as const,
+      }))
+    return rows.length > 0 ? rows : undefined
+  }
+  return args.extraRaceName.trim() && args.extraRaceDate
+    ? [{
+        name: args.extraRaceName.trim(),
+        date: args.extraRaceDate,
+        priority: args.extraRacePriority,
+        distanceMiles: parseFloat(args.extraRaceMiles) || undefined,
+        description: args.extraRaceDescription.trim() || undefined,
+      }]
+    : undefined
 }
 
 const RACE_FORMAT_LABEL: Record<'road' | 'trail' | 'hyrox', string> = {
@@ -500,7 +547,7 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
   // exclusively by handleComplete from the full answer set.
   const provisionalConfig: OnboardingConfig | null =
     step === STEP_PREVIEW && raceType && experience
-      ? {
+      ? normalizeSeasonConfig({
           raceType,
           raceName: raceName.trim() || 'Your race',
           raceDate,
@@ -522,8 +569,12 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
           fitnessAnchor: buildFitnessAnchor(),
           currentWeeklyMileage: weeklyMileage ? parseFloat(weeklyMileage) : undefined,
           injuryStatus: injury ?? undefined,
+          planStartDate: planStart || undefined,
+          goalMode: goalMode === 'general' || raceType === 'general' ? undefined : (goalMode ?? 'race'),
+          anchorIsPrimary: goalMode === 'season' ? primaryKey === 'anchor' : undefined,
+          additionalRaces: assembleAdditionalRaces({ raceType, goalMode, seasonRaces, primaryKey, extraRaceName, extraRaceDate, extraRacePriority, extraRaceMiles, extraRaceDescription }),
           completedAt: '',
-        }
+        })
       : null
 
   const handleComplete = () => {
@@ -589,49 +640,20 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
       // multi-race builder rows; race mode keeps the single optional
       // second-race capture. Half-filled entries (no name or date) are
       // dropped silently — they're optional.
-      additionalRaces: (() => {
-        if (raceType === 'general') return undefined
-        if (goalMode === 'season') {
-          const rows = seasonRaces
-            .filter(r => r.name.trim() && r.date)
-            .map(r => ({
-              name: r.name.trim(),
-              date: r.date,
-              // The main goal is always a full 'A'; other rows carry their
-              // role chip (Key race = B, Tune-up = C).
-              priority: primaryKey === r.key ? 'A' as const : r.priority,
-              isPrimary: primaryKey === r.key || undefined,
-              distanceMiles: parseFloat(r.miles) || undefined,
-              description: r.description.trim() || undefined,
-              // Untapped chips defer to name detection — never seed an
-              // explicit format the athlete didn't choose.
-              format: r.format ?? (isHyroxRaceInfo({ name: r.name, description: r.description }) ? 'hyrox' as const : undefined),
-              // The integration ask applies to format-specific (Hyrox)
-              // races; others run sequential (the only defined behavior).
-              integration: (r.format ? r.format === 'hyrox' : isHyroxRaceInfo({ name: r.name, description: r.description }))
-                ? r.integration
-                : 'sequential' as const,
-            }))
-          return rows.length > 0 ? rows : undefined
-        }
-        return extraRaceName.trim() && extraRaceDate
-          ? [{
-              name: extraRaceName.trim(),
-              date: extraRaceDate,
-              priority: extraRacePriority,
-              distanceMiles: parseFloat(extraRaceMiles) || undefined,
-              description: extraRaceDescription.trim() || undefined,
-            }]
-          : undefined
-      })(),
+      additionalRaces: assembleAdditionalRaces({ raceType, goalMode, seasonRaces, primaryKey, extraRaceName, extraRaceDate, extraRacePriority, extraRaceMiles, extraRaceDescription }),
       completedAt: '',
     }
+
+    // The plan always anchors on the chronologically FIRST race — if an
+    // added race predates the entered one, swap them (the entered race
+    // keeps its main-goal flag as an additional race). See seasonConfig.ts.
+    const normalized = normalizeSeasonConfig(config)
 
     // Skip the loading screen entirely when consumers (tests) opt out.
     // Otherwise show a brief generating screen so the handoff to the next
     // view doesn't feel like a blank flash on mobile browsers.
     if (loadingDurationMs <= 0) {
-      onComplete(config)
+      onComplete(normalized)
       return
     }
     // iOS Safari leaves the document scrolled after a focused form input,
@@ -644,7 +666,7 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
     }
     if (typeof window !== 'undefined') window.scrollTo(0, 0)
     setIsGenerating(true)
-    setTimeout(() => onComplete(config), loadingDurationMs)
+    setTimeout(() => onComplete(normalized), loadingDurationMs)
   }
 
   const selectedAnchor = ANCHOR_OPTIONS.find(o => o.value === anchorType)!
@@ -897,7 +919,7 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
         {step === STEP_SEASON_RACES && (
           <StepContainer
             title="Your season calendar"
-            subtitle={`${raceName.trim() || 'Your nearest race'} starts the plan. Add the rest — including anything far out you're planning toward.`}
+            subtitle="Add the rest of your season — including anything far out. Your plan starts with the earliest race."
           >
             <div className="space-y-3">
               {/* THE season question: which race is everything building
@@ -1942,6 +1964,9 @@ function ReviewSummary({
           {seasonRaces.length > 0 && primaryKey === 'anchor' && (
             <span className="ml-1.5 text-xs font-bold text-teal-700">★ Main goal</span>
           )}
+          {seasonRaces.length > 0 && !seasonRaces.some(r => r.date && raceDate && r.date < raceDate) && (
+            <span className="ml-1.5 text-xs font-semibold text-slate-500">Starts your plan</span>
+          )}
         </p>
         <p className="text-sm text-slate-600">
           {raceType ? RACE_TYPE_LABELS[raceType] : '—'}
@@ -1955,7 +1980,7 @@ function ReviewSummary({
         {athleteGoal.trim() && (
           <p className="text-sm text-slate-600 mt-0.5">Goal: <span className="text-slate-800">{athleteGoal.trim()}</span></p>
         )}
-        {seasonRaces.map(r => {
+        {[...seasonRaces].sort((a, b) => a.date.localeCompare(b.date)).map(r => {
           const fmt = r.format ?? (isHyroxRaceInfo({ name: r.name, description: r.description }) ? 'hyrox' : null)
           return (
             <div key={r.key} className="mt-2 pt-2 border-t border-slate-100">
@@ -1963,6 +1988,10 @@ function ReviewSummary({
                 {r.name.trim()}
                 {primaryKey === r.key && (
                   <span className="ml-1.5 text-xs font-bold text-teal-700">★ Main goal</span>
+                )}
+                {r.date && (!raceDate || r.date < raceDate) &&
+                  !seasonRaces.some(o => o.date && o.date < r.date) && (
+                  <span className="ml-1.5 text-xs font-semibold text-slate-500">Starts your plan</span>
                 )}
               </p>
               <p className="text-sm text-slate-600">

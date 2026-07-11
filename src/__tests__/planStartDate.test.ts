@@ -125,3 +125,18 @@ describe('parseDayToDate year inference', () => {
     expect(parseDayToDate('Sat 7/4')).toBe('2026-07-04')
   })
 })
+
+describe('Hyrox long runway extends to the chosen start (the empty-August bug)', () => {
+  it('start Aug 3 + race Dec 5 → week 1 begins Aug 3, race week still ends 12/5', () => {
+    const plan = generateHyroxPlan({
+      raceType: 'hyrox', raceName: 'Hyrox Anaheim', raceDate: '2026-12-05',
+      experienceLevel: 'intermediate', trainingDaysPerWeek: 5, wearable: 'none',
+      athleteName: 'M', age: 45, maxHR: 178, completedAt: '',
+      planStartDate: '2026-08-03',
+    } as OnboardingConfig, '2026-07-12')
+    expect(plan.weeks[0].startIso).toBe('2026-08-03')
+    const lastWeek = plan.weeks[plan.weeks.length - 1]
+    expect(lastWeek.startIso).toBe('2026-11-30')
+    expect(plan.advisories?.some(a => a.id === 'runway_short')).toBeFalsy()
+  })
+})

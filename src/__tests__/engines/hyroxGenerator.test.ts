@@ -52,12 +52,27 @@ describe('generateHyroxPlan — Monday-anchored calendar with a real race week',
     expect(plan.advisories?.some(a => a.id === 'runway_short')).toBe(true)
   })
 
-  it('a full-runway plan keeps its recovery weeks, none in the final 2 weeks', () => {
-    const plan = generateHyroxPlan(config, '2026-06-01') // full 12-week template
+  it('an exact-runway plan keeps its template recovery weeks, none in the final 2 weeks', () => {
+    const plan = generateHyroxPlan(config, '2026-09-21') // exactly the 12-week template
+    expect(plan.weeks).toHaveLength(12)
     const recoveryNums = plan.weeks.filter(w => /RECOVERY WEEK/.test(w.focus)).map(w => w.num)
     expect(recoveryNums).toEqual([4, 8]) // intermediate template, unclamped
     const total = plan.weeks.length
     expect(recoveryNums.every(n => n <= total - 2)).toBe(true)
+  })
+
+  it('a LONG runway extends base weeks so the plan starts when the athlete does (capped +8)', () => {
+    // Field bug: an Aug start + Dec race produced a plan that idled until
+    // mid-September because the 12-week template back-counted from race day.
+    const plan = generateHyroxPlan(config, '2026-06-01')
+    expect(plan.weeks).toHaveLength(20) // 12 core + 8 extension cap
+    // Recovery re-derived for the actual length — spaced, none in final 2.
+    const recoveryNums = plan.weeks.filter(w => /RECOVERY WEEK/.test(w.focus)).map(w => w.num)
+    expect(recoveryNums.length).toBeGreaterThan(2)
+    expect(recoveryNums.every(n => n <= plan.weeks.length - 2)).toBe(true)
+    // Race week still ends on race day.
+    const lastWeek = plan.weeks[plan.weeks.length - 1]
+    expect(dayIso(lastWeek.days[lastWeek.days.length - 1], '2026-12-12')).toBe('2026-12-12')
   })
 
   it('miles are numeric on every week (the "~~7 mi" bug)', () => {
