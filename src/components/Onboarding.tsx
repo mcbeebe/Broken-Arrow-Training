@@ -32,6 +32,10 @@ interface Props {
    *  profile step is skipped entirely — an account holder shouldn't
    *  retype who they are to change what they're training for. */
   previousConfig?: OnboardingConfig | null
+  /** Measured recent fitness from logged history (Garmin/Strava/manual) —
+   *  prefills the baseline step on a redo so the athlete confirms what we
+   *  detected instead of re-typing what their watch already knows. */
+  derivedFitness?: { weeklyMileage4wk: number | null; longestRecentRunMi: number | null } | null
   // Duration (ms) to show the "generating your plan" screen after the user
   // submits. Defaults to a short delay so the handoff to the next screen
   // doesn't feel like a blank flash. Tests pass 0 to call onComplete
@@ -305,7 +309,7 @@ const MENOPAUSE_SYMPTOM_OPTIONS: { value: string; label: string }[] = [
   { value: 'brain_fog', label: 'Brain fog' },
 ]
 
-export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 1800, previousConfig }: Props) {
+export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 1800, previousConfig, derivedFitness }: Props) {
   const [step, setStep] = useState(STEP_GOAL_MODE) // ALL_STEPS[0] — the flow's first question
   const [isGenerating, setIsGenerating] = useState(false)
   const [generatingMessage] = useState(
@@ -376,7 +380,7 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
     const dd = String(d.getDate()).padStart(2, '0')
     return `${d.getFullYear()}-${m}-${dd}`
   })
-  const [experience, setExperience] = useState<ExperienceLevel | null>(null)
+  const [experience, setExperience] = useState<ExperienceLevel | null>(prev?.experienceLevel ?? null)
   const [detailLevel, setDetailLevel] = useState<DetailLevel | null>(null)
   const [daysPerWeek, setDaysPerWeek] = useState<number | null>(null)
   const [longRunDay, setLongRunDay] = useState<string | null>(null)
@@ -389,11 +393,19 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
   const [ftp, setFtp] = useState(prev?.ftpWatts ? String(prev.ftpWatts) : '')
 
   // Fitness baseline + constraints
-  const [anchorType, setAnchorType] = useState<FitnessAnchorType>('none')
-  const [anchorTime, setAnchorTime] = useState('')
-  const [anchorBpm, setAnchorBpm] = useState('')
+  const [anchorType, setAnchorType] = useState<FitnessAnchorType>(prev?.fitnessAnchor?.type ?? 'none')
+  const [anchorTime, setAnchorTime] = useState(
+    prev?.fitnessAnchor?.valueSeconds ? formatSecondsLabel(prev.fitnessAnchor.valueSeconds) : '')
+  const [anchorBpm, setAnchorBpm] = useState(
+    prev?.fitnessAnchor?.bpm ? String(prev.fitnessAnchor.bpm) : '')
   const [goalRaceTime, setGoalRaceTime] = useState('')
-  const [weeklyMileage, setWeeklyMileage] = useState('')
+  const [weeklyMileage, setWeeklyMileage] = useState(
+    derivedFitness?.weeklyMileage4wk != null ? String(derivedFitness.weeklyMileage4wk)
+    : prev?.currentWeeklyMileage ? String(prev.currentWeeklyMileage) : '')
+  // Redo: the baseline renders as a compact "here's what we detected"
+  // confirmation; Adjust expands the full controls.
+  const [baselineAdjustOpen, setBaselineAdjustOpen] = useState(false)
+  const hasBaselinePrefill = !!prev
   const [injury, setInjury] = useState<InjuryStatus | null>(null)
   const [injuryArea, setInjuryArea] = useState('')
   const [injuryTimeframe, setInjuryTimeframe] = useState('')
@@ -435,6 +447,8 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
     if (s === STEP_MENOPAUSE) return showsMenopauseStep
     // Account holders redoing onboarding never retype who they are.
     if (s === STEP_PROFILE) return !hasProfilePrefill
+    // Experience carries over on a redo — confirmable on the baseline step.
+    if (s === STEP_EXPERIENCE) return !prev?.experienceLevel
     // Season-first: the goal-mode question is ALWAYS step 1. Choosing
     // general fitness there fixes raceType and skips the race-type step;
     // the multi-race builder shows only for a season.
@@ -1229,8 +1243,56 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
         )}
 
         {step === STEP_BASELINE && (
-          <StepContainer title="Where are you right now?" subtitle="Your current fitness baseline. Anchor and mileage are optional but make your plan more accurate.">
+          <StepContainer
+            title="Where are you right now?"
+            subtitle={hasBaselinePrefill
+              ? 'We pulled your baseline from your training history and last setup — confirm or adjust.'
+              : 'Your current fitness baseline. Anchor and mileage are optional but make your plan more accurate.'}
+          >
             <div className="space-y-5">
+              {hasBaselinePrefill && (
+                <div className="rounded-xl border border-teal-200 bg-teal-50/60 p-3">
+                  <p className="text-sm font-semibold text-slate-800">Here's what we detected:</p>
+                  <p className="text-sm text-slate-700 mt-1">
+                    {weeklyMileage ? `~${weeklyMileage} mi/week` : 'No recent mileage'}
+                    {derivedFitness?.longestRecentRunMi != null ? ` · long run ${derivedFitness.longestRecentRunMi} mi` : ''}
+                    {anchorType !== 'none' && anchorTime ? ` · ${ANCHOR_OPTIONS.find(o => o.value === anchorType)?.label ?? 'anchor'}: ${anchorTime}` : ''}
+                    {experience ? ` · ${experience.replace('_', ' ')}` : ''}
+                  </p>
+                  <p className="text-xs text-slate-500 mt-1">
+                    {derivedFitness?.weeklyMileage4wk != null
+                      ? 'Mileage comes from your last 4 weeks of logged training.'
+                      : 'From your previous setup.'}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setBaselineAdjustOpen(v => !v)}
+                    className="mt-2 text-sm font-semibold text-teal-700 hover:text-teal-900"
+                  >
+                    {baselineAdjustOpen ? 'Done adjusting' : 'Adjust'}
+                  </button>
+                </div>
+              )}
+              {(!hasBaselinePrefill || baselineAdjustOpen) && (<>
+              {hasBaselinePrefill && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Fitness level</label>
+                  <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="Fitness level">
+                    {(['first_timer', 'beginner', 'intermediate', 'advanced', 'elite'] as const).map(lvl => (
+                      <button
+                        key={lvl}
+                        type="button"
+                        role="radio"
+                        aria-checked={experience === lvl}
+                        onClick={() => setExperience(lvl)}
+                        className={`rounded-lg border px-2.5 py-1.5 text-xs font-bold capitalize ${
+                          experience === lvl ? 'border-teal-500 bg-teal-100 text-teal-800' : 'border-slate-200 text-slate-500'
+                        }`}
+                      >{lvl.replace('_', ' ')}</button>
+                    ))}
+                  </div>
+                </div>
+              )}
               {/* Fitness anchor */}
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Fitness anchor (optional)</label>
@@ -1316,7 +1378,9 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
                 <p className="text-xs text-slate-400 mt-1">Sets a safe baseline so we don't ramp volume too fast.</p>
               </div>
 
-              {/* Injury status — required */}
+              </>)}
+
+              {/* Injury status — required, ALWAYS asked (safety) */}
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">Recent injury status</label>
                 <div className="space-y-2">

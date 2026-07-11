@@ -8,6 +8,7 @@ import { useGarmin } from './hooks/useGarmin'
 import { repushChangedWorkouts } from './utils/garminRepush'
 import { realignmentContextForWeeks } from './utils/realignment'
 import { todayDateString } from './utils/planDates'
+import { deriveFitnessFromHistory } from './utils/fitnessFromHistory'
 import { useSeason } from './hooks/useSeason'
 import { spliceSeasonWeeks } from './engines/season/spliceSeason'
 import { raceDateToIso } from './engines/season'
@@ -167,6 +168,7 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
         }}
         onSkip={onLogout}
         previousConfig={onboarding.previousConfig}
+        derivedFitness={onboarding.previousConfig ? deriveFitnessFromHistory(athleteId, todayDateString()) : null}
       />
     )
   }
@@ -230,13 +232,27 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
   // renders. The cost is small and cached by `MainAppShell` below.
   let generatedPlan: import('./types').TrainingPlan | null = null
   if (!plan && onboarding.config) {
-    if (onboarding.config.raceType === 'hyrox') {
-      generatedPlan = generateHyroxPlan(onboarding.config)
-    } else if (onboarding.config.raceType === 'general') {
-      generatedPlan = generateGeneralFitnessPlan(onboarding.config)
-    } else if (onboarding.config.selectedMethodId) {
-      const method = getMethodById(onboarding.config.selectedMethodId)
-      if (method) generatedPlan = generatePlanFromMethod(method, onboarding.config)
+    // Real-fitness overlay: when the athlete didn't declare a weekly
+    // mileage, size the plan from their MEASURED trailing 4 weeks
+    // (Garmin/Strava/manual logs) instead of an experience-level guess.
+    // A declared/confirmed answer always wins; the stored config is
+    // never mutated. Synchronous cache reads — safe in this hook-free
+    // block (see the NOTE above).
+    const genConfig = (() => {
+      const cfg = onboarding.config
+      if (cfg.currentWeeklyMileage != null) return cfg
+      const derived = deriveFitnessFromHistory(athleteId, todayDateString())
+      return derived.weeklyMileage4wk != null
+        ? { ...cfg, currentWeeklyMileage: derived.weeklyMileage4wk }
+        : cfg
+    })()
+    if (genConfig.raceType === 'hyrox') {
+      generatedPlan = generateHyroxPlan(genConfig)
+    } else if (genConfig.raceType === 'general') {
+      generatedPlan = generateGeneralFitnessPlan(genConfig)
+    } else if (genConfig.selectedMethodId) {
+      const method = getMethodById(genConfig.selectedMethodId)
+      if (method) generatedPlan = generatePlanFromMethod(method, genConfig)
     }
   }
   const activePlan = plan || generatedPlan
