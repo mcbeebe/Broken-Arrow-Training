@@ -1,6 +1,6 @@
 import type { TrainingWeek } from '../../types'
 import { parsePlannedTargets } from '../../utils/targets'
-import { parseDayToDate } from '../../utils/planDates'
+import { dayIsoInWeek } from '../../utils/planDates'
 
 /**
  * G5 — performance-adaptive pace targets (the Runna "Pace Insights"
@@ -83,7 +83,7 @@ export function assessRecalibration(
       const actual = day.actual
       if (!actual || !actual.distance || !actual.movingTime) continue
       if (day.type !== 'run' && day.type !== 'quality' && day.type !== 'long' && day.type !== 'race') continue
-      const isoDate = parseDayToDate(day.day, week.dates, todayIso)
+      const isoDate = dayIsoInWeek(day.day, week, todayIso)
       if (!isoDate || isoDate < windowStart || isoDate > todayIso) continue
 
       const targets = parsePlannedTargets(day)

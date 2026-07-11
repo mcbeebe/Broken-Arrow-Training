@@ -88,6 +88,9 @@ describe('field repro: half 10/24 + Hyrox 12/12, Pacific timezone', () => {
     const onAnchor = raceDays.filter(d => isoOf(d.day) === ANCHOR_ISO)
     const onHyrox = raceDays.filter(d => isoOf(d.day) === HYROX_ISO)
     expect(onAnchor, 'anchor race day card missing').toHaveLength(1)
+    // Content, not just type: the anchor card once read "Easy · Substituted
+    // higdon_easy_run" because the picker resolved the race_pace slot away.
+    expect(onAnchor[0].workout).toContain('RACE DAY')
     expect(onHyrox, 'Hyrox race day card missing (THE field bug)').toHaveLength(1)
     expect(onHyrox[0].workout).toContain('Hyrox - Anaheim')
     // In the spliced (post-anchor) region the ONLY race-typed day is the
@@ -120,7 +123,7 @@ describe('field repro: half 10/24 + Hyrox 12/12, Pacific timezone', () => {
     expect(dayAfter?.workout).toContain('Post-race rest')
   })
 
-  it('every week starts on a Monday (one leading partial recovery week excepted)', () => {
+  it('every week starts on a Monday — the post-race Sunday folds into the race week', () => {
     const nonMondayStarts: string[] = []
     for (const w of weeks) {
       const first = w.days.length > 0 ? isoOf(w.days[0].day) : null
@@ -128,9 +131,10 @@ describe('field repro: half 10/24 + Hyrox 12/12, Pacific timezone', () => {
       const dow = new Date(`${first}T12:00:00`).getDay()
       if (dow !== 1) nonMondayStarts.push(first)
     }
-    // The single allowed exception: the recovery partial week starting the
-    // Sunday after the Saturday race.
-    expect(nonMondayStarts).toEqual(['2026-10-25'])
+    // The old behavior left the Sunday after the Saturday race as its own
+    // "Week 13 · Oct 25–25 · ~0 mi" orphan (a field complaint); it now
+    // merges into the race week's Mon–Sun span.
+    expect(nonMondayStarts).toEqual([])
   })
 
   it('no coverage gap: every date from recovery start through Hyrox race day appears exactly once', () => {

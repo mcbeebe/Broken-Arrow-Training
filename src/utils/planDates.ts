@@ -39,6 +39,45 @@ export function parseDayToDate(dayLabel: string, _weekDates?: string, anchorIso?
   return best
 }
 
+/**
+ * Resolve a day label to ISO using the week it lives in.
+ *
+ * With `week.startIso` (stamped by every generator since the season-span
+ * fix) resolution is EXACT: walk the 7 calendar days from the week's
+ * start and return the one whose month/day match the label — immune to
+ * year boundaries, which is the point. Day labels carry no year, and
+ * anchor-based inference mis-resolved far-from-anchor weeks (June-2027
+ * plan days matched June-2026 actuals in the field). Weeks without
+ * `startIso` (legacy stored plans) fall back to the old inference chain
+ * byte-for-byte.
+ */
+export function dayIsoInWeek(
+  dayLabel: string,
+  week: { startIso?: string; dates?: string },
+  anchorIso?: string,
+): string | null {
+  if (week.startIso) {
+    const match = dayLabel.match(/(\d{1,2})\/(\d{1,2})/)
+    if (match) {
+      const month = Number(match[1])
+      const day = Number(match[2])
+      const d = new Date(`${week.startIso}T12:00:00`)
+      for (let i = 0; i < 7; i++) {
+        if (d.getMonth() + 1 === month && d.getDate() === day) {
+          const m = String(month).padStart(2, '0')
+          const dd = String(day).padStart(2, '0')
+          return `${d.getFullYear()}-${m}-${dd}`
+        }
+        d.setDate(d.getDate() + 1)
+      }
+    }
+    // Label outside the week's span (shouldn't happen) — defensive fallback
+    // anchored to the week itself rather than a caller-supplied guess.
+    return parseDayToDate(dayLabel, week.dates, week.startIso)
+  }
+  return parseDayToDate(dayLabel, week.dates, anchorIso)
+}
+
 /** The date a plan actually begins: the athlete's chosen start when it's
  *  in the future, otherwise today. The clamp is one-directional by design —
  *  a stale/past start date can never back-date a regenerated plan (the

@@ -2,7 +2,7 @@ import type { TrainingWeek } from '../types'
 import type { GarminWorkoutPayload } from '../engines/planGenerator/garminWorkout'
 import { buildGarminPayloadForDay } from '../engines/planGenerator/garminWorkout'
 import { pushWorkoutToGarmin, isGarminConnected } from './garmin'
-import { parseDayToDate, todayDateString } from './planDates'
+import { dayIsoInWeek, todayDateString } from './planDates'
 import { stampKey } from './syncStamps'
 
 /**
@@ -95,7 +95,7 @@ export function collectPushableDays(
   for (const week of weeks) {
     for (const day of week.days) {
       if (day.actual) continue // completed — never push over a logged workout
-      const isoDate = parseDayToDate(day.day, week.dates, fromIso)
+      const isoDate = dayIsoInWeek(day.day, week, fromIso)
       if (!isoDate || isoDate < fromIso) continue
       const payload = buildGarminPayloadForDay(day, isoDate)
       if (payload) out.push({ isoDate, payload })

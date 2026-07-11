@@ -32,7 +32,7 @@ interface JournalProps {
   /** Share an edited journal note with the coach in the background. */
   onShareNote?: (day: PlannedDay, note: string) => void | Promise<void>
   manualLog?: {
-    logWorkout: (dayLabel: string, data: ActualWorkout) => void
+    logWorkout: (dayLabel: string, data: ActualWorkout, dayIso?: string | null) => void
     /** The raw logged-workout map (ISO-date keyed). The feed uses it to
      *  surface entries from PREVIOUS plans — a plan rebuild must never
      *  make a reflection disappear (the P0 this fixed). */
@@ -280,7 +280,7 @@ export default function Journal({
           strengthLevel={strengthLevel}
           onAskCoach={onAskCoach}
           onSaveNote={manualLog && selected.day.actual ? async (note) => {
-            manualLog.logWorkout(selected.day.day, { ...selected.day.actual!, notes: note })
+            manualLog.logWorkout(selected.day.day, { ...selected.day.actual!, notes: note }, selected.day.actual?.startDate?.slice(0, 10))
             await onShareNote?.(selected.day, note)
           } : undefined}
         />

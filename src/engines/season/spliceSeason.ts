@@ -13,7 +13,7 @@ import { layerSecondaryWork } from './layerSecondaryWork'
 import { getMethodById, RECOMMENDABLE_METHODS } from '../../data/methods'
 import { generatePlanFromMethod } from '../planGenerator/generatePlan'
 import { generateHyroxPlan } from '../../utils/planGenerator'
-import { parseDayToDate } from '../../utils/planDates'
+import { dayIsoInWeek } from '../../utils/planDates'
 import { raceDateToIso } from './index'
 
 /**
@@ -79,7 +79,7 @@ export function spliceSeasonWeeks(
     ? baseWeeks
         .map(w => {
           const days = w.days.filter(d => {
-            const iso = parseDayToDate(d.day, w.dates, anchorIso)
+            const iso = dayIsoInWeek(d.day, w, anchorIso)
             return !iso || iso <= anchorIso
           })
           return days.length === w.days.length ? w : { ...w, days }
@@ -230,9 +230,62 @@ export function spliceSeasonWeeks(
     }
   }
 
-  // Continuous numbering after the (possibly trimmed) anchor weeks.
-  let nextWeekNum = trimmedBase.reduce((m, w) => Math.max(m, w.num), 0) + 1
-  return [...trimmedBase, ...appended.map(w => ({ ...w, num: nextWeekNum++ }))]
+  // Fold any leading-partial appended week (the Sunday after a Saturday
+  // race) into its calendar week, then number continuously after the
+  // (possibly trimmed) anchor weeks.
+  const merged = mergeLeadingPartials(trimmedBase, appended)
+  let nextWeekNum = merged.base.reduce((m, w) => Math.max(m, w.num), 0) + 1
+  return [...merged.base, ...merged.appended.map(w => ({ ...w, num: nextWeekNum++ }))]
+}
+
+/** Monday (ISO) on or before the given ISO date. */
+function mondayOnOrBefore(iso: string): string {
+  return shiftIso(iso, -mondayOffset(iso))
+}
+
+/** Last day ISO of a week — startIso + (days.length - 1). Weeks are
+ *  day-contiguous by construction (streams and generators emit every
+ *  calendar day). Null without startIso. */
+function lastDayIso(week: TrainingWeek): string | null {
+  return week.startIso ? shiftIso(week.startIso, week.days.length - 1) : null
+}
+
+/**
+ * A week that starts mid-calendar-week (non-Monday startIso) folds into
+ * its predecessor when both sit in the same Mon–Sun calendar week and are
+ * day-contiguous — the field case: the anchor race week Mon 10/19–Sat
+ * 10/24 absorbs the post-race Sunday 10/25 instead of leaving a
+ * "Week 13 · Oct 25–25 · ~0 mi" orphan. Weeks without startIso (legacy
+ * stored plans) pass through untouched. Never mutates inputs — the trim
+ * upstream can hand back the caller's original objects.
+ */
+function mergeLeadingPartials(
+  base: TrainingWeek[],
+  appended: TrainingWeek[],
+): { base: TrainingWeek[]; appended: TrainingWeek[] } {
+  const outBase = [...base]
+  const outAppended: TrainingWeek[] = []
+  for (const w of appended) {
+    const prev = outAppended[outAppended.length - 1] ?? outBase[outBase.length - 1]
+    const intoAppended = outAppended.length > 0
+    if (
+      w.startIso && prev?.startIso &&
+      mondayOffset(w.startIso) !== 0 &&
+      mondayOnOrBefore(w.startIso) === mondayOnOrBefore(prev.startIso) &&
+      lastDayIso(prev) === shiftIso(w.startIso, -1)
+    ) {
+      const mergedWeek: TrainingWeek = {
+        ...prev,
+        days: [...prev.days, ...w.days],
+        dates: weekDates(prev.startIso, shiftIso(w.startIso, w.days.length - 1)),
+      }
+      if (intoAppended) outAppended[outAppended.length - 1] = mergedWeek
+      else outBase[outBase.length - 1] = mergedWeek
+      continue
+    }
+    outAppended.push(w)
+  }
+  return { base: outBase, appended: outAppended }
 }
 
 function shiftIso(iso: string, days: number): string {
@@ -257,6 +310,7 @@ function chunkStreamAtMondays(stream: StreamDay[]): TrainingWeek[] {
     if (chunk.length === 0) return
     weeks.push({
       num: 0, // assigned by the caller
+      startIso: chunk[0].iso,
       dates: weekDates(chunk[0].iso, chunk[chunk.length - 1].iso),
       miles: chunk.filter(s => s.day.type !== 'rest' && s.day.type !== 'strength').length * 3,
       focus: chunk[0].focus,
@@ -272,10 +326,13 @@ function chunkStreamAtMondays(stream: StreamDay[]): TrainingWeek[] {
   return weeks
 }
 
-/** First parseable ISO date of a week (anchored year inference). */
+/** First resolvable ISO date of a week. With startIso the resolution is
+ *  exact; legacy weeks fall back to anchored year inference (which
+ *  mis-resolves far-from-anchor weeks — the trailing "Build → anchor"
+ *  chips in the field — hence startIso everywhere new). */
 function firstDayIso(week: TrainingWeek, anchorIso: string): string | null {
   for (const d of week.days) {
-    const iso = parseDayToDate(d.day, week.dates, anchorIso)
+    const iso = dayIsoInWeek(d.day, week, anchorIso)
     if (iso) return iso
   }
   return null
@@ -293,7 +350,7 @@ function stampRaceDay(
   const trainThrough = race.priority === 'C'
   for (const week of appended) {
     for (let i = 0; i < week.days.length; i++) {
-      const dayIso = parseDayToDate(week.days[i].day, week.dates, iso)
+      const dayIso = dayIsoInWeek(week.days[i].day, week, iso)
       if (dayIso !== iso) continue
       if (week.days[i].type === 'race') {
         // Generated race day — keep its content but make sure the card
@@ -312,6 +369,7 @@ function stampRaceDay(
   // a race days after its block start): inject a one-day race week.
   const injected: TrainingWeek = {
     num: 0, // assigned by the caller
+    startIso: iso,
     dates: weekDates(iso, iso),
     miles: 0,
     focus: `[${race.raceInfo.name}] Race week`,
@@ -387,7 +445,7 @@ function safeGenerate(config: OnboardingConfig, today: string) {
  *  wrong-year dates. */
 function weekStartsBefore(week: TrainingWeek, minIso: string): boolean {
   for (const d of week.days) {
-    const iso = parseDayToDate(d.day, week.dates, minIso)
+    const iso = dayIsoInWeek(d.day, week, minIso)
     if (iso) return iso < minIso
   }
   return false // undatable weeks are kept — never silently drop content

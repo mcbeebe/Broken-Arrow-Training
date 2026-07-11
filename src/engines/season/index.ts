@@ -79,6 +79,42 @@ export function seasonRaceId(race: RaceInfo): string {
   return `${slug}_${raceDateToIso(race.date) ?? 'undated'}`
 }
 
+/** Bounded Levenshtein distance between two slugs — early-exits above
+ *  `max` so comparing every race pair stays cheap. */
+export function slugDistance(a: string, b: string, max = 2): number {
+  if (a === b) return 0
+  if (Math.abs(a.length - b.length) > max) return max + 1
+  let prev = Array.from({ length: b.length + 1 }, (_, i) => i)
+  for (let i = 1; i <= a.length; i++) {
+    const cur = [i]
+    let rowMin = i
+    for (let j = 1; j <= b.length; j++) {
+      cur[j] = Math.min(
+        prev[j] + 1,
+        cur[j - 1] + 1,
+        prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1),
+      )
+      if (cur[j] < rowMin) rowMin = cur[j]
+    }
+    if (rowMin > max) return max + 1
+    prev = cur
+  }
+  return prev[b.length]
+}
+
+/** Same calendar date + a slug within edit-distance 2 = the same race
+ *  typed twice ("Oakland Hills Half Maraton" vs "…Marathon"). Different
+ *  dates are never duplicates — series races share names legitimately. */
+export function isNearDuplicateRace(
+  a: { name: string; date: string },
+  b: { name: string; date: string },
+): boolean {
+  const da = raceDateToIso(a.date)
+  if (!da || da !== raceDateToIso(b.date)) return false
+  const slug = (n: string) => (n || 'race').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40)
+  return slugDistance(slug(a.name), slug(b.name)) <= 2
+}
+
 /** Runtime validator for data read back from storage/sync. Conservative:
  *  anything malformed → null, callers fall back to the single-race shim. */
 export function parseSeason(raw: unknown): Season | null {

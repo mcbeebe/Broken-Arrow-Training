@@ -5,7 +5,7 @@ import type { WeekCompliance } from '../hooks/useCompliance'
 import type { InjuryStatus, StrengthExperience } from '../hooks/useOnboarding'
 import { getWorkoutStyle, adaptBg } from '../utils/styles'
 import { buildWeatherChipForDate } from '../utils/weatherChip'
-import { parseDayToDate, todayDateString } from '../utils/planDates'
+import { dayIsoInWeek, todayDateString } from '../utils/planDates'
 import { formatWeekMilesChip, formatWeekMilesHeader } from '../utils/format'
 import { BLOCK_STYLE } from '../utils/blockStyles'
 import { pushWeekToGarmin, collectPushableDays } from '../utils/garminRepush'
@@ -35,7 +35,7 @@ interface WeeklyPlanProps {
   weeks: TrainingWeek[]
   zones?: HRZone[]
   manualLog?: {
-    logWorkout: (dayLabel: string, data: ActualWorkout) => void
+    logWorkout: (dayLabel: string, data: ActualWorkout, dayIso?: string | null) => void
   }
   daySwap?: {
     swapDays: (weekNum: number, fromIndex: number, toIndex: number) => void
@@ -151,7 +151,7 @@ export default function WeeklyPlan({
     const map = new Map<string, PlannedDay>()
     for (const w of weeks) {
       for (const d of w.days) {
-        const iso = parseDayToDate(d.day, w.dates, todayDateString())
+        const iso = dayIsoInWeek(d.day, w, todayDateString())
         if (iso) map.set(iso, d)
       }
     }
@@ -391,7 +391,7 @@ export default function WeeklyPlan({
       <div className="px-3 space-y-2">
         {week.days.map((d, i) => {
           // Match readiness to day by parsing day label to date
-          const dayDateMatch = parseDayToDate(d.day, week.dates, todayDateString())
+          const dayDateMatch = dayIsoInWeek(d.day, week, todayDateString())
           const readiness = dayDateMatch ? readinessByDate.get(dayDateMatch) : undefined
           const trimpRecord = findTrimpRecord(dailyTrimp, dayDateMatch, d.actual?.name)
           // Look up the home-location forecast for this day. Prefer
@@ -509,7 +509,7 @@ export default function WeeklyPlan({
           onClose={() => setModalDay(null)}
           onLog={manualLog ? () => { setLogDay(modalDay); setModalDay(null) } : undefined}
           onSaveNote={manualLog && modalDay.actual ? async (note) => {
-            manualLog.logWorkout(modalDay.day, { ...modalDay.actual!, notes: note })
+            manualLog.logWorkout(modalDay.day, { ...modalDay.actual!, notes: note }, dayIsoInWeek(modalDay.day, week, todayDateString()))
             await onShareNote?.(modalDay, note)
           } : undefined}
           zones={zones}
@@ -517,7 +517,7 @@ export default function WeeklyPlan({
           coachEnabled={coachEnabled}
           weeks={weeks}
           readiness={(() => {
-            const d = parseDayToDate(modalDay.day, week.dates, todayDateString())
+            const d = dayIsoInWeek(modalDay.day, week, todayDateString())
             return d ? readinessByDate.get(d) : undefined
           })()}
           latestPerf={latestPerf}
@@ -525,7 +525,7 @@ export default function WeeklyPlan({
           onAskCoach={onAskCoach}
           strengthLevel={strengthLevel}
           trimpRecord={(() => {
-            const d = parseDayToDate(modalDay.day, week.dates, todayDateString())
+            const d = dayIsoInWeek(modalDay.day, week, todayDateString())
             return findTrimpRecord(dailyTrimp, d, modalDay.actual?.name)
           })()}
         />
@@ -539,7 +539,7 @@ export default function WeeklyPlan({
           planned={logDay}
           weekNum={week.num}
           onSave={(data) => {
-            manualLog.logWorkout(logDay.day, data)
+            manualLog.logWorkout(logDay.day, data, dayIsoInWeek(logDay.day, week, todayDateString()))
             // Auto-seed the coach with the journal note when it changed, so
             // typing in the log editor reaches the coach just like the
             // inline journal does.

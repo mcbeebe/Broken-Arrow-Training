@@ -607,6 +607,9 @@ describe('generatePlanFromMethod — end-to-end', () => {
     for (const w of plan.weeks) {
       for (const d of w.days) {
         if (d.type === 'rest' || d.type === 'cross' || d.type === 'strength') continue
+        // Race day is a hard-stamped card, not picker output — like the
+        // Hyrox generator's, it carries no structured workout to push.
+        if (d.workout.startsWith('RACE DAY')) continue
         runningDays++
         if (d.plannedWorkout) withWorkout++
         // Sanity on the attached PlannedWorkout
@@ -1103,6 +1106,11 @@ describe('race-week remap to the actual race weekday', () => {
     const raceDay = last.days[last.days.length - 1]
     expect(raceDay.type).toBe('race')
     expect(raceDay.day).toBe('Sat 10/24')
+    // Hard-stamped card, never picker output: the field bug rendered the
+    // anchor race day as "Easy · Substituted higdon_easy_run" because the
+    // method's race workout didn't clear the athlete's mileage gate.
+    expect(raceDay.workout).toContain('RACE DAY')
+    expect(raceDay.detail).not.toContain('Substituted')
     // No plan day is dated after race day (post-race belongs to recovery).
     expect(last.days.some(d => d.day.startsWith('Sun 10/25'))).toBe(false)
     // The week header ends at race day, not the phantom Sunday.

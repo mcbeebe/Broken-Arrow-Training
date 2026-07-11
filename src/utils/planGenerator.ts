@@ -331,6 +331,7 @@ export function generateHyroxPlan(
 
     weeks.push({
       num: weekNum,
+      startIso: weekStart,
       dates: `${formatDay(weekStart).slice(4)} – ${formatDay(weekEnd).slice(4)}`,
       // Numeric like every other generator — the UI owns the "~" prefix
       // (a baked-in "~" string double-rendered as "~~7 mi" in the field).

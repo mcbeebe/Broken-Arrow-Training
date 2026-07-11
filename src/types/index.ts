@@ -263,6 +263,15 @@ export interface TrainingWeek {
   miles: number | string;
   focus: string;
   days: PlannedDay[];
+  /** ISO (YYYY-MM-DD) of this week's first calendar day — the Monday for
+   *  full weeks, the actual first day for race-terminated partials.
+   *  Invariant: every label in `days` resolves to a date within
+   *  [startIso, startIso+6]. Day labels carry no year, so this is the
+   *  ONLY year signal on a week; without it, consumers guess (the field
+   *  bug where June-2026 actuals attached to June-2027 days). Optional:
+   *  legacy stored plans lack it and fall back to the old inference.
+   *  Deliberately NOT in WeekUpdates — no edit op may corrupt it. */
+  startIso?: string;
   /** Stamped by the season splice (derived per render, never persisted)
    *  on weeks belonging to a non-anchor block: which race this week is
    *  building toward and what kind of block it sits in. Drives the plan

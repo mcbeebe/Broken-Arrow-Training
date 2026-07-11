@@ -1,5 +1,5 @@
 import type { PlanEditOpInput, TrainingWeek } from '../types'
-import { parseDayToDate } from './planDates'
+import { dayIsoInWeek } from './planDates'
 
 /**
  * G5 write-back — the `rezone.ts` sibling for paces (locked decision D4).
@@ -43,7 +43,7 @@ export function buildRepaceOps(
   if (factor === 1) return ops
   for (const week of weeks) {
     week.days.forEach((day, dayIndex) => {
-      const isoDate = parseDayToDate(day.day, week.dates, fromIso)
+      const isoDate = dayIsoInWeek(day.day, week, fromIso)
       if (!isoDate || isoDate < fromIso) return
       if (day.actual) return
       const zone = repaceString(day.zone, factor)
