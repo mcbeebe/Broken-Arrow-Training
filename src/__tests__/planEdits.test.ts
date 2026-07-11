@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
-import { usePlanEdits, replayEdits } from '../hooks/usePlanEdits'
+import { usePlanEdits, replayEdits, pruneStaleEdits } from '../hooks/usePlanEdits'
 import { useDaySwap } from '../hooks/useDaySwap'
 import type { TrainingWeek, PlanEdit } from '../types'
 
@@ -218,5 +218,86 @@ describe('replayEdits — userEdited marker', () => {
       edit({ kind: 'addDay', weekNum: 1, atIndex: 2, day: { day: 'Sun 9/27', type: 'cross', workout: 'Mtn bike', detail: '', zone: '—', route: '', time: '1 hr' } }),
     ])
     expect(out[0].days[2].userEdited).toBe(true)
+  })
+})
+
+describe('generation pruning — old-plan ops never replay onto a rebuild', () => {
+  beforeEach(() => {
+    if (typeof localStorage !== 'undefined') localStorage.clear()
+  })
+
+  const GEN = '2026-07-10T05:30:00.000Z' // the current plan's birth stamp
+  const JUNE = Date.parse('2026-06-15T10:00:00.000Z')
+  const AFTER = Date.parse('2026-07-11T09:00:00.000Z')
+
+  const juneEdit: PlanEdit = {
+    id: 'e1', batchId: 'b1', appliedAt: JUNE,
+    op: { kind: 'updateDay', weekNum: 8, dayIndex: 0, updates: { workout: 'Tiger Mtn 3', type: 'quality' } },
+  }
+  const freshEdit: PlanEdit = {
+    id: 'e2', batchId: 'b2', appliedAt: AFTER,
+    op: { kind: 'updateWeek', weekNum: 4, updates: { focus: 'Adjusted' } },
+  }
+
+  it('pruneStaleEdits drops ops older than the generation, keeps newer ones', () => {
+    expect(pruneStaleEdits([juneEdit, freshEdit], GEN)).toEqual([freshEdit])
+    expect(pruneStaleEdits([juneEdit, freshEdit], undefined)).toHaveLength(2) // seed athletes: no-op
+    expect(pruneStaleEdits([juneEdit], 'not-a-date')).toHaveLength(1)         // unparseable: no-op
+  })
+
+  it('the hook prunes at load AND persists the cleaned log (stamped) so sync propagates it', () => {
+    localStorage.setItem('ba_plan_edits_mike', JSON.stringify([juneEdit, freshEdit]))
+    const { result } = renderHook(() => usePlanEdits('mike', GEN))
+    expect(result.current.edits).toHaveLength(1)
+    expect(result.current.edits[0].id).toBe('e2')
+    // The stale op is gone from storage — a later sync push carries the prune.
+    expect(JSON.parse(localStorage.getItem('ba_plan_edits_mike')!)).toHaveLength(1)
+    expect(localStorage.getItem('__attune_meta:__stamp:ba_plan_edits_mike')).toBeTruthy()
+    // And the June workout never lands on the new plan.
+    const weeks = result.current.applyEditsToWeeks(mkWeeks())
+    expect(weeks.flatMap(w => w.days).some(d => d.workout === 'Tiger Mtn 3')).toBe(false)
+  })
+
+  it('a sync pull that resurrects a stale log is re-pruned via the storage event', () => {
+    const { result } = renderHook(() => usePlanEdits('mike', GEN))
+    expect(result.current.edits).toHaveLength(0)
+    act(() => {
+      localStorage.setItem('ba_plan_edits_mike', JSON.stringify([juneEdit]))
+      window.dispatchEvent(new StorageEvent('storage', { key: 'ba_plan_edits_mike' }))
+    })
+    expect(result.current.edits).toHaveLength(0)
+    expect(JSON.parse(localStorage.getItem('ba_plan_edits_mike')!)).toHaveLength(0)
+  })
+
+  it('without a generation (seed athletes) nothing is pruned', () => {
+    localStorage.setItem('ba_plan_edits_mike', JSON.stringify([juneEdit]))
+    const { result } = renderHook(() => usePlanEdits('mike'))
+    expect(result.current.edits).toHaveLength(1)
+  })
+
+  it('new edits made under the current plan survive (appliedAt >= generation)', () => {
+    const { result } = renderHook(() => usePlanEdits('mike', GEN))
+    act(() => { result.current.applyOverride({ weekNum: 4, dayIndex: 1, updates: { workout: 'Bike intervals' } }) })
+    const { result: reloaded } = renderHook(() => usePlanEdits('mike', GEN))
+    expect(reloaded.current.edits).toHaveLength(1)
+  })
+
+  it('day swaps: stale timestamped swaps are pruned, legacy un-stamped swaps are kept', () => {
+    localStorage.setItem('ba_day_swaps_mike', JSON.stringify([
+      { weekNum: 4, fromIndex: 0, toIndex: 1, at: JUNE },   // old plan — drop
+      { weekNum: 5, fromIndex: 0, toIndex: 0 },              // legacy, no stamp — keep
+    ]))
+    const { result } = renderHook(() => useDaySwap('mike', GEN))
+    expect(result.current.hasSwaps(4)).toBe(false)
+    expect(JSON.parse(localStorage.getItem('ba_day_swaps_mike')!)).toHaveLength(1)
+  })
+
+  it('day swaps made now carry a timestamp and survive their own generation', () => {
+    const { result } = renderHook(() => useDaySwap('mike', GEN))
+    act(() => result.current.swapDays(4, 0, 1))
+    const stored = JSON.parse(localStorage.getItem('ba_day_swaps_mike')!)
+    expect(stored[0].at).toBeGreaterThan(Date.parse(GEN))
+    const { result: reloaded } = renderHook(() => useDaySwap('mike', GEN))
+    expect(reloaded.current.hasSwaps(4)).toBe(true)
   })
 })
