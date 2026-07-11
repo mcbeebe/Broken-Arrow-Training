@@ -104,6 +104,15 @@ describe('aerobicDecoupling', () => {
     expect(d).toBeGreaterThan(8)
     expect(decouplingFromSplits(splits.slice(0, 4))).toBeNull() // too few laps
   })
+
+  it('GUARD: a non-array splits value (raw API object shape from the synced cache) → null, never a crash', () => {
+    // Field white-screen of 7/11: a synced Garmin detail entry carried
+    // splits as the raw nested API object. `undefined < 8` is false, so a
+    // truthiness+length guard fell straight through to `.filter`.
+    const rawApiShape = { lapDTOs: [{ distance: 1609, duration: 600, averageHR: 150 }] }
+    expect(decouplingFromSplits(rawApiShape as unknown as Parameters<typeof decouplingFromSplits>[0])).toBeNull()
+    expect(decouplingFromSplits('corrupt' as unknown as Parameters<typeof decouplingFromSplits>[0])).toBeNull()
+  })
 })
 
 describe('buildIntensityContext', () => {
