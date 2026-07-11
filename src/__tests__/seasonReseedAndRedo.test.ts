@@ -183,3 +183,64 @@ describe('main-goal (isPrimary) capture and movement', () => {
     expect(result.current.season.races.filter(r => r.isPrimary)).toHaveLength(1)
   })
 })
+
+describe('redo REPLACES the stored season (a redo is a fresh statement)', () => {
+  it('a race omitted from the redo is REMOVED (the "Broken Arrow still chained" bug)', () => {
+    const first = renderHook(() => useSeason(planRace, 't', [
+      { name: 'Hyrox - Anaheim', date: '2026-12-12', priority: 'A' as const },
+      { name: 'Broken Arrow 46k', date: '2027-06-19', priority: 'A' as const },
+    ], 'gen-1'))
+    expect(first.result.current.season.races).toHaveLength(3)
+    first.unmount()
+    // Redo lists ONLY the Hyrox — Broken Arrow must vanish.
+    const second = renderHook(() => useSeason(planRace, 't',
+      [{ name: 'Hyrox - Anaheim', date: '2026-12-12', priority: 'A' as const }], 'gen-2'))
+    const names = second.result.current.season.races.map(r => r.raceInfo.name)
+    expect(names).toContain('Hyrox - Anaheim')
+    expect(names).not.toContain('Broken Arrow 46k')
+  })
+
+  it('a redo down to a single race clears every extra', () => {
+    const first = renderHook(() => useSeason(planRace, 't',
+      [{ name: 'Hyrox - Anaheim', date: '2026-12-12', priority: 'A' as const }], 'gen-1'))
+    expect(first.result.current.season.races).toHaveLength(2)
+    first.unmount()
+    const second = renderHook(() => useSeason(planRace, 't', [], 'gen-2'))
+    expect(second.result.current.season.races.map(r => r.raceInfo.name)).toEqual([planRace.name])
+  })
+
+  it('MIGRATION: a pre-replace blob prunes stale races but re-adds nothing (panel removals stand)', () => {
+    // Old-world state: blob without seededGeneration, local stamp already at
+    // this generation, containing one seeded race + one stale leftover; the
+    // athlete had panel-removed a third seeded race ("Removed Race").
+    localStorage.setItem('ba_season_seeded_v1_t', 'gen-1')
+    localStorage.setItem('ba_season_v1_t', JSON.stringify({
+      races: [
+        { id: 'hyrox-anaheim_2026-12-12', priority: 'A', status: 'upcoming', raceInfo: { name: 'Hyrox - Anaheim', date: '2026-12-12', startTime: '', distance: 'Hyrox', distanceMiles: 8, elevation: '', elevationRange: '', course: '', cutoff: '', landmarks: [], gear: [], nutrition: '' } },
+        { id: 'jack-and-jills-downhill-marathon_2027-07-25', priority: 'A', status: 'upcoming', raceInfo: { name: 'Jack and Jills Downhill Marathon', date: '2027-07-25', startTime: '', distance: 'Marathon', distanceMiles: 26.2, elevation: '', elevationRange: '', course: '', cutoff: '', landmarks: [], gear: [], nutrition: '' } },
+      ],
+      blocks: [],
+    }))
+    const { result } = renderHook(() => useSeason(planRace, 't', [
+      { name: 'Hyrox - Anaheim', date: '2026-12-12', priority: 'A' as const },
+      { name: 'Removed Race', date: '2027-01-16', priority: 'B' as const }, // seeded before, panel-removed since
+    ], 'gen-1'))
+    const names = result.current.season.races.map(r => r.raceInfo.name)
+    expect(names).toContain('Hyrox - Anaheim')
+    expect(names).not.toContain('Jack and Jills Downhill Marathon') // stale leftover pruned
+    expect(names).not.toContain('Removed Race') // prune-only never re-adds
+    // The blob is now stamped in-band.
+    expect(JSON.parse(localStorage.getItem('ba_season_v1_t')!).seededGeneration).toBe('gen-1')
+  })
+
+  it('GUARD: same-generation re-mounts still never undo panel edits (replace is once per generation)', () => {
+    const seeds = [{ name: 'Hyrox LA', date: '2026-11-07', priority: 'A' as const }]
+    const first = renderHook(() => useSeason(planRace, 't', seeds, 'gen-1'))
+    act(() => first.result.current.addRace(
+      { name: 'Panel Addition', date: '2027-02-06', startTime: '', distance: '10k', distanceMiles: 6.2, elevation: '', elevationRange: '', course: '', cutoff: '', landmarks: [], gear: [], nutrition: '' } as RaceInfo,
+      'C'))
+    first.unmount()
+    const second = renderHook(() => useSeason(planRace, 't', seeds, 'gen-1'))
+    expect(second.result.current.season.races.map(r => r.raceInfo.name)).toContain('Panel Addition')
+  })
+})

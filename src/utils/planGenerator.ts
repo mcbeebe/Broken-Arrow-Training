@@ -205,8 +205,15 @@ export function generateHyroxPlan(
   const weeksAvailable = raceMonday >= today
     ? Math.floor(daysBetween(today, raceMonday) / 7) + 1
     : 1
-  const totalWeeks = Math.min(P.totalWeeks, Math.max(1, weeksAvailable))
-  const runwayClamped = totalWeeks < P.totalWeeks
+  const coreWeeks = Math.min(P.totalWeeks, Math.max(1, weeksAvailable))
+  // Long runway: the template is a maximum for the CORE build, but the plan
+  // must still START at the athlete's chosen start (`today` is already
+  // effectivePlanStart-clamped). Extra runway becomes extended base weeks
+  // in front — the field bug was an Aug 3 start producing a plan that
+  // began 9/14 because the 12-week template back-counted from race day.
+  const baseExtension = Math.min(Math.max(0, weeksAvailable - P.totalWeeks), 8)
+  const totalWeeks = coreWeeks + baseExtension
+  const runwayClamped = coreWeeks < P.totalWeeks
   const daysPerWeek = config.trainingDaysPerWeek
   const weakStation = config.weakStation || 'Wall Balls'
 
@@ -226,8 +233,10 @@ export function generateHyroxPlan(
   const tempoPace = anchorVdot ? formatPaceRange(paceBoundsForZone(anchorVdot, 'lactate_threshold')) : ''
   const cvPace = anchorVdot ? formatPaceRange(paceBoundsForZone(anchorVdot, 'critical_velocity')) : ''
 
-  const baseEnd = Math.round(totalWeeks * 0.3)
-  const buildEnd = Math.round(totalWeeks * 0.7)
+  // Phase boundaries scale with the CORE template so build/peak/taper stay
+  // byte-stable relative to race day; extension weeks all land in base.
+  const baseEnd = baseExtension + Math.round(coreWeeks * 0.3)
+  const buildEnd = baseExtension + Math.round(coreWeeks * 0.7)
   const peakEnd = totalWeeks - 1
 
   // Workout roles assigned to training days (not day-of-week).
@@ -244,9 +253,12 @@ export function generateHyroxPlan(
   const roles = rolesByDays[daysPerWeek] || rolesByDays[4]
   const trainingDayNumbers = getTrainingDayNumbers(daysPerWeek)
 
-  // Recovery placement must follow the CLAMPED length, not the full
-  // template — fixed indices put a recovery week right before the race.
-  const recoveryWeeks = runwayClamped ? deriveRecoveryWeeks(totalWeeks) : P.recoveryWeeks
+  // Recovery placement must follow the ACTUAL length, not the template —
+  // fixed indices put a recovery week right before the race when clamped,
+  // and absurdly early when the base is extended.
+  const recoveryWeeks = runwayClamped || baseExtension > 0
+    ? deriveRecoveryWeeks(totalWeeks)
+    : P.recoveryWeeks
 
   const weeks: TrainingWeek[] = []
 

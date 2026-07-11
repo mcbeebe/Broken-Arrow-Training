@@ -73,7 +73,10 @@ describe('App boots against the field state', () => {
     expect(names).toContain('Hyrox - Anaheim')
     expect(names).toContain('Turkey Trot')
     expect(names).toContain('CIM Marathon')
-    expect(season.races).toHaveLength(4)
+    // The redo REPLACE stores exactly the captured races — the anchor is
+    // composed at runtime from the active plan, and the pre-redo stored
+    // anchor row (typo'd name) is pruned as stale.
+    expect(season.races).toHaveLength(3)
     // And the re-captured Hyrox adopted its layered integration.
     expect(season.races.find((r: { raceInfo: { name: string } }) => r.raceInfo.name === 'Hyrox - Anaheim').integration).toBe('layered')
   }, 20000)

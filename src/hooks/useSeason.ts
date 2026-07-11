@@ -40,7 +40,11 @@ function writeSeason(season: Season, athleteId?: string): void {
   try {
     // Blocks are derived state — persist the calendar only, so a stale
     // stored timeline can never wedge a future computation.
-    localStorage.setItem(key, JSON.stringify({ races: season.races, blocks: [] }))
+    localStorage.setItem(key, JSON.stringify({
+      races: season.races,
+      blocks: [],
+      ...(season.seededGeneration ? { seededGeneration: season.seededGeneration } : {}),
+    }))
     stampKey(key)
   } catch { /* quota */ }
 }
@@ -80,20 +84,33 @@ export function useSeason(
     setStored(readSeason(athleteId))
   }, [athleteId])
 
-  // Onboarding seed (G1b) — idempotent PER PLAN GENERATION. The original
-  // once-per-athlete-forever stamp was a field bug: an athlete who REDID
-  // onboarding with four races kept their year-old single-race season
-  // because the stamp blocked the re-seed.
+  // Onboarding seed — the captured season is AUTHORITATIVE per generation.
+  // A redo (new config.completedAt) REPLACES the stored calendar: re-captured
+  // races adopt the fresh answers, new ones are added, and stored races the
+  // athlete did NOT re-list are dropped (the field bug: "Broken Arrow 46k"
+  // from last season kept chaining into every new plan). Within a generation
+  // the stored `seededGeneration` makes this a no-op, so panel edits
+  // (add/remove/star) are never undone by re-renders — and because the
+  // marker lives in the synced blob, a second device sees the already-
+  // replaced calendar and does nothing.
   useEffect(() => {
-    if (!seedRaces || seedRaces.length === 0) return
-    const stampKeyName = `ba_season_seeded_v1_${athleteId ?? ''}`
-    const generation = seedGenerationId || 'legacy'
+    const generation = seedGenerationId || (seedRaces && seedRaces.length > 0 ? 'legacy' : undefined)
+    if (!generation) return // no onboarding capture at all (hardcoded-plan athletes)
     try {
-      if (localStorage.getItem(stampKeyName) === generation) return
-      const current = readSeason(athleteId) ?? { races: [], blocks: [] }
+      const current = readSeason(athleteId)
+      if (current?.seededGeneration === generation) return
+      // Migration: a pre-replace blob whose device-local stamp already
+      // matches this generation had its seeds applied under the old MERGE
+      // rules — prune stale leftovers but add nothing (a re-add would undo
+      // a panel removal the athlete made since).
+      const legacyStamp = localStorage.getItem(`ba_season_seeded_v1_${athleteId ?? ''}`)
+      const pruneOnly = !!current && current.seededGeneration === undefined && legacyStamp === generation
+
+      const base = current ?? { races: [], blocks: [] }
       const additions: SeasonRace[] = []
-      let races = current.races
-      for (const s of seedRaces) {
+      let races = base.races
+      const matchedIds = new Set<string>()
+      for (const s of seedRaces ?? []) {
         const raceInfo: RaceInfo = {
           name: s.name, date: s.date, startTime: '',
           distance: s.format === 'hyrox' ? 'Hyrox' : s.distanceMiles ? `${s.distanceMiles} mi` : '',
@@ -108,6 +125,7 @@ export function useSeason(
         if (existing) {
           // Re-captured race (same name+date): adopt the fresh answers —
           // priority, integration, format, description — without duplicating.
+          matchedIds.add(id)
           races = races.map(r => r.id === id ? {
             ...r,
             priority: s.priority,
@@ -126,6 +144,7 @@ export function useSeason(
           { name: s.name, date: s.date },
         ))
         if (nearDup) {
+          matchedIds.add(id)
           races = races.map(r => r.id === nearDup.id ? {
             ...r,
             id,
@@ -136,14 +155,22 @@ export function useSeason(
           } : r)
           continue
         }
-        additions.push({ id, priority: s.priority, raceInfo, status: 'upcoming', integration: s.integration, isPrimary: s.isPrimary })
+        if (!pruneOnly) {
+          matchedIds.add(id)
+          additions.push({ id, priority: s.priority, raceInfo, status: 'upcoming', integration: s.integration, isPrimary: s.isPrimary })
+        }
       }
-      if (additions.length > 0 || races !== current.races) {
-        const next: Season = { races: [...races, ...additions], blocks: [] }
-        writeSeason(next, athleteId)
-        setStored(next)
-      }
-      localStorage.setItem(stampKeyName, generation)
+      // The replace: stored races not re-captured are stale leftovers from
+      // an earlier setup. The anchor's stored override row is dropped too —
+      // the season memo re-injects the anchor from the active plan, and the
+      // new generation's primary flags arrive with the seeds. Dropping past
+      // races loses no history (logs/journal are ISO-keyed, plan-independent).
+      const kept = races.filter(r => matchedIds.has(r.id))
+      const next: Season = { races: [...kept, ...additions], blocks: [], seededGeneration: generation }
+      writeSeason(next, athleteId)
+      setStored(next)
+      // Keep the legacy stamp current for older app versions on other devices.
+      localStorage.setItem(`ba_season_seeded_v1_${athleteId ?? ''}`, generation)
     } catch { /* seeding is best-effort */ }
   }, [seedRaces, athleteId, seedGenerationId])
 
@@ -190,7 +217,8 @@ export function useSeason(
   )
 
   const commit = useCallback((races: SeasonRace[]) => {
-    const next: Season = { races, blocks: [] }
+    // Preserve the generation marker — a panel edit isn't a re-seed.
+    const next: Season = { races, blocks: [], seededGeneration: readSeason(athleteId)?.seededGeneration }
     writeSeason(next, athleteId)
     setStored(next)
   }, [athleteId])

@@ -1303,6 +1303,36 @@ describe('season mode (multi-race builder)', () => {
     expect(config.additionalRaces![0]).toMatchObject({ name: 'Broken Arrow 46k', isPrimary: true, priority: 'A' })
   })
 
+  it('RE-ANCHOR: an added race EARLIER than the entered one becomes the config anchor', () => {
+    const onComplete = vi.fn()
+    render(<Onboarding onComplete={onComplete} loadingDurationMs={0} />)
+    fireEvent.click(screen.getByText('A season of races')); clickContinue()
+    fireEvent.click(screen.getByText('Trail / Ultra')); clickContinue()
+    // Enter a LATE race as "the race"…
+    fireEvent.change(screen.getByPlaceholderText(/Broken Arrow/), { target: { value: 'Winter 50k' } })
+    const dateInputs = document.querySelectorAll('input[type="date"]')
+    fireEvent.change(dateInputs[0], { target: { value: '2026-12-19' } })
+    pickDistance('50K Ultra')
+    fillRaceContext()
+    clickContinue() // → season builder
+    // …and add an EARLIER half.
+    fireEvent.click(screen.getByText('＋ Add another race'))
+    fireEvent.change(screen.getByLabelText('Race 2 name'), { target: { value: 'Oakland Hills Half' } })
+    fireEvent.change(screen.getByLabelText('Race 2 date'), { target: { value: '2026-10-24' } })
+    fireEvent.change(screen.getByLabelText('Race 2 distance in miles'), { target: { value: '13.1' } })
+    clickContinue()
+    const config = finishFromDistance(onComplete)
+    // The earlier half anchors the plan; the entered 50k is an additional
+    // race carrying the main-goal flag (the anchor default was 'anchor').
+    expect(config.raceName).toBe('Oakland Hills Half')
+    expect(config.raceDate).toBe('2026-10-24')
+    expect(config.raceDistance).toBe('half_marathon')
+    expect(config.anchorIsPrimary).toBe(false)
+    expect(config.additionalRaces!.find(r => r.name === 'Winter 50k')).toMatchObject({
+      date: '2026-12-19', isPrimary: true, priority: 'A', format: 'trail',
+    })
+  })
+
   it('GUARD: the untouched flow keeps the anchor as the main goal', () => {
     const onComplete = walkToSeasonBuilder()
     fireEvent.click(screen.getByText('＋ Add another race'))
