@@ -12,8 +12,24 @@ export const WORKOUT_STYLES: Record<WorkoutType, WorkoutStyle> = {
   race:     { bg: "#FDF2F8", border: "#DB2777", label: "\u{1F3C6}" },
 }
 
-export function getWorkoutStyle(type: WorkoutType): WorkoutStyle {
-  return WORKOUT_STYLES[type] ?? WORKOUT_STYLES.rest
+// Cross-training modality → icon. The type-level default is the cyclist,
+// which read as "the app forgot what I picked" on swim/row/hike days —
+// sniff the workout title for the real modality when one is named.
+const CROSS_MODE_EMOJI: Array<[RegExp, string]> = [
+  [/swim/i, '\u{1F3CA}'],
+  [/row/i, '\u{1F6A3}'],
+  [/hik/i, '\u{1F97E}'],
+  [/yoga|mobilit/i, '\u{1F9D8}'],
+  [/cycl|bike|spin/i, '\u{1F6B4}'],
+]
+
+export function getWorkoutStyle(type: WorkoutType, workout?: string): WorkoutStyle {
+  const base = WORKOUT_STYLES[type] ?? WORKOUT_STYLES.rest
+  if (type === 'cross' && workout) {
+    const hit = CROSS_MODE_EMOJI.find(([re]) => re.test(workout))
+    if (hit) return { ...base, label: hit[1] }
+  }
+  return base
 }
 
 const DARK_BG: Record<string, string> = {

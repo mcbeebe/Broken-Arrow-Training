@@ -61,7 +61,7 @@ interface DayCardProps {
 }
 
 export default function DayCard({ day, weekNum, onTap, onLog, onSwap, onEdit, hasEdit, isSwapSelected, isSwapTarget, readiness, coachEnabled, isToday, isPast, athleteId, coachSnapshot, onAskCoach, trimpRecord, weatherChip, injuryStatus, isoDate }: DayCardProps) {
-  const style = getWorkoutStyle(day.type)
+  const style = getWorkoutStyle(day.type, day.workout)
   const actual = day.actual
   const timeEst = estimateRunTime(day.zone)
   const gradeResult = calculateGrade(day, isoDate)

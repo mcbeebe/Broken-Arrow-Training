@@ -137,3 +137,63 @@ describe('station-day details name the real stations', () => {
     expect(sim!.detail).toMatch(/roxzone/i)
   })
 })
+
+describe('cross-training rotation + structured intervals', () => {
+  it('easy days rotate through the athlete\'s selected cross modes', () => {
+    const plan = generateHyroxPlan(
+      { ...config, trainingDaysPerWeek: 6, crossTrainingModes: ['cycling', 'swimming'] } as OnboardingConfig,
+      '2026-08-03',
+    )
+    const crossDays = plan.weeks.flatMap(w => w.days).filter(d => d.workout.startsWith('Cross-train · '))
+    expect(crossDays.length).toBeGreaterThan(0)
+    const labels = new Set(crossDays.map(d => d.workout))
+    expect(labels.has('Cross-train · Cycling')).toBe(true)
+    expect(labels.has('Cross-train · Swimming')).toBe(true)
+  })
+
+  it('easy days keep the generic text when no modes were selected', () => {
+    const plan = generateHyroxPlan({ ...config, trainingDaysPerWeek: 6 } as OnboardingConfig, '2026-08-03')
+    const days = plan.weeks.flatMap(w => w.days)
+    expect(days.some(d => d.workout === 'Easy run or cross-train')).toBe(true)
+    expect(days.some(d => d.workout.startsWith('Cross-train · '))).toBe(false)
+  })
+
+  it('a 7-day athlete gets 7 training days, not the 3-day fallback', () => {
+    const plan = generateHyroxPlan({ ...config, trainingDaysPerWeek: 7 } as OnboardingConfig, '2026-09-21')
+    const fullWeek = plan.weeks[1]
+    const active = fullWeek.days.filter(d => d.type !== 'rest').length
+    expect(active).toBe(7)
+  })
+
+  it('1km repeats carry a structured workout: warm-up, rep block with recovery, cool-down', () => {
+    const plan = generateHyroxPlan(config, '2026-08-03')
+    const repeats = plan.weeks.flatMap(w => w.days).find(d => d.workout === '1km repeats')!
+    expect(repeats).toBeDefined()
+    const pw = repeats.plannedWorkout!
+    expect(pw).toBeDefined()
+    expect(pw.segments.map(s => s.role)).toEqual(['warmup', 'main', 'cooldown'])
+    const main = pw.segments[1]
+    expect(main.reps).toBeGreaterThanOrEqual(4) // intermediate: 4 build / 6 peak
+    expect(main.distance).toEqual({ value: 1, unit: 'km' })
+    expect(main.recovery?.duration?.value).toBeGreaterThanOrEqual(60)
+    // purpose/cues stay empty — the Hyrox coaching narrative owns those.
+    expect(pw.purpose).toBe('')
+    expect(pw.cues).toEqual([])
+  })
+
+  it('tempo runs carry a structured 20-min threshold block', () => {
+    // run_conditioning (the tempo slot) exists on 5+-day role sets.
+    const plan = generateHyroxPlan({ ...config, trainingDaysPerWeek: 5 } as OnboardingConfig, '2026-08-03')
+    const tempo = plan.weeks.flatMap(w => w.days).find(d => d.workout === 'Tempo run')!
+    expect(tempo).toBeDefined()
+    const main = tempo.plannedWorkout!.segments[1]
+    expect(main.duration).toEqual({ value: 20, unit: 'min' })
+    expect(main.paceZone).toBe('lactate_threshold')
+  })
+
+  it('station days stay text-based (no plannedWorkout)', () => {
+    const plan = generateHyroxPlan(config, '2026-08-03')
+    const station = plan.weeks.flatMap(w => w.days).find(d => /^Station circuit/.test(d.workout))!
+    expect(station.plannedWorkout).toBeUndefined()
+  })
+})

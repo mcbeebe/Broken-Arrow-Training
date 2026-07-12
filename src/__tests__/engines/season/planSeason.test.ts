@@ -8,7 +8,7 @@ import {
   ISSURIN_RESIDUAL_DAYS,
   TAPER_DAYS,
 } from '../../../engines/season/residuals'
-import { recoverWeeks, bridgeWeeks } from '../../../engines/season/blockWeeks'
+import { recoverWeeks, bridgeWeeks, bridgeDayStream } from '../../../engines/season/blockWeeks'
 import {
   expectBlockSequence,
   expectCoherentBlockDates,
@@ -297,5 +297,21 @@ describe('primary-race prioritization (the explicit "main goal" answer)', () => 
       const days = Math.round((Date.parse(`${race.startDate}T12:00:00`) - Date.parse(`${taper.startDate}T12:00:00`)) / 86_400_000)
       expect(days, id).toBe(TAPER_DAYS.A)
     }
+  })
+})
+
+describe('bridge cross day rotates the athlete\'s modes', () => {
+  it('names a selected mode per bridge week, rotating across weeks', () => {
+    const stream = bridgeDayStream('2026-10-26', '2026-11-08', true, 0, ['swimming', 'hiking'])
+    const crossDays = stream.map(s => s.day).filter(d => d.type === 'cross')
+    expect(crossDays.length).toBe(2)
+    expect(crossDays[0].workout).toBe('Easy cross — Swimming')
+    expect(crossDays[1].workout).toBe('Easy cross — Hiking')
+  })
+
+  it('keeps the generic flush copy when no modes were selected', () => {
+    const stream = bridgeDayStream('2026-10-26', '2026-11-01', true)
+    const cross = stream.map(s => s.day).find(d => d.type === 'cross')!
+    expect(cross.workout).toBe('Easy cross or walk')
   })
 })

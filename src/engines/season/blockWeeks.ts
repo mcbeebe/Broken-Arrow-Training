@@ -1,5 +1,7 @@
 import type { PlannedDay, SeasonBlock, TrainingWeek, WorkoutType } from '../../types'
+import type { CrossTrainingMode } from '../../hooks/useOnboarding'
 import { postRaceRecovery } from '../../utils/recovery'
+import { CROSS_MODE_LABEL } from '../planGenerator/extraDays'
 import { bridgeEmphasis } from './residuals'
 
 /**
@@ -144,6 +146,7 @@ export function bridgeDayStream(
   endIso: string,
   nextIsHyrox: boolean,
   patternOffset = 0,
+  crossModes?: CrossTrainingMode[],
 ): StreamDay[] {
   const emphasis = bridgeEmphasis(nextIsHyrox)
   const focus = `Bridge — ${emphasis.rationale}`
@@ -154,17 +157,29 @@ export function bridgeDayStream(
     cur = shiftIso(cur, 1)
   }
 
+  // The weekly flush day rotates through the athlete's own cross-training
+  // picks (the onboarding promise) — one mode per bridge week; generic
+  // copy only when they picked nothing.
+  const crossDay = (iso: string, cycle: number): PlannedDay => {
+    if (crossModes && crossModes.length > 0) {
+      const mode = crossModes[cycle % crossModes.length]
+      const label = CROSS_MODE_LABEL[mode]
+      return day(iso, 'cross', `Easy cross — ${label}`, `Optional flush: easy ${label.toLowerCase()}. Skip freely.`, 'Z1', '30 min')
+    }
+    return day(iso, 'cross', 'Easy cross or walk', 'Optional flush: bike, row, or brisk walk. Skip freely.', 'Z1', '30 min')
+  }
+
   // A 7-slot pattern applied cyclically. `patternOffset` lets the splice
   // EXTEND a bridge past its block's end (filling the boundary gap before
   // a Monday-snapped build plan) without repeating the same slot twice.
-  const pattern: ((iso: string) => PlannedDay)[] = nextIsHyrox
+  const pattern: ((iso: string, cycle: number) => PlannedDay)[] = nextIsHyrox
     ? [
         iso => day(iso, 'run', 'Aerobic hold run', 'Easy Z2 run — the maintenance dose that keeps your base.', 'Z2 · easy', '40 min'),
         iso => day(iso, 'strength', 'Strength-endurance circuit', 'Hyrox-station circuit: wall balls, sled push/pull, lunges, burpee broad jumps — quality over speed.', '—', '45 min'),
         iso => day(iso, 'rest', 'Rest', 'Adaptation happens here.'),
         iso => day(iso, 'run', 'Intensity touch', 'Z2 run finishing with 4–6 × 1 min at threshold — the intensity that preserves aerobic fitness (Hickson 1981).', 'Z2-4', '40 min'),
         iso => day(iso, 'strength', 'Glycolytic capacity', 'Station intervals at race effort: 60–90 s on / 60 s off — the short-residual quality trained closest to race day.', '—', '40 min'),
-        iso => day(iso, 'cross', 'Easy cross or walk', 'Optional flush: bike, row, or brisk walk. Skip freely.', 'Z1', '30 min'),
+        crossDay,
         iso => day(iso, 'rest', 'Rest', 'Adaptation happens here.'),
       ]
     : [
@@ -180,7 +195,7 @@ export function bridgeDayStream(
   return dates.map((iso, i) => ({
     iso,
     focus,
-    day: pattern[(i + patternOffset) % 7](iso),
+    day: pattern[(i + patternOffset) % 7](iso, Math.floor((i + patternOffset) / 7)),
   }))
 }
 

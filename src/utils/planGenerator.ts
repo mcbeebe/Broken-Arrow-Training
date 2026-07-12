@@ -1,5 +1,8 @@
 import type { TrainingPlan, TrainingWeek, PlannedDay, HRZone, PlanAdvisory } from '../types'
-import type { OnboardingConfig, ExperienceLevel } from '../hooks/useOnboarding'
+import type { OnboardingConfig, ExperienceLevel, CrossTrainingMode } from '../hooks/useOnboarding'
+import type { PlannedWorkout, PlannedSegment } from '../engines/planGenerator/types'
+import type { WorkoutCategory, CanonicalPaceZone } from '../types/training-method'
+import { buildCrossDetail } from '../engines/planGenerator/extraDays'
 import { menopauseStrengthCue } from './menopause'
 import { effectivePlanStart } from './planDates'
 import { INJURY_LEADIN_WEEKS } from './injuryRamp'
@@ -263,11 +266,13 @@ export function generateHyroxPlan(
   // 4 days: run, strength, stations, long
   // 5 days: run, strength, run+conditioning, stations, long
   // 6 days: run, strength, run+conditioning, stations, easy, long
+  // 7 days: as 6 plus a second easy/cross day
   const rolesByDays: Record<number, string[]> = {
     3: ['run', 'strength_stations', 'long'],
     4: ['run', 'strength', 'stations', 'long'],
     5: ['run', 'strength', 'run_conditioning', 'stations', 'long'],
     6: ['run', 'strength', 'run_conditioning', 'stations', 'easy', 'long'],
+    7: ['run', 'strength', 'run_conditioning', 'easy', 'stations', 'easy', 'long'],
   }
   const roles = rolesByDays[daysPerWeek] || rolesByDays[4]
   const trainingDayNumbers = getTrainingDayNumbers(daysPerWeek)
@@ -325,7 +330,7 @@ export function generateHyroxPlan(
         // work — exactly the right race-week dose.
         const role = roles[roleIdx] || 'run'
         roleIdx++
-        const shakeout = getHyroxWorkoutByRole(role, 'taper', true, P, weakStation, z1, z2, z3, z4, easyPace, tempoPace, cvPace)
+        const shakeout = getHyroxWorkoutByRole(role, 'taper', true, P, weakStation, z1, z2, z3, z4, easyPace, tempoPace, cvPace, w, config.crossTrainingModes)
         days.push({ day: dayLabel, ...shakeout })
         continue
       }
@@ -337,7 +342,7 @@ export function generateHyroxPlan(
 
       const role = roles[roleIdx] || 'run'
       roleIdx++
-      const base = getHyroxWorkoutByRole(role, phase, isRecovery, P, weakStation, z1, z2, z3, z4, easyPace, tempoPace, cvPace)
+      const base = getHyroxWorkoutByRole(role, phase, isRecovery, P, weakStation, z1, z2, z3, z4, easyPace, tempoPace, cvPace, w, config.crossTrainingModes)
       let day: PlannedDay = { day: dayLabel, ...base }
       // Menopause: append a bone-loading finisher to real strength days (skip
       // recovery/taper — maintenance only).
@@ -445,7 +450,37 @@ function getTrainingDayNumbers(daysPerWeek: number): number[] {
     case 4: return [1, 2, 4, 6]
     case 5: return [1, 2, 3, 5, 6]
     case 6: return [1, 2, 3, 4, 5, 6]
+    case 7: return [1, 2, 3, 4, 5, 6, 0] // getDay(): 0 = Sunday
     default: return [1, 3, 6]
+  }
+}
+
+/** Structured warm-up/main/cool-down for the Hyrox interval days so the
+ *  modal renders a rep-by-rep breakdown and the watch push gets a real
+ *  repeat group (text-only details parse to nothing). purpose/cues stay
+ *  empty on purpose — the Hyrox coaching narratives own those surfaces. */
+function hyroxIntervalWorkout(args: {
+  workoutId: string
+  name: string
+  category: WorkoutCategory
+  primaryZone: CanonicalPaceZone
+  main: PlannedSegment
+  approxMinutes: { min: number; max: number }
+}): PlannedWorkout {
+  return {
+    workoutId: args.workoutId,
+    methodId: 'hyrox',
+    name: args.name,
+    category: args.category,
+    primaryZone: args.primaryZone,
+    segments: [
+      { role: 'warmup', description: 'Easy jog building to workout effort, plus a few 20-sec pickups', duration: { value: 10, unit: 'min' }, paceZone: 'easy' },
+      args.main,
+      { role: 'cooldown', description: 'Very easy jog to walk', duration: { value: 10, unit: 'min' }, paceZone: 'recovery' },
+    ],
+    approxDurationMinutes: args.approxMinutes,
+    purpose: '',
+    cues: [],
   }
 }
 
@@ -457,6 +492,8 @@ function getHyroxWorkoutByRole(
   weakStation: string,
   z1: string, z2: string, z3: string, z4: string,
   easyPace: string = '', tempoPace: string = '', cvPace: string = '',
+  weekIndex: number = 0,
+  crossModes?: CrossTrainingMode[],
 ): Omit<PlannedDay, 'day'> {
 
   if (isRecovery) {
@@ -481,7 +518,32 @@ function getHyroxWorkoutByRole(
     }
     const reps = phase === 'build' ? P.repeats.build : P.repeats.peak
     if (reps > 0) {
-      return { type: 'quality', workout: '1km repeats', detail: `${reps}×1km @ race pace, ${phase === 'peak' ? '60' : '90'} sec rest. Simulate Hyrox run legs.`, zone: `${runMi + 1} mi · ${z3}${cvPace}`, route: 'Track or flat', time: `${Math.round((runMi + 1) * 11)} min` }
+      const restSec = phase === 'peak' ? 60 : 90
+      const approx = Math.round((runMi + 1) * 11)
+      return {
+        type: 'quality',
+        workout: '1km repeats',
+        detail: `${reps}×1km @ race pace, ${restSec} sec rest. Simulate Hyrox run legs.`,
+        zone: `${runMi + 1} mi · ${z3}${cvPace}`,
+        route: 'Track or flat',
+        time: `${approx} min`,
+        plannedWorkout: hyroxIntervalWorkout({
+          workoutId: 'hyrox_1km_repeats',
+          name: '1km repeats',
+          category: 'race_pace',
+          primaryZone: 'critical_velocity',
+          main: {
+            role: 'main',
+            description: '1km at Hyrox race pace — even splits; the last rep should match the first',
+            distance: { value: 1, unit: 'km' },
+            paceZone: 'critical_velocity',
+            reps,
+            recovery: { type: 'jog', duration: { value: restSec, unit: 'sec' } },
+            cue: 'The short rest is the point — each rep starts on legs that feel like running off a station.',
+          },
+          approxMinutes: { min: approx - 5, max: approx + 5 },
+        }),
+      }
     }
     return { type: 'run', workout: 'Easy run', detail: 'Build base before intervals.', zone: `${runMi} mi · ${z2}${easyPace}`, route: 'Flat route', time: `${Math.round(runMi * 12)} min` }
   }
@@ -506,7 +568,27 @@ function getHyroxWorkoutByRole(
     if (phase === 'base') {
       return { type: 'run', workout: 'Easy run + strides', detail: 'Z2 pace + 4×20 sec strides at the end.', zone: `${runMi + 0.5} mi · ${z2}${easyPace}`, route: 'Flat route', time: `${Math.round((runMi + 0.5) * 12)} min` }
     }
-    return { type: 'run', workout: 'Tempo run', detail: `20 min @ ${z3}. Build lactate threshold.`, zone: `${runMi + 0.5} mi · ${z3}${tempoPace}`, route: 'Flat route', time: `${Math.round((runMi + 0.5) * 11)} min` }
+    return {
+      type: 'run',
+      workout: 'Tempo run',
+      detail: `20 min @ ${z3}. Build lactate threshold.`,
+      zone: `${runMi + 0.5} mi · ${z3}${tempoPace}`,
+      route: 'Flat route',
+      time: `${Math.round((runMi + 0.5) * 11)} min`,
+      plannedWorkout: hyroxIntervalWorkout({
+        workoutId: 'hyrox_tempo',
+        name: 'Tempo run',
+        category: 'tempo',
+        primaryZone: 'lactate_threshold',
+        main: {
+          role: 'main',
+          description: 'Steady tempo — comfortably hard, a few words at most; one even effort, no surges',
+          duration: { value: 20, unit: 'min' },
+          paceZone: 'lactate_threshold',
+        },
+        approxMinutes: { min: 40, max: 50 },
+      }),
+    }
   }
 
   // STATIONS: Dedicated station practice day
@@ -522,8 +604,15 @@ function getHyroxWorkoutByRole(
     return { type: 'cross', workout: `Simulation (${sims} stations)`, detail: `${sims}×(1km run + station) in race order at race effort · ${buildStationList(sims)} — full race distance · Wall balls ${wb} (${P.wallBallWeight}) · Full race weight · Practice roxzone transitions`, zone: `${z3}–${z4}`, route: 'Gym', time: '1 hr 10 min' }
   }
 
-  // EASY: Active recovery day
+  // EASY: Active recovery day. When the athlete picked cross-training
+  // modes, rotate through THEIR selections week to week (the promise made
+  // in onboarding) instead of the generic "bike, elliptical, or easy jog".
   if (role === 'easy') {
+    if (crossModes && crossModes.length > 0) {
+      const mode = crossModes[weekIndex % crossModes.length]
+      const c = buildCrossDetail(mode, { phaseId: phase, isTaper: phase === 'taper', weekNumber: weekIndex + 1 })
+      return { type: 'cross', workout: c.workout, detail: c.detail, zone: c.zone, route: 'Any', time: c.time }
+    }
     return { type: 'run', workout: 'Easy run or cross-train', detail: 'Very easy. Active recovery. Bike, elliptical, or easy jog.', zone: `${Math.max(2, runMi - 1)} mi · ${z1}`, route: 'Any', time: '30 min' }
   }
 

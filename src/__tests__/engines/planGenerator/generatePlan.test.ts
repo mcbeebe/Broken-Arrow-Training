@@ -749,11 +749,11 @@ describe('generatePlanFromMethod — end-to-end', () => {
       .toEqual(planBase.weeks.map(w => w.days.map(d => d.type)))
   })
 
-  it('honors explicit strength + cross even when the method min pushes total above the day cap', () => {
-    // User asks for 5 total + 1 strength + cross. Method's min running pattern
-    // is 5 (koop), so running can't drop below 5. We honor the explicit
-    // strength + cross request rather than silently dropping it — the active
-    // total may exceed the day cap, but never exceeds 7 (calendar limit).
+  it('keeps ONE guaranteed extra when the method running floor eats the whole budget — and says so', () => {
+    // User asks for 5 total + 1 strength + cross. Koop's minimum running
+    // pattern is 5, so the budget leaves zero room — but silently dropping
+    // the strength day the athlete clicked was its own field bug, so ONE
+    // extra survives and an advisory explains the 6-day weeks.
     const plan = generatePlanFromMethod(koop, makeConfig({
       raceDistance: '50k',
       experienceLevel: 'advanced',
@@ -761,21 +761,20 @@ describe('generatePlanFromMethod — end-to-end', () => {
       strengthDaysPerWeek: 1,
       crossTrainingModes: ['cycling'],
     }), TODAY)
-    const buildWeek = plan.weeks.find(w => w.focus !== 'Taper' && w.focus !== 'Cutback')!
-    const types = buildWeek.days.map(d => d.type)
-    // Strength + cross requested should appear in a typical build week.
-    expect(types).toContain('strength')
-    expect(types).toContain('cross')
-    // Calendar-hard cap: never more than 7 active days in a 7-day week.
-    const active = buildWeek.days.filter(d => d.type !== 'rest').length
-    expect(active).toBeLessThanOrEqual(7)
+    for (const w of plan.weeks) {
+      const active = w.days.filter(d => d.type !== 'rest').length
+      expect(active, `week ${w.num} has ${active} active days`).toBeLessThanOrEqual(6)
+    }
+    // The scarce slot alternates, so BOTH kinds show up across the plan.
+    const allTypes = plan.weeks.flatMap(w => w.days.map(d => d.type))
+    expect(allTypes).toContain('strength')
+    expect(allTypes).toContain('cross')
+    expect(plan.advisories?.some(a => a.id === 'days_over_request')).toBe(true)
   })
 
-  it('respects the day cap when running min leaves room for some but not all extras', () => {
-    // 5-day budget with 2 strength + 1 cross requested. Method min is 5,
-    // leaving room for 2 extras max in a 7-day week. One requested extra
-    // must be dropped — we keep the cross day (placed first) plus one
-    // strength day rather than dropping strength entirely.
+  it('a scarce extra slot alternates strength and cross across weeks', () => {
+    // 5-day budget with 2 strength + 1 cross requested on a min-5 method:
+    // one extra slot per week, alternating kind, never 3 extras stacked.
     const plan = generatePlanFromMethod(koop, makeConfig({
       raceDistance: '50k',
       experienceLevel: 'advanced',
@@ -783,17 +782,48 @@ describe('generatePlanFromMethod — end-to-end', () => {
       strengthDaysPerWeek: 2,
       crossTrainingModes: ['cycling'],
     }), TODAY)
-    const buildWeek = plan.weeks.find(w => w.focus !== 'Taper' && w.focus !== 'Cutback')!
-    const active = buildWeek.days.filter(d => d.type !== 'rest').length
-    expect(active).toBeLessThanOrEqual(7)
-    const strengthDays = buildWeek.days.filter(d => d.type === 'strength').length
-    const crossDays = buildWeek.days.filter(d => d.type === 'cross').length
-    expect(strengthDays + crossDays).toBeGreaterThanOrEqual(1)
+    const buildWeeks = plan.weeks.filter(w => w.focus !== 'Taper' && w.focus !== 'Cutback')
+    for (const w of buildWeeks) {
+      const extras = w.days.filter(d => d.type === 'strength' || d.type === 'cross').length
+      expect(extras, `week ${w.num}`).toBeLessThanOrEqual(1)
+    }
+    const kinds = new Set(buildWeeks.flatMap(w => w.days.filter(d => d.type === 'strength' || d.type === 'cross').map(d => d.type)))
+    expect(kinds.has('strength')).toBe(true)
+    expect(kinds.has('cross')).toBe(true)
+  })
+
+  it('THE FIELD CASE: a 5-day higdon athlete with extras gets 5-day weeks, not 7', () => {
+    // "I stated 5 workout days and it gave me 7 early" — higdon's running
+    // minimum is 4, so a 5-total request fits 4 runs + 1 extra + 2 rest.
+    const plan = generatePlanFromMethod(higdon, makeConfig({
+      raceDistance: 'half_marathon',
+      experienceLevel: 'intermediate',
+      trainingDaysPerWeek: 5,
+      strengthDaysPerWeek: 1,
+      crossTrainingModes: ['cycling'],
+      crossTrainingDaysPerWeek: 1,
+    }), TODAY)
+    for (const w of plan.weeks) {
+      const active = w.days.filter(d => d.type !== 'rest').length
+      expect(active, `week ${w.num} has ${active} active days`).toBeLessThanOrEqual(5)
+    }
+    // Header tells the truth about the total.
+    expect(plan.athlete.weeklyStructure).toBe('5 days/week')
+    // Both requested extras appear across the plan (alternating weeks).
+    const allTypes = plan.weeks.flatMap(w => w.days.map(d => d.type))
+    expect(allTypes).toContain('strength')
+    expect(allTypes).toContain('cross')
+    // The total was honored, so no over-request advisory fires.
+    expect(plan.advisories?.some(a => a.id === 'days_over_request')).toBeFalsy()
   })
 
   it('honors a single strength day for a half-marathon Pfitzinger plan', () => {
     // Regression: previously, picking 5 days + 1 strength on Pfitzinger
-    // (5-day min running pattern) produced a plan with 0 strength sessions.
+    // (5-day min running pattern) produced a plan with ZERO strength
+    // sessions. The guaranteed-extra floor keeps strength in the plan;
+    // weeks whose running pattern alone already exceeds the allowance
+    // (Pfitz's 6-run endurance mesocycle) rightly skip it, so assert
+    // plan-wide presence and the one-day overshoot bound.
     const plan = generatePlanFromMethod(pfitzinger, makeConfig({
       raceDistance: 'half_marathon',
       experienceLevel: 'intermediate',
@@ -801,9 +831,12 @@ describe('generatePlanFromMethod — end-to-end', () => {
       strengthDaysPerWeek: 1,
       crossTrainingModes: undefined,
     }), TODAY)
-    const buildWeek = plan.weeks.find(w => w.focus !== 'Taper' && w.focus !== 'Cutback')!
-    const strengthDays = buildWeek.days.filter(d => d.type === 'strength').length
+    const strengthDays = plan.weeks.flatMap(w => w.days).filter(d => d.type === 'strength').length
     expect(strengthDays).toBeGreaterThanOrEqual(1)
+    for (const w of plan.weeks) {
+      const active = w.days.filter(d => d.type !== 'rest').length
+      expect(active, `week ${w.num}`).toBeLessThanOrEqual(6) // requested 5 + at most 1
+    }
   })
 
   it('honors injuryStatus=returning by capping days and softening intensity', () => {
