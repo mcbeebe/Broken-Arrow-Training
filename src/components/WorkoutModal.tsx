@@ -160,7 +160,7 @@ interface WorkoutModalProps {
 }
 
 export default function WorkoutModal({ day, weekNum, onClose, onLog, onSaveNote, zones, athleteId, coachEnabled, readiness, latestPerf, coachSnapshot, onAskCoach, trimpRecord, weeks, raceReadinessTarget, strengthLevel }: WorkoutModalProps) {
-  const style = getWorkoutStyle(day.type)
+  const style = getWorkoutStyle(day.type, day.workout)
   const { flags } = useDisplayPreferences(athleteId)
   // General Fitness plans (raceType 'general') get goal-aware, race-free
   // coaching; trail/hyrox/seed plans keep the existing race narratives.
@@ -249,8 +249,10 @@ export default function WorkoutModal({ day, weekNum, onClose, onLog, onSaveNote,
   }, [weeks, day.actual?.startDate])
   const isDrillDay = !!day.isDrillDay
   // Label of this week's drill day (first easy run), for the "drills are
-  // scheduled for your <day> run" nudge shown on other run days.
-  const drillDayLabel = weeks?.[weekNum - 1]?.days.find(d => d.isDrillDay)?.day ?? ''
+  // scheduled for your <day> run" nudge shown on other run days. Resolved
+  // by week NUMBER, not array position — spliced plans renumber weeks, so
+  // positional indexing pointed a November modal at an August drill day.
+  const drillDayLabel = modalWeek?.days.find(d => d.isDrillDay)?.day ?? ''
   const [stream, setStream] = useState<StreamData | null>(null)
   const [streamLoading, setStreamLoading] = useState(false)
 

@@ -469,7 +469,7 @@ export default function Summary({
       )}
       {/* Tomorrow's Workout preview — evening only (athlete-configured hour) */}
       {isEveningPreviewWindow(new Date(), cardPreviewHour) && tomorrowPlannedWorkout && (() => {
-        const style = getWorkoutStyle(tomorrowPlannedWorkout.type)
+        const style = getWorkoutStyle(tomorrowPlannedWorkout.type, tomorrowPlannedWorkout.workout)
         const courseMatch = findBestCourseMatchForPlanned(tomorrowPlannedWorkout, race)
         const looksLike = formatLooksLikeLine(courseMatch, "Tomorrow's")
         // Tomorrow may fall in a different plan week than today — derive its
@@ -525,7 +525,7 @@ export default function Summary({
 
       {/* Today's Workout CTA */}
       {todayPlannedWorkout && todayPlannedWorkout.type !== 'rest' && (() => {
-        const style = getWorkoutStyle(todayPlannedWorkout.type)
+        const style = getWorkoutStyle(todayPlannedWorkout.type, todayPlannedWorkout.workout)
         const isCompleted = !!todayPlannedWorkout.actual
         // Course-as-protagonist projection: when today's planned workout
         // strongly matches a segment of the goal race course, surface it

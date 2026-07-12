@@ -631,14 +631,23 @@ export function generatePlanFromMethod(
   const desiredRunDays = requestedTotalDays - extrasRequested
   const runningDaysTarget = Math.max(minRunDays, Math.min(maxRunDays, desiredRunDays))
 
-  // Strength + cross-training the user explicitly asked for. We honor the
-  // full request even when the method's running minimum pushed
-  // `runningDaysTarget` above `requestedTotalDays - extrasRequested` — the
-  // alternative is silently dropping a strength day the user just clicked,
-  // which was confusing in practice. The only hard cap is the calendar:
-  // never schedule more than 7 active days in a week.
+  // Strength + cross-training fit inside the athlete's TOTAL day budget.
+  // Onboarding sells trainingDaysPerWeek as a total ("Includes runs,
+  // strength, and cross-training"), so extras only get whatever the
+  // running pattern left of that total (the field bug: a 5-day athlete
+  // with 3 extras got 4 runs + 3 extras = 7-day weeks with no rest).
+  // Two floors survive the budget:
+  //   - the method's running minimum (patterns below it don't exist);
+  //   - ONE extra slot when extras were explicitly requested — silently
+  //     dropping the strength day the athlete just clicked was its own
+  //     field bug. When that floor forces the week past the requested
+  //     total, we say so in a plan advisory instead of hiding it.
+  // When the budget can't fit every requested extra, injectExtraDays
+  // alternates which kind gets the scarce slot week to week.
+  const extrasBudget = Math.max(0, requestedTotalDays - runningDaysTarget)
+  const extrasFloor = extrasRequested > 0 ? 1 : 0
   const extrasInWeekCap = Math.max(0, 7 - runningDaysTarget)
-  const extrasCap = Math.min(extrasRequested, extrasInWeekCap)
+  const extrasCap = Math.min(extrasRequested, Math.max(extrasBudget, extrasFloor), extrasInWeekCap)
 
   const raceDateAnchor = config.raceDate || addDays(today, totalWeeks * 7)
   // Anchor every week to the Monday of race week, then count back. This puts
@@ -741,6 +750,16 @@ export function generatePlanFromMethod(
     // by the total-days budget so we never exceed `trainingDaysPerWeek`.
     // Race week skips injection — its schedule is hand-authored in the
     // method's taper.raceWeekSchedule and shouldn't be edited.
+    // Per-week extras budget: a cutback/recovery (or 6-day) pattern can run
+    // MORE days than the plan-level target — those weeks skip their extra
+    // rather than overshoot the athlete's total. The allowance is the
+    // requested total, +1 only when the method's running minimum makes
+    // overshoot unavoidable plan-wide (the advisory case) — so weeks never
+    // exceed the requested total by more than one day, ever.
+    const weekRunDays = days.filter(d => d.type !== 'rest').length
+    const overshootUnavoidable = runningDaysTarget + Math.min(extrasFloor, extrasCap) > requestedTotalDays
+    const weekAllowance = requestedTotalDays + (overshootUnavoidable ? 1 : 0)
+    const weekMaxExtras = Math.min(extrasCap, Math.max(0, weekAllowance - weekRunDays))
     const withExtras = isFinalWeek
       ? days
       : injectExtraDays(
@@ -753,7 +772,7 @@ export function generatePlanFromMethod(
             phaseId: weekMi.phaseId,
             weekNumber: weekMi.weekNumber,
           },
-          { maxExtras: extrasCap },
+          { maxExtras: weekMaxExtras },
         )
     // Stamp the week's drill day (first easy run) so the UI can surface the
     // running-drills + Myrtl tip on the right day without a hard-coded date map.
@@ -808,6 +827,17 @@ export function generatePlanFromMethod(
   const effectiveDaysPerWeek = runningDaysTarget + extrasCap
   const athlete = buildAthleteProfile(config, currentWeeklyMileage, effectiveDaysPerWeek)
   const advisories = [...assessFeasibility(config, today, method), ...environmentAdvisories(config)]
+  // Honesty over silence: when the method's running floor + the one
+  // guaranteed extra can't fit the requested total, tell the athlete why
+  // the header shows a bigger number than they picked.
+  if (effectiveDaysPerWeek > requestedTotalDays) {
+    advisories.push({
+      id: 'days_over_request',
+      severity: 'info',
+      title: 'One more day than requested',
+      detail: `${method.name} needs at least ${runningDaysTarget} running days, and you asked for strength/cross-training too — so weeks run ${effectiveDaysPerWeek} days instead of ${requestedTotalDays}. Pick a lower-mileage method or drop the extras to get back to ${requestedTotalDays}.`,
+    })
+  }
   return {
     athlete,
     weeks,

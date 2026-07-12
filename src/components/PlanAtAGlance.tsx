@@ -60,7 +60,7 @@ export default function PlanAtAGlance({ weeks, currentWeekNum, todayPlannedWorko
       {/* Day-by-day chips, today ringed */}
       <div className="grid grid-cols-7 gap-1">
         {week.days.map((d, i) => {
-          const style = getWorkoutStyle(d.type)
+          const style = getWorkoutStyle(d.type, d.workout)
           const isToday = i === todayIdx
           const dow = d.day.split(' ')[0]
           return (

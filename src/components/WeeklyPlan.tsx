@@ -102,7 +102,11 @@ export default function WeeklyPlan({
 }: WeeklyPlanProps) {
   const [viewMode, setViewMode] = useState<'list' | 'calendar' | 'race'>('list')
   const [activeWeek, setActiveWeek] = useState(0)
-  const [modalDay, setModalDay] = useState<PlannedDay | null>(null)
+  // The modal carries the tapped day's OWNING week — the calendar renders
+  // days from every week, so deriving the week from the pager index sent
+  // a November tap to the modal as "Wk 3" (wrong coaching phase, wrong
+  // race context, an August drills tip, wrong readiness/TRIMP lookups).
+  const [modalDay, setModalDay] = useState<{ day: PlannedDay; week: TrainingWeek } | null>(null)
   const [logDay, setLogDay] = useState<PlannedDay | null>(null)
   const [editDay, setEditDay] = useState<{ day: PlannedDay; index: number } | null>(null)
   const [swapSource, setSwapSource] = useState<number | null>(null)
@@ -190,6 +194,14 @@ export default function WeeklyPlan({
     }
   }, [activeWeek])
 
+  // Resolve the week a tapped day actually belongs to (identity match —
+  // the calendar and list both render days straight from `weeks`), falling
+  // back to the pager week for defensive safety.
+  function openDayModal(d: PlannedDay) {
+    const owning = weeks.find(w => w.days.includes(d)) ?? week
+    setModalDay({ day: d, week: owning })
+  }
+
   // Tap-to-swap: first tap selects source, second tap selects target
   function handleSwapTap(index: number) {
     if (swapSource === null) {
@@ -275,7 +287,7 @@ export default function WeeklyPlan({
           month={calMonth.month}
           daysByDate={daysByDate}
           readinessByDate={readinessByDate}
-          onDayTap={d => setModalDay(d)}
+          onDayTap={d => openDayModal(d)}
         />
       )}
 
@@ -431,7 +443,7 @@ export default function WeeklyPlan({
               <DayCard
                 day={d}
                 weekNum={week.num}
-                onTap={isSwapMode ? () => handleSwapTap(i) : () => setModalDay(d)}
+                onTap={isSwapMode ? () => handleSwapTap(i) : () => openDayModal(d)}
                 onLog={manualLog ? () => setLogDay(d) : undefined}
                 onSwap={daySwap ? () => handleSwapTap(i) : undefined}
                 onEdit={planEdit ? () => setEditDay({ day: d, index: i }) : undefined}
@@ -519,20 +531,20 @@ export default function WeeklyPlan({
       {/* Workout detail modal (shared by all views) */}
       {modalDay && (
         <WorkoutModal
-          day={modalDay}
-          weekNum={week.num}
+          day={modalDay.day}
+          weekNum={modalDay.week.num}
           onClose={() => setModalDay(null)}
-          onLog={manualLog ? () => { setLogDay(modalDay); setModalDay(null) } : undefined}
-          onSaveNote={manualLog && modalDay.actual ? async (note) => {
-            manualLog.logWorkout(modalDay.day, { ...modalDay.actual!, notes: note }, dayIsoInWeek(modalDay.day, week, todayDateString()))
-            await onShareNote?.(modalDay, note)
+          onLog={manualLog ? () => { setLogDay(modalDay.day); setModalDay(null) } : undefined}
+          onSaveNote={manualLog && modalDay.day.actual ? async (note) => {
+            manualLog.logWorkout(modalDay.day.day, { ...modalDay.day.actual!, notes: note }, dayIsoInWeek(modalDay.day.day, modalDay.week, todayDateString()))
+            await onShareNote?.(modalDay.day, note)
           } : undefined}
           zones={zones}
           athleteId={athleteId}
           coachEnabled={coachEnabled}
           weeks={weeks}
           readiness={(() => {
-            const d = dayIsoInWeek(modalDay.day, week, todayDateString())
+            const d = dayIsoInWeek(modalDay.day.day, modalDay.week, todayDateString())
             return d ? readinessByDate.get(d) : undefined
           })()}
           latestPerf={latestPerf}
@@ -540,8 +552,8 @@ export default function WeeklyPlan({
           onAskCoach={onAskCoach}
           strengthLevel={strengthLevel}
           trimpRecord={(() => {
-            const d = dayIsoInWeek(modalDay.day, week, todayDateString())
-            return findTrimpRecord(dailyTrimp, d, modalDay.actual?.name)
+            const d = dayIsoInWeek(modalDay.day.day, modalDay.week, todayDateString())
+            return findTrimpRecord(dailyTrimp, d, modalDay.day.actual?.name)
           })()}
         />
       )}
@@ -648,7 +660,7 @@ function CalendarGrid({
             )
           }
 
-          const style = getWorkoutStyle(planned.type)
+          const style = getWorkoutStyle(planned.type, planned.workout)
           const isDone = !!planned.actual
           const bg = adaptBg(isDone ? '#D1FAE5' : style.bg)
 

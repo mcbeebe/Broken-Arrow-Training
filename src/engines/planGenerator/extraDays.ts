@@ -38,7 +38,7 @@ export interface ExtraDaysCaps {
   maxExtras?: number
 }
 
-const CROSS_MODE_LABEL: Record<CrossTrainingMode, string> = {
+export const CROSS_MODE_LABEL: Record<CrossTrainingMode, string> = {
   cycling: 'Cycling',
   swimming: 'Swimming',
   rowing: 'Rowing',
@@ -255,25 +255,9 @@ export function injectExtraDays(
     ? Math.min(1, wantCrossDays)
     : wantCrossDays
 
-  let crossPlaced = 0
-  while (crossPlaced < crossTarget && cursor < restIndices.length && injected < maxExtras) {
-    const mode = pickCrossModeAt(crossPlaced, config, method)
-    if (!mode) break
-    const idx = restIndices[cursor++]
-    const c = buildCrossDetail(mode, opts)
-    next[idx] = {
-      ...next[idx],
-      type: 'cross',
-      workout: c.workout,
-      detail: c.detail,
-      zone: c.zone,
-      time: c.time,
-      route: '',
-    }
-    crossPlaced += 1
-    injected += 1
-  }
-
+  // Strength target, computed up front so scarce-budget weeks can decide
+  // placement order between both kinds.
+  let strengthTarget = 0
   if (wantStrength) {
     const want = config.strengthDaysPerWeek ?? 0
     const bounds = method.strengthRecommendation.daysPerWeek
@@ -282,10 +266,33 @@ export function injectExtraDays(
     const isTaperPhase = !!taperPhaseId && weekMileage.phaseId === taperPhaseId
     // Drop to 1 day during taper regardless of user pref — strength is
     // maintenance-only this phase per every method's philosophy.
-    const target = isTaperPhase || weekMileage.isTaper ? Math.min(1, capped) : capped
+    strengthTarget = isTaperPhase || weekMileage.isTaper ? Math.min(1, capped) : capped
+  }
 
+  const placeCross = () => {
+    let crossPlaced = 0
+    while (crossPlaced < crossTarget && cursor < restIndices.length && injected < maxExtras) {
+      const mode = pickCrossModeAt(crossPlaced, config, method)
+      if (!mode) break
+      const idx = restIndices[cursor++]
+      const c = buildCrossDetail(mode, opts)
+      next[idx] = {
+        ...next[idx],
+        type: 'cross',
+        workout: c.workout,
+        detail: c.detail,
+        zone: c.zone,
+        time: c.time,
+        route: '',
+      }
+      crossPlaced += 1
+      injected += 1
+    }
+  }
+
+  const placeStrength = () => {
     let placed = 0
-    while (placed < target && cursor < restIndices.length && injected < maxExtras) {
+    while (placed < strengthTarget && cursor < restIndices.length && injected < maxExtras) {
       const idx = restIndices[cursor++]
       const boneFocus = !opts.isTaper && !!menopauseStrengthCue(config)
       next[idx] = {
@@ -300,6 +307,20 @@ export function injectExtraDays(
       placed += 1
       injected += 1
     }
+  }
+
+  // When the athlete's total-day budget can't fit every requested extra,
+  // whichever kind places first wins the scarce slot. Alternate the order
+  // by week so both kinds still show up across the plan — a 5-day athlete
+  // with strength + cycling selected sees cycling every other week instead
+  // of never. Odd weeks keep the legacy cross-first order.
+  const scarce = maxExtras < crossTarget + strengthTarget && crossTarget > 0 && strengthTarget > 0
+  if (scarce && weekMileage.weekNumber % 2 === 0) {
+    placeStrength()
+    placeCross()
+  } else {
+    placeCross()
+    placeStrength()
   }
 
   return next

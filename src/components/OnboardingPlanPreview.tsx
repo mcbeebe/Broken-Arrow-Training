@@ -76,7 +76,7 @@ export default function OnboardingPlanPreview({ config }: { config: OnboardingCo
       </p>
       <div className="space-y-1.5">
         {week1.days.map((d, i) => {
-          const style = getWorkoutStyle(d.type)
+          const style = getWorkoutStyle(d.type, d.workout)
           return (
             <div
               key={i}

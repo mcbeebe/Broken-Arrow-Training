@@ -143,7 +143,7 @@ export function spliceSeasonWeeks(
 
     if (block.kind === 'BRIDGE') {
       const label = `Toward ${race.raceInfo.name}`
-      const stream = bridgeDayStream(block.startDate, block.endDate, isHyroxRace(race))
+      const stream = bridgeDayStream(block.startDate, block.endDate, isHyroxRace(race), 0, config.crossTrainingModes)
       pendingStream.push(...stream.map(s => ({ ...s, focus: `[${label}] ${s.focus}` })))
       bridgeState = { nextIsHyrox: isHyroxRace(race), consumed: stream.length, label }
       continue
@@ -186,7 +186,7 @@ export function spliceSeasonWeeks(
         const lastPending = pendingStream[pendingStream.length - 1]?.iso
         if (firstCovered && lastPending && shiftIso(lastPending, 1) < firstCovered) {
           const fillState = bridgeState ?? { nextIsHyrox: isHyroxRace(race), consumed: 0, label: `Toward ${race.raceInfo.name}` }
-          pendingStream.push(...bridgeDayStream(shiftIso(lastPending, 1), shiftIso(firstCovered, -1), fillState.nextIsHyrox, fillState.consumed)
+          pendingStream.push(...bridgeDayStream(shiftIso(lastPending, 1), shiftIso(firstCovered, -1), fillState.nextIsHyrox, fillState.consumed, config.crossTrainingModes)
             .map(s => ({ ...s, focus: `[${fillState.label}] ${s.focus}` })))
         }
       }
