@@ -1,5 +1,5 @@
 import jsPDF from 'jspdf'
-import type { ActualWorkout, PlannedDay, PerformanceMetrics, RaceInfo, StrengthExerciseLog, TrainingWeek } from '../types'
+import type { ActualWorkout, PlannedDay, PerformanceMetrics, RaceInfo, Season, StrengthExerciseLog, TrainingWeek } from '../types'
 
 // Minimal readiness summary inlined here so this PR ships independently of
 // the race-ready hero card branch. When that branch lands, this can switch
@@ -317,10 +317,186 @@ export function generateAthletePdf(input: AthletePdfInput): Blob {
   return doc.output('blob')
 }
 
-export function pdfFilename(athleteName: string, now: Date = new Date()): string {
+export function pdfFilename(athleteName: string, now: Date = new Date(), suffix = ''): string {
   const safeName = (athleteName || 'athlete').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'athlete'
   const y = now.getFullYear()
   const m = String(now.getMonth() + 1).padStart(2, '0')
   const d = String(now.getDate()).padStart(2, '0')
-  return `broken-arrow-${safeName}-${y}${m}${d}.pdf`
+  return `broken-arrow-${safeName}${suffix ? `-${suffix}` : ''}-${y}${m}${d}.pdf`
+}
+
+// ─── Full-plan exporter ─────────────────────────────────────────
+
+export interface PlanPdfInput {
+  athleteName: string
+  race: RaceInfo
+  /** The COMPLETE (season-spliced) weeks — every week is printed. */
+  weeks: TrainingWeek[]
+  /** Season for the race overview (main goal, roles, dates). Optional —
+   *  single-race athletes render the goal race alone. */
+  season?: Season | null
+  /** Optional override for now() — used in tests. */
+  generatedAt?: Date
+}
+
+/** "Sat, Oct 24 2026" from an ISO-ish date string; the raw text when it
+ *  isn't parseable (free-text dates like "sometime next fall"). */
+function friendlyDate(dateStr: string): string {
+  if (!/^\d{4}-\d{2}-\d{2}/.test(dateStr)) return dateStr
+  const d = new Date(`${dateStr.slice(0, 10)}T12:00:00`)
+  if (Number.isNaN(d.getTime())) return dateStr
+  return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })
+}
+
+/** One line per structured segment — "3 x 1 km @ critical velocity, 90 sec jog recovery". */
+function segmentLines(day: PlannedDay): string[] {
+  const pw = day.plannedWorkout
+  if (!pw || pw.segments.length === 0) return []
+  return pw.segments.map(seg => {
+    const amount = seg.distance
+      ? `${seg.distance.value} ${seg.distance.unit}`
+      : seg.duration
+        ? `${seg.duration.value} ${seg.duration.unit}`
+        : ''
+    const reps = seg.reps && seg.reps > 1 ? `${seg.reps} x ` : ''
+    const rec = seg.recovery?.duration
+      ? `, ${seg.recovery.duration.value} ${seg.recovery.duration.unit} ${seg.recovery.type} recovery`
+      : ''
+    const label = seg.role === 'main' ? '' : `${seg.role === 'warmup' ? 'Warm-up' : 'Cool-down'}: `
+    return `${label}${reps}${amount}${amount && seg.description ? ' - ' : ''}${seg.description}${rec}`
+  })
+}
+
+/**
+ * The athlete's ENTIRE plan as a readable, printable document — every week
+ * of the season chain, every day with its full prescription. Forward-
+ * looking counterpart to generateAthletePdf (the retrospective log):
+ * this one is for printing out, sticking on the fridge, or reading the
+ * whole build in one sitting. Client-side jsPDF, no backend.
+ */
+export function generatePlanPdf(input: PlanPdfInput): Blob {
+  const { athleteName, race, weeks, season, generatedAt } = input
+  const now = generatedAt ?? new Date()
+  const doc = new jsPDF({ unit: 'pt', format: 'letter', compress: false })
+
+  const PAGE_LEFT = 48
+  const PAGE_RIGHT = 564
+  const LINE = 14
+  let y = 64
+
+  function pageBreakIfNeeded(reserve = LINE) {
+    if (y + reserve > 740) {
+      doc.addPage()
+      y = 64
+    }
+  }
+  function writeHeading(text: string, size = 16) {
+    pageBreakIfNeeded(size + 6)
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(size)
+    doc.text(text, PAGE_LEFT, y)
+    y += size + 6
+  }
+  function writeLine(text: string, opts: { bold?: boolean; size?: number; gap?: number; indent?: number } = {}) {
+    doc.setFont('helvetica', opts.bold ? 'bold' : 'normal')
+    doc.setFontSize(opts.size ?? 11)
+    const left = PAGE_LEFT + (opts.indent ?? 0)
+    const wrapWidth = PAGE_RIGHT - left
+    const lines = doc.splitTextToSize(text, wrapWidth)
+    for (const line of lines) {
+      pageBreakIfNeeded()
+      doc.text(line, left, y)
+      y += opts.gap ?? LINE
+    }
+  }
+  function writeRule() {
+    doc.setDrawColor(200)
+    doc.line(PAGE_LEFT, y - 6, PAGE_RIGHT, y - 6)
+    y += 6
+  }
+
+  // ── Header ─────────────────────────────────────────────────────
+  writeHeading(`${athleteName || 'Athlete'} - Training Plan`)
+  writeLine(`Broken Arrow Training · generated ${now.toLocaleDateString()}`, { size: 10 })
+  writeLine(`${weeks.length} week${weeks.length === 1 ? '' : 's'}`, { size: 10 })
+  y += 8
+  writeRule()
+
+  // ── Race overview ──────────────────────────────────────────────
+  const seasonRaces = (season?.races ?? [])
+    .map(r => ({
+      name: r.raceInfo.name,
+      date: r.raceInfo.date,
+      isPrimary: !!r.isPrimary,
+      trainThrough: r.priority === 'C',
+    }))
+    .sort((a, b) => a.date.localeCompare(b.date))
+  writeHeading(seasonRaces.length > 1 ? 'Your races' : 'Goal race', 13)
+  if (seasonRaces.length > 1) {
+    for (const r of seasonRaces) {
+      const role = r.isPrimary ? '  [MAIN GOAL]' : r.trainThrough ? '  [tune-up]' : ''
+      writeLine(`${r.name}${role}`, { bold: true })
+      writeLine(friendlyDate(r.date), { size: 10, indent: 14 })
+    }
+  } else {
+    writeLine(race.name, { bold: true })
+    const bits = [race.distance, race.elevation].filter(Boolean).join(' · ')
+    if (bits) writeLine(bits)
+    writeLine(friendlyDate(race.date))
+    if (race.course) writeLine(race.course, { size: 10 })
+  }
+  y += 8
+
+  // ── Every week, every day ──────────────────────────────────────
+  writeHeading('The plan, week by week', 13)
+  let lastContext = ''
+  for (const week of weeks) {
+    // Block context header whenever the target race changes (season chains).
+    const context = week.seasonRace
+      ? `Building toward ${week.seasonRace.name} (${friendlyDate(week.seasonRace.dateIso)})`
+      : ''
+    if (context && context !== lastContext) {
+      pageBreakIfNeeded(30)
+      y += 6
+      writeLine(`--- ${context} ---`, { bold: true, size: 11 })
+      y += 2
+    }
+    lastContext = context
+
+    pageBreakIfNeeded(28)
+    y += 4
+    writeLine(
+      `Week ${week.num}${week.dates ? ` — ${week.dates}` : ''}${week.focus ? `  ·  ${week.focus}` : ''}${week.miles ? `  ·  ${week.miles} mi` : ''}`,
+      { bold: true, size: 11 },
+    )
+
+    for (const day of week.days ?? []) {
+      pageBreakIfNeeded(24)
+      if (day.type === 'rest') {
+        writeLine(`${day.day}  REST`, { size: 10, indent: 6 })
+        continue
+      }
+      const isRace = day.type === 'race'
+      writeLine(`${day.day}  ${isRace ? '*** ' : ''}${day.workout}${isRace ? ' ***' : ''}`, { bold: true, size: 10, indent: 6 })
+      const plannedBits = [day.zone, day.time, day.route].filter(b => b && b !== '—').join(' · ')
+      if (plannedBits) writeLine(plannedBits, { size: 9, indent: 20 })
+      for (const seg of segmentLines(day)) {
+        writeLine(seg, { size: 9, indent: 20 })
+      }
+      if (day.detail && day.detail !== day.workout) {
+        writeLine(day.detail, { size: 9, indent: 20 })
+      }
+      y += 1
+    }
+    y += 4
+  }
+
+  // ── Footer ─────────────────────────────────────────────────────
+  pageBreakIfNeeded(40)
+  y += 8
+  writeRule()
+  writeLine('Every workout carries full details and coaching in the app.', { size: 9 })
+  writeLine('Source: Broken Arrow Training', { size: 9 })
+
+  return doc.output('blob')
 }
