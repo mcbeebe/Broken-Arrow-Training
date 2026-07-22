@@ -9,7 +9,7 @@ import DeployDiagnostics from './DeployDiagnostics'
 import AthleteAdmin from './AthleteAdmin'
 import Methodology from './Methodology'
 import SyncSettings from './SyncSettings'
-import type { HRZone, PendingInference, CoachPersona, TrainingPlan } from '../types'
+import type { HRZone, PendingInference, CoachPersona, Season, TrainingPlan } from '../types'
 import type { TrainingMethod } from '../types/training-method'
 import type { OnboardingConfig } from '../hooks/useOnboarding'
 import type { MIMOverride } from '../hooks/useMIMCalibration'
@@ -144,6 +144,8 @@ interface SettingsProps {
    *  manual logs on top of the raw plan. Pass this through to the PDF
    *  export so completed sessions render as DONE rather than MISS. */
   mergedWeeks?: TrainingWeek[]
+  /** Season — the full-plan PDF export lists every race with its role. */
+  season?: Season | null
 }
 
 export default function Settings({
@@ -225,6 +227,7 @@ export default function Settings({
   onboardingConfig,
   performance,
   mergedWeeks,
+  season,
 }: SettingsProps) {
   const [exportOpen, setExportOpen] = useState(false)
   void _onAcceptInference
@@ -756,6 +759,7 @@ export default function Settings({
           race={activePlan.race}
           weeks={mergedWeeks ?? activePlan.weeks}
           performance={performance ?? []}
+          season={season}
         />
       )}
 

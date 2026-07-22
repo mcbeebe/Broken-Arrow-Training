@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, it, expect } from 'vitest'
-import { generateAthletePdf, pdfFilename } from '../utils/pdfExport'
+import { generateAthletePdf, generatePlanPdf, pdfFilename } from '../utils/pdfExport'
 import type { ActualWorkout, PerformanceMetrics, PlannedDay, RaceInfo, TrainingWeek, WorkoutType } from '../types'
 
 function race(): RaceInfo {
@@ -399,5 +399,85 @@ describe('pdfFilename', () => {
   it('strips weird characters out of names', () => {
     expect(pdfFilename('  Ru!nner / 1', new Date('2026-05-14T12:00:00')))
       .toBe('broken-arrow-ru-nner-1-20260514.pdf')
+  })
+})
+
+describe('generatePlanPdf — the entire plan as a readable document', () => {
+  function seasonWeek(num: number, raceName: string, dateIso: string): TrainingWeek {
+    const w = week(num, 0)
+    return { ...w, seasonRace: { name: raceName, dateIso, blockKind: 'BUILD' as const } }
+  }
+
+  const season = {
+    races: [
+      { id: 'half', priority: 'B' as const, status: 'upcoming' as const, raceInfo: { ...race(), name: 'Oakland Hills Half', date: '2026-10-24' } },
+      { id: 'hyrox', priority: 'A' as const, status: 'upcoming' as const, isPrimary: true, raceInfo: { ...race(), name: 'Hyrox Anaheim', date: '2026-12-05', distance: 'Hyrox' } },
+    ],
+    blocks: [],
+  }
+
+  it('prints EVERY week — no window trimming', async () => {
+    const weeks = Array.from({ length: 18 }, (_, i) => week(i + 1, 0))
+    const blob = generatePlanPdf({ athleteName: 'Mike', race: race(), weeks, generatedAt: new Date('2026-08-01T12:00:00') })
+    const text = await pdfText(blob)
+    for (let n = 1; n <= 18; n++) {
+      expect(text, `week ${n} missing`).toContain(`(Week ${n}`)
+    }
+  })
+
+  it('lists every season race with the main goal marked', async () => {
+    const blob = generatePlanPdf({
+      athleteName: 'Mike', race: race(), weeks: [week(1, 0)], season,
+      generatedAt: new Date('2026-08-01T12:00:00'),
+    })
+    const text = await pdfText(blob)
+    expect(text).toContain('(Your races)')
+    expect(text).toContain('[MAIN GOAL]')
+    expect(text).toContain('Sat, Oct 24, 2026')
+    expect(text).toContain('Sat, Dec 5, 2026')
+  })
+
+  it('prints day prescriptions, structured interval segments, and block context', async () => {
+    const repeats = day({
+      dayLabel: 'Mon 11/16', workout: '1km repeats', type: 'quality', zone: '4.5 mi', time: '50 min',
+      detail: '4x1km @ race pace, 90 sec rest.',
+    })
+    repeats.plannedWorkout = {
+      workoutId: 'hyrox_1km_repeats', methodId: 'hyrox', name: '1km repeats',
+      category: 'race_pace', primaryZone: 'critical_velocity',
+      segments: [
+        { role: 'warmup', description: 'Easy jog', duration: { value: 10, unit: 'min' } },
+        { role: 'main', description: '1km at race pace', distance: { value: 1, unit: 'km' }, reps: 4, recovery: { type: 'jog', duration: { value: 90, unit: 'sec' } } },
+        { role: 'cooldown', description: 'Very easy', duration: { value: 10, unit: 'min' } },
+      ],
+      approxDurationMinutes: { min: 45, max: 55 }, purpose: '', cues: [],
+    }
+    const w = seasonWeek(14, 'Hyrox Anaheim', '2026-12-05')
+    w.days = [repeats, day({ dayLabel: 'Tue 11/17', type: 'rest', workout: 'Rest' })]
+    const blob = generatePlanPdf({ athleteName: 'Mike', race: race(), weeks: [w], generatedAt: new Date('2026-08-01T12:00:00') })
+    const text = await pdfText(blob)
+    expect(text).toContain('Building toward Hyrox Anaheim')
+    expect(text).toContain('4 x 1 km')
+    expect(text).toContain('90 sec jog recovery')
+    expect(text).toContain('REST')
+  })
+
+  it('race days are highlighted', async () => {
+    const w = week(12, 0)
+    w.days = [day({ dayLabel: 'Sat 12/5', type: 'race', workout: 'RACE DAY - Hyrox Anaheim' })]
+    const blob = generatePlanPdf({ athleteName: 'Mike', race: race(), weeks: [w], generatedAt: new Date('2026-08-01T12:00:00') })
+    const text = await pdfText(blob)
+    expect(text).toContain('*** RACE DAY - Hyrox Anaheim ***')
+  })
+
+  it('empty weeks and no season never throw', () => {
+    expect(() => generatePlanPdf({ athleteName: '', race: race(), weeks: [] })).not.toThrow()
+  })
+})
+
+describe('pdfFilename with suffix', () => {
+  it('inserts the plan suffix before the date', () => {
+    expect(pdfFilename('Mike B', new Date('2026-08-01T12:00:00'), 'plan')).toBe('broken-arrow-mike-b-plan-20260801.pdf')
+    expect(pdfFilename('Mike B', new Date('2026-08-01T12:00:00'))).toBe('broken-arrow-mike-b-20260801.pdf')
   })
 })

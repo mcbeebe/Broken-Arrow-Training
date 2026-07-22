@@ -1694,6 +1694,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           onboardingConfig={onboarding.config ?? undefined}
           performance={readiness.performance}
           mergedWeeks={weeks}
+          season={seasonState.season}
         />
       )}
 
