@@ -2,6 +2,8 @@
 
 **Status:** living document, rendered from `src/engines/hyrox/spec.ts` and `src/engines/hyrox/heuristics.ts`. Every training-prescription constant in the Hyrox engine is listed here with its evidence tier and what it would take to upgrade it. This is the target list for expert review and for benchmarking against additional published programs.
 
+**Expert review is now packaged:** [`hyrox-expert-review-packet.md`](./hyrox-expert-review-packet.md) turns this target list into a reviewer-ready questionnaire with three generated exhibit plans ([`hyrox-expert-review-exhibits.md`](./hyrox-expert-review-exhibits.md)). Verdicts land back here as citations.
+
 **How to read tiers:** T1 peer-reviewed RCT/meta-analysis · T2 peer-reviewed observational · T3 first-principles / verifiable primary source · T4 coaching heuristic. There is essentially **no peer-reviewed Hyrox-specific training literature** (the sport dates to 2017), so T4 with practitioner corroboration is the realistic ceiling for most prescriptions today. The rule: a tier upgrades only with a citable source, never to make this audit look better.
 
 ## Verified (T3) — checkable against primary sources
