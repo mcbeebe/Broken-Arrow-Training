@@ -117,9 +117,11 @@ describe('station-day details name the real stations', () => {
     expect(circuit!.detail).toMatch(/Sled push/)
     expect(circuit!.detail).toMatch(/Sled pull/)
     expect(circuit!.detail).toMatch(/Burpee broad jumps/)
-    // The personalization survives: weak-station extra work + sled note + wall-ball weight.
+    // The personalization survives: weak-station extra work + sled note, and
+    // P3 loads render from the division spec ("@ 152 kg", "@ 6 kg to 3.0 m").
     expect(circuit!.detail).toMatch(/extra set/)
-    expect(circuit!.detail).toMatch(/\(6 kg\)/)
+    expect(circuit!.detail).toMatch(/@ 152 kg/)
+    expect(circuit!.detail).toMatch(/Wall balls \d+ @ 6 kg to 3.0 m/)
   })
 
   it('long run + station finisher stays sentence-form (no " · ") so the Hyrox narrative renders', () => {
@@ -129,12 +131,18 @@ describe('station-day details name the real stations', () => {
     expect(finisher!.detail).toMatch(/no break between run and stations/i)
   })
 
-  it('peak simulation detail is fragment-form with race-order framing', () => {
-    const sim = days.find(d => /^Simulation \(\d+ stations\)$/.test(d.workout))
-    expect(sim, 'no peak simulation found').toBeDefined()
-    expect(sim!.detail).toContain(' · ')
+  it('the full race simulation is placed by race proximity with race-order framing (P3)', () => {
+    // P3: simulations are scheduled by date arithmetic (10-17 days out),
+    // not phase membership — the v1 phase-gated sim was unreachable on
+    // clamped runways.
+    const sim = days.find(d => /full race simulation/i.test(d.workout))
+    expect(sim, 'no full race simulation found').toBeDefined()
     expect(sim!.detail).toMatch(/race order/)
-    expect(sim!.detail).toMatch(/roxzone/i)
+    expect(sim!.detail).toMatch(/at full race spec/)
+    // Compromised running exists as its own weekly session type now.
+    const compromised = days.find(d => d.workout === 'Compromised running')
+    expect(compromised, 'no compromised-running session found').toBeDefined()
+    expect(compromised!.detail).toMatch(/no break between run and station/i)
   })
 })
 
@@ -181,13 +189,18 @@ describe('cross-training rotation + structured intervals', () => {
     expect(pw.cues).toEqual([])
   })
 
-  it('tempo runs carry a structured 20-min threshold block', () => {
+  it('tempo runs carry a structured threshold block that progresses with the week (P3)', () => {
     // run_conditioning (the tempo slot) exists on 5+-day role sets.
     const plan = generateHyroxPlan({ ...config, trainingDaysPerWeek: 5 } as OnboardingConfig, '2026-08-03')
     const tempo = plan.weeks.flatMap(w => w.days).find(d => d.workout === 'Tempo run')!
     expect(tempo).toBeDefined()
     const main = tempo.plannedWorkout!.segments[1]
-    expect(main.duration).toEqual({ value: 20, unit: 'min' })
+    // Duration interpolates 18 -> 30 min across the plan and the step must
+    // agree with the advertised detail text (one duration per session).
+    expect(main.duration!.unit).toBe('min')
+    expect(main.duration!.value).toBeGreaterThanOrEqual(18)
+    expect(main.duration!.value).toBeLessThanOrEqual(30)
+    expect(tempo.detail).toContain(`${main.duration!.value} min @`)
     expect(main.paceZone).toBe('lactate_threshold')
   })
 
