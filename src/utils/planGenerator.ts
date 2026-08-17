@@ -708,6 +708,21 @@ function getHyroxWorkoutByRole(
   // entirely absent from v1 (its closest session was run-then-lift).
   if (role === 'stations') {
     if (phase === 'base') {
+      // The base block alternates a familiarization circuit with a
+      // conversational compromised-running intro — running into stations
+      // is learned from week 1, not discovered in the build (the HYROX
+      // 8-Week Formula's Base block exists for exactly this).
+      if (weekIndex % COMPROMISED_DOSE.value.cadenceWeeks === 1) {
+        const introPair = compromisedTriple(specs, weekIndex).slice(0, COMPROMISED_DOSE.value.introRounds)
+        return {
+          type: 'cross',
+          workout: 'Compromised running (intro)',
+          detail: `${COMPROMISED_DOSE.value.introRounds}×[800m easy run + station], no break between run and station — learn how the legs feel running off a station, at conversational effort: ${introPair.map(s => stationRx(s, stationPct)).join(' / ')}. Walk 2 min between rounds.`,
+          zone: z2,
+          route: 'Run + Gym',
+          time: '40 min',
+        }
+      }
       return { type: 'cross', workout: 'Station circuit (intro)', detail: `${buildStationList(specs, 5, stationPct)} · ${stationRx(specs[7], stationPct)} · ${weakStation} practice · Rest 2 min between · Grip note: finish with 2× dead hang to build the carry/pull grip the race demands`, zone: z2, route: 'Gym', time: '45 min' }
     }
     if (weekIndex % COMPROMISED_DOSE.value.cadenceWeeks === 1) {

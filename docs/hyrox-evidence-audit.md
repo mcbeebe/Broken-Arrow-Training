@@ -38,8 +38,29 @@
 
 Erg pacing prescriptions · above-race-weight sled work (currently Advanced/Elite templates only) · heat/venue acclimation for convention-center racing · Doubles/Relay formats.
 
+## Benchmark matrix (2026-08 — six sources)
+
+Sources: **S1** STRIDE Fitness 12-wk guide (web summary) · **S2** PureGym 8/12-wk plans (web summary) · **S3** HYROX 8-Week Formula methodology (Base→Pace→Accelerate→Prime→Race blocks; Aerobic/Express/Speed/Engine/Strong/Ultra taxonomy) · **S4** GORUCK×HYROX 8-week plan (full detail; equipment-adapted — no ergs/sleds, so silent on station volumes) · **S5** Official HYROX Manual 10/2020 (training philosophy, session formats, workout library) · **S6** 12-week Hyrox program (7-day template with a weekly simulation day).
+
+| Dimension | Observed across sources | Ours | Disposition |
+|---|---|---|---|
+| Weekly session mix | Interval run + strength + station/sim + long/aerobic day: S1, S2, S4, S6 all match; S5 endorses HIIT + longer steady efforts + classic strength lifts | Same role set | **In range** |
+| Run↔station alternation | Universal, and from the start: S3 Base block exists to familiarize compromised running; S6 weekly simulation from wk 1; S4 interleaves nearly every session; S1/S2 weekly | Weekly finisher (build+) + alternating compromised session; **base-phase intro added in this benchmark** | **Adjusted** — compromised intro now starts in base |
+| Km-repeat rest | 90 s (S1 800s; S6 400s; v2 1km) → 2–3 min (S4 400/800/1000s @ 2 min; S5 "Santana" 3 min, "Rose" 2–4 min); sub-90 s only on ≤200 m sprints (S6: 60 s) | Was 90→60 s; **now 120→90 s** | **Adjusted** — prior late-plan 60 s sat below every source |
+| Tempo dose | S6 6 km @ 85% ≈ 25–35 min; S5 core work 20–40 min | 18→30 min ramp | **In range** |
+| Long endurance session | S5: longer efforts "in the range of 10k" belong in Hyrox programs; S6 long run 5–15 km weekly; S4 weekly "Ultra" 50+ min | Long day 5→8 mi (8–13 km) by level | **In range** |
+| Full race simulation | v2: one, 14 d out; S2: "race simulations"; S6: weekly full-race practice @ 75–80% in final block; S3/S4: none (equipment) | One full-effort sim 10–17 d out + half sim + spec day | **In range, conservative end** — S6-style extra submax practice is a candidate enhancement |
+| Station volumes | S6: some stations at full race distance from wk 1 (row 1000 m), sleds 50 m mid-plan; v2: per-station fulls from wk 4–5, all-8 by wk 8 | 50%→100% circuit ramp + full-distance spec day + sims | **In range, conservative end** |
+| Periodization shape | S3/S4: named blocks 2-2-2-1-1 (Base/Pace/Accelerate/Prime/Race); S6: 4-4-4 blocks; v2: build/cutback waves | Continuous ramp with base/build/peak/taper labels | **Equivalent structure**, different framing — expert-review question |
+| Race week | S4 wk 8: volume drop, build-to-sprint touches, optional 20–30 min shakeout; v2: rest D-1 + short shakeout | Volume drop, light station form work, shakeout ≤25 min | **In range** |
+| Strength training | S5: classic lifts (squat/deadlift/bench) "should be included"; S6: dedicated strength day, 4×8-10 → heavier 3×6-8 → supersets | Dedicated strength day; heavy lifts in build (P3) | **In range** |
+| Warm-up | S5: 10–15 min (5 general + 10 specific) | 10–15 min structured warmups on quality days | **In range** |
+| Session durations | S5: 20–40 min core, longer (≤60+) regularly, race ≈ 90 min | 30–110 min (sim day longest) | **In range** (sim day exceeds class guidance by design — it rehearses the ~90-min race) |
+
+**Changes made from this benchmark:** interval rest raised to 120→90 s; compromised-running intro added to the base phase; citations upgraded on five heuristics. **Not changed:** station ramp and single-full-sim count (both inside observed range at the conservative end — flagged as expert-review questions), block framing.
+
 ## How this audit gets better
 
-1. **Benchmark matrix** — as additional published plans are collected (in progress), each heuristic row gains a "observed range across N programs" column; constants outside the range get fixed or explicitly justified.
+1. **Benchmark matrix** — extend with further published plans (each new source either tightens the observed range or exposes a deviation to fix/justify).
 2. **Expert review** — a certified Hyrox coach reviews generated personas (first-timer, intermediate 12-week, clamped 4-week, Pro) against exactly the open questions above.
 3. **Outcome data** — full-simulation splits vs. race-day splits, once a cohort has raced.

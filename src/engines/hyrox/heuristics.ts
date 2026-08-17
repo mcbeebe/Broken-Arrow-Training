@@ -29,7 +29,7 @@ import { tier, type TieredValue } from '../evidence'
 export const STATION_RAMP: TieredValue<{ startPct: number; endPct: number; recoveryMult: number; recoveryFloorPct: number }> = tier(
   { startPct: 0.5, endPct: 1.0, recoveryMult: 0.6, recoveryFloorPct: 0.3 },
   'T4',
-  'Coaching convention (progressive overload to race spec). Corroborated in direction, not magnitude: STRIDE and PureGym both build station volume toward race distances; neither publishes a ramp curve. Expert-review target: is 50% the right opening fraction for each level?',
+  'Progressive overload to race spec. Benchmarked spread is wide: the v2 rebuild opened ~40-75% of spec per station and reached all-8 by week 8; the 12-week program puts SOME stations at full race distance from week 1 (row 1000m) and sleds at 50m from mid-plan. Our 50% opening sits at the conservative edge of the observed range — defensible for volume-managed circuits since the spec day and simulations guarantee full-distance exposure. Expert-review target: per-level opening fractions.',
 )
 
 /** Full 8+8 race simulation: days before race day. The validator floor
@@ -38,7 +38,7 @@ export const STATION_RAMP: TieredValue<{ startPct: number; endPct: number; recov
 export const FULL_SIM_DAYS_OUT: TieredValue<{ min: number; max: number }> = tier(
   { min: 10, max: 17 },
   'T4',
-  'Practitioner consensus centers on ~14 days out (the v2 rebuild used exactly 14; PureGym includes race simulations; STRIDE prescribes race-pace combo work through the build). Min 10 days = recovery window for a race-effort simulation.',
+  'Practitioner consensus centers on ~14 days out for the race-effort simulation (v2 rebuild: exactly 14; PureGym includes race sims). The 12-week program goes further — weekly FULL race practice at 75-80% effort through its final block — so our single full-effort sim is the conservative end of observed practice; its submax weekly practice is partially covered by our half sim + compromised sessions. Min 10 days = recovery window for a race-effort simulation.',
 )
 
 /** Half simulation (4 runs + 4 stations): days before race day. */
@@ -56,26 +56,27 @@ export const SPEC_DAY_DAYS_OUT: TieredValue<{ min: number; max: number }> = tier
 )
 
 /** Compromised running (run→station→run): rounds per session and weekly
- *  cadence (alternating with the station circuit). */
-export const COMPROMISED_DOSE: TieredValue<{ rounds: number; cadenceWeeks: number }> = tier(
-  { rounds: 3, cadenceWeeks: 2 },
+ *  cadence (alternating with the station circuit); introduced from the
+ *  base phase at conversational effort. */
+export const COMPROMISED_DOSE: TieredValue<{ rounds: number; cadenceWeeks: number; introRounds: number }> = tier(
+  { rounds: 3, cadenceWeeks: 2, introRounds: 2 },
   'T4',
-  'The weekly run→station structure is the strongest-corroborated element: STRIDE prescribes combo work 1×/wk ("run 1km then complete a station immediately"); PureGym\'s weekly template includes a "Compromised run". The 3-round dose is convention; alternating with the circuit keeps total station volume in budget.',
+  'The single best-corroborated element — every benchmarked source interleaves running with station work: STRIDE (combo work 1×/wk), PureGym (weekly "Compromised run"), the HYROX 8-Week Formula (Base block exists to familiarize "strength movements and compromised running"), the GORUCK×HYROX plan (run+work in nearly every session), the 12-week program (weekly "Hyrox Simulation" day from week 1), and the official HYROX Manual\'s workout library (run↔movement alternation throughout). Base-phase intro at reduced rounds follows the Formula; the 3-round dose is convention.',
 )
 
-/** 1km-repeat rest interval: seconds early in the plan → late (past
- *  `lateAt` progress). Short rests simulate running off a station. */
+/** Race-pace km-repeat rest interval: seconds early in the plan → late
+ *  (past `lateAt` progress). */
 export const INTERVAL_REST: TieredValue<{ earlySec: number; lateSec: number; lateAt: number }> = tier(
-  { earlySec: 90, lateSec: 60, lateAt: 0.7 },
+  { earlySec: 120, lateSec: 90, lateAt: 0.6 },
   'T4',
-  'STRIDE prescribes 4-6×800m at race pace with 90s rest; 1km repeats with 60-90s jog are the Hyrox-community standard for run-leg specificity. Tightening rest as race day nears mimics the shrinking recovery a fatigued Roxzone allows.',
+  'Benchmarked range for ~km race-pace repeats: 90s (STRIDE 800s; v2 rebuild 1km; 12-week program 400s) to 2-3 min (GORUCK 400s/1000s/800s at 2 min; HYROX Manual "Santana" 400s at 3 min, "Rose" 800s at 4 min). Sub-90s rests appear only on ≤200m sprints (12-week program: 200s at 60s). We progress 120s → 90s, finishing at the observed floor for km reps — the prior 60s late-plan value sat below every benchmarked source and was raised in the 2026-08 benchmark.',
 )
 
 /** Tempo-block minutes at plan start → final pre-taper week. */
 export const TEMPO_MINUTES: TieredValue<{ start: number; end: number }> = tier(
   { start: 18, end: 30 },
   'T4',
-  'Threshold work at 20-30 min per session is standard endurance practice (and ~50% of Hyrox race time is running — PureGym). The 18→30 ramp is convention; no Hyrox-specific dose study exists.',
+  'Threshold work at 20-30 min per session is standard endurance practice (~50% of race time is running — PureGym), and the 12-week program\'s mid-block 6km tempo at 85% lands at ~25-35 min — our 18→30 ramp sits inside it. The official Manual\'s session-duration guidance (20-40 min core work, longer sessions regularly because the race averages ~90 min) also brackets this dose.',
 )
 
 /** Layered season track (Hyrox prep inside another race\'s build):
