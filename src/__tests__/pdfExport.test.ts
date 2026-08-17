@@ -473,6 +473,35 @@ describe('generatePlanPdf — the entire plan as a readable document', () => {
   it('empty weeks and no season never throw', () => {
     expect(() => generatePlanPdf({ athleteName: '', race: race(), weeks: [] })).not.toThrow()
   })
+
+  it('prints race-day logistics — start/cutoff, gear split by required, nutrition', async () => {
+    const r: RaceInfo = {
+      ...race(),
+      startTime: '7:30 AM',
+      cutoff: '6 hours',
+      gear: [
+        { item: 'Hydration vest', required: true },
+        { item: 'Emergency blanket', required: true },
+        { item: 'Trekking poles', required: false },
+      ],
+      nutrition: '60g carbs/hour from the gun.',
+    }
+    const blob = generatePlanPdf({ athleteName: 'Mike', race: r, weeks: [week(1, 0)], generatedAt: new Date('2026-08-01T12:00:00') })
+    const text = await pdfText(blob)
+    expect(text).toContain('(Race-day logistics)')
+    expect(text).toContain('Start 7:30 AM')
+    expect(text).toContain('Cutoff 6 hours')
+    expect(text).toContain('Required gear: Hydration vest, Emergency blanket')
+    expect(text).toContain('Recommended gear: Trekking poles')
+    expect(text).toContain('Nutrition: 60g carbs/hour from the gun.')
+  })
+
+  it('omits the logistics section when the race carries no logistics data', async () => {
+    const r: RaceInfo = { ...race(), startTime: '', cutoff: '', gear: [], nutrition: '' }
+    const blob = generatePlanPdf({ athleteName: 'Mike', race: r, weeks: [week(1, 0)], generatedAt: new Date('2026-08-01T12:00:00') })
+    const text = await pdfText(blob)
+    expect(text).not.toContain('Race-day logistics')
+  })
 })
 
 describe('pdfFilename with suffix', () => {

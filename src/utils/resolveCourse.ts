@@ -1,31 +1,46 @@
 import type { RaceInfo } from '../types'
 import type { Course, CourseFamily } from '../types/course'
 import { COURSE_FAMILIES, getLatestEdition } from '../data/courses'
+import { getUserCourse } from './userCourses'
+import { estimatedCourseFromRace } from './gpxCourse'
 
 /**
- * Race → Course resolution. *Curated-only* in this iteration — matches
- * the user's RaceInfo against the registered CourseFamilies by name
- * keyword + distance proximity and returns the closest year edition.
+ * Race → Course resolution, in priority order:
  *
- * TODO(parked): generic-course synthesis for non-curated races. The
- * earlier draft fabricated a single-segment Course from RaceInfo when
- * no curated match existed, so course-coverage scoring and the
- * "Your Race" card could work for *every* user (not just those training
- * for races we've seeded). Revive when we're ready to expand beyond
- * Broken Arrow.
+ *  1. Curated catalog — keyword + distance-proximity match against the
+ *     registered CourseFamilies, closest year edition. Richest data.
+ *  2. User-uploaded GPX course (userCourses.ts) — a real Course the
+ *     athlete built by uploading a trace; full profile/segments.
+ *  3. Estimated stub from RaceInfo alone (gpxCourse.ts) — distance +
+ *     total vert only, empty profile/segments. Lets the "Your Race" card
+ *     work for every runner while inviting a GPX upload.
  *
- * Returns null when the race doesn't match a curated course. Callers
- * should treat that as "no course-aware features for this user yet" and
- * fall back to non-course-aware surfaces.
+ * Returns null only when even the stub can't be built (no name, no
+ * distance, or a Hyrox event). Callers treat null as "no course-aware
+ * features for this race".
  */
+
+export type CourseSource = 'curated' | 'gpx' | 'estimated'
 
 export interface CourseResolution {
   course: Course
-  /** True when synthesized from RaceInfo (no curated data available).
-   *  Always false today because generic synthesis is parked. */
+  /** True when synthesized from user data (GPX upload or RaceInfo stub)
+   *  rather than the curated catalog. */
   isGeneric: boolean
-  /** Matched family. */
+  /** Matched family. Synthesized for non-curated courses. */
   family: CourseFamily
+  /** Where the course data came from. */
+  source: CourseSource
+}
+
+function syntheticFamily(course: Course): CourseFamily {
+  return {
+    id: course.familyId,
+    name: course.name,
+    category: course.category,
+    defaultDistanceMi: course.distanceMi,
+    editions: [course],
+  }
 }
 
 interface CuratedRule {
@@ -107,13 +122,22 @@ function yearFromRaceDate(date: string | undefined): number {
 export function resolveCourseForRace(race: RaceInfo | null | undefined): CourseResolution | null {
   if (!race) return null
   const matched = matchCurated(race)
-  if (!matched) return null
-  const year = yearFromRaceDate(race.date)
-  const course =
-    matched.family.editions.find(c => c.year === year)
-    ?? getLatestEdition(matched.family.id)
-  if (!course) return null
-  return { course, isGeneric: false, family: matched.family }
+  if (matched) {
+    const year = yearFromRaceDate(race.date)
+    const course =
+      matched.family.editions.find(c => c.year === year)
+      ?? getLatestEdition(matched.family.id)
+    if (course) return { course, isGeneric: false, family: matched.family, source: 'curated' }
+  }
+  const userCourse = getUserCourse(race)
+  if (userCourse) {
+    return { course: userCourse, isGeneric: true, family: syntheticFamily(userCourse), source: 'gpx' }
+  }
+  const estimated = estimatedCourseFromRace(race)
+  if (estimated) {
+    return { course: estimated, isGeneric: true, family: syntheticFamily(estimated), source: 'estimated' }
+  }
+  return null
 }
 
 /** Quick boolean — does the library have a curated course for this race? */

@@ -71,9 +71,18 @@ describe('<RaceCard>', () => {
     expect(onOpen).toHaveBeenCalledTimes(1)
   })
 
-  it('renders nothing for races outside the curated catalog', () => {
-    const { container } = render(
+  it('renders an estimated card for races outside the curated catalog', () => {
+    // Generic synthesis (P2 completion): every named race with a distance
+    // gets a card now — estimated stub until the athlete uploads a GPX.
+    render(
       <RaceCard race={brokenArrow({ name: 'Boston Marathon', distanceMiles: 26.2 })} readiness={null} />,
+    )
+    expect(screen.getByText('Boston Marathon')).toBeInTheDocument()
+  })
+
+  it('renders nothing for Hyrox races', () => {
+    const { container } = render(
+      <RaceCard race={brokenArrow({ name: 'Hyrox Anaheim', format: 'hyrox', distanceMiles: 5 })} readiness={null} />,
     )
     expect(container).toBeEmptyDOMElement()
   })

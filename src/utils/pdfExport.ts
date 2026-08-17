@@ -447,6 +447,25 @@ export function generatePlanPdf(input: PlanPdfInput): Blob {
   }
   y += 8
 
+  // ── Race-day logistics ─────────────────────────────────────────
+  // The stuff a printed plan is FOR: what to pack, when the gun goes,
+  // how long the course stays open. Only renders when the race actually
+  // carries logistics data.
+  const requiredGear = (race.gear ?? []).filter(g => g.required).map(g => g.item)
+  const optionalGear = (race.gear ?? []).filter(g => !g.required).map(g => g.item)
+  const timingBits = [
+    race.startTime ? `Start ${race.startTime}` : '',
+    race.cutoff ? `Cutoff ${race.cutoff}` : '',
+  ].filter(Boolean)
+  if (timingBits.length > 0 || requiredGear.length > 0 || optionalGear.length > 0 || race.nutrition) {
+    writeHeading('Race-day logistics', 13)
+    if (timingBits.length > 0) writeLine(timingBits.join(' · '))
+    if (requiredGear.length > 0) writeLine(`Required gear: ${requiredGear.join(', ')}`, { size: 10 })
+    if (optionalGear.length > 0) writeLine(`Recommended gear: ${optionalGear.join(', ')}`, { size: 10 })
+    if (race.nutrition) writeLine(`Nutrition: ${race.nutrition}`, { size: 10 })
+    y += 8
+  }
+
   // ── Every week, every day ──────────────────────────────────────
   writeHeading('The plan, week by week', 13)
   let lastContext = ''
