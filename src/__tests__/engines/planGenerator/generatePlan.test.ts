@@ -704,8 +704,14 @@ describe('generatePlanFromMethod — end-to-end', () => {
     const lthr = Math.round(200 * ESTIMATED_LTHR_PCT_OF_MAX)
     const easyZone = pfitzinger.paceZones.find(z => z.canonical === 'easy')!
     const expectedLow = Math.round(easyZone.hrRange!.minPctLthr! * lthr)
-    const expectedHigh = Math.round(easyZone.hrRange!.maxPctLthr! * lthr)
+    const methodHigh = Math.round(easyZone.hrRange!.maxPctLthr! * lthr)
     const z2 = plan.zones.find(z => z.zone.includes('Z2'))!
+    const z3 = plan.zones.find(z => z.zone.includes('Z3'))!
+    const z3Low = parseInt(z3.hr.split(/[–-]/)[0].trim(), 10)
+    // P0.6 — zones are made contiguous after derivation: a Z2 ceiling that
+    // overlaps (or gaps against) Z3's floor is trimmed/extended to meet it,
+    // so the ceiling is min(method band, Z3 floor − 1), not the raw band.
+    const expectedHigh = Math.min(methodHigh, z3Low - 1)
     expect(z2.hr).toBe(`${expectedLow}–${expectedHigh}`)
   })
 

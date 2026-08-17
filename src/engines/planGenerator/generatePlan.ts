@@ -258,6 +258,41 @@ function computeZones(
     }
     out.push(resolved ?? fallback[i])
   }
+  return makeZonesContiguous(out, maxHR)
+}
+
+/**
+ * P0.6 — zone bands must tile the HR spectrum with no gaps or overlaps.
+ * Method JSONs define each zone independently (%LTHR bands), and
+ * non-adjacent bands leave dead zones — Roche SWAP's aerobic_threshold
+ * tops out at 0.88×LTHR while lactate_threshold starts at 0.92×LTHR, so
+ * 155–162 bpm belonged to NO zone: getZoneForHR returned null and the
+ * compliance grader couldn't classify time spent there. Close each gap
+ * by extending the lower zone's ceiling to meet the next floor (a steady
+ * effort just above AeT reads as tempo, not threshold), and trim
+ * overlaps the same way. The % labels are re-derived from the adjusted
+ * bpm so they stay honest.
+ */
+function makeZonesContiguous(zones: HRZone[], maxHR: number): HRZone[] {
+  const parse = (hr: string): { low: number; high: number } | null => {
+    const m = hr.match(/(\d+)\s*[–-]\s*(\d+)/)
+    return m ? { low: parseInt(m[1], 10), high: parseInt(m[2], 10) } : null
+  }
+  const out = zones.map(z => ({ ...z }))
+  for (let i = 0; i < out.length - 1; i++) {
+    const cur = parse(out[i].hr)
+    const next = parse(out[i + 1].hr)
+    if (!cur || !next) continue
+    if (cur.high !== next.low - 1) {
+      const newHigh = next.low - 1
+      if (newHigh <= cur.low) continue // malformed bands — leave untouched
+      out[i] = {
+        ...out[i],
+        hr: `${cur.low}–${newHigh}`,
+        pct: `${Math.round((cur.low / maxHR) * 100)}–${Math.round((newHigh / maxHR) * 100)}%`,
+      }
+    }
+  }
   return out
 }
 

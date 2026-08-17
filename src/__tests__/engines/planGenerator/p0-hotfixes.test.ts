@@ -132,6 +132,22 @@ describe('P0.4 — race-week scheduling', () => {
   })
 })
 
+describe('P0.6 — one zone system, no dead bands', () => {
+  it('plan zones tile the HR spectrum with no gaps (v1: 155-162 bpm belonged to no zone)', () => {
+    const plan = generatePlanFromMethod(roche, mikeConfig(), TODAY)
+    const parse = (hr: string) => {
+      const m = hr.match(/(\d+)\s*[–-]\s*(\d+)/)
+      return m ? { low: parseInt(m[1]), high: parseInt(m[2]) } : null
+    }
+    const bands = plan.zones.map(z => parse(z.hr)).filter((b): b is { low: number; high: number } => !!b)
+    expect(bands.length).toBe(plan.zones.length)
+    for (let i = 0; i < bands.length - 1; i++) {
+      expect(bands[i + 1].low, `${plan.zones[i].zone} tops at ${bands[i].high}, ${plan.zones[i + 1].zone} starts at ${bands[i + 1].low}`)
+        .toBe(bands[i].high + 1)
+    }
+  })
+})
+
 describe('P0.5 — taper volume sanity', () => {
   it('taper weeks never exceed the final build week and step down monotonically', () => {
     const plan = generatePlanFromMethod(roche, mikeConfig(), TODAY)
