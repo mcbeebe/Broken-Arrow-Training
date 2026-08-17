@@ -11,6 +11,7 @@ import { athleteCurrentVdot } from '../engines/planGenerator/paceTargets'
 import { paceBoundsForZone, type VdotPaceBounds } from '../engines/planGenerator/vdot'
 import { stationSpecs, stationCircuit, stationRx, FULL_SPEC_PHRASE, HYROX_RUN_LEGS, HYROX_RUN_LEG_KM, type StationSpec } from '../engines/hyrox/spec'
 import { validatePlan, qaFindingsToAdvisories } from '../engines/planQA/validatePlan'
+import { prehabBlockFor } from '../engines/planGenerator/prehab'
 
 const HYROX_RUN_LABEL = `${HYROX_RUN_LEGS}×${HYROX_RUN_LEG_KM}km runs`
 
@@ -260,6 +261,10 @@ export function generateHyroxPlan(
   const boneCue = menopauseStrengthCue(config)
   const boneFinisher = boneCue ? (hasGym ? boneCue.gymFinisher : boneCue.bodyweightFinisher) : []
   const injuryLeadIn = INJURY_LEADIN_WEEKS[config.injuryStatus ?? 'none'] ?? 0
+  // P4.3 — injury-area prehab (previously collected, never acted on).
+  const prehabBlock = prehabBlockFor(
+    config.injuryStatus && config.injuryStatus !== 'none' ? config.injuryArea : undefined,
+  )
 
   // Anchor run paces to a tested effort when one exists (mirrors General Fitness):
   // a Hyrox athlete with a recent race time gets concrete paces on run days, not
@@ -419,6 +424,10 @@ export function generateHyroxPlan(
       if (!hasGym) {
         const sub = equipmentSubFor(role)
         if (sub) day = { ...day, detail: `${day.detail} · ${sub}` }
+      }
+      // P4.3 — injury-area prehab lands on strength/cross days here too.
+      if (prehabBlock && (day.type === 'strength' || day.type === 'cross')) {
+        day = { ...day, detail: `${day.detail} · ${prehabBlock}` }
       }
       days.push(day)
     }

@@ -252,8 +252,17 @@ export function resolvePaces(
       cue: z.rpeRange?.description,
     }
 
+    // P4.2 — honor the method's declared strategy: an `rpe_only` zone gets
+    // NO per-mile pace band, ever. The v1 plan stamped "6:50-7:12 /mi" on
+    // 10-second uphill strides because the pace synthesizer never looked
+    // at the zone's own paceFormula — a flat-ground pace on a hill sprint
+    // has no meaning, and it displaced the method's real guidance (RPE).
+    const rpeOnly = z.paceFormula?.strategy === 'rpe_only'
+
     // Concrete pace: prefer VDOT-derived, else easy-pace-derived.
-    if (vdot != null && vdot > 0) {
+    if (rpeOnly) {
+      // leave pace fields unset — formatZoneString falls back to RPE
+    } else if (vdot != null && vdot > 0) {
       const bounds = paceBoundsForZone(vdot, z.canonical)
       if (bounds) {
         target.paceSecPerMileLow = bounds.paceSecPerMileLow

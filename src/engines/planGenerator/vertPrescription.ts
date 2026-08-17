@@ -31,6 +31,10 @@ export interface VertWeekCtx {
   weekIndex: number
   /** Index of the peak (last build) week. */
   peakWeekIndex: number
+  /** P4.3 — knee/lower-leg injury history: eccentric downhill loading is
+   *  the highest-risk stimulus, so the downhill cadence stretches to every
+   *  3rd week, reps cap at the low end, and the session note says so. */
+  descentCaution?: boolean
 }
 
 /**
@@ -52,7 +56,10 @@ export function isDownhillWeek(ctx: VertWeekCtx): boolean {
   if (!ctx.isClimby || ctx.isTaper) return false
   const startIdx = Math.max(2, Math.ceil(ctx.peakWeekIndex * 0.4))
   if (ctx.weekIndex < startIdx || ctx.weekIndex > ctx.peakWeekIndex) return false
-  return (ctx.peakWeekIndex - ctx.weekIndex) % 2 === 0
+  // Knee/lower-leg history: reduced eccentric dose — every 3rd week keeps
+  // the repeated-bout protection alive at the lowest stimulus that works.
+  const cadence = ctx.descentCaution ? 3 : 2
+  return (ctx.peakWeekIndex - ctx.weekIndex) % cadence === 0
 }
 
 /**
@@ -61,9 +68,14 @@ export function isDownhillWeek(ctx: VertWeekCtx): boolean {
  * hardcoded number. Reps ramp 6 → 14 toward peak (iRunFar progression).
  */
 export function downhillSessionNote(ctx: VertWeekCtx): string {
-  const reps = Math.round(6 + 8 * clamp(ctx.weekIndex / Math.max(1, ctx.peakWeekIndex), 0, 1))
+  const fullReps = Math.round(6 + 8 * clamp(ctx.weekIndex / Math.max(1, ctx.peakWeekIndex), 0, 1))
+  // Caution: cap the ramp at the low end of the iRunFar progression.
+  const reps = ctx.descentCaution ? Math.min(fullReps, 8) : fullReps
   const load = eccentricScore(DOWNHILL_GRADE).toFixed(1)
-  return `Downhill repeats ${reps}×90s on −8% — eccentric load ${load}/5, walk back up`
+  const caution = ctx.descentCaution
+    ? ' · Knee/lower-leg history: stay at the easy end, stop at any sharp or localized pain'
+    : ''
+  return `Downhill repeats ${reps}×90s on −8% — eccentric load ${load}/5, walk back up${caution}`
 }
 
 /**

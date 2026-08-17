@@ -39,6 +39,11 @@ export interface PlanQAInput {
   /** Predicted race finish (minutes, vert-adjusted) when the generator
    *  computed one — enables the long-run duration-adequacy rule. */
   predictedFinishMin?: number
+  /** P4.1 — zones came from self-reports, not a test, AND the athlete is
+   *  healthy enough to test: a calibration benchmark must appear early. */
+  zonesEstimated?: boolean
+  /** P4.3 — the athlete declared an injury area: prehab must appear. */
+  injuryArea?: string
 }
 
 /** Vert density (ft/mi) above which a race demands vert-specific training
@@ -339,6 +344,67 @@ export function validatePlan(input: PlanQAInput): PlanQAResult {
         detail: `${race!.name || 'The race'} climbs ~${vertFt} ft over ${raceMiles} mi (${Math.round(vertFt / raceMiles)} ft/mi) but the plan contains ${vertDays.length === 0 ? 'no' : `only ${vertDays.length}`} climbing/descent session${vertDays.length === 1 ? '' : 's'}.`,
       })
     }
+  }
+
+  // ── safety: calibration + prehab (P4) ─────────────────────────────
+  if (input.zonesEstimated && weeks.length > 2) {
+    const early = weeks.slice(0, 3).flatMap(w => w.days)
+    if (!early.some(d => /benchmark|time.?trial/i.test(d.workout))) {
+      add({
+        id: 'qa_benchmark_missing', severity: 'warn',
+        title: 'Estimated zones, no calibration test',
+        detail: 'Every zone in this plan derives from self-reported numbers, but no benchmark/time-trial session is scheduled in the first three weeks to calibrate them.',
+      })
+    }
+  }
+  if (input.injuryArea && weeks.length > 1) {
+    const prehabDays = flat.filter(({ day }) => /PREHAB/i.test(day.detail)).length
+    if (prehabDays < Math.min(6, weeks.length)) {
+      add({
+        id: 'qa_prehab_missing', severity: 'warn',
+        title: 'Injury history without prehab',
+        detail: `The athlete declared a ${input.injuryArea.replace(/_/g, '/')} history but the plan carries prehab in only ${prehabDays} session${prehabDays === 1 ? '' : 's'} — the best-evidenced injury-prevention lever is being left unused.`,
+      })
+    }
+  }
+
+  // ── load-spike guard (P4.4, v2's joint rule) ──────────────────────
+  // Flag only when BOTH weekly time rises >35% over the prior week AND
+  // vertical gain exceeds every previous week by >35% — rebounding out of
+  // a cutback week is normal and must not warn.
+  {
+    const weekMinutes = (w: TrainingWeek) =>
+      w.days.reduce((s, d) => {
+        const r = parseTimeRange(d.time)
+        return s + (r ? (r[0] + r[1]) / 2 : 0)
+      }, 0)
+    const weekVert = (w: TrainingWeek) =>
+      w.days.reduce((s, d) => {
+        const m = d.detail.match(/~?(\d+)\s*ft gain/)
+        return s + (m ? parseInt(m[1], 10) : 0)
+      }, 0)
+    let maxPriorVert = 0
+    // Time compares against the last NON-cutback week (rebounding out of a
+    // cutback is normal periodization, per the v2 rule) with a full-week,
+    // non-trivial baseline; vert compares against every previous week.
+    let baselineMin = 0
+    weeks.forEach((w, i) => {
+      const min = weekMinutes(w)
+      const vert = weekVert(w)
+      if (i > 0 && baselineMin >= 120 && maxPriorVert >= 500) {
+        const timeSpike = min > baselineMin * 1.35
+        const vertSpike = vert > maxPriorVert * 1.35
+        if (timeSpike && vertSpike) {
+          add({
+            id: 'qa_load_spike', severity: 'warn', weekNum: w.num,
+            title: 'Time and vert spike together',
+            detail: `Week ${w.num} raises total time >35% over the last full training week AND vertical gain >35% over every previous week — one of the two needs to come down.`,
+          })
+        }
+      }
+      if (!/cutback|recovery/i.test(w.focus) && w.days.length >= 6) baselineMin = min
+      maxPriorVert = Math.max(maxPriorVert, vert)
+    })
   }
 
   // ── race specificity: Hyrox (P3) ──────────────────────────────────

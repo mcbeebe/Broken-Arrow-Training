@@ -39,6 +39,7 @@ import { injectExtraDays } from './extraDays'
 import { INJURY_LEADIN_WEEKS } from '../../utils/injuryRamp'
 import { assessFeasibility, predictRaceTime } from './feasibility'
 import { validatePlan, qaFindingsToAdvisories } from '../planQA/validatePlan'
+import { prehabBlockFor, descentCautionFor } from './prehab'
 import { effectivePlanStart } from '../../utils/planDates'
 import { computeMaxHR } from '../../utils/heartRate'
 import { configVertGainFt, raceVertGainFt } from '../../utils/raceVert'
@@ -877,6 +878,16 @@ export function generatePlanFromMethod(
   // advisory only). Fueling (R2) scales with the race's effective distance.
   const raceIsHot = detectHeat(config)
 
+  // P4.3 — injury-area-driven prehab + descent caution.
+  const injuryArea = config.injuryStatus && config.injuryStatus !== 'none' ? config.injuryArea : undefined
+  const prehabBlock = prehabBlockFor(injuryArea)
+  const descentCaution = isClimby && descentCautionFor(injuryArea)
+
+  // P4.1 — zones are estimate-grade when there is no tested anchor: no
+  // recent race result and no measured LTHR. Estimate-grade plans get a
+  // week-1/2 benchmark scheduled (healthy athletes) and an honest advisory.
+  const zonesEstimated = currentVdot == null && config.fitnessAnchor?.type !== 'lthr'
+
   const weeks: TrainingWeek[] = []
 
   for (let w = 0; w < totalWeeks; w++) {
@@ -996,7 +1007,28 @@ export function generatePlanFromMethod(
       isTaper: weekMi.isTaper,
       weekIndex: w,
       peakWeekIndex: lastBuildWeekIndex,
+      descentCaution,
     })
+    // P4.3 — injury-area prehab: the targeted block lands on every
+    // strength/cross day; a week with neither gets it after the first
+    // easy run. Collected since day one, acted on since P4.
+    if (prehabBlock) {
+      let applied = false
+      withVert = withVert.map(d => {
+        if (d.type === 'strength' || d.type === 'cross') {
+          applied = true
+          return { ...d, detail: d.detail ? `${d.detail} · ${prehabBlock}` : prehabBlock }
+        }
+        return d
+      })
+      if (!applied) {
+        const idx = withVert.findIndex(d => d.type === 'run')
+        if (idx >= 0) {
+          withVert = withVert.map((d, i) =>
+            i === idx ? { ...d, detail: `${d.detail} · After the run: ${prehabBlock}` } : d)
+        }
+      }
+    }
     // R2 — fueling targets on long runs (rehearsal 4–6 wk out); R3 — heat block
     // on an easy day in the final ~2 weeks. weeksToRace counts back from race week.
     const weeksToRace = totalWeeks - (w + 1)
@@ -1047,13 +1079,74 @@ export function generatePlanFromMethod(
       detail: `${method.name} needs at least ${runningDaysTarget} running days, and you asked for strength/cross-training too — so weeks run ${effectiveDaysPerWeek} days instead of ${requestedTotalDays}. Pick a lower-mileage method or drop the extras to get back to ${requestedTotalDays}.`,
     })
   }
+  // P4.1 — schedule the calibration benchmark when zones are estimates.
+  // Healthy athletes get a 20-min field test in week 1 (week 2 when week 1
+  // is a partial); an injury lead-in defers it with an honest advisory —
+  // nobody time-trials while easing back.
+  let benchmarkPlaced = false
+  if (zonesEstimated && policy.forceEasyLeadInWeeks === 0 && weeks.length > 1) {
+    const targetWeek = weeks[0].days.filter(d => d.type !== 'rest').length >= 3 ? weeks[0] : weeks[1]
+    let idx = targetWeek.days.findIndex(d => d.type === 'quality')
+    if (idx < 0) idx = targetWeek.days.findIndex(d => d.type === 'run' && !/strides/i.test(d.workout))
+    if (idx < 0) idx = targetWeek.days.findIndex(d => d.type === 'run')
+    if (idx >= 0) {
+      const ant = paces.byZone.lactate_threshold
+      targetWeek.days[idx] = {
+        day: targetWeek.days[idx].day,
+        type: 'quality',
+        workout: 'BENCHMARK: 20-min time trial',
+        detail:
+          'Flat course, even effort — the hardest pace you could hold for an hour. ' +
+          'Your average HR over the final 15 min ≈ threshold HR; average pace ≈ threshold pace. ' +
+          'Enter both in Settings afterward — every zone in this plan calibrates from this test.',
+        zone: ant ? formatZoneString(ant) : '—',
+        route: 'Flat, measured',
+        time: '45-50 min',
+        plannedWorkout: {
+          workoutId: 'benchmark_20min_tt',
+          methodId: method.id,
+          name: 'BENCHMARK: 20-min time trial',
+          category: 'time_trial',
+          primaryZone: 'lactate_threshold',
+          segments: [
+            { role: 'warmup', description: 'Easy warmup + 4×20s strides', duration: { value: 15, unit: 'min' }, paceZone: 'easy' },
+            { role: 'main', description: '20-MIN TIME TRIAL — flat, even effort; record avg pace + avg HR', duration: { value: 20, unit: 'min' }, paceZone: 'lactate_threshold' },
+            { role: 'cooldown', description: 'Very easy cooldown', duration: { value: 12, unit: 'min' }, paceZone: 'recovery' },
+          ],
+          approxDurationMinutes: { min: 45, max: 50 },
+          purpose: 'Calibrate threshold pace and HR — the anchor every zone derives from.',
+          cues: ['Even effort beats a fast start: the first 5 minutes should feel too easy.'],
+        },
+      }
+      benchmarkPlaced = true
+    }
+  }
+  if (zonesEstimated) {
+    advisories.push({
+      id: 'zones_estimated',
+      severity: benchmarkPlaced ? 'info' : 'caution',
+      title: 'Zones are estimates until you test',
+      detail: benchmarkPlaced
+        ? 'Your paces and HR zones are derived from your self-reported easy pace and age, not a test. The week-1 benchmark time trial calibrates them — enter the result in Settings and the plan updates.'
+        : 'Your paces and HR zones are derived from your self-reported easy pace and age, not a test. Once you are training normally again, run a 20-min time trial (flat, even effort) and enter the result in Settings to calibrate them.',
+    })
+  }
+  if (descentCaution) {
+    advisories.push({
+      id: 'descent_caution',
+      severity: 'caution',
+      title: 'Descent work is the variable to cut first',
+      detail: `With your ${config.injuryArea === 'knee' ? 'knee' : 'lower-leg'} history, eccentric downhill loading is the highest-risk stimulus in this plan. Downhill sessions run on a reduced cadence with capped reps — if symptoms appear, drop the descent sessions before anything else, and see a physiotherapist if pain is sharp, localized, or worsening.`,
+    })
+  }
+
   // P1 — the plan QA gate. Every generated plan is linted before it
   // ships; findings surface as advisories (errors → critical) so a
   // defective plan is never silently handed to the athlete, and CI runs
   // the same validator over the golden personas so a regression fails
   // the build first.
   const zones = computeZones(athlete.maxHR, paces, method)
-  const qa = validatePlan({ weeks, zones, race: raceForVert, predictedFinishMin })
+  const qa = validatePlan({ weeks, zones, race: raceForVert, predictedFinishMin, zonesEstimated: zonesEstimated && policy.forceEasyLeadInWeeks === 0, injuryArea })
   advisories.push(...qaFindingsToAdvisories(qa))
 
   return {
