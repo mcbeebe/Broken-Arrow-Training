@@ -108,6 +108,30 @@ describe('P0.2 — weekly totals include quality sessions', () => {
   })
 })
 
+describe('P0.4 — race-week scheduling', () => {
+  // Race days across all 7 weekdays: Mon 2026-10-19 .. Sun 2026-10-25.
+  const raceDates = ['2026-10-19', '2026-10-20', '2026-10-21', '2026-10-22', '2026-10-23', '2026-10-24', '2026-10-25']
+
+  it.each(raceDates)('D-1 is rest or a ≤25 min shakeout, and D-2 carries no quality (race %s)', raceDate => {
+    const plan = generatePlanFromMethod(roche, mikeConfig({ raceDate }), TODAY)
+    const lastWeek = plan.weeks[plan.weeks.length - 1]
+    const raceIdx = lastWeek.days.findIndex(d => d.type === 'race')
+    expect(raceIdx, `race day present for ${raceDate}`).toBeGreaterThanOrEqual(0)
+
+    const dayBefore = raceIdx > 0 ? lastWeek.days[raceIdx - 1] : undefined
+    if (dayBefore && dayBefore.type !== 'rest') {
+      expect(dayBefore.type, 'D-1 must be rest or an easy shakeout').toBe('run')
+      const [, hi] = parseTime(dayBefore.time)
+      expect(hi, `D-1 "${dayBefore.workout}" shows ${dayBefore.time}`).toBeLessThanOrEqual(25)
+    }
+    const twoBefore = raceIdx > 1 ? lastWeek.days[raceIdx - 2] : undefined
+    if (twoBefore) {
+      expect(twoBefore.type, `D-2 "${twoBefore.workout}" must not be quality`).not.toBe('quality')
+      expect(twoBefore.type, 'D-2 must not be a long run').not.toBe('long')
+    }
+  })
+})
+
 describe('P0.5 — taper volume sanity', () => {
   it('taper weeks never exceed the final build week and step down monotonically', () => {
     const plan = generatePlanFromMethod(roche, mikeConfig(), TODAY)

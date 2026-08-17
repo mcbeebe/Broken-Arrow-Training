@@ -153,14 +153,48 @@ function mondayIndexOf(dateStr: string): number {
  * are dropped (post-race belongs to the recovery block), and entries pushed
  * before Monday fall off the front.
  */
+/** Categories that are fine close to a race. Everything else counts as
+ *  quality that must not sit within two days of the start line. */
+const RACE_SAFE_CATEGORIES = new Set<string>(['easy', 'recovery', 'rest', 'cross_training', 'strength', 'race_pace', 'strides'])
+
 function remapRaceWeekSchedule(schedule: DaySchedule[], raceDow: number): DaySchedule[] {
   const raceEntry = [...schedule].reverse().find(d => d.category === 'race_pace')
     ?? schedule[schedule.length - 1]
-  if (!raceEntry || raceEntry.dayOfWeek === raceDow) return schedule
+  if (!raceEntry) return schedule
   const shift = raceDow - raceEntry.dayOfWeek
-  return schedule
+  const mapped = schedule
     .map(d => ({ ...d, dayOfWeek: d.dayOfWeek + shift }))
     .filter(d => d.dayOfWeek >= 1 && d.dayOfWeek <= raceDow)
+  // The shift preserves each day's distance-to-race but can delete the
+  // authored week's leading rest and leave the wrong content near the
+  // start line (P0.4). Enforce the taper's intent by proximity:
+  //   D-1  → rest, or an easy day hard-capped as a shakeout;
+  //   D-2  → no quality — downgrade to a short easy day.
+  return mapped.map(d => {
+    const daysBefore = raceDow - d.dayOfWeek
+    if (daysBefore === 1) {
+      if (d.category === 'easy' || d.category === 'recovery') {
+        return { ...d, volumeModifier: 'short' as const, isPreRaceShakeout: true }
+      }
+      if (d.category !== 'rest') {
+        return {
+          dayOfWeek: d.dayOfWeek,
+          category: 'rest' as const,
+          notes: 'Rest — race tomorrow. Legs stay fresh.',
+        }
+      }
+      return d
+    }
+    if (daysBefore === 2 && !RACE_SAFE_CATEGORIES.has(d.category)) {
+      return {
+        dayOfWeek: d.dayOfWeek,
+        category: 'easy' as const,
+        volumeModifier: 'short' as const,
+        notes: 'Very easy — no quality this close to race day.',
+      }
+    }
+    return d
+  })
 }
 
 function maxHrPercentZones(maxHR: number): HRZone[] {
@@ -274,6 +308,11 @@ function computeEasyRunTime(
   fallback: { min: number; max: number },
   daySchedule?: DaySchedule,
 ): { min: number; max: number } {
+  // The pre-race shakeout is a fixed short dose, never a share of the
+  // week's mileage budget (P0.4 — v1 sized it like a full easy day and
+  // prescribed 66-80 min the day before the race).
+  if (daySchedule?.isPreRaceShakeout) return { min: 15, max: 20 }
+
   const easyDays = schedule.filter(
     d => d.category === 'easy' || d.category === 'recovery',
   )
