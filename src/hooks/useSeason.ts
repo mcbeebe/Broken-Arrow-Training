@@ -71,7 +71,7 @@ export function useSeason(
   /** Races captured at onboarding (config.additionalRaces) — seeded into
    *  the calendar exactly ONCE per athlete (stamped), so removing one on
    *  the season panel is never undone by a re-seed. */
-  seedRaces?: { name: string; date: string; priority: RacePriority; distanceMiles?: number; description?: string; integration?: 'layered' | 'sequential'; format?: 'road' | 'trail' | 'hyrox'; isPrimary?: boolean }[],
+  seedRaces?: { name: string; date: string; priority: RacePriority; distanceMiles?: number; elevationGainFt?: number; description?: string; integration?: 'layered' | 'sequential'; format?: 'road' | 'trail' | 'hyrox'; isPrimary?: boolean }[],
   /** The config generation that produced `seedRaces` (config.completedAt).
    *  Seeding is idempotent PER GENERATION: a redo (new completedAt) seeds
    *  the newly captured races; within a generation the stamp keeps panel
@@ -115,7 +115,9 @@ export function useSeason(
           name: s.name, date: s.date, startTime: '',
           distance: s.format === 'hyrox' ? 'Hyrox' : s.distanceMiles ? `${s.distanceMiles} mi` : '',
           distanceMiles: s.distanceMiles ?? 0,
-          elevation: '', elevationRange: '', course: '', cutoff: '',
+          elevation: s.elevationGainFt ? `${s.elevationGainFt} ft` : '',
+          ...(s.elevationGainFt ? { elevationGainFt: s.elevationGainFt } : {}),
+          elevationRange: '', course: '', cutoff: '',
           landmarks: [], gear: [], nutrition: '',
           description: s.description,
           format: s.format,

@@ -150,6 +150,8 @@ interface SeasonRaceRow {
   name: string
   date: string
   miles: string
+  /** Elevation gain in feet (structured, P2) — free-typed, parsed on assemble. */
+  vertFt: string
   priority: 'A' | 'B' | 'C'
   description: string
   integration: 'layered' | 'sequential'
@@ -160,7 +162,7 @@ interface SeasonRaceRow {
 
 let seasonRowKey = 0
 function newSeasonRaceRow(): SeasonRaceRow {
-  return { key: ++seasonRowKey, name: '', date: '', miles: '', priority: 'B', description: '', integration: 'layered', format: null }
+  return { key: ++seasonRowKey, name: '', date: '', miles: '', vertFt: '', priority: 'B', description: '', integration: 'layered', format: null }
 }
 
 
@@ -191,6 +193,7 @@ function assembleAdditionalRaces(args: {
         priority: primaryKey === r.key ? 'A' as const : r.priority,
         isPrimary: primaryKey === r.key || undefined,
         distanceMiles: parseFloat(r.miles) || undefined,
+        elevationGainFt: parseFloat(r.vertFt) > 0 ? Math.round(parseFloat(r.vertFt)) : undefined,
         description: r.description.trim() || undefined,
         // Untapped chips defer to name detection — never seed an
         // explicit format the athlete didn't choose.
@@ -322,6 +325,10 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
   const [raceName, setRaceName] = useState('')
   const [raceDate, setRaceDate] = useState('')
   const [raceDistance, setRaceDistance] = useState<RaceDistance | null>(null)
+  // P2 — structured race profile: exact distance beats the enum snap, and
+  // elevation gain unlocks the climbing/descent prescription.
+  const [exactDistanceMi, setExactDistanceMi] = useState('')
+  const [elevationGainFt, setElevationGainFtState] = useState('')
   const [generalGoal, setGeneralGoal] = useState<GeneralGoal | null>(null)
   const [cardioModality, setCardioModality] = useState<CardioModality | null>(null)
   const [raceDescription, setRaceDescription] = useState('')
@@ -566,6 +573,8 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
           raceName: raceName.trim() || 'Your race',
           raceDate,
           raceDistance: showsDistanceStep ? (raceDistance ?? undefined) : undefined,
+          raceDistanceMiles: showsDistanceStep && parseFloat(exactDistanceMi) > 0 ? parseFloat(exactDistanceMi) : undefined,
+          elevationGainFt: showsDistanceStep && parseFloat(elevationGainFt) > 0 ? Math.round(parseFloat(elevationGainFt)) : undefined,
           generalGoal: showsGoalStep ? (generalGoal ?? undefined) : undefined,
           cardioModality: showsGoalStep ? (cardioModality ?? undefined) : undefined,
           raceDescription: raceDescription.trim() || undefined,
@@ -600,6 +609,8 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
       raceName: raceName.trim(),
       raceDate,
       raceDistance: showsDistanceStep ? (raceDistance ?? undefined) : undefined,
+      raceDistanceMiles: showsDistanceStep && parseFloat(exactDistanceMi) > 0 ? parseFloat(exactDistanceMi) : undefined,
+      elevationGainFt: showsDistanceStep && parseFloat(elevationGainFt) > 0 ? Math.round(parseFloat(elevationGainFt)) : undefined,
       generalGoal: showsGoalStep ? (generalGoal ?? undefined) : undefined,
       cardioModality: showsGoalStep ? (cardioModality ?? undefined) : undefined,
       raceDescription: raceDescription.trim() || undefined,
@@ -789,6 +800,50 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
                       <option key={o.value} value={o.value}>{o.label} — {o.desc}</option>
                     ))}
                   </select>
+                  {/* P2 — the structured race profile. Vert is the input that
+                      unlocks climbing/descent training; exact distance beats
+                      the category snap (a 13.3 mi trail half is not 13.1). */}
+                  <div className="flex gap-2 mt-2">
+                    <div className="flex-1">
+                      <label className="block text-xs font-medium text-slate-500 mb-1">Exact distance (mi, optional)</label>
+                      <input
+                        type="number"
+                        inputMode="decimal"
+                        value={exactDistanceMi}
+                        onChange={e => setExactDistanceMi(e.target.value)}
+                        placeholder="e.g. 13.3"
+                        aria-label="Exact race distance in miles"
+                        className="w-full px-3 py-2.5 text-base border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400"
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <label className="block text-xs font-medium text-slate-500 mb-1">Elevation gain (ft, optional)</label>
+                      <input
+                        type="number"
+                        inputMode="numeric"
+                        value={elevationGainFt}
+                        onChange={e => setElevationGainFtState(e.target.value)}
+                        placeholder="e.g. 2900"
+                        aria-label="Race elevation gain in feet"
+                        className="w-full px-3 py-2.5 text-base border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400"
+                      />
+                    </div>
+                  </div>
+                  {(() => {
+                    const vert = parseFloat(elevationGainFt)
+                    const mi = parseFloat(exactDistanceMi) > 0
+                      ? parseFloat(exactDistanceMi)
+                      : raceDistance ? RACE_DISTANCE_MILES[raceDistance] : 0
+                    if (!(vert > 0) || !(mi > 0)) return null
+                    const density = Math.round(vert / mi)
+                    return (
+                      <p className="text-xs text-teal-700 mt-1">
+                        ~{density} ft/mi{density > 100
+                          ? ' — climbing and descent work will be built into your plan.'
+                          : ' — gently rolling; your plan stays pace-oriented.'}
+                      </p>
+                    )
+                  })()}
                 </div>
               )}
               <div>
@@ -1038,6 +1093,17 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
                         aria-label={`Race ${i + 2} distance in miles`}
                         className="w-24 px-3 py-2.5 text-base border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400"
                       />
+                      {row.format !== 'hyrox' && (
+                        <input
+                          type="number"
+                          inputMode="numeric"
+                          value={row.vertFt}
+                          onChange={e => update({ vertFt: e.target.value })}
+                          placeholder="ft gain"
+                          aria-label={`Race ${i + 2} elevation gain in feet`}
+                          className="w-24 px-3 py-2.5 text-base border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400"
+                        />
+                      )}
                     </div>
                     {primaryKey === row.key ? (
                       <p className="text-xs font-semibold text-teal-800 bg-teal-100 border border-teal-200 rounded-lg px-2.5 py-1.5">

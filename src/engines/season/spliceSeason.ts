@@ -403,7 +403,7 @@ function raceDayCard(iso: string, raceName: string, trainThrough: boolean): Plan
  *  generator (no date). */
 function configForSeasonRace(
   config: OnboardingConfig,
-  race: { raceInfo: { name: string; date: string; distance?: string; distanceMiles: number; description?: string; format?: 'road' | 'trail' | 'hyrox' } },
+  race: { raceInfo: { name: string; date: string; distance?: string; distanceMiles: number; elevationGainFt?: number; description?: string; format?: 'road' | 'trail' | 'hyrox' } },
 ): (OnboardingConfig & { raceDate: string }) | null {
   const iso = raceDateToIso(race.raceInfo.date)
   if (!iso) return null
@@ -424,6 +424,15 @@ function configForSeasonRace(
     planStartDate: undefined,
     raceDistance: hyrox ? undefined
       : nearestRaceDistance(race.raceInfo.distanceMiles || 13.1),
+    // P2 — THIS race's structured profile, never the anchor's: exact miles
+    // and vert flow into the block's generation so the vert / descent
+    // prescription fires for non-anchor races too (the v1 failure: the
+    // spliced trail-half block was generated flat because these fields
+    // stayed on the anchor race).
+    raceDistanceMiles: !hyrox && race.raceInfo.distanceMiles > 0 ? race.raceInfo.distanceMiles : undefined,
+    elevationGainFt: !hyrox && race.raceInfo.elevationGainFt && race.raceInfo.elevationGainFt > 0
+      ? race.raceInfo.elevationGainFt
+      : undefined,
     // Goal time was for the anchor race — never re-aim it at a different
     // distance (the honesty rule; a tune-up confirms new paces instead).
     goalRaceTimeSeconds: undefined,
