@@ -38,6 +38,7 @@ import { pickWeeklyPattern, pickWorkoutForDay, buildPlannedWorkout, scaleWorkout
 import { injectExtraDays } from './extraDays'
 import { INJURY_LEADIN_WEEKS } from '../../utils/injuryRamp'
 import { assessFeasibility } from './feasibility'
+import { validatePlan, qaFindingsToAdvisories } from '../planQA/validatePlan'
 import { effectivePlanStart } from '../../utils/planDates'
 import { computeMaxHR } from '../../utils/heartRate'
 import { configVertGainFt, raceVertGainFt } from '../../utils/raceVert'
@@ -374,14 +375,18 @@ function computeEasyRunTime(
   const hi = Math.min(fallback.max, Math.max(minMinutes, maxMinutes))
   if (hi < lo) {
     // The computed window falls entirely outside the method's bounds — the
-    // week's pattern gave its mileage too few (or too many) easy days. Pin
-    // to the nearest bound rather than regurgitating the method-wide
-    // placeholder range (the "Wednesday: 30–90 min" bug): the session is
-    // capped at what the method allows, and the weekly summary counts the
-    // capped session, so the plan stays internally consistent.
-    return minMinutes > fallback.max
-      ? { min: fallback.max, max: fallback.max }
-      : { min: fallback.min, max: fallback.min }
+    // week's pattern gave its mileage too few (or too many) easy days.
+    // Never regurgitate the method-wide placeholder range (the
+    // "Wednesday: 30–90 min" bug). Over the ceiling: cap at the method
+    // max — the weekly summary counts the capped session, so the plan
+    // stays internally consistent. Under the floor: prescribe the honest
+    // short run (min 15 min) instead of padding up to the method
+    // minimum — padding inflates low-volume weeks and can make a taper
+    // week out-volume the build before it.
+    if (minMinutes > fallback.max) return { min: fallback.max, max: fallback.max }
+    const shortLo = Math.max(15, Math.min(minMinutes, maxMinutes))
+    const shortHi = Math.max(shortLo, Math.min(Math.max(minMinutes, maxMinutes), fallback.max))
+    return { min: shortLo, max: shortHi }
   }
   return { min: lo, max: hi }
 }
@@ -1000,10 +1005,19 @@ export function generatePlanFromMethod(
       detail: `${method.name} needs at least ${runningDaysTarget} running days, and you asked for strength/cross-training too — so weeks run ${effectiveDaysPerWeek} days instead of ${requestedTotalDays}. Pick a lower-mileage method or drop the extras to get back to ${requestedTotalDays}.`,
     })
   }
+  // P1 — the plan QA gate. Every generated plan is linted before it
+  // ships; findings surface as advisories (errors → critical) so a
+  // defective plan is never silently handed to the athlete, and CI runs
+  // the same validator over the golden personas so a regression fails
+  // the build first.
+  const zones = computeZones(athlete.maxHR, paces, method)
+  const qa = validatePlan({ weeks, zones, race: raceForVert })
+  advisories.push(...qaFindingsToAdvisories(qa))
+
   return {
     athlete,
     weeks,
-    zones: computeZones(athlete.maxHR, paces, method),
+    zones,
     race: raceForVert,
     ...(advisories.length > 0 ? { advisories } : {}),
   }

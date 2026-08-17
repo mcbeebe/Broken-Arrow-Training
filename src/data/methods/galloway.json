@@ -176,7 +176,7 @@
           "paceZone": "easy"
         }
       },
-      "approxDurationMinutes": { "min": 35, "max": 90 },
+      "approxDurationMinutes": { "min": 45, "max": 65 },
       "approxDistanceMiles": { "min": 4, "max": 10 },
       "purpose": "Race-day rehearsal. Practices the RWR rhythm you'll use in the race so it's automatic on race day.",
       "cues": [
