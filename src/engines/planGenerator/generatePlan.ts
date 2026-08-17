@@ -23,7 +23,7 @@ import type {
   CanonicalPaceZone,
 } from '../../types/training-method'
 import type { OnboardingConfig, RaceDistance, InjuryStatus } from '../../hooks/useOnboarding'
-import type { PlannedWorkout, ResolvedPaces, WeekMileage } from './types'
+import type { PlannedSegment, PlannedWorkout, ResolvedPaces, WeekMileage } from './types'
 import { resolvePaces, formatZoneString, athleteCurrentVdot, blendGoalPaces, isDisplayablePace } from './paceTargets'
 import { sanitizeRaceTimeSeconds, vdotFromRace } from './vdot'
 import {
@@ -352,6 +352,57 @@ function computeLongRunTime(
   const lo = Math.min(minMinutes, maxMinutes)
   const hi = Math.min(fallback.max, Math.max(minMinutes, maxMinutes))
   return { min: lo, max: Math.max(lo, hi) }
+}
+
+const MI_PER_UNIT: Record<string, number> = { mi: 1, km: 0.621371, m: 0.000621371 }
+
+/** Midpoint pace (sec/mile) for a segment: its own target when displayable,
+ *  else the athlete's easy band, else a 9:35 default. */
+function segmentPaceSecPerMile(seg: PlannedSegment, paces: ResolvedPaces): number {
+  const t = seg.paceTarget
+  if (isDisplayablePace(t?.paceSecPerMileLow, t?.paceSecPerMileHigh)) {
+    return (t!.paceSecPerMileLow! + t!.paceSecPerMileHigh!) / 2
+  }
+  const { fastSec, slowSec } = easyPaceSecBounds(paces)
+  return (fastSec + slowSec) / 2
+}
+
+/** Estimated running miles a workout actually prescribes — distance segments
+ *  verbatim, duration segments via their pace target, timed recoveries at
+ *  easy pace. */
+function estimateWorkoutMiles(pw: PlannedWorkout, paces: ResolvedPaces): number {
+  let miles = 0
+  for (const seg of pw.segments) {
+    const reps = seg.reps ?? 1
+    if (seg.distance) {
+      miles += seg.distance.value * (MI_PER_UNIT[seg.distance.unit] ?? 1) * reps
+    } else if (seg.duration) {
+      const minutes = (seg.duration.unit === 'sec' ? seg.duration.value / 60 : seg.duration.value) * reps
+      miles += minutes / (segmentPaceSecPerMile(seg, paces) / 60)
+    }
+    if (seg.reps && seg.recovery?.duration) {
+      const rec = seg.recovery.duration
+      const recMinutes = (rec.unit === 'sec' ? rec.value / 60 : rec.value) * seg.reps
+      const { fastSec, slowSec } = easyPaceSecBounds(paces)
+      miles += recMinutes / ((fastSec + slowSec) / 2 / 60)
+    }
+  }
+  return miles
+}
+
+/**
+ * P0.2 — the weekly total the athlete sees is the SUM of what the week's
+ * sessions actually prescribe, quality work included. (v1 displayed the
+ * top-down planning target, which only easy + long runs consume — so
+ * every AnT / interval / hill session was invisible in the totals and
+ * "24.2 mi" peak weeks really carried ~38 mi of running.)
+ */
+function summedWeekRunMiles(days: PlannedDay[], paces: ResolvedPaces): number {
+  const total = days.reduce(
+    (sum, d) => sum + (d.plannedWorkout ? estimateWorkoutMiles(d.plannedWorkout, paces) : 0),
+    0,
+  )
+  return Math.round(total * 10) / 10
 }
 
 /**
@@ -850,7 +901,8 @@ export function generatePlanFromMethod(
       num: w + 1,
       startIso: weekStart,
       dates: `${formatDayLabel(weekStart)} – ${formatDayLabel(addDays(weekStart, weekEndOffset))}`,
-      miles: weekMi.totalMi,
+      miles: summedWeekRunMiles(withVert, weekPaces),
+      targetMi: weekMi.totalMi,
       focus: weekMi.isTaper
         ? 'Taper'
         : weekMi.isCutback

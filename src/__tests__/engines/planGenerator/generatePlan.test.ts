@@ -155,11 +155,19 @@ describe('volume ramp uses self-reported mileage', () => {
       experienceLevel: 'intermediate',
       currentWeeklyMileage: 30,
     }), TODAY)
-    const lowPeak = Math.max(...lowMileage.weeks.map(w => Number(w.miles)))
-    const highPeak = Math.max(...highMileage.weeks.map(w => Number(w.miles)))
+    // The scaling property lives in the planning TARGET. Displayed miles
+    // (P0.2) are the sum of actual prescriptions, where method floors and
+    // fixed quality-session durations compress the ratio for low-volume
+    // athletes — a real specificity gap, tracked for the P1 validator.
+    const lowPeak = Math.max(...lowMileage.weeks.map(w => w.targetMi ?? 0))
+    const highPeak = Math.max(...highMileage.weeks.map(w => w.targetMi ?? 0))
     // Peak should roughly triple along with the baseline (peakMileageRule
     // is a multiplier on current mileage).
     expect(highPeak).toBeGreaterThan(lowPeak * 2)
+    // And the displayed (summed) totals must still rank in the same order.
+    const lowShown = Math.max(...lowMileage.weeks.map(w => Number(w.miles)))
+    const highShown = Math.max(...highMileage.weeks.map(w => Number(w.miles)))
+    expect(highShown).toBeGreaterThan(lowShown)
   })
 })
 

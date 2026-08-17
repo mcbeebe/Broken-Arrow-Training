@@ -95,6 +95,19 @@ describe('P0.3 — no method-wide placeholder duration ranges', () => {
   })
 })
 
+describe('P0.2 — weekly totals include quality sessions', () => {
+  it('displayed miles are the summed prescription, not the easy+long-only target', () => {
+    const plan = generatePlanFromMethod(roche, mikeConfig(), TODAY)
+    for (const w of plan.weeks) expect(Number(w.miles)).toBeGreaterThan(0)
+    // Build weeks carry AnT / 30-30 / hill sessions that the v1 display
+    // silently excluded — the truthful sum must exceed the target budget
+    // (which only easy + long runs consume) in at least one build week.
+    const buildWeeks = plan.weeks.filter(w => !/taper|cutback/i.test(w.focus))
+    const hidden = buildWeeks.filter(w => Number(w.miles) > (w.targetMi ?? Infinity) + 2)
+    expect(hidden.length).toBeGreaterThan(0)
+  })
+})
+
 describe('P0.5 — taper volume sanity', () => {
   it('taper weeks never exceed the final build week and step down monotonically', () => {
     const plan = generatePlanFromMethod(roche, mikeConfig(), TODAY)
