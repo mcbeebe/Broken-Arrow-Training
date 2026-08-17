@@ -47,8 +47,18 @@ describe('<YourRaceCard>', () => {
     expect(screen.getByText(/julia's/i)).toBeInTheDocument()
   })
 
-  it('renders nothing when the race is not in the curated catalog (parked: generic synthesis)', () => {
-    const { container } = render(<YourRaceCard race={brokenArrow({ name: 'Boston Marathon', distanceMiles: 26.2 })} />)
+  it('renders an estimated card with a GPX-upload affordance for non-curated races', () => {
+    render(<YourRaceCard race={brokenArrow({ name: 'Boston Marathon', distanceMiles: 26.2 })} />)
+    expect(screen.getByText('Boston Marathon')).toBeInTheDocument()
+    expect(screen.getByText('estimated')).toBeInTheDocument()
+    expect(screen.getByText(/26\.2 mi/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /upload gpx/i })).toBeInTheDocument()
+  })
+
+  it('renders nothing for Hyrox races (no course to show)', () => {
+    const { container } = render(
+      <YourRaceCard race={brokenArrow({ name: 'Hyrox Anaheim', format: 'hyrox', distanceMiles: 5 })} />,
+    )
     expect(container).toBeEmptyDOMElement()
   })
 

@@ -1,8 +1,11 @@
-import { useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer } from 'recharts'
 import type { RaceInfo } from '../types'
 import type { CourseSegment } from '../types/course'
 import { resolveCourseForRace } from '../utils/resolveCourse'
+import { parseGpx } from '../data/gpx'
+import { synthesizeCourseFromGpx } from '../utils/gpxCourse'
+import { saveUserCourse } from '../utils/userCourses'
 import { weeksUntilRace } from '../utils/raceCountdown'
 import Course3DPreview from './Course3DPreview'
 
@@ -45,15 +48,42 @@ function formatRaceDate(date: string | undefined): string | null {
 /**
  * "Your Race" — surfaces the user's target course as the protagonist on
  * Summary. Compact card that matches the existing app's dense, info-rich
- * visual language (RaceReadyHeroCard scale). Curated catalog only;
- * unknown races render nothing (no card) until generic synthesis lands.
+ * visual language (RaceReadyHeroCard scale). Curated courses carry the
+ * richest data; non-curated races get an estimated card (distance + vert)
+ * with a GPX-upload affordance that upgrades it to a full profile,
+ * segments, and course-aware pacing.
  */
 export default function YourRaceCard({ race }: Props) {
   const [expanded, setExpanded] = useState(false)
   const [show3D, setShow3D] = useState(false)
-  const resolution = resolveCourseForRace(race ?? null)
+  // Bumped after a GPX upload so the card re-resolves against the registry.
+  const [courseVersion, setCourseVersion] = useState(0)
+  const [gpxError, setGpxError] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const resolution = useMemo(
+    () => resolveCourseForRace(race ?? null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [race, courseVersion],
+  )
   if (!resolution || !race) return null
-  const { course } = resolution
+  const { course, source } = resolution
+
+  async function onGpxFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file || !race) return
+    try {
+      const xml = await file.text()
+      const synthesized = synthesizeCourseFromGpx(race, parseGpx(xml))
+      if (!synthesized) throw new Error('No usable route in that file')
+      if (!saveUserCourse(race, synthesized)) throw new Error('Could not save the course')
+      setGpxError(null)
+      setShow3D(false)
+      setCourseVersion(v => v + 1)
+    } catch (err) {
+      setGpxError(err instanceof Error ? err.message : 'Could not read that GPX file')
+    }
+  }
   const has3DCourseData = course.elevationProfile.some(
     p => p.latitude != null && p.longitude != null,
   )
@@ -72,6 +102,12 @@ export default function YourRaceCard({ race }: Props) {
         <div className="min-w-0 flex-1">
           <p className="text-xs font-medium uppercase tracking-wide text-intelligence-700 dark:text-intelligence-300">
             Your race
+            {source === 'gpx' && (
+              <span className="ml-1.5 normal-case tracking-normal text-[10px] font-medium text-emerald-600 dark:text-emerald-300">from your GPX</span>
+            )}
+            {source === 'estimated' && (
+              <span className="ml-1.5 normal-case tracking-normal text-[10px] font-medium text-slate-400 dark:text-slate-500">estimated</span>
+            )}
           </p>
           <p className="text-sm font-semibold text-slate-800 dark:text-white mt-0.5 leading-snug truncate">
             {course.name}
@@ -98,15 +134,19 @@ export default function YourRaceCard({ race }: Props) {
         <div>
           <dt className="text-[10px] font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">Vertical</dt>
           <dd className="font-semibold text-slate-800 dark:text-white leading-snug">
-            {course.verticalGainFt.toLocaleString()} ft
+            {course.verticalGainFt > 0 || source === 'curated'
+              ? `${course.verticalGainFt.toLocaleString()} ft`
+              : '—'}
           </dd>
         </div>
-        <div>
-          <dt className="text-[10px] font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">Peak</dt>
-          <dd className="font-semibold text-slate-800 dark:text-white leading-snug">
-            {course.peakAltitudeFt.toLocaleString()} ft
-          </dd>
-        </div>
+        {course.peakAltitudeFt > 0 && (
+          <div>
+            <dt className="text-[10px] font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">Peak</dt>
+            <dd className="font-semibold text-slate-800 dark:text-white leading-snug">
+              {course.peakAltitudeFt.toLocaleString()} ft
+            </dd>
+          </div>
+        )}
       </dl>
 
       {course.elevationProfile.length >= 2 && !show3D && (
@@ -132,6 +172,39 @@ export default function YourRaceCard({ race }: Props) {
               />
             </AreaChart>
           </ResponsiveContainer>
+        </div>
+      )}
+
+      {source !== 'curated' && (
+        <div className="mt-2">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".gpx,application/gpx+xml"
+            className="hidden"
+            onChange={onGpxFile}
+            aria-label="Upload course GPX"
+          />
+          {source === 'estimated' ? (
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="w-full text-xs font-medium px-3 py-1.5 rounded-md bg-intelligence-50 dark:bg-intelligence-950 text-intelligence-700 dark:text-intelligence-200 hover:bg-intelligence-100 dark:hover:bg-intelligence-900 transition-colors flex items-center justify-center gap-1.5"
+            >
+              <span aria-hidden>⛰</span> Upload GPX — unlock profile, segments & pacing
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="text-[10px] font-medium text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
+            >
+              Replace GPX
+            </button>
+          )}
+          {gpxError && (
+            <p className="text-[10px] text-red-600 dark:text-red-400 mt-1">{gpxError}</p>
+          )}
         </div>
       )}
 

@@ -1,6 +1,13 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeEach } from 'vitest'
 import { resolveCourseForRace, hasCuratedCourse } from '../utils/resolveCourse'
+import { saveUserCourse, getUserCourse, removeUserCourse } from '../utils/userCourses'
+import { synthesizeCourseFromGpx } from '../utils/gpxCourse'
+import type { GpxPoint } from '../data/gpx'
 import type { RaceInfo } from '../types'
+
+beforeEach(() => {
+  localStorage.clear()
+})
 
 function race(overrides: Partial<RaceInfo>): RaceInfo {
   return {
@@ -72,10 +79,13 @@ describe('resolveCourseForRace — curated matching', () => {
 
   it('rejects a curated keyword match when the distance is far from every seeded course', () => {
     // A "Broken Arrow" race at an unseeded distance (e.g. a hypothetical ~50 mi
-    // ultra) should not borrow another distance's course — better no card than
-    // a wrong one.
+    // ultra) must not borrow another distance's curated course. It now falls
+    // through to the estimated stub under its OWN name and distance.
     const res = resolveCourseForRace(race({ name: 'Broken Arrow Ultra', distanceMiles: 50 }))
-    expect(res).toBeNull()
+    expect(res?.source).toBe('estimated')
+    expect(res?.course.name).toBe('Broken Arrow Ultra')
+    expect(res?.course.distanceMi).toBe(50)
+    expect(res?.course.familyId).not.toBe('broken-arrow-18k')
   })
 
   it('returns the year edition matching the race date', () => {
@@ -89,16 +99,78 @@ describe('resolveCourseForRace — curated matching', () => {
   })
 })
 
-describe('resolveCourseForRace — non-matching', () => {
-  it('returns null for races outside the curated catalog (parked: generic synthesis)', () => {
-    expect(resolveCourseForRace(race({ name: 'Boston Marathon', distanceMiles: 26.2 }))).toBeNull()
-    expect(resolveCourseForRace(race({ name: 'Local 5K', distanceMiles: 3.1, elevation: '50 ft' }))).toBeNull()
+describe('resolveCourseForRace — generic synthesis fallback', () => {
+  it('non-curated races resolve to an estimated stub (generic synthesis revived)', () => {
+    const boston = resolveCourseForRace(race({ name: 'Boston Marathon', distanceMiles: 26.2, elevationGainFt: 800 }))
+    expect(boston?.source).toBe('estimated')
+    expect(boston?.isGeneric).toBe(true)
+    expect(boston?.course.name).toBe('Boston Marathon')
+    expect(boston?.course.verticalGainFt).toBe(800)
+    expect(boston?.course.segments).toEqual([])
+    expect(boston?.family.id).toBe(boston?.course.familyId)
+  })
+
+  it('curated match always wins over user/estimated courses', () => {
+    const res = resolveCourseForRace(race({}))
+    expect(res?.source).toBe('curated')
+    expect(res?.isGeneric).toBe(false)
   })
 
   it('returns null when race is null or missing a name', () => {
     expect(resolveCourseForRace(null)).toBeNull()
     expect(resolveCourseForRace(undefined)).toBeNull()
     expect(resolveCourseForRace(race({ name: '' }))).toBeNull()
+  })
+
+  it('returns null for Hyrox races and races without a distance', () => {
+    expect(resolveCourseForRace(race({ name: 'Hyrox Anaheim', format: 'hyrox' }))).toBeNull()
+    expect(resolveCourseForRace(race({ name: 'Mystery Race', distanceMiles: 0 }))).toBeNull()
+  })
+})
+
+describe('resolveCourseForRace — user GPX courses', () => {
+  /** 4-mile synthetic trace: 2 mi up 1000 ft, 2 mi back down. */
+  function trace(): GpxPoint[] {
+    const step = 0.1 / 69.17
+    const pts: GpxPoint[] = []
+    for (let i = 0; i <= 40; i++) {
+      const eleM = i <= 20 ? 1000 + i * 15.24 : 1000 + (40 - i) * 15.24
+      pts.push({ latitude: 39 + i * step, longitude: -120, elevationM: eleM })
+    }
+    return pts
+  }
+
+  it('an uploaded GPX course beats the estimated stub', () => {
+    const myRace = race({ name: 'Mount Tam Trail Race', distanceMiles: 4, elevationGainFt: 1000, format: 'trail' })
+    const gpxCourse = synthesizeCourseFromGpx(myRace, trace())!
+    expect(saveUserCourse(myRace, gpxCourse)).toBe(true)
+
+    const res = resolveCourseForRace(myRace)
+    expect(res?.source).toBe('gpx')
+    expect(res?.isGeneric).toBe(true)
+    expect(res?.course.segments.length).toBeGreaterThan(0)
+    expect(res?.course.elevationProfile.length).toBeGreaterThan(0)
+
+    // Registry round-trip and removal.
+    expect(getUserCourse(myRace)?.id).toBe(gpxCourse.id)
+    removeUserCourse(myRace)
+    expect(getUserCourse(myRace)).toBeNull()
+    expect(resolveCourseForRace(myRace)?.source).toBe('estimated')
+  })
+
+  it('a user course never shadows a curated race', () => {
+    const curatedRace = race({})
+    const gpxCourse = synthesizeCourseFromGpx(curatedRace, trace())!
+    saveUserCourse(curatedRace, gpxCourse)
+    expect(resolveCourseForRace(curatedRace)?.source).toBe('curated')
+  })
+
+  it('user-course keys are name-normalized (case/whitespace-insensitive)', () => {
+    const a = race({ name: 'Mount Tam  Trail Race', distanceMiles: 4 })
+    const b = race({ name: 'mount tam trail race', distanceMiles: 4 })
+    const gpxCourse = synthesizeCourseFromGpx(a, trace())!
+    saveUserCourse(a, gpxCourse)
+    expect(getUserCourse(b)?.id).toBe(gpxCourse.id)
   })
 })
 
