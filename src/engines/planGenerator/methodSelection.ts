@@ -25,6 +25,8 @@ import type {
   ExperienceLevel as OnboardingExperienceLevel,
   RaceType,
 } from '../../hooks/useOnboarding'
+import { configVertGainFt } from '../../utils/raceVert'
+import { RACE_DISTANCE_MILES } from '../../utils/seasonConfig'
 
 const RATING_POINTS: Record<ApplicabilityRating, number> = {
   BEST: 4,
@@ -85,19 +87,32 @@ export function mapExperience(level: OnboardingExperienceLevel): MethodExperienc
 export function inferTerrain(
   raceType: RaceType,
   raceDistance: RaceDistance | undefined,
+  vertFtPerMi = 0,
 ): Terrain {
   if (raceType !== 'trail') return 'road'
   if (raceDistance === 'mountain_ultra') return 'mountain_vertical'
+  // P2 — vert density upgrades terrain: >240 ft/mi is "Colossal" on the
+  // iRunFar tiers, where climbing endurance is the defining demand and
+  // vertical-oriented methods should outscore rolling-trail ones.
+  if (vertFtPerMi > 240) return 'mountain_vertical'
   return 'trail_rolling'
 }
 
 /** Build typed inputs from an `OnboardingConfig`. Returns null if race distance is missing. */
 export function inputsFromOnboarding(config: OnboardingConfig): SelectionInputs | null {
   if (!config.raceDistance) return null
+  // P2 — method selection sees the race's climb density, not just the
+  // trail/road radio: vert per mile from the structured field (or the
+  // description fallback) against the exact distance when provided.
+  const vertFt = configVertGainFt(config)
+  const miles = config.raceDistanceMiles && config.raceDistanceMiles > 0
+    ? config.raceDistanceMiles
+    : RACE_DISTANCE_MILES[config.raceDistance] || 0
+  const vertFtPerMi = vertFt > 0 && miles > 0 ? vertFt / miles : 0
   return {
     raceDistance: config.raceDistance,
     experience: mapExperience(config.experienceLevel),
-    terrain: inferTerrain(config.raceType, config.raceDistance),
+    terrain: inferTerrain(config.raceType, config.raceDistance, vertFtPerMi),
   }
 }
 

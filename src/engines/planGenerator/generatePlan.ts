@@ -37,7 +37,7 @@ import {
 import { pickWeeklyPattern, pickWorkoutForDay, buildPlannedWorkout, scaleWorkoutToTime } from './workouts'
 import { injectExtraDays } from './extraDays'
 import { INJURY_LEADIN_WEEKS } from '../../utils/injuryRamp'
-import { assessFeasibility } from './feasibility'
+import { assessFeasibility, predictRaceTime } from './feasibility'
 import { validatePlan, qaFindingsToAdvisories } from '../planQA/validatePlan'
 import { effectivePlanStart } from '../../utils/planDates'
 import { computeMaxHR } from '../../utils/heartRate'
@@ -416,12 +416,15 @@ function computeLongRunTime(
   weekMi: WeekMileage,
   paces: ResolvedPaces,
   fallback: { min: number; max: number },
+  gradeAdjFactor = 1,
 ): { min: number; max: number } {
   const miles = weekMi.longRunMi
   if (miles <= 0) return fallback
   const { fastSec, slowSec } = easyPaceSecBounds(paces)
-  const minMinutes = Math.round((miles * fastSec) / 60)
-  const maxMinutes = Math.round((miles * slowSec) / 60)
+  // On climby terrain the same miles take longer — displayed duration uses
+  // the effort-adjusted pace so "time on feet" is honest (P2).
+  const minMinutes = Math.round((miles * fastSec * gradeAdjFactor) / 60)
+  const maxMinutes = Math.round((miles * slowSec * gradeAdjFactor) / 60)
   if (minMinutes <= 0) return fallback
   // Unlike easy runs we do NOT floor at the method's stated minimum: an early
   // 4-mi long run is legitimately ~45 min, and flooring it to the method's
@@ -518,6 +521,7 @@ function buildPlannedDay(
   substitutionNote?: string,
   weekSchedule?: DaySchedule[],
   equipment?: readonly string[],
+  gradeAdjFactor = 1,
 ): PlannedDay {
   const type = categoryToType(daySchedule.category)
   if (!workout || !plannedWorkout) {
@@ -546,7 +550,7 @@ function buildPlannedDay(
   // Quality workouts keep the method's range (their structure sets the time).
   const timeRange =
     category === 'long'
-      ? computeLongRunTime(weekMi, paces, plannedWorkout.approxDurationMinutes)
+      ? computeLongRunTime(weekMi, paces, plannedWorkout.approxDurationMinutes, gradeAdjFactor)
       : (category === 'easy' || category === 'recovery') && weekSchedule
         ? computeEasyRunTime(weekSchedule, weekMi, paces, plannedWorkout.approxDurationMinutes, daySchedule)
         : plannedWorkout.approxDurationMinutes
@@ -572,7 +576,13 @@ function buildPlannedDay(
 }
 
 function buildRaceInfo(config: OnboardingConfig): RaceInfo {
-  const dist = config.raceDistance ? RACE_DISTANCE_LABELS[config.raceDistance] : { label: '', miles: 0 }
+  const enumDist = config.raceDistance ? RACE_DISTANCE_LABELS[config.raceDistance] : { label: '', miles: 0 }
+  // Structured exact distance (P2) overrides the enum snap; keep the enum's
+  // human label when one exists, else render the exact miles.
+  const exactMi = config.raceDistanceMiles && config.raceDistanceMiles > 0 ? config.raceDistanceMiles : 0
+  const dist = exactMi > 0
+    ? { label: enumDist.label || `${exactMi} mi`, miles: exactMi }
+    : enumDist
   // Structured race vert — from the onboarding field or parsed from the free-text
   // description — so the plan can prescribe climbing/descending work (R1).
   const vertFt = configVertGainFt(config)
@@ -699,7 +709,11 @@ export function generatePlanFromMethod(
   // currentVdot from a recent-race anchor (null if none). Guard the goal time
   // against the "2:30" mm:ss/h:mm:ss ambiguity before it becomes a VDOT.
   const currentVdot = athleteCurrentVdot(config)
-  const raceMiles = config.raceDistance ? RACE_DISTANCE_LABELS[config.raceDistance].miles : 0
+  // Exact distance (P2 structured input) beats the enum snap: a 13.3 mi trail
+  // half is 13.3, not 13.1.
+  const raceMiles = config.raceDistanceMiles && config.raceDistanceMiles > 0
+    ? config.raceDistanceMiles
+    : config.raceDistance ? RACE_DISTANCE_LABELS[config.raceDistance].miles : 0
   const goalSeconds = raceMiles > 0 ? sanitizeRaceTimeSeconds(config.goalRaceTimeSeconds, raceMiles) : null
   const rawGoalVdot = goalSeconds != null
     ? vdotFromRace({ distanceMiles: raceMiles, timeSeconds: goalSeconds })
@@ -734,11 +748,48 @@ export function generatePlanFromMethod(
   const currentWeeklyMileage = estimateCurrentWeeklyMileage(config)
   const policy = injuryPolicyFor(config.injuryStatus)
   const coreBlocks = allocatePhaseWeeks(method, coreWeeks)
+
+  // R1 — race climb density drives the climbing/descending prescription. Use a
+  // nominal distance for mountain ultras (whose RACE_DISTANCE_LABELS miles is 0)
+  // so a structured/described vert still yields a per-mile density. Computed
+  // BEFORE weekly mileage so predicted finish time can size the long run (P2).
+  const raceForVert = buildRaceInfo(config)
+  const raceVertGain = raceVertGainFt(raceForVert)
+  const effRaceMiles = raceForVert.distanceMiles > 0 ? raceForVert.distanceMiles : 31
+  const vertFtPerMi = raceVertGain > 0 ? raceVertGain / effRaceMiles : 0
+  const isClimby = isClimbyDensity(vertFtPerMi)
+  // Effort-adjusted pace multiplier for climby terrain: grade makes flat pace
+  // meaningless, so displayed long-run durations (and the duration→miles
+  // conversion) run ~10% slower per 100 ft/mi of climb density, capped at
+  // 1.5×. A deliberately simple GAP-flavored heuristic — course-profile
+  // pacing (Minetti) stays the curated-course path.
+  const gradeAdjFactor = isClimby ? Math.min(1.5, 1 + vertFtPerMi / 1000) : 1
+
+  // P2 — predicted finish time (minutes) sizes the long run so the biggest
+  // training day scales with how long race day will actually take. VDOT
+  // prediction when a race anchor exists; else a conservative estimate from
+  // easy pace (race effort ≈ 0.95 × easy). Vert adds ~30 s per 100 ft.
+  const easyPaceSecMid = paces.byZone.easy?.paceSecPerMileLow != null && paces.byZone.easy?.paceSecPerMileHigh != null
+    ? (paces.byZone.easy.paceSecPerMileLow + paces.byZone.easy.paceSecPerMileHigh) / 2
+    : null
+  const flatFinishSec = raceForVert.distanceMiles > 0
+    ? (currentVdot != null
+        ? predictRaceTime(currentVdot, raceForVert.distanceMiles)
+        : easyPaceSecMid != null
+          ? raceForVert.distanceMiles * easyPaceSecMid * 0.95
+          : 0)
+    : 0
+  const predictedFinishMin = flatFinishSec > 0
+    ? Math.round(flatFinishSec / 60 + (raceVertGain / 100) * 0.5)
+    : 0
+
   const coreMileage = buildWeeklyMileage(method, coreWeeks, coreBlocks, currentWeeklyMileage, policy.mileageAdjust, {
     raceDistance: config.raceDistance,
     // Slow end of the easy zone (sec/mile) — used to translate the long-run
     // time cap into a distance for this athlete.
     easyPaceSecPerMile: paces.byZone.easy?.paceSecPerMileLow,
+    predictedFinishMin,
+    gradeAdjFactor,
   })
   // Front-pad steady base weeks for a long runway. The per-week loop reads each
   // week's phase from the mileage row below, so no separate block list is needed.
@@ -822,15 +873,6 @@ export function generatePlanFromMethod(
   // pushed long runs a day early).
   const raceMonday = mondayOnOrBefore(raceDateAnchor)
 
-  // R1 — race climb density drives the climbing/descending prescription. Use a
-  // nominal distance for mountain ultras (whose RACE_DISTANCE_LABELS miles is 0)
-  // so a structured/described vert still yields a per-mile density.
-  const raceForVert = buildRaceInfo(config)
-  const raceVertGain = raceVertGainFt(raceForVert)
-  const effRaceMiles = raceForVert.distanceMiles > 0 ? raceForVert.distanceMiles : 31
-  const vertFtPerMi = raceVertGain > 0 ? raceVertGain / effRaceMiles : 0
-  const isClimby = isClimbyDensity(vertFtPerMi)
-
   // R3 — heat preparation fires from the race description (R13 altitude is an
   // advisory only). Fueling (R2) scales with the race's effective distance.
   const raceIsHot = detectHeat(config)
@@ -902,8 +944,8 @@ export function generatePlanFromMethod(
       const built = picked
         ? buildPlannedDay(date, daySched, weekPaces, weekMi, picked.workout,
             buildPlannedWorkout(method, picked.workout, weekPaces, picked.reason),
-            picked.reason, weekSchedule, config.equipmentAccess)
-        : buildPlannedDay(date, daySched, weekPaces, weekMi, null, null, undefined, weekSchedule, config.equipmentAccess)
+            picked.reason, weekSchedule, config.equipmentAccess, gradeAdjFactor)
+        : buildPlannedDay(date, daySched, weekPaces, weekMi, null, null, undefined, weekSchedule, config.equipmentAccess, gradeAdjFactor)
       days.push(daySched.leadInEased ? { ...built, leadInEased: true } : built)
     }
     // Sort by dayOfWeek (Mon..Sun) — schedule is already in order but be defensive
@@ -1011,7 +1053,7 @@ export function generatePlanFromMethod(
   // the same validator over the golden personas so a regression fails
   // the build first.
   const zones = computeZones(athlete.maxHR, paces, method)
-  const qa = validatePlan({ weeks, zones, race: raceForVert })
+  const qa = validatePlan({ weeks, zones, race: raceForVert, predictedFinishMin })
   advisories.push(...qaFindingsToAdvisories(qa))
 
   return {

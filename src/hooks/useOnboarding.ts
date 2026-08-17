@@ -82,6 +82,10 @@ export interface AdditionalRace {
   date: string
   priority: 'A' | 'B' | 'C'
   distanceMiles?: number
+  /** Total vertical gain in feet (structured, P2). Carried onto the race's
+   *  RaceInfo and into the spliced block's generation config so the vert /
+   *  descent prescription fires for non-anchor races too. */
+  elevationGainFt?: number
   /** Free-text event details (format, goal, terrain — e.g. "Hyrox open,
    *  first one, goal is to finish strong"). Feeds the coach and the
    *  Hyrox-format detection, same as the main race's description. */
@@ -131,6 +135,10 @@ export interface OnboardingConfig {
   // Target race distance — required for trail/road races, omitted for hyrox/general.
   // Drives method selection via applicability.byDistance in the plan-generator engine.
   raceDistance?: RaceDistance
+  // Exact race distance in miles (structured, P2). Overrides the enum snap
+  // everywhere the engine reasons about the race — a 13.3 mi trail half is
+  // 13.3, not 13.1. The enum stays as the quick-pick and the label source.
+  raceDistanceMiles?: number
   // Total race vertical gain in feet (structured). Drives the climbing/descending
   // prescription (R1) when present; otherwise the engine falls back to parsing the
   // free-text raceDescription. Optional — flat/road races leave it unset.

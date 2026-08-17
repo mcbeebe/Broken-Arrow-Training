@@ -35,6 +35,7 @@ export default function SeasonPanel({ seasonState }: { seasonState: UseSeasonRet
   const [name, setName] = useState('')
   const [date, setDate] = useState('')
   const [miles, setMiles] = useState('')
+  const [vertFt, setVertFt] = useState('')
   const [priority, setPri] = useState<RacePriority>('B')
   const [description, setDescription] = useState('')
   const [integration, setIntegrationChoice] = useState<'layered' | 'sequential'>('layered')
@@ -62,14 +63,18 @@ export default function SeasonPanel({ seasonState }: { seasonState: UseSeasonRet
       startTime: '',
       distance: effectiveFormat === 'hyrox' ? 'Hyrox' : miles ? `${miles} mi` : '',
       distanceMiles: parseFloat(miles) || 0,
-      elevation: '', elevationRange: '', course: '', cutoff: '',
+      // P2 — structured vert: unlocks the climbing/descent prescription for
+      // this race's block when it chains into the season plan.
+      elevation: parseFloat(vertFt) > 0 ? `${Math.round(parseFloat(vertFt))} ft` : '',
+      ...(parseFloat(vertFt) > 0 ? { elevationGainFt: Math.round(parseFloat(vertFt)) } : {}),
+      elevationRange: '', course: '', cutoff: '',
       landmarks: [], gear: [], nutrition: '',
       description: description.trim() || undefined,
       format: effectiveFormat,
     }
     addRace(race, priority, addFormIsHyrox ? integration : 'sequential')
     setAdding(false)
-    setName(''); setDate(''); setMiles(''); setPri('B'); setDescription(''); setIntegrationChoice('layered'); setFormat(null)
+    setName(''); setDate(''); setMiles(''); setVertFt(''); setPri('B'); setDescription(''); setIntegrationChoice('layered'); setFormat(null)
   }
 
   return (
@@ -105,6 +110,9 @@ export default function SeasonPanel({ seasonState }: { seasonState: UseSeasonRet
               value={date} onChange={e => setDate(e.target.value)} />
             <input type="number" inputMode="decimal" className="w-24 rounded-lg border border-slate-300 px-2 py-1.5 text-sm"
               placeholder="miles" value={miles} onChange={e => setMiles(e.target.value)} />
+            <input type="number" inputMode="numeric" className="w-24 rounded-lg border border-slate-300 px-2 py-1.5 text-sm"
+              placeholder="ft gain" aria-label="Elevation gain in feet"
+              value={vertFt} onChange={e => setVertFt(e.target.value)} />
           </div>
           <div className="flex gap-1.5" role="radiogroup" aria-label="Race format">
             {(['road', 'trail', 'hyrox'] as const).map(k => (

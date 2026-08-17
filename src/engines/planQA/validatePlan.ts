@@ -36,6 +36,9 @@ export interface PlanQAInput {
   weeks: TrainingWeek[]
   zones?: HRZone[]
   race?: RaceInfo
+  /** Predicted race finish (minutes, vert-adjusted) when the generator
+   *  computed one — enables the long-run duration-adequacy rule. */
+  predictedFinishMin?: number
 }
 
 /** Vert density (ft/mi) above which a race demands vert-specific training
@@ -303,6 +306,23 @@ export function validatePlan(input: PlanQAInput): PlanQAResult {
           }.`,
         })
       }
+    }
+  }
+
+  // ── race specificity: long-run duration adequacy ──────────────────
+  if (input.predictedFinishMin && input.predictedFinishMin >= 90) {
+    let peakLongMin = 0
+    for (const { day } of flat) {
+      if (day.type !== 'long') continue
+      const range = parseTimeRange(day.time)
+      if (range) peakLongMin = Math.max(peakLongMin, range[1])
+    }
+    if (peakLongMin > 0 && peakLongMin < 0.5 * input.predictedFinishMin) {
+      add({
+        id: 'qa_long_run_adequacy', severity: 'warn',
+        title: 'Longest run is short for this race',
+        detail: `Race day is predicted to take ~${Math.round(input.predictedFinishMin)} min but the biggest long run peaks at ${peakLongMin} min (${Math.round((peakLongMin / input.predictedFinishMin) * 100)}%) — time on feet should approach at least half the race duration.`,
+      })
     }
   }
 

@@ -299,7 +299,24 @@ export interface VolumeDistanceOpts {
   /** Athlete's easy pace (sec/mile), used to convert the long-run time cap
    *  into a distance. Falls back to a 10:00/mi default when unknown. */
   easyPaceSecPerMile?: number
+  /** Predicted race finish time (minutes, vert-adjusted). When present, the
+   *  peak long run is floored at a fraction of it so the biggest training
+   *  day scales with how long race day will actually take (P2 — the v1 plan
+   *  peaked at 88 min for a 2:15-3:00 race). */
+  predictedFinishMin?: number
+  /** Effort-adjusted pace multiplier for climby terrain (≥1). Converts the
+   *  duration floor into honest miles: on steep ground the same minutes
+   *  cover fewer miles. */
+  gradeAdjFactor?: number
 }
+
+/** Fraction of the predicted finish duration the peak long run should reach
+ *  (time on feet). 65% is the common trail-coaching band for races in the
+ *  2-4 h range; the method/date caps still bound it above. */
+const LONG_RUN_PCT_OF_FINISH = 0.65
+
+/** Never let the duration floor push the long run past half the week. */
+const LONG_RUN_MAX_PCT_OF_WEEK = 0.5
 
 const DEFAULT_EASY_PACE_SEC_PER_MILE = 600 // 10:00/mi
 
@@ -322,7 +339,19 @@ function longRunMilesFor(
   const easyPaceMinPerMile = (opts.easyPaceSecPerMile ?? DEFAULT_EASY_PACE_SEC_PER_MILE) / 60
   const timeCapMi = LONG_TIME_CAP_MIN[opts.raceDistance] / easyPaceMinPerMile
   const maxMi = LONG_MAX_MI[opts.raceDistance]
-  const target = Math.min(totalMi * pct, maxMi, timeCapMi)
+  let target = Math.min(totalMi * pct, maxMi, timeCapMi)
+  // P2 — duration adequacy: the peak long run should reach a fraction of the
+  // predicted race DURATION (time on feet governs trail readiness, not
+  // miles). Convert that duration into miles via the effort-adjusted pace,
+  // then keep every existing ceiling: the method time cap, the absolute
+  // distance cap, and half the week's volume.
+  if (opts.predictedFinishMin && opts.predictedFinishMin > 0) {
+    const effortPaceMinPerMile = easyPaceMinPerMile * (opts.gradeAdjFactor ?? 1)
+    const durationFloorMi =
+      (LONG_RUN_PCT_OF_FINISH * opts.predictedFinishMin) / effortPaceMinPerMile
+    const floorCapped = Math.min(durationFloorMi, timeCapMi, maxMi, totalMi * LONG_RUN_MAX_PCT_OF_WEEK)
+    target = Math.max(target, floorCapped)
+  }
   // Never go below what the flat method cap would have produced (the
   // distance-aware path should only lengthen the long run), but never exceed
   // the absolute distance ceiling either.
