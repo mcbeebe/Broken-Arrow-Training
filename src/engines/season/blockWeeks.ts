@@ -2,7 +2,7 @@ import type { PlannedDay, SeasonBlock, TrainingWeek, WorkoutType } from '../../t
 import type { CrossTrainingMode } from '../../hooks/useOnboarding'
 import { postRaceRecovery } from '../../utils/recovery'
 import { CROSS_MODE_LABEL } from '../planGenerator/extraDays'
-import { bridgeEmphasis } from './residuals'
+import { bridgeEmphasis, EV_INTENSITY_PRESERVES, EV_STRENGTH_HOLDS } from './residuals'
 
 /**
  * Week generation for the season blocks the existing engines don't cover:
@@ -136,7 +136,7 @@ export function recoverWeeks(
 /**
  * BRIDGE block → residual-aware content:
  *  - toward Hyrox: hold aerobic with 2 runs/wk (one intensity touch —
- *    Hickson '81) while concentrating strength-endurance + glycolytic
+ *    Hickson '85) while concentrating strength-endurance + glycolytic
  *    circuits (their 15–18 d residuals mean NOW is when they matter);
  *  - toward a running race: hold strength at 1×/wk (Bickel '11) while run
  *    volume rebuilds (Wilson '12: maintenance-dose interference is noise).
@@ -177,7 +177,7 @@ export function bridgeDayStream(
         iso => day(iso, 'run', 'Aerobic hold run', 'Easy Z2 run — the maintenance dose that keeps your base.', 'Z2 · easy', '40 min'),
         iso => day(iso, 'strength', 'Strength-endurance circuit', 'Hyrox-station circuit: wall balls, sled push/pull, lunges, burpee broad jumps — quality over speed.', '—', '45 min'),
         iso => day(iso, 'rest', 'Rest', 'Adaptation happens here.'),
-        iso => day(iso, 'run', 'Intensity touch', 'Z2 run finishing with 4–6 × 1 min at threshold — the intensity that preserves aerobic fitness (Hickson 1981).', 'Z2-4', '40 min'),
+        iso => day(iso, 'run', 'Intensity touch', `Z2 run finishing with 4–6 × 1 min at threshold — the intensity that preserves aerobic fitness (${EV_INTENSITY_PRESERVES.value}).`, 'Z2-4', '40 min'),
         iso => day(iso, 'strength', 'Glycolytic capacity', 'Station intervals at race effort: 60–90 s on / 60 s off — the short-residual quality trained closest to race day.', '—', '40 min'),
         crossDay,
         iso => day(iso, 'rest', 'Rest', 'Adaptation happens here.'),
@@ -186,7 +186,7 @@ export function bridgeDayStream(
         iso => day(iso, 'run', 'Volume rebuild run', 'Easy Z2 — run volume comes back first.', 'Z2 · easy', '45 min'),
         iso => day(iso, 'rest', 'Rest', 'Adaptation happens here.'),
         iso => day(iso, 'run', 'Easy run + strides', 'Z2 with 4 × 20 s relaxed strides — turnover without cost.', 'Z2', '40 min'),
-        iso => day(iso, 'strength', 'Strength maintenance', 'ONE weekly strength dose holds what you built (Bickel 2011). Keep loads honest, volume low.', '—', '35 min'),
+        iso => day(iso, 'strength', 'Strength maintenance', `ONE weekly strength dose holds what you built (${EV_STRENGTH_HOLDS.value}). Keep loads honest, volume low.`, '—', '35 min'),
         iso => day(iso, 'run', 'Easy run', 'Z2, conversational throughout.', 'Z2 · easy', '45 min'),
         iso => day(iso, 'long', 'Longer easy run', 'The week’s biggest aerobic dose — still easy, still conversational.', 'Z2', '60-75 min'),
         iso => day(iso, 'rest', 'Rest', 'Adaptation happens here.'),
