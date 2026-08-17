@@ -111,10 +111,15 @@ function stepTotalMinutes(day: PlannedDay): number | null {
   return hasWork ? total : null
 }
 
-/** Independent re-estimate of a day's run miles from its own segments. */
+/** Independent re-estimate of a day's run miles from its own segments —
+ *  falling back to the zone string's leading "X mi" for text-only days
+ *  (the Hyrox generator's session vocabulary carries miles there). */
 function estimateDayMiles(day: PlannedDay): number {
   const pw = day.plannedWorkout
-  if (!pw) return 0
+  if (!pw) {
+    const m = day.zone?.match(/^([\d.]+) mi/)
+    return m ? parseFloat(m[1]) : 0
+  }
   let miles = 0
   for (const s of pw.segments) {
     const reps = s.reps ?? 1
