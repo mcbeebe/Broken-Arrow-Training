@@ -38,6 +38,42 @@ const parseTime = (t: string): [number, number] => {
   return single ? [parseInt(single[1]), parseInt(single[1])] : [0, 0]
 }
 
+/** Total minutes implied by a workout's steps (reps and timed recoveries included). */
+function stepTotalMinutes(pw: NonNullable<import('../../../types').PlannedDay['plannedWorkout']>): number | null {
+  let total = 0
+  let hasDuration = false
+  for (const s of pw.segments) {
+    if (!s.duration) continue
+    hasDuration = true
+    const per = s.duration.unit === 'sec' ? s.duration.value / 60 : s.duration.value
+    const reps = s.reps ?? 1
+    total += per * reps
+    if (s.reps && s.recovery?.duration) {
+      const rec = s.recovery.duration
+      total += (rec.unit === 'sec' ? rec.value / 60 : rec.value) * s.reps
+    }
+  }
+  return hasDuration ? total : null
+}
+
+describe('P0.1 — one duration per session', () => {
+  it('step durations agree with the header time on every running day (v1 bug: header 42-50 min over a 150 min step)', () => {
+    const plan = generatePlanFromMethod(roche, mikeConfig(), TODAY)
+    for (const week of plan.weeks) {
+      for (const d of week.days) {
+        if (!d.plannedWorkout || !d.time) continue
+        const [lo, hi] = parseTime(d.time)
+        if (lo === 0) continue
+        const total = stepTotalMinutes(d.plannedWorkout)
+        if (total == null) continue
+        const label = `${week.focus} ${d.day} "${d.workout}": header ${d.time}, steps ${Math.round(total)} min`
+        expect(total, label).toBeGreaterThanOrEqual(lo * 0.9 - 1)
+        expect(total, label).toBeLessThanOrEqual(hi * 1.1 + 1)
+      }
+    }
+  })
+})
+
 describe('P0.3 — no method-wide placeholder duration ranges', () => {
   it('never emits a duration range wider than 1.5x on any running day', () => {
     const plan = generatePlanFromMethod(roche, mikeConfig(), TODAY)
@@ -65,11 +101,11 @@ describe('P0.5 — taper volume sanity', () => {
     const weeks = plan.weeks
     const taperStart = weeks.findIndex(w => /taper/i.test(w.focus))
     expect(taperStart).toBeGreaterThan(0)
-    const lastBuildMi = weeks[taperStart - 1].miles
-    let prev = lastBuildMi
+    let prev = Number(weeks[taperStart - 1].miles)
     for (let i = taperStart; i < weeks.length; i++) {
-      expect(weeks[i].miles, `week ${i + 1} (${weeks[i].focus})`).toBeLessThanOrEqual(prev + 0.01)
-      prev = weeks[i].miles
+      const mi = Number(weeks[i].miles)
+      expect(mi, `week ${i + 1} (${weeks[i].focus})`).toBeLessThanOrEqual(prev + 0.01)
+      prev = mi
     }
   })
 })

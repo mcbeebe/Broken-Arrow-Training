@@ -34,7 +34,7 @@ import {
   mapToMethodExperience,
   type MileageProgressionAdjust,
 } from './weekPlan'
-import { pickWeeklyPattern, pickWorkoutForDay, buildPlannedWorkout } from './workouts'
+import { pickWeeklyPattern, pickWorkoutForDay, buildPlannedWorkout, scaleWorkoutToTime } from './workouts'
 import { injectExtraDays } from './extraDays'
 import { INJURY_LEADIN_WEEKS } from '../../utils/injuryRamp'
 import { assessFeasibility } from './feasibility'
@@ -257,19 +257,37 @@ function buildDetailString(pw: PlannedWorkout, paces: ResolvedPaces, weekMi: Wee
  * the method's stated bounds so we never recommend something the method
  * explicitly avoids.
  */
+/** Relative size of an easy day within its week, per the method author's
+ *  `volumeModifier` (previously declared in the JSONs but never read —
+ *  which is how a race-week "short shakeout" got sized like a full easy
+ *  day). Unset days weigh 1. */
+const VOLUME_MODIFIER_WEIGHT: Record<string, number> = { short: 0.6, medium: 1, long: 1.4 }
+
+function modifierWeight(d: DaySchedule): number {
+  return VOLUME_MODIFIER_WEIGHT[d.volumeModifier ?? 'medium'] ?? 1
+}
+
 function computeEasyRunTime(
   schedule: DaySchedule[],
   weekMi: WeekMileage,
   paces: ResolvedPaces,
   fallback: { min: number; max: number },
+  daySchedule?: DaySchedule,
 ): { min: number; max: number } {
   const easyDays = schedule.filter(
     d => d.category === 'easy' || d.category === 'recovery',
-  ).length
-  if (easyDays === 0 || weekMi.totalMi <= 0) return fallback
+  )
+  if (easyDays.length === 0 || weekMi.totalMi <= 0) return fallback
 
   const easyMiTotal = Math.max(0, weekMi.totalMi - weekMi.longRunMi)
-  const milesPerEasy = easyMiTotal / easyDays
+  // Split the week's easy miles across easy days weighted by the authored
+  // volumeModifier, so a "short" day is genuinely shorter than its
+  // siblings instead of an even N-way split.
+  const totalWeight = easyDays.reduce((s, d) => s + modifierWeight(d), 0)
+  const share = daySchedule
+    ? modifierWeight(daySchedule) / totalWeight
+    : 1 / easyDays.length
+  const milesPerEasy = easyMiTotal * share
   if (milesPerEasy <= 0) return fallback
 
   const { fastSec, slowSec } = easyPaceSecBounds(paces)
@@ -400,18 +418,26 @@ function buildPlannedDay(
     category === 'long'
       ? computeLongRunTime(weekMi, paces, plannedWorkout.approxDurationMinutes)
       : (category === 'easy' || category === 'recovery') && weekSchedule
-        ? computeEasyRunTime(weekSchedule, weekMi, paces, plannedWorkout.approxDurationMinutes)
+        ? computeEasyRunTime(weekSchedule, weekMi, paces, plannedWorkout.approxDurationMinutes, daySchedule)
         : plannedWorkout.approxDurationMinutes
+  // P0.1 — one duration per session: rescale the workout's flexible steady
+  // segments to the computed session time, so the header, the step list,
+  // the PDF, and the Garmin push all agree. (v1 shipped "42-50 min"
+  // headers over verbatim method-template steps reading "150 min".)
+  const sizedWorkout =
+    category === 'long' || category === 'easy' || category === 'recovery'
+      ? scaleWorkoutToTime(plannedWorkout, timeRange)
+      : plannedWorkout
   return {
     day: formatDayLabel(date),
     type,
-    workout: plannedWorkout.displayName ?? plannedWorkout.name,
-    detail: buildDetailString(plannedWorkout, paces, weekMi)
+    workout: sizedWorkout.displayName ?? sizedWorkout.name,
+    detail: buildDetailString(sizedWorkout, paces, weekMi)
       + (substitutionNote ? ` · ${substitutionNote}` : ''),
     zone: target ? formatZoneString(target) : '—',
     route: venueHintFor(category, equipment),
     time: timeRange.min === timeRange.max ? `${timeRange.min} min` : `${timeRange.min}-${timeRange.max} min`,
-    plannedWorkout,
+    plannedWorkout: sizedWorkout,
   }
 }
 
