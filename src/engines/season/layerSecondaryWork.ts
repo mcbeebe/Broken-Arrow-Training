@@ -2,6 +2,7 @@ import type { PlannedDay, SeasonRace, TrainingWeek } from '../../types'
 import { isHyroxRaceInfo } from './planSeason'
 import { parseDayToDate } from '../../utils/planDates'
 import { stationSpecs, stationCircuit } from '../hyrox/spec'
+import { LAYERED_RAMP } from '../hyrox/heuristics'
 
 /**
  * Layered multi-race preparation (user-directed): a season race marked
@@ -47,7 +48,8 @@ const TRANSFORMABLE = new Set<PlannedDay['type']>(['strength', 'cross'])
  */
 function hyroxLayeredDay(day: PlannedDay, raceName: string, pos: number, totalEligible: number): PlannedDay {
   const t = totalEligible > 1 ? pos / (totalEligible - 1) : 1 // 0 → 1 across the eligible run
-  const pct = 0.35 + 0.4 * t // station volumes: 35% → 75% of race spec while the run plan stays primary
+  const ramp = LAYERED_RAMP.value
+  const pct = ramp.startPct + (ramp.endPct - ramp.startPct) * t // submaximal by doctrine: the anchor race owns the plan
   const specs = stationSpecs()
   const isA = pos % 2 === 0
   const detail = isA

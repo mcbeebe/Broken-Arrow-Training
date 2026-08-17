@@ -12,6 +12,7 @@ import { paceBoundsForZone, type VdotPaceBounds } from '../engines/planGenerator
 import { stationSpecs, stationCircuit, stationRx, FULL_SPEC_PHRASE, HYROX_RUN_LEGS, HYROX_RUN_LEG_KM, type StationSpec } from '../engines/hyrox/spec'
 import { validatePlan, qaFindingsToAdvisories } from '../engines/planQA/validatePlan'
 import { prehabBlockFor } from '../engines/planGenerator/prehab'
+import { STATION_RAMP, FULL_SIM_DAYS_OUT, HALF_SIM_DAYS_OUT, SPEC_DAY_DAYS_OUT, COMPROMISED_DOSE, INTERVAL_REST, TEMPO_MINUTES } from '../engines/hyrox/heuristics'
 
 const HYROX_RUN_LABEL = `${HYROX_RUN_LEGS}×${HYROX_RUN_LEG_KM}km runs`
 
@@ -41,13 +42,15 @@ function buildStationList(specs: StationSpec[], n: number, pct: number): string 
   return specs.slice(0, Math.max(1, Math.min(n, specs.length))).map(s => stationRx(s, pct)).join(' · ')
 }
 
-/** Station-volume fraction for a week: ramps 50% → 100% of race spec
- *  across the pre-taper build (deloads drop to 60% of the ramp). The
- *  final pre-race full-spec touch comes from the key-session overlay,
- *  not the ramp — so a clamped runway still reaches spec. */
+/** Station-volume fraction for a week: ramps across the pre-taper build
+ *  per the tiered STATION_RAMP heuristic (deloads drop to a fraction of
+ *  the ramp). The final pre-race full-spec touch comes from the
+ *  key-session overlay, not the ramp — so a clamped runway still reaches
+ *  spec. */
 function stationPctForWeek(progress: number, isRecovery: boolean): number {
-  const pct = 0.5 + 0.5 * Math.min(1, Math.max(0, progress))
-  return isRecovery ? Math.max(0.3, pct * 0.6) : pct
+  const r = STATION_RAMP.value
+  const pct = r.startPct + (r.endPct - r.startPct) * Math.min(1, Math.max(0, progress))
+  return isRecovery ? Math.max(r.recoveryFloorPct, pct * r.recoveryMult) : pct
 }
 
 /** Compromised-running station rotation: three stations per session,
@@ -378,7 +381,7 @@ export function generateHyroxPlan(
       //   all stations at spec  → the stations day 24–42 days out
       const daysToRace = daysBetween(dateStr, raceDate)
       let base = getHyroxWorkoutByRole(role, phase, isRecovery, P, weakStation, z1, z2, z3, z4, easyPace, tempoPace, cvPace, w, config.crossTrainingModes, specs, progress)
-      if (role === 'long' && daysToRace >= 10 && daysToRace <= 17 && !placedFullSim) {
+      if (role === 'long' && daysToRace >= FULL_SIM_DAYS_OUT.value.min && daysToRace <= FULL_SIM_DAYS_OUT.value.max && !placedFullSim) {
         placedFullSim = true
         base = {
           type: 'long',
@@ -388,7 +391,7 @@ export function generateHyroxPlan(
           route: 'Gym',
           time: '~110 min',
         }
-      } else if (role === 'long' && daysToRace >= 18 && daysToRace <= 27 && !placedHalfSim) {
+      } else if (role === 'long' && daysToRace >= HALF_SIM_DAYS_OUT.value.min && daysToRace <= HALF_SIM_DAYS_OUT.value.max && !placedHalfSim) {
         placedHalfSim = true
         base = {
           type: 'long',
@@ -398,7 +401,7 @@ export function generateHyroxPlan(
           route: 'Gym',
           time: '~60 min',
         }
-      } else if (role === 'stations' && daysToRace >= 24 && daysToRace <= 42 && !placedSpecDay) {
+      } else if (role === 'stations' && daysToRace >= SPEC_DAY_DAYS_OUT.value.min && daysToRace <= SPEC_DAY_DAYS_OUT.value.max && !placedSpecDay) {
         placedSpecDay = true
         base = {
           type: 'cross',
@@ -625,7 +628,8 @@ function getHyroxWorkoutByRole(
       Math.round(lerp(Math.max(2, P.repeats.build || 2), P.repeats.peak || P.repeats.build || 4, progress, 0)),
     )
     if (reps > 0) {
-      const restSec = progress > 0.7 ? 60 : 90
+      const rest = INTERVAL_REST.value
+      const restSec = progress > rest.lateAt ? rest.lateSec : rest.earlySec
       const approx = Math.round((runMi + 1) * 11)
       return {
         type: 'quality',
@@ -674,7 +678,7 @@ function getHyroxWorkoutByRole(
     if (phase === 'base') {
       return { type: 'run', workout: 'Easy run + strides', detail: 'Z2 pace + 4×20 sec strides at the end.', zone: `${runMi + 0.5} mi · ${z2}${easyPace}`, route: 'Flat route', time: `${Math.round((runMi + 0.5) * 12)} min` }
     }
-    const tempoMin = Math.round(lerp(18, 30, progress, 0))
+    const tempoMin = Math.round(lerp(TEMPO_MINUTES.value.start, TEMPO_MINUTES.value.end, progress, 0))
     return {
       type: 'run',
       workout: 'Tempo run',
@@ -706,12 +710,12 @@ function getHyroxWorkoutByRole(
     if (phase === 'base') {
       return { type: 'cross', workout: 'Station circuit (intro)', detail: `${buildStationList(specs, 5, stationPct)} · ${stationRx(specs[7], stationPct)} · ${weakStation} practice · Rest 2 min between · Grip note: finish with 2× dead hang to build the carry/pull grip the race demands`, zone: z2, route: 'Gym', time: '45 min' }
     }
-    if (weekIndex % 2 === 1) {
+    if (weekIndex % COMPROMISED_DOSE.value.cadenceWeeks === 1) {
       const triple = compromisedTriple(specs, weekIndex)
       return {
         type: 'quality',
         workout: 'Compromised running',
-        detail: `3×[1km run @ race pace + station], NO break between run and station: ${triple.map(s => stationRx(s, Math.min(1, stationPct + 0.15))).join(' / ')}. Jog the transitions — the Roxzone is race time too. This alternating structure, not run-then-lift, is the actual race demand.`,
+        detail: `${COMPROMISED_DOSE.value.rounds}×[1km run @ race pace + station], NO break between run and station: ${triple.map(s => stationRx(s, Math.min(1, stationPct + 0.15))).join(' / ')}. Jog the transitions — the Roxzone is race time too. This alternating structure, not run-then-lift, is the actual race demand.`,
         zone: `${z3}–${z4}`,
         route: 'Run + Gym',
         time: '50 min',
