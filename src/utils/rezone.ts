@@ -83,7 +83,12 @@ export function rezoneDetailString(detail: string, nz: NumericZone[]): string {
   if (!detail || nz.length === 0) return detail
   const z2 = nz.find(z => z.num === 2)
   const z3 = nz.find(z => z.num === 3)
-  let out = detail
+  // P0.6 — details carry the same "Z<n> (lo–hi)" bands as headers (the
+  // Hyrox generator interpolates its own %maxHR ladder into both), but
+  // only headers were renormalized: a card could read "Z3 (144–155)" in
+  // the header and "Z3 (150–170)" in the description. Run the header
+  // rewrite over the detail text too.
+  let out = rezoneZoneString(detail, nz)
   if (z2) {
     out = out.replace(/\bAeT(\s+HR)?(\s*)\(\d+\)/g, (_m, hr, gap) => {
       return `AeT${hr ?? ''}${gap}(${z2.high})`

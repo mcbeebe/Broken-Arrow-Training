@@ -180,6 +180,63 @@ function toPlannedSegment(
  * Render a personalized PlannedWorkout from a method's Workout template and
  * resolved pace targets. Segments are flattened in order: warmup → mainSet → cooldown.
  */
+/** Minutes a segment occupies, including reps and timed recoveries.
+ *  Returns null when the segment has no usable duration (distance-only). */
+function segmentMinutes(seg: PlannedSegment): number | null {
+  if (!seg.duration) return null
+  const per = seg.duration.unit === 'sec' ? seg.duration.value / 60 : seg.duration.value
+  const reps = seg.reps ?? 1
+  let recovery = 0
+  if (seg.reps && seg.recovery?.duration) {
+    const rec = seg.recovery.duration
+    recovery = (rec.unit === 'sec' ? rec.value / 60 : rec.value) * seg.reps
+  }
+  return per * reps + recovery
+}
+
+/**
+ * Scale a workout's flexible steady segments so the step durations agree
+ * with the session's computed time (P0.1 — the v1 plan shipped a header of
+ * "42-50 min" over a step reading "150 min" because method-JSON template
+ * durations were copied verbatim and never rescaled to the week's volume).
+ *
+ * Flexible = a main-set segment with a minute duration and no reps and no
+ * distance (the steady "run below AeT" block). Warmups, cooldowns, and
+ * interval structures keep their authored durations; the steady work
+ * absorbs the difference. Also rewrites `approxDurationMinutes` so every
+ * downstream consumer (UI header, PDF, Garmin push) sees one duration.
+ * Returns the workout unchanged when there is nothing safe to scale.
+ */
+export function scaleWorkoutToTime(
+  pw: PlannedWorkout,
+  timeRange: { min: number; max: number },
+): PlannedWorkout {
+  const isFlexible = (s: PlannedSegment) =>
+    s.role === 'main' && !!s.duration && s.duration.unit === 'min' && !s.reps && !s.distance
+  const flexible = pw.segments.filter(isFlexible)
+  if (flexible.length === 0) return pw
+
+  const fixedMinutes = pw.segments
+    .filter(s => !isFlexible(s))
+    .reduce((sum, s) => sum + (segmentMinutes(s) ?? 0), 0)
+  const flexTemplateTotal = flexible.reduce((sum, s) => sum + s.duration!.value, 0)
+
+  const target = Math.round((timeRange.min + timeRange.max) / 2)
+  // Each flexible segment keeps its share of the template's steady time,
+  // floored at 5 min so a tiny week never produces a zero-length step.
+  const flexTarget = Math.max(5 * flexible.length, target - fixedMinutes)
+
+  const segments = pw.segments.map(s => {
+    if (!isFlexible(s)) return s
+    const share = s.duration!.value / flexTemplateTotal
+    return {
+      ...s,
+      duration: { value: Math.max(5, Math.round(flexTarget * share)), unit: 'min' as const },
+    }
+  })
+  return { ...pw, segments, approxDurationMinutes: timeRange }
+}
+
 export function buildPlannedWorkout(
   method: TrainingMethod,
   workout: Workout,

@@ -1,4 +1,38 @@
 import type { RacePriority, ResidualProfile } from '../../types'
+import { tier, type TieredValue } from '../evidence'
+
+/**
+ * Citations routed through the evidence layer so athlete-facing strings
+ * cannot drift from their sources. `value` is the short in-copy label;
+ * `citation` carries the full provenance. (The v1 plan shipped
+ * "Hickson 1981" on the intensity claim — that year belongs to the
+ * reduced-FREQUENCY study; the intensity result is Hickson et al. 1985.)
+ */
+export const EV_INTENSITY_PRESERVES: TieredValue<string> = tier(
+  'Hickson 1985',
+  'T1',
+  'Hickson, Foster, Pollock, Galassi & Rich 1985, J Appl Physiol 58:492–499 — VO2max was NOT maintained when training intensity was reduced; volume can fall if intensity is preserved. PMID 3156841',
+)
+export const EV_FREQUENCY_HOLDS: TieredValue<string> = tier(
+  'Hickson & Rosenkoetter 1981',
+  'T1',
+  'Hickson & Rosenkoetter 1981, Med Sci Sports Exerc 13:13–16 — increased aerobic power maintained at 2 or 4 sessions/week. PMID 7219129',
+)
+export const EV_STRENGTH_HOLDS: TieredValue<string> = tier(
+  'Bickel 2011',
+  'T1',
+  'Bickel, Cross & Bamman 2011, Med Sci Sports Exerc — trained strength maintained at one weekly session. PMID 21131862',
+)
+export const EV_RESIDUALS: TieredValue<string> = tier(
+  'Issurin 2010',
+  'T4',
+  'Issurin 2010, Sports Med 40:189–206, residual-training-effects table — a coaching heuristic, actively contested; several reviews report aerobic decrements on shorter timescales.',
+)
+export const EV_INTERFERENCE: TieredValue<string> = tier(
+  'Hickson 1980',
+  'T1',
+  'Hickson 1980, Eur J Appl Physiol 45:255–263 — concurrent-training interference emerged only around week 8 of simultaneous overload. Wilson 2012 meta, PMID 22002517.',
+)
 
 /**
  * The science layer of the Season Engine (G1a), pinned to sources per the
@@ -10,8 +44,9 @@ import type { RacePriority, ResidualProfile } from '../../types'
  *    with minimal doses while SHORT-residual qualities are trained last,
  *    closest to the race that needs them.
  *  - Maintenance doses: strength holds at 1×/week once built (Bickel 2011,
- *    PMID 21131862); aerobic holds on 2–4 d/wk IF intensity is preserved
- *    (Hickson 1981, PMID 7219129).
+ *    PMID 21131862); aerobic holds on 2–4 d/wk (Hickson & Rosenkoetter
+ *    1981, PMID 7219129) IF intensity is preserved (Hickson et al. 1985,
+ *    PMID 3156841 — reduced intensity is what causes the loss).
  *  - Interference is run-specific and emerges only ~week 8 of concurrent
  *    overload (Wilson 2012 meta, PMID 22002517; Hickson 1980) — so short
  *    bridges are low-interference by construction.
@@ -68,7 +103,7 @@ export interface BridgeEmphasis {
  * Residual-aware bridge selection — the category-first piece:
  *  - Running race → Hyrox: the aerobic base IS the Hyrox asset (~51 of ~84
  *    total minutes is running; Frontiers Physiol 2025) and holds on 1–2
- *    intensity-preserving touches (Hickson '81). The differentiators —
+ *    intensity-preserving touches (Hickson '85). The differentiators —
  *    strength-endurance + glycolytic capacity — have 15–18 d residuals
  *    (Issurin), so they are trained LAST, i.e. concentrated in the bridge
  *    and the build that follows.
@@ -80,20 +115,20 @@ export function bridgeEmphasis(nextIsHyrox: boolean): BridgeEmphasis {
   if (nextIsHyrox) {
     return {
       hold: 'aerobic',
-      holdDose: '2 runs/wk, one with an intensity touch (Hickson 1981: aerobic holds when intensity is preserved)',
+      holdDose: `2 runs/wk, one with an intensity touch (${EV_INTENSITY_PRESERVES.value}: aerobic holds when intensity is preserved)`,
       concentrate: ['strength_endurance', 'glycolytic'],
       rationale:
-        'Your aerobic base is the Hyrox asset and it keeps for ~30 days (Issurin 2010); ' +
+        `Your aerobic base is the Hyrox asset and it keeps for ~30 days (${EV_RESIDUALS.value}); ` +
         'strength-endurance and glycolytic capacity fade in 15–18 days, so they get trained last, closest to race day.',
     }
   }
   return {
     hold: 'strength',
-    holdDose: '1 strength session/wk (Bickel 2011: strength holds at one weekly dose once built)',
+    holdDose: `1 strength session/wk (${EV_STRENGTH_HOLDS.value}: strength holds at one weekly dose once built)`,
     concentrate: ['run_volume'],
     rationale:
       'Strength built for Hyrox holds on one weekly dose while run volume rebuilds; ' +
-      'short concurrent blocks don’t trigger interference (Hickson 1980: it emerges ~week 8).',
+      `short concurrent blocks don’t trigger interference (${EV_INTERFERENCE.value}: it emerges ~week 8).`,
   }
 }
 

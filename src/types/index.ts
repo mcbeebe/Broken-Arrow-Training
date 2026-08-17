@@ -260,7 +260,14 @@ export interface JournalNote {
 export interface TrainingWeek {
   num: number;
   dates: string;
+  /** Displayed weekly run miles — the SUM of what the week's sessions
+   *  actually prescribe, quality work included (P0.2). Pre-P0.2 plans
+   *  stored the planning target here instead. */
   miles: number | string;
+  /** The generator's top-down volume target for the week (easy + long
+   *  budget). Kept separate from `miles` so the display never hides
+   *  quality-session volume again; absent on legacy/hand-authored plans. */
+  targetMi?: number;
   focus: string;
   days: PlannedDay[];
   /** ISO (YYYY-MM-DD) of this week's first calendar day — the Monday for

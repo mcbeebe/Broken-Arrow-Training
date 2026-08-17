@@ -23,7 +23,7 @@ import type {
   CanonicalPaceZone,
 } from '../../types/training-method'
 import type { OnboardingConfig, RaceDistance, InjuryStatus } from '../../hooks/useOnboarding'
-import type { PlannedWorkout, ResolvedPaces, WeekMileage } from './types'
+import type { PlannedSegment, PlannedWorkout, ResolvedPaces, WeekMileage } from './types'
 import { resolvePaces, formatZoneString, athleteCurrentVdot, blendGoalPaces, isDisplayablePace } from './paceTargets'
 import { sanitizeRaceTimeSeconds, vdotFromRace } from './vdot'
 import {
@@ -34,7 +34,7 @@ import {
   mapToMethodExperience,
   type MileageProgressionAdjust,
 } from './weekPlan'
-import { pickWeeklyPattern, pickWorkoutForDay, buildPlannedWorkout } from './workouts'
+import { pickWeeklyPattern, pickWorkoutForDay, buildPlannedWorkout, scaleWorkoutToTime } from './workouts'
 import { injectExtraDays } from './extraDays'
 import { INJURY_LEADIN_WEEKS } from '../../utils/injuryRamp'
 import { assessFeasibility } from './feasibility'
@@ -153,14 +153,48 @@ function mondayIndexOf(dateStr: string): number {
  * are dropped (post-race belongs to the recovery block), and entries pushed
  * before Monday fall off the front.
  */
+/** Categories that are fine close to a race. Everything else counts as
+ *  quality that must not sit within two days of the start line. */
+const RACE_SAFE_CATEGORIES = new Set<string>(['easy', 'recovery', 'rest', 'cross_training', 'strength', 'race_pace', 'strides'])
+
 function remapRaceWeekSchedule(schedule: DaySchedule[], raceDow: number): DaySchedule[] {
   const raceEntry = [...schedule].reverse().find(d => d.category === 'race_pace')
     ?? schedule[schedule.length - 1]
-  if (!raceEntry || raceEntry.dayOfWeek === raceDow) return schedule
+  if (!raceEntry) return schedule
   const shift = raceDow - raceEntry.dayOfWeek
-  return schedule
+  const mapped = schedule
     .map(d => ({ ...d, dayOfWeek: d.dayOfWeek + shift }))
     .filter(d => d.dayOfWeek >= 1 && d.dayOfWeek <= raceDow)
+  // The shift preserves each day's distance-to-race but can delete the
+  // authored week's leading rest and leave the wrong content near the
+  // start line (P0.4). Enforce the taper's intent by proximity:
+  //   D-1  → rest, or an easy day hard-capped as a shakeout;
+  //   D-2  → no quality — downgrade to a short easy day.
+  return mapped.map(d => {
+    const daysBefore = raceDow - d.dayOfWeek
+    if (daysBefore === 1) {
+      if (d.category === 'easy' || d.category === 'recovery') {
+        return { ...d, volumeModifier: 'short' as const, isPreRaceShakeout: true }
+      }
+      if (d.category !== 'rest') {
+        return {
+          dayOfWeek: d.dayOfWeek,
+          category: 'rest' as const,
+          notes: 'Rest — race tomorrow. Legs stay fresh.',
+        }
+      }
+      return d
+    }
+    if (daysBefore === 2 && !RACE_SAFE_CATEGORIES.has(d.category)) {
+      return {
+        dayOfWeek: d.dayOfWeek,
+        category: 'easy' as const,
+        volumeModifier: 'short' as const,
+        notes: 'Very easy — no quality this close to race day.',
+      }
+    }
+    return d
+  })
 }
 
 function maxHrPercentZones(maxHR: number): HRZone[] {
@@ -224,6 +258,41 @@ function computeZones(
     }
     out.push(resolved ?? fallback[i])
   }
+  return makeZonesContiguous(out, maxHR)
+}
+
+/**
+ * P0.6 — zone bands must tile the HR spectrum with no gaps or overlaps.
+ * Method JSONs define each zone independently (%LTHR bands), and
+ * non-adjacent bands leave dead zones — Roche SWAP's aerobic_threshold
+ * tops out at 0.88×LTHR while lactate_threshold starts at 0.92×LTHR, so
+ * 155–162 bpm belonged to NO zone: getZoneForHR returned null and the
+ * compliance grader couldn't classify time spent there. Close each gap
+ * by extending the lower zone's ceiling to meet the next floor (a steady
+ * effort just above AeT reads as tempo, not threshold), and trim
+ * overlaps the same way. The % labels are re-derived from the adjusted
+ * bpm so they stay honest.
+ */
+function makeZonesContiguous(zones: HRZone[], maxHR: number): HRZone[] {
+  const parse = (hr: string): { low: number; high: number } | null => {
+    const m = hr.match(/(\d+)\s*[–-]\s*(\d+)/)
+    return m ? { low: parseInt(m[1], 10), high: parseInt(m[2], 10) } : null
+  }
+  const out = zones.map(z => ({ ...z }))
+  for (let i = 0; i < out.length - 1; i++) {
+    const cur = parse(out[i].hr)
+    const next = parse(out[i + 1].hr)
+    if (!cur || !next) continue
+    if (cur.high !== next.low - 1) {
+      const newHigh = next.low - 1
+      if (newHigh <= cur.low) continue // malformed bands — leave untouched
+      out[i] = {
+        ...out[i],
+        hr: `${cur.low}–${newHigh}`,
+        pct: `${Math.round((cur.low / maxHR) * 100)}–${Math.round((newHigh / maxHR) * 100)}%`,
+      }
+    }
+  }
   return out
 }
 
@@ -257,19 +326,42 @@ function buildDetailString(pw: PlannedWorkout, paces: ResolvedPaces, weekMi: Wee
  * the method's stated bounds so we never recommend something the method
  * explicitly avoids.
  */
+/** Relative size of an easy day within its week, per the method author's
+ *  `volumeModifier` (previously declared in the JSONs but never read —
+ *  which is how a race-week "short shakeout" got sized like a full easy
+ *  day). Unset days weigh 1. */
+const VOLUME_MODIFIER_WEIGHT: Record<string, number> = { short: 0.6, medium: 1, long: 1.4 }
+
+function modifierWeight(d: DaySchedule): number {
+  return VOLUME_MODIFIER_WEIGHT[d.volumeModifier ?? 'medium'] ?? 1
+}
+
 function computeEasyRunTime(
   schedule: DaySchedule[],
   weekMi: WeekMileage,
   paces: ResolvedPaces,
   fallback: { min: number; max: number },
+  daySchedule?: DaySchedule,
 ): { min: number; max: number } {
+  // The pre-race shakeout is a fixed short dose, never a share of the
+  // week's mileage budget (P0.4 — v1 sized it like a full easy day and
+  // prescribed 66-80 min the day before the race).
+  if (daySchedule?.isPreRaceShakeout) return { min: 15, max: 20 }
+
   const easyDays = schedule.filter(
     d => d.category === 'easy' || d.category === 'recovery',
-  ).length
-  if (easyDays === 0 || weekMi.totalMi <= 0) return fallback
+  )
+  if (easyDays.length === 0 || weekMi.totalMi <= 0) return fallback
 
   const easyMiTotal = Math.max(0, weekMi.totalMi - weekMi.longRunMi)
-  const milesPerEasy = easyMiTotal / easyDays
+  // Split the week's easy miles across easy days weighted by the authored
+  // volumeModifier, so a "short" day is genuinely shorter than its
+  // siblings instead of an even N-way split.
+  const totalWeight = easyDays.reduce((s, d) => s + modifierWeight(d), 0)
+  const share = daySchedule
+    ? modifierWeight(daySchedule) / totalWeight
+    : 1 / easyDays.length
+  const milesPerEasy = easyMiTotal * share
   if (milesPerEasy <= 0) return fallback
 
   const { fastSec, slowSec } = easyPaceSecBounds(paces)
@@ -280,7 +372,17 @@ function computeEasyRunTime(
   // duration the method's authors explicitly designed against.
   const lo = Math.max(fallback.min, Math.min(minMinutes, maxMinutes))
   const hi = Math.min(fallback.max, Math.max(minMinutes, maxMinutes))
-  if (hi < lo) return fallback
+  if (hi < lo) {
+    // The computed window falls entirely outside the method's bounds — the
+    // week's pattern gave its mileage too few (or too many) easy days. Pin
+    // to the nearest bound rather than regurgitating the method-wide
+    // placeholder range (the "Wednesday: 30–90 min" bug): the session is
+    // capped at what the method allows, and the weekly summary counts the
+    // capped session, so the plan stays internally consistent.
+    return minMinutes > fallback.max
+      ? { min: fallback.max, max: fallback.max }
+      : { min: fallback.min, max: fallback.min }
+  }
   return { min: lo, max: hi }
 }
 
@@ -324,6 +426,57 @@ function computeLongRunTime(
   const lo = Math.min(minMinutes, maxMinutes)
   const hi = Math.min(fallback.max, Math.max(minMinutes, maxMinutes))
   return { min: lo, max: Math.max(lo, hi) }
+}
+
+const MI_PER_UNIT: Record<string, number> = { mi: 1, km: 0.621371, m: 0.000621371 }
+
+/** Midpoint pace (sec/mile) for a segment: its own target when displayable,
+ *  else the athlete's easy band, else a 9:35 default. */
+function segmentPaceSecPerMile(seg: PlannedSegment, paces: ResolvedPaces): number {
+  const t = seg.paceTarget
+  if (isDisplayablePace(t?.paceSecPerMileLow, t?.paceSecPerMileHigh)) {
+    return (t!.paceSecPerMileLow! + t!.paceSecPerMileHigh!) / 2
+  }
+  const { fastSec, slowSec } = easyPaceSecBounds(paces)
+  return (fastSec + slowSec) / 2
+}
+
+/** Estimated running miles a workout actually prescribes — distance segments
+ *  verbatim, duration segments via their pace target, timed recoveries at
+ *  easy pace. */
+function estimateWorkoutMiles(pw: PlannedWorkout, paces: ResolvedPaces): number {
+  let miles = 0
+  for (const seg of pw.segments) {
+    const reps = seg.reps ?? 1
+    if (seg.distance) {
+      miles += seg.distance.value * (MI_PER_UNIT[seg.distance.unit] ?? 1) * reps
+    } else if (seg.duration) {
+      const minutes = (seg.duration.unit === 'sec' ? seg.duration.value / 60 : seg.duration.value) * reps
+      miles += minutes / (segmentPaceSecPerMile(seg, paces) / 60)
+    }
+    if (seg.reps && seg.recovery?.duration) {
+      const rec = seg.recovery.duration
+      const recMinutes = (rec.unit === 'sec' ? rec.value / 60 : rec.value) * seg.reps
+      const { fastSec, slowSec } = easyPaceSecBounds(paces)
+      miles += recMinutes / ((fastSec + slowSec) / 2 / 60)
+    }
+  }
+  return miles
+}
+
+/**
+ * P0.2 — the weekly total the athlete sees is the SUM of what the week's
+ * sessions actually prescribe, quality work included. (v1 displayed the
+ * top-down planning target, which only easy + long runs consume — so
+ * every AnT / interval / hill session was invisible in the totals and
+ * "24.2 mi" peak weeks really carried ~38 mi of running.)
+ */
+function summedWeekRunMiles(days: PlannedDay[], paces: ResolvedPaces): number {
+  const total = days.reduce(
+    (sum, d) => sum + (d.plannedWorkout ? estimateWorkoutMiles(d.plannedWorkout, paces) : 0),
+    0,
+  )
+  return Math.round(total * 10) / 10
 }
 
 /**
@@ -390,18 +543,26 @@ function buildPlannedDay(
     category === 'long'
       ? computeLongRunTime(weekMi, paces, plannedWorkout.approxDurationMinutes)
       : (category === 'easy' || category === 'recovery') && weekSchedule
-        ? computeEasyRunTime(weekSchedule, weekMi, paces, plannedWorkout.approxDurationMinutes)
+        ? computeEasyRunTime(weekSchedule, weekMi, paces, plannedWorkout.approxDurationMinutes, daySchedule)
         : plannedWorkout.approxDurationMinutes
+  // P0.1 — one duration per session: rescale the workout's flexible steady
+  // segments to the computed session time, so the header, the step list,
+  // the PDF, and the Garmin push all agree. (v1 shipped "42-50 min"
+  // headers over verbatim method-template steps reading "150 min".)
+  const sizedWorkout =
+    category === 'long' || category === 'easy' || category === 'recovery'
+      ? scaleWorkoutToTime(plannedWorkout, timeRange)
+      : plannedWorkout
   return {
     day: formatDayLabel(date),
     type,
-    workout: plannedWorkout.displayName ?? plannedWorkout.name,
-    detail: buildDetailString(plannedWorkout, paces, weekMi)
+    workout: sizedWorkout.displayName ?? sizedWorkout.name,
+    detail: buildDetailString(sizedWorkout, paces, weekMi)
       + (substitutionNote ? ` · ${substitutionNote}` : ''),
     zone: target ? formatZoneString(target) : '—',
     route: venueHintFor(category, equipment),
-    time: `${timeRange.min}-${timeRange.max} min`,
-    plannedWorkout,
+    time: timeRange.min === timeRange.max ? `${timeRange.min} min` : `${timeRange.min}-${timeRange.max} min`,
+    plannedWorkout: sizedWorkout,
   }
 }
 
@@ -814,7 +975,8 @@ export function generatePlanFromMethod(
       num: w + 1,
       startIso: weekStart,
       dates: `${formatDayLabel(weekStart)} – ${formatDayLabel(addDays(weekStart, weekEndOffset))}`,
-      miles: weekMi.totalMi,
+      miles: summedWeekRunMiles(withVert, weekPaces),
+      targetMi: weekMi.totalMi,
       focus: weekMi.isTaper
         ? 'Taper'
         : weekMi.isCutback

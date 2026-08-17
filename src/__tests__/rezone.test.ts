@@ -127,6 +127,16 @@ describe('rezoneDetailString', () => {
     expect(rezoneDetailString('Easy aerobic run just below AeT.', nz))
       .toBe('Easy aerobic run just below AeT.')
   })
+
+  it('rewrites Z<n> (lo–hi) bands inside detail text (P0.6 — the v1 header/detail split)', () => {
+    // v1: header said "Z3 (144–155)" (renormalized) while the Hyrox
+    // generator's detail still read "Z3 (150–170)" from its own ladder.
+    const nz = toNumericZones(mikeLowered)
+    expect(rezoneDetailString('20 min @ Z3 (150–170). Build lactate threshold.', nz))
+      .toBe('20 min @ Z3 (137–155). Build lactate threshold.')
+    expect(rezoneDetailString('Recovery week. Z1 (110–130) very easy effort.', nz))
+      .toBe('Recovery week. Z1 (100–118) very easy effort.')
+  })
 })
 
 describe('rezonePlannedDay', () => {
