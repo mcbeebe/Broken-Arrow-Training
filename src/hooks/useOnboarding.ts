@@ -452,6 +452,36 @@ export function useOnboarding(athleteId?: string) {
     })
   }, [athleteId])
 
+  /**
+   * 4.1 — persist HR anchors measured by a completed benchmark so future
+   * plan regenerations build on the tested values (zonesEstimated flips
+   * off; method plans anchor on the real LTHR). `null` removes the field
+   * (undo restore); `undefined` leaves it untouched. A race-result
+   * fitnessAnchor is never overwritten — it feeds VDOT pace targets that
+   * an LTHR anchor can't replace.
+   */
+  const applyBenchmarkAnchors = useCallback((anchors: { fitnessAnchor?: FitnessAnchor | null; maxHR?: number | null }) => {
+    setConfig(prev => {
+      if (!prev) return prev
+      const next = { ...prev }
+      if (anchors.fitnessAnchor !== undefined) {
+        const prevIsRace = prev.fitnessAnchor?.type?.startsWith('race_')
+        const nextIsRestore = anchors.fitnessAnchor === null || anchors.fitnessAnchor?.type?.startsWith('race_')
+        if (!prevIsRace || nextIsRestore) {
+          if (anchors.fitnessAnchor === null) delete next.fitnessAnchor
+          else next.fitnessAnchor = anchors.fitnessAnchor
+        }
+      }
+      if (anchors.maxHR !== undefined) {
+        if (anchors.maxHR === null) delete next.maxHR
+        else next.maxHR = anchors.maxHR
+      }
+      const k = scopedKey(athleteId)
+      try { localStorage.setItem(k, JSON.stringify(next)); stampKey(k) } catch { /* quota */ }
+      return next
+    })
+  }, [athleteId])
+
   return {
     config,
     isOnboarded: !!config,
@@ -465,5 +495,6 @@ export function useOnboarding(athleteId?: string) {
     markConnectStepSeen,
     markValuePropsSeen,
     markWelcomeLetterSeen,
+    applyBenchmarkAnchors,
   }
 }
