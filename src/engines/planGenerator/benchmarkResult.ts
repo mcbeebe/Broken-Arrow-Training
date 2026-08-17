@@ -98,22 +98,24 @@ export function assessBenchmarkResult(
     suggestedMaxHR: null, currentMaxHR, currentLthr, evidence: [],
   }
 
-  // Most recent completed benchmark day on/before today.
+  // Most recent completed benchmark day on/before today. (Plain loops, not
+  // forEach — tsc's build-mode control-flow analysis can't see assignments
+  // made inside callbacks and types `best` as never after the null check.)
   let best: { source: BenchmarkSource; isoDate: string; workout: string; actual: NonNullable<TrainingWeek['days'][number]['actual']> } | null = null
   for (const week of weeks) {
-    week.days.forEach(day => {
+    for (const day of week.days) {
       const byId = day.plannedWorkout?.workoutId ? BENCHMARK_WORKOUT_IDS[day.plannedWorkout.workoutId] : undefined
       const byText = /\bBENCHMARK\b/i.test(day.workout ?? '')
         ? (/1\s*km/i.test(day.workout) ? 'hyrox_1km_tt' as const : 'method_20min_tt' as const)
         : undefined
       const source = byId ?? byText
-      if (!source) return
+      if (!source) continue
       const actual = day.actual
-      if (!actual || !(actual.movingTime > 0)) return
+      if (!actual || !(actual.movingTime > 0)) continue
       const isoDate = dayIsoInWeek(day.day, week, todayIso)
-      if (!isoDate || isoDate > todayIso) return
+      if (!isoDate || isoDate > todayIso) continue
       if (!best || isoDate > best.isoDate) best = { source, isoDate, workout: day.workout, actual }
-    })
+    }
   }
   if (!best) return none
   const { source, isoDate, workout, actual } = best
