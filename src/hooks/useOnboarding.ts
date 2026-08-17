@@ -143,6 +143,11 @@ export interface OnboardingConfig {
   // (e.g. men's sled push 152 kg vs 202 kg), so every station prescription
   // renders from the division's spec. Defaults to 'open' when unset.
   hyroxDivision?: 'open' | 'pro'
+  // P5 — station benchmarks (optional, seconds): current 1km erg splits.
+  // The strongest personalization signal Hyrox coaches use — erg station
+  // prescriptions carry concrete race targets when these are provided.
+  skiErg1kSeconds?: number
+  row1kSeconds?: number
   // Total race vertical gain in feet (structured). Drives the climbing/descending
   // prescription (R1) when present; otherwise the engine falls back to parsing the
   // free-text raceDescription. Optional — flat/road races leave it unset.

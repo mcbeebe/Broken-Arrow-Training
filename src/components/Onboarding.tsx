@@ -166,6 +166,15 @@ function newSeasonRaceRow(): SeasonRaceRow {
 }
 
 
+/** Parse an "m:ss" erg split into seconds; undefined outside a plausible
+ *  1km-erg window (2:00-10:00) so a typo never becomes a race target. */
+function parseErgSeconds(text: string): number | undefined {
+  const m = text.trim().match(/^(\d{1,2}):(\d{2})$/)
+  if (!m) return undefined
+  const sec = parseInt(m[1], 10) * 60 + parseInt(m[2], 10)
+  return sec >= 120 && sec <= 600 ? sec : undefined
+}
+
 /** Season-mode rows (and race-mode's single extra) → AdditionalRace list.
  *  Shared by handleComplete and the preview's provisionalConfig so both
  *  feed the SAME season shape into normalizeSeasonConfig. */
@@ -393,6 +402,8 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
   const [longRunDay, setLongRunDay] = useState<string | null>(null)
   const [weakStation, setWeakStation] = useState<string | null>(null)
   const [hyroxDivision, setHyroxDivision] = useState<'open' | 'pro'>('open')
+  const [skiErgTT, setSkiErgTT] = useState('')
+  const [rowTT, setRowTT] = useState('')
   const [wearable, setWearable] = useState<WearableType | null>(prev?.wearable ?? null)
   const [name, setName] = useState(prev?.athleteName ?? '')
   const [age, setAge] = useState(prev?.age ? String(prev.age) : '')
@@ -627,6 +638,8 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
       longRunDay: longRunDay ?? undefined,
       weakStation: weakStation ?? undefined,
       hyroxDivision: raceType === 'hyrox' ? hyroxDivision : undefined,
+      skiErg1kSeconds: raceType === 'hyrox' ? parseErgSeconds(skiErgTT) : undefined,
+      row1kSeconds: raceType === 'hyrox' ? parseErgSeconds(rowTT) : undefined,
       wearable: wearable || 'none',
       athleteName: name.trim(),
       age: ageNum,
@@ -1318,6 +1331,31 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
             {['SkiErg', 'Sled Push', 'Sled Pull', 'Burpee Broad Jump', 'Rowing', 'Farmer Carry', 'Sandbag Lunges', 'Wall Balls'].map(s => (
               <OptionCard key={s} selected={weakStation === s} onClick={() => setWeakStation(s)} title={s} />
             ))}
+            {/* P5 — optional erg baselines: with a current 1km split, every
+                erg prescription carries a concrete race target. */}
+            <div className="mt-3">
+              <p className="text-xs font-semibold text-slate-500 mb-1.5">Current 1km erg times (optional — m:ss)</p>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={skiErgTT}
+                  onChange={e => setSkiErgTT(e.target.value)}
+                  placeholder="SkiErg e.g. 4:10"
+                  aria-label="SkiErg 1km time"
+                  className="flex-1 px-3 py-2.5 text-base border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400"
+                />
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={rowTT}
+                  onChange={e => setRowTT(e.target.value)}
+                  placeholder="Row e.g. 3:55"
+                  aria-label="Row 1km time"
+                  className="flex-1 px-3 py-2.5 text-base border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400"
+                />
+              </div>
+            </div>
           </StepContainer>
         )}
 

@@ -88,6 +88,23 @@ export const LAYERED_RAMP: TieredValue<{ startPct: number; endPct: number; maxDo
   'Compromise-session doctrine: the anchor race owns the plan, so layered station work stays submaximal (35-75% of spec) and ≤2 doses/week. Direction follows Issurin residuals (short-residual qualities trained closer to their race); magnitudes are convention.',
 )
 
+/** Taper week (the final full week before race week): volume multiplier
+ *  on runs/stations and rep multiplier on intervals — volume drops,
+ *  intensity stays. */
+export const TAPER_WEEK: TieredValue<{ volumeMult: number; repsMult: number; stationPct: number }> = tier(
+  { volumeMult: 0.65, repsMult: 0.5, stationPct: 0.5 },
+  'T4',
+  'Cut volume ~35%, preserve intensity (Hickson et al. 1985 — reduced intensity, not volume, causes fitness loss). Corroborated in shape by the GORUCK plan (light race week after a full Prime block) and the v2 rebuild (taper weeks at 65-70% with quality kept). The 2026-08 persona sweep found the pre-P5 generator had NO taper week — the final full week was the biggest.',
+)
+
+/** Masters recovery cadence: athletes at/above the age threshold get a
+ *  recovery week every `cadenceWeeks` instead of the default 4. */
+export const MASTERS_RECOVERY: TieredValue<{ ageThreshold: number; cadenceWeeks: number }> = tier(
+  { ageThreshold: 58, cadenceWeeks: 3 },
+  'T4',
+  'Masters-athlete coaching convention: recovery need rises with age and none of the benchmarked sources age-adjust at all — this is a deliberate improvement past the observed sources, flagged for expert review (threshold and cadence are both judgment calls).',
+)
+
 /** Everything above, enumerable for the audit doc and tests. */
 export const HYROX_HEURISTICS: Record<string, TieredValue<unknown>> = {
   STATION_RAMP,
@@ -98,4 +115,6 @@ export const HYROX_HEURISTICS: Record<string, TieredValue<unknown>> = {
   INTERVAL_REST,
   TEMPO_MINUTES,
   LAYERED_RAMP,
+  TAPER_WEEK,
+  MASTERS_RECOVERY,
 }

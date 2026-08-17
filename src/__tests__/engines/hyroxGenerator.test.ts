@@ -166,11 +166,12 @@ describe('cross-training rotation + structured intervals', () => {
     expect(days.some(d => d.workout.startsWith('Cross-train · '))).toBe(false)
   })
 
-  it('a 7-day athlete gets 7 training days, not the 3-day fallback', () => {
+  it('a 7-day request schedules 6 sessions + a mandatory rest day (P5 rest floor)', () => {
     const plan = generateHyroxPlan({ ...config, trainingDaysPerWeek: 7 } as OnboardingConfig, '2026-09-21')
     const fullWeek = plan.weeks[1]
-    const active = fullWeek.days.filter(d => d.type !== 'rest').length
-    expect(active).toBe(7)
+    expect(fullWeek.days.filter(d => d.type !== 'rest').length).toBe(6)
+    expect(fullWeek.days.filter(d => d.type === 'rest').length).toBeGreaterThanOrEqual(1)
+    expect(plan.advisories?.some(a => a.id === 'hyrox_rest_floor')).toBe(true)
   })
 
   it('1km repeats carry a structured workout: warm-up, rep block with recovery, cool-down', () => {
