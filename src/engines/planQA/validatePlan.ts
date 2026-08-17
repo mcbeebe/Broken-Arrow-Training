@@ -14,6 +14,7 @@
  * and stored/edited plans.
  */
 import type { HRZone, PlannedDay, RaceInfo, TrainingWeek } from '../../types'
+import { FULL_SIM_DAYS_OUT } from '../hyrox/heuristics'
 
 export interface PlanQAFinding {
   /** Stable rule id (e.g. 'qa_d1_load') — one advisory per id after aggregation. */
@@ -422,7 +423,7 @@ export function validatePlan(input: PlanQAInput): PlanQAResult {
           if (!/full race simulation/i.test(d.workout)) return
           const dayIso = new Date(Date.parse(`${w.startIso}T12:00:00`) + idx * 86_400_000).toISOString().slice(0, 10)
           const daysOut = Math.round((Date.parse(`${raceIso}T12:00:00`) - Date.parse(`${dayIso}T12:00:00`)) / 86_400_000)
-          if (daysOut >= 10) simOk = true
+          if (daysOut >= FULL_SIM_DAYS_OUT.value.min) simOk = true
         })
       }
       if (!simOk) {

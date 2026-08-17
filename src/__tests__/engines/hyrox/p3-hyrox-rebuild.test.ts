@@ -82,6 +82,23 @@ describe('P3.4 — compromised running is a first-class session', () => {
     const stationSets = new Set(sessions.map(s => s.detail.split(':')[1]))
     expect(stationSets.size).toBeGreaterThan(1)
   })
+
+  it('a conversational compromised intro appears in the base phase (2026-08 benchmark: the Formula\'s Base block)', () => {
+    const plan = generateHyroxPlan(config(), '2026-09-01')
+    const intro = allDays(plan).find(d => d.workout === 'Compromised running (intro)')
+    expect(intro, 'no base-phase compromised intro found').toBeDefined()
+    expect(intro!.detail).toMatch(/conversational effort/)
+  })
+
+  it('race-pace km-repeat rest sits at or above the benchmarked 90s floor', () => {
+    const plan = generateHyroxPlan(config(), '2026-09-01')
+    const repeats = allDays(plan).filter(d => d.workout === '1km repeats')
+    expect(repeats.length).toBeGreaterThan(0)
+    for (const d of repeats) {
+      const rec = d.plannedWorkout?.segments[1]?.recovery?.duration?.value
+      if (rec != null) expect(rec, `${d.day} rest`).toBeGreaterThanOrEqual(90)
+    }
+  })
 })
 
 describe('P3.6 — no cloned weeks', () => {
