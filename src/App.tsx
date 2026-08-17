@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from 'react'
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import type { ViewId, CoachSnapshot, CoachAction, PlannedDay, JournalNote } from './types'
 import { DETAIL_DIRECTIVES } from './types'
 import { plans } from './data'
@@ -15,9 +15,13 @@ import { raceDateToIso } from './engines/season'
 import { buildSeasonContext } from './engines/season/coachContext'
 import SeasonPanel from './components/SeasonPanel'
 import { assessRecalibration } from './engines/planGenerator/recalibration'
+import { assessBenchmarkResult, scaleZoneTable } from './engines/planGenerator/benchmarkResult'
+import { ESTIMATED_LTHR_PCT_OF_MAX } from './engines/planGenerator/paceTargets'
 import { buildRepaceOps } from './utils/repace'
+import { buildZoneAnchorOps } from './utils/rezoneByAnchor'
 import { getCachedRunGAP } from './utils/runGAP'
 import RecalibrationCard from './components/RecalibrationCard'
+import BenchmarkResultCard from './components/BenchmarkResultCard'
 import { buildRacePacingPlan, buildRacePacingContext } from './engines/racePacing'
 import { weeklyIntensitySplit, methodEasyTarget, buildIntensityContext, decouplingFromSplits } from './utils/intensityDistribution'
 import { resolveCourseForRace } from './utils/resolveCourse'
@@ -606,6 +610,66 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
   const recalDismissed = (() => {
     try { return localStorage.getItem(recalDismissKey) === recalEvidenceKey } catch { return false }
   })()
+
+  // ── 4.1: benchmark-result → zone re-anchor ────────────────────
+  // The zones_estimated advisory promises "test → the plan updates";
+  // this closes that loop. Same trust pattern as G5: assess, offer,
+  // apply-on-tap, undoable.
+  const currentLthr =
+    onboarding.config?.fitnessAnchor?.type === 'lthr' && onboarding.config.fitnessAnchor.bpm
+      ? onboarding.config.fitnessAnchor.bpm
+      : Math.round(maxHROverride.maxHR * ESTIMATED_LTHR_PCT_OF_MAX)
+  const benchAssessment = useMemo(
+    () => assessBenchmarkResult(weeks, todayDateString(), maxHROverride.maxHR, currentLthr),
+    [weeks, maxHROverride.maxHR, currentLthr],
+  )
+  const benchDismissKey = `ba_benchmark_dismissed_v1_${athleteId}`
+  const benchEvidenceKey = benchAssessment.evidence.join('|')
+  const benchDismissed = (() => {
+    try { return localStorage.getItem(benchDismissKey) === benchEvidenceKey } catch { return false }
+  })()
+  // Snapshot for undo — captured at apply time.
+  const benchUndoRef = useRef<{
+    zones: import('./types').HRZone[] | null
+    maxHROverride: number | null
+    fitnessAnchor: import('./hooks/useOnboarding').FitnessAnchor | null
+    configMaxHR: number | null
+  } | null>(null)
+  const applyBenchmarkResult = useCallback(() => {
+    const a = benchAssessment
+    benchUndoRef.current = {
+      zones: hrZones.isCustomized ? hrZones.zones : null,
+      maxHROverride: maxHROverride.isCustomized ? maxHROverride.maxHR : null,
+      fitnessAnchor: onboarding.config?.fitnessAnchor ?? null,
+      configMaxHR: onboarding.config?.maxHR ?? null,
+    }
+    // One anchor drives the whole rewrite: LTHR when the test measured
+    // it (method 20-min TT — every method bpm band is linear in LTHR),
+    // else the observed maxHR (Hyrox %maxHR ladder).
+    const newZones = a.suggestedLthr != null
+      ? scaleZoneTable(hrZones.zones, a.currentLthr, a.suggestedLthr)
+      : scaleZoneTable(hrZones.zones, a.currentMaxHR, a.suggestedMaxHR ?? a.currentMaxHR)
+    handleSaveHRZones(newZones, a.suggestedMaxHR ?? maxHROverride.maxHR)
+    onboarding.applyBenchmarkAnchors({
+      ...(a.suggestedLthr != null ? { fitnessAnchor: { type: 'lthr' as const, bpm: a.suggestedLthr } } : {}),
+      ...(a.suggestedMaxHR != null ? { maxHR: a.suggestedMaxHR } : {}),
+    })
+    return planEdits.applyBatch(buildZoneAnchorOps(
+      weeks,
+      { oldLthr: a.currentLthr, newLthr: a.suggestedLthr ?? a.currentLthr, newZones },
+      todayDateString(),
+      `Benchmark re-anchor: ${a.evidence[0] ?? 'field test result'}`,
+    ))
+  }, [benchAssessment, hrZones, maxHROverride, onboarding, planEdits, weeks, handleSaveHRZones])
+  const undoBenchmarkResult = useCallback((batchId: string) => {
+    planEdits.undoBatch(batchId)
+    const snap = benchUndoRef.current
+    if (!snap) return
+    if (snap.zones) hrZones.save(snap.zones); else hrZones.reset()
+    if (snap.maxHROverride != null) maxHROverride.save(snap.maxHROverride); else maxHROverride.reset()
+    onboarding.applyBenchmarkAnchors({ fitnessAnchor: snap.fitnessAnchor, maxHR: snap.configMaxHR })
+    benchUndoRef.current = null
+  }, [planEdits, hrZones, maxHROverride, onboarding])
 
   // ── G6: course-aware race pacing ──────────────────────────────
   // Only for curated courses (the 3 Broken Arrow editions today) and only
@@ -1401,6 +1465,16 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
 
       {/* Content */}
       {view === 'summary' && (<>
+        {benchAssessment.qualifies && !benchDismissed && (
+          <div className="px-3 mb-3">
+            <BenchmarkResultCard
+              assessment={benchAssessment}
+              onApply={applyBenchmarkResult}
+              onDismiss={() => { try { localStorage.setItem(benchDismissKey, benchEvidenceKey) } catch { /* quota */ } }}
+              onUndo={undoBenchmarkResult}
+            />
+          </div>
+        )}
         {recalAssessment.qualifies && !recalDismissed && (
           <div className="px-3 mb-3">
             <RecalibrationCard

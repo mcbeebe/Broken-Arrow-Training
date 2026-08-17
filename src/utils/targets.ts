@@ -21,12 +21,15 @@ export function parseDistance(zone: string): number | undefined {
 }
 
 /**
- * Parse HR range from a zone string.
- * Matches "(108–148)" or "(108-148)" anywhere in the string.
+ * Parse HR range from a zone string. Handles both plan dialects:
+ *   "(108–148)"    — Hyrox/legacy parenthesized band
+ *   "130-148 bpm"  — method-engine band (S.1: previously invisible here,
+ *                    which left the recalibration HR-honesty guard inert
+ *                    on every method plan)
  */
 export function parseHRRange(zone: string): { low: number; high: number } | undefined {
   if (!zone || zone === '—') return undefined
-  const m = zone.match(/\((\d+)\s*[–-]\s*(\d+)\)/)
+  const m = zone.match(/\((\d+)\s*[–-]\s*(\d+)\)/) ?? zone.match(/(\d{2,3})\s*[–-]\s*(\d{2,3})\s*bpm\b/)
   if (!m) return undefined
   return { low: parseInt(m[1], 10), high: parseInt(m[2], 10) }
 }
