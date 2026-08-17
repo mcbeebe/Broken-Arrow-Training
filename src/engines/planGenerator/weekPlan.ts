@@ -392,7 +392,17 @@ export function buildWeeklyMileage(
 
     if (isTaperWeek) {
       const taperIdx = w - (totalWeeks - taperWeeks)
-      totalMi = peak * (taperPcts[taperIdx] ?? taperPcts[taperPcts.length - 1])
+      const pct = Math.min(1, taperPcts[taperIdx] ?? taperPcts[taperPcts.length - 1])
+      // Anchor the taper to the volume the athlete ACTUALLY reached in the
+      // final build week — the ramp cap can hold that well under the
+      // theoretical `peak`, and a taper percentage of the un-achieved peak
+      // can out-volume the build it follows (v1 shipped a "Taper" week
+      // bigger than three of its base weeks). Also enforce a monotonic
+      // step-down through the taper: no taper week ever exceeds the week
+      // before it.
+      totalMi = lastBuildMi * pct
+      const prevMi = out.length > 0 ? out[out.length - 1].totalMi : lastBuildMi
+      totalMi = Math.min(totalMi, prevMi)
     } else {
       // Linear-ish build from start → peak across non-taper weeks
       const span = Math.max(1, peakWeekIndex)

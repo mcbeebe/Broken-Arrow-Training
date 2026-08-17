@@ -960,7 +960,11 @@ describe('generatePlanFromMethod — end-to-end', () => {
     expect(peakEasy).toBeDefined()
     const parseRange = (t: string): [number, number] => {
       const m = t.match(/(\d+)-(\d+)\s*min/)
-      return m ? [parseInt(m[1]), parseInt(m[2])] : [0, 0]
+      if (m) return [parseInt(m[1]), parseInt(m[2])]
+      // A session pinned to a method bound collapses to a single "N min"
+      // (P0.3 — no more regurgitated method-wide ranges).
+      const single = t.match(/(\d+)\s*min/)
+      return single ? [parseInt(single[1]), parseInt(single[1])] : [0, 0]
     }
     const [, firstHigh] = parseRange(firstEasy!.time)
     const [, peakHigh] = parseRange(peakEasy!.time)

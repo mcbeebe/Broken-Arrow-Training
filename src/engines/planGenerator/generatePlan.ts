@@ -280,7 +280,17 @@ function computeEasyRunTime(
   // duration the method's authors explicitly designed against.
   const lo = Math.max(fallback.min, Math.min(minMinutes, maxMinutes))
   const hi = Math.min(fallback.max, Math.max(minMinutes, maxMinutes))
-  if (hi < lo) return fallback
+  if (hi < lo) {
+    // The computed window falls entirely outside the method's bounds — the
+    // week's pattern gave its mileage too few (or too many) easy days. Pin
+    // to the nearest bound rather than regurgitating the method-wide
+    // placeholder range (the "Wednesday: 30–90 min" bug): the session is
+    // capped at what the method allows, and the weekly summary counts the
+    // capped session, so the plan stays internally consistent.
+    return minMinutes > fallback.max
+      ? { min: fallback.max, max: fallback.max }
+      : { min: fallback.min, max: fallback.min }
+  }
   return { min: lo, max: hi }
 }
 
@@ -400,7 +410,7 @@ function buildPlannedDay(
       + (substitutionNote ? ` · ${substitutionNote}` : ''),
     zone: target ? formatZoneString(target) : '—',
     route: venueHintFor(category, equipment),
-    time: `${timeRange.min}-${timeRange.max} min`,
+    time: timeRange.min === timeRange.max ? `${timeRange.min} min` : `${timeRange.min}-${timeRange.max} min`,
     plannedWorkout,
   }
 }
