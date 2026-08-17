@@ -58,6 +58,11 @@ describe('layerSecondaryWork', () => {
     // Guard: nothing in the final-2-week window or race week.
     expect(counts[4]).toBe(0)
     expect(counts[5]).toBe(0)
+    // P3.5 — content PROGRESSES across the run instead of repeating one
+    // static template (v1 shipped the identical Monday for 8 weeks).
+    const layered = out.flatMap(w => w.days.filter(d => d.workout.includes('Hyrox prep')))
+    expect(new Set(layered.map(d => d.detail)).size).toBeGreaterThan(1)
+    expect(new Set(layered.map(d => d.workout)).size).toBeGreaterThan(1)
   })
 
   it('run days, day counts, and week volumes are untouched', () => {

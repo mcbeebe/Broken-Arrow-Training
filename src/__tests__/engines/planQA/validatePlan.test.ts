@@ -192,8 +192,8 @@ describe('each rule detects its defect class', () => {
   })
 })
 
-describe('dual-race season (documents the P3 defects until the Hyrox rebuild lands)', () => {
-  it('the validator DETECTS identical weeks in the spliced Hyrox block', () => {
+describe('dual-race season (P3 flipped this to a clean-pass assertion)', () => {
+  it('the spliced Hyrox block no longer clones weeks', () => {
     const entered = config({
       raceType: 'hyrox',
       raceName: 'Hyrox Anaheim',
@@ -228,10 +228,10 @@ describe('dual-race season (documents the P3 defects until the Hyrox rebuild lan
     const season = planSeason(races, TODAY)
     const weeks = spliceSeasonWeeks(base.weeks, season, normalized, TODAY)
     const result = validatePlan({ weeks })
-    // Known P3 defect: Hyrox-block weeks are pure functions of phase, so
-    // consecutive weeks duplicate. The gate must SEE it (severity depends
-    // on how many weeks clone under the clamped runway). Flip this to
-    // `not.toContain` when the P3 Hyrox rebuild ships real progression.
-    expect(result.findings.map(f => f.id)).toContain('qa_duplicate_weeks')
+    // P3 shipped continuous progression (volumes, reps, and station
+    // fractions key on the week index) plus key-session overlays — the
+    // pre-P3 assertion here DETECTED the byte-identical Hyrox weeks;
+    // now the gate must find none.
+    expect(result.findings.map(f => f.id)).not.toContain('qa_duplicate_weeks')
   })
 })

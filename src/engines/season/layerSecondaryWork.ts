@@ -1,6 +1,7 @@
 import type { PlannedDay, SeasonRace, TrainingWeek } from '../../types'
 import { isHyroxRaceInfo } from './planSeason'
 import { parseDayToDate } from '../../utils/planDates'
+import { stationSpecs, stationCircuit } from '../hyrox/spec'
 
 /**
  * Layered multi-race preparation (user-directed): a season race marked
@@ -36,17 +37,32 @@ function shiftIso(iso: string, days: number): string {
 
 const TRANSFORMABLE = new Set<PlannedDay['type']>(['strength', 'cross'])
 
-function hyroxLayeredDay(day: PlannedDay, raceName: string): PlannedDay {
+/**
+ * P3.5 — the layered Hyrox session progresses with its position in the
+ * eligible run instead of repeating one static template (v1 shipped the
+ * identical 'Wall balls 3×15 · …' Monday for 8 straight weeks — zero
+ * progressive overload). Two alternating emphases (A: stations-volume,
+ * B: strength-endurance + grip) so consecutive weeks never read the same,
+ * with volumes ramping toward race spec across the run.
+ */
+function hyroxLayeredDay(day: PlannedDay, raceName: string, pos: number, totalEligible: number): PlannedDay {
+  const t = totalEligible > 1 ? pos / (totalEligible - 1) : 1 // 0 → 1 across the eligible run
+  const pct = 0.35 + 0.4 * t // station volumes: 35% → 75% of race spec while the run plan stays primary
+  const specs = stationSpecs()
+  const isA = pos % 2 === 0
+  const detail = isA
+    ? `STATIONS (progressive): ${stationCircuit(specs, pct)} · Moderate effort, crisp form. ` +
+      `Layered toward ${raceName} — your run plan is unchanged.`
+    : `STRENGTH-ENDURANCE: Walking lunges 3×${10 + Math.round(4 * t)}/leg · Wall balls ${Math.round((20 + 30 * t) / 5) * 5} unbroken sets · ` +
+      `Farmer carry ${Math.round((60 + 80 * t) / 10) * 10}m @ race load · Burpee broad jumps ${Math.round((20 + 30 * t) / 5) * 5}m · ` +
+      `GRIP: 2× dead hang to near-failure. Layered toward ${raceName} — your run plan is unchanged.`
   return {
     ...day,
     type: 'strength',
-    workout: 'Hyrox prep — stations + strength-endurance',
-    detail:
-      'Wall balls 3×15 · Sled push/pull sim 3×25 m · Walking lunges 3×12/leg · ' +
-      'Farmer carry 3×40 m · Burpee broad jumps 2×8 · Moderate effort, crisp form. ' +
-      `Layered toward ${raceName} — your run plan is unchanged.`,
+    workout: isA ? 'Hyrox prep — station volumes' : 'Hyrox prep — strength-endurance + grip',
+    detail,
     zone: 'Z2–3',
-    time: '45 min',
+    time: `${45 + Math.round(10 * t)} min`,
   }
 }
 
@@ -94,7 +110,7 @@ export function layerSecondaryWork(
       if (!TRANSFORMABLE.has(d.type) || d.actual) continue
       const iso = parseDayToDate(d.day, w.dates, anchorRaceIso)
       if (iso && iso < today) continue // history stays history
-      w.days[i] = hyroxLayeredDay(d, race.raceInfo.name)
+      w.days[i] = hyroxLayeredDay(d, race.raceInfo.name, pos, eligible.length)
       applied++
     }
   })

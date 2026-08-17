@@ -139,6 +139,10 @@ export interface OnboardingConfig {
   // everywhere the engine reasons about the race — a 13.3 mi trail half is
   // 13.3, not 13.1. The enum stays as the quick-pick and the label source.
   raceDistanceMiles?: number
+  // HYROX division (P3). Loads differ radically between Open and Pro
+  // (e.g. men's sled push 152 kg vs 202 kg), so every station prescription
+  // renders from the division's spec. Defaults to 'open' when unset.
+  hyroxDivision?: 'open' | 'pro'
   // Total race vertical gain in feet (structured). Drives the climbing/descending
   // prescription (R1) when present; otherwise the engine falls back to parsing the
   // free-text raceDescription. Optional — flat/road races leave it unset.

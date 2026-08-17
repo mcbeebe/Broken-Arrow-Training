@@ -341,6 +341,42 @@ export function validatePlan(input: PlanQAInput): PlanQAResult {
     }
   }
 
+  // ── race specificity: Hyrox (P3) ──────────────────────────────────
+  const isHyrox = race?.format === 'hyrox' || /hyrox/i.test(`${race?.name ?? ''} ${race?.distance ?? ''}`)
+  if (isHyrox && race?.date && weeks.length > 0) {
+    const raceIso = race.date
+    const planStartIso = weeks[0].startIso
+    const runwayDays = planStartIso ? Math.round((Date.parse(`${raceIso}T12:00:00`) - Date.parse(`${planStartIso}T12:00:00`)) / 86_400_000) : 0
+    // Only demand the key sessions when the runway can physically hold them.
+    if (runwayDays >= 21) {
+      let simOk = false
+      for (const w of weeks) {
+        if (!w.startIso) continue
+        w.days.forEach((d, idx) => {
+          if (!/full race simulation/i.test(d.workout)) return
+          const dayIso = new Date(Date.parse(`${w.startIso}T12:00:00`) + idx * 86_400_000).toISOString().slice(0, 10)
+          const daysOut = Math.round((Date.parse(`${raceIso}T12:00:00`) - Date.parse(`${dayIso}T12:00:00`)) / 86_400_000)
+          if (daysOut >= 10) simOk = true
+        })
+      }
+      if (!simOk) {
+        add({
+          id: 'qa_hyrox_simulation', severity: 'error',
+          title: 'No full race simulation',
+          detail: 'A Hyrox plan with 3+ weeks of runway must schedule one complete 8-run + 8-station simulation at least 10 days before race day.',
+        })
+      }
+      const specOk = flat.some(({ day }) => day.detail.includes('at full race spec'))
+      if (!specOk) {
+        add({
+          id: 'qa_hyrox_race_spec', severity: 'error',
+          title: 'Stations never reach race spec',
+          detail: 'No session trains the stations at full race distance/reps — the athlete would meet race volumes for the first time on race day (the v1 failure: every station capped at half spec).',
+        })
+      }
+    }
+  }
+
   const errors = findings.filter(f => f.severity === 'error')
   const warnings = findings.filter(f => f.severity === 'warn')
   return { findings, errors, warnings, pass: errors.length === 0 }

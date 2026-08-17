@@ -392,6 +392,7 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
   const [daysPerWeek, setDaysPerWeek] = useState<number | null>(null)
   const [longRunDay, setLongRunDay] = useState<string | null>(null)
   const [weakStation, setWeakStation] = useState<string | null>(null)
+  const [hyroxDivision, setHyroxDivision] = useState<'open' | 'pro'>('open')
   const [wearable, setWearable] = useState<WearableType | null>(prev?.wearable ?? null)
   const [name, setName] = useState(prev?.athleteName ?? '')
   const [age, setAge] = useState(prev?.age ? String(prev.age) : '')
@@ -625,6 +626,7 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
       trainingDaysPerWeek: daysPerWeek!,
       longRunDay: longRunDay ?? undefined,
       weakStation: weakStation ?? undefined,
+      hyroxDivision: raceType === 'hyrox' ? hyroxDivision : undefined,
       wearable: wearable || 'none',
       athleteName: name.trim(),
       age: ageNum,
@@ -1294,6 +1296,25 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
 
         {step === STEP_VARIANT && raceType === 'hyrox' && (
           <StepContainer title="Which station do you find hardest?" subtitle="We'll give it extra focus in your plan">
+            {/* P3 — division picks the loads every station prescription uses
+                (Open vs Pro differ by ~50 kg on the sleds alone). */}
+            <div className="mb-3">
+              <p className="text-xs font-semibold text-slate-500 mb-1.5">Your division</p>
+              <div className="flex gap-1.5" role="radiogroup" aria-label="Hyrox division">
+                {(['open', 'pro'] as const).map(d => (
+                  <button
+                    key={d}
+                    type="button"
+                    role="radio"
+                    aria-checked={hyroxDivision === d}
+                    onClick={() => setHyroxDivision(d)}
+                    className={`flex-1 rounded-lg border px-2 py-1.5 text-xs font-bold ${
+                      hyroxDivision === d ? 'border-teal-500 bg-teal-100 text-teal-800' : 'border-slate-200 text-slate-500'
+                    }`}
+                  >{d === 'open' ? 'Open' : 'Pro'}</button>
+                ))}
+              </div>
+            </div>
             {['SkiErg', 'Sled Push', 'Sled Pull', 'Burpee Broad Jump', 'Rowing', 'Farmer Carry', 'Sandbag Lunges', 'Wall Balls'].map(s => (
               <OptionCard key={s} selected={weakStation === s} onClick={() => setWeakStation(s)} title={s} />
             ))}
