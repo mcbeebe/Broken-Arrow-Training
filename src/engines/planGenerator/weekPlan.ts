@@ -371,8 +371,21 @@ export function buildWeeklyMileage(
   const maxWeeklyIncreasePct = adjust.maxWeeklyIncreasePctCap != null
     ? Math.min(mp.maxWeeklyIncreasePct, adjust.maxWeeklyIncreasePctCap)
     : mp.maxWeeklyIncreasePct
-  const taperWeeks = method.taper.durationWeeks
-  const taperPcts = method.taper.weeklyVolumePcts
+  // The volume taper must cover every week the phase allocator labels
+  // "Taper" — with only method.taper.durationWeeks tapering, a longer
+  // allocated taper phase shipped peak-volume weeks under a Taper label
+  // (the v1 "17.5 mi taper" complaint). When the phase runs longer than
+  // the declared taper, extend the percentage ladder upward so the extra
+  // early taper weeks step down gently from full volume.
+  const taperPhase = method.phases.find(p => /taper/i.test(p.id) || /taper/i.test(p.name ?? ''))
+  const taperBlock = taperPhase ? blocks.find(b => b.phaseId === taperPhase.id) : undefined
+  const phaseTaperWeeks = taperBlock ? taperBlock.endWeekIndex - taperBlock.startWeekIndex + 1 : 0
+  const taperWeeks = Math.min(
+    Math.max(method.taper.durationWeeks, phaseTaperWeeks),
+    Math.max(1, totalWeeks - 1), // never taper the whole plan
+  )
+  const taperPcts = [...method.taper.weeklyVolumePcts]
+  while (taperPcts.length < taperWeeks) taperPcts.unshift((1 + taperPcts[0]) / 2)
   const peakWeekIndex = totalWeeks - taperWeeks - 1  // last build week before taper
 
   const out: WeekMileage[] = []

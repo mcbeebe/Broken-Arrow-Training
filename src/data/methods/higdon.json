@@ -149,7 +149,7 @@
           "paceZone": "easy"
         }
       },
-      "approxDurationMinutes": { "min": 35, "max": 90 },
+      "approxDurationMinutes": { "min": 50, "max": 70 },
       "approxDistanceMiles": { "min": 4, "max": 11 },
       "purpose": "Race pace specificity. The 'Pace' run is Higdon's signature workout from Novice 2 onward — it teaches you exactly what your goal pace feels like under conditions short of race day.",
       "cues": [
