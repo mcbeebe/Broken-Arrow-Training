@@ -1,0 +1,11 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Phase 4 — health & energy-availability screen (PRD-109) > the copy registry never diagnoses (language contract, 109-F3) 1`] = `
+{
+  "boneRecentUltraDetail": "A bone stress injury inside the last six months plus marathon-or-longer training volume is the highest-risk combination this app can see. Please review this goal with the clinician who managed the injury before starting — a later race or a shorter distance keeps the comeback honest.",
+  "boneRecentUltraTitle": "A recent bone stress injury and this distance are a risky pair",
+  "boneStressDetail": "With a bone stress history, hill sprints and impact-heavy work stay out for the first six weeks and impact builds gradually — bone adapts, on its own schedule.",
+  "healthFlagDetail": "Something you shared in the health questions is a pattern worth reviewing with a clinician or sports dietitian before building training load. This plan has been made more conservative in the meantime: weekly growth is capped at 5%, and jump/impact-heavy strength work is left out. Training through it is usually fine — training past it is what this guards against.",
+  "healthFlagTitle": "Worth a professional look before ramping up",
+}
+`;

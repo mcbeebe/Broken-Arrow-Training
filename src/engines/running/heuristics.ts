@@ -77,6 +77,35 @@ export const STRENGTH_SCHEME_POLICY: TieredValue<{ seniorAge: number; rirCue: nu
   'NSCA position statement on resistance training for older adults (Fragala et al. 2019, JSCR): older adults benefit from progressive resistance training including power work, at 70-85%1RM for the trained, with emphasis on technique, controlled tempo, and balance integration — and novices of any age start with technique-first moderate loads. Heavy maximal testing (RM attempts) is not recommended prescription language for novices or seniors; reps-in-reserve cues replace it (Borde et al. 2015 meta-analysis for dose-response in seniors).',
 )
 
+/**
+ * Phase 4 (PRD-108) — heat pace adjustment. Multiplier on easy/long/
+ * recovery pace bands (slower) by typical training heat index (°F).
+ * Quality paces are never adjusted — hard sessions go effort-first in
+ * heat instead of chasing numbers. Conservative, calibratable bands;
+ * the direction is settled (Ely et al. 2007: progressive marathon
+ * slowing as WBGT rises 5→25 °C, slower runners penalized most).
+ */
+export const HEAT_PACE_ADJUST: TieredValue<{ maxF: number; factor: number; effortFirst?: boolean; advise?: string }[]> = tier(
+  [
+    { maxF: 60, factor: 1.0 },
+    { maxF: 70, factor: 1.015 },
+    { maxF: 80, factor: 1.04 },
+    { maxF: 90, factor: 1.075, effortFirst: true },
+    { maxF: Infinity, factor: 1.09, effortFirst: true, advise: 'shift runs to early morning or indoors; keep everything easy' },
+  ],
+  'T4',
+  'Band values are conservative coaching translations of Ely et al. 2007 (MSSE — marathon performance vs WBGT: ~1-3% slowing by 60-70°F-equivalent conditions, accelerating above); exact per-band multipliers are judgment pending calibration against athlete data.',
+)
+
+/** The heat factor for a typical training heat index (°F). 1.0 when unknown. */
+export function heatFactorFor(tempF: number | undefined): { factor: number; effortFirst: boolean; advise?: string } {
+  if (tempF == null || !Number.isFinite(tempF)) return { factor: 1, effortFirst: false }
+  for (const band of HEAT_PACE_ADJUST.value) {
+    if (tempF <= band.maxF) return { factor: band.factor, effortFirst: !!band.effortFirst, advise: band.advise }
+  }
+  return { factor: 1, effortFirst: false }
+}
+
 /** Everything above, enumerable for audit docs and tests. */
 export const RUNNING_HEURISTICS: Record<string, TieredValue<unknown>> = {
   MASTERS_AGE_TIERS,
@@ -86,4 +115,5 @@ export const RUNNING_HEURISTICS: Record<string, TieredValue<unknown>> = {
   SENIOR_LONG_RUN_CAP_MULT,
   DAYS_VOLUME_FACTOR,
   STRENGTH_SCHEME_POLICY,
+  HEAT_PACE_ADJUST,
 }

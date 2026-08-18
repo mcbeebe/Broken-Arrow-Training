@@ -200,6 +200,25 @@ export interface OnboardingConfig {
   // real stage (pre/peri/meno/post) and personalize the coach's greeting +
   // snapshot. See src/utils/menopause.ts.
   menopauseStatus?: MenopauseStatus
+  /** Phase 4 (PRD-108) — typical daytime heat index (°F) where the athlete
+   *  trains, for heat-adjusted easy/long pace bands. Optional; absent =
+   *  no adjustment. v1 is a manual field; a location-based climate table
+   *  can populate it later without schema change. */
+  typicalTrainingTempF?: number
+  /** Phase 4 (PRD-109) — optional, skippable health & energy-availability
+   *  screen. Any yes routes to conservative defaults + a professional-care
+   *  advisory; the app informs, never diagnoses. */
+  healthScreen?: {
+    /** Bone stress injury history (stress fracture/reaction). */
+    boneStressHistory?: boolean
+    /** That bone stress was within the last ~6 months. */
+    boneStressRecent?: boolean
+    /** Persistent unusual fatigue or unintended weight loss, last 3 months. */
+    persistentFatigue?: boolean
+    /** Missed cycles in the last 6 months (excl. contraception/pregnancy/
+     *  menopause — menopauseStatus is asked separately). */
+    missedCycles?: boolean
+  }
   menopauseSymptoms?: string[]
   menopauseNote?: string
   // Weight-training background. Calibrates default strength loads at display
