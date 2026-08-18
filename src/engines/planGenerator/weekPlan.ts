@@ -183,6 +183,10 @@ export interface MileageProgressionAdjust {
   startPctMultiplier?: number
   /** Hard cap on weekly increase percent (e.g. 0.05). Takes the min with the method default. */
   maxWeeklyIncreasePctCap?: number
+  /** R1 — cap on the recovery-week cadence (e.g. 3 for masters athletes).
+   *  Takes the min with the method's `cutbackEveryNWeeks`, so recovery
+   *  weeks come MORE often, never less. */
+  cutbackEveryNWeeksCap?: number
 }
 
 /**
@@ -342,6 +346,14 @@ export interface VolumeDistanceOpts {
    *  TAPER_WEEKS_CAP. Wins over both the method's authored duration and
    *  the phase allocation. */
   maxTaperWeeks?: number
+  /** R1 — multiplier on weekly volume (peak AND start), from the athlete's
+   *  running-day availability (DAYS_VOLUME_FACTOR: 3 days ≈ 0.75× of the
+   *  5-day baseline). Volume scales with frequency instead of cramming
+   *  the same miles into fewer, longer runs. */
+  volumeFactor?: number
+  /** R1 — multiplier on the long-run TIME cap (e.g. 0.85 for seniors),
+   *  bounding the single most fatiguing session before weekly volume. */
+  longRunTimeCapMult?: number
   /** Athlete's easy pace (sec/mile), used to convert the long-run time cap
    *  into a distance. Falls back to a 10:00/mi default when unknown. */
   easyPaceSecPerMile?: number
@@ -383,7 +395,7 @@ function longRunMilesFor(
 
   const pct = LONG_PCT[opts.raceDistance]
   const easyPaceMinPerMile = (opts.easyPaceSecPerMile ?? DEFAULT_EASY_PACE_SEC_PER_MILE) / 60
-  const timeCapMi = LONG_TIME_CAP_MIN[opts.raceDistance] / easyPaceMinPerMile
+  const timeCapMi = (LONG_TIME_CAP_MIN[opts.raceDistance] * (opts.longRunTimeCapMult ?? 1)) / easyPaceMinPerMile
   const maxMi = LONG_MAX_MI[opts.raceDistance]
   let target = Math.min(totalMi * pct, maxMi, timeCapMi)
   // P2 — duration adequacy: the peak long run should reach a fraction of the
@@ -436,7 +448,14 @@ export function buildWeeklyMileage(
   // Floor at a race-appropriate minimum, then cap at a sane ceiling so a very
   // high base can't scale into an impossible peak. Uncapped without a distance.
   const distancePeakCap = opts.raceDistance ? DISTANCE_PEAK_CAP_MI[opts.raceDistance] : Infinity
-  const peak = Math.min(Math.max(currentWeeklyMileage * peakMult, distancePeakFloor), distancePeakCap)
+  // R1 — availability scaling: peak volume follows running-day frequency
+  // (3 days ≈ 0.75× of the 5-day baseline), applied after floors/caps so
+  // low-frequency athletes get proportionally less weekly volume rather
+  // than the same miles crammed into longer runs.
+  const volumeFactor = opts.volumeFactor ?? 1
+  // The factor scales the multiplier-of-current model, never the distance
+  // race-readiness floor — a 4-day half athlete still needs ~25 mi weeks.
+  const peak = Math.min(Math.max(currentWeeklyMileage * peakMult * volumeFactor, distancePeakFloor), distancePeakCap)
   const startPctMul = adjust.startPctMultiplier ?? 1
   // Never open the plan *below* what the athlete already runs each week — they
   // do that volume safely today, so starting lower just detrains them. Apply
@@ -508,7 +527,11 @@ export function buildWeeklyMileage(
       totalMi = Math.min(linear, cap)
       // Cutback week — drop to cutbackPct of the last build mileage, but
       // don't disturb the trend baseline for next week's cap calc.
-      if (mp.cutbackEveryNWeeks > 0 && (w + 1) % mp.cutbackEveryNWeeks === 0 && w < peakWeekIndex) {
+      // R1 — masters cadence cap: recovery weeks come at least this often.
+      const cutbackEvery = adjust.cutbackEveryNWeeksCap != null && mp.cutbackEveryNWeeks > 0
+        ? Math.min(mp.cutbackEveryNWeeks, adjust.cutbackEveryNWeeksCap)
+        : mp.cutbackEveryNWeeks
+      if (cutbackEvery > 0 && (w + 1) % cutbackEvery === 0 && w < peakWeekIndex) {
         totalMi = lastBuildMi * mp.cutbackPct
         isCutback = true
       } else {

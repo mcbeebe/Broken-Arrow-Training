@@ -248,6 +248,9 @@ export interface DaySchedule {
    *  PlannedDay.leadInEased so the day-card note only claims "intensity
    *  stays easy" about genuinely eased content. */
   leadInEased?: boolean;
+  /** Set by the generator (never authored) when the R1 senior policy
+   *  substituted a VO2-max interval slot with threshold-flavored work. */
+  seniorEased?: boolean;
   /** Set by the generator (never authored) on the day before a race: the
    *  session is a shakeout and its duration is hard-capped (≤25 min)
    *  regardless of the week's remaining mileage budget (P0.4 — v1 sized

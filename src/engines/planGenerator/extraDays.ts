@@ -54,9 +54,19 @@ const CROSS_MODE_DEFAULT_DURATION: Record<CrossTrainingMode, number> = {
   yoga: 30,
 }
 
-// Base routine the modal's parseRoutine() can read directly — each ` · `-
+// Routines the modal's parseRoutine() can read directly — each ` · `-
 // separated item resolves to a guide entry in src/utils/exercises.ts.
-const BASE_STRENGTH_ROUTINE = [
+//
+// R1 — the routine now MATCHES the phase emphasis (audit finding C1: the
+// header said "heavy maximal strength (4–6 reps, build toward a 4–5RM)"
+// over a fixed 3×10-12 list, for every athlete including a 79-year-old
+// novice). Schemes are selected by phase × strengthExperience × age; RM
+// language is gone everywhere — load cues are reps-in-reserve (NSCA
+// older-adult position stand, Fragala 2019; see
+// engines/running/heuristics.ts STRENGTH_SCHEME_POLICY).
+
+/** Technique-first foundation — novices of any age, and the safe default. */
+const FOUNDATION_ROUTINE = [
   'Goblet Squat 3×12',
   'Bulgarian Split Squat 3×10/leg',
   'RDL 3×10',
@@ -64,6 +74,47 @@ const BASE_STRENGTH_ROUTINE = [
   'Calf Raise 3×15',
   'Plank 3×45s',
   'Dead Bug 3×10/side',
+]
+
+/** Heavy strength (base phase, trained lifters): low reps, 2 in reserve. */
+const HEAVY_ROUTINE = [
+  'Goblet Squat 4×5',
+  'RDL 4×5',
+  'Bulgarian Split Squat 3×6/leg',
+  'Calf Raise 3×10',
+  'Plank 3×45s',
+  'Dead Bug 3×10/side',
+]
+
+/** Strength-to-power transition: moderate loads, intent on the concentric. */
+const TRANSITION_ROUTINE = [
+  'Goblet Squat 3×8 — drive up fast',
+  'RDL 3×8',
+  'Step-Up 3×8/leg — explosive up',
+  'Calf Raise 3×12',
+  'Plank 3×45s',
+  'Dead Bug 3×10/side',
+]
+
+/** Explosive power (peak/race prep): the exercises the old header promised
+ *  but the list never contained. Light and fast, full recovery. */
+const POWER_ROUTINE = [
+  'Box Jump 3×5',
+  'Jump Squat 3×6',
+  'Med-Ball Slam 3×8',
+  'Single-Leg Hop 2×6/leg',
+  'Calf Raise 3×12',
+  'Plank 3×45s',
+]
+
+/** Masters (70+): controlled tempo, balance, zero maximal loading. */
+const MASTERS_ROUTINE = [
+  'Sit-to-Stand Squat 2×8 — 3s lowering, controlled',
+  'Step-Up 2×8/leg',
+  'RDL 2×8 — light, own the hinge',
+  'Calf Raise 2×12',
+  'Single-Leg Balance 2×30s/side',
+  'Plank 2×30s',
 ]
 
 const TAPER_STRENGTH_ROUTINE = [
@@ -76,7 +127,7 @@ const TAPER_STRENGTH_ROUTINE = [
 // Bodyweight-only variants for athletes who selected no gym access. Keeps
 // the same movement pattern (squat / hinge / single-leg / core) so the
 // training stimulus is comparable, just unweighted.
-const BASE_BODYWEIGHT_ROUTINE = [
+const FOUNDATION_BODYWEIGHT_ROUTINE = [
   'Bodyweight Squat 3×20',
   'Bulgarian Split Squat 3×10/leg',
   'Single-Leg Glute Bridge 3×12/leg',
@@ -84,6 +135,35 @@ const BASE_BODYWEIGHT_ROUTINE = [
   'Calf Raise 3×20',
   'Plank 3×45s',
   'Dead Bug 3×10/side',
+]
+
+/** Bodyweight heavy-analog: slow eccentrics + single-leg load. */
+const HEAVY_BODYWEIGHT_ROUTINE = [
+  'Bodyweight Squat 3×10 — 4s lowering',
+  'Bulgarian Split Squat 3×8/leg — 3s lowering',
+  'Single-Leg Glute Bridge 3×10/leg',
+  'Calf Raise 3×12 — slow',
+  'Plank 3×45s',
+  'Dead Bug 3×10/side',
+]
+
+/** Bodyweight power variant. */
+const POWER_BODYWEIGHT_ROUTINE = [
+  'Jump Squat 3×6',
+  'Pogo Hops 2×15',
+  'Single-Leg Hop 2×6/leg',
+  'Calf Raise 3×15',
+  'Plank 3×45s',
+]
+
+/** Bodyweight masters variant (70+). */
+const MASTERS_BODYWEIGHT_ROUTINE = [
+  'Sit-to-Stand Squat 2×10 — 3s lowering',
+  'Step-Up 2×8/leg',
+  'Single-Leg Glute Bridge 2×10/leg',
+  'Calf Raise 2×15',
+  'Single-Leg Balance 2×30s/side',
+  'Plank 2×30s',
 ]
 
 const TAPER_BODYWEIGHT_ROUTINE = [
@@ -105,16 +185,66 @@ const TAPER_BODYWEIGHT_ROUTINE = [
  * strength-to-power transition in between. Taper is maintenance-only. Matches the
  * fact-checked iRunFar/CSCS model (heavy → power → drop race week).
  */
-export function strengthPhaseEmphasis(phaseId: string, isTaper: boolean): string {
-  if (isTaper) return 'maintenance only — keep it light and sharp'
+type StrengthPhase = 'heavy' | 'transition' | 'power' | 'taper'
+
+function strengthPhaseFor(phaseId: string, isTaper: boolean): StrengthPhase {
+  if (isTaper) return 'taper'
   const id = phaseId.toLowerCase()
-  if (/base|foundation|general|off.?season/.test(id)) {
-    return 'heavy maximal strength (4–6 reps, build toward a 4–5RM)'
+  if (/base|foundation|general|off.?season/.test(id)) return 'heavy'
+  if (/peak|sharp|final|race|specific|special/.test(id)) return 'power'
+  return 'transition'
+}
+
+/** Athlete tier for scheme selection. Seniors (70+) never load maximally
+ *  (NSCA older-adult guidance); novices train technique-first at any age;
+ *  'recreational' lifters get the moderate scheme where 'experienced' get
+ *  the heavy one. */
+function strengthTierFor(config?: OnboardingConfig): 'senior' | 'new' | 'recreational' | 'experienced' {
+  if (config?.age != null && config.age >= 70) return 'senior'
+  const exp = config?.strengthExperience
+  if (exp === 'experienced') return 'experienced'
+  if (exp === 'recreational') return 'recreational'
+  return 'new'
+}
+
+/**
+ * R8/R1 — phase emphasis, now guaranteed to describe the routine that
+ * follows it. No RM language anywhere: load cues are reps-in-reserve.
+ */
+export function strengthPhaseEmphasis(
+  phaseId: string,
+  isTaper: boolean,
+  config?: OnboardingConfig,
+): string {
+  const phase = strengthPhaseFor(phaseId, isTaper)
+  const tier = strengthTierFor(config)
+  if (phase === 'taper') return 'maintenance only — keep it light and sharp'
+  if (tier === 'senior') {
+    return 'masters strength — controlled tempo and balance; no maximal loading, stop 3+ reps short of failure'
   }
-  if (/peak|sharp|final|race|specific|special/.test(id)) {
-    return 'explosive power (box jumps, med-ball, light & fast); drop the heavy loads'
+  if (tier === 'new') {
+    return 'technique first — controlled reps, effort easy enough to keep every rep identical (RPE ≤6); add load only when form is boring'
   }
-  return 'strength-to-power transition (moderate loads, add some speed)'
+  if (phase === 'heavy') {
+    return 'heavy strength (4–6 reps) — leave 2 reps in reserve, never grind'
+  }
+  if (phase === 'power') {
+    return 'explosive power (jumps, med-ball, light & fast) — full recovery between sets; drop the heavy loads'
+  }
+  return 'strength-to-power transition (moderate loads, move the concentric with intent)'
+}
+
+/** The routine that matches the emphasis, per tier × phase × equipment. */
+function strengthRoutineFor(phase: StrengthPhase, tier: ReturnType<typeof strengthTierFor>, hasGym: boolean): string[] {
+  if (phase === 'taper') return hasGym ? TAPER_STRENGTH_ROUTINE : TAPER_BODYWEIGHT_ROUTINE
+  if (tier === 'senior') return hasGym ? MASTERS_ROUTINE : MASTERS_BODYWEIGHT_ROUTINE
+  if (tier === 'new') return hasGym ? FOUNDATION_ROUTINE : FOUNDATION_BODYWEIGHT_ROUTINE
+  if (phase === 'power') return hasGym ? POWER_ROUTINE : POWER_BODYWEIGHT_ROUTINE
+  if (phase === 'heavy') {
+    if (tier === 'recreational') return hasGym ? TRANSITION_ROUTINE : HEAVY_BODYWEIGHT_ROUTINE
+    return hasGym ? HEAVY_ROUTINE : HEAVY_BODYWEIGHT_ROUTINE
+  }
+  return hasGym ? TRANSITION_ROUTINE : FOUNDATION_BODYWEIGHT_ROUTINE
 }
 
 export function buildStrengthDetail(
@@ -122,11 +252,11 @@ export function buildStrengthDetail(
   config?: OnboardingConfig,
 ): string {
   const hasGym = !!config?.equipmentAccess?.includes('gym')
-  const routine = opts.isTaper
-    ? (hasGym ? TAPER_STRENGTH_ROUTINE : TAPER_BODYWEIGHT_ROUTINE)
-    : (hasGym ? BASE_STRENGTH_ROUTINE : BASE_BODYWEIGHT_ROUTINE)
-  // R8 — phase emphasis leads the routine (heavy in base → power near the race).
-  const emphasis = opts.isTaper ? [] : [`Emphasis: ${strengthPhaseEmphasis(opts.phaseId, false)}`]
+  const phase = strengthPhaseFor(opts.phaseId, opts.isTaper)
+  const tier = strengthTierFor(config)
+  const routine = strengthRoutineFor(phase, tier, hasGym)
+  // Emphasis leads the routine — and now actually describes it (R1).
+  const emphasis = opts.isTaper ? [] : [`Emphasis: ${strengthPhaseEmphasis(opts.phaseId, false, config)}`]
   // Midlife (peri/menopause/postmenopause): append a heavy bone-loading
   // finisher to the standard routine — bone is the priority as estrogen drops.
   // Skipped on taper (maintenance only). Premenopause/none keep the base.

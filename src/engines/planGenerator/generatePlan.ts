@@ -37,6 +37,7 @@ import {
   type MileageProgressionAdjust,
 } from './weekPlan'
 import { pickWeeklyPattern, pickWorkoutForDay, buildPlannedWorkout, scaleWorkoutToTime } from './workouts'
+import { MASTERS_AGE_TIERS, MASTERS_RECOVERY_CADENCE, MASTERS_RAMP_CAP, SENIOR_INTENSITY, SENIOR_LONG_RUN_CAP_MULT, DAYS_VOLUME_FACTOR } from '../running/heuristics'
 import { injectExtraDays } from './extraDays'
 import { INJURY_LEADIN_WEEKS } from '../../utils/injuryRamp'
 import { assessFeasibility, predictRaceTime } from './feasibility'
@@ -823,6 +824,51 @@ function injuryPolicyFor(status: InjuryStatus | undefined): InjuryPolicy {
 }
 
 /**
+ * R1 — age-graded policy (docs/running-plan-audit.md, phase R1). Two tiers,
+ * constants in engines/running/heuristics.ts:
+ *  - masters (>=58): recovery week at least every 3rd; weekly ramp capped
+ *    at 8% (parity with the Hyrox engine's MASTERS_RECOVERY);
+ *  - senior (>=70): additionally one quality session per week, VO2-max
+ *    interval slots substitute to threshold work, and the long-run time
+ *    cap tightens 15%.
+ * Age previously changed NOTHING in the road path — age 30 and age 79
+ * produced byte-identical plans (audit finding B1).
+ */
+interface MastersPolicy {
+  isMasters: boolean
+  isSenior: boolean
+  cutbackEveryNWeeksCap?: number
+  maxWeeklyIncreasePctCap?: number
+  maxQualityPerWeek: number
+  substituteVo2: boolean
+  longRunTimeCapMult?: number
+}
+
+function mastersPolicyFor(age: number | undefined): MastersPolicy {
+  const tiers = MASTERS_AGE_TIERS.value
+  const isMasters = age != null && age >= tiers.masters
+  const isSenior = age != null && age >= tiers.senior
+  return {
+    isMasters,
+    isSenior,
+    ...(isMasters
+      ? {
+          cutbackEveryNWeeksCap: MASTERS_RECOVERY_CADENCE.value.cadenceWeeks,
+          maxWeeklyIncreasePctCap: MASTERS_RAMP_CAP.value,
+        }
+      : {}),
+    maxQualityPerWeek: isSenior ? SENIOR_INTENSITY.value.maxQualityPerWeek : Infinity,
+    substituteVo2: isSenior && SENIOR_INTENSITY.value.substituteVo2,
+    ...(isSenior ? { longRunTimeCapMult: SENIOR_LONG_RUN_CAP_MULT.value } : {}),
+  }
+}
+
+/** VO2-max interval categories the senior policy substitutes away. */
+const SENIOR_SUBSTITUTE_CATEGORIES: ReadonlySet<WorkoutCategory> = new Set<WorkoutCategory>([
+  'vo2_intervals', 'speed_repetitions',
+])
+
+/**
  * Categories that should be rewritten to 'easy' during the injury lead-in.
  * Running-only — never touches strength/cross/rest/long.
  */
@@ -896,6 +942,20 @@ export function generatePlanFromMethod(
   const totalWeeks = coreWeeks + baseWeeks
   const currentWeeklyMileage = estimateCurrentWeeklyMileage(config)
   const policy = injuryPolicyFor(config.injuryStatus)
+  const masters = mastersPolicyFor(config.age)
+  // Injury and masters adjustments compose; the more conservative ramp wins.
+  const mileageAdjust: MileageProgressionAdjust = {
+    ...policy.mileageAdjust,
+    ...(masters.maxWeeklyIncreasePctCap != null
+      ? {
+          maxWeeklyIncreasePctCap: Math.min(
+            policy.mileageAdjust.maxWeeklyIncreasePctCap ?? Infinity,
+            masters.maxWeeklyIncreasePctCap,
+          ),
+        }
+      : {}),
+    ...(masters.cutbackEveryNWeeksCap != null ? { cutbackEveryNWeeksCap: masters.cutbackEveryNWeeksCap } : {}),
+  }
   // R0 — distance-aware taper cap: shrink an over-allocated taper phase and
   // return the weeks to the build, so a compressed 5K plan doesn't spend
   // half its runway tapering (Jim's 7-week block allocated 3 taper weeks).
@@ -937,9 +997,44 @@ export function generatePlanFromMethod(
     ? Math.round(flatFinishSec / 60 + (raceVertGain / 100) * 0.5)
     : 0
 
-  const coreMileage = buildWeeklyMileage(method, coreWeeks, coreBlocks, currentWeeklyMileage, policy.mileageAdjust, {
+  // Total training-day budget (running + strength + cross), capped by the
+  // injury policy so 'returning' doesn't get a 7-day-a-week schedule no
+  // matter what was clicked in onboarding.
+  const requestedTotalDays = policy.maxTrainingDaysPerWeek != null
+    ? Math.min(config.trainingDaysPerWeek, policy.maxTrainingDaysPerWeek)
+    : config.trainingDaysPerWeek
+
+  // Reserve slots for strength + cross-training. The remainder is what
+  // we ask the running pattern for, so the pattern's rest days line up
+  // with the requested extras instead of being padded on top.
+  const wantStrength = Math.max(0, config.strengthDaysPerWeek ?? 0)
+  // Prefer the explicit per-week count when set; fall back to "1 if any
+  // modalities are selected" so older configs without crossTrainingDaysPerWeek
+  // still schedule a cross session (legacy behavior).
+  const explicitCrossDays = config.crossTrainingDaysPerWeek
+  const legacyCrossDays = (config.crossTrainingModes && config.crossTrainingModes.length > 0) ? 1 : 0
+  const wantCross = explicitCrossDays != null ? explicitCrossDays : legacyCrossDays
+  const extrasRequested = wantStrength + wantCross
+
+  // Clamp running days to what the method actually offers (derived from its
+  // weeklyPatterns). If the user wants very few total days we still respect
+  // the method's minimum running days and trim the extras, rather than
+  // pretending a 1-day-per-week pattern exists.
+  const patternDays = method.weeklyPatterns.map(p => p.daysPerWeek)
+  const minRunDays = patternDays.length > 0 ? Math.min(...patternDays) : 3
+  const maxRunDays = patternDays.length > 0 ? Math.max(...patternDays) : 7
+  const desiredRunDays = requestedTotalDays - extrasRequested
+  const runningDaysTarget = Math.max(minRunDays, Math.min(maxRunDays, desiredRunDays))
+
+  // R1 — availability scaling: weekly volume follows running-day frequency
+  // (DAYS_VOLUME_FACTOR: 3 days = 0.75x of the 5-day baseline).
+  const volumeFactor = DAYS_VOLUME_FACTOR.value[Math.max(3, Math.min(7, runningDaysTarget))] ?? 1
+
+  const coreMileage = buildWeeklyMileage(method, coreWeeks, coreBlocks, currentWeeklyMileage, mileageAdjust, {
     raceDistance: config.raceDistance,
     maxTaperWeeks: taperCapWeeks,
+    volumeFactor,
+    longRunTimeCapMult: masters.longRunTimeCapMult,
     // Slow end of the easy zone (sec/mile) — used to translate the long-run
     // time cap into a distance for this athlete.
     easyPaceSecPerMile: paces.byZone.easy?.paceSecPerMileLow,
@@ -977,34 +1072,6 @@ export function generatePlanFromMethod(
   const taperWeekCount = coreMileage.filter(x => x.isTaper).length
   const lastBuildWeekIndex = Math.max(1, totalWeeks - taperWeekCount - 1)
 
-  // Total training-day budget (running + strength + cross), capped by the
-  // injury policy so 'returning' doesn't get a 7-day-a-week schedule no
-  // matter what was clicked in onboarding.
-  const requestedTotalDays = policy.maxTrainingDaysPerWeek != null
-    ? Math.min(config.trainingDaysPerWeek, policy.maxTrainingDaysPerWeek)
-    : config.trainingDaysPerWeek
-
-  // Reserve slots for strength + cross-training. The remainder is what
-  // we ask the running pattern for, so the pattern's rest days line up
-  // with the requested extras instead of being padded on top.
-  const wantStrength = Math.max(0, config.strengthDaysPerWeek ?? 0)
-  // Prefer the explicit per-week count when set; fall back to "1 if any
-  // modalities are selected" so older configs without crossTrainingDaysPerWeek
-  // still schedule a cross session (legacy behavior).
-  const explicitCrossDays = config.crossTrainingDaysPerWeek
-  const legacyCrossDays = (config.crossTrainingModes && config.crossTrainingModes.length > 0) ? 1 : 0
-  const wantCross = explicitCrossDays != null ? explicitCrossDays : legacyCrossDays
-  const extrasRequested = wantStrength + wantCross
-
-  // Clamp running days to what the method actually offers (derived from its
-  // weeklyPatterns). If the user wants very few total days we still respect
-  // the method's minimum running days and trim the extras, rather than
-  // pretending a 1-day-per-week pattern exists.
-  const patternDays = method.weeklyPatterns.map(p => p.daysPerWeek)
-  const minRunDays = patternDays.length > 0 ? Math.min(...patternDays) : 3
-  const maxRunDays = patternDays.length > 0 ? Math.max(...patternDays) : 7
-  const desiredRunDays = requestedTotalDays - extrasRequested
-  const runningDaysTarget = Math.max(minRunDays, Math.min(maxRunDays, desiredRunDays))
 
   // Strength + cross-training fit inside the athlete's TOTAL day budget.
   // Onboarding sells trainingDaysPerWeek as a total ("Includes runs,
@@ -1045,6 +1112,12 @@ export function generatePlanFromMethod(
   // week-1/2 benchmark scheduled (healthy athletes) and an honest advisory.
   const zonesEstimated = currentVdot == null && config.fitnessAnchor?.type !== 'lthr'
 
+  // R1 — the threshold-flavored category the senior policy substitutes VO2
+  // slots to: the first the method actually owns workouts for.
+  const methodCategories = new Set(method.workouts.map(wk => wk.category))
+  const seniorQualityCategory = (['tempo', 'cruise_intervals', 'progression', 'fartlek'] as WorkoutCategory[])
+    .find(c => methodCategories.has(c)) ?? 'tempo'
+
   const weeks: TrainingWeek[] = []
 
   for (let w = 0; w < totalWeeks; w++) {
@@ -1081,11 +1154,20 @@ export function generatePlanFromMethod(
           : d)
       : schedule
 
+    // R1 — senior intensity selection (70+): VO2-max interval slots become
+    // threshold work. Intensity is preserved (Tanaka & Seals 2008 — the
+    // stimulus matters more than the modality), structural cost drops.
+    const agedSchedule: DaySchedule[] = masters.substituteVo2 && !isFinalWeek
+      ? adjustedSchedule.map(d => SENIOR_SUBSTITUTE_CATEGORIES.has(d.category)
+          ? { ...d, category: seniorQualityCategory, preferredWorkoutIds: undefined, seniorEased: true }
+          : d)
+      : adjustedSchedule
+
     // Honor the athlete's preferred long-run weekday on normal weeks. Race
     // week is hand-authored (taper.raceWeekSchedule) and left untouched.
     const weekSchedule = (!isFinalWeek && longRunDow != null)
-      ? remapLongRunDay(adjustedSchedule, longRunDow)
-      : adjustedSchedule
+      ? remapLongRunDay(agedSchedule, longRunDow)
+      : agedSchedule
 
     // R0 — two-pass day construction. Pass 1 instantiates every workout so
     // the week's QUALITY volume is known before any day is sized; quality
@@ -1116,7 +1198,10 @@ export function generatePlanFromMethod(
         isRaceDay,
         workout: picked?.workout ?? null,
         pw: picked ? buildPlannedWorkout(method, picked.workout, weekPaces, picked.reason) : null,
-        reason: picked?.reason,
+        reason: [
+          picked?.reason,
+          daySched.seniorEased ? 'Masters: intervals swapped for threshold work — intensity stays, recovery cost drops' : undefined,
+        ].filter(Boolean).join(' · ') || undefined,
       }
     })
 
@@ -1164,18 +1249,25 @@ export function generatePlanFromMethod(
         // least one.
         const scaledTotal = (f: number) =>
           qualityDays.reduce((s, p) => s + estimateWorkoutMiles(scaleQualityWorkout(p.pw!, f, weekPaces), weekPaces), 0)
+        const demoteToEasy = (p: (typeof preparedDays)[number], reason: string) => {
+          p.daySched = { ...p.daySched, category: 'easy' as WorkoutCategory, preferredWorkoutIds: undefined }
+          const repick = pickWorkoutForDay(method, p.daySched, methodExp, weekMi.totalMi)
+          p.workout = repick?.workout ?? null
+          p.pw = repick ? buildPlannedWorkout(method, repick.workout, weekPaces, repick.reason) : null
+          p.reason = reason
+        }
+        // R1 — senior cap: one quality session per week at 70+.
+        while (qualityDays.length > masters.maxQualityPerWeek) {
+          demoteToEasy(qualityDays[qualityDays.length - 1], 'Eased — masters plans hold one quality session per week')
+          qualityDays = qualityDays.slice(0, -1)
+        }
         const keepFloor = weekMi.isCutback ? 0 : 1
         while (qualityDays.length > keepFloor) {
           const b = budget()
           const raw = qualityDays.reduce((s, p) => s + estimateWorkoutMiles(p.pw!, weekPaces), 0)
           if (raw <= b) break
           if (scaledTotal(Math.max(0.4, b / raw)) <= b * 1.1) break
-          const demoted = qualityDays[qualityDays.length - 1]
-          demoted.daySched = { ...demoted.daySched, category: 'easy' as WorkoutCategory, preferredWorkoutIds: undefined }
-          const repick = pickWorkoutForDay(method, demoted.daySched, methodExp, weekMi.totalMi)
-          demoted.workout = repick?.workout ?? null
-          demoted.pw = repick ? buildPlannedWorkout(method, repick.workout, weekPaces, repick.reason) : null
-          demoted.reason = 'Eased — this week’s volume budget fits one quality session'
+          demoteToEasy(qualityDays[qualityDays.length - 1], 'Eased — this week’s volume budget fits one quality session')
           qualityDays = qualityDays.slice(0, -1)
         }
         const finalBudget = budget()
@@ -1187,12 +1279,13 @@ export function generatePlanFromMethod(
         }
         weekQualityMi = qualityDays.reduce((s, p) => s + (p.pw ? estimateWorkoutMiles(p.pw, weekPaces) : 0), 0)
       }
-      // Taper weeks: when the minimum honest content (long + fitted quality
-      // + a 20-min floor per easy day) still exceeds the tapered target,
-      // the right move is MORE REST, not method-window padding — convert
-      // trailing easy days to rest, keeping at least two runs of easy
-      // movement in the week.
-      if (weekMi.isTaper && !isFinalWeek) {
+      // When the minimum honest content (long + fitted quality + a 20-min
+      // floor per easy day) still exceeds the week's target, the right move
+      // is MORE REST, not method-window padding — convert trailing easy
+      // days to rest, keeping at least two easy runs. Bites mostly in
+      // tapers and in dense 6-run-day patterns handed to low-volume
+      // athletes (Hansons for a masters beginner).
+      if (!isFinalWeek) {
         const { fastSec, slowSec } = easyPaceSecBounds(weekPaces)
         const minEasyMi = (MIN_EASY_RUN_MIN * 60) / ((fastSec + slowSec) / 2)
         for (;;) {
@@ -1201,7 +1294,12 @@ export function generatePlanFromMethod(
           const floorMi = longMi + weekQualityMi + easies.length * minEasyMi
           if (easies.length <= 2 || floorMi <= weekMi.totalMi * 1.2) break
           const drop = easies[easies.length - 1]
-          drop.daySched = { ...drop.daySched, category: 'rest' as WorkoutCategory, preferredWorkoutIds: undefined, notes: 'Taper — extra rest day.' }
+          drop.daySched = {
+            ...drop.daySched,
+            category: 'rest' as WorkoutCategory,
+            preferredWorkoutIds: undefined,
+            notes: weekMi.isTaper ? 'Taper — extra rest day.' : 'Volume budget — extra rest day.',
+          }
           drop.workout = null
           drop.pw = null
           drop.reason = undefined
@@ -1339,6 +1437,17 @@ export function generatePlanFromMethod(
   const effectiveDaysPerWeek = runningDaysTarget + extrasCap
   const athlete = buildAthleteProfile(config, currentWeeklyMileage, effectiveDaysPerWeek)
   const advisories = [...assessFeasibility(config, today, method), ...environmentAdvisories(config)]
+  // R1 — say what the age tier changed, in plain language.
+  if (masters.isMasters) {
+    advisories.push({
+      id: 'masters_adjustments',
+      severity: 'info',
+      title: masters.isSenior ? 'Masters adjustments (70+)' : 'Masters adjustments',
+      detail: masters.isSenior
+        ? `At ${config.age}, this plan recovers every ${MASTERS_RECOVERY_CADENCE.value.cadenceWeeks}rd week, caps weekly growth at ${Math.round(MASTERS_RAMP_CAP.value * 100)}%, holds one quality session per week, swaps VO2-max intervals for threshold work, and keeps the long run shorter. Intensity stays — masters athletes keep adapting; the schedule just protects recovery.`
+        : `At ${config.age}, this plan recovers every ${MASTERS_RECOVERY_CADENCE.value.cadenceWeeks}rd week and caps weekly growth at ${Math.round(MASTERS_RAMP_CAP.value * 100)}% — recovery capacity, not trainability, is what changes with age.`,
+    })
+  }
   // Honesty over silence: when the method's running floor + the one
   // guaranteed extra can't fit the requested total, tell the athlete why
   // the header shows a bigger number than they picked.
