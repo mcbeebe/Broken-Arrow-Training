@@ -47,9 +47,12 @@ describe('P4.1 — benchmark scheduling', () => {
     expect(validatePlan(plan).findings.map(f => f.id)).not.toContain('qa_benchmark_missing')
   })
 
-  it('a race-anchored athlete gets no benchmark and no estimate advisory', () => {
+  it('a FRESH race-anchored athlete gets no benchmark and no estimate advisory', () => {
+    // Phase 3 (PRD-107): anchor freshness matters — a dated, recent anchor
+    // keeps the original no-benchmark contract; an undated one now gets a
+    // mid-plan revalidation test (see phase3-fit-calibration.test.ts).
     const plan = generatePlanFromMethod(roche(), mikeConfig({
-      fitnessAnchor: { type: 'race_10k', valueSeconds: 48 * 60 },
+      fitnessAnchor: { type: 'race_10k', valueSeconds: 48 * 60, dateIso: '2026-07-20' },
     }), TODAY)
     expect(allDays(plan).some(d => /BENCHMARK/i.test(d.workout))).toBe(false)
     expect(plan.advisories?.some(a => a.id === 'zones_estimated')).toBeFalsy()

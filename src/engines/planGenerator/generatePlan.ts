@@ -40,7 +40,7 @@ import {
 import { pickWeeklyPattern, pickWorkoutForDay, buildPlannedWorkout, scaleWorkoutToTime } from './workouts'
 import { MASTERS_AGE_TIERS, MASTERS_RECOVERY_CADENCE, MASTERS_RAMP_CAP, SENIOR_INTENSITY, SENIOR_LONG_RUN_CAP_MULT, DAYS_VOLUME_FACTOR } from '../running/heuristics'
 import { invariantRulesFor } from './methodInvariants'
-import { bestMethodForDistance } from './methodSelection'
+import { bestMethodForDistance, suggestLighterMethod } from './methodSelection'
 import { injectExtraDays, isHardStrengthSession } from './extraDays'
 import { INJURY_LEADIN_WEEKS } from '../../utils/injuryRamp'
 import { assessFeasibility, predictRaceTime } from './feasibility'
@@ -1319,6 +1319,11 @@ export function generatePlanFromMethod(
     .find(c => methodCategories.has(c)) ?? 'tempo'
 
   const weeks: TrainingWeek[] = []
+  // Phase 3 (PRD-106) — method-fit instrumentation: authored quality slots
+  // vs budget-driven demotions across normal build weeks. Repeated silent
+  // demotion means the athlete bought a method and received generic easy
+  // running — counted here, told below.
+  const demoStats = { authored: 0, budget: 0, senior: 0, personaCap: 0 }
   // Phase 1 — hardness of the previous week's last two assembled days
   // (strength included), for the never-3-consecutive-hard repair and for
   // interference-aware strength placement across week boundaries.
@@ -1461,6 +1466,8 @@ export function generatePlanFromMethod(
       let qualityDays = preparedDays.filter(
         p => !p.isRaceDay && p.pw && QUALITY_BUDGET_CATEGORIES.has(p.daySched.category),
       )
+      const countsForFit = !weekMi.isCutback && !weekMi.isTaper && !isFinalWeek
+      if (countsForFit) demoStats.authored += qualityDays.length
       if (qualityDays.length > 0) {
         const { fastSec, slowSec } = easyPaceSecBounds(weekPaces)
         const minEasyMi = (MIN_EASY_RUN_MIN * 60) / ((fastSec + slowSec) / 2)
@@ -1497,6 +1504,7 @@ export function generatePlanFromMethod(
         while (qualityDays.length > masters.maxQualityPerWeek) {
           demoteToEasy(qualityDays[qualityDays.length - 1], 'Eased — masters plans hold one quality session per week')
           qualityDays = qualityDays.slice(0, -1)
+          if (countsForFit) demoStats.senior += 1
         }
         // Phase 2 (104-F5) — persona quality caps: a first-timer holds one
         // quality session per week for the first six weeks (then two); a
@@ -1507,6 +1515,7 @@ export function generatePlanFromMethod(
         while (qualityDays.length > personaQualityCap) {
           demoteToEasy(qualityDays[qualityDays.length - 1], 'Eased — quality builds gradually at this experience level')
           qualityDays = qualityDays.slice(0, -1)
+          if (countsForFit) demoStats.personaCap += 1
         }
         const keepFloor = weekMi.isCutback ? 0 : 1
         while (qualityDays.length > keepFloor) {
@@ -1516,6 +1525,7 @@ export function generatePlanFromMethod(
           if (scaledTotal(Math.max(0.4, b / raw)) <= b * 1.1) break
           demoteToEasy(qualityDays[qualityDays.length - 1], 'Eased — this week’s volume budget fits one quality session')
           qualityDays = qualityDays.slice(0, -1)
+          if (countsForFit) demoStats.budget += 1
         }
         const finalBudget = budget()
         const qualityMiRaw = qualityDays.reduce((s, p) => s + estimateWorkoutMiles(p.pw!, weekPaces), 0)
@@ -1739,6 +1749,21 @@ export function generatePlanFromMethod(
       suggestion: `Two honest options: pick a race ~${Math.max(2, weeksToFloor - totalWeeks)} weeks later so the safe ramp can reach ${arrivalShortfall.needed} mi/week, or race ${fitsDistance === 'half_marathon' ? 'a half marathon' : 'a shorter distance'} that your current build already supports.`,
     })
   }
+  // Phase 3 (106-F2) — method-fit feedback: when the weekly budget demotes
+  // more than 35% of the method's authored quality across build weeks, say
+  // so once and name a lighter-structure alternative.
+  if (demoStats.authored >= 6 && demoStats.budget / demoStats.authored > 0.35) {
+    const alt = config.raceDistance
+      ? suggestLighterMethod(config.raceDistance, runningDaysTarget, method.id)
+      : null
+    advisories.push({
+      id: 'method_volume_mismatch',
+      severity: 'caution',
+      title: `${method.name}'s workload doesn't fit your volume`,
+      detail: `${demoStats.budget} of ${demoStats.authored} authored quality sessions had to be eased to easy runs because your weekly volume can't hold them — you'd be following ${method.name}'s name, not its training.`,
+      suggestion: alt ? `Switch to ${alt.name} — its quality load fits your mileage and days.` : undefined,
+    })
+  }
   if (lowMileageDowngraded) {
     advisories.push({
       id: 'low_mileage_downgrade',
@@ -1774,8 +1799,7 @@ export function generatePlanFromMethod(
   // is a partial); an injury lead-in defers it with an honest advisory —
   // nobody time-trials while easing back.
   let benchmarkPlaced = false
-  if (zonesEstimated && policy.forceEasyLeadInWeeks === 0 && weeks.length > 1) {
-    const targetWeek = weeks[0].days.filter(d => d.type !== 'rest').length >= 3 ? weeks[0] : weeks[1]
+  const placeBenchmarkInWeek = (targetWeek: TrainingWeek): boolean => {
     let idx = targetWeek.days.findIndex(d => d.type === 'quality')
     if (idx < 0) idx = targetWeek.days.findIndex(d => d.type === 'run' && !/strides/i.test(d.workout))
     if (idx < 0) idx = targetWeek.days.findIndex(d => d.type === 'run')
@@ -1808,7 +1832,46 @@ export function generatePlanFromMethod(
           cues: ['Even effort beats a fast start: the first 5 minutes should feel too easy.'],
         },
       }
-      benchmarkPlaced = true
+      // The benchmark may have replaced the week's drill-stamped run —
+      // restamp the first remaining easy run so the drill tip survives.
+      if (!targetWeek.days.some(d => d.isDrillDay)) {
+        const drillIdx = targetWeek.days.findIndex(d => d.type === 'run')
+        if (drillIdx >= 0) targetWeek.days[drillIdx] = { ...targetWeek.days[drillIdx], isDrillDay: true }
+      }
+      return true
+    }
+    return false
+  }
+  if (zonesEstimated && policy.forceEasyLeadInWeeks === 0 && weeks.length > 1) {
+    const targetWeek = weeks[0].days.filter(d => d.type !== 'rest').length >= 3 ? weeks[0] : weeks[1]
+    benchmarkPlaced = placeBenchmarkInWeek(targetWeek)
+  }
+
+  // Phase 3 (PRD-107) — anchor freshness. A race anchor with no date (all
+  // legacy configs) or one older than ~12 weeks may no longer describe the
+  // athlete: say so, and schedule the SAME 20-min benchmark mid-plan (at
+  // the first phase boundary) so the paces revalidate — before this, only
+  // unanchored athletes ever got the calibration test.
+  const raceAnchor = config.fitnessAnchor && /^race_/.test(config.fitnessAnchor.type)
+  const anchorAgeWeeks = raceAnchor && config.fitnessAnchor?.dateIso
+    ? Math.round((Date.parse(`${today}T12:00:00`) - Date.parse(`${config.fitnessAnchor.dateIso.slice(0, 10)}T12:00:00`)) / (7 * 24 * 3600 * 1000))
+    : null
+  if (raceAnchor && anchorAgeWeeks != null && anchorAgeWeeks > 12) {
+    advisories.push({
+      id: 'anchor_stale',
+      severity: anchorAgeWeeks > 26 ? 'caution' : 'info',
+      title: 'Your anchor race is getting old',
+      detail: `Every pace in this plan derives from a race ~${anchorAgeWeeks} weeks ago — fitness has likely moved since (either direction). The mid-plan benchmark revalidates them; enter the result in Settings and the plan updates.`,
+    })
+  }
+  const anchorNeedsRevalidation = raceAnchor && (anchorAgeWeeks == null || anchorAgeWeeks > 12)
+  if (!zonesEstimated && anchorNeedsRevalidation && policy.forceEasyLeadInWeeks === 0 && totalWeeks >= 8) {
+    // First week of the second phase — the base→build boundary.
+    const firstPhase = weeks[0] ? mileage[0]?.phaseId : undefined
+    const boundaryIdx = mileage.findIndex(m => m.phaseId !== firstPhase)
+    const target = boundaryIdx > 0 && boundaryIdx < weeks.length - 2 ? weeks[boundaryIdx] : weeks[2]
+    if (target && !target.days.some(d => /BENCHMARK/i.test(d.workout))) {
+      benchmarkPlaced = placeBenchmarkInWeek(target) || benchmarkPlaced
     }
   }
   if (zonesEstimated) {
