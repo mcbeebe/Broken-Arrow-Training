@@ -35,6 +35,14 @@ export interface ExtraDaysOptions {
  * pattern, preserved for the seed-plan / legacy callers.
  */
 export interface ExtraDaysCaps {
+  /** Phase 1 (103-F3) — per-day HARD flags for `days` (same indices), plus
+   *  the hardness of the previous week's last two days. When this week's
+   *  strength session is itself hard (heavy/plyo), placement avoids rest
+   *  days that sit directly before a hard run day or would form a third
+   *  consecutive hard day. Preference only — if no clean slot exists the
+   *  session still places and QA warns. */
+  hardDayFlags?: boolean[];
+  prevTailHard?: [boolean, boolean];
   maxExtras?: number
 }
 
@@ -205,6 +213,27 @@ function strengthTierFor(config?: OnboardingConfig): 'senior' | 'new' | 'recreat
   if (exp === 'experienced') return 'experienced'
   if (exp === 'recreational') return 'recreational'
   return 'new'
+}
+
+/**
+ * Phase 1 (PRD-103, §0.E) — is this week's strength session a HARD day?
+ * Heavy low-rep work and plyometrics carry real recovery cost and count
+ * toward the never-3-consecutive-hard-days mandate; technique, masters,
+ * and taper maintenance sessions do not. Mirrors strengthRoutineFor's
+ * tier × phase routing exactly.
+ */
+export function isHardStrengthSession(
+  phaseId: string,
+  isTaper: boolean,
+  config?: OnboardingConfig,
+): boolean {
+  const phase = strengthPhaseFor(phaseId, isTaper)
+  const tier = strengthTierFor(config)
+  if (phase === 'taper' || tier === 'senior' || tier === 'new') return false
+  // Experienced lifters: heavy (4-6 reps) and power (plyo) phases are hard.
+  // Recreational lifters: only the power phase carries jump work.
+  if (tier === 'experienced') return phase === 'heavy' || phase === 'power'
+  return phase === 'power'
 }
 
 /**
@@ -422,8 +451,43 @@ export function injectExtraDays(
 
   const placeStrength = () => {
     let placed = 0
+    // 103-F3 — when this week's strength session is HARD (heavy/plyo),
+    // prefer rest slots that don't sit the day before a hard run day and
+    // don't complete a hard triple. Light sessions place anywhere.
+    const strengthIsHard = isHardStrengthSession(opts.phaseId, opts.isTaper, config)
+    const flags = caps?.hardDayFlags
+    const tail = caps?.prevTailHard ?? [false, false]
+    const hardAt = (i: number): boolean => {
+      if (i < 0) return i === -1 ? tail[1] : i === -2 ? tail[0] : false
+      return flags?.[i] ?? false
+    }
+    const noTriple = (idx: number): boolean => {
+      if (!strengthIsHard || !flags) return true
+      if (hardAt(idx - 1) && hardAt(idx - 2)) return false // never a third-in-a-row
+      if (hardAt(idx - 1) && hardAt(idx + 1)) return false // never the middle of a triple
+      if (hardAt(idx + 1) && hardAt(idx + 2)) return false // never the start of one
+      return true
+    }
+    const cleanSlot = (idx: number): boolean => {
+      if (!strengthIsHard || !flags) return true
+      if (hardAt(idx + 1)) return false            // never the day before a hard run
+      return noTriple(idx)
+    }
     while (placed < strengthTarget && cursor < restIndices.length && injected < maxExtras) {
-      const idx = restIndices[cursor++]
+      // Slot preference is tiered: (1) clean — no interference, no triple;
+      // (2) no-triple — the day-before-hard preference yields, the
+      // never-3 MANDATE never does; (3) any remaining slot (structurally
+      // impossible to violate the mandate only when every slot would —
+      // QA errors if that ever ships).
+      const remaining = restIndices.slice(cursor)
+      const cleanOffset = remaining.findIndex(cleanSlot)
+      const tripleOffset = cleanOffset >= 0 ? cleanOffset : remaining.findIndex(noTriple)
+      const take = tripleOffset >= 0 ? cursor + tripleOffset : cursor
+      const idx = restIndices[take]
+      // Keep unconsumed slots available: swap the taken slot to the cursor.
+      restIndices[take] = restIndices[cursor]
+      restIndices[cursor] = idx
+      cursor++
       const boneFocus = !opts.isTaper && !!menopauseStrengthCue(config)
       next[idx] = {
         ...next[idx],

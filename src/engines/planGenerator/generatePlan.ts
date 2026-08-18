@@ -40,7 +40,7 @@ import { pickWeeklyPattern, pickWorkoutForDay, buildPlannedWorkout, scaleWorkout
 import { MASTERS_AGE_TIERS, MASTERS_RECOVERY_CADENCE, MASTERS_RAMP_CAP, SENIOR_INTENSITY, SENIOR_LONG_RUN_CAP_MULT, DAYS_VOLUME_FACTOR } from '../running/heuristics'
 import { invariantRulesFor } from './methodInvariants'
 import { bestMethodForDistance } from './methodSelection'
-import { injectExtraDays } from './extraDays'
+import { injectExtraDays, isHardStrengthSession } from './extraDays'
 import { INJURY_LEADIN_WEEKS } from '../../utils/injuryRamp'
 import { assessFeasibility, predictRaceTime } from './feasibility'
 import { validatePlan, qaFindingsToAdvisories } from '../planQA/validatePlan'
@@ -379,7 +379,7 @@ function computeEasyRunTime(
   // AND the quality sessions. Before this, easy days consumed the full
   // remainder and quality landed on top, so quality-phase weeks overran the
   // ramp-capped target by the entire quality volume (audit root cause A1).
-  const longMiTotal = weekMi.longRunMi * Math.max(1, schedule.filter(d => d.category === 'long').length)
+  const longMiTotal = longCategoryMiles(weekMi.longRunMi, Math.max(1, schedule.filter(d => d.category === 'long').length))
   const easyMiTotal = Math.max(0, weekMi.totalMi - longMiTotal - weekQualityMi)
   if (easyMiTotal <= 0) {
     // Quality + long fill the whole budget — keep easy days at the honest
@@ -584,6 +584,20 @@ const QUALITY_BUDGET_CATEGORIES: ReadonlySet<WorkoutCategory> = new Set<WorkoutC
  *  long consume the whole week. */
 const MIN_EASY_RUN_MIN = 20
 
+/** Phase 1 (PRD-102-F1, pulled forward) — second and subsequent long-
+ *  category days are sized at this fraction of the primary long run.
+ *  Standard back-to-back practice (and Pfitzinger's medium-long) runs the
+ *  second day at 60-75% of the first; sizing both at 100% let a two-long
+ *  week put 80% of its volume on the weekend. */
+const SECONDARY_LONG_FACTOR = 0.7
+
+/** Total long-category miles for a week: primary at full longRunMi, each
+ *  additional long day at the secondary factor. */
+function longCategoryMiles(longRunMi: number, longDayCount: number): number {
+  if (longDayCount <= 0) return 0
+  return longRunMi * (1 + SECONDARY_LONG_FACTOR * (longDayCount - 1))
+}
+
 /**
  * R0 — fit a quality workout inside the week's volume budget by scaling its
  * MAIN work: rep counts come down proportionally (floor 2 so an interval
@@ -601,6 +615,105 @@ const MIN_EASY_RUN_MIN = 20
  * gets 2×1km, not 5×1km, exactly as the methods' own volume invariants
  * intend.
  */
+/** PlannedDay types that make a calendar day HARD (PRD-000 §0.E). Hard
+ *  strength days are classified separately via isHardStrengthSession. */
+const HARD_DAY_TYPES: ReadonlySet<string> = new Set(['quality', 'long', 'race'])
+
+/** DaySchedule categories that make a day HARD at schedule time. */
+function isHardCategory(c: WorkoutCategory): boolean {
+  return QUALITY_BUDGET_CATEGORIES.has(c) || c === 'long'
+}
+
+/** dayOfWeek of the immovable race-day slot in the final week, else null. */
+function raceEntryDow(isFinalWeek: boolean, schedule: DaySchedule[]): number | null {
+  if (!isFinalWeek) return null
+  const race = [...schedule].reverse().find(d => d.category === 'race_pace')
+  return race?.dayOfWeek ?? null
+}
+
+/**
+ * Phase 1 (PRD-103, Mandate #1) — no plan ever schedules three consecutive
+ * HARD days. Operates on the week's DaySchedule (pre-workout-pick) with the
+ * previous week's closing two days carried in, so cross-week triples are
+ * caught. Repair order (product decision): try to SWAP the offending day
+ * with the nearest non-hard day whose new position creates no triple; if
+ * no legal swap exists, DEMOTE — quality before long, never race day. In
+ * race week (hand-authored) only demote-of-quality is permitted so the
+ * authored race-day runway is never reordered.
+ */
+export function repairConsecutiveHard(
+  schedule: DaySchedule[],
+  prevTail: [boolean, boolean],
+  raceDow: number | null,
+): DaySchedule[] {
+  // Calendar order, not array order: remapLongRunDay (and any other
+  // upstream shuffle) may swap dayOfWeek FIELDS without reordering the
+  // array, and adjacency only means anything on the calendar.
+  const out = schedule.map(d => ({ ...d })).sort((a, b) => a.dayOfWeek - b.dayOfWeek)
+  const hard = (i: number): boolean => {
+    if (i < 0) return i === -1 ? prevTail[1] : i === -2 ? prevTail[0] : false
+    if (i >= out.length) return false
+    return isHardCategory(out[i].category)
+  }
+  const isRace = (i: number) => raceDow != null && out[i]?.dayOfWeek === raceDow
+  const demote = (i: number) => {
+    out[i] = {
+      ...out[i],
+      category: 'easy' as WorkoutCategory,
+      preferredWorkoutIds: undefined,
+      notes: 'Eased — hard days are capped at two in a row.',
+    }
+  }
+  for (let guard = 0; guard < 14; guard++) {
+    let tripleAt = -1
+    for (let i = 0; i < out.length; i++) {
+      if (hard(i) && hard(i - 1) && hard(i - 2)) { tripleAt = i; break }
+    }
+    if (tripleAt < 0) break
+    const i = tripleAt
+    const inWeek = [i, i - 1, i - 2].filter(j => j >= 0 && !isRace(j))
+    const pick =
+      inWeek.find(j => QUALITY_BUDGET_CATEGORIES.has(out[j].category)) ??
+      (raceDow == null ? inWeek.find(j => out[j].category === 'long') : undefined)
+    if (pick == null) break // nothing legal to fix (race-week edge)
+    let swapped = false
+    if (raceDow == null) {
+      // Post-swap hardness: the picked slot becomes non-hard once its
+      // session moves away. Simulating this (instead of the conservative
+      // pre-swap view) lets the swap land in slots adjacent to the old
+      // position — usually the closest legal home.
+      const hardAfter = (x: number) => (x === pick ? false : hard(x))
+      for (let dist = 1; dist < out.length && !swapped; dist++) {
+        for (const j of [pick + dist, pick - dist]) {
+          if (j < 0 || j >= out.length || swapped) continue
+          if (hard(j) || isRace(j)) continue
+          // The swap target's new neighbors must not form a fresh triple.
+          if (hardAfter(j - 1) && hardAfter(j - 2)) continue
+          if (hardAfter(j + 1) && hardAfter(j + 2)) continue
+          if (hardAfter(j - 1) && hardAfter(j + 1)) continue
+          const keepA = out[pick].dayOfWeek
+          const keepB = out[j].dayOfWeek
+          const tmp = out[pick]
+          out[pick] = { ...out[j], dayOfWeek: keepA }
+          out[j] = { ...tmp, dayOfWeek: keepB }
+          swapped = true
+        }
+      }
+    }
+    if (!swapped) demote(pick)
+  }
+  return out
+}
+
+/** Phase 1 (103-F5) — category-aware minimum warm-up minutes. Budget
+ *  scaling may shorten a warm-up only to these floors (or the authored
+ *  warm-up, whichever is shorter): harder efforts need longer priming. */
+const WARMUP_FLOOR_MIN: Partial<Record<WorkoutCategory, number>> = {
+  vo2_intervals: 12, speed_repetitions: 12, time_trial: 12,
+  tempo: 10, cruise_intervals: 10, hills: 10, race_pace: 10,
+  fartlek: 10, progression: 10,
+}
+
 function scaleQualityWorkout(pw: PlannedWorkout, factor: number, paces: ResolvedPaces): PlannedWorkout {
   if (factor >= 0.999) return pw
   const f = Math.max(0.4, factor) // never gut the main set below 40% — QA owns the residual
@@ -620,6 +733,30 @@ function scaleQualityWorkout(pw: PlannedWorkout, factor: number, paces: Resolved
     return seg
   })
   const next: PlannedWorkout = { ...pw, segments }
+  // Phase 1 (103-F5) — category-aware warm-up floor: scaling never cuts a
+  // warm-up below the intensity's minimum priming (or the authored warm-up,
+  // whichever is shorter). A VO2 session on a 9-min warm-up is an injury
+  // setup the generic 60% floor allowed.
+  const wuFloor = WARMUP_FLOOR_MIN[next.category]
+  if (wuFloor != null) {
+    const wuMin = (w: PlannedWorkout) =>
+      w.segments.filter(seg => seg.role === 'warmup').reduce((t, seg) => t + segMinutes(seg, paces), 0)
+    const authoredWu = wuMin(pw)
+    const scaledWu = wuMin(next)
+    const target = Math.min(wuFloor, authoredWu)
+    if (scaledWu > 0 && scaledWu < target) {
+      const lift = target / scaledWu
+      next.segments = next.segments.map(seg => {
+        if (seg.role !== 'warmup') return seg
+        if (seg.distance) return { ...seg, distance: { ...seg.distance, value: Math.round(seg.distance.value * lift * 10) / 10 } }
+        if (seg.duration) {
+          const val = seg.duration.unit === 'sec' ? seg.duration.value / 60 : seg.duration.value
+          return { ...seg, duration: { value: Math.round(val * lift), unit: 'min' as const } }
+        }
+        return seg
+      })
+    }
+  }
   const minutes = estimateWorkoutMinutes(next, paces)
   if (minutes > 0) {
     next.approxDurationMinutes = {
@@ -1159,6 +1296,10 @@ export function generatePlanFromMethod(
     .find(c => methodCategories.has(c)) ?? 'tempo'
 
   const weeks: TrainingWeek[] = []
+  // Phase 1 — hardness of the previous week's last two assembled days
+  // (strength included), for the never-3-consecutive-hard repair and for
+  // interference-aware strength placement across week boundaries.
+  let prevTailHard: [boolean, boolean] = [false, false]
 
   for (let w = 0; w < totalWeeks; w++) {
     const weekMi = mileage[w]
@@ -1205,9 +1346,18 @@ export function generatePlanFromMethod(
 
     // Honor the athlete's preferred long-run weekday on normal weeks. Race
     // week is hand-authored (taper.raceWeekSchedule) and left untouched.
-    const weekSchedule = (!isFinalWeek && longRunDow != null)
+    const remapped = (!isFinalWeek && longRunDow != null)
       ? remapLongRunDay(agedSchedule, longRunDow)
       : agedSchedule
+
+    // Phase 1 (PRD-103, Mandate #1) — never three consecutive HARD days.
+    // Hard = any quality-budget category or a long run (race day counts
+    // too but is immovable). Repair order per product decision: swap the
+    // offending day with the nearest non-hard day in the week; when no
+    // swap exists, demote QUALITY before LONG, never race day. The
+    // previous week's last two days carry across the boundary so a
+    // Sat long | Sun quality | Mon quality seam is caught too.
+    const weekSchedule = repairConsecutiveHard(remapped, prevTailHard, raceEntryDow(isFinalWeek, remapped))
 
     // R0 — two-pass day construction. Pass 1 instantiates every workout so
     // the week's QUALITY volume is known before any day is sized; quality
@@ -1283,7 +1433,7 @@ export function generatePlanFromMethod(
         const qualityShareCapMi = weekMi.totalMi * invRules.qualityMaxPctOfWeek
         const budget = () => {
           const easyCount = preparedDays.filter(p => p.daySched.category === 'easy' || p.daySched.category === 'recovery').length
-          const longMi = preparedDays.filter(p => p.daySched.category === 'long').length * weekMi.longRunMi
+          const longMi = longCategoryMiles(weekMi.longRunMi, preparedDays.filter(p => p.daySched.category === 'long').length)
           return Math.min(Math.max(0, weekMi.totalMi - longMi - easyCount * minEasyMi), qualityShareCapMi)
         }
 
@@ -1334,10 +1484,15 @@ export function generatePlanFromMethod(
       // athletes (Hansons for a masters beginner).
       if (!isFinalWeek) {
         const { fastSec, slowSec } = easyPaceSecBounds(weekPaces)
-        const minEasyMi = (MIN_EASY_RUN_MIN * 60) / ((fastSec + slowSec) / 2)
+        // Phase 1 (103-F4) — taper preserves run FREQUENCY (Bosquet 2007:
+        // cut volume, keep intensity and frequency): before deleting a run
+        // day, taper easy runs may shrink to a 15-min floor. Conversion
+        // fires only when even those floors overflow the target.
+        const convFloorMin = weekMi.isTaper ? 15 : MIN_EASY_RUN_MIN
+        const minEasyMi = (convFloorMin * 60) / ((fastSec + slowSec) / 2)
         for (;;) {
           const easies = preparedDays.filter(p => p.daySched.category === 'easy' || p.daySched.category === 'recovery')
-          const longMi = preparedDays.filter(p => p.daySched.category === 'long').length * weekMi.longRunMi
+          const longMi = longCategoryMiles(weekMi.longRunMi, preparedDays.filter(p => p.daySched.category === 'long').length)
           const floorMi = longMi + weekQualityMi + easies.length * minEasyMi
           if (easies.length <= 2 || floorMi <= weekMi.totalMi * 1.2) break
           const drop = easies[easies.length - 1]
@@ -1357,6 +1512,12 @@ export function generatePlanFromMethod(
     // sizing must see the week as it will actually run.
     const finalSchedule = preparedDays.map(p => p.daySched)
 
+    // Phase 1 (102-F1) — the LAST long day on the calendar is the primary;
+    // any earlier long day (Pfitzinger's medium-long, Koop's B2B day 1)
+    // builds at the secondary factor of the primary distance.
+    const primaryLongDow = Math.max(
+      0, ...preparedDays.filter(p => p.daySched.category === 'long').map(p => p.daySched.dayOfWeek))
+    const secondaryLongMi = Math.round(weekMi.longRunMi * SECONDARY_LONG_FACTOR * 10) / 10
     const days: PlannedDay[] = preparedDays.map(p => {
       if (p.isRaceDay) {
         return {
@@ -1369,8 +1530,10 @@ export function generatePlanFromMethod(
           time: '—',
         }
       }
+      const isSecondaryLong = p.daySched.category === 'long' && p.daySched.dayOfWeek !== primaryLongDow
+      const dayWeekMi = isSecondaryLong ? { ...weekMi, longRunMi: secondaryLongMi } : weekMi
       const built = buildPlannedDay(
-        p.date, p.daySched, weekPaces, weekMi, p.workout, p.pw, p.reason,
+        p.date, p.daySched, weekPaces, dayWeekMi, p.workout, p.pw, p.reason,
         finalSchedule, config.equipmentAccess, gradeAdjFactor, weekQualityMi,
       )
       return p.daySched.leadInEased ? { ...built, leadInEased: true } : built
@@ -1395,6 +1558,7 @@ export function generatePlanFromMethod(
     const overshootUnavoidable = runningDaysTarget + Math.min(extrasFloor, extrasCap) > requestedTotalDays
     const weekAllowance = requestedTotalDays + (overshootUnavoidable ? 1 : 0)
     const weekMaxExtras = Math.min(extrasCap, Math.max(0, weekAllowance - weekRunDays))
+    const hardDayFlags = days.map(d => HARD_DAY_TYPES.has(d.type))
     const withExtras = isFinalWeek
       ? days
       : injectExtraDays(
@@ -1407,7 +1571,7 @@ export function generatePlanFromMethod(
             phaseId: weekMi.phaseId,
             weekNumber: weekMi.weekNumber,
           },
-          { maxExtras: weekMaxExtras },
+          { maxExtras: weekMaxExtras, hardDayFlags, prevTailHard },
         )
     // Stamp the week's drill day (first easy run) so the UI can surface the
     // running-drills + Myrtl tip on the right day without a hard-coded date map.
@@ -1479,6 +1643,13 @@ export function generatePlanFromMethod(
           : (phase?.name ?? 'Build'),
       days: withVert,
     })
+
+    // Carry this week's closing hardness into next week's repair pass —
+    // strength days count when this week's scheme is heavy/plyo.
+    const hardStrengthWeek = isHardStrengthSession(weekMi.phaseId, weekMi.isTaper, config)
+    const closing = withVert.slice(-2).map(d =>
+      HARD_DAY_TYPES.has(d.type) || (d.type === 'strength' && hardStrengthWeek))
+    prevTailHard = [closing.length > 1 ? closing[0] : false, closing[closing.length - 1] ?? false]
   }
 
   const effectiveDaysPerWeek = runningDaysTarget + extrasCap
@@ -1605,6 +1776,7 @@ export function generatePlanFromMethod(
     weeks,
     zones,
     race: raceForVert,
+    methodId: method.id,
     ...(advisories.length > 0 ? { advisories } : {}),
   }
 }

@@ -62,6 +62,8 @@ Every week is built in two passes (R0):
 
 Race week is hand-authored (`taper.raceWeekSchedule`) with a hard-stamped race-day card; benchmark weeks swap one day for the field-test protocol.
 
+**Schedule integrity (Phase 1, PRD-103):** no plan ever contains three consecutive HARD days (quality, long, race, or heavy/plyometric strength) — a generation-time repair swaps the offending day to the nearest legal slot or demotes quality-before-long, with the previous week's tail carried across boundaries; `qa_consecutive_hard` errors if one ever survives. Heavy strength never places the day before a hard run; second and subsequent long days build at 70% of the primary (`SECONDARY_LONG_FACTOR`); taper weeks shrink easy runs to a 15-minute floor before ever deleting a run day; and interval warm-ups scale no lower than a per-category floor (VO2/reps 12 min, tempo-class 10).
+
 **Personalization layers:** masters policy (R1, `src/engines/running/heuristics.ts` — tiered, cited constants; 58+/70+ change cutback cadence, ramp, intensity menu, long-run time cap, and add a `masters_adjustments` advisory); low-mileage experience downgrade (`lowMileageDowngradeMi` → advisory); NOT_SUITED method×distance pairings generate but carry a critical `method_not_suited` advisory naming `bestMethodForDistance`'s pick; strength/cross days injected on rest days inside the total-day budget (`extraDays.ts` — tiered schemes: masters / technique-first / experienced, phase-coherent emphasis, no RM language).
 
 ## 6. Suitability
@@ -74,7 +76,7 @@ Anchor weeks stay byte-identical (trimmed after race day). Later blocks append: 
 
 ## 8. The QA gate — `validatePlan.ts`
 
-Structural rules (week length, duplicate days, duration-range sanity, step-vs-header consistency), volume rules (weekly ramp ≤ ~35% error / ~20% warn against the last full build baseline — taper/cutback/recover/bridge/race weeks never serve as baselines; target adherence within 25% or 3 mi; time-only load spikes; taper monotonicity), progression (byte-identical weeks — an error when the targets claim progression the content doesn't deliver), zone contiguity, and — when `methodId` is passed — the **method-invariant rules**: long-run share/ceiling, quality share, hard-day spacing (share checks apply at ≥25 mi/week; percentages are noise below that).
+Structural rules (week length, duplicate days, duration-range sanity, step-vs-header consistency), volume rules (weekly ramp: error above +30% AND >3 mi against the last full build baseline, warn above +20% AND >2 mi; adherence warns at 12%/2 mi — taper/cutback/recover/bridge/race weeks never serve as baselines; target adherence within 25% or 3 mi; time-only load spikes; taper monotonicity), progression (byte-identical weeks — an error when the targets claim progression the content doesn't deliver), zone contiguity, and — when `methodId` is passed — the **method-invariant rules**: long-run share/ceiling, quality share, hard-day spacing (share checks apply at ≥25 mi/week; percentages are noise below that).
 
 Severity contract: generation targets the authored number; the gate warns just past it and errors only on egregious violation. **Zero errors** is the bar enforced in CI.
 
