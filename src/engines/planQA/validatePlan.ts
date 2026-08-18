@@ -483,6 +483,40 @@ export function validatePlan(input: PlanQAInput): PlanQAResult {
       }
       if (!skip && !isCutbackWk(w) && !isTaperWk(w)) baselineMi = mi
     })
+
+    // R3 — block seams: the first BUILD week after a recover/bridge run
+    // must resume near the previous block's achieved build volume (the
+    // continuity contract: carried peak ×0.85 decay, so ~0.8–1.05× the
+    // old build). Resuming ABOVE the previous build is the injury seam
+    // the audit measured at +143%; resuming far below wastes the block.
+    let seamBaseline = 0
+    let inRecoverGap = false
+    weeks.forEach(w => {
+      const mi = Number(w.miles)
+      if (!Number.isFinite(mi) || mi <= 0) return
+      if (isRaceWeek(w) || isRecoverish(w)) {
+        if (isRecoverish(w)) inRecoverGap = true
+        return
+      }
+      if (inRecoverGap && seamBaseline >= 5) {
+        const ratio = mi / seamBaseline
+        if (ratio > 1.2) {
+          add({
+            id: 'qa_block_seam', severity: 'error', weekNum: w.num,
+            title: 'Season resumes above the previous build',
+            detail: `Week ${w.num} opens the next block at ${mi} mi — the previous block's build topped out at ${seamBaseline} mi. After a taper, race, and recovery, the next build resumes at or below the old volume, never above it.`,
+          })
+        } else if (ratio < 0.45) {
+          add({
+            id: 'qa_block_seam', severity: 'warn', weekNum: w.num,
+            title: 'Season resumes far below the previous build',
+            detail: `Week ${w.num} opens the next block at ${mi} mi against a ${seamBaseline} mi previous build — fitness carried through recovery supports starting near ~85% of it.`,
+          })
+        }
+      }
+      inRecoverGap = false
+      if (!isCutbackWk(w) && !isTaperWk(w)) seamBaseline = mi
+    })
   }
 
   // ── target adherence (R0) ─────────────────────────────────────────

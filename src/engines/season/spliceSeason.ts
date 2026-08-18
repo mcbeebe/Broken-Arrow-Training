@@ -143,19 +143,23 @@ export function spliceSeasonWeeks(
     const race = racesById.get(block.raceId)
     if (!race) continue
 
+    // R3 — the streams scale to THIS athlete: their age, and the weekly
+    // volume the previous block actually reached (carriedWeeklyMi).
+    const athlete = { age: config.age, priorWeeklyMi: carriedWeeklyMi > 0 ? carriedWeeklyMi : undefined }
+
     if (block.kind === 'RECOVER') {
       const prev = racesById.get(block.raceId)
       const miles = prev?.raceInfo.distanceMiles || 13.1
       const highVert = (prev?.raceInfo.elevationGainFt ?? 0) > 100 * miles
       const label = `After ${prev?.raceInfo.name ?? 'race'}`
-      pendingStream.push(...recoverDayStream(block, miles, { highVert })
+      pendingStream.push(...recoverDayStream(block, miles, { highVert, athlete })
         .map(s => ({ ...s, focus: `[${label}] ${s.focus}` })))
       continue
     }
 
     if (block.kind === 'BRIDGE') {
       const label = `Toward ${race.raceInfo.name}`
-      const stream = bridgeDayStream(block.startDate, block.endDate, isHyroxRace(race), 0, config.crossTrainingModes)
+      const stream = bridgeDayStream(block.startDate, block.endDate, isHyroxRace(race), 0, config.crossTrainingModes, athlete)
       pendingStream.push(...stream.map(s => ({ ...s, focus: `[${label}] ${s.focus}` })))
       bridgeState = { nextIsHyrox: isHyroxRace(race), consumed: stream.length, label }
       continue
@@ -206,7 +210,7 @@ export function spliceSeasonWeeks(
         const lastPending = pendingStream[pendingStream.length - 1]?.iso
         if (firstCovered && lastPending && shiftIso(lastPending, 1) < firstCovered) {
           const fillState = bridgeState ?? { nextIsHyrox: isHyroxRace(race), consumed: 0, label: `Toward ${race.raceInfo.name}` }
-          pendingStream.push(...bridgeDayStream(shiftIso(lastPending, 1), shiftIso(firstCovered, -1), fillState.nextIsHyrox, fillState.consumed, config.crossTrainingModes)
+          pendingStream.push(...bridgeDayStream(shiftIso(lastPending, 1), shiftIso(firstCovered, -1), fillState.nextIsHyrox, fillState.consumed, config.crossTrainingModes, athlete)
             .map(s => ({ ...s, focus: `[${fillState.label}] ${s.focus}` })))
         }
       }
