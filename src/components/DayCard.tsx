@@ -10,6 +10,7 @@ import { calculateGrade } from '../utils/grading'
 import { classifyRun, getSportMultiplier, calculateElevationBonus } from '../utils/trimp'
 import { SPORT_LABELS } from '../hooks/useMIMCalibration'
 import { generateDayCardNote } from '../utils/coachNotes'
+import { suggestDailyAdjustment } from '../utils/readiness'
 import { injuryRampNote } from '../utils/injuryRamp'
 import type { InjuryStatus } from '../hooks/useOnboarding'
 import { useCoachInsight } from '../hooks/useCoachInsight'
@@ -399,7 +400,11 @@ export default function DayCard({ day, weekNum, onTap, onLog, onSwap, onEdit, ha
               ? 'bg-amber-100/60 text-amber-700'
               : 'bg-red-100/60 text-red-700'
           }`}>
-            💡 {readiness.adjustment}
+            {/* R1 — re-derive the tip for THIS day's session type: the
+                stored adjustment was computed for TODAY's workout and used
+                to render under every card ("Keep the run…" on a strength
+                day — audit finding C3). */}
+            💡 {suggestDailyAdjustment(readiness.status, readiness.trainingState, day.type, readiness.components)}
           </div>
         )}
 
