@@ -5,6 +5,7 @@ exports[`Phase 2 — P10 advisory-presence law + dosing report (104-Q1) > dosing
   {
     "advisories": [
       "days_over_request",
+      "method_volume_mismatch",
       "qa_duplicate_weeks",
       "qa_target_adherence",
       "qa_totals_reconcile",

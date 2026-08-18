@@ -39,6 +39,11 @@ export interface FitnessAnchor {
   // Race / pace anchors store seconds; lthr stores bpm
   valueSeconds?: number
   bpm?: number
+  /** Phase 3 (PRD-107) — roughly when the anchor effort happened (ISO
+   *  date; a month-precision guess is fine). Absent on legacy configs =
+   *  unknown, which is treated like stale: a mid-plan benchmark
+   *  revalidates the paces. */
+  dateIso?: string
 }
 
 export type InjuryStatus = 'none' | 'returning' | 'current'

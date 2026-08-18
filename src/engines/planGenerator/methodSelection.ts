@@ -26,6 +26,7 @@ import type {
   RaceType,
 } from '../../hooks/useOnboarding'
 import { configVertGainFt } from '../../utils/raceVert'
+import { invariantRulesFor } from './methodInvariants'
 import { RECOMMENDABLE_METHODS } from '../../data/methods'
 import { RACE_DISTANCE_MILES } from '../../utils/seasonConfig'
 
@@ -46,6 +47,32 @@ const DEFAULT_RATING: ApplicabilityRating = 'OK'
  * gate's suggestion — a stable, deterministic pick with no athlete
  * context needed.
  */
+/**
+ * Phase 3 (PRD-106-F3) — the lighter-structure alternative for an athlete
+ * whose volume keeps demoting the incumbent method's quality. Rank:
+ * distance rating (desc), then lower authored quality share (lighter
+ * structure first), then pattern-days proximity. Never the incumbent,
+ * never NOT_SUITED.
+ */
+export function suggestLighterMethod(
+  distance: RaceDistance,
+  runningDays: number,
+  incumbentId: string,
+): TrainingMethod | null {
+  const candidates = RECOMMENDABLE_METHODS.filter(m =>
+    m.id !== incumbentId &&
+    (m.applicability?.byDistance?.[distance] ?? 'OK') !== 'NOT_SUITED')
+  if (candidates.length === 0) return null
+  const rating = (m: TrainingMethod) => RATING_POINTS[m.applicability?.byDistance?.[distance] ?? 'OK'] ?? 2
+  const qShare = (m: TrainingMethod) => invariantRulesFor(m.id).qualityMaxPctOfWeek
+  const daysDist = (m: TrainingMethod) => {
+    const days = m.weeklyPatterns.map(p => p.daysPerWeek)
+    return days.length ? Math.min(...days.map(d => Math.abs(d - runningDays))) : 7
+  }
+  return [...candidates].sort((a, b) =>
+    rating(b) - rating(a) || qShare(a) - qShare(b) || daysDist(a) - daysDist(b) || a.id.localeCompare(b.id))[0]
+}
+
 export function bestMethodForDistance(distance: RaceDistance): TrainingMethod {
   let best = RECOMMENDABLE_METHODS[0]
   let bestPts = -1
