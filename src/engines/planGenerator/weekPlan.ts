@@ -292,10 +292,56 @@ const LONG_TIME_CAP_MIN: Record<RaceDistance, number> = {
   mountain_ultra: 240,
 }
 
+/**
+ * R0 — distance-aware taper length, in weeks INCLUDING race week. Methods
+ * author `taper.durationWeeks` for their flagship distance (usually the
+ * marathon: Daniels' "classic 3-week marathon taper"), and the phase
+ * allocator can pad further on compressed runways — which is how a 7-week
+ * 5K plan shipped with 3 of its 7 weeks tapering. A 5K/10K taper is
+ * 8–13 days in every published system; longer only sheds fitness.
+ * Distances without an entry keep the method's authored value.
+ */
+export const TAPER_WEEKS_CAP: Partial<Record<RaceDistance, number>> = {
+  '5k': 2,
+  '10k': 2,
+  half_marathon: 3,
+}
+
+/**
+ * Shrink an over-long taper phase block to `maxTaperWeeks`, returning the
+ * freed weeks to the previous (build) phase. Keeps every other block
+ * untouched; a plan whose taper is already within the cap comes back
+ * unchanged. Used with TAPER_WEEKS_CAP so short-race plans spend their
+ * scarce runway building, not tapering.
+ */
+export function capTaperBlocks(
+  blocks: PhaseBlock[],
+  method: TrainingMethod,
+  maxTaperWeeks: number,
+): PhaseBlock[] {
+  const taperPhase = method.phases.find(p => /taper/i.test(p.id) || /taper/i.test(p.name ?? ''))
+  if (!taperPhase) return blocks
+  const idx = blocks.findIndex(b => b.phaseId === taperPhase.id)
+  if (idx <= 0) return blocks // no taper block, or nothing before it to absorb the weeks
+  const taper = blocks[idx]
+  const len = taper.endWeekIndex - taper.startWeekIndex + 1
+  const excess = len - Math.max(1, maxTaperWeeks)
+  if (excess <= 0) return blocks
+  return blocks.map((b, i) => {
+    if (i === idx - 1) return { ...b, endWeekIndex: b.endWeekIndex + excess }
+    if (i === idx) return { ...b, startWeekIndex: b.startWeekIndex + excess }
+    return b
+  })
+}
+
 /** Distance-aware inputs the orchestrator threads into the volume builder. */
 export interface VolumeDistanceOpts {
   /** Goal race distance — drives peak multiplier floor + long-run caps. */
   raceDistance?: RaceDistance
+  /** Hard ceiling on taper length in weeks (race week included) — see
+   *  TAPER_WEEKS_CAP. Wins over both the method's authored duration and
+   *  the phase allocation. */
+  maxTaperWeeks?: number
   /** Athlete's easy pace (sec/mile), used to convert the long-run time cap
    *  into a distance. Falls back to a 10:00/mi default when unknown. */
   easyPaceSecPerMile?: number
@@ -354,8 +400,13 @@ function longRunMilesFor(
   }
   // Never go below what the flat method cap would have produced (the
   // distance-aware path should only lengthen the long run), but never exceed
-  // the absolute distance ceiling either.
-  return floor1(Math.min(Math.max(target, totalMi * methodPctCap), maxMi))
+  // the absolute distance ceiling either. R0 exception: for SHORT races the
+  // distance share wins downward too — an ultra method's 55%-of-week long
+  // run has no business in a 5K/10K plan (it starved every other day and
+  // blew the weekly budget on low-volume athletes).
+  const isShortRace = opts.raceDistance === '5k' || opts.raceDistance === '10k'
+  const effMethodPct = isShortRace ? Math.min(methodPctCap, pct) : methodPctCap
+  return floor1(Math.min(Math.max(target, totalMi * effMethodPct), maxMi))
 }
 
 /**
@@ -411,6 +462,8 @@ export function buildWeeklyMileage(
   const phaseTaperWeeks = taperBlock ? taperBlock.endWeekIndex - taperBlock.startWeekIndex + 1 : 0
   const taperWeeks = Math.min(
     Math.max(method.taper.durationWeeks, phaseTaperWeeks),
+    // R0 — distance cap: a 5K never carries a marathon-length taper.
+    opts.maxTaperWeeks ?? Infinity,
     Math.max(1, totalWeeks - 1), // never taper the whole plan
   )
   const taperPcts = [...method.taper.weeklyVolumePcts]
