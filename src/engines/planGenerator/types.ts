@@ -92,6 +92,11 @@ export interface PlannedWorkout {
 export interface WeekMileage {
   weekIndex: number       // 0-based, 0 = first week of the plan
   weekNumber: number      // 1-based — what the UI shows
+  /** Phase 2 (102-F2) — this week's secondary-long sizing factor, set when
+   *  a multi-long week must shrink its extra long day(s) to keep the
+   *  combined long-category share ≤65% of the week. Defaults to the
+   *  standard B2B factor when absent. */
+  secondaryLongFactor?: number
   totalMi: number
   longRunMi: number
   isCutback: boolean

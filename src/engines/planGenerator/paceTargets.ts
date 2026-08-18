@@ -375,7 +375,11 @@ export function formatZoneString(t: PaceTarget): string {
   }
   if (t.hrBpmLow != null && t.hrBpmHigh != null) {
     parts.push(`${t.hrBpmLow}-${t.hrBpmHigh} bpm`)
-  } else if (!showPace && t.rpeLow != null && t.rpeHigh != null) {
+  }
+  // Phase 2 (104-F4) — every card carries an effort cue the athlete can
+  // use without a watch: RPE rides alongside pace/HR, and stands alone
+  // when zones are estimates.
+  if (t.rpeLow != null && t.rpeHigh != null) {
     parts.push(`RPE ${t.rpeLow}-${t.rpeHigh}`)
   }
   return parts.join(' · ')
