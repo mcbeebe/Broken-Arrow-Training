@@ -38,9 +38,13 @@ function expRank(level: MethodExperienceLevel): number {
  * weekly patterns; ties prefer the LATER phase (more race-specific). Returns
  * null only when the method has no patterns at all.
  */
-function nearestPhaseWithPatterns(method: TrainingMethod, phaseId: string): string | null {
+function nearestPhaseWithPatterns(
+  method: TrainingMethod,
+  phaseId: string,
+  hasPatterns: (id: string) => boolean = id => method.weeklyPatterns.some(p => p.phaseId === id),
+): string | null {
   const phasesWithPatterns = method.phases
-    .filter(ph => method.weeklyPatterns.some(p => p.phaseId === ph.id))
+    .filter(ph => hasPatterns(ph.id))
     .sort((a, b) => a.order - b.order)
   if (phasesWithPatterns.length === 0) return null
 
@@ -71,12 +75,36 @@ export function pickWeeklyPattern(
   phaseId: string,
   preferredDaysPerWeek: number,
   isCutback: boolean,
+  raceDistance?: string,
 ): WeeklyPattern | null {
-  let inPhase = method.weeklyPatterns.filter(p => p.phaseId === phaseId)
+  // R4 — distance-variant patterns: a pattern listing `distances` is
+  // authored for those races only (the intensity-forward 5K/10K weeks).
+  // With a goal distance, matching variants WIN over distance-agnostic
+  // patterns in the same phase; a pattern whose list excludes the goal
+  // distance is never selected. Without a distance, only agnostic
+  // patterns are considered (legacy callers keep legacy behavior).
+  const forDistance = (ps: WeeklyPattern[]): WeeklyPattern[] => {
+    if (!raceDistance) return ps.filter(p => !p.distances)
+    const variants = ps.filter(p => p.distances?.includes(raceDistance))
+    return variants.length > 0 ? variants : ps.filter(p => !p.distances)
+  }
+  const usable = (id: string) => forDistance(method.weeklyPatterns.filter(p => p.phaseId === id))
+  // A phase whose only patterns are OTHER-distance variants counts as
+  // having none for this race — the nearest phase with usable patterns is
+  // borrowed instead (a marathon must never inherit the 5K rep week just
+  // because Phase II authored nothing else).
+  let inPhase = usable(phaseId)
   if (inPhase.length === 0) {
-    const fallbackPhaseId = nearestPhaseWithPatterns(method, phaseId)
-    if (fallbackPhaseId == null) return null
-    inPhase = method.weeklyPatterns.filter(p => p.phaseId === fallbackPhaseId)
+    const fallbackPhaseId = nearestPhaseWithPatterns(method, phaseId, id => usable(id).length > 0)
+    if (fallbackPhaseId != null) inPhase = usable(fallbackPhaseId)
+  }
+  if (inPhase.length === 0) {
+    // Last resort: no phase has a usable pattern for this distance —
+    // borrow the nearest phase's patterns unfiltered rather than emit a
+    // blank week.
+    const anyPhaseId = nearestPhaseWithPatterns(method, phaseId)
+    if (anyPhaseId == null) return null
+    inPhase = method.weeklyPatterns.filter(p => p.phaseId === anyPhaseId)
   }
   if (inPhase.length === 0) return null
 

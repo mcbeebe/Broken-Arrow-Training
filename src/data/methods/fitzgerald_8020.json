@@ -436,6 +436,67 @@
         { "dayOfWeek": 7, "category": "long", "preferredWorkoutIds": ["8020_long_run"], "volumeModifier": "medium", "notes": "Cutback long run" }
       ],
       "notes": "Recovery week. Single quality session, reduced overall volume."
+    },
+    {
+      "phaseId": "peak",
+      "daysPerWeek": 6,
+      "weekType": "standard",
+      "schedule": [
+        {
+          "dayOfWeek": 1,
+          "category": "rest"
+        },
+        {
+          "dayOfWeek": 2,
+          "category": "vo2_intervals",
+          "preferredWorkoutIds": [
+            "8020_z5_intervals"
+          ],
+          "notes": "Z5 intervals — the peak-phase quality anchor"
+        },
+        {
+          "dayOfWeek": 3,
+          "category": "easy",
+          "preferredWorkoutIds": [
+            "8020_easy_run"
+          ],
+          "volumeModifier": "medium"
+        },
+        {
+          "dayOfWeek": 4,
+          "category": "tempo",
+          "preferredWorkoutIds": [
+            "8020_z4_threshold"
+          ],
+          "notes": "Z4 threshold"
+        },
+        {
+          "dayOfWeek": 5,
+          "category": "easy",
+          "preferredWorkoutIds": [
+            "8020_easy_run",
+            "8020_strides"
+          ],
+          "volumeModifier": "medium"
+        },
+        {
+          "dayOfWeek": 6,
+          "category": "long",
+          "preferredWorkoutIds": [
+            "8020_long_run"
+          ],
+          "volumeModifier": "long"
+        },
+        {
+          "dayOfWeek": 7,
+          "category": "recovery",
+          "preferredWorkoutIds": [
+            "8020_recovery_run"
+          ],
+          "volumeModifier": "short"
+        }
+      ],
+      "notes": "6-day peak — two quality sessions held inside the 80/20 intensity balance; higher-level plans run six sessions, not five."
     }
   ],
   "mileageProgression": {

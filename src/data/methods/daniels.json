@@ -588,6 +588,252 @@
         { "dayOfWeek": 7, "category": "long", "preferredWorkoutIds": ["daniels_long_run"], "volumeModifier": "medium", "notes": "Cutback long run — 70% of normal" }
       ],
       "notes": "Recovery week — every 4th week. Single quality session, reduced mileage (~70% of standard), cutback long run."
+    },
+    {
+      "phaseId": "early_quality",
+      "daysPerWeek": 5,
+      "weekType": "standard",
+      "distances": [
+        "5k",
+        "10k"
+      ],
+      "schedule": [
+        {
+          "dayOfWeek": 1,
+          "category": "rest"
+        },
+        {
+          "dayOfWeek": 2,
+          "category": "speed_repetitions",
+          "preferredWorkoutIds": [
+            "daniels_repetition_short"
+          ],
+          "notes": "Q1 — R-pace repetitions (Phase II centerpiece for short races)"
+        },
+        {
+          "dayOfWeek": 3,
+          "category": "rest",
+          "notes": "Recovery day (off) after Q1"
+        },
+        {
+          "dayOfWeek": 4,
+          "category": "easy",
+          "preferredWorkoutIds": [
+            "daniels_easy_run",
+            "daniels_strides"
+          ],
+          "volumeModifier": "medium"
+        },
+        {
+          "dayOfWeek": 5,
+          "category": "tempo",
+          "preferredWorkoutIds": [
+            "daniels_threshold_steady"
+          ],
+          "notes": "Q2 — steady threshold, modest dose"
+        },
+        {
+          "dayOfWeek": 6,
+          "category": "easy",
+          "preferredWorkoutIds": [
+            "daniels_easy_run"
+          ],
+          "volumeModifier": "short"
+        },
+        {
+          "dayOfWeek": 7,
+          "category": "long",
+          "preferredWorkoutIds": [
+            "daniels_long_run"
+          ],
+          "volumeModifier": "long"
+        }
+      ],
+      "notes": "5K/10K Phase II — intensity-forward: R-pace repetitions lead the week (economy + speed first, per Daniels' short-race sequencing), threshold stays a modest second dose, long run stays proportionate."
+    },
+    {
+      "phaseId": "early_quality",
+      "daysPerWeek": 6,
+      "weekType": "standard",
+      "distances": [
+        "5k",
+        "10k"
+      ],
+      "schedule": [
+        {
+          "dayOfWeek": 1,
+          "category": "easy",
+          "preferredWorkoutIds": [
+            "daniels_easy_run"
+          ],
+          "volumeModifier": "short"
+        },
+        {
+          "dayOfWeek": 2,
+          "category": "speed_repetitions",
+          "preferredWorkoutIds": [
+            "daniels_repetition_short"
+          ],
+          "notes": "Q1 — R-pace repetitions"
+        },
+        {
+          "dayOfWeek": 3,
+          "category": "easy",
+          "preferredWorkoutIds": [
+            "daniels_easy_run"
+          ],
+          "volumeModifier": "medium"
+        },
+        {
+          "dayOfWeek": 4,
+          "category": "easy",
+          "preferredWorkoutIds": [
+            "daniels_easy_run",
+            "daniels_strides"
+          ],
+          "volumeModifier": "medium"
+        },
+        {
+          "dayOfWeek": 5,
+          "category": "tempo",
+          "preferredWorkoutIds": [
+            "daniels_threshold_steady"
+          ],
+          "notes": "Q2 — steady threshold"
+        },
+        {
+          "dayOfWeek": 6,
+          "category": "rest"
+        },
+        {
+          "dayOfWeek": 7,
+          "category": "long",
+          "preferredWorkoutIds": [
+            "daniels_long_run"
+          ],
+          "volumeModifier": "long"
+        }
+      ],
+      "notes": "5K/10K Phase II, 6-day — reps Tuesday, threshold Friday, 48+ hrs between hard sessions."
+    },
+    {
+      "phaseId": "early_quality",
+      "daysPerWeek": 4,
+      "weekType": "standard",
+      "distances": [
+        "5k",
+        "10k"
+      ],
+      "schedule": [
+        {
+          "dayOfWeek": 1,
+          "category": "rest"
+        },
+        {
+          "dayOfWeek": 2,
+          "category": "speed_repetitions",
+          "preferredWorkoutIds": [
+            "daniels_repetition_short"
+          ],
+          "notes": "Q1 — R-pace repetitions"
+        },
+        {
+          "dayOfWeek": 3,
+          "category": "rest"
+        },
+        {
+          "dayOfWeek": 4,
+          "category": "easy",
+          "preferredWorkoutIds": [
+            "daniels_easy_run",
+            "daniels_strides"
+          ],
+          "volumeModifier": "medium"
+        },
+        {
+          "dayOfWeek": 5,
+          "category": "rest"
+        },
+        {
+          "dayOfWeek": 6,
+          "category": "easy",
+          "preferredWorkoutIds": [
+            "daniels_easy_run"
+          ],
+          "volumeModifier": "short"
+        },
+        {
+          "dayOfWeek": 7,
+          "category": "long",
+          "preferredWorkoutIds": [
+            "daniels_long_run"
+          ],
+          "volumeModifier": "long"
+        }
+      ],
+      "notes": "5K/10K Phase II, 4-day — one R-pace quality slot; strides carry turnover on easy days."
+    },
+    {
+      "phaseId": "final_quality",
+      "daysPerWeek": 5,
+      "weekType": "standard",
+      "distances": [
+        "5k",
+        "10k"
+      ],
+      "schedule": [
+        {
+          "dayOfWeek": 1,
+          "category": "rest"
+        },
+        {
+          "dayOfWeek": 2,
+          "category": "cruise_intervals",
+          "preferredWorkoutIds": [
+            "daniels_cruise_intervals"
+          ],
+          "notes": "Q1 — cruise intervals (T-pace)"
+        },
+        {
+          "dayOfWeek": 3,
+          "category": "rest",
+          "notes": "Recovery day (off) after Q1"
+        },
+        {
+          "dayOfWeek": 4,
+          "category": "easy",
+          "preferredWorkoutIds": [
+            "daniels_easy_run",
+            "daniels_strides"
+          ],
+          "volumeModifier": "medium"
+        },
+        {
+          "dayOfWeek": 5,
+          "category": "speed_repetitions",
+          "preferredWorkoutIds": [
+            "daniels_repetition_short"
+          ],
+          "notes": "Q2 — short R-pace touch, race sharpening"
+        },
+        {
+          "dayOfWeek": 6,
+          "category": "easy",
+          "preferredWorkoutIds": [
+            "daniels_easy_run"
+          ],
+          "volumeModifier": "short"
+        },
+        {
+          "dayOfWeek": 7,
+          "category": "long",
+          "preferredWorkoutIds": [
+            "daniels_long_run"
+          ],
+          "volumeModifier": "long"
+        }
+      ],
+      "notes": "5K/10K Phase IV — threshold leads, a short R-pace touch keeps race speed alive; volume trends down while intensity holds."
     }
   ],
   "mileageProgression": {

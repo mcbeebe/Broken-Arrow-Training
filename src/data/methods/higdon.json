@@ -448,6 +448,124 @@
         { "dayOfWeek": 7, "category": "long", "preferredWorkoutIds": ["higdon_long_run"], "volumeModifier": "medium", "notes": "Cutback long run" }
       ],
       "notes": "Recovery week. Higdon plans build long runs across the program with periodic cutback weeks."
+    },
+    {
+      "phaseId": "peak",
+      "daysPerWeek": 5,
+      "weekType": "standard",
+      "distances": [
+        "5k",
+        "10k"
+      ],
+      "schedule": [
+        {
+          "dayOfWeek": 1,
+          "category": "rest"
+        },
+        {
+          "dayOfWeek": 2,
+          "category": "vo2_intervals",
+          "preferredWorkoutIds": [
+            "higdon_speedwork"
+          ],
+          "notes": "Interval repeats (400s/800s) — the Intermediate sharpening session"
+        },
+        {
+          "dayOfWeek": 3,
+          "category": "easy",
+          "preferredWorkoutIds": [
+            "higdon_easy_run"
+          ],
+          "volumeModifier": "medium"
+        },
+        {
+          "dayOfWeek": 4,
+          "category": "easy",
+          "preferredWorkoutIds": [
+            "higdon_easy_run",
+            "higdon_strides"
+          ],
+          "volumeModifier": "medium"
+        },
+        {
+          "dayOfWeek": 5,
+          "category": "rest"
+        },
+        {
+          "dayOfWeek": 6,
+          "category": "race_pace",
+          "preferredWorkoutIds": [
+            "higdon_pace_run"
+          ],
+          "notes": "Race-pace run — rehearse goal rhythm"
+        },
+        {
+          "dayOfWeek": 7,
+          "category": "long",
+          "preferredWorkoutIds": [
+            "higdon_long_run"
+          ],
+          "volumeModifier": "long"
+        }
+      ],
+      "notes": "5K/10K peak — Higdon's Intermediate shape: interval repeats midweek, race-pace Saturday, long run Sunday."
+    },
+    {
+      "phaseId": "peak",
+      "daysPerWeek": 4,
+      "weekType": "standard",
+      "distances": [
+        "5k",
+        "10k"
+      ],
+      "schedule": [
+        {
+          "dayOfWeek": 1,
+          "category": "rest"
+        },
+        {
+          "dayOfWeek": 2,
+          "category": "tempo",
+          "preferredWorkoutIds": [
+            "higdon_tempo_run"
+          ],
+          "notes": "Tempo — sustained aerobic sharpening"
+        },
+        {
+          "dayOfWeek": 3,
+          "category": "rest"
+        },
+        {
+          "dayOfWeek": 4,
+          "category": "easy",
+          "preferredWorkoutIds": [
+            "higdon_easy_run",
+            "higdon_strides"
+          ],
+          "volumeModifier": "medium"
+        },
+        {
+          "dayOfWeek": 5,
+          "category": "rest"
+        },
+        {
+          "dayOfWeek": 6,
+          "category": "race_pace",
+          "preferredWorkoutIds": [
+            "higdon_pace_run"
+          ],
+          "notes": "Race-pace run"
+        },
+        {
+          "dayOfWeek": 7,
+          "category": "long",
+          "preferredWorkoutIds": [
+            "higdon_long_run"
+          ],
+          "volumeModifier": "long"
+        }
+      ],
+      "notes": "5K/10K peak, 4-day — tempo midweek, race-pace weekend; novice-friendly (intervals require the advanced gate)."
     }
   ],
   "mileageProgression": {
