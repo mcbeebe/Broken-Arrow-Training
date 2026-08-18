@@ -15,6 +15,7 @@ import { raceDateToIso } from './engines/season'
 import { buildSeasonContext } from './engines/season/coachContext'
 import SeasonPanel from './components/SeasonPanel'
 import { assessRecalibration } from './engines/planGenerator/recalibration'
+import { validatePlan, qaFindingsToAdvisories } from './engines/planQA/validatePlan'
 import { assessBenchmarkResult, scaleZoneTable } from './engines/planGenerator/benchmarkResult'
 import { ESTIMATED_LTHR_PCT_OF_MAX } from './engines/planGenerator/paceTargets'
 import { buildRepaceOps } from './utils/repace'
@@ -670,6 +671,34 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     onboarding.applyBenchmarkAnchors({ fitnessAnchor: snap.fitnessAnchor, maxHR: snap.configMaxHR })
     benchUndoRef.current = null
   }, [planEdits, hrZones, maxHROverride, onboarding])
+
+  // ── R0: season-level QA ───────────────────────────────────────
+  // The anchor plan is validated at generation time, but the spliced
+  // season (recover / bridge / second-build weeks) never was — cross-block
+  // ramp seams and duplicate blocks were structurally invisible. Validate
+  // the FULL derived week stream and surface findings from weeks beyond
+  // the anchor as advisories (the anchor's own findings already ride in
+  // activePlan.advisories).
+  const seasonQaAdvisories = useMemo(() => {
+    if ((seasonState.planResult?.season.races.length ?? 0) < 2) return []
+    const anchorLen = activePlan.weeks.length
+    if (weeks.length <= anchorLen) return []
+    const qa = validatePlan({ weeks, zones: hrZones.zones, race: activePlan.race })
+    const later = qa.findings.filter(f => (f.weekNum ?? 0) > anchorLen)
+    if (later.length === 0) return []
+    return qaFindingsToAdvisories({
+      findings: later,
+      errors: later.filter(f => f.severity === 'error'),
+      warnings: later.filter(f => f.severity === 'warn'),
+      pass: later.every(f => f.severity !== 'error'),
+    })
+  }, [weeks, activePlan.weeks.length, activePlan.race, hrZones.zones, seasonState.planResult])
+  const allAdvisories = useMemo(
+    () => (seasonQaAdvisories.length > 0
+      ? [...(activePlan.advisories ?? []), ...seasonQaAdvisories]
+      : activePlan.advisories),
+    [activePlan.advisories, seasonQaAdvisories],
+  )
 
   // ── G6: course-aware race pacing ──────────────────────────────
   // Only for curated courses (the 3 Broken Arrow editions today) and only
@@ -1577,7 +1606,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           zones={hrZones.zones}
           coachSnapshot={coachSnapshot}
           riskFlags={readiness.riskFlags}
-          advisories={activePlan.advisories}
+          advisories={allAdvisories}
           weeks={weeks}
           race={activePlan.race}
           season={seasonState.season}

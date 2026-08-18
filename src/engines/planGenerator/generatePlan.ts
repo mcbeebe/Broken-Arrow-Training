@@ -32,6 +32,8 @@ import {
   buildWeeklyMileage,
   estimateCurrentWeeklyMileage,
   mapToMethodExperience,
+  capTaperBlocks,
+  TAPER_WEEKS_CAP,
   type MileageProgressionAdjust,
 } from './weekPlan'
 import { pickWeeklyPattern, pickWorkoutForDay, buildPlannedWorkout, scaleWorkoutToTime } from './workouts'
@@ -69,7 +71,11 @@ function categoryToType(c: WorkoutCategory): WorkoutType {
     case 'cross_training': return 'cross'
     case 'strength':       return 'strength'
     case 'long':           return 'long'
-    case 'race_pace':      return 'race'
+    // R0 — a race-PACE workout is a quality session, not a race. Typing it
+    // 'race' made every weekly Higdon/Galloway pace day a *** RACE DAY ***
+    // in the PDF and fired false qa_d1_load errors on the long run before
+    // it. The real race day is hard-stamped type 'race' in the week loop.
+    case 'race_pace':      return 'quality'
     case 'easy':
     case 'recovery':
     case 'strides':        return 'run'
@@ -123,12 +129,22 @@ const LONG_RUN_DOW: Record<string, number> = {
  * mutates the method's shared schedule objects.
  */
 function remapLongRunDay(schedule: DaySchedule[], desiredDow: number): DaySchedule[] {
-  const longDay = schedule.find(d => d.category === 'long')
-  if (!longDay || longDay.dayOfWeek === desiredDow) return schedule
-  const longDow = longDay.dayOfWeek
+  // R0 — move only the PRIMARY long run (the last-authored one). Patterns
+  // like Pfitzinger's carry a midweek medium-long AND a weekend long; the
+  // old `category === 'long'` map moved BOTH onto the preferred weekday,
+  // emitting two identical days on the same date. Exactly one occupant of
+  // the target weekday swaps back into the long run's original slot.
+  const longDays = schedule.filter(d => d.category === 'long')
+  const primary = longDays[longDays.length - 1]
+  if (!primary || primary.dayOfWeek === desiredDow) return schedule
+  const fromDow = primary.dayOfWeek
+  let swapped = false
   return schedule.map(d => {
-    if (d.category === 'long') return { ...d, dayOfWeek: desiredDow }
-    if (d.dayOfWeek === desiredDow) return { ...d, dayOfWeek: longDow }
+    if (d === primary) return { ...d, dayOfWeek: desiredDow }
+    if (d.dayOfWeek === desiredDow && !swapped) {
+      swapped = true
+      return { ...d, dayOfWeek: fromDow }
+    }
     return d
   })
 }
@@ -344,6 +360,7 @@ function computeEasyRunTime(
   paces: ResolvedPaces,
   fallback: { min: number; max: number },
   daySchedule?: DaySchedule,
+  weekQualityMi = 0,
 ): { min: number; max: number } {
   // The pre-race shakeout is a fixed short dose, never a share of the
   // week's mileage budget (P0.4 — v1 sized it like a full easy day and
@@ -355,7 +372,17 @@ function computeEasyRunTime(
   )
   if (easyDays.length === 0 || weekMi.totalMi <= 0) return fallback
 
-  const easyMiTotal = Math.max(0, weekMi.totalMi - weekMi.longRunMi)
+  // R0 — the easy allocation is what's left of the week AFTER the long run
+  // AND the quality sessions. Before this, easy days consumed the full
+  // remainder and quality landed on top, so quality-phase weeks overran the
+  // ramp-capped target by the entire quality volume (audit root cause A1).
+  const longMiTotal = weekMi.longRunMi * Math.max(1, schedule.filter(d => d.category === 'long').length)
+  const easyMiTotal = Math.max(0, weekMi.totalMi - longMiTotal - weekQualityMi)
+  if (easyMiTotal <= 0) {
+    // Quality + long fill the whole budget — keep easy days at the honest
+    // minimum dose rather than method-window padding.
+    return { min: 15, max: Math.max(20, MIN_EASY_RUN_MIN) }
+  }
   // Split the week's easy miles across easy days weighted by the authored
   // volumeModifier, so a "short" day is genuinely shorter than its
   // siblings instead of an even N-way split.
@@ -473,6 +500,126 @@ function estimateWorkoutMiles(pw: PlannedWorkout, paces: ResolvedPaces): number 
   return miles
 }
 
+/** Estimated minutes one segment prescribes (work + its recoveries),
+ *  mirroring estimateWorkoutMiles' conventions. */
+function segMinutes(seg: PlannedSegment, paces: ResolvedPaces): number {
+  const reps = seg.reps && seg.reps > 1 ? seg.reps : 1
+  let minutes = 0
+  if (seg.duration) {
+    minutes += (seg.duration.unit === 'sec' ? seg.duration.value / 60 : seg.duration.value) * reps
+  } else if (seg.distance) {
+    const mi = seg.distance.value * (MI_PER_UNIT[seg.distance.unit] ?? 1)
+    minutes += ((mi * segmentPaceSecPerMile(seg, paces)) / 60) * reps
+  }
+  if (seg.reps && seg.recovery?.duration) {
+    const rec = seg.recovery.duration
+    minutes += (rec.unit === 'sec' ? rec.value / 60 : rec.value) * seg.reps
+  }
+  return minutes
+}
+
+/** Estimated total minutes a workout's steps prescribe. Used to re-derive
+ *  an honest header window after a workout is scaled. */
+function estimateWorkoutMinutes(pw: PlannedWorkout, paces: ResolvedPaces): number {
+  return pw.segments.reduce((s, seg) => s + segMinutes(seg, paces), 0)
+}
+
+/**
+ * R0 — complete P0.1 for DISTANCE-authored templates. Methods that write
+ * easy/long runs as fixed miles ("6 mi easy") ignored the computed session
+ * time entirely: scaleWorkoutToTime only rescales flexible minute
+ * segments, so the header said 15 min while the steps — and therefore the
+ * weekly sum, the QA gate, and the Garmin push — still carried 6 mi. This
+ * is why Hansons/Higdon/Galloway weeks summed to ~2× their progression
+ * target. Rescale rep-less main distance segments so the steps take the
+ * computed session time at the segment's own pace.
+ */
+function fitDistanceSegmentsToTime(
+  pw: PlannedWorkout,
+  timeRange: { min: number; max: number },
+  paces: ResolvedPaces,
+): PlannedWorkout {
+  const isMainDist = (s: PlannedSegment) => s.role === 'main' && !!s.distance && !s.reps
+  const distSegs = pw.segments.filter(isMainDist)
+  if (distSegs.length === 0) return pw
+  const fixedMin = pw.segments.filter(s => !isMainDist(s)).reduce((s, seg) => s + segMinutes(seg, paces), 0)
+  const currentDistMin = distSegs.reduce((s, seg) => s + segMinutes(seg, paces), 0)
+  if (currentDistMin <= 0) return pw
+  const target = (timeRange.min + timeRange.max) / 2
+  const factor = Math.max(0, target - fixedMin) / currentDistMin
+  if (factor > 0.92 && factor < 1.08) return pw
+  const segments = pw.segments.map(s => {
+    if (!isMainDist(s)) return s
+    return {
+      ...s,
+      distance: { ...s.distance!, value: Math.max(0.5, Math.round(s.distance!.value * factor * 10) / 10) },
+    }
+  })
+  return { ...pw, segments }
+}
+
+/**
+ * R0 — the categories whose volume must fit inside the week's mileage
+ * budget. Everything the week loop schedules as running EXCEPT easy /
+ * recovery / long (those are already sized FROM the budget) and strides
+ * (a tiny garnish on easy days).
+ */
+const QUALITY_BUDGET_CATEGORIES: ReadonlySet<WorkoutCategory> = new Set<WorkoutCategory>([
+  'tempo', 'cruise_intervals', 'vo2_intervals', 'speed_repetitions',
+  'fartlek', 'hills', 'progression', 'time_trial', 'race_pace',
+])
+
+/** Minimum honest easy-run dose (minutes) — the floor the budget reserves
+ *  per easy day and the duration an easy day falls back to when quality +
+ *  long consume the whole week. */
+const MIN_EASY_RUN_MIN = 20
+
+/**
+ * R0 — fit a quality workout inside the week's volume budget by scaling its
+ * MAIN work: rep counts come down proportionally (floor 2 so an interval
+ * session stays an interval session), rep-less main distance/duration
+ * segments scale directly (with floors that keep a real stimulus). Warm-up
+ * and cool-down shrink too, on a gentler floor — on a 10 mi/wk athlete a
+ * fixed 1.5 mi warm-up + 1 mi cool-down alone can exceed the entire
+ * quality budget. The header window is re-derived from the scaled steps
+ * so the card, the QA gate, and the Garmin push all agree.
+ *
+ * This is what makes the weekly ramp REAL: before it, quality templates
+ * landed at full method size regardless of the week's ramp-capped target,
+ * so every base→build phase boundary was a volume cliff (+36–119% across
+ * all nine methods — the audit's root cause A1). A 10 mi/wk athlete now
+ * gets 2×1km, not 5×1km, exactly as the methods' own volume invariants
+ * intend.
+ */
+function scaleQualityWorkout(pw: PlannedWorkout, factor: number, paces: ResolvedPaces): PlannedWorkout {
+  if (factor >= 0.999) return pw
+  const f = Math.max(0.4, factor) // never gut the main set below 40% — QA owns the residual
+  const wucd = Math.max(0.6, f)  // warm-up/cool-down floor is gentler
+  const segments = pw.segments.map(seg => {
+    const segF = seg.role === 'main' ? f : wucd
+    if (seg.role === 'main' && seg.reps && seg.reps > 1) {
+      return { ...seg, reps: Math.max(2, Math.round(seg.reps * f)) }
+    }
+    if (seg.distance) {
+      return { ...seg, distance: { ...seg.distance, value: Math.max(0.5, Math.round(seg.distance.value * segF * 10) / 10) } }
+    }
+    if (seg.duration) {
+      const val = seg.duration.unit === 'sec' ? seg.duration.value / 60 : seg.duration.value
+      return { ...seg, duration: { value: Math.max(seg.role === 'main' ? 8 : 5, Math.round(val * segF)), unit: 'min' as const } }
+    }
+    return seg
+  })
+  const next: PlannedWorkout = { ...pw, segments }
+  const minutes = estimateWorkoutMinutes(next, paces)
+  if (minutes > 0) {
+    next.approxDurationMinutes = {
+      min: Math.max(10, Math.round(minutes * 0.95)),
+      max: Math.max(12, Math.round(minutes * 1.1)),
+    }
+  }
+  return next
+}
+
 /**
  * P0.2 — the weekly total the athlete sees is the SUM of what the week's
  * sessions actually prescribe, quality work included. (v1 displayed the
@@ -523,6 +670,7 @@ function buildPlannedDay(
   weekSchedule?: DaySchedule[],
   equipment?: readonly string[],
   gradeAdjFactor = 1,
+  weekQualityMi = 0,
 ): PlannedDay {
   const type = categoryToType(daySchedule.category)
   if (!workout || !plannedWorkout) {
@@ -553,7 +701,7 @@ function buildPlannedDay(
     category === 'long'
       ? computeLongRunTime(weekMi, paces, plannedWorkout.approxDurationMinutes, gradeAdjFactor)
       : (category === 'easy' || category === 'recovery') && weekSchedule
-        ? computeEasyRunTime(weekSchedule, weekMi, paces, plannedWorkout.approxDurationMinutes, daySchedule)
+        ? computeEasyRunTime(weekSchedule, weekMi, paces, plannedWorkout.approxDurationMinutes, daySchedule, weekQualityMi)
         : plannedWorkout.approxDurationMinutes
   // P0.1 — one duration per session: rescale the workout's flexible steady
   // segments to the computed session time, so the header, the step list,
@@ -561,7 +709,7 @@ function buildPlannedDay(
   // headers over verbatim method-template steps reading "150 min".)
   const sizedWorkout =
     category === 'long' || category === 'easy' || category === 'recovery'
-      ? scaleWorkoutToTime(plannedWorkout, timeRange)
+      ? fitDistanceSegmentsToTime(scaleWorkoutToTime(plannedWorkout, timeRange), timeRange, paces)
       : plannedWorkout
   return {
     day: formatDayLabel(date),
@@ -748,7 +896,12 @@ export function generatePlanFromMethod(
   const totalWeeks = coreWeeks + baseWeeks
   const currentWeeklyMileage = estimateCurrentWeeklyMileage(config)
   const policy = injuryPolicyFor(config.injuryStatus)
-  const coreBlocks = allocatePhaseWeeks(method, coreWeeks)
+  // R0 — distance-aware taper cap: shrink an over-allocated taper phase and
+  // return the weeks to the build, so a compressed 5K plan doesn't spend
+  // half its runway tapering (Jim's 7-week block allocated 3 taper weeks).
+  const taperCapWeeks = config.raceDistance ? TAPER_WEEKS_CAP[config.raceDistance] : undefined
+  const coreBlocksRaw = allocatePhaseWeeks(method, coreWeeks)
+  const coreBlocks = taperCapWeeks != null ? capTaperBlocks(coreBlocksRaw, method, taperCapWeeks) : coreBlocksRaw
 
   // R1 — race climb density drives the climbing/descending prescription. Use a
   // nominal distance for mountain ultras (whose RACE_DISTANCE_LABELS miles is 0)
@@ -786,6 +939,7 @@ export function generatePlanFromMethod(
 
   const coreMileage = buildWeeklyMileage(method, coreWeeks, coreBlocks, currentWeeklyMileage, policy.mileageAdjust, {
     raceDistance: config.raceDistance,
+    maxTaperWeeks: taperCapWeeks,
     // Slow end of the easy zone (sec/mile) — used to translate the long-run
     // time cap into a distance for this athlete.
     easyPaceSecPerMile: paces.byZone.easy?.paceSecPerMileLow,
@@ -818,7 +972,10 @@ export function generatePlanFromMethod(
   const goalPaces = goalIsStretch
     ? resolvePaces(method, config, { vdotOverride: Math.min(rawGoalVdot!, currentVdot! * 1.08) })
     : null
-  const lastBuildWeekIndex = Math.max(1, totalWeeks - method.taper.durationWeeks - 1)
+  // Anchor "last build week" to the taper the volume model ACTUALLY applied
+  // (distance-capped), not the method's authored duration.
+  const taperWeekCount = coreMileage.filter(x => x.isTaper).length
+  const lastBuildWeekIndex = Math.max(1, totalWeeks - taperWeekCount - 1)
 
   // Total training-day budget (running + strength + cross), capped by the
   // injury policy so 'returning' doesn't get a 7-day-a-week schedule no
@@ -930,35 +1087,149 @@ export function generatePlanFromMethod(
       ? remapLongRunDay(adjustedSchedule, longRunDow)
       : adjustedSchedule
 
-    const days: PlannedDay[] = []
-    for (const daySched of weekSchedule) {
-      const dayOffset = (daySched.dayOfWeek - 1)  // dayOfWeek 1..7 → Mon..Sun
-      const date = addDays(weekStart, dayOffset)
+    // R0 — two-pass day construction. Pass 1 instantiates every workout so
+    // the week's QUALITY volume is known before any day is sized; quality
+    // then gets scaled into whatever the ramp-capped weekly target leaves
+    // after the long run(s) and a minimum easy dose; pass 2 builds the days
+    // with easy runs sized from the true remainder. Before this, quality
+    // templates landed at full method size on top of the budget, so weekly
+    // volume was a step function of each phase's quality-day density (the
+    // +36–119% base→build cliffs in the running-plan audit).
+    // The race-day entry is the LAST race_pace slot in race week — some
+    // methods (Galloway) also schedule a race-PACE workout earlier in race
+    // week, which must stay a workout, not a second race card.
+    const raceEntry = isFinalWeek
+      ? [...weekSchedule].reverse().find(d => d.category === 'race_pace')
+      : undefined
+    const preparedDays = weekSchedule.map(daySched => {
+      const date = addDays(weekStart, daySched.dayOfWeek - 1) // dayOfWeek 1..7 → Mon..Sun
       // Race day is hard-stamped, never resolved. The picker substitutes a
       // race_pace slot away when the method's race workout doesn't clear the
       // athlete's level/mileage gates (field bug: the anchor race day read
       // "Easy · Substituted higdon_easy_run"). Mirrors the Hyrox generator's
       // guaranteed card.
-      if (isFinalWeek && daySched.category === 'race_pace') {
-        days.push({
-          day: formatDayLabel(date),
-          type: 'race',
+      const isRaceDay = daySched === raceEntry
+      const picked = isRaceDay ? null : pickWorkoutForDay(method, daySched, methodExp, weekMi.totalMi)
+      return {
+        date,
+        daySched,
+        isRaceDay,
+        workout: picked?.workout ?? null,
+        pw: picked ? buildPlannedWorkout(method, picked.workout, weekPaces, picked.reason) : null,
+        reason: picked?.reason,
+      }
+    })
+
+    let weekQualityMi = 0
+    {
+      // Low-volume weeks can't hold a SECOND long run (Pfitzinger's midweek
+      // medium-long, Koop's back-to-back weekend) — each extra long day is
+      // sized like the primary and blows the budget. Keep the last-authored
+      // long; earlier ones become easy days until real volume exists.
+      const longDays = preparedDays.filter(p => p.daySched.category === 'long')
+      if (longDays.length > 1 && weekMi.totalMi < 25) {
+        for (const extra of longDays.slice(0, -1)) {
+          extra.daySched = { ...extra.daySched, category: 'easy' as WorkoutCategory, preferredWorkoutIds: undefined }
+          const repick = pickWorkoutForDay(method, extra.daySched, methodExp, weekMi.totalMi)
+          extra.workout = repick?.workout ?? null
+          extra.pw = repick ? buildPlannedWorkout(method, repick.workout, weekPaces, repick.reason) : null
+          extra.reason = 'Eased — one long run per week at this volume'
+        }
+      }
+      // Race day itself never participates (hard-stamped card); race-week
+      // QUALITY does — the hand-authored "short tempo" slots carried the
+      // method's full-size template (Hansons: an 8 mi MP tempo five days
+      // before a 5K).
+      let qualityDays = preparedDays.filter(
+        p => !p.isRaceDay && p.pw && QUALITY_BUDGET_CATEGORIES.has(p.daySched.category),
+      )
+      if (qualityDays.length > 0) {
+        const { fastSec, slowSec } = easyPaceSecBounds(weekPaces)
+        const minEasyMi = (MIN_EASY_RUN_MIN * 60) / ((fastSec + slowSec) / 2)
+        // The budget re-derives from live day categories — every demotion
+        // adds an easy day (reserving its minimum dose) and can remove a
+        // long day, so a stale snapshot would mis-size everything after it.
+        const budget = () => {
+          const easyCount = preparedDays.filter(p => p.daySched.category === 'easy' || p.daySched.category === 'recovery').length
+          const longMi = preparedDays.filter(p => p.daySched.category === 'long').length * weekMi.longRunMi
+          return Math.max(0, weekMi.totalMi - longMi - easyCount * minEasyMi)
+        }
+
+        // Fit quality into the budget. Scaling can only shed so much (rep
+        // floors, warm-up/cool-down floors) — when even maximally-scaled
+        // sessions overflow the budget, DEMOTE quality days to easy runs,
+        // last-scheduled first (the method's signature session leads the
+        // week). Cutback weeks may demote every quality day (a cutback is
+        // for absorbing training, not adding it); normal weeks keep at
+        // least one.
+        const scaledTotal = (f: number) =>
+          qualityDays.reduce((s, p) => s + estimateWorkoutMiles(scaleQualityWorkout(p.pw!, f, weekPaces), weekPaces), 0)
+        const keepFloor = weekMi.isCutback ? 0 : 1
+        while (qualityDays.length > keepFloor) {
+          const b = budget()
+          const raw = qualityDays.reduce((s, p) => s + estimateWorkoutMiles(p.pw!, weekPaces), 0)
+          if (raw <= b) break
+          if (scaledTotal(Math.max(0.4, b / raw)) <= b * 1.1) break
+          const demoted = qualityDays[qualityDays.length - 1]
+          demoted.daySched = { ...demoted.daySched, category: 'easy' as WorkoutCategory, preferredWorkoutIds: undefined }
+          const repick = pickWorkoutForDay(method, demoted.daySched, methodExp, weekMi.totalMi)
+          demoted.workout = repick?.workout ?? null
+          demoted.pw = repick ? buildPlannedWorkout(method, repick.workout, weekPaces, repick.reason) : null
+          demoted.reason = 'Eased — this week’s volume budget fits one quality session'
+          qualityDays = qualityDays.slice(0, -1)
+        }
+        const finalBudget = budget()
+        const qualityMiRaw = qualityDays.reduce((s, p) => s + estimateWorkoutMiles(p.pw!, weekPaces), 0)
+        if (qualityMiRaw > finalBudget && qualityMiRaw > 0) {
+          for (const p of qualityDays) {
+            p.pw = scaleQualityWorkout(p.pw!, finalBudget / qualityMiRaw, weekPaces)
+          }
+        }
+        weekQualityMi = qualityDays.reduce((s, p) => s + (p.pw ? estimateWorkoutMiles(p.pw, weekPaces) : 0), 0)
+      }
+      // Taper weeks: when the minimum honest content (long + fitted quality
+      // + a 20-min floor per easy day) still exceeds the tapered target,
+      // the right move is MORE REST, not method-window padding — convert
+      // trailing easy days to rest, keeping at least two runs of easy
+      // movement in the week.
+      if (weekMi.isTaper && !isFinalWeek) {
+        const { fastSec, slowSec } = easyPaceSecBounds(weekPaces)
+        const minEasyMi = (MIN_EASY_RUN_MIN * 60) / ((fastSec + slowSec) / 2)
+        for (;;) {
+          const easies = preparedDays.filter(p => p.daySched.category === 'easy' || p.daySched.category === 'recovery')
+          const longMi = preparedDays.filter(p => p.daySched.category === 'long').length * weekMi.longRunMi
+          const floorMi = longMi + weekQualityMi + easies.length * minEasyMi
+          if (easies.length <= 2 || floorMi <= weekMi.totalMi * 1.2) break
+          const drop = easies[easies.length - 1]
+          drop.daySched = { ...drop.daySched, category: 'rest' as WorkoutCategory, preferredWorkoutIds: undefined, notes: 'Taper — extra rest day.' }
+          drop.workout = null
+          drop.pw = null
+          drop.reason = undefined
+        }
+      }
+    }
+    // Demotions above may have changed day categories — downstream easy-run
+    // sizing must see the week as it will actually run.
+    const finalSchedule = preparedDays.map(p => p.daySched)
+
+    const days: PlannedDay[] = preparedDays.map(p => {
+      if (p.isRaceDay) {
+        return {
+          day: formatDayLabel(p.date),
+          type: 'race' as WorkoutType,
           workout: `RACE DAY — ${config.raceName || raceForVert.name || 'Race'}`,
           detail: 'Race day. Nothing new — rehearsed gear, fueling, and pacing only. Start controlled and run your plan.',
           zone: '—',
           route: config.raceName || 'Race venue',
           time: '—',
-        })
-        continue
+        }
       }
-      const picked = pickWorkoutForDay(method, daySched, methodExp, weekMi.totalMi)
-      const built = picked
-        ? buildPlannedDay(date, daySched, weekPaces, weekMi, picked.workout,
-            buildPlannedWorkout(method, picked.workout, weekPaces, picked.reason),
-            picked.reason, weekSchedule, config.equipmentAccess, gradeAdjFactor)
-        : buildPlannedDay(date, daySched, weekPaces, weekMi, null, null, undefined, weekSchedule, config.equipmentAccess, gradeAdjFactor)
-      days.push(daySched.leadInEased ? { ...built, leadInEased: true } : built)
-    }
+      const built = buildPlannedDay(
+        p.date, p.daySched, weekPaces, weekMi, p.workout, p.pw, p.reason,
+        finalSchedule, config.equipmentAccess, gradeAdjFactor, weekQualityMi,
+      )
+      return p.daySched.leadInEased ? { ...built, leadInEased: true } : built
+    })
     // Sort by dayOfWeek (Mon..Sun) — schedule is already in order but be defensive
     days.sort((a, b) => DAY_OF_WEEK_LABELS.indexOf(a.day.split(' ')[0] as (typeof DAY_OF_WEEK_LABELS)[number])
                        - DAY_OF_WEEK_LABELS.indexOf(b.day.split(' ')[0] as (typeof DAY_OF_WEEK_LABELS)[number]))

@@ -261,6 +261,10 @@ export function validatePlan(input: PlanQAInput): PlanQAResult {
     let prev = Number(weeks[taperIdx - 1].miles)
     for (let i = taperIdx; i < weeks.length; i++) {
       const w = weeks[i]
+      // A spliced season's post-race "recovery" weeks are NOT part of the
+      // taper — "Post-race" used to match the /race/ alternation and flag
+      // the (correctly rising) reverse-taper as a broken taper.
+      if (/recover|post-race|bridge/i.test(w.focus)) break
       if (!/taper|race/i.test(w.focus)) break
       const mi = Number(w.miles)
       if (!Number.isFinite(mi) || !Number.isFinite(prev)) break
@@ -397,14 +401,24 @@ export function validatePlan(input: PlanQAInput): PlanQAResult {
     weeks.forEach((w, i) => {
       const min = weekMinutes(w)
       const vert = weekVert(w)
-      if (i > 0 && baselineMin >= 120 && maxPriorVert >= 500) {
+      // R0 — the time and vert legs fire independently. The old conjunction
+      // (`timeSpike && vertSpike`, gated on ≥500 ft of prior vert) could
+      // never fire on a flat road plan, which is how +119% weekly jumps
+      // shipped unflagged. A combined spike stays the louder finding.
+      if (i > 0 && baselineMin >= 120) {
         const timeSpike = min > baselineMin * 1.35
-        const vertSpike = vert > maxPriorVert * 1.35
+        const vertSpike = maxPriorVert >= 500 && vert > maxPriorVert * 1.35
         if (timeSpike && vertSpike) {
           add({
             id: 'qa_load_spike', severity: 'warn', weekNum: w.num,
             title: 'Time and vert spike together',
             detail: `Week ${w.num} raises total time >35% over the last full training week AND vertical gain >35% over every previous week — one of the two needs to come down.`,
+          })
+        } else if (timeSpike) {
+          add({
+            id: 'qa_load_spike', severity: 'warn', weekNum: w.num,
+            title: 'Training time spikes',
+            detail: `Week ${w.num} raises total training time >35% over the last full training week — spread the increase out.`,
           })
         }
       }
@@ -412,6 +426,68 @@ export function validatePlan(input: PlanQAInput): PlanQAResult {
       maxPriorVert = Math.max(maxPriorVert, vert)
     })
   }
+
+  // ── weekly mileage ramp (R0) ──────────────────────────────────────
+  // The missing 10%-rule guardrail from the running-plan audit: run
+  // mileage must not jump >30% (error) / >20% (warn) over the last full
+  // training week. Cutback weeks never move the baseline (rebounding out
+  // of one is normal periodization); race weeks and post-race
+  // recover/bridge weeks are neither subjects nor baselines.
+  // Run-mileage is the wrong load unit for Hyrox (stations carry the load
+  // and simulation weeks make run miles lumpy by design) — the time-spike
+  // rule above covers those plans.
+  if (!(race?.format === 'hyrox' || /hyrox/i.test(`${race?.name ?? ''} ${race?.distance ?? ''}`))) {
+    const isRaceWeek = (w: TrainingWeek) => w.days.some(d => d.type === 'race')
+    const isRecoverish = (w: TrainingWeek) =>
+      /recover|bridge|post-race|reverse taper/i.test(w.focus ?? '')
+    const isCutbackWk = (w: TrainingWeek) => /cutback|recovery week/i.test(w.focus ?? '')
+    let baselineMi = 0
+    weeks.forEach(w => {
+      const mi = Number(w.miles)
+      if (!Number.isFinite(mi) || mi <= 0) return
+      const skip = isRaceWeek(w) || isRecoverish(w)
+      if (!skip && baselineMi >= 5) {
+        const ratio = mi / baselineMi
+        if (ratio > 1.35) {
+          add({
+            id: 'qa_weekly_ramp', severity: 'error', weekNum: w.num,
+            title: 'Weekly mileage jump',
+            detail: `Week ${w.num} jumps to ${mi} mi from ${baselineMi} mi the previous full training week (+${Math.round((ratio - 1) * 100)}%) — week-over-week growth belongs near 10%, never above ~35%.`,
+          })
+        } else if (ratio > 1.2) {
+          add({
+            id: 'qa_weekly_ramp', severity: 'warn', weekNum: w.num,
+            title: 'Weekly mileage climbing fast',
+            detail: `Week ${w.num} rises to ${mi} mi from ${baselineMi} mi (+${Math.round((ratio - 1) * 100)}%) — above the ~10% weekly guideline.`,
+          })
+        }
+      }
+      if (!skip && !isCutbackWk(w)) baselineMi = mi
+    })
+  }
+
+  // ── target adherence (R0) ─────────────────────────────────────────
+  // The progression model's weekly target (week.targetMi) and the summed
+  // day content must agree — this is the regression guard for the audit's
+  // root cause A1 (quality volume landing on top of the budget instead of
+  // inside it). Race weeks are hand-authored and exempt.
+  weeks.forEach(w => {
+    if (w.targetMi == null || w.targetMi <= 3) return
+    if (w.days.some(d => d.type === 'race')) return
+    // A scheduled field-test week deliberately swaps a day for the fixed
+    // 20-min benchmark protocol — a sanctioned, one-week exception.
+    if (w.days.some(d => /\bBENCHMARK\b/i.test(d.workout))) return
+    const mi = Number(w.miles)
+    if (!Number.isFinite(mi) || mi <= 0) return
+    const dev = Math.abs(mi - w.targetMi) / w.targetMi
+    if (dev > 0.25 && Math.abs(mi - w.targetMi) > 3) {
+      add({
+        id: 'qa_target_adherence', severity: 'error', weekNum: w.num,
+        title: 'Week ignores its volume target',
+        detail: `Week ${w.num} prescribes ${mi} mi against a ${w.targetMi} mi progression target (${Math.round(dev * 100)}% off) — the ramp model and the day content disagree.`,
+      })
+    }
+  })
 
   // ── race specificity: Hyrox (P3) ──────────────────────────────────
   const isHyrox = race?.format === 'hyrox' || /hyrox/i.test(`${race?.name ?? ''} ${race?.distance ?? ''}`)

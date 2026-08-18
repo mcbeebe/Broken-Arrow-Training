@@ -96,15 +96,20 @@ describe('P0.3 — no method-wide placeholder duration ranges', () => {
 })
 
 describe('P0.2 — weekly totals include quality sessions', () => {
-  it('displayed miles are the summed prescription, not the easy+long-only target', () => {
+  it('displayed miles are the summed prescription AND track the target (R0)', () => {
     const plan = generatePlanFromMethod(roche, mikeConfig(), TODAY)
     for (const w of plan.weeks) expect(Number(w.miles)).toBeGreaterThan(0)
-    // Build weeks carry AnT / 30-30 / hill sessions that the v1 display
-    // silently excluded — the truthful sum must exceed the target budget
-    // (which only easy + long runs consume) in at least one build week.
-    const buildWeeks = plan.weeks.filter(w => !/taper|cutback/i.test(w.focus))
-    const hidden = buildWeeks.filter(w => Number(w.miles) > (w.targetMi ?? Infinity) + 2)
-    expect(hidden.length).toBeGreaterThan(0)
+    // P0.2 made the display the truthful sum of every session (quality
+    // included). R0 then made the CONTENT obey the ramp-capped weekly
+    // target — quality is budgeted into the week, not stacked on top —
+    // so the truthful sum now reconciles with the target instead of
+    // exceeding it (the audit's root cause A1).
+    for (const w of plan.weeks) {
+      if (w.targetMi == null || w.targetMi <= 3) continue
+      if (w.days.some(d => d.type === 'race' || /\bBENCHMARK\b/i.test(d.workout))) continue
+      const dev = Math.abs(Number(w.miles) - w.targetMi)
+      expect(dev, `week ${w.num}: ${w.miles} vs target ${w.targetMi}`).toBeLessThanOrEqual(Math.max(3, w.targetMi * 0.25))
+    }
   })
 })
 
