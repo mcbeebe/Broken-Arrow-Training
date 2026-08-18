@@ -402,11 +402,20 @@ export interface VolumeDistanceOpts {
    *  cap + ~80 min on each other run day), or the ramp chases a number the
    *  plan never prescribes and every week fails target-adherence. */
   runningDays?: number
+  /** R4 — the method's own authored easy-day ceiling (max minutes of its
+   *  easy-run window). Sharpens the content-ceiling peak cap to the
+   *  method's real windows: targets past what the day cards can clamp to
+   *  produced identical maxed-out weeks under climbing targets. */
+  easyDayMaxMin?: number
 }
 
-/** Ceiling on any single non-long run day (minutes) used by the
- *  content-ceiling peak cap — methods cap easy days near 75–90 min. */
+/** Fallback ceiling on a non-long run day (minutes) when the method's own
+ *  easy window isn't supplied — methods cap easy days near 75–90 min. */
 const CONTENT_CAP_MIN_PER_DAY = 80
+
+/** Non-long days aren't ALL full easy days (quality days run shorter), so
+ *  the content ceiling discounts the per-day window slightly. */
+const CONTENT_CAP_DAY_DISCOUNT = 0.9
 
 /** Fraction of the predicted finish duration the peak long run should reach
  *  (time on feet). 65% is the common trail-coaching band for races in the
@@ -518,7 +527,7 @@ export function buildWeeklyMileage(
   const easyPaceMinPerMi = (opts.easyPaceSecPerMile ?? DEFAULT_EASY_PACE_SEC_PER_MILE) / 60
   const contentCapMi = opts.raceDistance && opts.runningDays
     ? (LONG_TIME_CAP_MIN[opts.raceDistance] * (opts.longRunTimeCapMult ?? 1)
-        + Math.max(0, opts.runningDays - 1) * CONTENT_CAP_MIN_PER_DAY) / easyPaceMinPerMi
+        + Math.max(0, opts.runningDays - 1) * (opts.easyDayMaxMin ?? CONTENT_CAP_MIN_PER_DAY) * CONTENT_CAP_DAY_DISCOUNT) / easyPaceMinPerMi
     : Infinity
   const peak = Math.min(Math.max(peakFromCurrent, distancePeakFloor), distancePeakCap, contentCapMi)
   const startPctMul = adjust.startPctMultiplier ?? 1

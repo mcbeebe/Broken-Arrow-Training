@@ -264,6 +264,11 @@ export interface WeeklyPattern {
   weekType: WeekType;
   schedule: DaySchedule[];
   notes?: string;
+  /** R4 — race distances this pattern is authored FOR (e.g. ['5k','10k']
+   *  for an intensity-forward short-race week). A pattern with no entry is
+   *  distance-agnostic. The picker prefers a matching distance variant and
+   *  never selects a pattern whose list excludes the goal distance. */
+  distances?: string[];
 }
 
 // ---------------------------------------------------------------------------

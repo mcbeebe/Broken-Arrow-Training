@@ -517,6 +517,13 @@ function segMinutes(seg: PlannedSegment, paces: ResolvedPaces): number {
   if (seg.reps && seg.recovery?.duration) {
     const rec = seg.recovery.duration
     minutes += (rec.unit === 'sec' ? rec.value / 60 : rec.value) * seg.reps
+  } else if (seg.reps && seg.recovery?.distance) {
+    // Jog recoveries authored as distance (Hansons' mile repeats) take
+    // real time too — omitting them made the header undercount the steps
+    // (the QA gate's independent estimate counts them).
+    const { fastSec, slowSec } = easyPaceSecBounds(paces)
+    const mi = seg.recovery.distance.value * (MI_PER_UNIT[seg.recovery.distance.unit] ?? 1)
+    minutes += ((mi * (fastSec + slowSec) / 2) / 60) * seg.reps
   }
   return minutes
 }
@@ -1036,6 +1043,14 @@ export function generatePlanFromMethod(
   // (DAYS_VOLUME_FACTOR: 3 days = 0.75x of the 5-day baseline).
   const volumeFactor = DAYS_VOLUME_FACTOR.value[Math.max(3, Math.min(7, runningDaysTarget))] ?? 1
 
+  // R4 — the method's authored easy-day ceiling (max minutes across its
+  // easy-run windows), for the content-ceiling peak cap.
+  const easyMaxes = method.workouts
+    .filter(w => w.category === 'easy')
+    .map(w => w.approxDurationMinutes?.max ?? 0)
+    .filter(v => v > 0)
+  const methodEasyMaxMin = easyMaxes.length > 0 ? Math.max(...easyMaxes) : undefined
+
   // R2 — the method's machine-checkable invariants (methodInvariants.ts)
   // steer generation itself: long-run caps below, quality-share budget and
   // experience routing further down. The QA gate re-checks the same rules.
@@ -1054,6 +1069,8 @@ export function generatePlanFromMethod(
     methodLongRunPctCap: invRules.longRunMaxPctOfWeek,
     methodLongRunAbsCapMi: invRules.longRunMaxMi,
     runningDays: runningDaysTarget,
+    // R4 — the method's own easy-day window sharpens the content ceiling.
+    easyDayMaxMin: methodEasyMaxMin,
   })
   // Front-pad steady base weeks for a long runway. The per-week loop reads each
   // week's phase from the mileage row below, so no separate block list is needed.
@@ -1161,7 +1178,7 @@ export function generatePlanFromMethod(
       ? (config.raceDate
           ? remapRaceWeekSchedule(method.taper.raceWeekSchedule, mondayIndexOf(config.raceDate))
           : method.taper.raceWeekSchedule)
-      : (pickWeeklyPattern(method, weekMi.phaseId, runningDaysTarget, weekMi.isCutback)?.schedule ?? [])
+      : (pickWeeklyPattern(method, weekMi.phaseId, runningDaysTarget, weekMi.isCutback, config.raceDistance)?.schedule ?? [])
 
     // Injury lead-in: rewrite intensity categories to 'easy' during the
     // first N weeks so a returning athlete doesn't get dropped straight
