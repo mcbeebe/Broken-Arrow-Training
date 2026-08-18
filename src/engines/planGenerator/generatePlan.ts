@@ -52,6 +52,8 @@ import { configVertGainFt, raceVertGainFt } from '../../utils/raceVert'
 import { applyVertPrescription, isClimbyDensity } from './vertPrescription'
 import { applyFuelingToWeek } from '../../utils/fueling'
 import { detectHeat, environmentAdvisories, applyHeatBlock } from '../../utils/environmentPrep'
+import { heatFactorFor } from '../running/heuristics'
+import { SCREENING_COPY } from '../running/screeningCopy'
 import { applyPredictorRehearsal, applyPowerHike, applyTimeOnFeet } from './trailSessions'
 
 const DAY_OF_WEEK_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const
@@ -466,6 +468,26 @@ function computeLongRunTime(
   const lo = Math.min(minMinutes, maxMinutes)
   const hi = Math.min(fallback.max, Math.max(minMinutes, maxMinutes))
   return { min: lo, max: Math.max(lo, hi) }
+}
+
+/** Phase 4 (PRD-108) — slow the aerobic zones by the heat factor. Only
+ *  easy/recovery (and their HR-independent pace bounds) adjust; every
+ *  quality zone keeps its authored target. */
+function applyHeatToAerobicPaces(paces: ResolvedPaces, factor: number): ResolvedPaces {
+  const scale = (z?: ResolvedPaces['byZone'][keyof ResolvedPaces['byZone']]) =>
+    z && {
+      ...z,
+      paceSecPerMileLow: z.paceSecPerMileLow != null ? Math.round(z.paceSecPerMileLow * factor) : z.paceSecPerMileLow,
+      paceSecPerMileHigh: z.paceSecPerMileHigh != null ? Math.round(z.paceSecPerMileHigh * factor) : z.paceSecPerMileHigh,
+    }
+  return {
+    ...paces,
+    byZone: {
+      ...paces.byZone,
+      ...(paces.byZone.easy ? { easy: scale(paces.byZone.easy) } : {}),
+      ...(paces.byZone.recovery ? { recovery: scale(paces.byZone.recovery) } : {}),
+    },
+  }
 }
 
 const MI_PER_UNIT: Record<string, number> = { mi: 1, km: 0.621371, m: 0.000621371 }
@@ -1065,9 +1087,16 @@ export function generatePlanFromMethod(
   // paces FROM the goal (an advisory flags they're goal-derived) rather than
   // falling back to RPE/HR with the goal effectively ignored.
   const goalOnly = currentVdot == null && rawGoalVdot != null
-  const paces = goalOnly
+  const pacesRaw = goalOnly
     ? resolvePaces(method, config, { vdotOverride: rawGoalVdot! })
     : resolvePaces(method, config)
+  // Phase 4 (PRD-108) — heat-adjusted aerobic paces: easy/recovery bands
+  // slow by the registry factor for the athlete's typical training heat
+  // (quality paces never adjust — hard sessions go effort-first instead).
+  // Applied at the source so cards, duration math, the content ceiling,
+  // and the structured watch export all agree.
+  const heat = heatFactorFor(config.typicalTrainingTempF)
+  const paces = heat.factor > 1 ? applyHeatToAerobicPaces(pacesRaw, heat.factor) : pacesRaw
 
   // Runway guard: snap to the method's supported lengths, then clamp so the
   // back-counted calendar can never start before today (a race closer than the
@@ -1091,6 +1120,14 @@ export function generatePlanFromMethod(
   const policy = injuryPolicyFor(config.injuryStatus)
   const masters = mastersPolicyFor(config.age)
   // Injury and masters adjustments compose; the more conservative ramp wins.
+  // Phase 4 (PRD-109) — health & energy-availability screen: any yes
+  // routes to conservative defaults (ramp ≤5%, plyo suppressed, bone-
+  // stress impact hold) + a professional-care advisory. The app informs
+  // and routes; it never diagnoses (see screeningCopy.ts).
+  const screen = config.healthScreen
+  const healthFlagged = !!(screen && (screen.boneStressHistory || screen.boneStressRecent || screen.persistentFatigue || screen.missedCycles))
+  const boneStress = !!(screen && (screen.boneStressHistory || screen.boneStressRecent))
+
   const mileageAdjust: MileageProgressionAdjust = {
     ...policy.mileageAdjust,
     ...(masters.maxWeeklyIncreasePctCap != null
@@ -1102,6 +1139,10 @@ export function generatePlanFromMethod(
         }
       : {}),
     ...(masters.cutbackEveryNWeeksCap != null ? { cutbackEveryNWeeksCap: masters.cutbackEveryNWeeksCap } : {}),
+  }
+  // Health flag composes via the same strictest-cap-wins min() pattern.
+  if (healthFlagged) {
+    mileageAdjust.maxWeeklyIncreasePctCap = Math.min(mileageAdjust.maxWeeklyIncreasePctCap ?? Infinity, 0.05)
   }
   // R0 — distance-aware taper cap: shrink an over-allocated taper phase and
   // return the weeks to the build, so a compressed 5K plan doesn't spend
@@ -1357,11 +1398,19 @@ export function generatePlanFromMethod(
     // whose label said easy still carried the full VO2 body (the field
     // report's "intensity stays easy" note over 30-30s).
     const isLeadIn = !isFinalWeek && policy.forceEasyLeadInWeeks > 0 && w < policy.forceEasyLeadInWeeks
-    const adjustedSchedule: DaySchedule[] = isLeadIn
+    let adjustedSchedule: DaySchedule[] = isLeadIn
       ? schedule.map(d => FORCE_EASY_CATEGORIES.has(d.category)
           ? { ...d, category: 'easy' as WorkoutCategory, preferredWorkoutIds: undefined, leadInEased: true }
           : d)
       : schedule
+    // Phase 4 (109-F2) — bone-stress history: hill sprints and impact-
+    // heavy categories stay out for the first six weeks; impact returns
+    // gradually with the plan's normal progression after that.
+    if (boneStress && !isFinalWeek && w < 6) {
+      adjustedSchedule = adjustedSchedule.map(d => d.category === 'hills'
+        ? { ...d, category: 'easy' as WorkoutCategory, preferredWorkoutIds: undefined, notes: 'Eased — impact work returns gradually with a bone-stress history.' }
+        : d)
+    }
 
     // R1 — senior intensity selection (70+): VO2-max interval slots become
     // threshold work. Intensity is preserved (Tanaka & Seals 2008 — the
@@ -1596,7 +1645,12 @@ export function generatePlanFromMethod(
         p.date, p.daySched, weekPaces, dayWeekMi, p.workout, p.pw, p.reason,
         finalSchedule, config.equipmentAccess, gradeAdjFactor, weekQualityMi,
       )
-      return p.daySched.leadInEased ? { ...built, leadInEased: true } : built
+      // Phase 4 (108-F2) — in serious heat, hard sessions run by effort:
+      // chasing pace numbers in 85°F is how quality days break athletes.
+      const heated = heat.effortFirst && QUALITY_BUDGET_CATEGORIES.has(p.daySched.category)
+        ? { ...built, detail: `${built.detail} · Heat: run this by effort (RPE) — pace is secondary today.` }
+        : built
+      return p.daySched.leadInEased ? { ...heated, leadInEased: true } : heated
     })
     // Sort by dayOfWeek (Mon..Sun) — schedule is already in order but be defensive
     days.sort((a, b) => DAY_OF_WEEK_LABELS.indexOf(a.day.split(' ')[0] as (typeof DAY_OF_WEEK_LABELS)[number])
@@ -1728,6 +1782,43 @@ export function generatePlanFromMethod(
         title: `${method.name} isn't designed for this race distance`,
         detail: `${method.name} rates itself "not designed" for this distance — its structure was authored for other race lengths, so key sessions may not fit your goal.`,
         suggestion: alt.id !== method.id ? `Switch to ${alt.name} — the strongest fit for this distance.` : undefined,
+      })
+    }
+  }
+  // Phase 4 (108-F3) — race-day heat pacing: quantify the expected
+  // slowdown instead of just saying "it'll be hot" (Ely 2007: penalty
+  // grows with time-on-course — slower runners lose more).
+  if (raceIsHot) {
+    const slowBand = predictedFinishMin >= 180 ? '4–8%' : predictedFinishMin >= 90 ? '3–6%' : '2–4%'
+    advisories.push({
+      id: 'race_heat_pacing',
+      severity: 'caution',
+      title: 'Plan a slower race pace for the heat',
+      detail: `This race reads hot. Expect roughly ${slowBand} slower than your fitness predicts in cool conditions — the penalty grows the longer you're on course. Start at the adjusted pace, not your cool-weather number; heat debt taken in the first third is never repaid.`,
+    })
+  }
+  if (heat.factor > 1) {
+    advisories.push({
+      id: 'training_heat_adjusted',
+      severity: 'info',
+      title: 'Easy paces adjusted for your training heat',
+      detail: `Easy and recovery pace bands run ~${Math.round((heat.factor - 1) * 100)}% slower for training around ${config.typicalTrainingTempF}°F — same effort, honest numbers.${heat.advise ? ` Above 90°F: ${heat.advise}.` : ''}`,
+    })
+  }
+  if (healthFlagged) {
+    advisories.push({
+      id: 'health_flag',
+      severity: 'caution',
+      title: SCREENING_COPY.healthFlagTitle,
+      detail: SCREENING_COPY.healthFlagDetail + (boneStress ? ` ${SCREENING_COPY.boneStressDetail}` : ''),
+    })
+    const longRace = ['marathon', '50k', '50_mile', '100k', '100_mile', 'mountain_ultra'].includes(config.raceDistance ?? '')
+    if (screen?.boneStressRecent && longRace) {
+      advisories.push({
+        id: 'bone_stress_distance_risk',
+        severity: 'critical',
+        title: SCREENING_COPY.boneRecentUltraTitle,
+        detail: SCREENING_COPY.boneRecentUltraDetail,
       })
     }
   }

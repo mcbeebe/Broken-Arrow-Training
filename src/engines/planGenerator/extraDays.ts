@@ -230,10 +230,19 @@ export function isHardStrengthSession(
   const phase = strengthPhaseFor(phaseId, isTaper)
   const tier = strengthTierFor(config)
   if (phase === 'taper' || tier === 'senior' || tier === 'new') return false
+  // Phase 4 (109-F2) — a health flag suppresses plyometrics entirely, so
+  // the power phase falls back to non-jump work (not hard).
+  const plyoSuppressed = healthPlyoSuppressed(config)
   // Experienced lifters: heavy (4-6 reps) and power (plyo) phases are hard.
   // Recreational lifters: only the power phase carries jump work.
-  if (tier === 'experienced') return phase === 'heavy' || phase === 'power'
-  return phase === 'power'
+  if (tier === 'experienced') return phase === 'heavy' || (phase === 'power' && !plyoSuppressed)
+  return phase === 'power' && !plyoSuppressed
+}
+
+/** Phase 4 (109-F2) — any health-screen yes suppresses jump/impact strength. */
+export function healthPlyoSuppressed(config?: OnboardingConfig): boolean {
+  const sc = config?.healthScreen
+  return !!(sc && (sc.boneStressHistory || sc.boneStressRecent || sc.persistentFatigue || sc.missedCycles))
 }
 
 /**
@@ -258,17 +267,27 @@ export function strengthPhaseEmphasis(
     return 'heavy strength (4–6 reps) — leave 2 reps in reserve, never grind'
   }
   if (phase === 'power') {
+    // 109-F2 — with a health flag, jump work is out and the header must
+    // describe the routine that actually follows (the C1 contract).
+    if (healthPlyoSuppressed(config)) {
+      return 'strength maintenance (moderate loads, controlled) — impact work stays out while the health flag stands'
+    }
     return 'explosive power (jumps, med-ball, light & fast) — full recovery between sets; drop the heavy loads'
   }
   return 'strength-to-power transition (moderate loads, move the concentric with intent)'
 }
 
 /** The routine that matches the emphasis, per tier × phase × equipment. */
-function strengthRoutineFor(phase: StrengthPhase, tier: ReturnType<typeof strengthTierFor>, hasGym: boolean): string[] {
+function strengthRoutineFor(phase: StrengthPhase, tier: ReturnType<typeof strengthTierFor>, hasGym: boolean, plyoSuppressedFlag = false): string[] {
   if (phase === 'taper') return hasGym ? TAPER_STRENGTH_ROUTINE : TAPER_BODYWEIGHT_ROUTINE
   if (tier === 'senior') return hasGym ? MASTERS_ROUTINE : MASTERS_BODYWEIGHT_ROUTINE
   if (tier === 'new') return hasGym ? FOUNDATION_ROUTINE : FOUNDATION_BODYWEIGHT_ROUTINE
-  if (phase === 'power') return hasGym ? POWER_ROUTINE : POWER_BODYWEIGHT_ROUTINE
+  if (phase === 'power') {
+    // Health-flagged athletes skip jump work: the power phase maintains
+    // with the moderate-load transition scheme instead (109-F2).
+    if (plyoSuppressedFlag) return hasGym ? TRANSITION_ROUTINE : FOUNDATION_BODYWEIGHT_ROUTINE
+    return hasGym ? POWER_ROUTINE : POWER_BODYWEIGHT_ROUTINE
+  }
   if (phase === 'heavy') {
     if (tier === 'recreational') return hasGym ? TRANSITION_ROUTINE : HEAVY_BODYWEIGHT_ROUTINE
     return hasGym ? HEAVY_ROUTINE : HEAVY_BODYWEIGHT_ROUTINE
@@ -283,7 +302,7 @@ export function buildStrengthDetail(
   const hasGym = !!config?.equipmentAccess?.includes('gym')
   const phase = strengthPhaseFor(opts.phaseId, opts.isTaper)
   const tier = strengthTierFor(config)
-  const routine = strengthRoutineFor(phase, tier, hasGym)
+  const routine = strengthRoutineFor(phase, tier, hasGym, healthPlyoSuppressed(config))
   // Emphasis leads the routine — and now actually describes it (R1).
   const emphasis = opts.isTaper ? [] : [`Emphasis: ${strengthPhaseEmphasis(opts.phaseId, false, config)}`]
   // Midlife (peri/menopause/postmenopause): append a heavy bone-loading
