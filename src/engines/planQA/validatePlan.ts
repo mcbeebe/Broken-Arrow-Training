@@ -136,7 +136,7 @@ function stepTotalMinutes(day: PlannedDay): number | null {
 /** Independent re-estimate of a day's run miles from its own segments —
  *  falling back to the zone string's leading "X mi" for text-only days
  *  (the Hyrox generator's session vocabulary carries miles there). */
-function estimateDayMiles(day: PlannedDay): number {
+export function estimateDayMiles(day: PlannedDay): number {
   const pw = day.plannedWorkout
   if (!pw) {
     const m = day.zone?.match(/^([\d.]+) mi/)
@@ -476,7 +476,7 @@ export function validatePlan(input: PlanQAInput): PlanQAResult {
   if (!(race?.format === 'hyrox' || /hyrox/i.test(`${race?.name ?? ''} ${race?.distance ?? ''}`))) {
     const isRaceWeek = (w: TrainingWeek) => w.days.some(d => d.type === 'race')
     const isRecoverish = (w: TrainingWeek) =>
-      /recover|bridge|post-race|reverse taper/i.test(w.focus ?? '')
+      /recover|bridge|post-race|reverse taper|replanned/i.test(w.focus ?? '')
     const isCutbackWk = (w: TrainingWeek) => /cutback|recovery week/i.test(w.focus ?? '')
     // Taper weeks never become baselines: their volume is deliberately
     // depressed and transient — a season's next build resuming at ~85% of

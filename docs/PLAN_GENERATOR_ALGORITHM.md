@@ -88,7 +88,11 @@ Severity contract: generation targets the authored number; the gate warns just p
 - `src/__tests__/engines/planGenerator/r1-masters-personalization.test.ts` — age tiers change plans; strength schemes match their emphasis.
 - `src/__tests__/engines/planGenerator/road-persona-sweep.test.ts` — 12 personas (ages 24–79, first-timer→elite, 3–7 days, anchors, injuries, no-gym, trail) × every suited method×distance pairing × two runways + two multi-race seasons: zero validator errors with method invariants active. **If a change fails this, fix the generator (or, with justification, a tolerance) — never the persona.**
 
-## 10. Known gaps (tracked in `docs/running-plan-audit.md`)
+## 10. Adaptation v1 — `replan.ts`
+
+Four deterministic rules bend the plan forward when life interrupts (missed work is never made up, volume never increases, the schedule mandates survive every rule, and replanned output re-passes the full QA gate): short gaps skip; a missed key session swaps into a same-week easy day only when ≥48 h clear of the next hard day (else skips); a ≥7-day gap regenerates the remainder from 0.85× the last completed week via the season-continuity contract; illness re-entry guarantees two easy days before anything hard (and fixed fever guidance). Weeks a rule touched are tagged `· replanned` — their old targets no longer apply and they never serve as ramp baselines. A typed readiness-signal interface (v2) exists but is not yet consumed.
+
+## 11. Known gaps (tracked in `docs/running-plan-audit.md`)
 
 - R3: fuller season continuity (athlete-scaled recover/bridge content, cross-block QA as one timeline).
 - R4: method fidelity — per-distance volume envelopes vs published programs, running-evidence audit, intensity-forward 5K/10K structures.
