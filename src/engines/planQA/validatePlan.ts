@@ -276,7 +276,11 @@ export function validatePlan(input: PlanQAInput): PlanQAResult {
       if (!Number.isFinite(mi) || !Number.isFinite(prev)) break
       // Race-week miles include the race itself — exempt weeks with a race day.
       const hasRace = w.days.some(d => d.type === 'race')
-      if (!hasRace && mi > prev + 0.11) {
+      // Phase 1 — 0.5 mi allowance: taper frequency preservation keeps
+      // short runs instead of deleting days, and honest 15-min floors can
+      // sum a few tenths over the prior week. A real taper violation is
+      // miles, not rounding.
+      if (!hasRace && mi > prev + 0.5) {
         add({
           id: 'qa_taper_monotonic', severity: 'error', weekNum: w.num,
           title: 'Taper week out-volumes the week before it',
@@ -467,13 +471,18 @@ export function validatePlan(input: PlanQAInput): PlanQAResult {
       const skip = isRaceWeek(w) || isRecoverish(w)
       if (!skip && baselineMi >= 5) {
         const ratio = mi / baselineMi
-        if (ratio > 1.35) {
+        const jumpMi = mi - baselineMi
+        // Phase 1 (105-F2) — error at >30% per the audit spec, WITH an
+        // absolute guard (>3 mi): percentages are noise at low volume
+        // (8.7 → 11.4 is "+31%" but only 2.7 honest miles — fine), while
+        // 30 → 40 is the real cliff the rule exists for.
+        if (ratio > 1.3 && jumpMi > 3) {
           add({
             id: 'qa_weekly_ramp', severity: 'error', weekNum: w.num,
             title: 'Weekly mileage jump',
-            detail: `Week ${w.num} jumps to ${mi} mi from ${baselineMi} mi the previous full training week (+${Math.round((ratio - 1) * 100)}%) — week-over-week growth belongs near 10%, never above ~35%.`,
+            detail: `Week ${w.num} jumps to ${mi} mi from ${baselineMi} mi the previous full training week (+${Math.round((ratio - 1) * 100)}%) — week-over-week growth belongs near 10%, never above ~30%.`,
           })
-        } else if (ratio > 1.2) {
+        } else if (ratio > 1.2 && jumpMi > 2) {
           add({
             id: 'qa_weekly_ramp', severity: 'warn', weekNum: w.num,
             title: 'Weekly mileage climbing fast',
@@ -519,6 +528,71 @@ export function validatePlan(input: PlanQAInput): PlanQAResult {
     })
   }
 
+  // ── schedule integrity (Phase 1, PRD-103) ─────────────────────────
+  // Mandate #1: no plan ever contains three consecutive HARD days — hard
+  // = quality, long, race day, or a heavy/plyometric strength session.
+  // Evaluated on the flattened timeline so week and season-splice seams
+  // count. Hyrox plans are scoped out (their engine models load its own
+  // way and is out of this phase's scope).
+  if (!(race?.format === 'hyrox' || /hyrox/i.test(`${race?.name ?? ''} ${race?.distance ?? ''}`))) {
+    const hardStrength = (d: PlannedDay) =>
+      d.type === 'strength' && /heavy strength \(4–6|explosive power/i.test(d.detail ?? '')
+    const isHardDay = (d: PlannedDay) =>
+      d.type === 'quality' || d.type === 'long' || d.type === 'race' || hardStrength(d)
+    const flat: { day: PlannedDay; weekNum: number }[] = []
+    for (const w of weeks) for (const d of w.days) flat.push({ day: d, weekNum: w.num })
+    for (let i = 2; i < flat.length; i++) {
+      if (isHardDay(flat[i].day) && isHardDay(flat[i - 1].day) && isHardDay(flat[i - 2].day)) {
+        add({
+          id: 'qa_consecutive_hard', severity: 'error', weekNum: flat[i].weekNum, day: flat[i].day.day,
+          title: 'Three hard days in a row',
+          detail: `"${flat[i - 2].day.workout}", "${flat[i - 1].day.workout}", and "${flat[i].day.workout}" run on three consecutive days — hard days are capped at two in a row, for every athlete, on every method.`,
+        })
+        i += 2 // report each run of 3+ once, not once per extra day
+      }
+    }
+
+    // 103-F3 — interference: a heavy/plyometric strength session the day
+    // before a hard run day compromises both.
+    for (let i = 0; i < flat.length - 1; i++) {
+      const d = flat[i].day
+      const nxt = flat[i + 1].day
+      if (hardStrength(d) && (nxt.type === 'quality' || nxt.type === 'long' || nxt.type === 'race')) {
+        add({
+          id: 'qa_strength_interference', severity: 'warn', weekNum: flat[i].weekNum, day: d.day,
+          title: 'Heavy strength the day before a hard run',
+          detail: `"${d.workout}" lands the day before "${nxt.workout}" — heavy or plyometric work belongs after easy days, not before quality or long runs.`,
+        })
+      }
+    }
+  }
+
+  // ── week shape (Phase 1, 103-F6) ──────────────────────────────────
+  // Duplicate calendar dates are always a defect (the field bug where a
+  // date appeared in two weeks); derived from startIso, the only year-
+  // safe signal. Weeks without startIso (legacy) are skipped.
+  {
+    const seen = new Map<string, number>()
+    for (const w of weeks) {
+      if (!w.startIso) continue
+      for (let i = 0; i < w.days.length; i++) {
+        const d = new Date(`${w.startIso}T12:00:00`)
+        d.setDate(d.getDate() + i)
+        const iso = d.toISOString().slice(0, 10)
+        const firstWeek = seen.get(iso)
+        if (firstWeek != null && firstWeek !== w.num) {
+          add({
+            id: 'qa_week_shape', severity: 'error', weekNum: w.num,
+            title: 'Calendar date appears in two weeks',
+            detail: `${iso} is scheduled in week ${firstWeek} and again in week ${w.num} — no date may ever appear twice.`,
+          })
+        } else {
+          seen.set(iso, w.num)
+        }
+      }
+    }
+  }
+
   // ── target adherence (R0) ─────────────────────────────────────────
   // The progression model's weekly target (week.targetMi) and the summed
   // day content must agree — this is the regression guard for the audit's
@@ -539,6 +613,13 @@ export function validatePlan(input: PlanQAInput): PlanQAResult {
         title: 'Week ignores its volume target',
         detail: `Week ${w.num} prescribes ${mi} mi against a ${w.targetMi} mi progression target (${Math.round(dev * 100)}% off) — the ramp model and the day content disagree.`,
       })
+    } else if (dev > 0.12 && Math.abs(mi - w.targetMi) > 2) {
+      // Phase 1 (105-F3) — drift is visible before it's egregious.
+      add({
+        id: 'qa_target_adherence', severity: 'warn', weekNum: w.num,
+        title: 'Week drifting from its volume target',
+        detail: `Week ${w.num} prescribes ${mi} mi against a ${w.targetMi} mi target (${Math.round(dev * 100)}% off) — inside tolerance, worth watching.`,
+      })
     }
   })
 
@@ -547,11 +628,15 @@ export function validatePlan(input: PlanQAInput): PlanQAResult {
   // machine-checkable subset lives in the methodInvariants registry.
   // Generation targets the authored number, so the gate warns just past
   // it and errors only on egregious violation.
-  if (input.methodId) {
-    const rules = invariantRulesFor(input.methodId)
+  if (input.methodId || weeks.some(w => w.methodId)) {
     const isBenchmark = (d: PlannedDay) => /\bBENCHMARK\b/i.test(d.workout ?? '')
 
     weeks.forEach(w => {
+      // Phase 1 (105-F1) — season-spliced weeks carry the method that
+      // generated THEIR block; it wins over the plan-level methodId.
+      const weekMethodId = w.methodId ?? input.methodId
+      if (!weekMethodId) return
+      const rules = invariantRulesFor(weekMethodId)
       if (w.days.some(d => d.type === 'race')) return
       const total = Number(w.miles)
       if (!Number.isFinite(total) || total < 8) return
@@ -611,7 +696,11 @@ export function validatePlan(input: PlanQAInput): PlanQAResult {
     })
 
     // Hard-day spacing: quality sessions need the method's authored gap.
-    if (rules.minDaysBetweenQuality >= 1) {
+    // Plan-level (single-method) only — a spliced season's blocks each
+    // pass through here when generated, and qa_consecutive_hard covers
+    // the seams for every method.
+    const planRules = input.methodId ? invariantRulesFor(input.methodId) : null
+    if (planRules && planRules.minDaysBetweenQuality >= 1) {
       const flatDays: { day: PlannedDay; weekNum: number; idx: number }[] = []
       let idx = 0
       for (const w of weeks) {
@@ -624,13 +713,13 @@ export function validatePlan(input: PlanQAInput): PlanQAResult {
           add({
             id: 'qa_hard_day_spacing', severity: 'error', weekNum: qualityIdx[i].weekNum, day: qualityIdx[i].day.day,
             title: 'Back-to-back quality sessions',
-            detail: `"${qualityIdx[i - 1].day.workout}" and "${qualityIdx[i].day.workout}" run on consecutive days — this method wants ${rules.minDaysBetweenQuality}+ easy day(s) between hard sessions.`,
+            detail: `"${qualityIdx[i - 1].day.workout}" and "${qualityIdx[i].day.workout}" run on consecutive days — this method wants ${planRules.minDaysBetweenQuality}+ easy day(s) between hard sessions.`,
           })
-        } else if (gapDays < rules.minDaysBetweenQuality) {
+        } else if (gapDays < planRules.minDaysBetweenQuality) {
           add({
             id: 'qa_hard_day_spacing', severity: 'warn', weekNum: qualityIdx[i].weekNum, day: qualityIdx[i].day.day,
             title: 'Hard sessions closer than the method wants',
-            detail: `"${qualityIdx[i].day.workout}" comes ${gapDays + 1} day(s) after the previous quality session — the method's authored gap is ${rules.minDaysBetweenQuality} days.`,
+            detail: `"${qualityIdx[i].day.workout}" comes ${gapDays + 1} day(s) after the previous quality session — the method's authored gap is ${planRules.minDaysBetweenQuality} days.`,
           })
         }
       }

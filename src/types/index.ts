@@ -260,6 +260,10 @@ export interface JournalNote {
 export interface TrainingWeek {
   num: number;
   dates: string;
+  /** Phase 1 — the method that generated THIS week. Set on season-spliced
+   *  build weeks (each block may use a different method); the validator
+   *  prefers it over the plan-level methodId for invariant rules. */
+  methodId?: string;
   /** Displayed weekly run miles — the SUM of what the week's sessions
    *  actually prescribe, quality work included (P0.2). Pre-P0.2 plans
    *  stored the planning target here instead. */
@@ -509,6 +513,10 @@ export interface TrainingPlan {
   weeks: TrainingWeek[];
   zones: HRZone[];
   race: RaceInfo;
+  /** Id of the training method that generated this plan (e.g. 'daniels').
+   *  Activates the method-invariant QA rules wherever the plan is
+   *  validated. Absent on Hyrox/general/legacy stored plans. */
+  methodId?: string;
   /** When this plan is one block segment of a multi-race Season, the id of
    *  the SeasonBlock it implements. Absent on single-race plans (the
    *  degenerate one-race season) — every existing consumer keeps working. */

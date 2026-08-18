@@ -129,6 +129,24 @@ export function allocatePhaseWeeks(method: TrainingMethod, totalWeeks: number): 
     cursor += 1
   }
 
+  // Phase 1 (105-F6) — post-condition: the blocks MUST cover exactly
+  // totalWeeks. The bounded resync loops above can exit unconverged when
+  // weekBounds conflict; before this, uncovered weeks silently inherited
+  // the last phase's label (phaseIdAtWeek fallback). Force-redistribute on
+  // the largest phase — full coverage beats a bound preference.
+  sum = weeks.reduce((s, w) => s + w, 0)
+  while (sum !== totalWeeks) {
+    const largest = weeks.indexOf(Math.max(...weeks))
+    if (sum > totalWeeks) {
+      if (weeks[largest] <= 1) break // degenerate: fewer weeks than phases
+      weeks[largest] -= 1
+      sum -= 1
+    } else {
+      weeks[largest] += 1
+      sum += 1
+    }
+  }
+
   // Build blocks
   const blocks: PhaseBlock[] = []
   let cursorIdx = 0
@@ -537,9 +555,18 @@ export function buildWeeklyMileage(
   // weekly mileage: a returning athlete already at 10 mi/wk opens at 10, not 8
   // (the de-load only bites when the method start would otherwise sit *above*
   // current). Capped at peak.
-  const maxWeeklyIncreasePct = adjust.maxWeeklyIncreasePctCap != null
-    ? Math.min(mp.maxWeeklyIncreasePct, adjust.maxWeeklyIncreasePctCap)
-    : mp.maxWeeklyIncreasePct
+  // Phase 1 (105-F2) — global ramp-step ceiling: the QA gate errors when a
+  // week grows >30% over the last FULL week, and a cutback between two
+  // build weeks makes that comparison span TWO ramp steps. Two authored
+  // 15% steps compound to +32% — a false alarm baked into the method
+  // value. 13.5% compounds to +28.8%, inside the bound with margin.
+  const RAMP_STEP_CEILING = 0.135
+  const maxWeeklyIncreasePct = Math.min(
+    adjust.maxWeeklyIncreasePctCap != null
+      ? Math.min(mp.maxWeeklyIncreasePct, adjust.maxWeeklyIncreasePctCap)
+      : mp.maxWeeklyIncreasePct,
+    RAMP_STEP_CEILING,
+  )
   // R2 — when the athlete told us what they run today, week 1 is at most
   // one ramp step above it. Methods that open near peak (Pfitzinger's
   // startMileagePctOfPeak ≈ 1) assume the base already exists — opening

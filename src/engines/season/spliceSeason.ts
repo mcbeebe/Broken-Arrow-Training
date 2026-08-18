@@ -219,6 +219,10 @@ export function spliceSeasonWeeks(
         appended.push({
           ...w,
           focus: `[${race.raceInfo.name}] ${w.focus}`,
+          // Phase 1 (105-F1) — each block's weeks carry the method that
+          // generated them, so the validator's invariant rules stay
+          // active for every block of a spliced season.
+          ...(plan.methodId ? { methodId: plan.methodId } : {}),
           days: w.days.map(d => ({ ...d })),
         })
       }

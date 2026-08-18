@@ -683,7 +683,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     if ((seasonState.planResult?.season.races.length ?? 0) < 2) return []
     const anchorLen = activePlan.weeks.length
     if (weeks.length <= anchorLen) return []
-    const qa = validatePlan({ weeks, zones: hrZones.zones, race: activePlan.race })
+    const qa = validatePlan({ weeks, zones: hrZones.zones, race: activePlan.race, methodId: activePlan.methodId })
     const later = qa.findings.filter(f => (f.weekNum ?? 0) > anchorLen)
     if (later.length === 0) return []
     return qaFindingsToAdvisories({
@@ -692,7 +692,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
       warnings: later.filter(f => f.severity === 'warn'),
       pass: later.every(f => f.severity !== 'error'),
     })
-  }, [weeks, activePlan.weeks.length, activePlan.race, hrZones.zones, seasonState.planResult])
+  }, [weeks, activePlan.weeks.length, activePlan.race, activePlan.methodId, hrZones.zones, seasonState.planResult])
   const allAdvisories = useMemo(
     () => (seasonQaAdvisories.length > 0
       ? [...(activePlan.advisories ?? []), ...seasonQaAdvisories]
