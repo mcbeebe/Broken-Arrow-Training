@@ -16,6 +16,16 @@
 import type { HRZone, PlannedDay, RaceInfo, TrainingWeek } from '../../types'
 import { FULL_SIM_DAYS_OUT } from '../hyrox/heuristics'
 import { invariantRulesFor } from '../planGenerator/methodInvariants'
+import { getMethodById } from '../../data/methods'
+
+/** Phase 2 (104-F1) — the authored gates for one workout, looked up from
+ *  the method registry so the validator re-checks what generation used. */
+function workoutGateFor(methodId: string, workoutId: string): { minimumExperience?: string; requiresBaseMileage?: number } | null {
+  const method = getMethodById(methodId)
+  const w = method?.workouts.find(x => x.id === workoutId)
+  if (!w) return null
+  return { minimumExperience: w.minimumExperience, requiresBaseMileage: w.requiresBaseMileage }
+}
 
 export interface PlanQAFinding {
   /** Stable rule id (e.g. 'qa_d1_load') — one advisory per id after aggregation. */
@@ -46,6 +56,12 @@ export interface PlanQAInput {
   zonesEstimated?: boolean
   /** P4.3 — the athlete declared an injury area: prehab must appear. */
   injuryArea?: string
+  /** Phase 2 (PRD-104) — the dosing contract's persona inputs. The
+   *  effective experience level is the POST-downgrade routing level (the
+   *  low-mileage rule may have lowered it); age gates the senior strength
+   *  ban; declared mileage anchors the volume band. */
+  effectiveExperience?: 'beginner' | 'recreational' | 'intermediate' | 'advanced' | 'elite'
+  age?: number
   /** R2 — the generating method's id: activates that method's authored
    *  invariants (long-run share, hard-day spacing, quality share) from
    *  the methodInvariants registry. Absent for Hyrox / spliced-season /
@@ -350,8 +366,12 @@ export function validatePlan(input: PlanQAInput): PlanQAResult {
       if (range) peakLongMin = Math.max(peakLongMin, range[1])
     }
     if (peakLongMin > 0 && peakLongMin < 0.5 * input.predictedFinishMin) {
+      // Phase 2 (101-F4) — for marathon-plus efforts (predicted ≥ 3 h), a
+      // peak long run under 40% of race duration is a readiness ERROR,
+      // not a caution: nothing in the plan rehearses the day.
+      const severe = input.predictedFinishMin >= 180 && peakLongMin < 0.4 * input.predictedFinishMin
       add({
-        id: 'qa_long_run_adequacy', severity: 'warn',
+        id: 'qa_long_run_adequacy', severity: severe ? 'error' : 'warn',
         title: 'Longest run is short for this race',
         detail: `Race day is predicted to take ~${Math.round(input.predictedFinishMin)} min but the biggest long run peaks at ${peakLongMin} min (${Math.round((peakLongMin / input.predictedFinishMin) * 100)}%) — time on feet should approach at least half the race duration.`,
       })
@@ -591,6 +611,120 @@ export function validatePlan(input: PlanQAInput): PlanQAResult {
         }
       }
     }
+  }
+
+  // ── combined long-category share (Phase 2, 102-F3) ────────────────
+  // A multi-long week (B2B, medium-long) may not stack the whole week on
+  // its long days: warn >60%, error >70% of the week's miles. Applies at
+  // ≥20 mi; race and recovery weeks exempt.
+  weeks.forEach(w => {
+    const total = Number(w.miles)
+    if (!Number.isFinite(total) || total < 20) return
+    if (w.days.some(d => d.type === 'race')) return
+    if (/recover|bridge|post-race/i.test(w.focus ?? '')) return
+    const longMi = w.days.filter(d => d.type === 'long').reduce((t, d) => t + estimateDayMiles(d), 0)
+    if (longMi <= 0) return
+    const share = longMi / total
+    if (share > 0.7) {
+      add({
+        id: 'qa_combined_long_share', severity: 'error', weekNum: w.num,
+        title: 'Long days swallow the week',
+        detail: `Week ${w.num} puts ~${Math.round(longMi * 10) / 10} of its ${total} mi (${Math.round(share * 100)}%) into long-category days — combined long volume belongs under ~65% so easy-day frequency survives.`,
+      })
+    } else if (share > 0.6) {
+      add({
+        id: 'qa_combined_long_share', severity: 'warn', weekNum: w.num,
+        title: 'Long days dominate the week',
+        detail: `Week ${w.num}'s long-category days carry ${Math.round(share * 100)}% of its miles — near the ~65% ceiling.`,
+      })
+    }
+  })
+
+  // ── persona dosing contract (Phase 2, PRD-104 / Mandate #2) ───────
+  {
+    const RM = /\bRM\b|1RM|\dRM/
+    const expRankOf: Record<string, number> = { beginner: 0, recreational: 1, intermediate: 2, advanced: 3, elite: 4 }
+    const personaRank = input.effectiveExperience != null ? expRankOf[input.effectiveExperience] : null
+    weeks.forEach(w => {
+      for (const d of w.days) {
+        // 104-F3 — RM language is banned platform-wide.
+        if (RM.test(`${d.workout} ${d.detail}`)) {
+          add({
+            id: 'qa_strength_scheme', severity: 'error', weekNum: w.num, day: d.day,
+            title: 'RM language on a card',
+            detail: `"${d.workout}" prescribes load in RM terms — effort cues are reps-in-reserve, never max testing.`,
+          })
+        }
+        // 104-F3 — seniors (70+) never receive heavy or plyometric strength.
+        if (input.age != null && input.age >= 70 && d.type === 'strength' &&
+            /heavy strength \(4–6|explosive power|Box Jump|Jump Squat/i.test(d.detail ?? '')) {
+          add({
+            id: 'qa_strength_scheme', severity: 'error', weekNum: w.num, day: d.day,
+            title: 'Heavy/plyometric strength at 70+',
+            detail: `"${d.workout}" carries maximal or jump loading — the masters scheme replaces both (NSCA older-adult guidance).`,
+          })
+        }
+        // 104-F1 — experience gating: a card may never outrank its athlete.
+        const methodIdForWeek = w.methodId ?? input.methodId
+        if (personaRank != null && methodIdForWeek && d.plannedWorkout?.workoutId) {
+          const gate = workoutGateFor(methodIdForWeek, d.plannedWorkout.workoutId)
+          if (gate?.minimumExperience != null && (expRankOf[gate.minimumExperience] ?? 0) > personaRank) {
+            add({
+              id: 'qa_dose_gates', severity: 'error', weekNum: w.num, day: d.day,
+              title: 'Session outranks the athlete',
+              detail: `"${d.workout}" requires ${gate.minimumExperience} experience but this plan routes as ${input.effectiveExperience}.`,
+            })
+          }
+          if (gate?.requiresBaseMileage != null && w.targetMi != null && w.targetMi > 0 &&
+              gate.requiresBaseMileage > w.targetMi * 1.5) {
+            add({
+              id: 'qa_dose_gates', severity: 'error', weekNum: w.num, day: d.day,
+              title: 'Session assumes a base the week lacks',
+              detail: `"${d.workout}" is authored for ${gate.requiresBaseMileage}+ mi/week; week ${w.num} targets ${w.targetMi} mi.`,
+            })
+          }
+        }
+      }
+      // 104-F5 — persona quality caps: first-timers hold 1/week for the
+      // first 6 weeks, then 2; beginners hold 2. (Senior cap is separate.)
+      if (personaRank === 0) {
+        const q = w.days.filter(d => d.type === 'quality' && !/\bBENCHMARK\b/i.test(d.workout)).length
+        const cap = 2
+        if (q > cap) {
+          add({
+            id: 'qa_dose_gates', severity: 'error', weekNum: w.num,
+            title: 'Too many quality sessions for this athlete',
+            detail: `Week ${w.num} schedules ${q} quality sessions — beginner routing holds at most ${cap}.`,
+          })
+        }
+      }
+    })
+  }
+
+  // ── effort completeness (Phase 2, 104-F4) ─────────────────────────
+  // Every run-class card exposes an effort target the athlete can follow
+  // (zone/pace/HR/RPE) and a session time. Hyrox scoped out (own engine).
+  if (!(race?.format === 'hyrox' || /hyrox/i.test(`${race?.name ?? ''} ${race?.distance ?? ''}`))) {
+    weeks.forEach(w => {
+      for (const d of w.days) {
+        if (!['run', 'quality', 'long'].includes(d.type)) continue
+        if (/\bBENCHMARK\b/i.test(d.workout)) continue
+        if (!d.zone || d.zone === '—') {
+          add({
+            id: 'qa_effort_cues', severity: 'error', weekNum: w.num, day: d.day,
+            title: 'Run card without an effort target',
+            detail: `${d.day} "${d.workout}" gives the athlete no zone, pace, or RPE to run by.`,
+          })
+        }
+        if (!d.time || d.time === '—') {
+          add({
+            id: 'qa_effort_cues', severity: 'error', weekNum: w.num, day: d.day,
+            title: 'Run card without a session time',
+            detail: `${d.day} "${d.workout}" has no duration — the athlete can't plan the session.`,
+          })
+        }
+      }
+    })
   }
 
   // ── target adherence (R0) ─────────────────────────────────────────

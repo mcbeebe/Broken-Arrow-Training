@@ -1,0 +1,197 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Phase 2 — P10 advisory-presence law + dosing report (104-Q1) > dosing report: per-persona volume, quality, and hardest-session snapshot 1`] = `
+[
+  {
+    "advisories": [
+      "days_over_request",
+      "qa_duplicate_weeks",
+      "qa_target_adherence",
+      "qa_totals_reconcile",
+      "zones_estimated",
+    ],
+    "hardestSession": "speed_repetitions",
+    "maxQualityPerWeek": 1,
+    "medianTargetMi": 7,
+    "peakTargetMi": 8,
+    "persona": "Ava 24F first_timer 3d 5k daniels",
+  },
+  {
+    "advisories": [
+      "qa_totals_reconcile",
+      "zones_estimated",
+    ],
+    "hardestSession": "race_pace",
+    "maxQualityPerWeek": 1,
+    "medianTargetMi": 11,
+    "peakTargetMi": 14,
+    "persona": "Ben 35M beginner 4d 10k higdon easy-pace",
+  },
+  {
+    "advisories": [
+      "days_over_request",
+      "qa_hard_day_spacing",
+    ],
+    "hardestSession": "vo2_intervals",
+    "maxQualityPerWeek": 2,
+    "medianTargetMi": 27,
+    "peakTargetMi": 36,
+    "persona": "Carmen 41F intermediate 5d half pfitzinger 10k-anchor",
+  },
+  {
+    "advisories": [
+      "qa_duration_range",
+      "qa_method_long_run",
+    ],
+    "hardestSession": "vo2_intervals",
+    "maxQualityPerWeek": 2,
+    "medianTargetMi": 52,
+    "peakTargetMi": 64,
+    "persona": "Dmitri 29M advanced 6d marathon hansons hm-anchor 45mi",
+  },
+  {
+    "advisories": [
+      "days_over_request",
+      "qa_hard_day_spacing",
+      "zones_estimated",
+    ],
+    "hardestSession": "vo2_intervals",
+    "maxQualityPerWeek": 2,
+    "medianTargetMi": 25,
+    "peakTargetMi": 36,
+    "persona": "Elena 52F intermediate 4d half 80/20 peri knee-returning",
+  },
+  {
+    "advisories": [
+      "masters_adjustments",
+      "zones_estimated",
+    ],
+    "hardestSession": "race_pace",
+    "maxQualityPerWeek": 1,
+    "medianTargetMi": 11,
+    "peakTargetMi": 12,
+    "persona": "Frank 61M beginner 3d 10k galloway",
+  },
+  {
+    "advisories": [
+      "cross_distance",
+      "qa_duplicate_weeks",
+      "qa_method_long_run",
+    ],
+    "hardestSession": "vo2_intervals",
+    "maxQualityPerWeek": 2,
+    "medianTargetMi": 58,
+    "peakTargetMi": 58,
+    "persona": "Grace 33F elite 7d marathon daniels 5k-anchor 60mi",
+  },
+  {
+    "advisories": [
+      "days_over_request",
+      "zones_estimated",
+    ],
+    "hardestSession": "hills",
+    "maxQualityPerWeek": 3,
+    "medianTargetMi": 25,
+    "peakTargetMi": 36,
+    "persona": "Hiro 45M intermediate 5d trail-half roche no-gym",
+  },
+  {
+    "advisories": [
+      "days_over_request",
+      "qa_duplicate_weeks",
+      "qa_target_adherence",
+      "qa_weekly_ramp",
+      "zones_estimated",
+    ],
+    "hardestSession": "race_pace",
+    "maxQualityPerWeek": 1,
+    "medianTargetMi": 7,
+    "peakTargetMi": 8,
+    "persona": "Isla 27F first_timer 4d 5k higdon shin-current",
+  },
+  {
+    "advisories": [
+      "masters_adjustments",
+      "qa_totals_reconcile",
+      "zones_estimated",
+    ],
+    "hardestSession": "cruise_intervals",
+    "maxQualityPerWeek": 1,
+    "medianTargetMi": 11,
+    "peakTargetMi": 14,
+    "persona": "Jim 79M beginner 6d 5k daniels (the originating case)",
+  },
+  {
+    "advisories": [
+      "days_over_request",
+      "masters_adjustments",
+      "qa_duration_range",
+      "qa_strength_interference",
+      "zones_estimated",
+    ],
+    "hardestSession": "hills",
+    "maxQualityPerWeek": 2,
+    "medianTargetMi": 23,
+    "peakTargetMi": 36,
+    "persona": "Kara 68F intermediate 5d half trainingpeaks recreational-lifter",
+  },
+  {
+    "advisories": [
+      "qa_combined_long_share",
+      "qa_duration_range",
+      "zones_estimated",
+    ],
+    "hardestSession": "hills",
+    "maxQualityPerWeek": 2,
+    "medianTargetMi": 47,
+    "peakTargetMi": 68,
+    "persona": "Leo 55M advanced 6d trail-50k koop 40mi",
+  },
+  {
+    "advisories": [
+      "zones_estimated",
+    ],
+    "hardestSession": "race_pace",
+    "maxQualityPerWeek": 1,
+    "medianTargetMi": 21,
+    "peakTargetMi": 34,
+    "persona": "Maya 46F beginner 4d marathon higdon 12mi (low-base marathon)",
+  },
+  {
+    "advisories": [
+      "days_over_request",
+      "masters_adjustments",
+      "qa_combined_long_share",
+      "qa_duration_range",
+      "zones_estimated",
+    ],
+    "hardestSession": "hills",
+    "maxQualityPerWeek": 2,
+    "medianTargetMi": 32,
+    "peakTargetMi": 50,
+    "persona": "Noah 62M intermediate 4d trail-50k trainingpeaks 22mi (low-base ultra)",
+  },
+  {
+    "advisories": [
+      "qa_duplicate_weeks",
+    ],
+    "hardestSession": "speed_repetitions",
+    "maxQualityPerWeek": 2,
+    "medianTargetMi": 45,
+    "peakTargetMi": 45,
+    "persona": "Priya 31F advanced 5d 10k daniels 55mi (over-mileage sanity)",
+  },
+  {
+    "advisories": [
+      "days_over_request",
+      "masters_adjustments",
+      "zones_estimated",
+    ],
+    "hardestSession": "race_pace",
+    "maxQualityPerWeek": 1,
+    "medianTargetMi": 22,
+    "peakTargetMi": 29,
+    "persona": "Owen 74M intermediate 4d half higdon recreational-lifter (senior strength)",
+  },
+]
+`;

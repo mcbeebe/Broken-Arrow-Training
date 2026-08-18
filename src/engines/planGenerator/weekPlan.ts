@@ -256,6 +256,27 @@ const DISTANCE_PEAK_MULT: Record<RaceDistance, number> = {
  */
 const DISTANCE_PEAK_FLOOR_MI: Partial<Record<RaceDistance, number>> = {
   half_marathon: 25,
+  // Phase 2 (101-F1) — the marathon gets the same protection as the half
+  // (product decision: enforced). "You can't fake your way to 13.1"
+  // applies a fortiori to 26.2.
+  marathon: 35,
+}
+
+/**
+ * Phase 2 (101-F1) — REFERENCE race-readiness floors for the ultra
+ * distances. Advisory-only (product decision): generation does not push
+ * an ultra athlete's volume toward these, but arriving under them raises
+ * the undertrained-arrival advisories (peak_unreachable /
+ * volume_inadequate). Values await expert benchmarking (T4).
+ */
+export const REFERENCE_PEAK_FLOOR_MI: Partial<Record<RaceDistance, number>> = {
+  half_marathon: 25,
+  marathon: 35,
+  '50k': 40,
+  '50_mile': 45,
+  '100k': 50,
+  '100_mile': 50,
+  mountain_ultra: 45,
 }
 
 /**

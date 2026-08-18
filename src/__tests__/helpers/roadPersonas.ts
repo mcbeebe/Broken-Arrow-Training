@@ -49,6 +49,15 @@ export const PERSONAS: Persona[] = [
     cfg: { athleteName: 'Kara', age: 68, sex: 'female', experienceLevel: 'intermediate', trainingDaysPerWeek: 5, strengthDaysPerWeek: 1, equipmentAccess: ['gym'], strengthExperience: 'recreational', menopauseStatus: 'postmenopause' } },
   { label: 'Leo 55M advanced 6d trail-50k koop 40mi', methodId: 'koop', distance: '50k', runways: [14, 20],
     cfg: { athleteName: 'Leo', age: 55, sex: 'male', experienceLevel: 'advanced', trainingDaysPerWeek: 6, currentWeeklyMileage: 40, raceType: 'trail', elevationGainFt: 5000, equipmentAccess: ['hills', 'trails'] } },
+  // Phase 2 (101-Q1 / 105-F5) — the undertrained-arrival and dosing personas.
+  { label: 'Maya 46F beginner 4d marathon higdon 12mi (low-base marathon)', methodId: 'higdon', distance: 'marathon', runways: [16, 18],
+    cfg: { athleteName: 'Maya', age: 46, sex: 'female', experienceLevel: 'beginner', trainingDaysPerWeek: 4, currentWeeklyMileage: 12 } },
+  { label: 'Noah 62M intermediate 4d trail-50k trainingpeaks 22mi (low-base ultra)', methodId: 'trainingpeaks', distance: '50k', runways: [20, 20],
+    cfg: { athleteName: 'Noah', age: 62, sex: 'male', experienceLevel: 'intermediate', trainingDaysPerWeek: 4, currentWeeklyMileage: 22, raceType: 'trail', elevationGainFt: 3000 } },
+  { label: 'Priya 31F advanced 5d 10k daniels 55mi (over-mileage sanity)', methodId: 'daniels', distance: '10k', runways: [10, 14],
+    cfg: { athleteName: 'Priya', age: 31, sex: 'female', experienceLevel: 'advanced', trainingDaysPerWeek: 5, currentWeeklyMileage: 55, fitnessAnchor: { type: 'race_10k', valueSeconds: 40 * 60 } } },
+  { label: 'Owen 74M intermediate 4d half higdon recreational-lifter (senior strength)', methodId: 'higdon', distance: 'half_marathon', runways: [12, 16],
+    cfg: { athleteName: 'Owen', age: 74, sex: 'male', experienceLevel: 'intermediate', trainingDaysPerWeek: 4, strengthDaysPerWeek: 1, equipmentAccess: ['gym'], strengthExperience: 'recreational' } },
 ]
 
 export function buildConfig(p: Persona, weeks: number): OnboardingConfig {

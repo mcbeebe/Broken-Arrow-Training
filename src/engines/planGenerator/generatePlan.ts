@@ -34,6 +34,7 @@ import {
   mapToMethodExperience,
   capTaperBlocks,
   TAPER_WEEKS_CAP,
+  REFERENCE_PEAK_FLOOR_MI,
   type MileageProgressionAdjust,
 } from './weekPlan'
 import { pickWeeklyPattern, pickWorkoutForDay, buildPlannedWorkout, scaleWorkoutToTime } from './workouts'
@@ -379,7 +380,7 @@ function computeEasyRunTime(
   // AND the quality sessions. Before this, easy days consumed the full
   // remainder and quality landed on top, so quality-phase weeks overran the
   // ramp-capped target by the entire quality volume (audit root cause A1).
-  const longMiTotal = longCategoryMiles(weekMi.longRunMi, Math.max(1, schedule.filter(d => d.category === 'long').length))
+  const longMiTotal = longCategoryMiles(weekMi.longRunMi, Math.max(1, schedule.filter(d => d.category === 'long').length), weekMi.secondaryLongFactor)
   const easyMiTotal = Math.max(0, weekMi.totalMi - longMiTotal - weekQualityMi)
   if (easyMiTotal <= 0) {
     // Quality + long fill the whole budget — keep easy days at the honest
@@ -593,9 +594,9 @@ const SECONDARY_LONG_FACTOR = 0.7
 
 /** Total long-category miles for a week: primary at full longRunMi, each
  *  additional long day at the secondary factor. */
-function longCategoryMiles(longRunMi: number, longDayCount: number): number {
+function longCategoryMiles(longRunMi: number, longDayCount: number, secondaryFactor = SECONDARY_LONG_FACTOR): number {
   if (longDayCount <= 0) return 0
-  return longRunMi * (1 + SECONDARY_LONG_FACTOR * (longDayCount - 1))
+  return longRunMi * (1 + secondaryFactor * (longDayCount - 1))
 }
 
 /**
@@ -1209,9 +1210,31 @@ export function generatePlanFromMethod(
     // R4 — the method's own easy-day window sharpens the content ceiling.
     easyDayMaxMin: methodEasyMaxMin,
   })
+  // Phase 2 (101-F2/F3) — undertrained-arrival honesty: compare the volume
+  // the ramp ACTUALLY reaches against the race-readiness floor (enforced
+  // for half/marathon, reference for ultras). When caps legitimately stop
+  // the build short, the athlete is told — never silently sent to the line
+  // under-prepared.
+  const readinessFloorMi = config.raceDistance ? REFERENCE_PEAK_FLOOR_MI[config.raceDistance] : undefined
+  const lastBuildMi2 = Math.max(0, ...coreMileage.filter(x => !x.isTaper && !x.isCutback).map(x => x.totalMi))
+  const arrivalShortfall = readinessFloorMi != null && lastBuildMi2 > 0 && lastBuildMi2 < 0.85 * readinessFloorMi
+    ? {
+        achieved: lastBuildMi2,
+        needed: readinessFloorMi,
+        critical: lastBuildMi2 < 0.70 * readinessFloorMi,
+        bindingCap: masters.isMasters && (mileageAdjust.maxWeeklyIncreasePctCap ?? 1) <= 0.08
+          ? 'the masters ramp cap (8%/week)'
+          : policy.mileageAdjust.maxWeeklyIncreasePctCap != null
+            ? 'the injury-return ramp'
+            : totalWeeks < 14
+              ? `the ${totalWeeks}-week runway`
+              : 'the volume your training days can hold',
+      }
+    : null
+
   // Front-pad steady base weeks for a long runway. The per-week loop reads each
   // week's phase from the mileage row below, so no separate block list is needed.
-  const mileage = baseWeeks > 0
+  const mileage: WeekMileage[] = baseWeeks > 0
     ? [
         ...Array.from({ length: baseWeeks }, (_, i) => ({
           weekIndex: i, weekNumber: i + 1,
@@ -1397,15 +1420,32 @@ export function generatePlanFromMethod(
 
     let weekQualityMi = 0
     {
-      // Low-volume weeks can't hold a SECOND long run (Pfitzinger's midweek
-      // medium-long, Koop's back-to-back weekend) — each extra long day is
-      // sized like the primary and blows the budget. Keep the last-authored
-      // long; earlier ones become easy days until real volume exists.
-      // Tapers drop the extras at ANY volume: no published system keeps
-      // back-to-back long days while shedding volume for race day (the
-      // sweep's Koop 50k persona overshot its taper target on B2B alone).
+      // Phase 2 (102-F2/F4) — multi-long weeks (Pfitzinger's midweek
+      // medium-long, Koop's back-to-back weekend) earn their second long
+      // day: weekly target ≥30 mi, never in taper, and only for ultra
+      // distances or Pfitzinger's authored medium-long. Even then the
+      // COMBINED long-category share is capped at 65% of the week — the
+      // secondary day shrinks first, and if it would fall below a real
+      // long-day dose (45% of the primary), the week runs a single long.
       const longDays = preparedDays.filter(p => p.daySched.category === 'long')
-      if (longDays.length > 1 && (weekMi.totalMi < 25 || weekMi.isTaper)) {
+      const isUltraDistance = ['50k', '50_mile', '100k', '100_mile', 'mountain_ultra'].includes(config.raceDistance ?? '')
+      let multiLongOk = false
+      if (longDays.length > 1) {
+        const eligible = weekMi.totalMi >= 30 && !weekMi.isTaper && (isUltraDistance || method.id === 'pfitzinger')
+        if (eligible && weekMi.longRunMi > 0) {
+          const n = longDays.length
+          const maxCombined = 0.65 * weekMi.totalMi
+          const uncapped = weekMi.longRunMi * (1 + SECONDARY_LONG_FACTOR * (n - 1))
+          const secondary = uncapped <= maxCombined
+            ? SECONDARY_LONG_FACTOR
+            : (maxCombined - weekMi.longRunMi) / ((n - 1) * weekMi.longRunMi)
+          if (secondary >= 0.45) {
+            weekMi.secondaryLongFactor = Math.round(Math.min(SECONDARY_LONG_FACTOR, secondary) * 100) / 100
+            multiLongOk = true
+          }
+        }
+      }
+      if (longDays.length > 1 && !multiLongOk) {
         for (const extra of longDays.slice(0, -1)) {
           extra.daySched = { ...extra.daySched, category: 'easy' as WorkoutCategory, preferredWorkoutIds: undefined }
           const repick = pickWorkoutForDay(method, extra.daySched, methodExp, weekMi.totalMi)
@@ -1433,7 +1473,7 @@ export function generatePlanFromMethod(
         const qualityShareCapMi = weekMi.totalMi * invRules.qualityMaxPctOfWeek
         const budget = () => {
           const easyCount = preparedDays.filter(p => p.daySched.category === 'easy' || p.daySched.category === 'recovery').length
-          const longMi = longCategoryMiles(weekMi.longRunMi, preparedDays.filter(p => p.daySched.category === 'long').length)
+          const longMi = longCategoryMiles(weekMi.longRunMi, preparedDays.filter(p => p.daySched.category === 'long').length, weekMi.secondaryLongFactor)
           return Math.min(Math.max(0, weekMi.totalMi - longMi - easyCount * minEasyMi), qualityShareCapMi)
         }
 
@@ -1456,6 +1496,16 @@ export function generatePlanFromMethod(
         // R1 — senior cap: one quality session per week at 70+.
         while (qualityDays.length > masters.maxQualityPerWeek) {
           demoteToEasy(qualityDays[qualityDays.length - 1], 'Eased — masters plans hold one quality session per week')
+          qualityDays = qualityDays.slice(0, -1)
+        }
+        // Phase 2 (104-F5) — persona quality caps: a first-timer holds one
+        // quality session per week for the first six weeks (then two); a
+        // beginner holds two. Strides and benchmarks don't count.
+        const personaQualityCap = config.experienceLevel === 'first_timer'
+          ? (weekMi.weekNumber <= 6 ? 1 : 2)
+          : config.experienceLevel === 'beginner' ? 2 : Infinity
+        while (qualityDays.length > personaQualityCap) {
+          demoteToEasy(qualityDays[qualityDays.length - 1], 'Eased — quality builds gradually at this experience level')
           qualityDays = qualityDays.slice(0, -1)
         }
         const keepFloor = weekMi.isCutback ? 0 : 1
@@ -1492,7 +1542,7 @@ export function generatePlanFromMethod(
         const minEasyMi = (convFloorMin * 60) / ((fastSec + slowSec) / 2)
         for (;;) {
           const easies = preparedDays.filter(p => p.daySched.category === 'easy' || p.daySched.category === 'recovery')
-          const longMi = longCategoryMiles(weekMi.longRunMi, preparedDays.filter(p => p.daySched.category === 'long').length)
+          const longMi = longCategoryMiles(weekMi.longRunMi, preparedDays.filter(p => p.daySched.category === 'long').length, weekMi.secondaryLongFactor)
           const floorMi = longMi + weekQualityMi + easies.length * minEasyMi
           if (easies.length <= 2 || floorMi <= weekMi.totalMi * 1.2) break
           const drop = easies[easies.length - 1]
@@ -1517,7 +1567,7 @@ export function generatePlanFromMethod(
     // builds at the secondary factor of the primary distance.
     const primaryLongDow = Math.max(
       0, ...preparedDays.filter(p => p.daySched.category === 'long').map(p => p.daySched.dayOfWeek))
-    const secondaryLongMi = Math.round(weekMi.longRunMi * SECONDARY_LONG_FACTOR * 10) / 10
+    const secondaryLongMi = Math.round(weekMi.longRunMi * (weekMi.secondaryLongFactor ?? SECONDARY_LONG_FACTOR) * 10) / 10
     const days: PlannedDay[] = preparedDays.map(p => {
       if (p.isRaceDay) {
         return {
@@ -1671,6 +1721,24 @@ export function generatePlanFromMethod(
       })
     }
   }
+  if (arrivalShortfall) {
+    const pct = Math.round((arrivalShortfall.achieved / arrivalShortfall.needed) * 100)
+    // 101-F3 — concrete remedies, computed from this config: the weeks a
+    // safe ramp needs to reach the floor, and/or a distance whose floor
+    // the achieved volume already supports.
+    const effRamp = Math.min(mileageAdjust.maxWeeklyIncreasePctCap ?? 0.1, 0.1)
+    const startMi = Math.max(1, coreMileage[0]?.totalMi ?? currentWeeklyMileage)
+    const weeksToFloor = Math.ceil(Math.log(arrivalShortfall.needed / startMi) / Math.log(1 + effRamp)) + (taperCapWeeks ?? 2)
+    const fitsDistance = (['half_marathon', '10k'] as const).find(d =>
+      d === '10k' || arrivalShortfall.achieved >= 0.85 * (REFERENCE_PEAK_FLOOR_MI[d] ?? Infinity))
+    advisories.push({
+      id: 'peak_unreachable',
+      severity: arrivalShortfall.critical ? 'critical' : 'caution',
+      title: 'This build arrives under race-ready volume',
+      detail: `The plan peaks at ~${Math.round(arrivalShortfall.achieved)} mi/week against the ~${arrivalShortfall.needed} mi/week this distance asks for (${pct}%). The binding constraint is ${arrivalShortfall.bindingCap} — the ramp stays safe, so the gap is told, not hidden.`,
+      suggestion: `Two honest options: pick a race ~${Math.max(2, weeksToFloor - totalWeeks)} weeks later so the safe ramp can reach ${arrivalShortfall.needed} mi/week, or race ${fitsDistance === 'half_marathon' ? 'a half marathon' : 'a shorter distance'} that your current build already supports.`,
+    })
+  }
   if (lowMileageDowngraded) {
     advisories.push({
       id: 'low_mileage_downgrade',
@@ -1768,7 +1836,7 @@ export function generatePlanFromMethod(
   // the same validator over the golden personas so a regression fails
   // the build first.
   const zones = computeZones(athlete.maxHR, paces, method)
-  const qa = validatePlan({ weeks, zones, race: raceForVert, predictedFinishMin, zonesEstimated: zonesEstimated && policy.forceEasyLeadInWeeks === 0, injuryArea, methodId: method.id })
+  const qa = validatePlan({ weeks, zones, race: raceForVert, predictedFinishMin, zonesEstimated: zonesEstimated && policy.forceEasyLeadInWeeks === 0, injuryArea, methodId: method.id, effectiveExperience: methodExp, age: config.age })
   advisories.push(...qaFindingsToAdvisories(qa))
 
   return {
