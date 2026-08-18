@@ -89,37 +89,84 @@ export const RECOVER_FOCUS =
   'Post-race recovery — absorb the race. Rest first, then easy movement; speed waits.'
 
 /**
+ * R3 — athlete scaling for the recover/bridge streams. The stream copy was
+ * written for a generic ~25 mi/wk athlete; a 45 mi/wk marathoner's "easy
+ * movement" is genuinely more than a 10 mi/wk beginner's, and a masters
+ * athlete's return is slower (the same evidence base as the R1 masters
+ * policy: recovery cost rises with age — Reaburn & Dascombe 2008).
+ */
+export interface AthleteScale {
+  /** Athlete age — 58+ adds a rest day to the recover block and defers the
+   *  bridge's first intensity touch by a week; 70+ adds two rest days and
+   *  trims durations a further 15%. */
+  age?: number
+  /** The weekly volume the previous block actually reached — scales every
+   *  stream duration (clamped 0.6–1.6× of the 25 mi/wk baseline copy). */
+  priorWeeklyMi?: number
+}
+
+const STREAM_BASELINE_WEEKLY_MI = 25
+
+function streamScale(athlete?: AthleteScale): number {
+  const vol = athlete?.priorWeeklyMi
+  let f = vol && vol > 0 ? Math.min(1.6, Math.max(0.6, vol / STREAM_BASELINE_WEEKLY_MI)) : 1
+  if (athlete?.age != null && athlete.age >= 70) f *= 0.85
+  return f
+}
+
+/** Scale a duration and keep it a human number (nearest 5 min, floor 15). */
+function scaleMin(baseMin: number, f: number): number {
+  return Math.max(15, Math.round((baseMin * f) / 5) * 5)
+}
+
+function extraRestDays(athlete?: AthleteScale): number {
+  if (athlete?.age == null) return 0
+  if (athlete.age >= 70) return 2
+  if (athlete.age >= 58) return 1
+  return 0
+}
+
+/**
  * RECOVER block → scheduled days: the R5 rest days first (1/10 mi raced —
  * 1/10 km when high-vert — with the extra-sleep prescription written into
  * each day), then reverse-taper easy movement (volume before speed).
+ * R3: rest-day count and jog durations scale with age and the volume the
+ * athlete actually carried into the race.
  */
 export function recoverDayStream(
   block: SeasonBlock,
   raceMiles: number,
-  opts: { highVert?: boolean } = {},
+  opts: { highVert?: boolean; athlete?: AthleteScale } = {},
 ): StreamDay[] {
   const r = postRaceRecovery(raceMiles, { highVert: opts.highVert })
+  const restDays = r.restDays + extraRestDays(opts.athlete)
+  const f = streamScale(opts.athlete)
+  const masters = extraRestDays(opts.athlete) > 0
   const dates = blockDates(block)
   return dates.map((iso, i) => {
-    if (i < r.restDays) {
+    if (i < restDays) {
+      const mastersNote = i >= r.restDays
+        ? ' Extra rest day — recovery cost rises with age, and the race is already banked.'
+        : ''
       return {
         iso,
         focus: RECOVER_FOCUS,
         day: day(iso, 'rest', 'Post-race rest',
-          `Full rest day ${i + 1} of ${r.restDays} (1 per ${opts.highVert ? '10 km' : '10 mi'} raced). ` +
-          `Sleep +${r.sleepExtraHrPerNight} hr tonight (${r.sleepExtraNights} nights total). Walking is fine; running is not.`),
+          `Full rest day ${i + 1} of ${restDays} (1 per ${opts.highVert ? '10 km' : '10 mi'} raced${masters ? ', plus the masters margin' : ''}). ` +
+          `Sleep +${r.sleepExtraHrPerNight} hr tonight (${r.sleepExtraNights} nights total). Walking is fine; running is not.` +
+          mastersNote),
       }
     }
-    const rebuildDay = i - r.restDays
+    const rebuildDay = i - restDays
     return {
       iso,
       focus: RECOVER_FOCUS,
       day: rebuildDay % 3 === 2
         ? day(iso, 'rest', 'Rest', 'Reverse taper: recovery still outranks volume.')
         : day(iso, 'run', 'Easy recovery jog',
-            `Reverse taper day ${rebuildDay + 1}: ${20 + rebuildDay * 5}–${30 + rebuildDay * 5} min very easy (Z1). ` +
+            `Reverse taper day ${rebuildDay + 1}: ${scaleMin(20 + rebuildDay * 5, f)}–${scaleMin(30 + rebuildDay * 5, f)} min very easy (Z1). ` +
             'Volume comes back before speed — no quality until this block ends.',
-            'Z1 · very easy', `${25 + rebuildDay * 5} min`),
+            'Z1 · very easy', `${scaleMin(25 + rebuildDay * 5, f)} min`),
     }
   })
 }
@@ -127,7 +174,7 @@ export function recoverDayStream(
 export function recoverWeeks(
   block: SeasonBlock,
   raceMiles: number,
-  opts: { highVert?: boolean; startWeekNum?: number } = {},
+  opts: { highVert?: boolean; startWeekNum?: number; athlete?: AthleteScale } = {},
 ): TrainingWeek[] {
   const stream = recoverDayStream(block, raceMiles, opts)
   return toWeeks(stream.map(s => s.day), stream.map(s => s.iso), opts.startWeekNum ?? 1, RECOVER_FOCUS)
@@ -147,9 +194,18 @@ export function bridgeDayStream(
   nextIsHyrox: boolean,
   patternOffset = 0,
   crossModes?: CrossTrainingMode[],
+  athlete?: AthleteScale,
 ): StreamDay[] {
   const emphasis = bridgeEmphasis(nextIsHyrox)
   const focus = `Bridge — ${emphasis.rationale}`
+  // R3 — athlete scaling: run durations follow the volume the athlete
+  // actually carried out of the previous block; masters (58+) defer the
+  // bridge's first intensity touch (strides / threshold minute) to the
+  // second bridge week — intensity is the last thing to come back.
+  const f = streamScale(athlete)
+  const mastersDefer = athlete?.age != null && athlete.age >= 58
+  const min = (base: number) => `${scaleMin(base, f)} min`
+  const minRange = (lo: number, hi: number) => `${scaleMin(lo, f)}-${scaleMin(hi, f)} min`
   const dates: string[] = []
   let cur = startIso
   while (cur <= endIso && dates.length < MAX_STREAM_DAYS) {
@@ -174,21 +230,25 @@ export function bridgeDayStream(
   // a Monday-snapped build plan) without repeating the same slot twice.
   const pattern: ((iso: string, cycle: number) => PlannedDay)[] = nextIsHyrox
     ? [
-        iso => day(iso, 'run', 'Aerobic hold run', 'Easy Z2 run — the maintenance dose that keeps your base.', 'Z2 · easy', '40 min'),
+        iso => day(iso, 'run', 'Aerobic hold run', 'Easy Z2 run — the maintenance dose that keeps your base.', 'Z2 · easy', min(40)),
         iso => day(iso, 'strength', 'Strength-endurance circuit', 'Hyrox-station circuit: wall balls, sled push/pull, lunges, burpee broad jumps — quality over speed.', '—', '45 min'),
         iso => day(iso, 'rest', 'Rest', 'Adaptation happens here.'),
-        iso => day(iso, 'run', 'Intensity touch', `Z2 run finishing with 4–6 × 1 min at threshold — the intensity that preserves aerobic fitness (${EV_INTENSITY_PRESERVES.value}).`, 'Z2-4', '40 min'),
+        (iso, cycle) => mastersDefer && cycle === 0
+          ? day(iso, 'run', 'Aerobic hold run', 'Easy Z2 — intensity waits a week: masters recovery earns its margin before the first threshold touch.', 'Z2 · easy', min(40))
+          : day(iso, 'run', 'Intensity touch', `Z2 run finishing with 4–6 × 1 min at threshold — the intensity that preserves aerobic fitness (${EV_INTENSITY_PRESERVES.value}).`, 'Z2-4', min(40)),
         iso => day(iso, 'strength', 'Glycolytic capacity', 'Station intervals at race effort: 60–90 s on / 60 s off — the short-residual quality trained closest to race day.', '—', '40 min'),
         crossDay,
         iso => day(iso, 'rest', 'Rest', 'Adaptation happens here.'),
       ]
     : [
-        iso => day(iso, 'run', 'Volume rebuild run', 'Easy Z2 — run volume comes back first.', 'Z2 · easy', '45 min'),
+        iso => day(iso, 'run', 'Volume rebuild run', 'Easy Z2 — run volume comes back first.', 'Z2 · easy', min(45)),
         iso => day(iso, 'rest', 'Rest', 'Adaptation happens here.'),
-        iso => day(iso, 'run', 'Easy run + strides', 'Z2 with 4 × 20 s relaxed strides — turnover without cost.', 'Z2', '40 min'),
+        (iso, cycle) => mastersDefer && cycle === 0
+          ? day(iso, 'run', 'Easy run', 'Z2, conversational — strides return next week: masters recovery earns its margin before turnover work.', 'Z2 · easy', min(40))
+          : day(iso, 'run', 'Easy run + strides', 'Z2 with 4 × 20 s relaxed strides — turnover without cost.', 'Z2', min(40)),
         iso => day(iso, 'strength', 'Strength maintenance', `ONE weekly strength dose holds what you built (${EV_STRENGTH_HOLDS.value}). Keep loads honest, volume low.`, '—', '35 min'),
-        iso => day(iso, 'run', 'Easy run', 'Z2, conversational throughout.', 'Z2 · easy', '45 min'),
-        iso => day(iso, 'long', 'Longer easy run', 'The week’s biggest aerobic dose — still easy, still conversational.', 'Z2', '60-75 min'),
+        iso => day(iso, 'run', 'Easy run', 'Z2, conversational throughout.', 'Z2 · easy', min(45)),
+        iso => day(iso, 'long', 'Longer easy run', 'The week’s biggest aerobic dose — still easy, still conversational.', 'Z2', minRange(60, 75)),
         iso => day(iso, 'rest', 'Rest', 'Adaptation happens here.'),
       ]
 
