@@ -38,6 +38,8 @@ import {
 } from './weekPlan'
 import { pickWeeklyPattern, pickWorkoutForDay, buildPlannedWorkout, scaleWorkoutToTime } from './workouts'
 import { MASTERS_AGE_TIERS, MASTERS_RECOVERY_CADENCE, MASTERS_RAMP_CAP, SENIOR_INTENSITY, SENIOR_LONG_RUN_CAP_MULT, DAYS_VOLUME_FACTOR } from '../running/heuristics'
+import { invariantRulesFor } from './methodInvariants'
+import { bestMethodForDistance } from './methodSelection'
 import { injectExtraDays } from './extraDays'
 import { INJURY_LEADIN_WEEKS } from '../../utils/injuryRamp'
 import { assessFeasibility, predictRaceTime } from './feasibility'
@@ -1000,9 +1002,13 @@ export function generatePlanFromMethod(
   // Total training-day budget (running + strength + cross), capped by the
   // injury policy so 'returning' doesn't get a 7-day-a-week schedule no
   // matter what was clicked in onboarding.
+  // R2 — every week keeps at least one FULL rest day, no matter what was
+  // clicked: a 7-day request schedules 6 training days (the sweep's elite
+  // persona shipped rest-free weeks straight into a QA error).
+  const restDayCappedDays = Math.min(config.trainingDaysPerWeek, 6)
   const requestedTotalDays = policy.maxTrainingDaysPerWeek != null
-    ? Math.min(config.trainingDaysPerWeek, policy.maxTrainingDaysPerWeek)
-    : config.trainingDaysPerWeek
+    ? Math.min(restDayCappedDays, policy.maxTrainingDaysPerWeek)
+    : restDayCappedDays
 
   // Reserve slots for strength + cross-training. The remainder is what
   // we ask the running pattern for, so the pattern's rest days line up
@@ -1030,6 +1036,11 @@ export function generatePlanFromMethod(
   // (DAYS_VOLUME_FACTOR: 3 days = 0.75x of the 5-day baseline).
   const volumeFactor = DAYS_VOLUME_FACTOR.value[Math.max(3, Math.min(7, runningDaysTarget))] ?? 1
 
+  // R2 — the method's machine-checkable invariants (methodInvariants.ts)
+  // steer generation itself: long-run caps below, quality-share budget and
+  // experience routing further down. The QA gate re-checks the same rules.
+  const invRules = invariantRulesFor(method.id)
+
   const coreMileage = buildWeeklyMileage(method, coreWeeks, coreBlocks, currentWeeklyMileage, mileageAdjust, {
     raceDistance: config.raceDistance,
     maxTaperWeeks: taperCapWeeks,
@@ -1040,6 +1051,9 @@ export function generatePlanFromMethod(
     easyPaceSecPerMile: paces.byZone.easy?.paceSecPerMileLow,
     predictedFinishMin,
     gradeAdjFactor,
+    methodLongRunPctCap: invRules.longRunMaxPctOfWeek,
+    methodLongRunAbsCapMi: invRules.longRunMaxMi,
+    runningDays: runningDaysTarget,
   })
   // Front-pad steady base weeks for a long runway. The per-week loop reads each
   // week's phase from the mileage row below, so no separate block list is needed.
@@ -1053,7 +1067,16 @@ export function generatePlanFromMethod(
         ...coreMileage.map(w => ({ ...w, weekIndex: w.weekIndex + baseWeeks, weekNumber: w.weekNumber + baseWeeks })),
       ]
     : coreMileage
-  const methodExp = mapToMethodExperience(config.experienceLevel)
+  // R2 — enforce the methods' authored low-mileage downgrade (Daniels:
+  // "<20 mi/wk → downgrade to 'recreational' experience routing"): below
+  // the threshold, workout routing caps at 'intermediate' so a low-base
+  // athlete gets the gentler menu no matter what level they clicked.
+  const rawMethodExp = mapToMethodExperience(config.experienceLevel)
+  const lowMileageDowngraded =
+    invRules.lowMileageDowngradeMi != null &&
+    currentWeeklyMileage < invRules.lowMileageDowngradeMi &&
+    (rawMethodExp === 'advanced' || rawMethodExp === 'elite')
+  const methodExp = lowMileageDowngraded ? ('intermediate' as const) : rawMethodExp
 
   // Preferred long-run weekday (1=Mon…7=Sun), when the athlete chose one.
   const longRunDow = config.longRunDay
@@ -1191,7 +1214,7 @@ export function generatePlanFromMethod(
       // "Easy · Substituted higdon_easy_run"). Mirrors the Hyrox generator's
       // guaranteed card.
       const isRaceDay = daySched === raceEntry
-      const picked = isRaceDay ? null : pickWorkoutForDay(method, daySched, methodExp, weekMi.totalMi)
+      const picked = isRaceDay ? null : pickWorkoutForDay(method, daySched, methodExp, weekMi.totalMi, weekMi.weekNumber)
       return {
         date,
         daySched,
@@ -1211,8 +1234,11 @@ export function generatePlanFromMethod(
       // medium-long, Koop's back-to-back weekend) — each extra long day is
       // sized like the primary and blows the budget. Keep the last-authored
       // long; earlier ones become easy days until real volume exists.
+      // Tapers drop the extras at ANY volume: no published system keeps
+      // back-to-back long days while shedding volume for race day (the
+      // sweep's Koop 50k persona overshot its taper target on B2B alone).
       const longDays = preparedDays.filter(p => p.daySched.category === 'long')
-      if (longDays.length > 1 && weekMi.totalMi < 25) {
+      if (longDays.length > 1 && (weekMi.totalMi < 25 || weekMi.isTaper)) {
         for (const extra of longDays.slice(0, -1)) {
           extra.daySched = { ...extra.daySched, category: 'easy' as WorkoutCategory, preferredWorkoutIds: undefined }
           const repick = pickWorkoutForDay(method, extra.daySched, methodExp, weekMi.totalMi)
@@ -1234,10 +1260,14 @@ export function generatePlanFromMethod(
         // The budget re-derives from live day categories — every demotion
         // adds an easy day (reserving its minimum dose) and can remove a
         // long day, so a stale snapshot would mis-size everything after it.
+        // R2 — the method's authored quality share caps the budget too:
+        // an 80/20 week must not spend 45% of its miles on quality just
+        // because the long run left room (the sweep's Elena/Frank cases).
+        const qualityShareCapMi = weekMi.totalMi * invRules.qualityMaxPctOfWeek
         const budget = () => {
           const easyCount = preparedDays.filter(p => p.daySched.category === 'easy' || p.daySched.category === 'recovery').length
           const longMi = preparedDays.filter(p => p.daySched.category === 'long').length * weekMi.longRunMi
-          return Math.max(0, weekMi.totalMi - longMi - easyCount * minEasyMi)
+          return Math.min(Math.max(0, weekMi.totalMi - longMi - easyCount * minEasyMi), qualityShareCapMi)
         }
 
         // Fit quality into the budget. Scaling can only shed so much (rep
@@ -1437,6 +1467,30 @@ export function generatePlanFromMethod(
   const effectiveDaysPerWeek = runningDaysTarget + extrasCap
   const athlete = buildAthleteProfile(config, currentWeeklyMileage, effectiveDaysPerWeek)
   const advisories = [...assessFeasibility(config, today, method), ...environmentAdvisories(config)]
+  // R2 — suitability gate: generating a method for a distance it rates
+  // NOT_SUITED is never silent. The plan still generates (the athlete may
+  // insist), but the advisory is critical and names the strongest fit.
+  if (config.raceDistance) {
+    const rating = method.applicability?.byDistance?.[config.raceDistance]
+    if (rating === 'NOT_SUITED') {
+      const alt = bestMethodForDistance(config.raceDistance)
+      advisories.push({
+        id: 'method_not_suited',
+        severity: 'critical',
+        title: `${method.name} isn't designed for this race distance`,
+        detail: `${method.name} rates itself "not designed" for this distance — its structure was authored for other race lengths, so key sessions may not fit your goal.`,
+        suggestion: alt.id !== method.id ? `Switch to ${alt.name} — the strongest fit for this distance.` : undefined,
+      })
+    }
+  }
+  if (lowMileageDowngraded) {
+    advisories.push({
+      id: 'low_mileage_downgrade',
+      severity: 'info',
+      title: 'Workout menu eased for your current mileage',
+      detail: `${method.name} routes athletes under ${invRules.lowMileageDowngradeMi} mi/week to its gentler workout menu (the method's own rule) — the advanced sessions return as your base grows.`,
+    })
+  }
   // R1 — say what the age tier changed, in plain language.
   if (masters.isMasters) {
     advisories.push({
@@ -1526,7 +1580,7 @@ export function generatePlanFromMethod(
   // the same validator over the golden personas so a regression fails
   // the build first.
   const zones = computeZones(athlete.maxHR, paces, method)
-  const qa = validatePlan({ weeks, zones, race: raceForVert, predictedFinishMin, zonesEstimated: zonesEstimated && policy.forceEasyLeadInWeeks === 0, injuryArea })
+  const qa = validatePlan({ weeks, zones, race: raceForVert, predictedFinishMin, zonesEstimated: zonesEstimated && policy.forceEasyLeadInWeeks === 0, injuryArea, methodId: method.id })
   advisories.push(...qaFindingsToAdvisories(qa))
 
   return {

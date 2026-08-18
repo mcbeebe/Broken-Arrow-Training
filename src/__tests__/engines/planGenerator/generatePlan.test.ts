@@ -161,9 +161,12 @@ describe('volume ramp uses self-reported mileage', () => {
     // athletes — a real specificity gap, tracked for the P1 validator.
     const lowPeak = Math.max(...lowMileage.weeks.map(w => w.targetMi ?? 0))
     const highPeak = Math.max(...highMileage.weeks.map(w => w.targetMi ?? 0))
-    // Peak should roughly triple along with the baseline (peakMileageRule
-    // is a multiplier on current mileage).
-    expect(highPeak).toBeGreaterThan(lowPeak * 2)
+    // Peak must scale meaningfully with the baseline. The spread is
+    // compressed from both ends by design: the race-readiness floor lifts
+    // the 10 mi/wk athlete to ~25, and R2's gain cap + content ceiling
+    // hold the 30 mi/wk athlete near ~47 — but the self-report must still
+    // clearly dominate the experience default.
+    expect(highPeak).toBeGreaterThan(lowPeak * 1.5)
     // And the displayed (summed) totals must still rank in the same order.
     const lowShown = Math.max(...lowMileage.weeks.map(w => Number(w.miles)))
     const highShown = Math.max(...highMileage.weeks.map(w => Number(w.miles)))
@@ -383,11 +386,14 @@ describe('regression: the reported marathon config', () => {
     expect(buildWeek.dates.startsWith('Mon')).toBe(true)
   })
 
-  it('builds real marathon volume off a 20 mpw base (peak ≥ 40, long run ≥ 18)', () => {
+  it('builds real marathon volume off a 20 mpw base (peak ≥ 40, method-true long run)', () => {
     const plan = generatePlanFromMethod(daniels, reported(), TODAY)
     const peakMiles = Math.max(...plan.weeks.map(w => Number(w.miles)))
     expect(peakMiles).toBeGreaterThanOrEqual(40)
-    // Longest long run across the plan.
+    // Longest long run across the plan. R2 enforces Daniels' own authored
+    // cap — long run ≤ 30% of the week — so a ~45 mi/wk peak carries a
+    // ~13-14 mi long run (Daniels explicitly defends this against the
+    // 20-miler tradition). 18+ mi long runs need a bigger weekly base.
     const longestLong = Math.max(
       ...plan.weeks.flatMap(w => w.days.filter(d => d.type === 'long'))
         .map(d => {
@@ -395,7 +401,7 @@ describe('regression: the reported marathon config', () => {
           return m ? parseFloat(m[1]) : 0
         }),
     )
-    expect(longestLong).toBeGreaterThanOrEqual(18)
+    expect(longestLong).toBeGreaterThanOrEqual(13)
     // Never exceeds the marathon long-run distance ceiling.
     expect(longestLong).toBeLessThanOrEqual(22)
   })
@@ -892,13 +898,15 @@ describe('generatePlanFromMethod — end-to-end', () => {
   })
 
   it('schedules N cross-training days per week when crossTrainingDaysPerWeek is set', () => {
-    // 7-day budget with 2x cross-training requested. Previously the engine
-    // ignored crossTrainingDaysPerWeek and scheduled exactly one cross
-    // session per week regardless of preference.
-    const plan = generatePlanFromMethod(koop, makeConfig({
-      raceDistance: '50k',
+    // 6-day budget with 2x cross-training requested (R2 caps every week at
+    // 6 training days so a full rest day always survives; Higdon's 4-run
+    // minimum leaves the budget for both cross sessions). Previously the
+    // engine ignored crossTrainingDaysPerWeek and scheduled exactly one
+    // cross session per week regardless of preference.
+    const plan = generatePlanFromMethod(higdon, makeConfig({
+      raceDistance: 'half_marathon',
       experienceLevel: 'advanced',
-      trainingDaysPerWeek: 7,
+      trainingDaysPerWeek: 6,
       strengthDaysPerWeek: 0,
       crossTrainingDaysPerWeek: 2,
       crossTrainingModes: ['hiking', 'cycling'],
@@ -909,10 +917,10 @@ describe('generatePlanFromMethod — end-to-end', () => {
   })
 
   it('rotates cross-training modalities across multiple sessions per week', () => {
-    const plan = generatePlanFromMethod(koop, makeConfig({
-      raceDistance: '50k',
+    const plan = generatePlanFromMethod(higdon, makeConfig({
+      raceDistance: 'half_marathon',
       experienceLevel: 'advanced',
-      trainingDaysPerWeek: 7,
+      trainingDaysPerWeek: 6,
       strengthDaysPerWeek: 0,
       crossTrainingDaysPerWeek: 2,
       crossTrainingModes: ['cycling', 'hiking'],

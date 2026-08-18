@@ -28,8 +28,11 @@ describe('P1-5: peak volume is capped', () => {
   it('a very high base no longer scales into an impossible marathon peak', () => {
     const weeks = buildWeeklyMileage(daniels, 18, allocatePhaseWeeks(daniels, 18), 90, {}, { raceDistance: 'marathon' })
     const peak = Math.max(...weeks.map(w => w.totalMi))
-    expect(peak).toBeLessThanOrEqual(140)      // marathon cap, not 90 × 2.3 = 207
-    expect(peak).toBeGreaterThan(120)          // still builds toward the ceiling
+    // R2 tightened P1's generous ceiling: one block adds at most
+    // DISTANCE_PEAK_GAIN_MI (marathon +25) over the stated base — a
+    // 90 mi/wk athlete builds toward ~115, not 90 × 2.3 = 207.
+    expect(peak).toBeLessThanOrEqual(115)
+    expect(peak).toBeGreaterThan(100)          // still builds meaningfully past the base
   })
   it('a normal base is unaffected by the cap', () => {
     const weeks = buildWeeklyMileage(daniels, 18, allocatePhaseWeeks(daniels, 18), 30, {}, { raceDistance: 'marathon' })

@@ -139,10 +139,11 @@ describe('R1 — strength schemes match their emphasis (audit C1/C2)', () => {
 
 describe('R1 — volume scales with available days', () => {
   it('an intermediate low-frequency athlete peaks meaningfully lower than a high-frequency one', () => {
-    // 7 total days → 6 running days (factor 1.1); 4 total days → the
-    // method's minimum running days (factor ≤0.9). Methods floor running
-    // days, so compare across the widest spread the method allows.
-    const sevenDay = gen(cfg({ age: 30, experienceLevel: 'intermediate', trainingDaysPerWeek: 7 }))
+    // 6 running days (factor 1.1 — R2 caps every week at 6 training days,
+    // so the high-frequency case drops its strength day) vs the method's
+    // minimum running days (factor ≤0.9). Methods floor running days, so
+    // compare across the widest spread the method allows.
+    const sevenDay = gen(cfg({ age: 30, experienceLevel: 'intermediate', trainingDaysPerWeek: 7, strengthDaysPerWeek: 0 }))
     const fourDay = gen(cfg({ age: 30, experienceLevel: 'intermediate', trainingDaysPerWeek: 4 }))
     const peak = (p: TrainingPlan) => Math.max(...p.weeks.map(w => w.targetMi ?? 0))
     expect(peak(fourDay)).toBeLessThan(peak(sevenDay) * 0.9)

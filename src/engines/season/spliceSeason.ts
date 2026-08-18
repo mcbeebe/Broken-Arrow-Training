@@ -12,6 +12,7 @@ import {
 import { layerSecondaryWork } from './layerSecondaryWork'
 import { getMethodById, RECOMMENDABLE_METHODS } from '../../data/methods'
 import { generatePlanFromMethod } from '../planGenerator/generatePlan'
+import { bestMethodForDistance } from '../planGenerator/methodSelection'
 import { generateHyroxPlan } from '../../utils/planGenerator'
 import { dayIsoInWeek } from '../../utils/planDates'
 import { raceDateToIso } from './index'
@@ -108,6 +109,17 @@ export function spliceSeasonWeeks(
   const racesById = new Map(season.races.map(r => [r.id, r]))
   const generatedRaceIds = new Set<string>()
 
+  // R2 (R3 down-payment) — volume continuity across blocks: each later
+  // build starts from the volume the athlete ACTUALLY reached in the
+  // previous block (×0.85 for the recover/bridge decay), not from the
+  // months-old onboarding answer. Without this, a second-race build
+  // re-ramped from the original base and the splice boundary showed a
+  // +50% week-over-week cliff (the sweep's Carmen season).
+  let carriedWeeklyMi = Math.max(
+    0,
+    ...trimmedBase.map(w => (Number.isFinite(w.targetMi) ? (w.targetMi as number) : Number(w.miles) || 0)),
+  )
+
   // Appended weeks accumulate WITHOUT numbers; numbering happens once at
   // the end so late race-day injections keep the sequence continuous.
   const appended: TrainingWeek[] = []
@@ -170,6 +182,14 @@ export function spliceSeasonWeeks(
       generatedRaceIds.add(race.id)
       const raceConfig = configForSeasonRace(config, race)
       if (!raceConfig) continue
+      // Volume continuity (see carriedWeeklyMi above). Road/trail only —
+      // the Hyrox engine models its own load, not weekly run miles.
+      if (!isHyroxRace(race) && carriedWeeklyMi > 0) {
+        raceConfig.currentWeeklyMileage = Math.max(
+          raceConfig.currentWeeklyMileage ?? 0,
+          Math.round(carriedWeeklyMi * 0.85 * 10) / 10,
+        )
+      }
       const genToday = block.startDate >= today ? block.startDate : today
       const plan = safeGenerate(raceConfig, genToday)
       if (!plan) continue
@@ -198,6 +218,12 @@ export function spliceSeasonWeeks(
           days: w.days.map(d => ({ ...d })),
         })
       }
+      // Carry THIS block's achieved peak forward for any block after it.
+      const blockPeak = Math.max(
+        0,
+        ...kept.map(w => (Number.isFinite(w.targetMi) ? (w.targetMi as number) : Number(w.miles) || 0)),
+      )
+      if (blockPeak > 0) carriedWeeklyMi = blockPeak
     }
   }
   flushPending()
@@ -442,7 +468,16 @@ function configForSeasonRace(
 function safeGenerate(config: OnboardingConfig, today: string) {
   try {
     if (config.raceType === 'hyrox') return generateHyroxPlan(config, today)
-    const method = (config.selectedMethodId && getMethodById(config.selectedMethodId)) || RECOMMENDABLE_METHODS[0]
+    // R2 — the anchor's method may be NOT_SUITED for a different-distance
+    // second race (Hansons for a season's 5K); pick the best-rated method
+    // for THIS block's distance instead of blindly reusing it — and the
+    // no-selection fallback ranks by distance too, not list order.
+    const selected = config.selectedMethodId ? getMethodById(config.selectedMethodId) : undefined
+    const distance = config.raceDistance
+    const selectedSuited = selected &&
+      (!distance || (selected.applicability?.byDistance?.[distance] ?? 'OK') !== 'NOT_SUITED')
+    const method = (selectedSuited ? selected : undefined)
+      ?? (distance ? bestMethodForDistance(distance) : RECOMMENDABLE_METHODS[0])
     if (!method) return null
     return generatePlanFromMethod(method, config, today)
   } catch {

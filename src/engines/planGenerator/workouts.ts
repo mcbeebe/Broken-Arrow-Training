@@ -107,11 +107,19 @@ export function pickWeeklyPattern(
  *
  * Returns null for non-running categories ('rest', 'cross_training', 'strength').
  */
+/** Day categories whose preferred-workout alternates rotate week to week
+ *  (see the rotation note inside pickWorkoutForDay). */
+const ROTATING_CATEGORIES: ReadonlySet<string> = new Set([
+  'tempo', 'cruise_intervals', 'vo2_intervals', 'speed_repetitions',
+  'fartlek', 'progression',
+])
+
 export function pickWorkoutForDay(
   method: TrainingMethod,
   day: DaySchedule,
   userExperience: MethodExperienceLevel,
   currentWeekMileage: number,
+  weekNumber?: number,
 ): { workout: Workout; substituted: boolean; reason?: string } | null {
   if (day.category === 'rest' || day.category === 'cross_training' || day.category === 'strength') {
     return null
@@ -122,12 +130,27 @@ export function pickWorkoutForDay(
     .map(id => method.workouts.find(w => w.id === id))
     .filter((w): w is Workout => !!w)
 
-  for (const w of candidates) {
+  // R2 — rotate through the day's ELIGIBLE preferred workouts by week so a
+  // mileage plateau doesn't stamp out byte-identical weeks (the QA gate's
+  // qa_duplicate_weeks: "repetition without progression is maintenance").
+  // Only QUALITY slots rotate — that's where published methods vary the
+  // session week to week. Hills alternates are terrain choices ("Climbing
+  // Repeats OR Durability Hike (mountain)"), and easy/long/recovery days
+  // are sized programmatically — for all of those, preferred order is
+  // preference, and the author's first choice stands. Week 1 keeps the
+  // first choice too; without a weekNumber the first eligible wins,
+  // exactly as before.
+  const eligible = candidates.filter(w => {
     const minExpOk = !w.minimumExperience || expRank(w.minimumExperience) <= userRank
     const baseMiOk = !w.requiresBaseMileage || currentWeekMileage >= w.requiresBaseMileage
-    if (minExpOk && baseMiOk) {
-      return { workout: w, substituted: false }
-    }
+    return minExpOk && baseMiOk
+  })
+  if (eligible.length > 0) {
+    const rotates = ROTATING_CATEGORIES.has(day.category)
+    const idx = rotates && weekNumber != null && eligible.length > 1
+      ? (weekNumber - 1) % eligible.length
+      : 0
+    return { workout: eligible[idx], substituted: false }
   }
 
   // Fallback: try to find any workout matching the day's category that the
