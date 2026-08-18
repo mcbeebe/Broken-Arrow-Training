@@ -15,6 +15,7 @@
  */
 import type { HRZone, PlannedDay, RaceInfo, TrainingWeek } from '../../types'
 import { FULL_SIM_DAYS_OUT } from '../hyrox/heuristics'
+import { invariantRulesFor } from '../planGenerator/methodInvariants'
 
 export interface PlanQAFinding {
   /** Stable rule id (e.g. 'qa_d1_load') — one advisory per id after aggregation. */
@@ -45,6 +46,11 @@ export interface PlanQAInput {
   zonesEstimated?: boolean
   /** P4.3 — the athlete declared an injury area: prehab must appear. */
   injuryArea?: string
+  /** R2 — the generating method's id: activates that method's authored
+   *  invariants (long-run share, hard-day spacing, quality share) from
+   *  the methodInvariants registry. Absent for Hyrox / spliced-season /
+   *  hand-authored inputs. */
+  methodId?: string
 }
 
 /** Vert density (ft/mi) above which a race demands vert-specific training
@@ -297,9 +303,16 @@ export function validatePlan(input: PlanQAInput): PlanQAResult {
   for (const list of groups.values()) {
     if (list.length < 2) continue
     const nums = list.map(w => w.num).join(', ')
+    // Identical content is an ERROR when the plan's own targets CLAIM
+    // progression across those weeks (>1 mi of spread the content never
+    // delivers). A genuine plateau — targets flat at the plan's volume
+    // floor or cap — is honest maintenance (published first-timer plans
+    // repeat weeks verbatim) and stays a caution.
+    const targets = list.map(w => (Number.isFinite(w.targetMi) ? (w.targetMi as number) : Number(w.miles) || 0))
+    const targetSpread = Math.max(...targets) - Math.min(...targets)
     add({
       id: 'qa_duplicate_weeks',
-      severity: list.length >= 3 ? 'error' : 'warn',
+      severity: list.length >= 3 && targetSpread > 1 ? 'error' : 'warn',
       weekNum: list[1].num,
       title: 'Identical training weeks',
       detail: `Weeks ${nums} prescribe byte-for-byte identical content — repetition without progression is maintenance, not training.`,
@@ -441,6 +454,12 @@ export function validatePlan(input: PlanQAInput): PlanQAResult {
     const isRecoverish = (w: TrainingWeek) =>
       /recover|bridge|post-race|reverse taper/i.test(w.focus ?? '')
     const isCutbackWk = (w: TrainingWeek) => /cutback|recovery week/i.test(w.focus ?? '')
+    // Taper weeks never become baselines: their volume is deliberately
+    // depressed and transient — a season's next build resuming at ~85% of
+    // the PRE-taper peak is textbook, but read against the taper's floor
+    // it looks like a +50-90% cliff (the sweep's Carmen season). Tapers
+    // are still evaluated as subjects (they only ever step down).
+    const isTaperWk = (w: TrainingWeek) => /taper/i.test(w.focus ?? '')
     let baselineMi = 0
     weeks.forEach(w => {
       const mi = Number(w.miles)
@@ -462,7 +481,7 @@ export function validatePlan(input: PlanQAInput): PlanQAResult {
           })
         }
       }
-      if (!skip && !isCutbackWk(w)) baselineMi = mi
+      if (!skip && !isCutbackWk(w) && !isTaperWk(w)) baselineMi = mi
     })
   }
 
@@ -488,6 +507,101 @@ export function validatePlan(input: PlanQAInput): PlanQAResult {
       })
     }
   })
+
+  // ── method invariants (R2) ────────────────────────────────────────
+  // Each method ships authored invariants its plans must honor; the
+  // machine-checkable subset lives in the methodInvariants registry.
+  // Generation targets the authored number, so the gate warns just past
+  // it and errors only on egregious violation.
+  if (input.methodId) {
+    const rules = invariantRulesFor(input.methodId)
+    const isBenchmark = (d: PlannedDay) => /\bBENCHMARK\b/i.test(d.workout ?? '')
+
+    weeks.forEach(w => {
+      if (w.days.some(d => d.type === 'race')) return
+      const total = Number(w.miles)
+      if (!Number.isFinite(total) || total < 8) return
+
+      // Share-based checks only carry meaning at real volume: published
+      // low-mileage plans (Higdon novice's 3-5-9 week: a 47% long run)
+      // violate share caps wholesale, because a long run that's LONG
+      // ENOUGH TO MATTER is intrinsically a big slice of a small week.
+      // Absolute ceilings (Hansons 16 mi) apply at every volume.
+      const shareChecksApply = total >= 25
+
+      // Long-run share (+ absolute ceiling where declared, e.g. Hansons 16 mi).
+      const longMi = Math.max(0, ...w.days.filter(d => d.type === 'long').map(d => estimateDayMiles(d)))
+      if (longMi > 0) {
+        const share = longMi / total
+        if (rules.longRunMaxMi != null && longMi > rules.longRunMaxMi * 1.05) {
+          add({
+            id: 'qa_method_long_run', severity: 'error', weekNum: w.num,
+            title: 'Long run breaks the method ceiling',
+            detail: `Week ${w.num}'s long run is ~${Math.round(longMi * 10) / 10} mi — this method caps it at ${rules.longRunMaxMi} mi outright.`,
+          })
+        } else if (shareChecksApply && share > rules.longRunMaxPctOfWeek * 1.25) {
+          add({
+            id: 'qa_method_long_run', severity: 'error', weekNum: w.num,
+            title: 'Long run out of proportion',
+            detail: `Week ${w.num}'s long run is ${Math.round(share * 100)}% of the week's ${total} mi — the method caps it at ${Math.round(rules.longRunMaxPctOfWeek * 100)}%.`,
+          })
+        } else if (shareChecksApply && share > rules.longRunMaxPctOfWeek * 1.1) {
+          add({
+            id: 'qa_method_long_run', severity: 'warn', weekNum: w.num,
+            title: 'Long run above the method share',
+            detail: `Week ${w.num}'s long run is ${Math.round(share * 100)}% of the week — the method's authored cap is ${Math.round(rules.longRunMaxPctOfWeek * 100)}%.`,
+          })
+        }
+      }
+
+      // Quality share of weekly volume.
+      const qualityMi = w.days
+        .filter(d => d.type === 'quality' && !isBenchmark(d))
+        .reduce((sum, d) => sum + estimateDayMiles(d), 0)
+      if (qualityMi > 0 && shareChecksApply) {
+        const share = qualityMi / total
+        if (share > rules.qualityMaxPctOfWeek + 0.15) {
+          add({
+            id: 'qa_method_quality_share', severity: 'error', weekNum: w.num,
+            title: 'Quality volume out of proportion',
+            detail: `Week ${w.num} carries ~${Math.round(qualityMi * 10) / 10} mi of quality in a ${total} mi week (${Math.round(share * 100)}%) — the method holds quality near ${Math.round(rules.qualityMaxPctOfWeek * 100)}%.`,
+          })
+        } else if (share > rules.qualityMaxPctOfWeek + 0.05) {
+          add({
+            id: 'qa_method_quality_share', severity: 'warn', weekNum: w.num,
+            title: 'Quality share above the method target',
+            detail: `Week ${w.num}'s quality volume is ${Math.round(share * 100)}% of the week — the method targets ≤${Math.round(rules.qualityMaxPctOfWeek * 100)}%.`,
+          })
+        }
+      }
+    })
+
+    // Hard-day spacing: quality sessions need the method's authored gap.
+    if (rules.minDaysBetweenQuality >= 1) {
+      const flatDays: { day: PlannedDay; weekNum: number; idx: number }[] = []
+      let idx = 0
+      for (const w of weeks) {
+        for (const d of w.days) flatDays.push({ day: d, weekNum: w.num, idx: idx++ })
+      }
+      const qualityIdx = flatDays.filter(f => f.day.type === 'quality' && !isBenchmark(f.day))
+      for (let i = 1; i < qualityIdx.length; i++) {
+        const gapDays = qualityIdx[i].idx - qualityIdx[i - 1].idx - 1
+        if (gapDays === 0) {
+          add({
+            id: 'qa_hard_day_spacing', severity: 'error', weekNum: qualityIdx[i].weekNum, day: qualityIdx[i].day.day,
+            title: 'Back-to-back quality sessions',
+            detail: `"${qualityIdx[i - 1].day.workout}" and "${qualityIdx[i].day.workout}" run on consecutive days — this method wants ${rules.minDaysBetweenQuality}+ easy day(s) between hard sessions.`,
+          })
+        } else if (gapDays < rules.minDaysBetweenQuality) {
+          add({
+            id: 'qa_hard_day_spacing', severity: 'warn', weekNum: qualityIdx[i].weekNum, day: qualityIdx[i].day.day,
+            title: 'Hard sessions closer than the method wants',
+            detail: `"${qualityIdx[i].day.workout}" comes ${gapDays + 1} day(s) after the previous quality session — the method's authored gap is ${rules.minDaysBetweenQuality} days.`,
+          })
+        }
+      }
+    }
+  }
 
   // ── race specificity: Hyrox (P3) ──────────────────────────────────
   const isHyrox = race?.format === 'hyrox' || /hyrox/i.test(`${race?.name ?? ''} ${race?.distance ?? ''}`)

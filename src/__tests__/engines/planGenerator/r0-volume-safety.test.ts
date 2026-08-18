@@ -65,7 +65,10 @@ function maxSaneJumpViolations(weeks: TrainingWeek[]): string[] {
     if (!skip && baseline >= 5 && mi > baseline * 1.3) {
       out.push(`wk${w.num}: ${baseline} → ${mi}`)
     }
-    if (!skip && !/cutback|recovery week/i.test(w.focus ?? '')) baseline = mi
+    // Taper weeks never set the baseline (mirrors qa_weekly_ramp): a
+    // season's next build resumes near the PRE-taper volume, and reading
+    // it against the taper's deliberately depressed floor fakes a cliff.
+    if (!skip && !/cutback|recovery week|taper/i.test(w.focus ?? '')) baseline = mi
   }
   return out
 }

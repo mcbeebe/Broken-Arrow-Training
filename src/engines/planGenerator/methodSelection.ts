@@ -26,6 +26,7 @@ import type {
   RaceType,
 } from '../../hooks/useOnboarding'
 import { configVertGainFt } from '../../utils/raceVert'
+import { RECOMMENDABLE_METHODS } from '../../data/methods'
 import { RACE_DISTANCE_MILES } from '../../utils/seasonConfig'
 
 const RATING_POINTS: Record<ApplicabilityRating, number> = {
@@ -37,6 +38,27 @@ const RATING_POINTS: Record<ApplicabilityRating, number> = {
 }
 
 const DEFAULT_RATING: ApplicabilityRating = 'OK'
+
+/**
+ * R2 — the best recommendable method for a goal distance, by the
+ * applicability rating alone (BEST > GOOD > OK > CAUTION; NOT_SUITED
+ * never wins). Used by the season splicer's fallback and the suitability
+ * gate's suggestion — a stable, deterministic pick with no athlete
+ * context needed.
+ */
+export function bestMethodForDistance(distance: RaceDistance): TrainingMethod {
+  let best = RECOMMENDABLE_METHODS[0]
+  let bestPts = -1
+  for (const m of RECOMMENDABLE_METHODS) {
+    const rating = m.applicability?.byDistance?.[distance] ?? DEFAULT_RATING
+    const pts = RATING_POINTS[rating]
+    if (pts > bestPts && rating !== 'NOT_SUITED') {
+      best = m
+      bestPts = pts
+    }
+  }
+  return best
+}
 
 const W_DISTANCE = 3
 const W_EXPERIENCE = 2

@@ -260,6 +260,29 @@ const DISTANCE_PEAK_CAP_MI: Record<RaceDistance, number> = {
   mountain_ultra: 160,
 }
 
+/**
+ * R2 — max GAIN over current weekly mileage a single block may build. The
+ * pure multiplier model scales absurdly with the base it multiplies: a
+ * 60 mi/wk marathoner × 2.3 = 138 mi/wk "peak" — a target no day content
+ * can express, so every week failed target-adherence while the ramp
+ * chased a number the athlete should never run. One block adds at most
+ * this many weekly miles on top of what the athlete already handles
+ * (~10%/wk compounding lands well inside these over a real build); the
+ * distance FLOORS still win for low-base athletes, so race-readiness
+ * minimums are untouched.
+ */
+const DISTANCE_PEAK_GAIN_MI: Record<RaceDistance, number> = {
+  '5k': 15,
+  '10k': 18,
+  half_marathon: 20,
+  marathon: 25,
+  '50k': 28,
+  '50_mile': 30,
+  '100k': 32,
+  '100_mile': 34,
+  mountain_ultra: 30,
+}
+
 const LONG_PCT: Record<RaceDistance, number> = {
   '5k': 0.30,
   '10k': 0.30,
@@ -366,7 +389,24 @@ export interface VolumeDistanceOpts {
    *  duration floor into honest miles: on steep ground the same minutes
    *  cover fewer miles. */
   gradeAdjFactor?: number
+  /** R2 — the generating method's authored long-run share cap
+   *  (methodInvariants registry). Bounds the long run's slice of weekly
+   *  volume at generation time so the QA gate isn't the first place the
+   *  method's own rule is heard. */
+  methodLongRunPctCap?: number
+  /** R2 — the method's absolute long-run ceiling in miles, where authored
+   *  (Hansons: "capped at 16 miles — never exceed"). */
+  methodLongRunAbsCapMi?: number
+  /** R2 — planned RUNNING days per week, for the content-ceiling peak cap:
+   *  a weekly target must be expressible by the day content (long-run time
+   *  cap + ~80 min on each other run day), or the ramp chases a number the
+   *  plan never prescribes and every week fails target-adherence. */
+  runningDays?: number
 }
+
+/** Ceiling on any single non-long run day (minutes) used by the
+ *  content-ceiling peak cap — methods cap easy days near 75–90 min. */
+const CONTENT_CAP_MIN_PER_DAY = 80
 
 /** Fraction of the predicted finish duration the peak long run should reach
  *  (time on feet). 65% is the common trail-coaching band for races in the
@@ -396,8 +436,12 @@ function longRunMilesFor(
   const pct = LONG_PCT[opts.raceDistance]
   const easyPaceMinPerMile = (opts.easyPaceSecPerMile ?? DEFAULT_EASY_PACE_SEC_PER_MILE) / 60
   const timeCapMi = (LONG_TIME_CAP_MIN[opts.raceDistance] * (opts.longRunTimeCapMult ?? 1)) / easyPaceMinPerMile
-  const maxMi = LONG_MAX_MI[opts.raceDistance]
-  let target = Math.min(totalMi * pct, maxMi, timeCapMi)
+  // R2 — the method's own authored ceilings join the distance ceilings:
+  // an absolute cap where declared (Hansons 16 mi) and the method's
+  // long-run share of the week (Daniels ≤30%).
+  const maxMi = Math.min(LONG_MAX_MI[opts.raceDistance], opts.methodLongRunAbsCapMi ?? Infinity)
+  const invPct = opts.methodLongRunPctCap ?? 1
+  let target = Math.min(totalMi * pct, maxMi, timeCapMi, totalMi * invPct)
   // P2 — duration adequacy: the peak long run should reach a fraction of the
   // predicted race DURATION (time on feet governs trail readiness, not
   // miles). Convert that duration into miles via the effort-adjusted pace,
@@ -417,7 +461,10 @@ function longRunMilesFor(
   // run has no business in a 5K/10K plan (it starved every other day and
   // blew the weekly budget on low-volume athletes).
   const isShortRace = opts.raceDistance === '5k' || opts.raceDistance === '10k'
-  const effMethodPct = isShortRace ? Math.min(methodPctCap, pct) : methodPctCap
+  // The invariant share cap bounds the method-pct floor too — "never go
+  // below the flat method cap" must not resurrect a share the method's
+  // own invariants forbid.
+  const effMethodPct = Math.min(isShortRace ? Math.min(methodPctCap, pct) : methodPctCap, invPct)
   return floor1(Math.min(Math.max(target, totalMi * effMethodPct), maxMi))
 }
 
@@ -453,9 +500,27 @@ export function buildWeeklyMileage(
   // low-frequency athletes get proportionally less weekly volume rather
   // than the same miles crammed into longer runs.
   const volumeFactor = opts.volumeFactor ?? 1
+  // R2 — bound the multiplier model's GAIN over current: one block adds at
+  // most DISTANCE_PEAK_GAIN_MI on top of what the athlete already runs.
+  // Applied to the multiplier term only — the race-readiness floor still
+  // lifts low-base athletes (see DISTANCE_PEAK_GAIN_MI).
+  const peakGainCap = opts.raceDistance && currentWeeklyMileage > 0
+    ? currentWeeklyMileage + DISTANCE_PEAK_GAIN_MI[opts.raceDistance]
+    : Infinity
   // The factor scales the multiplier-of-current model, never the distance
   // race-readiness floor — a 4-day half athlete still needs ~25 mi weeks.
-  const peak = Math.min(Math.max(currentWeeklyMileage * peakMult * volumeFactor, distancePeakFloor), distancePeakCap)
+  const peakFromCurrent = Math.min(currentWeeklyMileage * peakMult * volumeFactor, peakGainCap)
+  // R2 — content ceiling: the peak must be EXPRESSIBLE by the day content
+  // (the long run's time cap plus ~80 min on each other run day at easy
+  // pace), or the ramp model prescribes weekly totals no set of day cards
+  // can add up to and target-adherence fails plan-wide (the sweep's elite
+  // 60 mi/wk persona: a 138 mi "peak" against ~60 mi of buildable content).
+  const easyPaceMinPerMi = (opts.easyPaceSecPerMile ?? DEFAULT_EASY_PACE_SEC_PER_MILE) / 60
+  const contentCapMi = opts.raceDistance && opts.runningDays
+    ? (LONG_TIME_CAP_MIN[opts.raceDistance] * (opts.longRunTimeCapMult ?? 1)
+        + Math.max(0, opts.runningDays - 1) * CONTENT_CAP_MIN_PER_DAY) / easyPaceMinPerMi
+    : Infinity
+  const peak = Math.min(Math.max(peakFromCurrent, distancePeakFloor), distancePeakCap, contentCapMi)
   const startPctMul = adjust.startPctMultiplier ?? 1
   // Never open the plan *below* what the athlete already runs each week — they
   // do that volume safely today, so starting lower just detrains them. Apply
@@ -463,13 +528,23 @@ export function buildWeeklyMileage(
   // weekly mileage: a returning athlete already at 10 mi/wk opens at 10, not 8
   // (the de-load only bites when the method start would otherwise sit *above*
   // current). Capped at peak.
-  const start = Math.min(
-    Math.max(peak * mp.startMileagePctOfPeak * startPctMul, currentWeeklyMileage),
-    peak,
-  )
   const maxWeeklyIncreasePct = adjust.maxWeeklyIncreasePctCap != null
     ? Math.min(mp.maxWeeklyIncreasePct, adjust.maxWeeklyIncreasePctCap)
     : mp.maxWeeklyIncreasePct
+  // R2 — when the athlete told us what they run today, week 1 is at most
+  // one ramp step above it. Methods that open near peak (Pfitzinger's
+  // startMileagePctOfPeak ≈ 1) assume the base already exists — opening
+  // 30-50% above a STATED current base is exactly the cliff the weekly
+  // ramp cap forbids between any other two weeks. Athletes with no stated
+  // base (currentWeeklyMileage 0) keep the method's start.
+  const startRampCap = currentWeeklyMileage > 0
+    ? currentWeeklyMileage * (1 + maxWeeklyIncreasePct)
+    : Infinity
+  const start = Math.min(
+    Math.max(peak * mp.startMileagePctOfPeak * startPctMul, currentWeeklyMileage),
+    peak,
+    startRampCap,
+  )
   // The volume taper must cover every week the phase allocator labels
   // "Taper" — with only method.taper.durationWeeks tapering, a longer
   // allocated taper phase shipped peak-volume weeks under a Taper label
