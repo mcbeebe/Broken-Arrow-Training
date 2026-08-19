@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, cleanup } from '@testing-library/react'
+import { render, screen, fireEvent, within, cleanup } from '@testing-library/react'
 import Onboarding from '../components/Onboarding'
 import type { OnboardingConfig } from '../hooks/useOnboarding'
 
@@ -57,6 +57,7 @@ function walkHappyPath(overrides: Partial<{
   anchorBpm: string
   anchorWhen: { month: string; year: string } | null
   trainTempLabel: string
+  healthAnswers: { bone?: boolean; boneRecent?: boolean; fatigue?: boolean; cycles?: boolean } | null
   weeklyMileage: string
   injury: string
   injuryArea: string
@@ -88,6 +89,7 @@ function walkHappyPath(overrides: Partial<{
     anchorTime: '21:30',
     anchorWhen: null,
     trainTempLabel: '',
+    healthAnswers: null,
     weeklyMileage: '20',
     injury: 'No injuries',
     injuryArea: '',
@@ -247,7 +249,19 @@ function walkHappyPath(overrides: Partial<{
   // when it appears.
   clickContinue()
   if (screen.queryByText(/a quick personal note/i)) {
-    clickContinue() // menopause → detail (skipped, no selection)
+    clickContinue() // menopause → health screen (skipped, no selection)
+  }
+  // UI PR B: the optional health screen — always shown, always skippable.
+  if (screen.queryByText(/Three quick health questions/i)) {
+    const answer = (namePattern: RegExp, yes: boolean) => {
+      const group = screen.getByRole('radiogroup', { name: namePattern })
+      fireEvent.click(within(group).getByText(yes ? 'Yes' : 'No'))
+    }
+    if (o.healthAnswers?.bone != null) answer(/bone stress injury/i, o.healthAnswers.bone)
+    if (o.healthAnswers?.boneRecent != null) answer(/within the last 6 months\?$/i, o.healthAnswers.boneRecent)
+    if (o.healthAnswers?.fatigue != null) answer(/persistent unusual fatigue/i, o.healthAnswers.fatigue)
+    if (o.healthAnswers?.cycles != null) answer(/missed menstrual cycles/i, o.healthAnswers.cycles)
+    clickContinue()
   }
 
   // Step 11 (G3: prefs last): Detail level — pre-selected from experience.
@@ -279,6 +293,26 @@ describe('Onboarding', () => {
       const cfg = walkHappyPath()
       expect(cfg.fitnessAnchor).toEqual({ type: 'race_5k', valueSeconds: 1290 })
       expect(cfg.typicalTrainingTempF).toBeUndefined()
+    })
+  })
+
+  describe('health screen (UI PR B, PRD-109)', () => {
+    it('yes answers land in healthScreen (only trues stored)', () => {
+      const cfg = walkHappyPath({ healthAnswers: { bone: true, boneRecent: true, fatigue: false } })
+      expect(cfg.healthScreen).toEqual({ boneStressHistory: true, boneStressRecent: true })
+    })
+
+    it('fatigue alone flags too', () => {
+      const cfg = walkHappyPath({ healthAnswers: { fatigue: true } })
+      expect(cfg.healthScreen).toEqual({ persistentFatigue: true })
+    })
+
+    it('skipping the step keeps the legacy config shape (no healthScreen key)', () => {
+      expect(walkHappyPath().healthScreen).toBeUndefined()
+    })
+
+    it('all-no answers keep the legacy config shape too', () => {
+      expect(walkHappyPath({ healthAnswers: { bone: false, fatigue: false } }).healthScreen).toBeUndefined()
     })
   })
 
@@ -857,7 +891,8 @@ describe('Onboarding', () => {
       fireEvent.change(screen.getByPlaceholderText('e.g. Jenn'), { target: { value: 'Jenn' } })
       // Under 38 so the optional menopause step doesn't appear before review.
       fireEvent.change(screen.getByPlaceholderText('e.g. 41'), { target: { value: '37' } })
-      clickContinue()  // PROFILE → DETAIL (prefs last in the G3 order)
+      clickContinue()  // PROFILE → HEALTH (menopause hidden under 38)
+      clickContinue()  // HEALTH (optional — skipped) → DETAIL
       clickContinue()  // DETAIL (pre-selected) → WEARABLE
       fireEvent.click(screen.getByText('Garmin Watch')); clickContinue() // → REVIEW
 
@@ -876,23 +911,23 @@ describe('Onboarding', () => {
   })
 
   describe('progress bar', () => {
-    it('uses 15 visible steps before raceType is picked (race-distance hidden)', () => {
+    it('uses 16 visible steps before raceType is picked (race-distance hidden)', () => {
       const onComplete = vi.fn()
       const { container } = render(<Onboarding onComplete={onComplete} loadingDurationMs={0} />)
       const progressFill = container.querySelector('.bg-teal-500.rounded-full') as HTMLElement
-      // step 0 of 15 (incl. the G3 preview + goal-mode steps) → 1/15 ≈ 6.67%
-      expect(progressFill.style.width).toMatch(/^6\.6/)
+      // step 0 of 16 (incl. the health screen, UI PR B) → 1/16 = 6.25%
+      expect(progressFill.style.width).toMatch(/^6\.2/)
     })
 
-    it('stays at 15 visible steps after raceType=trail (distance folded into the race step)', () => {
+    it('stays at 16 visible steps after raceType=trail (distance folded into the race step)', () => {
       const onComplete = vi.fn()
       const { container } = render(<Onboarding onComplete={onComplete} loadingDurationMs={0} />)
       fireEvent.click(screen.getByText('A specific race')) // goal mode (step 1)
       clickContinue()
       fireEvent.click(screen.getByText('Trail / Ultra')) // race type (step 2) — no extra step appears
       const progressFill = container.querySelector('.bg-teal-500.rounded-full') as HTMLElement
-      // On step idx 1 of 15 → 2/15 ≈ 13.33%
-      expect(progressFill.style.width).toMatch(/^13\.3/)
+      // On step idx 1 of 16 → 2/16 = 12.5%
+      expect(progressFill.style.width).toMatch(/^12\.5/)
     })
   })
 
@@ -1064,6 +1099,7 @@ describe('Onboarding', () => {
     // G3 order puts the display prefs (detail level, wearable) AFTER the
     // menopause step — this walks them to land on REVIEW.
     function finishPrefs() {
+      clickContinue() // HEALTH screen (optional — skipped; UI PR B)
       clickContinue() // DETAIL (pre-selected from experience)
       fireEvent.click(screen.getByText('Garmin Watch')); clickContinue() // WEARABLE → REVIEW
     }
@@ -1195,6 +1231,7 @@ describe('Onboarding', () => {
       fireEvent.change(screen.getByPlaceholderText('e.g. Jenn'), { target: { value: 'Jenn' } })
       fireEvent.change(screen.getByPlaceholderText('e.g. 41'), { target: { value: '37' } })
       clickContinue() // profile → detail (under 38: no menopause step)
+      clickContinue() // HEALTH screen (optional — skipped; UI PR B)
       clickContinue() // detail
       fireEvent.click(screen.getByText('Garmin Watch')); clickContinue()
       clickFinish()
@@ -1230,6 +1267,7 @@ describe('Onboarding', () => {
       fireEvent.change(screen.getByPlaceholderText('e.g. Jenn'), { target: { value: 'J' } })
       fireEvent.change(screen.getByPlaceholderText('e.g. 41'), { target: { value: '37' } })
       clickContinue()
+      clickContinue() // HEALTH screen (optional — skipped; UI PR B)
       clickContinue()
       fireEvent.click(screen.getByText('Garmin Watch')); clickContinue()
       clickFinish()
@@ -1272,6 +1310,7 @@ describe('season mode (multi-race builder)', () => {
     fireEvent.change(screen.getByPlaceholderText('e.g. 41'), { target: { value: '45' } })
     clickContinue()
     fireEvent.click(screen.getByText(/not applicable/i)); clickContinue() // menopause (45 → shown)
+    clickContinue() // HEALTH screen (optional — skipped; UI PR B)
     clickContinue() // detail
     fireEvent.click(screen.getByText('Garmin Watch')); clickContinue() // wearable → review
     clickFinish()
@@ -1442,6 +1481,7 @@ describe('season mode: race kinds are multi-select', () => {
     fireEvent.change(screen.getByPlaceholderText('e.g. Jenn'), { target: { value: 'Mike' } })
     fireEvent.change(screen.getByPlaceholderText('e.g. 41'), { target: { value: '30' } })
     clickContinue()
+    clickContinue() // HEALTH screen (optional — skipped; UI PR B)
     clickContinue() // detail
     fireEvent.click(screen.getByText('Garmin Watch')); clickContinue()
     clickFinish()
@@ -1501,6 +1541,7 @@ describe('redo with previousConfig', () => {
     clickContinue() // strength (prefilled)
     clickContinue() // schedule (prefilled)
     expect(screen.queryByText(/tell us about yourself/i)).not.toBeInTheDocument()
+    clickContinue() // HEALTH screen (optional — skipped; UI PR B)
     clickContinue() // detail
     clickContinue() // wearable
     clickFinish()
