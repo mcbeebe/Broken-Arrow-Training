@@ -55,6 +55,8 @@ function walkHappyPath(overrides: Partial<{
   anchorOption: string
   anchorTime: string
   anchorBpm: string
+  anchorWhen: { month: string; year: string } | null
+  trainTempLabel: string
   weeklyMileage: string
   injury: string
   injuryArea: string
@@ -84,6 +86,8 @@ function walkHappyPath(overrides: Partial<{
     weakStation: 'Wall Balls',
     anchorOption: 'race_5k',
     anchorTime: '21:30',
+    anchorWhen: null,
+    trainTempLabel: '',
     weeklyMileage: '20',
     injury: 'No injuries',
     injuryArea: '',
@@ -153,6 +157,11 @@ function walkHappyPath(overrides: Partial<{
       const timeInput = screen.getByPlaceholderText(/mm:ss|hh:mm:ss/)
       fireEvent.change(timeInput, { target: { value: o.anchorTime } })
     }
+    // Phase 3 UI — optional "roughly when" month/year for race anchors.
+    if (o.anchorWhen && o.anchorOption.startsWith('race_')) {
+      fireEvent.change(screen.getByLabelText('Anchor race year'), { target: { value: o.anchorWhen.year } })
+      fireEvent.change(screen.getByLabelText('Anchor race month'), { target: { value: o.anchorWhen.month } })
+    }
   }
   if (o.weeklyMileage) {
     const mileageInput = screen.getByPlaceholderText('e.g. 20')
@@ -210,6 +219,10 @@ function walkHappyPath(overrides: Partial<{
 
   // Step 9: Schedule & constraints
   o.trainingTimes.forEach(label => fireEvent.click(screen.getByText(label)))
+  // Phase 4 UI — optional typical-training-heat chip.
+  if (o.trainTempLabel) {
+    fireEvent.click(screen.getByRole('radio', { name: new RegExp(`^${o.trainTempLabel} `) }))
+  }
   if (o.scheduleNote) {
     const textarea = screen.getByPlaceholderText(/Travel May/)
     fireEvent.change(textarea, { target: { value: o.scheduleNote } })
@@ -251,6 +264,24 @@ function walkHappyPath(overrides: Partial<{
 }
 
 describe('Onboarding', () => {
+  describe('anchor date & training heat (Phases 3/4 UI)', () => {
+    it('captures the anchor month/year as a mid-month dateIso', () => {
+      const cfg = walkHappyPath({ anchorWhen: { month: '04', year: '2026' } })
+      expect(cfg.fitnessAnchor).toEqual({ type: 'race_5k', valueSeconds: 1290, dateIso: '2026-04-15' })
+    })
+
+    it('captures the training-heat chip as a representative °F, and toggles off', () => {
+      const cfg = walkHappyPath({ trainTempLabel: 'Hot' })
+      expect(cfg.typicalTrainingTempF).toBe(85)
+    })
+
+    it('both stay absent when skipped (legacy shape preserved)', () => {
+      const cfg = walkHappyPath()
+      expect(cfg.fitnessAnchor).toEqual({ type: 'race_5k', valueSeconds: 1290 })
+      expect(cfg.typicalTrainingTempF).toBeUndefined()
+    })
+  })
+
   describe('happy path', () => {
     it('captures all answers and emits a complete OnboardingConfig', () => {
       const cfg = walkHappyPath()

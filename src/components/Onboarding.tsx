@@ -143,6 +143,18 @@ const ANCHOR_OPTIONS: { value: FitnessAnchorType; label: string; placeholder: st
   { value: 'none', label: "I don't know yet", placeholder: '', kind: 'none' },
 ]
 
+/** Phase 4 UI — typical training heat, as chips (maps to a representative
+ *  °F for the engine's HEAT_PACE_ADJUST bands). Skipping = no adjustment. */
+const TRAIN_TEMP_OPTIONS: { value: number; label: string; desc: string; effect: string }[] = [
+  { value: 55, label: 'Cool', desc: 'Under 60°F', effect: 'No pace adjustment.' },
+  { value: 65, label: 'Mild', desc: '60–70°F', effect: 'Easy paces adjust ~1–2%.' },
+  { value: 75, label: 'Warm', desc: '70–80°F', effect: 'Easy paces adjust ~4%.' },
+  { value: 85, label: 'Hot', desc: '80–90°F', effect: 'Easy paces adjust ~7%; hard sessions run by effort.' },
+  { value: 95, label: 'Extreme', desc: 'Over 90°F', effect: 'Everything easy; shift runs early or indoors.' },
+]
+
+const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
 /** One row of the season race builder — AdditionalRace-shaped with the
  *  miles field kept as raw input text and a local key for React lists. */
 interface SeasonRaceRow {
@@ -417,6 +429,10 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
     prev?.fitnessAnchor?.valueSeconds ? formatSecondsLabel(prev.fitnessAnchor.valueSeconds) : '')
   const [anchorBpm, setAnchorBpm] = useState(
     prev?.fitnessAnchor?.bpm ? String(prev.fitnessAnchor.bpm) : '')
+  // Phase 3 UI — roughly when the anchor race happened ('YYYY-MM'; '' = unknown).
+  const [anchorWhen, setAnchorWhen] = useState(prev?.fitnessAnchor?.dateIso?.slice(0, 7) ?? '')
+  // Phase 4 UI — typical training heat (representative °F; null = skip).
+  const [trainTemp, setTrainTemp] = useState<number | null>(prev?.typicalTrainingTempF ?? null)
   const [goalRaceTime, setGoalRaceTime] = useState('')
   const [weeklyMileage, setWeeklyMileage] = useState(
     derivedFitness?.weeklyMileage4wk != null ? String(derivedFitness.weeklyMileage4wk)
@@ -562,10 +578,14 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
 
   const buildFitnessAnchor = (): OnboardingConfig['fitnessAnchor'] => {
     const anchorOpt = ANCHOR_OPTIONS.find(o => o.value === anchorType)!
+    // Month precision is all the engine needs — mid-month minimizes error.
+    const dateIso = anchorType.startsWith('race_') && /^\d{4}-\d{2}$/.test(anchorWhen)
+      ? `${anchorWhen}-15`
+      : undefined
     if (anchorType !== 'none') {
       if (anchorOpt.kind === 'time') {
         const secs = parseTimeToSeconds(anchorTime)
-        if (secs) return { type: anchorType, valueSeconds: secs }
+        if (secs) return { type: anchorType, valueSeconds: secs, ...(dateIso ? { dateIso } : {}) }
       } else if (anchorOpt.kind === 'bpm') {
         const bpm = parseInt(anchorBpm)
         if (bpm > 0) return { type: anchorType, bpm }
@@ -605,6 +625,7 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
           currentWeeklyMileage: weeklyMileage ? parseFloat(weeklyMileage) : undefined,
           injuryStatus: injury ?? undefined,
           planStartDate: planStart || undefined,
+          typicalTrainingTempF: trainTemp ?? undefined,
           goalMode: goalMode === 'general' || raceType === 'general' ? undefined : (goalMode ?? 'race'),
           anchorIsPrimary: goalMode === 'season' ? primaryKey === 'anchor' : undefined,
           additionalRaces: assembleAdditionalRaces({ raceType, goalMode, seasonRaces, primaryKey, extraRaceName, extraRaceDate, extraRacePriority, extraRaceMiles, extraRaceDescription }),
@@ -660,6 +681,7 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
       preferredTrainingTimes: trainingTimes.length > 0 ? trainingTimes : undefined,
       scheduleConstraintsNote: scheduleNote.trim() || undefined,
       planStartDate: planStart || undefined,
+      typicalTrainingTempF: trainTemp ?? undefined,
       menopauseStatus: showsMenopauseStep ? (menopause ?? undefined) : undefined,
       menopauseSymptoms:
         showsMenopauseStep && isRealMenopauseStage(menopause) && menopauseSymptoms.length > 0
@@ -1445,6 +1467,47 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
                         ? <p className="text-xs text-teal-600 mt-1">Reading this as {formatSecondsLabel(parseTimeToSeconds(anchorTime)!)}.</p>
                         : <p className="text-xs text-amber-600 mt-1">Enter as mm:ss (e.g. 21:30) — the “:” is optional.</p>
                     )}
+                    {anchorType.startsWith('race_') && (
+                      <div className="mt-3">
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Roughly when was that race? (optional)</label>
+                        <div className="flex gap-2">
+                          <select
+                            aria-label="Anchor race month"
+                            value={anchorWhen ? anchorWhen.slice(5, 7) : ''}
+                            onChange={e => {
+                              const m = e.target.value
+                              const y = anchorWhen ? anchorWhen.slice(0, 4) : String(new Date().getFullYear())
+                              setAnchorWhen(m ? `${y}-${m}` : '')
+                            }}
+                            className="flex-1 px-3 py-2.5 text-base border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400 bg-white"
+                          >
+                            <option value="">Month…</option>
+                            {MONTH_LABELS.map((m, i) => (
+                              <option key={m} value={String(i + 1).padStart(2, '0')}>{m}</option>
+                            ))}
+                          </select>
+                          <select
+                            aria-label="Anchor race year"
+                            value={anchorWhen ? anchorWhen.slice(0, 4) : String(new Date().getFullYear())}
+                            onChange={e => {
+                              const y = e.target.value
+                              const m = anchorWhen ? anchorWhen.slice(5, 7) : ''
+                              if (m) setAnchorWhen(`${y}-${m}`)
+                            }}
+                            className="w-28 px-3 py-2.5 text-base border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400 bg-white"
+                          >
+                            {[0, 1, 2].map(back => {
+                              const y = new Date().getFullYear() - back
+                              return <option key={y} value={String(y)}>{y}</option>
+                            })}
+                          </select>
+                        </div>
+                        <p className="text-xs text-slate-400 mt-1">
+                          If it’s recent we’ll trust it as-is. If it’s more than ~3 months old — or you skip
+                          this — your plan adds a 20-minute check-in test to make sure your paces still fit you.
+                        </p>
+                      </div>
+                    )}
                   </>
                 )}
                 {selectedAnchor.kind === 'bpm' && (
@@ -1700,6 +1763,28 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
                 </div>
               </div>
               <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Typical daytime temps where you train? (optional)</label>
+                <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="Typical training temperature">
+                  {TRAIN_TEMP_OPTIONS.map(opt => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      role="radio"
+                      aria-checked={trainTemp === opt.value}
+                      onClick={() => setTrainTemp(trainTemp === opt.value ? null : opt.value)}
+                      className={`rounded-lg border px-2.5 py-1.5 text-xs font-bold ${
+                        trainTemp === opt.value ? 'border-teal-500 bg-teal-100 text-teal-800' : 'border-slate-200 text-slate-500'
+                      }`}
+                    >{opt.label} <span className="font-normal">{opt.desc}</span></button>
+                  ))}
+                </div>
+                <p className="text-xs text-slate-400 mt-1">
+                  {trainTemp != null
+                    ? TRAIN_TEMP_OPTIONS.find(o => o.value === trainTemp)!.effect + ' Same effort — honest numbers.'
+                    : 'Heat changes what a pace costs. Pick a band and easy paces adjust to match the effort; skip and nothing changes.'}
+                </p>
+              </div>
+              <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">When should training start?</label>
                 <div className="flex gap-1.5 mb-2" role="radiogroup" aria-label="Plan start">
                   <button type="button" role="radio" aria-checked={planStart === ''}
@@ -1777,6 +1862,8 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
               wearable={wearable}
               name={name}
               age={age}
+              anchorWhen={anchorWhen}
+              trainTemp={trainTemp}
             />
           </StepContainer>
         )}
@@ -2109,6 +2196,8 @@ function ReviewSummary({
   wearable,
   name,
   age,
+  anchorWhen,
+  trainTemp,
 }: {
   raceType: RaceType | null
   raceName: string
@@ -2134,6 +2223,8 @@ function ReviewSummary({
   wearable: WearableType | null
   name: string
   age: string
+  anchorWhen?: string
+  trainTemp?: number | null
 }) {
   const cross = (crossDays ?? 0) > 0 && crossTraining.length > 0 ? crossDays! : 0
   const strength = strengthDays ?? 0
@@ -2232,6 +2323,13 @@ function ReviewSummary({
           {name || '—'}{age ? `, ${age}` : ''}
           {wearable && wearable !== 'none' ? ` · ${wearable.replace('_', ' ')}` : ''}
         </p>
+        {(anchorWhen || trainTemp != null) && (
+          <p className="text-sm text-slate-500 mt-1">
+            {anchorWhen ? `Anchor race: ${MONTH_LABELS[parseInt(anchorWhen.slice(5, 7), 10) - 1]} ${anchorWhen.slice(0, 4)}` : ''}
+            {anchorWhen && trainTemp != null ? ' · ' : ''}
+            {trainTemp != null ? `Training heat: ${TRAIN_TEMP_OPTIONS.find(o => o.value === trainTemp)?.label ?? trainTemp + '°F'}` : ''}
+          </p>
+        )}
       </SummaryCard>
     </div>
   )
