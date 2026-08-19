@@ -16,6 +16,7 @@ import { buildSeasonContext } from './engines/season/coachContext'
 import SeasonPanel from './components/SeasonPanel'
 import { assessRecalibration } from './engines/planGenerator/recalibration'
 import { validatePlan, qaFindingsToAdvisories } from './engines/planQA/validatePlan'
+import { useReplan } from './hooks/useReplan'
 import { assessBenchmarkResult, scaleZoneTable } from './engines/planGenerator/benchmarkResult'
 import { ESTIMATED_LTHR_PCT_OF_MAX } from './engines/planGenerator/paceTargets'
 import { buildRepaceOps } from './utils/repace'
@@ -449,6 +450,10 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
   // race is always race #1 (degenerate one-race season = no season UI).
   const seasonState = useSeason(activePlan.race, athleteId, onboarding.config?.additionalRaces, onboarding.config?.completedAt)
   const planEdits = usePlanEdits(athleteId, onboarding.config?.completedAt)
+  // Phase 5 (PRD-110): the missed-workout log, replayed over the derived
+  // weeks like swaps and edits. Same generation pruning — a replan can
+  // only ever describe the plan it was made against.
+  const replan = useReplan(athleteId, onboarding.config?.completedAt)
   const soreness = useSoreness(athleteId)
   const hrZones = useHRZones(athleteId, activePlan.zones)
   const maxHROverride = useMaxHR(athleteId, activePlan.athlete.maxHR)
@@ -549,6 +554,10 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     // day after a swap" bug. Actuals/logs match by day label, so they stay
     // correct even when an edit adds/removes a day.
     w = planEdits.applyEditsToWeeks(w)
+    // Replan rules run on the PRESCRIPTION, after edits and before any
+    // actual is matched in: the rules rewrite what was planned, and the
+    // actuals layer still matches by day label afterwards.
+    w = replan.applyReplansToWeeks(w)
     if (showStrava && strava.activities.length > 0) {
       w = matchActivitiesToPlan(w, strava.activities)
     }
@@ -568,7 +577,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     // display surface and to the compliance grader that reads day.zone.
     w = rezoneWeeks(w, hrZones.zones)
     return w
-  }, [activePlan.weeks, seasonState.planResult, onboarding.config, strava.activities, showStrava, manualLog.applyLogsToWeeks, daySwap.applySwapsToWeeks, planEdits.applyEditsToWeeks, garmin.connected, garmin.activityDetails, apple.appleActivities, hrZones.zones])
+  }, [activePlan.weeks, seasonState.planResult, onboarding.config, strava.activities, showStrava, manualLog.applyLogsToWeeks, daySwap.applySwapsToWeeks, planEdits.applyEditsToWeeks, replan.applyReplansToWeeks, garmin.connected, garmin.activityDetails, apple.appleActivities, hrZones.zones])
 
   // ── Auto re-push (G2a): whenever the derived plan changes, re-send any
   // previously-pushed FUTURE workout whose content no longer matches what
@@ -1628,6 +1637,8 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           manualLog={manualLog}
           daySwap={wrappedDaySwap}
           planEdit={planEdit}
+          replan={replan}
+          onRebuildPlan={onboarding.requestRedo}
           weekReadiness={readiness.weekScores}
           athleteId={athleteId}
           coachEnabled={coachEnabled}
