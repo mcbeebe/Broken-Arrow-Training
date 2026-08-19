@@ -24,6 +24,21 @@ export const SCREENING_COPY = {
   boneStressDetail:
     'With a bone stress history, hill sprints and impact-heavy work stay out for the first six weeks and impact builds gradually — bone adapts, on its own schedule.',
 
+  /** The onboarding step itself (UI PR B) — question wording is as
+   *  clinical-adjacent as the advisories and ships from this same
+   *  reviewed file. */
+  stepTitle: 'Three quick health questions',
+  stepSubtitle:
+    'Optional and skippable — answers only ever make your plan more careful, never less. ' +
+    'This stays on your device, and nothing here is a medical assessment.',
+  qBone: 'Have you ever had a bone stress injury (stress fracture or stress reaction)?',
+  qBoneRecent: 'Was it within the last 6 months?',
+  qFatigue: 'In the last 3 months: persistent unusual fatigue, or weight loss you weren\u2019t aiming for?',
+  qCycles: 'In the last 6 months: missed menstrual cycles? (Not counting contraception, pregnancy, or menopause.)',
+  stepFooter:
+    'If anything here is a yes, your plan starts more conservatively \u2014 gentler weekly growth, no jump-heavy strength work \u2014 ' +
+    'and we\u2019ll suggest reviewing it with a clinician or sports dietitian. Training through it is usually fine; training past it is what this guards against.',
+
   /** The critical advisory for a recent bone stress + marathon/ultra pick. */
   boneRecentUltraTitle: 'A recent bone stress injury and this distance are a risky pair',
   boneRecentUltraDetail:

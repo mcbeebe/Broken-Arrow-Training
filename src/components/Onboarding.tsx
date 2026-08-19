@@ -20,6 +20,7 @@ import type {
 import { DETAIL_LEVELS, type DetailLevel } from '../types'
 import { isHyroxRaceInfo } from '../engines/season/planSeason'
 import { RACE_DISTANCE_MILES, normalizeSeasonConfig } from '../utils/seasonConfig'
+import { SCREENING_COPY } from '../engines/running/screeningCopy'
 import { parseTimeToSeconds } from '../utils/parseTime'
 import { sanitizeRaceTimeSeconds } from '../engines/planGenerator/vdot'
 import OnboardingPlanPreview from './OnboardingPlanPreview'
@@ -88,6 +89,11 @@ const STEP_PREVIEW = 17
 const STEP_GOAL_MODE = 18
 const STEP_SEASON_RACES = 19
 
+// UI PR B (PRD-109) — the optional health & energy-availability screen.
+// Placed after the menopause step (same "personal, skippable" register);
+// wording ships from the reviewed screeningCopy registry.
+const STEP_HEALTH = 20
+
 // G3 ordering (goal-first, preview mid-flow, prefs last):
 //   1. goal block — race type/name/distance (or general goal) + experience;
 //   2. fitness anchor (BASELINE) pulled forward so the preview is personal;
@@ -115,6 +121,7 @@ const ALL_STEPS = [
   STEP_SCHEDULE,
   STEP_PROFILE,
   STEP_MENOPAUSE,
+  STEP_HEALTH,
   STEP_DETAIL,
   STEP_WEARABLE,
   STEP_REVIEW,
@@ -431,6 +438,11 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
     prev?.fitnessAnchor?.bpm ? String(prev.fitnessAnchor.bpm) : '')
   // Phase 3 UI — roughly when the anchor race happened ('YYYY-MM'; '' = unknown).
   const [anchorWhen, setAnchorWhen] = useState(prev?.fitnessAnchor?.dateIso?.slice(0, 7) ?? '')
+  // UI PR B (PRD-109) — health screen answers (null = unanswered/skipped).
+  const [healthBone, setHealthBone] = useState<boolean | null>(prev?.healthScreen?.boneStressHistory ?? null)
+  const [healthBoneRecent, setHealthBoneRecent] = useState<boolean | null>(prev?.healthScreen?.boneStressRecent ?? null)
+  const [healthFatigue, setHealthFatigue] = useState<boolean | null>(prev?.healthScreen?.persistentFatigue ?? null)
+  const [healthCycles, setHealthCycles] = useState<boolean | null>(prev?.healthScreen?.missedCycles ?? null)
   // Phase 4 UI — typical training heat (representative °F; null = skip).
   const [trainTemp, setTrainTemp] = useState<number | null>(prev?.typicalTrainingTempF ?? null)
   const [goalRaceTime, setGoalRaceTime] = useState('')
@@ -569,6 +581,7 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
       case STEP_PROFILE: return name.trim().length > 0 && age.trim().length > 0
       case STEP_MENOPAUSE: return true // fully optional — can advance with no selection
       case STEP_PREVIEW: return true // informational — nothing to answer
+      case STEP_HEALTH: return true // fully optional
       case STEP_GOAL_MODE: return !!goalMode
       case STEP_SEASON_RACES: return true // races beyond the anchor are optional
       case STEP_REVIEW: return true
@@ -682,6 +695,16 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
       scheduleConstraintsNote: scheduleNote.trim() || undefined,
       planStartDate: planStart || undefined,
       typicalTrainingTempF: trainTemp ?? undefined,
+      // Only YES answers are stored — an all-no/skipped screen keeps the
+      // legacy config shape byte-for-byte (the engine's unflagged path).
+      healthScreen: (healthBone || healthFatigue || healthCycles)
+        ? {
+            ...(healthBone ? { boneStressHistory: true } : {}),
+            ...(healthBone && healthBoneRecent ? { boneStressRecent: true } : {}),
+            ...(healthFatigue ? { persistentFatigue: true } : {}),
+            ...(healthCycles ? { missedCycles: true } : {}),
+          }
+        : undefined,
       menopauseStatus: showsMenopauseStep ? (menopause ?? undefined) : undefined,
       menopauseSymptoms:
         showsMenopauseStep && isRealMenopauseStage(menopause) && menopauseSymptoms.length > 0
@@ -1864,6 +1887,7 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
               age={age}
               anchorWhen={anchorWhen}
               trainTemp={trainTemp}
+              healthFlagged={!!(healthBone || healthFatigue || healthCycles)}
             />
           </StepContainer>
         )}
@@ -1994,6 +2018,43 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
                 </p>
               </div>
             )}
+          </StepContainer>
+        )}
+
+        {step === STEP_HEALTH && (
+          <StepContainer
+            title={SCREENING_COPY.stepTitle}
+            subtitle={SCREENING_COPY.stepSubtitle}
+          >
+            <div className="space-y-4">
+              <HealthQuestion
+                label={SCREENING_COPY.qBone}
+                value={healthBone}
+                onChange={v => { setHealthBone(v); if (!v) setHealthBoneRecent(null) }}
+              />
+              {healthBone === true && (
+                <div className="ml-3 pl-3 border-l-2 border-teal-200">
+                  <HealthQuestion
+                    label={SCREENING_COPY.qBoneRecent}
+                    value={healthBoneRecent}
+                    onChange={setHealthBoneRecent}
+                  />
+                </div>
+              )}
+              <HealthQuestion
+                label={SCREENING_COPY.qFatigue}
+                value={healthFatigue}
+                onChange={setHealthFatigue}
+              />
+              {sex === 'female' && menopause !== 'menopause' && menopause !== 'postmenopause' && (
+                <HealthQuestion
+                  label={SCREENING_COPY.qCycles}
+                  value={healthCycles}
+                  onChange={setHealthCycles}
+                />
+              )}
+              <p className="text-[11px] text-slate-500">{SCREENING_COPY.stepFooter}</p>
+            </div>
           </StepContainer>
         )}
       </div>
@@ -2198,6 +2259,7 @@ function ReviewSummary({
   age,
   anchorWhen,
   trainTemp,
+  healthFlagged,
 }: {
   raceType: RaceType | null
   raceName: string
@@ -2225,6 +2287,7 @@ function ReviewSummary({
   age: string
   anchorWhen?: string
   trainTemp?: number | null
+  healthFlagged?: boolean
 }) {
   const cross = (crossDays ?? 0) > 0 && crossTraining.length > 0 ? crossDays! : 0
   const strength = strengthDays ?? 0
@@ -2316,6 +2379,9 @@ function ReviewSummary({
         {injuryAdjustNote && (
           <p className="text-xs text-amber-700 mt-1">{injuryAdjustNote}</p>
         )}
+        {healthFlagged && (
+          <p className="text-xs text-slate-500 mt-1">Health note shared — your plan runs a gentler build (5% weekly growth, no jump work) and suggests a professional check-in.</p>
+        )}
       </SummaryCard>
 
       <SummaryCard label="Profile">
@@ -2331,6 +2397,34 @@ function ReviewSummary({
           </p>
         )}
       </SummaryCard>
+    </div>
+  )
+}
+
+/** One yes/no health-screen question. Unanswered (null) is a first-class
+ *  state — tapping the selected answer again clears it. */
+function HealthQuestion({ label, value, onChange }: {
+  label: string
+  value: boolean | null
+  onChange: (v: boolean | null) => void
+}) {
+  return (
+    <div>
+      <p className="text-sm font-medium text-slate-700 mb-1.5">{label}</p>
+      <div className="flex gap-1.5" role="radiogroup" aria-label={label}>
+        {([['No', false], ['Yes', true]] as const).map(([txt, v]) => (
+          <button
+            key={txt}
+            type="button"
+            role="radio"
+            aria-checked={value === v}
+            onClick={() => onChange(value === v ? null : v)}
+            className={`flex-1 rounded-lg border px-2 py-2 text-sm font-semibold ${
+              value === v ? 'border-teal-500 bg-teal-50 text-teal-800' : 'border-slate-200 text-slate-500'
+            }`}
+          >{txt}</button>
+        ))}
+      </div>
     </div>
   )
 }

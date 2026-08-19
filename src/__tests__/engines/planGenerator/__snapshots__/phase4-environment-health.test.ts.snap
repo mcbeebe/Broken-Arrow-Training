@@ -7,5 +7,12 @@ exports[`Phase 4 — health & energy-availability screen (PRD-109) > the copy re
   "boneStressDetail": "With a bone stress history, hill sprints and impact-heavy work stay out for the first six weeks and impact builds gradually — bone adapts, on its own schedule.",
   "healthFlagDetail": "Something you shared in the health questions is a pattern worth reviewing with a clinician or sports dietitian before building training load. This plan has been made more conservative in the meantime: weekly growth is capped at 5%, and jump/impact-heavy strength work is left out. Training through it is usually fine — training past it is what this guards against.",
   "healthFlagTitle": "Worth a professional look before ramping up",
+  "qBone": "Have you ever had a bone stress injury (stress fracture or stress reaction)?",
+  "qBoneRecent": "Was it within the last 6 months?",
+  "qCycles": "In the last 6 months: missed menstrual cycles? (Not counting contraception, pregnancy, or menopause.)",
+  "qFatigue": "In the last 3 months: persistent unusual fatigue, or weight loss you weren’t aiming for?",
+  "stepFooter": "If anything here is a yes, your plan starts more conservatively — gentler weekly growth, no jump-heavy strength work — and we’ll suggest reviewing it with a clinician or sports dietitian. Training through it is usually fine; training past it is what this guards against.",
+  "stepSubtitle": "Optional and skippable — answers only ever make your plan more careful, never less. This stays on your device, and nothing here is a medical assessment.",
+  "stepTitle": "Three quick health questions",
 }
 `;
