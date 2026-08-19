@@ -16,6 +16,9 @@ import type { RacePacingPlan } from '../engines/racePacing'
 import WorkoutModal from './WorkoutModal'
 import ManualLog from './ManualLog'
 import WorkoutEditor, { type WorkoutEdits } from './WorkoutEditor'
+import MissedDaySheet from './MissedDaySheet'
+import type { ReplanKind } from '../engines/planGenerator/replanLog'
+import { weekCompliance, shouldSuggestRegeneration } from '../engines/planGenerator/replan'
 import RaceNarrative from './RaceNarrative'
 import RaceElevationProfile from './RaceElevationProfile'
 
@@ -51,6 +54,17 @@ interface WeeklyPlanProps {
     revertDay: (weekNum: number, dayIndex: number) => void
     hasEdit: (weekNum: number, dayIndex: number) => boolean
   }
+  /** Phase 5 (PRD-110) — missed-workout replanning. Absent for read-only
+   *  surfaces; the "Missed?" affordance simply doesn't render. */
+  replan?: {
+    apply: (kind: ReplanKind, dateIso: string) => void
+    undoFor: (dateIso: string) => void
+    hasReplan: (dateIso: string) => boolean
+  }
+  /** Rebuild the remainder of the plan from where the athlete actually is
+   *  (Rule 3). Wired to the redo-onboarding flow, which already carries
+   *  the previous answers and history-derived mileage. */
+  onRebuildPlan?: () => void
   weekReadiness?: ReadinessScore[]
   athleteId?: string
   coachEnabled?: boolean
@@ -85,6 +99,8 @@ export default function WeeklyPlan({
   manualLog,
   daySwap,
   planEdit,
+  replan,
+  onRebuildPlan,
   weekReadiness = [],
   athleteId,
   coachEnabled,
@@ -109,6 +125,7 @@ export default function WeeklyPlan({
   const [modalDay, setModalDay] = useState<{ day: PlannedDay; week: TrainingWeek } | null>(null)
   const [logDay, setLogDay] = useState<PlannedDay | null>(null)
   const [editDay, setEditDay] = useState<{ day: PlannedDay; index: number } | null>(null)
+  const [missedDay, setMissedDay] = useState<{ day: PlannedDay; iso: string } | null>(null)
   const [swapSource, setSwapSource] = useState<number | null>(null)
   const [calMonth, setCalMonth] = useState(() => {
     // Start on current month
@@ -128,6 +145,27 @@ export default function WeeklyPlan({
     [week],
   )
   const canPushWeek = weekPushableCount > 0 && isGarminConnected(athleteId)
+
+  // ── Phase 5 (110-F5): the two-consecutive-short-weeks signal. Read off
+  // the weeks that have actually FINISHED — a week in progress is short
+  // by definition and must never trigger the suggestion. Two in a row
+  // under 70% means the plan no longer describes this athlete's life,
+  // and rebuilding from where they are beats limping through a plan
+  // written for someone else.
+  const suggestRebuild = useMemo(() => {
+    if (!onRebuildPlan || !compliance) return false
+    const today = todayDateString()
+    const finished = weeks
+      .filter(w => {
+        if (!w.startIso) return false
+        const end = new Date(`${w.startIso}T12:00:00`)
+        end.setDate(end.getDate() + w.days.length)
+        return end.toISOString().slice(0, 10) <= today
+      })
+      .map(w => compliance.find(c => c.weekNum === w.num))
+      .filter((c): c is WeekCompliance => !!c && c.plannedMiles > 0)
+    return shouldSuggestRegeneration(finished.map(c => weekCompliance(c.plannedMiles, c.actualMiles)))
+  }, [weeks, compliance, onRebuildPlan])
 
   async function handlePushWeek() {
     if (!week) return
@@ -361,6 +399,26 @@ export default function WeeklyPlan({
         </div>
       )}
 
+      {/* ── Rebuild suggestion (110-F5) ── */}
+      {suggestRebuild && (
+        <div className="mx-4 mt-3 rounded-xl border border-amber-200 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-800 px-4 py-3">
+          <p className="text-sm font-semibold text-amber-900 dark:text-amber-200">
+            The last two weeks came in well under plan
+          </p>
+          <p className="text-xs text-amber-800 dark:text-amber-300 mt-1">
+            That's information, not a verdict — but the rest of this plan was written for the athlete you were before
+            those weeks. Rebuilding restarts from where you actually are now; nothing gets made up, and your race date
+            doesn't move.
+          </p>
+          <button
+            onClick={onRebuildPlan}
+            className="mt-2 text-xs font-semibold px-3 py-1.5 rounded-lg bg-amber-600 text-white hover:bg-amber-700 transition-colors"
+          >
+            Rebuild the rest of my plan
+          </button>
+        </div>
+      )}
+
       {/* Week header */}
       <div className="px-4 pt-4 pb-2">
         <div className="flex items-center justify-between">
@@ -382,6 +440,23 @@ export default function WeeklyPlan({
               </p>
             )}
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{week.focus}</p>
+            {/* Completed vs planned — only once the week has something to
+                report, so a future week never reads as "0 mi done". */}
+            {(() => {
+              const comp = compliance?.find(c => c.weekNum === week.num)
+              if (!comp || comp.plannedMiles <= 0) return null
+              const started = comp.actualMiles > 0 || (!!week.startIso && week.startIso <= todayDateString())
+              if (!started) return null
+              const pct = Math.round(weekCompliance(comp.plannedMiles, comp.actualMiles) * 100)
+              return (
+                <p className="text-xs mt-1 font-medium text-slate-600 dark:text-slate-300">
+                  {comp.actualMiles.toFixed(1)} of {comp.plannedMiles.toFixed(1)} mi done
+                  <span className={`ml-1.5 ${pct >= 85 ? 'text-emerald-600' : pct >= 70 ? 'text-slate-500' : 'text-amber-600'}`}>
+                    · {pct}%
+                  </span>
+                </p>
+              )
+            })()}
           </div>
           <div className="flex items-center gap-2">
             {canPushWeek && (
@@ -447,6 +522,16 @@ export default function WeeklyPlan({
                 onLog={manualLog ? () => setLogDay(d) : undefined}
                 onSwap={daySwap ? () => handleSwapTap(i) : undefined}
                 onEdit={planEdit ? () => setEditDay({ day: d, index: i }) : undefined}
+                onMissed={
+                  // Only for days that already happened, had something
+                  // planned, and weren't logged — a replan on a future day
+                  // would be guessing, and on a logged day, wrong.
+                  replan && dayDateMatch && dayDateMatch < todayDateString() &&
+                  d.type !== 'rest' && d.type !== 'race' && !d.actual
+                    ? () => setMissedDay({ day: d, iso: dayDateMatch })
+                    : undefined
+                }
+                hasReplan={!!dayDateMatch && !!replan?.hasReplan(dayDateMatch)}
                 hasEdit={planEdit?.hasEdit(week.num, i)}
                 isSwapSelected={swapSource === i}
                 isSwapTarget={isSwapMode && swapSource !== i}
@@ -592,6 +677,17 @@ export default function WeeklyPlan({
             setEditDay(null)
           }}
           onClose={() => setEditDay(null)}
+        />
+      )}
+
+      {/* Missed-workout replanning (PRD-110) */}
+      {missedDay && replan && (
+        <MissedDaySheet
+          day={missedDay.day}
+          hasReplan={replan.hasReplan(missedDay.iso)}
+          onChoose={(kind: ReplanKind) => replan.apply(kind, missedDay.iso)}
+          onUndo={() => replan.undoFor(missedDay.iso)}
+          onClose={() => setMissedDay(null)}
         />
       )}
     </div>

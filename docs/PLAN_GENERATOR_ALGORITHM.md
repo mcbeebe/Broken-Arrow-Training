@@ -92,6 +92,8 @@ Severity contract: generation targets the authored number; the gate warns just p
 
 Four deterministic rules bend the plan forward when life interrupts (missed work is never made up, volume never increases, the schedule mandates survive every rule, and replanned output re-passes the full QA gate): short gaps skip; a missed key session swaps into a same-week easy day only when ≥48 h clear of the next hard day (else skips); a ≥7-day gap regenerates the remainder from 0.85× the last completed week via the season-continuity contract; illness re-entry guarantees two easy days before anything hard (and fixed fever guidance). Weeks a rule touched are tagged `· replanned` — their old targets no longer apply and they never serve as ramp baselines. A typed readiness-signal interface (v2) exists but is not yet consumed.
 
+Athletes reach the rules through the plan view: a past, un-logged workout day offers **Missed?**, whose sheet maps to skip / move-later / illness-re-entry. Invocations are stored as an ordered op-log (`replanLog.ts` + `useReplan`) replayed over the derived weeks on every render — the same pattern as swaps and plan edits, and for the same reason: the rules stay the single source of truth, undo is "drop the record", and stored plan content is never rewritten. The week header reports completed-vs-planned miles once a week has started, and two consecutive FINISHED weeks under 70% surface the Rule-3 suggestion to rebuild the remainder from where the athlete actually is.
+
 ## 11. Known gaps (tracked in `docs/running-plan-audit.md`)
 
 - R3: fuller season continuity (athlete-scaled recover/bridge content, cross-block QA as one timeline).
