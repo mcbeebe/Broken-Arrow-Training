@@ -3,6 +3,7 @@ import type { WeekCompliance } from '../hooks/useCompliance'
 import { raceDateToIso } from '../engines/season'
 import { isHyroxRaceInfo } from '../engines/season/planSeason'
 import { todayDateString } from './planDates'
+import { hasRealVert } from './todayNarrative'
 
 interface NarrativeInput {
   race: RaceInfo
@@ -65,7 +66,7 @@ function getPhaseNarrative(phase: Phase, race: RaceInfo, weeksToRace: number): s
 
   switch (phase) {
     case 'base':
-      return `You're in the base-building phase of your ${raceName} preparation. These early weeks are about establishing aerobic fitness and getting your body used to consistent training. The ${dist || 'race'} course${elevation ? ` with ${elevation} of climbing` : ''} demands a strong aerobic engine — that's what we're building right now. Don't worry about speed yet. Every easy mile is building the foundation that race day depends on.`
+      return `You're in the base-building phase of your ${raceName} preparation. These early weeks are about establishing aerobic fitness and getting your body used to consistent training. The ${dist || 'race'} course${elevation && hasRealVert(race) ? ` with ${elevation} of climbing` : ''} demands a strong aerobic engine — that's what we're building right now. Don't worry about speed yet. Every easy mile is building the foundation that race day depends on.`
     case 'build':
       return `You're in the build phase with ${weeksToRace} weeks until ${raceName}. This is where the training gets race-specific — longer efforts and quality sessions that teach your body to hold race effort. ${elevation ? `The course gains ${elevation} across ${dist || 'the distance'}, so the hill work you're doing now is directly preparing your legs and lungs for race day.` : 'The long efforts and quality sessions you\'re doing now are directly preparing your legs and lungs for race day.'}`
     case 'peak':
@@ -123,6 +124,13 @@ function getTrainingPurpose(phase: Phase, race: RaceInfo, weeks: TrainingWeek[],
   }, 0)
 
   if (phase === 'base') {
+    // Flat and indoor courses get flat-course copy. Telling a Hyrox
+    // athlete their strength work "protects against the pounding of Flat
+    // (indoor) descending" is a template talking over the athlete's
+    // actual race.
+    if (!hasRealVert(race)) {
+      return `Your plan builds progressively: easy runs establish aerobic capacity, cross-training builds durability, and strength work keeps you resilient under repeated load. By race day you'll have accumulated roughly ${Math.round(totalPlanMiles)} miles of training across ${weeks.length} weeks, with the race-specific work growing as race day gets closer.`
+    }
     return `Your plan builds progressively: easy runs establish aerobic capacity, cross-training builds durability, and strength work protects against the pounding of ${race.elevation || 'significant'} descending. By race day you'll have accumulated roughly ${Math.round(totalPlanMiles)} miles of training across ${weeks.length} weeks, with increasing vertical each week to prepare for the course's ${race.elevation || 'elevation'}.`
   }
 
@@ -131,6 +139,9 @@ function getTrainingPurpose(phase: Phase, race: RaceInfo, weeks: TrainingWeek[],
     return sum + mi
   }, 0)
 
+  if (!hasRealVert(race)) {
+    return `Through Week ${weekNum}, your plan has programmed ${Math.round(milesThrough)} miles. The long runs are teaching your legs to hold pace deep into the distance, and the quality sessions build the muscular endurance to keep moving when the effort stops feeling comfortable.`
+  }
   return `Through Week ${weekNum}, your plan has programmed ${Math.round(milesThrough)} miles with increasing vertical each week. The long runs and hill repeats are teaching your legs to climb efficiently at altitude${elevRange ? ` (${elevRange})` : ''}. The quality sessions build the muscular endurance needed to keep moving when the course tilts up.`
 }
 
