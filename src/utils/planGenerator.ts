@@ -13,6 +13,7 @@ import { stationSpecs, stationCircuit, stationRx, FULL_SPEC_PHRASE, HYROX_RUN_LE
 import { validatePlan, qaFindingsToAdvisories } from '../engines/planQA/validatePlan'
 import { prehabBlockFor } from '../engines/planGenerator/prehab'
 import { STATION_RAMP, FULL_SIM_DAYS_OUT, HALF_SIM_DAYS_OUT, SPEC_DAY_DAYS_OUT, COMPROMISED_DOSE, INTERVAL_REST, TEMPO_MINUTES, TAPER_WEEK, MASTERS_RECOVERY } from '../engines/hyrox/heuristics'
+import { isBenchmarkWeek, benchmarkDetail, benchmarkWorkoutName } from '../engines/strength/benchmark'
 
 const HYROX_RUN_LABEL = `${HYROX_RUN_LEGS}×${HYROX_RUN_LEG_KM}km runs`
 
@@ -404,7 +405,7 @@ export function generateHyroxPlan(
       //   half simulation       → the long day 18–27 days out
       //   all stations at spec  → the stations day 24–42 days out
       const daysToRace = daysBetween(dateStr, raceDate)
-      let base = getHyroxWorkoutByRole(role, phase, isRecovery, P, weakStation, z1, z2, z3, z4, easyPace, tempoPace, cvPace, w, config.crossTrainingModes, specs, progress)
+      let base = getHyroxWorkoutByRole(role, phase, isRecovery, P, weakStation, z1, z2, z3, z4, easyPace, tempoPace, cvPace, w, config.crossTrainingModes, specs, progress, totalWeeks)
       if (role === 'long' && daysToRace >= FULL_SIM_DAYS_OUT.value.min && daysToRace <= FULL_SIM_DAYS_OUT.value.max && !placedFullSim) {
         placedFullSim = true
         base = {
@@ -706,6 +707,7 @@ function getHyroxWorkoutByRole(
   crossModes?: CrossTrainingMode[],
   specs: StationSpec[] = stationSpecs(),
   progress: number = 0,
+  planWeeks: number = 0,
 ): Omit<PlannedDay, 'day'> {
 
   if (isRecovery) {
@@ -824,6 +826,21 @@ function getHyroxWorkoutByRole(
   // the division spec — the level templates carry sets/reps only (P5: one
   // source of load truth).
   if (role === 'strength') {
+    // The benchmark replaces the strength session in week 1 and on each
+    // re-test week. Without it every load below is a guess scaled off a
+    // three-option self-report — the app has no idea what this athlete
+    // can actually move.
+    if (planWeeks > 0 && isBenchmarkWeek(weekIndex + 1, planWeeks)) {
+      const retest = weekIndex + 1 > 1
+      return {
+        type: 'strength',
+        workout: benchmarkWorkoutName(retest),
+        detail: benchmarkDetail('hyrox', retest),
+        zone: z1,
+        route: 'Gym',
+        time: '45 min',
+      }
+    }
     const raw = phase === 'base' ? P.strengthDetail.base : P.strengthDetail.build
     const detail = raw.replace(/\((\d+) kg\)/g, `(${specs[7].load})`)
     return { type: 'strength', workout: phase === 'base' ? 'STRENGTH: Foundation' : 'STRENGTH: Hyrox-specific', detail, zone: phase === 'base' ? z1 : z2, route: 'Gym', time: phase === 'base' ? '50 min' : '1 hr' }

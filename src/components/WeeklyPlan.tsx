@@ -21,6 +21,9 @@ import type { ReplanKind } from '../engines/planGenerator/replanLog'
 import { weekCompliance, shouldSuggestRegeneration } from '../engines/planGenerator/replan'
 import RaceNarrative from './RaceNarrative'
 import RaceElevationProfile from './RaceElevationProfile'
+import StrengthBenchmarkSheet from './StrengthBenchmarkSheet'
+import type { StrengthCapacity } from '../engines/strength/benchmark'
+import { capacitySummary, isStale } from '../engines/strength/benchmark'
 
 /** "10/24" from an ISO date (noon-anchored — never a day off). */
 function fmtIsoShort(iso: string): string {
@@ -90,6 +93,15 @@ interface WeeklyPlanProps {
   /** Full season — the Race tab narrative names the main goal and this
    *  race's role for multi-race athletes. */
   season?: Season | null
+  /** Measured strength capacity + the writer for a benchmark session.
+   *  Absent = the benchmark day still renders, it just can't be logged
+   *  (seed athletes, or a plan opened before the feature existed). */
+  strength?: {
+    capacity: StrengthCapacity | null
+    save: (c: StrengthCapacity) => void
+    /** 'hyrox' picks up the race-specific tests; 'general' skips them. */
+    kind: 'hyrox' | 'general'
+  }
 }
 
 
@@ -115,6 +127,7 @@ export default function WeeklyPlan({
   strengthLevel,
   racePacing,
   season,
+  strength,
 }: WeeklyPlanProps) {
   const [viewMode, setViewMode] = useState<'list' | 'calendar' | 'race'>('list')
   const [activeWeek, setActiveWeek] = useState(0)
@@ -126,6 +139,7 @@ export default function WeeklyPlan({
   const [logDay, setLogDay] = useState<PlannedDay | null>(null)
   const [editDay, setEditDay] = useState<{ day: PlannedDay; index: number } | null>(null)
   const [missedDay, setMissedDay] = useState<{ day: PlannedDay; iso: string } | null>(null)
+  const [benchmarkOpen, setBenchmarkOpen] = useState(false)
   const [swapSource, setSwapSource] = useState<number | null>(null)
   const [calMonth, setCalMonth] = useState(() => {
     // Start on current month
@@ -399,6 +413,58 @@ export default function WeeklyPlan({
         </div>
       )}
 
+      {/* ── Strength benchmark banner ──
+          Shows when this week hosts a benchmark session (log it) or when
+          an existing benchmark has gone stale (re-test it). The loads in
+          every strength card downstream are only as good as this. */}
+      {strength && (
+        week?.days.some(d => /STRENGTH BENCHMARK/i.test(d.workout)) ||
+        // Not every plan can spare a strength slot for the test (a week
+        // with one strength day keeps it), so the prompt also stands on
+        // its own whenever nothing has been measured or it has gone
+        // stale. The benchmark is always loggable, scheduled or not.
+        !strength.capacity ||
+        isStale(strength.capacity, todayDateString())
+      ) && (
+        <div className="mx-4 mt-3 rounded-xl border border-emerald-200 bg-emerald-50 dark:bg-emerald-900/20 dark:border-emerald-800 px-4 py-3">
+          <p className="text-sm font-semibold text-emerald-900 dark:text-emerald-200">
+            {!strength.capacity
+              ? 'Your loads are still estimates'
+              : isStale(strength.capacity, todayDateString())
+                ? 'Time to re-test'
+                : 'Re-test week'}
+          </p>
+          <p className="text-xs text-emerald-800 dark:text-emerald-300 mt-1">
+            {strength.capacity
+              ? 'Same tests as last time, so the numbers are comparable. Your loads re-prescribe the moment you log them.'
+              : 'Until you log a benchmark, every strength load in your plan is an estimate from a one-question self-report. This replaces the guess with your actual numbers.'}
+          </p>
+          <button
+            onClick={() => setBenchmarkOpen(true)}
+            className="mt-2 text-sm font-semibold text-emerald-900 dark:text-emerald-200 underline underline-offset-2"
+          >
+            {strength.capacity ? 'Log the re-test →' : 'Log my benchmark →'}
+          </button>
+        </div>
+      )}
+
+      {strength?.capacity && !isStale(strength.capacity, todayDateString()) &&
+        !week?.days.some(d => /STRENGTH BENCHMARK/i.test(d.workout)) && (
+        <div className="mx-4 mt-3 text-xs text-slate-500 dark:text-slate-400">
+          {capacitySummary(strength.capacity, todayDateString())}
+        </div>
+      )}
+
+      {benchmarkOpen && strength && (
+        <StrengthBenchmarkSheet
+          kind={strength.kind}
+          previous={strength.capacity}
+          todayIso={todayDateString()}
+          onSave={strength.save}
+          onClose={() => setBenchmarkOpen(false)}
+        />
+      )}
+
       {/* ── Rebuild suggestion (110-F5) ── */}
       {suggestRebuild && (
         <div className="mx-4 mt-3 rounded-xl border border-amber-200 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-800 px-4 py-3">
@@ -618,6 +684,7 @@ export default function WeeklyPlan({
         <WorkoutModal
           day={modalDay.day}
           weekNum={modalDay.week.num}
+          strengthCapacity={strength?.capacity}
           onClose={() => setModalDay(null)}
           onLog={manualLog ? () => { setLogDay(modalDay.day); setModalDay(null) } : undefined}
           onSaveNote={manualLog && modalDay.day.actual ? async (note) => {

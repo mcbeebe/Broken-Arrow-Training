@@ -13,6 +13,7 @@ import WorkoutDebriefPrompt from './WorkoutDebriefPrompt'
 import { useCoachInsight } from '../hooks/useCoachInsight'
 import { formatMiles, formatSeconds, formatPace, estimateRunTime } from '../utils/format'
 import { parseRoutine, guideMatchedExercises, calibrateGuideWeight, type ParsedExercise } from '../utils/exercises'
+import type { StrengthCapacity } from '../engines/strength/benchmark'
 import { menopauseStrengthCue } from '../utils/menopause'
 import type { StrengthExperience } from '../hooks/useOnboarding'
 import { buildProgression, normalizeExerciseName, suggestNextTarget, type ExerciseProgression } from '../utils/strengthProgression'
@@ -157,9 +158,12 @@ interface WorkoutModalProps {
     action: string
     target: string
   }
+  /** Measured strength capacity from the benchmark session — overrides
+   *  the self-report calibration for the lifts it actually tested. */
+  strengthCapacity?: StrengthCapacity | null
 }
 
-export default function WorkoutModal({ day, weekNum, onClose, onLog, onSaveNote, zones, athleteId, coachEnabled, readiness, latestPerf, coachSnapshot, onAskCoach, trimpRecord, weeks, raceReadinessTarget, strengthLevel }: WorkoutModalProps) {
+export default function WorkoutModal({ day, weekNum, onClose, onLog, onSaveNote, zones, athleteId, coachEnabled, readiness, latestPerf, coachSnapshot, onAskCoach, trimpRecord, weeks, raceReadinessTarget, strengthLevel, strengthCapacity }: WorkoutModalProps) {
   const style = getWorkoutStyle(day.type, day.workout)
   const { flags } = useDisplayPreferences(athleteId)
   // General Fitness plans (raceType 'general') get goal-aware, race-free
@@ -1029,6 +1033,7 @@ export default function WorkoutModal({ day, weekNum, onClose, onLog, onSaveNote,
                     index={i + 1}
                     progression={progressionByExercise?.get(normalizeExerciseName(ex.name)) ?? null}
                     strengthLevel={strengthLevel}
+                    strengthCapacity={strengthCapacity}
                   />
                 ))}
               </div>
@@ -1184,19 +1189,20 @@ function DrillStatusBanner({ drills }: { drills?: { completed: boolean; items?: 
 }
 
 function ExerciseCard({
-  exercise, index, progression, strengthLevel,
+  exercise, index, progression, strengthLevel, strengthCapacity,
 }: {
   exercise: ParsedExercise
   index: number
   progression?: ExerciseProgression | null
   strengthLevel?: StrengthExperience
+  strengthCapacity?: StrengthCapacity | null
 }) {
   const [expanded, setExpanded] = useState(false)
   const guide = exercise.guide
   // Default loads in the guide are calibrated to the athlete's lifting
   // background (newer lifters get lighter prescriptions). Display-only —
   // never mutates the plan.
-  const displayWeight = guide ? calibrateGuideWeight(guide.weight, strengthLevel) : ''
+  const displayWeight = guide ? calibrateGuideWeight(guide.weight, strengthLevel, { capacity: strengthCapacity, exerciseName: guide.name }) : ''
 
   const plannedSets = parseInt(exercise.sets || '0', 10) || 0
   const plannedReps = parseInt((exercise.reps || '0').toString(), 10) || 0

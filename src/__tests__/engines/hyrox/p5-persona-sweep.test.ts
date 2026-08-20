@@ -87,13 +87,17 @@ describe('P5 fix-specific properties', () => {
   })
 
   it('unanchored athletes get a week-1 pacing benchmark; anchored and injured do not', () => {
+    // Scoped to the PACING benchmark — the strength benchmark (N4) is a
+    // separate week-1 session that every athlete gets, anchored or not.
+    const pacing = (d: { workout: string }) =>
+      /BENCHMARK/i.test(d.workout) && !/STRENGTH BENCHMARK/i.test(d.workout)
     const ava = plan(PERSONAS[0], 12)
-    expect(ava.weeks.slice(0, 2).flatMap(w => w.days).some(d => /BENCHMARK/i.test(d.workout))).toBe(true)
+    expect(ava.weeks.slice(0, 2).flatMap(w => w.days).some(pacing)).toBe(true)
     expect(ava.advisories?.some(a => a.id === 'zones_estimated' && a.severity === 'info')).toBe(true)
     const carmen = plan(PERSONAS[2], 12) // 10k anchor
-    expect(carmen.weeks.flatMap(w => w.days).some(d => /BENCHMARK/i.test(d.workout))).toBe(false)
+    expect(carmen.weeks.flatMap(w => w.days).some(pacing)).toBe(false)
     const isla = plan(PERSONAS[8], 12) // current injury
-    expect(isla.weeks.flatMap(w => w.days).some(d => /BENCHMARK/i.test(d.workout))).toBe(false)
+    expect(isla.weeks.flatMap(w => w.days).some(pacing)).toBe(false)
     expect(isla.advisories?.some(a => a.id === 'zones_estimated' && a.severity === 'caution')).toBe(true)
   })
 

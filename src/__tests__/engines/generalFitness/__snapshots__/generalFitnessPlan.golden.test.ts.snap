@@ -1563,11 +1563,11 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
       "days": [
         {
           "day": "Mon 6/8",
-          "detail": "Goblet squat 4×10 · RDL 4×10 · DB bench press 4×10 · DB row 4×10 · Farmer carry 4×40s · Plank 4×40s",
+          "detail": "BENCHMARK — this replaces today’s strength session. Nothing here is scored; it just tells the plan what your loads should actually be. Warm up 10 min easy, then: Push-ups: As many clean reps as you can in one set. Stop when form breaks — not when it hurts. · Goblet squat: Work up in 5–10 lb jumps until you find the heaviest weight you can move for 8 clean reps. Rest 2 min between attempts. · Plank hold: One hold, timed, stopping the moment your hips drop or your back sags. · Rest fully between tests — this is a measurement, not a workout. Log your numbers when you're done and every load in your plan re-prescribes from them.",
           "route": "Gym / home",
-          "time": "45–60 min",
+          "time": "40 min",
           "type": "strength",
-          "workout": "Strength — full body",
+          "workout": "STRENGTH BENCHMARK: baseline",
           "zone": "Z1 (101–120)",
         },
         {
@@ -1918,11 +1918,11 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
       "days": [
         {
           "day": "Mon 7/13",
-          "detail": "Bulgarian split squat 4×10 · Weighted hip thrust 4×10 · Overhead press 4×10 · Lat pulldown 4×10 · Walking lunge 4×10 · Dead bug 4×10",
+          "detail": "RE-TEST — same protocol as your first benchmark, so the numbers are comparable. Expect them to have moved. Warm up 10 min easy, then: Push-ups: As many clean reps as you can in one set. Stop when form breaks — not when it hurts. · Goblet squat: Work up in 5–10 lb jumps until you find the heaviest weight you can move for 8 clean reps. Rest 2 min between attempts. · Plank hold: One hold, timed, stopping the moment your hips drop or your back sags. · Rest fully between tests — this is a measurement, not a workout. Log your numbers when you're done and every load in your plan re-prescribes from them.",
           "route": "Gym / home",
-          "time": "45–60 min",
+          "time": "40 min",
           "type": "strength",
-          "workout": "Strength — full body",
+          "workout": "STRENGTH BENCHMARK: re-test",
           "zone": "Z1 (101–120)",
         },
         {
@@ -2471,11 +2471,11 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
       "days": [
         {
           "day": "Mon 6/8",
-          "detail": "Goblet squat 3×10 · RDL 3×10 · DB bench press 3×10 · DB row 3×10 · Farmer carry 3×40s · Plank 3×40s · Dead bug 3×10 · Russian twists 3×10",
+          "detail": "BENCHMARK — this replaces today’s strength session. Nothing here is scored; it just tells the plan what your loads should actually be. Warm up 10 min easy, then: Push-ups: As many clean reps as you can in one set. Stop when form breaks — not when it hurts. · Goblet squat: Work up in 5–10 lb jumps until you find the heaviest weight you can move for 8 clean reps. Rest 2 min between attempts. · Plank hold: One hold, timed, stopping the moment your hips drop or your back sags. · Rest fully between tests — this is a measurement, not a workout. Log your numbers when you're done and every load in your plan re-prescribes from them.",
           "route": "Gym / home",
-          "time": "45–60 min",
+          "time": "40 min",
           "type": "strength",
-          "workout": "Strength — full body",
+          "workout": "STRENGTH BENCHMARK: baseline",
           "zone": "Z1 (101–120)",
         },
         {
@@ -2826,11 +2826,11 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
       "days": [
         {
           "day": "Mon 7/13",
-          "detail": "Goblet squat 3×10 · RDL 3×10 · DB bench press 3×10 · DB row 3×10 · Farmer carry 3×40s · Plank 3×40s · Dead bug 3×10 · Russian twists 3×10",
+          "detail": "RE-TEST — same protocol as your first benchmark, so the numbers are comparable. Expect them to have moved. Warm up 10 min easy, then: Push-ups: As many clean reps as you can in one set. Stop when form breaks — not when it hurts. · Goblet squat: Work up in 5–10 lb jumps until you find the heaviest weight you can move for 8 clean reps. Rest 2 min between attempts. · Plank hold: One hold, timed, stopping the moment your hips drop or your back sags. · Rest fully between tests — this is a measurement, not a workout. Log your numbers when you're done and every load in your plan re-prescribes from them.",
           "route": "Gym / home",
-          "time": "45–60 min",
+          "time": "40 min",
           "type": "strength",
-          "workout": "Strength — full body",
+          "workout": "STRENGTH BENCHMARK: re-test",
           "zone": "Z1 (101–120)",
         },
         {
@@ -3379,11 +3379,11 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 3 day
       "days": [
         {
           "day": "Mon 6/8",
-          "detail": "Goblet squat 3×10 · RDL 3×10 · DB bench press 3×10 · DB row 3×10 · Farmer carry 3×40s · Plank 3×40s",
+          "detail": "BENCHMARK — this replaces today’s strength session. Nothing here is scored; it just tells the plan what your loads should actually be. Warm up 10 min easy, then: Push-ups: As many clean reps as you can in one set. Stop when form breaks — not when it hurts. · Goblet squat: Work up in 5–10 lb jumps until you find the heaviest weight you can move for 8 clean reps. Rest 2 min between attempts. · Plank hold: One hold, timed, stopping the moment your hips drop or your back sags. · Rest fully between tests — this is a measurement, not a workout. Log your numbers when you're done and every load in your plan re-prescribes from them.",
           "route": "Gym / home",
-          "time": "45–60 min",
+          "time": "40 min",
           "type": "strength",
-          "workout": "Strength — full body",
+          "workout": "STRENGTH BENCHMARK: baseline",
           "zone": "Z1 (101–120)",
         },
         {
@@ -3734,11 +3734,11 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 3 day
       "days": [
         {
           "day": "Mon 7/13",
-          "detail": "Goblet squat 3×10 · RDL 3×10 · DB bench press 3×10 · DB row 3×10 · Farmer carry 3×40s · Plank 3×40s",
+          "detail": "RE-TEST — same protocol as your first benchmark, so the numbers are comparable. Expect them to have moved. Warm up 10 min easy, then: Push-ups: As many clean reps as you can in one set. Stop when form breaks — not when it hurts. · Goblet squat: Work up in 5–10 lb jumps until you find the heaviest weight you can move for 8 clean reps. Rest 2 min between attempts. · Plank hold: One hold, timed, stopping the moment your hips drop or your back sags. · Rest fully between tests — this is a measurement, not a workout. Log your numbers when you're done and every load in your plan re-prescribes from them.",
           "route": "Gym / home",
-          "time": "45–60 min",
+          "time": "40 min",
           "type": "strength",
-          "workout": "Strength — full body",
+          "workout": "STRENGTH BENCHMARK: re-test",
           "zone": "Z1 (101–120)",
         },
         {
@@ -4287,11 +4287,11 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
       "days": [
         {
           "day": "Mon 6/8",
-          "detail": "Goblet squat 3×10 · RDL 3×10 · DB bench press 3×10 · DB row 3×10 · Farmer carry 3×40s · Plank 3×40s",
+          "detail": "BENCHMARK — this replaces today’s strength session. Nothing here is scored; it just tells the plan what your loads should actually be. Warm up 10 min easy, then: Push-ups: As many clean reps as you can in one set. Stop when form breaks — not when it hurts. · Goblet squat: Work up in 5–10 lb jumps until you find the heaviest weight you can move for 8 clean reps. Rest 2 min between attempts. · Plank hold: One hold, timed, stopping the moment your hips drop or your back sags. · Rest fully between tests — this is a measurement, not a workout. Log your numbers when you're done and every load in your plan re-prescribes from them.",
           "route": "Gym / home",
-          "time": "45–60 min",
+          "time": "40 min",
           "type": "strength",
-          "workout": "Strength — full body",
+          "workout": "STRENGTH BENCHMARK: baseline",
           "zone": "Z1 (101–120)",
         },
         {
@@ -4642,11 +4642,11 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
       "days": [
         {
           "day": "Mon 7/13",
-          "detail": "Goblet squat 3×10 · RDL 3×10 · DB bench press 3×10 · DB row 3×10 · Farmer carry 3×40s · Plank 3×40s",
+          "detail": "RE-TEST — same protocol as your first benchmark, so the numbers are comparable. Expect them to have moved. Warm up 10 min easy, then: Push-ups: As many clean reps as you can in one set. Stop when form breaks — not when it hurts. · Goblet squat: Work up in 5–10 lb jumps until you find the heaviest weight you can move for 8 clean reps. Rest 2 min between attempts. · Plank hold: One hold, timed, stopping the moment your hips drop or your back sags. · Rest fully between tests — this is a measurement, not a workout. Log your numbers when you're done and every load in your plan re-prescribes from them.",
           "route": "Gym / home",
-          "time": "45–60 min",
+          "time": "40 min",
           "type": "strength",
-          "workout": "Strength — full body",
+          "workout": "STRENGTH BENCHMARK: re-test",
           "zone": "Z1 (101–120)",
         },
         {

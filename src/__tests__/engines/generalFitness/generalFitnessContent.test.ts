@@ -59,7 +59,9 @@ describe('General Fitness — strength exercises resolve to form-cue guides', ()
   for (const goal of GOALS) {
     it(`${goal}: every strength exercise has a guide`, () => {
       const plan = generateGeneralFitnessPlan(makeConfig({ generalGoal: goal }), TODAY)
-      const strengthDays = plan.weeks.flatMap(w => w.days).filter(d => d.type === 'strength')
+      // The week-1/re-test benchmark is a measurement session, not a routine —
+      // it has no exercise list to resolve guides for.
+      const strengthDays = plan.weeks.flatMap(w => w.days).filter(d => d.type === 'strength' && !/STRENGTH BENCHMARK/i.test(d.workout))
       expect(strengthDays.length).toBeGreaterThan(0)
       for (const day of strengthDays) {
         const parsed = parseRoutine(day.detail)
@@ -87,7 +89,7 @@ describe('General Fitness — coaching is goal-aware and race-free', () => {
 
   it('routes through getCoaching when generalGoal is supplied', () => {
     const plan = generateGeneralFitnessPlan(makeConfig({ generalGoal: 'lose_fat' }), TODAY)
-    const strength = plan.weeks[0].days.find(d => d.type === 'strength')!
+    const strength = plan.weeks[0].days.find(d => d.type === 'strength' && !/STRENGTH BENCHMARK/i.test(d.workout))!
     const viaGet = getCoaching(strength, 1, { generalGoal: 'lose_fat', experienceLevel: 'beginner' })
     const direct = getGeneralFitnessCoaching(strength, 'lose_fat', 'beginner')
     expect(viaGet).toEqual(direct)
