@@ -369,7 +369,7 @@ export function generateGeneralFitnessPlan(
   today: string = new Date().toISOString().slice(0, 10),
 ): TrainingPlan {
   // Athlete-chosen plan start (one-way clamp: never back-dates).
-  today = effectivePlanStart(config.planStartDate, today)
+  today = effectivePlanStart(config.planStartDate, today, config.planStartPinnedIso)
   const goal = config.generalGoal ?? 'stay_healthy'
   const preset = GOAL_PRESETS[goal]
   const maxHR = computeMaxHR(config)

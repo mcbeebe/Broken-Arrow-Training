@@ -214,7 +214,7 @@ export function generateHyroxPlan(
   today: string = new Date().toISOString().slice(0, 10),
 ): TrainingPlan {
   // Athlete-chosen plan start (one-way clamp: never back-dates).
-  today = effectivePlanStart(config.planStartDate, today)
+  today = effectivePlanStart(config.planStartDate, today, config.planStartPinnedIso)
   const maxHR = computeMaxHR(config)
   const zones = computeZones(maxHR)
   const z1 = `Z1 (${Math.round(maxHR * 0.55)}–${Math.round(maxHR * 0.65)})`

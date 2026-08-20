@@ -1068,7 +1068,7 @@ export function generatePlanFromMethod(
   // Athlete-chosen plan start: everything downstream that reasons from
   // "today" (runway clamp, base-week fill, feasibility) reasons from the
   // start date instead. Clamped one-way — a past start never back-dates.
-  today = effectivePlanStart(config.planStartDate, today)
+  today = effectivePlanStart(config.planStartDate, today, config.planStartPinnedIso)
   // ── Fitness anchor & goal (computed up front so paces can use them) ──────
   // currentVdot from a recent-race anchor (null if none). Guard the goal time
   // against the "2:30" mm:ss/h:mm:ss ambiguity before it becomes a VDOT.

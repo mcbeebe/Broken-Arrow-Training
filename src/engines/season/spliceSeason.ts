@@ -470,6 +470,10 @@ function configForSeasonRace(
     // Goal time was for the anchor race — never re-aim it at a different
     // distance (the honesty rule; a tune-up confirms new paces instead).
     goalRaceTimeSeconds: undefined,
+    // The anchor plan's pinned start describes the ANCHOR block only.
+    // Inheriting it would drag every later block back onto the anchor's
+    // first Monday instead of its own start date.
+    planStartPinnedIso: undefined,
   }
 }
 

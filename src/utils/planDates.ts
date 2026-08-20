@@ -82,7 +82,15 @@ export function dayIsoInWeek(
  *  in the future, otherwise today. The clamp is one-directional by design —
  *  a stale/past start date can never back-date a regenerated plan (the
  *  P0-1 "week 1 already happened" trust-killer). */
-export function effectivePlanStart(planStartDate: string | undefined, today: string): string {
+export function effectivePlanStart(
+  planStartDate: string | undefined,
+  today: string,
+  pinnedIso?: string,
+): string {
+  // A pinned start wins outright, including when it is in the past: that
+  // is what pinning MEANS. Re-clamping it forward to today is exactly the
+  // drift it exists to stop.
+  if (pinnedIso) return pinnedIso
   return planStartDate && planStartDate > today ? planStartDate : today
 }
 
@@ -93,4 +101,16 @@ export function todayDateString(): string {
   const m = String(d.getMonth() + 1).padStart(2, '0')
   const dd = String(d.getDate()).padStart(2, '0')
   return `${y}-${m}-${dd}`
+}
+
+/** The Monday on or before `iso` (noon-anchored, so DST never shifts it).
+ *  The plan's pinned start is always a Monday: weeks are Monday-anchored
+ *  everywhere else in the app, and pinning mid-week would put week 1 out
+ *  of step with every other week. */
+export function mondayOnOrBefore(iso: string): string {
+  const d = new Date(`${iso}T12:00:00`)
+  const dow = d.getDay() // 0=Sun … 6=Sat
+  const back = dow === 0 ? 6 : dow - 1
+  d.setDate(d.getDate() - back)
+  return d.toISOString().slice(0, 10)
 }
