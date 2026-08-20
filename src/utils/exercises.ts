@@ -1,4 +1,5 @@
 import type { StrengthExperience } from '../hooks/useOnboarding'
+import { prescribeGobletSquat, type StrengthCapacity } from '../engines/strength/benchmark'
 
 export interface ExerciseAlternate {
   /** Short label for the substitute exercise. */
@@ -915,10 +916,30 @@ const CALIBRATION_FACTOR: Record<StrengthExperience, number> = {
  * token is safe. Bodyweight-only strings have no numbers and pass through
  * unchanged. Rounds to the nearest 5 lb with a 5 lb floor.
  */
+
+/** Map a measured capacity onto the lift it actually measured.
+ *  ONLY the goblet squat is overridden: that is the lift the benchmark
+ *  tests, and a tested goblet-squat load says nothing about what this
+ *  athlete should row or press. Everything else keeps the self-report
+ *  calibration — a measurement is only allowed to speak for itself. */
+function measuredWeightFor(exerciseName: string, capacity: StrengthCapacity): string | null {
+  if (!/goblet\s*squat/i.test(exerciseName)) return null
+  const goblet = prescribeGobletSquat(capacity)
+  return goblet ? `${goblet.text} (from your benchmark)` : null
+}
+
 export function calibrateGuideWeight(
   weight: string,
   level?: StrengthExperience,
+  opts?: { capacity?: StrengthCapacity | null; exerciseName?: string },
 ): string {
+  // A MEASUREMENT beats a self-report, always. Scaling a library default
+  // by a three-option multiplier is what we do only when nobody has
+  // measured anything.
+  if (opts?.capacity && opts.exerciseName) {
+    const measured = measuredWeightFor(opts.exerciseName, opts.capacity)
+    if (measured) return measured
+  }
   if (!level || level === 'experienced') return weight
   const factor = CALIBRATION_FACTOR[level]
   return weight.replace(/\d+(?:\.\d+)?/g, (m) => {

@@ -23,6 +23,7 @@ import { computeMaxHR } from '../../utils/heartRate'
 import { effectivePlanStart } from '../../utils/planDates'
 import { athleteCurrentVdot } from '../planGenerator/paceTargets'
 import { paceBoundsForZone, type VdotPaceBounds } from '../planGenerator/vdot'
+import { isBenchmarkWeek, benchmarkDetail, benchmarkWorkoutName } from '../strength/benchmark'
 
 /** Format a VDOT pace band as " · 8:30–9:45/mi" (fast–slow), or '' when absent.
  *  P2-10: lets the General Fitness engine anchor cardio intensity to a recent
@@ -132,6 +133,13 @@ interface SessionCtx {
   modality: string
   /** 1-based week within the block — drives the VO₂max on-ramp. */
   weekNum: number
+  /** Block length — the benchmark needs it to keep testing out of the
+   *  final two weeks. */
+  totalWeeks: number
+  /** Strength sessions this week. The benchmark may only consume one when
+   *  a routine session still remains — the ≥2-strength-days health floor
+   *  (and Build Endurance's ≥1) outranks measuring. */
+  weekStrengthTotal: number
   /** Leading weeks held easy after injury (0 when healthy). Hard intervals
    *  are downgraded to easy aerobic for these weeks. */
   injuryLeadInWeeks: number
@@ -146,10 +154,33 @@ interface SessionCtx {
  *  the `day` label (spread in by the caller), mirroring the Hyrox generator.
  *  `strengthIndex` is the running count of strength days from the start of the
  *  block; it alternates the A/B session and rotates emphasis accessories. */
-function sessionContent(role: PillarRole, ctx: SessionCtx, strengthIndex: number): Omit<PlannedDay, 'day'> {
+function sessionContent(role: PillarRole, ctx: SessionCtx, strengthIndex: number, weekStrengthIndex = 0): Omit<PlannedDay, 'day'> {
   const { z1, z2, z4, isDeload, modality } = ctx
   switch (role) {
     case 'strength': {
+      // Week 1 and each re-test week measure instead of prescribing. A
+      // general-conditioning plan has no race to calibrate against, so
+      // the benchmark is the ONLY thing standing between the athlete and
+      // a load pulled from a three-option self-report.
+      // ONLY the week's first strength day becomes the test. Replacing
+      // every strength day in the week would delete a week of lifting and
+      // break the ≥2-strength-days health floor — the benchmark costs one
+      // session, not a block.
+      if (
+        ctx.totalWeeks > 0 && !isDeload && weekStrengthIndex === 0 &&
+        ctx.weekStrengthTotal >= 2 &&
+        isBenchmarkWeek(ctx.weekNum, ctx.totalWeeks)
+      ) {
+        const retest = ctx.weekNum > 1
+        return {
+          type: 'strength' as WorkoutType,
+          workout: benchmarkWorkoutName(retest),
+          detail: benchmarkDetail('general', retest),
+          zone: z1,
+          route: 'Gym / home',
+          time: '40 min',
+        }
+      }
       // Goal-personalized, varied exercise list (see ./strength). Two full-body
       // sessions rotate so consecutive strength days differ, and the athlete's
       // named muscles get direct accessory work. The nuanced loading guidance
@@ -397,11 +428,13 @@ export function generateGeneralFitnessPlan(
     // Progressive overload across the block; deloads dip to ~60%.
     const cardioFactor = isDeload ? 0.6 : 0.9 + 0.2 * (weekNum / totalWeeks)
 
-    const ctx: SessionCtx = { preset, z1, z2, z4, cardioFactor: cardioFactor * scale.durationFactor * bias, isDeload, modality, weekNum, injuryLeadInWeeks, emphases, overlay }
+    const weekStrengthTotal = roles.filter(r => r === 'strength').length
+    const ctx: SessionCtx = { preset, z1, z2, z4, cardioFactor: cardioFactor * scale.durationFactor * bias, isDeload, modality, weekNum, totalWeeks, weekStrengthTotal, injuryLeadInWeeks, emphases, overlay }
 
     const days: PlannedDay[] = []
     let roleIdx = 0
     let weekCardioMin = 0
+    let weekStrengthIndex = 0
     for (let d = 0; d < 7; d++) {
       const dateStr = addDays(weekStart, d)
       const label = formatDay(dateStr)
@@ -411,8 +444,8 @@ export function generateGeneralFitnessPlan(
       }
       const role = roles[roleIdx] ?? 'zone2'
       roleIdx++
-      const content = sessionContent(role, ctx, strengthIndex)
-      if (role === 'strength') strengthIndex++
+      const content = sessionContent(role, ctx, strengthIndex, weekStrengthIndex)
+      if (role === 'strength') { strengthIndex++; weekStrengthIndex++ }
       const m = parseInt(content.time)
       if (!Number.isNaN(m) && (role === 'zone2' || role === 'long' || role === 'cross' || role === 'vo2max')) weekCardioMin += m
       days.push({ day: label, ...content })

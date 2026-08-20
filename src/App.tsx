@@ -106,6 +106,7 @@ import { usePalette } from './hooks/usePalette'
 import { useVisualViewport } from './hooks/useVisualViewport'
 import { useDisplayPreferences } from './hooks/useDisplayPreferences'
 import { useBackendSync } from './hooks/useBackendSync'
+import { useStrengthCapacity } from './hooks/useStrengthCapacity'
 
 // Auto-clear stale caches on app startup when data format changes
 checkStorageVersion()
@@ -612,6 +613,9 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
 
   const compliance = useCompliance(weeks)
 
+  // Measured strength capacity (N4). Describes the ATHLETE, not the plan,
+  // so it survives a plan rebuild and expires on its own re-test clock.
+  const strengthCapacity = useStrengthCapacity(athleteId)
 
   // ── G5: performance-adaptive pace targets ─────────────────────
   // Assessed from completed sessions (GAP-corrected via the cached
@@ -1712,6 +1716,11 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           method={onboarding.config?.selectedMethodId ? getMethodById(onboarding.config.selectedMethodId) : undefined}
           onboardingConfig={onboarding.config ?? undefined}
           requestView={planViewRequest}
+          strength={{
+            capacity: strengthCapacity.capacity,
+            save: strengthCapacity.save,
+            kind: onboarding.config?.raceType === 'hyrox' ? 'hyrox' : 'general',
+          }}
         />
       )}
       {view === 'dashboard' && (

@@ -35,6 +35,7 @@ PRESERVE_PREFIXES: tuple[str, ...] = (
     "ba_coach_ping_v1",
     "ba_hr_zones_override",
     "ba_max_hr_override",
+    "ba_strength_capacity_v1",
     "ba_mim_calibration",
     "ba_doms_calibration",
     "ba_run_eccentric_v1",

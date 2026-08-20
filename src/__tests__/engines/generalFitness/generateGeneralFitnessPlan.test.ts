@@ -26,7 +26,10 @@ function makeConfig(overrides: Partial<OnboardingConfig> = {}): OnboardingConfig
 }
 
 const activeDays = (days: { type: string }[]) => days.filter(d => d.type !== 'rest')
-const strengthDays = (days: { type: string }[]) => days.filter(d => d.type === 'strength')
+// Routine strength days only — the benchmark session (week 1, then each
+// re-test week) measures instead of prescribing, so it carries no routine.
+const strengthDays = (days: { type: string; workout?: string }[]) =>
+  days.filter(d => d.type === 'strength' && !/STRENGTH BENCHMARK/i.test(d.workout ?? ''))
 
 describe('generateGeneralFitnessPlan — structure', () => {
   it('defaults to an open-ended rolling block of 12 weeks when no target date is set', () => {
@@ -132,17 +135,24 @@ describe('generateGeneralFitnessPlan — injury lead-in', () => {
 })
 
 describe('generateGeneralFitnessPlan — fat-loss core work', () => {
+  // The finisher is the PAIR (Dead bug + Russian twists). "Dead bug" alone
+  // is also an ordinary core slot in the B template, so asserting on it
+  // singly only held while week 1 happened to open with the A session.
+  const hasAbFinisher = (detail: string) =>
+    detail.includes('Dead bug') && detail.includes('Russian twists')
+  const routineStrength = (plan: { weeks: { days: { type: string; workout: string; detail: string }[] }[] }) =>
+    plan.weeks.flatMap(w => w.days).filter(d => d.type === 'strength' && !/STRENGTH BENCHMARK/i.test(d.workout))
+
   it('adds direct ab work to fat-loss strength days', () => {
     const plan = generateGeneralFitnessPlan(makeConfig({ generalGoal: 'lose_fat' }), TODAY)
-    const strength = plan.weeks[0].days.find(d => d.type === 'strength')
-    expect(strength?.detail).toContain('Dead bug')
-    expect(strength?.detail).toContain('Russian twists')
+    const days = routineStrength(plan)
+    expect(days.length).toBeGreaterThan(0)
+    expect(days.every(d => hasAbFinisher(d.detail))).toBe(true)
   })
 
   it('does not add the ab finisher to other goals', () => {
     const plan = generateGeneralFitnessPlan(makeConfig({ generalGoal: 'stay_healthy' }), TODAY)
-    const strength = plan.weeks[0].days.find(d => d.type === 'strength')
-    expect(strength?.detail).not.toContain('Dead bug')
+    expect(routineStrength(plan).some(d => hasAbFinisher(d.detail))).toBe(false)
   })
 })
 
@@ -152,7 +162,7 @@ describe('generateGeneralFitnessPlan — goal personalization', () => {
       makeConfig({ generalGoal: 'build_muscle', athleteGoal: 'I want big biceps', trainingDaysPerWeek: 5 }),
       TODAY,
     )
-    const strength = plan.weeks[0].days.filter(d => d.type === 'strength')
+    const strength = plan.weeks[0].days.filter(d => d.type === 'strength' && !/STRENGTH BENCHMARK/i.test(d.workout))
     expect(strength.length).toBeGreaterThan(0)
     // Direct arm work appears on EVERY strength day, not just the first.
     for (const d of strength) {
@@ -168,7 +178,7 @@ describe('generateGeneralFitnessPlan — goal personalization', () => {
       makeConfig({ generalGoal: 'build_muscle', trainingDaysPerWeek: 5 }),
       TODAY,
     )
-    const strength = plan.weeks[0].days.filter(d => d.type === 'strength')
+    const strength = plan.weeks[0].days.filter(d => d.type === 'strength' && !/STRENGTH BENCHMARK/i.test(d.workout))
     expect(strength.length).toBeGreaterThanOrEqual(2)
     // Consecutive strength days are NOT identical (the original-bug regression).
     expect(strength[0].detail).not.toBe(strength[1].detail)
@@ -186,9 +196,13 @@ describe('generateGeneralFitnessPlan — goal personalization', () => {
 
 describe('generateGeneralFitnessPlan — pillars by goal', () => {
   it('honors the ≥2 strength-days health floor for non-endurance goals', () => {
+    // Counts every strength SESSION, benchmark days included — a benchmark
+    // is loaded training, not a rest day, so it satisfies the frequency
+    // floor even though it carries no routine to parse.
+    const allStrength = (days: { type: string }[]) => days.filter(d => d.type === 'strength')
     for (const goal of ['stay_healthy', 'lose_fat', 'build_muscle'] as GeneralGoal[]) {
       const plan = generateGeneralFitnessPlan(makeConfig({ generalGoal: goal, trainingDaysPerWeek: 4 }), TODAY)
-      for (const w of plan.weeks) expect(strengthDays(w.days).length).toBeGreaterThanOrEqual(2)
+      for (const w of plan.weeks) expect(allStrength(w.days).length, `week ${w.num}`).toBeGreaterThanOrEqual(2)
     }
   })
 
@@ -210,7 +224,7 @@ describe('generateGeneralFitnessPlan — pillars by goal', () => {
 
   it('strength days carry a parseable, prescriptive detail', () => {
     const plan = generateGeneralFitnessPlan(makeConfig({ generalGoal: 'build_muscle' }), TODAY)
-    const s = plan.weeks[0].days.find(d => d.type === 'strength')!
+    const s = plan.weeks[0].days.find(d => d.type === 'strength' && !/STRENGTH BENCHMARK/i.test(d.workout))!
     expect(s.detail).toContain(' · ')
     expect(s.workout.toLowerCase()).toContain('strength')
   })

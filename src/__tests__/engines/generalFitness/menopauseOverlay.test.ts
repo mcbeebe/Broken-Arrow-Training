@@ -33,7 +33,7 @@ describe('generateGeneralFitnessPlan — menopause overlay', () => {
         TODAY,
       )
       const week1 = plan.weeks[0] // never a deload week
-      const strength = week1.days.find(d => d.type === 'strength')!
+      const strength = week1.days.find(d => d.type === 'strength' && !/STRENGTH BENCHMARK/i.test(d.workout))!
       expect(strength.workout).toContain('+ bone')
       expect(strength.detail).toContain('load bone')
       // The goal's own set count is still present → volume not reduced.
