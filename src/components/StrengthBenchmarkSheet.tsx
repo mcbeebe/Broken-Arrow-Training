@@ -55,14 +55,24 @@ export default function StrengthBenchmarkSheet({ kind, previous, todayIso, onSav
     onClose()
   }
 
+  // Matches the app's sheet idiom: tapping the backdrop closes. The first
+  // version had no backdrop dismiss and used 92vh — which on iOS is TALLER
+  // than the visible viewport, so the sticky header and its close button
+  // scrolled out of reach with no way back. dvh measures what is actually
+  // visible.
   return (
     <div
-      className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center"
-      role="dialog"
-      aria-modal="true"
-      aria-label="Log your strength benchmark"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
+      onClick={onClose}
     >
-      <div className="bg-white dark:bg-slate-800 w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl max-h-[92vh] overflow-y-auto">
+      <div className="absolute inset-0 bg-black/50" />
+      <div
+        className="relative bg-white dark:bg-slate-800 w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl max-h-[85dvh] overflow-y-auto shadow-xl"
+        onClick={e => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Log your strength benchmark"
+      >
         <div className="sticky top-0 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-4 py-3 flex items-start justify-between gap-3">
           <div>
             <p className="font-bold text-slate-800 dark:text-white">
@@ -108,13 +118,21 @@ export default function StrengthBenchmarkSheet({ kind, previous, todayIso, onSav
         </div>
 
         <div className="px-4 pb-5 pt-1">
-          <button
-            onClick={handleSave}
-            disabled={!anyEntered}
-            className="w-full rounded-xl bg-emerald-600 disabled:bg-slate-300 dark:disabled:bg-slate-600 text-white font-semibold py-2.5"
-          >
-            Save benchmark
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={onClose}
+              className="rounded-xl border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 font-semibold py-2.5 px-4"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={!anyEntered}
+              className="flex-1 rounded-xl bg-emerald-600 disabled:bg-slate-300 dark:disabled:bg-slate-600 text-white font-semibold py-2.5"
+            >
+              Save benchmark
+            </button>
+          </div>
           <p className="text-[11px] text-center text-slate-500 dark:text-slate-400 mt-2">
             Your plan re-prescribes from these numbers immediately.
           </p>

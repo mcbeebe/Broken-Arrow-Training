@@ -59,12 +59,17 @@ export default function WeeklyRecapOverlay({
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center p-0 sm:p-4"
-      role="dialog"
-      aria-modal="true"
-      aria-label="Your week in review"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4"
+      onClick={onClose}
     >
-      <div className="bg-white dark:bg-slate-800 w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl max-h-[92vh] overflow-y-auto">
+      <div className="absolute inset-0 bg-black/50" />
+      <div
+        className="relative bg-white dark:bg-slate-800 w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl max-h-[85dvh] overflow-y-auto shadow-xl"
+        onClick={e => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Your week in review"
+      >
         {/* Header */}
         <div className="sticky top-0 bg-gradient-to-br from-slate-800 to-slate-900 text-white px-4 py-4 rounded-t-2xl">
           <div className="flex items-start justify-between gap-3">
