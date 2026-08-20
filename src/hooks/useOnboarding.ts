@@ -245,6 +245,14 @@ export interface OnboardingConfig {
   // vacation or a planned rest block). Unset = start right away. The
   // generators clamp one-way: a past date never back-dates a plan.
   planStartDate?: string
+  /** The plan's PINNED first-week Monday, stamped once when the plan is
+   *  first built. Without it the generators re-anchor on every load —
+   *  runway is counted from `today`, so each passing week dropped a week
+   *  off the front and slid the start forward ("the update moved my start
+   *  date"). Once pinned the plan holds still and the athlete simply
+   *  advances through it. Cleared per-block by the season splice, whose
+   *  later blocks anchor to their own start dates. */
+  planStartPinnedIso?: string
   // G1b — optional additional races captured at onboarding ("racing again
   // later this season?"). Seeded ONCE into the season calendar (useSeason);
   // add/remove afterward happens on the season panel, never re-seeded.
@@ -436,6 +444,22 @@ export function useOnboarding(athleteId?: string) {
     })
   }, [athleteId])
 
+  /** Stamp the plan's pinned first-week Monday, once. Deliberately NOT
+   *  `save()`: that re-stamps completedAt and clears the edit/swap
+   *  op-logs, which is right when an athlete rebuilds their plan and very
+   *  wrong for a silent one-time migration — it would delete every
+   *  athlete's customizations on first load. Idempotent: a config that
+   *  already carries a pin is returned untouched. */
+  const pinPlanStart = useCallback((iso: string) => {
+    setConfig(prev => {
+      if (!prev || prev.planStartPinnedIso) return prev
+      const next = { ...prev, planStartPinnedIso: iso }
+      const k = scopedKey(athleteId)
+      try { localStorage.setItem(k, JSON.stringify(next)); stampKey(k) } catch { /* quota */ }
+      return next
+    })
+  }, [athleteId])
+
   const markZonesPrimerSeen = useCallback(() => {
     setConfig(prev => {
       if (!prev || prev.zonesPrimerSeenAt) return prev
@@ -516,6 +540,7 @@ export function useOnboarding(athleteId?: string) {
     requestRedo,
     markPrimerSeen,
     markZonesPrimerSeen,
+    pinPlanStart,
     markConnectStepSeen,
     markValuePropsSeen,
     markWelcomeLetterSeen,

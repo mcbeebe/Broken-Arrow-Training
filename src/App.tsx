@@ -7,7 +7,7 @@ import { useStrava } from './hooks/useStrava'
 import { useGarmin } from './hooks/useGarmin'
 import { repushChangedWorkouts } from './utils/garminRepush'
 import { realignmentContextForWeeks } from './utils/realignment'
-import { todayDateString } from './utils/planDates'
+import { mondayOnOrBefore, todayDateString } from './utils/planDates'
 import { deriveFitnessFromHistory } from './utils/fitnessFromHistory'
 import { useSeason } from './hooks/useSeason'
 import { spliceSeasonWeeks } from './engines/season/spliceSeason'
@@ -612,6 +612,18 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
   }, [weeks, garmin.connected, athleteId])
 
   const compliance = useCompliance(weeks)
+
+  // ── Pin the plan's start, once (field bug: "the updates pushed my start
+  // date to next week"). Both engines counted runway from `today`, so every
+  // passing week dropped a week off the front and slid week 1 forward. The
+  // stamp is this week's Monday, so the plan covers the week the athlete is
+  // standing in — and from then on it holds still and they advance through
+  // it. Seed athletes (hardcoded plans, no onboarding config) are untouched.
+  useEffect(() => {
+    if (!onboarding.config || onboarding.config.planStartPinnedIso) return
+    onboarding.pinPlanStart(mondayOnOrBefore(todayDateString()))
+  }, [onboarding])
+
 
   // Measured strength capacity (N4). Describes the ATHLETE, not the plan,
   // so it survives a plan rebuild and expires on its own re-test clock.
