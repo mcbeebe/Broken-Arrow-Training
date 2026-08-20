@@ -92,6 +92,9 @@ import RaceInfo from './components/RaceInfo'
 import Settings from './components/Settings'
 import CoachTab from './components/CoachTab'
 import CoachPingToast from './components/CoachPingToast'
+import WeeklyRecapOverlay from './components/WeeklyRecapOverlay'
+import { useWeeklyRecap } from './hooks/useWeeklyRecap'
+import { buildWeeklyRecap } from './engines/coach/weeklyRecap'
 import LoginScreen from './components/LoginScreen'
 import InAppBrowserGate from './components/InAppBrowserGate'
 import { useHRZones } from './hooks/useHRZones'
@@ -605,6 +608,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
 
   const compliance = useCompliance(weeks)
 
+
   // ── G5: performance-adaptive pace targets ─────────────────────
   // Assessed from completed sessions (GAP-corrected via the cached
   // Minetti multiplier — the trail-true input); dismissal is remembered
@@ -1078,6 +1082,36 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
   // useWeather falls back to race coords (legacy behavior).
   const athleteLocation = useAthleteLocation(athleteId)
   const workoutTimePref = useWorkoutTimePreference(athleteId)
+  // ── Sunday recap (N3) ──────────────────────────────────────────
+  // The week that just ENDED is the one before the current week; on a
+  // Sunday afternoon that is the week the athlete just lived through.
+  const weeklyRecapState = useWeeklyRecap(athleteId)
+  const weeklyRecap = useMemo(() => {
+    if (!weeklyRecapState.visible) return null
+    const reviewNum = (currentWeekNum ?? 1) - 1
+    const week = weeks.find(w => w.num === reviewNum)
+    const wc = compliance.weeks.find(w => w.weekNum === reviewNum)
+    if (!week || !wc) return null
+    const perfLatest = readiness.performance.length > 0
+      ? readiness.performance[readiness.performance.length - 1]
+      : null
+    const perfPrior = readiness.performance.length > 7
+      ? readiness.performance[readiness.performance.length - 8]
+      : null
+    return buildWeeklyRecap({
+      week,
+      compliance: wc,
+      history: compliance.weeks.filter(w => w.weekNum < reviewNum),
+      perf: perfLatest,
+      priorPerf: perfPrior,
+      race: activePlan.race,
+      weekNum: reviewNum,
+      totalWeeks: weeks.length,
+      athleteName: activePlan.athlete.name,
+      todayIso: todayDateString(),
+    })
+  }, [weeklyRecapState.visible, weeks, compliance.weeks, currentWeekNum, readiness.performance, activePlan.race, activePlan.athlete.name])
+
   const weatherBlock = useWeather(activePlan.race, athleteLocation.location, workoutTimePref.hour)
 
   // The training philosophy this athlete follows — their onboarding pick,
@@ -1498,6 +1532,22 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           unreadCount={hasUnreadInsight ? 1 : 0}
           onOpen={() => setView('coach')}
           onDismiss={() => coachTelemetry.logInteraction('toast_dismissed')}
+        />
+      )}
+
+      {/* Sunday recap — the week, told back once. Lives 24h, then it is
+          in the coach conversation and never re-raises. */}
+      {weeklyRecap && (
+        <WeeklyRecapOverlay
+          recap={weeklyRecap}
+          athleteId={athleteId}
+          snapshot={coachSnapshot ? { ...coachSnapshot, lastWeekDigest: weeklyRecap.digest } : null}
+          onClose={weeklyRecapState.dismiss}
+          onArchive={(markdown) => {
+            if (!weeklyRecapState.markShown()) return
+            if (coachEnabled) void coachMemory.appendTurn('coach', markdown, 'weekly_recap')
+          }}
+          onRebuildPlan={onboarding.requestRedo}
         />
       )}
 

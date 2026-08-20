@@ -137,6 +137,29 @@ SURFACE_INSTRUCTIONS = {
         "Hard rule: no opening greeting, no persona voice, no 'Hey' / 'Look' "
         "/ 'Listen' — just the 3 lines. Total length under 90 words."
     ),
+    "weekly_recap": (
+        "Write the athlete's Sunday week-in-review — a short, warm, honest "
+        "read on the week that just finished. The context contains the "
+        "week's REAL numbers (planned vs actual miles, sessions completed, "
+        "time in zone, streaks). In ~3-4 short paragraphs (markdown, ~150-250 "
+        "words):\n"
+        "1. Open with what the week actually was — name the standout fact "
+        "(a streak, a big long run, a week that fell apart) in your persona's "
+        "voice. Be specific; generic praise reads as automated.\n"
+        "2. One paragraph on what the numbers say about HOW they trained, "
+        "not just how much — easy days staying easy, quality sessions hit or "
+        "missed, fatigue accumulating.\n"
+        "3. One forward line: what next week asks of them, and the single "
+        "thing worth carrying into it.\n"
+        "Hard rules: use ONLY numbers present in the context — never invent "
+        "a pace, a PR, or a session that isn't there. Never scold. A missed "
+        "week is information, not a failure: name it plainly, say what the "
+        "plan does about it, and move on. If the context says two "
+        "consecutive weeks fell below 70%, mention that rebuilding the "
+        "remainder is available — once, without pressure. No greeting line, "
+        "no 'Triggered by:' chip, no headers. This is structure, NOT voice — "
+        "deliver it in the athlete's configured persona."
+    ),
     "welcome_letter": (
         "Write a warm, personal start-of-season note to an athlete who just "
         "finished onboarding — their first message from you as their coach. "
@@ -376,13 +399,18 @@ class handler(BaseHTTPRequestHandler):
             model_to_use = SONNET_MODEL
         if surface_root == "welcome_letter":
             model_to_use = SONNET_MODEL
+        # The weekly recap is the most persona-visible surface after the
+        # welcome letter — it is the one message an athlete gets purely
+        # because their week happened. Haiku's flat voice undercuts it.
+        if surface_root == "weekly_recap":
+            model_to_use = SONNET_MODEL
 
         try:
             result = call_anthropic(
                 model=model_to_use,
                 system=system,
                 messages=[{"role": "user", "content": user_msg}],
-                max_tokens=400 if surface_root == "welcome_letter" else (500 if surface_root == "workout_debrief" else 400),
+                max_tokens=400 if surface_root in ("welcome_letter", "weekly_recap") else (500 if surface_root == "workout_debrief" else 400),
                 # Low temperature on the daily summary: it states facts
                 # about PR status, dates, pace, and readiness. We need
                 # the model to follow the PR_STATUS line in the context

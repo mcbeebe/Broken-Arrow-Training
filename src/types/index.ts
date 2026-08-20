@@ -1233,6 +1233,12 @@ export interface CoachWeatherBlock {
 export interface CoachSnapshot {
   today: { date: string; period?: 'morning' | 'evening' }
   currentWeekNum?: number
+  /** One-line digest of the week that just FINISHED, built from the
+   *  compliance layer. Only set for the weekly-recap surface, whose whole
+   *  subject is last week rather than today — every other surface reads
+   *  the week-to-date analytics instead. Grounding, not prose: the model
+   *  is told to use only numbers present here. */
+  lastWeekDigest?: string
   readiness?: ReadinessScore | null
   performance?: PerformanceMetrics | null
   /** Raw-ish health metrics for today (hours/bpm/ms) so the LLM can
