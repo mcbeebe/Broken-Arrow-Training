@@ -63,6 +63,59 @@ function longRunCoaching(day: PlannedDay, raceLabel: string): CoachingNarrative 
   }
 }
 
+/** Compromised running (run→station→run) — the session that IS the race.
+ *  Matched by workout NAME, not day.type: the generator emits the base
+ *  intro as `type: 'cross'` and the build/peak version as `type:
+ *  'quality'`, so a type-keyed lookup handed this session Station Circuit
+ *  copy in one phase and 1km Repeats copy in the other. Neither describes
+ *  the transition, which is the entire point of the session. */
+function compromisedRunningCoaching(day: PlannedDay, raceLabel: string): CoachingNarrative {
+  const intro = /\(intro\)/i.test(day.workout)
+
+  if (intro) {
+    return {
+      title: 'Compromised Running — Intro',
+      purpose:
+        `This is your first rehearsal of the only thing ${raceLabel} actually asks: run, work, run again, with nothing in between. Today is deliberately conversational — you are learning what your legs do in the first 200 m off a station, not testing how hard you can push. That handover is a skill, and skills are learned slowly before they are loaded.`,
+      execution: [
+        'Run the easy leg at a pace you could talk through. If you cannot, you are already racing it.',
+        'Go straight from the run into the station — no pause, no water, no reset. The seam is the session.',
+        'Expect the first 100-200 m after each station to feel clumsy and heavy. That is the sensation you came to meet.',
+        'Keep the station work smooth and submaximal — technique under mild fatigue, not a hard effort.',
+        'Walk between rounds, then start the next run before you feel fully recovered.',
+        'Note which transition felt worst. That single observation is worth more than the whole session\u2019s fitness.',
+      ],
+      mindset:
+        'Everyone can run, and everyone can lift. The race is decided in the ten seconds where one becomes the other — and that is all you are practising today.',
+      nutrition:
+        'A light carb snack 60-90 min before is plenty. Drink to thirst — this session is short and easy on purpose.',
+      recovery:
+        'This should finish well inside your limits. If it left you flattened, the effort crept up — dial the run leg back next time.',
+    }
+  }
+
+  return {
+    title: 'Compromised Running — Race Simulation',
+    purpose:
+      `Run→station→run at race effort is the highest-fidelity training ${raceLabel} has, short of a full simulation. Every km here starts on legs the previous station already taxed, which is the only kind of running the race contains. Fitness built in fresh-legs intervals does not transfer to this; fitness built here is the race itself.`,
+    execution: [
+      'Run each km at honest race pace — the pace you could repeat eight times, not the one you can hit once.',
+      'No break between the run and the station. Walking in to catch your breath trains the wrong race.',
+      'Jog the transitions. The roxzone is race time, and it is where places are actually won and lost.',
+      'Hold your run pace on the rounds AFTER the heaviest stations — that is the specific quality this session builds.',
+      'Watch your grip across the whole session: sled pull, carries, and wall balls all draw on the same forearms.',
+      'If your km splits fall apart mid-session, stop the session rather than finish it slow — you have learned your current ceiling, which was the point.',
+      'Cool down 10 min very easy.',
+    ],
+    mindset:
+      'You are not training to run fast, and you are not training to lift heavy. You are training to still be yourself thirty seconds after a sled — and nobody who skips this session ever is.',
+    nutrition:
+      'Carbs 2-3 hours before, and treat anything past 75 min as a fuelling rehearsal — use what you plan to race with.',
+    recovery:
+      'This lands like a hard interval session plus a lifting session, because it is both. Refuel within 30 min and keep tomorrow genuinely easy.',
+  }
+}
+
 function stationCircuitCoaching(day: PlannedDay, raceLabel: string): CoachingNarrative {
   const light = /light station/i.test(day.workout)
   if (light) {
@@ -224,6 +277,12 @@ function restCoaching(): CoachingNarrative {
  */
 export function getHyroxCoaching(day: PlannedDay, _weekNum: number, raceName?: string): CoachingNarrative {
   const raceLabel = raceName?.trim() || 'Hyrox'
+  // Name-matched sessions come FIRST: the generator splits compromised
+  // running across two day.types (cross in base, quality in build/peak),
+  // so the type switch below can never route it correctly.
+  if (/compromised running/i.test(day.workout)) {
+    return compromisedRunningCoaching(day, raceLabel)
+  }
   switch (day.type) {
     case 'race':
       return raceDayCoaching(raceLabel)
