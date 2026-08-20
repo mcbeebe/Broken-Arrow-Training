@@ -6,6 +6,7 @@ import { getTSBState, getTSBLabel, getACWRRisk, getACWRLabel } from '../utils/pe
 import { localDateStr, formatLoadP } from '../utils/format'
 import { findTrimpRecord } from '../utils/trimp'
 import TodayBriefing from './TodayBriefing'
+import TodayNarrativeCard from './TodayNarrativeCard'
 import TRIMPBreakdown from './TRIMPBreakdown'
 import WorkoutModal from './WorkoutModal'
 import ManualLog from './ManualLog'
@@ -64,6 +65,9 @@ interface SummaryProps {
   season?: import('../types').Season | null
   /** The athlete's goal words for the main-goal race (config.athleteGoal). */
   primaryGoalText?: string
+  /** Deep link into the Plan tab's Season view, from the "how this fits"
+   *  card. Absent = the card renders without the link. */
+  onOpenSeason?: () => void
   /** Logs / edits a completed workout. When provided, the workout detail
    *  modals opened from Summary surface a "Log / Edit workout" pill so the
    *  athlete can log what they actually did without leaving the page —
@@ -304,6 +308,7 @@ export default function Summary({
   riskFlags = [],
   advisories = [],
   race, season, primaryGoalText,
+  onOpenSeason,
   manualLog,
   onAskCoach,
   onShareNote,
@@ -592,6 +597,18 @@ export default function Summary({
           </>
         )
       })()}
+
+      {/* Why today matters — the plan's intent, in the athlete's own arc.
+          Renders on rest days too (the CTA above hides those), because
+          "today is rest and it counts" is exactly when people need it. */}
+      <TodayNarrativeCard
+        day={todayPlannedWorkout}
+        weeks={weeks}
+        currentWeekNum={currentWeekNum}
+        race={race}
+        season={season}
+        onOpenSeason={onOpenSeason}
+      />
 
       {/* Unified daily briefing: coach + readiness + why */}
       {garminConnected && todayScore ? (

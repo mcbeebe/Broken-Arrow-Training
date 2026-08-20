@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect, useMemo } from 'react'
-import type { TrainingWeek, PlannedDay, ActualWorkout, HRZone, ReadinessScore, PerformanceMetrics, CoachSnapshot, RaceInfo, DailyTRIMP, Season } from '../types'
+import type { TrainingWeek, PlannedDay, ActualWorkout, HRZone, ReadinessScore, PerformanceMetrics, CoachSnapshot, RaceInfo, DailyTRIMP, Season, TrainingPlan } from '../types'
 import { findTrimpRecord } from '../utils/trimp'
 import type { WeekCompliance } from '../hooks/useCompliance'
-import type { InjuryStatus, StrengthExperience } from '../hooks/useOnboarding'
+import type { InjuryStatus, StrengthExperience, OnboardingConfig } from '../hooks/useOnboarding'
+import type { TrainingMethod } from '../types/training-method'
 import { getWorkoutStyle, adaptBg } from '../utils/styles'
 import { buildWeatherChipForDate } from '../utils/weatherChip'
 import { dayIsoInWeek, todayDateString } from '../utils/planDates'
@@ -21,6 +22,7 @@ import type { ReplanKind } from '../engines/planGenerator/replanLog'
 import { weekCompliance, shouldSuggestRegeneration } from '../engines/planGenerator/replan'
 import RaceNarrative from './RaceNarrative'
 import RaceElevationProfile from './RaceElevationProfile'
+import SeasonOverview from './SeasonOverview'
 
 /** "10/24" from an ISO date (noon-anchored — never a day off). */
 function fmtIsoShort(iso: string): string {
@@ -90,6 +92,19 @@ interface WeeklyPlanProps {
   /** Full season — the Race tab narrative names the main goal and this
    *  race's role for multi-race athletes. */
   season?: Season | null
+  /** The whole plan + its method/config — the Season sub-view explains the
+   *  block structure and (folded) the methodology behind it. Absent for
+   *  hand-authored seed plans, which simply don't offer the tab. */
+  plan?: TrainingPlan
+  method?: TrainingMethod
+  onboardingConfig?: OnboardingConfig
+  /** One-shot deep link from another tab ("See the whole season →").
+   *  WeeklyPlan owns its own view state, so the parent asks rather than
+   *  controls. Pass a FRESH object per request — identity is what marks a
+   *  request as new, so tapping the link twice works even though the mode
+   *  didn't change, and the athlete's own toggles are never fought by a
+   *  stale value. */
+  requestView?: { mode: 'list' | 'calendar' | 'race' | 'season' } | null
 }
 
 
@@ -115,8 +130,12 @@ export default function WeeklyPlan({
   strengthLevel,
   racePacing,
   season,
+  plan,
+  method,
+  onboardingConfig,
+  requestView,
 }: WeeklyPlanProps) {
-  const [viewMode, setViewMode] = useState<'list' | 'calendar' | 'race'>('list')
+  const [viewMode, setViewMode] = useState<'list' | 'calendar' | 'race' | 'season'>('list')
   const [activeWeek, setActiveWeek] = useState(0)
   // The modal carries the tapped day's OWNING week — the calendar renders
   // days from every week, so deriving the week from the pager index sent
@@ -132,6 +151,15 @@ export default function WeeklyPlan({
     const d = new Date()
     return { year: d.getFullYear(), month: d.getMonth() }
   })
+  // Adjust state during render when the request prop changes — React's
+  // documented pattern for deriving state from props, and cheaper than an
+  // effect (no second commit, no flash of the previous view).
+  const [seenRequest, setSeenRequest] = useState(requestView)
+  if (requestView !== seenRequest) {
+    setSeenRequest(requestView)
+    if (requestView) setViewMode(requestView.mode)
+  }
+
   const scrollRef = useRef<HTMLDivElement>(null)
   const week = weeks[activeWeek]
 
@@ -284,6 +312,16 @@ export default function WeeklyPlan({
           >
             Calendar
           </button>
+          {plan && (
+            <button
+              onClick={() => setViewMode('season')}
+              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                viewMode === 'season' ? 'bg-white dark:bg-slate-800 text-slate-800 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400'
+              }`}
+            >
+              Season
+            </button>
+          )}
           {race && (
             <button
               onClick={() => setViewMode('race')}
@@ -556,6 +594,16 @@ export default function WeeklyPlan({
       )}
 
       {/* ── Race prep view ── */}
+      {viewMode === 'season' && plan && (
+        <SeasonOverview
+          plan={plan}
+          season={season}
+          method={method}
+          config={onboardingConfig}
+          zones={zones}
+        />
+      )}
+
       {viewMode === 'race' && race && (
         <div className="px-3 pt-3">
           {racePacing && <RacePacingCard plan={racePacing} />}

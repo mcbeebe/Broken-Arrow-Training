@@ -405,6 +405,10 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     } catch { /* ignored */ }
     return 'summary'
   })
+  // One-shot deep link: Home's "see the whole season" jumps to the Plan tab
+  // AND asks it to open the Season sub-view. Cleared once handled so the
+  // athlete's next manual toggle isn't fought by a stale request.
+  const [planViewRequest, setPlanViewRequest] = useState<{ mode: 'season' } | null>(null)
   const [chatSeed, setChatSeed] = useState<string | null>(null)
   const theme = useTheme()
   const palette = usePalette(theme.resolved)
@@ -1619,6 +1623,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           weeks={weeks}
           race={activePlan.race}
           season={seasonState.season}
+          onOpenSeason={() => { setPlanViewRequest({ mode: 'season' }); setView('plan') }}
           primaryGoalText={onboarding.config?.athleteGoal}
           manualLog={manualLog}
           onAskCoach={handleAskCoach}
@@ -1653,6 +1658,10 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           strengthLevel={onboarding.config?.strengthExperience}
           racePacing={racePacingPlan}
           season={seasonState.season}
+          plan={activePlan}
+          method={onboarding.config?.selectedMethodId ? getMethodById(onboarding.config.selectedMethodId) : undefined}
+          onboardingConfig={onboarding.config ?? undefined}
+          requestView={planViewRequest}
         />
       )}
       {view === 'dashboard' && (
