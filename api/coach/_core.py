@@ -1650,6 +1650,15 @@ def build_context_block(
     out: list[str] = []
     out.append(f"Today: {day_of_week}{today_date} (week {week_num or '?'}), {period}")
 
+    # The weekly-recap surface is about the week that JUST ENDED, not today.
+    # Its digest is built client-side from the compliance layer and is the
+    # only sanctioned source of last-week numbers — the recap prompt tells
+    # the model to use nothing else.
+    last_week_digest = snapshot.get("lastWeekDigest")
+    if last_week_digest:
+        out.append("")
+        out.append(f"LAST WEEK (the week being reviewed): {last_week_digest}")
+
     # General-fitness framing — STRONG anchor near the top. These athletes have
     # no race; the plan is an open-ended rolling block with periodic deloads.
     # Without this, the race-flavored system prompt drifts into "you're in Peak
