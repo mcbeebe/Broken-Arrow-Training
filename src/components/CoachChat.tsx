@@ -442,7 +442,7 @@ export default function CoachChat({ athleteId, memory, snapshot, seed, onSeedCon
             <div className="text-xs text-indigo-500 italic px-1">{liveStatus}</div>
           )}
           <div
-            className="max-w-[92%] bg-indigo-50 text-slate-800 rounded-2xl rounded-tl-sm px-3 py-2 leading-relaxed"
+            className="max-w-[92%] bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm text-slate-700 dark:text-slate-200 rounded-2xl rounded-tl-sm px-3.5 py-3 leading-[1.6]"
             style={{ fontSize: `${fontScale}rem` }}
           >
             {liveReply ? renderMarkdown(stripStreamingProposal(liveReply)) : <span className="text-indigo-400">…</span>}
@@ -613,7 +613,7 @@ export default function CoachChat({ athleteId, memory, snapshot, seed, onSeedCon
     <div className="flex flex-col h-full bg-white dark:bg-slate-800 overflow-hidden">
       <div
         ref={scrollerRef}
-        className="flex-1 overflow-y-auto px-2 py-1.5 space-y-2"
+        className="flex-1 overflow-y-auto bg-slate-50 dark:bg-slate-900 px-3 py-3 space-y-3"
       >
         {messagesBody}
       </div>
@@ -746,7 +746,7 @@ function ChatTurn({
     return (
       <div className="flex flex-col items-end" onClick={() => setShowActions(!showActions)}>
         <div
-          className="relative max-w-[92%] bg-indigo-600 text-white rounded-2xl rounded-tr-sm px-3 py-2 leading-relaxed cursor-pointer"
+          className="relative max-w-[85%] bg-indigo-600 text-white rounded-2xl rounded-tr-sm px-3.5 py-2.5 leading-[1.55] cursor-pointer"
           style={bubbleStyle}
         >
           {/* Collapse toggle on the left for user bubbles since bubble aligns right */}
@@ -771,7 +771,7 @@ function ChatTurn({
     return (
       <div className="flex flex-col items-start" onClick={() => setShowActions(!showActions)}>
         <div
-          className="relative w-full bg-amber-50 border border-amber-200 text-slate-800 rounded-2xl rounded-tl-sm px-2 py-1.5 leading-relaxed cursor-pointer"
+          className="relative w-full bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/60 text-slate-700 dark:text-slate-200 rounded-2xl rounded-tl-sm px-3.5 py-3 leading-[1.6] cursor-pointer"
           style={bubbleStyle}
         >
           <div className="flex items-center gap-1.5 mb-1 pr-7">
@@ -791,7 +791,7 @@ function ChatTurn({
   return (
     <div className="flex flex-col items-start" onClick={() => setShowActions(!showActions)}>
       <div
-        className="relative w-full bg-indigo-50 dark:bg-indigo-950 text-slate-800 dark:text-slate-200 rounded-2xl rounded-tl-sm px-2 py-1.5 leading-relaxed cursor-pointer"
+        className="relative w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm text-slate-700 dark:text-slate-200 rounded-2xl rounded-tl-sm px-3.5 py-3 leading-[1.6] cursor-pointer"
         style={bubbleStyle}
       >
         {collapseToggle}

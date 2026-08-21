@@ -18,14 +18,14 @@ interface Props {
 
 export default function CoachFollowUpChips({ onSelect, disabled }: Props) {
   return (
-    <div className="mt-1.5 flex flex-wrap gap-1.5" role="group" aria-label="Follow-up actions">
+    <div className="mt-2 flex flex-wrap gap-2" role="group" aria-label="Follow-up actions">
       {FOLLOW_UPS.map(({ label, seed }) => (
         <button
           key={label}
           type="button"
           disabled={disabled}
           onClick={() => onSelect(seed)}
-          className="text-[11px] font-medium px-2.5 py-1 rounded-full border border-indigo-200 dark:border-indigo-800 bg-white dark:bg-slate-800 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-950 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="text-xs font-semibold px-3.5 py-2 rounded-full border border-indigo-200 dark:border-indigo-800 bg-white dark:bg-slate-800 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-950 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {label}
         </button>
