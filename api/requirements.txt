@@ -1,5 +1,18 @@
-garminconnect>=0.2.19
-anthropic>=0.40.0
-pywebpush>=2.0.0
-psycopg[binary]>=3.2.0
+# Upper bounds are deliberate. These deps are installed fresh on every
+# Vercel build, so an unpinned range means an upstream major release ships
+# straight to production the next time ANY file in api/ changes — with no
+# code change of ours to blame and no CI step that would have caught it.
+#
+# That is exactly how the coach went down: anthropic 1.0.0 removed the
+# `temperature` argument from messages.create()/stream() (it became
+# output_config.effort), so every LLM surface — chat, daily insight,
+# workout debrief, weekly recap, welcome letter — failed with
+# "Messages.stream() got an unexpected keyword argument 'temperature'"
+# the moment an unrelated prompt edit triggered a rebuild.
+#
+# Raise a bound only alongside the code change that migrates to it.
+garminconnect>=0.2.19,<0.3.0
+anthropic>=0.40.0,<1.0.0
+pywebpush>=2.0.0,<3.0.0
+psycopg[binary]>=3.2.0,<4.0.0
 tzdata>=2024.1
