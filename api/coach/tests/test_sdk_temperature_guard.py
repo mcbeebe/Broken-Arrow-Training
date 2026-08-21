@@ -72,3 +72,19 @@ def test_capability_probe_matches_the_installed_sdk():
     except Exception:
         expected = True  # no SDK installed → the probe's documented default
     assert _sdk_accepts_temperature() is expected
+
+def test_garminconnect_is_not_pinned_below_the_working_release():
+    """The counter-lesson: an upper bound that DOWNGRADES is its own outage.
+
+    Capping garminconnect at <0.3.0 dropped it 0.3.2 -> 0.2.40, whose older
+    garth cannot complete Garmin's current auth flow ("OAuth1 token is
+    required for OAuth2 refresh"). Pin at or above what production runs.
+    """
+    line = next(
+        l for l in REQUIREMENTS.read_text().splitlines()
+        if l.strip().startswith("garminconnect")
+    )
+    floor = line.split(">=", 1)[1].split(",", 1)[0].strip()
+    major, minor, *_ = (int(p) for p in floor.split("."))
+    assert (major, minor) >= (0, 3), f"garminconnect floor regressed to {floor}"
+    assert "<0.4.0" in line, f"still cap the major: {line}"
