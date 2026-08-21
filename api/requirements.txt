@@ -11,7 +11,15 @@
 # the moment an unrelated prompt edit triggered a rebuild.
 #
 # Raise a bound only alongside the code change that migrates to it.
-garminconnect>=0.2.19,<0.3.0
+#
+# LESSON (learned the hard way, twice in one night): an upper bound must be
+# set from the version that is ACTUALLY WORKING in production, never from
+# the current major on the assumption it is the safe floor. Pinning
+# garminconnect to <0.3.0 silently DOWNGRADED it 0.3.2 -> 0.2.40 and broke
+# Garmin login ("OAuth1 token is required for OAuth2 refresh") — the older
+# release pulls an older garth that cannot complete Garmin's current auth
+# flow. Check what is deployed, pin at or above it, then cap the major.
+garminconnect>=0.3.2,<0.4.0
 anthropic>=0.40.0,<1.0.0
 pywebpush>=2.0.0,<3.0.0
 psycopg[binary]>=3.2.0,<4.0.0
