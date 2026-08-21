@@ -12,12 +12,14 @@ Provides:
 from __future__ import annotations
 
 import hashlib
+import inspect
 import json
 import os
 import re
 import time
 import urllib.parse
 import urllib.request
+from functools import lru_cache
 from typing import Any, Iterable
 
 
@@ -2857,6 +2859,45 @@ def _create_and_concat(client: Any, kwargs: dict[str, Any]) -> tuple[str, int, i
     )
 
 
+@lru_cache(maxsize=1)
+def _sdk_accepts_temperature() -> bool:
+    """Does the installed anthropic SDK still take a `temperature` kwarg?
+
+    anthropic 1.0.0 removed it from messages.create()/stream() (the knob
+    became output_config.effort). Because requirements are installed fresh
+    on every Vercel build, that shipped to production on the next rebuild
+    and took down EVERY LLM surface at once — chat, daily insight, workout
+    debrief, weekly recap, welcome letter — with
+    "got an unexpected keyword argument 'temperature'".
+
+    requirements.txt now pins below 1.0.0, so this is the second line of
+    defence: whenever that bound is eventually raised, the coach loses a
+    little determinism instead of going dark. The PR/pace hallucination
+    guard does not depend on temperature — validate_pr_claims scrubs those
+    claims post-generation regardless of model or sampling.
+    """
+    try:
+        from anthropic.resources.messages import Messages
+        return "temperature" in inspect.signature(Messages.create).parameters
+    except Exception:
+        # Unknown SDK shape: assume supported and let a real call speak.
+        return True
+
+
+def _apply_temperature(kwargs: dict[str, Any], temperature: float | None) -> None:
+    """Attach `temperature` only when the SDK can accept it."""
+    if temperature is None:
+        return
+    if _sdk_accepts_temperature():
+        kwargs["temperature"] = temperature
+    else:
+        print(
+            "[coach] anthropic SDK no longer accepts `temperature`; "
+            "continuing without it. Migrate to output_config.effort.",
+            flush=True,
+        )
+
+
 def call_anthropic(
     *,
     model: str,
@@ -2889,8 +2930,7 @@ def call_anthropic(
         "messages": messages,
         "max_tokens": max_tokens,
     }
-    if temperature is not None:
-        base_kwargs["temperature"] = temperature
+    _apply_temperature(base_kwargs, temperature)
     try:
         text, usage_in, usage_out = _create_and_concat(client, base_kwargs)
         # R3 — guard the output. Only when the caller passes the context (so
@@ -2987,8 +3027,7 @@ def stream_anthropic(
         "messages": messages,
         "max_tokens": max_tokens,
     }
-    if temperature is not None:
-        stream_kwargs["temperature"] = temperature
+    _apply_temperature(stream_kwargs, temperature)
     if tools:
         stream_kwargs["tools"] = tools
     with client.messages.stream(**stream_kwargs) as stream:
