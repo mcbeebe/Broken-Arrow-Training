@@ -54,6 +54,24 @@ export function useVisualViewport() {
  * at 0, so Safari's correction is unnecessary and snapping back is
  * stable (the guard makes the handler a no-op at 0 — no event loop).
  *
+ * FIELD ROUND 2 — the first version listened only to the VISUAL
+ * viewport channel (vv resize/scroll + focusin) and did not hold on
+ * device. The tell in the follow-up screenshot: the bottom tab bar sat
+ * ABOVE the keyboard, which only happens when iOS honors
+ * `interactive-widget=resizes-content` and resizes the LAYOUT viewport
+ * itself. In that mode Safari's keyboard scroll is a plain WINDOW
+ * scroll — vv.offsetTop stays 0 and no vv event fires — so the pin
+ * never ran. This version covers both keyboard modes:
+ *   - overlay mode (older iOS): vv resize/scroll events
+ *   - resizes-content mode (newer iOS): window scroll/resize events
+ * plus a short self-terminating burst after focus, because Safari's
+ * scroll-into-view lands mid-keyboard-animation on its own schedule and
+ * has been observed to slip between events entirely. And while the
+ * screen is mounted the document is made unscrollable outright
+ * (html/body overflow hidden) — in resizes-content mode that removes
+ * the scrollable overflow Safari's correction needs, so there is
+ * nothing to fight at all.
+ *
  * Mount ONLY inside a screen rendered in frame mode (today: CoachTab).
  * Other tabs are normal scrolling documents where Safari's
  * scroll-into-view is exactly what a focused input needs.
@@ -61,6 +79,8 @@ export function useVisualViewport() {
 export function usePinnedToVisualViewport() {
   useEffect(() => {
     const vv = window.visualViewport
+    const html = document.documentElement
+    const body = document.body
 
     const pin = () => {
       // Pinch-zoom pans the visual viewport for reasons that have
@@ -71,17 +91,50 @@ export function usePinnedToVisualViewport() {
       }
     }
 
-    // vv resize/scroll fire through the keyboard animation; focusin
-    // catches the initial focus, and entering the tab with residual
-    // scroll from the previous view is covered by the immediate call.
+    // Safari performs its scroll-into-view on its own schedule during
+    // the keyboard animation — sometimes between the events we can hear.
+    // After any focus, sweep for ~1.2s; each tick is a no-op once the
+    // document is at rest, and the burst always self-terminates.
+    let burst: ReturnType<typeof setInterval> | null = null
+    const startBurst = () => {
+      pin()
+      if (burst !== null) clearInterval(burst)
+      let ticks = 0
+      burst = setInterval(() => {
+        pin()
+        if (++ticks >= 12 && burst !== null) {
+          clearInterval(burst)
+          burst = null
+        }
+      }, 100)
+    }
+
+    // The frame never legitimately scrolls the document, so remove the
+    // ability outright while mounted — in resizes-content mode this
+    // deletes the overflow Safari's correction would scroll into.
+    const prevHtmlOverflow = html.style.overflow
+    const prevBodyOverflow = body.style.overflow
+    html.style.overflow = 'hidden'
+    body.style.overflow = 'hidden'
+
     pin()
+    // Overlay mode: the keyboard moves the visual viewport.
     vv?.addEventListener('resize', pin)
     vv?.addEventListener('scroll', pin)
-    window.addEventListener('focusin', pin)
+    // Resizes-content mode: the keyboard resizes the LAYOUT viewport and
+    // Safari's correction is an ordinary window scroll.
+    window.addEventListener('scroll', pin)
+    window.addEventListener('resize', pin)
+    window.addEventListener('focusin', startBurst)
     return () => {
+      if (burst !== null) clearInterval(burst)
       vv?.removeEventListener('resize', pin)
       vv?.removeEventListener('scroll', pin)
-      window.removeEventListener('focusin', pin)
+      window.removeEventListener('scroll', pin)
+      window.removeEventListener('resize', pin)
+      window.removeEventListener('focusin', startBurst)
+      html.style.overflow = prevHtmlOverflow
+      body.style.overflow = prevBodyOverflow
     }
   }, [])
 }

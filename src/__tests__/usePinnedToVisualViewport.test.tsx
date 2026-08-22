@@ -102,6 +102,58 @@ describe('usePinnedToVisualViewport', () => {
     expect(scrollTo).not.toHaveBeenCalled()
   })
 
+  it('pins on a plain WINDOW scroll — resizes-content mode, where the keyboard never touches the visual viewport', () => {
+    // The round-2 field failure: newer iOS honors
+    // interactive-widget=resizes-content, so Safari's keyboard scroll is
+    // an ordinary window scroll with vv.offsetTop still 0. The first
+    // version only listened to vv events and never saw it.
+    renderHook(() => usePinnedToVisualViewport())
+    scrollTo.mockClear()
+    setScrollY(280)               // vv.offsetTop stays 0
+    window.dispatchEvent(new Event('scroll'))
+    expect(scrollTo).toHaveBeenCalledWith(0, 0)
+  })
+
+  it('pins on a WINDOW resize — the layout viewport shrinking in resizes-content mode', () => {
+    renderHook(() => usePinnedToVisualViewport())
+    scrollTo.mockClear()
+    setScrollY(90)
+    window.dispatchEvent(new Event('resize'))
+    expect(scrollTo).toHaveBeenCalledWith(0, 0)
+  })
+
+  it('sweeps after focus — Safari scrolls on its own schedule, sometimes between events', () => {
+    vi.useFakeTimers()
+    try {
+      renderHook(() => usePinnedToVisualViewport())
+      window.dispatchEvent(new Event('focusin'))
+      scrollTo.mockClear()
+      // Safari moves the document 300ms later with NO event we can hear.
+      setScrollY(220)
+      vi.advanceTimersByTime(400)
+      expect(scrollTo).toHaveBeenCalledWith(0, 0)
+      // The burst self-terminates: after it ends, a silent scroll stays.
+      scrollTo.mockClear()
+      vi.advanceTimersByTime(2000)
+      setScrollY(75)
+      vi.advanceTimersByTime(2000)
+      expect(scrollTo).not.toHaveBeenCalled()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('deletes the document\'s ability to scroll while mounted, and restores it after', () => {
+    document.documentElement.style.overflow = ''
+    document.body.style.overflow = 'auto'
+    const { unmount } = renderHook(() => usePinnedToVisualViewport())
+    expect(document.documentElement.style.overflow).toBe('hidden')
+    expect(document.body.style.overflow).toBe('hidden')
+    unmount()
+    expect(document.documentElement.style.overflow).toBe('')
+    expect(document.body.style.overflow).toBe('auto')
+  })
+
   it('survives a browser with no visualViewport at all', () => {
     Object.defineProperty(window, 'visualViewport', { value: undefined, configurable: true })
     setScrollY(80)
