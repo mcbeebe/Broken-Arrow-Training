@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { ActualWorkout, PlannedDay, StrengthExerciseLog, StrengthSet, DrillLog } from '../types'
 import { getPlannedDrills } from '../utils/drills'
+import { isGymBasedDay } from '../utils/matching'
 
 // Fallback drill menu shown on run days when plan detail doesn't spell out
 // specific drills — matches the routine described in WorkoutModal's drill
@@ -110,10 +111,17 @@ function parsePlannedTime(timeStr: string): number {
 }
 
 export default function ManualLog({ dayLabel, existing, planned, onSave, onClose }: ManualLogProps) {
+  // Field bug: the Station circuit — the day's MAIN workout — opened on
+  // the Run/Cardio tab with its exercises buried under "Mobility /
+  // Activation". Gym-based cross days (route Gym, station circuits) are
+  // strength sessions to the athlete logging them: default to the
+  // Strength tab with the circuit as the main exercise list.
+  const isGymCircuitDay = !!planned && planned.type === 'cross' && isGymBasedDay(planned)
   const isStrength = existing?.strengthLog?.length
     || existing?.type?.toLowerCase().includes('strength')
     || existing?.name?.toLowerCase().includes('strength')
     || planned?.type === 'strength'
+    || (isGymCircuitDay && !existing?.distance)
   const [mode, setMode] = useState<LogMode>(isStrength ? 'strength' : 'run')
 
   // Pre-populate from existing actual, or fall back to planned workout
@@ -134,9 +142,16 @@ export default function ManualLog({ dayLabel, existing, planned, onSave, onClose
   const [distance, setDistance] = useState(existing?.distance?.toString() || '')
   const [elevation, setElevation] = useState(existing?.elevationGain?.toString() || '')
 
-  // Strength fields
+  // Strength fields. A gym-circuit day opens with the plan's circuit
+  // already imported as loggable exercises — the athlete checks off what
+  // they did instead of retyping the prescription (the Import-from-plan
+  // button remains for re-syncing after plan edits).
   const [exercises, setExercises] = useState<StrengthExerciseLog[]>(
-    existing?.strengthLog || []
+    existing?.strengthLog?.length
+      ? existing.strengthLog
+      : isGymCircuitDay && planned?.detail
+        ? parsePlanExercises(planned.detail)
+        : []
   )
 
   // Drills — shown for any run-type day. If the plan detail explicitly
@@ -157,7 +172,10 @@ export default function ManualLog({ dayLabel, existing, planned, onSave, onClose
   const plannedDrills = plannedDrillsFromDetail.length > 0
     ? plannedDrillsFromDetail
     : fallbackDrills
-  const hasPlannedDrills = mode === 'run' && (plannedDrills.length > 0 || isCrossDay)
+  // On a gym-circuit day the "drills" parsed from detail ARE the main
+  // workout — never resurface them as Mobility/Activation on the cardio
+  // tab (they live on the Strength tab as exercises now).
+  const hasPlannedDrills = mode === 'run' && (plannedDrills.length > 0 || isCrossDay) && !isGymCircuitDay
   const [drillsCompleted, setDrillsCompleted] = useState<boolean>(
     existing?.drills?.completed ?? false
   )

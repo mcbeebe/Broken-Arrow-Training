@@ -416,7 +416,7 @@ export default function WorkoutModal({ day, weekNum, onClose, onLog, onSaveNote,
                 {actual && actual.movingTime > 0 && (
                   <p className="font-medium text-teal-700">
                     ✅ Actual: {formatSeconds(actual.movingTime)}
-                    {actual.distance > 0 && <> · {formatMiles(actual.distance)} mi</>}
+                    {actual.distance > 0 && <> · {formatMiles(actual.distance)}</>}
                     {actual.avgHR ? <> · {actual.avgHR} avg HR</> : null}
                   </p>
                 )}
@@ -956,7 +956,7 @@ export default function WorkoutModal({ day, weekNum, onClose, onLog, onSaveNote,
                     <div className="text-right shrink-0 font-mono text-slate-600 dark:text-slate-300">
                       <p>{formatSeconds(sec.movingTime)}</p>
                       <p className="text-[10px] text-slate-500">
-                        {sec.distance > 0 && <>{formatMiles(sec.distance)} mi</>}
+                        {sec.distance > 0 && <>{formatMiles(sec.distance)}</>}
                         {sec.distance > 0 && sec.avgHR ? ' · ' : ''}
                         {sec.avgHR ? <>{sec.avgHR} bpm</> : null}
                       </p>
