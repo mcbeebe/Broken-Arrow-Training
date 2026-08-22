@@ -11,6 +11,7 @@ import CoachChat from './CoachChat'
 import CoachInsightCard from './CoachInsightCard'
 import CoachWelcomeCard from './CoachWelcomeCard'
 import PastBriefingCard from './PastBriefingCard'
+import { usePinnedToVisualViewport } from '../hooks/useVisualViewport'
 
 interface Props {
   athleteId: string
@@ -103,6 +104,15 @@ export default function CoachTab({
   // the Coach thread felt redundant and cluttered the conversation.
   // The "Ask about this →" button on the Summary card is how the
   // athlete brings an insight into chat on demand.
+
+  // The Coach screen renders inside the app's visual-viewport-sized frame
+  // (App.tsx switches the shell to `h-[var(--app-vh)] overflow-hidden` for
+  // this tab). iOS Safari still scrolls the document on composer focus to
+  // dodge the keyboard — computed against the pre-shrink frame — leaving
+  // the screen "jumped" (composer mid-screen, white void below). Pin the
+  // document at 0 while this screen is mounted; the frame sizing already
+  // keeps the input visible there.
+  usePinnedToVisualViewport()
 
   const [historyOpen, setHistoryOpen] = useState(false)
   const [viewingArchive, setViewingArchive] = useState<string | null>(null)
