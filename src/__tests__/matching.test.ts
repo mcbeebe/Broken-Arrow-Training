@@ -1,7 +1,14 @@
 import { describe, it, expect } from 'vitest'
-import { matchActivitiesToPlan, mergeGarminDetailIntoWeeks } from '../utils/matching'
+import {
+  matchActivitiesToPlan,
+  mergeGarminDetailIntoWeeks,
+  mergeAppleActivitiesIntoWeeks,
+  canClaimPlannedDay,
+  isGymBasedDay,
+  plannedDurationSec,
+} from '../utils/matching'
 import { mikePlan } from '../data'
-import type { StravaActivity, GarminActivityDetail } from '../types'
+import type { StravaActivity, GarminActivityDetail, PlannedDay, TrainingWeek } from '../types'
 
 function makeActivity(overrides: Partial<StravaActivity> = {}): StravaActivity {
   return {
@@ -140,16 +147,35 @@ describe('mergeGarminDetailIntoWeeks — multi-activity selection', () => {
     expect(day.actual?.garminId).toBe(2)
   })
 
-  it('falls back to highest-scored when no activity matches plan type', () => {
-    // Strength day, but only running activities recorded (no strength match).
-    // Should pick the longer one, not just the first.
+  it('refuses to claim when no activity matches the plan modality — surfaces all as secondaries', () => {
+    // Strength day, but only a run and a ride were recorded. The old code
+    // "fell back to the highest-scored anyway", which is exactly how a
+    // 13-min e-bike ride once auto-completed a 45-min station circuit.
+    // Now: the day stays incomplete, nothing recorded disappears.
     const short = makeGarminDetail({ activityId: 1, type: 'running', durationSeconds: 600, movingDurationSeconds: 600 })
     const long = makeGarminDetail({ activityId: 2, type: 'cycling', durationSeconds: 3600, movingDurationSeconds: 3600 })
     const result = mergeGarminDetailIntoWeeks(mikePlan.weeks, {
       [STRENGTH_DATE]: [short, long],
     })
     const day = result[0].days[0]
-    expect(day.actual?.garminId).toBe(2)
+    expect(day.actual).toBeUndefined()
+    expect(day.secondaryActuals?.map(s => s.garminId).sort()).toEqual([1, 2])
+  })
+
+  it('still enriches an ALREADY-claimed day with the best detail even when nothing matches modality', () => {
+    // Enrichment is low-stakes (layering biometrics on an existing actual);
+    // only the initial claim needs to be earned.
+    const claimed = structuredClone(mikePlan.weeks)
+    claimed[0].days[0].actual = {
+      stravaId: 0, source: 'manual', distance: 0, movingTime: 2400,
+      elapsedTime: 2400, elevationGain: 0, type: 'strength', name: 'Gym session',
+      startDate: `${STRENGTH_DATE}T08:00:00`,
+    }
+    const ride = makeGarminDetail({ activityId: 7, type: 'cycling', durationSeconds: 3600, movingDurationSeconds: 3600, averageHR: 141 })
+    const result = mergeGarminDetailIntoWeeks(claimed, { [STRENGTH_DATE]: [ride] })
+    const day = result[0].days[0]
+    expect(day.actual?.avgHR).toBe(141)
+    expect(day.actual?.name).toBe('Gym session') // manual base preserved
   })
 
   it('exposes non-primary activities in secondaryActuals', () => {
@@ -183,5 +209,179 @@ describe('mergeGarminDetailIntoWeeks — multi-activity selection', () => {
     const day = result[0].days[0]
     expect(day.actual).toBeUndefined()
     expect(day.secondaryActuals).toBeUndefined()
+  })
+})
+
+// ─── Claim eligibility — the e-bike-vs-station-circuit field bug ───────
+//
+// Friday's plan: 'Station circuit (intro)', type cross, route Gym, 45 min.
+// Recorded: a 13-minute 'Oakland eBiking' ride. The app marked the circuit
+// complete. These tests pin the fix across all three source paths.
+
+function makeDay(overrides: Partial<PlannedDay> = {}): PlannedDay {
+  return {
+    day: 'Fri 8/21',
+    type: 'cross',
+    workout: 'Station circuit (intro)',
+    detail: 'Sled push 4×15m · Wall balls 3×15 · Farmer carry 3×40m · Rest 2 min between',
+    zone: 'Z2',
+    route: 'Gym',
+    time: '45 min',
+    ...overrides,
+  }
+}
+
+function makeWeek(days: PlannedDay[]): TrainingWeek {
+  return { num: 1, dates: 'Aug 17–23', startIso: '2026-08-17', miles: 10, focus: 'Build', days }
+}
+
+describe('canClaimPlannedDay', () => {
+  const circuit = makeDay()
+
+  it('classifies the generator’s gym days as gym-based', () => {
+    expect(isGymBasedDay(makeDay())).toBe(true)
+    expect(isGymBasedDay(makeDay({ route: 'Track', workout: 'Station circuit (4 stations)' }))).toBe(true)
+    expect(isGymBasedDay(makeDay({ route: 'Lake loop', workout: 'Bike or swim' }))).toBe(false)
+  })
+
+  it('a coach-edited RUN day with a stale Gym route is a run day, not a gym day', () => {
+    // replayEdits updates type/workout/detail but leaves the old route
+    // behind — the sync-preserves-edits pipeline depends on this.
+    const edited = makeDay({ type: 'run', workout: 'Easy run', time: '50 min' }) // route still 'Gym'
+    expect(isGymBasedDay(edited)).toBe(false)
+    expect(canClaimPlannedDay(edited, 'running', 3000)).toBe(true)
+  })
+
+  it('parses planned session length', () => {
+    expect(plannedDurationSec(makeDay({ time: '45 min' }))).toBe(2700)
+    expect(plannedDurationSec(makeDay({ time: '1 hr 15 min' }))).toBe(4500)
+    expect(plannedDurationSec(makeDay({ time: '1 hr' }))).toBe(3600)
+    expect(plannedDurationSec(makeDay({ time: '—' }))).toBe(0)
+  })
+
+  it('THE field case: a 13-min e-bike ride cannot claim a 45-min gym circuit', () => {
+    expect(canClaimPlannedDay(circuit, 'EBikeRide', 13 * 60)).toBe(false)
+  })
+
+  it('no amount of riding completes a gym day — even a long real ride', () => {
+    expect(canClaimPlannedDay(circuit, 'Ride', 3600)).toBe(false)
+  })
+
+  it('gym-flavored work claims the circuit; runs and rides do not', () => {
+    expect(canClaimPlannedDay(circuit, 'WeightTraining', 2400)).toBe(true)
+    expect(canClaimPlannedDay(circuit, 'Workout', 2400)).toBe(true)
+    expect(canClaimPlannedDay(circuit, 'Run', 2400)).toBe(false)
+  })
+
+  it('duration gate: right modality but under 40% of the prescription is a warm-up, not the workout', () => {
+    expect(canClaimPlannedDay(circuit, 'WeightTraining', 10 * 60)).toBe(false)  // 10 of 45 min
+    expect(canClaimPlannedDay(circuit, 'WeightTraining', 20 * 60)).toBe(true)   // 20 of 45 min
+  })
+
+  it('run-class days take runs only', () => {
+    const runDay = makeDay({ type: 'run', workout: 'Easy run', route: 'Neighborhood', time: '40 min' })
+    expect(canClaimPlannedDay(runDay, 'Run', 2400)).toBe(true)
+    expect(canClaimPlannedDay(runDay, 'Ride', 2400)).toBe(false)
+    expect(canClaimPlannedDay(runDay, 'EBikeRide', 2400)).toBe(false)
+  })
+
+  it('non-gym cross days stay broad — the ONE place an e-bike can complete something', () => {
+    const crossDay = makeDay({ workout: 'Bike or swim', route: 'Your choice', time: '40 min' })
+    expect(canClaimPlannedDay(crossDay, 'Ride', 2400)).toBe(true)
+    expect(canClaimPlannedDay(crossDay, 'EBikeRide', 2400)).toBe(true)
+    expect(canClaimPlannedDay(crossDay, 'Swim', 2400)).toBe(true)
+  })
+
+  it('rest days keep attach-anything behavior — there is no prescription to falsely complete', () => {
+    const restDay = makeDay({ type: 'rest', workout: 'Rest', route: '—', time: '—' })
+    expect(canClaimPlannedDay(restDay, 'EBikeRide', 600)).toBe(true)
+  })
+})
+
+describe('matchActivitiesToPlan — earned claims (Strava path)', () => {
+  const CIRCUIT_DATE = '2026-08-21'
+
+  function stravaOn(date: string, overrides: Partial<StravaActivity> = {}): StravaActivity {
+    return makeActivity({
+      start_date_local: `${date}T17:00:00Z`,
+      start_date: `${date}T17:00:00Z`,
+      ...overrides,
+    })
+  }
+
+  it('THE field case end-to-end: e-bike ride leaves the circuit incomplete but visible as a secondary', () => {
+    const weeks = [makeWeek([makeDay()])]
+    const ebike = stravaOn(CIRCUIT_DATE, {
+      id: 42, name: 'Oakland eBiking', type: 'EBikeRide', sport_type: 'EBikeRide',
+      moving_time: 13 * 60, elapsed_time: 14 * 60, distance: 5311,
+    })
+    const result = matchActivitiesToPlan(weeks, [ebike])
+    const day = result[0].days[0]
+    expect(day.actual).toBeUndefined()
+    expect(day.secondaryActuals).toHaveLength(1)
+    expect(day.secondaryActuals![0].name).toBe('Oakland eBiking')
+  })
+
+  it('a single non-matching activity no longer claims by default (the length===1 shortcut is gone)', () => {
+    const runDay = makeDay({ type: 'run', workout: 'Easy run', route: 'Neighborhood', time: '40 min' })
+    const weeks = [makeWeek([runDay])]
+    const ride = stravaOn(CIRCUIT_DATE, { id: 9, type: 'Ride', sport_type: 'Ride', moving_time: 3600 })
+    const result = matchActivitiesToPlan(weeks, [ride])
+    expect(result[0].days[0].actual).toBeUndefined()
+    expect(result[0].days[0].secondaryActuals).toHaveLength(1)
+  })
+
+  it('a real strength session still claims the circuit, with the e-bike as secondary', () => {
+    const weeks = [makeWeek([makeDay()])]
+    const ebike = stravaOn(CIRCUIT_DATE, { id: 1, name: 'Oakland eBiking', type: 'EBikeRide', sport_type: 'EBikeRide', moving_time: 13 * 60 })
+    const gym = stravaOn(CIRCUIT_DATE, { id: 2, name: 'Station circuit', type: 'WeightTraining', sport_type: 'WeightTraining', moving_time: 40 * 60, distance: 0 })
+    const result = matchActivitiesToPlan(weeks, [ebike, gym])
+    const day = result[0].days[0]
+    expect(day.actual?.stravaId).toBe(2)
+    expect(day.secondaryActuals).toHaveLength(1)
+    expect(day.secondaryActuals![0].stravaId).toBe(1)
+  })
+
+  it('legit claims still work: run→run day, ride→non-gym cross day', () => {
+    const runDay = makeDay({ day: 'Thu 8/20', type: 'run', workout: 'Easy run', route: 'Neighborhood', time: '40 min' })
+    const crossDay = makeDay({ day: 'Fri 8/21', workout: 'Bike or swim', route: 'Your choice', time: '40 min' })
+    const weeks = [makeWeek([runDay, crossDay])]
+    const run = stravaOn('2026-08-20', { id: 1, type: 'Run', sport_type: 'Run', moving_time: 2400 })
+    const ride = stravaOn('2026-08-21', { id: 2, type: 'Ride', sport_type: 'Ride', moving_time: 2400 })
+    const result = matchActivitiesToPlan(weeks, [run, ride])
+    expect(result[0].days[0].actual?.stravaId).toBe(1)
+    expect(result[0].days[1].actual?.stravaId).toBe(2)
+  })
+
+  it('rest days still attach whatever was recorded', () => {
+    const restDay = makeDay({ type: 'rest', workout: 'Rest', route: '—', time: '—' })
+    const weeks = [makeWeek([restDay])]
+    const walk = stravaOn(CIRCUIT_DATE, { id: 5, type: 'Walk', sport_type: 'Walk', moving_time: 1200 })
+    const result = matchActivitiesToPlan(weeks, [walk])
+    expect(result[0].days[0].actual?.stravaId).toBe(5)
+  })
+})
+
+describe('mergeAppleActivitiesIntoWeeks — earned claims (Apple path)', () => {
+  const CIRCUIT_DATE = '2026-08-21'
+
+  it('an Apple e-bike workout cannot fill the circuit day — surfaces as a secondary instead', () => {
+    const weeks = [makeWeek([makeDay()])]
+    const result = mergeAppleActivitiesIntoWeeks(weeks, [{
+      date: CIRCUIT_DATE, type: 'cycling', name: 'Oakland eBiking',
+      durationMinutes: 13, elevationGainFt: 40, distanceMi: 3.3,
+    }])
+    const day = result[0].days[0]
+    expect(day.actual).toBeUndefined()
+    expect(day.secondaryActuals).toHaveLength(1)
+  })
+
+  it('an Apple strength workout still fills the circuit day', () => {
+    const weeks = [makeWeek([makeDay()])]
+    const result = mergeAppleActivitiesIntoWeeks(weeks, [{
+      date: CIRCUIT_DATE, type: 'functional_strength_training', name: 'Functional Strength',
+      durationMinutes: 40, elevationGainFt: 0,
+    }])
+    expect(result[0].days[0].actual?.name).toBe('Functional Strength')
   })
 })

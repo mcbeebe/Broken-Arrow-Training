@@ -30,27 +30,122 @@ export function matchActivitiesToPlan(
       if (!dayActivities || dayActivities.length === 0) return day
 
       const bestMatch = findBestMatch(day, dayActivities)
-      if (!bestMatch) return day
+      if (!bestMatch) {
+        // Nothing earned the claim (the e-bike-vs-station-circuit case):
+        // the day stays incomplete, the activities still show as "other
+        // activities recorded today" and still count toward load.
+        return { ...day, secondaryActuals: dayActivities.map(stravaToActual) }
+      }
 
-      return { ...day, actual: stravaToActual(bestMatch) }
+      const others = dayActivities.filter(a => a.id !== bestMatch.id)
+      return {
+        ...day,
+        actual: stravaToActual(bestMatch),
+        ...(others.length > 0 ? { secondaryActuals: others.map(stravaToActual) } : {}),
+      }
     }),
   }))
 }
 
+// ─── Claim eligibility ─────────────────────────────────────────
+//
+// Field bug: a 13-minute Oakland e-bike ride auto-completed a 45-minute
+// gym Station circuit. Every source path (Strava, Garmin, Apple) shared
+// the same flaw — a lone activity claimed the planned day UNCONDITIONALLY,
+// and with several, a "best anyway" fallback claimed even when nothing
+// matched. An activity must now EARN the claim; ones that don't surface
+// as secondaryActuals ("other activities recorded today") and still count
+// toward training load, but the planned workout stays honestly incomplete.
+
+/** Station circuits and strength-flavored cross days live in the gym —
+ *  no amount of riding or running completes them. Only cross/strength
+ *  days qualify: a coach edit can retype a day to `run` while leaving the
+ *  old `route: 'Gym'` behind, and an explicit run-class type must win. */
+export function isGymBasedDay(day: PlannedDay): boolean {
+  if (day.type !== 'cross' && day.type !== 'strength') return false
+  return day.route === 'Gym' || (day.type === 'cross' && /station|circuit|strength/i.test(day.workout))
+}
+
+/** Parse the plan's session length ("45 min", "1 hr", "1 hr 15 min") into
+ *  seconds; 0 when unparseable — callers skip the duration gate then. */
+export function plannedDurationSec(day: PlannedDay): number {
+  if (!day.time || day.time === '—') return 0
+  const hr = day.time.match(/(\d+)\s*h/i)
+  const min = day.time.match(/(\d+)\s*min/i)
+  if (hr || min) return (hr ? parseInt(hr[1]) * 3600 : 0) + (min ? parseInt(min[1]) * 60 : 0)
+  const bare = day.time.match(/(\d+)/)
+  return bare ? parseInt(bare[1]) * 60 : 0
+}
+
+/** An activity claiming LESS than this share of the planned session is a
+ *  secondary activity (a commute, a warm-up spin), not the workout. */
+const CLAIM_MIN_DURATION_SHARE = 0.4
+
 /**
- * Find the best-matching Strava activity for a planned day.
- * Matches by activity type affinity, falls back to first activity.
+ * May an activity of this type/duration claim this planned day as its
+ * completion? Modality first, then duration:
+ *   - run-class days take runs;
+ *   - strength days and gym-based cross days take gym-flavored work;
+ *   - other cross days are broad (ride, swim, run, hike…) — the ONLY
+ *     place an e-bike ride can complete anything;
+ *   - rest days keep the old behavior: anything attaches, informationally
+ *     (there is no prescription to falsely complete).
+ */
+export function canClaimPlannedDay(day: PlannedDay, activityType: string, sessionSec: number): boolean {
+  if (day.type === 'rest') return true
+
+  const t = activityType.toLowerCase()
+  const isRun = /run|trail|treadmill/.test(t)
+  const isGymWork = /weight|strength|workout|crossfit|hiit|cardio|circuit|training/.test(t)
+  const isEbike = /e-?bike/.test(t)
+  const isRide = /ride|bike|cycl/.test(t)
+  const isOtherCross = /swim|row|hike|walk|yoga|elliptical|ski|skate/.test(t)
+
+  let modalityOk: boolean
+  if (day.type === 'strength' || isGymBasedDay(day)) {
+    modalityOk = isGymWork && !isRun && !isRide
+  } else if (day.type === 'cross') {
+    modalityOk = isRun || isRide || isOtherCross || isEbike
+  } else {
+    // run-class: run / quality / long / race
+    modalityOk = isRun
+  }
+  if (!modalityOk) return false
+
+  // E-bikes are transport more often than training (MIM already rates
+  // them 0.30×) — eligible only on the broad cross days handled above.
+  if (isEbike && (day.type !== 'cross' || isGymBasedDay(day))) return false
+
+  // Compare the SESSION length (elapsed, callers pass max of moving/
+  // elapsed) against the prescription — the prescription includes rests,
+  // and in the gym most of a legit session is "not moving".
+  const plannedSec = plannedDurationSec(day)
+  if (plannedSec > 0 && sessionSec > 0 && sessionSec < plannedSec * CLAIM_MIN_DURATION_SHARE) {
+    return false
+  }
+  return true
+}
+
+/**
+ * Best-matching Strava activity that has EARNED the claim — or null, in
+ * which case the day stays incomplete and the caller surfaces the
+ * activities as secondaries. No claim-anyway fallback, ever again.
  */
 function findBestMatch(day: PlannedDay, activities: StravaActivity[]): StravaActivity | null {
-  if (activities.length === 1) return activities[0]
+  const eligible = activities.filter(a =>
+    canClaimPlannedDay(day, `${a.type} ${a.sport_type}`, Math.max(a.moving_time ?? 0, a.elapsed_time ?? 0)),
+  )
+  if (eligible.length === 0) return null
+  if (eligible.length === 1) return eligible[0]
 
   const expectedTypes = getExpectedStravaTypes(day.type)
-  const typed = activities.find(a =>
+  const typed = eligible.filter(a =>
     expectedTypes.some(t =>
       a.type.toLowerCase().includes(t) || a.sport_type.toLowerCase().includes(t)
     )
   )
-  return typed || activities[0]
+  const pool = typed.length > 0 ? typed : eligible
+  return pool.reduce((best, a) => (a.moving_time ?? 0) > (best.moving_time ?? 0) ? a : best)
 }
 
 /**
@@ -153,9 +248,16 @@ export function mergeGarminDetailIntoWeeks(
       const details = allDetails.filter(d => activityDuration(d) >= MIN_ACTIVITY_DURATION_SEC)
       if (details.length === 0) return day
 
-      // Find best matching detail for this day's workout type
+      // Find the detail that has EARNED the claim (same gate as Strava).
+      // For an already-claimed day, fall back to the highest-scored detail
+      // for ENRICHMENT only — layering biometrics on an existing actual is
+      // low-stakes; falsely completing an empty day is not.
       const bestDetail = findBestGarminMatch(day, details)
-      if (!bestDetail) return day
+        ?? (day.actual ? details.reduce((b, d) => activityScore(d) > activityScore(b) ? d : b) : null)
+      if (!bestDetail) {
+        const secondaries = details.map(d => garminDetailToActual(d))
+        return { ...day, secondaryActuals: secondaries }
+      }
 
       const garminActual = garminDetailToActual(bestDetail)
 
@@ -213,19 +315,23 @@ function activityScore(d: GarminActivityDetail): number {
   return dur * Math.max(hr, 100)
 }
 
-/** Pick the best Garmin activity for the planned day:
- *  1. Among activities whose type matches the plan, take the highest-scored.
- *  2. If none match, take the highest-scored overall.
- *  Caller has already filtered out sub-MIN_ACTIVITY_DURATION_SEC stubs. */
+/** Pick the best Garmin activity that has EARNED the claim: among
+ *  eligible activities prefer plan-type matches, then highest score.
+ *  Returns null when nothing is eligible — the caller decides whether an
+ *  already-claimed day still gets enriched. Caller has already filtered
+ *  out sub-MIN_ACTIVITY_DURATION_SEC stubs. */
 export function findBestGarminMatch(day: PlannedDay, details: GarminActivityDetail[]): GarminActivityDetail | null {
-  if (details.length === 0) return null
-  if (details.length === 1) return details[0]
+  const eligible = details.filter(d =>
+    canClaimPlannedDay(day, d.type, Math.max(d.movingDurationSeconds || 0, d.durationSeconds || 0)),
+  )
+  if (eligible.length === 0) return null
+  if (eligible.length === 1) return eligible[0]
 
   const expectedTypes = getExpectedGarminTypes(day.type)
-  const matching = details.filter(d =>
+  const matching = eligible.filter(d =>
     expectedTypes.some(t => d.type.toLowerCase().includes(t))
   )
-  const pool = matching.length > 0 ? matching : details
+  const pool = matching.length > 0 ? matching : eligible
   return pool.reduce((best, d) => activityScore(d) > activityScore(best) ? d : best)
 }
 
@@ -270,17 +376,28 @@ export function mergeAppleActivitiesIntoWeeks(
       if (!dayDate) return day
       const dayActivities = byDate.get(dayDate)
       if (!dayActivities || dayActivities.length === 0) return day
-      return { ...day, actual: appleActivityToActual(pickBestApple(day, dayActivities)) }
+      const best = pickBestApple(day, dayActivities)
+      if (!best) {
+        return day.secondaryActuals?.length
+          ? day
+          : { ...day, secondaryActuals: dayActivities.map(a => appleActivityToActual(a)) }
+      }
+      return { ...day, actual: appleActivityToActual(best) }
     }),
   }))
 }
 
-function pickBestApple(day: PlannedDay, activities: AppleActivity[]): AppleActivity {
-  if (activities.length === 1) return activities[0]
+function pickBestApple(day: PlannedDay, activities: AppleActivity[]): AppleActivity | null {
+  const eligible = activities.filter(a =>
+    canClaimPlannedDay(day, a.type, a.durationMinutes * 60),
+  )
+  if (eligible.length === 0) return null
+  if (eligible.length === 1) return eligible[0]
   // getExpectedStravaTypes' keyword set works for Apple's lowercase types too.
   const expected = getExpectedStravaTypes(day.type)
-  const typed = activities.find(a => expected.some(t => a.type.toLowerCase().includes(t)))
-  return typed || [...activities].sort((a, b) => b.durationMinutes - a.durationMinutes)[0]
+  const typed = eligible.filter(a => expected.some(t => a.type.toLowerCase().includes(t)))
+  const pool = typed.length > 0 ? typed : eligible
+  return [...pool].sort((a, b) => b.durationMinutes - a.durationMinutes)[0]
 }
 
 function appleActivityToActual(a: AppleActivity): ActualWorkout {
