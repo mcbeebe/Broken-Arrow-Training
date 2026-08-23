@@ -765,6 +765,7 @@ export default function WeeklyPlan({
           existing={logDay.actual}
           planned={logDay}
           weekNum={week.num}
+          allWeeks={weeks}
           onSave={(data) => {
             manualLog.logWorkout(logDay.day, data, dayIsoInWeek(logDay.day, week, todayDateString()))
             // Auto-seed the coach with the journal note when it changed, so

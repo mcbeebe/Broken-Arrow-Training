@@ -464,6 +464,7 @@ export default function Summary({
           existing={logTarget.day.actual}
           planned={logTarget.day}
           weekNum={logTarget.weekNum}
+          allWeeks={weeks}
           onSave={(data) => {
             manualLog.logWorkout(logTarget.day.day, data, logTarget.day.actual?.startDate?.slice(0, 10))
             if (data.notes?.trim()) onShareNote?.(logTarget.day, data.notes)

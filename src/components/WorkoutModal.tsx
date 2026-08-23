@@ -810,8 +810,15 @@ export default function WorkoutModal({ day, weekNum, onClose, onLog, onSaveNote,
                         </div>
                         <div className="flex flex-wrap gap-1.5 mt-1">
                           {ex.sets.map((s, j) => (
-                            <span key={j} className="text-xs text-teal-700 bg-white dark:bg-slate-800/60 rounded px-1.5 py-0.5">
-                              {s.reps > 0 ? `${s.reps} reps` : ''}{s.weight !== '—' ? ` @ ${s.weight}` : ''}{s.notes ? ` (${s.notes})` : ''}
+                            <span
+                              key={j}
+                              className={`text-xs rounded px-1.5 py-0.5 ${
+                                s.done === false
+                                  ? 'text-slate-400 bg-white dark:bg-slate-800/60 line-through'
+                                  : 'text-teal-700 bg-white dark:bg-slate-800/60'
+                              }`}
+                            >
+                              {s.setType === 'warmup' ? 'W: ' : ''}{s.reps > 0 ? `${s.reps} reps` : ''}{s.weight !== '—' ? ` @ ${s.weight}` : ''}{s.notes ? ` (${s.notes})` : ''}{s.done === false ? ' — skipped' : ''}
                             </span>
                           ))}
                         </div>
