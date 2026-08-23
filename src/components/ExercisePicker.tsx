@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import type { StrengthExerciseLog } from '../types'
 import { listExerciseGuides } from '../utils/exercises'
 import { normalizeExerciseName, type ExerciseProgression } from '../utils/strengthProgression'
-import { detectFocus, draftExercise } from '../utils/strengthDraft'
+import { detectFocus, draftExercise, type StrengthCalibration } from '../utils/strengthDraft'
 
 /**
  * The exercise picker — Phase 1 of the strength-logging overhaul.
@@ -23,6 +23,7 @@ export interface ExercisePickerProps {
   /** Names already in the log — filtered out of plan/recent suggestions. */
   existingNames: string[]
   progression: Map<string, ExerciseProgression>
+  calibration?: StrengthCalibration
   onPick: (exercise: StrengthExerciseLog) => void
   onClose: () => void
 }
@@ -30,7 +31,7 @@ export interface ExercisePickerProps {
 type FocusFilter = 'all' | 'upper' | 'lower' | 'core'
 
 export default function ExercisePicker({
-  plannedExercises, existingNames, progression, onPick, onClose,
+  plannedExercises, existingNames, progression, calibration, onPick, onClose,
 }: ExercisePickerProps) {
   const [query, setQuery] = useState('')
   const [focus, setFocus] = useState<FocusFilter>('all')
@@ -64,7 +65,7 @@ export default function ExercisePicker({
   })
 
   function pick(name: string, plannedSets?: StrengthExerciseLog['sets']) {
-    onPick(draftExercise(name, progression, plannedSets))
+    onPick(draftExercise(name, progression, plannedSets, calibration))
   }
 
   return (

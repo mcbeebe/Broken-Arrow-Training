@@ -130,6 +130,9 @@ interface WorkoutModalProps {
    *  they actually did — no need to close the modal and hunt for the log
    *  button on the day card. */
   onLog?: () => void
+  /** Open the live-session player for this day (today's strength /
+   *  gym-circuit days without a log). */
+  onStartLive?: () => void
   /** Persist + share the workout journal note (actual.notes). When provided
    *  (and the workout is completed), the inline Workout Journal card renders.
    *  Saving writes the note and shares it with the coach in the background. */
@@ -163,7 +166,7 @@ interface WorkoutModalProps {
   strengthCapacity?: StrengthCapacity | null
 }
 
-export default function WorkoutModal({ day, weekNum, onClose, onLog, onSaveNote, zones, athleteId, coachEnabled, readiness, latestPerf, coachSnapshot, onAskCoach, trimpRecord, weeks, raceReadinessTarget, strengthLevel, strengthCapacity }: WorkoutModalProps) {
+export default function WorkoutModal({ day, weekNum, onClose, onLog, onStartLive, onSaveNote, zones, athleteId, coachEnabled, readiness, latestPerf, coachSnapshot, onAskCoach, trimpRecord, weeks, raceReadinessTarget, strengthLevel, strengthCapacity }: WorkoutModalProps) {
   const style = getWorkoutStyle(day.type, day.workout)
   const { flags } = useDisplayPreferences(athleteId)
   // General Fitness plans (raceType 'general') get goal-aware, race-free
@@ -372,6 +375,15 @@ export default function WorkoutModal({ day, weekNum, onClose, onLog, onSaveNote,
               </div>
             </div>
             <div className="flex items-center gap-1.5">
+              {onStartLive && (
+                <button
+                  onClick={onStartLive}
+                  className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full bg-purple-600 text-white hover:bg-purple-700 transition-colors"
+                  title="Log this session live, set by set, with a rest timer"
+                >
+                  ▶ Start
+                </button>
+              )}
               {onLog && (
                 <button
                   onClick={onLog}

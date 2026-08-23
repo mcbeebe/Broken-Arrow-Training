@@ -772,6 +772,17 @@ export default function WeeklyPlan({
           strengthCapacity={strength?.capacity}
           onClose={() => setModalDay(null)}
           onLog={manualLog ? () => { setLogDay(modalDay.day); setModalDay(null) } : undefined}
+          onStartLive={(() => {
+            // Same eligibility as the day-card pill: today's strength /
+            // gym-circuit day with nothing logged yet.
+            const d = modalDay.day
+            const iso = dayIsoInWeek(d.day, modalDay.week, todayDateString())
+            const eligible = manualLog && !d.actual && iso === todayDateString() &&
+              (d.type === 'strength' || (d.type === 'cross' && isGymBasedDay(d)))
+            return eligible
+              ? () => { setLiveOpen({ day: d, iso: iso ?? undefined }); setModalDay(null) }
+              : undefined
+          })()}
           onSaveNote={manualLog && modalDay.day.actual ? async (note) => {
             manualLog.logWorkout(modalDay.day.day, { ...modalDay.day.actual!, notes: note }, dayIsoInWeek(modalDay.day.day, modalDay.week, todayDateString()))
             await onShareNote?.(modalDay.day, note)
@@ -803,6 +814,7 @@ export default function WeeklyPlan({
           dayIso={liveOpen.iso}
           athleteId={athleteId}
           allWeeks={weeks}
+          calibration={{ level: strengthLevel, capacity: strength?.capacity }}
           onSave={(workout, meta) => {
             manualLog.logWorkout(meta.dayLabel, workout, meta.dayIso)
             if (workout.notes?.trim() && liveOpen.day) onShareNote?.(liveOpen.day, workout.notes)
@@ -819,6 +831,8 @@ export default function WeeklyPlan({
           planned={logDay}
           weekNum={week.num}
           allWeeks={weeks}
+          strengthLevel={strengthLevel}
+          strengthCapacity={strength?.capacity}
           onSave={(data) => {
             manualLog.logWorkout(logDay.day, data, dayIsoInWeek(logDay.day, week, todayDateString()))
             // Auto-seed the coach with the journal note when it changed, so
