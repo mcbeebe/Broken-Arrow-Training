@@ -29,6 +29,11 @@ export interface LiveSessionState {
   /** Draft-format version — bump on breaking shape changes so an old
    *  draft is discarded instead of misread. */
   v: 1
+  /** How the cursor walks the work. 'exercise' (default): all sets of an
+   *  exercise, then the next exercise — the straight-sets gym flow.
+   *  'round': every station once per round, then the next round — the
+   *  Hyrox station-circuit flow (set index IS the round index). */
+  traversal?: 'exercise' | 'round'
   dayLabel: string
   /** ISO date the session logs against (YYYY-MM-DD), when known. */
   dayIso?: string
@@ -39,6 +44,9 @@ export interface LiveSessionState {
   /** Set while phase === 'rest'. */
   restStartedAt?: number
   restPlannedSec?: number
+  /** When the current work segment (set/station) went live — feeds the
+   *  per-set timeSec recorded on log, and the circuit face's count-up. */
+  segmentStartedAt?: number
   /** Pause bookkeeping: when pausedAt is set the clock is stopped, and
    *  pausedTotalMs accumulates completed pauses. */
   pausedAt: number | null
@@ -49,17 +57,19 @@ export interface LiveSessionState {
 
 export function startSession(
   exercises: StrengthExerciseLog[],
-  meta: { dayLabel: string; dayIso?: string },
+  meta: { dayLabel: string; dayIso?: string; traversal?: 'exercise' | 'round' },
   now: number,
 ): LiveSessionState {
   return {
     v: 1,
+    traversal: meta.traversal,
     dayLabel: meta.dayLabel,
     dayIso: meta.dayIso,
     startedAt: now,
     exercises,
     cursor: { exIdx: 0, setIdx: 0 },
     phase: exercises.length > 0 ? 'exercise' : 'finished',
+    segmentStartedAt: now,
     pausedAt: null,
     pausedTotalMs: 0,
   }
@@ -82,6 +92,13 @@ export function restRemainingSec(s: LiveSessionState, now: number): number {
   // never show more than the planned rest.
   const gone = Math.max(0, Math.floor((end - s.restStartedAt) / 1000))
   return Math.max(0, s.restPlannedSec - gone)
+}
+
+/** Seconds the current work segment (set/station) has been live. */
+export function segmentElapsedSec(s: LiveSessionState, now: number): number {
+  if (s.segmentStartedAt == null || s.phase !== 'exercise') return 0
+  const end = s.pausedAt ?? now
+  return Math.max(0, Math.floor((end - s.segmentStartedAt) / 1000))
 }
 
 /** Parse a guide's rest prescription ("60 sec between sets", "2 min
@@ -125,6 +142,19 @@ export function updateSet(
 
 /** The next cursor position after the given one, or null at the end. */
 export function nextCursor(s: LiveSessionState, from: LiveCursor): LiveCursor | null {
+  if (s.traversal === 'round') {
+    // Round-major: every remaining station in THIS round, then the next
+    // round. Ragged circuits (stations with fewer sets) drop out of the
+    // rounds they don't prescribe.
+    for (let i = from.exIdx + 1; i < s.exercises.length; i++) {
+      if (s.exercises[i].sets.length > from.setIdx) return { exIdx: i, setIdx: from.setIdx }
+    }
+    const nextRound = from.setIdx + 1
+    for (let i = 0; i < s.exercises.length; i++) {
+      if (s.exercises[i].sets.length > nextRound) return { exIdx: i, setIdx: nextRound }
+    }
+    return null
+  }
   const ex = s.exercises[from.exIdx]
   if (ex && from.setIdx + 1 < ex.sets.length) return { exIdx: from.exIdx, setIdx: from.setIdx + 1 }
   for (let i = from.exIdx + 1; i < s.exercises.length; i++) {
@@ -147,9 +177,17 @@ export function isLastSetOfExercise(s: LiveSessionState): boolean {
 export function logCurrentSet(s: LiveSessionState, now: number): LiveSessionState {
   if (s.phase !== 'exercise') return s
   const { exIdx, setIdx } = s.cursor
-  const marked = withSet(s, exIdx, setIdx, { done: true })
+  const timeSec = s.segmentStartedAt != null && s.pausedAt == null
+    ? Math.max(0, Math.round((now - s.segmentStartedAt) / 1000))
+    : undefined
+  const marked = withSet(s, exIdx, setIdx, { done: true, ...(timeSec != null ? { timeSec } : {}) })
   const next = nextCursor(marked, s.cursor)
   if (!next) return { ...marked, phase: 'finished' }
+  if (s.traversal === 'round') {
+    // Stations flow straight into each other — recovery is the walk to
+    // the next station, not a timed rest screen.
+    return { ...marked, cursor: next, phase: 'exercise', segmentStartedAt: now }
+  }
   return {
     ...marked,
     phase: 'rest',
@@ -159,11 +197,11 @@ export function logCurrentSet(s: LiveSessionState, now: number): LiveSessionStat
 }
 
 /** Leave rest and stand on the next set (rest expired, or skipped). */
-export function startNextSet(s: LiveSessionState): LiveSessionState {
+export function startNextSet(s: LiveSessionState, now: number): LiveSessionState {
   if (s.phase !== 'rest') return s
   const next = nextCursor(s, s.cursor)
   if (!next) return { ...s, phase: 'finished', restStartedAt: undefined, restPlannedSec: undefined }
-  return { ...s, phase: 'exercise', cursor: next, restStartedAt: undefined, restPlannedSec: undefined }
+  return { ...s, phase: 'exercise', cursor: next, restStartedAt: undefined, restPlannedSec: undefined, segmentStartedAt: now }
 }
 
 export function extendRest(s: LiveSessionState, addSec: number): LiveSessionState {
@@ -173,12 +211,12 @@ export function extendRest(s: LiveSessionState, addSec: number): LiveSessionStat
 
 /** Skip the current set without doing it — honest data: it stays
  *  done:false in the log. Advances like a completed set, minus rest. */
-export function skipCurrentSet(s: LiveSessionState): LiveSessionState {
+export function skipCurrentSet(s: LiveSessionState, now: number): LiveSessionState {
   if (s.phase !== 'exercise') return s
   const marked = withSet(s, s.cursor.exIdx, s.cursor.setIdx, { done: false })
   const next = nextCursor(marked, s.cursor)
   if (!next) return { ...marked, phase: 'finished' }
-  return { ...marked, cursor: next, phase: 'exercise' }
+  return { ...marked, cursor: next, phase: 'exercise', segmentStartedAt: now }
 }
 
 export function pause(s: LiveSessionState, now: number): LiveSessionState {
@@ -193,9 +231,10 @@ export function resume(s: LiveSessionState, now: number): LiveSessionState {
     ...s,
     pausedAt: null,
     pausedTotalMs: s.pausedTotalMs + pausedMs,
-    // Rest is a recovery clock, not a work clock — shift its anchor so
-    // the pause didn't silently consume the rest.
+    // Rest and the running segment are their own clocks — shift both
+    // anchors so the pause consumed neither.
     restStartedAt: s.restStartedAt != null ? s.restStartedAt + pausedMs : undefined,
+    segmentStartedAt: s.segmentStartedAt != null ? s.segmentStartedAt + pausedMs : undefined,
   }
 }
 

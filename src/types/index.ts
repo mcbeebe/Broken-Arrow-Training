@@ -247,6 +247,9 @@ export interface StrengthSet {
   /** Optional per-set RPE (1–10). Reserved for the live-session player;
    *  the workout-level RPE remains the primary effort signal. */
   rpe?: number;
+  /** Seconds this set/station took, recorded by the live player. On
+   *  station-circuit rounds this IS the station split. */
+  timeSec?: number;
 }
 
 // ─── Free-standing journal entries ──────────────────────────────

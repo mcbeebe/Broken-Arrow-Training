@@ -50,7 +50,7 @@ export function useLiveSession(athleteId?: string) {
     /** The rendered clock — updated by the heartbeat while running. */
     nowMs,
     /** Begin a session from drafted exercises (ghost rows welcome). */
-    start(exercises: StrengthExerciseLog[], meta: { dayLabel: string; dayIso?: string }) {
+    start(exercises: StrengthExerciseLog[], meta: { dayLabel: string; dayIso?: string; traversal?: 'exercise' | 'round' }) {
       const s = startSession(exercises, meta, Date.now())
       saveDraft(s, athleteId)
       setState(s)
@@ -58,9 +58,9 @@ export function useLiveSession(athleteId?: string) {
     /** True when a killed session is waiting to be resumed. */
     hasDraft: state != null && state.phase !== 'finished',
     logSet: () => transition((s, now) => logCurrentSet(s, now)),
-    nextSet: () => transition(s => startNextSet(s)),
+    nextSet: () => transition((s, now) => startNextSet(s, now)),
     addRest: (sec: number) => transition(s => extendRest(s, sec)),
-    skipSet: () => transition(s => skipCurrentSet(s)),
+    skipSet: () => transition((s, now) => skipCurrentSet(s, now)),
     editSet: (exIdx: number, setIdx: number, patch: Parameters<typeof updateSet>[3]) =>
       transition(s => updateSet(s, exIdx, setIdx, patch)),
     pause: () => transition((s, now) => pause(s, now)),

@@ -124,6 +124,30 @@ describe('the session flow', () => {
   })
 })
 
+describe('circuit mode (screen 8)', () => {
+  const circuitDay: PlannedDay = {
+    day: 'Fri 8/28', type: 'cross', workout: 'Station circuit (intro)',
+    detail: 'SkiErg 2×1 · Wall balls 2×15 · Farmer carry 2×40',
+    zone: 'Z2', route: 'Gym', time: '45 min',
+  }
+
+  it('a gym-circuit day starts round-major with the station flow, no rest screens', () => {
+    renderPlayer({ planned: circuitDay, dayLabel: 'Fri 8/28', dayIso: '2026-08-28' })
+    fireEvent.click(screen.getByText('Start workout'))
+    expect(screen.getByText('Round 1 of 2')).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Station done · next: Wall balls/ })).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: /Station done/ }))
+    // Straight to the next station — never a rest screen.
+    expect(screen.queryByText('Rest')).toBeNull()
+    expect(screen.getByRole('button', { name: /Station done · next: Farmer carry/ })).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: /Station done/ }))
+    expect(screen.getByRole('button', { name: /Station done · next: round 2/ })).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: /Station done/ }))
+    // Round 2 begins back at the first station.
+    expect(screen.getByText('Round 2 of 2')).toBeTruthy()
+  })
+})
+
 describe('crash resume', () => {
   it('a saved draft resumes mid-session, whatever day the player was opened for', () => {
     // A session from ANOTHER day died mid-rest…

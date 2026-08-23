@@ -8,7 +8,7 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import {
   startSession, logCurrentSet, startNextSet, extendRest, skipCurrentSet,
   pause, resume, endSession, toActualWorkout,
-  elapsedSec, restRemainingSec, restSecondsFor, nextCursor,
+  elapsedSec, restRemainingSec, restSecondsFor, nextCursor, segmentElapsedSec,
   saveDraft, loadDraft, clearDraft,
   type LiveSessionState,
 } from '../utils/liveSession'
@@ -47,12 +47,12 @@ describe('session walkthrough', () => {
     expect(s.phase).toBe('rest')
     expect(s.exercises[0].sets[0].done).toBe(true)
 
-    s = startNextSet(s)
+    s = startNextSet(s, T0 + sec(120))
     expect(s.phase).toBe('exercise')
     expect(s.cursor).toEqual({ exIdx: 0, setIdx: 1 })
 
     s = logCurrentSet(s, T0 + sec(180))
-    s = startNextSet(s)
+    s = startNextSet(s, T0 + sec(240))
     expect(s.cursor).toEqual({ exIdx: 1, setIdx: 0 }) // crossed into Plank
 
     // Final set of the session: no rest, straight to finished.
@@ -63,7 +63,7 @@ describe('session walkthrough', () => {
 
   it('skipping a set advances without marking it done — honest data', () => {
     let s = fresh()
-    s = skipCurrentSet(s)
+    s = skipCurrentSet(s, T0 + sec(30))
     expect(s.exercises[0].sets[0].done).toBe(false)
     expect(s.cursor).toEqual({ exIdx: 0, setIdx: 1 })
     expect(s.phase).toBe('exercise') // no rest earned for a skip
@@ -79,6 +79,48 @@ describe('session walkthrough', () => {
       { dayLabel: 'Mon' }, T0,
     )
     expect(nextCursor(s, { exIdx: 0, setIdx: 0 })).toEqual({ exIdx: 2, setIdx: 0 })
+  })
+})
+
+describe('circuit mode — round-major traversal with station splits', () => {
+  function circuit(): LiveSessionState {
+    return startSession(
+      [
+        { name: 'SkiErg', focus: 'full', sets: [{ reps: 1, weight: '' }, { reps: 1, weight: '' }] },
+        { name: 'Wall balls', focus: 'full', sets: [{ reps: 15, weight: '14 lb' }, { reps: 15, weight: '14 lb' }] },
+        { name: 'Farmer carry', focus: 'full', sets: [{ reps: 1, weight: '35 lb' }] }, // drops out of round 2
+      ],
+      { dayLabel: 'Fri 8/28', traversal: 'round' },
+      T0,
+    )
+  }
+
+  it('walks every station once per round, ragged stations drop out, no rest screens', () => {
+    let s = circuit()
+    const visits: string[] = []
+    while (s.phase === 'exercise') {
+      visits.push(`${s.cursor.exIdx}.${s.cursor.setIdx}`)
+      s = logCurrentSet(s, T0 + sec(visits.length * 70))
+      expect(s.phase === 'rest').toBe(false) // stations never enter rest
+    }
+    expect(visits).toEqual(['0.0', '1.0', '2.0', '0.1', '1.1'])
+    expect(s.phase).toBe('finished')
+  })
+
+  it('records each station\'s split as the set\'s timeSec', () => {
+    let s = circuit()
+    s = logCurrentSet(s, T0 + sec(64))          // SkiErg round 1: 64s
+    expect(s.exercises[0].sets[0].timeSec).toBe(64)
+    s = logCurrentSet(s, T0 + sec(64 + 58))     // Wall balls round 1: 58s
+    expect(s.exercises[1].sets[0].timeSec).toBe(58)
+  })
+
+  it('the station count-up derives from the segment anchor and survives a pause', () => {
+    let s = circuit()
+    expect(segmentElapsedSec(s, T0 + sec(30))).toBe(30)
+    s = pause(s, T0 + sec(30))
+    s = resume(s, T0 + sec(330))                // 5-minute pause
+    expect(segmentElapsedSec(s, T0 + sec(340))).toBe(40)
   })
 })
 
@@ -133,8 +175,8 @@ describe('finishing', () => {
   it('produces an ordinary manual-style ActualWorkout with the done flags', () => {
     let s = fresh()
     s = logCurrentSet(s, T0 + sec(60))
-    s = startNextSet(s)
-    s = skipCurrentSet(s)                      // set 2 skipped
+    s = startNextSet(s, T0 + sec(120))
+    s = skipCurrentSet(s, T0 + sec(130))       // set 2 skipped
     s = logCurrentSet(s, T0 + sec(200))        // plank done → finished
     const w = toActualWorkout(s, T0 + sec(200))
     expect(w.type).toBe('strength_training')
