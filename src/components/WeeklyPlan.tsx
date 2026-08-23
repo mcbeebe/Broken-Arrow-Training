@@ -13,6 +13,7 @@ import { pushWeekToGarmin, collectPushableDays } from '../utils/garminRepush'
 import { isGarminConnected, GarminAuthError } from '../utils/garmin'
 import { isGymBasedDay } from '../utils/matching'
 import { isSimDay } from '../utils/simSession'
+import HyroxProjectionCard from './HyroxProjectionCard'
 import { loadDraft } from '../utils/liveSession'
 import LiveSessionPlayer from './LiveSessionPlayer'
 import DayCard from './DayCard'
@@ -717,6 +718,12 @@ export default function WeeklyPlan({
       {viewMode === 'race' && race && (
         <div className="px-3 pt-3">
           {racePacing && <RacePacingCard plan={racePacing} />}
+          {/* Phase 4 — projected finish from sims + benchmarks + run
+               fitness. Hyrox plans only; renders nothing without any
+               personal evidence. */}
+          {onboardingConfig?.raceType === 'hyrox' && (
+            <HyroxProjectionCard weeks={weeks} config={onboardingConfig} capacity={strength?.capacity} />
+          )}
           <RaceNarrative
             race={race}
             weekNum={week.num}
