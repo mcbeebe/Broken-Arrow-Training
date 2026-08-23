@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import type { StrengthExerciseLog, StrengthSet } from '../types'
 import {
   normalizeExerciseName,
@@ -6,6 +7,7 @@ import {
   type NextTargetSuggestion,
 } from '../utils/strengthProgression'
 import { lastSessionSummary } from '../utils/strengthDraft'
+import SetKeypad from './SetKeypad'
 
 /**
  * The set-row strength editor — Phase 1 of the strength-logging overhaul.
@@ -50,7 +52,37 @@ function nextSetType(t: StrengthSet['setType']): StrengthSet['setType'] {
   return 'warmup'
 }
 
+/** Row label for a set: 'W' for warm-ups, 'A' for AMRAP, else its index
+ *  among non-warm-up rows (so labels read W, 1, 2, 3 wherever the
+ *  warm-up sits). */
+function setLabelFor(ex: StrengthExerciseLog, setIdx: number): string {
+  const set = ex.sets[setIdx]
+  if (set.setType === 'warmup') return 'W'
+  if (set.setType === 'amrap') return 'A'
+  let n = 0
+  for (let i = 0; i <= setIdx; i++) if (ex.sets[i].setType !== 'warmup') n += 1
+  return String(n)
+}
+
+/** The keypad's raw buffer for a stored weight string: '22.5 lb' → '22.5',
+ *  'BW' stays, anything unparseable edits from scratch. */
+function weightBuffer(weight: string): string {
+  if (weight.trim().toUpperCase() === 'BW') return 'BW'
+  return weight.replace(/[^\d.]/g, '')
+}
+
+interface ActiveCell {
+  exIdx: number
+  setIdx: number
+  field: 'weight' | 'reps'
+}
+
 export default function StrengthSetEditor({ exercises, onChange, progression }: StrengthSetEditorProps) {
+  // Which weight/reps cell the stepper keypad is editing. Values are
+  // edited ONLY through the keypad — our own panel instead of the system
+  // keyboard, which sidesteps the iOS keyboard-resize minefield.
+  const [active, setActive] = useState<ActiveCell | null>(null)
+
   function updateExercise(idx: number, updates: Partial<StrengthExerciseLog>) {
     onChange(exercises.map((ex, i) => (i === idx ? { ...ex, ...updates } : ex)))
   }
@@ -184,23 +216,28 @@ export default function StrengthSetEditor({ exercises, onChange, progression }: 
                     >
                       {label}
                     </button>
-                    <input
-                      placeholder="lb / BW"
-                      value={set.weight}
-                      onChange={e => updateSet(exIdx, setIdx, { weight: e.target.value, done: true })}
-                      className={`flex-1 min-w-0 px-2 py-1 text-xs border rounded focus:outline-none focus:ring-1 focus:ring-purple-500 ${
-                        ghost ? 'border-purple-100 text-slate-400' : 'border-purple-200'
+                    <button
+                      onClick={() => setActive({ exIdx, setIdx, field: 'weight' })}
+                      aria-label={`Set ${label} weight`}
+                      className={`flex-1 min-w-0 px-2 py-1.5 text-xs font-mono text-center border rounded bg-white dark:bg-slate-800 ${
+                        active?.exIdx === exIdx && active?.setIdx === setIdx && active.field === 'weight'
+                          ? 'border-purple-500 ring-1 ring-purple-500'
+                          : ghost ? 'border-purple-100 text-slate-400' : 'border-purple-200 text-slate-700 dark:text-slate-200'
                       }`}
-                    />
-                    <input
-                      type="number"
-                      placeholder="Reps"
-                      value={set.reps || ''}
-                      onChange={e => updateSet(exIdx, setIdx, { reps: parseInt(e.target.value) || 0, done: true })}
-                      className={`w-14 px-2 py-1 text-xs border rounded focus:outline-none focus:ring-1 focus:ring-purple-500 ${
-                        ghost ? 'border-purple-100 text-slate-400' : 'border-purple-200'
+                    >
+                      {set.weight || '—'}
+                    </button>
+                    <button
+                      onClick={() => setActive({ exIdx, setIdx, field: 'reps' })}
+                      aria-label={`Set ${label} reps`}
+                      className={`w-14 px-2 py-1.5 text-xs font-mono text-center border rounded bg-white dark:bg-slate-800 ${
+                        active?.exIdx === exIdx && active?.setIdx === setIdx && active.field === 'reps'
+                          ? 'border-purple-500 ring-1 ring-purple-500'
+                          : ghost ? 'border-purple-100 text-slate-400' : 'border-purple-200 text-slate-700 dark:text-slate-200'
                       }`}
-                    />
+                    >
+                      {set.reps || '—'}
+                    </button>
                     <button
                       onClick={() => updateSet(exIdx, setIdx, { done: set.done === false })}
                       aria-label={ghost ? `Mark set ${label} done` : `Mark set ${label} not done`}
@@ -240,6 +277,52 @@ export default function StrengthSetEditor({ exercises, onChange, progression }: 
           </div>
         )
       })}
+
+      {active && exercises[active.exIdx]?.sets[active.setIdx] && (() => {
+        const ex = exercises[active.exIdx]
+        const set = ex.sets[active.setIdx]
+        const prog = ex.name.trim() ? progression.get(normalizeExerciseName(ex.name)) : undefined
+        const workingSets = ex.sets.filter(s => s.setType !== 'warmup')
+        const target = prog
+          ? suggestNextTarget(prog, Math.max(workingSets.length, 1), workingSets[0]?.reps || 10)
+          : null
+        const lastSets = prog?.last?.sets ?? []
+        const lastWeight = (lastSets[active.setIdx] ?? lastSets[lastSets.length - 1])?.weight ?? null
+        return (
+          <SetKeypad
+            key={`${active.exIdx}-${active.setIdx}-${active.field}`}
+            field={active.field}
+            value={active.field === 'weight' ? weightBuffer(set.weight) : set.reps ? String(set.reps) : ''}
+            exerciseName={ex.name}
+            setLabel={setLabelFor(ex, active.setIdx)}
+            setCount={ex.sets.length}
+            targetWeightLb={target?.weightLb ?? null}
+            targetReps={target?.reps ?? null}
+            lastWeight={lastWeight}
+            onInput={raw => {
+              // Committing through the keypad IS doing the set.
+              if (active.field === 'weight') {
+                const weight = raw === 'BW' ? 'BW' : raw === '' ? '' : `${raw} lb`
+                updateSet(active.exIdx, active.setIdx, { weight, done: true })
+              } else {
+                updateSet(active.exIdx, active.setIdx, { reps: parseInt(raw) || 0, done: true })
+              }
+            }}
+            onSwitchField={() =>
+              setActive({ ...active, field: active.field === 'weight' ? 'reps' : 'weight' })}
+            onSetDone={() => {
+              updateSet(active.exIdx, active.setIdx, { done: true })
+              // Flow to the next set's weight — the between-sets rhythm.
+              if (active.setIdx + 1 < ex.sets.length) {
+                setActive({ ...active, setIdx: active.setIdx + 1, field: 'weight' })
+              } else {
+                setActive(null)
+              }
+            }}
+            onClose={() => setActive(null)}
+          />
+        )
+      })()}
     </div>
   )
 }
