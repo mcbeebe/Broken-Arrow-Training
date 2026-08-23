@@ -170,3 +170,35 @@ describe('what the recap says', () => {
     expect(r.paragraphs.length).toBeGreaterThan(0)
   })
 })
+
+describe('strength PRs in the recap (Phase 4)', () => {
+  const base = { week: week(), weekNum: 6, totalWeeks: 16, todayIso: '2026-09-06' }
+  const prs = [
+    {
+      canonicalName: 'goblet squat', displayName: 'Goblet squat',
+      date: '2026-09-02', dayLabel: 'Tue 9/2', weekNum: 6,
+      kind: 'e1rm' as const, value: 49, prev: 42,
+    },
+    {
+      canonicalName: 'push-up', displayName: 'Push-ups',
+      date: '2026-09-04', dayLabel: 'Thu 9/4', weekNum: 6,
+      kind: 'reps' as const, value: 22, prev: 20,
+    },
+  ]
+
+  it('names each PR in the body, counts them in the stats, and grounds the digest', () => {
+    const r = buildWeeklyRecap({ ...base, compliance: compliance(), strengthPRs: prs })
+    expect(r.stats.find(s => s.label === 'PRs')!.value).toBe('2')
+    const body = r.paragraphs.join(' ')
+    expect(body).toContain('Goblet squat — e1RM 49 lb (was 42)')
+    expect(body).toContain('Push-ups — 22 reps (was 20)')
+    expect(r.digest).toContain('Strength PRs')
+  })
+
+  it('says nothing about PRs in a week without any', () => {
+    const r = buildWeeklyRecap({ ...base, compliance: compliance(), strengthPRs: [] })
+    expect(r.stats.find(s => s.label === 'PRs')).toBeUndefined()
+    expect(r.paragraphs.join(' ')).not.toMatch(/PR/)
+    expect(r.digest).not.toContain('Strength PRs')
+  })
+})

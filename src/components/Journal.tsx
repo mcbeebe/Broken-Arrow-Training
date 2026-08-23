@@ -11,6 +11,7 @@ import type {
 import type { StrengthExperience } from '../hooks/useOnboarding'
 import type { JournalNotesApi } from '../hooks/useJournalNotes'
 import { manualLogKey } from '../hooks/useManualLog'
+import { detectPRs } from '../utils/strengthRecords'
 import WorkoutModal from './WorkoutModal'
 import JournalEntryModal from './JournalEntryModal'
 
@@ -157,6 +158,10 @@ export default function Journal({
     })
   }, [weeks, standaloneNotes, loggedMap])
 
+  // Phase 4 — dates that set a strength PR, for the 🏆 badge on workout
+  // cards. Detection runs once over the full plan history.
+  const prDates = useMemo(() => new Set(detectPRs(weeks).map(pr => pr.date)), [weeks])
+
   const summary =
     feed.length > 0
       ? `${feed.length} ${feed.length === 1 ? 'reflection' : 'reflections'} — your training story, in your words.`
@@ -246,6 +251,9 @@ export default function Journal({
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate">
                     {item.day.workout}
+                    {prDates.has(item.sortKey) && (
+                      <span className="ml-1.5 text-[10px] font-bold text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-900 rounded px-1 py-0.5 align-middle">🏆 PR</span>
+                    )}
                   </p>
                   <p className="text-xs text-slate-400 dark:text-slate-500">
                     {item.day.day}{item.orphan ? ' · previous plan' : ` · Wk ${item.weekNum}`}

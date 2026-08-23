@@ -15,6 +15,7 @@
 import type { TrainingWeek, PerformanceMetrics, RaceInfo } from '../../types'
 import type { WeekCompliance } from '../../hooks/useCompliance'
 import { raceDateToIso } from '../season'
+import { formatPR, type PersonalRecord } from '../../utils/strengthRecords'
 
 export interface WeeklyRecapInput {
   week: TrainingWeek
@@ -28,6 +29,9 @@ export interface WeeklyRecapInput {
   totalWeeks: number
   athleteName?: string
   todayIso?: string
+  /** Strength PRs set during this week (Phase 4) — already filtered to
+   *  the week by the caller, since detection needs full history. */
+  strengthPRs?: PersonalRecord[]
 }
 
 export interface RecapStat {
@@ -163,6 +167,17 @@ function bodyFor(input: WeeklyRecapInput, ratio: number, streak: number): string
     out.push(`${c.flaggedCount} ${c.flaggedCount === 1 ? 'session' : 'sessions'} missed target by a wide margin — not a problem on its own, but a pattern worth watching.`)
   }
 
+  // 3b. Strength PRs — name them. A record is a week's best evidence
+  // that the work is converting, and it deserves a sentence.
+  const prs = input.strengthPRs ?? []
+  if (prs.length > 0) {
+    out.push(
+      prs.length === 1
+        ? `You set a strength PR: ${formatPR(prs[0])}. That's the plan's loading doing its job.`
+        : `You set ${prs.length} strength PRs: ${prs.map(formatPR).join('; ')}. That's the plan's loading doing its job.`,
+    )
+  }
+
   // 4. Fitness direction, when the load model has something to say.
   if (perf && priorPerf) {
     const dCtl = perf.ctl - priorPerf.ctl
@@ -208,6 +223,8 @@ export function buildWeeklyRecap(input: WeeklyRecapInput): WeeklyRecap {
     : undefined
 
   const stats = statsFor(c, week)
+  const prCount = input.strengthPRs?.length ?? 0
+  if (prCount > 0) stats.push({ label: 'PRs', value: `${prCount}`, sub: 'strength' })
   const paragraphs = bodyFor(input, ratio, streak)
 
   return {
@@ -222,6 +239,7 @@ export function buildWeeklyRecap(input: WeeklyRecapInput): WeeklyRecap {
       c.hrCheckedWorkouts > 0 ? `Time in zone ${Math.round(c.hrCompliance)}% over ${c.hrCheckedWorkouts} sessions` : '',
       c.actualElevation > 0 ? `${Math.round(c.actualElevation)} ft climbed` : '',
       c.flaggedCount > 0 ? `${c.flaggedCount} sessions well off target` : '',
+      prCount > 0 ? `Strength PRs: ${(input.strengthPRs ?? []).map(formatPR).join('; ')}` : '',
       streak >= 2 ? `${streak}-week on-plan streak` : '',
       suggestion ? 'Two consecutive weeks under 70% — regeneration is on the table' : '',
     ].filter(Boolean).join('. ') + '.',

@@ -3,6 +3,7 @@ import { useDisplayPreferences } from '../hooks/useDisplayPreferences'
 import type { TrainingWeek, ReadinessScore, GarminHealthData, DailyTRIMP, PerformanceMetrics, WeeklyRecommendation, HRZone, RaceInfo } from '../types'
 import type { OverallCompliance } from '../hooks/useCompliance'
 import type { RiskFlag } from '../utils/readiness'
+import type { StrengthCapacity } from '../engines/strength/benchmark'
 import { parsePlanZones } from '../utils/zones'
 import { getMilesNumber } from '../utils/format'
 import { shouldTrackVerticalGain, parseRaceElevationFt } from '../utils/raceReadiness'
@@ -34,6 +35,8 @@ interface DashboardProps {
   riskFlags?: RiskFlag[]
   garminConnected?: boolean
   sorenessLoadByDate?: Map<string, number>
+  /** Measured strength benchmark — powers the Stats benchmark % bar. */
+  strengthCapacity?: StrengthCapacity | null
   planZones?: HRZone[]
   athleteMaxHR?: number
   athleteId?: string
@@ -54,6 +57,7 @@ export default function Dashboard({
   riskFlags = [],
   garminConnected = false,
   sorenessLoadByDate,
+  strengthCapacity,
   planZones = [],
   athleteMaxHR,
   athleteId,
@@ -155,7 +159,7 @@ export default function Dashboard({
             sorenessLoadByDate={sorenessLoadByDate}
             athleteId={athleteId}
           />
-          {isSectionVisible('dash.strengthProgress') && <StrengthProgressSection weeks={weeks} />}
+          {isSectionVisible('dash.strengthProgress') && <StrengthProgressSection weeks={weeks} capacity={strengthCapacity} />}
         </>
       )}
     </div>
