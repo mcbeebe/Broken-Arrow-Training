@@ -11,6 +11,9 @@ import { formatWeekMilesChip, formatWeekMilesHeader } from '../utils/format'
 import { BLOCK_STYLE } from '../utils/blockStyles'
 import { pushWeekToGarmin, collectPushableDays } from '../utils/garminRepush'
 import { isGarminConnected, GarminAuthError } from '../utils/garmin'
+import { isGymBasedDay } from '../utils/matching'
+import { loadDraft } from '../utils/liveSession'
+import LiveSessionPlayer from './LiveSessionPlayer'
 import DayCard from './DayCard'
 import RacePacingCard from './RacePacingCard'
 import type { RacePacingPlan } from '../engines/racePacing'
@@ -156,6 +159,14 @@ export default function WeeklyPlan({
   // race context, an August drills tip, wrong readiness/TRIMP lookups).
   const [modalDay, setModalDay] = useState<{ day: PlannedDay; week: TrainingWeek } | null>(null)
   const [logDay, setLogDay] = useState<PlannedDay | null>(null)
+  // Live-session player (Phase 2): open for a specific day, or with no
+  // day to resume a crash-saved draft. Recomputing the draft flag when
+  // the player closes keeps the resume banner honest.
+  const [liveOpen, setLiveOpen] = useState<{ day?: PlannedDay; iso?: string } | null>(null)
+  const hasLiveDraft = useMemo(
+    () => liveOpen == null && loadDraft(athleteId) != null,
+    [athleteId, liveOpen],
+  )
   const [editDay, setEditDay] = useState<{ day: PlannedDay; index: number } | null>(null)
   const [missedDay, setMissedDay] = useState<{ day: PlannedDay; iso: string } | null>(null)
   const [benchmarkOpen, setBenchmarkOpen] = useState(false)
@@ -592,6 +603,22 @@ export default function WeeklyPlan({
         )}
       </div>
 
+      {/* Live session in progress — resume banner (survives app kills) */}
+      {hasLiveDraft && manualLog && (
+        <div className="px-3 mb-2">
+          <button
+            onClick={() => setLiveOpen({})}
+            className="w-full flex items-center gap-2.5 bg-purple-50 dark:bg-slate-800 border border-purple-200 dark:border-purple-900 rounded-xl px-3.5 py-3 text-left"
+          >
+            <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse shrink-0" />
+            <span className="flex-1 text-sm font-semibold text-purple-800 dark:text-purple-300">
+              Workout in progress — tap to resume
+            </span>
+            <span className="text-xs font-medium text-purple-500">Resume</span>
+          </button>
+        </div>
+      )}
+
       {/* Day cards */}
       <div className="px-3 space-y-2">
         {week.days.map((d, i) => {
@@ -624,6 +651,16 @@ export default function WeeklyPlan({
                 weekNum={week.num}
                 onTap={isSwapMode ? () => handleSwapTap(i) : () => openDayModal(d)}
                 onLog={manualLog ? () => setLogDay(d) : undefined}
+                onStartLive={
+                  // Live logging: today's strength / gym-circuit day with
+                  // nothing logged yet. Everything else keeps the plain
+                  // log editor.
+                  manualLog && !d.actual &&
+                  dayDateMatch === todayDateString() &&
+                  (d.type === 'strength' || (d.type === 'cross' && isGymBasedDay(d)))
+                    ? () => setLiveOpen({ day: d, iso: dayDateMatch ?? undefined })
+                    : undefined
+                }
                 onSwap={daySwap ? () => handleSwapTap(i) : undefined}
                 onEdit={planEdit ? () => setEditDay({ day: d, index: i }) : undefined}
                 onMissed={
@@ -755,6 +792,22 @@ export default function WeeklyPlan({
             const d = dayIsoInWeek(modalDay.day.day, modalDay.week, todayDateString())
             return findTrimpRecord(dailyTrimp, d, modalDay.day.actual?.name)
           })()}
+        />
+      )}
+
+      {/* Live-session player (Phase 2) */}
+      {liveOpen && manualLog && (
+        <LiveSessionPlayer
+          planned={liveOpen.day}
+          dayLabel={liveOpen.day?.day ?? 'Today'}
+          dayIso={liveOpen.iso}
+          athleteId={athleteId}
+          allWeeks={weeks}
+          onSave={(workout, meta) => {
+            manualLog.logWorkout(meta.dayLabel, workout, meta.dayIso)
+            if (workout.notes?.trim() && liveOpen.day) onShareNote?.(liveOpen.day, workout.notes)
+          }}
+          onClose={() => setLiveOpen(null)}
         />
       )}
 

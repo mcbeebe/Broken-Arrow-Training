@@ -25,6 +25,9 @@ interface DayCardProps {
   weekNum?: number
   onTap: () => void
   onLog?: () => void
+  /** Open the live-session player for this day (today's strength /
+   *  gym-circuit days without a log). */
+  onStartLive?: () => void
   onSwap?: () => void
   /** Open the manual edit sheet for this day. */
   onEdit?: () => void
@@ -66,7 +69,7 @@ interface DayCardProps {
   isoDate?: string
 }
 
-export default function DayCard({ day, weekNum, onTap, onLog, onSwap, onEdit, onMissed, hasReplan, hasEdit, isSwapSelected, isSwapTarget, readiness, coachEnabled, isToday, isPast, athleteId, coachSnapshot, onAskCoach, trimpRecord, weatherChip, injuryStatus, isoDate }: DayCardProps) {
+export default function DayCard({ day, weekNum, onTap, onLog, onStartLive, onSwap, onEdit, onMissed, hasReplan, hasEdit, isSwapSelected, isSwapTarget, readiness, coachEnabled, isToday, isPast, athleteId, coachSnapshot, onAskCoach, trimpRecord, weatherChip, injuryStatus, isoDate }: DayCardProps) {
   const style = getWorkoutStyle(day.type, day.workout)
   const actual = day.actual
   const timeEst = estimateRunTime(day.zone)
@@ -253,6 +256,15 @@ export default function DayCard({ day, weekNum, onTap, onLog, onSwap, onEdit, on
                 title={hasReplan ? 'Replanned — tap to undo' : 'Missed this one? Tell the plan.'}
               >
                 {hasReplan ? '↩ Replanned' : 'Missed?'}
+              </button>
+            )}
+            {onStartLive && (
+              <button
+                onClick={e => { e.stopPropagation(); onStartLive() }}
+                className="text-sm font-semibold px-2.5 py-1.5 rounded-full bg-purple-100 text-purple-700 hover:bg-purple-200 transition-colors"
+                title="Log this session live, set by set, with a rest timer"
+              >
+                ▶ Start
               </button>
             )}
             {onLog && (
