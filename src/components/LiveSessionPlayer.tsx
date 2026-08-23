@@ -1,7 +1,8 @@
 import { useMemo } from 'react'
 import type { ActualWorkout, PlannedDay, TrainingWeek } from '../types'
 import { useLiveSession } from '../hooks/useLiveSession'
-import { restRemainingSec, elapsedSec, type LiveSessionState } from '../utils/liveSession'
+import { restRemainingSec, elapsedSec, segmentElapsedSec, type LiveSessionState } from '../utils/liveSession'
+import { isGymBasedDay } from '../utils/matching'
 import { ghostFillFromHistory, parsePlanExercises, progressionFromWeeks, lastSessionSummary, type StrengthCalibration } from '../utils/strengthDraft'
 import { normalizeExerciseName, suggestNextTarget, parseWeightLb } from '../utils/strengthProgression'
 import { getExerciseGuide } from '../utils/exercises'
@@ -95,7 +96,13 @@ export default function LiveSessionPlayer({
         </div>
         <div className="px-4 pb-8 pt-3 space-y-2.5">
           <button
-            onClick={() => session.start(drafted, { dayLabel, dayIso })}
+            onClick={() => session.start(drafted, {
+              dayLabel,
+              dayIso,
+              // Station circuits play round-by-round; everything else is
+              // straight sets.
+              traversal: planned && planned.type === 'cross' && isGymBasedDay(planned) ? 'round' : 'exercise',
+            })}
             disabled={drafted.length === 0}
             className="w-full h-[52px] rounded-2xl bg-purple-600 hover:bg-purple-700 disabled:opacity-40 text-white font-bold text-[15px] flex items-center justify-center gap-2"
           >
@@ -172,6 +179,11 @@ export default function LiveSessionPlayer({
   // ── Rest (screen 7) ────────────────────────────────────────
   if (s.phase === 'rest') {
     return <RestScreen s={s} now={now} session={session} />
+  }
+
+  // ── Circuit (screen 8) — round-major station flow ──────────
+  if (s.traversal === 'round') {
+    return <CircuitFace s={s} now={now} session={session} />
   }
 
   // ── Exercise (screen 6) ────────────────────────────────────
@@ -408,6 +420,126 @@ function RestScreen({ s, now, session }: {
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 4 20 12 6 20" /></svg>
           {remaining === 0 ? 'Start next set' : 'Start early'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function stationRxLine(set: { reps: number; weight: string } | undefined): string {
+  if (!set) return ''
+  const parts: string[] = []
+  if (set.reps > 1) parts.push(`\u00d7${set.reps}`)
+  if (set.weight && set.weight !== 'BW') parts.push(set.weight)
+  return parts.join(' \u00b7 ')
+}
+
+function CircuitFace({ s, now, session }: {
+  s: LiveSessionState
+  now: number
+  session: ReturnType<typeof useLiveSession>
+}) {
+  const round = s.cursor.setIdx
+  const maxRounds = s.exercises.reduce((m, ex) => Math.max(m, ex.sets.length), 0)
+  const stationsThisRound = s.exercises
+    .map((ex, exIdx) => ({ ex, exIdx }))
+    .filter(({ ex }) => ex.sets.length > round)
+  const current = s.exercises[s.cursor.exIdx]
+  const prevSplit = round > 0 ? current?.sets[round - 1]?.timeSec : undefined
+  const paused = s.pausedAt != null
+  const next = (() => {
+    const after = stationsThisRound.find(({ exIdx }) => exIdx > s.cursor.exIdx)
+    if (after) return after.ex.name
+    const nextRound = s.exercises.find(ex => ex.sets.length > round + 1)
+    return nextRound ? `round ${round + 2}` : 'finish'
+  })()
+
+  return (
+    <div className="fixed inset-0 z-50 bg-white dark:bg-slate-900 flex flex-col">
+      <div className="px-4 pt-5 pb-3 border-b border-slate-200 dark:border-slate-700 space-y-2.5">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className={`w-2 h-2 rounded-full ${paused ? 'bg-amber-400' : 'bg-red-500'}`} />
+            <span className="font-mono text-sm font-bold text-slate-800 dark:text-white">{mmss(elapsedSec(s, now))}</span>
+            <span className="text-xs text-slate-400">total</span>
+          </div>
+          <p className="text-base font-extrabold text-slate-900 dark:text-white">Station circuit</p>
+          <div className="flex items-center gap-3">
+            <button onClick={() => (paused ? session.resume() : session.pause())} className="text-[13px] font-medium text-slate-400">
+              {paused ? 'Resume' : 'Pause'}
+            </button>
+            <button onClick={() => session.end()} className="text-[13px] font-medium text-slate-400">End</button>
+          </div>
+        </div>
+        <div className="flex items-center gap-2.5">
+          <span className="text-xs font-bold uppercase tracking-wide text-purple-700">Round {round + 1} of {maxRounds}</span>
+          <div className="flex-1 flex gap-1">
+            {Array.from({ length: maxRounds }, (_, r) => (
+              <span key={r} className={`flex-1 h-1.5 rounded-full ${r < round ? 'bg-teal-600' : r === round ? 'bg-purple-600' : 'bg-slate-200 dark:bg-slate-700'}`} />
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto px-4 py-3.5 space-y-2">
+        {stationsThisRound.map(({ ex, exIdx }) => {
+          const set = ex.sets[round]
+          if (exIdx === s.cursor.exIdx) {
+            return (
+              <div key={exIdx} className="border-2 border-purple-600 rounded-2xl p-4 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <p className="text-[11px] font-bold uppercase tracking-wide text-purple-700">
+                    Now · station {stationsThisRound.findIndex(x => x.exIdx === exIdx) + 1} of {stationsThisRound.length}
+                  </p>
+                  <button onClick={() => session.skipSet()} className="text-[11px] font-medium text-slate-400">skip</button>
+                </div>
+                <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white leading-tight">{ex.name}</h2>
+                {stationRxLine(set) && (
+                  <p className="font-mono text-[13px] text-slate-500">{stationRxLine(set)}</p>
+                )}
+                <div className="flex items-baseline gap-2.5">
+                  <p className="font-mono text-4xl font-extrabold text-purple-600">{mmss(segmentElapsedSec(s, now))}</p>
+                  {prevSplit != null && (
+                    <p className="font-mono text-[13px] text-slate-400">round {round} was {mmss(prevSplit)}</p>
+                  )}
+                </div>
+              </div>
+            )
+          }
+          const isDone = set?.done !== false && set?.done !== undefined
+          return (
+            <div
+              key={exIdx}
+              className={`flex items-center gap-2.5 rounded-xl px-3 py-2.5 border ${
+                isDone ? 'bg-teal-50 border-teal-200' : 'border-slate-100 dark:border-slate-700'
+              }`}
+            >
+              <span className={`w-[26px] h-[26px] rounded-lg flex items-center justify-center shrink-0 ${isDone ? 'bg-teal-600' : 'border-2 border-slate-200'}`}>
+                {isDone && (
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                )}
+              </span>
+              <span className={`flex-1 text-sm font-medium ${isDone ? 'text-teal-800' : 'text-slate-400'}`}>
+                {ex.name}
+                {stationRxLine(set) && <span className="font-mono text-[11px] text-slate-400 ml-1.5">{stationRxLine(set)}</span>}
+              </span>
+              {isDone && set?.timeSec != null && (
+                <span className="font-mono text-sm font-bold text-teal-900">{mmss(set.timeSec)}</span>
+              )}
+            </div>
+          )
+        })}
+        <p className="text-[11px] text-slate-400 pt-1">Splits recorded per station — lap presses on your watch merge in on sync.</p>
+      </div>
+
+      <div className="px-4 pb-8 pt-3 border-t border-slate-200 dark:border-slate-700">
+        <button
+          onClick={() => session.logSet()}
+          disabled={paused}
+          className="w-full h-14 rounded-2xl bg-purple-600 hover:bg-purple-700 disabled:opacity-40 text-white font-bold text-[15px] flex items-center justify-center gap-2"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+          Station done · next: {next}
         </button>
       </div>
     </div>
