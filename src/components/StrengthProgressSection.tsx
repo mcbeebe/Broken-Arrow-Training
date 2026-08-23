@@ -40,7 +40,20 @@ export default function StrengthProgressSection({ weeks, currentWeekNum, capacit
     [progressionMap, capacity],
   )
 
-  if (progressions.length === 0) return null
+  // The section now owns the Stats "Strength" sub-tab, so an empty
+  // history gets an explanation instead of a blank pane.
+  if (progressions.length === 0) {
+    return (
+      <div className="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700 mt-4 text-center space-y-1.5">
+        <p className="text-2xl">🏋️</p>
+        <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">No strength sessions logged yet</p>
+        <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+          Log a strength day (or play one live with ▶ Start) and your per-exercise
+          trends, estimated 1RMs, and PRs build here.
+        </p>
+      </div>
+    )
+  }
 
   const lastWeekNum = weeks.length > 0 ? weeks[weeks.length - 1].num : 10
   const baseWeek = currentWeekNum ?? Math.max(...progressions.map(p => p.last?.weekNum ?? 1))
@@ -97,7 +110,7 @@ export default function StrengthProgressSection({ weeks, currentWeekNum, capacit
               <div key={i} className="flex items-center gap-2 bg-amber-50 dark:bg-amber-950 border border-amber-100 dark:border-amber-900 rounded-lg px-2.5 py-1.5">
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-medium text-amber-900 dark:text-amber-200 truncate">{formatPR(pr)}</p>
-                  <p className="text-[10px] text-amber-600 dark:text-amber-400">{pr.dayLabel} · Wk {pr.weekNum}</p>
+                  <p className="text-[10px] text-amber-600 dark:text-amber-400">{pr.dayLabel}{pr.weekNum > 0 ? ` · Wk ${pr.weekNum}` : ' · previous plan'}</p>
                 </div>
                 <span className="shrink-0 text-[10px] font-bold text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-900 rounded px-1.5 py-0.5">PR</span>
               </div>
@@ -233,7 +246,7 @@ function ExerciseRow({
               const isLast = i === Math.min(progression.sessions.length, 8) - 1
               return (
                 <div key={i} className="flex items-center justify-between text-slate-600 dark:text-slate-300">
-                  <span className="text-slate-400">Wk {s.weekNum}</span>
+                  <span className="text-slate-400">{s.weekNum > 0 ? `Wk ${s.weekNum}` : `prev · ${s.dayLabel}`}</span>
                   <span className={isLast ? 'font-semibold text-slate-700 dark:text-slate-200' : ''}>
                     {s.topWeightLb > 0 ? `${s.topWeightLb} lb` : 'BW'} × {reps} × {s.sets.length}
                   </span>

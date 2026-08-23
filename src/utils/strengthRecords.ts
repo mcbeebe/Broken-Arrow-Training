@@ -157,6 +157,9 @@ export interface WeeklyVolumePoint {
 export function weeklyStrengthVolume(weeks: TrainingWeek[]): WeeklyVolumePoint[] {
   const out: WeeklyVolumePoint[] = []
   for (const week of weeks) {
+    // The synthetic "previous plan" bucket (weeksWithPriorLogs) spans
+    // months — one giant bar would be a lie, so it stays off the chart.
+    if (week.num <= 0) continue
     let sets = 0
     for (const day of week.days) {
       for (const ex of day.actual?.strengthLog ?? []) {
