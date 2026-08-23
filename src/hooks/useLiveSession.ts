@@ -21,13 +21,15 @@ import {
  */
 export function useLiveSession(athleteId?: string) {
   const [state, setState] = useState<LiveSessionState | null>(() => loadDraft(athleteId))
-  // Heartbeat for clock displays. The value is unused; bumping it just
-  // re-renders so elapsed/rest derive fresh from Date.now().
-  const [, setTick] = useState(0)
+  // Heartbeat for clock displays: the rendered "now". Views derive
+  // elapsed/rest from this instead of calling Date.now() in render —
+  // display truth updates once a second, timing truth stays in the
+  // state's timestamps either way.
+  const [nowMs, setNowMs] = useState(() => Date.now())
 
   useEffect(() => {
     if (!state || state.phase === 'finished' || state.pausedAt != null) return
-    const id = setInterval(() => setTick(t => t + 1), 1000)
+    const id = setInterval(() => setNowMs(Date.now()), 1000)
     return () => clearInterval(id)
   }, [state])
 
@@ -45,6 +47,8 @@ export function useLiveSession(athleteId?: string) {
 
   return {
     state,
+    /** The rendered clock — updated by the heartbeat while running. */
+    nowMs,
     /** Begin a session from drafted exercises (ghost rows welcome). */
     start(exercises: StrengthExerciseLog[], meta: { dayLabel: string; dayIso?: string }) {
       const s = startSession(exercises, meta, Date.now())

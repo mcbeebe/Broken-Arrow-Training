@@ -78,7 +78,9 @@ export function elapsedSec(s: LiveSessionState, now: number): number {
 export function restRemainingSec(s: LiveSessionState, now: number): number {
   if (s.phase !== 'rest' || s.restStartedAt == null || s.restPlannedSec == null) return 0
   const end = s.pausedAt ?? now
-  const gone = Math.floor((end - s.restStartedAt) / 1000)
+  // Clamp: a display clock up to 1s behind the transition timestamp must
+  // never show more than the planned rest.
+  const gone = Math.max(0, Math.floor((end - s.restStartedAt) / 1000))
   return Math.max(0, s.restPlannedSec - gone)
 }
 
