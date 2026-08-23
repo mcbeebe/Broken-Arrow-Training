@@ -105,18 +105,24 @@ export function buildProgression(weeks: TrainingWeek[]): Map<string, ExercisePro
 
       for (const ex of log) {
         if (!ex.sets || ex.sets.length === 0) continue
+        // Only sets actually performed, and only real work: an explicit
+        // done:false is a skipped prescription, and warm-up ramps would
+        // distort top-weight/rep math. Legacy logs carry neither field,
+        // so they pass through unchanged.
+        const performed = ex.sets.filter(s => s.done !== false && s.setType !== 'warmup')
+        if (performed.length === 0) continue
         const canonical = normalizeExerciseName(ex.name)
         const guide = getExerciseGuide(ex.name)
         const display = guide?.name ?? ex.name
 
-        const topWeightLb = ex.sets.reduce((max, s) => Math.max(max, parseWeightLb(s.weight)), 0)
-        const totalReps = ex.sets.reduce((sum, s) => sum + (s.reps || 0), 0)
+        const topWeightLb = performed.reduce((max, s) => Math.max(max, parseWeightLb(s.weight)), 0)
+        const totalReps = performed.reduce((sum, s) => sum + (s.reps || 0), 0)
 
         const session: ExerciseSession = {
           date,
           weekNum: week.num,
           dayLabel: day.day,
-          sets: ex.sets,
+          sets: performed,
           topWeightLb,
           totalReps,
         }

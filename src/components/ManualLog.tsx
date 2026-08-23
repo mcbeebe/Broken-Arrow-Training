@@ -1,7 +1,9 @@
-import { useState } from 'react'
-import type { ActualWorkout, PlannedDay, StrengthExerciseLog, StrengthSet, DrillLog } from '../types'
+import { useMemo, useState } from 'react'
+import type { ActualWorkout, PlannedDay, StrengthExerciseLog, StrengthSet, TrainingWeek, DrillLog } from '../types'
 import { getPlannedDrills } from '../utils/drills'
 import { isGymBasedDay } from '../utils/matching'
+import StrengthSetEditor from './StrengthSetEditor'
+import { ghostFillFromHistory, progressionFromWeeks } from '../utils/strengthDraft'
 
 // Fallback drill menu shown on run days when plan detail doesn't spell out
 // specific drills — matches the routine described in WorkoutModal's drill
@@ -23,6 +25,10 @@ interface ManualLogProps {
   existing?: ActualWorkout
   planned?: PlannedDay
   weekNum?: number
+  /** Full plan history — powers "Last time" ghost values and the "Try
+   *  today" progression target in the strength editor. Optional: without
+   *  it the editor still works, just without history. */
+  allWeeks?: TrainingWeek[]
   onSave: (data: ActualWorkout) => void
   onClose: () => void
 }
@@ -110,7 +116,7 @@ function parsePlannedTime(timeStr: string): number {
   return numMatch ? parseInt(numMatch[1]) : 0
 }
 
-export default function ManualLog({ dayLabel, existing, planned, onSave, onClose }: ManualLogProps) {
+export default function ManualLog({ dayLabel, existing, planned, allWeeks, onSave, onClose }: ManualLogProps) {
   // Field bug: the Station circuit — the day's MAIN workout — opened on
   // the Run/Cardio tab with its exercises buried under "Mobility /
   // Activation". Gym-based cross days (route Gym, station circuits) are
@@ -142,17 +148,19 @@ export default function ManualLog({ dayLabel, existing, planned, onSave, onClose
   const [distance, setDistance] = useState(existing?.distance?.toString() || '')
   const [elevation, setElevation] = useState(existing?.elevationGain?.toString() || '')
 
-  // Strength fields. A gym-circuit day opens with the plan's circuit
-  // already imported as loggable exercises — the athlete checks off what
-  // they did instead of retyping the prescription (the Import-from-plan
-  // button remains for re-syncing after plan edits).
-  const [exercises, setExercises] = useState<StrengthExerciseLog[]>(
-    existing?.strengthLog?.length
-      ? existing.strengthLog
-      : isGymCircuitDay && planned?.detail
-        ? parsePlanExercises(planned.detail)
-        : []
-  )
+  // Strength fields. The prescription is the draft: strength days AND
+  // gym-circuit days open with the plan's exercises pre-imported, reps
+  // from the prescription, weights ghosted from the athlete's last
+  // session of each exercise, every row unchecked until confirmed.
+  // (The Import-from-plan button remains for re-syncing after edits.)
+  const progression = useMemo(() => progressionFromWeeks(allWeeks), [allWeeks])
+  const [exercises, setExercises] = useState<StrengthExerciseLog[]>(() => {
+    if (existing?.strengthLog?.length) return existing.strengthLog
+    if ((planned?.type === 'strength' || isGymCircuitDay) && planned?.detail) {
+      return ghostFillFromHistory(parsePlanExercises(planned.detail), progression)
+    }
+    return []
+  })
 
   // Drills — shown for any run-type day. If the plan detail explicitly
   // lists drills, use those; otherwise fall back to either (a) the
@@ -213,7 +221,9 @@ export default function ManualLog({ dayLabel, existing, planned, onSave, onClose
       startDate: existing?.startDate || buildStartDate(dayLabel),
       notes,
       rpe: parseInt(rpe) || existing?.rpe || undefined,
-      strengthLog: mode === 'strength' ? exercises : existing?.strengthLog,
+      strengthLog: mode === 'strength'
+        ? exercises.filter(ex => ex.name.trim().length > 0)
+        : existing?.strengthLog,
       drills,
     }
     onSave(entry)
@@ -224,36 +234,9 @@ export default function ManualLog({ dayLabel, existing, planned, onSave, onClose
   }
 
   function addExercise() {
-    setExercises([...exercises, { name: '', focus: 'full', sets: [{ reps: 0, weight: '' }] }])
-  }
-
-  function updateExercise(idx: number, updates: Partial<StrengthExerciseLog>) {
-    setExercises(exercises.map((ex, i) => i === idx ? { ...ex, ...updates } : ex))
-  }
-
-  function removeExercise(idx: number) {
-    setExercises(exercises.filter((_, i) => i !== idx))
-  }
-
-  function addSet(exIdx: number) {
-    const ex = exercises[exIdx]
-    const lastSet = ex.sets[ex.sets.length - 1]
-    updateExercise(exIdx, {
-      sets: [...ex.sets, { reps: lastSet?.reps || 0, weight: lastSet?.weight || '' }]
-    })
-  }
-
-  function updateSet(exIdx: number, setIdx: number, updates: Partial<StrengthSet>) {
-    const ex = exercises[exIdx]
-    updateExercise(exIdx, {
-      sets: ex.sets.map((s, i) => i === setIdx ? { ...s, ...updates } : s)
-    })
-  }
-
-  function removeSet(exIdx: number, setIdx: number) {
-    const ex = exercises[exIdx]
-    if (ex.sets.length <= 1) return
-    updateExercise(exIdx, { sets: ex.sets.filter((_, i) => i !== setIdx) })
+    // A hand-added exercise starts with one unchecked set — same ghost
+    // semantics as plan-imported rows.
+    setExercises([...exercises, { name: '', focus: 'full', sets: [{ reps: 0, weight: '', done: false }] }])
   }
 
   return (
@@ -331,7 +314,7 @@ export default function ManualLog({ dayLabel, existing, planned, onSave, onClose
                 <div className="flex gap-1.5">
                   {planned?.detail && (
                     <button
-                      onClick={() => setExercises(parsePlanExercises(planned.detail))}
+                      onClick={() => setExercises(ghostFillFromHistory(parsePlanExercises(planned.detail), progression))}
                       className="text-xs font-medium px-2 py-1 rounded-lg bg-teal-100 text-teal-700 hover:bg-teal-200 transition-colors"
                     >
                       📋 Import from plan
@@ -350,20 +333,11 @@ export default function ManualLog({ dayLabel, existing, planned, onSave, onClose
                 <p className="text-xs text-slate-400 italic py-2">Tap "Add Exercise" to log your lifts</p>
               )}
 
-              <div className="space-y-3">
-                {exercises.map((ex, exIdx) => (
-                  <ExerciseEntry
-                    key={exIdx}
-                    exercise={ex}
-                    index={exIdx}
-                    onUpdate={(updates) => updateExercise(exIdx, updates)}
-                    onRemove={() => removeExercise(exIdx)}
-                    onAddSet={() => addSet(exIdx)}
-                    onUpdateSet={(setIdx, updates) => updateSet(exIdx, setIdx, updates)}
-                    onRemoveSet={(setIdx) => removeSet(exIdx, setIdx)}
-                  />
-                ))}
-              </div>
+              <StrengthSetEditor
+                exercises={exercises}
+                onChange={setExercises}
+                progression={progression}
+              />
             </div>
           )}
 
@@ -471,89 +445,6 @@ export default function ManualLog({ dayLabel, existing, planned, onSave, onClose
 
         <div className="h-6" />
       </div>
-    </div>
-  )
-}
-
-const FOCUS_OPTIONS: { value: StrengthExerciseLog['focus']; label: string }[] = [
-  { value: 'upper', label: 'Upper' },
-  { value: 'lower', label: 'Lower' },
-  { value: 'core', label: 'Core' },
-  { value: 'full', label: 'Full Body' },
-]
-
-function ExerciseEntry({ exercise, index, onUpdate, onRemove, onAddSet, onUpdateSet, onRemoveSet }: {
-  exercise: StrengthExerciseLog
-  index: number
-  onUpdate: (updates: Partial<StrengthExerciseLog>) => void
-  onRemove: () => void
-  onAddSet: () => void
-  onUpdateSet: (setIdx: number, updates: Partial<StrengthSet>) => void
-  onRemoveSet: (setIdx: number) => void
-}) {
-  return (
-    <div className="bg-purple-50 rounded-xl p-3 border border-purple-200">
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-xs font-bold text-purple-600">Exercise {index + 1}</span>
-        <button onClick={onRemove} className="text-xs text-red-500 hover:text-red-700">Remove</button>
-      </div>
-
-      <input
-        placeholder="Exercise name (e.g., Back Squat, DB Bench Press)"
-        value={exercise.name}
-        onChange={e => onUpdate({ name: e.target.value })}
-        className="w-full px-3 py-2 text-sm border border-purple-200 rounded-lg mb-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
-      />
-
-      {/* Focus area */}
-      <div className="flex gap-1 mb-2">
-        {FOCUS_OPTIONS.map(opt => (
-          <button
-            key={opt.value}
-            onClick={() => onUpdate({ focus: opt.value })}
-            className={`flex-1 py-1 text-[10px] font-medium rounded transition-colors ${
-              exercise.focus === opt.value
-                ? 'bg-purple-600 text-white'
-                : 'bg-white dark:bg-slate-800 text-purple-600 border border-purple-200'
-            }`}
-          >
-            {opt.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Sets */}
-      <div className="space-y-1.5">
-        {exercise.sets.map((set, setIdx) => (
-          <div key={setIdx} className="flex items-center gap-2">
-            <span className="text-[10px] text-purple-400 w-4 shrink-0">S{setIdx + 1}</span>
-            <input
-              type="number"
-              placeholder="Reps"
-              value={set.reps || ''}
-              onChange={e => onUpdateSet(setIdx, { reps: parseInt(e.target.value) || 0 })}
-              className="w-16 px-2 py-1 text-xs border border-purple-200 rounded focus:outline-none focus:ring-1 focus:ring-purple-500"
-            />
-            <span className="text-[10px] text-purple-400">×</span>
-            <input
-              placeholder="Weight (e.g., 135 lb, BW)"
-              value={set.weight}
-              onChange={e => onUpdateSet(setIdx, { weight: e.target.value })}
-              className="flex-1 px-2 py-1 text-xs border border-purple-200 rounded focus:outline-none focus:ring-1 focus:ring-purple-500"
-            />
-            {exercise.sets.length > 1 && (
-              <button onClick={() => onRemoveSet(setIdx)} className="text-[10px] text-red-400 hover:text-red-600">✕</button>
-            )}
-          </div>
-        ))}
-      </div>
-
-      <button
-        onClick={onAddSet}
-        className="text-[10px] text-purple-600 hover:text-purple-800 mt-1.5 font-medium"
-      >
-        + Add Set
-      </button>
     </div>
   )
 }

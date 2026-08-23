@@ -201,11 +201,16 @@ export function calculateGrade(day: PlannedDay, dayIso?: string): GradeResult | 
 
   // --- STRENGTH WORKOUTS ---
   else if (day.type === 'strength') {
-    // Effort: Did they log exercises? (50% weight)
-    if (actual.strengthLog && actual.strengthLog.length > 0) {
+    // Effort: Did they log exercises? (50% weight). An exercise whose
+    // every set is explicitly done:false is a skipped prescription (the
+    // set editor persists ghosts honestly) — it must not earn credit.
+    const performedExercises = (actual.strengthLog ?? []).filter(ex =>
+      ex.sets.some(s => s.done !== false),
+    )
+    if (performedExercises.length > 0) {
       effortScore = 1.0
       structureScore = 1.0
-      reasons.push(`${actual.strengthLog.length} exercises logged`)
+      reasons.push(`${performedExercises.length} exercises logged`)
     } else if (actual.movingTime > 0) {
       effortScore = 0.7
       structureScore = 0.6

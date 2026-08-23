@@ -234,6 +234,19 @@ export interface StrengthSet {
   reps: number;
   weight: string;
   notes?: string;
+  /** Set completion. ABSENT means done — every log written before this field
+   *  existed is a record of work performed, and Garmin device-counted sets
+   *  are real by definition. Explicit `false` marks a planned-but-skipped
+   *  set (the honest-data principle): it stays visible in the log but is
+   *  excluded from progression history and volume. */
+  done?: boolean;
+  /** Set intent. Absent = working. Warm-up sets are excluded from
+   *  progression math (top weight / rep totals) so a light ramp-in never
+   *  distorts "did you hit the prescription". */
+  setType?: 'warmup' | 'working' | 'amrap';
+  /** Optional per-set RPE (1–10). Reserved for the live-session player;
+   *  the workout-level RPE remains the primary effort signal. */
+  rpe?: number;
 }
 
 // ─── Free-standing journal entries ──────────────────────────────
