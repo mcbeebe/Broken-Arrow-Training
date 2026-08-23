@@ -111,14 +111,40 @@ describe('StrengthSetEditor', () => {
     expect(sets.every(s => s.weight !== '20 lb' && s.weight !== '')).toBe(true)
   })
 
-  it('typing in a ghost row confirms it — editing IS doing', () => {
+  it('editing through the keypad confirms the set — editing IS doing', () => {
     render(<Harness initial={ghostFillFromHistory(planExercises(), buildProgression(historyWeeks()))} weeks={historyWeeks()} />)
-    const repsInputs = screen.getAllByPlaceholderText('Reps')
-    fireEvent.change(repsInputs[0], { target: { value: '10' } })
+    fireEvent.click(screen.getByLabelText('Set 1 reps'))
+    // Keypad opens on that cell; first digit REPLACES the ghost value.
+    fireEvent.click(screen.getByRole('button', { name: '9' }))
     const sets = state()[0].sets
     expect(sets[0].done).toBe(true)
-    expect(sets[0].reps).toBe(10)
+    expect(sets[0].reps).toBe(9)
     expect(sets[1].done).toBe(false) // untouched rows stay ghosts
+  })
+
+  it('keypad steppers bump weight by 2.5 lb and confirm the set', () => {
+    render(<Harness initial={ghostFillFromHistory(planExercises(), buildProgression(historyWeeks()))} weeks={historyWeeks()} />)
+    fireEvent.click(screen.getByLabelText('Set 1 weight'))
+    fireEvent.click(screen.getByLabelText('plus 2.5'))
+    expect(state()[0].sets[0]).toMatchObject({ weight: '22.5 lb', done: true })
+  })
+
+  it('keypad quick chips: BW and same-as-last', () => {
+    render(<Harness initial={ghostFillFromHistory(planExercises(), buildProgression(historyWeeks()))} weeks={historyWeeks()} />)
+    fireEvent.click(screen.getByLabelText('Set 1 weight'))
+    fireEvent.click(screen.getByRole('button', { name: 'BW' }))
+    expect(state()[0].sets[0].weight).toBe('BW')
+    fireEvent.click(screen.getByRole('button', { name: /Last \(20 lb\)/ }))
+    expect(state()[0].sets[0].weight).toBe('20 lb')
+  })
+
+  it('"Set done" flows to the next set\'s weight — the between-sets rhythm', () => {
+    render(<Harness initial={ghostFillFromHistory(planExercises(), buildProgression(historyWeeks()))} weeks={historyWeeks()} />)
+    fireEvent.click(screen.getByLabelText('Set 1 weight'))
+    expect(screen.getByText(/set 1 of 3 · weight/)).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: /Set done/ }))
+    expect(state()[0].sets[0].done).toBe(true)
+    expect(screen.getByText(/set 2 of 3 · weight/)).toBeTruthy()
   })
 
   it('the checkbox toggles done both ways', () => {
@@ -202,8 +228,8 @@ describe('ManualLog pre-population (integration)', () => {
     )
     expect(screen.getByDisplayValue('Goblet squats')).toBeTruthy()
     expect(screen.getByDisplayValue('Plank')).toBeTruthy()
-    // Ghost weight borrowed from last session.
-    expect(screen.getAllByDisplayValue('20 lb').length).toBeGreaterThan(0)
+    // Ghost weight borrowed from last session (cells are keypad buttons).
+    expect(screen.getAllByText('20 lb').length).toBeGreaterThan(0)
     expect(screen.getByText(/Last time: 20 lb × 12, 12, 12/)).toBeTruthy()
   })
 })

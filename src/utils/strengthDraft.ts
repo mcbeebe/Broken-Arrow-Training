@@ -1,4 +1,4 @@
-import type { StrengthExerciseLog, TrainingWeek } from '../types'
+import type { StrengthExerciseLog, StrengthSet, TrainingWeek } from '../types'
 import {
   buildProgression,
   normalizeExerciseName,
@@ -48,4 +48,78 @@ export function lastSessionSummary(prog: ExerciseProgression | undefined): strin
   if (!last || last.sets.length === 0) return null
   const reps = last.sets.map(s => s.reps || 0).join(', ')
   return last.topWeightLb > 0 ? `${last.topWeightLb} lb × ${reps}` : `BW × ${reps}`
+}
+
+/** Keyword-based focus classification for an exercise name. */
+export function detectFocus(name: string): StrengthExerciseLog['focus'] {
+  const lower = name.toLowerCase()
+  const lowerKeywords = ['squat', 'lunge', 'step-up', 'step up', 'rdl', 'deadlift', 'glute', 'calf', 'leg']
+  const upperKeywords = ['press', 'bench', 'curl', 'row', 'pullup', 'push-up', 'pushup', 'shoulder', 'tricep', 'bicep']
+  const coreKeywords = ['plank', 'crunch', 'ab ', 'core', 'dead bug', 'bird dog', 'pallof']
+  if (lowerKeywords.some(k => lower.includes(k))) return 'lower'
+  if (upperKeywords.some(k => lower.includes(k))) return 'upper'
+  if (coreKeywords.some(k => lower.includes(k))) return 'core'
+  return 'full'
+}
+
+/**
+ * Parse a plan detail string into structured exercise entries.
+ * e.g., "Goblet squats 3×12 · Walking lunges 3×10/leg · Plank 3×45s"
+ * → array of StrengthExerciseLog with name, focus, and sets pre-filled.
+ * (Moved out of ManualLog so the exercise picker shares it.)
+ */
+export function parsePlanExercises(detail: string): StrengthExerciseLog[] {
+  if (!detail) return []
+
+  // Split on common delimiters: " · ", " | ", or newlines
+  const parts = detail.split(/\s*[·|]\s*|\n/).map(s => s.trim()).filter(Boolean)
+
+  const exercises: StrengthExerciseLog[] = []
+  for (const part of parts) {
+    // Try to match "Exercise Name NxR" patterns like "3×12", "3x10", "3×45s"
+    const setsMatch = part.match(/^(.+?)\s+(\d+)\s*[×xX]\s*(\d+)\s*(?:\/\w+)?(?:\s*\w+)?$/)
+
+    let name: string
+    let numSets = 3
+    let reps = 10
+
+    if (setsMatch) {
+      name = setsMatch[1].trim()
+      numSets = parseInt(setsMatch[2])
+      reps = parseInt(setsMatch[3])
+    } else {
+      // No sets pattern found — use the whole string as name
+      name = part
+    }
+
+    const sets: StrengthSet[] = Array.from({ length: numSets }, () => ({
+      reps,
+      weight: '',
+    }))
+
+    exercises.push({ name, focus: detectFocus(name), sets })
+  }
+
+  return exercises
+}
+
+/**
+ * Draft a single exercise for the picker's one-tap add:
+ *   - a planned prescription wins when given (reps from the plan);
+ *   - else the athlete's last session of this exercise becomes the draft;
+ *   - else a neutral 3 × 10 skeleton.
+ * Always ghost-filled: weights borrowed from history, every row unchecked.
+ */
+export function draftExercise(
+  name: string,
+  progression: Map<string, ExerciseProgression>,
+  plannedSets?: StrengthSet[],
+): StrengthExerciseLog {
+  const last = progression.get(normalizeExerciseName(name))?.last
+  const sets: StrengthSet[] = plannedSets?.length
+    ? plannedSets
+    : last && last.sets.length > 0
+      ? last.sets.map(s => ({ reps: s.reps, weight: s.weight }))
+      : Array.from({ length: 3 }, () => ({ reps: 10, weight: '' }))
+  return ghostFillFromHistory([{ name, focus: detectFocus(name), sets }], progression)[0]
 }

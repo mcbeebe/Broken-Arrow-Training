@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react'
-import type { ActualWorkout, PlannedDay, StrengthExerciseLog, StrengthSet, TrainingWeek, DrillLog } from '../types'
+import type { ActualWorkout, PlannedDay, StrengthExerciseLog, TrainingWeek, DrillLog } from '../types'
 import { getPlannedDrills } from '../utils/drills'
 import { isGymBasedDay } from '../utils/matching'
 import StrengthSetEditor from './StrengthSetEditor'
-import { ghostFillFromHistory, progressionFromWeeks } from '../utils/strengthDraft'
+import ExercisePicker from './ExercisePicker'
+import { ghostFillFromHistory, progressionFromWeeks, parsePlanExercises } from '../utils/strengthDraft'
 
 // Fallback drill menu shown on run days when plan detail doesn't spell out
 // specific drills — matches the routine described in WorkoutModal's drill
@@ -47,57 +48,6 @@ function buildStartDate(dayLabel: string): string {
     return d.toISOString()
   }
   return new Date().toISOString()
-}
-
-/**
- * Parse a plan detail string into structured exercise entries.
- * e.g., "Goblet squats 3×12 · Walking lunges 3×10/leg · Step-ups 3×10/leg · RDL w/ DB 3×10 · Plank 3×45s"
- * → array of StrengthExerciseLog with name, focus, and sets pre-filled.
- */
-function parsePlanExercises(detail: string): StrengthExerciseLog[] {
-  if (!detail) return []
-
-  // Split on common delimiters: " · ", " | ", " + ", " - " (with spaces), or newlines
-  const parts = detail.split(/\s*[·|]\s*|\n/).map(s => s.trim()).filter(Boolean)
-
-  const exercises: StrengthExerciseLog[] = []
-  for (const part of parts) {
-    // Try to match "Exercise Name NxR" patterns like "3×12", "3x10", "3×45s"
-    const setsMatch = part.match(/^(.+?)\s+(\d+)\s*[×xX]\s*(\d+)\s*(?:\/\w+)?(?:\s*\w+)?$/)
-
-    let name: string
-    let numSets = 3
-    let reps = 10
-
-    if (setsMatch) {
-      name = setsMatch[1].trim()
-      numSets = parseInt(setsMatch[2])
-      reps = parseInt(setsMatch[3])
-    } else {
-      // No sets pattern found — use the whole string as name
-      name = part
-    }
-
-    // Auto-detect focus from exercise name
-    const lower = name.toLowerCase()
-    const lowerKeywords = ['squat', 'lunge', 'step-up', 'step up', 'rdl', 'deadlift', 'glute', 'calf', 'leg']
-    const upperKeywords = ['press', 'bench', 'curl', 'row', 'pullup', 'push-up', 'pushup', 'shoulder', 'tricep', 'bicep']
-    const coreKeywords = ['plank', 'crunch', 'ab ', 'core', 'dead bug', 'bird dog', 'pallof']
-
-    let focus: StrengthExerciseLog['focus'] = 'full'
-    if (lowerKeywords.some(k => lower.includes(k))) focus = 'lower'
-    else if (upperKeywords.some(k => lower.includes(k))) focus = 'upper'
-    else if (coreKeywords.some(k => lower.includes(k))) focus = 'core'
-
-    const sets: StrengthSet[] = Array.from({ length: numSets }, () => ({
-      reps,
-      weight: '',
-    }))
-
-    exercises.push({ name, focus, sets })
-  }
-
-  return exercises
 }
 
 /**
@@ -233,11 +183,10 @@ export default function ManualLog({ dayLabel, existing, planned, allWeeks, onSav
     setDrillItems(drillItems.map((it, i) => i === idx ? { ...it, done: !it.done } : it))
   }
 
-  function addExercise() {
-    // A hand-added exercise starts with one unchecked set — same ghost
-    // semantics as plan-imported rows.
-    setExercises([...exercises, { name: '', focus: 'full', sets: [{ reps: 0, weight: '', done: false }] }])
-  }
+  // "+ Add Exercise" opens the picker (plan → recents → library, with
+  // free text as the escape hatch) so names stay canonical and history
+  // stays stitched.
+  const [pickerOpen, setPickerOpen] = useState(false)
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center" onClick={onClose}>
@@ -321,7 +270,7 @@ export default function ManualLog({ dayLabel, existing, planned, allWeeks, onSav
                     </button>
                   )}
                   <button
-                    onClick={addExercise}
+                    onClick={() => setPickerOpen(true)}
                     className="text-xs font-medium px-2 py-1 rounded-lg bg-purple-100 text-purple-700 hover:bg-purple-200 transition-colors"
                   >
                     + Add Exercise
@@ -338,6 +287,19 @@ export default function ManualLog({ dayLabel, existing, planned, allWeeks, onSav
                 onChange={setExercises}
                 progression={progression}
               />
+
+              {pickerOpen && (
+                <ExercisePicker
+                  plannedExercises={planned?.detail ? parsePlanExercises(planned.detail) : []}
+                  existingNames={exercises.map(ex => ex.name)}
+                  progression={progression}
+                  onPick={ex => {
+                    setExercises([...exercises, ex])
+                    setPickerOpen(false)
+                  }}
+                  onClose={() => setPickerOpen(false)}
+                />
+              )}
             </div>
           )}
 

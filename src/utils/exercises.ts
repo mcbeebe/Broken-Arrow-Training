@@ -899,6 +899,12 @@ export function getExerciseGuide(name: string): ExerciseGuide | null {
   return findGuide(name)
 }
 
+/** Every guide in the library, for the exercise picker. Order follows the
+ *  library's own declaration order (roughly: most common first). */
+export function listExerciseGuides(): ExerciseGuide[] {
+  return Object.values(GUIDES)
+}
+
 // Multiplier applied to the guide's default load per lifting background.
 // Experienced (and unspecified, e.g. seed athletes) keep the library default;
 // less-experienced lifters get scaled-down starting weights so the defaults
