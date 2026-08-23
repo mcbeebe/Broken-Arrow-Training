@@ -95,6 +95,7 @@ import CoachPingToast from './components/CoachPingToast'
 import WeeklyRecapOverlay from './components/WeeklyRecapOverlay'
 import { useWeeklyRecap } from './hooks/useWeeklyRecap'
 import { buildWeeklyRecap } from './engines/coach/weeklyRecap'
+import { detectPRs } from './utils/strengthRecords'
 import LoginScreen from './components/LoginScreen'
 import InAppBrowserGate from './components/InAppBrowserGate'
 import { useHRZones } from './hooks/useHRZones'
@@ -1129,6 +1130,9 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
       totalWeeks: weeks.length,
       athleteName: activePlan.athlete.name,
       todayIso: todayDateString(),
+      // Phase 4 — PRs are detected against ALL history, then narrowed to
+      // the sessions dated inside the week under review.
+      strengthPRs: detectPRs(weeks).filter(pr => pr.weekNum === reviewNum),
     })
   }, [weeklyRecapState.visible, weeks, compliance.weeks, currentWeekNum, readiness.performance, activePlan.race, activePlan.athlete.name])
 
@@ -1754,6 +1758,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           riskFlags={readiness.riskFlags}
           garminConnected={garmin.connected || apple.connected}
           sorenessLoadByDate={soreness.sorenessLoadByDate}
+          strengthCapacity={strengthCapacity.capacity}
           athleteId={athleteId}
         />
       )}

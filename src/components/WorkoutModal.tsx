@@ -19,6 +19,7 @@ import type { StrengthExperience } from '../hooks/useOnboarding'
 import { buildProgression, normalizeExerciseName, suggestNextTarget, type ExerciseProgression } from '../utils/strengthProgression'
 import { parseIntervalWorkout, RUNNING_DRILLS, MYRTL_ROUTINE, PRE_RUN_ACTIVATION, type RunSegment, type DrillGuide } from '../utils/drills'
 import { analyzeSimSplits } from '../utils/simAnalysis'
+import { detectPRs, prsOnDate, formatPR } from '../utils/strengthRecords'
 import { fetchActivityStreams, getTokens, isTokenExpired, refreshAccessToken, type StreamData } from '../utils/strava'
 import { fetchGarminActivityStream } from '../utils/garmin'
 import { classifyRun, getSportMultiplier, describeMIMEngine, mapToSportType } from '../utils/trimp'
@@ -262,6 +263,13 @@ export default function WorkoutModal({ day, weekNum, onClose, onLog, onStartLive
       : weeks
     return buildProgression(filteredWeeks)
   }, [weeks, day.actual?.startDate])
+  // Phase 4 — PRs set BY this day's session (detected against all history,
+  // narrowed to this date). Drives the 🏆 chips on logged exercises.
+  const dayPRs = useMemo(() => {
+    const date = day.actual?.startDate?.slice(0, 10)
+    if (!weeks || weeks.length === 0 || !date || !day.actual?.strengthLog?.length) return []
+    return prsOnDate(detectPRs(weeks), date)
+  }, [weeks, day.actual])
   const isDrillDay = !!day.isDrillDay
   // Label of this week's drill day (first easy run), for the "drills are
   // scheduled for your <day> run" nudge shown on other run days. Resolved
@@ -895,11 +903,23 @@ export default function WorkoutModal({ day, weekNum, onClose, onLog, onStartLive
                   <p className="text-sm font-semibold text-teal-800 mb-1">
                     {actual.source === 'garmin' && actual.garminId && actual.type === 'strength_training' ? '⌚ Exercise Sets (from watch)' : '📋 Logged Exercises'}
                   </p>
+                  {dayPRs.length > 0 && (
+                    <div className="mb-1.5 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5">
+                      {dayPRs.map((pr, i) => (
+                        <p key={i} className="text-xs font-semibold text-amber-800">🏆 New PR — {formatPR(pr)}</p>
+                      ))}
+                    </div>
+                  )}
                   <div className="space-y-1.5">
                     {actual.strengthLog.map((ex, i) => (
                       <div key={i} className="bg-teal-100/50 rounded-lg px-2 py-1.5">
                         <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium text-teal-800">{ex.name}</span>
+                          <span className="text-sm font-medium text-teal-800">
+                            {ex.name}
+                            {dayPRs.some(pr => pr.canonicalName === normalizeExerciseName(ex.name)) && (
+                              <span className="ml-1.5 text-[10px] font-bold text-amber-700 bg-amber-100 rounded px-1 py-0.5 align-middle">PR</span>
+                            )}
+                          </span>
                           <span className="text-xs text-teal-600 capitalize">{ex.focus}</span>
                         </div>
                         <div className="flex flex-wrap gap-1.5 mt-1">

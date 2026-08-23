@@ -6,21 +6,39 @@ import {
   suggestNextTarget,
   type ExerciseProgression,
 } from '../utils/strengthProgression'
+import {
+  e1RMTrend,
+  detectPRs,
+  formatPR,
+  weeklyStrengthVolume,
+  gobletBenchmarkComparison,
+} from '../utils/strengthRecords'
+import type { StrengthCapacity } from '../engines/strength/benchmark'
 
 interface Props {
   weeks: TrainingWeek[]
   /** Current training week — drives the projection target. We project
    *  4 weeks forward by default and also at race week (last plan week). */
   currentWeekNum?: number
+  /** Measured benchmark — powers the working-weight-vs-8RM bar. */
+  capacity?: StrengthCapacity | null
 }
 
-export default function StrengthProgressSection({ weeks, currentWeekNum }: Props) {
+export default function StrengthProgressSection({ weeks, currentWeekNum, capacity }: Props) {
+  const progressionMap = useMemo(() => buildProgression(weeks), [weeks])
   const progressions = useMemo(() => {
-    const map = buildProgression(weeks)
-    return Array.from(map.values())
+    return Array.from(progressionMap.values())
       .filter(p => p.sessions.length > 0)
       .sort((a, b) => b.sessions.length - a.sessions.length)
-  }, [weeks])
+  }, [progressionMap])
+  // Records layer (Phase 4): PRs newest-first, weekly working-set volume,
+  // and the benchmark comparison when one was measured.
+  const prs = useMemo(() => detectPRs(weeks).slice(-5).reverse(), [weeks])
+  const volume = useMemo(() => weeklyStrengthVolume(weeks).slice(-6), [weeks])
+  const benchmark = useMemo(
+    () => gobletBenchmarkComparison(progressionMap, capacity),
+    [progressionMap, capacity],
+  )
 
   if (progressions.length === 0) return null
 
@@ -48,6 +66,69 @@ export default function StrengthProgressSection({ weeks, currentWeekNum }: Props
           />
         ))}
       </div>
+
+      {benchmark && (
+        <div className="mt-3 border border-slate-100 dark:border-slate-700 rounded-lg px-3 py-2.5">
+          <div className="flex items-baseline justify-between gap-2">
+            <p className="text-xs font-medium text-slate-600 dark:text-slate-300">
+              Working weight vs benchmark 8RM ({benchmark.benchLb} lb)
+            </p>
+            <p className="font-mono text-sm font-bold text-teal-700 dark:text-teal-400">{benchmark.pct}%</p>
+          </div>
+          <div className="mt-1.5 h-1.5 rounded-full bg-slate-100 dark:bg-slate-700 overflow-hidden">
+            <div
+              className="h-full rounded-full bg-teal-600"
+              style={{ width: `${Math.min(100, benchmark.pct)}%` }}
+            />
+          </div>
+          {benchmark.expectedNext8RMLb != null && (
+            <p className="mt-1.5 text-[11px] text-slate-500 dark:text-slate-400">
+              Your e1RM trend says the next re-test should clear a {benchmark.expectedNext8RMLb} lb 8RM.
+            </p>
+          )}
+        </div>
+      )}
+
+      {prs.length > 0 && (
+        <div className="mt-3">
+          <p className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">🏆 Recent PRs</p>
+          <div className="space-y-1">
+            {prs.map((pr, i) => (
+              <div key={i} className="flex items-center gap-2 bg-amber-50 dark:bg-amber-950 border border-amber-100 dark:border-amber-900 rounded-lg px-2.5 py-1.5">
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium text-amber-900 dark:text-amber-200 truncate">{formatPR(pr)}</p>
+                  <p className="text-[10px] text-amber-600 dark:text-amber-400">{pr.dayLabel} · Wk {pr.weekNum}</p>
+                </div>
+                <span className="shrink-0 text-[10px] font-bold text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-900 rounded px-1.5 py-0.5">PR</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {volume.length > 1 && (
+        <div className="mt-3">
+          <div className="flex items-baseline gap-1.5 mb-1.5">
+            <p className="text-xs font-semibold text-slate-600 dark:text-slate-300">Weekly strength volume</p>
+            <p className="text-[10px] text-slate-400">(working sets)</p>
+          </div>
+          <div className="flex items-end gap-1.5 h-14">
+            {volume.map(v => {
+              const max = Math.max(...volume.map(x => x.sets))
+              return (
+                <div key={v.weekNum} className="flex-1 flex flex-col items-center gap-0.5">
+                  <span className="font-mono text-[9px] text-slate-500">{v.sets}</span>
+                  <div
+                    className="w-full rounded-t bg-purple-500/80 dark:bg-purple-600"
+                    style={{ height: `${Math.max(8, (v.sets / max) * 100)}%` }}
+                  />
+                  <span className="text-[9px] text-slate-400">W{v.weekNum}</span>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       <p className="mt-3 text-[10px] text-slate-400 dark:text-slate-500 leading-snug">
         Projections use simple linear regression on your session-by-session topset data. Confidence:
@@ -91,6 +172,9 @@ function ExerciseRow({
   // Last vs target — replicate the workout-card "Try" line
   const target = suggestNextTarget(progression, last.sets.length, lastReps)
 
+  // Estimated 1RM headline (Phase 4) — weighted lifts only.
+  const e1rm = isBW ? null : e1RMTrend(progression)
+
   const trajIcon = trending ? '📈' : flat ? '➖' : '📉'
   const trajClass = trending ? 'text-emerald-600 dark:text-emerald-400' : flat ? 'text-slate-500' : 'text-amber-600 dark:text-amber-400'
 
@@ -111,6 +195,16 @@ function ExerciseRow({
             )}
             <span className="text-slate-400 dark:text-slate-500 ml-1">· {progression.sessions.length} session{progression.sessions.length === 1 ? '' : 's'}</span>
           </p>
+          {e1rm && (
+            <p className="text-[11px] font-mono text-slate-500 dark:text-slate-400">
+              est. 1RM <span className="font-semibold text-slate-700 dark:text-slate-200">{e1rm.current} lb</span>
+              {e1rm.deltaPct !== 0 && (
+                <span className={e1rm.deltaPct > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}>
+                  {' '}({e1rm.deltaPct > 0 ? '+' : ''}{e1rm.deltaPct}% since first)
+                </span>
+              )}
+            </p>
+          )}
         </div>
         <div className="text-right shrink-0">
           {projAtTarget && (
