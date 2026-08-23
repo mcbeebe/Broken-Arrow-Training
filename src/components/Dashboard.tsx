@@ -17,7 +17,7 @@ import StrengthProgressSection from './StrengthProgressSection'
 import DescentCapacitySection from './DescentCapacitySection'
 import VolumeChart from './VolumeChart'
 
-type DashSubTab = 'compliance' | 'readiness' | 'performance'
+type DashSubTab = 'compliance' | 'readiness' | 'performance' | 'strength'
 
 interface DashboardProps {
   weeks: TrainingWeek[]
@@ -37,6 +37,10 @@ interface DashboardProps {
   sorenessLoadByDate?: Map<string, number>
   /** Measured strength benchmark — powers the Stats benchmark % bar. */
   strengthCapacity?: StrengthCapacity | null
+  /** Plan weeks augmented with prior-plan strength logs (weeksWithPriorLogs)
+   *  — the history the Strength sub-tab reads, so records survive plan
+   *  rebuilds. Falls back to `weeks` when absent. */
+  strengthWeeks?: TrainingWeek[]
   planZones?: HRZone[]
   athleteMaxHR?: number
   athleteId?: string
@@ -58,6 +62,7 @@ export default function Dashboard({
   garminConnected = false,
   sorenessLoadByDate,
   strengthCapacity,
+  strengthWeeks,
   planZones = [],
   athleteMaxHR,
   athleteId,
@@ -75,6 +80,9 @@ export default function Dashboard({
     { id: 'compliance', label: 'Compliance', available: true },
     { id: 'readiness', label: 'Readiness', available: garminConnected && isSectionVisible('dash.tabReadiness') },
     { id: 'performance', label: 'Performance', available: (garminConnected || dailyTrimp.length > 0) && isSectionVisible('dash.tabPerformance') },
+    // Own menu for the strength records + benchmark layer — previously
+    // buried under Performance.
+    { id: 'strength', label: 'Strength', available: isSectionVisible('dash.strengthProgress') },
   ]
   const visibleSubTabs = SUB_TABS.filter(t => t.available)
 
@@ -149,18 +157,18 @@ export default function Dashboard({
         />
       )}
       {subTab === 'performance' && (
-        <>
-          <PerformanceTab
-            dailyTrimp={dailyTrimp}
-            performance={performance}
-            recommendations={weeklyRecommendations}
-            riskFlags={riskFlags}
-            raceDate={raceDate}
-            sorenessLoadByDate={sorenessLoadByDate}
-            athleteId={athleteId}
-          />
-          {isSectionVisible('dash.strengthProgress') && <StrengthProgressSection weeks={weeks} capacity={strengthCapacity} />}
-        </>
+        <PerformanceTab
+          dailyTrimp={dailyTrimp}
+          performance={performance}
+          recommendations={weeklyRecommendations}
+          riskFlags={riskFlags}
+          raceDate={raceDate}
+          sorenessLoadByDate={sorenessLoadByDate}
+          athleteId={athleteId}
+        />
+      )}
+      {subTab === 'strength' && (
+        <StrengthProgressSection weeks={strengthWeeks ?? weeks} capacity={strengthCapacity} />
       )}
     </div>
   )
