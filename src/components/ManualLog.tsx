@@ -4,7 +4,9 @@ import { getPlannedDrills } from '../utils/drills'
 import { isGymBasedDay } from '../utils/matching'
 import StrengthSetEditor from './StrengthSetEditor'
 import ExercisePicker from './ExercisePicker'
-import { ghostFillFromHistory, progressionFromWeeks, parsePlanExercises } from '../utils/strengthDraft'
+import { ghostFillFromHistory, progressionFromWeeks, parsePlanExercises, type StrengthCalibration } from '../utils/strengthDraft'
+import type { StrengthExperience } from '../hooks/useOnboarding'
+import type { StrengthCapacity } from '../engines/strength/benchmark'
 
 // Fallback drill menu shown on run days when plan detail doesn't spell out
 // specific drills — matches the routine described in WorkoutModal's drill
@@ -30,6 +32,10 @@ interface ManualLogProps {
    *  today" progression target in the strength editor. Optional: without
    *  it the editor still works, just without history. */
   allWeeks?: TrainingWeek[]
+  /** Cold-start calibration: lifting background + measured benchmark.
+   *  Ghost weights for never-logged exercises come from these. */
+  strengthLevel?: StrengthExperience
+  strengthCapacity?: StrengthCapacity | null
   onSave: (data: ActualWorkout) => void
   onClose: () => void
 }
@@ -66,7 +72,7 @@ function parsePlannedTime(timeStr: string): number {
   return numMatch ? parseInt(numMatch[1]) : 0
 }
 
-export default function ManualLog({ dayLabel, existing, planned, allWeeks, onSave, onClose }: ManualLogProps) {
+export default function ManualLog({ dayLabel, existing, planned, allWeeks, strengthLevel, strengthCapacity, onSave, onClose }: ManualLogProps) {
   // Field bug: the Station circuit — the day's MAIN workout — opened on
   // the Run/Cardio tab with its exercises buried under "Mobility /
   // Activation". Gym-based cross days (route Gym, station circuits) are
@@ -104,10 +110,14 @@ export default function ManualLog({ dayLabel, existing, planned, allWeeks, onSav
   // session of each exercise, every row unchecked until confirmed.
   // (The Import-from-plan button remains for re-syncing after edits.)
   const progression = useMemo(() => progressionFromWeeks(allWeeks), [allWeeks])
+  const calibration = useMemo<StrengthCalibration>(
+    () => ({ level: strengthLevel, capacity: strengthCapacity }),
+    [strengthLevel, strengthCapacity],
+  )
   const [exercises, setExercises] = useState<StrengthExerciseLog[]>(() => {
     if (existing?.strengthLog?.length) return existing.strengthLog
     if ((planned?.type === 'strength' || isGymCircuitDay) && planned?.detail) {
-      return ghostFillFromHistory(parsePlanExercises(planned.detail), progression)
+      return ghostFillFromHistory(parsePlanExercises(planned.detail), progression, calibration)
     }
     return []
   })
@@ -263,7 +273,7 @@ export default function ManualLog({ dayLabel, existing, planned, allWeeks, onSav
                 <div className="flex gap-1.5">
                   {planned?.detail && (
                     <button
-                      onClick={() => setExercises(ghostFillFromHistory(parsePlanExercises(planned.detail), progression))}
+                      onClick={() => setExercises(ghostFillFromHistory(parsePlanExercises(planned.detail), progression, calibration))}
                       className="text-xs font-medium px-2 py-1 rounded-lg bg-teal-100 text-teal-700 hover:bg-teal-200 transition-colors"
                     >
                       📋 Import from plan
@@ -286,6 +296,7 @@ export default function ManualLog({ dayLabel, existing, planned, allWeeks, onSav
                 exercises={exercises}
                 onChange={setExercises}
                 progression={progression}
+                calibration={calibration}
               />
 
               {pickerOpen && (
@@ -293,6 +304,7 @@ export default function ManualLog({ dayLabel, existing, planned, allWeeks, onSav
                   plannedExercises={planned?.detail ? parsePlanExercises(planned.detail) : []}
                   existingNames={exercises.map(ex => ex.name)}
                   progression={progression}
+                  calibration={calibration}
                   onPick={ex => {
                     setExercises([...exercises, ex])
                     setPickerOpen(false)

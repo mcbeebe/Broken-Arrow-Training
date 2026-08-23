@@ -814,6 +814,7 @@ export default function WeeklyPlan({
           dayIso={liveOpen.iso}
           athleteId={athleteId}
           allWeeks={weeks}
+          calibration={{ level: strengthLevel, capacity: strength?.capacity }}
           onSave={(workout, meta) => {
             manualLog.logWorkout(meta.dayLabel, workout, meta.dayIso)
             if (workout.notes?.trim() && liveOpen.day) onShareNote?.(liveOpen.day, workout.notes)
@@ -830,6 +831,8 @@ export default function WeeklyPlan({
           planned={logDay}
           weekNum={week.num}
           allWeeks={weeks}
+          strengthLevel={strengthLevel}
+          strengthCapacity={strength?.capacity}
           onSave={(data) => {
             manualLog.logWorkout(logDay.day, data, dayIsoInWeek(logDay.day, week, todayDateString()))
             // Auto-seed the coach with the journal note when it changed, so

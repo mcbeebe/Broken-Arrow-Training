@@ -6,7 +6,7 @@ import {
   type ExerciseProgression,
   type NextTargetSuggestion,
 } from '../utils/strengthProgression'
-import { lastSessionSummary } from '../utils/strengthDraft'
+import { lastSessionSummary, startingWeightFor, type StrengthCalibration } from '../utils/strengthDraft'
 import SetKeypad from './SetKeypad'
 
 /**
@@ -31,6 +31,10 @@ export interface StrengthSetEditorProps {
   /** Per-exercise history, keyed by canonical name. Ghost values and the
    *  "Try today" target come from here; empty map = no history UI. */
   progression: Map<string, ExerciseProgression>
+  /** Benchmark / lifting-background calibration for the cold-start case:
+   *  an exercise with NO history shows "Start around X" from here instead
+   *  of a blank. */
+  calibration?: StrengthCalibration
 }
 
 /** Format a suggestion's load for display: 0 lb means bodyweight. */
@@ -77,7 +81,7 @@ interface ActiveCell {
   field: 'weight' | 'reps'
 }
 
-export default function StrengthSetEditor({ exercises, onChange, progression }: StrengthSetEditorProps) {
+export default function StrengthSetEditor({ exercises, onChange, progression, calibration }: StrengthSetEditorProps) {
   // Which weight/reps cell the stepper keypad is editing. Values are
   // edited ONLY through the keypad — our own panel instead of the system
   // keyboard, which sidesteps the iOS keyboard-resize minefield.
@@ -132,6 +136,9 @@ export default function StrengthSetEditor({ exercises, onChange, progression }: 
         const target = prog
           ? suggestNextTarget(prog, Math.max(workingSets.length, 1), plannedReps)
           : null
+        // Cold start: never logged this exercise → the benchmark (or the
+        // calibrated guide default) supplies the starting hint.
+        const starting = !prog && ex.name.trim() ? startingWeightFor(ex.name, calibration) : null
         // A working-set index that skips warm-up rows, so labels read
         // W, 1, 2, 3 regardless of where the warm-up sits.
         let workingIdx = 0
@@ -157,6 +164,26 @@ export default function StrengthSetEditor({ exercises, onChange, progression }: 
 
             {lastLine && (
               <p className="text-[11px] font-mono text-slate-500 dark:text-slate-400 mb-1.5">Last time: {lastLine}</p>
+            )}
+
+            {/* Cold start — the benchmark speaks where history can't. */}
+            {starting && (
+              <div className="flex items-center gap-2 rounded-lg px-2.5 py-1.5 mb-2 border bg-sky-50 border-sky-200">
+                <p className="flex-1 text-xs leading-snug text-sky-800">
+                  <span className="font-semibold">Start around {starting.weight}</span> — {starting.source === 'benchmark' ? 'from your benchmark' : 'calibrated guide weight'}
+                </p>
+                <button
+                  onClick={() =>
+                    updateExercise(exIdx, {
+                      sets: ex.sets.map(s =>
+                        s.setType === 'warmup' || s.weight ? s : { ...s, weight: starting.weight },
+                      ),
+                    })}
+                  className="text-xs font-semibold px-2 py-1 rounded-md text-sky-700 hover:bg-sky-100"
+                >
+                  Use
+                </button>
+              </div>
             )}
 
             {/* "Try today" — the progression target, one tap to accept. */}

@@ -1,9 +1,41 @@
 import type { StrengthExerciseLog, StrengthSet, TrainingWeek } from '../types'
+import type { StrengthExperience } from '../hooks/useOnboarding'
+import type { StrengthCapacity } from '../engines/strength/benchmark'
 import {
   buildProgression,
   normalizeExerciseName,
   type ExerciseProgression,
 } from './strengthProgression'
+import { getExerciseGuide, calibrateGuideWeight } from './exercises'
+
+/** Athlete calibration context for cold-start ghost weights: lifting
+ *  background (self-report) and the measured benchmark, when one exists. */
+export interface StrengthCalibration {
+  level?: StrengthExperience
+  capacity?: StrengthCapacity | null
+}
+
+/**
+ * A starting weight for an exercise the athlete has never logged —
+ * the benchmark's measured prescription when it can speak for this lift,
+ * else the guide's default scaled to their lifting background. Null for
+ * bodyweight guides and unknown exercises.
+ */
+export function startingWeightFor(
+  name: string,
+  calib?: StrengthCalibration,
+): { weight: string; source: 'benchmark' | 'guide' } | null {
+  const guide = getExerciseGuide(name)
+  if (!guide?.weight) return null
+  const calibrated = calibrateGuideWeight(guide.weight, calib?.level, {
+    capacity: calib?.capacity ?? null,
+    exerciseName: name,
+  })
+  const fromBenchmark = /from your benchmark/i.test(calibrated)
+  const m = calibrated.match(/(\d+(?:\.\d+)?)/)
+  if (!m) return null // bodyweight prescription
+  return { weight: `${m[1]} lb`, source: fromBenchmark ? 'benchmark' : 'guide' }
+}
 
 /**
  * Drafting helpers for the strength set editor — "the prescription is the
@@ -20,15 +52,22 @@ import {
 export function ghostFillFromHistory(
   exercises: StrengthExerciseLog[],
   progression: Map<string, ExerciseProgression>,
+  calib?: StrengthCalibration,
 ): StrengthExerciseLog[] {
   return exercises.map(ex => {
     const last = progression.get(normalizeExerciseName(ex.name))?.last
     const lastSets = last?.sets ?? []
+    // Cold start: no history of this exercise → borrow the benchmark /
+    // calibrated guide weight so the athlete never faces a blank "—".
+    const starting = lastSets.length === 0 ? startingWeightFor(ex.name, calib) : null
     return {
       ...ex,
       sets: ex.sets.map((s, i) => ({
         ...s,
-        weight: s.weight || (lastSets[i] ?? lastSets[lastSets.length - 1])?.weight || '',
+        weight: s.weight
+          || (lastSets[i] ?? lastSets[lastSets.length - 1])?.weight
+          || starting?.weight
+          || '',
         done: false as const,
       })),
     }
@@ -114,6 +153,7 @@ export function draftExercise(
   name: string,
   progression: Map<string, ExerciseProgression>,
   plannedSets?: StrengthSet[],
+  calib?: StrengthCalibration,
 ): StrengthExerciseLog {
   const last = progression.get(normalizeExerciseName(name))?.last
   const sets: StrengthSet[] = plannedSets?.length
@@ -121,5 +161,5 @@ export function draftExercise(
     : last && last.sets.length > 0
       ? last.sets.map(s => ({ reps: s.reps, weight: s.weight }))
       : Array.from({ length: 3 }, () => ({ reps: 10, weight: '' }))
-  return ghostFillFromHistory([{ name, focus: detectFocus(name), sets }], progression)[0]
+  return ghostFillFromHistory([{ name, focus: detectFocus(name), sets }], progression, calib)[0]
 }

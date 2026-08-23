@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import type { ActualWorkout, PlannedDay, TrainingWeek } from '../types'
 import { useLiveSession } from '../hooks/useLiveSession'
 import { restRemainingSec, elapsedSec, type LiveSessionState } from '../utils/liveSession'
-import { ghostFillFromHistory, parsePlanExercises, progressionFromWeeks, lastSessionSummary } from '../utils/strengthDraft'
+import { ghostFillFromHistory, parsePlanExercises, progressionFromWeeks, lastSessionSummary, type StrengthCalibration } from '../utils/strengthDraft'
 import { normalizeExerciseName, suggestNextTarget, parseWeightLb } from '../utils/strengthProgression'
 import { getExerciseGuide } from '../utils/exercises'
 
@@ -27,6 +27,7 @@ export interface LiveSessionPlayerProps {
   dayIso?: string
   athleteId?: string
   allWeeks?: TrainingWeek[]
+  calibration?: StrengthCalibration
   onSave: (workout: ActualWorkout, meta: { dayLabel: string; dayIso?: string }) => void
   onClose: () => void
 }
@@ -45,15 +46,15 @@ function stepWeight(weight: string, deltaLb: number): string {
 }
 
 export default function LiveSessionPlayer({
-  planned, dayLabel, dayIso, athleteId, allWeeks, onSave, onClose,
+  planned, dayLabel, dayIso, athleteId, allWeeks, calibration, onSave, onClose,
 }: LiveSessionPlayerProps) {
   const progression = useMemo(() => progressionFromWeeks(allWeeks), [allWeeks])
   const session = useLiveSession(athleteId)
   const s = session.state
 
   const drafted = useMemo(
-    () => (planned?.detail ? ghostFillFromHistory(parsePlanExercises(planned.detail), progression) : []),
-    [planned, progression],
+    () => (planned?.detail ? ghostFillFromHistory(parsePlanExercises(planned.detail), progression, calibration) : []),
+    [planned, progression, calibration],
   )
 
   // ── Preview (screen 5) ─────────────────────────────────────

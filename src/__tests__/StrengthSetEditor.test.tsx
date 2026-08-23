@@ -8,7 +8,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest'
 import { useState } from 'react'
 import { render, screen, cleanup, fireEvent } from '@testing-library/react'
 import StrengthSetEditor from '../components/StrengthSetEditor'
-import { ghostFillFromHistory } from '../utils/strengthDraft'
+import { ghostFillFromHistory, startingWeightFor } from '../utils/strengthDraft'
 import { buildProgression, normalizeExerciseName } from '../utils/strengthProgression'
 import type { StrengthExerciseLog, TrainingWeek } from '../types'
 
@@ -58,12 +58,16 @@ function planExercises(): StrengthExerciseLog[] {
   }]
 }
 
-function Harness({ initial, weeks }: { initial: StrengthExerciseLog[]; weeks: TrainingWeek[] }) {
+function Harness({ initial, weeks, calibration }: {
+  initial: StrengthExerciseLog[]
+  weeks: TrainingWeek[]
+  calibration?: import('../utils/strengthDraft').StrengthCalibration
+}) {
   const progression = buildProgression(weeks)
   const [exercises, setExercises] = useState(initial)
   return (
     <div>
-      <StrengthSetEditor exercises={exercises} onChange={setExercises} progression={progression} />
+      <StrengthSetEditor exercises={exercises} onChange={setExercises} progression={progression} calibration={calibration} />
       <pre data-testid="state">{JSON.stringify(exercises)}</pre>
     </div>
   )
@@ -81,9 +85,11 @@ describe('ghostFillFromHistory', () => {
     expect(ghosted[0].sets.every(s => s.done === false)).toBe(true)
   })
 
-  it('with no history the rows stay unchecked with empty weights', () => {
+  it('with no history the rows stay unchecked, with the guide default as the weight', () => {
+    // Cold start is never blank: the guide library's default load fills
+    // in (scaled by calibration when provided — see the cold-start suite).
     const ghosted = ghostFillFromHistory(planExercises(), new Map())
-    expect(ghosted[0].sets.every(s => s.weight === '' && s.done === false)).toBe(true)
+    expect(ghosted[0].sets.every(s => /lb$/.test(s.weight) && s.done === false)).toBe(true)
   })
 
   it('a longer prescription than history repeats the last known weight', () => {
@@ -182,6 +188,33 @@ describe('StrengthSetEditor', () => {
     const sets = state()[0].sets
     expect(sets[0]).toMatchObject({ setType: 'warmup', weight: '10 lb', reps: 8, done: false })
     expect(sets[1].done).toBe(true)
+  })
+})
+
+describe('cold start — the benchmark speaks where history cannot', () => {
+  it('startingWeightFor scales the guide default to lifting background', () => {
+    const hit = startingWeightFor('Goblet squats', { level: 'new' })
+    expect(hit).not.toBeNull()
+    expect(hit!.weight).toMatch(/^\d+(\.\d+)? lb$/)
+    expect(hit!.source).toBe('guide')
+    expect(startingWeightFor('made-up exercise nobody knows', { level: 'new' })).toBeNull()
+  })
+
+  it('ghost fill borrows the calibrated starting weight when no history exists', () => {
+    const ghosted = ghostFillFromHistory(planExercises(), new Map(), { level: 'new' })
+    expect(ghosted[0].sets.every(s => /lb$/.test(s.weight) && s.done === false)).toBe(true)
+  })
+
+  it('the editor shows the "Start around" strip for a never-logged exercise', () => {
+    render(
+      <Harness
+        initial={ghostFillFromHistory(planExercises(), new Map(), { level: 'new' })}
+        weeks={[]}
+        calibration={{ level: 'new' }}
+      />,
+    )
+    expect(screen.getByText(/Start around/)).toBeTruthy()
+    expect(screen.getByText(/calibrated guide weight/)).toBeTruthy()
   })
 })
 
