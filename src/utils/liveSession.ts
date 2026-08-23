@@ -34,6 +34,12 @@ export interface LiveSessionState {
    *  'round': every station once per round, then the next round — the
    *  Hyrox station-circuit flow (set index IS the round index). */
   traversal?: 'exercise' | 'round'
+  /** Race-simulation session (Phase 3b): alternating run + station
+   *  segments. Changes how the finished workout is written — segment
+   *  splits instead of a strength log. */
+  sim?: boolean
+  /** Display title for sim sessions ('Race simulation', 'Half simulation'). */
+  title?: string
   dayLabel: string
   /** ISO date the session logs against (YYYY-MM-DD), when known. */
   dayIso?: string
@@ -57,12 +63,14 @@ export interface LiveSessionState {
 
 export function startSession(
   exercises: StrengthExerciseLog[],
-  meta: { dayLabel: string; dayIso?: string; traversal?: 'exercise' | 'round' },
+  meta: { dayLabel: string; dayIso?: string; traversal?: 'exercise' | 'round'; sim?: boolean; title?: string },
   now: number,
 ): LiveSessionState {
   return {
     v: 1,
     traversal: meta.traversal,
+    sim: meta.sim,
+    title: meta.title,
     dayLabel: meta.dayLabel,
     dayIso: meta.dayIso,
     startedAt: now,
@@ -246,22 +254,67 @@ export function endSession(s: LiveSessionState): LiveSessionState {
 // ─── Finishing ─────────────────────────────────────────────────
 
 /**
+ * The per-segment splits a round-major session recorded: one entry per
+ * PERFORMED set with a time, in traversal order. Multi-round circuits
+ * stamp the round on the label; a simulation's single round keeps the
+ * segment names clean.
+ */
+export function collectStationSplits(s: LiveSessionState): NonNullable<ActualWorkout['stationSplits']> {
+  const out: NonNullable<ActualWorkout['stationSplits']> = []
+  const rounds = s.exercises.reduce((m, ex) => Math.max(m, ex.sets.length), 0)
+  for (let r = 0; r < rounds; r++) {
+    for (const ex of s.exercises) {
+      const set = ex.sets[r]
+      if (!set || set.done === false || set.timeSec == null) continue
+      out.push({
+        label: rounds > 1 ? `${ex.name} — round ${r + 1}` : ex.name,
+        kind: /^run\b/i.test(ex.name) ? 'run' : 'station',
+        sec: set.timeSec,
+      })
+    }
+  }
+  return out
+}
+
+/** A HYROX run leg is 1 km. */
+const RUN_LEG_MILES = 0.621371
+
+/**
  * Turn a finished session into an ordinary ActualWorkout — downstream
  * (grading, coach, sync, progression) cannot tell it from a manual log.
  * Exercises with no name are dropped, same as ManualLog's save.
+ *
+ * Simulations write differently: segment splits instead of a strength
+ * log (a 1-set-per-station record would pollute lift progression), a
+ * generic 'workout' type so the session never counts as lifting volume,
+ * and distance credited from the run legs actually completed.
  */
 export function toActualWorkout(s: LiveSessionState, now: number): ActualWorkout {
   const seconds = elapsedSec(s, now)
-  return {
+  const splits = s.traversal === 'round' ? collectStationSplits(s) : []
+  const base = {
     stravaId: now,
-    source: 'manual',
+    source: 'manual' as const,
     distance: 0,
     movingTime: seconds,
     elapsedTime: seconds,
     elevationGain: 0,
+    startDate: s.dayIso ? `${s.dayIso}T08:00:00` : new Date(s.startedAt).toISOString(),
+    ...(splits.length > 0 ? { stationSplits: splits } : {}),
+  }
+  if (s.sim) {
+    const runsDone = splits.filter(x => x.kind === 'run').length
+    return {
+      ...base,
+      type: 'workout',
+      name: `${s.title ?? 'Race simulation'} — ${s.dayLabel}`,
+      distance: Math.round(runsDone * RUN_LEG_MILES * 100) / 100,
+    }
+  }
+  return {
+    ...base,
     type: 'strength_training',
     name: `Strength — ${s.dayLabel}`,
-    startDate: s.dayIso ? `${s.dayIso}T08:00:00` : new Date(s.startedAt).toISOString(),
     strengthLog: s.exercises.filter(ex => ex.name.trim().length > 0),
   }
 }

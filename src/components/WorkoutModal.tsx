@@ -18,6 +18,7 @@ import { menopauseStrengthCue } from '../utils/menopause'
 import type { StrengthExperience } from '../hooks/useOnboarding'
 import { buildProgression, normalizeExerciseName, suggestNextTarget, type ExerciseProgression } from '../utils/strengthProgression'
 import { parseIntervalWorkout, RUNNING_DRILLS, MYRTL_ROUTINE, PRE_RUN_ACTIVATION, type RunSegment, type DrillGuide } from '../utils/drills'
+import { analyzeSimSplits } from '../utils/simAnalysis'
 import { fetchActivityStreams, getTokens, isTokenExpired, refreshAccessToken, type StreamData } from '../utils/strava'
 import { fetchGarminActivityStream } from '../utils/garmin'
 import { classifyRun, getSportMultiplier, describeMIMEngine, mapToSportType } from '../utils/trimp'
@@ -164,9 +165,16 @@ interface WorkoutModalProps {
   /** Measured strength capacity from the benchmark session — overrides
    *  the self-report calibration for the lifts it actually tested. */
   strengthCapacity?: StrengthCapacity | null
+  /** Phase 3b — write config.weakStation (non-destructively) so the plan
+   *  generator biases station work toward a proven weak station. Comes
+   *  from App's onboarding instance, the one the plan derives from. */
+  onReweightPlan?: (station: string) => void
+  /** The currently configured weak station, to suppress a redundant
+   *  re-weight offer. */
+  currentWeakStation?: string
 }
 
-export default function WorkoutModal({ day, weekNum, onClose, onLog, onStartLive, onSaveNote, zones, athleteId, coachEnabled, readiness, latestPerf, coachSnapshot, onAskCoach, trimpRecord, weeks, raceReadinessTarget, strengthLevel, strengthCapacity }: WorkoutModalProps) {
+export default function WorkoutModal({ day, weekNum, onClose, onLog, onStartLive, onSaveNote, zones, athleteId, coachEnabled, readiness, latestPerf, coachSnapshot, onAskCoach, trimpRecord, weeks, raceReadinessTarget, strengthLevel, strengthCapacity, onReweightPlan, currentWeakStation }: WorkoutModalProps) {
   const style = getWorkoutStyle(day.type, day.workout)
   const { flags } = useDisplayPreferences(athleteId)
   // General Fitness plans (raceType 'general') get goal-aware, race-free
@@ -262,6 +270,8 @@ export default function WorkoutModal({ day, weekNum, onClose, onLog, onStartLive
   const drillDayLabel = modalWeek?.days.find(d => d.isDrillDay)?.day ?? ''
   const [stream, setStream] = useState<StreamData | null>(null)
   const [streamLoading, setStreamLoading] = useState(false)
+  // Phase 3b — one-shot confirmation after "Re-weight my plan" is tapped.
+  const [reweighted, setReweighted] = useState(false)
 
   // Fetch per-second stream on-demand. Prefers Garmin when available
   // (more accurate HR, pace, elevation from the watch itself), falls
@@ -806,6 +816,78 @@ export default function WorkoutModal({ day, weekNum, onClose, onLog, onStartLive
               {/* Garmin's HR Zone Distribution removed — the "Time in Zone"
                    bar below uses the plan's Uphill Athlete zones, which is
                    what the grade and training targets are based on. */}
+
+              {/* Hyrox segment splits (Phase 3b) — recorded by the live
+                   circuit / simulation player. Simulations get share-based
+                   targets and a weak-station callout in time lost. */}
+              {actual.stationSplits && actual.stationSplits.length > 0 && (() => {
+                const analysis = analyzeSimSplits(actual.stationSplits)
+                const weak = analysis.weakStation
+                const fmt = (sec: number) => `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`
+                return (
+                  <div className="mt-2">
+                    <p className="text-sm font-semibold text-teal-800 mb-1">⏱ Segment Splits</p>
+                    <div className="space-y-0.5">
+                      {analysis.rows.map((r, i) => (
+                        <div
+                          key={i}
+                          className={`flex items-center justify-between gap-2 text-sm rounded px-2 py-0.5 ${
+                            r.kind === 'run' ? 'bg-teal-100/50 text-teal-700' : 'bg-purple-100/40 text-purple-800 dark:text-purple-300'
+                          }`}
+                        >
+                          <span className="truncate">{r.label}</span>
+                          <span className="flex items-center gap-2 shrink-0">
+                            {r.deltaSec != null && Math.abs(r.deltaSec) >= 10 && (
+                              <span className={`font-mono text-[11px] ${r.deltaSec > 0 ? 'text-amber-600' : 'text-emerald-600'}`}>
+                                {r.deltaSec > 0 ? '+' : '−'}{fmt(Math.abs(r.deltaSec))}
+                              </span>
+                            )}
+                            <span className="font-mono font-semibold">{fmt(r.sec)}</span>
+                          </span>
+                        </div>
+                      ))}
+                      <div className="flex items-center justify-between text-sm font-semibold text-teal-900 dark:text-teal-200 px-2 pt-1">
+                        <span>Total</span>
+                        <span className="font-mono">{fmt(analysis.totalSec)}</span>
+                      </div>
+                    </div>
+                    {analysis.isSimulation && (
+                      <p className="text-[11px] text-slate-500 mt-1">
+                        Targets are share-based — how this session's own total would spread across segments for a typical racer. +/− is time vs that shape.
+                      </p>
+                    )}
+                    {weak && (
+                      <div className="mt-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                        <p className="text-sm font-semibold text-amber-800">
+                          {weak.label.split(' — ')[0]} cost you ~{fmt(weak.lostSec)}
+                        </p>
+                        <p className="text-xs text-amber-700 mt-0.5">
+                          The biggest time lost against the expected shape of your own race — this is where training minutes buy the most.
+                        </p>
+                        {onReweightPlan && currentWeakStation !== weak.reweightName && (
+                          reweighted ? (
+                            <p className="text-xs font-semibold text-teal-700 mt-1.5">
+                              ✓ Plan re-weighted — future station work biases toward {weak.reweightName}.
+                            </p>
+                          ) : (
+                            <button
+                              onClick={() => { onReweightPlan(weak.reweightName); setReweighted(true) }}
+                              className="mt-1.5 text-xs font-semibold text-white bg-amber-600 hover:bg-amber-700 rounded-lg px-3 py-1.5"
+                            >
+                              Re-weight my plan around {weak.reweightName}
+                            </button>
+                          )
+                        )}
+                        {currentWeakStation === weak.reweightName && (
+                          <p className="text-xs text-amber-600 mt-1">
+                            Already your focus station — the plan biases extra work here.
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )
+              })()}
 
               {/* Exercise Sets from Garmin / Strength Log */}
               {actual.strengthLog && actual.strengthLog.length > 0 && (

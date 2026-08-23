@@ -1728,6 +1728,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           method={onboarding.config?.selectedMethodId ? getMethodById(onboarding.config.selectedMethodId) : undefined}
           onboardingConfig={onboarding.config ?? undefined}
           requestView={planViewRequest}
+          onReweightPlan={onboarding.setWeakStation}
           strength={{
             capacity: strengthCapacity.capacity,
             save: strengthCapacity.save,
