@@ -148,6 +148,40 @@ describe('circuit mode (screen 8)', () => {
   })
 })
 
+describe('simulation mode (Phase 3b)', () => {
+  const halfSimDay: PlannedDay = {
+    day: 'Sat 8/29', type: 'long', workout: 'HALF SIMULATION: 4 runs + 4 stations',
+    detail: 'Race order, race weights…', zone: '2.5 mi + stations · Z3–Z4',
+    route: 'Gym', time: '~60 min',
+  }
+
+  it('a sim day drafts race-spec segments and plays them as one timed round', () => {
+    const { onSave } = renderPlayer({ planned: halfSimDay, dayLabel: 'Sat 8/29', dayIso: '2026-08-29' })
+    // Preview drafts from the race spec, not the prose detail.
+    expect(screen.getByText('Run 1 — 1 km')).toBeTruthy()
+    expect(screen.getByText('Sled push — 50 m @ 152 kg')).toBeTruthy()
+    fireEvent.click(screen.getByText('Start workout'))
+
+    // Sim face: no round tracker, run-aware action, straight sequencing.
+    expect(screen.getByText('Half simulation')).toBeTruthy()
+    expect(screen.queryByText(/Round 1 of/)).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: /Run done · next: SkiErg/ }))
+    expect(screen.queryByText('Rest')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: /Station done · next: Run 2/ }))
+
+    // End early and save — the sim contract, not a strength log.
+    fireEvent.click(screen.getByText('End'))
+    fireEvent.click(screen.getByText('Save workout'))
+    const workout: ActualWorkout = onSave.mock.calls[0][0]
+    expect(workout.type).toBe('workout')
+    expect(workout.name).toBe('Half simulation — Sat 8/29')
+    expect(workout.strengthLog).toBeUndefined()
+    expect(workout.stationSplits).toHaveLength(2)
+    expect(workout.stationSplits![0].kind).toBe('run')
+    expect(workout.stationSplits![1].kind).toBe('station')
+  })
+})
+
 describe('crash resume', () => {
   it('a saved draft resumes mid-session, whatever day the player was opened for', () => {
     // A session from ANOTHER day died mid-rest…

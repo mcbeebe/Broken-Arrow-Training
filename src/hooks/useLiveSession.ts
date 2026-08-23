@@ -50,7 +50,7 @@ export function useLiveSession(athleteId?: string) {
     /** The rendered clock — updated by the heartbeat while running. */
     nowMs,
     /** Begin a session from drafted exercises (ghost rows welcome). */
-    start(exercises: StrengthExerciseLog[], meta: { dayLabel: string; dayIso?: string; traversal?: 'exercise' | 'round' }) {
+    start(exercises: StrengthExerciseLog[], meta: { dayLabel: string; dayIso?: string; traversal?: 'exercise' | 'round'; sim?: boolean; title?: string }) {
       const s = startSession(exercises, meta, Date.now())
       saveDraft(s, athleteId)
       setState(s)

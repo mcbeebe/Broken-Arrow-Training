@@ -12,6 +12,7 @@ import { BLOCK_STYLE } from '../utils/blockStyles'
 import { pushWeekToGarmin, collectPushableDays } from '../utils/garminRepush'
 import { isGarminConnected, GarminAuthError } from '../utils/garmin'
 import { isGymBasedDay } from '../utils/matching'
+import { isSimDay } from '../utils/simSession'
 import { loadDraft } from '../utils/liveSession'
 import LiveSessionPlayer from './LiveSessionPlayer'
 import DayCard from './DayCard'
@@ -111,6 +112,11 @@ interface WeeklyPlanProps {
    *  didn't change, and the athlete's own toggles are never fought by a
    *  stale value. */
   requestView?: { mode: 'list' | 'calendar' | 'race' | 'season' } | null
+  /** Re-weight the plan around a proven weak station (Phase 3b): writes
+   *  config.weakStation non-destructively so the generator's existing
+   *  weak-station bias picks it up on the next derive. Wired from App's
+   *  onboarding instance — the one the plan actually derives from. */
+  onReweightPlan?: (station: string) => void
   /** Measured strength capacity + the writer for a benchmark session.
    *  Absent = the benchmark day still renders, it just can't be logged
    *  (seed athletes, or a plan opened before the feature existed). */
@@ -149,6 +155,7 @@ export default function WeeklyPlan({
   method,
   onboardingConfig,
   requestView,
+  onReweightPlan,
   strength,
 }: WeeklyPlanProps) {
   const [viewMode, setViewMode] = useState<'list' | 'calendar' | 'race' | 'season'>('list')
@@ -652,12 +659,12 @@ export default function WeeklyPlan({
                 onTap={isSwapMode ? () => handleSwapTap(i) : () => openDayModal(d)}
                 onLog={manualLog ? () => setLogDay(d) : undefined}
                 onStartLive={
-                  // Live logging: today's strength / gym-circuit day with
-                  // nothing logged yet. Everything else keeps the plain
-                  // log editor.
+                  // Live logging: today's strength / gym-circuit /
+                  // simulation day with nothing logged yet. Everything
+                  // else keeps the plain log editor.
                   manualLog && !d.actual &&
                   dayDateMatch === todayDateString() &&
-                  (d.type === 'strength' || (d.type === 'cross' && isGymBasedDay(d)))
+                  (d.type === 'strength' || (d.type === 'cross' && isGymBasedDay(d)) || isSimDay(d))
                     ? () => setLiveOpen({ day: d, iso: dayDateMatch ?? undefined })
                     : undefined
                 }
@@ -778,7 +785,7 @@ export default function WeeklyPlan({
             const d = modalDay.day
             const iso = dayIsoInWeek(d.day, modalDay.week, todayDateString())
             const eligible = manualLog && !d.actual && iso === todayDateString() &&
-              (d.type === 'strength' || (d.type === 'cross' && isGymBasedDay(d)))
+              (d.type === 'strength' || (d.type === 'cross' && isGymBasedDay(d)) || isSimDay(d))
             return eligible
               ? () => { setLiveOpen({ day: d, iso: iso ?? undefined }); setModalDay(null) }
               : undefined
@@ -803,6 +810,8 @@ export default function WeeklyPlan({
             const d = dayIsoInWeek(modalDay.day.day, modalDay.week, todayDateString())
             return findTrimpRecord(dailyTrimp, d, modalDay.day.actual?.name)
           })()}
+          onReweightPlan={onReweightPlan}
+          currentWeakStation={onboardingConfig?.weakStation}
         />
       )}
 
@@ -815,6 +824,10 @@ export default function WeeklyPlan({
           athleteId={athleteId}
           allWeeks={weeks}
           calibration={{ level: strengthLevel, capacity: strength?.capacity }}
+          hyrox={{
+            division: onboardingConfig?.hyroxDivision,
+            sex: onboardingConfig?.sex === 'female' ? 'female' : 'male',
+          }}
           onSave={(workout, meta) => {
             manualLog.logWorkout(meta.dayLabel, workout, meta.dayIso)
             if (workout.notes?.trim() && liveOpen.day) onShareNote?.(liveOpen.day, workout.notes)

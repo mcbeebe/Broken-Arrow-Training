@@ -215,6 +215,10 @@ export interface ActualWorkout {
   hrZoneSummary?: { zone: number; seconds: number; lowHR?: number; highHR?: number }[];
   // Drills / warmup / cooldown that typically happen off-GPS. Logged manually.
   drills?: DrillLog;
+  // Hyrox segment splits from a live circuit / simulation session (Phase 3):
+  // one entry per performed segment, in the order it was done. 'roxzone'
+  // (transition time) is reserved for watch-lap auto-splits.
+  stationSplits?: { label: string; kind: 'run' | 'station' | 'roxzone'; sec: number }[];
 }
 
 export interface DrillLog {

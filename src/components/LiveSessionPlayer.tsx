@@ -4,6 +4,7 @@ import { useLiveSession } from '../hooks/useLiveSession'
 import { restRemainingSec, elapsedSec, segmentElapsedSec, type LiveSessionState } from '../utils/liveSession'
 import { isGymBasedDay } from '../utils/matching'
 import { ghostFillFromHistory, parsePlanExercises, progressionFromWeeks, lastSessionSummary, type StrengthCalibration } from '../utils/strengthDraft'
+import { isSimDay, draftSimSegments, simTitle, type SimProfile } from '../utils/simSession'
 import { normalizeExerciseName, suggestNextTarget, parseWeightLb } from '../utils/strengthProgression'
 import { getExerciseGuide } from '../utils/exercises'
 
@@ -29,6 +30,8 @@ export interface LiveSessionPlayerProps {
   athleteId?: string
   allWeeks?: TrainingWeek[]
   calibration?: StrengthCalibration
+  /** Hyrox division/sex — sizes simulation-day station loads. */
+  hyrox?: SimProfile
   onSave: (workout: ActualWorkout, meta: { dayLabel: string; dayIso?: string }) => void
   onClose: () => void
 }
@@ -47,15 +50,22 @@ function stepWeight(weight: string, deltaLb: number): string {
 }
 
 export default function LiveSessionPlayer({
-  planned, dayLabel, dayIso, athleteId, allWeeks, calibration, onSave, onClose,
+  planned, dayLabel, dayIso, athleteId, allWeeks, calibration, hyrox, onSave, onClose,
 }: LiveSessionPlayerProps) {
   const progression = useMemo(() => progressionFromWeeks(allWeeks), [allWeeks])
   const session = useLiveSession(athleteId)
   const s = session.state
 
+  // Simulation days draft from the race spec (run + station segments in
+  // race order); everything else parses the plan's prescription text.
+  const sim = planned != null && isSimDay(planned)
   const drafted = useMemo(
-    () => (planned?.detail ? ghostFillFromHistory(parsePlanExercises(planned.detail), progression, calibration) : []),
-    [planned, progression, calibration],
+    () => {
+      if (!planned) return []
+      if (isSimDay(planned)) return draftSimSegments(planned, hyrox)
+      return planned.detail ? ghostFillFromHistory(parsePlanExercises(planned.detail), progression, calibration) : []
+    },
+    [planned, progression, calibration, hyrox],
   )
 
   // ── Preview (screen 5) ─────────────────────────────────────
@@ -80,10 +90,12 @@ export default function LiveSessionPlayer({
                 <span className="font-mono text-xs font-bold text-slate-400 w-4">{i + 1}</span>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-slate-700 dark:text-slate-200 truncate">{ex.name}</p>
-                  <p className="font-mono text-[11px] text-slate-400">
-                    {ex.sets.length} × {ex.sets[0]?.reps ?? '—'}
-                    {lastSessionSummary(prog) ? ` · last: ${lastSessionSummary(prog)}` : ''}
-                  </p>
+                  {!sim && (
+                    <p className="font-mono text-[11px] text-slate-400">
+                      {ex.sets.length} × {ex.sets[0]?.reps ?? '—'}
+                      {lastSessionSummary(prog) ? ` · last: ${lastSessionSummary(prog)}` : ''}
+                    </p>
+                  )}
                 </div>
                 {target && target.tier === 'progress' && (
                   <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-[10px] font-bold text-emerald-600 shrink-0">
@@ -99,9 +111,11 @@ export default function LiveSessionPlayer({
             onClick={() => session.start(drafted, {
               dayLabel,
               dayIso,
-              // Station circuits play round-by-round; everything else is
-              // straight sets.
-              traversal: planned && planned.type === 'cross' && isGymBasedDay(planned) ? 'round' : 'exercise',
+              // Simulations and station circuits play round-by-round;
+              // everything else is straight sets.
+              traversal: sim || (planned && planned.type === 'cross' && isGymBasedDay(planned)) ? 'round' : 'exercise',
+              sim: sim || undefined,
+              title: sim && planned ? simTitle(planned) : undefined,
             })}
             disabled={drafted.length === 0}
             className="w-full h-[52px] rounded-2xl bg-purple-600 hover:bg-purple-700 disabled:opacity-40 text-white font-bold text-[15px] flex items-center justify-center gap-2"
@@ -136,7 +150,7 @@ export default function LiveSessionPlayer({
             </div>
             <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-3 text-center">
               <p className="font-mono text-2xl font-bold text-purple-700">{done}/{total}</p>
-              <p className="text-[11px] text-slate-500">sets completed</p>
+              <p className="text-[11px] text-slate-500">{s.sim ? 'segments completed' : 'sets completed'}</p>
             </div>
           </div>
           <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-1 divide-y divide-slate-100 dark:divide-slate-700">
@@ -144,7 +158,9 @@ export default function LiveSessionPlayer({
               <div key={i} className="py-2.5 flex items-center justify-between gap-2">
                 <p className="text-sm font-medium text-slate-700 dark:text-slate-200 truncate">{ex.name}</p>
                 <p className="font-mono text-xs text-slate-500 shrink-0">
-                  {ex.sets.filter(x => x.done !== false).length}/{ex.sets.length} sets
+                  {s.sim
+                    ? (ex.sets[0]?.timeSec != null && ex.sets[0]?.done !== false ? mmss(ex.sets[0].timeSec) : '—')
+                    : `${ex.sets.filter(x => x.done !== false).length}/${ex.sets.length} sets`}
                 </p>
               </div>
             ))}
@@ -463,7 +479,7 @@ function CircuitFace({ s, now, session }: {
             <span className="font-mono text-sm font-bold text-slate-800 dark:text-white">{mmss(elapsedSec(s, now))}</span>
             <span className="text-xs text-slate-400">total</span>
           </div>
-          <p className="text-base font-extrabold text-slate-900 dark:text-white">Station circuit</p>
+          <p className="text-base font-extrabold text-slate-900 dark:text-white">{s.sim ? (s.title ?? 'Race simulation') : 'Station circuit'}</p>
           <div className="flex items-center gap-3">
             <button onClick={() => (paused ? session.resume() : session.pause())} className="text-[13px] font-medium text-slate-400">
               {paused ? 'Resume' : 'Pause'}
@@ -471,14 +487,23 @@ function CircuitFace({ s, now, session }: {
             <button onClick={() => session.end()} className="text-[13px] font-medium text-slate-400">End</button>
           </div>
         </div>
-        <div className="flex items-center gap-2.5">
-          <span className="text-xs font-bold uppercase tracking-wide text-purple-700">Round {round + 1} of {maxRounds}</span>
+        {maxRounds > 1 ? (
+          <div className="flex items-center gap-2.5">
+            <span className="text-xs font-bold uppercase tracking-wide text-purple-700">Round {round + 1} of {maxRounds}</span>
+            <div className="flex-1 flex gap-1">
+              {Array.from({ length: maxRounds }, (_, r) => (
+                <span key={r} className={`flex-1 h-1.5 rounded-full ${r < round ? 'bg-teal-600' : r === round ? 'bg-purple-600' : 'bg-slate-200 dark:bg-slate-700'}`} />
+              ))}
+            </div>
+          </div>
+        ) : (
+          // Single round (a simulation): progress is segment-by-segment.
           <div className="flex-1 flex gap-1">
-            {Array.from({ length: maxRounds }, (_, r) => (
-              <span key={r} className={`flex-1 h-1.5 rounded-full ${r < round ? 'bg-teal-600' : r === round ? 'bg-purple-600' : 'bg-slate-200 dark:bg-slate-700'}`} />
+            {s.exercises.map((_, i) => (
+              <span key={i} className={`flex-1 h-1.5 rounded-full ${i < s.cursor.exIdx ? 'bg-teal-600' : i === s.cursor.exIdx ? 'bg-purple-600' : 'bg-slate-200 dark:bg-slate-700'}`} />
             ))}
           </div>
-        </div>
+        )}
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 py-3.5 space-y-2">
@@ -489,7 +514,7 @@ function CircuitFace({ s, now, session }: {
               <div key={exIdx} className="border-2 border-purple-600 rounded-2xl p-4 space-y-1.5">
                 <div className="flex items-center justify-between">
                   <p className="text-[11px] font-bold uppercase tracking-wide text-purple-700">
-                    Now · station {stationsThisRound.findIndex(x => x.exIdx === exIdx) + 1} of {stationsThisRound.length}
+                    Now · {s.sim ? 'segment' : 'station'} {stationsThisRound.findIndex(x => x.exIdx === exIdx) + 1} of {stationsThisRound.length}
                   </p>
                   <button onClick={() => session.skipSet()} className="text-[11px] font-medium text-slate-400">skip</button>
                 </div>
@@ -539,7 +564,7 @@ function CircuitFace({ s, now, session }: {
           className="w-full h-14 rounded-2xl bg-purple-600 hover:bg-purple-700 disabled:opacity-40 text-white font-bold text-[15px] flex items-center justify-center gap-2"
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
-          Station done · next: {next}
+          {/^run\b/i.test(current?.name ?? '') ? 'Run' : 'Station'} done · next: {next}
         </button>
       </div>
     </div>

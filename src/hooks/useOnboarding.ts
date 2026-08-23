@@ -460,6 +460,22 @@ export function useOnboarding(athleteId?: string) {
     })
   }, [athleteId])
 
+  /** Phase 3b — re-weight the plan around a proven weak station (from a
+   *  simulation's split analysis). Same non-destructive pattern as
+   *  pinPlanStart: never `save()`, which would re-stamp completedAt and
+   *  wipe the edit/swap op-logs. Unlike the pin, overwriting an existing
+   *  value is the point — the athlete's weak station changes as they
+   *  train. No-op when the station is already the focus. */
+  const setWeakStation = useCallback((station: string) => {
+    setConfig(prev => {
+      if (!prev || prev.weakStation === station) return prev
+      const next = { ...prev, weakStation: station }
+      const k = scopedKey(athleteId)
+      try { localStorage.setItem(k, JSON.stringify(next)); stampKey(k) } catch { /* quota */ }
+      return next
+    })
+  }, [athleteId])
+
   const markZonesPrimerSeen = useCallback(() => {
     setConfig(prev => {
       if (!prev || prev.zonesPrimerSeenAt) return prev
@@ -541,6 +557,7 @@ export function useOnboarding(athleteId?: string) {
     markPrimerSeen,
     markZonesPrimerSeen,
     pinPlanStart,
+    setWeakStation,
     markConnectStepSeen,
     markValuePropsSeen,
     markWelcomeLetterSeen,
