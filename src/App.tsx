@@ -96,6 +96,7 @@ import WeeklyRecapOverlay from './components/WeeklyRecapOverlay'
 import { useWeeklyRecap } from './hooks/useWeeklyRecap'
 import { buildWeeklyRecap } from './engines/coach/weeklyRecap'
 import { detectPRs } from './utils/strengthRecords'
+import { weeksWithPriorLogs } from './utils/strengthHistory'
 import LoginScreen from './components/LoginScreen'
 import InAppBrowserGate from './components/InAppBrowserGate'
 import { useHRZones } from './hooks/useHRZones'
@@ -1106,6 +1107,13 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
   // ── Sunday recap (N3) ──────────────────────────────────────────
   // The week that just ENDED is the one before the current week; on a
   // Sunday afternoon that is the week the athlete just lived through.
+  // Strength history that survives plan rebuilds: current weeks plus the
+  // ISO-keyed manual logs no current day represents (synthetic week 0).
+  // Feeds the records layer everywhere — Stats, recap PRs, Dashboard.
+  const strengthWeeks = useMemo(
+    () => weeksWithPriorLogs(weeks, manualLog.logs),
+    [weeks, manualLog.logs],
+  )
   const weeklyRecapState = useWeeklyRecap(athleteId)
   const weeklyRecap = useMemo(() => {
     if (!weeklyRecapState.visible) return null
@@ -1130,11 +1138,11 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
       totalWeeks: weeks.length,
       athleteName: activePlan.athlete.name,
       todayIso: todayDateString(),
-      // Phase 4 — PRs are detected against ALL history, then narrowed to
-      // the sessions dated inside the week under review.
-      strengthPRs: detectPRs(weeks).filter(pr => pr.weekNum === reviewNum),
+      // Phase 4 — PRs are detected against ALL history (prior plans
+      // included), then narrowed to the week under review.
+      strengthPRs: detectPRs(strengthWeeks).filter(pr => pr.weekNum === reviewNum),
     })
-  }, [weeklyRecapState.visible, weeks, compliance.weeks, currentWeekNum, readiness.performance, activePlan.race, activePlan.athlete.name])
+  }, [weeklyRecapState.visible, weeks, strengthWeeks, compliance.weeks, currentWeekNum, readiness.performance, activePlan.race, activePlan.athlete.name])
 
   const weatherBlock = useWeather(activePlan.race, athleteLocation.location, workoutTimePref.hour)
 
@@ -1759,6 +1767,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           garminConnected={garmin.connected || apple.connected}
           sorenessLoadByDate={soreness.sorenessLoadByDate}
           strengthCapacity={strengthCapacity.capacity}
+          strengthWeeks={strengthWeeks}
           athleteId={athleteId}
         />
       )}

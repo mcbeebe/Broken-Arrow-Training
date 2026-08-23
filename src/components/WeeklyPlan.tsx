@@ -13,6 +13,7 @@ import { pushWeekToGarmin, collectPushableDays } from '../utils/garminRepush'
 import { isGarminConnected, GarminAuthError } from '../utils/garmin'
 import { isGymBasedDay } from '../utils/matching'
 import { isSimDay } from '../utils/simSession'
+import { weeksWithPriorLogs } from '../utils/strengthHistory'
 import HyroxProjectionCard from './HyroxProjectionCard'
 import { loadDraft } from '../utils/liveSession'
 import LiveSessionPlayer from './LiveSessionPlayer'
@@ -53,6 +54,9 @@ interface WeeklyPlanProps {
   zones?: HRZone[]
   manualLog?: {
     logWorkout: (dayLabel: string, data: ActualWorkout, dayIso?: string | null) => void
+    /** The raw ISO-keyed log map — lets strength history include logs
+     *  from previous plans (they survive rebuilds; plan days don't). */
+    logs?: Record<string, ActualWorkout>
   }
   daySwap?: {
     swapDays: (weekNum: number, fromIndex: number, toIndex: number) => void
@@ -174,6 +178,13 @@ export default function WeeklyPlan({
   const hasLiveDraft = useMemo(
     () => liveOpen == null && loadDraft(athleteId) != null,
     [athleteId, liveOpen],
+  )
+  // Strength history that survives plan rebuilds (synthetic week 0 of
+  // prior-plan logs) — feeds progression/ghost-fill in the log editor,
+  // the live player, and the workout modal. Rendering still uses `weeks`.
+  const historyWeeks = useMemo(
+    () => weeksWithPriorLogs(weeks, manualLog?.logs),
+    [weeks, manualLog?.logs],
   )
   const [editDay, setEditDay] = useState<{ day: PlannedDay; index: number } | null>(null)
   const [missedDay, setMissedDay] = useState<{ day: PlannedDay; iso: string } | null>(null)
@@ -804,7 +815,7 @@ export default function WeeklyPlan({
           zones={zones}
           athleteId={athleteId}
           coachEnabled={coachEnabled}
-          weeks={weeks}
+          weeks={historyWeeks}
           readiness={(() => {
             const d = dayIsoInWeek(modalDay.day.day, modalDay.week, todayDateString())
             return d ? readinessByDate.get(d) : undefined
@@ -829,7 +840,7 @@ export default function WeeklyPlan({
           dayLabel={liveOpen.day?.day ?? 'Today'}
           dayIso={liveOpen.iso}
           athleteId={athleteId}
-          allWeeks={weeks}
+          allWeeks={historyWeeks}
           calibration={{ level: strengthLevel, capacity: strength?.capacity }}
           hyrox={{
             division: onboardingConfig?.hyroxDivision,
@@ -850,7 +861,7 @@ export default function WeeklyPlan({
           existing={logDay.actual}
           planned={logDay}
           weekNum={week.num}
-          allWeeks={weeks}
+          allWeeks={historyWeeks}
           strengthLevel={strengthLevel}
           strengthCapacity={strength?.capacity}
           onSave={(data) => {
