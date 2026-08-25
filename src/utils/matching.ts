@@ -61,6 +61,22 @@ export function matchActivitiesToPlan(
  *  no amount of riding or running completes them. Only cross/strength
  *  days qualify: a coach edit can retype a day to `run` while leaving the
  *  old `route: 'Gym'` behind, and an explicit run-class type must win. */
+/**
+ * A day whose MAIN work is an erg effort: an erg/row/ski-erg word
+ * followed by a trial word in the workout title ("1km erg time trial",
+ * "Row test", "SkiErg TT"). Deliberately order-sensitive — the combined
+ * "1km time trial + erg baseline" benchmark day does NOT match, because
+ * its headline effort is the run; the erg there is the add-on.
+ */
+export function ergPrimaryDay(day: PlannedDay): boolean {
+  return /\b(?:ski\s*-?\s*erg|skierg|row(?:er|ing)?|erg)\b[^·|.]*\b(?:time[\s-]?trial|tt|test)\b/i.test(day.workout)
+}
+
+/** Erg-flavored recording types: rowing, indoor rowing, ski erg. */
+function isErgActivity(lowerType: string): boolean {
+  return /row|ski|erg/.test(lowerType)
+}
+
 export function isGymBasedDay(day: PlannedDay): boolean {
   if (day.type !== 'cross' && day.type !== 'strength') return false
   return day.route === 'Gym' || (day.type === 'cross' && /station|circuit|strength/i.test(day.workout))
@@ -101,6 +117,15 @@ export function canClaimPlannedDay(day: PlannedDay, activityType: string, sessio
   const isRide = /ride|bike|cycl/.test(t)
   const isOtherCross = /swim|row|hike|walk|yoga|elliptical|ski|skate/.test(t)
 
+  // An erg-primary day (e.g. "BENCHMARK: 1km erg time trial") is DONE on
+  // the erg, whatever class the day was filed under — the erg recording
+  // both passes modality and skips the duration-share gate, because a
+  // time trial is intrinsically minutes long while the prescription
+  // includes warm-up and rests. The 60s floor keeps out junk taps.
+  if (ergPrimaryDay(day) && isErgActivity(t)) {
+    return sessionSec >= 60
+  }
+
   let modalityOk: boolean
   if (day.type === 'strength' || isGymBasedDay(day)) {
     modalityOk = isGymWork && !isRun && !isRide
@@ -137,6 +162,15 @@ function findBestMatch(day: PlannedDay, activities: StravaActivity[]): StravaAct
   )
   if (eligible.length === 0) return null
   if (eligible.length === 1) return eligible[0]
+
+  // Erg-primary day: the erg recording IS the workout — a longer warm-up
+  // run must not outrank the 3-minute time trial it warmed up for.
+  if (ergPrimaryDay(day)) {
+    const ergs = eligible.filter(a => /row|ski|erg/.test(`${a.type} ${a.sport_type}`.toLowerCase()))
+    if (ergs.length > 0) {
+      return ergs.reduce((best, a) => (a.moving_time ?? 0) > (best.moving_time ?? 0) ? a : best)
+    }
+  }
 
   const expectedTypes = getExpectedStravaTypes(day.type)
   const typed = eligible.filter(a =>
@@ -326,6 +360,14 @@ export function findBestGarminMatch(day: PlannedDay, details: GarminActivityDeta
   )
   if (eligible.length === 0) return null
   if (eligible.length === 1) return eligible[0]
+
+  // Erg-primary day: the erg recording IS the workout (see findBestMatch).
+  if (ergPrimaryDay(day)) {
+    const ergs = eligible.filter(d => /row|ski|erg/.test(d.type.toLowerCase()))
+    if (ergs.length > 0) {
+      return ergs.reduce((best, d) => activityScore(d) > activityScore(best) ? d : best)
+    }
+  }
 
   const expectedTypes = getExpectedGarminTypes(day.type)
   const matching = eligible.filter(d =>

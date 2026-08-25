@@ -4,6 +4,7 @@ import {
   mergeGarminDetailIntoWeeks,
   mergeAppleActivitiesIntoWeeks,
   canClaimPlannedDay,
+  ergPrimaryDay,
   isGymBasedDay,
   plannedDurationSec,
 } from '../utils/matching'
@@ -383,5 +384,59 @@ describe('mergeAppleActivitiesIntoWeeks — earned claims (Apple path)', () => {
       durationMinutes: 40, elevationGainFt: 0,
     }])
     expect(result[0].days[0].actual?.name).toBe('Functional Strength')
+  })
+})
+
+// ─── Erg-primary days — the warm-up-claimed-the-TT field bug ───────────
+
+describe('erg-primary days — the erg IS the workout', () => {
+  // Mon 4/13 slot, rewritten as the erg time-trial benchmark.
+  const DATE = '2026-04-13'
+  function ergDayPlan(): TrainingWeek[] {
+    const weeks = structuredClone(mikePlan.weeks)
+    weeks[0].days[0] = {
+      ...weeks[0].days[0],
+      type: 'quality',
+      workout: 'BENCHMARK: 1km erg time trial',
+      detail: '10 min easy warm-up run · 1km ALL-OUT on the rower',
+      route: 'Gym',
+      time: '25 min',
+    }
+    return weeks
+  }
+  const ergDay = (): PlannedDay => ergDayPlan()[0].days[0]
+
+  it('the 3-minute erg TT beats the 10-minute warm-up run (the field bug)', () => {
+    const warmup = makeGarminDetail({ activityId: 1, type: 'treadmill_running', durationSeconds: 620, movingDurationSeconds: 540, averageHR: 140 })
+    const tt = makeGarminDetail({ activityId: 2, type: 'indoor_rowing', durationSeconds: 200, movingDurationSeconds: 190, averageHR: 169 })
+    const result = mergeGarminDetailIntoWeeks(ergDayPlan(), { [DATE]: [warmup, tt] })
+    const day = result[0].days[0]
+    expect(day.actual?.garminId).toBe(2)
+    expect(day.secondaryActuals?.map(x => x.garminId)).toEqual([1])
+  })
+
+  it('erg recordings bypass the duration-share gate, with a 60s junk floor', () => {
+    expect(canClaimPlannedDay(ergDay(), 'indoor_rowing', 200)).toBe(true)
+    expect(canClaimPlannedDay(ergDay(), 'indoor_rowing', 45)).toBe(false)
+  })
+
+  it('without an erg recording, the run fallback still claims (day not stranded)', () => {
+    const warmup = makeGarminDetail({ activityId: 1, type: 'treadmill_running', durationSeconds: 620, movingDurationSeconds: 620 })
+    const result = mergeGarminDetailIntoWeeks(ergDayPlan(), { [DATE]: [warmup] })
+    expect(result[0].days[0].actual?.garminId).toBe(1)
+  })
+
+  it('the combined "run TT + erg baseline" day stays run-primary', () => {
+    const combined: PlannedDay = {
+      day: 'Mon 8/24', type: 'quality',
+      workout: 'BENCHMARK: 1km time trial + erg baseline',
+      detail: '15 min easy WU · 1km ALL-OUT time trial · then erg baseline',
+      zone: 'Z4', route: 'Flat route', time: '45 min',
+    }
+    expect(ergPrimaryDay(combined)).toBe(false)
+    // A short row cannot hijack the run TT day…
+    expect(canClaimPlannedDay(combined, 'indoor_rowing', 200)).toBe(false)
+    // …while the run claims as before.
+    expect(canClaimPlannedDay(combined, 'treadmill_running', 2000)).toBe(true)
   })
 })
