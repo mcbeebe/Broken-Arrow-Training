@@ -106,6 +106,7 @@ import { buildMorningOutlook } from './engines/adaptive/morningOutlook'
 import { useMorningOutlook } from './hooks/useMorningOutlook'
 import { useAdaptationLog } from './hooks/useAdaptationLog'
 import MorningOutlookCard from './components/MorningOutlookCard'
+import AdaptationLogSheet from './components/AdaptationLogSheet'
 import { weeksWithPriorLogs } from './utils/strengthHistory'
 import LoginScreen from './components/LoginScreen'
 import InAppBrowserGate from './components/InAppBrowserGate'
@@ -1172,7 +1173,11 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
   const mondayReviewState = useMondayReview(athleteId, reviewGapIso)
 
   // Level Up (phase 2) — the accelerator: top evidence-ranked levers.
-  const levelUpLevers = useMemo(() => buildLevelUp(weeks, todayDateString()), [weeks])
+  // Phase 3's daily-health join added the sleep-before-hard-days lever.
+  const levelUpLevers = useMemo(
+    () => buildLevelUp(weeks, todayDateString(), { health: combinedHealth }),
+    [weeks, combinedHealth],
+  )
 
   const weatherBlock = useWeather(activePlan.race, athleteLocation.location, workoutTimePref.hour)
 
@@ -1180,6 +1185,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
   // The engine is pure; useMorningOutlook owns the once-per-morning
   // auto-apply + one-tap revert, and everything lands in the log.
   const adaptationLog = useAdaptationLog(athleteId)
+  const [showAdaptationLog, setShowAdaptationLog] = useState(false)
   const todayHeatF = useMemo(() => {
     // Honest heat only: the forecast AT the training hour. Daily highs
     // overstate a 7am run, so no hourly data means no heat action.
@@ -1665,6 +1671,19 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
         />
       )}
 
+      {/* Adaptation log — every engine change, with undo where the
+          batch still exists. */}
+      {showAdaptationLog && (
+        <AdaptationLogSheet
+          entries={adaptationLog.entries}
+          onUndo={(entry) => {
+            if (entry.batchId) planEdits.undoBatch(entry.batchId)
+            adaptationLog.markReverted(entry.id)
+          }}
+          onClose={() => setShowAdaptationLog(false)}
+        />
+      )}
+
       {/* Content */}
       {view === 'summary' && (<>
         {morningAutopilot.visible && morningAutopilot.card && (
@@ -1690,6 +1709,20 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
         {levelUpLevers.length > 0 && (
           <div className="px-3 mb-3">
             <LevelUpCard levers={levelUpLevers} onAskCoach={coachEnabled ? handleAskCoach : undefined} />
+          </div>
+        )}
+        {adaptationLog.entries.length > 0 && (
+          <div className="px-3 mb-3">
+            <button
+              onClick={() => setShowAdaptationLog(true)}
+              className="w-full flex items-center justify-between bg-white dark:bg-slate-800 rounded-xl px-4 py-2.5 shadow-sm border border-slate-100 dark:border-slate-700"
+              data-testid="open-adaptation-log"
+            >
+              <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">Adaptation log</span>
+              <span className="text-[11px] text-slate-400">
+                {adaptationLog.entries.length} change{adaptationLog.entries.length === 1 ? '' : 's'} ›
+              </span>
+            </button>
           </div>
         )}
         {recalAssessment.qualifies && !recalDismissed && (

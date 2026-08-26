@@ -61,6 +61,25 @@ describe('buildLevelUp', () => {
     expect(buildLevelUp(honestWeeks, TODAY).find(l => l.id === 'easy-day-discipline')).toBeUndefined()
   })
 
+  it('fires the sleep lever when hard days land on short nights, quiet when rested', () => {
+    const hard = (d: string, iso: string) =>
+      day({ day: d, type: 'quality', workout: 'Intervals' }, { startDate: `${iso}T07:00:00` })
+    const weeks = weeksOf([hard('Mon 9/7', '2026-09-07'), hard('Wed 9/9', '2026-09-09'), hard('Fri 9/11', '2026-09-11')])
+    const night = (date: string, hours: number) => ({
+      date,
+      sleep: { durationSeconds: hours * 3600, quality: 'FAIR', deepSeconds: 0, remSeconds: 0, lightSeconds: 0, awakeSeconds: 0 },
+    })
+    const lever = buildLevelUp(weeks, TODAY, {
+      health: [night('2026-09-07', 6), night('2026-09-09', 6.5), night('2026-09-11', 8)],
+    }).find(l => l.id === 'sleep-before-hard-days')!
+    expect(lever.evidence).toMatch(/2 of your last 3 hard sessions/)
+
+    const rested = buildLevelUp(weeks, TODAY, {
+      health: ['2026-09-07', '2026-09-09', '2026-09-11'].map(d => night(d, 8)),
+    })
+    expect(rested.find(l => l.id === 'sleep-before-hard-days')).toBeUndefined()
+  })
+
   it('an athlete with nothing to fix sees nothing — never filler', () => {
     expect(buildLevelUp(weeksOf([]), TODAY)).toHaveLength(0)
   })

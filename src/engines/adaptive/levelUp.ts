@@ -1,4 +1,4 @@
-import type { PlannedDay, TrainingWeek } from '../../types'
+import type { GarminHealthData, PlannedDay, TrainingWeek } from '../../types'
 import { analyzeSimSplits } from '../../utils/simAnalysis'
 import { parsePlannedTargets, parseDistance } from '../../utils/targets'
 import { scoreWeekExecution, longestRunCapMi } from './execution'
@@ -18,13 +18,12 @@ import { buildAthleteModel } from './athleteModel'
  *  - Anything that ADDS load states its headroom check — "faster" never
  *    becomes "reckless".
  *
- * v1 levers use signals the app already holds. The sleep-before-hard-
- * days lever from the mockup joins when the daily-health join lands
- * (phase 3), with the same contract.
+ * v1 levers use signals the app already holds; the sleep-before-hard-
+ * days lever joined with phase 3's daily-health join, same contract.
  */
 
 export interface LevelUpLever {
-  id: 'weak-station' | 'easy-day-discipline' | 'extend-long-run'
+  id: 'weak-station' | 'easy-day-discipline' | 'sleep-before-hard-days' | 'extend-long-run'
   title: string
   /** The measured fact this lever stands on. */
   evidence: string
@@ -105,6 +104,48 @@ function easyDayLever(weeks: TrainingWeek[], todayIso: string): LevelUpLever | n
   }
 }
 
+/** Short nights before hard sessions — the lifestyle lever from the
+ *  mockup ("roll at night and get sleep"), live now that the daily-
+ *  health join exists. Same-date join: a health record's sleep IS the
+ *  night before that day's session. */
+function sleepBeforeHardDaysLever(
+  weeks: TrainingWeek[],
+  todayIso: string,
+  health: GarminHealthData[],
+): LevelUpLever | null {
+  if (health.length === 0) return null
+  const windowStart = new Date(`${todayIso}T12:00:00`)
+  windowStart.setDate(windowStart.getDate() - 28)
+  const startIso = windowStart.toISOString().slice(0, 10)
+  const sleepByDate = new Map(
+    health.filter(h => h.sleep?.durationSeconds).map(h => [h.date, h.sleep!.durationSeconds]),
+  )
+
+  let hardWithData = 0
+  let shortNights = 0
+  for (const week of weeks) {
+    for (const day of week.days) {
+      if (day.type !== 'quality' && day.type !== 'long') continue
+      const iso = day.actual?.startDate?.slice(0, 10)
+      if (!iso || iso < startIso || iso > todayIso) continue
+      const sleepSec = sleepByDate.get(iso)
+      if (sleepSec == null) continue
+      hardWithData += 1
+      if (sleepSec < 7 * 3600) shortNights += 1
+    }
+  }
+  if (hardWithData < 3 || shortNights / hardWithData < 0.4) return null
+  return {
+    id: 'sleep-before-hard-days',
+    title: 'Protect sleep before hard days',
+    evidence: `${shortNights} of your last ${hardWithData} hard sessions came after less than 7 hours of sleep.`,
+    payoff: 'The hard day you already scheduled hits harder when it lands on real recovery — free fitness from the same plan.',
+    actionLabel: 'Plan my nights before hard days',
+    coachSeed: `${shortNights} of my last ${hardWithData} hard sessions came after under 7 hours of sleep. Help me set up a night-before routine so quality days land on real recovery.`,
+    kind: 'execution',
+  }
+}
+
 /** Clean execution streak + spike-cap headroom → earn a longer long run. */
 function extendLongRunLever(weeks: TrainingWeek[], todayIso: string): LevelUpLever | null {
   // The last two FINISHED weeks (all days dated before today) must both
@@ -146,7 +187,11 @@ function extendLongRunLever(weeks: TrainingWeek[], todayIso: string): LevelUpLev
  * The top levers right now, ranked: quantified race-time levers first,
  * execution discipline second, earned progression third.
  */
-export function buildLevelUp(weeks: TrainingWeek[], todayIso: string): LevelUpLever[] {
+export function buildLevelUp(
+  weeks: TrainingWeek[],
+  todayIso: string,
+  opts: { health?: GarminHealthData[] } = {},
+): LevelUpLever[] {
   const model = buildAthleteModel(weeks, todayIso)
   // Headroom for ADDING load: measured trailing volume at or under the
   // current planned week's target.
@@ -160,6 +205,7 @@ export function buildLevelUp(weeks: TrainingWeek[], todayIso: string): LevelUpLe
   const levers = [
     weakStationLever(weeks, todayIso, headroom),
     easyDayLever(weeks, todayIso),
+    sleepBeforeHardDaysLever(weeks, todayIso, opts.health ?? []),
     extendLongRunLever(weeks, todayIso),
   ].filter((l): l is LevelUpLever => l != null)
 
