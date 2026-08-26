@@ -102,6 +102,10 @@ import { useMondayReview } from './hooks/useMondayReview'
 import MondayReviewSheet from './components/MondayReviewSheet'
 import { buildLevelUp } from './engines/adaptive/levelUp'
 import LevelUpCard from './components/LevelUpCard'
+import { buildMorningOutlook } from './engines/adaptive/morningOutlook'
+import { useMorningOutlook } from './hooks/useMorningOutlook'
+import { useAdaptationLog } from './hooks/useAdaptationLog'
+import MorningOutlookCard from './components/MorningOutlookCard'
 import { weeksWithPriorLogs } from './utils/strengthHistory'
 import LoginScreen from './components/LoginScreen'
 import InAppBrowserGate from './components/InAppBrowserGate'
@@ -1172,6 +1176,33 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
 
   const weatherBlock = useWeather(activePlan.race, athleteLocation.location, workoutTimePref.hour)
 
+  // Daily Autopilot (phase 3) — same-day modulation from overnight data.
+  // The engine is pure; useMorningOutlook owns the once-per-morning
+  // auto-apply + one-tap revert, and everything lands in the log.
+  const adaptationLog = useAdaptationLog(athleteId)
+  const todayHeatF = useMemo(() => {
+    // Honest heat only: the forecast AT the training hour. Daily highs
+    // overstate a 7am run, so no hourly data means no heat action.
+    if (!weatherBlock?.hourly?.length) return null
+    const today = localDateStr()
+    const hour = workoutTimePref.hour ?? 7
+    return weatherBlock.hourly.find(h => h.date === today && h.hour === hour)?.tempF ?? null
+  }, [weatherBlock, workoutTimePref.hour])
+  const morningOutlook = useMemo(() => buildMorningOutlook(weeks, todayDateString(), {
+    score: readiness.todayScore,
+    recentScores: readiness.weekScores,
+    baselines: readiness.baselines,
+    health: todayHealth ?? null,
+    heatTempF: todayHeatF,
+  }), [weeks, readiness.todayScore, readiness.weekScores, readiness.baselines, todayHealth, todayHeatF])
+  const morningAutopilot = useMorningOutlook(athleteId, morningOutlook, {
+    applyBatch: planEdits.applyBatch,
+    undoBatch: planEdits.undoBatch,
+    appendLog: adaptationLog.append,
+    markLogReverted: adaptationLog.markReverted,
+    onArchive: coachEnabled ? text => { void coachMemory.appendTurn('system-handoff', text) } : undefined,
+  })
+
   // The training philosophy this athlete follows — their onboarding pick,
   // or the seed-athlete default (TrainingPeaks). Grounds the coach's plan
   // edits in the chosen methodology and drives the Methodology screen.
@@ -1616,7 +1647,13 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
         <MondayReviewSheet
           review={mondayReview}
           onApply={(chosen) => {
-            for (const adj of chosen) planEdits.applyBatch(adj.ops)
+            for (const adj of chosen) {
+              const batchId = planEdits.applyBatch(adj.ops)
+              adaptationLog.append({
+                dateIso: todayDateString(), source: 'monday-review', kind: 'applied',
+                title: adj.label, detail: `${adj.before} → ${adj.after}`, batchId,
+              })
+            }
             if (coachEnabled) {
               const lines = chosen.map(a => `- ${a.label}: ${a.before} → ${a.after}`).join('\n')
               void coachMemory.appendTurn('coach', `**Monday review — Week ${mondayReview.reviewedWeekNum}** (${mondayReview.execution.verdict}). Applied:\n${lines}`, 'weekly_recap')
@@ -1630,6 +1667,16 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
 
       {/* Content */}
       {view === 'summary' && (<>
+        {morningAutopilot.visible && morningAutopilot.card && (
+          <div className="px-3 mb-3">
+            <MorningOutlookCard
+              card={morningAutopilot.card}
+              score={readiness.todayScore?.displayScore ?? null}
+              onSoundsRight={morningAutopilot.dismiss}
+              onRevert={morningAutopilot.revert}
+            />
+          </div>
+        )}
         {benchAssessment.qualifies && !benchDismissed && (
           <div className="px-3 mb-3">
             <BenchmarkResultCard
