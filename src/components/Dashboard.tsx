@@ -4,6 +4,7 @@ import type { TrainingWeek, ReadinessScore, GarminHealthData, DailyTRIMP, Perfor
 import type { OverallCompliance } from '../hooks/useCompliance'
 import type { RiskFlag } from '../utils/readiness'
 import type { StrengthCapacity } from '../engines/strength/benchmark'
+import type { OnboardingConfig } from '../hooks/useOnboarding'
 import { parsePlanZones } from '../utils/zones'
 import { getMilesNumber } from '../utils/format'
 import { shouldTrackVerticalGain, parseRaceElevationFt } from '../utils/raceReadiness'
@@ -14,10 +15,11 @@ import PerformanceChart from './PerformanceChart'
 import ComplianceWeekRow from './ComplianceWeekRow'
 import CalendarHeatmap from './CalendarHeatmap'
 import StrengthProgressSection from './StrengthProgressSection'
+import YourEngineSection from './YourEngineSection'
 import DescentCapacitySection from './DescentCapacitySection'
 import VolumeChart from './VolumeChart'
 
-type DashSubTab = 'compliance' | 'readiness' | 'performance' | 'strength'
+type DashSubTab = 'compliance' | 'readiness' | 'performance' | 'strength' | 'engine'
 
 interface DashboardProps {
   weeks: TrainingWeek[]
@@ -41,6 +43,8 @@ interface DashboardProps {
    *  — the history the Strength sub-tab reads, so records survive plan
    *  rebuilds. Falls back to `weeks` when absent. */
   strengthWeeks?: TrainingWeek[]
+  /** Onboarding config — powers the Engine tab's race projection. */
+  onboardingConfig?: OnboardingConfig | null
   planZones?: HRZone[]
   athleteMaxHR?: number
   athleteId?: string
@@ -63,6 +67,7 @@ export default function Dashboard({
   sorenessLoadByDate,
   strengthCapacity,
   strengthWeeks,
+  onboardingConfig,
   planZones = [],
   athleteMaxHR,
   athleteId,
@@ -83,6 +88,8 @@ export default function Dashboard({
     // Own menu for the strength records + benchmark layer — previously
     // buried under Performance.
     { id: 'strength', label: 'Strength', available: isSectionVisible('dash.strengthProgress') },
+    // The athlete model with its receipts (Adaptive Engine phase 2).
+    { id: 'engine', label: 'Engine', available: isSectionVisible('dash.strengthProgress') },
   ]
   const visibleSubTabs = SUB_TABS.filter(t => t.available)
 
@@ -169,6 +176,9 @@ export default function Dashboard({
       )}
       {subTab === 'strength' && (
         <StrengthProgressSection weeks={strengthWeeks ?? weeks} capacity={strengthCapacity} />
+      )}
+      {subTab === 'engine' && (
+        <YourEngineSection weeks={strengthWeeks ?? weeks} capacity={strengthCapacity} config={onboardingConfig} />
       )}
     </div>
   )

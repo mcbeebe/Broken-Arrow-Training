@@ -1808,6 +1808,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           sorenessLoadByDate={soreness.sorenessLoadByDate}
           strengthCapacity={strengthCapacity.capacity}
           strengthWeeks={strengthWeeks}
+          onboardingConfig={onboarding.config}
           athleteId={athleteId}
         />
       )}
