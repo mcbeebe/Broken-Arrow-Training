@@ -2,42 +2,10 @@ import type { PlannedDay } from '../types'
 import { parseZoneRange } from './zones'
 import { getMilesNumber } from './format'
 import { getPlannedDrills } from './drills'
-import { computeZoneCompliance, isIntervalSession } from './timeInZone'
+import { computeZoneCompliance, isIntervalSession, getCachedHRStream } from './timeInZone'
 
 function hasPlannedDrills(day: PlannedDay): boolean {
   return getPlannedDrills(day).length > 0 || !!day.actual?.drills?.items?.length
-}
-
-/**
- * Read cached HR stream (Strava or Garmin) from localStorage for the activity.
- * Returns null if no stream cached.
- */
-function getCachedHRStream(activityId: number | string | undefined): { time: number[]; heartrate: number[] } | null {
-  if (!activityId) return null
-  const keys = [
-    `ba_strava_streams_${activityId}`,
-    `ba_garmin_streams_${activityId}`,
-  ]
-  // Also scan for scoped athlete keys
-  for (let i = 0; i < localStorage.length; i++) {
-    const k = localStorage.key(i)
-    if (k && (k.includes(`strava_streams`) || k.includes(`garmin_streams`)) && k.endsWith(String(activityId))) {
-      keys.push(k)
-    }
-  }
-  for (const k of keys) {
-    try {
-      const raw = localStorage.getItem(k)
-      if (!raw) continue
-      const stream = JSON.parse(raw)
-      if (stream?.heartrate?.length && stream?.time?.length) {
-        return { time: stream.time, heartrate: stream.heartrate }
-      }
-    } catch {
-      // Skip
-    }
-  }
-  return null
 }
 
 export type Grade = 'A+' | 'A' | 'A-' | 'B+' | 'B' | 'B-' | 'C+' | 'C' | 'C-' | 'D+' | 'D' | 'N/A'

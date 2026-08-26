@@ -27,6 +27,39 @@ export interface HRStream {
   heartrate: number[]
 }
 
+
+/**
+ * Read a cached per-second HR stream (Strava or Garmin) from localStorage
+ * for an activity. Null when nothing is cached. Shared by grading and the
+ * adaptive engine's drift math.
+ */
+export function getCachedHRStream(activityId: number | string | undefined): HRStream | null {
+  if (!activityId) return null
+  const keys = [
+    `ba_strava_streams_${activityId}`,
+    `ba_garmin_streams_${activityId}`,
+  ]
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i)
+    if (k && (k.includes('strava_streams') || k.includes('garmin_streams')) && k.endsWith(String(activityId))) {
+      keys.push(k)
+    }
+  }
+  for (const k of keys) {
+    try {
+      const raw = localStorage.getItem(k)
+      if (!raw) continue
+      const stream = JSON.parse(raw)
+      if (stream?.heartrate?.length && stream?.time?.length) {
+        return { time: stream.time, heartrate: stream.heartrate }
+      }
+    } catch {
+      // Skip malformed entries
+    }
+  }
+  return null
+}
+
 export interface ZoneTarget {
   low: number
   high: number
