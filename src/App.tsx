@@ -100,6 +100,8 @@ import { buildWeeklyReview } from './engines/adaptive/weeklyReview'
 import { getCachedHRStream } from './utils/timeInZone'
 import { useMondayReview } from './hooks/useMondayReview'
 import MondayReviewSheet from './components/MondayReviewSheet'
+import { buildLevelUp } from './engines/adaptive/levelUp'
+import LevelUpCard from './components/LevelUpCard'
 import { weeksWithPriorLogs } from './utils/strengthHistory'
 import LoginScreen from './components/LoginScreen'
 import InAppBrowserGate from './components/InAppBrowserGate'
@@ -1165,6 +1167,9 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
       : null
   const mondayReviewState = useMondayReview(athleteId, reviewGapIso)
 
+  // Level Up (phase 2) — the accelerator: top evidence-ranked levers.
+  const levelUpLevers = useMemo(() => buildLevelUp(weeks, todayDateString()), [weeks])
+
   const weatherBlock = useWeather(activePlan.race, athleteLocation.location, workoutTimePref.hour)
 
   // The training philosophy this athlete follows — their onboarding pick,
@@ -1633,6 +1638,11 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
               onDismiss={() => { try { localStorage.setItem(benchDismissKey, benchEvidenceKey) } catch { /* quota */ } }}
               onUndo={undoBenchmarkResult}
             />
+          </div>
+        )}
+        {levelUpLevers.length > 0 && (
+          <div className="px-3 mb-3">
+            <LevelUpCard levers={levelUpLevers} onAskCoach={coachEnabled ? handleAskCoach : undefined} />
           </div>
         )}
         {recalAssessment.qualifies && !recalDismissed && (
