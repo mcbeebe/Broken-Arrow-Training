@@ -61,12 +61,12 @@ const HARD_TYPES: ReadonlySet<WorkoutType> = new Set(['quality', 'long'])
 const fmtMi = (n: number) => (Math.round(n * 10) / 10).toString()
 
 /** Rewrite the leading "X mi" token in a zone string. */
-function withDistance(zone: string, mi: number): string {
+export function withDistance(zone: string, mi: number): string {
   return zone.replace(/(\d+(?:\.\d+)?)\s*mi\b/i, `${fmtMi(mi)} mi`)
 }
 
 /** Scale a "N min"/"N hr M min" time string by factor (coarse, 5-min steps). */
-function scaleTime(time: string, factor: number): string {
+export function scaleTime(time: string, factor: number): string {
   const hr = time.match(/(\d+)\s*hr/i)
   const min = time.match(/(\d+)\s*min/i)
   let total = (hr ? parseInt(hr[1]) * 60 : 0) + (min ? parseInt(min[1]) : 0)
@@ -78,7 +78,7 @@ function scaleTime(time: string, factor: number): string {
 }
 
 /** The plan's race/taper endgame is never restructured by a review. */
-function isProtectedWeek(week: TrainingWeek, totalWeeks: number): boolean {
+export function isProtectedWeek(week: TrainingWeek, totalWeeks: number): boolean {
   return week.num > totalWeeks - 2 || week.days.some(d => d.type === 'race')
 }
 
