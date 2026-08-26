@@ -37,8 +37,6 @@ export interface LevelUpLever {
   kind: 'structure' | 'execution'
 }
 
-const RUN_TYPES = new Set(['run', 'quality', 'long', 'race'])
-
 function fmtLost(sec: number): string {
   const m = Math.floor(sec / 60)
   const s = Math.round(sec % 60)
@@ -156,7 +154,7 @@ export function buildLevelUp(weeks: TrainingWeek[], todayIso: string): LevelUpLe
     w.days.some(d => !d.actual) && w.days.some(d => d.actual),
   ) ?? weeks.find(w => w.days.some(d => !d.actual))
   const headroom = model.weeklyRunMiles4wk != null && currentWeek != null
-    ? model.weeklyRunMiles4wk <= currentWeek.miles
+    ? model.weeklyRunMiles4wk <= Number(currentWeek.miles)
     : false
 
   const levers = [
