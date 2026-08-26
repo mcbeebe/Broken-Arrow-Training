@@ -96,6 +96,10 @@ import WeeklyRecapOverlay from './components/WeeklyRecapOverlay'
 import { useWeeklyRecap } from './hooks/useWeeklyRecap'
 import { buildWeeklyRecap } from './engines/coach/weeklyRecap'
 import { detectPRs } from './utils/strengthRecords'
+import { buildWeeklyReview } from './engines/adaptive/weeklyReview'
+import { getCachedHRStream } from './utils/timeInZone'
+import { useMondayReview } from './hooks/useMondayReview'
+import MondayReviewSheet from './components/MondayReviewSheet'
 import { weeksWithPriorLogs } from './utils/strengthHistory'
 import LoginScreen from './components/LoginScreen'
 import InAppBrowserGate from './components/InAppBrowserGate'
@@ -1144,6 +1148,23 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     })
   }, [weeklyRecapState.visible, weeks, strengthWeeks, compliance.weeks, currentWeekNum, readiness.performance, activePlan.race, activePlan.athlete.name])
 
+  // ── Monday review (Adaptive Engine phase 1) ────────────────────
+  // The week that just finished, scored into advance/hold/ease with
+  // one-tap adjustment diffs; a detected resumption-tier gap overrides
+  // the Monday cadence and surfaces immediately.
+  const mondayReview = useMemo(() => {
+    const reviewNum = (currentWeekNum ?? 1) - 1
+    if (reviewNum < 1) return null
+    return buildWeeklyReview(weeks, reviewNum, todayDateString(), {
+      hrStream: d => getCachedHRStream(d.actual?.stravaId || d.actual?.garminId),
+    })
+  }, [weeks, currentWeekNum])
+  const reviewGapIso =
+    mondayReview && (mondayReview.gap.tier === 'ease75' || mondayReview.gap.tier === 'rebuild50' || mondayReview.gap.tier === 'restart')
+      ? mondayReview.gap.lastActivityIso
+      : null
+  const mondayReviewState = useMondayReview(athleteId, reviewGapIso)
+
   const weatherBlock = useWeather(activePlan.race, athleteLocation.location, workoutTimePref.hour)
 
   // The training philosophy this athlete follows — their onboarding pick,
@@ -1580,6 +1601,25 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
             if (coachEnabled) void coachMemory.appendTurn('coach', markdown, 'weekly_recap')
           }}
           onRebuildPlan={onboarding.requestRedo}
+        />
+      )}
+
+      {/* Monday review — last week's evidence, next week's adjustments.
+          Applied ops flow through planEdits as one undoable batch per
+          adjustment; a resumption-tier gap surfaces this immediately. */}
+      {mondayReview && mondayReviewState.visible && !weeklyRecap && (
+        <MondayReviewSheet
+          review={mondayReview}
+          onApply={(chosen) => {
+            for (const adj of chosen) planEdits.applyBatch(adj.ops)
+            if (coachEnabled) {
+              const lines = chosen.map(a => `- ${a.label}: ${a.before} → ${a.after}`).join('\n')
+              void coachMemory.appendTurn('coach', `**Monday review — Week ${mondayReview.reviewedWeekNum}** (${mondayReview.execution.verdict}). Applied:\n${lines}`, 'weekly_recap')
+            }
+            mondayReviewState.dismiss()
+          }}
+          onDismiss={mondayReviewState.dismiss}
+          onRebuild={() => { mondayReviewState.dismiss(); onboarding.requestRedo() }}
         />
       )}
 
