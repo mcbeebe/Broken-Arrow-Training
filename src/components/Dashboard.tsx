@@ -19,7 +19,7 @@ import YourEngineSection from './YourEngineSection'
 import DescentCapacitySection from './DescentCapacitySection'
 import VolumeChart from './VolumeChart'
 
-type DashSubTab = 'compliance' | 'readiness' | 'performance' | 'strength' | 'engine'
+export type DashSubTab = 'compliance' | 'readiness' | 'performance' | 'strength' | 'engine'
 
 interface DashboardProps {
   weeks: TrainingWeek[]
@@ -48,6 +48,10 @@ interface DashboardProps {
   planZones?: HRZone[]
   athleteMaxHR?: number
   athleteId?: string
+  /** One-shot deep link (e.g. Coach → Tools → "Open in Stats"): adopt
+   *  this sub-tab when it becomes non-null, then report handled. */
+  subTabRequest?: DashSubTab | null
+  onSubTabRequestHandled?: () => void
 }
 
 export default function Dashboard({
@@ -71,6 +75,8 @@ export default function Dashboard({
   planZones = [],
   athleteMaxHR,
   athleteId,
+  subTabRequest,
+  onSubTabRequestHandled,
 }: DashboardProps) {
   const [subTab, setSubTab] = useState<DashSubTab>('compliance')
   const [volumeActiveWeek, setVolumeActiveWeek] = useState(0)
@@ -102,6 +108,15 @@ export default function Dashboard({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visibleIds, subTab])
+
+  // Deep-link adoption (Coach -> Tools). One-shot: consume and clear.
+  useEffect(() => {
+    if (subTabRequest && visibleSubTabs.some(t => t.id === subTabRequest)) {
+      setSubTab(subTabRequest)
+      onSubTabRequestHandled?.()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [subTabRequest, visibleIds])
 
   return (
     <div className="px-4 py-4 space-y-4">
