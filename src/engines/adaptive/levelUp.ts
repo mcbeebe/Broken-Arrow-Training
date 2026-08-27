@@ -265,7 +265,7 @@ function benchmarkEngineLever(model: ReturnType<typeof buildAthleteModel>): Leve
       'Pick a fresh-legs day this week or next — not the day after a hard session.',
       'Warm up 10 min easy + 4 strides.',
       'Run 20 minutes at the hardest pace you can hold EVENLY — flat route or track.',
-      'Log it like any run — the model picks up the effort and recalibrates your paces automatically.',
+      'Log it like any run — the benchmark card then offers the re-anchor, and Your Engine updates from the effort.',
     ],
   }
 }

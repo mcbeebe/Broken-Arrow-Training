@@ -260,6 +260,20 @@ describe('canClaimPlannedDay', () => {
     expect(plannedDurationSec(makeDay({ time: '—' }))).toBe(0)
   })
 
+  it('THE benchmark case: a standalone ~5-min 1km TT claims its BENCHMARK day', () => {
+    // The TT IS the day. Before this exemption a 300s recording lost to
+    // the 40% duration-share gate (45-min prescription -> 1080s floor)
+    // and vanished into secondaryActuals, invisible to every engine.
+    const bench = makeDay({
+      type: 'quality', route: 'Track',
+      workout: 'BENCHMARK: 1km time trial + erg baseline', time: '45-50 min',
+    })
+    expect(canClaimPlannedDay(bench, 'Run', 300)).toBe(true)
+    // Modality still gates: a ride cannot claim it, and junk taps stay out.
+    expect(canClaimPlannedDay(bench, 'Ride', 300)).toBe(false)
+    expect(canClaimPlannedDay(bench, 'Run', 45)).toBe(false)
+  })
+
   it('THE field case: a 13-min e-bike ride cannot claim a 45-min gym circuit', () => {
     expect(canClaimPlannedDay(circuit, 'EBikeRide', 13 * 60)).toBe(false)
   })

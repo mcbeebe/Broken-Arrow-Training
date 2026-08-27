@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import type { PlannedDay, TrainingWeek, WorkoutType } from '../../../types'
-import { assessBenchmarkResult, scaleZoneTable } from '../../../engines/planGenerator/benchmarkResult'
+import { assessBenchmarkResult, benchmarkCompletedIso, scaleZoneTable } from '../../../engines/planGenerator/benchmarkResult'
 
 /**
  * 4.1 tests: the benchmark loop closes. A completed 20-min TT proposes
@@ -106,6 +106,58 @@ describe('assessBenchmarkResult — Hyrox 1 km TT', () => {
     )
     expect(a.suggestedMaxHR).toBeNull()
     expect(a.qualifies).toBe(false)
+  })
+
+  it('a TT filed as a SECONDARY still closes the loop', () => {
+    // A standalone ~5-min recording fails the duration-share matching
+    // gate and lands in secondaryActuals — the benchmark must still see it.
+    const d = hyroxDay()
+    d.secondaryActuals = [
+      { name: 'Morning walk', distance: 1, movingTime: 1200, avgHR: 95, type: 'Walk' },
+      { name: '1km TT', distance: 0.62, movingTime: 265, avgHR: 178, maxHR: 195, type: 'Run' },
+    ] as unknown as PlannedDay['secondaryActuals']
+    const a = assessBenchmarkResult([week([d])], TODAY, MAX_HR, CUR_LTHR)
+    expect(a.source).toBe('hyrox_1km_tt')
+    expect(a.suggestedMaxHR).toBe(195) // read from the hardest secondary
+    expect(a.qualifies).toBe(true)
+  })
+
+  it('reads the erg baseline (500m split) straight from an erg recording', () => {
+    // 1000m erg in 3:45 → 1:52/500m (0.6214 mi ≈ 1000 m).
+    const d = hyroxDay(done({ avgHR: 165, maxHR: 180 }))
+    d.secondaryActuals = [
+      { name: '1k erg TT', distance: 0.6214, movingTime: 225, avgHR: 170, type: 'Rowing' },
+    ] as unknown as PlannedDay['secondaryActuals']
+    const a = assessBenchmarkResult([week([d])], TODAY, MAX_HR, CUR_LTHR)
+    expect(a.suggestedErg500Sec).toBe(112)
+    expect(a.qualifies).toBe(true)
+    expect(a.evidence.some(e => /1:52 \/500m/.test(e))).toBe(true)
+    // Already recorded at the same split → no re-suggestion.
+    const again = assessBenchmarkResult([week([d])], TODAY, MAX_HR, CUR_LTHR, 112)
+    expect(again.suggestedErg500Sec).toBeNull()
+  })
+
+  it('an erg recording that claimed the day as PRIMARY also yields the baseline', () => {
+    const d = hyroxDay({
+      workout: 'BENCHMARK: 1km erg time trial',
+      ...done({ avgHR: 168, maxHR: 182, distance: 0.6214, movingTime: 230, type: 'Indoor Rowing' }),
+    })
+    const a = assessBenchmarkResult([week([d])], TODAY, MAX_HR, CUR_LTHR)
+    expect(a.suggestedErg500Sec).toBe(115)
+    expect(a.qualifies).toBe(true)
+  })
+})
+
+describe('benchmarkCompletedIso', () => {
+  it('reports the completed benchmark from a primary or a secondary, never from the future', () => {
+    expect(benchmarkCompletedIso([week([day('Wed 7/1', done())])], TODAY)).toBe('2026-07-01')
+    const secondaryOnly = day('Wed 7/1')
+    secondaryOnly.secondaryActuals = [
+      { name: '1km TT', distance: 0.62, movingTime: 265, avgHR: 178, type: 'Run' },
+    ] as unknown as PlannedDay['secondaryActuals']
+    expect(benchmarkCompletedIso([week([secondaryOnly])], TODAY)).toBe('2026-07-01')
+    expect(benchmarkCompletedIso([week([day('Wed 7/1')])], TODAY)).toBeNull()
+    expect(benchmarkCompletedIso([week([day('Wed 7/15', done())], 1, 'Jul 13-19')], '2026-07-08')).toBeNull()
   })
 })
 

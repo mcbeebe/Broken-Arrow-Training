@@ -141,6 +141,14 @@ export function canClaimPlannedDay(day: PlannedDay, activityType: string, sessio
   // them 0.30×) — eligible only on the broad cross days handled above.
   if (isEbike && (day.type !== 'cross' || isGymBasedDay(day))) return false
 
+  // A BENCHMARK day is completed by the test itself — a ~5-min 1km TT
+  // recorded standalone IS the whole point of the day, not a warm-up
+  // commute, so the duration-share gate does not apply. Same rationale
+  // as the erg-primary exemption above; modality still had to pass.
+  if (/\bBENCHMARK\b/i.test(day.workout ?? '')) {
+    return sessionSec >= 60
+  }
+
   // Compare the SESSION length (elapsed, callers pass max of moving/
   // elapsed) against the prescription — the prescription includes rests,
   // and in the gym most of a legit session is "not moving".
