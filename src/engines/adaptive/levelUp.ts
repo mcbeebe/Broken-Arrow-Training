@@ -24,6 +24,7 @@ import { buildAthleteModel } from './athleteModel'
 
 export interface LevelUpLever {
   id: 'weak-station' | 'easy-day-discipline' | 'sleep-before-hard-days' | 'extend-long-run'
+    | 'benchmark-engine' | 'race-rehearsal'
   title: string
   /** The measured fact this lever stands on. */
   evidence: string
@@ -146,6 +147,60 @@ function sleepBeforeHardDaysLever(
   }
 }
 
+/** The doing-fine lever: when nothing is broken, the fastest way up is
+ *  sharper inputs. Fires while critical speed is missing or still a
+ *  best-effort floor — but only once there IS running history, so a
+ *  brand-new athlete isn't lectured about data they haven't made. */
+function benchmarkEngineLever(model: ReturnType<typeof buildAthleteModel>): LevelUpLever | null {
+  const cs = model.criticalSpeed
+  const hasHistory = model.weeklyRunMiles4wk != null || cs != null
+  if (!hasHistory || (cs != null && cs.method === 'linear-fit')) return null
+  return {
+    id: 'benchmark-engine',
+    title: 'Benchmark your engine',
+    evidence: cs == null
+      ? 'Your paces still rest on onboarding estimates — no sustained hard effort in your log yet.'
+      : `Your critical speed is a best-effort floor from ${cs.effortCount} run${cs.effortCount === 1 ? '' : 's'} — a real test would sharpen it.`,
+    payoff: 'One 20-minute time trial upgrades every training pace, the spike caps, and the race projection at once.',
+    actionLabel: 'Schedule a benchmark time trial',
+    coachSeed: 'My critical speed is still a best-effort estimate. Schedule a 20-minute benchmark time trial into my plan so my paces come from a real test.',
+    kind: 'structure',
+  }
+}
+
+/** Hyrox plans: a fresh simulation is the sharpest signal the station
+ *  intelligence and the projection have. Fires when none has landed in
+ *  the last 5 weeks. */
+function raceRehearsalLever(
+  weeks: TrainingWeek[],
+  todayIso: string,
+  raceType: string | null | undefined,
+): LevelUpLever | null {
+  if (raceType !== 'hyrox') return null
+  const windowStart = new Date(`${todayIso}T12:00:00`)
+  windowStart.setDate(windowStart.getDate() - 35)
+  const startIso = windowStart.toISOString().slice(0, 10)
+  for (const week of weeks) {
+    for (const day of week.days) {
+      const iso = day.actual?.startDate?.slice(0, 10)
+      if (!iso || iso < startIso || iso > todayIso) continue
+      const splits = day.actual?.stationSplits
+      if (splits?.some(s => s.kind === 'run') && splits.some(s => s.kind === 'station')) return null
+    }
+  }
+  // Something must still be trainable — an all-logged plan has no slot.
+  if (!weeks.some(w => w.days.some(d => !d.actual && d.type !== 'rest' && d.type !== 'race'))) return null
+  return {
+    id: 'race-rehearsal',
+    title: 'Run a race simulation',
+    evidence: 'No simulation with station splits in your last 5 weeks — sims are the sharpest signal your weak-station analysis and projection have.',
+    payoff: 'One half-sim tells you exactly where the minutes hide, and every projection after it tightens.',
+    actionLabel: 'Plan a half simulation',
+    coachSeed: 'I have not done a race simulation in over a month. Fit a half simulation into my plan so my station analysis and projection work from fresh data.',
+    kind: 'structure',
+  }
+}
+
 /** Clean execution streak + spike-cap headroom → earn a longer long run. */
 function extendLongRunLever(weeks: TrainingWeek[], todayIso: string): LevelUpLever | null {
   // The last two FINISHED weeks (all days dated before today) must both
@@ -190,7 +245,7 @@ function extendLongRunLever(weeks: TrainingWeek[], todayIso: string): LevelUpLev
 export function buildLevelUp(
   weeks: TrainingWeek[],
   todayIso: string,
-  opts: { health?: GarminHealthData[] } = {},
+  opts: { health?: GarminHealthData[]; raceType?: string | null } = {},
 ): LevelUpLever[] {
   const model = buildAthleteModel(weeks, todayIso)
   // Headroom for ADDING load: measured trailing volume at or under the
@@ -206,6 +261,9 @@ export function buildLevelUp(
     weakStationLever(weeks, todayIso, headroom),
     easyDayLever(weeks, todayIso),
     sleepBeforeHardDaysLever(weeks, todayIso, opts.health ?? []),
+    // Doing-fine levers: nothing to fix ≠ nothing to gain.
+    benchmarkEngineLever(model),
+    raceRehearsalLever(weeks, todayIso, opts.raceType),
     extendLongRunLever(weeks, todayIso),
   ].filter((l): l is LevelUpLever => l != null)
 
