@@ -101,7 +101,6 @@ import { getCachedHRStream } from './utils/timeInZone'
 import { useMondayReview } from './hooks/useMondayReview'
 import MondayReviewSheet from './components/MondayReviewSheet'
 import { buildLevelUp } from './engines/adaptive/levelUp'
-import LevelUpCard from './components/LevelUpCard'
 import { buildMorningOutlook } from './engines/adaptive/morningOutlook'
 import { useMorningOutlook } from './hooks/useMorningOutlook'
 import { useAdaptationLog } from './hooks/useAdaptationLog'
@@ -1716,9 +1715,6 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
             />
           </div>
         )}
-        <div className="px-3 mb-3">
-          <LevelUpCard levers={levelUpLevers} onAskCoach={coachEnabled ? handleAskCoach : undefined} />
-        </div>
         {adaptationLog.entries.length > 0 && (
           <div className="px-3 mb-3">
             <button
