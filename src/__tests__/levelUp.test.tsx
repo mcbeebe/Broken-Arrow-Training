@@ -80,8 +80,36 @@ describe('buildLevelUp', () => {
     expect(rested.find(l => l.id === 'sleep-before-hard-days')).toBeUndefined()
   })
 
-  it('an athlete with nothing to fix sees nothing — never filler', () => {
+  it('an athlete with no data gets zero levers — never invented evidence', () => {
     expect(buildLevelUp(weeksOf([]), TODAY)).toHaveLength(0)
+  })
+
+  it('a doing-fine athlete still gets the benchmark lever while CS is a floor', () => {
+    // Honest easy running, nothing broken: the way up is sharper inputs.
+    const cool = (d: string, iso: string) => day({ day: d }, { avgHR: 140, startDate: `${iso}T07:00:00` })
+    const levers = buildLevelUp(weeksOf([cool('Mon 9/7', '2026-09-07'), cool('Wed 9/9', '2026-09-09'), cool('Fri 9/11', '2026-09-11')]), TODAY)
+    const bench = levers.find(l => l.id === 'benchmark-engine')!
+    expect(bench.evidence).toMatch(/best-effort floor/)
+  })
+
+  it('hyrox plans without a recent sim get the race-rehearsal lever', () => {
+    const cool = (d: string, iso: string) => day({ day: d }, { avgHR: 140, startDate: `${iso}T07:00:00` })
+    const weeks = weeksOf([cool('Mon 9/7', '2026-09-07'), day({ day: 'Wed 9/16' }, null)])
+    expect(buildLevelUp(weeks, TODAY, { raceType: 'hyrox' }).find(l => l.id === 'race-rehearsal')).toBeTruthy()
+    // Non-hyrox plans never see it.
+    expect(buildLevelUp(weeks, TODAY, { raceType: 'marathon' }).find(l => l.id === 'race-rehearsal')).toBeUndefined()
+  })
+
+  it('a fresh simulation silences the race-rehearsal lever', () => {
+    const sim = day({ day: 'Sat 9/12', type: 'long', workout: 'HALF SIMULATION' }, {
+      startDate: '2026-09-12T08:00:00', type: 'workout',
+      stationSplits: [
+        { label: 'Run 1 — 1 km', kind: 'run', sec: 300 },
+        { label: 'SkiErg — 1000 m', kind: 'station', sec: 255 },
+      ],
+    })
+    const weeks = weeksOf([sim, day({ day: 'Wed 9/16' }, null)])
+    expect(buildLevelUp(weeks, TODAY, { raceType: 'hyrox' }).find(l => l.id === 'race-rehearsal')).toBeUndefined()
   })
 })
 
@@ -102,8 +130,12 @@ describe('LevelUpCard', () => {
     expect(onAskCoach).toHaveBeenCalledWith('Help me keep easy days honest.')
   })
 
-  it('renders nothing with no levers', () => {
-    const { container } = render(<LevelUpCard levers={[]} />)
-    expect(container.innerHTML).toBe('')
+  it('with no levers it shows the honest on-track state, not nothing', () => {
+    const onAskCoach = vi.fn()
+    render(<LevelUpCard levers={[]} onAskCoach={onAskCoach} />)
+    expect(screen.getByTestId('level-up-ontrack')).toBeTruthy()
+    expect(screen.getByText(/Nothing urgent right now/)).toBeTruthy()
+    fireEvent.click(screen.getByText(/what's my next level/))
+    expect(onAskCoach).toHaveBeenCalledWith(expect.stringContaining('next level'))
   })
 })

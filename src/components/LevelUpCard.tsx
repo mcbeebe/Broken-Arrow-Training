@@ -3,14 +3,35 @@ import type { LevelUpLever } from '../engines/adaptive/levelUp'
 /**
  * Level Up on the Summary tab (Adaptive Engine phase 2, PR 6 — the
  * accelerator mockup): the top evidence-ranked levers, each with its
- * measured evidence, payoff, and a one-tap ask to the coach. Renders
- * nothing when no lever has evidence — never filler.
+ * measured evidence, payoff, and a one-tap ask to the coach. Always
+ * present: with no evidence-backed lever it shows an honest on-track
+ * state and an open door to the coach — never invented levers.
  */
 export default function LevelUpCard({ levers, onAskCoach }: {
   levers: LevelUpLever[]
   onAskCoach?: (seed: string) => void
 }) {
-  if (levers.length === 0) return null
+  if (levers.length === 0) {
+    return (
+      <div className="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700" data-testid="level-up-ontrack">
+        <div className="flex items-baseline justify-between gap-2">
+          <p className="text-base font-semibold text-slate-700 dark:text-slate-200">Level up</p>
+          <p className="text-[11px] text-slate-400">ranked from your data</p>
+        </div>
+        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5 leading-relaxed">
+          Nothing urgent right now — execution is clean and no lever has evidence behind it. As workouts, sims, and sleep data land, your top moves surface here automatically.
+        </p>
+        {onAskCoach && (
+          <button
+            onClick={() => onAskCoach("I'm training well and want to push to the next level. Looking at my data, what are the top things I should change or add?")}
+            className="mt-3 w-full h-10 rounded-lg bg-teal-700 hover:bg-teal-800 text-white text-xs font-bold"
+          >
+            Ask the coach: what's my next level?
+          </button>
+        )}
+      </div>
+    )
+  }
   return (
     <div className="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700">
       <div className="flex items-baseline justify-between gap-2">

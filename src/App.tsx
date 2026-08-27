@@ -1175,8 +1175,8 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
   // Level Up (phase 2) — the accelerator: top evidence-ranked levers.
   // Phase 3's daily-health join added the sleep-before-hard-days lever.
   const levelUpLevers = useMemo(
-    () => buildLevelUp(weeks, todayDateString(), { health: combinedHealth }),
-    [weeks, combinedHealth],
+    () => buildLevelUp(weeks, todayDateString(), { health: combinedHealth, raceType: onboarding.config?.raceType }),
+    [weeks, combinedHealth, onboarding.config?.raceType],
   )
 
   const weatherBlock = useWeather(activePlan.race, athleteLocation.location, workoutTimePref.hour)
@@ -1706,11 +1706,9 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
             />
           </div>
         )}
-        {levelUpLevers.length > 0 && (
-          <div className="px-3 mb-3">
-            <LevelUpCard levers={levelUpLevers} onAskCoach={coachEnabled ? handleAskCoach : undefined} />
-          </div>
-        )}
+        <div className="px-3 mb-3">
+          <LevelUpCard levers={levelUpLevers} onAskCoach={coachEnabled ? handleAskCoach : undefined} />
+        </div>
         {adaptationLog.entries.length > 0 && (
           <div className="px-3 mb-3">
             <button
