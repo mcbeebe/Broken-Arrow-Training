@@ -60,4 +60,15 @@ describe('CoachToolsPanel', () => {
     renderPanel()
     expect(screen.getByTestId('level-up-ontrack')).toBeTruthy()
   })
+
+  it('orders the panel: Level Up first, Your Engine second, the log last', () => {
+    renderPanel()
+    const levelUp = screen.getByTestId('level-up-ontrack')
+    const engine = screen.getByTestId('tools-open-engine')
+    const log = screen.getByTestId('tools-open-log')
+    const before = (a: Element, b: Element) =>
+      Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING)
+    expect(before(levelUp, engine)).toBe(true)
+    expect(before(engine, log)).toBe(true)
+  })
 })
