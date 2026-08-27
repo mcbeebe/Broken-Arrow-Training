@@ -86,7 +86,7 @@ import { useProactiveTimingPreference } from './hooks/useProactiveTimingPreferen
 import WeeklyPlan from './components/WeeklyPlan'
 import Summary from './components/Summary'
 import Journal from './components/Journal'
-import Dashboard from './components/Dashboard'
+import Dashboard, { type DashSubTab } from './components/Dashboard'
 import RaceInfo from './components/RaceInfo'
 // Methodology is now a subsection within Settings
 import Settings from './components/Settings'
@@ -107,6 +107,7 @@ import { useMorningOutlook } from './hooks/useMorningOutlook'
 import { useAdaptationLog } from './hooks/useAdaptationLog'
 import MorningOutlookCard from './components/MorningOutlookCard'
 import AdaptationLogSheet from './components/AdaptationLogSheet'
+import CoachToolsPanel from './components/CoachToolsPanel'
 import { weeksWithPriorLogs } from './utils/strengthHistory'
 import LoginScreen from './components/LoginScreen'
 import InAppBrowserGate from './components/InAppBrowserGate'
@@ -1186,6 +1187,10 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
   // auto-apply + one-tap revert, and everything lands in the log.
   const adaptationLog = useAdaptationLog(athleteId)
   const [showAdaptationLog, setShowAdaptationLog] = useState(false)
+  // Coach tab split (N14): Chat | Tools sub-menu, plus the one-shot
+  // deep link Tools uses to land Stats on the Engine sub-tab.
+  const [coachSubTab, setCoachSubTab] = useState<'chat' | 'tools'>('chat')
+  const [dashSubTabRequest, setDashSubTabRequest] = useState<DashSubTab | null>(null)
   const todayHeatF = useMemo(() => {
     // Honest heat only: the forecast AT the training hour. Daily highs
     // overstate a 7am run, so no hourly data means no heat action.
@@ -1898,9 +1903,47 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           strengthWeeks={strengthWeeks}
           onboardingConfig={onboarding.config}
           athleteId={athleteId}
+          subTabRequest={dashSubTabRequest}
+          onSubTabRequestHandled={() => setDashSubTabRequest(null)}
         />
       )}
       {view === 'coach' && coachEnabled && (
+        <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
+        <div className="px-3 pt-2 shrink-0">
+          <div className="flex gap-1 bg-slate-100 dark:bg-slate-700 rounded-lg p-1">
+            {(['chat', 'tools'] as const).map(t => (
+              <button
+                key={t}
+                onClick={() => setCoachSubTab(t)}
+                className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                  coachSubTab === t
+                    ? 'bg-white dark:bg-slate-800 text-slate-800 dark:text-white shadow-sm'
+                    : 'text-slate-500 dark:text-slate-400'
+                }`}
+              >
+                {t === 'chat' ? 'Chat' : 'Tools'}
+              </button>
+            ))}
+          </div>
+        </div>
+        {coachSubTab === 'tools' ? (
+          <div className="flex-1 min-h-0 overflow-y-auto">
+            <CoachToolsPanel
+              autopilot={{
+                baselineNights: readiness.baselines?.lnRmssd.sampleSize ?? 0,
+                baselineTarget: 21,
+                healthConnected: combinedHealth.length > 0,
+                lastAction: adaptationLog.entries.find(e => e.source === 'autopilot') ?? null,
+              }}
+              mondayReviewLive={Boolean(mondayReview && mondayReviewState.visible)}
+              logCount={adaptationLog.entries.length}
+              onOpenLog={() => setShowAdaptationLog(true)}
+              levers={levelUpLevers}
+              onAskCoach={(seed) => { setCoachSubTab('chat'); handleAskCoach(seed) }}
+              onOpenEngine={() => { setDashSubTabRequest('engine'); setView('dashboard') }}
+            />
+          </div>
+        ) : (
         <div className="flex-1 min-h-0 overflow-hidden">
         <CoachTab
           athleteId={athleteId}
@@ -1924,6 +1967,8 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           onAskCoach={handleAskCoach}
           onboardingConfig={onboarding.config}
         />
+        </div>
+        )}
         </div>
       )}
       {view === 'journal' && (
