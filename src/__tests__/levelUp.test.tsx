@@ -113,21 +113,81 @@ describe('buildLevelUp', () => {
   })
 })
 
+describe('buildLevelUp — do-today horizon', () => {
+  const night = (date: string, hours: number) => ({
+    date,
+    sleep: { durationSeconds: hours * 3600, quality: 'FAIR', deepSeconds: 0, remSeconds: 0, lightSeconds: 0, awakeSeconds: 0 },
+  })
+
+  it('a down day arms the tonight-recovery lever with the real numbers', () => {
+    const lever = buildLevelUp(weeksOf([]), TODAY, {
+      health: [night(TODAY, 6.6)], readinessDown: true,
+    }).find(l => l.id === 'tonight-recovery')!
+    expect(lever.horizon).toBe('now')
+    expect(lever.evidence).toMatch(/6.6h of sleep/)
+    expect(lever.steps.length).toBeGreaterThan(2)
+    // A charged, well-slept day stays quiet.
+    expect(buildLevelUp(weeksOf([]), TODAY, { health: [night(TODAY, 8)] })
+      .find(l => l.id === 'tonight-recovery')).toBeUndefined()
+  })
+
+  it('a rest day offers core + hips; a training day does not', () => {
+    const restToday = weeksOf([day({ day: 'Mon 9/14', type: 'rest', workout: 'Rest' }, null)])
+    expect(buildLevelUp(restToday, TODAY).find(l => l.id === 'core-mobility')?.horizon).toBe('now')
+    const runToday = weeksOf([day({ day: 'Mon 9/14' }, null)])
+    expect(buildLevelUp(runToday, TODAY).find(l => l.id === 'core-mobility')).toBeUndefined()
+  })
+
+  it('caps each horizon at two levers', () => {
+    const cool = (d: string, iso: string) => day({ day: d }, { avgHR: 140, startDate: `${iso}T07:00:00` })
+    const levers = buildLevelUp(
+      weeksOf([cool('Mon 9/7', '2026-09-07'), cool('Wed 9/9', '2026-09-09'), day({ day: 'Mon 9/14', type: 'rest', workout: 'Rest' }, null)]),
+      TODAY,
+      { health: [night(TODAY, 6)], readinessDown: true, raceType: 'hyrox' },
+    )
+    expect(levers.filter(l => l.horizon === 'now').length).toBeLessThanOrEqual(2)
+    expect(levers.filter(l => l.horizon === 'plan').length).toBeLessThanOrEqual(2)
+  })
+})
+
 describe('LevelUpCard', () => {
-  it('renders ranked levers and routes the action to the coach', () => {
+  it('the action expands concrete steps in place; the coach tailors, never a blank hand-off', () => {
     const onAskCoach = vi.fn()
     render(<LevelUpCard onAskCoach={onAskCoach} levers={[{
-      id: 'easy-day-discipline', kind: 'execution',
+      id: 'easy-day-discipline', kind: 'execution', horizon: 'plan',
       title: 'Make easy days actually easy',
       evidence: '4 of your last 6 easy runs came in above their heart-rate zone.',
       payoff: 'Harder hard days for free.',
       actionLabel: 'Cap my easy runs at zone',
       coachSeed: 'Help me keep easy days honest.',
+      steps: ['Set a heart-rate alert at the top of the zone.', 'Slow down when it fires.'],
     }]} />)
     expect(screen.getByText('Level up')).toBeTruthy()
-    expect(screen.getByText(/4 of your last 6/)).toBeTruthy()
+    expect(screen.getByText('Build into the plan')).toBeTruthy()
+    // Steps hidden until asked for.
+    expect(screen.queryByTestId('lever-steps-easy-day-discipline')).toBeNull()
     fireEvent.click(screen.getByText('Cap my easy runs at zone'))
+    expect(onAskCoach).not.toHaveBeenCalled()
+    expect(screen.getByText(/heart-rate alert/)).toBeTruthy()
+    fireEvent.click(screen.getByTestId('lever-tailor-easy-day-discipline'))
     expect(onAskCoach).toHaveBeenCalledWith('Help me keep easy days honest.')
+  })
+
+  it('groups levers under their horizons', () => {
+    render(<LevelUpCard levers={[
+      {
+        id: 'core-mobility', kind: 'execution', horizon: 'now', title: 'Rest-day core + hips',
+        evidence: 'Today is a rest day.', payoff: 'Durability for free.',
+        actionLabel: 'Show me the routine', coachSeed: 'seed', steps: ['Myrtl circuit.'],
+      },
+      {
+        id: 'benchmark-engine', kind: 'structure', horizon: 'plan', title: 'Benchmark your engine',
+        evidence: 'Best-effort floor.', payoff: 'Sharper paces.',
+        actionLabel: 'Schedule a time trial', coachSeed: 'seed', steps: ['20-min TT.'],
+      },
+    ]} />)
+    expect(screen.getByText('Do today')).toBeTruthy()
+    expect(screen.getByText('Build into the plan')).toBeTruthy()
   })
 
   it('with no levers it shows the honest on-track state, not nothing', () => {

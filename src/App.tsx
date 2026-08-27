@@ -101,7 +101,6 @@ import { getCachedHRStream } from './utils/timeInZone'
 import { useMondayReview } from './hooks/useMondayReview'
 import MondayReviewSheet from './components/MondayReviewSheet'
 import { buildLevelUp } from './engines/adaptive/levelUp'
-import LevelUpCard from './components/LevelUpCard'
 import { buildMorningOutlook } from './engines/adaptive/morningOutlook'
 import { useMorningOutlook } from './hooks/useMorningOutlook'
 import { useAdaptationLog } from './hooks/useAdaptationLog'
@@ -1176,8 +1175,13 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
   // Level Up (phase 2) — the accelerator: top evidence-ranked levers.
   // Phase 3's daily-health join added the sleep-before-hard-days lever.
   const levelUpLevers = useMemo(
-    () => buildLevelUp(weeks, todayDateString(), { health: combinedHealth, raceType: onboarding.config?.raceType }),
-    [weeks, combinedHealth, onboarding.config?.raceType],
+    () => buildLevelUp(weeks, todayDateString(), {
+      health: combinedHealth,
+      raceType: onboarding.config?.raceType,
+      readinessDown: readiness.todayScore != null &&
+        (readiness.todayScore.status === 'YELLOW' || readiness.todayScore.status === 'RED'),
+    }),
+    [weeks, combinedHealth, onboarding.config?.raceType, readiness.todayScore],
   )
 
   const weatherBlock = useWeather(activePlan.race, athleteLocation.location, workoutTimePref.hour)
@@ -1711,9 +1715,6 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
             />
           </div>
         )}
-        <div className="px-3 mb-3">
-          <LevelUpCard levers={levelUpLevers} onAskCoach={coachEnabled ? handleAskCoach : undefined} />
-        </div>
         {adaptationLog.entries.length > 0 && (
           <div className="px-3 mb-3">
             <button
