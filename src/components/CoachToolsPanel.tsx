@@ -45,6 +45,24 @@ export default function CoachToolsPanel({
   const armed = healthConnected && baselineNights >= baselineTarget
   return (
     <div className="px-3 py-3 space-y-3" data-testid="coach-tools">
+      {/* Ordered per the athlete: the accelerator first, the model
+          it stands on second, the log last. */}
+
+      <LevelUpCard levers={levers} onAskCoach={onAskCoach} />
+
+      <Row title="Your engine">
+        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
+          The measured model your plan runs on — critical speed, efficiency, volume, strength, projection.
+        </p>
+        <button
+          onClick={onOpenEngine}
+          className="mt-2 w-full h-9 rounded-lg border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 text-xs font-semibold"
+          data-testid="tools-open-engine"
+        >
+          Open in Stats →
+        </button>
+      </Row>
+
       <Row title="Daily autopilot">
         {!healthConnected ? (
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
@@ -100,21 +118,6 @@ export default function CoachToolsPanel({
           data-testid="tools-open-log"
         >
           Open the log{logCount > 0 ? ` · ${logCount} change${logCount === 1 ? '' : 's'}` : ''}
-        </button>
-      </Row>
-
-      <LevelUpCard levers={levers} onAskCoach={onAskCoach} />
-
-      <Row title="Your engine">
-        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
-          The measured model your plan runs on — critical speed, efficiency, volume, strength, projection.
-        </p>
-        <button
-          onClick={onOpenEngine}
-          className="mt-2 w-full h-9 rounded-lg border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 text-xs font-semibold"
-          data-testid="tools-open-engine"
-        >
-          Open in Stats →
         </button>
       </Row>
     </div>
