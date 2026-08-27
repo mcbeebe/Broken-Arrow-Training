@@ -126,12 +126,12 @@ export default function Dashboard({
       )}
 
       {/* Sub-tab navigation */}
-      <div className="flex gap-1 bg-slate-100 dark:bg-slate-700 rounded-lg p-1">
+      <div className="flex gap-1 bg-slate-100 dark:bg-slate-700 rounded-lg p-1 overflow-x-auto">
         {visibleSubTabs.map(t => (
           <button
             key={t.id}
             onClick={() => setSubTab(t.id)}
-            className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${
+            className={`flex-1 shrink-0 px-3 py-2 text-xs font-medium rounded-md whitespace-nowrap transition-colors ${
               subTab === t.id
                 ? 'bg-white dark:bg-slate-800 text-slate-800 dark:text-white shadow-sm'
                 : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:text-slate-200'
