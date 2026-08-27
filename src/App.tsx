@@ -17,7 +17,7 @@ import SeasonPanel from './components/SeasonPanel'
 import { assessRecalibration } from './engines/planGenerator/recalibration'
 import { validatePlan, qaFindingsToAdvisories } from './engines/planQA/validatePlan'
 import { useReplan } from './hooks/useReplan'
-import { assessBenchmarkResult, scaleZoneTable } from './engines/planGenerator/benchmarkResult'
+import { assessBenchmarkResult, benchmarkCompletedIso, scaleZoneTable } from './engines/planGenerator/benchmarkResult'
 import { ESTIMATED_LTHR_PCT_OF_MAX } from './engines/planGenerator/paceTargets'
 import { buildRepaceOps } from './utils/repace'
 import { buildZoneAnchorOps } from './utils/rezoneByAnchor'
@@ -667,8 +667,8 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
       ? onboarding.config.fitnessAnchor.bpm
       : Math.round(maxHROverride.maxHR * ESTIMATED_LTHR_PCT_OF_MAX)
   const benchAssessment = useMemo(
-    () => assessBenchmarkResult(weeks, todayDateString(), maxHROverride.maxHR, currentLthr),
-    [weeks, maxHROverride.maxHR, currentLthr],
+    () => assessBenchmarkResult(weeks, todayDateString(), maxHROverride.maxHR, currentLthr, strengthCapacity.capacity?.erg500Sec ?? null),
+    [weeks, maxHROverride.maxHR, currentLthr, strengthCapacity.capacity],
   )
   const benchDismissKey = `ba_benchmark_dismissed_v1_${athleteId}`
   const benchEvidenceKey = benchAssessment.evidence.join('|')
@@ -681,6 +681,8 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     maxHROverride: number | null
     fitnessAnchor: import('./hooks/useOnboarding').FitnessAnchor | null
     configMaxHR: number | null
+    /** undefined = erg untouched by this apply; null = there was none. */
+    capacity?: import('./engines/strength/benchmark').StrengthCapacity | null
   } | null>(null)
   const applyBenchmarkResult = useCallback(() => {
     const a = benchAssessment
@@ -689,6 +691,16 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
       maxHROverride: maxHROverride.isCustomized ? maxHROverride.maxHR : null,
       fitnessAnchor: onboarding.config?.fitnessAnchor ?? null,
       configMaxHR: onboarding.config?.maxHR ?? null,
+      ...(a.suggestedErg500Sec != null ? { capacity: strengthCapacity.capacity ?? null } : {}),
+    }
+    // The erg baseline goes straight to the measured strength
+    // benchmarks — the number the advisory asked the athlete to type in.
+    if (a.suggestedErg500Sec != null) {
+      strengthCapacity.save({
+        ...(strengthCapacity.capacity ?? {}),
+        measuredAt: todayDateString(),
+        erg500Sec: a.suggestedErg500Sec,
+      })
     }
     // One anchor drives the whole rewrite: LTHR when the test measured
     // it (method 20-min TT — every method bpm band is linear in LTHR),
@@ -707,7 +719,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
       todayDateString(),
       `Benchmark re-anchor: ${a.evidence[0] ?? 'field test result'}`,
     ))
-  }, [benchAssessment, hrZones, maxHROverride, onboarding, planEdits, weeks, handleSaveHRZones])
+  }, [benchAssessment, hrZones, maxHROverride, onboarding, planEdits, weeks, handleSaveHRZones, strengthCapacity])
   const undoBenchmarkResult = useCallback((batchId: string) => {
     planEdits.undoBatch(batchId)
     const snap = benchUndoRef.current
@@ -715,8 +727,11 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     if (snap.zones) hrZones.save(snap.zones); else hrZones.reset()
     if (snap.maxHROverride != null) maxHROverride.save(snap.maxHROverride); else maxHROverride.reset()
     onboarding.applyBenchmarkAnchors({ fitnessAnchor: snap.fitnessAnchor, maxHR: snap.configMaxHR })
+    if (snap.capacity !== undefined) {
+      if (snap.capacity) strengthCapacity.save(snap.capacity); else strengthCapacity.clear()
+    }
     benchUndoRef.current = null
-  }, [planEdits, hrZones, maxHROverride, onboarding])
+  }, [planEdits, hrZones, maxHROverride, onboarding, strengthCapacity])
 
   // ── R0: season-level QA ───────────────────────────────────────
   // The anchor plan is validated at generation time, but the spliced
@@ -739,12 +754,17 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
       pass: later.every(f => f.severity !== 'error'),
     })
   }, [weeks, activePlan.weeks.length, activePlan.race, activePlan.methodId, hrZones.zones, seasonState.planResult])
-  const allAdvisories = useMemo(
-    () => (seasonQaAdvisories.length > 0
+  const allAdvisories = useMemo(() => {
+    const base = seasonQaAdvisories.length > 0
       ? [...(activePlan.advisories ?? []), ...seasonQaAdvisories]
-      : activePlan.advisories),
-    [activePlan.advisories, seasonQaAdvisories],
-  )
+      : (activePlan.advisories ?? [])
+    // "Estimated until you test" retires itself the day a benchmark is
+    // actually recorded — primary or secondary. The benchmark card and
+    // the athlete model carry the calibration from there.
+    return benchmarkCompletedIso(weeks, todayDateString())
+      ? base.filter(adv => adv.id !== 'zones_estimated')
+      : base
+  }, [activePlan.advisories, seasonQaAdvisories, weeks])
 
   // ── G6: course-aware race pacing ──────────────────────────────
   // Only for curated courses (the 3 Broken Arrow editions today) and only
