@@ -6,6 +6,7 @@ import type { AuthSession } from '../utils/auth'
 import type { ThemeMode } from '../hooks/useTheme'
 import CoachDiagnostics from './CoachDiagnostics'
 import DeployDiagnostics from './DeployDiagnostics'
+import DayDataProbe from './DayDataProbe'
 import AthleteAdmin from './AthleteAdmin'
 import Methodology from './Methodology'
 import SyncSettings from './SyncSettings'
@@ -32,6 +33,9 @@ import { PALETTES, type PaletteId } from '../palettes'
 import type { ConversationTurn, PerformanceMetrics, TrainingWeek } from '../types'
 
 interface SettingsProps {
+  /** Owner diagnostics: current Garmin day-detail cache + force-refetch. */
+  garminActivityDetails?: Record<string, import('../types').GarminActivityDetail[]>
+  onProbeGarminDay?: (date: string) => Promise<import('../types').GarminActivityDetail[]>
   // Coach (Mike-only for now)
   coachEnabled?: boolean
   /** Joined About Me string. Read-only fallback for CoachMemoryPanel
@@ -149,6 +153,8 @@ interface SettingsProps {
 }
 
 export default function Settings({
+  garminActivityDetails,
+  onProbeGarminDay,
   connected,
   configured,
   loading,
@@ -694,6 +700,9 @@ export default function Settings({
       {athleteId === 'mike' && (
         <SettingsSection title="Deploy Diagnostics">
           <DeployDiagnostics />
+          {onProbeGarminDay && (
+            <DayDataProbe cachedDetails={garminActivityDetails ?? {}} onProbe={onProbeGarminDay} />
+          )}
         </SettingsSection>
       )}
 
