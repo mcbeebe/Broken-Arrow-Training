@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   matchActivitiesToPlan,
   mergeGarminDetailIntoWeeks,
+  isDuplicateActual,
   mergeAppleActivitiesIntoWeeks,
   canClaimPlannedDay,
   ergPrimaryDay,
@@ -163,9 +164,12 @@ describe('mergeGarminDetailIntoWeeks — multi-activity selection', () => {
     expect(day.secondaryActuals?.map(s => s.garminId).sort()).toEqual([1, 2])
   })
 
-  it('still enriches an ALREADY-claimed day with the best detail even when nothing matches modality', () => {
-    // Enrichment is low-stakes (layering biometrics on an existing actual);
-    // only the initial claim needs to be earned.
+  it('never enriches an actual from a DIFFERENT session — the ride becomes a secondary', () => {
+    // The old behavior merged the highest-scored detail's biometrics into
+    // whatever held the day (a bike ride's HR onto a gym session; in the
+    // field, a 1km erg TT swallowed by a warm-up treadmill run). Cross-
+    // session enrichment is forbidden: the actual stays untouched and the
+    // other session surfaces as a secondary.
     const claimed = structuredClone(mikePlan.weeks)
     claimed[0].days[0].actual = {
       stravaId: 0, source: 'manual', distance: 0, movingTime: 2400,
@@ -175,8 +179,42 @@ describe('mergeGarminDetailIntoWeeks — multi-activity selection', () => {
     const ride = makeGarminDetail({ activityId: 7, type: 'cycling', durationSeconds: 3600, movingDurationSeconds: 3600, averageHR: 141 })
     const result = mergeGarminDetailIntoWeeks(claimed, { [STRENGTH_DATE]: [ride] })
     const day = result[0].days[0]
-    expect(day.actual?.avgHR).toBe(141)
-    expect(day.actual?.name).toBe('Gym session') // manual base preserved
+    expect(day.actual?.avgHR).toBeUndefined() // untouched
+    expect(day.actual?.name).toBe('Gym session')
+    expect((day.secondaryActuals ?? []).map(a => a.type)).toEqual(['cycling'])
+  })
+
+  it('THE erg-TT field case: the erg takes over its erg-primary day from a warm-up run', () => {
+    // Day: "BENCHMARK: 1km erg time trial". A treadmill warm-up (another
+    // source) already holds the day; Garmin has the same treadmill AND the
+    // 3:34 Indoor Rowing with 0 m distance (unpaired erg). The rowing has
+    // earned the erg-primary claim: it becomes the actual, the treadmill
+    // is demoted to one deduped secondary.
+    const weeks = structuredClone(mikePlan.weeks)
+    const dayIdx = 1 // Tue 4/14
+    weeks[0].days[dayIdx] = {
+      ...weeks[0].days[dayIdx],
+      type: 'quality',
+      workout: 'BENCHMARK: 1km erg time trial',
+      route: 'Gym',
+      time: '25 min',
+      actual: {
+        stravaId: 5, source: 'strava', distance: 0.9, movingTime: 540,
+        elapsedTime: 560, elevationGain: 0, type: 'Run', name: 'Treadmill warm-up',
+        startDate: '2026-04-14T07:00:00', avgHR: 158,
+      },
+    }
+    const result = mergeGarminDetailIntoWeeks(weeks, {
+      '2026-04-14': [
+        makeGarminDetail({ activityId: 21, type: 'treadmill_running', durationSeconds: 545, movingDurationSeconds: 545, averageHR: 158 }),
+        makeGarminDetail({ activityId: 22, type: 'indoor_rowing', durationSeconds: 214, movingDurationSeconds: 214, averageHR: 169, maxHR: 193, distanceMeters: 0 }),
+      ],
+    })
+    const day = result[0].days[dayIdx]
+    expect(day.actual?.type).toBe('indoor_rowing')
+    expect(day.actual?.movingTime).toBe(214)
+    // Exactly one secondary: the warm-up run, not a duplicate pair.
+    expect((day.secondaryActuals ?? []).filter(a => /run/i.test(a.type ?? ''))).toHaveLength(1)
   })
 
   it('exposes non-primary activities in secondaryActuals', () => {
@@ -235,6 +273,41 @@ function makeDay(overrides: Partial<PlannedDay> = {}): PlannedDay {
 function makeWeek(days: PlannedDay[]): TrainingWeek {
   return { num: 1, dates: 'Aug 17–23', startIso: '2026-08-17', miles: 10, focus: 'Build', days }
 }
+
+describe('cross-source duplicate suppression', () => {
+  it('isDuplicateActual: same session from two sources, not different work', () => {
+    const run = { type: 'Run', movingTime: 540 }
+    expect(isDuplicateActual(run, { type: 'treadmill_running', movingTime: 545 })).toBe(true)
+    expect(isDuplicateActual(run, { type: 'Indoor Rowing', movingTime: 540 })).toBe(false)
+    expect(isDuplicateActual(run, { type: 'Run', movingTime: 2400 })).toBe(false)
+  })
+
+  it('THE field case: the main workout is never re-listed as a secondary', () => {
+    // Strava claims the day; the identical Garmin recording of the SAME
+    // session must enrich it, not appear under "other activities".
+    const activity = makeActivity({ start_date_local: '2026-04-14T07:00:00Z', moving_time: 1800 })
+    const afterStrava = matchActivitiesToPlan(mikePlan.weeks, [activity])
+    const merged = mergeGarminDetailIntoWeeks(afterStrava, {
+      '2026-04-14': [makeGarminDetail({ activityId: 9, type: 'treadmill_running', movingDurationSeconds: 1810 })],
+    })
+    const day = merged[0].days[1]
+    expect(day.actual).toBeDefined()
+    expect(day.secondaryActuals ?? []).toHaveLength(0)
+  })
+
+  it('a genuinely different second activity stays a secondary', () => {
+    const activity = makeActivity({ start_date_local: '2026-04-14T07:00:00Z', moving_time: 1800 })
+    const afterStrava = matchActivitiesToPlan(mikePlan.weeks, [activity])
+    const merged = mergeGarminDetailIntoWeeks(afterStrava, {
+      '2026-04-14': [
+        makeGarminDetail({ activityId: 9, type: 'treadmill_running', movingDurationSeconds: 1810 }),
+        makeGarminDetail({ activityId: 10, type: 'indoor_rowing', movingDurationSeconds: 300, distanceMeters: 1000 }),
+      ],
+    })
+    const day = merged[0].days[1]
+    expect((day.secondaryActuals ?? []).map(a => a.type)).toEqual(['indoor_rowing'])
+  })
+})
 
 describe('canClaimPlannedDay', () => {
   const circuit = makeDay()

@@ -137,6 +137,17 @@ describe('assessBenchmarkResult — Hyrox 1 km TT', () => {
     expect(again.suggestedErg500Sec).toBeNull()
   })
 
+  it('an unpaired erg (0 m distance) still yields the baseline from its duration', () => {
+    // The field case: watch-recorded Indoor Rowing, 3:34 (214 s), 0 m —
+    // a plausibly-1km piece by duration → 1:47 /500m.
+    const d = hyroxDay(done({ avgHR: 169, maxHR: 193 }))
+    d.secondaryActuals = [
+      { name: 'Indoor Rowing', distance: 0, movingTime: 214, avgHR: 169, type: 'indoor_rowing' },
+    ] as unknown as PlannedDay['secondaryActuals']
+    const a = assessBenchmarkResult([week([d])], TODAY, MAX_HR, CUR_LTHR)
+    expect(a.suggestedErg500Sec).toBe(107)
+  })
+
   it('an erg recording that claimed the day as PRIMARY also yields the baseline', () => {
     const d = hyroxDay({
       workout: 'BENCHMARK: 1km erg time trial',
