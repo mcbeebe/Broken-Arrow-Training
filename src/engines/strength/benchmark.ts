@@ -26,6 +26,7 @@ export type BenchmarkItemId =
   | 'wall_balls'      // Hyrox
   | 'sled_push'       // Hyrox
   | 'erg_500'         // Hyrox
+  | 'erg_1k'          // Hyrox
 
 export type BenchmarkUnit = 'reps' | 'lb' | 'seconds' | 'rpe'
 
@@ -107,6 +108,16 @@ export const BENCHMARK_ITEMS: BenchmarkItem[] = [
     min: 60,
     max: 300,
   },
+  {
+    id: 'erg_1k',
+    label: '1000 m erg',
+    protocol: 'A 1 km time trial on the rower or SkiErg. Enter the time as m:ss (e.g. 3:31).',
+    unit: 'seconds',
+    hyroxOnly: true,
+    why: "Race distance for the erg stations — the monitor's own time is the source of truth, so enter what it read.",
+    min: 150,
+    max: 600,
+  },
 ]
 
 export interface StrengthCapacity {
@@ -118,6 +129,12 @@ export interface StrengthCapacity {
   wallBallsUnbroken?: number
   sledRpe?: number
   erg500Sec?: number
+  /** 1 km erg time — stored exactly as entered/recorded, never derived
+   *  from the 500m split (monitor readings are the source of truth). */
+  erg1kSec?: number
+  /** True when the erg numbers were typed in by the athlete. Manual
+   *  entry is athlete truth: auto-capture must never re-suggest over it. */
+  ergManual?: boolean
 }
 
 export function itemsFor(kind: 'hyrox' | 'general'): BenchmarkItem[] {

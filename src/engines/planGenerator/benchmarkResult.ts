@@ -49,6 +49,8 @@ export interface BenchmarkResultAssessment {
    *  baseline" the zones_estimated advisory asks for, read straight
    *  from the recording instead of a Settings form. */
   suggestedErg500Sec: number | null
+  /** The piece's 1 km time (measured, or scaled from a near-1k piece). */
+  suggestedErg1kSec: number | null
   currentMaxHR: number
   currentLthr: number
   evidence: string[]
@@ -123,7 +125,7 @@ const MILE_M = 1609.344
  * typed, with either a distance near 1 km or (distance unrecorded) a
  * duration in the 2.5–7 min band.
  */
-function ergSplitFrom(day: TrainingWeek['days'][number]): { sec: number; iso500: number } | null {
+function ergSplitFrom(day: TrainingWeek['days'][number]): { sec: number; iso500: number; iso1k: number } | null {
   const candidates = [day.actual, ...(day.secondaryActuals ?? [])]
     .filter((a): a is DayActual => a != null && a.movingTime > 0 && ERG_TYPE.test(a.type ?? ''))
   for (const a of candidates) {
@@ -134,10 +136,10 @@ function ergSplitFrom(day: TrainingWeek['days'][number]): { sec: number; iso500:
     const sec = Math.max(a.movingTime, a.elapsedTime ?? 0)
     const meters = a.distance > 0 ? a.distance * MILE_M : null
     if (meters != null && meters >= 630 && meters <= 1500) {
-      return { sec, iso500: Math.round((sec / meters) * 500) }
+      return { sec, iso500: Math.round((sec / meters) * 500), iso1k: Math.round((sec / meters) * 1000) }
     }
     if (meters == null && sec >= 150 && sec <= 420) {
-      return { sec, iso500: Math.round(sec / 2) }
+      return { sec, iso500: Math.round(sec / 2), iso1k: sec }
     }
   }
   return null
@@ -171,11 +173,14 @@ export function assessBenchmarkResult(
   currentMaxHR: number,
   currentLthr: number,
   currentErg500Sec: number | null = null,
+  /** Manual erg entry is athlete truth — never re-suggest over it. */
+  currentErgManual = false,
 ): BenchmarkResultAssessment {
   const none: BenchmarkResultAssessment = {
     qualifies: false, source: null, isoDate: null, workout: null,
     ttAvgHR: null, observedMaxHR: null, suggestedLthr: null,
-    suggestedMaxHR: null, suggestedErg500Sec: null, currentMaxHR, currentLthr, evidence: [],
+    suggestedMaxHR: null, suggestedErg500Sec: null, suggestedErg1kSec: null,
+    currentMaxHR, currentLthr, evidence: [],
   }
 
   // Most recent completed benchmark day on/before today — primary OR
@@ -231,14 +236,15 @@ export function assessBenchmarkResult(
   // from the erg recording — the "erg baseline" the advisory asks the
   // athlete to type into a Settings form that never existed.
   let suggestedErg500Sec: number | null = null
-  if (source === 'hyrox_1km_tt') {
+  let suggestedErg1kSec: number | null = null
+  if (source === 'hyrox_1km_tt' && !currentErgManual) {
     const erg = ergSplitFrom(day)
     if (erg && (currentErg500Sec == null || Math.abs(erg.iso500 - currentErg500Sec) >= 2)) {
       suggestedErg500Sec = erg.iso500
-      const m = Math.floor(erg.iso500 / 60)
-      const s = String(erg.iso500 % 60).padStart(2, '0')
+      suggestedErg1kSec = erg.iso1k
+      const fmt = (v: number) => `${Math.floor(v / 60)}:${String(v % 60).padStart(2, '0')}`
       evidence.push(
-        `Erg baseline (${isoDate}): ${m}:${s} /500m read from the recording — saved to your measured benchmarks on Apply`,
+        `Erg baseline (${isoDate}): ${fmt(erg.iso1k)} for 1 km · ${fmt(erg.iso500)} /500m read from the recording — saved to your measured benchmarks on Apply`,
       )
     }
   }
@@ -253,6 +259,7 @@ export function assessBenchmarkResult(
     suggestedLthr,
     suggestedMaxHR,
     suggestedErg500Sec,
+    suggestedErg1kSec,
     currentMaxHR,
     currentLthr,
     evidence,

@@ -251,6 +251,7 @@ export function buildAthleteModel(
   if (typeof c?.gobletSquatLb === 'number') stationBenchmarks.push({ label: 'Goblet squat 8RM', value: `${c.gobletSquatLb} lb` })
   if (typeof c?.pushUps === 'number') stationBenchmarks.push({ label: 'Push-ups (max set)', value: `${c.pushUps}` })
   if (typeof c?.wallBallsUnbroken === 'number') stationBenchmarks.push({ label: 'Wall balls unbroken', value: `${c.wallBallsUnbroken}` })
+  if (typeof c?.erg1kSec === 'number') stationBenchmarks.push({ label: '1 km erg', value: fmtSec(c.erg1kSec) })
   if (typeof c?.erg500Sec === 'number') stationBenchmarks.push({ label: '500 m erg', value: fmtSec(c.erg500Sec) })
   if (typeof c?.plankSec === 'number') stationBenchmarks.push({ label: 'Plank hold', value: fmtSec(c.plankSec) })
 

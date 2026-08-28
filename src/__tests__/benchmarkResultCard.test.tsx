@@ -14,7 +14,7 @@ afterEach(cleanup)
 const ergOnly: BenchmarkResultAssessment = {
   qualifies: true, source: 'hyrox_1km_tt', isoDate: '2026-08-25',
   workout: 'BENCHMARK: 1km erg time trial', ttAvgHR: 169, observedMaxHR: null,
-  suggestedLthr: null, suggestedMaxHR: null, suggestedErg500Sec: 107,
+  suggestedLthr: null, suggestedMaxHR: null, suggestedErg500Sec: 107, suggestedErg1kSec: 214,
   currentMaxHR: 185, currentLthr: 150,
   evidence: ['Erg baseline (2026-08-25): 1:47 /500m read from the recording — saved to your measured benchmarks on Apply'],
 }
