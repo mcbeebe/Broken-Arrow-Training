@@ -94,3 +94,29 @@ describe('ManualLog — gym-circuit days log as strength', () => {
     expect(screen.getByText('Distance (mi)')).toBeTruthy()
   })
 })
+
+describe('ManualLog — the manual-override escape hatch', () => {
+  it('offers Remove when a manual entry exists, and routes it', () => {
+    const onRemove = vi.fn()
+    render(
+      <ManualLog
+        dayLabel={crossDay.day}
+        planned={crossDay}
+        hasManualEntry
+        onRemove={onRemove}
+        onSave={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    )
+    expect(screen.getByText(/override whatever your watch synced/)).toBeTruthy()
+    screen.getByTestId('remove-manual-log').click()
+    expect(onRemove).toHaveBeenCalled()
+  })
+
+  it('no manual entry, no remove button', () => {
+    render(
+      <ManualLog dayLabel={crossDay.day} planned={crossDay} onSave={vi.fn()} onClose={vi.fn()} />,
+    )
+    expect(screen.queryByTestId('remove-manual-log')).toBeNull()
+  })
+})

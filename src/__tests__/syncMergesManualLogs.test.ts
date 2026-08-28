@@ -152,3 +152,33 @@ describe('journal note cross-device sync', () => {
     expect(computer['Sat 6/13']?.notes).toBe('phone workout')
   })
 })
+
+describe('removeLog — the shadowed-day escape hatch', () => {
+  it('a removed manual entry stops overriding synced data', async () => {
+    const { renderHook, act } = await import('@testing-library/react')
+    const { useManualLog } = await import('../hooks/useManualLog')
+    localStorage.clear()
+    const { result } = renderHook(() => useManualLog('mike'))
+    const manual = {
+      stravaId: 0, source: 'manual', distance: 0.9, movingTime: 540, elapsedTime: 540,
+      elevationGain: 0, type: 'Run', name: 'Manual run', startDate: '2026-08-25T08:00:00',
+    } as import('../types').ActualWorkout
+    const week = {
+      num: 2, dates: '', startIso: '2026-08-24', miles: 10, focus: 'Build',
+      days: [{
+        day: 'Tue 8/25', type: 'quality' as const, workout: 'BENCHMARK: 1km erg time trial',
+        detail: '', zone: 'Z4', route: 'Gym', time: '25 min',
+        actual: {
+          stravaId: 0, source: 'garmin', distance: 0, movingTime: 214, elapsedTime: 214,
+          elevationGain: 0, type: 'indoor_rowing', name: 'Indoor Rowing', startDate: '2026-08-25T16:11:00',
+        } as import('../types').ActualWorkout,
+      }],
+    }
+    act(() => result.current.logWorkout('Tue 8/25', manual, '2026-08-25'))
+    let applied = result.current.applyLogsToWeeks([week])
+    expect(applied[0].days[0].actual?.type).toBe('Run') // manual shadows the rowing
+    act(() => result.current.removeLog('Tue 8/25', '2026-08-25'))
+    applied = result.current.applyLogsToWeeks([week])
+    expect(applied[0].days[0].actual?.type).toBe('indoor_rowing') // synced data wins again
+  })
+})

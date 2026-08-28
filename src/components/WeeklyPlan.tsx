@@ -54,6 +54,7 @@ interface WeeklyPlanProps {
   zones?: HRZone[]
   manualLog?: {
     logWorkout: (dayLabel: string, data: ActualWorkout, dayIso?: string | null) => void
+    removeLog?: (dayLabel: string, dayIso?: string | null) => void
     /** The raw ISO-keyed log map — lets strength history include logs
      *  from previous plans (they survive rebuilds; plan days don't). */
     logs?: Record<string, ActualWorkout>
@@ -855,7 +856,12 @@ export default function WeeklyPlan({
       )}
 
       {/* Manual log modal */}
-      {logDay && manualLog && (
+      {logDay && manualLog && (() => {
+        const logIso = dayIsoInWeek(logDay.day, week, todayDateString())
+        const hasManualEntry = Boolean(
+          manualLog.logs && ((logIso && manualLog.logs[logIso]) || manualLog.logs[logDay.day]),
+        )
+        return (
         <ManualLog
           dayLabel={logDay.day}
           existing={logDay.actual}
@@ -864,6 +870,11 @@ export default function WeeklyPlan({
           allWeeks={historyWeeks}
           strengthLevel={strengthLevel}
           strengthCapacity={strength?.capacity}
+          hasManualEntry={hasManualEntry}
+          onRemove={manualLog.removeLog ? () => {
+            manualLog.removeLog!(logDay.day, logIso)
+            setLogDay(null)
+          } : undefined}
           onSave={(data) => {
             manualLog.logWorkout(logDay.day, data, dayIsoInWeek(logDay.day, week, todayDateString()))
             // Auto-seed the coach with the journal note when it changed, so
@@ -874,7 +885,8 @@ export default function WeeklyPlan({
           }}
           onClose={() => setLogDay(null)}
         />
-      )}
+        )
+      })()}
 
       {/* Manual workout editor (planned prescription) */}
       {editDay && planEdit && (

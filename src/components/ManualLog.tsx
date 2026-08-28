@@ -38,6 +38,12 @@ interface ManualLogProps {
   strengthCapacity?: StrengthCapacity | null
   onSave: (data: ActualWorkout) => void
   onClose: () => void
+  /** True when a MANUAL entry exists for this day. Manual entries are
+   *  applied after all syncing and override matched data — this powers
+   *  the escape hatch below. */
+  hasManualEntry?: boolean
+  /** Delete the day's manual entry so synced data takes over again. */
+  onRemove?: () => void
 }
 
 /**
@@ -72,7 +78,8 @@ function parsePlannedTime(timeStr: string): number {
   return numMatch ? parseInt(numMatch[1]) : 0
 }
 
-export default function ManualLog({ dayLabel, existing, planned, allWeeks, strengthLevel, strengthCapacity, onSave, onClose }: ManualLogProps) {
+export default function ManualLog({ dayLabel, existing, planned, allWeeks, strengthLevel, strengthCapacity, onSave, onClose, hasManualEntry, onRemove,
+}: ManualLogProps) {
   // Field bug: the Station circuit — the day's MAIN workout — opened on
   // the Run/Cardio tab with its exercises buried under "Mobility /
   // Activation". Gym-based cross days (route Gym, station circuits) are
@@ -415,6 +422,22 @@ export default function ManualLog({ dayLabel, existing, planned, allWeeks, stren
           >
             {existing ? 'Update' : 'Save Workout'}
           </button>
+
+          {hasManualEntry && onRemove && (
+            <button
+              type="button"
+              onClick={onRemove}
+              className="w-full py-2.5 rounded-xl mt-2 text-xs font-semibold text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900"
+              data-testid="remove-manual-log"
+            >
+              Remove manual entry — use synced data instead
+            </button>
+          )}
+          {hasManualEntry && (
+            <p className="text-[10px] text-slate-400 mt-1.5 leading-snug">
+              This day has a manual entry. Manual entries override whatever your watch synced — remove it if the synced workout should win.
+            </p>
+          )}
         </div>
 
         <div className="h-6" />
