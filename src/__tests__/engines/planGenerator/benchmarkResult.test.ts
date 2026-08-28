@@ -148,6 +148,16 @@ describe('assessBenchmarkResult — Hyrox 1 km TT', () => {
     expect(a.suggestedErg500Sec).toBe(107)
   })
 
+  it('uses ELAPSED time for the erg piece — moving time under-reads a TT', () => {
+    // Field case: 3:34 piece, Garmin moving time ~3:00 → a fictitious
+    // 1:30/500m. Elapsed wins: 214 s → 1:47.
+    const d = hyroxDay(done({ avgHR: 169, maxHR: 193 }))
+    d.secondaryActuals = [
+      { name: 'Indoor Rowing', distance: 0, movingTime: 180, elapsedTime: 214, avgHR: 169, type: 'indoor_rowing' },
+    ] as unknown as PlannedDay['secondaryActuals']
+    expect(assessBenchmarkResult([week([d])], TODAY, MAX_HR, CUR_LTHR).suggestedErg500Sec).toBe(107)
+  })
+
   it('an erg recording that claimed the day as PRIMARY also yields the baseline', () => {
     const d = hyroxDay({
       workout: 'BENCHMARK: 1km erg time trial',
