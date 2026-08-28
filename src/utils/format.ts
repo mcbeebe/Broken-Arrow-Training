@@ -40,6 +40,12 @@ export function formatSeconds(seconds: number): string {
   if (hrs > 0) {
     return `${hrs}:${mins.toString().padStart(2, '0')}`
   }
+  // Short efforts live and die by their seconds — a 3:34 erg TT must
+  // never display as "3 min".
+  if (seconds < 600) {
+    const secs = Math.round(seconds % 60)
+    return `${mins}:${secs.toString().padStart(2, '0')}`
+  }
   return `${mins} min`
 }
 

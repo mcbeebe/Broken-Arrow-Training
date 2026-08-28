@@ -127,12 +127,17 @@ function ergSplitFrom(day: TrainingWeek['days'][number]): { sec: number; iso500:
   const candidates = [day.actual, ...(day.secondaryActuals ?? [])]
     .filter((a): a is DayActual => a != null && a.movingTime > 0 && ERG_TYPE.test(a.type ?? ''))
   for (const a of candidates) {
+    // A TT's true time is the piece's ELAPSED time — Garmin's "moving"
+    // duration drops pauses between strokes and under-reads an erg
+    // effort (field case: 3:34 piece reported as ~3:00 moving → a
+    // fictitious 1:30/500m).
+    const sec = Math.max(a.movingTime, a.elapsedTime ?? 0)
     const meters = a.distance > 0 ? a.distance * MILE_M : null
     if (meters != null && meters >= 630 && meters <= 1500) {
-      return { sec: a.movingTime, iso500: Math.round((a.movingTime / meters) * 500) }
+      return { sec, iso500: Math.round((sec / meters) * 500) }
     }
-    if (meters == null && a.movingTime >= 150 && a.movingTime <= 420) {
-      return { sec: a.movingTime, iso500: Math.round(a.movingTime / 2) }
+    if (meters == null && sec >= 150 && sec <= 420) {
+      return { sec, iso500: Math.round(sec / 2) }
     }
   }
   return null
