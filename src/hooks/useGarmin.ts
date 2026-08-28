@@ -40,6 +40,10 @@ export interface UseGarminReturn {
   submitMfa: (code: string) => Promise<void>
   disconnect: () => void
   sync: () => Promise<void>
+  /** Force-refetch one date's activity details from the server,
+   *  overwrite the local cache, and return what came back — the
+   *  self-healing path for a stale or incomplete cached day. */
+  refreshDetailsForDate: (date: string) => Promise<GarminActivityDetail[]>
 }
 
 export function useGarmin(athleteId?: string): UseGarminReturn {
@@ -281,6 +285,16 @@ export function useGarmin(athleteId?: string): UseGarminReturn {
     }
   }, [connected, configured, athleteId, sync])
 
+  const refreshDetailsForDate = useCallback(async (date: string) => {
+    const details = await fetchActivityDetail(date, athleteId)
+    const cache = { ...getCachedActivityDetails(athleteId) }
+    if (details.length > 0) cache[date] = details
+    else delete cache[date]
+    cacheActivityDetails(cache, athleteId)
+    setActivityDetails(cache)
+    return details
+  }, [athleteId])
+
   return {
     connected,
     configured,
@@ -296,5 +310,6 @@ export function useGarmin(athleteId?: string): UseGarminReturn {
     submitMfa,
     disconnect,
     sync,
+    refreshDetailsForDate,
   }
 }

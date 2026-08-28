@@ -2028,6 +2028,8 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           onSync={strava.sync}
           garminConnected={garmin.connected}
           garminConfigured={garmin.configured}
+          garminActivityDetails={garmin.activityDetails}
+          onProbeGarminDay={garmin.refreshDetailsForDate}
           garminLoading={garmin.loading}
           garminError={garmin.error}
           garminMfaRequired={garmin.mfaRequired}
