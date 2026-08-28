@@ -19,12 +19,21 @@ const FIELD: Record<string, keyof StrengthCapacity> = {
   wall_balls: 'wallBallsUnbroken',
   sled_push: 'sledRpe',
   erg_500: 'erg500Sec',
+  erg_1k: 'erg1kSec',
+}
+
+/** Accept "m:ss" (the erg monitor's own format) or raw seconds. */
+function parseFlexSeconds(raw: string): number | null {
+  const mss = raw.trim().match(/^(\d{1,2}):(\d{2})$/)
+  if (mss) return parseInt(mss[1]) * 60 + parseInt(mss[2])
+  const n = Number(raw)
+  return Number.isFinite(n) ? n : null
 }
 
 const UNIT_LABEL: Record<BenchmarkItem['unit'], string> = {
   reps: 'reps',
   lb: 'lb',
-  seconds: 'sec',
+  seconds: 'm:ss',
   rpe: '1–10',
 }
 
@@ -37,20 +46,23 @@ export default function StrengthBenchmarkSheet({ kind, previous, todayIso, onSav
   const items = itemsFor(kind)
   const [values, setValues] = useState<Record<string, string>>({})
 
-  const anyEntered = Object.values(values).some(v => v.trim() !== '' && Number.isFinite(Number(v)))
+  const anyEntered = Object.values(values).some(v => v.trim() !== '' && parseFlexSeconds(v) != null)
 
   function handleSave() {
     const next: StrengthCapacity = { measuredAt: todayIso }
     for (const item of items) {
       const raw = values[item.id]
       if (raw === undefined || raw.trim() === '') continue
-      const n = Number(raw)
-      if (!Number.isFinite(n)) continue
+      const n = item.unit === 'seconds' ? parseFlexSeconds(raw) : Number(raw)
+      if (n == null || !Number.isFinite(n)) continue
       // Clamp rather than reject — a fat-fingered 1000 lb goblet squat
       // becomes a prescription otherwise.
       const clamped = Math.min(item.max, Math.max(item.min, n))
       ;(next[FIELD[item.id]] as number) = Math.round(clamped)
     }
+    // Typed erg numbers are athlete truth — flag them so auto-capture
+    // from recordings never re-suggests over a manual entry.
+    if (next.erg500Sec != null || next.erg1kSec != null) next.ergManual = true
     onSave(next)
     onClose()
   }
@@ -98,14 +110,16 @@ export default function StrengthBenchmarkSheet({ kind, previous, todayIso, onSav
                 <div className="flex items-center gap-2 mt-1.5">
                   <input
                     id={`bench-${item.id}`}
-                    type="number"
-                    inputMode="numeric"
+                    // Time fields take "m:ss" (the erg monitor's own
+                    // format), which a number input would reject.
+                    type={item.unit === 'seconds' ? 'text' : 'number'}
+                    inputMode={item.unit === 'seconds' ? 'text' : 'numeric'}
                     min={item.min}
                     max={item.max}
                     value={values[item.id] ?? ''}
                     onChange={e => setValues(v => ({ ...v, [item.id]: e.target.value }))}
                     className="w-28 rounded-lg border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white px-2.5 py-1.5 text-sm"
-                    placeholder="—"
+                    placeholder={item.unit === 'seconds' ? '3:31' : '—'}
                   />
                   <span className="text-xs text-slate-500 dark:text-slate-400">{UNIT_LABEL[item.unit]}</span>
                   {typeof prev === 'number' && (

@@ -158,6 +158,20 @@ describe('assessBenchmarkResult — Hyrox 1 km TT', () => {
     expect(assessBenchmarkResult([week([d])], TODAY, MAX_HR, CUR_LTHR).suggestedErg500Sec).toBe(107)
   })
 
+  it('captures the 1 km time alongside the split, and manual entry silences it', () => {
+    const d = hyroxDay(done({ avgHR: 169, maxHR: 193 }))
+    d.secondaryActuals = [
+      { name: 'Indoor Rowing', distance: 0, movingTime: 214, avgHR: 169, type: 'indoor_rowing' },
+    ] as unknown as PlannedDay['secondaryActuals']
+    const a = assessBenchmarkResult([week([d])], TODAY, MAX_HR, CUR_LTHR)
+    expect(a.suggestedErg1kSec).toBe(214)
+    expect(a.evidence.some(e => /3:34 for 1 km/.test(e))).toBe(true)
+    // The athlete typed their own numbers — auto-capture stands down.
+    const manual = assessBenchmarkResult([week([d])], TODAY, MAX_HR, CUR_LTHR, 102, true)
+    expect(manual.suggestedErg500Sec).toBeNull()
+    expect(manual.suggestedErg1kSec).toBeNull()
+  })
+
   it('an erg recording that claimed the day as PRIMARY also yields the baseline', () => {
     const d = hyroxDay({
       workout: 'BENCHMARK: 1km erg time trial',

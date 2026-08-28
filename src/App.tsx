@@ -667,7 +667,11 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
       ? onboarding.config.fitnessAnchor.bpm
       : Math.round(maxHROverride.maxHR * ESTIMATED_LTHR_PCT_OF_MAX)
   const benchAssessment = useMemo(
-    () => assessBenchmarkResult(weeks, todayDateString(), maxHROverride.maxHR, currentLthr, strengthCapacity.capacity?.erg500Sec ?? null),
+    () => assessBenchmarkResult(
+      weeks, todayDateString(), maxHROverride.maxHR, currentLthr,
+      strengthCapacity.capacity?.erg500Sec ?? null,
+      strengthCapacity.capacity?.ergManual ?? false,
+    ),
     [weeks, maxHROverride.maxHR, currentLthr, strengthCapacity.capacity],
   )
   const benchDismissKey = `ba_benchmark_dismissed_v1_${athleteId}`
@@ -700,6 +704,8 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
         ...(strengthCapacity.capacity ?? {}),
         measuredAt: todayDateString(),
         erg500Sec: a.suggestedErg500Sec,
+        ...(a.suggestedErg1kSec != null ? { erg1kSec: a.suggestedErg1kSec } : {}),
+        ergManual: false,
       })
     }
     // One anchor drives the whole rewrite: LTHR when the test measured
