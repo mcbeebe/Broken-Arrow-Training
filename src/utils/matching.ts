@@ -318,11 +318,41 @@ export function mergeGarminDetailIntoWeeks(
       if (details.length === 0) return day
 
       // Find the detail that has EARNED the claim (same gate as Strava).
-      // For an already-claimed day, fall back to the highest-scored detail
-      // for ENRICHMENT only — layering biometrics on an existing actual is
-      // low-stakes; falsely completing an empty day is not.
-      const bestDetail = findBestGarminMatch(day, details)
-        ?? (day.actual ? details.reduce((b, d) => activityScore(d) > activityScore(b) ? d : b) : null)
+      const earned = findBestGarminMatch(day, details)
+
+      // An erg-primary day belongs to the erg: when the erg recording
+      // has earned the claim but a NON-erg actual (another source's
+      // warm-up run) already holds the day, the erg takes over and the
+      // old actual is demoted to the secondaries — the field bug was a
+      // 1km erg TT swallowed as "enrichment" on the warm-up treadmill.
+      if (
+        earned && day.actual &&
+        ergPrimaryDay(day) && isErgActivity(earned.type ?? '') &&
+        !isErgActivity(day.actual.type ?? '')
+      ) {
+        const ergActual = garminDetailToActual(earned)
+        const merged = [
+          day.actual,
+          ...(day.secondaryActuals ?? []),
+          ...details.filter(d => d.activityId !== earned.activityId).map(d => garminDetailToActual(d)),
+        ]
+        const secondaries = merged.filter((sec, i) =>
+          !isDuplicateActual(sec, ergActual) &&
+          merged.findIndex(x => isDuplicateActual(x, sec)) === i,
+        )
+        return { ...day, actual: ergActual, ...(secondaries.length > 0 ? { secondaryActuals: secondaries } : { secondaryActuals: undefined }) }
+      }
+
+      // For an already-claimed day, enrichment is allowed ONLY from the
+      // SAME session (same sport family + duration) — the highest-scored
+      // detail of the day may be a different workout entirely, and
+      // merging its biometrics into the actual silently swallows it.
+      const enrichmentDonor = day.actual
+        ? details
+            .filter(d => isDuplicateActual(garminDetailToActual(d), day.actual!))
+            .reduce<GarminActivityDetail | null>((b, d) => (b == null || activityScore(d) > activityScore(b) ? d : b), null)
+        : null
+      const bestDetail = earned ?? enrichmentDonor
       if (!bestDetail) {
         const merged = [...(day.secondaryActuals ?? []), ...details.map(d => garminDetailToActual(d))]
         const secondaries = merged.filter((sec, i) => merged.findIndex(x => isDuplicateActual(x, sec)) === i)
@@ -345,6 +375,22 @@ export function mergeGarminDetailIntoWeeks(
         merged.findIndex(x => isDuplicateActual(x, sec)) === i,
       )
       const secondaryActuals = others.length > 0 ? others : undefined
+
+      if (day.actual && !isDuplicateActual(garminActual, day.actual)) {
+        // The chosen detail is a DIFFERENT session than the day's actual
+        // (and not the erg-takeover case above): never merge its
+        // biometrics into the actual — keep the actual, surface every
+        // detail as a secondary instead.
+        const all = [
+          ...(day.secondaryActuals ?? []),
+          ...details.map(d => garminDetailToActual(d)),
+        ]
+        const secondaries = all.filter((sec, i) =>
+          !isDuplicateActual(sec, day.actual!) &&
+          all.findIndex(x => isDuplicateActual(x, sec)) === i,
+        )
+        return { ...day, ...(secondaries.length > 0 ? { secondaryActuals: secondaries } : {}) }
+      }
 
       if (day.actual) {
         // Enrich existing actual (Strava or manual) with Garmin biometric data.
