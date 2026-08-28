@@ -7,6 +7,29 @@ import { dayIsoInWeek } from './planDates'
  * Match Strava activities to planned workout days by date and type.
  * Returns a new weeks array with `actual` fields populated.
  */
+/**
+ * The same session seen by two sources (Strava + Garmin + Apple all
+ * sync the one treadmill run): same sport family, durations within
+ * max(5 min, 15%). Used to keep a day's secondaries from re-listing
+ * the main workout or each other.
+ */
+export function isDuplicateActual(
+  a: { type?: string; movingTime?: number },
+  b: { type?: string; movingTime?: number },
+): boolean {
+  const fam = (t: string) =>
+    /run|trail|treadmill/i.test(t) ? 'run'
+    : /ride|bike|cycl/i.test(t) ? 'ride'
+    : /row|ski|erg/i.test(t) ? 'erg'
+    : /strength|weight|crossfit|training|workout/i.test(t) ? 'gym'
+    : 'other'
+  if (fam(a.type ?? '') !== fam(b.type ?? '')) return false
+  const da = a.movingTime ?? 0
+  const db = b.movingTime ?? 0
+  if (!da || !db) return false
+  return Math.abs(da - db) <= Math.max(300, Math.max(da, db) * 0.15)
+}
+
 export function matchActivitiesToPlan(
   weeks: TrainingWeek[],
   activities: StravaActivity[],
@@ -37,11 +60,15 @@ export function matchActivitiesToPlan(
         return { ...day, secondaryActuals: dayActivities.map(stravaToActual) }
       }
 
-      const others = dayActivities.filter(a => a.id !== bestMatch.id)
+      const claimed = stravaToActual(bestMatch)
+      const others = dayActivities
+        .filter(a => a.id !== bestMatch.id)
+        .map(stravaToActual)
+        .filter(sec => !isDuplicateActual(sec, claimed))
       return {
         ...day,
-        actual: stravaToActual(bestMatch),
-        ...(others.length > 0 ? { secondaryActuals: others.map(stravaToActual) } : {}),
+        actual: claimed,
+        ...(others.length > 0 ? { secondaryActuals: others } : {}),
       }
     }),
   }))
@@ -297,17 +324,26 @@ export function mergeGarminDetailIntoWeeks(
       const bestDetail = findBestGarminMatch(day, details)
         ?? (day.actual ? details.reduce((b, d) => activityScore(d) > activityScore(b) ? d : b) : null)
       if (!bestDetail) {
-        const secondaries = details.map(d => garminDetailToActual(d))
+        const merged = [...(day.secondaryActuals ?? []), ...details.map(d => garminDetailToActual(d))]
+        const secondaries = merged.filter((sec, i) => merged.findIndex(x => isDuplicateActual(x, sec)) === i)
         return { ...day, secondaryActuals: secondaries }
       }
 
       const garminActual = garminDetailToActual(bestDetail)
 
-      // Surface other activities for the same day so the UI can show them.
-      // Skip the chosen one and any that match by garminId (in case of dupes).
-      const others = details
-        .filter(d => d.activityId !== bestDetail.activityId)
-        .map(d => garminDetailToActual(d))
+      // Surface other activities for the same day so the UI can show
+      // them — but never a re-listing of the main workout itself (the
+      // same session arrives from multiple sources), and never the
+      // same secondary twice.
+      const mainForDedupe = day.actual ?? garminActual
+      const merged = [
+        ...(day.secondaryActuals ?? []),
+        ...details.filter(d => d.activityId !== bestDetail.activityId).map(d => garminDetailToActual(d)),
+      ]
+      const others = merged.filter((sec, i) =>
+        !isDuplicateActual(sec, mainForDedupe) &&
+        merged.findIndex(x => isDuplicateActual(x, sec)) === i,
+      )
       const secondaryActuals = others.length > 0 ? others : undefined
 
       if (day.actual) {

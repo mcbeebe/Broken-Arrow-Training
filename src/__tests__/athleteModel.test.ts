@@ -57,6 +57,18 @@ describe('fitCriticalSpeed', () => {
     expect(est.dPrimeMeters).toBe(0)
   })
 
+  it('a flat frontier (same speed at every duration) refuses the fit — floor only', () => {
+    // Three easy runs at identical pace across a wide duration span:
+    // 3 bins, 40-min span, zero curvature. Fitting this produces a
+    // garbage-slow CS; the gate demands >=5% short-vs-long speed spread.
+    const est = fitCriticalSpeed([
+      effort('2026-06-02', 5 * 60, 600),
+      effort('2026-06-09', 20 * 60, 600),
+      effort('2026-06-16', 45 * 60, 600),
+    ])!
+    expect(est.method).toBe('best-effort')
+  })
+
   it('returns null with no usable efforts', () => {
     expect(fitCriticalSpeed([])).toBeNull()
     expect(fitCriticalSpeed([effort('2026-06-02', 2 * 60, 500)])).toBeNull() // too short
@@ -120,6 +132,17 @@ describe('buildAthleteModel', () => {
     expect(m.criticalSpeed).not.toBeNull()
     // Not enough steady-HR spread across windows for a trend.
     expect(m.efficiency).toBeNull()
+  })
+
+  it('a run recorded on a gym-classed day still counts (the treadmill-TT case)', () => {
+    const gymRun: PlannedDay = {
+      ...run('2026-08-24', 0.9, 540, {}, 158),
+      type: 'strength', workout: 'BENCHMARK: 1km erg time trial', zone: 'Z4', route: 'Gym',
+    }
+    gymRun.actual = { ...gymRun.actual!, type: 'treadmill_running' }
+    const m = buildAthleteModel(weeksOf([gymRun]), '2026-08-26')
+    expect(m.weeklyRunMiles4wk).toBeCloseTo(0.2, 1)
+    expect(m.longestRun30dMi).toBe(0.9)
   })
 
   it('a fresh athlete gets an all-null model, not invented numbers', () => {

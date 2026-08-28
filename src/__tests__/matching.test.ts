@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   matchActivitiesToPlan,
   mergeGarminDetailIntoWeeks,
+  isDuplicateActual,
   mergeAppleActivitiesIntoWeeks,
   canClaimPlannedDay,
   ergPrimaryDay,
@@ -235,6 +236,41 @@ function makeDay(overrides: Partial<PlannedDay> = {}): PlannedDay {
 function makeWeek(days: PlannedDay[]): TrainingWeek {
   return { num: 1, dates: 'Aug 17–23', startIso: '2026-08-17', miles: 10, focus: 'Build', days }
 }
+
+describe('cross-source duplicate suppression', () => {
+  it('isDuplicateActual: same session from two sources, not different work', () => {
+    const run = { type: 'Run', movingTime: 540 }
+    expect(isDuplicateActual(run, { type: 'treadmill_running', movingTime: 545 })).toBe(true)
+    expect(isDuplicateActual(run, { type: 'Indoor Rowing', movingTime: 540 })).toBe(false)
+    expect(isDuplicateActual(run, { type: 'Run', movingTime: 2400 })).toBe(false)
+  })
+
+  it('THE field case: the main workout is never re-listed as a secondary', () => {
+    // Strava claims the day; the identical Garmin recording of the SAME
+    // session must enrich it, not appear under "other activities".
+    const activity = makeActivity({ start_date_local: '2026-04-14T07:00:00Z', moving_time: 1800 })
+    const afterStrava = matchActivitiesToPlan(mikePlan.weeks, [activity])
+    const merged = mergeGarminDetailIntoWeeks(afterStrava, {
+      '2026-04-14': [makeGarminDetail({ activityId: 9, type: 'treadmill_running', movingDurationSeconds: 1810 })],
+    })
+    const day = merged[0].days[1]
+    expect(day.actual).toBeDefined()
+    expect(day.secondaryActuals ?? []).toHaveLength(0)
+  })
+
+  it('a genuinely different second activity stays a secondary', () => {
+    const activity = makeActivity({ start_date_local: '2026-04-14T07:00:00Z', moving_time: 1800 })
+    const afterStrava = matchActivitiesToPlan(mikePlan.weeks, [activity])
+    const merged = mergeGarminDetailIntoWeeks(afterStrava, {
+      '2026-04-14': [
+        makeGarminDetail({ activityId: 9, type: 'treadmill_running', movingDurationSeconds: 1810 }),
+        makeGarminDetail({ activityId: 10, type: 'indoor_rowing', movingDurationSeconds: 300, distanceMeters: 1000 }),
+      ],
+    })
+    const day = merged[0].days[1]
+    expect((day.secondaryActuals ?? []).map(a => a.type)).toEqual(['indoor_rowing'])
+  })
+})
 
 describe('canClaimPlannedDay', () => {
   const circuit = makeDay()

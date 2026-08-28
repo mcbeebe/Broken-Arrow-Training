@@ -66,13 +66,19 @@ interface RunEffort {
 }
 
 const RUN_TYPES = new Set(['run', 'quality', 'long', 'race'])
+const RUN_ACTIVITY = /run|trail|treadmill/i
 
 function collectRuns(weeks: TrainingWeek[], todayIso: string): RunEffort[] {
   const out: RunEffort[] = []
   for (const week of weeks) {
     for (const day of week.days) {
       const a = day.actual
-      if (!a || !RUN_TYPES.has(day.type)) continue
+      if (!a) continue
+      // A run is a run wherever it happened: run-class days as before,
+      // plus run-typed recordings on gym/cross/rest/benchmark days —
+      // the field case was a treadmill 1km TT on a gym-classed
+      // benchmark day, invisible to the whole model.
+      if (!RUN_TYPES.has(day.type) && !RUN_ACTIVITY.test(a.type ?? '')) continue
       const iso = a.startDate?.slice(0, 10)
       if (!iso || iso > todayIso) continue
       if (!a.distance || a.distance <= 0 || !a.movingTime || a.movingTime < 3 * 60) continue
@@ -112,7 +118,18 @@ export function fitCriticalSpeed(runs: RunEffort[]): CriticalSpeedEstimate | nul
   const spanSec = frontier.length > 0
     ? Math.max(...frontier.map(e => e.sec)) - Math.min(...frontier.map(e => e.sec))
     : 0
-  if (frontier.length >= 3 && spanSec >= 15 * 60) {
+  // Curvature gate: a real speed-duration frontier has the short
+  // efforts meaningfully FASTER than the long ones (that difference IS
+  // what the fit measures). A flat or inverted frontier — all easy
+  // runs, or a warm-up-diluted short session — has no exploitable
+  // curvature, and fitting it produces a garbage-slow "CS". Require
+  // ≥5% speed spread from the longest to the shortest frontier point.
+  const shortest = frontier.length > 0 ? frontier.reduce((a, b) => (a.sec < b.sec ? a : b)) : null
+  const longest = frontier.length > 0 ? frontier.reduce((a, b) => (a.sec > b.sec ? a : b)) : null
+  const curved = shortest != null && longest != null &&
+    (shortest.meters / shortest.sec) >= (longest.meters / longest.sec) * 1.05
+
+  if (curved && frontier.length >= 3 && spanSec >= 15 * 60) {
     const n = frontier.length
     const mt = frontier.reduce((s, e) => s + e.sec, 0) / n
     const md = frontier.reduce((s, e) => s + e.meters, 0) / n
