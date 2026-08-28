@@ -74,6 +74,8 @@ interface SummaryProps {
    *  matching the Plan page's modal. */
   manualLog?: {
     logWorkout: (dayLabel: string, data: ActualWorkout, dayIso?: string | null) => void
+    removeLog?: (dayLabel: string, dayIso?: string | null) => void
+    logs?: Record<string, ActualWorkout>
   }
   /** Seeds the coach chat. Threaded into the workout detail modals so the
    *  coach take's "Ask →" / "Play" actions work the same as on the Plan
@@ -458,13 +460,23 @@ export default function Summary({
       )}
       {/* Workout completion editor — opened from the "Log / Edit workout"
           pill in the detail modals above. */}
-      {logTarget && manualLog && (
+      {logTarget && manualLog && (() => {
+        const logIso = logTarget.day.actual?.startDate?.slice(0, 10)
+        const hasManualEntry = Boolean(
+          manualLog.logs && ((logIso && manualLog.logs[logIso]) || manualLog.logs[logTarget.day.day]),
+        )
+        return (
         <ManualLog
           dayLabel={logTarget.day.day}
           existing={logTarget.day.actual}
           planned={logTarget.day}
           weekNum={logTarget.weekNum}
           allWeeks={weeks}
+          hasManualEntry={hasManualEntry}
+          onRemove={manualLog.removeLog ? () => {
+            manualLog.removeLog!(logTarget.day.day, logIso)
+            setLogTarget(null)
+          } : undefined}
           onSave={(data) => {
             manualLog.logWorkout(logTarget.day.day, data, logTarget.day.actual?.startDate?.slice(0, 10))
             if (data.notes?.trim()) onShareNote?.(logTarget.day, data.notes)
@@ -472,7 +484,8 @@ export default function Summary({
           }}
           onClose={() => setLogTarget(null)}
         />
-      )}
+        )
+      })()}
       {/* Tomorrow's Workout preview — evening only (athlete-configured hour) */}
       {isEveningPreviewWindow(new Date(), cardPreviewHour) && tomorrowPlannedWorkout && (() => {
         const style = getWorkoutStyle(tomorrowPlannedWorkout.type, tomorrowPlannedWorkout.workout)

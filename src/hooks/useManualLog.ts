@@ -84,6 +84,20 @@ export function useManualLog(athleteId: string) {
     })
   }, [athleteId])
 
+  /** Delete a day's manual entry under every key it could live at —
+   *  the exact ISO, the legacy year-keyed label, and the raw label. A
+   *  removed entry stops overriding synced data on the next render. */
+  const removeLog = useCallback((dayLabel: string, dayIso?: string | null) => {
+    setLogs(prev => {
+      const next = { ...prev }
+      for (const key of [dayIso, manualLogKey(dayLabel), dayLabel]) {
+        if (key) delete next[key]
+      }
+      saveLogs(athleteId, next)
+      return next
+    })
+  }, [athleteId])
+
   const applyLogsToWeeks = useCallback((weeks: TrainingWeek[]): TrainingWeek[] => {
     return weeks.map(week => ({
       ...week,
@@ -107,5 +121,5 @@ export function useManualLog(athleteId: string) {
     }))
   }, [logs])
 
-  return { logs, logWorkout, applyLogsToWeeks }
+  return { logs, logWorkout, removeLog, applyLogsToWeeks }
 }
