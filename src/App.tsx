@@ -121,6 +121,8 @@ import { weeksUntilRace } from './utils/raceCountdown'
 import { buildVerdict } from './utils/verdict'
 import AdaptationLogSheet from './components/AdaptationLogSheet'
 import CoachToolsPanel from './components/CoachToolsPanel'
+import ReviewQueuePanel from './components/ReviewQueuePanel'
+import { firstSeenAt, clearFirstSeen, type QueueItem } from './utils/reviewQueue'
 import { weeksWithPriorLogs } from './utils/strengthHistory'
 import LoginScreen from './components/LoginScreen'
 import InAppBrowserGate from './components/InAppBrowserGate'
@@ -1235,7 +1237,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
   const [showAdaptationLog, setShowAdaptationLog] = useState(false)
   // Coach tab split (N14): Chat | Tools sub-menu, plus the one-shot
   // deep link Tools uses to land Stats on the Engine sub-tab.
-  const [coachSubTab, setCoachSubTab] = useState<'chat' | 'tools'>('chat')
+  const [coachSubTab, setCoachSubTab] = useState<'chat' | 'review' | 'tools'>('chat')
   const [dashSubTabRequest, setDashSubTabRequest] = useState<DashSubTab | null>(null)
   const todayHeatF = useMemo(() => {
     // Honest heat only: the forecast AT the training hour. Daily highs
@@ -1282,6 +1284,65 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
   ), [
     benchAssessment.qualifies, benchDismissed, recalAssessment.qualifies, recalDismissed,
     mimCalibration.pendingSuggestions, domsCalibration.pendingSuggestions,
+  ])
+
+  // Applying or snoozing a queue item routes to whichever mechanism owns
+  // that proposal — the queue is a shared front door, not a second store.
+  const applyQueueItem = useCallback((item: QueueItem) => {
+    if (item.kind === 'benchmark') applyBenchmarkResult()
+    else if (item.kind === 'recalibration') {
+      planEdits.applyBatch(buildRepaceOps(
+        weeks, recalAssessment.suggestedFactor, todayDateString(),
+        `Pace recalibration: ${recalAssessment.evidence[0]}`,
+      ))
+    } else if (item.kind === 'mim') mimCalibration.acceptSuggestion(item.id.replace(/^mim_/, ''))
+    else domsCalibration.acceptSuggestion(item.id.replace(/^doms_/, ''))
+    clearFirstSeen(athleteId, item.id)
+  }, [athleteId, applyBenchmarkResult, planEdits, weeks, recalAssessment, mimCalibration, domsCalibration])
+
+  const snoozeQueueItem = useCallback((item: QueueItem) => {
+    if (item.kind === 'benchmark') {
+      try { localStorage.setItem(benchDismissKey, benchEvidenceKey) } catch { /* quota */ }
+    } else if (item.kind === 'recalibration') {
+      try { localStorage.setItem(recalDismissKey, recalEvidenceKey) } catch { /* quota */ }
+    } else if (item.kind === 'mim') mimCalibration.dismissSuggestion(item.id.replace(/^mim_/, ''))
+    else domsCalibration.dismissSuggestion(item.id.replace(/^doms_/, ''))
+    clearFirstSeen(athleteId, item.id)
+  }, [athleteId, benchDismissKey, benchEvidenceKey, recalDismissKey, recalEvidenceKey, mimCalibration, domsCalibration])
+
+  // Proposals as queue items. raisedAt is persisted per id, so ageing is
+  // real: an item that reset to "new" on every app open could never grow
+  // stale and could never expire, which is exactly how a queue rots.
+  const reviewItems = useMemo<QueueItem[]>(() => {
+    const raw: Omit<QueueItem, 'raisedAt'>[] = []
+    if (benchAssessment.qualifies && !benchDismissed) {
+      raw.push({
+        id: 'benchmark', kind: 'benchmark', title: 'Benchmark result ready to apply',
+        consequence: 'Updates your zones from the effort you just logged.',
+      })
+    }
+    if (recalAssessment.qualifies && !recalDismissed) {
+      raw.push({
+        id: 'recalibration', kind: 'recalibration', title: 'Your paces have moved',
+        consequence: 'Future sessions get re-paced to match what you are actually running.',
+      })
+    }
+    for (const sug of mimCalibration.pendingSuggestions) {
+      raw.push({
+        id: `mim_${sug.sport}`, kind: 'mim', title: `Load calibration — ${sug.sport.replace(/_/g, ' ')}`,
+        consequence: sug.reason,
+      })
+    }
+    for (const sug of domsCalibration.pendingSuggestions) {
+      raw.push({
+        id: `doms_${sug.sport}`, kind: 'doms', title: `Recovery calibration — ${sug.sport.replace(/_/g, ' ')}`,
+        consequence: sug.reason,
+      })
+    }
+    return raw.map(r => ({ ...r, raisedAt: firstSeenAt(athleteId, r.id) }))
+  }, [
+    athleteId, benchAssessment.qualifies, benchDismissed, recalAssessment.qualifies,
+    recalDismissed, mimCalibration.pendingSuggestions, domsCalibration.pendingSuggestions,
   ])
 
   const [closedDate, setClosedDate] = useState<string | null>(() => {
@@ -2147,7 +2208,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
         <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
         <div className="px-3 pt-2 shrink-0">
           <div className="flex gap-1 bg-slate-100 dark:bg-slate-700 rounded-lg p-1">
-            {(['chat', 'tools'] as const).map(t => (
+            {(['chat', 'review', 'tools'] as const).map(t => (
               <button
                 key={t}
                 onClick={() => setCoachSubTab(t)}
@@ -2157,12 +2218,21 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
                     : 'text-slate-500 dark:text-slate-400'
                 }`}
               >
-                {t === 'chat' ? 'Chat' : 'Tools'}
+                {t === 'chat' ? 'Chat' : t === 'tools' ? 'Tools'
+                  : notesWaiting > 0 ? `To review (${notesWaiting})` : 'To review'}
               </button>
             ))}
           </div>
         </div>
-        {coachSubTab === 'tools' ? (
+        {coachSubTab === 'review' ? (
+          <div className="flex-1 min-h-0 overflow-y-auto px-3 py-3">
+            <ReviewQueuePanel
+              items={reviewItems}
+              onApply={item => { applyQueueItem(item); setCoachSubTab('review') }}
+              onSnooze={item => snoozeQueueItem(item)}
+            />
+          </div>
+        ) : coachSubTab === 'tools' ? (
           <div className="flex-1 min-h-0 overflow-y-auto">
             <CoachToolsPanel
               autopilot={{
