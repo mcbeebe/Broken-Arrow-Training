@@ -109,6 +109,8 @@ import VerdictCard from './components/VerdictCard'
 import RhythmStrip from './components/RhythmStrip'
 import ResolveStrip from './components/ResolveStrip'
 import AdjustSheet from './components/AdjustSheet'
+import EveningCloseCard from './components/EveningCloseCard'
+import { dayPhase } from './utils/dayPhase'
 import { leversFor, opsForLever } from './utils/adjustLevers'
 import MissedDaySheet from './components/MissedDaySheet'
 import { moveOutcomeFor } from './engines/planGenerator/replan'
@@ -1262,6 +1264,36 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     try { return localStorage.getItem(`ba_locked_in_${athleteId ?? 'me'}`) } catch { return null }
   })
   const lockedInToday = lockedInDate === todayDateString()
+  // Which half of the ritual Today is in, on the athlete's own clock.
+  const phaseWindow = useMemo(() => ({
+    morningHour: proactiveTiming.morningHour,
+    eveningHour: proactiveTiming.eveningHour,
+  }), [proactiveTiming.morningHour, proactiveTiming.eveningHour])
+  const todayPhase = dayPhase(new Date(), phaseWindow)
+
+  // Proposals waiting on a decision. They are deliberately held out of the
+  // morning: none of them changes what the athlete does in the next hour,
+  // and the morning is for the next hour. They speak at the close.
+  const notesWaiting = useMemo(() => (
+    (benchAssessment.qualifies && !benchDismissed ? 1 : 0)
+    + (recalAssessment.qualifies && !recalDismissed ? 1 : 0)
+    + mimCalibration.pendingSuggestions.length
+    + domsCalibration.pendingSuggestions.length
+  ), [
+    benchAssessment.qualifies, benchDismissed, recalAssessment.qualifies, recalDismissed,
+    mimCalibration.pendingSuggestions, domsCalibration.pendingSuggestions,
+  ])
+
+  const [closedDate, setClosedDate] = useState<string | null>(() => {
+    try { return localStorage.getItem(`ba_day_closed_${athleteId ?? 'me'}`) } catch { return null }
+  })
+  const closedToday = closedDate === todayDateString()
+  const closeTheDay = useCallback(() => {
+    const iso = todayDateString()
+    setClosedDate(iso)
+    try { localStorage.setItem(`ba_day_closed_${athleteId ?? 'me'}`, iso) } catch { /* quota */ }
+  }, [athleteId])
+
   // The Adjust tray. The lever's own outcome sentence is what the athlete
   // sees afterwards, and the batch id is what Undo reverses — one value
   // each, so what was promised, what was applied and what is undone are
@@ -1856,6 +1888,20 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
             />
           </div>
         )}
+        {todayPhase === 'evening' ? (
+          <div className="px-3 mb-3">
+            <EveningCloseCard
+              today={todayPlannedWorkout ?? null}
+              tomorrow={tomorrowPlannedWorkout ?? null}
+              notesWaiting={notesWaiting}
+              closed={closedToday}
+              lightsOut={null}
+              onOpenNotes={() => setView('coach')}
+              onOpenTomorrow={setShowTodayModal}
+              onClose={closeTheDay}
+            />
+          </div>
+        ) : (
         <div className="px-3 mb-3">
           <VerdictCard
             verdict={todayVerdict}
@@ -1870,7 +1916,28 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
             onRevert={morningAutopilot.revert}
           />
         </div>
-        {benchAssessment.qualifies && !benchDismissed && (
+        )}
+        {todayPhase === 'morning' && notesWaiting > 0 && (
+          <div className="px-3 mb-3">
+            {/* Held back, not hidden. The athlete knows something is waiting
+                and can go to it now; it simply does not get to interrupt the
+                morning, because none of it changes the next hour. */}
+            <button
+              onClick={() => setView('coach')}
+              className="w-full flex items-center justify-between bg-white dark:bg-slate-800 rounded-xl px-3.5 py-2.5 shadow-sm border border-slate-100 dark:border-slate-700 text-left hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-colors"
+              data-testid="ledger-row"
+            >
+              <span className="text-xs text-slate-600 dark:text-slate-300">
+                <span className="font-bold text-slate-700 dark:text-slate-200">
+                  Coach noted {notesWaiting} thing{notesWaiting === 1 ? '' : 's'}
+                </span>
+                {' '}— at your close
+              </span>
+              <span className="text-sm text-slate-400">›</span>
+            </button>
+          </div>
+        )}
+        {todayPhase === 'evening' && benchAssessment.qualifies && !benchDismissed && (
           <div className="px-3 mb-3">
             <BenchmarkResultCard
               assessment={benchAssessment}
@@ -1894,7 +1961,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
             </button>
           </div>
         )}
-        {recalAssessment.qualifies && !recalDismissed && (
+        {todayPhase === 'evening' && recalAssessment.qualifies && !recalDismissed && (
           <div className="px-3 mb-3">
             <RecalibrationCard
               assessment={recalAssessment}
@@ -1909,7 +1976,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
             />
           </div>
         )}
-        {mimCalibration.pendingSuggestions.length > 0 && (
+        {todayPhase === 'evening' && mimCalibration.pendingSuggestions.length > 0 && (
           <div className="px-3 mb-3 space-y-2">
             {mimCalibration.pendingSuggestions.map(s => (
               <div key={s.sport} className="bg-amber-50 dark:bg-amber-950 rounded-xl p-3 border border-amber-200 dark:border-amber-800">
@@ -1940,7 +2007,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
             ))}
           </div>
         )}
-        {domsCalibration.pendingSuggestions.length > 0 && (
+        {todayPhase === 'evening' && domsCalibration.pendingSuggestions.length > 0 && (
           <div className="px-3 mb-3 space-y-2">
             {domsCalibration.pendingSuggestions.map(s => (
               <div key={s.sport} className="bg-orange-50 dark:bg-orange-950 rounded-xl p-3 border border-orange-200 dark:border-orange-900">
