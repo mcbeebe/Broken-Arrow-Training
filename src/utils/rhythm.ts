@@ -93,3 +93,20 @@ export function newestOpenDay(rhythm: RhythmDay[]): RhythmDay | null {
   }
   return null
 }
+
+/** The planned day sitting on a given date, or null when the plan does not
+ *  cover it. Matching by date rather than by workout name — two days in a
+ *  block can easily carry the same title. */
+export function plannedDayFor(
+  weeks: TrainingWeek[] | undefined,
+  iso: string,
+): TrainingWeek['days'][number] | null {
+  if (!weeks?.length) return null
+  for (const week of weeks) {
+    if (!week.startIso) continue
+    for (let i = 0; i < week.days.length; i++) {
+      if (isoOf(week.startIso, i) === iso) return week.days[i]
+    }
+  }
+  return null
+}

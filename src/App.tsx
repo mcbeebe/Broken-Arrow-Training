@@ -107,7 +107,10 @@ import { useMorningOutlook } from './hooks/useMorningOutlook'
 import { useAdaptationLog } from './hooks/useAdaptationLog'
 import VerdictCard from './components/VerdictCard'
 import RhythmStrip from './components/RhythmStrip'
-import { buildRhythm } from './utils/rhythm'
+import ResolveStrip from './components/ResolveStrip'
+import MissedDaySheet from './components/MissedDaySheet'
+import { moveOutcomeFor } from './engines/planGenerator/replan'
+import { buildRhythm, newestOpenDay, plannedDayFor } from './utils/rhythm'
 import { buildTrainingSignals } from './utils/trainingSignals'
 import { computeRaceReadiness } from './utils/raceReadiness'
 import { weeksUntilRace } from './utils/raceCountdown'
@@ -1288,6 +1291,13 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
   // rested as the plan asked; only an open day is outstanding.
   const rhythm = useMemo(() => buildRhythm(weeks, todayDateString()), [weeks])
 
+  // The most recent day the plan asked for a session and nothing was
+  // logged. Shown on Today so an open day is never silently absorbed —
+  // only the newest, because a wall of chips for a bad fortnight is the
+  // shame spiral this design exists to avoid.
+  const openDay = useMemo(() => newestOpenDay(rhythm), [rhythm])
+  const [resolving, setResolving] = useState<{ day: PlannedDay; iso: string } | null>(null)
+
   const todayVerdict = useMemo(() => buildVerdict({
     score: readiness.todayScore,
     baselines: readiness.baselines,
@@ -1725,6 +1735,20 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
         )}
       </div>
 
+      {/* Resolving an open day from Today. The sheet is presentation-only
+          and useReplan already lives at this level, so Today opens the same
+          sheet Plan does rather than sending the athlete to another tab. */}
+      {resolving && (
+        <MissedDaySheet
+          day={resolving.day}
+          hasReplan={replan.hasReplan(resolving.iso)}
+          moveOutcome={moveOutcomeFor(weeks, resolving.iso)}
+          onChoose={kind => replan.apply(kind, resolving.iso)}
+          onUndo={() => replan.undoFor(resolving.iso)}
+          onClose={() => setResolving(null)}
+        />
+      )}
+
       {/* Coach alert banner — surfaces a fresh daily insight the athlete
           hasn't opened yet. Tapping "Open" jumps to the Coach tab, which
           marks the insight read (see the hasUnreadInsight effect above). */}
@@ -1792,6 +1816,17 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
 
       {/* Content */}
       {view === 'today' && (<>
+        {openDay && (
+          <div className="px-3 mb-3">
+            <ResolveStrip
+              day={openDay}
+              onResolve={d => {
+                const planned = plannedDayFor(weeks, d.iso)
+                if (planned) setResolving({ day: planned, iso: d.iso })
+              }}
+            />
+          </div>
+        )}
         <div className="px-3 mb-3">
           <VerdictCard
             verdict={todayVerdict}
