@@ -4,7 +4,7 @@ import { formatWeekMilesHeader } from '../utils/format'
 
 /**
  * "Plan at a glance" — the engaging, no-Garmin-required snapshot for the
- * Summary tab: where you are in the block, what this week looks like, the next
+ * Today: where you are in the block, what this week looks like, the next
  * key session, and a phase-appropriate coach note. Everything here comes from
  * the generated plan, so it's useful before any wearable is connected.
  *

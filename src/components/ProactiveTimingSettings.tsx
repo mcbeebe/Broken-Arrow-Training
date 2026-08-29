@@ -57,10 +57,11 @@ export default function ProactiveTimingSettings({
     <div className="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700 space-y-4">
       <div>
         <p className="text-sm font-semibold text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
-          <span aria-hidden>⏱️</span> Proactive coaching
+          <span aria-hidden>⏱️</span> My days
         </p>
         <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-snug">
-          Your coach gives a morning read and an evening read — pick when each begins.
+          When your day starts and ends. Everything else follows it — the morning
+          read, the evening read, and the earliest the coach may adjust a session.
           The post-workout debrief is separate.
         </p>
       </div>
@@ -68,7 +69,8 @@ export default function ProactiveTimingSettings({
       <div className="space-y-1.5">
         <p className="text-xs font-medium text-slate-700 dark:text-slate-300">Morning</p>
         <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-snug">
-          When the morning read (today's plan) begins.
+          When your day begins. The coach will not touch a session before this
+          hour — so if you work nights, set it to when you actually wake up.
         </p>
         <TimeGrid options={MORNING_OPTIONS} selected={morningHour} onSelect={onSaveMorningHour} />
       </div>
@@ -77,7 +79,7 @@ export default function ProactiveTimingSettings({
         <p className="text-xs font-medium text-slate-700 dark:text-slate-300">Evening</p>
         <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-snug">
           When the evening read (tomorrow + recovery) begins — and when tomorrow's
-          workout appears on the Summary tab.
+          session appears on Today.
         </p>
         <TimeGrid options={EVENING_OPTIONS} selected={eveningHour} onSelect={onSaveEveningHour} />
       </div>

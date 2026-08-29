@@ -21,7 +21,13 @@ import { stampKey } from '../utils/syncStamps'
  */
 
 const STORAGE_KEY = 'ba_morning_outlook_v1'
-/** Earliest local hour the autopilot may touch the day. */
+/** Fallback for the earliest local hour the autopilot may touch the day,
+ *  used only when the athlete has not declared a morning hour. The gate
+ *  exists so the engine never rewrites a day at 2am off incomplete
+ *  overnight data — which means it belongs to the athlete's clock, not to
+ *  a number in this file. A night-shift nurse whose morning starts at 2pm
+ *  was previously adjusted at 5am, before the night they had just slept
+ *  through had even been recorded. */
 export const ACT_HOUR = 5
 
 export type OutlookCard = Omit<MorningOutlook, 'ops'>
@@ -63,9 +69,11 @@ export function shouldActNow(
   state: OutlookState | null,
   outlook: MorningOutlook | null,
   now: Date,
+  /** The athlete's declared morning hour; falls back to ACT_HOUR. */
+  actHour: number = ACT_HOUR,
 ): boolean {
   if (!outlook || outlook.verdict === 'confirm' || outlook.ops.length === 0) return false
-  if (now.getHours() < ACT_HOUR) return false
+  if (now.getHours() < actHour) return false
   if (outlook.dateIso !== localDateStr(now)) return false
   // One push per session: any record for today — applied, reverted, or
   // dismissed — means the autopilot is done until tomorrow.
@@ -85,6 +93,9 @@ export interface UseMorningOutlookDeps {
   markLogReverted: UseAdaptationLogReturn['markReverted']
   /** Best-effort coach-memory archive; never blocks the apply. */
   onArchive?: (text: string) => void
+  /** The athlete's declared morning hour. The autopilot will not touch a
+   *  day before it — their morning, not a fixed 5am. */
+  morningHour?: number
   /** Clock injection for tests. */
   now?: () => Date
 }
@@ -118,7 +129,7 @@ export function useMorningOutlook(
     if (!enabled || !outlook) return
     const d = depsRef.current
     const now = (d.now ?? (() => new Date()))()
-    if (!shouldActNow(read(athleteId), outlook, now)) return
+    if (!shouldActNow(read(athleteId), outlook, now, d.morningHour)) return
     const { ops, ...card } = outlook
     const batchId = d.applyBatch(ops)
     const logEntryId = d.appendLog({
