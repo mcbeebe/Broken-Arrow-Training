@@ -1,8 +1,15 @@
 # ADR 0001 — Engine module layout under `src/engines/`
 
-**Status:** Accepted
+**Status:** Accepted — still in force
 **Date:** 2026-04-24
 **Context PR:** [PR-01] Add `src/engines/` module boundary
+
+> **Dead references (noted 2026-08-29).** This ADR cites
+> `specs/terrain-descent-engine-v1/`, `BA_Terrain_Descent_Engine_Spec_v1.0.docx`,
+> `BA_DataFlow_v2.html` and `BA_Executive_Summary_v3.html`. None of these was
+> ever committed to this repo — `git log --all -- 'specs/*'` and `find . -name
+> 'BA_*'` both come back empty. The decision below stands on its own; treat the
+> citations as pointers to material that lives outside version control.
 
 ## Context
 

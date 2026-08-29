@@ -4,10 +4,23 @@ name: Coach Eval
 # workflow from deploy.yml so it can never gate or interfere with the deploy
 # pipeline. Two jobs:
 #   - coach-unit: keyless (fixture-honesty + assertion unit tests), runs on
-#     every PR + manual dispatch. Catches harness/fixture breakage cheaply.
+#     every PR, on pushes to a publishing branch, + manual dispatch.
+#     Catches harness/fixture breakage cheaply.
 #   - coach-eval: LIVE model calls (real ANTHROPIC_API_KEY, costs budget).
 #     Opt-in only — manual dispatch, or a PR labeled `run-coach-eval`.
+#
+# The `push` trigger is what makes the keyless suite cover the revision
+# Vercel actually deploys. PR runs test the pre-merge head; the squash
+# commit that lands on the publishing branch is a DIFFERENT sha, and that
+# is the one Vercel builds the API from. Without this, api/ shipped on a
+# commit no Python test had ever executed against.
+#
+# This does not walk back the separation above: the suite still lives here,
+# still cannot gate or cancel deploy.yml, and pytest.ini's `-m "not eval"`
+# default still means no push ever spends API budget.
 on:
+  push:
+    branches: [main, 'claude/broken-arrow-training-app-P4N1p']
   pull_request:
   workflow_dispatch:
 

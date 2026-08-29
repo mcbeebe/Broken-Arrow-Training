@@ -1,5 +1,25 @@
 # Broken Arrow Training App — IT Project Plan v1.0
 
+> ## ⚠️ SUPERSEDED — historical record only
+>
+> Marked 2026-08-29. This plan was last updated 2026-04-21 and describes a
+> 13-sprint schedule to 2026-10-25 that the project stopped following after
+> `[PR-13]` (2026-05-03). Do not plan from it.
+>
+> **Specifically not true:** its Definition of Done requires Conventional
+> Commits, per-sprint `v0.N.0` release tags and a maintained `CHANGELOG.md`.
+> The repo has **zero git tags**, has never had a `CHANGELOG.md`, and uses
+> narrative changelog-style commit subjects. `CLAUDE.md` records the
+> conventions actually in force.
+>
+> It also cites four `BA_*` HTML strategy documents (three `_v3`, one
+> `_v2`) at ~14 places below. **None was ever committed to this repo** —
+> those links do not resolve and never did.
+>
+> **For current work:** `docs/initiatives/` (registry and per-initiative
+> intent/plan) is the plan of record; `docs/PLAN_GENERATOR_ALGORITHM.md` is
+> the as-built engine reference.
+
 **Document version:** 1.0
 **Created:** 2026-04-20
 **Author:** Mike (product), drafted with Claude

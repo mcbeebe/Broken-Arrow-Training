@@ -1,76 +1,57 @@
-# React + TypeScript + Vite
+# attune.coach
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+An endurance training app: adaptive plan generation across nine published
+coaching methodologies, readiness and load engines, an LLM coach, and
+Garmin / Strava / Apple Health integration. Live at
+**[attune.coach](https://attune.coach)**.
 
-Currently, two official plugins are available:
+> "Broken Arrow Training" is legacy branding. The repo name, the migration
+> airlock's legacy path, and `vite.config.ts`'s fallback base path still carry
+> it; the product does not.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Layout
 
-## React Compiler
+| Path | What it is |
+|---|---|
+| `src/engines/` | The domain engines — plan generator, readiness, MIM, terrain, descent, running, hyrox, general fitness |
+| `src/__tests__/` | 212 test files / ~2789 tests, including property-invariant "laws" and golden plan snapshots |
+| `api/` | Python serverless functions (coach, sync, auth, garmin, apple) deployed by Vercel |
+| `worker/` | Cloudflare worker for the Strava OAuth token exchange |
+| `ios/` | iOS wrapper app |
+| `scripts/airlock/` | Standalone migration page served at the legacy origin; carries users' local data to attune.coach |
+| `docs/initiatives/` | Intent → plan → close-out per initiative, with a registry |
+| `docs/adr/` | Architecture decision records |
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Working here
 
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm install
+npm run dev               # local dev server
+npm test                  # vitest — gates every publish
+npm run build             # tsc -b && vite build
+pytest -m "not eval" api/coach/tests    # keyless Python suite
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+`CLAUDE.md` is the standing brief — commands, deploy topology, and the hard
+constraints (notably: Vercel Hobby caps this project at 12 serverless
+functions and `api/` sits at exactly 12). Read it before changing anything
+under `api/` or `.github/workflows/`.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## How it ships
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+Three surfaces, three independent routes:
+
+- **Web app** — `deploy.yml` runs the suite, builds, and publishes `dist/` to
+  the separate repo `mcbeebe/attune-coach` (`gh-pages`), which serves
+  attune.coach. That repo is a build artifact; it takes no hand-authored
+  commits.
+- **Python API** — Vercel's git integration, on push.
+- **Cloudflare worker** — manual `wrangler deploy`.
+
+Because they are independent, they can drift. Every build stamps its commit
+SHA into `version.json` and the bundle, and `/api/version` reports what Vercel
+built; **Settings → Deploy Diagnostics** compares all three so a stale browser
+is distinguishable from a stale backend.
 
 ## Database setup (one-time, per environment)
 
