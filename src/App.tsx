@@ -1261,6 +1261,8 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
   })
   const lockedInToday = lockedInDate === todayDateString()
   const [openTodayRequest, setOpenTodayRequest] = useState(0)
+  const [openReadinessRequest, setOpenReadinessRequest] = useState(0)
+  const openReadiness = useCallback(() => setOpenReadinessRequest(n => n + 1), [])
   const setShowTodayModal = useCallback(() => setOpenTodayRequest(n => n + 1), [])
   const lockInToday = useCallback(() => {
     const iso = todayDateString()
@@ -1833,7 +1835,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
             outlook={morningAutopilot.visible ? morningAutopilot.card : null}
             today={todayPlannedWorkout ?? null}
             lockedIn={lockedInToday}
-            onOpenReadiness={() => setView('progress')}
+            onOpenReadiness={openReadiness}
             onOpenSession={setShowTodayModal}
             onLockIn={lockInToday}
             onAdjust={setShowTodayModal}
@@ -1944,6 +1946,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
         )}
         <Summary
           openTodayRequest={openTodayRequest}
+          openReadinessRequest={openReadinessRequest}
           athleteId={athleteId}
           todayScore={readiness.todayScore}
           weekScores={readiness.weekScores}

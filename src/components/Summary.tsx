@@ -52,6 +52,10 @@ interface SummaryProps {
    *  Adjust — opens today's session detail without Today needing to own
    *  the modal. Same one-shot request pattern as the Engine deep-link. */
   openTodayRequest?: number
+  /** Bumped by Today's readiness bubble. The full briefing is a tap deep
+   *  rather than always-on: it stops competing with the verdict for the
+   *  top of the page, and stops being buried when it matters. */
+  openReadinessRequest?: number
   /** Full plan weeks — passed through to WorkoutModal so the strength
    *  progression display inside exercise cards has history to look up. */
   weeks?: import('../types').TrainingWeek[]
@@ -220,6 +224,7 @@ export default function Summary({
   currentWeekNum,
   weeks,
   openTodayRequest,
+  openReadinessRequest,
   zones,
   coachSnapshot,
   riskFlags = [],
@@ -243,6 +248,13 @@ export default function Summary({
   if (openTodayRequest !== handledOpenRequest) {
     setHandledOpenRequest(openTodayRequest)
     setShowTodayModal(true)
+  }
+
+  const [showReadiness, setShowReadiness] = useState(false)
+  const [handledReadinessRequest, setHandledReadinessRequest] = useState(openReadinessRequest)
+  if (openReadinessRequest !== handledReadinessRequest) {
+    setHandledReadinessRequest(openReadinessRequest)
+    setShowReadiness(true)
   }
   const [showTomorrowModal, setShowTomorrowModal] = useState(false)
   const [showRaceReadinessModal, setShowRaceReadinessModal] = useState(false)
@@ -543,31 +555,54 @@ export default function Summary({
         onOpenSeason={onOpenSeason}
       />
 
-      {/* Unified daily briefing: coach + readiness + why */}
-      {garminConnected && todayScore ? (
-        <TodayBriefing
-          todayScore={todayScore}
-          todayHealth={todayHealth}
-          healthHistory={healthHistory}
-          coachRecommendation={coachRecommendation}
-          onCoachSwap={onCoachSwap}
-          performance={performance}
-          dailyTrimp={dailyTrimp}
-          todaySoreness={todaySoreness}
-          onLogSoreness={onLogSoreness}
-        />
-      ) : garminConnected ? (
+      {/* The daily briefing, one tap behind Today's readiness bubble. */}
+      {showReadiness && garminConnected && todayScore && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center" onClick={() => setShowReadiness(false)}>
+          <div className="absolute inset-0 bg-black/50" />
+          <div
+            className="relative w-full sm:max-w-lg max-h-[85vh] overflow-y-auto bg-slate-50 dark:bg-slate-900 rounded-t-2xl sm:rounded-2xl p-3 pb-8"
+            onClick={e => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Readiness detail"
+            data-testid="readiness-sheet"
+          >
+            <div className="w-9 h-1 rounded-full bg-slate-300 dark:bg-slate-600 mx-auto mb-3" />
+            <TodayBriefing
+              todayScore={todayScore}
+              todayHealth={todayHealth}
+              healthHistory={healthHistory}
+              coachRecommendation={coachRecommendation}
+              onCoachSwap={onCoachSwap}
+              performance={performance}
+              dailyTrimp={dailyTrimp}
+              todaySoreness={todaySoreness}
+              onLogSoreness={onLogSoreness}
+            />
+            <button
+              onClick={() => setShowReadiness(false)}
+              className="mt-3 w-full h-11 rounded-xl border border-slate-200 dark:border-slate-600 text-sm font-semibold text-slate-600 dark:text-slate-300"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* The briefing itself is now behind the bubble. What stays inline is
+          only the page explaining why there is no verdict yet — that is not
+          depth to go and find, it is the answer. */}
+      {garminConnected && !todayScore && (
         <div className="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700">
           <p className="text-base font-semibold text-slate-700 dark:text-slate-200">Readiness</p>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Syncing Garmin data — readiness score will appear after first sync completes.
+            Syncing your watch — the readiness score appears once the first sync completes.
           </p>
         </div>
-      ) : (
-        // No Garmin: the plan-at-a-glance above carries the page; keep this a
-        // quiet, optional prompt rather than a prominent empty card.
+      )}
+      {!garminConnected && (
         <p className="text-xs text-center text-slate-400 dark:text-slate-500 px-3">
-          📡 Connect Garmin in Settings to add daily readiness scoring.
+          📡 Connect a watch — Garmin or Apple — in Settings to add daily readiness scoring.
         </p>
       )}
 
