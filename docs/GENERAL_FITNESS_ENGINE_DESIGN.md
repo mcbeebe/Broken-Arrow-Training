@@ -1,7 +1,11 @@
-# General Fitness Engine — Design v1 (DRAFT)
+# General Fitness Engine — Design v1
 
-**Status:** Draft for Mike's review — do not start coding until approved.
-**Date:** 2026-06-05
+**Status:** **Shipped.** `src/engines/generalFitness/` landed 2026-06-06/07,
+with golden snapshots in `src/__tests__/engines/generalFitness/`. Kept as the
+design record — read it as "what we set out to build", not as as-built truth.
+**Date:** 2026-06-05 · *(status corrected 2026-08-29: this header still read
+"do not start coding until approved" nearly three months after the engine
+shipped)*
 **Author:** Claude (Cowork)
 **Grounded in:** `docs/research/General_Fitness_Training_Evidence_Foundation_v1.1.docx` (~64 adversarially-verified claims + a goal-preset layer)
 **Complements:** `docs/PLAN_GENERATOR_ALGORITHM.md` (the trail/road 8-method engine). This doc covers ONLY `raceType: 'general'`, which is a stub today (dead-ends on a "coming soon" screen in `src/App.tsx`).

@@ -1,7 +1,10 @@
-# Menopause Training Context — Design v1 (DRAFT)
+# Menopause Training Context — Design v1
 
-**Status:** Draft for Mike's review — do not start coding until approved.
-**Date:** 2026-06-12
+**Status:** **Shipped.** The overlay landed in June 2026; the age gate was
+subsequently lowered to 40. Kept as the design record — read it as "what we
+set out to build", not as as-built truth.
+**Date:** 2026-06-12 · *(status corrected 2026-08-29: this header still read
+"do not start coding until approved" after the feature had shipped)*
 **Author:** Claude (Cowork)
 **Grounded in:** `docs/research/Menopause_Training_Evidence_Foundation_v1.md` (evidence-graded synthesis; deep-research fan-out → source fetch → adversarial verification). Every dosing claim in §6 carries a grade from that doc.
 **Complements:** `docs/GENERAL_FITNESS_ENGINE_DESIGN.md` (the shared 4-pillar engine this overlays) and the existing `injury` / `race` context patterns in `src/hooks/useOnboarding.ts`.

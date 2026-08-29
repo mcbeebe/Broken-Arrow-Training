@@ -1,8 +1,17 @@
 name: Deploy to GitHub Pages
 
+# Push fires only on the branches that can actually publish; every other
+# branch is covered by `pull_request`. That split does two things: it stops
+# a branch push and its PR from both running the same suite, and — the
+# reason it matters — it guarantees the `test` check EXISTS on every pull
+# request. A required status check that never runs blocks its PR forever,
+# so this has to be in place before branch protection is turned on.
+# Publishing is unaffected: on a PR event github.ref is refs/pull/N/merge,
+# which matches neither publish condition below.
 on:
   push:
-    branches: [main, 'claude/*']
+    branches: [main, 'claude/broken-arrow-training-app-P4N1p']
+  pull_request:
   workflow_dispatch:
 
 permissions:
@@ -34,6 +43,10 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
+      # NOTE: `npm run lint` is deliberately NOT here yet. eslint currently
+      # reports 43 errors (see docs/initiatives/002-eslint-to-green/), so
+      # wiring it in today would make this required check red on arrival.
+      # It goes in as a blocking step in the same PR that reaches zero.
       - run: npm test
 
   # Cutover airlock — REPLACED the legacy `build-and-deploy` job at
@@ -54,8 +67,12 @@ jobs:
           mkdir -p ./airlock-dist
           cp scripts/airlock/index.html ./airlock-dist/index.html
           cp scripts/airlock/404.html ./airlock-dist/404.html
+      # A manual dispatch FROM a publishing branch still publishes, because
+      # github.ref is that branch. Dispatching from a feature branch no
+      # longer can — which it could while `workflow_dispatch` was its own
+      # disjunct here, making one click enough to ship any branch live.
       - uses: peaceiris/actions-gh-pages@v4
-        if: github.ref == env.PUBLISH_REF || github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+        if: github.ref == env.PUBLISH_REF || github.ref == 'refs/heads/main'
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./airlock-dist
@@ -69,9 +86,24 @@ jobs:
   # repo variable ATTUNE_PUBLISH_ENABLED is 'true' AND the deploy
   # token secret is set. The publish target is a separate repo
   # (mcbeebe/attune-coach) so the legacy GH Pages site keeps serving
-  # under its current URL during the cutover window. See
-  # /root/.claude/plans/please-give-me-step-delightful-micali.md
-  # for the cutover sequence.
+  # under its current URL during the cutover window.
+  #
+  # Cutover sequence (this comment previously cited a Claude session plan
+  # file outside the repo, which no longer exists — recorded here instead):
+  #   1. This job builds with VITE_BASE_PATH=/ and publishes dist/ to
+  #      mcbeebe/attune-coach gh-pages, which serves the apex domain via
+  #      the injected CNAME.
+  #   2. The cutover-airlock job above force-orphans THIS repo's gh-pages
+  #      so the legacy origin (mcbeebe.github.io/Broken-Arrow-Training/)
+  #      serves only scripts/airlock/.
+  #   3. A user landing on any legacy URL hits the airlock, which reads
+  #      their localStorage, postMessages it to attune.coach (allowlisted
+  #      via VITE_SOURCE_ORIGIN), and forwards them with the deep link
+  #      preserved — see scripts/airlock/index.html, which strips the
+  #      /Broken-Arrow-Training/ path prefix. Renaming this repo breaks
+  #      that strip and with it the migration path.
+  #   4. Rollback: git-revert the cutover commit to restore the previous
+  #      build-and-deploy job, or set ATTUNE_PUBLISH_ENABLED to pause.
   build-and-deploy-attune:
     needs: test
     runs-on: ubuntu-latest
@@ -105,9 +137,16 @@ jobs:
       # a stale backend. Same value baked into VITE_GIT_COMMIT_SHA above.
       - run: echo '{"commit":"${{ github.sha }}"}' > ./dist/version.json
       - uses: peaceiris/actions-gh-pages@v4
+        # Same fix as the airlock job above: a dispatch from a publishing
+        # branch is covered by the ref test, so the separate
+        # `workflow_dispatch` disjunct only ever widened this to "any
+        # branch, one click". NOTE for the future trunk migration: keep
+        # BOTH ref arms — dropping the `main` arm here silently disables
+        # publishing the moment the default branch is renamed, and it
+        # fails as a skipped step inside a green workflow.
         if: >-
           vars.ATTUNE_PUBLISH_ENABLED == 'true' &&
-          (github.ref == env.PUBLISH_REF || github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch')
+          (github.ref == env.PUBLISH_REF || github.ref == 'refs/heads/main')
         with:
           personal_token: ${{ secrets.ATTUNE_DEPLOY_TOKEN }}
           external_repository: mcbeebe/attune-coach
