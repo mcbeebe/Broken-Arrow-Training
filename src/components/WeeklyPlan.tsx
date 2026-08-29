@@ -24,6 +24,7 @@ import WorkoutModal from './WorkoutModal'
 import ManualLog from './ManualLog'
 import WorkoutEditor, { type WorkoutEdits } from './WorkoutEditor'
 import MissedDaySheet from './MissedDaySheet'
+import { moveOutcomeFor } from '../engines/planGenerator/replan'
 import type { ReplanKind } from '../engines/planGenerator/replanLog'
 import { weekCompliance, shouldSuggestRegeneration } from '../engines/planGenerator/replan'
 import RaceNarrative from './RaceNarrative'
@@ -911,6 +912,7 @@ export default function WeeklyPlan({
         <MissedDaySheet
           day={missedDay.day}
           hasReplan={replan.hasReplan(missedDay.iso)}
+          moveOutcome={moveOutcomeFor(weeks, missedDay.iso)}
           onChoose={(kind: ReplanKind) => replan.apply(kind, missedDay.iso)}
           onUndo={() => replan.undoFor(missedDay.iso)}
           onClose={() => setMissedDay(null)}
