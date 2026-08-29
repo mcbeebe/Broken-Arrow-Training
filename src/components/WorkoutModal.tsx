@@ -745,7 +745,7 @@ export default function WorkoutModal({ day, weekNum, onClose, onLog, onStartLive
                       title={`Eccentric (descent / braking) load — distance-weighted average ${cachedEcc.averageScore.toFixed(2)} on the 1-5 scale (Vernillo 2017 PMID 27392180; Peake 2017 PMID 28035017). Severe: ${(sev / 1000).toFixed(2)} km · moderate: ${(mod / 1000).toFixed(2)} km · mild: ${(cachedEcc.buckets.mild / 1000).toFixed(2)} km. The eccentric component is what drives DOMS even when energy cost (MIM) is low (e.g. fast descents).`}
                     >
                       🦵 Eccentric {cachedEcc.averageScore.toFixed(1)}
-                      {totalDescent >= 500 && <span className="text-[9px] ml-0.5 opacity-80">· {sevPct}% severe / {modPct}% mod</span>}
+                      {totalDescent >= 500 && <span className="text-[11px] ml-0.5 opacity-80">· {sevPct}% severe / {modPct}% mod</span>}
                     </span>
                   )
                 }
@@ -1011,7 +1011,7 @@ export default function WorkoutModal({ day, weekNum, onClose, onLog, onStartLive
                         )
                       })}
                     </div>
-                    <div className="flex justify-between mt-1 text-[9px] text-slate-400 px-6">
+                    <div className="flex justify-between mt-1 text-[10px] text-slate-400 px-6">
                       <span>Avg {mileSplits.length > 0 ? mileSplits[0].pace : ''}/mi</span>
                       <span>HR</span>
                       <span>Elev</span>

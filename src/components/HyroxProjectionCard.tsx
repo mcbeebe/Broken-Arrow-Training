@@ -77,7 +77,7 @@ export default function HyroxProjectionCard({ weeks, config, capacity }: {
             <div key={i} className="flex items-center justify-between gap-2 text-sm rounded px-2 py-1 bg-slate-50 dark:bg-slate-900">
               <span className="text-slate-600 dark:text-slate-300 truncate">{s.label}</span>
               <span className="flex items-center gap-2 shrink-0">
-                <span className={`text-[9px] font-semibold rounded px-1 py-0.5 ${SOURCE_CLASS[s.source]}`}>
+                <span className={`text-[11px] font-semibold rounded px-1 py-0.5 ${SOURCE_CLASS[s.source]}`}>
                   {SOURCE_LABEL[s.source]}
                 </span>
                 <span className="font-mono font-semibold text-slate-700 dark:text-slate-200">{formatFinish(s.sec)}</span>
