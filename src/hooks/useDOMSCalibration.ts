@@ -9,6 +9,9 @@ import {
   invalidateDOMSCalibrationCache,
 } from '../utils/trimp'
 import { SPORT_LABELS } from './useMIMCalibration'
+import {
+  activeSnoozes, withSnooze, migrateLegacyDismissals, type SnoozedSuggestion,
+} from '../utils/suggestionSnooze'
 
 /**
  * Per-athlete DOMS carry-forward calibration.
@@ -50,7 +53,11 @@ interface StoredCalibration {
   }>
   lastCalibrated: string
   pendingSuggestions?: DOMSSuggestion[]
+  /** Legacy: permanent dismissals. Migrated to snoozedSuggestions on read
+   *  and never written again. */
   dismissedSuggestions?: string[]
+  /** "Not now" is a 30-day snooze — the engine may ask again after it. */
+  snoozedSuggestions?: SnoozedSuggestion[]
 }
 
 const STORAGE_KEY = 'ba_doms_calibration'
@@ -117,7 +124,10 @@ export function useDOMSCalibration(
     }
 
     const updated: StoredCalibration = { ...stored, overrides: { ...stored.overrides } }
-    const dismissed = new Set(updated.dismissedSuggestions ?? [])
+    const dismissed = activeSnoozes([
+      ...(updated.snoozedSuggestions ?? []),
+      ...migrateLegacyDismissals(updated.dismissedSuggestions),
+    ])
     const newSuggestions: DOMSSuggestion[] = []
 
     for (const s of samples) {
@@ -198,7 +208,11 @@ export function useDOMSCalibration(
     const updated: StoredCalibration = { ...stored }
     updated.pendingSuggestions = (updated.pendingSuggestions ?? []).filter(s => s.sport !== sport)
     if (updated.pendingSuggestions?.length === 0) updated.pendingSuggestions = undefined
-    updated.dismissedSuggestions = [...(updated.dismissedSuggestions ?? []), sport]
+    updated.snoozedSuggestions = withSnooze([
+      ...(updated.snoozedSuggestions ?? []),
+      ...migrateLegacyDismissals(updated.dismissedSuggestions),
+    ], sport)
+    updated.dismissedSuggestions = undefined
     writeStored(updated, athleteId)
     setStored(updated)
   }, [stored, athleteId])

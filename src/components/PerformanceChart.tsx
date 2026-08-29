@@ -46,7 +46,7 @@ export default function PerformanceChart({
     return (
       <div className="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700">
         <p className="text-base font-semibold text-slate-700 dark:text-slate-200">Fitness / Fatigue / Recovery Balance</p>
-        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Connect Garmin and sync activities to see performance trends</p>
+        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Connect your watch &mdash; Garmin or Apple &mdash; and sync activities to see performance trends</p>
       </div>
     )
   }

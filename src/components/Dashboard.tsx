@@ -424,7 +424,7 @@ function ReadinessTab({
 
       {!todayScore && (
         <div className="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700 text-center">
-          <p className="text-base text-slate-500 dark:text-slate-400">Connect Garmin and sync to see readiness data</p>
+          <p className="text-base text-slate-500 dark:text-slate-400">Connect your watch &mdash; Garmin or Apple &mdash; and sync to see readiness data</p>
         </div>
       )}
 
