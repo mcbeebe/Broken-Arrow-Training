@@ -2,7 +2,7 @@
   "name": "Attune",
   "short_name": "Attune",
   "description": "An AI coach that learns you — adaptive training plans tuned to your readiness, recovery, and goals.",
-  "start_url": "./?view=summary",
+  "start_url": "./?view=today",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
@@ -21,7 +21,7 @@
       "name": "Today",
       "short_name": "Today",
       "description": "Today's readiness and workout",
-      "url": "./?view=summary"
+      "url": "./?view=today"
     },
     {
       "name": "Coach",

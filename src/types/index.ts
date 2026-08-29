@@ -11,7 +11,7 @@ export type WorkoutType =
   | "travel"
   | "race";
 
-export type ViewId = "plan" | "summary" | "dashboard" | "zones" | "method" | "info" | "settings" | "coach" | "journal";
+export type ViewId = "plan" | "today" | "progress" | "zones" | "method" | "info" | "settings" | "coach" | "journal";
 
 export interface StravaTokens {
   accessToken: string;
