@@ -105,7 +105,8 @@ import { buildLevelUp } from './engines/adaptive/levelUp'
 import { buildMorningOutlook } from './engines/adaptive/morningOutlook'
 import { useMorningOutlook } from './hooks/useMorningOutlook'
 import { useAdaptationLog } from './hooks/useAdaptationLog'
-import MorningOutlookCard from './components/MorningOutlookCard'
+import VerdictCard from './components/VerdictCard'
+import { buildVerdict } from './utils/verdict'
 import AdaptationLogSheet from './components/AdaptationLogSheet'
 import CoachToolsPanel from './components/CoachToolsPanel'
 import { weeksWithPriorLogs } from './utils/strengthHistory'
@@ -1239,6 +1240,38 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     health: todayHealth ?? null,
     heatTempF: todayHeatF,
   }), [weeks, readiness.todayScore, readiness.weekScores, readiness.baselines, todayHealth, todayHeatF])
+  // The verdict shown on every morning the autopilot did NOT act — the
+  // green ones, the ones where it is still arming, and the ones with no
+  // wearable to ask. Together with the outlook card this makes Today
+  // answer the athlete's question every day rather than only on the days
+  // the engine had something to change.
+  // "Locked in" is the athlete committing to today's session. It is keyed
+  // by date and persisted, because a commitment that vanishes on reload is
+  // worse than not offering one — and it must not carry into tomorrow.
+  const [lockedInDate, setLockedInDate] = useState<string | null>(() => {
+    try { return localStorage.getItem(`ba_locked_in_${athleteId ?? 'me'}`) } catch { return null }
+  })
+  const lockedInToday = lockedInDate === todayDateString()
+  const [openTodayRequest, setOpenTodayRequest] = useState(0)
+  const setShowTodayModal = useCallback(() => setOpenTodayRequest(n => n + 1), [])
+  const lockInToday = useCallback(() => {
+    const iso = todayDateString()
+    setLockedInDate(iso)
+    try { localStorage.setItem(`ba_locked_in_${athleteId ?? 'me'}`, iso) } catch { /* quota */ }
+  }, [athleteId])
+
+  const todayVerdict = useMemo(() => buildVerdict({
+    score: readiness.todayScore,
+    baselines: readiness.baselines,
+    health: todayHealth ?? null,
+    today: todayPlannedWorkout ?? null,
+    nightsOfHistory: combinedHealth.filter(h => h.hrv?.lastNightAvg != null).length,
+    hasSource: garmin.connected || strava.connected || apple.connected,
+  }), [
+    readiness.todayScore, readiness.baselines, todayHealth, todayPlannedWorkout,
+    combinedHealth, garmin.connected, strava.connected, apple.connected,
+  ])
+
   const morningAutopilot = useMorningOutlook(athleteId, morningOutlook, {
     applyBatch: planEdits.applyBatch,
     undoBatch: planEdits.undoBatch,
@@ -1724,16 +1757,20 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
 
       {/* Content */}
       {view === 'today' && (<>
-        {morningAutopilot.visible && morningAutopilot.card && (
-          <div className="px-3 mb-3">
-            <MorningOutlookCard
-              card={morningAutopilot.card}
-              score={readiness.todayScore?.displayScore ?? null}
-              onSoundsRight={morningAutopilot.dismiss}
-              onRevert={morningAutopilot.revert}
-            />
-          </div>
-        )}
+        <div className="px-3 mb-3">
+          <VerdictCard
+            verdict={todayVerdict}
+            outlook={morningAutopilot.visible ? morningAutopilot.card : null}
+            today={todayPlannedWorkout ?? null}
+            lockedIn={lockedInToday}
+            onOpenReadiness={() => setView('progress')}
+            onOpenSession={setShowTodayModal}
+            onLockIn={lockInToday}
+            onAdjust={setShowTodayModal}
+            onSoundsRight={morningAutopilot.dismiss}
+            onRevert={morningAutopilot.revert}
+          />
+        </div>
         {benchAssessment.qualifies && !benchDismissed && (
           <div className="px-3 mb-3">
             <BenchmarkResultCard
@@ -1836,6 +1873,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           </div>
         )}
         <Summary
+          openTodayRequest={openTodayRequest}
           athleteId={athleteId}
           todayScore={readiness.todayScore}
           weekScores={readiness.weekScores}

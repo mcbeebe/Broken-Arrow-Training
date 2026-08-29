@@ -51,6 +51,10 @@ interface SummaryProps {
    *  Athlete-configurable (Settings → Proactive coaching); default 8 PM. */
   cardPreviewHour?: number
   currentWeekNum?: number
+  /** Bumped by Today's Verdict card when the athlete taps the ticket or
+   *  Adjust — opens today's session detail without Today needing to own
+   *  the modal. Same one-shot request pattern as the Engine deep-link. */
+  openTodayRequest?: number
   /** Full plan weeks — passed through to WorkoutModal so the strength
    *  progression display inside exercise cards has history to look up. */
   weeks?: import('../types').TrainingWeek[]
@@ -219,6 +223,7 @@ export default function Summary({
   cardPreviewHour,
   currentWeekNum,
   weeks,
+  openTodayRequest,
   zones,
   coachSnapshot,
   riskFlags = [],
@@ -234,6 +239,15 @@ export default function Summary({
   const [perfOpen, setPerfOpen] = useState(false)
   const [narrativeOpen, setNarrativeOpen] = useState(true)
   const [showTodayModal, setShowTodayModal] = useState(false)
+
+  // Today's Verdict card asks for the session detail by bumping a counter.
+  // Adjusted during render rather than in an effect: the modal opens in the
+  // same commit as the tap, with no extra frame where it is still closed.
+  const [handledOpenRequest, setHandledOpenRequest] = useState(openTodayRequest)
+  if (openTodayRequest !== handledOpenRequest) {
+    setHandledOpenRequest(openTodayRequest)
+    setShowTodayModal(true)
+  }
   const [showTomorrowModal, setShowTomorrowModal] = useState(false)
   const [showRaceReadinessModal, setShowRaceReadinessModal] = useState(false)
   // Workout completion editor target — opened from the "Log / Edit workout"

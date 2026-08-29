@@ -6,7 +6,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, act, render, screen, cleanup, fireEvent } from '@testing-library/react'
 import type { MorningOutlook } from '../engines/adaptive/morningOutlook'
 import { useMorningOutlook, shouldActNow, type OutlookState } from '../hooks/useMorningOutlook'
-import MorningOutlookCard from '../components/MorningOutlookCard'
+import VerdictCard from '../components/VerdictCard'
 
 afterEach(cleanup)
 beforeEach(() => localStorage.clear())
@@ -100,13 +100,26 @@ describe('shouldActNow', () => {
   })
 })
 
-describe('MorningOutlookCard', () => {
+/** The autopilot's card is now the acted path of the Verdict card — same
+ *  contract, one component, so a green morning and an adjusted one cannot
+ *  drift apart. */
+describe('the autopilot path of the Verdict card', () => {
   it('renders the adjustment, the evidence, and routes both buttons', () => {
     const onSoundsRight = vi.fn()
     const onRevert = vi.fn()
     const { ops, ...card } = OUTLOOK
     void ops
-    render(<MorningOutlookCard card={card} score={38} onSoundsRight={onSoundsRight} onRevert={onRevert} />)
+    render(
+      <VerdictCard
+        verdict={{
+          tone: 'watch', headline: 'unused', sub: 'unused',
+          score: 38, evidence: [], footer: 'unused',
+        }}
+        outlook={card}
+        onSoundsRight={onSoundsRight}
+        onRevert={onRevert}
+      />,
+    )
     expect(screen.getByText(/Back off today/)).toBeTruthy()
     expect(screen.getByText('13% below')).toBeTruthy()
     expect(screen.getByText(/moved to/i)).toBeTruthy()
