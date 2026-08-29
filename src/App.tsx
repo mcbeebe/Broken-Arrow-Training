@@ -108,6 +108,8 @@ import { useAdaptationLog } from './hooks/useAdaptationLog'
 import VerdictCard from './components/VerdictCard'
 import RhythmStrip from './components/RhythmStrip'
 import ResolveStrip from './components/ResolveStrip'
+import AdjustSheet from './components/AdjustSheet'
+import { leversFor, opsForLever } from './utils/adjustLevers'
 import MissedDaySheet from './components/MissedDaySheet'
 import { moveOutcomeFor } from './engines/planGenerator/replan'
 import { buildRhythm, newestOpenDay, plannedDayFor } from './utils/rhythm'
@@ -1260,6 +1262,14 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     try { return localStorage.getItem(`ba_locked_in_${athleteId ?? 'me'}`) } catch { return null }
   })
   const lockedInToday = lockedInDate === todayDateString()
+  // The Adjust tray. The lever's own outcome sentence is what the athlete
+  // sees afterwards, and the batch id is what Undo reverses — one value
+  // each, so what was promised, what was applied and what is undone are
+  // the same thing.
+  const [adjusting, setAdjusting] = useState(false)
+  const [adjustApplied, setAdjustApplied] = useState<{ text: string; batchId: string } | null>(null)
+  const todayLevers = useMemo(() => leversFor(todayPlannedWorkout), [todayPlannedWorkout])
+
   const [openTodayRequest, setOpenTodayRequest] = useState(0)
   const [openReadinessRequest, setOpenReadinessRequest] = useState(0)
   const openReadiness = useCallback(() => setOpenReadinessRequest(n => n + 1), [])
@@ -1737,6 +1747,22 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
         )}
       </div>
 
+      {adjusting && (
+        <AdjustSheet
+          levers={todayLevers}
+          applied={adjustApplied?.text ?? null}
+          onApply={lever => {
+            const batchId = planEdits.applyBatch(opsForLever(lever, currentWeekNum ?? 1, todayDayIndex))
+            setAdjustApplied({ text: lever.outcome, batchId })
+          }}
+          onUndo={() => {
+            if (adjustApplied) planEdits.undoBatch(adjustApplied.batchId)
+            setAdjustApplied(null)
+          }}
+          onClose={() => { setAdjusting(false); setAdjustApplied(null) }}
+        />
+      )}
+
       {/* Resolving an open day from Today. The sheet is presentation-only
           and useReplan already lives at this level, so Today opens the same
           sheet Plan does rather than sending the athlete to another tab. */}
@@ -1838,7 +1864,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
             onOpenReadiness={openReadiness}
             onOpenSession={setShowTodayModal}
             onLockIn={lockInToday}
-            onAdjust={setShowTodayModal}
+            onAdjust={() => { setAdjustApplied(null); setAdjusting(true) }}
             onSoundsRight={morningAutopilot.dismiss}
             onRevert={morningAutopilot.revert}
           />
