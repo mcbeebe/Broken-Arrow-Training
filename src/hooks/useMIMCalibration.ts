@@ -1,6 +1,9 @@
 import { useState, useCallback, useEffect, useMemo } from 'react'
 import type { DailyTRIMP, SportType } from '../types'
 import { DOMS_CARRY, describeMIMEngine, type MIMEngine } from '../utils/trimp'
+import {
+  activeSnoozes, withSnooze, migrateLegacyDismissals, type SnoozedSuggestion,
+} from '../utils/suggestionSnooze'
 
 export interface MIMOverride {
   sport: SportType
@@ -46,7 +49,11 @@ interface StoredCalibration {
   overrides: Record<string, { calibrated: number; manual: number | null; samples: number; avgRecoveryDays: number }>
   lastCalibrated: string
   pendingSuggestions?: MIMSuggestion[]
+  /** Legacy: permanent dismissals. Migrated to snoozedSuggestions on read
+   *  and never written again. */
   dismissedSuggestions?: string[]
+  /** "Not now" is a 30-day snooze — the engine may ask again after it. */
+  snoozedSuggestions?: SnoozedSuggestion[]
 }
 
 function readStored(athleteId?: string): StoredCalibration {
@@ -145,7 +152,10 @@ export function useMIMCalibration(
 
     const updated = { ...stored }
     const newSuggestions: MIMSuggestion[] = []
-    const dismissed = new Set(updated.dismissedSuggestions ?? [])
+    const dismissed = activeSnoozes([
+      ...(updated.snoozedSuggestions ?? []),
+      ...migrateLegacyDismissals(updated.dismissedSuggestions),
+    ])
 
     const sportDays = new Map<string, { date: string; load: number }[]>()
     for (const day of dailyTrimp) {
@@ -353,7 +363,11 @@ export function useMIMCalibration(
     const updated = { ...stored }
     updated.pendingSuggestions = (updated.pendingSuggestions ?? []).filter(s => s.sport !== sport)
     if (updated.pendingSuggestions?.length === 0) updated.pendingSuggestions = undefined
-    updated.dismissedSuggestions = [...(updated.dismissedSuggestions ?? []), sport]
+    updated.snoozedSuggestions = withSnooze([
+      ...(updated.snoozedSuggestions ?? []),
+      ...migrateLegacyDismissals(updated.dismissedSuggestions),
+    ], sport)
+    updated.dismissedSuggestions = undefined
     writeStored(updated, athleteId)
     setStored(updated)
   }, [stored, athleteId])
