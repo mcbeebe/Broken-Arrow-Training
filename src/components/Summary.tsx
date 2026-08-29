@@ -19,7 +19,8 @@ import RaceReadinessDetailModal from './RaceReadinessDetailModal'
 import { buildRaceReadinessDetail, computeRaceReadiness, type ReadinessAssignment } from '../utils/raceReadiness'
 import { formatLooksLikeLine, findBestCourseMatchForPlanned } from '../utils/workoutCourseMatch'
 import { weeksUntilRace } from '../utils/raceCountdown'
-import { buildTrainingSignals, type TrainingSignals } from '../utils/trainingSignals'
+import { buildTrainingSignals } from '../utils/trainingSignals'
+import { buildWeekNarrative } from '../utils/weekNarrative'
 import SignalCoherenceBanner from './SignalCoherenceBanner'
 import PlanAtAGlance from './PlanAtAGlance'
 import InsightNote from './primitives/InsightNote'
@@ -195,93 +196,6 @@ function Sparkline({ data, color }: { data: number[]; color: string }) {
 
 // ─── What Changed This Week narrative ─────────────────────────
 
-function buildWeekNarrative(
-  performance: PerformanceMetrics[],
-  dailyTrimp: DailyTRIMP[],
-  signals: TrainingSignals,
-): string[] {
-  const lines: string[] = []
-  if (performance.length < 2) return lines
-
-  const today = localDateStr()
-  const sevenAgo = localDateStr(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000))
-
-  // Get performance 7 days ago vs now
-  const weekAgo = performance.find(p => p.date === sevenAgo) || performance[Math.max(0, performance.length - 8)]
-  const latest = performance[performance.length - 1]
-
-  if (!weekAgo || !latest) return lines
-
-  // Today's biometric / damage signals can contradict a "fresher" load
-  // delta. When that happens we still report the direction (it's real
-  // load math) but append a one-clause qualifier so the user doesn't
-  // read "improving +14" as permission to push through a sleep-deficit
-  // morning.
-  const bodyRestrictive = signals.body.severity >= 2
-  const damageRestrictive = signals.damage.severity >= 2
-  const positiveQualifier = bodyRestrictive
-    ? ` Body still says rest — bank the gain tomorrow.`
-    : damageRestrictive
-      ? ` Soreness still flagged — don't bank it on a heavy session yet.`
-      : ''
-
-  // CTL trend
-  const ctlDelta = latest.ctl - weekAgo.ctl
-  if (Math.abs(ctlDelta) >= 1) {
-    lines.push(
-      ctlDelta > 0
-        ? `📈 Fitness up ${Math.abs(ctlDelta).toFixed(0)} pts this week from consistent training.`
-        : `📉 Fitness down ${Math.abs(ctlDelta).toFixed(0)} pts — lighter training or rest days pulled it down.`
-    )
-  }
-
-  // Find biggest workout in last 7 days
-  const recentDays = dailyTrimp.filter(d => d.date >= sevenAgo && d.date <= today && d.total > 0)
-  if (recentDays.length > 0) {
-    const biggest = recentDays.reduce((a, b) => a.total > b.total ? a : b)
-    const topRecord = biggest.records[0]
-    const dayName = new Date(biggest.date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short' })
-    const sportLabel = topRecord ? topRecord.sportType.replace(/_/g, ' ') : 'workout'
-    lines.push(
-      `💪 Biggest load: ${dayName} ${sportLabel} (${Math.round(biggest.total)} adjusted TRIMP).`
-    )
-  }
-
-  // ATL vs CTL relationship
-  if (latest.atl > latest.ctl * 1.3) {
-    lines.push(`⚡ Recent training intensity exceeds your base — fatigue is building faster than fitness. Normal in build weeks.`)
-  } else if (latest.atl < latest.ctl * 0.7) {
-    const baseLine = `🔋 Recovery mode — recent load is well below your fitness base. Good time for a quality session.`
-    lines.push(bodyRestrictive || damageRestrictive
-      ? `${baseLine}${positiveQualifier}`
-      : baseLine)
-  }
-
-  // Rest day count
-  const restDays = recentDays.length === 0 ? 7 : 7 - recentDays.length
-  if (restDays >= 3) {
-    lines.push(`😴 ${restDays} rest days this week — recovery is pulling fatigue down.`)
-  } else if (restDays === 0) {
-    lines.push(`🔥 No rest days this week — consider scheduling recovery.`)
-  }
-
-  // Recovery Balance direction
-  const tsbDelta = latest.tsb - weekAgo.tsb
-  if (Math.abs(tsbDelta) >= 3) {
-    if (tsbDelta > 0) {
-      lines.push(
-        `🌱 Recovery Balance improving (+${Math.abs(tsbDelta).toFixed(0)}) — you're getting fresher.${positiveQualifier}`
-      )
-    } else {
-      lines.push(
-        `⬇️ Recovery Balance dropped (${tsbDelta.toFixed(0)}) — fatigue accumulating from training load.`
-      )
-    }
-  }
-
-  return lines
-}
-
 export default function Summary({
   athleteId,
   todayScore,
@@ -350,8 +264,8 @@ export default function Summary({
   )
 
   const weekNarrative = useMemo(
-    () => buildWeekNarrative(performance, dailyTrimp, trainingSignals),
-    [performance, dailyTrimp, trainingSignals],
+    () => buildWeekNarrative(performance, dailyTrimp, trainingSignals, weeks),
+    [performance, dailyTrimp, trainingSignals, weeks],
   )
 
   // Race-ready hero is pinned to the top of Summary in the last ~8 weeks
