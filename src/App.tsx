@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import type { ViewId, CoachSnapshot, CoachAction, PlannedDay, JournalNote } from './types'
+import { resolveViewId, resolveDeepLink } from './utils/viewId'
 import { DETAIL_DIRECTIVES } from './types'
 import { plans } from './data'
 import { generateHyroxPlan } from './utils/planGenerator'
@@ -404,9 +405,10 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     // into a specific tab.
     try {
       const param = new URLSearchParams(window.location.search).get('view')
-      if (param === 'summary' || param === 'plan' || param === 'dashboard' || param === 'coach' || param === 'settings') {
-        return param as ViewId
-      }
+      // Legacy ids ('summary', 'dashboard') still arrive from installed PWAs
+      // and already-sent notifications — resolveDeepLink maps them forward.
+      const linked = resolveDeepLink(param)
+      if (linked) return linked
     } catch { /* ignored */ }
     // Honor the one-shot initial-view hint set by the zones primer's
     // "Refine zones in Settings" action. Read + clear immediately so a
@@ -415,12 +417,13 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
       const hint = sessionStorage.getItem('ba_initial_view')
       if (hint) {
         sessionStorage.removeItem('ba_initial_view')
-        if (hint === 'settings' || hint === 'plan' || hint === 'stats' || hint === 'coach') {
-          return hint as ViewId
-        }
+        // 'stats' was always written here but was never a real ViewId — it
+        // used to land on a tab that did not exist. It resolves to Progress.
+        const hinted = resolveViewId(hint)
+        if (hinted) return hinted
       }
     } catch { /* ignored */ }
-    return 'summary'
+    return 'today'
   })
   // One-shot deep link: Home's "see the whole season" jumps to the Plan tab
   // AND asks it to open the Season sub-view. Cleared once handled so the
@@ -440,7 +443,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
 
   useEffect(() => {
     function onHashChange() {
-      setView('summary')
+      setView('today')
     }
     window.addEventListener('hashchange', onHashChange)
     return () => window.removeEventListener('hashchange', onHashChange)
@@ -535,9 +538,9 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
 
   const TABS: { id: ViewId; label: string; badge?: number }[] = useMemo(() => {
     const base: { id: ViewId; label: string; badge?: number }[] = [
-      { id: 'summary', label: 'Summary' },
+      { id: 'today', label: 'Today' },
       { id: 'plan', label: 'Plan' },
-      { id: 'dashboard', label: 'Stats' },
+      { id: 'progress', label: 'Progress' },
     ]
     if (coachEnabled) {
       // Hide the badge when the user is already on the Coach tab —
@@ -1720,7 +1723,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
       )}
 
       {/* Content */}
-      {view === 'summary' && (<>
+      {view === 'today' && (<>
         {morningAutopilot.visible && morningAutopilot.card && (
           <div className="px-3 mb-3">
             <MorningOutlookCard
@@ -1908,7 +1911,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           }}
         />
       )}
-      {view === 'dashboard' && (
+      {view === 'progress' && (
         <Dashboard
           weeks={weeks}
           compliance={compliance}
@@ -1967,7 +1970,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
               onOpenLog={() => setShowAdaptationLog(true)}
               levers={levelUpLevers}
               onAskCoach={(seed) => { setCoachSubTab('chat'); handleAskCoach(seed) }}
-              onOpenEngine={() => { setDashSubTabRequest('engine'); setView('dashboard') }}
+              onOpenEngine={() => { setDashSubTabRequest('engine'); setView('progress') }}
             />
           </div>
         ) : (
@@ -2058,7 +2061,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           onClearAll={clearAllAppData}
           onResetOnboarding={() => {
             onboarding.requestRedo()
-            setView('summary')
+            setView('today')
           }}
           coachEnabled={coachEnabled}
           aboutMeText={coachMemory.aboutMe}
@@ -2146,11 +2149,11 @@ function TabIcon({ id, active }: { id: string; active: boolean }) {
   const sw = active ? 2.2 : 1.8
   const common = { width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: color, strokeWidth: sw, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const }
   switch (id) {
-    case 'summary':
+    case 'today':
       return <svg {...common}><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></svg>
     case 'plan':
       return <svg {...common}><rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>
-    case 'dashboard':
+    case 'progress':
       return <svg {...common}><line x1="18" y1="20" x2="18" y2="10" /><line x1="12" y1="20" x2="12" y2="4" /><line x1="6" y1="20" x2="6" y2="14" /></svg>
     case 'coach':
       return <svg {...common}><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" /></svg>
