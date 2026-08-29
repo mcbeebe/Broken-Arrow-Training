@@ -30,6 +30,8 @@ import { weekCompliance, shouldSuggestRegeneration } from '../engines/planGenera
 import RaceNarrative from './RaceNarrative'
 import RaceElevationProfile from './RaceElevationProfile'
 import SeasonOverview from './SeasonOverview'
+import RaceCard from './RaceCard'
+import SeasonRacesCard from './SeasonRacesCard'
 import StrengthBenchmarkSheet from './StrengthBenchmarkSheet'
 import type { StrengthCapacity } from '../engines/strength/benchmark'
 import { capacitySummary, isStale } from '../engines/strength/benchmark'
@@ -106,6 +108,10 @@ interface WeeklyPlanProps {
   /** Full season — the Race tab narrative names the main goal and this
    *  race's role for multi-race athletes. */
   season?: Season | null
+  /** Race-readiness gauge for the countdown card (moved off Today). */
+  raceReadiness?: React.ComponentProps<typeof RaceCard>['readiness']
+  /** The athlete's stated goal, shown with the season race list. */
+  primaryGoalText?: string
   /** The whole plan + its method/config — the Season sub-view explains the
    *  block structure and (folded) the methodology behind it. Absent for
    *  hand-authored seed plans, which simply don't offer the tab. */
@@ -158,6 +164,8 @@ export default function WeeklyPlan({
   strengthLevel,
   racePacing,
   season,
+  raceReadiness,
+  primaryGoalText,
   plan,
   method,
   onboardingConfig,
@@ -718,6 +726,15 @@ export default function WeeklyPlan({
       )}
 
       {/* ── Race prep view ── */}
+      {viewMode === 'season' && (
+        <div className="px-3 pt-3 space-y-3">
+          {/* The countdown card and the season race list used to open Today.
+              The countdown now lives once in Today's header; the detail
+              belongs here, with the rest of the season. */}
+          {race && <RaceCard race={race} readiness={raceReadiness} />}
+          {season && <SeasonRacesCard season={season} primaryGoalText={primaryGoalText} />}
+        </div>
+      )}
       {viewMode === 'season' && plan && (
         <SeasonOverview
           plan={plan}
