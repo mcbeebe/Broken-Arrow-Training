@@ -96,6 +96,14 @@ export default function VerdictCard({
             {headline}
           </p>
           <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed mt-0.5">{sub}</p>
+          {!acted && verdict.mixedSignals && (
+            <p
+              className="text-[11px] text-indigo-700 dark:text-indigo-300 leading-relaxed mt-1"
+              data-testid="verdict-mixed-signals"
+            >
+              {verdict.mixedSignals}
+            </p>
+          )}
         </div>
       </div>
 

@@ -106,6 +106,11 @@ import { buildMorningOutlook } from './engines/adaptive/morningOutlook'
 import { useMorningOutlook } from './hooks/useMorningOutlook'
 import { useAdaptationLog } from './hooks/useAdaptationLog'
 import VerdictCard from './components/VerdictCard'
+import RhythmStrip from './components/RhythmStrip'
+import { buildRhythm } from './utils/rhythm'
+import { buildTrainingSignals } from './utils/trainingSignals'
+import { computeRaceReadiness } from './utils/raceReadiness'
+import { weeksUntilRace } from './utils/raceCountdown'
 import { buildVerdict } from './utils/verdict'
 import AdaptationLogSheet from './components/AdaptationLogSheet'
 import CoachToolsPanel from './components/CoachToolsPanel'
@@ -1260,6 +1265,29 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     try { localStorage.setItem(`ba_locked_in_${athleteId ?? 'me'}`, iso) } catch { /* quota */ }
   }, [athleteId])
 
+  // Race-readiness gauge for the countdown card, which moved off Today into
+  // Plan > Season. Computed here because Plan has no performance series.
+  const raceReadinessForPlan = useMemo(() => {
+    const race = activePlan.race
+    if (!race) return null
+    const wks = weeksUntilRace(race.date)
+    if (wks == null || wks < 0 || wks > 8) return null
+    return computeRaceReadiness({ race, performance: readiness.performance })
+  }, [activePlan.race, readiness.performance])
+
+  // Load / body / damage coherence. Previously computed inside Summary for
+  // a full-width banner; it now feeds one line of the Verdict card, so it
+  // is computed here alongside the other verdict inputs.
+  const trainingSignals = useMemo(() => buildTrainingSignals({
+    performance: latestPerf,
+    readiness: readiness.todayScore,
+    sorenessLoadByDate: soreness.sorenessLoadByDate,
+  }), [latestPerf, readiness.todayScore, soreness.sorenessLoadByDate])
+
+  // The 12-day rhythm shown in Today's header. Resolved = trained, or
+  // rested as the plan asked; only an open day is outstanding.
+  const rhythm = useMemo(() => buildRhythm(weeks, todayDateString()), [weeks])
+
   const todayVerdict = useMemo(() => buildVerdict({
     score: readiness.todayScore,
     baselines: readiness.baselines,
@@ -1267,9 +1295,10 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     today: todayPlannedWorkout ?? null,
     nightsOfHistory: combinedHealth.filter(h => h.hrv?.lastNightAvg != null).length,
     hasSource: garmin.connected || strava.connected || apple.connected,
+    signals: trainingSignals,
   }), [
     readiness.todayScore, readiness.baselines, todayHealth, todayPlannedWorkout,
-    combinedHealth, garmin.connected, strava.connected, apple.connected,
+    combinedHealth, garmin.connected, strava.connected, apple.connected, trainingSignals,
   ])
 
   const morningAutopilot = useMorningOutlook(athleteId, morningOutlook, {
@@ -1684,10 +1713,16 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
             </button>
           </div>
         </div>
-        <p className="text-slate-300 text-xs mt-0.5">
-          {activePlan.athlete.name} · {activePlan.race.date}
-        </p>
-        <p className="text-teal-400 text-[10px] mt-0.5">{activePlan.athlete.weeklyStructure}</p>
+        {view === 'today' && rhythm.length > 0 ? (
+          <RhythmStrip rhythm={rhythm} onOpenPlan={() => setView('plan')} />
+        ) : (
+          <>
+            <p className="text-slate-300 text-xs mt-0.5">
+              {activePlan.athlete.name} · {activePlan.race.date}
+            </p>
+            <p className="text-teal-400 text-[10px] mt-0.5">{activePlan.athlete.weeklyStructure}</p>
+          </>
+        )}
       </div>
 
       {/* Coach alert banner — surfaces a fresh daily insight the athlete
@@ -1903,7 +1938,6 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           race={activePlan.race}
           season={seasonState.season}
           onOpenSeason={() => { setPlanViewRequest({ mode: 'season' }); setView('plan') }}
-          primaryGoalText={onboarding.config?.athleteGoal}
           manualLog={manualLog}
           onAskCoach={handleAskCoach}
           onShareNote={shareWorkoutNote}
@@ -1911,6 +1945,8 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
       </>)}
       {view === 'plan' && (
         <WeeklyPlan
+          raceReadiness={raceReadinessForPlan}
+          primaryGoalText={onboarding.config?.athleteGoal}
           weeks={weeks}
           primaryRace={(() => {
             const p = seasonState.season.races.find(r => r.isPrimary)

@@ -13,15 +13,12 @@ import ManualLog from './ManualLog'
 import { getWorkoutStyle, adaptBg } from '../utils/styles'
 import { isEveningPreviewWindow } from '../utils/coach'
 import Term from './TermGlossary'
-import RaceCard from './RaceCard'
-import SeasonRacesCard from './SeasonRacesCard'
 import RaceReadinessDetailModal from './RaceReadinessDetailModal'
 import { buildRaceReadinessDetail, computeRaceReadiness, type ReadinessAssignment } from '../utils/raceReadiness'
 import { formatLooksLikeLine, findBestCourseMatchForPlanned } from '../utils/workoutCourseMatch'
 import { weeksUntilRace } from '../utils/raceCountdown'
 import { buildTrainingSignals } from '../utils/trainingSignals'
 import { buildWeekNarrative } from '../utils/weekNarrative'
-import SignalCoherenceBanner from './SignalCoherenceBanner'
 import PlanAtAGlance from './PlanAtAGlance'
 import InsightNote from './primitives/InsightNote'
 import type { PlanAdvisory } from '../types'
@@ -69,7 +66,6 @@ interface SummaryProps {
    *  main goal, roles). Absent/single-race = no card (RaceCard covers it). */
   season?: import('../types').Season | null
   /** The athlete's goal words for the main-goal race (config.athleteGoal). */
-  primaryGoalText?: string
   /** Deep link into the Plan tab's Season view, from the "how this fits"
    *  card. Absent = the card renders without the link. */
   onOpenSeason?: () => void
@@ -228,7 +224,7 @@ export default function Summary({
   coachSnapshot,
   riskFlags = [],
   advisories = [],
-  race, season, primaryGoalText,
+  race, season,
   onOpenSeason,
   manualLog,
   onAskCoach,
@@ -307,16 +303,11 @@ export default function Summary({
 
   return (
     <div className="px-3 py-4 space-y-3">
-      <SignalCoherenceBanner signals={trainingSignals} />
-      {race && (
-        <RaceCard
-          race={race}
-          readiness={raceReadiness}
-          readinessDetail={raceReadinessDetail}
-          onOpenReadiness={raceReadiness ? () => setShowRaceReadinessModal(true) : undefined}
-        />
-      )}
-      {season && <SeasonRacesCard season={season} primaryGoalText={primaryGoalText} />}
+      {/* The race countdown, the season list and the signal-coherence banner
+          used to open this page. The countdown now lives once in the header,
+          the season belongs to Plan, and the coherence reading is a line in
+          the Verdict card rather than a full-width banner that told you your
+          signals disagreed without telling you what to do about it. */}
       {/* Honest plan-level advisories (feasibility, runway, goal-derived paces).
           Shown regardless of Garmin so the athlete keeps seeing the reality of
           their plan, not just at method selection. */}

@@ -15,6 +15,7 @@ import type {
   ReadinessScore, ReadinessBaselines, GarminHealthData, PlannedDay,
 } from '../types'
 import { HRV_BASELINE_NIGHTS } from '../engines/adaptive/morningOutlook'
+import { AXIS_LABEL, TODAY_CALL_LABEL, type TrainingSignals } from './trainingSignals'
 
 export type VerdictTone = 'clear' | 'watch' | 'arming' | 'unknown'
 
@@ -34,6 +35,11 @@ export interface Verdict {
   evidence: VerdictEvidence[]
   /** What was checked, and the promise that nothing moved. */
   footer: string
+  /** Set only when the three engines disagree. The old full-width banner
+   *  named the disagreement but left the athlete to reconcile it; this
+   *  says what the disagreement is AND what to do about it, inside the
+   *  card that is already answering the question. */
+  mixedSignals?: string
 }
 
 export interface VerdictInputs {
@@ -46,6 +52,8 @@ export interface VerdictInputs {
   nightsOfHistory: number
   /** False when no wearable is connected at all. */
   hasSource: boolean
+  /** Load / body / damage readings, for the mixed-signal line. */
+  signals?: TrainingSignals | null
 }
 
 const hours = (seconds: number) => `${(seconds / 3600).toFixed(1)}h`
@@ -93,8 +101,16 @@ function buildEvidence(i: VerdictInputs): VerdictEvidence[] {
   return out.slice(0, 3)
 }
 
+/** One line, only when the axes actually disagree. */
+function mixedSignalLine(signals: TrainingSignals | null | undefined): string | undefined {
+  if (!signals || signals.coherence === 'aligned') return undefined
+  const reason = signals.reason.toLowerCase().replace(/\.$/, '')
+  return `Mixed signals — ${reason}. Today's call: ${TODAY_CALL_LABEL[signals.todayCall]} (${AXIS_LABEL[signals.dominant]} leads).`
+}
+
 export function buildVerdict(i: VerdictInputs): Verdict {
   const evidence = buildEvidence(i)
+  const mixedSignals = mixedSignalLine(i.signals)
 
   // No wearable at all. The engine is not broken; it simply has not been
   // given anything, and saying so is better than an empty ring.
@@ -105,6 +121,7 @@ export function buildVerdict(i: VerdictInputs): Verdict {
       sub: 'No watch connected, so this is your call rather than mine.',
       score: null,
       evidence,
+      mixedSignals,
       footer: 'Connect a watch — Garmin or Apple — and I can check your overnight numbers before you train.',
     }
   }
@@ -119,6 +136,7 @@ export function buildVerdict(i: VerdictInputs): Verdict {
       sub: `${i.nightsOfHistory} of ${HRV_BASELINE_NIGHTS} nights in. I won't move a session until I know what your baseline actually is.`,
       score: i.score?.displayScore ?? null,
       evidence,
+      mixedSignals,
       footer: `Autopilot arms in ${left} night${left === 1 ? '' : 's'}. Until then the plan runs as written.`,
     }
   }
@@ -135,6 +153,7 @@ export function buildVerdict(i: VerdictInputs): Verdict {
       sub: 'One night below your baseline. I leave the plan alone for that; a trend is a different matter.',
       score: i.score?.displayScore ?? null,
       evidence,
+      mixedSignals,
       footer: 'Checked against 21 nights of your baselines · nothing was changed.',
     }
   }
@@ -145,6 +164,7 @@ export function buildVerdict(i: VerdictInputs): Verdict {
     sub: 'Your body backed up the plan overnight.',
     score: i.score?.displayScore ?? null,
     evidence,
+    mixedSignals,
     footer: 'Checked against 21 nights of your baselines · nothing was changed.',
   }
 }
