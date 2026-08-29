@@ -37,6 +37,9 @@ const DARK_BG: Record<string, string> = {
   '#DBEAFE': '#1e3a5f', '#F0FDFA': '#042f2e', '#F9FAFB': '#1e293b',
   '#FEF9C3': '#422006', '#FEE2E2': '#450a0a', '#FDF2F8': '#500724',
   '#D1FAE5': '#064e3b',
+  // Plain white cards: in dark mode they must become the slate card colour,
+  // or white-on-white text renders invisible (the Today/Tomorrow CTAs did).
+  '#FFFFFF': '#1e293b',
 }
 
 export function getDarkBg(lightBg: string): string {

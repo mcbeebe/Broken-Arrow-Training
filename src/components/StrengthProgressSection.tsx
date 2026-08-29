@@ -130,12 +130,12 @@ export default function StrengthProgressSection({ weeks, currentWeekNum, capacit
               const max = Math.max(...volume.map(x => x.sets))
               return (
                 <div key={v.weekNum} className="flex-1 flex flex-col items-center gap-0.5">
-                  <span className="font-mono text-[9px] text-slate-500">{v.sets}</span>
+                  <span className="font-mono text-[11px] text-slate-500">{v.sets}</span>
                   <div
                     className="w-full rounded-t bg-purple-500/80 dark:bg-purple-600"
                     style={{ height: `${Math.max(8, (v.sets / max) * 100)}%` }}
                   />
-                  <span className="text-[9px] text-slate-400">W{v.weekNum}</span>
+                  <span className="text-[11px] text-slate-400">W{v.weekNum}</span>
                 </div>
               )
             })}

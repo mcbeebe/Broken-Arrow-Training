@@ -10,7 +10,7 @@ import TodayNarrativeCard from './TodayNarrativeCard'
 import TRIMPBreakdown from './TRIMPBreakdown'
 import WorkoutModal from './WorkoutModal'
 import ManualLog from './ManualLog'
-import { getWorkoutStyle } from '../utils/styles'
+import { getWorkoutStyle, adaptBg } from '../utils/styles'
 import { isEveningPreviewWindow } from '../utils/coach'
 import Term from './TermGlossary'
 import RaceCard from './RaceCard'
@@ -116,18 +116,18 @@ function GaugeBar({ value, min, max, labels, targetLines, zones }: {
       {zones && (
         <div className="flex mt-0.5">
           {zones.map((z, i) => (
-            <span key={i} className="text-[8px] text-slate-400 text-center italic" style={{ width: '16.67%' }}>{z}</span>
+            <span key={i} className="text-[10px] text-slate-400 text-center italic" style={{ width: '16.67%' }}>{z}</span>
           ))}
         </div>
       )}
       {targetLines?.some(t => t.label) && (
         <div className="relative h-3 mt-0">
           {targetLines.filter(t => t.label).map((t, i) => (
-            <span key={i} className="absolute text-[8px] font-semibold" style={{ left: `${((t.pos - min) / (max - min)) * 100}%`, transform: 'translateX(-50%)', color: t.color }}>{t.label}</span>
+            <span key={i} className="absolute text-[10px] font-semibold" style={{ left: `${((t.pos - min) / (max - min)) * 100}%`, transform: 'translateX(-50%)', color: t.color }}>{t.label}</span>
           ))}
         </div>
       )}
-      <div className={`flex justify-between text-[9px] text-slate-400 ${zones || targetLines?.some(t => t.label) ? 'mt-0' : 'mt-1'}`}>
+      <div className={`flex justify-between text-[10px] text-slate-400 ${zones || targetLines?.some(t => t.label) ? 'mt-0' : 'mt-1'}`}>
         {labels.map((l, i) => <span key={i}>{l}</span>)}
       </div>
     </>
@@ -157,13 +157,13 @@ function ACWRGaugeBar({ value }: { value: number }) {
         />
       </div>
       <div className="flex mt-0.5">
-        <span className="text-[8px] text-slate-400 text-center italic" style={{ width: '16.67%' }}>Detrained</span>
-        <span className="text-[8px] text-slate-400 text-center italic" style={{ width: '16.67%' }}>Under</span>
-        <span className="text-[8px] text-green-600 text-center italic font-semibold" style={{ width: '33.34%' }}>Sweet Spot</span>
-        <span className="text-[8px] text-slate-400 text-center italic" style={{ width: '16.67%' }}>Caution</span>
-        <span className="text-[8px] text-slate-400 text-center italic" style={{ width: '16.65%' }}>Danger</span>
+        <span className="text-[10px] text-slate-400 text-center italic" style={{ width: '16.67%' }}>Detrained</span>
+        <span className="text-[10px] text-slate-400 text-center italic" style={{ width: '16.67%' }}>Under</span>
+        <span className="text-[10px] text-green-600 text-center italic font-semibold" style={{ width: '33.34%' }}>Sweet Spot</span>
+        <span className="text-[10px] text-slate-400 text-center italic" style={{ width: '16.67%' }}>Caution</span>
+        <span className="text-[10px] text-slate-400 text-center italic" style={{ width: '16.65%' }}>Danger</span>
       </div>
-      <div className="flex justify-between text-[9px] text-slate-400 mt-0">
+      <div className="flex justify-between text-[10px] text-slate-400 mt-0">
         <span>0</span>
         <span>0.33</span>
         <span>0.67</span>
@@ -502,7 +502,7 @@ export default function Summary({
             <button
               onClick={() => setShowTomorrowModal(true)}
               className="w-full text-left rounded-xl border-2 px-3 py-2.5 transition-colors"
-              style={{ borderColor: style.border, backgroundColor: 'white' }}
+              style={{ borderColor: style.border, backgroundColor: adaptBg('#FFFFFF') }}
             >
               <div className="flex items-center justify-between">
                 <div>
@@ -558,7 +558,7 @@ export default function Summary({
             <button
               onClick={() => setShowTodayModal(true)}
               className="w-full text-left rounded-xl border-2 px-3 py-2.5 transition-colors"
-              style={{ borderColor: style.border, backgroundColor: isCompleted ? style.bg : 'white' }}
+              style={{ borderColor: style.border, backgroundColor: adaptBg(isCompleted ? style.bg : '#FFFFFF') }}
             >
               <div className="flex items-center justify-between">
                 <div>
@@ -716,7 +716,7 @@ export default function Summary({
                   <p className="text-xs text-blue-600 font-semibold"><Sparkline data={ctlSpark} color="#2563eb" />{fitnessLabel}</p>
                 </div>
                 <p className="text-xs font-medium text-slate-600 dark:text-slate-300"><Term name="ctl" athleteId={athleteId} /> <span className="text-slate-400 font-normal">— 42-day training base</span></p>
-                <p className="text-[9px] text-slate-400 mt-0.5 italic">Cardiovascular + musculoskeletal load · EPOC + MIM + DOMS + soreness</p>
+                <p className="text-[11px] text-slate-400 mt-0.5 italic">Cardiovascular + musculoskeletal load · EPOC + MIM + DOMS + soreness</p>
                 <GaugeBar
                   value={latestPerf.ctl}
                   min={0} max={100}
@@ -735,7 +735,7 @@ export default function Summary({
                   <p className="text-xs text-red-500 font-semibold"><Sparkline data={atlSpark} color="#ef4444" />{fatigueLabel}</p>
                 </div>
                 <p className="text-xs font-medium text-slate-600 dark:text-slate-300"><Term name="atl" athleteId={athleteId} /> <span className="text-slate-400 font-normal">— 7-day recent load</span></p>
-                <p className="text-[9px] text-slate-400 mt-0.5 italic">Includes DOMS carry-over + perceived soreness from check-in</p>
+                <p className="text-[11px] text-slate-400 mt-0.5 italic">Includes DOMS carry-over + perceived soreness from check-in</p>
                 <GaugeBar
                   value={100 - latestPerf.atl}
                   min={0} max={100}
@@ -770,7 +770,7 @@ export default function Summary({
                   }`}><Sparkline data={tsbSpark} color="#059669" />{getTSBLabel(tsbState)}</p>
                 </div>
                 <p className="text-xs font-medium text-slate-600 dark:text-slate-300"><Term name="tsb" athleteId={athleteId}>Recovery Balance</Term> <span className="text-slate-400 font-normal">— are you fresh or fatigued?</span></p>
-                <p className="text-[9px] text-slate-400 mt-0.5 italic">Fitness minus Fatigue · negative = cardio + muscle fatigue exceeds base</p>
+                <p className="text-[11px] text-slate-400 mt-0.5 italic">Fitness minus Fatigue · negative = cardio + muscle fatigue exceeds base</p>
                 <GaugeBar
                   value={latestPerf.tsb + 30}
                   min={0} max={55}
@@ -807,7 +807,7 @@ export default function Summary({
                   }`}><Sparkline data={acwrSpark} color="#d97706" />{getACWRLabel(acwrRisk)}</p>
                 </div>
                 <p className="text-xs font-medium text-slate-600 dark:text-slate-300"><Term name="acwr" athleteId={athleteId}>Load Ratio</Term> <span className="text-slate-400 font-normal">— acute vs chronic workload</span></p>
-                <p className="text-[9px] text-slate-400 mt-0.5 italic">How fast you're ramping · includes all load: cardio, strength, DOMS, soreness</p>
+                <p className="text-[11px] text-slate-400 mt-0.5 italic">How fast you're ramping · includes all load: cardio, strength, DOMS, soreness</p>
                 <ACWRGaugeBar value={latestPerf.acwr} />
               </div>
             </div>

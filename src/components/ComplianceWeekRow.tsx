@@ -98,7 +98,7 @@ export default function ComplianceWeekRow({ week, weekLabel, weekFocus, planZone
         <div className="grid grid-cols-[28px_repeat(7,1fr)] gap-1 items-center">
           <div />
           {days.map((d, i) => (
-            <div key={i} className="text-[9px] text-slate-400 text-center truncate">
+            <div key={i} className="text-[10px] text-slate-400 text-center truncate">
               {dayInitial(d.day)}
             </div>
           ))}
@@ -182,7 +182,7 @@ export default function ComplianceWeekRow({ week, weekLabel, weekFocus, planZone
       </div>
 
       {/* Zone legend */}
-      <div className="mt-1.5 flex gap-2 text-[9px] text-slate-400 items-center">
+      <div className="mt-1.5 flex gap-2 text-[11px] text-slate-400 items-center">
         <span>Zones:</span>
         {[1, 2, 3, 4, 5].map(z => (
           <span key={z} className="flex items-center gap-0.5">
@@ -206,7 +206,7 @@ function MetricRow({
 }) {
   return (
     <div className="grid grid-cols-[28px_repeat(7,1fr)] gap-1 items-center">
-      <span className="text-[9px] font-semibold text-slate-500 dark:text-slate-400 uppercase">{label}</span>
+      <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase">{label}</span>
       {days.map((d, i) => (
         <div key={i} className="h-3.5">{render(d)}</div>
       ))}
@@ -225,7 +225,7 @@ function MetricRow({
 function SkippedCell() {
   return (
     <div className="h-full rounded-sm bg-slate-300 flex items-center justify-center" title="Skipped">
-      <span className="text-[7px] leading-none text-slate-600 font-bold">✗</span>
+      <span className="text-[10px] leading-none text-slate-600 font-bold">✗</span>
     </div>
   )
 }
@@ -364,7 +364,7 @@ function ElevationCell({
         className="h-full rounded-sm bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center"
         title={`+${formatFt(actualFt)} ft bonus vert (no plan target)`}
       >
-        <span className="text-[8px] font-semibold text-indigo-700 dark:text-indigo-300 leading-none">
+        <span className="text-[10px] font-semibold text-indigo-700 dark:text-indigo-300 leading-none">
           +{formatFt(actualFt)}
         </span>
       </div>
@@ -402,7 +402,7 @@ function DrillCell({
     : `Drills planned but not completed${itemList ? ` (${itemList})` : ''}`
   return (
     <div
-      className="h-full rounded-sm flex items-center justify-center text-[8px] font-bold text-white"
+      className="h-full rounded-sm flex items-center justify-center text-[10px] font-bold text-white"
       style={{ background: gradeFill(grade) }}
       title={title}
     >
@@ -457,7 +457,7 @@ function RestCell({ workoutType, isPast }: { workoutType: string; isPast: boolea
         className="h-full rounded-sm bg-emerald-100/70 flex items-center justify-center"
         title={`${label} — on plan`}
       >
-        <span className="text-[7px] text-emerald-700 font-semibold leading-none">✓</span>
+        <span className="text-[10px] text-emerald-700 font-semibold leading-none">✓</span>
       </div>
     )
   }

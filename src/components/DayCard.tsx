@@ -145,7 +145,7 @@ export default function DayCard({ day, weekNum, onTap, onLog, onStartLive, onSwa
 
   const statusDot = readiness && dotColor ? (
     <span
-      className={`w-3.5 h-3.5 rounded-full inline-flex items-center justify-center text-white text-[8px] font-bold leading-none ${dotColor}`}
+      className={`w-3.5 h-3.5 rounded-full inline-flex items-center justify-center text-white text-[10px] font-bold leading-none ${dotColor}`}
       title={`Readiness: ${readiness.status} (${readiness.displayScore}/100) — State ${readiness.trainingState}`}
       aria-label={`Readiness ${readiness.status}`}
     >{dotGlyph}</span>

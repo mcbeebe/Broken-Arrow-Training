@@ -281,7 +281,7 @@ export default function ZoneBreakdownTable({ heartrates, times, targetZone, alti
                   </span>
                   <span className="text-right">
                     <span
-                      className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-bold ${
+                      className={`inline-block px-1.5 py-0.5 rounded text-[11px] font-bold ${
                         inPctMin >= 75 ? 'bg-green-100 text-green-700' :
                         inPctMin >= 50 ? 'bg-amber-100 text-amber-700' :
                         'bg-red-100 text-red-700'
@@ -318,7 +318,7 @@ export default function ZoneBreakdownTable({ heartrates, times, targetZone, alti
             </span>
             <span className="text-right">
               <span
-                className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-bold ${
+                className={`inline-block px-1.5 py-0.5 rounded text-[11px] font-bold ${
                   inPct >= 75 ? 'bg-green-100 text-green-700' :
                   inPct >= 50 ? 'bg-amber-100 text-amber-700' :
                   'bg-red-100 text-red-700'

@@ -935,7 +935,7 @@ function MIMTable({ overrides, lastCalibrated, onSetManual, onReset, onRecalibra
                     {o.recentAvgMIM !== null ? (
                       <span title={`${o.recentSampleCount} session${o.recentSampleCount === 1 ? '' : 's'} in last 30d`}>
                         {o.recentAvgMIM.toFixed(2)}
-                        <span className="text-[9px] text-slate-400 ml-0.5">×{o.recentSampleCount}</span>
+                        <span className="text-[11px] text-slate-400 ml-0.5">×{o.recentSampleCount}</span>
                       </span>
                     ) : (
                       <span className="text-slate-300">—</span>
@@ -972,7 +972,7 @@ function MIMTable({ overrides, lastCalibrated, onSetManual, onReset, onRecalibra
                             <span className="mr-0.5">⚠️</span>
                             {o.manual!.toFixed(2)}
                             {Math.abs(overrideDrift) >= 1 && (
-                              <span className={`ml-0.5 text-[9px] ${overrideDrift > 0 ? 'text-red-400' : 'text-green-500'}`}>
+                              <span className={`ml-0.5 text-[11px] ${overrideDrift > 0 ? 'text-red-400' : 'text-green-500'}`}>
                                 {overrideDrift > 0 ? '+' : ''}{overrideDrift.toFixed(0)}%
                               </span>
                             )}
@@ -987,7 +987,7 @@ function MIMTable({ overrides, lastCalibrated, onSetManual, onReset, onRecalibra
                     {isManual && (
                       <button
                         onClick={() => onReset?.(o.sport)}
-                        className="text-[9px] text-slate-400 hover:text-red-500"
+                        className="text-[11px] text-slate-400 hover:text-red-500"
                         title="Clear manual override"
                       >
                         ×
@@ -1001,7 +1001,7 @@ function MIMTable({ overrides, lastCalibrated, onSetManual, onReset, onRecalibra
         </table>
       </div>
       <div className="flex items-center justify-between pt-1">
-        <div className="flex gap-2 text-[9px] text-slate-400 flex-wrap">
+        <div className="flex gap-2 text-[11px] text-slate-400 flex-wrap">
           <span><span className="text-violet-600 dark:text-violet-300 font-medium">Violet</span> = per-workout formula</span>
           <span><span className="text-amber-700 dark:text-amber-300 font-bold">⚠️ Amber</span> = manual override (bypasses engine)</span>
         </div>

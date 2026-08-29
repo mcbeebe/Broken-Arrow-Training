@@ -172,7 +172,7 @@ export default function ReadinessBanner({
         {todayScore.guardrailsTriggered && todayScore.guardrailsTriggered.length > 0 && (
           <div className="mt-1.5 space-y-0.5">
             {todayScore.guardrailsTriggered.map((g, i) => (
-              <p key={i} className="text-[9px] text-slate-500 italic">🛡️ {g}</p>
+              <p key={i} className="text-[11px] text-slate-500 italic">🛡️ {g}</p>
             ))}
           </div>
         )}
@@ -237,11 +237,11 @@ function MetricCard({
     <div className={`bg-white rounded-lg p-2 text-center ${gated ? 'ring-1 ring-red-300' : ''}`}>
       <p className="text-[10px] text-slate-500 font-medium uppercase tracking-wide">{label}</p>
       <p className="text-base font-bold text-slate-800 leading-tight mt-0.5">
-        {value}<span className="text-[9px] text-slate-400 font-normal ml-0.5">{unit}</span>
+        {value}<span className="text-[11px] text-slate-400 font-normal ml-0.5">{unit}</span>
       </p>
       {sparkline && <div className="flex justify-center mt-1">{sparkline}</div>}
-      <p className={`text-[9px] font-semibold mt-0.5 ${scoreColor}`}>{scoreLabel}</p>
-      {gated && <p className="text-[8px] text-red-500 font-medium">⚠️ Low</p>}
+      <p className={`text-[11px] font-semibold mt-0.5 ${scoreColor}`}>{scoreLabel}</p>
+      {gated && <p className="text-[11px] text-red-500 font-medium">⚠️ Low</p>}
     </div>
   )
 }

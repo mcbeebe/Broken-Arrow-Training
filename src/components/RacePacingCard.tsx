@@ -52,7 +52,7 @@ export default function RacePacingCard({ plan }: { plan: RacePacingPlan }) {
                   <span className="font-semibold text-slate-700 dark:text-slate-200">{s.name}</span>
                   <span className="text-slate-400"> mi {s.startMile}–{s.endMile}</span>
                   {s.gait === 'hike' && (
-                    <span className="ml-1 rounded bg-amber-100 text-amber-800 px-1 py-0.5 text-[9px] font-bold">HIKE</span>
+                    <span className="ml-1 rounded bg-amber-100 text-amber-800 px-1 py-0.5 text-[11px] font-bold">HIKE</span>
                   )}
                 </td>
                 <td className="py-1.5 pr-2 text-slate-600 dark:text-slate-300">

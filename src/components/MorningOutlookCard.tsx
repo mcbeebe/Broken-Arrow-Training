@@ -55,7 +55,7 @@ export default function MorningOutlookCard({ card, score, onSoundsRight, onRever
         <div className="mt-2.5 grid grid-cols-3 gap-1.5">
           {card.evidence.slice(0, 3).map(row => (
             <div key={row.label} className="bg-slate-50 dark:bg-slate-900 rounded-lg px-2 py-1.5">
-              <p className="text-[9px] text-slate-400 leading-tight">{row.label}</p>
+              <p className="text-[11px] text-slate-400 leading-tight">{row.label}</p>
               <p className="text-xs font-bold text-slate-700 dark:text-slate-200 mt-0.5">{row.value}</p>
             </div>
           ))}

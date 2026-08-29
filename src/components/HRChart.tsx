@@ -336,7 +336,7 @@ function ZoneComplianceSummary({
             <span key={i} className={`text-[10px] flex items-center gap-1 ${isTarget ? 'text-slate-700 dark:text-slate-200 font-semibold' : 'text-slate-500 dark:text-slate-400'}`}>
               <span className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: ZONE_COLORS[i] }} />
               {z.zone.split('–')[0].trim()}: {mins}m ({pct}%)
-              {isTarget && <span className="text-green-600 text-[8px]">TARGET</span>}
+              {isTarget && <span className="text-green-600 text-[10px]">TARGET</span>}
             </span>
           )
         })}

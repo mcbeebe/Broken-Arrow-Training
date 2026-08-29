@@ -52,7 +52,7 @@ function LeverBlock({ lever, rank, expanded, onToggle, onAskCoach }: {
           <ol className="space-y-1.5">
             {lever.steps.map((step, i) => (
               <li key={i} className="flex items-start gap-2">
-                <span className="w-4 h-4 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300 text-[9px] font-bold flex items-center justify-center shrink-0 mt-0.5">
+                <span className="w-4 h-4 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300 text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">
                   {i + 1}
                 </span>
                 <span className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">{step}</span>

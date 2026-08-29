@@ -85,7 +85,7 @@ export default function CoachCard({ recommendation, onSwap }: CoachCardProps) {
           {/* Data inputs that drove this recommendation */}
           <div className="flex flex-wrap gap-1 mt-1">
             {rec.inputs.map((input, i) => (
-              <span key={i} className="text-[9px] text-slate-500 bg-white/60 rounded px-1.5 py-0.5">
+              <span key={i} className="text-[11px] text-slate-500 bg-white/60 rounded px-1.5 py-0.5">
                 {input}
               </span>
             ))}
