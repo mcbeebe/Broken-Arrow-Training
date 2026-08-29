@@ -1,5 +1,6 @@
 import type { PlannedDay } from '../types'
 import type { ReplanKind } from '../engines/planGenerator/replanLog'
+import type { MoveOutcome } from '../engines/planGenerator/replan'
 
 /**
  * Phase 5 (PRD-110) — the way an athlete tells the plan that life
@@ -17,11 +18,15 @@ interface MissedDaySheetProps {
   onChoose: (kind: ReplanKind) => void
   onUndo: () => void
   onClose: () => void
+  /** What "move it later" would actually do, computed from the real rule.
+   *  Shown before the athlete commits — being told "moved" and getting a
+   *  skip is the failure this preview exists to prevent. */
+  moveOutcome?: MoveOutcome
 }
 
 const KEY_TYPES = new Set(['quality', 'long'])
 
-export default function MissedDaySheet({ day, hasReplan, onChoose, onUndo, onClose }: MissedDaySheetProps) {
+export default function MissedDaySheet({ day, hasReplan, onChoose, onUndo, onClose, moveOutcome }: MissedDaySheetProps) {
   const isKeySession = KEY_TYPES.has(day.type)
 
   return (
@@ -70,9 +75,23 @@ export default function MissedDaySheet({ day, hasReplan, onChoose, onUndo, onClo
                 >
                   <p className="font-semibold text-slate-800 dark:text-slate-100">Move it later this week</p>
                   <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-                    Only if a later easy day has room and enough space before the next hard one — otherwise it's skipped
-                    instead. Hard days never end up stacked.
+                    Only onto a later easy day with enough space before the next hard one. Hard days never end up
+                    stacked.
                   </p>
+                  {moveOutcome && (
+                    <p
+                      className={`text-sm font-semibold mt-1.5 ${
+                        moveOutcome.kind === 'moved'
+                          ? 'text-teal-700 dark:text-teal-300'
+                          : 'text-amber-700 dark:text-amber-300'
+                      }`}
+                      data-testid="move-outcome"
+                    >
+                      {moveOutcome.kind === 'moved'
+                        ? `This one lands on ${moveOutcome.toDay}.`
+                        : "No later day this week works — this will skip it instead."}
+                    </p>
+                  )}
                 </button>
               )}
 

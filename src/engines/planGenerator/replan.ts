@@ -116,12 +116,16 @@ export function replanMissedKeySession(plan: TrainingPlan, missedIso: string): T
   if (!HARD_TYPES.has(missed.type) || missed.type === 'race') {
     return replanShortGap(plan, [missedIso])
   }
-  // Candidate: the next easy run day in the SAME week.
+  // Candidates: every easy run day left in the SAME week. A rejected
+  // candidate only rules out THAT day — keep looking. (These two checks
+  // used to `break`, which abandoned the whole search on the first
+  // rejection and silently skipped a session the athlete was told had
+  // been moved.)
   for (let j = loc.dayIdx + 1; j < week.days.length; j++) {
     if (week.days[j].type !== 'run') continue
     // ≥48 h from the following hard day: the next day must not be hard.
     const next = week.days[j + 1]
-    if (next && isHardDay(next)) break
+    if (next && isHardDay(next)) continue
     // Simulate the swap and re-check the mandate window.
     const days = [...week.days]
     days[j] = { ...missed, day: days[j].day }
@@ -133,12 +137,38 @@ export function replanMissedKeySession(plan: TrainingPlan, missedIso: string): T
       run = f ? run + 1 : 0
       if (run >= 3) { ok = false; break }
     }
-    if (!ok) break
+    if (!ok) continue
     const weeks = [...plan.weeks]
     weeks[loc.weekIdx] = recomputeMiles(tagWeek({ ...week, days }))
     return { ...plan, weeks }
   }
   return replanShortGap(plan, [missedIso])
+}
+
+/** What "move it later this week" will actually do. The engine falls back
+ *  to a skip when no later day in the week is legal, and the athlete is
+ *  entitled to know which one they are about to get — before they tap, not
+ *  after. Derived by running the real rule and reading its output, so this
+ *  can never drift from the logic it describes. */
+export type MoveOutcome =
+  | { kind: 'moved'; toDay: string }
+  | { kind: 'skipped' }
+
+export function moveOutcomeFor(weeks: TrainingWeek[], missedIso: string): MoveOutcome {
+  // The rule only ever reads plan.weeks; wrapping is cheaper than threading
+  // a whole TrainingPlan through the UI just to preview one sentence.
+  const before = { weeks } as TrainingPlan
+  const loc = locateDay(before, missedIso)
+  if (!loc) return { kind: 'skipped' }
+  const original = weeks[loc.weekIdx].days[loc.dayIdx]
+
+  const after = replanMissedKeySession(before, missedIso)
+  const week = after.weeks[loc.weekIdx]
+  if (!/moved later/i.test(week.days[loc.dayIdx].detail ?? '')) return { kind: 'skipped' }
+
+  const landed = week.days.find((d, i) =>
+    i !== loc.dayIdx && d.type === original.type && d.workout === original.workout)
+  return landed ? { kind: 'moved', toDay: landed.day } : { kind: 'skipped' }
 }
 
 /**
