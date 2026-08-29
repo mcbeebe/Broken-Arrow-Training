@@ -65,7 +65,7 @@ function clearSeedDate(athleteId: string) {
  * Coach tab content: pure chat surface. The daily insight is a
  * Summary-only affordance — it no longer gets auto-seeded into the
  * conversation. Athletes can bring an insight into chat on demand via
- * the "Ask about this →" button on the Summary card.
+ * the "Ask about this →" button on the Today card.
  */
 export default function CoachTab({
   athleteId,
@@ -100,9 +100,9 @@ export default function CoachTab({
   // mounted at the App level so it runs regardless of the active tab.
 
   // NOTE: daily insight is intentionally NOT seeded into the chat
-  // thread anymore. It lives on the Summary tab only — mixing it into
+  // thread anymore. It lives on Today only — mixing it into
   // the Coach thread felt redundant and cluttered the conversation.
-  // The "Ask about this →" button on the Summary card is how the
+  // The "Ask about this →" button on the Today card is how the
   // athlete brings an insight into chat on demand.
 
   // The Coach screen renders inside the app's visual-viewport-sized frame

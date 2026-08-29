@@ -337,7 +337,7 @@ export default function Summary({
           ))}
         </div>
       )}
-      {/* Plan-at-a-glance fills the Summary with useful, engaging context when
+      {/* Plan-at-a-glance fills Today with useful, engaging context when
           there's no Garmin/readiness data to show (this week, next key session,
           phase coach note). */}
       {!garminConnected && weeks && weeks.length > 0 && (

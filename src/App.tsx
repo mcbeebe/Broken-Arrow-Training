@@ -1329,6 +1329,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     appendLog: adaptationLog.append,
     markLogReverted: adaptationLog.markReverted,
     onArchive: coachEnabled ? text => { void coachMemory.appendTurn('system-handoff', text) } : undefined,
+    morningHour: proactiveTiming.morningHour,
   })
 
   // The training philosophy this athlete follows — their onboarding pick,
@@ -1538,7 +1539,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
   // exported for tests in case we want to revive scheduled briefings
   // server-side later.
 
-  // The Summary tab no longer previews the coach message — the athlete
+  // Today no longer previews the coach message — the athlete
   // reads + replies entirely on the Coach tab. The alert banner is how
   // they learn a fresh daily insight is waiting: it fires whenever the
   // insight is newer than the last one they opened on the Coach tab.
