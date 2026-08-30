@@ -10,7 +10,7 @@
 
 import type { AuthSession } from './auth'
 import { isPreservedKey } from './migrate'
-import { isMergeableCollectionKey, mergeCollection } from './syncMerge'
+import { isMergeableCollectionKey, mergeCollection, contentVersion } from './syncMerge'
 import {
   listStampedKeys,
   readStamp,
@@ -262,6 +262,17 @@ export async function hydrateFromServer(session: AuthSession): Promise<{ pulled:
     // `pullFromServer`, which overwrites unconditionally.
     const shouldWrite = serverMs > localStamp
     if (!shouldWrite) continue
+
+    // Content-recency guard (the data-loss fix). The test above compares
+    // PUSH timestamps, but a stale device can re-upload old content with a
+    // fresh push time — which is how a month-old plan overwrote a current
+    // one. When a key carries its own authored-at signal (the config's
+    // completedAt), never let OLDER content win, however new its stamp
+    // looks. Absent on either side → fall back to the timestamp LWW above.
+    const localVer = contentVersion(item.key, localRaw)
+    const serverVer = contentVersion(item.key, item.value)
+    if (localVer != null && serverVer != null && serverVer < localVer) continue
+
     try {
       localStorage.setItem(item.key, item.value)
       stampKey(item.key, serverMs)
@@ -417,11 +428,16 @@ export async function pushAll(session: AuthSession): Promise<PushResult> {
     scanned++
     const value = localStorage.getItem(key)
     if (value === null) continue
-    stampKey(key, now)
+    // Stamp an unstamped entry with its own CONTENT time when it has one
+    // (the config's completedAt), not `now`. Otherwise an old config that
+    // was never stamped uploads as brand-new and clobbers every device's
+    // current plan — the exact backfill that caused the plan revert.
+    const stampAt = contentVersion(key, value) ?? now
+    stampKey(key, stampAt)
     pending.push({
       key,
       value,
-      updatedAt: new Date(now).toISOString(),
+      updatedAt: new Date(stampAt).toISOString(),
     })
     backfilled++
   }
