@@ -118,6 +118,14 @@ describe('buildMorningOutlook — readiness gate', () => {
     expect(updates.zone).toContain('3.5 mi')
   })
 
+  it('leaves a pinned day alone — autopilot never touches a locked session', () => {
+    // Same red trend that swaps a hard day out above, but today (Wed) is
+    // locked: the athlete pinned it, so autopilot stands down entirely.
+    const locked = standardWeek().map(d => d.day === 'Wed 9/16' ? { ...d, locked: true } : d)
+    const outlook = buildMorningOutlook(planWeeks(locked), TODAY, inputs())
+    expect(outlook).toBeNull()
+  })
+
   it('yellow trend keeps the session at 80% instead of moving it', () => {
     const outlook = buildMorningOutlook(planWeeks(standardWeek()), TODAY, inputs({
       score: score(TODAY, 'YELLOW'),

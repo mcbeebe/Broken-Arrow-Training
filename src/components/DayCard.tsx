@@ -67,9 +67,14 @@ interface DayCardProps {
   /** ISO date (YYYY-MM-DD) this card represents. Required to schedule a
    *  pushed workout on the right Garmin calendar day. */
   isoDate?: string
+  /** True when the athlete has pinned this day (locked-days store). A
+   *  locked day is left exactly as authored by every scheduler. */
+  locked?: boolean
+  /** Toggle this day's lock. Absent on read-only surfaces. */
+  onToggleLock?: () => void
 }
 
-export default function DayCard({ day, weekNum, onTap, onLog, onStartLive, onSwap, onEdit, onMissed, hasReplan, hasEdit, isSwapSelected, isSwapTarget, readiness, coachEnabled, isToday, isPast, athleteId, coachSnapshot, onAskCoach, trimpRecord, weatherChip, injuryStatus, isoDate }: DayCardProps) {
+export default function DayCard({ day, weekNum, onTap, onLog, onStartLive, onSwap, onEdit, onMissed, hasReplan, hasEdit, isSwapSelected, isSwapTarget, readiness, coachEnabled, isToday, isPast, athleteId, coachSnapshot, onAskCoach, trimpRecord, weatherChip, injuryStatus, isoDate, locked, onToggleLock }: DayCardProps) {
   const style = getWorkoutStyle(day.type, day.workout)
   const actual = day.actual
   const timeEst = estimateRunTime(day.zone)
@@ -153,9 +158,11 @@ export default function DayCard({ day, weekNum, onTap, onLog, onStartLive, onSwa
 
   return (
     <div
-      className="rounded-xl overflow-hidden shadow-sm cursor-pointer active:scale-[0.98] transition-all"
+      className={`rounded-xl overflow-hidden shadow-sm cursor-pointer active:scale-[0.98] transition-all ${locked ? 'ring-1 ring-slate-400 dark:ring-slate-500' : ''}`}
       style={{ backgroundColor: cardBg, borderLeft: `4px solid ${style.border}` }}
       onClick={onTap}
+      data-testid="day-card"
+      data-locked={locked ? 'true' : undefined}
     >
       <div className="px-3.5 py-3">
         {/* Header row — day label + status pills on the left, action
@@ -218,6 +225,21 @@ export default function DayCard({ day, weekNum, onTap, onLog, onStartLive, onSwa
           </div>
 
           <div className="flex items-center gap-1.5 shrink-0">
+            {onToggleLock && (
+              <button
+                onClick={e => { e.stopPropagation(); onToggleLock() }}
+                className={`text-xs font-medium px-2 py-1 rounded-full transition-colors ${
+                  locked
+                    ? 'bg-slate-700 text-white hover:bg-slate-800'
+                    : 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-600'
+                }`}
+                title={locked ? 'Pinned — the plan leaves this day alone. Tap to unpin.' : 'Pin this day so replan, swaps and autopilot leave it alone.'}
+                aria-pressed={locked}
+                data-testid="day-lock-toggle"
+              >
+                {locked ? '🔒' : '🔓'}
+              </button>
+            )}
             {onSwap && (
               <button
                 onClick={e => { e.stopPropagation(); onSwap() }}

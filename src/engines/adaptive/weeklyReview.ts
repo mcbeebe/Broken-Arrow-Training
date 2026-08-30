@@ -90,7 +90,7 @@ function longRunHoldAdjustment(
   todayIso: string,
 ): WeeklyAdjustment | null {
   if (reviewed.verdict === 'advance') return null
-  const nextLongIdx = nextWeek.days.findIndex(d => d.type === 'long' && !d.actual)
+  const nextLongIdx = nextWeek.days.findIndex(d => d.type === 'long' && !d.actual && !d.locked)
   if (nextLongIdx < 0) return null
   const nextLong = nextWeek.days[nextLongIdx]
   const plannedMi = parseDistance(nextLong.zone)
@@ -163,8 +163,9 @@ function spacingAdjustment(nextWeek: TrainingWeek): WeeklyAdjustment | null {
   for (let i = 0; i + 1 < days.length; i++) {
     if (!HARD_TYPES.has(days[i].type) || !HARD_TYPES.has(days[i + 1].type)) continue
     if (days[i].actual || days[i + 1].actual) continue
+    if (days[i].locked || days[i + 1].locked) continue  // don't re-space a pinned pair
     const j = days.findIndex((d, idx) =>
-      idx > i + 1 && Math.abs(idx - (i + 1)) >= 2 && !d.actual &&
+      idx > i + 1 && Math.abs(idx - (i + 1)) >= 2 && !d.actual && !d.locked &&
       (d.type === 'run' || d.type === 'cross' || d.type === 'strength'),
     )
     if (j < 0) return null
@@ -203,7 +204,7 @@ function gapRescaleAdjustment(
   const ops: PlanEditOpInput[] = []
   for (const w of targetWeeks) {
     w.days.forEach((day, dayIndex) => {
-      if (day.actual || day.type === 'rest' || day.type === 'race') return
+      if (day.actual || day.type === 'rest' || day.type === 'race' || day.locked) return
       const mi = parseDistance(day.zone)
       if (!mi) return
       const scaled = Math.max(1, Math.round(mi * factor * 10) / 10)

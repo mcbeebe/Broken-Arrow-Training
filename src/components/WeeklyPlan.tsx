@@ -87,6 +87,9 @@ interface WeeklyPlanProps {
     onActivate: (decl: TravelDeclaration) => void
     onDeactivate: (window: TravelWindow) => void
   }
+  /** P12 — toggle a day's lock (pin). Absent on read-only surfaces (the
+   *  lock affordance doesn't render). Takes the day's ISO date. */
+  onToggleLock?: (dateIso: string) => void
   /** Phase 5 (PRD-110) — missed-workout replanning. Absent for read-only
    *  surfaces; the "Missed?" affordance simply doesn't render. */
   replan?: {
@@ -166,6 +169,7 @@ export default function WeeklyPlan({
   daySwap,
   planEdit,
   travel,
+  onToggleLock,
   replan,
   onRebuildPlan,
   weekReadiness = [],
@@ -342,6 +346,8 @@ export default function WeeklyPlan({
 
   // Tap-to-swap: first tap selects source, second tap selects target
   function handleSwapTap(index: number) {
+    // A pinned day is fixed — it can't be a swap source or a swap target.
+    if (week.days[index]?.locked) return
     if (swapSource === null) {
       setSwapSource(index)
     } else if (swapSource === index) {
@@ -732,21 +738,24 @@ export default function WeeklyPlan({
                     ? () => setLiveOpen({ day: d, iso: dayDateMatch ?? undefined })
                     : undefined
                 }
-                onSwap={daySwap ? () => handleSwapTap(i) : undefined}
+                onSwap={daySwap && !d.locked ? () => handleSwapTap(i) : undefined}
                 onEdit={planEdit ? () => setEditDay({ day: d, index: i }) : undefined}
+                locked={d.locked}
+                onToggleLock={onToggleLock && dayDateMatch ? () => onToggleLock(dayDateMatch) : undefined}
                 onMissed={
                   // Only for days that already happened, had something
                   // planned, and weren't logged — a replan on a future day
-                  // would be guessing, and on a logged day, wrong.
+                  // would be guessing, and on a logged day, wrong. A pinned
+                  // day is fixed, so it offers no "Missed?"/move affordance.
                   replan && dayDateMatch && dayDateMatch < todayDateString() &&
-                  d.type !== 'rest' && d.type !== 'race' && !d.actual
+                  d.type !== 'rest' && d.type !== 'race' && !d.actual && !d.locked
                     ? () => setMissedDay({ day: d, iso: dayDateMatch })
                     : undefined
                 }
                 hasReplan={!!dayDateMatch && !!replan?.hasReplan(dayDateMatch)}
                 hasEdit={planEdit?.hasEdit(week.num, i)}
                 isSwapSelected={swapSource === i}
-                isSwapTarget={isSwapMode && swapSource !== i}
+                isSwapTarget={isSwapMode && swapSource !== i && !d.locked}
                 readiness={readiness}
                 coachEnabled={coachEnabled}
                 isToday={dayDateMatch === todayDateString()}
