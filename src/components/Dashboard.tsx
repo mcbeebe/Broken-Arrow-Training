@@ -125,10 +125,10 @@ export default function Dashboard({
 
       {/* Where the block is actually heading, first — not two taps deep.
           The projection was reachable only through Plan > Race, which is
-          the one number a race-goal athlete opens this tab to see. The
-          card renders nothing when there is no projection to make, so
-          non-Hyrox athletes are unaffected. Plan keeps its copy; this is a
-          mirror, not a move. */}
+          the one number a Hyrox athlete opens this tab to see. The card
+          renders nothing for a non-Hyrox plan (the projection engine gates
+          on raceType at the source), so a road or trail athlete sees
+          nothing here. Plan keeps its copy; this is a mirror, not a move. */}
       <HyroxProjectionCard weeks={weeks} config={onboardingConfig} capacity={strengthCapacity} />
 
       {compliance.weeks.length > 0 && isSectionVisible('dash.descentCapacity') && (
