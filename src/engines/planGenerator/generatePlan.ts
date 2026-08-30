@@ -297,7 +297,7 @@ function computeZones(
  * overlaps the same way. The % labels are re-derived from the adjusted
  * bpm so they stay honest.
  */
-function makeZonesContiguous(zones: HRZone[], maxHR: number): HRZone[] {
+export function makeZonesContiguous(zones: HRZone[], maxHR: number): HRZone[] {
   const parse = (hr: string): { low: number; high: number } | null => {
     const m = hr.match(/(\d+)\s*[–-]\s*(\d+)/)
     return m ? { low: parseInt(m[1], 10), high: parseInt(m[2], 10) } : null
@@ -314,6 +314,22 @@ function makeZonesContiguous(zones: HRZone[], maxHR: number): HRZone[] {
         ...out[i],
         hr: `${cur.low}–${newHigh}`,
         pct: `${Math.round((cur.low / maxHR) * 100)}–${Math.round((newHigh / maxHR) * 100)}%`,
+      }
+    }
+  }
+  // Close the ceiling dead-band: the same fix as the inter-zone gaps, at the
+  // top. If the highest zone stops below maxHR, an all-out effort's HR lands
+  // above every band and getZoneForHR returns null (unclassifiable) — so pin
+  // the top zone up to maxHR. Extend only; never pull a legitimately-higher
+  // ceiling down.
+  const last = out.length - 1
+  if (last >= 0) {
+    const top = parse(out[last].hr)
+    if (top && top.high < maxHR && maxHR > top.low) {
+      out[last] = {
+        ...out[last],
+        hr: `${top.low}–${maxHR}`,
+        pct: `${Math.round((top.low / maxHR) * 100)}–100%`,
       }
     }
   }
