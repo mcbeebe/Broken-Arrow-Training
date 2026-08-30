@@ -116,7 +116,17 @@ export function useManualLog(athleteId: string) {
         const merged = day.actual
           ? { ...day.actual, ...logged, garminId: day.actual.garminId ?? logged.garminId, source: day.actual.source ?? logged.source }
           : logged
-        return { ...day, actual: merged }
+        // Claim bridge: when the logged actual IS one of the day's demoted
+        // "other activities" (the athlete tapped "count this as today's
+        // workout"), drop it from that list so it doesn't render twice —
+        // once as the actual, once as a secondary. Keyed on the source id
+        // because isDuplicateActual only dedups within a sport family, so a
+        // cross-family claim (an erg on a ride day) would otherwise survive.
+        const secondaryActuals = day.secondaryActuals?.filter(
+          sec => !((logged.garminId && sec.garminId === logged.garminId) ||
+                   (logged.stravaId && sec.stravaId === logged.stravaId)),
+        )
+        return { ...day, actual: merged, secondaryActuals }
       }),
     }))
   }, [logs])
