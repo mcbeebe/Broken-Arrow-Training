@@ -32,6 +32,8 @@ import RaceElevationProfile from './RaceElevationProfile'
 import SeasonOverview from './SeasonOverview'
 import RaceCard from './RaceCard'
 import PlanNotesPanel from './PlanNotesPanel'
+import TravelModePanel from './TravelModePanel'
+import type { TravelWindow, TravelDeclaration } from '../engines/planGenerator/travelMode'
 import SeasonRacesCard from './SeasonRacesCard'
 import StrengthBenchmarkSheet from './StrengthBenchmarkSheet'
 import type { StrengthCapacity } from '../engines/strength/benchmark'
@@ -76,6 +78,14 @@ interface WeeklyPlanProps {
     editDay: (weekNum: number, dayIndex: number, updates: WorkoutEdits) => void
     revertDay: (weekNum: number, dayIndex: number) => void
     hasEdit: (weekNum: number, dayIndex: number) => boolean
+  }
+  /** Travel mode — declare a trip once and let the plan adapt around it as
+   *  one undoable batch. Absent for read-only surfaces (the panel simply
+   *  doesn't render). */
+  travel?: {
+    windows: TravelWindow[]
+    onActivate: (decl: TravelDeclaration) => void
+    onDeactivate: (window: TravelWindow) => void
   }
   /** Phase 5 (PRD-110) — missed-workout replanning. Absent for read-only
    *  surfaces; the "Missed?" affordance simply doesn't render. */
@@ -155,6 +165,7 @@ export default function WeeklyPlan({
   manualLog,
   daySwap,
   planEdit,
+  travel,
   replan,
   onRebuildPlan,
   weekReadiness = [],
@@ -422,6 +433,22 @@ export default function WeeklyPlan({
       {planNotes.length > 0 && (
         <div className="px-3 pt-3">
           <PlanNotesPanel notes={planNotes} openRequest={planNotesOpenRequest} />
+        </div>
+      )}
+
+      {/* Travel mode — consume the trip the athlete told us about at
+          onboarding, and let them declare new ones, next to the weeks it
+          reshapes. */}
+      {travel && (
+        <div className="px-3 pt-3">
+          <TravelModePanel
+            weeks={weeks}
+            note={onboardingConfig?.scheduleConstraintsNote}
+            windows={travel.windows}
+            todayIso={todayDateString()}
+            onActivate={travel.onActivate}
+            onDeactivate={travel.onDeactivate}
+          />
         </div>
       )}
 

@@ -41,6 +41,7 @@ const PRESERVE_PREFIXES = [
   'ba_manual_logs',
   'ba_journal_notes',
   'ba_day_swaps',
+  'ba_travel_mode',
   'ba_soreness',
   'ba_onboarding',
   'ba_onboarding_redo',

@@ -34,6 +34,8 @@ import { useManualLog } from './hooks/useManualLog'
 import { useJournalNotes } from './hooks/useJournalNotes'
 import { usePlanEdits } from './hooks/usePlanEdits'
 import { useDaySwap } from './hooks/useDaySwap'
+import { useTravelMode } from './hooks/useTravelMode'
+import { buildTravelBatch, type TravelDeclaration, type TravelWindow } from './engines/planGenerator/travelMode'
 import { useReadiness } from './hooks/useReadiness'
 import { useOnboarding } from './hooks/useOnboarding'
 import { useAthleteProfile } from './hooks/useAthleteProfile'
@@ -495,6 +497,10 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
   // weeks like swaps and edits. Same generation pruning — a replan can
   // only ever describe the plan it was made against.
   const replan = useReplan(athleteId, onboarding.config?.completedAt)
+  // Travel mode — declared trips, rebalanced into the plan as usePlanEdits
+  // batches. The window store holds only each trip's batchId (same
+  // generation pruning as edits/replans); the day rewrites live in planEdits.
+  const travelMode = useTravelMode(athleteId, onboarding.config?.completedAt)
   const soreness = useSoreness(athleteId)
   const hrZones = useHRZones(athleteId, activePlan.zones)
   const maxHROverride = useMaxHR(athleteId, activePlan.athlete.maxHR)
@@ -619,6 +625,29 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     w = rezoneWeeks(w, hrZones.zones)
     return w
   }, [activePlan.weeks, seasonState.planResult, onboarding.config, strava.activities, showStrava, manualLog.applyLogsToWeeks, daySwap.applySwapsToWeeks, planEdits.applyEditsToWeeks, replan.applyReplansToWeeks, garmin.connected, garmin.activityDetails, apple.appleActivities, hrZones.zones])
+
+  // Travel mode: rebalance the derived weeks the athlete is looking at into
+  // one undoable planEdits batch, and remember the batchId so the whole trip
+  // undoes in a tap. Building against `weeks` (post-swap/edit) keeps the op
+  // coordinates in the same space planEdits replays over.
+  const activateTravel = useCallback((decl: TravelDeclaration) => {
+    const res = buildTravelBatch(weeks, decl)
+    if (res.ops.length === 0) return
+    const batchId = planEdits.applyBatch(res.ops)
+    travelMode.add({
+      id: `travel_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      batchId,
+      appliedAt: Date.now(),
+      summary: res.summary,
+      affectedDays: res.affectedDays,
+      ...decl,
+    })
+  }, [weeks, planEdits, travelMode])
+
+  const deactivateTravel = useCallback((window: TravelWindow) => {
+    planEdits.undoBatch(window.batchId)
+    travelMode.remove(window.id)
+  }, [planEdits, travelMode])
 
   // ── Auto re-push (G2a): whenever the derived plan changes, re-send any
   // previously-pushed FUTURE workout whose content no longer matches what
@@ -2137,6 +2166,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           manualLog={manualLog}
           daySwap={wrappedDaySwap}
           planEdit={planEdit}
+          travel={{ windows: travelMode.windows, onActivate: activateTravel, onDeactivate: deactivateTravel }}
           replan={replan}
           onRebuildPlan={onboarding.requestRedo}
           weekReadiness={readiness.weekScores}
