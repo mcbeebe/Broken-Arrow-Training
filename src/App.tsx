@@ -111,6 +111,7 @@ import ResolveStrip from './components/ResolveStrip'
 import AdjustSheet from './components/AdjustSheet'
 import EveningCloseCard from './components/EveningCloseCard'
 import { useDayPhase } from './hooks/useDayPhase'
+import { notesSeen, markNotesSeen } from './utils/planNotes'
 import { leversFor, opsForLever } from './utils/adjustLevers'
 import MissedDaySheet from './components/MissedDaySheet'
 import { moveOutcomeFor } from './engines/planGenerator/replan'
@@ -1366,6 +1367,26 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
 
   const [openTodayRequest, setOpenTodayRequest] = useState(0)
   const [openReadinessRequest, setOpenReadinessRequest] = useState(0)
+  // P14: Today's plan-notes row. The tap IS the acknowledgement — you asked
+  // to read them, so they stop asking. A different plan means a different
+  // set of notes, and the row comes back on its own.
+  const [planNotesOpenRequest, setPlanNotesOpenRequest] = useState(0)
+  // Derived, not stored: re-reading on every change of the note set means a
+  // regenerated plan brings the row back on its own. A boolean latched at
+  // mount would stay true through a rebuild and swallow the new plan's notes.
+  const [planNotesSeenTick, setPlanNotesSeenTick] = useState(0)
+  const planNotesRead = useMemo(
+    () => notesSeen(athleteId, allAdvisories),
+    // planNotesSeenTick re-reads storage after we write to it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [athleteId, allAdvisories, planNotesSeenTick],
+  )
+  const openPlanNotes = useCallback(() => {
+    markNotesSeen(athleteId, allAdvisories)
+    setPlanNotesSeenTick(n => n + 1)
+    setPlanNotesOpenRequest(n => n + 1)
+    setView('plan')
+  }, [athleteId, allAdvisories])
   const openReadiness = useCallback(() => setOpenReadinessRequest(n => n + 1), [])
   const setShowTodayModal = useCallback(() => setOpenTodayRequest(n => n + 1), [])
   const lockInToday = useCallback(() => {
@@ -2136,6 +2157,8 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           coachSnapshot={coachSnapshot}
           riskFlags={readiness.riskFlags}
           advisories={allAdvisories}
+          onOpenPlanNotes={openPlanNotes}
+          planNotesSeen={planNotesRead}
           weeks={weeks}
           race={activePlan.race}
           season={seasonState.season}
@@ -2147,6 +2170,8 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
       </>)}
       {view === 'plan' && (
         <WeeklyPlan
+          planNotes={allAdvisories}
+          planNotesOpenRequest={planNotesOpenRequest}
           raceReadiness={raceReadinessForPlan}
           primaryGoalText={onboarding.config?.athleteGoal}
           weeks={weeks}
