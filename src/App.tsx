@@ -114,6 +114,7 @@ import { dayPhase } from './utils/dayPhase'
 import { leversFor, opsForLever } from './utils/adjustLevers'
 import MissedDaySheet from './components/MissedDaySheet'
 import { moveOutcomeFor } from './engines/planGenerator/replan'
+import { resolutionNote } from './utils/resolutionNote'
 import { buildRhythm, newestOpenDay, plannedDayFor } from './utils/rhythm'
 import { buildTrainingSignals } from './utils/trainingSignals'
 import { computeRaceReadiness } from './utils/raceReadiness'
@@ -1865,7 +1866,21 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           day={resolving.day}
           hasReplan={replan.hasReplan(resolving.iso)}
           moveOutcome={moveOutcomeFor(weeks, resolving.iso)}
-          onChoose={kind => replan.apply(kind, resolving.iso)}
+          onChoose={kind => {
+            replan.apply(kind, resolving.iso)
+            // The athlete's own record gets the decision too. Without this
+            // a skipped or moved day left no trace at all — reading back a
+            // block, it was simply absent, which reads as forgetting.
+            const outcome = kind === 'move' ? moveOutcomeFor(weeks, resolving.iso) : null
+            journalNotes.addNote({
+              dateISO: resolving.iso,
+              text: resolutionNote({
+                kind,
+                workout: resolving.day.workout,
+                movedToDay: outcome?.kind === 'moved' ? outcome.toDay : null,
+              }),
+            })
+          }}
           onUndo={() => replan.undoFor(resolving.iso)}
           onClose={() => setResolving(null)}
         />
