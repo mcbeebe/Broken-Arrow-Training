@@ -89,3 +89,42 @@ export function mergeCollection(
   const value = JSON.stringify(merged)
   return { value, changed: value !== localRaw }
 }
+
+/**
+ * Keys that hold the ACTIVE onboarding config — the race, goal, method the
+ * whole plan regenerates from. Deliberately excludes the redo flag and the
+ * pre-redo snapshot, which share the `ba_onboarding_` prefix but are not the
+ * live config.
+ */
+export function isSyncedConfigKey(key: string): boolean {
+  if (key === 'ba_onboarding') return true
+  if (!key.startsWith('ba_onboarding_')) return false
+  const suffix = key.slice('ba_onboarding_'.length)
+  return !suffix.startsWith('redo') && !suffix.startsWith('prev')
+}
+
+/**
+ * A key's CONTENT recency — when the value was actually authored, not when it
+ * was last pushed. Returns null for keys (and shapes) that carry no such
+ * signal, in which case the caller keeps its ordinary push-timestamp LWW.
+ *
+ * This exists because the sync layer's "which is newer" test uses the push
+ * timestamp, and a stale device can re-upload month-old content with a fresh
+ * push time — which is exactly how an old training plan overwrote a current
+ * one. The onboarding config carries `completedAt`; that is the honest
+ * recency, and it must beat any push stamp so an OLDER config can never
+ * clobber a NEWER one.
+ */
+export function contentVersion(key: string, raw: string | null): number | null {
+  if (raw == null) return null
+  if (isSyncedConfigKey(key)) {
+    try {
+      const c = JSON.parse(raw) as { completedAt?: unknown }
+      const t = typeof c?.completedAt === 'string' ? Date.parse(c.completedAt) : NaN
+      return Number.isFinite(t) ? t : null
+    } catch {
+      return null
+    }
+  }
+  return null
+}
