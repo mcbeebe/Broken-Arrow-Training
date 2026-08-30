@@ -18,6 +18,7 @@ import SeasonPanel from './components/SeasonPanel'
 import { assessRecalibration } from './engines/planGenerator/recalibration'
 import { validatePlan, qaFindingsToAdvisories } from './engines/planQA/validatePlan'
 import { useReplan } from './hooks/useReplan'
+import { useLockedDays } from './hooks/useLockedDays'
 import { assessBenchmarkResult, benchmarkCompletedIso, scaleZoneTable } from './engines/planGenerator/benchmarkResult'
 import { ESTIMATED_LTHR_PCT_OF_MAX } from './engines/planGenerator/paceTargets'
 import { buildRepaceOps } from './utils/repace'
@@ -497,6 +498,10 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
   // weeks like swaps and edits. Same generation pruning — a replan can
   // only ever describe the plan it was made against.
   const replan = useReplan(athleteId, onboarding.config?.completedAt)
+  // Locked days (P12): ISO-keyed pins the athlete sets to fix a day. Same
+  // generation pruning as replans/edits. Applied before replan so the rules
+  // see day.locked and skip a pinned day.
+  const lockedDays = useLockedDays(athleteId, onboarding.config?.completedAt)
   // Travel mode — declared trips, rebalanced into the plan as usePlanEdits
   // batches. The window store holds only each trip's batchId (same
   // generation pruning as edits/replans); the day rewrites live in planEdits.
@@ -601,6 +606,11 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     // day after a swap" bug. Actuals/logs match by day label, so they stay
     // correct even when an edit adds/removes a day.
     w = planEdits.applyEditsToWeeks(w)
+    // Locked days stamp `day.locked` on the final-positioned days (post
+    // swap + edit), so a lock lands on the right calendar day and every
+    // scheduler below — replan here, plus travel/autopilot/review which
+    // read the derived weeks — skips it.
+    w = lockedDays.applyLocksToWeeks(w)
     // Replan rules run on the PRESCRIPTION, after edits and before any
     // actual is matched in: the rules rewrite what was planned, and the
     // actuals layer still matches by day label afterwards.
@@ -624,7 +634,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     // display surface and to the compliance grader that reads day.zone.
     w = rezoneWeeks(w, hrZones.zones)
     return w
-  }, [activePlan.weeks, seasonState.planResult, onboarding.config, strava.activities, showStrava, manualLog.applyLogsToWeeks, daySwap.applySwapsToWeeks, planEdits.applyEditsToWeeks, replan.applyReplansToWeeks, garmin.connected, garmin.activityDetails, apple.appleActivities, hrZones.zones])
+  }, [activePlan.weeks, seasonState.planResult, onboarding.config, strava.activities, showStrava, manualLog.applyLogsToWeeks, daySwap.applySwapsToWeeks, planEdits.applyEditsToWeeks, lockedDays.applyLocksToWeeks, replan.applyReplansToWeeks, garmin.connected, garmin.activityDetails, apple.appleActivities, hrZones.zones])
 
   // Travel mode: rebalance the derived weeks the athlete is looking at into
   // one undoable planEdits batch, and remember the batchId so the whole trip
@@ -2167,6 +2177,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           daySwap={wrappedDaySwap}
           planEdit={planEdit}
           travel={{ windows: travelMode.windows, onActivate: activateTravel, onDeactivate: deactivateTravel }}
+          onToggleLock={lockedDays.toggleLock}
           replan={replan}
           onRebuildPlan={onboarding.requestRedo}
           weekReadiness={readiness.weekScores}

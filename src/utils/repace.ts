@@ -45,7 +45,7 @@ export function buildRepaceOps(
     week.days.forEach((day, dayIndex) => {
       const isoDate = dayIsoInWeek(day.day, week, fromIso)
       if (!isoDate || isoDate < fromIso) return
-      if (day.actual) return
+      if (day.actual || day.locked) return  // a pinned day keeps its authored paces
       const zone = repaceString(day.zone, factor)
       const detail = repaceString(day.detail, factor)
       if (zone === day.zone && detail === day.detail) return

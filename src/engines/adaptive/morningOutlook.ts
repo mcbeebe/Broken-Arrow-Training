@@ -171,7 +171,7 @@ function findSwapTarget(slot: TodaySlot, todayIso: string): TodaySlot | null {
     .map(x => x.iso!)
   for (let i = dayIndex + 1; i < week.days.length; i++) {
     const cand = week.days[i]
-    if (cand.type !== 'run' || cand.actual) continue
+    if (cand.type !== 'run' || cand.actual || cand.locked) continue
     const iso = dayIsoInWeek(cand.day, week, todayIso)
     if (!iso || isoDiffDays(iso, todayIso) > 3) continue
     if (otherHardIsos.some(h => Math.abs(isoDiffDays(iso, h)) < 2)) continue
@@ -202,7 +202,8 @@ export function buildMorningOutlook(
   const slot = findToday(weeks, todayIso)
   if (!slot) return null
   const { week, dayIndex, day } = slot
-  if (day.actual || day.type === 'rest' || day.type === 'race') return null
+  // A locked day is fixed — autopilot never moves or trims it.
+  if (day.actual || day.type === 'rest' || day.type === 'race' || day.locked) return null
   const totalWeeks = weeks.length > 0 ? Math.max(...weeks.map(w => w.num)) : 0
   if (isProtectedWeek(week, totalWeeks)) return null
 

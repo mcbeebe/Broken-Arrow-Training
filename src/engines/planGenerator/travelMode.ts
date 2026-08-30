@@ -240,11 +240,13 @@ export function buildTravelBatch(
     if (!runningAway) {
       for (const di of inTrip) {
         if (workingDays[di].type !== 'long') continue
+        if (workingDays[di].locked) continue  // a pinned long run stays put
         const longDay = week.days[di]
         let target = -1
         for (let ti = lastTripIdx + 1; ti < week.days.length; ti++) {
           if (inTrip.includes(ti)) continue
           const t = workingDays[ti]
+          if (t.locked) continue  // never land a moved session on a pinned day
           if (t.type !== 'rest' && t.type !== 'run') continue
           // Simulate: long lands at ti, original becomes a travel (non-hard) day.
           const sim = workingDays.map(d => ({ ...d }))
@@ -287,6 +289,7 @@ export function buildTravelBatch(
     // Substitute the remaining trip days by kit.
     for (const di of inTrip) {
       if (handled.has(di)) continue
+      if (week.days[di].locked) continue  // a pinned day is left exactly as authored
       const updates = travelSwap(week.days[di], decl.kit)
       if (!updates) continue
       ops.push({

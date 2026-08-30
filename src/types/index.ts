@@ -116,6 +116,12 @@ export interface PlannedDay {
    *  ("Quality day — hit the zone splits") are suppressed for these days
    *  since day.type no longer describes the actual content. */
   userEdited?: boolean;
+  /** Derived at render (never persisted) from the ISO-keyed locked-days
+   *  store: the athlete pinned this calendar day so the schedulers leave
+   *  it exactly as authored. Every rule that could move, swap, rewrite, or
+   *  auto-adjust a day checks this and skips a locked one. Set by
+   *  useLockedDays.applyLocksToWeeks. */
+  locked?: boolean;
 }
 
 /**

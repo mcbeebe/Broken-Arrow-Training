@@ -22,6 +22,7 @@ PRESERVE_PREFIXES: tuple[str, ...] = (
     "ba_journal_notes",
     "ba_day_swaps",
     "ba_travel_mode",
+    "ba_locked_days",
     "ba_soreness",
     "ba_onboarding",
     "ba_onboarding_redo",

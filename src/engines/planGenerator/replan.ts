@@ -92,7 +92,7 @@ export function replanShortGap(plan: TrainingPlan, missedIsos: string[]): Traini
     const loc = locateDay(plan, iso)
     if (!loc) continue
     const w = { ...weeks[loc.weekIdx], days: [...weeks[loc.weekIdx].days] }
-    if (w.days[loc.dayIdx].type === 'race' || w.days[loc.dayIdx].type === 'rest') continue
+    if (w.days[loc.dayIdx].type === 'race' || w.days[loc.dayIdx].type === 'rest' || w.days[loc.dayIdx].locked) continue
     w.days[loc.dayIdx] = skippedDay(w.days[loc.dayIdx],
       'Missed and skipped — the plan bends forward, never backward. Nothing to make up.')
     weeks[loc.weekIdx] = w
@@ -113,6 +113,9 @@ export function replanMissedKeySession(plan: TrainingPlan, missedIso: string): T
   if (!loc) return plan
   const week = plan.weeks[loc.weekIdx]
   const missed = week.days[loc.dayIdx]
+  // A locked day is fixed — the athlete pinned it, so leave it exactly as
+  // authored rather than moving or skipping it.
+  if (missed.locked) return plan
   if (!HARD_TYPES.has(missed.type) || missed.type === 'race') {
     return replanShortGap(plan, [missedIso])
   }
@@ -123,6 +126,8 @@ export function replanMissedKeySession(plan: TrainingPlan, missedIso: string): T
   // been moved.)
   for (let j = loc.dayIdx + 1; j < week.days.length; j++) {
     if (week.days[j].type !== 'run') continue
+    if (week.days[j].locked) continue  // never move a session onto a pinned day
+
     // ≥48 h from the following hard day: the next day must not be hard.
     const next = week.days[j + 1]
     if (next && isHardDay(next)) continue
@@ -210,6 +215,7 @@ export function replanAfterIllness(plan: TrainingPlan, resumeIso: string): Train
       if (easyDays >= 2) break outer
       const d = weeks[wi].days[di]
       if (d.type === 'race') break outer // never rewrite race day
+      if (d.locked) continue // a pinned day is left exactly as authored
       if (isHardDay(d)) {
         weeks[wi].days[di] = {
           ...d,
