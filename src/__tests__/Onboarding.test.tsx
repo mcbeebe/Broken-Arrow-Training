@@ -46,6 +46,8 @@ function pickDistance(label: string) {
 function walkHappyPath(overrides: Partial<{
   raceType: 'Trail / Ultra' | 'Hyrox' | 'General Fitness'
   raceDistance: string
+  elevationGainFt: string
+  extraRace: { name: string; date: string; miles: string; vertFt: string }
   generalGoal: string
   cardioModality: string
   experience: string
@@ -79,6 +81,8 @@ function walkHappyPath(overrides: Partial<{
   const o = {
     raceType: 'Trail / Ultra',
     raceDistance: 'Marathon',
+    elevationGainFt: '' as string,
+    extraRace: null as null | { name: string; date: string; miles: string; vertFt: string },
     generalGoal: 'Build Muscle',
     cardioModality: 'Running',
     experience: 'Intermediate',
@@ -130,8 +134,21 @@ function walkHappyPath(overrides: Partial<{
   const raceNameInput = screen.getByPlaceholderText(/Broken Arrow|Hyrox|Summer Fitness/i)
   fireEvent.change(raceNameInput, { target: { value: 'Test Race' } })
   if (o.raceType === 'Trail / Ultra') pickDistance(o.raceDistance)
+  // P2 — structured vert on the race step (trail/road only, behind the distance step).
+  if (o.elevationGainFt && o.raceType !== 'Hyrox' && o.raceType !== 'General Fitness') {
+    fireEvent.change(screen.getByLabelText('Race elevation gain in feet'), { target: { value: o.elevationGainFt } })
+  }
   fireEvent.change(screen.getByPlaceholderText(/Terrain, elevation/i), { target: { value: 'Rolling hills with lots of climbing and hot weather.' } })
   fireEvent.change(screen.getByPlaceholderText(/finish strong/i), { target: { value: 'Finish strong and enjoy it' } })
+  // Optional inline second race — revealed after the main goal so its
+  // description placeholder ("…finish strong") can't shadow the goal query.
+  if (o.extraRace) {
+    fireEvent.click(screen.getByText(/I have another race after this one/i))
+    fireEvent.change(screen.getByPlaceholderText(/Second race name/i), { target: { value: o.extraRace.name } })
+    fireEvent.change(screen.getByLabelText('Second race date'), { target: { value: o.extraRace.date } })
+    fireEvent.change(screen.getByLabelText('Second race distance in miles'), { target: { value: o.extraRace.miles } })
+    fireEvent.change(screen.getByLabelText('Second race elevation gain in feet'), { target: { value: o.extraRace.vertFt } })
+  }
   clickContinue()
 
   // Step 2b (general only): goal selection — shown for General Fitness via visibleSteps
@@ -432,6 +449,28 @@ describe('Onboarding', () => {
     it('captures the user-selected race distance for trail races', () => {
       const cfg = walkHappyPath({ raceDistance: '50K Ultra' })
       expect(cfg.raceDistance).toBe('50k')
+    })
+
+    it('captures structured elevation gain into config.elevationGainFt (P2)', () => {
+      const cfg = walkHappyPath({ raceDistance: '50K Ultra', elevationGainFt: '5200' })
+      expect(cfg.elevationGainFt).toBe(5200)
+    })
+
+    it('leaves elevationGainFt unset when the field is blank', () => {
+      const cfg = walkHappyPath({ raceDistance: '50K Ultra' })
+      expect(cfg.elevationGainFt).toBeUndefined()
+    })
+
+    it('carries the inline second race vert into additionalRaces (P2)', () => {
+      const cfg = walkHappyPath({
+        raceDistance: 'Marathon',
+        extraRace: { name: 'Oakland Hills Trail Run', date: '2026-11-21', miles: '13.3', vertFt: '2900' },
+      })
+      expect(cfg.additionalRaces?.[0]).toMatchObject({
+        name: 'Oakland Hills Trail Run',
+        distanceMiles: 13.3,
+        elevationGainFt: 2900,
+      })
     })
 
     it('Back from experience returns to the race step for trail', () => {
