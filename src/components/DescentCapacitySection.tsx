@@ -15,6 +15,8 @@ interface Props {
    *  surfaces by construction. */
   weeks: WeekCompliance[]
   race?: RaceInfo
+  /** Drop the inner chart title when a collapsible section already names it. */
+  hideTitle?: boolean
 }
 
 const CLIMB_FILL = '#2563EB'
@@ -114,7 +116,7 @@ function inTaper(weeksOut: number | null): boolean {
  * stable; the rendered surface is climb-only until we add per-activity
  * elevationLoss to the activity model (planned follow-up).
  */
-export default function DescentCapacitySection({ weeks, race }: Props) {
+export default function DescentCapacitySection({ weeks, race, hideTitle }: Props) {
   const resolution = race ? resolveCourseForRace(race) : null
   const raceGainFt = resolution ? Math.round(resolution.course.verticalGainFt) : 0
   const weeksOut = race?.date ? weeksUntilRace(race.date) : null
@@ -195,7 +197,7 @@ export default function DescentCapacitySection({ weeks, race }: Props) {
       />
 
       <ChartWithInsight
-        title="Weekly climb"
+        title={hideTitle ? '' : 'Weekly climb'}
         subtitle="Matches the Plan tab's Vertical Progression — same per-week ft, race-ready band overlaid."
         insight={insight}
         insightTone={insightTone}
