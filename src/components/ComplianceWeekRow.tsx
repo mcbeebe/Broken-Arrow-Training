@@ -63,8 +63,8 @@ export default function ComplianceWeekRow({ week, weekLabel, weekFocus, planZone
             </span>
           )}
           {week.missed > 0 && (
-            <span className="text-[10px] bg-red-100 text-red-700 rounded-full px-1.5 py-0.5 font-medium">
-              {week.missed} ✗
+            <span className="text-[10px] bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300 rounded-full px-1.5 py-0.5 font-medium" data-testid="week-open-badge">
+              {week.missed} open
             </span>
           )}
           {week.flaggedCount > 0 && (

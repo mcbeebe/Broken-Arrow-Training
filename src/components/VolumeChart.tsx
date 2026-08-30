@@ -3,6 +3,7 @@ import type { TrainingWeek, SportType, DisplayFlags } from '../types'
 import type { WeekCompliance } from '../hooks/useCompliance'
 import { getMilesNumber } from '../utils/format'
 import { mapToSportType, getSportMultiplier } from '../utils/trimp'
+import { bandForWeek, type VolumeBand } from '../utils/progressFraming'
 import { useDisplayPreferences } from '../hooks/useDisplayPreferences'
 
 interface VolumeChartProps {
@@ -14,6 +15,8 @@ interface VolumeChartProps {
    *  profile — see utils/raceReadiness.shouldTrackVerticalGain. */
   showVertical?: boolean
   athleteId?: string
+  /** 1-based current week — the week still being run cannot be "off plan". */
+  currentWeekNum?: number
 }
 
 /**
@@ -22,23 +25,15 @@ interface VolumeChartProps {
  *   15–25% off   → 'warn'   (yellow)
  *   >25% off     → 'flag'   (red, with warning badge)
  */
-type Band = 'ok' | 'warn' | 'flag' | 'future'
+type Band = VolumeBand
 type Metric = 'mileage' | 'vertical' | 'time'
 
-function classify(actual: number, planned: number, hasStarted: boolean): Band {
-  if (!hasStarted) return 'future'
-  if (planned <= 0) return 'ok'
-  const dev = Math.abs(actual - planned) / planned
-  if (dev <= 0.15) return 'ok'
-  if (dev <= 0.25) return 'warn'
-  return 'flag'
-}
-
 const BAND_FILL: Record<Band, string> = {
-  ok: '#10B981',      // emerald-500
-  warn: '#F59E0B',    // amber-500
-  flag: '#EF4444',    // red-500
-  future: '#CBD5E1',  // slate-300 (faded outline for upcoming)
+  ok: '#10B981',        // emerald-500
+  warn: '#F59E0B',      // amber-500
+  flag: '#EF4444',      // red-500
+  future: '#CBD5E1',    // slate-300 (faded outline for upcoming)
+  inprogress: '#2DD4BF', // teal-400 — the week still being run, not yet judged
 }
 
 const BAND_BORDER: Record<Band, string> = {
@@ -46,6 +41,7 @@ const BAND_BORDER: Record<Band, string> = {
   warn: '#D97706',
   flag: '#DC2626',
   future: '#94A3B8',
+  inprogress: '#14B8A6',
 }
 
 const CHART_PX = 280  // pixel height of the bar area; bars use full height
@@ -76,7 +72,7 @@ function weekMiles(week: TrainingWeek, mode: 'running' | 'combined'): number {
   return Math.round(miles * 10) / 10
 }
 
-export default function VolumeChart({ weeks, activeWeek, onWeekClick, compliance, showVertical, athleteId }: VolumeChartProps) {
+export default function VolumeChart({ weeks, activeWeek, onWeekClick, compliance, showVertical, athleteId, currentWeekNum = 1 }: VolumeChartProps) {
   const { flags: displayFlags } = useDisplayPreferences(athleteId)
   const advanced = displayFlags.showAdvancedCharts
   const [mode, setMode] = useState<'running' | 'combined'>('running')
@@ -133,7 +129,11 @@ export default function VolumeChart({ weeks, activeWeek, onWeekClick, compliance
     const wc = byNum.get(w.num)
     const actual = actualByWeek.get(w.num) ?? 0
     const hasStarted = actual > 0 || (wc != null && (wc.completed + wc.missed) > 0)
-    const band = classify(actual, planned, hasStarted)
+    const band = bandForWeek(actual, planned, {
+      hasStarted,
+      // A week is complete only once it is strictly past the current one.
+      isComplete: w.num < currentWeekNum,
+    })
     const deviation = planned > 0 ? (actual - planned) / planned : 0
     return { w, i, planned, actual, hasStarted, band, deviation }
   })
