@@ -206,6 +206,7 @@ function assembleAdditionalRaces(args: {
   extraRaceDate: string
   extraRacePriority: 'A' | 'B' | 'C'
   extraRaceMiles: string
+  extraRaceVertFt: string
   extraRaceDescription: string
 }): AdditionalRace[] | undefined {
   const { raceType, goalMode, seasonRaces, primaryKey } = args
@@ -240,6 +241,7 @@ function assembleAdditionalRaces(args: {
         date: args.extraRaceDate,
         priority: args.extraRacePriority,
         distanceMiles: parseFloat(args.extraRaceMiles) || undefined,
+        elevationGainFt: parseFloat(args.extraRaceVertFt) > 0 ? Math.round(parseFloat(args.extraRaceVertFt)) : undefined,
         description: args.extraRaceDescription.trim() || undefined,
       }]
     : undefined
@@ -366,6 +368,7 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
   const [extraRaceName, setExtraRaceName] = useState('')
   const [extraRaceDate, setExtraRaceDate] = useState('')
   const [extraRaceMiles, setExtraRaceMiles] = useState('')
+  const [extraRaceVertFt, setExtraRaceVertFt] = useState('')
   const [extraRacePriority, setExtraRacePriority] = useState<'A' | 'B' | 'C'>('B')
   const [extraRaceDescription, setExtraRaceDescription] = useState('')
   // Season-first onboarding: the upfront choice (THE first question) —
@@ -641,7 +644,7 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
           typicalTrainingTempF: trainTemp ?? undefined,
           goalMode: goalMode === 'general' || raceType === 'general' ? undefined : (goalMode ?? 'race'),
           anchorIsPrimary: goalMode === 'season' ? primaryKey === 'anchor' : undefined,
-          additionalRaces: assembleAdditionalRaces({ raceType, goalMode, seasonRaces, primaryKey, extraRaceName, extraRaceDate, extraRacePriority, extraRaceMiles, extraRaceDescription }),
+          additionalRaces: assembleAdditionalRaces({ raceType, goalMode, seasonRaces, primaryKey, extraRaceName, extraRaceDate, extraRacePriority, extraRaceMiles, extraRaceVertFt, extraRaceDescription }),
           completedAt: '',
         })
       : null
@@ -725,7 +728,7 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
       // multi-race builder rows; race mode keeps the single optional
       // second-race capture. Half-filled entries (no name or date) are
       // dropped silently — they're optional.
-      additionalRaces: assembleAdditionalRaces({ raceType, goalMode, seasonRaces, primaryKey, extraRaceName, extraRaceDate, extraRacePriority, extraRaceMiles, extraRaceDescription }),
+      additionalRaces: assembleAdditionalRaces({ raceType, goalMode, seasonRaces, primaryKey, extraRaceName, extraRaceDate, extraRacePriority, extraRaceMiles, extraRaceVertFt, extraRaceDescription }),
       completedAt: '',
     }
 
@@ -976,6 +979,15 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
                       onChange={e => setExtraRaceMiles(e.target.value)}
                       placeholder="miles"
                       aria-label="Second race distance in miles"
+                      className="w-24 px-3 py-2.5 text-base border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400"
+                    />
+                    <input
+                      type="number"
+                      inputMode="numeric"
+                      value={extraRaceVertFt}
+                      onChange={e => setExtraRaceVertFt(e.target.value)}
+                      placeholder="vert ft"
+                      aria-label="Second race elevation gain in feet"
                       className="w-24 px-3 py-2.5 text-base border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400"
                     />
                   </div>
