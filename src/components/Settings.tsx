@@ -129,6 +129,9 @@ interface SettingsProps {
   /** Current pinned week-1 Monday (ISO), and a non-destructive setter. */
   planStartIso?: string
   onSetPlanStart?: (iso: string) => void
+  /** Local versioned plan backups + one-tap restore. */
+  planBackups?: import('../utils/planBackups').PlanBackup[]
+  onRestorePlan?: (savedAt: number) => void
   setView?: (v: string) => void
   // Auth
   authSession?: AuthSession | null
@@ -193,6 +196,8 @@ export default function Settings({
   onResetOnboarding,
   planStartIso,
   onSetPlanStart,
+  planBackups,
+  onRestorePlan,
   coachEnabled,
   aboutMeText,
   pendingInferences,
@@ -782,6 +787,41 @@ export default function Settings({
             >
               Redo Onboarding
             </button>
+          </div>
+        </SettingsSection>
+      )}
+
+      {/* ── Restore a previous plan (local versioned backups) ── */}
+      {onRestorePlan && planBackups && planBackups.length > 0 && (
+        <SettingsSection title="Restore a Previous Plan">
+          <div className="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700 space-y-3">
+            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+              Saved automatically whenever your plan changes, and before a redo. If a rebuild or a
+              cross-device sync ever lands the wrong plan, restore an earlier one here &mdash; it becomes
+              your current plan and syncs out. Your logged history is never touched.
+            </p>
+            <ul className="divide-y divide-slate-100 dark:divide-slate-700" data-testid="plan-backup-list">
+              {planBackups.map(b => (
+                <li key={b.savedAt} className="flex items-center justify-between gap-3 py-2.5">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-slate-800 dark:text-slate-100 truncate">{b.raceName}</p>
+                    <p className="text-[11px] text-slate-400">
+                      {new Date(b.savedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                      {b.reason === 'before redo' ? ' · before a redo' : ''}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      if (confirm(`Restore \u201c${b.raceName}\u201d as your current plan? Your logged history is preserved; this only changes the plan.`)) {
+                        onRestorePlan(b.savedAt)
+                      }
+                    }}
+                    data-testid={`plan-backup-restore-${b.savedAt}`}
+                    className="text-sm font-medium px-3 py-1.5 shrink-0 rounded-lg bg-teal-100 text-teal-700 hover:bg-teal-200 dark:bg-teal-900 dark:text-teal-200 dark:hover:bg-teal-800 transition-colors"
+                  >Restore</button>
+                </li>
+              ))}
+            </ul>
           </div>
         </SettingsSection>
       )}
