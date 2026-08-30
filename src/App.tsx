@@ -23,8 +23,6 @@ import { ESTIMATED_LTHR_PCT_OF_MAX } from './engines/planGenerator/paceTargets'
 import { buildRepaceOps } from './utils/repace'
 import { buildZoneAnchorOps } from './utils/rezoneByAnchor'
 import { getCachedRunGAP } from './utils/runGAP'
-import RecalibrationCard from './components/RecalibrationCard'
-import BenchmarkResultCard from './components/BenchmarkResultCard'
 import { buildRacePacingPlan, buildRacePacingContext } from './engines/racePacing'
 import { weeklyIntensitySplit, methodEasyTarget, buildIntensityContext, decouplingFromSplits } from './utils/intensityDistribution'
 import { resolveCourseForRace } from './utils/resolveCourse'
@@ -123,7 +121,9 @@ import { weeksUntilRace } from './utils/raceCountdown'
 import { buildVerdict } from './utils/verdict'
 import AdaptationLogSheet from './components/AdaptationLogSheet'
 import CoachToolsPanel from './components/CoachToolsPanel'
-import ReviewQueuePanel from './components/ReviewQueuePanel'
+import ReviewQueuePanel, { type ApplyResult } from './components/ReviewQueuePanel'
+import { appendAboutMeNote } from './utils/aboutMeNote'
+import { benchmarkTitle, benchmarkConsequence, recalTitle, recalConsequence } from './utils/proposalCopy'
 import { firstSeenAt, clearFirstSeen, type QueueItem } from './utils/reviewQueue'
 import { weeksWithPriorLogs } from './utils/strengthHistory'
 import LoginScreen from './components/LoginScreen'
@@ -1290,17 +1290,40 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
 
   // Applying or snoozing a queue item routes to whichever mechanism owns
   // that proposal — the queue is a shared front door, not a second store.
-  const applyQueueItem = useCallback((item: QueueItem) => {
-    if (item.kind === 'benchmark') applyBenchmarkResult()
-    else if (item.kind === 'recalibration') {
-      planEdits.applyBatch(buildRepaceOps(
+  const applyQueueItem = useCallback((item: QueueItem): ApplyResult => {
+    // Returns the way back where one exists. Benchmark and recalibration
+    // both apply as a plan-edit batch, which is reversible by id; the two
+    // calibrations change the model itself and have no inverse, so they
+    // return nothing and the receipt says so out loud.
+    if (item.kind === 'benchmark') {
+      const batchId = applyBenchmarkResult()
+      clearFirstSeen(athleteId, item.id)
+      return { undo: () => undoBenchmarkResult(batchId) }
+    }
+    if (item.kind === 'recalibration') {
+      const batchId = planEdits.applyBatch(buildRepaceOps(
         weeks, recalAssessment.suggestedFactor, todayDateString(),
         `Pace recalibration: ${recalAssessment.evidence[0]}`,
       ))
-    } else if (item.kind === 'mim') mimCalibration.acceptSuggestion(item.id.replace(/^mim_/, ''))
-    else domsCalibration.acceptSuggestion(item.id.replace(/^doms_/, ''))
+      clearFirstSeen(athleteId, item.id)
+      return { undo: () => planEdits.undoBatch(batchId) }
+    }
+    // Accepting a calibration also teaches the coach something about this
+    // athlete. That sentence used to be written only by the Today card's
+    // own handler, so the same proposal accepted from Coach changed the
+    // numbers and lost the explanation.
+    const note = item.kind === 'mim'
+      ? mimCalibration.acceptSuggestion(item.id.replace(/^mim_/, ''))
+      : domsCalibration.acceptSuggestion(item.id.replace(/^doms_/, ''))
+    if (note && coachMemory.saveAboutMe) {
+      coachMemory.saveAboutMe(appendAboutMeNote(coachMemory.aboutMe, note))
+    }
     clearFirstSeen(athleteId, item.id)
-  }, [athleteId, applyBenchmarkResult, planEdits, weeks, recalAssessment, mimCalibration, domsCalibration])
+    return {}
+  }, [
+    athleteId, applyBenchmarkResult, undoBenchmarkResult, planEdits, weeks,
+    recalAssessment, mimCalibration, domsCalibration, coachMemory,
+  ])
 
   const snoozeQueueItem = useCallback((item: QueueItem) => {
     if (item.kind === 'benchmark') {
@@ -1319,14 +1342,16 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     const raw: Omit<QueueItem, 'raisedAt'>[] = []
     if (benchAssessment.qualifies && !benchDismissed) {
       raw.push({
-        id: 'benchmark', kind: 'benchmark', title: 'Benchmark result ready to apply',
-        consequence: 'Updates your zones from the effort you just logged.',
+        id: 'benchmark', kind: 'benchmark',
+        title: benchmarkTitle(benchAssessment),
+        consequence: benchmarkConsequence(benchAssessment),
       })
     }
     if (recalAssessment.qualifies && !recalDismissed) {
       raw.push({
-        id: 'recalibration', kind: 'recalibration', title: 'Your paces have moved',
-        consequence: 'Future sessions get re-paced to match what you are actually running.',
+        id: 'recalibration', kind: 'recalibration',
+        title: recalTitle(),
+        consequence: recalConsequence(recalAssessment),
       })
     }
     for (const sug of mimCalibration.pendingSuggestions) {
@@ -1343,7 +1368,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     }
     return raw.map(r => ({ ...r, raisedAt: firstSeenAt(athleteId, r.id) }))
   }, [
-    athleteId, benchAssessment.qualifies, benchDismissed, recalAssessment.qualifies,
+    athleteId, benchAssessment, benchDismissed, recalAssessment,
     recalDismissed, mimCalibration.pendingSuggestions, domsCalibration.pendingSuggestions,
   ])
 
@@ -1991,12 +2016,27 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
               today={todayPlannedWorkout ?? null}
               tomorrow={tomorrowPlannedWorkout ?? null}
               notesWaiting={notesWaiting}
+              notesInline={reviewItems.length > 0}
               closed={closedToday}
               lightsOut={null}
               onOpenNotes={() => setView('coach')}
               onOpenTomorrow={setShowTodayModal}
               onClose={closeTheDay}
             />
+            {/* P15: the calibration proposals used to render as four
+                independent cards under this one — the same four the
+                queue already holds, in a different grammar, with a row
+                above them promising they were somewhere else. One queue,
+                capped and aged, with a consequence and an Undo. */}
+            {reviewItems.length > 0 && (
+              <div className="mt-3">
+                <ReviewQueuePanel
+                  items={reviewItems}
+                  onApply={applyQueueItem}
+                  onSnooze={snoozeQueueItem}
+                />
+              </div>
+            )}
           </div>
         ) : (
         <div className="px-3 mb-3">
@@ -2034,16 +2074,6 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
             </button>
           </div>
         )}
-        {todayPhase === 'evening' && benchAssessment.qualifies && !benchDismissed && (
-          <div className="px-3 mb-3">
-            <BenchmarkResultCard
-              assessment={benchAssessment}
-              onApply={applyBenchmarkResult}
-              onDismiss={() => { try { localStorage.setItem(benchDismissKey, benchEvidenceKey) } catch { /* quota */ } }}
-              onUndo={undoBenchmarkResult}
-            />
-          </div>
-        )}
         {adaptationLog.entries.length > 0 && (
           <div className="px-3 mb-3">
             <button
@@ -2056,83 +2086,6 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
                 {adaptationLog.entries.length} change{adaptationLog.entries.length === 1 ? '' : 's'} ›
               </span>
             </button>
-          </div>
-        )}
-        {todayPhase === 'evening' && recalAssessment.qualifies && !recalDismissed && (
-          <div className="px-3 mb-3">
-            <RecalibrationCard
-              assessment={recalAssessment}
-              onApply={() => planEdits.applyBatch(buildRepaceOps(
-                weeks,
-                recalAssessment.suggestedFactor,
-                todayDateString(),
-                `Pace recalibration: ${recalAssessment.evidence[0]}`,
-              ))}
-              onDismiss={() => { try { localStorage.setItem(recalDismissKey, recalEvidenceKey) } catch { /* quota */ } }}
-              onUndo={(batchId) => planEdits.undoBatch(batchId)}
-            />
-          </div>
-        )}
-        {todayPhase === 'evening' && mimCalibration.pendingSuggestions.length > 0 && (
-          <div className="px-3 mb-3 space-y-2">
-            {mimCalibration.pendingSuggestions.map(s => (
-              <div key={s.sport} className="bg-amber-50 dark:bg-amber-950 rounded-xl p-3 border border-amber-200 dark:border-amber-800">
-                <p className="text-xs font-semibold text-amber-700 dark:text-amber-300 mb-1">Training Load Calibration</p>
-                <p className="text-sm text-amber-800 dark:text-amber-200">{s.reason}</p>
-                <div className="flex gap-2 mt-2">
-                  <button
-                    onClick={() => {
-                      const note = mimCalibration.acceptSuggestion(s.sport)
-                      if (note && coachMemory.saveAboutMe) {
-                        const existing = coachMemory.aboutMe || ''
-                        const updated = existing ? `${existing}\n${note}` : note
-                        coachMemory.saveAboutMe(updated)
-                      }
-                    }}
-                    className="text-xs px-3 py-1 rounded-lg bg-amber-600 text-white font-medium"
-                  >
-                    Accept
-                  </button>
-                  <button
-                    onClick={() => mimCalibration.dismissSuggestion(s.sport)}
-                    className="text-xs px-3 py-1 rounded-lg border border-amber-300 text-amber-700 font-medium"
-                  >
-                    Dismiss
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-        {todayPhase === 'evening' && domsCalibration.pendingSuggestions.length > 0 && (
-          <div className="px-3 mb-3 space-y-2">
-            {domsCalibration.pendingSuggestions.map(s => (
-              <div key={s.sport} className="bg-orange-50 dark:bg-orange-950 rounded-xl p-3 border border-orange-200 dark:border-orange-900">
-                <p className="text-xs font-semibold text-orange-700 dark:text-orange-300 mb-1">Recovery Calibration</p>
-                <p className="text-sm text-orange-800 dark:text-orange-200">{s.reason}</p>
-                <div className="flex gap-2 mt-2">
-                  <button
-                    onClick={() => {
-                      const note = domsCalibration.acceptSuggestion(s.sport)
-                      if (note && coachMemory.saveAboutMe) {
-                        const existing = coachMemory.aboutMe || ''
-                        const updated = existing ? `${existing}\n${note}` : note
-                        coachMemory.saveAboutMe(updated)
-                      }
-                    }}
-                    className="text-xs px-3 py-1 rounded-lg bg-orange-600 text-white font-medium"
-                  >
-                    Accept
-                  </button>
-                  <button
-                    onClick={() => domsCalibration.dismissSuggestion(s.sport)}
-                    className="text-xs px-3 py-1 rounded-lg border border-orange-300 text-orange-700 font-medium"
-                  >
-                    Dismiss
-                  </button>
-                </div>
-              </div>
-            ))}
           </div>
         )}
         <Summary
