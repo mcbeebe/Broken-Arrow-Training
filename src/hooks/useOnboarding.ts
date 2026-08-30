@@ -286,6 +286,8 @@ const REDO_KEY = 'ba_onboarding_redo'
 // is deleted for the duration of the redo. Local-only — never synced.
 import { mondayOnOrBefore } from '../utils/planDates'
 
+import { captureBackup, readBackups, configForRestore, type PlanBackup } from '../utils/planBackups'
+
 const PREV_KEY = 'ba_onboarding_prev'
 
 function scopedKey(athleteId?: string) {
@@ -324,6 +326,9 @@ export function useOnboarding(athleteId?: string) {
       return raw ? JSON.parse(raw) : null
     } catch { return null }
   })
+  // Local, versioned plan backups — the one-tap undo for a bad redo or a
+  // sync mishap. See utils/planBackups.
+  const [planBackups, setPlanBackups] = useState<PlanBackup[]>(() => readBackups(athleteId))
 
   useEffect(() => {
     try {
@@ -332,6 +337,9 @@ export function useOnboarding(athleteId?: string) {
       setRedoRequested(localStorage.getItem(scopedRedoKey(athleteId)) === '1')
       const prevRaw = localStorage.getItem(scopedPrevKey(athleteId))
       setPreviousConfig(prevRaw ? JSON.parse(prevRaw) : null)
+      // Snapshot the current config on load, so the version an athlete is on
+      // is always in the ring before anything can overwrite it. Deduped.
+      setPlanBackups(captureBackup(athleteId, 'auto'))
     } catch {
       setConfig(null)
       setRedoRequested(false)
@@ -339,7 +347,7 @@ export function useOnboarding(athleteId?: string) {
     }
   }, [athleteId])
 
-  // Re-read on cross-device sync pulls (synthetic `storage` events).
+    // Re-read on cross-device sync pulls (synthetic `storage` events).
   useEffect(() => {
     const cfgK = scopedKey(athleteId)
     const redoK = scopedRedoKey(athleteId)
@@ -349,6 +357,9 @@ export function useOnboarding(athleteId?: string) {
         const raw = localStorage.getItem(cfgK)
         setConfig(raw ? JSON.parse(raw) : null)
         setRedoRequested(localStorage.getItem(redoK) === '1')
+        // A sync pull can bring a new config version — snapshot it so an
+        // unwanted cross-device change is still recoverable. Deduped by content.
+        setPlanBackups(captureBackup(athleteId, 'auto'))
       } catch (err) {
         console.debug('[useOnboarding] storage-event reload failed:', err)
       }
@@ -386,6 +397,8 @@ export function useOnboarding(athleteId?: string) {
     setConfig(withTimestamp)
     setRedoRequested(false)
     setPreviousConfig(null)
+    // Snapshot the freshly-built plan so it's an anchor to come back to.
+    setPlanBackups(captureBackup(athleteId, 'auto'))
   }, [athleteId])
 
   const clear = useCallback(() => {
@@ -408,6 +421,9 @@ export function useOnboarding(athleteId?: string) {
   const requestRedo = useCallback(() => {
     const redoK = scopedRedoKey(athleteId)
     const cfgK = scopedKey(athleteId)
+    // Snapshot the outgoing plan BEFORE the redo clears it, so a redo that
+    // goes wrong (wrong race, wrong week) is a one-tap restore, not a loss.
+    setPlanBackups(captureBackup(athleteId, 'before redo'))
     try {
       // Snapshot the outgoing config BEFORE deleting it so the redo flow
       // can prefill profile basics instead of re-asking them.
@@ -496,6 +512,36 @@ export function useOnboarding(athleteId?: string) {
     })
   }, [athleteId])
 
+  /** Restore a previous plan version (Settings → Restore a previous plan).
+   *  Writes the backup's config with a FRESH completedAt so it is the newest
+   *  everywhere and the sync guard propagates it; brings back the edit keys
+   *  captured alongside; and leaves the backup ring intact so the athlete can
+   *  change their mind. Non-destructive to history. */
+  const restorePlan = useCallback((savedAt: number): boolean => {
+    const b = readBackups(athleteId).find(x => x.savedAt === savedAt)
+    if (!b) return false
+    const restored = configForRestore(b)
+    if (!restored) return false
+    const k = scopedKey(athleteId)
+    try {
+      localStorage.setItem(k, JSON.stringify(restored))
+      stampKey(k)
+      for (const [ek, val] of Object.entries(b.edits ?? {})) {
+        const sk = athleteId ? `${ek}_${athleteId}` : ek
+        localStorage.setItem(sk, val)
+        stampKey(sk)
+      }
+      // A restore ends any in-progress redo and clears its snapshot/flag.
+      localStorage.removeItem(scopedRedoKey(athleteId))
+      localStorage.removeItem(scopedPrevKey(athleteId))
+    } catch { /* quota */ }
+    setConfig(restored)
+    setRedoRequested(false)
+    setPreviousConfig(null)
+    setPlanBackups(readBackups(athleteId))
+    return true
+  }, [athleteId])
+
   const markZonesPrimerSeen = useCallback(() => {
     setConfig(prev => {
       if (!prev || prev.zonesPrimerSeenAt) return prev
@@ -579,6 +625,8 @@ export function useOnboarding(athleteId?: string) {
     pinPlanStart,
     setPlanStart,
     setWeakStation,
+    planBackups,
+    restorePlan,
     markConnectStepSeen,
     markValuePropsSeen,
     markWelcomeLetterSeen,
