@@ -36,9 +36,11 @@ export default function ChartWithInsight({
     <section className={`space-y-2 ${className}`}>
       <header className="flex items-start justify-between gap-3 flex-wrap">
         <div className="min-w-0">
-          <h3 className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
-            {title}
-          </h3>
+          {title && (
+            <h3 className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
+              {title}
+            </h3>
+          )}
           {headlineValue !== undefined && (
             <p className="text-xl font-bold text-slate-900 dark:text-slate-50 mt-0.5 leading-tight">
               {headlineValue}

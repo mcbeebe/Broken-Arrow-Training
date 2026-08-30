@@ -26,6 +26,7 @@ import { trajectoryFromConfig } from '../utils/trajectory'
 import TrajectoryHero from './TrajectoryHero'
 import { buildRhythm } from '../utils/rhythm'
 import RhythmHistory from './RhythmHistory'
+import CollapsibleSection from './primitives/CollapsibleSection'
 import { todayDateString } from '../utils/planDates'
 
 export type DashSubTab = 'compliance' | 'readiness' | 'performance' | 'strength' | 'engine'
@@ -157,22 +158,28 @@ export default function Dashboard({
       <RhythmHistory rhythm={buildRhythm(weeks, todayDateString(), 21)} />
 
       {compliance.weeks.length > 0 && isSectionVisible('dash.descentCapacity') && (
-        <DescentCapacitySection
-          weeks={compliance.weeks}
-          race={race}
-        />
+        <CollapsibleSection title="Weekly Climb" storageKey="progress.climb">
+          <DescentCapacitySection
+            weeks={compliance.weeks}
+            race={race}
+            hideTitle
+          />
+        </CollapsibleSection>
       )}
 
       {isSectionVisible('dash.volume') && (
-        <VolumeChart
-          weeks={weeks}
-          activeWeek={volumeActiveWeek}
-          onWeekClick={setVolumeActiveWeek}
-          compliance={compliance.weeks}
-          showVertical={showVertical}
-          athleteId={athleteId}
-          currentWeekNum={currentWeekNum}
-        />
+        <CollapsibleSection title="Volume Progression" storageKey="progress.volume">
+          <VolumeChart
+            weeks={weeks}
+            activeWeek={volumeActiveWeek}
+            onWeekClick={setVolumeActiveWeek}
+            compliance={compliance.weeks}
+            showVertical={showVertical}
+            athleteId={athleteId}
+            currentWeekNum={currentWeekNum}
+            hideTitle
+          />
+        </CollapsibleSection>
       )}
 
       {/* Sub-tab navigation */}
@@ -335,8 +342,7 @@ function ComplianceTab({
       </div>
 
       {/* Weekly compliance breakdown */}
-      <div>
-        <h3 className="text-base font-semibold text-slate-700 dark:text-slate-200 mb-2">Weekly Breakdown</h3>
+      <CollapsibleSection title="Weekly Breakdown" storageKey="progress.weeklyBreakdown">
         <div className="space-y-2">
           {compliance.weeks.map((wk, i) => (
             <ComplianceWeekRow
@@ -349,11 +355,10 @@ function ComplianceTab({
             />
           ))}
         </div>
-      </div>
+      </CollapsibleSection>
 
       {/* Planned vs Actual volume chart (kept — still useful high-level view) */}
-      <div>
-        <h3 className="text-base font-semibold text-slate-700 dark:text-slate-200 mb-2">Planned vs Actual Mileage</h3>
+      <CollapsibleSection title="Planned vs Actual Mileage" storageKey="progress.plannedActual">
         <div className="flex items-end gap-1 h-32">
           {weeks.map((w, i) => {
             const planned = getMilesNumber(w.miles)
@@ -389,7 +394,7 @@ function ComplianceTab({
             <span className="w-2.5 h-2.5 rounded-sm bg-teal-500 inline-block" /> Actual
           </span>
         </div>
-      </div>
+      </CollapsibleSection>
     </div>
   )
 }

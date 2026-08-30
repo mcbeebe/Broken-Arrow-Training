@@ -17,6 +17,8 @@ interface VolumeChartProps {
   athleteId?: string
   /** 1-based current week — the week still being run cannot be "off plan". */
   currentWeekNum?: number
+  /** Drop the internal headline when a collapsible section already names it. */
+  hideTitle?: boolean
 }
 
 /**
@@ -72,7 +74,7 @@ function weekMiles(week: TrainingWeek, mode: 'running' | 'combined'): number {
   return Math.round(miles * 10) / 10
 }
 
-export default function VolumeChart({ weeks, activeWeek, onWeekClick, compliance, showVertical, athleteId, currentWeekNum = 1 }: VolumeChartProps) {
+export default function VolumeChart({ weeks, activeWeek, onWeekClick, compliance, showVertical, athleteId, currentWeekNum = 1, hideTitle }: VolumeChartProps) {
   const { flags: displayFlags } = useDisplayPreferences(athleteId)
   const advanced = displayFlags.showAdvancedCharts
   const [mode, setMode] = useState<'running' | 'combined'>('running')
@@ -155,9 +157,9 @@ export default function VolumeChart({ weeks, activeWeek, onWeekClick, compliance
   const headline = isVert ? 'Vertical Progression' : isTime ? 'Time Progression' : 'Volume Progression'
 
   return (
-    <div className="px-4 mt-6">
+    <div className={hideTitle ? '' : 'px-4 mt-6'}>
       <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
-        <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200">{headline}</h3>
+        {!hideTitle && <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200">{headline}</h3>}
         <div className="flex items-center gap-2">
           {advanced && (
             <div className="inline-flex rounded-full border border-slate-200 dark:border-slate-700 overflow-hidden text-[10px] font-medium" role="tablist">
