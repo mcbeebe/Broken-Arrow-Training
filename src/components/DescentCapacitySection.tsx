@@ -150,22 +150,28 @@ export default function DescentCapacitySection({ weeks, race }: Props) {
   // shortfall — so don't flag it as a warning.
   const tapering = inTaper(weeksOut)
   const belowIsOk = state === 'below' && tapering
+  // A race is set (there's a countdown) but its course has no climb profile
+  // yet, so no band can be drawn. That's a data gap, not an alert — and never
+  // "pick a race", since one is already picked.
+  const hasRace = !!race
   const tone: 'default' | 'positive' | 'warning' = state === 'in-band' || belowIsOk
     ? 'positive'
     : state === 'below'
       ? 'warning'
       : 'default'
-  const insightTone: 'positive' | 'warning' | 'intelligence' = state === 'in-band' || belowIsOk
-    ? 'positive'
-    : state === 'below'
-      ? 'warning'
-      : 'intelligence'
+  const insightTone: 'positive' | 'warning' | 'intelligence' | 'neutral' =
+    !band ? 'neutral'
+      : state === 'in-band' || belowIsOk ? 'positive'
+        : state === 'below' ? 'warning'
+          : 'intelligence'
 
   const subtitle = band
     ? `Race climbs ${raceGainFt.toLocaleString()} ft · band ${band.minFt.toLocaleString()}–${band.maxFt.toLocaleString()} ft/wk`
-    : 'Pick a target race to see your race-ready band.'
+    : hasRace
+      ? 'Tracking your weekly climb — race band pending course elevation.'
+      : 'Pick a target race to see your race-ready band.'
 
-  const insight = buildInsight(currentFt, band, state, weeksOut)
+  const insight = buildInsight(currentFt, band, state, weeksOut, hasRace)
 
   const chartData = weeks.map(w => ({
     week: `Wk ${w.weekNum}`,
@@ -252,12 +258,17 @@ function buildInsight(
   band: ClimbBand | null,
   state: BandState | null,
   weeksOut: number | null,
+  hasRace: boolean,
 ): string {
   const raceContext = weeksOut !== null && weeksOut > 0
     ? ` with ${weeksOut} week${weeksOut === 1 ? '' : 's'} to race day`
     : ''
   if (!band || !state) {
-    return `${currentFt.toLocaleString()} ft of climb this week. Pick a race to see the target band.`
+    // No band to compare against. Don't repeat the card's subtitle prompt —
+    // just state the climb. Only nudge to pick a race when none is set.
+    return hasRace
+      ? `${currentFt.toLocaleString()} ft of climb this week.`
+      : `${currentFt.toLocaleString()} ft of climb this week. Pick a race to see the target band.`
   }
   const cur = currentFt.toLocaleString()
   const bandStr = `${band.minFt.toLocaleString()}–${band.maxFt.toLocaleString()} ft`

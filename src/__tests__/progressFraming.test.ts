@@ -135,6 +135,13 @@ describe('bandForWeek — the −74% banner', () => {
   it('flags a genuinely short COMPLETED week', () => {
     expect(bandForWeek(2.7, 10, { hasStarted: true, isComplete: true })).toBe('flag')
   })
+  it('holds a short completed week in-progress until the plan is gradeable', () => {
+    // A week-1 shortfall on a brand-new plan (< 2 complete weeks) is noise,
+    // not a flag — the same bar the summary metrics use. No red, no banner.
+    expect(bandForWeek(2.7, 10, { hasStarted: true, isComplete: true, gradeable: false })).toBe('inprogress')
+    // Once enough of the plan has run, the same shortfall earns the flag.
+    expect(bandForWeek(2.7, 10, { hasStarted: true, isComplete: true, gradeable: true })).toBe('flag')
+  })
   it('keeps future weeks future and on-plan weeks ok', () => {
     expect(bandForWeek(0, 10, { hasStarted: false, isComplete: false })).toBe('future')
     expect(bandForWeek(9.5, 10, { hasStarted: true, isComplete: true })).toBe('ok')

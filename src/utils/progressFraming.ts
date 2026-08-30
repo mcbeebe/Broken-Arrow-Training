@@ -154,10 +154,15 @@ export type VolumeBand = 'ok' | 'warn' | 'flag' | 'future' | 'inprogress'
 export function bandForWeek(
   actual: number,
   planned: number,
-  opts: { hasStarted: boolean; isComplete: boolean },
+  opts: { hasStarted: boolean; isComplete: boolean; gradeable?: boolean },
 ): VolumeBand {
   if (!opts.hasStarted) return 'future'
   if (!opts.isComplete) return 'inprogress'
+  // Not enough of the plan has elapsed for a single week's shortfall to be a
+  // trend rather than arithmetic noise — the same bar frameThisWeek uses. A
+  // complete-but-early week reads as in-progress, never red. (Undefined =
+  // gradeable, so callers that don't track it keep the old behaviour.)
+  if (opts.gradeable === false) return 'inprogress'
   if (planned <= 0) return 'ok'
   const dev = Math.abs(actual - planned) / planned
   if (dev <= 0.15) return 'ok'

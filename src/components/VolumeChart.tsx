@@ -3,7 +3,7 @@ import type { TrainingWeek, SportType, DisplayFlags } from '../types'
 import type { WeekCompliance } from '../hooks/useCompliance'
 import { getMilesNumber } from '../utils/format'
 import { mapToSportType, getSportMultiplier } from '../utils/trimp'
-import { bandForWeek, type VolumeBand } from '../utils/progressFraming'
+import { bandForWeek, MIN_COMPLETE_WEEKS_TO_GRADE, type VolumeBand } from '../utils/progressFraming'
 import { useDisplayPreferences } from '../hooks/useDisplayPreferences'
 
 interface VolumeChartProps {
@@ -89,6 +89,14 @@ export default function VolumeChart({ weeks, activeWeek, onWeekClick, compliance
   const byNum = new Map<number, WeekCompliance>()
   for (const c of compliance ?? []) byNum.set(c.weekNum, c)
 
+  // Has the plan run long enough for a single short week to earn red? Below
+  // MIN_COMPLETE_WEEKS_TO_GRADE elapsed weeks it hasn't — a week-1 shortfall
+  // on a brand-new plan is noise, not a trend (the honesty contract). Until
+  // then no bar flags and the "off plan" banner stays silent.
+  const gradeable =
+    (compliance ?? []).filter(c => c.weekNum < currentWeekNum && c.totalWorkouts > 0).length
+      >= MIN_COMPLETE_WEEKS_TO_GRADE
+
   // Pre-compute per-mode miles so the same numbers feed labels, deviation,
   // and band classification.
   const actualByWeek = new Map<number, number>()
@@ -133,6 +141,7 @@ export default function VolumeChart({ weeks, activeWeek, onWeekClick, compliance
       hasStarted,
       // A week is complete only once it is strictly past the current one.
       isComplete: w.num < currentWeekNum,
+      gradeable,
     })
     const deviation = planned > 0 ? (actual - planned) / planned : 0
     return { w, i, planned, actual, hasStarted, band, deviation }
