@@ -20,6 +20,8 @@ import DescentCapacitySection from './DescentCapacitySection'
 import VolumeChart from './VolumeChart'
 import HyroxProjectionCard from './HyroxProjectionCard'
 import { frameThisWeek, type FramedMetric, type MetricTone } from '../utils/progressFraming'
+import { trajectoryFromConfig } from '../utils/trajectory'
+import TrajectoryHero from './TrajectoryHero'
 
 export type DashSubTab = 'compliance' | 'readiness' | 'performance' | 'strength' | 'engine'
 
@@ -134,6 +136,14 @@ export default function Dashboard({
           renders nothing for a non-Hyrox plan (the projection engine gates
           on raceType at the source), so a road or trail athlete sees
           nothing here. Plan keeps its copy; this is a mirror, not a move. */}
+      {(() => {
+        // The road/trail trajectory hero. Mutually exclusive with the Hyrox
+        // projection below (that one owns Hyrox; this returns null for it), so
+        // exactly one — or neither — leads the tab.
+        const trajectory = trajectoryFromConfig(onboardingConfig, Math.max(0, currentWeekNum - 1), weeks.length)
+        return trajectory ? <TrajectoryHero trajectory={trajectory} /> : null
+      })()}
+
       <HyroxProjectionCard weeks={weeks} config={onboardingConfig} capacity={strengthCapacity} />
 
       {compliance.weeks.length > 0 && isSectionVisible('dash.descentCapacity') && (
