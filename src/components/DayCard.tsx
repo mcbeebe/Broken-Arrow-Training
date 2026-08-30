@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react'
 import type { PlannedDay, ReadinessScore, CoachSnapshot, TRIMPRecord } from '../types'
 import type { WeatherChip } from '../utils/weatherChip'
 import { getWorkoutStyle, adaptBg } from '../utils/styles'
+import { dayTicketState } from '../utils/ticketState'
 import { formatMiles, formatSeconds, estimateRunTime } from '../utils/format'
 import { parsePlannedTargets } from '../utils/targets'
 import { gradeWorkoutDay } from '../hooks/useCompliance'
@@ -85,6 +86,10 @@ export default function DayCard({ day, weekNum, onTap, onLog, onStartLive, onSwa
   // same as a logged workout. Future/today rest days stay neutral.
   const restedAsPlanned = !isCompleted && !!isPast &&
     (day.type === 'rest' || day.type === 'travel')
+  // The shared ticket-grammar state (P12) — the same resolved/open/today/
+  // adjusted/away vocabulary the Today tab uses, so a day reads the same on
+  // both pages. Rendered as one small chip; never red, never "missed".
+  const ticket = dayTicketState(day, { isToday, isPast, hasReplan })
   const [detailsExpanded, setDetailsExpanded] = useState(false)
   const [descExpanded, setDescExpanded] = useState(false)
   const [cardCollapsed, setCardCollapsed] = useState(isCompleted)
@@ -133,7 +138,9 @@ export default function DayCard({ day, weekNum, onTap, onLog, onStartLive, onSwa
   // When completed (or rested-as-planned), use a more saturated emerald
   // background but preserve the workout-type color as the left border
   // (visual identity stays).
-  const cardBg = adaptBg(isCompleted || restedAsPlanned ? '#D1FAE5' : style.bg)
+  // Resolved days used to flood emerald; the ticket grammar softens that to
+  // a whisper of teal and lets the "✓ Resolved" chip carry the signal.
+  const cardBg = adaptBg(isCompleted || restedAsPlanned ? '#f0fdfa' : style.bg)
 
   const dotColor = readiness?.status === 'PEAK' ? 'bg-indigo-500'
     : readiness?.status === 'YELLOW' ? 'bg-amber-400'
@@ -172,6 +179,15 @@ export default function DayCard({ day, weekNum, onTap, onLog, onStartLive, onSwa
           <div className="flex items-center gap-x-2 gap-y-1 flex-wrap min-w-0">
             <span className="text-base">{style.label}</span>
             <span className="font-semibold text-base text-slate-800 dark:text-white">{day.day}</span>
+            {ticket && (
+              <span
+                className={`text-[11px] font-bold rounded-full px-2 py-0.5 ${ticket.chipClass}`}
+                data-testid="day-ticket-state"
+                data-state={ticket.key}
+              >
+                {ticket.glyph ? `${ticket.glyph} ` : ''}{ticket.label}
+              </span>
+            )}
             {actual?.rpe && (
               <span className="text-xs bg-white dark:bg-slate-800/60 text-slate-700 dark:text-slate-200 rounded-full px-2 py-0.5 font-medium">
                 RPE {actual.rpe}
