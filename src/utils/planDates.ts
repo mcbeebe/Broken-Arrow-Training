@@ -94,6 +94,14 @@ export function effectivePlanStart(
   return planStartDate && planStartDate > today ? planStartDate : today
 }
 
+/** Shift an ISO date by a whole number of weeks (noon-anchored so a negative
+ *  timezone offset never slips a day). */
+export function shiftIsoByWeeks(iso: string, weeks: number): string {
+  const d = new Date(`${iso}T12:00:00`)
+  d.setDate(d.getDate() + weeks * 7)
+  return d.toISOString().slice(0, 10)
+}
+
 /** Today as YYYY-MM-DD in the athlete's local timezone. */
 export function todayDateString(): string {
   const d = new Date()

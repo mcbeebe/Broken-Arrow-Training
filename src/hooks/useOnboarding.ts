@@ -284,6 +284,8 @@ const REDO_KEY = 'ba_onboarding_redo'
 // Snapshot of the config taken at requestRedo() time, so the redo flow can
 // prefill profile basics (name, age, gear…) even though the live config key
 // is deleted for the duration of the redo. Local-only — never synced.
+import { mondayOnOrBefore } from '../utils/planDates'
+
 const PREV_KEY = 'ba_onboarding_prev'
 
 function scopedKey(athleteId?: string) {
@@ -476,6 +478,24 @@ export function useOnboarding(athleteId?: string) {
     })
   }, [athleteId])
 
+  /** User-driven plan-start adjustment (Settings → "Adjust plan start").
+   *  Unlike pinPlanStart — a one-time migration that never overwrites — this
+   *  OVERWRITES the pin so the athlete can nudge week 1, e.g. when a mid-block
+   *  redo put week 1 on the wrong Monday and a session they did fell outside
+   *  the plan. Non-destructive like setWeakStation: never save(), so plan
+   *  edits and logged history are untouched and the plan re-derives around the
+   *  new anchor. Snaps to the Monday on or before the given date. */
+  const setPlanStart = useCallback((iso: string) => {
+    const monday = mondayOnOrBefore(iso)
+    setConfig(prev => {
+      if (!prev || prev.planStartPinnedIso === monday) return prev
+      const next = { ...prev, planStartPinnedIso: monday }
+      const k = scopedKey(athleteId)
+      try { localStorage.setItem(k, JSON.stringify(next)); stampKey(k) } catch { /* quota */ }
+      return next
+    })
+  }, [athleteId])
+
   const markZonesPrimerSeen = useCallback(() => {
     setConfig(prev => {
       if (!prev || prev.zonesPrimerSeenAt) return prev
@@ -557,6 +577,7 @@ export function useOnboarding(athleteId?: string) {
     markPrimerSeen,
     markZonesPrimerSeen,
     pinPlanStart,
+    setPlanStart,
     setWeakStation,
     markConnectStepSeen,
     markValuePropsSeen,

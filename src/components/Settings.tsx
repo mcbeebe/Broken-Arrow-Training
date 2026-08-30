@@ -27,6 +27,7 @@ import ProactiveTimingSettings from './ProactiveTimingSettings'
 import type { AthleteHomeLocation as AthleteHomeLocationType } from '../hooks/useAthleteLocation'
 import type { WorkoutTimeSlot } from '../hooks/useWorkoutTimePreference'
 import ExportDialog from './ExportDialog'
+import { shiftIsoByWeeks } from '../utils/planDates'
 import { useDisplayPreferences } from '../hooks/useDisplayPreferences'
 import { DETAIL_LEVELS, type DisplayFlags, type SectionId } from '../types'
 import { PALETTES, type PaletteId } from '../palettes'
@@ -125,6 +126,9 @@ interface SettingsProps {
   // Onboarding reset — restarts the onboarding flow so the athlete can
   // pick a new target race after finishing their current one.
   onResetOnboarding?: () => void
+  /** Current pinned week-1 Monday (ISO), and a non-destructive setter. */
+  planStartIso?: string
+  onSetPlanStart?: (iso: string) => void
   setView?: (v: string) => void
   // Auth
   authSession?: AuthSession | null
@@ -187,6 +191,8 @@ export default function Settings({
   onClearCache,
   onClearAll,
   onResetOnboarding,
+  planStartIso,
+  onSetPlanStart,
   coachEnabled,
   aboutMeText,
   pendingInferences,
@@ -711,6 +717,46 @@ export default function Settings({
       {athleteId === 'mike' && (
         <SettingsSection title="Athletes">
           <AthleteAdmin />
+        </SettingsSection>
+      )}
+
+      {/* ── Adjust plan start (non-destructive week re-pin) ── */}
+      {onSetPlanStart && planStartIso && (
+        <SettingsSection title="Plan Start">
+          <div className="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700 space-y-3">
+            <div>
+              <p className="text-sm font-medium text-slate-800 dark:text-slate-100">Week 1 begins</p>
+              <p className="text-lg font-bold text-teal-700 dark:text-teal-300 mt-0.5" data-testid="plan-start-value">
+                {new Date(`${planStartIso}T12:00:00`).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
+              </p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
+                Shifts the whole plan&rsquo;s week grid without a rebuild &mdash; use it if a session you
+                did lands in the wrong week (e.g. after redoing onboarding mid-block). Your edits and
+                logged history are untouched. Moving week 1 later shortens your runway to race day, and
+                the plan will say so honestly.
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => onSetPlanStart(shiftIsoByWeeks(planStartIso, -1))}
+                data-testid="plan-start-earlier"
+                className="text-sm font-medium px-3 py-1.5 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600 transition-colors"
+              >&larr; A week earlier</button>
+              <button
+                onClick={() => onSetPlanStart(shiftIsoByWeeks(planStartIso, 1))}
+                data-testid="plan-start-later"
+                className="text-sm font-medium px-3 py-1.5 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600 transition-colors"
+              >A week later &rarr;</button>
+            </div>
+            <input
+              type="date"
+              value={planStartIso}
+              onChange={e => { if (e.target.value) onSetPlanStart(e.target.value) }}
+              aria-label="Set plan start date"
+              className="w-full px-3 py-2.5 text-base border border-slate-300 dark:border-slate-600 dark:bg-slate-900 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400"
+            />
+            <p className="text-[11px] text-slate-400">Any date snaps to that week&rsquo;s Monday.</p>
+          </div>
         </SettingsSection>
       )}
 
