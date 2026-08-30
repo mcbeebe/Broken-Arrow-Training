@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import type { PlannedDay, HRZone, ReadinessScore, PerformanceMetrics, CoachSnapshot, TRIMPRecord } from '../types'
+import type { PlannedDay, HRZone, ReadinessScore, PerformanceMetrics, CoachSnapshot, TRIMPRecord, ActualWorkout } from '../types'
 import { DEFAULT_COACH_NAME } from '../types'
 import { buildWeatherChipFromHour, forecastForHour, describeWeatherCode, formatHourLabel } from '../utils/weatherChip'
 import { dayLabelToISO, buildCompletedWorkoutPayload } from '../utils/coachSnapshot'
@@ -12,6 +12,7 @@ import CoachWorkoutTakeView from './CoachWorkoutTake'
 import WorkoutDebriefPrompt from './WorkoutDebriefPrompt'
 import { useCoachInsight } from '../hooks/useCoachInsight'
 import { formatMiles, formatSeconds, formatPace, estimateRunTime } from '../utils/format'
+import { plannedDurationSec } from '../utils/matching'
 import { parseRoutine, guideMatchedExercises, calibrateGuideWeight, type ParsedExercise } from '../utils/exercises'
 import type { StrengthCapacity } from '../engines/strength/benchmark'
 import { menopauseStrengthCue } from '../utils/menopause'
@@ -173,9 +174,16 @@ interface WorkoutModalProps {
   /** The currently configured weak station, to suppress a redundant
    *  re-weight offer. */
   currentWeakStation?: string
+  /** Claim a demoted activity as today's workout. When the sync gates
+   *  don't auto-match an activity (a hike-recorded mountain run, a
+   *  cross-family erg, a cut-short session), it lands in "other activities"
+   *  and the day grades missed. This resolves the day from that activity —
+   *  its biometrics attach — without loosening the auto-match gates. Shown
+   *  per secondary only when the day is still unclaimed. */
+  onClaimSecondary?: (sec: ActualWorkout) => void
 }
 
-export default function WorkoutModal({ day, weekNum, onClose, onLog, onStartLive, onSaveNote, zones, athleteId, coachEnabled, readiness, latestPerf, coachSnapshot, onAskCoach, trimpRecord, weeks, raceReadinessTarget, strengthLevel, strengthCapacity, onReweightPlan, currentWeakStation }: WorkoutModalProps) {
+export default function WorkoutModal({ day, weekNum, onClose, onLog, onStartLive, onSaveNote, zones, athleteId, coachEnabled, readiness, latestPerf, coachSnapshot, onAskCoach, trimpRecord, weeks, raceReadinessTarget, strengthLevel, strengthCapacity, onReweightPlan, currentWeakStation, onClaimSecondary }: WorkoutModalProps) {
   const style = getWorkoutStyle(day.type, day.workout)
   const { flags } = useDisplayPreferences(athleteId)
   // General Fitness plans (raceType 'general') get goal-aware, race-free
@@ -1055,38 +1063,68 @@ export default function WorkoutModal({ day, weekNum, onClose, onLog, onStartLive
               session) so nothing recorded silently disappears from the day
               view. Their load IS already counted in the training-load chart;
               this section just makes them visible. */}
-          {day.secondaryActuals && day.secondaryActuals.length > 0 && (
+          {day.secondaryActuals && day.secondaryActuals.length > 0 && (() => {
+            // When nothing auto-matched, the sync gates DEMOTED these — a
+            // hike-recorded mountain run, a cross-family erg, a cut-short
+            // session — and the day grades missed. Offer to claim one as
+            // today's workout: it rides the manual-log override, so the
+            // gates stay strict but the repair is one tap, not buried.
+            const unclaimed = !actual && !!onClaimSecondary
+            const plannedSec = plannedDurationSec(day)
+            return (
             <div className="bg-slate-50 dark:bg-slate-900 rounded-xl p-3 border border-slate-200 dark:border-slate-700 space-y-2">
               <p className="text-xs font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wide">
-                📋 Other activities recorded today ({day.secondaryActuals.length})
+                📋 {unclaimed ? 'Recorded today — not counted as your workout' : 'Other activities recorded today'} ({day.secondaryActuals.length})
               </p>
               <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-snug">
-                Picked the {actual?.type ?? 'primary'} session above as your main workout.
-                These are also counted in your 7-Day Training Load.
+                {unclaimed
+                  ? "These didn't auto-match today's session, so it's still open. Count one as done and its data attaches to the day."
+                  : <>Picked the {actual?.type ?? 'primary'} session above as your main workout. These are also counted in your 7-Day Training Load.</>}
               </p>
               <div className="space-y-1.5">
-                {day.secondaryActuals.map((sec, i) => (
+                {day.secondaryActuals.map((sec, i) => {
+                  const partial = plannedSec > 0 && sec.movingTime > 0 && sec.movingTime < plannedSec * 0.4
+                  return (
                   <div
-                    key={sec.garminId ?? i}
-                    className="flex items-center justify-between gap-2 text-xs bg-white dark:bg-slate-800 rounded-lg px-2.5 py-1.5 border border-slate-100 dark:border-slate-700"
+                    key={sec.garminId ?? sec.stravaId ?? i}
+                    className="text-xs bg-white dark:bg-slate-800 rounded-lg px-2.5 py-1.5 border border-slate-100 dark:border-slate-700"
                   >
-                    <div className="min-w-0 flex-1">
-                      <p className="font-medium text-slate-700 dark:text-slate-200 truncate">{sec.name}</p>
-                      <p className="text-[10px] text-slate-500 dark:text-slate-400 capitalize">{sec.type.replace(/_/g, ' ')}</p>
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium text-slate-700 dark:text-slate-200 truncate">{sec.name}</p>
+                        <p className="text-[10px] text-slate-500 dark:text-slate-400 capitalize">{sec.type.replace(/_/g, ' ')}</p>
+                      </div>
+                      <div className="text-right shrink-0 font-mono text-slate-600 dark:text-slate-300">
+                        <p>{formatSeconds(sec.movingTime)}</p>
+                        <p className="text-[10px] text-slate-500">
+                          {sec.distance > 0 && <>{formatMiles(sec.distance)}</>}
+                          {sec.distance > 0 && sec.avgHR ? ' · ' : ''}
+                          {sec.avgHR ? <>{sec.avgHR} bpm</> : null}
+                        </p>
+                      </div>
                     </div>
-                    <div className="text-right shrink-0 font-mono text-slate-600 dark:text-slate-300">
-                      <p>{formatSeconds(sec.movingTime)}</p>
-                      <p className="text-[10px] text-slate-500">
-                        {sec.distance > 0 && <>{formatMiles(sec.distance)}</>}
-                        {sec.distance > 0 && sec.avgHR ? ' · ' : ''}
-                        {sec.avgHR ? <>{sec.avgHR} bpm</> : null}
-                      </p>
-                    </div>
+                    {unclaimed && (
+                      <div className="mt-1.5">
+                        <button
+                          onClick={() => onClaimSecondary!(sec)}
+                          className="w-full rounded-lg px-2.5 py-1.5 text-[11px] font-semibold bg-teal-600 text-white active:bg-teal-700"
+                          data-testid={`claim-secondary-${i}`}
+                        >
+                          Count this as today's workout
+                        </button>
+                        {partial && (
+                          <p className="mt-1 text-[10px] text-slate-500 dark:text-slate-400 leading-snug">
+                            {Math.round(sec.movingTime / 60)} of {Math.round(plannedSec / 60)} min — partial, but it still counts toward your load.
+                          </p>
+                        )}
+                      </div>
+                    )}
                   </div>
-                ))}
+                )})}
               </div>
             </div>
-          )}
+            )
+          })()}
 
           {/* Drill completion status — shown whenever drills are scheduled,
               regardless of whether the workout has been logged yet. */}
