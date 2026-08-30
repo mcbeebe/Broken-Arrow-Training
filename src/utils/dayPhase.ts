@@ -27,13 +27,22 @@ export function dayPhase(now: Date, window: PhaseWindow): DayPhase {
   const h = now.getHours()
   const { morningHour, eveningHour } = window
 
-  // Ordinary window: wake at 7, close at 20.
+  // Ordinary window: wake at 7, close at 20. The close runs from the close
+  // hour to midnight and no further.
+  //
+  // It deliberately does NOT run backwards into the small hours. An athlete
+  // awake at 7:47 with their day declared to start at 8 is holding their
+  // phone to find out about today, not to be handed last night's close for
+  // a day that has not happened yet — and once midnight passes, the day the
+  // close was about is over. Before the declared wake the honest answer is
+  // that today's answer is simply ready early.
   if (eveningHour > morningHour) {
-    return h >= eveningHour || h < morningHour ? 'evening' : 'morning'
+    return h >= eveningHour ? 'evening' : 'morning'
   }
 
-  // Wrapped window: wake at 14, close at 02. The close runs from 02 until
-  // the next wake, so the hours between are evening and the rest is day.
+  // Wrapped window: wake at 14, close at 02. Here the close genuinely does
+  // cross midnight — it began before it — so it runs from 02 until the next
+  // wake, and the hours between are evening while the rest is day.
   if (eveningHour < morningHour) {
     return h >= eveningHour && h < morningHour ? 'evening' : 'morning'
   }

@@ -19,9 +19,23 @@ describe('an ordinary day — wake 7, close 20', () => {
     for (let h = 7; h < 20; h++) expect(p[h], `hour ${h}`).toBe('morning')
   })
 
-  it('is evening from the close through to the next wake', () => {
+  it('is evening from the close until midnight, and no further', () => {
     for (let h = 20; h < 24; h++) expect(p[h], `hour ${h}`).toBe('evening')
-    for (let h = 0; h < 7; h++) expect(p[h], `hour ${h}`).toBe('evening')
+  })
+
+  it('shows today early rather than last night, before the declared wake', () => {
+    // Shipped getting this wrong: an athlete up at 7:47 with a wake hour of
+    // 8 was handed the previous evening's close instead of the day's answer.
+    // Before the declared wake, the day is simply ready early — that is the
+    // friendlier reading and the truthful one, since the close it would
+    // otherwise show is about a calendar day that has already ended.
+    for (let h = 0; h < 7; h++) expect(p[h], `hour ${h}`).toBe('morning')
+  })
+
+  it('does not hand back the close the moment midnight passes', () => {
+    const w = { morningHour: 7, eveningHour: 20 }
+    expect(dayPhase(new Date(2026, 7, 29, 23, 59), w)).toBe('evening')
+    expect(dayPhase(new Date(2026, 7, 30, 0, 0), w)).toBe('morning')
   })
 
   it('flips exactly on the hour, never a minute early', () => {
@@ -68,6 +82,11 @@ describe('the lights-out countdown', () => {
 
   it('says nothing once the close has already begun', () => {
     expect(hoursUntilClose(at(21), { morningHour: 7, eveningHour: 20 })).toBeNull()
+  })
+
+  it('counts a full day ahead when you are up before your wake hour', () => {
+    // 03:30 with a close at 20:00 — still today's close, sixteen hours out.
+    expect(hoursUntilClose(at(3), { morningHour: 7, eveningHour: 20 })).toBe(17)
   })
 
   it('wraps correctly for a night-shift window', () => {
