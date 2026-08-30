@@ -19,6 +19,7 @@ import YourEngineSection from './YourEngineSection'
 import DescentCapacitySection from './DescentCapacitySection'
 import VolumeChart from './VolumeChart'
 import HyroxProjectionCard from './HyroxProjectionCard'
+import { frameThisWeek, type FramedMetric, type MetricTone } from '../utils/progressFraming'
 
 export type DashSubTab = 'compliance' | 'readiness' | 'performance' | 'strength' | 'engine'
 
@@ -49,6 +50,9 @@ interface DashboardProps {
   planZones?: HRZone[]
   athleteMaxHR?: number
   athleteId?: string
+  /** 1-based index of the week currently being run — the honest-metric
+   *  contract needs it to tell a finished week from one still in progress. */
+  currentWeekNum?: number
   /** One-shot deep link (e.g. Coach → Tools → "Open in Stats"): adopt
    *  this sub-tab when it becomes non-null, then report handled. */
   subTabRequest?: DashSubTab | null
@@ -76,6 +80,7 @@ export default function Dashboard({
   planZones = [],
   athleteMaxHR,
   athleteId,
+  currentWeekNum = 1,
   subTabRequest,
   onSubTabRequestHandled,
 }: DashboardProps) {
@@ -146,6 +151,7 @@ export default function Dashboard({
           compliance={compliance.weeks}
           showVertical={showVertical}
           athleteId={athleteId}
+          currentWeekNum={currentWeekNum}
         />
       )}
 
@@ -174,6 +180,7 @@ export default function Dashboard({
           planZones={parsedPlanZones}
           showVertical={showVertical}
           race={race}
+          currentWeekNum={currentWeekNum}
         />
       )}
       {subTab === 'readiness' && (
@@ -216,13 +223,18 @@ function ComplianceTab({
   planZones,
   showVertical,
   race,
+  currentWeekNum,
 }: {
   weeks: TrainingWeek[]
   compliance: OverallCompliance
   planZones: ReturnType<typeof parsePlanZones>
   showVertical: boolean
   race?: RaceInfo
+  currentWeekNum: number
 }) {
+  // The honest-metric contract: this week's numbers, framed so a plan you're
+  // following never reads as a failure. See utils/progressFraming.
+  const thisWeek = frameThisWeek(compliance, currentWeekNum)
   // Only show past/current weeks in the weekly breakdown (up to current week #).
   // Future weeks have nothing to grade yet.
   const vertPct = showVertical && compliance.totalPlannedElevation > 0
@@ -232,37 +244,22 @@ function ComplianceTab({
   const racePerMi = race && race.distanceMiles > 0 ? Math.round(raceElevationFt / race.distanceMiles) : 0
   return (
     <div className="space-y-4">
-      {/* Summary cards — now includes Distance & Duration compliance */}
-      <div className="grid grid-cols-2 gap-3">
-        <StatCard
-          label="Completion"
-          value={`${compliance.completionRate}%`}
-          sub={`${compliance.totalCompleted} / ${compliance.totalCompleted + compliance.totalMissed} workouts`}
-          color="teal"
-        />
-        <StatCard
-          label="Distance"
-          value={`${compliance.overallDistanceCompliance}%`}
-          sub={`${compliance.totalActualMiles} / ${compliance.totalPlannedMiles} mi`}
-          color="blue"
-        />
-        <StatCard
-          label="HR in Zone"
-          value={`${compliance.overallHRCompliance}%`}
-          sub={
-            compliance.totalFlagged > 0
-              ? `${compliance.totalFlagged} flagged`
-              : 'on target'
-          }
-          color="rose"
-        />
-        <StatCard
-          label="Duration"
-          value={`${compliance.overallDurationCompliance}%`}
-          sub="of planned time"
-          color="amber"
-        />
-        {showVertical && (
+      {/* This-week summary, honestly framed. The season-cumulative numbers
+          are one tap away (below) rather than the default, so week 1 is never
+          divided by the whole plan. */}
+      <div>
+        <div className="flex items-baseline justify-between mb-2">
+          <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">This week, in numbers</p>
+          <span className="text-[11px] text-slate-400">Week {currentWeekNum}</span>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          {thisWeek.metrics.map(m => (
+            <FramedStatCard key={m.key} metric={m} />
+          ))}
+        </div>
+      </div>
+      {showVertical && (
+        <div className="grid grid-cols-2 gap-3">
           <StatCard
             label="Vertical"
             value={
@@ -277,8 +274,23 @@ function ComplianceTab({
             }
             color="indigo"
           />
-        )}
-      </div>
+        </div>
+      )}
+
+      {/* Season to date — the cumulative view, kept but not the default, so
+          nobody loses a number. It carries no colour: it is a tally, not a
+          grade. */}
+      <details className="bg-slate-50 dark:bg-slate-900 rounded-lg px-3 py-2">
+        <summary className="text-xs font-semibold text-slate-500 dark:text-slate-400 cursor-pointer">
+          Season to date
+        </summary>
+        <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-slate-600 dark:text-slate-300">
+          <span>Sessions</span><span className="text-right font-mono">{compliance.totalCompleted} / {compliance.totalCompleted + compliance.totalMissed}</span>
+          <span>Distance</span><span className="text-right font-mono">{compliance.totalActualMiles} / {compliance.totalPlannedMiles} mi</span>
+          <span>Duration</span><span className="text-right font-mono">{compliance.overallDurationCompliance}%</span>
+          <span>HR in zone</span><span className="text-right font-mono">{compliance.overallHRCompliance}%{compliance.totalFlagged > 0 ? ` · ${compliance.totalFlagged} flagged` : ''}</span>
+        </div>
+      </details>
 
       {/* Legend */}
       <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-900 rounded-lg px-3 py-2">
@@ -289,7 +301,7 @@ function ComplianceTab({
           <span className="w-2.5 h-2.5 rounded-sm bg-amber-400 inline-block" /> Close
         </span>
         <span className="flex items-center gap-1">
-          <span className="w-2.5 h-2.5 rounded-sm bg-red-500 inline-block" /> Missed
+          <span className="w-2.5 h-2.5 rounded-sm bg-red-500 inline-block" /> Open
         </span>
         <span className="flex items-center gap-1">
           <span className="w-2.5 h-2.5 rounded-sm bg-blue-400 inline-block" /> Over
@@ -740,6 +752,28 @@ function formatFt(ft: number): string {
     return `${k % 1 === 0 ? k : k.toFixed(1)}k`
   }
   return `${Math.round(ft)}`
+}
+
+const TONE_CLASS: Record<MetricTone, string> = {
+  good: 'bg-teal-50 border-teal-200 text-teal-800 dark:bg-teal-950 dark:border-teal-800 dark:text-teal-200',
+  watch: 'bg-amber-50 border-amber-200 text-amber-800 dark:bg-amber-950 dark:border-amber-800 dark:text-amber-200',
+  // Red is earned. It only reaches here for a graded, genuinely-low metric.
+  bad: 'bg-rose-50 border-rose-200 text-rose-800 dark:bg-rose-950 dark:border-rose-800 dark:text-rose-200',
+  neutral: 'bg-slate-50 border-slate-200 text-slate-700 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-200',
+  // Nothing to grade yet — grey, not an accusation.
+  tooSoon: 'bg-slate-50 border-slate-200 text-slate-500 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-400',
+}
+
+/** A summary card whose colour is decided by the honest-metric contract, not
+ *  by a hardcoded hue. See utils/progressFraming. */
+function FramedStatCard({ metric }: { metric: FramedMetric }) {
+  return (
+    <div className={`rounded-xl p-3 border ${TONE_CLASS[metric.tone]}`} data-testid={`framed-${metric.key}`} data-tone={metric.tone}>
+      <p className="text-sm opacity-75">{metric.label}</p>
+      <p className="text-2xl font-bold mt-0.5">{metric.value}</p>
+      <p className="text-sm opacity-60 mt-0.5">{metric.sub}</p>
+    </div>
+  )
 }
 
 function StatCard({ label, value, sub, color }: { label: string; value: string; sub: string; color: string }) {

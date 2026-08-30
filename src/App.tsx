@@ -2185,6 +2185,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           sorenessLoadByDate={soreness.sorenessLoadByDate}
           strengthCapacity={strengthCapacity.capacity}
           strengthWeeks={strengthWeeks}
+          currentWeekNum={currentWeekNum}
           onboardingConfig={onboarding.config}
           athleteId={athleteId}
           subTabRequest={dashSubTabRequest}
