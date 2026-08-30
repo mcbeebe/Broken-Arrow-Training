@@ -18,6 +18,7 @@ import StrengthProgressSection from './StrengthProgressSection'
 import YourEngineSection from './YourEngineSection'
 import DescentCapacitySection from './DescentCapacitySection'
 import VolumeChart from './VolumeChart'
+import HyroxProjectionCard from './HyroxProjectionCard'
 
 export type DashSubTab = 'compliance' | 'readiness' | 'performance' | 'strength' | 'engine'
 
@@ -120,7 +121,15 @@ export default function Dashboard({
 
   return (
     <div className="px-4 py-4 space-y-4">
-      <h2 className="text-xl font-bold text-slate-800 dark:text-white">Dashboard</h2>
+      <h2 className="text-xl font-bold text-slate-800 dark:text-white">Progress</h2>
+
+      {/* Where the block is actually heading, first — not two taps deep.
+          The projection was reachable only through Plan > Race, which is
+          the one number a race-goal athlete opens this tab to see. The
+          card renders nothing when there is no projection to make, so
+          non-Hyrox athletes are unaffected. Plan keeps its copy; this is a
+          mirror, not a move. */}
+      <HyroxProjectionCard weeks={weeks} config={onboardingConfig} capacity={strengthCapacity} />
 
       {compliance.weeks.length > 0 && isSectionVisible('dash.descentCapacity') && (
         <DescentCapacitySection
