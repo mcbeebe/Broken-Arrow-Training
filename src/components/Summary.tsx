@@ -12,7 +12,7 @@ import { weeksUntilRace } from '../utils/raceCountdown'
 import { buildTrainingSignals } from '../utils/trainingSignals'
 import { buildWeekNarrative } from '../utils/weekNarrative'
 import PlanAtAGlance from './PlanAtAGlance'
-import InsightNote from './primitives/InsightNote'
+import { notesRowText, shouldShowNotesRow } from '../utils/planNotes'
 import type { PlanAdvisory } from '../types'
 import { useDisplayPreferences } from '../hooks/useDisplayPreferences'
 import { findTrimpRecord } from '../utils/trimp'
@@ -52,6 +52,10 @@ interface SummaryProps {
   riskFlags?: RiskFlag[]
   /** Honest plan-level notes (feasibility, runway, goal-derived paces). */
   advisories?: PlanAdvisory[]
+  /** Opens the plan's notes on the Plan tab. Absent = no row (nowhere to go). */
+  onOpenPlanNotes?: () => void
+  /** Whether this exact set of notes has already been read. */
+  planNotesSeen?: boolean
   /** Goal race — drives the race-ready hero card in the final ~8 weeks. */
   race?: RaceInfo
   /** The whole season — renders the multi-race overview card (countdowns,
@@ -112,6 +116,8 @@ export default function Summary({
   coachSnapshot,
   riskFlags = [],
   advisories = [],
+  onOpenPlanNotes,
+  planNotesSeen = false,
   race, season,
   onOpenSeason,
   manualLog,
@@ -201,22 +207,26 @@ export default function Summary({
           the season belongs to Plan, and the coherence reading is a line in
           the Verdict card rather than a full-width banner that told you your
           signals disagreed without telling you what to do about it. */}
-      {/* Honest plan-level advisories (feasibility, runway, goal-derived paces).
-          Shown regardless of Garmin so the athlete keeps seeing the reality of
-          their plan, not just at method selection. */}
-      {advisories.length > 0 && (
-        <div className="space-y-2">
-          {advisories.map((a) => (
-            <InsightNote
-              key={a.id}
-              tone={a.severity === 'critical' ? 'critical' : a.severity === 'caution' ? 'warning' : 'neutral'}
-              label={a.title}
-            >
-              {a.detail}
-              {a.suggestion ? <span className="block mt-1 opacity-90">→ {a.suggestion}</span> : null}
-            </InsightNote>
-          ))}
-        </div>
+      {/* P14: the plan's advisories used to open this page — all of them,
+          every day. A generated half-marathon produced seven, so the first
+          thing the athlete met each morning was a stack of caveats about a
+          decision made weeks ago. None of them changes the next hour, which
+          is the only test Today applies, so they moved to Plan and left one
+          row behind. It counts, it leads there, and it goes quiet once read. */}
+      {onOpenPlanNotes && shouldShowNotesRow(advisories, planNotesSeen) && (
+        <button
+          onClick={onOpenPlanNotes}
+          className="w-full flex items-center justify-between bg-white dark:bg-slate-800 rounded-xl px-3.5 py-2.5 shadow-sm border border-slate-100 dark:border-slate-700 text-left hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-colors"
+          data-testid="plan-notes-row"
+        >
+          <span className="text-xs text-slate-600 dark:text-slate-300">
+            <span className="font-bold text-slate-700 dark:text-slate-200">
+              {notesRowText(advisories)}
+            </span>
+            {' '}— in Plan
+          </span>
+          <span className="text-sm text-slate-400">›</span>
+        </button>
       )}
       {/* Plan-at-a-glance fills Today with useful, engaging context when
           there's no Garmin/readiness data to show (this week, next key session,

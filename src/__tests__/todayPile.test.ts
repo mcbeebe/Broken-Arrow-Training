@@ -51,3 +51,27 @@ describe('the rhythm strip', () => {
     expect(APP).toMatch(/view === 'today' && rhythm\.length > 0/)
   })
 })
+
+describe('P14 — the advisory pile', () => {
+  it('no longer maps the whole advisory list onto Today', () => {
+    // Seven of these opened the page on Mike's Oakland Hills build. The
+    // page now carries one row that counts them and leads to Plan.
+    expect(SUMMARY).not.toMatch(/advisories\.map/)
+    expect(SUMMARY).toMatch(/data-testid="plan-notes-row"/)
+    // And it is gated on the rule, not on an ad-hoc condition in the JSX.
+    expect(SUMMARY).toMatch(/shouldShowNotesRow\(advisories, planNotesSeen\)/)
+  })
+
+  it('gives the notes a permanent home on Plan', () => {
+    expect(PLAN).toMatch(/<PlanNotesPanel/)
+  })
+
+  it('still hands Plan the same list Today was given — nothing is filtered away', () => {
+    expect(APP).toMatch(/planNotes=\{allAdvisories\}/)
+    expect(APP).toMatch(/advisories=\{allAdvisories\}/)
+  })
+
+  it('marks the notes read on the way through, so the row stops asking', () => {
+    expect(APP).toMatch(/markNotesSeen\(athleteId, allAdvisories\)/)
+  })
+})

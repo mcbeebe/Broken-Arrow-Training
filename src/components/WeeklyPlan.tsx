@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from 'react'
-import type { TrainingWeek, PlannedDay, ActualWorkout, HRZone, ReadinessScore, PerformanceMetrics, CoachSnapshot, RaceInfo, DailyTRIMP, Season, TrainingPlan } from '../types'
+import type { TrainingWeek, PlannedDay, ActualWorkout, HRZone, ReadinessScore, PerformanceMetrics, CoachSnapshot, RaceInfo, DailyTRIMP, Season, TrainingPlan, PlanAdvisory } from '../types'
 import { findTrimpRecord } from '../utils/trimp'
 import type { WeekCompliance } from '../hooks/useCompliance'
 import type { InjuryStatus, StrengthExperience, OnboardingConfig } from '../hooks/useOnboarding'
@@ -31,6 +31,7 @@ import RaceNarrative from './RaceNarrative'
 import RaceElevationProfile from './RaceElevationProfile'
 import SeasonOverview from './SeasonOverview'
 import RaceCard from './RaceCard'
+import PlanNotesPanel from './PlanNotesPanel'
 import SeasonRacesCard from './SeasonRacesCard'
 import StrengthBenchmarkSheet from './StrengthBenchmarkSheet'
 import type { StrengthCapacity } from '../engines/strength/benchmark'
@@ -50,6 +51,10 @@ function daysUntilIso(iso: string): number {
 
 interface WeeklyPlanProps {
   weeks: TrainingWeek[]
+  /** P14: the plan's honest advisories, which used to stack on Today. */
+  planNotes?: PlanAdvisory[]
+  /** Bumped by Today's notes row so the panel opens on arrival. */
+  planNotesOpenRequest?: number
   /** The season's MAIN GOAL race (from the explicit capture). Shown as a
    *  persistent one-liner on weeks that build toward a DIFFERENT race, so
    *  a stepping-stone block still answers "what is all this for". */
@@ -144,6 +149,8 @@ interface WeeklyPlanProps {
 
 export default function WeeklyPlan({
   weeks, primaryRace,
+  planNotes = [],
+  planNotesOpenRequest = 0,
   zones,
   manualLog,
   daySwap,
@@ -409,6 +416,14 @@ export default function WeeklyPlan({
           </div>
         )}
       </div>
+
+      {/* P14: the plan's notes live here, next to the weeks they describe,
+          rather than opening Today with seven caveats every morning. */}
+      {planNotes.length > 0 && (
+        <div className="px-3 pt-3">
+          <PlanNotesPanel notes={planNotes} openRequest={planNotesOpenRequest} />
+        </div>
+      )}
 
       {/* ── Calendar view ── */}
       {viewMode === 'calendar' && (
