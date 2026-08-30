@@ -20,6 +20,8 @@ import DescentCapacitySection from './DescentCapacitySection'
 import VolumeChart from './VolumeChart'
 import HyroxProjectionCard from './HyroxProjectionCard'
 import { frameThisWeek, type FramedMetric, type MetricTone } from '../utils/progressFraming'
+import { loadVerdict, readinessVerdict } from '../utils/progressVerdicts'
+import ChartVerdictHeader from './ChartVerdictHeader'
 import { trajectoryFromConfig } from '../utils/trajectory'
 import TrajectoryHero from './TrajectoryHero'
 import { buildRhythm } from '../utils/rhythm'
@@ -411,8 +413,10 @@ function ReadinessTab({
   riskFlags: RiskFlag[]
   glossaryDefaultOpen?: boolean
 }) {
+  const verdict = readinessVerdict(weekScores)
   return (
     <div className="space-y-4">
+      {verdict && <ChartVerdictHeader verdict={verdict} />}
       {todayScore && (
         <ReadinessBanner
           todayScore={todayScore}
@@ -593,8 +597,10 @@ function PerformanceTab({
   const [timeWindow, setTimeWindow] = useState<TimeWindow>('all')
   const { isSectionVisible, flags } = useDisplayPreferences(athleteId)
   const filteredPerformance = useMemo(() => filterByTimeWindow(performance, timeWindow), [performance, timeWindow])
+  const verdict = loadVerdict(performance)
   return (
     <div className="space-y-4">
+      {verdict && <ChartVerdictHeader verdict={verdict} />}
       <RiskFlagsCard flags={riskFlags} />
       <TimeWindowToggle value={timeWindow} onChange={setTimeWindow} />
       {isSectionVisible('dash.performanceChart') && (
