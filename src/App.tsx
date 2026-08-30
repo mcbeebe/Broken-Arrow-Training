@@ -2327,6 +2327,8 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
             onboarding.requestRedo()
             setView('today')
           }}
+          planStartIso={onboarding.config ? (onboarding.config.planStartPinnedIso ?? mondayOnOrBefore(todayDateString())) : undefined}
+          onSetPlanStart={onboarding.setPlanStart}
           coachEnabled={coachEnabled}
           aboutMeText={coachMemory.aboutMe}
           pendingInferences={coachMemory.pendingInferences}
