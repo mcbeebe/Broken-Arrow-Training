@@ -26,6 +26,11 @@ export default function EveningCloseCard({
 }) {
   const trained = !!today?.actual
   const restDay = today?.type === 'rest'
+  // A day the plan does not cover at all is not "open" — there was never
+  // anything to do. Saying otherwise invents an obligation, which is the
+  // opposite of what the resolved-day vocabulary is for. This is the state
+  // between blocks, and after a plan ends.
+  const unplanned = !today
 
   return (
     <div
@@ -40,14 +45,16 @@ export default function EveningCloseCard({
       {/* The day's receipt. Every ending is a resolution — trained, rested
           as planned, or left open — and none of them is a failure. */}
       <p className="text-base font-bold text-slate-800 dark:text-white mt-1" data-testid="evening-headline">
-        {trained ? 'Today is resolved.'
+        {unplanned ? 'Nothing on the plan today.'
+          : trained ? 'Today is resolved.'
           : restDay ? 'Rest day — resolved.'
           : 'Today is still open.'}
       </p>
       <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">
-        {trained ? `${today?.workout ?? 'Your session'} is logged.`
+        {unplanned ? 'Your plan does not cover today. Nothing is owed, and nothing is open.'
+          : trained ? `${today.workout} is logged.`
           : restDay ? 'The plan asked for rest and you took it. That counts.'
-          : `${today?.workout ?? "Today's session"} has nothing logged against it — resolve it above, or let it carry to the morning.`}
+          : `${today.workout} has nothing logged against it — resolve it above, or let it carry to the morning.`}
       </p>
 
       {notesWaiting > 0 && (
