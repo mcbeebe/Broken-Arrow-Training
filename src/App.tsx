@@ -110,7 +110,7 @@ import RhythmStrip from './components/RhythmStrip'
 import ResolveStrip from './components/ResolveStrip'
 import AdjustSheet from './components/AdjustSheet'
 import EveningCloseCard from './components/EveningCloseCard'
-import { dayPhase } from './utils/dayPhase'
+import { useDayPhase } from './hooks/useDayPhase'
 import { leversFor, opsForLever } from './utils/adjustLevers'
 import MissedDaySheet from './components/MissedDaySheet'
 import { moveOutcomeFor } from './engines/planGenerator/replan'
@@ -1272,7 +1272,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     morningHour: proactiveTiming.morningHour,
     eveningHour: proactiveTiming.eveningHour,
   }), [proactiveTiming.morningHour, proactiveTiming.eveningHour])
-  const todayPhase = dayPhase(new Date(), phaseWindow)
+  const todayPhase = useDayPhase(phaseWindow)
 
   // Proposals waiting on a decision. They are deliberately held out of the
   // morning: none of them changes what the athlete does in the next hour,
