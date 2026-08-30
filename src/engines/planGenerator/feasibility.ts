@@ -20,7 +20,7 @@ import { vdotFromRace, sanitizeRaceTimeSeconds, FITNESS_ANCHOR_DISTANCES } from 
 
 /** Race-distance → miles. Mirrors RACE_DISTANCE_LABELS in generatePlan.ts (keep
  *  in sync). mountain_ultra is 0 → no goal-time pacing for it (matches the engine). */
-const RACE_DISTANCE_MILES: Record<RaceDistance, number> = {
+export const RACE_DISTANCE_MILES: Record<RaceDistance, number> = {
   '5k': 3.1,
   '10k': 6.2,
   half_marathon: 13.1,
@@ -41,7 +41,7 @@ const ANCHOR_LABELS: Record<string, string> = {
 }
 
 /** Realistic single-block fitness gain: ~8% VDOT (mirrors the goal-pace cap). */
-const REALISTIC_VDOT_GAIN = 1.08
+export const REALISTIC_VDOT_GAIN = 1.08
 
 /** Experience levels, easiest → hardest, for measuring the gap between what an
  *  athlete *says* they are and what their training volume *implies*. */
