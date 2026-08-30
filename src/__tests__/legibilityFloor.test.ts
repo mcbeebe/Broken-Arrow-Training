@@ -29,13 +29,29 @@ describe('dark-mode card backgrounds', () => {
     expect(getDarkBg('#FFFFFF')).not.toMatch(/^#(fff|ffffff)$/i)
   })
 
-  it("routes every one of Today's card backgrounds through adaptBg", () => {
-    // Two call sites rendered backgroundColor: 'white' unconditionally.
+  it('never paints a card white without making it dark-aware', () => {
+    // The defect was narrower than "an inline background": chart and data
+    // colours are legitimately literal. What breaks is a WHITE card that
+    // stays white in dark mode, with dark:text-white on top of it. So the
+    // rule bans a white literal unless the same expression is either
+    // routed through adaptBg or explicitly branches on the dark class.
+    const WHITE = /'(white|#fff|#ffffff)'/i
+    const DARK_AWARE = /adaptBg|isDark|classList\.contains\('dark'\)/
+    const offenders: string[] = []
+    for (const [path, src] of Object.entries(COMPONENT_SOURCES)) {
+      for (const decl of src.match(/backgroundColor:[^,}\n]+/g) ?? []) {
+        if (WHITE.test(decl) && !DARK_AWARE.test(decl)) {
+          offenders.push(`${path}: ${decl.trim()}`)
+        }
+      }
+    }
+    expect(offenders).toEqual([])
+  })
+
+  it('has no raw white background literal left on Today', () => {
     const src = COMPONENT_SOURCES['../components/Summary.tsx']
     expect(src).toBeTruthy()
-    const decls = src.match(/backgroundColor:[^,}]+/g) ?? []
-    expect(decls.length).toBeGreaterThan(0)
-    for (const decl of decls) expect(decl).toContain('adaptBg')
+    expect(src).not.toMatch(/backgroundColor:\s*'white'/)
   })
 })
 

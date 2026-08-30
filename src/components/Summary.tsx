@@ -2,20 +2,12 @@ import { useMemo, useState } from 'react'
 import type { ReadinessScore, GarminHealthData, CoachRecommendation, PerformanceMetrics, DailyTRIMP, PlannedDay, HRZone, CoachSnapshot, RaceInfo, ActualWorkout } from '../types'
 import type { RiskFlag } from '../utils/readiness'
 import type { SorenessLevel } from '../hooks/useSoreness'
-import { getTSBState, getTSBLabel, getACWRRisk, getACWRLabel } from '../utils/performance'
-import { localDateStr, formatLoadP } from '../utils/format'
-import { findTrimpRecord } from '../utils/trimp'
 import TodayBriefing from './TodayBriefing'
 import TodayNarrativeCard from './TodayNarrativeCard'
-import TRIMPBreakdown from './TRIMPBreakdown'
 import WorkoutModal from './WorkoutModal'
 import ManualLog from './ManualLog'
-import { getWorkoutStyle, adaptBg } from '../utils/styles'
-import { isEveningPreviewWindow } from '../utils/coach'
-import Term from './TermGlossary'
 import RaceReadinessDetailModal from './RaceReadinessDetailModal'
 import { buildRaceReadinessDetail, computeRaceReadiness, type ReadinessAssignment } from '../utils/raceReadiness'
-import { formatLooksLikeLine, findBestCourseMatchForPlanned } from '../utils/workoutCourseMatch'
 import { weeksUntilRace } from '../utils/raceCountdown'
 import { buildTrainingSignals } from '../utils/trainingSignals'
 import { buildWeekNarrative } from '../utils/weekNarrative'
@@ -23,11 +15,12 @@ import PlanAtAGlance from './PlanAtAGlance'
 import InsightNote from './primitives/InsightNote'
 import type { PlanAdvisory } from '../types'
 import { useDisplayPreferences } from '../hooks/useDisplayPreferences'
+import { findTrimpRecord } from '../utils/trimp'
+import { localDateStr } from '../utils/format'
 
 interface SummaryProps {
   athleteId: string
   todayScore: ReadinessScore | null
-  weekScores: ReadinessScore[]
   todayHealth?: GarminHealthData
   healthHistory: GarminHealthData[]
   garminConnected: boolean
@@ -38,15 +31,10 @@ interface SummaryProps {
   todaySoreness: SorenessLevel | null
   onLogSoreness: (date: string, level: SorenessLevel) => void
   sorenessLoadByDate: Map<string, number>
-  rpeByDate?: Map<string, number>
-  exerciseLoadByDate?: Map<string, number>
-  domsCarryByDate?: Map<string, number>
   coachEnabled?: boolean
   todayPlannedWorkout?: PlannedDay | null
-  tomorrowPlannedWorkout?: PlannedDay | null
   /** Hour (0–23) at/after which the Tomorrow's-workout preview card shows.
    *  Athlete-configurable (Settings → Proactive coaching); default 8 PM. */
-  cardPreviewHour?: number
   currentWeekNum?: number
   /** Bumped by Today's Verdict card when the athlete taps the ticket or
    *  Adjust — opens today's session detail without Today needing to own
@@ -95,115 +83,15 @@ interface SummaryProps {
 // Consistent 6-segment gauge: red → orange → yellow → light green → green → darker green
 // Midpoint (boundary between yellow and light green) = balanced/neutral zone
 
-function GaugeBar({ value, min, max, labels, targetLines, zones }: {
-  value: number; min: number; max: number; labels: string[]
-  targetLines?: { pos: number; color: string; label?: string }[]
-  zones?: string[]
-}) {
-  const pct = Math.max(0, Math.min(100, ((value - min) / (max - min)) * 100))
-  return (
-    <>
-      <div className="relative mt-2.5 h-4 rounded-full overflow-hidden flex border border-slate-200 dark:border-slate-700">
-        <div className="h-full bg-red-300" style={{ width: '16.67%' }} />
-        <div className="h-full bg-orange-200" style={{ width: '16.67%' }} />
-        <div className="h-full bg-amber-200" style={{ width: '16.67%' }} />
-        <div className="h-full bg-green-200" style={{ width: '16.67%' }} />
-        <div className="h-full bg-green-300" style={{ width: '16.67%' }} />
-        <div className="h-full bg-emerald-400" style={{ width: '16.65%' }} />
-        {targetLines?.map((t, i) => (
-          <div key={i} className="absolute top-0 h-full border-l-2 border-dashed" style={{ left: `${((t.pos - min) / (max - min)) * 100}%`, borderColor: t.color }} />
-        ))}
-        <div
-          className="absolute top-0 w-2.5 h-full bg-slate-900 rounded shadow"
-          style={{ left: `${pct}%`, transform: 'translateX(-50%)' }}
-        />
-      </div>
-      {zones && (
-        <div className="flex mt-0.5">
-          {zones.map((z, i) => (
-            <span key={i} className="text-[10px] text-slate-400 text-center italic" style={{ width: '16.67%' }}>{z}</span>
-          ))}
-        </div>
-      )}
-      {targetLines?.some(t => t.label) && (
-        <div className="relative h-3 mt-0">
-          {targetLines.filter(t => t.label).map((t, i) => (
-            <span key={i} className="absolute text-[10px] font-semibold" style={{ left: `${((t.pos - min) / (max - min)) * 100}%`, transform: 'translateX(-50%)', color: t.color }}>{t.label}</span>
-          ))}
-        </div>
-      )}
-      <div className={`flex justify-between text-[10px] text-slate-400 ${zones || targetLines?.some(t => t.label) ? 'mt-0' : 'mt-1'}`}>
-        {labels.map((l, i) => <span key={i}>{l}</span>)}
-      </div>
-    </>
-  )
-}
-
 // ACWR gauge: 6 equal segments, 1.0 centered in green
 // blue → light blue → green → green → yellow → red
 
-function ACWRGaugeBar({ value }: { value: number }) {
-  const maxACWR = 2.0
-  const pct = Math.max(0, Math.min(100, (value / maxACWR) * 100))
-  return (
-    <>
-      <div className="relative mt-2.5 h-4 rounded-full overflow-hidden flex border border-slate-200 dark:border-slate-700">
-        <div className="h-full bg-blue-300" style={{ width: '16.67%' }} />
-        <div className="h-full bg-blue-200" style={{ width: '16.67%' }} />
-        <div className="h-full bg-green-300" style={{ width: '16.67%' }} />
-        <div className="h-full bg-green-200" style={{ width: '16.67%' }} />
-        <div className="h-full bg-amber-300" style={{ width: '16.67%' }} />
-        <div className="h-full bg-red-300" style={{ width: '16.65%' }} />
-        <div className="absolute top-0 h-full border-l-2 border-dashed border-green-700/60" style={{ left: `${(0.8 / maxACWR) * 100}%` }} />
-        <div className="absolute top-0 h-full border-l-2 border-dashed border-green-700/60" style={{ left: `${(1.3 / maxACWR) * 100}%` }} />
-        <div
-          className="absolute top-0 w-2.5 h-full bg-slate-900 rounded shadow"
-          style={{ left: `${pct}%`, transform: 'translateX(-50%)' }}
-        />
-      </div>
-      <div className="flex mt-0.5">
-        <span className="text-[10px] text-slate-400 text-center italic" style={{ width: '16.67%' }}>Detrained</span>
-        <span className="text-[10px] text-slate-400 text-center italic" style={{ width: '16.67%' }}>Under</span>
-        <span className="text-[10px] text-green-600 text-center italic font-semibold" style={{ width: '33.34%' }}>Sweet Spot</span>
-        <span className="text-[10px] text-slate-400 text-center italic" style={{ width: '16.67%' }}>Caution</span>
-        <span className="text-[10px] text-slate-400 text-center italic" style={{ width: '16.65%' }}>Danger</span>
-      </div>
-      <div className="flex justify-between text-[10px] text-slate-400 mt-0">
-        <span>0</span>
-        <span>0.33</span>
-        <span>0.67</span>
-        <span className="font-semibold text-green-600">1.0</span>
-        <span>1.33</span>
-        <span>1.67</span>
-        <span>2.0</span>
-      </div>
-    </>
-  )
-}
-
 // Inline 7-day sparkline rendered as a tiny SVG
-function Sparkline({ data, color }: { data: number[]; color: string }) {
-  if (data.length < 2) return null
-  const h = 16, w = 36
-  const min = Math.min(...data)
-  const max = Math.max(...data)
-  const range = max - min || 1
-  const points = data.map((v, i) =>
-    `${(i / (data.length - 1)) * w},${h - ((v - min) / range) * (h - 2) - 1}`
-  ).join(' ')
-  return (
-    <svg width={w} height={h} className="inline-block mr-1 align-middle">
-      <polyline points={points} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  )
-}
-
 // ─── What Changed This Week narrative ─────────────────────────
 
 export default function Summary({
   athleteId,
   todayScore,
-  weekScores,
   todayHealth,
   healthHistory,
   garminConnected,
@@ -214,13 +102,8 @@ export default function Summary({
   todaySoreness,
   onLogSoreness,
   sorenessLoadByDate,
-  rpeByDate,
-  exerciseLoadByDate,
-  domsCarryByDate,
   coachEnabled,
   todayPlannedWorkout,
-  tomorrowPlannedWorkout,
-  cardPreviewHour,
   currentWeekNum,
   weeks,
   openTodayRequest,
@@ -235,9 +118,8 @@ export default function Summary({
   onAskCoach,
   onShareNote,
 }: SummaryProps) {
-  const { flags, isSectionVisible } = useDisplayPreferences(athleteId)
+  const { isSectionVisible } = useDisplayPreferences(athleteId)
   const latestPerf = performance.length > 0 ? performance[performance.length - 1] : null
-  const [perfOpen, setPerfOpen] = useState(false)
   const [narrativeOpen, setNarrativeOpen] = useState(true)
   const [showTodayModal, setShowTodayModal] = useState(false)
 
@@ -256,7 +138,6 @@ export default function Summary({
     setHandledReadinessRequest(openReadinessRequest)
     setShowReadiness(true)
   }
-  const [showTomorrowModal, setShowTomorrowModal] = useState(false)
   const [showRaceReadinessModal, setShowRaceReadinessModal] = useState(false)
   // Workout completion editor target — opened from the "Log / Edit workout"
   // pill in either of the workout detail modals below.
@@ -417,131 +298,39 @@ export default function Summary({
         />
         )
       })()}
-      {/* Tomorrow's Workout preview — evening only (athlete-configured hour) */}
-      {isEveningPreviewWindow(new Date(), cardPreviewHour) && tomorrowPlannedWorkout && (() => {
-        const style = getWorkoutStyle(tomorrowPlannedWorkout.type, tomorrowPlannedWorkout.workout)
-        const courseMatch = findBestCourseMatchForPlanned(tomorrowPlannedWorkout, race)
-        const looksLike = formatLooksLikeLine(courseMatch, "Tomorrow's")
-        // Tomorrow may fall in a different plan week than today — derive its
-        // week number by identity match so the detail modal's strength
-        // progression lookup resolves correctly.
-        const tomorrowWeekNum =
-          weeks?.find(w => w.days.includes(tomorrowPlannedWorkout))?.num
-          ?? currentWeekNum ?? 1
-        return (
-          <>
-            <button
-              onClick={() => setShowTomorrowModal(true)}
-              className="w-full text-left rounded-xl border-2 px-3 py-2.5 transition-colors"
-              style={{ borderColor: style.border, backgroundColor: adaptBg('#FFFFFF') }}
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide">
-                    Tomorrow's Workout
-                  </p>
-                  <p className="font-bold text-slate-800 dark:text-white mt-0.5">{tomorrowPlannedWorkout.workout}</p>
-                  <p className="text-sm text-slate-600 dark:text-slate-300 mt-0.5">
-                    {tomorrowPlannedWorkout.zone !== '—' && tomorrowPlannedWorkout.zone}
-                    {tomorrowPlannedWorkout.time !== '—' && ` · ${tomorrowPlannedWorkout.time}`}
-                  </p>
-                  {looksLike && (
-                    <p className="text-xs font-medium text-indigo-700 dark:text-indigo-300 mt-1.5 flex items-start gap-1">
-                      <span aria-hidden>🏔️</span>
-                      <span>{looksLike}</span>
-                    </p>
-                  )}
-                </div>
-                <span className="text-2xl">{style.label}</span>
-              </div>
-            </button>
-            {showTomorrowModal && (
-              <WorkoutModal
-                day={tomorrowPlannedWorkout}
-                weekNum={tomorrowWeekNum}
-                onClose={() => setShowTomorrowModal(false)}
-                zones={zones || []}
-                weeks={weeks}
-                latestPerf={latestPerf}
-                coachSnapshot={coachSnapshot ?? undefined}
-                athleteId={athleteId}
-                coachEnabled={coachEnabled}
-                onAskCoach={onAskCoach}
-              />
-            )}
-          </>
-        )
-      })()}
-
-      {/* Today's Workout CTA */}
-      {todayPlannedWorkout && todayPlannedWorkout.type !== 'rest' && (() => {
-        const style = getWorkoutStyle(todayPlannedWorkout.type, todayPlannedWorkout.workout)
-        const isCompleted = !!todayPlannedWorkout.actual
-        // Course-as-protagonist projection: when today's planned workout
-        // strongly matches a segment of the goal race course, surface it
-        // as one line under the workout title. Returns null (renders
-        // nothing) for rest days, courses we haven't curated, low-vert
-        // sessions that don't map cleanly, or score below threshold.
-        const courseMatch = findBestCourseMatchForPlanned(todayPlannedWorkout, race)
-        const looksLike = formatLooksLikeLine(courseMatch)
-        return (
-          <>
-            <button
-              onClick={() => setShowTodayModal(true)}
-              className="w-full text-left rounded-xl border-2 px-3 py-2.5 transition-colors"
-              style={{ borderColor: style.border, backgroundColor: adaptBg(isCompleted ? style.bg : '#FFFFFF') }}
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide">
-                    {isCompleted ? 'Completed' : "Today's Workout"}
-                  </p>
-                  <p className="font-bold text-slate-800 dark:text-white mt-0.5">{todayPlannedWorkout.workout}</p>
-                  <p className="text-sm text-slate-600 dark:text-slate-300 mt-0.5">
-                    {todayPlannedWorkout.zone !== '—' && todayPlannedWorkout.zone}
-                    {todayPlannedWorkout.time !== '—' && ` · ${todayPlannedWorkout.time}`}
-                  </p>
-                  {looksLike && (
-                    <p className="text-xs font-medium text-indigo-700 dark:text-indigo-300 mt-1.5 flex items-start gap-1">
-                      <span aria-hidden>🏔️</span>
-                      <span>{looksLike}</span>
-                    </p>
-                  )}
-                </div>
-                <span className="text-2xl">{style.label}</span>
-              </div>
-            </button>
-            {showTodayModal && (
-              <WorkoutModal
-                day={todayPlannedWorkout}
-                weekNum={currentWeekNum ?? 1}
-                onClose={() => setShowTodayModal(false)}
-                zones={zones || []}
-                weeks={weeks}
-                readiness={todayScore ?? undefined}
-                latestPerf={latestPerf}
-                coachSnapshot={coachSnapshot ?? undefined}
-                athleteId={athleteId}
-                coachEnabled={coachEnabled}
-                onAskCoach={onAskCoach}
-                onLog={manualLog ? () => {
-                  setLogTarget({ day: todayPlannedWorkout, weekNum: currentWeekNum ?? 1 })
-                  setShowTodayModal(false)
-                } : undefined}
-                onSaveNote={manualLog && todayPlannedWorkout.actual ? async (note) => {
-                  manualLog.logWorkout(todayPlannedWorkout.day, { ...todayPlannedWorkout.actual!, notes: note }, todayPlannedWorkout.actual?.startDate?.slice(0, 10))
-                  await onShareNote?.(todayPlannedWorkout, note)
-                } : undefined}
-                trimpRecord={findTrimpRecord(
-                  dailyTrimp,
-                  localDateStr(),
-                  todayPlannedWorkout.actual?.name,
-                )}
-              />
-            )}
-          </>
-        )
-      })()}
+      {/* Today's session detail — opened from the Verdict card's ticket and
+          from Adjust. The CTA button that used to sit here is gone: the
+          ticket on the Verdict card is the same session, and rendering it
+          twice was the pile this redesign exists to remove. The modal
+          itself stays — it is the door, not the duplicate. */}
+      {showTodayModal && todayPlannedWorkout && (
+        <WorkoutModal
+          day={todayPlannedWorkout}
+          weekNum={currentWeekNum ?? 1}
+          onClose={() => setShowTodayModal(false)}
+          zones={zones || []}
+          weeks={weeks}
+          readiness={todayScore ?? undefined}
+          latestPerf={latestPerf}
+          coachSnapshot={coachSnapshot ?? undefined}
+          athleteId={athleteId}
+          coachEnabled={coachEnabled}
+          onAskCoach={onAskCoach}
+          onLog={manualLog ? () => {
+            setLogTarget({ day: todayPlannedWorkout, weekNum: currentWeekNum ?? 1 })
+            setShowTodayModal(false)
+          } : undefined}
+          onSaveNote={manualLog && todayPlannedWorkout.actual ? async (note) => {
+            manualLog.logWorkout(todayPlannedWorkout.day, { ...todayPlannedWorkout.actual!, notes: note }, todayPlannedWorkout.actual?.startDate?.slice(0, 10))
+            await onShareNote?.(todayPlannedWorkout, note)
+          } : undefined}
+          trimpRecord={findTrimpRecord(
+            dailyTrimp,
+            localDateStr(),
+            todayPlannedWorkout.actual?.name,
+          )}
+        />
+      )}
 
       {/* Why today matters — the plan's intent, in the athlete's own arc.
           Renders on rest days too (the CTA above hides those), because
@@ -609,167 +398,6 @@ export default function Summary({
       {/* Forward-looking risk alerts — only renders when active flags present */}
       {riskFlags.length > 0 && <SummaryRiskFlags flags={riskFlags} />}
 
-      {/* Quick performance snapshot with scale bars */}
-      {latestPerf && isSectionVisible('summary.perfSnapshot') && (() => {
-        const tsbState = getTSBState(latestPerf.tsb)
-        const acwrRisk = getACWRRisk(latestPerf.acwr)
-        // CTL labels: coaching convention (Coggan/Allen 2010, TrainingPeaks).
-        // Approximate ranges for recreational-to-competitive endurance athletes.
-        const fitnessLabel = latestPerf.ctl < 20 ? 'Building'
-          : latestPerf.ctl < 40 ? 'Moderate'
-          : latestPerf.ctl < 60 ? 'Strong'
-          : latestPerf.ctl < 80 ? 'High'
-          : 'Elite'
-        // ATL labels: relative to CTL (more meaningful than absolute thresholds).
-        // ATL > 1.5× CTL indicates acute overload beyond chronic capacity.
-        const fatigueLabel = latestPerf.atl > latestPerf.ctl * 1.5 ? 'Very High'
-          : latestPerf.atl > latestPerf.ctl ? 'Elevated'
-          : latestPerf.atl > latestPerf.ctl * 0.8 ? 'Balanced'
-          : 'Low'
-        const last7 = performance.slice(-7)
-        const ctlSpark = last7.map(p => p.ctl)
-        const atlSpark = last7.map(p => p.atl)
-        const tsbSpark = last7.map(p => p.tsb)
-        const acwrSpark = last7.map(p => p.acwr)
-        return (
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
-            <button
-              onClick={() => flags.showAdvancedMetrics && setPerfOpen(!perfOpen)}
-              className="w-full flex items-center justify-between p-4 text-left hover:bg-slate-50 dark:hover:bg-slate-700 dark:bg-slate-900 transition-colors"
-            >
-              <div className="flex-1 min-w-0">
-                <p className="text-base font-semibold text-slate-700 dark:text-slate-200">Performance Snapshot</p>
-                {!perfOpen && (
-                  <>
-                    <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-                      {fitnessLabel} fitness · {fatigueLabel} fatigue · {latestPerf.tsb >= 5 ? 'Fresh' : latestPerf.tsb >= -10 ? 'Balanced' : latestPerf.tsb >= -25 ? 'Tired' : 'Deep fatigue'}
-                      {trainingSignals.damage.severity >= 2 && (
-                        <span className="text-amber-600 dark:text-amber-400 font-medium"> · soreness flagged</span>
-                      )}
-                    </p>
-                    <p className="text-[10px] italic text-slate-400 mt-0.5">
-                      Chronic load view · 42d / 7d window
-                    </p>
-                  </>
-                )}
-                {perfOpen && <p className="text-xs text-slate-400 mt-0.5">Garmin EPOC · 42d / 7d EWMA · doesn't include today's biometrics</p>}
-              </div>
-              {flags.showAdvancedMetrics && (
-                <span className="text-sm text-teal-600 ml-2 shrink-0">{perfOpen ? '▴ Hide' : '▾ Details'}</span>
-              )}
-            </button>
-            {perfOpen && flags.showAdvancedMetrics && (
-            <div className="px-4 pb-4 space-y-5">
-              {/* Fitness (CTL) — 0-100 scale, 6 equal segments, midpoint at 50 */}
-              <div className="bg-blue-50 dark:bg-blue-950 rounded-lg p-4">
-                <div className="flex items-baseline justify-between">
-                  <div>
-                    <span className="text-2xl font-bold text-blue-700">{formatLoadP(latestPerf.ctl, flags.numericPrecision)}</span>
-                    <span className="text-xs text-slate-500 dark:text-slate-400 ml-2">/ 100</span>
-                  </div>
-                  <p className="text-xs text-blue-600 font-semibold"><Sparkline data={ctlSpark} color="#2563eb" />{fitnessLabel}</p>
-                </div>
-                <p className="text-xs font-medium text-slate-600 dark:text-slate-300"><Term name="ctl" athleteId={athleteId} /> <span className="text-slate-400 font-normal">— 42-day training base</span></p>
-                <p className="text-[11px] text-slate-400 mt-0.5 italic">Cardiovascular + musculoskeletal load · EPOC + MIM + DOMS + soreness</p>
-                <GaugeBar
-                  value={latestPerf.ctl}
-                  min={0} max={100}
-                  labels={['0', '17', '33', '50', '67', '83', '100']}
-                  zones={['Untrained', 'Beginner', 'Recreational', 'Trained', 'Competitive', 'Elite']}
-                />
-              </div>
-
-              {/* Fatigue (ATL) — flipped: 120→0, high fatigue on left */}
-              <div className="bg-red-50 dark:bg-red-950 rounded-lg p-4">
-                <div className="flex items-baseline justify-between">
-                  <div>
-                    <span className="text-2xl font-bold text-red-600">{formatLoadP(latestPerf.atl, flags.numericPrecision)}</span>
-                    <span className="text-xs text-slate-500 dark:text-slate-400 ml-2">vs fitness {formatLoadP(latestPerf.ctl, flags.numericPrecision)}</span>
-                  </div>
-                  <p className="text-xs text-red-500 font-semibold"><Sparkline data={atlSpark} color="#ef4444" />{fatigueLabel}</p>
-                </div>
-                <p className="text-xs font-medium text-slate-600 dark:text-slate-300"><Term name="atl" athleteId={athleteId} /> <span className="text-slate-400 font-normal">— 7-day recent load</span></p>
-                <p className="text-[11px] text-slate-400 mt-0.5 italic">Includes DOMS carry-over + perceived soreness from check-in</p>
-                <GaugeBar
-                  value={100 - latestPerf.atl}
-                  min={0} max={100}
-                  labels={['100', '83', '67', '50', '33', '17', '0']}
-                  zones={['Overload', 'Very High', 'High', 'Moderate', 'Balanced', 'Fresh']}
-                  targetLines={[
-                    { pos: 100 - latestPerf.ctl * 1.3, color: 'rgba(139,92,246,0.7)', label: '1.3×' },
-                    { pos: 100 - latestPerf.ctl * 0.8, color: 'rgba(139,92,246,0.7)', label: '0.8×' },
-                  ]}
-                />
-              </div>
-
-              {/* Recovery Balance (TSB) — -30 to +25 */}
-              <div className={`rounded-lg p-4 ${
-                tsbState === 'peaked' || tsbState === 'well_rested' ? 'bg-green-50 dark:bg-green-950'
-                : tsbState === 'productive' ? 'bg-slate-50 dark:bg-slate-900'
-                : 'bg-amber-50 dark:bg-amber-950'
-              }`}>
-                <div className="flex items-baseline justify-between">
-                  <div>
-                    <span className={`text-2xl font-bold ${
-                      latestPerf.tsb >= 5 ? 'text-green-700'
-                      : latestPerf.tsb >= -10 ? 'text-slate-700 dark:text-slate-200'
-                      : 'text-amber-700'
-                    }`}>{latestPerf.tsb >= 0 ? '+' : ''}{formatLoadP(latestPerf.tsb, flags.numericPrecision)}</span>
-                    <span className="text-xs text-slate-500 dark:text-slate-400 ml-2">range: -30 to +25</span>
-                  </div>
-                  <p className={`text-xs font-semibold ${
-                    latestPerf.tsb >= 5 ? 'text-green-600'
-                    : latestPerf.tsb >= -10 ? 'text-slate-500 dark:text-slate-400'
-                    : 'text-amber-600'
-                  }`}><Sparkline data={tsbSpark} color="#059669" />{getTSBLabel(tsbState)}</p>
-                </div>
-                <p className="text-xs font-medium text-slate-600 dark:text-slate-300"><Term name="tsb" athleteId={athleteId}>Recovery Balance</Term> <span className="text-slate-400 font-normal">— are you fresh or fatigued?</span></p>
-                <p className="text-[11px] text-slate-400 mt-0.5 italic">Fitness minus Fatigue · negative = cardio + muscle fatigue exceeds base</p>
-                <GaugeBar
-                  value={latestPerf.tsb + 30}
-                  min={0} max={55}
-                  labels={['-30', '-21', '-12', '-2', '+7', '+16', '+25']}
-                  zones={['Deep fatigue', 'Overreach', 'Productive', 'Balanced', 'Fresh', 'Race ready']}
-                  targetLines={[
-                    { pos: -30 + 30, color: 'rgba(59,130,246,0.7)', label: 'Training ▸' },
-                    { pos: -10 + 30, color: 'rgba(59,130,246,0.7)', label: '◂' },
-                    { pos: 5 + 30, color: 'rgba(5,150,105,0.7)', label: 'Race ▸' },
-                    { pos: 25 + 30, color: 'rgba(5,150,105,0.7)', label: '◂' },
-                  ]}
-                />
-              </div>
-
-              {/* ACWR — 5-segment: blue, light blue, green, yellow, red */}
-              <div className={`rounded-lg p-4 ${
-                acwrRisk === 'sweet_spot' ? 'bg-green-50 dark:bg-green-950'
-                : acwrRisk === 'high_risk' ? 'bg-red-50 dark:bg-red-950'
-                : 'bg-amber-50 dark:bg-amber-950'
-              }`}>
-                <div className="flex items-baseline justify-between">
-                  <div>
-                    <span className={`text-2xl font-bold ${
-                      acwrRisk === 'sweet_spot' ? 'text-green-700'
-                      : acwrRisk === 'high_risk' ? 'text-red-600'
-                      : 'text-amber-600'
-                    }`}>{latestPerf.acwr.toFixed(flags.numericPrecision === 'low' ? 1 : 2)}</span>
-                    <span className="text-xs text-slate-500 dark:text-slate-400 ml-2">sweet spot: 0.8–1.3</span>
-                  </div>
-                  <p className={`text-xs font-semibold ${
-                    acwrRisk === 'sweet_spot' ? 'text-green-600'
-                    : acwrRisk === 'high_risk' ? 'text-red-500'
-                    : 'text-amber-600'
-                  }`}><Sparkline data={acwrSpark} color="#d97706" />{getACWRLabel(acwrRisk)}</p>
-                </div>
-                <p className="text-xs font-medium text-slate-600 dark:text-slate-300"><Term name="acwr" athleteId={athleteId}>Load Ratio</Term> <span className="text-slate-400 font-normal">— acute vs chronic workload</span></p>
-                <p className="text-[11px] text-slate-400 mt-0.5 italic">How fast you're ramping · includes all load: cardio, strength, DOMS, soreness</p>
-                <ACWRGaugeBar value={latestPerf.acwr} />
-              </div>
-            </div>
-            )}
-          </div>
-        )
-      })()}
-
       {/* What Changed This Week */}
       {weekNarrative.length > 0 && isSectionVisible('summary.whatChanged') && (
         <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
@@ -793,41 +421,6 @@ export default function Summary({
         </div>
       )}
 
-      {/* 7-day training load */}
-      {dailyTrimp.length > 0 && isSectionVisible('summary.trainingLoad') && (
-        <TRIMPBreakdown
-          dailyTrimp={dailyTrimp}
-          sorenessLoadByDate={sorenessLoadByDate}
-          rpeByDate={rpeByDate}
-          exerciseLoadByDate={exerciseLoadByDate}
-          domsCarryByDate={domsCarryByDate}
-          performance={performance}
-          athleteId={athleteId}
-        />
-      )}
-
-      {/* Week readiness trend */}
-      {weekScores.length > 1 && isSectionVisible('summary.readinessTrend') && (
-        <div className="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700">
-          <p className="text-base font-semibold text-slate-700 dark:text-slate-200 mb-2">This Week's Readiness</p>
-          <div className="flex gap-1">
-            {weekScores.slice(-7).map((score, i) => {
-              const dotColor =
-                score.status === 'PEAK' ? 'bg-indigo-500'
-                : score.status === 'GREEN' ? 'bg-green-500'
-                : score.status === 'YELLOW' ? 'bg-amber-400'
-                : 'bg-red-500'
-              return (
-                <div key={i} className="flex-1 text-center">
-                  <div className={`w-4 h-4 rounded-full ${dotColor} mx-auto mb-1`} />
-                  <p className="text-xs text-slate-500 dark:text-slate-400">{score.date.slice(5)}</p>
-                  <p className="text-sm font-medium text-slate-600 dark:text-slate-300">{score.displayScore}</p>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      )}
     </div>
   )
 }

@@ -2119,7 +2119,6 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           openReadinessRequest={openReadinessRequest}
           athleteId={athleteId}
           todayScore={readiness.todayScore}
-          weekScores={readiness.weekScores}
           todayHealth={todayHealth}
           healthHistory={combinedHealth}
           garminConnected={garmin.connected || apple.connected}
@@ -2130,13 +2129,8 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           todaySoreness={soreness.todaySoreness}
           onLogSoreness={soreness.logSoreness}
           sorenessLoadByDate={soreness.sorenessLoadByDate}
-          rpeByDate={rpeByDate}
-          exerciseLoadByDate={exerciseLoadByDate}
-          domsCarryByDate={readiness.domsCarryByDate}
           coachEnabled={coachEnabled}
           todayPlannedWorkout={todayPlannedWorkout}
-          tomorrowPlannedWorkout={tomorrowPlannedWorkout}
-          cardPreviewHour={proactiveTiming.eveningHour}
           currentWeekNum={currentWeekNum}
           zones={hrZones.zones}
           coachSnapshot={coachSnapshot}
