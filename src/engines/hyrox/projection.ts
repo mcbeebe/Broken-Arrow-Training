@@ -136,6 +136,17 @@ export interface ProjectionInput {
 
 export function projectHyroxFinish(input: ProjectionInput): HyroxProjection | null {
   const { weeks, config, capacity } = input
+
+  // A Hyrox finish is eight stations and eight runs. It is meaningless for a
+  // road or trail athlete, and it was reaching them: the only guard was "has
+  // any personal evidence", which a runner's own run fitness satisfies — so a
+  // half-marathon plan projected a finish out of erg splits, wall balls, and
+  // a sled the athlete will never touch. The Plan tab already gated on this;
+  // the Progress tab did not, trusting a "renders nothing for non-Hyrox"
+  // promise this function never actually kept. Now it keeps it, so no caller
+  // has to remember.
+  if (config?.raceType !== 'hyrox') return null
+
   const sim = latestSimEvidence(weeks)
   const basis: string[] = []
   const specs = stationSpecs(config?.hyroxDivision ?? 'open', config?.sex === 'female' ? 'female' : 'male')

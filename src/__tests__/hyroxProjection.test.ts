@@ -67,6 +67,24 @@ describe('projectHyroxFinish', () => {
     expect(projectHyroxFinish({ weeks: [], config: hyroxConfig })).toBeNull()
   })
 
+  it('returns null for a non-Hyrox plan, however much run fitness the athlete has', () => {
+    // The device bug: a road half-marathon athlete has real run fitness,
+    // which used to satisfy the only guard and project a Hyrox finish built
+    // from erg splits and a sled they will never touch.
+    const runFit = { fitnessAnchor: { type: 'race_10k', valueSeconds: 40 * 60 } } as Partial<OnboardingConfig>
+    for (const raceType of ['road', 'trail', 'general', undefined] as const) {
+      const config = { ...hyroxConfig, ...runFit, raceType } as OnboardingConfig
+      expect(projectHyroxFinish({ weeks: [], config }), `raceType=${raceType}`).toBeNull()
+    }
+    // And the same run fitness DOES project once the plan is Hyrox.
+    const asHyrox = { ...hyroxConfig, ...runFit, raceType: 'hyrox' } as OnboardingConfig
+    expect(projectHyroxFinish({ weeks: [], config: asHyrox })).not.toBeNull()
+  })
+
+  it('returns null when config is absent — no race type, no projection', () => {
+    expect(projectHyroxFinish({ weeks: [] })).toBeNull()
+  })
+
   it('a half sim drives runs and 4 stations; typicals fill the rest with a wider band', () => {
     const p = projectHyroxFinish({
       weeks: [week(6, [simDay('2026-08-29', halfSimSplits)])],
