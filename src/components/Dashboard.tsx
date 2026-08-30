@@ -22,6 +22,9 @@ import HyroxProjectionCard from './HyroxProjectionCard'
 import { frameThisWeek, type FramedMetric, type MetricTone } from '../utils/progressFraming'
 import { trajectoryFromConfig } from '../utils/trajectory'
 import TrajectoryHero from './TrajectoryHero'
+import { buildRhythm } from '../utils/rhythm'
+import RhythmHistory from './RhythmHistory'
+import { todayDateString } from '../utils/planDates'
 
 export type DashSubTab = 'compliance' | 'readiness' | 'performance' | 'strength' | 'engine'
 
@@ -145,6 +148,11 @@ export default function Dashboard({
       })()}
 
       <HyroxProjectionCard weeks={weeks} config={onboardingConfig} capacity={strengthCapacity} />
+
+      {/* Rhythm history — the resolved-day record over three weeks, the
+          consistency story the redesign put here in place of compliance
+          shame. Renders nothing until the plan carries dated weeks. */}
+      <RhythmHistory rhythm={buildRhythm(weeks, todayDateString(), 21)} />
 
       {compliance.weeks.length > 0 && isSectionVisible('dash.descentCapacity') && (
         <DescentCapacitySection
