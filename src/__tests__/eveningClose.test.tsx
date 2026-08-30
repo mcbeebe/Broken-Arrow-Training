@@ -62,6 +62,19 @@ describe('the coach\'s notes', () => {
     render(<EveningCloseCard {...props} today={trained()} notesWaiting={0} />)
     expect(screen.queryByTestId('evening-notes')).toBeNull()
   })
+
+  it('drops the "somewhere else" row when the proposals render right below', () => {
+    // P15: the queue itself now sits directly under this card at the close.
+    // A row saying "Coach noted 1 thing ›" pointing at something on the same
+    // screen is a lie about where you are, so notesInline suppresses it.
+    render(<EveningCloseCard {...props} today={trained()} notesWaiting={2} notesInline />)
+    expect(screen.queryByTestId('evening-notes')).toBeNull()
+  })
+
+  it('still shows the row when the proposals are elsewhere', () => {
+    render(<EveningCloseCard {...props} today={trained()} notesWaiting={2} notesInline={false} />)
+    expect(screen.getByTestId('evening-notes')).toBeTruthy()
+  })
 })
 
 describe('tomorrow, staged', () => {

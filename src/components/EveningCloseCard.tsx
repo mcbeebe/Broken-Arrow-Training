@@ -10,13 +10,19 @@ import type { PlannedDay } from '../types'
  * the next hour.
  */
 export default function EveningCloseCard({
-  today, tomorrow, notesWaiting, closed, lightsOut,
+  today, tomorrow, notesWaiting, notesInline = false, closed, lightsOut,
   onOpenNotes, onOpenTomorrow, onClose,
 }: {
   today: PlannedDay | null
   tomorrow: PlannedDay | null
   /** How many coach proposals are waiting on a decision. */
   notesWaiting: number
+  /**
+   * True when the proposals themselves render directly below this card. The
+   * row is then suppressed: a button offering to take you somewhere else,
+   * sitting on top of the thing it points at, is a lie about where you are.
+   */
+  notesInline?: boolean
   closed: boolean
   /** e.g. "9:40pm" — when to be asleep for tomorrow's session. */
   lightsOut?: string | null
@@ -57,7 +63,7 @@ export default function EveningCloseCard({
           : `${today.workout} has nothing logged against it — resolve it above, or let it carry to the morning.`}
       </p>
 
-      {notesWaiting > 0 && (
+      {notesWaiting > 0 && !notesInline && (
         <button
           onClick={onOpenNotes}
           className="mt-3 w-full flex items-center justify-between rounded-xl border border-slate-200 dark:border-slate-600 px-3.5 py-2.5 text-left hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-colors"
