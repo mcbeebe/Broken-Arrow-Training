@@ -31,6 +31,16 @@ describe('the day\'s receipt', () => {
     expect(screen.getByTestId('evening-close').textContent).toContain('That counts')
   })
 
+  it('does not invent an obligation on a day the plan never covered', () => {
+    // Between blocks, or after a plan ends, there is no session today.
+    // Calling that "open" manufactures a duty the athlete never had.
+    render(<EveningCloseCard {...props} today={null} />)
+    expect(screen.getByTestId('evening-headline').textContent).toBe('Nothing on the plan today.')
+    const text = screen.getByTestId('evening-close').textContent ?? ''
+    expect(text).toContain('Nothing is owed, and nothing is open')
+    expect(text).not.toContain('still open.')
+  })
+
   it('says an unlogged day is open, and never calls it missed or failed', () => {
     render(<EveningCloseCard {...props} today={day()} />)
     const text = screen.getByTestId('evening-close').textContent ?? ''
