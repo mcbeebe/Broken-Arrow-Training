@@ -1390,6 +1390,8 @@ export function generatePlanFromMethod(
     .find(c => methodCategories.has(c)) ?? 'tempo'
 
   const weeks: TrainingWeek[] = []
+  // P4.4 — last ordinary week's total stamped vert (ramp step cap).
+  let prevWeekVertFt = 0
   // Phase 3 (PRD-106) — method-fit instrumentation: authored quality slots
   // vs budget-driven demotions across normal build weeks. Repeated silent
   // demotion means the athlete bought a method and received generic easy
@@ -1732,7 +1734,15 @@ export function generatePlanFromMethod(
       weekIndex: w,
       peakWeekIndex: lastBuildWeekIndex,
       descentCaution,
+      prevWeekVertFt,
     })
+    if (!weekMi.isCutback && !weekMi.isTaper) {
+      const total = withVert.reduce((s, d) => {
+        const m = d.type === 'long' ? d.detail.match(/~(\d+)\s*ft gain/) : null
+        return s + (m ? parseInt(m[1], 10) : 0)
+      }, 0)
+      if (total > 0) prevWeekVertFt = total
+    }
     // P4.3 — injury-area prehab: the targeted block lands on every
     // strength/cross day; a week with neither gets it after the first
     // easy run. Collected since day one, acted on since P4.
