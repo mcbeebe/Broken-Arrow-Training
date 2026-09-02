@@ -42,6 +42,8 @@ export default function SeasonPanel({ seasonState }: { seasonState: UseSeasonRet
   // Explicit format chips (null = untapped → fall back to name detection,
   // so typing "Hyrox Anaheim" still asks the integration question).
   const [format, setFormat] = useState<'road' | 'trail' | 'hyrox' | null>(null)
+  // P3.1 — Open/Pro for a Hyrox race added after onboarding.
+  const [division, setDivision] = useState<'open' | 'pro'>('open')
 
   const anchorIso = raceDateToIso(season.races[0]?.raceInfo.date ?? '')
   const datedBeforeAnchor = !!date && !!anchorIso && date <= anchorIso
@@ -71,10 +73,11 @@ export default function SeasonPanel({ seasonState }: { seasonState: UseSeasonRet
       landmarks: [], gear: [], nutrition: '',
       description: description.trim() || undefined,
       format: effectiveFormat,
+      ...(effectiveFormat === 'hyrox' ? { hyroxDivision: division } : {}),
     }
     addRace(race, priority, addFormIsHyrox ? integration : 'sequential')
     setAdding(false)
-    setName(''); setDate(''); setMiles(''); setVertFt(''); setPri('B'); setDescription(''); setIntegrationChoice('layered'); setFormat(null)
+    setName(''); setDate(''); setMiles(''); setVertFt(''); setPri('B'); setDescription(''); setIntegrationChoice('layered'); setFormat(null); setDivision('open')
   }
 
   return (
@@ -125,6 +128,19 @@ export default function SeasonPanel({ seasonState }: { seasonState: UseSeasonRet
               >{k}</button>
             ))}
           </div>
+          {addFormIsHyrox && (
+            <div className="flex gap-1.5" role="radiogroup" aria-label="Race division">
+              {(['open', 'pro'] as const).map(d => (
+                <button key={d}
+                  type="button" role="radio" aria-checked={division === d}
+                  onClick={() => setDivision(d)}
+                  className={`flex-1 rounded-lg border px-2 py-1.5 text-xs font-bold ${
+                    division === d ? 'border-teal-500 bg-teal-50 text-teal-800' : 'border-slate-200 text-slate-500'
+                  }`}
+                >{d === 'open' ? 'Open' : 'Pro'}</button>
+              ))}
+            </div>
+          )}
           <div className="flex gap-1.5" role="radiogroup" aria-label="Race priority">
             {(['A', 'B', 'C'] as const).map(p => (
               <button key={p}

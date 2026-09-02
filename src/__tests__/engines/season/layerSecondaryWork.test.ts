@@ -129,3 +129,38 @@ describe('spliceSeasonWeeks applies layering (opt-in only)', () => {
     }
   })
 })
+
+describe('P3.1 — layered sessions render from the race division and athlete sex', () => {
+  const stationDays = (weeks: TrainingWeek[]) =>
+    weeks.flatMap(w => w.days.filter(d => d.workout === 'Hyrox prep — station volumes'))
+  const strengthDays = (weeks: TrainingWeek[]) =>
+    weeks.flatMap(w => w.days.filter(d => d.workout === 'Hyrox prep — strength-endurance + grip'))
+
+  it("a female athlete's layered station sessions carry the women's Open loads", () => {
+    const out = layerSecondaryWork(anchorWeeks(), hyroxRace('layered'), ANCHOR, TODAY, { sex: 'female' })
+    const text = stationDays(out).map(d => d.detail).join('\n')
+    expect(text).toContain('102 kg')
+    expect(text).not.toContain('152 kg')
+    // The strength-endurance session's farmer carry names the real load too.
+    expect(strengthDays(out).map(d => d.detail).join('\n')).toContain('2×16 kg')
+  })
+
+  it("the race's own division wins over the athlete's (a Pro second race)", () => {
+    const race = hyroxRace('layered')
+    race.raceInfo.hyroxDivision = 'pro'
+    const out = layerSecondaryWork(anchorWeeks(), race, ANCHOR, TODAY, { hyroxDivision: 'open', sex: 'male' })
+    const text = stationDays(out).map(d => d.detail).join('\n')
+    expect(text).toContain('202 kg')
+    expect(text).not.toContain('152 kg')
+  })
+
+  it("falls back to the athlete's division when the race carries none", () => {
+    const out = layerSecondaryWork(anchorWeeks(), hyroxRace('layered'), ANCHOR, TODAY, { hyroxDivision: 'pro' })
+    expect(stationDays(out).map(d => d.detail).join('\n')).toContain('202 kg')
+  })
+
+  it('defaults to men\'s Open with no athlete context (legacy callers)', () => {
+    const out = layerSecondaryWork(anchorWeeks(), hyroxRace('layered'), ANCHOR, TODAY)
+    expect(stationDays(out).map(d => d.detail).join('\n')).toContain('152 kg')
+  })
+})

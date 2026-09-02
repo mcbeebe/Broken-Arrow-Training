@@ -67,6 +67,7 @@ export function normalizeSeasonConfig(config: OnboardingConfig): OnboardingConfi
       : enteredIsHyrox ? 8 : undefined,
     description: config.raceDescription,
     format: config.raceType !== 'general' ? config.raceType : undefined,
+    hyroxDivision: enteredIsHyrox ? config.hyroxDivision : undefined,
     // The entered race never saw the integration ask; mirror the season
     // builder's defaults (Hyrox layers into the current build).
     integration: enteredIsHyrox ? 'layered' : 'sequential',
@@ -76,6 +77,9 @@ export function normalizeSeasonConfig(config: OnboardingConfig): OnboardingConfi
   return {
     ...config,
     raceType: promotedType,
+    // P3.1 — the promoted Hyrox brings its own division; the entered
+    // config's division (if it was a Hyrox) is the fallback.
+    hyroxDivision: promotedIsHyrox ? (earliest.hyroxDivision ?? config.hyroxDivision) : config.hyroxDivision,
     raceName: earliest.name,
     raceDate: earliestIso,
     raceDescription: earliest.description ?? undefined,

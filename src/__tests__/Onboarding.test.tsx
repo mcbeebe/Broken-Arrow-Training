@@ -47,6 +47,7 @@ function walkHappyPath(overrides: Partial<{
   raceType: 'Trail / Ultra' | 'Hyrox' | 'General Fitness'
   raceDistance: string
   elevationGainFt: string
+  hyroxDivision: 'Open' | 'Pro'
   extraRace: { name: string; date: string; miles: string; vertFt: string }
   generalGoal: string
   cardioModality: string
@@ -82,6 +83,7 @@ function walkHappyPath(overrides: Partial<{
     raceType: 'Trail / Ultra',
     raceDistance: 'Marathon',
     elevationGainFt: '' as string,
+    hyroxDivision: 'Open' as 'Open' | 'Pro',
     extraRace: null as null | { name: string; date: string; miles: string; vertFt: string },
     generalGoal: 'Build Muscle',
     cardioModality: 'Running',
@@ -211,6 +213,10 @@ function walkHappyPath(overrides: Partial<{
 
   // Step 7: Long run day OR weak station
   if (o.raceType === 'Hyrox') {
+    // P3.1 — the division radio lives on the same step as the weak station.
+    if (o.hyroxDivision === 'Pro') {
+      fireEvent.click(within(screen.getByRole('radiogroup', { name: 'Hyrox division' })).getByText('Pro'))
+    }
     fireEvent.click(screen.getByText(o.weakStation))
   } else {
     fireEvent.click(screen.getByText(o.longRunDay))
@@ -449,6 +455,16 @@ describe('Onboarding', () => {
     it('captures the user-selected race distance for trail races', () => {
       const cfg = walkHappyPath({ raceDistance: '50K Ultra' })
       expect(cfg.raceDistance).toBe('50k')
+    })
+
+    it('captures the Hyrox division (P3.1) — Pro reaches config.hyroxDivision', () => {
+      const cfg = walkHappyPath({ raceType: 'Hyrox', hyroxDivision: 'Pro' })
+      expect(cfg.hyroxDivision).toBe('pro')
+    })
+
+    it('defaults the Hyrox division to Open when untouched', () => {
+      const cfg = walkHappyPath({ raceType: 'Hyrox' })
+      expect(cfg.hyroxDivision).toBe('open')
     })
 
     it('captures structured elevation gain into config.elevationGainFt (P2)', () => {
@@ -1504,6 +1520,9 @@ describe('season mode: race kinds are multi-select', () => {
     fireEvent.click(Array.from(rowFmt.querySelectorAll('button')).find(b => b.textContent === 'Hyrox')!)
     // The explicit format alone triggers the integration ask.
     expect(screen.getByText(/layer it into my build now/i)).toBeInTheDocument()
+    // P3.1 — and the division ask; pick Pro so the block never generates at Open loads.
+    const rowDiv = screen.getByRole('radiogroup', { name: 'Race 2 division' })
+    fireEvent.click(Array.from(rowDiv.querySelectorAll('button')).find(b => b.textContent === 'Pro')!)
     clickContinue()
 
     // Finish the trail flow.
@@ -1529,7 +1548,7 @@ describe('season mode: race kinds are multi-select', () => {
     expect(config.raceType).toBe('trail')          // anchor kind
     expect(config.raceKinds).toEqual(['trail', 'hyrox'])
     expect(config.additionalRaces![0]).toMatchObject({
-      name: 'Anaheim Open', format: 'hyrox', integration: 'layered',
+      name: 'Anaheim Open', format: 'hyrox', integration: 'layered', hyroxDivision: 'pro',
     })
   })
 

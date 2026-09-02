@@ -18,7 +18,7 @@ function storageKey(athleteId?: string): string {
   return `ba_athlete_profile_${athleteId || 'default'}`
 }
 
-function readInitial(athleteId?: string): AthleteProfileExtras {
+export function readAthleteProfileExtras(athleteId?: string): AthleteProfileExtras {
   try {
     const raw = localStorage.getItem(storageKey(athleteId))
     if (raw) return JSON.parse(raw) as AthleteProfileExtras
@@ -40,18 +40,18 @@ function clean(next: AthleteProfileExtras): AthleteProfileExtras {
 }
 
 export function useAthleteProfile(athleteId?: string) {
-  const [profile, setProfile] = useState<AthleteProfileExtras>(() => readInitial(athleteId))
+  const [profile, setProfile] = useState<AthleteProfileExtras>(() => readAthleteProfileExtras(athleteId))
 
   // Re-read when the active athlete changes.
   useEffect(() => {
-    setProfile(readInitial(athleteId))
+    setProfile(readAthleteProfileExtras(athleteId))
   }, [athleteId])
 
   // Cross-tab sync.
   useEffect(() => {
     const k = storageKey(athleteId)
     function onStorage(e: StorageEvent) {
-      if (e.key === k) setProfile(readInitial(athleteId))
+      if (e.key === k) setProfile(readAthleteProfileExtras(athleteId))
     }
     window.addEventListener('storage', onStorage)
     return () => window.removeEventListener('storage', onStorage)

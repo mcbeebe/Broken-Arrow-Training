@@ -126,6 +126,8 @@ interface SettingsProps {
   // Onboarding reset — restarts the onboarding flow so the athlete can
   // pick a new target race after finishing their current one.
   onResetOnboarding?: () => void
+  /** P3.1 — change Hyrox division (Open/Pro) without redoing onboarding. */
+  onSetHyroxDivision?: (division: 'open' | 'pro') => void
   /** Current pinned week-1 Monday (ISO), and a non-destructive setter. */
   planStartIso?: string
   onSetPlanStart?: (iso: string) => void
@@ -242,6 +244,7 @@ export default function Settings({
   activePlan,
   trainingMethod,
   onboardingConfig,
+  onSetHyroxDivision,
   performance,
   mergedWeeks,
   season,
@@ -605,6 +608,30 @@ export default function Settings({
           )}
         </div>
       </SettingsSection>
+
+      {/* ── Hyrox division (P3.1) — editable without a redo ── */}
+      {onboardingConfig?.raceType === 'hyrox' && onSetHyroxDivision && (
+        <SettingsSection title="Hyrox Division">
+          <div className="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700 space-y-3">
+            <p className="text-sm text-slate-600 dark:text-slate-400">
+              Every station load in your plan renders from your division’s rulebook spec — Open and Pro differ by ~50 kg on the sleds alone. Change it here and the plan re-renders.
+            </p>
+            <div className="flex gap-1.5" role="radiogroup" aria-label="Hyrox division">
+              {(['open', 'pro'] as const).map(d => {
+                const selected = (onboardingConfig.hyroxDivision ?? 'open') === d
+                return (
+                  <button key={d} type="button" role="radio" aria-checked={selected}
+                    onClick={() => onSetHyroxDivision(d)}
+                    className={`flex-1 rounded-lg border px-3 py-2 text-sm font-bold ${
+                      selected ? 'border-teal-500 bg-teal-50 text-teal-800 dark:bg-teal-900/40 dark:text-teal-200' : 'border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400'
+                    }`}
+                  >{d === 'open' ? 'Open' : 'Pro'}</button>
+                )
+              })}
+            </div>
+          </div>
+        </SettingsSection>
+      )}
 
       {/* ── HR Zones section ── */}
       {hrZones && onSaveHRZones && onResetHRZones && (
