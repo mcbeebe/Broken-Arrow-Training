@@ -6,9 +6,10 @@
 import { describe, it, expect } from 'vitest'
 import { generatePlanFromMethod } from '../../../engines/planGenerator/generatePlan'
 import { generateHyroxPlan } from '../../../utils/planGenerator'
-import { validatePlan } from '../../../engines/planQA/validatePlan'
+import { validatePlan, parseTimeRange } from '../../../engines/planQA/validatePlan'
 import { getMethodById } from '../../../data/methods'
 import type { OnboardingConfig } from '../../../hooks/useOnboarding'
+import type { TrainingWeek } from '../../../types'
 import { mergeBenchmarkAnchors } from '../../../hooks/useOnboarding'
 import { dayIsoInWeek } from '../../../utils/planDates'
 import { resolveAnchor, resolvePaces } from '../../../engines/planGenerator/paceTargets'
@@ -192,6 +193,78 @@ describe('P4.4 — joint time+vert load-spike guard', () => {
   it('the untampered climby persona does not trip the guard', () => {
     const plan = generatePlanFromMethod(roche(), mikeConfig(), TODAY)
     expect(validatePlan(plan).findings.map(f => f.id)).not.toContain('qa_load_spike')
+  })
+
+  // ── verified audit: the guard mis-measured Hyrox hours, never fired on a
+  // vert-only spike, and took race/bridge weeks as its baseline ──────────
+  it('parseTimeRange understands hours, mixed hours/minutes, ranges, and the "~" / "+" forms', () => {
+    expect(parseTimeRange('45 min')).toEqual([45, 45])
+    expect(parseTimeRange('45-50 min')).toEqual([45, 50])
+    expect(parseTimeRange('~110 min')).toEqual([110, 110])
+    expect(parseTimeRange('1 hr')).toEqual([60, 60])
+    expect(parseTimeRange('1 hr 15 min')).toEqual([75, 75])
+    expect(parseTimeRange('1 hr 30 min+')).toEqual([90, 90])
+    expect(parseTimeRange('1-1.5 hr')).toEqual([60, 90])
+    expect(parseTimeRange('—')).toBeNull()
+  })
+
+  it('Hyrox "1 hr" sessions count as 60 min: a true time spike on hour-formatted weeks is caught', () => {
+    const day = (time: string) => ({ day: 'Mon', type: 'strength', workout: 'STRENGTH', detail: '', zone: '—', route: '', time } as TrainingWeek['days'][number])
+    const week = (num: number, time: string, focus = 'Build'): TrainingWeek =>
+      ({ num, dates: '', miles: 10, focus, days: Array.from({ length: 6 }, () => day(time)) })
+    const weeks = [week(1, '1 hr'), week(2, '1 hr'), week(3, '1 hr 30 min')] // +50%
+    const ids = validatePlan({ weeks }).findings.filter(f => f.id === 'qa_load_spike')
+    expect(ids.some(f => f.weekNum === 3)).toBe(true)
+  })
+
+  it('a vert-only spike (time flat, climb >35% over every prior week) is flagged', () => {
+    const plan = generatePlanFromMethod(roche(), mikeConfig(), TODAY)
+    const weeks = plan.weeks.map(w => ({ ...w, days: w.days.map(d => ({ ...d })) }))
+    const long = weeks[4].days.find(d => d.type === 'long')!
+    long.detail = long.detail.replace(/~\d+\s*ft gain/, '') + ' · ~9000 ft gain'
+    const f = validatePlan({ ...plan, weeks }).findings.find(x => x.id === 'qa_load_spike' && x.weekNum === weeks[4].num)
+    expect(f?.title).toBe('Vertical gain spikes')
+  })
+
+  it('race week, the post-race recover week and the bridge never become the time baseline', () => {
+    const run = (min: number) => ({ day: 'Mon', type: 'run', workout: 'Easy', detail: '', zone: '—', route: '', time: `${min} min` } as TrainingWeek['days'][number])
+    const race = { day: 'Sat', type: 'race', workout: 'RACE DAY', detail: '', zone: '—', route: '', time: '90 min' } as TrainingWeek['days'][number]
+    const week = (num: number, days: TrainingWeek['days'], focus: string): TrainingWeek => ({ num, dates: '', miles: 20, focus, days })
+    const six = (min: number) => Array.from({ length: 6 }, () => run(min))
+    const weeks = [
+      week(1, six(25), 'Build'), week(2, six(25), 'Build'),           // 150 min ordinary weeks
+      week(3, [...six(20).slice(0, 5), race], 'Taper'),               // race week, 6 days
+      week(4, [run(10), run(10), run(10), run(10)], 'Recover — easy days only'),
+      week(5, six(12), 'Bridge — hold aerobic, rebuild volume'),      // 72 min, 6 days
+      week(6, six(27), 'Build'),                                      // 162 min: +8% vs the last ORDINARY week
+    ]
+    expect(validatePlan({ weeks }).findings.filter(f => f.id === 'qa_load_spike')).toEqual([])
+  })
+
+  it("the generator's own weekly climb never steps more than 35% week over week — incl. Koop's back-to-back long weekends", () => {
+    const koop = getMethodById('koop')!
+    const cases = [
+      { method: roche(), cfg: mikeConfig({ raceDate: '2026-10-24' }) },
+      { method: roche(), cfg: mikeConfig({ raceDate: '2026-09-12' }) },
+      // The audit's Leo: 20-week 50k on Koop, whose first B2B long weekend
+      // doubled the week's climb (2,700 → 6,400 ft) in one step.
+      { method: koop, cfg: mikeConfig({ raceDate: '2027-01-02', raceDistance: '50k', raceDistanceMiles: 31, elevationGainFt: 6000, experienceLevel: 'advanced', trainingDaysPerWeek: 6, currentWeeklyMileage: 40, age: 55 }) },
+    ]
+    for (const { method, cfg } of cases) {
+      const plan = generatePlanFromMethod(method, cfg, TODAY)
+      let prev = 0
+      for (const w of plan.weeks) {
+        if (/cutback|taper/i.test(w.focus)) continue
+        const total = w.days.reduce((s, d) => {
+          const m = d.type === 'long' ? d.detail.match(/~(\d+)\s*ft gain/) : null
+          return s + (m ? parseInt(m[1], 10) : 0)
+        }, 0)
+        if (total === 0) continue
+        if (prev > 0) expect(total, `${method.id} ${cfg.raceDate} week ${w.num}: ${prev} → ${total}`).toBeLessThanOrEqual(prev * 1.35)
+        prev = total
+      }
+      expect(validatePlan(plan).findings.filter(f => f.id === 'qa_load_spike'), `${method.id} ${cfg.raceDate}`).toEqual([])
+    }
   })
 })
 

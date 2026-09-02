@@ -35,7 +35,18 @@ export interface VertWeekCtx {
    *  the highest-risk stimulus, so the downhill cadence stretches to every
    *  3rd week, reps cap at the low end, and the session note says so. */
   descentCaution?: boolean
+  /** P4.4 — the previous ordinary (non-cutback, non-taper) week's TOTAL
+   *  stamped vert. The week-over-week step is capped at VERT_RAMP_MAX_STEP so
+   *  the generator's own ramp never produces the >35% jump the load-spike
+   *  guard exists to catch: phase-change mileage steps compounded the ramp
+   *  into +117% weeks, and the first back-to-back long weekend doubled the
+   *  week's climb outright (Koop 50k: 2,700 → 6,400 ft). */
+  prevWeekVertFt?: number
 }
+
+/** Largest allowed week-over-week step in the long-run vert target. Matches
+ *  the load-spike guard's 35% so the generator can never trip its own gate. */
+export const VERT_RAMP_MAX_STEP = 1.35
 
 /**
  * Weekly long-run vertical-gain target (ft), scaled by climb density × long-run
@@ -45,6 +56,18 @@ export function longRunVertTargetFt(ctx: VertWeekCtx): number {
   if (!ctx.isClimby || ctx.longRunMi <= 0 || ctx.vertFtPerMile <= 0) return 0
   const ramp = ctx.isTaper ? 0.5 : clamp((ctx.weekIndex + 1) / (ctx.peakWeekIndex + 1), 0.5, 1)
   return Math.round((ctx.vertFtPerMile * ctx.longRunMi * ramp) / 50) * 50
+}
+
+/** Per-long-day stamp for a week with `longDays` long runs, capped so the
+ *  WEEK's total climb steps at most VERT_RAMP_MAX_STEP over the previous
+ *  ordinary week (floored to the 50-ft grid — rounding up put a step 7 ft
+ *  over the guard's exact 35% and the generator tripped its own gate). */
+export function cappedLongRunVertFt(ctx: VertWeekCtx, longDays: number): number {
+  const target = longRunVertTargetFt(ctx)
+  if (target <= 0 || ctx.isTaper || !ctx.prevWeekVertFt || ctx.prevWeekVertFt <= 0) return target
+  const weekCap = ctx.prevWeekVertFt * VERT_RAMP_MAX_STEP
+  const perDayCap = Math.floor(weekCap / Math.max(1, longDays) / 50) * 50
+  return Math.min(target, perDayCap)
 }
 
 /**
@@ -84,7 +107,8 @@ export function downhillSessionNote(ctx: VertWeekCtx): string {
  */
 export function applyVertPrescription(days: PlannedDay[], ctx: VertWeekCtx): PlannedDay[] {
   if (!ctx.isClimby) return days
-  const vert = longRunVertTargetFt(ctx)
+  const longDays = days.filter(d => d.type === 'long').length
+  const vert = cappedLongRunVertFt(ctx, longDays)
   let out = vert > 0
     ? days.map(d => (d.type === 'long' ? { ...d, detail: appendDetail(d.detail, `~${vert} ft gain`) } : d))
     : days

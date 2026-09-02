@@ -81,12 +81,22 @@ const RANGE_ERROR_RATIO = 2.5
 /** D-1 run cap in minutes (v2 QA check #10). */
 const D1_MAX_MIN = 25
 
-function parseTimeRange(t: string | undefined): [number, number] | null {
+/** Session time as [min, max] minutes. Understands "45 min", "45-50 min",
+ *  "~110 min", "1 hr", "1 hr 15 min", "1 hr 30 min+" and "1-1.5 hr". The
+ *  Hyrox engine emits "1 hr" / "1 hr 15 min" on strength and station days;
+ *  the old minute-only parser read those as 0 / 15 min, so the load-spike
+ *  guard mis-measured 21 of the 40 persona-sweep plans (P4.4 audit). */
+export function parseTimeRange(t: string | undefined): [number, number] | null {
   if (!t) return null
   const range = t.match(/(\d+)\s*[–-]\s*(\d+)\s*min/)
   if (range) return [parseInt(range[1], 10), parseInt(range[2], 10)]
-  const single = t.match(/(\d+)\s*min/)
-  return single ? [parseInt(single[1], 10), parseInt(single[1], 10)] : null
+  const hrRange = t.match(/(\d+(?:\.\d+)?)\s*[–-]\s*(\d+(?:\.\d+)?)\s*h(?:rs?|ours?)?\b/)
+  if (hrRange) return [Math.round(parseFloat(hrRange[1]) * 60), Math.round(parseFloat(hrRange[2]) * 60)]
+  const hr = t.match(/(\d+(?:\.\d+)?)\s*h(?:rs?|ours?)?\b/)
+  const min = t.match(/(\d+)\s*min/)
+  if (!hr && !min) return null
+  const total = Math.round((hr ? parseFloat(hr[1]) * 60 : 0) + (min ? parseInt(min[1], 10) : 0))
+  return [total, total]
 }
 
 const MI_PER_UNIT: Record<string, number> = { mi: 1, km: 0.621371, m: 0.000621371 }
@@ -457,9 +467,27 @@ export function validatePlan(input: PlanQAInput): PlanQAResult {
             title: 'Training time spikes',
             detail: `Week ${w.num} raises total training time >35% over the last full training week — spread the increase out.`,
           })
+        } else if (vertSpike) {
+          // P4.4 (audit) — the vert leg never fired on its own: a week that
+          // held time flat and raised climb >35% over every prior week was
+          // silent. Climb builds like mileage does.
+          add({
+            id: 'qa_load_spike', severity: 'warn', weekNum: w.num,
+            title: 'Vertical gain spikes',
+            detail: `Week ${w.num} raises vertical gain >35% over every previous week while time holds — climb builds like mileage does; ease the vert step.`,
+          })
         }
       }
-      if (!/cutback|recovery/i.test(w.focus) && w.days.length >= 6) baselineMin = min
+      // The baseline is the last FULL, ordinary training week. Cutback and
+      // recovery weeks never move it (rebounding out of one is normal), and
+      // neither do taper weeks, race weeks, or the post-race recover/bridge
+      // blocks of a season — v1 let a 6-day race week and then a low bridge
+      // week become the baseline, so the deliberate rebound into the next
+      // build read as a "spike" (P4.4 audit).
+      const ordinaryWeek = !/cutback|recovery|recover|bridge|taper/i.test(w.focus)
+        && !w.days.some(d => d.type === 'race')
+        && w.days.length >= 6
+      if (ordinaryWeek) baselineMin = min
       maxPriorVert = Math.max(maxPriorVert, vert)
     })
   }
