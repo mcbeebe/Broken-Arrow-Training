@@ -323,7 +323,7 @@ export function validatePlan(input: PlanQAInput): PlanQAResult {
   // clones — zero progression) and is an error.
   const groups = new Map<string, TrainingWeek[]>()
   for (const w of weeks) {
-    if (/cutback|recovery/i.test(w.focus)) continue
+    if (/cutback|recovery|deload/i.test(w.focus)) continue
     if (w.days.every(d => RESTLIKE.has(d.type))) continue
     const key = weekContentKey(w)
     const list = groups.get(key) ?? []
@@ -416,11 +416,15 @@ export function validatePlan(input: PlanQAInput): PlanQAResult {
   }
   if (input.injuryArea && weeks.length > 1) {
     const prehabDays = flat.filter(({ day }) => /PREHAB/i.test(day.detail)).length
-    if (prehabDays < Math.min(6, weeks.length)) {
+    // Race week carries no strength day, so a 3 d/wk Hyrox athlete on a
+    // short runway had prehab on every strength session and still tripped
+    // this (audit false positive): the floor is weeks - 1.
+    if (prehabDays < Math.min(6, weeks.length - 1)) {
+      const history = input.injuryArea === 'general' ? 'an injury' : `a ${input.injuryArea.replace(/_/g, '/')}`
       add({
         id: 'qa_prehab_missing', severity: 'warn',
         title: 'Injury history without prehab',
-        detail: `The athlete declared a ${input.injuryArea.replace(/_/g, '/')} history but the plan carries prehab in only ${prehabDays} session${prehabDays === 1 ? '' : 's'} — the best-evidenced injury-prevention lever is being left unused.`,
+        detail: `The athlete declared ${history} history but the plan carries prehab in only ${prehabDays} session${prehabDays === 1 ? '' : 's'} — the best-evidenced injury-prevention lever is being left unused.`,
       })
     }
   }
@@ -484,7 +488,7 @@ export function validatePlan(input: PlanQAInput): PlanQAResult {
       // blocks of a season — v1 let a 6-day race week and then a low bridge
       // week become the baseline, so the deliberate rebound into the next
       // build read as a "spike" (P4.4 audit).
-      const ordinaryWeek = !/cutback|recovery|recover|bridge|taper/i.test(w.focus)
+      const ordinaryWeek = !/cutback|recovery|recover|bridge|taper|deload/i.test(w.focus)
         && !w.days.some(d => d.type === 'race')
         && w.days.length >= 6
       if (ordinaryWeek) baselineMin = min

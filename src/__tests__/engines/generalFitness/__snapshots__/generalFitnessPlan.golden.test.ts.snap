@@ -2,6 +2,14 @@
 
 exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 days · ~8-week horizon 1`] = `
 {
+  "advisories": [
+    {
+      "detail": "The plan never marks race day (2026-08-03).",
+      "id": "qa_race_day",
+      "severity": "caution",
+      "title": "No race day on the calendar",
+    },
+  ],
   "athlete": {
     "currentBase": "intermediate · 5 days/week · goal: Build Endurance",
     "equipmentAccess": undefined,
@@ -36,7 +44,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "45 min",
           "type": "run",
           "workout": "Zone 2 — easy aerobic",
-          "zone": "45 min · Z2 (120–138)",
+          "zone": "45 min · Z2 (120–137)",
         },
         {
           "day": "Tue 6/9",
@@ -45,7 +53,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "~35 min",
           "type": "quality",
           "workout": "VO₂max intervals",
-          "zone": "Z4 (166–175)",
+          "zone": "Z4 (166–184)",
         },
         {
           "day": "Wed 6/10",
@@ -54,7 +62,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "45 min",
           "type": "run",
           "workout": "Zone 2 — easy aerobic",
-          "zone": "45 min · Z2 (120–138)",
+          "zone": "45 min · Z2 (120–137)",
         },
         {
           "day": "Thu 6/11",
@@ -72,7 +80,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "45–60 min",
           "type": "strength",
           "workout": "Strength — full body",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Sat 6/13",
@@ -81,7 +89,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "70 min",
           "type": "long",
           "workout": "Long easy session",
-          "zone": "70 min · Z2 (120–138)",
+          "zone": "70 min · Z2 (120–137)",
         },
         {
           "day": "Sun 6/14",
@@ -107,7 +115,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "45 min",
           "type": "run",
           "workout": "Zone 2 — easy aerobic",
-          "zone": "45 min · Z2 (120–138)",
+          "zone": "45 min · Z2 (120–137)",
         },
         {
           "day": "Tue 6/16",
@@ -116,7 +124,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "~35 min",
           "type": "quality",
           "workout": "VO₂max intervals",
-          "zone": "Z4 (166–175)",
+          "zone": "Z4 (166–184)",
         },
         {
           "day": "Wed 6/17",
@@ -125,7 +133,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "45 min",
           "type": "run",
           "workout": "Zone 2 — easy aerobic",
-          "zone": "45 min · Z2 (120–138)",
+          "zone": "45 min · Z2 (120–137)",
         },
         {
           "day": "Thu 6/18",
@@ -143,7 +151,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "45–60 min",
           "type": "strength",
           "workout": "Strength — full body",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Sat 6/20",
@@ -152,7 +160,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "75 min",
           "type": "long",
           "workout": "Long easy session",
-          "zone": "75 min · Z2 (120–138)",
+          "zone": "75 min · Z2 (120–137)",
         },
         {
           "day": "Sun 6/21",
@@ -178,7 +186,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "45 min",
           "type": "run",
           "workout": "Zone 2 — easy aerobic",
-          "zone": "45 min · Z2 (120–138)",
+          "zone": "45 min · Z2 (120–137)",
         },
         {
           "day": "Tue 6/23",
@@ -187,7 +195,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "~40 min",
           "type": "quality",
           "workout": "VO₂max intervals",
-          "zone": "Z4 (166–175)",
+          "zone": "Z4 (166–184)",
         },
         {
           "day": "Wed 6/24",
@@ -196,7 +204,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "45 min",
           "type": "run",
           "workout": "Zone 2 — easy aerobic",
-          "zone": "45 min · Z2 (120–138)",
+          "zone": "45 min · Z2 (120–137)",
         },
         {
           "day": "Thu 6/25",
@@ -214,7 +222,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "45–60 min",
           "type": "strength",
           "workout": "Strength — full body",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Sat 6/27",
@@ -223,7 +231,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "75 min",
           "type": "long",
           "workout": "Long easy session",
-          "zone": "75 min · Z2 (120–138)",
+          "zone": "75 min · Z2 (120–137)",
         },
         {
           "day": "Sun 6/28",
@@ -249,7 +257,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "30 min",
           "type": "run",
           "workout": "Zone 2 — easy aerobic",
-          "zone": "30 min · Z2 (120–138)",
+          "zone": "30 min · Z2 (120–137)",
         },
         {
           "day": "Tue 6/30",
@@ -258,7 +266,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "~30 min",
           "type": "quality",
           "workout": "VO₂max intervals",
-          "zone": "Z4 (166–175)",
+          "zone": "Z4 (166–184)",
         },
         {
           "day": "Wed 7/1",
@@ -267,7 +275,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "30 min",
           "type": "run",
           "workout": "Zone 2 — easy aerobic",
-          "zone": "30 min · Z2 (120–138)",
+          "zone": "30 min · Z2 (120–137)",
         },
         {
           "day": "Thu 7/2",
@@ -285,7 +293,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "35 min",
           "type": "strength",
           "workout": "Strength — deload",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Sat 7/4",
@@ -294,7 +302,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "45 min",
           "type": "long",
           "workout": "Long easy session",
-          "zone": "45 min · Z2 (120–138)",
+          "zone": "45 min · Z2 (120–137)",
         },
         {
           "day": "Sun 7/5",
@@ -320,7 +328,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "50 min",
           "type": "run",
           "workout": "Zone 2 — easy aerobic",
-          "zone": "50 min · Z2 (120–138)",
+          "zone": "50 min · Z2 (120–137)",
         },
         {
           "day": "Tue 7/7",
@@ -329,7 +337,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "~45 min",
           "type": "quality",
           "workout": "VO₂max intervals",
-          "zone": "Z4 (166–175)",
+          "zone": "Z4 (166–184)",
         },
         {
           "day": "Wed 7/8",
@@ -338,7 +346,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "50 min",
           "type": "run",
           "workout": "Zone 2 — easy aerobic",
-          "zone": "50 min · Z2 (120–138)",
+          "zone": "50 min · Z2 (120–137)",
         },
         {
           "day": "Thu 7/9",
@@ -356,7 +364,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "45–60 min",
           "type": "strength",
           "workout": "Strength — full body",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Sat 7/11",
@@ -365,7 +373,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "80 min",
           "type": "long",
           "workout": "Long easy session",
-          "zone": "80 min · Z2 (120–138)",
+          "zone": "80 min · Z2 (120–137)",
         },
         {
           "day": "Sun 7/12",
@@ -391,7 +399,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "50 min",
           "type": "run",
           "workout": "Zone 2 — easy aerobic",
-          "zone": "50 min · Z2 (120–138)",
+          "zone": "50 min · Z2 (120–137)",
         },
         {
           "day": "Tue 7/14",
@@ -400,7 +408,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "~45 min",
           "type": "quality",
           "workout": "VO₂max intervals",
-          "zone": "Z4 (166–175)",
+          "zone": "Z4 (166–184)",
         },
         {
           "day": "Wed 7/15",
@@ -409,7 +417,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "50 min",
           "type": "run",
           "workout": "Zone 2 — easy aerobic",
-          "zone": "50 min · Z2 (120–138)",
+          "zone": "50 min · Z2 (120–137)",
         },
         {
           "day": "Thu 7/16",
@@ -427,7 +435,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "45–60 min",
           "type": "strength",
           "workout": "Strength — full body",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Sat 7/18",
@@ -436,7 +444,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "80 min",
           "type": "long",
           "workout": "Long easy session",
-          "zone": "80 min · Z2 (120–138)",
+          "zone": "80 min · Z2 (120–137)",
         },
         {
           "day": "Sun 7/19",
@@ -462,7 +470,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "50 min",
           "type": "run",
           "workout": "Zone 2 — easy aerobic",
-          "zone": "50 min · Z2 (120–138)",
+          "zone": "50 min · Z2 (120–137)",
         },
         {
           "day": "Tue 7/21",
@@ -471,7 +479,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "~45 min",
           "type": "quality",
           "workout": "VO₂max intervals",
-          "zone": "Z4 (166–175)",
+          "zone": "Z4 (166–184)",
         },
         {
           "day": "Wed 7/22",
@@ -480,7 +488,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "50 min",
           "type": "run",
           "workout": "Zone 2 — easy aerobic",
-          "zone": "50 min · Z2 (120–138)",
+          "zone": "50 min · Z2 (120–137)",
         },
         {
           "day": "Thu 7/23",
@@ -498,7 +506,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "45–60 min",
           "type": "strength",
           "workout": "Strength — full body",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Sat 7/25",
@@ -507,7 +515,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "85 min",
           "type": "long",
           "workout": "Long easy session",
-          "zone": "85 min · Z2 (120–138)",
+          "zone": "85 min · Z2 (120–137)",
         },
         {
           "day": "Sun 7/26",
@@ -533,7 +541,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "30 min",
           "type": "run",
           "workout": "Zone 2 — easy aerobic",
-          "zone": "30 min · Z2 (120–138)",
+          "zone": "30 min · Z2 (120–137)",
         },
         {
           "day": "Tue 7/28",
@@ -542,7 +550,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "~30 min",
           "type": "quality",
           "workout": "VO₂max intervals",
-          "zone": "Z4 (166–175)",
+          "zone": "Z4 (166–184)",
         },
         {
           "day": "Wed 7/29",
@@ -551,7 +559,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "30 min",
           "type": "run",
           "workout": "Zone 2 — easy aerobic",
-          "zone": "30 min · Z2 (120–138)",
+          "zone": "30 min · Z2 (120–137)",
         },
         {
           "day": "Thu 7/30",
@@ -569,7 +577,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "35 min",
           "type": "strength",
           "workout": "Strength — deload",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Sat 8/1",
@@ -578,7 +586,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "45 min",
           "type": "long",
           "workout": "Long easy session",
-          "zone": "45 min · Z2 (120–138)",
+          "zone": "45 min · Z2 (120–137)",
         },
         {
           "day": "Sun 8/2",
@@ -598,26 +606,26 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
   "zones": [
     {
       "desc": "Very easy, full conversation",
-      "hr": "101–120",
+      "hr": "101–119",
       "pct": "55–65%",
       "zone": "Z1 – Recovery",
     },
     {
       "desc": "Easy. Can speak in sentences (Talk Test)",
-      "hr": "120–138",
-      "pct": "65–75%",
+      "hr": "120–137",
+      "pct": "65–74%",
       "zone": "Z2 – Aerobic",
     },
     {
       "desc": "Comfortably hard",
-      "hr": "138–156",
-      "pct": "75–85%",
+      "hr": "138–165",
+      "pct": "75–90%",
       "zone": "Z3 – Tempo",
     },
     {
       "desc": "Hard. A few words at most",
-      "hr": "166–175",
-      "pct": "90–95%",
+      "hr": "166–184",
+      "pct": "90–100%",
       "zone": "Z4 – VO₂max",
     },
   ],
@@ -626,6 +634,14 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
 
 exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 days · rowing 1`] = `
 {
+  "advisories": [
+    {
+      "detail": "Weeks 7, 9 prescribe byte-for-byte identical content — repetition without progression is maintenance, not training.",
+      "id": "qa_duplicate_weeks",
+      "severity": "caution",
+      "title": "Identical training weeks",
+    },
+  ],
   "athlete": {
     "currentBase": "intermediate · 5 days/week · goal: Build Endurance",
     "equipmentAccess": undefined,
@@ -660,7 +676,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "45 min",
           "type": "run",
           "workout": "Zone 2 — easy aerobic",
-          "zone": "45 min · Z2 (120–138)",
+          "zone": "45 min · Z2 (120–137)",
         },
         {
           "day": "Tue 6/9",
@@ -669,7 +685,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "~35 min",
           "type": "quality",
           "workout": "VO₂max intervals",
-          "zone": "Z4 (166–175)",
+          "zone": "Z4 (166–184)",
         },
         {
           "day": "Wed 6/10",
@@ -678,7 +694,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "45 min",
           "type": "run",
           "workout": "Zone 2 — easy aerobic",
-          "zone": "45 min · Z2 (120–138)",
+          "zone": "45 min · Z2 (120–137)",
         },
         {
           "day": "Thu 6/11",
@@ -696,7 +712,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "45–60 min",
           "type": "strength",
           "workout": "Strength — full body",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Sat 6/13",
@@ -705,7 +721,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "70 min",
           "type": "long",
           "workout": "Long easy session",
-          "zone": "70 min · Z2 (120–138)",
+          "zone": "70 min · Z2 (120–137)",
         },
         {
           "day": "Sun 6/14",
@@ -731,7 +747,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "45 min",
           "type": "run",
           "workout": "Zone 2 — easy aerobic",
-          "zone": "45 min · Z2 (120–138)",
+          "zone": "45 min · Z2 (120–137)",
         },
         {
           "day": "Tue 6/16",
@@ -740,7 +756,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "~35 min",
           "type": "quality",
           "workout": "VO₂max intervals",
-          "zone": "Z4 (166–175)",
+          "zone": "Z4 (166–184)",
         },
         {
           "day": "Wed 6/17",
@@ -749,7 +765,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "45 min",
           "type": "run",
           "workout": "Zone 2 — easy aerobic",
-          "zone": "45 min · Z2 (120–138)",
+          "zone": "45 min · Z2 (120–137)",
         },
         {
           "day": "Thu 6/18",
@@ -767,7 +783,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "45–60 min",
           "type": "strength",
           "workout": "Strength — full body",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Sat 6/20",
@@ -776,7 +792,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "75 min",
           "type": "long",
           "workout": "Long easy session",
-          "zone": "75 min · Z2 (120–138)",
+          "zone": "75 min · Z2 (120–137)",
         },
         {
           "day": "Sun 6/21",
@@ -802,7 +818,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "45 min",
           "type": "run",
           "workout": "Zone 2 — easy aerobic",
-          "zone": "45 min · Z2 (120–138)",
+          "zone": "45 min · Z2 (120–137)",
         },
         {
           "day": "Tue 6/23",
@@ -811,7 +827,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "~40 min",
           "type": "quality",
           "workout": "VO₂max intervals",
-          "zone": "Z4 (166–175)",
+          "zone": "Z4 (166–184)",
         },
         {
           "day": "Wed 6/24",
@@ -820,7 +836,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "45 min",
           "type": "run",
           "workout": "Zone 2 — easy aerobic",
-          "zone": "45 min · Z2 (120–138)",
+          "zone": "45 min · Z2 (120–137)",
         },
         {
           "day": "Thu 6/25",
@@ -838,7 +854,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "45–60 min",
           "type": "strength",
           "workout": "Strength — full body",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Sat 6/27",
@@ -847,7 +863,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "75 min",
           "type": "long",
           "workout": "Long easy session",
-          "zone": "75 min · Z2 (120–138)",
+          "zone": "75 min · Z2 (120–137)",
         },
         {
           "day": "Sun 6/28",
@@ -873,7 +889,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "30 min",
           "type": "run",
           "workout": "Zone 2 — easy aerobic",
-          "zone": "30 min · Z2 (120–138)",
+          "zone": "30 min · Z2 (120–137)",
         },
         {
           "day": "Tue 6/30",
@@ -882,7 +898,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "~30 min",
           "type": "quality",
           "workout": "VO₂max intervals",
-          "zone": "Z4 (166–175)",
+          "zone": "Z4 (166–184)",
         },
         {
           "day": "Wed 7/1",
@@ -891,7 +907,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "30 min",
           "type": "run",
           "workout": "Zone 2 — easy aerobic",
-          "zone": "30 min · Z2 (120–138)",
+          "zone": "30 min · Z2 (120–137)",
         },
         {
           "day": "Thu 7/2",
@@ -909,7 +925,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "35 min",
           "type": "strength",
           "workout": "Strength — deload",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Sat 7/4",
@@ -918,7 +934,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "45 min",
           "type": "long",
           "workout": "Long easy session",
-          "zone": "45 min · Z2 (120–138)",
+          "zone": "45 min · Z2 (120–137)",
         },
         {
           "day": "Sun 7/5",
@@ -944,7 +960,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "45 min",
           "type": "run",
           "workout": "Zone 2 — easy aerobic",
-          "zone": "45 min · Z2 (120–138)",
+          "zone": "45 min · Z2 (120–137)",
         },
         {
           "day": "Tue 7/7",
@@ -953,7 +969,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "~45 min",
           "type": "quality",
           "workout": "VO₂max intervals",
-          "zone": "Z4 (166–175)",
+          "zone": "Z4 (166–184)",
         },
         {
           "day": "Wed 7/8",
@@ -962,7 +978,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "45 min",
           "type": "run",
           "workout": "Zone 2 — easy aerobic",
-          "zone": "45 min · Z2 (120–138)",
+          "zone": "45 min · Z2 (120–137)",
         },
         {
           "day": "Thu 7/9",
@@ -980,7 +996,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "45–60 min",
           "type": "strength",
           "workout": "Strength — full body",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Sat 7/11",
@@ -989,7 +1005,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "75 min",
           "type": "long",
           "workout": "Long easy session",
-          "zone": "75 min · Z2 (120–138)",
+          "zone": "75 min · Z2 (120–137)",
         },
         {
           "day": "Sun 7/12",
@@ -1015,7 +1031,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "50 min",
           "type": "run",
           "workout": "Zone 2 — easy aerobic",
-          "zone": "50 min · Z2 (120–138)",
+          "zone": "50 min · Z2 (120–137)",
         },
         {
           "day": "Tue 7/14",
@@ -1024,7 +1040,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "~45 min",
           "type": "quality",
           "workout": "VO₂max intervals",
-          "zone": "Z4 (166–175)",
+          "zone": "Z4 (166–184)",
         },
         {
           "day": "Wed 7/15",
@@ -1033,7 +1049,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "50 min",
           "type": "run",
           "workout": "Zone 2 — easy aerobic",
-          "zone": "50 min · Z2 (120–138)",
+          "zone": "50 min · Z2 (120–137)",
         },
         {
           "day": "Thu 7/16",
@@ -1051,7 +1067,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "45–60 min",
           "type": "strength",
           "workout": "Strength — full body",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Sat 7/18",
@@ -1060,7 +1076,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "80 min",
           "type": "long",
           "workout": "Long easy session",
-          "zone": "80 min · Z2 (120–138)",
+          "zone": "80 min · Z2 (120–137)",
         },
         {
           "day": "Sun 7/19",
@@ -1086,7 +1102,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "50 min",
           "type": "run",
           "workout": "Zone 2 — easy aerobic",
-          "zone": "50 min · Z2 (120–138)",
+          "zone": "50 min · Z2 (120–137)",
         },
         {
           "day": "Tue 7/21",
@@ -1095,7 +1111,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "~45 min",
           "type": "quality",
           "workout": "VO₂max intervals",
-          "zone": "Z4 (166–175)",
+          "zone": "Z4 (166–184)",
         },
         {
           "day": "Wed 7/22",
@@ -1104,7 +1120,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "50 min",
           "type": "run",
           "workout": "Zone 2 — easy aerobic",
-          "zone": "50 min · Z2 (120–138)",
+          "zone": "50 min · Z2 (120–137)",
         },
         {
           "day": "Thu 7/23",
@@ -1122,7 +1138,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "45–60 min",
           "type": "strength",
           "workout": "Strength — full body",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Sat 7/25",
@@ -1131,7 +1147,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "80 min",
           "type": "long",
           "workout": "Long easy session",
-          "zone": "80 min · Z2 (120–138)",
+          "zone": "80 min · Z2 (120–137)",
         },
         {
           "day": "Sun 7/26",
@@ -1157,7 +1173,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "30 min",
           "type": "run",
           "workout": "Zone 2 — easy aerobic",
-          "zone": "30 min · Z2 (120–138)",
+          "zone": "30 min · Z2 (120–137)",
         },
         {
           "day": "Tue 7/28",
@@ -1166,7 +1182,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "~30 min",
           "type": "quality",
           "workout": "VO₂max intervals",
-          "zone": "Z4 (166–175)",
+          "zone": "Z4 (166–184)",
         },
         {
           "day": "Wed 7/29",
@@ -1175,7 +1191,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "30 min",
           "type": "run",
           "workout": "Zone 2 — easy aerobic",
-          "zone": "30 min · Z2 (120–138)",
+          "zone": "30 min · Z2 (120–137)",
         },
         {
           "day": "Thu 7/30",
@@ -1193,7 +1209,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "35 min",
           "type": "strength",
           "workout": "Strength — deload",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Sat 8/1",
@@ -1202,7 +1218,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "45 min",
           "type": "long",
           "workout": "Long easy session",
-          "zone": "45 min · Z2 (120–138)",
+          "zone": "45 min · Z2 (120–137)",
         },
         {
           "day": "Sun 8/2",
@@ -1228,7 +1244,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "50 min",
           "type": "run",
           "workout": "Zone 2 — easy aerobic",
-          "zone": "50 min · Z2 (120–138)",
+          "zone": "50 min · Z2 (120–137)",
         },
         {
           "day": "Tue 8/4",
@@ -1237,7 +1253,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "~45 min",
           "type": "quality",
           "workout": "VO₂max intervals",
-          "zone": "Z4 (166–175)",
+          "zone": "Z4 (166–184)",
         },
         {
           "day": "Wed 8/5",
@@ -1246,7 +1262,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "50 min",
           "type": "run",
           "workout": "Zone 2 — easy aerobic",
-          "zone": "50 min · Z2 (120–138)",
+          "zone": "50 min · Z2 (120–137)",
         },
         {
           "day": "Thu 8/6",
@@ -1264,7 +1280,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "45–60 min",
           "type": "strength",
           "workout": "Strength — full body",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Sat 8/8",
@@ -1273,7 +1289,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "80 min",
           "type": "long",
           "workout": "Long easy session",
-          "zone": "80 min · Z2 (120–138)",
+          "zone": "80 min · Z2 (120–137)",
         },
         {
           "day": "Sun 8/9",
@@ -1299,7 +1315,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "50 min",
           "type": "run",
           "workout": "Zone 2 — easy aerobic",
-          "zone": "50 min · Z2 (120–138)",
+          "zone": "50 min · Z2 (120–137)",
         },
         {
           "day": "Tue 8/11",
@@ -1308,7 +1324,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "~45 min",
           "type": "quality",
           "workout": "VO₂max intervals",
-          "zone": "Z4 (166–175)",
+          "zone": "Z4 (166–184)",
         },
         {
           "day": "Wed 8/12",
@@ -1317,7 +1333,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "50 min",
           "type": "run",
           "workout": "Zone 2 — easy aerobic",
-          "zone": "50 min · Z2 (120–138)",
+          "zone": "50 min · Z2 (120–137)",
         },
         {
           "day": "Thu 8/13",
@@ -1335,7 +1351,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "45–60 min",
           "type": "strength",
           "workout": "Strength — full body",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Sat 8/15",
@@ -1344,7 +1360,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "85 min",
           "type": "long",
           "workout": "Long easy session",
-          "zone": "85 min · Z2 (120–138)",
+          "zone": "85 min · Z2 (120–137)",
         },
         {
           "day": "Sun 8/16",
@@ -1370,7 +1386,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "50 min",
           "type": "run",
           "workout": "Zone 2 — easy aerobic",
-          "zone": "50 min · Z2 (120–138)",
+          "zone": "50 min · Z2 (120–137)",
         },
         {
           "day": "Tue 8/18",
@@ -1379,7 +1395,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "~45 min",
           "type": "quality",
           "workout": "VO₂max intervals",
-          "zone": "Z4 (166–175)",
+          "zone": "Z4 (166–184)",
         },
         {
           "day": "Wed 8/19",
@@ -1388,7 +1404,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "50 min",
           "type": "run",
           "workout": "Zone 2 — easy aerobic",
-          "zone": "50 min · Z2 (120–138)",
+          "zone": "50 min · Z2 (120–137)",
         },
         {
           "day": "Thu 8/20",
@@ -1406,7 +1422,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "45–60 min",
           "type": "strength",
           "workout": "Strength — full body",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Sat 8/22",
@@ -1415,7 +1431,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "85 min",
           "type": "long",
           "workout": "Long easy session",
-          "zone": "85 min · Z2 (120–138)",
+          "zone": "85 min · Z2 (120–137)",
         },
         {
           "day": "Sun 8/23",
@@ -1441,7 +1457,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "30 min",
           "type": "run",
           "workout": "Zone 2 — easy aerobic",
-          "zone": "30 min · Z2 (120–138)",
+          "zone": "30 min · Z2 (120–137)",
         },
         {
           "day": "Tue 8/25",
@@ -1450,7 +1466,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "~30 min",
           "type": "quality",
           "workout": "VO₂max intervals",
-          "zone": "Z4 (166–175)",
+          "zone": "Z4 (166–184)",
         },
         {
           "day": "Wed 8/26",
@@ -1459,7 +1475,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "30 min",
           "type": "run",
           "workout": "Zone 2 — easy aerobic",
-          "zone": "30 min · Z2 (120–138)",
+          "zone": "30 min · Z2 (120–137)",
         },
         {
           "day": "Thu 8/27",
@@ -1477,7 +1493,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "35 min",
           "type": "strength",
           "workout": "Strength — deload",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Sat 8/29",
@@ -1486,7 +1502,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
           "time": "45 min",
           "type": "long",
           "workout": "Long easy session",
-          "zone": "45 min · Z2 (120–138)",
+          "zone": "45 min · Z2 (120–137)",
         },
         {
           "day": "Sun 8/30",
@@ -1506,26 +1522,26 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
   "zones": [
     {
       "desc": "Very easy, full conversation",
-      "hr": "101–120",
+      "hr": "101–119",
       "pct": "55–65%",
       "zone": "Z1 – Recovery",
     },
     {
       "desc": "Easy. Can speak in sentences (Talk Test)",
-      "hr": "120–138",
-      "pct": "65–75%",
+      "hr": "120–137",
+      "pct": "65–74%",
       "zone": "Z2 – Aerobic",
     },
     {
       "desc": "Comfortably hard",
-      "hr": "138–156",
-      "pct": "75–85%",
+      "hr": "138–165",
+      "pct": "75–90%",
       "zone": "Z3 – Tempo",
     },
     {
       "desc": "Hard. A few words at most",
-      "hr": "166–175",
-      "pct": "90–95%",
+      "hr": "166–184",
+      "pct": "90–100%",
       "zone": "Z4 – VO₂max",
     },
   ],
@@ -1534,6 +1550,14 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
 
 exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 days · mixed 1`] = `
 {
+  "advisories": [
+    {
+      "detail": "Weeks 5, 7, 9, 11 prescribe byte-for-byte identical content — repetition without progression is maintenance, not training.",
+      "id": "qa_duplicate_weeks",
+      "severity": "caution",
+      "title": "Identical training weeks",
+    },
+  ],
   "athlete": {
     "currentBase": "intermediate · 4 days/week · goal: Build Muscle",
     "equipmentAccess": undefined,
@@ -1568,7 +1592,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
           "time": "40 min",
           "type": "strength",
           "workout": "STRENGTH BENCHMARK: baseline",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Tue 6/9",
@@ -1577,7 +1601,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
           "time": "45–60 min",
           "type": "strength",
           "workout": "Strength — full body",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Wed 6/10",
@@ -1595,7 +1619,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
           "time": "30 min",
           "type": "run",
           "workout": "Zone 2 — easy aerobic",
-          "zone": "30 min · Z2 (120–138)",
+          "zone": "30 min · Z2 (120–137)",
         },
         {
           "day": "Fri 6/12",
@@ -1613,7 +1637,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
           "time": "45–60 min",
           "type": "strength",
           "workout": "Strength — full body",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Sun 6/14",
@@ -1639,7 +1663,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
           "time": "45–60 min",
           "type": "strength",
           "workout": "Strength — full body",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Tue 6/16",
@@ -1648,7 +1672,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
           "time": "45–60 min",
           "type": "strength",
           "workout": "Strength — full body",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Wed 6/17",
@@ -1666,7 +1690,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
           "time": "30 min",
           "type": "run",
           "workout": "Zone 2 — easy aerobic",
-          "zone": "30 min · Z2 (120–138)",
+          "zone": "30 min · Z2 (120–137)",
         },
         {
           "day": "Fri 6/19",
@@ -1684,7 +1708,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
           "time": "45–60 min",
           "type": "strength",
           "workout": "Strength — full body",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Sun 6/21",
@@ -1710,7 +1734,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
           "time": "45–60 min",
           "type": "strength",
           "workout": "Strength — full body",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Tue 6/23",
@@ -1719,7 +1743,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
           "time": "45–60 min",
           "type": "strength",
           "workout": "Strength — full body",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Wed 6/24",
@@ -1737,7 +1761,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
           "time": "30 min",
           "type": "run",
           "workout": "Zone 2 — easy aerobic",
-          "zone": "30 min · Z2 (120–138)",
+          "zone": "30 min · Z2 (120–137)",
         },
         {
           "day": "Fri 6/26",
@@ -1755,7 +1779,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
           "time": "45–60 min",
           "type": "strength",
           "workout": "Strength — full body",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Sun 6/28",
@@ -1781,7 +1805,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
           "time": "35 min",
           "type": "strength",
           "workout": "Strength — deload",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Tue 6/30",
@@ -1790,7 +1814,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
           "time": "35 min",
           "type": "strength",
           "workout": "Strength — deload",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Wed 7/1",
@@ -1808,7 +1832,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
           "time": "20 min",
           "type": "run",
           "workout": "Zone 2 — easy aerobic",
-          "zone": "20 min · Z2 (120–138)",
+          "zone": "20 min · Z2 (120–137)",
         },
         {
           "day": "Fri 7/3",
@@ -1826,7 +1850,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
           "time": "35 min",
           "type": "strength",
           "workout": "Strength — deload",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Sun 7/5",
@@ -1852,7 +1876,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
           "time": "45–60 min",
           "type": "strength",
           "workout": "Strength — full body",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Tue 7/7",
@@ -1861,7 +1885,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
           "time": "45–60 min",
           "type": "strength",
           "workout": "Strength — full body",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Wed 7/8",
@@ -1879,7 +1903,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
           "time": "35 min",
           "type": "run",
           "workout": "Zone 2 — easy aerobic",
-          "zone": "35 min · Z2 (120–138)",
+          "zone": "35 min · Z2 (120–137)",
         },
         {
           "day": "Fri 7/10",
@@ -1897,7 +1921,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
           "time": "45–60 min",
           "type": "strength",
           "workout": "Strength — full body",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Sun 7/12",
@@ -1923,7 +1947,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
           "time": "40 min",
           "type": "strength",
           "workout": "STRENGTH BENCHMARK: re-test",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Tue 7/14",
@@ -1932,7 +1956,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
           "time": "45–60 min",
           "type": "strength",
           "workout": "Strength — full body",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Wed 7/15",
@@ -1950,7 +1974,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
           "time": "35 min",
           "type": "run",
           "workout": "Zone 2 — easy aerobic",
-          "zone": "35 min · Z2 (120–138)",
+          "zone": "35 min · Z2 (120–137)",
         },
         {
           "day": "Fri 7/17",
@@ -1968,7 +1992,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
           "time": "45–60 min",
           "type": "strength",
           "workout": "Strength — full body",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Sun 7/19",
@@ -1994,7 +2018,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
           "time": "45–60 min",
           "type": "strength",
           "workout": "Strength — full body",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Tue 7/21",
@@ -2003,7 +2027,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
           "time": "45–60 min",
           "type": "strength",
           "workout": "Strength — full body",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Wed 7/22",
@@ -2021,7 +2045,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
           "time": "35 min",
           "type": "run",
           "workout": "Zone 2 — easy aerobic",
-          "zone": "35 min · Z2 (120–138)",
+          "zone": "35 min · Z2 (120–137)",
         },
         {
           "day": "Fri 7/24",
@@ -2039,7 +2063,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
           "time": "45–60 min",
           "type": "strength",
           "workout": "Strength — full body",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Sun 7/26",
@@ -2065,7 +2089,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
           "time": "35 min",
           "type": "strength",
           "workout": "Strength — deload",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Tue 7/28",
@@ -2074,7 +2098,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
           "time": "35 min",
           "type": "strength",
           "workout": "Strength — deload",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Wed 7/29",
@@ -2092,7 +2116,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
           "time": "20 min",
           "type": "run",
           "workout": "Zone 2 — easy aerobic",
-          "zone": "20 min · Z2 (120–138)",
+          "zone": "20 min · Z2 (120–137)",
         },
         {
           "day": "Fri 7/31",
@@ -2110,7 +2134,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
           "time": "35 min",
           "type": "strength",
           "workout": "Strength — deload",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Sun 8/2",
@@ -2136,7 +2160,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
           "time": "45–60 min",
           "type": "strength",
           "workout": "Strength — full body",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Tue 8/4",
@@ -2145,7 +2169,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
           "time": "45–60 min",
           "type": "strength",
           "workout": "Strength — full body",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Wed 8/5",
@@ -2163,7 +2187,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
           "time": "35 min",
           "type": "run",
           "workout": "Zone 2 — easy aerobic",
-          "zone": "35 min · Z2 (120–138)",
+          "zone": "35 min · Z2 (120–137)",
         },
         {
           "day": "Fri 8/7",
@@ -2181,7 +2205,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
           "time": "45–60 min",
           "type": "strength",
           "workout": "Strength — full body",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Sun 8/9",
@@ -2207,7 +2231,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
           "time": "45–60 min",
           "type": "strength",
           "workout": "Strength — full body",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Tue 8/11",
@@ -2216,7 +2240,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
           "time": "45–60 min",
           "type": "strength",
           "workout": "Strength — full body",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Wed 8/12",
@@ -2234,7 +2258,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
           "time": "35 min",
           "type": "run",
           "workout": "Zone 2 — easy aerobic",
-          "zone": "35 min · Z2 (120–138)",
+          "zone": "35 min · Z2 (120–137)",
         },
         {
           "day": "Fri 8/14",
@@ -2252,7 +2276,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
           "time": "45–60 min",
           "type": "strength",
           "workout": "Strength — full body",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Sun 8/16",
@@ -2278,7 +2302,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
           "time": "45–60 min",
           "type": "strength",
           "workout": "Strength — full body",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Tue 8/18",
@@ -2287,7 +2311,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
           "time": "45–60 min",
           "type": "strength",
           "workout": "Strength — full body",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Wed 8/19",
@@ -2305,7 +2329,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
           "time": "35 min",
           "type": "run",
           "workout": "Zone 2 — easy aerobic",
-          "zone": "35 min · Z2 (120–138)",
+          "zone": "35 min · Z2 (120–137)",
         },
         {
           "day": "Fri 8/21",
@@ -2323,7 +2347,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
           "time": "45–60 min",
           "type": "strength",
           "workout": "Strength — full body",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Sun 8/23",
@@ -2349,7 +2373,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
           "time": "35 min",
           "type": "strength",
           "workout": "Strength — deload",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Tue 8/25",
@@ -2358,7 +2382,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
           "time": "35 min",
           "type": "strength",
           "workout": "Strength — deload",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Wed 8/26",
@@ -2376,7 +2400,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
           "time": "20 min",
           "type": "run",
           "workout": "Zone 2 — easy aerobic",
-          "zone": "20 min · Z2 (120–138)",
+          "zone": "20 min · Z2 (120–137)",
         },
         {
           "day": "Fri 8/28",
@@ -2394,7 +2418,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
           "time": "35 min",
           "type": "strength",
           "workout": "Strength — deload",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Sun 8/30",
@@ -2414,26 +2438,26 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
   "zones": [
     {
       "desc": "Very easy, full conversation",
-      "hr": "101–120",
+      "hr": "101–119",
       "pct": "55–65%",
       "zone": "Z1 – Recovery",
     },
     {
       "desc": "Easy. Can speak in sentences (Talk Test)",
-      "hr": "120–138",
-      "pct": "65–75%",
+      "hr": "120–137",
+      "pct": "65–74%",
       "zone": "Z2 – Aerobic",
     },
     {
       "desc": "Comfortably hard",
-      "hr": "138–156",
-      "pct": "75–85%",
+      "hr": "138–165",
+      "pct": "75–90%",
       "zone": "Z3 – Tempo",
     },
     {
       "desc": "Hard. A few words at most",
-      "hr": "166–175",
-      "pct": "90–95%",
+      "hr": "166–184",
+      "pct": "90–100%",
       "zone": "Z4 – VO₂max",
     },
   ],
@@ -2442,6 +2466,14 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_muscle · 4 day
 
 exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days · cycling 1`] = `
 {
+  "advisories": [
+    {
+      "detail": "Weeks 7, 9 prescribe byte-for-byte identical content — repetition without progression is maintenance, not training. (+1 more like this)",
+      "id": "qa_duplicate_weeks",
+      "severity": "caution",
+      "title": "Identical training weeks",
+    },
+  ],
   "athlete": {
     "currentBase": "intermediate · 6 days/week · goal: Lose Fat",
     "equipmentAccess": undefined,
@@ -2476,7 +2508,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
           "time": "40 min",
           "type": "strength",
           "workout": "STRENGTH BENCHMARK: baseline",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Tue 6/9",
@@ -2485,7 +2517,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
           "time": "~35 min",
           "type": "quality",
           "workout": "VO₂max intervals",
-          "zone": "Z4 (166–175)",
+          "zone": "Z4 (166–184)",
         },
         {
           "day": "Wed 6/10",
@@ -2494,7 +2526,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
           "time": "45 min",
           "type": "run",
           "workout": "Zone 2 — easy aerobic",
-          "zone": "45 min · Z2 (120–138)",
+          "zone": "45 min · Z2 (120–137)",
         },
         {
           "day": "Thu 6/11",
@@ -2503,7 +2535,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
           "time": "45–60 min",
           "type": "strength",
           "workout": "Strength — full body",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Fri 6/12",
@@ -2512,7 +2544,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
           "time": "~35 min",
           "type": "quality",
           "workout": "VO₂max intervals",
-          "zone": "Z4 (166–175)",
+          "zone": "Z4 (166–184)",
         },
         {
           "day": "Sat 6/13",
@@ -2521,7 +2553,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
           "time": "70 min",
           "type": "long",
           "workout": "Long easy session",
-          "zone": "70 min · Z2 (120–138)",
+          "zone": "70 min · Z2 (120–137)",
         },
         {
           "day": "Sun 6/14",
@@ -2547,7 +2579,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
           "time": "45–60 min",
           "type": "strength",
           "workout": "Strength — full body",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Tue 6/16",
@@ -2556,7 +2588,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
           "time": "~35 min",
           "type": "quality",
           "workout": "VO₂max intervals",
-          "zone": "Z4 (166–175)",
+          "zone": "Z4 (166–184)",
         },
         {
           "day": "Wed 6/17",
@@ -2565,7 +2597,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
           "time": "45 min",
           "type": "run",
           "workout": "Zone 2 — easy aerobic",
-          "zone": "45 min · Z2 (120–138)",
+          "zone": "45 min · Z2 (120–137)",
         },
         {
           "day": "Thu 6/18",
@@ -2574,7 +2606,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
           "time": "45–60 min",
           "type": "strength",
           "workout": "Strength — full body",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Fri 6/19",
@@ -2583,7 +2615,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
           "time": "~35 min",
           "type": "quality",
           "workout": "VO₂max intervals",
-          "zone": "Z4 (166–175)",
+          "zone": "Z4 (166–184)",
         },
         {
           "day": "Sat 6/20",
@@ -2592,7 +2624,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
           "time": "75 min",
           "type": "long",
           "workout": "Long easy session",
-          "zone": "75 min · Z2 (120–138)",
+          "zone": "75 min · Z2 (120–137)",
         },
         {
           "day": "Sun 6/21",
@@ -2618,7 +2650,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
           "time": "45–60 min",
           "type": "strength",
           "workout": "Strength — full body",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Tue 6/23",
@@ -2627,7 +2659,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
           "time": "~40 min",
           "type": "quality",
           "workout": "VO₂max intervals",
-          "zone": "Z4 (166–175)",
+          "zone": "Z4 (166–184)",
         },
         {
           "day": "Wed 6/24",
@@ -2636,7 +2668,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
           "time": "45 min",
           "type": "run",
           "workout": "Zone 2 — easy aerobic",
-          "zone": "45 min · Z2 (120–138)",
+          "zone": "45 min · Z2 (120–137)",
         },
         {
           "day": "Thu 6/25",
@@ -2645,7 +2677,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
           "time": "45–60 min",
           "type": "strength",
           "workout": "Strength — full body",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Fri 6/26",
@@ -2654,7 +2686,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
           "time": "~40 min",
           "type": "quality",
           "workout": "VO₂max intervals",
-          "zone": "Z4 (166–175)",
+          "zone": "Z4 (166–184)",
         },
         {
           "day": "Sat 6/27",
@@ -2663,7 +2695,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
           "time": "75 min",
           "type": "long",
           "workout": "Long easy session",
-          "zone": "75 min · Z2 (120–138)",
+          "zone": "75 min · Z2 (120–137)",
         },
         {
           "day": "Sun 6/28",
@@ -2689,7 +2721,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
           "time": "35 min",
           "type": "strength",
           "workout": "Strength — deload",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Tue 6/30",
@@ -2698,7 +2730,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
           "time": "~30 min",
           "type": "quality",
           "workout": "VO₂max intervals",
-          "zone": "Z4 (166–175)",
+          "zone": "Z4 (166–184)",
         },
         {
           "day": "Wed 7/1",
@@ -2707,7 +2739,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
           "time": "30 min",
           "type": "run",
           "workout": "Zone 2 — easy aerobic",
-          "zone": "30 min · Z2 (120–138)",
+          "zone": "30 min · Z2 (120–137)",
         },
         {
           "day": "Thu 7/2",
@@ -2716,7 +2748,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
           "time": "35 min",
           "type": "strength",
           "workout": "Strength — deload",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Fri 7/3",
@@ -2725,7 +2757,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
           "time": "~30 min",
           "type": "quality",
           "workout": "VO₂max intervals",
-          "zone": "Z4 (166–175)",
+          "zone": "Z4 (166–184)",
         },
         {
           "day": "Sat 7/4",
@@ -2734,7 +2766,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
           "time": "45 min",
           "type": "long",
           "workout": "Long easy session",
-          "zone": "45 min · Z2 (120–138)",
+          "zone": "45 min · Z2 (120–137)",
         },
         {
           "day": "Sun 7/5",
@@ -2760,7 +2792,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
           "time": "45–60 min",
           "type": "strength",
           "workout": "Strength — full body",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Tue 7/7",
@@ -2769,7 +2801,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
           "time": "~45 min",
           "type": "quality",
           "workout": "VO₂max intervals",
-          "zone": "Z4 (166–175)",
+          "zone": "Z4 (166–184)",
         },
         {
           "day": "Wed 7/8",
@@ -2778,7 +2810,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
           "time": "45 min",
           "type": "run",
           "workout": "Zone 2 — easy aerobic",
-          "zone": "45 min · Z2 (120–138)",
+          "zone": "45 min · Z2 (120–137)",
         },
         {
           "day": "Thu 7/9",
@@ -2787,7 +2819,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
           "time": "45–60 min",
           "type": "strength",
           "workout": "Strength — full body",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Fri 7/10",
@@ -2796,7 +2828,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
           "time": "~45 min",
           "type": "quality",
           "workout": "VO₂max intervals",
-          "zone": "Z4 (166–175)",
+          "zone": "Z4 (166–184)",
         },
         {
           "day": "Sat 7/11",
@@ -2805,7 +2837,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
           "time": "75 min",
           "type": "long",
           "workout": "Long easy session",
-          "zone": "75 min · Z2 (120–138)",
+          "zone": "75 min · Z2 (120–137)",
         },
         {
           "day": "Sun 7/12",
@@ -2831,7 +2863,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
           "time": "40 min",
           "type": "strength",
           "workout": "STRENGTH BENCHMARK: re-test",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Tue 7/14",
@@ -2840,7 +2872,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
           "time": "~45 min",
           "type": "quality",
           "workout": "VO₂max intervals",
-          "zone": "Z4 (166–175)",
+          "zone": "Z4 (166–184)",
         },
         {
           "day": "Wed 7/15",
@@ -2849,7 +2881,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
           "time": "50 min",
           "type": "run",
           "workout": "Zone 2 — easy aerobic",
-          "zone": "50 min · Z2 (120–138)",
+          "zone": "50 min · Z2 (120–137)",
         },
         {
           "day": "Thu 7/16",
@@ -2858,7 +2890,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
           "time": "45–60 min",
           "type": "strength",
           "workout": "Strength — full body",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Fri 7/17",
@@ -2867,7 +2899,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
           "time": "~45 min",
           "type": "quality",
           "workout": "VO₂max intervals",
-          "zone": "Z4 (166–175)",
+          "zone": "Z4 (166–184)",
         },
         {
           "day": "Sat 7/18",
@@ -2876,7 +2908,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
           "time": "80 min",
           "type": "long",
           "workout": "Long easy session",
-          "zone": "80 min · Z2 (120–138)",
+          "zone": "80 min · Z2 (120–137)",
         },
         {
           "day": "Sun 7/19",
@@ -2902,7 +2934,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
           "time": "45–60 min",
           "type": "strength",
           "workout": "Strength — full body",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Tue 7/21",
@@ -2911,7 +2943,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
           "time": "~45 min",
           "type": "quality",
           "workout": "VO₂max intervals",
-          "zone": "Z4 (166–175)",
+          "zone": "Z4 (166–184)",
         },
         {
           "day": "Wed 7/22",
@@ -2920,7 +2952,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
           "time": "50 min",
           "type": "run",
           "workout": "Zone 2 — easy aerobic",
-          "zone": "50 min · Z2 (120–138)",
+          "zone": "50 min · Z2 (120–137)",
         },
         {
           "day": "Thu 7/23",
@@ -2929,7 +2961,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
           "time": "45–60 min",
           "type": "strength",
           "workout": "Strength — full body",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Fri 7/24",
@@ -2938,7 +2970,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
           "time": "~45 min",
           "type": "quality",
           "workout": "VO₂max intervals",
-          "zone": "Z4 (166–175)",
+          "zone": "Z4 (166–184)",
         },
         {
           "day": "Sat 7/25",
@@ -2947,7 +2979,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
           "time": "80 min",
           "type": "long",
           "workout": "Long easy session",
-          "zone": "80 min · Z2 (120–138)",
+          "zone": "80 min · Z2 (120–137)",
         },
         {
           "day": "Sun 7/26",
@@ -2973,7 +3005,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
           "time": "35 min",
           "type": "strength",
           "workout": "Strength — deload",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Tue 7/28",
@@ -2982,7 +3014,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
           "time": "~30 min",
           "type": "quality",
           "workout": "VO₂max intervals",
-          "zone": "Z4 (166–175)",
+          "zone": "Z4 (166–184)",
         },
         {
           "day": "Wed 7/29",
@@ -2991,7 +3023,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
           "time": "30 min",
           "type": "run",
           "workout": "Zone 2 — easy aerobic",
-          "zone": "30 min · Z2 (120–138)",
+          "zone": "30 min · Z2 (120–137)",
         },
         {
           "day": "Thu 7/30",
@@ -3000,7 +3032,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
           "time": "35 min",
           "type": "strength",
           "workout": "Strength — deload",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Fri 7/31",
@@ -3009,7 +3041,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
           "time": "~30 min",
           "type": "quality",
           "workout": "VO₂max intervals",
-          "zone": "Z4 (166–175)",
+          "zone": "Z4 (166–184)",
         },
         {
           "day": "Sat 8/1",
@@ -3018,7 +3050,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
           "time": "45 min",
           "type": "long",
           "workout": "Long easy session",
-          "zone": "45 min · Z2 (120–138)",
+          "zone": "45 min · Z2 (120–137)",
         },
         {
           "day": "Sun 8/2",
@@ -3044,7 +3076,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
           "time": "45–60 min",
           "type": "strength",
           "workout": "Strength — full body",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Tue 8/4",
@@ -3053,7 +3085,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
           "time": "~45 min",
           "type": "quality",
           "workout": "VO₂max intervals",
-          "zone": "Z4 (166–175)",
+          "zone": "Z4 (166–184)",
         },
         {
           "day": "Wed 8/5",
@@ -3062,7 +3094,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
           "time": "50 min",
           "type": "run",
           "workout": "Zone 2 — easy aerobic",
-          "zone": "50 min · Z2 (120–138)",
+          "zone": "50 min · Z2 (120–137)",
         },
         {
           "day": "Thu 8/6",
@@ -3071,7 +3103,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
           "time": "45–60 min",
           "type": "strength",
           "workout": "Strength — full body",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Fri 8/7",
@@ -3080,7 +3112,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
           "time": "~45 min",
           "type": "quality",
           "workout": "VO₂max intervals",
-          "zone": "Z4 (166–175)",
+          "zone": "Z4 (166–184)",
         },
         {
           "day": "Sat 8/8",
@@ -3089,7 +3121,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
           "time": "80 min",
           "type": "long",
           "workout": "Long easy session",
-          "zone": "80 min · Z2 (120–138)",
+          "zone": "80 min · Z2 (120–137)",
         },
         {
           "day": "Sun 8/9",
@@ -3115,7 +3147,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
           "time": "45–60 min",
           "type": "strength",
           "workout": "Strength — full body",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Tue 8/11",
@@ -3124,7 +3156,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
           "time": "~45 min",
           "type": "quality",
           "workout": "VO₂max intervals",
-          "zone": "Z4 (166–175)",
+          "zone": "Z4 (166–184)",
         },
         {
           "day": "Wed 8/12",
@@ -3133,7 +3165,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
           "time": "50 min",
           "type": "run",
           "workout": "Zone 2 — easy aerobic",
-          "zone": "50 min · Z2 (120–138)",
+          "zone": "50 min · Z2 (120–137)",
         },
         {
           "day": "Thu 8/13",
@@ -3142,7 +3174,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
           "time": "45–60 min",
           "type": "strength",
           "workout": "Strength — full body",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Fri 8/14",
@@ -3151,7 +3183,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
           "time": "~45 min",
           "type": "quality",
           "workout": "VO₂max intervals",
-          "zone": "Z4 (166–175)",
+          "zone": "Z4 (166–184)",
         },
         {
           "day": "Sat 8/15",
@@ -3160,7 +3192,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
           "time": "85 min",
           "type": "long",
           "workout": "Long easy session",
-          "zone": "85 min · Z2 (120–138)",
+          "zone": "85 min · Z2 (120–137)",
         },
         {
           "day": "Sun 8/16",
@@ -3186,7 +3218,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
           "time": "45–60 min",
           "type": "strength",
           "workout": "Strength — full body",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Tue 8/18",
@@ -3195,7 +3227,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
           "time": "~45 min",
           "type": "quality",
           "workout": "VO₂max intervals",
-          "zone": "Z4 (166–175)",
+          "zone": "Z4 (166–184)",
         },
         {
           "day": "Wed 8/19",
@@ -3204,7 +3236,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
           "time": "50 min",
           "type": "run",
           "workout": "Zone 2 — easy aerobic",
-          "zone": "50 min · Z2 (120–138)",
+          "zone": "50 min · Z2 (120–137)",
         },
         {
           "day": "Thu 8/20",
@@ -3213,7 +3245,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
           "time": "45–60 min",
           "type": "strength",
           "workout": "Strength — full body",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Fri 8/21",
@@ -3222,7 +3254,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
           "time": "~45 min",
           "type": "quality",
           "workout": "VO₂max intervals",
-          "zone": "Z4 (166–175)",
+          "zone": "Z4 (166–184)",
         },
         {
           "day": "Sat 8/22",
@@ -3231,7 +3263,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
           "time": "85 min",
           "type": "long",
           "workout": "Long easy session",
-          "zone": "85 min · Z2 (120–138)",
+          "zone": "85 min · Z2 (120–137)",
         },
         {
           "day": "Sun 8/23",
@@ -3257,7 +3289,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
           "time": "35 min",
           "type": "strength",
           "workout": "Strength — deload",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Tue 8/25",
@@ -3266,7 +3298,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
           "time": "~30 min",
           "type": "quality",
           "workout": "VO₂max intervals",
-          "zone": "Z4 (166–175)",
+          "zone": "Z4 (166–184)",
         },
         {
           "day": "Wed 8/26",
@@ -3275,7 +3307,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
           "time": "30 min",
           "type": "run",
           "workout": "Zone 2 — easy aerobic",
-          "zone": "30 min · Z2 (120–138)",
+          "zone": "30 min · Z2 (120–137)",
         },
         {
           "day": "Thu 8/27",
@@ -3284,7 +3316,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
           "time": "35 min",
           "type": "strength",
           "workout": "Strength — deload",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Fri 8/28",
@@ -3293,7 +3325,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
           "time": "~30 min",
           "type": "quality",
           "workout": "VO₂max intervals",
-          "zone": "Z4 (166–175)",
+          "zone": "Z4 (166–184)",
         },
         {
           "day": "Sat 8/29",
@@ -3302,7 +3334,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
           "time": "45 min",
           "type": "long",
           "workout": "Long easy session",
-          "zone": "45 min · Z2 (120–138)",
+          "zone": "45 min · Z2 (120–137)",
         },
         {
           "day": "Sun 8/30",
@@ -3322,26 +3354,26 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
   "zones": [
     {
       "desc": "Very easy, full conversation",
-      "hr": "101–120",
+      "hr": "101–119",
       "pct": "55–65%",
       "zone": "Z1 – Recovery",
     },
     {
       "desc": "Easy. Can speak in sentences (Talk Test)",
-      "hr": "120–138",
-      "pct": "65–75%",
+      "hr": "120–137",
+      "pct": "65–74%",
       "zone": "Z2 – Aerobic",
     },
     {
       "desc": "Comfortably hard",
-      "hr": "138–156",
-      "pct": "75–85%",
+      "hr": "138–165",
+      "pct": "75–90%",
       "zone": "Z3 – Tempo",
     },
     {
       "desc": "Hard. A few words at most",
-      "hr": "166–175",
-      "pct": "90–95%",
+      "hr": "166–184",
+      "pct": "90–100%",
       "zone": "Z4 – VO₂max",
     },
   ],
@@ -3350,6 +3382,14 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
 
 exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 3 days · beginner · swimming 1`] = `
 {
+  "advisories": [
+    {
+      "detail": "Weeks 2, 3, 5 prescribe byte-for-byte identical content — repetition without progression is maintenance, not training. (+1 more like this)",
+      "id": "qa_duplicate_weeks",
+      "severity": "caution",
+      "title": "Identical training weeks",
+    },
+  ],
   "athlete": {
     "currentBase": "beginner · 3 days/week · goal: Stay Healthy & Fit",
     "equipmentAccess": undefined,
@@ -3384,7 +3424,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 3 day
           "time": "40 min",
           "type": "strength",
           "workout": "STRENGTH BENCHMARK: baseline",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Tue 6/9",
@@ -3402,7 +3442,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 3 day
           "time": "45–60 min",
           "type": "strength",
           "workout": "Strength — full body",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Thu 6/11",
@@ -3429,7 +3469,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 3 day
           "time": "50 min",
           "type": "long",
           "workout": "Long easy session",
-          "zone": "50 min · Z2 (120–138)",
+          "zone": "50 min · Z2 (120–137)",
         },
         {
           "day": "Sun 6/14",
@@ -3455,7 +3495,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 3 day
           "time": "45–60 min",
           "type": "strength",
           "workout": "Strength — full body",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Tue 6/16",
@@ -3473,7 +3513,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 3 day
           "time": "45–60 min",
           "type": "strength",
           "workout": "Strength — full body",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Thu 6/18",
@@ -3500,7 +3540,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 3 day
           "time": "50 min",
           "type": "long",
           "workout": "Long easy session",
-          "zone": "50 min · Z2 (120–138)",
+          "zone": "50 min · Z2 (120–137)",
         },
         {
           "day": "Sun 6/21",
@@ -3526,7 +3566,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 3 day
           "time": "45–60 min",
           "type": "strength",
           "workout": "Strength — full body",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Tue 6/23",
@@ -3544,7 +3584,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 3 day
           "time": "45–60 min",
           "type": "strength",
           "workout": "Strength — full body",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Thu 6/25",
@@ -3571,7 +3611,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 3 day
           "time": "50 min",
           "type": "long",
           "workout": "Long easy session",
-          "zone": "50 min · Z2 (120–138)",
+          "zone": "50 min · Z2 (120–137)",
         },
         {
           "day": "Sun 6/28",
@@ -3597,7 +3637,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 3 day
           "time": "35 min",
           "type": "strength",
           "workout": "Strength — deload",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Tue 6/30",
@@ -3615,7 +3655,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 3 day
           "time": "35 min",
           "type": "strength",
           "workout": "Strength — deload",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Thu 7/2",
@@ -3642,7 +3682,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 3 day
           "time": "30 min",
           "type": "long",
           "workout": "Long easy session",
-          "zone": "30 min · Z2 (120–138)",
+          "zone": "30 min · Z2 (120–137)",
         },
         {
           "day": "Sun 7/5",
@@ -3668,7 +3708,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 3 day
           "time": "45–60 min",
           "type": "strength",
           "workout": "Strength — full body",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Tue 7/7",
@@ -3686,7 +3726,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 3 day
           "time": "45–60 min",
           "type": "strength",
           "workout": "Strength — full body",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Thu 7/9",
@@ -3713,7 +3753,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 3 day
           "time": "50 min",
           "type": "long",
           "workout": "Long easy session",
-          "zone": "50 min · Z2 (120–138)",
+          "zone": "50 min · Z2 (120–137)",
         },
         {
           "day": "Sun 7/12",
@@ -3739,7 +3779,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 3 day
           "time": "40 min",
           "type": "strength",
           "workout": "STRENGTH BENCHMARK: re-test",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Tue 7/14",
@@ -3757,7 +3797,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 3 day
           "time": "45–60 min",
           "type": "strength",
           "workout": "Strength — full body",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Thu 7/16",
@@ -3784,7 +3824,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 3 day
           "time": "50 min",
           "type": "long",
           "workout": "Long easy session",
-          "zone": "50 min · Z2 (120–138)",
+          "zone": "50 min · Z2 (120–137)",
         },
         {
           "day": "Sun 7/19",
@@ -3810,7 +3850,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 3 day
           "time": "45–60 min",
           "type": "strength",
           "workout": "Strength — full body",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Tue 7/21",
@@ -3828,7 +3868,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 3 day
           "time": "45–60 min",
           "type": "strength",
           "workout": "Strength — full body",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Thu 7/23",
@@ -3855,7 +3895,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 3 day
           "time": "55 min",
           "type": "long",
           "workout": "Long easy session",
-          "zone": "55 min · Z2 (120–138)",
+          "zone": "55 min · Z2 (120–137)",
         },
         {
           "day": "Sun 7/26",
@@ -3881,7 +3921,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 3 day
           "time": "35 min",
           "type": "strength",
           "workout": "Strength — deload",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Tue 7/28",
@@ -3899,7 +3939,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 3 day
           "time": "35 min",
           "type": "strength",
           "workout": "Strength — deload",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Thu 7/30",
@@ -3926,7 +3966,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 3 day
           "time": "30 min",
           "type": "long",
           "workout": "Long easy session",
-          "zone": "30 min · Z2 (120–138)",
+          "zone": "30 min · Z2 (120–137)",
         },
         {
           "day": "Sun 8/2",
@@ -3952,7 +3992,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 3 day
           "time": "45–60 min",
           "type": "strength",
           "workout": "Strength — full body",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Tue 8/4",
@@ -3970,7 +4010,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 3 day
           "time": "45–60 min",
           "type": "strength",
           "workout": "Strength — full body",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Thu 8/6",
@@ -3997,7 +4037,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 3 day
           "time": "55 min",
           "type": "long",
           "workout": "Long easy session",
-          "zone": "55 min · Z2 (120–138)",
+          "zone": "55 min · Z2 (120–137)",
         },
         {
           "day": "Sun 8/9",
@@ -4023,7 +4063,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 3 day
           "time": "45–60 min",
           "type": "strength",
           "workout": "Strength — full body",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Tue 8/11",
@@ -4041,7 +4081,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 3 day
           "time": "45–60 min",
           "type": "strength",
           "workout": "Strength — full body",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Thu 8/13",
@@ -4068,7 +4108,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 3 day
           "time": "55 min",
           "type": "long",
           "workout": "Long easy session",
-          "zone": "55 min · Z2 (120–138)",
+          "zone": "55 min · Z2 (120–137)",
         },
         {
           "day": "Sun 8/16",
@@ -4094,7 +4134,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 3 day
           "time": "45–60 min",
           "type": "strength",
           "workout": "Strength — full body",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Tue 8/18",
@@ -4112,7 +4152,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 3 day
           "time": "45–60 min",
           "type": "strength",
           "workout": "Strength — full body",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Thu 8/20",
@@ -4139,7 +4179,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 3 day
           "time": "55 min",
           "type": "long",
           "workout": "Long easy session",
-          "zone": "55 min · Z2 (120–138)",
+          "zone": "55 min · Z2 (120–137)",
         },
         {
           "day": "Sun 8/23",
@@ -4165,7 +4205,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 3 day
           "time": "35 min",
           "type": "strength",
           "workout": "Strength — deload",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Tue 8/25",
@@ -4183,7 +4223,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 3 day
           "time": "35 min",
           "type": "strength",
           "workout": "Strength — deload",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Thu 8/27",
@@ -4210,7 +4250,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 3 day
           "time": "30 min",
           "type": "long",
           "workout": "Long easy session",
-          "zone": "30 min · Z2 (120–138)",
+          "zone": "30 min · Z2 (120–137)",
         },
         {
           "day": "Sun 8/30",
@@ -4230,26 +4270,26 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 3 day
   "zones": [
     {
       "desc": "Very easy, full conversation",
-      "hr": "101–120",
+      "hr": "101–119",
       "pct": "55–65%",
       "zone": "Z1 – Recovery",
     },
     {
       "desc": "Easy. Can speak in sentences (Talk Test)",
-      "hr": "120–138",
-      "pct": "65–75%",
+      "hr": "120–137",
+      "pct": "65–74%",
       "zone": "Z2 – Aerobic",
     },
     {
       "desc": "Comfortably hard",
-      "hr": "138–156",
-      "pct": "75–85%",
+      "hr": "138–165",
+      "pct": "75–90%",
       "zone": "Z3 – Tempo",
     },
     {
       "desc": "Hard. A few words at most",
-      "hr": "166–175",
-      "pct": "90–95%",
+      "hr": "166–184",
+      "pct": "90–100%",
       "zone": "Z4 – VO₂max",
     },
   ],
@@ -4258,6 +4298,14 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 3 day
 
 exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 days · running 1`] = `
 {
+  "advisories": [
+    {
+      "detail": "Weeks 5, 7, 9 prescribe byte-for-byte identical content — repetition without progression is maintenance, not training. (+1 more like this)",
+      "id": "qa_duplicate_weeks",
+      "severity": "caution",
+      "title": "Identical training weeks",
+    },
+  ],
   "athlete": {
     "currentBase": "intermediate · 4 days/week · goal: Stay Healthy & Fit",
     "equipmentAccess": undefined,
@@ -4292,7 +4340,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
           "time": "40 min",
           "type": "strength",
           "workout": "STRENGTH BENCHMARK: baseline",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Tue 6/9",
@@ -4301,7 +4349,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
           "time": "35 min",
           "type": "run",
           "workout": "Zone 2 — easy aerobic",
-          "zone": "35 min · Z2 (120–138)",
+          "zone": "35 min · Z2 (120–137)",
         },
         {
           "day": "Wed 6/10",
@@ -4319,7 +4367,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
           "time": "~35 min",
           "type": "quality",
           "workout": "VO₂max intervals",
-          "zone": "Z4 (166–175)",
+          "zone": "Z4 (166–184)",
         },
         {
           "day": "Fri 6/12",
@@ -4337,7 +4385,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
           "time": "45–60 min",
           "type": "strength",
           "workout": "Strength — full body",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Sun 6/14",
@@ -4363,7 +4411,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
           "time": "45–60 min",
           "type": "strength",
           "workout": "Strength — full body",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Tue 6/16",
@@ -4372,7 +4420,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
           "time": "35 min",
           "type": "run",
           "workout": "Zone 2 — easy aerobic",
-          "zone": "35 min · Z2 (120–138)",
+          "zone": "35 min · Z2 (120–137)",
         },
         {
           "day": "Wed 6/17",
@@ -4390,7 +4438,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
           "time": "~35 min",
           "type": "quality",
           "workout": "VO₂max intervals",
-          "zone": "Z4 (166–175)",
+          "zone": "Z4 (166–184)",
         },
         {
           "day": "Fri 6/19",
@@ -4408,7 +4456,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
           "time": "45–60 min",
           "type": "strength",
           "workout": "Strength — full body",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Sun 6/21",
@@ -4434,7 +4482,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
           "time": "45–60 min",
           "type": "strength",
           "workout": "Strength — full body",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Tue 6/23",
@@ -4443,7 +4491,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
           "time": "40 min",
           "type": "run",
           "workout": "Zone 2 — easy aerobic",
-          "zone": "40 min · Z2 (120–138)",
+          "zone": "40 min · Z2 (120–137)",
         },
         {
           "day": "Wed 6/24",
@@ -4461,7 +4509,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
           "time": "~40 min",
           "type": "quality",
           "workout": "VO₂max intervals",
-          "zone": "Z4 (166–175)",
+          "zone": "Z4 (166–184)",
         },
         {
           "day": "Fri 6/26",
@@ -4479,7 +4527,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
           "time": "45–60 min",
           "type": "strength",
           "workout": "Strength — full body",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Sun 6/28",
@@ -4505,7 +4553,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
           "time": "35 min",
           "type": "strength",
           "workout": "Strength — deload",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Tue 6/30",
@@ -4514,7 +4562,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
           "time": "25 min",
           "type": "run",
           "workout": "Zone 2 — easy aerobic",
-          "zone": "25 min · Z2 (120–138)",
+          "zone": "25 min · Z2 (120–137)",
         },
         {
           "day": "Wed 7/1",
@@ -4532,7 +4580,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
           "time": "~30 min",
           "type": "quality",
           "workout": "VO₂max intervals",
-          "zone": "Z4 (166–175)",
+          "zone": "Z4 (166–184)",
         },
         {
           "day": "Fri 7/3",
@@ -4550,7 +4598,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
           "time": "35 min",
           "type": "strength",
           "workout": "Strength — deload",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Sun 7/5",
@@ -4576,7 +4624,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
           "time": "45–60 min",
           "type": "strength",
           "workout": "Strength — full body",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Tue 7/7",
@@ -4585,7 +4633,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
           "time": "40 min",
           "type": "run",
           "workout": "Zone 2 — easy aerobic",
-          "zone": "40 min · Z2 (120–138)",
+          "zone": "40 min · Z2 (120–137)",
         },
         {
           "day": "Wed 7/8",
@@ -4603,7 +4651,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
           "time": "~45 min",
           "type": "quality",
           "workout": "VO₂max intervals",
-          "zone": "Z4 (166–175)",
+          "zone": "Z4 (166–184)",
         },
         {
           "day": "Fri 7/10",
@@ -4621,7 +4669,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
           "time": "45–60 min",
           "type": "strength",
           "workout": "Strength — full body",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Sun 7/12",
@@ -4647,7 +4695,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
           "time": "40 min",
           "type": "strength",
           "workout": "STRENGTH BENCHMARK: re-test",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Tue 7/14",
@@ -4656,7 +4704,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
           "time": "40 min",
           "type": "run",
           "workout": "Zone 2 — easy aerobic",
-          "zone": "40 min · Z2 (120–138)",
+          "zone": "40 min · Z2 (120–137)",
         },
         {
           "day": "Wed 7/15",
@@ -4674,7 +4722,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
           "time": "~45 min",
           "type": "quality",
           "workout": "VO₂max intervals",
-          "zone": "Z4 (166–175)",
+          "zone": "Z4 (166–184)",
         },
         {
           "day": "Fri 7/17",
@@ -4692,7 +4740,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
           "time": "45–60 min",
           "type": "strength",
           "workout": "Strength — full body",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Sun 7/19",
@@ -4718,7 +4766,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
           "time": "45–60 min",
           "type": "strength",
           "workout": "Strength — full body",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Tue 7/21",
@@ -4727,7 +4775,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
           "time": "40 min",
           "type": "run",
           "workout": "Zone 2 — easy aerobic",
-          "zone": "40 min · Z2 (120–138)",
+          "zone": "40 min · Z2 (120–137)",
         },
         {
           "day": "Wed 7/22",
@@ -4745,7 +4793,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
           "time": "~45 min",
           "type": "quality",
           "workout": "VO₂max intervals",
-          "zone": "Z4 (166–175)",
+          "zone": "Z4 (166–184)",
         },
         {
           "day": "Fri 7/24",
@@ -4763,7 +4811,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
           "time": "45–60 min",
           "type": "strength",
           "workout": "Strength — full body",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Sun 7/26",
@@ -4789,7 +4837,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
           "time": "35 min",
           "type": "strength",
           "workout": "Strength — deload",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Tue 7/28",
@@ -4798,7 +4846,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
           "time": "25 min",
           "type": "run",
           "workout": "Zone 2 — easy aerobic",
-          "zone": "25 min · Z2 (120–138)",
+          "zone": "25 min · Z2 (120–137)",
         },
         {
           "day": "Wed 7/29",
@@ -4816,7 +4864,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
           "time": "~30 min",
           "type": "quality",
           "workout": "VO₂max intervals",
-          "zone": "Z4 (166–175)",
+          "zone": "Z4 (166–184)",
         },
         {
           "day": "Fri 7/31",
@@ -4834,7 +4882,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
           "time": "35 min",
           "type": "strength",
           "workout": "Strength — deload",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Sun 8/2",
@@ -4860,7 +4908,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
           "time": "45–60 min",
           "type": "strength",
           "workout": "Strength — full body",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Tue 8/4",
@@ -4869,7 +4917,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
           "time": "40 min",
           "type": "run",
           "workout": "Zone 2 — easy aerobic",
-          "zone": "40 min · Z2 (120–138)",
+          "zone": "40 min · Z2 (120–137)",
         },
         {
           "day": "Wed 8/5",
@@ -4887,7 +4935,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
           "time": "~45 min",
           "type": "quality",
           "workout": "VO₂max intervals",
-          "zone": "Z4 (166–175)",
+          "zone": "Z4 (166–184)",
         },
         {
           "day": "Fri 8/7",
@@ -4905,7 +4953,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
           "time": "45–60 min",
           "type": "strength",
           "workout": "Strength — full body",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Sun 8/9",
@@ -4931,7 +4979,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
           "time": "45–60 min",
           "type": "strength",
           "workout": "Strength — full body",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Tue 8/11",
@@ -4940,7 +4988,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
           "time": "45 min",
           "type": "run",
           "workout": "Zone 2 — easy aerobic",
-          "zone": "45 min · Z2 (120–138)",
+          "zone": "45 min · Z2 (120–137)",
         },
         {
           "day": "Wed 8/12",
@@ -4958,7 +5006,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
           "time": "~45 min",
           "type": "quality",
           "workout": "VO₂max intervals",
-          "zone": "Z4 (166–175)",
+          "zone": "Z4 (166–184)",
         },
         {
           "day": "Fri 8/14",
@@ -4976,7 +5024,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
           "time": "45–60 min",
           "type": "strength",
           "workout": "Strength — full body",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Sun 8/16",
@@ -5002,7 +5050,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
           "time": "45–60 min",
           "type": "strength",
           "workout": "Strength — full body",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Tue 8/18",
@@ -5011,7 +5059,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
           "time": "45 min",
           "type": "run",
           "workout": "Zone 2 — easy aerobic",
-          "zone": "45 min · Z2 (120–138)",
+          "zone": "45 min · Z2 (120–137)",
         },
         {
           "day": "Wed 8/19",
@@ -5029,7 +5077,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
           "time": "~45 min",
           "type": "quality",
           "workout": "VO₂max intervals",
-          "zone": "Z4 (166–175)",
+          "zone": "Z4 (166–184)",
         },
         {
           "day": "Fri 8/21",
@@ -5047,7 +5095,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
           "time": "45–60 min",
           "type": "strength",
           "workout": "Strength — full body",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Sun 8/23",
@@ -5073,7 +5121,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
           "time": "35 min",
           "type": "strength",
           "workout": "Strength — deload",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Tue 8/25",
@@ -5082,7 +5130,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
           "time": "25 min",
           "type": "run",
           "workout": "Zone 2 — easy aerobic",
-          "zone": "25 min · Z2 (120–138)",
+          "zone": "25 min · Z2 (120–137)",
         },
         {
           "day": "Wed 8/26",
@@ -5100,7 +5148,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
           "time": "~30 min",
           "type": "quality",
           "workout": "VO₂max intervals",
-          "zone": "Z4 (166–175)",
+          "zone": "Z4 (166–184)",
         },
         {
           "day": "Fri 8/28",
@@ -5118,7 +5166,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
           "time": "35 min",
           "type": "strength",
           "workout": "Strength — deload",
-          "zone": "Z1 (101–120)",
+          "zone": "Z1 (101–119)",
         },
         {
           "day": "Sun 8/30",
@@ -5138,26 +5186,26 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
   "zones": [
     {
       "desc": "Very easy, full conversation",
-      "hr": "101–120",
+      "hr": "101–119",
       "pct": "55–65%",
       "zone": "Z1 – Recovery",
     },
     {
       "desc": "Easy. Can speak in sentences (Talk Test)",
-      "hr": "120–138",
-      "pct": "65–75%",
+      "hr": "120–137",
+      "pct": "65–74%",
       "zone": "Z2 – Aerobic",
     },
     {
       "desc": "Comfortably hard",
-      "hr": "138–156",
-      "pct": "75–85%",
+      "hr": "138–165",
+      "pct": "75–90%",
       "zone": "Z3 – Tempo",
     },
     {
       "desc": "Hard. A few words at most",
-      "hr": "166–175",
-      "pct": "90–95%",
+      "hr": "166–184",
+      "pct": "90–100%",
       "zone": "Z4 – VO₂max",
     },
   ],

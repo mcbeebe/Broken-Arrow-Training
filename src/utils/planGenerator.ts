@@ -308,7 +308,7 @@ export function generateHyroxPlan(
   const injuryLeadIn = INJURY_LEADIN_WEEKS[config.injuryStatus ?? 'none'] ?? 0
   // P4.3 — injury-area prehab (previously collected, never acted on).
   const prehabBlock = prehabBlockFor(
-    config.injuryStatus && config.injuryStatus !== 'none' ? config.injuryArea : undefined,
+    config.injuryStatus && config.injuryStatus !== 'none' ? (config.injuryArea ?? 'general') : undefined,
   )
 
   // Anchor run paces to a tested effort when one exists (mirrors General Fitness):
@@ -536,8 +536,10 @@ export function generateHyroxPlan(
         const sub = equipmentSubFor(role)
         if (sub) day = { ...day, detail: `${day.detail} · ${sub}` }
       }
-      // P4.3 — injury-area prehab lands on strength/cross days here too.
-      if (prehabBlock && (day.type === 'strength' || day.type === 'cross')) {
+      // P4.3 — injury-area prehab lands on strength/cross days here too — and
+      // on the 3-day combined strength/stations day whatever variant it took
+      // (its compromised-running weeks still carry the strength block).
+      if (prehabBlock && (day.type === 'strength' || day.type === 'cross' || role === 'strength_stations')) {
         day = { ...day, detail: `${day.detail} · ${prehabBlock}` }
       }
       days.push(day)
@@ -751,7 +753,7 @@ export function generateHyroxPlan(
     zones: plan.zones,
     race: plan.race,
     zonesEstimated: zonesEstimated && injuryLeadIn === 0,
-    injuryArea: config.injuryStatus && config.injuryStatus !== 'none' ? config.injuryArea : undefined,
+    injuryArea: config.injuryStatus && config.injuryStatus !== 'none' ? (config.injuryArea ?? 'general') : undefined,
   })
   const qaAdvisories = qaFindingsToAdvisories(qa)
   if (qaAdvisories.length > 0) {

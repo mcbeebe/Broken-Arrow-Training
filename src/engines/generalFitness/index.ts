@@ -19,6 +19,9 @@ import { GOAL_PRESETS, weeklyRoles, experienceScale, type PillarRole } from './p
 import { buildStrengthDay, parseGoalEmphasis, emphasisLabel, type MuscleEmphasis } from './strength'
 import { hasMenopauseContext } from '../../utils/menopause'
 import { INJURY_LEADIN_WEEKS } from '../../utils/injuryRamp'
+import { prehabBlockFor } from '../planGenerator/prehab'
+import { makeZonesContiguous } from '../planGenerator/generatePlan'
+import { validatePlan, qaFindingsToAdvisories } from '../planQA/validatePlan'
 import { computeMaxHR } from '../../utils/heartRate'
 import { effectivePlanStart } from '../../utils/planDates'
 import { athleteCurrentVdot } from '../planGenerator/paceTargets'
@@ -373,16 +376,21 @@ export function generateGeneralFitnessPlan(
   const goal = config.generalGoal ?? 'stay_healthy'
   const preset = GOAL_PRESETS[goal]
   const maxHR = computeMaxHR(config)
-  const zones = computeZones(maxHR)
+  // P0.6 parity — the GF zone table had a dead band (Z3 topped out at 85%,
+  // Z4 started at 90%) and a ceiling gap above 95%; an all-out effort's HR
+  // belonged to no zone. Same contiguity fix as the race engines.
+  const zones = makeZonesContiguous(computeZones(maxHR), maxHR)
   // P2-10: if the athlete entered a recent race, anchor cardio intensity to it
   // (concrete paces) rather than HR zones only — the GF engine otherwise ignores
   // fitnessAnchor entirely.
   const vdot = athleteCurrentVdot(config)
   const easyPace = vdot ? formatPaceRange(paceBoundsForZone(vdot, 'easy')) : ''
   const vo2Pace = vdot ? formatPaceRange(paceBoundsForZone(vdot, 'vo2max')) : ''
-  const z1 = `Z1 (${Math.round(maxHR * 0.55)}–${Math.round(maxHR * 0.65)})`
-  const z2 = `Z2 (${Math.round(maxHR * 0.65)}–${Math.round(maxHR * 0.75)})${easyPace}`
-  const z4 = `Z4 (${Math.round(maxHR * 0.90)}–${Math.round(maxHR * 0.95)})${vo2Pace}`
+  // Session zone strings read from the (contiguous) table so a day card and
+  // Settings → HR Zones never disagree.
+  const z1 = `Z1 (${zones[0].hr})`
+  const z2 = `Z2 (${zones[1].hr})${easyPace}`
+  const z4 = `Z4 (${zones[3].hr})${vo2Pace}`
 
   const daysPerWeek = Math.min(6, Math.max(3, config.trainingDaysPerWeek))
   const slots = trainingDayNumbers(daysPerWeek)
@@ -408,6 +416,12 @@ export function generateGeneralFitnessPlan(
   // back from / managing an injury, matching the injury-ramp note the day
   // cards surface (utils/injuryRamp). Healthy athletes get 0.
   const injuryLeadInWeeks = INJURY_LEADIN_WEEKS[config.injuryStatus ?? 'none'] ?? 0
+  // P4.3 — the General Fitness path collected injuryStatus/injuryArea and
+  // acted on neither: an injured athlete got zero prehab across ~24 strength
+  // days with no QA warning (audit). Same block, same placement as the race
+  // engines; an injury with no area named gets the generic block.
+  const injuryArea = config.injuryStatus && config.injuryStatus !== 'none' ? (config.injuryArea ?? 'general') : undefined
+  const prehabBlock = prehabBlockFor(injuryArea)
   // Read the athlete's free-text goal ("big biceps", "wider back") for the
   // muscle(s) to emphasize. Drives the direct accessory work on every strength
   // day so the plan visibly serves THEIR goal, not just the preset bucket.
@@ -449,6 +463,19 @@ export function generateGeneralFitnessPlan(
       const m = parseInt(content.time)
       if (!Number.isNaN(m) && (role === 'zone2' || role === 'long' || role === 'cross' || role === 'vo2max')) weekCardioMin += m
       days.push({ day: label, ...content })
+    }
+    if (prehabBlock) {
+      let placed = false
+      for (let i = 0; i < days.length; i++) {
+        if (days[i].type === 'strength' || days[i].type === 'cross') {
+          days[i] = { ...days[i], detail: `${days[i].detail} · ${prehabBlock}` }
+          placed = true
+        }
+      }
+      if (!placed) {
+        const idx = days.findIndex(d => d.type === 'run' || d.type === 'quality')
+        if (idx >= 0) days[idx] = { ...days[idx], detail: `${days[idx].detail} · After the session: ${prehabBlock}` }
+      }
     }
 
     // Week-1 focus names the goal emphasis so the athlete immediately sees the
@@ -498,5 +525,10 @@ export function generateGeneralFitnessPlan(
     nutrition: preset.note,
   }
 
-  return { athlete, zones, race, weeks, generalGoal: goal }
+  // P4.3 — the third generator entrypoint now runs the same QA gate as the
+  // race engines (it ran none), so a defective GF plan cannot ship silently.
+  const qa = validatePlan({ weeks, zones, race, injuryArea })
+  const advisories = qaFindingsToAdvisories(qa)
+
+  return { athlete, zones, race, weeks, generalGoal: goal, advisories }
 }

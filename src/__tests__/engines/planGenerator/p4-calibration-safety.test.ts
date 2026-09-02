@@ -6,6 +6,7 @@
 import { describe, it, expect } from 'vitest'
 import { generatePlanFromMethod } from '../../../engines/planGenerator/generatePlan'
 import { generateHyroxPlan } from '../../../utils/planGenerator'
+import { generateGeneralFitnessPlan } from '../../../engines/generalFitness'
 import { validatePlan, parseTimeRange } from '../../../engines/planQA/validatePlan'
 import { getMethodById } from '../../../data/methods'
 import type { OnboardingConfig } from '../../../hooks/useOnboarding'
@@ -175,6 +176,62 @@ describe('P4.3 — injury-area prehab + descent caution', () => {
     for (const d of kneeNotes) expect(d.detail).toMatch(/Knee\/lower-leg history/)
     expect(knee.advisories?.some(a => a.id === 'descent_caution')).toBe(true)
     expect(healthy.advisories?.some(a => a.id === 'descent_caution')).toBeFalsy()
+  })
+})
+
+describe('P4.3 — the General Fitness path and the no-area case (verified audit)', () => {
+  const gfConfig = (overrides: Partial<OnboardingConfig> = {}): OnboardingConfig => ({
+    raceType: 'general', raceName: 'Summer Fitness', raceDate: '', experienceLevel: 'intermediate', trainingDaysPerWeek: 4,
+    strengthDaysPerWeek: 2, wearable: 'garmin', athleteName: 'Mike', age: 45, maxHR: 200, completedAt: '',
+    generalGoal: 'stay_healthy', cardioModality: 'running', ...overrides,
+  } as unknown as OnboardingConfig)
+
+  it('an injured General Fitness athlete gets the prehab block on every strength day, and the QA gate agrees', () => {
+    const plan = generateGeneralFitnessPlan(gfConfig({ injuryStatus: 'returning', injuryArea: 'knee' }), TODAY)
+    const strength = allDays(plan).filter(d => d.type === 'strength')
+    expect(strength.length).toBeGreaterThan(0)
+    for (const d of strength) expect(d.detail, d.day).toMatch(/PREHAB \(knee\)/)
+    expect(plan.advisories?.some(a => a.id === 'qa_prehab_missing')).toBe(false)
+    const healthy = generateGeneralFitnessPlan(gfConfig(), TODAY)
+    expect(allDays(healthy).some(d => /PREHAB/.test(d.detail))).toBe(false)
+  })
+
+  it('General Fitness plans run the QA gate and ship with no critical findings (zones contiguous, deloads exempt)', () => {
+    for (const cfg of [
+      gfConfig(),
+      gfConfig({ injuryStatus: 'returning', injuryArea: 'knee' }),
+      gfConfig({ generalGoal: 'lose_fat', cardioModality: 'cycling', trainingDaysPerWeek: 5 } as Partial<OnboardingConfig>),
+      gfConfig({ generalGoal: 'build_muscle', trainingDaysPerWeek: 3, strengthDaysPerWeek: 3 } as Partial<OnboardingConfig>),
+    ]) {
+      const plan = generateGeneralFitnessPlan(cfg, TODAY)
+      expect(plan.advisories, 'GF plans carry the QA advisories').toBeDefined()
+      const critical = (plan.advisories ?? []).filter(a => a.severity === 'critical').map(a => a.id)
+      expect(critical, `${cfg.generalGoal} ${cfg.trainingDaysPerWeek}d`).toEqual([])
+      expect(validatePlan({ weeks: plan.weeks, zones: plan.zones }).errors.map(e => e.id)).not.toContain('qa_zone_gaps')
+      expect((plan.advisories ?? []).some(a => a.id === 'qa_load_spike'), 'deload rebounds are not spikes').toBe(false)
+    }
+  })
+
+  it('an injury with no area named is never a silent no-op: the generic block lands on all three engines', () => {
+    const running = generatePlanFromMethod(roche(), mikeConfig({ injuryStatus: 'returning', injuryArea: undefined }), TODAY)
+    const runningPrehab = allDays(running).filter(d => /PREHAB:/.test(d.detail)).length
+    expect(runningPrehab).toBeGreaterThanOrEqual(Math.min(6, running.weeks.length - 1))
+    expect(running.advisories?.some(a => a.id === 'qa_prehab_missing')).toBe(false)
+
+    const hyrox = generateHyroxPlan({ ...mikeConfig({ injuryStatus: 'returning', injuryArea: undefined }), raceType: 'hyrox', raceName: 'Hyrox Anaheim', raceDate: '2026-12-05', equipmentAccess: ['gym'] } as OnboardingConfig, '2026-09-01')
+    expect(allDays(hyrox).some(d => /PREHAB:/.test(d.detail))).toBe(true)
+
+    const gf = generateGeneralFitnessPlan(gfConfig({ injuryStatus: 'current' }), TODAY)
+    expect(allDays(gf).filter(d => d.type === 'strength').every(d => /PREHAB:/.test(d.detail))).toBe(true)
+  })
+
+  it('a 3 d/wk Hyrox athlete on a 4-week runway no longer gets the false "prehab missing" warning', () => {
+    const plan = generateHyroxPlan({
+      ...mikeConfig({ injuryStatus: 'returning', injuryArea: 'knee', trainingDaysPerWeek: 3 }),
+      raceType: 'hyrox', raceName: 'Hyrox Anaheim', raceDate: '2026-10-03', equipmentAccess: ['gym'],
+    } as OnboardingConfig, '2026-09-07')
+    expect(allDays(plan).filter(d => d.type === 'strength').every(d => /PREHAB \(knee\)/.test(d.detail))).toBe(true)
+    expect(plan.advisories?.some(a => a.id === 'qa_prehab_missing')).toBe(false)
   })
 })
 
