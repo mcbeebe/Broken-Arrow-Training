@@ -701,6 +701,26 @@ export function validatePlan(input: PlanQAInput): PlanQAResult {
     })
   }
 
+  // ── P4.2 — no flat-ground pace on a hill session ──────────────────
+  // The v1 defect ("6:50-7:12 /mi" on uphill strides) is an error on any
+  // hills-category day whose zone/detail or any segment carries a pace.
+  {
+    const paceRe = /\d{1,2}:\d{2}\s*(?:[-–]\s*\d{1,2}:\d{2}\s*)?\/mi/
+    for (const w of weeks) {
+      for (const d of w.days) {
+        if (d.plannedWorkout?.category !== 'hills') continue
+        const inText = paceRe.test(d.zone ?? '') || paceRe.test(d.detail ?? '')
+        const inSeg = (d.plannedWorkout.segments ?? []).some(s => s.paceTarget?.paceSecPerMileLow != null)
+        if (!inText && !inSeg) continue
+        add({
+          id: 'qa_pace_on_hills', severity: 'error', weekNum: w.num, day: d.day,
+          title: 'Flat pace on a hill session',
+          detail: `${d.day} "${d.workout}" carries a per-mile pace band — a flat-ground pace has no meaning on a grade; hill work runs by effort and HR.`,
+        })
+      }
+    }
+  }
+
   // ── effort completeness (Phase 2, 104-F4) ─────────────────────────
   // Every run-class card exposes an effort target the athlete can follow
   // (zone/pace/HR/RPE) and a session time. Hyrox scoped out (own engine).

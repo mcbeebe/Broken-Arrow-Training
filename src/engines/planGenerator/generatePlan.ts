@@ -24,7 +24,7 @@ import type {
 } from '../../types/training-method'
 import type { OnboardingConfig, RaceDistance, InjuryStatus } from '../../hooks/useOnboarding'
 import type { PlannedSegment, PlannedWorkout, ResolvedPaces, WeekMileage } from './types'
-import { resolvePaces, formatZoneString, athleteCurrentVdot, blendGoalPaces, isDisplayablePace } from './paceTargets'
+import { resolvePaces, formatZoneString, athleteCurrentVdot, blendGoalPaces, isDisplayablePace, stripPace, withoutPace } from './paceTargets'
 import { sanitizeRaceTimeSeconds, vdotFromRace } from './vdot'
 import {
   chooseTotalWeeks,
@@ -872,6 +872,20 @@ function buildPlannedDay(
     }
   }
 
+  // P4.2 — a hills-category workout never carries a per-mile pace, whatever
+  // the zone's declared strategy: a flat-ground pace on a grade has no
+  // meaning. v1 only suppressed `rpe_only` zones, so Koop's climbing
+  // repeats (a pct_of_hr zone) showed "7:07-7:25 /mi" for every
+  // race-anchored athlete — the exact defect the item was written to kill.
+  // Strip pace from the day target, the detail, and every segment (the
+  // modal and the watch push read the segments).
+  if (plannedWorkout.category === 'hills') {
+    paces = withoutPace(paces)
+    plannedWorkout = {
+      ...plannedWorkout,
+      segments: plannedWorkout.segments.map(seg => seg.paceTarget ? { ...seg, paceTarget: stripPace(seg.paceTarget) } : seg),
+    }
+  }
   const target = paces.byZone[plannedWorkout.primaryZone]
   // Personalize the displayed duration for easy / recovery runs so each
   // week shows a tighter, mileage-aware range instead of the method's

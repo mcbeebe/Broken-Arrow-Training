@@ -74,8 +74,8 @@
       "abbreviation": "Tempo",
       "purpose": "Used only in Intermediate 2 and Advanced plans. ~30-40 minutes building to a fast middle 10-15 min. Roughly half-marathon to 10K race pace.",
       "paceFormula": {
-        "anchorType": "self_assessed_pace",
-        "strategy": "rpe_only",
+        "anchorType": "vdot",
+        "strategy": "vdot_table",
         "expression": "comfortably hard; 10K-HM race pace"
       },
       "rpeRange": { "min": 7, "max": 8, "description": "Comfortably hard; speech limited to short phrases" },
@@ -87,8 +87,8 @@
       "abbreviation": "Speed",
       "purpose": "Used in Advanced plans only. 400m-1600m intervals at 5K race pace. Optional in Intermediate 2.",
       "paceFormula": {
-        "anchorType": "self_assessed_pace",
-        "strategy": "rpe_only",
+        "anchorType": "vdot",
+        "strategy": "vdot_table",
         "expression": "5K-10K race pace"
       },
       "rpeRange": { "min": 8, "max": 9, "description": "Hard; 5K-10K race pace" }

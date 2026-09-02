@@ -11,7 +11,7 @@ import { getMethodById } from '../../../data/methods'
 import type { OnboardingConfig } from '../../../hooks/useOnboarding'
 import { mergeBenchmarkAnchors } from '../../../hooks/useOnboarding'
 import { dayIsoInWeek } from '../../../utils/planDates'
-import { resolveAnchor } from '../../../engines/planGenerator/paceTargets'
+import { resolveAnchor, resolvePaces } from '../../../engines/planGenerator/paceTargets'
 
 const TODAY = '2026-08-16'
 const roche = () => getMethodById('roche_swap')!
@@ -80,6 +80,69 @@ describe('P4.2 — RPE-only zones carry no fake pace band', () => {
     for (const d of hills) {
       expect(d.zone, `${d.day} "${d.workout}" zone reads "${d.zone}"`).not.toMatch(/\d+:\d{2}.*\/mi/)
     }
+  })
+
+  // ── verified audit: the suppression keyed on the wrong predicate, and the
+  // VDOT branch (the one v1 actually broke on) had no test ─────────────
+  const PACE = /\d{1,2}:\d{2}\s*(?:[-–]\s*\d{1,2}:\d{2}\s*)?\/mi/
+  const raceAnchored = (extra: Partial<OnboardingConfig> = {}) => mikeConfig({
+    fitnessAnchor: { type: 'race_10k', valueSeconds: 48 * 60, dateIso: '2026-07-20' }, ...extra,
+  })
+  const noPaceAnywhere = (days: ReturnType<typeof allDays>) => {
+    expect(days.length).toBeGreaterThan(0)
+    for (const d of days) {
+      expect(d.zone, `${d.day} zone`).not.toMatch(PACE)
+      expect(d.detail, `${d.day} detail`).not.toMatch(PACE)
+      for (const s of d.plannedWorkout?.segments ?? []) {
+        expect(s.paceTarget?.paceSecPerMileLow, `${d.day} segment "${s.description}"`).toBeUndefined()
+      }
+    }
+  }
+
+  it('a RACE-anchored athlete (the VDOT branch) still gets no pace on Roche hill strides — day, detail, and segments', () => {
+    const plan = generatePlanFromMethod(roche(), raceAnchored(), TODAY)
+    noPaceAnywhere(allDays(plan).filter(d => /hill strides/i.test(d.workout)))
+  })
+
+  it("Koop's climbing repeats (a pct_of_hr zone, category hills) carry HR and effort but never a flat pace", () => {
+    const koop = getMethodById('koop')!
+    const plan = generatePlanFromMethod(koop, raceAnchored({ raceDistance: '50k', raceDistanceMiles: 31, elevationGainFt: 6000 }), TODAY)
+    const climbs = allDays(plan).filter(d => d.plannedWorkout?.category === 'hills')
+    noPaceAnywhere(climbs)
+    // The real guidance survives: an HR band on the day and the main segment.
+    expect(climbs.some(d => /bpm/.test(d.zone ?? ''))).toBe(true)
+    expect(climbs.some(d => (d.plannedWorkout?.segments ?? []).some(s => s.paceTarget?.hrBpmLow != null))).toBe(true)
+    expect(validatePlan(plan).errors.map(e => e.id)).not.toContain('qa_pace_on_hills')
+  })
+
+  it("Higdon's tempo and speedwork are pace-defined and now resolve to a pace for a race-anchored athlete (easy stays by feel)", () => {
+    // v1 tagged both zones rpe_only although Higdon defines Tempo as
+    // "10K-HM race pace" and Speedwork as "5K-10K race pace": a race-anchored
+    // athlete got no pace for flat 400m repeats. The zones are now
+    // vdot_table; the half-marathon program itself schedules only easy,
+    // long and pace runs, so this is asserted where the zones resolve.
+    const higdon = getMethodById('higdon')!
+    const paces = resolvePaces(higdon, raceAnchored({ raceType: 'road' }))
+    expect(paces.byZone.lactate_threshold?.paceSecPerMileLow).toBeDefined()
+    expect(paces.byZone.vo2max?.paceSecPerMileLow).toBeDefined()
+    expect(paces.byZone.easy?.paceSecPerMileLow).toBeUndefined()
+    // And it is a real threshold band for a 48:00 10K runner (~7:30-8:30 /mi).
+    const t = paces.byZone.lactate_threshold?.paceSecPerMileLow ?? 0
+    expect(t).toBeGreaterThan(6 * 60)
+    expect(t).toBeLessThan(9 * 60)
+  })
+
+  it('qa_pace_on_hills fires when a hill session is stamped with a flat pace', () => {
+    const koop = getMethodById('koop')!
+    const plan = generatePlanFromMethod(koop, raceAnchored({ raceDistance: '50k', raceDistanceMiles: 31, elevationGainFt: 6000 }), TODAY)
+    const tampered = {
+      ...plan,
+      weeks: plan.weeks.map(w => ({
+        ...w,
+        days: w.days.map(d => d.plannedWorkout?.category === 'hills' ? { ...d, zone: 'ClimbingRepeats (Zone 5) · 7:07-7:25 /mi · 163-171 bpm' } : d),
+      })),
+    }
+    expect(validatePlan(tampered).errors.map(e => e.id)).toContain('qa_pace_on_hills')
   })
 })
 
@@ -214,7 +277,7 @@ describe('P4.1 — the copy points at a path that exists', () => {
     expect(test.detail).not.toMatch(/in Settings afterward/)
     expect(test.detail).toMatch(/heart rate/i)
     expect(test.detail).toMatch(/Settings → Calibration/)
-    const adv = plan.advisories?.find(a => a.id === 'zones_estimated')!
+    const adv = (plan.advisories ?? []).find(a => a.id === 'zones_estimated')!
     expect(adv.detail).not.toMatch(/enter the result in Settings/)
     expect(adv.detail).toMatch(/Calibration/)
   })

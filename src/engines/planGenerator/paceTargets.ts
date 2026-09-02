@@ -163,6 +163,26 @@ function pickPreferredMode(t: {
   return 'rpe'
 }
 
+/** P4.2 — a target with its per-mile pace removed (HR/RPE kept). A
+ *  flat-ground pace on a grade has no meaning, so hills-category workouts
+ *  render from these whatever the zone's declared strategy — v1 only
+ *  suppressed `rpe_only` zones and stamped "7:07-7:25 /mi" on Koop's
+ *  climbing repeats for every race-anchored athlete. */
+export function stripPace(target: PaceTarget): PaceTarget {
+  const { paceSecPerMileLow: _lo, paceSecPerMileHigh: _hi, ...rest } = target
+  void _lo; void _hi
+  return { ...rest, preferredMode: pickPreferredMode(rest) }
+}
+
+/** Every zone of `paces` with pace removed (see stripPace). */
+export function withoutPace(paces: ResolvedPaces): ResolvedPaces {
+  const byZone: ResolvedPaces['byZone'] = {}
+  for (const [k, t] of Object.entries(paces.byZone)) {
+    if (t) byZone[k as CanonicalPaceZone] = stripPace(t)
+  }
+  return { ...paces, byZone }
+}
+
 function lthrForHrMath(anchor: AnchorState, config: OnboardingConfig): number {
   // A measured or user-supplied exact LTHR wins for HR math.
   if (config.testedLthrBpm) return config.testedLthrBpm
