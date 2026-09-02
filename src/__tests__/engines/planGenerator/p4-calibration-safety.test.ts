@@ -9,6 +9,9 @@ import { generateHyroxPlan } from '../../../utils/planGenerator'
 import { validatePlan } from '../../../engines/planQA/validatePlan'
 import { getMethodById } from '../../../data/methods'
 import type { OnboardingConfig } from '../../../hooks/useOnboarding'
+import { mergeBenchmarkAnchors } from '../../../hooks/useOnboarding'
+import { dayIsoInWeek } from '../../../utils/planDates'
+import { resolveAnchor } from '../../../engines/planGenerator/paceTargets'
 
 const TODAY = '2026-08-16'
 const roche = () => getMethodById('roche_swap')!
@@ -139,5 +142,87 @@ describe('P4 — personas stay clean through the gate', () => {
       const plan = generatePlanFromMethod(roche(), mikeConfig(overrides), TODAY)
       expect(validatePlan(plan).errors.map(e => `${e.id}: ${e.detail}`), JSON.stringify(overrides)).toEqual([])
     }
+  })
+})
+
+// ── P4.1 (verified audit) — the loop must close without destroying pace,
+// the test must never be dated in the past, and the copy must be honest ──
+const benchmarkIso = (plan: { weeks: { days: { day: string; workout: string }[]; startIso?: string }[] }) => {
+  for (const w of plan.weeks) {
+    const d = w.days.find(x => /BENCHMARK/i.test(x.workout))
+    if (d) return dayIsoInWeek(d.day, w)
+  }
+  return null
+}
+
+describe('P4.1 — the benchmark is never dated in the past', () => {
+  // Week 1 is the Mon–Sun week containing today; v1 placed the TT on week
+  // 1's first quality day even when that day had already gone by.
+  for (const today of ['2026-09-02', '2026-09-05', '2026-09-06']) { // Wed, Sat, Sun
+    it(`running path, onboarding on ${today}: the time trial lands on or after today`, () => {
+      const plan = generatePlanFromMethod(roche(), mikeConfig({ raceDate: '2026-11-21' }), today)
+      const iso = benchmarkIso(plan)
+      expect(iso, 'no benchmark scheduled').not.toBeNull()
+      expect(iso! >= today, `benchmark ${iso} is before today ${today}`).toBe(true)
+    })
+    it(`Hyrox path, onboarding on ${today}: the 1km TT lands on or after today`, () => {
+      const plan = generateHyroxPlan(mikeConfig({
+        raceType: 'hyrox', raceDate: '2026-11-28', raceDistance: undefined, fitnessAnchor: undefined,
+        equipmentAccess: ['gym'],
+      }), today)
+      const iso = benchmarkIso(plan)
+      expect(iso, 'no benchmark scheduled').not.toBeNull()
+      expect(iso! >= today, `benchmark ${iso} is before today ${today}`).toBe(true)
+    })
+  }
+})
+
+describe('P4.1 — applying a measured LTHR keeps the pace anchor', () => {
+  it('a tested LTHR beside an easy-pace anchor: pace bands survive, the estimate advisory retires, no benchmark', () => {
+    const koop = getMethodById('koop')! // primaryAnchor lthr_bpm
+    const untested = generatePlanFromMethod(koop, mikeConfig(), TODAY)
+    const tested = generatePlanFromMethod(koop, mikeConfig({ testedLthrBpm: 163 }), TODAY)
+    const paced = (p: typeof tested) => allDays(p).filter(d => /\/mi/.test(d.zone ?? '')).length
+    expect(paced(untested)).toBeGreaterThan(0)
+    // The v1 failure: Apply swapped the anchor to {type:'lthr'} and this went to 0.
+    expect(paced(tested)).toBeGreaterThanOrEqual(paced(untested))
+    expect(tested.advisories?.some(a => a.id === 'zones_estimated')).toBeFalsy()
+    expect(allDays(tested).some(d => /BENCHMARK/i.test(d.workout))).toBe(false)
+    expect(resolveAnchor(koop, mikeConfig({ testedLthrBpm: 163 })).value).toBe(163)
+  })
+
+  it('mergeBenchmarkAnchors writes testedLthrBpm without touching fitnessAnchor; null clears it', () => {
+    const prev = mikeConfig() // easy_pace 9:30
+    const applied = mergeBenchmarkAnchors(prev, { testedLthrBpm: 163, maxHR: 196 })
+    expect(applied.fitnessAnchor).toEqual(prev.fitnessAnchor)
+    expect(applied.testedLthrBpm).toBe(163)
+    expect(applied.maxHR).toBe(196)
+    const undone = mergeBenchmarkAnchors(applied, { testedLthrBpm: null, maxHR: null })
+    expect(undone.testedLthrBpm).toBeUndefined()
+    expect(undone.maxHR).toBeUndefined()
+    expect(undone.fitnessAnchor).toEqual(prev.fitnessAnchor)
+    // A race anchor is still never overwritten by a legacy lthr fitnessAnchor write.
+    const race = mikeConfig({ fitnessAnchor: { type: 'race_10k', valueSeconds: 2880 } })
+    expect(mergeBenchmarkAnchors(race, { fitnessAnchor: { type: 'lthr', bpm: 160 } }).fitnessAnchor).toEqual(race.fitnessAnchor)
+  })
+})
+
+describe('P4.1 — the copy points at a path that exists', () => {
+  it('the running benchmark and its advisory no longer send the athlete to a Settings form that does not exist', () => {
+    const plan = generatePlanFromMethod(roche(), mikeConfig(), TODAY)
+    const test = allDays(plan).find(d => /BENCHMARK/i.test(d.workout))!
+    expect(test.detail).not.toMatch(/in Settings afterward/)
+    expect(test.detail).toMatch(/heart rate/i)
+    expect(test.detail).toMatch(/Settings → Calibration/)
+    const adv = plan.advisories?.find(a => a.id === 'zones_estimated')!
+    expect(adv.detail).not.toMatch(/enter the result in Settings/)
+    expect(adv.detail).toMatch(/Calibration/)
+  })
+
+  it('the Hyrox benchmark copy names the real closure path', () => {
+    const plan = generateHyroxPlan(mikeConfig({ raceType: 'hyrox', raceDate: '2026-11-28', raceDistance: undefined, fitnessAnchor: undefined, equipmentAccess: ['gym'] }), TODAY)
+    const test = allDays(plan).find(d => /BENCHMARK/i.test(d.workout))!
+    expect(test.detail).not.toMatch(/Enter results in Settings/)
+    expect(test.detail).toMatch(/offers to apply/)
   })
 })

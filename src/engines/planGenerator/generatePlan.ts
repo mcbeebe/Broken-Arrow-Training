@@ -46,7 +46,7 @@ import { INJURY_LEADIN_WEEKS } from '../../utils/injuryRamp'
 import { assessFeasibility, predictRaceTime } from './feasibility'
 import { validatePlan, qaFindingsToAdvisories } from '../planQA/validatePlan'
 import { prehabBlockFor, descentCautionFor } from './prehab'
-import { effectivePlanStart } from '../../utils/planDates'
+import { effectivePlanStart, dayIsoInWeek } from '../../utils/planDates'
 import { computeMaxHR } from '../../utils/heartRate'
 import { configVertGainFt, raceVertGainFt } from '../../utils/raceVert'
 import { applyVertPrescription, isClimbyDensity } from './vertPrescription'
@@ -1367,7 +1367,7 @@ export function generatePlanFromMethod(
   // P4.1 — zones are estimate-grade when there is no tested anchor: no
   // recent race result and no measured LTHR. Estimate-grade plans get a
   // week-1/2 benchmark scheduled (healthy athletes) and an honest advisory.
-  const zonesEstimated = currentVdot == null && config.fitnessAnchor?.type !== 'lthr'
+  const zonesEstimated = currentVdot == null && config.fitnessAnchor?.type !== 'lthr' && config.testedLthrBpm == null
 
   // R1 — the threshold-flavored category the senior policy substitutes VO2
   // slots to: the first the method actually owns workouts for.
@@ -1906,10 +1906,18 @@ export function generatePlanFromMethod(
   // is a partial); an injury lead-in defers it with an honest advisory —
   // nobody time-trials while easing back.
   let benchmarkPlaced = false
-  const placeBenchmarkInWeek = (targetWeek: TrainingWeek): boolean => {
-    let idx = targetWeek.days.findIndex(d => d.type === 'quality')
-    if (idx < 0) idx = targetWeek.days.findIndex(d => d.type === 'run' && !/strides/i.test(d.workout))
-    if (idx < 0) idx = targetWeek.days.findIndex(d => d.type === 'run')
+  const placeBenchmarkInWeek = (targetWeek: TrainingWeek, notBefore?: string): boolean => {
+    // Never date the test in the past: week 1 is the Mon–Sun week that
+    // contains `today`, so a mid-week onboarding used to put the TT on a
+    // day already gone — the athlete never saw it as upcoming.
+    const onOrAfter = (d: PlannedDay) => {
+      if (!notBefore) return true
+      const iso = dayIsoInWeek(d.day, targetWeek)
+      return !iso || iso >= notBefore
+    }
+    let idx = targetWeek.days.findIndex(d => d.type === 'quality' && onOrAfter(d))
+    if (idx < 0) idx = targetWeek.days.findIndex(d => d.type === 'run' && !/strides/i.test(d.workout) && onOrAfter(d))
+    if (idx < 0) idx = targetWeek.days.findIndex(d => d.type === 'run' && onOrAfter(d))
     if (idx >= 0) {
       const ant = paces.byZone.lactate_threshold
       targetWeek.days[idx] = {
@@ -1919,7 +1927,7 @@ export function generatePlanFromMethod(
         detail:
           'Flat course, even effort — the hardest pace you could hold for an hour. ' +
           'Your average HR over the final 15 min ≈ threshold HR; average pace ≈ threshold pace. ' +
-          'Enter both in Settings afterward — every zone in this plan calibrates from this test.',
+          'Record it with heart rate (watch sync, or a manual log with average HR) and the plan reads the result and offers to recalibrate every zone. No watch? Enter your threshold HR in Settings → Calibration.',
         zone: ant ? formatZoneString(ant) : '—',
         route: 'Flat, measured',
         time: '45-50 min',
@@ -1950,8 +1958,8 @@ export function generatePlanFromMethod(
     return false
   }
   if (zonesEstimated && policy.forceEasyLeadInWeeks === 0 && weeks.length > 1) {
-    const targetWeek = weeks[0].days.filter(d => d.type !== 'rest').length >= 3 ? weeks[0] : weeks[1]
-    benchmarkPlaced = placeBenchmarkInWeek(targetWeek)
+    // First eligible day on or after today in week 1, else week 2.
+    benchmarkPlaced = placeBenchmarkInWeek(weeks[0], today) || placeBenchmarkInWeek(weeks[1], today)
   }
 
   // Phase 3 (PRD-107) — anchor freshness. A race anchor with no date (all
@@ -1968,7 +1976,7 @@ export function generatePlanFromMethod(
       id: 'anchor_stale',
       severity: anchorAgeWeeks > 26 ? 'caution' : 'info',
       title: 'Your anchor race is getting old',
-      detail: `Every pace in this plan derives from a race ~${anchorAgeWeeks} weeks ago — fitness has likely moved since (either direction). The mid-plan benchmark revalidates them; enter the result in Settings and the plan updates.`,
+      detail: `Every pace in this plan derives from a race ~${anchorAgeWeeks} weeks ago — fitness has likely moved since (either direction). The mid-plan benchmark revalidates them; record it with heart rate and the plan offers to recalibrate.`,
     })
   }
   const anchorNeedsRevalidation = raceAnchor && (anchorAgeWeeks == null || anchorAgeWeeks > 12)
@@ -1987,8 +1995,8 @@ export function generatePlanFromMethod(
       severity: benchmarkPlaced ? 'info' : 'caution',
       title: 'Zones are estimates until you test',
       detail: benchmarkPlaced
-        ? 'Your paces and HR zones are derived from your self-reported easy pace and age, not a test. The week-1 benchmark time trial calibrates them — enter the result in Settings and the plan updates.'
-        : 'Your paces and HR zones are derived from your self-reported easy pace and age, not a test. Once you are training normally again, run a 20-min time trial (flat, even effort) and enter the result in Settings to calibrate them.',
+        ? 'Your paces and HR zones are derived from your self-reported easy pace and age, not a test. The week-1 benchmark time trial calibrates them — record it with heart rate and the plan offers to recalibrate, or enter your threshold HR in Settings → Calibration.'
+        : 'Your paces and HR zones are derived from your self-reported easy pace and age, not a test. Once you are training normally again, run a 20-min time trial (flat, even effort) with heart rate — the plan reads the result — or enter your threshold HR in Settings → Calibration.',
     })
   }
   if (descentCaution) {

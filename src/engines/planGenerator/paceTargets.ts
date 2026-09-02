@@ -63,6 +63,15 @@ export function resolveAnchor(method: TrainingMethod, config: OnboardingConfig):
 
   // Direct LTHR — best case for HR-anchored methods.
   if (method.primaryAnchor === 'lthr_bpm') {
+    // P4.1 — a benchmark-measured LTHR (kept beside the pace anchor) ranks
+    // with a user-supplied one.
+    if (config.testedLthrBpm) {
+      return {
+        type: 'lthr_bpm',
+        value: config.testedLthrBpm,
+        sourceNote: `Measured LTHR (benchmark): ${config.testedLthrBpm} bpm`,
+      }
+    }
     if (fa?.type === 'lthr' && fa.bpm) {
       return {
         type: 'lthr_bpm',
@@ -155,7 +164,8 @@ function pickPreferredMode(t: {
 }
 
 function lthrForHrMath(anchor: AnchorState, config: OnboardingConfig): number {
-  // If the user gave an exact LTHR, use it for HR math.
+  // A measured or user-supplied exact LTHR wins for HR math.
+  if (config.testedLthrBpm) return config.testedLthrBpm
   if (config.fitnessAnchor?.type === 'lthr' && config.fitnessAnchor.bpm) {
     return config.fitnessAnchor.bpm
   }
