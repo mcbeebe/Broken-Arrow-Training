@@ -646,6 +646,7 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
           fitnessAnchor: buildFitnessAnchor(),
           currentWeeklyMileage: weeklyMileage ? parseFloat(weeklyMileage) : undefined,
           injuryStatus: injury ?? undefined,
+          injuryArea: injury && injury !== 'none' && injuryArea ? injuryArea : undefined,
           planStartDate: planStart || undefined,
           typicalTrainingTempF: trainTemp ?? undefined,
           goalMode: goalMode === 'general' || raceType === 'general' ? undefined : (goalMode ?? 'race'),

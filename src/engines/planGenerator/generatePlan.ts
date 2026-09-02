@@ -1374,7 +1374,8 @@ export function generatePlanFromMethod(
   const raceIsHot = detectHeat(config)
 
   // P4.3 — injury-area-driven prehab + descent caution.
-  const injuryArea = config.injuryStatus && config.injuryStatus !== 'none' ? config.injuryArea : undefined
+  // An injury with no area named still gets the generic block (v1: silent no-op).
+  const injuryArea = config.injuryStatus && config.injuryStatus !== 'none' ? (config.injuryArea ?? 'general') : undefined
   const prehabBlock = prehabBlockFor(injuryArea)
   const descentCaution = isClimby && descentCautionFor(injuryArea)
 
