@@ -727,9 +727,11 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
   // this closes that loop. Same trust pattern as G5: assess, offer,
   // apply-on-tap, undoable.
   const currentLthr =
-    onboarding.config?.fitnessAnchor?.type === 'lthr' && onboarding.config.fitnessAnchor.bpm
-      ? onboarding.config.fitnessAnchor.bpm
-      : Math.round(maxHROverride.maxHR * ESTIMATED_LTHR_PCT_OF_MAX)
+    onboarding.config?.testedLthrBpm
+      ? onboarding.config.testedLthrBpm
+      : onboarding.config?.fitnessAnchor?.type === 'lthr' && onboarding.config.fitnessAnchor.bpm
+        ? onboarding.config.fitnessAnchor.bpm
+        : Math.round(maxHROverride.maxHR * ESTIMATED_LTHR_PCT_OF_MAX)
   const benchAssessment = useMemo(
     () => assessBenchmarkResult(
       weeks, todayDateString(), maxHROverride.maxHR, currentLthr,
@@ -748,6 +750,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     zones: import('./types').HRZone[] | null
     maxHROverride: number | null
     fitnessAnchor: import('./hooks/useOnboarding').FitnessAnchor | null
+    testedLthrBpm: number | null
     configMaxHR: number | null
     /** undefined = erg untouched by this apply; null = there was none. */
     capacity?: import('./engines/strength/benchmark').StrengthCapacity | null
@@ -758,6 +761,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
       zones: hrZones.isCustomized ? hrZones.zones : null,
       maxHROverride: maxHROverride.isCustomized ? maxHROverride.maxHR : null,
       fitnessAnchor: onboarding.config?.fitnessAnchor ?? null,
+      testedLthrBpm: onboarding.config?.testedLthrBpm ?? null,
       configMaxHR: onboarding.config?.maxHR ?? null,
       ...(a.suggestedErg500Sec != null ? { capacity: strengthCapacity.capacity ?? null } : {}),
     }
@@ -779,8 +783,11 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
       ? scaleZoneTable(hrZones.zones, a.currentLthr, a.suggestedLthr)
       : scaleZoneTable(hrZones.zones, a.currentMaxHR, a.suggestedMaxHR ?? a.currentMaxHR)
     handleSaveHRZones(newZones, a.suggestedMaxHR ?? maxHROverride.maxHR)
+    // P4.1 — the measured LTHR lives BESIDE the pace anchor. v1 replaced an
+    // easy-pace anchor with {type:'lthr'} and every /mi band vanished from
+    // the regenerated plan the moment the athlete tested.
     onboarding.applyBenchmarkAnchors({
-      ...(a.suggestedLthr != null ? { fitnessAnchor: { type: 'lthr' as const, bpm: a.suggestedLthr } } : {}),
+      ...(a.suggestedLthr != null ? { testedLthrBpm: a.suggestedLthr } : {}),
       ...(a.suggestedMaxHR != null ? { maxHR: a.suggestedMaxHR } : {}),
     })
     return planEdits.applyBatch(buildZoneAnchorOps(
@@ -796,7 +803,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     if (!snap) return
     if (snap.zones) hrZones.save(snap.zones); else hrZones.reset()
     if (snap.maxHROverride != null) maxHROverride.save(snap.maxHROverride); else maxHROverride.reset()
-    onboarding.applyBenchmarkAnchors({ fitnessAnchor: snap.fitnessAnchor, maxHR: snap.configMaxHR })
+    onboarding.applyBenchmarkAnchors({ fitnessAnchor: snap.fitnessAnchor, testedLthrBpm: snap.testedLthrBpm, maxHR: snap.configMaxHR })
     if (snap.capacity !== undefined) {
       if (snap.capacity) strengthCapacity.save(snap.capacity); else strengthCapacity.clear()
     }
@@ -2370,6 +2377,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           onClearCache={clearAllCachedData}
           onClearAll={clearAllAppData}
           onSetHyroxDivision={onboarding.setHyroxDivision}
+          onSetTestedLthr={bpm => onboarding.applyBenchmarkAnchors({ testedLthrBpm: bpm })}
           onResetOnboarding={() => {
             onboarding.requestRedo()
             setView('today')

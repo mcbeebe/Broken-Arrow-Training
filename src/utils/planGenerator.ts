@@ -4,7 +4,7 @@ import type { PlannedWorkout, PlannedSegment } from '../engines/planGenerator/ty
 import type { WorkoutCategory, CanonicalPaceZone } from '../types/training-method'
 import { buildCrossDetail } from '../engines/planGenerator/extraDays'
 import { menopauseStrengthCue } from './menopause'
-import { effectivePlanStart } from './planDates'
+import { effectivePlanStart, dayIsoInWeek } from './planDates'
 import { INJURY_LEADIN_WEEKS } from './injuryRamp'
 import { computeMaxHR } from './heartRate'
 import { athleteCurrentVdot } from '../engines/planGenerator/paceTargets'
@@ -588,14 +588,20 @@ export function generateHyroxPlan(
   const zonesEstimated = anchorVdot == null
   let benchmarkPlaced = false
   if (zonesEstimated && injuryLeadIn === 0 && totalWeeks >= 3 && weeks.length > 1) {
-    const targetWeek = weeks[0].days.filter(d => d.type !== 'rest').length >= 3 ? weeks[0] : weeks[1]
-    const idx = targetWeek.days.findIndex(d => (d.type === 'run' || d.type === 'quality') && !/long/i.test(d.workout))
+    // P4.1 — never date the test in the past: the first eligible run day
+    // on or after `today` in week 1, else week 2.
+    const pick = (wk: TrainingWeek) => wk.days.findIndex(d =>
+      (d.type === 'run' || d.type === 'quality') && !/long/i.test(d.workout)
+      && (dayIsoInWeek(d.day, wk) ?? today) >= today)
+    let targetWeek = weeks[0]
+    let idx = pick(targetWeek)
+    if (idx < 0) { targetWeek = weeks[1]; idx = pick(targetWeek) }
     if (idx >= 0) {
       targetWeek.days[idx] = {
         day: targetWeek.days[idx].day,
         type: 'quality',
         workout: 'BENCHMARK: 1km time trial + erg baseline',
-        detail: 'Your Hyrox pacing anchor: 15 min easy WU + 4×20s strides · 1km ALL-OUT time trial (record it — race pace ≈ TT pace + 15-25 s/km) · 5 min easy · 1000m SkiErg or Row steady-hard, record the split · easy CD. Enter results in Settings — every "race pace" cue in this plan calibrates from today.',
+        detail: 'Your Hyrox pacing anchor: 15 min easy WU + 4×20s strides · 1km ALL-OUT time trial (record it — race pace ≈ TT pace + 15-25 s/km) · 5 min easy · 1000m SkiErg or Row steady-hard, record the split · easy CD. Record it (watch sync, or a manual log with time and HR) and the plan reads the result and offers to apply it — every "race pace" cue in this plan calibrates from today.',
         zone: z4,
         route: 'Track or flat + gym',
         time: '40-45 min',
@@ -630,8 +636,8 @@ export function generateHyroxPlan(
       severity: benchmarkPlaced ? 'info' : 'caution',
       title: 'Race pace is estimated until you test',
       detail: benchmarkPlaced
-        ? 'No recent race result was provided, so run targets are HR/effort-based. The week-1 benchmark (1km TT + erg baseline) calibrates your race pace — enter the results in Settings.'
-        : 'No recent race result was provided, so run targets are HR/effort-based. Once training normally, run a 1km all-out time trial and a 1000m erg baseline and enter them in Settings to calibrate race pace.',
+        ? 'No recent race result was provided, so run targets are HR/effort-based. The week-1 benchmark (1km TT + erg baseline) calibrates your race pace — record it and the plan offers to apply the result.'
+        : 'No recent race result was provided, so run targets are HR/effort-based. Once training normally, run a 1km all-out time trial and a 1000m erg baseline, record them, and the plan offers to apply the result.',
     })
   }
   if (daysPerWeek >= 7) {

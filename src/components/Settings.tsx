@@ -128,6 +128,9 @@ interface SettingsProps {
   onResetOnboarding?: () => void
   /** P3.1 — change Hyrox division (Open/Pro) without redoing onboarding. */
   onSetHyroxDivision?: (division: 'open' | 'pro') => void
+  /** P4.1 — the calibration entry the benchmark copy promises: a measured
+   *  threshold HR, kept beside the pace anchor. `null` clears it. */
+  onSetTestedLthr?: (bpm: number | null) => void
   /** Current pinned week-1 Monday (ISO), and a non-destructive setter. */
   planStartIso?: string
   onSetPlanStart?: (iso: string) => void
@@ -245,11 +248,13 @@ export default function Settings({
   trainingMethod,
   onboardingConfig,
   onSetHyroxDivision,
+  onSetTestedLthr,
   performance,
   mergedWeeks,
   season,
 }: SettingsProps) {
   const [exportOpen, setExportOpen] = useState(false)
+  const [lthrDraft, setLthrDraft] = useState('')
   void _onAcceptInference
   void _onDismissInference
   const display = useDisplayPreferences(athleteId)
@@ -628,6 +633,41 @@ export default function Settings({
                   >{d === 'open' ? 'Open' : 'Pro'}</button>
                 )
               })}
+            </div>
+          </div>
+        </SettingsSection>
+      )}
+
+      {/* ── Calibration (P4.1) — the entry the benchmark copy promises ── */}
+      {onboardingConfig && onSetTestedLthr && onboardingConfig.raceType !== 'hyrox' && (
+        <SettingsSection title="Calibration">
+          <div className="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700 space-y-3">
+            <p className="text-sm text-slate-600 dark:text-slate-400">
+              {onboardingConfig.testedLthrBpm
+                ? `Threshold HR: ${onboardingConfig.testedLthrBpm} bpm (measured). Every HR band in your plan derives from it; your pace anchor is untouched.`
+                : 'Your HR bands are estimated from max HR until you test. Ran a 20-min time trial? Enter the average HR over the final 15 min × 0.95 here — or log the session with heart rate and the plan reads it for you.'}
+            </p>
+            <div className="flex gap-2 items-center">
+              <input
+                type="number"
+                inputMode="numeric"
+                placeholder="bpm"
+                aria-label="Threshold heart rate in bpm"
+                value={lthrDraft}
+                onChange={e => setLthrDraft(e.target.value)}
+                className="w-24 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-2 py-1.5 text-sm"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  const v = parseInt(lthrDraft, 10)
+                  if (v >= 100 && v <= 220) { onSetTestedLthr(v); setLthrDraft('') }
+                }}
+                className="rounded-lg bg-teal-600 px-3 py-1.5 text-sm font-semibold text-white"
+              >Save threshold HR</button>
+              {onboardingConfig.testedLthrBpm && (
+                <button type="button" onClick={() => onSetTestedLthr(null)} className="text-sm text-slate-500 underline">Clear</button>
+              )}
             </div>
           </div>
         </SettingsSection>

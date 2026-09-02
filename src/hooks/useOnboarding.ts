@@ -189,6 +189,12 @@ export interface OnboardingConfig {
   // Objective fitness benchmark: recent race time, LTHR, or self-reported easy pace.
   // Drives pace/HR zone derivation for plan intensities.
   fitnessAnchor?: FitnessAnchor
+  /** P4.1 — threshold HR measured by a completed benchmark (or typed in
+   *  Settings → Calibration). Lives BESIDE fitnessAnchor: a tested LTHR must
+   *  never replace the easy-pace / race anchor that pace targets are
+   *  synthesized from — v1's Apply overwrote it and every /mi band vanished
+   *  from the regenerated plan at the exact moment the athlete tested. */
+  testedLthrBpm?: number
   // Current weekly running mileage (miles). Used to cap volume ramp safely.
   currentWeeklyMileage?: number
   injuryStatus?: InjuryStatus
@@ -304,6 +310,38 @@ function scopedRedoKey(athleteId?: string) {
 
 function scopedPrevKey(athleteId?: string) {
   return athleteId ? `${PREV_KEY}_${athleteId}` : PREV_KEY
+}
+
+/** Anchors a completed benchmark (or the Settings calibration entry) writes
+ *  onto the config. Pure so the Apply/undo pipeline is testable. `null`
+ *  removes a field (undo restore); `undefined` leaves it untouched. A
+ *  race-result fitnessAnchor is never overwritten — it feeds VDOT pace
+ *  targets that an LTHR anchor can't replace; a tested LTHR goes to
+ *  `testedLthrBpm` so the pace anchor survives. */
+export interface BenchmarkAnchors {
+  fitnessAnchor?: FitnessAnchor | null
+  maxHR?: number | null
+  testedLthrBpm?: number | null
+}
+export function mergeBenchmarkAnchors(prev: OnboardingConfig, anchors: BenchmarkAnchors): OnboardingConfig {
+  const next = { ...prev }
+  if (anchors.fitnessAnchor !== undefined) {
+    const prevIsRace = prev.fitnessAnchor?.type?.startsWith('race_')
+    const nextIsRestore = anchors.fitnessAnchor === null || anchors.fitnessAnchor?.type?.startsWith('race_')
+    if (!prevIsRace || nextIsRestore) {
+      if (anchors.fitnessAnchor === null) delete next.fitnessAnchor
+      else next.fitnessAnchor = anchors.fitnessAnchor
+    }
+  }
+  if (anchors.maxHR !== undefined) {
+    if (anchors.maxHR === null) delete next.maxHR
+    else next.maxHR = anchors.maxHR
+  }
+  if (anchors.testedLthrBpm !== undefined) {
+    if (anchors.testedLthrBpm === null) delete next.testedLthrBpm
+    else next.testedLthrBpm = anchors.testedLthrBpm
+  }
+  return next
 }
 
 export function useOnboarding(athleteId?: string) {
@@ -607,22 +645,10 @@ export function useOnboarding(athleteId?: string) {
    * fitnessAnchor is never overwritten — it feeds VDOT pace targets that
    * an LTHR anchor can't replace.
    */
-  const applyBenchmarkAnchors = useCallback((anchors: { fitnessAnchor?: FitnessAnchor | null; maxHR?: number | null }) => {
+  const applyBenchmarkAnchors = useCallback((anchors: BenchmarkAnchors) => {
     setConfig(prev => {
       if (!prev) return prev
-      const next = { ...prev }
-      if (anchors.fitnessAnchor !== undefined) {
-        const prevIsRace = prev.fitnessAnchor?.type?.startsWith('race_')
-        const nextIsRestore = anchors.fitnessAnchor === null || anchors.fitnessAnchor?.type?.startsWith('race_')
-        if (!prevIsRace || nextIsRestore) {
-          if (anchors.fitnessAnchor === null) delete next.fitnessAnchor
-          else next.fitnessAnchor = anchors.fitnessAnchor
-        }
-      }
-      if (anchors.maxHR !== undefined) {
-        if (anchors.maxHR === null) delete next.maxHR
-        else next.maxHR = anchors.maxHR
-      }
+      const next = mergeBenchmarkAnchors(prev, anchors)
       const k = scopedKey(athleteId)
       try { localStorage.setItem(k, JSON.stringify(next)); stampKey(k) } catch { /* quota */ }
       return next
