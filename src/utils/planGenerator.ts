@@ -383,7 +383,7 @@ export function generateHyroxPlan(
         // work — capped at 35 min this week regardless of level.
         const role = roles[roleIdx] || 'run'
         roleIdx++
-        const shakeout = getHyroxWorkoutByRole(role, 'taper', true, P, weakStation, z1, z2, z3, z4, easyPace, tempoPace, cvPace, w, config.crossTrainingModes)
+        const shakeout = getHyroxWorkoutByRole(role, 'taper', true, P, weakStation, z1, z2, z3, z4, easyPace, tempoPace, cvPace, w, config.crossTrainingModes, specs)
         const shakeMin = parseInt(shakeout.time?.match(/(\d+)\s*min/)?.[1] ?? '0', 10)
         days.push(shakeMin > 35
           ? { day: dayLabel, ...shakeout, detail: `Race week — short and easy. ${shakeout.detail}`, time: '30 min', zone: `3 mi · ${z1}` }
@@ -580,6 +580,18 @@ export function generateHyroxPlan(
       severity: 'caution',
       title: 'No full simulation scheduled',
       detail: 'The plan could not place a full 8-run + 8-station race simulation in the 10-17 days pre-race window. Slot one yourself about two weeks out — it is the best predictor of race day.',
+    })
+  }
+  if (config.sex !== 'female' && config.sex !== 'male') {
+    // P3.1 — never silently hand a woman the men's load table. The sex
+    // question is optional; when it is unanswered, say which table the
+    // plan assumed and where to change it.
+    advisories.push({
+      id: 'hyrox_loads_assumed',
+      severity: 'info',
+      title: 'Station loads use the men’s table',
+      detail: `Biological sex isn’t set, so every station load here is the men’s ${division === 'pro' ? 'Pro' : 'Open'} spec (sled push ${specs[1].load}, wall balls ${specs[7].load}). Women’s loads are lighter across the board.`,
+      suggestion: 'Set biological sex in Settings → Profile and the plan re-renders with the right loads.',
     })
   }
   if (!hasGym) {

@@ -389,6 +389,10 @@ export interface RaceInfo {
    *  with format 'hyrox' goes through the Hyrox engine). Absent on legacy
    *  races — detection falls back to name/distance/description. */
   format?: 'road' | 'trail' | 'hyrox';
+  /** Hyrox division for a Hyrox-format season race (P3.1). Loads differ
+   *  radically between Open and Pro, so the race carries its OWN division
+   *  instead of inheriting the anchor athlete's. */
+  hyroxDivision?: 'open' | 'pro';
   /** Athlete's free-text goal/target for the race/event, from onboarding. */
   athleteGoal?: string;
   loriNote?: string;

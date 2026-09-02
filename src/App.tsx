@@ -39,7 +39,7 @@ import { useTravelMode } from './hooks/useTravelMode'
 import { buildTravelBatch, type TravelDeclaration, type TravelWindow } from './engines/planGenerator/travelMode'
 import { useReadiness } from './hooks/useReadiness'
 import { useOnboarding } from './hooks/useOnboarding'
-import { useAthleteProfile } from './hooks/useAthleteProfile'
+import { useAthleteProfile, readAthleteProfileExtras } from './hooks/useAthleteProfile'
 import { getReadinessTuning } from './utils/engineConfig'
 import { useTutorial } from './hooks/useTutorial'
 import Onboarding from './components/Onboarding'
@@ -283,7 +283,12 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
     // never mutated. Synchronous cache reads — safe in this hook-free
     // block (see the NOTE above).
     const genConfig = (() => {
-      const cfg = onboarding.config
+      // P3.1 — biological sex set later in the profile editor reaches the
+      // Hyrox load table (onboarding's optional answer wins when present).
+      const profileSex = readAthleteProfileExtras(athleteId).sex
+      const cfg = !onboarding.config.sex && (profileSex === 'male' || profileSex === 'female')
+        ? { ...onboarding.config, sex: profileSex }
+        : onboarding.config
       if (cfg.currentWeeklyMileage != null) return cfg
       const derived = deriveFitnessFromHistory(athleteId, todayDateString())
       return derived.weeklyMileage4wk != null
@@ -2364,6 +2369,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           onResetHRZones={handleResetHRZones}
           onClearCache={clearAllCachedData}
           onClearAll={clearAllAppData}
+          onSetHyroxDivision={onboarding.setHyroxDivision}
           onResetOnboarding={() => {
             onboarding.requestRedo()
             setView('today')

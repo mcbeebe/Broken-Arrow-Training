@@ -95,7 +95,8 @@ export function spliceSeasonWeeks(
   if (anchorIso) {
     for (const race of season.races.slice(1)) {
       if (race.integration === 'layered') {
-        trimmedBase = layerSecondaryWork(trimmedBase, race, anchorIso, today)
+        trimmedBase = layerSecondaryWork(trimmedBase, race, anchorIso, today,
+          config ? { hyroxDivision: config.hyroxDivision, sex: config.sex } : undefined)
       }
     }
   }
@@ -437,7 +438,7 @@ function raceDayCard(iso: string, raceName: string, trainThrough: boolean): Plan
  *  generator (no date). */
 function configForSeasonRace(
   config: OnboardingConfig,
-  race: { raceInfo: { name: string; date: string; distance?: string; distanceMiles: number; elevationGainFt?: number; description?: string; format?: 'road' | 'trail' | 'hyrox' } },
+  race: { raceInfo: { name: string; date: string; distance?: string; distanceMiles: number; elevationGainFt?: number; description?: string; format?: 'road' | 'trail' | 'hyrox'; hyroxDivision?: 'open' | 'pro' } },
 ): (OnboardingConfig & { raceDate: string }) | null {
   const iso = raceDateToIso(race.raceInfo.date)
   if (!iso) return null
@@ -450,6 +451,10 @@ function configForSeasonRace(
   return {
     ...config,
     raceType: hyrox ? 'hyrox' : runType,
+    // P3.1 — a Hyrox season race carries its OWN division; the anchor
+    // athlete's division is only a fallback (v1 generated every non-anchor
+    // Hyrox block at Open loads, Pro athletes included).
+    hyroxDivision: hyrox ? (race.raceInfo.hyroxDivision ?? config.hyroxDivision) : config.hyroxDivision,
     raceName: race.raceInfo.name,
     raceDate: iso,
     raceDescription: race.raceInfo.description ?? undefined,

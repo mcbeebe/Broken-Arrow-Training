@@ -135,3 +135,28 @@ describe('normalizeSeasonConfig — earliest race anchors the plan', () => {
     expect(normalizeSeasonConfig({ ...base, raceDate: '', additionalRaces: [{ name: 'X', date: '2026-10-01', priority: 'B' }] }).raceName).toBe(base.raceName)
   })
 })
+
+describe('P3.1 — division travels through the anchor promotion', () => {
+  it('a promoted Hyrox brings its own division onto the config', () => {
+    const config: OnboardingConfig = {
+      ...base,
+      raceType: 'road', raceName: 'CIM Marathon', raceDate: '2027-04-11', raceDistance: 'marathon',
+      additionalRaces: [{ name: 'Hyrox LA', date: '2026-11-07', priority: 'B', format: 'hyrox', hyroxDivision: 'pro' }],
+    }
+    const n = normalizeSeasonConfig(config)
+    expect(n.raceType).toBe('hyrox')
+    expect(n.hyroxDivision).toBe('pro')
+  })
+
+  it('a demoted Hyrox keeps the division it was entered with', () => {
+    const config: OnboardingConfig = {
+      ...base,
+      raceType: 'hyrox', raceName: 'Hyrox Dallas', raceDate: '2026-12-12', raceDistance: undefined, hyroxDivision: 'pro',
+      additionalRaces: [{ name: 'Turkey Trot', date: '2026-11-26', priority: 'C', format: 'road', distanceMiles: 3.1 }],
+    }
+    const n = normalizeSeasonConfig(config)
+    expect(n.raceType).toBe('road')
+    const dallas = n.additionalRaces!.find(r => r.name === 'Hyrox Dallas')!
+    expect(dallas).toMatchObject({ format: 'hyrox', hyroxDivision: 'pro' })
+  })
+})

@@ -1,7 +1,7 @@
 import type { PlannedDay, SeasonRace, TrainingWeek } from '../../types'
 import { isHyroxRaceInfo } from './planSeason'
 import { parseDayToDate } from '../../utils/planDates'
-import { stationSpecs, stationCircuit } from '../hyrox/spec'
+import { stationSpecs, stationCircuit, type StationSpec } from '../hyrox/spec'
 import { LAYERED_RAMP } from '../hyrox/heuristics'
 
 /**
@@ -46,17 +46,16 @@ const TRANSFORMABLE = new Set<PlannedDay['type']>(['strength', 'cross'])
  * B: strength-endurance + grip) so consecutive weeks never read the same,
  * with volumes ramping toward race spec across the run.
  */
-function hyroxLayeredDay(day: PlannedDay, raceName: string, pos: number, totalEligible: number): PlannedDay {
+function hyroxLayeredDay(day: PlannedDay, raceName: string, pos: number, totalEligible: number, specs: StationSpec[]): PlannedDay {
   const t = totalEligible > 1 ? pos / (totalEligible - 1) : 1 // 0 → 1 across the eligible run
   const ramp = LAYERED_RAMP.value
   const pct = ramp.startPct + (ramp.endPct - ramp.startPct) * t // submaximal by doctrine: the anchor race owns the plan
-  const specs = stationSpecs()
   const isA = pos % 2 === 0
   const detail = isA
     ? `STATIONS (progressive): ${stationCircuit(specs, pct)} · Moderate effort, crisp form. ` +
       `Layered toward ${raceName} — your run plan is unchanged.`
     : `STRENGTH-ENDURANCE: Walking lunges 3×${10 + Math.round(4 * t)}/leg · Wall balls ${Math.round((20 + 30 * t) / 5) * 5} unbroken sets · ` +
-      `Farmer carry ${Math.round((60 + 80 * t) / 10) * 10}m @ race load · Burpee broad jumps ${Math.round((20 + 30 * t) / 5) * 5}m · ` +
+      `Farmer carry ${Math.round((60 + 80 * t) / 10) * 10}m @ ${specs[5].load} · Burpee broad jumps ${Math.round((20 + 30 * t) / 5) * 5}m · ` +
       `GRIP: 2× dead hang to near-failure. Layered toward ${raceName} — your run plan is unchanged.`
   return {
     ...day,
@@ -73,9 +72,19 @@ export function layerSecondaryWork(
   race: SeasonRace,
   anchorRaceIso: string,
   today: string,
+  /** The athlete's own division/sex (config) — a fallback when the race
+   *  carries no division of its own. */
+  athlete?: { hyroxDivision?: 'open' | 'pro'; sex?: string },
 ): TrainingWeek[] {
   if (race.integration !== 'layered') return anchorWeeks
   if (!isHyroxRaceInfo(race.raceInfo)) return anchorWeeks
+  // P3.1 — layered sessions render from THIS race's division and the
+  // athlete's sex, never the men's Open default (v1 prescribed 152 kg sled
+  // pushes to every woman on this path).
+  const specs = stationSpecs(
+    race.raceInfo.hyroxDivision ?? athlete?.hyroxDivision ?? 'open',
+    athlete?.sex === 'female' ? 'female' : 'male',
+  )
 
   // Guard boundary: no layered work inside the anchor's final 2 pre-race
   // weeks (taper is sacred) or race week.
@@ -112,7 +121,7 @@ export function layerSecondaryWork(
       if (!TRANSFORMABLE.has(d.type) || d.actual) continue
       const iso = parseDayToDate(d.day, w.dates, anchorRaceIso)
       if (iso && iso < today) continue // history stays history
-      w.days[i] = hyroxLayeredDay(d, race.raceInfo.name, pos, eligible.length)
+      w.days[i] = hyroxLayeredDay(d, race.raceInfo.name, pos, eligible.length, specs)
       applied++
     }
   })

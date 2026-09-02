@@ -103,6 +103,10 @@ export interface AdditionalRace {
    *  Routes generation directly (no name-sniffing). Absent on legacy
    *  captures — detection falls back to name/description. */
   format?: 'road' | 'trail' | 'hyrox'
+  /** Open/Pro for a Hyrox-format race (P3.1). Flows onto the race's
+   *  RaceInfo and into the spliced block's generation config so a Pro
+   *  athlete's second race is never generated at Open loads. */
+  hyroxDivision?: 'open' | 'pro'
   /** This race is the season's MAIN GOAL (the explicit "Which race is
    *  your main goal?" answer). At most one across anchor + additions;
    *  when set here, `anchorIsPrimary` is false. */
@@ -494,6 +498,19 @@ export function useOnboarding(athleteId?: string) {
     })
   }, [athleteId])
 
+  /** P3.1 — Hyrox division (Open/Pro) editable from Settings without a
+   *  redo. Non-destructive like setWeakStation: the plan re-derives its
+   *  station loads from the new spec; nothing else changes. */
+  const setHyroxDivision = useCallback((division: 'open' | 'pro') => {
+    setConfig(prev => {
+      if (!prev || (prev.hyroxDivision ?? 'open') === division) return prev
+      const next = { ...prev, hyroxDivision: division }
+      const k = scopedKey(athleteId)
+      try { localStorage.setItem(k, JSON.stringify(next)); stampKey(k) } catch { /* quota */ }
+      return next
+    })
+  }, [athleteId])
+
   /** User-driven plan-start adjustment (Settings → "Adjust plan start").
    *  Unlike pinPlanStart — a one-time migration that never overwrites — this
    *  OVERWRITES the pin so the athlete can nudge week 1, e.g. when a mid-block
@@ -625,6 +642,7 @@ export function useOnboarding(athleteId?: string) {
     pinPlanStart,
     setPlanStart,
     setWeakStation,
+    setHyroxDivision,
     planBackups,
     restorePlan,
     markConnectStepSeen,

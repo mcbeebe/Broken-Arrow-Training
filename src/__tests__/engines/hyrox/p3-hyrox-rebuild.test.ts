@@ -127,3 +127,48 @@ describe('P3 — the whole plan passes the QA gate', () => {
     expect(validatePlan(plan).errors.map(e => `${e.id}: ${e.detail}`)).toEqual([])
   })
 })
+
+describe('P3.1 — division and sex reach every station line (regression-safe)', () => {
+  // The audit's mutation: the female branch of stationSpecs() could be
+  // deleted and the suite stayed green, because the only division assertion
+  // was satisfied by the sim overlays. These pin the PROGRESSIVE days.
+  const rampDays = (plan: ReturnType<typeof generateHyroxPlan>) =>
+    allDays(plan).filter(d => /^Station circuit/.test(d.workout))
+
+  it("a female Open athlete's ramp days carry the women's loads, never the men's", () => {
+    const plan = generateHyroxPlan(config({ sex: 'female' }), '2026-09-01')
+    const days = rampDays(plan)
+    expect(days.length).toBeGreaterThan(0)
+    const text = days.map(d => d.detail).join('\n')
+    expect(text).toContain('102 kg')          // women's Open sled push
+    expect(text).not.toContain('152 kg')      // men's Open sled push
+    expect(text).toContain('4 kg to 2.7 m')   // women's wall ball
+  })
+
+  it("a Pro (male) athlete's ramp days carry Pro loads, never Open", () => {
+    const plan = generateHyroxPlan(config({ hyroxDivision: 'pro' }), '2026-09-01')
+    const text = rampDays(plan).map(d => d.detail).join('\n')
+    expect(text).toContain('202 kg')
+    expect(text).not.toContain('152 kg')
+  })
+
+  it("race-week 'Light station practice' renders from the athlete's spec, not the default", () => {
+    // v1 called getHyroxWorkoutByRole without `specs` in race week, so every
+    // woman was told to use a 6 kg ball to 3.0 m the week of her race.
+    const plan = generateHyroxPlan(config({ sex: 'female' }), '2026-09-01')
+    const raceWeek = plan.weeks[plan.weeks.length - 1]
+    const practice = raceWeek.days.find(d => d.workout === 'Light station practice')
+    expect(practice, 'race week should carry a light station practice').toBeDefined()
+    expect(practice!.detail).toContain('4 kg to 2.7 m')
+    expect(practice!.detail).not.toContain('6 kg to 3.0 m')
+  })
+
+  it('an unset sex is never silent — the plan says which load table it assumed', () => {
+    const unset = generateHyroxPlan(config(), '2026-09-01')
+    expect(unset.advisories?.some(a => a.id === 'hyrox_loads_assumed')).toBe(true)
+    const female = generateHyroxPlan(config({ sex: 'female' }), '2026-09-01')
+    expect(female.advisories?.some(a => a.id === 'hyrox_loads_assumed')).toBe(false)
+    const male = generateHyroxPlan(config({ sex: 'male' }), '2026-09-01')
+    expect(male.advisories?.some(a => a.id === 'hyrox_loads_assumed')).toBe(false)
+  })
+})

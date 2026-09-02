@@ -177,11 +177,13 @@ interface SeasonRaceRow {
   /** null = no chip tapped yet — format is inferred from name/description
    *  (so a row named "Hyrox LA" routes correctly without a tap). */
   format: 'road' | 'trail' | 'hyrox' | null
+  /** Open/Pro for Hyrox-format rows (P3.1) — the sleds alone differ by ~50 kg. */
+  hyroxDivision: 'open' | 'pro'
 }
 
 let seasonRowKey = 0
 function newSeasonRaceRow(): SeasonRaceRow {
-  return { key: ++seasonRowKey, name: '', date: '', miles: '', vertFt: '', priority: 'B', description: '', integration: 'layered', format: null }
+  return { key: ++seasonRowKey, name: '', date: '', miles: '', vertFt: '', priority: 'B', description: '', integration: 'layered', format: null, hyroxDivision: 'open' }
 }
 
 
@@ -227,6 +229,10 @@ function assembleAdditionalRaces(args: {
         // Untapped chips defer to name detection — never seed an
         // explicit format the athlete didn't choose.
         format: r.format ?? (isHyroxRaceInfo({ name: r.name, description: r.description }) ? 'hyrox' as const : undefined),
+        // P3.1 — the row's division travels with a Hyrox-format race.
+        hyroxDivision: (r.format ? r.format === 'hyrox' : isHyroxRaceInfo({ name: r.name, description: r.description }))
+          ? r.hyroxDivision
+          : undefined,
         // The integration ask applies to format-specific (Hyrox)
         // races; others run sequential (the only defined behavior).
         integration: (r.format ? r.format === 'hyrox' : isHyroxRaceInfo({ name: r.name, description: r.description }))
@@ -423,7 +429,7 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
   const [daysPerWeek, setDaysPerWeek] = useState<number | null>(null)
   const [longRunDay, setLongRunDay] = useState<string | null>(null)
   const [weakStation, setWeakStation] = useState<string | null>(null)
-  const [hyroxDivision, setHyroxDivision] = useState<'open' | 'pro'>('open')
+  const [hyroxDivision, setHyroxDivision] = useState<'open' | 'pro'>(prev?.hyroxDivision ?? 'open')
   const [skiErgTT, setSkiErgTT] = useState('')
   const [rowTT, setRowTT] = useState('')
   const [wearable, setWearable] = useState<WearableType | null>(prev?.wearable ?? null)
@@ -1210,6 +1216,22 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
                     />
                     {rowIsHyrox && (
                       <div>
+                        {/* P3.1 — division per Hyrox race; the sleds alone differ by ~50 kg. */}
+                        <p className="text-xs font-medium text-slate-600 mb-1">Division</p>
+                        <div className="flex gap-1.5 mb-2" role="radiogroup" aria-label={`Race ${i + 2} division`}>
+                          {(['open', 'pro'] as const).map(d => (
+                            <button
+                              key={d}
+                              type="button"
+                              role="radio"
+                              aria-checked={row.hyroxDivision === d}
+                              onClick={() => update({ hyroxDivision: d })}
+                              className={`flex-1 rounded-lg border px-2 py-1.5 text-xs font-bold ${
+                                row.hyroxDivision === d ? 'border-teal-500 bg-teal-100 text-teal-800' : 'border-slate-200 text-slate-500'
+                              }`}
+                            >{d === 'open' ? 'Open' : 'Pro'}</button>
+                          ))}
+                        </div>
                         <p className="text-xs font-medium text-slate-600 mb-1">
                           When should {row.name.trim() || 'this race'}’s training start?
                         </p>
