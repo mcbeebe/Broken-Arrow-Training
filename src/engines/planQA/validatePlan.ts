@@ -894,6 +894,30 @@ export function validatePlan(input: PlanQAInput): PlanQAResult {
         })
       }
     }
+    // P3.3 — a deload never wraps a key session. Placement is by date and
+    // recovery by cadence; the generator keeps them apart, and this catches
+    // any plan (or edit) where the hardest session sits in a 40%-volume week.
+    for (const w of weeks) {
+      if (!/recovery week/i.test(w.focus)) continue
+      const key = w.days.find(d => /full race simulation|half simulation|^Full-distance stations/i.test(d.workout))
+      if (!key) continue
+      add({
+        id: 'qa_hyrox_key_in_recovery', severity: 'error', weekNum: w.num,
+        title: 'Key session inside a recovery week',
+        detail: `Week ${w.num} is a recovery week ("volume drops 40%") yet carries "${key.workout}" — the plan's hardest sessions must never sit inside a deload.`,
+      })
+      break
+    }
+    // P3.4 — the run→station→run session is the race's defining structure
+    // (the single best-corroborated element across every benchmarked
+    // program). Any runway that holds a build week must carry one.
+    if (runwayDays >= 25 && !flat.some(({ day }) => /^Compromised running(?! \(intro\))/.test(day.workout))) {
+      add({
+        id: 'qa_hyrox_compromised_missing', severity: 'error',
+        title: 'No compromised-running session',
+        detail: 'No race-effort run→station→run session is scheduled. Running off a station is the race — a plan with 4+ weeks must rehearse it at least once at race effort.',
+      })
+    }
   }
 
   const errors = findings.filter(f => f.severity === 'error')
