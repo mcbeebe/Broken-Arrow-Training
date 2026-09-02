@@ -172,3 +172,124 @@ describe('P3.1 — division and sex reach every station line (regression-safe)',
     expect(male.advisories?.some(a => a.id === 'hyrox_loads_assumed')).toBe(false)
   })
 })
+
+// ── P3.3 / P3.4 — key-session placement vs recovery weeks, and the
+// compromised-running holes the verified audit reproduced ────────────
+const MONDAY = '2026-09-07'
+function saturdayWeeksOut(weeks: number): string {
+  const d = new Date(`${MONDAY}T12:00:00`)
+  d.setDate(d.getDate() + weeks * 7 - 2) // the Saturday that ends week N
+  return d.toISOString().slice(0, 10)
+}
+const raceEffort = (plan: ReturnType<typeof generateHyroxPlan>) =>
+  allDays(plan).filter(d => /^Compromised running(?! \(intro\))/.test(d.workout))
+const KEY = /full race simulation|half simulation|^Full-distance stations/i
+
+describe('P3.3 — a deload never wraps a key session (every level, runway 5-18, masters too)', () => {
+  const personas: Partial<OnboardingConfig>[] = [
+    { experienceLevel: 'intermediate', trainingDaysPerWeek: 5, age: 45 },
+    { experienceLevel: 'first_timer', trainingDaysPerWeek: 3, age: 30 },
+    { experienceLevel: 'elite', trainingDaysPerWeek: 7, age: 33 },
+    { experienceLevel: 'beginner', trainingDaysPerWeek: 3, age: 61 }, // masters cadence 3
+    { experienceLevel: 'advanced', trainingDaysPerWeek: 6, age: 58 },
+  ]
+  for (const persona of personas) {
+    it(`${persona.experienceLevel} ${persona.trainingDaysPerWeek}d age ${persona.age}: no sim or spec day inside a RECOVERY WEEK, at any runway`, () => {
+      for (let weeks = 5; weeks <= 18; weeks++) {
+        const plan = generateHyroxPlan(config({ ...persona, raceDate: saturdayWeeksOut(weeks) }), MONDAY)
+        for (const w of plan.weeks) {
+          if (!/RECOVERY WEEK/.test(w.focus)) continue
+          const collision = w.days.find(d => KEY.test(d.workout))
+          expect(collision, `${weeks}wk week ${w.num} carries ${collision?.workout}`).toBeUndefined()
+        }
+        const ids = validatePlan(plan).errors.map(e => e.id)
+        expect(ids, `${weeks}wk`).not.toContain('qa_hyrox_key_in_recovery')
+        expect(ids, `${weeks}wk`).not.toContain('qa_hyrox_compromised_missing')
+        // The full simulation still exists — moving a deload never costs the sim.
+        expect(allDays(plan).some(d => /full race simulation/i.test(d.workout)), `${weeks}wk sim`).toBe(true)
+      }
+    })
+  }
+
+  it('recovery weeks that do not collide stay exactly where the template puts them', () => {
+    // 12-week intermediate, race Saturday: sims in weeks 9-10, spec day
+    // before them — the template [4, 8] must survive untouched.
+    const plan = generateHyroxPlan(config({ raceDate: saturdayWeeksOut(12) }), MONDAY)
+    expect(plan.weeks.filter(w => /RECOVERY WEEK/.test(w.focus)).map(w => w.num)).toEqual([4, 8])
+  })
+})
+
+describe('P3.4 — compromised running reaches every layout and runway', () => {
+  it('3-day athletes get the run→station session AND the full-spec station day', () => {
+    const plan = generateHyroxPlan(config({ experienceLevel: 'first_timer', trainingDaysPerWeek: 3, raceDate: saturdayWeeksOut(12) }), MONDAY)
+    expect(raceEffort(plan).length).toBeGreaterThanOrEqual(1)
+    expect(allDays(plan).some(d => /^Full-distance stations/.test(d.workout))).toBe(true)
+    // The 3-day variant still carries the strength block the day replaced.
+    expect(raceEffort(plan)[0].detail).toMatch(/Then 20 min of the strength block/)
+  })
+
+  it('5- and 7-week runways carry at least one race-effort session at every level (v1: zero)', () => {
+    for (const level of ['first_timer', 'beginner', 'intermediate', 'advanced', 'elite'] as const) {
+      for (const weeks of [5, 7]) {
+        for (const days of [3, 4, 5]) {
+          const plan = generateHyroxPlan(config({ experienceLevel: level, trainingDaysPerWeek: days, raceDate: saturdayWeeksOut(weeks) }), MONDAY)
+          expect(raceEffort(plan).length, `${level} ${days}d ${weeks}wk`).toBeGreaterThanOrEqual(1)
+        }
+      }
+    }
+  })
+
+  it('a long runway adds race-effort sessions, not only conversational intros', () => {
+    const plan = generateHyroxPlan(config({ experienceLevel: 'advanced', trainingDaysPerWeek: 5, age: 35, raceDate: saturdayWeeksOut(18) }), MONDAY)
+    expect(raceEffort(plan).length).toBeGreaterThanOrEqual(2)
+    expect(allDays(plan).some(d => d.workout === 'Compromised running (intro)')).toBe(true)
+  })
+
+  it('the race-effort session never lands in a recovery week (the old odd-index cadence collided)', () => {
+    const plan = generateHyroxPlan(config({ raceDate: saturdayWeeksOut(12) }), MONDAY)
+    for (const w of plan.weeks) {
+      if (!/RECOVERY WEEK/.test(w.focus)) continue
+      expect(w.days.some(d => /^Compromised running/.test(d.workout)), `week ${w.num}`).toBe(false)
+    }
+  })
+
+  it('clamped 4-week runway still meets every station at spec before the sims', () => {
+    const plan = generateHyroxPlan(config(), '2026-11-08')
+    const spec = allDays(plan).find(d => /^Full-distance stations/.test(d.workout))
+    expect(spec, 'no full-spec station day on the 4-week plan').toBeDefined()
+    expect(plan.advisories?.some(a => a.id === 'hyrox_no_spec_day')).toBe(false)
+  })
+})
+
+describe('P3.3 / P3.4 — the QA gate errors on the defects (regression-safe)', () => {
+  it('qa_hyrox_key_in_recovery fires when a simulation is moved into a recovery week', () => {
+    const plan = generateHyroxPlan(config({ raceDate: saturdayWeeksOut(12) }), MONDAY)
+    const recovery = plan.weeks.find(w => /RECOVERY WEEK/.test(w.focus))!
+    const simWeek = plan.weeks.find(w => w.days.some(d => /full race simulation/i.test(d.workout)))!
+    const sim = simWeek.days.find(d => /full race simulation/i.test(d.workout))!
+    const long = recovery.days.find(d => d.type === 'run' && /long/i.test(d.workout)) ?? recovery.days[recovery.days.length - 2]
+    const tampered = {
+      ...plan,
+      weeks: plan.weeks.map(w => w.num === recovery.num
+        ? { ...w, days: w.days.map(d => d === long ? { ...d, workout: sim.workout, detail: sim.detail } : d) }
+        : w),
+    }
+    expect(validatePlan(tampered).errors.map(e => e.id)).toContain('qa_hyrox_key_in_recovery')
+    expect(validatePlan(plan).errors.map(e => e.id)).not.toContain('qa_hyrox_key_in_recovery')
+  })
+
+  it('qa_hyrox_compromised_missing fires when every race-effort session is stripped', () => {
+    const plan = generateHyroxPlan(config({ raceDate: saturdayWeeksOut(12) }), MONDAY)
+    const tampered = {
+      ...plan,
+      weeks: plan.weeks.map(w => ({
+        ...w,
+        days: w.days.map(d => /^Compromised running(?! \(intro\))/.test(d.workout)
+          ? { ...d, workout: 'Station circuit (4 stations)' }
+          : d),
+      })),
+    }
+    expect(validatePlan(tampered).errors.map(e => e.id)).toContain('qa_hyrox_compromised_missing')
+    expect(validatePlan(plan).errors.map(e => e.id)).not.toContain('qa_hyrox_compromised_missing')
+  })
+})

@@ -119,6 +119,53 @@ function deriveRecoveryWeeks(totalWeeks: number, cadence = 4): number[] {
   return out
 }
 
+/** P3.3 — a deload never wraps a key session. Key sessions are placed by
+ *  date and recovery weeks by cadence, and the two collided: the full
+ *  simulation (the plan's hardest session) sat inside a "volume drops 40%"
+ *  week at 10- and 14-week runways for every level. A colliding recovery
+ *  week moves one week earlier (else one later, else is dropped). */
+function avoidKeyWeeks(recoveryWeeks: number[], keyWeeks: Set<number>, totalWeeks: number): number[] {
+  const out: number[] = []
+  for (const r of recoveryWeeks) {
+    if (!keyWeeks.has(r)) { out.push(r); continue }
+    const moved = [r - 1, r + 1].find(c =>
+      c >= 2 && c <= totalWeeks - 2 && !keyWeeks.has(c) && !out.includes(c) && !recoveryWeeks.includes(c))
+    if (moved !== undefined) out.push(moved)
+  }
+  return out.sort((a, b) => a - b)
+}
+
+/** P3.4 — which week indices carry the run→station→run session. v1 used
+ *  raw odd week indices, which collided with recovery weeks, the taper and
+ *  the base boundary: 5- and 7-week runways produced ZERO race-effort
+ *  sessions at every level, and elite never saw more than one. The cadence
+ *  now runs over ELIGIBLE weeks (not recovery, taper or race week), and a
+ *  build/peak week always carries at least one race-effort session. */
+function deriveCompromisedWeeks(totalWeeks: number, recoveryWeeks: number[], baseEnd: number): Set<number> {
+  const cadence = Math.max(1, COMPROMISED_DOSE.value.cadenceWeeks)
+  const eligible: number[] = []
+  for (let w = 0; w < totalWeeks; w++) {
+    const weekNum = w + 1
+    const isFinal = weekNum === totalWeeks
+    const isTaper = totalWeeks >= 4 && weekNum === totalWeeks - 1
+    if (isFinal || isTaper || recoveryWeeks.includes(weekNum)) continue
+    eligible.push(w)
+  }
+  const out = new Set<number>()
+  // Week 1 is always a circuit (familiarization first); from there every
+  // `cadence`-th eligible week carries the run→station session.
+  for (let i = cadence - 1; i < eligible.length; i += cadence) out.add(eligible[i])
+  const buildPeak = eligible.filter(w => w + 1 > baseEnd)
+  if (buildPeak.length > 0 && !buildPeak.some(w => out.has(w))) out.add(buildPeak[buildPeak.length - 1])
+  return out
+}
+
+/** Spec-day window floor on a runway-clamped plan. The 24-day floor made
+ *  the all-stations-at-spec day unreachable on 4-week plans (the stations
+ *  day is at most ~22 days out), so those athletes met race volumes for the
+ *  first time under fatigue in the half sim. */
+const SPEC_DAY_SHORT_RUNWAY_MIN = 18
+
 interface LevelParams {
   totalWeeks: number
   baseRunMi: number
@@ -308,15 +355,42 @@ export function generateHyroxPlan(
   const mastersCadence = (config.age ?? 40) >= MASTERS_RECOVERY.value.ageThreshold
     ? MASTERS_RECOVERY.value.cadenceWeeks
     : 4
-  const recoveryWeeks = mastersCadence !== 4 || runwayClamped || baseExtension > 0
+  const templateRecoveryWeeks = mastersCadence !== 4 || runwayClamped || baseExtension > 0
     ? deriveRecoveryWeeks(totalWeeks, mastersCadence)
     : P.recoveryWeeks
+  const specDayMin = runwayClamped ? SPEC_DAY_SHORT_RUNWAY_MIN : SPEC_DAY_DAYS_OUT.value.min
 
+  // The week builder runs at least twice: pass 1 discovers which weeks the
+  // date-placed key sessions occupy, later passes keep recovery weeks off
+  // them (avoidKeyWeeks) — a deload never wraps a simulation.
+  function buildWeeks(recoveryWeeks: number[]) {
   const weeks: TrainingWeek[] = []
   // P3.3 — one of each key session per plan, placed by race proximity.
   let placedFullSim = false
   let placedHalfSim = false
   let placedSpecDay = false
+  const keyWeeks = new Set<number>()
+  const compromisedWeeks = deriveCompromisedWeeks(totalWeeks, recoveryWeeks, baseEnd)
+  // The spec day is a technique day, not a mandatory date like the sims:
+  // pick its week up front — a week that is neither a deload nor the
+  // compromised-running week, else a non-deload week (eclipsing one
+  // compromised session), else any in-window week. A recovery week is only
+  // ever displaced by a simulation, never by the spec day.
+  const stationsRoleIdx = roles.findIndex(r => r === 'stations' || r === 'strength_stations')
+  const specCandidates: number[] = []
+  if (stationsRoleIdx >= 0) {
+    for (let w = 0; w < totalWeeks - 1; w++) {
+      const weekStart = addDays(raceMonday, -(totalWeeks - 1 - w) * 7)
+      const dateStr = addDays(weekStart, trainingDayNumbers[stationsRoleIdx] - 1)
+      if (w === 0 && dateStr < today) continue
+      const dtr = daysBetween(dateStr, raceDate)
+      if (dtr >= specDayMin && dtr <= SPEC_DAY_DAYS_OUT.value.max) specCandidates.push(w)
+    }
+  }
+  const specDayWeek =
+    specCandidates.find(w => !recoveryWeeks.includes(w + 1) && !compromisedWeeks.has(w))
+    ?? specCandidates.find(w => !recoveryWeeks.includes(w + 1))
+    ?? specCandidates[0]
 
   for (let w = 0; w < totalWeeks; w++) {
     const weekNum = w + 1
@@ -405,9 +479,10 @@ export function generateHyroxPlan(
       //   half simulation       → the long day 18–27 days out
       //   all stations at spec  → the stations day 24–42 days out
       const daysToRace = daysBetween(dateStr, raceDate)
-      let base = getHyroxWorkoutByRole(role, phase, isRecovery, P, weakStation, z1, z2, z3, z4, easyPace, tempoPace, cvPace, w, config.crossTrainingModes, specs, progress, totalWeeks)
+      let base = getHyroxWorkoutByRole(role, phase, isRecovery, P, weakStation, z1, z2, z3, z4, easyPace, tempoPace, cvPace, w, config.crossTrainingModes, specs, progress, totalWeeks, compromisedWeeks.has(w))
       if (role === 'long' && daysToRace >= FULL_SIM_DAYS_OUT.value.min && daysToRace <= FULL_SIM_DAYS_OUT.value.max && !placedFullSim) {
         placedFullSim = true
+        keyWeeks.add(weekNum)
         base = {
           type: 'long',
           workout: '★ FULL RACE SIMULATION',
@@ -418,6 +493,7 @@ export function generateHyroxPlan(
         }
       } else if (role === 'long' && daysToRace >= HALF_SIM_DAYS_OUT.value.min && daysToRace <= HALF_SIM_DAYS_OUT.value.max && !placedHalfSim) {
         placedHalfSim = true
+        keyWeeks.add(weekNum)
         base = {
           type: 'long',
           workout: 'HALF SIMULATION: 4 runs + 4 stations',
@@ -426,12 +502,12 @@ export function generateHyroxPlan(
           route: 'Gym',
           time: '~60 min',
         }
-      } else if (role === 'stations' && daysToRace >= SPEC_DAY_DAYS_OUT.value.min && daysToRace <= SPEC_DAY_DAYS_OUT.value.max && !placedSpecDay
-        // Prefer a circuit (even) week so the overlay never eclipses the
-        // alternating compromised-running session; take any week once the
-        // window is closing.
-        && (w % 2 === 0 || daysToRace <= SPEC_DAY_DAYS_OUT.value.min + 7)) {
+      } else if ((role === 'stations' || role === 'strength_stations') && daysToRace >= specDayMin && daysToRace <= SPEC_DAY_DAYS_OUT.value.max && !placedSpecDay
+        // The precomputed week, or any later in-window stations day if a
+        // partial first week shifted the roles. 3-day athletes get it too.
+        && specDayWeek !== undefined && w >= specDayWeek) {
         placedSpecDay = true
+        keyWeeks.add(weekNum)
         base = {
           type: 'cross',
           workout: `Full-distance stations (${division === 'pro' ? 'Pro' : 'Open'})`,
@@ -493,6 +569,18 @@ export function generateHyroxPlan(
       days,
     })
   }
+  return { weeks, keyWeeks, placedFullSim, placedSpecDay }
+  }
+
+  let recoveryWeeks = templateRecoveryWeeks
+  let built = buildWeeks(recoveryWeeks)
+  for (let pass = 0; pass < 3; pass++) {
+    const adjusted = avoidKeyWeeks(templateRecoveryWeeks, built.keyWeeks, totalWeeks)
+    if (adjusted.join() === recoveryWeeks.join()) break
+    recoveryWeeks = adjusted
+    built = buildWeeks(recoveryWeeks)
+  }
+  const { weeks, placedFullSim, placedSpecDay } = built
 
   // P5 — calibration: without a race anchor, run paces are HR-only and
   // "race pace" is a guess. Healthy athletes get a week-1 pacing benchmark
@@ -592,6 +680,14 @@ export function generateHyroxPlan(
       title: 'Station loads use the men’s table',
       detail: `Biological sex isn’t set, so every station load here is the men’s ${division === 'pro' ? 'Pro' : 'Open'} spec (sled push ${specs[1].load}, wall balls ${specs[7].load}). Women’s loads are lighter across the board.`,
       suggestion: 'Set biological sex in Settings → Profile and the plan re-renders with the right loads.',
+    })
+  }
+  if (!placedSpecDay && daysBetween(today, raceDate) >= 21) {
+    advisories.push({
+      id: 'hyrox_no_spec_day',
+      severity: 'caution',
+      title: 'No full-spec station day scheduled',
+      detail: 'The plan could not place a technique day with every station at full race distance/reps in the 3-6 weeks pre-race window. Add one yourself about four weeks out: every station at race spec, generous rest, log every split.',
     })
   }
   if (!hasGym) {
@@ -720,6 +816,9 @@ function getHyroxWorkoutByRole(
   specs: StationSpec[] = stationSpecs(),
   progress: number = 0,
   planWeeks: number = 0,
+  /** P3.4 — this week carries the run→station→run session (derived over
+   *  eligible weeks by deriveCompromisedWeeks, never raw index parity). */
+  compromisedWeek: boolean = false,
 ): Omit<PlannedDay, 'day'> {
 
   if (isRecovery) {
@@ -860,6 +959,31 @@ function getHyroxWorkoutByRole(
 
   // STRENGTH_STATIONS: Combined day (for 3 days/week)
   if (role === 'strength_stations') {
+    // P3.4 — 3-day athletes get the run→station session too. v1's combined
+    // day had no variant, so the race's defining structure never appeared
+    // for the "minimum effective dose" layout at any level or runway.
+    if (compromisedWeek && phase !== 'base') {
+      const triple = compromisedTriple(specs, weekIndex)
+      return {
+        type: 'quality',
+        workout: 'Compromised running',
+        detail: `${COMPROMISED_DOSE.value.rounds}×[1km run @ race pace + station], NO break between run and station: ${triple.map(s => stationRx(s, Math.min(1, stationPct + 0.15))).join(' / ')}. Jog the transitions — the Roxzone is race time too. Then 20 min of the strength block: ${P.strengthDetail.build.replace(/\((\d+) kg\)/g, `(${specs[7].load})`)}`,
+        zone: `${Math.round(COMPROMISED_DOSE.value.rounds * 0.62 * 10) / 10} mi + stations · ${z3}–${z4}`,
+        route: 'Run + Gym',
+        time: '70 min',
+      }
+    }
+    if (compromisedWeek) {
+      const introPair = compromisedTriple(specs, weekIndex).slice(0, COMPROMISED_DOSE.value.introRounds)
+      return {
+        type: 'cross',
+        workout: 'Compromised running (intro)',
+        detail: `${COMPROMISED_DOSE.value.introRounds}×[800m easy run + station], no break between run and station — learn how the legs feel running off a station, at conversational effort: ${introPair.map(s => stationRx(s, stationPct)).join(' / ')}. Walk 2 min between rounds. Then 20 min of the strength block: ${P.strengthDetail.base.replace(/\((\d+) kg\)/g, `(${specs[7].load})`)}`,
+        zone: `${Math.round(COMPROMISED_DOSE.value.introRounds * 0.5 * 10) / 10} mi + stations · ${z2}`,
+        route: 'Run + Gym',
+        time: '60 min',
+      }
+    }
     if (phase === 'base') {
       return { type: 'strength', workout: 'STRENGTH + Station intro', detail: `${P.strengthDetail.base.replace(/\((\d+) kg\)/g, `(${specs[7].load})`)} · Then: ${buildStationList(specs, 2, stationPct)} · ${stationRx(specs[7], stationPct)}`, zone: z2, route: 'Gym', time: '1 hr' }
     }
@@ -906,7 +1030,7 @@ function getHyroxWorkoutByRole(
       // conversational compromised-running intro — running into stations
       // is learned from week 1, not discovered in the build (the HYROX
       // 8-Week Formula's Base block exists for exactly this).
-      if (weekIndex % COMPROMISED_DOSE.value.cadenceWeeks === 1) {
+      if (compromisedWeek) {
         const introPair = compromisedTriple(specs, weekIndex).slice(0, COMPROMISED_DOSE.value.introRounds)
         return {
           type: 'cross',
@@ -919,7 +1043,7 @@ function getHyroxWorkoutByRole(
       }
       return { type: 'cross', workout: 'Station circuit (intro)', detail: `${buildStationList(specs, 5, stationPct)} · ${stationRx(specs[7], stationPct)} · ${weakStation} practice · Rest 2 min between · Grip note: finish with 2× dead hang to build the carry/pull grip the race demands`, zone: z2, route: 'Gym', time: '45 min' }
     }
-    if (weekIndex % COMPROMISED_DOSE.value.cadenceWeeks === 1) {
+    if (compromisedWeek) {
       const triple = compromisedTriple(specs, weekIndex)
       return {
         type: 'quality',
