@@ -81,6 +81,9 @@ describe('CoachLetter season context', () => {
     expect(season).toContain('MDI Half')          // anchor, race 1
     expect(season).toContain('Anaheim Open')
     expect(season).toContain('LAYERED into the current build')
+    // D6 — the letter no longer states a dose it cannot know. The count comes
+    // from the transform's own report, surfaced as a plan advisory.
+    expect(season).not.toContain('1–2 sessions/week')
     expect(season).toContain('Turkey Trot')
     expect(season).toContain('CIM Marathon')
     expect(season).toContain('first Hyrox, finish strong') // descriptions travel too
@@ -105,6 +108,41 @@ describe('CoachLetter season context', () => {
     expect(season).toContain('THE MAIN GOAL — full build + taper')
     expect(season).toContain('tune-up, trained through')
     expect(season).toContain('stepping stones')
+  })
+
+  it('D6 — a Hyrox anchor is never told its second race was layered in', () => {
+    // The transform refuses on a Hyrox anchor (its build has no ordinary
+    // strength slots to lend), so the athlete gets zero layered days. The
+    // letter used to describe them anyway, on the strength of the request.
+    insightRef.current = { text: 'ok' }
+    const seasonConfig = {
+      ...config,
+      raceType: 'hyrox',
+      goalMode: 'season',
+      additionalRaces: [
+        { name: 'Anaheim Open', date: '2026-12-12', priority: 'A', format: 'hyrox', integration: 'layered' },
+      ],
+    } as unknown as OnboardingConfig
+    render(<CoachLetter plan={plan} config={seasonConfig} athleteId="a1" onContinue={() => {}} />)
+    const season = String((capturedRef.current?.snapshot as { seasonContext?: string })?.seasonContext ?? '')
+    expect(season).toContain('Anaheim Open')
+    expect(season).not.toContain('LAYERED')
+    expect(season).toContain('its dedicated block starts after the previous race')
+  })
+
+  it('D6 — a general-fitness anchor is treated the same way', () => {
+    insightRef.current = { text: 'ok' }
+    const seasonConfig = {
+      ...config,
+      raceType: 'general',
+      goalMode: 'season',
+      additionalRaces: [
+        { name: 'Anaheim Open', date: '2026-12-12', priority: 'A', format: 'hyrox', integration: 'layered' },
+      ],
+    } as unknown as OnboardingConfig
+    render(<CoachLetter plan={plan} config={seasonConfig} athleteId="a1" onContinue={() => {}} />)
+    const season = String((capturedRef.current?.snapshot as { seasonContext?: string })?.seasonContext ?? '')
+    expect(season).not.toContain('LAYERED')
   })
 
   it('GUARD: a single-race athlete sends no season context (no phantom season)', () => {

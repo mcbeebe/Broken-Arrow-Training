@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import SeasonPanel from '../../components/SeasonPanel'
 import { useSeason } from '../../hooks/useSeason'
-import type { RaceInfo } from '../../types'
+import type { RaceInfo, SeasonRace } from '../../types'
 
 /**
  * G1b acceptance: adding a second race turns the panel into the season
@@ -135,6 +135,71 @@ describe('layered-integration controls', () => {
     fireEvent.change(document.querySelector('input[type="date"]')!, { target: { value: '2026-12-06' } })
     expect(screen.queryByText(/layer into my build now/i)).toBeNull()
     fireEvent.click(screen.getByText('Add race'))
+    expect(screen.queryByTestId('integration-confirm')).toBeNull()
+  })
+})
+
+/**
+ * D6 / decision 4a — the transform refuses to layer onto a Hyrox or
+ * general-fitness anchor, because those builds have no ordinary strength or
+ * cross slots to lend. Offering the choice there is a promise the plan cannot
+ * keep, so the ask is hidden and the reason is stated in its place.
+ */
+describe('the layering ask is hidden where the engine will refuse', () => {
+  function AnchoredHarness(
+    { anchorRaceType, seeded, onState }:
+    { anchorRaceType: string; seeded?: boolean; onState?: (races: SeasonRace[]) => void },
+  ) {
+    const seasonState = useSeason(planRace, 'testathlete', seeded
+      ? [{ name: 'Hyrox LA', date: '2026-11-07', priority: 'A', distanceMiles: 8 }]
+      : undefined)
+    onState?.(seasonState.season.races)
+    return <SeasonPanel seasonState={seasonState} anchorRaceType={anchorRaceType} />
+  }
+
+  it('a Hyrox anchor gets the reason, not the choice', () => {
+    render(<AnchoredHarness anchorRaceType="hyrox" />)
+    fireEvent.click(screen.getByText('+ Add another race'))
+    fireEvent.change(screen.getByPlaceholderText(/Race name/), { target: { value: 'Hyrox Anaheim' } })
+    fireEvent.change(document.querySelector('input[type="date"]')!, { target: { value: '2026-12-12' } })
+    expect(screen.queryByText(/layer into my build now/i)).toBeNull()
+    expect(screen.getByText(/training starts after your current race/i)).toBeInTheDocument()
+    expect(screen.getByText(/already trains every station at race spec/i)).toBeInTheDocument()
+  })
+
+  it('a general-fitness anchor gets its own reason', () => {
+    render(<AnchoredHarness anchorRaceType="general" />)
+    fireEvent.click(screen.getByText('+ Add another race'))
+    fireEvent.change(screen.getByPlaceholderText(/Race name/), { target: { value: 'Hyrox Anaheim' } })
+    fireEvent.change(document.querySelector('input[type="date"]')!, { target: { value: '2026-12-12' } })
+    expect(screen.queryByText(/layer into my build now/i)).toBeNull()
+    expect(screen.getByText(/already strength-led/i)).toBeInTheDocument()
+  })
+
+  it('a road anchor still gets the choice (the feature is not broken, only bounded)', () => {
+    render(<AnchoredHarness anchorRaceType="road" />)
+    fireEvent.click(screen.getByText('+ Add another race'))
+    fireEvent.change(screen.getByPlaceholderText(/Race name/), { target: { value: 'Hyrox Anaheim' } })
+    fireEvent.change(document.querySelector('input[type="date"]')!, { target: { value: '2026-12-12' } })
+    expect(screen.getByText(/layer into my build now/i)).toBeInTheDocument()
+  })
+
+  it('a race added under a Hyrox anchor is stored sequential, not as a request that gets refused', () => {
+    let races: SeasonRace[] = []
+    render(<AnchoredHarness anchorRaceType="hyrox" onState={r => { races = r }} />)
+    fireEvent.click(screen.getByText('+ Add another race'))
+    fireEvent.change(screen.getByPlaceholderText(/Race name/), { target: { value: 'Hyrox Anaheim' } })
+    fireEvent.change(document.querySelector('input[type="date"]')!, { target: { value: '2026-12-12' } })
+    fireEvent.click(screen.getByText('Add race'))
+    const added = races.find(r => r.raceInfo.name === 'Hyrox Anaheim')
+    expect(added).toBeDefined()
+    // Stored as what will actually happen — not as a request the engine
+    // silently refuses on every render.
+    expect(added!.integration).toBe('sequential')
+  })
+
+  it('the one-time confirm never appears under an anchor that cannot layer', () => {
+    render(<AnchoredHarness anchorRaceType="hyrox" seeded />)
     expect(screen.queryByTestId('integration-confirm')).toBeNull()
   })
 })
