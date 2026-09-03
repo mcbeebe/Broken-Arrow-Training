@@ -6,8 +6,30 @@
 
 const MS_PER_DAY = 1000 * 60 * 60 * 24
 
-function parseRaceDate(raceDateStr: string): Date | null {
+/**
+ * Parse a race date as a LOCAL calendar date.
+ *
+ * A bare `YYYY-MM-DD` is parsed as UTC midnight by spec, but every caller
+ * below compares it with LOCAL date getters — so anywhere west of Greenwich
+ * the race resolved to the previous day, and on race morning the athlete was
+ * told their race was yesterday (`TZ=America/New_York` reproduced it: two
+ * failures, `expected -1 to be +0`, where UTC passed). Build the bare form
+ * from its parts so the calendar date the athlete typed is the calendar date
+ * we compare. Natural-language forms ("Saturday, June 20, 2026") already
+ * parse as local midnight and are left to the platform.
+ */
+export function parseRaceDate(raceDateStr: string): Date | null {
   if (!raceDateStr) return null
+  const iso = raceDateStr.trim().match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  if (iso) {
+    const [y, m, day] = [Number(iso[1]), Number(iso[2]), Number(iso[3])]
+    const d = new Date(y, m - 1, day)
+    // `new Date(2026, 12, 45)` silently rolls into the next year rather than
+    // failing, so round-trip the parts: a date that did not survive intact was
+    // never a real calendar date.
+    if (d.getFullYear() !== y || d.getMonth() !== m - 1 || d.getDate() !== day) return null
+    return d
+  }
   const d = new Date(raceDateStr)
   if (Number.isNaN(d.getTime())) return null
   return d

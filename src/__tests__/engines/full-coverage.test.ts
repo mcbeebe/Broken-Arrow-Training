@@ -10,6 +10,10 @@ import { assessFeasibility } from '../../engines/planGenerator/feasibility'
 import { generateHyroxPlan } from '../../utils/planGenerator'
 import type { OnboardingConfig } from '../../hooks/useOnboarding'
 
+// Explicit `today`: these configs pin a race date, so a wall-clock default
+// would shrink the runway daily until the assertions broke on their own.
+const HYROX_TODAY = '2026-08-03'
+
 const TODAY = '2026-06-14'
 
 // Clean method-based-running config: no goal, no anchor, no method passed — so
@@ -57,23 +61,23 @@ describe('#12 → Full: experience vs. measured mileage', () => {
 
 describe('#6 → Full: Hyrox anchors run paces to a tested effort', () => {
   it('shows /mi pace targets on run days when a recent race is given', () => {
-    const plan = generateHyroxPlan(hyroxCfg({ fitnessAnchor: { type: 'race_10k', valueSeconds: 45 * 60 } }))
+    const plan = generateHyroxPlan(hyroxCfg({ fitnessAnchor: { type: 'race_10k', valueSeconds: 45 * 60 } }), HYROX_TODAY)
     expect(allDays(plan).some(d => /\/mi/.test(d.zone))).toBe(true)
   })
   it('stays heart-rate-only when there is no anchor', () => {
-    const plan = generateHyroxPlan(hyroxCfg())
+    const plan = generateHyroxPlan(hyroxCfg(), HYROX_TODAY)
     expect(allDays(plan).some(d => /\/mi/.test(d.zone))).toBe(false)
   })
 })
 
 describe('#6 → Full: Hyrox is honest about gym access', () => {
   it('warns + substitutes when the athlete has no gym', () => {
-    const plan = generateHyroxPlan(hyroxCfg({ equipmentAccess: ['treadmill'] }))
+    const plan = generateHyroxPlan(hyroxCfg({ equipmentAccess: ['treadmill'] }), HYROX_TODAY)
     expect((plan.advisories ?? []).some(a => a.id === 'hyrox_no_gym')).toBe(true)
     expect(allDays(plan).some(d => /No gym\?/.test(d.detail))).toBe(true)
   })
   it('does neither when the athlete has gym access', () => {
-    const plan = generateHyroxPlan(hyroxCfg({ equipmentAccess: ['gym'] }))
+    const plan = generateHyroxPlan(hyroxCfg({ equipmentAccess: ['gym'] }), HYROX_TODAY)
     expect((plan.advisories ?? []).some(a => a.id === 'hyrox_no_gym')).toBe(false)
     expect(allDays(plan).some(d => /No gym\?/.test(d.detail))).toBe(false)
   })

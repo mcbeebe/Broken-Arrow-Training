@@ -13,6 +13,9 @@ import type { TrainingMethod } from '../../types/training-method'
 import type { OnboardingConfig } from '../../hooks/useOnboarding'
 import danielsMethod from '../../data/methods/daniels.json'
 
+// Explicit `today` — see dateCorrectness.test.ts's wall-clock guard.
+const HYROX_TODAY = '2026-08-03'
+
 const daniels = danielsMethod as unknown as TrainingMethod
 const TODAY = '2026-06-14'
 
@@ -58,12 +61,12 @@ describe('P1-6: Hyrox gains a midlife bone finisher', () => {
     const plan = generateHyroxPlan(cfg({
       raceType: 'hyrox', raceDistance: undefined, age: 50, sex: 'female',
       menopauseStatus: 'perimenopause', equipmentAccess: ['gym'], trainingDaysPerWeek: 4,
-    }))
+    }), HYROX_TODAY)
     const boned = plan.weeks.flatMap(w => w.days).some(d => /\+ bone/.test(d.workout) && /Farmer Carry|Squat Jump/.test(d.detail))
     expect(boned).toBe(true)
   })
   it('a male athlete gets no bone finisher (unchanged)', () => {
-    const plan = generateHyroxPlan(cfg({ raceType: 'hyrox', raceDistance: undefined, age: 50, sex: 'male', trainingDaysPerWeek: 4 }))
+    const plan = generateHyroxPlan(cfg({ raceType: 'hyrox', raceDistance: undefined, age: 50, sex: 'male', trainingDaysPerWeek: 4 }), HYROX_TODAY)
     expect(plan.weeks.flatMap(w => w.days).some(d => /\+ bone/.test(d.workout))).toBe(false)
   })
 })
@@ -80,7 +83,7 @@ describe('P1-7: unified Tanaka maxHR', () => {
     const base = { age: 52, maxHR: undefined }
     const expected = computeMaxHR(base) // 208 − 36.4 = 172 (rounded)
     const method = generatePlanFromMethod(daniels, cfg({ ...base, raceType: 'road' }), TODAY)
-    const hyrox = generateHyroxPlan(cfg({ ...base, raceType: 'hyrox', raceDistance: undefined }))
+    const hyrox = generateHyroxPlan(cfg({ ...base, raceType: 'hyrox', raceDistance: undefined }), HYROX_TODAY)
     const gf = generateGeneralFitnessPlan(cfg({ ...base, raceType: 'general', raceDistance: undefined, generalGoal: 'stay_healthy' }), TODAY)
     expect(method.athlete.maxHR).toBe(expected)
     expect(hyrox.athlete.maxHR).toBe(expected)

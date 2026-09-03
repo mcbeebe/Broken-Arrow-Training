@@ -11,7 +11,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coach-eval": "pytest -m eval api/coach/tests/eval",
-    "fetch:terrain": "node scripts/fetch-terrain.mjs"
+    "fetch:terrain": "node scripts/fetch-terrain.mjs",
+    "test:tz": "TZ=America/New_York vitest run src/__tests__/raceReadiness.test.ts src/__tests__/utils src/__tests__/planStartDate.test.ts"
   },
   "dependencies": {
     "cesium": "^1.141.0",
