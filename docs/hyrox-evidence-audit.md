@@ -28,11 +28,12 @@
 
 | Constant | Value | Rationale | What would upgrade it |
 |---|---|---|---|
-| Station ramp (`STATION_RAMP`) | 50% → 100% of race volume across the build; deloads at 60% of ramp (floor 30%) | Progressive overload toward spec | A published ramp from ≥2 reputable programs, or expert sign-off per level |
+| Station ramp (`STATION_RAMP`) | 50% → 100% of race volume across the build | Progressive overload toward spec. **Correction (2026-09):** this row previously read "deloads at 60% of ramp (floor 30%)". The generator never applied it — `stationPctForWeek`'s only caller passed `isRecovery: false`, so every recovery week trained at the full ramp value. The two constants have been deleted rather than wired up: reviewers should not be signing off on a dose the engine does not give. Recovery weeks cut station work through the week template's own day count and durations. | A published ramp from ≥2 reputable programs, or expert sign-off per level |
 | Half-sim timing (`HALF_SIM_DAYS_OUT`) | 18–27 days pre-race | One runway step before the full sim; v2 used 21 d | Same |
 | Spec-day timing (`SPEC_DAY_DAYS_OUT`) | 24–42 days pre-race | Meet race volumes fresh before meeting them fatigued | Same |
 | Tempo dose (`TEMPO_MINUTES`) | 18 → 30 min across the plan | Standard endurance threshold practice | Hyrox-specific corroboration |
-| Layered-track ramp (`LAYERED_RAMP`) | 35% → 75% of spec, ≤2 doses/wk inside another race's build | Compromise-session doctrine + Issurin residual sequencing | Expert review of the dual-race case specifically |
+| Layered-track ramp (`LAYERED_RAMP`) | 35% → 75% of spec inside another race's build | Compromise-session doctrine + Issurin residual sequencing. The "≤2 doses/wk" this row used to attribute to the constant is real behaviour but lives in `layerSecondaryWork`'s escalation (1/wk through the first half of eligible weeks, 2/wk after); the constant carried an unread `maxDosesPerWeek` field, now deleted. | Expert review of the dual-race case specifically |
+| Eased layered session (`LAYERED_EASED_MULT`) | ×0.7 volume when the only reachable slot sits beside a quality or long run | Compromise-session doctrine applied to placement: the anchor race owns the plan, so an adjacent layered session is eased rather than moved or dropped (a veto zeroed layering entirely for half the tested configurations) | Expert view on whether 30% is the right give, or whether such a week should skip the dose |
 | Level templates (`LevelParams`) | run mileages, rep counts, wall-ball weights per experience level | Pre-date this audit; hand-authored | Benchmark against published beginner/advanced plans |
 | Recovery-week cadence | every 4th week; none in plans ≤6 weeks; never in final 2 pre-race weeks | Standard periodization + the field inversion bug fix | Low priority — matches broad convention |
 
