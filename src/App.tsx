@@ -830,9 +830,14 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
   const seasonQaAdvisories = useMemo(() => {
     if ((seasonState.planResult?.season.races.length ?? 0) < 2) return []
     const anchorLen = activePlan.weeks.length
-    if (weeks.length <= anchorLen) return []
+    // D11 — the layered rules live INSIDE the anchor weeks by definition (that
+    // is what layering is), so the "beyond the anchor" filter below silently
+    // discarded every one of them, and the early return skipped the validator
+    // entirely for a season whose only change is layered days.
+    const hasLayered = weeks.some(w => w.days.some(d => d.layeredFor != null))
+    if (weeks.length <= anchorLen && !hasLayered) return []
     const qa = validatePlan({ weeks, zones: hrZones.zones, race: activePlan.race, methodId: activePlan.methodId })
-    const later = qa.findings.filter(f => (f.weekNum ?? 0) > anchorLen)
+    const later = qa.findings.filter(f => (f.weekNum ?? 0) > anchorLen || f.id.startsWith('qa_layered_'))
     if (later.length === 0) return []
     return qaFindingsToAdvisories({
       findings: later,

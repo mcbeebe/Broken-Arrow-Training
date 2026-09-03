@@ -16,6 +16,8 @@
 import type { HRZone, PlannedDay, RaceInfo, TrainingWeek } from '../../types'
 import { FULL_SIM_DAYS_OUT } from '../hyrox/heuristics'
 import { invariantRulesFor } from '../planGenerator/methodInvariants'
+import { isLayeredDay } from '../season/layerSecondaryWork'
+import { dayIsoInWeek } from '../../utils/planDates'
 import { getMethodById } from '../../data/methods'
 
 /** Phase 2 (104-F1) — the authored gates for one workout, looked up from
@@ -191,6 +193,33 @@ function zoneBand(hr: string): { low: number; high: number } | null {
 // notes) and any authored climbing/descent/power-hiking content.
 const VERT_CONTENT = /vert|downhill|descen[dt]|power.?hik|ft gain/i
 const RESTLIKE = new Set(['rest', 'cross', 'strength'])
+
+// ── layered secondary prep (D10/D11) ────────────────────────────────
+/** Weeks whose own job outranks a layered dose. Mirrors the transform's
+ *  PROTECTED_WEEK — the gate's job is to catch a plan where they disagree
+ *  (a stored plan, an athlete edit, a future regression), so the two are
+ *  written independently on purpose. */
+const LAYERED_PROTECTED_WEEK = /taper|cutback|recover|race\s*week|deload/i
+/** Days a layered session must not sit beside. */
+const LAYERED_HARD_TYPES = new Set<PlannedDay['type']>(['quality', 'long', 'race'])
+/** The transform's own marker for a session it deliberately eased around a
+ *  hard run — a sandwiched day carrying this is the SAFE outcome, not a
+ *  finding. */
+const LAYERED_EASED_MARK = /EASED/
+/** Every prescribed quantity in a session, summed. A crude but honest proxy
+ *  for dose: every number in a layered detail (metres, reps, sets, carries)
+ *  scales with the ramp, so a run of layered days whose totals never move at
+ *  all is a ramp that isn't ramping. */
+function layeredDoseProxy(day: PlannedDay): number {
+  let total = 0
+  for (const m of day.detail.matchAll(/\d+/g)) total += Number(m[0])
+  return total
+}
+function shiftIsoDays(iso: string, days: number): string {
+  const d = new Date(`${iso}T12:00:00`)
+  d.setDate(d.getDate() + days)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
 
 export function validatePlan(input: PlanQAInput): PlanQAResult {
   const { weeks, zones, race } = input
@@ -969,6 +998,87 @@ export function validatePlan(input: PlanQAInput): PlanQAResult {
         title: 'No compromised-running session',
         detail: 'No race-effort run→station→run session is scheduled. Running off a station is the race — a plan with 4+ weeks must rehearse it at least once at race effort.',
       })
+    }
+  }
+
+  // ── layered secondary prep (D10/D11) ──────────────────────────────
+  // No rule above can see a layered day: they are type 'strength' with an
+  // ordinary-looking detail, so a dose in a deload week, a duplicated pair,
+  // a flattened ramp and a session sandwiched between two hard runs were all
+  // structurally invisible. These four key on the transform's own marker.
+  //
+  // All four ship as `warn`, never `error`. App validates the derived stream
+  // AFTER the athlete's own swaps, edits and locks — an athlete who swaps
+  // their layered Wednesday next to Thursday's intervals would otherwise
+  // paint their own plan card red for doing something entirely reasonable.
+  const layeredFlat = flat.filter(({ day }) => isLayeredDay(day))
+  if (layeredFlat.length > 0) {
+    for (const w of weeks) {
+      const inWeek = w.days.filter(isLayeredDay)
+      if (inWeek.length === 0) continue
+
+      if (LAYERED_PROTECTED_WEEK.test(w.focus)) {
+        add({
+          id: 'qa_layered_in_protected_week', severity: 'warn', weekNum: w.num, day: inWeek[0].day,
+          title: 'Layered session inside a protected week',
+          detail: `Week ${w.num} is "${w.focus}" yet carries ${inWeek.length === 1 ? 'a layered session' : `${inWeek.length} layered sessions`} for ${inWeek[0].layeredFor ?? 'a later race'}. A cutback is a deload for RUNNING; a station circuit is leg-loading, so it lands on exactly the recovery the week exists to protect.`,
+        })
+      }
+
+      // Two doses in a week must differ. The v1 defect derived both from the
+      // eligible-week index, so the athlete repeated one byte-identical
+      // session twice and called it a week of training.
+      const seen = new Map<string, string>()
+      for (const d of inWeek) {
+        const prev = seen.get(d.detail)
+        if (prev !== undefined) {
+          add({
+            id: 'qa_layered_duplicate', severity: 'warn', weekNum: w.num, day: d.day,
+            title: 'Two identical layered sessions in one week',
+            detail: `Week ${w.num} prescribes the same layered session on ${prev} and ${d.day}, word for word. Two doses in a week are meant to work different qualities, not repeat one.`,
+          })
+          break
+        }
+        seen.set(d.detail, d.day)
+      }
+    }
+
+    // A ramp that never ramps. Three or more layered days whose total
+    // prescribed quantity never changes is the v1 "identical Monday for eight
+    // straight weeks" defect, which shipped once and was invisible to the gate.
+    if (layeredFlat.length >= 3) {
+      const doses = layeredFlat.map(({ day }) => layeredDoseProxy(day))
+      if (Math.max(...doses) === Math.min(...doses)) {
+        add({
+          id: 'qa_layered_ramp_flat', severity: 'warn',
+          title: 'Layered prep never progresses',
+          detail: `All ${layeredFlat.length} layered sessions prescribe identical volumes from the first week to the last. Layered work is meant to ramp toward the race it prepares; a flat sequence is a template, not a build.`,
+        })
+      }
+    }
+
+    // Sandwiched against a hard run without being eased for it. The eased
+    // marker is what makes this safe, so its ABSENCE is the finding.
+    const hardIsos = new Set<string>()
+    for (const w of weeks) {
+      for (const d of w.days) {
+        if (!LAYERED_HARD_TYPES.has(d.type)) continue
+        const iso = dayIsoInWeek(d.day, w, weeks[0]?.startIso)
+        if (iso) hardIsos.add(iso)
+      }
+    }
+    for (const w of weeks) {
+      for (const d of w.days) {
+        if (!isLayeredDay(d) || LAYERED_EASED_MARK.test(d.detail)) continue
+        const iso = dayIsoInWeek(d.day, w, weeks[0]?.startIso)
+        if (!iso) continue
+        if (!hardIsos.has(shiftIsoDays(iso, -1)) && !hardIsos.has(shiftIsoDays(iso, 1))) continue
+        add({
+          id: 'qa_layered_sandwich', severity: 'warn', weekNum: w.num, day: d.day,
+          title: 'Layered session beside a hard run',
+          detail: `${d.day} carries a full-volume layered session with a quality or long run the day beside it. The anchor race owns the plan — a layered session next to its hard days should be eased for them, or moved.`,
+        })
+      }
     }
   }
 
