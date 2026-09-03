@@ -11,7 +11,8 @@ import { realignmentContextForWeeks } from './utils/realignment'
 import { mondayOnOrBefore, todayDateString } from './utils/planDates'
 import { deriveFitnessFromHistory } from './utils/fitnessFromHistory'
 import { useSeason } from './hooks/useSeason'
-import { spliceSeasonWeeks } from './engines/season/spliceSeason'
+import { spliceSeasonWithReport } from './engines/season/spliceSeason'
+import { layeringAdvisories } from './engines/season/layeringAdvisories'
 import { raceDateToIso } from './engines/season'
 import { buildSeasonContext } from './engines/season/coachContext'
 import SeasonPanel from './components/SeasonPanel'
@@ -586,22 +587,31 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     return base
   }, [coachEnabled, coachMemory.unreadCount, view])
 
-  // Merge Strava or manual log data into training plan
-  const weeks = useMemo(() => {
-    let w = activePlan.weeks
-    // Season splice (G1): multi-race athletes get the rest of the chain —
-    // RECOVER + BRIDGE weeks and each subsequent race's generated plan —
-    // appended after the anchor race. Runs FIRST so every downstream
-    // layer (swaps, edits, actuals, rezone, compliance, watch push,
-    // realignment, repace) treats season weeks as plain plan weeks.
-    // Single-race seasons return the base weeks untouched (the guard).
-    // A splice failure (e.g. a poisoned race record arriving via sync)
-    // must degrade to the base plan — never take the whole app down.
+  // Season splice (G1): multi-race athletes get the rest of the chain —
+  // RECOVER + BRIDGE weeks and each subsequent race's generated plan —
+  // appended after the anchor race. Runs FIRST so every downstream layer
+  // (swaps, edits, actuals, rezone, compliance, watch push, realignment,
+  // repace) treats season weeks as plain plan weeks. Single-race seasons
+  // return the base weeks untouched (the guard). A splice failure (e.g. a
+  // poisoned race record arriving via sync) must degrade to the base plan —
+  // never take the whole app down.
+  //
+  // Its own memo because it also reports what the LAYERING transform did, and
+  // the advisories below have to derive from that outcome rather than from the
+  // athlete's request (D6) — splicing twice would regenerate every later
+  // race's plan for the sake of a sentence.
+  const spliced = useMemo(() => {
     try {
-      w = spliceSeasonWeeks(w, seasonState.planResult, onboarding.config, todayDateString())
+      return spliceSeasonWithReport(activePlan.weeks, seasonState.planResult, onboarding.config, todayDateString())
     } catch (err) {
       console.error('[season] splice failed — falling back to the base plan:', err)
+      return { weeks: activePlan.weeks, layerReports: [] }
     }
+  }, [activePlan.weeks, seasonState.planResult, onboarding.config])
+
+  // Merge Strava or manual log data into training plan
+  const weeks = useMemo(() => {
+    let w = spliced.weeks
     w = daySwap.applySwapsToWeeks(w)
     // Coach/manual plan edits (add/delete/update days & weeks) apply AFTER
     // swaps and BEFORE actuals. This order is load-bearing: field edits
@@ -639,7 +649,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     // display surface and to the compliance grader that reads day.zone.
     w = rezoneWeeks(w, hrZones.zones)
     return w
-  }, [activePlan.weeks, seasonState.planResult, onboarding.config, strava.activities, showStrava, manualLog.applyLogsToWeeks, daySwap.applySwapsToWeeks, planEdits.applyEditsToWeeks, lockedDays.applyLocksToWeeks, replan.applyReplansToWeeks, garmin.connected, garmin.activityDetails, apple.appleActivities, hrZones.zones])
+  }, [spliced, strava.activities, showStrava, manualLog.applyLogsToWeeks, daySwap.applySwapsToWeeks, planEdits.applyEditsToWeeks, lockedDays.applyLocksToWeeks, replan.applyReplansToWeeks, garmin.connected, garmin.activityDetails, apple.appleActivities, hrZones.zones])
 
   // Travel mode: rebalance the derived weeks the athlete is looking at into
   // one undoable planEdits batch, and remember the batchId so the whole trip
@@ -831,17 +841,27 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
       pass: later.every(f => f.severity !== 'error'),
     })
   }, [weeks, activePlan.weeks.length, activePlan.race, activePlan.methodId, hrZones.zones, seasonState.planResult])
+  // D6 — what the layering transform ACTUALLY did, said out loud. The coach
+  // letter and the review screens used to describe "1–2 sessions a week woven
+  // into your build" from the athlete's REQUEST, including on the anchors
+  // where the transform refuses outright and the athlete got zero days.
+  const layerAdvisories = useMemo(
+    () => layeringAdvisories(spliced.layerReports, activePlan.race.name, onboarding.config?.raceType),
+    [spliced.layerReports, activePlan.race.name, onboarding.config?.raceType],
+  )
   const allAdvisories = useMemo(() => {
-    const base = seasonQaAdvisories.length > 0
-      ? [...(activePlan.advisories ?? []), ...seasonQaAdvisories]
-      : (activePlan.advisories ?? [])
+    const base = [
+      ...(activePlan.advisories ?? []),
+      ...seasonQaAdvisories,
+      ...layerAdvisories,
+    ]
     // "Estimated until you test" retires itself the day a benchmark is
     // actually recorded — primary or secondary. The benchmark card and
     // the athlete model carry the calibration from there.
     return benchmarkCompletedIso(weeks, todayDateString())
       ? base.filter(adv => adv.id !== 'zones_estimated')
       : base
-  }, [activePlan.advisories, seasonQaAdvisories, weeks])
+  }, [activePlan.advisories, seasonQaAdvisories, layerAdvisories, weeks])
 
   // ── G6: course-aware race pacing ──────────────────────────────
   // Only for curated courses (the 3 Broken Arrow editions today) and only
@@ -2337,7 +2357,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
       {/* Methodology moved into Settings as a collapsible subsection */}
       {view === 'info' && (
         <div className="px-3 pt-3">
-          <SeasonPanel seasonState={seasonState} />
+          <SeasonPanel seasonState={seasonState} anchorRaceType={onboarding.config?.raceType} />
           <RaceInfo race={activePlan.race} />
         </div>
       )}

@@ -159,7 +159,55 @@ const PROTECTED_WEEK = /taper|cutback|recover|race\s*week|deload/i
  *  the same reason. Unknown (legacy callers) stays permitted. */
 const LAYERABLE_ANCHOR = new Set(['road', 'trail'])
 
-export function layerSecondaryWork(
+/**
+ * Can this anchor race format lend slots to a layered Hyrox build at all?
+ * Exported so the UI never OFFERS a choice the engine will refuse, and never
+ * claims layering happened where it cannot happen (D6). One predicate, one
+ * answer — the previous shape had the engine's rule in one file and the
+ * letter's claim in another, and they disagreed for every Hyrox anchor.
+ */
+export function canLayerOntoAnchor(anchorRaceType: string | null | undefined): boolean {
+  if (!anchorRaceType) return true // unknown → legacy callers stay permitted
+  return LAYERABLE_ANCHOR.has(anchorRaceType)
+}
+
+/** Why nothing was layered, when nothing was. */
+export type LayerRefusal =
+  /** The athlete never asked for it (integration is sequential or unset). */
+  | 'not-requested'
+  /** The second race has no Hyrox content to layer. */
+  | 'not-hyrox'
+  /** The anchor race's own build has no ordinary slots to lend. */
+  | 'anchor-format'
+  /** Asked for, allowed, but no week could carry a dose — runway too short,
+   *  every week protected, the race already run, or every slot spoken for. */
+  | 'no-eligible-weeks'
+
+/** What the transform ACTUALLY did, so nothing downstream has to guess.
+ *  D6: the app told the athlete "1–2 sessions/week are layered in" on the
+ *  strength of the REQUEST, never the outcome — including for the anchors
+ *  where the engine refuses outright and the athlete got zero. */
+export interface LayerReport {
+  raceName: string
+  refusal: LayerRefusal | null
+  /** Layered days actually placed. */
+  sessions: number
+  /** Weeks that carry at least one. */
+  weeks: number
+  /** Of `sessions`, how many had to be eased around a hard run. */
+  eased: number
+  /** Calendar span of the layered work, when there is any. */
+  firstIso: string | null
+  lastIso: string | null
+}
+
+/**
+ * The reporting form. `layerSecondaryWork` is the thin wrapper for callers
+ * that only want the weeks; every guard below returns a REPORT rather than
+ * silently returning the input, which is what let the UI keep claiming
+ * layering it never got.
+ */
+export function layerSecondaryWorkReport(
   anchorWeeks: TrainingWeek[],
   race: SeasonRace,
   anchorRaceIso: string,
@@ -167,10 +215,15 @@ export function layerSecondaryWork(
   /** The athlete's own division/sex/age, and the ANCHOR race's type — a Hyrox
    *  or General Fitness anchor is never layered over. */
   athlete?: { hyroxDivision?: 'open' | 'pro'; sex?: string; age?: number; anchorRaceType?: string },
-): TrainingWeek[] {
-  if (race.integration !== 'layered') return anchorWeeks
-  if (!isHyroxRaceInfo(race.raceInfo)) return anchorWeeks
-  if (athlete?.anchorRaceType && !LAYERABLE_ANCHOR.has(athlete.anchorRaceType)) return anchorWeeks
+): { weeks: TrainingWeek[]; report: LayerReport } {
+  const raceName = race.raceInfo?.name ?? 'this race'
+  const refused = (refusal: LayerRefusal) => ({
+    weeks: anchorWeeks,
+    report: { raceName, refusal, sessions: 0, weeks: 0, eased: 0, firstIso: null, lastIso: null },
+  })
+  if (race.integration !== 'layered') return refused('not-requested')
+  if (!isHyroxRaceInfo(race.raceInfo)) return refused('not-hyrox')
+  if (!canLayerOntoAnchor(athlete?.anchorRaceType)) return refused('anchor-format')
   // P3.1 — layered sessions render from THIS race's division and the
   // athlete's sex, never the men's Open default (v1 prescribed 152 kg sled
   // pushes to every woman on this path).
@@ -226,12 +279,14 @@ export function layerSecondaryWork(
     const hasSlot = w.days.some(d => TRANSFORMABLE.has(d.type) && !d.actual && !isLayered(d))
     if (hasSlot) eligible.push(i)
   })
-  if (eligible.length === 0) return anchorWeeks
+  if (eligible.length === 0) return refused('no-eligible-weeks')
 
   // Escalation: the second half of eligible weeks gets 2 sessions/week.
   const midStart = Math.ceil(eligible.length / 2)
 
   const out = anchorWeeks.map(w => ({ ...w, days: w.days.map(d => ({ ...d })) }))
+  const placed: { iso: string | null; eased: boolean }[] = []
+  const weeksTouched = new Set<number>()
   eligible.forEach((weekIdx, pos) => {
     const doses = pos >= midStart ? 2 : 1
     const w = out[weekIdx]
@@ -260,7 +315,33 @@ export function layerSecondaryWork(
       w.days[c.i] = hyroxLayeredDay(
         w.days[c.i], race.raceInfo.name, pos, eligible.length, specs, doseIndexInWeek, c.crowded, masters,
       )
+      placed.push({ iso: dayIsoInWeek(w.days[c.i].day, w, anchorRaceIso), eased: c.crowded })
+      weeksTouched.add(weekIdx)
     })
   })
-  return out
+  const isos = placed.map(p => p.iso).filter((i): i is string => i !== null).sort()
+  const report: LayerReport = {
+    raceName,
+    // Asked for, allowed, and yet nothing landed — every candidate was
+    // completed, already claimed by an earlier layered race, or past the
+    // guard. That is still zero sessions, and it must read as zero.
+    refusal: placed.length === 0 ? 'no-eligible-weeks' : null,
+    sessions: placed.length,
+    weeks: weeksTouched.size,
+    eased: placed.filter(p => p.eased).length,
+    firstIso: isos[0] ?? null,
+    lastIso: isos[isos.length - 1] ?? null,
+  }
+  return { weeks: out, report }
+}
+
+/** Weeks only — the shape every existing caller wants. */
+export function layerSecondaryWork(
+  anchorWeeks: TrainingWeek[],
+  race: SeasonRace,
+  anchorRaceIso: string,
+  today: string,
+  athlete?: { hyroxDivision?: 'open' | 'pro'; sex?: string; age?: number; anchorRaceType?: string },
+): TrainingWeek[] {
+  return layerSecondaryWorkReport(anchorWeeks, race, anchorRaceIso, today, athlete).weeks
 }

@@ -9,7 +9,7 @@ import {
   weekDates,
   type StreamDay,
 } from './blockWeeks'
-import { layerSecondaryWork } from './layerSecondaryWork'
+import { layerSecondaryWorkReport, type LayerReport } from './layerSecondaryWork'
 import { getMethodById, RECOMMENDABLE_METHODS } from '../../data/methods'
 import { generatePlanFromMethod } from '../planGenerator/generatePlan'
 import { bestMethodForDistance } from '../planGenerator/methodSelection'
@@ -55,14 +55,21 @@ export function nearestRaceDistance(miles: number): RaceDistance {
   return '100_mile'
 }
 
-export function spliceSeasonWeeks(
+/**
+ * The reporting form: the weeks PLUS what the layering transform actually did
+ * to them, one report per second-and-later race. D6 — every claim the app
+ * makes about layered work now derives from this, not from the athlete's
+ * request, so it cannot describe sessions that were never written.
+ */
+export function spliceSeasonWithReport(
   baseWeeks: TrainingWeek[],
   result: SeasonPlanResult,
   config: OnboardingConfig | null,
   today: string,
-): TrainingWeek[] {
+): { weeks: TrainingWeek[]; layerReports: LayerReport[] } {
   const { season } = result
-  if (season.races.length < 2 || !config) return baseWeeks // the guard
+  const layerReports: LayerReport[] = []
+  if (season.races.length < 2 || !config) return { weeks: baseWeeks, layerReports } // the guard
 
   const anchorId = season.races[0]?.id
   const anchorRaceBlock = season.blocks.find(b => b.kind === 'RACE' && b.raceId === anchorId)
@@ -95,8 +102,10 @@ export function spliceSeasonWeeks(
   if (anchorIso) {
     for (const race of season.races.slice(1)) {
       if (race.integration === 'layered') {
-        trimmedBase = layerSecondaryWork(trimmedBase, race, anchorIso, today,
+        const res = layerSecondaryWorkReport(trimmedBase, race, anchorIso, today,
           config ? { hyroxDivision: config.hyroxDivision, sex: config.sex, age: config.age, anchorRaceType: config.raceType } : undefined)
+        trimmedBase = res.weeks
+        layerReports.push(res.report)
       }
     }
   }
@@ -271,7 +280,20 @@ export function spliceSeasonWeeks(
   // (possibly trimmed) anchor weeks.
   const merged = mergeLeadingPartials(trimmedBase, appended)
   let nextWeekNum = merged.base.reduce((m, w) => Math.max(m, w.num), 0) + 1
-  return [...merged.base, ...merged.appended.map(w => ({ ...w, num: nextWeekNum++ }))]
+  return {
+    weeks: [...merged.base, ...merged.appended.map(w => ({ ...w, num: nextWeekNum++ }))],
+    layerReports,
+  }
+}
+
+/** Weeks only — the shape every existing caller wants. */
+export function spliceSeasonWeeks(
+  baseWeeks: TrainingWeek[],
+  result: SeasonPlanResult,
+  config: OnboardingConfig | null,
+  today: string,
+): TrainingWeek[] {
+  return spliceSeasonWithReport(baseWeeks, result, config, today).weeks
 }
 
 /** Monday (ISO) on or before the given ISO date. */

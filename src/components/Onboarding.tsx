@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { canLayerOntoAnchor } from '../engines/season/layerSecondaryWork'
 import type {
   RaceType,
   GeneralGoal,
@@ -234,9 +235,13 @@ function assembleAdditionalRaces(args: {
           ? r.hyroxDivision
           : undefined,
         // The integration ask applies to format-specific (Hyrox)
-        // races; others run sequential (the only defined behavior).
+        // races; others run sequential (the only defined behavior). And an
+        // anchor the transform cannot layer onto is coerced here rather than
+        // stored as a request that will be silently refused — the athlete may
+        // have chosen 'layered' before going back and switching their main
+        // race to a Hyrox, and the choice is hidden from that point on.
         integration: (r.format ? r.format === 'hyrox' : isHyroxRaceInfo({ name: r.name, description: r.description }))
-          ? r.integration
+          ? (canLayerOntoAnchor(raceType) ? r.integration : 'sequential' as const)
           : 'sequential' as const,
       }))
     return rows.length > 0 ? rows : undefined
@@ -1251,6 +1256,20 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
                             >{d === 'open' ? 'Open' : 'Pro'}</button>
                           ))}
                         </div>
+                        {/* D6 / decision 4a — only ask where the answer can be
+                            honoured. A Hyrox or general-fitness anchor has no
+                            ordinary strength slots to lend, so the transform
+                            refuses; offering "layer it in" there is a promise
+                            the plan cannot keep. */}
+                        {!canLayerOntoAnchor(raceType) ? (
+                          <p className="text-[11px] text-slate-500 mt-1">
+                            {row.name.trim() || 'This race'}’s training starts after your main race.
+                            {raceType === 'hyrox'
+                              ? ' Your main race is a Hyrox too — its build already trains every station at race spec, so there is nothing spare to layer into.'
+                              : ' Your main plan is already strength-led, so there is nothing spare to layer into.'}
+                          </p>
+                        ) : (
+                        <>
                         <p className="text-xs font-medium text-slate-600 mb-1">
                           When should {row.name.trim() || 'this race'}’s training start?
                         </p>
@@ -1279,9 +1298,13 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
                           </button>
                         </div>
                         <p className="text-[11px] text-slate-500 mt-1">
-                          Layered = 1–2 station/strength sessions a week woven into your current
-                          build (your running stays untouched), ramping after race #1.
+                          Layered = station/strength sessions woven into your current build in place
+                          of strength slots you already have (your running stays untouched). How many
+                          fit depends on your runway — your plan will tell you the real number, and
+                          the rest of this race’s prep comes in its own block after race #1.
                         </p>
+                        </>
+                        )}
                       </div>
                     )}
                     {row.date && raceDate && row.date <= raceDate && (
@@ -2393,7 +2416,11 @@ function ReviewSummary({
               <p className="text-sm text-slate-600">
                 {fmt ? `${RACE_FORMAT_LABEL[fmt]} · ` : ''}
                 {primaryKey === r.key ? 'Full build + taper' : r.priority === 'C' ? 'Tune-up — train through' : 'Key race — short taper'} · {r.date}
-                {fmt === 'hyrox' ? ` · ${r.integration === 'layered' ? 'training layered into your build now' : 'training starts after the previous race'}` : ''}
+                {fmt === 'hyrox'
+                  ? ` · ${r.integration === 'layered' && canLayerOntoAnchor(raceType)
+                      ? 'some station work layered into your build now'
+                      : 'training starts after the previous race'}`
+                  : ''}
               </p>
               {r.description.trim() && (
                 <p className="text-sm text-slate-500 mt-0.5">{r.description.trim()}</p>

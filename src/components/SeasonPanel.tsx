@@ -3,6 +3,7 @@ import type { RaceInfo, RacePriority } from '../types'
 import type { UseSeasonReturn } from '../hooks/useSeason'
 import { raceDateToIso } from '../engines/season'
 import { isHyroxRaceInfo } from '../engines/season/planSeason'
+import { canLayerOntoAnchor } from '../engines/season/layerSecondaryWork'
 import { BLOCK_STYLE } from '../utils/blockStyles'
 
 /**
@@ -29,7 +30,9 @@ function fmtRange(startIso: string, endIso: string): string {
   return startIso === endIso ? fmt(startIso) : `${fmt(startIso)}–${fmt(endIso)}`
 }
 
-export default function SeasonPanel({ seasonState }: { seasonState: UseSeasonReturn }) {
+export default function SeasonPanel(
+  { seasonState, anchorRaceType }: { seasonState: UseSeasonReturn; anchorRaceType?: string | null },
+) {
   const { season, planResult, isMultiRace, addRace, setPriority, setIntegration, setPrimary, removeRace } = seasonState
   const [adding, setAdding] = useState(false)
   const [name, setName] = useState('')
@@ -52,9 +55,16 @@ export default function SeasonPanel({ seasonState }: { seasonState: UseSeasonRet
 
   // One-time confirm for races captured before the integration choice
   // existed: never silently change an athlete's plan — ask.
-  const pendingIntegration = season.races
-    .slice(1)
-    .find(r => r.integration === undefined && isHyroxRaceInfo(r.raceInfo) && r.status === 'upcoming')
+  // D6 / decision 4a — only ask where the answer can be honoured. The
+  // transform refuses on a Hyrox or general-fitness anchor (their builds have
+  // no ordinary strength or cross slots to lend), so offering "layer it in"
+  // there is a promise the plan cannot keep.
+  const canLayer = canLayerOntoAnchor(anchorRaceType)
+  const pendingIntegration = canLayer
+    ? season.races
+        .slice(1)
+        .find(r => r.integration === undefined && isHyroxRaceInfo(r.raceInfo) && r.status === 'upcoming')
+    : undefined
 
   function submitAdd() {
     if (!name.trim() || !date) return
@@ -75,7 +85,7 @@ export default function SeasonPanel({ seasonState }: { seasonState: UseSeasonRet
       format: effectiveFormat,
       ...(effectiveFormat === 'hyrox' ? { hyroxDivision: division } : {}),
     }
-    addRace(race, priority, addFormIsHyrox ? integration : 'sequential')
+    addRace(race, priority, addFormIsHyrox && canLayer ? integration : 'sequential')
     setAdding(false)
     setName(''); setDate(''); setMiles(''); setVertFt(''); setPri('B'); setDescription(''); setIntegrationChoice('layered'); setFormat(null); setDivision('open')
   }
@@ -161,7 +171,15 @@ export default function SeasonPanel({ seasonState }: { seasonState: UseSeasonRet
             aria-label="Race details"
             className="w-full rounded-lg border border-slate-300 px-2 py-1.5 text-sm resize-none"
           />
-          {addFormIsHyrox && (
+          {addFormIsHyrox && !canLayer && (
+            <p className="text-[11px] text-slate-500 dark:text-slate-400">
+              This race’s training starts after your current race.
+              {anchorRaceType === 'hyrox'
+                ? ' Your current race is a Hyrox too — its build already trains every station at race spec, so there is nothing spare to layer into.'
+                : ' Your current plan is already strength-led, so there is nothing spare to layer into.'}
+            </p>
+          )}
+          {addFormIsHyrox && canLayer && (
             <div>
               <p className="text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
                 When should this race’s training start?
@@ -209,8 +227,10 @@ export default function SeasonPanel({ seasonState }: { seasonState: UseSeasonRet
             Layer {pendingIntegration.raceInfo.name} prep into your current build?
           </p>
           <p className="text-[11px] text-teal-800 dark:text-teal-200 mt-0.5">
-            1–2 station/strength sessions a week woven in now (your running stays
-            untouched) — or keep everything after your current race.
+            Station/strength sessions woven in now in place of strength slots you already
+            have (your running stays untouched) — or keep everything after your current
+            race. How many fit depends on your runway; your plan will tell you the real
+            number either way.
           </p>
           <div className="flex gap-2 mt-1.5">
             <button

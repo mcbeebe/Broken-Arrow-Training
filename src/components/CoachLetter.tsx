@@ -1,4 +1,5 @@
 import { useEffect, useMemo } from 'react'
+import { canLayerOntoAnchor } from '../engines/season/layerSecondaryWork'
 import type { TrainingPlan, CoachSnapshot } from '../types'
 import type { OnboardingConfig } from '../hooks/useOnboarding'
 import { useCoachInsight } from '../hooks/useCoachInsight'
@@ -63,7 +64,13 @@ export default function CoachLetter({ plan, config, athleteId, onContinue }: Pro
         ...extraRaces.map((r, i) =>
           `Race ${i + 2}: ${r.name} on ${r.date} (${r.format ?? 'race'}, ${r.isPrimary ? 'THE MAIN GOAL — full build + taper' : r.priority === 'C' ? 'tune-up, trained through' : 'key race, short taper'})` +
           `${r.description?.trim() ? ` — ${r.description.trim()}` : ''}` +
-          `${r.integration === 'layered' ? ' — its specific prep is LAYERED into the current build (1–2 sessions/week now, ramping after race 1)' : ' — its dedicated block starts after the previous race'}.`),
+          // D6 — describe the OUTCOME, never the request. Layering is refused
+          // outright on a Hyrox or general-fitness anchor (their builds have no
+          // ordinary slots to lend), and the letter used to tell those athletes
+          // their prep was woven in while the plan contained none of it.
+          `${r.integration === 'layered' && canLayerOntoAnchor(config.raceType)
+            ? ' — some of its station work is LAYERED into the current build (the plan advisories carry the actual session count); the rest is its own block after race 1'
+            : ' — its dedicated block starts after the previous race'}.`),
         'The season chains: build → race → recover → bridge → next build; every race gets its own race week.',
       ].join(' ')
     : undefined
