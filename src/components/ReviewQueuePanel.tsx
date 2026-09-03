@@ -1,14 +1,18 @@
 import { useState } from 'react'
 import { buildQueue, overflowCount, waitingLabel, type QueueItem } from '../utils/reviewQueue'
+import { addReceipt, readReceipts, writeReceipts, type StoredReceipt } from '../utils/applyReceipts'
 
 /**
  * What applying a proposal gives back. An `undo` means the change can be
  * taken back from the receipt below; its absence means it cannot, and the
  * receipt says so rather than offering a button that does nothing.
  */
-export interface ApplyResult { undo?: () => void }
-
-interface Receipt { id: string; title: string; undo?: () => void }
+export interface ApplyResult {
+  undo?: () => void
+  /** Serialisable stand-in for `undo`, so the receipt (and its button) can
+   *  outlive the screen — see utils/applyReceipts. */
+  undoToken?: StoredReceipt['undoToken']
+}
 
 /**
  * The review queue, in Coach — the permanent home of every proposal.
@@ -18,27 +22,78 @@ interface Receipt { id: string; title: string; undo?: () => void }
  * athlete decides — and if they wait too long they expire rather than
  * accusing forever.
  */
-export default function ReviewQueuePanel({ items, onApply, onSnooze, now }: {
+/** Wall clock, at module scope so the component body stays pure — tests and
+ *  any caller that already knows "now" pass it in. */
+function stamp(now?: number): number {
+  return now ?? Date.now()
+}
+
+export default function ReviewQueuePanel({ items, onApply, onSnooze, now, athleteId, onUndoToken }: {
   items: QueueItem[]
   onApply: (item: QueueItem) => ApplyResult | void
   onSnooze: (item: QueueItem) => void
   now?: number
+  /** Enables receipts that outlive the screen. Without it the panel keeps
+   *  its old session-only behaviour, so existing callers are unaffected. */
+  athleteId?: string
+  /** Rebuilds the way back from a stored token. Returns false when the way
+   *  back is gone, so the receipt can say so instead of pretending. */
+  onUndoToken?: (token: NonNullable<StoredReceipt['undoToken']>) => boolean
 }) {
   const queue = buildQueue(items, now)
   const overflow = overflowCount(items, now)
   // An applied proposal leaves the queue on the next render, because its
   // source stops qualifying. The receipt has to outlive the item, or the
-  // athlete's only evidence that anything happened is a card vanishing.
-  const [receipts, setReceipts] = useState<Receipt[]>([])
+  // athlete's only evidence that anything happened is a card vanishing —
+  // and, with `athleteId`, it has to outlive the SCREEN too: applying from
+  // Today routes here, which remounts this panel.
+  const [receipts, setReceipts] = useState<StoredReceipt[]>(
+    () => (athleteId ? readReceipts(athleteId, stamp(now)) : []),
+  )
+  // In-memory closures for receipts applied in this mount — preferred over
+  // the token because they need no rebuild. State rather than a ref because
+  // the render decides whether to show an Undo button from it.
+  const [liveUndos, setLiveUndos] = useState<Record<string, () => void>>({})
+  const [failed, setFailed] = useState<string[]>([])
+
+  const persist = (next: StoredReceipt[]) => {
+    setReceipts(next)
+    if (athleteId) writeReceipts(athleteId, next)
+  }
 
   const apply = (item: QueueItem) => {
     const result = onApply(item) ?? {}
-    setReceipts(rs => [{ id: item.id, title: item.title, undo: result.undo }, ...rs])
+    if (result.undo) setLiveUndos(m => ({ ...m, [item.id]: result.undo! }))
+    persist(addReceipt(receipts, {
+      id: item.id,
+      title: item.title,
+      appliedAt: stamp(now),
+      ...(result.undoToken ? { undoToken: result.undoToken } : {}),
+    }))
   }
 
-  const undo = (receipt: Receipt) => {
-    receipt.undo?.()
-    setReceipts(rs => rs.filter(r => r !== receipt))
+  const canUndo = (r: StoredReceipt) =>
+    r.id in liveUndos || (!!r.undoToken && !!onUndoToken)
+
+  const undo = (receipt: StoredReceipt) => {
+    const live = liveUndos[receipt.id]
+    if (live) {
+      live()
+    } else if (receipt.undoToken && onUndoToken) {
+      // The way back can be genuinely gone (a later apply replaced the
+      // snapshot, storage was cleared). Say so rather than dropping the
+      // receipt and letting the athlete believe it worked.
+      if (!onUndoToken(receipt.undoToken)) {
+        setFailed(f => (f.includes(receipt.id) ? f : [...f, receipt.id]))
+        return
+      }
+    }
+    setLiveUndos(m => {
+      const next = { ...m }
+      delete next[receipt.id]
+      return next
+    })
+    persist(receipts.filter(r => r.id !== receipt.id))
   }
 
   const receiptList = receipts.length > 0 && (
@@ -51,9 +106,14 @@ export default function ReviewQueuePanel({ items, onApply, onSnooze, now }: {
         >
           <p className="text-xs text-teal-900 dark:text-teal-100 leading-relaxed">
             <span className="font-bold">Applied.</span> {r.title}
-            {!r.undo && <span className="block opacity-80">This one cannot be taken back.</span>}
+            {!canUndo(r) && <span className="block opacity-80">This one cannot be taken back.</span>}
+            {failed.includes(r.id) && (
+              <span className="block opacity-80">
+                The way back is gone — a later change replaced it. This one stands.
+              </span>
+            )}
           </p>
-          {r.undo && (
+          {canUndo(r) && !failed.includes(r.id) && (
             <button
               onClick={() => undo(r)}
               className="h-8 px-3 shrink-0 rounded-lg border border-teal-300 dark:border-teal-800 text-teal-800 dark:text-teal-200 text-xs font-bold"

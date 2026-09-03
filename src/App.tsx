@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback, useRef } from 'react'
+import { useState, useMemo, useEffect, useCallback } from 'react'
 import type { ViewId, CoachSnapshot, CoachAction, PlannedDay, JournalNote } from './types'
 import { resolveViewId, resolveDeepLink } from './utils/viewId'
 import { DETAIL_DIRECTIVES } from './types'
@@ -18,6 +18,10 @@ import { buildSeasonContext } from './engines/season/coachContext'
 import SeasonPanel from './components/SeasonPanel'
 import { assessRecalibration } from './engines/planGenerator/recalibration'
 import { validatePlan, qaFindingsToAdvisories } from './engines/planQA/validatePlan'
+import {
+  clearUndoSnapshot, readUndoSnapshot, saveUndoSnapshot,
+  type BenchmarkUndoSnapshot,
+} from './engines/benchmark/undoSnapshot'
 import { useReplan } from './hooks/useReplan'
 import { useLockedDays } from './hooks/useLockedDays'
 import { assessBenchmarkResult, benchmarkCompletedIso, scaleZoneTable } from './engines/planGenerator/benchmarkResult'
@@ -755,19 +759,12 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
   const benchDismissed = (() => {
     try { return localStorage.getItem(benchDismissKey) === benchEvidenceKey } catch { return false }
   })()
-  // Snapshot for undo — captured at apply time.
-  const benchUndoRef = useRef<{
-    zones: import('./types').HRZone[] | null
-    maxHROverride: number | null
-    fitnessAnchor: import('./hooks/useOnboarding').FitnessAnchor | null
-    testedLthrBpm: number | null
-    configMaxHR: number | null
-    /** undefined = erg untouched by this apply; null = there was none. */
-    capacity?: import('./engines/strength/benchmark').StrengthCapacity | null
-  } | null>(null)
   const applyBenchmarkResult = useCallback(() => {
     const a = benchAssessment
-    benchUndoRef.current = {
+    // Captured BEFORE anything is written, and stored rather than held in a
+    // ref: the undo has to survive the athlete navigating away and coming
+    // back, which is exactly when they decide the new zones feel wrong.
+    const undoSnapshot: Omit<BenchmarkUndoSnapshot, 'batchId'> = {
       zones: hrZones.isCustomized ? hrZones.zones : null,
       maxHROverride: maxHROverride.isCustomized ? maxHROverride.maxHR : null,
       fitnessAnchor: onboarding.config?.fitnessAnchor ?? null,
@@ -800,25 +797,35 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
       ...(a.suggestedLthr != null ? { testedLthrBpm: a.suggestedLthr } : {}),
       ...(a.suggestedMaxHR != null ? { maxHR: a.suggestedMaxHR } : {}),
     })
-    return planEdits.applyBatch(buildZoneAnchorOps(
+    const batchId = planEdits.applyBatch(buildZoneAnchorOps(
       weeks,
       { oldLthr: a.currentLthr, newLthr: a.suggestedLthr ?? a.currentLthr, newZones },
       todayDateString(),
       `Benchmark re-anchor: ${a.evidence[0] ?? 'field test result'}`,
     ))
-  }, [benchAssessment, hrZones, maxHROverride, onboarding, planEdits, weeks, handleSaveHRZones, strengthCapacity])
+    // Keyed by the batch it undoes. A second apply replaces it, and the
+    // read below refuses a snapshot from a different batch rather than
+    // rolling the athlete back to a state a later apply already replaced.
+    saveUndoSnapshot(athleteId, { ...undoSnapshot, batchId })
+    return batchId
+  }, [athleteId, benchAssessment, hrZones, maxHROverride, onboarding, planEdits, weeks, handleSaveHRZones, strengthCapacity])
   const undoBenchmarkResult = useCallback((batchId: string) => {
+    // Read the way back BEFORE reverting the plan edits: a half-undo (days
+    // restored, zones still rewritten) is the worst of the three outcomes,
+    // so if there is nothing to restore we do nothing at all and leave the
+    // athlete with the state they can still see and undo later.
+    const snap = readUndoSnapshot(athleteId, batchId)
+    if (!snap) return false
     planEdits.undoBatch(batchId)
-    const snap = benchUndoRef.current
-    if (!snap) return
     if (snap.zones) hrZones.save(snap.zones); else hrZones.reset()
     if (snap.maxHROverride != null) maxHROverride.save(snap.maxHROverride); else maxHROverride.reset()
     onboarding.applyBenchmarkAnchors({ fitnessAnchor: snap.fitnessAnchor, testedLthrBpm: snap.testedLthrBpm, maxHR: snap.configMaxHR })
     if (snap.capacity !== undefined) {
       if (snap.capacity) strengthCapacity.save(snap.capacity); else strengthCapacity.clear()
     }
-    benchUndoRef.current = null
-  }, [planEdits, hrZones, maxHROverride, onboarding, strengthCapacity])
+    clearUndoSnapshot(athleteId)
+    return true
+  }, [athleteId, planEdits, hrZones, maxHROverride, onboarding, strengthCapacity])
 
   // ── R0: season-level QA ───────────────────────────────────────
   // The anchor plan is validated at generation time, but the spliced
@@ -1374,7 +1381,12 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     if (item.kind === 'benchmark') {
       const batchId = applyBenchmarkResult()
       clearFirstSeen(athleteId, item.id)
-      return { undo: () => undoBenchmarkResult(batchId) }
+      // Both forms: the closure for this mount, the token so the receipt's
+      // Undo survives navigating to another view and back.
+      return {
+        undo: () => { undoBenchmarkResult(batchId) },
+        undoToken: { kind: 'benchmark', batchId },
+      }
     }
     if (item.kind === 'recalibration') {
       const batchId = planEdits.applyBatch(buildRepaceOps(
@@ -1382,7 +1394,10 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
         `Pace recalibration: ${recalAssessment.evidence[0]}`,
       ))
       clearFirstSeen(athleteId, item.id)
-      return { undo: () => planEdits.undoBatch(batchId) }
+      return {
+        undo: () => planEdits.undoBatch(batchId),
+        undoToken: { kind: 'recalibration', batchId },
+      }
     }
     // Accepting a calibration also teaches the coach something about this
     // athlete. That sentence used to be written only by the Today card's
@@ -1400,6 +1415,21 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     athleteId, applyBenchmarkResult, undoBenchmarkResult, planEdits, weeks,
     recalAssessment, mimCalibration, domsCalibration, coachMemory,
   ])
+
+  /** Rebuild the way back from a stored receipt. Returns false when it is
+   *  genuinely gone, so the receipt says so instead of claiming success. */
+  const undoQueueToken = useCallback((token: { kind: QueueItem['kind']; batchId: string }): boolean => {
+    if (token.kind === 'benchmark') return undoBenchmarkResult(token.batchId)
+    if (token.kind === 'recalibration') {
+      // Nothing to restore beyond the batch itself, so "can it still be
+      // undone" is just "is the batch still there" — a plan reset or a
+      // sync from another device can have taken it away.
+      if (!planEdits.edits.some(e => e.batchId === token.batchId)) return false
+      planEdits.undoBatch(token.batchId)
+      return true
+    }
+    return false // the two calibrations teach the model and have no inverse
+  }, [undoBenchmarkResult, planEdits])
 
   const snoozeQueueItem = useCallback((item: QueueItem) => {
     if (item.kind === 'benchmark') {
@@ -2110,6 +2140,8 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
                   items={reviewItems}
                   onApply={applyQueueItem}
                   onSnooze={snoozeQueueItem}
+                  athleteId={athleteId}
+                  onUndoToken={undoQueueToken}
                 />
               </div>
             )}
@@ -2294,8 +2326,10 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           <div className="flex-1 min-h-0 overflow-y-auto px-3 py-3">
             <ReviewQueuePanel
               items={reviewItems}
-              onApply={item => { applyQueueItem(item); setCoachSubTab('review') }}
+              onApply={item => applyQueueItem(item)}
               onSnooze={item => snoozeQueueItem(item)}
+              athleteId={athleteId}
+              onUndoToken={undoQueueToken}
             />
           </div>
         ) : coachSubTab === 'tools' ? (
