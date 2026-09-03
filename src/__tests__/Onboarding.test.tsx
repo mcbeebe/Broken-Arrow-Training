@@ -868,7 +868,7 @@ describe('Onboarding', () => {
   })
 
   describe('day-budget breakdown', () => {
-    it('shows the live run/strength/cross split on the Strength step', () => {
+    it('tells the truth when the method floor squeezes the extras (decision 6c)', () => {
       const onComplete = vi.fn()
       render(<Onboarding onComplete={onComplete} loadingDurationMs={0} />)
       // Race type → Race name → Race distance → Experience → Days → Variant → Baseline → Equipment → Strength
@@ -892,18 +892,24 @@ describe('Onboarding', () => {
       fireEvent.click(screen.getByText('Track'))
       clickContinue()
 
-      // We're on STEP_STRENGTH now. Default breakdown with no strength + no cross → 5 running.
+      // We're on STEP_STRENGTH now. No extras yet → the clean split, 5 running.
       expect(screen.getByText(/Your 5-day week/)).toBeInTheDocument()
       expect(screen.getByText(/5 running.*0 strength.*0 cross/)).toBeInTheDocument()
 
-      // Pick 2x strength + 1x cross-training (with a modality).
+      // Pick 2x strength + 1x cross-training (with a modality). 80/20 (the
+      // resolved method) needs 5 running days, so a 5-day athlete cannot have
+      // 2 running + 3 extras — the pre-6c breakdown claimed exactly that. The
+      // truth: the running fills the week and only one extra fits.
       fireEvent.click(screen.getByRole('button', { name: 'Strength 2x' }))
       fireEvent.click(screen.getByRole('button', { name: 'Cross-training 1x' }))
       fireEvent.click(screen.getByText('Cycling'))
-      expect(screen.getByText(/2 running.*2 strength.*1 cross/)).toBeInTheDocument()
+      expect(screen.queryByText(/2 running/)).toBeNull()
+      const box = screen.getByTestId('week-breakdown-overbudget')
+      expect(box.textContent).toMatch(/5 running .* 1 of your 3 strength\/cross/)
+      expect(box.textContent).toMatch(/needs at least 5 running days/)
     })
 
-    it('warns when extras exceed the day budget', () => {
+    it('says plainly when the running floor leaves no room for strength at all (decision 6c)', () => {
       const onComplete = vi.fn()
       render(<Onboarding onComplete={onComplete} loadingDurationMs={0} />)
       fireEvent.click(screen.getByText('A specific race')); clickContinue() // goal mode
@@ -916,11 +922,15 @@ describe('Onboarding', () => {
       fireEvent.click(screen.getByText('Saturday')); clickContinue()
       fireEvent.click(screen.getByText('Track')); clickContinue()
 
-      // 3-day budget; pick 3x strength + 1x cross with modality → 4 extras > 3 budget → warning text.
+      // 3-day budget on a method (80/20) that needs 5 running days: even one
+      // strength day cannot fit. The athlete is told so, honestly, before the
+      // plan is built — not in an advisory afterward.
       fireEvent.click(screen.getByRole('button', { name: 'Strength 3+' }))
       fireEvent.click(screen.getByRole('button', { name: 'Cross-training 1x' }))
       fireEvent.click(screen.getByText('Cycling'))
-      expect(screen.getByText(/Strength \+ cross exceed/)).toBeInTheDocument()
+      const box = screen.getByTestId('week-breakdown-overbudget')
+      expect(box.textContent).toMatch(/none of your strength or cross-training would be scheduled/)
+      expect(box.textContent).toMatch(/the running comes first|needs at least 5 running days/)
     })
   })
 

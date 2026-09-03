@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { canLayerOntoAnchor } from '../engines/season/layerSecondaryWork'
+import { assessExtrasFitForConfig, type ExtrasFitAssessment } from '../engines/planGenerator/extrasFit'
 import type {
   RaceType,
   GeneralGoal,
@@ -638,6 +639,26 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
     }
     return undefined
   }
+
+  // Decision 6c — foresee, at the strength step, whether the chosen method's
+  // running floor leaves room for the strength / cross days just picked. The
+  // method wins when its minimum fills the week (6a, #415); this warns the
+  // athlete BEFORE the plan is built instead of in a post-hoc advisory.
+  const extrasFit: ExtrasFitAssessment | null = useMemo(() => {
+    if (step !== STEP_STRENGTH || !raceType || !experience || !daysPerWeek) return null
+    const effCross = (crossDays ?? 0) > 0 && crossTraining.length > 0 ? (crossDays ?? 0) : 0
+    if ((strengthDays ?? 0) + effCross === 0) return null
+    return assessExtrasFitForConfig({
+      raceType,
+      raceDistance: showsDistanceStep ? (raceDistance ?? undefined) : undefined,
+      raceDistanceMiles: showsDistanceStep && parseFloat(exactDistanceMi) > 0 ? parseFloat(exactDistanceMi) : undefined,
+      elevationGainFt: showsDistanceStep && parseFloat(elevationGainFt) > 0 ? Math.round(parseFloat(elevationGainFt)) : undefined,
+      experienceLevel: experience,
+      trainingDaysPerWeek: daysPerWeek,
+      strengthDaysPerWeek: strengthDays ?? 0,
+      crossTrainingDaysPerWeek: effCross,
+    } as OnboardingConfig)
+  }, [step, raceType, raceDistance, exactDistanceMi, elevationGainFt, experience, daysPerWeek, strengthDays, crossDays, crossTraining, showsDistanceStep])
 
   // Provisional config for the mid-flow preview (G3): the answers so far
   // plus neutral defaults for everything not yet asked. Assembled only on
@@ -1838,6 +1859,7 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
                 daysPerWeek={daysPerWeek}
                 strengthDays={strengthDays ?? 0}
                 crossDays={(crossDays ?? 0) > 0 && crossTraining.length > 0 ? crossDays! : 0}
+                fit={extrasFit}
               />
             </div>
           </StepContainer>
@@ -2199,16 +2221,48 @@ function WeekBreakdown({
   daysPerWeek,
   strengthDays,
   crossDays,
+  fit,
 }: {
   daysPerWeek: number | null
   strengthDays: number
   crossDays: number
+  /** Decision 6c — the method-aware fit forecast (road / trail, extras > 0).
+   *  When present it OVERRIDES the naive split below, because the running
+   *  method's floor decides the real run count, not `days − extras`. */
+  fit?: ExtrasFitAssessment | null
 }) {
   if (daysPerWeek == null) return null
+
+  // Method-aware truth: the plan's running floor fills the week and squeezes
+  // (or drops) the extras. Say so here, before the plan is generated, rather
+  // than in an advisory on a plan the athlete already committed to.
+  if (fit && fit.overBudget) {
+    const extras = fit.extrasRequested
+    return (
+      <div className="rounded-xl p-3 border border-amber-300 bg-amber-50 dark:bg-amber-950 dark:border-amber-800" data-testid="week-breakdown-overbudget">
+        <p className="text-xs font-semibold mb-1 text-amber-800 dark:text-amber-200">
+          Your {daysPerWeek}-day week — the running comes first
+        </p>
+        <p className="text-sm text-amber-900 dark:text-amber-100">
+          {fit.runningDaysActual} running · {fit.extrasThatFit} of your {extras} strength/cross
+        </p>
+        <p className="text-xs text-amber-800 dark:text-amber-200 mt-1">
+          {fit.noneFit
+            ? `${fit.methodName} needs at least ${fit.minRunDays} running days a week, which already fills the ${fit.dayBudget} days you picked — so none of your strength or cross-training would be scheduled. Running is what the race is scored on, so it wins.`
+            : `${fit.methodName} needs at least ${fit.minRunDays} running days, so only ${fit.extrasThatFit} of your ${extras} strength/cross ${fit.extrasThatFit === 1 ? 'day fits' : 'days fit'} — the week runs a day over to make room.`}
+        </p>
+        <p className="text-xs text-amber-700 dark:text-amber-300 mt-1.5">
+          To fit all of it: train {fit.daysForAll} days a week, ask for fewer strength/cross days, or keep this plan and add these sessions yourself on an easy-run day — they won't be in the plan.
+        </p>
+      </div>
+    )
+  }
+
+  // Fallback (Hyrox / general / no extras / clean fit): the pre-6c split.
   const cross = crossDays
   const extras = strengthDays + cross
-  const runs = Math.max(0, daysPerWeek - extras)
-  const over = extras > daysPerWeek
+  const runs = fit ? fit.runningDaysActual : Math.max(0, daysPerWeek - extras)
+  const over = !fit && extras > daysPerWeek
 
   return (
     <div className={`rounded-xl p-3 border ${over ? 'border-amber-300 bg-amber-50' : 'border-teal-200 bg-teal-50'}`}>
