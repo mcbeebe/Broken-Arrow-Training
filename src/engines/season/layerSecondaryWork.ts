@@ -1,6 +1,7 @@
 import type { PlannedDay, SeasonRace, TrainingWeek } from '../../types'
 import { isHyroxRaceInfo } from './planSeason'
-import { parseDayToDate } from '../../utils/planDates'
+import { dayIsoInWeek } from '../../utils/planDates'
+import { raceDateToIso } from './index'
 import { stationSpecs, stationCircuit, type StationSpec } from '../hyrox/spec'
 import { LAYERED_RAMP } from '../hyrox/heuristics'
 
@@ -38,6 +39,11 @@ function shiftIso(iso: string, days: number): string {
 
 const TRANSFORMABLE = new Set<PlannedDay['type']>(['strength', 'cross'])
 
+/** A day this transform already produced (possibly for another race). */
+function isLayered(day: PlannedDay): boolean {
+  return /^Hyrox prep — /.test(day.workout)
+}
+
 /**
  * P3.5 — the layered Hyrox session progresses with its position in the
  * eligible run instead of repeating one static template (v1 shipped the
@@ -46,38 +52,72 @@ const TRANSFORMABLE = new Set<PlannedDay['type']>(['strength', 'cross'])
  * B: strength-endurance + grip) so consecutive weeks never read the same,
  * with volumes ramping toward race spec across the run.
  */
-function hyroxLayeredDay(day: PlannedDay, raceName: string, pos: number, totalEligible: number, specs: StationSpec[]): PlannedDay {
+/** The P4.3 prehab block the running generator appends to every strength /
+ *  cross day, if this day carries one. Matched from the marker to the end of
+ *  the string — note GENERIC_BLOCK is `PREHAB: …` with no parenthesis
+ *  (prehab.ts), which is exactly what an athlete gets when they report an
+ *  injury and name no area, so a `'PREHAB ('` matcher would drop it for them. */
+const PREHAB_TAIL = /(?:^|· )(PREHAB[ (:].*)$/
+
+function hyroxLayeredDay(
+  day: PlannedDay,
+  raceName: string,
+  pos: number,
+  totalEligible: number,
+  specs: StationSpec[],
+  /** Which dose this is within its week (0-based) — so two sessions in the
+   *  same week alternate emphasis instead of rendering byte-identically. */
+  doseIndexInWeek: number,
+): PlannedDay {
   const t = totalEligible > 1 ? pos / (totalEligible - 1) : 1 // 0 → 1 across the eligible run
   const ramp = LAYERED_RAMP.value
   const pct = ramp.startPct + (ramp.endPct - ramp.startPct) * t // submaximal by doctrine: the anchor race owns the plan
-  const isA = pos % 2 === 0
+  const isA = (pos + doseIndexInWeek) % 2 === 0
   const detail = isA
     ? `STATIONS (progressive): ${stationCircuit(specs, pct)} · Moderate effort, crisp form. ` +
       `Layered toward ${raceName} — your run plan is unchanged.`
     : `STRENGTH-ENDURANCE: Walking lunges 3×${10 + Math.round(4 * t)}/leg · Wall balls ${Math.round((20 + 30 * t) / 5) * 5} unbroken sets · ` +
       `Farmer carry ${Math.round((60 + 80 * t) / 10) * 10}m @ ${specs[5].load} · Burpee broad jumps ${Math.round((20 + 30 * t) / 5) * 5}m · ` +
       `GRIP: 2× dead hang to near-failure. Layered toward ${raceName} — your run plan is unchanged.`
+  // Replacing `detail` wholesale used to delete the injury-prehab block the
+  // running generator had already appended — measured, a knee-injury athlete
+  // lost prehab on half their weeks the moment they opted into layering.
+  const prehabTail = day.detail.match(PREHAB_TAIL)?.[1]
   return {
     ...day,
     type: 'strength',
     workout: isA ? 'Hyrox prep — station volumes' : 'Hyrox prep — strength-endurance + grip',
-    detail,
+    detail: prehabTail ? `${detail} · ${prehabTail}` : detail,
     zone: 'Z2–3',
     time: `${45 + Math.round(10 * t)} min`,
   }
 }
+
+/** Weeks whose own job outranks a layered session: the anchor's taper and
+ *  race week, and any cutback / recovery week. The running generator's focus
+ *  vocabulary is exactly 'Taper' | 'Cutback' | phase.name, so this cannot
+ *  match a build week by accident. */
+const PROTECTED_WEEK = /taper|cutback|recover|race\s*week|deload/i
+
+/** Anchor race types whose build has ordinary strength/cross slots to lend.
+ *  A Hyrox anchor already trains every station to full spec and benchmarks
+ *  strength twice; layering over it overwrote 19 of its own days, including
+ *  the only full-spec rehearsal. A General Fitness anchor is strength-led for
+ *  the same reason. Unknown (legacy callers) stays permitted. */
+const LAYERABLE_ANCHOR = new Set(['road', 'trail'])
 
 export function layerSecondaryWork(
   anchorWeeks: TrainingWeek[],
   race: SeasonRace,
   anchorRaceIso: string,
   today: string,
-  /** The athlete's own division/sex (config) — a fallback when the race
-   *  carries no division of its own. */
-  athlete?: { hyroxDivision?: 'open' | 'pro'; sex?: string },
+  /** The athlete's own division/sex, and the ANCHOR race's type — a Hyrox or
+   *  General Fitness anchor is never layered over. */
+  athlete?: { hyroxDivision?: 'open' | 'pro'; sex?: string; anchorRaceType?: string },
 ): TrainingWeek[] {
   if (race.integration !== 'layered') return anchorWeeks
   if (!isHyroxRaceInfo(race.raceInfo)) return anchorWeeks
+  if (athlete?.anchorRaceType && !LAYERABLE_ANCHOR.has(athlete.anchorRaceType)) return anchorWeeks
   // P3.1 — layered sessions render from THIS race's division and the
   // athlete's sex, never the men's Open default (v1 prescribed 152 kg sled
   // pushes to every woman on this path).
@@ -87,14 +127,19 @@ export function layerSecondaryWork(
   )
 
   // Guard boundary: no layered work inside the anchor's final 2 pre-race
-  // weeks (taper is sacred) or race week.
-  const guardIso = shiftIso(anchorRaceIso, -14)
+  // weeks (taper is sacred) or race week — and never past the layered race's
+  // own date, since nothing in the app ever marks a race completed and the
+  // ramp otherwise kept prescribing prep for a race already run.
+  const anchorGuard = shiftIso(anchorRaceIso, -14)
+  const raceIso = raceDateToIso(race.raceInfo.date)
+  const guardIso = raceIso && raceIso < anchorGuard ? raceIso : anchorGuard
 
-  // Eligible = weeks whose first day is before the guard and that carry at
-  // least one transformable, un-completed, not-in-the-past slot.
+  // Eligible = weeks that start before the guard, are not the anchor's own
+  // taper / cutback / recovery, and carry at least one transformable,
+  // un-completed, not-in-the-past, not-already-layered slot.
   const weekFirstIso = anchorWeeks.map(w => {
     for (const d of w.days) {
-      const iso = parseDayToDate(d.day, w.dates, anchorRaceIso)
+      const iso = dayIsoInWeek(d.day, w, anchorRaceIso)
       if (iso) return iso
     }
     return null
@@ -103,7 +148,8 @@ export function layerSecondaryWork(
   anchorWeeks.forEach((w, i) => {
     const first = weekFirstIso[i]
     if (!first || first >= guardIso) return
-    const hasSlot = w.days.some(d => TRANSFORMABLE.has(d.type) && !d.actual)
+    if (PROTECTED_WEEK.test(w.focus)) return
+    const hasSlot = w.days.some(d => TRANSFORMABLE.has(d.type) && !d.actual && !isLayered(d))
     if (hasSlot) eligible.push(i)
   })
   if (eligible.length === 0) return anchorWeeks
@@ -119,9 +165,15 @@ export function layerSecondaryWork(
     for (let i = 0; i < w.days.length && applied < doses; i++) {
       const d = w.days[i]
       if (!TRANSFORMABLE.has(d.type) || d.actual) continue
-      const iso = parseDayToDate(d.day, w.dates, anchorRaceIso)
+      // A second layered race must not re-render the first's sessions at its
+      // own loads and label them toward the later race.
+      if (isLayered(d)) continue
+      const iso = dayIsoInWeek(d.day, w, anchorRaceIso)
       if (iso && iso < today) continue // history stays history
-      w.days[i] = hyroxLayeredDay(d, race.raceInfo.name, pos, eligible.length, specs)
+      // Per-DAY guard, not per-week: a week straddling the boundary used to
+      // leak a dose past it.
+      if (iso && iso >= guardIso) continue
+      w.days[i] = hyroxLayeredDay(d, race.raceInfo.name, pos, eligible.length, specs, applied)
       applied++
     }
   })

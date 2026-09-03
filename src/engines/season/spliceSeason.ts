@@ -96,7 +96,7 @@ export function spliceSeasonWeeks(
     for (const race of season.races.slice(1)) {
       if (race.integration === 'layered') {
         trimmedBase = layerSecondaryWork(trimmedBase, race, anchorIso, today,
-          config ? { hyroxDivision: config.hyroxDivision, sex: config.sex } : undefined)
+          config ? { hyroxDivision: config.hyroxDivision, sex: config.sex, anchorRaceType: config.raceType } : undefined)
       }
     }
   }

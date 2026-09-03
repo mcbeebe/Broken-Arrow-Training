@@ -4,6 +4,8 @@ import type { OnboardingConfig } from '../../../hooks/useOnboarding'
 import { layerSecondaryWork } from '../../../engines/season/layerSecondaryWork'
 import { planSeason } from '../../../engines/season/planSeason'
 import { spliceSeasonWeeks } from '../../../engines/season/spliceSeason'
+import { prehabBlockFor } from '../../../engines/planGenerator/prehab'
+import { dayIsoInWeek } from '../../../utils/planDates'
 
 /**
  * Layered multi-race preparation (user-directed): a Hyrox 6–7 weeks after
@@ -162,5 +164,147 @@ describe('P3.1 — layered sessions render from the race division and athlete se
   it('defaults to men\'s Open with no athlete context (legacy callers)', () => {
     const out = layerSecondaryWork(anchorWeeks(), hyroxRace('layered'), ANCHOR, TODAY)
     expect(stationDays(out).map(d => d.detail).join('\n')).toContain('152 kg')
+  })
+})
+
+// ── PR-1: stop the harm ─────────────────────────────────────────────
+// Every assertion below reproduces a defect the adversarial review measured
+// on the real pipeline, not a hypothetical.
+
+/** Anchor weeks with an explicit focus per week, so the protected-week rule
+ *  can be exercised the way the running generator actually labels weeks
+ *  ('Taper' | 'Cutback' | phase name). */
+function weeksWithFocus(focuses: string[]): TrainingWeek[] {
+  return focuses.map((focus, i) => {
+    const mon = 9 + Math.floor((14 + i * 7 - 1) / 30)
+    const dayNum = ((14 + i * 7 - 1) % 30) + 1
+    return {
+      num: i + 1, dates: '', miles: 20, focus,
+      days: [
+        day(`Mon ${mon}/${dayNum}`, 'run'),
+        day(`Tue ${mon}/${dayNum + 1}`, 'strength', 'STRENGTH'),
+        day(`Wed ${mon}/${dayNum + 2}`, 'quality'),
+        day(`Thu ${mon}/${dayNum + 3}`, 'cross', 'Cycling'),
+        day(`Sat ${mon}/${dayNum + 5}`, 'long'),
+      ],
+    }
+  })
+}
+
+const layeredDays = (weeks: TrainingWeek[]) =>
+  weeks.flatMap(w => w.days.filter(d => /^Hyrox prep — /.test(d.workout)))
+
+describe('PR-1 — the layered transform never destroys the prehab it lands on', () => {
+  // The block an athlete gets depends on the area they named; GENERIC_BLOCK
+  // ('PREHAB: …', no parenthesis) is what they get when they report an injury
+  // and name no area — the case a `'PREHAB ('` matcher silently drops.
+  const AREAS = ['knee', 'achilles_calf', 'it_band', 'shin', 'hamstring', 'foot_ankle', 'hip', 'back', 'general']
+  for (const area of AREAS) {
+    it(`carries the ${area} prehab tail onto every layered day`, () => {
+      const block = prehabBlockFor(area)
+      expect(block, `${area} should map to a block`).not.toBe('')
+      const base = anchorWeeks().map(w => ({
+        ...w,
+        days: w.days.map(d => (d.type === 'strength' || d.type === 'cross')
+          ? { ...d, detail: `${d.detail} · ${block}` }
+          : d),
+      }))
+      const out = layerSecondaryWork(base, hyroxRace('layered'), ANCHOR, TODAY)
+      const layered = layeredDays(out)
+      expect(layered.length).toBeGreaterThan(0)
+      for (const d of layered) {
+        expect(d.detail, `${area}: ${d.day}`).toContain(block)
+        // and the layered content is still there, not replaced by the tail
+        expect(d.detail).toMatch(/Layered toward/)
+      }
+    })
+  }
+
+  it('adds no prehab tail when the day never carried one', () => {
+    const out = layerSecondaryWork(anchorWeeks(), hyroxRace('layered'), ANCHOR, TODAY)
+    for (const d of layeredDays(out)) expect(d.detail).not.toMatch(/PREHAB/)
+  })
+})
+
+describe('PR-1 — protected weeks, anchor format, and the race that already happened', () => {
+  it('never places a dose in a taper, cutback, recovery or deload week', () => {
+    const focuses = ['Base', 'Cutback', 'Build', 'Recovery week', 'Build', 'Taper']
+    const out = layerSecondaryWork(weeksWithFocus(focuses), hyroxRace('layered'), '2026-11-28', TODAY)
+    out.forEach((w, i) => {
+      const n = w.days.filter(d => /^Hyrox prep — /.test(d.workout)).length
+      if (/cutback|recover|taper/i.test(focuses[i])) {
+        expect(n, `week ${i + 1} "${focuses[i]}" must stay untouched`).toBe(0)
+      }
+    })
+    // and it still did something on the ordinary weeks
+    expect(layeredDays(out).length).toBeGreaterThan(0)
+  })
+
+  it('returns the anchor untouched when the anchor race is itself a Hyrox', () => {
+    const base = anchorWeeks()
+    const out = layerSecondaryWork(base, hyroxRace('layered'), ANCHOR, TODAY, { anchorRaceType: 'hyrox' })
+    expect(out).toEqual(base)
+    // General Fitness is strength-led for the same reason.
+    expect(layerSecondaryWork(base, hyroxRace('layered'), ANCHOR, TODAY, { anchorRaceType: 'general' })).toEqual(base)
+    // A running anchor still layers.
+    expect(layeredDays(layerSecondaryWork(base, hyroxRace('layered'), ANCHOR, TODAY, { anchorRaceType: 'trail' })).length).toBeGreaterThan(0)
+  })
+
+  it('stops at the layered race\'s own date — nothing prescribes prep for a race already run', () => {
+    // Race BEFORE the anchor: nothing ever marks a race completed, so the
+    // ramp used to keep prescribing toward it for the rest of the build.
+    const race = hyroxRace('layered')
+    race.raceInfo.date = '2026-09-28'
+    const out = layerSecondaryWork(anchorWeeks(), race, ANCHOR, TODAY)
+    for (const w of out) {
+      for (const d of w.days) {
+        if (!/^Hyrox prep — /.test(d.workout)) continue
+        const iso = dayIsoInWeek(d.day, w, ANCHOR)!
+        expect(iso < '2026-09-28', `${d.day} is on/after the race`).toBe(true)
+      }
+    }
+  })
+})
+
+describe('PR-1 — two doses in a week are two different sessions', () => {
+  it('the escalated weeks alternate emphasis instead of repeating one session', () => {
+    const out = layerSecondaryWork(anchorWeeks(), hyroxRace('layered'), ANCHOR, TODAY)
+    const doubles = out.filter(w => w.days.filter(d => /^Hyrox prep — /.test(d.workout)).length === 2)
+    expect(doubles.length, 'the fixture should produce 2-dose weeks').toBeGreaterThan(0)
+    for (const w of doubles) {
+      const pair = w.days.filter(d => /^Hyrox prep — /.test(d.workout))
+      expect(new Set(pair.map(d => d.workout)).size, `week ${w.num} workouts`).toBe(2)
+      expect(pair[0].detail, `week ${w.num} details`).not.toBe(pair[1].detail)
+    }
+  })
+})
+
+describe('PR-1 — placement does not drift with the calendar', () => {
+  it('is byte-identical at three successive `today` values before the build starts', () => {
+    // The rejected alternative folded `today` into the eligibility predicate,
+    // which made the ramp denominator shrink as the calendar advanced: the
+    // athlete watched next Monday's session get LIGHTER as it approached.
+    const runs = ['2026-07-08', '2026-08-01', '2026-09-01'].map(t =>
+      layerSecondaryWork(anchorWeeks(), hyroxRace('layered'), ANCHOR, t))
+    expect(runs[1]).toEqual(runs[0])
+    expect(runs[2]).toEqual(runs[0])
+  })
+
+  it('a second layered race never re-renders the first race\'s sessions', () => {
+    const first = layerSecondaryWork(anchorWeeks(), hyroxRace('layered'), ANCHOR, TODAY)
+    const second = { ...hyroxRace('layered'), id: 'hyrox-2' }
+    second.raceInfo = { ...second.raceInfo, name: 'Hyrox LA', date: '2027-02-20' }
+    const before = new Map(layeredDays(first).map(d => [d.day, d.detail]))
+    expect(before.size).toBeGreaterThan(0)
+    const out = layerSecondaryWork(first, second, ANCHOR, TODAY)
+    // A day the first race already claimed is never re-rendered at the second
+    // race's loads and relabelled toward it. (The second race may still take
+    // slots the first left free — that is the feature working.)
+    for (const d of layeredDays(out)) {
+      const was = before.get(d.day)
+      if (was === undefined) continue
+      expect(d.detail, `${d.day} was re-rendered for the later race`).toBe(was)
+      expect(d.detail).toMatch(/Hyrox - Anaheim/)
+    }
   })
 })
