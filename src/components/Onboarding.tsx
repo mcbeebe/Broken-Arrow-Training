@@ -447,6 +447,14 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
     prev?.fitnessAnchor?.bpm ? String(prev.fitnessAnchor.bpm) : '')
   // Phase 3 UI — roughly when the anchor race happened ('YYYY-MM'; '' = unknown).
   const [anchorWhen, setAnchorWhen] = useState(prev?.fitnessAnchor?.dateIso?.slice(0, 7) ?? '')
+  // The year the month picker pairs with. Held separately because picking a
+  // year BEFORE a month used to be a silent no-op (the writer was gated on a
+  // month already existing), and the select then snapped back to the current
+  // year — so an athlete whose anchor race was June 2025 got June 2026, which
+  // reads as recent and permanently suppresses the staleness advisory.
+  const [anchorYear, setAnchorYear] = useState(
+    prev?.fitnessAnchor?.dateIso?.slice(0, 4) ?? String(new Date().getFullYear()),
+  )
   // UI PR B (PRD-109) — health screen answers (null = unanswered/skipped).
   const [healthBone, setHealthBone] = useState<boolean | null>(prev?.healthScreen?.boneStressHistory ?? null)
   const [healthBoneRecent, setHealthBoneRecent] = useState<boolean | null>(prev?.healthScreen?.boneStressRecent ?? null)
@@ -601,8 +609,18 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
   const buildFitnessAnchor = (): OnboardingConfig['fitnessAnchor'] => {
     const anchorOpt = ANCHOR_OPTIONS.find(o => o.value === anchorType)!
     // Month precision is all the engine needs — mid-month minimizes error.
+    // An anchor race has by definition already been run. A month-only pick
+    // that lands in the future means the athlete meant last year — and a
+    // future dateIso makes anchorAgeWeeks negative, which suppresses BOTH the
+    // staleness advisory and the mid-plan revalidation benchmark forever.
+    const clampAnchorToPast = (iso: string): string => {
+      const n = new Date()
+      const todayIso = `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-${String(n.getDate()).padStart(2, '0')}`
+      if (iso <= todayIso) return iso
+      return `${Number(iso.slice(0, 4)) - 1}${iso.slice(4)}`
+    }
     const dateIso = anchorType.startsWith('race_') && /^\d{4}-\d{2}$/.test(anchorWhen)
-      ? `${anchorWhen}-15`
+      ? clampAnchorToPast(`${anchorWhen}-15`)
       : undefined
     if (anchorType !== 'none') {
       if (anchorOpt.kind === 'time') {
@@ -1534,8 +1552,7 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
                             value={anchorWhen ? anchorWhen.slice(5, 7) : ''}
                             onChange={e => {
                               const m = e.target.value
-                              const y = anchorWhen ? anchorWhen.slice(0, 4) : String(new Date().getFullYear())
-                              setAnchorWhen(m ? `${y}-${m}` : '')
+                              setAnchorWhen(m ? `${anchorYear}-${m}` : '')
                             }}
                             className="flex-1 px-3 py-2.5 text-base border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400 bg-white"
                           >
@@ -1546,9 +1563,10 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
                           </select>
                           <select
                             aria-label="Anchor race year"
-                            value={anchorWhen ? anchorWhen.slice(0, 4) : String(new Date().getFullYear())}
+                            value={anchorWhen ? anchorWhen.slice(0, 4) : anchorYear}
                             onChange={e => {
                               const y = e.target.value
+                              setAnchorYear(y)
                               const m = anchorWhen ? anchorWhen.slice(5, 7) : ''
                               if (m) setAnchorWhen(`${y}-${m}`)
                             }}

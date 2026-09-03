@@ -34,7 +34,11 @@ function config(overrides: Partial<OnboardingConfig> = {}): OnboardingConfig {
   }
 }
 
-const plan = generateHyroxPlan(config())
+// Explicit `today`: this file's raceDate is fixed, so reading the wall clock
+// made the runway shrink daily — the suite was set to start failing on
+// 2026-11-10 with nobody having touched the code.
+const TODAY = '2026-09-01'
+const plan = generateHyroxPlan(config(), TODAY)
 const allDays = (): { day: PlannedDay; weekNum: number }[] =>
   plan.weeks.flatMap(w => w.days.map(d => ({ day: d, weekNum: w.num })))
 

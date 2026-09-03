@@ -36,7 +36,7 @@ const hyroxPlan = generateHyroxPlan({
   maxHR: 200,
   equipmentAccess: ['gym'],
   completedAt: '',
-} as OnboardingConfig)
+} as OnboardingConfig, '2026-09-01') // explicit `today` — no wall clock
 
 const findDay = (weeks: TrainingWeek[], wi: number, type: string) =>
   weeks[wi].days.find(d => d.type === type) ?? null

@@ -169,7 +169,7 @@ describe('the benchmark lands in a real generated plan', () => {
     experienceLevel: 'intermediate', trainingDaysPerWeek: 5, longRunDay: 'Saturday',
     wearable: 'garmin', athleteName: 'Mike', age: 45, maxHR: 200,
     equipmentAccess: ['gym'], completedAt: '',
-  } as OnboardingConfig)
+  } as OnboardingConfig, '2026-09-01') // explicit `today` — no wall clock
 
   const benchDays = plan.weeks.flatMap(w =>
     w.days.filter(d => /STRENGTH BENCHMARK/i.test(d.workout)).map(d => ({ d, num: w.num })))
