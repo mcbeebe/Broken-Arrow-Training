@@ -55,10 +55,15 @@ const HARD_TYPES = new Set<PlannedDay['type']>(['quality', 'long', 'race'])
  *  threshold is MASTERS_RECOVERY's — the engine gets one masters line, not two. */
 const MASTERS_DROPPED_STATION: StationSpec['key'] = 'burpee_broad_jump'
 
-/** A day this transform already produced (possibly for another race). */
-function isLayered(day: PlannedDay): boolean {
-  return /^Hyrox prep — /.test(day.workout)
+/** A day this transform produced (possibly for another race). The structural
+ *  marker is authoritative; the workout prefix is the fallback for weeks that
+ *  came out of storage before the marker existed. Exported because the QA gate
+ *  needs the same answer the engine uses — two definitions of "layered" is how
+ *  a rule ends up silently never firing. */
+export function isLayeredDay(day: PlannedDay): boolean {
+  return day.layeredFor != null || /^Hyrox prep — /.test(day.workout)
 }
+const isLayered = isLayeredDay
 
 /**
  * P3.5 — the layered Hyrox session progresses with its position in the
@@ -129,6 +134,7 @@ function hyroxLayeredDay(
   return {
     ...day,
     type: 'strength',
+    layeredFor: raceName,
     workout: isA ? 'Hyrox prep — station volumes' : 'Hyrox prep — strength-endurance + grip',
     detail: [detail, ...notes, prehabTail].filter(Boolean).join(' · '),
     zone: eased ? 'Z2' : 'Z2–3',

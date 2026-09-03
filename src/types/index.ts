@@ -111,6 +111,12 @@ export interface PlannedDay {
    *  from a hard workout to easy content. The "intensity stays easy" ramp
    *  note keys off this so it can never claim easy over a VO2 body. */
   leadInEased?: boolean;
+  /** Stamped by the layered-secondary-prep transform: this day was rewritten
+   *  as race-specific work for a LATER season race, named here. Derived on
+   *  every render inside spliceSeasonWeeks and never persisted — the QA gate
+   *  keys its layered rules on this rather than on a workout-string prefix,
+   *  so an athlete renaming their session can't make the rules stop looking. */
+  layeredFor?: string;
   /** Derived at plan-edit replay (never persisted) when the athlete
    *  rewrote this day's type/workout. Generic type-keyed coach notes
    *  ("Quality day — hit the zone splits") are suppressed for these days
