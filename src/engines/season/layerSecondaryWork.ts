@@ -3,7 +3,7 @@ import { isHyroxRaceInfo } from './planSeason'
 import { dayIsoInWeek } from '../../utils/planDates'
 import { raceDateToIso } from './index'
 import { stationSpecs, stationCircuit, type StationSpec } from '../hyrox/spec'
-import { LAYERED_RAMP } from '../hyrox/heuristics'
+import { LAYERED_RAMP, LAYERED_EASED_MULT, MASTERS_RECOVERY } from '../hyrox/heuristics'
 
 /**
  * Layered multi-race preparation (user-directed): a season race marked
@@ -21,6 +21,10 @@ import { LAYERED_RAMP } from '../hyrox/heuristics'
  *  - hard guards: nothing inside the anchor's final 2 pre-race weeks or
  *    race week, nothing on completed days, nothing dated before `today`
  *    (derived state never rewrites history);
+ *  - placement prefers the slot NOT adjacent to that week's quality or long
+ *    run (measured by calendar date, so it sees across week boundaries); when
+ *    every reachable slot is adjacent, the session is eased rather than
+ *    skipped — a veto here just re-creates "we said we would layer it";
  *  - content is defined for Hyrox-format races; other formats pass
  *    through unchanged (their running prep already transfers).
  *
@@ -38,6 +42,18 @@ function shiftIso(iso: string, days: number): string {
 }
 
 const TRANSFORMABLE = new Set<PlannedDay['type']>(['strength', 'cross'])
+
+/** Day types a layered session must not crowd. Easy runs are not on this
+ *  list on purpose — a station circuit the day after a shakeout costs the
+ *  athlete nothing; the day beside the week's quality session or long run is
+ *  the one that turns a compromise session into a wrecked run. */
+const HARD_TYPES = new Set<PlannedDay['type']>(['quality', 'long', 'race'])
+
+/** The one station whose cost is landing impact rather than work. Masters
+ *  athletes drop it: 80 m of an hour-long race, and repeated broad-jump
+ *  landings are what connective tissue recovers from slowest with age. The
+ *  threshold is MASTERS_RECOVERY's — the engine gets one masters line, not two. */
+const MASTERS_DROPPED_STATION: StationSpec['key'] = 'burpee_broad_jump'
 
 /** A day this transform already produced (possibly for another race). */
 function isLayered(day: PlannedDay): boolean {
@@ -68,17 +84,44 @@ function hyroxLayeredDay(
   /** Which dose this is within its week (0-based) — so two sessions in the
    *  same week alternate emphasis instead of rendering byte-identically. */
   doseIndexInWeek: number,
+  /** D4 — the chosen slot still sits the day before or after a quality or
+   *  long run. The session is eased, never dropped: see EASED_NOTE. */
+  eased: boolean,
+  /** Masters athlete (age ≥ MASTERS_RECOVERY threshold) — the broad jumps are
+   *  already out of `specs`, so this only picks the substitute and the note. */
+  masters: boolean,
 ): PlannedDay {
   const t = totalEligible > 1 ? pos / (totalEligible - 1) : 1 // 0 → 1 across the eligible run
   const ramp = LAYERED_RAMP.value
-  const pct = ramp.startPct + (ramp.endPct - ramp.startPct) * t // submaximal by doctrine: the anchor race owns the plan
+  const mult = eased ? LAYERED_EASED_MULT.value : 1
+  const pct = (ramp.startPct + (ramp.endPct - ramp.startPct) * t) * mult // submaximal by doctrine: the anchor race owns the plan
   const isA = (pos + doseIndexInWeek) % 2 === 0
+  // Read by key, never by index: masters athletes have a station removed from
+  // `specs`, and `specs[5]` silently became the sandbag lunges for them — a
+  // farmer carry prescribed at the sandbag's load.
+  const carryLoad = specs.find(s => s.key === 'farmers_carry')?.load ?? ''
+  // Plyometrics are the first thing out when the legs are spoken for: the
+  // landing load is what carries into the next day's run, and it is the one
+  // demand here with no running transfer to repay it. The swap happens on the
+  // SPEC LIST as well as the strength template — the circuit renders straight
+  // from `specs`, so a template-only swap left the jumps in on every other day
+  // and made both notes below false.
+  const dropJumps = masters || eased
+  const daySpecs = eased ? specs.filter(sp => sp.key !== MASTERS_DROPPED_STATION) : specs
+  const stepUps = `Step-ups ${Math.max(8, Math.round((12 + 8 * t) * mult))}/leg, box at knee height`
   const detail = isA
-    ? `STATIONS (progressive): ${stationCircuit(specs, pct)} · Moderate effort, crisp form. ` +
+    ? `STATIONS (progressive): ${stationCircuit(daySpecs, pct)}${dropJumps ? ` · ${stepUps}` : ''} · Moderate effort, crisp form. ` +
       `Layered toward ${raceName} — your run plan is unchanged.`
-    : `STRENGTH-ENDURANCE: Walking lunges 3×${10 + Math.round(4 * t)}/leg · Wall balls ${Math.round((20 + 30 * t) / 5) * 5} unbroken sets · ` +
-      `Farmer carry ${Math.round((60 + 80 * t) / 10) * 10}m @ ${specs[5].load} · Burpee broad jumps ${Math.round((20 + 30 * t) / 5) * 5}m · ` +
+    : `STRENGTH-ENDURANCE: Walking lunges 3×${10 + Math.round(4 * t)}/leg · Wall balls ${Math.round((20 + 30 * t) * mult / 5) * 5} unbroken sets · ` +
+      `Farmer carry ${Math.round((60 + 80 * t) * mult / 10) * 10}m @ ${carryLoad} · ` +
+      `${dropJumps ? stepUps : `Burpee broad jumps ${Math.round((20 + 30 * t) / 5) * 5}m`} · ` +
       `GRIP: 2× dead hang to near-failure. Layered toward ${raceName} — your run plan is unchanged.`
+  // Say what was changed and why, on the day itself. An eased session that
+  // looks like a full one just reads as a plan that shrank for no reason.
+  const notes = [
+    eased ? EASED_NOTE : null,
+    masters ? MASTERS_NOTE : null,
+  ].filter((n): n is string => n !== null)
   // Replacing `detail` wholesale used to delete the injury-prehab block the
   // running generator had already appended — measured, a knee-injury athlete
   // lost prehab on half their weeks the moment they opted into layering.
@@ -87,11 +130,21 @@ function hyroxLayeredDay(
     ...day,
     type: 'strength',
     workout: isA ? 'Hyrox prep — station volumes' : 'Hyrox prep — strength-endurance + grip',
-    detail: prehabTail ? `${detail} · ${prehabTail}` : detail,
-    zone: 'Z2–3',
-    time: `${45 + Math.round(10 * t)} min`,
+    detail: [detail, ...notes, prehabTail].filter(Boolean).join(' · '),
+    zone: eased ? 'Z2' : 'Z2–3',
+    time: `${Math.round((45 + Math.round(10 * t)) * mult / 5) * 5} min`,
   }
 }
+
+const EASED_NOTE =
+  `EASED: a quality or long run sits the day beside this one, so volume is ` +
+  `${Math.round((1 - LAYERED_EASED_MULT.value) * 100)}% down and the jumps are out. ` +
+  `The run is the session that matters this week — this one bends around it.`
+
+const MASTERS_NOTE =
+  'Burpee broad jumps are out of your build: repeated landing impact is the one demand in this race ' +
+  'that does not repay a masters athlete. Step-ups drive the same hip extension. Practise the jumps ' +
+  'once inside your race-week rehearsal, not as weekly volume.'
 
 /** Weeks whose own job outranks a layered session: the anchor's taper and
  *  race week, and any cutback / recovery week. The running generator's focus
@@ -111,9 +164,9 @@ export function layerSecondaryWork(
   race: SeasonRace,
   anchorRaceIso: string,
   today: string,
-  /** The athlete's own division/sex, and the ANCHOR race's type — a Hyrox or
-   *  General Fitness anchor is never layered over. */
-  athlete?: { hyroxDivision?: 'open' | 'pro'; sex?: string; anchorRaceType?: string },
+  /** The athlete's own division/sex/age, and the ANCHOR race's type — a Hyrox
+   *  or General Fitness anchor is never layered over. */
+  athlete?: { hyroxDivision?: 'open' | 'pro'; sex?: string; age?: number; anchorRaceType?: string },
 ): TrainingWeek[] {
   if (race.integration !== 'layered') return anchorWeeks
   if (!isHyroxRaceInfo(race.raceInfo)) return anchorWeeks
@@ -121,10 +174,16 @@ export function layerSecondaryWork(
   // P3.1 — layered sessions render from THIS race's division and the
   // athlete's sex, never the men's Open default (v1 prescribed 152 kg sled
   // pushes to every woman on this path).
-  const specs = stationSpecs(
+  const allSpecs = stationSpecs(
     race.raceInfo.hyroxDivision ?? athlete?.hyroxDivision ?? 'open',
     athlete?.sex === 'female' ? 'female' : 'male',
   )
+  // The masters swap happens on the SPEC LIST, not on the strength template
+  // alone — the station circuit renders straight from `specs`, so filtering
+  // only the template left every masters athlete still doing 80 m of broad
+  // jumps on every other layered day.
+  const masters = (athlete?.age ?? 0) >= MASTERS_RECOVERY.value.ageThreshold
+  const specs = masters ? allSpecs.filter(sp => sp.key !== MASTERS_DROPPED_STATION) : allSpecs
 
   // Guard boundary: no layered work inside the anchor's final 2 pre-race
   // weeks (taper is sacred) or race week — and never past the layered race's
@@ -137,6 +196,21 @@ export function layerSecondaryWork(
   // Eligible = weeks that start before the guard, are not the anchor's own
   // taper / cutback / recovery, and carry at least one transformable,
   // un-completed, not-in-the-past, not-already-layered slot.
+  // D4 — every hard day in the whole build, by calendar date, so adjacency is
+  // measured across week boundaries too: a Sunday slot is one day after the
+  // previous week's Saturday long run, and the old first-slot-wins scan had no
+  // way to see that at all.
+  const hardIsos = new Set<string>()
+  for (const w of anchorWeeks) {
+    for (const d of w.days) {
+      if (!HARD_TYPES.has(d.type)) continue
+      const iso = dayIsoInWeek(d.day, w, anchorRaceIso)
+      if (iso) hardIsos.add(iso)
+    }
+  }
+  const crowding = (iso: string | null): number =>
+    iso === null ? 0 : (hardIsos.has(shiftIso(iso, -1)) ? 1 : 0) + (hardIsos.has(shiftIso(iso, 1)) ? 1 : 0)
+
   const weekFirstIso = anchorWeeks.map(w => {
     for (const d of w.days) {
       const iso = dayIsoInWeek(d.day, w, anchorRaceIso)
@@ -160,9 +234,9 @@ export function layerSecondaryWork(
   const out = anchorWeeks.map(w => ({ ...w, days: w.days.map(d => ({ ...d })) }))
   eligible.forEach((weekIdx, pos) => {
     const doses = pos >= midStart ? 2 : 1
-    let applied = 0
     const w = out[weekIdx]
-    for (let i = 0; i < w.days.length && applied < doses; i++) {
+    const candidates: { i: number; crowded: boolean }[] = []
+    for (let i = 0; i < w.days.length; i++) {
       const d = w.days[i]
       if (!TRANSFORMABLE.has(d.type) || d.actual) continue
       // A second layered race must not re-render the first's sessions at its
@@ -173,9 +247,20 @@ export function layerSecondaryWork(
       // Per-DAY guard, not per-week: a week straddling the boundary used to
       // leak a dose past it.
       if (iso && iso >= guardIso) continue
-      w.days[i] = hyroxLayeredDay(d, race.raceInfo.name, pos, eligible.length, specs, applied)
-      applied++
+      candidates.push({ i, crowded: crowding(iso) > 0 })
     }
+    // Least-crowded slot first, plan order among equals. This is a PREFERENCE,
+    // never a veto: rejecting crowded slots outright zeroed layering for half
+    // the measured configurations — in an ordinary 5-day week every strength
+    // and cross slot touches something hard — which is just the "we said we
+    // would layer it and we didn't" defect wearing a safety label. The dose
+    // count never changes; what adjacency changes is the CONTENT.
+    candidates.sort((a, b) => Number(a.crowded) - Number(b.crowded) || a.i - b.i)
+    candidates.slice(0, doses).forEach((c, doseIndexInWeek) => {
+      w.days[c.i] = hyroxLayeredDay(
+        w.days[c.i], race.raceInfo.name, pos, eligible.length, specs, doseIndexInWeek, c.crowded, masters,
+      )
+    })
   })
   return out
 }
