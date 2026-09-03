@@ -30,6 +30,26 @@ describe('hyrox heuristics registry', () => {
     expect(r.startPct).toBeGreaterThan(0.2)
     expect(r.startPct).toBeLessThan(1)
     expect(r.endPct).toBe(1)
-    expect(r.recoveryMult).toBeLessThan(1)
+  })
+
+  it('every registry field is actually read by the engine', () => {
+    // M9 — STATION_RAMP carried `recoveryMult` (0.6) and `recoveryFloorPct`
+    // (0.3) for a year and the generator never applied either: the only
+    // caller of stationPctForWeek passed isRecovery: false. LAYERED_RAMP
+    // carried `maxDosesPerWeek` with no reader at all. The audit doc, the
+    // expert-review packet and this registry all described doses no athlete
+    // ever received. Anything listed here has to be consumed somewhere.
+    const src = Object.values(
+      import.meta.glob('../../../{engines,utils}/**/*.ts', { query: '?raw', import: 'default', eager: true }),
+    ) as string[]
+    const engineCode = src.join('\n')
+    const readers = (field: string) => new RegExp(`\\.${field}\\b`).test(engineCode)
+    for (const [name, tv] of Object.entries(HYROX_HEURISTICS)) {
+      const v = tv.value
+      if (typeof v !== 'object' || v === null) continue
+      for (const field of Object.keys(v)) {
+        expect(readers(field), `${name}.${field} is documented but never read`).toBe(true)
+      }
+    }
   })
 })

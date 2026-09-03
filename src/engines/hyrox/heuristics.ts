@@ -24,10 +24,18 @@
 import { tier, type TieredValue } from '../evidence'
 
 /** Station-volume ramp across the build: fraction of race volume at plan
- *  start → at the final pre-taper week; recovery weeks train at a
- *  fraction of the ramp. */
-export const STATION_RAMP: TieredValue<{ startPct: number; endPct: number; recoveryMult: number; recoveryFloorPct: number }> = tier(
-  { startPct: 0.5, endPct: 1.0, recoveryMult: 0.6, recoveryFloorPct: 0.3 },
+ *  start → at the final pre-taper week.
+ *
+ *  There is deliberately no recovery multiplier here. It existed for a year
+ *  and the generator never applied it — `stationPctForWeek`'s only caller
+ *  passed `isRecovery: false`, so every recovery week trained at the full
+ *  ramp value while this constant, the audit doc and the expert-review packet
+ *  all described a 60% deload with a 30% floor. A documented dose the engine
+ *  never applies is worse than none: it is what an expert reviewer signs off
+ *  on. Recovery weeks cut station volume the way they cut everything else —
+ *  through the week template's own day count and durations. */
+export const STATION_RAMP: TieredValue<{ startPct: number; endPct: number }> = tier(
+  { startPct: 0.5, endPct: 1.0 },
   'T4',
   'Progressive overload to race spec. Benchmarked spread is wide: the v2 rebuild opened ~40-75% of spec per station and reached all-8 by week 8; the 12-week program puts SOME stations at full race distance from week 1 (row 1000m) and sleds at 50m from mid-plan. Our 50% opening sits at the conservative edge of the observed range — defensible for volume-managed circuits since the spec day and simulations guarantee full-distance exposure. Expert-review target: per-level opening fractions.',
 )
@@ -82,10 +90,10 @@ export const TEMPO_MINUTES: TieredValue<{ start: number; end: number }> = tier(
 /** Layered season track (Hyrox prep inside another race\'s build):
  *  station-volume fraction at the first eligible week → the last, and
  *  the mid-point dose escalation (sessions/week). */
-export const LAYERED_RAMP: TieredValue<{ startPct: number; endPct: number; maxDosesPerWeek: number }> = tier(
-  { startPct: 0.35, endPct: 0.75, maxDosesPerWeek: 2 },
+export const LAYERED_RAMP: TieredValue<{ startPct: number; endPct: number }> = tier(
+  { startPct: 0.35, endPct: 0.75 },
   'T4',
-  'Compromise-session doctrine: the anchor race owns the plan, so layered station work stays submaximal (35-75% of spec) and ≤2 doses/week. Direction follows Issurin residuals (short-residual qualities trained closer to their race); magnitudes are convention.',
+  'Compromise-session doctrine: the anchor race owns the plan, so layered station work stays submaximal (35-75% of spec). The dose escalation (1/week through the first half of eligible weeks, 2/week after) lives in layerSecondaryWork, not here — this constant is the volume ramp only. Direction follows Issurin residuals (short-residual qualities trained closer to their race); magnitudes are convention.',
 )
 
 /** Layered session eased beside a hard run: the multiplier applied to

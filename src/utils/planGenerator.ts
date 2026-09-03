@@ -43,15 +43,19 @@ function buildStationList(specs: StationSpec[], n: number, pct: number): string 
   return specs.slice(0, Math.max(1, Math.min(n, specs.length))).map(s => stationRx(s, pct)).join(' · ')
 }
 
-/** Station-volume fraction for a week: ramps across the pre-taper build
- *  per the tiered STATION_RAMP heuristic (deloads drop to a fraction of
- *  the ramp). The final pre-race full-spec touch comes from the
- *  key-session overlay, not the ramp — so a clamped runway still reaches
- *  spec. */
-function stationPctForWeek(progress: number, isRecovery: boolean): number {
+/** Station-volume fraction for a week: ramps across the pre-taper build per
+ *  the tiered STATION_RAMP heuristic. The final pre-race full-spec touch
+ *  comes from the key-session overlay, not the ramp — so a clamped runway
+ *  still reaches spec.
+ *
+ *  This used to take an `isRecovery` flag and apply a 60% deload with a 30%
+ *  floor. Its only caller passed `false`, so the branch never ran in any plan
+ *  the app has ever generated; the flag and the two constants behind it are
+ *  gone rather than wired up, because a recovery week already cuts station
+ *  work through its own template and nobody has ever seen the alternative. */
+function stationPctForWeek(progress: number): number {
   const r = STATION_RAMP.value
-  const pct = r.startPct + (r.endPct - r.startPct) * Math.min(1, Math.max(0, progress))
-  return isRecovery ? Math.max(r.recoveryFloorPct, pct * r.recoveryMult) : pct
+  return r.startPct + (r.endPct - r.startPct) * Math.min(1, Math.max(0, progress))
 }
 
 /** Compromised-running station rotation: three stations per session,
@@ -846,7 +850,7 @@ function getHyroxWorkoutByRole(
   // volumes interpolate across the plan on the week index, not the phase
   // bucket (v1: every same-phase week was byte-identical).
   const runMi = lerp(P.baseRunMi, P.peakRunMi, progress)
-  const stationPct = stationPctForWeek(progress, false)
+  const stationPct = stationPctForWeek(progress)
 
   // P5 — the taper week: volume drops per TAPER_WEEK, intensity stays
   // (the persona sweep found the pre-P5 generator peaked 7 days out with
