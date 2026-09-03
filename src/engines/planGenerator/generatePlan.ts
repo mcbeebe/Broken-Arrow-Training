@@ -1090,6 +1090,39 @@ const FORCE_EASY_CATEGORIES: ReadonlySet<WorkoutCategory> = new Set<WorkoutCateg
  * a plan using the method's defaultPlanWeeks; raceInfo will just have empty
  * race fields.
  */
+/** Share of build weeks that must carry a strength/cross day before the plan
+ *  stops calling the coverage partial. Below it, the athlete is planning
+ *  around gaps rather than skipping the odd cutback. */
+const EXTRAS_COVERAGE_FLOOR = 2 / 3
+
+/**
+ * The training-days-per-week figure the athlete is shown, read off the plan
+ * that was actually built.
+ *
+ * Modal rather than mean: an athlete whose weeks run 5-5-5-4-5 trains five
+ * days a week with a cutback, not 4.8. Race week and any partial first week
+ * are excluded — a header that reported the taper would describe two weeks
+ * of a sixteen-week plan. Returns null when there is nothing full to read,
+ * so the caller keeps its old estimate rather than inventing one.
+ */
+function typicalTrainingDays(weeks: TrainingWeek[]): number | null {
+  const counts = weeks
+    .slice(0, Math.max(0, weeks.length - 1)) // race week is hand-authored
+    .filter(w => w.days.length === 7)
+    .map(w => w.days.filter(d => d.type !== 'rest').length)
+  if (counts.length === 0) return null
+  const tally = new Map<number, number>()
+  for (const c of counts) tally.set(c, (tally.get(c) ?? 0) + 1)
+  let best = counts[0]
+  let bestN = 0
+  for (const [value, n] of tally) {
+    // Ties go to the BUSIER week: under-promising the week the athlete has
+    // to fit into their life is the failure that matters.
+    if (n > bestN || (n === bestN && value > best)) { best = value; bestN = n }
+  }
+  return best
+}
+
 export function generatePlanFromMethod(
   method: TrainingMethod,
   config: OnboardingConfig,
@@ -1807,7 +1840,22 @@ export function generatePlanFromMethod(
     prevTailHard = [closing.length > 1 ? closing[0] : false, closing[closing.length - 1] ?? false]
   }
 
-  const effectiveDaysPerWeek = runningDaysTarget + extrasCap
+  // The number the header shows, read off the plan that was built rather
+  // than the budget that was intended. `runningDaysTarget + extrasCap`
+  // claimed the extras budget whether or not a single extra day fitted.
+  const effectiveDaysPerWeek = typicalTrainingDays(weeks) ?? (runningDaysTarget + extrasCap)
+  // Decision 6a — count the strength/cross days the athlete ACTUALLY has,
+  // read off the finished weeks. Two earlier ways of counting were both
+  // wrong: `extrasCap` is the plan-level BUDGET (the per-week clamp can be 0
+  // in every single week while it stays 1, which is how a plan with no
+  // strength day told the athlete their week grew to fit one), and counting
+  // only what `injectExtraDays` added misses the methods that schedule
+  // cross-training in their own weekly pattern — which would have produced
+  // the opposite lie, "your plan has none" over a plan that has some.
+  const weeksWithExtras = weeks.filter(w => w.days.some(d => d.type === 'strength' || d.type === 'cross'))
+  const extrasPlacedTotal = weeks.reduce(
+    (n, w) => n + w.days.filter(d => d.type === 'strength' || d.type === 'cross').length, 0)
+  const extrasWeeks = weeksWithExtras.length
   const athlete = buildAthleteProfile(config, currentWeeklyMileage, effectiveDaysPerWeek)
   const advisories = [...assessFeasibility(config, today, method), ...environmentAdvisories(config)]
   // R2 — suitability gate: generating a method for a distance it rates
@@ -1923,7 +1971,35 @@ export function generatePlanFromMethod(
       id: 'days_over_request',
       severity: 'info',
       title: 'One more day than requested',
-      detail: `${method.name} needs at least ${runningDaysTarget} running days, and you asked for strength/cross-training too — so weeks run ${effectiveDaysPerWeek} days instead of ${requestedTotalDays}. Pick a lower-mileage method or drop the extras to get back to ${requestedTotalDays}.`,
+      detail: `${method.name} needs at least ${runningDaysTarget} running days${extrasPlacedTotal > 0 ? ', and you asked for strength/cross-training too' : ''} — so weeks run ${effectiveDaysPerWeek} days instead of ${requestedTotalDays}. Pick a lower-mileage method${extrasPlacedTotal > 0 ? ' or drop the extras' : ''} to get back to ${requestedTotalDays}.`,
+    })
+  }
+  // Decision 6a — the method wins when its running floor fills the week, and
+  // the athlete is TOLD it won. The old copy claimed the opposite: a 4-day
+  // athlete on a 5-day-minimum method read "you asked for strength too, so
+  // weeks run 6 days" over a plan with zero strength and zero cross days.
+  if (extrasRequested > 0 && extrasPlacedTotal === 0) {
+    advisories.push({
+      id: 'extras_did_not_fit',
+      severity: 'caution',
+      title: 'No strength or cross-training days fit',
+      detail: `You asked for ${extrasRequested} strength/cross day${extrasRequested === 1 ? '' : 's'} a week, and your plan has none. ${method.name} needs at least ${runningDaysTarget} running days, which already fills the ${requestedTotalDays} days a week you chose — the running is what the race is scored on, so it wins. Nothing in this plan is strength work.`,
+      suggestion: runningDaysTarget + extrasRequested > requestedTotalDays
+        ? `To get it: train ${runningDaysTarget + extrasRequested} days a week, or pick a lower-mileage method that leaves room. Until then, add your own strength session on an easy-run day — it will not be in the plan.`
+        : `To get it: pick a lower-mileage method that leaves room in the week. Until then, add your own strength session on an easy-run day — it will not be in the plan.`,
+    })
+  } else if (extrasRequested > 0 && extrasWeeks < EXTRAS_COVERAGE_FLOOR * (weeks.length - 1)) {
+    // Some weeks got it, some did not — and "some" can mean four weeks out
+    // of sixteen. Naming the real number is the difference between a plan
+    // and a promise. The floor is what keeps this quiet for the ordinary
+    // shape, where the only weeks without an extra day are the cutbacks and
+    // the taper: measured across the road persona set, coverage is either
+    // ~95% (nothing to say) or 25-55% (worth saying).
+    advisories.push({
+      id: 'extras_partial',
+      severity: 'info',
+      title: 'Strength lands in some weeks, not all',
+      detail: `Your strength/cross work appears in ${extrasWeeks} of ${weeks.length} weeks — the rest are already full at ${requestedTotalDays} days once ${method.name}'s running is scheduled. Plan around the gaps rather than assuming a weekly session.`,
     })
   }
   // P4.1 — schedule the calibration benchmark when zones are estimates.

@@ -31,6 +31,7 @@ exports[`Phase 2 — P10 advisory-presence law + dosing report (104-Q1) > dosing
   {
     "advisories": [
       "days_over_request",
+      "extras_partial",
       "qa_hard_day_spacing",
     ],
     "hardestSession": "vo2_intervals",
@@ -53,6 +54,7 @@ exports[`Phase 2 — P10 advisory-presence law + dosing report (104-Q1) > dosing
   {
     "advisories": [
       "days_over_request",
+      "extras_did_not_fit",
       "qa_hard_day_spacing",
       "zones_estimated",
     ],
@@ -125,6 +127,7 @@ exports[`Phase 2 — P10 advisory-presence law + dosing report (104-Q1) > dosing
   {
     "advisories": [
       "days_over_request",
+      "extras_partial",
       "masters_adjustments",
       "qa_duration_range",
       "qa_strength_interference",
