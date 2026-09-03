@@ -6,6 +6,7 @@ import { planSeason } from '../../../engines/season/planSeason'
 import { spliceSeasonWeeks } from '../../../engines/season/spliceSeason'
 import { prehabBlockFor } from '../../../engines/planGenerator/prehab'
 import { dayIsoInWeek } from '../../../utils/planDates'
+import { MASTERS_RECOVERY } from '../../../engines/hyrox/heuristics'
 
 /**
  * Layered multi-race preparation (user-directed): a Hyrox 6–7 weeks after
@@ -306,5 +307,186 @@ describe('PR-1 — placement does not drift with the calendar', () => {
       expect(d.detail, `${d.day} was re-rendered for the later race`).toBe(was)
       expect(d.detail).toMatch(/Hyrox - Anaheim/)
     }
+  })
+
+  /**
+   * D4 — v1 took the first transformable slot it walked past, so on an
+   * ordinary week the layered session landed the day before the quality
+   * session or the day after the long run. Placement now scores each
+   * reachable slot by hard-day neighbours BY CALENDAR DATE, prefers the
+   * quiet one, and eases (never skips) when there is no quiet one.
+   */
+  describe('D4 — the layered session bends around the runs', () => {
+    /** Mon cross (beside Tue quality) · Thu strength (between two easy runs). */
+    const quietSlotWeeks = (): TrainingWeek[] => {
+      const mk = (num: number, mon: number, d: number, focus = 'Build'): TrainingWeek => ({
+        num, dates: '', miles: 20, focus,
+        days: [
+          day(`Mon ${mon}/${d}`, 'cross', 'Cycling'),
+          day(`Tue ${mon}/${d + 1}`, 'quality'),
+          day(`Wed ${mon}/${d + 2}`, 'run'),
+          day(`Thu ${mon}/${d + 3}`, 'strength', 'STRENGTH'),
+          day(`Fri ${mon}/${d + 4}`, 'run'),
+          day(`Sat ${mon}/${d + 5}`, 'long'),
+        ],
+      })
+      return [mk(1, 9, 14), mk(2, 9, 21), mk(3, 9, 28), mk(4, 10, 5)]
+    }
+
+    it('prefers the slot that is not beside a quality or long run', () => {
+      const out = layerSecondaryWork(quietSlotWeeks(), hyroxRace('layered'), ANCHOR, TODAY)
+      // Week 1 gets one dose. Plan order would have taken Mon (index 0);
+      // Mon sits the day before Tuesday's quality session, Thursday sits
+      // between two easy runs.
+      const w1 = out[0].days.filter(d => d.workout.includes('Hyrox prep'))
+      expect(w1).toHaveLength(1)
+      expect(w1[0].day).toMatch(/^Thu /)
+      expect(w1[0].detail).not.toMatch(/EASED/)
+    })
+
+    it('sees the previous week\'s Sunday long run across the week boundary', () => {
+      // Same week shape every week; the ONLY difference in week 2+ is that a
+      // long run sits on the preceding Sunday. A same-week-only scan cannot
+      // see it, and week 2 would place identically to week 1.
+      const mk = (num: number, mon: number, d: number): TrainingWeek => ({
+        num, dates: '', miles: 20, focus: 'Build',
+        days: [
+          day(`Mon ${mon}/${d}`, 'strength', 'STRENGTH'),
+          day(`Tue ${mon}/${d + 1}`, 'run'),
+          day(`Wed ${mon}/${d + 2}`, 'cross', 'Cycling'),
+          day(`Thu ${mon}/${d + 3}`, 'run'),
+          day(`Sun ${mon}/${d + 6}`, 'long'),
+        ],
+      })
+      const weeks = [mk(1, 9, 14), mk(2, 9, 21), mk(3, 9, 28), mk(4, 10, 5)]
+      const out = layerSecondaryWork(weeks, hyroxRace('layered'), ANCHOR, TODAY)
+      // Week 1: nothing precedes Monday, so Monday is quiet and wins on order.
+      expect(out[0].days.filter(d => d.workout.includes('Hyrox prep'))[0].day).toMatch(/^Mon /)
+      // Week 2: Monday now follows 9/20's long run, so Wednesday wins.
+      expect(out[1].days.filter(d => d.workout.includes('Hyrox prep'))[0].day).toMatch(/^Wed /)
+    })
+
+    it('NEVER vetoes: when every reachable slot is crowded the dose still lands, eased', () => {
+      // The standard fixture is an ordinary 5-day week where Tue sits before
+      // Wednesday's quality and Thu sits after it — there is no quiet slot.
+      // A veto here would zero layering out entirely, which is just the
+      // "we said we would layer it and didn't" defect wearing a safety label.
+      const out = layerSecondaryWork(anchorWeeks(), hyroxRace('layered'), ANCHOR, TODAY)
+      expect(out.map(w => w.days.filter(d => d.workout.includes('Hyrox prep')).length).slice(0, 4))
+        .toEqual([1, 1, 2, 2])
+      const layered = layeredDays(out)
+      expect(layered.length).toBe(6)
+      for (const d of layered) {
+        expect(d.detail, `${d.day} should say it was eased`).toMatch(/EASED/)
+        expect(d.zone).toBe('Z2')
+      }
+    })
+
+    it('an eased session is genuinely lighter, not just labelled', () => {
+      // Controlled A/B: the same week, same eligible position — the only
+      // change is a quality session moved next to the strength slot.
+      const base = (crowd: boolean): TrainingWeek[] => {
+        const mk = (num: number, mon: number, d: number): TrainingWeek => ({
+          num, dates: '', miles: 20, focus: 'Build',
+          days: [
+            day(`Mon ${mon}/${d}`, 'run'),
+            day(`Tue ${mon}/${d + 1}`, crowd ? 'quality' : 'run'),
+            day(`Wed ${mon}/${d + 2}`, 'strength', 'STRENGTH'),
+            day(`Thu ${mon}/${d + 3}`, 'run'),
+            day(`Sat ${mon}/${d + 5}`, 'long'),
+          ],
+        })
+        return [mk(1, 9, 14), mk(2, 9, 21), mk(3, 9, 28), mk(4, 10, 5)]
+      }
+      const skiErgM = (weeks: TrainingWeek[]) => {
+        const d = layeredDays(weeks).find(x => x.detail.includes('SkiErg'))!
+        return Number(d.detail.match(/SkiErg (\d+)m/)![1])
+      }
+      const full = layerSecondaryWork(base(false), hyroxRace('layered'), ANCHOR, TODAY)
+      const eased = layerSecondaryWork(base(true), hyroxRace('layered'), ANCHOR, TODAY)
+      expect(skiErgM(eased)).toBeLessThan(skiErgM(full))
+      expect(layeredDays(full)[0].detail).not.toMatch(/EASED/)
+      expect(layeredDays(eased)[0].detail).toMatch(/EASED/)
+      // The circuit is retained, not replaced: still rendered from the spec,
+      // so #401's division and sex loads survive the downshift.
+      const easedCircuit = layeredDays(eased).find(d => d.detail.includes('STATIONS'))!.detail
+      expect(easedCircuit).toMatch(/SkiErg \d+m/)
+      expect(easedCircuit).toMatch(/Sled push \d+m @ 152 kg/)
+      expect(easedCircuit).toMatch(/Wall balls \d+ @ 6 kg to 3\.0 m/)
+      // …minus the plyometric, which is the whole point of easing it.
+      expect(easedCircuit).not.toMatch(/Burpee broad jumps \d/)
+      expect(easedCircuit).toMatch(/Step-ups \d+\/leg/)
+    })
+  })
+
+  /**
+   * The masters swap has to happen on the SPEC LIST, not the strength
+   * template alone: the station circuit renders straight from `specs`, so a
+   * template-only fix left every masters athlete doing 80 m of broad jumps
+   * on every other layered day.
+   */
+  describe('masters athletes and the broad jumps', () => {
+    const MASTERS = { age: 62 }
+    const YOUNGER = { age: 41 }
+
+    /** Strength slot flanked by easy runs, so nothing here is eased — the
+     *  jumps come out on age alone or not at all. */
+    const quietWeeks = (): TrainingWeek[] => [0, 1, 2, 3].map(k => ({
+      num: k + 1, dates: '', miles: 20, focus: 'Build',
+      days: [
+        day(`Mon 9/${14 + k * 7}`, 'run'),
+        day(`Tue 9/${15 + k * 7}`, 'run'),
+        day(`Wed 9/${16 + k * 7}`, 'strength', 'STRENGTH'),
+        day(`Thu 9/${17 + k * 7}`, 'run'),
+        day(`Sat 9/${19 + k * 7}`, 'long'),
+      ],
+    }))
+
+    it('drops burpee broad jumps from the circuit AND the strength template', () => {
+      const out = layerSecondaryWork(anchorWeeks(), hyroxRace('layered'), ANCHOR, TODAY, MASTERS)
+      const layered = layeredDays(out)
+      expect(layered.length).toBeGreaterThan(0)
+      for (const d of layered) {
+        expect(d.detail, `${d.day} still prescribes broad jumps`).not.toMatch(/Burpee broad jumps \d/)
+      }
+      // Both emphases are represented and both substitute step-ups.
+      expect(layered.some(d => d.detail.includes('STATIONS'))).toBe(true)
+      expect(layered.some(d => d.detail.includes('STRENGTH-ENDURANCE'))).toBe(true)
+      expect(layered.some(d => d.detail.includes('Step-ups'))).toBe(true)
+      expect(layered.every(d => d.detail.includes('does not repay a masters athlete'))).toBe(true)
+    })
+
+    it('leaves a younger athlete\'s broad jumps in place', () => {
+      const out = layerSecondaryWork(quietWeeks(), hyroxRace('layered'), ANCHOR, TODAY, YOUNGER)
+      const circuit = layeredDays(out).find(d => d.detail.includes('STATIONS'))!
+      expect(circuit.detail).toMatch(/Burpee broad jumps \d+m/)
+      expect(circuit.detail).not.toMatch(/masters/)
+    })
+
+    it('reads the farmer carry load by key — filtering a station must not shift it', () => {
+      // `specs[5]` was the farmer carry only while the list had all eight
+      // entries; drop the broad jumps and index 5 silently became the sandbag
+      // lunges, so a masters athlete was told to carry at the sandbag weight.
+      const out = layerSecondaryWork(anchorWeeks(), hyroxRace('layered'), ANCHOR, TODAY, MASTERS)
+      const se = layeredDays(out).find(d => d.detail.includes('STRENGTH-ENDURANCE'))!
+      // Men's Open: farmer carry 2×24 kg, sandbag lunges 20 kg.
+      expect(se.detail).toMatch(/Farmer carry \d+m @ 2×24 kg/)
+    })
+
+    it('the masters threshold is MASTERS_RECOVERY\'s, not a second one', () => {
+      // Quiet weeks on purpose: in a crowded week the jumps come out for
+      // everyone, which would make this assertion pass for the wrong reason.
+      const at = layerSecondaryWork(quietWeeks(), hyroxRace('layered'), ANCHOR, TODAY,
+        { age: MASTERS_RECOVERY.value.ageThreshold })
+      const below = layerSecondaryWork(quietWeeks(), hyroxRace('layered'), ANCHOR, TODAY,
+        { age: MASTERS_RECOVERY.value.ageThreshold - 1 })
+      expect(layeredDays(at).every(d => !/Burpee broad jumps \d/.test(d.detail))).toBe(true)
+      expect(layeredDays(below).some(d => d.detail.includes('Burpee broad jumps'))).toBe(true)
+    })
+
+    it('an unknown age is never treated as masters (legacy callers)', () => {
+      const out = layerSecondaryWork(quietWeeks(), hyroxRace('layered'), ANCHOR, TODAY)
+      expect(layeredDays(out).every(d => !d.detail.includes('masters'))).toBe(true)
+    })
   })
 })

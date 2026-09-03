@@ -88,6 +88,15 @@ export const LAYERED_RAMP: TieredValue<{ startPct: number; endPct: number; maxDo
   'Compromise-session doctrine: the anchor race owns the plan, so layered station work stays submaximal (35-75% of spec) and ≤2 doses/week. Direction follows Issurin residuals (short-residual qualities trained closer to their race); magnitudes are convention.',
 )
 
+/** Layered session eased beside a hard run: the multiplier applied to
+ *  station volume and strength-endurance reps when the only slot the
+ *  transform can reach sits the day before or after a quality or long run. */
+export const LAYERED_EASED_MULT: TieredValue<number> = tier(
+  0.7,
+  'T4',
+  'Compromise-session doctrine applied to placement: the anchor race owns the plan, so a layered session adjacent to that week\'s quality or long run is eased rather than moved or dropped. A veto was measured to zero layering out entirely for half the tested configurations (every reachable strength/cross slot in a 5-day week is adjacent to something hard), which silently re-creates the "we said we would layer it and did not" defect. Magnitude is convention.',
+)
+
 /** Taper week (the final full week before race week): volume multiplier
  *  on runs/stations and rep multiplier on intervals — volume drops,
  *  intensity stays. */
@@ -115,6 +124,7 @@ export const HYROX_HEURISTICS: Record<string, TieredValue<unknown>> = {
   INTERVAL_REST,
   TEMPO_MINUTES,
   LAYERED_RAMP,
+  LAYERED_EASED_MULT,
   TAPER_WEEK,
   MASTERS_RECOVERY,
 }
