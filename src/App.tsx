@@ -71,8 +71,7 @@ import { useCoachInsight } from './hooks/useCoachInsight'
 import { useDailyBriefingLog, priorBriefings } from './hooks/useDailyBriefingLog'
 import { useInsightReadState } from './hooks/useInsightReadState'
 import { useCoachTelemetry } from './hooks/useCoachTelemetry'
-import { matchActivitiesToPlan, mergeGarminDetailIntoWeeks, mergeAppleActivitiesIntoWeeks } from './utils/matching'
-import { rezoneWeeks } from './utils/rezone'
+import { derivePlanWeeks } from './utils/derivePlanWeeks'
 import { calculateExerciseLoad } from './utils/trimp'
 import { localDateStr } from './utils/format'
 import { generateMorningCoach, generateEveningCoach, getCoachTimeOfDay } from './utils/coach'
@@ -613,47 +612,26 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     }
   }, [activePlan.weeks, seasonState.planResult, onboarding.config])
 
-  // Merge Strava or manual log data into training plan
-  const weeks = useMemo(() => {
-    let w = spliced.weeks
-    w = daySwap.applySwapsToWeeks(w)
-    // Coach/manual plan edits (add/delete/update days & weeks) apply AFTER
-    // swaps and BEFORE actuals. This order is load-bearing: field edits
-    // (updateDay) must sit in post-swap coordinate space so swapDayIndices
-    // can re-anchor an edit to follow its workout to the swapped slot —
-    // putting edits before swaps reintroduces the "edit lands on the wrong
-    // day after a swap" bug. Actuals/logs match by day label, so they stay
-    // correct even when an edit adds/removes a day.
-    w = planEdits.applyEditsToWeeks(w)
-    // Locked days stamp `day.locked` on the final-positioned days (post
-    // swap + edit), so a lock lands on the right calendar day and every
-    // scheduler below — replan here, plus travel/autopilot/review which
-    // read the derived weeks — skips it.
-    w = lockedDays.applyLocksToWeeks(w)
-    // Replan rules run on the PRESCRIPTION, after edits and before any
-    // actual is matched in: the rules rewrite what was planned, and the
-    // actuals layer still matches by day label afterwards.
-    w = replan.applyReplansToWeeks(w)
-    if (showStrava && strava.activities.length > 0) {
-      w = matchActivitiesToPlan(w, strava.activities)
-    }
-    // Garmin detail enriches/overrides Strava actuals
-    if (garmin.connected && Object.keys(garmin.activityDetails).length > 0) {
-      w = mergeGarminDetailIntoWeeks(w, garmin.activityDetails)
-    }
-    // Apple Watch workouts fill plan days Strava/Garmin didn't cover (for
-    // athletes whose only wearable is an Apple Watch). Runs last so the
-    // richer sources always win.
-    if (apple.appleActivities.length > 0) {
-      w = mergeAppleActivitiesIntoWeeks(w, apple.appleActivities)
-    }
-    w = manualLog.applyLogsToWeeks(w)
-    // Rewrite baked-in HR bpm refs in day.zone / day.detail against the
-    // athlete's current zones so a Settings change cascades to every
-    // display surface and to the compliance grader that reads day.zone.
-    w = rezoneWeeks(w, hrZones.zones)
-    return w
-  }, [spliced, strava.activities, showStrava, manualLog.applyLogsToWeeks, daySwap.applySwapsToWeeks, planEdits.applyEditsToWeeks, lockedDays.applyLocksToWeeks, replan.applyReplansToWeeks, garmin.connected, garmin.activityDetails, apple.appleActivities, hrZones.zones])
+  // Merge Strava or manual log data into training plan.
+  //
+  // The ten-transform pipeline itself lives in utils/derivePlanWeeks — it is
+  // order-dependent in several non-obvious ways and could not be tested while
+  // it was inline here, closing over a dozen hook values. See that module for
+  // why each step sits where it does; this memo only supplies the inputs.
+  const weeks = useMemo(() => derivePlanWeeks({
+    base: spliced.weeks,
+    applySwaps: daySwap.applySwapsToWeeks,
+    applyEdits: planEdits.applyEditsToWeeks,
+    applyLocks: lockedDays.applyLocksToWeeks,
+    applyReplans: replan.applyReplansToWeeks,
+    applyManualLogs: manualLog.applyLogsToWeeks,
+    showStrava,
+    stravaActivities: strava.activities,
+    garminConnected: garmin.connected,
+    garminActivityDetails: garmin.activityDetails,
+    appleActivities: apple.appleActivities,
+    zones: hrZones.zones,
+  }), [spliced, strava.activities, showStrava, manualLog.applyLogsToWeeks, daySwap.applySwapsToWeeks, planEdits.applyEditsToWeeks, lockedDays.applyLocksToWeeks, replan.applyReplansToWeeks, garmin.connected, garmin.activityDetails, apple.appleActivities, hrZones.zones])
 
   // Travel mode: rebalance the derived weeks the athlete is looking at into
   // one undoable planEdits batch, and remember the batchId so the whole trip
