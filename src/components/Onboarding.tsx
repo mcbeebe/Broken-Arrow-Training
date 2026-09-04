@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCoachTelemetry } from '../hooks/useCoachTelemetry'
 import { canLayerOntoAnchor } from '../engines/season/layerSecondaryWork'
 import { assessExtrasFitForConfig, type ExtrasFitAssessment } from '../engines/planGenerator/extrasFit'
 import type {
@@ -39,6 +40,10 @@ interface Props {
    *  prefills the baseline step on a redo so the athlete confirms what we
    *  detected instead of re-typing what their watch already knows. */
   derivedFitness?: { weeklyMileage4wk: number | null; longestRecentRunMi: number | null } | null
+  /** Who is filling this in, for funnel telemetry. Optional: without it the
+   *  events are dropped rather than sent anonymously, and onboarding behaves
+   *  exactly as before. */
+  athleteId?: string
   // Duration (ms) to show the "generating your plan" screen after the user
   // submits. Defaults to a short delay so the handoff to the next screen
   // doesn't feel like a blank flash. Tests pass 0 to call onComplete
@@ -128,6 +133,41 @@ const ALL_STEPS = [
   STEP_WEARABLE,
   STEP_REVIEW,
 ] as const
+
+/** Stable, human-readable names for telemetry.
+ *
+ *  The step constants are numbers, and a raw `17` in an analytics rollup is
+ *  unreadable and would silently change meaning if the constants were ever
+ *  renumbered. These names are the wire format — treat them as an external
+ *  contract and do not rename one without accepting that its history splits
+ *  in two. A step missing from this map reports as `step_<n>` rather than
+ *  throwing, because instrumentation must never break the flow. */
+const STEP_NAMES: Readonly<Record<number, string>> = {
+  [STEP_GOAL_MODE]: 'goal_mode',
+  [STEP_RACE_TYPE]: 'race_type',
+  [STEP_RACE_NAME]: 'race_name',
+  [STEP_SEASON_RACES]: 'season_races',
+  [STEP_GENERAL_GOAL]: 'general_goal',
+  [STEP_GENERAL_CARDIO]: 'general_cardio',
+  [STEP_EXPERIENCE]: 'experience',
+  [STEP_BASELINE]: 'baseline',
+  [STEP_PREVIEW]: 'preview',
+  [STEP_DAYS]: 'days',
+  [STEP_VARIANT]: 'variant',
+  [STEP_EQUIPMENT]: 'equipment',
+  [STEP_STRENGTH]: 'strength',
+  [STEP_SCHEDULE]: 'schedule',
+  [STEP_PROFILE]: 'profile',
+  [STEP_MENOPAUSE]: 'menopause',
+  [STEP_HEALTH]: 'health',
+  [STEP_DETAIL]: 'detail',
+  [STEP_WEARABLE]: 'wearable',
+  [STEP_REVIEW]: 'review',
+}
+
+function stepName(step: number): string {
+  return STEP_NAMES[step] ?? `step_${step}`
+}
 
 const DISTANCE_OPTIONS: ReadonlyArray<{ value: RaceDistance; label: string; desc: string }> = [
   { value: '5k',             label: '5K',              desc: '3.1 mi · short, sharp, speed-focused' },
@@ -354,7 +394,7 @@ const MENOPAUSE_SYMPTOM_OPTIONS: { value: string; label: string }[] = [
   { value: 'brain_fog', label: 'Brain fog' },
 ]
 
-export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 1800, previousConfig, derivedFitness }: Props) {
+export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 1800, previousConfig, derivedFitness, athleteId }: Props) {
   const [step, setStep] = useState(STEP_GOAL_MODE) // ALL_STEPS[0] — the flow's first question
   const [isGenerating, setIsGenerating] = useState(false)
   const [generatingMessage] = useState(
@@ -528,6 +568,60 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
   })
   const visibleIdx = visibleSteps.indexOf(step)
   const isLastStep = visibleIdx === visibleSteps.length - 1
+
+  // ── Funnel telemetry ──────────────────────────────────────────────────
+  // Onboarding had no instrumentation at all, so every claim about where
+  // athletes drop out was unfalsifiable — including one of mine that did not
+  // survive measurement. These five events make the funnel answerable:
+  // where people leave is the last `step_entered` with no `completed` after
+  // it.
+  //
+  // Rides useCoachTelemetry, which batches, sends with `keepalive`, and drops
+  // on failure inside a try/catch. Nothing here can block a render or fail
+  // the flow it measures.
+  const telemetry = useCoachTelemetry(athleteId ?? '', !!athleteId)
+  const logEvent = telemetry.logInteraction
+  const finishedRef = useRef(false)
+  const stepRef = useRef(step)
+  stepRef.current = step
+
+  useEffect(() => {
+    logEvent('onboarding_started', {
+      steps: visibleSteps.length,
+      // A redo starts from an existing config and skips several questions;
+      // its funnel is a different shape and must not be pooled with a first
+      // run when reading the numbers.
+      redo: !!previousConfig,
+    })
+    // Mount only — a re-fire on every visibleSteps change would inflate the
+    // denominator of every rate computed from this event.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  useEffect(() => {
+    logEvent('onboarding_step_entered', {
+      step: stepName(step),
+      index: visibleIdx,
+      steps: visibleSteps.length,
+    })
+  }, [step, visibleIdx, visibleSteps.length, logEvent])
+
+  useEffect(() => {
+    function onHide() {
+      if (finishedRef.current || document.visibilityState === 'visible') return
+      logEvent('onboarding_abandoned', { step: stepName(stepRef.current) })
+      // Flush explicitly rather than relying on the hook's own hide handler:
+      // both listen for the same event, and ours registers second, so its
+      // flush would run before this event was queued and leave it behind.
+      void telemetry.flush()
+    }
+    window.addEventListener('visibilitychange', onHide)
+    window.addEventListener('pagehide', onHide)
+    return () => {
+      window.removeEventListener('visibilitychange', onHide)
+      window.removeEventListener('pagehide', onHide)
+    }
+  }, [logEvent, telemetry])
 
   // iOS Safari scrolls the document up when an input is focused so the keyboard
   // doesn't cover it. That scroll offset survives the step change, so the next
@@ -791,6 +885,9 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
     // Skip the loading screen entirely when consumers (tests) opt out.
     // Otherwise show a brief generating screen so the handoff to the next
     // view doesn't feel like a blank flash on mobile browsers.
+    finishedRef.current = true
+    logEvent('onboarding_completed', { steps: visibleSteps.length, redo: !!previousConfig })
+
     if (loadingDurationMs <= 0) {
       onComplete(normalized)
       return
@@ -818,7 +915,11 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
     <div className="fixed inset-0 z-50 bg-white flex flex-col">
       {/* Header */}
       <div className="flex items-center justify-between px-4 pt-4 pb-2">
-        <button onClick={visibleIdx > 0 ? back : undefined} className={`w-8 h-8 flex items-center justify-center ${visibleIdx > 0 ? 'text-slate-600' : 'text-transparent'}`}>
+        <button
+          aria-label="Back"
+          onClick={visibleIdx > 0 ? back : undefined}
+          className={`w-8 h-8 flex items-center justify-center ${visibleIdx > 0 ? 'text-slate-600' : 'text-transparent'}`}
+        >
           <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 4L7 10l8 6" /></svg>
         </button>
         {/* Progress bar */}
@@ -826,7 +927,17 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
           <div className="h-full bg-teal-500 rounded-full transition-all duration-300" style={{ width: `${((visibleIdx + 1) / visibleSteps.length) * 100}%` }} />
         </div>
         {onSkip && (
-          <button onClick={onSkip} className="w-8 h-8 flex items-center justify-center text-slate-400">
+          <button
+            onClick={() => {
+              // A deliberate exit, distinct from abandonment — mark finished
+              // first so the unmount does not also report an abandon.
+              finishedRef.current = true
+              logEvent('onboarding_skipped', { step: stepName(stepRef.current) })
+              onSkip()
+            }}
+            aria-label="Close onboarding"
+            className="w-8 h-8 flex items-center justify-center text-slate-400"
+          >
             <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 4l10 10M14 4L4 14" /></svg>
           </button>
         )}

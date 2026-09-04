@@ -211,6 +211,7 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
   if (!plan && !onboarding.isOnboarded) {
     return (
       <Onboarding
+        athleteId={athleteId}
         onComplete={(config) => {
           onboarding.save(config)
         }}
