@@ -41,8 +41,37 @@ export function isMergeableCollectionKey(key: string): boolean {
     // laptop don't merge — whichever device syncs second replaces the other's
     // entire log. Unioned by entry id; see `mergeArrayById`.
     key.startsWith('ba_plan_edits_') ||
-    key.startsWith('ba_plan_edits:')
+    key.startsWith('ba_plan_edits:') ||
+    // Day swaps and locked days: the same single-key-holds-everything shape
+    // as the plan-edit log, and the same loss under last-write-wins. Both
+    // record removals as tombstones (SwapReset, LockRecord.unlocked) so the
+    // union cannot resurrect a reset week or re-lock an opened day.
+    key.startsWith('ba_day_swaps_') ||
+    key.startsWith('ba_day_swaps:') ||
+    key.startsWith('ba_locked_days_') ||
+    key.startsWith('ba_locked_days:')
   )
+}
+
+/** Identity of one array entry for the union.
+ *
+ *  `id` when the entry has one. Day swaps written before `id` existed have
+ *  none, and there the identity has to come from the content — a duplicated
+ *  swap is not a harmless repeat: `applySwapsToWeeks` replays swaps in
+ *  sequence, so applying one twice swaps the days back and silently undoes
+ *  it. Falling back to a positional key would do exactly that. Must stay in
+ *  step with `swapKey` in hooks/useDaySwap.
+ *
+ *  Anything else with no id keys by side and position, which keeps both
+ *  sides' entries rather than collapsing them together. */
+function entryKey(e: unknown, i: number, side: string, storageKey?: string): string {
+  const id = (e as { id?: unknown })?.id
+  if (typeof id === 'string' && id) return id
+  if (storageKey?.startsWith('ba_day_swaps')) {
+    const s = e as { weekNum?: number; fromIndex?: number; toIndex?: number; at?: number }
+    return `${s.weekNum}:${s.fromIndex ?? 'r'}:${s.toIndex ?? 'r'}:${s.at ?? 0}`
+  }
+  return `${side}:${i}`
 }
 
 /** Union two id-keyed ARRAYS.
@@ -65,12 +94,11 @@ function mergeArrayById(
   local: unknown[],
   server: unknown[],
   serverNewer: boolean,
+  storageKey?: string,
 ): string {
   const byId = new Map<string, unknown>()
-  const keyOf = (e: unknown, i: number, side: string): string => {
-    const id = (e as { id?: unknown })?.id
-    return typeof id === 'string' && id ? id : `${side}:${i}`
-  }
+  const keyOf = (e: unknown, i: number, side: string): string =>
+    entryKey(e, i, side, storageKey)
   const first = serverNewer ? local : server
   const second = serverNewer ? server : local
   const firstSide = serverNewer ? 'l' : 's'
@@ -80,9 +108,13 @@ function mergeArrayById(
   second.forEach((e, i) => byId.set(keyOf(e, i, secondSide), e))
 
   const merged = [...byId.values()]
+  const stamp = (e: unknown): number => {
+    const r = e as { appliedAt?: number; at?: number }
+    return r?.appliedAt ?? r?.at ?? 0
+  }
   merged.sort((a, b) => {
-    const at = (a as { appliedAt?: number })?.appliedAt ?? 0
-    const bt = (b as { appliedAt?: number })?.appliedAt ?? 0
+    const at = stamp(a)
+    const bt = stamp(b)
     if (at !== bt) return at - bt
     const ai = String((a as { id?: unknown })?.id ?? '')
     const bi = String((b as { id?: unknown })?.id ?? '')
@@ -139,13 +171,16 @@ export function mergeCollection(
   localRaw: string | null,
   serverRaw: string,
   serverNewer: boolean,
+  /** The localStorage key. Only needed for array shapes whose entries may
+   *  have no `id` (day swaps written before ids existed) — see `entryKey`. */
+  storageKey?: string,
 ): CollectionMerge | null {
   // Array-shaped collections (the plan-edit op-log) union by entry id.
   const serverArr = parseArray(serverRaw)
   if (serverArr) {
     const localArr = parseArray(localRaw)
     if (!localArr) return { value: serverRaw, changed: localRaw !== serverRaw }
-    const value = mergeArrayById(localArr, serverArr, serverNewer)
+    const value = mergeArrayById(localArr, serverArr, serverNewer, storageKey)
     return { value, changed: value !== localRaw }
   }
 

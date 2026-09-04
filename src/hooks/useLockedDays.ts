@@ -31,6 +31,40 @@ export interface LockRecord {
   id: string
   dateIso: string
   appliedAt: number
+  /** A TOMBSTONE: this record UNLOCKS `dateIso` rather than locking it.
+   *
+   *  Unlocking used to drop the lock row from the array, and an absence is
+   *  unrepresentable across devices — the other device still holds the lock,
+   *  so a union-merge re-locks a day the athlete deliberately opened. The
+   *  unlock is now a fact of its own, and the newest record for a date wins.
+   *
+   *  Absent on every record written before this existed, which read as
+   *  "locked" then and still does. */
+  unlocked?: true
+}
+
+/** The dates that are locked right now: for each date, the newest record
+ *  wins, and it counts only if it is not an unlock. */
+export function lockedDates(log: LockRecord[]): Set<string> {
+  const newest = new Map<string, LockRecord>()
+  for (const r of log) {
+    const prev = newest.get(r.dateIso)
+    if (!prev || r.appliedAt > prev.appliedAt ||
+        (r.appliedAt === prev.appliedAt && r.id > prev.id)) {
+      newest.set(r.dateIso, r)
+    }
+  }
+  const out = new Set<string>()
+  for (const [dateIso, r] of newest) if (!r.unlocked) out.add(dateIso)
+  return out
+}
+
+/** Strictly after everything in the log, floored at now — so a lock and the
+ *  unlock that follows it can never share a timestamp and tie. */
+function nextStamp(log: LockRecord[]): number {
+  let max = 0
+  for (const r of log) if (r.appliedAt > max) max = r.appliedAt
+  return Math.max(Date.now(), max + 1)
 }
 
 /** Locks applied before the current plan generation describe a plan that
@@ -95,16 +129,22 @@ export function useLockedDays(athleteId?: string, planGeneration?: string) {
     return () => window.removeEventListener('storage', onStorage)
   }, [athleteId, planGeneration])
 
-  const lockedIsos = useMemo(() => new Set(records.map(r => r.dateIso)), [records])
+  const lockedIsos = useMemo(() => lockedDates(records), [records])
 
   const isLocked = useCallback((dateIso: string) => lockedIsos.has(dateIso), [lockedIsos])
 
-  /** Toggle a day's lock. Re-locking is idempotent; unlocking drops it. */
+  /** Toggle a day's lock. Both directions APPEND — an unlock is a tombstone,
+   *  not a deletion, so it survives a cross-device merge (see LockRecord). */
   const toggleLock = useCallback((dateIso: string) => {
     setRecords(prev => {
-      const next = prev.some(r => r.dateIso === dateIso)
-        ? prev.filter(r => r.dateIso !== dateIso)
-        : [...prev, { id: `lock_${Date.now()}_${rand()}`, dateIso, appliedAt: Date.now() }]
+      const at = nextStamp(prev)
+      const isLockedNow = lockedDates(prev).has(dateIso)
+      const next: LockRecord[] = [...prev, {
+        id: `lock_${at}_${rand()}`,
+        dateIso,
+        appliedAt: at,
+        ...(isLockedNow ? { unlocked: true as const } : {}),
+      }]
       writeLog(next, athleteId)
       return next
     })
