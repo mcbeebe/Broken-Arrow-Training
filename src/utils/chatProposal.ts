@@ -314,6 +314,11 @@ export function summarizeOp(
       return `Add week ${op.week.num}${op.week.focus ? ` — ${trunc(op.week.focus)}` : ''}`
     case 'deleteWeek':
       return `Remove week ${op.weekNum}`
+    case 'revoke':
+      // Internal bookkeeping — a tombstone recording that earlier edits were
+      // undone. Never part of a coach proposal, so it has no card to render;
+      // this case exists to keep the switch exhaustive.
+      return 'Undo earlier edits'
   }
 }
 

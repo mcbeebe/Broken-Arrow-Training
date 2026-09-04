@@ -1,9 +1,10 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useMemo } from 'react'
 import type {
   TrainingWeek,
   PlanEdit,
   PlanEditOp,
   PlanEditOpInput,
+  PlanEditRevokeTarget,
   DayUpdates,
 } from '../types'
 import { stampKey } from '../utils/syncStamps'
@@ -108,6 +109,33 @@ function writeEdits(edits: PlanEdit[], athleteId?: string) {
   } catch { /* quota */ }
 }
 
+/** A timestamp strictly greater than every entry already in the log, and no
+ *  earlier than now.
+ *
+ *  Wall-clock alone is not enough. `applyBatch` stamps its ops `base + i` to
+ *  preserve intra-batch order, so a three-op batch can hold timestamps AHEAD
+ *  of `Date.now()`; an undo a moment later would then compare as "before"
+ *  some of the very ops it is undoing and silently leave them applied. Two
+ *  actions inside the same millisecond hit the same problem. Deriving the
+ *  next stamp from the log makes both impossible: every new entry — edit or
+ *  tombstone — sorts strictly after everything present.
+ *
+ *  Deliberately not a monotonic counter: `appliedAt` has to stay comparable
+ *  across devices, and a wall-clock floor keeps it so. */
+function nextStamp(log: PlanEdit[]): number {
+  let max = 0
+  for (const e of log) if (e.appliedAt > max) max = e.appliedAt
+  return Math.max(Date.now(), max + 1)
+}
+
+/** Identity of an update op's target, or null for non-update ops (which
+ *  always stack). Used to enforce last-wins at replay. */
+function updateTargetKey(op: PlanEditOp): string | null {
+  if (op.kind === 'updateDay') return `day:${op.weekNum}:${op.dayIndex}`
+  if (op.kind === 'updateWeek') return `week:${op.weekNum}`
+  return null
+}
+
 /** An update op replaces any prior op of the same kind + target so
  *  re-editing the same day/week patches rather than stacks. Add/delete
  *  ops always append. */
@@ -121,14 +149,64 @@ function isSameUpdateTarget(a: PlanEditOp, b: PlanEditOp): boolean {
   return false
 }
 
+/** Does revocation `r` kill edit `e`?
+ *
+ *  Only edits applied strictly BEFORE the revocation die, so undoing a batch
+ *  on Monday can never silently kill a re-edit of the same day made on
+ *  Tuesday — including one that arrives later from another device. */
+function revokes(r: Extract<PlanEditOp, { kind: 'revoke' }>, e: PlanEdit): boolean {
+  if (e.appliedAt >= r.before) return false
+  if ('all' in r) return true
+  if ('batchId' in r) return e.batchId === r.batchId
+  return (
+    e.op.kind === 'updateDay' &&
+    e.op.weekNum === r.day.weekNum &&
+    e.op.dayIndex === r.day.dayIndex
+  )
+}
+
+/** The live edits: everything that isn't a tombstone and isn't killed by one.
+ *
+ *  Tombstones are how a removal survives a cross-device merge — see the
+ *  `revoke` op in types. Applying them at read time (rather than deleting
+ *  rows at write time) is what lets the sync layer union two devices' logs
+ *  without resurrecting work the athlete already undid. */
+export function applyRevocations(entries: PlanEdit[]): PlanEdit[] {
+  const tombstones = entries
+    .map(e => e.op)
+    .filter((op): op is Extract<PlanEditOp, { kind: 'revoke' }> => op.kind === 'revoke')
+  const live = entries.filter(e => e.op.kind !== 'revoke')
+  if (tombstones.length === 0) return live
+  return live.filter(e => !tombstones.some(r => revokes(r, e)))
+}
+
 /** Replay the op-log over a fresh clone of the base weeks. Ops apply in
  *  `appliedAt` order; out-of-range targets are skipped (graceful — a stale
- *  op against a since-removed week/day simply does nothing). */
+ *  op against a since-removed week/day simply does nothing).
+ *
+ *  Revoked edits are dropped first, and for `updateDay`/`updateWeek` only the
+ *  LAST op per target applies. That last-wins rule used to be enforced at
+ *  write time (`applyBatch` filtered prior same-target updates out of the
+ *  log), which a union-merge can undo by restoring the superseded row from
+ *  another device. Enforcing it here instead makes the outcome identical
+ *  either way: whatever rows are present, the newest update of a day wins
+ *  outright rather than having an older op's stale fields merge back in. */
 export function replayEdits(base: TrainingWeek[], edits: PlanEdit[]): TrainingWeek[] {
-  if (edits.length === 0) return base
+  const living = applyRevocations(edits)
+  if (living.length === 0) return base
   let weeks: TrainingWeek[] = base.map(w => ({ ...w, days: w.days.map(d => ({ ...d })) }))
-  const sorted = [...edits].sort((a, b) => a.appliedAt - b.appliedAt)
-  for (const { op } of sorted) {
+  const sorted = [...living].sort((a, b) => a.appliedAt - b.appliedAt)
+  const superseded = new Set<string>()
+  const lastByTarget = new Map<string, string>()
+  for (const e of sorted) {
+    const t = updateTargetKey(e.op)
+    if (!t) continue
+    const prior = lastByTarget.get(t)
+    if (prior) superseded.add(prior)
+    lastByTarget.set(t, e.id)
+  }
+  for (const { op, id } of sorted) {
+    if (superseded.has(id)) continue
     switch (op.kind) {
       case 'updateWeek': {
         const w = weeks.find(x => x.num === op.weekNum)
@@ -189,10 +267,15 @@ export function replayEdits(base: TrainingWeek[], edits: PlanEdit[]): TrainingWe
  *  config.completedAt) — ops older than it are pruned at load; see
  *  pruneStaleEdits. Omit for seed athletes with no generated plan. */
 export function usePlanEdits(athleteId?: string, planGeneration?: string) {
-  const [edits, setEdits] = useState<PlanEdit[]>(() => readEdits(athleteId, planGeneration))
+  // `log` is the raw persisted array — edits AND tombstones. Everything the
+  // hook hands out is the LIVE view (`edits`), so a caller counting edits or
+  // asking "is this day edited" never sees an undone one. Only the writers
+  // below touch the raw log.
+  const [log, setLog] = useState<PlanEdit[]>(() => readEdits(athleteId, planGeneration))
+  const edits = useMemo(() => applyRevocations(log), [log])
 
   useEffect(() => {
-    setEdits(readEdits(athleteId, planGeneration))
+    setLog(readEdits(athleteId, planGeneration))
   }, [athleteId, planGeneration])
 
   // Re-read when the backend sync layer writes to our key (the sync
@@ -202,7 +285,7 @@ export function usePlanEdits(athleteId?: string, planGeneration?: string) {
     const watched = scopedKey(STORAGE_KEY, athleteId)
     function onStorage(e: StorageEvent) {
       if (e.key !== watched) return
-      setEdits(readEdits(athleteId, planGeneration))
+      setLog(readEdits(athleteId, planGeneration))
     }
     window.addEventListener('storage', onStorage)
     return () => window.removeEventListener('storage', onStorage)
@@ -210,14 +293,14 @@ export function usePlanEdits(athleteId?: string, planGeneration?: string) {
 
   const commit = useCallback((next: PlanEdit[]) => {
     writeEdits(next, athleteId)
-    setEdits(next)
+    setLog(next)
   }, [athleteId])
 
   /** Apply a coach proposal (one or many ops) as a single undoable batch.
    *  Returns the batchId, used as the override/undo handle. */
   const applyBatch = useCallback((ops: PlanEditOpInput[]): string => {
-    const batchId = `batch_${Date.now()}_${rand()}`
-    const base = Date.now()
+    const base = nextStamp(log)
+    const batchId = `batch_${base}_${rand()}`
     const newEdits: PlanEdit[] = ops.map((o, i) => ({
       id: `edit_${base}_${i}_${rand()}`,
       batchId,
@@ -225,21 +308,38 @@ export function usePlanEdits(athleteId?: string, planGeneration?: string) {
       rationale: o.rationale,
       appliedAt: base + i,  // preserve intra-batch order
     }))
-    let next = edits
+    // Dropping the superseded rows is now only COMPACTION — replay enforces
+    // last-wins per target regardless. That matters for sync: if this device
+    // compacts a row another device still holds, the union restores it and
+    // replay still lands on the newer edit.
+    let next = log
     for (const ne of newEdits) {
       next = next.filter(e => !isSameUpdateTarget(e.op, ne.op))
     }
     commit([...next, ...newEdits])
     return batchId
-  }, [edits, commit])
+  }, [log, commit])
+
+
+  /** Append a tombstone. Removals are ADDED rather than subtracted so they
+   *  survive a cross-device union — see the `revoke` op in types. */
+  const revoke = useCallback((target: PlanEditRevokeTarget) => {
+    const at = nextStamp(log)
+    commit([...log, {
+      id: `revoke_${at}_${rand()}`,
+      batchId: `revoke_${at}_${rand()}`,
+      op: { kind: 'revoke', before: at, ...target } as PlanEditOp,
+      appliedAt: at,
+    }])
+  }, [log, commit])
 
   const undoBatch = useCallback((batchId: string) => {
-    commit(edits.filter(e => e.batchId !== batchId))
-  }, [edits, commit])
+    revoke({ batchId })
+  }, [revoke])
 
   const resetAll = useCallback(() => {
-    commit([])
-  }, [commit])
+    revoke({ all: true })
+  }, [revoke])
 
   // ── Backward-compatible single-day helpers (manual WorkoutEditor) ──
 
@@ -254,11 +354,15 @@ export function usePlanEdits(athleteId?: string, planGeneration?: string) {
   }, [undoBatch])
 
   const removeForDay = useCallback((weekNum: number, dayIndex: number) => {
-    commit(edits.filter(e => !(e.op.kind === 'updateDay' && e.op.weekNum === weekNum && e.op.dayIndex === dayIndex)))
-  }, [edits, commit])
+    revoke({ day: { weekNum, dayIndex } })
+  }, [revoke])
 
   const hasEditForDay = useCallback((weekNum: number, dayIndex: number): boolean => {
-    return edits.some(e => e.op.kind === 'updateDay' && e.op.weekNum === weekNum && e.op.dayIndex === dayIndex)
+    // Through applyRevocations: an undone edit is still a row in the log, and
+    // reading the raw array would report a day as edited after the athlete
+    // undid it.
+    return edits.some(
+      e => e.op.kind === 'updateDay' && e.op.weekNum === weekNum && e.op.dayIndex === dayIndex)
   }, [edits])
 
   /** Keep day-targeted ops aligned with a day swap so a structural/manual
@@ -267,8 +371,14 @@ export function usePlanEdits(athleteId?: string, planGeneration?: string) {
   const swapDayIndices = useCallback((weekNum: number, fromIndex: number, toIndex: number) => {
     if (fromIndex === toIndex) return
     const swapIdx = (i: number) => (i === fromIndex ? toIndex : i === toIndex ? fromIndex : i)
-    const next = edits.map(e => {
+    const next = log.map(e => {
       const op = e.op
+      // A day-targeted TOMBSTONE has to follow the swap too, or after a swap
+      // it revokes whichever edit moved into the slot instead of the one it
+      // was written for.
+      if (op.kind === 'revoke' && 'day' in op && op.day.weekNum === weekNum) {
+        return { ...e, op: { ...op, day: { ...op.day, dayIndex: swapIdx(op.day.dayIndex) } } }
+      }
       if ('weekNum' in op && op.weekNum !== weekNum) return e
       if (op.kind === 'updateDay' || op.kind === 'deleteDay') {
         return { ...e, op: { ...op, dayIndex: swapIdx(op.dayIndex) } }
@@ -279,7 +389,7 @@ export function usePlanEdits(athleteId?: string, planGeneration?: string) {
       return e
     })
     commit(next)
-  }, [edits, commit])
+  }, [log, commit])
 
   const applyEditsToWeeks = useCallback((weeks: TrainingWeek[]): TrainingWeek[] => {
     return replayEdits(weeks, edits)

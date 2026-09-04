@@ -75,9 +75,14 @@ describe('mergeCollection (manual-logs union)', () => {
     expect(mergeCollection(local, server, false)!.changed).toBe(false)
   })
 
-  it('falls back to LWW (returns null) for non-object shapes', () => {
-    expect(mergeCollection('[]', '[]', false)).toBeNull()
+  it('falls back to LWW (returns null) for shapes it cannot union', () => {
+    // Arrays used to land here too. They now take the id-keyed array path
+    // added for the plan-edit op-log (see planEditsUnionMerge.test.ts) — the
+    // two keys this suite covers are both plain objects, so neither reaches
+    // it. Non-JSON and primitives still fall back.
     expect(mergeCollection('{"a":1}', 'not json', false)).toBeNull()
+    expect(mergeCollection('{"a":1}', '42', false)).toBeNull()
+    expect(mergeCollection('{"a":1}', '"a string"', false)).toBeNull()
   })
 })
 
