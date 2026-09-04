@@ -454,7 +454,11 @@ export function useOnboarding(athleteId?: string) {
       // we just cleared (which would warp the athlete out of the flow).
       stampKey(cfgK)
       stampKey(redoK)
-    } catch {}
+    } catch {
+      // Storage quota or a disabled localStorage. The in-memory reset below
+      // is what the athlete sees; a failed stamp only costs this device a
+      // sync round, so there is nothing useful to do here.
+    }
     setConfig(null)
     setRedoRequested(false)
     setPreviousConfig(null)
@@ -489,7 +493,9 @@ export function useOnboarding(athleteId?: string) {
       // localStorage, flip `isOnboarded` true, and unmount the in-progress
       // redo — warping the athlete back to their old plan mid-flow.
       stampKey(cfgK)
-    } catch {}
+    } catch {
+      // As above — the reset the athlete sees is the state update below.
+    }
     setConfig(null)
     setRedoRequested(true)
   }, [athleteId])

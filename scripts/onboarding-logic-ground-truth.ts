@@ -24,7 +24,7 @@ import {
   selectMethods,
   inputsFromOnboarding,
 } from '../src/engines/planGenerator/methodSelection'
-import { ALL_METHODS, RECOMMENDABLE_METHODS, getMethodById } from '../src/data/methods'
+import { ALL_METHODS, RECOMMENDABLE_METHODS } from '../src/data/methods'
 import {
   resolvePaces,
   athleteCurrentVdot,

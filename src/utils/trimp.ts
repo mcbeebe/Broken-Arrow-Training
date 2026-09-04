@@ -298,12 +298,16 @@ function resolveCyclingMIM(sportType: SportType, inputs: ResolveMIMInputs): MIMR
     // Diagnose which inputs were missing so the math line can explain.
     const have: string[] = []
     const missing: string[] = []
-    ;(inputs.normalizedPowerW ?? 0) > 0 ? have.push(`NP ${inputs.normalizedPowerW}`) : missing.push('NP')
-    ;(inputs.avgPowerW ?? 0) > 0 ? have.push(`AP ${inputs.avgPowerW}`) : missing.push('AP')
-    ;(inputs.ftpWatts ?? 0) > 0 ? have.push(`FTP ${inputs.ftpWatts}`) : missing.push('FTP')
-    ;(inputs.avgHR ?? 0) > 0 ? have.push(`avgHR ${inputs.avgHR}`) : missing.push('avgHR')
-    ;(inputs.restingHR ?? 0) > 0 ? have.push(`rHR ${inputs.restingHR}`) : missing.push('rHR')
-    ;(inputs.maxHR ?? 0) > 0 ? have.push(`mHR ${inputs.maxHR}`) : missing.push('mHR')
+    const note = (value: number | null | undefined, label: string, shown: string) => {
+      if ((value ?? 0) > 0) have.push(shown)
+      else missing.push(label)
+    }
+    note(inputs.normalizedPowerW, 'NP', `NP ${inputs.normalizedPowerW}`)
+    note(inputs.avgPowerW, 'AP', `AP ${inputs.avgPowerW}`)
+    note(inputs.ftpWatts, 'FTP', `FTP ${inputs.ftpWatts}`)
+    note(inputs.avgHR, 'avgHR', `avgHR ${inputs.avgHR}`)
+    note(inputs.restingHR, 'rHR', `rHR ${inputs.restingHR}`)
+    note(inputs.maxHR, 'mHR', `mHR ${inputs.maxHR}`)
     return {
       mim: MIM_MATRIX[sportType] ?? DEFAULT_MIM,
       ifSource: 'static',
