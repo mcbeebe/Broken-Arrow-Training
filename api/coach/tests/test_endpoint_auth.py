@@ -170,3 +170,33 @@ def test_push_cron_route_keeps_its_own_secret_check():
     # …and the cron check comes BEFORE the session check in do_GET.
     do_get = src[src.index("    def do_GET(self):"):]
     assert do_get.index("__cron") < do_get.index("athlete_from_bearer")
+
+
+# ── 5. the browser is allowed to send the token ─────────────────────────
+
+def test_cors_preflight_allows_the_authorization_header():
+    """Requiring a bearer token is only half the change.
+
+    A request carrying `Authorization` is never a CORS-simple request, so a
+    caller on another origin — the iOS wrapper, or any deployment whose API
+    base is off the app's own domain — preflights first and will not send
+    the real request unless the preflight names the header. Omitting it
+    turns "the coach needs a token" into "the coach is unreachable".
+    """
+    src = (COACH_DIR / "_core.py").read_text()
+    preflight = src[src.index("def send_cors_preflight("):]
+    allow = re.search(r'"Access-Control-Allow-Headers",\s*"([^"]+)"', preflight)
+    assert allow, "send_cors_preflight sends no Allow-Headers at all"
+    assert "Authorization" in allow.group(1), (
+        "preflight omits Authorization — cross-origin coach calls will be "
+        f"blocked by the browser (got {allow.group(1)!r})"
+    )
+
+
+def test_json_responses_also_advertise_the_authorization_header():
+    """`send_json` carries the same CORS headers as the preflight; letting
+    the two drift is how a preflight passes and the real call still fails."""
+    src = (COACH_DIR / "_core.py").read_text()
+    body = src[src.index("def send_json("):src.index("def send_cors_preflight(")]
+    allow = re.search(r'"Access-Control-Allow-Headers",\s*"([^"]+)"', body)
+    assert allow and "Authorization" in allow.group(1)
