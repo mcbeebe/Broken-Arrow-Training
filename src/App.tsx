@@ -7,7 +7,7 @@ import { plans } from './data'
 import { generateHyroxPlan } from './utils/planGenerator'
 import { useStrava } from './hooks/useStrava'
 import { useGarmin } from './hooks/useGarmin'
-import { repushChangedWorkouts } from './utils/garminRepush'
+import { useGarminAutoRepush } from './hooks/useGarminAutoRepush'
 import { realignmentContextForWeeks } from './utils/realignment'
 import { mondayOnOrBefore, todayDateString } from './utils/planDates'
 import { deriveFitnessFromHistory } from './utils/fitnessFromHistory'
@@ -644,29 +644,9 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     removeWindow: travelMode.remove,
   })
 
-  // ── Auto re-push (G2a): whenever the derived plan changes, re-send any
-  // previously-pushed FUTURE workout whose content no longer matches what
-  // the watch has (coach proposal, realignment, manual edit, swap, undo —
-  // one seam catches them all). The ledger diff makes this a no-op unless
-  // a pushed day genuinely changed, so the watch never holds a stale plan
-  // and untouched days are never re-sent. Debounced: rapid successive
-  // edits (an applied multi-op proposal) collapse into one pass.
-  useEffect(() => {
-    if (!garmin.connected) return
-    const timer = setTimeout(() => {
-      repushChangedWorkouts(weeks, athleteId)
-        .then(result => {
-          if (result.sent > 0) {
-            console.info(`[garmin] plan changed — re-sent ${result.sent} workout(s) to watch`)
-          }
-          if (result.failed > 0) {
-            console.warn(`[garmin] re-push: ${result.failed} failed`, result.errors)
-          }
-        })
-        .catch(() => { /* re-push is best-effort; next edit retries */ })
-    }, 2500)
-    return () => clearTimeout(timer)
-  }, [weeks, garmin.connected, athleteId])
+  // Keep the watch in step with the derived plan. Debounced and
+  // ledger-diffed — see useGarminAutoRepush.
+  useGarminAutoRepush(weeks, athleteId, garmin.connected)
 
   const compliance = useCompliance(weeks)
 
