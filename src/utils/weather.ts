@@ -16,6 +16,7 @@
  * RaceConditionsForecast (race-day historical + countdown forecast).
  */
 
+import { isoFromLocalDate } from './planDates'
 const FORECAST_API = 'https://api.open-meteo.com/v1/forecast'
 const ARCHIVE_API = 'https://archive-api.open-meteo.com/v1/archive'
 const GEOCODING_API = 'https://geocoding-api.open-meteo.com/v1/search'
@@ -313,7 +314,7 @@ export async function getTypicalClimate(
     winStart.setDate(winStart.getDate() - 2)
     const winEnd = new Date(targetDate)
     winEnd.setDate(winEnd.getDate() + 2)
-    const fmt = (d: Date) => d.toISOString().slice(0, 10)
+    const fmt = (d: Date) => isoFromLocalDate(d)
     const params = new URLSearchParams({
       latitude: latitude.toString(),
       longitude: longitude.toString(),

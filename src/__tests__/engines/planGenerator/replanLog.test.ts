@@ -18,7 +18,7 @@ const plan = () => generatePlanFromMethod(getMethodById('pfitzinger')!, buildCon
 const isoOf = (weeks: TrainingWeek[], wi: number, di: number) => {
   const d = new Date(`${weeks[wi].startIso}T12:00:00`)
   d.setDate(d.getDate() + di)
-  return d.toISOString().slice(0, 10)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
 const rec = (kind: ReplanRecord['kind'], dateIso: string, appliedAt: number): ReplanRecord =>

@@ -1,3 +1,4 @@
+import { isoFromLocalDate } from '../utils/planDates'
 import { useEffect, useRef, useState } from 'react'
 import type { ActiveRecording, VoiceCaptureError } from '../utils/voiceInput'
 import {
@@ -37,11 +38,15 @@ const MOODS: { v: number; emoji: string; label: string }[] = [
   { v: 5, emoji: '😄', label: 'Great' },
 ]
 
-/** Local calendar date (YYYY-MM-DD) for a date input default, TZ-safe. */
+/** Local calendar date (YYYY-MM-DD) for a date input default.
+ *
+ *  This used to shift the instant by the timezone offset and then read it
+ *  back through `toISOString()` — correct, but only because the two errors
+ *  cancelled. Reading local components directly needs no shift, and the
+ *  shifted form would be wrong the moment anyone "simplified" one half of it.
+ */
 function todayLocalDate(): string {
-  const d = new Date()
-  const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000)
-  return local.toISOString().slice(0, 10)
+  return isoFromLocalDate(new Date())
 }
 
 /** Turn a `YYYY-MM-DD` input back into an ISO timestamp. Keeps the original

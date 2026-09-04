@@ -13,6 +13,7 @@
  * object itself so the validator can also run over spliced season weeks
  * and stored/edited plans.
  */
+import { addDays, isoFromLocalDate } from '../../utils/planDates'
 import type { HRZone, PlannedDay, RaceInfo, TrainingWeek } from '../../types'
 import { FULL_SIM_DAYS_OUT } from '../hyrox/heuristics'
 import { invariantRulesFor } from '../planGenerator/methodInvariants'
@@ -659,7 +660,7 @@ export function validatePlan(input: PlanQAInput): PlanQAResult {
       for (let i = 0; i < w.days.length; i++) {
         const d = new Date(`${w.startIso}T12:00:00`)
         d.setDate(d.getDate() + i)
-        const iso = d.toISOString().slice(0, 10)
+        const iso = isoFromLocalDate(d)
         const firstWeek = seen.get(iso)
         if (firstWeek != null && firstWeek !== w.num) {
           add({
@@ -951,10 +952,11 @@ export function validatePlan(input: PlanQAInput): PlanQAResult {
     if (runwayDays >= 21) {
       let simOk = false
       for (const w of weeks) {
-        if (!w.startIso) continue
+        const weekStart = w.startIso
+        if (!weekStart) continue
         w.days.forEach((d, idx) => {
           if (!/full race simulation/i.test(d.workout)) return
-          const dayIso = new Date(Date.parse(`${w.startIso}T12:00:00`) + idx * 86_400_000).toISOString().slice(0, 10)
+          const dayIso = addDays(weekStart, idx)
           const daysOut = Math.round((Date.parse(`${raceIso}T12:00:00`) - Date.parse(`${dayIso}T12:00:00`)) / 86_400_000)
           if (daysOut >= FULL_SIM_DAYS_OUT.value.min) simOk = true
         })

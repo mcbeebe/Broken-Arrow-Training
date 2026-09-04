@@ -94,31 +94,72 @@ export function effectivePlanStart(
   return planStartDate && planStartDate > today ? planStartDate : today
 }
 
-/** Shift an ISO date by a whole number of weeks (noon-anchored so a negative
- *  timezone offset never slips a day). */
-export function shiftIsoByWeeks(iso: string, weeks: number): string {
-  const d = new Date(`${iso}T12:00:00`)
-  d.setDate(d.getDate() + weeks * 7)
-  return d.toISOString().slice(0, 10)
-}
-
-/** Today as YYYY-MM-DD in the athlete's local timezone. */
-export function todayDateString(): string {
-  const d = new Date()
+/**
+ * A Date's LOCAL calendar day as YYYY-MM-DD.
+ *
+ * This is the only correct way to get a calendar date out of a Date that was
+ * built from local components. `toISOString()` formats in UTC, so reading a
+ * locally-built Date through it re-interprets it in another day whenever the
+ * local offset pushes it across midnight UTC.
+ *
+ * The codebase used to guard that by anchoring at local noon
+ * (`new Date(iso + 'T12:00:00')`), on the reasoning — written down in this
+ * file — that "a negative timezone offset never slips a day". True, and only
+ * half the world: noon local is 00:00 UTC at UTC+12 and 23:00 UTC the
+ * PREVIOUS day at UTC+13. So the anchor holds from UTC-11 through UTC+12 and
+ * fails beyond it — New Zealand and Fiji through their summer (NZDT/+13),
+ * Kiritimati year-round (+14), Samoa and Tonga (+13). Every plan generated
+ * there came out shifted a day, which lands week starts on Sunday and cascades
+ * through the whole schedule.
+ *
+ * Local components in, local components out. No offset, no anchor, no slip.
+ */
+export function isoFromLocalDate(d: Date): string {
   const y = d.getFullYear()
   const m = String(d.getMonth() + 1).padStart(2, '0')
   const dd = String(d.getDate()).padStart(2, '0')
   return `${y}-${m}-${dd}`
 }
 
-/** The Monday on or before `iso` (noon-anchored, so DST never shifts it).
+/** A Date at local noon on the given calendar day. Noon (rather than
+ *  midnight) keeps a DST spring-forward from landing on a nonexistent local
+ *  time; it is NOT a defence against the UTC read above — see
+ *  `isoFromLocalDate`. */
+export function localNoon(iso: string): Date {
+  return new Date(`${iso}T12:00:00`)
+}
+
+/** Shift an ISO calendar date by whole days. */
+export function addDays(iso: string, days: number): string {
+  const d = localNoon(iso)
+  d.setDate(d.getDate() + days)
+  return isoFromLocalDate(d)
+}
+
+/** Whole days from `aIso` to `bIso` (negative when b precedes a). */
+export function daysBetween(aIso: string, bIso: string): number {
+  return Math.round((localNoon(bIso).getTime() - localNoon(aIso).getTime()) / 86_400_000)
+}
+
+/** ISO weekday: 1 = Monday … 7 = Sunday. */
+export function isoDayOfWeek(iso: string): number {
+  return ((localNoon(iso).getDay() + 6) % 7) + 1
+}
+
+/** Shift an ISO date by a whole number of weeks. */
+export function shiftIsoByWeeks(iso: string, weeks: number): string {
+  return addDays(iso, weeks * 7)
+}
+
+/** Today as YYYY-MM-DD in the athlete's local timezone. */
+export function todayDateString(): string {
+  return isoFromLocalDate(new Date())
+}
+
+/** The Monday on or before `iso`.
  *  The plan's pinned start is always a Monday: weeks are Monday-anchored
  *  everywhere else in the app, and pinning mid-week would put week 1 out
  *  of step with every other week. */
 export function mondayOnOrBefore(iso: string): string {
-  const d = new Date(`${iso}T12:00:00`)
-  const dow = d.getDay() // 0=Sun … 6=Sat
-  const back = dow === 0 ? 6 : dow - 1
-  d.setDate(d.getDate() - back)
-  return d.toISOString().slice(0, 10)
+  return addDays(iso, -(isoDayOfWeek(iso) - 1))
 }

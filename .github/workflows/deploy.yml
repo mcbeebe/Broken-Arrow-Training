@@ -49,6 +49,20 @@ jobs:
       # It goes in as a blocking step in the same PR that reaches zero.
       - run: npm test
 
+      # The same suite, one timezone east of everything. Plan generation is
+      # calendar arithmetic, and reading a locally-built Date through
+      # `toISOString()` (UTC) shifts the day at any offset past +12 — which
+      # is how the app generated Sunday-anchored weeks for every athlete in
+      # New Zealand, Fiji, Samoa, Tonga and Kiritimati while a UTC runner
+      # reported all green. Kiritimati is +14, the furthest offset there is,
+      # so it catches the whole class.
+      #
+      # A step rather than a matrix on purpose: `test` is the required check,
+      # and a matrix would rename it (`test (UTC)`, …) and silently strand
+      # branch protection on a check that no longer runs.
+      - name: Tests at UTC+14 (calendar-date discipline)
+        run: TZ=Pacific/Kiritimati npm test
+
   # Cutover airlock — REPLACED the legacy `build-and-deploy` job at
   # cutover. The legacy origin (mcbeebe.github.io/Broken-Arrow-Training/)
   # now serves the standalone migration airlock from scripts/airlock/.

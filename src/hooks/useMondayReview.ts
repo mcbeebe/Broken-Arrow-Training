@@ -1,3 +1,4 @@
+import { todayDateString } from '../utils/planDates'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { stampKey } from '../utils/syncStamps'
 
@@ -126,7 +127,7 @@ export function useMondayReview(athleteId?: string, gapIso: string | null = null
 
   /** Record first appearance for this week (idempotent). */
   const markShown = useCallback(() => {
-    const weekKey = decision.weekKey ?? new Date().toISOString().slice(0, 10)
+    const weekKey = decision.weekKey ?? todayDateString()
     const existing = read(athleteId)
     if (existing?.weekKey === weekKey && !decision.gapTriggered) return
     const next: ReviewState = {
@@ -143,7 +144,7 @@ export function useMondayReview(athleteId?: string, gapIso: string | null = null
    *  current gap (applying adjustments calls this too). */
   const dismiss = useCallback(() => {
     const current = read(athleteId)
-    const weekKey = current?.weekKey ?? decision.weekKey ?? new Date().toISOString().slice(0, 10)
+    const weekKey = current?.weekKey ?? decision.weekKey ?? todayDateString()
     const next: ReviewState = {
       weekKey,
       shownAt: current?.shownAt ?? Date.now(),

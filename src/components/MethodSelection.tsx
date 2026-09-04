@@ -1,3 +1,4 @@
+import { todayDateString } from '../utils/planDates'
 import { useEffect, useMemo, useState } from 'react'
 import type { OnboardingConfig } from '../hooks/useOnboarding'
 import type { TrainingMethod } from '../types/training-method'
@@ -40,7 +41,7 @@ export default function MethodSelection({ config, onConfirm, onBack, methods = R
   // cross-distance) shown at the decision point. Uses the top pick's method for
   // the runway check; the rest are method-agnostic.
   const advisories = useMemo<PlanAdvisory[]>(
-    () => assessFeasibility(config, new Date().toISOString().slice(0, 10), picks[0]?.method),
+    () => assessFeasibility(config, todayDateString(), picks[0]?.method),
     [config, picks],
   )
 

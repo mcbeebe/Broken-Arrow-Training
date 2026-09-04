@@ -5,6 +5,7 @@
  * week to a phase, and computes weekly mileage with cutback weeks and a
  * final taper applied per the method's `taper` block.
  */
+import { todayDateString } from '../../utils/planDates'
 import type { TrainingMethod, Phase, ExperienceLevel as MethodExperienceLevel } from '../../types/training-method'
 import type { OnboardingConfig, ExperienceLevel as OnboardingExperienceLevel, RaceDistance } from '../../hooks/useOnboarding'
 import type { PhaseBlock, WeekMileage } from './types'
@@ -55,7 +56,7 @@ export function snapToSupportedWeeks(method: TrainingMethod, desiredWeeks: numbe
 export function chooseTotalWeeks(
   method: TrainingMethod,
   raceDateIso: string | undefined,
-  todayIso: string = new Date().toISOString().slice(0, 10),
+  todayIso: string = todayDateString(),
 ): number {
   if (!raceDateIso) return method.generationRules.defaultPlanWeeks
   const ms = new Date(raceDateIso + 'T12:00:00').getTime() - new Date(todayIso + 'T12:00:00').getTime()

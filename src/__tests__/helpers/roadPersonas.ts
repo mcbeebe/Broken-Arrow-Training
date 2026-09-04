@@ -11,7 +11,7 @@ export const TODAY = '2026-08-17' // a Monday
 export function satAfterWeeks(n: number): string {
   const d = new Date('2026-08-22T12:00:00') // Saturday of week 1
   d.setDate(d.getDate() + (n - 1) * 7)
-  return d.toISOString().slice(0, 10)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
 export const DIST_MILES: Record<string, number> = { '5k': 3.1, '10k': 6.2, half_marathon: 13.1, marathon: 26.2, '50k': 31.1 }

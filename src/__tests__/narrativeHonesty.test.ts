@@ -12,7 +12,7 @@ import type { PerformanceMetrics, DailyTRIMP, TrainingWeek, PlannedDay, WorkoutT
 
 const iso = (offsetDays: number) => {
   const d = new Date(Date.now() + offsetDays * 86400000)
-  return d.toISOString().slice(0, 10)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
 /** A falling-fitness week: CTL down 4 points over the seven days. */

@@ -35,6 +35,9 @@ const TODAY = new Date('2026-05-01T12:00:00Z')
 function boutDaysAgo(daysAgo: number, doseAU = 110): EccentricBoutRecord {
   const d = new Date(TODAY)
   d.setUTCDate(d.getUTCDate() - daysAgo)
+  // utc-domain: repeatedBout snaps bouts to UTC days (`snapToUTCDay`), so this
+  // fixture is UTC end to end and toISOString is the matching reader. Reading
+  // it with local components instead breaks the file at every offset past +12.
   return { date: d.toISOString().slice(0, 10), doseAU }
 }
 

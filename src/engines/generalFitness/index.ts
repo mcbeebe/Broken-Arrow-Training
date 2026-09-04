@@ -27,6 +27,7 @@ import { effectivePlanStart } from '../../utils/planDates'
 import { athleteCurrentVdot } from '../planGenerator/paceTargets'
 import { paceBoundsForZone, type VdotPaceBounds } from '../planGenerator/vdot'
 import { isBenchmarkWeek, benchmarkDetail, benchmarkWorkoutName } from '../strength/benchmark'
+import { addDays as addDaysIso, todayDateString } from '../../utils/planDates'
 
 /** Format a VDOT pace band as " · 8:30–9:45/mi" (fast–slow), or '' when absent.
  *  P2-10: lets the General Fitness engine anchor cardio intensity to a recent
@@ -49,9 +50,7 @@ const DELOAD_EVERY = 4
 
 // ── Date helpers (mirror the other generators) ──────────────────────────────
 function addDays(dateStr: string, days: number): string {
-  const d = new Date(dateStr + 'T12:00:00')
-  d.setDate(d.getDate() + days)
-  return d.toISOString().slice(0, 10)
+  return addDaysIso(dateStr, days)
 }
 
 function formatDay(dateStr: string): string {
@@ -369,7 +368,7 @@ function menopauseOverlay(config: OnboardingConfig): MenopauseOverlay | null {
  */
 export function generateGeneralFitnessPlan(
   config: OnboardingConfig,
-  today: string = new Date().toISOString().slice(0, 10),
+  today: string = todayDateString(),
 ): TrainingPlan {
   // Athlete-chosen plan start (one-way clamp: never back-dates).
   today = effectivePlanStart(config.planStartDate, today, config.planStartPinnedIso)
