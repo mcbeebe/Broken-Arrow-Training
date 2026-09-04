@@ -1,10 +1,14 @@
 """Coach operational telemetry sink + rollup.
 
 POST /api/coach/telemetry
-{ athleteId, events: [{type: 'interaction', kind, meta?}, ...] }
+{ events: [{type: 'interaction', kind, meta?}, ...] }
 
-GET /api/coach/telemetry?athleteId=X&days=30
+GET /api/coach/telemetry?days=30
   Returns aggregated rollup plus sample review list.
+
+AUTH: requires `Authorization: Bearer <session>`. The athlete is the token
+subject, except that the ADMIN account may pass ?athleteId=X to read another
+athlete — Coach Diagnostics compares athletes side by side.
 """
 
 import datetime
@@ -23,6 +27,7 @@ from ._core import (
     send_json,
     telemetry_key,
 )
+from ..auth._helpers import athlete_from_bearer, resolve_athlete
 
 
 def _load_events(athlete_id: str, days: int) -> list[dict]:
@@ -105,11 +110,14 @@ class handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         q = parse_qs(urlparse(self.path).query)
-        athlete_id = (q.get("athleteId", [""])[0] or "").strip()
-        days = max(1, min(90, int(q.get("days", ["30"])[0] or "30")))
-        if not athlete_id:
-            send_json(self, 400, {"error": "athleteId required"})
+        # Admin-aware: Coach Diagnostics compares athletes side by side, so
+        # the admin account may name one. Everyone else reads their own.
+        ok, _auth_status, _auth_err, athlete_id = resolve_athlete(
+            self.headers, (q.get("athleteId", [""])[0] or "").strip())
+        if not ok:
+            send_json(self, _auth_status, {"error": _auth_err})
             return
+        days = max(1, min(90, int(q.get("days", ["30"])[0] or "30")))
         events = _load_events(athlete_id, days)
         rollup = _rollup(events)
         samples = kv_get_json(samples_key(athlete_id)) or []
@@ -120,11 +128,14 @@ class handler(BaseHTTPRequestHandler):
         send_json(self, 200, {"rollup": rollup, "samples": samples, "days": days})
 
     def do_POST(self):
+        ok, _auth_status, _auth_err, athlete_id = athlete_from_bearer(self.headers)
+        if not ok:
+            send_json(self, _auth_status, {"error": _auth_err})
+            return
         body = read_json_body(self)
-        athlete_id = str(body.get("athleteId", "")).strip()
         events = body.get("events") or []
-        if not athlete_id or not isinstance(events, list):
-            send_json(self, 400, {"error": "athleteId and events required"})
+        if not isinstance(events, list):
+            send_json(self, 400, {"error": "events required"})
             return
         for e in events:
             if not isinstance(e, dict):
@@ -140,11 +151,12 @@ class handler(BaseHTTPRequestHandler):
     def do_DELETE(self):
         """DELETE /api/coach/telemetry?athleteId=X&action=reset_budget"""
         q = parse_qs(urlparse(self.path).query)
-        athlete_id = (q.get("athleteId", [""])[0] or "").strip()
-        action = (q.get("action", [""])[0] or "").strip()
-        if not athlete_id:
-            send_json(self, 400, {"error": "athleteId required"})
+        ok, _auth_status, _auth_err, athlete_id = resolve_athlete(
+            self.headers, (q.get("athleteId", [""])[0] or "").strip())
+        if not ok:
+            send_json(self, _auth_status, {"error": _auth_err})
             return
+        action = (q.get("action", [""])[0] or "").strip()
         if action == "reset_budget":
             ok = reset_budget(athlete_id)
             send_json(self, 200 if ok else 500, {"ok": ok, "action": "reset_budget", "athleteId": athlete_id})

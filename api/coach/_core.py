@@ -3684,14 +3684,24 @@ def send_json(handler, status: int, payload: Any) -> None:
     handler.send_header("Content-Type", "application/json")
     handler.send_header("Access-Control-Allow-Origin", "*")
     handler.send_header("Access-Control-Allow-Methods", "GET,POST,DELETE,OPTIONS")
-    handler.send_header("Access-Control-Allow-Headers", "Content-Type")
+    handler.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization")
     handler.end_headers()
     handler.wfile.write(json.dumps(payload).encode())
 
 
 def send_cors_preflight(handler) -> None:
+    """Answer the browser's preflight for a /api/coach/* call.
+
+    `Authorization` has to be in Allow-Headers or the whole surface breaks
+    for any caller on a different origin than the API — the iOS wrapper is
+    one, and so is any deployment where VITE_GARMIN_API_URL points off the
+    app's own domain. Sending a bearer token makes even a GET non-simple, so
+    the browser preflights it first and refuses to send the real request
+    unless the header is named here. api/sync.py and api/apple/health.py,
+    the two endpoints that already required a token, both list it.
+    """
     handler.send_response(204)
     handler.send_header("Access-Control-Allow-Origin", "*")
     handler.send_header("Access-Control-Allow-Methods", "GET,POST,DELETE,OPTIONS")
-    handler.send_header("Access-Control-Allow-Headers", "Content-Type")
+    handler.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization")
     handler.end_headers()

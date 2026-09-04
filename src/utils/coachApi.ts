@@ -4,6 +4,24 @@
  * The Coach API lives on the same Vercel deployment as the Garmin API, so
  * we reuse VITE_GARMIN_API_URL. A dedicated VITE_COACH_API_URL can override.
  */
+import { getStoredSession } from './auth'
+
+/**
+ * Authorization header for /api/coach/*, when the athlete has a session.
+ *
+ * The coach endpoints used to take `athleteId` from the request body and
+ * believe it, which meant anyone who could guess an id could read another
+ * athlete's coach memory or spend their model budget. They now derive the
+ * athlete from this token, so every call has to carry it.
+ *
+ * Returns an empty object when there is no session (the hash-auth dev path
+ * with no Google client ID configured) — the request then fails closed at
+ * the server with a 401 rather than silently acting as someone else.
+ */
+export function coachAuthHeaders(): Record<string, string> {
+  const token = getStoredSession()?.token
+  return token ? { Authorization: `Bearer ${token}` } : {}
+}
 
 export function coachApiBase(): string {
   const explicit = import.meta.env.VITE_COACH_API_URL as string | undefined
@@ -25,6 +43,7 @@ export async function coachFetch<T = unknown>(
     ...init,
     headers: {
       'Content-Type': 'application/json',
+      ...coachAuthHeaders(),
       ...(init?.headers || {}),
     },
   })
@@ -57,7 +76,7 @@ export async function sendCoachMessageBackground(
   if (!base) throw new Error('coach_api_unavailable')
   const res = await fetch(`${base}/api/coach/chat`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...coachAuthHeaders() },
     body: JSON.stringify({
       athleteId,
       messages: [{ role: 'user', content }],

@@ -1,8 +1,11 @@
 """Coach memory CRUD.
 
-GET  /api/coach/memory?athleteId=X
-GET  /api/coach/memory?athleteId=X&view=summary_card[&force=1]
-POST /api/coach/memory?athleteId=X  { action, ... }
+GET  /api/coach/memory[?view=summary_card[&force=1]]
+POST /api/coach/memory  { action, ... }
+
+AUTH: requires `Authorization: Bearer <session>`. The athlete is the token
+subject — memory holds injuries, goals and health context, so it is never
+addressed by a client-supplied id.
 
 The `view` query param toggles read-only projections of the same
 underlying memory. Folded into this endpoint so the deployment stays
@@ -26,12 +29,7 @@ from ._core import (
     sync_about_me_string,
     _facts_from_text,
 )
-
-
-def _athlete_id(handler) -> str:
-    q = parse_qs(urlparse(handler.path).query)
-    v = q.get("athleteId", [""])
-    return (v[0] or "").strip()
+from ..auth._helpers import athlete_from_bearer
 
 
 def _query(handler) -> dict:
@@ -43,9 +41,9 @@ class handler(BaseHTTPRequestHandler):
         send_cors_preflight(self)
 
     def do_GET(self):
-        athlete_id = _athlete_id(self)
-        if not athlete_id:
-            send_json(self, 400, {"error": "athleteId required"})
+        ok, _auth_status, _auth_err, athlete_id = athlete_from_bearer(self.headers)
+        if not ok:
+            send_json(self, _auth_status, {"error": _auth_err})
             return
         q = _query(self)
         view = (q.get("view", [""])[0] or "").strip()
@@ -60,9 +58,9 @@ class handler(BaseHTTPRequestHandler):
         send_json(self, 200, mem)
 
     def do_POST(self):
-        athlete_id = _athlete_id(self)
-        if not athlete_id:
-            send_json(self, 400, {"error": "athleteId required"})
+        ok, _auth_status, _auth_err, athlete_id = athlete_from_bearer(self.headers)
+        if not ok:
+            send_json(self, _auth_status, {"error": _auth_err})
             return
         body = read_json_body(self)
         action = body.get("action", "")

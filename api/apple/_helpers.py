@@ -1,43 +1,15 @@
-"""Shared auth helpers for the Apple Health endpoint.
+"""Auth helper for the Apple Health endpoint.
 
-Duplicates the session-JWT verification from api/auth/_helpers.py so
-that this Vercel function doesn't need cross-directory imports. Uses
-the same OAUTH_JWT_SECRET, so tokens minted by /api/auth/google are
-accepted here verbatim.
+This module used to carry its own copy of the session-JWT verification to
+avoid a cross-directory import, which made three implementations of "is this
+session valid" across the API (here, api/auth/_helpers, and sync.py's own
+`_authenticate`) — and they had already diverged in one visible way: sync
+lower-cases the token subject and the other two do not. It now delegates to
+api/auth/_helpers. Behaviour here is unchanged; sync keeps its lower-casing
+because its storage keys were written that way.
 """
 
-import base64
-import hashlib
-import hmac
-import json
-import os
-import time
-
-
-def verify_session_token(token: str) -> dict | None:
-    """Verify and decode a session JWT. Returns claims dict or None."""
-    secret = os.environ.get("OAUTH_JWT_SECRET", "")
-    if not secret:
-        return None
-    parts = token.split(".")
-    if len(parts) != 2:
-        return None
-    payload_b64, sig = parts
-    expected_sig = hmac.new(
-        secret.encode(), payload_b64.encode(), hashlib.sha256
-    ).hexdigest()
-    if not hmac.compare_digest(sig, expected_sig):
-        return None
-    padding = 4 - len(payload_b64) % 4
-    if padding != 4:
-        payload_b64 += "=" * padding
-    try:
-        payload = json.loads(base64.urlsafe_b64decode(payload_b64))
-    except Exception:
-        return None
-    if payload.get("exp", 0) < time.time():
-        return None
-    return payload
+from ..auth._helpers import athlete_from_bearer
 
 
 def authenticate(handler_self) -> tuple[bool, int, str, str]:
@@ -45,19 +17,9 @@ def authenticate(handler_self) -> tuple[bool, int, str, str]:
 
     Returns (ok, status_code, error_message, athlete_id).
 
-    Fails closed if OAUTH_JWT_SECRET is not configured on the server so
-    a misdeployed function can't accidentally expose this endpoint.
+    Delegates to the shared implementation in api/auth/_helpers so the coach,
+    device and sync endpoints cannot drift apart on what counts as a valid
+    session. Behaviour is unchanged: fails closed when OAUTH_JWT_SECRET is
+    not configured.
     """
-    if not os.environ.get("OAUTH_JWT_SECRET"):
-        return (False, 503, "server misconfigured: OAUTH_JWT_SECRET not set", "")
-    header = handler_self.headers.get("Authorization", "")
-    if not header.startswith("Bearer "):
-        return (False, 401, "missing or invalid Authorization header", "")
-    token = header[len("Bearer "):].strip()
-    claims = verify_session_token(token)
-    if not claims:
-        return (False, 401, "invalid or expired session token", "")
-    athlete_id = str(claims.get("sub") or "").strip()
-    if not athlete_id:
-        return (False, 401, "session token missing athleteId", "")
-    return (True, 200, "", athlete_id)
+    return athlete_from_bearer(handler_self.headers)

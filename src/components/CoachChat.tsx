@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useMemo, type ReactNode, type RefObject } from 'react'
 import type { ConversationTurn, CoachSnapshot, CoachAction, PlannedDay } from '../types'
 import { DEFAULT_COACH_NAME } from '../types'
-import { coachApiAvailable, coachApiBase } from '../utils/coachApi'
+import { coachApiAvailable, coachApiBase, coachAuthHeaders} from '../utils/coachApi'
 import type { UseCoachMemoryReturn } from '../hooks/useCoachMemory'
 import { renderMarkdown } from '../utils/markdown'
 import { extractProposal, stripStreamingProposal } from '../utils/chatProposal'
@@ -287,7 +287,7 @@ export default function CoachChat({ athleteId, memory, snapshot, seed, onSeedCon
       }
       const res = await fetch(`${coachApiBase()}/api/coach/chat`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...coachAuthHeaders() },
         body: JSON.stringify({
           athleteId,
           messages: [userMessage],

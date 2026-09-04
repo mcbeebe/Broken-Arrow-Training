@@ -9,7 +9,7 @@
  * cooldown debrief (Sprint 7B) and on-run dictation (Sprint 7C).
  */
 
-import { coachApiAvailable, coachApiBase } from './coachApi'
+import { coachApiAvailable, coachApiBase, coachAuthHeaders} from './coachApi'
 
 const SETTING_KEY = 'ba_coach_voice_enabled'
 
@@ -193,7 +193,7 @@ export async function transcribeAudio(
   try {
     res = await fetch(`${coachApiBase()}/api/coach/chat`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...coachAuthHeaders() },
       body: JSON.stringify({
         athleteId,
         op: 'transcribe',
@@ -333,7 +333,7 @@ export async function fetchTTSAudio(
   try {
     res = await fetch(`${coachApiBase()}/api/coach/chat`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...coachAuthHeaders() },
       body: JSON.stringify({
         athleteId,
         op: 'speak',
