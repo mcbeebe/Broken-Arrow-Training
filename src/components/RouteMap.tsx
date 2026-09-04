@@ -67,11 +67,11 @@ export default function RouteMap({ latlng, altitude }: RouteMapProps) {
     }
   }, [latlng, altitude])
 
-  if (!bounds || !path) {
-    return null
-  }
-
-  // Compute total distance for display
+  // Computed BEFORE the early return below: every hook in a component has to
+  // run on every render, and this one used to sit after `if (!bounds || !path)
+  // return null`. A route whose points arrive asynchronously renders once with
+  // no bounds (one hook) and again with them (two) — and React throws
+  // "rendered more hooks than during the previous render" on that second pass.
   const totalMiles = useMemo(() => {
     if (latlng.length < 2) return 0
     let meters = 0
@@ -88,6 +88,11 @@ export default function RouteMap({ latlng, altitude }: RouteMapProps) {
     }
     return meters / 1609.344
   }, [latlng])
+
+  if (!bounds || !path) {
+    return null
+  }
+
 
   return (
     <div className="bg-white dark:bg-slate-800 rounded-xl p-3 shadow-sm border border-slate-100 dark:border-slate-700">

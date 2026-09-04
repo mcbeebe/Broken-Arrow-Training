@@ -682,6 +682,26 @@ function ChatTurn({
   const [showActions, setShowActions] = useState(false)
   const [collapsed, setCollapsed] = useState(false)
 
+  // Extract any ```proposal block from the message. Prefer the turn's
+  // pre-parsed action (if we stored one on approve/reject) so the
+  // content doesn't re-parse every render.
+  const parsed = useMemo(() => {
+    if (turn.role !== 'assistant' && turn.role !== 'coach') {
+      return { content: turn.content, action: null as CoachAction | null }
+    }
+    if (turn.action) {
+      // Already parsed and persisted; strip the block from content too
+      return extractProposal(turn.content)
+    }
+    return extractProposal(turn.content)
+  }, [turn.content, turn.role, turn.action])
+
+  // Hoisted ABOVE the persona-handoff early return below: every hook has to
+  // run on every render, and a turn that changes role between renders — a
+  // streaming assistant turn, or a list re-key — would otherwise change this
+  // component's hook count and make React throw. The memo is cheap and its
+  // own first branch already no-ops for non-assistant turns.
+
   // PERSONA UPDATED handoff → render as a small inline divider so the
   // athlete sees their persona edit landed in the thread.
   if (turn.role === 'system-handoff' && turn.content.startsWith('[PERSONA UPDATED]')) {
@@ -697,20 +717,6 @@ function ChatTurn({
       </div>
     )
   }
-
-  // Extract any ```proposal block from the message. Prefer the turn's
-  // pre-parsed action (if we stored one on approve/reject) so the
-  // content doesn't re-parse every render.
-  const parsed = useMemo(() => {
-    if (turn.role !== 'assistant' && turn.role !== 'coach') {
-      return { content: turn.content, action: null as CoachAction | null }
-    }
-    if (turn.action) {
-      // Already parsed and persisted; strip the block from content too
-      return extractProposal(turn.content)
-    }
-    return extractProposal(turn.content)
-  }, [turn.content, turn.role, turn.action])
 
   const displayContent = parsed.content
   const inlineAction = turn.action || parsed.action
