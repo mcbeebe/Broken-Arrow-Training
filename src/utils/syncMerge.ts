@@ -34,16 +34,80 @@ export function isMergeableCollectionKey(key: string): boolean {
     // manual logs: write a note on the phone, another on the laptop, and a
     // last-write-wins replace would erase one. Union by entry id instead.
     key.startsWith('ba_journal_notes_') ||
-    key.startsWith('ba_journal_notes:')
+    key.startsWith('ba_journal_notes:') ||
+    // The structural plan-edit op-log. An ARRAY rather than a keyed object,
+    // and the whole athlete's edit history in one key: under last-write-wins
+    // a coach proposal accepted on the phone and a hand edit made on the
+    // laptop don't merge — whichever device syncs second replaces the other's
+    // entire log. Unioned by entry id; see `mergeArrayById`.
+    key.startsWith('ba_plan_edits_') ||
+    key.startsWith('ba_plan_edits:')
   )
+}
+
+/** Union two id-keyed ARRAYS.
+ *
+ *  The op-log is append-only by construction — removals are recorded as
+ *  tombstone entries rather than as absences (see the `revoke` op in types),
+ *  which is precisely what makes a union safe here: an entry missing from one
+ *  side means that side never saw it, never that it was deleted. So the union
+ *  is every entry from both sides, deduped by `id`.
+ *
+ *  Order is not preserved from either side — the log is replayed in
+ *  `appliedAt` order, so the array's own order carries no meaning. Sorting the
+ *  result makes the merge deterministic: both devices converge on the same
+ *  array, which matters because each re-pushes its merged copy.
+ *
+ *  On a same-id conflict (the same entry mutated on both devices — a day swap
+ *  re-anchoring an edit is the realistic case) the newer blob wins, matching
+ *  the keyed-object path. */
+function mergeArrayById(
+  local: unknown[],
+  server: unknown[],
+  serverNewer: boolean,
+): string {
+  const byId = new Map<string, unknown>()
+  const keyOf = (e: unknown, i: number, side: string): string => {
+    const id = (e as { id?: unknown })?.id
+    return typeof id === 'string' && id ? id : `${side}:${i}`
+  }
+  const first = serverNewer ? local : server
+  const second = serverNewer ? server : local
+  const firstSide = serverNewer ? 'l' : 's'
+  const secondSide = serverNewer ? 's' : 'l'
+  first.forEach((e, i) => byId.set(keyOf(e, i, firstSide), e))
+  // The second pass wins ties, so it is whichever side is newer.
+  second.forEach((e, i) => byId.set(keyOf(e, i, secondSide), e))
+
+  const merged = [...byId.values()]
+  merged.sort((a, b) => {
+    const at = (a as { appliedAt?: number })?.appliedAt ?? 0
+    const bt = (b as { appliedAt?: number })?.appliedAt ?? 0
+    if (at !== bt) return at - bt
+    const ai = String((a as { id?: unknown })?.id ?? '')
+    const bi = String((b as { id?: unknown })?.id ?? '')
+    return ai < bi ? -1 : ai > bi ? 1 : 0
+  })
+  return JSON.stringify(merged)
+}
+
+function parseArray(raw: string | null): unknown[] | null {
+  if (raw == null) return null
+  try {
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed) ? parsed : null
+  } catch {
+    return null
+  }
 }
 
 function parseObject(raw: string | null): Record<string, unknown> | null {
   if (raw == null) return null
   try {
     const parsed = JSON.parse(raw)
-    // Plain objects only. Arrays / primitives fall back to LWW so legacy
-    // or unexpected shapes never get silently mangled by a union.
+    // Plain objects only; arrays are handled by `parseArray` above, and
+    // primitives fall back to LWW so an unexpected shape is never silently
+    // mangled by a union.
     if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
       return parsed as Record<string, unknown>
     }
@@ -62,8 +126,9 @@ export interface CollectionMerge {
 }
 
 /**
- * Union two keyed-collection blobs. Returns `null` when either side isn't a
- * plain object, signalling the caller to fall back to last-write-wins.
+ * Union two collection blobs — a keyed object, or an id-keyed array. Returns
+ * `null` when neither shape applies, signalling the caller to fall back to
+ * last-write-wins.
  *
  * The result preserves `localRaw`'s key order (so an unchanged merge
  * re-serialises byte-identically and we can cheaply detect "nothing new"),
@@ -75,6 +140,15 @@ export function mergeCollection(
   serverRaw: string,
   serverNewer: boolean,
 ): CollectionMerge | null {
+  // Array-shaped collections (the plan-edit op-log) union by entry id.
+  const serverArr = parseArray(serverRaw)
+  if (serverArr) {
+    const localArr = parseArray(localRaw)
+    if (!localArr) return { value: serverRaw, changed: localRaw !== serverRaw }
+    const value = mergeArrayById(localArr, serverArr, serverNewer)
+    return { value, changed: value !== localRaw }
+  }
+
   const local = parseObject(localRaw)
   const server = parseObject(serverRaw)
   if (!server) return null

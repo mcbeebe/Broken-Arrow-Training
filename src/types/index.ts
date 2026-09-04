@@ -345,13 +345,31 @@ export type DayUpdates = Partial<Omit<PlannedDay, 'day' | 'actual' | 'secondaryA
 /** Week-level fields editable as a unit (focus text, weekly volume, dates). */
 export type WeekUpdates = Partial<Pick<TrainingWeek, 'dates' | 'miles' | 'focus'>>;
 
+/** A TOMBSTONE: the record that edits were removed.
+ *
+ *  Removal used to be an absence — undo/reset/remove-for-day filtered rows
+ *  out of the stored array. That is unrepresentable across devices: the
+ *  other device still holds the row, so any union-merge resurrects it, and
+ *  a last-write-wins replace loses whichever device synced first. Modelling
+ *  a removal as something ADDED makes it a fact both devices can converge
+ *  on — the standard move for a log that syncs.
+ *
+ *  Exactly one target is set. `before` bounds the revocation in time so a
+ *  later re-edit of the same target survives a revocation that predates it:
+ *  an edit is killed only when `appliedAt < before`. */
+export type PlanEditRevokeTarget =
+  | { batchId: string }
+  | { day: { weekNum: number; dayIndex: number } }
+  | { all: true };
+
 export type PlanEditOp =
   | { kind: 'updateDay'; weekNum: number; dayIndex: number; updates: DayUpdates }
   | { kind: 'addDay'; weekNum: number; atIndex: number; day: PlannedDay }
   | { kind: 'deleteDay'; weekNum: number; dayIndex: number }
   | { kind: 'updateWeek'; weekNum: number; updates: WeekUpdates }
   | { kind: 'addWeek'; atNum: number; week: TrainingWeek }
-  | { kind: 'deleteWeek'; weekNum: number };
+  | { kind: 'deleteWeek'; weekNum: number }
+  | ({ kind: 'revoke'; before: number } & PlanEditRevokeTarget);
 
 /** A single op as proposed by the coach, with its own one-line rationale. */
 export interface PlanEditOpInput {
