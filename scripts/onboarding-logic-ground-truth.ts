@@ -38,7 +38,7 @@ import {
   chooseTotalWeeks,
 } from '../src/engines/planGenerator/weekPlan'
 import type { OnboardingConfig } from '../src/hooks/useOnboarding'
-import type { TrainingMethod } from '../src/types/training-method'
+import type { Phase, TrainingMethod } from '../src/types/training-method'
 import type { TrainingPlan } from '../src/types'
 
 const TODAY = '2026-06-14'
@@ -80,7 +80,7 @@ function round1(n: number): number {
 // ── Pace + goal-pace summary, computed the way generatePlanFromMethod does ──
 function paceSummary(method: TrainingMethod, config: OnboardingConfig) {
   const paces = resolvePaces(method, config)
-  const zones = Object.values(paces.byZone).map((t: any) => ({
+  const zones = Object.values(paces.byZone).map(t => ({
     zone: t.zone,
     displayName: t.displayName,
     paceSecLow: t.paceSecPerMileLow,
@@ -145,7 +145,7 @@ function runMethodPersona(id: string, label: string, note: string, config: Onboa
 
   // The last build week before taper — the most informative week to sample:
   // peak volume, longest long run, and the most goal-sharpened quality paces.
-  const taperWeeks = (method as any).taper?.durationWeeks ?? 0
+  const taperWeeks = method.taper?.durationWeeks ?? 0
   const peakWeekIndex = Math.max(0, Math.min(plan.weeks.length - 1, totalWeeks - taperWeeks - 1))
 
   return {
@@ -158,8 +158,8 @@ function runMethodPersona(id: string, label: string, note: string, config: Onboa
     experienceMapped: inputs.experience,
     selection: top3,
     chosenMethodId: method.id,
-    chosenMethodName: (method as any).name ?? method.id,
-    primaryAnchor: (method as any).primaryAnchor,
+    chosenMethodName: method.name ?? method.id,
+    primaryAnchor: method.primaryAnchor,
     maxHR: plan.athlete.maxHR,
     zones: plan.zones,
     currentWeeklyMileage: currentMi,
@@ -269,7 +269,7 @@ function summarizeInputs(c: OnboardingConfig) {
 
 // ── Method decision tables for the explorer ──
 function methodsTable() {
-  return ALL_METHODS.map((m: any) => ({
+  return ALL_METHODS.map((m: TrainingMethod) => ({
     id: m.id,
     name: m.name ?? m.id,
     signature: m.signature,
@@ -281,7 +281,7 @@ function methodsTable() {
       durationWeeks: m.taper?.durationWeeks,
       weeklyVolumePcts: m.taper?.weeklyVolumePcts,
     },
-    phases: (m.phases ?? []).map((p: any) => ({
+    phases: (m.phases ?? []).map((p: Phase) => ({
       id: p.id,
       name: p.name,
       order: p.order,
@@ -299,7 +299,14 @@ function methodsTable() {
 }
 
 // ── Personas ──
-const personas: any[] = []
+/** Whatever the three persona runners produce. Derived from them rather than
+ *  hand-declared, so the shape can never drift from what is actually written. */
+type Persona =
+  | ReturnType<typeof runMethodPersona>
+  | ReturnType<typeof runHyroxPersona>
+  | ReturnType<typeof runGeneralPersona>
+
+const personas: Persona[] = []
 
 // 1a. 2:50 marathon @ 15 mi/wk — WITH a current race anchor (3:10 marathon)
 personas.push(
@@ -480,7 +487,7 @@ for (const p of personas) {
       `\n[${p.id}] ${p.label}\n  engine=method-based  method=${p.chosenMethodId} (anchor=${p.primaryAnchor})  maxHR=${p.maxHR}` +
         `\n  weeks=${p.totalWeeks}  current=${p.currentWeeklyMileage}mi  peak=${p.peakMi}mi  peakLong=${p.peakLongRunMi}mi` +
         `\n  goal: currentVdot=${p.goalPace.currentVdot} rawGoalVdot=${p.goalPace.rawGoalVdot} stretch=${p.goalPace.goalIsStretch} cappedGoalVdot=${p.goalPace.cappedGoalVdot}` +
-        `\n  top3=${p.selection.map((s: any) => `${s.methodId}:${s.score}`).join(', ')}`,
+        `\n  top3=${p.selection.map(s => `${s.methodId}:${s.score}`).join(', ')}`,
     )
   } else {
     console.log(
