@@ -9,9 +9,11 @@ GET  /api/coach/push?athleteId=mike → { subscribed, count, timezone, vapidConf
 Subscriptions are stored per-athlete (a list of device records) with the
 device timezone + desired periods, which the cron in scheduled_push.py
 reads to fan out 6 AM / 1 PM / 8 PM nudges in each athlete's local time.
-Follows the
-existing coach-API convention of trusting athleteId in the body (no JWT)
-— consistent with memory.py / insight.py.
+
+AUTH: every athlete-facing call requires `Authorization: Bearer <session>`;
+the athlete is the token's subject, and any athleteId in the body or query
+is ignored. The cron route (?__cron=1) is separate and keeps its own
+CRON_SECRET check — it fans out to every athlete and has no session.
 """
 
 from __future__ import annotations
@@ -35,6 +37,7 @@ from ._core import (
     send_json,
     send_cors_preflight,
 )
+from ..auth._helpers import athlete_from_bearer
 from ._push import send_web_push, vapid_configured
 
 MAX_DEVICES = 10
@@ -231,9 +234,9 @@ class handler(BaseHTTPRequestHandler):
             except Exception as e:
                 send_json(self, 500, {"error": str(e)})
             return
-        athlete_id = (q.get("athleteId", [""])[0] or "").strip()
-        if not athlete_id:
-            send_json(self, 400, {"error": "athleteId required"})
+        ok, _auth_status, _auth_err, athlete_id = athlete_from_bearer(self.headers)
+        if not ok:
+            send_json(self, _auth_status, {"error": _auth_err})
             return
         devices = _load_subs(athlete_id)
         send_json(self, 200, {
@@ -244,12 +247,12 @@ class handler(BaseHTTPRequestHandler):
         })
 
     def do_POST(self):
+        ok, _auth_status, _auth_err, athlete_id = athlete_from_bearer(self.headers)
+        if not ok:
+            send_json(self, _auth_status, {"error": _auth_err})
+            return
         body = read_json_body(self)
         action = str(body.get("action", "")).strip()
-        athlete_id = str(body.get("athleteId", "")).strip()
-        if not athlete_id:
-            send_json(self, 400, {"error": "athleteId required"})
-            return
 
         if action == "subscribe":
             sub = body.get("subscription") or {}

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { coachApiBase } from '../utils/coachApi'
+import { coachApiBase, coachAuthHeaders} from '../utils/coachApi'
 import {
   pushSupported,
   vapidPublicKey,
@@ -55,7 +55,7 @@ export function usePushNotifications(athleteId: string) {
       if (!base) throw new Error('Coach API URL is not set on this deployment.')
       const res = await fetch(`${base}/api/coach/push`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...coachAuthHeaders() },
         body: JSON.stringify({ athleteId, ...bodyObj }),
       })
       const data = await res.json().catch(() => ({}))

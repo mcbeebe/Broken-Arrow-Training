@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { coachApiAvailable, coachApiBase } from '../utils/coachApi'
+import { coachApiAvailable, coachApiBase, coachAuthHeaders} from '../utils/coachApi'
 
 interface Props {
   athleteId: string
@@ -55,7 +55,7 @@ export default function CoachDiagnostics({ athleteId }: Props) {
       if (isAllView) {
         const results: Record<string, TelemetryResponse> = {}
         await Promise.all(ALL_ATHLETES.map(async (a) => {
-          const res = await fetch(`${coachApiBase()}/api/coach/telemetry?athleteId=${a}&days=${days}`)
+          const res = await fetch(`${coachApiBase()}/api/coach/telemetry?athleteId=${a}&days=${days}`, { headers: coachAuthHeaders() })
           if (res.ok) results[a] = await res.json()
         }))
         setAllData(results)
@@ -63,6 +63,7 @@ export default function CoachDiagnostics({ athleteId }: Props) {
       } else {
         const res = await fetch(
           `${coachApiBase()}/api/coach/telemetry?athleteId=${encodeURIComponent(viewingAthlete)}&days=${days}`,
+          { headers: coachAuthHeaders() },
         )
         if (res.ok) {
           const j = (await res.json()) as TelemetryResponse
@@ -128,7 +129,7 @@ export default function CoachDiagnostics({ athleteId }: Props) {
             try {
               const res = await fetch(
                 `${coachApiBase()}/api/coach/telemetry?athleteId=${encodeURIComponent(viewingAthlete)}&action=reset_budget`,
-                { method: 'DELETE' },
+                { method: 'DELETE', headers: coachAuthHeaders() },
               )
               if (res.ok) alert('Budget reset. Try your coach message again.')
               else alert('Failed to reset budget.')

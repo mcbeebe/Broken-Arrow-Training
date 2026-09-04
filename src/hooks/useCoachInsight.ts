@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { CoachInsight, CoachSnapshot } from '../types'
-import { coachApiAvailable, coachApiBase } from '../utils/coachApi'
+import { coachApiAvailable, coachApiBase, coachAuthHeaders} from '../utils/coachApi'
 
 /**
  * Hook that fetches a cached, LLM-generated coach insight for a given
@@ -295,7 +295,7 @@ export function useCoachInsight(opts: UseCoachInsightOptions) {
       try {
         const res = await fetch(`${coachApiBase()}/api/coach/insight`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...coachAuthHeaders() },
           body: JSON.stringify({
             athleteId,
             surface,

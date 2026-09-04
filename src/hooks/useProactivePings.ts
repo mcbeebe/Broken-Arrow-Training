@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import type { CoachSnapshot, PlannedDay, ReadinessScore, StravaActivity, GarminActivity } from '../types'
-import { coachApiAvailable, coachApiBase } from '../utils/coachApi'
+import { coachApiAvailable, coachApiBase, coachAuthHeaders} from '../utils/coachApi'
 import type { UseCoachMemoryReturn } from './useCoachMemory'
 
 /**
@@ -44,7 +44,7 @@ async function postPing(athleteId: string, trigger: { type: string; payload?: Re
   try {
     const res = await fetch(`${coachApiBase()}/api/coach/ping`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...coachAuthHeaders() },
       body: JSON.stringify({ athleteId, trigger, snapshot }),
     })
     if (!res.ok) return null

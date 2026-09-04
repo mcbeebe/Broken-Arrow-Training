@@ -1,7 +1,10 @@
 """Single-shot cached insight generator.
 
 POST /api/coach/insight
-{ athleteId, surface, contextHash, snapshot }
+{ surface, contextHash, snapshot }
+
+AUTH: requires `Authorization: Bearer <session>`; the athlete is the token
+subject.
 
 Returns { text, tone?, tip?, generatedAt, cached: bool }
 """
@@ -30,6 +33,7 @@ from ._core import (
     send_json,
     sync_about_me_string,
 )
+from ..auth._helpers import athlete_from_bearer
 
 
 SURFACE_INSTRUCTIONS = {
@@ -253,8 +257,11 @@ class handler(BaseHTTPRequestHandler):
         send_cors_preflight(self)
 
     def do_POST(self):
+        ok, _auth_status, _auth_err, athlete_id = athlete_from_bearer(self.headers)
+        if not ok:
+            send_json(self, _auth_status, {"error": _auth_err})
+            return
         body = read_json_body(self)
-        athlete_id = str(body.get("athleteId", "")).strip()
         surface = str(body.get("surface", "")).strip()
         context_hash = str(body.get("contextHash", "")).strip()
         snapshot = body.get("snapshot") or {}
@@ -264,8 +271,8 @@ class handler(BaseHTTPRequestHandler):
         # fresh LLM call instead of replaying the KV-cached version.
         force = bool(body.get("force"))
 
-        if not athlete_id or not surface or not context_hash:
-            send_json(self, 400, {"error": "athleteId, surface, contextHash required"})
+        if not surface or not context_hash:
+            send_json(self, 400, {"error": "surface, contextHash required"})
             return
 
         cache_key = insight_key(athlete_id, surface, context_hash)

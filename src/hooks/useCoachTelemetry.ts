@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef } from 'react'
-import { coachApiAvailable, coachApiBase } from '../utils/coachApi'
+import { coachApiAvailable, coachApiBase, coachAuthHeaders} from '../utils/coachApi'
 
 /**
  * Debounced client for POST /api/coach/telemetry. Call `logInteraction`
@@ -41,7 +41,7 @@ export function useCoachTelemetry(athleteId: string, enabled: boolean) {
     try {
       await fetch(`${coachApiBase()}/api/coach/telemetry`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...coachAuthHeaders() },
         body: JSON.stringify({ athleteId, events }),
         keepalive: true,
       })

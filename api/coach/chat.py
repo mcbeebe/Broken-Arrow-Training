@@ -1,7 +1,11 @@
 """Streaming chat endpoint.
 
 POST /api/coach/chat
-{ athleteId, messages, snapshot }
+{ messages, snapshot }
+
+AUTH: requires `Authorization: Bearer <session>`; the athlete is the token
+subject. Checked before the transcribe/speak branches, which reach OpenAI
+and are charged to that same verified athlete.
 
 Streams SSE:
   data: {"type":"delta","text":"..."}
@@ -55,6 +59,7 @@ from ._core import (
     summarize_conversation,
     sync_about_me_string,
 )
+from ..auth._helpers import athlete_from_bearer
 
 
 # ─── Whisper transcription (voice input) ─────────────────────────
@@ -118,18 +123,19 @@ def _build_whisper_multipart(
     return body, f"multipart/form-data; boundary={boundary}"
 
 
-def _handle_transcribe(self, body):
+def _handle_transcribe(self, body, athlete_id):
     """Whisper transcription branch. Reads {audio:{mediaType,data}} out
     of the chat-endpoint body and returns JSON (not SSE). Shares the
-    same per-athlete daily budget as chat."""
-    athlete_id = str(body.get("athleteId", "")).strip()
+    same per-athlete daily budget as chat.
+
+    `athlete_id` is the caller's verified identity, passed in rather than
+    read from the body: it is what the daily spend is charged against, so a
+    client must not be able to bill another athlete for its transcription.
+    """
     audio = body.get("audio") or {}
     media_type = str(audio.get("mediaType", "")).strip().lower()
     data_b64 = str(audio.get("data", "")).strip()
 
-    if not athlete_id:
-        send_json(self, 400, {"error": "athleteId required"})
-        return
     if not data_b64:
         send_json(self, 400, {"error": "audio.data required (base64)"})
         return
@@ -263,18 +269,17 @@ DEFAULT_TTS_VOICE = "nova"
 MAX_TTS_CHARS = 1500
 
 
-def _handle_speak(self, body):
+def _handle_speak(self, body, athlete_id):
     """OpenAI TTS branch. Reads {text, voice?} and returns base64-encoded
-    MP3 audio. Shares the same per-athlete daily budget as chat."""
+    MP3 audio. Shares the same per-athlete daily budget as chat.
+
+    `athlete_id` is the caller's verified identity (see _handle_transcribe).
+    """
     import base64 as _base64
 
-    athlete_id = str(body.get("athleteId", "")).strip()
     text = str(body.get("text", "")).strip()
     voice = str(body.get("voice", "")).strip().lower() or DEFAULT_TTS_VOICE
 
-    if not athlete_id:
-        send_json(self, 400, {"error": "athleteId required"})
-        return
     if not text:
         send_json(self, 400, {"error": "text required"})
         return
@@ -388,8 +393,13 @@ class handler(BaseHTTPRequestHandler):
         send_cors_preflight(self)
 
     def do_POST(self):
+        # Auth FIRST — before the transcribe / speak branches below, which
+        # reach OpenAI and spend budget without ever touching athlete_id.
+        ok, _auth_status, _auth_err, athlete_id = athlete_from_bearer(self.headers)
+        if not ok:
+            send_json(self, _auth_status, {"error": _auth_err})
+            return
         body = read_json_body(self)
-        athlete_id = str(body.get("athleteId", "")).strip()
         incoming = body.get("messages") or []
         snapshot = body.get("snapshot") or {}
 
@@ -398,16 +408,13 @@ class handler(BaseHTTPRequestHandler):
         # a separate Vercel function (Hobby tier function-count limit).
         op = str(body.get("op", "")).strip()
         if op == "transcribe":
-            _handle_transcribe(self, body)
+            _handle_transcribe(self, body, athlete_id)
             return
         if op == "speak":
             # Sprint 7 — OpenAI TTS for pre-run audio briefings.
-            _handle_speak(self, body)
+            _handle_speak(self, body, athlete_id)
             return
 
-        if not athlete_id:
-            send_json(self, 400, {"error": "athleteId required"})
-            return
         if not isinstance(incoming, list) or not incoming:
             send_json(self, 400, {"error": "messages required"})
             return

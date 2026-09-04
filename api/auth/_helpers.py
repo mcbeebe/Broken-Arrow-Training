@@ -347,6 +347,63 @@ def verify_session_token(token: str) -> dict | None:
     return payload
 
 
+def athlete_from_bearer(headers) -> tuple[bool, int, str, str]:
+    """Authoritative athlete id from `Authorization: Bearer <session-jwt>`.
+
+    Returns (ok, status, error_message, athlete_id).
+
+    The token's `sub` claim IS the identity. A client cannot name a different
+    athlete in the body or the query string and be believed — which is the
+    whole point: every coach and device endpoint used to take `athleteId`
+    from the request and trust it, so anyone who could guess an id could read
+    another athlete's coach memory or spend their model budget.
+
+    Fails CLOSED when OAUTH_JWT_SECRET is unset: a function deployed without
+    the secret answers 503 rather than silently serving athlete data to
+    anyone who asks. `api/apple/_helpers.authenticate` established that
+    convention; this is the shared implementation behind it.
+    """
+    if not get_jwt_secret():
+        return (False, 503, "server misconfigured: OAUTH_JWT_SECRET not set", "")
+    try:
+        header = headers.get("Authorization", "") or ""
+    except Exception:
+        header = ""
+    if not header.startswith("Bearer "):
+        return (False, 401, "missing or invalid Authorization header", "")
+    claims = verify_session_token(header[len("Bearer "):].strip())
+    if not claims:
+        return (False, 401, "invalid or expired session token", "")
+    athlete_id = str(claims.get("sub") or "").strip()
+    if not athlete_id:
+        return (False, 401, "session token missing subject", "")
+    return (True, 200, "", athlete_id)
+
+
+def resolve_athlete(headers, requested: str | None = None) -> tuple[bool, int, str, str]:
+    """`athlete_from_bearer`, plus the one legitimate cross-athlete case.
+
+    The admin account may read another athlete's data by naming them
+    explicitly (Coach Diagnostics compares athletes side by side). Everyone
+    else gets their own id no matter what they asked for — a mismatched
+    `requested` is ignored rather than rejected, so a client still sending a
+    stale athleteId keeps working instead of hard-failing mid-rollout.
+    """
+    ok, status, err, athlete_id = athlete_from_bearer(headers)
+    if not ok:
+        return (ok, status, err, athlete_id)
+    wanted = (requested or "").strip()
+    if wanted and wanted != athlete_id:
+        try:
+            header = headers.get("Authorization", "") or ""
+        except Exception:
+            header = ""
+        token = header[len("Bearer "):].strip() if header.startswith("Bearer ") else None
+        if verify_admin(token):
+            return (True, 200, "", wanted)
+    return (True, 200, "", athlete_id)
+
+
 def get_athlete_from_query(path: str) -> str | None:
     from urllib.parse import urlparse, parse_qs
     query = parse_qs(urlparse(path).query)
