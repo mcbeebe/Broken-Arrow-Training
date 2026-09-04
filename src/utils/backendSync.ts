@@ -234,7 +234,7 @@ export async function hydrateFromServer(session: AuthSession): Promise<{ pulled:
     // with `now` (and DON'T advance lastUploaded) so the next push ships the
     // union back to the server and the other device converges too.
     if (localRaw !== null && isMergeableCollectionKey(item.key)) {
-      const merged = mergeCollection(localRaw, item.value, serverMs > localStamp)
+      const merged = mergeCollection(localRaw, item.value, serverMs > localStamp, item.key)
       if (merged && merged.changed) {
         try {
           localStorage.setItem(item.key, merged.value)

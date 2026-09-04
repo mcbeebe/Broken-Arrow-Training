@@ -54,8 +54,12 @@ describe('the key is registered for merging', () => {
   })
 
   it('does not accidentally claim unrelated keys', () => {
+    // `ba_day_swaps` used to be listed here as a non-mergeable key. It is
+    // mergeable now — same single-key shape, same loss under LWW — and has
+    // its own suite in daySwapLockUnionMerge.test.ts.
     expect(isMergeableCollectionKey('ba_onboarding_mike')).toBe(false)
-    expect(isMergeableCollectionKey('ba_day_swaps_mike')).toBe(false)
+    expect(isMergeableCollectionKey('ba_theme')).toBe(false)
+    expect(isMergeableCollectionKey('ba_storage_version')).toBe(false)
   })
 })
 
