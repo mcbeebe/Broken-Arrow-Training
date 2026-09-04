@@ -63,6 +63,19 @@ jobs:
       - name: Tests at UTC+14 (calendar-date discipline)
         run: TZ=Pacific/Kiritimati npm test
 
+      # docs/onboarding-logic-flow.html embeds
+      # docs/onboarding-ground-truth.json and presents it as what the REAL
+      # engines produce — that claim is the whole value of the page. Nothing
+      # re-ran the generator, so the committed file drifted 417 lines behind
+      # the engines (mileage, zones, workout detail, peak volume) and the
+      # documentation quietly described a version of the app that no longer
+      # exists. Regenerating once fixes today; this step is what stops it
+      # happening again. Anyone changing an engine now regenerates in the
+      # same PR, and the diff is reviewable alongside the change that caused
+      # it.
+      - name: Ground truth matches the engines
+        run: npm run ground-truth:check
+
   # Cutover airlock — REPLACED the legacy `build-and-deploy` job at
   # cutover. The legacy origin (mcbeebe.github.io/Broken-Arrow-Training/)
   # now serves the standalone migration airlock from scripts/airlock/.
