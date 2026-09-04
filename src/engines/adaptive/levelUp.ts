@@ -1,7 +1,7 @@
 import type { GarminHealthData, PlannedDay, TrainingWeek } from '../../types'
 import { analyzeSimSplits } from '../../utils/simAnalysis'
 import { parsePlannedTargets, parseDistance } from '../../utils/targets'
-import { dayIsoInWeek } from '../../utils/planDates'
+import { dayIsoInWeek, isoFromLocalDate } from '../../utils/planDates'
 import { scoreWeekExecution, longestRunCapMi } from './execution'
 import { buildAthleteModel } from './athleteModel'
 
@@ -92,7 +92,7 @@ function weakStationLever(weeks: TrainingWeek[], todayIso: string, headroom: boo
 function easyDayLever(weeks: TrainingWeek[], todayIso: string): LevelUpLever | null {
   const windowStart = new Date(`${todayIso}T12:00:00`)
   windowStart.setDate(windowStart.getDate() - 28)
-  const startIso = windowStart.toISOString().slice(0, 10)
+  const startIso = isoFromLocalDate(windowStart)
 
   let easyRuns = 0
   let hotRuns = 0
@@ -139,7 +139,7 @@ function sleepBeforeHardDaysLever(
   if (health.length === 0) return null
   const windowStart = new Date(`${todayIso}T12:00:00`)
   windowStart.setDate(windowStart.getDate() - 28)
-  const startIso = windowStart.toISOString().slice(0, 10)
+  const startIso = isoFromLocalDate(windowStart)
   const sleepByDate = new Map(
     health.filter(h => h.sleep?.durationSeconds).map(h => [h.date, h.sleep!.durationSeconds]),
   )
@@ -281,7 +281,7 @@ function raceRehearsalLever(
   if (raceType !== 'hyrox') return null
   const windowStart = new Date(`${todayIso}T12:00:00`)
   windowStart.setDate(windowStart.getDate() - 35)
-  const startIso = windowStart.toISOString().slice(0, 10)
+  const startIso = isoFromLocalDate(windowStart)
   for (const week of weeks) {
     for (const day of week.days) {
       const iso = day.actual?.startDate?.slice(0, 10)

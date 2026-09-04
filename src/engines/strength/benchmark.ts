@@ -19,6 +19,8 @@
  *     a re-test rather than quietly trusting an old number.
  */
 
+import { daysBetween } from '../../utils/planDates'
+
 export type BenchmarkItemId =
   | 'push_ups'
   | 'goblet_squat'
@@ -144,9 +146,14 @@ export function itemsFor(kind: 'hyrox' | 'general'): BenchmarkItem[] {
 /** Weeks since the benchmark, or null when never measured. */
 export function weeksSince(capacity: StrengthCapacity | null | undefined, todayIso: string): number | null {
   if (!capacity?.measuredAt) return null
-  const ms = Date.parse(`${todayIso}T12:00:00`) - Date.parse(`${capacity.measuredAt}T12:00:00`)
-  if (!Number.isFinite(ms)) return null
-  return Math.max(0, Math.floor(ms / (7 * 86_400_000)))
+  // Whole DAYS first, then weeks. Dividing raw milliseconds by a week loses a
+  // week whenever a DST spring-forward falls in the interval: local noon to
+  // local noon across it is 35 days MINUS an hour, which floors to 4 weeks
+  // and quietly makes a stale benchmark look fresh. `daysBetween` rounds, so
+  // the missing hour cannot move the day count.
+  const days = daysBetween(capacity.measuredAt, todayIso)
+  if (!Number.isFinite(days)) return null
+  return Math.max(0, Math.floor(days / 7))
 }
 
 export function isStale(capacity: StrengthCapacity | null | undefined, todayIso: string): boolean {

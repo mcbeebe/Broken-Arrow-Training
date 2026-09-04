@@ -6,7 +6,7 @@ import type { InjuryStatus, StrengthExperience, OnboardingConfig } from '../hook
 import type { TrainingMethod } from '../types/training-method'
 import { getWorkoutStyle, adaptBg } from '../utils/styles'
 import { buildWeatherChipForDate } from '../utils/weatherChip'
-import { dayIsoInWeek, todayDateString } from '../utils/planDates'
+import { dayIsoInWeek, todayDateString, isoFromLocalDate } from '../utils/planDates'
 import { formatWeekMilesChip, formatWeekMilesHeader } from '../utils/format'
 import { BLOCK_STYLE } from '../utils/blockStyles'
 import { pushWeekToGarmin, collectPushableDays } from '../utils/garminRepush'
@@ -264,7 +264,7 @@ export default function WeeklyPlan({
         if (!w.startIso) return false
         const end = new Date(`${w.startIso}T12:00:00`)
         end.setDate(end.getDate() + w.days.length)
-        return end.toISOString().slice(0, 10) <= today
+        return isoFromLocalDate(end) <= today
       })
       .map(w => compliance.find(c => c.weekNum === w.num))
       .filter((c): c is WeekCompliance => !!c && c.plannedMiles > 0)

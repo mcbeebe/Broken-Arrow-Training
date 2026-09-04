@@ -179,7 +179,7 @@ const MONDAY = '2026-09-07'
 function saturdayWeeksOut(weeks: number): string {
   const d = new Date(`${MONDAY}T12:00:00`)
   d.setDate(d.getDate() + weeks * 7 - 2) // the Saturday that ends week N
-  return d.toISOString().slice(0, 10)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 const raceEffort = (plan: ReturnType<typeof generateHyroxPlan>) =>
   allDays(plan).filter(d => /^Compromised running(?! \(intro\))/.test(d.workout))

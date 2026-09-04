@@ -35,7 +35,7 @@ function wk(num: number, actualFt: number, plannedFt = 0, plannedMiles = 0): Wee
 function daysFromNow(n: number): string {
   const d = new Date()
   d.setDate(d.getDate() + n)
-  return d.toISOString().slice(0, 10)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
 // ~10 weeks out → no taper (band at full peak). Default for band-formula tests.

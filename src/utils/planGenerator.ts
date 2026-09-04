@@ -14,6 +14,7 @@ import { validatePlan, qaFindingsToAdvisories } from '../engines/planQA/validate
 import { prehabBlockFor } from '../engines/planGenerator/prehab'
 import { STATION_RAMP, FULL_SIM_DAYS_OUT, HALF_SIM_DAYS_OUT, SPEC_DAY_DAYS_OUT, COMPROMISED_DOSE, INTERVAL_REST, TEMPO_MINUTES, TAPER_WEEK, MASTERS_RECOVERY } from '../engines/hyrox/heuristics'
 import { isBenchmarkWeek, benchmarkDetail, benchmarkWorkoutName } from '../engines/strength/benchmark'
+import { addDays as addDaysIso, todayDateString } from './planDates'
 
 const HYROX_RUN_LABEL = `${HYROX_RUN_LEGS}×${HYROX_RUN_LEG_KM}km runs`
 
@@ -83,9 +84,7 @@ function computeZones(maxHR: number): HRZone[] {
 }
 
 function addDays(dateStr: string, days: number): string {
-  const d = new Date(dateStr + 'T12:00:00')
-  d.setDate(d.getDate() + days)
-  return d.toISOString().slice(0, 10)
+  return addDaysIso(dateStr, days)
 }
 
 function formatDay(dateStr: string): string {
@@ -262,7 +261,7 @@ function getLevelParams(level: ExperienceLevel): LevelParams {
 
 export function generateHyroxPlan(
   config: OnboardingConfig,
-  today: string = new Date().toISOString().slice(0, 10),
+  today: string = todayDateString(),
 ): TrainingPlan {
   // Athlete-chosen plan start (one-way clamp: never back-dates).
   today = effectivePlanStart(config.planStartDate, today, config.planStartPinnedIso)
@@ -273,7 +272,7 @@ export function generateHyroxPlan(
   const z3 = `Z3 (${Math.round(maxHR * 0.75)}–${Math.round(maxHR * 0.85)})`
   const z4 = `Z4 (${Math.round(maxHR * 0.85)}–${Math.round(maxHR * 0.90)})`
 
-  const raceDate = config.raceDate || addDays(new Date().toISOString().slice(0, 10), 84)
+  const raceDate = config.raceDate || addDays(todayDateString(), 84)
   const P = getLevelParams(config.experienceLevel)
   // Weeks are Monday-anchored; the final week is the Monday-anchored week
   // that CONTAINS race day and ends on it (a race-day card is emitted, and

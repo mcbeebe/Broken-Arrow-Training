@@ -9,6 +9,7 @@
  *
  * This asserts it works on the path real athletes are on.
  */
+import { isoFromLocalDate } from '../utils/planDates'
 import { describe, it, expect } from 'vitest'
 import { generatePlanFromMethod } from '../engines/planGenerator/generatePlan'
 import { getMethodById } from '../data/methods'
@@ -30,7 +31,7 @@ describe('a generated plan', () => {
     // A date a fortnight into the plan, so there is history behind it.
     const start = new Date(`${weeks[0].startIso}T12:00:00`)
     start.setDate(start.getDate() + 14)
-    const iso = start.toISOString().slice(0, 10)
+    const iso = isoFromLocalDate(start)
 
     const strip = buildRhythm(weeks, iso)
     expect(strip.length).toBeGreaterThan(0)
@@ -44,7 +45,7 @@ describe('a generated plan', () => {
     const weeks = plan().weeks
     const start = new Date(`${weeks[0].startIso}T12:00:00`)
     start.setDate(start.getDate() + 10)
-    const strip = buildRhythm(weeks, start.toISOString().slice(0, 10))
+    const strip = buildRhythm(weeks, isoFromLocalDate(start))
     const { resolved, of } = resolvedCount(strip)
     expect(of).toBeGreaterThan(0)
     // Only planned rest days count as resolved without an activity.

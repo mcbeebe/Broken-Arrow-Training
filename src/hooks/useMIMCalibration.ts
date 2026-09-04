@@ -1,3 +1,4 @@
+import { todayDateString } from '../utils/planDates'
 import { useState, useCallback, useEffect, useMemo } from 'react'
 import type { DailyTRIMP, SportType } from '../types'
 import { DOMS_CARRY, describeMIMEngine, type MIMEngine } from '../utils/trimp'
@@ -236,7 +237,7 @@ export function useMIMCalibration(
       }
     }
 
-    updated.lastCalibrated = new Date().toISOString().slice(0, 10)
+    updated.lastCalibrated = todayDateString()
     updated.pendingSuggestions = newSuggestions.length > 0 ? newSuggestions : undefined
     writeStored(updated, athleteId)
     setStored(updated)

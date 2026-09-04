@@ -13,7 +13,7 @@
  */
 import type { TrainingPlan, TrainingWeek, RaceInfo, Season } from '../types'
 import { raceDateToIso } from '../engines/season'
-import { todayDateString } from './planDates'
+import { todayDateString, isoFromLocalDate } from './planDates'
 
 export type BlockId = 'base' | 'build' | 'peak' | 'taper' | 'race'
 
@@ -102,7 +102,7 @@ function dateRangeFor(weeks: TrainingWeek[]): string {
   if (!first || !last) return ''
   const end = new Date(`${last}T12:00:00`)
   end.setDate(end.getDate() + Math.max(0, (weeks[weeks.length - 1].days?.length ?? 7) - 1))
-  return `${fmtDate(first)} – ${fmtDate(end.toISOString().slice(0, 10))}`
+  return `${fmtDate(first)} – ${fmtDate(isoFromLocalDate(end))}`
 }
 
 /** The hard sessions that define a block, de-duplicated and de-numbered so

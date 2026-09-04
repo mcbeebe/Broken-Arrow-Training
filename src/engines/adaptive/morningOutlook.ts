@@ -2,7 +2,7 @@ import type {
   GarminHealthData, PlannedDay, PlanEditOpInput, ReadinessBaselines,
   ReadinessScore, TrainingWeek, WorkoutType,
 } from '../../types'
-import { dayIsoInWeek } from '../../utils/planDates'
+import { dayIsoInWeek, isoFromLocalDate } from '../../utils/planDates'
 import { parseDistance } from '../../utils/targets'
 import { repaceString } from '../../utils/repace'
 import { isProtectedWeek, scaleTime, withDistance } from './weeklyReview'
@@ -77,7 +77,7 @@ const isDown = (s: ReadinessScore) => s.status === 'YELLOW' || s.status === 'RED
 function isoAddDays(iso: string, days: number): string {
   const d = new Date(`${iso}T12:00:00`)
   d.setDate(d.getDate() + days)
-  return d.toISOString().slice(0, 10)
+  return isoFromLocalDate(d)
 }
 
 function isoDiffDays(a: string, b: string): number {

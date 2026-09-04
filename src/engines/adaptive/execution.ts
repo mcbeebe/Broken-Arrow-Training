@@ -1,6 +1,6 @@
 import type { PlannedDay, TrainingWeek, WorkoutType } from '../../types'
 import { parsePlannedTargets } from '../../utils/targets'
-import { dayIsoInWeek } from '../../utils/planDates'
+import { dayIsoInWeek, isoFromLocalDate } from '../../utils/planDates'
 import type { HRStream } from '../../utils/timeInZone'
 
 /**
@@ -320,7 +320,7 @@ export function detectTrainingGap(weeks: TrainingWeek[], todayIso: string): Trai
 export function longestRunCapMi(weeks: TrainingWeek[], todayIso: string): number | null {
   const windowStart = new Date(`${todayIso}T12:00:00`)
   windowStart.setDate(windowStart.getDate() - 30)
-  const startIso = windowStart.toISOString().slice(0, 10)
+  const startIso = isoFromLocalDate(windowStart)
   let longest = 0
   for (const week of weeks) {
     for (const day of week.days) {

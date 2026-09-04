@@ -55,6 +55,7 @@ import { detectHeat, environmentAdvisories, applyHeatBlock } from '../../utils/e
 import { heatFactorFor } from '../running/heuristics'
 import { SCREENING_COPY } from '../running/screeningCopy'
 import { applyPredictorRehearsal, applyPowerHike, applyTimeOnFeet } from './trailSessions'
+import { addDays as addDaysIso, isoDayOfWeek, todayDateString } from '../../utils/planDates'
 
 const DAY_OF_WEEK_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const
 
@@ -97,9 +98,7 @@ function categoryToType(c: WorkoutCategory): WorkoutType {
 }
 
 function addDays(dateStr: string, days: number): string {
-  const d = new Date(dateStr + 'T12:00:00')
-  d.setDate(d.getDate() + days)
-  return d.toISOString().slice(0, 10)
+  return addDaysIso(dateStr, days)
 }
 
 /** Whole days from `aIso` to `bIso` (negative if b is before a). */
@@ -116,10 +115,7 @@ function daysBetween(aIso: string, bIso: string): number {
  * day by the race weekday, landing e.g. a Saturday long run on Friday.
  */
 function mondayOnOrBefore(dateStr: string): string {
-  const d = new Date(dateStr + 'T12:00:00')
-  const jsDow = d.getDay()          // 0=Sun … 6=Sat
-  const sinceMonday = (jsDow + 6) % 7 // 0=Mon … 6=Sun
-  return addDays(dateStr, -sinceMonday)
+  return addDays(dateStr, -(isoDayOfWeek(dateStr) - 1))
 }
 
 /** Map the onboarding `longRunDay` label onto a schedule dayOfWeek (1=Mon…7=Sun). */
@@ -163,8 +159,7 @@ function formatDayLabel(dateStr: string): string {
 
 /** Weekday index 1..7 (Mon..Sun) of an ISO date — the schedule convention. */
 function mondayIndexOf(dateStr: string): number {
-  const d = new Date(dateStr + 'T12:00:00')
-  return ((d.getDay() + 6) % 7) + 1
+  return isoDayOfWeek(dateStr)
 }
 
 /**
@@ -1126,7 +1121,7 @@ function typicalTrainingDays(weeks: TrainingWeek[]): number | null {
 export function generatePlanFromMethod(
   method: TrainingMethod,
   config: OnboardingConfig,
-  today: string = new Date().toISOString().slice(0, 10),
+  today: string = todayDateString(),
 ): TrainingPlan {
   // Athlete-chosen plan start: everything downstream that reasons from
   // "today" (runway clamp, base-week fill, feasibility) reasons from the

@@ -9,6 +9,7 @@
  * Open days are the only ones that ask for anything, and they ask once,
  * in neutral grey. Nothing here is ever red.
  */
+import { isoFromLocalDate } from './planDates'
 import type { TrainingWeek } from '../types'
 
 export type RhythmState = 'done' | 'rest' | 'open' | 'today' | 'future'
@@ -27,7 +28,7 @@ const DAY_MS = 24 * 60 * 60 * 1000
 function isoOf(startIso: string, offset: number): string {
   const d = new Date(`${startIso}T12:00:00`)
   d.setDate(d.getDate() + offset)
-  return d.toISOString().slice(0, 10)
+  return isoFromLocalDate(d)
 }
 
 function labelOf(iso: string): string {
@@ -58,7 +59,7 @@ export function buildRhythm(
   const todayMs = new Date(`${todayIso}T12:00:00`).getTime()
 
   for (let back = days - 1; back >= 0; back--) {
-    const iso = new Date(todayMs - back * DAY_MS).toISOString().slice(0, 10)
+    const iso = isoFromLocalDate(new Date(todayMs - back * DAY_MS))
     const day = planned.get(iso)
     if (!day) continue
 

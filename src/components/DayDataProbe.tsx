@@ -1,3 +1,4 @@
+import { todayDateString } from '../utils/planDates'
 import { useState } from 'react'
 import type { GarminActivityDetail } from '../types'
 
@@ -21,7 +22,7 @@ export default function DayDataProbe({ cachedDetails, onProbe }: {
   cachedDetails: Record<string, GarminActivityDetail[]>
   onProbe: (date: string) => Promise<GarminActivityDetail[]>
 }) {
-  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10))
+  const [date, setDate] = useState(() => todayDateString())
   const [result, setResult] = useState<GarminActivityDetail[] | null>(null)
   const [cachedBefore, setCachedBefore] = useState<number | null>(null)
   const [loading, setLoading] = useState(false)

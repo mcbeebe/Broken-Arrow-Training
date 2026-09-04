@@ -23,6 +23,7 @@
  *  - The mileage a travel week displays is recomputed from its adapted days
  *    so the total never lies (the "week.miles = sum of days" contract).
  */
+import { addDays } from '../../utils/planDates'
 import type {
   TrainingWeek,
   PlannedDay,
@@ -103,8 +104,7 @@ const isHard = (d: PlannedDay) => HARD_TYPES.has(d.type)
 /** Noon-anchored day arithmetic so a trip range never drifts across a DST
  *  or timezone boundary (matches planDates.ts). */
 function dayIso(weekStartIso: string, dayIndex: number): string {
-  const ms = Date.parse(`${weekStartIso}T12:00:00`) + dayIndex * 86_400_000
-  return new Date(ms).toISOString().slice(0, 10)
+  return addDays(weekStartIso, dayIndex)
 }
 
 function inRange(iso: string, startIso: string, endIso: string): boolean {

@@ -22,7 +22,7 @@ const weekMiles = (p: TrainingPlan, wi: number) => Number(p.weeks[wi].miles)
 const isoOf = (p: TrainingPlan, wi: number, di: number) => {
   const d = new Date(`${p.weeks[wi].startIso}T12:00:00`)
   d.setDate(d.getDate() + di)
-  return d.toISOString().slice(0, 10)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 const HARD = new Set(['quality', 'long', 'race'])
 const maxConsecHard = (p: TrainingPlan) => {

@@ -27,7 +27,7 @@ const TODAY = '2026-08-17'
 function satAfterWeeks(n: number): string {
   const d = new Date('2026-08-22T12:00:00')
   d.setDate(d.getDate() + (n - 1) * 7)
-  return d.toISOString().slice(0, 10)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 function raceInfo(name: string, date: string, distanceMiles: number): RaceInfo {
   return {

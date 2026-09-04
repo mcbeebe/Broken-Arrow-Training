@@ -12,6 +12,7 @@
  * Reuses the existing VDOT math (vdot.ts) and `athleteCurrentVdot` (paceTargets)
  * so the numbers match what the plan generator computes.
  */
+import { todayDateString } from '../../utils/planDates'
 import type { PlanAdvisory } from '../../types'
 import type { OnboardingConfig, RaceDistance, ExperienceLevel } from '../../hooks/useOnboarding'
 import type { TrainingMethod } from '../../types/training-method'
@@ -107,7 +108,7 @@ function weeksUntilRace(raceDateIso: string, todayIso: string): number {
  */
 export function assessFeasibility(
   config: OnboardingConfig,
-  todayIso: string = new Date().toISOString().slice(0, 10),
+  todayIso: string = todayDateString(),
   method?: TrainingMethod,
 ): PlanAdvisory[] {
   const out: PlanAdvisory[] = []

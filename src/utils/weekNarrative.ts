@@ -4,6 +4,7 @@
  * Pure and standalone: it builds strings out of metrics and the plan, so it
  * belongs outside the component, where it can also be asserted directly.
  */
+import { isoFromLocalDate } from './planDates'
 import type { PerformanceMetrics, DailyTRIMP, TrainingWeek } from '../types'
 import type { TrainingSignals } from './trainingSignals'
 import { localDateStr } from './format'
@@ -23,7 +24,7 @@ function plannedDaysBetween(
     week.days.forEach((day, i) => {
       const d = new Date(`${week.startIso}T12:00:00`)
       d.setDate(d.getDate() + i)
-      const iso = d.toISOString().slice(0, 10)
+      const iso = isoFromLocalDate(d)
       if (iso < fromIso || iso > toIso) return
       out.push({ iso, isRest: day.type === 'rest' })
     })

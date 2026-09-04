@@ -1,3 +1,4 @@
+import { isoFromLocalDate } from '../utils/planDates'
 import { useEffect, useRef } from 'react'
 import type { CoachSnapshot, PlannedDay, ReadinessScore, StravaActivity, GarminActivity } from '../types'
 import { coachApiAvailable, coachApiBase, coachAuthHeaders} from '../utils/coachApi'
@@ -232,7 +233,7 @@ export function useProactivePings(inputs: Inputs) {
       // athlete sees an Apply / Modify / Keep card rather than getting
       // their plan silently rewritten. Per-day local-storage dedup so a
       // re-trigger tomorrow (server cooldown also expired) can fire.
-      const todayDate = nowDate.toISOString().slice(0, 10)
+      const todayDate = isoFromLocalDate(nowDate)
 
       // hrv_drop — HRV last night ≥ 20% below 7d baseline.
       const hrvNow = snapshot?.todayHealth?.hrvLastNightMs

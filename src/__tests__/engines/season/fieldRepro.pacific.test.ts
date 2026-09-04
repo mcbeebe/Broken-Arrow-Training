@@ -5,7 +5,7 @@ import { getMethodById } from '../../../data/methods'
 import { generatePlanFromMethod } from '../../../engines/planGenerator/generatePlan'
 import { planSeason } from '../../../engines/season/planSeason'
 import { spliceSeasonWeeks } from '../../../engines/season/spliceSeason'
-import { parseDayToDate } from '../../../utils/planDates'
+import { parseDayToDate, isoFromLocalDate } from '../../../utils/planDates'
 
 // vitest runs on Node, but the app tsconfig carries no Node types —
 // reach process.env through globalThis for the TZ switch.
@@ -145,7 +145,7 @@ describe('field repro: half 10/24 + Hyrox 12/12, Pacific timezone', () => {
     const cur = new Date('2026-10-25T12:00:00')
     const end = new Date(`${HYROX_ISO}T12:00:00`)
     while (cur <= end) {
-      const iso = cur.toISOString().slice(0, 10)
+      const iso = isoFromLocalDate(cur)
       if (!isos.has(iso)) missing.push(iso)
       cur.setDate(cur.getDate() + 1)
     }
