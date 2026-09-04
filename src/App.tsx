@@ -10,6 +10,7 @@ import { useGarmin } from './hooks/useGarmin'
 import { useGarminAutoRepush } from './hooks/useGarminAutoRepush'
 import { realignmentContextForWeeks } from './utils/realignment'
 import { mondayOnOrBefore, todayDateString } from './utils/planDates'
+import { seasonQaAdvisories as buildSeasonQaAdvisories, combineAdvisories } from './utils/planAdvisories'
 import { deriveFitnessFromHistory } from './utils/fitnessFromHistory'
 import { useSeason } from './hooks/useSeason'
 import { spliceSeasonWithReport } from './engines/season/spliceSeason'
@@ -18,14 +19,13 @@ import { raceDateToIso } from './engines/season'
 import { buildSeasonContext } from './engines/season/coachContext'
 import SeasonPanel from './components/SeasonPanel'
 import { assessRecalibration } from './engines/planGenerator/recalibration'
-import { validatePlan, qaFindingsToAdvisories } from './engines/planQA/validatePlan'
 import {
   clearUndoSnapshot, readUndoSnapshot, saveUndoSnapshot,
   type BenchmarkUndoSnapshot,
 } from './engines/benchmark/undoSnapshot'
 import { useReplan } from './hooks/useReplan'
 import { useLockedDays } from './hooks/useLockedDays'
-import { assessBenchmarkResult, benchmarkCompletedIso, scaleZoneTable } from './engines/planGenerator/benchmarkResult'
+import { assessBenchmarkResult, scaleZoneTable } from './engines/planGenerator/benchmarkResult'
 import { ESTIMATED_LTHR_PCT_OF_MAX } from './engines/planGenerator/paceTargets'
 import { buildRepaceOps } from './utils/repace'
 import { buildZoneAnchorOps } from './utils/rezoneByAnchor'
@@ -773,32 +773,19 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     return true
   }, [athleteId, planEdits, hrZones, maxHROverride, onboarding, strengthCapacity])
 
-  // ── R0: season-level QA ───────────────────────────────────────
-  // The anchor plan is validated at generation time, but the spliced
-  // season (recover / bridge / second-build weeks) never was — cross-block
-  // ramp seams and duplicate blocks were structurally invisible. Validate
-  // the FULL derived week stream and surface findings from weeks beyond
-  // the anchor as advisories (the anchor's own findings already ride in
-  // activePlan.advisories).
-  const seasonQaAdvisories = useMemo(() => {
-    if ((seasonState.planResult?.season.races.length ?? 0) < 2) return []
-    const anchorLen = activePlan.weeks.length
-    // D11 — the layered rules live INSIDE the anchor weeks by definition (that
-    // is what layering is), so the "beyond the anchor" filter below silently
-    // discarded every one of them, and the early return skipped the validator
-    // entirely for a season whose only change is layered days.
-    const hasLayered = weeks.some(w => w.days.some(d => d.layeredFor != null))
-    if (weeks.length <= anchorLen && !hasLayered) return []
-    const qa = validatePlan({ weeks, zones: hrZones.zones, race: activePlan.race, methodId: activePlan.methodId })
-    const later = qa.findings.filter(f => (f.weekNum ?? 0) > anchorLen || f.id.startsWith('qa_layered_'))
-    if (later.length === 0) return []
-    return qaFindingsToAdvisories({
-      findings: later,
-      errors: later.filter(f => f.severity === 'error'),
-      warnings: later.filter(f => f.severity === 'warn'),
-      pass: later.every(f => f.severity !== 'error'),
-    })
-  }, [weeks, activePlan.weeks.length, activePlan.race, activePlan.methodId, hrZones.zones, seasonState.planResult])
+  // R0 / D11 — season-level QA over the FULL derived week stream. The rules and
+  // the reasons they exist live in utils/planAdvisories.
+  const seasonQaAdvisories = useMemo(
+    () => buildSeasonQaAdvisories({
+      weeks,
+      anchorWeekCount: activePlan.weeks.length,
+      seasonRaceCount: seasonState.planResult?.season.races.length ?? 0,
+      zones: hrZones.zones,
+      race: activePlan.race,
+      methodId: activePlan.methodId,
+    }),
+    [weeks, activePlan.weeks.length, activePlan.race, activePlan.methodId, hrZones.zones, seasonState.planResult],
+  )
   // D6 — what the layering transform ACTUALLY did, said out loud. The coach
   // letter and the review screens used to describe "1–2 sessions a week woven
   // into your build" from the athlete's REQUEST, including on the anchors
@@ -807,19 +794,16 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     () => layeringAdvisories(spliced.layerReports, activePlan.race.name, onboarding.config?.raceType),
     [spliced.layerReports, activePlan.race.name, onboarding.config?.raceType],
   )
-  const allAdvisories = useMemo(() => {
-    const base = [
-      ...(activePlan.advisories ?? []),
-      ...seasonQaAdvisories,
-      ...layerAdvisories,
-    ]
-    // "Estimated until you test" retires itself the day a benchmark is
-    // actually recorded — primary or secondary. The benchmark card and
-    // the athlete model carry the calibration from there.
-    return benchmarkCompletedIso(weeks, todayDateString())
-      ? base.filter(adv => adv.id !== 'zones_estimated')
-      : base
-  }, [activePlan.advisories, seasonQaAdvisories, layerAdvisories, weeks])
+  const allAdvisories = useMemo(
+    () => combineAdvisories({
+      planAdvisories: activePlan.advisories,
+      seasonQa: seasonQaAdvisories,
+      layer: layerAdvisories,
+      weeks,
+      todayIso: todayDateString(),
+    }),
+    [activePlan.advisories, seasonQaAdvisories, layerAdvisories, weeks],
+  )
 
   // ── G6: course-aware race pacing ──────────────────────────────
   // Only for curated courses (the 3 Broken Arrow editions today) and only
