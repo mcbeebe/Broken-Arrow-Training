@@ -1127,32 +1127,32 @@
       "zones": [
         {
           "zone": "Z1 – Recovery",
-          "hr": "105–131",
+          "hr": "105–130",
           "pct": "57–71%",
           "desc": "Very easy, full conversation"
         },
         {
           "zone": "Z2 – Aerobic",
-          "hr": "131–144",
-          "pct": "71–78%",
+          "hr": "131–145",
+          "pct": "71–79%",
           "desc": "Comfortable, sustainable"
         },
         {
           "zone": "Z3 – Tempo",
-          "hr": "146–154",
+          "hr": "146–155",
           "pct": "79–84%",
           "desc": "Comfortably hard"
         },
         {
           "zone": "Z4 – Threshold",
-          "hr": "156–165",
-          "pct": "85–90%",
+          "hr": "156–164",
+          "pct": "85–89%",
           "desc": "Hard. A few words at most"
         },
         {
           "zone": "Z5 – VO2 / Max",
-          "hr": "165–178",
-          "pct": "90–97%",
+          "hr": "165–184",
+          "pct": "90–100%",
           "desc": "Hard. A word or two at a time"
         }
       ],
@@ -1180,108 +1180,108 @@
           "endWeekIndex": 17
         }
       ],
-      "peakMi": 34.5,
-      "peakLongRunMi": 13.8,
+      "peakMi": 35,
+      "peakLongRunMi": 14,
       "weeklyMileage": [
         {
           "week": 1,
-          "totalMi": 19,
-          "longRunMi": 7.6,
+          "totalMi": 16.5,
+          "longRunMi": 6.6,
           "phaseId": "base",
           "isCutback": false,
           "isTaper": false
         },
         {
           "week": 2,
-          "totalMi": 20.1,
-          "longRunMi": 8,
+          "totalMi": 17.8,
+          "longRunMi": 7.1,
           "phaseId": "base",
           "isCutback": false,
           "isTaper": false
         },
         {
           "week": 3,
-          "totalMi": 21.2,
-          "longRunMi": 8.4,
+          "totalMi": 19.1,
+          "longRunMi": 7.6,
           "phaseId": "base",
           "isCutback": false,
           "isTaper": false
         },
         {
           "week": 4,
-          "totalMi": 15.9,
-          "longRunMi": 6.3,
+          "totalMi": 14.4,
+          "longRunMi": 5.7,
           "phaseId": "base",
           "isCutback": true,
           "isTaper": false
         },
         {
           "week": 5,
-          "totalMi": 23.3,
-          "longRunMi": 9.3,
+          "totalMi": 21.1,
+          "longRunMi": 8.4,
           "phaseId": "base",
           "isCutback": false,
           "isTaper": false
         },
         {
           "week": 6,
-          "totalMi": 24.5,
-          "longRunMi": 9.8,
+          "totalMi": 23.1,
+          "longRunMi": 9.2,
           "phaseId": "build",
           "isCutback": false,
           "isTaper": false
         },
         {
           "week": 7,
-          "totalMi": 25.6,
-          "longRunMi": 10.2,
+          "totalMi": 24.4,
+          "longRunMi": 9.7,
           "phaseId": "build",
           "isCutback": false,
           "isTaper": false
         },
         {
           "week": 8,
-          "totalMi": 19.2,
-          "longRunMi": 7.6,
+          "totalMi": 18.3,
+          "longRunMi": 7.3,
           "phaseId": "build",
           "isCutback": true,
           "isTaper": false
         },
         {
           "week": 9,
-          "totalMi": 27.8,
-          "longRunMi": 11.1,
+          "totalMi": 26.9,
+          "longRunMi": 10.7,
           "phaseId": "build",
           "isCutback": false,
           "isTaper": false
         },
         {
           "week": 10,
-          "totalMi": 29,
-          "longRunMi": 11.6,
+          "totalMi": 28.4,
+          "longRunMi": 11.3,
           "phaseId": "build",
           "isCutback": false,
           "isTaper": false
         },
         {
           "week": 11,
-          "totalMi": 30.1,
-          "longRunMi": 12,
+          "totalMi": 29.7,
+          "longRunMi": 11.8,
           "phaseId": "peak",
           "isCutback": false,
           "isTaper": false
         },
         {
           "week": 12,
-          "totalMi": 22.5,
-          "longRunMi": 9,
+          "totalMi": 22.3,
+          "longRunMi": 8.9,
           "phaseId": "peak",
           "isCutback": true,
           "isTaper": false
         },
         {
           "week": 13,
-          "totalMi": 32.3,
+          "totalMi": 32.4,
           "longRunMi": 12.9,
           "phaseId": "peak",
           "isCutback": false,
@@ -1289,64 +1289,64 @@
         },
         {
           "week": 14,
-          "totalMi": 33.4,
-          "longRunMi": 13.3,
+          "totalMi": 33.7,
+          "longRunMi": 13.4,
           "phaseId": "peak",
           "isCutback": false,
           "isTaper": false
         },
         {
           "week": 15,
-          "totalMi": 34.5,
-          "longRunMi": 13.8,
+          "totalMi": 35,
+          "longRunMi": 14,
           "phaseId": "peak",
           "isCutback": false,
           "isTaper": false
         },
         {
           "week": 16,
-          "totalMi": 25.9,
-          "longRunMi": 10.3,
+          "totalMi": 26.3,
+          "longRunMi": 10.5,
           "phaseId": "taper",
           "isCutback": false,
           "isTaper": true
         },
         {
           "week": 17,
-          "totalMi": 19,
-          "longRunMi": 7.5,
+          "totalMi": 19.3,
+          "longRunMi": 7.7,
           "phaseId": "taper",
           "isCutback": false,
           "isTaper": true
         },
         {
           "week": 18,
-          "totalMi": 13.8,
-          "longRunMi": 5.5,
+          "totalMi": 14,
+          "longRunMi": 5.6,
           "phaseId": "taper",
           "isCutback": false,
           "isTaper": true
         }
       ],
       "planWeeksMiles": [
-        19,
-        20.1,
-        21.2,
-        15.9,
-        23.3,
+        16.8,
+        18,
+        19.3,
+        14.9,
+        21.1,
+        23,
         24.5,
-        25.6,
-        19.2,
-        27.8,
-        29,
-        30.1,
-        22.5,
-        32.3,
-        33.4,
+        18.3,
+        27,
+        28.2,
+        29.7,
+        22.4,
+        32,
+        33.2,
         34.5,
-        25.9,
-        19,
-        13.8
+        26.6,
+        19.4,
+        9.7
       ],
       "paceAnchor": {
         "type": "lthr_bpm",
@@ -1371,7 +1371,7 @@
           "rpeLow": 2,
           "rpeHigh": 3,
           "preferredMode": "pace",
-          "formatted": "Zone 1 (Recovery) · 8:42-9:57 /mi · 105-131 bpm"
+          "formatted": "Zone 1 (Recovery) · 8:42-9:57 /mi · 105-131 bpm · RPE 2-3"
         },
         {
           "zone": "easy",
@@ -1383,7 +1383,7 @@
           "rpeLow": 4,
           "rpeHigh": 5,
           "preferredMode": "pace",
-          "formatted": "Zone 2 (Aerobic) · 7:27-8:42 /mi · 131-144 bpm"
+          "formatted": "Zone 2 (Aerobic) · 7:27-8:42 /mi · 131-144 bpm · RPE 4-5"
         },
         {
           "zone": "marathon_pace",
@@ -1395,7 +1395,7 @@
           "rpeLow": 5,
           "rpeHigh": 7,
           "preferredMode": "pace",
-          "formatted": "Zone 3 (Moderate / MP) · 7:05-7:27 /mi · 146-154 bpm"
+          "formatted": "Zone 3 (Moderate / MP) · 7:05-7:27 /mi · 146-154 bpm · RPE 5-7"
         },
         {
           "zone": "lactate_threshold",
@@ -1407,7 +1407,7 @@
           "rpeLow": 7,
           "rpeHigh": 8,
           "preferredMode": "pace",
-          "formatted": "Zone 4 (Lactate Threshold) · 6:35-6:57 /mi · 156-165 bpm"
+          "formatted": "Zone 4 (Lactate Threshold) · 6:35-6:57 /mi · 156-165 bpm · RPE 7-8"
         },
         {
           "zone": "vo2max",
@@ -1419,7 +1419,7 @@
           "rpeLow": 8,
           "rpeHigh": 9,
           "preferredMode": "pace",
-          "formatted": "Zone 5 (VO2max) · 6:09-6:25 /mi · 165-178 bpm"
+          "formatted": "Zone 5 (VO2max) · 6:09-6:25 /mi · 165-178 bpm · RPE 8-9"
         }
       ],
       "sampleWeekNumber": 15,
@@ -1430,55 +1430,55 @@
           "workout": "Strength",
           "zone": "Z1",
           "time": "45-60 min",
-          "detail": "Emphasis: explosive power (box jumps, med-ball, light & fast); drop the heavy loads · Goblet Squat 3×12 · Bulgarian Split Squat 3×10/leg · RDL 3×10 · Step-Up 3×10/leg · Calf Raise 3×15 · Plank 3×45s · Dead Bug 3×10/side"
+          "detail": "Emphasis: technique first — controlled reps, effort easy enough to keep every rep identical (RPE ≤6); add load only when form is boring · Goblet Squat 3×12 · Bulgarian Split Squat 3×10/leg · RDL 3×10 · Step-Up 3×10/leg · Calf Raise 3×15 · Plank 3×45s · Dead Bug 3×10/side"
         },
         {
           "day": "Tue 9/22",
           "type": "quality",
           "workout": "Z5 Intervals",
-          "zone": "Zone 5 (VO2max) · 5:47-6:01 /mi · 165-178 bpm",
-          "time": "50-70 min",
-          "detail": "Zone 5 (VO2max) · 5:47-6:01 /mi · 165-178 bpm · Z5 cap: keep total interval time small relative to weekly volume"
+          "zone": "Zone 5 (VO2max) · 5:47-6:01 /mi · 165-178 bpm · RPE 8-9",
+          "time": "34-40 min",
+          "detail": "Zone 5 (VO2max) · 5:47-6:01 /mi · 165-178 bpm · RPE 8-9 · Z5 cap: keep total interval time small relative to weekly volume"
         },
         {
           "day": "Wed 9/23",
           "type": "run",
           "workout": "Z2 Easy",
-          "zone": "Zone 2 (Aerobic) · 7:27-8:42 /mi · 131-144 bpm",
-          "time": "77-90 min",
-          "detail": "Zone 2 (Aerobic) · 7:27-8:42 /mi · 131-144 bpm · If HR drifts above Z2, slow down — even if it feels too easy"
+          "zone": "Zone 2 (Aerobic) · 7:27-8:42 /mi · 131-144 bpm · RPE 4-5",
+          "time": "57-66 min",
+          "detail": "Zone 2 (Aerobic) · 7:27-8:42 /mi · 131-144 bpm · RPE 4-5 · If HR drifts above Z2, slow down — even if it feels too easy"
         },
         {
           "day": "Thu 9/24",
           "type": "quality",
           "workout": "Z4 Threshold",
-          "zone": "Zone 4 (Lactate Threshold) · 6:11-6:32 /mi · 156-165 bpm",
-          "time": "45-65 min",
-          "detail": "Zone 4 (Lactate Threshold) · 6:11-6:32 /mi · 156-165 bpm · Tempo pace, not race pace — controlled"
+          "zone": "Zone 4 (Lactate Threshold) · 6:11-6:32 /mi · 156-165 bpm · RPE 7-8",
+          "time": "27-31 min",
+          "detail": "Zone 4 (Lactate Threshold) · 6:11-6:32 /mi · 156-165 bpm · RPE 7-8 · Tempo pace, not race pace — controlled"
         },
         {
           "day": "Fri 9/25",
-          "type": "strength",
-          "workout": "Strength",
-          "zone": "Z1",
-          "time": "45-60 min",
-          "detail": "Emphasis: explosive power (box jumps, med-ball, light & fast); drop the heavy loads · Goblet Squat 3×12 · Bulgarian Split Squat 3×10/leg · RDL 3×10 · Step-Up 3×10/leg · Calf Raise 3×15 · Plank 3×45s · Dead Bug 3×10/side"
+          "type": "rest",
+          "workout": "Rest",
+          "zone": "—",
+          "time": "",
+          "detail": ""
         },
         {
           "day": "Sat 9/26",
           "type": "run",
           "workout": "Z1 Recovery",
-          "zone": "Zone 1 (Recovery) · 8:42-9:57 /mi · 105-131 bpm",
-          "time": "20-45 min",
-          "detail": "Zone 1 (Recovery) · 8:42-9:57 /mi · 105-131 bpm · Slower than your normal easy pace"
+          "zone": "Zone 1 (Recovery) · 8:42-9:57 /mi · 105-131 bpm · RPE 2-3",
+          "time": "34-40 min",
+          "detail": "Zone 1 (Recovery) · 8:42-9:57 /mi · 105-131 bpm · RPE 2-3 · Slower than your normal easy pace"
         },
         {
           "day": "Sun 9/27",
           "type": "long",
           "workout": "Long Run",
-          "zone": "Zone 2 (Aerobic) · 7:27-8:42 /mi · 131-144 bpm",
-          "time": "103-120 min",
-          "detail": "Long run ~13.8 mi · Zone 2 (Aerobic) · 7:27-8:42 /mi · 131-144 bpm · Watch HR drift — pace must drop to keep HR in Z2 · Fuel ~60 g carb/hr · Run by time on feet, not pace"
+          "zone": "Zone 2 (Aerobic) · 7:27-8:42 /mi · 131-144 bpm · RPE 4-5",
+          "time": "105-123 min",
+          "detail": "Long run ~14.1 mi · Zone 2 (Aerobic) · 7:27-8:42 /mi · 131-144 bpm · RPE 4-5 · Watch HR drift — pace must drop to keep HR in Z2 · Fuel ~60 g carb/hr · Run by time on feet, not pace"
         }
       ]
     },
@@ -1538,32 +1538,32 @@
       "zones": [
         {
           "zone": "Z1 – Recovery",
-          "hr": "105–131",
+          "hr": "105–130",
           "pct": "57–71%",
           "desc": "Very easy, full conversation"
         },
         {
           "zone": "Z2 – Aerobic",
-          "hr": "131–144",
-          "pct": "71–78%",
+          "hr": "131–145",
+          "pct": "71–79%",
           "desc": "Comfortable, sustainable"
         },
         {
           "zone": "Z3 – Tempo",
-          "hr": "146–154",
+          "hr": "146–155",
           "pct": "79–84%",
           "desc": "Comfortably hard"
         },
         {
           "zone": "Z4 – Threshold",
-          "hr": "156–165",
-          "pct": "85–90%",
+          "hr": "156–164",
+          "pct": "85–89%",
           "desc": "Hard. A few words at most"
         },
         {
           "zone": "Z5 – VO2 / Max",
-          "hr": "165–178",
-          "pct": "90–97%",
+          "hr": "165–184",
+          "pct": "90–100%",
           "desc": "Hard. A word or two at a time"
         }
       ],
@@ -1591,108 +1591,108 @@
           "endWeekIndex": 17
         }
       ],
-      "peakMi": 34.5,
-      "peakLongRunMi": 13.8,
+      "peakMi": 35,
+      "peakLongRunMi": 14,
       "weeklyMileage": [
         {
           "week": 1,
-          "totalMi": 19,
-          "longRunMi": 7.6,
+          "totalMi": 16.5,
+          "longRunMi": 6.6,
           "phaseId": "base",
           "isCutback": false,
           "isTaper": false
         },
         {
           "week": 2,
-          "totalMi": 20.1,
-          "longRunMi": 8,
+          "totalMi": 17.8,
+          "longRunMi": 7.1,
           "phaseId": "base",
           "isCutback": false,
           "isTaper": false
         },
         {
           "week": 3,
-          "totalMi": 21.2,
-          "longRunMi": 8.4,
+          "totalMi": 19.1,
+          "longRunMi": 7.6,
           "phaseId": "base",
           "isCutback": false,
           "isTaper": false
         },
         {
           "week": 4,
-          "totalMi": 15.9,
-          "longRunMi": 6.3,
+          "totalMi": 14.4,
+          "longRunMi": 5.7,
           "phaseId": "base",
           "isCutback": true,
           "isTaper": false
         },
         {
           "week": 5,
-          "totalMi": 23.3,
-          "longRunMi": 9.3,
+          "totalMi": 21.1,
+          "longRunMi": 8.4,
           "phaseId": "base",
           "isCutback": false,
           "isTaper": false
         },
         {
           "week": 6,
-          "totalMi": 24.5,
-          "longRunMi": 9.8,
+          "totalMi": 23.1,
+          "longRunMi": 9.2,
           "phaseId": "build",
           "isCutback": false,
           "isTaper": false
         },
         {
           "week": 7,
-          "totalMi": 25.6,
-          "longRunMi": 10.2,
+          "totalMi": 24.4,
+          "longRunMi": 9.7,
           "phaseId": "build",
           "isCutback": false,
           "isTaper": false
         },
         {
           "week": 8,
-          "totalMi": 19.2,
-          "longRunMi": 7.6,
+          "totalMi": 18.3,
+          "longRunMi": 7.3,
           "phaseId": "build",
           "isCutback": true,
           "isTaper": false
         },
         {
           "week": 9,
-          "totalMi": 27.8,
-          "longRunMi": 11.1,
+          "totalMi": 26.9,
+          "longRunMi": 10.7,
           "phaseId": "build",
           "isCutback": false,
           "isTaper": false
         },
         {
           "week": 10,
-          "totalMi": 29,
-          "longRunMi": 11.6,
+          "totalMi": 28.4,
+          "longRunMi": 11.3,
           "phaseId": "build",
           "isCutback": false,
           "isTaper": false
         },
         {
           "week": 11,
-          "totalMi": 30.1,
-          "longRunMi": 12,
+          "totalMi": 29.7,
+          "longRunMi": 11.8,
           "phaseId": "peak",
           "isCutback": false,
           "isTaper": false
         },
         {
           "week": 12,
-          "totalMi": 22.5,
-          "longRunMi": 9,
+          "totalMi": 22.3,
+          "longRunMi": 8.9,
           "phaseId": "peak",
           "isCutback": true,
           "isTaper": false
         },
         {
           "week": 13,
-          "totalMi": 32.3,
+          "totalMi": 32.4,
           "longRunMi": 12.9,
           "phaseId": "peak",
           "isCutback": false,
@@ -1700,64 +1700,64 @@
         },
         {
           "week": 14,
-          "totalMi": 33.4,
-          "longRunMi": 13.3,
+          "totalMi": 33.7,
+          "longRunMi": 13.4,
           "phaseId": "peak",
           "isCutback": false,
           "isTaper": false
         },
         {
           "week": 15,
-          "totalMi": 34.5,
-          "longRunMi": 13.8,
+          "totalMi": 35,
+          "longRunMi": 14,
           "phaseId": "peak",
           "isCutback": false,
           "isTaper": false
         },
         {
           "week": 16,
-          "totalMi": 25.9,
-          "longRunMi": 10.3,
+          "totalMi": 26.3,
+          "longRunMi": 10.5,
           "phaseId": "taper",
           "isCutback": false,
           "isTaper": true
         },
         {
           "week": 17,
-          "totalMi": 19,
-          "longRunMi": 7.5,
+          "totalMi": 19.3,
+          "longRunMi": 7.7,
           "phaseId": "taper",
           "isCutback": false,
           "isTaper": true
         },
         {
           "week": 18,
-          "totalMi": 13.8,
-          "longRunMi": 5.5,
+          "totalMi": 14,
+          "longRunMi": 5.6,
           "phaseId": "taper",
           "isCutback": false,
           "isTaper": true
         }
       ],
       "planWeeksMiles": [
-        19,
-        20.1,
-        21.2,
-        15.9,
-        23.3,
+        17.1,
+        18.2,
+        19.5,
+        14.6,
+        21.3,
+        23.2,
         24.5,
-        25.6,
-        19.2,
-        27.8,
-        29,
-        30.1,
-        22.5,
-        32.3,
-        33.4,
-        34.5,
-        25.9,
-        19,
-        13.8
+        18.7,
+        27,
+        28.3,
+        29.9,
+        22.4,
+        32.4,
+        34.1,
+        34.7,
+        26.2,
+        19.6,
+        10.5
       ],
       "paceAnchor": {
         "type": "lthr_bpm",
@@ -1780,7 +1780,7 @@
           "rpeLow": 2,
           "rpeHigh": 3,
           "preferredMode": "hr",
-          "formatted": "Zone 1 (Recovery) · 105-131 bpm"
+          "formatted": "Zone 1 (Recovery) · 105-131 bpm · RPE 2-3"
         },
         {
           "zone": "easy",
@@ -1790,7 +1790,7 @@
           "rpeLow": 4,
           "rpeHigh": 5,
           "preferredMode": "hr",
-          "formatted": "Zone 2 (Aerobic) · 131-144 bpm"
+          "formatted": "Zone 2 (Aerobic) · 131-144 bpm · RPE 4-5"
         },
         {
           "zone": "marathon_pace",
@@ -1800,7 +1800,7 @@
           "rpeLow": 5,
           "rpeHigh": 7,
           "preferredMode": "hr",
-          "formatted": "Zone 3 (Moderate / MP) · 146-154 bpm"
+          "formatted": "Zone 3 (Moderate / MP) · 146-154 bpm · RPE 5-7"
         },
         {
           "zone": "lactate_threshold",
@@ -1810,7 +1810,7 @@
           "rpeLow": 7,
           "rpeHigh": 8,
           "preferredMode": "hr",
-          "formatted": "Zone 4 (Lactate Threshold) · 156-165 bpm"
+          "formatted": "Zone 4 (Lactate Threshold) · 156-165 bpm · RPE 7-8"
         },
         {
           "zone": "vo2max",
@@ -1820,7 +1820,7 @@
           "rpeLow": 8,
           "rpeHigh": 9,
           "preferredMode": "hr",
-          "formatted": "Zone 5 (VO2max) · 165-178 bpm"
+          "formatted": "Zone 5 (VO2max) · 165-178 bpm · RPE 8-9"
         }
       ],
       "sampleWeekNumber": 15,
@@ -1831,55 +1831,55 @@
           "workout": "Strength",
           "zone": "Z1",
           "time": "45-60 min",
-          "detail": "Emphasis: explosive power (box jumps, med-ball, light & fast); drop the heavy loads · Goblet Squat 3×12 · Bulgarian Split Squat 3×10/leg · RDL 3×10 · Step-Up 3×10/leg · Calf Raise 3×15 · Plank 3×45s · Dead Bug 3×10/side"
+          "detail": "Emphasis: technique first — controlled reps, effort easy enough to keep every rep identical (RPE ≤6); add load only when form is boring · Goblet Squat 3×12 · Bulgarian Split Squat 3×10/leg · RDL 3×10 · Step-Up 3×10/leg · Calf Raise 3×15 · Plank 3×45s · Dead Bug 3×10/side"
         },
         {
           "day": "Tue 9/22",
           "type": "quality",
           "workout": "Z5 Intervals",
-          "zone": "Zone 5 (VO2max) · 5:32-5:46 /mi · 165-178 bpm",
-          "time": "50-70 min",
-          "detail": "Zone 5 (VO2max) · 5:32-5:46 /mi · 165-178 bpm · Z5 cap: keep total interval time small relative to weekly volume"
+          "zone": "Zone 5 (VO2max) · 5:32-5:46 /mi · 165-178 bpm · RPE 8-9",
+          "time": "34-40 min",
+          "detail": "Zone 5 (VO2max) · 5:32-5:46 /mi · 165-178 bpm · RPE 8-9 · Z5 cap: keep total interval time small relative to weekly volume"
         },
         {
           "day": "Wed 9/23",
           "type": "run",
           "workout": "Z2 Easy",
-          "zone": "Zone 2 (Aerobic) · 6:42-7:50 /mi · 131-144 bpm",
-          "time": "69-81 min",
-          "detail": "Zone 2 (Aerobic) · 6:42-7:50 /mi · 131-144 bpm · If HR drifts above Z2, slow down — even if it feels too easy"
+          "zone": "Zone 2 (Aerobic) · 6:42-7:50 /mi · 131-144 bpm · RPE 4-5",
+          "time": "45-52 min",
+          "detail": "Zone 2 (Aerobic) · 6:42-7:50 /mi · 131-144 bpm · RPE 4-5 · If HR drifts above Z2, slow down — even if it feels too easy"
         },
         {
           "day": "Thu 9/24",
           "type": "quality",
           "workout": "Z4 Threshold",
-          "zone": "Zone 4 (Lactate Threshold) · 5:55-6:15 /mi · 156-165 bpm",
-          "time": "45-65 min",
-          "detail": "Zone 4 (Lactate Threshold) · 5:55-6:15 /mi · 156-165 bpm · Tempo pace, not race pace — controlled"
+          "zone": "Zone 4 (Lactate Threshold) · 5:55-6:15 /mi · 156-165 bpm · RPE 7-8",
+          "time": "26-30 min",
+          "detail": "Zone 4 (Lactate Threshold) · 5:55-6:15 /mi · 156-165 bpm · RPE 7-8 · Tempo pace, not race pace — controlled"
         },
         {
           "day": "Fri 9/25",
-          "type": "strength",
-          "workout": "Strength",
-          "zone": "Z1",
-          "time": "45-60 min",
-          "detail": "Emphasis: explosive power (box jumps, med-ball, light & fast); drop the heavy loads · Goblet Squat 3×12 · Bulgarian Split Squat 3×10/leg · RDL 3×10 · Step-Up 3×10/leg · Calf Raise 3×15 · Plank 3×45s · Dead Bug 3×10/side"
+          "type": "rest",
+          "workout": "Rest",
+          "zone": "—",
+          "time": "",
+          "detail": ""
         },
         {
           "day": "Sat 9/26",
           "type": "run",
           "workout": "Z1 Recovery",
-          "zone": "Zone 1 (Recovery) · 7:50-8:58 /mi · 105-131 bpm",
-          "time": "20-45 min",
-          "detail": "Zone 1 (Recovery) · 7:50-8:58 /mi · 105-131 bpm · Slower than your normal easy pace"
+          "zone": "Zone 1 (Recovery) · 7:50-8:58 /mi · 105-131 bpm · RPE 2-3",
+          "time": "27-31 min",
+          "detail": "Zone 1 (Recovery) · 7:50-8:58 /mi · 105-131 bpm · RPE 2-3 · Slower than your normal easy pace"
         },
         {
           "day": "Sun 9/27",
           "type": "long",
           "workout": "Long Run",
-          "zone": "Zone 2 (Aerobic) · 6:42-7:50 /mi · 131-144 bpm",
-          "time": "92-108 min",
-          "detail": "Long run ~13.8 mi · Zone 2 (Aerobic) · 6:42-7:50 /mi · 131-144 bpm · Watch HR drift — pace must drop to keep HR in Z2 · Fuel ~60 g carb/hr · Run by time on feet, not pace"
+          "zone": "Zone 2 (Aerobic) · 6:42-7:50 /mi · 131-144 bpm · RPE 4-5",
+          "time": "101-118 min",
+          "detail": "Long run ~15 mi · Zone 2 (Aerobic) · 6:42-7:50 /mi · 131-144 bpm · RPE 4-5 · Watch HR drift — pace must drop to keep HR in Z2 · Fuel ~60 g carb/hr · Run by time on feet, not pace"
         }
       ]
     },
@@ -1946,8 +1946,8 @@
       "zones": [
         {
           "zone": "Z1 – Recovery",
-          "hr": "98–122",
-          "pct": "58–72%",
+          "hr": "98–121",
+          "pct": "58–71%",
           "desc": "Very easy, full conversation"
         },
         {
@@ -1964,14 +1964,14 @@
         },
         {
           "zone": "Z4 – Threshold",
-          "hr": "144–153",
-          "pct": "85–90%",
+          "hr": "144–152",
+          "pct": "85–89%",
           "desc": "Hard. A few words at most"
         },
         {
           "zone": "Z5 – VO2 / Max",
-          "hr": "153–165",
-          "pct": "90–97%",
+          "hr": "153–170",
+          "pct": "90–100%",
           "desc": "Hard. A word or two at a time"
         }
       ],
@@ -1999,84 +1999,84 @@
           "endWeekIndex": 17
         }
       ],
-      "peakMi": 50.6,
+      "peakMi": 47,
       "peakLongRunMi": 15.4,
       "weeklyMileage": [
         {
           "week": 1,
-          "totalMi": 27.8,
-          "longRunMi": 11.1,
+          "totalMi": 24.2,
+          "longRunMi": 9.6,
           "phaseId": "base",
           "isCutback": false,
           "isTaper": false
         },
         {
           "week": 2,
-          "totalMi": 29.5,
-          "longRunMi": 11.8,
+          "totalMi": 25.8,
+          "longRunMi": 10.3,
           "phaseId": "base",
           "isCutback": false,
           "isTaper": false
         },
         {
           "week": 3,
-          "totalMi": 31.1,
-          "longRunMi": 12.4,
+          "totalMi": 27.5,
+          "longRunMi": 11,
           "phaseId": "base",
           "isCutback": false,
           "isTaper": false
         },
         {
           "week": 4,
-          "totalMi": 23.3,
-          "longRunMi": 9.3,
+          "totalMi": 20.6,
+          "longRunMi": 8.2,
           "phaseId": "base",
           "isCutback": true,
           "isTaper": false
         },
         {
           "week": 5,
-          "totalMi": 34.2,
-          "longRunMi": 13.6,
+          "totalMi": 30.2,
+          "longRunMi": 12,
           "phaseId": "base",
           "isCutback": false,
           "isTaper": false
         },
         {
           "week": 6,
-          "totalMi": 36,
-          "longRunMi": 14.4,
+          "totalMi": 32.3,
+          "longRunMi": 12.9,
           "phaseId": "build",
           "isCutback": false,
           "isTaper": false
         },
         {
           "week": 7,
-          "totalMi": 37.6,
-          "longRunMi": 15,
+          "totalMi": 34,
+          "longRunMi": 13.6,
           "phaseId": "build",
           "isCutback": false,
           "isTaper": false
         },
         {
           "week": 8,
-          "totalMi": 28.2,
-          "longRunMi": 11.2,
+          "totalMi": 25.5,
+          "longRunMi": 10.2,
           "phaseId": "build",
           "isCutback": true,
           "isTaper": false
         },
         {
           "week": 9,
-          "totalMi": 40.8,
-          "longRunMi": 15.4,
+          "totalMi": 37.2,
+          "longRunMi": 14.8,
           "phaseId": "build",
           "isCutback": false,
           "isTaper": false
         },
         {
           "week": 10,
-          "totalMi": 42.5,
+          "totalMi": 38.9,
           "longRunMi": 15.4,
           "phaseId": "build",
           "isCutback": false,
@@ -2084,7 +2084,7 @@
         },
         {
           "week": 11,
-          "totalMi": 44.1,
+          "totalMi": 40.5,
           "longRunMi": 15.4,
           "phaseId": "peak",
           "isCutback": false,
@@ -2092,15 +2092,15 @@
         },
         {
           "week": 12,
-          "totalMi": 33.1,
-          "longRunMi": 13.2,
+          "totalMi": 30.4,
+          "longRunMi": 12.1,
           "phaseId": "peak",
           "isCutback": true,
           "isTaper": false
         },
         {
           "week": 13,
-          "totalMi": 47.3,
+          "totalMi": 43.7,
           "longRunMi": 15.4,
           "phaseId": "peak",
           "isCutback": false,
@@ -2108,7 +2108,7 @@
         },
         {
           "week": 14,
-          "totalMi": 49,
+          "totalMi": 45.4,
           "longRunMi": 15.4,
           "phaseId": "peak",
           "isCutback": false,
@@ -2116,7 +2116,7 @@
         },
         {
           "week": 15,
-          "totalMi": 50.6,
+          "totalMi": 47,
           "longRunMi": 15.4,
           "phaseId": "peak",
           "isCutback": false,
@@ -2124,7 +2124,7 @@
         },
         {
           "week": 16,
-          "totalMi": 37.9,
+          "totalMi": 35.3,
           "longRunMi": 11.5,
           "phaseId": "taper",
           "isCutback": false,
@@ -2132,7 +2132,7 @@
         },
         {
           "week": 17,
-          "totalMi": 27.8,
+          "totalMi": 25.9,
           "longRunMi": 8.4,
           "phaseId": "taper",
           "isCutback": false,
@@ -2140,7 +2140,7 @@
         },
         {
           "week": 18,
-          "totalMi": 20.2,
+          "totalMi": 18.8,
           "longRunMi": 6.1,
           "phaseId": "taper",
           "isCutback": false,
@@ -2148,24 +2148,24 @@
         }
       ],
       "planWeeksMiles": [
-        27.8,
-        29.5,
-        31.1,
-        23.3,
+        23.7,
+        25,
+        26.3,
+        19.9,
+        29,
+        30.3,
+        31.7,
+        24,
         34.2,
-        36,
-        37.6,
-        28.2,
-        40.8,
-        42.5,
-        44.1,
-        33.1,
-        47.3,
-        49,
-        50.6,
-        37.9,
-        27.8,
-        20.2
+        34.8,
+        35.8,
+        28,
+        36.5,
+        36.7,
+        36.7,
+        30.7,
+        23.4,
+        10.8
       ],
       "paceAnchor": {
         "type": "lthr_bpm",
@@ -2190,7 +2190,7 @@
           "rpeLow": 2,
           "rpeHigh": 3,
           "preferredMode": "pace",
-          "formatted": "Zone 1 (Recovery) · 11:39-13:14 /mi · 98-122 bpm"
+          "formatted": "Zone 1 (Recovery) · 11:39-13:14 /mi · 98-122 bpm · RPE 2-3"
         },
         {
           "zone": "easy",
@@ -2202,7 +2202,7 @@
           "rpeLow": 4,
           "rpeHigh": 5,
           "preferredMode": "pace",
-          "formatted": "Zone 2 (Aerobic) · 10:00-11:39 /mi · 122-134 bpm"
+          "formatted": "Zone 2 (Aerobic) · 10:00-11:39 /mi · 122-134 bpm · RPE 4-5"
         },
         {
           "zone": "marathon_pace",
@@ -2214,7 +2214,7 @@
           "rpeLow": 5,
           "rpeHigh": 7,
           "preferredMode": "pace",
-          "formatted": "Zone 3 (Moderate / MP) · 9:31-10:00 /mi · 135-143 bpm"
+          "formatted": "Zone 3 (Moderate / MP) · 9:31-10:00 /mi · 135-143 bpm · RPE 5-7"
         },
         {
           "zone": "lactate_threshold",
@@ -2226,7 +2226,7 @@
           "rpeLow": 7,
           "rpeHigh": 8,
           "preferredMode": "pace",
-          "formatted": "Zone 4 (Lactate Threshold) · 8:51-9:21 /mi · 144-153 bpm"
+          "formatted": "Zone 4 (Lactate Threshold) · 8:51-9:21 /mi · 144-153 bpm · RPE 7-8"
         },
         {
           "zone": "vo2max",
@@ -2238,66 +2238,66 @@
           "rpeLow": 8,
           "rpeHigh": 9,
           "preferredMode": "pace",
-          "formatted": "Zone 5 (VO2max) · 8:17-8:38 /mi · 153-165 bpm"
+          "formatted": "Zone 5 (VO2max) · 8:17-8:38 /mi · 153-165 bpm · RPE 8-9"
         }
       ],
       "sampleWeekNumber": 15,
       "sampleWeekDays": [
         {
           "day": "Mon 9/21",
-          "type": "strength",
-          "workout": "Strength + bone",
-          "zone": "Z1",
-          "time": "45-60 min",
-          "detail": "Emphasis: explosive power (box jumps, med-ball, light & fast); drop the heavy loads · Goblet Squat 3×12 · Bulgarian Split Squat 3×10/leg · RDL 3×10 · Step-Up 3×10/leg · Calf Raise 3×15 · Plank 3×45s · Dead Bug 3×10/side · Farmer Carry 3×30s"
+          "type": "rest",
+          "workout": "Rest",
+          "zone": "—",
+          "time": "",
+          "detail": ""
         },
         {
           "day": "Tue 9/22",
           "type": "quality",
           "workout": "Z5 Intervals",
-          "zone": "Zone 5 (VO2max) · 8:17-8:38 /mi · 153-165 bpm",
+          "zone": "Zone 5 (VO2max) · 8:17-8:38 /mi · 153-165 bpm · RPE 8-9",
           "time": "50-70 min",
-          "detail": "Zone 5 (VO2max) · 8:17-8:38 /mi · 153-165 bpm · Z5 cap: keep total interval time small relative to weekly volume"
+          "detail": "Zone 5 (VO2max) · 8:17-8:38 /mi · 153-165 bpm · RPE 8-9 · Z5 cap: keep total interval time small relative to weekly volume"
         },
         {
           "day": "Wed 9/23",
           "type": "run",
           "workout": "Z2 Easy",
-          "zone": "Zone 2 (Aerobic) · 10:00-11:39 /mi · 122-134 bpm",
-          "time": "30-90 min",
-          "detail": "Zone 2 (Aerobic) · 10:00-11:39 /mi · 122-134 bpm · If HR drifts above Z2, slow down — even if it feels too easy"
+          "zone": "Zone 2 (Aerobic) · 10:00-11:39 /mi · 122-134 bpm · RPE 4-5",
+          "time": "90 min",
+          "detail": "Zone 2 (Aerobic) · 10:00-11:39 /mi · 122-134 bpm · RPE 4-5 · If HR drifts above Z2, slow down — even if it feels too easy"
         },
         {
           "day": "Thu 9/24",
           "type": "quality",
           "workout": "Z4 Threshold",
-          "zone": "Zone 4 (Lactate Threshold) · 8:51-9:21 /mi · 144-153 bpm",
+          "zone": "Zone 4 (Lactate Threshold) · 8:51-9:21 /mi · 144-153 bpm · RPE 7-8",
           "time": "45-65 min",
-          "detail": "Zone 4 (Lactate Threshold) · 8:51-9:21 /mi · 144-153 bpm · Tempo pace, not race pace — controlled"
+          "detail": "Zone 4 (Lactate Threshold) · 8:51-9:21 /mi · 144-153 bpm · RPE 7-8 · Tempo pace, not race pace — controlled"
         },
         {
           "day": "Fri 9/25",
-          "type": "strength",
-          "workout": "Strength + bone",
-          "zone": "Z1",
-          "time": "45-60 min",
-          "detail": "Emphasis: explosive power (box jumps, med-ball, light & fast); drop the heavy loads · Goblet Squat 3×12 · Bulgarian Split Squat 3×10/leg · RDL 3×10 · Step-Up 3×10/leg · Calf Raise 3×15 · Plank 3×45s · Dead Bug 3×10/side · Farmer Carry 3×30s"
+          "type": "rest",
+          "workout": "Rest",
+          "zone": "—",
+          "time": "",
+          "detail": ""
         },
         {
           "day": "Sat 9/26",
           "type": "long",
           "workout": "Long Run",
-          "zone": "Zone 2 (Aerobic) · 10:00-11:39 /mi · 122-134 bpm",
-          "time": "154-179 min",
-          "detail": "Long run ~15.4 mi · Zone 2 (Aerobic) · 10:00-11:39 /mi · 122-134 bpm · Watch HR drift — pace must drop to keep HR in Z2 · Fuel ~60 g carb/hr · Run by time on feet, not pace"
+          "zone": "Zone 2 (Aerobic) · 10:00-11:39 /mi · 122-134 bpm · RPE 4-5",
+          "time": "143-167 min",
+          "detail": "Long run ~14.3 mi · Zone 2 (Aerobic) · 10:00-11:39 /mi · 122-134 bpm · RPE 4-5 · Watch HR drift — pace must drop to keep HR in Z2 · Fuel ~60 g carb/hr · Run by time on feet, not pace"
         },
         {
           "day": "Sun 9/27",
           "type": "run",
           "workout": "Z1 Recovery",
-          "zone": "Zone 1 (Recovery) · 11:39-13:14 /mi · 98-122 bpm",
-          "time": "20-45 min",
-          "detail": "Zone 1 (Recovery) · 11:39-13:14 /mi · 98-122 bpm · Slower than your normal easy pace"
+          "zone": "Zone 1 (Recovery) · 11:39-13:14 /mi · 98-122 bpm · RPE 2-3",
+          "time": "45 min",
+          "detail": "Zone 1 (Recovery) · 11:39-13:14 /mi · 98-122 bpm · RPE 2-3 · Slower than your normal easy pace"
         }
       ]
     },
@@ -2356,32 +2356,32 @@
       "zones": [
         {
           "zone": "Z1 – Recovery",
-          "hr": "101–134",
+          "hr": "101–133",
           "pct": "53–70%",
           "desc": "Very easy, full conversation"
         },
         {
           "zone": "Z2 – Aerobic",
-          "hr": "134–151",
+          "hr": "134–150",
           "pct": "70–79%",
           "desc": "Comfortable, sustainable"
         },
         {
           "zone": "Z3 – Tempo",
-          "hr": "151–160",
-          "pct": "79–84%",
+          "hr": "151–159",
+          "pct": "79–83%",
           "desc": "Comfortably hard"
         },
         {
           "zone": "Z4 – Threshold",
-          "hr": "160–168",
-          "pct": "84–88%",
+          "hr": "160–167",
+          "pct": "84–87%",
           "desc": "Hard. A few words at most"
         },
         {
           "zone": "Z5 – VO2 / Max",
-          "hr": "168–176",
-          "pct": "88–92%",
+          "hr": "168–191",
+          "pct": "88–100%",
           "desc": "Hard. A word or two at a time"
         }
       ],
@@ -2409,262 +2409,262 @@
           "endWeekIndex": 27
         }
       ],
-      "peakMi": 128,
-      "peakLongRunMi": 34,
+      "peakMi": 74,
+      "peakLongRunMi": 33.3,
       "weeklyMileage": [
         {
           "week": 1,
-          "totalMi": 64,
-          "longRunMi": 28.8,
+          "totalMi": 40,
+          "longRunMi": 18,
           "phaseId": "base",
           "isCutback": false,
           "isTaper": false
         },
         {
           "week": 2,
-          "totalMi": 66.7,
-          "longRunMi": 30,
+          "totalMi": 41.4,
+          "longRunMi": 18.6,
           "phaseId": "base",
           "isCutback": false,
           "isTaper": false
         },
         {
           "week": 3,
-          "totalMi": 46.7,
-          "longRunMi": 21,
+          "totalMi": 29,
+          "longRunMi": 13,
           "phaseId": "base",
           "isCutback": true,
           "isTaper": false
         },
         {
           "week": 4,
-          "totalMi": 72,
-          "longRunMi": 32.4,
+          "totalMi": 44.3,
+          "longRunMi": 19.9,
           "phaseId": "base",
           "isCutback": false,
           "isTaper": false
         },
         {
           "week": 5,
-          "totalMi": 74.7,
-          "longRunMi": 33.6,
+          "totalMi": 45.7,
+          "longRunMi": 20.5,
           "phaseId": "base",
           "isCutback": false,
           "isTaper": false
         },
         {
           "week": 6,
-          "totalMi": 52.3,
-          "longRunMi": 23.5,
+          "totalMi": 32,
+          "longRunMi": 14.4,
           "phaseId": "base",
           "isCutback": true,
           "isTaper": false
         },
         {
           "week": 7,
-          "totalMi": 80,
-          "longRunMi": 34,
+          "totalMi": 48.5,
+          "longRunMi": 21.8,
           "phaseId": "base",
           "isCutback": false,
           "isTaper": false
         },
         {
           "week": 8,
-          "totalMi": 82.7,
-          "longRunMi": 34,
+          "totalMi": 49.9,
+          "longRunMi": 22.4,
           "phaseId": "base",
           "isCutback": false,
           "isTaper": false
         },
         {
           "week": 9,
-          "totalMi": 57.9,
-          "longRunMi": 26,
+          "totalMi": 34.9,
+          "longRunMi": 15.7,
           "phaseId": "base",
           "isCutback": true,
           "isTaper": false
         },
         {
           "week": 10,
-          "totalMi": 88,
-          "longRunMi": 34,
+          "totalMi": 52.8,
+          "longRunMi": 23.7,
           "phaseId": "base",
           "isCutback": false,
           "isTaper": false
         },
         {
           "week": 11,
-          "totalMi": 90.7,
-          "longRunMi": 34,
+          "totalMi": 54.2,
+          "longRunMi": 24.3,
           "phaseId": "specific_prep",
           "isCutback": false,
           "isTaper": false
         },
         {
           "week": 12,
-          "totalMi": 63.5,
-          "longRunMi": 28.5,
+          "totalMi": 37.9,
+          "longRunMi": 17,
           "phaseId": "specific_prep",
           "isCutback": true,
           "isTaper": false
         },
         {
           "week": 13,
-          "totalMi": 96,
-          "longRunMi": 34,
+          "totalMi": 57,
+          "longRunMi": 25.6,
           "phaseId": "specific_prep",
           "isCutback": false,
           "isTaper": false
         },
         {
           "week": 14,
-          "totalMi": 98.7,
-          "longRunMi": 34,
+          "totalMi": 58.4,
+          "longRunMi": 26.2,
           "phaseId": "specific_prep",
           "isCutback": false,
           "isTaper": false
         },
         {
           "week": 15,
-          "totalMi": 69.1,
-          "longRunMi": 31,
+          "totalMi": 40.9,
+          "longRunMi": 18.4,
           "phaseId": "specific_prep",
           "isCutback": true,
           "isTaper": false
         },
         {
           "week": 16,
-          "totalMi": 104,
-          "longRunMi": 34,
+          "totalMi": 61.3,
+          "longRunMi": 27.5,
           "phaseId": "specific_prep",
           "isCutback": false,
           "isTaper": false
         },
         {
           "week": 17,
-          "totalMi": 106.7,
-          "longRunMi": 34,
+          "totalMi": 62.7,
+          "longRunMi": 28.2,
           "phaseId": "specific_prep",
           "isCutback": false,
           "isTaper": false
         },
         {
           "week": 18,
-          "totalMi": 74.7,
-          "longRunMi": 33.6,
+          "totalMi": 43.9,
+          "longRunMi": 19.7,
           "phaseId": "specific_prep",
           "isCutback": true,
           "isTaper": false
         },
         {
           "week": 19,
-          "totalMi": 112,
-          "longRunMi": 34,
+          "totalMi": 65.5,
+          "longRunMi": 29.4,
           "phaseId": "specific_prep",
           "isCutback": false,
           "isTaper": false
         },
         {
           "week": 20,
-          "totalMi": 114.7,
-          "longRunMi": 34,
+          "totalMi": 66.9,
+          "longRunMi": 30.1,
           "phaseId": "specific_prep",
           "isCutback": false,
           "isTaper": false
         },
         {
           "week": 21,
-          "totalMi": 80.3,
-          "longRunMi": 34,
+          "totalMi": 46.8,
+          "longRunMi": 21,
           "phaseId": "race_prep",
           "isCutback": true,
           "isTaper": false
         },
         {
           "week": 22,
-          "totalMi": 120,
-          "longRunMi": 34,
+          "totalMi": 69.8,
+          "longRunMi": 31.4,
           "phaseId": "race_prep",
           "isCutback": false,
           "isTaper": false
         },
         {
           "week": 23,
-          "totalMi": 122.7,
-          "longRunMi": 34,
+          "totalMi": 71.2,
+          "longRunMi": 32,
           "phaseId": "race_prep",
           "isCutback": false,
           "isTaper": false
         },
         {
           "week": 24,
-          "totalMi": 85.9,
-          "longRunMi": 34,
+          "totalMi": 49.8,
+          "longRunMi": 22.4,
           "phaseId": "race_prep",
           "isCutback": true,
           "isTaper": false
         },
         {
           "week": 25,
-          "totalMi": 128,
-          "longRunMi": 34,
+          "totalMi": 74,
+          "longRunMi": 33.3,
           "phaseId": "race_prep",
           "isCutback": false,
           "isTaper": false
         },
         {
           "week": 26,
-          "totalMi": 89.6,
-          "longRunMi": 23.7,
+          "totalMi": 51.8,
+          "longRunMi": 23.3,
           "phaseId": "race_prep",
           "isCutback": false,
           "isTaper": true
         },
         {
           "week": 27,
-          "totalMi": 64,
-          "longRunMi": 17,
+          "totalMi": 37,
+          "longRunMi": 16.6,
           "phaseId": "taper",
           "isCutback": false,
           "isTaper": true
         },
         {
           "week": 28,
-          "totalMi": 38.4,
-          "longRunMi": 10.2,
+          "totalMi": 22.2,
+          "longRunMi": 9.9,
           "phaseId": "taper",
           "isCutback": false,
           "isTaper": true
         }
       ],
       "planWeeksMiles": [
-        64,
-        66.8,
-        46.7,
-        72.3,
-        75.1,
-        52.6,
-        80.7,
-        83.5,
-        58.4,
-        89,
-        91.8,
-        64.3,
-        97.4,
-        100.2,
-        70.1,
-        105.7,
-        108.5,
-        76,
-        114.1,
-        116.9,
-        81.8,
-        122.4,
-        125.2,
-        128,
-        89.6,
-        64,
-        38.4
+        39.9,
+        41.6,
+        29.2,
+        44.6,
+        46.2,
+        32.2,
+        49.3,
+        50.7,
+        35.6,
+        53.6,
+        55.4,
+        39.2,
+        58.1,
+        59.7,
+        41.8,
+        62.6,
+        64.2,
+        44.9,
+        67.3,
+        68.9,
+        48.1,
+        71.8,
+        73.2,
+        62.3,
+        51.6,
+        36.9,
+        10.1
       ],
       "paceAnchor": {
         "type": "lthr_bpm",
@@ -2687,7 +2687,7 @@
           "rpeLow": 2,
           "rpeHigh": 3,
           "preferredMode": "hr",
-          "formatted": "Recovery (Zone 1) · 101-134 bpm"
+          "formatted": "Recovery (Zone 1) · 101-134 bpm · RPE 2-3"
         },
         {
           "zone": "easy",
@@ -2697,7 +2697,7 @@
           "rpeLow": 4,
           "rpeHigh": 6,
           "preferredMode": "hr",
-          "formatted": "Endurance (Zone 2) · 134-151 bpm"
+          "formatted": "Endurance (Zone 2) · 134-151 bpm · RPE 4-6"
         },
         {
           "zone": "aerobic_threshold",
@@ -2707,7 +2707,7 @@
           "rpeLow": 6,
           "rpeHigh": 7,
           "preferredMode": "hr",
-          "formatted": "Tempo (Zone 3) · 151-160 bpm"
+          "formatted": "Tempo (Zone 3) · 151-160 bpm · RPE 6-7"
         },
         {
           "zone": "lactate_threshold",
@@ -2717,7 +2717,7 @@
           "rpeLow": 7,
           "rpeHigh": 8,
           "preferredMode": "hr",
-          "formatted": "SteadyState (Zone 4) · 160-168 bpm"
+          "formatted": "SteadyState (Zone 4) · 160-168 bpm · RPE 7-8"
         },
         {
           "zone": "vo2max",
@@ -2727,66 +2727,66 @@
           "rpeLow": 8,
           "rpeHigh": 9,
           "preferredMode": "hr",
-          "formatted": "ClimbingRepeats (Zone 5) · 168-176 bpm"
+          "formatted": "ClimbingRepeats (Zone 5) · 168-176 bpm · RPE 8-9"
         }
       ],
       "sampleWeekNumber": 25,
       "sampleWeekDays": [
         {
           "day": "Mon 11/23",
-          "type": "cross",
-          "workout": "Cross-train · Hiking",
-          "zone": "Z1",
-          "time": "36-48 min",
-          "detail": "36-48 min uphill hike · steady Z2 · Use poles if available — plant rhythm · Power-hike posture: hands on thighs on steep bits"
+          "type": "rest",
+          "workout": "Rest",
+          "zone": "—",
+          "time": "",
+          "detail": ""
         },
         {
           "day": "Tue 11/24",
           "type": "quality",
           "workout": "SteadyState",
-          "zone": "SteadyState (Zone 4) · 160-168 bpm",
+          "zone": "SteadyState (Zone 4) · 160-168 bpm · RPE 7-8",
           "time": "60-90 min",
-          "detail": "SteadyState (Zone 4) · 160-168 bpm · Even effort across all reps"
+          "detail": "SteadyState (Zone 4) · 160-168 bpm · RPE 7-8 · Even effort across all reps"
         },
         {
           "day": "Wed 11/25",
           "type": "run",
           "workout": "Endurance",
-          "zone": "Endurance (Zone 2) · 134-151 bpm",
-          "time": "45-120 min",
-          "detail": "Endurance (Zone 2) · 134-151 bpm · Slow down or hike on climbs to keep HR in Z2"
+          "zone": "Endurance (Zone 2) · 134-151 bpm · RPE 4-6",
+          "time": "45-46 min",
+          "detail": "Endurance (Zone 2) · 134-151 bpm · RPE 4-6 · Slow down or hike on climbs to keep HR in Z2"
         },
         {
           "day": "Thu 11/26",
           "type": "quality",
           "workout": "ClimbingRepeats",
-          "zone": "ClimbingRepeats (Zone 5) · 168-176 bpm",
+          "zone": "ClimbingRepeats (Zone 5) · 168-176 bpm · RPE 8-9",
           "time": "60-90 min",
-          "detail": "ClimbingRepeats (Zone 5) · 168-176 bpm · Choose a hill ~6-10% grade"
+          "detail": "ClimbingRepeats (Zone 5) · 168-176 bpm · RPE 8-9 · Choose a hill ~6-10% grade"
         },
         {
           "day": "Fri 11/27",
           "type": "run",
           "workout": "Recovery",
-          "zone": "Recovery (Zone 1) · 101-134 bpm",
-          "time": "20-50 min",
-          "detail": "Recovery (Zone 1) · 101-134 bpm · Walk if HR drifts up"
+          "zone": "Recovery (Zone 1) · 101-134 bpm · RPE 2-3",
+          "time": "25-27 min",
+          "detail": "Recovery (Zone 1) · 101-134 bpm · RPE 2-3 · Walk if HR drifts up"
         },
         {
           "day": "Sat 11/28",
-          "type": "long",
-          "workout": "B2B Long",
-          "zone": "Endurance (Zone 2) · 134-151 bpm",
-          "time": "213-237 min",
-          "detail": "Long run ~23.7 mi · Endurance (Zone 2) · 134-151 bpm · Saturday: target race-distance practice (longer for shorter races) · Fuel ~90 g carb/hr · Run by time on feet, not pace"
+          "type": "run",
+          "workout": "Endurance",
+          "zone": "Endurance (Zone 2) · 134-151 bpm · RPE 4-6",
+          "time": "57-64 min",
+          "detail": "Endurance (Zone 2) · 134-151 bpm · RPE 4-6 · Slow down or hike on climbs to keep HR in Z2 · Eased — one long run per week at this volume"
         },
         {
           "day": "Sun 11/29",
           "type": "long",
           "workout": "B2B Long",
-          "zone": "Endurance (Zone 2) · 134-151 bpm",
-          "time": "213-237 min",
-          "detail": "Long run ~23.7 mi · Endurance (Zone 2) · 134-151 bpm · Saturday: target race-distance practice (longer for shorter races) · Fuel ~90 g carb/hr"
+          "zone": "Endurance (Zone 2) · 134-151 bpm · RPE 4-6",
+          "time": "207-230 min",
+          "detail": "Long run ~23 mi · Endurance (Zone 2) · 134-151 bpm · RPE 4-6 · Saturday: target race-distance practice (longer for shorter races) · Fuel ~90 g carb/hr · Run by time on feet, not pace"
         }
       ]
     },
@@ -2840,62 +2840,62 @@
       "weeks": [
         {
           "num": 1,
-          "miles": 12,
+          "miles": 8,
           "focus": "Build aerobic base + station familiarity.  Easing back from injury — intensity is dialed down this week."
         },
         {
           "num": 2,
-          "miles": 12,
+          "miles": 9.2,
           "focus": "Build aerobic base + station familiarity.  Easing back from injury — intensity is dialed down this week."
         },
         {
           "num": 3,
-          "miles": 12,
+          "miles": 8.4,
           "focus": "Build aerobic base + station familiarity. "
         },
         {
           "num": 4,
-          "miles": 7,
+          "miles": 6.5,
           "focus": "RECOVERY WEEK. Volume drops 40%. Absorb adaptations."
         },
         {
           "num": 5,
-          "miles": 14,
+          "miles": 12.9,
           "focus": "Race-specific station work + running intervals. Competition sled weight"
         },
         {
           "num": 6,
-          "miles": 14,
+          "miles": 11.1,
           "focus": "Race-specific station work + running intervals. Competition sled weight"
         },
         {
           "num": 7,
-          "miles": 14,
+          "miles": 13,
           "focus": "Race-specific station work + running intervals. Competition sled weight"
         },
         {
           "num": 8,
-          "miles": 7,
+          "miles": 6.5,
           "focus": "RECOVERY WEEK. Volume drops 40%. Absorb adaptations."
         },
         {
           "num": 9,
-          "miles": 16,
+          "miles": 8.7,
           "focus": "Full simulations + intensity. 8 stations at race effort."
         },
         {
           "num": 10,
-          "miles": 16,
+          "miles": 13.1,
           "focus": "Full simulations + intensity. 8 stations at race effort."
         },
         {
           "num": 11,
-          "miles": 16,
-          "focus": "Full simulations + intensity. 8 stations at race effort."
+          "miles": 8.2,
+          "focus": "Taper. Reduce volume, maintain sharpness. Trust your fitness."
         },
         {
           "num": 12,
-          "miles": 16,
+          "miles": 10,
           "focus": "Race week. Stay sharp, stay rested — Hyrox SF on Sun 9/6."
         }
       ],
@@ -2904,9 +2904,9 @@
           "day": "Mon 7/13",
           "type": "quality",
           "workout": "1km repeats",
-          "zone": "4.5 mi · Z3 (140–159)",
-          "time": "50 min",
-          "detail": "4×1km @ race pace, 90 sec rest. Simulate Hyrox run legs."
+          "zone": "5.6 mi · Z3 (140–159)",
+          "time": "53-60 min",
+          "detail": "5×1km @ race pace, 120 sec rest. Simulate Hyrox run legs."
         },
         {
           "day": "Tue 7/14",
@@ -2914,7 +2914,7 @@
           "workout": "STRENGTH: Hyrox-specific",
           "zone": "Z2 (122–140)",
           "time": "1 hr",
-          "detail": "Wall balls 3×20 (6 kg) · Sled push 3×25m · Farmer carry 3×50m · Sandbag lunges 3×10/leg · Burpee broad jump 3×8 · Plank 3×60s"
+          "detail": "Wall balls 3×20 (4 kg to 2.7 m) · Sled push 3×25m · Farmer carry 3×50m · Sandbag lunges 3×10/leg · Burpee broad jump 3×8 · Plank 3×60s · PREHAB: single-leg balance 3×30s/side · glute bridge 3×15 · calf raise 3×12/leg · side plank 3×30s/side"
         },
         {
           "day": "Wed 7/15",
@@ -2926,11 +2926,11 @@
         },
         {
           "day": "Thu 7/16",
-          "type": "cross",
-          "workout": "Station circuit (4 stations)",
-          "zone": "Z3 (140–159)",
-          "time": "55 min",
-          "detail": "4 stations at race effort · Wall balls 75 (6 kg) · Sled Push extra set · Competition sled weight · 90 sec rest between"
+          "type": "quality",
+          "workout": "Compromised running",
+          "zone": "1.9 mi + stations · Z3 (140–159)–Z4 (159–168)",
+          "time": "50 min",
+          "detail": "3×[1km run @ race pace + station], NO break between run and station: Row 850m / Farmer carry 165m @ 2×16 kg / Sandbag lunges 85m @ 10 kg. Jog the transitions — the Roxzone is race time too. This alternating structure, not run-then-lift, is the actual race demand."
         },
         {
           "day": "Fri 7/17",
@@ -2944,9 +2944,9 @@
           "day": "Sat 7/18",
           "type": "long",
           "workout": "Long run + station finisher",
-          "zone": "5 mi · Z2 (122–140)",
-          "time": "85 min",
-          "detail": "5 mi run then 3 station circuits at moderate effort. Running on tired legs into stations."
+          "zone": "5.4 mi · Z2 (122–140)",
+          "time": "90 min",
+          "detail": "5.4 mi run, then straight into Wall balls 70 @ 4 kg to 2.7 m, SkiErg 700m, Sled push 35m @ 102 kg at moderate effort — no break between run and stations. Running on tired legs into stations is the race demand."
         },
         {
           "day": "Sun 7/19",
@@ -2989,26 +2989,26 @@
       "zones": [
         {
           "zone": "Z1 – Recovery",
-          "hr": "96–113",
-          "pct": "55–65%",
+          "hr": "96–112",
+          "pct": "55–64%",
           "desc": "Very easy, full conversation"
         },
         {
           "zone": "Z2 – Aerobic",
-          "hr": "113–131",
+          "hr": "113–130",
           "pct": "65–75%",
           "desc": "Easy. Can speak in sentences (Talk Test)"
         },
         {
           "zone": "Z3 – Tempo",
-          "hr": "131–148",
-          "pct": "75–85%",
+          "hr": "131–156",
+          "pct": "75–90%",
           "desc": "Comfortably hard"
         },
         {
           "zone": "Z4 – VO₂max",
-          "hr": "157–165",
-          "pct": "90–95%",
+          "hr": "157–174",
+          "pct": "90–100%",
           "desc": "Hard. A few words at most"
         }
       ],
@@ -3079,16 +3079,16 @@
         {
           "day": "Mon 6/8",
           "type": "strength",
-          "workout": "Strength — full body + bone",
-          "zone": "Z1 (96–113)",
-          "time": "45–60 min",
-          "detail": "Goblet squat 4×10 · RDL 4×10 · DB bench press 4×10 · DB row 4×10 · Farmer carry 4×40s · Plank 4×40s · Bicep curl 4×10 · Hammer curl 4×10 · heavy finish: 1–2×5 on a main lift (load bone)"
+          "workout": "STRENGTH BENCHMARK: baseline",
+          "zone": "Z1 (96–112)",
+          "time": "40 min",
+          "detail": "BENCHMARK — this replaces today’s strength session. Nothing here is scored; it just tells the plan what your loads should actually be. Warm up 10 min easy, then: Push-ups: As many clean reps as you can in one set. Stop when form breaks — not when it hurts. · Goblet squat: Work up in 5–10 lb jumps until you find the heaviest weight you can move for 8 clean reps. Rest 2 min between attempts. · Plank hold: One hold, timed, stopping the moment your hips drop or your back sags. · Rest fully between tests — this is a measurement, not a workout. Log your numbers when you're done and every load in your plan re-prescribes from them."
         },
         {
           "day": "Tue 6/9",
           "type": "strength",
           "workout": "Strength — full body + bone",
-          "zone": "Z1 (96–113)",
+          "zone": "Z1 (96–112)",
           "time": "45–60 min",
           "detail": "Bulgarian split squat 4×10 · Weighted hip thrust 4×10 · Overhead press 4×10 · Lat pulldown 4×10 · Walking lunge 4×10 · Dead bug 4×10 · Hammer curl 4×10 · Overhead tricep extension 4×10 · heavy finish: 1–2×5 on a main lift (load bone)"
         },
@@ -3096,7 +3096,7 @@
           "day": "Wed 6/10",
           "type": "run",
           "workout": "Zone 2 — easy aerobic",
-          "zone": "30 min · Z2 (113–131)",
+          "zone": "30 min · Z2 (113–130)",
           "time": "30 min",
           "detail": "Conversational pace (Talk Test: full sentences, can’t sing). Your choice of cardio."
         },
@@ -3104,7 +3104,7 @@
           "day": "Thu 6/11",
           "type": "strength",
           "workout": "Strength — full body + bone",
-          "zone": "Z1 (96–113)",
+          "zone": "Z1 (96–112)",
           "time": "45–60 min",
           "detail": "Goblet squat 4×10 · RDL 4×10 · DB bench press 4×10 · DB row 4×10 · Farmer carry 4×40s · Plank 4×40s · Overhead tricep extension 4×10 · Bicep curl 4×10 · heavy finish: 1–2×5 on a main lift (load bone)"
         },
@@ -3112,7 +3112,7 @@
           "day": "Fri 6/12",
           "type": "strength",
           "workout": "Strength — full body + bone",
-          "zone": "Z1 (96–113)",
+          "zone": "Z1 (96–112)",
           "time": "45–60 min",
           "detail": "Bulgarian split squat 4×10 · Weighted hip thrust 4×10 · Overhead press 4×10 · Lat pulldown 4×10 · Walking lunge 4×10 · Dead bug 4×10 · Bicep curl 4×10 · Hammer curl 4×10 · heavy finish: 1–2×5 on a main lift (load bone)"
         },
@@ -3120,7 +3120,7 @@
           "day": "Sat 6/13",
           "type": "quality",
           "workout": "Sprint intervals (SIT)",
-          "zone": "Z4 (157–165)",
+          "zone": "Z4 (157–174)",
           "time": "~30 min",
           "detail": "8–10 × 20s near-max effort, 90s easy between · 10 min warm-up + cool-down. Short, hard sprints protect muscle and metabolism in midlife — keep them; high intensity is good for you here."
         },
