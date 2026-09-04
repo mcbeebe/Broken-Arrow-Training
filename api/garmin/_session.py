@@ -221,8 +221,50 @@ def login_fresh(
 
 
 def get_athlete_from_query(path: str) -> str | None:
-    """Extract the 'athlete' query parameter from a request path."""
+    """Extract the 'athlete' query parameter from a request path.
+
+    This is what the caller *asked for*, not who they are. Endpoints must
+    pass it through ``athlete_for_request`` rather than trusting it — see
+    that function for why.
+    """
     from urllib.parse import urlparse, parse_qs
     query = parse_qs(urlparse(path).query)
     values = query.get("athlete", [None])
     return values[0] if values and values[0] else None
+
+
+def athlete_for_request(handler_self) -> tuple[bool, int, str, str]:
+    """Authoritative Garmin athlete slug for a request.
+
+    Returns ``(ok, status, error_message, athlete)``.
+
+    ``?athlete=`` used to be the whole of the identity here, and it is a
+    plain slug anyone can type. That made every Garmin route open: GET
+    ``/api/garmin/health?athlete=mike`` returned Mike's HRV, resting heart
+    rate and sleep to any stranger, ``/api/garmin/activities`` returned
+    where he had been running, and DELETE ``/api/garmin/auth`` wiped his
+    saved Garmin session. No token was involved at any point.
+
+    The slug is not a separate namespace from the session token: the
+    athlete id minted into the JWT's ``sub`` by api/auth/google.py is the
+    same lowercase slug the client puts in ``?athlete=``. So the token can
+    simply supply it, and the query parameter becomes a request rather than
+    an assertion — honoured only for the admin account (which is how Coach
+    Diagnostics reads another athlete), and otherwise ignored in favour of
+    the caller's own id. Ignoring rather than rejecting a mismatch keeps a
+    client that still sends a stale slug working instead of failing hard.
+
+    Lower-cased on the way out because the KV session keys
+    (``garmin_session_{athlete}``) were all written from the client's
+    already-lowercased value; a differently-cased subject would look up an
+    empty slot and silently present as "never connected".
+
+    Fails closed: no token, a forged one, or an unset OAUTH_JWT_SECRET all
+    return ``ok=False`` with nothing for the endpoint to act on.
+    """
+    from ..auth._helpers import resolve_athlete
+
+    ok, status, err, athlete = resolve_athlete(
+        handler_self.headers, get_athlete_from_query(handler_self.path)
+    )
+    return (ok, status, err, athlete.strip().lower())

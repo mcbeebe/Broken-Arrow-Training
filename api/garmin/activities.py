@@ -11,12 +11,18 @@ POST /api/garmin/activities?athlete=mike
   caps a deployment at 12 serverless functions and the API is already at the
   limit; "push a workout" is activity-adjacent enough to share this endpoint.
 - Body shape is built by src/engines/planGenerator/garminWorkout.ts.
+
+AUTH: every method requires `Authorization: Bearer <session-jwt>`. The
+athlete is the token's subject, not the `athlete` query parameter — that
+parameter is now a request, honoured only for the admin account and
+otherwise ignored in favour of the caller's own id. See
+`athlete_for_request` in ._session.
 """
 
 import json
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
-from ._session import get_client, get_athlete_from_query, GarminSessionExpired
+from ._session import get_client, athlete_for_request, GarminSessionExpired
 
 
 def _meters_to_feet(meters: float) -> float:
@@ -181,11 +187,16 @@ class handler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization")
         self.end_headers()
 
     def do_GET(self):
         try:
+            ok, status, err, athlete = athlete_for_request(self)
+            if not ok:
+                self._send_json(status, {"error": err})
+                return
+
             query = parse_qs(urlparse(self.path).query)
             start = query.get("start", [None])[0]
             end = query.get("end", [None])[0]
@@ -200,7 +211,6 @@ class handler(BaseHTTPRequestHandler):
                 }).encode())
                 return
 
-            athlete = get_athlete_from_query(self.path)
             client = get_client(athlete)
             raw_activities = client.get_activities_by_date(start, end)
 
@@ -275,7 +285,10 @@ class handler(BaseHTTPRequestHandler):
         planned date so the watch surfaces it as that day's workout on the
         next sync."""
         try:
-            athlete = get_athlete_from_query(self.path)
+            ok, status, err, athlete = athlete_for_request(self)
+            if not ok:
+                self._send_json(status, {"error": err})
+                return
 
             content_length = int(self.headers.get("Content-Length", 0))
             body = {}

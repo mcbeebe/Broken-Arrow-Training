@@ -4,13 +4,19 @@ GET /api/garmin/health?days=N&tz=offset&athlete=mike
 - Fetches HRV, RHR, sleep, and Body Battery for the last N days (default: 1, max: 30)
 - Returns array of daily health records
 - Uses per-athlete session from Upstash KV
+
+AUTH: every method requires `Authorization: Bearer <session-jwt>`. The
+athlete is the token's subject, not the `athlete` query parameter — that
+parameter is now a request, honoured only for the admin account and
+otherwise ignored in favour of the caller's own id. See
+`athlete_for_request` in ._session.
 """
 
 import json
 from datetime import datetime, timedelta
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
-from ._session import get_client, get_athlete_from_query, GarminSessionExpired
+from ._session import get_client, athlete_for_request, GarminSessionExpired
 
 
 def _safe_get(func, *args):
@@ -134,7 +140,7 @@ class handler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Methods", "GET, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization")
         self.end_headers()
 
     def do_GET(self):
@@ -142,7 +148,11 @@ class handler(BaseHTTPRequestHandler):
             query = parse_qs(urlparse(self.path).query)
             days = min(int(query.get("days", ["1"])[0]), 30)
             tz_offset = int(query.get("tz", ["0"])[0])
-            athlete = get_athlete_from_query(self.path)
+
+            ok, status, err, athlete = athlete_for_request(self)
+            if not ok:
+                self._send_json(status, {"error": err})
+                return
 
             client = get_client(athlete)
             today = (datetime.utcnow() + timedelta(hours=tz_offset)).date()
@@ -193,3 +203,10 @@ class handler(BaseHTTPRequestHandler):
             self.wfile.write(json.dumps({
                 "error": f"Failed to fetch health data: {str(e)}",
             }).encode())
+
+    def _send_json(self, status: int, data: dict):
+        self.send_response(status)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.end_headers()
+        self.wfile.write(json.dumps(data).encode())

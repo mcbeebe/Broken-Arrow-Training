@@ -11,13 +11,19 @@ falling back to GARMIN_EMAIL / GARMIN_PASSWORD for single-user setups.
 
 GET /api/garmin/auth?athlete=mike
 - Debug: checks if session exists in KV and if env vars are set
+
+AUTH: every method requires `Authorization: Bearer <session-jwt>`. The
+athlete is the token's subject, not the `athlete` query parameter — that
+parameter is now a request, honoured only for the admin account and
+otherwise ignored in favour of the caller's own id. See
+`athlete_for_request` in ._session.
 """
 
 import json
 import os
 from http.server import BaseHTTPRequestHandler
 from ._session import (
-    get_client, save_session, login_fresh, get_athlete_from_query,
+    get_client, save_session, login_fresh, athlete_for_request,
     _kv_get, _kv_del, _session_key, _get_credentials, _client_cache,
 )
 
@@ -27,19 +33,25 @@ class handler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization")
         self.end_headers()
 
     def do_DELETE(self):
         """Wipe the saved session for an athlete. Use to clear stale/cross-user tokens."""
-        athlete = get_athlete_from_query(self.path)
+        ok, status, err, athlete = athlete_for_request(self)
+        if not ok:
+            self._send_json(status, {"error": err})
+            return
         _kv_del(_session_key(athlete))
         _client_cache.pop(athlete or "__default__", None)
         self._send_json(200, {"cleared": True, "athlete": athlete})
 
     def do_GET(self):
         """Debug endpoint to check KV and env var status for an athlete."""
-        athlete = get_athlete_from_query(self.path)
+        ok, status, err, athlete = athlete_for_request(self)
+        if not ok:
+            self._send_json(status, {"error": err})
+            return
         kv_url = os.environ.get("KV_REST_API_URL", "")
         kv_token = os.environ.get("KV_REST_API_TOKEN", "")
 
@@ -65,7 +77,10 @@ class handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         try:
-            athlete = get_athlete_from_query(self.path)
+            ok, status, err, athlete = athlete_for_request(self)
+            if not ok:
+                self._send_json(status, {"authenticated": False, "error": err})
+                return
 
             # Parse request body
             content_length = int(self.headers.get("Content-Length", 0))

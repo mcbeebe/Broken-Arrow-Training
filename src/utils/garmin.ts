@@ -1,10 +1,27 @@
 import type { GarminHealthData, GarminActivity, GarminActivityDetail, GarminSplit, ActualWorkout, StrengthExerciseLog, StrengthSet } from '../types'
 import type { StreamData } from './strava'
 import type { GarminWorkoutPayload } from '../engines/planGenerator/garminWorkout'
+import { coachAuthHeaders } from './coachApi'
 
 export type { GarminWorkoutPayload } from '../engines/planGenerator/garminWorkout'
 
 const GARMIN_API_URL = import.meta.env.VITE_GARMIN_API_URL || ''
+
+/**
+ * Authorization header for /api/garmin/*.
+ *
+ * `?athlete=` used to be the whole of the identity on these routes, which
+ * meant a stranger who typed a slug could read an athlete's HRV, sleep and
+ * activity history, or DELETE their saved Garmin session. The endpoints now
+ * take the athlete from this token and treat the query parameter as a
+ * request rather than a claim, so every call has to carry it.
+ *
+ * Shared with the coach API (`coachAuthHeaders`) — same session token, same
+ * deployment, and one definition beats two that drift. Returns `{}` when
+ * there is no session; the request then fails closed at the server with a
+ * 401 rather than silently acting as someone else.
+ */
+const garminAuthHeaders = coachAuthHeaders
 
 const STORAGE_KEYS = {
   health: 'ba_garmin_health',
@@ -63,7 +80,9 @@ export async function checkGarminAuth(
   const body = credentials ? JSON.stringify(credentials) : undefined
   const res = await fetch(`${GARMIN_API_URL}/api/garmin/auth${params}`, {
     method: 'POST',
-    headers: body ? { 'Content-Type': 'application/json' } : undefined,
+    headers: body
+      ? { 'Content-Type': 'application/json', ...garminAuthHeaders() }
+      : garminAuthHeaders(),
     body,
   })
 
@@ -90,7 +109,10 @@ export async function disconnectGarmin(athleteId?: string): Promise<void> {
   if (!GARMIN_API_URL) return
   const params = athleteId ? `?athlete=${athleteId}` : ''
   try {
-    await fetch(`${GARMIN_API_URL}/api/garmin/auth${params}`, { method: 'DELETE' })
+    await fetch(`${GARMIN_API_URL}/api/garmin/auth${params}`, {
+      method: 'DELETE',
+      headers: garminAuthHeaders(),
+    })
   } catch {
     // Best-effort — don't block frontend disconnect on backend failure
   }
@@ -101,7 +123,10 @@ export async function fetchHealthData(days: number = 1, athleteId?: string): Pro
 
   const tzOffset = Math.round(-new Date().getTimezoneOffset() / 60)  // e.g., -7 for Pacific
   const athleteParam = athleteId ? `&athlete=${athleteId}` : ''
-  const res = await fetch(`${GARMIN_API_URL}/api/garmin/health?days=${days}&tz=${tzOffset}${athleteParam}`)
+  const res = await fetch(
+    `${GARMIN_API_URL}/api/garmin/health?days=${days}&tz=${tzOffset}${athleteParam}`,
+    { headers: garminAuthHeaders() },
+  )
   if (!res.ok) throw await garminFetchError(res, `Garmin health fetch failed: ${res.status}`)
 
   const data = await res.json()
@@ -112,7 +137,10 @@ export async function fetchGarminActivities(start: string, end: string, athleteI
   if (!GARMIN_API_URL) return []
 
   const athleteParam = athleteId ? `&athlete=${athleteId}` : ''
-  const res = await fetch(`${GARMIN_API_URL}/api/garmin/activities?start=${start}&end=${end}${athleteParam}`)
+  const res = await fetch(
+    `${GARMIN_API_URL}/api/garmin/activities?start=${start}&end=${end}${athleteParam}`,
+    { headers: garminAuthHeaders() },
+  )
   if (!res.ok) throw await garminFetchError(res, `Garmin activities fetch failed: ${res.status}`)
 
   const data = await res.json()
@@ -137,7 +165,7 @@ export async function pushWorkoutToGarmin(
   const params = athleteId ? `?athlete=${athleteId}` : ''
   const res = await fetch(`${GARMIN_API_URL}/api/garmin/activities${params}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...garminAuthHeaders() },
     body: JSON.stringify(payload),
   })
   if (!res.ok) throw await garminFetchError(res, `Garmin workout push failed: ${res.status}`)
@@ -243,7 +271,10 @@ export function mergeGarminActivities(
 export async function fetchActivityDetail(date: string, athleteId?: string): Promise<GarminActivityDetail[]> {
   if (!GARMIN_API_URL) return []
   const athleteParam = athleteId ? `&athlete=${athleteId}` : ''
-  const res = await fetch(`${GARMIN_API_URL}/api/garmin/activity_detail?date=${date}${athleteParam}`)
+  const res = await fetch(
+    `${GARMIN_API_URL}/api/garmin/activity_detail?date=${date}${athleteParam}`,
+    { headers: garminAuthHeaders() },
+  )
   if (!res.ok) return []
   const data = await res.json()
   return data.activities || []
@@ -282,6 +313,7 @@ export async function fetchGarminActivityStream(
   try {
     const res = await fetch(
       `${GARMIN_API_URL}/api/garmin/activity_detail?activityId=${activityId}${athleteParam}`,
+      { headers: garminAuthHeaders() },
     )
     if (!res.ok) return null
     const json = await res.json()
