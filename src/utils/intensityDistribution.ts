@@ -131,8 +131,8 @@ export function aerobicDecoupling(input: DecouplingInput): number | null {
   if (totalSec < MIN_DECOUPLING_SECONDS) return null
 
   const midTime = time[0] + totalSec / 2
-  let half1 = { speedSum: 0, hrSum: 0, count: 0 }
-  let half2 = { speedSum: 0, hrSum: 0, count: 0 }
+  const half1 = { speedSum: 0, hrSum: 0, count: 0 }
+  const half2 = { speedSum: 0, hrSum: 0, count: 0 }
   for (let i = 1; i < n; i++) {
     const dt = time[i] - time[i - 1]
     const dd = dist[i] - dist[i - 1]

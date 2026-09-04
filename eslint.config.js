@@ -20,6 +20,18 @@ export default defineConfig([
       globals: globals.browser,
     },
     rules: {
+      // The codebase already marks a deliberately-unused parameter by
+      // prefixing it `_` (`_athleteId`, `_trainingState`, `_elevationGainFt`)
+      // — kept in the signature because it documents the contract the caller
+      // fills. The linter just did not know the convention, so it reported
+      // each one as an error. Teaching it the convention is the fix; deleting
+      // the parameters would change those signatures to say less.
+      '@typescript-eslint/no-unused-vars': ['error', {
+        argsIgnorePattern: '^_',
+        varsIgnorePattern: '^_',
+        caughtErrorsIgnorePattern: '^_',
+      }],
+
       // Legibility floor. 8px and 9px type shipped across 14 components and
       // was unreadable on a phone in daylight; nothing below 10px goes back in.
       // Applies to both plain className strings and template literals.
