@@ -17,6 +17,15 @@ type InteractionKind =
   | 'toast_dismissed'
   | 'coach_tab_opened'
   | 'chat_sent'
+  // Onboarding funnel. Not coach interactions, but they ride the same
+  // transport: batched, keepalive, dropped on failure — instrumentation must
+  // never be able to block or break the flow it measures. The server stores
+  // `kind` as an opaque string and rolls up by count, so it needed no change.
+  | 'onboarding_started'
+  | 'onboarding_step_entered'
+  | 'onboarding_completed'
+  | 'onboarding_skipped'
+  | 'onboarding_abandoned'
 
 interface QueuedEvent {
   type: 'interaction'
