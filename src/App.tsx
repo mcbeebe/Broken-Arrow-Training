@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from 'react'
+import { useTravelActions } from './hooks/useTravelActions'
 import type { ViewId, CoachSnapshot, CoachAction, PlannedDay, JournalNote } from './types'
 import { resolveViewId, resolveDeepLink } from './utils/viewId'
 import { DETAIL_DIRECTIVES } from './types'
@@ -41,7 +42,6 @@ import { useJournalNotes } from './hooks/useJournalNotes'
 import { usePlanEdits } from './hooks/usePlanEdits'
 import { useDaySwap } from './hooks/useDaySwap'
 import { useTravelMode } from './hooks/useTravelMode'
-import { buildTravelBatch, type TravelDeclaration, type TravelWindow } from './engines/planGenerator/travelMode'
 import { useReadiness } from './hooks/useReadiness'
 import { useOnboarding } from './hooks/useOnboarding'
 import { useAthleteProfile, readAthleteProfileExtras } from './hooks/useAthleteProfile'
@@ -634,28 +634,15 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     zones: hrZones.zones,
   }), [spliced, strava.activities, showStrava, manualLog.applyLogsToWeeks, daySwap.applySwapsToWeeks, planEdits.applyEditsToWeeks, lockedDays.applyLocksToWeeks, replan.applyReplansToWeeks, garmin.connected, garmin.activityDetails, apple.appleActivities, hrZones.zones])
 
-  // Travel mode: rebalance the derived weeks the athlete is looking at into
-  // one undoable planEdits batch, and remember the batchId so the whole trip
-  // undoes in a tap. Building against `weeks` (post-swap/edit) keeps the op
-  // coordinates in the same space planEdits replays over.
-  const activateTravel = useCallback((decl: TravelDeclaration) => {
-    const res = buildTravelBatch(weeks, decl)
-    if (res.ops.length === 0) return
-    const batchId = planEdits.applyBatch(res.ops)
-    travelMode.add({
-      id: `travel_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-      batchId,
-      appliedAt: Date.now(),
-      summary: res.summary,
-      affectedDays: res.affectedDays,
-      ...decl,
-    })
-  }, [weeks, planEdits, travelMode])
-
-  const deactivateTravel = useCallback((window: TravelWindow) => {
-    planEdits.undoBatch(window.batchId)
-    travelMode.remove(window.id)
-  }, [planEdits, travelMode])
+  // Travel mode. The pairing of "rewrite the days" with "remember the trip"
+  // lives in utils — see useTravelActions for why it is not inline here.
+  const { activateTravel, deactivateTravel } = useTravelActions({
+    weeks,
+    applyBatch: planEdits.applyBatch,
+    undoBatch: planEdits.undoBatch,
+    addWindow: travelMode.add,
+    removeWindow: travelMode.remove,
+  })
 
   // ── Auto re-push (G2a): whenever the derived plan changes, re-send any
   // previously-pushed FUTURE workout whose content no longer matches what
