@@ -12,12 +12,18 @@ GET /api/garmin/activity_detail?activityId=<id>&athlete=mike
   Returns per-second time-series data for a single activity — HR,
   pace/speed, elevation, distance, cadence — in the same shape as
   Strava's StreamData so HRChart can render it unchanged.
+
+AUTH: every method requires `Authorization: Bearer <session-jwt>`. The
+athlete is the token's subject, not the `athlete` query parameter — that
+parameter is now a request, honoured only for the admin account and
+otherwise ignored in favour of the caller's own id. See
+`athlete_for_request` in ._session.
 """
 
 import json
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
-from ._session import get_client, get_athlete_from_query, GarminSessionExpired
+from ._session import get_client, athlete_for_request, GarminSessionExpired
 
 
 # ─── Stream mode (per-second time series) ─────────────────────────
@@ -59,7 +65,7 @@ class handler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Methods", "GET, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization")
         self.end_headers()
 
     def do_GET(self):
@@ -68,10 +74,19 @@ class handler(BaseHTTPRequestHandler):
             activity_id = query.get("activityId", [None])[0]
             date_str = query.get("date", [None])[0]
 
+            ok, status, err, athlete = athlete_for_request(self)
+            if not ok:
+                self.send_response(status)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": err}).encode())
+                return
+
             if activity_id:
-                return self._handle_stream(activity_id)
+                return self._handle_stream(activity_id, athlete)
             if date_str:
-                return self._handle_detail(date_str)
+                return self._handle_detail(date_str, athlete)
 
             self.send_response(400)
             self.send_header("Content-Type", "application/json")
@@ -96,8 +111,7 @@ class handler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(json.dumps({"error": str(e)}).encode())
 
-    def _handle_stream(self, activity_id: str):
-        athlete = get_athlete_from_query(self.path)
+    def _handle_stream(self, activity_id: str, athlete: str):
         client = get_client(athlete)
 
         # maxchart controls sample resolution. 2000 is Garmin's default
@@ -160,8 +174,7 @@ class handler(BaseHTTPRequestHandler):
             "stream": out,
         }).encode())
 
-    def _handle_detail(self, date_str: str):
-        athlete = get_athlete_from_query(self.path)
+    def _handle_detail(self, date_str: str, athlete: str):
         client = get_client(athlete)
 
         raw_activities = client.get_activities_by_date(date_str, date_str) or []
