@@ -12,10 +12,12 @@ The rules locked here:
      is ignored, not honoured.
   3. FAIL CLOSED — with OAUTH_JWT_SECRET unset the answer is 503, never a
      silent success.
-  4. THE CRON STILL RUNS — /api/coach/push?__cron=1 keeps its own
-     CRON_SECRET check and must not be broken by session auth.
+  4. THE CRON STILL RUNS — the scheduled fan-out keeps its own CRON_SECRET
+     check and must not be broken by session auth, and must never acquire a
+     session path: it touches EVERY athlete and has no caller identity.
 """
 
+import os
 import pathlib
 import re
 import sys
@@ -162,14 +164,99 @@ def test_every_request_handler_verifies_before_it_works(name):
 # ── 4. the cron route survives ──────────────────────────────────────────
 
 def test_push_cron_route_keeps_its_own_secret_check():
-    """The scheduled fan-out has no session — it must still be gated by
-    CRON_SECRET, and session auth must not have displaced that."""
+    """The legacy in-push cron branch has no session — it must still be gated
+    by CRON_SECRET, and session auth must not have displaced that."""
     src = (COACH_DIR / "push.py").read_text()
     cron_branch = src[src.index('if q.get("__cron")'):]
     assert "_cron_authorized(self.headers)" in cron_branch[:400]
     # …and the cron check comes BEFORE the session check in do_GET.
     do_get = src[src.index("    def do_GET(self):"):]
     assert do_get.index("__cron") < do_get.index("athlete_from_bearer")
+
+
+def test_scheduled_push_rejects_a_caller_without_the_cron_secret():
+    """/api/coach/scheduled_push fans out to EVERY athlete and carries no
+    session, so the shared secret is the only thing standing in front of it.
+
+    This route got its own file back when the project moved to Vercel Pro
+    (the Hobby function cap had forced it to hide behind push.py?__cron=1).
+    A new file is exactly where an auth check gets forgotten."""
+    from api.coach import push as P
+
+    os.environ["CRON_SECRET"] = "s3cret"
+    try:
+        assert P._cron_authorized(FakeHeaders({"Authorization": "Bearer s3cret"})) is True
+        # No header, wrong secret, and a *session* bearer are all refused —
+        # an athlete token must not open the all-athlete fan-out.
+        assert P._cron_authorized(FakeHeaders()) is False
+        assert P._cron_authorized(FakeHeaders({"Authorization": "Bearer wrong"})) is False
+        assert P._cron_authorized(FakeHeaders({"Authorization": "Bearer eyJhbGciOi.abc"})) is False
+    finally:
+        os.environ.pop("CRON_SECRET", None)
+
+
+def test_scheduled_push_checks_the_secret_before_doing_any_work():
+    """Order matters: the fan-out must not start and then get refused."""
+    src = (COACH_DIR / "scheduled_push.py").read_text()
+    do_get = src[src.index("    def do_GET(self):"):]
+    assert do_get.index("_cron_authorized") < do_get.index("run_scheduled_push"), \
+        "scheduled_push runs the fan-out before checking CRON_SECRET"
+
+
+def test_scheduled_push_has_no_session_path_at_all():
+    """It has no caller identity to honour. If a future edit teaches this file
+    about athleteId or session bearers, that is a privilege boundary moving."""
+    src = (COACH_DIR / "scheduled_push.py").read_text()
+    for forbidden in ("athlete_from_bearer", "resolve_athlete", "athleteId"):
+        assert forbidden not in src, \
+            f"scheduled_push.py references {forbidden} — it must stay session-free"
+
+
+def test_the_cron_targets_a_real_file_not_a_rewrite():
+    """Vercel's docs specify a cron `path` and always show it pointing at a
+    real function route; they do not say the cron invoker resolves REWRITES.
+    The schedule for a user-facing notification must not rest on that."""
+    import json
+
+    cfg = json.loads((_REPO_ROOT / "vercel.json").read_text())
+    crons = cfg.get("crons") or []
+    assert crons, "vercel.json defines no cron — the briefing fan-out has no schedule"
+    paths = [c["path"] for c in crons]
+    assert "/api/coach/scheduled_push" in paths, paths
+
+    for c in crons:
+        # every cron path must be backed by a file on disk…
+        rel = c["path"].lstrip("/").split("?")[0]
+        assert (_REPO_ROOT / f"{rel}.py").is_file(), \
+            f"cron path {c['path']} is not backed by a real function file"
+        # …and must not be shadowed by a rewrite.
+        for rw in cfg.get("rewrites", []):
+            assert rw["source"] != c["path"], \
+                f"cron path {c['path']} is also a rewrite source — ambiguous routing"
+
+
+def test_the_backstop_workflow_does_not_race_the_vercel_cron():
+    """The coach_push_sent:* dedup is check-then-set, not atomic. Two
+    schedulers firing at the same instant can both read the key as absent and
+    both send, so an athlete gets the same briefing twice. The GitHub Actions
+    backstop is therefore deliberately offset from the Vercel cron."""
+    import json
+    import re as _re
+
+    wf = (_REPO_ROOT / ".github/workflows/coach-scheduled-push.yml").read_text()
+    m = _re.search(r"- cron: '(\S+) (\S+) \S+ \S+ \S+'", wf)
+    assert m, "could not read the backstop workflow's cron schedule"
+    backstop_minute = m.group(1)
+
+    cfg = json.loads((_REPO_ROOT / "vercel.json").read_text())
+    for c in cfg.get("crons", []):
+        if c["path"] != "/api/coach/scheduled_push":
+            continue
+        vercel_minute = c["schedule"].split()[0]
+        assert backstop_minute != vercel_minute, (
+            "the backstop workflow and the Vercel cron fire on the same minute; "
+            "the non-atomic dedup means athletes can be notified twice"
+        )
 
 
 # ── 5. the browser is allowed to send the token ─────────────────────────

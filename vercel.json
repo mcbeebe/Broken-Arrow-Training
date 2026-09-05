@@ -2,11 +2,16 @@
   "buildCommand": "",
   "outputDirectory": "",
   "framework": null,
-  "installCommand": "echo 'Skipping frontend install — API only'",
+  "installCommand": "echo 'Skipping frontend install \u2014 API only'",
   "rewrites": [
-    { "source": "/api/auth/athletes", "destination": "/api/auth/google" },
-    { "source": "/api/version", "destination": "/api/sync?__endpoint=version" },
-    { "source": "/api/coach/scheduled_push", "destination": "/api/coach/push?__cron=1" }
+    {
+      "source": "/api/auth/athletes",
+      "destination": "/api/auth/google"
+    },
+    {
+      "source": "/api/version",
+      "destination": "/api/sync?__endpoint=version"
+    }
   ],
   "functions": {
     "api/garmin/*.py": {
@@ -29,10 +34,25 @@
     {
       "source": "/api/(.*)",
       "headers": [
-        { "key": "Access-Control-Allow-Origin", "value": "*" },
-        { "key": "Access-Control-Allow-Methods", "value": "GET,POST,PUT,OPTIONS" },
-        { "key": "Access-Control-Allow-Headers", "value": "Authorization,Content-Type" }
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        },
+        {
+          "key": "Access-Control-Allow-Methods",
+          "value": "GET,POST,PUT,OPTIONS"
+        },
+        {
+          "key": "Access-Control-Allow-Headers",
+          "value": "Authorization,Content-Type"
+        }
       ]
+    }
+  ],
+  "crons": [
+    {
+      "path": "/api/coach/scheduled_push",
+      "schedule": "0 * * * *"
     }
   ]
 }
