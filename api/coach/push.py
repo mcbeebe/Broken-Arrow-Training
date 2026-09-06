@@ -79,10 +79,12 @@ def _save_subs(athlete_id: str, devices: list[dict]) -> None:
 
 
 # ── Scheduled-push fan-out ──────────────────────────────────────
-# Folded in from the former /api/coach/scheduled_push endpoint to stay under
-# the Vercel Hobby 12-serverless-function cap. /api/coach/scheduled_push is
-# rewritten (vercel.json) to /api/coach/push?__cron=1 and routed in do_GET
-# below. Triggered hourly by .github/workflows/coach-scheduled-push.yml.
+# run_scheduled_push lives here with the subscription registry it reads;
+# the hourly Vercel cron enters through api/coach/scheduled_push.py (see
+# that file's header for why it is its own function). The ?__cron=1 branch
+# in do_GET below is the legacy entry point from the Hobby-plan era — still
+# reachable directly and still secret-gated, kept so an old caller cannot
+# find an open door where the check used to be.
 #
 # Cron protection: when CRON_SECRET is set we require `Authorization: Bearer
 # <CRON_SECRET>`. With no secret configured the endpoint is open (dev).
