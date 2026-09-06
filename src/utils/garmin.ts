@@ -2,6 +2,7 @@ import type { GarminHealthData, GarminActivity, GarminActivityDetail, GarminSpli
 import type { StreamData } from './strava'
 import type { GarminWorkoutPayload } from '../engines/planGenerator/garminWorkout'
 import { coachAuthHeaders } from './coachApi'
+import { hasSessionToken } from './auth'
 
 export type { GarminWorkoutPayload } from '../engines/planGenerator/garminWorkout'
 
@@ -22,6 +23,35 @@ const GARMIN_API_URL = import.meta.env.VITE_GARMIN_API_URL || ''
  * 401 rather than silently acting as someone else.
  */
 const garminAuthHeaders = coachAuthHeaders
+
+/**
+ * The backend's app-session 401 messages (`api/auth/_helpers.py`). Raw,
+ * they surface on the Garmin sign-in form looking like a Garmin credential
+ * failure — the athlete retypes a password that was never even checked.
+ */
+const APP_SESSION_ERRORS = [
+  'missing or invalid Authorization header',
+  'invalid or expired session token',
+  'session token missing subject',
+]
+
+/**
+ * Athlete-facing replacement for the backend's app-session 401s: the fix is
+ * signing in to the app, not fixing Garmin credentials. "Log out and back in"
+ * covers the trap where a stored token exists but the server rejects it —
+ * the app still looks signed in, and logging out is the only visible way to
+ * reach the sign-in screen.
+ */
+export const GARMIN_SIGN_IN_REQUIRED =
+  'Your attune.coach sign-in is missing or has expired. Log out and sign in again, then connect Garmin — your Garmin credentials were not the problem.'
+
+/** Only a 401 can be an app-session rejection; any other status carrying one
+ *  of these strings would be a coincidence and stays untouched. */
+function mapAppSessionError(message: string, status: number): string {
+  return status === 401 && APP_SESSION_ERRORS.includes(message)
+    ? GARMIN_SIGN_IN_REQUIRED
+    : message
+}
 
 const STORAGE_KEYS = {
   health: 'ba_garmin_health',
@@ -60,7 +90,7 @@ async function garminFetchError(res: Response, fallback: string): Promise<Error>
   let reauth = false
   try {
     const body = await res.json()
-    if (body?.error) message = body.error
+    if (body?.error) message = mapAppSessionError(body.error, res.status)
     if (body?.reauth) reauth = true
   } catch {
     // Non-JSON body (e.g. a gateway error page) — keep the fallback message.
@@ -75,6 +105,11 @@ export async function checkGarminAuth(
   credentials?: { email: string; password: string; mfa_code?: string },
 ): Promise<{ authenticated: boolean; displayName?: string; mfa_required?: boolean; error?: string }> {
   if (!GARMIN_API_URL) return { authenticated: false, error: 'Garmin API URL not configured' }
+
+  // Without an app session token the backend rejects the request before
+  // Garmin is ever contacted, so don't spend a network round-trip to learn
+  // what we already know — and never let the raw 401 reach the form.
+  if (!hasSessionToken()) return { authenticated: false, error: GARMIN_SIGN_IN_REQUIRED }
 
   const params = athleteId ? `?athlete=${athleteId}` : ''
   const body = credentials ? JSON.stringify(credentials) : undefined
@@ -93,7 +128,12 @@ export async function checkGarminAuth(
   // human-readable error via the `error` field instead.
   const text = await res.text()
   try {
-    return text ? JSON.parse(text) : { authenticated: false, error: `Garmin authentication failed (${res.status})` }
+    if (!text) return { authenticated: false, error: `Garmin authentication failed (${res.status})` }
+    const parsed = JSON.parse(text)
+    // A locally-stored token the server no longer accepts lands here as an
+    // app-session 401 — same athlete-facing fix as having no token at all.
+    if (parsed?.error) parsed.error = mapAppSessionError(parsed.error, res.status)
+    return parsed
   } catch {
     const detail = text.trim()
     // Show the server's text only when it's a short plain message, not an HTML

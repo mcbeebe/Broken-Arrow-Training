@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { hasSessionToken } from '../utils/auth'
+import { GARMIN_SIGN_IN_REQUIRED } from '../utils/garmin'
 
 interface GarminConnectProps {
   connected: boolean
@@ -73,6 +75,19 @@ export default function GarminConnect({
             Disconnect
           </button>
         </div>
+      </div>
+    )
+  }
+
+  // The backend derives the athlete from the app session token, so without a
+  // valid one a Garmin sign-in attempt dies at a 401 before Garmin is ever
+  // contacted. Show the real fix instead of a credentials form that can only
+  // fail. The error check catches the stored-but-rejected token: presence
+  // can't prove validity, but a mapped 401 from the server just did.
+  if (!hasSessionToken() || error === GARMIN_SIGN_IN_REQUIRED) {
+    return (
+      <div className="bg-amber-50 rounded-xl p-3 border border-amber-200">
+        <p className="text-xs text-amber-700">{GARMIN_SIGN_IN_REQUIRED}</p>
       </div>
     )
   }

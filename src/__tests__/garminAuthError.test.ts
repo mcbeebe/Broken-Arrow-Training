@@ -18,6 +18,17 @@ async function loadGarmin() {
   return import('../utils/garmin')
 }
 
+/**
+ * The Garmin endpoints require an app session token (Bearer JWT), and
+ * `checkGarminAuth` fails closed without one — so tests exercising the
+ * network path must represent a signed-in browser.
+ */
+function seedAppSession() {
+  localStorage.setItem('ba_auth_session', JSON.stringify({
+    athleteId: 'mike', email: 'a@b.com', name: 'Mike', token: 'tok', provider: 'google',
+  }))
+}
+
 function mockFetch(status: number, body: unknown) {
   const text = JSON.stringify(body)
   const res = {
@@ -85,11 +96,13 @@ describe('Garmin fetch error handling', () => {
 describe('checkGarminAuth response handling', () => {
   beforeEach(() => {
     vi.resetModules()
+    seedAppSession()
   })
 
   afterEach(() => {
     vi.unstubAllEnvs()
     vi.unstubAllGlobals()
+    localStorage.clear()
   })
 
   it('returns the parsed JSON body on success', async () => {
@@ -129,5 +142,89 @@ describe('checkGarminAuth response handling', () => {
     const result = await checkGarminAuth('mike', { email: 'a@b.com', password: 'pw' })
     expect(result.authenticated).toBe(false)
     expect(result.error).toBe('Garmin authentication failed (503)')
+  })
+})
+
+/**
+ * Regression for "missing or invalid Authorization header" on the Garmin
+ * sign-in form.
+ *
+ * Since the Garmin API started requiring the app session token, a signed-out
+ * browser (hash-auth legacy path, cleared localStorage) got the backend's raw
+ * 401 on the form — which reads like a Garmin credential failure, so the
+ * athlete retypes a password that was never checked. The frontend must (a) not
+ * fire the doomed request at all without a token, and (b) translate the
+ * backend's app-session 401s into "sign in to the app first" if one arrives.
+ */
+describe('checkGarminAuth app-session handling', () => {
+  beforeEach(() => {
+    vi.resetModules()
+  })
+
+  afterEach(() => {
+    vi.unstubAllEnvs()
+    vi.unstubAllGlobals()
+    localStorage.clear()
+  })
+
+  it('fails closed with a sign-in prompt, without a network call, when signed out', async () => {
+    const { checkGarminAuth, GARMIN_SIGN_IN_REQUIRED } = await loadGarmin()
+    const fetchSpy = vi.fn()
+    vi.stubGlobal('fetch', fetchSpy)
+
+    const result = await checkGarminAuth('mike', { email: 'a@b.com', password: 'pw' })
+    expect(result.authenticated).toBe(false)
+    expect(result.error).toBe(GARMIN_SIGN_IN_REQUIRED)
+    expect(fetchSpy).not.toHaveBeenCalled()
+  })
+
+  it('translates the backend "missing or invalid Authorization header" 401 into the sign-in prompt', async () => {
+    const { checkGarminAuth, GARMIN_SIGN_IN_REQUIRED } = await loadGarmin()
+    seedAppSession()
+    mockFetch(401, { authenticated: false, error: 'missing or invalid Authorization header' })
+
+    const result = await checkGarminAuth('mike', { email: 'a@b.com', password: 'pw' })
+    expect(result.error).toBe(GARMIN_SIGN_IN_REQUIRED)
+  })
+
+  it('translates an expired app-session 401 into the sign-in prompt', async () => {
+    const { checkGarminAuth, GARMIN_SIGN_IN_REQUIRED } = await loadGarmin()
+    seedAppSession()
+    mockFetch(401, { authenticated: false, error: 'invalid or expired session token' })
+
+    const result = await checkGarminAuth('mike', { email: 'a@b.com', password: 'pw' })
+    expect(result.error).toBe(GARMIN_SIGN_IN_REQUIRED)
+  })
+
+  it('maps only 401s — the same string on another status is left alone', async () => {
+    const { checkGarminAuth, GARMIN_SIGN_IN_REQUIRED } = await loadGarmin()
+    seedAppSession()
+    mockFetch(500, { authenticated: false, error: 'missing or invalid Authorization header' })
+
+    const result = await checkGarminAuth('mike', { email: 'a@b.com', password: 'pw' })
+    expect(result.error).toBe('missing or invalid Authorization header')
+    expect(result.error).not.toBe(GARMIN_SIGN_IN_REQUIRED)
+  })
+
+  it('passes a genuine Garmin credential failure through untouched', async () => {
+    const { checkGarminAuth } = await loadGarmin()
+    seedAppSession()
+    mockFetch(401, {
+      authenticated: false,
+      error: 'Garmin authentication failed: Unauthorized',
+    })
+
+    const result = await checkGarminAuth('mike', { email: 'a@b.com', password: 'pw' })
+    expect(result.error).toBe('Garmin authentication failed: Unauthorized')
+  })
+
+  it('maps an app-session 401 on data fetches to a GarminAuthError with the sign-in prompt', async () => {
+    const { fetchHealthData, GarminAuthError, GARMIN_SIGN_IN_REQUIRED } = await loadGarmin()
+    seedAppSession()
+    mockFetch(401, { error: 'missing or invalid Authorization header' })
+
+    const err = await fetchHealthData(7, 'mike').catch(e => e)
+    expect(err).toBeInstanceOf(GarminAuthError)
+    expect((err as Error).message).toBe(GARMIN_SIGN_IN_REQUIRED)
   })
 })
