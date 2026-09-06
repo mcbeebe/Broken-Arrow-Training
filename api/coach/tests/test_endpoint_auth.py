@@ -235,28 +235,37 @@ def test_the_cron_targets_a_real_file_not_a_rewrite():
                 f"cron path {c['path']} is also a rewrite source — ambiguous routing"
 
 
-def test_the_backstop_workflow_does_not_race_the_vercel_cron():
+def test_no_second_scheduler_races_the_vercel_cron():
     """The coach_push_sent:* dedup is check-then-set, not atomic. Two
     schedulers firing at the same instant can both read the key as absent and
-    both send, so an athlete gets the same briefing twice. The GitHub Actions
-    backstop is therefore deliberately offset from the Vercel cron."""
+    both send, so an athlete gets the same briefing twice.
+
+    The GitHub Actions backstop that used to exist is deleted — observed
+    firing every 2-3.5 hours instead of hourly, it was a worse scheduler than
+    the problem it hedged. This guard outlives it: if any workflow that pings
+    the fan-out is ever resurrected, it must not share the Vercel cron's
+    minute."""
     import json
     import re as _re
 
-    wf = (_REPO_ROOT / ".github/workflows/coach-scheduled-push.yml").read_text()
-    m = _re.search(r"- cron: '(\S+) (\S+) \S+ \S+ \S+'", wf)
-    assert m, "could not read the backstop workflow's cron schedule"
-    backstop_minute = m.group(1)
-
     cfg = json.loads((_REPO_ROOT / "vercel.json").read_text())
-    for c in cfg.get("crons", []):
-        if c["path"] != "/api/coach/scheduled_push":
+    cron_minutes = {
+        c["schedule"].split()[0]
+        for c in cfg.get("crons", [])
+        if c["path"] == "/api/coach/scheduled_push"
+    }
+    assert cron_minutes, "vercel.json no longer schedules the briefing fan-out"
+
+    workflows = _REPO_ROOT / ".github" / "workflows"
+    for wf in sorted(workflows.glob("*.yml")):
+        text = wf.read_text()
+        if "scheduled_push" not in text:
             continue
-        vercel_minute = c["schedule"].split()[0]
-        assert backstop_minute != vercel_minute, (
-            "the backstop workflow and the Vercel cron fire on the same minute; "
-            "the non-atomic dedup means athletes can be notified twice"
-        )
+        for m in _re.finditer(r"- cron: '(\S+) \S+ \S+ \S+ \S+'", text):
+            assert m.group(1) not in cron_minutes, (
+                f"{wf.name} pings the fan-out on the Vercel cron's minute; "
+                "the non-atomic dedup means athletes can be notified twice"
+            )
 
 
 # ── 5. the browser is allowed to send the token ─────────────────────────
