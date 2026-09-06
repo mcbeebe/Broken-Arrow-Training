@@ -15,7 +15,7 @@ import { suggestDailyAdjustment } from '../utils/readiness'
 import { injuryRampNote } from '../utils/injuryRamp'
 import type { InjuryStatus } from '../hooks/useOnboarding'
 import { useCoachInsight } from '../hooks/useCoachInsight'
-import { pushWorkoutToGarmin, GarminAuthError, isGarminConnected } from '../utils/garmin'
+import { pushWorkoutToGarmin, GarminAuthError, isGarminConnected, GARMIN_SIGN_IN_REQUIRED } from '../utils/garmin'
 import { buildGarminPayloadForDay } from '../engines/planGenerator/garminWorkout'
 import { recordPushed } from '../utils/garminRepush'
 import TargetVsActual from './TargetVsActual'
@@ -122,9 +122,14 @@ export default function DayCard({ day, weekNum, onTap, onLog, onStartLive, onSwa
       setPushMsg('Sent — syncs to your watch on next Garmin sync.')
     } catch (err) {
       setPushStatus('error')
+      // An app-session 401 must keep its message: "reconnect in Settings"
+      // would send the athlete to retype a Garmin password that was never
+      // the problem.
       setPushMsg(
         err instanceof GarminAuthError
-          ? 'Garmin disconnected — reconnect in Settings, then try again.'
+          ? (err.message === GARMIN_SIGN_IN_REQUIRED
+              ? GARMIN_SIGN_IN_REQUIRED
+              : 'Garmin disconnected — reconnect in Settings, then try again.')
           : err instanceof Error ? err.message : 'Could not send to watch.',
       )
     }

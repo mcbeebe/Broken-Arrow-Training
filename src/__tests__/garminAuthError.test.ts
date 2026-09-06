@@ -196,6 +196,16 @@ describe('checkGarminAuth app-session handling', () => {
     expect(result.error).toBe(GARMIN_SIGN_IN_REQUIRED)
   })
 
+  it('maps only 401s — the same string on another status is left alone', async () => {
+    const { checkGarminAuth, GARMIN_SIGN_IN_REQUIRED } = await loadGarmin()
+    seedAppSession()
+    mockFetch(500, { authenticated: false, error: 'missing or invalid Authorization header' })
+
+    const result = await checkGarminAuth('mike', { email: 'a@b.com', password: 'pw' })
+    expect(result.error).toBe('missing or invalid Authorization header')
+    expect(result.error).not.toBe(GARMIN_SIGN_IN_REQUIRED)
+  })
+
   it('passes a genuine Garmin credential failure through untouched', async () => {
     const { checkGarminAuth } = await loadGarmin()
     seedAppSession()

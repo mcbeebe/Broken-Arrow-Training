@@ -5,11 +5,14 @@
  * signed-out browser cannot connect Garmin no matter what credentials it
  * types — the request 401s before Garmin is contacted. The card must say so
  * up front instead of rendering a credentials form that can only fail with
- * an error that blames the wrong password.
+ * an error that blames the wrong password. Same for a stored token the
+ * server rejects: presence can't prove validity, but a mapped 401 arriving
+ * in the error prop just did.
  */
 import { describe, it, expect, afterEach } from 'vitest'
 import { render, screen, cleanup } from '@testing-library/react'
 import GarminConnect from '../components/GarminConnect'
+import { GARMIN_SIGN_IN_REQUIRED } from '../utils/garmin'
 
 afterEach(() => {
   cleanup()
@@ -40,7 +43,7 @@ describe('GarminConnect app-session guard', () => {
   it('shows a sign-in prompt instead of the credentials form when signed out', () => {
     render(<GarminConnect {...baseProps} />)
 
-    expect(screen.getByText(/sign in to attune\.coach first/i)).toBeTruthy()
+    expect(screen.getByText(GARMIN_SIGN_IN_REQUIRED)).toBeTruthy()
     expect(screen.queryByPlaceholderText('Garmin password')).toBeNull()
     expect(screen.queryByText('Connect Garmin')).toBeNull()
   })
@@ -51,7 +54,18 @@ describe('GarminConnect app-session guard', () => {
 
     expect(screen.getByPlaceholderText('Garmin email')).toBeTruthy()
     expect(screen.getByPlaceholderText('Garmin password')).toBeTruthy()
-    expect(screen.queryByText(/sign in to attune\.coach first/i)).toBeNull()
+    expect(screen.queryByText(GARMIN_SIGN_IN_REQUIRED)).toBeNull()
+  })
+
+  it('shows the sign-in prompt, not the form, when a stored token was rejected by the server', () => {
+    // Token present locally but the backend 401'd it (rotation, revocation):
+    // the mapped message lands in the error prop, and re-rendering the
+    // credentials form under it would restart the retype-the-password loop.
+    signIn()
+    render(<GarminConnect {...baseProps} error={GARMIN_SIGN_IN_REQUIRED} />)
+
+    expect(screen.getByText(GARMIN_SIGN_IN_REQUIRED)).toBeTruthy()
+    expect(screen.queryByPlaceholderText('Garmin password')).toBeNull()
   })
 
   it('still shows the connected state (cached data, sync, disconnect) when signed out', () => {
@@ -67,6 +81,6 @@ describe('GarminConnect app-session guard', () => {
     render(<GarminConnect {...baseProps} configured={false} />)
 
     expect(screen.getByText(/Garmin integration not configured/)).toBeTruthy()
-    expect(screen.queryByText(/sign in to attune\.coach first/i)).toBeNull()
+    expect(screen.queryByText(GARMIN_SIGN_IN_REQUIRED)).toBeNull()
   })
 })

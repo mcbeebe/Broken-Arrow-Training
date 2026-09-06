@@ -10,7 +10,7 @@ import { dayIsoInWeek, todayDateString, isoFromLocalDate } from '../utils/planDa
 import { formatWeekMilesChip, formatWeekMilesHeader } from '../utils/format'
 import { BLOCK_STYLE } from '../utils/blockStyles'
 import { pushWeekToGarmin, collectPushableDays } from '../utils/garminRepush'
-import { isGarminConnected, GarminAuthError } from '../utils/garmin'
+import { isGarminConnected, GarminAuthError, GARMIN_SIGN_IN_REQUIRED } from '../utils/garmin'
 import { isGymBasedDay } from '../utils/matching'
 import { isSimDay } from '../utils/simSession'
 import { weeksWithPriorLogs } from '../utils/strengthHistory'
@@ -286,9 +286,14 @@ export default function WeeklyPlan({
       }
     } catch (err) {
       setWeekPushStatus('error')
+      // An app-session 401 must keep its message: "reconnect in Settings"
+      // would send the athlete to retype a Garmin password that was never
+      // the problem.
       setWeekPushMsg(
         err instanceof GarminAuthError
-          ? 'Garmin disconnected — reconnect in Settings, then try again.'
+          ? (err.message === GARMIN_SIGN_IN_REQUIRED
+              ? GARMIN_SIGN_IN_REQUIRED
+              : 'Garmin disconnected — reconnect in Settings, then try again.')
           : err instanceof Error ? err.message : 'Could not send week to watch.',
       )
     }

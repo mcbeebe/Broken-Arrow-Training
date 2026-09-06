@@ -37,13 +37,20 @@ const APP_SESSION_ERRORS = [
 
 /**
  * Athlete-facing replacement for the backend's app-session 401s: the fix is
- * signing in to the app, not fixing Garmin credentials.
+ * signing in to the app, not fixing Garmin credentials. "Log out and back in"
+ * covers the trap where a stored token exists but the server rejects it —
+ * the app still looks signed in, and logging out is the only visible way to
+ * reach the sign-in screen.
  */
 export const GARMIN_SIGN_IN_REQUIRED =
-  'Sign in to attune.coach first, then connect Garmin — your Garmin credentials were not the problem.'
+  'Your attune.coach sign-in is missing or has expired. Log out and sign in again, then connect Garmin — your Garmin credentials were not the problem.'
 
-function mapAppSessionError(message: string): string {
-  return APP_SESSION_ERRORS.includes(message) ? GARMIN_SIGN_IN_REQUIRED : message
+/** Only a 401 can be an app-session rejection; any other status carrying one
+ *  of these strings would be a coincidence and stays untouched. */
+function mapAppSessionError(message: string, status: number): string {
+  return status === 401 && APP_SESSION_ERRORS.includes(message)
+    ? GARMIN_SIGN_IN_REQUIRED
+    : message
 }
 
 const STORAGE_KEYS = {
@@ -83,7 +90,7 @@ async function garminFetchError(res: Response, fallback: string): Promise<Error>
   let reauth = false
   try {
     const body = await res.json()
-    if (body?.error) message = mapAppSessionError(body.error)
+    if (body?.error) message = mapAppSessionError(body.error, res.status)
     if (body?.reauth) reauth = true
   } catch {
     // Non-JSON body (e.g. a gateway error page) — keep the fallback message.
@@ -125,7 +132,7 @@ export async function checkGarminAuth(
     const parsed = JSON.parse(text)
     // A locally-stored token the server no longer accepts lands here as an
     // app-session 401 — same athlete-facing fix as having no token at all.
-    if (parsed?.error) parsed.error = mapAppSessionError(parsed.error)
+    if (parsed?.error) parsed.error = mapAppSessionError(parsed.error, res.status)
     return parsed
   } catch {
     const detail = text.trim()
