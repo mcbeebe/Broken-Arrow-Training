@@ -9,6 +9,16 @@ export interface AuthSession {
   provider: 'google' | 'apple'
 }
 
+/**
+ * Whether this browser holds an app session token — the Bearer JWT that
+ * every coach/garmin/apple endpoint now requires. False on the hash-auth
+ * legacy path and after localStorage is cleared; callers use it to show a
+ * "sign in first" prompt instead of firing a request that 401s.
+ */
+export function hasSessionToken(): boolean {
+  return !!getStoredSession()?.token
+}
+
 export function getStoredSession(): AuthSession | null {
   try {
     const raw = localStorage.getItem(AUTH_KEY)

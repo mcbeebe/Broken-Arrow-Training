@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { hasSessionToken } from '../utils/auth'
 
 interface GarminConnectProps {
   connected: boolean
@@ -73,6 +74,20 @@ export default function GarminConnect({
             Disconnect
           </button>
         </div>
+      </div>
+    )
+  }
+
+  // The backend derives the athlete from the app session token, so without
+  // one a Garmin sign-in attempt dies at a 401 before Garmin is contacted.
+  // Show the real fix instead of a credentials form that can only fail.
+  if (!hasSessionToken()) {
+    return (
+      <div className="bg-amber-50 rounded-xl p-3 border border-amber-200">
+        <p className="text-xs text-amber-700">
+          Sign in to attune.coach first — your Garmin connection is linked to your
+          app account. Once you&apos;re signed in, come back here to connect Garmin.
+        </p>
       </div>
     )
   }
