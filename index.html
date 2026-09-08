@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Moving to attune.coach…</title>
+  <meta name="robots" content="noindex" />
+  <noscript>
+    <meta http-equiv="refresh" content="0;url=https://attune.coach/" />
+  </noscript>
+  <style>
+    html, body { margin: 0; padding: 0; min-height: 100%; background: #f8fafc; color: #0f172a; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
+    .wrap { max-width: 28rem; margin: 0 auto; padding: 4rem 1.5rem; text-align: center; }
+    h1 { font-size: 1.5rem; margin: 0 0 0.5rem; letter-spacing: -0.02em; }
+    p { color: #475569; margin: 0 0 1rem; }
+    .bar { height: 6px; background: #e2e8f0; border-radius: 999px; overflow: hidden; margin: 1.5rem auto; max-width: 12rem; }
+    .bar > i { display: block; height: 100%; width: 33%; background: #14b8a6; animation: slide 1.2s ease-in-out infinite; }
+    @keyframes slide { 0% { margin-left: -33%; } 100% { margin-left: 100%; } }
+    .row { display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: center; margin-top: 1rem; }
+    button.btn, a.btn { display: inline-block; padding: 0.6rem 1.1rem; background: #0f766e; color: #fff; text-decoration: none; border-radius: 0.4rem; font-weight: 600; font-size: 0.9rem; border: 0; cursor: pointer; font-family: inherit; }
+    button.btn-secondary { background: transparent; color: #0f766e; border: 1px solid #0f766e; }
+    a.btn-link { display: inline-block; color: #64748b; text-decoration: underline; font-size: 0.85rem; padding: 0.6rem 0; }
+    .err { color: #b91c1c; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>attune.coach</h1>
+    <p id="msg">Bringing your training history with you…</p>
+    <div class="bar" id="bar"><i></i></div>
+    <div class="row" id="actions" hidden>
+      <button class="btn" id="retry">Try again</button>
+      <button class="btn btn-secondary" id="download">Download backup</button>
+    </div>
+    <div><a class="btn-link" id="manual" href="https://attune.coach/" hidden>Continue without my data</a></div>
+  </div>
+
+<script>
+(function () {
+  var TARGET = 'https://attune.coach';
+  var msg = document.getElementById('msg');
+  var bar = document.getElementById('bar');
+  var actions = document.getElementById('actions');
+  var manual = document.getElementById('manual');
+
+  // Preserve allowlist — mirror of src/utils/migrate.ts. Keep in sync.
+  // Prefixes stored WITHOUT their trailing separator; isPreserved checks
+  // for both `_` and `:` after the root (different hooks use different
+  // separators — e.g., ba_plan_edits_mike vs ba_coach_memory_v1:mike).
+  var PREFIXES = [
+    'ba_plan_edits','ba_plan_overrides','ba_manual_logs','ba_day_swaps',
+    'ba_soreness','ba_onboarding','ba_onboarding_redo','ba_display_prefs_v1',
+    'ba_show_technical_terms','ba_coach_memory_v1','ba_coach_turn_ui_v1',
+    'ba_coach_insight_v1','ba_coach_insight_proposal_v1','ba_coach_daily_seeded_v1',
+    'ba_coach_insight_seen_v1','ba_coach_ping_v1','ba_hr_zones_override',
+    'ba_max_hr_override','ba_mim_calibration','ba_doms_calibration',
+    'ba_run_eccentric_v1','ba_run_gap_v1','ba_workout_time_pref_v1',
+    'ba_athlete_home_v1','ba_coach_font_scale','ba_tutorial_seen',
+    'ba_strava_tokens','ba_garmin_connected','ba_garmin_display_name'
+  ];
+  var EXACT = ['ba_theme','ba_palette','ba_auth_session','ba_storage_version'];
+  var SESSION_EXACT = ['ba_initial_view'];
+
+  function isPreserved(k) {
+    if (EXACT.indexOf(k) !== -1) return true;
+    for (var i = 0; i < PREFIXES.length; i++) {
+      if (k.indexOf(PREFIXES[i] + '_') === 0) return true;
+      if (k.indexOf(PREFIXES[i] + ':') === 0) return true;
+    }
+    return false;
+  }
+
+  function collectPayload() {
+    var items = {};
+    try {
+      for (var i = 0; i < localStorage.length; i++) {
+        var k = localStorage.key(i);
+        if (!k || !isPreserved(k)) continue;
+        var v = localStorage.getItem(k);
+        if (v !== null) items[k] = v;
+      }
+    } catch (e) { /* private mode etc. */ }
+    var session = {};
+    try {
+      for (var j = 0; j < SESSION_EXACT.length; j++) {
+        var sk = SESSION_EXACT[j];
+        var sv = sessionStorage.getItem(sk);
+        if (sv !== null) session[sk] = sv;
+      }
+    } catch (e) { /* ignore */ }
+    return { v: 1, ts: Date.now(), items: items, session: session };
+  }
+
+  function destRel() {
+    // Strip the legacy /Broken-Arrow-Training prefix from the path so
+    // deep links like /Broken-Arrow-Training/ → / on attune.coach.
+    var path = (location.pathname || '/').replace(/^\/Broken-Arrow-Training\/?/, '/');
+    if (path.charAt(0) !== '/') path = '/' + path;
+    return path + location.search + location.hash;
+  }
+
+  function forward() {
+    location.replace(TARGET + destRel());
+  }
+
+  // Same-tab redirect carrying the payload in the URL fragment. This is
+  // the reliable cross-origin migration path on iOS, where window.open
+  // popups are blocked in standalone home-screen PWAs and the postMessage
+  // bridge never opens. Mirror of encodeMigrationHash() in
+  // src/utils/migrate.ts — keep the format in sync. Fragments are never
+  // sent to the server, so the data stays client-side.
+  function redirectWithPayload() {
+    var hash = '__attune_migrate=' +
+      encodeURIComponent(JSON.stringify({ p: payload, d: destRel() }));
+    var url = TARGET + '/?__migrate=1#' + hash;
+    // Guard pathological URL lengths. The receiver also validates
+    // (JSON.parse + version check), so a clipped URL degrades to the
+    // file-upload fallback rather than corrupting data — but we'd rather
+    // route oversized payloads straight to the file path.
+    if (url.length > 1800000) { showFallback(); return false; }
+    location.replace(url);
+    return true;
+  }
+
+  function cleanupOldOrigin() {
+    // Unregister legacy SW so it stops intercepting requests and
+    // holding push subscriptions on this origin.
+    try {
+      if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) {
+        navigator.serviceWorker.getRegistrations().then(function (regs) {
+          regs.forEach(function (r) { try { r.unregister(); } catch (e) {} });
+        });
+      }
+    } catch (e) { /* ignore */ }
+    // Clear any cached app shell.
+    try {
+      if (window.caches && caches.keys) {
+        caches.keys().then(function (keys) {
+          keys.forEach(function (k) { try { caches.delete(k); } catch (e) {} });
+        });
+      }
+    } catch (e) { /* ignore */ }
+  }
+
+  cleanupOldOrigin();
+
+  var payload = collectPayload();
+  var hasData = Object.keys(payload.items).length > 0 || Object.keys(payload.session).length > 0;
+
+  if (!hasData) {
+    // Nothing to bring; just forward.
+    forward();
+    return;
+  }
+
+  function showFallback() {
+    bar.hidden = true;
+    actions.hidden = false;
+    manual.hidden = false;
+    msg.innerHTML = 'Your training history is too large to move automatically.<br/>' +
+      'Tap <b>Download backup</b>, then open attune.coach and upload the file when prompted. ' +
+      'Or <b>Try again</b>.';
+  }
+
+  function downloadBackup() {
+    try {
+      var blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      var stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+      a.href = url;
+      a.download = 'attune-migration-' + stamp + '.json';
+      a.click();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+      msg.innerHTML = 'Backup downloaded. <a href="' + TARGET + '/?__migrate=1">Open attune.coach</a> and upload the file when prompted.';
+    } catch (e) {
+      msg.innerHTML = '<span class="err">Could not generate backup. Use "Continue without my data" and re-sign-in.</span>';
+    }
+  }
+
+  function startMigration() {
+    var popup;
+    try {
+      popup = window.open(TARGET + '/?__migrate=1', 'attune-migrate', 'width=520,height=560');
+    } catch (e) { popup = null; }
+
+    if (!popup) {
+      // Popup blocked — the common iOS / standalone-PWA case. Fall back
+      // to a same-tab redirect that carries the data in the fragment
+      // instead of dead-ending on a "Try again" loop that re-opens the
+      // same blocked popup.
+      redirectWithPayload();
+      return;
+    }
+
+    msg.textContent = 'Bringing your training history with you…';
+    bar.hidden = false;
+    actions.hidden = true;
+    manual.hidden = true;
+
+    var acked = false;
+    var to = setTimeout(function () {
+      if (acked) return;
+      // Popup opened but never acked (e.g. iOS opened it as a detached
+      // Safari tab with no opener bridge). Don't drop the data with a
+      // bare forward() — carry it across via the same-tab redirect.
+      msg.textContent = 'Bringing your training history with you…';
+      try { popup.close(); } catch (e) {}
+      redirectWithPayload();
+    }, 15000);
+
+    function onMessage(ev) {
+      if (ev.origin !== TARGET) return;
+      var data = ev.data || {};
+      if (data.type === 'MIGRATE_READY') {
+        popup.postMessage({ type: 'MIGRATE_DATA', payload: payload }, TARGET);
+      } else if (data.type === 'MIGRATE_ACK') {
+        acked = true;
+        clearTimeout(to);
+        try { popup.close(); } catch (e) {}
+        window.removeEventListener('message', onMessage);
+        forward();
+      }
+    }
+    window.addEventListener('message', onMessage);
+  }
+
+  document.getElementById('retry').addEventListener('click', startMigration);
+  document.getElementById('download').addEventListener('click', downloadBackup);
+
+  // First attempt happens at page-load (popup will likely be blocked
+  // on mobile Safari, but desktop browsers with default settings
+  // usually allow it). The fallback UI catches the blocked case.
+  startMigration();
+})();
+</script>
+</body>
+</html>
