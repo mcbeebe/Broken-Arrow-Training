@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { render, screen } from '@testing-library/react'
-import OnboardingPlanPreview, { buildPreview } from '../../components/OnboardingPlanPreview'
+import OnboardingPlanPreview from '../../components/OnboardingPlanPreview'
+import { buildPreview } from '../../components/onboarding/buildPreview'
 import type { OnboardingConfig } from '../../hooks/useOnboarding'
 
 /**
