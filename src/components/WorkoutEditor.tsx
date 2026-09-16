@@ -84,15 +84,21 @@ export default function WorkoutEditor({ day, weekNum, hasOverride, onSave, onRev
   const [route, setRoute] = useState(day.route === '—' ? '' : day.route)
   const [exercises, setExercises] = useState<ExerciseDraft[]>(() => parseDetailToExercises(day.detail))
 
-  // When the user switches the workout type to strength, seed the structured
-  // editor from whatever's in the detail field. Switching away leaves the
-  // structured rows in state but they're just hidden — re-entering strength
-  // restores the prior edits without needing to re-parse.
-  useEffect(() => {
-    if (type === 'strength' && exercises.length === 0) {
+  // Switching the workout type to strength seeds the structured editor from
+  // whatever is in the detail field. Switching away leaves the rows in state
+  // but hidden, so re-entering strength restores the prior edits without
+  // re-parsing.
+  //
+  // This is the type-picker's job, not an effect's: as an effect keyed on
+  // [type, exercises.length, detail] it also re-fired whenever the athlete
+  // edited the detail text while strength was selected with no rows yet,
+  // silently re-parsing under them. A tap is the only thing that should seed.
+  function chooseType(next: WorkoutType) {
+    setType(next)
+    if (next === 'strength' && exercises.length === 0) {
       setExercises(parseDetailToExercises(detail))
     }
-  }, [type, exercises.length, detail])
+  }
 
   // Lock body scroll while the modal is open — same UX as ManualLog.
   useEffect(() => {
@@ -169,7 +175,7 @@ export default function WorkoutEditor({ day, weekNum, hasOverride, onSave, onRev
                 return (
                   <button
                     key={opt.value}
-                    onClick={() => setType(opt.value)}
+                    onClick={() => chooseType(opt.value)}
                     className={`flex items-center justify-center gap-1 py-2 text-xs font-medium rounded-lg border transition-colors ${
                       active
                         ? 'text-white border-transparent'

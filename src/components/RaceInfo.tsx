@@ -3,9 +3,10 @@ import RaceConditionsForecast from './RaceConditionsForecast'
 
 interface RaceInfoProps {
   race: RaceInfoType
+  todayIso: string
 }
 
-export default function RaceInfo({ race }: RaceInfoProps) {
+export default function RaceInfo({ race, todayIso }: RaceInfoProps) {
   return (
     <div className="px-4 py-4 space-y-4">
       <h2 className="text-xl font-bold text-slate-800">Race Day: {race.name}</h2>
@@ -18,7 +19,7 @@ export default function RaceInfo({ race }: RaceInfoProps) {
         <p><strong>Cutoff:</strong> {race.cutoff}</p>
       </div>
 
-      <RaceConditionsForecast race={race} />
+      <RaceConditionsForecast race={race} todayIso={todayIso} />
 
       <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-100">
         <h3 className="font-semibold text-base text-slate-800 mb-2">Course Landmarks</h3>

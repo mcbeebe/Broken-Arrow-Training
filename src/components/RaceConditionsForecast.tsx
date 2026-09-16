@@ -2,9 +2,19 @@ import { useEffect, useState } from 'react'
 import type { RaceInfo } from '../types'
 import { getDailyForecast, getTypicalClimate, type DailyForecastEntry, type TypicalClimate } from '../utils/weather'
 import { toIsoDate } from '../hooks/useWeather'
+import { daysBetween } from '../utils/planDates'
 
 interface Props {
   race: RaceInfo
+  /** Today, as an ISO date, supplied by the caller.
+   *
+   *  The countdown used to read `Date.now()` mid-render, which makes the
+   *  component non-idempotent: the same props could render "T-1 days" or
+   *  "race day" depending on which side of midnight a re-render landed.
+   *  Taking today as a prop makes the render a pure function of its inputs
+   *  (and lets a test pin the boundary), matching how StrengthBenchmarkSheet
+   *  and WeeklyPlan already take `todayIso`. */
+  todayIso: string
 }
 
 /**
@@ -20,21 +30,27 @@ interface Props {
  * Both cards are read-only and gracefully no-op when the network or the
  * Open-Meteo client returns nothing.
  */
-export default function RaceConditionsForecast({ race }: Props) {
+export default function RaceConditionsForecast({ race, todayIso }: Props) {
   const coords = race.coordinates
   const raceIsoDate = toIsoDate(race.date)
   const [typical, setTypical] = useState<TypicalClimate | null>(null)
   const [forecastDay, setForecastDay] = useState<DailyForecastEntry | null>(null)
   const [forecastLeadup, setForecastLeadup] = useState<DailyForecastEntry[]>([])
-  const [loading, setLoading] = useState(true)
+
+  // "Loading" is not its own state: it is "the fetch for the inputs on screen
+  // has not landed yet", which is derivable from which inputs last completed.
+  // As a state it took two SYNCHRONOUS setState calls inside the effect — one
+  // to flip it on, one for the nothing-to-fetch path — and each of those costs
+  // an extra render pass before the browser paints.
+  const fetchKey = coords && raceIsoDate
+    ? `${coords.latitude},${coords.longitude}|${raceIsoDate}|${todayIso}`
+    : null
+  const [doneKey, setDoneKey] = useState<string | null>(null)
+  const loading = fetchKey !== null && doneKey !== fetchKey
 
   useEffect(() => {
     let cancelled = false
-    if (!coords || !raceIsoDate) {
-      setLoading(false)
-      return
-    }
-    setLoading(true)
+    if (!coords || !raceIsoDate || !fetchKey) return
     ;(async () => {
       // Always try to load the 10-year typical climate — useful at any
       // distance from the race for setting gear / pacing expectations.
@@ -42,7 +58,10 @@ export default function RaceConditionsForecast({ race }: Props) {
       if (!cancelled) setTypical(climate)
 
       // If we're within 14 days of race day, load the live forecast too.
-      const daysUntil = (new Date(raceIsoDate).getTime() - Date.now()) / (24 * 60 * 60 * 1000)
+      // Measured from the same `todayIso` the countdown renders from, so the
+      // label and the decision to fetch can never disagree about what day it
+      // is — reading the clock again here could straddle midnight.
+      const daysUntil = daysBetween(todayIso, raceIsoDate)
       if (daysUntil <= 14 && daysUntil >= -1) {
         const forecast = await getDailyForecast(coords.latitude, coords.longitude)
         if (!cancelled && forecast) {
@@ -57,17 +76,15 @@ export default function RaceConditionsForecast({ race }: Props) {
           setForecastLeadup(leadup)
         }
       }
-      if (!cancelled) setLoading(false)
+      if (!cancelled) setDoneKey(fetchKey)
     })()
     return () => { cancelled = true }
-  }, [coords, raceIsoDate])
+  }, [coords, raceIsoDate, fetchKey, todayIso])
 
   if (!coords) return null
 
   const locationLabel = coords.label || 'race location'
-  const daysUntil = raceIsoDate
-    ? Math.round((new Date(raceIsoDate).getTime() - Date.now()) / (24 * 60 * 60 * 1000))
-    : null
+  const daysUntil = raceIsoDate ? daysBetween(todayIso, raceIsoDate) : null
 
   return (
     <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-100 space-y-3">

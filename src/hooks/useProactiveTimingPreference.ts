@@ -93,8 +93,15 @@ export function useProactiveTimingPreference(athleteId: string): UseProactiveTim
 
   // Ref keeps the savers stable (deps: athleteId only) while still writing the
   // other field's current value — matches useWorkoutTimePreference's posture.
+  //
+  // The assignment lives in an effect, not the render body: writing a ref
+  // during render is a side effect on every render pass, including ones React
+  // discards, so the ref can end up reflecting a render that never committed.
+  // Both readers are event handlers, which run after commit, so they always
+  // see the committed value — and useRef's initialiser covers first render
+  // before any effect has run.
   const timingRef = useRef(timing)
-  timingRef.current = timing
+  useEffect(() => { timingRef.current = timing }, [timing])
 
   const saveMorningHour = useCallback((hour: number) => {
     const next = { ...timingRef.current, morningHour: clampHour(hour, DEFAULT_MORNING_HOUR) }

@@ -43,10 +43,17 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
-      # NOTE: `npm run lint` is deliberately NOT here yet. eslint currently
-      # reports 43 errors (see docs/initiatives/002-eslint-to-green/), so
-      # wiring it in today would make this required check red on arrival.
-      # It goes in as a blocking step in the same PR that reaches zero.
+      # The promise this file has carried since the eslint initiative opened:
+      # lint becomes a blocking step in the PR that reaches zero errors. That
+      # is this one — 43 -> 0. Ahead of `npm test` on purpose, because a lint
+      # error is a second-long answer and the suite is a six-minute one.
+      #
+      # Errors block; the 9 remaining WARNINGS do not (no --max-warnings), so
+      # this gate holds the line at zero errors without turning the existing
+      # exhaustive-deps advisories into a wall. Tightening that is a separate,
+      # deliberate decision.
+      - run: npm run lint
+
       - run: npm test
 
       # The same suite, one timezone east of everything. Plan generation is

@@ -14,14 +14,23 @@ export default function CoachPingToast({ unreadCount, onOpen, onDismiss }: Props
   const [dismissed, setDismissed] = useState(false)
   const [visible, setVisible] = useState(false)
 
+  // The toast slides in 500 ms after there is something to say, so it does not
+  // jump into view mid-paint. `visible` is that delay having elapsed.
+  //
+  // The reset lives in the cleanup rather than an `else` branch: an `else`
+  // ran a synchronous setState on every render where there was nothing to
+  // show, which is a wasted render pass on a component mounted app-wide.
+  // Depending on `shouldShow` rather than the raw count also stops a ping
+  // arriving while the timer is pending from restarting the 500 ms.
+  const shouldShow = unreadCount > 0 && !dismissed
   useEffect(() => {
-    if (unreadCount > 0 && !dismissed) {
-      const t = setTimeout(() => setVisible(true), 500)
-      return () => clearTimeout(t)
-    } else {
+    if (!shouldShow) return
+    const t = setTimeout(() => setVisible(true), 500)
+    return () => {
+      clearTimeout(t)
       setVisible(false)
     }
-  }, [unreadCount, dismissed])
+  }, [shouldShow])
 
   if (unreadCount === 0 || dismissed || !visible) return null
 

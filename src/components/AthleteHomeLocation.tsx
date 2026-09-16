@@ -45,6 +45,15 @@ export default function AthleteHomeLocation({
   const [results, setResults] = useState<PlaceMatch[]>([])
   const [searching, setSearching] = useState(false)
   const [searchError, setSearchError] = useState<string | null>(null)
+  // A query under two characters was never sent, so anything still sitting in
+  // the search state belongs to an older, longer query. Reading it through
+  // `tooShort` keeps the stale values off screen without an effect racing the
+  // render to blank them.
+  const tooShort = query.trim().length < 2
+  const shownResults = tooShort ? [] : results
+  const shownSearching = tooShort ? false : searching
+  const shownError = tooShort ? null : searchError
+
   const searchTimer = useRef<number | null>(null)
   const lastQueryRef = useRef('')
 
@@ -56,12 +65,11 @@ export default function AthleteHomeLocation({
       window.clearTimeout(searchTimer.current)
     }
     const trimmed = query.trim()
-    if (trimmed.length < 2) {
-      setResults([])
-      setSearching(false)
-      setSearchError(null)
-      return
-    }
+    // Nothing to schedule below two characters. The effect used to clear
+    // results/searching/error here too, which is state syncing state: the
+    // three are only meaningful for a query long enough to have been sent,
+    // so they are derived at render instead (see `tooShort` below).
+    if (trimmed.length < 2) return
     searchTimer.current = window.setTimeout(async () => {
       setSearching(true)
       setSearchError(null)
@@ -172,13 +180,13 @@ export default function AthleteHomeLocation({
             placeholder="Or search: 'Oakland, CA'"
             className="w-full text-sm px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 focus:outline-none focus:ring-1 focus:ring-teal-400"
           />
-          {searching && (
+          {shownSearching && (
             <span className="absolute right-2 top-1/2 -translate-y-1/2 inline-block w-3 h-3 rounded-full border-2 border-teal-500 border-t-transparent animate-spin" />
           )}
         </div>
-        {results.length > 0 && (
+        {shownResults.length > 0 && (
           <ul className="rounded-lg border border-slate-200 dark:border-slate-700 divide-y divide-slate-100 dark:divide-slate-700 max-h-44 overflow-y-auto">
-            {results.map((m, i) => (
+            {shownResults.map((m, i) => (
               <li key={`${m.latitude}-${m.longitude}-${i}`}>
                 <button
                   type="button"
@@ -195,8 +203,8 @@ export default function AthleteHomeLocation({
             ))}
           </ul>
         )}
-        {searchError && results.length === 0 && (
-          <p className="text-[11px] text-amber-700 dark:text-amber-400">{searchError}</p>
+        {shownError && shownResults.length === 0 && (
+          <p className="text-[11px] text-amber-700 dark:text-amber-400">{shownError}</p>
         )}
       </div>
     </div>

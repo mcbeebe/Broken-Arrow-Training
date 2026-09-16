@@ -354,7 +354,16 @@ export function useReadiness({
       }
       return score
     })
-  }, [healthData, baselines, dailyTrimp, acwr, hrvStability.cv, todayPlannedWorkout, doseAUByDate])
+    // `readinessTuning` was missing from this list while being read three
+    // times in the body (calculateReadiness, applyGuardrails,
+    // classifyTrainingState). It is derived from the athlete's profile, so
+    // correcting a birth date or experience level in settings changed the
+    // thresholds without recomputing the scores they grade. It also cost the
+    // whole hook its React Compiler optimisation: an inferred dependency that
+    // does not match the written ones makes the compiler skip the file.
+    // The one caller already memoises it per athlete, so listing it here
+    // invalidates exactly when it should and never more often.
+  }, [healthData, baselines, dailyTrimp, acwr, hrvStability.cv, todayPlannedWorkout, doseAUByDate, readinessTuning])
 
   // Today's score
   const todayScore = useMemo(() => {
