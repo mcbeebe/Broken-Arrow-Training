@@ -113,37 +113,30 @@ export default function ZoneBreakdownTable({ heartrates, times, targetZone, alti
       bucketMap.set(elapsedMin, existing)
     }
 
-    let weightedNumer = 0
-    let weightedDenom = 0
-    let eccentricNumer = 0
-    let eccentricDenom = 0
-
-    const buckets: MinuteBucket[] = Array.from(bucketMap.entries())
+    // The per-minute pass is pure: it returns each bucket alongside the
+    // distance that bucket contributes to the weighted averages. The totals
+    // are folded afterwards rather than accumulated into `let`s captured by
+    // this callback — a closure reassigning render-scope variables is what
+    // react-hooks/immutability flags, and it is a real hazard: if the
+    // compiler ever memoised the callback separately from the fold, the
+    // totals would silently drift from the buckets they came from.
+    const measured: { bucket: MinuteBucket; dDist: number }[] = Array.from(bucketMap.entries())
       .sort((a, b) => a[0] - b[0])
       .map(([minute, data]) => {
         let grade: number | null = null
         let mim: number | null = null
         let eccentric: number | null = null
+        let dDist = 0
         if (data.altStart !== undefined && data.altEnd !== undefined && data.distStart !== undefined && data.distEnd !== undefined) {
-          const dDist = data.distEnd - data.distStart
-          if (dDist > 5) {  // need at least 5m of forward motion to compute slope
-            grade = (data.altEnd - data.altStart) / dDist
+          const d = data.distEnd - data.distStart
+          if (d > 5) {  // need at least 5m of forward motion to compute slope
+            dDist = d
+            grade = (data.altEnd - data.altStart) / d
             eccentric = eccentricScore(grade)
-            eccentricNumer += eccentric * dDist
-            eccentricDenom += dDist
-            if (mimFn) {
-              mim = mimFn(grade)
-              // Distance-weighted average matches `computeWholeActivityGAP`:
-              // each meter of locomotion contributes its cost-per-meter,
-              // total → MIM = equivalent_flat_distance / actual_distance.
-              // Time-weighting would over-weight slow climb minutes and
-              // produce a different number than the engine's GAP MIM.
-              weightedNumer += mim * dDist
-              weightedDenom += dDist
-            }
+            if (mimFn) mim = mimFn(grade)
           }
         }
-        return {
+        return { dDist, bucket: {
           minute,
           avgHR: Math.round(data.sum / data.count),
           minHR: data.min,
@@ -154,8 +147,31 @@ export default function ZoneBreakdownTable({ heartrates, times, targetZone, alti
           grade,
           mim,
           eccentric,
-        }
+        } }
       })
+
+    const buckets: MinuteBucket[] = measured.map(m => m.bucket)
+
+    // Distance-weighted, matching `computeWholeActivityGAP`: each meter of
+    // locomotion contributes its cost-per-meter, so
+    // MIM = equivalent_flat_distance / actual_distance. Time-weighting would
+    // over-weight slow climb minutes and produce a different number than the
+    // engine's GAP MIM.
+    let weightedNumer = 0
+    let weightedDenom = 0
+    let eccentricNumer = 0
+    let eccentricDenom = 0
+    for (const { bucket, dDist } of measured) {
+      if (dDist <= 0) continue
+      if (bucket.eccentric != null) {
+        eccentricNumer += bucket.eccentric * dDist
+        eccentricDenom += dDist
+      }
+      if (bucket.mim != null) {
+        weightedNumer += bucket.mim * dDist
+        weightedDenom += dDist
+      }
+    }
 
     return {
       buckets,

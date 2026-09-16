@@ -242,8 +242,20 @@ export default function WeeklyPlan({
   // ── Send-week-to-watch (G2a): batch push every pushable future day of
   // the visible week. Offered only when Garmin is connected and the week
   // still has something sendable; per-day buttons on the cards remain.
-  const [weekPushStatus, setWeekPushStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
-  const [weekPushMsg, setWeekPushMsg] = useState<string | null>(null)
+  // The push outcome belongs to the week it was fired for, so it is STORED
+  // with that week and read back only when the athlete is still looking at it.
+  // Previously an effect blanked two states whenever `activeWeek` changed,
+  // which meant a render where week 4 was on screen still showing week 3's
+  // "✓ Week on watch" until the effect caught up. Carrying the week number in
+  // the state makes the stale frame unrepresentable.
+  type WeekPush = { week: number; status: 'idle' | 'sending' | 'sent' | 'error'; msg: string | null }
+  const [push, setPush] = useState<WeekPush>({ week: activeWeek, status: 'idle', msg: null })
+  const weekPushStatus = push.week === activeWeek ? push.status : 'idle'
+  const weekPushMsg = push.week === activeWeek ? push.msg : null
+  const setWeekPushStatus = (status: WeekPush['status']) =>
+    setPush(p => ({ week: activeWeek, status, msg: p.week === activeWeek ? p.msg : null }))
+  const setWeekPushMsg = (msg: string | null) =>
+    setPush(p => ({ week: activeWeek, status: p.week === activeWeek ? p.status : 'idle', msg }))
   const weekPushableCount = useMemo(
     () => (week ? collectPushableDays([week]).length : 0),
     [week],
@@ -298,12 +310,6 @@ export default function WeeklyPlan({
       )
     }
   }
-
-  // Reset the push status when the athlete flips to another week.
-  useEffect(() => {
-    setWeekPushStatus('idle')
-    setWeekPushMsg(null)
-  }, [activeWeek])
 
   // Build a date→PlannedDay lookup for the calendar
   const daysByDate = useMemo(() => {

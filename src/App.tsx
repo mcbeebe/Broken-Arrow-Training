@@ -2327,7 +2327,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
       {view === 'info' && (
         <div className="px-3 pt-3">
           <SeasonPanel seasonState={seasonState} anchorRaceType={onboarding.config?.raceType} />
-          <RaceInfo race={activePlan.race} />
+          <RaceInfo race={activePlan.race} todayIso={todayDateString()} />
         </div>
       )}
       {view === 'settings' && showStrava && (
