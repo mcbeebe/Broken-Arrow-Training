@@ -38,6 +38,36 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      # FIRST, because it answers in seconds and it is the check that was
+      # missing. attune.coach served an Aug 30 build until Sep 16: the
+      # publish credential expired, every post-merge push run failed at the
+      # publish step, and 37 merges shipped nothing. PR checks stayed green
+      # throughout — the publish step only runs on `push` to a publishing
+      # branch, so nothing a PR ran could see the credential was dead.
+      #
+      # It lives in `test` rather than in a job of its own on purpose:
+      # `test` is the required check, so an expired token now blocks the
+      # merge whose publish it would otherwise have eaten. A new job would
+      # need branch protection updated to match, and a required check that
+      # nobody added is a guard that is not there.
+      - name: Publish credential still works
+        env:
+          ATTUNE_DEPLOY_TOKEN: ${{ secrets.ATTUNE_DEPLOY_TOKEN }}
+          IS_FORK_PR: ${{ github.event.pull_request.head.repo.fork == true }}
+        run: ./scripts/deploy/check-credentials.py
+
+      # The guards above and in deploy-drift.yml only ever do their real work
+      # on a bad day — an expired token, a site frozen behind the API. Those
+      # branches cannot be exercised against the live site without breaking
+      # it on purpose, so they are covered against local servers instead.
+      # coach-eval.yml runs pytest with an explicit path and would never
+      # collect these, hence the explicit run here rather than relying on it.
+      - name: Deploy guard tests
+        run: |
+          pip install --quiet pytest
+          pytest scripts/deploy/tests -q
+
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -170,7 +200,8 @@ jobs:
       # signal Deploy Diagnostics uses to tell a stale browser apart from
       # a stale backend. Same value baked into VITE_GIT_COMMIT_SHA above.
       - run: echo '{"commit":"${{ github.sha }}"}' > ./dist/version.json
-      - uses: peaceiris/actions-gh-pages@v4
+      - id: publish
+        uses: peaceiris/actions-gh-pages@v4
         # Same fix as the airlock job above: a dispatch from a publishing
         # branch is covered by the ref test, so the separate
         # `workflow_dispatch` disjunct only ever widened this to "any
@@ -194,3 +225,23 @@ jobs:
           # filenames make the leftovers harmless; index.html, CNAME and
           # version.json are still overwritten each deploy.
           keep_files: true
+
+      # A successful push is not a successful deploy. Pushing to gh-pages
+      # and SERVING from gh-pages are separate systems: Pages can be pointed
+      # at the wrong branch, its build can fail, the CNAME can be dropped,
+      # and none of that touches this workflow's exit code. Without this
+      # step "deployed" asserts only that git push exited 0.
+      #
+      # This is NOT what happened in August — that push genuinely failed,
+      # and the credential check above is what would have caught it. This
+      # covers the neighbouring hole the same incident exposed: nothing
+      # anywhere confirmed the live site against what we believed we had
+      # shipped, so the question "is attune.coach actually current?" had no
+      # answer until someone went and looked.
+      #
+      # Conditioned on the publish step's own outcome so it stays silent
+      # when publishing is paused via ATTUNE_PUBLISH_ENABLED rather than
+      # failing a run that deliberately shipped nothing.
+      - name: attune.coach is serving this commit
+        if: steps.publish.outcome == 'success'
+        run: ./scripts/deploy/verify-published.sh "${{ github.sha }}"

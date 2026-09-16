@@ -1,0 +1,41 @@
+# Asks the live site what it is serving, on a schedule, from outside CI.
+#
+# Every other deploy guard needs a run to happen first: the credential probe
+# in `test` needs a pull request, verify-published needs a publish. Neither
+# notices a deploy that simply STOPS occurring — which is exactly what
+# happened between Aug 31 and Sep 16, when the publish credential expired
+# and attune.coach quietly served the same Aug 30 bundle while the API it
+# talks to kept moving. By Sep 3 the two had drifted far enough apart that
+# every Coach and Garmin request failed, and nothing anywhere said so.
+#
+# A failing scheduled run emails the repository owner. That notification is
+# the entire point of this file; the check itself is small.
+name: Deploy drift
+
+on:
+  schedule:
+    # Every six hours. Frequent enough that a stalled deploy surfaces the
+    # same day, rare enough that the mail stays worth opening.
+    - cron: '17 */6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-drift
+  cancel-in-progress: true
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Frontend, API and default branch agree
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Read only to report how long the publish credential has left.
+          # Warning before it lapses is cheaper than the two weeks of
+          # silent failure that followed the last time it did.
+          ATTUNE_DEPLOY_TOKEN: ${{ secrets.ATTUNE_DEPLOY_TOKEN }}
+        run: ./scripts/deploy/check-drift.py
