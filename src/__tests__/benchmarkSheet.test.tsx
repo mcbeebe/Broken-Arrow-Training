@@ -91,4 +91,19 @@ describe('BenchmarkSheet', () => {
     expect(screen.getByRole('radio', { name: 'Threshold HR' }).getAttribute('aria-checked')).toBe('true')
     expect(screen.getByLabelText('Bpm')).toBeTruthy()
   })
+
+  it('reopening a custom series prefills its label and unit and names the current entry on that series', () => {
+    const custom: Benchmark[] = [
+      ...log,
+      { id: 'm1', kind: 'other', label: 'Murph', value: 50 * 60, unit: 'seconds', dateIso: '2026-06-01', source: 'manual', at: 2 },
+      { id: 'h1', kind: 'other', label: 'Dead hang', value: 70, unit: 'seconds', dateIso: '2026-06-01', source: 'manual', at: 3 },
+    ]
+    const saved = mount({ preview: { log: custom, config, capacity: null, weeks: [], method: getMethodById('daniels') }, initialKind: 'other', initialLabel: 'Murph', initialUnit: 'seconds' })
+    expect((screen.getByLabelText('What is it?') as HTMLInputElement).value).toBe('Murph')
+    expect(screen.getByText(/Current Murph: 50:00 · 2026-06-01/)).toBeTruthy()
+    fireEvent.change(screen.getByLabelText('Time'), { target: { value: '47:10' } })
+    fireEvent.click(screen.getByText('Save benchmark'))
+    expect(saved).toHaveLength(1)
+    expect(saved[0]).toMatchObject({ kind: 'other', label: 'Murph', unit: 'seconds', value: 47 * 60 + 10 })
+  })
 })

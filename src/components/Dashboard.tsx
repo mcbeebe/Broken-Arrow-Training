@@ -4,6 +4,8 @@ import type { TrainingWeek, ReadinessScore, GarminHealthData, DailyTRIMP, Perfor
 import type { OverallCompliance } from '../hooks/useCompliance'
 import type { RiskFlag } from '../utils/readiness'
 import type { StrengthCapacity } from '../engines/strength/benchmark'
+import type { Benchmark, BenchmarkKind } from '../engines/benchmark/log'
+import type { AddBenchmarkOptions } from './BenchmarksSection'
 import type { OnboardingConfig } from '../hooks/useOnboarding'
 import { parsePlanZones } from '../utils/zones'
 import { getMilesNumber } from '../utils/format'
@@ -55,7 +57,9 @@ interface DashboardProps {
   strengthWeeks?: TrainingWeek[]
   /** Onboarding config — powers the Engine tab's race projection. */
   onboardingConfig?: OnboardingConfig | null
-  onAddBenchmark?: () => void
+  onAddBenchmark?: (kind?: BenchmarkKind, opts?: AddBenchmarkOptions) => void
+  /** Live benchmark entries — Your engine draws each one's trend. */
+  benchmarkLog?: Benchmark[]
   planZones?: HRZone[]
   athleteMaxHR?: number
   athleteId?: string
@@ -87,6 +91,7 @@ export default function Dashboard({
   strengthWeeks,
   onboardingConfig,
   onAddBenchmark,
+  benchmarkLog,
   planZones = [],
   athleteMaxHR,
   athleteId,
@@ -238,7 +243,7 @@ export default function Dashboard({
         <StrengthProgressSection weeks={strengthWeeks ?? weeks} capacity={strengthCapacity} />
       )}
       {subTab === 'engine' && (
-        <YourEngineSection weeks={strengthWeeks ?? weeks} capacity={strengthCapacity} config={onboardingConfig} onAddBenchmark={onAddBenchmark} />
+        <YourEngineSection weeks={strengthWeeks ?? weeks} capacity={strengthCapacity} config={onboardingConfig} onAddBenchmark={onAddBenchmark} benchmarkLog={benchmarkLog} />
       )}
     </div>
   )

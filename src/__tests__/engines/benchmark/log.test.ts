@@ -163,3 +163,76 @@ describe('staleness and plausibility', () => {
     expect(planKindOf(null)).toBe('road')
   })
 })
+
+// ── Series: tracking one benchmark over time ───────────────────────────
+
+import { groupBySeries, seriesKey, sameSeries, progressDirection, seriesProgress } from '../../../engines/benchmark/log'
+
+describe('benchmark series', () => {
+  const mk = (over: Partial<Benchmark> & Pick<Benchmark, 'id' | 'kind' | 'value' | 'dateIso'>): Benchmark =>
+    ({ unit: 'seconds', source: 'manual', at: 1, ...over })
+
+  it('a custom benchmark groups by its label, case- and space-insensitively; presets by kind', () => {
+    expect(seriesKey({ kind: 'other', label: ' Dead  Hang ' })).toBe('other:dead hang')
+    expect(seriesKey({ kind: 'race_5k', label: 'ignored' })).toBe('race_5k')
+    expect(sameSeries({ kind: 'other', label: 'Murph' }, { kind: 'other', label: 'murph' })).toBe(true)
+    expect(sameSeries({ kind: 'other', label: 'Murph' }, { kind: 'other', label: 'Cindy' })).toBe(false)
+  })
+
+  it('groupBySeries keeps every live entry, newest first, presets in plan order, custom series last', () => {
+    const live = [
+      mk({ id: 'm1', kind: 'other', label: 'Murph', value: 3000, dateIso: '2026-06-01' }),
+      mk({ id: 'p1', kind: 'push_ups', unit: 'reps', value: 30, dateIso: '2026-05-01' }),
+      mk({ id: 'p2', kind: 'push_ups', unit: 'reps', value: 38, dateIso: '2026-08-01' }),
+      mk({ id: 'k1', kind: 'race_5k', value: 1300, dateIso: '2026-07-01' }),
+      mk({ id: 'm2', kind: 'other', label: 'murph', value: 2820, dateIso: '2026-09-01' }),
+      mk({ id: 'gone', kind: 'race_5k', value: 1200, dateIso: '2026-09-10', deleted: true }),
+    ]
+    const series = groupBySeries(live, 'general')
+    expect(series.map(s => s.key)).toEqual(['race_5k', 'push_ups', 'other:murph'])
+    expect(series[1].entries.map(e => e.id)).toEqual(['p2', 'p1'])
+    expect(series[2].label).toBe('murph')  // the newest spelling names the series
+    expect(series[2].entries.map(e => e.id)).toEqual(['m2', 'm1'])
+  })
+
+  it('progress direction: times fall, reps and loads rise, a plank rises, HR/RPE/custom times are neutral', () => {
+    expect(progressDirection({ kind: 'race_5k', unit: 'seconds' })).toBe('lower')
+    expect(progressDirection({ kind: 'push_ups', unit: 'reps' })).toBe('higher')
+    expect(progressDirection({ kind: 'goblet_squat_8rm', unit: 'lb' })).toBe('higher')
+    expect(progressDirection({ kind: 'plank', unit: 'seconds' })).toBe('higher')
+    expect(progressDirection({ kind: 'lthr', unit: 'bpm' })).toBe('neutral')
+    expect(progressDirection({ kind: 'sled_push_rpe', unit: 'rpe' })).toBe('neutral')
+    expect(progressDirection({ kind: 'other', unit: 'seconds' })).toBe('neutral')
+    expect(progressDirection({ kind: 'other', unit: 'reps' })).toBe('higher')
+  })
+
+  it('seriesProgress reports the change vs previous and since first, the best, and a verdict by direction', () => {
+    const entries = [
+      mk({ id: 'c', kind: 'race_5k', value: 1290, dateIso: '2026-09-01' }),
+      mk({ id: 'b', kind: 'race_5k', value: 1270, dateIso: '2026-07-15' }),
+      mk({ id: 'a', kind: 'race_5k', value: 1335, dateIso: '2026-05-02' }),
+    ]
+    const p = seriesProgress(entries)!
+    expect(p.latest.id).toBe('c')
+    expect(p.previous?.id).toBe('b')
+    expect(p.oldest.id).toBe('a')
+    expect(p.best.id).toBe('b')
+    expect(p.deltaVsPrevious).toBe(20)
+    expect(p.deltaSinceFirst).toBe(-45)
+    expect(p.spanWeeks).toBe(17)
+    expect(p.verdict).toBe('worse')
+
+    const reps = seriesProgress([
+      mk({ id: 'y', kind: 'push_ups', unit: 'reps', value: 38, dateIso: '2026-08-01' }),
+      mk({ id: 'x', kind: 'push_ups', unit: 'reps', value: 30, dateIso: '2026-05-01' }),
+    ])!
+    expect(reps.verdict).toBe('better')
+    expect(reps.best.id).toBe('y')
+
+    const one = seriesProgress([mk({ id: 'z', kind: 'lthr', unit: 'bpm', value: 168, dateIso: '2026-08-01' })])!
+    expect(one.previous).toBeNull()
+    expect(one.deltaVsPrevious).toBeNull()
+    expect(one.verdict).toBe('neutral')
+    expect(seriesProgress([])).toBeNull()
+  })
+})
