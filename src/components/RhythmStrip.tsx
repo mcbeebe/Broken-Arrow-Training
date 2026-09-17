@@ -22,7 +22,7 @@ export default function RhythmStrip({ rhythm, onOpenPlan }: {
       onClick={onOpenPlan}
       className="mt-1 w-full text-left"
       data-testid="rhythm-strip"
-      aria-label={of > 0 ? `${resolved} of your last ${of} days resolved — open your plan` : 'Open your plan'}
+      aria-label={of > 0 ? `${resolved} of your last ${of} days completed — open your plan` : 'Open your plan'}
     >
       <span className="flex items-center gap-1" aria-hidden="true">
         {rhythm.map(d => (
@@ -42,7 +42,7 @@ export default function RhythmStrip({ rhythm, onOpenPlan }: {
       </span>
       {of > 0 && (
         <span className="block text-[10px] text-slate-300 mt-1" data-testid="rhythm-summary">
-          {resolved} of your last {of} days resolved
+          {resolved} of your last {of} days completed
         </span>
       )}
     </button>
