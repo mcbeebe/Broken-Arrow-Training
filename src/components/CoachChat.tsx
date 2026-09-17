@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useMemo, type ReactNode, type RefObject } from 'react'
-import type { ConversationTurn, CoachSnapshot, CoachAction, PlannedDay } from '../types'
+import type { ConversationTurn, CoachSnapshot, CoachAction, PlannedDay, ProposedBenchmark } from '../types'
+import type { BenchmarkPreview } from '../engines/benchmark/preview'
 import { DEFAULT_COACH_NAME } from '../types'
 import { coachApiAvailable, coachApiBase, coachAuthHeaders} from '../utils/coachApi'
 import type { UseCoachMemoryReturn } from '../hooks/useCoachMemory'
@@ -47,6 +48,9 @@ interface Props {
   onApproveAction?: (turnId: string, action: CoachAction) => void
   onRejectAction?: (turnId: string) => void
   onUndoAction?: (turnId: string, overrideId: string) => void
+  /** "What this changes" for a benchmark the coach proposes to record —
+   *  computed by the real engines, same as the Add-benchmark sheet. */
+  previewBenchmark?: (b: ProposedBenchmark) => BenchmarkPreview | null
   /** Custom layout — when provided, replaces the default flex-column
    *  render. The parent decides where the scroll area, error banners,
    *  and composer go (e.g. inserting a daily insight below the turns
@@ -95,7 +99,7 @@ function writeFontScale(athleteId: string, scale: number) {
   }
 }
 
-export default function CoachChat({ athleteId, memory, snapshot, seed, onSeedConsumed, onSent, getPlannedDay, onApproveAction, onRejectAction, onUndoAction, renderLayout, scrollDep, proactiveInsight }: Props) {
+export default function CoachChat({ athleteId, memory, snapshot, seed, onSeedConsumed, onSent, getPlannedDay, onApproveAction, onRejectAction, onUndoAction, previewBenchmark, renderLayout, scrollDep, proactiveInsight }: Props) {
   const coachName = snapshot?.coachPersona?.name?.trim() || DEFAULT_COACH_NAME
   const [input, setInput] = useState('')
   const [streaming, setStreaming] = useState(false)
@@ -406,6 +410,7 @@ export default function CoachChat({ athleteId, memory, snapshot, seed, onSeedCon
             onApproveAction={onApproveAction}
             onRejectAction={onRejectAction}
             onUndoAction={onUndoAction}
+            previewBenchmark={previewBenchmark}
             onAskInline={(seed) => {
               // Tapping "Why this swap?" inside a proposal pre-fills the
               // composer instead of auto-sending so the athlete can tweak
@@ -661,6 +666,7 @@ function ChatTurn({
   onApproveAction,
   onRejectAction,
   onUndoAction,
+  previewBenchmark,
   onAskInline,
   onFollowUp,
   followUpsDisabled,
@@ -674,6 +680,7 @@ function ChatTurn({
   onApproveAction?: (turnId: string, action: CoachAction) => void
   onRejectAction?: (turnId: string) => void
   onUndoAction?: (turnId: string, overrideId: string) => void
+  previewBenchmark?: (b: ProposedBenchmark) => BenchmarkPreview | null
   onAskInline?: (seed: string) => void
   onFollowUp?: (seed: string) => void
   followUpsDisabled?: boolean
@@ -805,7 +812,7 @@ function ChatTurn({
           {collapsed ? <p className="italic text-slate-500">{preview}</p> : renderMarkdown(displayContent)}
         </div>
       </div>
-      {inlineAction && inlineAction.type === 'propose_edit' && inlineAction.proposedEdit && (
+      {inlineAction && ((inlineAction.type === 'propose_edit' && inlineAction.proposedEdit) || inlineAction.type === 'propose_benchmark') && (
         <ProposalCard
           action={inlineAction}
           status={turn.actionStatus || 'pending'}
@@ -815,6 +822,7 @@ function ChatTurn({
           onReject={() => onRejectAction?.(turn.id)}
           onUndo={id => onUndoAction?.(turn.id, id)}
           onAsk={onAskInline}
+          previewBenchmark={previewBenchmark}
         />
       )}
       {/* Follow-up chips — only on the freshest assistant reply, so the
