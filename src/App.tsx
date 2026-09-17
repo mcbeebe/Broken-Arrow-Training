@@ -146,7 +146,8 @@ import { useDisplayPreferences } from './hooks/useDisplayPreferences'
 import { useBackendSync } from './hooks/useBackendSync'
 import { useStrengthCapacity } from './hooks/useStrengthCapacity'
 import { useBenchmarks } from './hooks/useBenchmarks'
-import { entriesFromCapacity } from './engines/benchmark/log'
+import { entriesFromCapacity, planKindOf, BENCHMARK_KINDS, type BenchmarkKind } from './engines/benchmark/log'
+import BenchmarkSheet from './components/BenchmarkSheet'
 
 // Auto-clear stale caches on app startup when data format changes
 checkStorageVersion()
@@ -676,6 +677,16 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
   // now go through the log, so the mirror never fights them.
   const benchmarks = useBenchmarks(athleteId, { config: onboarding.config, capacity: strengthCapacity.capacity })
   const benchAnchorsKey = JSON.stringify(benchmarks.anchors)
+  // The Add-benchmark sheet and its one undo. A saved benchmark applies at
+  // once (the sheet showed what it changes before the tap); the banner is
+  // the way back for twelve seconds, after which the log's history is.
+  const [benchmarkSheet, setBenchmarkSheet] = useState<{ kind?: BenchmarkKind } | null>(null)
+  const [benchmarkSaved, setBenchmarkSaved] = useState<{ id: string; label: string; changesPlan: boolean } | null>(null)
+  useEffect(() => {
+    if (!benchmarkSaved) return
+    const t = setTimeout(() => setBenchmarkSaved(null), 12_000)
+    return () => clearTimeout(t)
+  }, [benchmarkSaved])
   useEffect(() => {
     if (!benchmarks.hasHistory || !onboarding.config) return
     const d = benchmarks.anchors
@@ -2250,6 +2261,43 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           }}
         />
       )}
+      {benchmarkSheet && onboarding.config && (
+        <BenchmarkSheet
+          plan={planKindOf(onboarding.config)}
+          todayIso={todayDateString()}
+          initialKind={benchmarkSheet.kind}
+          preview={{
+            log: benchmarks.log,
+            config: onboarding.config,
+            capacity: strengthCapacity.capacity,
+            weeks,
+            method: onboarding.config.selectedMethodId ? getMethodById(onboarding.config.selectedMethodId) ?? null : null,
+          }}
+          onSave={entry => {
+            const saved = benchmarks.add(entry)
+            const label = entry.kind === 'other' && entry.label ? entry.label : BENCHMARK_KINDS[entry.kind].label
+            const coachOnly = entry.kind === 'other' || entry.kind === 'mile_tt' || entry.kind === 'run_1k' || entry.kind === 'wall_balls_100'
+            setBenchmarkSaved({ id: saved.id, label, changesPlan: !coachOnly })
+          }}
+          onClose={() => setBenchmarkSheet(null)}
+        />
+      )}
+      {benchmarkSaved && (
+        <div
+          className="fixed left-4 right-4 z-40 bg-teal-600 text-white px-4 py-2 rounded-xl shadow-lg flex items-center justify-between gap-3"
+          style={{ bottom: 'calc(var(--app-tabbar-h) + 8px)' }}
+          role="status" data-testid="benchmark-saved"
+        >
+          <p className="text-sm font-medium">
+            Saved {benchmarkSaved.label} — {benchmarkSaved.changesPlan ? 'the plan is using it.' : 'recorded for the coach.'}
+          </p>
+          <button
+            type="button"
+            onClick={() => { benchmarks.remove(benchmarkSaved.id); setBenchmarkSaved(null) }}
+            className="text-xs bg-teal-700 hover:bg-teal-800 px-2 py-1 rounded-lg shrink-0"
+          >Undo</button>
+        </div>
+      )}
       {view === 'progress' && (
         <Dashboard
           weeks={weeks}
@@ -2269,6 +2317,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           garminConnected={garmin.connected || apple.connected}
           sorenessLoadByDate={soreness.sorenessLoadByDate}
           strengthCapacity={strengthCapacity.capacity}
+          onAddBenchmark={() => setBenchmarkSheet({})}
           strengthWeeks={strengthWeeks}
           currentWeekNum={currentWeekNum}
           onboardingConfig={onboarding.config}
@@ -2413,10 +2462,9 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           onClearCache={clearAllCachedData}
           onClearAll={clearAllAppData}
           onSetHyroxDivision={onboarding.setHyroxDivision}
-          onSetTestedLthr={bpm => {
-            if (bpm == null) benchmarks.removeKind('lthr')
-            else benchmarks.add({ kind: 'lthr', value: bpm, unit: 'bpm', dateIso: todayDateString(), source: 'manual' })
-          }}
+          benchmarks={{ plan: planKindOf(onboarding.config), live: benchmarks.live, todayIso: todayDateString() }}
+          onAddBenchmark={kind => setBenchmarkSheet({ kind })}
+          onRemoveBenchmark={id => benchmarks.remove(id)}
           onResetOnboarding={() => {
             onboarding.requestRedo()
             setView('today')
