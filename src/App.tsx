@@ -153,6 +153,7 @@ import { buildCoachWeekShapeContext } from './engines/planGenerator/coachShapeCo
 import { effectiveShape, defaultReshapeFromWeek } from './engines/planGenerator/weekShape'
 import { defaultWeekShapeFor, methodForConfig, methodRunDayBounds } from './engines/planGenerator/shapeDefaults'
 import { summarizeBenchmark, summarizeReshape } from './utils/chatProposal'
+import { actualFromPlanned } from './utils/markDone'
 import type { ShapeContext } from './components/ProposalCard'
 import BenchmarkSheet from './components/BenchmarkSheet'
 import PlanShapeSheet from './components/PlanShapeSheet'
@@ -692,6 +693,14 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
   // Plan shaping — the Plan tab's "Shape my week" sheet and its receipt.
   const [planShapeOpen, setPlanShapeOpen] = useState<false | { initial: ProposedReshape | null }>(false)
   const [planShaped, setPlanShaped] = useState<{ fromWeek: number; mode: 'in_place' | 'rebuild' } | null>(null)
+  // "Mark as done" on the Today card: a manual log for the planned session,
+  // with one undo on the receipt.
+  const [markedDone, setMarkedDone] = useState<{ dayLabel: string; iso: string; workout: string } | null>(null)
+  useEffect(() => {
+    if (!markedDone) return
+    const t = setTimeout(() => setMarkedDone(null), 12_000)
+    return () => clearTimeout(t)
+  }, [markedDone])
   useEffect(() => {
     if (!planShaped) return
     const t = setTimeout(() => setPlanShaped(null), 15_000)
@@ -941,6 +950,15 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     }
     return undefined
   }, [weeks])
+  // One-tap completion for the session on the Today card (a walk, a foam
+  // roll, a garage strength session — anything done without a watch).
+  const markTodayDone = useCallback(() => {
+    const day = todayPlannedWorkout
+    if (!day || day.actual) return
+    const iso = todayDateString()
+    manualLog.logWorkout(day.day, actualFromPlanned(day, iso, Date.now()), iso)
+    setMarkedDone({ dayLabel: day.day, iso, workout: day.workout })
+  }, [todayPlannedWorkout, manualLog])
 
   // Find tomorrow's planned workout
   const tomorrowPlannedWorkout = useMemo(() => {
@@ -2252,6 +2270,8 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
             verdict={todayVerdict}
             outlook={morningAutopilot.visible ? morningAutopilot.card : null}
             today={todayPlannedWorkout ?? null}
+            completed={todayPlannedWorkout?.actual ?? null}
+            onMarkDone={markTodayDone}
             lockedIn={lockedInToday}
             onOpenReadiness={openReadiness}
             onOpenSession={setShowTodayModal}
@@ -2413,6 +2433,20 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           onClose={() => setPlanShapeOpen(false)}
           initial={planShapeOpen.initial}
         />
+      )}
+      {markedDone && (
+        <div
+          className="fixed left-4 right-4 z-40 bg-emerald-600 text-white px-4 py-2 rounded-xl shadow-lg flex items-center justify-between gap-3"
+          style={{ bottom: 'calc(var(--app-tabbar-h) + 8px)' }}
+          role="status" data-testid="marked-done"
+        >
+          <p className="text-sm font-medium">Completed! ✓ {markedDone.workout} is logged for today.</p>
+          <button
+            type="button"
+            onClick={() => { manualLog.removeLog(markedDone.dayLabel, markedDone.iso); setMarkedDone(null) }}
+            className="text-xs bg-emerald-700 hover:bg-emerald-800 px-2 py-1 rounded-lg shrink-0"
+          >Undo</button>
+        </div>
       )}
       {planShaped && (
         <div

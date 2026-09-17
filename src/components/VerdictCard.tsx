@@ -1,6 +1,7 @@
 import type { OutlookCard } from '../hooks/useMorningOutlook'
 import type { Verdict } from '../utils/verdict'
-import type { PlannedDay } from '../types'
+import type { ActualWorkout, PlannedDay } from '../types'
+import { completionSummary } from '../utils/markDone'
 
 /**
  * The Verdict card — the pinned answer at the top of Today.
@@ -63,6 +64,12 @@ export interface VerdictCardProps {
   outlook?: OutlookCard | null
   /** Today's session, shown as the ticket on non-acted mornings. */
   today?: PlannedDay | null
+  /** Today's logged session, once there is one (a watch sync or a manual
+   *  log). The ticket becomes the receipt and the buttons stand down:
+   *  the question "am I good to go?" is answered by having gone. */
+  completed?: ActualWorkout | null
+  /** One-tap completion for a session done without a watch. */
+  onMarkDone?: () => void
   lockedIn?: boolean
   onOpenReadiness?: () => void
   onOpenSession?: () => void
@@ -73,10 +80,12 @@ export interface VerdictCardProps {
 }
 
 export default function VerdictCard({
-  verdict, outlook, today, lockedIn,
+  verdict, outlook, today, completed, onMarkDone, lockedIn,
   onOpenReadiness, onOpenSession, onLockIn, onAdjust, onSoundsRight, onRevert,
 }: VerdictCardProps) {
   const acted = !!outlook
+  const done = !!completed && !acted
+  const restDay = today?.type === 'rest'
   const headline = acted ? outlook!.headline : verdict.headline
   const sub = acted ? outlook!.why : verdict.sub
   const evidence = acted
@@ -122,23 +131,46 @@ export default function VerdictCard({
             </p>
           )}
         </div>
-      ) : today ? (
+      ) : today && done ? (
         <button
           onClick={onOpenSession}
-          className="mt-3 w-full text-left border border-slate-100 dark:border-slate-700 rounded-xl px-3 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-colors"
-          data-testid="verdict-ticket"
+          className="mt-3 w-full text-left border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 rounded-xl px-3 py-2.5 hover:bg-emerald-100/70 dark:hover:bg-emerald-900/40 transition-colors"
+          data-testid="verdict-receipt"
         >
-          <p className="text-[10px] font-semibold uppercase tracking-wide text-teal-700 dark:text-teal-300 mb-1">
-            Today's ticket
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300 mb-1">
+            Completed ✓
           </p>
-          <p className="text-sm font-semibold text-slate-800 dark:text-white">
-            {today.workout}
-            {today.time && today.time !== '—' && <span className="font-normal text-slate-500 dark:text-slate-400"> · {today.time}</span>}
-          </p>
-          {today.detail && (
-            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed line-clamp-2">{today.detail}</p>
-          )}
+          <p className="text-sm font-semibold text-slate-800 dark:text-white">{today.workout}</p>
+          <p className="text-[11px] text-emerald-800 dark:text-emerald-200 mt-1">{completionSummary(completed!)}</p>
         </button>
+      ) : today ? (
+        <>
+          <button
+            onClick={onOpenSession}
+            className="mt-3 w-full text-left border border-slate-100 dark:border-slate-700 rounded-xl px-3 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-colors"
+            data-testid="verdict-ticket"
+          >
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-teal-700 dark:text-teal-300 mb-1">
+              Today's ticket
+            </p>
+            <p className="text-sm font-semibold text-slate-800 dark:text-white">
+              {today.workout}
+              {today.time && today.time !== '—' && <span className="font-normal text-slate-500 dark:text-slate-400"> · {today.time}</span>}
+            </p>
+            {today.detail && (
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed line-clamp-2">{today.detail}</p>
+            )}
+          </button>
+          {onMarkDone && !restDay && (
+            <button
+              onClick={onMarkDone}
+              className="mt-1.5 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300"
+              data-testid="verdict-mark-done"
+            >
+              Did it? Mark as done ✓
+            </button>
+          )}
+        </>
       ) : null}
 
       {evidence.length > 0 && (
@@ -153,6 +185,20 @@ export default function VerdictCard({
         </div>
       )}
 
+      {done ? (
+        <div className="mt-3 flex gap-2" data-testid="verdict-done">
+          <p className="flex-1 h-10 rounded-lg bg-emerald-600 text-white text-xs font-bold flex items-center justify-center">
+            Completed! ✓
+          </p>
+          <button
+            onClick={onOpenSession}
+            className="w-28 h-10 rounded-lg border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 text-xs font-semibold"
+            data-testid="verdict-details"
+          >
+            Details ›
+          </button>
+        </div>
+      ) : (
       <div className="mt-3 flex gap-2">
         {acted ? (
           <>
@@ -190,9 +236,12 @@ export default function VerdictCard({
           </>
         )}
       </div>
+      )}
 
       <p className="mt-2.5 text-[10px] text-slate-400 leading-snug" data-testid="verdict-footer">
-        {acted
+        {done
+          ? 'Logged for today — it counts toward your week and the coach can see it.'
+          : acted
           ? 'Autopilot adjusts today only. Future days are proposals; race week is never touched. Every change is in the log, with undo.'
           : verdict.footer}
       </p>

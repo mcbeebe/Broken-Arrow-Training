@@ -64,7 +64,10 @@ export function buildRhythm(
     if (!day) continue
 
     let state: RhythmState
-    if (iso === todayIso) state = 'today'
+    // Today fills in the moment its session is logged — the strip should
+    // say "done" when you are done, not at midnight. Until then it is
+    // "today", never "open": the day is not over.
+    if (iso === todayIso) state = day.actual ? 'done' : 'today'
     else if (iso > todayIso) state = 'future'
     else if (day.actual) state = 'done'
     else if (day.type === 'rest') state = 'rest'
