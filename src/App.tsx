@@ -145,6 +145,8 @@ import { useVisualViewport } from './hooks/useVisualViewport'
 import { useDisplayPreferences } from './hooks/useDisplayPreferences'
 import { useBackendSync } from './hooks/useBackendSync'
 import { useStrengthCapacity } from './hooks/useStrengthCapacity'
+import { useBenchmarks } from './hooks/useBenchmarks'
+import { entriesFromCapacity } from './engines/benchmark/log'
 
 // Auto-clear stale caches on app startup when data format changes
 checkStorageVersion()
@@ -666,6 +668,42 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
   // so it survives a plan rebuild and expires on its own re-test clock.
   const strengthCapacity = useStrengthCapacity(athleteId)
 
+  // The benchmark log — every measured number, dated, kept. Seeds itself
+  // once from the fields below that it replaces, and from then on is the
+  // source of truth: the two effects mirror it onto the config fields and
+  // the strength capacity the engines already read. Writes that used to go
+  // to those fields directly (the benchmark-result Apply, Settings' LTHR)
+  // now go through the log, so the mirror never fights them.
+  const benchmarks = useBenchmarks(athleteId, { config: onboarding.config, capacity: strengthCapacity.capacity })
+  const benchAnchorsKey = JSON.stringify(benchmarks.anchors)
+  useEffect(() => {
+    if (!benchmarks.hasHistory || !onboarding.config) return
+    const d = benchmarks.anchors
+    const c = onboarding.config
+    const patch: Parameters<typeof onboarding.applyBenchmarkAnchors>[0] = {}
+    const sameAnchor = (a?: { type: string; valueSeconds?: number; dateIso?: string } | null, b?: typeof a) =>
+      !!a === !!b && (!a || !b || (a.type === b.type && a.valueSeconds === b.valueSeconds && (a.dateIso ?? '') === (b.dateIso ?? '')))
+    // The log owns race/easy-pace anchors. A legacy {type:'lthr'} anchor is
+    // left alone — the log carries it as a tested LTHR instead.
+    const configOwnsAnchor = !c.fitnessAnchor || c.fitnessAnchor.type !== 'lthr'
+    if (configOwnsAnchor && !sameAnchor(d.fitnessAnchor, c.fitnessAnchor)) patch.fitnessAnchor = d.fitnessAnchor ?? null
+    if ((d.testedLthrBpm ?? null) !== (c.testedLthrBpm ?? null)) patch.testedLthrBpm = d.testedLthrBpm ?? null
+    if ((d.skiErg1kSeconds ?? null) !== (c.skiErg1kSeconds ?? null)) patch.skiErg1kSeconds = d.skiErg1kSeconds ?? null
+    if ((d.row1kSeconds ?? null) !== (c.row1kSeconds ?? null)) patch.row1kSeconds = d.row1kSeconds ?? null
+    if (Object.keys(patch).length) onboarding.applyBenchmarkAnchors(patch)
+    // Keyed on the derived values, not the config: the config changing in
+    // response must not re-run this, and it doesn't change what we derive.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [benchAnchorsKey, benchmarks.hasHistory, onboarding.config])
+  useEffect(() => {
+    const d = benchmarks.anchors.capacity
+    if (!benchmarks.hasHistory || !d) return
+    const cur = strengthCapacity.capacity
+    const merged = { ...(cur ?? {}), ...d, measuredAt: d.measuredAt > (cur?.measuredAt ?? '') ? d.measuredAt : (cur?.measuredAt ?? d.measuredAt) }
+    if (JSON.stringify(merged) !== JSON.stringify(cur)) strengthCapacity.save(merged)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [benchAnchorsKey, benchmarks.hasHistory])
+
   // ── G5: performance-adaptive pace targets ─────────────────────
   // Assessed from completed sessions (GAP-corrected via the cached
   // Minetti multiplier — the trail-true input); dismissal is remembered
@@ -718,16 +756,20 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
       configMaxHR: onboarding.config?.maxHR ?? null,
       ...(a.suggestedErg500Sec != null ? { capacity: strengthCapacity.capacity ?? null } : {}),
     }
-    // The erg baseline goes straight to the measured strength
-    // benchmarks — the number the advisory asked the athlete to type in.
+    // The erg baseline and the tested LTHR are RECORDED, not written: they
+    // go into the benchmark log (source 'logged' — the watch measured them),
+    // and the log's mirror carries them onto the capacity and the config.
+    // Their ids ride in the snapshot so undo can tombstone exactly them.
+    const benchmarkIds: string[] = []
+    const today = todayDateString()
     if (a.suggestedErg500Sec != null) {
-      strengthCapacity.save({
-        ...(strengthCapacity.capacity ?? {}),
-        measuredAt: todayDateString(),
-        erg500Sec: a.suggestedErg500Sec,
-        ...(a.suggestedErg1kSec != null ? { erg1kSec: a.suggestedErg1kSec } : {}),
-        ergManual: false,
-      })
+      benchmarkIds.push(benchmarks.add({ kind: 'erg_500', value: a.suggestedErg500Sec, unit: 'seconds', dateIso: today, source: 'logged' }).id)
+      if (a.suggestedErg1kSec != null) {
+        benchmarkIds.push(benchmarks.add({ kind: 'erg_1k', value: a.suggestedErg1kSec, unit: 'seconds', dateIso: today, source: 'logged' }).id)
+      }
+    }
+    if (a.suggestedLthr != null) {
+      benchmarkIds.push(benchmarks.add({ kind: 'lthr', value: a.suggestedLthr, unit: 'bpm', dateIso: today, source: 'logged' }).id)
     }
     // One anchor drives the whole rewrite: LTHR when the test measured
     // it (method 20-min TT — every method bpm band is linear in LTHR),
@@ -739,10 +781,8 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     // P4.1 — the measured LTHR lives BESIDE the pace anchor. v1 replaced an
     // easy-pace anchor with {type:'lthr'} and every /mi band vanished from
     // the regenerated plan the moment the athlete tested.
-    onboarding.applyBenchmarkAnchors({
-      ...(a.suggestedLthr != null ? { testedLthrBpm: a.suggestedLthr } : {}),
-      ...(a.suggestedMaxHR != null ? { maxHR: a.suggestedMaxHR } : {}),
-    })
+    // maxHR is not a benchmark kind (yet); it still goes straight on.
+    if (a.suggestedMaxHR != null) onboarding.applyBenchmarkAnchors({ maxHR: a.suggestedMaxHR })
     const batchId = planEdits.applyBatch(buildZoneAnchorOps(
       weeks,
       { oldLthr: a.currentLthr, newLthr: a.suggestedLthr ?? a.currentLthr, newZones },
@@ -752,9 +792,9 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     // Keyed by the batch it undoes. A second apply replaces it, and the
     // read below refuses a snapshot from a different batch rather than
     // rolling the athlete back to a state a later apply already replaced.
-    saveUndoSnapshot(athleteId, { ...undoSnapshot, batchId })
+    saveUndoSnapshot(athleteId, { ...undoSnapshot, batchId, benchmarkIds })
     return batchId
-  }, [athleteId, benchAssessment, hrZones, maxHROverride, onboarding, planEdits, weeks, handleSaveHRZones, strengthCapacity])
+  }, [athleteId, benchAssessment, hrZones, maxHROverride, onboarding, planEdits, weeks, handleSaveHRZones, strengthCapacity, benchmarks])
   const undoBenchmarkResult = useCallback((batchId: string) => {
     // Read the way back BEFORE reverting the plan edits: a half-undo (days
     // restored, zones still rewritten) is the worst of the three outcomes,
@@ -762,6 +802,8 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     // athlete with the state they can still see and undo later.
     const snap = readUndoSnapshot(athleteId, batchId)
     if (!snap) return false
+    // First the log, so its mirror agrees with the direct restores below.
+    for (const id of snap.benchmarkIds ?? []) benchmarks.remove(id)
     planEdits.undoBatch(batchId)
     if (snap.zones) hrZones.save(snap.zones); else hrZones.reset()
     if (snap.maxHROverride != null) maxHROverride.save(snap.maxHROverride); else maxHROverride.reset()
@@ -771,7 +813,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     }
     clearUndoSnapshot(athleteId)
     return true
-  }, [athleteId, planEdits, hrZones, maxHROverride, onboarding, strengthCapacity])
+  }, [athleteId, planEdits, hrZones, maxHROverride, onboarding, strengthCapacity, benchmarks])
 
   // R0 / D11 — season-level QA over the FULL derived week stream. The rules and
   // the reasons they exist live in utils/planAdvisories.
@@ -2200,7 +2242,10 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           onReweightPlan={onboarding.setWeakStation}
           strength={{
             capacity: strengthCapacity.capacity,
-            save: strengthCapacity.save,
+            save: cap => {
+              strengthCapacity.save(cap)
+              benchmarks.addMany(entriesFromCapacity(cap, benchmarks.log, Date.now()))
+            },
             kind: onboarding.config?.raceType === 'hyrox' ? 'hyrox' : 'general',
           }}
         />
@@ -2368,7 +2413,10 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           onClearCache={clearAllCachedData}
           onClearAll={clearAllAppData}
           onSetHyroxDivision={onboarding.setHyroxDivision}
-          onSetTestedLthr={bpm => onboarding.applyBenchmarkAnchors({ testedLthrBpm: bpm })}
+          onSetTestedLthr={bpm => {
+            if (bpm == null) benchmarks.removeKind('lthr')
+            else benchmarks.add({ kind: 'lthr', value: bpm, unit: 'bpm', dateIso: todayDateString(), source: 'manual' })
+          }}
           onResetOnboarding={() => {
             onboarding.requestRedo()
             setView('today')

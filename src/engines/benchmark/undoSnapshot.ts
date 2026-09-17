@@ -44,6 +44,11 @@ export interface BenchmarkUndoSnapshot {
   /** undefined = the erg was untouched by this apply, so undo leaves it
    *  alone; null = there was no capacity to restore, so undo clears it. */
   capacity?: StrengthCapacity | null
+  /** Benchmark-log entries this apply created (the tested LTHR, the erg
+   *  splits). Undo tombstones them, so the log — which App mirrors onto
+   *  the config — goes back to exactly what it said before the apply.
+   *  Absent on snapshots written before the log existed. */
+  benchmarkIds?: string[]
 }
 
 export function benchmarkUndoKey(athleteId: string): string {
