@@ -13,6 +13,7 @@ const garminMock = vi.hoisted(() => ({
   loading: false,
   error: null as string | null,
   mfaRequired: false,
+  mfaNotice: null as string | null,
   healthData: [],
   garminActivities: [],
   activityDetails: {},
@@ -20,6 +21,7 @@ const garminMock = vi.hoisted(() => ({
   displayName: null as string | null,
   connect: vi.fn(),
   submitMfa: vi.fn(),
+  resendMfa: vi.fn(),
   disconnect: vi.fn(),
   sync: vi.fn(),
 }))

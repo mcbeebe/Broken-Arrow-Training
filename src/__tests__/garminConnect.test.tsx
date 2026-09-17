@@ -10,7 +10,7 @@
  * in the error prop just did.
  */
 import { describe, it, expect, afterEach } from 'vitest'
-import { render, screen, cleanup } from '@testing-library/react'
+import { render, screen, cleanup, fireEvent } from '@testing-library/react'
 import GarminConnect from '../components/GarminConnect'
 import { GARMIN_SIGN_IN_REQUIRED } from '../utils/garmin'
 
@@ -27,8 +27,10 @@ const baseProps = {
   displayName: null,
   lastSync: null,
   mfaRequired: false,
+  mfaNotice: null as string | null,
   onConnect: async () => {},
   onSubmitMfa: async () => {},
+  onResendMfa: async () => {},
   onDisconnect: () => {},
   onSync: async () => {},
 }
@@ -82,5 +84,65 @@ describe('GarminConnect app-session guard', () => {
 
     expect(screen.getByText(/Garmin integration not configured/)).toBeTruthy()
     expect(screen.queryByText(GARMIN_SIGN_IN_REQUIRED)).toBeNull()
+  })
+})
+
+/**
+ * The verification step. Garmin's MFA is a two-request handshake; the
+ * server parks the sign-in and the code step resumes it. When that parked
+ * sign-in is lost the server sends a fresh code and says so through
+ * `mfaNotice` — the card must show exactly that, and must never claim to
+ * know how Garmin delivered the code.
+ */
+describe('GarminConnect verification step', () => {
+  it('does not claim the code went to a phone — Garmin may use email or its app', () => {
+    signIn()
+    render(<GarminConnect {...baseProps} mfaRequired={true} />)
+    expect(screen.getByText('Garmin Verification')).toBeTruthy()
+    expect(document.body.textContent).not.toMatch(/phone/i)
+    expect(document.body.textContent).toMatch(/authenticator app/i)
+  })
+
+  it('renders the server notice once — the notice is a complete sentence, nothing is appended', () => {
+    signIn()
+    const notice = 'That code is no longer valid, so Garmin has sent a new one. Enter the newest code you received.'
+    render(<GarminConnect {...baseProps} mfaRequired={true} mfaNotice={notice} />)
+    const hits = document.body.textContent?.match(/Enter the newest code you received\./g) ?? []
+    expect(hits).toHaveLength(1)
+  })
+
+  it('shows the server notice when a fresh code has been sent', () => {
+    signIn()
+    const notice = 'That code is no longer valid, so Garmin has sent a new one. Enter the newest code you received.'
+    render(<GarminConnect {...baseProps} mfaRequired={true} mfaNotice={notice} />)
+    expect(screen.getByText(new RegExp(notice.slice(0, 40)))).toBeTruthy()
+  })
+
+  it('offers a resend, and only that button asks for a new code', async () => {
+    signIn()
+    let resends = 0
+    let submits = 0
+    render(
+      <GarminConnect
+        {...baseProps}
+        mfaRequired={true}
+        onResendMfa={async () => { resends += 1 }}
+        onSubmitMfa={async () => { submits += 1 }}
+      />,
+    )
+    fireEvent.click(screen.getByText(/send a new code/i))
+    expect(resends).toBe(1)
+    expect(submits).toBe(0)
+  })
+
+  it('keeps Verify disabled until six digits are typed', () => {
+    signIn()
+    render(<GarminConnect {...baseProps} mfaRequired={true} />)
+    const verify = screen.getByText('Verify Code') as HTMLButtonElement
+    expect(verify.disabled).toBe(true)
+    fireEvent.change(screen.getByPlaceholderText('6-digit code'), { target: { value: '12345' } })
+    expect(verify.disabled).toBe(true)
+    fireEvent.change(screen.getByPlaceholderText('6-digit code'), { target: { value: '123456' } })
+    expect(verify.disabled).toBe(false)
   })
 })

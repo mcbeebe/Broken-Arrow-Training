@@ -10,8 +10,10 @@ interface GarminConnectProps {
   displayName: string | null
   lastSync: string | null
   mfaRequired: boolean
+  mfaNotice: string | null
   onConnect: (email: string, password: string) => Promise<void>
   onSubmitMfa: (code: string) => Promise<void>
+  onResendMfa: () => Promise<void>
   onDisconnect: () => void
   onSync: () => Promise<void>
 }
@@ -24,8 +26,10 @@ export default function GarminConnect({
   displayName,
   lastSync,
   mfaRequired,
+  mfaNotice,
   onConnect,
   onSubmitMfa,
+  onResendMfa,
   onDisconnect,
   onSync,
 }: GarminConnectProps) {
@@ -92,13 +96,17 @@ export default function GarminConnect({
     )
   }
 
-  // MFA step — Garmin sent a verification code
+  // MFA step — Garmin wants a verification code. We do not know how Garmin
+  // delivers it (text, email or its authenticator app is the athlete's
+  // Garmin setting), so the copy must not say "phone". The notice is the
+  // server's word on what just happened — in particular that a fresh code
+  // was sent because the one they hold can no longer be honoured.
   if (mfaRequired) {
     return (
       <div className="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700 space-y-3">
         <p className="text-sm font-medium text-slate-700 dark:text-slate-200">Garmin Verification</p>
         <p className="text-xs text-slate-500 dark:text-slate-400">
-          Garmin sent a verification code to your phone. Enter it below to complete sign-in.
+          {mfaNotice ?? 'Garmin sent a verification code — by text, email or the Garmin authenticator app, depending on your Garmin security settings. Enter it below.'}
         </p>
         {error && <p className="text-xs text-red-600">{error}</p>}
         <input
@@ -117,6 +125,14 @@ export default function GarminConnect({
           style={{ backgroundColor: '#007CC3' }}
         >
           {loading ? 'Verifying...' : 'Verify Code'}
+        </button>
+        <button
+          type="button"
+          onClick={() => { void onResendMfa(); setMfaCode('') }}
+          disabled={loading}
+          className="w-full text-xs text-slate-500 dark:text-slate-400 underline underline-offset-2 disabled:opacity-50"
+        >
+          Didn't get it? Send a new code
         </button>
       </div>
     )

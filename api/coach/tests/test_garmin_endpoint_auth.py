@@ -22,7 +22,6 @@ import importlib
 import pathlib
 import re
 import sys
-import types
 
 _REPO_ROOT = pathlib.Path(__file__).resolve().parents[3]
 if str(_REPO_ROOT) not in sys.path:
@@ -51,18 +50,16 @@ def secret(monkeypatch):
 
 
 def _load_session_module():
-    """Import api.garmin._session with `garminconnect` stubbed out.
+    """Import api.garmin._session with `garminconnect` present or stubbed.
 
-    That library is a deploy-time dependency and is not installed for the
-    unit suite, but it is imported at module scope. Skipping on ImportError
-    would quietly void every behavioural test in this file — precisely the
-    ones that prove the endpoints are no longer open — so stand in a stub
-    instead. Nothing here touches Garmin; only the identity resolution.
+    That library is a deploy-time dependency and is not always installed
+    for the unit suite, but it is imported at module scope. Skipping on
+    ImportError would quietly void every behavioural test in this file —
+    precisely the ones that prove the endpoints are no longer open — so
+    conftest stands in a stub when the real one is absent. Nothing here
+    touches Garmin; only the identity resolution.
     """
-    if "garminconnect" not in sys.modules:
-        stub = types.ModuleType("garminconnect")
-        stub.Garmin = type("Garmin", (), {})
-        sys.modules["garminconnect"] = stub
+    # conftest.py has already made `garminconnect` importable (real or stub).
     return importlib.import_module("api.garmin._session")
 
 

@@ -1,8 +1,16 @@
 """Garmin authentication endpoint with per-athlete MFA support.
 
 POST /api/garmin/auth?athlete=mike
-- Step 1: POST with no body → triggers login, Garmin sends SMS → returns {mfa_required: true}
-- Step 2: POST with {mfa_code: "123456"} → completes MFA, saves session to KV → returns {authenticated: true}
+- Step 1: POST {email, password} → signs in. If Garmin wants a code the live
+  client is PARKED in this instance's memory and the reply is
+  {mfa_required: true}. Repeating step 1 within the TTL reuses that
+  challenge rather than issuing another; {resend: true} forces a new one.
+- Step 2: POST {email, password, mfa_code} → resumes the PARKED client with
+  the code, saves the session to KV → {authenticated: true}. If the parked
+  client is gone (cold start, other instance, TTL) a fresh challenge is
+  issued and the reply says so: {mfa_required: true, code_resent: true}.
+  Never a fresh login with the old code — see the handshake notes in
+  ._session for why that failed every time.
 - Subsequent: loads saved session from KV → no MFA needed
 
 Each athlete has their own session stored in KV under "garmin_session_{athlete}".
@@ -23,8 +31,9 @@ import json
 import os
 from http.server import BaseHTTPRequestHandler
 from ._session import (
-    get_client, save_session, login_fresh, athlete_for_request,
-    _kv_get, _kv_del, _session_key, _get_credentials, _client_cache,
+    get_client, athlete_for_request, start_garmin_login, complete_garmin_mfa,
+    pending_mfa_status, _kv_get, _kv_del, _session_key, _get_credentials,
+    _client_cache,
 )
 
 
@@ -73,6 +82,7 @@ class handler(BaseHTTPRequestHandler):
             "credentials_configured": has_creds,
             "session_in_kv": has_session,
             "session_length": len(str(saved)) if saved else 0,
+            **pending_mfa_status(athlete),
         })
 
     def do_POST(self):
@@ -94,25 +104,18 @@ class handler(BaseHTTPRequestHandler):
             password = body.get("password", "")
             mfa_code = body.get("mfa_code", "")
             force_fresh = bool(body.get("force_fresh"))
+            resend = bool(body.get("resend"))
 
-            # Step 2: Complete MFA with provided code
-            # This ALWAYS does a fresh login with the caller's credentials —
-            # never falls back to a saved session.
+            # Step 2: the athlete has a code. Resume the PARKED sign-in.
             if mfa_code:
-                # Clear any stale session before writing the new one.
-                _kv_del(_session_key(athlete))
-                _client_cache.pop(athlete or "__default__", None)
-                client = login_fresh(
-                    athlete, mfa_code=mfa_code,
-                    email=email or None, password=password or None,
-                )
-                display_name = client.get_full_name()
-                self._send_json(200, {
-                    "authenticated": True,
-                    "displayName": display_name or "Garmin User",
-                    "athlete": athlete,
-                    "session_saved": True,
-                })
+                if not email or not password:
+                    self._send_json(401, {
+                        "authenticated": False,
+                        "error": "Garmin email and password required to verify the code.",
+                    })
+                    return
+                outcome = complete_garmin_mfa(athlete, email, password, mfa_code)
+                self._send_json(outcome.status, outcome.to_json(athlete))
                 return
 
             # If the caller submitted credentials OR requested force_fresh,
@@ -133,13 +136,11 @@ class handler(BaseHTTPRequestHandler):
                 except RuntimeError:
                     pass
 
-            # Step 1: Fresh login — may trigger MFA SMS.
-            # Wipe any stale session/cache for this athlete first so we never
-            # silently restore a token that belongs to someone else.
-            _kv_del(_session_key(athlete))
-            _client_cache.pop(athlete or "__default__", None)
-
-            # Credentials come from request body (frontend form) or env vars
+            # Step 1: fresh sign-in with the credentials the athlete typed.
+            # Deliberately NO env-var fallback here: GARMIN_EMAIL is the
+            # owner's account, and a bearer for any other athlete sending
+            # force_fresh with an empty body would otherwise sign in as the
+            # owner and have that session saved under their own slug.
             if not email or not password:
                 self._send_json(401, {
                     "authenticated": False,
@@ -147,25 +148,8 @@ class handler(BaseHTTPRequestHandler):
                 })
                 return
 
-            try:
-                client = login_fresh(athlete, email=email, password=password)
-                display_name = client.get_full_name()
-                self._send_json(200, {
-                    "authenticated": True,
-                    "displayName": display_name or "Garmin User",
-                    "athlete": athlete,
-                    "session_saved": True,
-                })
-            except Exception as e:
-                if "MFA" in str(e) or "mfa" in str(e).lower():
-                    self._send_json(200, {
-                        "authenticated": False,
-                        "mfa_required": True,
-                        "athlete": athlete,
-                        "message": "SMS verification code sent. POST back with {\"mfa_code\": \"123456\"} to complete.",
-                    })
-                else:
-                    raise
+            outcome = start_garmin_login(athlete, email, password, force_new_code=resend)
+            self._send_json(outcome.status, outcome.to_json(athlete))
 
         except ValueError as e:
             self._send_json(500, {"authenticated": False, "error": str(e)})
