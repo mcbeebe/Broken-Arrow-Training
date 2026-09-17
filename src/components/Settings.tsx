@@ -16,6 +16,7 @@ import type { OnboardingConfig } from '../hooks/useOnboarding'
 import type { MIMOverride } from '../hooks/useMIMCalibration'
 import BenchmarksSection from './BenchmarksSection'
 import type { Benchmark, BenchmarkKind, PlanKind } from '../engines/benchmark/log'
+import type { AddBenchmarkOptions } from './BenchmarksSection'
 import { SPORT_LABELS } from '../hooks/useMIMCalibration'
 import CoachPersonaEditor from './CoachPersonaEditor'
 import { isVoiceInputEnabled, setVoiceInputEnabled, voiceCaptureSupported } from '../utils/voiceInput'
@@ -136,7 +137,7 @@ interface SettingsProps {
    *  benchmark log. Replaces the LTHR-only Calibration entry, and — unlike
    *  it — shows for every plan type. */
   benchmarks?: { plan: PlanKind; live: Benchmark[]; todayIso: string }
-  onAddBenchmark?: (kind?: BenchmarkKind) => void
+  onAddBenchmark?: (kind?: BenchmarkKind, opts?: AddBenchmarkOptions) => void
   onRemoveBenchmark?: (id: string) => void
   /** Current pinned week-1 Monday (ISO), and a non-destructive setter. */
   planStartIso?: string

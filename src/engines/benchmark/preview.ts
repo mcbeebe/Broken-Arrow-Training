@@ -41,7 +41,7 @@ export interface PreviewInput {
   method?: TrainingMethod | null
 }
 
-function fmtTime(sec: number): string {
+export function fmtTime(sec: number): string {
   const h = Math.floor(sec / 3600)
   const m = Math.floor((sec % 3600) / 60)
   const s = Math.round(sec % 60)
@@ -49,6 +49,20 @@ function fmtTime(sec: number): string {
 }
 
 /** A benchmark value in the athlete's units. */
+/** A signed change in the benchmark's own unit: "−0:35", "+4 reps", "+5 lb". */
+export function formatBenchmarkDelta(b: Pick<Benchmark, 'kind' | 'unit'>, delta: number): string {
+  const sign = delta < 0 ? '−' : '+'
+  const mag = Math.abs(delta)
+  if (b.kind === 'easy_pace' || b.unit === 'seconds') return `${sign}${fmtTime(mag)}${b.kind === 'easy_pace' ? ' /mi' : ''}`
+  const n = Number.isInteger(mag) ? String(mag) : mag.toFixed(1)
+  switch (b.unit) {
+    case 'bpm': return `${sign}${n} bpm`
+    case 'reps': return `${sign}${n} reps`
+    case 'lb': return `${sign}${n} lb`
+    case 'rpe': return `${sign}${n} RPE`
+  }
+}
+
 export function formatBenchmarkValue(b: Pick<Benchmark, 'kind' | 'value' | 'unit'>): string {
   if (b.kind === 'easy_pace') return fmtPaceSecMi(b.value)
   switch (b.unit) {

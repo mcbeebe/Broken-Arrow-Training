@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import {
-  BENCHMARK_KINDS, kindsForPlan, isPlausible, isStale,
+  BENCHMARK_KINDS, kindsForPlan, isPlausible, isStale, sameSeries,
   type Benchmark, type BenchmarkKind, type BenchmarkUnit, type PlanKind,
 } from '../engines/benchmark/log'
 import { previewBenchmark, formatBenchmarkValue, type PreviewInput } from '../engines/benchmark/preview'
@@ -27,6 +27,10 @@ interface Props {
   preview: Omit<PreviewInput, 'candidate'>
   /** Open with a preset already chosen. */
   initialKind?: BenchmarkKind
+  /** For a custom series ("Murph"): open on that label and unit, so a
+   *  re-test lands in the same series as the last one. */
+  initialLabel?: string
+  initialUnit?: BenchmarkUnit
   onSave: (entry: Omit<Benchmark, 'id' | 'at'>) => void
   onClose: () => void
 }
@@ -58,13 +62,13 @@ function shiftDays(iso: string, days: number): string {
   return isoFromLocalDate(new Date(y, m - 1, d + days))
 }
 
-export default function BenchmarkSheet({ plan, todayIso, preview, initialKind, onSave, onClose }: Props) {
+export default function BenchmarkSheet({ plan, todayIso, preview, initialKind, initialLabel, initialUnit, onSave, onClose }: Props) {
   const presets = useMemo(() => kindsForPlan(plan), [plan])
   const [kind, setKind] = useState<BenchmarkKind>(initialKind ?? presets[0])
   const [raw, setRaw] = useState('')
   const [protocol, setProtocol] = useState('')
-  const [label, setLabel] = useState('')
-  const [customUnit, setCustomUnit] = useState<BenchmarkUnit>('seconds')
+  const [label, setLabel] = useState(initialLabel ?? '')
+  const [customUnit, setCustomUnit] = useState<BenchmarkUnit>(initialUnit ?? 'seconds')
   const [when, setWhen] = useState<When>('today')
   const [dateIso, setDateIso] = useState(todayIso)
 
@@ -98,7 +102,10 @@ export default function BenchmarkSheet({ plan, todayIso, preview, initialKind, o
     [candidate, plausible, preview],
   )
   const canSave = !!candidate && plausible && (kind !== 'other' || label.trim().length > 0)
-  const current = preview.log.filter(b => !b.deleted && b.kind === kind).sort((a, b) => b.dateIso.localeCompare(a.dateIso))[0]
+  const current = preview.log
+    .filter(b => !b.deleted && sameSeries(b, { kind, label }))
+    .sort((a, b) => b.dateIso.localeCompare(a.dateIso) || b.at - a.at)[0]
+  const currentName = kind === 'other' && label.trim() ? label.trim() : spec.label
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center" onClick={onClose}>
@@ -173,7 +180,7 @@ export default function BenchmarkSheet({ plan, todayIso, preview, initialKind, o
             )}
             {current && (
               <p className="text-[11px] text-slate-400 mt-1">
-                Current {spec.label}: {formatBenchmarkValue(current)} · {current.dateIso}{isStale(current, todayIso) ? ' · due a retest' : ''}
+                Current {currentName}: {formatBenchmarkValue(current)} · {current.dateIso}{isStale(current, todayIso) ? ' · due a retest' : ''} — this becomes the next point on its trend.
               </p>
             )}
           </div>

@@ -146,7 +146,7 @@ import { useDisplayPreferences } from './hooks/useDisplayPreferences'
 import { useBackendSync } from './hooks/useBackendSync'
 import { useStrengthCapacity } from './hooks/useStrengthCapacity'
 import { useBenchmarks } from './hooks/useBenchmarks'
-import { entriesFromCapacity, planKindOf, BENCHMARK_KINDS, type BenchmarkKind } from './engines/benchmark/log'
+import { entriesFromCapacity, planKindOf, BENCHMARK_KINDS, type BenchmarkKind, type BenchmarkUnit } from './engines/benchmark/log'
 import BenchmarkSheet from './components/BenchmarkSheet'
 
 // Auto-clear stale caches on app startup when data format changes
@@ -680,7 +680,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
   // The Add-benchmark sheet and its one undo. A saved benchmark applies at
   // once (the sheet showed what it changes before the tap); the banner is
   // the way back for twelve seconds, after which the log's history is.
-  const [benchmarkSheet, setBenchmarkSheet] = useState<{ kind?: BenchmarkKind } | null>(null)
+  const [benchmarkSheet, setBenchmarkSheet] = useState<{ kind?: BenchmarkKind; label?: string; unit?: BenchmarkUnit } | null>(null)
   const [benchmarkSaved, setBenchmarkSaved] = useState<{ id: string; label: string; changesPlan: boolean } | null>(null)
   useEffect(() => {
     if (!benchmarkSaved) return
@@ -2266,6 +2266,8 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           plan={planKindOf(onboarding.config)}
           todayIso={todayDateString()}
           initialKind={benchmarkSheet.kind}
+          initialLabel={benchmarkSheet.label}
+          initialUnit={benchmarkSheet.unit}
           preview={{
             log: benchmarks.log,
             config: onboarding.config,
@@ -2317,7 +2319,8 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           garminConnected={garmin.connected || apple.connected}
           sorenessLoadByDate={soreness.sorenessLoadByDate}
           strengthCapacity={strengthCapacity.capacity}
-          onAddBenchmark={() => setBenchmarkSheet({})}
+          onAddBenchmark={(kind, opts) => setBenchmarkSheet({ kind, ...opts })}
+          benchmarkLog={benchmarks.live}
           strengthWeeks={strengthWeeks}
           currentWeekNum={currentWeekNum}
           onboardingConfig={onboarding.config}
@@ -2463,7 +2466,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           onClearAll={clearAllAppData}
           onSetHyroxDivision={onboarding.setHyroxDivision}
           benchmarks={{ plan: planKindOf(onboarding.config), live: benchmarks.live, todayIso: todayDateString() }}
-          onAddBenchmark={kind => setBenchmarkSheet({ kind })}
+          onAddBenchmark={(kind, opts) => setBenchmarkSheet({ kind, ...opts })}
           onRemoveBenchmark={id => benchmarks.remove(id)}
           onResetOnboarding={() => {
             onboarding.requestRedo()

@@ -149,6 +149,106 @@ export function liveEntries(log: readonly Benchmark[]): Benchmark[] {
   return log.filter(b => !b.deleted).sort((a, b) => b.dateIso.localeCompare(a.dateIso) || b.at - a.at)
 }
 
+// ── Series: the unit of "tracking over time" ───────────────────────────
+//
+// A preset kind is its own series. `other` is many: the athlete's "Murph"
+// and "dead hang" are different benchmarks that happen to share the
+// catch-all kind, so they group by label, not by kind.
+
+export type ProgressDirection = 'lower' | 'higher' | 'neutral'
+
+export interface BenchmarkSeries {
+  key: string
+  kind: BenchmarkKind
+  /** Athlete-facing name: the preset label, or the custom label. */
+  label: string
+  /** Newest measured first. */
+  entries: Benchmark[]
+}
+
+function normalizedLabel(label: string | undefined): string {
+  return (label ?? '').trim().toLowerCase().replace(/\s+/g, ' ')
+}
+
+/** Which series an entry belongs to. */
+export function seriesKey(b: Pick<Benchmark, 'kind' | 'label'>): string {
+  return b.kind === 'other' ? `other:${normalizedLabel(b.label)}` : b.kind
+}
+
+/** Same series as `a` — the kind, and for custom entries the label too. */
+export function sameSeries(a: Pick<Benchmark, 'kind' | 'label'>, b: Pick<Benchmark, 'kind' | 'label'>): boolean {
+  return seriesKey(a) === seriesKey(b)
+}
+
+/** Group live entries into series, each newest-first, in the order the
+ *  plan's presets are listed (custom series last, by first appearance). */
+export function groupBySeries(live: readonly Benchmark[], plan: PlanKind): BenchmarkSeries[] {
+  const order = [...new Set([...kindsForPlan(plan), ...(Object.keys(BENCHMARK_KINDS) as BenchmarkKind[])])]
+  const byKey = new Map<string, BenchmarkSeries>()
+  for (const b of liveEntries(live)) {
+    const key = seriesKey(b)
+    const cur = byKey.get(key)
+    if (cur) cur.entries.push(b)
+    else byKey.set(key, { key, kind: b.kind, label: b.kind === 'other' && b.label ? b.label.trim() : BENCHMARK_KINDS[b.kind].label, entries: [b] })
+  }
+  const rank = (s: BenchmarkSeries) => order.indexOf(s.kind)
+  return [...byKey.values()].sort((a, b) => rank(a) - rank(b))
+}
+
+/** Which way is progress for this benchmark. Times fall, reps and loads
+ *  rise, a plank hold rises; a threshold HR or an RPE just moves, and a
+ *  custom time could be either (a Murph falls, a dead hang rises), so
+ *  those are reported without a verdict. */
+export function progressDirection(b: Pick<Benchmark, 'kind' | 'unit'>): ProgressDirection {
+  if (b.kind === 'other') return b.unit === 'reps' || b.unit === 'lb' ? 'higher' : 'neutral'
+  if (b.kind === 'plank') return 'higher'
+  switch (b.unit) {
+    case 'seconds': return 'lower'
+    case 'reps': case 'lb': return 'higher'
+    default: return 'neutral'
+  }
+}
+
+export interface SeriesProgress {
+  latest: Benchmark
+  previous: Benchmark | null
+  oldest: Benchmark
+  /** Best by the series' direction; the latest when there is no direction. */
+  best: Benchmark
+  /** latest − previous, in the series' unit; null with one entry. */
+  deltaVsPrevious: number | null
+  /** latest − oldest; null with one entry. */
+  deltaSinceFirst: number | null
+  /** Weeks from oldest to latest measurement. */
+  spanWeeks: number
+  /** 'better' / 'worse' by direction for deltaVsPrevious; 'same' when
+   *  equal; 'neutral' when the series has no direction. */
+  verdict: 'better' | 'worse' | 'same' | 'neutral'
+}
+
+/** Where the series stands. `entries` newest-first, as groupBySeries gives. */
+export function seriesProgress(entries: readonly Benchmark[]): SeriesProgress | null {
+  if (entries.length === 0) return null
+  const latest = entries[0]
+  const previous = entries[1] ?? null
+  const oldest = entries[entries.length - 1]
+  const dir = progressDirection(latest)
+  let best = latest
+  if (dir !== 'neutral') {
+    for (const e of entries) {
+      if (dir === 'lower' ? e.value < best.value : e.value > best.value) best = e
+    }
+  }
+  const deltaVsPrevious = previous ? latest.value - previous.value : null
+  const deltaSinceFirst = previous ? latest.value - oldest.value : null
+  const spanWeeks = Math.max(0, Math.round(daysBetween(oldest.dateIso.slice(0, 10), latest.dateIso.slice(0, 10)) / 7))
+  let verdict: SeriesProgress['verdict'] = 'neutral'
+  if (deltaVsPrevious != null && dir !== 'neutral') {
+    verdict = deltaVsPrevious === 0 ? 'same' : (dir === 'lower' ? deltaVsPrevious < 0 : deltaVsPrevious > 0) ? 'better' : 'worse'
+  }
+  return { latest, previous, oldest, best, deltaVsPrevious, deltaSinceFirst, spanWeeks, verdict }
+}
+
 export function ageWeeks(b: Pick<Benchmark, 'dateIso'>, todayIso: string): number {
   return Math.max(0, Math.floor(daysBetween(b.dateIso.slice(0, 10), todayIso) / 7))
 }

@@ -23,8 +23,52 @@ describe('BenchmarksSection', () => {
     expect(row).toContain('5K · 21:40')
     expect(row).toContain('parkrun')
     expect(row).toContain('entered by you')
-    expect(row).toMatch(/History: 22:15 \(2026-05\)/)
     expect(row).toContain('current')
+    // The change against the previous entry sits beside the current value.
+    expect(screen.getByTestId('bm-delta').textContent).toBe('−0:35 ▲')
+    // Every entry is one tap away.
+    expect(screen.getByTestId('bm-history-toggle').textContent).toBe('History · 2 entries')
+  })
+
+  it('History opens the trend and every entry with its change vs the one before', () => {
+    const onRemove = vi.fn()
+    render(<BenchmarksSection plan="road" live={live} todayIso="2026-09-17" onAdd={() => {}} onRemove={onRemove} />)
+    fireEvent.click(screen.getByTestId('bm-history-toggle'))
+    expect(screen.getByTestId('bm-trend')).toBeTruthy()
+    expect(screen.getByTestId('bm-since-first').textContent).toMatch(/Since your first 5K \(2026-05-02\): −0:35 over 17 wk · your best yet/)
+    const newest = screen.getByTestId('bm-entry-b2').textContent ?? ''
+    expect(newest).toContain('21:40')
+    expect(newest).toContain('current')
+    expect(newest).toContain('−0:35 ▲')
+    const oldest = screen.getByTestId('bm-entry-b1').textContent ?? ''
+    expect(oldest).toContain('22:15')
+    expect(oldest).not.toContain('▲')
+    // An older entry can be removed on its own, after a confirm.
+    fireEvent.click(screen.getByLabelText('Remove 22:15 from 2026-05-02'))
+    fireEvent.click(screen.getByText('Yes'))
+    expect(onRemove).toHaveBeenCalledWith('b1')
+    fireEvent.click(screen.getByText('Hide history'))
+    expect(screen.queryByTestId('bm-trend')).toBeNull()
+  })
+
+  it('every row offers a new entry, not only a stale one, and a custom series reopens on its own label', () => {
+    const onAdd = vi.fn()
+    const custom: Benchmark[] = [
+      ...live,
+      { id: 'c1', kind: 'other', label: 'murph', value: 50 * 60, unit: 'seconds', dateIso: '2026-06-01', source: 'manual', at: 4 },
+      { id: 'c2', kind: 'other', label: 'Murph', value: 47 * 60, unit: 'seconds', dateIso: '2026-09-01', source: 'manual', at: 5 },
+      { id: 'c3', kind: 'other', label: 'Dead hang', value: 70, unit: 'seconds', dateIso: '2026-09-01', source: 'manual', at: 6 },
+    ]
+    render(<BenchmarksSection plan="road" live={custom} todayIso="2026-09-17" onAdd={onAdd} onRemove={() => {}} />)
+    // Murph (two spellings) is one series; Dead hang is another.
+    const murph = screen.getByTestId('bm-row-other-murph')
+    expect(murph.textContent).toContain('Murph · 47:00')
+    expect(murph.textContent).toContain('History · 2 entries')
+    expect(screen.getByTestId('bm-row-other-dead-hang').textContent).toContain('One entry so far')
+    fireEvent.click(screen.getByText('+ Log a new 5K'))
+    expect(onAdd).toHaveBeenCalledWith('race_5k')
+    fireEvent.click(screen.getByText('+ Log a new Murph'))
+    expect(onAdd).toHaveBeenCalledWith('other', { label: 'Murph', unit: 'seconds' })
   })
 
   it('a stale strength number says retest and offers the re-entry for that kind', () => {
