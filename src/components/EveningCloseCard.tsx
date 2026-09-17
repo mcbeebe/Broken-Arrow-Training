@@ -52,15 +52,15 @@ export default function EveningCloseCard({
           as planned, or left open — and none of them is a failure. */}
       <p className="text-base font-bold text-slate-800 dark:text-white mt-1" data-testid="evening-headline">
         {unplanned ? 'Nothing on the plan today.'
-          : trained ? 'Today is resolved.'
-          : restDay ? 'Rest day — resolved.'
+          : trained ? 'Completed!'
+          : restDay ? 'Rest day — completed!'
           : 'Today is still open.'}
       </p>
       <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">
         {unplanned ? 'Your plan does not cover today. Nothing is owed, and nothing is open.'
           : trained ? `${today.workout} is logged.`
           : restDay ? 'The plan asked for rest and you took it. That counts.'
-          : `${today.workout} has nothing logged against it — resolve it above, or let it carry to the morning.`}
+          : `${today.workout} has nothing logged against it — log it above, or let it carry to the morning.`}
       </p>
 
       {notesWaiting > 0 && !notesInline && (
@@ -113,7 +113,7 @@ export default function EveningCloseCard({
       <p className="mt-2 text-[10px] text-slate-400 text-center leading-snug">
         {closed
           ? 'Tomorrow’s check is armed. See you then.'
-          : 'Closing marks today resolved and arms tomorrow’s morning check.'}
+          : 'Closing marks today completed and arms tomorrow’s morning check.'}
       </p>
     </div>
   )

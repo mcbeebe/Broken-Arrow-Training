@@ -22,12 +22,12 @@ const props = {
 describe('the day\'s receipt', () => {
   it('resolves a trained day', () => {
     render(<EveningCloseCard {...props} today={trained()} />)
-    expect(screen.getByTestId('evening-headline').textContent).toBe('Today is resolved.')
+    expect(screen.getByTestId('evening-headline').textContent).toBe('Completed!')
   })
 
   it('counts a planned rest day as resolved, not as nothing', () => {
     render(<EveningCloseCard {...props} today={day({ type: 'rest', workout: 'Rest' })} />)
-    expect(screen.getByTestId('evening-headline').textContent).toBe('Rest day — resolved.')
+    expect(screen.getByTestId('evening-headline').textContent).toBe('Rest day — completed!')
     expect(screen.getByTestId('evening-close').textContent).toContain('That counts')
   })
 

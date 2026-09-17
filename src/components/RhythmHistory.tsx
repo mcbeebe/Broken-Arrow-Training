@@ -7,7 +7,7 @@ import { resolvedCount } from '../utils/rhythm'
  *
  * Where Today's strip is the last twelve days in the dark header, this is a
  * longer light-card band: three weeks of resolved days, plus the plainest
- * good-news line the data can honestly carry — how many days resolved.
+ * good-news line the data can honestly carry — how many days completed.
  * Deliberately NOT a streak: a broken streak re-creates the very shame this
  * band exists to remove (see the no-streak product guard). Nothing here is
  * red; an open day is a neutral ring, never a mark against the athlete.
@@ -40,7 +40,7 @@ export default function RhythmHistory({ rhythm }: { rhythm: RhythmDay[] }) {
       </div>
       {of > 0 && (
         <p className="mt-2.5 text-xs font-semibold text-slate-700 dark:text-slate-200" data-testid="rhythm-history-summary">
-          {resolved} of your last {of} days resolved
+          {resolved} of your last {of} days completed
         </p>
       )}
     </div>

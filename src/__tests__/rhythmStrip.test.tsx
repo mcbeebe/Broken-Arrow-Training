@@ -14,12 +14,12 @@ const days = (states: RhythmDay['state'][]): RhythmDay[] =>
 describe('the dots', () => {
   it('counts a rested day as resolved alongside a trained one', () => {
     render(<RhythmStrip rhythm={days(['done', 'rest', 'done', 'today'])} />)
-    expect(screen.getByTestId('rhythm-summary').textContent).toBe('3 of your last 3 days resolved')
+    expect(screen.getByTestId('rhythm-summary').textContent).toBe('3 of your last 3 days completed')
   })
 
   it('leaves an open day out of the resolved count without calling it a failure', () => {
     render(<RhythmStrip rhythm={days(['done', 'open', 'done', 'today'])} />)
-    expect(screen.getByTestId('rhythm-summary').textContent).toBe('2 of your last 3 days resolved')
+    expect(screen.getByTestId('rhythm-summary').textContent).toBe('2 of your last 3 days completed')
     const strip = screen.getByTestId('rhythm-strip')
     // Nothing in the strip is red — an open day asks, it does not accuse.
     expect(strip.innerHTML).not.toMatch(/red|rose-|danger/)

@@ -22,13 +22,13 @@ describe('RhythmHistory', () => {
 
   it('renders how many of the recent days are resolved', () => {
     render(<RhythmHistory rhythm={record} />)
-    expect(screen.getByTestId('rhythm-history-summary').textContent).toContain('11 of your last 12 days resolved')
+    expect(screen.getByTestId('rhythm-history-summary').textContent).toContain('11 of your last 12 days completed')
   })
 
   it('counts a rested day as resolved, and does not count today/future', () => {
     // 2 done + 1 rest resolved of 3 past days; today and future excluded.
     render(<RhythmHistory rhythm={[d('done', 0), d('rest', 1), d('done', 2), d('today', 3), d('future', 4)]} />)
-    expect(screen.getByTestId('rhythm-history-summary').textContent).toContain('3 of your last 3 days resolved')
+    expect(screen.getByTestId('rhythm-history-summary').textContent).toContain('3 of your last 3 days completed')
   })
 
   it('renders nothing when the plan carries no dated rhythm', () => {
