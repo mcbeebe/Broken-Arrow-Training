@@ -43,7 +43,12 @@ import {
   stepName,
   showsMenopauseStep as gatesMenopauseStep,
   visibleSteps as computeVisibleSteps,
+  STEP_WEEK_SHAPE,
 } from './onboarding/steps'
+import WeekShapeEditor from './WeekShapeEditor'
+import WeekShapePreview from './WeekShapePreview'
+import { validateWeekShape, shapeHasErrors, type WeekShape } from '../engines/planGenerator/weekShape'
+import { defaultWeekShapeFor, methodForConfig, methodRunDayBounds } from '../engines/planGenerator/shapeDefaults'
 
 interface Props {
   onComplete: (config: OnboardingConfig) => void
@@ -281,6 +286,10 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
   const [detailLevel, setDetailLevel] = useState<DetailLevel | null>(null)
   const [daysPerWeek, setDaysPerWeek] = useState<number | null>(null)
   const [longRunDay, setLongRunDay] = useState<string | null>(null)
+  // Plan shaping: null until the athlete touches the week — an untouched
+  // week is not stored, so the engines lay it out exactly as before.
+  const [weekShape, setWeekShape] = useState<WeekShape | null>(prev?.weekShape ?? null)
+  const shapePlan = (raceType ?? 'road') as 'road' | 'trail' | 'hyrox' | 'general'
   const [weakStation, setWeakStation] = useState<string | null>(null)
   const [hyroxDivision, setHyroxDivision] = useState<'open' | 'pro'>(prev?.hyroxDivision ?? 'open')
   const [skiErgTT, setSkiErgTT] = useState('')
@@ -483,6 +492,7 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
         if (crossDays === null) return false
         if (crossDays > 0 && crossTraining.length === 0) return false
         return true
+      case STEP_WEEK_SHAPE: return !weekShape || !shapeHasErrors(validateWeekShape(weekShape, { plan: shapePlan }))
       case STEP_SCHEDULE: return trainingTimes.length > 0 // schedule note is optional
       case STEP_WEARABLE: return !!wearable
       case STEP_PROFILE: return name.trim().length > 0 && age.trim().length > 0
@@ -549,7 +559,7 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
   // the preview step — nothing is saved, and the final config is built
   // exclusively by handleComplete from the full answer set.
   const provisionalConfig: OnboardingConfig | null =
-    step === STEP_PREVIEW && raceType && experience
+    (step === STEP_PREVIEW || step === STEP_WEEK_SHAPE) && raceType && experience
       ? normalizeSeasonConfig({
           raceType,
           raceName: raceName.trim() || 'Your race',
@@ -567,6 +577,14 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
           experienceLevel: experience,
           detailLevel: effectiveDetail,
           trainingDaysPerWeek: daysPerWeek ?? 4,
+          // Answered by the week-shape step (after days / variant / strength);
+          // still unset on the earlier preview step, where they change nothing.
+          longRunDay: longRunDay ?? undefined,
+          weakStation: weakStation ?? undefined,
+          equipmentAccess: equipment.length > 0 ? equipment : undefined,
+          strengthDaysPerWeek: strengthDays ?? undefined,
+          crossTrainingModes: crossTraining.length > 0 ? crossTraining : undefined,
+          crossTrainingDaysPerWeek: crossDays ?? undefined,
           wearable: 'none',
           athleteName: name.trim(),
           age: parseInt(age) || 40,
@@ -583,6 +601,20 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
           completedAt: '',
         })
       : null
+
+  // Plan shaping: the layout the engine would choose from the answers so
+  // far is the starting point; the method's running-day range feeds the
+  // editor's warning. Both only exist on the week-shape step.
+  const shapeDefault = useMemo(
+    () => (step === STEP_WEEK_SHAPE && provisionalConfig ? defaultWeekShapeFor(provisionalConfig) : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [step, provisionalConfig && JSON.stringify({ ...provisionalConfig, weekShape: undefined })],
+  )
+  const shapeMethodRunDays = useMemo(
+    () => (step === STEP_WEEK_SHAPE && provisionalConfig && (raceType === 'road' || raceType === 'trail') ? methodRunDayBounds(methodForConfig(provisionalConfig)) : undefined),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [step, raceType, provisionalConfig && JSON.stringify(provisionalConfig)],
+  )
 
   const handleComplete = () => {
     const ageNum = parseInt(age) || 30
@@ -608,6 +640,9 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
       detailLevel: effectiveDetail,
       trainingDaysPerWeek: daysPerWeek!,
       longRunDay: longRunDay ?? undefined,
+      // Only a week the athlete actually laid out is stored; untouched, the
+      // engines keep their own layout (and the ground truth stays byte-equal).
+      weekShape: weekShape ?? undefined,
       weakStation: weakStation ?? undefined,
       hyroxDivision: raceType === 'hyrox' ? hyroxDivision : undefined,
       skiErg1kSeconds: raceType === 'hyrox' ? parseErgSeconds(skiErgTT) : undefined,
@@ -1763,6 +1798,32 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
                 fit={extrasFit}
               />
             </div>
+          </StepContainer>
+        )}
+
+        {step === STEP_WEEK_SHAPE && (
+          <StepContainer
+            title="Here's your week"
+            subtitle="Tap a day to move things. The method decides what each session is; you decide where it goes."
+          >
+            {provisionalConfig && shapeDefault ? (
+              <div className="space-y-4" data-testid="week-shape-step">
+                <WeekShapeEditor
+                  value={weekShape ?? shapeDefault}
+                  onChange={setWeekShape}
+                  plan={shapePlan}
+                  defaultShape={shapeDefault}
+                  methodRunDays={shapeMethodRunDays}
+                />
+                <WeekShapePreview config={provisionalConfig} shape={weekShape ?? shapeDefault} />
+                <p className="text-xs text-slate-400">
+                  {weekShape ? 'Your layout. ' : 'This is the layout the plan would use on its own. '}
+                  You can change it any time from the Plan tab — for the whole plan, or from a week onward.
+                </p>
+              </div>
+            ) : (
+              <p className="text-sm text-slate-500">Keep going — your week takes shape from the answers so far.</p>
+            )}
           </StepContainer>
         )}
 

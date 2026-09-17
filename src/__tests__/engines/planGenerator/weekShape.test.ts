@@ -8,6 +8,7 @@ import { describe, it, expect } from 'vitest'
 import {
   validateWeekShape, countRoles, applyShapeToSchedule, extraSlotsForDays, configWithShape,
   hyroxLayoutFromShape, generalLayoutFromShape, shapeFromDays, describeShape, changedWeekdays,
+  effectiveShape, latestShape,
   type WeekShape,
 } from '../../../engines/planGenerator/weekShape'
 import { defaultWeekShapeFor, methodRunDayBounds } from '../../../engines/planGenerator/shapeDefaults'
@@ -60,7 +61,7 @@ describe('shape helpers', () => {
     const s = shape('rest quality run strength cross long rest')
     expect(countRoles(s)).toMatchObject({ long: 1, quality: 1, run: 1, strength: 1, cross: 1, rest: 2, running: 3, training: 5 })
     const cfg = configWithShape(road({ trainingDaysPerWeek: 3, longRunDay: 'Tuesday' }), s)
-    expect(cfg).toMatchObject({ trainingDaysPerWeek: 5, strengthDaysPerWeek: 1, crossTrainingDaysPerWeek: 1, longRunDay: 'Saturday', weekShape: s })
+    expect(cfg).toMatchObject({ trainingDaysPerWeek: 5, strengthDaysPerWeek: 1, crossTrainingDaysPerWeek: 1, longRunDay: 'Saturday' })
     expect(describeShape(s)).toBe('Mon rest · Tue quality · Wed easy run · Thu strength · Fri cross-train · Sat long run · Sun rest')
     expect(changedWeekdays(s, { ...s, 2: 'run', 7: 'quality' })).toEqual([2, 7])
   })
@@ -160,5 +161,54 @@ describe('the generators honor a week shape', () => {
     const again = defaultWeekShapeFor({ ...cfg, weekShape: def }, TODAY)
     expect(again).toEqual(def)
     expect(methodRunDayBounds(getMethodById('daniels')!)).toMatchObject({ min: 4, max: 6, name: expect.any(String) })
+  })
+})
+
+describe('reshapes from a week onward', () => {
+  const base = shape('rest quality run strength run long rest')
+  const later = shape('rest run strength quality rest long cross')
+
+  it('effectiveShape picks the latest reshape at or before the week, else the base shape', () => {
+    const cfg = { weekShape: base, weekReshapes: [{ fromWeek: 5, shape: later, at: 1 }] }
+    expect(effectiveShape(cfg, 1)).toEqual(base)
+    expect(effectiveShape(cfg, 4)).toEqual(base)
+    expect(effectiveShape(cfg, 5)).toEqual(later)
+    expect(effectiveShape(cfg, 12)).toEqual(later)
+    expect(latestShape(cfg)).toEqual(later)
+    expect(effectiveShape({ weekReshapes: [{ fromWeek: 3, shape: later, at: 1 }] }, 2)).toBeNull()
+    expect(latestShape({})).toBeNull()
+    // Two reshapes for the same week: the newer one wins.
+    const twice = { weekReshapes: [{ fromWeek: 3, shape: base, at: 1 }, { fromWeek: 3, shape: later, at: 2 }] }
+    expect(effectiveShape(twice, 3)).toEqual(later)
+  })
+
+  it('road: a reshape from week 5 leaves weeks 1–4 on the old layout and puts weeks 5+ on the new one', () => {
+    const plan = generatePlanFromMethod(getMethodById('daniels')!, road({ weekShape: base, weekReshapes: [{ fromWeek: 5, shape: later, at: 1 }] }), '2026-05-10')
+    const at = (n: number) => shapeFromDays(plan.weeks.find(w => w.num === n)!.days)!
+    expect(at(2)[4]).toBe('strength')   // Thu strength, old layout
+    expect(at(2)[7]).toBe('rest')
+    expect(at(6)[3]).toBe('strength')   // Wed strength, new layout
+    expect(at(6)[7]).toBe('cross')      // Sun cross, new layout
+    expect(at(6)[4]).not.toBe('strength')
+  })
+
+  it('hyrox and general fitness switch layout at the reshape week too', () => {
+    const hy = generateHyroxPlan({
+      raceType: 'hyrox', raceName: 'Hyrox', raceDate: '2026-12-12', experienceLevel: 'intermediate', trainingDaysPerWeek: 4,
+      wearable: 'none', athleteName: 'M', age: 45, maxHR: 178, completedAt: '',
+      weekShape: shape('run strength cross rest quality rest long'),
+      weekReshapes: [{ fromWeek: 3, shape: shape('rest run strength quality rest cross long'), at: 1 }],
+    } as OnboardingConfig, '2026-08-03')
+    expect(weekRoles(hy.weeks[1].days).startsWith('Mon:run Tue:strength Wed:cross')).toBe(true)
+    expect(weekRoles(hy.weeks[2].days).startsWith('Mon:rest Tue:run Wed:strength')).toBe(true)
+    const gf = generateGeneralFitnessPlan({
+      raceType: 'general', raceName: 'My Fitness Plan', raceDate: '', generalGoal: 'build_endurance', cardioModality: 'running',
+      experienceLevel: 'intermediate', trainingDaysPerWeek: 4, wearable: 'none', athleteName: 'Test', age: 38, maxHR: 184, completedAt: '',
+      weekShape: shape('strength run rest quality rest rest long'),
+      weekReshapes: [{ fromWeek: 2, shape: shape('rest strength run rest quality long rest'), at: 1 }],
+    } as OnboardingConfig, '2026-05-11')
+    expect(shapeFromDays(gf.weeks[0].days)![1]).toBe('strength')
+    expect(shapeFromDays(gf.weeks[1].days)![1]).toBe('rest')
+    expect(shapeFromDays(gf.weeks[1].days)![6]).toBe('long')
   })
 })

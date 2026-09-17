@@ -1,5 +1,5 @@
 import type { TrainingPlan, TrainingWeek, PlannedDay, HRZone, PlanAdvisory } from '../types'
-import { configWithShape, hyroxLayoutFromShape } from '../engines/planGenerator/weekShape'
+import { configWithShape, effectiveShape, hyroxLayoutFromShape, latestShape } from '../engines/planGenerator/weekShape'
 import type { OnboardingConfig, ExperienceLevel, CrossTrainingMode } from '../hooks/useOnboarding'
 import type { PlannedWorkout, PlannedSegment } from '../engines/planGenerator/types'
 import type { WorkoutCategory, CanonicalPaceZone } from '../types/training-method'
@@ -266,7 +266,7 @@ export function generateHyroxPlan(
 ): TrainingPlan {
   // A week shape the athlete laid out sets the day count and, below, the
   // weekday table and role sequence. Absent, the fixed tables apply.
-  const weekShape = rawConfig.weekShape
+  const weekShape = latestShape(rawConfig)
   const config = weekShape ? configWithShape(rawConfig, weekShape) : rawConfig
   // Athlete-chosen plan start (one-way clamp: never back-dates).
   today = effectivePlanStart(config.planStartDate, today, config.planStartPinnedIso)
@@ -353,9 +353,16 @@ export function generateHyroxPlan(
     6: ['run', 'strength', 'run_conditioning', 'stations', 'easy', 'long'],
     7: ['run', 'strength', 'run_conditioning', 'stations', 'easy', 'long'],
   }
+  const defaultLayout = { roles: (rolesByDays[daysPerWeek] || rolesByDays[4]) as string[], trainingDayNumbers: getTrainingDayNumbers(daysPerWeek) }
+  // The plan's future layout drives the plan-level placements below; each
+  // week reads its own (a reshape made mid-plan holds from its week on).
   const shaped = weekShape ? hyroxLayoutFromShape(weekShape) : null
-  const roles: string[] = shaped ? shaped.roles : (rolesByDays[daysPerWeek] || rolesByDays[4])
-  const trainingDayNumbers = shaped ? shaped.trainingDayNumbers : getTrainingDayNumbers(daysPerWeek)
+  const roles: string[] = shaped ? shaped.roles : defaultLayout.roles
+  const trainingDayNumbers = shaped ? shaped.trainingDayNumbers : defaultLayout.trainingDayNumbers
+  const layoutForWeek = (weekNumber: number): { roles: string[]; trainingDayNumbers: number[] } => {
+    const s = effectiveShape(rawConfig, weekNumber)
+    return s ? hyroxLayoutFromShape(s) : defaultLayout
+  }
 
   // Recovery placement must follow the ACTUAL length, not the template —
   // fixed indices put a recovery week right before the race when clamped,
@@ -407,6 +414,7 @@ export function generateHyroxPlan(
     const weekNum = w + 1
     const weekStart = addDays(raceMonday, -(totalWeeks - 1 - w) * 7)
     const isFinalWeek = w === totalWeeks - 1
+    const { roles, trainingDayNumbers } = layoutForWeek(weekNum)
     // Offset of race day within its Monday-anchored week (0=Mon … 6=Sun).
     const raceOffset = daysBetween(raceMonday, raceDate)
     // P5 — the final FULL week is a real taper (the persona sweep found the

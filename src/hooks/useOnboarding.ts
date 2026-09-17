@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react'
-import type { WeekShape } from '../engines/planGenerator/weekShape'
+import type { WeekShape, WeekReshape } from '../engines/planGenerator/weekShape'
 import type { DetailLevel } from '../types'
 import { stampKey } from '../utils/syncStamps'
 
@@ -180,6 +180,9 @@ export interface OnboardingConfig {
    *  themselves exactly as before. Present, every generator honors it and
    *  the day counts / long-run day above are derived from it. */
   weekShape?: WeekShape
+  /** Reshapes made mid-plan, each in force from its week onward (the
+   *  latest applicable wins). Weeks already trained keep their layout. */
+  weekReshapes?: WeekReshape[]
   weakStation?: string
   wearable: WearableType
   athleteName: string
@@ -612,6 +615,49 @@ export function useOnboarding(athleteId?: string) {
     })
   }, [athleteId])
 
+  /** Plan shaping — rewrite the remaining weeks in place. Non-destructive
+   *  like setWeakStation: never `save()`, so plan edits, swaps, locks and
+   *  logged history are untouched; the plan re-derives with the new shape
+   *  from `fromWeek` on and the weeks before keep the layout they were
+   *  trained on. A reshape for the same week replaces the previous one. */
+  const reshapeWeek = useCallback((shape: WeekShape, fromWeek: number) => {
+    setConfig(prev => {
+      if (!prev) return prev
+      const kept = (prev.weekReshapes ?? []).filter(r => r.fromWeek !== fromWeek)
+      const next = { ...prev, weekReshapes: [...kept, { fromWeek, shape, at: Date.now() }] }
+      const k = scopedKey(athleteId)
+      try { localStorage.setItem(k, JSON.stringify(next)); stampKey(k) } catch { /* quota */ }
+      return next
+    })
+  }, [athleteId])
+
+  /** Undo the most recent in-place reshape (by when it was made). */
+  const undoLastReshape = useCallback(() => {
+    setConfig(prev => {
+      const rs = prev?.weekReshapes ?? []
+      if (!prev || rs.length === 0) return prev
+      const latest = rs.reduce((a, b) => (b.at > a.at ? b : a))
+      const remaining = rs.filter(r => r !== latest)
+      const next = { ...prev, weekReshapes: remaining.length ? remaining : undefined }
+      if (!next.weekReshapes) delete next.weekReshapes
+      const k = scopedKey(athleteId)
+      try { localStorage.setItem(k, JSON.stringify(next)); stampKey(k) } catch { /* quota */ }
+      return next
+    })
+  }, [athleteId])
+
+  /** Plan shaping — rebuild from `fromWeek` with the new shape as a NEW
+   *  plan generation: `save()` semantics, so day-level edits and swaps of
+   *  the old plan are dropped (a backup of today's plan is captured first
+   *  and stays in Settings → Restore a previous plan). Weeks before
+   *  `fromWeek` keep their layout; everything else follows the shape. */
+  const rebuildWithShape = useCallback((shape: WeekShape, fromWeek: number) => {
+    if (!config) return
+    setPlanBackups(captureBackup(athleteId, 'before redo'))
+    const kept = (config.weekReshapes ?? []).filter(r => r.fromWeek < fromWeek)
+    save({ ...config, weekReshapes: [...kept, { fromWeek, shape, at: Date.now() }] })
+  }, [athleteId, config, save])
+
   /** Restore a previous plan version (Settings → Restore a previous plan).
    *  Writes the backup's config with a FRESH completedAt so it is the newest
    *  everywhere and the sync guard propagates it; brings back the edit keys
@@ -714,6 +760,9 @@ export function useOnboarding(athleteId?: string) {
     setPlanStart,
     setWeakStation,
     setHyroxDivision,
+    reshapeWeek,
+    undoLastReshape,
+    rebuildWithShape,
     planBackups,
     restorePlan,
     markConnectStepSeen,

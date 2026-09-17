@@ -101,6 +101,9 @@ interface WeeklyPlanProps {
    *  (Rule 3). Wired to the redo-onboarding flow, which already carries
    *  the previous answers and history-derived mileage. */
   onRebuildPlan?: () => void
+  /** Plan shaping — opens the sheet that changes the whole plan's layout
+   *  (which weekday carries which role), from this week or the next. */
+  onShapeWeek?: () => void
   weekReadiness?: ReadinessScore[]
   athleteId?: string
   coachEnabled?: boolean
@@ -172,6 +175,7 @@ export default function WeeklyPlan({
   onToggleLock,
   replan,
   onRebuildPlan,
+  onShapeWeek,
   weekReadiness = [],
   athleteId,
   coachEnabled,
@@ -643,6 +647,11 @@ export default function WeeklyPlan({
               </p>
             )}
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{week.focus}</p>
+            {onShapeWeek && (
+              <button type="button" onClick={onShapeWeek} className="mt-1 text-[11px] font-semibold text-teal-700 dark:text-teal-300" data-testid="plan-shape-week">
+                Shape my week →
+              </button>
+            )}
             {/* Completed vs planned — only once the week has something to
                 report, so a future week never reads as "0 mi done". */}
             {(() => {
