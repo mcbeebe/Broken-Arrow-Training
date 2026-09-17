@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from 'react'
+import type { WeekShape } from '../engines/planGenerator/weekShape'
 import type { DetailLevel } from '../types'
 import { stampKey } from '../utils/syncStamps'
 
@@ -174,6 +175,11 @@ export interface OnboardingConfig {
   experienceLevel: ExperienceLevel
   trainingDaysPerWeek: number
   longRunDay?: string
+  /** The shape of the week the athlete laid out — which weekday carries
+   *  which role. Optional: absent, the generators lay the week out
+   *  themselves exactly as before. Present, every generator honors it and
+   *  the day counts / long-run day above are derived from it. */
+  weekShape?: WeekShape
   weakStation?: string
   wearable: WearableType
   athleteName: string
