@@ -70,8 +70,10 @@ export default function OnboardingConnect({ athleteId, onContinue, wearablePrefe
               displayName={garmin.displayName}
               lastSync={garmin.lastSync}
               mfaRequired={garmin.mfaRequired}
+              mfaNotice={garmin.mfaNotice}
               onConnect={garmin.connect}
               onSubmitMfa={garmin.submitMfa}
+              onResendMfa={garmin.resendMfa}
               onDisconnect={garmin.disconnect}
               onSync={garmin.sync}
             />

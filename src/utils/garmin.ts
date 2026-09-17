@@ -100,10 +100,25 @@ async function garminFetchError(res: Response, fallback: string): Promise<Error>
 
 // ─── API Functions ──────────────────────────────────────────────
 
+export interface GarminAuthResult {
+  authenticated: boolean
+  displayName?: string
+  mfa_required?: boolean
+  /** The code the athlete holds could not be honoured (the sign-in that
+   *  asked for it is gone, it expired, or too many wrong attempts) and a
+   *  fresh one has been sent. Stay on the code screen; show `message`. */
+  code_resent?: boolean
+  /** Diagnostic: challenge_sent | reused | resent | rejected | no_challenge |
+   *  expired | email_mismatch | too_many_attempts. */
+  reason?: string
+  message?: string
+  error?: string
+}
+
 export async function checkGarminAuth(
   athleteId?: string,
-  credentials?: { email: string; password: string; mfa_code?: string },
-): Promise<{ authenticated: boolean; displayName?: string; mfa_required?: boolean; error?: string }> {
+  credentials?: { email: string; password: string; mfa_code?: string; resend?: boolean },
+): Promise<GarminAuthResult> {
   if (!GARMIN_API_URL) return { authenticated: false, error: 'Garmin API URL not configured' }
 
   // Without an app session token the backend rejects the request before

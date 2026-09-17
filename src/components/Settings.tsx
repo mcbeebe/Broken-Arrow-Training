@@ -98,10 +98,12 @@ interface SettingsProps {
   garminLoading: boolean
   garminError: string | null
   garminMfaRequired: boolean
+  garminMfaNotice: string | null
   garminDisplayName: string | null
   garminLastSync: string | null
   onGarminConnect: (email: string, password: string) => Promise<void>
   onGarminSubmitMfa: (code: string) => Promise<void>
+  onGarminResendMfa: () => Promise<void>
   onGarminDisconnect: () => void
   onGarminSync: () => Promise<void>
   // Apple Watch / Apple Health (read via the iOS companion app — no connect
@@ -181,10 +183,12 @@ export default function Settings({
   garminLoading,
   garminError,
   garminMfaRequired,
+  garminMfaNotice,
   garminDisplayName,
   garminLastSync,
   onGarminConnect,
   onGarminSubmitMfa,
+  onGarminResendMfa,
   onGarminDisconnect,
   onGarminSync,
   appleConnected,
@@ -552,10 +556,12 @@ export default function Settings({
               loading={garminLoading}
               error={garminError}
               mfaRequired={garminMfaRequired}
+              mfaNotice={garminMfaNotice}
               displayName={garminDisplayName}
               lastSync={garminLastSync}
               onConnect={onGarminConnect}
               onSubmitMfa={onGarminSubmitMfa}
+              onResendMfa={onGarminResendMfa}
               onDisconnect={onGarminDisconnect}
               onSync={onGarminSync}
             />

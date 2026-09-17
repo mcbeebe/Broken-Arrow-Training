@@ -2348,10 +2348,12 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           garminLoading={garmin.loading}
           garminError={garmin.error}
           garminMfaRequired={garmin.mfaRequired}
+          garminMfaNotice={garmin.mfaNotice}
           garminDisplayName={garmin.displayName}
           garminLastSync={garmin.lastSync}
           onGarminConnect={garmin.connect}
           onGarminSubmitMfa={garmin.submitMfa}
+          onGarminResendMfa={garmin.resendMfa}
           onGarminDisconnect={garmin.disconnect}
           onGarminSync={garmin.sync}
           appleConnected={apple.connected}

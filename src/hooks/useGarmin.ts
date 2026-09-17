@@ -31,6 +31,9 @@ export interface UseGarminReturn {
   loading: boolean
   error: string | null
   mfaRequired: boolean
+  /** Server-supplied guidance for the code screen — how the code arrives,
+   *  or that a fresh one has just been sent. Distinct from `error`. */
+  mfaNotice: string | null
   healthData: GarminHealthData[]
   garminActivities: GarminActivity[]
   activityDetails: Record<string, GarminActivityDetail[]>
@@ -38,6 +41,9 @@ export interface UseGarminReturn {
   displayName: string | null
   connect: (email: string, password: string) => Promise<void>
   submitMfa: (code: string) => Promise<void>
+  /** Ask Garmin for a fresh code, explicitly. The only way a second
+   *  challenge is ever issued while one is pending. */
+  resendMfa: () => Promise<void>
   disconnect: () => void
   sync: () => Promise<void>
   /** Force-refetch one date's activity details from the server,
@@ -51,6 +57,7 @@ export function useGarmin(athleteId?: string): UseGarminReturn {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [mfaRequired, setMfaRequired] = useState(false)
+  const [mfaNotice, setMfaNotice] = useState<string | null>(null)
   const [pendingCredentials, setPendingCredentials] = useState<{ email: string; password: string } | null>(null)
   const [healthData, setHealthData] = useState<GarminHealthData[]>(() => getCachedHealthData(athleteId))
   const [garminActivities, setGarminActivities] = useState<GarminActivity[]>(() => getCachedGarminActivities(athleteId))
@@ -78,6 +85,7 @@ export function useGarmin(athleteId?: string): UseGarminReturn {
       setDisplayName(null)
       setError(null)
       setMfaRequired(false)
+      setMfaNotice(null)
       setPendingCredentials(null)
       return
     }
@@ -90,6 +98,7 @@ export function useGarmin(athleteId?: string): UseGarminReturn {
     setDisplayName(storedName)
     setError(null)
     setMfaRequired(false)
+    setMfaNotice(null)
     setPendingCredentials(null)
   }, [athleteId])
 
@@ -136,6 +145,7 @@ export function useGarmin(athleteId?: string): UseGarminReturn {
     setConnected(true)
     setDisplayName(name)
     setMfaRequired(false)
+    setMfaNotice(null)
     setPendingCredentials(null)
     await fetchAllData()
   }, [athleteId, fetchAllData])
@@ -156,9 +166,12 @@ export function useGarmin(athleteId?: string): UseGarminReturn {
       if (result.authenticated) {
         await handleAuthSuccess(result.displayName || null)
       } else if (result.mfa_required) {
-        // Garmin sent MFA code — save credentials for step 2
+        // Garmin wants a code. The sign-in that asked for it is parked on
+        // the server; step 2 resumes it. Keep the credentials: if that
+        // parked sign-in is lost, the server needs them to start another.
         setPendingCredentials({ email, password })
         setMfaRequired(true)
+        setMfaNotice(result.message ?? null)
       } else {
         setError(result.error || 'Authentication failed')
       }
@@ -188,11 +201,46 @@ export function useGarmin(athleteId?: string): UseGarminReturn {
 
       if (result.authenticated) {
         await handleAuthSuccess(result.displayName || null)
+      } else if (result.mfa_required) {
+        // Still on the code screen. Either Garmin rejected this code (the
+        // parked sign-in survives — try again), or that sign-in was gone
+        // and the server has issued a fresh code: say which.
+        if (result.code_resent) {
+          setMfaNotice(result.message ?? 'Garmin has sent a new code. Enter the newest one you received.')
+          setError(null)
+        } else {
+          setError(result.error || 'Garmin did not accept that code.')
+        }
       } else {
         setError(result.error || 'MFA verification failed')
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'MFA verification failed')
+    } finally {
+      setLoading(false)
+    }
+  }, [athleteId, pendingCredentials, handleAuthSuccess])
+
+  /** Explicitly ask Garmin for a fresh code. */
+  const resendMfa = useCallback(async () => {
+    if (!pendingCredentials) {
+      setError('No pending authentication — please start over')
+      setMfaRequired(false)
+      return
+    }
+    setLoading(true)
+    setError(null)
+    try {
+      const result = await checkGarminAuth(athleteId, { ...pendingCredentials, resend: true })
+      if (result.authenticated) {
+        await handleAuthSuccess(result.displayName || null)
+      } else if (result.mfa_required) {
+        setMfaNotice(result.message ?? 'Garmin has sent a new code.')
+      } else {
+        setError(result.error || 'Could not request a new code')
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not request a new code')
     } finally {
       setLoading(false)
     }
@@ -211,6 +259,7 @@ export function useGarmin(athleteId?: string): UseGarminReturn {
     setDisplayName(null)
     setError(null)
     setMfaRequired(false)
+    setMfaNotice(null)
     setPendingCredentials(null)
   }, [athleteId])
 
@@ -301,6 +350,7 @@ export function useGarmin(athleteId?: string): UseGarminReturn {
     loading,
     error,
     mfaRequired,
+    mfaNotice,
     healthData,
     garminActivities,
     activityDetails,
@@ -308,6 +358,7 @@ export function useGarmin(athleteId?: string): UseGarminReturn {
     displayName,
     connect,
     submitMfa,
+    resendMfa,
     disconnect,
     sync,
     refreshDetailsForDate,

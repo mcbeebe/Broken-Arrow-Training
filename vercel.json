@@ -15,7 +15,7 @@
   ],
   "functions": {
     "api/garmin/*.py": {
-      "maxDuration": 30
+      "maxDuration": 60
     },
     "api/auth/*.py": {
       "maxDuration": 15
