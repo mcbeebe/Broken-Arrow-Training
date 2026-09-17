@@ -113,7 +113,7 @@ describe('the generators honor a week shape', () => {
     }
     // Build weeks do put the quality session on Tuesday.
     expect(ordinary.some(w => shapeFromDays(w.days)![2] === 'quality')).toBe(true)
-    expect(plan.advisories?.filter(a => a.severity === 'error') ?? []).toEqual([])
+    expect(plan.advisories?.filter(a => a.severity === 'critical') ?? []).toEqual([])
   })
 
   it('road: the shape overrides the config\'s counts — a 3-day config with a 5-day shape gets 5 training days', () => {
