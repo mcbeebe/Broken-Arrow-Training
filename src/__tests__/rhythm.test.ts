@@ -44,6 +44,15 @@ describe('what the dots mean', () => {
     expect(r.every(d => (d.state as string) !== 'missed')).toBe(true)
   })
 
+  it('fills today in as done the moment its session is logged, and counts it', () => {
+    const r = buildRhythm(week([
+      ['run', true], ['run', true], ['rest', false],
+      ['run', true], ['rest', false], ['run', true], ['quality', true],
+    ]), TODAY)
+    expect(r[r.length - 1].state).toBe('done')
+    expect(resolvedCount(r)).toEqual({ resolved: 7, of: 7 })
+  })
+
   it('never counts today or a future day as resolved or open', () => {
     const r = buildRhythm(week([
       ['run', true], ['run', true], ['rest', false],

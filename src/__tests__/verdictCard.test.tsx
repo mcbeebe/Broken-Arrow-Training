@@ -139,3 +139,37 @@ describe('the doors out', () => {
     expect(onOpenSession).toHaveBeenCalledOnce()
   })
 })
+
+describe('once the session is done', () => {
+  const walk = (): PlannedDay => ({ day: 'Thu 9/17', type: 'limited', workout: 'Easy walk (RED day)', detail: 'Flat walk 20-30 min', zone: 'Z1', route: '—', time: '20-30 min' })
+  const logged = () => ({ stravaId: 1, source: 'garmin' as const, distance: 1.6, movingTime: 24 * 60, elapsedTime: 24 * 60, elevationGain: 0, type: 'walk', name: 'Walk', startDate: '2026-09-17T15:00:00' })
+
+  it('offers a one-tap "Mark as done" on a session day, not on a rest day', () => {
+    const onMarkDone = vi.fn()
+    render(<VerdictCard verdict={clear()} today={walk()} onMarkDone={onMarkDone} />)
+    fireEvent.click(screen.getByTestId('verdict-mark-done'))
+    expect(onMarkDone).toHaveBeenCalled()
+    cleanup()
+    render(<VerdictCard verdict={clear()} today={{ ...walk(), type: 'rest', workout: 'Rest' }} onMarkDone={onMarkDone} />)
+    expect(screen.queryByTestId('verdict-mark-done')).toBeNull()
+  })
+
+  it('turns the ticket into a receipt and the buttons into "Completed! ✓" once there is a logged session', () => {
+    const onOpenSession = vi.fn()
+    render(<VerdictCard verdict={clear()} today={walk()} completed={logged()} lockedIn onOpenSession={onOpenSession} />)
+    expect(screen.queryByTestId('verdict-ticket')).toBeNull()
+    expect(screen.queryByTestId('verdict-lock-in')).toBeNull()
+    expect(screen.queryByTestId('verdict-mark-done')).toBeNull()
+    const receipt = screen.getByTestId('verdict-receipt').textContent ?? ''
+    expect(receipt).toContain('Completed ✓')
+    expect(receipt).toContain('Easy walk (RED day)')
+    expect(receipt).toContain('24 min · 1.6 mi · from Garmin')
+    expect(screen.getByTestId('verdict-done').textContent).toContain('Completed! ✓')
+    expect(screen.getByTestId('verdict-footer').textContent).toContain('Logged for today')
+    fireEvent.click(screen.getByTestId('verdict-details'))
+    expect(onOpenSession).toHaveBeenCalled()
+    // The readiness verdict itself still stands — it is about the body, not the session.
+    expect(screen.getByTestId('verdict-headline').textContent).toBe('All clear — go as planned.')
+  })
+})
+
