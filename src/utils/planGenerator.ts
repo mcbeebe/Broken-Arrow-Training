@@ -1,4 +1,5 @@
 import type { TrainingPlan, TrainingWeek, PlannedDay, HRZone, PlanAdvisory } from '../types'
+import { configWithShape, hyroxLayoutFromShape } from '../engines/planGenerator/weekShape'
 import type { OnboardingConfig, ExperienceLevel, CrossTrainingMode } from '../hooks/useOnboarding'
 import type { PlannedWorkout, PlannedSegment } from '../engines/planGenerator/types'
 import type { WorkoutCategory, CanonicalPaceZone } from '../types/training-method'
@@ -260,9 +261,13 @@ function getLevelParams(level: ExperienceLevel): LevelParams {
 }
 
 export function generateHyroxPlan(
-  config: OnboardingConfig,
+  rawConfig: OnboardingConfig,
   today: string = todayDateString(),
 ): TrainingPlan {
+  // A week shape the athlete laid out sets the day count and, below, the
+  // weekday table and role sequence. Absent, the fixed tables apply.
+  const weekShape = rawConfig.weekShape
+  const config = weekShape ? configWithShape(rawConfig, weekShape) : rawConfig
   // Athlete-chosen plan start (one-way clamp: never back-dates).
   today = effectivePlanStart(config.planStartDate, today, config.planStartPinnedIso)
   const maxHR = computeMaxHR(config)
@@ -348,8 +353,9 @@ export function generateHyroxPlan(
     6: ['run', 'strength', 'run_conditioning', 'stations', 'easy', 'long'],
     7: ['run', 'strength', 'run_conditioning', 'stations', 'easy', 'long'],
   }
-  const roles = rolesByDays[daysPerWeek] || rolesByDays[4]
-  const trainingDayNumbers = getTrainingDayNumbers(daysPerWeek)
+  const shaped = weekShape ? hyroxLayoutFromShape(weekShape) : null
+  const roles: string[] = shaped ? shaped.roles : (rolesByDays[daysPerWeek] || rolesByDays[4])
+  const trainingDayNumbers = shaped ? shaped.trainingDayNumbers : getTrainingDayNumbers(daysPerWeek)
 
   // Recovery placement must follow the ACTUAL length, not the template —
   // fixed indices put a recovery week right before the race when clamped,
@@ -384,7 +390,9 @@ export function generateHyroxPlan(
   if (stationsRoleIdx >= 0) {
     for (let w = 0; w < totalWeeks - 1; w++) {
       const weekStart = addDays(raceMonday, -(totalWeeks - 1 - w) * 7)
-      const dateStr = addDays(weekStart, trainingDayNumbers[stationsRoleIdx] - 1)
+      // JS weekday → offset from Monday (Sunday is 0 in getDay(), 6 from Monday).
+      const stationsDow = trainingDayNumbers[stationsRoleIdx]
+      const dateStr = addDays(weekStart, stationsDow === 0 ? 6 : stationsDow - 1)
       if (w === 0 && dateStr < today) continue
       const dtr = daysBetween(dateStr, raceDate)
       if (dtr >= specDayMin && dtr <= SPEC_DAY_DAYS_OUT.value.max) specCandidates.push(w)

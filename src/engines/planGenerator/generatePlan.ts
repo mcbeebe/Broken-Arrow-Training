@@ -38,6 +38,7 @@ import {
   type MileageProgressionAdjust,
 } from './weekPlan'
 import { pickWeeklyPattern, pickWorkoutForDay, buildPlannedWorkout, scaleWorkoutToTime } from './workouts'
+import { applyShapeToSchedule, configWithShape, countRoles, extraSlotsForDays } from './weekShape'
 import { MASTERS_AGE_TIERS, MASTERS_RECOVERY_CADENCE, MASTERS_RAMP_CAP, SENIOR_INTENSITY, SENIOR_LONG_RUN_CAP_MULT, DAYS_VOLUME_FACTOR } from '../running/heuristics'
 import { invariantRulesFor } from './methodInvariants'
 import { bestMethodForDistance, suggestLighterMethod } from './methodSelection'
@@ -1120,9 +1121,14 @@ function typicalTrainingDays(weeks: TrainingWeek[]): number | null {
 
 export function generatePlanFromMethod(
   method: TrainingMethod,
-  config: OnboardingConfig,
+  rawConfig: OnboardingConfig,
   today: string = todayDateString(),
 ): TrainingPlan {
+  // A week shape the athlete laid out overrides the day counts and the
+  // long-run day, so every budget below is computed from what they chose.
+  // Absent, the config is used as is and the layout is the method's.
+  const weekShape = rawConfig.weekShape
+  const config = weekShape ? configWithShape(rawConfig, weekShape) : rawConfig
   // Athlete-chosen plan start: everything downstream that reasons from
   // "today" (runway clamp, base-week fill, feasibility) reasons from the
   // start date instead. Clamped one-way — a past start never back-dates.
@@ -1277,8 +1283,13 @@ export function generatePlanFromMethod(
   const runningDaysTarget = Math.max(minRunDays, Math.min(maxRunDays, desiredRunDays))
 
   // R1 — availability scaling: weekly volume follows running-day frequency
-  // (DAYS_VOLUME_FACTOR: 3 days = 0.75x of the 5-day baseline).
-  const volumeFactor = DAYS_VOLUME_FACTOR.value[Math.max(3, Math.min(7, runningDaysTarget))] ?? 1
+  // (DAYS_VOLUME_FACTOR: 3 days = 0.75x of the 5-day baseline). With a week
+  // shape, the running days that will actually exist are the shape's, even
+  // when the method's smallest pattern has more — sizing volume for five
+  // days and delivering three would fail the plan's own adherence check.
+  const shapeCounts = weekShape ? countRoles(weekShape) : null
+  const volumeDays = shapeCounts ? shapeCounts.running : runningDaysTarget
+  const volumeFactor = DAYS_VOLUME_FACTOR.value[Math.max(3, Math.min(7, volumeDays))] ?? 1
 
   // R4 — the method's authored easy-day ceiling (max minutes across its
   // easy-run windows), for the content-ceiling peak cap.
@@ -1388,7 +1399,11 @@ export function generatePlanFromMethod(
   const extrasBudget = Math.max(0, requestedTotalDays - runningDaysTarget)
   const extrasFloor = extrasRequested > 0 ? 1 : 0
   const extrasInWeekCap = Math.max(0, 7 - runningDaysTarget)
-  const extrasCap = Math.min(extrasRequested, Math.max(extrasBudget, extrasFloor), extrasInWeekCap)
+  // A week shape IS the budget: the athlete named the strength and cross
+  // weekdays, so every one of them is filled, every week.
+  const extrasCap = shapeCounts
+    ? shapeCounts.strength + shapeCounts.cross
+    : Math.min(extrasRequested, Math.max(extrasBudget, extrasFloor), extrasInWeekCap)
 
   const raceDateAnchor = config.raceDate || addDays(today, totalWeeks * 7)
   // Anchor every week to the Monday of race week, then count back. This puts
@@ -1482,11 +1497,16 @@ export function generatePlanFromMethod(
           : d)
       : adjustedSchedule
 
-    // Honor the athlete's preferred long-run weekday on normal weeks. Race
-    // week is hand-authored (taper.raceWeekSchedule) and left untouched.
-    const remapped = (!isFinalWeek && longRunDow != null)
-      ? remapLongRunDay(agedSchedule, longRunDow)
-      : agedSchedule
+    // Honor the athlete's week shape — or, without one, their preferred
+    // long-run weekday — on normal weeks. Race week is hand-authored
+    // (taper.raceWeekSchedule) and left untouched either way.
+    const remapped = isFinalWeek
+      ? agedSchedule
+      : weekShape
+        ? applyShapeToSchedule(agedSchedule, weekShape)
+        : longRunDow != null
+          ? remapLongRunDay(agedSchedule, longRunDow)
+          : agedSchedule
 
     // Phase 1 (PRD-103, Mandate #1) — never three consecutive HARD days.
     // Hard = any quality-budget category or a long run (race day counts
@@ -1732,7 +1752,7 @@ export function generatePlanFromMethod(
     const weekRunDays = days.filter(d => d.type !== 'rest').length
     const overshootUnavoidable = runningDaysTarget + Math.min(extrasFloor, extrasCap) > requestedTotalDays
     const weekAllowance = requestedTotalDays + (overshootUnavoidable ? 1 : 0)
-    const weekMaxExtras = Math.min(extrasCap, Math.max(0, weekAllowance - weekRunDays))
+    const weekMaxExtras = shapeCounts ? extrasCap : Math.min(extrasCap, Math.max(0, weekAllowance - weekRunDays))
     const hardDayFlags = days.map(d => HARD_DAY_TYPES.has(d.type))
     const withExtras = isFinalWeek
       ? days
@@ -1746,7 +1766,11 @@ export function generatePlanFromMethod(
             phaseId: weekMi.phaseId,
             weekNumber: weekMi.weekNumber,
           },
-          { maxExtras: weekMaxExtras, hardDayFlags, prevTailHard },
+          {
+            maxExtras: weekMaxExtras, hardDayFlags, prevTailHard,
+            // The shape names the strength and cross weekdays outright.
+            ...(weekShape ? { slots: extraSlotsForDays(days, weekShape) } : {}),
+          },
         )
     // Stamp the week's drill day (first easy run) so the UI can surface the
     // running-drills + Myrtl tip on the right day without a hard-coded date map.

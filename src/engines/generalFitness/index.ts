@@ -6,6 +6,7 @@
 // Pure + deterministic given (config, today) so it can be derived state in the
 // app and pinned in tests. See docs/GENERAL_FITNESS_ENGINE_DESIGN.md.
 
+import { configWithShape, generalLayoutFromShape } from '../planGenerator/weekShape'
 import type {
   TrainingPlan,
   TrainingWeek,
@@ -367,9 +368,13 @@ function menopauseOverlay(config: OnboardingConfig): MenopauseOverlay | null {
  * injectable for deterministic tests.
  */
 export function generateGeneralFitnessPlan(
-  config: OnboardingConfig,
+  rawConfig: OnboardingConfig,
   today: string = todayDateString(),
 ): TrainingPlan {
+  // A week shape the athlete laid out sets the day count and, below, the
+  // weekday slots and pillar roles. Absent, the goal's template applies.
+  const weekShape = rawConfig.weekShape
+  const config = weekShape ? configWithShape(rawConfig, weekShape) : rawConfig
   // Athlete-chosen plan start (one-way clamp: never back-dates).
   today = effectivePlanStart(config.planStartDate, today, config.planStartPinnedIso)
   const goal = config.generalGoal ?? 'stay_healthy'
@@ -392,15 +397,16 @@ export function generateGeneralFitnessPlan(
   const z4 = `Z4 (${zones[3].hr})${vo2Pace}`
 
   const daysPerWeek = Math.min(6, Math.max(3, config.trainingDaysPerWeek))
-  const slots = trainingDayNumbers(daysPerWeek)
+  const shaped = weekShape ? generalLayoutFromShape(weekShape) : null
+  const slots = shaped ? shaped.slots : trainingDayNumbers(daysPerWeek)
   const scale = experienceScale(config.experienceLevel)
   const bias = CARDIO_BIAS_FACTOR[preset.cardioBias]
   const modality = resolveModality(config)
 
   // Anchor the week's long session to the athlete's preferred long day when
   // that weekday is one of the training slots.
-  const baseRoles = weeklyRoles(goal, daysPerWeek)
-  const longWd = dayNameToWeekday(config.longRunDay)
+  const baseRoles: PillarRole[] = shaped ? shaped.roles : weeklyRoles(goal, daysPerWeek)
+  const longWd = shaped ? null : dayNameToWeekday(config.longRunDay)
   const roles: PillarRole[] = [...baseRoles]
   if (longWd !== null) {
     const slotIdx = slots.indexOf(longWd)

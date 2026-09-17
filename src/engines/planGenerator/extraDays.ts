@@ -44,6 +44,12 @@ export interface ExtraDaysCaps {
   hardDayFlags?: boolean[];
   prevTailHard?: [boolean, boolean];
   maxExtras?: number
+  /** The athlete's week shape named these day indices for strength and
+   *  cross-training. When present they replace "the first rest days":
+   *  cross goes only to its slots, strength only to its own, in weekday
+   *  order, and the interference preference does not move a session off
+   *  the day the athlete chose (validation warned them). */
+  slots?: { strength: number[]; cross: number[] }
 }
 
 export const CROSS_MODE_LABEL: Record<CrossTrainingMode, string> = {
@@ -419,9 +425,10 @@ export function injectExtraDays(
   }
 
   const next = [...days]
-  const restIndices = next
-    .map((d, i) => (d.type === 'rest' ? i : -1))
-    .filter(i => i >= 0)
+  const slots = caps?.slots
+  const restIndices = slots
+    ? []  // shape-named slots below; the shared rest pool is unused
+    : next.map((d, i) => (d.type === 'rest' ? i : -1)).filter(i => i >= 0)
   let cursor = 0
   // Total cap on injected days. Allowed to be 0 (no injection).
   const maxExtras = caps?.maxExtras ?? Number.POSITIVE_INFINITY
@@ -449,10 +456,12 @@ export function injectExtraDays(
 
   const placeCross = () => {
     let crossPlaced = 0
-    while (crossPlaced < crossTarget && cursor < restIndices.length && injected < maxExtras) {
+    const own = slots ? [...slots.cross] : null
+    const hasSlot = () => own ? own.length > 0 : cursor < restIndices.length
+    while (crossPlaced < crossTarget && hasSlot() && injected < maxExtras) {
       const mode = pickCrossModeAt(crossPlaced, config, method)
       if (!mode) break
-      const idx = restIndices[cursor++]
+      const idx = own ? own.shift()! : restIndices[cursor++]
       const c = buildCrossDetail(mode, opts)
       next[idx] = {
         ...next[idx],
@@ -492,21 +501,29 @@ export function injectExtraDays(
       if (hardAt(idx + 1)) return false            // never the day before a hard run
       return noTriple(idx)
     }
-    while (placed < strengthTarget && cursor < restIndices.length && injected < maxExtras) {
-      // Slot preference is tiered: (1) clean — no interference, no triple;
-      // (2) no-triple — the day-before-hard preference yields, the
-      // never-3 MANDATE never does; (3) any remaining slot (structurally
-      // impossible to violate the mandate only when every slot would —
-      // QA errors if that ever ships).
-      const remaining = restIndices.slice(cursor)
-      const cleanOffset = remaining.findIndex(cleanSlot)
-      const tripleOffset = cleanOffset >= 0 ? cleanOffset : remaining.findIndex(noTriple)
-      const take = tripleOffset >= 0 ? cursor + tripleOffset : cursor
-      const idx = restIndices[take]
-      // Keep unconsumed slots available: swap the taken slot to the cursor.
-      restIndices[take] = restIndices[cursor]
-      restIndices[cursor] = idx
-      cursor++
+    const own = slots ? [...slots.strength] : null
+    const hasSlot = () => own ? own.length > 0 : cursor < restIndices.length
+    while (placed < strengthTarget && hasSlot() && injected < maxExtras) {
+      let idx: number
+      if (own) {
+        // The athlete named the day. Take the slots in weekday order.
+        idx = own.shift()!
+      } else {
+        // Slot preference is tiered: (1) clean — no interference, no triple;
+        // (2) no-triple — the day-before-hard preference yields, the
+        // never-3 MANDATE never does; (3) any remaining slot (structurally
+        // impossible to violate the mandate only when every slot would —
+        // QA errors if that ever ships).
+        const remaining = restIndices.slice(cursor)
+        const cleanOffset = remaining.findIndex(cleanSlot)
+        const tripleOffset = cleanOffset >= 0 ? cleanOffset : remaining.findIndex(noTriple)
+        const take = tripleOffset >= 0 ? cursor + tripleOffset : cursor
+        idx = restIndices[take]
+        // Keep unconsumed slots available: swap the taken slot to the cursor.
+        restIndices[take] = restIndices[cursor]
+        restIndices[cursor] = idx
+        cursor++
+      }
       const boneFocus = !opts.isTaper && !!menopauseStrengthCue(config)
       next[idx] = {
         ...next[idx],
