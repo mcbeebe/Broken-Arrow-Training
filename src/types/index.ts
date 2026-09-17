@@ -1,4 +1,5 @@
 import type { BenchmarkKind, BenchmarkUnit } from '../engines/benchmark/log'
+import type { WeekShape } from '../engines/planGenerator/weekShape'
 import type { GeneralGoal } from '../hooks/useOnboarding';
 
 export type WorkoutType =
@@ -893,8 +894,21 @@ export interface ProposedBenchmark {
   rationale?: string
 }
 
+/** A week layout the coach proposes ("move the long run to Saturday and
+ *  make Tuesday strength"), applied through the same sheet the Plan tab
+ *  uses: from a week onward, keeping the athlete's edits or rebuilding. */
+export interface ProposedReshape {
+  shape: WeekShape
+  /** Plan week it takes effect from; absent = the app's default (next week
+   *  once this week has started). */
+  fromWeek?: number
+  /** 'in_place' keeps hand-edited days; 'rebuild' regenerates. Default in_place. */
+  mode?: 'in_place' | 'rebuild'
+  rationale?: string
+}
+
 export interface CoachAction {
-  type: 'execute' | 'modify' | 'skip' | 'swap' | 'sleep_target' | 'propose_edit' | 'propose_benchmark'
+  type: 'execute' | 'modify' | 'skip' | 'swap' | 'sleep_target' | 'propose_edit' | 'propose_benchmark' | 'propose_reshape'
   label: string  // button label
   detail: string  // explanation
   swapFromIndex?: number
@@ -920,6 +934,8 @@ export interface CoachAction {
     entries: ProposedBenchmark[]
     rationale?: string
   }
+  /** For 'propose_reshape': the week layout to apply. */
+  proposedReshape?: ProposedReshape
 }
 
 // ─── Phase B: Conversational Coach + proactive surfaces ─────────
@@ -1525,6 +1541,23 @@ export interface CoachSnapshot {
    *  recorded as the right kind, deduped against what is already there,
    *  and compared honestly. Absent when nothing is measured. */
   benchmarks?: CoachBenchmarkContext
+  /** The week's layout as the coach should see it — the shape in force
+   *  now, from which week, and the current plan week — so it can propose
+   *  a reshape in the athlete's own weekdays. */
+  weekShape?: CoachWeekShapeContext
+}
+
+export interface CoachWeekShapeContext {
+  /** "Mon rest · Tue quality · …" — the layout in force this week. */
+  current: string
+  /** The shape itself, weekday 1..7 (Mon..Sun) → role. */
+  shape: WeekShape
+  /** Whether the athlete laid this out (vs the engine's own layout). */
+  athleteShaped: boolean
+  currentWeekNum: number
+  lastWeekNum: number
+  /** Roles this plan family offers, with their athlete-facing names. */
+  roles: { role: string; label: string }[]
 }
 
 export interface CoachBenchmarkContext {

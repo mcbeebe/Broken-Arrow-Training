@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { extractProposal, summarizeOp, summarizeBenchmark } from '../utils/chatProposal'
+import { extractProposal, summarizeOp, summarizeBenchmark, summarizeReshape } from '../utils/chatProposal'
 
 describe('extractProposal — legacy single-day shape', () => {
   it('parses a legacy weekNum/dayIndex/updates block and mirrors it', () => {
@@ -135,5 +135,38 @@ describe('extractProposal — benchmarks shape', () => {
   it('summarizeBenchmark names the kind or the custom label', () => {
     expect(summarizeBenchmark({ kind: 'lthr', value: 168, unit: 'bpm', dateIso: '2026-09-17' })).toBe('Threshold HR 168 bpm · 2026-09-17')
     expect(summarizeBenchmark({ kind: 'other', label: 'Dead hang', value: 70, unit: 'seconds', dateIso: '2026-09-17', protocol: 'rested' })).toBe('Dead hang 1:10 · 2026-09-17 · rested')
+  })
+})
+
+describe('extractProposal — reshape shape', () => {
+  const shapeJson = { mon: 'rest', tue: 'strength', wed: 'run', thu: 'quality', fri: 'rest', sat: 'long', sun: 'cross' }
+
+  it('parses a reshape block into a propose_reshape action with the seven days by name', () => {
+    const content = 'Long run to Saturday, as asked.\n```proposal\n' + JSON.stringify({ reshape: { shape: shapeJson, fromWeek: 7, mode: 'in_place' }, rationale: 'Sunday is family day' }) + '\n```'
+    const { action, content: clean } = extractProposal(content)
+    expect(action?.type).toBe('propose_reshape')
+    expect(action?.proposedReshape).toEqual({
+      shape: { 1: 'rest', 2: 'strength', 3: 'run', 4: 'quality', 5: 'rest', 6: 'long', 7: 'cross' },
+      fromWeek: 7, mode: 'in_place', rationale: 'Sunday is family day',
+    })
+    expect(clean).toBe('Long run to Saturday, as asked.')
+  })
+
+  it('accepts numeric weekday keys and mixed case; rejects a missing day, an unknown role, a bad week or mode', () => {
+    const ok = extractProposal('```proposal\n' + JSON.stringify({ reshape: { shape: { '1': 'Rest', '2': 'QUALITY', '3': 'run', '4': 'strength', '5': 'run', '6': 'long', '7': 'rest' } } }) + '\n```').action
+    expect(ok?.proposedReshape?.shape[2]).toBe('quality')
+    expect(ok?.proposedReshape?.fromWeek).toBeUndefined()
+    const missing = { ...shapeJson } as Record<string, string>; delete missing.sun
+    expect(extractProposal('```proposal\n' + JSON.stringify({ reshape: { shape: missing } }) + '\n```').action).toBeNull()
+    expect(extractProposal('```proposal\n' + JSON.stringify({ reshape: { shape: { ...shapeJson, tue: 'yoga' } } }) + '\n```').action).toBeNull()
+    expect(extractProposal('```proposal\n' + JSON.stringify({ reshape: { shape: shapeJson, fromWeek: 0 } }) + '\n```').action).toBeNull()
+    expect(extractProposal('```proposal\n' + JSON.stringify({ reshape: { shape: shapeJson, mode: 'later' } }) + '\n```').action).toBeNull()
+  })
+
+  it('summarizeReshape names each change against the layout in force', () => {
+    const current = { 1: 'rest', 2: 'quality', 3: 'run', 4: 'strength', 5: 'run', 6: 'run', 7: 'long' } as const
+    const r = { shape: { 1: 'rest', 2: 'strength', 3: 'run', 4: 'quality', 5: 'rest', 6: 'long', 7: 'cross' } as const }
+    expect(summarizeReshape(r, current)).toBe('Tue: quality → strength · Thu: strength → quality · Fri: easy run → rest · Sat: easy run → long run · Sun: long run → cross-train')
+    expect(summarizeReshape({ shape: current }, current)).toBe('no change to the week')
   })
 })

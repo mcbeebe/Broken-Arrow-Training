@@ -1,0 +1,81 @@
+{
+  "_meta": {
+    "id": "reshape_request",
+    "surface": "daily",
+    "description": "Athlete asks for a standing layout change (long run to Saturday). The WEEK SHAPE section must render so the coach starts from the layout in force and proposes a reshape, not day edits."
+  },
+  "_expect": {
+    "user_question": "Can we move my long run to Saturday from now on? Sunday is family day.",
+    "context_contains": "WEEK SHAPE (in force this week",
+    "max_chars": 2600
+  },
+  "today": {
+    "date": "2026-09-17",
+    "period": "evening"
+  },
+  "currentWeekNum": 6,
+  "readiness": {
+    "status": "GREEN",
+    "displayScore": 74,
+    "trainingState": "A",
+    "components": {
+      "hrv": 1,
+      "rhr": 1,
+      "sleep": 1,
+      "trainingLoad": 1
+    },
+    "message": "Fresh after a rest day."
+  },
+  "performance": {
+    "ctl": 58,
+    "atl": 50,
+    "tsb": 8,
+    "acwr": 0.95
+  },
+  "athleteProfile": {
+    "name": "Mike",
+    "maxHR": 185,
+    "weeklyStructure": "5 days, long run Sunday"
+  },
+  "weekShape": {
+    "current": "Mon rest \u00b7 Tue quality \u00b7 Wed easy run \u00b7 Thu strength \u00b7 Fri easy run \u00b7 Sat easy run \u00b7 Sun long run",
+    "shape": {
+      "1": "rest",
+      "2": "quality",
+      "3": "run",
+      "4": "strength",
+      "5": "run",
+      "6": "run",
+      "7": "long"
+    },
+    "athleteShaped": false,
+    "currentWeekNum": 6,
+    "lastWeekNum": 18,
+    "roles": [
+      {
+        "role": "long",
+        "label": "Long run"
+      },
+      {
+        "role": "quality",
+        "label": "Quality"
+      },
+      {
+        "role": "run",
+        "label": "Easy run"
+      },
+      {
+        "role": "strength",
+        "label": "Strength"
+      },
+      {
+        "role": "cross",
+        "label": "Cross-train"
+      },
+      {
+        "role": "rest",
+        "label": "Rest"
+      }
+    ]
+  }
+}

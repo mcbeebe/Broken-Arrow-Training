@@ -166,6 +166,12 @@ export function describeShape(shape: WeekShape, plan: 'road' | 'trail' | 'hyrox'
   return WEEKDAYS.map(wd => `${WEEKDAY_SHORT[wd]} ${roleLabel(shape[wd], plan).toLowerCase()}`).join(' · ')
 }
 
+/** The week a reshape starts from when nobody named one: next week once
+ *  this week has started (days already trained stay), else this week. */
+export function defaultReshapeFromWeek(ctx: { currentWeekNum: number; lastWeekNum: number; weekStarted: boolean }): number {
+  return ctx.weekStarted && ctx.currentWeekNum < ctx.lastWeekNum ? ctx.currentWeekNum + 1 : ctx.currentWeekNum
+}
+
 /** The weekdays whose role differs between two shapes. */
 export function changedWeekdays(from: WeekShape, to: WeekShape): Weekday[] {
   return WEEKDAYS.filter(wd => from[wd] !== to[wd])
