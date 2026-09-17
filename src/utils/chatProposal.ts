@@ -1,4 +1,5 @@
-import type { CoachAction, PlannedDay, PlanEditOp, PlanEditOpInput, DayUpdates, WeekUpdates, TrainingWeek, ProposedBenchmark } from '../types'
+import type { CoachAction, PlannedDay, PlanEditOp, PlanEditOpInput, DayUpdates, WeekUpdates, TrainingWeek, ProposedBenchmark, ProposedReshape } from '../types'
+import { DAY_ROLES, WEEKDAYS, WEEKDAY_SHORT, roleLabel, changedWeekdays, type DayRole, type WeekShape, type Weekday } from '../engines/planGenerator/weekShape'
 import { BENCHMARK_KINDS, isPlausible, type BenchmarkKind, type BenchmarkUnit } from '../engines/benchmark/log'
 import { formatBenchmarkValue } from '../engines/benchmark/preview'
 import { parseTimeToSeconds } from './parseTime'
@@ -14,6 +15,9 @@ import { parseTimeToSeconds } from './parseTime'
  *   3. Benchmarks: { "benchmarks": [ { "kind", "value", "dateIso", ... } ], "rationale" }
  *      — a measured result the athlete reported ("I ran a 21:40 5K"),
  *      to be recorded in the benchmark log. May ride along with `ops`.
+ *   4. Reshape: { "reshape": { "shape": { "mon": "rest", ... }, "fromWeek", "mode" }, "rationale" }
+ *      — a new week layout ("move my long run to Saturday"), applied
+ *      through the Plan tab's sheet from a week onward. Its own block.
  *
  * Returns the content with the block stripped + a structured CoachAction of
  * type 'propose_edit'. Validation is ATOMIC: if any op in a batch is invalid,
@@ -28,7 +32,7 @@ const PROPOSAL_BLOCK_OPEN_RE = /`{1,4}\s*proposal\s*\n([\s\S]*)/
 
 // Also try to match a standalone JSON object with proposal fields
 // at the end of the message (fallback when the LLM doesn't use a fenced block)
-const PROPOSAL_JSON_RE = /\n\s*(\{[\s\S]*?("weekNum"|"ops"|"benchmarks")\s*:[\s\S]*?\})\s*$/
+const PROPOSAL_JSON_RE = /\n\s*(\{[\s\S]*?("weekNum"|"ops"|"benchmarks"|"reshape")\s*:[\s\S]*?\})\s*$/
 
 const ALLOWED_UPDATE_FIELDS: (keyof DayUpdates)[] = [
   'type', 'workout', 'detail', 'zone', 'route', 'time',
@@ -198,6 +202,56 @@ export function parseProposedBenchmark(raw: unknown): ProposedBenchmark | null {
   return out
 }
 
+const WEEKDAY_KEYS: Record<string, Weekday> = {
+  '1': 1, '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7,
+  mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6, sun: 7,
+  monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6, sunday: 7,
+}
+
+/** Validate + normalize a proposed week layout. Weekday keys may be 1–7
+ *  or names; every one of the seven must be present with a known role —
+ *  a layout with a day missing is not a layout. The engines' own laws
+ *  (a rest day, never three hard days) are checked by the card, which
+ *  shows them and refuses to apply; here the shape only has to be a
+ *  shape. */
+export function parseProposedReshape(raw: unknown): ProposedReshape | null {
+  if (!raw || typeof raw !== 'object') return null
+  const o = raw as Record<string, unknown>
+  const s = o.shape
+  if (!s || typeof s !== 'object') return null
+  const shape: Partial<WeekShape> = {}
+  for (const [k, v] of Object.entries(s as Record<string, unknown>)) {
+    const wd = WEEKDAY_KEYS[k.trim().toLowerCase()]
+    const role = typeof v === 'string' ? v.trim().toLowerCase() : ''
+    if (!wd || !(DAY_ROLES as readonly string[]).includes(role)) return null
+    shape[wd] = role as DayRole
+  }
+  if (!WEEKDAYS.every(wd => shape[wd])) return null
+  const out: ProposedReshape = { shape: shape as WeekShape }
+  if (o.fromWeek != null) {
+    if (!isInt(o.fromWeek) || o.fromWeek < 1 || o.fromWeek > 60) return null
+    out.fromWeek = o.fromWeek
+  }
+  if (o.mode != null) {
+    if (o.mode !== 'in_place' && o.mode !== 'rebuild') return null
+    out.mode = o.mode
+  }
+  const rationale = str(o.rationale)?.trim()
+  if (rationale) out.rationale = rationale
+  return out
+}
+
+/** "Tue: easy run → strength · Sat: easy run → long run" against the
+ *  layout in force; without one, the whole layout. */
+export function summarizeReshape(r: ProposedReshape, current?: WeekShape | null, plan: 'road' | 'trail' | 'hyrox' | 'general' = 'road'): string {
+  if (current) {
+    const changed = changedWeekdays(current, r.shape)
+    if (changed.length === 0) return 'no change to the week'
+    return changed.map(wd => `${WEEKDAY_SHORT[wd]}: ${roleLabel(current[wd], plan).toLowerCase()} → ${roleLabel(r.shape[wd], plan).toLowerCase()}`).join(' · ')
+  }
+  return WEEKDAYS.map(wd => `${WEEKDAY_SHORT[wd]} ${roleLabel(r.shape[wd], plan).toLowerCase()}`).join(' · ')
+}
+
 /** One line per proposed benchmark, for the card and the handoff note. */
 export function summarizeBenchmark(b: ProposedBenchmark): string {
   const name = b.kind === 'other' && b.label ? b.label : BENCHMARK_KINDS[b.kind].label
@@ -208,11 +262,21 @@ interface ParsedBatch {
   ops: PlanEditOpInput[]
   rationale?: string
   benchmarks?: ProposedBenchmark[]
+  reshape?: ProposedReshape
 }
 
 function parseProposalObject(parsed: unknown): ParsedBatch | null {
   if (!parsed || typeof parsed !== 'object') return null
   const o = parsed as Record<string, unknown>
+
+  // Shape 4 — a week layout. Its own block: the sheet it applies through
+  // is a whole-plan change, not a batch of day edits.
+  if (o.reshape != null) {
+    const reshape = parseProposedReshape(o.reshape)
+    if (!reshape) return null
+    if (!reshape.rationale && str(o.rationale)) reshape.rationale = str(o.rationale)
+    return { ops: [], rationale: str(o.rationale), reshape }
+  }
 
   // Shape 3 — benchmarks to record. Atomic like ops: one bad entry rejects
   // the block, so a mis-heard number never half-applies. May accompany ops.
@@ -292,6 +356,16 @@ export function extractProposal(content: string): { content: string; action: Coa
   if (!batch) return { content, action: null }
 
   const cleanContent = content.replace(matchedFull, '').trim()
+
+  if (batch.reshape) {
+    const action: CoachAction = {
+      type: 'propose_reshape',
+      label: 'Shape my week',
+      detail: summarizeReshape(batch.reshape),
+      proposedReshape: batch.reshape,
+    }
+    return { content: cleanContent, action }
+  }
 
   // A block with benchmarks and no plan ops is its own action type; with
   // both, the plan edit carries the benchmarks along.

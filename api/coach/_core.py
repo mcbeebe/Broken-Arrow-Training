@@ -578,6 +578,27 @@ Rules for benchmarks:
 - Check the BENCHMARKS context line first: if the same result on the same date is already there, do not propose it again — acknowledge it. If a newer entry of that kind already exists, say so before proposing an older one (it will be kept as history, not used by the plan).
 - One block per message. A benchmark and plan ops may share a block (`benchmarks` beside `ops`) when one message warrants both.
 
+PLAN SHAPING — change the week's layout for the rest of the plan (one-tap apply):
+When the athlete wants a STANDING change to how their week is laid out — "move my long run to Saturday", "make Tuesday a strength day from now on", "I can only train Mon/Wed/Fri/Sun", "swap Thursday's run for a bike ride every week" — propose a new week layout with a `reshape` object in the ```proposal block (its own block, never mixed with `ops`). The app opens the same "Shape my week" sheet the athlete uses themselves, showing each weekday's from → to, which week it starts, what happens to their hand-edited days, and the real week the plan would build; they confirm or adjust. A ONE-OFF change to a single day is still an `updateDay` op, not a reshape.
+
+```proposal
+{
+  "reshape": {
+    "shape": {"mon":"rest","tue":"strength","wed":"run","thu":"quality","fri":"rest","sat":"long","sun":"cross"},
+    "fromWeek": 7,
+    "mode": "in_place"
+  },
+  "rationale": "Long run to Saturday as asked; Tuesday strength keeps two days between it and the long run"
+}
+```
+
+Rules for a reshape:
+- `shape` names ALL SEVEN days (mon…sun), each one of: `long`, `quality`, `run`, `strength`, `cross`, `rest`. Start from the WEEK SHAPE line in context and change only what the athlete asked for; keep everything else where it is.
+- Keep the laws the app enforces: at least one `rest` day; never three hard days (`long`/`quality`) in a row, Sunday into Monday included; a race plan keeps its `long` day. A layout that breaks one is refused by the app, so fix it before proposing (say what you moved and why).
+- `fromWeek`: the plan week it starts (see WEEK SHAPE: current week and last week). Default to the NEXT week when this week has already started; use the current week only if the athlete asks for it now.
+- `mode`: `in_place` (default) keeps the athlete's hand-edited days as they are; `rebuild` regenerates the remaining weeks from scratch and drops their edits — use it only when they ask for a fresh plan.
+- The same ⛔ rule: never say "moved", "done", "your long run is now on Saturday" without the block.
+
 What you already know (do NOT re-ask or confirm):
 - The athlete's full 10-week training plan for the Broken Arrow Skyrace.
   By default, every turn's context snapshot renders "Planned next 14
@@ -1858,6 +1879,25 @@ def build_context_block(
             "BENCHMARKS: none measured yet. Benchmark kinds this plan accepts: "
             + ", ".join(f"{k.get('kind')} ({k.get('unit')})" for k in bm["kinds"] if isinstance(k, dict) and k.get("kind"))
             + ". A recent race time is the single most useful number the plan can get — when the athlete reports one, propose recording it with a `benchmarks` proposal block."
+        )
+
+    # Week shape — the layout in force this week, so a reshape the coach
+    # proposes starts from what the athlete has and speaks their weekdays.
+    ws = snapshot.get("weekShape")
+    if isinstance(ws, dict) and ws.get("current"):
+        out.append("")
+        who = "the athlete's own layout" if ws.get("athleteShaped") else "the plan's own layout — the athlete has not reshaped it"
+        span = ""
+        if isinstance(ws.get("currentWeekNum"), int) and isinstance(ws.get("lastWeekNum"), int):
+            span = f" Current week {ws['currentWeekNum']} of {ws['lastWeekNum']}."
+        roles = ws.get("roles") or []
+        role_str = ", ".join(f"{r.get('role')} = {r.get('label')}" for r in roles if isinstance(r, dict) and r.get("role"))
+        out.append(f"WEEK SHAPE (in force this week; {who}): {ws['current']}.{span}")
+        if role_str:
+            out.append(f"Roles this plan offers: {role_str}.")
+        out.append(
+            "A standing change to the layout (move a day, change what a weekday does every week) "
+            "is a `reshape` proposal (see PLAN SHAPING in your rules); a single day is an `updateDay` op."
         )
 
     # Race pacing (G6) — segment pace bands + fueling checkpoints for a

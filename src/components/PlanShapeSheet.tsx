@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import type { TrainingWeek } from '../types'
+import type { TrainingWeek, ProposedReshape } from '../types'
 import type { OnboardingConfig } from '../hooks/useOnboarding'
 import {
   WEEKDAY_LONG, roleLabel, validateWeekShape, shapeHasErrors, effectiveShape, changedWeekdays, sameShape,
@@ -37,14 +37,16 @@ interface Props {
   onReshape: (shape: WeekShape, fromWeek: number) => void
   onRebuild: (shape: WeekShape, fromWeek: number) => void
   onClose: () => void
+  /** Open on a layout the coach proposed, so the athlete adjusts it here. */
+  initial?: ProposedReshape | null
 }
 
 type Mode = 'in_place' | 'rebuild'
 
-export default function PlanShapeSheet({ config, weeks, currentWeekNum, todayIso, onReshape, onRebuild, onClose }: Props) {
+export default function PlanShapeSheet({ config, weeks, currentWeekNum, todayIso, onReshape, onRebuild, onClose, initial }: Props) {
   const plan = planKindOf(config)
   const current = useMemo(() => effectiveShape(config, currentWeekNum) ?? defaultWeekShapeFor(config), [config, currentWeekNum])
-  const [shape, setShape] = useState<WeekShape | null>(null)
+  const [shape, setShape] = useState<WeekShape | null>(initial?.shape ?? null)
   const value = shape ?? current
   const methodRunDays = useMemo(
     () => (plan === 'road' || plan === 'trail' ? methodRunDayBounds(methodForConfig(config)) : undefined),
@@ -55,8 +57,9 @@ export default function PlanShapeSheet({ config, weeks, currentWeekNum, todayIso
   // is behind us); the athlete can pull it back to this week.
   const thisWeek = weeks.find(w => w.num === currentWeekNum)
   const weekStarted = !!thisWeek?.startIso && thisWeek.startIso < todayIso
-  const [fromWeek, setFromWeek] = useState<number>(weekStarted && currentWeekNum < lastWeekNum ? currentWeekNum + 1 : currentWeekNum)
-  const [mode, setMode] = useState<Mode>('in_place')
+  const defaultFrom = weekStarted && currentWeekNum < lastWeekNum ? currentWeekNum + 1 : currentWeekNum
+  const [fromWeek, setFromWeek] = useState<number>(initial?.fromWeek && initial.fromWeek >= currentWeekNum && initial.fromWeek <= lastWeekNum ? initial.fromWeek : defaultFrom)
+  const [mode, setMode] = useState<Mode>(initial?.mode ?? 'in_place')
 
   const issues = useMemo(() => (current && value ? validateWeekShape(value, { plan, methodRunDays }) : []), [value, current, plan, methodRunDays])
   const changed = current && value ? changedWeekdays(current, value) : []

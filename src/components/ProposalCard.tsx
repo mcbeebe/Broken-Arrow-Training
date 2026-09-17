@@ -1,7 +1,24 @@
-import type { CoachAction, PlannedDay, ProposedBenchmark } from '../types'
+import type { CoachAction, PlannedDay, ProposedBenchmark, ProposedReshape } from '../types'
 import { summarizeOp } from '../utils/chatProposal'
 import { BENCHMARK_KINDS } from '../engines/benchmark/log'
 import { formatBenchmarkValue, type BenchmarkPreview } from '../engines/benchmark/preview'
+import {
+  WEEKDAYS, WEEKDAY_SHORT, WEEKDAY_LONG, roleLabel, roleShort, changedWeekdays, validateWeekShape, shapeHasErrors,
+  defaultReshapeFromWeek, type WeekShape,
+} from '../engines/planGenerator/weekShape'
+
+/** What the reshape card needs from the app to say what changes: the
+ *  layout in force, the plan's week numbers, and whether this week has
+ *  started (the default start week follows from it). */
+export interface ShapeContext {
+  current: WeekShape
+  currentWeekNum: number
+  lastWeekNum: number
+  weekStarted: boolean
+  plan: 'road' | 'trail' | 'hyrox' | 'general'
+  methodRunDays?: { min: number; max: number; name?: string }
+}
+
 
 const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
@@ -22,6 +39,142 @@ interface Props {
    *  engines (previewBenchmark) — the same box the Add-benchmark sheet
    *  shows, so what the athlete confirms in chat is what the plan does. */
   previewBenchmark?: (b: ProposedBenchmark) => BenchmarkPreview | null
+  /** For a proposed week layout: the layout in force and the plan's weeks. */
+  shapeContext?: ShapeContext | null
+  /** Open the Plan tab's sheet on this proposal so the athlete can adjust it. */
+  onAdjustReshape?: (r: ProposedReshape) => void
+}
+
+const ROLE_TILE: Record<string, string> = {
+  long: 'bg-violet-100 text-violet-900 dark:bg-violet-900/50 dark:text-violet-100',
+  quality: 'bg-rose-100 text-rose-900 dark:bg-rose-900/50 dark:text-rose-100',
+  run: 'bg-teal-100 text-teal-900 dark:bg-teal-900/50 dark:text-teal-100',
+  strength: 'bg-amber-100 text-amber-900 dark:bg-amber-900/50 dark:text-amber-100',
+  cross: 'bg-sky-100 text-sky-900 dark:bg-sky-900/50 dark:text-sky-100',
+  rest: 'bg-slate-100 text-slate-600 dark:bg-slate-700/60 dark:text-slate-300',
+}
+
+/** The card for a week layout the coach proposes. Everything the athlete
+ *  is confirming is on it: the seven days (changed ones marked), each
+ *  change as from → to, the week it starts, and which way it applies —
+ *  the same facts the Plan tab's sheet shows, because it IS that change.
+ *  "Adjust" opens the sheet on this proposal. */
+function ReshapeProposalCard({ action, status, overrideId, onApprove, onReject, onUndo, onAsk, shapeContext, onAdjustReshape }: Props) {
+  const r = action.proposedReshape
+  if (!r) return null
+  const plan = shapeContext?.plan ?? 'road'
+  const current = shapeContext?.current ?? null
+  const changed = current ? changedWeekdays(current, r.shape) : WEEKDAYS
+  const fromWeek = r.fromWeek ?? (shapeContext ? defaultReshapeFromWeek(shapeContext) : undefined)
+  const mode = r.mode ?? 'in_place'
+  const issues = validateWeekShape(r.shape, { plan, methodRunDays: shapeContext?.methodRunDays })
+  const blocked = shapeHasErrors(issues)
+  const noChange = current != null && changed.length === 0
+  const applied = status === 'applied'
+  const span = fromWeek == null ? 'the remaining weeks'
+    : shapeContext && fromWeek < shapeContext.lastWeekNum ? `weeks ${fromWeek}–${shapeContext.lastWeekNum}` : `week ${fromWeek}`
+
+  if (status === 'rejected') {
+    return (
+      <div className="mt-2 w-full px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700" onClick={e => e.stopPropagation()}>
+        <span className="text-xs text-slate-500 dark:text-slate-400">Kept your week as it is</span>
+      </div>
+    )
+  }
+
+  return (
+    <div
+      className={`mt-2 w-full rounded-xl overflow-hidden border-2 ${applied ? 'bg-emerald-50 dark:bg-emerald-950 border-emerald-300 dark:border-emerald-700' : 'bg-white dark:bg-slate-800 border-teal-300 dark:border-teal-700'}`}
+      onClick={e => e.stopPropagation()} data-testid="reshape-proposal"
+    >
+      <div className={`px-3 py-2 border-b ${applied ? 'border-emerald-200 dark:border-emerald-900 bg-emerald-100/60 dark:bg-emerald-900/40' : 'border-teal-100 dark:border-slate-700 bg-teal-50 dark:bg-teal-950'}`}>
+        <p className={`text-xs font-bold ${applied ? 'text-emerald-700 dark:text-emerald-300' : 'text-teal-800 dark:text-teal-300'}`}>
+          {applied ? `✓ Week reshaped — ${span}${mode === 'in_place' ? ', your edits kept' : ', rebuilt fresh'}` : '🗓️ Proposed week layout'}
+        </p>
+      </div>
+
+      <div className="px-3 py-2 space-y-2">
+        <div className="grid grid-cols-7 gap-1" aria-label="Proposed week">
+          {WEEKDAYS.map(wd => (
+            <div key={wd} className={`rounded-lg px-0.5 py-1.5 text-center ${ROLE_TILE[r.shape[wd]]} ${changed.includes(wd) && current ? 'ring-2 ring-slate-400 dark:ring-slate-500' : ''}`} data-testid={`reshape-day-${wd}`}>
+              <span className="block text-[10px] font-semibold uppercase opacity-70">{WEEKDAY_SHORT[wd]}</span>
+              <span className="block text-[11px] font-bold leading-tight">{roleShort(r.shape[wd], plan)}</span>
+            </div>
+          ))}
+        </div>
+
+        <div data-testid="reshape-changes">
+          <p className="text-[11px] font-semibold text-slate-700 dark:text-slate-200">What changes</p>
+          {noChange ? (
+            <p className="text-[11px] text-slate-500 dark:text-slate-400">Nothing — this is your current layout.</p>
+          ) : current ? (
+            <ul className="space-y-0.5">
+              {changed.map(wd => (
+                <li key={wd} className="text-[11px] text-slate-700 dark:text-slate-200">
+                  <span className="font-semibold">{WEEKDAY_LONG[wd]}:</span> {roleLabel(current[wd], plan)} → <span className="font-semibold">{roleLabel(r.shape[wd], plan)}</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-[11px] text-slate-600 dark:text-slate-300">{WEEKDAYS.map(wd => `${WEEKDAY_SHORT[wd]} ${roleLabel(r.shape[wd], plan).toLowerCase()}`).join(' · ')}</p>
+          )}
+          <p className="text-[11px] text-slate-600 dark:text-slate-300 mt-1">
+            Applies to {span}{fromWeek != null && fromWeek > 1 ? `; weeks before ${fromWeek} stay as they were` : ''}.{' '}
+            {mode === 'in_place' ? 'Your hand-edited days stay exactly as you edited them.' : 'The remaining weeks are regenerated; hand-edited days and swaps are dropped, and today\'s plan is backed up under Settings → Restore.'}
+          </p>
+        </div>
+
+        {issues.length > 0 && (
+          <ul className="space-y-1" data-testid="reshape-issues">
+            {issues.map(i => (
+              <li key={i.code} className={`text-[11px] rounded-lg px-2.5 py-1.5 ${i.severity === 'error' ? 'bg-red-50 text-red-800 dark:bg-red-900/30 dark:text-red-200' : 'bg-amber-50 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200'}`} data-severity={i.severity}>
+                {i.severity === 'error' ? '⛔ ' : '⚠️ '}{i.message}
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {r.rationale && (
+          <div className="text-[11px] italic text-slate-500 dark:text-slate-400 pt-1 border-t border-slate-100 dark:border-slate-700">"{r.rationale}"</div>
+        )}
+      </div>
+
+      {applied ? (
+        <div className="px-2 pb-2">
+          {overrideId && onUndo && mode === 'in_place' ? (
+            <button onClick={() => onUndo(overrideId)} className="w-full text-xs font-semibold py-2 rounded-lg bg-emerald-100 dark:bg-emerald-900 text-emerald-800 dark:text-emerald-200 hover:bg-emerald-200 dark:hover:bg-emerald-800 transition-colors border border-emerald-300 dark:border-emerald-700">
+              ↩ Undo — put the week back
+            </button>
+          ) : (
+            <p className="text-center text-[11px] text-emerald-700 dark:text-emerald-300 py-1">Applied — the previous plan is under Settings → Restore</p>
+          )}
+        </div>
+      ) : (
+        <div className="flex flex-col gap-1 px-2 pb-2">
+          <button
+            onClick={() => onApprove?.(action)} disabled={blocked || noChange}
+            className="w-full text-xs font-semibold py-2 rounded-lg bg-teal-700 text-white hover:bg-teal-800 disabled:opacity-50 transition-colors"
+            data-testid="reshape-apply"
+          >
+            {blocked ? 'Fix the layout to apply' : noChange ? 'Nothing to apply' : mode === 'in_place' ? `✓ Rewrite ${span}, keep my edits` : `✓ Rebuild ${span} fresh`}
+          </button>
+          <div className="flex gap-1">
+            {onAdjustReshape && (
+              <button onClick={() => onAdjustReshape(r)} className="flex-1 text-xs font-medium py-2 rounded-lg bg-amber-50 dark:bg-amber-950 text-amber-800 dark:text-amber-200 hover:bg-amber-100 dark:hover:bg-amber-900 transition-colors border border-amber-200 dark:border-amber-900" data-testid="reshape-adjust">
+                ✎ Adjust in the sheet
+              </button>
+            )}
+            {onAsk && !onAdjustReshape && (
+              <button onClick={() => onAsk(`I'd like a different layout. Here's what I want changed: `)} className="flex-1 text-xs font-medium py-2 rounded-lg bg-amber-50 dark:bg-amber-950 text-amber-800 dark:text-amber-200 border border-amber-200 dark:border-amber-900">✎ Adjust</button>
+            )}
+            <button onClick={() => onReject?.()} className="flex-1 text-xs font-medium py-2 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors">
+              Keep my week
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
 }
 
 function benchmarkName(b: ProposedBenchmark): string {
@@ -132,6 +285,7 @@ function BenchmarkProposalCard({
 export default function ProposalCard(props: Props) {
   const { action } = props
   if (action.type === 'propose_benchmark') return <BenchmarkProposalCard {...props} />
+  if (action.type === 'propose_reshape') return <ReshapeProposalCard {...props} />
   if (action.type !== 'propose_edit' || !action.proposedEdit) return null
   return <EditProposalCard {...props} />
 }

@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useCallback } from 'react'
 import { useTravelActions } from './hooks/useTravelActions'
-import type { ViewId, CoachSnapshot, CoachAction, PlannedDay, JournalNote, ProposedBenchmark } from './types'
+import type { ViewId, CoachSnapshot, CoachAction, PlannedDay, JournalNote, ProposedBenchmark, ProposedReshape } from './types'
 import { resolveViewId, resolveDeepLink } from './utils/viewId'
 import { DETAIL_DIRECTIVES } from './types'
 import { plans } from './data'
@@ -149,7 +149,11 @@ import { useBenchmarks } from './hooks/useBenchmarks'
 import { entriesFromCapacity, planKindOf, BENCHMARK_KINDS, type BenchmarkKind, type BenchmarkUnit } from './engines/benchmark/log'
 import { previewBenchmark as previewBenchmarkEngine } from './engines/benchmark/preview'
 import { buildCoachBenchmarkContext } from './engines/benchmark/coachContext'
-import { summarizeBenchmark } from './utils/chatProposal'
+import { buildCoachWeekShapeContext } from './engines/planGenerator/coachShapeContext'
+import { effectiveShape, defaultReshapeFromWeek } from './engines/planGenerator/weekShape'
+import { defaultWeekShapeFor, methodForConfig, methodRunDayBounds } from './engines/planGenerator/shapeDefaults'
+import { summarizeBenchmark, summarizeReshape } from './utils/chatProposal'
+import type { ShapeContext } from './components/ProposalCard'
 import BenchmarkSheet from './components/BenchmarkSheet'
 import PlanShapeSheet from './components/PlanShapeSheet'
 
@@ -686,7 +690,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
   // the way back for twelve seconds, after which the log's history is.
   const [benchmarkSheet, setBenchmarkSheet] = useState<{ kind?: BenchmarkKind; label?: string; unit?: BenchmarkUnit } | null>(null)
   // Plan shaping — the Plan tab's "Shape my week" sheet and its receipt.
-  const [planShapeOpen, setPlanShapeOpen] = useState(false)
+  const [planShapeOpen, setPlanShapeOpen] = useState<false | { initial: ProposedReshape | null }>(false)
   const [planShaped, setPlanShaped] = useState<{ fromWeek: number; mode: 'in_place' | 'rebuild' } | null>(null)
   useEffect(() => {
     if (!planShaped) return
@@ -1724,6 +1728,12 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     // athlete reports in chat lands as the right kind and is not re-proposed.
     const benchmarkContext = buildCoachBenchmarkContext(benchmarks.live, planKindOf(onboarding.config), todayDateString())
     if (benchmarkContext) snap.benchmarks = benchmarkContext
+    // The week's layout in force, so a reshape the coach proposes starts
+    // from what the athlete has and speaks their weekdays.
+    if (onboarding.config) {
+      const shapeContext = buildCoachWeekShapeContext(onboarding.config, currentWeekNum, weeks.length ? weeks[weeks.length - 1].num : currentWeekNum)
+      if (shapeContext) snap.weekShape = shapeContext
+    }
     return snap
   }, [
     coachEnabled,
@@ -1899,11 +1909,44 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     })
   }, [onboarding.config, benchmarks.log, strengthCapacity.capacity, weeks])
 
+  // What the reshape card needs to say what changes: the layout in force
+  // this week and the plan's week numbers. Same facts the Plan tab's sheet
+  // shows, because a coach-proposed reshape IS that change.
+  const lastWeekNum = weeks.length ? weeks[weeks.length - 1].num : currentWeekNum
+  const chatShapeContext = useMemo<ShapeContext | null>(() => {
+    if (!onboarding.config) return null
+    const current = effectiveShape(onboarding.config, currentWeekNum) ?? defaultWeekShapeFor(onboarding.config)
+    if (!current) return null
+    const thisWeek = weeks.find(w => w.num === currentWeekNum)
+    const plan = planKindOf(onboarding.config)
+    return {
+      current, currentWeekNum, lastWeekNum, plan,
+      weekStarted: !!thisWeek?.startIso && thisWeek.startIso < todayDateString(),
+      methodRunDays: plan === 'road' || plan === 'trail' ? methodRunDayBounds(methodForConfig(onboarding.config)) : undefined,
+    }
+  }, [onboarding.config, currentWeekNum, lastWeekNum, weeks])
+
   // The undo token persisted on the turn is one string. Plan edits store
-  // their batch id; benchmarks store "bm:<id>,<id>"; a block that carried
-  // both joins them with "|". handleUndoAction takes it apart.
+  // their batch id; benchmarks store "bm:<id>,<id>"; a reshape stores
+  // "rs:<mode>:<fromWeek>"; a block that carried several joins them with
+  // "|". handleUndoAction takes it apart.
   const BENCHMARK_TOKEN = 'bm:'
+  const RESHAPE_TOKEN = 'rs:'
   const handleApproveAction = useCallback((turnId: string, action: CoachAction) => {
+    if (action.type === 'propose_reshape' && action.proposedReshape && chatShapeContext) {
+      const r = action.proposedReshape
+      const fromWeek = r.fromWeek ?? defaultReshapeFromWeek(chatShapeContext)
+      const mode = r.mode ?? 'in_place'
+      if (mode === 'in_place') onboarding.reshapeWeek(r.shape, fromWeek)
+      else onboarding.rebuildWithShape(r.shape, fromWeek)
+      setPlanShaped({ fromWeek, mode })
+      coachMemory.updateTurn(turnId, { actionStatus: 'applied', actionOverrideId: `${RESHAPE_TOKEN}${mode}:${fromWeek}` })
+      coachMemory.appendTurn(
+        'system-handoff',
+        `[WEEK RESHAPED] Athlete applied the proposed week layout from week ${fromWeek} (${mode === 'in_place' ? 'edits kept' : 'rebuilt fresh'}) → ${summarizeReshape(r, chatShapeContext.current, chatShapeContext.plan)}. The WEEK SHAPE line will reflect it; do not propose it again.`,
+      )
+      return
+    }
     const ops = action.proposedEdit?.ops ?? []
     const bms = action.proposedBenchmarks?.entries ?? []
     if (ops.length === 0 && bms.length === 0) return
@@ -1925,7 +1968,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
         ? `[PLAN EDIT APPLIED] Athlete accepted the proposed change → ${describeProposal(action)}. Batch id ${overrideId}.`
         : `[BENCHMARK RECORDED] Athlete confirmed → ${describeProposal(action)}. It is now in their benchmark log and the plan reads it; do not propose it again.`,
     )
-  }, [planEdits, coachMemory, describeProposal, benchmarks])
+  }, [planEdits, coachMemory, describeProposal, benchmarks, chatShapeContext, onboarding])
 
   const handleRejectAction = useCallback((turnId: string) => {
     const turn = coachMemory.conversation.find(t => t.id === turnId)
@@ -1934,13 +1977,21 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     const swap = action ? ` → ${describeProposal(action)}` : ''
     coachMemory.appendTurn(
       'system-handoff',
-      action?.type === 'propose_benchmark'
+      action?.type === 'propose_reshape'
+        ? `[RESHAPE DECLINED] Athlete kept their week as it is. Ask what they would change rather than re-proposing the same layout.`
+        : action?.type === 'propose_benchmark'
         ? `[BENCHMARK DECLINED] Athlete chose not to record${swap}. Ask what was off (the number, the date, the kind) rather than re-proposing the same entry.`
         : `[PLAN EDIT DECLINED] Athlete kept the original instead of the proposed swap${swap}. They did not modify or apply — note this preference for similar future suggestions.`,
     )
   }, [coachMemory, describeProposal])
 
   const handleUndoAction = useCallback((turnId: string, overrideId: string) => {
+    if (overrideId.startsWith(RESHAPE_TOKEN)) {
+      if (overrideId.startsWith(`${RESHAPE_TOKEN}in_place:`)) onboarding.undoLastReshape()
+      coachMemory.updateTurn(turnId, { actionStatus: 'pending', actionOverrideId: undefined })
+      coachMemory.appendTurn('system-handoff', `[RESHAPE REVERTED] Athlete put their week back the way it was. Treat as a soft signal the layout did not suit them.`)
+      return
+    }
     const removedBenchmarks: string[] = []
     for (const token of overrideId.split('|')) {
       if (token.startsWith(BENCHMARK_TOKEN)) {
@@ -1956,7 +2007,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
         ? `[BENCHMARK REMOVED] Athlete undid a recorded benchmark; it is no longer in their log. Do not re-record it unless they ask.`
         : `[PLAN EDIT REVERTED] Athlete undid a previously-applied change (batch ${overrideId}). Treat as a soft signal that the change may not have worked for them.`,
     )
-  }, [planEdits, coachMemory, benchmarks])
+  }, [planEdits, coachMemory, benchmarks, onboarding])
 
   // Daily-insight proposals don't live in coachMemory, so they get their
   // own approve/undo path that just touches planEdits. The card
@@ -2298,7 +2349,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           onToggleLock={lockedDays.toggleLock}
           replan={replan}
           onRebuildPlan={onboarding.requestRedo}
-          onShapeWeek={() => setPlanShapeOpen(true)}
+          onShapeWeek={() => setPlanShapeOpen({ initial: null })}
           weekReadiness={readiness.weekScores}
           athleteId={athleteId}
           coachEnabled={coachEnabled}
@@ -2360,6 +2411,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           onReshape={(shape, fromWeek) => { onboarding.reshapeWeek(shape, fromWeek); setPlanShaped({ fromWeek, mode: 'in_place' }) }}
           onRebuild={(shape, fromWeek) => { onboarding.rebuildWithShape(shape, fromWeek); setPlanShaped({ fromWeek, mode: 'rebuild' }) }}
           onClose={() => setPlanShapeOpen(false)}
+          initial={planShapeOpen.initial}
         />
       )}
       {planShaped && (
@@ -2491,6 +2543,8 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           onRejectAction={handleRejectAction}
           onUndoAction={handleUndoAction}
           previewBenchmark={previewChatBenchmark}
+          shapeContext={chatShapeContext}
+          onAdjustReshape={r => setPlanShapeOpen({ initial: r })}
           onApproveInsightProposal={handleApproveInsightProposal}
           onUndoInsightProposal={handleUndoInsightProposal}
           onRegenerateInsight={dailyInsight.regenerate}
