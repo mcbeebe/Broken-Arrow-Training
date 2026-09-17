@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useCallback } from 'react'
 import { useTravelActions } from './hooks/useTravelActions'
-import type { ViewId, CoachSnapshot, CoachAction, PlannedDay, JournalNote } from './types'
+import type { ViewId, CoachSnapshot, CoachAction, PlannedDay, JournalNote, ProposedBenchmark } from './types'
 import { resolveViewId, resolveDeepLink } from './utils/viewId'
 import { DETAIL_DIRECTIVES } from './types'
 import { plans } from './data'
@@ -147,6 +147,9 @@ import { useBackendSync } from './hooks/useBackendSync'
 import { useStrengthCapacity } from './hooks/useStrengthCapacity'
 import { useBenchmarks } from './hooks/useBenchmarks'
 import { entriesFromCapacity, planKindOf, BENCHMARK_KINDS, type BenchmarkKind, type BenchmarkUnit } from './engines/benchmark/log'
+import { previewBenchmark as previewBenchmarkEngine } from './engines/benchmark/preview'
+import { buildCoachBenchmarkContext } from './engines/benchmark/coachContext'
+import { summarizeBenchmark } from './utils/chatProposal'
 import BenchmarkSheet from './components/BenchmarkSheet'
 
 // Auto-clear stale caches on app startup when data format changes
@@ -1707,9 +1710,15 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
       snap.race.description = onboarding.config.raceDescription
       snap.race.athleteGoal = onboarding.config.athleteGoal
     }
+    // The benchmark log as the coach should see it — the newest of each
+    // series with its age, and the kinds this plan accepts — so a result the
+    // athlete reports in chat lands as the right kind and is not re-proposed.
+    const benchmarkContext = buildCoachBenchmarkContext(benchmarks.live, planKindOf(onboarding.config), todayDateString())
+    if (benchmarkContext) snap.benchmarks = benchmarkContext
     return snap
   }, [
     coachEnabled,
+    benchmarks.live,
     effectiveAthlete,
     activePlan.race,
     hrZones.zones,
@@ -1857,20 +1866,57 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
   // effort; appendTurn is a no-op offline so the apply path still
   // works without a network.
   const describeProposal = useCallback((action: CoachAction): string => {
+    const parts: string[] = []
     const pe = action.proposedEdit
-    if (!pe || !pe.ops?.length) return 'unknown proposal'
-    return pe.ops.map(o => summarizeOp(o.op, getPlannedDay)).join(' · ')
+    if (pe?.ops?.length) parts.push(...pe.ops.map(o => summarizeOp(o.op, getPlannedDay)))
+    const bms = action.proposedBenchmarks?.entries
+    if (bms?.length) parts.push(...bms.map(b => `record ${summarizeBenchmark(b)}`))
+    return parts.length ? parts.join(' · ') : 'unknown proposal'
   }, [getPlannedDay])
 
+  // A benchmark the coach heard in chat gets the same "what this changes"
+  // box the Add-benchmark sheet shows, from the same engines.
+  const previewChatBenchmark = useCallback((b: ProposedBenchmark) => {
+    if (!onboarding.config) return null
+    const { rationale: _r, ...candidate } = b
+    void _r
+    return previewBenchmarkEngine({
+      candidate: { ...candidate, source: 'manual' },
+      log: benchmarks.log,
+      config: onboarding.config,
+      capacity: strengthCapacity.capacity,
+      weeks,
+      method: onboarding.config.selectedMethodId ? getMethodById(onboarding.config.selectedMethodId) ?? null : null,
+    })
+  }, [onboarding.config, benchmarks.log, strengthCapacity.capacity, weeks])
+
+  // The undo token persisted on the turn is one string. Plan edits store
+  // their batch id; benchmarks store "bm:<id>,<id>"; a block that carried
+  // both joins them with "|". handleUndoAction takes it apart.
+  const BENCHMARK_TOKEN = 'bm:'
   const handleApproveAction = useCallback((turnId: string, action: CoachAction) => {
-    if (action.type !== 'propose_edit' || !action.proposedEdit?.ops?.length) return
-    const overrideId = planEdits.applyBatch(action.proposedEdit.ops)
+    const ops = action.proposedEdit?.ops ?? []
+    const bms = action.proposedBenchmarks?.entries ?? []
+    if (ops.length === 0 && bms.length === 0) return
+    const tokens: string[] = []
+    if (ops.length > 0) tokens.push(planEdits.applyBatch(ops))
+    if (bms.length > 0) {
+      const ids = bms.map(b => {
+        const { rationale: _r, ...entry } = b
+        void _r
+        return benchmarks.add({ ...entry, source: 'manual' }).id
+      })
+      tokens.push(BENCHMARK_TOKEN + ids.join(','))
+    }
+    const overrideId = tokens.join('|')
     coachMemory.updateTurn(turnId, { actionStatus: 'applied', actionOverrideId: overrideId })
     coachMemory.appendTurn(
       'system-handoff',
-      `[PLAN EDIT APPLIED] Athlete accepted the proposed change → ${describeProposal(action)}. Batch id ${overrideId}.`,
+      ops.length > 0
+        ? `[PLAN EDIT APPLIED] Athlete accepted the proposed change → ${describeProposal(action)}. Batch id ${overrideId}.`
+        : `[BENCHMARK RECORDED] Athlete confirmed → ${describeProposal(action)}. It is now in their benchmark log and the plan reads it; do not propose it again.`,
     )
-  }, [planEdits, coachMemory, describeProposal])
+  }, [planEdits, coachMemory, describeProposal, benchmarks])
 
   const handleRejectAction = useCallback((turnId: string) => {
     const turn = coachMemory.conversation.find(t => t.id === turnId)
@@ -1879,18 +1925,29 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     const swap = action ? ` → ${describeProposal(action)}` : ''
     coachMemory.appendTurn(
       'system-handoff',
-      `[PLAN EDIT DECLINED] Athlete kept the original instead of the proposed swap${swap}. They did not modify or apply — note this preference for similar future suggestions.`,
+      action?.type === 'propose_benchmark'
+        ? `[BENCHMARK DECLINED] Athlete chose not to record${swap}. Ask what was off (the number, the date, the kind) rather than re-proposing the same entry.`
+        : `[PLAN EDIT DECLINED] Athlete kept the original instead of the proposed swap${swap}. They did not modify or apply — note this preference for similar future suggestions.`,
     )
   }, [coachMemory, describeProposal])
 
   const handleUndoAction = useCallback((turnId: string, overrideId: string) => {
-    planEdits.removeOverride(overrideId)
+    const removedBenchmarks: string[] = []
+    for (const token of overrideId.split('|')) {
+      if (token.startsWith(BENCHMARK_TOKEN)) {
+        for (const id of token.slice(BENCHMARK_TOKEN.length).split(',')) if (id) { benchmarks.remove(id); removedBenchmarks.push(id) }
+      } else if (token) {
+        planEdits.removeOverride(token)
+      }
+    }
     coachMemory.updateTurn(turnId, { actionStatus: 'pending', actionOverrideId: undefined })
     coachMemory.appendTurn(
       'system-handoff',
-      `[PLAN EDIT REVERTED] Athlete undid a previously-applied change (batch ${overrideId}). Treat as a soft signal that the change may not have worked for them.`,
+      removedBenchmarks.length > 0 && !overrideId.includes('|') && overrideId.startsWith(BENCHMARK_TOKEN)
+        ? `[BENCHMARK REMOVED] Athlete undid a recorded benchmark; it is no longer in their log. Do not re-record it unless they ask.`
+        : `[PLAN EDIT REVERTED] Athlete undid a previously-applied change (batch ${overrideId}). Treat as a soft signal that the change may not have worked for them.`,
     )
-  }, [planEdits, coachMemory])
+  }, [planEdits, coachMemory, benchmarks])
 
   // Daily-insight proposals don't live in coachMemory, so they get their
   // own approve/undo path that just touches planEdits. The card
@@ -2394,6 +2451,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           onApproveAction={handleApproveAction}
           onRejectAction={handleRejectAction}
           onUndoAction={handleUndoAction}
+          previewBenchmark={previewChatBenchmark}
           onApproveInsightProposal={handleApproveInsightProposal}
           onUndoInsightProposal={handleUndoInsightProposal}
           onRegenerateInsight={dailyInsight.regenerate}

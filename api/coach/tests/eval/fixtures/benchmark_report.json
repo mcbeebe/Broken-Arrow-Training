@@ -1,0 +1,99 @@
+{
+  "_meta": {
+    "id": "benchmark_report",
+    "surface": "daily",
+    "description": "Athlete reports a fresh 5K in chat while the log holds an older, stale one. The BENCHMARKS section must render so the coach can compare and propose recording the new one."
+  },
+  "_expect": {
+    "user_question": "I ran a 21:40 5K at parkrun yesterday. Felt strong.",
+    "context_contains": "BENCHMARKS (measured, newest of each",
+    "max_chars": 2600
+  },
+  "today": {
+    "date": "2026-09-17",
+    "period": "evening"
+  },
+  "currentWeekNum": 6,
+  "readiness": {
+    "status": "GREEN",
+    "displayScore": 74,
+    "trainingState": "A",
+    "components": {
+      "hrv": 1,
+      "rhr": 1,
+      "sleep": 1,
+      "trainingLoad": 1
+    },
+    "message": "Fresh after a rest day."
+  },
+  "performance": {
+    "ctl": 58,
+    "atl": 50,
+    "tsb": 8,
+    "acwr": 0.95
+  },
+  "athleteProfile": {
+    "name": "Mike",
+    "maxHR": 185,
+    "weeklyStructure": "5 days, long run Sunday"
+  },
+  "benchmarks": {
+    "current": [
+      {
+        "kind": "race_5k",
+        "label": "5K",
+        "value": "22:15",
+        "dateIso": "2026-05-02",
+        "weeksOld": 19,
+        "stale": true,
+        "entries": 1
+      },
+      {
+        "kind": "lthr",
+        "label": "Threshold HR",
+        "value": "168 bpm",
+        "dateIso": "2026-06-03",
+        "weeksOld": 15,
+        "stale": true,
+        "entries": 1
+      }
+    ],
+    "kinds": [
+      {
+        "kind": "race_5k",
+        "label": "5K",
+        "unit": "seconds"
+      },
+      {
+        "kind": "race_10k",
+        "label": "10K",
+        "unit": "seconds"
+      },
+      {
+        "kind": "race_hm",
+        "label": "Half marathon",
+        "unit": "seconds"
+      },
+      {
+        "kind": "mile_tt",
+        "label": "Mile time trial",
+        "unit": "seconds"
+      },
+      {
+        "kind": "easy_pace",
+        "label": "Easy pace",
+        "unit": "seconds"
+      },
+      {
+        "kind": "lthr",
+        "label": "Threshold HR",
+        "unit": "bpm"
+      },
+      {
+        "kind": "other",
+        "label": "Something else",
+        "unit": "seconds"
+      }
+    ]
+  }
+}

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import type { CoachInsight, CoachSnapshot, ConversationTurn, DailyChatArchive, CoachAction, PlannedDay } from '../types'
+import type { CoachInsight, CoachSnapshot, ConversationTurn, DailyChatArchive, CoachAction, PlannedDay, ProposedBenchmark } from '../types'
+import type { BenchmarkPreview } from '../engines/benchmark/preview'
 import { DEFAULT_COACH_NAME } from '../types'
 import type { UseCoachMemoryReturn } from '../hooks/useCoachMemory'
 import { localDateStr } from '../utils/format'
@@ -33,6 +34,7 @@ interface Props {
   onApproveAction?: (turnId: string, action: CoachAction) => void
   onRejectAction?: (turnId: string) => void
   onUndoAction?: (turnId: string, overrideId: string) => void
+  previewBenchmark?: (b: ProposedBenchmark) => BenchmarkPreview | null
   /** Insight-card proposal handlers (Apply / Undo on the daily read).
    *  Mirrors the per-turn proposal flow but keyed off the insight itself
    *  rather than a specific chat turn. */
@@ -83,6 +85,7 @@ export default function CoachTab({
   onApproveAction,
   onRejectAction,
   onUndoAction,
+  previewBenchmark,
   onApproveInsightProposal,
   onUndoInsightProposal,
   onRegenerateInsight,
@@ -241,6 +244,7 @@ export default function CoachTab({
         onApproveAction={onApproveAction}
         onRejectAction={onRejectAction}
         onUndoAction={onUndoAction}
+        previewBenchmark={previewBenchmark}
         scrollDep={dailyInsight?.generatedAt ?? (dailyInsightLoading ? 'loading' : 0)}
         proactiveInsight={
           dailyInsight || dailyInsightLoading

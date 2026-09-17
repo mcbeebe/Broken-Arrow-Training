@@ -523,7 +523,7 @@ PLAN EDITS — you can change the plan (one-tap apply):
 You have FULL authority to add, delete, and update the athlete's training plan at every level: a single workout's fields, whole workout days, week-level fields (focus / weekly mileage / dates), and entire weeks. To make changes, emit a fenced code block using EXACTLY THREE BACKTICKS and the word `proposal`, at the END of your message. The app renders an "Apply" button from it; tapping it commits the change (and the athlete can undo). Critical: use TRIPLE backticks (```), not single (`) — the parser depends on this.
 
 ⛔ NON-NEGOTIABLE — NEVER claim a change without the block:
-If you agree to ANY plan change — drop a race, swap a workout, move a day, restructure a taper — you MUST include the matching `proposal` block in the SAME message. Do NOT say "done", "I've updated", "I dropped it", "I'll change that", or "I'll do it next time" without the block. The block is the ONLY thing that changes the plan; prose does nothing. Agreeing in words but emitting no block is a hard failure (the athlete taps nothing and nothing happens). If you intend to make the change, emit the ops now.
+If you agree to ANY plan change — drop a race, swap a workout, move a day, restructure a taper — or agree to record a benchmark the athlete reported, you MUST include the matching `proposal` block in the SAME message. Do NOT say "done", "I've updated", "I dropped it", "I'll change that", or "I'll do it next time" without the block. The block is the ONLY thing that changes the plan; prose does nothing. Agreeing in words but emitting no block is a hard failure (the athlete taps nothing and nothing happens). If you intend to make the change, emit the ops now.
 
 The block contains an `ops` array — one entry per change. Apply many at once for a restructure. Each op is one of:
 - `{"kind":"updateDay","weekNum":N,"dayIndex":D,"updates":{...}}` — change an existing day's fields.
@@ -556,6 +556,27 @@ Rules:
 - Ground edits in the athlete's training philosophy (shown in context) and, when proposing a novel strategy, use `web_search` to find real supporting evidence before citing it. One short `rationale` per op; one batch-level `rationale` for the overall change.
 - Put the block at the END of your message, after a brief natural-language explanation. DON'T say "tap Apply" — the button speaks for itself.
 - Don't emit a proposal unless the athlete asked for a change or the data clearly warrants one (RED readiness, injury, missed workouts, a dropped/added race). For general advice, just talk.
+
+BENCHMARKS — record a result the athlete reports (one-tap save):
+When the athlete tells you a MEASURED result — a race time, a time trial, an erg split, a strength test ("I ran a 21:40 5K yesterday", "did 42 unbroken wall balls", "rowed 1K in 3:52", "held a plank for 2 minutes") — offer to record it in their benchmark log with a `benchmarks` array in the SAME ```proposal block format. The app renders a "Save benchmark" card that shows exactly what the plan will do with it; the athlete confirms, and can undo. The same ⛔ rule applies: NEVER say "logged", "recorded", "noted in your benchmarks" or "I've updated your 5K" without the block — prose records nothing.
+
+```proposal
+{
+  "benchmarks": [
+    {"kind":"race_5k","value":"21:40","dateIso":"2026-09-16","protocol":"parkrun, flat","rationale":"A fresh 5K re-anchors every pace band"}
+  ],
+  "rationale": "Recording yesterday's 5K"
+}
+```
+
+Rules for benchmarks:
+- `kind` MUST be one of the preset kinds listed in the BENCHMARKS context line (e.g. race_5k, race_10k, race_hm, race_marathon, mile_tt, easy_pace, lthr, ski_erg_1k, row_1k, erg_500, erg_1k, wall_balls_unbroken, wall_balls_100, sled_push_rpe, run_1k, push_ups, goblet_squat_8rm, plank). Anything else — a Murph, a dead hang, a 400 m repeat — is `"kind":"other"` with a `"label"` and a `"unit"` (seconds | reps | lb | bpm | rpe).
+- `value`: times as the athlete said them ("21:40", "1:41:30"); counts and loads as plain numbers (42, 55); a pace as m:ss per mile. Write the number the athlete gave — never round, convert, or "improve" it.
+- `dateIso`: the day it was MEASURED as YYYY-MM-DD, resolved from the "Today:" line ("yesterday" = today minus one day; "last Saturday" = the most recent Saturday before today). If the athlete gave no date, use today. Never guess a date you cannot derive.
+- `protocol` (optional): how it was tested, in their words ("unbroken, rested", "in 2 minutes", "100 for time"). If they say push-ups "in 2 minutes", that is the protocol — the number is still the value.
+- Only record what was actually MEASURED and stated as a number. "I felt fast" or "around 22 minutes I think" is not a benchmark — ask for the number. A goal ("I want to run 21:00") is not a benchmark.
+- Check the BENCHMARKS context line first: if the same result on the same date is already there, do not propose it again — acknowledge it. If a newer entry of that kind already exists, say so before proposing an older one (it will be kept as history, not used by the plan).
+- One block per message. A benchmark and plan ops may share a block (`benchmarks` beside `ops`) when one message warrants both.
 
 What you already know (do NOT re-ask or confirm):
 - The athlete's full 10-week training plan for the Broken Arrow Skyrace.
@@ -1793,6 +1814,50 @@ def build_context_block(
             "own numbers and their method's own target. Frame decoupling as a "
             "durability trend, not a verdict — one hot or under-fueled long run "
             "can spike it."
+        )
+
+    # Benchmarks — the log the plan's inputs come from, as the coach should
+    # see it: the newest of each series with its age and retest status, and
+    # the preset kinds this plan accepts. This is what lets a reported result
+    # be recorded as the right kind, deduped, and compared honestly.
+    bm = snapshot.get("benchmarks")
+    if isinstance(bm, dict) and bm.get("current"):
+        out.append("")
+        lines = []
+        for b in bm["current"][:16]:
+            if not isinstance(b, dict):
+                continue
+            label = b.get("label") or b.get("kind") or "?"
+            value = b.get("value", "?")
+            date = b.get("dateIso", "?")
+            weeks = b.get("weeksOld")
+            age = f"{weeks} wk old" if isinstance(weeks, (int, float)) else ""
+            stale = "RETEST DUE" if b.get("stale") else ""
+            proto = f"via {b['protocol']}" if b.get("protocol") else ""
+            n = b.get("entries")
+            hist = f"{n} entries" if isinstance(n, int) and n > 1 else ""
+            meta = " · ".join(x for x in (age, stale, proto, hist) if x)
+            lines.append(f"- {label} ({b.get('kind', '?')}): {value} on {date}" + (f" · {meta}" if meta else ""))
+        out.append("BENCHMARKS (measured, newest of each; the plan uses these):")
+        out.extend(lines)
+        kinds = bm.get("kinds") or []
+        if kinds:
+            out.append(
+                "Benchmark kinds this plan accepts: "
+                + ", ".join(f"{k.get('kind')} ({k.get('unit')})" for k in kinds if isinstance(k, dict) and k.get("kind"))
+                + ". A result of another kind is recorded as kind \"other\" with a label."
+            )
+        out.append(
+            "When the athlete reports a NEW measured result, propose recording it with a "
+            "`benchmarks` proposal block (see BENCHMARKS in your rules). If it is already "
+            "listed above for that date, acknowledge it instead of proposing it again."
+        )
+    elif isinstance(bm, dict) and bm.get("kinds"):
+        out.append("")
+        out.append(
+            "BENCHMARKS: none measured yet. Benchmark kinds this plan accepts: "
+            + ", ".join(f"{k.get('kind')} ({k.get('unit')})" for k in bm["kinds"] if isinstance(k, dict) and k.get("kind"))
+            + ". A recent race time is the single most useful number the plan can get — when the athlete reports one, propose recording it with a `benchmarks` proposal block."
         )
 
     # Race pacing (G6) — segment pace bands + fueling checkpoints for a

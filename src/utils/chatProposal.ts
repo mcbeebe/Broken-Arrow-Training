@@ -1,4 +1,7 @@
-import type { CoachAction, PlannedDay, PlanEditOp, PlanEditOpInput, DayUpdates, WeekUpdates, TrainingWeek } from '../types'
+import type { CoachAction, PlannedDay, PlanEditOp, PlanEditOpInput, DayUpdates, WeekUpdates, TrainingWeek, ProposedBenchmark } from '../types'
+import { BENCHMARK_KINDS, isPlausible, type BenchmarkKind, type BenchmarkUnit } from '../engines/benchmark/log'
+import { formatBenchmarkValue } from '../engines/benchmark/preview'
+import { parseTimeToSeconds } from './parseTime'
 
 /**
  * Parse ```proposal fenced code blocks from LLM output.
@@ -8,6 +11,9 @@ import type { CoachAction, PlannedDay, PlanEditOp, PlanEditOpInput, DayUpdates, 
  *      — any mix of structural ops (add/delete/update day or week).
  *   2. Legacy single-day: { "weekNum", "dayIndex", "updates", "rationale" }
  *      — wrapped into one `updateDay` op for backward compatibility.
+ *   3. Benchmarks: { "benchmarks": [ { "kind", "value", "dateIso", ... } ], "rationale" }
+ *      — a measured result the athlete reported ("I ran a 21:40 5K"),
+ *      to be recorded in the benchmark log. May ride along with `ops`.
  *
  * Returns the content with the block stripped + a structured CoachAction of
  * type 'propose_edit'. Validation is ATOMIC: if any op in a batch is invalid,
@@ -22,7 +28,7 @@ const PROPOSAL_BLOCK_OPEN_RE = /`{1,4}\s*proposal\s*\n([\s\S]*)/
 
 // Also try to match a standalone JSON object with proposal fields
 // at the end of the message (fallback when the LLM doesn't use a fenced block)
-const PROPOSAL_JSON_RE = /\n\s*(\{[\s\S]*?("weekNum"|"ops")\s*:[\s\S]*?\})\s*$/
+const PROPOSAL_JSON_RE = /\n\s*(\{[\s\S]*?("weekNum"|"ops"|"benchmarks")\s*:[\s\S]*?\})\s*$/
 
 const ALLOWED_UPDATE_FIELDS: (keyof DayUpdates)[] = [
   'type', 'workout', 'detail', 'zone', 'route', 'time',
@@ -150,19 +156,82 @@ function parseOp(raw: unknown): PlanEditOp | null {
   }
 }
 
+const BENCHMARK_UNITS: readonly BenchmarkUnit[] = ['seconds', 'bpm', 'reps', 'lb', 'rpe']
+const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/
+
+/** Validate + normalize one proposed benchmark. The value may arrive as the
+ *  athlete said it ("21:40") or as a number; times become seconds. A preset
+ *  kind takes its own unit whatever the model wrote, and must be plausible
+ *  for that kind — a mis-heard "2:10" 5K is refused here, not saved. */
+export function parseProposedBenchmark(raw: unknown): ProposedBenchmark | null {
+  if (!raw || typeof raw !== 'object') return null
+  const o = raw as Record<string, unknown>
+  const kind = str(o.kind)
+  if (!kind || !(kind in BENCHMARK_KINDS)) return null
+  const spec = BENCHMARK_KINDS[kind as BenchmarkKind]
+  let unit: BenchmarkUnit = spec.unit
+  if (kind === 'other') {
+    const u = str(o.unit)
+    unit = u && (BENCHMARK_UNITS as readonly string[]).includes(u) ? (u as BenchmarkUnit) : 'seconds'
+  }
+  let value: number | null = null
+  if (typeof o.value === 'number' && Number.isFinite(o.value)) value = o.value
+  else if (typeof o.value === 'string') {
+    const t = o.value.trim()
+    if (unit === 'seconds') value = parseTimeToSeconds(t) ?? null
+    else { const n = Number(t); value = Number.isFinite(n) ? n : null }
+  }
+  if (value == null || value < 0) return null
+  if (kind === 'other' ? !Number.isFinite(value) : !isPlausible(kind as BenchmarkKind, value)) return null
+  const dateIso = str(o.dateIso)?.trim()
+  if (!dateIso || !ISO_DATE_RE.test(dateIso)) return null
+  const label = str(o.label)?.trim()
+  if (kind === 'other' && !label) return null
+  const out: ProposedBenchmark = { kind: kind as BenchmarkKind, value, unit, dateIso }
+  if (kind === 'other' && label) out.label = label
+  const protocol = str(o.protocol)?.trim()
+  if (protocol) out.protocol = protocol.slice(0, 120)
+  const note = str(o.note)?.trim()
+  if (note) out.note = note.slice(0, 200)
+  const rationale = str(o.rationale)?.trim()
+  if (rationale) out.rationale = rationale
+  return out
+}
+
+/** One line per proposed benchmark, for the card and the handoff note. */
+export function summarizeBenchmark(b: ProposedBenchmark): string {
+  const name = b.kind === 'other' && b.label ? b.label : BENCHMARK_KINDS[b.kind].label
+  return `${name} ${formatBenchmarkValue(b)} · ${b.dateIso}${b.protocol ? ` · ${b.protocol}` : ''}`
+}
+
 interface ParsedBatch {
   ops: PlanEditOpInput[]
   rationale?: string
+  benchmarks?: ProposedBenchmark[]
 }
 
 function parseProposalObject(parsed: unknown): ParsedBatch | null {
   if (!parsed || typeof parsed !== 'object') return null
   const o = parsed as Record<string, unknown>
 
+  // Shape 3 — benchmarks to record. Atomic like ops: one bad entry rejects
+  // the block, so a mis-heard number never half-applies. May accompany ops.
+  let benchmarks: ProposedBenchmark[] | undefined
+  if (Array.isArray(o.benchmarks)) {
+    if (o.benchmarks.length === 0 && !Array.isArray(o.ops)) return null
+    benchmarks = []
+    for (const raw of o.benchmarks) {
+      const b = parseProposedBenchmark(raw)
+      if (!b) return null
+      benchmarks.push(b)
+    }
+    if (benchmarks.length === 0) benchmarks = undefined
+  }
+
   // Shape 1 — batch of ops. Each entry is { op: {kind,...}, rationale? };
   // also tolerate a flattened {kind,...} entry without the `op` wrapper.
   if (Array.isArray(o.ops)) {
-    if (o.ops.length === 0) return null
+    if (o.ops.length === 0 && !benchmarks) return null
     const ops: PlanEditOpInput[] = []
     for (const raw of o.ops) {
       if (!raw || typeof raw !== 'object') return null
@@ -172,8 +241,9 @@ function parseProposalObject(parsed: unknown): ParsedBatch | null {
       if (!op) return null  // atomic reject — no partial apply
       ops.push({ op, rationale: str(r.rationale) })
     }
-    return { ops, rationale: str(o.rationale) }
+    return { ops, rationale: str(o.rationale), benchmarks }
   }
+  if (benchmarks) return { ops: [], rationale: str(o.rationale), benchmarks }
 
   // Shape 2 — legacy single-day update.
   if (isInt(o.weekNum) && o.weekNum >= 1 && o.weekNum <= 30 &&
@@ -223,6 +293,21 @@ export function extractProposal(content: string): { content: string; action: Coa
 
   const cleanContent = content.replace(matchedFull, '').trim()
 
+  // A block with benchmarks and no plan ops is its own action type; with
+  // both, the plan edit carries the benchmarks along.
+  const proposedBenchmarks = batch.benchmarks?.length
+    ? { entries: batch.benchmarks, rationale: batch.rationale }
+    : undefined
+  if (batch.ops.length === 0 && proposedBenchmarks) {
+    const action: CoachAction = {
+      type: 'propose_benchmark',
+      label: proposedBenchmarks.entries.length > 1 ? 'Save benchmarks' : 'Save benchmark',
+      detail: proposedBenchmarks.entries.map(summarizeBenchmark).join(' · '),
+      proposedBenchmarks,
+    }
+    return { content: cleanContent, action }
+  }
+
   // Populate the legacy single-day mirror when the batch is exactly one
   // updateDay op, so older single-edit UI/state paths keep working.
   const single = batch.ops.length === 1 && batch.ops[0].op.kind === 'updateDay'
@@ -242,6 +327,7 @@ export function extractProposal(content: string): { content: string; action: Coa
       rationale: batch.rationale,
       ...(single ? { weekNum: single.weekNum, dayIndex: single.dayIndex, updates: single.updates } : {}),
     },
+    ...(proposedBenchmarks ? { proposedBenchmarks } : {}),
   }
 
   return { content: cleanContent, action }

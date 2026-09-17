@@ -1,3 +1,4 @@
+import type { BenchmarkKind, BenchmarkUnit } from '../engines/benchmark/log'
 import type { GeneralGoal } from '../hooks/useOnboarding';
 
 export type WorkoutType =
@@ -876,8 +877,24 @@ export interface CoachRecommendation {
   inputs: string[]  // which data points drove this (e.g., "HRV above baseline", "TSB -42")
 }
 
+/** A measured result the coach heard in chat ("I ran a 21:40 5K
+ *  yesterday") and proposes to record in the benchmark log. Same shape the
+ *  Add-benchmark sheet saves, minus id/at/source (source is always
+ *  'manual' — the athlete's own word). */
+export interface ProposedBenchmark {
+  kind: BenchmarkKind
+  value: number
+  unit: BenchmarkUnit
+  /** When it was measured — the coach resolves "yesterday" against Today. */
+  dateIso: string
+  label?: string
+  protocol?: string
+  note?: string
+  rationale?: string
+}
+
 export interface CoachAction {
-  type: 'execute' | 'modify' | 'skip' | 'swap' | 'sleep_target' | 'propose_edit'
+  type: 'execute' | 'modify' | 'skip' | 'swap' | 'sleep_target' | 'propose_edit' | 'propose_benchmark'
   label: string  // button label
   detail: string  // explanation
   swapFromIndex?: number
@@ -895,6 +912,13 @@ export interface CoachAction {
     weekNum?: number
     dayIndex?: number
     updates?: DayUpdates
+  }
+  /** Benchmarks the coach proposes to record (type 'propose_benchmark', or
+   *  riding along with plan ops in one block). Applying writes each to the
+   *  benchmark log; undo tombstones exactly those entries. */
+  proposedBenchmarks?: {
+    entries: ProposedBenchmark[]
+    rationale?: string
   }
 }
 
@@ -1495,6 +1519,29 @@ export interface CoachSnapshot {
    *  the method's phase target (+ optional long-run decoupling). Absent
    *  without a method or enough HR-measured sessions (guard). */
   intensityContext?: string
+  /** The benchmark log as the coach should see it: the newest of each
+   *  series, with age and whether the plan considers it due a retest, plus
+   *  the preset kinds this plan accepts — so a reported result can be
+   *  recorded as the right kind, deduped against what is already there,
+   *  and compared honestly. Absent when nothing is measured. */
+  benchmarks?: CoachBenchmarkContext
+}
+
+export interface CoachBenchmarkContext {
+  current: {
+    kind: string
+    label: string
+    /** Formatted in the benchmark's own unit ("21:40", "168 bpm"). */
+    value: string
+    dateIso: string
+    weeksOld: number
+    stale: boolean
+    protocol?: string
+    /** Live entries in this series, so the coach can say "that's your third". */
+    entries: number
+  }[]
+  /** Preset kinds this plan accepts, as `kind (unit)` pairs. */
+  kinds: { kind: string; label: string; unit: string }[]
 }
 
 export interface CoachInsight {
