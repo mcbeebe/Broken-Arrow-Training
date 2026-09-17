@@ -242,6 +242,12 @@ function walkHappyPath(overrides: Partial<{
   }
   clickContinue()
 
+  // Step 8b: "Here's your week" — plan shaping. Optional; left untouched
+  // here so the config carries no weekShape and the engines' own layout
+  // (and every assertion below) stands exactly as before.
+  expect(screen.getByText("Here's your week")).toBeTruthy()
+  clickContinue()
+
   // Step 9: Schedule & constraints
   o.trainingTimes.forEach(label => fireEvent.click(screen.getByText(label)))
   // Phase 4 UI — optional typical-training-heat chip.
@@ -813,6 +819,7 @@ describe('Onboarding', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Strength None' }))
       fireEvent.click(screen.getByRole('button', { name: 'Cross-training None' }))
       clickContinue()
+      clickContinue() // "Here's your week" — optional, left untouched
     }
 
     it('disables Continue on the baseline step until injury status is selected', () => {
@@ -952,6 +959,7 @@ describe('Onboarding', () => {
       fireEvent.click(screen.getByText('Some experience'))
       fireEvent.click(screen.getByRole('button', { name: 'Cross-training None' }))
       clickContinue()
+      clickContinue() // "Here's your week" — optional, left untouched
       fireEvent.click(screen.getByText('Early morning')); clickContinue()
       fireEvent.change(screen.getByPlaceholderText('e.g. Jenn'), { target: { value: 'Jenn' } })
       // Under 38 so the optional menopause step doesn't appear before review.
@@ -976,23 +984,23 @@ describe('Onboarding', () => {
   })
 
   describe('progress bar', () => {
-    it('uses 16 visible steps before raceType is picked (race-distance hidden)', () => {
+    it('uses 17 visible steps before raceType is picked (race-distance hidden)', () => {
       const onComplete = vi.fn()
       const { container } = render(<Onboarding onComplete={onComplete} loadingDurationMs={0} />)
       const progressFill = container.querySelector('.bg-teal-500.rounded-full') as HTMLElement
-      // step 0 of 16 (incl. the health screen, UI PR B) → 1/16 = 6.25%
-      expect(progressFill.style.width).toMatch(/^6\.2/)
+      // step 0 of 17 (incl. the health screen and the week-shape step) → 1/17 = 5.88%
+      expect(progressFill.style.width).toMatch(/^5\.8/)
     })
 
-    it('stays at 16 visible steps after raceType=trail (distance folded into the race step)', () => {
+    it('stays at 17 visible steps after raceType=trail (distance folded into the race step)', () => {
       const onComplete = vi.fn()
       const { container } = render(<Onboarding onComplete={onComplete} loadingDurationMs={0} />)
       fireEvent.click(screen.getByText('A specific race')) // goal mode (step 1)
       clickContinue()
       fireEvent.click(screen.getByText('Trail / Ultra')) // race type (step 2) — no extra step appears
       const progressFill = container.querySelector('.bg-teal-500.rounded-full') as HTMLElement
-      // On step idx 1 of 16 → 2/16 = 12.5%
-      expect(progressFill.style.width).toMatch(/^12\.5/)
+      // On step idx 1 of 17 → 2/17 = 11.76%
+      expect(progressFill.style.width).toMatch(/^11\.7/)
     })
   })
 
@@ -1155,6 +1163,7 @@ describe('Onboarding', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Strength None' }))
       fireEvent.click(screen.getByRole('button', { name: 'Cross-training None' }))
       clickContinue()
+      clickContinue() // "Here's your week" — optional, left untouched
       fireEvent.click(screen.getByText('Early morning')); clickContinue()
       fireEvent.change(screen.getByPlaceholderText('e.g. Jenn'), { target: { value: 'Jenn' } })
       fireEvent.change(screen.getByPlaceholderText('e.g. 41'), { target: { value: age } })
@@ -1292,6 +1301,7 @@ describe('Onboarding', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Strength None' }))
       fireEvent.click(screen.getByRole('button', { name: 'Cross-training None' }))
       clickContinue()
+      clickContinue() // "Here's your week" — optional, left untouched
       fireEvent.click(screen.getByText('Early morning')); clickContinue()
       fireEvent.change(screen.getByPlaceholderText('e.g. Jenn'), { target: { value: 'Jenn' } })
       fireEvent.change(screen.getByPlaceholderText('e.g. 41'), { target: { value: '37' } })
@@ -1328,6 +1338,7 @@ describe('Onboarding', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Strength None' }))
       fireEvent.click(screen.getByRole('button', { name: 'Cross-training None' }))
       clickContinue()
+      clickContinue() // "Here's your week" — optional, left untouched
       fireEvent.click(screen.getByText('Early morning')); clickContinue()
       fireEvent.change(screen.getByPlaceholderText('e.g. Jenn'), { target: { value: 'J' } })
       fireEvent.change(screen.getByPlaceholderText('e.g. 41'), { target: { value: '37' } })
@@ -1370,6 +1381,7 @@ describe('season mode (multi-race builder)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Strength None' }))
     fireEvent.click(screen.getByRole('button', { name: 'Cross-training None' }))
     clickContinue()
+    clickContinue() // "Here's your week" — optional, left untouched
     fireEvent.click(screen.getByText('Early morning')); clickContinue()
     fireEvent.change(screen.getByPlaceholderText('e.g. Jenn'), { target: { value: 'Mike' } })
     fireEvent.change(screen.getByPlaceholderText('e.g. 41'), { target: { value: '45' } })
@@ -1545,6 +1557,7 @@ describe('season mode: race kinds are multi-select', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Strength None' }))
     fireEvent.click(screen.getByRole('button', { name: 'Cross-training None' }))
     clickContinue()
+    clickContinue() // "Here's your week" — optional, left untouched
     fireEvent.click(screen.getByText('Early morning')); clickContinue()
     fireEvent.change(screen.getByPlaceholderText('e.g. Jenn'), { target: { value: 'Mike' } })
     fireEvent.change(screen.getByPlaceholderText('e.g. 41'), { target: { value: '30' } })
@@ -1607,6 +1620,7 @@ describe('redo with previousConfig', () => {
     fireEvent.click(screen.getByText('Saturday')); clickContinue()
     clickContinue() // equipment (prefilled)
     clickContinue() // strength (prefilled)
+    clickContinue() // "Here's your week" (optional — left untouched)
     clickContinue() // schedule (prefilled)
     expect(screen.queryByText(/tell us about yourself/i)).not.toBeInTheDocument()
     clickContinue() // HEALTH screen (optional — skipped; UI PR B)

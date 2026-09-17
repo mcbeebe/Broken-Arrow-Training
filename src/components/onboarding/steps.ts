@@ -47,6 +47,10 @@ export const STEP_SEASON_RACES = 19
 // Placed after the menopause step (same "personal, skippable" register);
 // wording ships from the reviewed screeningCopy registry.
 export const STEP_HEALTH = 20
+// Plan shaping — "Here's your week": the athlete lays out which weekday
+// carries which role, after the days / long-run day / strength answers it
+// is built from. Untouched, the engines lay the week out as before.
+export const STEP_WEEK_SHAPE = 21
 
 /**
  * G3 ordering (goal-first, preview mid-flow, prefs last):
@@ -74,6 +78,7 @@ export const ALL_STEPS = [
   STEP_VARIANT,
   STEP_EQUIPMENT,
   STEP_STRENGTH,
+  STEP_WEEK_SHAPE, // plan shaping — built from the answers just above
   STEP_SCHEDULE,
   STEP_PROFILE,
   STEP_MENOPAUSE,
@@ -105,6 +110,7 @@ export const STEP_NAMES: Readonly<Record<number, string>> = {
   [STEP_VARIANT]: 'variant',
   [STEP_EQUIPMENT]: 'equipment',
   [STEP_STRENGTH]: 'strength',
+  [STEP_WEEK_SHAPE]: 'week_shape',
   [STEP_SCHEDULE]: 'schedule',
   [STEP_PROFILE]: 'profile',
   [STEP_MENOPAUSE]: 'menopause',

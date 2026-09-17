@@ -38,7 +38,7 @@ import {
   type MileageProgressionAdjust,
 } from './weekPlan'
 import { pickWeeklyPattern, pickWorkoutForDay, buildPlannedWorkout, scaleWorkoutToTime } from './workouts'
-import { applyShapeToSchedule, configWithShape, countRoles, extraSlotsForDays } from './weekShape'
+import { applyShapeToSchedule, configWithShape, countRoles, effectiveShape, extraSlotsForDays, latestShape } from './weekShape'
 import { MASTERS_AGE_TIERS, MASTERS_RECOVERY_CADENCE, MASTERS_RAMP_CAP, SENIOR_INTENSITY, SENIOR_LONG_RUN_CAP_MULT, DAYS_VOLUME_FACTOR } from '../running/heuristics'
 import { invariantRulesFor } from './methodInvariants'
 import { bestMethodForDistance, suggestLighterMethod } from './methodSelection'
@@ -1127,8 +1127,11 @@ export function generatePlanFromMethod(
   // A week shape the athlete laid out overrides the day counts and the
   // long-run day, so every budget below is computed from what they chose.
   // Absent, the config is used as is and the layout is the method's.
-  const weekShape = rawConfig.weekShape
+  const weekShape = latestShape(rawConfig)
   const config = weekShape ? configWithShape(rawConfig, weekShape) : rawConfig
+  // Per-week: a reshape made mid-plan holds from its week onward; weeks
+  // already trained keep the layout they were trained on.
+  const shapeForWeek = (weekNumber: number) => effectiveShape(rawConfig, weekNumber)
   // Athlete-chosen plan start: everything downstream that reasons from
   // "today" (runway clamp, base-week fill, feasibility) reasons from the
   // start date instead. Clamped one-way — a past start never back-dates.
@@ -1500,10 +1503,11 @@ export function generatePlanFromMethod(
     // Honor the athlete's week shape — or, without one, their preferred
     // long-run weekday — on normal weeks. Race week is hand-authored
     // (taper.raceWeekSchedule) and left untouched either way.
+    const thisWeekShape = shapeForWeek(weekMi.weekNumber)
     const remapped = isFinalWeek
       ? agedSchedule
-      : weekShape
-        ? applyShapeToSchedule(agedSchedule, weekShape)
+      : thisWeekShape
+        ? applyShapeToSchedule(agedSchedule, thisWeekShape)
         : longRunDow != null
           ? remapLongRunDay(agedSchedule, longRunDow)
           : agedSchedule
@@ -1769,7 +1773,7 @@ export function generatePlanFromMethod(
           {
             maxExtras: weekMaxExtras, hardDayFlags, prevTailHard,
             // The shape names the strength and cross weekdays outright.
-            ...(weekShape ? { slots: extraSlotsForDays(days, weekShape) } : {}),
+            ...(shapeForWeek(weekMi.weekNumber) ? { slots: extraSlotsForDays(days, shapeForWeek(weekMi.weekNumber)!) } : {}),
           },
         )
     // Stamp the week's drill day (first easy run) so the UI can surface the

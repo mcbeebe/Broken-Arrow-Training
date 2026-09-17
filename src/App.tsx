@@ -151,6 +151,7 @@ import { previewBenchmark as previewBenchmarkEngine } from './engines/benchmark/
 import { buildCoachBenchmarkContext } from './engines/benchmark/coachContext'
 import { summarizeBenchmark } from './utils/chatProposal'
 import BenchmarkSheet from './components/BenchmarkSheet'
+import PlanShapeSheet from './components/PlanShapeSheet'
 
 // Auto-clear stale caches on app startup when data format changes
 checkStorageVersion()
@@ -684,6 +685,14 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
   // once (the sheet showed what it changes before the tap); the banner is
   // the way back for twelve seconds, after which the log's history is.
   const [benchmarkSheet, setBenchmarkSheet] = useState<{ kind?: BenchmarkKind; label?: string; unit?: BenchmarkUnit } | null>(null)
+  // Plan shaping — the Plan tab's "Shape my week" sheet and its receipt.
+  const [planShapeOpen, setPlanShapeOpen] = useState(false)
+  const [planShaped, setPlanShaped] = useState<{ fromWeek: number; mode: 'in_place' | 'rebuild' } | null>(null)
+  useEffect(() => {
+    if (!planShaped) return
+    const t = setTimeout(() => setPlanShaped(null), 15_000)
+    return () => clearTimeout(t)
+  }, [planShaped])
   const [benchmarkSaved, setBenchmarkSaved] = useState<{ id: string; label: string; changesPlan: boolean } | null>(null)
   useEffect(() => {
     if (!benchmarkSaved) return
@@ -2289,6 +2298,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           onToggleLock={lockedDays.toggleLock}
           replan={replan}
           onRebuildPlan={onboarding.requestRedo}
+          onShapeWeek={() => setPlanShapeOpen(true)}
           weekReadiness={readiness.weekScores}
           athleteId={athleteId}
           coachEnabled={coachEnabled}
@@ -2340,6 +2350,35 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           }}
           onClose={() => setBenchmarkSheet(null)}
         />
+      )}
+      {planShapeOpen && onboarding.config && (
+        <PlanShapeSheet
+          config={onboarding.config}
+          weeks={weeks}
+          currentWeekNum={currentWeekNum}
+          todayIso={todayDateString()}
+          onReshape={(shape, fromWeek) => { onboarding.reshapeWeek(shape, fromWeek); setPlanShaped({ fromWeek, mode: 'in_place' }) }}
+          onRebuild={(shape, fromWeek) => { onboarding.rebuildWithShape(shape, fromWeek); setPlanShaped({ fromWeek, mode: 'rebuild' }) }}
+          onClose={() => setPlanShapeOpen(false)}
+        />
+      )}
+      {planShaped && (
+        <div
+          className="fixed left-4 right-4 z-40 bg-teal-600 text-white px-4 py-2 rounded-xl shadow-lg flex items-center justify-between gap-3"
+          style={{ bottom: 'calc(var(--app-tabbar-h) + 8px)' }}
+          role="status" data-testid="plan-shaped"
+        >
+          <p className="text-sm font-medium">
+            {planShaped.mode === 'in_place'
+              ? `Week reshaped from week ${planShaped.fromWeek} — your edits kept.`
+              : `Plan rebuilt from week ${planShaped.fromWeek} on your new layout. The previous plan is under Settings → Restore.`}
+          </p>
+          {planShaped.mode === 'in_place' ? (
+            <button type="button" onClick={() => { onboarding.undoLastReshape(); setPlanShaped(null) }} className="text-xs bg-teal-700 hover:bg-teal-800 px-2 py-1 rounded-lg shrink-0">Undo</button>
+          ) : (
+            <button type="button" onClick={() => setPlanShaped(null)} className="text-xs bg-teal-700 hover:bg-teal-800 px-2 py-1 rounded-lg shrink-0">OK</button>
+          )}
+        </div>
       )}
       {benchmarkSaved && (
         <div

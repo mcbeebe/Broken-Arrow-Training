@@ -30,6 +30,36 @@ export type Weekday = 1 | 2 | 3 | 4 | 5 | 6 | 7
 
 export type WeekShape = Record<Weekday, DayRole>
 
+/** A shape that applies from a plan week onward. The athlete reshaped
+ *  their week mid-plan: the weeks already trained keep the layout they
+ *  were trained on; from `fromWeek` the new one holds. */
+export interface WeekReshape {
+  fromWeek: number
+  shape: WeekShape
+  /** Wall time it was made — the undo order and the sync sort key. */
+  at: number
+}
+
+/** The shape in force for a plan week: the latest reshape whose
+ *  `fromWeek` is at or before it, else the base shape, else none. */
+export function effectiveShape(
+  config: Pick<OnboardingConfig, 'weekShape' | 'weekReshapes'>,
+  weekNumber: number,
+): WeekShape | null {
+  let best: WeekReshape | null = null
+  for (const r of config.weekReshapes ?? []) {
+    if (r.fromWeek <= weekNumber && (!best || r.fromWeek > best.fromWeek || (r.fromWeek === best.fromWeek && r.at > best.at))) best = r
+  }
+  return best?.shape ?? config.weekShape ?? null
+}
+
+/** The shape the plan's future runs on — what plan-level budgets follow. */
+export function latestShape(config: Pick<OnboardingConfig, 'weekShape' | 'weekReshapes'>): WeekShape | null {
+  const rs = config.weekReshapes ?? []
+  if (rs.length === 0) return config.weekShape ?? null
+  return rs.reduce((a, b) => (b.fromWeek > a.fromWeek || (b.fromWeek === a.fromWeek && b.at > a.at)) ? b : a).shape
+}
+
 export const WEEKDAYS: readonly Weekday[] = [1, 2, 3, 4, 5, 6, 7]
 export const WEEKDAY_SHORT: Record<Weekday, string> = { 1: 'Mon', 2: 'Tue', 3: 'Wed', 4: 'Thu', 5: 'Fri', 6: 'Sat', 7: 'Sun' }
 export const WEEKDAY_LONG: Record<Weekday, string> = { 1: 'Monday', 2: 'Tuesday', 3: 'Wednesday', 4: 'Thursday', 5: 'Friday', 6: 'Saturday', 7: 'Sunday' }
@@ -46,6 +76,28 @@ export function roleLabel(role: DayRole, plan: 'road' | 'trail' | 'hyrox' | 'gen
     case 'cross': return plan === 'hyrox' ? 'Stations' : 'Cross-train'
     case 'rest': return 'Rest'
   }
+}
+
+/** Tile-sized role names for the editor strip. */
+export function roleShort(role: DayRole, plan: 'road' | 'trail' | 'hyrox' | 'general'): string {
+  switch (role) {
+    case 'long': return 'Long'
+    case 'quality': return plan === 'hyrox' ? 'Intervals' : plan === 'general' ? 'Hard' : 'Quality'
+    case 'run': return 'Easy'
+    case 'strength': return 'Strength'
+    case 'cross': return plan === 'hyrox' ? 'Stations' : 'Cross'
+    case 'rest': return 'Rest'
+  }
+}
+
+/** "5 training days — 3 running · 1 strength · 1 cross · 2 rest" */
+export function describeCounts(shape: WeekShape, plan: 'road' | 'trail' | 'hyrox' | 'general'): string {
+  const c = countRoles(shape)
+  const parts: string[] = []
+  if (c.running) parts.push(`${c.running} ${plan === 'general' ? 'cardio' : 'running'}`)
+  if (c.strength) parts.push(`${c.strength} strength`)
+  if (c.cross) parts.push(`${c.cross} ${plan === 'hyrox' ? 'stations' : 'cross'}`)
+  return `${c.training} training day${c.training === 1 ? '' : 's'}${parts.length ? ` — ${parts.join(' · ')}` : ''} · ${c.rest} rest`
 }
 
 const HARD_ROLES: ReadonlySet<DayRole> = new Set(['long', 'quality'])
@@ -210,7 +262,6 @@ export function configWithShape(config: OnboardingConfig, shape: WeekShape): Onb
     strengthDaysPerWeek: c.strength,
     crossTrainingDaysPerWeek: c.cross,
     ...(longDay ? { longRunDay: WEEKDAY_LONG[longDay] } : {}),
-    weekShape: shape,
   }
 }
 

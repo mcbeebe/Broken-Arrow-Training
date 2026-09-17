@@ -6,7 +6,7 @@
 // Pure + deterministic given (config, today) so it can be derived state in the
 // app and pinned in tests. See docs/GENERAL_FITNESS_ENGINE_DESIGN.md.
 
-import { configWithShape, generalLayoutFromShape } from '../planGenerator/weekShape'
+import { configWithShape, effectiveShape, generalLayoutFromShape, latestShape } from '../planGenerator/weekShape'
 import type {
   TrainingPlan,
   TrainingWeek,
@@ -373,7 +373,7 @@ export function generateGeneralFitnessPlan(
 ): TrainingPlan {
   // A week shape the athlete laid out sets the day count and, below, the
   // weekday slots and pillar roles. Absent, the goal's template applies.
-  const weekShape = rawConfig.weekShape
+  const weekShape = latestShape(rawConfig)
   const config = weekShape ? configWithShape(rawConfig, weekShape) : rawConfig
   // Athlete-chosen plan start (one-way clamp: never back-dates).
   today = effectivePlanStart(config.planStartDate, today, config.planStartPinnedIso)
@@ -398,7 +398,8 @@ export function generateGeneralFitnessPlan(
 
   const daysPerWeek = Math.min(6, Math.max(3, config.trainingDaysPerWeek))
   const shaped = weekShape ? generalLayoutFromShape(weekShape) : null
-  const slots = shaped ? shaped.slots : trainingDayNumbers(daysPerWeek)
+  const defaultSlots = trainingDayNumbers(daysPerWeek)
+  const slots = shaped ? shaped.slots : defaultSlots
   const scale = experienceScale(config.experienceLevel)
   const bias = CARDIO_BIAS_FACTOR[preset.cardioBias]
   const modality = resolveModality(config)
@@ -407,7 +408,8 @@ export function generateGeneralFitnessPlan(
   // that weekday is one of the training slots.
   const baseRoles: PillarRole[] = shaped ? shaped.roles : weeklyRoles(goal, daysPerWeek)
   const longWd = shaped ? null : dayNameToWeekday(config.longRunDay)
-  const roles: PillarRole[] = [...baseRoles]
+  const defaultRoles: PillarRole[] = [...baseRoles]
+  const roles = defaultRoles
   if (longWd !== null) {
     const slotIdx = slots.indexOf(longWd)
     const longIdx = roles.indexOf('long')
@@ -447,6 +449,12 @@ export function generateGeneralFitnessPlan(
     // Progressive overload across the block; deloads dip to ~60%.
     const cardioFactor = isDeload ? 0.6 : 0.9 + 0.2 * (weekNum / totalWeeks)
 
+    // A reshape made mid-plan holds from its week on; earlier weeks keep
+    // the layout they were trained on.
+    const weekShapeHere = effectiveShape(rawConfig, weekNum)
+    const weekLayout = weekShapeHere ? generalLayoutFromShape(weekShapeHere) : { slots: defaultSlots, roles: defaultRoles }
+    const slots = weekLayout.slots
+    const roles = weekLayout.roles as PillarRole[]
     const weekStrengthTotal = roles.filter(r => r === 'strength').length
     const ctx: SessionCtx = { preset, z1, z2, z4, cardioFactor: cardioFactor * scale.durationFactor * bias, isDeload, modality, weekNum, totalWeeks, weekStrengthTotal, injuryLeadInWeeks, emphases, overlay }
 
