@@ -17,9 +17,12 @@ interface Props {
   capacity?: StrengthCapacity | null
   /** For the projection card (Hyrox plans). */
   config?: OnboardingConfig | null
+  /** Opens the benchmark sheet — the front door for a number the athlete
+   *  measured rather than one the model inferred. */
+  onAddBenchmark?: () => void
 }
 
-export default function YourEngineSection({ weeks, capacity, config }: Props) {
+export default function YourEngineSection({ weeks, capacity, config, onAddBenchmark }: Props) {
   const model = useMemo(
     () => buildAthleteModel(weeks, todayDateString(), { capacity }),
     [weeks, capacity],
@@ -38,6 +41,11 @@ export default function YourEngineSection({ weeks, capacity, config }: Props) {
         <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
           What your plan runs on — every number measured from you, updated as workouts land.
         </p>
+        {onAddBenchmark && (
+          <button type="button" onClick={onAddBenchmark} className="mt-2 text-xs font-semibold text-teal-700 dark:text-teal-300" data-testid="engine-add-benchmark">
+            + Add a benchmark — a race time, an erg split, a strength test
+          </button>
+        )}
       </div>
 
       {/* Critical speed */}

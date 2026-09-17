@@ -55,6 +55,7 @@ interface DashboardProps {
   strengthWeeks?: TrainingWeek[]
   /** Onboarding config — powers the Engine tab's race projection. */
   onboardingConfig?: OnboardingConfig | null
+  onAddBenchmark?: () => void
   planZones?: HRZone[]
   athleteMaxHR?: number
   athleteId?: string
@@ -85,6 +86,7 @@ export default function Dashboard({
   strengthCapacity,
   strengthWeeks,
   onboardingConfig,
+  onAddBenchmark,
   planZones = [],
   athleteMaxHR,
   athleteId,
@@ -236,7 +238,7 @@ export default function Dashboard({
         <StrengthProgressSection weeks={strengthWeeks ?? weeks} capacity={strengthCapacity} />
       )}
       {subTab === 'engine' && (
-        <YourEngineSection weeks={strengthWeeks ?? weeks} capacity={strengthCapacity} config={onboardingConfig} />
+        <YourEngineSection weeks={strengthWeeks ?? weeks} capacity={strengthCapacity} config={onboardingConfig} onAddBenchmark={onAddBenchmark} />
       )}
     </div>
   )
