@@ -49,7 +49,13 @@ export function isMergeableCollectionKey(key: string): boolean {
     key.startsWith('ba_day_swaps_') ||
     key.startsWith('ba_day_swaps:') ||
     key.startsWith('ba_locked_days_') ||
-    key.startsWith('ba_locked_days:')
+    key.startsWith('ba_locked_days:') ||
+    // The benchmark log: one array per athlete, append-only, removals as
+    // tombstones (`deleted: true`) — the same shape as the plan-edit log and
+    // the same loss under last-write-wins. Entries carry `id` and `at`, so
+    // `mergeArrayById` unions and orders them without a special case.
+    key.startsWith('ba_benchmarks_v1_') ||
+    key.startsWith('ba_benchmarks_v1:')
   )
 }
 

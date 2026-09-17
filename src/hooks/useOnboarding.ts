@@ -322,9 +322,20 @@ export interface BenchmarkAnchors {
   fitnessAnchor?: FitnessAnchor | null
   maxHR?: number | null
   testedLthrBpm?: number | null
+  /** Hyrox erg baselines — mirrored from the benchmark log. */
+  skiErg1kSeconds?: number | null
+  row1kSeconds?: number | null
 }
 export function mergeBenchmarkAnchors(prev: OnboardingConfig, anchors: BenchmarkAnchors): OnboardingConfig {
   const next = { ...prev }
+  if (anchors.skiErg1kSeconds !== undefined) {
+    if (anchors.skiErg1kSeconds === null) delete next.skiErg1kSeconds
+    else next.skiErg1kSeconds = anchors.skiErg1kSeconds
+  }
+  if (anchors.row1kSeconds !== undefined) {
+    if (anchors.row1kSeconds === null) delete next.row1kSeconds
+    else next.row1kSeconds = anchors.row1kSeconds
+  }
   if (anchors.fitnessAnchor !== undefined) {
     const prevIsRace = prev.fitnessAnchor?.type?.startsWith('race_')
     const nextIsRestore = anchors.fitnessAnchor === null || anchors.fitnessAnchor?.type?.startsWith('race_')
