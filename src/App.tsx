@@ -60,7 +60,7 @@ import { summarizeOp } from './utils/chatProposal'
 import { resolveMethodId } from './utils/resolveMethod'
 import { generatePlanFromMethod } from './engines/planGenerator/generatePlan'
 import { generateGeneralFitnessPlan } from './engines/generalFitness'
-import { useSoreness } from './hooks/useSoreness'
+import { useSoreness, type SorenessLevel } from './hooks/useSoreness'
 import { useMIMCalibration } from './hooks/useMIMCalibration'
 import { loadRunGAPCache } from './utils/runGAP'
 import { loadEccentricCache } from './utils/runEccentric'
@@ -116,6 +116,7 @@ import ResolveStrip from './components/ResolveStrip'
 import AdjustSheet from './components/AdjustSheet'
 import EveningCloseCard from './components/EveningCloseCard'
 import { useDayPhase } from './hooks/useDayPhase'
+import { useCheckInWindow } from './hooks/useCheckInWindow'
 import { notesSeen, markNotesSeen } from './utils/planNotes'
 import { leversFor, opsForLever } from './utils/adjustLevers'
 import MissedDaySheet from './components/MissedDaySheet'
@@ -1374,6 +1375,16 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     eveningHour: proactiveTiming.eveningHour,
   }), [proactiveTiming.morningHour, proactiveTiming.eveningHour])
   const todayPhase = useDayPhase(phaseWindow)
+  // "How does your body feel right now?" — asked in two windows a day
+  // (until 10 AM, and from the evening hour), one answer each.
+  const checkInWindow = useCheckInWindow(proactiveTiming.eveningHour)
+  const { todayCheckIns, logCheckIn } = soreness
+  const bodyCheckIn = useMemo(() => ({
+    window: checkInWindow,
+    checkIns: todayCheckIns,
+    onLog: (w: 'morning' | 'evening', level: SorenessLevel) => logCheckIn(todayDateString(), w, level),
+    eveningHour: proactiveTiming.eveningHour,
+  }), [checkInWindow, todayCheckIns, logCheckIn, proactiveTiming.eveningHour])
 
   // Proposals waiting on a decision. They are deliberately held out of the
   // morning: none of them changes what the athlete does in the next hour,
@@ -2246,6 +2257,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
               onOpenNotes={() => setView('coach')}
               onOpenTomorrow={setShowTodayModal}
               onClose={closeTheDay}
+              bodyCheckIn={bodyCheckIn}
             />
             {/* P15: the calibration proposals used to render as four
                 independent cards under this one — the same four the
@@ -2279,6 +2291,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
             onAdjust={() => { setAdjustApplied(null); setAdjusting(true) }}
             onSoundsRight={morningAutopilot.dismiss}
             onRevert={morningAutopilot.revert}
+            bodyCheckIn={bodyCheckIn}
           />
         </div>
         )}
@@ -2329,7 +2342,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           dailyTrimp={readiness.dailyTrimp}
           performance={readiness.performance}
           todaySoreness={soreness.todaySoreness}
-          onLogSoreness={soreness.logSoreness}
+          onLogSoreness={(d, l) => soreness.logSoreness(d, l, proactiveTiming.eveningHour)}
           sorenessLoadByDate={soreness.sorenessLoadByDate}
           coachEnabled={coachEnabled}
           todayPlannedWorkout={todayPlannedWorkout}

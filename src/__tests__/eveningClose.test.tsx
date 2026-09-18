@@ -103,3 +103,18 @@ describe('closing the day', () => {
     expect(screen.getByTestId('evening-close').getAttribute('data-closed')).toBe('yes')
   })
 })
+
+describe('the body check-in row', () => {
+  it('asks the evening question on the close', () => {
+    const onLog = vi.fn()
+    render(<EveningCloseCard {...props} today={trained()} bodyCheckIn={{ window: 'evening', checkIns: { morning: 2, evening: null }, onLog }} />)
+    expect(screen.getByTestId('evening-close').textContent).toContain('How does your body feel right now?')
+    fireEvent.click(screen.getByTestId('body-chip-4'))
+    expect(onLog).toHaveBeenCalledWith('evening', 4)
+  })
+
+  it('is absent when no check-in is wired', () => {
+    render(<EveningCloseCard {...props} today={trained()} />)
+    expect(screen.queryByTestId('body-row')).toBeNull()
+  })
+})
