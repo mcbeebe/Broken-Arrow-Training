@@ -1,9 +1,10 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import type { ActualWorkout, PlannedDay, TrainingWeek } from '../types'
 import { useLiveSession } from '../hooks/useLiveSession'
-import { restRemainingSec, elapsedSec, segmentElapsedSec, type LiveSessionState } from '../utils/liveSession'
+import { restRemainingSec, elapsedSec, segmentElapsedSec, nextCursor, type LiveSessionState } from '../utils/liveSession'
 import { isGymBasedDay } from '../utils/matching'
-import { ghostFillFromHistory, parsePlanExercises, progressionFromWeeks, lastSessionSummary, type StrengthCalibration } from '../utils/strengthDraft'
+import { ghostFillFromHistory, parsePlanPrescription, progressionFromWeeks, lastSessionSummary, type StrengthCalibration } from '../utils/strengthDraft'
+import ExercisePicker from './ExercisePicker'
 import { isSimDay, draftSimSegments, simTitle, type SimProfile } from '../utils/simSession'
 import { normalizeExerciseName, suggestNextTarget, parseWeightLb } from '../utils/strengthProgression'
 import { getExerciseGuide } from '../utils/exercises'
@@ -19,6 +20,11 @@ import { getExerciseGuide } from '../utils/exercises'
  *   exercise                   → current set with inline steppers
  *   rest                       → dark screen, ring countdown, +30s/skip
  *   finished                   → summary + Save / Discard
+ *
+ * Two mid-session controls live on every working face: "+ Add exercise"
+ * (the pivot when the sleds are taken — the pick slots in up next), and
+ * for circuits the plan's own rest prescription plays as the rest face
+ * between rounds instead of appearing in the log as an exercise.
  */
 
 export interface LiveSessionPlayerProps {
@@ -55,18 +61,42 @@ export default function LiveSessionPlayer({
   const progression = useMemo(() => progressionFromWeeks(allWeeks), [allWeeks])
   const session = useLiveSession(athleteId)
   const s = session.state
+  const [pickerOpen, setPickerOpen] = useState(false)
 
   // Simulation days draft from the race spec (run + station segments in
-  // race order); everything else parses the plan's prescription text.
+  // race order); everything else parses the plan's prescription text —
+  // exercises to log, plus the rest directive and coaching notes that
+  // are read, not logged.
   const sim = planned != null && isSimDay(planned)
+  const prescription = useMemo(
+    () => (planned && !isSimDay(planned) && planned.detail ? parsePlanPrescription(planned.detail) : { exercises: [], notes: [] }),
+    [planned],
+  )
   const drafted = useMemo(
     () => {
       if (!planned) return []
       if (isSimDay(planned)) return draftSimSegments(planned, hyrox)
-      return planned.detail ? ghostFillFromHistory(parsePlanExercises(planned.detail), progression, calibration) : []
+      return ghostFillFromHistory(prescription.exercises, progression, calibration)
     },
-    [planned, progression, calibration, hyrox],
+    [planned, prescription, progression, calibration, hyrox],
   )
+  const circuit = !sim && planned != null && planned.type === 'cross' && isGymBasedDay(planned)
+  // Notes belong to the day the player was opened for; a resumed draft
+  // from another day shows none rather than the wrong day's.
+  const sessionNotes = s && planned && planned.day === s.dayLabel ? prescription.notes : []
+
+  const picker = pickerOpen && s ? (
+    <ExercisePicker
+      plannedExercises={sim ? [] : prescription.exercises}
+      existingNames={s.exercises.map(ex => ex.name)}
+      progression={progression}
+      calibration={calibration}
+      requireName
+      onPick={ex => { session.addExercise(ex); setPickerOpen(false) }}
+      onClose={() => setPickerOpen(false)}
+    />
+  ) : null
+  const openPicker = () => setPickerOpen(true)
 
   // ── Preview (screen 5) ─────────────────────────────────────
   if (!s) {
@@ -105,6 +135,14 @@ export default function LiveSessionPlayer({
               </div>
             )
           })}
+          {circuit && prescription.rest && (
+            <p className="font-mono text-xs text-teal-700 px-1 pt-1">
+              Rest {mmss(prescription.rest.sec)} between {prescription.rest.between} — timed on the rest screen
+            </p>
+          )}
+          {!sim && prescription.notes.map((note, i) => (
+            <p key={i} className="text-xs text-slate-500 px-1">{note}</p>
+          ))}
         </div>
         <div className="px-4 pb-8 pt-3 space-y-2.5">
           <button
@@ -113,9 +151,10 @@ export default function LiveSessionPlayer({
               dayIso,
               // Simulations and station circuits play round-by-round;
               // everything else is straight sets.
-              traversal: sim || (planned && planned.type === 'cross' && isGymBasedDay(planned)) ? 'round' : 'exercise',
+              traversal: sim || circuit ? 'round' : 'exercise',
               sim: sim || undefined,
               title: sim && planned ? simTitle(planned) : undefined,
+              circuitRest: circuit ? prescription.rest : undefined,
             })}
             disabled={drafted.length === 0}
             className="w-full h-[52px] rounded-2xl bg-purple-600 hover:bg-purple-700 disabled:opacity-40 text-white font-bold text-[15px] flex items-center justify-center gap-2"
@@ -194,12 +233,12 @@ export default function LiveSessionPlayer({
 
   // ── Rest (screen 7) ────────────────────────────────────────
   if (s.phase === 'rest') {
-    return <RestScreen s={s} now={now} session={session} />
+    return <>{picker}<RestScreen s={s} now={now} session={session} onAddExercise={openPicker} /></>
   }
 
   // ── Circuit (screen 8) — round-major station flow ──────────
   if (s.traversal === 'round') {
-    return <CircuitFace s={s} now={now} session={session} />
+    return <>{picker}<CircuitFace s={s} now={now} session={session} notes={sessionNotes} onAddExercise={openPicker} /></>
   }
 
   // ── Exercise (screen 6) ────────────────────────────────────
@@ -216,6 +255,8 @@ export default function LiveSessionPlayer({
   const paused = s.pausedAt != null
 
   return (
+    <>
+    {picker}
     <div className="fixed inset-0 z-50 bg-white dark:bg-slate-900 flex flex-col">
       {/* Top bar */}
       <div className="px-4 pt-5 pb-3 border-b border-slate-200 dark:border-slate-700 space-y-2.5">
@@ -316,6 +357,7 @@ export default function LiveSessionPlayer({
             {nextEx.name} · {nextEx.sets.length} sets
           </p>
         )}
+        <AddExerciseButton onClick={openPicker} />
       </div>
 
       <div className="px-4 pb-8 pt-3 border-t border-slate-200 dark:border-slate-700">
@@ -329,6 +371,23 @@ export default function LiveSessionPlayer({
         </button>
       </div>
     </div>
+    </>
+  )
+}
+
+/** The mid-session pivot: a light, always-there way to add what the
+ *  plan didn't foresee (the sleds are taken, do leg press instead). */
+function AddExerciseButton({ onClick, dark }: { onClick: () => void; dark?: boolean }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`w-full h-11 rounded-xl border border-dashed text-[13px] font-semibold flex items-center justify-center gap-1.5 ${
+        dark ? 'border-slate-600 text-slate-300' : 'border-purple-300 text-purple-700 dark:border-purple-700 dark:text-purple-300'
+      }`}
+    >
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+      Add exercise
+    </button>
   )
 }
 
@@ -358,23 +417,34 @@ function Stepper({ label, unit, onMinus, onPlus }: {
   )
 }
 
-function RestScreen({ s, now, session }: {
+function RestScreen({ s, now, session, onAddExercise }: {
   s: LiveSessionState
   now: number
   session: ReturnType<typeof useLiveSession>
+  onAddExercise: () => void
 }) {
   const remaining = restRemainingSec(s, now)
   const planned = s.restPlannedSec ?? 60
   const C = 615.75 // 2π × r98
   const frac = planned > 0 ? remaining / planned : 0
   const { exIdx, setIdx } = s.cursor
+  const round = s.traversal === 'round'
   const justLogged = s.exercises[exIdx]?.sets[setIdx]
+  const next = nextCursor(s, s.cursor)
+  const nextEx = next ? s.exercises[next.exIdx] : undefined
+  const maxRounds = s.exercises.reduce((m, ex) => Math.max(m, ex.sets.length), 0)
   const upcoming = (() => {
-    const ex = s.exercises[exIdx]
-    if (ex && setIdx + 1 < ex.sets.length) return { label: `Set ${setIdx + 2} of ${ex.sets.length} — ${ex.name}` }
-    const next = s.exercises[exIdx + 1]
-    return next ? { label: `${next.name} — set 1 of ${next.sets.length}` } : null
+    if (!next || !nextEx) return null
+    if (round) {
+      return { label: maxRounds > 1 ? `Round ${next.setIdx + 1} of ${maxRounds} — ${nextEx.name}` : nextEx.name }
+    }
+    if (next.exIdx === exIdx) return { label: `Set ${next.setIdx + 1} of ${nextEx.sets.length} — ${nextEx.name}` }
+    return { label: `${nextEx.name} — set 1 of ${nextEx.sets.length}` }
   })()
+  const loggedLine = round
+    ? `${s.exercises[exIdx]?.name} done${justLogged?.timeSec != null ? ` — ${mmss(justLogged.timeSec)}` : ''}`
+    : `Set ${setIdx + 1} logged — ${justLogged?.weight || 'BW'} × ${justLogged?.reps}`
+  const startLabel = round ? 'Start next station' : 'Start next set'
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-900 text-slate-50 flex flex-col">
@@ -413,21 +483,20 @@ function RestScreen({ s, now, session }: {
         {justLogged && (
           <div className="flex items-center gap-2 bg-teal-950 border border-teal-800 rounded-full px-4 py-2">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#2dd4bf" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
-            <span className="font-mono text-xs text-teal-200">
-              Set {setIdx + 1} logged — {justLogged.weight || 'BW'} × {justLogged.reps}
-            </span>
+            <span className="font-mono text-xs text-teal-200">{loggedLine}</span>
           </div>
         )}
       </div>
 
-      {upcoming && (
-        <div className="px-4 pb-3">
+      <div className="px-4 pb-3 space-y-2">
+        {upcoming && (
           <div className="bg-slate-800 border border-slate-700 rounded-2xl px-3.5 py-3">
             <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Up next</p>
             <p className="text-[15px] font-bold text-slate-100 mt-0.5">{upcoming.label}</p>
           </div>
-        </div>
-      )}
+        )}
+        <AddExerciseButton onClick={onAddExercise} dark />
+      </div>
 
       <div className="px-4 pb-8">
         <button
@@ -435,7 +504,7 @@ function RestScreen({ s, now, session }: {
           className="w-full h-14 rounded-2xl bg-teal-400 text-teal-950 font-bold text-[15px] flex items-center justify-center gap-2"
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 4 20 12 6 20" /></svg>
-          {remaining === 0 ? 'Start next set' : 'Start early'}
+          {remaining === 0 ? startLabel : 'Start early'}
         </button>
       </div>
     </div>
@@ -450,10 +519,12 @@ function stationRxLine(set: { reps: number; weight: string } | undefined): strin
   return parts.join(' \u00b7 ')
 }
 
-function CircuitFace({ s, now, session }: {
+function CircuitFace({ s, now, session, notes, onAddExercise }: {
   s: LiveSessionState
   now: number
   session: ReturnType<typeof useLiveSession>
+  notes: string[]
+  onAddExercise: () => void
 }) {
   const round = s.cursor.setIdx
   const maxRounds = s.exercises.reduce((m, ex) => Math.max(m, ex.sets.length), 0)
@@ -469,6 +540,10 @@ function CircuitFace({ s, now, session }: {
     const nextRound = s.exercises.find(ex => ex.sets.length > round + 1)
     return nextRound ? `round ${round + 2}` : 'finish'
   })()
+  // The plan's rest plays on the rest face at the boundary it names;
+  // the action label says so before the athlete taps.
+  const restNext = s.circuitRest != null && next !== 'finish'
+    && (s.circuitRest.between === 'stations' || next.startsWith('round '))
 
   return (
     <div className="fixed inset-0 z-50 bg-white dark:bg-slate-900 flex flex-col">
@@ -554,6 +629,15 @@ function CircuitFace({ s, now, session }: {
             </div>
           )
         })}
+        <AddExerciseButton onClick={onAddExercise} />
+        {s.circuitRest && (
+          <p className="font-mono text-[11px] text-teal-700 pt-1">
+            Rest {mmss(s.circuitRest.sec)} between {s.circuitRest.between}
+          </p>
+        )}
+        {notes.map((note, i) => (
+          <p key={i} className="text-[11px] text-slate-500">{note}</p>
+        ))}
         <p className="text-[11px] text-slate-400 pt-1">Splits recorded per station — lap presses on your watch merge in on sync.</p>
       </div>
 
@@ -564,7 +648,7 @@ function CircuitFace({ s, now, session }: {
           className="w-full h-14 rounded-2xl bg-purple-600 hover:bg-purple-700 disabled:opacity-40 text-white font-bold text-[15px] flex items-center justify-center gap-2"
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
-          {/^run\b/i.test(current?.name ?? '') ? 'Run' : 'Station'} done · next: {next}
+          {/^run\b/i.test(current?.name ?? '') ? 'Run' : 'Station'} done · {restNext ? `rest, then ${next}` : `next: ${next}`}
         </button>
       </div>
     </div>

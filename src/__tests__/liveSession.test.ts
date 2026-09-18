@@ -7,6 +7,7 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import {
   startSession, logCurrentSet, startNextSet, extendRest, skipCurrentSet,
+  addExercise, collectStationSplits,
   pause, resume, endSession, toActualWorkout,
   elapsedSec, restRemainingSec, restSecondsFor, nextCursor, segmentElapsedSec,
   saveDraft, loadDraft, clearDraft,
@@ -225,5 +226,149 @@ describe('crash-proof draft', () => {
     expect(loadDraft('mike')).toBeNull()
     localStorage.setItem('ba_live_session_draft_mike', JSON.stringify({ v: 99 }))
     expect(loadDraft('mike')).toBeNull()
+  })
+})
+
+describe('circuit rest — the plan\'s "Rest 2 min between" is a timed rest, not a station', () => {
+  function circuit(circuitRest: { sec: number; between: 'rounds' | 'stations' }) {
+    return startSession(
+      [
+        { name: 'SkiErg', focus: 'full', sets: [{ reps: 1, weight: '' }, { reps: 1, weight: '' }] },
+        { name: 'Wall balls', focus: 'full', sets: [{ reps: 15, weight: '14 lb' }, { reps: 15, weight: '14 lb' }] },
+      ],
+      { dayLabel: 'Fri 9/18', traversal: 'round', circuitRest },
+      T0,
+    )
+  }
+
+  it('between rounds: stations flow straight, the round boundary rests for the prescribed time', () => {
+    let s = circuit({ sec: 120, between: 'rounds' })
+    s = logCurrentSet(s, T0 + sec(60))          // SkiErg r1 → Wall balls r1, no rest
+    expect(s.phase).toBe('exercise')
+    expect(s.cursor).toEqual({ exIdx: 1, setIdx: 0 })
+    s = logCurrentSet(s, T0 + sec(120))         // Wall balls r1 → rest before round 2
+    expect(s.phase).toBe('rest')
+    expect(s.restPlannedSec).toBe(120)
+    expect(s.cursor).toEqual({ exIdx: 1, setIdx: 0 }) // still on the logged station
+    expect(restRemainingSec(s, T0 + sec(150))).toBe(90)
+    s = startNextSet(s, T0 + sec(240))
+    expect(s.phase).toBe('exercise')
+    expect(s.cursor).toEqual({ exIdx: 0, setIdx: 1 }) // round 2 opens at SkiErg
+    expect(segmentElapsedSec(s, T0 + sec(250))).toBe(10)
+    // The last station of the last round finishes, never rests.
+    s = logCurrentSet(s, T0 + sec(300))
+    s = logCurrentSet(s, T0 + sec(360))
+    expect(s.phase).toBe('finished')
+  })
+
+  it('between stations: every station hands off through a rest screen', () => {
+    let s = circuit({ sec: 90, between: 'stations' })
+    s = logCurrentSet(s, T0 + sec(60))
+    expect(s.phase).toBe('rest')
+    expect(s.restPlannedSec).toBe(90)
+    s = startNextSet(s, T0 + sec(150))
+    expect(s.cursor).toEqual({ exIdx: 1, setIdx: 0 })
+  })
+
+  it('a skipped station earns no rest, and the split still records for logged ones', () => {
+    let s = circuit({ sec: 120, between: 'rounds' })
+    s = logCurrentSet(s, T0 + sec(64))
+    s = skipCurrentSet(s, T0 + sec(70))          // Wall balls r1 skipped — closes the round
+    expect(s.phase).toBe('exercise')
+    expect(s.cursor).toEqual({ exIdx: 0, setIdx: 1 })
+    expect(s.exercises[0].sets[0].timeSec).toBe(64)
+  })
+
+  it('startSession ignores a rest prescription outside round traversal', () => {
+    const s = startSession(exercises(), { dayLabel: 'Mon', circuitRest: { sec: 120, between: 'rounds' } }, T0)
+    expect(s.circuitRest).toBeUndefined()
+  })
+})
+
+describe('adding an exercise mid-session — the pivot when the sleds are taken', () => {
+  const legPress: StrengthExerciseLog = {
+    name: 'Single-Leg Leg Press', focus: 'lower',
+    sets: [{ reps: 10, weight: '70 lb' }, { reps: 10, weight: '70 lb' }, { reps: 10, weight: '70 lb' }],
+  }
+
+  it('straight sets: slots in right after the current exercise and is up next, cursor untouched', () => {
+    let s = fresh()
+    s = addExercise(s, legPress)
+    expect(s.exercises.map(ex => ex.name)).toEqual(['Goblet squats', 'Single-Leg Leg Press', 'Plank'])
+    expect(s.cursor).toEqual({ exIdx: 0, setIdx: 0 })
+    expect(s.exercises[1].sets.every(set => set.done === false)).toBe(true)
+    // Finish the squats: rest, then the new exercise is what comes next.
+    s = logCurrentSet(s, T0 + sec(60))
+    s = startNextSet(s, T0 + sec(120))
+    s = logCurrentSet(s, T0 + sec(180))
+    s = startNextSet(s, T0 + sec(240))
+    expect(s.cursor).toEqual({ exIdx: 1, setIdx: 0 })
+    expect(s.exercises[1].name).toBe('Single-Leg Leg Press')
+  })
+
+  it('during rest after an exercise\'s last set, the added exercise is where the rest lands', () => {
+    let s = fresh()
+    s = logCurrentSet(s, T0 + sec(60))
+    s = startNextSet(s, T0 + sec(120))
+    s = logCurrentSet(s, T0 + sec(180))          // squats done → resting
+    expect(s.phase).toBe('rest')
+    s = addExercise(s, legPress)
+    s = startNextSet(s, T0 + sec(240))
+    expect(s.exercises[s.cursor.exIdx].name).toBe('Single-Leg Leg Press')
+  })
+
+  it('circuit: one set per round, next up in the current round, earlier rounds left unchecked', () => {
+    let s = startSession(
+      [
+        { name: 'SkiErg', focus: 'full', sets: [{ reps: 1, weight: '' }, { reps: 1, weight: '' }] },
+        { name: 'Sled push', focus: 'full', sets: [{ reps: 1, weight: '' }, { reps: 1, weight: '' }] },
+        { name: 'Row', focus: 'full', sets: [{ reps: 1, weight: '' }, { reps: 1, weight: '' }] },
+      ],
+      { dayLabel: 'Fri 9/18', traversal: 'round' },
+      T0,
+    )
+    s = logCurrentSet(s, T0 + sec(60))            // SkiErg r1 done, standing on Sled push
+    s = addExercise(s, legPress)                  // sleds are taken
+    expect(s.exercises.map(ex => ex.name)).toEqual(['SkiErg', 'Sled push', 'Single-Leg Leg Press', 'Row'])
+    expect(s.exercises[2].sets).toHaveLength(2)   // one per round, not the draft's three
+    expect(s.exercises[2].sets[0].weight).toBe('70 lb')
+    s = skipCurrentSet(s, T0 + sec(65))           // skip the sled
+    expect(s.cursor).toEqual({ exIdx: 2, setIdx: 0 })
+    s = logCurrentSet(s, T0 + sec(125))
+    expect(s.exercises[2].sets[0]).toMatchObject({ done: true, timeSec: 60 })
+    expect(s.cursor).toEqual({ exIdx: 3, setIdx: 0 })
+    const w = toActualWorkout({ ...s, phase: 'finished' }, T0 + sec(125))
+    expect(w.stationSplits!.map(x => x.label)).toEqual(['SkiErg — round 1', 'Single-Leg Leg Press — round 1'])
+  })
+
+  it('circuit, added in round 2: round 1 of the new station reads as skipped, round 2 is live', () => {
+    let s = startSession(
+      [
+        { name: 'SkiErg', focus: 'full', sets: [{ reps: 1, weight: '' }, { reps: 1, weight: '' }] },
+        { name: 'Row', focus: 'full', sets: [{ reps: 1, weight: '' }, { reps: 1, weight: '' }] },
+      ],
+      { dayLabel: 'Fri 9/18', traversal: 'round' },
+      T0,
+    )
+    s = logCurrentSet(s, T0 + sec(60))
+    s = logCurrentSet(s, T0 + sec(120))           // round 2 opens at SkiErg
+    expect(s.cursor).toEqual({ exIdx: 0, setIdx: 1 })
+    s = addExercise(s, { ...legPress, sets: [legPress.sets[0]] })
+    expect(s.exercises[1].name).toBe('Single-Leg Leg Press')
+    expect(s.exercises[1].sets.map(x => x.done)).toEqual([false, false])
+    s = logCurrentSet(s, T0 + sec(180))
+    expect(s.cursor).toEqual({ exIdx: 1, setIdx: 1 })
+    s = logCurrentSet(s, T0 + sec(240))
+    expect(s.exercises[1].sets.map(x => x.done)).toEqual([false, true])
+    // The round-1 gap is honest: only round 2 has a split.
+    expect(collectStationSplits(s).filter(x => x.label.startsWith('Single-Leg')).map(x => x.label)).toEqual(['Single-Leg Leg Press — round 2'])
+  })
+
+  it('refuses a nameless exercise, an empty one, and any add after finishing', () => {
+    const s = fresh()
+    expect(addExercise(s, { name: '  ', focus: 'full', sets: [{ reps: 10, weight: '' }] })).toBe(s)
+    expect(addExercise(s, { name: 'Row', focus: 'upper', sets: [] })).toBe(s)
+    const done = endSession(s)
+    expect(addExercise(done, legPress)).toBe(done)
   })
 })

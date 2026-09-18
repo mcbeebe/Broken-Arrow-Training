@@ -24,6 +24,9 @@ export interface ExercisePickerProps {
   existingNames: string[]
   progression: Map<string, ExerciseProgression>
   calibration?: StrengthCalibration
+  /** Refuse a blank custom add — the live player has no name field to
+   *  fill in afterwards, unlike the set editor. */
+  requireName?: boolean
   onPick: (exercise: StrengthExerciseLog) => void
   onClose: () => void
 }
@@ -31,7 +34,7 @@ export interface ExercisePickerProps {
 type FocusFilter = 'all' | 'upper' | 'lower' | 'core'
 
 export default function ExercisePicker({
-  plannedExercises, existingNames, progression, calibration, onPick, onClose,
+  plannedExercises, existingNames, progression, calibration, requireName, onPick, onClose,
 }: ExercisePickerProps) {
   const [query, setQuery] = useState('')
   const [focus, setFocus] = useState<FocusFilter>('all')
@@ -187,11 +190,14 @@ export default function ExercisePicker({
         <div className="px-4 py-3 pb-6 border-t border-slate-200 dark:border-slate-700">
           <button
             onClick={() => pick(query.trim() || '')}
-            className="w-full text-center text-[13px] text-slate-500"
+            disabled={requireName && !query.trim()}
+            className="w-full text-center text-[13px] text-slate-500 disabled:opacity-60"
           >
             {query.trim()
               ? <>Add <span className="font-semibold text-purple-700">"{query.trim()}"</span> as custom</>
-              : <span className="font-semibold text-purple-700">Add a custom exercise</span>}
+              : requireName
+                ? <span>Type a name above to add a custom exercise</span>
+                : <span className="font-semibold text-purple-700">Add a custom exercise</span>}
           </button>
         </div>
       </div>

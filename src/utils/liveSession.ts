@@ -25,6 +25,20 @@ export interface LiveCursor {
 
 export type LivePhase = 'exercise' | 'rest' | 'finished'
 
+export interface CircuitRest {
+  sec: number
+  between: 'rounds' | 'stations'
+}
+
+export interface LiveSessionMeta {
+  dayLabel: string
+  dayIso?: string
+  traversal?: 'exercise' | 'round'
+  sim?: boolean
+  title?: string
+  circuitRest?: CircuitRest
+}
+
 export interface LiveSessionState {
   /** Draft-format version — bump on breaking shape changes so an old
    *  draft is discarded instead of misread. */
@@ -40,6 +54,10 @@ export interface LiveSessionState {
   sim?: boolean
   /** Display title for sim sessions ('Race simulation', 'Half simulation'). */
   title?: string
+  /** Rest the plan prescribes inside a circuit (round traversal only):
+   *  a timed rest screen between rounds, or after every station. Absent
+   *  → stations flow straight into each other. */
+  circuitRest?: CircuitRest
   dayLabel: string
   /** ISO date the session logs against (YYYY-MM-DD), when known. */
   dayIso?: string
@@ -63,7 +81,7 @@ export interface LiveSessionState {
 
 export function startSession(
   exercises: StrengthExerciseLog[],
-  meta: { dayLabel: string; dayIso?: string; traversal?: 'exercise' | 'round'; sim?: boolean; title?: string },
+  meta: LiveSessionMeta,
   now: number,
 ): LiveSessionState {
   return {
@@ -71,6 +89,7 @@ export function startSession(
     traversal: meta.traversal,
     sim: meta.sim,
     title: meta.title,
+    circuitRest: meta.traversal === 'round' && meta.circuitRest && meta.circuitRest.sec > 0 ? meta.circuitRest : undefined,
     dayLabel: meta.dayLabel,
     dayIso: meta.dayIso,
     startedAt: now,
@@ -192,8 +211,15 @@ export function logCurrentSet(s: LiveSessionState, now: number): LiveSessionStat
   const next = nextCursor(marked, s.cursor)
   if (!next) return { ...marked, phase: 'finished' }
   if (s.traversal === 'round') {
-    // Stations flow straight into each other — recovery is the walk to
-    // the next station, not a timed rest screen.
+    // A prescribed rest ("Rest 2 min between" / "90 sec rest between
+    // stations") is a timed rest screen on that boundary. Otherwise
+    // stations flow straight into each other — recovery is the walk to
+    // the next station.
+    const rest = s.circuitRest
+    const crossesRound = next.setIdx > setIdx
+    if (rest && (rest.between === 'stations' || crossesRound)) {
+      return { ...marked, phase: 'rest', restStartedAt: now, restPlannedSec: rest.sec }
+    }
     return { ...marked, cursor: next, phase: 'exercise', segmentStartedAt: now }
   }
   return {
@@ -225,6 +251,38 @@ export function skipCurrentSet(s: LiveSessionState, now: number): LiveSessionSta
   const next = nextCursor(marked, s.cursor)
   if (!next) return { ...marked, phase: 'finished' }
   return { ...marked, cursor: next, phase: 'exercise', segmentStartedAt: now }
+}
+
+/**
+ * Add an exercise mid-session — the pivot when the sleds are taken: it
+ * slots in right after the exercise the athlete is on, so it is "up
+ * next" rather than buried at the end. Every set starts unchecked.
+ *
+ * Round traversal keeps its invariant (set index IS the round index):
+ * the new station gets one set per round, and the rounds already behind
+ * the cursor stay unchecked — honest data, it was not done in those
+ * rounds. Inserting after the cursor never moves it, so the current
+ * set/rest stays exactly where it was.
+ */
+export function addExercise(s: LiveSessionState, exercise: StrengthExerciseLog): LiveSessionState {
+  if (s.phase === 'finished' || !exercise.name.trim()) return s
+  let sets = exercise.sets.map(set => ({ ...set, done: false as const }))
+  if (s.traversal === 'round') {
+    const rounds = Math.max(s.exercises.reduce((m, ex) => Math.max(m, ex.sets.length), 0), s.cursor.setIdx + 1)
+    // One set per round. Sitting right after the cursor, the new station
+    // is next up in the CURRENT round (whether the athlete is on a
+    // station or resting after one); the rounds already behind stay
+    // unchecked, which the log reads as skipped.
+    const template = sets[0] ?? { reps: 1, weight: '' }
+    sets = Array.from({ length: rounds }, (_, r) => ({
+      ...(sets[r] ?? template),
+      done: false as const,
+    }))
+  }
+  if (sets.length === 0) return s
+  const at = Math.min(s.cursor.exIdx + 1, s.exercises.length)
+  const exercises = [...s.exercises.slice(0, at), { ...exercise, sets }, ...s.exercises.slice(at)]
+  return { ...s, exercises }
 }
 
 export function pause(s: LiveSessionState, now: number): LiveSessionState {
