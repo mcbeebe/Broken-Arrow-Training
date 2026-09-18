@@ -1,4 +1,5 @@
 import type { PlannedDay } from '../types'
+import { BodyCheckInRow, type BodyCheckInProps } from './BodyCheckIn'
 
 /**
  * The Evening Close — the other half of the ritual.
@@ -11,7 +12,7 @@ import type { PlannedDay } from '../types'
  */
 export default function EveningCloseCard({
   today, tomorrow, notesWaiting, notesInline = false, closed, lightsOut,
-  onOpenNotes, onOpenTomorrow, onClose,
+  onOpenNotes, onOpenTomorrow, onClose, bodyCheckIn,
 }: {
   today: PlannedDay | null
   tomorrow: PlannedDay | null
@@ -29,6 +30,8 @@ export default function EveningCloseCard({
   onOpenNotes: () => void
   onOpenTomorrow: () => void
   onClose: () => void
+  /** "How does your body feel right now?" — the evening check-in. */
+  bodyCheckIn?: BodyCheckInProps
 }) {
   const trained = !!today?.actual
   const restDay = today?.type === 'rest'
@@ -62,6 +65,8 @@ export default function EveningCloseCard({
           : restDay ? 'The plan asked for rest and you took it. That counts.'
           : `${today.workout} has nothing logged against it — log it above, or let it carry to the morning.`}
       </p>
+
+      {bodyCheckIn && <BodyCheckInRow {...bodyCheckIn} />}
 
       {notesWaiting > 0 && !notesInline && (
         <button

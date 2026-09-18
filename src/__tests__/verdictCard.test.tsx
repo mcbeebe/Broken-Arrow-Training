@@ -173,3 +173,27 @@ describe('once the session is done', () => {
   })
 })
 
+describe('the body check-in tile', () => {
+  const body = { window: 'morning' as const, checkIns: { morning: null, evening: null }, onLog: vi.fn() }
+
+  it('joins the evidence grid as a fourth tile, two across', () => {
+    render(<VerdictCard verdict={clear()} today={tempo()} bodyCheckIn={body} />)
+    const grid = screen.getByTestId('verdict-evidence')
+    expect(grid.className).toContain('grid-cols-2')
+    expect(grid.children.length).toBe(3)
+    expect(screen.getByTestId('body-tile').textContent).toContain('Tap to log')
+  })
+
+  it('opens the question inside the card, full width', () => {
+    render(<VerdictCard verdict={clear()} today={tempo()} bodyCheckIn={body} />)
+    fireEvent.click(screen.getByTestId('body-tile'))
+    expect(screen.getByTestId('verdict-card').textContent).toContain('How does your body feel right now?')
+    expect(screen.getByTestId('body-tile-chips').className).toContain('col-span-full')
+  })
+
+  it('keeps three across when there is no check-in', () => {
+    render(<VerdictCard verdict={clear()} today={tempo()} />)
+    expect(screen.getByTestId('verdict-evidence').className).toContain('grid-cols-3')
+    expect(screen.queryByTestId('body-tile')).toBeNull()
+  })
+})

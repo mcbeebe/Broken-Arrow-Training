@@ -8,6 +8,7 @@ import type {
   DailyTRIMP,
 } from '../types'
 import type { SorenessLevel } from '../hooks/useSoreness'
+import { SORENESS_OPTIONS } from '../utils/checkInWindow'
 import { localDateStr } from '../utils/format'
 import { LineChart, Line, ResponsiveContainer } from 'recharts'
 
@@ -23,15 +24,7 @@ interface TodayBriefingProps {
   onLogSoreness: (date: string, level: SorenessLevel) => void
 }
 
-// ─── Soreness check-in options ───────────────────────────────────
-
-const SORENESS_OPTIONS: { level: SorenessLevel; emoji: string; label: string; color: string; activeBg: string }[] = [
-  { level: 1, emoji: '💚', label: 'Fresh',      color: 'text-green-700',  activeBg: 'bg-green-100 ring-2 ring-green-400' },
-  { level: 2, emoji: '👍', label: 'Normal',     color: 'text-slate-600',  activeBg: 'bg-slate-100 ring-2 ring-slate-400' },
-  { level: 3, emoji: '😣', label: 'Sore',       color: 'text-amber-700',  activeBg: 'bg-amber-100 ring-2 ring-amber-400' },
-  { level: 4, emoji: '😫', label: 'Very Sore',  color: 'text-orange-700', activeBg: 'bg-orange-100 ring-2 ring-orange-400' },
-  { level: 5, emoji: '🔥', label: 'Wrecked',    color: 'text-red-700',    activeBg: 'bg-red-100 ring-2 ring-red-400' },
-]
+// ─── Soreness check-in options — shared with the Today card and the evening close.
 
 // ─── Status visual styles ────────────────────────────────────────
 
@@ -371,7 +364,7 @@ export default function TodayBriefing({
           {/* ── Soreness Check-In ── */}
           <div>
             <p className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-2">
-              How do your legs feel today?
+              How does your body feel right now?
             </p>
             <div className="flex gap-1.5">
               {SORENESS_OPTIONS.map(opt => {

@@ -2,6 +2,7 @@ import type { OutlookCard } from '../hooks/useMorningOutlook'
 import type { Verdict } from '../utils/verdict'
 import type { ActualWorkout, PlannedDay } from '../types'
 import { completionSummary } from '../utils/markDone'
+import { BodyCheckInTile, type BodyCheckInProps } from './BodyCheckIn'
 
 /**
  * The Verdict card — the pinned answer at the top of Today.
@@ -77,11 +78,15 @@ export interface VerdictCardProps {
   onAdjust?: () => void
   onSoundsRight?: () => void
   onRevert?: () => void
+  /** "How does your body feel right now?" — the morning check-in, as a
+   *  fourth tile in the evidence grid. Gated to the check-in windows. */
+  bodyCheckIn?: BodyCheckInProps
 }
 
 export default function VerdictCard({
   verdict, outlook, today, completed, onMarkDone, lockedIn,
   onOpenReadiness, onOpenSession, onLockIn, onAdjust, onSoundsRight, onRevert,
+  bodyCheckIn,
 }: VerdictCardProps) {
   const acted = !!outlook
   const done = !!completed && !acted
@@ -173,8 +178,11 @@ export default function VerdictCard({
         </>
       ) : null}
 
-      {evidence.length > 0 && (
-        <div className="mt-2.5 grid grid-cols-3 gap-1.5" data-testid="verdict-evidence">
+      {(evidence.length > 0 || bodyCheckIn) && (
+        <div
+          className={`mt-2.5 grid gap-1.5 ${bodyCheckIn ? 'grid-cols-2' : 'grid-cols-3'}`}
+          data-testid="verdict-evidence"
+        >
           {evidence.map(row => (
             <div key={row.label} className="bg-slate-50 dark:bg-slate-900 rounded-lg px-2 py-1.5">
               <p className="text-[11px] text-slate-400 leading-tight">{row.label}</p>
@@ -182,6 +190,7 @@ export default function VerdictCard({
               {row.sub && <p className="text-[10px] text-slate-400 leading-tight mt-0.5">{row.sub}</p>}
             </div>
           ))}
+          {bodyCheckIn && <BodyCheckInTile {...bodyCheckIn} />}
         </div>
       )}
 
