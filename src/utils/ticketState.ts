@@ -26,7 +26,7 @@ export interface TicketState {
 }
 
 const RESOLVED: TicketState = {
-  key: 'resolved', label: 'Resolved', glyph: '✓',
+  key: 'resolved', label: 'Completed', glyph: '✓',
   chipClass: 'bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-200',
 }
 const AWAY: TicketState = {

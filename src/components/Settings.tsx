@@ -14,9 +14,6 @@ import type { HRZone, PendingInference, CoachPersona, Season, TrainingPlan } fro
 import type { TrainingMethod } from '../types/training-method'
 import type { OnboardingConfig } from '../hooks/useOnboarding'
 import type { MIMOverride } from '../hooks/useMIMCalibration'
-import BenchmarksSection from './BenchmarksSection'
-import type { Benchmark, BenchmarkKind, PlanKind } from '../engines/benchmark/log'
-import type { AddBenchmarkOptions } from './BenchmarksSection'
 import { SPORT_LABELS } from '../hooks/useMIMCalibration'
 import CoachPersonaEditor from './CoachPersonaEditor'
 import { isVoiceInputEnabled, setVoiceInputEnabled, voiceCaptureSupported } from '../utils/voiceInput'
@@ -133,12 +130,6 @@ interface SettingsProps {
   onResetOnboarding?: () => void
   /** P3.1 — change Hyrox division (Open/Pro) without redoing onboarding. */
   onSetHyroxDivision?: (division: 'open' | 'pro') => void
-  /** Settings → Benchmarks: every number the plan runs on, from the
-   *  benchmark log. Replaces the LTHR-only Calibration entry, and — unlike
-   *  it — shows for every plan type. */
-  benchmarks?: { plan: PlanKind; live: Benchmark[]; todayIso: string }
-  onAddBenchmark?: (kind?: BenchmarkKind, opts?: AddBenchmarkOptions) => void
-  onRemoveBenchmark?: (id: string) => void
   /** Current pinned week-1 Monday (ISO), and a non-destructive setter. */
   planStartIso?: string
   onSetPlanStart?: (iso: string) => void
@@ -258,9 +249,6 @@ export default function Settings({
   trainingMethod,
   onboardingConfig,
   onSetHyroxDivision,
-  benchmarks,
-  onAddBenchmark,
-  onRemoveBenchmark,
   performance,
   mergedWeeks,
   season,
@@ -651,18 +639,6 @@ export default function Settings({
         </SettingsSection>
       )}
 
-      {/* ── Benchmarks — every number the plan runs on ── */}
-      {benchmarks && onAddBenchmark && onRemoveBenchmark && (
-        <SettingsSection title="Benchmarks" defaultOpen>
-          <BenchmarksSection
-            plan={benchmarks.plan}
-            live={benchmarks.live}
-            todayIso={benchmarks.todayIso}
-            onAdd={onAddBenchmark}
-            onRemove={onRemoveBenchmark}
-          />
-        </SettingsSection>
-      )}
 
       {/* ── HR Zones section ── */}
       {hrZones && onSaveHRZones && onResetHRZones && (
