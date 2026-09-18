@@ -236,7 +236,7 @@ describe('circuit rest — the plan\'s "Rest 2 min between" is a timed rest, not
         { name: 'SkiErg', focus: 'full', sets: [{ reps: 1, weight: '' }, { reps: 1, weight: '' }] },
         { name: 'Wall balls', focus: 'full', sets: [{ reps: 15, weight: '14 lb' }, { reps: 15, weight: '14 lb' }] },
       ],
-      { dayLabel: 'Fri 9/18', traversal: 'round', circuitRest },
+      { dayLabel: 'Fri 9/18', traversal: 'round', plannedRest: circuitRest },
       T0,
     )
   }
@@ -279,9 +279,13 @@ describe('circuit rest — the plan\'s "Rest 2 min between" is a timed rest, not
     expect(s.exercises[0].sets[0].timeSec).toBe(64)
   })
 
-  it('startSession ignores a rest prescription outside round traversal', () => {
-    const s = startSession(exercises(), { dayLabel: 'Mon', circuitRest: { sec: 120, between: 'rounds' } }, T0)
-    expect(s.circuitRest).toBeUndefined()
+  it('straight sets: the plan\'s rest replaces the guide default after every set', () => {
+    let s = startSession(exercises(), { dayLabel: 'Mon', plannedRest: { sec: 90, between: 'rounds' } }, T0)
+    s = logCurrentSet(s, T0 + sec(60))
+    expect(s.phase).toBe('rest')
+    expect(s.restPlannedSec).toBe(90)
+    // A zero-second prescription is no prescription.
+    expect(startSession(exercises(), { dayLabel: 'Mon', plannedRest: { sec: 0, between: 'rounds' } }, T0).plannedRest).toBeUndefined()
   })
 })
 
@@ -362,6 +366,28 @@ describe('adding an exercise mid-session — the pivot when the sleds are taken'
     expect(s.exercises[1].sets.map(x => x.done)).toEqual([false, true])
     // The round-1 gap is honest: only round 2 has a split.
     expect(collectStationSplits(s).filter(x => x.label.startsWith('Single-Leg')).map(x => x.label)).toEqual(['Single-Leg Leg Press — round 2'])
+  })
+
+  it('circuit, added during the rest that closes a round: it opens the next round, and there is one rest, not two', () => {
+    let s = startSession(
+      [
+        { name: 'SkiErg', focus: 'full', sets: [{ reps: 1, weight: '' }, { reps: 1, weight: '' }] },
+        { name: 'Row', focus: 'full', sets: [{ reps: 1, weight: '' }, { reps: 1, weight: '' }] },
+      ],
+      { dayLabel: 'Fri 9/18', traversal: 'round', plannedRest: { sec: 120, between: 'rounds' } },
+      T0,
+    )
+    s = logCurrentSet(s, T0 + sec(60))
+    s = logCurrentSet(s, T0 + sec(120))           // Row r1 closes the round → rest
+    expect(s.phase).toBe('rest')
+    s = addExercise(s, legPress)
+    expect(s.exercises.map(ex => ex.name)).toEqual(['Single-Leg Leg Press', 'SkiErg', 'Row'])
+    expect(s.cursor).toEqual({ exIdx: 2, setIdx: 0 }) // still the Row just logged
+    s = startNextSet(s, T0 + sec(240))
+    expect(s.cursor).toEqual({ exIdx: 0, setIdx: 1 }) // round 2 opens on the leg press
+    s = logCurrentSet(s, T0 + sec(300))
+    expect(s.phase).toBe('exercise')                  // no second rest
+    expect(s.cursor).toEqual({ exIdx: 1, setIdx: 1 })
   })
 
   it('refuses a nameless exercise, an empty one, and any add after finishing', () => {

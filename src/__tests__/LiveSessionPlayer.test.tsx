@@ -151,13 +151,13 @@ describe('circuit mode (screen 8)', () => {
 describe('circuit rest — "Rest 2 min between" plays as a timed rest, not Exercise 8', () => {
   const restCircuitDay: PlannedDay = {
     day: 'Fri 9/18', type: 'cross', workout: 'Station circuit (intro)',
-    detail: 'SkiErg 2×1 · Wall balls 2×15 · Rest 2 min between · Grip note: finish with 2× dead hang to build the carry/pull grip the race demands',
+    detail: 'SkiErg 2×1 · Wall balls 2×15 · Rest 2 min between rounds · Grip note: finish with 2× dead hang to build the carry/pull grip the race demands',
     zone: 'Z2', route: 'Gym', time: '45 min',
   }
 
   it('the preview lists the stations only, with the rest and the note as guidance', () => {
     renderPlayer({ planned: restCircuitDay, dayLabel: 'Fri 9/18', dayIso: '2026-09-18' })
-    expect(screen.queryByText('Rest 2 min between')).toBeNull()
+    expect(screen.queryByText('Rest 2 min between rounds')).toBeNull()
     // Two numbered exercise rows (each carries a "sets × reps" line) —
     // the note is shown as guidance, not as a third row.
     expect(screen.getAllByText(/^2 × /)).toHaveLength(2)

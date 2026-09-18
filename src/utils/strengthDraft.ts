@@ -117,23 +117,40 @@ export interface PlanPrescription {
   notes: string[]
 }
 
-const DURATION_RE = /(\d+(?:\.\d+)?)\s*(sec(?:ond)?s?|s|min(?:ute)?s?|m)\b/i
-const REST_WORD_RE = /\b(?:rest|walk|recover)\b/i
-const NOTE_RE = /^(?:[a-z-]+\s+){0,2}note\s*:/i
+// Seconds/minutes only — never a bare "m", which in plan text is metres
+// ("Wall balls … to 3.0 m", "Walk 400m"). "1:30" is minutes:seconds.
+const DURATION_RE = /(?:(\d+):(\d{2})\b|(\d+(?:\.\d+)?)\s*(sec(?:ond)?s?|s|min(?:ute)?s?)\b)/i
+// A rest directive is a SENTENCE about resting: it opens with the rest
+// word ("Rest 2 min between rounds") or a duration then the word ("90
+// sec rest between stations"). Anything else that merely mentions rest
+// is prose ("…, generous rest, technique first: SkiErg 1000m").
+const REST_SENTENCE_RE = /^(?:(?:rest|walk|recover)\b|\d[\d.:]*\s*(?:sec(?:ond)?s?|s|min(?:ute)?s?)\s+(?:of\s+)?rest\b)/i
+const NOTE_RE = /^(?:[a-z'’-]+\s+){0,2}note\s*:/i
+// Sentence boundary inside one part: ". " followed by a capital — the
+// generator glues "… to 3.0 m. Rest 3 min between stations …" into one
+// "·"-part, and "3.0" must not split.
+const SENTENCE_SPLIT_RE = /\.\s+(?=[A-Z])/
+
+function parseDuration(text: string): number | null {
+  const m = text.match(DURATION_RE)
+  if (!m) return null
+  if (m[1] != null) return parseInt(m[1]) * 60 + parseInt(m[2])
+  const n = parseFloat(m[3])
+  const sec = /^m/i.test(m[4]) ? Math.round(n * 60) : Math.round(n)
+  return sec > 0 ? sec : null
+}
 
 /**
- * Read a rest directive out of one plan part. Returns null when the part
- * is not about resting, or names no duration ("Rest fully between tests"
- * is a note, not a timer).
+ * Read a rest directive out of one sentence of plan text. Returns null
+ * when the sentence is not about resting, or names no duration ("Rest
+ * fully between tests" is a note, not a timer).
  */
-export function parseRestDirective(part: string): NonNullable<PlanPrescription['rest']> | null {
-  if (!REST_WORD_RE.test(part) || !/\bbetween\b/i.test(part)) return null
-  const m = part.match(DURATION_RE)
-  if (!m) return null
-  const n = parseFloat(m[1])
-  const sec = /^m/i.test(m[2]) ? Math.round(n * 60) : Math.round(n)
-  if (!(sec > 0)) return null
-  return { sec, between: /\b(?:stations?|exercises?|sets?|movements?)\b/i.test(part) ? 'stations' : 'rounds' }
+export function parseRestDirective(sentence: string): NonNullable<PlanPrescription['rest']> | null {
+  const text = sentence.trim()
+  if (!REST_SENTENCE_RE.test(text) || !/\bbetween\b/i.test(text)) return null
+  const sec = parseDuration(text)
+  if (sec == null) return null
+  return { sec, between: /\b(?:stations?|exercises?|sets?|movements?|attempts?)\b/i.test(text) ? 'stations' : 'rounds' }
 }
 
 /**
@@ -164,18 +181,26 @@ export function parsePlanPrescription(detail: string): PlanPrescription {
       numSets = parseInt(setsMatch[2])
       reps = parseInt(setsMatch[3])
     } else {
-      const rest = parseRestDirective(part)
-      if (rest) {
-        // First directive wins — a detail prescribes one rest scheme.
-        if (!out.rest) out.rest = rest
-        continue
+      // No sets pattern: peel the rest/note sentences off the part and
+      // keep whatever is left as the exercise name.
+      const kept: string[] = []
+      for (const sentence of part.split(SENTENCE_SPLIT_RE).map(x => x.trim()).filter(Boolean)) {
+        const rest = parseRestDirective(sentence)
+        if (rest) {
+          // First directive is the timer; a second is kept as a note so
+          // nothing the plan said is lost.
+          if (!out.rest) out.rest = rest
+          else out.notes.push(sentence)
+          continue
+        }
+        if (NOTE_RE.test(sentence) || (REST_SENTENCE_RE.test(sentence) && /\bbetween\b/i.test(sentence))) {
+          out.notes.push(sentence)
+          continue
+        }
+        kept.push(sentence)
       }
-      if (NOTE_RE.test(part) || (REST_WORD_RE.test(part) && /\bbetween\b/i.test(part))) {
-        out.notes.push(part)
-        continue
-      }
-      // No sets pattern found — use the whole string as name
-      name = part
+      if (kept.length === 0) continue
+      name = kept.join('. ')
     }
 
     const sets: StrengthSet[] = Array.from({ length: numSets }, () => ({

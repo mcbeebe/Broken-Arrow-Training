@@ -81,6 +81,13 @@ export default function LiveSessionPlayer({
     [planned, prescription, progression, calibration, hyrox],
   )
   const circuit = !sim && planned != null && planned.type === 'cross' && isGymBasedDay(planned)
+  // The rest line promises a timer only where one will fire: a
+  // between-rounds rest on a one-round circuit never does.
+  const previewRounds = drafted.reduce((m, ex) => Math.max(m, ex.sets.length), 0)
+  const previewRest = !sim && prescription.rest
+    && !(circuit && prescription.rest.between === 'rounds' && previewRounds < 2)
+    ? prescription.rest
+    : undefined
   // Notes belong to the day the player was opened for; a resumed draft
   // from another day shows none rather than the wrong day's.
   const sessionNotes = s && planned && planned.day === s.dayLabel ? prescription.notes : []
@@ -135,9 +142,9 @@ export default function LiveSessionPlayer({
               </div>
             )
           })}
-          {circuit && prescription.rest && (
+          {previewRest && (
             <p className="font-mono text-xs text-teal-700 px-1 pt-1">
-              Rest {mmss(prescription.rest.sec)} between {prescription.rest.between} — timed on the rest screen
+              Rest {mmss(previewRest.sec)} between {circuit ? previewRest.between : 'sets'} — timed on the rest screen
             </p>
           )}
           {!sim && prescription.notes.map((note, i) => (
@@ -154,7 +161,7 @@ export default function LiveSessionPlayer({
               traversal: sim || circuit ? 'round' : 'exercise',
               sim: sim || undefined,
               title: sim && planned ? simTitle(planned) : undefined,
-              circuitRest: circuit ? prescription.rest : undefined,
+              plannedRest: sim ? undefined : prescription.rest,
             })}
             disabled={drafted.length === 0}
             className="w-full h-[52px] rounded-2xl bg-purple-600 hover:bg-purple-700 disabled:opacity-40 text-white font-bold text-[15px] flex items-center justify-center gap-2"
@@ -238,7 +245,8 @@ export default function LiveSessionPlayer({
 
   // ── Circuit (screen 8) — round-major station flow ──────────
   if (s.traversal === 'round') {
-    return <>{picker}<CircuitFace s={s} now={now} session={session} notes={sessionNotes} onAddExercise={openPicker} /></>
+    // A simulation is the race spec — no ad-hoc stations in it.
+    return <>{picker}<CircuitFace s={s} now={now} session={session} notes={sessionNotes} onAddExercise={s.sim ? undefined : openPicker} /></>
   }
 
   // ── Exercise (screen 6) ────────────────────────────────────
@@ -524,7 +532,7 @@ function CircuitFace({ s, now, session, notes, onAddExercise }: {
   now: number
   session: ReturnType<typeof useLiveSession>
   notes: string[]
-  onAddExercise: () => void
+  onAddExercise?: () => void
 }) {
   const round = s.cursor.setIdx
   const maxRounds = s.exercises.reduce((m, ex) => Math.max(m, ex.sets.length), 0)
@@ -542,8 +550,8 @@ function CircuitFace({ s, now, session, notes, onAddExercise }: {
   })()
   // The plan's rest plays on the rest face at the boundary it names;
   // the action label says so before the athlete taps.
-  const restNext = s.circuitRest != null && next !== 'finish'
-    && (s.circuitRest.between === 'stations' || next.startsWith('round '))
+  const restNext = s.plannedRest != null && next !== 'finish'
+    && (s.plannedRest.between === 'stations' || next.startsWith('round '))
 
   return (
     <div className="fixed inset-0 z-50 bg-white dark:bg-slate-900 flex flex-col">
@@ -629,10 +637,10 @@ function CircuitFace({ s, now, session, notes, onAddExercise }: {
             </div>
           )
         })}
-        <AddExerciseButton onClick={onAddExercise} />
-        {s.circuitRest && (
+        {onAddExercise && <AddExerciseButton onClick={onAddExercise} />}
+        {s.plannedRest && (
           <p className="font-mono text-[11px] text-teal-700 pt-1">
-            Rest {mmss(s.circuitRest.sec)} between {s.circuitRest.between}
+            Rest {mmss(s.plannedRest.sec)} between {s.plannedRest.between}
           </p>
         )}
         {notes.map((note, i) => (

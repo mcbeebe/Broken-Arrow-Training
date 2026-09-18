@@ -253,7 +253,7 @@ function getLevelParams(level: ExperienceLevel): LevelParams {
       simStations: { build: 8, peak: 8 },
       strengthDetail: {
         base: 'BB squat 4×8 · BB deadlift 3×8 · Weighted pull-ups 3×6 · Wall balls 4×25 (9 kg) · Sled push 3×50m heavy · Plank 3×60s',
-        build: 'Full Hyrox station circuit: all 8 at competition weight/reps · Rest 90s between · Time each station · Farmer carry 4×100m heavy',
+        build: 'Full Hyrox station circuit: all 8 at competition weight/reps · Rest 90s between sets · Time each station · Farmer carry 4×100m heavy',
       },
       recoveryWeeks: [3, 6],
     }
@@ -1068,7 +1068,7 @@ function getHyroxWorkoutByRole(
           time: '40 min',
         }
       }
-      return { type: 'cross', workout: 'Station circuit (intro)', detail: `${buildStationList(specs, 5, stationPct)} · ${stationRx(specs[7], stationPct)} · ${weakStation} practice · Rest 2 min between · Grip note: finish with 2× dead hang to build the carry/pull grip the race demands`, zone: z2, route: 'Gym', time: '45 min' }
+      return { type: 'cross', workout: 'Station circuit (intro)', detail: `${buildStationList(specs, 5, stationPct)} · ${stationRx(specs[7], stationPct)} · ${weakStation} practice · Rest 2 min between rounds · Grip note: finish with 2× dead hang to build the carry/pull grip the race demands`, zone: z2, route: 'Gym', time: '45 min' }
     }
     if (compromisedWeek) {
       const triple = compromisedTriple(specs, weekIndex)
@@ -1082,7 +1082,7 @@ function getHyroxWorkoutByRole(
       }
     }
     const sims = phase === 'build' ? P.simStations.build : P.simStations.peak
-    return { type: 'cross', workout: `Station circuit (${sims} stations)`, detail: `${buildStationList(specs, sims, stationPct)} · ${stationRx(specs[7], stationPct)} · ${weakStation} extra set · ${P.sledNote} · 90 sec rest between stations`, zone: z3, route: 'Gym', time: '55 min' }
+    return { type: 'cross', workout: `Station circuit (${sims} stations)`, detail: `${buildStationList(specs, sims, stationPct)} · ${stationRx(specs[7], stationPct)} · ${weakStation} extra set · Sled note: ${P.sledNote} · 90 sec rest between stations`, zone: z3, route: 'Gym', time: '55 min' }
   }
 
   // EASY: Active recovery day. When the athlete picked cross-training
