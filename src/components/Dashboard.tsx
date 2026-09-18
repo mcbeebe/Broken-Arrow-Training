@@ -5,7 +5,8 @@ import type { OverallCompliance } from '../hooks/useCompliance'
 import type { RiskFlag } from '../utils/readiness'
 import type { StrengthCapacity } from '../engines/strength/benchmark'
 import type { Benchmark, BenchmarkKind } from '../engines/benchmark/log'
-import type { AddBenchmarkOptions } from './BenchmarksSection'
+import BenchmarksSection, { type AddBenchmarkOptions } from './BenchmarksSection'
+import type { PlanKind } from '../engines/benchmark/log'
 import type { OnboardingConfig } from '../hooks/useOnboarding'
 import { parsePlanZones } from '../utils/zones'
 import { getMilesNumber } from '../utils/format'
@@ -31,7 +32,7 @@ import RhythmHistory from './RhythmHistory'
 import CollapsibleSection from './primitives/CollapsibleSection'
 import { todayDateString } from '../utils/planDates'
 
-export type DashSubTab = 'compliance' | 'readiness' | 'performance' | 'strength' | 'engine'
+export type DashSubTab = 'compliance' | 'readiness' | 'performance' | 'strength' | 'benchmarks' | 'engine'
 
 interface DashboardProps {
   weeks: TrainingWeek[]
@@ -60,6 +61,11 @@ interface DashboardProps {
   onAddBenchmark?: (kind?: BenchmarkKind, opts?: AddBenchmarkOptions) => void
   /** Live benchmark entries — Your engine draws each one's trend. */
   benchmarkLog?: Benchmark[]
+  /** Progress → Benchmarks: every number the plan runs on, with its
+   *  history. Moved here from Settings — a benchmark is progress, not a
+   *  preference. */
+  benchmarks?: { plan: PlanKind; live: Benchmark[]; todayIso: string }
+  onRemoveBenchmark?: (id: string) => void
   planZones?: HRZone[]
   athleteMaxHR?: number
   athleteId?: string
@@ -92,6 +98,8 @@ export default function Dashboard({
   onboardingConfig,
   onAddBenchmark,
   benchmarkLog,
+  benchmarks,
+  onRemoveBenchmark,
   planZones = [],
   athleteMaxHR,
   athleteId,
@@ -115,6 +123,8 @@ export default function Dashboard({
     // Own menu for the strength records + benchmark layer — previously
     // buried under Performance.
     { id: 'strength', label: 'Strength', available: isSectionVisible('dash.strengthProgress') },
+    // The benchmark log — every measured number, its history and trend.
+    { id: 'benchmarks', label: 'Benchmarks', available: !!benchmarks && !!onAddBenchmark && !!onRemoveBenchmark },
     // The athlete model with its receipts (Adaptive Engine phase 2).
     { id: 'engine', label: 'Engine', available: isSectionVisible('dash.strengthProgress') },
   ]
@@ -241,6 +251,17 @@ export default function Dashboard({
       )}
       {subTab === 'strength' && (
         <StrengthProgressSection weeks={strengthWeeks ?? weeks} capacity={strengthCapacity} />
+      )}
+      {subTab === 'benchmarks' && benchmarks && onAddBenchmark && onRemoveBenchmark && (
+        <div className="mt-4" data-testid="dash-benchmarks">
+          <BenchmarksSection
+            plan={benchmarks.plan}
+            live={benchmarks.live}
+            todayIso={benchmarks.todayIso}
+            onAdd={onAddBenchmark}
+            onRemove={onRemoveBenchmark}
+          />
+        </div>
       )}
       {subTab === 'engine' && (
         <YourEngineSection weeks={strengthWeeks ?? weeks} capacity={strengthCapacity} config={onboardingConfig} onAddBenchmark={onAddBenchmark} benchmarkLog={benchmarkLog} />

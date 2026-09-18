@@ -2503,6 +2503,8 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           strengthCapacity={strengthCapacity.capacity}
           onAddBenchmark={(kind, opts) => setBenchmarkSheet({ kind, ...opts })}
           benchmarkLog={benchmarks.live}
+          benchmarks={{ plan: planKindOf(onboarding.config), live: benchmarks.live, todayIso: todayDateString() }}
+          onRemoveBenchmark={id => benchmarks.remove(id)}
           strengthWeeks={strengthWeeks}
           currentWeekNum={currentWeekNum}
           onboardingConfig={onboarding.config}
@@ -2650,9 +2652,6 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           onClearCache={clearAllCachedData}
           onClearAll={clearAllAppData}
           onSetHyroxDivision={onboarding.setHyroxDivision}
-          benchmarks={{ plan: planKindOf(onboarding.config), live: benchmarks.live, todayIso: todayDateString() }}
-          onAddBenchmark={(kind, opts) => setBenchmarkSheet({ kind, ...opts })}
-          onRemoveBenchmark={id => benchmarks.remove(id)}
           onResetOnboarding={() => {
             onboarding.requestRedo()
             setView('today')

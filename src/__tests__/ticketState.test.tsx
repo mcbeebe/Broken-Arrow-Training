@@ -47,11 +47,11 @@ describe('dayTicketState precedence', () => {
 })
 
 describe('DayCard renders the ticket chip', () => {
-  it('shows Resolved on a logged day', () => {
+  it('shows Completed on a logged day', () => {
     render(<DayCard day={day({ actual: logged })} onTap={() => {}} isPast />)
     const chip = screen.getByTestId('day-ticket-state')
     expect(chip.getAttribute('data-state')).toBe('resolved')
-    expect(chip.textContent).toContain('Resolved')
+    expect(chip.textContent).toContain('Completed')
   })
   it('shows Open on a past unlogged day', () => {
     render(<DayCard day={day()} onTap={() => {}} isPast />)
