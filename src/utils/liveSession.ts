@@ -25,6 +25,23 @@ export interface LiveCursor {
 
 export type LivePhase = 'exercise' | 'rest' | 'finished'
 
+/** The plan's own rest prescription. In round traversal the boundary
+ *  matters (between rounds, or after every station); in straight sets
+ *  it is simply the rest after every set. */
+export interface PlannedRest {
+  sec: number
+  between: 'rounds' | 'stations'
+}
+
+export interface LiveSessionMeta {
+  dayLabel: string
+  dayIso?: string
+  traversal?: 'exercise' | 'round'
+  sim?: boolean
+  title?: string
+  plannedRest?: PlannedRest
+}
+
 export interface LiveSessionState {
   /** Draft-format version — bump on breaking shape changes so an old
    *  draft is discarded instead of misread. */
@@ -40,6 +57,11 @@ export interface LiveSessionState {
   sim?: boolean
   /** Display title for sim sessions ('Race simulation', 'Half simulation'). */
   title?: string
+  /** Rest the plan prescribes. Straight sets: replaces the guide's
+   *  default after every set. Circuits: a timed rest screen between
+   *  rounds or after every station; absent → stations flow straight
+   *  into each other. */
+  plannedRest?: PlannedRest
   dayLabel: string
   /** ISO date the session logs against (YYYY-MM-DD), when known. */
   dayIso?: string
@@ -63,7 +85,7 @@ export interface LiveSessionState {
 
 export function startSession(
   exercises: StrengthExerciseLog[],
-  meta: { dayLabel: string; dayIso?: string; traversal?: 'exercise' | 'round'; sim?: boolean; title?: string },
+  meta: LiveSessionMeta,
   now: number,
 ): LiveSessionState {
   return {
@@ -71,6 +93,7 @@ export function startSession(
     traversal: meta.traversal,
     sim: meta.sim,
     title: meta.title,
+    plannedRest: meta.plannedRest && meta.plannedRest.sec > 0 ? meta.plannedRest : undefined,
     dayLabel: meta.dayLabel,
     dayIso: meta.dayIso,
     startedAt: now,
@@ -179,7 +202,8 @@ export function isLastSetOfExercise(s: LiveSessionState): boolean {
 
 /**
  * The smart-action press on an exercise screen: mark the current set
- * done and enter rest (seeded from the exercise guide's prescription).
+ * done and enter rest (the plan's prescription when it gave one, else
+ * the exercise guide's).
  * On the session's final set there is no rest — the session finishes.
  */
 export function logCurrentSet(s: LiveSessionState, now: number): LiveSessionState {
@@ -192,15 +216,22 @@ export function logCurrentSet(s: LiveSessionState, now: number): LiveSessionStat
   const next = nextCursor(marked, s.cursor)
   if (!next) return { ...marked, phase: 'finished' }
   if (s.traversal === 'round') {
-    // Stations flow straight into each other — recovery is the walk to
-    // the next station, not a timed rest screen.
+    // A prescribed rest ("Rest 2 min between" / "90 sec rest between
+    // stations") is a timed rest screen on that boundary. Otherwise
+    // stations flow straight into each other — recovery is the walk to
+    // the next station.
+    const rest = s.plannedRest
+    const crossesRound = next.setIdx > setIdx
+    if (rest && (rest.between === 'stations' || crossesRound)) {
+      return { ...marked, phase: 'rest', restStartedAt: now, restPlannedSec: rest.sec }
+    }
     return { ...marked, cursor: next, phase: 'exercise', segmentStartedAt: now }
   }
   return {
     ...marked,
     phase: 'rest',
     restStartedAt: now,
-    restPlannedSec: restSecondsFor(marked.exercises[exIdx].name),
+    restPlannedSec: s.plannedRest?.sec ?? restSecondsFor(marked.exercises[exIdx].name),
   }
 }
 
@@ -225,6 +256,49 @@ export function skipCurrentSet(s: LiveSessionState, now: number): LiveSessionSta
   const next = nextCursor(marked, s.cursor)
   if (!next) return { ...marked, phase: 'finished' }
   return { ...marked, cursor: next, phase: 'exercise', segmentStartedAt: now }
+}
+
+/**
+ * Add an exercise mid-session — the pivot when the sleds are taken: it
+ * slots in right after the exercise the athlete is on, so it is "up
+ * next" rather than buried at the end. Every set starts unchecked.
+ *
+ * Round traversal keeps its invariant (set index IS the round index):
+ * the new station gets one set per round, and the rounds already behind
+ * the cursor stay unchecked — honest data, it was not done in those
+ * rounds. During the rest that closes a round the pick joins the round
+ * about to start (first station), not the one just finished — otherwise
+ * it would play as a tail of the old round and earn a second rest.
+ * The cursor's exercise never changes, so the current set/rest stays
+ * exactly where it was.
+ */
+export function addExercise(s: LiveSessionState, exercise: StrengthExerciseLog): LiveSessionState {
+  if (s.phase === 'finished' || !exercise.name.trim()) return s
+  let sets = exercise.sets.map(set => ({ ...set, done: false as const }))
+  if (s.traversal === 'round') {
+    const rounds = Math.max(s.exercises.reduce((m, ex) => Math.max(m, ex.sets.length), 0), s.cursor.setIdx + 1)
+    // One set per round. Sitting right after the cursor, the new station
+    // is next up in the CURRENT round (whether the athlete is on a
+    // station or resting after one); the rounds already behind stay
+    // unchecked, which the log reads as skipped.
+    const template = sets[0] ?? { reps: 1, weight: '' }
+    sets = Array.from({ length: rounds }, (_, r) => ({
+      ...(sets[r] ?? template),
+      done: false as const,
+    }))
+  }
+  if (sets.length === 0) return s
+  let at = Math.min(s.cursor.exIdx + 1, s.exercises.length)
+  let cursor = s.cursor
+  if (s.traversal === 'round' && s.phase === 'rest') {
+    const next = nextCursor(s, s.cursor)
+    if (next && next.setIdx > s.cursor.setIdx) {
+      at = next.exIdx
+      if (at <= cursor.exIdx) cursor = { ...cursor, exIdx: cursor.exIdx + 1 }
+    }
+  }
+  const exercises = [...s.exercises.slice(0, at), { ...exercise, sets }, ...s.exercises.slice(at)]
+  return { ...s, exercises, cursor }
 }
 
 export function pause(s: LiveSessionState, now: number): LiveSessionState {

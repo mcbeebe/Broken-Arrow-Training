@@ -148,6 +148,105 @@ describe('circuit mode (screen 8)', () => {
   })
 })
 
+describe('circuit rest — "Rest 2 min between" plays as a timed rest, not Exercise 8', () => {
+  const restCircuitDay: PlannedDay = {
+    day: 'Fri 9/18', type: 'cross', workout: 'Station circuit (intro)',
+    detail: 'SkiErg 2×1 · Wall balls 2×15 · Rest 2 min between rounds · Grip note: finish with 2× dead hang to build the carry/pull grip the race demands',
+    zone: 'Z2', route: 'Gym', time: '45 min',
+  }
+
+  it('the preview lists the stations only, with the rest and the note as guidance', () => {
+    renderPlayer({ planned: restCircuitDay, dayLabel: 'Fri 9/18', dayIso: '2026-09-18' })
+    expect(screen.queryByText('Rest 2 min between rounds')).toBeNull()
+    // Two numbered exercise rows (each carries a "sets × reps" line) —
+    // the note is shown as guidance, not as a third row.
+    expect(screen.getAllByText(/^2 × /)).toHaveLength(2)
+    expect(screen.getByText(/Grip note: finish with 2× dead hang/)).toBeTruthy()
+    expect(screen.getByText(/Rest 2:00 between rounds/)).toBeTruthy()
+  })
+
+  it('round 1 flows station to station, then the round boundary is the rest screen', () => {
+    const { onSave } = renderPlayer({ planned: restCircuitDay, dayLabel: 'Fri 9/18', dayIso: '2026-09-18' })
+    fireEvent.click(screen.getByText('Start workout'))
+    expect(screen.getByText('Round 1 of 2')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: /Station done · next: Wall balls/ }))
+    expect(screen.queryByText('Rest')).toBeNull()
+    // The label says the rest is coming before the athlete taps.
+    fireEvent.click(screen.getByRole('button', { name: /Station done · rest, then round 2/ }))
+    expect(screen.getByText('Rest')).toBeTruthy()
+    expect(screen.getByText('of 2:00')).toBeTruthy()
+    expect(screen.getByText('Round 2 of 2 — SkiErg')).toBeTruthy()
+    expect(screen.getByText(/Wall balls done/)).toBeTruthy()
+    fireEvent.click(screen.getByText('Skip rest'))
+    expect(screen.getByText('Round 2 of 2')).toBeTruthy()
+    // Last station of the last round finishes without a rest.
+    fireEvent.click(screen.getByRole('button', { name: /Station done · next: Wall balls/ }))
+    fireEvent.click(screen.getByRole('button', { name: /Station done · next: finish/ }))
+    expect(screen.getByText(/Session done/)).toBeTruthy()
+    fireEvent.click(screen.getByText('Save workout'))
+    const workout: ActualWorkout = onSave.mock.calls[0][0]
+    expect(workout.strengthLog!.map(ex => ex.name)).toEqual(['SkiErg', 'Wall balls'])
+  })
+})
+
+describe('adding an exercise mid-workout', () => {
+  it('straight sets: the pick slots in as "Next", the current set is untouched', () => {
+    renderPlayer()
+    fireEvent.click(screen.getByText('Start workout'))
+    expect(screen.getByText('Exercise 1 of 2')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Add exercise' }))
+    fireEvent.click(screen.getByText('Dumbbell Row')) // from the guide library
+    expect(screen.getByText('Exercise 1 of 3')).toBeTruthy()
+    expect(screen.getByText(/Dumbbell Row · 3 sets/)).toBeTruthy()
+    // Finish the squats — the row is what comes up.
+    fireEvent.click(screen.getByText(/Log set 1/))
+    fireEvent.click(screen.getByText('Skip rest'))
+    fireEvent.click(screen.getByText(/Log set 2/))
+    expect(screen.getByText('Dumbbell Row — set 1 of 3')).toBeTruthy() // rest screen's "Up next"
+    fireEvent.click(screen.getByText('Skip rest'))
+    expect(screen.getByText('Exercise 2 of 3')).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Dumbbell Row' })).toBeTruthy()
+  })
+
+  it('can be added from the rest screen too', () => {
+    renderPlayer()
+    fireEvent.click(screen.getByText('Start workout'))
+    fireEvent.click(screen.getByText(/Log set 1/))
+    expect(screen.getByText('Rest')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Add exercise' }))
+    fireEvent.click(screen.getByText('Dumbbell Row'))
+    fireEvent.click(screen.getByText('Skip rest'))
+    expect(screen.getByText('Exercise 1 of 3')).toBeTruthy()
+  })
+
+  it('circuit: the sleds are taken — the new station is next in this round', () => {
+    const circuitDay: PlannedDay = {
+      day: 'Fri 8/28', type: 'cross', workout: 'Station circuit (intro)',
+      detail: 'SkiErg 2×1 · Sled push 2×1 · Row 2×1',
+      zone: 'Z2', route: 'Gym', time: '45 min',
+    }
+    renderPlayer({ planned: circuitDay, dayLabel: 'Fri 8/28', dayIso: '2026-08-28' })
+    fireEvent.click(screen.getByText('Start workout'))
+    fireEvent.click(screen.getByRole('button', { name: /Station done · next: Sled push/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Add exercise' }))
+    fireEvent.click(screen.getByText('Dumbbell Row'))
+    expect(screen.getByRole('button', { name: /Station done · next: Dumbbell Row/ })).toBeTruthy()
+    fireEvent.click(screen.getByText('skip')) // the sled
+    expect(screen.getByRole('heading', { name: 'Dumbbell Row' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Station done · next: Row/ })).toBeTruthy()
+  })
+
+  it('a blank custom name cannot be added from the live player', () => {
+    renderPlayer()
+    fireEvent.click(screen.getByText('Start workout'))
+    fireEvent.click(screen.getByRole('button', { name: 'Add exercise' }))
+    const custom = screen.getByText('Type a name above to add a custom exercise').closest('button')!
+    expect(custom.disabled).toBe(true)
+    fireEvent.click(custom)
+    expect(screen.getByText('Exercise 1 of 2')).toBeTruthy()
+  })
+})
+
 describe('simulation mode (Phase 3b)', () => {
   const halfSimDay: PlannedDay = {
     day: 'Sat 8/29', type: 'long', workout: 'HALF SIMULATION: 4 runs + 4 stations',

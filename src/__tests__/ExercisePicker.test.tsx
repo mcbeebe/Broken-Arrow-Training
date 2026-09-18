@@ -90,4 +90,13 @@ describe('ExercisePicker', () => {
     // Goblet squat guide row carries "last Wk 6 · 20 lb".
     expect(screen.getByText(/last Wk 6 · 20 lb/)).toBeTruthy()
   })
+  it('requireName: the custom add is disabled until a name is typed', () => {
+    const onPick = renderPicker({ requireName: true })
+    const custom = screen.getByText('Type a name above to add a custom exercise').closest('button')!
+    expect(custom.disabled).toBe(true)
+    fireEvent.change(screen.getByPlaceholderText('Search exercises…'), { target: { value: 'Sled drag' } })
+    fireEvent.click(screen.getByText(/as custom/).closest('button')!)
+    expect(onPick).toHaveBeenCalledTimes(1)
+    expect(onPick.mock.calls[0][0].name).toBe('Sled drag')
+  })
 })

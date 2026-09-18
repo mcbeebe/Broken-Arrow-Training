@@ -2,10 +2,10 @@ import { useCallback, useEffect, useState } from 'react'
 import type { ActualWorkout, StrengthExerciseLog } from '../types'
 import {
   startSession, logCurrentSet, startNextSet, extendRest, skipCurrentSet,
-  updateSet, pause, resume, endSession, toActualWorkout,
+  updateSet, addExercise, pause, resume, endSession, toActualWorkout,
   elapsedSec, restRemainingSec,
   saveDraft, loadDraft, clearDraft,
-  type LiveSessionState,
+  type LiveSessionState, type LiveSessionMeta,
 } from '../utils/liveSession'
 
 /**
@@ -50,7 +50,7 @@ export function useLiveSession(athleteId?: string) {
     /** The rendered clock — updated by the heartbeat while running. */
     nowMs,
     /** Begin a session from drafted exercises (ghost rows welcome). */
-    start(exercises: StrengthExerciseLog[], meta: { dayLabel: string; dayIso?: string; traversal?: 'exercise' | 'round'; sim?: boolean; title?: string }) {
+    start(exercises: StrengthExerciseLog[], meta: LiveSessionMeta) {
       const s = startSession(exercises, meta, Date.now())
       saveDraft(s, athleteId)
       setState(s)
@@ -63,6 +63,8 @@ export function useLiveSession(athleteId?: string) {
     skipSet: () => transition((s, now) => skipCurrentSet(s, now)),
     editSet: (exIdx: number, setIdx: number, patch: Parameters<typeof updateSet>[3]) =>
       transition(s => updateSet(s, exIdx, setIdx, patch)),
+    /** Slot a picked exercise in right after the current one — up next. */
+    addExercise: (exercise: StrengthExerciseLog) => transition(s => addExercise(s, exercise)),
     pause: () => transition((s, now) => pause(s, now)),
     resume: () => transition((s, now) => resume(s, now)),
     end: () => transition(s => endSession(s)),
