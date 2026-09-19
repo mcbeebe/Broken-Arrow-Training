@@ -7,7 +7,7 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import {
   startSession, logCurrentSet, startNextSet, extendRest, skipCurrentSet,
-  addExercise, collectStationSplits,
+  addExercise, addRound, collectStationSplits,
   pause, resume, endSession, toActualWorkout,
   elapsedSec, restRemainingSec, restSecondsFor, nextCursor, segmentElapsedSec,
   saveDraft, loadDraft, clearDraft,
@@ -286,6 +286,33 @@ describe('circuit rest — the plan\'s "Rest 2 min between" is a timed rest, not
     expect(s.restPlannedSec).toBe(90)
     // A zero-second prescription is no prescription.
     expect(startSession(exercises(), { dayLabel: 'Mon', plannedRest: { sec: 0, between: 'rounds' } }, T0).plannedRest).toBeUndefined()
+  })
+})
+
+describe('adding a round — the one-pass draft grows when the athlete goes again', () => {
+  it('every station gets one more unchecked set and the cursor walks into it', () => {
+    let s = startSession(
+      [
+        { name: 'SkiErg', focus: 'full', sets: [{ reps: 1, weight: '' }] },
+        { name: 'Row', focus: 'full', sets: [{ reps: 1, weight: '' }] },
+      ],
+      { dayLabel: 'Fri 9/18', traversal: 'round', plannedRest: { sec: 120, between: 'stations' } },
+      T0,
+    )
+    s = logCurrentSet(s, T0 + sec(60))
+    s = startNextSet(s, T0 + sec(180))
+    expect(nextCursor(s, s.cursor)).toBeNull()       // last station of the only round
+    s = addRound(s)
+    expect(s.exercises.map(ex => ex.sets.length)).toEqual([2, 2])
+    expect(s.exercises[0].sets[1]).toEqual({ reps: 1, weight: '', done: false })
+    expect(nextCursor(s, s.cursor)).toEqual({ exIdx: 0, setIdx: 1 })
+    // Not for straight sets, not for a simulation, not after finishing.
+    const straight = fresh()
+    expect(addRound(straight)).toBe(straight)
+    const sim = { ...s, sim: true }
+    expect(addRound(sim)).toBe(sim)
+    const done = endSession(s)
+    expect(addRound(done)).toBe(done)
   })
 })
 

@@ -4,7 +4,7 @@ import { getPlannedDrills } from '../utils/drills'
 import { isGymBasedDay } from '../utils/matching'
 import StrengthSetEditor from './StrengthSetEditor'
 import ExercisePicker from './ExercisePicker'
-import { ghostFillFromHistory, progressionFromWeeks, parsePlanExercises, type StrengthCalibration } from '../utils/strengthDraft'
+import { ghostFillFromHistory, progressionFromWeeks, parsePlanExercises, draftOptionsFor, type StrengthCalibration } from '../utils/strengthDraft'
 import type { StrengthExperience } from '../hooks/useOnboarding'
 import type { StrengthCapacity } from '../engines/strength/benchmark'
 
@@ -124,7 +124,7 @@ export default function ManualLog({ dayLabel, existing, planned, allWeeks, stren
   const [exercises, setExercises] = useState<StrengthExerciseLog[]>(() => {
     if (existing?.strengthLog?.length) return existing.strengthLog
     if ((planned?.type === 'strength' || isGymCircuitDay) && planned?.detail) {
-      return ghostFillFromHistory(parsePlanExercises(planned.detail), progression, calibration)
+      return ghostFillFromHistory(parsePlanExercises(planned.detail, draftOptionsFor(planned)), progression, calibration)
     }
     return []
   })
@@ -280,7 +280,7 @@ export default function ManualLog({ dayLabel, existing, planned, allWeeks, stren
                 <div className="flex gap-1.5">
                   {planned?.detail && (
                     <button
-                      onClick={() => setExercises(ghostFillFromHistory(parsePlanExercises(planned.detail), progression, calibration))}
+                      onClick={() => setExercises(ghostFillFromHistory(parsePlanExercises(planned.detail, draftOptionsFor(planned)), progression, calibration))}
                       className="text-xs font-medium px-2 py-1 rounded-lg bg-teal-100 text-teal-700 hover:bg-teal-200 transition-colors"
                     >
                       📋 Import from plan
@@ -308,7 +308,7 @@ export default function ManualLog({ dayLabel, existing, planned, allWeeks, stren
 
               {pickerOpen && (
                 <ExercisePicker
-                  plannedExercises={planned?.detail ? parsePlanExercises(planned.detail) : []}
+                  plannedExercises={planned?.detail ? parsePlanExercises(planned.detail, draftOptionsFor(planned)) : []}
                   existingNames={exercises.map(ex => ex.name)}
                   progression={progression}
                   calibration={calibration}

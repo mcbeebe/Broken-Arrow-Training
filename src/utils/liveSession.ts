@@ -301,6 +301,24 @@ export function addExercise(s: LiveSessionState, exercise: StrengthExerciseLog):
   return { ...s, exercises, cursor }
 }
 
+/**
+ * Another lap of the circuit. The draft is one pass because that is what
+ * the plan wrote; an athlete who goes again adds the round here, live,
+ * and every station grows one unchecked set (its last prescription
+ * repeated) so the round-major cursor simply finds it.
+ */
+export function addRound(s: LiveSessionState): LiveSessionState {
+  if (s.phase === 'finished' || s.traversal !== 'round' || s.sim) return s
+  return {
+    ...s,
+    exercises: s.exercises.map(ex => {
+      const last = ex.sets[ex.sets.length - 1]
+      if (!last) return ex
+      return { ...ex, sets: [...ex.sets, { reps: last.reps, weight: last.weight, done: false as const }] }
+    }),
+  }
+}
+
 export function pause(s: LiveSessionState, now: number): LiveSessionState {
   if (s.pausedAt != null || s.phase === 'finished') return s
   return { ...s, pausedAt: now }

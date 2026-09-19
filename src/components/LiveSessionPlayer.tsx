@@ -3,7 +3,7 @@ import type { ActualWorkout, PlannedDay, TrainingWeek } from '../types'
 import { useLiveSession } from '../hooks/useLiveSession'
 import { restRemainingSec, elapsedSec, segmentElapsedSec, nextCursor, type LiveSessionState } from '../utils/liveSession'
 import { isGymBasedDay } from '../utils/matching'
-import { ghostFillFromHistory, parsePlanPrescription, progressionFromWeeks, lastSessionSummary, type StrengthCalibration } from '../utils/strengthDraft'
+import { ghostFillFromHistory, parsePlanPrescription, progressionFromWeeks, lastSessionSummary, draftOptionsFor, prescriptionLabel, type StrengthCalibration } from '../utils/strengthDraft'
 import ExercisePicker from './ExercisePicker'
 import { isSimDay, draftSimSegments, simTitle, type SimProfile } from '../utils/simSession'
 import { normalizeExerciseName, suggestNextTarget, parseWeightLb } from '../utils/strengthProgression'
@@ -68,19 +68,21 @@ export default function LiveSessionPlayer({
   // exercises to log, plus the rest directive and coaching notes that
   // are read, not logged.
   const sim = planned != null && isSimDay(planned)
+  const circuit = !sim && planned != null && planned.type === 'cross' && isGymBasedDay(planned)
   const prescription = useMemo(
-    () => (planned && !isSimDay(planned) && planned.detail ? parsePlanPrescription(planned.detail) : { exercises: [], notes: [] }),
-    [planned],
+    () => (planned && !sim && planned.detail
+      ? parsePlanPrescription(planned.detail, draftOptionsFor(planned))
+      : { exercises: [], notes: [] }),
+    [planned, sim],
   )
   const drafted = useMemo(
     () => {
       if (!planned) return []
-      if (isSimDay(planned)) return draftSimSegments(planned, hyrox)
+      if (sim) return draftSimSegments(planned, hyrox)
       return ghostFillFromHistory(prescription.exercises, progression, calibration)
     },
-    [planned, prescription, progression, calibration, hyrox],
+    [planned, sim, prescription, progression, calibration, hyrox],
   )
-  const circuit = !sim && planned != null && planned.type === 'cross' && isGymBasedDay(planned)
   // The rest line promises a timer only where one will fire: a
   // between-rounds rest on a one-round circuit never does.
   const previewRounds = drafted.reduce((m, ex) => Math.max(m, ex.sets.length), 0)
@@ -129,7 +131,7 @@ export default function LiveSessionPlayer({
                   <p className="text-sm font-semibold text-slate-700 dark:text-slate-200 truncate">{ex.name}</p>
                   {!sim && (
                     <p className="font-mono text-[11px] text-slate-400">
-                      {ex.sets.length} × {ex.sets[0]?.reps ?? '—'}
+                      {prescriptionLabel(ex)}
                       {lastSessionSummary(prog) ? ` · last: ${lastSessionSummary(prog)}` : ''}
                     </p>
                   )}
@@ -246,7 +248,7 @@ export default function LiveSessionPlayer({
   // ── Circuit (screen 8) — round-major station flow ──────────
   if (s.traversal === 'round') {
     // A simulation is the race spec — no ad-hoc stations in it.
-    return <>{picker}<CircuitFace s={s} now={now} session={session} notes={sessionNotes} onAddExercise={s.sim ? undefined : openPicker} /></>
+    return <>{picker}<CircuitFace s={s} now={now} session={session} notes={sessionNotes} onAddExercise={s.sim ? undefined : openPicker} onAddRound={s.sim ? undefined : session.addRound} /></>
   }
 
   // ── Exercise (screen 6) ────────────────────────────────────
@@ -389,7 +391,7 @@ function AddExerciseButton({ onClick, dark }: { onClick: () => void; dark?: bool
   return (
     <button
       onClick={onClick}
-      className={`w-full h-11 rounded-xl border border-dashed text-[13px] font-semibold flex items-center justify-center gap-1.5 ${
+      className={`w-full flex-1 h-11 rounded-xl border border-dashed text-[13px] font-semibold flex items-center justify-center gap-1.5 ${
         dark ? 'border-slate-600 text-slate-300' : 'border-purple-300 text-purple-700 dark:border-purple-700 dark:text-purple-300'
       }`}
     >
@@ -527,12 +529,13 @@ function stationRxLine(set: { reps: number; weight: string } | undefined): strin
   return parts.join(' \u00b7 ')
 }
 
-function CircuitFace({ s, now, session, notes, onAddExercise }: {
+function CircuitFace({ s, now, session, notes, onAddExercise, onAddRound }: {
   s: LiveSessionState
   now: number
   session: ReturnType<typeof useLiveSession>
   notes: string[]
   onAddExercise?: () => void
+  onAddRound?: () => void
 }) {
   const round = s.cursor.setIdx
   const maxRounds = s.exercises.reduce((m, ex) => Math.max(m, ex.sets.length), 0)
@@ -637,8 +640,19 @@ function CircuitFace({ s, now, session, notes, onAddExercise }: {
             </div>
           )
         })}
-        {onAddExercise && <AddExerciseButton onClick={onAddExercise} />}
-        {s.plannedRest && (
+        <div className="flex gap-2">
+          {onAddExercise && <AddExerciseButton onClick={onAddExercise} />}
+          {onAddRound && (
+            <button
+              onClick={onAddRound}
+              className="flex-1 h-11 rounded-xl border border-dashed border-teal-300 dark:border-teal-700 text-[13px] font-semibold text-teal-700 dark:text-teal-300 flex items-center justify-center gap-1.5"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10" /><path d="M20.5 15a9 9 0 1 1-2-9.5L23 10" /></svg>
+              Add round
+            </button>
+          )}
+        </div>
+        {s.plannedRest && (s.plannedRest.between === 'stations' || maxRounds > 1) && (
           <p className="font-mono text-[11px] text-teal-700 pt-1">
             Rest {mmss(s.plannedRest.sec)} between {s.plannedRest.between}
           </p>
