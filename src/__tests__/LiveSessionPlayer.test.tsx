@@ -158,9 +158,10 @@ describe('circuit rest — "Rest 2 min between" plays as a timed rest, not Exerc
   it('the preview lists the stations only, with the rest and the note as guidance', () => {
     renderPlayer({ planned: restCircuitDay, dayLabel: 'Fri 9/18', dayIso: '2026-09-18' })
     expect(screen.queryByText('Rest 2 min between rounds')).toBeNull()
-    // Two numbered exercise rows (each carries a "sets × reps" line) —
-    // the note is shown as guidance, not as a third row.
-    expect(screen.getAllByText(/^2 × /)).toHaveLength(2)
+    // Two numbered exercise rows ("2 efforts" for SkiErg 2×1, "2 × 15" for
+    // wall balls) — the note is shown as guidance, not as a third row.
+    expect(screen.getByText(/^2 efforts/)).toBeTruthy()
+    expect(screen.getByText(/^2 × 15/)).toBeTruthy()
     expect(screen.getByText(/Grip note: finish with 2× dead hang/)).toBeTruthy()
     expect(screen.getByText(/Rest 2:00 between rounds/)).toBeTruthy()
   })
@@ -198,7 +199,8 @@ describe('the intro circuit as the plan writes it — one pass, 2 min between st
 
   it('drafts each station once (no invented rounds) and rests after every station', () => {
     const { onSave } = renderPlayer({ planned: introDay, dayLabel: 'Fri 9/18', dayIso: '2026-09-18' })
-    expect(screen.getAllByText(/^1 × 1/)).toHaveLength(3)
+    expect(screen.getAllByText(/^one effort/)).toHaveLength(3)
+    expect(screen.queryByText(/1 × 1/)).toBeNull()
     expect(screen.getByText(/Rest 2:00 between stations/)).toBeTruthy()
     fireEvent.click(screen.getByText('Start workout'))
     expect(screen.queryByText(/Round 1 of/)).toBeNull()
@@ -214,6 +216,26 @@ describe('the intro circuit as the plan writes it — one pass, 2 min between st
     const workout: ActualWorkout = onSave.mock.calls[0][0]
     expect(workout.strengthLog!.map(ex => ex.sets.length)).toEqual([1, 1, 1])
     expect(workout.stationSplits!.map(x => x.label)).toEqual(['SkiErg 500m', 'Sled push 25m @ 152 kg', 'Row 500m'])
+  })
+
+  it('"Add round" grows the circuit live — the second lap is walked, splits stamp the round', () => {
+    const { onSave } = renderPlayer({ planned: introDay, dayLabel: 'Fri 9/18', dayIso: '2026-09-18' })
+    fireEvent.click(screen.getByText('Start workout'))
+    expect(screen.queryByText(/Round 1 of/)).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Add round' }))
+    expect(screen.getByText('Round 1 of 2')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: /Station done · rest, then Sled push/ }))
+    fireEvent.click(screen.getByText('Skip rest'))
+    fireEvent.click(screen.getByRole('button', { name: /Station done · rest, then Row 500m/ }))
+    fireEvent.click(screen.getByText('Skip rest'))
+    fireEvent.click(screen.getByRole('button', { name: /Station done · rest, then round 2/ }))
+    fireEvent.click(screen.getByText('Skip rest'))
+    expect(screen.getByText('Round 2 of 2')).toBeTruthy()
+    fireEvent.click(screen.getByText('End'))
+    fireEvent.click(screen.getByText('Save workout'))
+    const workout: ActualWorkout = onSave.mock.calls[0][0]
+    expect(workout.strengthLog!.map(ex => ex.sets.length)).toEqual([2, 2, 2])
+    expect(workout.stationSplits![0].label).toBe('SkiErg 500m — round 1')
   })
 })
 

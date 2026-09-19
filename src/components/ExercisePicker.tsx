@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import type { StrengthExerciseLog } from '../types'
 import { listExerciseGuides } from '../utils/exercises'
 import { normalizeExerciseName, type ExerciseProgression } from '../utils/strengthProgression'
-import { detectFocus, draftExercise, type StrengthCalibration } from '../utils/strengthDraft'
+import { detectFocus, draftExercise, prescriptionLabel, type StrengthCalibration } from '../utils/strengthDraft'
 
 /**
  * The exercise picker — Phase 1 of the strength-logging overhaul.
@@ -111,7 +111,7 @@ export default function ExercisePicker({
                     <span className="flex-1 min-w-0">
                       <span className="block text-sm font-semibold text-teal-900 truncate">{ex.name}</span>
                       <span className="block font-mono text-[11px] text-teal-600">
-                        planned {ex.sets.length} × {ex.sets[0]?.reps ?? '—'}
+                        planned {prescriptionLabel(ex)}
                       </span>
                     </span>
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0d9488" strokeWidth="2.2" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>

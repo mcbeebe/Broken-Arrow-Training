@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import type { ActualWorkout, StrengthExerciseLog } from '../types'
 import {
   startSession, logCurrentSet, startNextSet, extendRest, skipCurrentSet,
-  updateSet, addExercise, pause, resume, endSession, toActualWorkout,
+  updateSet, addExercise, addRound, pause, resume, endSession, toActualWorkout,
   elapsedSec, restRemainingSec,
   saveDraft, loadDraft, clearDraft,
   type LiveSessionState, type LiveSessionMeta,
@@ -65,6 +65,8 @@ export function useLiveSession(athleteId?: string) {
       transition(s => updateSet(s, exIdx, setIdx, patch)),
     /** Slot a picked exercise in right after the current one — up next. */
     addExercise: (exercise: StrengthExerciseLog) => transition(s => addExercise(s, exercise)),
+    /** Another lap of a circuit — one more set on every station. */
+    addRound: () => transition(s => addRound(s)),
     pause: () => transition((s, now) => pause(s, now)),
     resume: () => transition((s, now) => resume(s, now)),
     end: () => transition(s => endSession(s)),

@@ -5,7 +5,7 @@
  * prescription now separates work from instructions.
  */
 import { describe, it, expect } from 'vitest'
-import { parsePlanPrescription, parsePlanExercises, parseRestDirective, CIRCUIT_DRAFT } from '../utils/strengthDraft'
+import { parsePlanPrescription, parsePlanExercises, parseRestDirective, CIRCUIT_DRAFT, draftOptionsFor, prescriptionLabel } from '../utils/strengthDraft'
 import { generateHyroxPlan } from '../utils/planGenerator'
 import { isGymBasedDay } from '../utils/matching'
 import type { OnboardingConfig } from '../hooks/useOnboarding'
@@ -106,6 +106,30 @@ describe('parsePlanPrescription', () => {
     expect(parsePlanExercises('SkiErg 500m')[0].sets).toHaveLength(3)
   })
 
+  it('a load written "@ 2×24 kg" is two kettlebells, not 2 sets × 24 reps', () => {
+    const p = parsePlanPrescription('Farmer carry 190m @ 2×24 kg · Sandbag lunges 100m @ 20 kg', CIRCUIT_DRAFT)
+    expect(p.exercises.map(e => [e.name, e.sets.length, e.sets[0].reps])).toEqual([
+      ['Farmer carry 190m @ 2×24 kg', 1, 1], ['Sandbag lunges 100m @ 20 kg', 1, 1],
+    ])
+  })
+
+  it('the "No gym?" substitution line is a note, and station labels never read "1 × 1"', () => {
+    const p = parsePlanPrescription('SkiErg 500m · No gym? Approximate stations: wall balls → med-ball squat-to-press', CIRCUIT_DRAFT)
+    expect(p.exercises.map(e => e.name)).toEqual(['SkiErg 500m'])
+    expect(p.notes).toHaveLength(1)
+    expect(prescriptionLabel(p.exercises[0])).toBe('one effort')
+    expect(prescriptionLabel({ name: 'x', focus: 'full', sets: [{ reps: 1, weight: '' }, { reps: 1, weight: '' }] })).toBe('2 efforts')
+    expect(prescriptionLabel(parsePlanExercises('Goblet squats 3×12')[0])).toBe('3 × 12')
+  })
+
+  it('draftOptionsFor: gym-based cross days draft as circuits, strength days do not', () => {
+    const circuit = { day: 'Fri', type: 'cross', workout: 'Station circuit (intro)', detail: '', zone: '', route: 'Gym', time: '45 min' } as const
+    const strength = { ...circuit, type: 'strength', workout: 'STRENGTH' } as const
+    expect(draftOptionsFor(circuit)).toBe(CIRCUIT_DRAFT)
+    expect(draftOptionsFor(strength)).toBeUndefined()
+    expect(draftOptionsFor(undefined)).toBeUndefined()
+  })
+
   it('empty detail is an empty prescription', () => {
     expect(parsePlanPrescription('')).toEqual({ exercises: [], notes: [] })
   })
@@ -139,7 +163,8 @@ describe('generator ↔ parser contract', () => {
           for (const week of plan.weeks) {
             for (const day of week.days) {
               if (!(day.type === 'strength' || isGymBasedDay(day)) || !day.detail) continue
-              const p = parsePlanPrescription(day.detail)
+              // Exactly what the app drafts: the same option rule.
+              const p = parsePlanPrescription(day.detail, draftOptionsFor(day))
               for (const ex of p.exercises) {
                 // (A station carrying a prose lead-in — "Every station at
                 // full race spec, …: SkiErg 1000m" — is a separate, older
@@ -152,6 +177,14 @@ describe('generator ↔ parser contract', () => {
                 fullSpecDays++
                 expect(p.exercises.some(ex => /^Wall balls/i.test(ex.name)), day.detail).toBe(true)
                 expect(p.rest).toEqual({ sec: 180, between: 'stations' })
+              }
+              if (/^Station circuit/.test(day.workout) || /^Full-distance stations/.test(day.workout)) {
+                // One pass: every station drafts as a single effort — the
+                // "@ 2×24 kg" farmer carry included.
+                for (const ex of p.exercises) {
+                  expect(ex.sets.length, `${day.workout}: "${ex.name}"`).toBe(1)
+                  expect(ex.sets[0].reps, `${day.workout}: "${ex.name}"`).toBe(1)
+                }
               }
               if (/^Station circuit \(\d+ stations\)/.test(day.workout)) {
                 circuitDays++

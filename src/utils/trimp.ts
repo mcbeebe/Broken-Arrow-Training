@@ -1143,7 +1143,13 @@ function applyDOMSCarryForward(
 //   upper: 1.5 (lower metabolic cost)
 //   core:  1.0 (minimal systemic impact)
 //
-// Modifiers: weight (heavier = more load) and reps (more = more load)
+// Modifiers: weight (heavier = more load) and reps (more = more load).
+//
+// A station effort — "SkiErg 500m", logged as one set of reps 1 — is not
+// a 1-rep set. When the live player timed it, every 40 s of work counts
+// as one 10-rep set (a 4-minute sled push ≈ 6 sets); untimed, it counts
+// as the three working sets a station used to draft as. Skipped sets
+// (done: false) never count — they are planned work, not performed.
 
 const EXERCISE_BASE_LOAD: Record<string, number> = {
   lower: 4.0,
@@ -1151,6 +1157,9 @@ const EXERCISE_BASE_LOAD: Record<string, number> = {
   upper: 1.5,
   core: 1.0,
 }
+const STATION_SECONDS_PER_SET = 40
+const STATION_UNTIMED_SETS = 3
+const STATION_MAX_SETS = 8
 
 export function calculateExerciseLoad(exercises: StrengthExerciseLog[]): number {
   if (!exercises || exercises.length === 0) return 0
@@ -1160,11 +1169,21 @@ export function calculateExerciseLoad(exercises: StrengthExerciseLog[]): number 
     const basePerSet = EXERCISE_BASE_LOAD[exercise.focus] ?? 2.5
     for (const set of exercise.sets) {
       const reps = set.reps || 0
-      if (reps === 0) continue
+      if (reps === 0 || set.done === false) continue
 
       // Weight modifier: heavier loads = more musculoskeletal stress
       const weightLbs = parseFloat(set.weight) || 0
       const weightScale = weightLbs > 0 ? Math.min(2.0, 1 + weightLbs / 200) : 1.0
+
+      // A station effort: one timed (or bodyweight) set of reps 1.
+      // A weighted single with no time is a lift, scored by its reps.
+      if (reps <= 1 && (set.timeSec != null || weightLbs === 0)) {
+        const setsEquivalent = set.timeSec != null
+          ? Math.min(STATION_MAX_SETS, Math.max(1, set.timeSec / STATION_SECONDS_PER_SET))
+          : STATION_UNTIMED_SETS
+        totalLoad += basePerSet * weightScale * setsEquivalent
+        continue
+      }
 
       // Rep modifier: normalize to 10-rep baseline
       const repScale = Math.min(2.0, reps / 10)
