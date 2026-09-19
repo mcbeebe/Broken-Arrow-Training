@@ -5,7 +5,7 @@
  * prescription now separates work from instructions.
  */
 import { describe, it, expect } from 'vitest'
-import { parsePlanPrescription, parsePlanExercises, parseRestDirective } from '../utils/strengthDraft'
+import { parsePlanPrescription, parsePlanExercises, parseRestDirective, CIRCUIT_DRAFT } from '../utils/strengthDraft'
 import { generateHyroxPlan } from '../utils/planGenerator'
 import { isGymBasedDay } from '../utils/matching'
 import type { OnboardingConfig } from '../hooks/useOnboarding'
@@ -96,6 +96,16 @@ describe('parsePlanPrescription', () => {
     ])
   })
 
+  it('a circuit drafts each station once, one effort — the workout lists them once', () => {
+    const p = parsePlanPrescription('SkiErg 500m · Sled push 25m @ 152 kg · Farmer carry 3×40m · Rest 2 min between stations', CIRCUIT_DRAFT)
+    expect(p.exercises.map(e => [e.name, e.sets.length, e.sets[0].reps])).toEqual([
+      ['SkiErg 500m', 1, 1], ['Sled push 25m @ 152 kg', 1, 1], ['Farmer carry', 3, 40],
+    ])
+    expect(p.rest).toEqual({ sec: 120, between: 'stations' })
+    // Without the option, the strength-day skeleton stands.
+    expect(parsePlanExercises('SkiErg 500m')[0].sets).toHaveLength(3)
+  })
+
   it('empty detail is an empty prescription', () => {
     expect(parsePlanPrescription('')).toEqual({ exercises: [], notes: [] })
   })
@@ -149,7 +159,7 @@ describe('generator ↔ parser contract', () => {
                 expect(p.notes.some(n => /^Sled note:/.test(n))).toBe(true)
               }
               if (day.workout === 'Station circuit (intro)') {
-                expect(p.rest).toEqual({ sec: 120, between: 'rounds' })
+                expect(p.rest).toEqual({ sec: 120, between: 'stations' })
                 expect(p.notes.some(n => /^Grip note:/.test(n))).toBe(true)
               }
             }

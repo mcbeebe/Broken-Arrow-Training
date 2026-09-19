@@ -153,6 +153,22 @@ export function parseRestDirective(sentence: string): NonNullable<PlanPrescripti
   return { sec, between: /\b(?:stations?|exercises?|sets?|movements?|attempts?)\b/i.test(text) ? 'stations' : 'rounds' }
 }
 
+/** What a line with no "N×R" pattern drafts as. Strength days keep the
+ *  long-standing 3 × 10 skeleton; see CIRCUIT_DRAFT for station lists. */
+export interface PlanParseOptions {
+  defaultSets?: number
+  defaultReps?: number
+}
+
+/**
+ * A station circuit lists each station once — "SkiErg 500m · Sled push
+ * 25m @ 152 kg · …" — and the session length is budgeted for one pass
+ * with the rest it names. Drafting 3 × 10 there invented rounds the
+ * workout never called for (and "10 reps" of a 500 m erg). One set,
+ * one effort; the athlete adds a round if they do one.
+ */
+export const CIRCUIT_DRAFT: PlanParseOptions = { defaultSets: 1, defaultReps: 1 }
+
 /**
  * Parse a plan detail string into the prescription: exercises with sets
  * pre-filled, plus the rest directive and coaching notes that used to
@@ -161,7 +177,7 @@ export function parseRestDirective(sentence: string): NonNullable<PlanPrescripti
  * two lines as Exercise 8 and Exercise 9, 3 × 10 each).
  * e.g., "Goblet squats 3×12 · Walking lunges 3×10/leg · Plank 3×45s"
  */
-export function parsePlanPrescription(detail: string): PlanPrescription {
+export function parsePlanPrescription(detail: string, opts: PlanParseOptions = {}): PlanPrescription {
   const out: PlanPrescription = { exercises: [], notes: [] }
   if (!detail) return out
 
@@ -173,8 +189,8 @@ export function parsePlanPrescription(detail: string): PlanPrescription {
     const setsMatch = part.match(/^(.+?)\s+(\d+)\s*[×xX]\s*(\d+)\s*(?:\/\w+)?(?:\s*\w+)?$/)
 
     let name: string
-    let numSets = 3
-    let reps = 10
+    let numSets = opts.defaultSets ?? 3
+    let reps = opts.defaultReps ?? 10
 
     if (setsMatch) {
       name = setsMatch[1].trim()
@@ -219,8 +235,8 @@ export function parsePlanPrescription(detail: string): PlanPrescription {
  * the rest and notes. (Moved out of ManualLog so the exercise picker
  * shares it.)
  */
-export function parsePlanExercises(detail: string): StrengthExerciseLog[] {
-  return parsePlanPrescription(detail).exercises
+export function parsePlanExercises(detail: string, opts?: PlanParseOptions): StrengthExerciseLog[] {
+  return parsePlanPrescription(detail, opts).exercises
 }
 
 /**

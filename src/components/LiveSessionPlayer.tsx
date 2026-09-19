@@ -3,7 +3,7 @@ import type { ActualWorkout, PlannedDay, TrainingWeek } from '../types'
 import { useLiveSession } from '../hooks/useLiveSession'
 import { restRemainingSec, elapsedSec, segmentElapsedSec, nextCursor, type LiveSessionState } from '../utils/liveSession'
 import { isGymBasedDay } from '../utils/matching'
-import { ghostFillFromHistory, parsePlanPrescription, progressionFromWeeks, lastSessionSummary, type StrengthCalibration } from '../utils/strengthDraft'
+import { ghostFillFromHistory, parsePlanPrescription, progressionFromWeeks, lastSessionSummary, CIRCUIT_DRAFT, type StrengthCalibration } from '../utils/strengthDraft'
 import ExercisePicker from './ExercisePicker'
 import { isSimDay, draftSimSegments, simTitle, type SimProfile } from '../utils/simSession'
 import { normalizeExerciseName, suggestNextTarget, parseWeightLb } from '../utils/strengthProgression'
@@ -68,9 +68,12 @@ export default function LiveSessionPlayer({
   // exercises to log, plus the rest directive and coaching notes that
   // are read, not logged.
   const sim = planned != null && isSimDay(planned)
+  const circuit = !sim && planned != null && planned.type === 'cross' && isGymBasedDay(planned)
   const prescription = useMemo(
-    () => (planned && !isSimDay(planned) && planned.detail ? parsePlanPrescription(planned.detail) : { exercises: [], notes: [] }),
-    [planned],
+    () => (planned && !isSimDay(planned) && planned.detail
+      ? parsePlanPrescription(planned.detail, circuit ? CIRCUIT_DRAFT : undefined)
+      : { exercises: [], notes: [] }),
+    [planned, circuit],
   )
   const drafted = useMemo(
     () => {
@@ -80,7 +83,6 @@ export default function LiveSessionPlayer({
     },
     [planned, prescription, progression, calibration, hyrox],
   )
-  const circuit = !sim && planned != null && planned.type === 'cross' && isGymBasedDay(planned)
   // The rest line promises a timer only where one will fire: a
   // between-rounds rest on a one-round circuit never does.
   const previewRounds = drafted.reduce((m, ex) => Math.max(m, ex.sets.length), 0)

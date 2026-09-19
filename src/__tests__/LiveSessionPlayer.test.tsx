@@ -189,6 +189,34 @@ describe('circuit rest — "Rest 2 min between" plays as a timed rest, not Exerc
   })
 })
 
+describe('the intro circuit as the plan writes it — one pass, 2 min between stations', () => {
+  const introDay: PlannedDay = {
+    day: 'Fri 9/18', type: 'cross', workout: 'Station circuit (intro)',
+    detail: 'SkiErg 500m · Sled push 25m @ 152 kg · Row 500m · Rest 2 min between stations · Grip note: finish with 2× dead hang',
+    zone: 'Z2', route: 'Gym', time: '45 min',
+  }
+
+  it('drafts each station once (no invented rounds) and rests after every station', () => {
+    const { onSave } = renderPlayer({ planned: introDay, dayLabel: 'Fri 9/18', dayIso: '2026-09-18' })
+    expect(screen.getAllByText(/^1 × 1/)).toHaveLength(3)
+    expect(screen.getByText(/Rest 2:00 between stations/)).toBeTruthy()
+    fireEvent.click(screen.getByText('Start workout'))
+    expect(screen.queryByText(/Round 1 of/)).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: /Station done · rest, then Sled push/ }))
+    expect(screen.getByText('Rest')).toBeTruthy()
+    expect(screen.getByText('of 2:00')).toBeTruthy()
+    expect(screen.getByText('Sled push 25m @ 152 kg')).toBeTruthy() // up next, no round stamp
+    fireEvent.click(screen.getByText('Skip rest'))
+    fireEvent.click(screen.getByRole('button', { name: /Station done · rest, then Row 500m/ }))
+    fireEvent.click(screen.getByText('Skip rest'))
+    fireEvent.click(screen.getByRole('button', { name: /Station done · next: finish/ }))
+    fireEvent.click(screen.getByText('Save workout'))
+    const workout: ActualWorkout = onSave.mock.calls[0][0]
+    expect(workout.strengthLog!.map(ex => ex.sets.length)).toEqual([1, 1, 1])
+    expect(workout.stationSplits!.map(x => x.label)).toEqual(['SkiErg 500m', 'Sled push 25m @ 152 kg', 'Row 500m'])
+  })
+})
+
 describe('adding an exercise mid-workout', () => {
   it('straight sets: the pick slots in as "Next", the current set is untouched', () => {
     renderPlayer()

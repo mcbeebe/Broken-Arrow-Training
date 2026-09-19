@@ -940,7 +940,7 @@ export default function WorkoutModal({ day, weekNum, onClose, onLog, onStartLive
                                   : 'text-teal-700 bg-white dark:bg-slate-800/60'
                               }`}
                             >
-                              {s.setType === 'warmup' ? 'W: ' : ''}{s.reps > 0 ? `${s.reps} reps` : ''}{s.weight !== '—' ? ` @ ${s.weight}` : ''}{s.notes ? ` (${s.notes})` : ''}{s.done === false ? ' — skipped' : ''}
+                              {s.setType === 'warmup' ? 'W: ' : ''}{s.reps > 0 ? `${s.reps} ${s.reps === 1 ? 'rep' : 'reps'}` : ''}{s.weight !== '—' ? ` @ ${s.weight}` : ''}{s.notes ? ` (${s.notes})` : ''}{s.done === false ? ' — skipped' : ''}
                             </span>
                           ))}
                         </div>
