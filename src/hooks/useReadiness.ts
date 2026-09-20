@@ -295,8 +295,9 @@ export function useReadiness({
       sorenessLoadByDate,
       todayPlannedWorkout,
       upcomingPlannedDays,
+      readinessTuning,
     ),
-    [healthData, performance, sorenessLoadByDate, todayPlannedWorkout, upcomingPlannedDays],
+    [healthData, performance, sorenessLoadByDate, todayPlannedWorkout, upcomingPlannedDays, readinessTuning],
   )
 
   // Calculate baselines from health history

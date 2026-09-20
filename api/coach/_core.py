@@ -793,7 +793,7 @@ GREEN (execute as planned), YELLOW (reduce intensity/volume, stay Z1-2),
 RED (swap for walk or rest).
 
 Training states (Firstbeat WP-G2): A=Well Recovered, B=Not Fully
-Recovered (reduce intensity 10-15%), C=Overreaching (48-72h easy block),
+Recovered (reduce intensity 10-15%), C=Under-recovered (48-72h easy block),
 D=Overtrained (5+ consecutive RED days → deload protocol + medical flag).
 
 Guardrails: ACWR>1.5 forces YELLOW; >1.3 caps at GREEN. Body Battery<25

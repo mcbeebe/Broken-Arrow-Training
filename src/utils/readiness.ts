@@ -1,4 +1,5 @@
 import { DEFAULT_READINESS_TUNING, type ReadinessTuning } from './engineConfig'
+import { RAMP_ALERT } from './loadZones'
 import type {
   GarminHealthData,
   ReadinessScore,
@@ -398,7 +399,8 @@ export function classifyTrainingState(
   // State D: Overtrained
   if (consecutiveRedDays >= tuning.stateDConsecutiveRed || trend7dDeclining) return 'D'
 
-  // State C: Overreaching
+  // State C: Under-recovered (Firstbeat calls this "overreaching"; the
+  // app reserves that word for a Recovery Balance below −30)
   if (composite < 0 || (composite < STATE_B_THRESHOLD && acwr > tuning.acwrSweetTop)) return 'C'
 
   // State B: Not fully recovered
@@ -677,14 +679,18 @@ export function check3dHRVSlope(healthHistory: GarminHealthData[]): {
 
 /** Detect accelerating ACWR (second-derivative check).
  *  If ACWR went 1.1 → 1.2 → 1.4, the rate of increase is accelerating,
- *  which is worse than steady ramp. Strong signal to deload. */
+ *  which is worse than a steady ramp. This is a RATE signal: it can fire
+ *  while the level is still in range, and the flag it produces says so
+ *  (a "heads up" to hold volume, not a "deload"). */
 export function checkACWRAcceleration(performance: PerformanceMetrics[]): {
   accelerating: boolean
   acwrNow: number
   acwr3dAgo: number
   acwr7dAgo: number
+  /** How much the ratio rose over the last three days. */
+  rise3d: number
 } {
-  if (performance.length < 8) return { accelerating: false, acwrNow: 0, acwr3dAgo: 0, acwr7dAgo: 0 }
+  if (performance.length < 8) return { accelerating: false, acwrNow: 0, acwr3dAgo: 0, acwr7dAgo: 0, rise3d: 0 }
 
   const now = performance[performance.length - 1]
   const ago3d = performance[performance.length - 4]
@@ -697,9 +703,9 @@ export function checkACWRAcceleration(performance: PerformanceMetrics[]): {
   // Rate change: if delta(3d) > delta(prev 4d), acceleration
   const delta3d = acwrNow - acwr3d
   const delta4d = acwr3d - acwr7d
-  const accelerating = delta3d > 0.1 && delta3d > delta4d && acwrNow > 1.25
+  const accelerating = delta3d > RAMP_ALERT.minRise3d && delta3d > delta4d && acwrNow > RAMP_ALERT.levelFloor
 
-  return { accelerating, acwrNow, acwr3dAgo: acwr3d, acwr7dAgo: acwr7d }
+  return { accelerating, acwrNow, acwr3dAgo: acwr3d, acwr7dAgo: acwr7d, rise3d: Math.round(delta3d * 100) / 100 }
 }
 
 /** Multi-day recovery failure: both HRV below baseline AND RHR above
@@ -857,6 +863,7 @@ export function checkInjuryRisk(
   sorenessLoadByDate?: Map<string, number>,
   todayPlanned?: PlannedDay,
   daysAhead?: PlannedDay[],
+  tuning: ReadinessTuning = DEFAULT_READINESS_TUNING,
 ): RiskFlag[] {
   const flags: RiskFlag[] = []
 
@@ -871,14 +878,27 @@ export function checkInjuryRisk(
     })
   }
 
+  // The ramp alert talks about the ramp. It shows the change, not the
+  // level, and its severity follows the level: a heads-up while the
+  // ratio is still in range (hold volume), an alert once it is past the
+  // in-range top (trim), a deload only past the spike line — so it can
+  // never say "deload" while the Load Ratio card says "in range".
   const acwrAccel = checkACWRAcceleration(performance)
   if (acwrAccel.accelerating) {
+    const from = acwrAccel.acwr3dAgo.toFixed(2)
+    const to = acwrAccel.acwrNow.toFixed(2)
+    const inRange = acwrAccel.acwrNow <= tuning.acwrSweetTop
+    const spike = acwrAccel.acwrNow > tuning.acwrDanger
     flags.push({
       id: 'acwr_accel',
-      severity: 'alert',
-      title: 'Training load ramp accelerating',
-      message: `ACWR jumped from ${acwrAccel.acwr3dAgo.toFixed(2)} to ${acwrAccel.acwrNow.toFixed(2)} in 3 days. Injury risk climbing. Deload this week.`,
-      metric: `ACWR ${acwrAccel.acwrNow.toFixed(2)}`,
+      severity: inRange ? 'warning' : 'alert',
+      title: 'Load ramping fast',
+      message: inRange
+        ? `Your load ratio rose from ${from} to ${to} in three days. Still in range. Hold this week's volume flat; a rise past ${tuning.acwrSweetTop.toFixed(1)} is when to trim it.`
+        : spike
+          ? `Your load ratio rose from ${from} to ${to} in three days and is past the spike line. Injury risk elevated. Deload this week.`
+          : `Your load ratio rose from ${from} to ${to} in three days and is now above ${tuning.acwrSweetTop.toFixed(1)}. Injury risk climbing. Trim this week's volume.`,
+      metric: `+${acwrAccel.rise3d.toFixed(2)} in 3 d`,
     })
   }
 
@@ -966,7 +986,7 @@ export function checkInjuryRisk(
 const STATE_LABELS: Record<TrainingState, string> = {
   A: 'Well recovered',
   B: 'Not fully recovered',
-  C: 'Overreaching',
+  C: 'Under-recovered',
   D: 'Overtrained — deload recommended',
 }
 
@@ -1004,7 +1024,7 @@ export function generateReadinessMessage(
 
   if (status === 'YELLOW') {
     if (trainingState === 'C') {
-      return `Overreaching detected — ${context}48-72h easy block recommended. Zone 1-2 only.`
+      return `Under-recovered — ${context}48-72h easy block recommended. Zone 1-2 only.`
     }
     return `Moderate recovery — ${context}Consider reducing intensity to Z1-2 today.`
   }
@@ -1042,7 +1062,7 @@ export function suggestDailyAdjustment(
   // YELLOW: Zone 1-2 only, sport-specific adjustments
   if (status === 'YELLOW') {
     if (trainingState === 'C') {
-      return 'Overreaching — 48-72h easy block. Walk, yoga, or mobility only. No structured training.'
+      return 'Under-recovered — 48-72h easy block. Walk, yoga, or mobility only. No structured training.'
     }
     switch (workoutType) {
       case 'quality':

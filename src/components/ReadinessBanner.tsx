@@ -48,7 +48,7 @@ const STATUS_EMOJI: Record<ReadinessStatus, string> = { PEAK: '⭐', GREEN: '�
 const STATE_LABELS: Record<string, string> = {
   A: 'State A — Well Recovered',
   B: 'State B — Not Fully Recovered',
-  C: 'State C — Overreaching',
+  C: 'State C — Under-recovered',
   D: 'State D — Overtrained',
 }
 

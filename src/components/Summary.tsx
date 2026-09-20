@@ -168,8 +168,9 @@ export default function Summary({
       performance: latestPerf,
       readiness: todayScore,
       sorenessLoadByDate,
+      rampAlert: riskFlags.some(f => f.id === 'acwr_accel'),
     }),
-    [latestPerf, todayScore, sorenessLoadByDate],
+    [latestPerf, todayScore, sorenessLoadByDate, riskFlags],
   )
 
   const weekNarrative = useMemo(
