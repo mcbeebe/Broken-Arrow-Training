@@ -58,6 +58,9 @@ export interface AxisReading<S extends string> {
   label: string
   /** Severity 0-3. 0 = fine, 3 = stop. Drives `dominant` + `todayCall`. */
   severity: number
+  /** Nothing to read yet (no logged load, no readiness score). The
+   *  state is a placeholder; copy must not describe it as a reading. */
+  noData?: boolean
 }
 
 export interface TrainingSignals {
@@ -100,14 +103,16 @@ const LOAD_LABEL: Record<LoadState, string> = {
 
 export function classifyLoad(perf: PerformanceMetrics | null, bounds: AcwrBounds = ACWR_BOUNDS): AxisReading<LoadState> {
   if (!perf) {
-    return { state: 'balanced', label: 'No data', severity: 0 }
+    return { state: 'balanced', label: 'No data', severity: 0, noData: true }
   }
   const { tsb, acwr } = perf
+  const t = tsbZone(tsb).key
+  const a = acwrZone(acwr, bounds).key
   let state: LoadState
-  if (tsbZone(tsb).key === 'overreaching' || acwrZone(acwr, bounds).key === 'spike') state = 'danger'
-  else if (acwrZone(acwr, bounds).key === 'ramping') state = 'ramping'
-  else if (tsbZone(tsb).key === 'build') state = 'build'
-  else if (acwr < ACWR_BOUNDS.detrained) state = 'detrained'
+  if (t === 'overreaching' || a === 'spike') state = 'danger'
+  else if (a === 'ramping') state = 'ramping'
+  else if (t === 'build') state = 'build'
+  else if (a === 'detraining') state = 'detrained'   // the card's floor, not a private one
   else if (tsb > TSB_BOUNDS.fresh) state = 'productive'
   else state = 'balanced'
   return { state, label: LOAD_LABEL[state], severity: LOAD_SEVERITY[state] }
@@ -219,8 +224,16 @@ function buildReason(
     ramping: 'load is ramping fast',
     danger: 'load is in the danger zone',
   }
+  const loadPermissive: Record<LoadState, string> = {
+    detrained: 'load is low',
+    productive: 'load is fresh',
+    balanced: 'load is in range',
+    build: 'load is in the build zone',
+    ramping: 'load is ramping fast',
+    danger: 'load is in the danger zone',
+  }
   const phrases: Record<Axis, { restrictive: string; permissive: string }> = {
-    load: { restrictive: loadRestrictive[load.state], permissive: 'load says balanced' },
+    load: { restrictive: loadRestrictive[load.state], permissive: load.noData ? 'no load data yet' : loadPermissive[load.state] },
     body: { restrictive: 'body needs rest', permissive: 'body is recovered' },
     damage: { restrictive: 'soreness is climbing', permissive: 'soreness is fine' },
   }
@@ -296,7 +309,8 @@ export const AXIS_LABEL: Record<Axis, string> = {
   damage: 'soreness',
 }
 
-/** One sentence: load level, load rate, body — in that order. */
+/** One sentence: load level, load rate, body — in that order. "But"
+ *  joins the two when exactly one of them is asking for restraint. */
 export function todaysCallSentence(s: TrainingSignals): string {
   const level: Record<TrainingSignals['load']['state'], string> = {
     detrained: 'load has dropped below your base',
@@ -306,15 +320,19 @@ export function todaysCallSentence(s: TrainingSignals): string {
     ramping: 'load is ramping fast',
     danger: 'load is in the danger zone',
   }
-  const loadPart = level[s.load.state] + (s.rampAlert && s.load.state !== 'ramping' && s.load.state !== 'danger' ? ' but climbing fast' : '')
-  const body =
+  const climbing = s.rampAlert && s.load.state !== 'ramping' && s.load.state !== 'danger'
+  const loadPart = s.load.noData
+    ? 'no load data yet'
+    : level[s.load.state] + (climbing ? ' but climbing fast' : '')
+  const bodyPart =
     s.body.state === 'unknown' ? 'there is no body data yet'
     : s.body.state === 'red' ? 'your body needs rest'
     : s.body.state === 'yellow' ? "your body isn't absorbing it today"
     : 'your body is recovered'
+  const loadRestrictive = s.load.severity > 0 || climbing
+  const bodyRestrictive = s.body.severity > 0
+  const joiner = loadRestrictive !== bodyRestrictive && !s.load.noData && s.body.state !== 'unknown' ? ', but ' : ', and '
   const sore = s.damage.state === 'escalating' || s.damage.state === 'elevated' ? ', and soreness is climbing' : ''
-  const joiner = s.body.severity > 0 && s.load.severity === 0 && !s.rampAlert ? ', but ' : ', and '
-  const sentence = `${loadPart}${joiner}${body}${sore}.`
+  const sentence = `${loadPart}${joiner}${bodyPart}${sore}.`
   return sentence.charAt(0).toUpperCase() + sentence.slice(1)
 }
-

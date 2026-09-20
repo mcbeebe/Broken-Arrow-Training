@@ -1,11 +1,14 @@
 import type { ReadinessScore, ReadinessStatus, GarminHealthData } from '../types'
 import { LineChart, Line, ResponsiveContainer } from 'recharts'
 import Term from './TermGlossary'
+import { acwrZone, ACWR_BOUNDS, type AcwrBounds } from '../utils/loadZones'
 
 interface ReadinessBannerProps {
   todayScore: ReadinessScore
   todayHealth?: GarminHealthData
   healthHistory: GarminHealthData[]
+  /** The athlete's tuned in-range / spike lines. */
+  acwrBounds?: AcwrBounds
 }
 
 const STATUS_STYLES: Record<ReadinessStatus, { bg: string; border: string; text: string; badge: string; dot: string; accent: string }> = {
@@ -110,6 +113,7 @@ export default function ReadinessBanner({
   todayScore,
   todayHealth,
   healthHistory,
+  acwrBounds = ACWR_BOUNDS,
 }: ReadinessBannerProps) {
   const style = STATUS_STYLES[todayScore.status]
 
@@ -146,11 +150,15 @@ export default function ReadinessBanner({
         </div>
 
         {/* Load-ramp warning (ACWR) */}
-        {todayScore.acwr != null && todayScore.acwr > 1.3 && (
-          <div className="mb-1.5 text-[10px] font-medium text-amber-700 bg-amber-100 px-2 py-1 rounded inline-block">
-            ⚠️ <Term name="acwr" /> {todayScore.acwr.toFixed(2)} — {todayScore.acwr > 1.5 ? 'High injury risk' : 'Elevated'}
-          </div>
-        )}
+        {todayScore.acwr != null && (() => {
+          const zone = acwrZone(todayScore.acwr, acwrBounds)
+          if (zone.key !== 'ramping' && zone.key !== 'spike') return null
+          return (
+            <div className="mb-1.5 text-[10px] font-medium text-amber-700 bg-amber-100 px-2 py-1 rounded inline-block">
+              ⚠️ <Term name="acwr" /> {todayScore.acwr.toFixed(2)} — {zone.label}
+            </div>
+          )
+        })()}
 
         <p className={`text-sm ${style.text} leading-relaxed`}>
           {todayScore.message || 'Calculating readiness...'}

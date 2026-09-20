@@ -117,23 +117,50 @@ describe('every surface reads the same table', () => {
     expect(load.severity).toBe(0)
   })
 
-  it('the ramp alert can never say "deload" while the card says "in range"', () => {
-    // Sweep the level the alert fires at; whatever the card's tone is
-    // "good", the alert is a heads-up, and its message holds volume.
+  it('the ramp alert\'s tone and verb follow the Load Ratio card\'s at every level', () => {
+    // Sweep the level the alert fires at. Card "good" → heads-up, hold.
+    // Card "warning" (ramping) → heads-up, trim. Card "critical" (spike)
+    // → alert, deload. Never red where the card is amber, never "deload"
+    // where the card says "in range".
     for (let now = RAMP_ALERT.levelFloor + 0.01; now <= 1.8; now += 0.02) {
       const flags = checkInjuryRisk([], rampingSeries(now), undefined, undefined, undefined, DEFAULT_READINESS_TUNING)
       const ramp = flags.find(f => f.id === 'acwr_accel')
       expect(ramp, `no ramp flag at ${now}`).toBeTruthy()
       const card = acwrZone(now)
-      if (card.tone === 'good') {
-        expect(ramp!.severity).toBe('warning')
+      expect(ramp!.severity).toBe(card.tone === 'critical' ? 'alert' : 'warning')
+      if (card.key === 'in_range') {
         expect(ramp!.message).toMatch(/Still in range/)
+        expect(ramp!.message).toMatch(/Hold this week/)
         expect(ramp!.message).not.toMatch(/deload/i)
-      } else {
-        expect(ramp!.severity).toBe('alert')
       }
+      if (card.key === 'ramping') expect(ramp!.message).toMatch(/Trim this week/)
       if (card.key === 'spike') expect(ramp!.message).toMatch(/Deload/)
     }
+  })
+
+  it('a masters athlete has no ramping band: the glossary prints none and the alert never claims one', () => {
+    const masters = { ...DEFAULT_READINESS_TUNING, acwrDanger: 1.3 }
+    const zones = acwrZones(acwrBoundsFrom(masters))
+    expect(zones.map(z => z.key)).toEqual(['detraining', 'in_range', 'spike'])
+    expect(acwrZone(1.31, acwrBoundsFrom(masters)).key).toBe('spike')
+    const [ramp] = checkInjuryRisk([], rampingSeries(1.31), undefined, undefined, undefined, masters)
+    expect(ramp.severity).toBe('alert')
+    expect(ramp.message).toMatch(/Deload/)
+  })
+
+  it('the metric is the difference of the two numbers the sentence prints', () => {
+    const [ramp] = checkInjuryRisk([], rampingSeries(1.274, 1.125))
+    expect(ramp.message).toMatch(/from 1\.13 to 1\.27/)
+    expect(ramp.metric).toBe('+0.14 in 3 d')
+  })
+
+  it('a beginner\'s ramp alert fires from their lower in-range top', () => {
+    const beginner = { ...DEFAULT_READINESS_TUNING, acwrSweetTop: 1.2, acwrDanger: 1.4 }
+    const [ramp] = checkInjuryRisk([], rampingSeries(1.22), undefined, undefined, undefined, beginner)
+    expect(ramp).toBeTruthy()
+    expect(ramp.severity).toBe('warning')
+    expect(ramp.message).toMatch(/now above 1\.2/)
+    expect(ramp.message).toMatch(/Trim/)
   })
 
   it('the ramp alert shows the change, not the level', () => {
@@ -145,11 +172,18 @@ describe('every surface reads the same table', () => {
     expect(ramp.message).toBe('Your load ratio rose from 1.13 to 1.27 in three days. Still in range. Hold this week\'s volume flat; a rise past 1.3 is when to trim it.')
   })
 
-  it('a tuned in-range top moves the alert\'s severity with it', () => {
+  it('a tuned in-range top moves the alert\'s verb with it', () => {
     const beginner = { ...DEFAULT_READINESS_TUNING, acwrSweetTop: 1.2, acwrDanger: 1.4 }
     const [ramp] = checkInjuryRisk([], rampingSeries(1.27), undefined, undefined, undefined, beginner)
-    expect(ramp.severity).toBe('alert')
+    expect(ramp.severity).toBe('warning')
     expect(ramp.message).toMatch(/now above 1\.2/)
+    expect(ramp.message).toMatch(/Trim/)
+  })
+
+  it('the load axis and the Load Ratio card share one undertraining floor', () => {
+    expect(classifyLoad(perf(0, 0.75)).state).toBe('detrained')
+    expect(acwrZone(0.75).key).toBe('detraining')
+    expect(classifyLoad(perf(0, 0.8)).state).toBe('balanced')
   })
 })
 
@@ -171,6 +205,22 @@ describe('today\'s call — the one sentence the cards agree with', () => {
     expect(signals.coherence).toBe('aligned')
     expect(signals.todayCall).toBe('train')
     expect(todaysCallSentence(signals)).toBe('Load is in the build zone, and your body is recovered.')
+  })
+
+  it('with no logged load the sentence says so, and never claims "in range"', () => {
+    const signals = buildTrainingSignals({ performance: null, readiness: readiness('GREEN') })
+    expect(signals.load.noData).toBe(true)
+    expect(todaysCallSentence(signals)).toBe('No load data yet, and your body is recovered.')
+  })
+
+  it('"but" joins the clauses when exactly one side asks for restraint; soreness rides as a third clause', () => {
+    const sore = new Map([['2026-09-18', 35], ['2026-09-19', 35], ['2026-09-20', 35]])
+    expect(todaysCallSentence(buildTrainingSignals({ performance: perf(0, 1.0), readiness: readiness('YELLOW') })))
+      .toBe("Load is in range, but your body isn't absorbing it today.")
+    expect(todaysCallSentence(buildTrainingSignals({ performance: perf(0, 1.6), readiness: readiness('GREEN') })))
+      .toBe('Load is in the danger zone, but your body is recovered.')
+    const withSore = todaysCallSentence(buildTrainingSignals({ performance: perf(0, 1.0), readiness: readiness('GREEN'), sorenessLoadByDate: sore }))
+    expect(withSore).toMatch(/^Load is in range, and your body is recovered(, and soreness is climbing)?\.$/)
   })
 
   it('a fast ramp on a fine day lifts the load axis to "monitor", never past it', () => {

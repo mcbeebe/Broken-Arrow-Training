@@ -78,9 +78,9 @@ export const ACWR_BOUNDS: AcwrBounds & { detrained: number } = {
   low: 0.8,
   sweetTop: 1.3,
   danger: 1.5,
-  /** The training-signals engine's stricter floor: rest days naturally
-   *  dip the ratio below 0.8, so only a genuinely low ratio counts as
-   *  chronic load decaying. */
+  /** The weekly "add volume" recommendation's stricter floor: rest days
+   *  naturally dip the ratio below 0.8, so only a genuinely low ratio
+   *  earns a nudge. Every zone label uses `low`. */
   detrained: 0.7,
 }
 
@@ -97,10 +97,13 @@ export function acwrBoundsFrom(tuning?: Pick<ReadinessTuning, 'acwrSweetTop' | '
 const fmt = (n: number) => n.toFixed(1)
 
 export function acwrZones(b: AcwrBounds = ACWR_BOUNDS): LoadZone<ACWRRisk>[] {
+  // A masters athlete's tuning puts the spike line at the in-range top,
+  // so there is no ramping band to print.
+  const hasRamping = b.danger > b.sweetTop
   return [
     { key: 'detraining', label: 'Undertraining', tone: 'warning', range: `below ${fmt(b.low)}`, note: 'Load fell below your base. Add volume gradually.' },
     { key: 'in_range', label: 'In range', tone: 'good', range: `${fmt(b.low)} to ${fmt(b.sweetTop)}`, note: 'This week matches your base.' },
-    { key: 'ramping', label: 'Ramping fast', tone: 'warning', range: `${fmt(b.sweetTop)} to ${fmt(b.danger)}`, note: 'Injury risk climbing. Hold or trim volume this week.' },
+    ...(hasRamping ? [{ key: 'ramping' as const, label: 'Ramping fast', tone: 'warning' as const, range: `${fmt(b.sweetTop)} to ${fmt(b.danger)}`, note: 'Injury risk climbing. Trim this week\u2019s volume.' }] : []),
     { key: 'spike', label: 'Spike', tone: 'critical', range: `above ${fmt(b.danger)}`, note: 'Ramped too fast. Deload this week.' },
   ]
 }

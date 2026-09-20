@@ -9,7 +9,8 @@ import ManualLog from './ManualLog'
 import RaceReadinessDetailModal from './RaceReadinessDetailModal'
 import { buildRaceReadinessDetail, computeRaceReadiness, type ReadinessAssignment } from '../utils/raceReadiness'
 import { weeksUntilRace } from '../utils/raceCountdown'
-import { buildTrainingSignals } from '../utils/trainingSignals'
+import { buildTrainingSignals, type TrainingSignals } from '../utils/trainingSignals'
+import { hasRampAlert } from '../utils/readiness'
 import { buildWeekNarrative } from '../utils/weekNarrative'
 import PlanAtAGlance from './PlanAtAGlance'
 import { notesRowText, shouldShowNotesRow } from '../utils/planNotes'
@@ -50,6 +51,9 @@ interface SummaryProps {
   zones?: HRZone[]
   coachSnapshot?: CoachSnapshot | null
   riskFlags?: RiskFlag[]
+  /** The app's one load / body / damage reading (App builds it with the
+   *  athlete's tuned bounds). Built here only when not supplied. */
+  trainingSignals?: TrainingSignals | null
   /** Honest plan-level notes (feasibility, runway, goal-derived paces). */
   advisories?: PlanAdvisory[]
   /** Opens the plan's notes on the Plan tab. Absent = no row (nowhere to go). */
@@ -115,6 +119,7 @@ export default function Summary({
   zones,
   coachSnapshot,
   riskFlags = [],
+  trainingSignals: suppliedSignals,
   advisories = [],
   onOpenPlanNotes,
   planNotesSeen = false,
@@ -164,13 +169,13 @@ export default function Summary({
   // so verdicts come from one place instead of each card inventing its
   // own.
   const trainingSignals = useMemo(
-    () => buildTrainingSignals({
+    () => suppliedSignals ?? buildTrainingSignals({
       performance: latestPerf,
       readiness: todayScore,
       sorenessLoadByDate,
-      rampAlert: riskFlags.some(f => f.id === 'acwr_accel'),
+      rampAlert: hasRampAlert(riskFlags),
     }),
-    [latestPerf, todayScore, sorenessLoadByDate, riskFlags],
+    [suppliedSignals, latestPerf, todayScore, sorenessLoadByDate, riskFlags],
   )
 
   const weekNarrative = useMemo(

@@ -682,7 +682,7 @@ export function check3dHRVSlope(healthHistory: GarminHealthData[]): {
  *  which is worse than a steady ramp. This is a RATE signal: it can fire
  *  while the level is still in range, and the flag it produces says so
  *  (a "heads up" to hold volume, not a "deload"). */
-export function checkACWRAcceleration(performance: PerformanceMetrics[]): {
+export function checkACWRAcceleration(performance: PerformanceMetrics[], levelFloor: number = RAMP_ALERT.levelFloor): {
   accelerating: boolean
   acwrNow: number
   acwr3dAgo: number
@@ -703,9 +703,17 @@ export function checkACWRAcceleration(performance: PerformanceMetrics[]): {
   // Rate change: if delta(3d) > delta(prev 4d), acceleration
   const delta3d = acwrNow - acwr3d
   const delta4d = acwr3d - acwr7d
-  const accelerating = delta3d > RAMP_ALERT.minRise3d && delta3d > delta4d && acwrNow > RAMP_ALERT.levelFloor
+  const accelerating = delta3d > RAMP_ALERT.minRise3d && delta3d > delta4d && acwrNow > levelFloor
 
-  return { accelerating, acwrNow, acwr3dAgo: acwr3d, acwr7dAgo: acwr7d, rise3d: Math.round(delta3d * 100) / 100 }
+  // The rise is the difference of the two numbers the message prints,
+  // so "1.13 to 1.27" always reads "+0.14".
+  const rise3d = (Math.round(acwrNow * 100) - Math.round(acwr3d * 100)) / 100
+  return { accelerating, acwrNow, acwr3dAgo: acwr3d, acwr7dAgo: acwr7d, rise3d }
+}
+
+/** True when the injury checks' ramp alert is among the flags. */
+export function hasRampAlert(flags: RiskFlag[]): boolean {
+  return flags.some(f => f.id === 'acwr_accel')
 }
 
 /** Multi-day recovery failure: both HRV below baseline AND RHR above
@@ -879,11 +887,12 @@ export function checkInjuryRisk(
   }
 
   // The ramp alert talks about the ramp. It shows the change, not the
-  // level, and its severity follows the level: a heads-up while the
-  // ratio is still in range (hold volume), an alert once it is past the
-  // in-range top (trim), a deload only past the spike line — so it can
-  // never say "deload" while the Load Ratio card says "in range".
-  const acwrAccel = checkACWRAcceleration(performance)
+  // level, and its tone follows the Load Ratio card's tone for that
+  // level: a heads-up while the ratio is in range (hold volume) or
+  // ramping (trim), an alert only past the spike line (deload) — so it
+  // can never say "deload" while the card says "in range", and never
+  // paints red what the card paints amber.
+  const acwrAccel = checkACWRAcceleration(performance, Math.min(RAMP_ALERT.levelFloor, tuning.acwrSweetTop))
   if (acwrAccel.accelerating) {
     const from = acwrAccel.acwr3dAgo.toFixed(2)
     const to = acwrAccel.acwrNow.toFixed(2)
@@ -891,7 +900,7 @@ export function checkInjuryRisk(
     const spike = acwrAccel.acwrNow > tuning.acwrDanger
     flags.push({
       id: 'acwr_accel',
-      severity: inRange ? 'warning' : 'alert',
+      severity: spike ? 'alert' : 'warning',
       title: 'Load ramping fast',
       message: inRange
         ? `Your load ratio rose from ${from} to ${to} in three days. Still in range. Hold this week's volume flat; a rise past ${tuning.acwrSweetTop.toFixed(1)} is when to trim it.`

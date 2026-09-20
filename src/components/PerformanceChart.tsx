@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { PerformanceMetrics, WeeklyRecommendation, DailyTRIMP } from '../types'
-import { tsbZone, acwrZone, ACWR_BOUNDS, ACWR_IN_RANGE_RAMPING_NOTE, TSB_BANDS, type AcwrBounds, type ZoneTone } from '../utils/loadZones'
+import { tsbZone, acwrZone, ACWR_BOUNDS, ACWR_IN_RANGE_RAMPING_NOTE, TSB_BANDS, TSB_BOUNDS, type AcwrBounds, type ZoneTone } from '../utils/loadZones'
 import { localDateStr, formatLoadP } from '../utils/format'
 import {
   ComposedChart, Area, XAxis, YAxis, Tooltip,
@@ -95,7 +95,7 @@ export default function PerformanceChart({
     }
   })
 
-  const smoothedData = smoothSeries(rawData, 5)
+  const smoothedData = smoothSeries(rawData, 5, acwrBounds)
 
   // Compute y-axis domain from RAW data so collapsed and expanded views
   // share the same scale — reference bands (Training Zone, Race Day)
@@ -215,6 +215,8 @@ export default function PerformanceChart({
               {showBands && <ReferenceLine yAxisId="left" y={TSB_BANDS.build.y2} stroke="#3B82F6" strokeOpacity={0.4} strokeDasharray="4 4" strokeWidth={1} />}
               <ReferenceLine yAxisId="left" y={0} stroke={isDark ? '#475569' : '#94a3b8'} strokeDasharray="2 2" />
               {showBands && <ReferenceLine yAxisId="left" y={5} stroke="#059669" strokeOpacity={0.4} strokeDasharray="4 4" strokeWidth={1} />}
+              {/* The table's Peaked line, inside the race-day band */}
+              {showBands && <ReferenceLine yAxisId="left" y={TSB_BOUNDS.peaked} stroke="#059669" strokeOpacity={0.5} strokeDasharray="2 3" strokeWidth={1} label={{ value: 'Peaked', fontSize: expanded ? 11 : 9, fill: isDark ? '#6ee7b7' : '#047857', position: 'insideTopRight' }} />}
               {showBands && <ReferenceLine yAxisId="left" y={25} stroke="#059669" strokeOpacity={0.4} strokeDasharray="4 4" strokeWidth={1} />}
               {/* ACWR corridor: 0.8×CTL to 1.3×CTL — only when CTL is visible */}
               {visible.ctl && <Area yAxisId="left" type="natural" dataKey="acwrHigh" stroke="#7c3aed" strokeWidth={1} strokeDasharray="4 4" strokeOpacity={0.5} fill="none" dot={false} isAnimationActive={false} />}
@@ -409,7 +411,7 @@ interface ChartPoint {
   load7d: number
 }
 
-function smoothSeries(data: ChartPoint[], window: number): ChartPoint[] {
+function smoothSeries(data: ChartPoint[], window: number, bounds: AcwrBounds): ChartPoint[] {
   if (data.length <= window) return data
   return data.map((point, i) => {
     const halfW = Math.floor(window / 2)
@@ -425,8 +427,8 @@ function smoothSeries(data: ChartPoint[], window: number): ChartPoint[] {
       tsbSmooth: slice.reduce((s, p) => s + p.tsb, 0) / n,
       load: slice.reduce((s, p) => s + p.load, 0) / n,
       load7d: slice.reduce((s, p) => s + p.load7d, 0) / n,
-      acwrLow: smoothCtl * 0.8,
-      acwrHigh: smoothCtl * 1.3,
+      acwrLow: smoothCtl * bounds.low,
+      acwrHigh: smoothCtl * bounds.sweetTop,
     }
   })
 }

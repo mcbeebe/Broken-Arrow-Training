@@ -13,6 +13,7 @@ import { getMilesNumber } from '../utils/format'
 import { shouldTrackVerticalGain, parseRaceElevationFt } from '../utils/raceReadiness'
 import { filterByTimeWindow, type TimeWindow } from '../utils/performance'
 import { TSB_ZONES, acwrZones, acwrBoundsFrom } from '../utils/loadZones'
+import { hasRampAlert } from '../utils/readiness'
 import { TODAY_CALL_LABEL, todaysCallSentence, type TrainingSignals } from '../utils/trainingSignals'
 import type { ReadinessTuning } from '../utils/engineConfig'
 import ReadinessBanner from './ReadinessBanner'
@@ -247,6 +248,7 @@ export default function Dashboard({
           dailyTrimp={dailyTrimp}
           riskFlags={riskFlags}
           signals={trainingSignals}
+          readinessTuning={readinessTuning}
           glossaryDefaultOpen={glossaryDefaultOpen}
         />
       )}
@@ -450,6 +452,7 @@ function ReadinessTab({
   dailyTrimp,
   riskFlags,
   signals,
+  readinessTuning,
   glossaryDefaultOpen = false,
 }: {
   todayScore?: ReadinessScore | null
@@ -459,6 +462,7 @@ function ReadinessTab({
   dailyTrimp: DailyTRIMP[]
   riskFlags: RiskFlag[]
   signals?: TrainingSignals | null
+  readinessTuning?: ReadinessTuning
   glossaryDefaultOpen?: boolean
 }) {
   const verdict = readinessVerdict(weekScores)
@@ -471,6 +475,7 @@ function ReadinessTab({
           todayScore={todayScore}
           todayHealth={todayHealth}
           healthHistory={healthHistory}
+          acwrBounds={acwrBoundsFrom(readinessTuning)}
         />
       )}
 
@@ -521,14 +526,15 @@ function ReadinessTab({
       )}
 
       {/* Glossary */}
-      <ReadinessGlossary defaultOpen={glossaryDefaultOpen} />
+      <ReadinessGlossary defaultOpen={glossaryDefaultOpen} readinessTuning={readinessTuning} />
     </div>
   )
 }
 
 // ─── Readiness Glossary ────────────────────────────────────────
 
-function ReadinessGlossary({ defaultOpen = false }: { defaultOpen?: boolean }) {
+function ReadinessGlossary({ defaultOpen = false, readinessTuning }: { defaultOpen?: boolean; readinessTuning?: ReadinessTuning }) {
+  const b = acwrBoundsFrom(readinessTuning)
   const [open, setOpen] = useState(defaultOpen)
   return (
     <div className="bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
@@ -572,7 +578,7 @@ function ReadinessGlossary({ defaultOpen = false }: { defaultOpen?: boolean }) {
 
         <div>
           <p className="font-semibold text-slate-700 dark:text-slate-200">Am I ramping safely? <span className="text-slate-400 text-xs font-normal">(load ratio · 20%)</span></p>
-          <p>Last 7 days of training stress against your base. 0.8–1.3 is in range; above 1.5 is a spike that forces YELLOW. It is the same Load Ratio the Performance tab shows.</p>
+          <p>Last 7 days of training stress against your base. {b.low}–{b.sweetTop} is in range; above {b.danger} is a spike that forces YELLOW. It is the same Load Ratio the Performance tab shows.</p>
         </div>
 
         <div className="pt-2 border-t border-slate-200 dark:border-slate-700">
@@ -661,7 +667,7 @@ function PerformanceTab({
           raceDate={raceDate}
           dailyTrimp={dailyTrimp}
           athleteId={athleteId}
-          rampAlert={riskFlags.some(f => f.id === 'acwr_accel')}
+          rampAlert={hasRampAlert(riskFlags)}
           acwrBounds={acwrBoundsFrom(readinessTuning)}
         />
       )}
@@ -754,11 +760,18 @@ function RiskFlagsCard({ flags, showAllClear = false }: { flags: RiskFlag[]; sho
 // it. Field bug (2026-09-20): a load ratio of 1.27 read "safe" on one
 // card and "deload" on the next, with no sentence tying them together.
 
-const CALL_HEADLINE: Record<TrainingSignals['todayCall'], string> = {
-  rest: 'Rest today.',
-  easy: "Easy day. Hold this week's volume.",
-  monitor: 'Train, and keep an eye on it.',
-  train: 'Train as planned.',
+/** The headline carries the verb the dominant axis asks for, so it
+ *  never says "hold" where the Load Ratio card says "trim". */
+function callHeadline(s: TrainingSignals): string {
+  switch (s.todayCall) {
+    case 'rest': return 'Rest today.'
+    case 'easy':
+      return s.dominant === 'load' && s.load.state === 'ramping'
+        ? "Easy day. Trim this week's volume."
+        : "Easy day. Hold this week's volume."
+    case 'monitor': return 'Train, and keep an eye on it.'
+    default: return 'Train as planned.'
+  }
 }
 
 const CALL_STRIPE: Record<TrainingSignals['todayCall'], string> = {
@@ -769,15 +782,23 @@ const CALL_STRIPE: Record<TrainingSignals['todayCall'], string> = {
 }
 
 function TodaysCallCard({ signals }: { signals: TrainingSignals }) {
-  const pill = (tone: 'good' | 'warn' | 'bad', text: string) => (
+  const pill = (tone: 'good' | 'neutral' | 'warn' | 'bad', text: string) => (
     <span className={`inline-block px-2.5 py-1 rounded-full text-[11px] font-semibold ${
       tone === 'good' ? 'bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300'
+      : tone === 'neutral' ? 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300'
       : tone === 'warn' ? 'bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300'
       : 'bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300'
     }`}>{text}</span>
   )
   const levelLabel = signals.load.label.replace(' · climbing fast', '')
-  const levelTone = signals.load.state === 'danger' ? 'bad' : signals.load.state === 'ramping' || signals.load.state === 'detrained' ? 'warn' : 'good'
+  // Same tones as the Recovery Balance / Load Ratio cards: the build zone
+  // is neutral there, so it is neutral here.
+  const levelTone =
+    signals.load.noData ? 'neutral'
+    : signals.load.state === 'danger' ? 'bad'
+    : signals.load.state === 'ramping' || signals.load.state === 'detrained' ? 'warn'
+    : signals.load.state === 'build' ? 'neutral'
+    : 'good'
   const bodyTone = signals.body.state === 'red' ? 'bad' : signals.body.state === 'yellow' ? 'warn' : 'good'
   return (
     <div
@@ -785,7 +806,7 @@ function TodaysCallCard({ signals }: { signals: TrainingSignals }) {
       data-testid="todays-call"
     >
       <p className="text-[11px] font-bold uppercase tracking-wide text-slate-400">Today's call · {TODAY_CALL_LABEL[signals.todayCall]}</p>
-      <p className="text-base font-bold text-slate-800 dark:text-white mt-0.5">{CALL_HEADLINE[signals.todayCall]}</p>
+      <p className="text-base font-bold text-slate-800 dark:text-white mt-0.5">{callHeadline(signals)}</p>
       <p className="text-sm text-slate-600 dark:text-slate-300 mt-1 leading-snug">{todaysCallSentence(signals)}</p>
       <div className="flex flex-wrap gap-1.5 mt-2.5">
         {pill(levelTone, `Load level · ${levelLabel.toLowerCase()}`)}

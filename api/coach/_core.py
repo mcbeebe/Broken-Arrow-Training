@@ -785,8 +785,9 @@ Composite biometric score 0-100 combining four inputs:
   2-5 below = Good, within +5 = Normal, above +5 = Low.
 - Sleep (20%): 8.5+ hrs = Excellent, 7+ = Good, 6+ = Normal, <6 = Low.
   Sleep <6h triggers an acute guardrail → forces YELLOW.
-- Training Load ACWR (20%): 7d/28d span-based EWMA. Sweet spot 0.8-1.3
-  = Normal; 1.3-1.5 = caution; >1.5 = Low (forces YELLOW).
+- Training Load ACWR (20%): the same Load Ratio the Performance tab
+  shows. In range 0.8-1.3 = Normal; 1.3-1.5 = ramping fast; >1.5 = spike
+  (forces YELLOW). The app never says "sweet spot" or "caution".
 
 Signals: PEAK (top recovery, ideal for VO2max/race-pace, max 1/7 days),
 GREEN (execute as planned), YELLOW (reduce intensity/volume, stay Z1-2),
@@ -809,8 +810,14 @@ RED. Max 2 consecutive GREEN/PEAK before forced YELLOW. Max 1 PEAK/7d.
 - Recovery Balance (TSB): CTL − ATL. Positive = fresher than fitness
   level (ideal for racing). Negative = fatigue outpacing base (normal
   in early build weeks). Race-day target: +15 to +25 ("peak form").
-- ACWR (Performance tab): tau-based EWMA 7d/42d. Sweet spot 0.8-1.3.
-  Separate from the Readiness tab's span-based ACWR 7d/28d.
+- Load Ratio (ACWR): tau-based EWMA 7d/42d. In range 0.8-1.3; ramping
+  fast 1.3-1.5; spike >1.5. One number, shown on both tabs. A separate
+  ramp alert watches how fast it moved over three days and can ask the
+  athlete to hold volume while the level is still in range.
+- Recovery Balance zones, the words the app uses: +15 and up Peaked;
+  +5 to +15 Fresh; -10 to +5 Steady; -30 to -10 Build zone (tired by
+  design in a build week — neutral unless readiness agrees); below -30
+  Overreaching. Never call the build zone overreaching.
 
 Training load source: Garmin EPOC (activityTrainingLoad from Firstbeat)
 when available; Banister TRIMP fallback when no watch data. Adjusted by

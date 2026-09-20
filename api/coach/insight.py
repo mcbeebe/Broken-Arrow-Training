@@ -58,7 +58,7 @@ SURFACE_INSTRUCTIONS = {
         "snapshot that most shaped your message: e.g. "
         "'Triggered by: HRV -22% vs 7d baseline + sleep 5h12m', "
         "'Triggered by: completed long run 7.2 mi / 1,520 ft', "
-        "'Triggered by: ACWR 1.42 (caution band)', "
+        "'Triggered by: ACWR 1.42 (ramping fast)', "
         "'Triggered by: Week 5 recovery phase'. If nothing notable, use "
         "'Triggered by: scheduled check-in'. Keep it terse (under 60 chars). "
         "The line gets surfaced as a chip in the UI — never paraphrase, "

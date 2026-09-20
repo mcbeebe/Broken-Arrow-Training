@@ -3,6 +3,7 @@ import { useEffect, useRef } from 'react'
 import type { CoachSnapshot, PlannedDay, ReadinessScore, StravaActivity, GarminActivity } from '../types'
 import { coachApiAvailable, coachApiBase, coachAuthHeaders} from '../utils/coachApi'
 import type { UseCoachMemoryReturn } from './useCoachMemory'
+import { ACWR_BOUNDS } from '../utils/loadZones'
 
 /**
  * Client-side proactive-ping driver. Observes recent state + local flags,
@@ -263,10 +264,10 @@ export function useProactivePings(inputs: Inputs) {
         }
       }
 
-      // acwr_spike — Load Ratio crosses the caution band (>1.3).
+      // acwr_spike — Load Ratio leaves the in-range band.
       const acwr = snapshot?.performance?.acwr
-      if (typeof acwr === 'number' && acwr > 1.3) {
-        const band = acwr > 1.5 ? 'danger' : 'caution'
+      if (typeof acwr === 'number' && acwr > ACWR_BOUNDS.sweetTop) {
+        const band = acwr > ACWR_BOUNDS.danger ? 'danger' : 'caution'
         const k = `acwr_spike:${athleteId}:${todayDate}`
         if (!lsGet(k)) {
           lsSet(k, '1')

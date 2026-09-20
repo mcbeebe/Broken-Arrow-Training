@@ -125,6 +125,7 @@ import { resolutionNote } from './utils/resolutionNote'
 import { buildRhythm, newestOpenDay, plannedDayFor } from './utils/rhythm'
 import { buildTrainingSignals } from './utils/trainingSignals'
 import { acwrBoundsFrom } from './utils/loadZones'
+import { hasRampAlert } from './utils/readiness'
 import { computeRaceReadiness } from './utils/raceReadiness'
 import { weeksUntilRace } from './utils/raceCountdown'
 import { buildVerdict } from './utils/verdict'
@@ -1572,7 +1573,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     performance: latestPerf,
     readiness: readiness.todayScore,
     sorenessLoadByDate: soreness.sorenessLoadByDate,
-    rampAlert: readiness.riskFlags.some(f => f.id === 'acwr_accel'),
+    rampAlert: hasRampAlert(readiness.riskFlags),
     acwrBounds: acwrBoundsFrom(readinessTuning),
   }), [latestPerf, readiness.todayScore, soreness.sorenessLoadByDate, readiness.riskFlags, readinessTuning])
 
@@ -2353,6 +2354,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           zones={hrZones.zones}
           coachSnapshot={coachSnapshot}
           riskFlags={readiness.riskFlags}
+          trainingSignals={trainingSignals}
           advisories={allAdvisories}
           onOpenPlanNotes={openPlanNotes}
           planNotesSeen={planNotesRead}
