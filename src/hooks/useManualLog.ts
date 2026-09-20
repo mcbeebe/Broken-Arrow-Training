@@ -57,10 +57,38 @@ function loadLogs(athleteId: string): ManualLogs {
   }
 }
 
-/** Same recorded activity: a shared Garmin or Strava id. A hand-typed
- *  log (id 0 / a Date.now() stamp) matches nothing. */
-function sameSource(a: ActualWorkout, b: ActualWorkout): boolean {
-  return Boolean((a.garminId && a.garminId === b.garminId) || (a.stravaId && a.stravaId === b.stravaId))
+/** Same recorded activity: a shared Garmin, Strava or Apple id. A
+ *  hand-typed log (id 0 / a Date.now() stamp) matches nothing. */
+export function sameSource(a: ActualWorkout, b: ActualWorkout): boolean {
+  return Boolean(
+    (a.garminId && a.garminId === b.garminId)
+    || (a.stravaId && a.stravaId === b.stravaId)
+    || (a.appleId && a.appleId === b.appleId),
+  )
+}
+
+/** A stored copy of a synced activity (source as recorded) rather than
+ *  something the athlete typed, marked done, or played live. */
+function isSyncedSnapshot(a: ActualWorkout): boolean {
+  return a.source != null && a.source !== 'manual' && Boolean(a.garminId || a.stravaId || a.appleId)
+}
+
+/**
+ * The entry that makes `sec` the day's main workout: the activity as
+ * recorded, carrying the day's own notes, RPE, drills, strength log and
+ * station splits from whatever entry was there before — a swap never
+ * deletes what the athlete wrote, and swapping back carries it back.
+ */
+export function claimEntry(sec: ActualWorkout, prev: ActualWorkout | undefined): ActualWorkout {
+  if (!prev) return { ...sec }
+  return {
+    ...sec,
+    notes: sec.notes ?? prev.notes,
+    rpe: sec.rpe ?? prev.rpe,
+    drills: sec.drills ?? prev.drills,
+    strengthLog: sec.strengthLog ?? prev.strengthLog,
+    stationSplits: sec.stationSplits ?? prev.stationSplits,
+  }
 }
 
 export function useManualLog(athleteId: string) {
@@ -117,20 +145,36 @@ export function useManualLog(athleteId: string) {
           ? (iso ? logs[iso] : undefined) ?? logs[day.day]
           : logs[manualLogKey(day.day)] ?? logs[day.day]
         if (!logged) return day
-        // Claim bridge: when the logged actual IS one of the day's "other
-        // activities" (the athlete tapped "count this as today's workout"
-        // or "make this my main workout"), it becomes the actual as
-        // recorded, and the activity the sync had picked steps down into
-        // that list — still visible, still counted, one tap from being
-        // picked back. Keyed on the source id because isDuplicateActual
-        // only dedups within a sport family, so a cross-family claim (an
-        // erg on a ride day) would otherwise survive.
-        const claimed = day.secondaryActuals?.find(sec => sameSource(sec, logged))
-        if (claimed) {
-          const others = (day.secondaryActuals ?? []).filter(sec => sec !== claimed)
-          const displaced = day.actual && !sameSource(day.actual, logged) ? [day.actual] : []
+        // Claim bridge: when the logged entry is a copy of one of the day's
+        // "other activities" (the athlete tapped "count this as today's
+        // workout" or "make this my main workout"), that activity becomes
+        // the actual — the live synced copy where the sync still has it,
+        // with the entry's edits and notes layered on — and the activity
+        // the sync had picked steps down into the list: still visible,
+        // still counted, one tap from being picked back. Keyed on the
+        // source id because isDuplicateActual only dedups within a sport
+        // family, so a cross-family claim (an erg on a ride day) would
+        // otherwise survive.
+        //
+        // A snapshot of a synced activity the sync no longer lists (deleted
+        // upstream, source disconnected) is still a claim — it shows as
+        // recorded and the sync's pick steps down. Merging it over the
+        // pick would build a hike wearing the run's HR zones.
+        const inList = day.secondaryActuals?.find(sec => sameSource(sec, logged))
+        const matchesPick = day.actual != null && sameSource(day.actual, logged)
+        if (inList || (isSyncedSnapshot(logged) && day.actual && !matchesPick)) {
+          const live = inList ?? logged
+          const actual: ActualWorkout = {
+            ...live, ...logged,
+            stravaId: live.stravaId || logged.stravaId,
+            garminId: live.garminId ?? logged.garminId,
+            appleId: live.appleId ?? logged.appleId,
+            source: live.source ?? logged.source,
+          }
+          const others = (day.secondaryActuals ?? []).filter(sec => sec !== inList)
+          const displaced = day.actual && !matchesPick ? [day.actual] : []
           const secondaryActuals = [...displaced, ...others]
-          return { ...day, actual: logged, ...(secondaryActuals.length > 0 ? { secondaryActuals } : { secondaryActuals: undefined }) }
+          return { ...day, actual, secondaryActuals: secondaryActuals.length > 0 ? secondaryActuals : undefined }
         }
         // Edit: preserve Garmin biometrics (garminId, source, epoc, TE, HR
         // zones) from the existing actual, layer manual edits on top.

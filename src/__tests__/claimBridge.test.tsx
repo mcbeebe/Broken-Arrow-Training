@@ -7,7 +7,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, fireEvent, cleanup } from '@testing-library/react'
 import { renderHook, act } from '@testing-library/react'
 import type { ActualWorkout, PlannedDay, TrainingWeek } from '../types'
-import { useManualLog } from '../hooks/useManualLog'
+import { useManualLog, claimEntry } from '../hooks/useManualLog'
 import WorkoutModal from '../components/WorkoutModal'
 
 afterEach(cleanup)
@@ -72,6 +72,93 @@ describe('useManualLog — claim resolves the day and de-dups the secondary', ()
     ;[w] = result.current.applyLogsToWeeks([week()])
     expect(w.days[0].actual?.name).toBe('Long run')
     expect(w.days[0].secondaryActuals?.map(s => s.name)).toEqual(['Berkeley Hiking'])
+  })
+
+  it('a claimed activity the sync no longer lists shows as recorded — never merged over the sync\'s pick', () => {
+    localStorage.clear()
+    const run: ActualWorkout = {
+      stravaId: 4242, garminId: 9, source: 'garmin', distance: 5, movingTime: 3600, elapsedTime: 3700,
+      elevationGain: 120, avgHR: 142, epoc: 80, hrZoneSummary: [{ zone: 2, seconds: 3000 }],
+      type: 'Run', name: 'Long run', startDate: '2026-09-20T08:00:00',
+    }
+    const hike: ActualWorkout = {
+      stravaId: 4343, source: 'strava', distance: 4.4, movingTime: 4320, elapsedTime: 4500,
+      elevationGain: 900, avgHR: 137, type: 'Hike', name: 'Berkeley Hiking', startDate: '2026-09-20T11:00:00',
+    }
+    const week: TrainingWeek = {
+      num: 1, dates: 'Sep 14–20', startIso: '2026-09-14', miles: 20, focus: 'Build',
+      days: [{ day: 'Sun 9/20', type: 'long', workout: 'Long run', detail: '', zone: 'Z2', route: 'Any route', time: '60 min', actual: run }],
+    }
+    const { result } = renderHook(() => useManualLog('mike'))
+    act(() => result.current.logWorkout('Sun 9/20', hike, '2026-09-20')) // the hike was deleted on Strava since
+    const [w] = result.current.applyLogsToWeeks([week])
+    expect(w.days[0].actual).toEqual(hike)
+    expect(w.days[0].actual?.epoc).toBeUndefined()
+    expect(w.days[0].actual?.garminId).toBeUndefined()
+    expect(w.days[0].secondaryActuals?.map(s => s.name)).toEqual(['Long run'])
+  })
+
+  it('the live synced copy wins the swap, with the entry\'s edits layered on', () => {
+    localStorage.clear()
+    const run: ActualWorkout = {
+      stravaId: 4242, source: 'strava', distance: 5, movingTime: 3600, elapsedTime: 3700,
+      elevationGain: 120, type: 'Run', name: 'Long run', startDate: '2026-09-20T08:00:00',
+    }
+    const hike: ActualWorkout = {
+      stravaId: 4343, source: 'strava', distance: 4.4, movingTime: 4320, elapsedTime: 4500,
+      elevationGain: 900, avgHR: 137, type: 'Hike', name: 'Berkeley Hiking', startDate: '2026-09-20T11:00:00',
+    }
+    const week: TrainingWeek = {
+      num: 1, dates: 'Sep 14–20', startIso: '2026-09-14', miles: 20, focus: 'Build',
+      days: [{
+        day: 'Sun 9/20', type: 'long', workout: 'Long run', detail: '', zone: 'Z2', route: 'Any route', time: '60 min',
+        actual: run, secondaryActuals: [{ ...hike, name: 'Berkeley Hiking — renamed', maxHR: 171 }],
+      }],
+    }
+    const { result } = renderHook(() => useManualLog('mike'))
+    // The athlete edited the claimed hike's time and wrote a note.
+    act(() => result.current.logWorkout('Sun 9/20', { ...hike, movingTime: 4000, notes: 'steep' }, '2026-09-20'))
+    const [w] = result.current.applyLogsToWeeks([week])
+    expect(w.days[0].actual).toMatchObject({ name: 'Berkeley Hiking', maxHR: 171, movingTime: 4000, notes: 'steep' })
+  })
+
+  it('claimEntry carries the day\'s notes, RPE and strength log across the swap', () => {
+    const prev: ActualWorkout = {
+      stravaId: 4242, source: 'strava', distance: 5, movingTime: 3600, elapsedTime: 3700, elevationGain: 120,
+      type: 'Run', name: 'Long run', startDate: '2026-09-20T08:00:00', notes: 'felt great, new shoes', rpe: 6,
+      strengthLog: [{ name: 'Plank', focus: 'core', sets: [{ reps: 45, weight: 'BW' }] }],
+    }
+    const hike: ActualWorkout = {
+      stravaId: 4343, source: 'strava', distance: 4.4, movingTime: 4320, elapsedTime: 4500,
+      elevationGain: 900, type: 'Hike', name: 'Berkeley Hiking', startDate: '2026-09-20T11:00:00',
+    }
+    const entry = claimEntry(hike, prev)
+    expect(entry).toMatchObject({ stravaId: 4343, name: 'Berkeley Hiking', notes: 'felt great, new shoes', rpe: 6 })
+    expect(entry.strengthLog).toEqual(prev.strengthLog)
+    // The activity's own fields are never overwritten by the old entry's.
+    expect(entry.movingTime).toBe(4320)
+    expect(claimEntry(hike, undefined)).toEqual(hike)
+  })
+
+  it('Apple activities swap and de-dup by their workout id', () => {
+    localStorage.clear()
+    const appleRun: ActualWorkout = {
+      stravaId: 0, appleId: 'A-1', source: 'apple', distance: 3, movingTime: 1800, elapsedTime: 1800,
+      elevationGain: 0, type: 'running', name: 'Outdoor Run', startDate: '2026-09-07T08:00:00',
+    }
+    const appleWalk: ActualWorkout = {
+      stravaId: 0, appleId: 'A-2', source: 'apple', distance: 1, movingTime: 1200, elapsedTime: 1200,
+      elevationGain: 0, type: 'walking', name: 'Walk', startDate: '2026-09-07T18:00:00',
+    }
+    const week: TrainingWeek = {
+      num: 1, dates: 'Sep 7–13', startIso: '2026-09-07', miles: 20, focus: 'Build',
+      days: [{ day: 'Mon 9/7', type: 'quality', workout: 'Intervals', detail: '', zone: 'Z4', route: 'Track', time: '40 min', secondaryActuals: [appleRun, appleWalk] }],
+    }
+    const { result } = renderHook(() => useManualLog('mike'))
+    act(() => result.current.logWorkout('Mon 9/7', appleWalk, '2026-09-07'))
+    const [w] = result.current.applyLogsToWeeks([week])
+    expect(w.days[0].actual?.appleId).toBe('A-2')
+    expect(w.days[0].secondaryActuals?.map(s => s.appleId)).toEqual(['A-1'])
   })
 
   it('editing the synced main workout still merges onto it and leaves the other activities alone', () => {

@@ -1091,7 +1091,7 @@ export default function WorkoutModal({ day, weekNum, onClose, onLog, onStartLive
                   const partial = plannedSec > 0 && sec.movingTime > 0 && sec.movingTime < plannedSec * 0.4
                   return (
                   <div
-                    key={sec.garminId ?? sec.stravaId ?? i}
+                    key={sec.garminId || sec.stravaId || sec.appleId || i}
                     className="text-xs bg-white dark:bg-slate-800 rounded-lg px-2.5 py-1.5 border border-slate-100 dark:border-slate-700"
                   >
                     <div className="flex items-center justify-between gap-2">

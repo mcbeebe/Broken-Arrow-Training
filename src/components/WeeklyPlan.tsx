@@ -16,6 +16,7 @@ import { isSimDay } from '../utils/simSession'
 import { weeksWithPriorLogs } from '../utils/strengthHistory'
 import HyroxProjectionCard from './HyroxProjectionCard'
 import { loadDraft } from '../utils/liveSession'
+import { claimEntry } from '../hooks/useManualLog'
 import LiveSessionPlayer from './LiveSessionPlayer'
 import DayCard from './DayCard'
 import RacePacingCard from './RacePacingCard'
@@ -925,8 +926,11 @@ export default function WeeklyPlan({
             // resolves and its biometrics attach. The stored source stays as
             // recorded (strava/garmin/apple) so the rich data still renders;
             // applyLogsToWeeks then swaps it with the sync's pick, which
-            // steps down into the same list — so the tap is reversible.
-            manualLog.logWorkout(modalDay.day.day, sec, dayIsoInWeek(modalDay.day.day, modalDay.week, todayDateString()))
+            // steps down into the same list — so the tap is reversible. The
+            // day's own notes / RPE / strength log ride along.
+            const iso = dayIsoInWeek(modalDay.day.day, modalDay.week, todayDateString())
+            const prev = (iso ? manualLog.logs?.[iso] : undefined) ?? manualLog.logs?.[modalDay.day.day]
+            manualLog.logWorkout(modalDay.day.day, claimEntry(sec, prev), iso)
             setModalDay(null)
           } : undefined}
         />

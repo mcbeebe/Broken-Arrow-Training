@@ -198,6 +198,9 @@ export interface DayCompliance {
 export interface ActualWorkout {
   stravaId: number;
   garminId?: number;
+  /** Apple Health workout UUID — Apple activities carry no numeric id,
+   *  and a day's "other activities" are matched to a claim by id. */
+  appleId?: string;
   source?: 'strava' | 'garmin' | 'manual' | 'apple';
   distance: number;
   movingTime: number;
