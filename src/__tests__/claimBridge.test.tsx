@@ -42,6 +42,59 @@ describe('useManualLog — claim resolves the day and de-dups the secondary', ()
     expect(d.secondaryActuals?.map(s => s.garminId)).toEqual([777])
   })
 
+  it('with a main workout already picked, claiming an other activity swaps them — and the swap reverses', () => {
+    localStorage.clear()
+    const run: ActualWorkout = {
+      stravaId: 4242, source: 'strava', distance: 5, movingTime: 3600, elapsedTime: 3700,
+      elevationGain: 120, avgHR: 142, type: 'Run', name: 'Long run', startDate: '2026-09-20T08:00:00',
+    }
+    const hike: ActualWorkout = {
+      stravaId: 4343, source: 'strava', distance: 4.4, movingTime: 4320, elapsedTime: 4500,
+      elevationGain: 900, avgHR: 137, type: 'Hike', name: 'Berkeley Hiking', startDate: '2026-09-20T11:00:00',
+    }
+    const week = (): TrainingWeek => ({
+      num: 1, dates: 'Sep 14–20', startIso: '2026-09-14', miles: 20, focus: 'Build',
+      days: [{
+        day: 'Sun 9/20', type: 'long', workout: 'Long run', detail: '', zone: 'Z2', route: 'Any route', time: '60 min',
+        actual: run, secondaryActuals: [hike],
+      }],
+    })
+    const { result } = renderHook(() => useManualLog('mike'))
+
+    // The sync picked the run; the athlete says the hike was the session.
+    act(() => result.current.logWorkout('Sun 9/20', hike, '2026-09-20'))
+    let [w] = result.current.applyLogsToWeeks([week()])
+    expect(w.days[0].actual).toEqual(hike)                       // as recorded, not merged over the run
+    expect(w.days[0].secondaryActuals?.map(s => s.name)).toEqual(['Long run']) // the run steps down, still visible
+
+    // Vice versa: pick the run back from the list.
+    act(() => result.current.logWorkout('Sun 9/20', run, '2026-09-20'))
+    ;[w] = result.current.applyLogsToWeeks([week()])
+    expect(w.days[0].actual?.name).toBe('Long run')
+    expect(w.days[0].secondaryActuals?.map(s => s.name)).toEqual(['Berkeley Hiking'])
+  })
+
+  it('editing the synced main workout still merges onto it and leaves the other activities alone', () => {
+    localStorage.clear()
+    const run: ActualWorkout = {
+      stravaId: 4242, garminId: 9, source: 'garmin', distance: 5, movingTime: 3600, elapsedTime: 3700,
+      elevationGain: 120, avgHR: 142, epoc: 80, type: 'Run', name: 'Long run', startDate: '2026-09-20T08:00:00',
+    }
+    const week: TrainingWeek = {
+      num: 1, dates: 'Sep 14–20', startIso: '2026-09-14', miles: 20, focus: 'Build',
+      days: [{
+        day: 'Sun 9/20', type: 'long', workout: 'Long run', detail: '', zone: 'Z2', route: 'Any route', time: '60 min',
+        actual: run, secondaryActuals: [walk()],
+      }],
+    }
+    const { result } = renderHook(() => useManualLog('mike'))
+    // ManualLog keeps the existing stravaId and layers notes/RPE on top.
+    act(() => result.current.logWorkout('Sun 9/20', { ...run, garminId: undefined, source: 'manual', rpe: 7, notes: 'legs heavy' }, '2026-09-20'))
+    const [w] = result.current.applyLogsToWeeks([week])
+    expect(w.days[0].actual).toMatchObject({ garminId: 9, source: 'garmin', epoc: 80, rpe: 7, notes: 'legs heavy' })
+    expect(w.days[0].secondaryActuals?.map(s => s.garminId)).toEqual([777])
+  })
+
   it('a hand-typed manual log (no source id) never strips real secondaries', () => {
     localStorage.clear()
     const { result } = renderHook(() => useManualLog('mike'))
@@ -72,14 +125,29 @@ describe('WorkoutModal — the claim button', () => {
     expect(onClaim.mock.calls[0][0].garminId).toBe(555)
   })
 
-  it('shows no claim button once the day already has an actual', () => {
+  it('once the day has a main workout, each other activity offers to become it instead', () => {
+    localStorage.clear()
+    const onClaim = vi.fn()
+    const day: PlannedDay = {
+      day: 'Mon 9/7', type: 'quality', workout: 'Intervals', detail: '', zone: 'Z4', route: 'Track', time: '40 min',
+      actual: { ...erg(), garminId: 999, name: 'Matched run', type: 'Run' },
+      secondaryActuals: [erg(), walk()],
+    }
+    render(<WorkoutModal {...base} day={day} onClaimSecondary={onClaim} />)
+    expect(screen.getByText(/The Run session above is your main workout/)).toBeTruthy()
+    expect(screen.getAllByText('Make this my main workout')).toHaveLength(2)
+    fireEvent.click(screen.getByTestId('claim-secondary-1'))
+    expect(onClaim.mock.calls[0][0].garminId).toBe(777)
+  })
+
+  it('without a claim handler, the list is read-only', () => {
     localStorage.clear()
     const day: PlannedDay = {
       day: 'Mon 9/7', type: 'quality', workout: 'Intervals', detail: '', zone: 'Z4', route: 'Track', time: '40 min',
       actual: { ...erg(), garminId: 999, name: 'Matched run' },
       secondaryActuals: [erg()],
     }
-    render(<WorkoutModal {...base} day={day} onClaimSecondary={vi.fn()} />)
+    render(<WorkoutModal {...base} day={day} />)
     expect(screen.queryByTestId('claim-secondary-0')).toBeNull()
   })
 })

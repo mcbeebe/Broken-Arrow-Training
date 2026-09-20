@@ -921,10 +921,11 @@ export default function WeeklyPlan({
           onReweightPlan={onReweightPlan}
           currentWeakStation={onboardingConfig?.weakStation}
           onClaimSecondary={manualLog ? (sec) => {
-            // Claim a demoted activity as today's workout: log it so the day
+            // Claim an "other activity" as today's workout: log it so the day
             // resolves and its biometrics attach. The stored source stays as
             // recorded (strava/garmin/apple) so the rich data still renders;
-            // applyLogsToWeeks then drops it from the secondaries list by id.
+            // applyLogsToWeeks then swaps it with the sync's pick, which
+            // steps down into the same list — so the tap is reversible.
             manualLog.logWorkout(modalDay.day.day, sec, dayIsoInWeek(modalDay.day.day, modalDay.week, todayDateString()))
             setModalDay(null)
           } : undefined}

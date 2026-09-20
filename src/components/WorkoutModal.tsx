@@ -179,7 +179,8 @@ interface WorkoutModalProps {
    *  cross-family erg, a cut-short session), it lands in "other activities"
    *  and the day grades missed. This resolves the day from that activity —
    *  its biometrics attach — without loosening the auto-match gates. Shown
-   *  per secondary only when the day is still unclaimed. */
+   *  per secondary; on a day that already has a main workout the same tap
+   *  swaps the two, and the swap reverses the same way. */
   onClaimSecondary?: (sec: ActualWorkout) => void
 }
 
@@ -1069,7 +1070,11 @@ export default function WorkoutModal({ day, weekNum, onClose, onLog, onStartLive
             // session — and the day grades missed. Offer to claim one as
             // today's workout: it rides the manual-log override, so the
             // gates stay strict but the repair is one tap, not buried.
+            // When something DID match, the same tap swaps it: the sync's
+            // pick is a guess (a long run and a hike on the same day), and
+            // the athlete knows which one was the session.
             const unclaimed = !actual && !!onClaimSecondary
+            const claimable = !!onClaimSecondary
             const plannedSec = plannedDurationSec(day)
             return (
             <div className="bg-slate-50 dark:bg-slate-900 rounded-xl p-3 border border-slate-200 dark:border-slate-700 space-y-2">
@@ -1079,7 +1084,7 @@ export default function WorkoutModal({ day, weekNum, onClose, onLog, onStartLive
               <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-snug">
                 {unclaimed
                   ? "These didn't auto-match today's session, so it's still open. Count one as done and its data attaches to the day."
-                  : <>Picked the {actual?.type ?? 'primary'} session above as your main workout. These are also counted in your 7-Day Training Load.</>}
+                  : <>The {actual?.type?.replace(/_/g, ' ') ?? 'primary'} session above is your main workout. These are also counted in your 7-Day Training Load{claimable ? ' — tap one to make it the main workout instead' : ''}.</>}
               </p>
               <div className="space-y-1.5">
                 {day.secondaryActuals.map((sec, i) => {
@@ -1103,14 +1108,18 @@ export default function WorkoutModal({ day, weekNum, onClose, onLog, onStartLive
                         </p>
                       </div>
                     </div>
-                    {unclaimed && (
+                    {claimable && (
                       <div className="mt-1.5">
                         <button
                           onClick={() => onClaimSecondary!(sec)}
-                          className="w-full rounded-lg px-2.5 py-1.5 text-[11px] font-semibold bg-teal-600 text-white active:bg-teal-700"
+                          className={`w-full rounded-lg px-2.5 py-1.5 text-[11px] font-semibold ${
+                            unclaimed
+                              ? 'bg-teal-600 text-white active:bg-teal-700'
+                              : 'border border-teal-300 dark:border-teal-700 text-teal-700 dark:text-teal-300 active:bg-teal-50'
+                          }`}
                           data-testid={`claim-secondary-${i}`}
                         >
-                          Count this as today's workout
+                          {unclaimed ? "Count this as today's workout" : 'Make this my main workout'}
                         </button>
                         {partial && (
                           <p className="mt-1 text-[10px] text-slate-500 dark:text-slate-400 leading-snug">

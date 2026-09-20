@@ -57,6 +57,12 @@ function loadLogs(athleteId: string): ManualLogs {
   }
 }
 
+/** Same recorded activity: a shared Garmin or Strava id. A hand-typed
+ *  log (id 0 / a Date.now() stamp) matches nothing. */
+function sameSource(a: ActualWorkout, b: ActualWorkout): boolean {
+  return Boolean((a.garminId && a.garminId === b.garminId) || (a.stravaId && a.stravaId === b.stravaId))
+}
+
 export function useManualLog(athleteId: string) {
   const [logs, setLogs] = useState<ManualLogs>(() => loadLogs(athleteId))
 
@@ -111,22 +117,27 @@ export function useManualLog(athleteId: string) {
           ? (iso ? logs[iso] : undefined) ?? logs[day.day]
           : logs[manualLogKey(day.day)] ?? logs[day.day]
         if (!logged) return day
-        // Merge: preserve Garmin biometrics (garminId, source, epoc, TE, HR
-        // zones) from the existing actual, layer manual edits on top
+        // Claim bridge: when the logged actual IS one of the day's "other
+        // activities" (the athlete tapped "count this as today's workout"
+        // or "make this my main workout"), it becomes the actual as
+        // recorded, and the activity the sync had picked steps down into
+        // that list — still visible, still counted, one tap from being
+        // picked back. Keyed on the source id because isDuplicateActual
+        // only dedups within a sport family, so a cross-family claim (an
+        // erg on a ride day) would otherwise survive.
+        const claimed = day.secondaryActuals?.find(sec => sameSource(sec, logged))
+        if (claimed) {
+          const others = (day.secondaryActuals ?? []).filter(sec => sec !== claimed)
+          const displaced = day.actual && !sameSource(day.actual, logged) ? [day.actual] : []
+          const secondaryActuals = [...displaced, ...others]
+          return { ...day, actual: logged, ...(secondaryActuals.length > 0 ? { secondaryActuals } : { secondaryActuals: undefined }) }
+        }
+        // Edit: preserve Garmin biometrics (garminId, source, epoc, TE, HR
+        // zones) from the existing actual, layer manual edits on top.
         const merged = day.actual
           ? { ...day.actual, ...logged, garminId: day.actual.garminId ?? logged.garminId, source: day.actual.source ?? logged.source }
           : logged
-        // Claim bridge: when the logged actual IS one of the day's demoted
-        // "other activities" (the athlete tapped "count this as today's
-        // workout"), drop it from that list so it doesn't render twice —
-        // once as the actual, once as a secondary. Keyed on the source id
-        // because isDuplicateActual only dedups within a sport family, so a
-        // cross-family claim (an erg on a ride day) would otherwise survive.
-        const secondaryActuals = day.secondaryActuals?.filter(
-          sec => !((logged.garminId && sec.garminId === logged.garminId) ||
-                   (logged.stravaId && sec.stravaId === logged.stravaId)),
-        )
-        return { ...day, actual: merged, secondaryActuals }
+        return { ...day, actual: merged }
       }),
     }))
   }, [logs])
