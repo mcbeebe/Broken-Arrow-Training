@@ -1,4 +1,5 @@
-import type { StrengthExerciseLog, StrengthSet, TrainingWeek } from '../types'
+import type { PlannedDay, StrengthExerciseLog, StrengthSet, TrainingWeek } from '../types'
+import { isGymBasedDay } from './matching'
 import type { StrengthExperience } from '../hooks/useOnboarding'
 import type { StrengthCapacity } from '../engines/strength/benchmark'
 import {
@@ -125,7 +126,7 @@ const DURATION_RE = /(?:(\d+):(\d{2})\b|(\d+(?:\.\d+)?)\s*(sec(?:ond)?s?|s|min(?
 // sec rest between stations"). Anything else that merely mentions rest
 // is prose ("…, generous rest, technique first: SkiErg 1000m").
 const REST_SENTENCE_RE = /^(?:(?:rest|walk|recover)\b|\d[\d.:]*\s*(?:sec(?:ond)?s?|s|min(?:ute)?s?)\s+(?:of\s+)?rest\b)/i
-const NOTE_RE = /^(?:[a-z'’-]+\s+){0,2}note\s*:/i
+const NOTE_RE = /^(?:[a-z'’-]+\s+){0,2}note\s*:|^no gym\?/i
 // Sentence boundary inside one part: ". " followed by a capital — the
 // generator glues "… to 3.0 m. Rest 3 min between stations …" into one
 // "·"-part, and "3.0" must not split.
@@ -153,6 +154,38 @@ export function parseRestDirective(sentence: string): NonNullable<PlanPrescripti
   return { sec, between: /\b(?:stations?|exercises?|sets?|movements?|attempts?)\b/i.test(text) ? 'stations' : 'rounds' }
 }
 
+/** What a line with no "N×R" pattern drafts as. Strength days keep the
+ *  long-standing 3 × 10 skeleton; see CIRCUIT_DRAFT for station lists. */
+export interface PlanParseOptions {
+  defaultSets?: number
+  defaultReps?: number
+}
+
+/**
+ * A station circuit lists each station once — "SkiErg 500m · Sled push
+ * 25m @ 152 kg · …" — and the session length is budgeted for one pass
+ * with the rest it names. Drafting 3 × 10 there invented rounds the
+ * workout never called for (and "10 reps" of a 500 m erg). One set,
+ * one effort; the athlete adds a round if they do one.
+ */
+export const CIRCUIT_DRAFT: PlanParseOptions = { defaultSets: 1, defaultReps: 1 }
+
+/** How a day's detail drafts: gym-based cross days are station circuits
+ *  (one pass), everything else keeps the strength-day skeleton. The one
+ *  place the rule lives — every caller and the generator sweep use it. */
+export function draftOptionsFor(day: PlannedDay | undefined): PlanParseOptions | undefined {
+  return day && day.type === 'cross' && isGymBasedDay(day) ? CIRCUIT_DRAFT : undefined
+}
+
+/** "3 × 12" for a rep prescription; a station effort (reps ≤ 1) reads
+ *  as what it is, never as "1 × 1". */
+export function prescriptionLabel(ex: StrengthExerciseLog): string {
+  const n = ex.sets.length
+  const reps = ex.sets[0]?.reps ?? 0
+  if (reps > 1) return `${n} × ${reps}`
+  return n === 1 ? 'one effort' : `${n} efforts`
+}
+
 /**
  * Parse a plan detail string into the prescription: exercises with sets
  * pre-filled, plus the rest directive and coaching notes that used to
@@ -161,7 +194,7 @@ export function parseRestDirective(sentence: string): NonNullable<PlanPrescripti
  * two lines as Exercise 8 and Exercise 9, 3 × 10 each).
  * e.g., "Goblet squats 3×12 · Walking lunges 3×10/leg · Plank 3×45s"
  */
-export function parsePlanPrescription(detail: string): PlanPrescription {
+export function parsePlanPrescription(detail: string, opts: PlanParseOptions = {}): PlanPrescription {
   const out: PlanPrescription = { exercises: [], notes: [] }
   if (!detail) return out
 
@@ -169,14 +202,16 @@ export function parsePlanPrescription(detail: string): PlanPrescription {
   const parts = detail.split(/\s*[·|]\s*|\n/).map(s => s.trim()).filter(Boolean)
 
   for (const part of parts) {
-    // Try to match "Exercise Name NxR" patterns like "3×12", "3x10", "3×45s"
+    // Try to match "Exercise Name NxR" patterns like "3×12", "3x10", "3×45s".
+    // A load written "@ 2×24 kg" (two kettlebells) is not sets × reps.
     const setsMatch = part.match(/^(.+?)\s+(\d+)\s*[×xX]\s*(\d+)\s*(?:\/\w+)?(?:\s*\w+)?$/)
+    const isLoad = setsMatch != null && /@\s*$/.test(setsMatch[1])
 
     let name: string
-    let numSets = 3
-    let reps = 10
+    let numSets = opts.defaultSets ?? 3
+    let reps = opts.defaultReps ?? 10
 
-    if (setsMatch) {
+    if (setsMatch && !isLoad) {
       name = setsMatch[1].trim()
       numSets = parseInt(setsMatch[2])
       reps = parseInt(setsMatch[3])
@@ -219,8 +254,8 @@ export function parsePlanPrescription(detail: string): PlanPrescription {
  * the rest and notes. (Moved out of ManualLog so the exercise picker
  * shares it.)
  */
-export function parsePlanExercises(detail: string): StrengthExerciseLog[] {
-  return parsePlanPrescription(detail).exercises
+export function parsePlanExercises(detail: string, opts?: PlanParseOptions): StrengthExerciseLog[] {
+  return parsePlanPrescription(detail, opts).exercises
 }
 
 /**

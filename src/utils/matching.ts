@@ -536,6 +536,7 @@ function appleActivityToActual(a: AppleActivity): ActualWorkout {
   const sec = Math.round(a.durationMinutes * 60)
   return {
     stravaId: 0,
+    appleId: a.appleId,
     source: 'apple',
     distance: a.distanceMi ?? 0,
     movingTime: sec,
