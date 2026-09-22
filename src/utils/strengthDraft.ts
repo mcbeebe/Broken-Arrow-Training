@@ -8,6 +8,7 @@ import {
   type ExerciseProgression,
 } from './strengthProgression'
 import { getExerciseGuide, calibrateGuideWeight } from './exercises'
+import { formatSetTime } from './setTime'
 
 /** Athlete calibration context for cold-start ghost weights: lifting
  *  background (self-report) and the measured benchmark, when one exists. */
@@ -81,13 +82,18 @@ export function progressionFromWeeks(weeks: TrainingWeek[] | undefined): Map<str
 }
 
 /** One line summarizing the last session, e.g. "20 lb × 12, 12, 12" or
- *  "BW × 15, 15, 12". Uses performed sets only (buildProgression already
- *  filtered skips and warm-ups). */
+ *  "BW × 15, 15, 12" — and, where the sets were timed, their times:
+ *  "18 lb × 20, 15, 15 · 1:45, 1:50, 1:52". Uses performed sets only
+ *  (buildProgression already filtered skips and warm-ups). */
 export function lastSessionSummary(prog: ExerciseProgression | undefined): string | null {
   const last = prog?.last
   if (!last || last.sets.length === 0) return null
   const reps = last.sets.map(s => s.reps || 0).join(', ')
-  return last.topWeightLb > 0 ? `${last.topWeightLb} lb × ${reps}` : `BW × ${reps}`
+  const base = last.topWeightLb > 0 ? `${last.topWeightLb} lb × ${reps}` : `BW × ${reps}`
+  const timed = last.sets.some(s => s.timeSec != null && s.timeSec > 0)
+  if (!timed) return base
+  const times = last.sets.map(s => formatSetTime(s.timeSec) || '—').join(', ')
+  return `${base} · ${times}`
 }
 
 /** Keyword-based focus classification for an exercise name. */

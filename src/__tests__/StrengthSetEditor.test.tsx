@@ -144,6 +144,41 @@ describe('StrengthSetEditor', () => {
     expect(state()[0].sets[0].weight).toBe('20 lb')
   })
 
+  it('the time cell: microwave digits into m:ss, confirms the set, and steps by 5 s', () => {
+    render(<Harness initial={ghostFillFromHistory(planExercises(), buildProgression(historyWeeks()))} weeks={historyWeeks()} />)
+    expect(screen.getByLabelText('Set 1 time').textContent).toBe('—')
+    fireEvent.click(screen.getByLabelText('Set 1 time'))
+    // (Digits 1–3 collide with the set-label buttons; 9, 4, 5 do not.)
+    fireEvent.click(screen.getByRole('button', { name: '9' }))
+    fireEvent.click(screen.getByRole('button', { name: '4' }))
+    fireEvent.click(screen.getByRole('button', { name: '5' }))
+    expect(state()[0].sets[0]).toMatchObject({ timeSec: 585, done: true })
+    expect(screen.getByLabelText('Set 1 time').textContent).toBe('9:45')
+    fireEvent.click(screen.getByLabelText('plus 5'))
+    expect(state()[0].sets[0].timeSec).toBe(590)
+    // Weight and reps were not touched.
+    expect(state()[0].sets[0]).toMatchObject({ weight: '20 lb', reps: 12 })
+  })
+
+  it('the keypad walks weight → reps → time → weight', () => {
+    render(<Harness initial={ghostFillFromHistory(planExercises(), buildProgression(historyWeeks()))} weeks={historyWeeks()} />)
+    fireEvent.click(screen.getByLabelText('Set 1 weight'))
+    fireEvent.click(screen.getByText('Next: reps'))
+    fireEvent.click(screen.getByText('Next: time'))
+    expect(screen.getByText(/set 1 of 3 · time/)).toBeTruthy()
+    fireEvent.click(screen.getByText('Next: weight'))
+    expect(screen.getByText(/set 1 of 3 · weight/)).toBeTruthy()
+  })
+
+  it('a timed set last session offers a "Last" chip on the time keypad', () => {
+    const weeks = historyWeeks()
+    weeks[0].days[0].actual!.strengthLog![0].sets[0].timeSec = 105
+    render(<Harness initial={ghostFillFromHistory(planExercises(), buildProgression(weeks))} weeks={weeks} />)
+    fireEvent.click(screen.getByLabelText('Set 1 time'))
+    fireEvent.click(screen.getByText('Last (1:45)'))
+    expect(state()[0].sets[0]).toMatchObject({ timeSec: 105, done: true })
+  })
+
   it('"Set done" flows to the next set\'s weight — the between-sets rhythm', () => {
     render(<Harness initial={ghostFillFromHistory(planExercises(), buildProgression(historyWeeks()))} weeks={historyWeeks()} />)
     fireEvent.click(screen.getByLabelText('Set 1 weight'))

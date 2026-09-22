@@ -7,7 +7,8 @@ import {
   type NextTargetSuggestion,
 } from '../utils/strengthProgression'
 import { lastSessionSummary, startingWeightFor, type StrengthCalibration } from '../utils/strengthDraft'
-import SetKeypad from './SetKeypad'
+import SetKeypad, { type SetField } from './SetKeypad'
+import { digitsFromSeconds, formatSetTime, secondsFromDigits } from '../utils/setTime'
 
 /**
  * The set-row strength editor — Phase 1 of the strength-logging overhaul.
@@ -78,14 +79,23 @@ function weightBuffer(weight: string): string {
 interface ActiveCell {
   exIdx: number
   setIdx: number
-  field: 'weight' | 'reps'
+  field: SetField
 }
+
+/** The keypad walks weight → reps → time → weight. */
+const NEXT_FIELD: Record<SetField, SetField> = { weight: 'reps', reps: 'time', time: 'weight' }
 
 export default function StrengthSetEditor({ exercises, onChange, progression, calibration }: StrengthSetEditorProps) {
   // Which weight/reps cell the stepper keypad is editing. Values are
   // edited ONLY through the keypad — our own panel instead of the system
   // keyboard, which sidesteps the iOS keyboard-resize minefield.
   const [active, setActive] = useState<ActiveCell | null>(null)
+  // The time keypad's raw digit buffer for the open cell. Seconds are
+  // what gets stored, but "9" then "4" must read 0:94-in-progress, not
+  // be rebuilt from 94 s as 1:34 — so the digits live here until the
+  // cell changes. Null = show the stored time.
+  const [timeDigits, setTimeDigits] = useState<string | null>(null)
+  const openCell = (cell: ActiveCell | null) => { setTimeDigits(null); setActive(cell) }
 
   function updateExercise(idx: number, updates: Partial<StrengthExerciseLog>) {
     onChange(exercises.map((ex, i) => (i === idx ? { ...ex, ...updates } : ex)))
@@ -217,7 +227,8 @@ export default function StrengthSetEditor({ exercises, onChange, progression, ca
             <div className="flex items-center gap-2 px-1 mb-1">
               <span className="w-7 text-[10px] font-semibold uppercase text-slate-400">Set</span>
               <span className="flex-1 text-center text-[10px] font-semibold uppercase text-slate-400">Weight</span>
-              <span className="w-14 text-center text-[10px] font-semibold uppercase text-slate-400">Reps</span>
+              <span className="w-12 text-center text-[10px] font-semibold uppercase text-slate-400">Reps</span>
+              <span className="w-14 text-center text-[10px] font-semibold uppercase text-slate-400">Time</span>
               <span className="w-8 text-center text-[10px] font-semibold uppercase text-slate-400">✓</span>
               <span className="w-4" />
             </div>
@@ -244,7 +255,7 @@ export default function StrengthSetEditor({ exercises, onChange, progression, ca
                       {label}
                     </button>
                     <button
-                      onClick={() => setActive({ exIdx, setIdx, field: 'weight' })}
+                      onClick={() => openCell({ exIdx, setIdx, field: 'weight' })}
                       aria-label={`Set ${label} weight`}
                       className={`flex-1 min-w-0 px-2 py-1.5 text-xs font-mono text-center border rounded bg-white dark:bg-slate-800 ${
                         active?.exIdx === exIdx && active?.setIdx === setIdx && active.field === 'weight'
@@ -255,15 +266,28 @@ export default function StrengthSetEditor({ exercises, onChange, progression, ca
                       {set.weight || '—'}
                     </button>
                     <button
-                      onClick={() => setActive({ exIdx, setIdx, field: 'reps' })}
+                      onClick={() => openCell({ exIdx, setIdx, field: 'reps' })}
                       aria-label={`Set ${label} reps`}
-                      className={`w-14 px-2 py-1.5 text-xs font-mono text-center border rounded bg-white dark:bg-slate-800 ${
+                      className={`w-12 px-1 py-1.5 text-xs font-mono text-center border rounded bg-white dark:bg-slate-800 ${
                         active?.exIdx === exIdx && active?.setIdx === setIdx && active.field === 'reps'
                           ? 'border-purple-500 ring-1 ring-purple-500'
                           : ghost ? 'border-purple-100 text-slate-400' : 'border-purple-200 text-slate-700 dark:text-slate-200'
                       }`}
                     >
                       {set.reps || '—'}
+                    </button>
+                    {/* Time — the number that matters on a wall-ball set, an
+                        erg piece or a carry. Blank until the athlete gives one. */}
+                    <button
+                      onClick={() => openCell({ exIdx, setIdx, field: 'time' })}
+                      aria-label={`Set ${label} time`}
+                      className={`w-14 px-1 py-1.5 text-xs font-mono text-center border rounded bg-white dark:bg-slate-800 ${
+                        active?.exIdx === exIdx && active?.setIdx === setIdx && active.field === 'time'
+                          ? 'border-purple-500 ring-1 ring-purple-500'
+                          : ghost ? 'border-purple-100 text-slate-400' : 'border-purple-200 text-slate-700 dark:text-slate-200'
+                      }`}
+                    >
+                      {formatSetTime(set.timeSec) || '—'}
                     </button>
                     <button
                       onClick={() => updateSet(exIdx, setIdx, { done: set.done === false })}
@@ -314,39 +338,49 @@ export default function StrengthSetEditor({ exercises, onChange, progression, ca
           ? suggestNextTarget(prog, Math.max(workingSets.length, 1), workingSets[0]?.reps || 10)
           : null
         const lastSets = prog?.last?.sets ?? []
-        const lastWeight = (lastSets[active.setIdx] ?? lastSets[lastSets.length - 1])?.weight ?? null
+        const lastSet = lastSets[active.setIdx] ?? lastSets[lastSets.length - 1]
+        const lastWeight = lastSet?.weight ?? null
+        const lastTimeSec = lastSet?.timeSec ?? null
         return (
           <SetKeypad
             key={`${active.exIdx}-${active.setIdx}-${active.field}`}
             field={active.field}
-            value={active.field === 'weight' ? weightBuffer(set.weight) : set.reps ? String(set.reps) : ''}
+            value={
+              active.field === 'weight' ? weightBuffer(set.weight)
+              : active.field === 'time' ? (timeDigits ?? digitsFromSeconds(set.timeSec))
+              : set.reps ? String(set.reps) : ''
+            }
             exerciseName={ex.name}
             setLabel={setLabelFor(ex, active.setIdx)}
             setCount={ex.sets.length}
             targetWeightLb={target?.weightLb ?? null}
             targetReps={target?.reps ?? null}
             lastWeight={lastWeight}
+            lastTimeSec={lastTimeSec}
             onInput={raw => {
               // Committing through the keypad IS doing the set.
               if (active.field === 'weight') {
                 const weight = raw === 'BW' ? 'BW' : raw === '' ? '' : `${raw} lb`
                 updateSet(active.exIdx, active.setIdx, { weight, done: true })
+              } else if (active.field === 'time') {
+                setTimeDigits(raw)
+                const sec = secondsFromDigits(raw)
+                updateSet(active.exIdx, active.setIdx, { timeSec: sec > 0 ? sec : undefined, done: true })
               } else {
                 updateSet(active.exIdx, active.setIdx, { reps: parseInt(raw) || 0, done: true })
               }
             }}
-            onSwitchField={() =>
-              setActive({ ...active, field: active.field === 'weight' ? 'reps' : 'weight' })}
+            onSwitchField={() => openCell({ ...active, field: NEXT_FIELD[active.field] })}
             onSetDone={() => {
               updateSet(active.exIdx, active.setIdx, { done: true })
               // Flow to the next set's weight — the between-sets rhythm.
               if (active.setIdx + 1 < ex.sets.length) {
-                setActive({ ...active, setIdx: active.setIdx + 1, field: 'weight' })
+                openCell({ ...active, setIdx: active.setIdx + 1, field: 'weight' })
               } else {
-                setActive(null)
+                openCell(null)
               }
             }}
-            onClose={() => setActive(null)}
+            onClose={() => openCell(null)}
           />
         )
       })()}
