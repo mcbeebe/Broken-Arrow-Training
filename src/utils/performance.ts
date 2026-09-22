@@ -1,5 +1,6 @@
 import type { DailyTRIMP, PerformanceMetrics, TSBState, ACWRRisk, WeeklyRecommendation } from '../types'
 import { localDateStr } from './format'
+import { tsbZone, acwrZone, acwrZones, TSB_ZONES, TSB_BOUNDS, ACWR_BOUNDS, type AcwrBounds } from './loadZones'
 
 // ─── Time window filtering ─────────────────────────────────────
 
@@ -129,56 +130,24 @@ export function calculatePerformanceTimeline(dailyTrimp: DailyTRIMP[]): Performa
   })
 }
 
-// ─── TSB State Classification ───────────────────────────────────
-// Banister impulse-response model (Banister et al. 1975; Morton et al. 1990).
-// Specific TSB thresholds are coaching conventions widely adopted via
-// TrainingPeaks (Coggan/Allen 2010). Taper research supports TSB +10 to +30
-// as race-ready (Mujika & Padilla 2003; Bosquet et al. 2007), which aligns
-// with our +15/+25 "peaked" zone.
-// Overreaching zone (-30 to -10) aligns with functional overreaching
-// definitions in Meeusen et al. 2013 (ECSS/ACSM joint statement).
+// ─── Zone classification ───────────────────────────────────────
+// The bounds, labels and card copy live in loadZones.ts (one table for
+// every surface). These are thin readers so callers keep their names.
 
 export function getTSBState(tsb: number): TSBState {
-  if (tsb >= 15) return 'peaked'      // Mujika & Padilla 2003: taper sweet spot
-  if (tsb >= 5) return 'well_rested'
-  if (tsb >= -10) return 'productive'  // Normal training stress
-  if (tsb >= -30) return 'overreaching' // Functional overreaching (Meeusen 2013)
-  return 'danger'                       // Non-functional overreaching risk
+  return tsbZone(tsb).key
 }
 
 export function getTSBLabel(state: TSBState): string {
-  const labels: Record<TSBState, string> = {
-    peaked: 'Fresh / Peaked',
-    well_rested: 'Well Rested',
-    productive: 'Productive Training',
-    overreaching: 'Overreaching',
-    danger: 'Deep Fatigue Debt',
-  }
-  return labels[state]
+  return TSB_ZONES.find(z => z.key === state)!.label
 }
 
-// ─── ACWR Risk Classification ───────────────────────────────────
-// Gabbett 2016 meta-analysis: ACWR 0.8–1.3 = lowest injury incidence.
-// Hulin et al. 2014: ACWR > 1.5 = 2–4× injury risk in cricket/rugby.
-// Blanch & Gabbett 2016: confirmed across multiple sports.
-// Note: Gabbett 2020 revisited these thresholds, noting they're
-// population-level guidelines, not individual prescriptions.
-
-export function getACWRRisk(acwr: number): ACWRRisk {
-  if (acwr < 0.8) return 'detraining'  // Gabbett 2016: underpreparedness risk
-  if (acwr <= 1.3) return 'sweet_spot'  // Gabbett 2016: lowest injury incidence
-  if (acwr <= 1.5) return 'caution'     // Transitional zone
-  return 'high_risk'                     // Hulin 2014: 2–4× injury risk
+export function getACWRRisk(acwr: number, bounds: AcwrBounds = ACWR_BOUNDS): ACWRRisk {
+  return acwrZone(acwr, bounds).key
 }
 
-export function getACWRLabel(risk: ACWRRisk): string {
-  const labels: Record<ACWRRisk, string> = {
-    detraining: 'Undertraining',
-    sweet_spot: 'Sweet Spot',
-    caution: 'Caution',
-    high_risk: 'High Injury Risk',
-  }
-  return labels[risk]
+export function getACWRLabel(risk: ACWRRisk, bounds: AcwrBounds = ACWR_BOUNDS): string {
+  return acwrZones(bounds).find(z => z.key === risk)!.label
 }
 
 // ─── Race Day TSB Projection ────────────────────────────────────
@@ -228,19 +197,19 @@ export function generateWeeklyRecommendations(
   const recent = timeline.slice(-7)
   const latest = timeline[timeline.length - 1]
 
-  // Check for sustained overreaching (TSB < -30 for 3+ days)
-  const overreachingDays = recent.filter(m => m.tsb < -30).length
+  // Check for sustained overreaching (TSB below the build zone for 3+ days)
+  const overreachingDays = recent.filter(m => m.tsb < TSB_BOUNDS.build).length
   if (overreachingDays >= 3) {
     recommendations.push({
       type: 'overreaching',
       severity: 'alert',
-      message: 'Recovery Balance (TSB) below -30 for 3+ days — fatigue is outpacing your fitness base. Normal early in a plan while CTL builds. Check the Readiness tab: if GREEN, your body is handling it. If YELLOW/RED, consider swapping quality sessions for easy runs.',
+      message: `Recovery Balance (TSB) below ${TSB_BOUNDS.build} for 3+ days — fatigue is outpacing your fitness base. Normal early in a plan while CTL builds. Check the Readiness tab: if GREEN, your body is handling it. If YELLOW/RED, consider swapping quality sessions for easy runs.`,
       weekNum: currentWeekNum,
     })
   }
 
-  // Check ACWR spike (> 1.5)
-  if (latest.acwr > 1.5) {
+  // Check ACWR spike
+  if (latest.acwr > ACWR_BOUNDS.danger) {
     recommendations.push({
       type: 'acwr_spike',
       severity: 'alert',
@@ -253,7 +222,7 @@ export function generateWeeklyRecommendations(
   // Previous logic checked 5/7 days < 0.8, but rest days naturally have low ACWR
   // which caused false "undertraining" alerts even during heavy training weeks.
   // Now only triggers if today's ACWR is very low (< 0.7) — clear detraining signal.
-  if (latest.acwr > 0 && latest.acwr < 0.7) {
+  if (latest.acwr > 0 && latest.acwr < ACWR_BOUNDS.detrained) {
     recommendations.push({
       type: 'acwr_low',
       severity: 'info',

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { PerformanceMetrics, WeeklyRecommendation, DailyTRIMP } from '../types'
-import { getTSBState, getTSBLabel, getACWRRisk, getACWRLabel } from '../utils/performance'
+import { tsbZone, acwrZone, ACWR_BOUNDS, ACWR_IN_RANGE_RAMPING_NOTE, TSB_BANDS, TSB_BOUNDS, type AcwrBounds, type ZoneTone } from '../utils/loadZones'
 import { localDateStr, formatLoadP } from '../utils/format'
 import {
   ComposedChart, Area, XAxis, YAxis, Tooltip,
@@ -17,6 +17,12 @@ interface PerformanceChartProps {
   raceDate: string
   dailyTrimp?: DailyTRIMP[]
   athleteId?: string
+  /** The injury checks' ramp alert is live: the load ratio is climbing
+   *  fast even though its level is in range. The Load Ratio card says so
+   *  instead of "safe". */
+  rampAlert?: boolean
+  /** The athlete's tuned in-range / spike lines (age, experience). */
+  acwrBounds?: AcwrBounds
 }
 
 type MetricKey = 'ctl' | 'atl' | 'tsb' | 'load'
@@ -35,6 +41,8 @@ export default function PerformanceChart({
   raceDate,
   dailyTrimp = [],
   athleteId,
+  rampAlert = false,
+  acwrBounds = ACWR_BOUNDS,
 }: PerformanceChartProps) {
   const { flags } = useDisplayPreferences(athleteId)
   const [visible, setVisible] = useState<Record<MetricKey, boolean>>(() =>
@@ -52,8 +60,11 @@ export default function PerformanceChart({
   }
 
   const latest = performance[performance.length - 1]
-  const tsbState = getTSBState(latest.tsb)
-  const acwrRisk = getACWRRisk(latest.acwr)
+  // One table for every load surface (utils/loadZones): the bands, the
+  // cards and the glossary can no longer disagree about a number.
+  const tsb = tsbZone(latest.tsb)
+  const acwr = acwrZone(latest.acwr, acwrBounds)
+  const inRangeButClimbing = rampAlert && acwr.key === 'in_range'
 
   // Index daily TRIMP by date for fast lookup. Caller passes the FULL
   // unfiltered dailyTrimp so the rolling 7-day sum has correct lookback
@@ -77,14 +88,14 @@ export default function PerformanceChart({
     return {
       ...m,
       label: m.date.slice(5),
-      acwrLow: m.ctl * 0.8,
-      acwrHigh: m.ctl * 1.3,
+      acwrLow: m.ctl * acwrBounds.low,
+      acwrHigh: m.ctl * acwrBounds.sweetTop,
       load: dailyLoad,
       load7d: Math.round(trailingLoad),
     }
   })
 
-  const smoothedData = smoothSeries(rawData, 5)
+  const smoothedData = smoothSeries(rawData, 5, acwrBounds)
 
   // Compute y-axis domain from RAW data so collapsed and expanded views
   // share the same scale — reference bands (Training Zone, Race Day)
@@ -166,37 +177,46 @@ export default function PerformanceChart({
               {visible.load && (
                 <Area yAxisId="right" type="natural" dataKey={loadMode === '7d' ? 'load7d' : 'load'} stroke={loadColor} fill="none" strokeWidth={expanded ? 2.5 : 2} dot={false} isAnimationActive={false} />
               )}
-              {/* Training band: productive overreach zone (TSB -30 to -10) */}
+              {/* Build zone: where a build week is supposed to put you (TSB -30 to -10) */}
               {showBands && (
                 <ReferenceArea
                   yAxisId="left"
-                  y1={-30} y2={-10}
+                  y1={TSB_BANDS.build.y1} y2={TSB_BANDS.build.y2}
                   fill={isDark ? '#1e3a5f' : '#dbeafe'}
                   fillOpacity={isDark ? 0.5 : 0.4}
                   stroke="#3B82F6"
                   strokeOpacity={0.6}
                   strokeWidth={1}
-                  label={{ value: 'Training Zone', fontSize: expanded ? 12 : 10, fill: isDark ? '#93c5fd' : '#1d4ed8', position: 'insideBottomLeft' }}
+                  label={{ value: TSB_BANDS.build.label, fontSize: expanded ? 12 : 10, fill: isDark ? '#93c5fd' : '#1d4ed8', position: 'insideBottomLeft' }}
                 />
               )}
               {/* Race day band: peak performance zone (TSB +5 to +25) */}
               {showBands && (
                 <ReferenceArea
                   yAxisId="left"
-                  y1={5} y2={25}
+                  y1={TSB_BANDS.raceDay.y1} y2={TSB_BANDS.raceDay.y2}
                   fill={isDark ? '#064e3b' : '#d1fae5'}
                   fillOpacity={isDark ? 0.5 : 0.4}
                   stroke="#059669"
                   strokeOpacity={0.6}
                   strokeWidth={1}
-                  label={{ value: 'Race Day', fontSize: expanded ? 12 : 10, fill: isDark ? '#6ee7b7' : '#047857' }}
+                  label={{ value: TSB_BANDS.raceDay.label, fontSize: expanded ? 12 : 10, fill: isDark ? '#6ee7b7' : '#047857' }}
                 />
               )}
-              {/* TSB band boundary lines */}
-              {showBands && <ReferenceLine yAxisId="left" y={-30} stroke="#3B82F6" strokeOpacity={0.4} strokeDasharray="4 4" strokeWidth={1} />}
-              {showBands && <ReferenceLine yAxisId="left" y={-10} stroke="#3B82F6" strokeOpacity={0.4} strokeDasharray="4 4" strokeWidth={1} />}
+              {/* TSB band boundary lines. The build zone's floor is the
+                  overreaching line — the one place the word applies. */}
+              {showBands && (
+                <ReferenceLine
+                  yAxisId="left" y={TSB_BANDS.overreachingLine.y}
+                  stroke="#DC2626" strokeOpacity={0.7} strokeWidth={1.2}
+                  label={{ value: TSB_BANDS.overreachingLine.label, fontSize: expanded ? 11 : 9, fill: isDark ? '#fca5a5' : '#b91c1c', position: 'insideBottomRight' }}
+                />
+              )}
+              {showBands && <ReferenceLine yAxisId="left" y={TSB_BANDS.build.y2} stroke="#3B82F6" strokeOpacity={0.4} strokeDasharray="4 4" strokeWidth={1} />}
               <ReferenceLine yAxisId="left" y={0} stroke={isDark ? '#475569' : '#94a3b8'} strokeDasharray="2 2" />
               {showBands && <ReferenceLine yAxisId="left" y={5} stroke="#059669" strokeOpacity={0.4} strokeDasharray="4 4" strokeWidth={1} />}
+              {/* The table's Peaked line, inside the race-day band */}
+              {showBands && <ReferenceLine yAxisId="left" y={TSB_BOUNDS.peaked} stroke="#059669" strokeOpacity={0.5} strokeDasharray="2 3" strokeWidth={1} label={{ value: 'Peaked', fontSize: expanded ? 11 : 9, fill: isDark ? '#6ee7b7' : '#047857', position: 'insideTopRight' }} />}
               {showBands && <ReferenceLine yAxisId="left" y={25} stroke="#059669" strokeOpacity={0.4} strokeDasharray="4 4" strokeWidth={1} />}
               {/* ACWR corridor: 0.8×CTL to 1.3×CTL — only when CTL is visible */}
               {visible.ctl && <Area yAxisId="left" type="natural" dataKey="acwrHigh" stroke="#7c3aed" strokeWidth={1} strokeDasharray="4 4" strokeOpacity={0.5} fill="none" dot={false} isAnimationActive={false} />}
@@ -228,13 +248,16 @@ export default function PerformanceChart({
         {expanded && (
           <div className="flex flex-wrap justify-center gap-x-4 gap-y-1 mt-1 text-xs text-slate-500 dark:text-slate-400">
             <span className="flex items-center gap-1">
-              <span className="w-3 h-2 bg-blue-500/10 border border-blue-500/30 inline-block rounded" /> Training Zone (TSB -30 to -10)
+              <span className="w-3 h-2 bg-blue-500/10 border border-blue-500/30 inline-block rounded" /> {TSB_BANDS.build.label} (TSB {TSB_BANDS.build.y1} to {TSB_BANDS.build.y2})
             </span>
             <span className="flex items-center gap-1">
-              <span className="w-3 h-2 bg-green-600/20 border border-green-600/30 inline-block rounded" /> Race Day Peak (TSB +5 to +25)
+              <span className="w-3 h-0 border-t-2 border-red-600/70 inline-block" /> Overreaching (below {TSB_BANDS.overreachingLine.y})
             </span>
             <span className="flex items-center gap-1">
-              <span className="w-3 h-2 bg-violet-400/20 border border-violet-400/30 inline-block rounded" /> Fatigue Corridor (0.8–1.3× Fitness)
+              <span className="w-3 h-2 bg-green-600/20 border border-green-600/30 inline-block rounded" /> Race Day Peak (TSB +{TSB_BANDS.raceDay.y1} to +{TSB_BANDS.raceDay.y2})
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="w-3 h-2 bg-violet-400/20 border border-violet-400/30 inline-block rounded" /> Fatigue Corridor ({acwrBounds.low}–{acwrBounds.sweetTop}× Fitness)
             </span>
           </div>
         )}
@@ -280,34 +303,23 @@ export default function PerformanceChart({
           note={
             latest.atl > latest.ctl * 1.5 ? 'Very high — consider an easy day soon'
             : latest.atl > latest.ctl ? 'Fatigue exceeds fitness — normal in build weeks'
-            : latest.atl > latest.ctl * 0.8 ? 'Balanced — productive training zone'
+            : latest.atl > latest.ctl * 0.8 ? 'Balanced — steady training'
             : 'Low fatigue — room to push harder'
           }
         />
         <PerfStatCard
           label={<Term name="tsb">Recovery Balance</Term>}
           value={`${latest.tsb >= 0 ? '+' : ''}${formatLoadP(latest.tsb, flags.numericPrecision)}`}
-          sub={getTSBLabel(tsbState)}
-          color={tsbState === 'peaked' || tsbState === 'well_rested' ? 'green' : tsbState === 'productive' ? 'slate' : 'red'}
-          note={
-            latest.tsb >= 15 ? 'Peak form — ideal for racing or time trials'
-            : latest.tsb >= 5 ? 'Fresh — good day for a quality workout'
-            : latest.tsb >= -10 ? 'Productive — building fitness, some fatigue'
-            : latest.tsb >= -30 ? 'Tired — back off if this persists 3+ days'
-            : 'Fatigue exceeds fitness base — common early in a plan. Check Readiness tab for biometric confirmation.'
-          }
+          sub={tsb.label}
+          color={tsb.key === 'build' ? 'blue' : toneColor(tsb.tone)}
+          note={tsb.note}
         />
         <PerfStatCard
           label={<Term name="acwr">Load Ratio</Term>}
           value={latest.acwr.toFixed(flags.numericPrecision === 'low' ? 1 : 2)}
-          sub={getACWRLabel(acwrRisk)}
-          color={acwrRisk === 'sweet_spot' ? 'green' : acwrRisk === 'caution' ? 'amber' : 'red'}
-          note={
-            acwrRisk === 'sweet_spot' ? 'Safe zone — training load matches your fitness'
-            : acwrRisk === 'caution' ? 'Ramping up fast — watch for soreness or tightness'
-            : acwrRisk === 'high_risk' ? 'Injury risk elevated — reduce volume this week'
-            : 'Undertraining — add volume gradually to avoid detraining'
-          }
+          sub={inRangeButClimbing ? `${acwr.label} · climbing fast` : acwr.label}
+          color={toneColor(acwr.tone)}
+          note={inRangeButClimbing ? ACWR_IN_RANGE_RAMPING_NOTE : acwr.note}
         />
       </div>
 
@@ -354,6 +366,11 @@ function MetricPill({ active, onClick, color, label }: {
   )
 }
 
+/** A zone's tone as a stat-card color. */
+function toneColor(tone: ZoneTone): string {
+  return tone === 'good' ? 'green' : tone === 'warning' ? 'amber' : tone === 'critical' ? 'red' : 'slate'
+}
+
 function PerfStatCard({ label, value, sub, color, note }: {
   label: React.ReactNode; value: string; sub: React.ReactNode; color: string; note?: string
 }) {
@@ -394,7 +411,7 @@ interface ChartPoint {
   load7d: number
 }
 
-function smoothSeries(data: ChartPoint[], window: number): ChartPoint[] {
+function smoothSeries(data: ChartPoint[], window: number, bounds: AcwrBounds): ChartPoint[] {
   if (data.length <= window) return data
   return data.map((point, i) => {
     const halfW = Math.floor(window / 2)
@@ -410,8 +427,8 @@ function smoothSeries(data: ChartPoint[], window: number): ChartPoint[] {
       tsbSmooth: slice.reduce((s, p) => s + p.tsb, 0) / n,
       load: slice.reduce((s, p) => s + p.load, 0) / n,
       load7d: slice.reduce((s, p) => s + p.load7d, 0) / n,
-      acwrLow: smoothCtl * 0.8,
-      acwrHigh: smoothCtl * 1.3,
+      acwrLow: smoothCtl * bounds.low,
+      acwrHigh: smoothCtl * bounds.sweetTop,
     }
   })
 }

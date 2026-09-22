@@ -124,6 +124,8 @@ import { moveOutcomeFor } from './engines/planGenerator/replan'
 import { resolutionNote } from './utils/resolutionNote'
 import { buildRhythm, newestOpenDay, plannedDayFor } from './utils/rhythm'
 import { buildTrainingSignals } from './utils/trainingSignals'
+import { acwrBoundsFrom } from './utils/loadZones'
+import { hasRampAlert } from './utils/readiness'
 import { computeRaceReadiness } from './utils/raceReadiness'
 import { weeksUntilRace } from './utils/raceCountdown'
 import { buildVerdict } from './utils/verdict'
@@ -1571,7 +1573,9 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     performance: latestPerf,
     readiness: readiness.todayScore,
     sorenessLoadByDate: soreness.sorenessLoadByDate,
-  }), [latestPerf, readiness.todayScore, soreness.sorenessLoadByDate])
+    rampAlert: hasRampAlert(readiness.riskFlags),
+    acwrBounds: acwrBoundsFrom(readinessTuning),
+  }), [latestPerf, readiness.todayScore, soreness.sorenessLoadByDate, readiness.riskFlags, readinessTuning])
 
   // The 12-day rhythm shown in Today's header. Resolved = trained, or
   // rested as the plan asked; only an open day is outstanding.
@@ -2350,6 +2354,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           zones={hrZones.zones}
           coachSnapshot={coachSnapshot}
           riskFlags={readiness.riskFlags}
+          trainingSignals={trainingSignals}
           advisories={allAdvisories}
           onOpenPlanNotes={openPlanNotes}
           planNotesSeen={planNotesRead}
@@ -2511,6 +2516,8 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           performance={readiness.performance}
           weeklyRecommendations={readiness.weeklyRecommendations}
           riskFlags={readiness.riskFlags}
+          trainingSignals={trainingSignals}
+          readinessTuning={readinessTuning}
           garminConnected={garmin.connected || apple.connected}
           sorenessLoadByDate={soreness.sorenessLoadByDate}
           strengthCapacity={strengthCapacity.capacity}

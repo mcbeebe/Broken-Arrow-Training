@@ -21,15 +21,20 @@
 
 import type { PerformanceMetrics, ReadinessScore } from '../types'
 import { checkEscalatingSoreness } from './readiness'
+import { TSB_BOUNDS, ACWR_BOUNDS, tsbZone, acwrZone, type AcwrBounds } from './loadZones'
 
 // ─── Axis state unions ─────────────────────────────────────────
 
+// Bounds come from loadZones.ts — the same table the chart and the cards
+// read — so this axis can never call a value "overreaching" that the
+// Recovery Balance card calls "build zone".
 export type LoadState =
   | 'detrained'   // ACWR < 0.7 — chronic load decaying faster than safe
-  | 'productive'  // TSB +5 to +25 — fresh, ramp up if you want
-  | 'balanced'    // TSB -10 to +5, ACWR 0.8-1.3 — absorbing this week's load
-  | 'overreach'   // TSB -25 to -10 OR ACWR 1.3-1.5 — push back on volume
-  | 'danger'      // TSB < -25 OR ACWR > 1.5 — deload required
+  | 'productive'  // TSB above +5 — fresh, ramp up if you want
+  | 'balanced'    // TSB -10 to +5, ACWR in range — absorbing this week's load
+  | 'build'       // TSB -30 to -10 — tired by design; Readiness decides
+  | 'ramping'     // ACWR above the in-range top — hold or trim volume
+  | 'danger'      // TSB below -30 OR ACWR above the spike line — deload
 
 export type BodyState =
   | 'peak'        // best 10% of personal baseline
@@ -53,12 +58,18 @@ export interface AxisReading<S extends string> {
   label: string
   /** Severity 0-3. 0 = fine, 3 = stop. Drives `dominant` + `todayCall`. */
   severity: number
+  /** Nothing to read yet (no logged load, no readiness score). The
+   *  state is a placeholder; copy must not describe it as a reading. */
+  noData?: boolean
 }
 
 export interface TrainingSignals {
   load: AxisReading<LoadState>
   body: AxisReading<BodyState>
   damage: AxisReading<DamageState>
+  /** The load ratio is climbing fast even though its level is fine
+   *  (the ramp alert). A rate signal, kept apart from the level. */
+  rampAlert: boolean
   coherence: Coherence
   /** Axis whose restrictive verdict the user should act on today. */
   dominant: Axis
@@ -74,7 +85,10 @@ const LOAD_SEVERITY: Record<LoadState, number> = {
   detrained: 1,
   productive: 0,
   balanced: 0,
-  overreach: 2,
+  // The build zone is neutral by design: a build week is supposed to put
+  // you here, and the body axis decides whether it is being absorbed.
+  build: 0,
+  ramping: 2,
   danger: 3,
 }
 
@@ -82,20 +96,24 @@ const LOAD_LABEL: Record<LoadState, string> = {
   detrained: 'Detrained',
   productive: 'Productive',
   balanced: 'Balanced',
-  overreach: 'Overreaching',
+  build: 'Build zone',
+  ramping: 'Ramping fast',
   danger: 'Danger',
 }
 
-export function classifyLoad(perf: PerformanceMetrics | null): AxisReading<LoadState> {
+export function classifyLoad(perf: PerformanceMetrics | null, bounds: AcwrBounds = ACWR_BOUNDS): AxisReading<LoadState> {
   if (!perf) {
-    return { state: 'balanced', label: 'No data', severity: 0 }
+    return { state: 'balanced', label: 'No data', severity: 0, noData: true }
   }
   const { tsb, acwr } = perf
+  const t = tsbZone(tsb).key
+  const a = acwrZone(acwr, bounds).key
   let state: LoadState
-  if (tsb < -25 || acwr > 1.5) state = 'danger'
-  else if (tsb < -10 || acwr > 1.3) state = 'overreach'
-  else if (acwr < 0.7) state = 'detrained'
-  else if (tsb > 5) state = 'productive'
+  if (t === 'overreaching' || a === 'spike') state = 'danger'
+  else if (a === 'ramping') state = 'ramping'
+  else if (t === 'build') state = 'build'
+  else if (a === 'detraining') state = 'detrained'   // the card's floor, not a private one
+  else if (tsb > TSB_BOUNDS.fresh) state = 'productive'
   else state = 'balanced'
   return { state, label: LOAD_LABEL[state], severity: LOAD_SEVERITY[state] }
 }
@@ -198,8 +216,24 @@ function buildReason(
     return 'All signals point the same direction.'
   }
   // Mixed: name the restrictive vs. permissive axes in customer language.
+  const loadRestrictive: Record<LoadState, string> = {
+    detrained: 'load has dropped off',
+    productive: 'load is climbing fast',
+    balanced: 'load is climbing fast',
+    build: 'load is climbing fast',
+    ramping: 'load is ramping fast',
+    danger: 'load is in the danger zone',
+  }
+  const loadPermissive: Record<LoadState, string> = {
+    detrained: 'load is low',
+    productive: 'load is fresh',
+    balanced: 'load is in range',
+    build: 'load is in the build zone',
+    ramping: 'load is ramping fast',
+    danger: 'load is in the danger zone',
+  }
   const phrases: Record<Axis, { restrictive: string; permissive: string }> = {
-    load: { restrictive: 'load is overreaching', permissive: 'load says balanced' },
+    load: { restrictive: loadRestrictive[load.state], permissive: load.noData ? 'no load data yet' : loadPermissive[load.state] },
     body: { restrictive: 'body needs rest', permissive: 'body is recovered' },
     damage: { restrictive: 'soreness is climbing', permissive: 'soreness is fine' },
   }
@@ -226,10 +260,19 @@ export interface BuildTrainingSignalsInput {
   performance: PerformanceMetrics | null
   readiness: ReadinessScore | null
   sorenessLoadByDate?: Map<string, number>
+  /** The injury checks' ramp alert is live (readiness.checkInjuryRisk). */
+  rampAlert?: boolean
+  acwrBounds?: AcwrBounds
 }
 
 export function buildTrainingSignals(input: BuildTrainingSignalsInput): TrainingSignals {
-  const load = classifyLoad(input.performance)
+  const rampAlert = input.rampAlert === true
+  const classified = classifyLoad(input.performance, input.acwrBounds)
+  // A fast ramp inside the in-range band is worth watching even though
+  // the level is fine: lift a quiet load axis to "monitor", never past it.
+  const load: AxisReading<LoadState> = rampAlert && classified.severity < 1
+    ? { ...classified, label: `${classified.label} · climbing fast`, severity: 1 }
+    : classified
   const body = classifyBody(input.readiness)
   const damage = classifyDamage(input.sorenessLoadByDate)
   const allAxes: AxisReading<string>[] = [load, body, damage]
@@ -248,7 +291,7 @@ export function buildTrainingSignals(input: BuildTrainingSignalsInput): Training
   const maxSeverity = Math.max(load.severity, body.severity, damage.severity)
   const todayCall = callForSeverity(maxSeverity)
   const reason = buildReason(load, body, damage, coherence, dominant)
-  return { load, body, damage, coherence, dominant, todayCall, reason }
+  return { load, body, damage, rampAlert, coherence, dominant, todayCall, reason }
 }
 
 // ─── Display helpers ────────────────────────────────────────────
@@ -264,4 +307,32 @@ export const AXIS_LABEL: Record<Axis, string> = {
   load: 'load',
   body: 'body',
   damage: 'soreness',
+}
+
+/** One sentence: load level, load rate, body — in that order. "But"
+ *  joins the two when exactly one of them is asking for restraint. */
+export function todaysCallSentence(s: TrainingSignals): string {
+  const level: Record<TrainingSignals['load']['state'], string> = {
+    detrained: 'load has dropped below your base',
+    productive: 'load is in range',
+    balanced: 'load is in range',
+    build: 'load is in the build zone',
+    ramping: 'load is ramping fast',
+    danger: 'load is in the danger zone',
+  }
+  const climbing = s.rampAlert && s.load.state !== 'ramping' && s.load.state !== 'danger'
+  const loadPart = s.load.noData
+    ? 'no load data yet'
+    : level[s.load.state] + (climbing ? ' but climbing fast' : '')
+  const bodyPart =
+    s.body.state === 'unknown' ? 'there is no body data yet'
+    : s.body.state === 'red' ? 'your body needs rest'
+    : s.body.state === 'yellow' ? "your body isn't absorbing it today"
+    : 'your body is recovered'
+  const loadRestrictive = s.load.severity > 0 || climbing
+  const bodyRestrictive = s.body.severity > 0
+  const joiner = loadRestrictive !== bodyRestrictive && !s.load.noData && s.body.state !== 'unknown' ? ', but ' : ', and '
+  const sore = s.damage.state === 'escalating' || s.damage.state === 'elevated' ? ', and soreness is climbing' : ''
+  const sentence = `${loadPart}${joiner}${bodyPart}${sore}.`
+  return sentence.charAt(0).toUpperCase() + sentence.slice(1)
 }

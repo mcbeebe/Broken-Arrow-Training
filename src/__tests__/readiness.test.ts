@@ -455,9 +455,9 @@ describe('suggestDailyAdjustment', () => {
     expect(msg).toContain('15-20%')
   })
 
-  it('suggests overreaching protocol for YELLOW + State C', () => {
+  it('suggests the under-recovered protocol for YELLOW + State C', () => {
     const msg = suggestDailyAdjustment('YELLOW', 'C', 'run', components)
-    expect(msg).toContain('Overreaching')
+    expect(msg).toContain('Under-recovered')
   })
 
   it('suggests easy walk for RED + run', () => {
@@ -504,12 +504,12 @@ describe('generateReadinessMessage', () => {
     expect(msg).toContain('sleep')
   })
 
-  it('generates YELLOW + State C overreaching message', () => {
+  it('generates YELLOW + State C under-recovered message', () => {
     const score = makeScore('YELLOW', '2026-04-15', {
       trainingState: 'C',
       components: { hrv: 0, rhr: 0, sleep: 0, trainingLoad: -0.5 },
     })
     const msg = generateReadinessMessage(score)
-    expect(msg).toContain('Overreaching')
+    expect(msg).toContain('Under-recovered')
   })
 })

@@ -33,7 +33,7 @@ export function recoverySummaryLine(raceMiles: number): string | null {
   return (
     `after the race take about ${r.restDays} day${r.restDays === 1 ? '' : 's'} off running and add an ` +
     `extra hour of sleep for ~${r.sleepExtraNights} nights, then rebuild in reverse taper (volume back ` +
-    `before speed). If readiness trends into overreaching or overtraining (State C/D, rising resting HR, ` +
+    `before speed). If readiness trends into under-recovered or overtrained (State C/D, rising resting HR, ` +
     `falling HRV/sleep), back off and deload rather than pushing through.`
   )
 }

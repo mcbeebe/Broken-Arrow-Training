@@ -140,14 +140,26 @@ export function useMondayReview(athleteId?: string, gapIso: string | null = null
     setState(next)
   }, [athleteId, decision.weekKey, decision.gapTriggered])
 
+  // The moment the review is up, record it under THIS week's key. Field
+  // bug: nothing called markShown, so storage only ever held the key of
+  // the week the athlete last dismissed; the next Monday's dismiss then
+  // wrote `dismissed: true` under that stale key, the decision saw a
+  // different week with no dismissal, and the sheet came straight back —
+  // "Close" and "Sounds good" both looked broken.
+  useEffect(() => {
+    if (enabled && decision.show) markShown()
+  }, [enabled, decision.show, markShown])
+
   /** Close the review: ends this week's cadence AND acknowledges the
-   *  current gap (applying adjustments calls this too). */
+   *  current gap (applying adjustments calls this too). Always keyed on
+   *  the week the decision is showing, never on what storage last held. */
   const dismiss = useCallback(() => {
     const current = read(athleteId)
-    const weekKey = current?.weekKey ?? decision.weekKey ?? todayDateString()
+    const weekKey = decision.weekKey ?? current?.weekKey ?? todayDateString()
+    const sameWeek = current?.weekKey === weekKey
     const next: ReviewState = {
       weekKey,
-      shownAt: current?.shownAt ?? Date.now(),
+      shownAt: sameWeek && current?.shownAt ? current.shownAt : Date.now(),
       dismissed: true,
       gapAckIso: gapIso ?? current?.gapAckIso,
     }

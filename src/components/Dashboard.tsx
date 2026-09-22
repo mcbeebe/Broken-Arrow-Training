@@ -12,6 +12,10 @@ import { parsePlanZones } from '../utils/zones'
 import { getMilesNumber } from '../utils/format'
 import { shouldTrackVerticalGain, parseRaceElevationFt } from '../utils/raceReadiness'
 import { filterByTimeWindow, type TimeWindow } from '../utils/performance'
+import { TSB_ZONES, acwrZones, acwrBoundsFrom } from '../utils/loadZones'
+import { hasRampAlert } from '../utils/readiness'
+import { TODAY_CALL_LABEL, todaysCallSentence, type TrainingSignals } from '../utils/trainingSignals'
+import type { ReadinessTuning } from '../utils/engineConfig'
 import ReadinessBanner from './ReadinessBanner'
 import TRIMPBreakdown from './TRIMPBreakdown'
 import PerformanceChart from './PerformanceChart'
@@ -48,6 +52,12 @@ interface DashboardProps {
   performance?: PerformanceMetrics[]
   weeklyRecommendations?: WeeklyRecommendation[]
   riskFlags?: RiskFlag[]
+  /** Load / body / damage readings — the one verdict the Readiness tab
+   *  leads with, so the cards beneath it never contradict it. */
+  trainingSignals?: TrainingSignals | null
+  /** Age/experience-tuned load-ratio lines, so the Performance cards
+   *  draw the same in-range band the readiness engine enforces. */
+  readinessTuning?: ReadinessTuning
   garminConnected?: boolean
   sorenessLoadByDate?: Map<string, number>
   /** Measured strength benchmark — powers the Stats benchmark % bar. */
@@ -91,6 +101,8 @@ export default function Dashboard({
   performance = [],
   weeklyRecommendations = [],
   riskFlags = [],
+  trainingSignals,
+  readinessTuning,
   garminConnected = false,
   sorenessLoadByDate,
   strengthCapacity,
@@ -235,6 +247,8 @@ export default function Dashboard({
           healthHistory={healthHistory}
           dailyTrimp={dailyTrimp}
           riskFlags={riskFlags}
+          signals={trainingSignals}
+          readinessTuning={readinessTuning}
           glossaryDefaultOpen={glossaryDefaultOpen}
         />
       )}
@@ -247,6 +261,7 @@ export default function Dashboard({
           raceDate={raceDate}
           sorenessLoadByDate={sorenessLoadByDate}
           athleteId={athleteId}
+          readinessTuning={readinessTuning}
         />
       )}
       {subTab === 'strength' && (
@@ -436,6 +451,8 @@ function ReadinessTab({
   healthHistory,
   dailyTrimp,
   riskFlags,
+  signals,
+  readinessTuning,
   glossaryDefaultOpen = false,
 }: {
   todayScore?: ReadinessScore | null
@@ -444,17 +461,21 @@ function ReadinessTab({
   healthHistory: GarminHealthData[]
   dailyTrimp: DailyTRIMP[]
   riskFlags: RiskFlag[]
+  signals?: TrainingSignals | null
+  readinessTuning?: ReadinessTuning
   glossaryDefaultOpen?: boolean
 }) {
   const verdict = readinessVerdict(weekScores)
   return (
     <div className="space-y-4">
+      {signals && todayScore && <TodaysCallCard signals={signals} />}
       {verdict && <ChartVerdictHeader verdict={verdict} />}
       {todayScore && (
         <ReadinessBanner
           todayScore={todayScore}
           todayHealth={todayHealth}
           healthHistory={healthHistory}
+          acwrBounds={acwrBoundsFrom(readinessTuning)}
         />
       )}
 
@@ -505,14 +526,15 @@ function ReadinessTab({
       )}
 
       {/* Glossary */}
-      <ReadinessGlossary defaultOpen={glossaryDefaultOpen} />
+      <ReadinessGlossary defaultOpen={glossaryDefaultOpen} readinessTuning={readinessTuning} />
     </div>
   )
 }
 
 // ─── Readiness Glossary ────────────────────────────────────────
 
-function ReadinessGlossary({ defaultOpen = false }: { defaultOpen?: boolean }) {
+function ReadinessGlossary({ defaultOpen = false, readinessTuning }: { defaultOpen?: boolean; readinessTuning?: ReadinessTuning }) {
+  const b = acwrBoundsFrom(readinessTuning)
   const [open, setOpen] = useState(defaultOpen)
   return (
     <div className="bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
@@ -556,7 +578,7 @@ function ReadinessGlossary({ defaultOpen = false }: { defaultOpen?: boolean }) {
 
         <div>
           <p className="font-semibold text-slate-700 dark:text-slate-200">Am I ramping safely? <span className="text-slate-400 text-xs font-normal">(load ratio · 20%)</span></p>
-          <p>Last 7 days of training stress vs. last 28 days. 0.8–1.3 is the sweet spot; above 1.5 elevates injury risk and forces YELLOW. Different from the Performance tab's Load Ratio — same idea, slightly different math window.</p>
+          <p>Last 7 days of training stress against your base. {b.low}–{b.sweetTop} is in range; above {b.danger} is a spike that forces YELLOW. It is the same Load Ratio the Performance tab shows.</p>
         </div>
 
         <div className="pt-2 border-t border-slate-200 dark:border-slate-700">
@@ -585,7 +607,7 @@ function ReadinessGlossary({ defaultOpen = false }: { defaultOpen?: boolean }) {
           <ul className="mt-1 ml-3 space-y-0.5 list-disc">
             <li><strong>Well recovered (A):</strong> train as planned.</li>
             <li><strong>Not fully recovered (B):</strong> keep the volume, drop the intensity 10–15%.</li>
-            <li><strong>Overreaching (C):</strong> two to three easy days. Walking, yoga, mobility.</li>
+            <li><strong>Under-recovered (C):</strong> two to three easy days. Walking, yoga, mobility.</li>
             <li><strong>Overtrained (D):</strong> five consecutive RED days or a falling 7-day HRV trend. Triggers a built-in deload.</li>
           </ul>
         </div>
@@ -618,6 +640,7 @@ function PerformanceTab({
   raceDate,
   sorenessLoadByDate,
   athleteId,
+  readinessTuning,
 }: {
   dailyTrimp: DailyTRIMP[]
   performance: PerformanceMetrics[]
@@ -626,6 +649,7 @@ function PerformanceTab({
   raceDate: string
   sorenessLoadByDate?: Map<string, number>
   athleteId?: string
+  readinessTuning?: ReadinessTuning
 }) {
   const [timeWindow, setTimeWindow] = useState<TimeWindow>('all')
   const { isSectionVisible, flags } = useDisplayPreferences(athleteId)
@@ -643,6 +667,8 @@ function PerformanceTab({
           raceDate={raceDate}
           dailyTrimp={dailyTrimp}
           athleteId={athleteId}
+          rampAlert={hasRampAlert(riskFlags)}
+          acwrBounds={acwrBoundsFrom(readinessTuning)}
         />
       )}
       {isSectionVisible('dash.trimpBreakdown') && (
@@ -654,7 +680,7 @@ function PerformanceTab({
           athleteId={athleteId}
         />
       )}
-      <PerformanceGlossary defaultOpen={flags.explanationVerbosity === 'high'} />
+      <PerformanceGlossary defaultOpen={flags.explanationVerbosity === 'high'} readinessTuning={readinessTuning} />
     </div>
   )
 }
@@ -728,9 +754,72 @@ function RiskFlagsCard({ flags, showAllClear = false }: { flags: RiskFlag[]; sho
   )
 }
 
+// ─── Today's call ──────────────────────────────────────────────
+// The one verdict the Readiness tab leads with: composed from the same
+// three axes the cards beneath it show, so nothing below can contradict
+// it. Field bug (2026-09-20): a load ratio of 1.27 read "safe" on one
+// card and "deload" on the next, with no sentence tying them together.
+
+/** The headline carries the verb the dominant axis asks for, so it
+ *  never says "hold" where the Load Ratio card says "trim". */
+function callHeadline(s: TrainingSignals): string {
+  switch (s.todayCall) {
+    case 'rest': return 'Rest today.'
+    case 'easy':
+      return s.dominant === 'load' && s.load.state === 'ramping'
+        ? "Easy day. Trim this week's volume."
+        : "Easy day. Hold this week's volume."
+    case 'monitor': return 'Train, and keep an eye on it.'
+    default: return 'Train as planned.'
+  }
+}
+
+const CALL_STRIPE: Record<TrainingSignals['todayCall'], string> = {
+  rest: 'border-red-500',
+  easy: 'border-amber-500',
+  monitor: 'border-amber-400',
+  train: 'border-green-500',
+}
+
+function TodaysCallCard({ signals }: { signals: TrainingSignals }) {
+  const pill = (tone: 'good' | 'neutral' | 'warn' | 'bad', text: string) => (
+    <span className={`inline-block px-2.5 py-1 rounded-full text-[11px] font-semibold ${
+      tone === 'good' ? 'bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300'
+      : tone === 'neutral' ? 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300'
+      : tone === 'warn' ? 'bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300'
+      : 'bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300'
+    }`}>{text}</span>
+  )
+  const levelLabel = signals.load.label.replace(' · climbing fast', '')
+  // Same tones as the Recovery Balance / Load Ratio cards: the build zone
+  // is neutral there, so it is neutral here.
+  const levelTone =
+    signals.load.noData ? 'neutral'
+    : signals.load.state === 'danger' ? 'bad'
+    : signals.load.state === 'ramping' || signals.load.state === 'detrained' ? 'warn'
+    : signals.load.state === 'build' ? 'neutral'
+    : 'good'
+  const bodyTone = signals.body.state === 'red' ? 'bad' : signals.body.state === 'yellow' ? 'warn' : 'good'
+  return (
+    <div
+      className={`bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700 border-l-4 ${CALL_STRIPE[signals.todayCall]}`}
+      data-testid="todays-call"
+    >
+      <p className="text-[11px] font-bold uppercase tracking-wide text-slate-400">Today's call · {TODAY_CALL_LABEL[signals.todayCall]}</p>
+      <p className="text-base font-bold text-slate-800 dark:text-white mt-0.5">{callHeadline(signals)}</p>
+      <p className="text-sm text-slate-600 dark:text-slate-300 mt-1 leading-snug">{todaysCallSentence(signals)}</p>
+      <div className="flex flex-wrap gap-1.5 mt-2.5">
+        {pill(levelTone, `Load level · ${levelLabel.toLowerCase()}`)}
+        {pill(signals.rampAlert ? 'warn' : 'good', `Load rate · ${signals.rampAlert ? 'climbing fast' : 'steady'}`)}
+        {signals.body.state !== 'unknown' && pill(bodyTone, `Body · ${signals.body.label.toLowerCase()}`)}
+      </div>
+    </div>
+  )
+}
+
 // ─── Performance Glossary ──────────────────────────────────────
 
-function PerformanceGlossary({ defaultOpen = false }: { defaultOpen?: boolean }) {
+function PerformanceGlossary({ defaultOpen = false, readinessTuning }: { defaultOpen?: boolean; readinessTuning?: ReadinessTuning }) {
   const [open, setOpen] = useState(defaultOpen)
   return (
     <div className="bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
@@ -744,11 +833,17 @@ function PerformanceGlossary({ defaultOpen = false }: { defaultOpen?: boolean })
       {open && (
       <div className="px-4 pb-4 space-y-3 text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
         <div className="bg-blue-50 rounded-lg p-2.5 border border-blue-200">
-          <p className="font-semibold text-blue-800">Why this is different from the Readiness tab</p>
+          <p className="font-semibold text-blue-800">How today's call is made</p>
           <p className="text-blue-700 mt-1">
-            <strong>Performance</strong> is pure training math — fitness and fatigue accumulating over weeks. It doesn't look at your watch this morning.
-            <strong> Readiness</strong> is the opposite — today's biometrics, no math memory.
-            They can disagree, and that's fine. Recovery Balance can read "danger zone" while Readiness is GREEN — it just means your fatigue debt is high but your body is handling the day. Read both before changing your plan.
+            Three things are measured, and the strictest one sets today's call.
+          </p>
+          <ul className="mt-1 ml-3 space-y-0.5 list-disc text-blue-700">
+            <li><strong>Load level</strong> — is this week's training a normal amount for your base? (Recovery Balance, Load Ratio)</li>
+            <li><strong>Load rate</strong> — did it get there too quickly? (the ramp alert)</li>
+            <li><strong>Body</strong> — is your watch saying you absorbed it? (Readiness)</li>
+          </ul>
+          <p className="text-blue-700 mt-1">
+            Level and rate can be fine while your body is not. That is an easy day, not a contradiction.
           </p>
         </div>
 
@@ -766,22 +861,19 @@ function PerformanceGlossary({ defaultOpen = false }: { defaultOpen?: boolean })
           <p className="font-semibold text-slate-700 dark:text-slate-200">Am I fresh or fatigued? <span className="text-slate-400 text-xs font-normal">(Recovery Balance, a.k.a. TSB)</span></p>
           <p>Fitness minus Fatigue. Positive = fresher than your fitness level (ideal for racing). Deeply negative = fatigue has outrun your base. Common to see negative numbers early in a plan when fitness hasn't caught up yet — not a problem unless biometrics agree.</p>
           <ul className="mt-1 ml-3 space-y-0.5 list-disc">
-            <li><strong>+15 to +25:</strong> peak form — race ready.</li>
-            <li><strong>+5 to +14:</strong> fresh — good for quality sessions.</li>
-            <li><strong>−10 to +4:</strong> productive training — building fitness.</li>
-            <li><strong>−30 to −11:</strong> tired — normal in build weeks.</li>
-            <li><strong>Below −30:</strong> overreaching. Cross-check the Readiness tab before changing the plan.</li>
+            {TSB_ZONES.map(z => (
+              <li key={z.key}><strong>{z.range}:</strong> {z.label}. {z.note}</li>
+            ))}
           </ul>
         </div>
 
         <div>
           <p className="font-semibold text-slate-700 dark:text-slate-200">Am I ramping safely? <span className="text-slate-400 text-xs font-normal">(Load Ratio, a.k.a. ACWR)</span></p>
-          <p>Last 7 days vs. last 42 days of training stress. Tells you whether this week is a normal load relative to your base or a spike.</p>
+          <p>Last 7 days vs. last 42 days of training stress. Tells you whether this week is a normal load relative to your base or a spike. The ramp alert is separate: it watches how fast the ratio moved over three days, and can ask you to hold volume while the level is still in range.</p>
           <ul className="mt-1 ml-3 space-y-0.5 list-disc">
-            <li><strong>0.8–1.3:</strong> sweet spot.</li>
-            <li><strong>1.3–1.5:</strong> caution — injury risk climbing.</li>
-            <li><strong>Above 1.5:</strong> high risk — ramped too fast, back off.</li>
-            <li><strong>Below 0.8:</strong> detraining — load fell below your base.</li>
+            {acwrZones(acwrBoundsFrom(readinessTuning)).map(z => (
+              <li key={z.key}><strong>{z.range}:</strong> {z.label}. {z.note}</li>
+            ))}
           </ul>
         </div>
 

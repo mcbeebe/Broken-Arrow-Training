@@ -58,12 +58,20 @@ describe('classifyLoad', () => {
     expect(classifyLoad(perf({ tsb: 0, acwr: 1.0 })).state).toBe('balanced')
   })
 
-  it('flags overreach below TSB -10', () => {
-    expect(classifyLoad(perf({ tsb: -15, acwr: 1.1 })).state).toBe('overreach')
+  it('reads the build zone below TSB -10 — neutral, the body decides', () => {
+    const load = classifyLoad(perf({ tsb: -15, acwr: 1.1 }))
+    expect(load.state).toBe('build')
+    expect(load.severity).toBe(0)
   })
 
-  it('flags danger below TSB -25', () => {
-    expect(classifyLoad(perf({ tsb: -30, acwr: 1.1 })).state).toBe('danger')
+  it('flags ramping when ACWR is past the in-range top', () => {
+    expect(classifyLoad(perf({ tsb: 0, acwr: 1.4 })).state).toBe('ramping')
+    expect(classifyLoad(perf({ tsb: 0, acwr: 1.4 })).severity).toBe(2)
+  })
+
+  it('flags danger below TSB -30 — the same line the Recovery Balance card draws', () => {
+    expect(classifyLoad(perf({ tsb: -30, acwr: 1.1 })).state).toBe('build')
+    expect(classifyLoad(perf({ tsb: -30.5, acwr: 1.1 })).state).toBe('danger')
   })
 
   it('flags danger when ACWR > 1.5 even with neutral TSB', () => {

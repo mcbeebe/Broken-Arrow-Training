@@ -4,6 +4,7 @@ import { localDateStr } from '../utils/format'
 import { ComposedChart, Bar, Line, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import Term from './TermGlossary'
 import { useDisplayPreferences } from '../hooks/useDisplayPreferences'
+import { ACWR_BOUNDS } from '../utils/loadZones'
 
 export type TRIMPRange = '7d' | '30d' | '90d' | 'ytd' | 'all'
 
@@ -600,7 +601,7 @@ export default function TRIMPBreakdown({
       {hasZone && (
         <p className="mt-2 text-[10px] text-slate-400 dark:text-slate-500 leading-snug">
           <span className="font-semibold text-slate-500 dark:text-slate-400">Acute load</span> = your rolling recent training load (7-day average).
-          {' '}<span className="font-semibold text-slate-500 dark:text-slate-400">Optimal range</span> = 0.8–1.3× your <Term name="acwr">chronic load</Term>.
+          {' '}<span className="font-semibold text-slate-500 dark:text-slate-400">In range</span> = {ACWR_BOUNDS.low}–{ACWR_BOUNDS.sweetTop}× your <Term name="acwr">chronic load</Term>.
           Inside the band = sustainable; above = ramping fast, below = backing off.
         </p>
       )}

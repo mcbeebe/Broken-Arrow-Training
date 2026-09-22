@@ -848,18 +848,20 @@ export interface PerformanceMetrics {
   acwr: number;            // acute:chronic workload ratio — ATL / CTL
 }
 
+// Recovery-balance and load-ratio zones. The bounds, labels and card copy
+// live in utils/loadZones.ts — every surface reads them from there.
 export type TSBState =
-  | "peaked"         // +15 to +25
-  | "well_rested"    // +5 to +15
-  | "productive"     // -10 to +5
-  | "overreaching"   // -30 to -10
-  | "danger";        // < -30
+  | "peaked"         // +15 and up
+  | "fresh"          // +5 to +15
+  | "steady"         // -10 to +5
+  | "build"          // -30 to -10 — tired by design in a build week
+  | "overreaching";  // below -30
 
 export type ACWRRisk =
   | "detraining"     // < 0.8
-  | "sweet_spot"     // 0.8 - 1.3
-  | "caution"        // 1.3 - 1.5
-  | "high_risk";     // > 1.5
+  | "in_range"       // 0.8 - 1.3 (top is tunable by age/experience)
+  | "ramping"        // 1.3 - 1.5
+  | "spike";         // > 1.5
 
 export interface WeeklyRecommendation {
   type: "overreaching" | "acwr_spike" | "acwr_low" | "ctl_plateau" | "taper_early" | "on_track" | "recovery_needed" | "hrv_unstable" | "weekly_trimp_overload" | "medical_flag";
