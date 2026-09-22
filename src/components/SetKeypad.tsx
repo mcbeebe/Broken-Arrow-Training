@@ -146,7 +146,7 @@ export default function SetKeypad({
             Target {fmt(targetWeightLb)}
           </button>
         )}
-        {!isWeight && targetReps != null && targetReps > 0 && (
+        {field === 'reps' && targetReps != null && targetReps > 0 && (
           <button
             onClick={() => { setTouched(true); onInput(String(targetReps)) }}
             className="flex-1 py-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-xs font-semibold text-emerald-700"

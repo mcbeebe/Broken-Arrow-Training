@@ -9,21 +9,25 @@
  * so a thumb never has to place a colon.
  */
 
+/** The keypad holds four digits: 99:59 is the longest set it can say. */
+export const MAX_SET_SEC = 99 * 60 + 59
+
 /** "145" → 105 s. The last two digits are seconds, the rest minutes.
  *  Seconds past 59 roll into minutes ("175" → 2:15) so a typo never
- *  produces an impossible clock. Empty → 0. */
+ *  produces an impossible clock; anything past 99:59 is 99:59. Empty → 0. */
 export function secondsFromDigits(digits: string): number {
   const d = digits.replace(/\D/g, '').slice(-4)
   if (!d) return 0
   const secs = parseInt(d.slice(-2), 10) || 0
   const mins = d.length > 2 ? parseInt(d.slice(0, -2), 10) || 0 : 0
-  return mins * 60 + secs
+  return Math.min(MAX_SET_SEC, mins * 60 + secs)
 }
 
-/** 105 → "145": the digits that reproduce a stored time in the keypad. */
+/** 105 → "145": the digits that reproduce a stored time in the keypad.
+ *  A stored time past 99:59 comes back as the keypad's ceiling. */
 export function digitsFromSeconds(sec: number | undefined): string {
   if (!sec || sec <= 0) return ''
-  const s = Math.round(sec)
+  const s = Math.min(MAX_SET_SEC, Math.round(sec))
   const mins = Math.floor(s / 60)
   const secs = s % 60
   return mins > 0 ? `${mins}${String(secs).padStart(2, '0')}` : String(secs)
@@ -37,7 +41,14 @@ export function formatSetTime(sec: number | undefined): string {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
 }
 
-/** The keypad's live display for a digit buffer: "145" → "1:45", "" → "0:00". */
+/** The keypad's live display for a digit buffer, shown as typed: "9" →
+ *  "0:09", "145" → "1:45", "175" → "1:75" (the stored value rolls that
+ *  to 2:15 once the cell closes), "" → "0:00". Showing the roll-over
+ *  mid-entry would assert a time the athlete has not typed yet. */
 export function formatDigits(digits: string): string {
-  return formatSetTime(secondsFromDigits(digits)) || '0:00'
+  const d = digits.replace(/\D/g, '').slice(-4)
+  if (!d) return '0:00'
+  const secs = d.slice(-2).padStart(2, '0')
+  const mins = d.length > 2 ? d.slice(0, -2) : '0'
+  return `${mins}:${secs}`
 }

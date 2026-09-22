@@ -4,11 +4,12 @@
  * right into m:ss), one display format everywhere.
  */
 import { describe, it, expect, afterEach } from 'vitest'
-import { render, screen, cleanup } from '@testing-library/react'
+import { render, screen, cleanup, fireEvent } from '@testing-library/react'
 import { secondsFromDigits, digitsFromSeconds, formatSetTime, formatDigits } from '../utils/setTime'
-import { lastSessionSummary } from '../utils/strengthDraft'
 import { buildProgression, normalizeExerciseName } from '../utils/strengthProgression'
 import WorkoutModal from '../components/WorkoutModal'
+import StrengthSetEditor from '../components/StrengthSetEditor'
+import { ghostFillFromHistory, lastSessionSummary } from '../utils/strengthDraft'
 import type { PlannedDay, TrainingWeek } from '../types'
 
 afterEach(cleanup)
@@ -40,8 +41,22 @@ describe('digits ↔ seconds', () => {
     expect(formatSetTime(765)).toBe('12:45')   // never "12 min"
     expect(formatSetTime(3725)).toBe('62:05')
     expect(formatSetTime(undefined)).toBe('')
+  })
+
+  it('the keypad shows the digits as typed; the roll-over happens in what is stored', () => {
     expect(formatDigits('')).toBe('0:00')
     expect(formatDigits('9')).toBe('0:09')
+    expect(formatDigits('75')).toBe('0:75')
+    expect(formatDigits('175')).toBe('1:75')
+    expect(formatSetTime(secondsFromDigits('175'))).toBe('2:15')
+  })
+
+  it('99:59 is the ceiling in both directions, so a stepper after "9999" cannot wrap to 0:44', () => {
+    expect(secondsFromDigits('9999')).toBe(5999)
+    expect(digitsFromSeconds(5999)).toBe('9959')
+    expect(digitsFromSeconds(6039)).toBe('9959')
+    expect(secondsFromDigits(digitsFromSeconds(secondsFromDigits('9999')) ) + 5).toBe(6004)
+    expect(secondsFromDigits(digitsFromSeconds(6004))).toBe(5999)
   })
 })
 
@@ -65,6 +80,26 @@ function timedWeek(): TrainingWeek {
     }],
   }
 }
+
+describe('the reps keypad\'s target chip stays off the time keypad', () => {
+  it('shows no "Target N" on a time cell', () => {
+    // Rendered through the editor so the target exists: goblet squats with history.
+    const week: TrainingWeek = {
+      num: 2, dates: 'Sep 7–13', startIso: '2026-09-07', miles: 10, focus: 'Build',
+      days: [{ day: 'Mon 9/7', type: 'strength', workout: 'STRENGTH', detail: 'Goblet squats 3×12', zone: 'Z1', route: 'Gym', time: '1 hr',
+        actual: { stravaId: 1, source: 'manual', distance: 0, movingTime: 3000, elapsedTime: 3000, elevationGain: 0, type: 'strength_training', name: 'Strength', startDate: '2026-09-07T08:00:00',
+          strengthLog: [{ name: 'Goblet squats', focus: 'lower', sets: [{ reps: 12, weight: '20 lb' }, { reps: 12, weight: '20 lb' }, { reps: 12, weight: '20 lb' }] }] } }],
+    }
+    const progression = buildProgression([week])
+    const exercises = ghostFillFromHistory([{ name: 'Goblet squats', focus: 'lower', sets: [{ reps: 12, weight: '' }] }], progression)
+    render(<StrengthSetEditor exercises={exercises} onChange={() => {}} progression={progression} />)
+    fireEvent.click(screen.getByLabelText('Set 1 time'))
+    expect(screen.queryByText(/^Target/)).toBeNull()
+    fireEvent.click(screen.getByText('Next: weight'))
+    fireEvent.click(screen.getByText('Next: reps'))
+    expect(screen.getByText('Target 12')).toBeTruthy()
+  })
+})
 
 describe('where the time shows', () => {
   it('the "Last time" line carries the times when the sets were timed, and stays as it was when not', () => {

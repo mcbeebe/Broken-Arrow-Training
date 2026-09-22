@@ -227,8 +227,8 @@ export default function StrengthSetEditor({ exercises, onChange, progression, ca
             <div className="flex items-center gap-2 px-1 mb-1">
               <span className="w-7 text-[10px] font-semibold uppercase text-slate-400">Set</span>
               <span className="flex-1 text-center text-[10px] font-semibold uppercase text-slate-400">Weight</span>
-              <span className="w-12 text-center text-[10px] font-semibold uppercase text-slate-400">Reps</span>
-              <span className="w-14 text-center text-[10px] font-semibold uppercase text-slate-400">Time</span>
+              <span className="w-11 text-center text-[10px] font-semibold uppercase text-slate-400">Reps</span>
+              <span className="w-12 text-center text-[10px] font-semibold uppercase text-slate-400">Time</span>
               <span className="w-8 text-center text-[10px] font-semibold uppercase text-slate-400">✓</span>
               <span className="w-4" />
             </div>
@@ -268,7 +268,7 @@ export default function StrengthSetEditor({ exercises, onChange, progression, ca
                     <button
                       onClick={() => openCell({ exIdx, setIdx, field: 'reps' })}
                       aria-label={`Set ${label} reps`}
-                      className={`w-12 px-1 py-1.5 text-xs font-mono text-center border rounded bg-white dark:bg-slate-800 ${
+                      className={`w-11 px-1 py-1.5 text-xs font-mono text-center border rounded bg-white dark:bg-slate-800 ${
                         active?.exIdx === exIdx && active?.setIdx === setIdx && active.field === 'reps'
                           ? 'border-purple-500 ring-1 ring-purple-500'
                           : ghost ? 'border-purple-100 text-slate-400' : 'border-purple-200 text-slate-700 dark:text-slate-200'
@@ -281,7 +281,7 @@ export default function StrengthSetEditor({ exercises, onChange, progression, ca
                     <button
                       onClick={() => openCell({ exIdx, setIdx, field: 'time' })}
                       aria-label={`Set ${label} time`}
-                      className={`w-14 px-1 py-1.5 text-xs font-mono text-center border rounded bg-white dark:bg-slate-800 ${
+                      className={`w-12 px-0.5 py-1.5 text-xs font-mono text-center border rounded bg-white dark:bg-slate-800 ${
                         active?.exIdx === exIdx && active?.setIdx === setIdx && active.field === 'time'
                           ? 'border-purple-500 ring-1 ring-purple-500'
                           : ghost ? 'border-purple-100 text-slate-400' : 'border-purple-200 text-slate-700 dark:text-slate-200'
