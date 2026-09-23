@@ -27,9 +27,18 @@ describe('calculateExerciseLoad', () => {
     expect(calculateExerciseLoad([full([{ reps: 10, weight: '' }, { reps: 10, weight: '' }, { reps: 10, weight: '' }])])).toBe(7.5)
   })
 
-  it('a weighted single with no time is a lift, scored by its reps', () => {
-    const lift: StrengthExerciseLog = { name: 'Deadlift', focus: 'lower', sets: [{ reps: 1, weight: '300 lb' }] }
-    expect(calculateExerciseLoad([lift])).toBe(0.8) // 4.0 × 2.0 × 0.1
+  it('a weighted single is a lift, scored by its reps — timed or not, unless the time says carry', () => {
+    const lift = (timeSec?: number): StrengthExerciseLog => ({ name: 'Deadlift', focus: 'lower', sets: [{ reps: 1, weight: '300 lb', timeSec }] })
+    expect(calculateExerciseLoad([lift()])).toBe(0.8)   // 4.0 × 2.0 × 0.1
+    expect(calculateExerciseLoad([lift(5)])).toBe(0.8)  // a heavy single someone timed: still a lift
+    // 90 s under 300 lb is a loaded carry, not a deadlift: a station effort.
+    expect(calculateExerciseLoad([lift(90)])).toBe(18)  // 4.0 × 2.0 × (90/40)
+  })
+
+  it('a set logged by time alone — reps blank, "SkiErg 500m · 1:45" — is an effort, not nothing', () => {
+    expect(calculateExerciseLoad([full([{ reps: 0, weight: '', timeSec: 105 }])])).toBe(6.6) // 2.5 × 105/40, rounded
+    expect(calculateExerciseLoad([full([{ reps: 0, weight: '', timeSec: 10 }])])).toBe(0)   // too short to be an effort
+    expect(calculateExerciseLoad([full([{ reps: 0, weight: '' }])])).toBe(0)
   })
 
   it('skipped sets are planned work, not performed — they add nothing', () => {

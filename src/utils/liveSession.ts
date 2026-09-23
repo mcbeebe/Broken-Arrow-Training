@@ -209,7 +209,12 @@ export function isLastSetOfExercise(s: LiveSessionState): boolean {
 export function logCurrentSet(s: LiveSessionState, now: number): LiveSessionState {
   if (s.phase !== 'exercise') return s
   const { exIdx, setIdx } = s.cursor
-  const timeSec = s.segmentStartedAt != null && s.pausedAt == null
+  // A station's split is a measurement and is recorded. A straight set's
+  // wall-clock duration (from "start set" to "log set", setup included)
+  // is not, and would now surface everywhere a set time is shown — so
+  // the athlete types a lift's time when it matters (wall balls on a
+  // strength day) and the player stays quiet.
+  const timeSec = s.traversal === 'round' && s.segmentStartedAt != null && s.pausedAt == null
     ? Math.max(0, Math.round((now - s.segmentStartedAt) / 1000))
     : undefined
   const marked = withSet(s, exIdx, setIdx, { done: true, ...(timeSec != null ? { timeSec } : {}) })

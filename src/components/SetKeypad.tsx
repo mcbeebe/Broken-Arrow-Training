@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { digitsFromSeconds, formatDigits, secondsFromDigits } from '../utils/setTime'
 
 /**
  * The stepper keypad — Phase 1 of the strength-logging overhaul.
@@ -12,11 +13,17 @@ import { useState } from 'react'
  *
  * The panel is dumb about WHERE the value lives: the parent owns the
  * active cell and receives every buffer change through onInput. `value`
- * is the raw buffer — a number string like "22.5", or "BW" for weight.
+ * is the raw buffer — a number string like "22.5", "BW" for weight, or
+ * for time the m:ss digits typed so far ("145" → 1:45).
+ *
+ * Time is the third field: the number that matters on a wall-ball set,
+ * a SkiErg 500 m or a sled push, where the athlete races the clock.
  */
 
+export type SetField = 'weight' | 'reps' | 'time'
+
 export interface SetKeypadProps {
-  field: 'weight' | 'reps'
+  field: SetField
   value: string
   exerciseName: string
   /** Set label as rendered in the row: 'W', 'A', '1', '2', … */
@@ -27,6 +34,8 @@ export interface SetKeypadProps {
   targetReps?: number | null
   /** Last session's weight for this position (e.g. "20 lb"); null hides. */
   lastWeight?: string | null
+  /** Last session's time for this position, in seconds; null hides. */
+  lastTimeSec?: number | null
   onInput: (raw: string) => void
   onSwitchField: () => void
   /** "Set done": parent marks the set done and advances or closes. */
@@ -36,6 +45,8 @@ export interface SetKeypadProps {
 
 const WEIGHT_STEP = 2.5
 const REP_STEP = 1
+const TIME_STEP_SEC = 5
+const TIME_MAX_DIGITS = 4 // 99:59
 
 function toNumber(raw: string): number {
   const n = parseFloat(raw)
@@ -49,7 +60,7 @@ function fmt(n: number): string {
 
 export default function SetKeypad({
   field, value, exerciseName, setLabel, setCount,
-  targetWeightLb, targetReps, lastWeight,
+  targetWeightLb, targetReps, lastWeight, lastTimeSec,
   onInput, onSwitchField, onSetDone, onClose,
 }: SetKeypadProps) {
   // First digit after opening REPLACES the ghost value instead of
@@ -59,17 +70,25 @@ export default function SetKeypad({
   const [touched, setTouched] = useState(false)
 
   const isWeight = field === 'weight'
-  const step = isWeight ? WEIGHT_STEP : REP_STEP
+  const isTime = field === 'time'
+  const step = isWeight ? WEIGHT_STEP : isTime ? TIME_STEP_SEC : REP_STEP
+  const fieldLabel = isWeight ? 'weight' : isTime ? 'time' : 'reps'
 
   function bump(delta: number) {
-    const next = Math.max(0, toNumber(value === 'BW' ? '0' : value) + delta)
     setTouched(true)
+    if (isTime) {
+      const next = Math.max(0, secondsFromDigits(value) + delta)
+      onInput(digitsFromSeconds(next))
+      return
+    }
+    const next = Math.max(0, toNumber(value === 'BW' ? '0' : value) + delta)
     onInput(fmt(next))
   }
 
   function pressDigit(d: string) {
     const base = touched && value !== 'BW' ? value : ''
     if (d === '.' && (base.includes('.') || !isWeight)) return
+    if (isTime && base.length >= TIME_MAX_DIGITS) return
     setTouched(true)
     onInput(base + d)
   }
@@ -80,6 +99,7 @@ export default function SetKeypad({
   }
 
   const lastNumeric = lastWeight ? lastWeight.replace(/[^\d.]/g, '') : ''
+  const stepLabel = isTime ? `${step}s` : String(step)
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-[60] bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 rounded-t-2xl shadow-[0_-8px_24px_rgba(15,23,42,0.12)] px-4 pt-3 pb-7">
@@ -87,10 +107,12 @@ export default function SetKeypad({
       <div className="flex items-center justify-between mb-3">
         <div className="min-w-0">
           <p className="text-[11px] font-bold uppercase tracking-wide text-purple-700 truncate">
-            {exerciseName || 'Exercise'} · set {setLabel} of {setCount} · {isWeight ? 'weight' : 'reps'}
+            {exerciseName || 'Exercise'} · set {setLabel} of {setCount} · {fieldLabel}
           </p>
           <p className="font-mono text-2xl font-bold text-slate-800 dark:text-white">
-            {value === '' ? <span className="text-slate-300">0</span> : value}
+            {isTime
+              ? (value === '' ? <span className="text-slate-300">0:00</span> : formatDigits(value))
+              : (value === '' ? <span className="text-slate-300">0</span> : value)}
             {isWeight && value !== 'BW' && <span className="text-sm font-medium text-slate-400"> lb</span>}
           </p>
         </div>
@@ -101,7 +123,7 @@ export default function SetKeypad({
             className="w-14 h-12 rounded-xl bg-slate-100 dark:bg-slate-700 flex flex-col items-center justify-center"
           >
             <span className="text-lg font-bold text-slate-600 dark:text-slate-200 leading-none">−</span>
-            <span className="font-mono text-[10px] text-slate-500">{step}</span>
+            <span className="font-mono text-[10px] text-slate-500">{stepLabel}</span>
           </button>
           <button
             onClick={() => bump(step)}
@@ -109,7 +131,7 @@ export default function SetKeypad({
             className="w-14 h-12 rounded-xl bg-purple-600 flex flex-col items-center justify-center"
           >
             <span className="text-lg font-bold text-white leading-none">+</span>
-            <span className="font-mono text-[10px] text-purple-200">{step}</span>
+            <span className="font-mono text-[10px] text-purple-200">{stepLabel}</span>
           </button>
         </div>
       </div>
@@ -124,7 +146,7 @@ export default function SetKeypad({
             Target {fmt(targetWeightLb)}
           </button>
         )}
-        {!isWeight && targetReps != null && targetReps > 0 && (
+        {field === 'reps' && targetReps != null && targetReps > 0 && (
           <button
             onClick={() => { setTouched(true); onInput(String(targetReps)) }}
             className="flex-1 py-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-xs font-semibold text-emerald-700"
@@ -138,6 +160,14 @@ export default function SetKeypad({
             className="flex-1 py-2.5 rounded-lg bg-slate-100 dark:bg-slate-700 text-xs font-mono font-semibold text-slate-600 dark:text-slate-200"
           >
             Last ({lastWeight})
+          </button>
+        )}
+        {isTime && lastTimeSec != null && lastTimeSec > 0 && (
+          <button
+            onClick={() => { setTouched(true); onInput(digitsFromSeconds(lastTimeSec)) }}
+            className="flex-1 py-2.5 rounded-lg bg-slate-100 dark:bg-slate-700 text-xs font-mono font-semibold text-slate-600 dark:text-slate-200"
+          >
+            Last ({formatDigits(digitsFromSeconds(lastTimeSec))})
           </button>
         )}
         {isWeight && (
@@ -194,7 +224,7 @@ export default function SetKeypad({
           onClick={onSwitchField}
           className="flex-1 h-11 rounded-xl border border-slate-200 dark:border-slate-600 text-sm font-semibold text-slate-600 dark:text-slate-200"
         >
-          {isWeight ? 'Next: reps' : 'Next: weight'}
+          {isWeight ? 'Next: reps' : isTime ? 'Next: weight' : 'Next: time'}
         </button>
         <button
           onClick={onSetDone}

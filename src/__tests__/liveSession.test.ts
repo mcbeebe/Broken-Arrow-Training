@@ -62,6 +62,13 @@ describe('session walkthrough', () => {
     expect(s.exercises.every(ex => ex.sets.every(set => set.done))).toBe(true)
   })
 
+  it('a straight set is logged without a time — its wall-clock duration is not a measurement', () => {
+    let s = fresh()
+    s = logCurrentSet(s, T0 + sec(60))
+    expect(s.exercises[0].sets[0].done).toBe(true)
+    expect(s.exercises[0].sets[0].timeSec).toBeUndefined()
+  })
+
   it('skipping a set advances without marking it done — honest data', () => {
     let s = fresh()
     s = skipCurrentSet(s, T0 + sec(30))

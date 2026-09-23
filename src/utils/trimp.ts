@@ -1160,6 +1160,9 @@ const EXERCISE_BASE_LOAD: Record<string, number> = {
 const STATION_SECONDS_PER_SET = 40
 const STATION_UNTIMED_SETS = 3
 const STATION_MAX_SETS = 8
+/** A timed single shorter than this is a heavy lift someone happened to
+ *  time, not a carry or an erg piece. Nobody's 1-rep deadlift takes 20 s. */
+const STATION_MIN_SEC = 20
 
 export function calculateExerciseLoad(exercises: StrengthExerciseLog[]): number {
   if (!exercises || exercises.length === 0) return 0
@@ -1169,15 +1172,21 @@ export function calculateExerciseLoad(exercises: StrengthExerciseLog[]): number 
     const basePerSet = EXERCISE_BASE_LOAD[exercise.focus] ?? 2.5
     for (const set of exercise.sets) {
       const reps = set.reps || 0
-      if (reps === 0 || set.done === false) continue
+      if (set.done === false) continue
+      // A set logged by time alone ("SkiErg 500m · 1:45", reps blank) is
+      // an effort; a set with neither reps nor time is nothing.
+      if (reps === 0 && !(set.timeSec && set.timeSec >= STATION_MIN_SEC)) continue
 
       // Weight modifier: heavier loads = more musculoskeletal stress
       const weightLbs = parseFloat(set.weight) || 0
       const weightScale = weightLbs > 0 ? Math.min(2.0, 1 + weightLbs / 200) : 1.0
 
-      // A station effort: one timed (or bodyweight) set of reps 1.
-      // A weighted single with no time is a lift, scored by its reps.
-      if (reps <= 1 && (set.timeSec != null || weightLbs === 0)) {
+      // A station effort: one set of reps ≤ 1 that is either bodyweight
+      // or timed long enough to be a carry / erg piece / sled push. A
+      // weighted single with no time, or a timed one under 20 s, is a
+      // lift scored by its reps.
+      const stationTime = set.timeSec != null && set.timeSec >= STATION_MIN_SEC
+      if (reps <= 1 && (stationTime || (weightLbs === 0 && set.timeSec == null))) {
         const setsEquivalent = set.timeSec != null
           ? Math.min(STATION_MAX_SETS, Math.max(1, set.timeSec / STATION_SECONDS_PER_SET))
           : STATION_UNTIMED_SETS

@@ -1,3 +1,4 @@
+import { formatSetTime } from '../utils/setTime'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import type { PlannedDay, HRZone, ReadinessScore, PerformanceMetrics, CoachSnapshot, TRIMPRecord, ActualWorkout } from '../types'
 import { DEFAULT_COACH_NAME } from '../types'
@@ -941,7 +942,7 @@ export default function WorkoutModal({ day, weekNum, onClose, onLog, onStartLive
                                   : 'text-teal-700 bg-white dark:bg-slate-800/60'
                               }`}
                             >
-                              {s.setType === 'warmup' ? 'W: ' : ''}{s.reps > 0 ? `${s.reps} ${s.reps === 1 ? 'rep' : 'reps'}` : ''}{s.weight !== '—' ? ` @ ${s.weight}` : ''}{s.notes ? ` (${s.notes})` : ''}{s.done === false ? ' — skipped' : ''}
+                              {s.setType === 'warmup' ? 'W: ' : ''}{s.reps > 0 ? `${s.reps} ${s.reps === 1 ? 'rep' : 'reps'}` : ''}{s.weight && s.weight !== '—' ? ` @ ${s.weight}` : ''}{s.timeSec ? ` · ${formatSetTime(s.timeSec)}` : ''}{s.notes ? ` (${s.notes})` : ''}{s.done === false ? ' — skipped' : ''}
                             </span>
                           ))}
                         </div>
