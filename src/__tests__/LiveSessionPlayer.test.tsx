@@ -124,6 +124,62 @@ describe('the session flow', () => {
   })
 })
 
+describe('recording a set’s time live (Plank, wall balls, an erg piece)', () => {
+  it('the microwave keypad stamps the set, and "Set done" confirms it and starts rest', () => {
+    renderPlayer()
+    fireEvent.click(screen.getByText('Start workout'))
+    expect(screen.getByText('Add time')).toBeTruthy()
+    fireEvent.click(screen.getByText('Add time'))
+    // 1:30, typed microwave-style: "1", "3", "0".
+    fireEvent.click(screen.getByRole('button', { name: '1' }))
+    fireEvent.click(screen.getByRole('button', { name: '3' }))
+    fireEvent.click(screen.getByRole('button', { name: '0' }))
+    expect(screen.getByText('1:30')).toBeTruthy()
+    fireEvent.click(screen.getByText('Set done'))
+    // "Set done" both confirms the time and logs the set.
+    expect(screen.getByText('Rest')).toBeTruthy()
+  })
+
+  it('"Next: weight" closes the keypad without logging the set — the time already stuck', () => {
+    renderPlayer()
+    fireEvent.click(screen.getByText('Start workout'))
+    fireEvent.click(screen.getByText('Add time'))
+    fireEvent.click(screen.getByRole('button', { name: '9' }))
+    fireEvent.click(screen.getByText('Next: weight'))
+    // Still on the exercise face, set 1 — not logged.
+    expect(screen.getByText('Exercise 1 of 2')).toBeTruthy()
+    expect(screen.getByText(/0:09 — edit time/)).toBeTruthy()
+  })
+
+  it('closing the keypad keeps the typed time; the set logs it on "Log set"', () => {
+    renderPlayer()
+    fireEvent.click(screen.getByText('Start workout'))
+    fireEvent.click(screen.getByText('Add time'))
+    fireEvent.click(screen.getByRole('button', { name: '4' }))
+    fireEvent.click(screen.getByRole('button', { name: '5' }))
+    fireEvent.click(screen.getByText('Close'))
+    fireEvent.click(screen.getByText(/Log set 1/))
+    fireEvent.click(screen.getByText('Skip rest'))
+    fireEvent.click(screen.getByText(/Log set 2/))
+    fireEvent.click(screen.getByText('Skip rest'))
+    fireEvent.click(screen.getByText(/Log set 1 · finish/))
+    fireEvent.click(screen.getByText('Save workout'))
+  })
+
+  it('moving to the next set closes any keypad left open on the one before', () => {
+    renderPlayer()
+    fireEvent.click(screen.getByText('Start workout'))
+    fireEvent.click(screen.getByText('Add time'))
+    expect(screen.getByText('Set done')).toBeTruthy() // the keypad is open
+    fireEvent.click(screen.getByText('Close'))
+    fireEvent.click(screen.getByText(/Log set 1/))
+    fireEvent.click(screen.getByText('Skip rest'))
+    // Set 2's own card offers time entry fresh — no leftover keypad.
+    expect(screen.queryByText('Set done')).toBeNull()
+    expect(screen.getByText('Add time')).toBeTruthy()
+  })
+})
+
 describe('circuit mode (screen 8)', () => {
   const circuitDay: PlannedDay = {
     day: 'Fri 8/28', type: 'cross', workout: 'Station circuit (intro)',
