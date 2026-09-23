@@ -125,58 +125,92 @@ describe('the session flow', () => {
 })
 
 describe('recording a set’s time live (Plank, wall balls, an erg piece)', () => {
-  it('the microwave keypad stamps the set, and "Set done" confirms it and starts rest', () => {
-    renderPlayer()
-    fireEvent.click(screen.getByText('Start workout'))
-    expect(screen.getByText('Add time')).toBeTruthy()
-    fireEvent.click(screen.getByText('Add time'))
-    // 1:30, typed microwave-style: "1", "3", "0".
-    fireEvent.click(screen.getByRole('button', { name: '1' }))
-    fireEvent.click(screen.getByRole('button', { name: '3' }))
-    fireEvent.click(screen.getByRole('button', { name: '0' }))
-    expect(screen.getByText('1:30')).toBeTruthy()
-    fireEvent.click(screen.getByText('Set done'))
-    // "Set done" both confirms the time and logs the set.
-    expect(screen.getByText('Rest')).toBeTruthy()
-  })
-
-  it('"Next: weight" closes the keypad without logging the set — the time already stuck', () => {
-    renderPlayer()
-    fireEvent.click(screen.getByText('Start workout'))
-    fireEvent.click(screen.getByText('Add time'))
-    fireEvent.click(screen.getByRole('button', { name: '9' }))
-    fireEvent.click(screen.getByText('Next: weight'))
-    // Still on the exercise face, set 1 — not logged.
-    expect(screen.getByText('Exercise 1 of 2')).toBeTruthy()
-    expect(screen.getByText(/0:09 — edit time/)).toBeTruthy()
-  })
-
-  it('closing the keypad keeps the typed time; the set logs it on "Log set"', () => {
-    renderPlayer()
-    fireEvent.click(screen.getByText('Start workout'))
-    fireEvent.click(screen.getByText('Add time'))
-    fireEvent.click(screen.getByRole('button', { name: '4' }))
-    fireEvent.click(screen.getByRole('button', { name: '5' }))
-    fireEvent.click(screen.getByText('Close'))
+  function typeDigits(...digits: string[]) {
+    for (const d of digits) fireEvent.click(screen.getByRole('button', { name: d }))
+  }
+  function finishSquatsToPlank() {
     fireEvent.click(screen.getByText(/Log set 1/))
     fireEvent.click(screen.getByText('Skip rest'))
     fireEvent.click(screen.getByText(/Log set 2/))
     fireEvent.click(screen.getByText('Skip rest'))
+    expect(screen.getByRole('heading', { name: 'Plank' })).toBeTruthy()
+  }
+
+  it('"Set done" saves the typed time on the set, logs it, and the saved workout carries it', () => {
+    const { onSave } = renderPlayer()
+    fireEvent.click(screen.getByText('Start workout'))
+    fireEvent.click(screen.getByText('Add time'))
+    typeDigits('1', '3', '0') // microwave-style 1:30
+    expect(screen.getByText('1:30')).toBeTruthy()
+    fireEvent.click(screen.getByText('Set done'))
+    expect(screen.getByText('Rest')).toBeTruthy()
+    fireEvent.click(screen.getByText('Skip rest'))
+    // The done row shows the time next to the load.
+    expect(screen.getByText(/20 lb × 12 · 1:30/)).toBeTruthy()
+    fireEvent.click(screen.getByText(/Log set 2/))
+    fireEvent.click(screen.getByText('Skip rest'))
     fireEvent.click(screen.getByText(/Log set 1 · finish/))
     fireEvent.click(screen.getByText('Save workout'))
+    const workout: ActualWorkout = onSave.mock.calls[0][0]
+    expect(workout.strengthLog![0].sets[0].timeSec).toBe(90)
+    expect(workout.strengthLog![0].sets[1].timeSec).toBeUndefined()
   })
 
-  it('moving to the next set closes any keypad left open on the one before', () => {
+  it('a plank hold: Close keeps the typed time and "Log set" saves it', () => {
+    const { onSave } = renderPlayer()
+    fireEvent.click(screen.getByText('Start workout'))
+    finishSquatsToPlank()
+    fireEvent.click(screen.getByText('Add time'))
+    typeDigits('4', '5')
+    fireEvent.click(screen.getByText('Close'))
+    expect(screen.queryByText('Set done')).toBeNull()
+    expect(screen.getByText(/0:45 — edit time/)).toBeTruthy()
+    fireEvent.click(screen.getByText(/Log set 1 · finish/))
+    fireEvent.click(screen.getByText('Save workout'))
+    const workout: ActualWorkout = onSave.mock.calls[0][0]
+    expect(workout.strengthLog![1].name).toBe('Plank')
+    expect(workout.strengthLog![1].sets[0].timeSec).toBe(45)
+  })
+
+  it('the keypad offers no "Next:" field switch — the player has no weight or reps keypad to go to', () => {
     renderPlayer()
     fireEvent.click(screen.getByText('Start workout'))
     fireEvent.click(screen.getByText('Add time'))
-    expect(screen.getByText('Set done')).toBeTruthy() // the keypad is open
-    fireEvent.click(screen.getByText('Close'))
-    fireEvent.click(screen.getByText(/Log set 1/))
-    fireEvent.click(screen.getByText('Skip rest'))
-    // Set 2's own card offers time entry fresh — no leftover keypad.
+    expect(screen.getByText('Set done')).toBeTruthy()
+    expect(screen.queryByText(/^Next:/)).toBeNull()
+  })
+
+  it('paused: "Set done" is disabled, like "Log set", and logs nothing', () => {
+    renderPlayer()
+    fireEvent.click(screen.getByText('Start workout'))
+    fireEvent.click(screen.getByText('Add time'))
+    fireEvent.click(screen.getByText('Pause'))
+    typeDigits('9')
+    const done = screen.getByText('Set done').closest('button')!
+    expect(done.disabled).toBe(true)
+    fireEvent.click(done)
+    expect(screen.queryByText('Rest')).toBeNull()
+    expect(screen.getByText('Set done')).toBeTruthy() // still open, nothing silently lost
+  })
+
+  it('skipping the set closes a keypad left open on it; the next set starts fresh', () => {
+    renderPlayer()
+    fireEvent.click(screen.getByText('Start workout'))
+    fireEvent.click(screen.getByText('Add time'))
+    typeDigits('9')
+    fireEvent.click(screen.getByText('skip set'))
     expect(screen.queryByText('Set done')).toBeNull()
+    // Set 2 is current, with no time carried over from set 1.
     expect(screen.getByText('Add time')).toBeTruthy()
+  })
+
+  it('opening "Add exercise" closes the keypad so the picker is not covered', () => {
+    renderPlayer()
+    fireEvent.click(screen.getByText('Start workout'))
+    fireEvent.click(screen.getByText('Add time'))
+    fireEvent.click(screen.getByRole('button', { name: 'Add exercise' }))
+    expect(screen.queryByText('Set done')).toBeNull()
+    expect(screen.getByText('Dumbbell Row')).toBeTruthy()
   })
 })
 

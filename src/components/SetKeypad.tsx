@@ -37,9 +37,12 @@ export interface SetKeypadProps {
   /** Last session's time for this position, in seconds; null hides. */
   lastTimeSec?: number | null
   onInput: (raw: string) => void
-  onSwitchField: () => void
+  /** Omitted when the keypad edits one field only — the button is hidden. */
+  onSwitchField?: () => void
   /** "Set done": parent marks the set done and advances or closes. */
   onSetDone: () => void
+  /** Greys "Set done" out, e.g. while the live session is paused. */
+  setDoneDisabled?: boolean
   onClose: () => void
 }
 
@@ -61,7 +64,7 @@ function fmt(n: number): string {
 export default function SetKeypad({
   field, value, exerciseName, setLabel, setCount,
   targetWeightLb, targetReps, lastWeight, lastTimeSec,
-  onInput, onSwitchField, onSetDone, onClose,
+  onInput, onSwitchField, onSetDone, setDoneDisabled, onClose,
 }: SetKeypadProps) {
   // First digit after opening REPLACES the ghost value instead of
   // appending to it — matching how every numeric editor behaves. The
@@ -220,15 +223,18 @@ export default function SetKeypad({
 
       {/* Advance */}
       <div className="flex gap-2">
-        <button
-          onClick={onSwitchField}
-          className="flex-1 h-11 rounded-xl border border-slate-200 dark:border-slate-600 text-sm font-semibold text-slate-600 dark:text-slate-200"
-        >
-          {isWeight ? 'Next: reps' : isTime ? 'Next: weight' : 'Next: time'}
-        </button>
+        {onSwitchField && (
+          <button
+            onClick={onSwitchField}
+            className="flex-1 h-11 rounded-xl border border-slate-200 dark:border-slate-600 text-sm font-semibold text-slate-600 dark:text-slate-200"
+          >
+            {isWeight ? 'Next: reps' : isTime ? 'Next: weight' : 'Next: time'}
+          </button>
+        )}
         <button
           onClick={onSetDone}
-          className="flex-1 h-11 rounded-xl bg-teal-600 text-sm font-bold text-white flex items-center justify-center gap-1.5"
+          disabled={setDoneDisabled}
+          className="flex-1 h-11 rounded-xl bg-teal-600 disabled:opacity-40 text-sm font-bold text-white flex items-center justify-center gap-1.5"
         >
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
           Set done

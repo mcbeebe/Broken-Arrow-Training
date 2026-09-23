@@ -65,17 +65,12 @@ export default function LiveSessionPlayer({
   const s = session.state
   const [pickerOpen, setPickerOpen] = useState(false)
   // The current set's time keypad — exercise face only (a circuit station
-  // already stamps its own split from the clock). Keyed to the cursor so
-  // moving to the next set never leaves a stale keypad open over it.
-  const [timeEditorOpen, setTimeEditorOpen] = useState(false)
-  const [timeDigits, setTimeDigits] = useState<string | null>(null)
-  const cursorKey = s ? `${s.cursor.exIdx}-${s.cursor.setIdx}` : null
-  const [openedForCursor, setOpenedForCursor] = useState(cursorKey)
-  if (cursorKey !== openedForCursor) {
-    setOpenedForCursor(cursorKey)
-    setTimeEditorOpen(false)
-    setTimeDigits(null)
-  }
+  // already stamps its own split from the clock). Remembered against the
+  // cursor it was opened on, so logging or skipping the set closes it and
+  // its digit buffer with no reset step.
+  const [timeEdit, setTimeEdit] = useState<{ cursor: string; digits: string | null } | null>(null)
+  const cursorKey = s ? `${s.startedAt}-${s.cursor.exIdx}-${s.cursor.setIdx}` : null
+  const timeEditorOpen = timeEdit != null && timeEdit.cursor === cursorKey
 
   // Simulation days draft from the race spec (run + station segments in
   // race order); everything else parses the plan's prescription text —
@@ -119,7 +114,7 @@ export default function LiveSessionPlayer({
       onClose={() => setPickerOpen(false)}
     />
   ) : null
-  const openPicker = () => setPickerOpen(true)
+  const openPicker = () => { setTimeEdit(null); setPickerOpen(true) }
 
   // ── Preview (screen 5) ─────────────────────────────────────
   if (!s) {
@@ -355,7 +350,7 @@ export default function LiveSessionPlayer({
                     />
                   </div>
                   <button
-                    onClick={() => { setTimeDigits(null); setTimeEditorOpen(true) }}
+                    onClick={() => cursorKey && setTimeEdit({ cursor: cursorKey, digits: null })}
                     className="w-full h-11 rounded-xl bg-purple-50 dark:bg-slate-800 border border-purple-100 dark:border-slate-700 flex items-center justify-center gap-2"
                   >
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#7e22ce" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><polyline points="12 7 12 12 16 14" /></svg>
@@ -380,7 +375,7 @@ export default function LiveSessionPlayer({
                 </span>
                 <span className={`flex-1 text-[13px] font-medium ${isDone ? 'text-teal-800' : 'text-slate-400'}`}>Set {i + 1}</span>
                 <span className={`font-mono text-sm ${isDone ? 'font-semibold text-teal-900' : 'text-slate-300'}`}>
-                  {row.weight || 'BW'} × {row.reps || 0}
+                  {row.weight || 'BW'} × {row.reps || 0}{row.timeSec ? ` · ${formatSetTime(row.timeSec)}` : ''}
                 </span>
               </div>
             )
@@ -410,23 +405,20 @@ export default function LiveSessionPlayer({
     {timeEditorOpen && (
       <SetKeypad
         field="time"
-        value={timeDigits ?? digitsFromSeconds(set.timeSec)}
+        value={timeEdit.digits ?? digitsFromSeconds(set.timeSec)}
         exerciseName={ex.name}
         setLabel={String(setIdx + 1)}
         setCount={ex.sets.length}
         lastTimeSec={lastSet?.timeSec ?? null}
         onInput={raw => {
-          setTimeDigits(raw)
+          setTimeEdit({ cursor: timeEdit.cursor, digits: raw })
           const sec = secondsFromDigits(raw)
           session.editSet(exIdx, setIdx, { timeSec: sec > 0 ? sec : undefined })
         }}
-        onSwitchField={() => { setTimeEditorOpen(false); setTimeDigits(null) }}
-        onSetDone={() => {
-          setTimeEditorOpen(false)
-          setTimeDigits(null)
-          if (!paused) session.logSet()
-        }}
-        onClose={() => { setTimeEditorOpen(false); setTimeDigits(null) }}
+        // Same rule as the "Log set" button: a paused session logs nothing.
+        setDoneDisabled={paused}
+        onSetDone={() => { setTimeEdit(null); session.logSet() }}
+        onClose={() => setTimeEdit(null)}
       />
     )}
     </>
