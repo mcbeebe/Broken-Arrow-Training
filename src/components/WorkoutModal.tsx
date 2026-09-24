@@ -1,4 +1,4 @@
-import { formatSetTime } from '../utils/setTime'
+import { formatSetTime, isTimedSet } from '../utils/setTime'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import type { PlannedDay, HRZone, ReadinessScore, PerformanceMetrics, CoachSnapshot, TRIMPRecord, ActualWorkout } from '../types'
 import { DEFAULT_COACH_NAME } from '../types'
@@ -18,7 +18,8 @@ import { parseRoutine, guideMatchedExercises, calibrateGuideWeight, type ParsedE
 import type { StrengthCapacity } from '../engines/strength/benchmark'
 import { menopauseStrengthCue } from '../utils/menopause'
 import type { StrengthExperience } from '../hooks/useOnboarding'
-import { buildProgression, normalizeExerciseName, suggestNextTarget, type ExerciseProgression } from '../utils/strengthProgression'
+import { buildProgression, normalizeExerciseName, suggestNextTarget, targetLine, type ExerciseProgression } from '../utils/strengthProgression'
+import { parseHoldSeconds } from '../utils/strengthDraft'
 import { parseIntervalWorkout, RUNNING_DRILLS, MYRTL_ROUTINE, PRE_RUN_ACTIVATION, type RunSegment, type DrillGuide } from '../utils/drills'
 import { analyzeSimSplits } from '../utils/simAnalysis'
 import { detectPRs, prsOnDate, formatPR } from '../utils/strengthRecords'
@@ -942,7 +943,9 @@ export default function WorkoutModal({ day, weekNum, onClose, onLog, onStartLive
                                   : 'text-teal-700 bg-white dark:bg-slate-800/60'
                               }`}
                             >
-                              {s.setType === 'warmup' ? 'W: ' : ''}{s.reps > 0 ? `${s.reps} ${s.reps === 1 ? 'rep' : 'reps'}` : ''}{s.weight && s.weight !== '—' ? ` @ ${s.weight}` : ''}{s.timeSec ? ` · ${formatSetTime(s.timeSec)}` : ''}{s.notes ? ` (${s.notes})` : ''}{s.done === false ? ' — skipped' : ''}
+                              {s.setType === 'warmup' ? 'W: ' : ''}{isTimedSet(s)
+                                ? `hold ${formatSetTime(s.timeSec)}${s.weight && s.weight !== '—' && s.weight !== 'BW' ? ` @ ${s.weight}` : ''}`
+                                : `${s.reps > 0 ? `${s.reps} ${s.reps === 1 ? 'rep' : 'reps'}` : ''}${s.weight && s.weight !== '—' ? ` @ ${s.weight}` : ''}${s.timeSec ? ` · ${formatSetTime(s.timeSec)}` : ''}`}{s.notes ? ` (${s.notes})` : ''}{s.done === false ? ' — skipped' : ''}
                             </span>
                           ))}
                         </div>
@@ -1374,10 +1377,17 @@ function ExerciseCard({
   const displayWeight = guide ? calibrateGuideWeight(guide.weight, strengthLevel, { capacity: strengthCapacity, exerciseName: guide.name }) : ''
 
   const plannedSets = parseInt(exercise.sets || '0', 10) || 0
-  const plannedReps = parseInt((exercise.reps || '0').toString(), 10) || 0
+  // "45s" / "20s/side" in the rep slot is a hold, not 45 reps.
+  const plannedHoldSec = parseHoldSeconds((exercise.reps || '').toString()) ?? undefined
+  const plannedReps = plannedHoldSec != null ? 0 : parseInt((exercise.reps || '0').toString(), 10) || 0
   const target = progression && progression.last
-    ? suggestNextTarget(progression, plannedSets, plannedReps)
+    ? suggestNextTarget(progression, plannedSets, plannedReps, plannedHoldSec)
     : null
+  const lastLine = progression?.last
+    ? progression.last.sets.every(isTimedSet)
+      ? `${progression.last.topWeightLb > 0 ? `${progression.last.topWeightLb} lb · ` : ''}hold ${formatSetTime(Math.min(...progression.last.sets.map(x => x.timeSec ?? 0)))}`
+      : `${progression.last.topWeightLb > 0 ? `${progression.last.topWeightLb} lb · ` : ''}${Math.round(progression.last.totalReps / Math.max(1, progression.last.sets.length))}/set`
+    : ''
 
   return (
     <div
@@ -1408,11 +1418,12 @@ function ExerciseCard({
         )}
         {!expanded && progression?.last && target && (
           <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 ml-7">
-            <span className="text-slate-400">Last:</span> {progression.last.topWeightLb > 0 ? `${progression.last.topWeightLb} lb · ` : ''}
-            {Math.round(progression.last.totalReps / Math.max(1, progression.last.sets.length))}/set (Wk {progression.last.weekNum})
+            <span className="text-slate-400">Last:</span> {lastLine} (Wk {progression.last.weekNum})
             {' · '}
             <span className={target.tier === 'progress' ? 'text-emerald-600 dark:text-emerald-400 font-medium' : target.tier === 'deload' ? 'text-amber-600 dark:text-amber-400' : 'text-slate-500'}>
-              Try: {target.weightLb > 0 ? `${target.weightLb} lb · ` : ''}{target.reps}/set
+              Try: {target.timeSec
+                ? `${target.weightLb > 0 ? `${target.weightLb} lb · ` : ''}hold ${formatSetTime(target.timeSec)}`
+                : `${target.weightLb > 0 ? `${target.weightLb} lb · ` : ''}${target.reps}/set`}
             </span>
           </p>
         )}
@@ -1525,7 +1536,9 @@ function ProgressionDetail({
                 : 'bg-purple-50 text-purple-800 border border-purple-100 dark:bg-purple-950 dark:text-purple-200 dark:border-purple-900'
         }`}>
           <p className="font-semibold">
-            🎯 Try today: {target.weightLb > 0 ? `${target.weightLb} lb` : 'bodyweight'} × {target.reps} reps × {target.sets} sets
+            🎯 Try today: {target.timeSec
+              ? `${targetLine(target)} × ${target.sets} sets`
+              : `${target.weightLb > 0 ? `${target.weightLb} lb` : 'bodyweight'} × ${target.reps} reps × ${target.sets} sets`}
             {plannedSets > 0 && plannedReps > 0 && plannedSets !== target.sets && plannedReps !== target.reps && (
               <span className="font-normal text-[10px] ml-1 opacity-70">(plan said {plannedSets}×{plannedReps})</span>
             )}

@@ -52,3 +52,12 @@ export function formatDigits(digits: string): string {
   const mins = d.length > 2 ? d.slice(0, -2) : '0'
   return `${mins}:${secs}`
 }
+
+/**
+ * A set measured by time, not reps: a plank, a wall sit, a carry for 30 s.
+ * The plan writes these "3×45s"; they draft with the prescribed time and
+ * no reps (field bug 2026-09-23: "Plank 3×60s" drafted as 60 reps).
+ */
+export function isTimedSet(s: { reps: number; timeSec?: number }): boolean {
+  return !(s.reps > 0) && (s.timeSec ?? 0) > 0
+}

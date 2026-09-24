@@ -1471,9 +1471,11 @@ export interface CoachSnapshot {
     isBodyweight: boolean
     peakWeightLb: number
     weeksSinceFirst: number                              // breadth of trajectory
-    firstSession: { weekNum: number; topWeightLb: number; avgReps: number; sets: number }
-    latestSession: { weekNum: number; topWeightLb: number; avgReps: number; sets: number }
-    suggestedTarget?: { weightLb: number; reps: number; sets: number; tier: 'progress' | 'hold' | 'deload' | 'starting'; rationale: string }
+    /** holdSec: the session's shortest hold, for a timed exercise (plank,
+     *  wall sit) — its avgReps is 0 and meaningless. */
+    firstSession: { weekNum: number; topWeightLb: number; avgReps: number; sets: number; holdSec?: number }
+    latestSession: { weekNum: number; topWeightLb: number; avgReps: number; sets: number; holdSec?: number }
+    suggestedTarget?: { weightLb: number; reps: number; sets: number; timeSec?: number; tier: 'progress' | 'hold' | 'deload' | 'starting'; rationale: string }
   }[]
   coachPersona?: CoachPersona | null
   /** The training philosophy the athlete is following (selected at

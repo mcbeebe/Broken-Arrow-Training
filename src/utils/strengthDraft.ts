@@ -8,7 +8,7 @@ import {
   type ExerciseProgression,
 } from './strengthProgression'
 import { getExerciseGuide, calibrateGuideWeight } from './exercises'
-import { formatSetTime } from './setTime'
+import { formatSetTime, isTimedSet } from './setTime'
 
 /** Athlete calibration context for cold-start ghost weights: lifting
  *  background (self-report) and the measured benchmark, when one exists. */
@@ -83,17 +83,19 @@ export function progressionFromWeeks(weeks: TrainingWeek[] | undefined): Map<str
 
 /** One line summarizing the last session, e.g. "20 lb × 12, 12, 12" or
  *  "BW × 15, 15, 12" — and, where the sets were timed, their times:
- *  "18 lb × 20, 15, 15 · 1:45, 1:50, 1:52". Uses performed sets only
- *  (buildProgression already filtered skips and warm-ups). */
+ *  "18 lb × 20, 15, 15 · 1:45, 1:50, 1:52". A hold has no reps to list:
+ *  "BW · 0:45, 0:45, 0:40". Uses performed sets only (buildProgression
+ *  already filtered skips and warm-ups). */
 export function lastSessionSummary(prog: ExerciseProgression | undefined): string | null {
   const last = prog?.last
   if (!last || last.sets.length === 0) return null
-  const reps = last.sets.map(s => s.reps || 0).join(', ')
-  const base = last.topWeightLb > 0 ? `${last.topWeightLb} lb × ${reps}` : `BW × ${reps}`
-  const timed = last.sets.some(s => s.timeSec != null && s.timeSec > 0)
-  if (!timed) return base
+  const load = last.topWeightLb > 0 ? `${last.topWeightLb} lb` : 'BW'
   const times = last.sets.map(s => formatSetTime(s.timeSec) || '—').join(', ')
-  return `${base} · ${times}`
+  if (last.sets.every(isTimedSet)) return `${load} · ${times}`
+  const reps = last.sets.map(s => s.reps || 0).join(', ')
+  const base = `${load} × ${reps}`
+  const timed = last.sets.some(s => s.timeSec != null && s.timeSec > 0)
+  return timed ? `${base} · ${times}` : base
 }
 
 /** Keyword-based focus classification for an exercise name. */
@@ -183,13 +185,30 @@ export function draftOptionsFor(day: PlannedDay | undefined): PlanParseOptions |
   return day && day.type === 'cross' && isGymBasedDay(day) ? CIRCUIT_DRAFT : undefined
 }
 
-/** "3 × 12" for a rep prescription; a station effort (reps ≤ 1) reads
- *  as what it is, never as "1 × 1". */
+/** "3 × 12" for a rep prescription, "3 × 45 s" for a hold; a station
+ *  effort (reps ≤ 1) reads as what it is, never as "1 × 1". */
 export function prescriptionLabel(ex: StrengthExerciseLog): string {
   const n = ex.sets.length
-  const reps = ex.sets[0]?.reps ?? 0
+  const first = ex.sets[0]
+  if (first && isTimedSet(first)) return `${n} × ${holdLabel(first.timeSec!)}`
+  const reps = first?.reps ?? 0
   if (reps > 1) return `${n} × ${reps}`
   return n === 1 ? 'one effort' : `${n} efforts`
+}
+
+/** A hold as the plan says it: "45 s", "90 s", "2:00". */
+export function holdLabel(sec: number): string {
+  return sec < 120 ? `${Math.round(sec)} s` : formatSetTime(sec)
+}
+
+/** The hold in a prescription's rep slot: "45s", "45 sec", "20s/side",
+ *  "1 min" → seconds; anything that is a rep count → null. */
+export function parseHoldSeconds(text: string): number | null {
+  const m = text.trim().match(/^(\d+(?:\.\d+)?)\s*(s|secs?|seconds?|min|mins|minutes?)(?:\s*\/\s*\w+)?$/i)
+  if (!m) return null
+  const n = parseFloat(m[1])
+  const sec = /^m/i.test(m[2]) ? Math.round(n * 60) : Math.round(n)
+  return sec > 0 ? sec : null
 }
 
 /**
@@ -210,17 +229,20 @@ export function parsePlanPrescription(detail: string, opts: PlanParseOptions = {
   for (const part of parts) {
     // Try to match "Exercise Name NxR" patterns like "3×12", "3x10", "3×45s".
     // A load written "@ 2×24 kg" (two kettlebells) is not sets × reps.
-    const setsMatch = part.match(/^(.+?)\s+(\d+)\s*[×xX]\s*(\d+)\s*(?:\/\w+)?(?:\s*\w+)?$/)
+    const setsMatch = part.match(/^(.+?)\s+(\d+)\s*[×xX]\s*(\d+\s*(?:\/\w+)?(?:\s*\w+)?(?:\s*\/\s*\w+)?)$/)
     const isLoad = setsMatch != null && /@\s*$/.test(setsMatch[1])
 
     let name: string
     let numSets = opts.defaultSets ?? 3
     let reps = opts.defaultReps ?? 10
+    let holdSec: number | null = null
 
     if (setsMatch && !isLoad) {
       name = setsMatch[1].trim()
       numSets = parseInt(setsMatch[2])
-      reps = parseInt(setsMatch[3])
+      // "45s" / "45 sec" / "1 min" is a hold, not 45 reps.
+      holdSec = parseHoldSeconds(setsMatch[3])
+      reps = holdSec != null ? 0 : parseInt(setsMatch[3])
     } else {
       // No sets pattern: peel the rest/note sentences off the part and
       // keep whatever is left as the exercise name.
@@ -244,10 +266,9 @@ export function parsePlanPrescription(detail: string, opts: PlanParseOptions = {
       name = kept.join('. ')
     }
 
-    const sets: StrengthSet[] = Array.from({ length: numSets }, () => ({
-      reps,
-      weight: '',
-    }))
+    const sets: StrengthSet[] = Array.from({ length: numSets }, () => (
+      holdSec != null ? { reps: 0, weight: '', timeSec: holdSec } : { reps, weight: '' }
+    ))
 
     out.exercises.push({ name, focus: detectFocus(name), sets })
   }

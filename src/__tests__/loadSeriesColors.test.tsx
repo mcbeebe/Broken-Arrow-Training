@@ -24,6 +24,7 @@ vi.mock('recharts', async importOriginal => {
 })
 
 import PerformanceChart from '../components/PerformanceChart'
+import TRIMPBreakdown from '../components/TRIMPBreakdown'
 import { LOAD_SERIES_COLORS, type LoadSeries } from '../utils/loadSeriesColors'
 import type { PerformanceMetrics } from '../types'
 
@@ -66,6 +67,35 @@ describe('the series color table', () => {
       expect(cls).toContain(`bg-${c.hue}-${c.light.step}`)
       if (c.dark.step !== c.light.step) expect(cls).toContain(`dark:bg-${c.hue}-${c.dark.step}`)
     }
+  })
+})
+
+/** WCAG contrast ratio between two hex colors. */
+function contrast(a: string, b: string): number {
+  const lum = (h: string) => {
+    const [r, g, bl] = [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16) / 255)
+      .map(v => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4))
+    return 0.2126 * r + 0.7152 * g + 0.0722 * bl
+  }
+  const [x, y] = [lum(a), lum(b)].sort((m, n) => n - m)
+  return (x + 0.05) / (y + 0.05)
+}
+
+/** The hex behind a `text-white` / `text-slate-950` class. */
+function textHex(cls: string): string {
+  if (cls === 'text-white') return '#ffffff'
+  const [, hue, step] = cls.match(/^text-([a-z]+)-(\d+)$/)!
+  return (colors as unknown as Record<string, Record<string, string>>)[hue][step]
+}
+
+describe('legend chip labels are readable', () => {
+  it.each(SERIES)('%s: the label clears 4.5:1 on its fill, light and dark', key => {
+    const c = LOAD_SERIES_COLORS[key]
+    const classes = c.chipOn.split(' ')
+    const light = classes.find(k => /^text-/.test(k))!
+    const dark = classes.find(k => /^dark:text-/.test(k))?.slice(5) ?? light
+    expect(contrast(textHex(light), c.light.hex)).toBeGreaterThanOrEqual(4.5)
+    expect(contrast(textHex(dark), c.dark.hex)).toBeGreaterThanOrEqual(4.5)
   })
 })
 
@@ -115,5 +145,34 @@ describe('PerformanceChart: every line matches its chip, on any theme', () => {
     const { container } = renderChart(perf(5))
     const curve = container.querySelector('.series-tsb .recharts-area-curve')
     expect(curve?.getAttribute('d')).toBeTruthy()
+  })
+})
+
+describe('TRIMPBreakdown: the Fatigue trend and the in-range band wear the same colors', () => {
+  function trimpDays(n: number) {
+    return Array.from({ length: n }, (_, i) => {
+      const d = new Date()
+      d.setDate(d.getDate() - (n - 1 - i))
+      const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+      return {
+        daily: { date: iso, total: 90, records: [{ sportType: 'hiit', adjustedTRIMP: 90 }] },
+        perf: { date: iso, ctl: 55, atl: 70, tsb: -15, acwr: 1.27 },
+      }
+    })
+  }
+
+  it('the acute-load line is Fatigue red on a white halo; the band is Fitness blue; the legend says so', () => {
+    const days = trimpDays(7)
+    const { container } = render(
+      <TRIMPBreakdown dailyTrimp={days.map(d => d.daily) as never} performance={days.map(d => d.perf)} athleteId="mike" />,
+    )
+    const line = (cls: string) => container.querySelector(`.${cls} .recharts-line-curve`)?.getAttribute('stroke')
+    expect(line('series-atl')).toBe(LOAD_SERIES_COLORS.atl.light.hex)
+    expect(line('series-atl-halo')).toBe('#ffffff')
+    const band = strokes(container, 'series-ctl-guide')
+    expect(band.length).toBeGreaterThan(0)
+    expect(band.every(c => c === LOAD_SERIES_COLORS.ctl.light.hex)).toBe(true)
+    expect(screen.getAllByText('Fatigue (acute load)').length).toBeGreaterThan(0)
+    expect(screen.getByText('in range (from Fitness)')).toBeTruthy()
   })
 })

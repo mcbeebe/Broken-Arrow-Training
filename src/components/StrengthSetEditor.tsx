@@ -3,12 +3,13 @@ import type { StrengthExerciseLog, StrengthSet } from '../types'
 import {
   normalizeExerciseName,
   suggestNextTarget,
+  targetLine,
   type ExerciseProgression,
   type NextTargetSuggestion,
 } from '../utils/strengthProgression'
 import { lastSessionSummary, startingWeightFor, type StrengthCalibration } from '../utils/strengthDraft'
 import SetKeypad, { type SetField } from './SetKeypad'
-import { digitsFromSeconds, formatSetTime, secondsFromDigits } from '../utils/setTime'
+import { digitsFromSeconds, formatSetTime, isTimedSet, secondsFromDigits } from '../utils/setTime'
 
 /**
  * The set-row strength editor — Phase 1 of the strength-logging overhaul.
@@ -38,9 +39,10 @@ export interface StrengthSetEditorProps {
   calibration?: StrengthCalibration
 }
 
-/** Format a suggestion's load for display: 0 lb means bodyweight. */
-function targetLabel(t: NextTargetSuggestion): string {
-  return t.weightLb > 0 ? `${t.weightLb} lb × ${t.reps}` : `BW × ${t.reps}`
+/** The planned hold of an exercise's working sets, when it is timed. */
+function plannedHoldSec(sets: StrengthSet[]): number | undefined {
+  const first = sets[0]
+  return first && isTimedSet(first) ? first.timeSec : undefined
 }
 
 const TIER_PHRASE: Record<NextTargetSuggestion['tier'], string> = {
@@ -131,7 +133,9 @@ export default function StrengthSetEditor({ exercises, onChange, progression, ca
       sets: ex.sets.map(s =>
         s.setType === 'warmup'
           ? s
-          : { ...s, weight: t.weightLb > 0 ? `${t.weightLb} lb` : 'BW', reps: t.reps, done: true },
+          : t.timeSec
+            ? { ...s, weight: t.weightLb > 0 ? `${t.weightLb} lb` : 'BW', reps: 0, timeSec: t.timeSec, done: true }
+            : { ...s, weight: t.weightLb > 0 ? `${t.weightLb} lb` : 'BW', reps: t.reps, done: true },
       ),
     })
   }
@@ -144,7 +148,7 @@ export default function StrengthSetEditor({ exercises, onChange, progression, ca
         const workingSets = ex.sets.filter(s => s.setType !== 'warmup')
         const plannedReps = workingSets[0]?.reps || 10
         const target = prog
-          ? suggestNextTarget(prog, Math.max(workingSets.length, 1), plannedReps)
+          ? suggestNextTarget(prog, Math.max(workingSets.length, 1), plannedReps, plannedHoldSec(workingSets))
           : null
         // Cold start: never logged this exercise → the benchmark (or the
         // calibrated guide default) supplies the starting hint.
@@ -208,7 +212,7 @@ export default function StrengthSetEditor({ exercises, onChange, progression, ca
                   : target.tier === 'deload' ? 'text-amber-800'
                   : 'text-slate-600 dark:text-slate-300'
                 }`}>
-                  <span className="font-semibold">Try today: {targetLabel(target)}</span> — {TIER_PHRASE[target.tier]}
+                  <span className="font-semibold">Try today: {targetLine(target)}</span> — {TIER_PHRASE[target.tier]}
                 </p>
                 <button
                   onClick={() => applyTarget(exIdx, target)}
@@ -335,7 +339,7 @@ export default function StrengthSetEditor({ exercises, onChange, progression, ca
         const prog = ex.name.trim() ? progression.get(normalizeExerciseName(ex.name)) : undefined
         const workingSets = ex.sets.filter(s => s.setType !== 'warmup')
         const target = prog
-          ? suggestNextTarget(prog, Math.max(workingSets.length, 1), workingSets[0]?.reps || 10)
+          ? suggestNextTarget(prog, Math.max(workingSets.length, 1), workingSets[0]?.reps || 10, plannedHoldSec(workingSets))
           : null
         const lastSets = prog?.last?.sets ?? []
         const lastSet = lastSets[active.setIdx] ?? lastSets[lastSets.length - 1]

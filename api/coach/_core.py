@@ -1659,6 +1659,15 @@ def _same_route_profile(today: dict[str, Any], prev: dict[str, Any]) -> bool:
     return elev_comparable or _route_names_match(today.get("name"), prev.get("name"))
 
 
+def _strength_effort(session: dict[str, Any], sets: Any) -> str:
+    """A session's work as "x12x3", or "hold 45s x3" for a timed hold
+    (plank, wall sit) whose reps are 0 and mean nothing."""
+    hold = session.get("holdSec")
+    if hold:
+        return f"hold {hold}s x{sets}"
+    return f"x{session.get('avgReps', 0)}x{sets}"
+
+
 def build_context_block(
     snapshot: dict[str, Any],
     depth: str = "7d",
@@ -2680,26 +2689,27 @@ def build_context_block(
 
             first_w = "BW" if is_bw else f"{first.get('topWeightLb', 0)}lb"
             first_wk = first.get("weekNum", "?")
-            first_reps = first.get("avgReps", 0)
             first_sets = first.get("sets", 0)
-            first_str = f"Wk{first_wk} {first_w} x{first_reps}x{first_sets}"
+            first_str = f"Wk{first_wk} {first_w} {_strength_effort(first, first_sets)}"
 
             last_w = "BW" if is_bw else f"{last.get('topWeightLb', 0)}lb"
             last_wk = last.get("weekNum", "?")
-            last_reps = last.get("avgReps", 0)
             last_sets = last.get("sets", 0)
-            last_str = f"Wk{last_wk} {last_w} x{last_reps}x{last_sets}"
+            last_str = f"Wk{last_wk} {last_w} {_strength_effort(last, last_sets)}"
 
             tgt = ex.get("suggestedTarget") or {}
             tgt_str = ""
             if tgt:
                 tgt_weight = tgt.get("weightLb", 0) or 0
                 tgt_w = "BW" if tgt_weight == 0 else f"{tgt_weight}lb"
-                tgt_reps = tgt.get("reps", "?")
                 tgt_sets = tgt.get("sets", "?")
                 tgt_tier = tgt.get("tier", "")
                 tgt_rationale = tgt.get("rationale", "")
-                tgt_str = f"  Suggested next: {tgt_w} x{tgt_reps}x{tgt_sets} [{tgt_tier}] — {tgt_rationale}"
+                tgt_effort = (
+                    f"hold {tgt['timeSec']}s x{tgt_sets}" if tgt.get("timeSec")
+                    else f"x{tgt.get('reps', '?')}x{tgt_sets}"
+                )
+                tgt_str = f"  Suggested next: {tgt_w} {tgt_effort} [{tgt_tier}] — {tgt_rationale}"
             session_word = "session" if sessions == 1 else "sessions"
             out.append(f"  - {name}: {sessions} {session_word}, first {first_str} -> latest {last_str}.{tgt_str}")
 
