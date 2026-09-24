@@ -5,6 +5,8 @@ import { restRemainingSec, elapsedSec, segmentElapsedSec, nextCursor, type LiveS
 import { isGymBasedDay } from '../utils/matching'
 import { ghostFillFromHistory, parsePlanPrescription, progressionFromWeeks, lastSessionSummary, draftOptionsFor, prescriptionLabel, type StrengthCalibration } from '../utils/strengthDraft'
 import ExercisePicker from './ExercisePicker'
+import SetKeypad from './SetKeypad'
+import { digitsFromSeconds, formatSetTime, secondsFromDigits } from '../utils/setTime'
 import { isSimDay, draftSimSegments, simTitle, type SimProfile } from '../utils/simSession'
 import { normalizeExerciseName, suggestNextTarget, parseWeightLb } from '../utils/strengthProgression'
 import { getExerciseGuide } from '../utils/exercises'
@@ -62,6 +64,13 @@ export default function LiveSessionPlayer({
   const session = useLiveSession(athleteId)
   const s = session.state
   const [pickerOpen, setPickerOpen] = useState(false)
+  // The current set's time keypad — exercise face only (a circuit station
+  // already stamps its own split from the clock). Remembered against the
+  // cursor it was opened on, so logging or skipping the set closes it and
+  // its digit buffer with no reset step.
+  const [timeEdit, setTimeEdit] = useState<{ cursor: string; digits: string | null } | null>(null)
+  const cursorKey = s ? `${s.startedAt}-${s.cursor.exIdx}-${s.cursor.setIdx}` : null
+  const timeEditorOpen = timeEdit != null && timeEdit.cursor === cursorKey
 
   // Simulation days draft from the race spec (run + station segments in
   // race order); everything else parses the plan's prescription text —
@@ -105,7 +114,7 @@ export default function LiveSessionPlayer({
       onClose={() => setPickerOpen(false)}
     />
   ) : null
-  const openPicker = () => setPickerOpen(true)
+  const openPicker = () => { setTimeEdit(null); setPickerOpen(true) }
 
   // ── Preview (screen 5) ─────────────────────────────────────
   if (!s) {
@@ -263,6 +272,9 @@ export default function LiveSessionPlayer({
   const guide = getExerciseGuide(ex.name)
   const nextEx = s.exercises[exIdx + 1]
   const paused = s.pausedAt != null
+  const prog = progression.get(normalizeExerciseName(ex.name))
+  const lastSets = prog?.last?.sets ?? []
+  const lastSet = lastSets[setIdx] ?? lastSets[lastSets.length - 1]
 
   return (
     <>
@@ -302,7 +314,7 @@ export default function LiveSessionPlayer({
           <p className="text-[11px] font-bold uppercase tracking-wide text-purple-700">Now</p>
           <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white leading-tight">{ex.name}</h2>
           <p className="font-mono text-sm text-slate-500 mt-0.5">
-            {ex.sets.length} sets{lastSessionSummary(progression.get(normalizeExerciseName(ex.name))) ? ` · last: ${lastSessionSummary(progression.get(normalizeExerciseName(ex.name)))}` : ''}
+            {ex.sets.length} sets{lastSessionSummary(prog) ? ` · last: ${lastSessionSummary(prog)}` : ''}
           </p>
         </div>
 
@@ -337,6 +349,15 @@ export default function LiveSessionPlayer({
                       onPlus={() => session.editSet(exIdx, i, { reps: (row.reps || 0) + 1 })}
                     />
                   </div>
+                  <button
+                    onClick={() => cursorKey && setTimeEdit({ cursor: cursorKey, digits: null })}
+                    className="w-full h-11 rounded-xl bg-purple-50 dark:bg-slate-800 border border-purple-100 dark:border-slate-700 flex items-center justify-center gap-2"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#7e22ce" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><polyline points="12 7 12 12 16 14" /></svg>
+                    <span className="font-mono text-sm font-bold text-purple-700 dark:text-purple-300">
+                      {row.timeSec ? `${formatSetTime(row.timeSec)} — edit time` : 'Add time'}
+                    </span>
+                  </button>
                 </div>
               )
             }
@@ -354,7 +375,7 @@ export default function LiveSessionPlayer({
                 </span>
                 <span className={`flex-1 text-[13px] font-medium ${isDone ? 'text-teal-800' : 'text-slate-400'}`}>Set {i + 1}</span>
                 <span className={`font-mono text-sm ${isDone ? 'font-semibold text-teal-900' : 'text-slate-300'}`}>
-                  {row.weight || 'BW'} × {row.reps || 0}
+                  {row.weight || 'BW'} × {row.reps || 0}{row.timeSec ? ` · ${formatSetTime(row.timeSec)}` : ''}
                 </span>
               </div>
             )
@@ -381,6 +402,25 @@ export default function LiveSessionPlayer({
         </button>
       </div>
     </div>
+    {timeEditorOpen && (
+      <SetKeypad
+        field="time"
+        value={timeEdit.digits ?? digitsFromSeconds(set.timeSec)}
+        exerciseName={ex.name}
+        setLabel={String(setIdx + 1)}
+        setCount={ex.sets.length}
+        lastTimeSec={lastSet?.timeSec ?? null}
+        onInput={raw => {
+          setTimeEdit({ cursor: timeEdit.cursor, digits: raw })
+          const sec = secondsFromDigits(raw)
+          session.editSet(exIdx, setIdx, { timeSec: sec > 0 ? sec : undefined })
+        }}
+        // Same rule as the "Log set" button: a paused session logs nothing.
+        setDoneDisabled={paused}
+        onSetDone={() => { setTimeEdit(null); session.logSet() }}
+        onClose={() => setTimeEdit(null)}
+      />
+    )}
     </>
   )
 }

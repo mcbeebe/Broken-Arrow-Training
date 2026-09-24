@@ -333,7 +333,7 @@ export default function Settings({
                       }`}
                     >
                       <span className="flex shrink-0 -space-x-1">
-                        {[p.light.accent, p.light.chart2, p.light.chart3].map((c, i) => (
+                        {[p.light.accent, p.light.accentStrong, p.light.accentSoft].map((c, i) => (
                           <span key={i} className="h-5 w-5 rounded-full border border-white dark:border-slate-800" style={{ backgroundColor: c }} />
                         ))}
                       </span>
