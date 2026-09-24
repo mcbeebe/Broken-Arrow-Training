@@ -1,4 +1,4 @@
-import { formatSetTime, isTimedSet } from '../utils/setTime'
+import { formatSetTime, isHoldSet } from '../utils/setTime'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import type { PlannedDay, HRZone, ReadinessScore, PerformanceMetrics, CoachSnapshot, TRIMPRecord, ActualWorkout } from '../types'
 import { DEFAULT_COACH_NAME } from '../types'
@@ -943,7 +943,7 @@ export default function WorkoutModal({ day, weekNum, onClose, onLog, onStartLive
                                   : 'text-teal-700 bg-white dark:bg-slate-800/60'
                               }`}
                             >
-                              {s.setType === 'warmup' ? 'W: ' : ''}{isTimedSet(s)
+                              {s.setType === 'warmup' ? 'W: ' : ''}{isHoldSet(s)
                                 ? `hold ${formatSetTime(s.timeSec)}${s.weight && s.weight !== '—' && s.weight !== 'BW' ? ` @ ${s.weight}` : ''}`
                                 : `${s.reps > 0 ? `${s.reps} ${s.reps === 1 ? 'rep' : 'reps'}` : ''}${s.weight && s.weight !== '—' ? ` @ ${s.weight}` : ''}${s.timeSec ? ` · ${formatSetTime(s.timeSec)}` : ''}`}{s.notes ? ` (${s.notes})` : ''}{s.done === false ? ' — skipped' : ''}
                             </span>
@@ -1384,7 +1384,7 @@ function ExerciseCard({
     ? suggestNextTarget(progression, plannedSets, plannedReps, plannedHoldSec)
     : null
   const lastLine = progression?.last
-    ? progression.last.sets.every(isTimedSet)
+    ? progression.last.sets.every(isHoldSet)
       ? `${progression.last.topWeightLb > 0 ? `${progression.last.topWeightLb} lb · ` : ''}hold ${formatSetTime(Math.min(...progression.last.sets.map(x => x.timeSec ?? 0)))}`
       : `${progression.last.topWeightLb > 0 ? `${progression.last.topWeightLb} lb · ` : ''}${Math.round(progression.last.totalReps / Math.max(1, progression.last.sets.length))}/set`
     : ''

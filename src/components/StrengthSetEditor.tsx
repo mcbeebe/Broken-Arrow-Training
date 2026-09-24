@@ -9,7 +9,7 @@ import {
 } from '../utils/strengthProgression'
 import { lastSessionSummary, startingWeightFor, type StrengthCalibration } from '../utils/strengthDraft'
 import SetKeypad, { type SetField } from './SetKeypad'
-import { digitsFromSeconds, formatSetTime, isTimedSet, secondsFromDigits } from '../utils/setTime'
+import { digitsFromSeconds, formatSetTime, isHoldSet, secondsFromDigits } from '../utils/setTime'
 
 /**
  * The set-row strength editor — Phase 1 of the strength-logging overhaul.
@@ -42,7 +42,7 @@ export interface StrengthSetEditorProps {
 /** The planned hold of an exercise's working sets, when it is timed. */
 function plannedHoldSec(sets: StrengthSet[]): number | undefined {
   const first = sets[0]
-  return first && isTimedSet(first) ? first.timeSec : undefined
+  return first && isHoldSet(first) ? first.timeSec : undefined
 }
 
 const TIER_PHRASE: Record<NextTargetSuggestion['tier'], string> = {
@@ -114,7 +114,9 @@ export default function StrengthSetEditor({ exercises, onChange, progression, ca
     const ex = exercises[exIdx]
     const last = ex.sets[ex.sets.length - 1]
     updateExercise(exIdx, {
-      sets: [...ex.sets, { reps: last?.reps || 0, weight: last?.weight || '', done: false }],
+      sets: [...ex.sets, last?.hold
+        ? { reps: 0, weight: last.weight || '', timeSec: last.timeSec, hold: true, done: false }
+        : { reps: last?.reps || 0, weight: last?.weight || '', done: false }],
     })
   }
 

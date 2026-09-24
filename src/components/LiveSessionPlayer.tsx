@@ -6,7 +6,7 @@ import { isGymBasedDay } from '../utils/matching'
 import { ghostFillFromHistory, parsePlanPrescription, progressionFromWeeks, lastSessionSummary, draftOptionsFor, prescriptionLabel, holdLabel, type StrengthCalibration } from '../utils/strengthDraft'
 import ExercisePicker from './ExercisePicker'
 import SetKeypad from './SetKeypad'
-import { digitsFromSeconds, formatSetTime, isTimedSet, secondsFromDigits } from '../utils/setTime'
+import { digitsFromSeconds, formatSetTime, isHoldSet, secondsFromDigits } from '../utils/setTime'
 import { isSimDay, draftSimSegments, simTitle, type SimProfile } from '../utils/simSession'
 import { normalizeExerciseName, suggestNextTarget, parseWeightLb } from '../utils/strengthProgression'
 import { getExerciseGuide } from '../utils/exercises'
@@ -132,7 +132,7 @@ export default function LiveSessionPlayer({
             const prog = progression.get(normalizeExerciseName(ex.name))
             const target = prog
               ? suggestNextTarget(prog, Math.max(ex.sets.length, 1), ex.sets[0]?.reps || 10,
-                ex.sets[0] && isTimedSet(ex.sets[0]) ? ex.sets[0].timeSec : undefined)
+                ex.sets[0] && isHoldSet(ex.sets[0]) ? ex.sets[0].timeSec : undefined)
               : null
             return (
               <div key={i} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-3 flex items-center gap-3">
@@ -275,7 +275,7 @@ export default function LiveSessionPlayer({
   const paused = s.pausedAt != null
   const prog = progression.get(normalizeExerciseName(ex.name))
   // A hold (plank, wall sit) is measured in time: no reps stepper.
-  const timedExercise = ex.sets.some(isTimedSet)
+  const timedExercise = ex.sets.some(isHoldSet)
   const lastSets = prog?.last?.sets ?? []
   const lastSet = lastSets[setIdx] ?? lastSets[lastSets.length - 1]
 
@@ -567,18 +567,18 @@ function RestScreen({ s, now, session, onAddExercise }: {
 }
 
 /** A set as the player shows it: "20 lb × 12 · 1:30", "BW · 0:45" for a hold. */
-function setLine(row: { reps: number; weight: string; timeSec?: number }): string {
+function setLine(row: { reps: number; weight: string; timeSec?: number; hold?: boolean }): string {
   const load = row.weight || 'BW'
   const time = row.timeSec ? formatSetTime(row.timeSec) : ''
-  if (isTimedSet(row)) return `${load} · ${time}`
+  if (isHoldSet(row)) return `${load} · ${time}`
   return `${load} × ${row.reps || 0}${time ? ` · ${time}` : ''}`
 }
 
-function stationRxLine(set: { reps: number; weight: string; timeSec?: number } | undefined): string {
+function stationRxLine(set: { reps: number; weight: string; timeSec?: number; hold?: boolean } | undefined): string {
   if (!set) return ''
   const parts: string[] = []
   if (set.reps > 1) parts.push(`\u00d7${set.reps}`)
-  if (isTimedSet(set)) parts.push(holdLabel(set.timeSec!))
+  if (isHoldSet(set) && set.timeSec) parts.push(holdLabel(set.timeSec))
   if (set.weight && set.weight !== 'BW') parts.push(set.weight)
   return parts.join(' \u00b7 ')
 }

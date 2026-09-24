@@ -54,10 +54,11 @@ export function formatDigits(digits: string): string {
 }
 
 /**
- * A set measured by time, not reps: a plank, a wall sit, a carry for 30 s.
- * The plan writes these "3×45s"; they draft with the prescribed time and
- * no reps (field bug 2026-09-23: "Plank 3×60s" drafted as 60 reps).
+ * A hold: a plank, a wall sit, a carry for 30 s — measured by how long,
+ * not how many (field bug 2026-09-23: "Plank 3×60s" drafted as 60 reps).
+ * Only the plan's own "3×45s" marks one; an erg piece logged by time is
+ * not a hold (shorter is better there).
  */
-export function isTimedSet(s: { reps: number; timeSec?: number }): boolean {
-  return !(s.reps > 0) && (s.timeSec ?? 0) > 0
+export function isHoldSet(s: { hold?: boolean }): boolean {
+  return s.hold === true
 }

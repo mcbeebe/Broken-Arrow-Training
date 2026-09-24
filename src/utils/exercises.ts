@@ -869,7 +869,7 @@ export interface ParsedExercise {
 export function parseRoutine(detail: string): ParsedExercise[] {
   const parts = detail.split('·').map(s => s.trim()).filter(Boolean)
   return parts.map(part => {
-    const setsMatch = part.match(/(\d+)\s*[×x]\s*(\d+\s*(?:\/\s*(?:leg|side))?\s*(?:s|sec)?)/i)
+    const setsMatch = part.match(/(\d+)\s*[×x]\s*(\d+(?:\.\d+)?\s*(?:\/\s*(?:leg|side))?(?:(?:\s*(?:minutes?|mins?|seconds?|secs?)|s)(?![a-z]))?)/i)
     const sets = setsMatch ? setsMatch[1] : ''
     const reps = setsMatch ? setsMatch[2].trim() : ''
     const guide = findGuide(part)

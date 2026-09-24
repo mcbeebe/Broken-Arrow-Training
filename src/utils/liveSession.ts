@@ -214,7 +214,10 @@ export function logCurrentSet(s: LiveSessionState, now: number): LiveSessionStat
   // is not, and would now surface everywhere a set time is shown — so
   // the athlete types a lift's time when it matters (wall balls on a
   // strength day) and the player stays quiet.
-  const timeSec = s.traversal === 'round' && s.segmentStartedAt != null && s.pausedAt == null
+  // A hold keeps its own time (the plan's, or what the athlete typed):
+  // the station clock includes the walk to the station.
+  const isHold = s.exercises[exIdx]?.sets[setIdx]?.hold === true
+  const timeSec = s.traversal === 'round' && !isHold && s.segmentStartedAt != null && s.pausedAt == null
     ? Math.max(0, Math.round((now - s.segmentStartedAt) / 1000))
     : undefined
   const marked = withSet(s, exIdx, setIdx, { done: true, ...(timeSec != null ? { timeSec } : {}) })
@@ -319,7 +322,10 @@ export function addRound(s: LiveSessionState): LiveSessionState {
     exercises: s.exercises.map(ex => {
       const last = ex.sets[ex.sets.length - 1]
       if (!last) return ex
-      return { ...ex, sets: [...ex.sets, { reps: last.reps, weight: last.weight, done: false as const }] }
+      const next = last.hold
+        ? { reps: 0, weight: last.weight, timeSec: last.timeSec, hold: true, done: false as const }
+        : { reps: last.reps, weight: last.weight, done: false as const }
+      return { ...ex, sets: [...ex.sets, next] }
     }),
   }
 }

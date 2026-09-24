@@ -24,7 +24,7 @@ import type { TrainingMethod } from '../types/training-method'
 import { computeRaceProjection } from './raceProjection'
 import { localDateStr } from './format'
 import { buildProgression, suggestNextTarget } from './strengthProgression'
-import { isTimedSet } from './setTime'
+import { isHoldSet } from './setTime'
 import { calculateGrade } from './grading'
 import { buildMethodologyContext } from './methodologyContext'
 import { sorenessTrendDirection } from './readiness'
@@ -720,9 +720,10 @@ export function buildCoachSnapshot(inputs: Inputs): CoachSnapshot {
   }
 }
 
-/** A timed session's shortest hold, as the snapshot's holdSec (omitted for
- *  rep sessions so the coach reads them exactly as before). */
-function holdField(sets: { reps: number; timeSec?: number }[]): { holdSec?: number } {
-  if (sets.length === 0 || !sets.every(isTimedSet)) return {}
-  return { holdSec: Math.min(...sets.map(s => s.timeSec ?? 0)) }
+/** A hold session's shortest hold, as the snapshot's holdSec (omitted for
+ *  rep sessions and erg pieces so the coach reads them exactly as before). */
+export function holdField(sets: { reps: number; timeSec?: number; hold?: boolean }[]): { holdSec?: number } {
+  const times = sets.map(s => s.timeSec ?? 0).filter(t => t > 0)
+  if (sets.length === 0 || !sets.every(isHoldSet) || times.length === 0) return {}
+  return { holdSec: Math.min(...times) }
 }

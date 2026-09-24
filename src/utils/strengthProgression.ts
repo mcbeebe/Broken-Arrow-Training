@@ -10,7 +10,7 @@
 
 import type { TrainingWeek, StrengthSet } from '../types'
 import { getExerciseGuide } from './exercises'
-import { formatSetTime, isTimedSet } from './setTime'
+import { formatSetTime, isHoldSet } from './setTime'
 
 export interface ExerciseSession {
   /** YYYY-MM-DD — date of the actual workout. */
@@ -200,7 +200,7 @@ export function suggestNextTarget(
   plannedTimeSec?: number,
 ): NextTargetSuggestion {
   const lastSets = progression?.last?.sets ?? []
-  if ((plannedTimeSec ?? 0) > 0 || (lastSets.length > 0 && lastSets.every(isTimedSet))) {
+  if ((plannedTimeSec ?? 0) > 0 || (lastSets.length > 0 && lastSets.every(isHoldSet))) {
     return suggestHoldTarget(progression, plannedSets, plannedTimeSec)
   }
   if (!progression || !progression.last) {
@@ -428,7 +428,9 @@ function suggestHoldTarget(
     }
   }
   const shortest = Math.min(...times)
-  const target = plannedTimeSec && plannedTimeSec > 0 ? plannedTimeSec : shortest
+  // No plan time (the progress section, the coach): the bar is the
+  // session's best hold, so a fading session is not called "progress".
+  const target = plannedTimeSec && plannedTimeSec > 0 ? plannedTimeSec : Math.max(...times)
   if (times.length === last.sets.length && shortest >= target) {
     const next = Math.max(target, shortest) + HOLD_STEP_SEC
     return { weightLb, reps: 0, sets, timeSec: next, rationale: `Held every set for ${formatSetTime(shortest)} — try ${formatSetTime(next)}.`, tier: 'progress' }
