@@ -9,7 +9,7 @@ import {
 import ChartExpandOverlay from './ChartExpandOverlay'
 import Term from './TermGlossary'
 import { useDisplayPreferences } from '../hooks/useDisplayPreferences'
-import { getChartColors } from '../utils/chartColors'
+import { LOAD_SERIES_COLORS, seriesHex, type LoadSeries } from '../utils/loadSeriesColors'
 
 interface PerformanceChartProps {
   performance: PerformanceMetrics[]
@@ -100,7 +100,10 @@ export default function PerformanceChart({
   // Compute y-axis domain from RAW data so collapsed and expanded views
   // share the same scale — reference bands (Training Zone, Race Day)
   // stay at consistent visual positions.
-  const allRawVals = rawData.flatMap(d => [d.ctl, d.atl, d.tsb])
+  // The Fitness guide lines (0.8–1.3× Fitness) are drawn on this axis too;
+  // leaving them out let Recharts stretch the axis to fit them, and the
+  // top tick printed as "126.666666".
+  const allRawVals = rawData.flatMap(d => [d.ctl, d.atl, d.tsb, d.acwrHigh, d.acwrLow])
   const rawMax = Math.max(...allRawVals)
   const rawMin = Math.min(...allRawVals)
   const fixedYMax = Math.ceil((Math.max(rawMax, 25) + 10) / 10) * 10
@@ -111,10 +114,10 @@ export default function PerformanceChart({
   const renderChart = (expanded: boolean) => {
     const chartData = expanded ? rawData : smoothedData
     const isDark = document.documentElement.classList.contains('dark')
-    const colors = getChartColors(isDark)
-    const loadColor = colors.chart2
-    const ctlColor = colors.chart3
-    const atlColor = colors.chart4
+    const loadColor = seriesHex('load', isDark)
+    const ctlColor = seriesHex('ctl', isDark)
+    const atlColor = seriesHex('atl', isDark)
+    const tsbColor = seriesHex('tsb', isDark)
     const showBands = visible.tsb // TSB bands only meaningful when TSB is shown
     return (
       <div>
@@ -137,6 +140,8 @@ export default function PerformanceChart({
               <YAxis
                 yAxisId="left"
                 domain={[fixedYMin, fixedYMax]}
+                allowDecimals={false}
+                tickFormatter={(v: number) => String(Math.round(v))}
                 tick={{ fontSize: expanded ? 12 : 11, fill: isDark ? '#cbd5e1' : '#64748b' }}
                 axisLine={false}
                 tickLine={false}
@@ -219,11 +224,11 @@ export default function PerformanceChart({
               {showBands && <ReferenceLine yAxisId="left" y={TSB_BOUNDS.peaked} stroke="#059669" strokeOpacity={0.5} strokeDasharray="2 3" strokeWidth={1} label={{ value: 'Peaked', fontSize: expanded ? 11 : 9, fill: isDark ? '#6ee7b7' : '#047857', position: 'insideTopRight' }} />}
               {showBands && <ReferenceLine yAxisId="left" y={25} stroke="#059669" strokeOpacity={0.4} strokeDasharray="4 4" strokeWidth={1} />}
               {/* ACWR corridor: 0.8×CTL to 1.3×CTL — only when CTL is visible */}
-              {visible.ctl && <Area yAxisId="left" type="natural" dataKey="acwrHigh" stroke="#7c3aed" strokeWidth={1} strokeDasharray="4 4" strokeOpacity={0.5} fill="none" dot={false} isAnimationActive={false} />}
-              {visible.ctl && <Area yAxisId="left" type="natural" dataKey="acwrLow" stroke="#7c3aed" strokeWidth={1} strokeDasharray="4 4" strokeOpacity={0.5} fill="none" dot={false} isAnimationActive={false} />}
+              {visible.ctl && <Area yAxisId="left" type="natural" dataKey="acwrHigh" stroke={ctlColor} strokeWidth={1} strokeDasharray="4 4" strokeOpacity={0.5} fill="none" dot={false} isAnimationActive={false} />}
+              {visible.ctl && <Area yAxisId="left" type="natural" dataKey="acwrLow" stroke={ctlColor} strokeWidth={1} strokeDasharray="4 4" strokeOpacity={0.5} fill="none" dot={false} isAnimationActive={false} />}
               {visible.ctl && <Area yAxisId="left" type="natural" dataKey="ctl" stroke={ctlColor} fill="none" strokeWidth={expanded ? 2.5 : 2} dot={false} isAnimationActive={false} />}
               {visible.atl && <Area yAxisId="left" type="natural" dataKey="atl" stroke={atlColor} fill="none" strokeWidth={expanded ? 2.5 : 2} dot={false} isAnimationActive={false} />}
-              {visible.tsb && <Area yAxisId="left" type="natural" dataKey={expanded ? 'tsb' : 'tsbSmooth'} stroke="#059669" fill="#059669" fillOpacity={0.15} strokeWidth={expanded ? 2.5 : 2} dot={false} isAnimationActive={false} />}
+              {visible.tsb && <Area yAxisId="left" type="natural" dataKey={expanded ? 'tsb' : 'tsbSmooth'} stroke={tsbColor} fill={tsbColor} fillOpacity={0.15} strokeWidth={expanded ? 2.5 : 2} dot={false} isAnimationActive={false} />}
             </ComposedChart>
           </ResponsiveContainer>
         </div>
@@ -231,10 +236,10 @@ export default function PerformanceChart({
             view to reduce clutter — the chart still shows fitness + fatigue. */}
         {flags.showAdvancedCharts && (
           <div className="flex flex-wrap justify-center gap-1.5 mt-2">
-            <MetricPill active={visible.ctl} onClick={() => toggle('ctl')} color="blue" label="Fitness" />
-            <MetricPill active={visible.atl} onClick={() => toggle('atl')} color="red" label="Fatigue" />
-            <MetricPill active={visible.tsb} onClick={() => toggle('tsb')} color="green" label="Recovery" />
-            <MetricPill active={visible.load} onClick={() => toggle('load')} color="amber" label={loadMode === '7d' ? '7d Load' : 'Daily Load'} />
+            <MetricPill active={visible.ctl} onClick={() => toggle('ctl')} series="ctl" label="Fitness" />
+            <MetricPill active={visible.atl} onClick={() => toggle('atl')} series="atl" label="Fatigue" />
+            <MetricPill active={visible.tsb} onClick={() => toggle('tsb')} series="tsb" label="Recovery" />
+            <MetricPill active={visible.load} onClick={() => toggle('load')} series="load" label={loadMode === '7d' ? '7d Load' : 'Daily Load'} />
             {visible.load && (
               <button
                 onClick={() => setLoadMode(m => m === 'daily' ? '7d' : 'daily')}
@@ -287,7 +292,8 @@ export default function PerformanceChart({
           label={<Term name="ctl" />}
           value={formatLoadP(latest.ctl, flags.numericPrecision)}
           sub=""
-          color="blue"
+          series="ctl"
+          color="series"
           note={
             latest.ctl < 20 ? 'Building base — keep training consistently'
             : latest.ctl < 40 ? 'Moderate fitness — on track for build phase'
@@ -299,7 +305,8 @@ export default function PerformanceChart({
           label={<Term name="atl" />}
           value={formatLoadP(latest.atl, flags.numericPrecision)}
           sub=""
-          color="red"
+          series="atl"
+          color="series"
           note={
             latest.atl > latest.ctl * 1.5 ? 'Very high — consider an easy day soon'
             : latest.atl > latest.ctl ? 'Fatigue exceeds fitness — normal in build weeks'
@@ -311,6 +318,7 @@ export default function PerformanceChart({
           label={<Term name="tsb">Recovery Balance</Term>}
           value={`${latest.tsb >= 0 ? '+' : ''}${formatLoadP(latest.tsb, flags.numericPrecision)}`}
           sub={tsb.label}
+          series="tsb"
           color={tsb.key === 'build' ? 'blue' : toneColor(tsb.tone)}
           note={tsb.note}
         />
@@ -344,21 +352,15 @@ export default function PerformanceChart({
   )
 }
 
-function MetricPill({ active, onClick, color, label }: {
-  active: boolean; onClick: () => void; color: 'blue' | 'red' | 'green' | 'amber'; label: string
+function MetricPill({ active, onClick, series, label }: {
+  active: boolean; onClick: () => void; series: LoadSeries; label: string
 }) {
-  const colorMap = {
-    blue: { on: 'bg-blue-500 text-white border-blue-500', off: 'border-blue-300 text-blue-600' },
-    red: { on: 'bg-red-500 text-white border-red-500', off: 'border-red-300 text-red-600' },
-    green: { on: 'bg-green-600 text-white border-green-600', off: 'border-green-300 text-green-700' },
-    amber: { on: 'bg-amber-500 text-white border-amber-500', off: 'border-amber-300 text-amber-600' },
-  }
-  const c = colorMap[color]
+  const c = LOAD_SERIES_COLORS[series]
   return (
     <button
       onClick={onClick}
       className={`text-xs px-2.5 py-1 rounded-full border transition ${
-        active ? c.on : `${c.off} bg-transparent opacity-60`
+        active ? c.chipOn : `${c.chipOff} bg-transparent opacity-60`
       }`}
     >
       {active ? '✓ ' : ''}{label}
@@ -371,8 +373,11 @@ function toneColor(tone: ZoneTone): string {
   return tone === 'good' ? 'green' : tone === 'warning' ? 'amber' : tone === 'critical' ? 'red' : 'slate'
 }
 
-function PerfStatCard({ label, value, sub, color, note }: {
-  label: React.ReactNode; value: string; sub: React.ReactNode; color: string; note?: string
+/** A stat card. `series` ties it to its chart line with a swatch; its
+ *  value wears the series color when `color` is 'series', else a zone
+ *  tone (Recovery Balance and Load Ratio color by zone, not identity). */
+function PerfStatCard({ label, value, sub, color, note, series }: {
+  label: React.ReactNode; value: string; sub: React.ReactNode; color: string; note?: string; series?: LoadSeries
 }) {
   const colorMap: Record<string, string> = {
     blue: 'text-blue-700',
@@ -385,8 +390,11 @@ function PerfStatCard({ label, value, sub, color, note }: {
     <div className="bg-white dark:bg-slate-800 rounded-xl p-3 shadow-sm border border-slate-100 dark:border-slate-700">
       <div className="flex items-baseline gap-2">
         <div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wide">{label}</p>
-          <p className={`text-2xl font-bold ${colorMap[color] || 'text-slate-800 dark:text-white'}`}>{value}</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wide flex items-center">
+            {series && <span aria-hidden className={`inline-block w-3 h-[3px] rounded-full mr-1.5 shrink-0 ${LOAD_SERIES_COLORS[series].swatch}`} />}
+            {label}
+          </p>
+          <p className={`text-2xl font-bold ${(color === 'series' && series ? LOAD_SERIES_COLORS[series].text : colorMap[color]) || 'text-slate-800 dark:text-white'}`}>{value}</p>
           <p className="text-xs text-slate-400 leading-tight">{sub}</p>
         </div>
       </div>
