@@ -7,7 +7,7 @@ import {
   targetLine,
   type ExerciseProgression,
 } from '../utils/strengthProgression'
-import { formatSetTime, isTimedSet } from '../utils/setTime'
+import { formatSetTime, isHoldSet } from '../utils/setTime'
 import type { StrengthSet } from '../types'
 import {
   e1RMTrend,
@@ -180,7 +180,7 @@ function ExerciseRow({
   const isBW = progression.isBodyweight
   // A hold (plank, wall sit) progresses by time: its trajectory is the
   // shortest hold of a session, and reps, projections and 1RM don't apply.
-  const timed = last.sets.every(isTimedSet)
+  const timed = last.sets.every(isHoldSet)
   const firstHold = holdOf(first.sets)
   const lastHold = holdOf(last.sets)
 
@@ -264,7 +264,7 @@ function ExerciseRow({
                 <div key={i} className="flex items-center justify-between text-slate-600 dark:text-slate-300">
                   <span className="text-slate-400">{s.weekNum > 0 ? `Wk ${s.weekNum}` : `prev · ${s.dayLabel}`}</span>
                   <span className={isLast ? 'font-semibold text-slate-700 dark:text-slate-200' : ''}>
-                    {s.sets.every(isTimedSet)
+                    {s.sets.every(isHoldSet)
                       ? `${s.topWeightLb > 0 ? `${s.topWeightLb} lb` : 'BW'} · hold ${formatSetTime(holdOf(s.sets))} × ${s.sets.length}`
                       : `${s.topWeightLb > 0 ? `${s.topWeightLb} lb` : 'BW'} × ${reps} × ${s.sets.length}`}
                   </span>

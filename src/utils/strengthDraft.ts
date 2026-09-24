@@ -8,7 +8,7 @@ import {
   type ExerciseProgression,
 } from './strengthProgression'
 import { getExerciseGuide, calibrateGuideWeight } from './exercises'
-import { formatSetTime, isTimedSet } from './setTime'
+import { formatSetTime, isHoldSet } from './setTime'
 
 /** Athlete calibration context for cold-start ghost weights: lifting
  *  background (self-report) and the measured benchmark, when one exists. */
@@ -91,7 +91,7 @@ export function lastSessionSummary(prog: ExerciseProgression | undefined): strin
   if (!last || last.sets.length === 0) return null
   const load = last.topWeightLb > 0 ? `${last.topWeightLb} lb` : 'BW'
   const times = last.sets.map(s => formatSetTime(s.timeSec) || '—').join(', ')
-  if (last.sets.every(isTimedSet)) return `${load} · ${times}`
+  if (last.sets.every(isHoldSet)) return `${load} · ${times}`
   const reps = last.sets.map(s => s.reps || 0).join(', ')
   const base = `${load} × ${reps}`
   const timed = last.sets.some(s => s.timeSec != null && s.timeSec > 0)
@@ -190,7 +190,7 @@ export function draftOptionsFor(day: PlannedDay | undefined): PlanParseOptions |
 export function prescriptionLabel(ex: StrengthExerciseLog): string {
   const n = ex.sets.length
   const first = ex.sets[0]
-  if (first && isTimedSet(first)) return `${n} × ${holdLabel(first.timeSec!)}`
+  if (first && isHoldSet(first)) return `${n} × ${holdLabel(first.timeSec!)}`
   const reps = first?.reps ?? 0
   if (reps > 1) return `${n} × ${reps}`
   return n === 1 ? 'one effort' : `${n} efforts`
@@ -229,7 +229,7 @@ export function parsePlanPrescription(detail: string, opts: PlanParseOptions = {
   for (const part of parts) {
     // Try to match "Exercise Name NxR" patterns like "3×12", "3x10", "3×45s".
     // A load written "@ 2×24 kg" (two kettlebells) is not sets × reps.
-    const setsMatch = part.match(/^(.+?)\s+(\d+)\s*[×xX]\s*(\d+\s*(?:\/\w+)?(?:\s*\w+)?(?:\s*\/\s*\w+)?)$/)
+    const setsMatch = part.match(/^(.+?)\s+(\d+)\s*[×xX]\s*(\d+(?:\.\d+)?\s*(?:\/\w+)?(?:\s*\w+)?(?:\s*\/\s*\w+)?)$/)
     const isLoad = setsMatch != null && /@\s*$/.test(setsMatch[1])
 
     let name: string
@@ -267,7 +267,7 @@ export function parsePlanPrescription(detail: string, opts: PlanParseOptions = {
     }
 
     const sets: StrengthSet[] = Array.from({ length: numSets }, () => (
-      holdSec != null ? { reps: 0, weight: '', timeSec: holdSec } : { reps, weight: '' }
+      holdSec != null ? { reps: 0, weight: '', timeSec: holdSec, hold: true } : { reps, weight: '' }
     ))
 
     out.exercises.push({ name, focus: detectFocus(name), sets })
@@ -302,7 +302,7 @@ export function draftExercise(
   const sets: StrengthSet[] = plannedSets?.length
     ? plannedSets
     : last && last.sets.length > 0
-      ? last.sets.map(s => ({ reps: s.reps, weight: s.weight }))
+      ? last.sets.map(s => (s.hold ? { reps: 0, weight: s.weight, timeSec: s.timeSec, hold: true } : { reps: s.reps, weight: s.weight }))
       : Array.from({ length: 3 }, () => ({ reps: 10, weight: '' }))
   return ghostFillFromHistory([{ name, focus: detectFocus(name), sets }], progression, calib)[0]
 }

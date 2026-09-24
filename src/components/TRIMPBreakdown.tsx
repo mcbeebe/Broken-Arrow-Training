@@ -23,7 +23,7 @@ interface TRIMPBreakdownProps {
   range?: TRIMPRange
   onRangeChange?: (r: TRIMPRange) => void
   /** CTL/ATL timeline from useReadiness. When provided, the chart overlays a
-   *  trailing-average load trend line and a lightly shaded "optimal range"
+   *  trailing-average load trend line and a lightly shaded "in range"
    *  band — 0.8×–1.3× CTL, the Load-Ratio sweet spot already used elsewhere
    *  in the app. Without it, the chart renders bars only. */
   performance?: PerformanceMetrics[]
@@ -163,7 +163,7 @@ export default function TRIMPBreakdown({
   const labels = RANGE_LABELS[range]
 
   // ── Load-trend overlay ────────────────────────────────────────────
-  // Trend line = acute load (ATL, the 7-day EWMA). Optimal-range band =
+  // Trend line = acute load (ATL, the 7-day EWMA). In-range band =
   // 0.8×–1.3× chronic load (CTL) — the Load-Ratio sweet spot. Both come from
   // the performance timeline and move slowly, so we forward-fill the most
   // recent value across days it doesn't cover and back-fill the earliest
@@ -277,7 +277,7 @@ export default function TRIMPBreakdown({
     if (entry['trend']) hasTrend = true
     if (Array.isArray(entry['zone'])) hasZone = true
   }
-  // The acute-load trend line and optimal-range band are advanced overlays —
+  // The acute-load trend line and in-range band are advanced overlays —
   // hide them in the simplest view so the chart is just the load bars.
   if (!flags.showAdvancedCharts) {
     hasTrend = false
@@ -461,7 +461,7 @@ export default function TRIMPBreakdown({
                     )}
                     {zoneVal && zoneStatus && (
                       <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-snug mt-0.5">
-                        Optimal range {zoneVal[0]}–{zoneVal[1]} · <span className={
+                        In range (from Fitness) {zoneVal[0]}–{zoneVal[1]} · <span className={
                           zoneStatus === 'in range' ? 'text-emerald-600 dark:text-emerald-400 font-medium'
                           : 'text-amber-600 dark:text-amber-400 font-medium'
                         }>{zoneStatus}</span>
@@ -481,7 +481,7 @@ export default function TRIMPBreakdown({
                 )
               }}
             />
-            {/* Optimal-range band — declared before the bars so it paints
+            {/* In-range band — declared before the bars so it paints
                 behind them. Range area: each datum's `zone` is [low, high]. */}
             {hasZone && (
               <Area
