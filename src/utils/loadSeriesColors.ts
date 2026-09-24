@@ -24,8 +24,9 @@ export interface SeriesColor {
   /** Active legend chip: fill matches the line in both modes. */
   chipOn: string
   chipOff: string
-  /** Stat-card value text in the series color. */
-  text: string
+  /** Stat-card value text in the series color (the cards whose value is
+   *  the series itself; Recovery Balance colors by zone). */
+  text?: string
   /** The short line swatch beside a stat card's label. */
   swatch: string
 }
@@ -55,7 +56,6 @@ export const LOAD_SERIES_COLORS: Record<LoadSeries, SeriesColor> = {
     dark: { step: 600, hex: '#0d9488' },
     chipOn: 'bg-teal-600 border-teal-600 text-white',
     chipOff: 'border-teal-300 text-teal-700 dark:text-teal-400',
-    text: 'text-teal-700 dark:text-teal-400',
     swatch: 'bg-teal-600',
   },
   load: {
@@ -64,7 +64,6 @@ export const LOAD_SERIES_COLORS: Record<LoadSeries, SeriesColor> = {
     dark: { step: 600, hex: '#d97706' },
     chipOn: 'bg-amber-600 border-amber-600 text-white',
     chipOff: 'border-amber-300 text-amber-700 dark:text-amber-400',
-    text: 'text-amber-700 dark:text-amber-400',
     swatch: 'bg-amber-600',
   },
 }

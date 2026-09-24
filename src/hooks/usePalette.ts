@@ -29,10 +29,6 @@ function applyPalette(id: PaletteId, resolved: 'light' | 'dark') {
   root.setProperty('--color-accent-strong', vars.accentStrong)
   root.setProperty('--color-accent-soft', vars.accentSoft)
   root.setProperty('--color-on-accent', vars.onAccent)
-  root.setProperty('--chart-1', vars.chart1)
-  root.setProperty('--chart-2', vars.chart2)
-  root.setProperty('--chart-3', vars.chart3)
-  root.setProperty('--chart-4', vars.chart4)
 }
 
 export function usePalette(resolved: 'light' | 'dark') {

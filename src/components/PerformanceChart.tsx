@@ -141,7 +141,6 @@ export default function PerformanceChart({
                 yAxisId="left"
                 domain={[fixedYMin, fixedYMax]}
                 allowDecimals={false}
-                tickFormatter={(v: number) => String(Math.round(v))}
                 tick={{ fontSize: expanded ? 12 : 11, fill: isDark ? '#cbd5e1' : '#64748b' }}
                 axisLine={false}
                 tickLine={false}
@@ -180,19 +179,20 @@ export default function PerformanceChart({
               />
               {/* Training load line (right axis) — daily or 7-day trailing */}
               {visible.load && (
-                <Area yAxisId="right" type="natural" dataKey={loadMode === '7d' ? 'load7d' : 'load'} stroke={loadColor} fill="none" strokeWidth={expanded ? 2.5 : 2} dot={false} isAnimationActive={false} />
+                <Area className="series-load" yAxisId="right" type="natural" dataKey={loadMode === '7d' ? 'load7d' : 'load'} stroke={loadColor} fill="none" strokeWidth={expanded ? 2.5 : 2} dot={false} isAnimationActive={false} />
               )}
-              {/* Build zone: where a build week is supposed to put you (TSB -30 to -10) */}
+              {/* Build zone: where a build week is supposed to put you (TSB -30
+                  to -10). Neutral gray, as its zone tone is: blue is Fitness. */}
               {showBands && (
                 <ReferenceArea
                   yAxisId="left"
                   y1={TSB_BANDS.build.y1} y2={TSB_BANDS.build.y2}
-                  fill={isDark ? '#1e3a5f' : '#dbeafe'}
-                  fillOpacity={isDark ? 0.5 : 0.4}
-                  stroke="#3B82F6"
+                  fill={isDark ? '#334155' : '#e2e8f0'}
+                  fillOpacity={isDark ? 0.5 : 0.5}
+                  stroke="#94a3b8"
                   strokeOpacity={0.6}
                   strokeWidth={1}
-                  label={{ value: TSB_BANDS.build.label, fontSize: expanded ? 12 : 10, fill: isDark ? '#93c5fd' : '#1d4ed8', position: 'insideBottomLeft' }}
+                  label={{ value: TSB_BANDS.build.label, fontSize: expanded ? 12 : 10, fill: isDark ? '#cbd5e1' : '#475569', position: 'insideBottomLeft' }}
                 />
               )}
               {/* Race day band: peak performance zone (TSB +5 to +25) */}
@@ -217,18 +217,18 @@ export default function PerformanceChart({
                   label={{ value: TSB_BANDS.overreachingLine.label, fontSize: expanded ? 11 : 9, fill: isDark ? '#fca5a5' : '#b91c1c', position: 'insideBottomRight' }}
                 />
               )}
-              {showBands && <ReferenceLine yAxisId="left" y={TSB_BANDS.build.y2} stroke="#3B82F6" strokeOpacity={0.4} strokeDasharray="4 4" strokeWidth={1} />}
+              {showBands && <ReferenceLine yAxisId="left" y={TSB_BANDS.build.y2} stroke="#94a3b8" strokeOpacity={0.6} strokeDasharray="4 4" strokeWidth={1} />}
               <ReferenceLine yAxisId="left" y={0} stroke={isDark ? '#475569' : '#94a3b8'} strokeDasharray="2 2" />
               {showBands && <ReferenceLine yAxisId="left" y={5} stroke="#059669" strokeOpacity={0.4} strokeDasharray="4 4" strokeWidth={1} />}
               {/* The table's Peaked line, inside the race-day band */}
               {showBands && <ReferenceLine yAxisId="left" y={TSB_BOUNDS.peaked} stroke="#059669" strokeOpacity={0.5} strokeDasharray="2 3" strokeWidth={1} label={{ value: 'Peaked', fontSize: expanded ? 11 : 9, fill: isDark ? '#6ee7b7' : '#047857', position: 'insideTopRight' }} />}
               {showBands && <ReferenceLine yAxisId="left" y={25} stroke="#059669" strokeOpacity={0.4} strokeDasharray="4 4" strokeWidth={1} />}
               {/* ACWR corridor: 0.8×CTL to 1.3×CTL — only when CTL is visible */}
-              {visible.ctl && <Area yAxisId="left" type="natural" dataKey="acwrHigh" stroke={ctlColor} strokeWidth={1} strokeDasharray="4 4" strokeOpacity={0.5} fill="none" dot={false} isAnimationActive={false} />}
-              {visible.ctl && <Area yAxisId="left" type="natural" dataKey="acwrLow" stroke={ctlColor} strokeWidth={1} strokeDasharray="4 4" strokeOpacity={0.5} fill="none" dot={false} isAnimationActive={false} />}
-              {visible.ctl && <Area yAxisId="left" type="natural" dataKey="ctl" stroke={ctlColor} fill="none" strokeWidth={expanded ? 2.5 : 2} dot={false} isAnimationActive={false} />}
-              {visible.atl && <Area yAxisId="left" type="natural" dataKey="atl" stroke={atlColor} fill="none" strokeWidth={expanded ? 2.5 : 2} dot={false} isAnimationActive={false} />}
-              {visible.tsb && <Area yAxisId="left" type="natural" dataKey={expanded ? 'tsb' : 'tsbSmooth'} stroke={tsbColor} fill={tsbColor} fillOpacity={0.15} strokeWidth={expanded ? 2.5 : 2} dot={false} isAnimationActive={false} />}
+              {visible.ctl && <Area className="series-ctl-guide" yAxisId="left" type="natural" dataKey="acwrHigh" stroke={ctlColor} strokeWidth={1} strokeDasharray="4 4" strokeOpacity={0.5} fill="none" dot={false} isAnimationActive={false} />}
+              {visible.ctl && <Area className="series-ctl-guide" yAxisId="left" type="natural" dataKey="acwrLow" stroke={ctlColor} strokeWidth={1} strokeDasharray="4 4" strokeOpacity={0.5} fill="none" dot={false} isAnimationActive={false} />}
+              {visible.ctl && <Area className="series-ctl" yAxisId="left" type="natural" dataKey="ctl" stroke={ctlColor} fill="none" strokeWidth={expanded ? 2.5 : 2} dot={false} isAnimationActive={false} />}
+              {visible.atl && <Area className="series-atl" yAxisId="left" type="natural" dataKey="atl" stroke={atlColor} fill="none" strokeWidth={expanded ? 2.5 : 2} dot={false} isAnimationActive={false} />}
+              {visible.tsb && <Area className="series-tsb" yAxisId="left" type="natural" dataKey={expanded ? 'tsb' : 'tsbSmooth'} stroke={tsbColor} fill={tsbColor} fillOpacity={0.15} strokeWidth={expanded ? 2.5 : 2} dot={false} isAnimationActive={false} />}
             </ComposedChart>
           </ResponsiveContainer>
         </div>
@@ -319,7 +319,7 @@ export default function PerformanceChart({
           value={`${latest.tsb >= 0 ? '+' : ''}${formatLoadP(latest.tsb, flags.numericPrecision)}`}
           sub={tsb.label}
           series="tsb"
-          color={tsb.key === 'build' ? 'blue' : toneColor(tsb.tone)}
+          color={toneColor(tsb.tone)}
           note={tsb.note}
         />
         <PerfStatCard
@@ -380,7 +380,6 @@ function PerfStatCard({ label, value, sub, color, note, series }: {
   label: React.ReactNode; value: string; sub: React.ReactNode; color: string; note?: string; series?: LoadSeries
 }) {
   const colorMap: Record<string, string> = {
-    blue: 'text-blue-700',
     red: 'text-red-600',
     green: 'text-green-700',
     amber: 'text-amber-600',
@@ -420,7 +419,8 @@ interface ChartPoint {
 }
 
 function smoothSeries(data: ChartPoint[], window: number, bounds: AcwrBounds): ChartPoint[] {
-  if (data.length <= window) return data
+  // Too short to smooth — still name the collapsed view's Recovery key.
+  if (data.length <= window) return data.map(p => ({ ...p, tsbSmooth: p.tsb }))
   return data.map((point, i) => {
     const halfW = Math.floor(window / 2)
     const start = Math.max(0, i - halfW)
