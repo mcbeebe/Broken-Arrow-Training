@@ -24,6 +24,7 @@ import type { TrainingMethod } from '../types/training-method'
 import { computeRaceProjection } from './raceProjection'
 import { localDateStr } from './format'
 import { buildProgression, suggestNextTarget } from './strengthProgression'
+import { isTimedSet } from './setTime'
 import { calculateGrade } from './grading'
 import { buildMethodologyContext } from './methodologyContext'
 import { sorenessTrendDirection } from './readiness'
@@ -613,10 +614,10 @@ export function buildCoachSnapshot(inputs: Inputs): CoachSnapshot {
         isBodyweight: p.isBodyweight,
         peakWeightLb: p.peakWeightLb,
         weeksSinceFirst,
-        firstSession: { weekNum: first.weekNum, topWeightLb: first.topWeightLb, avgReps: firstAvgReps, sets: first.sets.length },
-        latestSession: { weekNum: last.weekNum, topWeightLb: last.topWeightLb, avgReps: lastAvgReps, sets: last.sets.length },
+        firstSession: { weekNum: first.weekNum, topWeightLb: first.topWeightLb, avgReps: firstAvgReps, sets: first.sets.length, ...holdField(first.sets) },
+        latestSession: { weekNum: last.weekNum, topWeightLb: last.topWeightLb, avgReps: lastAvgReps, sets: last.sets.length, ...holdField(last.sets) },
         suggestedTarget: tgt
-          ? { weightLb: tgt.weightLb, reps: tgt.reps, sets: tgt.sets, tier: tgt.tier, rationale: tgt.rationale }
+          ? { weightLb: tgt.weightLb, reps: tgt.reps, sets: tgt.sets, ...(tgt.timeSec ? { timeSec: tgt.timeSec } : {}), tier: tgt.tier, rationale: tgt.rationale }
           : undefined,
       }
     })
@@ -717,4 +718,11 @@ export function buildCoachSnapshot(inputs: Inputs): CoachSnapshot {
         }
       : null,
   }
+}
+
+/** A timed session's shortest hold, as the snapshot's holdSec (omitted for
+ *  rep sessions so the coach reads them exactly as before). */
+function holdField(sets: { reps: number; timeSec?: number }[]): { holdSec?: number } {
+  if (sets.length === 0 || !sets.every(isTimedSet)) return {}
+  return { holdSec: Math.min(...sets.map(s => s.timeSec ?? 0)) }
 }

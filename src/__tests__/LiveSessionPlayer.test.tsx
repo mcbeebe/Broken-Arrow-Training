@@ -156,20 +156,33 @@ describe('recording a set’s time live (Plank, wall balls, an erg piece)', () =
     expect(workout.strengthLog![0].sets[1].timeSec).toBeUndefined()
   })
 
-  it('a plank hold: Close keeps the typed time and "Log set" saves it', () => {
+  it('a plank hold arrives with the plan\u2019s 0:45, no reps stepper; an edited time is what saves', () => {
     const { onSave } = renderPlayer()
     fireEvent.click(screen.getByText('Start workout'))
     finishSquatsToPlank()
-    fireEvent.click(screen.getByText('Add time'))
-    typeDigits('4', '5')
+    // "Plank 1×45s" is a hold: the time is the draft, reps don't apply.
+    expect(screen.getByText(/0:45 — edit time/)).toBeTruthy()
+    expect(screen.queryByLabelText('plus reps')).toBeNull()
+    fireEvent.click(screen.getByText(/0:45 — edit time/))
+    typeDigits('5', '0') // the first digit replaces the planned time
     fireEvent.click(screen.getByText('Close'))
     expect(screen.queryByText('Set done')).toBeNull()
-    expect(screen.getByText(/0:45 — edit time/)).toBeTruthy()
+    expect(screen.getByText(/0:50 — edit time/)).toBeTruthy()
     fireEvent.click(screen.getByText(/Log set 1 · finish/))
     fireEvent.click(screen.getByText('Save workout'))
     const workout: ActualWorkout = onSave.mock.calls[0][0]
     expect(workout.strengthLog![1].name).toBe('Plank')
-    expect(workout.strengthLog![1].sets[0].timeSec).toBe(45)
+    expect(workout.strengthLog![1].sets[0]).toMatchObject({ reps: 0, timeSec: 50, done: true })
+  })
+
+  it('a hold untouched keeps the plan\u2019s time — confirm-or-adjust, as reps always were', () => {
+    const { onSave } = renderPlayer()
+    fireEvent.click(screen.getByText('Start workout'))
+    finishSquatsToPlank()
+    fireEvent.click(screen.getByText(/Log set 1 · finish/))
+    fireEvent.click(screen.getByText('Save workout'))
+    const workout: ActualWorkout = onSave.mock.calls[0][0]
+    expect(workout.strengthLog![1].sets[0]).toMatchObject({ reps: 0, timeSec: 45, done: true })
   })
 
   it('the keypad offers no "Next:" field switch — the player has no weight or reps keypad to go to', () => {
