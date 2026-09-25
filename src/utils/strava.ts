@@ -75,7 +75,9 @@ export async function refreshAccessToken(refreshToken: string): Promise<StravaTo
 // --- Token storage ---
 
 export function saveTokens(tokens: StravaTokens, athleteId?: string): void {
-  localStorage.setItem(scopedKey(STORAGE_KEY_TOKENS, athleteId), JSON.stringify(tokens))
+  if (!setItemWithRoom(scopedKey(STORAGE_KEY_TOKENS, athleteId), JSON.stringify(tokens))) {
+    console.error('[storage] Strava sign-in could not be saved on this phone (storage full)')
+  }
 }
 
 export function getTokens(athleteId?: string): StravaTokens | null {
@@ -137,7 +139,8 @@ export function getCachedActivities(athleteId?: string): StravaActivity[] {
 /** Save activities on the phone. Never throws; false = not saved (full). */
 export function cacheActivities(activities: StravaActivity[], athleteId?: string): boolean {
   const saved = setItemWithRoom(scopedKey(STORAGE_KEY_ACTIVITIES, athleteId), JSON.stringify(activities))
-  setItemWithRoom(scopedKey(STORAGE_KEY_LAST_SYNC, athleteId), new Date().toISOString())
+  // Stamp "Last synced" only with the activities it describes.
+  if (saved) setItemWithRoom(scopedKey(STORAGE_KEY_LAST_SYNC, athleteId), new Date().toISOString())
   return saved
 }
 

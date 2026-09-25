@@ -1,7 +1,7 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import type { GarminHealthData, GarminActivity, GarminActivityDetail } from '../types'
 import { localDateStr } from '../utils/format'
-import { STORAGE_FULL_MESSAGE, isQuotaError } from '../utils/storageRoom'
+import { STORAGE_FULL_MESSAGE } from '../utils/storageRoom'
 import {
   checkGarminAuth,
   disconnectGarmin,
@@ -17,6 +17,7 @@ import {
   clearGarminData,
   isGarminConfigured,
   isSyncStale,
+  healthSyncDays,
   getCachedGarminActivities,
   cacheGarminActivities,
   mergeGarminActivities,
@@ -107,14 +108,14 @@ export function useGarmin(athleteId?: string): UseGarminReturn {
   const fetchAllData = useCallback(async () => {
     const data = await fetchHealthData(120, athleteId)
     const merged = mergeHealthData(healthData, data)
-    cacheHealthData(merged, athleteId)
+    let savedOnPhone = cacheHealthData(merged, athleteId)
     setHealthData(merged)
 
     const today = localDateStr()
     const historyStart = localDateStr(new Date(Date.now() - 120 * 24 * 60 * 60 * 1000))
     const fetched = await fetchGarminActivities(historyStart, today, athleteId)
     const activities = mergeGarminActivities(getCachedGarminActivities(athleteId), fetched)
-    cacheGarminActivities(activities, athleteId)
+    savedOnPhone = cacheGarminActivities(activities, athleteId) && savedOnPhone
     setGarminActivities(activities)
 
     const detailCache = { ...getCachedActivityDetails(athleteId) }
@@ -135,9 +136,10 @@ export function useGarmin(athleteId?: string): UseGarminReturn {
     for (const { date, details } of detailResults) {
       if (details.length > 0) detailCache[date] = details
     }
-    cacheActivityDetails(detailCache, athleteId)
+    savedOnPhone = cacheActivityDetails(detailCache, athleteId) && savedOnPhone
     setActivityDetails(detailCache)
     setLastSync(new Date().toISOString())
+    if (!savedOnPhone) setError(STORAGE_FULL_MESSAGE)
   }, [healthData, athleteId])
 
   /** Handle successful authentication */
@@ -271,7 +273,7 @@ export function useGarmin(athleteId?: string): UseGarminReturn {
     setError(null)
 
     try {
-      const days = healthData.length === 0 ? 120 : 7
+      const days = healthSyncDays(healthData)
       const data = await fetchHealthData(days, athleteId)
       const merged = mergeHealthData(healthData, data)
       // A save that can't fit on the phone never stops the sync: the app
@@ -324,17 +326,23 @@ export function useGarmin(athleteId?: string): UseGarminReturn {
         setConnected(false)
         setError(err.message)
       } else {
-        // Safari's own "The quota has been exceeded." is no use to anyone.
-        setError(isQuotaError(err) ? STORAGE_FULL_MESSAGE : err instanceof Error ? err.message : 'Sync failed')
+        setError(err instanceof Error ? err.message : 'Sync failed')
       }
     } finally {
       setLoading(false)
     }
   }, [configured, connected, healthData, athleteId])
 
-  // Auto-sync on app open if data is more than 10 minutes old.
+  // Auto-sync on app open if data is more than 10 minutes old — once per
+  // open. `sync` changes with every health update, and staleness is read
+  // from the stored stamp: when a full phone can't store the stamp, an
+  // unguarded effect would sync again on every render, forever.
+  const autoSyncedFor = useRef<string | null>(null)
   useEffect(() => {
+    const who = athleteId ?? ''
+    if (autoSyncedFor.current === who) return
     if (connected && configured && isSyncStale(athleteId, 10 * 60 * 1000)) {
+      autoSyncedFor.current = who
       sync()
     }
   }, [connected, configured, athleteId, sync])

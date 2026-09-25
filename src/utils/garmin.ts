@@ -240,11 +240,28 @@ export function getCachedHealthData(athleteId?: string): GarminHealthData[] {
   }
 }
 
-/** Save health days on the phone. Never throws; false = not saved (full). */
+/** Save health days on the phone. Never throws; false = not saved (full).
+ *  "Last synced" is stamped only with the data it describes — a fresh
+ *  stamp over stale cached days would hide exactly this failure. */
 export function cacheHealthData(data: GarminHealthData[], athleteId?: string): boolean {
   const saved = setItemWithRoom(scopedKey(STORAGE_KEYS.health, athleteId), JSON.stringify(data))
-  setItemWithRoom(scopedKey(STORAGE_KEYS.lastSync, athleteId), new Date().toISOString())
+  if (saved) setItemWithRoom(scopedKey(STORAGE_KEYS.lastSync, athleteId), new Date().toISOString())
   return saved
+}
+
+/** How many days a sync should ask for: from the newest cached day to
+ *  today (at least a week, at most the 120-day history), so a phone that
+ *  missed syncs — or couldn't save them — never keeps a gap. */
+export function healthSyncDays(cached: GarminHealthData[], today: string = localDate()): number {
+  if (cached.length === 0) return 120
+  const newest = cached.reduce((m, d) => (d.date > m ? d.date : m), '')
+  const gap = Math.round((Date.parse(`${today}T12:00:00`) - Date.parse(`${newest}T12:00:00`)) / 86_400_000)
+  return Number.isFinite(gap) ? Math.min(120, Math.max(7, gap + 1)) : 120
+}
+
+function localDate(): string {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
 export function mergeHealthData(existing: GarminHealthData[], incoming: GarminHealthData[]): GarminHealthData[] {
@@ -263,9 +280,9 @@ export function isGarminConnected(athleteId?: string): boolean {
 }
 
 export function setGarminConnected(connected: boolean, athleteId?: string, displayName?: string): void {
-  localStorage.setItem(scopedKey(STORAGE_KEYS.connected, athleteId), String(connected))
+  setItemWithRoom(scopedKey(STORAGE_KEYS.connected, athleteId), String(connected))
   if (displayName) {
-    localStorage.setItem(scopedKey(STORAGE_KEYS.displayName, athleteId), displayName)
+    setItemWithRoom(scopedKey(STORAGE_KEYS.displayName, athleteId), displayName)
   }
 }
 
