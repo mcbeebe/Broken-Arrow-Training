@@ -5,6 +5,7 @@ import { ComposedChart, Bar, Line, Area, XAxis, YAxis, Tooltip, ResponsiveContai
 import Term from './TermGlossary'
 import { useDisplayPreferences } from '../hooks/useDisplayPreferences'
 import { ACWR_BOUNDS } from '../utils/loadZones'
+import { seriesHex } from '../utils/loadSeriesColors'
 
 export type TRIMPRange = '7d' | '30d' | '90d' | 'ytd' | 'all'
 
@@ -22,7 +23,7 @@ interface TRIMPBreakdownProps {
   range?: TRIMPRange
   onRangeChange?: (r: TRIMPRange) => void
   /** CTL/ATL timeline from useReadiness. When provided, the chart overlays a
-   *  trailing-average load trend line and a lightly shaded "optimal range"
+   *  trailing-average load trend line and a lightly shaded "in range"
    *  band — 0.8×–1.3× CTL, the Load-Ratio sweet spot already used elsewhere
    *  in the app. Without it, the chart renders bars only. */
   performance?: PerformanceMetrics[]
@@ -61,12 +62,11 @@ const SPORT_COLORS: Record<string, string> = {
 const MANUAL_EXERCISE_COLOR = '#F59E0B'
 const DOMS_COLOR = '#FB923C'
 const SORENESS_COLOR = '#F87171'
-// Load-trend overlay. The line is acute load (ATL — the 7-day EWMA from the
-// performance timeline), drawn in a dark neutral so it reads over any sport
-// color. The optimal-range band uses green to signal "healthy zone" (0.8–1.3×
-// chronic load — the Load-Ratio sweet spot, mirroring Garmin's Optimal Range).
-const TREND_COLOR = '#334155'
-const ZONE_COLOR = '#22C55E'
+// Load-trend overlay. The line is acute load (ATL — Fatigue on the Progress
+// chart) and the band is 0.8–1.3× chronic load (a Fitness multiple — the
+// Load-Ratio in-range band), so they wear Fatigue red and Fitness blue from
+// the same series table as that chart. The line sits on a halo in the card
+// color so it still reads over a red or blue sport bar.
 
 function getRangeDays(range: TRIMPRange, dailyTrimp: DailyTRIMP[]): string[] {
   const today = new Date()
@@ -134,6 +134,11 @@ export default function TRIMPBreakdown({
   athleteId,
 }: TRIMPBreakdownProps) {
   const { flags } = useDisplayPreferences(athleteId)
+  // This card is white in both modes (it has no dark surface), so the
+  // lines take the light steps and the halo is the card's white.
+  const trendColor = seriesHex('atl', false)
+  const zoneColor = seriesHex('ctl', false)
+  const haloColor = '#ffffff'
   const [internalRange, setInternalRange] = useState<TRIMPRange>('7d')
   const range = controlledRange ?? internalRange
   const setRange = (r: TRIMPRange) => {
@@ -158,7 +163,7 @@ export default function TRIMPBreakdown({
   const labels = RANGE_LABELS[range]
 
   // ── Load-trend overlay ────────────────────────────────────────────
-  // Trend line = acute load (ATL, the 7-day EWMA). Optimal-range band =
+  // Trend line = acute load (ATL, the 7-day EWMA). In-range band =
   // 0.8×–1.3× chronic load (CTL) — the Load-Ratio sweet spot. Both come from
   // the performance timeline and move slowly, so we forward-fill the most
   // recent value across days it doesn't cover and back-fill the earliest
@@ -272,7 +277,7 @@ export default function TRIMPBreakdown({
     if (entry['trend']) hasTrend = true
     if (Array.isArray(entry['zone'])) hasZone = true
   }
-  // The acute-load trend line and optimal-range band are advanced overlays —
+  // The acute-load trend line and in-range band are advanced overlays —
   // hide them in the simplest view so the chart is just the load bars.
   if (!flags.showAdvancedCharts) {
     hasTrend = false
@@ -318,8 +323,8 @@ export default function TRIMPBreakdown({
           >
             <defs>
               <linearGradient id="trimpZoneFill" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor={ZONE_COLOR} stopOpacity={0.22} />
-                <stop offset="100%" stopColor={ZONE_COLOR} stopOpacity={0.08} />
+                <stop offset="0%" stopColor={zoneColor} stopOpacity={0.18} />
+                <stop offset="100%" stopColor={zoneColor} stopOpacity={0.06} />
               </linearGradient>
             </defs>
             <XAxis
@@ -449,14 +454,14 @@ export default function TRIMPBreakdown({
                     </div>
                     {trendVal !== null && (
                       <div className="flex items-center gap-2 mt-1">
-                        <span className="w-2.5 h-[3px] rounded-full inline-block shrink-0" style={{ backgroundColor: TREND_COLOR }} />
-                        <span className="text-slate-600 dark:text-slate-300">acute load</span>
+                        <span className="w-2.5 h-[3px] rounded-full inline-block shrink-0" style={{ backgroundColor: trendColor }} />
+                        <span className="text-slate-600 dark:text-slate-300">Fatigue (acute load)</span>
                         <span className="ml-auto font-medium text-slate-700 dark:text-slate-200">{trendVal} TRIMP</span>
                       </div>
                     )}
                     {zoneVal && zoneStatus && (
                       <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-snug mt-0.5">
-                        Optimal range {zoneVal[0]}–{zoneVal[1]} · <span className={
+                        In range (from Fitness) {zoneVal[0]}–{zoneVal[1]} · <span className={
                           zoneStatus === 'in range' ? 'text-emerald-600 dark:text-emerald-400 font-medium'
                           : 'text-amber-600 dark:text-amber-400 font-medium'
                         }>{zoneStatus}</span>
@@ -476,13 +481,14 @@ export default function TRIMPBreakdown({
                 )
               }}
             />
-            {/* Optimal-range band — declared before the bars so it paints
+            {/* In-range band — declared before the bars so it paints
                 behind them. Range area: each datum's `zone` is [low, high]. */}
             {hasZone && (
               <Area
+                className="series-ctl-guide"
                 dataKey="zone"
                 type="monotone"
-                stroke={ZONE_COLOR}
+                stroke={zoneColor}
                 strokeOpacity={0.35}
                 strokeWidth={1}
                 fill="url(#trimpZoneFill)"
@@ -528,11 +534,27 @@ export default function TRIMPBreakdown({
                 top of the bars and band. */}
             {hasTrend && (
               <Line
+                className="series-atl-halo"
                 dataKey="trend"
                 type="monotone"
-                stroke={TREND_COLOR}
+                stroke={haloColor}
+                strokeWidth={5}
+                dot={false}
+                activeDot={false}
+                connectNulls
+                isAnimationActive={false}
+                legendType="none"
+                tooltipType="none"
+              />
+            )}
+            {hasTrend && (
+              <Line
+                className="series-atl"
+                dataKey="trend"
+                type="monotone"
+                stroke={trendColor}
                 strokeWidth={2}
-                dot={range === '7d' ? { r: 2.5, fill: TREND_COLOR, strokeWidth: 0 } : false}
+                dot={range === '7d' ? { r: 2.5, fill: trendColor, strokeWidth: 0 } : false}
                 activeDot={{ r: 3.5 }}
                 connectNulls
                 isAnimationActive={false}
@@ -560,14 +582,14 @@ export default function TRIMPBreakdown({
       <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2">
         {hasTrend && (
           <span className="flex items-center gap-1 text-xs text-slate-500">
-            <span className="w-3 h-[3px] rounded-full inline-block" style={{ backgroundColor: TREND_COLOR }} />
-            acute load
+            <span className="w-3 h-[3px] rounded-full inline-block" style={{ backgroundColor: trendColor }} />
+            Fatigue (acute load)
           </span>
         )}
         {hasZone && (
           <span className="flex items-center gap-1 text-xs text-slate-500">
-            <span className="w-2.5 h-2.5 rounded-sm inline-block border" style={{ backgroundColor: `${ZONE_COLOR}28`, borderColor: `${ZONE_COLOR}88` }} />
-            optimal range
+            <span className="w-2.5 h-2.5 rounded-sm inline-block border" style={{ backgroundColor: `${zoneColor}28`, borderColor: `${zoneColor}88` }} />
+            in range (from Fitness)
           </span>
         )}
         {Array.from(sportTypes).map(type => (
@@ -600,8 +622,8 @@ export default function TRIMPBreakdown({
       </div>
       {hasZone && (
         <p className="mt-2 text-[10px] text-slate-400 dark:text-slate-500 leading-snug">
-          <span className="font-semibold text-slate-500 dark:text-slate-400">Acute load</span> = your rolling recent training load (7-day average).
-          {' '}<span className="font-semibold text-slate-500 dark:text-slate-400">In range</span> = {ACWR_BOUNDS.low}–{ACWR_BOUNDS.sweetTop}× your <Term name="acwr">chronic load</Term>.
+          <span className="font-semibold text-slate-500 dark:text-slate-400">Fatigue (acute load)</span> = your rolling recent training load (7-day average).
+          {' '}<span className="font-semibold text-slate-500 dark:text-slate-400">In range</span> = {ACWR_BOUNDS.low}–{ACWR_BOUNDS.sweetTop}× your Fitness (<Term name="acwr">chronic load</Term>).
           Inside the band = sustainable; above = ramping fast, below = backing off.
         </p>
       )}

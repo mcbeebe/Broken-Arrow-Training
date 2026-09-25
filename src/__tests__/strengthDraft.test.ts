@@ -92,8 +92,11 @@ describe('parsePlanPrescription', () => {
     expect(p.rest).toBeUndefined()
     expect(p.notes).toEqual([])
     expect(p.exercises.map(e => [e.name, e.sets.length, e.sets[0].reps])).toEqual([
-      ['Goblet squats', 3, 12], ['Walking lunges', 3, 10], ['Plank', 3, 45],
+      ['Goblet squats', 3, 12], ['Walking lunges', 3, 10], ['Plank', 3, 0],
     ])
+    // The plank is a 45 s hold, not 45 reps (field bug 2026-09-23).
+    expect(p.exercises[2].sets.every(s => s.timeSec === 45)).toBe(true)
+    expect(p.exercises[0].sets[0].timeSec).toBeUndefined()
   })
 
   it('a circuit drafts each station once, one effort — the workout lists them once', () => {

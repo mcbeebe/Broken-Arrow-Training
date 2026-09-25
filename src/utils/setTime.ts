@@ -52,3 +52,13 @@ export function formatDigits(digits: string): string {
   const mins = d.length > 2 ? d.slice(0, -2) : '0'
   return `${mins}:${secs}`
 }
+
+/**
+ * A hold: a plank, a wall sit, a carry for 30 s — measured by how long,
+ * not how many (field bug 2026-09-23: "Plank 3×60s" drafted as 60 reps).
+ * Only the plan's own "3×45s" marks one; an erg piece logged by time is
+ * not a hold (shorter is better there).
+ */
+export function isHoldSet(s: { hold?: boolean }): boolean {
+  return s.hold === true
+}

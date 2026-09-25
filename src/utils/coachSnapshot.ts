@@ -24,6 +24,7 @@ import type { TrainingMethod } from '../types/training-method'
 import { computeRaceProjection } from './raceProjection'
 import { localDateStr } from './format'
 import { buildProgression, suggestNextTarget } from './strengthProgression'
+import { isHoldSet } from './setTime'
 import { calculateGrade } from './grading'
 import { buildMethodologyContext } from './methodologyContext'
 import { sorenessTrendDirection } from './readiness'
@@ -613,10 +614,10 @@ export function buildCoachSnapshot(inputs: Inputs): CoachSnapshot {
         isBodyweight: p.isBodyweight,
         peakWeightLb: p.peakWeightLb,
         weeksSinceFirst,
-        firstSession: { weekNum: first.weekNum, topWeightLb: first.topWeightLb, avgReps: firstAvgReps, sets: first.sets.length },
-        latestSession: { weekNum: last.weekNum, topWeightLb: last.topWeightLb, avgReps: lastAvgReps, sets: last.sets.length },
+        firstSession: { weekNum: first.weekNum, topWeightLb: first.topWeightLb, avgReps: firstAvgReps, sets: first.sets.length, ...holdField(first.sets) },
+        latestSession: { weekNum: last.weekNum, topWeightLb: last.topWeightLb, avgReps: lastAvgReps, sets: last.sets.length, ...holdField(last.sets) },
         suggestedTarget: tgt
-          ? { weightLb: tgt.weightLb, reps: tgt.reps, sets: tgt.sets, tier: tgt.tier, rationale: tgt.rationale }
+          ? { weightLb: tgt.weightLb, reps: tgt.reps, sets: tgt.sets, ...(tgt.timeSec ? { timeSec: tgt.timeSec } : {}), tier: tgt.tier, rationale: tgt.rationale }
           : undefined,
       }
     })
@@ -717,4 +718,12 @@ export function buildCoachSnapshot(inputs: Inputs): CoachSnapshot {
         }
       : null,
   }
+}
+
+/** A hold session's shortest hold, as the snapshot's holdSec (omitted for
+ *  rep sessions and erg pieces so the coach reads them exactly as before). */
+export function holdField(sets: { reps: number; timeSec?: number; hold?: boolean }[]): { holdSec?: number } {
+  const times = sets.map(s => s.timeSec ?? 0).filter(t => t > 0)
+  if (sets.length === 0 || !sets.every(isHoldSet) || times.length === 0) return {}
+  return { holdSec: Math.min(...times) }
 }

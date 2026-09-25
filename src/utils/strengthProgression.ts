@@ -10,6 +10,7 @@
 
 import type { TrainingWeek, StrengthSet } from '../types'
 import { getExerciseGuide } from './exercises'
+import { formatSetTime, isHoldSet } from './setTime'
 
 export interface ExerciseSession {
   /** YYYY-MM-DD — date of the actual workout. */
@@ -44,8 +45,11 @@ export interface ExerciseProgression {
 export interface NextTargetSuggestion {
   /** Suggested top-set weight in lb. 0 means bodyweight. */
   weightLb: number
-  /** Suggested reps per set. */
+  /** Suggested reps per set (0 for a hold — see timeSec). */
   reps: number
+  /** A hold's suggested time per set, in seconds. Present only for a
+   *  timed exercise (plank, wall sit, a carry for time). */
+  timeSec?: number
   /** Number of sets — usually unchanged from last session. */
   sets: number
   /** Short rationale shown alongside the target. */
@@ -192,7 +196,13 @@ export function suggestNextTarget(
   progression: ExerciseProgression | null,
   plannedSets: number,
   plannedReps: number,
+  /** The plan's hold per set, when the prescription is timed ("3×45s"). */
+  plannedTimeSec?: number,
 ): NextTargetSuggestion {
+  const lastSets = progression?.last?.sets ?? []
+  if ((plannedTimeSec ?? 0) > 0 || (lastSets.length > 0 && lastSets.every(isHoldSet))) {
+    return suggestHoldTarget(progression, plannedSets, plannedTimeSec)
+  }
   if (!progression || !progression.last) {
     return {
       weightLb: 0,
@@ -389,6 +399,53 @@ function ols(xs: number[], ys: number[]): number | null {
   }
   if (den === 0) return null  // all same x value
   return num / den
+}
+
+const HOLD_STEP_SEC = 5
+
+/**
+ * The hold version of suggestNextTarget: time is the thing that
+ * progresses. Held every set at the target → +5 s; within 80% → hold the
+ * target; short of that → build back from the shortest hold. A last
+ * session logged before holds were timed (reps only) is no basis for a
+ * time, so it reads as a first time at the plan's hold.
+ */
+function suggestHoldTarget(
+  progression: ExerciseProgression | null,
+  plannedSets: number,
+  plannedTimeSec: number | undefined,
+): NextTargetSuggestion {
+  const last = progression?.last
+  const times = (last?.sets ?? []).map(s => s.timeSec ?? 0).filter(t => t > 0)
+  const weightLb = last?.topWeightLb ?? 0
+  const sets = plannedSets > 0 ? plannedSets : Math.max(1, last?.sets.length ?? 1)
+  if (!last || times.length === 0) {
+    const t = plannedTimeSec ?? 0
+    return {
+      weightLb, reps: 0, sets, timeSec: t || undefined,
+      rationale: t ? `First timed hold — the plan says ${formatSetTime(t)}.` : 'First timed hold — pick a time you can hold with good form.',
+      tier: 'starting',
+    }
+  }
+  const shortest = Math.min(...times)
+  // No plan time (the progress section, the coach): the bar is the
+  // session's best hold, so a fading session is not called "progress".
+  const target = plannedTimeSec && plannedTimeSec > 0 ? plannedTimeSec : Math.max(...times)
+  if (times.length === last.sets.length && shortest >= target) {
+    const next = Math.max(target, shortest) + HOLD_STEP_SEC
+    return { weightLb, reps: 0, sets, timeSec: next, rationale: `Held every set for ${formatSetTime(shortest)} — try ${formatSetTime(next)}.`, tier: 'progress' }
+  }
+  if (shortest >= target * 0.8) {
+    return { weightLb, reps: 0, sets, timeSec: target, rationale: `Close — hold ${formatSetTime(target)} again.`, tier: 'hold' }
+  }
+  const rebuild = Math.max(HOLD_STEP_SEC * 2, Math.round(shortest / HOLD_STEP_SEC) * HOLD_STEP_SEC)
+  return { weightLb, reps: 0, sets, timeSec: rebuild, rationale: `Last hold topped out at ${formatSetTime(shortest)} — build back from ${formatSetTime(rebuild)}.`, tier: 'deload' }
+}
+
+/** A suggestion as one line: "25 lb × 10", "BW × 12", "BW · hold 0:50". */
+export function targetLine(t: Pick<NextTargetSuggestion, 'weightLb' | 'reps' | 'timeSec'>): string {
+  const load = t.weightLb > 0 ? `${t.weightLb} lb` : 'BW'
+  return t.timeSec ? `${load} · hold ${formatSetTime(t.timeSec)}` : `${load} × ${t.reps}`
 }
 
 /** Format a session compactly: "20 lb × 8 (Wk 1)" or "× 12 (Wk 2)". */

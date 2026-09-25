@@ -271,6 +271,11 @@ export interface StrengthSet {
   /** Seconds this set/station took, recorded by the live player. On
    *  station-circuit rounds this IS the station split. */
   timeSec?: number;
+  /** The plan prescribed a time to HOLD ("Plank 3×45s"): timeSec is the
+   *  hold, longer is better, and there are no reps. Explicit because a
+   *  blank-reps set with a time is also how an erg piece is logged
+   *  ("SkiErg 500m · 1:45"), where shorter is better. */
+  hold?: boolean;
 }
 
 // ─── Free-standing journal entries ──────────────────────────────
@@ -1471,9 +1476,11 @@ export interface CoachSnapshot {
     isBodyweight: boolean
     peakWeightLb: number
     weeksSinceFirst: number                              // breadth of trajectory
-    firstSession: { weekNum: number; topWeightLb: number; avgReps: number; sets: number }
-    latestSession: { weekNum: number; topWeightLb: number; avgReps: number; sets: number }
-    suggestedTarget?: { weightLb: number; reps: number; sets: number; tier: 'progress' | 'hold' | 'deload' | 'starting'; rationale: string }
+    /** holdSec: the session's shortest hold, for a timed exercise (plank,
+     *  wall sit) — its avgReps is 0 and meaningless. */
+    firstSession: { weekNum: number; topWeightLb: number; avgReps: number; sets: number; holdSec?: number }
+    latestSession: { weekNum: number; topWeightLb: number; avgReps: number; sets: number; holdSec?: number }
+    suggestedTarget?: { weightLb: number; reps: number; sets: number; timeSec?: number; tier: 'progress' | 'hold' | 'deload' | 'starting'; rationale: string }
   }[]
   coachPersona?: CoachPersona | null
   /** The training philosophy the athlete is following (selected at

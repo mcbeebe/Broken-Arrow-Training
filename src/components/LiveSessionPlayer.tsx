@@ -3,10 +3,10 @@ import type { ActualWorkout, PlannedDay, TrainingWeek } from '../types'
 import { useLiveSession } from '../hooks/useLiveSession'
 import { restRemainingSec, elapsedSec, segmentElapsedSec, nextCursor, type LiveSessionState } from '../utils/liveSession'
 import { isGymBasedDay } from '../utils/matching'
-import { ghostFillFromHistory, parsePlanPrescription, progressionFromWeeks, lastSessionSummary, draftOptionsFor, prescriptionLabel, type StrengthCalibration } from '../utils/strengthDraft'
+import { ghostFillFromHistory, parsePlanPrescription, progressionFromWeeks, lastSessionSummary, draftOptionsFor, prescriptionLabel, holdLabel, type StrengthCalibration } from '../utils/strengthDraft'
 import ExercisePicker from './ExercisePicker'
 import SetKeypad from './SetKeypad'
-import { digitsFromSeconds, formatSetTime, secondsFromDigits } from '../utils/setTime'
+import { digitsFromSeconds, formatSetTime, isHoldSet, secondsFromDigits } from '../utils/setTime'
 import { isSimDay, draftSimSegments, simTitle, type SimProfile } from '../utils/simSession'
 import { normalizeExerciseName, suggestNextTarget, parseWeightLb } from '../utils/strengthProgression'
 import { getExerciseGuide } from '../utils/exercises'
@@ -131,7 +131,8 @@ export default function LiveSessionPlayer({
           {drafted.map((ex, i) => {
             const prog = progression.get(normalizeExerciseName(ex.name))
             const target = prog
-              ? suggestNextTarget(prog, Math.max(ex.sets.length, 1), ex.sets[0]?.reps || 10)
+              ? suggestNextTarget(prog, Math.max(ex.sets.length, 1), ex.sets[0]?.reps || 10,
+                ex.sets[0] && isHoldSet(ex.sets[0]) ? ex.sets[0].timeSec : undefined)
               : null
             return (
               <div key={i} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-3 flex items-center gap-3">
@@ -147,7 +148,7 @@ export default function LiveSessionPlayer({
                 </div>
                 {target && target.tier === 'progress' && (
                   <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-[10px] font-bold text-emerald-600 shrink-0">
-                    {target.weightLb > 0 ? `${target.weightLb} lb` : `+reps`}
+                    {target.timeSec ? formatSetTime(target.timeSec) : target.weightLb > 0 ? `${target.weightLb} lb` : `+reps`}
                   </span>
                 )}
               </div>
@@ -273,6 +274,8 @@ export default function LiveSessionPlayer({
   const nextEx = s.exercises[exIdx + 1]
   const paused = s.pausedAt != null
   const prog = progression.get(normalizeExerciseName(ex.name))
+  // A hold (plank, wall sit) is measured in time: no reps stepper.
+  const timedExercise = ex.sets.some(isHoldSet)
   const lastSets = prog?.last?.sets ?? []
   const lastSet = lastSets[setIdx] ?? lastSets[lastSets.length - 1]
 
@@ -342,12 +345,14 @@ export default function LiveSessionPlayer({
                       onMinus={() => session.editSet(exIdx, i, { weight: stepWeight(row.weight, -2.5) })}
                       onPlus={() => session.editSet(exIdx, i, { weight: stepWeight(row.weight, 2.5) })}
                     />
-                    <Stepper
-                      label={String(row.reps || 0)}
-                      unit="reps"
-                      onMinus={() => session.editSet(exIdx, i, { reps: Math.max(0, (row.reps || 0) - 1) })}
-                      onPlus={() => session.editSet(exIdx, i, { reps: (row.reps || 0) + 1 })}
-                    />
+                    {!timedExercise && (
+                      <Stepper
+                        label={String(row.reps || 0)}
+                        unit="reps"
+                        onMinus={() => session.editSet(exIdx, i, { reps: Math.max(0, (row.reps || 0) - 1) })}
+                        onPlus={() => session.editSet(exIdx, i, { reps: (row.reps || 0) + 1 })}
+                      />
+                    )}
                   </div>
                   <button
                     onClick={() => cursorKey && setTimeEdit({ cursor: cursorKey, digits: null })}
@@ -375,7 +380,7 @@ export default function LiveSessionPlayer({
                 </span>
                 <span className={`flex-1 text-[13px] font-medium ${isDone ? 'text-teal-800' : 'text-slate-400'}`}>Set {i + 1}</span>
                 <span className={`font-mono text-sm ${isDone ? 'font-semibold text-teal-900' : 'text-slate-300'}`}>
-                  {row.weight || 'BW'} × {row.reps || 0}{row.timeSec ? ` · ${formatSetTime(row.timeSec)}` : ''}
+                  {setLine(row)}
                 </span>
               </div>
             )
@@ -493,7 +498,7 @@ function RestScreen({ s, now, session, onAddExercise }: {
   })()
   const loggedLine = round
     ? `${s.exercises[exIdx]?.name} done${justLogged?.timeSec != null ? ` — ${mmss(justLogged.timeSec)}` : ''}`
-    : `Set ${setIdx + 1} logged — ${justLogged?.weight || 'BW'} × ${justLogged?.reps}`
+    : `Set ${setIdx + 1} logged — ${justLogged ? setLine(justLogged) : ''}`
   const startLabel = round ? 'Start next station' : 'Start next set'
 
   return (
@@ -561,10 +566,19 @@ function RestScreen({ s, now, session, onAddExercise }: {
   )
 }
 
-function stationRxLine(set: { reps: number; weight: string } | undefined): string {
+/** A set as the player shows it: "20 lb × 12 · 1:30", "BW · 0:45" for a hold. */
+function setLine(row: { reps: number; weight: string; timeSec?: number; hold?: boolean }): string {
+  const load = row.weight || 'BW'
+  const time = row.timeSec ? formatSetTime(row.timeSec) : ''
+  if (isHoldSet(row)) return `${load} · ${time}`
+  return `${load} × ${row.reps || 0}${time ? ` · ${time}` : ''}`
+}
+
+function stationRxLine(set: { reps: number; weight: string; timeSec?: number; hold?: boolean } | undefined): string {
   if (!set) return ''
   const parts: string[] = []
   if (set.reps > 1) parts.push(`\u00d7${set.reps}`)
+  if (isHoldSet(set) && set.timeSec) parts.push(holdLabel(set.timeSec))
   if (set.weight && set.weight !== 'BW') parts.push(set.weight)
   return parts.join(' \u00b7 ')
 }

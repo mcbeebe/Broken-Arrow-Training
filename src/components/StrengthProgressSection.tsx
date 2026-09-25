@@ -4,8 +4,11 @@ import {
   buildProgression,
   projectToWeek,
   suggestNextTarget,
+  targetLine,
   type ExerciseProgression,
 } from '../utils/strengthProgression'
+import { formatSetTime, isHoldSet } from '../utils/setTime'
+import type { StrengthSet } from '../types'
 import {
   e1RMTrend,
   detectPRs,
@@ -154,6 +157,12 @@ export default function StrengthProgressSection({ weeks, currentWeekNum, capacit
   )
 }
 
+/** A session's hold: its shortest timed set, in seconds (0 if untimed). */
+function holdOf(sets: StrengthSet[]): number {
+  const times = sets.map(s => s.timeSec ?? 0).filter(t => t > 0)
+  return times.length > 0 ? Math.min(...times) : 0
+}
+
 function ExerciseRow({
   progression,
   projectionWeek,
@@ -169,24 +178,29 @@ function ExerciseRow({
   const firstReps = first.sets.length > 0 ? Math.round(first.totalReps / first.sets.length) : 0
   const lastReps = last.sets.length > 0 ? Math.round(last.totalReps / last.sets.length) : 0
   const isBW = progression.isBodyweight
+  // A hold (plank, wall sit) progresses by time: its trajectory is the
+  // shortest hold of a session, and reps, projections and 1RM don't apply.
+  const timed = last.sets.every(isHoldSet)
+  const firstHold = holdOf(first.sets)
+  const lastHold = holdOf(last.sets)
 
   // Trajectory delta
   const weightDelta = last.topWeightLb - first.topWeightLb
   const repsDelta = lastReps - firstReps
   const weightPct = first.topWeightLb > 0 ? Math.round((weightDelta / first.topWeightLb) * 100) : 0
   const repsPct = firstReps > 0 ? Math.round((repsDelta / firstReps) * 100) : 0
-  const trending = isBW ? repsDelta > 0 : weightDelta > 0
-  const flat = isBW ? repsDelta === 0 : weightDelta === 0
+  const trending = timed ? firstHold > 0 && lastHold > firstHold : isBW ? repsDelta > 0 : weightDelta > 0
+  const flat = timed ? firstHold === 0 || lastHold === firstHold : isBW ? repsDelta === 0 : weightDelta === 0
 
   // Projections
-  const projAtTarget = projectToWeek(progression, projectionWeek)
-  const projAtRace = projectToWeek(progression, raceWeekNum)
+  const projAtTarget = timed ? null : projectToWeek(progression, projectionWeek)
+  const projAtRace = timed ? null : projectToWeek(progression, raceWeekNum)
 
   // Last vs target — replicate the workout-card "Try" line
   const target = suggestNextTarget(progression, last.sets.length, lastReps)
 
   // Estimated 1RM headline (Phase 4) — weighted lifts only.
-  const e1rm = isBW ? null : e1RMTrend(progression)
+  const e1rm = isBW || timed ? null : e1RMTrend(progression)
 
   const trajIcon = trending ? '📈' : flat ? '➖' : '📉'
   const trajClass = trending ? 'text-emerald-600 dark:text-emerald-400' : flat ? 'text-slate-500' : 'text-amber-600 dark:text-amber-400'
@@ -201,7 +215,9 @@ function ExerciseRow({
           <p className="text-sm font-medium text-slate-700 dark:text-slate-200">{progression.displayName}</p>
           <p className={`text-xs font-mono ${trajClass}`}>
             <span className="mr-1">{trajIcon}</span>
-            {isBW ? (
+            {timed ? (
+              <>{firstHold > 0 && firstHold !== lastHold ? `${formatSetTime(firstHold)} → ` : ''}hold {formatSetTime(lastHold)}</>
+            ) : isBW ? (
               <>{firstReps} → {lastReps} reps {repsDelta !== 0 && `(${repsDelta >= 0 ? '+' : ''}${repsPct}%)`}</>
             ) : (
               <>{first.topWeightLb} → {last.topWeightLb} lb {weightDelta !== 0 && `(${weightDelta >= 0 ? '+' : ''}${weightPct}%)`}</>
@@ -248,7 +264,9 @@ function ExerciseRow({
                 <div key={i} className="flex items-center justify-between text-slate-600 dark:text-slate-300">
                   <span className="text-slate-400">{s.weekNum > 0 ? `Wk ${s.weekNum}` : `prev · ${s.dayLabel}`}</span>
                   <span className={isLast ? 'font-semibold text-slate-700 dark:text-slate-200' : ''}>
-                    {s.topWeightLb > 0 ? `${s.topWeightLb} lb` : 'BW'} × {reps} × {s.sets.length}
+                    {s.sets.every(isHoldSet)
+                      ? `${s.topWeightLb > 0 ? `${s.topWeightLb} lb` : 'BW'} · hold ${formatSetTime(holdOf(s.sets))} × ${s.sets.length}`
+                      : `${s.topWeightLb > 0 ? `${s.topWeightLb} lb` : 'BW'} × ${reps} × ${s.sets.length}`}
                   </span>
                 </div>
               )
@@ -280,7 +298,9 @@ function ExerciseRow({
                   : 'bg-slate-50 text-slate-700 border border-slate-200 dark:bg-slate-900 dark:text-slate-300 dark:border-slate-700'
             }`}>
               <p className="font-semibold">
-                🎯 Next session: {target.weightLb > 0 ? `${target.weightLb} lb` : 'bodyweight'} × {target.reps} reps × {target.sets} sets
+                🎯 Next session: {target.timeSec
+                  ? `${targetLine(target)} × ${target.sets} sets`
+                  : `${target.weightLb > 0 ? `${target.weightLb} lb` : 'bodyweight'} × ${target.reps} reps × ${target.sets} sets`}
               </p>
               <p className="mt-0.5 leading-snug">{target.rationale}</p>
             </div>

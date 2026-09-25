@@ -1,3 +1,4 @@
+import { isHoldSet } from './setTime'
 import jsPDF from 'jspdf'
 import type { ActualWorkout, PlannedDay, PerformanceMetrics, RaceInfo, Season, StrengthExerciseLog, TrainingWeek } from '../types'
 
@@ -97,13 +98,15 @@ function summariseStrength(log: StrengthExerciseLog[]): string[] {
     // (reps × weight) groupings inline.
     const buckets = new Map<string, number>()
     for (const s of sets) {
-      const key = `${s.reps}|${s.weight || ''}`
+      // A hold (plank, wall sit) is its time — "3×45s", never "3×0".
+      const work = isHoldSet(s) ? `${Math.round(s.timeSec!)}s` : String(s.reps)
+      const key = `${work}|${s.weight || ''}`
       buckets.set(key, (buckets.get(key) ?? 0) + 1)
     }
     const summary = Array.from(buckets.entries()).slice(0, 2).map(([k, count]) => {
-      const [reps, weight] = k.split('|')
+      const [work, weight] = k.split('|')
       const w = weight ? ` @ ${weight}` : ''
-      return `${count}×${reps}${w}`
+      return `${count}×${work}${w}`
     }).join(', ')
     return `• ${ex.name} — ${summary}`
   })
