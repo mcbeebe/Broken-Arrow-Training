@@ -1,17 +1,22 @@
 /**
- * T3 — the weekly narrative stops calling unlogged sessions "rest".
+ * T3 — the weekly review stops calling unlogged sessions "rest".
  *
  * The count was `7 - daysWithLoad`, so three planned sessions nobody
  * logged produced "3 rest days this week — recovery is pulling fatigue
  * down." The athlete was told their skipped week was doing them good.
+ *
+ * These rules moved from the old week narrative to the last-7-days
+ * review (weekReview.ts) and still hold there.
  */
 import { describe, it, expect } from 'vitest'
-import { buildWeekNarrative } from '../utils/weekNarrative'
+import { buildWeekReview } from '../utils/weekReview'
 import { buildTrainingSignals } from '../utils/trainingSignals'
 import type { PerformanceMetrics, DailyTRIMP, TrainingWeek, PlannedDay, WorkoutType } from '../types'
 
+const TODAY = '2026-09-25'
 const iso = (offsetDays: number) => {
-  const d = new Date(Date.now() + offsetDays * 86400000)
+  const d = new Date(`${TODAY}T12:00:00`)
+  d.setDate(d.getDate() + offsetDays)
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
@@ -46,46 +51,42 @@ const signals = () => buildTrainingSignals({
   sorenessLoadByDate: new Map(),
 })
 
-const run = (weeks?: TrainingWeek[], trained: number[] = []) =>
-  buildWeekNarrative(perf(), trimpOn(trained), signals(), weeks).join(' | ')
+const run = (weeks?: TrainingWeek[], trained: number[] = []) => {
+  const review = buildWeekReview(perf(), trimpOn(trained), signals(), weeks, TODAY)!
+  return [...review.wins, ...review.fixes].join(' | ')
+}
 
-describe('rest versus open', () => {
-  it('calls a genuinely rested week rested', () => {
-    // Plan said rest on four days; the three training days were all done.
+describe('rest versus not logged', () => {
+  it('credits rest days only when every planned session was done', () => {
     const out = run(weekOf(['run', 'run', 'rest', 'rest', 'rest', 'rest', 'run']), [-6, -5, 0])
-    expect(out).toContain('rest days this week — recovery is pulling fatigue down')
-    expect(out).not.toContain('still open')
+    expect(out).toContain('Rest days taken as planned')
+    expect(out).not.toContain('logged')
   })
 
-  it('never claims recovery is helping when planned sessions went unlogged', () => {
-    // Four rest days, but three planned sessions were never logged.
+  it('never credits rest when planned sessions went unlogged', () => {
     const out = run(weekOf(['run', 'run', 'rest', 'rest', 'rest', 'rest', 'run']), [])
-    expect(out).not.toContain('recovery is pulling fatigue down')
-    expect(out).toContain('3 planned sessions are still open this week')
+    expect(out).not.toContain('Rest days taken')
+    expect(out).not.toContain('Fresher')
+    // Today's run is not due yet, so two are open, not three.
+    expect(out).toContain('2 planned sessions aren’t logged')
   })
 
-  it('uses the singular when exactly one session is open', () => {
+  it('uses the singular when exactly one session is not logged', () => {
     const out = run(weekOf(['run', 'rest', 'rest', 'rest', 'rest', 'rest', 'rest']), [])
-    expect(out).toContain('1 planned session is still open this week')
+    expect(out).toContain('1 planned session isn’t logged — if you did it, log it')
   })
 
-  it('blames a fitness drop on the unlogged sessions, not on rest', () => {
-    const out = run(weekOf(['run', 'run', 'rest', 'rest', 'rest', 'rest', 'run']), [])
-    expect(out).toContain('went unlogged')
-    expect(out).not.toContain('lighter training or rest days pulled it down')
+  it('does not count today’s session as open before it is done', () => {
+    const out = run(weekOf(['rest', 'rest', 'rest', 'rest', 'rest', 'rest', 'run']), [])
+    expect(out).not.toContain('logged')
   })
 
-  it('attributes a drop to a lighter week when nothing is open', () => {
-    const out = run(weekOf(['run', 'run', 'rest', 'rest', 'rest', 'rest', 'run']), [-6, -5, 0])
-    expect(out).toContain('a lighter week pulled it down')
-  })
-
-  it('makes no claim about recovery when there is no plan to compare against', () => {
-    // Legacy plans have no startIso — we cannot tell rest from skipped, so
-    // we report the count and stop, rather than guessing flatteringly.
-    const out = run(undefined, [])
-    expect(out).not.toContain('recovery is pulling fatigue down')
-    expect(out).toContain('days without a recorded session')
+  it('makes no rest claim when there is no dated plan to compare against', () => {
+    // Legacy plans have no startIso — we cannot tell rest from skipped.
+    const review = buildWeekReview(perf(), trimpOn([]), signals(), undefined, TODAY)!
+    const out = [...review.wins, ...review.fixes].join(' | ')
+    expect(out).not.toMatch(/rest day|Rest days/)
+    expect(review.stats.planned).toBeNull()
   })
 
   it('never calls an unlogged day "missed"', () => {
