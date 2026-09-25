@@ -1,3 +1,4 @@
+import { setItemWithRoom } from '../utils/storageRoom'
 import { useState, useCallback, useEffect, useMemo } from 'react'
 import type { JournalNote } from '../types'
 import { stampKey } from '../utils/syncStamps'
@@ -39,7 +40,10 @@ function loadNotes(athleteId: string): JournalNoteMap {
 
 function saveNotes(athleteId: string, notes: JournalNoteMap): void {
   const key = `${STORAGE_KEY}_${athleteId}`
-  localStorage.setItem(key, JSON.stringify(notes))
+  if (!setItemWithRoom(key, JSON.stringify(notes))) {
+    console.error('[storage] journal note could not be saved on this phone (storage full)')
+    return
+  }
   stampKey(key)
 }
 

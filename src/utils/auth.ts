@@ -1,3 +1,4 @@
+import { setItemWithRoom } from './storageRoom'
 const AUTH_KEY = 'ba_auth_session'
 const API_URL = (import.meta.env.VITE_GARMIN_API_URL || '').replace(/\/$/, '')
 
@@ -30,7 +31,9 @@ export function getStoredSession(): AuthSession | null {
 }
 
 export function saveSession(session: AuthSession): void {
-  localStorage.setItem(AUTH_KEY, JSON.stringify(session))
+  if (!setItemWithRoom(AUTH_KEY, JSON.stringify(session))) {
+    console.error('[storage] sign-in could not be saved on this phone (storage full)')
+  }
 }
 
 export function clearSession(): void {
