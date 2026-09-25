@@ -18,7 +18,7 @@
  * skipped, so we make no rest claim at all. Today's session is not due
  * until today is over, so it only counts once it is done.
  */
-import { isoFromLocalDate } from './planDates'
+import { dayIsoInWeek, isoFromLocalDate } from './planDates'
 import { localDateStr } from './format'
 import { tsbZone } from './loadZones'
 import type { PerformanceMetrics, DailyTRIMP, TrainingWeek, PlannedDay, WorkoutType } from '../types'
@@ -68,17 +68,34 @@ const weekday = (iso: string) =>
   new Date(`${iso}T12:00:00`).toLocaleDateString('en-US', { weekday: 'short' })
 
 /** Planned days inside [fromIso, toIso], with their real dates. Legacy
- *  plans without `startIso` contribute nothing. */
+ *  plans without `startIso` contribute nothing.
+ *
+ *  Dates come from the day's own label, as everywhere else in the app:
+ *  a coach edit that adds a second Tuesday session splices the array, so
+ *  the index stops being the date. A date the first week already covers
+ *  is skipped in any later, overlapping week, so nothing counts twice. */
 function planDaysBetween(weeks: TrainingWeek[] | undefined, fromIso: string, toIso: string): WindowDay[] {
   const out: WindowDay[] = []
+  const claimed = new Set<string>()
   for (const week of weeks ?? []) {
     if (!week.startIso) continue
+    const mine = new Set<string>()
     week.days.forEach((day, i) => {
-      const iso = shiftIso(week.startIso!, i)
-      if (iso >= fromIso && iso <= toIso) out.push({ iso, day })
+      const iso = dayIsoInWeek(day.day, week) ?? shiftIso(week.startIso!, i)
+      if (iso < fromIso || iso > toIso || claimed.has(iso)) return
+      mine.add(iso)
+      out.push({ iso, day })
     })
+    mine.forEach(iso => claimed.add(iso))
   }
   return out
+}
+
+/** Weeks where a falling load is the plan, not a problem. */
+function isEasingWeek(week: TrainingWeek): boolean {
+  const kind = week.seasonRace?.blockKind
+  if (kind === 'TAPER' || kind === 'RACE' || kind === 'RECOVER') return true
+  return /taper|recover|race week|deload/i.test(week.focus ?? '')
 }
 
 const KEY_TYPES: ReadonlySet<WorkoutType> = new Set<WorkoutType>(['quality', 'long', 'race'])
@@ -108,11 +125,17 @@ export function buildWeekReview(
   weeks?: TrainingWeek[],
   today: string = localDateStr(),
 ): WeekReview | null {
-  if (performance.length < 2) return null
   const fromIso = shiftIso(today, -6)
-  const latest = performance[performance.length - 1]
-  const weekAgo = performance.find(p => p.date === shiftIso(today, -7))
-    ?? performance[Math.max(0, performance.length - 8)]
+  // The latest reading on or before today, against the last one on or
+  // before the day the window opened — by date, not by position, so a gap
+  // in the series can't shrink the week.
+  const upTo = (iso: string) => {
+    for (let i = performance.length - 1; i >= 0; i--) if (performance[i].date <= iso) return performance[i]
+    return null
+  }
+  const latest = upTo(today)
+  const weekAgo = upTo(shiftIso(today, -7)) ?? performance[0]
+  if (!latest || !weekAgo || latest === weekAgo) return null
 
   const loadDays = dailyTrimp.filter(d => d.date >= fromIso && d.date <= today && d.total > 0)
   const trainedDates = new Set(loadDays.map(d => d.date))
@@ -120,14 +143,27 @@ export function buildWeekReview(
   // ── Plan comparison ────────────────────────────────────────────
   const planDays = planDaysBetween(weeks, fromIso, today)
   const knowThePlan = planDays.length > 0
-  const isDone = (w: WindowDay) => !!w.day.actual || trainedDates.has(w.iso)
+  // Done means a workout was matched to the session. Other load that day
+  // (an e-bike commute the matcher refused to claim for a track session)
+  // doesn't make the session done — but it isn't "not logged" either.
+  const isDone = (w: WindowDay) => !!w.day.actual
+  const hasLoad = (w: WindowDay) => !!w.day.actual || trainedDates.has(w.iso)
   const sessions = planDays.filter(w => w.day.type !== 'rest')
   const due = sessions.filter(w => w.iso < today || isDone(w))
-  const done = due.filter(isDone)
-  const notLogged = due.length - done.length
-  const restDays = planDays.filter(w => w.day.type === 'rest' && w.iso < today)
-  const trainedThroughRest = restDays.filter(isDone).length
-  const keyDone = done.filter(w => KEY_TYPES.has(w.day.type))
+  const matched = due.filter(isDone)
+  const unlogged = due.filter(w => !hasLoad(w)).length
+  const restDays = planDays.filter(w => w.day.type === 'rest' && w.iso <= today)
+  const rested = restDays.filter(w => w.iso < today)
+  const trainedOnRest = restDays.filter(isDone).length
+  // A session done on a rest day while another sits unlogged is almost
+  // always a swap: credit it as done and say nothing about either.
+  const swaps = Math.min(unlogged, trainedOnRest)
+  const notLogged = unlogged - swaps
+  const trainedThroughRest = trainedOnRest - swaps
+  const doneCount = matched.length + swaps
+  const keyDone = matched.filter(w => KEY_TYPES.has(w.day.type))
+  const easing = (weeks ?? []).some(w => w.startIso && w.startIso <= today && shiftIso(w.startIso, 6) >= fromIso && isEasingWeek(w))
+    || planDays.some(w => w.day.type === 'race')
 
   const minutes = planDays.reduce((sum, w) => {
     const all = [w.day.actual, ...(w.day.secondaryActuals ?? [])]
@@ -156,12 +192,12 @@ export function buildWeekReview(
 
   // ── ✚ Going well ───────────────────────────────────────────────
   const wins: string[] = []
-  if (due.length > 0 && notLogged === 0) {
+  if (due.length > 0 && doneCount === due.length) {
     wins.push(due.length === 1
       ? '✅ Your planned session is done.'
       : `✅ All ${due.length} planned sessions done.`)
-  } else if (due.length > 0 && done.length / due.length >= 0.8) {
-    wins.push(`✅ ${done.length} of ${due.length} planned sessions done — solid consistency.`)
+  } else if (due.length > 0 && doneCount / due.length >= 0.8) {
+    wins.push(`✅ ${doneCount} of ${due.length} planned sessions done — solid consistency.`)
   }
   if (keyDone.length > 0) {
     const names = keyDone.slice(-2).map(w => `${weekday(w.iso)} ${sessionName(w.day)}`).join(', ')
@@ -171,14 +207,14 @@ export function buildWeekReview(
     wins.push(`📈 Fitness up ${fitnessDelta} ${fitnessDelta === 1 ? 'point' : 'points'} — the work is adding up.`)
   }
   if (loadState && ['balanced', 'productive', 'build'].includes(loadState) && !signals.rampAlert && loadDays.length > 0) {
-    wins.push('⚖️ Your load is building at a safe rate for your base.')
+    wins.push('⚖️ Your training load is in a safe range for your base.')
   }
   // Fresher only counts as a win when nothing planned went unlogged —
   // otherwise it is the skipped sessions talking — and the body agrees.
-  if (tsbDelta >= 3 && notLogged === 0 && !bodyLow && !soreness) {
+  if (tsbDelta >= 3 && loadDays.length > 0 && notLogged === 0 && !bodyLow && !soreness) {
     wins.push(`🌱 Fresher than a week ago (Recovery Balance +${Math.round(tsbDelta)}).`)
   }
-  if (knowThePlan && restDays.length > 0 && trainedThroughRest === 0 && notLogged === 0) {
+  if (knowThePlan && rested.length > 0 && trainedThroughRest === 0 && notLogged === 0) {
     wins.push('😴 Rest days taken as planned.')
   }
 
@@ -200,13 +236,17 @@ export function buildWeekReview(
   if (notLogged > 0) {
     const it = notLogged === 1 ? 'it' : 'them'
     fixes.push(`⭕ ${plural(notLogged, 'planned session isn’t', 'planned sessions aren’t')} logged — if you did ${it}, log ${it}; if not, don’t cram ${it} in.`)
+  } else if (loadDays.length === 0 && !knowThePlan) {
+    // With a dated plan the line above says it better; a plan that was
+    // all rest needs no nudge.
+    fixes.push('🗓️ No training logged in 7 days — if you trained, sync your watch; if not, restart with an easy 20–30 minutes.')
   }
   if (trainedDates.size >= 7) {
     fixes.push('🔥 No rest day in 7 days — take one in the next 48 hours.')
   } else if (trainedThroughRest > 0) {
     fixes.push(`😴 Trained through ${trainedThroughRest === 1 ? 'a planned rest day' : `${trainedThroughRest} planned rest days`} — keep the next one fully easy.`)
   }
-  if (loadState === 'detrained' && loadDays.length > 0) {
+  if (loadState === 'detrained' && loadDays.length > 0 && !easing) {
     fixes.push('📉 Your load has dropped below your base — add volume back gradually, about 10% a week.')
   }
 
@@ -214,7 +254,7 @@ export function buildWeekReview(
     fromIso,
     toIso: today,
     stats: {
-      planned: knowThePlan ? { done: done.length, due: due.length } : null,
+      planned: knowThePlan ? { done: doneCount, due: due.length } : null,
       daysTrained: trainedDates.size,
       trainingMinutes: minutes > 0 ? Math.round(minutes) : null,
       fitnessDelta,

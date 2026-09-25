@@ -95,9 +95,6 @@ interface SummaryProps {
 // ACWR gauge: 6 equal segments, 1.0 centered in green
 // blue → light blue → green → green → yellow → red
 
-// Inline 7-day sparkline rendered as a tiny SVG
-// ─── What Changed This Week narrative ─────────────────────────
-
 export default function Summary({
   athleteId,
   todayScore,

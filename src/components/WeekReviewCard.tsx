@@ -76,6 +76,7 @@ export default function WeekReviewCard({ review, open, onToggle }: Props) {
       <button
         onClick={onToggle}
         aria-expanded={open}
+        aria-controls="week-review-body"
         className="w-full flex items-center justify-between p-4 text-left hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
       >
         <div className="flex-1 min-w-0">
@@ -85,7 +86,7 @@ export default function WeekReviewCard({ review, open, onToggle }: Props) {
         <span className="text-sm text-teal-700 dark:text-teal-400 ml-2 shrink-0">{open ? '▴ Hide' : '▾ Show'}</span>
       </button>
       {open && (
-        <div className="px-4 pb-4 space-y-4">
+        <div id="week-review-body" className="px-4 pb-4 space-y-4">
           <div>
             <div className="flex gap-2">
               <Stat {...sessions} />
@@ -98,7 +99,7 @@ export default function WeekReviewCard({ review, open, onToggle }: Props) {
               </p>
             )}
           </div>
-          <Section tone="good" title="Going well" lines={review.wins} empty="Log a few sessions and your wins will show here." />
+          <Section tone="good" title="Going well" lines={review.wins} empty={stats.daysTrained > 0 ? 'Nothing stands out yet — keep stacking sessions.' : 'Log a few sessions and your wins will show here.'} />
           <Section tone="improve" title="To improve" lines={review.fixes} empty="Nothing to fix — keep it up." />
         </div>
       )}

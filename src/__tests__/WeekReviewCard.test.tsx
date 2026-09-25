@@ -48,6 +48,10 @@ describe('WeekReviewCard', () => {
   it('says so when there is nothing to fix or nothing logged yet', () => {
     renderCard({ ...base, wins: [], fixes: [] })
     expect(within(screen.getByRole('region', { name: 'To improve' })).getByText('Nothing to fix — keep it up.')).toBeTruthy()
+    // Five days trained: "log a few sessions" would be wrong.
+    expect(within(screen.getByRole('region', { name: 'Going well' })).getByText(/Nothing stands out yet/)).toBeTruthy()
+    cleanup()
+    renderCard({ ...base, stats: { ...base.stats, daysTrained: 0 }, wins: [], fixes: [] })
     expect(within(screen.getByRole('region', { name: 'Going well' })).getByText(/Log a few sessions/)).toBeTruthy()
   })
 
