@@ -12,6 +12,7 @@
  */
 import type { GarminHealthData, GarminActivity } from '../types'
 import { getStoredSession } from './auth'
+import { setItemWithRoom } from './storageRoom'
 
 // Same Vercel API host as Garmin/auth — Apple endpoints live there too.
 const APPLE_API_URL = (import.meta.env.VITE_GARMIN_API_URL || '').replace(/\/$/, '')
@@ -86,8 +87,9 @@ export function getCachedAppleHealth(athleteId?: string): GarminHealthData[] {
   }
 }
 
-export function cacheAppleHealth(data: GarminHealthData[], athleteId?: string): void {
-  localStorage.setItem(scopedKey(STORAGE_KEYS.health, athleteId), JSON.stringify(data))
+/** Never throws; false = not saved (full). */
+export function cacheAppleHealth(data: GarminHealthData[], athleteId?: string): boolean {
+  return setItemWithRoom(scopedKey(STORAGE_KEYS.health, athleteId), JSON.stringify(data))
 }
 
 export function getCachedAppleActivities(athleteId?: string): AppleActivity[] {
@@ -99,12 +101,13 @@ export function getCachedAppleActivities(athleteId?: string): AppleActivity[] {
   }
 }
 
-export function cacheAppleActivities(activities: AppleActivity[], athleteId?: string): void {
-  localStorage.setItem(scopedKey(STORAGE_KEYS.activities, athleteId), JSON.stringify(activities))
+/** Never throws; false = not saved (full). */
+export function cacheAppleActivities(activities: AppleActivity[], athleteId?: string): boolean {
+  return setItemWithRoom(scopedKey(STORAGE_KEYS.activities, athleteId), JSON.stringify(activities))
 }
 
 export function markAppleSynced(athleteId?: string): void {
-  localStorage.setItem(scopedKey(STORAGE_KEYS.lastSync, athleteId), new Date().toISOString())
+  setItemWithRoom(scopedKey(STORAGE_KEYS.lastSync, athleteId), new Date().toISOString())
 }
 
 export function getAppleLastSync(athleteId?: string): string | null {

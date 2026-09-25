@@ -1,3 +1,4 @@
+import { STORAGE_FULL_MESSAGE } from '../utils/storageRoom'
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import type { GarminHealthData } from '../types'
 import {
@@ -66,18 +67,26 @@ export function useApple(athleteId?: string): UseAppleReturn {
         fetchAppleHealth(30, athleteId),
         fetchAppleActivities(120, athleteId),
       ])
+      // A save that can't fit on the phone never stops the sync, and
+      // "Last synced" is stamped only when what it describes was saved.
+      let savedOnPhone = true
       if (health.length > 0) {
         const merged = mergeAppleHealth(getCachedAppleHealth(athleteId), health)
-        cacheAppleHealth(merged, athleteId)
+        savedOnPhone = cacheAppleHealth(merged, athleteId) && savedOnPhone
         setHealthData(merged)
       }
       if (activities.length > 0) {
         const mergedActivities = mergeAppleActivities(getCachedAppleActivities(athleteId), activities)
-        cacheAppleActivities(mergedActivities, athleteId)
+        savedOnPhone = cacheAppleActivities(mergedActivities, athleteId) && savedOnPhone
         setAppleActivities(mergedActivities)
       }
-      markAppleSynced(athleteId)
-      setLastSync(getAppleLastSync(athleteId))
+      if (savedOnPhone) {
+        markAppleSynced(athleteId)
+        setLastSync(getAppleLastSync(athleteId))
+      } else {
+        setLastSync(new Date().toISOString())
+        setError(STORAGE_FULL_MESSAGE)
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Apple Health sync failed')
     } finally {

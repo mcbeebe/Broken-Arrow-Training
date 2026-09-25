@@ -1,3 +1,4 @@
+import { setItemWithRoom } from '../utils/storageRoom'
 import { useState, useCallback, useEffect } from 'react'
 import type { ActualWorkout, TrainingWeek } from '../types'
 import { stampKey } from '../utils/syncStamps'
@@ -38,7 +39,13 @@ function migrateToIsoKeys(logs: ManualLogs): { logs: ManualLogs; changed: boolea
 
 function saveLogs(athleteId: string, logs: ManualLogs): void {
   const key = `${STORAGE_KEY}_${athleteId}`
-  localStorage.setItem(key, JSON.stringify(logs))
+  // Runs inside a state updater: a throw here would take the whole app
+  // to the error screen and lose the entry. Make room from the workout
+  // chart copies first; if even that fails, keep the entry in memory.
+  if (!setItemWithRoom(key, JSON.stringify(logs))) {
+    console.error('[storage] workout log could not be saved on this phone (storage full)')
+    return
+  }
   stampKey(key)
 }
 
