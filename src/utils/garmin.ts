@@ -3,6 +3,7 @@ import type { StreamData } from './strava'
 import type { GarminWorkoutPayload } from '../engines/planGenerator/garminWorkout'
 import { coachAuthHeaders } from './coachApi'
 import { hasSessionToken } from './auth'
+import { setItemWithRoom, cacheStreamBounded } from './storageRoom'
 
 export type { GarminWorkoutPayload } from '../engines/planGenerator/garminWorkout'
 
@@ -239,9 +240,11 @@ export function getCachedHealthData(athleteId?: string): GarminHealthData[] {
   }
 }
 
-export function cacheHealthData(data: GarminHealthData[], athleteId?: string): void {
-  localStorage.setItem(scopedKey(STORAGE_KEYS.health, athleteId), JSON.stringify(data))
-  localStorage.setItem(scopedKey(STORAGE_KEYS.lastSync, athleteId), new Date().toISOString())
+/** Save health days on the phone. Never throws; false = not saved (full). */
+export function cacheHealthData(data: GarminHealthData[], athleteId?: string): boolean {
+  const saved = setItemWithRoom(scopedKey(STORAGE_KEYS.health, athleteId), JSON.stringify(data))
+  setItemWithRoom(scopedKey(STORAGE_KEYS.lastSync, athleteId), new Date().toISOString())
+  return saved
 }
 
 export function mergeHealthData(existing: GarminHealthData[], incoming: GarminHealthData[]): GarminHealthData[] {
@@ -295,8 +298,9 @@ export function getCachedGarminActivities(athleteId?: string): GarminActivity[] 
   }
 }
 
-export function cacheGarminActivities(activities: GarminActivity[], athleteId?: string): void {
-  localStorage.setItem(scopedKey(STORAGE_KEYS.activities, athleteId), JSON.stringify(activities))
+/** Save activities on the phone. Never throws; false = not saved (full). */
+export function cacheGarminActivities(activities: GarminActivity[], athleteId?: string): boolean {
+  return setItemWithRoom(scopedKey(STORAGE_KEYS.activities, athleteId), JSON.stringify(activities))
 }
 
 /**
@@ -342,8 +346,9 @@ export function getCachedActivityDetails(athleteId?: string): Record<string, Gar
   } catch { return {} }
 }
 
-export function cacheActivityDetails(details: Record<string, GarminActivityDetail[]>, athleteId?: string): void {
-  localStorage.setItem(scopedKey(STORAGE_KEYS.activityDetails, athleteId), JSON.stringify(details))
+/** Save activity details on the phone. Never throws; false = not saved (full). */
+export function cacheActivityDetails(details: Record<string, GarminActivityDetail[]>, athleteId?: string): boolean {
+  return setItemWithRoom(scopedKey(STORAGE_KEYS.activityDetails, athleteId), JSON.stringify(details))
 }
 
 // ─── Activity Stream API & Cache ───────────────────────────────
@@ -353,8 +358,9 @@ export function cacheActivityDetails(details: Record<string, GarminActivityDetai
  * cadence) for a Garmin activity. Shape matches Strava's StreamData so
  * the same HRChart/PaceChart components can render either source.
  *
- * Results are cached in localStorage indefinitely — completed-activity
- * streams are immutable.
+ * Results are cached in localStorage — completed-activity streams are
+ * immutable — but only the most recent few (storageRoom.STREAM_CACHE_CAP):
+ * uncapped, they filled Safari's ~5 MB and broke the Garmin sync.
  */
 export async function fetchGarminActivityStream(
   activityId: number | string,
@@ -393,11 +399,7 @@ function getCachedGarminStream(activityId: number | string, athleteId?: string):
 }
 
 function cacheGarminStream(activityId: number | string, data: StreamData, athleteId?: string): void {
-  try {
-    localStorage.setItem(streamStorageKey(activityId, athleteId), JSON.stringify(data))
-  } catch {
-    // Quota exceeded — not fatal, just skip caching
-  }
+  cacheStreamBounded(streamStorageKey(activityId, athleteId), JSON.stringify(data))
 }
 
 // ─── Garmin Detail → ActualWorkout Converter ───────────────────

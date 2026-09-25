@@ -1,4 +1,5 @@
 import type { StravaTokens, StravaActivity } from '../types'
+import { setItemWithRoom, cacheStreamBounded } from './storageRoom'
 
 // Strava OAuth config — set VITE_STRAVA_CLIENT_ID in .env
 const CLIENT_ID = import.meta.env.VITE_STRAVA_CLIENT_ID || ''
@@ -133,9 +134,11 @@ export function getCachedActivities(athleteId?: string): StravaActivity[] {
   return JSON.parse(raw) as StravaActivity[]
 }
 
-export function cacheActivities(activities: StravaActivity[], athleteId?: string): void {
-  localStorage.setItem(scopedKey(STORAGE_KEY_ACTIVITIES, athleteId), JSON.stringify(activities))
-  localStorage.setItem(scopedKey(STORAGE_KEY_LAST_SYNC, athleteId), new Date().toISOString())
+/** Save activities on the phone. Never throws; false = not saved (full). */
+export function cacheActivities(activities: StravaActivity[], athleteId?: string): boolean {
+  const saved = setItemWithRoom(scopedKey(STORAGE_KEY_ACTIVITIES, athleteId), JSON.stringify(activities))
+  setItemWithRoom(scopedKey(STORAGE_KEY_LAST_SYNC, athleteId), new Date().toISOString())
+  return saved
 }
 
 export function getLastSyncTime(athleteId?: string): string | null {
@@ -203,5 +206,5 @@ function getCachedStream(activityId: number): StreamData | null {
 }
 
 function cacheStream(activityId: number, data: StreamData): void {
-  localStorage.setItem(`${STORAGE_KEY_STREAMS}_${activityId}`, JSON.stringify(data))
+  cacheStreamBounded(`${STORAGE_KEY_STREAMS}_${activityId}`, JSON.stringify(data))
 }

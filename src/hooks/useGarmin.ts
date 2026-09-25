@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import type { GarminHealthData, GarminActivity, GarminActivityDetail } from '../types'
 import { localDateStr } from '../utils/format'
+import { STORAGE_FULL_MESSAGE, isQuotaError } from '../utils/storageRoom'
 import {
   checkGarminAuth,
   disconnectGarmin,
@@ -273,14 +274,16 @@ export function useGarmin(athleteId?: string): UseGarminReturn {
       const days = healthData.length === 0 ? 120 : 7
       const data = await fetchHealthData(days, athleteId)
       const merged = mergeHealthData(healthData, data)
-      cacheHealthData(merged, athleteId)
+      // A save that can't fit on the phone never stops the sync: the app
+      // still gets the new data; only the phone copy is skipped.
+      let savedOnPhone = cacheHealthData(merged, athleteId)
       setHealthData(merged)
 
       const today = localDateStr()
       const historyStart = localDateStr(new Date(Date.now() - 120 * 24 * 60 * 60 * 1000))
       const fetched = await fetchGarminActivities(historyStart, today, athleteId)
       const activities = mergeGarminActivities(getCachedGarminActivities(athleteId), fetched)
-      cacheGarminActivities(activities, athleteId)
+      savedOnPhone = cacheGarminActivities(activities, athleteId) && savedOnPhone
       setGarminActivities(activities)
 
       const detailCache = { ...getCachedActivityDetails(athleteId) }
@@ -307,10 +310,11 @@ export function useGarmin(athleteId?: string): UseGarminReturn {
       for (const { date, details } of detailResults) {
         if (details.length > 0) detailCache[date] = details
       }
-      cacheActivityDetails(detailCache, athleteId)
+      savedOnPhone = cacheActivityDetails(detailCache, athleteId) && savedOnPhone
       setActivityDetails(detailCache)
 
       setLastSync(new Date().toISOString())
+      if (!savedOnPhone) setError(STORAGE_FULL_MESSAGE)
     } catch (err) {
       if (err instanceof GarminAuthError) {
         // Session expired — flip back to the disconnected state so the UI
@@ -320,7 +324,8 @@ export function useGarmin(athleteId?: string): UseGarminReturn {
         setConnected(false)
         setError(err.message)
       } else {
-        setError(err instanceof Error ? err.message : 'Sync failed')
+        // Safari's own "The quota has been exceeded." is no use to anyone.
+        setError(isQuotaError(err) ? STORAGE_FULL_MESSAGE : err instanceof Error ? err.message : 'Sync failed')
       }
     } finally {
       setLoading(false)
