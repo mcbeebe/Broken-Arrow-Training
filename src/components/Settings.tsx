@@ -1245,7 +1245,7 @@ const SECTION_GROUPS: { group: string; items: { id: SectionId; label: string }[]
     group: 'Summary',
     items: [
       { id: 'summary.perfSnapshot', label: 'Performance snapshot' },
-      { id: 'summary.whatChanged', label: 'What changed this week' },
+      { id: 'summary.whatChanged', label: 'Your last 7 days' },
       { id: 'summary.trainingLoad', label: '7-day training load' },
       { id: 'summary.readinessTrend', label: 'Week readiness trend' },
     ],

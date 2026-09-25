@@ -11,7 +11,8 @@ import { buildRaceReadinessDetail, computeRaceReadiness, type ReadinessAssignmen
 import { weeksUntilRace } from '../utils/raceCountdown'
 import { buildTrainingSignals, type TrainingSignals } from '../utils/trainingSignals'
 import { hasRampAlert } from '../utils/readiness'
-import { buildWeekNarrative } from '../utils/weekNarrative'
+import { buildWeekReview } from '../utils/weekReview'
+import WeekReviewCard from './WeekReviewCard'
 import PlanAtAGlance from './PlanAtAGlance'
 import { notesRowText, shouldShowNotesRow } from '../utils/planNotes'
 import type { PlanAdvisory } from '../types'
@@ -94,9 +95,6 @@ interface SummaryProps {
 // ACWR gauge: 6 equal segments, 1.0 centered in green
 // blue → light blue → green → green → yellow → red
 
-// Inline 7-day sparkline rendered as a tiny SVG
-// ─── What Changed This Week narrative ─────────────────────────
-
 export default function Summary({
   athleteId,
   todayScore,
@@ -165,7 +163,7 @@ export default function Summary({
   } | null>(null)
 
   // Three-axis signal coherence — one object the cards (banner,
-  // Performance Snapshot label, What Changed qualifier) all read from
+  // Performance Snapshot label, last-7-days review) all read from
   // so verdicts come from one place instead of each card inventing its
   // own.
   const trainingSignals = useMemo(
@@ -178,8 +176,8 @@ export default function Summary({
     [suppliedSignals, latestPerf, todayScore, sorenessLoadByDate, riskFlags],
   )
 
-  const weekNarrative = useMemo(
-    () => buildWeekNarrative(performance, dailyTrimp, trainingSignals, weeks),
+  const weekReview = useMemo(
+    () => buildWeekReview(performance, dailyTrimp, trainingSignals, weeks),
     [performance, dailyTrimp, trainingSignals, weeks],
   )
 
@@ -414,27 +412,9 @@ export default function Summary({
       {/* Forward-looking risk alerts — only renders when active flags present */}
       {riskFlags.length > 0 && <SummaryRiskFlags flags={riskFlags} />}
 
-      {/* What Changed This Week */}
-      {weekNarrative.length > 0 && isSectionVisible('summary.whatChanged') && (
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
-          <button
-            onClick={() => setNarrativeOpen(!narrativeOpen)}
-            className="w-full flex items-center justify-between p-4 text-left hover:bg-slate-50 dark:hover:bg-slate-700 dark:bg-slate-900 transition-colors"
-          >
-            <div className="flex-1 min-w-0">
-              <p className="text-base font-semibold text-slate-700 dark:text-slate-200">What Changed This Week</p>
-              <p className="text-[10px] italic text-slate-400 mt-0.5">Week-over-week direction</p>
-            </div>
-            <span className="text-sm text-teal-600 ml-2 shrink-0">{narrativeOpen ? '▴ Hide' : '▾ Show'}</span>
-          </button>
-          {narrativeOpen && (
-            <div className="px-4 pb-4 space-y-1.5">
-              {weekNarrative.map((line, i) => (
-                <p key={i} className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">{line}</p>
-              ))}
-            </div>
-          )}
-        </div>
+      {/* The last seven days: numbers, what's going well, what to change */}
+      {weekReview && isSectionVisible('summary.whatChanged') && (
+        <WeekReviewCard review={weekReview} open={narrativeOpen} onToggle={() => setNarrativeOpen(!narrativeOpen)} />
       )}
 
     </div>
