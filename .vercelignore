@@ -1,4 +1,6 @@
 # Keep the Python eval/test files out of the Vercel deployment — Vercel treats
-# every api/**/*.py as a serverless function and Hobby caps at 12. These are
-# dev/CI only (the coach behavioral eval harness), never invoked at runtime.
+# every api/**/*.py as a serverless function. These are dev/CI only (the coach
+# behavioral eval harness), never invoked at runtime. (This once also kept the
+# project under Hobby's 12-function cap; it has been on Pro since at least
+# 2026-09-26.)
 api/coach/tests

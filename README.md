@@ -14,7 +14,7 @@ Garmin / Strava / Apple Health integration. Live at
 | Path | What it is |
 |---|---|
 | `src/engines/` | The domain engines — plan generator, readiness, MIM, terrain, descent, running, hyrox, general fitness |
-| `src/__tests__/` | 212 test files / ~2789 tests, including property-invariant "laws" and golden plan snapshots |
+| `src/__tests__/` | 311 test files / ~3932 tests, including property-invariant "laws" and golden plan snapshots |
 | `api/` | Python serverless functions (coach, sync, auth, garmin, apple) deployed by Vercel |
 | `worker/` | Cloudflare worker for the Strava OAuth token exchange |
 | `ios/` | iOS wrapper app |
@@ -33,9 +33,9 @@ pytest -m "not eval" api/coach/tests    # keyless Python suite
 ```
 
 `CLAUDE.md` is the standing brief — commands, deploy topology, and the hard
-constraints (notably: Vercel Hobby caps this project at 12 serverless
-functions and `api/` sits at exactly 12). Read it before changing anything
-under `api/` or `.github/workflows/`.
+constraints (notably: `api/requirements.txt` pins are the deployment, and the
+DB schema is applied by hand). Read it before changing anything under `api/`
+or `.github/workflows/`.
 
 ## How it ships
 

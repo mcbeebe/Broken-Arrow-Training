@@ -179,3 +179,40 @@ describe('materialFields — welcome_letter', () => {
     )
   })
 })
+
+describe('materialFields — week_take', () => {
+  const DIGEST = 'Sep 20 – 26 · Sessions done 4 of 4 · Training time 5h 2m · Fitness +7'
+  const key = (s: CoachSnapshot, morning = 7, evening = 18) =>
+    hashFields(materialFields('week_take', s, morning, evening))
+
+  it('keys on the card digest, so any change to the card regenerates the take', () => {
+    const a = snap({ last7Digest: DIGEST })
+    const b = snap({ last7Digest: DIGEST.replace('4 of 4', '3 of 4') })
+    expect(key(a)).not.toBe(key(b))
+  })
+
+  it('gives a fresh take each day as the window rolls', () => {
+    const a = snap({ last7Digest: DIGEST })
+    const b = snap({ last7Digest: DIGEST, today: { date: '2026-04-15' } })
+    expect(key(a)).not.toBe(key(b))
+  })
+
+  it("ignores time of day, readiness and today's plan — one take per day, not several", () => {
+    const a = snap({ last7Digest: DIGEST })
+    const b = snap({
+      last7Digest: DIGEST,
+      readiness: { ...snap().readiness!, displayScore: 20, status: 'RED' } as never,
+      performance: { date: '2026-04-14', ctl: 60, atl: 70, tsb: -10, acwr: 1.4 },
+      plannedToday: null,
+    })
+    expect(key(a)).toBe(key(b))
+    // The daily read's morning/evening boundary doesn't touch it either.
+    expect(key(a, 0, 1)).toBe(key(a, 23, 24))
+  })
+
+  it("follows the coach's persona", () => {
+    const a = snap({ last7Digest: DIGEST, coachPersona: { name: 'Sam', traits: ['funny'] } as never })
+    const b = snap({ last7Digest: DIGEST, coachPersona: { name: 'Sam', traits: ['nerdy'] } as never })
+    expect(key(a)).not.toBe(key(b))
+  })
+})

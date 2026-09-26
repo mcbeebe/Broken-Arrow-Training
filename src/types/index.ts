@@ -1348,6 +1348,11 @@ export interface CoachSnapshot {
    *  the week-to-date analytics instead. Grounding, not prose: the model
    *  is told to use only numbers present here. */
   lastWeekDigest?: string
+  /** One-line digest of the Today tab's "Your last 7 days" card (its
+   *  numbers and its Going well / To improve lines). Only set for the
+   *  week_take surface, which comments on that card and must not
+   *  contradict it. */
+  last7Digest?: string
   readiness?: ReadinessScore | null
   performance?: PerformanceMetrics | null
   /** Raw-ish health metrics for today (hours/bpm/ms) so the LLM can

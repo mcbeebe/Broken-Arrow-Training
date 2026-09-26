@@ -20,7 +20,7 @@ product is attune.coach.
 ## Commands
 
 ```bash
-npm test                  # vitest, 310 files / ~3921 tests — gates every publish
+npm test                  # vitest, 311 files / ~3932 tests — gates every publish
 npm run build             # tsc -b && vite build — the typecheck gate lives here
 npm run lint              # eslint — NOT yet in CI; 43 errors today (initiative 002)
 npm run dev               # local dev server
@@ -56,13 +56,15 @@ succeed.
   you tell a stale browser from a stale backend.
 - `mcbeebe/attune-coach` is a **build artifact repo**. It takes no
   hand-authored commits.
+- **Vercel and Supabase are on Pro** (confirmed by the owner 2026-09-26), so
+  the Hobby 12-function cap that shaped `api/` no longer applies. Its traces
+  stay on purpose: `api/version.py` is folded into `sync.py`, and
+  `.vercelignore` still keeps the test directory out of the deployment.
+  Prefer a new `surface` on an existing endpoint (e.g. `/api/coach/insight`)
+  over a new file when the handler would be the same.
 
 ## Hard constraints
 
-- **Vercel Hobby caps the project at 12 serverless functions, and `api/` sits
-  at exactly 12.** Every `api/**/*.py` file counts. This is why `api/version.py`
-  was folded into `sync.py` and why `.vercelignore` excludes the test
-  directory. Adding a function breaks the deploy.
 - **`api/requirements.txt` pins *are* the deployment** — Vercel installs fresh
   on every build. Both directions have taken production down: an unpinned floor
   let a new major ship itself, and a guessed upper bound silently downgraded a

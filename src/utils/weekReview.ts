@@ -360,6 +360,34 @@ export function formatClock(seconds: number): string {
   return h > 0 ? `${h}:${String(m).padStart(2, '0')}:${ss}` : `${m}:${ss}`
 }
 
+/** Drop a line's leading emoji ("✅ All 4 planned…" → "All 4 planned…"). */
+const words = (line: string) => {
+  const space = line.indexOf(' ')
+  return space > 0 ? line.slice(space + 1) : line
+}
+
+/**
+ * The card as one plain line for the coach: the numbers it shows and its
+ * Going well / To improve lines, without emoji. This is all the
+ * week_take surface is allowed to comment on, so the take can't drift
+ * from what the athlete is looking at.
+ */
+export function weekReviewDigest(review: WeekReview): string {
+  const { stats } = review
+  const parts = [formatReviewRange(review.fromIso, review.toIso)]
+  if (stats.planned && stats.planned.due > 0) parts.push(`Sessions done ${stats.planned.done} of ${stats.planned.due}`)
+  else parts.push(`Days trained ${stats.daysTrained}`)
+  if (stats.trainingMinutes !== null) parts.push(`Training time ${formatTrainingTime(stats.trainingMinutes)}`)
+  parts.push(`Fitness ${stats.fitnessDelta > 0 ? '+' : ''}${stats.fitnessDelta}`)
+  if (stats.hardest) {
+    const day = new Date(`${stats.hardest.iso}T12:00:00`).toLocaleDateString('en-US', { weekday: 'short' })
+    parts.push(`Hardest session: ${day} ${stats.hardest.name}`)
+  }
+  parts.push(`Going well: ${review.wins.length ? review.wins.map(words).join(' ') : 'nothing flagged'}`)
+  parts.push(`To improve: ${review.fixes.length ? review.fixes.map(words).join(' ') : 'nothing to fix'}`)
+  return parts.join(' · ')
+}
+
 /** "Sep 19 – 25", or "Sep 29 – Oct 5" across a month boundary. */
 export function formatReviewRange(fromIso: string, toIso: string): string {
   const from = new Date(`${fromIso}T12:00:00`)

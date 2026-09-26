@@ -4,7 +4,8 @@ import { coachApiAvailable, coachApiBase, coachAuthHeaders} from '../utils/coach
 
 /**
  * Hook that fetches a cached, LLM-generated coach insight for a given
- * surface ('daily', 'day_card:<label>', 'workout_take:<label>').
+ * surface ('daily', 'day_card:<label>', 'workout_take:<label>',
+ * 'week_take', …).
  *
  * Caches in localStorage keyed by athleteId+surface+contextHash so repeat
  * renders (same day, same data) don't re-fetch. Falls back silently when
@@ -118,6 +119,24 @@ export function materialFields(surface: string, snapshot: CoachSnapshot, morning
     }
   }
 
+  // The last-7-days take comments on one card, so its cache keys on that
+  // card's digest (any change to the numbers or lines regenerates it), the
+  // date (a fresh take each day as the window rolls) and persona/zones — not
+  // time of day, readiness or today's plan, which would re-bill the same
+  // week several times a day.
+  if (surface === 'week_take') {
+    const persona = snapshot.coachPersona
+    return {
+      surface,
+      date: snapshot.today?.date,
+      digest: snapshot.last7Digest ?? '',
+      persona: persona
+        ? { name: persona.name?.trim() || '', traits: [...(persona.traits || [])].sort() }
+        : null,
+      zones: snapshot.zones?.map(z => z.hr) ?? null,
+    }
+  }
+
   const r = snapshot.readiness
   const p = snapshot.performance
   const t = snapshot.plannedToday
@@ -182,6 +201,11 @@ interface UseCoachInsightOptions {
 export function useCoachInsight(opts: UseCoachInsightOptions) {
   const { athleteId, surface, snapshot, enabled, fallbackText, fallbackTip, morningHour = 7, eveningHour = 18 } = opts
   const [insight, setInsight] = useState<CoachInsight | null>(null)
+  // The context hash the shown insight was written for. A surface that sits
+  // beside live numbers (week_take) must not keep showing a take written
+  // for numbers that have since changed — `current` says whether it still
+  // matches; other surfaces are free to keep showing the last read.
+  const [insightHash, setInsightHash] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const abortRef = useRef<AbortController | null>(null)
@@ -277,6 +301,7 @@ export function useCoachInsight(opts: UseCoachInsightOptions) {
           const parsed: CoachInsight = JSON.parse(raw)
           if (Date.now() - (parsed.generatedAt ?? 0) < MAX_AGE_MS) {
             setInsight(parsed)
+            setInsightHash(contextHash)
             return
           }
         }
@@ -308,6 +333,7 @@ export function useCoachInsight(opts: UseCoachInsightOptions) {
         if (!res.ok) throw new Error(`http_${res.status}`)
         const data: CoachInsight = await res.json()
         setInsight(data)
+        setInsightHash(contextHash)
         try {
           localStorage.setItem(cacheKey, JSON.stringify(data))
         } catch {
@@ -345,5 +371,5 @@ export function useCoachInsight(opts: UseCoachInsightOptions) {
     // renders means same hash means React bails out.
   }, [athleteId, surface, contextHash, enabled, fallbackText, fallbackTip, regenToken, forceCount])
 
-  return { insight, loading, error, regenerate }
+  return { insight, loading, error, regenerate, current: !!insight && !!contextHash && insightHash === contextHash }
 }

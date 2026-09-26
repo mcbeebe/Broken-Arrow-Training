@@ -92,3 +92,29 @@ describe('WeekReviewCard', () => {
     expect(onToggle).toHaveBeenCalledOnce()
   })
 })
+
+describe("WeekReviewCard — the coach's take", () => {
+  it('shows the take at the top of the card, rendered as markdown', () => {
+    render(<WeekReviewCard review={base} open onToggle={() => {}} coachTake={{ text: 'Four for four — **bank it** and hold volume flat.', loading: false }} />)
+    const take = screen.getByRole('region', { name: "Coach's take" })
+    expect(take.textContent).toContain('Four for four — bank it and hold volume flat.')
+    expect(within(take).getByText('bank it').tagName).toBe('STRONG')
+    // First thing in the card body, above the numbers.
+    const body = document.getElementById('week-review-body')!
+    expect(body.firstElementChild).toBe(take)
+  })
+
+  it('holds a placeholder while the coach is writing', () => {
+    render(<WeekReviewCard review={base} open onToggle={() => {}} coachTake={{ text: null, loading: true }} />)
+    expect(screen.getByRole('status', { name: 'The coach is reading your week' })).toBeTruthy()
+  })
+
+  it('shows nothing when the coach is off, failed, or has nothing yet', () => {
+    const { rerender } = render(<WeekReviewCard review={base} open onToggle={() => {}} />)
+    expect(screen.queryByRole('region', { name: "Coach's take" })).toBeNull()
+    rerender(<WeekReviewCard review={base} open onToggle={() => {}} coachTake={{ text: null, loading: false }} />)
+    expect(screen.queryByRole('region', { name: "Coach's take" })).toBeNull()
+    // The rule-based card is complete without it.
+    expect(screen.getByRole('region', { name: 'Going well' })).toBeTruthy()
+  })
+})
