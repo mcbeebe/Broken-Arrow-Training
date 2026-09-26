@@ -1743,6 +1743,15 @@ def build_context_block(
         out.append("")
         out.append(f"LAST WEEK (the week being reviewed): {last_week_digest}")
 
+    # The Today tab's "Your last 7 days" card: its numbers and its Going
+    # well / To improve lines, built client-side (utils/weekReview). The
+    # week_take surface is a comment ON that card, so it is the only
+    # sanctioned source for the take — the take must never contradict it.
+    last7_digest = str(snapshot.get("last7Digest") or "").strip()
+    if last7_digest:
+        out.append("")
+        out.append(f"LAST 7 DAYS (the card the athlete is looking at): {last7_digest}")
+
     # General-fitness framing — STRONG anchor near the top. These athletes have
     # no race; the plan is an open-ended rolling block with periodic deloads.
     # Without this, the race-flavored system prompt drifts into "you're in Peak

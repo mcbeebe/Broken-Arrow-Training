@@ -5,6 +5,8 @@
 import { describe, it, expect } from 'vitest'
 import {
   buildWeekReview,
+  weekReviewDigest,
+  type WeekReview,
   formatClock,
   formatReviewRange,
   formatTrainingTime,
@@ -542,5 +544,38 @@ describe('second review findings', () => {
     })
     expect(r.stats.planned).toEqual({ done: 1, due: 1 })
     expect(r.fixes.join()).not.toMatch(/rest day|logged/)
+  })
+})
+
+describe('the digest the coach comments on', () => {
+  const full: WeekReview = {
+    fromIso: '2026-09-20',
+    toIso: '2026-09-26',
+    stats: {
+      planned: { done: 4, due: 4 }, daysTrained: 6, trainingMinutes: 302, fitnessDelta: 7,
+      hardest: { iso: '2026-09-23', name: 'STRENGTH: Lower body + sleds' }, activities: [],
+    },
+    wins: ['✅ All 4 planned sessions done.', '📈 Fitness up 7 points — the work is adding up.'],
+    fixes: ['⚠️ Load is climbing fast — hold next week’s volume flat rather than adding more.'],
+  }
+
+  it('carries the card’s numbers and lines, without emoji', () => {
+    expect(weekReviewDigest(full)).toBe(
+      'Sep 20 – 26 · Sessions done 4 of 4 · Training time 5h 2m · Fitness +7 · '
+      + 'Hardest session: Wed STRENGTH: Lower body + sleds · '
+      + 'Going well: All 4 planned sessions done. Fitness up 7 points — the work is adding up. · '
+      + 'To improve: Load is climbing fast — hold next week’s volume flat rather than adding more.',
+    )
+  })
+
+  it('says so when a section is empty, and falls back to days trained without a plan', () => {
+    const bare: WeekReview = {
+      ...full,
+      stats: { ...full.stats, planned: null, daysTrained: 2, trainingMinutes: null, fitnessDelta: -3, hardest: null },
+      wins: [], fixes: [],
+    }
+    expect(weekReviewDigest(bare)).toBe(
+      'Sep 20 – 26 · Days trained 2 · Fitness -3 · Going well: nothing flagged · To improve: nothing to fix',
+    )
   })
 })

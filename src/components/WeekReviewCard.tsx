@@ -1,11 +1,15 @@
 import { useState } from 'react'
 import type { WeekReview } from '../utils/weekReview'
 import { formatClock, formatReviewRange, formatTrainingTime } from '../utils/weekReview'
+import { renderMarkdown } from '../utils/markdown'
 
 interface Props {
   review: WeekReview
   open: boolean
   onToggle: () => void
+  /** The AI coach's short take on this card. Absent when the coach is off
+   *  or unreachable — the card never waits on it or shows an error. */
+  coachTake?: { text: string | null; loading: boolean }
 }
 
 const weekday = (iso: string) =>
@@ -75,7 +79,7 @@ function Section({ tone, title, lines, empty }: {
  * then what is going well and what to change. The words come from
  * buildWeekReview; this only lays them out.
  */
-export default function WeekReviewCard({ review, open, onToggle }: Props) {
+export default function WeekReviewCard({ review, open, onToggle, coachTake }: Props) {
   const { stats } = review
   const sessions = stats.planned && stats.planned.due > 0
     ? { value: `${stats.planned.done} of ${stats.planned.due}`, label: 'Sessions done' }
@@ -100,6 +104,16 @@ export default function WeekReviewCard({ review, open, onToggle }: Props) {
       </button>
       {open && (
         <div id="week-review-body" className="px-4 pb-4 space-y-4">
+          {coachTake && (coachTake.text || coachTake.loading) && (
+            <section aria-label="Coach's take" className="rounded-lg border-l-2 border-teal-500 bg-teal-50 dark:bg-teal-950/40 px-3 py-2">
+              <p className="text-[11px] font-bold uppercase tracking-wide text-teal-700 dark:text-teal-400">Coach’s take</p>
+              {coachTake.text ? (
+                <div className="mt-0.5 text-sm leading-snug text-slate-700 dark:text-slate-200">{renderMarkdown(coachTake.text)}</div>
+              ) : (
+                <div role="status" aria-label="The coach is reading your week" className="mt-1.5 mb-0.5 h-3.5 w-3/4 animate-pulse rounded bg-teal-100 dark:bg-teal-900/60" />
+              )}
+            </section>
+          )}
           <div>
             <div className="flex gap-2">
               <Stat {...sessions} />

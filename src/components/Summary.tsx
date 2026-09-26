@@ -11,7 +11,9 @@ import { buildRaceReadinessDetail, computeRaceReadiness, type ReadinessAssignmen
 import { weeksUntilRace } from '../utils/raceCountdown'
 import { buildTrainingSignals, type TrainingSignals } from '../utils/trainingSignals'
 import { hasRampAlert } from '../utils/readiness'
-import { buildWeekReview } from '../utils/weekReview'
+import { buildWeekReview, weekReviewDigest } from '../utils/weekReview'
+import { useCoachInsight } from '../hooks/useCoachInsight'
+import { coachApiAvailable } from '../utils/coachApi'
 import WeekReviewCard from './WeekReviewCard'
 import PlanAtAGlance from './PlanAtAGlance'
 import { notesRowText, shouldShowNotesRow } from '../utils/planNotes'
@@ -180,6 +182,23 @@ export default function Summary({
     () => buildWeekReview(performance, dailyTrimp, trainingSignals, weeks),
     [performance, dailyTrimp, trainingSignals, weeks],
   )
+
+  // The coach's short take on that card: fed only the card's own digest,
+  // fetched only while the card is showing with the coach on, cached per
+  // day. The rule-based card is complete without it and never waits on it.
+  const weekDigest = useMemo(() => (weekReview ? weekReviewDigest(weekReview) : ''), [weekReview])
+  const weekTakeSnapshot = useMemo(
+    () => (coachSnapshot && weekDigest ? { ...coachSnapshot, last7Digest: weekDigest } : null),
+    [coachSnapshot, weekDigest],
+  )
+  const weekTakeOn = !!coachEnabled && coachApiAvailable()
+  const weekCardShown = !!weekReview && isSectionVisible('summary.whatChanged') && narrativeOpen
+  const weekTake = useCoachInsight({
+    athleteId,
+    surface: 'week_take',
+    snapshot: weekTakeSnapshot,
+    enabled: weekTakeOn && weekCardShown && !!weekTakeSnapshot,
+  })
 
   // Race-ready hero is pinned to the top of Summary in the last ~8 weeks
   // before a goal race. The window is wide enough to span a full taper
@@ -414,7 +433,12 @@ export default function Summary({
 
       {/* The last seven days: numbers, what's going well, what to change */}
       {weekReview && isSectionVisible('summary.whatChanged') && (
-        <WeekReviewCard review={weekReview} open={narrativeOpen} onToggle={() => setNarrativeOpen(!narrativeOpen)} />
+        <WeekReviewCard
+          review={weekReview}
+          open={narrativeOpen}
+          onToggle={() => setNarrativeOpen(!narrativeOpen)}
+          coachTake={weekTakeOn ? { text: weekTake.insight?.text?.trim() || null, loading: weekTake.loading } : undefined}
+        />
       )}
 
     </div>

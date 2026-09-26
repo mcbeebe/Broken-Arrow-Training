@@ -4,7 +4,8 @@ import { coachApiAvailable, coachApiBase, coachAuthHeaders} from '../utils/coach
 
 /**
  * Hook that fetches a cached, LLM-generated coach insight for a given
- * surface ('daily', 'day_card:<label>', 'workout_take:<label>').
+ * surface ('daily', 'day_card:<label>', 'workout_take:<label>',
+ * 'week_take', …).
  *
  * Caches in localStorage keyed by athleteId+surface+contextHash so repeat
  * renders (same day, same data) don't re-fetch. Falls back silently when
@@ -115,6 +116,24 @@ export function materialFields(surface: string, snapshot: CoachSnapshot, morning
         ? { name: wlPersona.name?.trim() || '', traits: [...(wlPersona.traits || [])].sort() }
         : null,
       zones: s.zones?.map(z => z.hr) ?? null,
+    }
+  }
+
+  // The last-7-days take comments on one card, so its cache keys on that
+  // card's digest (any change to the numbers or lines regenerates it), the
+  // date (a fresh take each day as the window rolls) and persona/zones — not
+  // time of day, readiness or today's plan, which would re-bill the same
+  // week several times a day.
+  if (surface === 'week_take') {
+    const persona = snapshot.coachPersona
+    return {
+      surface,
+      date: snapshot.today?.date,
+      digest: snapshot.last7Digest ?? '',
+      persona: persona
+        ? { name: persona.name?.trim() || '', traits: [...(persona.traits || [])].sort() }
+        : null,
+      zones: snapshot.zones?.map(z => z.hr) ?? null,
     }
   }
 

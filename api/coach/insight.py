@@ -164,6 +164,21 @@ SURFACE_INSTRUCTIONS = {
         "no 'Triggered by:' chip, no headers. This is structure, NOT voice — "
         "deliver it in the athlete's configured persona."
     ),
+    "week_take": (
+        "Write the coach's one-line take on the 'LAST 7 DAYS' card in the "
+        "context — the athlete is looking at that card's numbers and its "
+        "Going well / To improve lines right now. In 1-2 sentences (under 45 "
+        "words): name the ONE thing that matters most about their last seven "
+        "days and what to do with it next. Hard rules: use ONLY facts in the "
+        "LAST 7 DAYS line and the context — never invent a number, session "
+        "or trend; never contradict a To improve line (if it says ease off, "
+        "you don't say push); don't re-list the bullets — the card already "
+        "shows them, so synthesize. No greeting, no sign-off, no "
+        "'Triggered by:' chip, no headers, no bullet list. This is "
+        "structure, NOT voice — deliver it in the athlete's configured "
+        "persona (Funny → a light touch; Motivational → fire them up; Data "
+        "Nerd → one precise number)."
+    ),
     "welcome_letter": (
         "Write a warm, personal start-of-season note to an athlete who just "
         "finished onboarding — their first message from you as their coach. "
@@ -417,7 +432,7 @@ class handler(BaseHTTPRequestHandler):
                 model=model_to_use,
                 system=system,
                 messages=[{"role": "user", "content": user_msg}],
-                max_tokens=400 if surface_root in ("welcome_letter", "weekly_recap") else (500 if surface_root == "workout_debrief" else 400),
+                max_tokens=150 if surface_root == "week_take" else (400 if surface_root in ("welcome_letter", "weekly_recap") else (500 if surface_root == "workout_debrief" else 400)),
                 # Low temperature on the daily summary: it states facts
                 # about PR status, dates, pace, and readiness. We need
                 # the model to follow the PR_STATUS line in the context
