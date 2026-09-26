@@ -5,6 +5,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   buildWeekReview,
+  formatClock,
   formatReviewRange,
   formatTrainingTime,
   WEEK_REVIEW_MAX_LINES,
@@ -43,9 +44,10 @@ const record = (name: string, trimp: number): TRIMPRecord => ({
 const trimp = (offsets: number[], total = 80): DailyTRIMP[] =>
   offsets.map(o => ({ date: iso(o), total, records: [record('Morning Run', total)] }))
 
-const actual = (minutes: number, name = 'Run'): ActualWorkout => ({
-  stravaId: 1, distance: 5000, movingTime: minutes * 60, elapsedTime: minutes * 60,
-  elevationGain: 0, type: 'Run', name, startDate: `${TODAY}T07:00:00Z`,
+let nextId = 1
+const actual = (minutes: number, name = 'Run', over: Partial<ActualWorkout> = {}): ActualWorkout => ({
+  stravaId: nextId++, distance: 5000, movingTime: minutes * 60, elapsedTime: minutes * 60,
+  elevationGain: 0, type: 'Run', name, startDate: `${TODAY}T07:00:00Z`, ...over,
 })
 
 const day = (type: WorkoutType, workout = type === 'rest' ? 'Rest' : 'Easy run', a?: ActualWorkout): PlannedDay => ({
@@ -261,6 +263,13 @@ describe('formatting', () => {
     expect(formatReviewRange('2026-09-19', '2026-09-25')).toBe('Sep 19 – 25')
     expect(formatReviewRange('2026-09-29', '2026-10-05')).toBe('Sep 29 – Oct 5')
   })
+
+  it('formats a clock time the way Garmin lists activities', () => {
+    expect(formatClock(1546)).toBe('25:46')
+    expect(formatClock(4381)).toBe('1:13:01')
+    expect(formatClock(476)).toBe('7:56')
+    expect(formatClock(3600)).toBe('1:00:00')
+  })
 })
 
 describe('review findings', () => {
@@ -354,5 +363,184 @@ describe('review findings', () => {
   it('ignores readings dated after today', () => {
     const p = [...perf([40, 44]), { date: iso(1), ctl: 60, atl: 50, tsb: 0, acwr: 1 }]
     expect(review({ perf: p }).stats.fitnessDelta).toBe(4)
+  })
+})
+
+describe('training time matches the watch', () => {
+  const rest = () => day('rest')
+  const weekWith = (first: PlannedDay, ...more: PlannedDay[]) =>
+    plan([first, ...more, ...Array.from({ length: 6 - more.length }, rest)])
+
+  it("uses Garmin's timer time, not its moving time", () => {
+    // Garmin's list shows 29:50 for a ride whose moving time is 28:19.
+    const ride = actual(0, 'Oakland eBiking', { source: 'garmin', stravaId: 0, garminId: 11, type: 'e_bike', movingTime: 1699, elapsedTime: 1790 })
+    const r = review({ weeks: weekWith(day('cross', 'Ride', ride)) })
+    expect(r.stats.activities).toEqual([{ iso: iso(-6), name: 'Oakland eBiking', seconds: 1790 }])
+    expect(r.stats.trainingMinutes).toBe(30)
+  })
+
+  it("uses Strava's moving time, since its elapsed time runs to the save", () => {
+    // Strava: moving 25:46, elapsed 42:27 — Garmin shows 25:46 for the same hike.
+    const hike = actual(0, 'Lunch Hike', { source: 'strava', type: 'Hike', movingTime: 1546, elapsedTime: 2547 })
+    expect(review({ weeks: weekWith(day('cross', 'Hike', hike)) }).stats.trainingMinutes).toBe(26)
+  })
+
+  it('counts an activity once when two sessions are planned on its date', () => {
+    const strength = actual(40, 'Strength', { source: 'garmin', stravaId: 0, garminId: 21 })
+    const run = actual(20, 'Run', { source: 'garmin', stravaId: 0, garminId: 22 })
+    // Both plan entries for the day see both activities, as the matcher leaves them.
+    const a = { ...day('strength', 'Strength', strength), secondaryActuals: [run] }
+    const b = { ...day('run', 'Easy run', run), secondaryActuals: [strength] }
+    const label = (o: number) => {
+      const d = new Date(`${iso(o)}T12:00:00`)
+      return `${d.toLocaleDateString('en-US', { weekday: 'short' })} ${d.getMonth() + 1}/${d.getDate()}`
+    }
+    const days = [{ ...a, day: label(-6) }, { ...b, day: label(-6) },
+      ...[-5, -4, -3, -2, -1, 0].map(o => ({ ...rest(), day: label(o) }))]
+    const r = review({ weeks: plan(days) })
+    expect(r.stats.trainingMinutes).toBe(60)
+    expect(r.stats.activities.map(x => x.name)).toEqual(['Strength', 'Run'])
+  })
+
+  it('lists every activity, oldest first, with its minutes', () => {
+    const d1 = day('run', 'Easy run', actual(30, 'Morning Run'))
+    d1.secondaryActuals = [actual(15, 'Walk')]
+    const r = review({ weeks: plan([rest(), d1, rest(), day('long', 'Long run', actual(90, 'Long Run')), rest(), rest(), rest()]) })
+    expect(r.stats.activities.map(a => `${a.iso} ${a.name} ${a.seconds}`)).toEqual([
+      `${iso(-5)} Morning Run 1800`, `${iso(-5)} Walk 900`, `${iso(-3)} Long Run 5400`,
+    ])
+    expect(r.stats.trainingMinutes).toBe(135)
+  })
+})
+
+describe('light movement does not use up a rest day', () => {
+  const ebike = () => actual(30, 'Oakland eBiking', { type: 'EBikeRide' })
+
+  it('an e-bike commute or a walk on a rest day is not "trained through"', () => {
+    const commute = { ...day('rest'), actual: ebike() }
+    const walk = { ...day('rest'), actual: actual(40, 'Evening walk', { type: 'Walk' }) }
+    const r = review({ weeks: plan([day('run', 'Easy run', actual(30)), commute, walk, day('rest'), day('rest'), day('rest'), day('rest')]) })
+    expect(r.fixes.join()).not.toContain('rest day')
+    expect(r.wins).toContain('😴 Rest days taken as planned.')
+  })
+
+  it('a short hike is light, a long one is a workout', () => {
+    const stroll = { ...day('rest'), actual: actual(26, 'Lunch Hike', { type: 'Hike' }) }
+    expect(review({ weeks: plan([stroll, day('rest'), day('rest'), day('rest'), day('rest'), day('rest'), day('rest')]) }).fixes.join()).not.toContain('rest day')
+    const bigHike = { ...day('rest'), actual: actual(73, 'Berkeley Hiking', { type: 'Hike' }) }
+    expect(review({ weeks: plan([bigHike, day('rest'), day('rest'), day('rest'), day('rest'), day('rest'), day('rest')]) }).fixes)
+      .toContain('😴 Trained through a planned rest day — keep the next one fully easy.')
+  })
+
+  it('an e-bike ride does not stand in for a skipped session as a swap', () => {
+    const commute = { ...day('rest'), actual: ebike() }
+    const r = review({ weeks: plan([day('run', 'Tempo'), commute, day('rest'), day('rest'), day('rest'), day('rest'), day('rest')]) })
+    expect(r.stats.planned).toEqual({ done: 0, due: 1 })
+    expect(r.fixes.some(f => f.startsWith('⭕ 1 planned session isn’t logged'))).toBe(true)
+  })
+
+  it('commuting every day is not "no rest day in 7 days"', () => {
+    const t: DailyTRIMP[] = [-6, -5, -4, -3, -2, -1, 0].map(o => ({
+      date: iso(o), total: 10, records: [{ ...record('Oakland eBiking', 10), sportType: 'ebike' as TRIMPRecord['sportType'] }],
+    }))
+    expect(review({ trimp: t }).fixes.join()).not.toContain('No rest day')
+    // …but seven days with a real workout still is.
+    expect(review({ trimp: trimp([-6, -5, -4, -3, -2, -1, 0]) }).fixes).toContain('🔥 No rest day in 7 days — take one in the next 48 hours.')
+  })
+})
+
+describe('second review findings', () => {
+  const label = (o: number) => {
+    const d = new Date(`${iso(o)}T12:00:00`)
+    return `${d.toLocaleDateString('en-US', { weekday: 'short' })} ${d.getMonth() + 1}/${d.getDate()}`
+  }
+  const rest = () => day('rest')
+  /** Two plan entries on the window's first date, then six rest days. */
+  const twoOnDayOne = (a: PlannedDay, b: PlannedDay) => plan([
+    { ...a, day: label(-6) }, { ...b, day: label(-6) },
+    ...[-5, -4, -3, -2, -1, 0].map(o => ({ ...rest(), day: label(o) })),
+  ])
+  const onRestDay = (a: ActualWorkout) =>
+    plan([{ ...rest(), actual: a }, rest(), rest(), rest(), rest(), rest(), rest()])
+  const TRAINED = '😴 Trained through a planned rest day — keep the next one fully easy.'
+
+  it('counts a Strava run once when its Garmin-enriched copy sits on the other plan entry', () => {
+    // The run day's actual was enriched (both ids); the strength entry
+    // for the same date still lists the bare Strava copy.
+    const enriched = actual(40, 'Morning Run', { stravaId: 111, garminId: 999, source: 'strava', garminTimerTime: 2460 })
+    const bare = actual(40, 'Morning Run', { stravaId: 111, source: 'strava' })
+    const r = review({ weeks: twoOnDayOne(
+      day('run', 'Easy run', enriched),
+      { ...day('strength', 'Gym strength'), secondaryActuals: [bare] },
+    ) })
+    expect(r.stats.activities).toHaveLength(1)
+    expect(r.stats.trainingMinutes).toBe(41)
+  })
+
+  it('matches a session by any of its ids, even when the copies disagree on time', () => {
+    // A manual edit changed the enriched copy's duration; the ids still say
+    // it is the same run.
+    const enriched = actual(0, 'Morning Run', { stravaId: 111, garminId: 999, source: 'strava', movingTime: 3600 })
+    const bare = actual(0, 'Morning Run', { stravaId: 111, source: 'strava', movingTime: 1500 })
+    const r = review({ weeks: twoOnDayOne(
+      day('run', 'Easy run', enriched),
+      { ...day('strength', 'Gym strength'), secondaryActuals: [bare] },
+    ) })
+    expect(r.stats.activities).toHaveLength(1)
+    expect(r.stats.trainingMinutes).toBe(60)
+  })
+
+  it('counts a session once when two sources give it different ids on the same date', () => {
+    const fromGarmin = actual(0, 'Run', { stravaId: 0, garminId: 5, source: 'garmin', movingTime: 2350, elapsedTime: 2400 })
+    const fromStrava = actual(0, 'Afternoon Run', { stravaId: 7, source: 'strava', movingTime: 2350, elapsedTime: 2500 })
+    const r = review({ weeks: twoOnDayOne(
+      day('run', 'Easy run', fromGarmin),
+      { ...day('strength', 'Gym strength'), secondaryActuals: [fromStrava] },
+    ) })
+    expect(r.stats.activities.map(a => a.name)).toEqual(['Run'])
+    expect(r.stats.trainingMinutes).toBe(40)
+  })
+
+  it("uses Garmin's timer time for a Strava actual enriched with Garmin data", () => {
+    const enriched = actual(0, 'Afternoon Run', { source: 'strava', movingTime: 1200, elapsedTime: 1900, garminTimerTime: 1320 })
+    expect(review({ weeks: plan([day('run', 'Easy run', enriched), rest(), rest(), rest(), rest(), rest(), rest()]) }).stats.activities[0].seconds).toBe(1320)
+  })
+
+  it('keeps workouts whose names only look light', () => {
+    for (const a of [
+      actual(35, 'Walking lunges & core', { type: 'WeightTraining' }),
+      actual(120, 'Lake bike loop', { type: 'Ride' }),
+      actual(40, 'Run/walk intervals', { type: 'Run' }),
+      actual(50, 'Long run + mobility', { type: 'Run' }),
+    ]) {
+      expect(review({ weeks: onRestDay(a) }).fixes).toContain(TRAINED)
+    }
+  })
+
+  it('knows the e-bike and walking types training load knows', () => {
+    for (const a of [
+      actual(40, 'Hills', { type: 'EMountainBikeRide' }),
+      actual(30, 'Walk', { type: 'indoor_walking' }),
+      actual(30, 'Stroll', { type: 'casual_walking' }),
+      actual(45, 'Flow', { type: 'Yoga' }),
+    ]) {
+      expect(review({ weeks: onRestDay(a) }).fixes).not.toContain(TRAINED)
+    }
+  })
+
+  it('agrees with training load that a hard no-assist e-bike ride is a workout', () => {
+    expect(review({ weeks: onRestDay(actual(60, 'E-bike hard no assist', { type: 'EBikeRide' })) }).fixes).toContain(TRAINED)
+  })
+
+  it('still credits a swap when the skipped day had only a commute', () => {
+    // Tempo planned day 1, skipped (an e-bike commute that day); the run
+    // was done on day 3, a planned rest day.
+    const commute: DailyTRIMP = { date: iso(-6), total: 10, records: [{ ...record('Oakland eBiking', 10), sportType: 'ebike' as TRIMPRecord['sportType'] }] }
+    const r = review({
+      weeks: plan([day('quality', 'Tempo'), rest(), { ...rest(), actual: actual(45, 'Tempo run') }, rest(), rest(), rest(), rest()]),
+      trimp: [commute, ...trimp([-4])],
+    })
+    expect(r.stats.planned).toEqual({ done: 1, due: 1 })
+    expect(r.fixes.join()).not.toMatch(/rest day|logged/)
   })
 })

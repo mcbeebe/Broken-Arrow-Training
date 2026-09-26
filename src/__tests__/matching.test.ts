@@ -295,6 +295,20 @@ describe('cross-source duplicate suppression', () => {
     expect(day.secondaryActuals ?? []).toHaveLength(0)
   })
 
+  it("an enriched Strava actual keeps Garmin's timer time alongside Strava's own times", () => {
+    // The Strava times win the spread; the week card still needs the clock
+    // Garmin's weekly total adds up.
+    const activity = makeActivity({ start_date_local: '2026-04-14T07:00:00Z', moving_time: 1800 })
+    const afterStrava = matchActivitiesToPlan(mikePlan.weeks, [activity])
+    const merged = mergeGarminDetailIntoWeeks(afterStrava, {
+      '2026-04-14': [makeGarminDetail({ activityId: 9, type: 'treadmill_running', movingDurationSeconds: 1810, durationSeconds: 1900 })],
+    })
+    const actual = merged[0].days[1].actual!
+    expect(actual.movingTime).toBe(1800)
+    expect(actual.garminId).toBe(9)
+    expect(actual.garminTimerTime).toBe(1900)
+  })
+
   it('a genuinely different second activity stays a secondary', () => {
     const activity = makeActivity({ start_date_local: '2026-04-14T07:00:00Z', moving_time: 1800 })
     const afterStrava = matchActivitiesToPlan(mikePlan.weeks, [activity])

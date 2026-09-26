@@ -12,6 +12,10 @@ const base: WeekReview = {
     trainingMinutes: 320,
     fitnessDelta: 3,
     hardest: { iso: '2026-09-23', name: 'Hill repeats' },
+    activities: [
+      { iso: '2026-09-20', name: 'Berkeley Hiking', seconds: 12000 },
+      { iso: '2026-09-23', name: 'Hill repeats', seconds: 7200 },
+    ],
   },
   wins: ['✅ 4 of 5 planned sessions done — solid consistency.', '📈 Fitness up 3 points — the work is adding up.'],
   fixes: ['⭕ 1 planned session isn’t logged — if you did it, log it; if not, don’t cram it in.'],
@@ -60,6 +64,22 @@ describe('WeekReviewCard', () => {
     expect(screen.getByText('Day trained')).toBeTruthy()
     expect(screen.queryByText('Training time')).toBeNull()
     expect(screen.getByText('−2')).toBeTruthy()
+  })
+
+  it('opens a per-activity breakdown when the training time is tapped', () => {
+    renderCard()
+    const tile = screen.getByRole('button', { name: /5h 20m/ })
+    expect(tile.getAttribute('aria-expanded')).toBe('false')
+    expect(screen.queryByRole('list', { name: 'Training time by activity' })).toBeNull()
+    fireEvent.click(tile)
+    expect(tile.getAttribute('aria-expanded')).toBe('true')
+    const list = within(screen.getByRole('list', { name: 'Training time by activity' }))
+    const rows = list.getAllByRole('listitem')
+    expect(rows).toHaveLength(2)
+    expect(rows[0].textContent).toBe('SunBerkeley Hiking3:20:00')
+    expect(rows[1].textContent).toBe('WedHill repeats2:00:00')
+    fireEvent.click(tile)
+    expect(screen.queryByRole('list', { name: 'Training time by activity' })).toBeNull()
   })
 
   it('collapses to the header and reports its state', () => {

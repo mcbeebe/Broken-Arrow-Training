@@ -220,6 +220,11 @@ export interface ActualWorkout {
   startDate: string;
   notes?: string;
   rpe?: number;  // 1-10 Rate of Perceived Exertion (muscular + cardiovascular)
+  /** Garmin's timer time (s) for this session, kept when a Strava or
+   *  manual actual is enriched with Garmin data — the base actual's own
+   *  times win the spread, and Garmin's clock is what the athlete's watch
+   *  and Garmin's weekly total show. */
+  garminTimerTime?: number;
   strengthLog?: StrengthExerciseLog[];
   splits?: { split: number; pace: string; hr?: number; elev: number }[];
   laps?: { name: string; distance: number; pace: string; hr?: number; elev?: number }[];
