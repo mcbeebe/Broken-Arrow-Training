@@ -201,6 +201,11 @@ interface UseCoachInsightOptions {
 export function useCoachInsight(opts: UseCoachInsightOptions) {
   const { athleteId, surface, snapshot, enabled, fallbackText, fallbackTip, morningHour = 7, eveningHour = 18 } = opts
   const [insight, setInsight] = useState<CoachInsight | null>(null)
+  // The context hash the shown insight was written for. A surface that sits
+  // beside live numbers (week_take) must not keep showing a take written
+  // for numbers that have since changed — `current` says whether it still
+  // matches; other surfaces are free to keep showing the last read.
+  const [insightHash, setInsightHash] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const abortRef = useRef<AbortController | null>(null)
@@ -296,6 +301,7 @@ export function useCoachInsight(opts: UseCoachInsightOptions) {
           const parsed: CoachInsight = JSON.parse(raw)
           if (Date.now() - (parsed.generatedAt ?? 0) < MAX_AGE_MS) {
             setInsight(parsed)
+            setInsightHash(contextHash)
             return
           }
         }
@@ -327,6 +333,7 @@ export function useCoachInsight(opts: UseCoachInsightOptions) {
         if (!res.ok) throw new Error(`http_${res.status}`)
         const data: CoachInsight = await res.json()
         setInsight(data)
+        setInsightHash(contextHash)
         try {
           localStorage.setItem(cacheKey, JSON.stringify(data))
         } catch {
@@ -364,5 +371,5 @@ export function useCoachInsight(opts: UseCoachInsightOptions) {
     // renders means same hash means React bails out.
   }, [athleteId, surface, contextHash, enabled, fallbackText, fallbackTip, regenToken, forceCount])
 
-  return { insight, loading, error, regenerate }
+  return { insight, loading, error, regenerate, current: !!insight && !!contextHash && insightHash === contextHash }
 }

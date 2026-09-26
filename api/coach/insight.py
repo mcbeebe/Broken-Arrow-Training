@@ -170,14 +170,17 @@ SURFACE_INSTRUCTIONS = {
         "Going well / To improve lines right now. In 1-2 sentences (under 45 "
         "words): name the ONE thing that matters most about their last seven "
         "days and what to do with it next. Hard rules: use ONLY facts in the "
-        "LAST 7 DAYS line and the context — never invent a number, session "
-        "or trend; never contradict a To improve line (if it says ease off, "
-        "you don't say push); don't re-list the bullets — the card already "
-        "shows them, so synthesize. No greeting, no sign-off, no "
-        "'Triggered by:' chip, no headers, no bullet list. This is "
-        "structure, NOT voice — deliver it in the athlete's configured "
-        "persona (Funny → a light touch; Motivational → fire them up; Data "
-        "Nerd → one precise number)."
+        "LAST 7 DAYS line — never invent a number, session or trend, and "
+        "don't bring in today's readiness, today's workout or a PR; never "
+        "contradict a To improve line (if it says ease off, you don't say "
+        "push); don't re-list the bullets — the card already shows them, so "
+        "synthesize. If the context marks a GENERAL-FITNESS athlete, don't "
+        "quote Fitness points — talk sessions and consistency. Plain "
+        "sentences only: no greeting, no sign-off, no 'Triggered by:' chip, "
+        "no headers, no bullet list, no callout boxes. This is structure, "
+        "NOT voice — deliver it in the athlete's configured persona (Funny "
+        "→ a light touch; Motivational → fire them up; Data Nerd → one "
+        "precise number from the card)."
     ),
     "welcome_letter": (
         "Write a warm, personal start-of-season note to an athlete who just "
@@ -210,6 +213,17 @@ SURFACE_INSTRUCTIONS = {
         "motivational season-opener, not a data dump. Do NOT include a 'Triggered by' line."
     ),
 }
+
+
+# What the week_take surface may see. It comments on one card, so its
+# context is that card's digest plus what shapes voice and framing — not
+# today's readiness, plan, activities or PR banner, which would pull the
+# take off the week and go stale inside its once-a-day cache.
+_WEEK_TAKE_KEYS = ("today", "currentWeekNum", "last7Digest", "generalGoal", "generalGoalLabel")
+
+
+def _week_take_snapshot(snapshot: dict) -> dict:
+    return {k: snapshot[k] for k in _WEEK_TAKE_KEYS if k in snapshot}
 
 
 def _surface_key(surface: str) -> str:
@@ -313,7 +327,10 @@ class handler(BaseHTTPRequestHandler):
             lite_knowledge=True,
             zones=snapshot.get("zones"),
         )
-        context_block = build_context_block(snapshot, depth="7d", max_activities=15)
+        if surface_root == "week_take":
+            context_block = build_context_block(_week_take_snapshot(snapshot), depth="7d", max_activities=0)
+        else:
+            context_block = build_context_block(snapshot, depth="7d", max_activities=15)
 
         # For day_card / workout_take include the specific day label in the user msg
         day_label = ""
@@ -432,7 +449,7 @@ class handler(BaseHTTPRequestHandler):
                 model=model_to_use,
                 system=system,
                 messages=[{"role": "user", "content": user_msg}],
-                max_tokens=150 if surface_root == "week_take" else (400 if surface_root in ("welcome_letter", "weekly_recap") else (500 if surface_root == "workout_debrief" else 400)),
+                max_tokens=220 if surface_root == "week_take" else (400 if surface_root in ("welcome_letter", "weekly_recap") else (500 if surface_root == "workout_debrief" else 400)),
                 # Low temperature on the daily summary: it states facts
                 # about PR status, dates, pace, and readiness. We need
                 # the model to follow the PR_STATUS line in the context

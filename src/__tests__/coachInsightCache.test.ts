@@ -212,7 +212,7 @@ describe('materialFields — week_take', () => {
 
   it("follows the coach's persona", () => {
     const a = snap({ last7Digest: DIGEST, coachPersona: { name: 'Sam', traits: ['funny'] } as never })
-    const b = snap({ last7Digest: DIGEST, coachPersona: { name: 'Sam', traits: ['data_nerd'] } as never })
+    const b = snap({ last7Digest: DIGEST, coachPersona: { name: 'Sam', traits: ['nerdy'] } as never })
     expect(key(a)).not.toBe(key(b))
   })
 })

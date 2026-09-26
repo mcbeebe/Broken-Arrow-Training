@@ -437,7 +437,7 @@ export default function Summary({
           review={weekReview}
           open={narrativeOpen}
           onToggle={() => setNarrativeOpen(!narrativeOpen)}
-          coachTake={weekTakeOn ? { text: weekTake.insight?.text?.trim() || null, loading: weekTake.loading } : undefined}
+          coachTake={weekTakeOn ? { text: (weekTake.current && weekTake.insight?.text?.trim()) || null, loading: weekTake.loading } : undefined}
         />
       )}
 
