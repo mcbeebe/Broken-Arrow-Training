@@ -20,11 +20,15 @@ function splitLine(line: string): [string, string] {
 
 const TILE = 'flex-1 min-w-0 rounded-lg bg-slate-50 dark:bg-slate-900/60 px-2 py-2 text-center'
 
-function StatBody({ value, label }: { value: string; label: string }) {
+/** Spans, not paragraphs: the training-time tile is a button, and a
+ *  button may only hold phrasing content. */
+function StatBody({ value, label, marker }: { value: string; label: string; marker?: string }) {
   return (
     <>
-      <p className="text-lg font-semibold leading-tight text-slate-800 dark:text-slate-100 tabular-nums">{value}</p>
-      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">{label}</p>
+      <span className="block text-lg font-semibold leading-tight text-slate-800 dark:text-slate-100 tabular-nums">{value}</span>
+      <span className="block text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+        {label}{marker && <span aria-hidden="true"> {marker}</span>}
+      </span>
     </>
   )
 }
@@ -107,7 +111,7 @@ export default function WeekReviewCard({ review, open, onToggle }: Props) {
                   aria-controls="week-review-time"
                   className={`${TILE} hover:bg-slate-100 dark:hover:bg-slate-900 transition-colors`}
                 >
-                  <StatBody value={formatTrainingTime(stats.trainingMinutes)} label={showTime ? 'Training time ▴' : 'Training time ▾'} />
+                  <StatBody value={formatTrainingTime(stats.trainingMinutes)} label="Training time" marker={showTime ? '▴' : '▾'} />
                 </button>
               )}
               <Stat value={fitness} label="Fitness change" />

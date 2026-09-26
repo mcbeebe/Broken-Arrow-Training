@@ -21,6 +21,8 @@
 import { dayIsoInWeek, isoFromLocalDate } from './planDates'
 import { localDateStr } from './format'
 import { tsbZone } from './loadZones'
+import { isDuplicateActual } from './matching'
+import { mapToSportType } from './trimp'
 import type { PerformanceMetrics, DailyTRIMP, TrainingWeek, PlannedDay, WorkoutType, ActualWorkout, SportType } from '../types'
 import type { TrainingSignals } from './trainingSignals'
 
@@ -33,8 +35,9 @@ export interface WeekReviewStats {
   planned: { done: number; due: number } | null
   /** Days in the window with any logged training. */
   daysTrained: number
-  /** Total time of every logged activity in the window, in minutes, on
-   *  the same clock the watch shows. Null when nothing carries a time. */
+  /** Total time of the activities logged on the plan's days in the
+   *  window, in minutes, on the clock the watch shows. Dates the plan
+   *  doesn't cover aren't counted. Null when nothing carries a time. */
   trainingMinutes: number | null
   /** What trainingMinutes adds up, oldest first — so a total that
    *  disagrees with the watch can be checked activity by activity. */
@@ -101,36 +104,50 @@ function isEasingWeek(week: TrainingWeek): boolean {
   return /taper|recover|race week|deload/i.test(week.focus ?? '')
 }
 
-/** Activity time on the clock the athlete's watch shows. Garmin, Apple
- *  and manual logs carry the timer/total time as `elapsedTime`, which is
- *  what Garmin's own weekly total adds up. Strava's elapsed time runs from
- *  start to save — a lunch hike's 26 minutes read as 42 — so Strava uses
- *  its moving time, which is the figure Garmin shows for the same hike. */
+/** Activity time on the clock the athlete's watch shows. Garmin's timer
+ *  time wins wherever it is known — a Strava run enriched with Garmin
+ *  data keeps it as `garminTimerTime`. Otherwise Garmin, Apple and manual
+ *  logs carry it as `elapsedTime`, while Strava's elapsed time runs from
+ *  start to save (a lunch hike's 26 minutes read as 42), so a Strava-only
+ *  activity uses its moving time — the figure Garmin shows for the same
+ *  hike. */
 export function activitySeconds(a: ActualWorkout): number {
+  if (a.garminTimerTime) return a.garminTimerTime
   if (a.source === 'strava') return a.movingTime || 0
   return a.elapsedTime || a.movingTime || 0
 }
 
-/** The same activity attached to two plan days (two sessions planned on
- *  one date both see the day's activities) must count once. */
-function activityKey(a: ActualWorkout): string {
-  if (a.garminId) return `g${a.garminId}`
-  if (a.appleId) return `a${a.appleId}`
-  if (a.stravaId) return `s${a.stravaId}`
-  return `${a.startDate}|${a.name}|${a.movingTime}`
+/** Every id an activity is known by. An enriched actual carries both its
+ *  Strava and its Garmin id, while the same session's bare copy on the
+ *  date's other plan entry carries only one. */
+function activityIds(a: ActualWorkout): string[] {
+  const ids: string[] = []
+  if (a.garminId) ids.push(`g${a.garminId}`)
+  if (a.appleId) ids.push(`a${a.appleId}`)
+  if (a.stravaId) ids.push(`s${a.stravaId}`)
+  if (ids.length === 0) ids.push(`${a.startDate}|${a.name}|${a.movingTime}`)
+  return ids
 }
+
+/** Sports that don't use up a rest day. The sport comes from the same
+ *  classifier training load uses (`mapToSportType`), so the two can never
+ *  disagree about what an e-bike ride or a walk is — and a "Walking
+ *  lunges" strength session or a "Lake bike loop" stays a workout. */
+const LIGHT_SPORTS: ReadonlySet<SportType> = new Set<SportType>(['ebike', 'walking', 'yoga', 'pilates', 'breathwork'])
 
 /** Movement that doesn't use up a rest day: an e-bike commute, a walk,
- *  yoga or mobility, or a hike short enough to be a stroll. Field bug
- *  (2026-09-26): an athlete who commutes by e-bike was told they'd
+ *  yoga/pilates/breathwork, or a hike short enough to be a stroll. Field
+ *  bug (2026-09-26): an athlete who commutes by e-bike was told they'd
  *  "trained through a planned rest day" for riding to work. */
 export function isLightActivity(a: ActualWorkout): boolean {
-  const what = `${a.type ?? ''} ${a.name ?? ''}`
-  if (/e[-_ ]?bik|electric|\bwalk|yoga|stretch|mobility|breath/i.test(what)) return true
-  return /hik/i.test(what) && activitySeconds(a) < 45 * 60
+  const type = (a.type ?? '').toLowerCase().replace(/\s+/g, '_')
+  const sport = mapToSportType(a.type ?? '', { name: a.name })
+  if (LIGHT_SPORTS.has(sport)) return true
+  // Garmin's walking variants (indoor_walking, casual_walking…) have no
+  // load mapping of their own.
+  if (sport === 'other' && /(^|_)walking$/.test(type)) return true
+  return (sport === 'hiking' || sport === 'hiking_steep') && activitySeconds(a) < 45 * 60
 }
-
-const LIGHT_SPORTS: ReadonlySet<SportType> = new Set<SportType>(['ebike', 'walking', 'yoga', 'breathwork'])
 
 const KEY_TYPES: ReadonlySet<WorkoutType> = new Set<WorkoutType>(['quality', 'long', 'race'])
 
@@ -186,7 +203,9 @@ export function buildWeekReview(
   // (an e-bike commute the matcher refused to claim for a track session)
   // doesn't make the session done — but it isn't "not logged" either.
   const isDone = (w: WindowDay) => !!w.day.actual
-  const hasLoad = (w: WindowDay) => !!w.day.actual || trainedDates.has(w.iso)
+  // A commute on the day doesn't count: it isn't the session, and it
+  // would block crediting a session moved onto a rest day as a swap.
+  const hasLoad = (w: WindowDay) => !!w.day.actual || workoutDates.has(w.iso)
   const sessions = planDays.filter(w => w.day.type !== 'rest')
   const due = sessions.filter(w => w.iso < today || isDone(w))
   const matched = due.filter(isDone)
@@ -206,16 +225,21 @@ export function buildWeekReview(
   const easing = (weeks ?? []).some(w => w.startIso && w.startIso <= today && shiftIso(w.startIso, 6) >= fromIso && isEasingWeek(w))
     || planDays.some(w => w.day.type === 'race')
 
+  // Two plan entries on one date both see that date's activities, and the
+  // same session can arrive from two sources — count each session once.
   const seen = new Set<string>()
+  const countedOn = new Map<string, ActualWorkout[]>()
   const activities: WeekReviewStats['activities'] = []
   let seconds = 0
   for (const w of [...planDays].sort((a, b) => a.iso.localeCompare(b.iso))) {
     for (const a of [w.day.actual, ...(w.day.secondaryActuals ?? [])]) {
       if (!a) continue
-      const key = activityKey(a)
+      const ids = activityIds(a)
       const sec = activitySeconds(a)
-      if (seen.has(key) || sec <= 0) continue
-      seen.add(key)
+      const sameDay = countedOn.get(w.iso) ?? []
+      if (sec <= 0 || ids.some(id => seen.has(id)) || sameDay.some(c => isDuplicateActual(c, a))) continue
+      ids.forEach(id => seen.add(id))
+      countedOn.set(w.iso, [...sameDay, a])
       seconds += sec
       activities.push({ iso: w.iso, name: a.name?.trim() || a.type || 'Activity', seconds: Math.round(sec) })
     }
