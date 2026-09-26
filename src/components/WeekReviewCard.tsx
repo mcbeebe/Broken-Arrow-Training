@@ -1,5 +1,6 @@
+import { useState } from 'react'
 import type { WeekReview } from '../utils/weekReview'
-import { formatReviewRange, formatTrainingTime } from '../utils/weekReview'
+import { formatClock, formatReviewRange, formatTrainingTime } from '../utils/weekReview'
 
 interface Props {
   review: WeekReview
@@ -17,13 +18,19 @@ function splitLine(line: string): [string, string] {
   return space > 0 ? [line.slice(0, space), line.slice(space + 1)] : ['', line]
 }
 
-function Stat({ value, label }: { value: string; label: string }) {
+const TILE = 'flex-1 min-w-0 rounded-lg bg-slate-50 dark:bg-slate-900/60 px-2 py-2 text-center'
+
+function StatBody({ value, label }: { value: string; label: string }) {
   return (
-    <div className="flex-1 min-w-0 rounded-lg bg-slate-50 dark:bg-slate-900/60 px-2 py-2 text-center">
+    <>
       <p className="text-lg font-semibold leading-tight text-slate-800 dark:text-slate-100 tabular-nums">{value}</p>
       <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">{label}</p>
-    </div>
+    </>
   )
+}
+
+function Stat(props: { value: string; label: string }) {
+  return <div className={TILE}><StatBody {...props} /></div>
 }
 
 function Section({ tone, title, lines, empty }: {
@@ -69,6 +76,8 @@ export default function WeekReviewCard({ review, open, onToggle }: Props) {
   const sessions = stats.planned && stats.planned.due > 0
     ? { value: `${stats.planned.done} of ${stats.planned.due}`, label: 'Sessions done' }
     : { value: String(stats.daysTrained), label: stats.daysTrained === 1 ? 'Day trained' : 'Days trained' }
+  // The total alone can't be checked against the watch; the list can.
+  const [showTime, setShowTime] = useState(false)
   const fitness = stats.fitnessDelta > 0 ? `+${stats.fitnessDelta}` : stats.fitnessDelta < 0 ? `−${Math.abs(stats.fitnessDelta)}` : '0'
 
   return (
@@ -90,9 +99,30 @@ export default function WeekReviewCard({ review, open, onToggle }: Props) {
           <div>
             <div className="flex gap-2">
               <Stat {...sessions} />
-              {stats.trainingMinutes !== null && <Stat value={formatTrainingTime(stats.trainingMinutes)} label="Training time" />}
+              {stats.trainingMinutes !== null && (
+                <button
+                  type="button"
+                  onClick={() => setShowTime(v => !v)}
+                  aria-expanded={showTime}
+                  aria-controls="week-review-time"
+                  className={`${TILE} hover:bg-slate-100 dark:hover:bg-slate-900 transition-colors`}
+                >
+                  <StatBody value={formatTrainingTime(stats.trainingMinutes)} label={showTime ? 'Training time ▴' : 'Training time ▾'} />
+                </button>
+              )}
               <Stat value={fitness} label="Fitness change" />
             </div>
+            {showTime && stats.trainingMinutes !== null && (
+              <ul id="week-review-time" aria-label="Training time by activity" className="mt-2 rounded-lg border border-slate-100 dark:border-slate-700 divide-y divide-slate-100 dark:divide-slate-700">
+                {stats.activities.map((a, i) => (
+                  <li key={`${a.iso}-${i}`} className="flex items-baseline gap-2 px-3 py-1.5 text-sm">
+                    <span className="w-9 shrink-0 text-slate-500 dark:text-slate-400">{weekday(a.iso)}</span>
+                    <span className="flex-1 min-w-0 truncate text-slate-700 dark:text-slate-200">{a.name}</span>
+                    <span className="shrink-0 tabular-nums text-slate-600 dark:text-slate-300">{formatClock(a.seconds)}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
             {stats.hardest && (
               <p className="text-sm text-slate-600 dark:text-slate-300 mt-2">
                 <span aria-hidden="true">💪</span> Hardest session: <span className="font-medium">{weekday(stats.hardest.iso)} · {stats.hardest.name}</span>

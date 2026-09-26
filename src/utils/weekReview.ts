@@ -21,7 +21,7 @@
 import { dayIsoInWeek, isoFromLocalDate } from './planDates'
 import { localDateStr } from './format'
 import { tsbZone } from './loadZones'
-import type { PerformanceMetrics, DailyTRIMP, TrainingWeek, PlannedDay, WorkoutType } from '../types'
+import type { PerformanceMetrics, DailyTRIMP, TrainingWeek, PlannedDay, WorkoutType, ActualWorkout, SportType } from '../types'
 import type { TrainingSignals } from './trainingSignals'
 
 /** Lines per section — past three, nobody reads the fourth. */
@@ -33,9 +33,12 @@ export interface WeekReviewStats {
   planned: { done: number; due: number } | null
   /** Days in the window with any logged training. */
   daysTrained: number
-  /** Moving time of the plan's logged sessions, in minutes. Null when no
-   *  logged session carries a time. */
+  /** Total time of every logged activity in the window, in minutes, on
+   *  the same clock the watch shows. Null when nothing carries a time. */
   trainingMinutes: number | null
+  /** What trainingMinutes adds up, oldest first — so a total that
+   *  disagrees with the watch can be checked activity by activity. */
+  activities: { iso: string; name: string; seconds: number }[]
   /** Fitness (CTL) change across the window, rounded. */
   fitnessDelta: number
   /** The window's hardest day, by training load. */
@@ -98,6 +101,37 @@ function isEasingWeek(week: TrainingWeek): boolean {
   return /taper|recover|race week|deload/i.test(week.focus ?? '')
 }
 
+/** Activity time on the clock the athlete's watch shows. Garmin, Apple
+ *  and manual logs carry the timer/total time as `elapsedTime`, which is
+ *  what Garmin's own weekly total adds up. Strava's elapsed time runs from
+ *  start to save — a lunch hike's 26 minutes read as 42 — so Strava uses
+ *  its moving time, which is the figure Garmin shows for the same hike. */
+export function activitySeconds(a: ActualWorkout): number {
+  if (a.source === 'strava') return a.movingTime || 0
+  return a.elapsedTime || a.movingTime || 0
+}
+
+/** The same activity attached to two plan days (two sessions planned on
+ *  one date both see the day's activities) must count once. */
+function activityKey(a: ActualWorkout): string {
+  if (a.garminId) return `g${a.garminId}`
+  if (a.appleId) return `a${a.appleId}`
+  if (a.stravaId) return `s${a.stravaId}`
+  return `${a.startDate}|${a.name}|${a.movingTime}`
+}
+
+/** Movement that doesn't use up a rest day: an e-bike commute, a walk,
+ *  yoga or mobility, or a hike short enough to be a stroll. Field bug
+ *  (2026-09-26): an athlete who commutes by e-bike was told they'd
+ *  "trained through a planned rest day" for riding to work. */
+export function isLightActivity(a: ActualWorkout): boolean {
+  const what = `${a.type ?? ''} ${a.name ?? ''}`
+  if (/e[-_ ]?bik|electric|\bwalk|yoga|stretch|mobility|breath/i.test(what)) return true
+  return /hik/i.test(what) && activitySeconds(a) < 45 * 60
+}
+
+const LIGHT_SPORTS: ReadonlySet<SportType> = new Set<SportType>(['ebike', 'walking', 'yoga', 'breathwork'])
+
 const KEY_TYPES: ReadonlySet<WorkoutType> = new Set<WorkoutType>(['quality', 'long', 'race'])
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`
@@ -139,6 +173,11 @@ export function buildWeekReview(
 
   const loadDays = dailyTrimp.filter(d => d.date >= fromIso && d.date <= today && d.total > 0)
   const trainedDates = new Set(loadDays.map(d => d.date))
+  // Days with a real workout, not just a commute or a walk — what "no rest
+  // day" means. A day whose load has no breakdown counts as a workout.
+  const workoutDates = new Set(loadDays
+    .filter(d => d.records.length === 0 || d.records.some(r => !LIGHT_SPORTS.has(r.sportType)))
+    .map(d => d.date))
 
   // ── Plan comparison ────────────────────────────────────────────
   const planDays = planDaysBetween(weeks, fromIso, today)
@@ -154,7 +193,9 @@ export function buildWeekReview(
   const unlogged = due.filter(w => !hasLoad(w)).length
   const restDays = planDays.filter(w => w.day.type === 'rest' && w.iso <= today)
   const rested = restDays.filter(w => w.iso < today)
-  const trainedOnRest = restDays.filter(isDone).length
+  const workedOnRest = (w: WindowDay) =>
+    [w.day.actual, ...(w.day.secondaryActuals ?? [])].some(a => a && !isLightActivity(a))
+  const trainedOnRest = restDays.filter(workedOnRest).length
   // A session done on a rest day while another sits unlogged is almost
   // always a swap: credit it as done and say nothing about either.
   const swaps = Math.min(unlogged, trainedOnRest)
@@ -165,10 +206,21 @@ export function buildWeekReview(
   const easing = (weeks ?? []).some(w => w.startIso && w.startIso <= today && shiftIso(w.startIso, 6) >= fromIso && isEasingWeek(w))
     || planDays.some(w => w.day.type === 'race')
 
-  const minutes = planDays.reduce((sum, w) => {
-    const all = [w.day.actual, ...(w.day.secondaryActuals ?? [])]
-    return sum + all.reduce((s, a) => s + (a?.movingTime ?? 0), 0)
-  }, 0) / 60
+  const seen = new Set<string>()
+  const activities: WeekReviewStats['activities'] = []
+  let seconds = 0
+  for (const w of [...planDays].sort((a, b) => a.iso.localeCompare(b.iso))) {
+    for (const a of [w.day.actual, ...(w.day.secondaryActuals ?? [])]) {
+      if (!a) continue
+      const key = activityKey(a)
+      const sec = activitySeconds(a)
+      if (seen.has(key) || sec <= 0) continue
+      seen.add(key)
+      seconds += sec
+      activities.push({ iso: w.iso, name: a.name?.trim() || a.type || 'Activity', seconds: Math.round(sec) })
+    }
+  }
+  const minutes = seconds / 60
 
   let hardest: WeekReviewStats['hardest'] = null
   if (loadDays.length > 0) {
@@ -241,7 +293,7 @@ export function buildWeekReview(
     // all rest needs no nudge.
     fixes.push('🗓️ No training logged in 7 days — if you trained, sync your watch; if not, restart with an easy 20–30 minutes.')
   }
-  if (trainedDates.size >= 7) {
+  if (workoutDates.size >= 7) {
     fixes.push('🔥 No rest day in 7 days — take one in the next 48 hours.')
   } else if (trainedThroughRest > 0) {
     fixes.push(`😴 Trained through ${trainedThroughRest === 1 ? 'a planned rest day' : `${trainedThroughRest} planned rest days`} — keep the next one fully easy.`)
@@ -257,6 +309,7 @@ export function buildWeekReview(
       planned: knowThePlan ? { done: doneCount, due: due.length } : null,
       daysTrained: trainedDates.size,
       trainingMinutes: minutes > 0 ? Math.round(minutes) : null,
+      activities,
       fitnessDelta,
       hardest,
     },
@@ -271,6 +324,16 @@ export function formatTrainingTime(minutes: number): string {
   const m = minutes % 60
   if (h === 0) return `${m}m`
   return m === 0 ? `${h}h` : `${h}h ${m}m`
+}
+
+/** A watch-style clock time, as Garmin lists activities: "25:46",
+ *  "1:13:01". */
+export function formatClock(seconds: number): string {
+  const s = Math.max(0, Math.round(seconds))
+  const h = Math.floor(s / 3600)
+  const m = Math.floor((s % 3600) / 60)
+  const ss = String(s % 60).padStart(2, '0')
+  return h > 0 ? `${h}:${String(m).padStart(2, '0')}:${ss}` : `${m}:${ss}`
 }
 
 /** "Sep 19 – 25", or "Sep 29 – Oct 5" across a month boundary. */
