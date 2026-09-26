@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import SeasonPanel from '../../components/SeasonPanel'
 import { useSeason } from '../../hooks/useSeason'
@@ -21,8 +21,22 @@ function Harness() {
   return <SeasonPanel seasonState={seasonState} />
 }
 
+// Every race in this file is a fixed 2026 date, and the season machine
+// derives its blocks from today. On the real clock the fixtures rotted: on
+// 2026-09-26 (first reached at UTC+14) the Oct 3 race sat inside its own
+// taper, the timeline lost its Build block, and the publish gate failed.
+// Pin today to when the fixtures were written. Only Date is faked, so
+// React's scheduling keeps real timers.
+const FIXTURE_TODAY = new Date(2026, 8, 2, 12, 0)
+
 beforeEach(() => {
   localStorage.clear()
+  vi.useFakeTimers({ toFake: ['Date'] })
+  vi.setSystemTime(FIXTURE_TODAY)
+})
+
+afterEach(() => {
+  vi.useRealTimers()
 })
 
 describe('<SeasonPanel />', () => {
