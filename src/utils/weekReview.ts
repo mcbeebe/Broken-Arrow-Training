@@ -23,7 +23,7 @@ import { localDateStr } from './format'
 import { tsbZone } from './loadZones'
 import { isDuplicateActual } from './matching'
 import { mapToSportType } from './trimp'
-import type { PerformanceMetrics, DailyTRIMP, TrainingWeek, PlannedDay, WorkoutType, ActualWorkout, SportType } from '../types'
+import type { PerformanceMetrics, DailyTRIMP, TrainingWeek, PlannedDay, WorkoutType, ActualWorkout, SportType, TRIMPRecord } from '../types'
 import type { TrainingSignals } from './trainingSignals'
 
 /** Lines per section — past three, nobody reads the fourth. */
@@ -33,7 +33,8 @@ export interface WeekReviewStats {
   /** Planned sessions done, of those due (past days, plus today once done).
    *  Null with no dated plan to compare against. */
   planned: { done: number; due: number } | null
-  /** Days in the window with any logged training. */
+  /** Days in the window with a real workout — a commute or a walk isn't
+   *  training, and neither is soreness carried over from yesterday. */
   daysTrained: number
   /** Total time of the activities logged on the plan's days in the
    *  window, in minutes, on the clock the watch shows. Dates the plan
@@ -149,6 +150,14 @@ export function isLightActivity(a: ActualWorkout): boolean {
   return (sport === 'hiking' || sport === 'hiking_steep') && activitySeconds(a) < 45 * 60
 }
 
+/** A logged activity that is training: not light movement, and not a
+ *  sub-two-minute stub (Garmin and Apple drop those at sync; Strava
+ *  keeps them). An activity with no known duration still counts. */
+function isWorkoutActivity(a: ActualWorkout): boolean {
+  const seconds = activitySeconds(a)
+  return !isLightActivity(a) && !(seconds > 0 && seconds < 120)
+}
+
 const KEY_TYPES: ReadonlySet<WorkoutType> = new Set<WorkoutType>(['quality', 'long', 'race'])
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`
@@ -188,17 +197,44 @@ export function buildWeekReview(
   const weekAgo = upTo(shiftIso(today, -7)) ?? performance[0]
   if (!latest || !weekAgo || latest === weekAgo) return null
 
-  const loadDays = dailyTrimp.filter(d => d.date >= fromIso && d.date <= today && d.total > 0)
-  const trainedDates = new Set(loadDays.map(d => d.date))
-  // Days with a real workout, not just a commute or a walk — what "no rest
-  // day" means. A day whose load has no breakdown counts as a workout.
-  const workoutDates = new Set(loadDays
-    .filter(d => d.records.length === 0 || d.records.some(r => !LIGHT_SPORTS.has(r.sportType)))
-    .map(d => d.date))
-
   // ── Plan comparison ────────────────────────────────────────────
   const planDays = planDaysBetween(weeks, fromIso, today)
   const knowThePlan = planDays.length > 0
+
+  // What was actually done each day. A day's load total is not evidence
+  // of training: it also carries soreness forward from a hard session and
+  // adds soreness check-ins. Field bug (2026-09-29): three rest days in a
+  // week read as "No rest day in 7 days", and the coach's take repeated
+  // it. So a day is trained only when a real workout was logged:
+  // - an activity the plan matched to the date, judged with its type,
+  //   name and duration (a 25-minute hike is light movement);
+  // - or a load record for a session the plan never saw (the matcher
+  //   folded two rides into one, a Garmin detail fetch failed). A record
+  //   named like a light activity on that date is that activity, already
+  //   judged above.
+  const actualsOn = new Map<string, ActualWorkout[]>()
+  for (const w of planDays) {
+    for (const a of [w.day.actual, ...(w.day.secondaryActuals ?? [])]) {
+      if (a) actualsOn.set(w.iso, [...(actualsOn.get(w.iso) ?? []), a])
+    }
+  }
+  const trimpOn = new Map(dailyTrimp.map(d => [d.date, d]))
+  const nameKey = (name: string | undefined) => (name ?? '').trim().toLowerCase()
+  // Days with a real workout, not just a commute or a walk — what "no rest
+  // day", "days trained" and every load-based line mean.
+  const workoutDates = new Set<string>()
+  const workRecords: TRIMPRecord[] = []
+  for (let i = 0; i < 7; i++) {
+    const date = shiftIso(fromIso, i)
+    const acts = actualsOn.get(date) ?? []
+    const lightNames = new Set(acts.filter(a => !isWorkoutActivity(a)).map(a => nameKey(a.name)))
+    const work = (trimpOn.get(date)?.records ?? [])
+      .filter(r => !LIGHT_SPORTS.has(r.sportType) && !lightNames.has(nameKey(r.activityName)))
+      .map(r => ({ ...r, date }))
+    workRecords.push(...work)
+    if (work.length > 0 || acts.some(isWorkoutActivity)) workoutDates.add(date)
+  }
+
   // Done means a workout was matched to the session. Other load that day
   // (an e-bike commute the matcher refused to claim for a track session)
   // doesn't make the session done — but it isn't "not logged" either.
@@ -213,7 +249,7 @@ export function buildWeekReview(
   const restDays = planDays.filter(w => w.day.type === 'rest' && w.iso <= today)
   const rested = restDays.filter(w => w.iso < today)
   const workedOnRest = (w: WindowDay) =>
-    [w.day.actual, ...(w.day.secondaryActuals ?? [])].some(a => a && !isLightActivity(a))
+    [w.day.actual, ...(w.day.secondaryActuals ?? [])].some(a => a && isWorkoutActivity(a))
   const trainedOnRest = restDays.filter(workedOnRest).length
   // A session done on a rest day while another sits unlogged is almost
   // always a swap: credit it as done and say nothing about either.
@@ -246,18 +282,25 @@ export function buildWeekReview(
   }
   const minutes = seconds / 60
 
+  // The hardest session by its own load — not the day's total, which
+  // carries yesterday's soreness. A workout the watch recorded no load
+  // for (a manual log) can only be ranked by its day's total.
   let hardest: WeekReviewStats['hardest'] = null
-  if (loadDays.length > 0) {
-    const top = loadDays.reduce((a, b) => (b.total > a.total ? b : a))
-    const record = top.records.length
-      ? top.records.reduce((a, b) => (b.adjustedTRIMP > a.adjustedTRIMP ? b : a))
-      : null
-    const planned = planDays.find(w => w.iso === top.date && w.day.actual)
-    const name = record?.activityName?.trim()
-      || (planned ? sessionName(planned.day) : '')
-      || record?.sportType.replace(/_/g, ' ')
-      || 'Workout'
-    hardest = { iso: top.date, name }
+  const plannedOn = (iso: string) => planDays.find(w => w.iso === iso && w.day.actual)
+  if (workRecords.length > 0) {
+    const top = workRecords.reduce((a, b) => (b.adjustedTRIMP > a.adjustedTRIMP ? b : a))
+    const planned = plannedOn(top.date)
+    hardest = {
+      iso: top.date,
+      name: top.activityName?.trim() || (planned ? sessionName(planned.day) : '') || top.sportType.replace(/_/g, ' '),
+    }
+  } else {
+    const days = dailyTrimp.filter(d => workoutDates.has(d.date) && d.total > 0)
+    if (days.length > 0) {
+      const top = days.reduce((a, b) => (b.total > a.total ? b : a))
+      const planned = plannedOn(top.date)
+      hardest = { iso: top.date, name: (planned ? sessionName(planned.day) : '') || 'Workout' }
+    }
   }
 
   const fitnessDelta = Math.round(latest.ctl - weekAgo.ctl)
@@ -282,12 +325,12 @@ export function buildWeekReview(
   if (fitnessDelta >= 1) {
     wins.push(`📈 Fitness up ${fitnessDelta} ${fitnessDelta === 1 ? 'point' : 'points'} — the work is adding up.`)
   }
-  if (loadState && ['balanced', 'productive', 'build'].includes(loadState) && !signals.rampAlert && loadDays.length > 0) {
+  if (loadState && ['balanced', 'productive', 'build'].includes(loadState) && !signals.rampAlert && workoutDates.size > 0) {
     wins.push('⚖️ Your training load is in a safe range for your base.')
   }
   // Fresher only counts as a win when nothing planned went unlogged —
   // otherwise it is the skipped sessions talking — and the body agrees.
-  if (tsbDelta >= 3 && loadDays.length > 0 && notLogged === 0 && !bodyLow && !soreness) {
+  if (tsbDelta >= 3 && workoutDates.size > 0 && notLogged === 0 && !bodyLow && !soreness) {
     wins.push(`🌱 Fresher than a week ago (Recovery Balance +${Math.round(tsbDelta)}).`)
   }
   if (knowThePlan && rested.length > 0 && trainedThroughRest === 0 && notLogged === 0) {
@@ -312,7 +355,7 @@ export function buildWeekReview(
   if (notLogged > 0) {
     const it = notLogged === 1 ? 'it' : 'them'
     fixes.push(`⭕ ${plural(notLogged, 'planned session isn’t', 'planned sessions aren’t')} logged — if you did ${it}, log ${it}; if not, don’t cram ${it} in.`)
-  } else if (loadDays.length === 0 && !knowThePlan) {
+  } else if (workoutDates.size === 0 && !knowThePlan) {
     // With a dated plan the line above says it better; a plan that was
     // all rest needs no nudge.
     fixes.push('🗓️ No training logged in 7 days — if you trained, sync your watch; if not, restart with an easy 20–30 minutes.')
@@ -322,7 +365,7 @@ export function buildWeekReview(
   } else if (trainedThroughRest > 0) {
     fixes.push(`😴 Trained through ${trainedThroughRest === 1 ? 'a planned rest day' : `${trainedThroughRest} planned rest days`} — keep the next one fully easy.`)
   }
-  if (loadState === 'detrained' && loadDays.length > 0 && !easing) {
+  if (loadState === 'detrained' && workoutDates.size > 0 && !easing) {
     fixes.push('📉 Your load has dropped below your base — add volume back gradually, about 10% a week.')
   }
 
@@ -331,7 +374,7 @@ export function buildWeekReview(
     toIso: today,
     stats: {
       planned: knowThePlan ? { done: doneCount, due: due.length } : null,
-      daysTrained: trainedDates.size,
+      daysTrained: workoutDates.size,
       trainingMinutes: minutes > 0 ? Math.round(minutes) : null,
       activities,
       fitnessDelta,

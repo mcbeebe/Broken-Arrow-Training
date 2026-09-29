@@ -547,6 +547,150 @@ describe('second review findings', () => {
   })
 })
 
+describe('carried soreness is not training', () => {
+  // Field bug (2026-09-29): Fri, Sat and Mon were rest days, yet the card
+  // said "No rest day in 7 days" and the coach's take repeated it. A day's
+  // load total also holds soreness carried forward from a hard session and
+  // soreness check-ins, so every rest day after a strength session had load.
+  const NO_REST = '🔥 No rest day in 7 days — take one in the next 48 hours.'
+  const rec = (name: string, sport: string, load: number): TRIMPRecord => ({
+    ...record(name, load), sportType: sport as TRIMPRecord['sportType'],
+  })
+  /** A load total with no activity behind it: carried soreness. */
+  const carried = (o: number, total = 25): DailyTRIMP => ({ date: iso(o), total, records: [] })
+  const logged = (o: number, ...records: TRIMPRecord[]): DailyTRIMP => ({
+    date: iso(o), total: records.reduce((t, r) => t + r.adjustedTRIMP, 0) + 10, records,
+  })
+
+  it('does not count load-only days as training without a plan', () => {
+    const r = review({ trimp: [
+      logged(-6, rec('Lower body + sleds', 'strength_lower', 90)),
+      logged(-5, rec('Oakland Running', 'running', 40)),
+      carried(-4), carried(-3),
+      logged(-2, rec('Long run', 'running', 110)),
+      carried(-1),
+      logged(0, rec('Strength', 'strength_full', 60)),
+    ] })
+    expect(r.fixes).not.toContain(NO_REST)
+    expect(r.stats.daysTrained).toBe(4)
+  })
+
+  it('reads the field week as three rest days taken', () => {
+    const hike = actual(26, 'Oakland Hiking', { type: 'hiking', source: 'garmin', garminTimerTime: 1546 })
+    const commute = actual(33, 'Oakland eBiking', { type: 'e_bike_fitness', source: 'garmin' })
+    const r = review({
+      weeks: plan([
+        day('strength', 'Lower body + sleds', actual(41, 'STRENGTH: Lower body + sleds', { type: 'strength_training' })),
+        day('run', 'Easy run', actual(21, 'Oakland Running')),
+        { ...day('rest'), actual: commute, secondaryActuals: [hike] },
+        day('rest'),
+        day('long', 'Long run', actual(80, 'Long run')),
+        day('rest'),
+        day('strength', 'Upper body', actual(35, 'Strength', { type: 'strength_training' })),
+      ]),
+      // Every day carries load — the rest days only soreness and the
+      // Friday records the watch's hike as a hike.
+      trimp: [
+        logged(-6, rec('STRENGTH: Lower body + sleds', 'strength_lower', 90)),
+        logged(-5, rec('Oakland Running', 'running', 40)),
+        logged(-4, rec('Oakland eBiking', 'ebike', 8), rec('Oakland Hiking', 'hiking', 20)),
+        carried(-3),
+        logged(-2, rec('Long run', 'running', 110)),
+        carried(-1),
+        logged(0, rec('Strength', 'strength_full', 60)),
+      ],
+    })
+    // Nothing to fix: no "no rest day", no "trained through a rest day".
+    expect(r.fixes).toEqual([])
+    expect(r.wins[0]).toBe('✅ All 4 planned sessions done.')
+    // The commute-and-stroll Friday is not a training day either.
+    expect(r.stats.daysTrained).toBe(4)
+  })
+
+  it('still says "no training logged" when the only load is carried soreness', () => {
+    const r = review({ trimp: [carried(-3), carried(-2), carried(-1)] })
+    expect(r.fixes.some(f => f.startsWith('🗓️ No training logged in 7 days'))).toBe(true)
+    expect(r.stats.daysTrained).toBe(0)
+    expect(r.stats.hardest).toBeNull()
+  })
+
+  it('never names a soreness-only day as the hardest session', () => {
+    const r = review({ trimp: [logged(-5, rec('Easy spin', 'cycling', 30)), carried(-4, 200)] })
+    expect(r.stats.hardest).toEqual({ iso: iso(-5), name: 'Easy spin' })
+  })
+
+  it('still flags seven real workout days on a dated plan', () => {
+    const run = (min: number) => day('run', 'Easy run', actual(min, 'Run'))
+    const r = review({ weeks: plan([run(30), run(31), run(32), run(33), run(34), run(35), run(36)]) })
+    expect(r.fixes).toContain(NO_REST)
+    expect(r.stats.daysTrained).toBe(7)
+  })
+
+  it('keeps every load-based line on the same days as "days trained"', () => {
+    // Commuting only: no training day, so no hardest session and no
+    // "safe range" win either.
+    const commutes = [-6, -5, -4, -3, -2].map(o => logged(o, rec('Oakland eBiking', 'ebike', 8)))
+    const r = review({ trimp: commutes })
+    expect(r.stats.daysTrained).toBe(0)
+    expect(r.stats.hardest).toBeNull()
+    expect(r.wins.join()).not.toContain('safe range')
+    expect(r.fixes.some(f => f.startsWith('🗓️ No training logged in 7 days'))).toBe(true)
+  })
+
+  it('counts a session the watch recorded but the plan never picked up', () => {
+    // The matcher kept the commute on the rest day and dropped the hill
+    // ride beside it; the load records still hold the ride.
+    const run = (min: number) => day('run', 'Easy run', actual(min, 'Run'))
+    const r = review({
+      weeks: plan([run(30), run(31), run(32), { ...day('rest'), actual: actual(32, 'Oakland eBiking', { type: 'EBikeRide' }) }, run(34), run(35), run(36)]),
+      trimp: [logged(-3, rec('Oakland eBiking', 'ebike', 8), rec('Hill repeats', 'cycling', 41))],
+    })
+    expect(r.stats.daysTrained).toBe(7)
+    expect(r.fixes).toContain(NO_REST)
+  })
+
+  it('ranks the hardest session by its own load, not the soreness it inherits', () => {
+    // Saturday's total is mostly soreness carried from a big session the
+    // day before the window; its only activity is a commute.
+    const r = review({ trimp: [
+      { date: iso(-6), total: 68, records: [rec('Oakland eBiking', 'ebike', 8)] },
+      logged(-3, rec('Easy run', 'running', 45)),
+      logged(-1, rec('Tempo', 'running', 50)),
+    ] })
+    expect(r.stats.hardest).toEqual({ iso: iso(-1), name: 'Tempo' })
+  })
+
+  it('does not count a sub-two-minute stub as training', () => {
+    const stub = actual(1, 'Workout', { type: 'Workout', source: 'strava' })
+    const run = (min: number) => day('run', 'Easy run', actual(min, 'Run'))
+    const r = review({ weeks: plan([run(30), run(31), run(32), { ...day('rest'), actual: stub }, run(34), run(35), run(36)]) })
+    expect(r.stats.daysTrained).toBe(6)
+    expect(r.fixes.join()).not.toMatch(/No rest day|rest day/)
+  })
+
+  it('reads a planned session with only carried soreness as not logged', () => {
+    const r = review({
+      weeks: plan([day('rest'), day('run', 'Easy run'), day('rest'), day('rest'), day('rest'), day('rest'), day('rest')]),
+      trimp: [carried(-5, 40)],
+    })
+    expect(r.stats.planned).toEqual({ done: 0, due: 1 })
+    expect(r.fixes.some(f => f.startsWith('⭕ 1 planned session isn’t logged'))).toBe(true)
+    expect(r.wins.join()).not.toContain('Rest days taken')
+  })
+
+  it('reads the load records on dates the plan does not cover', () => {
+    // The plan starts three days ago; the four days before it are known
+    // only from the watch's records.
+    const late: TrainingWeek[] = [{
+      num: 1, dates: '', miles: 20, focus: 'Build', startIso: iso(-2),
+      days: [day('run', 'Easy run', actual(30)), day('run', 'Easy run', actual(31)), day('run', 'Easy run', actual(32))],
+    }]
+    const r = review({ weeks: late, trimp: trimp([-6, -5, -4, -3]) })
+    expect(r.fixes).toContain(NO_REST)
+    expect(r.stats.daysTrained).toBe(7)
+  })
+})
+
 describe('the digest the coach comments on', () => {
   const full: WeekReview = {
     fromIso: '2026-09-20',

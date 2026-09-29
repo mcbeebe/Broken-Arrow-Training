@@ -30,8 +30,17 @@ const perf = (): PerformanceMetrics[] =>
     acwr: 0.6,
   }))
 
+/** A logged run on each offset. Load with no activity behind it is
+ *  soreness carried forward, not training — it must carry a record. */
 const trimpOn = (offsets: number[]): DailyTRIMP[] =>
-  offsets.map(o => ({ date: iso(o), total: 80, records: [] }))
+  offsets.map(o => ({
+    date: iso(o),
+    total: 80,
+    records: [{
+      date: iso(o), activityName: 'Morning Run', sportType: 'running',
+      baseTRIMP: 80, sportMultiplier: 1, elevationBonus: 0, adjustedTRIMP: 80,
+    }],
+  }))
 
 const day = (type: WorkoutType): PlannedDay => ({
   day: 'D', type, workout: type === 'rest' ? 'Rest' : 'Session',
