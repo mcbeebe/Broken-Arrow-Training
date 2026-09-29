@@ -14,7 +14,7 @@ Garmin / Strava / Apple Health integration. Live at
 | Path | What it is |
 |---|---|
 | `src/engines/` | The domain engines — plan generator, readiness, MIM, terrain, descent, running, hyrox, general fitness |
-| `src/__tests__/` | 311 test files / ~3932 tests, including property-invariant "laws" and golden plan snapshots |
+| `src/__tests__/` | 311 test files / ~3938 tests, including property-invariant "laws" and golden plan snapshots |
 | `api/` | Python serverless functions (coach, sync, auth, garmin, apple) deployed by Vercel |
 | `worker/` | Cloudflare worker for the Strava OAuth token exchange |
 | `ios/` | iOS wrapper app |

@@ -33,7 +33,8 @@ export interface WeekReviewStats {
   /** Planned sessions done, of those due (past days, plus today once done).
    *  Null with no dated plan to compare against. */
   planned: { done: number; due: number } | null
-  /** Days in the window with any logged training. */
+  /** Days in the window with a real workout — a commute or a walk isn't
+   *  training, and neither is soreness carried over from yesterday. */
   daysTrained: number
   /** Total time of the activities logged on the plan's days in the
    *  window, in minutes, on the clock the watch shows. Dates the plan
@@ -188,17 +189,40 @@ export function buildWeekReview(
   const weekAgo = upTo(shiftIso(today, -7)) ?? performance[0]
   if (!latest || !weekAgo || latest === weekAgo) return null
 
-  const loadDays = dailyTrimp.filter(d => d.date >= fromIso && d.date <= today && d.total > 0)
-  const trainedDates = new Set(loadDays.map(d => d.date))
-  // Days with a real workout, not just a commute or a walk — what "no rest
-  // day" means. A day whose load has no breakdown counts as a workout.
-  const workoutDates = new Set(loadDays
-    .filter(d => d.records.length === 0 || d.records.some(r => !LIGHT_SPORTS.has(r.sportType)))
-    .map(d => d.date))
-
   // ── Plan comparison ────────────────────────────────────────────
   const planDays = planDaysBetween(weeks, fromIso, today)
   const knowThePlan = planDays.length > 0
+
+  // What was actually done each day. Where the plan covers a date, its
+  // matched activities say — they carry the type, name and duration the
+  // light-movement rule needs; elsewhere, the day's load records do.
+  // A day's load total is not evidence of training: it also carries
+  // soreness forward from a hard session and adds soreness check-ins.
+  // Field bug (2026-09-29): three rest days in a week read as "No rest
+  // day in 7 days", and the coach's take repeated it.
+  const actualsOn = new Map<string, ActualWorkout[]>()
+  for (const w of planDays) {
+    for (const a of [w.day.actual, ...(w.day.secondaryActuals ?? [])]) {
+      if (a) actualsOn.set(w.iso, [...(actualsOn.get(w.iso) ?? []), a])
+    }
+  }
+  const trimpOn = new Map(dailyTrimp.map(d => [d.date, d]))
+  const activeDates = new Set<string>()
+  // Days with a real workout, not just a commute or a walk — what "no rest
+  // day" and "days trained" mean.
+  const workoutDates = new Set<string>()
+  for (let i = 0; i < 7; i++) {
+    const date = shiftIso(fromIso, i)
+    const acts = actualsOn.get(date) ?? []
+    const records = trimpOn.get(date)?.records ?? []
+    const worked = acts.length > 0
+      ? acts.some(a => !isLightActivity(a))
+      : records.some(r => !LIGHT_SPORTS.has(r.sportType))
+    if (acts.length > 0 || records.length > 0) activeDates.add(date)
+    if (worked) workoutDates.add(date)
+  }
+  const loadDays = dailyTrimp.filter(d => activeDates.has(d.date) && d.total > 0)
+
   // Done means a workout was matched to the session. Other load that day
   // (an e-bike commute the matcher refused to claim for a track session)
   // doesn't make the session done — but it isn't "not logged" either.
@@ -331,7 +355,7 @@ export function buildWeekReview(
     toIso: today,
     stats: {
       planned: knowThePlan ? { done: doneCount, due: due.length } : null,
-      daysTrained: trainedDates.size,
+      daysTrained: workoutDates.size,
       trainingMinutes: minutes > 0 ? Math.round(minutes) : null,
       activities,
       fitnessDelta,
