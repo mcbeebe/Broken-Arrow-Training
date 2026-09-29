@@ -626,6 +626,58 @@ describe('carried soreness is not training', () => {
     expect(r.stats.daysTrained).toBe(7)
   })
 
+  it('keeps every load-based line on the same days as "days trained"', () => {
+    // Commuting only: no training day, so no hardest session and no
+    // "safe range" win either.
+    const commutes = [-6, -5, -4, -3, -2].map(o => logged(o, rec('Oakland eBiking', 'ebike', 8)))
+    const r = review({ trimp: commutes })
+    expect(r.stats.daysTrained).toBe(0)
+    expect(r.stats.hardest).toBeNull()
+    expect(r.wins.join()).not.toContain('safe range')
+    expect(r.fixes.some(f => f.startsWith('🗓️ No training logged in 7 days'))).toBe(true)
+  })
+
+  it('counts a session the watch recorded but the plan never picked up', () => {
+    // The matcher kept the commute on the rest day and dropped the hill
+    // ride beside it; the load records still hold the ride.
+    const run = (min: number) => day('run', 'Easy run', actual(min, 'Run'))
+    const r = review({
+      weeks: plan([run(30), run(31), run(32), { ...day('rest'), actual: actual(32, 'Oakland eBiking', { type: 'EBikeRide' }) }, run(34), run(35), run(36)]),
+      trimp: [logged(-3, rec('Oakland eBiking', 'ebike', 8), rec('Hill repeats', 'cycling', 41))],
+    })
+    expect(r.stats.daysTrained).toBe(7)
+    expect(r.fixes).toContain(NO_REST)
+  })
+
+  it('ranks the hardest session by its own load, not the soreness it inherits', () => {
+    // Saturday's total is mostly soreness carried from a big session the
+    // day before the window; its only activity is a commute.
+    const r = review({ trimp: [
+      { date: iso(-6), total: 68, records: [rec('Oakland eBiking', 'ebike', 8)] },
+      logged(-3, rec('Easy run', 'running', 45)),
+      logged(-1, rec('Tempo', 'running', 50)),
+    ] })
+    expect(r.stats.hardest).toEqual({ iso: iso(-1), name: 'Tempo' })
+  })
+
+  it('does not count a sub-two-minute stub as training', () => {
+    const stub = actual(1, 'Workout', { type: 'Workout', source: 'strava' })
+    const run = (min: number) => day('run', 'Easy run', actual(min, 'Run'))
+    const r = review({ weeks: plan([run(30), run(31), run(32), { ...day('rest'), actual: stub }, run(34), run(35), run(36)]) })
+    expect(r.stats.daysTrained).toBe(6)
+    expect(r.fixes.join()).not.toMatch(/No rest day|rest day/)
+  })
+
+  it('reads a planned session with only carried soreness as not logged', () => {
+    const r = review({
+      weeks: plan([day('rest'), day('run', 'Easy run'), day('rest'), day('rest'), day('rest'), day('rest'), day('rest')]),
+      trimp: [carried(-5, 40)],
+    })
+    expect(r.stats.planned).toEqual({ done: 0, due: 1 })
+    expect(r.fixes.some(f => f.startsWith('⭕ 1 planned session isn’t logged'))).toBe(true)
+    expect(r.wins.join()).not.toContain('Rest days taken')
+  })
+
   it('reads the load records on dates the plan does not cover', () => {
     // The plan starts three days ago; the four days before it are known
     // only from the watch's records.
