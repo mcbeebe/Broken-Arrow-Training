@@ -1,7 +1,13 @@
 import { describe, it, expect, afterEach } from 'vitest'
-import { render, screen, cleanup } from '@testing-library/react'
+import { render, screen, cleanup, within } from '@testing-library/react'
 import PlanAtAGlance from '../components/PlanAtAGlance'
-import type { TrainingWeek, PlannedDay } from '../types'
+import { getDarkBg, getWorkoutStyle } from '../utils/styles'
+
+const hexToRgb = (hex: string) => {
+  const n = parseInt(hex.slice(1), 16)
+  return `rgb(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255})`
+}
+import type { TrainingWeek, PlannedDay, ActualWorkout } from '../types'
 
 afterEach(cleanup)
 
@@ -49,5 +55,65 @@ describe('PlanAtAGlance', () => {
   it('returns null with no plan data', () => {
     const { container } = render(<PlanAtAGlance weeks={[]} currentWeekNum={1} />)
     expect(container.firstChild).toBeNull()
+  })
+
+  it('ticks planned sessions with a logged activity, never a rest day', () => {
+    const logged = (name: string): ActualWorkout => ({
+      stravaId: 0, garminId: 1, distance: 0, movingTime: 1800, elapsedTime: 1800,
+      elevationGain: 0, type: 'Run', name, startDate: '2026-07-14T07:00:00Z', source: 'garmin',
+    })
+    const done: TrainingWeek[] = [{
+      ...weeks[0],
+      days: weeks[0].days.map((d, i) =>
+        i === 1 ? { ...d, actual: logged('Tempo') }            // Tue session done
+        : i === 4 ? { ...d, actual: logged('Oakland eBiking') } // Fri rest, a commute
+        : d),
+    }, weeks[1]]
+    render(<PlanAtAGlance weeks={done} currentWeekNum={5} todayPlannedWorkout={done[0].days[3]} />)
+    const ticks = screen.getAllByTestId('day-done')
+    expect(ticks).toHaveLength(1)
+    expect(within(ticks[0]).getByText('Tue done')).toBeInTheDocument()
+    expect(screen.getByTitle('Tue 7/14: Tempo — done')).toBeInTheDocument()
+    expect(screen.getByTitle('Fri 7/17: Rest')).toBeInTheDocument()
+  })
+
+  it('shows no ticks before anything is logged', () => {
+    render(<PlanAtAGlance weeks={weeks} currentWeekNum={5} todayPlannedWorkout={weeks[0].days[3]} />)
+    expect(screen.queryByTestId('day-done')).toBeNull()
+  })
+
+  it('gives the day chips their dark surface in dark mode', () => {
+    // The light pastel chips stayed light on the dark card.
+    document.documentElement.classList.add('dark')
+    try {
+      render(<PlanAtAGlance weeks={weeks} currentWeekNum={5} todayPlannedWorkout={weeks[0].days[3]} />)
+      const chip = screen.getByTitle('Tue 7/14: Tempo') as HTMLElement
+      expect(chip.style.backgroundColor).toBe(hexToRgb(getDarkBg(getWorkoutStyle('quality', 'Tempo').bg)))
+    } finally {
+      document.documentElement.classList.remove('dark')
+    }
+  })
+
+  it('does not repeat a custom focus in the coach note', () => {
+    const custom: TrainingWeek[] = [{ ...weeks[0], focus: 'Build aerobic base + station familiarity.' }]
+    render(<PlanAtAGlance weeks={custom} currentWeekNum={5} />)
+    const note = screen.getByText(/show up for the easy days/i)
+    expect(note.textContent).toBe('Show up for the easy days as much as the hard ones — the plan does the rest.')
+  })
+})
+
+describe('Today mounts the week strip with or without a watch', () => {
+  const SUMMARY = Object.values(import.meta.glob('../components/Summary.tsx', {
+    query: '?raw', import: 'default', eager: true,
+  }))[0] as string
+
+  it('does not gate PlanAtAGlance on Garmin', () => {
+    // Field request (2026-10-04): the card vanished the moment Garmin
+    // connected. Read the mount's guard expression.
+    const mount = SUMMARY.indexOf('<PlanAtAGlance')
+    expect(mount).toBeGreaterThan(-1)
+    const guard = SUMMARY.slice(SUMMARY.lastIndexOf('{', mount), mount)
+    expect(guard).toContain('weeks')
+    expect(guard).not.toMatch(/garmin/i)
   })
 })

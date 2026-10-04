@@ -251,10 +251,10 @@ export default function Summary({
           <span className="text-sm text-slate-400">›</span>
         </button>
       )}
-      {/* Plan-at-a-glance fills Today with useful, engaging context when
-          there's no Garmin/readiness data to show (this week, next key session,
-          phase coach note). */}
-      {!garminConnected && weeks && weeks.length > 0 && (
+      {/* Plan-at-a-glance: this week's sessions (✓ once logged), the next
+          key session and a phase coach note. It used to show only without
+          Garmin, as filler; athletes wanted the week strip either way. */}
+      {weeks && weeks.length > 0 && (
         <PlanAtAGlance
           weeks={weeks}
           currentWeekNum={currentWeekNum ?? 1}
