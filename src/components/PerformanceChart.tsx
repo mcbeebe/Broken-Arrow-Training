@@ -1,13 +1,13 @@
 import { useState } from 'react'
 import type { PerformanceMetrics, WeeklyRecommendation, DailyTRIMP } from '../types'
-import { tsbZone, acwrZone, ACWR_BOUNDS, ACWR_IN_RANGE_RAMPING_NOTE, TSB_BANDS, TSB_BOUNDS, type AcwrBounds, type ZoneTone } from '../utils/loadZones'
-import { localDateStr, formatLoadP } from '../utils/format'
+import { ACWR_BOUNDS, TSB_BANDS, TSB_BOUNDS, type AcwrBounds } from '../utils/loadZones'
+import { localDateStr } from '../utils/format'
 import {
   ComposedChart, Area, XAxis, YAxis, Tooltip,
   ResponsiveContainer, ReferenceLine, ReferenceArea, CartesianGrid,
 } from 'recharts'
 import ChartExpandOverlay from './ChartExpandOverlay'
-import Term from './TermGlossary'
+import PerformanceSnapshot from './PerformanceSnapshot'
 import { useDisplayPreferences } from '../hooks/useDisplayPreferences'
 import { LOAD_SERIES_COLORS, seriesHex, type LoadSeries } from '../utils/loadSeriesColors'
 
@@ -60,11 +60,6 @@ export default function PerformanceChart({
   }
 
   const latest = performance[performance.length - 1]
-  // One table for every load surface (utils/loadZones): the bands, the
-  // cards and the glossary can no longer disagree about a number.
-  const tsb = tsbZone(latest.tsb)
-  const acwr = acwrZone(latest.acwr, acwrBounds)
-  const inRangeButClimbing = rampAlert && acwr.key === 'in_range'
 
   // Index daily TRIMP by date for fast lookup. Caller passes the FULL
   // unfiltered dailyTrimp so the rolling 7-day sum has correct lookback
@@ -287,49 +282,7 @@ export default function PerformanceChart({
       </div>
 
       {/* Current stats cards with contextual notes */}
-      <div className="grid grid-cols-2 gap-2">
-        <PerfStatCard
-          label={<Term name="ctl" />}
-          value={formatLoadP(latest.ctl, flags.numericPrecision)}
-          sub=""
-          series="ctl"
-          color="series"
-          note={
-            latest.ctl < 20 ? 'Building base — keep training consistently'
-            : latest.ctl < 40 ? 'Moderate fitness — on track for build phase'
-            : latest.ctl < 60 ? 'Strong fitness — maintain through quality sessions'
-            : 'High fitness — protect with smart recovery'
-          }
-        />
-        <PerfStatCard
-          label={<Term name="atl" />}
-          value={formatLoadP(latest.atl, flags.numericPrecision)}
-          sub=""
-          series="atl"
-          color="series"
-          note={
-            latest.atl > latest.ctl * 1.5 ? 'Very high — consider an easy day soon'
-            : latest.atl > latest.ctl ? 'Fatigue exceeds fitness — normal in build weeks'
-            : latest.atl > latest.ctl * 0.8 ? 'Balanced — steady training'
-            : 'Low fatigue — room to push harder'
-          }
-        />
-        <PerfStatCard
-          label={<Term name="tsb">Recovery Balance</Term>}
-          value={`${latest.tsb >= 0 ? '+' : ''}${formatLoadP(latest.tsb, flags.numericPrecision)}`}
-          sub={tsb.label}
-          series="tsb"
-          color={toneColor(tsb.tone)}
-          note={tsb.note}
-        />
-        <PerfStatCard
-          label={<Term name="acwr">Load Ratio</Term>}
-          value={latest.acwr.toFixed(flags.numericPrecision === 'low' ? 1 : 2)}
-          sub={inRangeButClimbing ? `${acwr.label} · climbing fast` : acwr.label}
-          color={toneColor(acwr.tone)}
-          note={inRangeButClimbing ? ACWR_IN_RANGE_RAMPING_NOTE : acwr.note}
-        />
-      </div>
+      <PerformanceSnapshot latest={latest} rampAlert={rampAlert} acwrBounds={acwrBounds} athleteId={athleteId} />
 
       {/* Recommendations */}
       {recommendations.length > 0 && (
@@ -365,42 +318,6 @@ function MetricPill({ active, onClick, series, label }: {
     >
       {active ? '✓ ' : ''}{label}
     </button>
-  )
-}
-
-/** A zone's tone as a stat-card color. */
-function toneColor(tone: ZoneTone): string {
-  return tone === 'good' ? 'green' : tone === 'warning' ? 'amber' : tone === 'critical' ? 'red' : 'slate'
-}
-
-/** A stat card. `series` ties it to its chart line with a swatch; its
- *  value wears the series color when `color` is 'series', else a zone
- *  tone (Recovery Balance and Load Ratio color by zone, not identity). */
-function PerfStatCard({ label, value, sub, color, note, series }: {
-  label: React.ReactNode; value: string; sub: React.ReactNode; color: string; note?: string; series?: LoadSeries
-}) {
-  const colorMap: Record<string, string> = {
-    red: 'text-red-600',
-    green: 'text-green-700',
-    amber: 'text-amber-600',
-    slate: 'text-slate-700 dark:text-slate-200',
-  }
-  return (
-    <div className="bg-white dark:bg-slate-800 rounded-xl p-3 shadow-sm border border-slate-100 dark:border-slate-700">
-      <div className="flex items-baseline gap-2">
-        <div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wide flex items-center">
-            {series && <span aria-hidden className={`inline-block w-3 h-[3px] rounded-full mr-1.5 shrink-0 ${LOAD_SERIES_COLORS[series].swatch}`} />}
-            {label}
-          </p>
-          <p className={`text-2xl font-bold ${(color === 'series' && series ? LOAD_SERIES_COLORS[series].text : colorMap[color]) || 'text-slate-800 dark:text-white'}`}>{value}</p>
-          <p className="text-xs text-slate-400 leading-tight">{sub}</p>
-        </div>
-      </div>
-      {note && (
-        <p className="text-sm text-slate-600 dark:text-slate-300 mt-1.5 leading-snug border-t border-slate-100 dark:border-slate-700 pt-1.5">{note}</p>
-      )}
-    </div>
   )
 }
 

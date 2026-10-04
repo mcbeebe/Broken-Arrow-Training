@@ -11,12 +11,15 @@ import { buildRaceReadinessDetail, computeRaceReadiness, type ReadinessAssignmen
 import { weeksUntilRace } from '../utils/raceCountdown'
 import { buildTrainingSignals, type TrainingSignals } from '../utils/trainingSignals'
 import { hasRampAlert } from '../utils/readiness'
+import type { AcwrBounds } from '../utils/loadZones'
 import { buildWeekReview, weekReviewDigest } from '../utils/weekReview'
 import { useCoachInsight } from '../hooks/useCoachInsight'
 import { coachApiAvailable } from '../utils/coachApi'
 import WeekReviewCard from './WeekReviewCard'
 import PlanAtAGlance from './PlanAtAGlance'
 import TRIMPBreakdown from './TRIMPBreakdown'
+import PerformanceSnapshot from './PerformanceSnapshot'
+import ReadinessTrend from './ReadinessTrend'
 import { notesRowText, shouldShowNotesRow } from '../utils/planNotes'
 import type { PlanAdvisory } from '../types'
 import { useDisplayPreferences } from '../hooks/useDisplayPreferences'
@@ -59,6 +62,11 @@ interface SummaryProps {
   zones?: HRZone[]
   coachSnapshot?: CoachSnapshot | null
   riskFlags?: RiskFlag[]
+  /** The last seven days' readiness scores, for the readiness trend.
+   *  Empty without a watch's overnight data. */
+  weekScores?: ReadinessScore[]
+  /** The athlete's tuned in-range / spike lines, for the Load Ratio tile. */
+  acwrBounds?: AcwrBounds
   /** The app's one load / body / damage reading (App builds it with the
    *  athlete's tuned bounds). Built here only when not supplied. */
   trainingSignals?: TrainingSignals | null
@@ -124,6 +132,8 @@ export default function Summary({
   zones,
   coachSnapshot,
   riskFlags = [],
+  weekScores = [],
+  acwrBounds,
   trainingSignals: suppliedSignals,
   advisories = [],
   onOpenPlanNotes,
@@ -459,6 +469,24 @@ export default function Summary({
           performance={performance}
           athleteId={athleteId}
         />
+      )}
+
+      {/* Fitness, Fatigue, Recovery Balance and Load Ratio — the same
+          tiles as Progress, read from the same component. */}
+      {isSectionVisible('summary.perfSnapshot') && latestPerf && (
+        <PerformanceSnapshot
+          latest={latestPerf}
+          rampAlert={hasRampAlert(riskFlags)}
+          acwrBounds={acwrBounds}
+          athleteId={athleteId}
+          heading="Performance snapshot"
+        />
+      )}
+
+      {/* The week's readiness, day by day. Needs a watch's overnight data;
+          without it there is nothing to draw. */}
+      {isSectionVisible('summary.readinessTrend') && weekScores.length > 0 && (
+        <ReadinessTrend weekScores={weekScores} />
       )}
 
     </div>
