@@ -313,8 +313,9 @@ class handler(BaseHTTPRequestHandler):
                 send_json(self, 200, cached)
                 return
 
-        # Every model call spends the athlete's daily coach budget, shared
-        # with chat (check_and_increment_budget). A cached answer is free; a
+        # Each request that reaches the model spends one unit of the athlete's
+        # daily coach budget, shared with chat (check_and_increment_budget) —
+        # a soft cap, counted the way chat counts. A cached answer is free; a
         # Regenerate is not. Insights used to skip this check entirely.
         within, used, budget = check_and_increment_budget(athlete_id)
         if not within:

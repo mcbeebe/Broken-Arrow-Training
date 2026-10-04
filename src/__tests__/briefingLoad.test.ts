@@ -40,7 +40,13 @@ describe('recentLoadLines', () => {
 
   it('names the session with the most load, not the first one recorded', () => {
     const lines = recentLoadLines([session(1, rec('Commute', 'ebike', 8), rec('Long run', 'running', 160))], TODAY)
-    expect(lines).toEqual(["Yesterday's running was a heavy session (168 load) — that's adding to today's fatigue."])
+    // The day's 168 makes it heavy; the line quotes the run's own 160.
+    expect(lines).toEqual(["Yesterday's running was a heavy session (160 load) — that's adding to today's fatigue."])
+  })
+
+  it('quotes the lift’s own load on a day that also had a run', () => {
+    const lines = recentLoadLines([session(1, rec('Lower body', 'strength_lower', 40), rec('Run', 'running', 120))], TODAY)
+    expect(lines[0]).toBe("Yesterday's strength lower (40 load) is causing delayed muscle soreness (DOMS) — this peaks today and tomorrow, adding to your fatigue.")
   })
 
   it('keeps the DOMS lines for strength across the three days', () => {

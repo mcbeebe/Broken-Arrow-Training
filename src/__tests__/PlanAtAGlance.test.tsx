@@ -77,6 +77,15 @@ describe('PlanAtAGlance', () => {
     expect(screen.getByTitle('Fri 7/17: Rest')).toBeInTheDocument()
   })
 
+  it('shows the week holding today even when the week number lags', () => {
+    // The caller's week number is anchored at local noon, so until Monday
+    // midday it still names last week — with last week's ticks.
+    const today = weeks[1].days[0]
+    render(<PlanAtAGlance weeks={weeks} currentWeekNum={5} todayPlannedWorkout={today} />)
+    expect(screen.getByText('Week 6 of 2')).toBeInTheDocument()
+    expect(screen.getByTitle('Sun 7/26: Long (RWR)').className).toContain('border-teal-500')
+  })
+
   it('shows no ticks before anything is logged', () => {
     render(<PlanAtAGlance weeks={weeks} currentWeekNum={5} todayPlannedWorkout={weeks[0].days[3]} />)
     expect(screen.queryByTestId('day-done')).toBeNull()

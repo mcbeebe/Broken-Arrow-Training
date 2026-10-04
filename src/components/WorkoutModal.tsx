@@ -1912,7 +1912,7 @@ function CoachWhyForDay({
   // across plan re-renders shares a cache. Doesn't include readiness —
   // the insight hook factors that into the contextHash automatically.
   const surface = `why:w${weekNum}:${day.day}`
-  const { insight, loading } = useCoachInsight({
+  const { insight, loading, error } = useCoachInsight({
     athleteId: athleteId || '',
     surface,
     snapshot: coachSnapshot ?? null,
@@ -1944,7 +1944,9 @@ function CoachWhyForDay({
           )}
           {!loading && !text && (
             <p className="text-xs text-slate-500 dark:text-slate-400 italic py-1">
-              Coach is offline — try again after Garmin syncs.
+              {error === 'http_429'
+                ? 'The coach has reached today’s limit — try again tomorrow.'
+                : 'Coach is offline — try again after Garmin syncs.'}
             </p>
           )}
           {text && (

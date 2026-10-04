@@ -558,7 +558,8 @@ export default function TRIMPBreakdown({
                 stroke={trendColor}
                 strokeWidth={2}
                 dot={range === '7d' ? { r: 2.5, fill: trendColor, strokeWidth: 0 } : false}
-                activeDot={{ r: 3.5 }}
+                // Recharts rings the active dot in white by default.
+                activeDot={{ r: 3.5, stroke: haloColor }}
                 connectNulls
                 isAnimationActive={false}
               />

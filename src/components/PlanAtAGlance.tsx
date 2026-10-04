@@ -39,7 +39,11 @@ const DOW = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
 export default function PlanAtAGlance({ weeks, currentWeekNum, todayPlannedWorkout }: Props) {
   if (!weeks || weeks.length === 0) return null
-  const week = weeks.find(w => w.num === currentWeekNum) ?? weeks[0]
+  // The week holding today's session wins over the caller's week number,
+  // which is anchored at local noon and still reads last week until Monday
+  // midday — when the ticks would make last week look like this one.
+  const todaysWeek = todayPlannedWorkout ? weeks.find(w => w.days.includes(todayPlannedWorkout)) : undefined
+  const week = todaysWeek ?? weeks.find(w => w.num === currentWeekNum) ?? weeks[0]
   const nextWeek = weeks.find(w => w.num === week.num + 1) ?? null
 
   const todayIdx = todayPlannedWorkout

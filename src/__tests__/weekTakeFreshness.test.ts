@@ -120,6 +120,29 @@ describe('week_take waits for the card to settle', () => {
     expect(JSON.parse(fetchMock.mock.calls[1][1].body).force).toBe(true)
   })
 
+  it('goes back to waiting after a Regenerate that failed', async () => {
+    // A failed Regenerate used to leave the force flag set: every later
+    // change then fired at once, past both caches.
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(ok('first'))
+      .mockResolvedValueOnce({ ok: false, status: 429, json: async () => ({ error: 'budget_exceeded' }) })
+      .mockResolvedValue(ok('later'))
+    const { result, rerender } = mount(fetchMock)
+    await advance(1500); await flush()
+    act(() => result.current.regenerate())
+    await flush()
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(result.current.error).toBe('http_429')
+    rerender({ s: snap('B'), on: true })
+    await advance(10)
+    rerender({ s: snap('C'), on: true })
+    await advance(10)
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    await advance(1500)
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+    expect(JSON.parse(fetchMock.mock.calls[2][1].body).force).toBeUndefined()
+  })
+
   it('stops loading if the card is turned off mid-wait, and never calls', async () => {
     const fetchMock = vi.fn().mockResolvedValue(ok('never'))
     const { result, rerender } = mount(fetchMock)

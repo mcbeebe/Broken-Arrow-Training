@@ -23,6 +23,7 @@ const shiftIso = (iso: string, days: number): string => {
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 const sportName = (r: TRIMPRecord) => r.sportType.replace(/_/g, ' ')
 const sessionLoad = (d: DailyTRIMP) => d.records.reduce((sum, r) => sum + r.adjustedTRIMP, 0)
+const own = (r: TRIMPRecord) => Math.round(r.adjustedTRIMP)
 const topRecord = (records: TRIMPRecord[]) => records.reduce((a, b) => (b.adjustedTRIMP > a.adjustedTRIMP ? b : a))
 
 /**
@@ -38,27 +39,30 @@ export function recentLoadLines(dailyTrimp: DailyTRIMP[], today: string): string
   const doms = (d: DailyTRIMP) => d.records.find(r => DOMS_SPORTS.includes(r.sportType))
   const lines: string[] = []
 
+  // The day's sessions together decide whether it's worth a line; the line
+  // names one session, so it quotes that session's own load.
   const yesterday = session(1)
   if (yesterday) {
-    const load = Math.round(sessionLoad(yesterday))
+    const load = sessionLoad(yesterday)
     const strength = doms(yesterday)
+    const top = topRecord(yesterday.records)
     if (strength) {
-      lines.push(`Yesterday's ${sportName(strength)} (${load} load) is causing delayed muscle soreness (DOMS) — this peaks today and tomorrow, adding to your fatigue.`)
+      lines.push(`Yesterday's ${sportName(strength)} (${own(strength)} load) is causing delayed muscle soreness (DOMS) — this peaks today and tomorrow, adding to your fatigue.`)
     } else if (load > 150) {
-      lines.push(`Yesterday's ${sportName(topRecord(yesterday.records))} was a heavy session (${load} load) — that's adding to today's fatigue.`)
+      lines.push(`Yesterday's ${sportName(top)} was a heavy session (${own(top)} load) — that's adding to today's fatigue.`)
     } else if (load > 80) {
-      lines.push(`Yesterday's ${sportName(topRecord(yesterday.records))} (${load} load) is factoring into today's recovery.`)
+      lines.push(`Yesterday's ${sportName(top)} (${own(top)} load) is factoring into today's recovery.`)
     }
   }
 
   const dayBefore = session(2)
   if (dayBefore) {
-    const load = Math.round(sessionLoad(dayBefore))
     const strength = doms(dayBefore)
+    const top = topRecord(dayBefore.records)
     if (strength) {
       lines.push(`${cap(sportName(strength))} from 2 days ago is still causing DOMS — muscle soreness typically peaks at 24-48 hours.`)
-    } else if (load > 100) {
-      lines.push(`${cap(sportName(topRecord(dayBefore.records)))} from 2 days ago (${load} load) is still influencing your fatigue.`)
+    } else if (sessionLoad(dayBefore) > 100) {
+      lines.push(`${cap(sportName(top))} from 2 days ago (${own(top)} load) is still influencing your fatigue.`)
     }
   }
 
