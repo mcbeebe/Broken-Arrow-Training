@@ -196,10 +196,15 @@ interface UseCoachInsightOptions {
    *  (debrief/welcome surfaces omit period from their cache key). */
   morningHour?: number
   eveningHour?: number
+  /** Wait this long for the context to stop changing before asking the
+   *  server, so a card whose numbers settle over a few renders (a sync
+   *  landing piece by piece) costs one model call, not one per step.
+   *  Cache hits and Regenerate never wait. Default 0. */
+  debounceMs?: number
 }
 
 export function useCoachInsight(opts: UseCoachInsightOptions) {
-  const { athleteId, surface, snapshot, enabled, fallbackText, fallbackTip, morningHour = 7, eveningHour = 18 } = opts
+  const { athleteId, surface, snapshot, enabled, fallbackText, fallbackTip, morningHour = 7, eveningHour = 18, debounceMs = 0 } = opts
   const [insight, setInsight] = useState<CoachInsight | null>(null)
   // The context hash the shown insight was written for. A surface that sits
   // beside live numbers (week_take) must not keep showing a take written
@@ -210,10 +215,12 @@ export function useCoachInsight(opts: UseCoachInsightOptions) {
   const [error, setError] = useState<string | null>(null)
   const abortRef = useRef<AbortController | null>(null)
   const [regenToken, setRegenToken] = useState(0)
-  // When >0, the next fetch posts force=true so the SERVER cache is
-  // bypassed too. Decrements to 0 after one fire so subsequent
-  // automatic refreshes (snapshot/persona changes) still use cache.
-  const [forceCount, setForceCount] = useState(0)
+  // Set by Regenerate: the next fetch posts force=true so the SERVER cache
+  // is bypassed too, and skips the settle wait. Consumed once that fetch
+  // settles, success or failure — a failed Regenerate used to leave it set,
+  // so every later change skipped the wait and both caches. An aborted
+  // fetch leaves it set for the run that replaces it.
+  const forceNextRef = useRef(false)
 
   // Tick state that re-evaluates each minute. When dayPeriod() crosses the
   // configured evening boundary, this flips from 'morning' to 'evening', the
@@ -261,11 +268,11 @@ export function useCoachInsight(opts: UseCoachInsightOptions) {
     } catch {
       /* ignore */
     }
-    // Bump regenToken to re-fire the effect, AND set forceCount so the
-    // next request body includes force=true and the API skips its KV
-    // cache lookup. Without this, server-side cache would return the
-    // exact same response and the user wouldn't see any change.
-    setForceCount(c => c + 1)
+    // Bump regenToken to re-fire the effect, AND flag the next request to
+    // carry force=true so the API skips its KV cache lookup. Without this,
+    // server-side cache would return the exact same response and the user
+    // wouldn't see any change.
+    forceNextRef.current = true
     setRegenToken(x => x + 1)
   }, [athleteId, surface, snapshot])
 
@@ -288,10 +295,9 @@ export function useCoachInsight(opts: UseCoachInsightOptions) {
 
     if (!contextHash) return
     const cacheKey = lsKey(athleteId, surface, contextHash)
-    // forceCount > 0 means the user just hit Regenerate. Skip BOTH the
-    // localStorage cache and the server's KV cache so the LLM is
-    // actually re-invoked.
-    const forcing = forceCount > 0
+    // The user just hit Regenerate: skip BOTH the localStorage cache and
+    // the server's KV cache so the LLM is actually re-invoked.
+    const forcing = forceNextRef.current
 
     // Try localStorage cache first (skipped on force)
     if (!forcing) {
@@ -316,7 +322,11 @@ export function useCoachInsight(opts: UseCoachInsightOptions) {
     abortRef.current = ac
     setLoading(true)
     setError(null)
-    ;(async () => {
+    // Aborting a request doesn't stop the server's model call, so a context
+    // still settling waits here instead of firing one call per step.
+    let started = false
+    const run = async () => {
+      started = true
       try {
         const res = await fetch(`${coachApiBase()}/api/coach/insight`, {
           method: 'POST',
@@ -339,11 +349,12 @@ export function useCoachInsight(opts: UseCoachInsightOptions) {
         } catch {
           /* ignore quota */
         }
-        // Consume the force flag — subsequent automatic refreshes
-        // (snapshot/persona changes) should resume using cache.
-        if (forcing) setForceCount(0)
+        if (forcing) forceNextRef.current = false
       } catch (e) {
         if ((e as Error).name === 'AbortError') return
+        // A failed Regenerate is spent too: later automatic refreshes go
+        // back to the caches and the settle wait.
+        if (forcing) forceNextRef.current = false
         setError((e as Error).message)
         if (fallbackText) {
           setInsight({
@@ -360,16 +371,20 @@ export function useCoachInsight(opts: UseCoachInsightOptions) {
         // of the rapid skeleton flicker on Summary).
         if (abortRef.current === ac) setLoading(false)
       }
-    })()
+    }
+    const timer = debounceMs > 0 && !forcing ? window.setTimeout(run, debounceMs) : null
+    if (timer === null) void run()
 
     return () => {
+      if (timer !== null) window.clearTimeout(timer)
       ac.abort()
+      // A wait cancelled before it fired never reaches run()'s finally.
+      if (!started && abortRef.current === ac) setLoading(false)
     }
     // regenToken is included so tapping "Regenerate" re-fires the effect.
-    // forceCount affects request body, so it's also a dep.
     // contextHash replaces the snapshot dep — same insight inputs across
     // renders means same hash means React bails out.
-  }, [athleteId, surface, contextHash, enabled, fallbackText, fallbackTip, regenToken, forceCount])
+  }, [athleteId, surface, contextHash, enabled, fallbackText, fallbackTip, regenToken, debounceMs])
 
   return { insight, loading, error, regenerate, current: !!insight && !!contextHash && insightHash === contextHash }
 }

@@ -6,6 +6,7 @@ import Term from './TermGlossary'
 import { useDisplayPreferences } from '../hooks/useDisplayPreferences'
 import { ACWR_BOUNDS } from '../utils/loadZones'
 import { seriesHex } from '../utils/loadSeriesColors'
+import { isDarkMode } from '../utils/styles'
 
 export type TRIMPRange = '7d' | '30d' | '90d' | 'ytd' | 'all'
 
@@ -134,11 +135,13 @@ export default function TRIMPBreakdown({
   athleteId,
 }: TRIMPBreakdownProps) {
   const { flags } = useDisplayPreferences(athleteId)
-  // This card is white in both modes (it has no dark surface), so the
-  // lines take the light steps and the halo is the card's white.
-  const trendColor = seriesHex('atl', false)
-  const zoneColor = seriesHex('ctl', false)
-  const haloColor = '#ffffff'
+  // The lines take the mode's steps, and the halo that lifts the Fatigue
+  // line off the bars is the card's own colour (slate-800 in dark mode —
+  // the card used to stay white there while its range tabs went dark).
+  const dark = isDarkMode()
+  const trendColor = seriesHex('atl', dark)
+  const zoneColor = seriesHex('ctl', dark)
+  const haloColor = dark ? '#1e293b' : '#ffffff'
   const [internalRange, setInternalRange] = useState<TRIMPRange>('7d')
   const range = controlledRange ?? internalRange
   const setRange = (r: TRIMPRange) => {
@@ -287,15 +290,15 @@ export default function TRIMPBreakdown({
   const rangeOptions: TRIMPRange[] = ['7d', '30d', '90d', 'ytd']
 
   return (
-    <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-100">
+    <div className="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700">
       <div className="flex items-baseline justify-between mb-3">
         <div>
-          <p className="text-base font-semibold text-slate-700">{labels.title}</p>
-          <p className="text-sm text-slate-500">Garmin <Term name="epoc" /> · <Term name="mim" />-adjusted · <Term name="doms" /> &amp; soreness</p>
+          <p className="text-base font-semibold text-slate-700 dark:text-slate-200">{labels.title}</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400">Garmin <Term name="epoc" /> · <Term name="mim" />-adjusted · <Term name="doms" /> &amp; soreness</p>
         </div>
         <div className="text-right">
-          <p className="text-2xl font-bold text-slate-800">{rangeTotal}</p>
-          <p className="text-xs text-slate-500 uppercase">{labels.total}</p>
+          <p className="text-2xl font-bold text-slate-800 dark:text-white">{rangeTotal}</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 uppercase">{labels.total}</p>
         </div>
       </div>
       {showRangeToggle && (
@@ -555,7 +558,8 @@ export default function TRIMPBreakdown({
                 stroke={trendColor}
                 strokeWidth={2}
                 dot={range === '7d' ? { r: 2.5, fill: trendColor, strokeWidth: 0 } : false}
-                activeDot={{ r: 3.5 }}
+                // Recharts rings the active dot in white by default.
+                activeDot={{ r: 3.5, stroke: haloColor }}
                 connectNulls
                 isAnimationActive={false}
               />
@@ -571,7 +575,7 @@ export default function TRIMPBreakdown({
           {filledDays.map((day, i) => (
             <div key={i} className="flex-1 text-center">
               {day.total === 0 && (
-                <span className="text-xs text-slate-400 italic">Rest</span>
+                <span className="text-xs text-slate-400 dark:text-slate-500 italic">Rest</span>
               )}
             </div>
           ))}
@@ -581,19 +585,19 @@ export default function TRIMPBreakdown({
       {/* Legend */}
       <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2">
         {hasTrend && (
-          <span className="flex items-center gap-1 text-xs text-slate-500">
+          <span className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
             <span className="w-3 h-[3px] rounded-full inline-block" style={{ backgroundColor: trendColor }} />
             Fatigue (acute load)
           </span>
         )}
         {hasZone && (
-          <span className="flex items-center gap-1 text-xs text-slate-500">
+          <span className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
             <span className="w-2.5 h-2.5 rounded-sm inline-block border" style={{ backgroundColor: `${zoneColor}28`, borderColor: `${zoneColor}88` }} />
             in range (from Fitness)
           </span>
         )}
         {Array.from(sportTypes).map(type => (
-          <span key={type} className="flex items-center gap-1 text-xs text-slate-500">
+          <span key={type} className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
             <span
               className="w-2.5 h-2.5 rounded-sm inline-block"
               style={{ backgroundColor: SPORT_COLORS[type] || '#94A3B8' }}
@@ -602,19 +606,19 @@ export default function TRIMPBreakdown({
           </span>
         ))}
         {hasManualExercise && (
-          <span className="flex items-center gap-1 text-xs text-slate-500">
+          <span className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
             <span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ backgroundColor: MANUAL_EXERCISE_COLOR }} />
             manual exercise
           </span>
         )}
         {hasDoms && (
-          <span className="flex items-center gap-1 text-xs text-slate-500">
+          <span className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
             <span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ backgroundColor: DOMS_COLOR }} />
             DOMS carry-over
           </span>
         )}
         {hasSoreness && (
-          <span className="flex items-center gap-1 text-xs text-slate-500">
+          <span className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
             <span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ backgroundColor: SORENESS_COLOR }} />
             muscle soreness
           </span>

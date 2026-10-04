@@ -175,4 +175,19 @@ describe('TRIMPBreakdown: the Fatigue trend and the in-range band wear the same 
     expect(screen.getAllByText('Fatigue (acute load)').length).toBeGreaterThan(0)
     expect(screen.getByText('in range (from Fitness)')).toBeTruthy()
   })
+  it('dark mode: a slate card, the dark steps, and a halo in the card colour', () => {
+    // The card stayed white in dark mode while its range tabs went dark.
+    document.documentElement.classList.add('dark')
+    const days = trimpDays(7)
+    const { container } = render(
+      <TRIMPBreakdown dailyTrimp={days.map(d => d.daily) as never} performance={days.map(d => d.perf)} athleteId="mike" />,
+    )
+    const line = (cls: string) => container.querySelector(`.${cls} .recharts-line-curve`)?.getAttribute('stroke')
+    expect(line('series-atl')).toBe(LOAD_SERIES_COLORS.atl.dark.hex)
+    expect(line('series-atl-halo')).toBe('#1e293b')
+    expect(strokes(container, 'series-ctl-guide').every(c => c === LOAD_SERIES_COLORS.ctl.dark.hex)).toBe(true)
+    const card = container.firstElementChild as HTMLElement
+    expect(card.className).toContain('dark:bg-slate-800')
+    expect(screen.getByText('in range (from Fitness)').className).toContain('dark:text-slate-400')
+  })
 })

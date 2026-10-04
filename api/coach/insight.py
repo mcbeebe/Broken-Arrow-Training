@@ -19,6 +19,7 @@ from ._core import (
     build_context_block,
     build_system_prompt,
     call_anthropic,
+    check_and_increment_budget,
     detect_workout_inferences,
     insight_key,
     kv_get_json,
@@ -311,6 +312,15 @@ class handler(BaseHTTPRequestHandler):
                 cached["cached"] = True
                 send_json(self, 200, cached)
                 return
+
+        # Each request that reaches the model spends one unit of the athlete's
+        # daily coach budget, shared with chat (check_and_increment_budget) —
+        # a soft cap, counted the way chat counts. A cached answer is free; a
+        # Regenerate is not. Insights used to skip this check entirely.
+        within, used, budget = check_and_increment_budget(athlete_id)
+        if not within:
+            send_json(self, 429, {"error": "budget_exceeded", "used": used, "budget": budget})
+            return
 
         # Build prompt
         surface_root = _surface_key(surface)

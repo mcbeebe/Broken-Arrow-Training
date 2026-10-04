@@ -22,6 +22,10 @@ import { useDisplayPreferences } from '../hooks/useDisplayPreferences'
 import { findTrimpRecord } from '../utils/trimp'
 import { localDateStr } from '../utils/format'
 
+/** How long the last-7-days card must hold still before the coach's take
+ *  is asked for. */
+const WEEK_TAKE_SETTLE_MS = 1500
+
 interface SummaryProps {
   athleteId: string
   todayScore: ReadinessScore | null
@@ -198,6 +202,8 @@ export default function Summary({
     surface: 'week_take',
     snapshot: weekTakeSnapshot,
     enabled: weekTakeOn && weekCardShown && !!weekTakeSnapshot,
+    // The card's numbers settle over several renders as a sync lands.
+    debounceMs: WEEK_TAKE_SETTLE_MS,
   })
 
   // Race-ready hero is pinned to the top of Summary in the last ~8 weeks
@@ -251,10 +257,10 @@ export default function Summary({
           <span className="text-sm text-slate-400">›</span>
         </button>
       )}
-      {/* Plan-at-a-glance fills Today with useful, engaging context when
-          there's no Garmin/readiness data to show (this week, next key session,
-          phase coach note). */}
-      {!garminConnected && weeks && weeks.length > 0 && (
+      {/* Plan-at-a-glance: this week's sessions (✓ once logged), the next
+          key session and a phase coach note. It used to show only without
+          Garmin, as filler; athletes wanted the week strip either way. */}
+      {weeks && weeks.length > 0 && (
         <PlanAtAGlance
           weeks={weeks}
           currentWeekNum={currentWeekNum ?? 1}

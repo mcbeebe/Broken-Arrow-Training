@@ -1,12 +1,14 @@
 import type { TrainingWeek, PlannedDay } from '../types'
-import { getWorkoutStyle } from '../utils/styles'
+import { adaptBg, getWorkoutStyle } from '../utils/styles'
 import { formatWeekMilesHeader } from '../utils/format'
 
 /**
- * "Plan at a glance" — the engaging, no-Garmin-required snapshot for the
- * Today: where you are in the block, what this week looks like, the next
- * key session, and a phase-appropriate coach note. Everything here comes from
- * the generated plan, so it's useful before any wearable is connected.
+ * "Plan at a glance" — the Today tab's week strip: where you are in the
+ * block, what this week looks like (planned sessions already logged carry
+ * a ✓), the next key session, and a phase-appropriate coach note. It comes
+ * from the generated plan, so it's useful before any wearable is connected
+ * — and stays once one is (field request, 2026-10-04: it used to vanish
+ * the moment Garmin connected).
  *
  * Display-only (the Today's-Workout CTA below it owns opening the modal).
  */
@@ -27,15 +29,21 @@ const PHASE_NOTE: Record<string, string> = {
   Cutback: 'Cutback week — lower volume on purpose. Absorbing the work is what makes the next block possible.',
 }
 
+// The focus already heads the card, so the fallback doesn't repeat it
+// ("Build aerobic base + station familiarity. — show up…").
 function noteFor(focus: string): string {
-  return PHASE_NOTE[focus] ?? `${focus} — show up for the easy days as much as the hard ones, and the plan does the rest.`
+  return PHASE_NOTE[focus] ?? 'Show up for the easy days as much as the hard ones — the plan does the rest.'
 }
 
 const DOW = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
 export default function PlanAtAGlance({ weeks, currentWeekNum, todayPlannedWorkout }: Props) {
   if (!weeks || weeks.length === 0) return null
-  const week = weeks.find(w => w.num === currentWeekNum) ?? weeks[0]
+  // The week holding today's session wins over the caller's week number,
+  // which is anchored at local noon and still reads last week until Monday
+  // midday — when the ticks would make last week look like this one.
+  const todaysWeek = todayPlannedWorkout ? weeks.find(w => w.days.includes(todayPlannedWorkout)) : undefined
+  const week = todaysWeek ?? weeks.find(w => w.num === currentWeekNum) ?? weeks[0]
   const nextWeek = weeks.find(w => w.num === week.num + 1) ?? null
 
   const todayIdx = todayPlannedWorkout
@@ -62,16 +70,28 @@ export default function PlanAtAGlance({ weeks, currentWeekNum, todayPlannedWorko
         {week.days.map((d, i) => {
           const style = getWorkoutStyle(d.type, d.workout)
           const isToday = i === todayIdx
+          // A planned session with a logged activity matched to it. A
+          // commute on a rest day isn't a session, so rest days never tick.
+          const done = d.type !== 'rest' && !!d.actual
           const dow = d.day.split(' ')[0]
           return (
             <div
               key={i}
-              className={`flex flex-col items-center rounded-lg py-1.5 border ${isToday ? 'border-teal-500 ring-1 ring-teal-400' : 'border-slate-100 dark:border-slate-700'}`}
-              style={{ backgroundColor: isToday ? undefined : style.bg }}
-              title={`${d.day}: ${d.workout}`}
+              className={`relative flex flex-col items-center rounded-lg py-1.5 border ${isToday ? 'border-teal-500 ring-1 ring-teal-400' : 'border-slate-100 dark:border-slate-700'}`}
+              style={{ backgroundColor: isToday ? undefined : adaptBg(style.bg) }}
+              title={`${d.day}: ${d.workout}${done ? ' — done' : ''}`}
             >
               <span className="text-[10px] font-medium text-slate-400 dark:text-slate-500">{DOW.includes(dow) ? dow[0] : dow}</span>
               <span className="text-base leading-tight">{d.type === 'rest' ? '·' : style.label}</span>
+              {done && (
+                <span
+                  data-testid="day-done"
+                  className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-emerald-600 text-[10px] font-bold leading-none text-white ring-2 ring-white dark:ring-slate-800"
+                >
+                  <span aria-hidden="true">✓</span>
+                  <span className="sr-only">{d.day.split(' ')[0]} done</span>
+                </span>
+              )}
             </div>
           )
         })}
