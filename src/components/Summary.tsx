@@ -22,6 +22,10 @@ import { useDisplayPreferences } from '../hooks/useDisplayPreferences'
 import { findTrimpRecord } from '../utils/trimp'
 import { localDateStr } from '../utils/format'
 
+/** How long the last-7-days card must hold still before the coach's take
+ *  is asked for. */
+const WEEK_TAKE_SETTLE_MS = 1500
+
 interface SummaryProps {
   athleteId: string
   todayScore: ReadinessScore | null
@@ -198,6 +202,8 @@ export default function Summary({
     surface: 'week_take',
     snapshot: weekTakeSnapshot,
     enabled: weekTakeOn && weekCardShown && !!weekTakeSnapshot,
+    // The card's numbers settle over several renders as a sync lands.
+    debounceMs: WEEK_TAKE_SETTLE_MS,
   })
 
   // Race-ready hero is pinned to the top of Summary in the last ~8 weeks

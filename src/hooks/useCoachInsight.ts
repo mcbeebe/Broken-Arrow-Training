@@ -196,10 +196,15 @@ interface UseCoachInsightOptions {
    *  (debrief/welcome surfaces omit period from their cache key). */
   morningHour?: number
   eveningHour?: number
+  /** Wait this long for the context to stop changing before asking the
+   *  server, so a card whose numbers settle over a few renders (a sync
+   *  landing piece by piece) costs one model call, not one per step.
+   *  Cache hits and Regenerate never wait. Default 0. */
+  debounceMs?: number
 }
 
 export function useCoachInsight(opts: UseCoachInsightOptions) {
-  const { athleteId, surface, snapshot, enabled, fallbackText, fallbackTip, morningHour = 7, eveningHour = 18 } = opts
+  const { athleteId, surface, snapshot, enabled, fallbackText, fallbackTip, morningHour = 7, eveningHour = 18, debounceMs = 0 } = opts
   const [insight, setInsight] = useState<CoachInsight | null>(null)
   // The context hash the shown insight was written for. A surface that sits
   // beside live numbers (week_take) must not keep showing a take written
@@ -316,7 +321,11 @@ export function useCoachInsight(opts: UseCoachInsightOptions) {
     abortRef.current = ac
     setLoading(true)
     setError(null)
-    ;(async () => {
+    // Aborting a request doesn't stop the server's model call, so a context
+    // still settling waits here instead of firing one call per step.
+    let started = false
+    const run = async () => {
+      started = true
       try {
         const res = await fetch(`${coachApiBase()}/api/coach/insight`, {
           method: 'POST',
@@ -360,16 +369,21 @@ export function useCoachInsight(opts: UseCoachInsightOptions) {
         // of the rapid skeleton flicker on Summary).
         if (abortRef.current === ac) setLoading(false)
       }
-    })()
+    }
+    const timer = debounceMs > 0 && !forcing ? window.setTimeout(run, debounceMs) : null
+    if (timer === null) void run()
 
     return () => {
+      if (timer !== null) window.clearTimeout(timer)
       ac.abort()
+      // A wait cancelled before it fired never reaches run()'s finally.
+      if (!started && abortRef.current === ac) setLoading(false)
     }
     // regenToken is included so tapping "Regenerate" re-fires the effect.
     // forceCount affects request body, so it's also a dep.
     // contextHash replaces the snapshot dep — same insight inputs across
     // renders means same hash means React bails out.
-  }, [athleteId, surface, contextHash, enabled, fallbackText, fallbackTip, regenToken, forceCount])
+  }, [athleteId, surface, contextHash, enabled, fallbackText, fallbackTip, regenToken, forceCount, debounceMs])
 
   return { insight, loading, error, regenerate, current: !!insight && !!contextHash && insightHash === contextHash }
 }
