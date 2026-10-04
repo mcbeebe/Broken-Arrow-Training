@@ -1,3 +1,4 @@
+import { useId } from 'react'
 import type { PerformanceMetrics } from '../types'
 import { tsbZone, acwrZone, ACWR_BOUNDS, ACWR_IN_RANGE_RAMPING_NOTE, type AcwrBounds, type ZoneTone } from '../utils/loadZones'
 import { formatLoadP } from '../utils/format'
@@ -27,6 +28,7 @@ interface Props {
  */
 export default function PerformanceSnapshot({ latest, rampAlert = false, acwrBounds = ACWR_BOUNDS, athleteId, heading }: Props) {
   const { flags } = useDisplayPreferences(athleteId)
+  const headingId = useId()
   // One table for every load surface (utils/loadZones): the bands, the
   // cards and the glossary can no longer disagree about a number.
   const tsb = tsbZone(latest.tsb)
@@ -81,8 +83,8 @@ export default function PerformanceSnapshot({ latest, rampAlert = false, acwrBou
 
   if (!heading) return tiles
   return (
-    <section aria-label={heading} className="space-y-2">
-      <p className="px-1 text-base font-semibold text-slate-700 dark:text-slate-200">{heading}</p>
+    <section aria-labelledby={headingId} className="space-y-2">
+      <h2 id={headingId} className="px-1 text-base font-semibold text-slate-700 dark:text-slate-200">{heading}</h2>
       {tiles}
     </section>
   )

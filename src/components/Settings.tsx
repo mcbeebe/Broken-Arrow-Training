@@ -29,7 +29,8 @@ import type { WorkoutTimeSlot } from '../hooks/useWorkoutTimePreference'
 import ExportDialog from './ExportDialog'
 import { shiftIsoByWeeks } from '../utils/planDates'
 import { useDisplayPreferences } from '../hooks/useDisplayPreferences'
-import { DETAIL_LEVELS, type DisplayFlags, type SectionId } from '../types'
+import { DETAIL_LEVELS, type DisplayFlags } from '../types'
+import { SECTION_GROUPS } from '../utils/sectionGroups'
 import { PALETTES, type PaletteId } from '../palettes'
 import type { ConversationTurn, PerformanceMetrics, TrainingWeek } from '../types'
 
@@ -1225,32 +1226,6 @@ function MIMTable({ overrides, lastCalibrated, onSetManual, onReset, onRecalibra
     </div>
   )
 }
-
-// Hideable sections, grouped by surface, in customer language. Order matches
-// how they appear on each screen.
-const SECTION_GROUPS: { group: string; items: { id: SectionId; label: string }[] }[] = [
-  {
-    group: 'Dashboard',
-    items: [
-      { id: 'dash.tabReadiness', label: 'Readiness tab' },
-      { id: 'dash.tabPerformance', label: 'Performance tab' },
-      { id: 'dash.descentCapacity', label: 'Descent capacity' },
-      { id: 'dash.volume', label: 'Volume chart' },
-      { id: 'dash.performanceChart', label: 'Fitness & fatigue trend' },
-      { id: 'dash.trimpBreakdown', label: 'Training-load breakdown' },
-      { id: 'dash.strengthProgress', label: 'Strength progress' },
-    ],
-  },
-  {
-    group: 'Summary',
-    items: [
-      { id: 'summary.perfSnapshot', label: 'Performance snapshot' },
-      { id: 'summary.whatChanged', label: 'Your last 7 days' },
-      { id: 'summary.trainingLoad', label: '7-day training load' },
-      { id: 'summary.readinessTrend', label: 'Week readiness trend' },
-    ],
-  },
-]
 
 function PrefToggle({ label, desc, checked, onChange }: {
   label: string; desc?: string; checked: boolean; onChange: (v: boolean) => void

@@ -20,6 +20,7 @@ import PlanAtAGlance from './PlanAtAGlance'
 import TRIMPBreakdown from './TRIMPBreakdown'
 import PerformanceSnapshot from './PerformanceSnapshot'
 import ReadinessTrend from './ReadinessTrend'
+import { readinessIsCurrent } from '../utils/readinessRecency'
 import { notesRowText, shouldShowNotesRow } from '../utils/planNotes'
 import type { PlanAdvisory } from '../types'
 import { useDisplayPreferences } from '../hooks/useDisplayPreferences'
@@ -483,9 +484,11 @@ export default function Summary({
         />
       )}
 
-      {/* The week's readiness, day by day. Needs a watch's overnight data;
-          without it there is nothing to draw. */}
-      {isSectionVisible('summary.readinessTrend') && weekScores.length > 0 && (
+      {/* The week's readiness, day by day. Readiness exists only because
+          of a watch, so like the readiness sheet it waits for a live one —
+          an expired Garmin session keeps its cached scores — and Today
+          shows the trend only while its newest day is today or yesterday. */}
+      {isSectionVisible('summary.readinessTrend') && garminConnected && readinessIsCurrent(weekScores, localDateStr()) && (
         <ReadinessTrend weekScores={weekScores} />
       )}
 

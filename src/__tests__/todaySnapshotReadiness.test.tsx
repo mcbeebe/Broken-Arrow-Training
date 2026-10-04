@@ -12,6 +12,8 @@ import PerformanceSnapshot from '../components/PerformanceSnapshot'
 import ReadinessTrend from '../components/ReadinessTrend'
 import { tsbZone, acwrZone, ACWR_BOUNDS, ACWR_IN_RANGE_RAMPING_NOTE } from '../utils/loadZones'
 import type { PerformanceMetrics, ReadinessScore } from '../types'
+import { readinessIsCurrent } from '../utils/readinessRecency'
+import { SECTION_GROUPS } from '../utils/sectionGroups'
 
 afterEach(cleanup)
 
@@ -76,24 +78,59 @@ describe('ReadinessTrend', () => {
   })
 })
 
+describe('readinessIsCurrent', () => {
+  const at = (date: string) => [score(date, 70, 'GREEN')]
+  it('is current when the newest score is today or yesterday', () => {
+    expect(readinessIsCurrent(at('2026-10-04'), '2026-10-04')).toBe(true)
+    expect(readinessIsCurrent(at('2026-10-03'), '2026-10-04')).toBe(true)
+    expect(readinessIsCurrent(at('2026-09-30'), '2026-10-01')).toBe(true)
+  })
+
+  it('is stale from two days back, and with no scores at all', () => {
+    // A watch unsynced for twelve days still yields seven bars, all old.
+    expect(readinessIsCurrent(at('2026-10-02'), '2026-10-04')).toBe(false)
+    expect(readinessIsCurrent([score('2026-09-20', 70, 'GREEN'), score('2026-09-22', 64, 'YELLOW')], '2026-10-04')).toBe(false)
+    expect(readinessIsCurrent([], '2026-10-04')).toBe(false)
+  })
+})
+
 describe('Today mounts both cards behind their switches', () => {
   const SOURCES = import.meta.glob(
-    ['../components/Summary.tsx', '../components/Settings.tsx', '../components/Dashboard.tsx', '../components/PerformanceChart.tsx', '../App.tsx'],
+    ['../components/Summary.tsx', '../components/Dashboard.tsx', '../components/PerformanceChart.tsx', '../App.tsx'],
     { query: '?raw', import: 'default', eager: true },
   ) as Record<string, string>
   const raw = (path: string) => SOURCES[path] ?? (() => { throw new Error(`${path} not loaded`) })()
   const SUMMARY = raw('../components/Summary.tsx')
-  const SETTINGS = raw('../components/Settings.tsx')
   const guard = (tag: string) => {
     const at = SUMMARY.indexOf(`<${tag}`)
     expect(at, `${tag} not mounted on Today`).toBeGreaterThan(-1)
     return SUMMARY.slice(SUMMARY.lastIndexOf('{', at), at)
   }
+  /** The `<Tag … />` element as written in a file. */
+  const element = (src: string, tag: string) => {
+    const at = src.indexOf(`<${tag}`)
+    expect(at, `${tag} not mounted`).toBeGreaterThan(-1)
+    return src.slice(at, src.indexOf('/>', at) + 2)
+  }
+  const TODAY_IDS = SECTION_GROUPS.find(g => g.group === 'Summary')!.items.map(i => i.id)
+  /** Where the card a switch guards is mounted: the `{… isSectionVisible(id) … && (` expression opening a JSX element. */
+  const mountOf = (id: string) => {
+    const m = new RegExp(`\\{[^{}\\n]*isSectionVisible\\('${id.replace('.', '\\.')}'\\)[^{}\\n]*&& \\(\\s*<[A-Z]`).exec(SUMMARY)
+    return m ? m.index : -1
+  }
 
-  it('guards each card by its switch and its data, never by a watch', () => {
+  it('shows the snapshot whenever there is a load reading, watch or not', () => {
     expect(guard('PerformanceSnapshot')).toContain("isSectionVisible('summary.perfSnapshot') && latestPerf")
-    expect(guard('ReadinessTrend')).toContain("isSectionVisible('summary.readinessTrend') && weekScores.length > 0")
-    for (const tag of ['PerformanceSnapshot', 'ReadinessTrend']) expect(guard(tag)).not.toMatch(/garmin/i)
+    expect(guard('PerformanceSnapshot')).not.toMatch(/garmin/i)
+  })
+
+  it('shows the readiness trend only with a live watch and a current score', () => {
+    // An expired Garmin session keeps its cached scores; the trend sat
+    // under "Connect a watch". The readiness sheet already waits for a
+    // live watch.
+    expect(guard('ReadinessTrend')).toContain(
+      "isSectionVisible('summary.readinessTrend') && garminConnected && readinessIsCurrent(weekScores, localDateStr())",
+    )
   })
 
   it('places them below the 7-day load, snapshot first', () => {
@@ -105,22 +142,28 @@ describe('Today mounts both cards behind their switches', () => {
     expect(trend).toBeGreaterThan(snap)
   })
 
-  it('gets the week’s readiness scores from the app', () => {
-    const mount = raw('../App.tsx').slice(raw('../App.tsx').indexOf('<Summary'))
-    expect(mount.slice(0, mount.indexOf('/>'))).toContain('weekScores={readiness.weekScores}')
+  it('gets the readiness scores and the tuned Load Ratio bounds from the app', () => {
+    const mount = element(raw('../App.tsx'), 'Summary')
+    expect(mount).toContain('weekScores={readiness.weekScores}')
+    expect(mount).toContain('acwrBounds={acwrBoundsFrom(readinessTuning)}')
   })
 
-  it('leaves no Today switch in Settings without a card behind it', () => {
-    // Three of these sat orphaned for months; this keeps it from recurring.
-    const ids = [...SETTINGS.matchAll(/\{ id: '(summary\.[A-Za-z]+)'/g)].map(m => m[1])
-    expect(ids.length).toBeGreaterThanOrEqual(4)
-    for (const id of ids) expect(SUMMARY, `${id} has no card on Today`).toContain(`isSectionVisible('${id}')`)
+  it('mounts a card behind every Today switch in Settings', () => {
+    // Three of these sat orphaned for months. A bare mention of the id
+    // isn't enough: it must guard a mounted element.
+    expect(TODAY_IDS.length).toBeGreaterThanOrEqual(4)
+    for (const id of TODAY_IDS) expect(mountOf(id), `${id} guards no card on Today`).toBeGreaterThan(-1)
   })
 
-  it('keeps Progress on the same components', () => {
+  it('lists the Today switches in the order Today shows the cards', () => {
+    const positions = TODAY_IDS.map(mountOf)
+    expect(positions).toEqual([...positions].sort((a, b) => a - b))
+  })
+
+  it('keeps Progress on the same components, untitled', () => {
     expect(raw('../components/Dashboard.tsx')).toContain('<ReadinessTrend weekScores={weekScores} />')
-    const chart = raw('../components/PerformanceChart.tsx')
-    expect(chart).toContain('<PerformanceSnapshot latest={latest}')
-    expect(chart.slice(chart.indexOf('<PerformanceSnapshot'))).not.toMatch(/^<PerformanceSnapshot[^>]*heading=/)
+    const tiles = element(raw('../components/PerformanceChart.tsx'), 'PerformanceSnapshot')
+    expect(tiles).toContain('latest={latest}')
+    expect(tiles).not.toContain('heading=')
   })
 })
