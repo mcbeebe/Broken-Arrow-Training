@@ -16,6 +16,7 @@ import { useCoachInsight } from '../hooks/useCoachInsight'
 import { coachApiAvailable } from '../utils/coachApi'
 import WeekReviewCard from './WeekReviewCard'
 import PlanAtAGlance from './PlanAtAGlance'
+import TRIMPBreakdown from './TRIMPBreakdown'
 import { notesRowText, shouldShowNotesRow } from '../utils/planNotes'
 import type { PlanAdvisory } from '../types'
 import { useDisplayPreferences } from '../hooks/useDisplayPreferences'
@@ -444,6 +445,19 @@ export default function Summary({
           open={narrativeOpen}
           onToggle={() => setNarrativeOpen(!narrativeOpen)}
           coachTake={weekTakeOn ? { text: (weekTake.current && weekTake.insight?.text?.trim()) || null, loading: weekTake.loading } : undefined}
+        />
+      )}
+
+      {/* The week's load by sport against Fatigue and the in-range band,
+          with its own 7d / 30d / 90d / YTD tabs. Settings has long had a
+          "7-day training load" switch for Today with nothing behind it;
+          this is the card it now controls. */}
+      {isSectionVisible('summary.trainingLoad') && dailyTrimp.some(d => d.total > 0) && (
+        <TRIMPBreakdown
+          dailyTrimp={dailyTrimp}
+          sorenessLoadByDate={sorenessLoadByDate}
+          performance={performance}
+          athleteId={athleteId}
         />
       )}
 
