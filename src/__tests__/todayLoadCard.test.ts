@@ -8,11 +8,9 @@
  * worth of props to render.
  */
 import { describe, it, expect } from 'vitest'
+import { SECTION_GROUPS } from '../utils/sectionGroups'
 
 const SUMMARY = Object.values(import.meta.glob('../components/Summary.tsx', {
-  query: '?raw', import: 'default', eager: true,
-}))[0] as string
-const SETTINGS = Object.values(import.meta.glob('../components/Settings.tsx', {
   query: '?raw', import: 'default', eager: true,
 }))[0] as string
 
@@ -39,7 +37,7 @@ describe('Today: the 7-day Training Load card', () => {
     expect(g).toContain("isSectionVisible('summary.trainingLoad')")
     expect(g).toContain('dailyTrimp.some(d => d.total > 0)')
     expect(g).not.toMatch(/garmin/i)
-    expect(SETTINGS).toContain("{ id: 'summary.trainingLoad', label: '7-day training load' }")
+    expect(SECTION_GROUPS.flatMap(g => g.items)).toContainEqual({ id: 'summary.trainingLoad', label: '7-day training load' })
   })
 
   it('keeps its own 7d / 30d / 90d / YTD tabs, opening on 7 days', () => {

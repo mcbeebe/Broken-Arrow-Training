@@ -2354,6 +2354,8 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           zones={hrZones.zones}
           coachSnapshot={coachSnapshot}
           riskFlags={readiness.riskFlags}
+          weekScores={readiness.weekScores}
+          acwrBounds={acwrBoundsFrom(readinessTuning)}
           trainingSignals={trainingSignals}
           advisories={allAdvisories}
           onOpenPlanNotes={openPlanNotes}
