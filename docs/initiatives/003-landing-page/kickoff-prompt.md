@@ -53,13 +53,14 @@ intent.md, analysis.md § The request-access endpoint, and plan.md § PR 2.
 
 Build PR 2 exactly as described: fix the queue-wipe bug first, then the error
 contract (KV network errors → 503, not 500), honeypot hp_contact_ref,
-the atomic per-IP throttle, the admin-email cap, source, and the /app/ push and
-app_url changes. Keep 400 for a bad email and 200 for an already-approved one.
+the atomic per-IP throttle, the admin-email cap, source, the /app/ push and
+app_url changes, and the airlock's move to /app/ (plan.md D12: TARGET stays the
+bare origin; add APP_PATH for the navigation URLs). Keep 400 for a bad email and 200 for an already-approved one.
 Write api/coach/tests/test_access_request.py first (every case in plan.md;
 mock KV and email), then the code. Never store a raw IP.
 
 Gates: pytest -m "not eval" api/coach/tests scripts/deploy/tests, plus the
-frontend gates (nothing frontend should change). Open the PR, run /adversary,
+frontend gates (only scripts/airlock/ changes on the frontend). Open the PR, run /adversary,
 include its memo. In the PR description, tell the owner to set
 ACCESS_REQUEST_SALT on Vercel, and to change APP_URL to https://attune.coach/app
 if it is set there.

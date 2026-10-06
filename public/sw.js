@@ -27,7 +27,7 @@ self.addEventListener('push', (event) => {
   }
   const title = data.title || 'Coach'
   const body = data.body || 'You have a new note from Coach.'
-  const url = data.url || '/?view=coach'
+  const url = data.url || '/app/?view=coach'
   const tag = data.tag || 'coach-insight'
   event.waitUntil(
     self.registration.showNotification(title, {
@@ -41,15 +41,25 @@ self.addEventListener('push', (event) => {
   )
 })
 
+function isAppClient(client) {
+  try {
+    return new URL(client.url).pathname.startsWith('/app/')
+  } catch (e) {
+    return false
+  }
+}
+
 self.addEventListener('notificationclick', (event) => {
   event.notification.close()
-  const url = (event.notification.data && event.notification.data.url) || '/?view=coach'
+  const url = (event.notification.data && event.notification.data.url) || '/app/?view=coach'
   event.waitUntil(
     self.clients
       .matchAll({ type: 'window', includeUncontrolled: true })
       .then((clientList) => {
         for (const client of clientList) {
-          if ('focus' in client) {
+          // Only the app (under /app/) listens for this message. The root
+          // page and /tools/ share the origin and would ignore it.
+          if ('focus' in client && isAppClient(client)) {
             // App is already open — tell it to jump to the Coach tab,
             // then focus the window.
             client.postMessage({ type: 'NOTIFICATION_CLICK', view: 'coach' })

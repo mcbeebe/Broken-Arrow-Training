@@ -265,9 +265,15 @@ describe('migration hash bridge (iOS same-tab redirect)', () => {
     expect(parseMigrationHash(encoded)).not.toBeNull()
   })
 
-  it('defaults dest to "/" when empty', () => {
+  // Initiative 003: the app lives at /app/, so a missing dest lands there.
+  it('defaults dest to "/app/" when empty', () => {
     const parsed = parseMigrationHash('#' + encodeMigrationHash(samplePayload(), ''))
-    expect(parsed!.dest).toBe('/')
+    expect(parsed!.dest).toBe('/app/')
+  })
+
+  it('defaults dest to "/app/" when the envelope has no d', () => {
+    const hash = '#__attune_migrate=' + encodeURIComponent(JSON.stringify({ p: samplePayload() }))
+    expect(parseMigrationHash(hash)!.dest).toBe('/app/')
   })
 
   it('returns null for non-migration fragments', () => {

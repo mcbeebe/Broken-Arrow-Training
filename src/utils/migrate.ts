@@ -155,8 +155,8 @@ interface SendResult {
 }
 
 /**
- * Open a popup to `targetOrigin/?__migrate=1`, postMessage the payload,
- * await ack, then `location.replace` to the target preserving the
+ * Open a popup to `targetOrigin/app/?__migrate=1`, postMessage the payload,
+ * await ack, then `location.replace` to the app at `/app/` preserving the
  * current `?view=` query and `#athleteId` hash.
  *
  * MUST be called from a user-gesture handler (button click) or the
@@ -171,12 +171,12 @@ export async function sendMigration(
 
   if (Object.keys(payload.items).length === 0 && Object.keys(payload.session).length === 0) {
     // Nothing to migrate — just forward (e.g. brand-new visitor on old origin)
-    location.replace(targetOrigin + window.location.search + window.location.hash)
+    location.replace(targetOrigin + '/app/' + window.location.search + window.location.hash)
     return { ok: true, count: 0, error: 'empty' }
   }
 
   const popup = window.open(
-    `${targetOrigin}/?__migrate=1`,
+    `${targetOrigin}/app/?__migrate=1`,
     'attune-migrate',
     'width=520,height=560,noopener=no',
   )
@@ -194,7 +194,7 @@ export async function sendMigration(
         cleanup()
         try { popup.close() } catch { /* ignore */ }
         resolved = true
-        const forwardUrl = targetOrigin + window.location.search + window.location.hash
+        const forwardUrl = targetOrigin + '/app/' + window.location.search + window.location.hash
         sessionStorage.setItem('ba_migration_done', '1')
         location.replace(forwardUrl)
         resolve({ ok: true, count: data.count })
@@ -321,7 +321,7 @@ export function parseMigrationHash(hash: string): HashMigration | null {
       d?: string
     }
     if (!env?.p || env.p.v !== MIGRATE_PROTOCOL_VERSION) return null
-    return { payload: env.p, dest: typeof env.d === 'string' && env.d ? env.d : '/' }
+    return { payload: env.p, dest: typeof env.d === 'string' && env.d ? env.d : '/app/' }
   } catch {
     return null
   }

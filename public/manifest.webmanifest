@@ -2,15 +2,16 @@
   "name": "Attune",
   "short_name": "Attune",
   "description": "An AI coach that learns you — adaptive training plans tuned to your readiness, recovery, and goals.",
-  "start_url": "./?view=today",
-  "scope": "./",
+  "id": "/?view=today",
+  "start_url": "/app/?view=today",
+  "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#0f172a",
   "theme_color": "#0f172a",
   "icons": [
     {
-      "src": "./favicon.svg",
+      "src": "/favicon.svg",
       "type": "image/svg+xml",
       "sizes": "any",
       "purpose": "any maskable"
@@ -21,19 +22,19 @@
       "name": "Today",
       "short_name": "Today",
       "description": "Today's readiness and workout",
-      "url": "./?view=today"
+      "url": "/app/?view=today"
     },
     {
       "name": "Coach",
       "short_name": "Coach",
       "description": "Talk to your coach",
-      "url": "./?view=coach"
+      "url": "/app/?view=coach"
     },
     {
       "name": "This week's plan",
       "short_name": "Plan",
       "description": "The week's training plan",
-      "url": "./?view=plan"
+      "url": "/app/?view=plan"
     }
   ]
 }

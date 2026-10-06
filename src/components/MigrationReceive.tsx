@@ -81,7 +81,7 @@ export default function MigrationReceive() {
         setStatus('done')
       }, 0)
       const redirect = window.setTimeout(() => {
-        if (!cancelled) window.location.replace(hashMig.dest || '/')
+        if (!cancelled) window.location.replace(hashMig.dest || '/app/')
       }, 600)
       return () => {
         cancelled = true
@@ -99,7 +99,7 @@ export default function MigrationReceive() {
       // Clean the URL and reload into the regular app, preserving hash.
       const hash = window.location.hash
       window.setTimeout(() => {
-        window.location.replace('/' + hash)
+        window.location.replace('/app/' + hash)
       }, 600)
     })
     return () => { cancelled = true }
@@ -114,7 +114,7 @@ export default function MigrationReceive() {
       setStatus('done')
       const hash = window.location.hash
       window.setTimeout(() => {
-        window.location.replace('/' + hash)
+        window.location.replace('/app/' + hash)
       }, 600)
     } catch (err) {
       setStatus('error')
@@ -169,7 +169,7 @@ export default function MigrationReceive() {
             <p className="text-rose-700 dark:text-rose-400 font-semibold">
               {errorMsg || 'Migration failed.'}
             </p>
-            <a href="/" className="inline-block mt-2 text-sm text-teal-700 dark:text-teal-400 underline">
+            <a href="/app/" className="inline-block mt-2 text-sm text-teal-700 dark:text-teal-400 underline">
               Continue to attune.coach anyway
             </a>
           </>

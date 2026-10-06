@@ -30,6 +30,7 @@ forwards the old `/?view=coach` links, so nothing 404s in between.
 | D9 | **Tools’ “Get the full plan” goes to `/?from=tool-x#join`** (the landing page’s invite form), not the app’s sign-in wall | Recommended; owner can override before PR 1 |
 | D10 | Launch is a repo variable, `vars.ATTUNE_LANDING_ENABLED`, baked in at build as `VITE_LANDING_ENABLED`. Launch and rollback = change the variable, then dispatch `deploy.yml` on the publishing branch | Recommended, adopted in this plan |
 | D11 | The landing bundle never imports app code, recharts or cesium; fonts self-hosted; the landing mark is its own file (`/attune-mark.svg`), never a replacement for `/favicon.svg` | Recommended, adopted in this plan |
+| D12 | **The airlock moves to `/app/` in PR 2, not PR 1.** `deploy.yml`'s `cutover-airlock` job publishes on the branch test alone: it ignores `ATTUNE_PUBLISH_ENABLED` and finishes minutes before the attune build. Pointed at `/app/` in PR 1, it would send legacy visitors to a `/app/` that doesn't exist yet. Left at the bare root, its hand-offs (`?__migrate=1`, `#__attune_migrate`, deep links) still reach the app through the root page's guard | Owner 2026-10-06, found while starting PR 1 |
 
 ---
 
@@ -53,8 +54,7 @@ forwards the old `/?view=coach` links, so nothing 404s in between.
 9. Migration:
    - `src/components/MigrationReceive.tsx` (lines ~84, 102, 117, 172) → `/app/`.
    - `src/utils/migrate.ts`: sender targets (~174, 178, 197) → `/app/`, and the `dest` fallback (~324) `'/'` → `'/app/'`.
-   - `scripts/airlock/index.html`: **keep `TARGET` as the bare origin** (it is the `postMessage` origin check at ~213/216); add `APP_PATH = '/app/'` for the URLs at ~9, 35, 115, 175, 184; `destRel()` (~97) maps the legacy prefix to `/app/`.
-   - `scripts/airlock/404.html` → `/app/`.
+   - `scripts/airlock/` is **not** in this PR (D12); it moves in PR 2.
 10. `src/tools/ToolShell.tsx`: link to `/?from=${toolId}#join` (D9). Until launch, the root forwards it on to the app anyway (`forwardAll`).
 11. `src/landing/referral.ts` (first-touch `ba_referral_source_v1`, same JSON shape as today); `src/main.tsx` calls it instead of its inline block.
 12. `scripts/deploy/check-site-layout.mjs`, run in `build-and-deploy-attune` right after `npm run build`. That job already builds on every PR, so PRs catch layout breaks. It reads `dist/.vite/manifest.json` and fails unless:
@@ -65,7 +65,7 @@ forwards the old `/?view=coach` links, so nothing 404s in between.
 13. `CLAUDE.md`: layout and deploy topology (two entries, `/app/`, `ATTUNE_LANDING_ENABLED`, the layout check), the base-path note, and the two stale lines in [analysis.md § CLAUDE.md drift](analysis.md#claudemd-drift-noticed-during-this-audit).
 14. Registry row 003: PRs column.
 
-**Not in this PR:** `api/coach/push.py` and `app_url()` (they go in PR 2, see the ordering rule).
+**Not in this PR:** `api/coach/push.py`, `app_url()` and `scripts/airlock/` (they go in PR 2, see the ordering rule and D12).
 
 **Tests** (new files under `src/__tests__/landing/` unless noted):
 
@@ -116,6 +116,10 @@ forwards the old `/?view=coach` links, so nothing 404s in between.
 7. **Admin email cap:** at most 20 admin notification emails per UTC day (`access_req:mail:<yyyymmdd>`, same transaction pattern, 2-day TTL). Requests past the cap still queue, but send no email.
 8. **Source:** accept optional `source` (`^[a-z0-9-]{1,40}$`; `None` or invalid → dropped; never `str(None)`). Store it on the request record and print it in the admin email (“Source: tool-heat”). The Settings → Athletes list is unchanged in this initiative.
 9. Owner actions in the PR description: set `ACCESS_REQUEST_SALT` on Vercel; if `APP_URL` is set on Vercel, change it to `https://attune.coach/app`.
+10. Airlock (D12), moved here from PR 1:
+   - `scripts/airlock/index.html`: **keep `TARGET` as the bare origin** (it is the `postMessage` origin check at ~213/216); add `APP_PATH = '/app/'` for the URLs at ~9, 35, 115, 175, 184; `destRel()` (~97) maps the legacy prefix to `/app/`.
+   - `scripts/airlock/404.html` → `/app/`.
+   - This is frontend, so it rides PR 2 only because PR 2 already waits for PR 1 to be live; then run smoke step 6 again.
 
 **Tests:**
 - `api/coach/tests/test_access_request.py`, the first tests this handler has had. Mock KV and email:
@@ -212,7 +216,7 @@ forwards the old `/?view=coach` links, so nothing 404s in between.
 
 ## Smoke checklist
 
-Run steps 1–7 after PR 1, step 3 again after PR 2, and all of them after PR 5. Use the production site, from a phone and a laptop. Any failure means roll back.
+Run steps 1–7 after PR 1, steps 3 and 6 again after PR 2, and all of them after PR 5. Use the production site, from a phone and a laptop. Any failure means roll back.
 
 1. `attune.coach/app/` loads the app; sign in with Google works.
 2. **Installed home-screen app** (iPhone and Android, installed before PR 1) opens straight into the app on Today.
