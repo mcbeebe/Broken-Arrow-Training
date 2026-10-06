@@ -7,7 +7,7 @@ import type {
   PlanEditRevokeTarget,
   DayUpdates,
 } from '../types'
-import { stampKey } from '../utils/syncStamps'
+import { setSyncedItemWithRoom } from '../utils/storageRoom'
 
 /**
  * Structural plan edits as an ordered op-log replayed over the immutable
@@ -104,8 +104,7 @@ function readEdits(athleteId?: string, planGeneration?: string): PlanEdit[] {
 function writeEdits(edits: PlanEdit[], athleteId?: string) {
   const key = scopedKey(STORAGE_KEY, athleteId)
   try {
-    localStorage.setItem(key, JSON.stringify(edits))
-    stampKey(key)
+    setSyncedItemWithRoom(key, JSON.stringify(edits))
   } catch { /* quota */ }
 }
 

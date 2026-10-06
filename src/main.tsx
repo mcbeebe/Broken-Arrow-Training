@@ -7,6 +7,7 @@ import MigrationBanner from './components/MigrationBanner'
 import MigrationReceive from './components/MigrationReceive'
 import { isMigrationReceive } from './utils/migrate'
 import { recordReferralSource } from './landing/referral'
+import { sweepExpiredCaches } from './utils/storageRoom'
 
 // G10 acquisition attribution (?from=tool-*), shared with the root page.
 recordReferralSource(window.location.search)
@@ -24,6 +25,9 @@ if (isMigrationReceive()) {
     </StrictMode>,
   )
 } else {
+  // Free storage that can never be read again before anything writes —
+  // a phone that filled up must boot into a working app (2026-10-06).
+  sweepExpiredCaches()
   const targetOrigin = import.meta.env.VITE_TARGET_ORIGIN as string | undefined
   root.render(
     <StrictMode>

@@ -3,7 +3,7 @@ import type { GarminWorkoutPayload } from '../engines/planGenerator/garminWorkou
 import { buildGarminPayloadForDay } from '../engines/planGenerator/garminWorkout'
 import { pushWorkoutToGarmin, isGarminConnected } from './garmin'
 import { dayIsoInWeek, todayDateString } from './planDates'
-import { stampKey } from './syncStamps'
+import { setSyncedItemWithRoom } from './storageRoom'
 
 /**
  * Garmin push ledger + auto re-push (G2a — docs/gap-closure-build-plan.md).
@@ -60,8 +60,7 @@ export function readPushedLedger(athleteId?: string): PushedLedger {
 function writePushedLedger(ledger: PushedLedger, athleteId?: string): void {
   const key = scopedKey(athleteId)
   try {
-    localStorage.setItem(key, JSON.stringify(ledger))
-    stampKey(key)
+    setSyncedItemWithRoom(key, JSON.stringify(ledger))
   } catch { /* quota */ }
 }
 

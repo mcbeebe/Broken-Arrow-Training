@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useMemo } from 'react'
 import type { TrainingWeek } from '../types'
 import { applyReplanLog, hasReplanFor, type ReplanKind, type ReplanRecord } from '../engines/planGenerator/replanLog'
-import { stampKey } from '../utils/syncStamps'
+import { setSyncedItemWithRoom } from '../utils/storageRoom'
 
 /**
  * Phase 5 (PRD-110) — the athlete-facing half of adaptation.
@@ -49,8 +49,7 @@ function readLog(athleteId?: string, planGeneration?: string): ReplanRecord[] {
 function writeLog(log: ReplanRecord[], athleteId?: string) {
   const key = scopedKey(athleteId)
   try {
-    localStorage.setItem(key, JSON.stringify(log))
-    stampKey(key)
+    setSyncedItemWithRoom(key, JSON.stringify(log))
   } catch { /* quota */ }
 }
 
