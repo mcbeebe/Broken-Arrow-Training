@@ -39,7 +39,7 @@ future session. Initiative IDs are global; a series' own internal numbering
 
 | ID | Initiative | Status | PRs | Artifacts |
 |----|------------|--------|-----|-----------|
-| 001 | SDLC uplevel — gates, artifact chain, standing instructions | Open | — | [intent](001-sdlc-uplevel/intent.md) |
+| 001 | SDLC uplevel — gates, artifact chain, standing instructions | Open | — | [intent](001-sdlc-uplevel/intent.md) · [proposal](001-sdlc-uplevel/proposal.md) · [draft templates](001-sdlc-uplevel/templates/) |
 | 002 | eslint to zero, then make it a required gate | Open | — | [intent](002-eslint-to-green/intent.md) |
 | 003 | Public landing page at attune.coach; app moves to /app/ | Open | #467 (plan), #468 (PR 1) | [intent](003-landing-page/intent.md) · [analysis](003-landing-page/analysis.md) · [plan](003-landing-page/plan.md) · [design](003-landing-page/design-spec.md) · [copy](003-landing-page/copy.md) · [kickoff](003-landing-page/kickoff-prompt.md) |
 
