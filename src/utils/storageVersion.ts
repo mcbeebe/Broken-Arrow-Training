@@ -5,6 +5,8 @@
  * Bump CURRENT_VERSION whenever you change the shape of cached data.
  */
 
+import { setItemWithRoom } from './storageRoom'
+
 const VERSION_KEY = 'ba_storage_version'
 const CURRENT_VERSION = 3  // v3 = timezone fix + Garmin detail + AI Coach
 
@@ -34,7 +36,7 @@ export function checkStorageVersion(): void {
   if (storedVersion < CURRENT_VERSION) {
     console.log(`[StorageVersion] Upgrading from v${storedVersion} to v${CURRENT_VERSION} — clearing cached data`)
     clearAllCachedData()
-    localStorage.setItem(VERSION_KEY, String(CURRENT_VERSION))
+    setItemWithRoom(VERSION_KEY, String(CURRENT_VERSION))
   }
 }
 

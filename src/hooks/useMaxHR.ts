@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { setItemWithRoom } from '../utils/storageRoom'
 
 const STORAGE_KEY = 'ba_max_hr_override'
 
@@ -14,7 +15,7 @@ export function useMaxHR(athleteId: string | undefined, defaultMaxHR: number) {
   }, [athleteId])
 
   const save = useCallback((value: number) => {
-    localStorage.setItem(scopedKey(athleteId), String(value))
+    setItemWithRoom(scopedKey(athleteId), String(value))
     setOverride(value)
   }, [athleteId])
 

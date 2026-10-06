@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import type { HRZone } from '../types'
+import { setItemWithRoom } from '../utils/storageRoom'
 
 const STORAGE_KEY = 'ba_hr_zones_override'
 
@@ -20,7 +21,7 @@ export function useHRZones(athleteId: string | undefined, defaultZones: HRZone[]
   }, [athleteId])
 
   const save = useCallback((zones: HRZone[]) => {
-    localStorage.setItem(scopedKey(athleteId), JSON.stringify(zones))
+    setItemWithRoom(scopedKey(athleteId), JSON.stringify(zones))
     setOverride(zones)
   }, [athleteId])
 

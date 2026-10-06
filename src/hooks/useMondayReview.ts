@@ -1,6 +1,6 @@
 import { todayDateString } from '../utils/planDates'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { stampKey } from '../utils/syncStamps'
+import { setSyncedItemWithRoom } from '../utils/storageRoom'
 
 /**
  * When the Monday Review shows (Adaptive Engine phase 1, PR 3).
@@ -50,8 +50,7 @@ function read(athleteId?: string): ReviewState | null {
 function write(state: ReviewState, athleteId?: string) {
   try {
     const key = scopedKey(athleteId)
-    localStorage.setItem(key, JSON.stringify(state))
-    stampKey(key)
+    setSyncedItemWithRoom(key, JSON.stringify(state))
   } catch { /* quota */ }
 }
 

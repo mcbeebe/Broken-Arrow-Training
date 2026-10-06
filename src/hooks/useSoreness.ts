@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo, useEffect } from 'react'
 import { localDateStr } from '../utils/format'
-import { stampKey } from '../utils/syncStamps'
 import { checkInWindowAt } from '../utils/checkInWindow'
+import { setSyncedItemWithRoom } from '../utils/storageRoom'
 
 // ─── Muscle Soreness Check-In ─────────────────────────────────
 //
@@ -52,8 +52,7 @@ function loadEntries(athleteId: string): Record<string, SorenessEntry> {
 
 function saveEntries(athleteId: string, entries: Record<string, SorenessEntry>): void {
   const key = `${STORAGE_KEY}_${athleteId}`
-  localStorage.setItem(key, JSON.stringify(entries))
-  stampKey(key)
+  setSyncedItemWithRoom(key, JSON.stringify(entries))
 }
 
 export function useSoreness(athleteId: string) {

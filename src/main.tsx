@@ -6,6 +6,7 @@ import ErrorBoundary from './components/ErrorBoundary'
 import MigrationBanner from './components/MigrationBanner'
 import MigrationReceive from './components/MigrationReceive'
 import { isMigrationReceive } from './utils/migrate'
+import { sweepExpiredCaches } from './utils/storageRoom'
 
 // G10 acquisition attribution: the free public calculators link back with
 // ?from=tool-*. First touch wins and it never overwrites — one write, so a
@@ -30,6 +31,9 @@ if (isMigrationReceive()) {
     </StrictMode>,
   )
 } else {
+  // Free storage that can never be read again before anything writes —
+  // a phone that filled up must boot into a working app (2026-10-06).
+  sweepExpiredCaches()
   const targetOrigin = import.meta.env.VITE_TARGET_ORIGIN as string | undefined
   root.render(
     <StrictMode>

@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from 'react'
 import type { WeekShape, WeekReshape } from '../engines/planGenerator/weekShape'
 import type { DetailLevel } from '../types'
 import { stampKey } from '../utils/syncStamps'
+import { setItemWithRoom, setSyncedItemWithRoom, setSyncedItemWithRoomOrThrow } from '../utils/storageRoom'
 
 export type RaceType = 'trail' | 'road' | 'hyrox' | 'general'
 // Goal for the General Fitness path (raceType === 'general'). Selects which
@@ -457,8 +458,7 @@ export function useOnboarding(athleteId?: string) {
     const k = scopedKey(athleteId)
     const redoK = scopedRedoKey(athleteId)
     try {
-      localStorage.setItem(k, JSON.stringify(withTimestamp))
-      stampKey(k)
+      setSyncedItemWithRoomOrThrow(k, JSON.stringify(withTimestamp))
       // A new plan generation invalidates day-level customizations of the
       // OLD plan: the edit/swap op-logs are keyed by week/day INDEX, so
       // replaying them onto a rebuilt calendar scattered June's custom
@@ -517,11 +517,11 @@ export function useOnboarding(athleteId?: string) {
       // can prefill profile basics instead of re-asking them.
       const outgoing = localStorage.getItem(cfgK)
       if (outgoing) {
-        localStorage.setItem(scopedPrevKey(athleteId), outgoing)
+        // Only prefills the redo form — a full phone must not block the redo.
+        setItemWithRoom(scopedPrevKey(athleteId), outgoing)
         setPreviousConfig(JSON.parse(outgoing))
       }
-      localStorage.setItem(redoK, '1')
-      stampKey(redoK)
+      setSyncedItemWithRoomOrThrow(redoK, '1')
       localStorage.removeItem(cfgK)
       // The post-onboarding tutorial walkthrough is keyed by its own
       // localStorage flag (`ba_tutorial_seen_<athleteId>`), NOT the
@@ -547,7 +547,7 @@ export function useOnboarding(athleteId?: string) {
       if (!prev || prev.primerSeenAt) return prev
       const next = { ...prev, primerSeenAt: new Date().toISOString() }
       const k = scopedKey(athleteId)
-      try { localStorage.setItem(k, JSON.stringify(next)); stampKey(k) } catch { /* quota */ }
+      try { setSyncedItemWithRoom(k, JSON.stringify(next)) } catch { /* quota */ }
       return next
     })
   }, [athleteId])
@@ -563,7 +563,7 @@ export function useOnboarding(athleteId?: string) {
       if (!prev || prev.planStartPinnedIso) return prev
       const next = { ...prev, planStartPinnedIso: iso }
       const k = scopedKey(athleteId)
-      try { localStorage.setItem(k, JSON.stringify(next)); stampKey(k) } catch { /* quota */ }
+      try { setSyncedItemWithRoom(k, JSON.stringify(next)) } catch { /* quota */ }
       return next
     })
   }, [athleteId])
@@ -579,7 +579,7 @@ export function useOnboarding(athleteId?: string) {
       if (!prev || prev.weakStation === station) return prev
       const next = { ...prev, weakStation: station }
       const k = scopedKey(athleteId)
-      try { localStorage.setItem(k, JSON.stringify(next)); stampKey(k) } catch { /* quota */ }
+      try { setSyncedItemWithRoom(k, JSON.stringify(next)) } catch { /* quota */ }
       return next
     })
   }, [athleteId])
@@ -592,7 +592,7 @@ export function useOnboarding(athleteId?: string) {
       if (!prev || (prev.hyroxDivision ?? 'open') === division) return prev
       const next = { ...prev, hyroxDivision: division }
       const k = scopedKey(athleteId)
-      try { localStorage.setItem(k, JSON.stringify(next)); stampKey(k) } catch { /* quota */ }
+      try { setSyncedItemWithRoom(k, JSON.stringify(next)) } catch { /* quota */ }
       return next
     })
   }, [athleteId])
@@ -610,7 +610,7 @@ export function useOnboarding(athleteId?: string) {
       if (!prev || prev.planStartPinnedIso === monday) return prev
       const next = { ...prev, planStartPinnedIso: monday }
       const k = scopedKey(athleteId)
-      try { localStorage.setItem(k, JSON.stringify(next)); stampKey(k) } catch { /* quota */ }
+      try { setSyncedItemWithRoom(k, JSON.stringify(next)) } catch { /* quota */ }
       return next
     })
   }, [athleteId])
@@ -626,7 +626,7 @@ export function useOnboarding(athleteId?: string) {
       const kept = (prev.weekReshapes ?? []).filter(r => r.fromWeek !== fromWeek)
       const next = { ...prev, weekReshapes: [...kept, { fromWeek, shape, at: Date.now() }] }
       const k = scopedKey(athleteId)
-      try { localStorage.setItem(k, JSON.stringify(next)); stampKey(k) } catch { /* quota */ }
+      try { setSyncedItemWithRoom(k, JSON.stringify(next)) } catch { /* quota */ }
       return next
     })
   }, [athleteId])
@@ -641,7 +641,7 @@ export function useOnboarding(athleteId?: string) {
       const next = { ...prev, weekReshapes: remaining.length ? remaining : undefined }
       if (!next.weekReshapes) delete next.weekReshapes
       const k = scopedKey(athleteId)
-      try { localStorage.setItem(k, JSON.stringify(next)); stampKey(k) } catch { /* quota */ }
+      try { setSyncedItemWithRoom(k, JSON.stringify(next)) } catch { /* quota */ }
       return next
     })
   }, [athleteId])
@@ -669,13 +669,14 @@ export function useOnboarding(athleteId?: string) {
     const restored = configForRestore(b)
     if (!restored) return false
     const k = scopedKey(athleteId)
+    // The config is all-or-nothing: on a full phone nothing changes and
+    // the restore reports failure rather than showing a plan that a reload
+    // would take away. The edits after it are best-effort.
+    if (!setSyncedItemWithRoom(k, JSON.stringify(restored))) return false
     try {
-      localStorage.setItem(k, JSON.stringify(restored))
-      stampKey(k)
       for (const [ek, val] of Object.entries(b.edits ?? {})) {
         const sk = athleteId ? `${ek}_${athleteId}` : ek
-        localStorage.setItem(sk, val)
-        stampKey(sk)
+        setSyncedItemWithRoom(sk, val)
       }
       // A restore ends any in-progress redo and clears its snapshot/flag.
       localStorage.removeItem(scopedRedoKey(athleteId))
@@ -693,7 +694,7 @@ export function useOnboarding(athleteId?: string) {
       if (!prev || prev.zonesPrimerSeenAt) return prev
       const next = { ...prev, zonesPrimerSeenAt: new Date().toISOString() }
       const k = scopedKey(athleteId)
-      try { localStorage.setItem(k, JSON.stringify(next)); stampKey(k) } catch { /* quota */ }
+      try { setSyncedItemWithRoom(k, JSON.stringify(next)) } catch { /* quota */ }
       return next
     })
   }, [athleteId])
@@ -703,7 +704,7 @@ export function useOnboarding(athleteId?: string) {
       if (!prev || prev.connectStepSeenAt) return prev
       const next = { ...prev, connectStepSeenAt: new Date().toISOString() }
       const k = scopedKey(athleteId)
-      try { localStorage.setItem(k, JSON.stringify(next)); stampKey(k) } catch { /* quota */ }
+      try { setSyncedItemWithRoom(k, JSON.stringify(next)) } catch { /* quota */ }
       return next
     })
   }, [athleteId])
@@ -713,7 +714,7 @@ export function useOnboarding(athleteId?: string) {
       if (!prev || prev.valuePropsSeenAt) return prev
       const next = { ...prev, valuePropsSeenAt: new Date().toISOString() }
       const k = scopedKey(athleteId)
-      try { localStorage.setItem(k, JSON.stringify(next)); stampKey(k) } catch { /* quota */ }
+      try { setSyncedItemWithRoom(k, JSON.stringify(next)) } catch { /* quota */ }
       return next
     })
   }, [athleteId])
@@ -723,7 +724,7 @@ export function useOnboarding(athleteId?: string) {
       if (!prev || prev.welcomeLetterSeenAt) return prev
       const next = { ...prev, welcomeLetterSeenAt: new Date().toISOString() }
       const k = scopedKey(athleteId)
-      try { localStorage.setItem(k, JSON.stringify(next)); stampKey(k) } catch { /* quota */ }
+      try { setSyncedItemWithRoom(k, JSON.stringify(next)) } catch { /* quota */ }
       return next
     })
   }, [athleteId])
@@ -741,7 +742,7 @@ export function useOnboarding(athleteId?: string) {
       if (!prev) return prev
       const next = mergeBenchmarkAnchors(prev, anchors)
       const k = scopedKey(athleteId)
-      try { localStorage.setItem(k, JSON.stringify(next)); stampKey(k) } catch { /* quota */ }
+      try { setSyncedItemWithRoom(k, JSON.stringify(next)) } catch { /* quota */ }
       return next
     })
   }, [athleteId])

@@ -11,6 +11,7 @@
 import type { AuthSession } from './auth'
 import { isPreservedKey } from './migrate'
 import { isMergeableCollectionKey, mergeCollection, contentVersion } from './syncMerge'
+import { isExpiredInsightCopy } from './storageRoom'
 import {
   listStampedKeys,
   readStamp,
@@ -222,6 +223,9 @@ export async function hydrateFromServer(session: AuthSession): Promise<{ pulled:
   for (const item of state.items) {
     const serverMs = Date.parse(item.updatedAt)
     if (!Number.isFinite(serverMs)) continue
+    // The server holds every insight copy any device ever made; pulling
+    // ones nothing will read is what filled a phone (2026-10-06).
+    if (isExpiredInsightCopy(item.key, item.value)) continue
     const localRaw = localStorage.getItem(item.key)
     const localStamp = readStamp(item.key)
 
@@ -296,6 +300,7 @@ export async function pullFromServer(session: AuthSession): Promise<{ pulled: nu
   for (const item of state.items) {
     const serverMs = Date.parse(item.updatedAt)
     if (!Number.isFinite(serverMs)) continue
+    if (isExpiredInsightCopy(item.key, item.value)) continue
     try {
       const oldValue = localStorage.getItem(item.key)
       localStorage.setItem(item.key, item.value)
@@ -428,6 +433,7 @@ export async function pushAll(session: AuthSession): Promise<PushResult> {
     scanned++
     const value = localStorage.getItem(key)
     if (value === null) continue
+    if (isExpiredInsightCopy(key, value)) continue
     // Stamp an unstamped entry with its own CONTENT time when it has one
     // (the config's completedAt), not `now`. Otherwise an old config that
     // was never stamped uploads as brand-new and clobbers every device's

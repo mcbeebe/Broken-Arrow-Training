@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { stampKey } from '../utils/syncStamps'
+import { setSyncedItemWithRoom } from '../utils/storageRoom'
 
 /**
  * When the Sunday recap shows, and for how long.
@@ -48,8 +48,7 @@ function read(athleteId?: string): RecapState | null {
 function write(state: RecapState, athleteId?: string) {
   try {
     const key = scopedKey(athleteId)
-    localStorage.setItem(key, JSON.stringify(state))
-    stampKey(key)
+    setSyncedItemWithRoom(key, JSON.stringify(state))
   } catch { /* quota */ }
 }
 
