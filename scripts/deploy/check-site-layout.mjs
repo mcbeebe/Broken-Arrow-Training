@@ -8,8 +8,9 @@
  * Checks that the root page, the app at /app/, the tools, the service worker
  * and the manifest are where installs, notifications and links expect them;
  * that the manifest keeps existing installs' identity and points into /app/;
- * that only the app links the manifest; and that the root page's guard (its
- * entry's static import closure) stays under GUARD_BUDGET_BYTES gzipped.
+ * that only the app links the manifest; that the root page keeps its inline
+ * fallback; and that the root page's guard (its entry's static import
+ * closure, JS and CSS) stays under GUARD_BUDGET_BYTES gzipped.
  */
 import * as nodeFs from 'node:fs'
 import { join, resolve } from 'node:path'
@@ -57,8 +58,14 @@ export function checkSiteLayout(distDir, fs = nodeFs) {
   if (existsSync(path('app/index.html')) && !MANIFEST_LINK.test(readFileSync(path('app/index.html')))) {
     errors.push('dist/app/index.html must link the web app manifest')
   }
-  if (existsSync(path('index.html')) && MANIFEST_LINK.test(readFileSync(path('index.html')))) {
-    errors.push('dist/index.html must not link the web app manifest (only the app is installable)')
+  if (existsSync(path('index.html'))) {
+    const rootHtml = readFileSync(path('index.html'))
+    if (MANIFEST_LINK.test(rootHtml)) {
+      errors.push('dist/index.html must not link the web app manifest (only the app is installable)')
+    }
+    if (!rootHtml.includes('data-root-fallback') || !rootHtml.includes('__attuneGuardRan')) {
+      errors.push('dist/index.html lost its inline fallback (data-root-fallback) that forwards when the guard fails to load')
+    }
   }
 
   const viteManifestPath = path('.vite/manifest.json')
@@ -118,14 +125,14 @@ function checkGuardBudget(distDir, viteManifest, fs) {
     seen.add(key)
     const chunk = viteManifest[key]
     if (!chunk) return
-    files.push(chunk.file)
+    files.push(chunk.file, ...(chunk.css ?? []))
     for (const dep of chunk.imports ?? []) visit(dep)
   }
   visit('index.html')
 
   let total = 0
   const errors = []
-  for (const file of files) {
+  for (const file of new Set(files)) {
     const full = join(distDir, file)
     if (!fs.existsSync(full)) {
       errors.push(`root entry chunk dist/${file} is missing`)

@@ -28,7 +28,8 @@ export const LANDING_ANCHORS: ReadonlySet<string> = new Set([
 ])
 
 const MIGRATE_HASH_PREFIX = '#__attune_migrate'
-const SESSION_KEY = 'ba_auth_session'
+/** Must equal AUTH_KEY in src/utils/auth.ts (a test ties them); not imported, to keep app code out. */
+export const SESSION_KEY = 'ba_auth_session'
 
 export interface LegacyEntryInput {
   /** `location.search`, e.g. `'?view=coach'`. */

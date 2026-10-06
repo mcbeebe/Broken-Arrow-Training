@@ -12,12 +12,14 @@ import {
   APP_PATH,
   APP_PARAMS,
   LANDING_ANCHORS,
+  SESSION_KEY,
   hasStoredSession,
   isStandalone,
   legacyEntryTarget,
   type LegacyEntryInput,
 } from '../../landing/legacyEntry'
 import { SECTION_IDS } from '../../landing/content'
+import { AUTH_KEY } from '../../utils/auth'
 
 const base: LegacyEntryInput = {
   search: '',
@@ -88,6 +90,12 @@ describe('constants', () => {
 
   it('LANDING_ANCHORS is derived from SECTION_IDS plus the empty hash and the skip-link target', () => {
     expect(new Set(LANDING_ANCHORS)).toEqual(new Set(['', '#main', ...SECTION_IDS.map(id => `#${id}`)]))
+  })
+
+  it('reads the same session key the app writes', () => {
+    // The guard can't import app code, so it keeps its own copy. If auth
+    // renames the key, signed-in members would land on the landing page.
+    expect(SESSION_KEY).toBe(AUTH_KEY)
   })
 
   it('SECTION_IDS are the six sections the design spec names', () => {

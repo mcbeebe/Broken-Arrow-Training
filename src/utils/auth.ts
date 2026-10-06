@@ -1,5 +1,6 @@
 import { setItemWithRoom } from './storageRoom'
-const AUTH_KEY = 'ba_auth_session'
+/** localStorage key for the auth session; the root page's guard reads it too. */
+export const AUTH_KEY = 'ba_auth_session'
 const API_URL = (import.meta.env.VITE_GARMIN_API_URL || '').replace(/\/$/, '')
 
 export interface AuthSession {

@@ -27,7 +27,8 @@ export default defineConfig({
   ],
   // attune.coach serves from the root. The legacy GH Pages project site
   // (`/Broken-Arrow-Training/`) is now only the static airlock, so nothing
-  // builds with that prefix; VITE_BASE_PATH stays as an override.
+  // builds with that prefix. Keep it '/': the guard, sw.js, Strava redirect
+  // and migration receiver all hard-code `/app/` (initiative 003).
   base: process.env.VITE_BASE_PATH ?? '/',
   // Free public calculators (G10) — extra HTML entries served pre-auth at
   // /tools/*. PURE CLIENT by locked rule (plan §1-D6): they share the app's

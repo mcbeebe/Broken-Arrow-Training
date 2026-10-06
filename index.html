@@ -2,6 +2,25 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <script data-root-fallback>
+      // Installed home-screen apps, notification taps and Strava callbacks
+      // all open here first. If the guard module (src/landing/main.tsx)
+      // never runs — a chunk failed on a flaky connection — forward to the
+      // app rather than leave a blank page. The guard sets the flag below.
+      ;(function () {
+        function rescue() {
+          if (window.__attuneGuardRan) return
+          window.__attuneGuardRan = true
+          location.replace('/app/' + location.search + location.hash)
+        }
+        window.addEventListener('error', function (e) {
+          var t = e.target
+          var tag = t && t.tagName
+          if ((tag === 'SCRIPT' || tag === 'LINK') && !e.message) rescue()
+        }, true)
+        setTimeout(rescue, 8000)
+      })()
+    </script>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Attune</title>

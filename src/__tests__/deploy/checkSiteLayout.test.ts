@@ -14,6 +14,9 @@ import {
 } from '../../../scripts/deploy/check-site-layout.mjs'
 
 const DIST = '/dist'
+const ROOT_HTML =
+  '<script data-root-fallback>if (!window.__attuneGuardRan) {}</script>' +
+  '<script type="module" src="/assets/main-abc.js"></script>'
 
 const goodManifest = {
   id: '/?view=today',
@@ -58,7 +61,7 @@ const check = () => checkSiteLayout(DIST, fs)
 
 beforeEach(() => {
   files = new Map()
-  write('index.html', '<script type="module" src="/assets/main-abc.js"></script>')
+  write('index.html', ROOT_HTML)
   write('app/index.html', '<link rel="manifest" href="/manifest.webmanifest" />')
   for (const tool of ['fueling', 'predictor', 'heat']) write(`tools/${tool}.html`, '<html></html>')
   write('sw.js', '// sw')
@@ -123,8 +126,27 @@ describe('checkSiteLayout', () => {
   })
 
   it('fails when the root page links the manifest', () => {
-    write('index.html', '<link rel=manifest href="/manifest.webmanifest">')
+    write('index.html', ROOT_HTML + '<link rel=manifest href="/manifest.webmanifest">')
     expect(check().join('\n')).toContain('dist/index.html must not link the web app manifest')
+  })
+
+  it('fails when the root page loses its inline fallback', () => {
+    write('index.html', '<script type="module" src="/assets/main-abc.js"></script>')
+    expect(check()).toEqual([
+      'dist/index.html lost its inline fallback (data-root-fallback) that forwards when the guard fails to load',
+    ])
+  })
+
+  it('counts CSS in the guard closure toward the budget', () => {
+    write(
+      '.vite/manifest.json',
+      JSON.stringify({
+        ...viteManifest,
+        'index.html': { ...viteManifest['index.html'], css: ['assets/landing.css'] },
+      }),
+    )
+    write('assets/landing.css', incompressible(GUARD_BUDGET_BYTES + 1024))
+    expect(check().join('\n')).toMatch(/assets\/landing\.css/)
   })
 
   it('fails when the root entry is missing from the build manifest', () => {

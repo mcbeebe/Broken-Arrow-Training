@@ -17,11 +17,12 @@ Strava OAuth, and an iOS wrapper.
 `/`. `index.html` is the root page (the landing page, behind a switch) and the
 app is `app/index.html`, served at `/app/`. `/tools/*.html`, `/sw.js`,
 `/version.json`, `/favicon.svg` and `/manifest.webmanifest` stay at the root.
-The root page's entry (`src/landing/main.tsx`) statically imports only
-`legacyEntry.ts` and `referral.ts`: its guard forwards installed apps, deep
-links (`?view=`), Strava callbacks, airlock hand-offs, athlete hashes and
-signed-in visitors to `/app/` with query and hash intact. It must never import
-app code. The `src/landing/` page itself arrives in later 003 PRs.
+The root page's entry (`src/landing/main.tsx`) statically imports only the
+guard (`boot.ts`, `legacyEntry.ts`) and `referral.ts`: it forwards installed
+apps, deep links (`?view=`), Strava callbacks, airlock hand-offs, athlete
+hashes and signed-in visitors to `/app/` with query and hash intact, and an
+inline script in `index.html` forwards if the guard fails to load. It must
+never import app code. The landing page itself arrives in later 003 PRs.
 
 "Broken Arrow Training" is legacy branding: the repo name, the airlock's
 legacy path and `scripts/airlock/` still carry it. The product is
@@ -65,10 +66,11 @@ succeed.
   at build as `VITE_LANDING_ENABLED`. Anything but `'true'` makes the root page
   forward every visitor to `/app/`. Launch or roll back by changing it, then
   dispatching `deploy.yml` on the publishing branch.
-- `scripts/deploy/check-site-layout.mjs` runs after the build on every push
-  and PR: it fails if the root page, `/app/`, the tools, `/sw.js` or the
-  manifest move, if the manifest loses its `id` (`/?view=today`, the identity
-  existing installs derived) or stops pointing into `/app/`, or if the root
+- `scripts/deploy/check-site-layout.mjs` runs after the build on every PR and
+  every publishing-branch push: it fails if the root page, `/app/`, the
+  tools, `/sw.js` or the manifest move, if the manifest loses its `id`
+  (`/?view=today`, the identity existing installs derived) or stops pointing
+  into `/app/`, if the root page loses its inline fallback, or if the root
   page's guard exceeds 10 KB gzipped.
 - The `cutover-airlock` job publishes on the branch test alone — it ignores
   `ATTUNE_PUBLISH_ENABLED` and finishes before the attune build — so an
