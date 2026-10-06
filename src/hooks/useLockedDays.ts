@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useMemo } from 'react'
 import type { TrainingWeek } from '../types'
 import { stampKey } from '../utils/syncStamps'
 import { dayIsoInWeek } from '../utils/planDates'
+import { setItemWithRoom } from '../utils/storageRoom'
 
 /**
  * Locked days (P12) — a day the athlete has pinned as fixed.
@@ -93,8 +94,7 @@ function readLog(athleteId?: string, planGeneration?: string): LockRecord[] {
 function writeLog(log: LockRecord[], athleteId?: string) {
   const key = scopedKey(athleteId)
   try {
-    localStorage.setItem(key, JSON.stringify(log))
-    stampKey(key)
+    if (setItemWithRoom(key, JSON.stringify(log))) stampKey(key)
   } catch { /* quota */ }
 }
 

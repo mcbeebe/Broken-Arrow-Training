@@ -6,6 +6,7 @@ import {
 } from '../engines/benchmark/log'
 import type { OnboardingConfig } from './useOnboarding'
 import type { StrengthCapacity } from '../engines/strength/benchmark'
+import { setItemWithRoom } from '../utils/storageRoom'
 
 /**
  * The athlete's benchmark log, persisted per athlete and synced across
@@ -43,8 +44,7 @@ function read(athleteId?: string): Benchmark[] {
 function write(log: Benchmark[], athleteId?: string) {
   const key = scopedKey(athleteId)
   try {
-    localStorage.setItem(key, JSON.stringify(log))
-    stampKey(key)
+    if (setItemWithRoom(key, JSON.stringify(log))) stampKey(key)
   } catch { /* quota */ }
 }
 

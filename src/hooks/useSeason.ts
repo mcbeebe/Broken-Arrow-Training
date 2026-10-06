@@ -10,6 +10,7 @@ import {
 import { planSeason, type SeasonPlanResult } from '../engines/season/planSeason'
 import { todayDateString } from '../utils/planDates'
 import { stampKey } from '../utils/syncStamps'
+import { setItemWithRoom } from '../utils/storageRoom'
 
 /**
  * The athlete's Season (G1b): localStorage-backed like every other hook
@@ -40,12 +41,11 @@ function writeSeason(season: Season, athleteId?: string): void {
   try {
     // Blocks are derived state — persist the calendar only, so a stale
     // stored timeline can never wedge a future computation.
-    localStorage.setItem(key, JSON.stringify({
+    if (setItemWithRoom(key, JSON.stringify({
       races: season.races,
       blocks: [],
       ...(season.seededGeneration ? { seededGeneration: season.seededGeneration } : {}),
-    }))
-    stampKey(key)
+    }))) stampKey(key)
   } catch { /* quota */ }
 }
 

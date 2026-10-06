@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { CoachInsight, CoachSnapshot } from '../types'
 import { coachApiAvailable, coachApiBase, coachAuthHeaders} from '../utils/coachApi'
+import { INSIGHT_CACHE_PREFIX, INSIGHT_CACHE_MAX_AGE_MS } from '../utils/storageRoom'
 
 /**
  * Hook that fetches a cached, LLM-generated coach insight for a given
@@ -12,8 +13,9 @@ import { coachApiAvailable, coachApiBase, coachAuthHeaders} from '../utils/coach
  * the API is unavailable.
  */
 
-const LS_PREFIX = 'ba_coach_insight_v1:'
-const MAX_AGE_MS = 48 * 60 * 60 * 1000
+const LS_PREFIX = INSIGHT_CACHE_PREFIX
+// Shared with storageRoom's boot sweep, which deletes copies past it.
+const MAX_AGE_MS = INSIGHT_CACHE_MAX_AGE_MS
 
 // Simple synchronous string hash (djb2 variant) — stable across sessions
 export function hashFields(obj: unknown): string {

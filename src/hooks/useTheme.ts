@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { setItemWithRoom } from '../utils/storageRoom'
 
 export type ThemeMode = 'light' | 'dark' | 'auto'
 
@@ -40,7 +41,7 @@ export function useTheme() {
   }, [mode])
 
   const setMode = useCallback((next: ThemeMode) => {
-    localStorage.setItem(STORAGE_KEY, next)
+    setItemWithRoom(STORAGE_KEY, next)
     setModeState(next)
   }, [])
 

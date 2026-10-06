@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useMemo } from 'react'
 import type { TravelWindow } from '../engines/planGenerator/travelMode'
 import { stampKey } from '../utils/syncStamps'
+import { setItemWithRoom } from '../utils/storageRoom'
 
 /**
  * Holds the applied travel windows (declared trips that were rebalanced
@@ -48,8 +49,7 @@ function readWindows(athleteId?: string, planGeneration?: string): TravelWindow[
 function writeWindows(windows: TravelWindow[], athleteId?: string) {
   const key = scopedKey(athleteId)
   try {
-    localStorage.setItem(key, JSON.stringify(windows))
-    stampKey(key)
+    if (setItemWithRoom(key, JSON.stringify(windows))) stampKey(key)
   } catch { /* quota */ }
 }
 

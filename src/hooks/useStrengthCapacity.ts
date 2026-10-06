@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { stampKey } from '../utils/syncStamps'
 import type { StrengthCapacity } from '../engines/strength/benchmark'
+import { setItemWithRoom } from '../utils/storageRoom'
 
 /**
  * What the athlete actually measured, persisted per athlete and synced
@@ -52,8 +53,7 @@ export function useStrengthCapacity(athleteId?: string) {
   const save = useCallback((next: StrengthCapacity) => {
     try {
       const key = scopedKey(athleteId)
-      localStorage.setItem(key, JSON.stringify(next))
-      stampKey(key)
+      if (setItemWithRoom(key, JSON.stringify(next))) stampKey(key)
     } catch { /* quota */ }
     setCapacity(next)
   }, [athleteId])

@@ -3,6 +3,7 @@ import type { CoachMemory, CoachPersona, ConversationTurn, DailyChatArchive } fr
 import { DEFAULT_COACH_NAME } from '../types'
 import { coachApiAvailable, coachFetch } from '../utils/coachApi'
 import { stampKey } from '../utils/syncStamps'
+import { setItemWithRoom } from '../utils/storageRoom'
 
 /**
  * Server-backed Coach memory (replaces useAboutMe). Persisted in Upstash KV
@@ -38,8 +39,7 @@ function readLocal(athleteId: string): CoachMemory {
 function writeLocal(athleteId: string, mem: CoachMemory) {
   const key = LS_KEY_PREFIX + athleteId
   try {
-    localStorage.setItem(key, JSON.stringify(mem))
-    stampKey(key)
+    if (setItemWithRoom(key, JSON.stringify(mem))) stampKey(key)
   } catch {
     // best effort
   }
@@ -66,8 +66,7 @@ function readTurnUi(athleteId: string): Record<string, TurnUi> {
 function writeTurnUi(athleteId: string, map: Record<string, TurnUi>) {
   const key = TURN_UI_KEY_PREFIX + athleteId
   try {
-    localStorage.setItem(key, JSON.stringify(map))
-    stampKey(key)
+    if (setItemWithRoom(key, JSON.stringify(map))) stampKey(key)
   } catch {
     // best effort
   }

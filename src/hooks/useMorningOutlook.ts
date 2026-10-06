@@ -4,6 +4,7 @@ import type { MorningOutlook } from '../engines/adaptive/morningOutlook'
 import type { UseAdaptationLogReturn } from './useAdaptationLog'
 import { localDateStr } from '../utils/format'
 import { stampKey } from '../utils/syncStamps'
+import { setItemWithRoom } from '../utils/storageRoom'
 
 /**
  * The Daily Autopilot's consent tier (Adaptive Engine phase 3, PR 8):
@@ -59,8 +60,7 @@ function read(athleteId?: string): OutlookState | null {
 function write(state: OutlookState, athleteId?: string) {
   try {
     const key = scopedKey(athleteId)
-    localStorage.setItem(key, JSON.stringify(state))
-    stampKey(key)
+    if (setItemWithRoom(key, JSON.stringify(state))) stampKey(key)
   } catch { /* quota */ }
 }
 

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { CoachInsight } from '../types'
 import { localDateStr } from '../utils/format'
+import { BRIEFING_LOG_PREFIX } from '../utils/storageRoom'
 
 /**
  * Records each day's coach briefings so they don't vanish when the
@@ -27,7 +28,7 @@ export interface BriefingLogEntry {
   tip?: string
 }
 
-const LS_PREFIX = 'ba_coach_briefing_log_v1:'
+const LS_PREFIX = BRIEFING_LOG_PREFIX
 
 const PERIOD_ORDER: Record<BriefingPeriod, number> = {
   morning: 0,

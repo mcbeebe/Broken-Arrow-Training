@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { stampKey } from '../utils/syncStamps'
+import { setItemWithRoom } from '../utils/storageRoom'
 
 /**
  * The Adaptation Log (Adaptive Engine phase 3, PR 7) — every change
@@ -53,8 +54,7 @@ export function readLog(athleteId?: string): AdaptationLogEntry[] {
 function writeLog(entries: AdaptationLogEntry[], athleteId?: string) {
   try {
     const key = scopedKey(athleteId)
-    localStorage.setItem(key, JSON.stringify(entries))
-    stampKey(key)
+    if (setItemWithRoom(key, JSON.stringify(entries))) stampKey(key)
   } catch { /* quota */ }
 }
 
