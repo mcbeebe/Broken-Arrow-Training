@@ -6,7 +6,9 @@ import type { ReactNode } from 'react'
  *   - PURE CLIENT: no fetch, no storage, no auth — a guard test enforces it;
  *   - same engines as the app (imported, never copied);
  *   - every page ends in the "get the full plan" CTA carrying ?from= so
- *     tool→signup conversion is measurable;
+ *     tool→signup conversion is measurable; it lands on the root page's
+ *     invite form (#join), which forwards to the app until the landing
+ *     page launches (initiative 003);
  *   - masters-accessible: ≥16px body, high contrast, no color-only meaning.
  */
 
@@ -16,7 +18,7 @@ export function ToolShell({ title, tagline, toolId, children }: {
   toolId: string
   children: ReactNode
 }) {
-  const appHref = `${import.meta.env.BASE_URL}?from=${encodeURIComponent(toolId)}`
+  const appHref = `${import.meta.env.BASE_URL}?from=${encodeURIComponent(toolId)}#join`
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800" style={{ fontSize: 16 }}>
       <header className="bg-slate-900 text-white px-5 py-6">

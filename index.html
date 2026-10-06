@@ -2,91 +2,32 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
-    <link rel="manifest" href="/manifest.webmanifest" />
-    <meta name="theme-color" content="#0f172a" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="Attune" />
-    <link rel="apple-touch-icon" href="/favicon.svg" />
-    <title>Attune</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script>
-      // Boot recovery. A cached copy of this page can reference hashed
-      // bundles that a newer deploy has purged from gh-pages; the entry
-      // module then 404s and the page stays permanently blank. When any
-      // script/stylesheet fails to load — or nothing has mounted into
-      // #root after 8s — refetch this page past the HTTP cache and
-      // reload. At most 5 attempts, ≥4s apart, and the counter resets
-      // once the app mounts — a real outage can't become a reload loop.
+    <script data-root-fallback>
+      // Installed home-screen apps, notification taps and Strava callbacks
+      // all open here first. If the guard module (src/landing/main.tsx)
+      // never runs — a chunk failed on a flaky connection — forward to the
+      // app rather than leave a blank page. The guard sets the flag below.
       ;(function () {
-        var KEY = 'ba_boot_recover'
-        function recover() {
-          try {
-            var s = JSON.parse(sessionStorage.getItem(KEY) || '{"n":0,"at":0}')
-            if (s.n >= 5 || Date.now() - s.at < 4000) return
-            sessionStorage.setItem(KEY, JSON.stringify({ n: s.n + 1, at: Date.now() }))
-          } catch (e) { return }
-          fetch(window.location.href, { cache: 'reload' })
-            .catch(function () {})
-            .then(function () { window.location.reload() })
+        function rescue() {
+          if (window.__attuneGuardRan) return
+          window.__attuneGuardRan = true
+          location.replace('/app/' + location.search + location.hash)
         }
         window.addEventListener('error', function (e) {
           var t = e.target
           var tag = t && t.tagName
-          if ((tag === 'SCRIPT' || tag === 'LINK') && !e.message) recover()
+          if ((tag === 'SCRIPT' || tag === 'LINK') && !e.message) rescue()
         }, true)
-        // Vite dispatches this when a lazy chunk's fetch fails mid-session.
-        window.addEventListener('vite:preloadError', recover)
-        // A runtime crash BEFORE React mounts (module-level throw, boot
-        // exception) would otherwise leave a silent white page. Paint the
-        // error into the page so a screenshot of the failure carries the
-        // diagnosis. React's own ErrorBoundary handles post-mount crashes.
-        function paintError(msg) {
-          var root = document.getElementById('root')
-          if (!root || root.childElementCount > 0) return
-          root.innerHTML = ''
-          var box = document.createElement('div')
-          box.setAttribute('style', 'min-height:100vh;display:flex;align-items:center;justify-content:center;background:#0f172a;color:#e2e8f0;font-family:system-ui,sans-serif;padding:24px')
-          var inner = document.createElement('div')
-          inner.setAttribute('style', 'max-width:560px')
-          var h = document.createElement('h1')
-          h.setAttribute('style', 'font-size:20px;font-weight:700;margin-bottom:8px')
-          h.textContent = 'The app failed to start'
-          var p = document.createElement('p')
-          p.setAttribute('style', 'font-size:14px;color:#94a3b8;margin-bottom:16px')
-          p.textContent = 'Your training data is safe. Try reloading — if this keeps happening, send your coach a screenshot of this screen.'
-          var pre = document.createElement('pre')
-          pre.setAttribute('style', 'font-size:12px;background:#1e293b;border-radius:8px;padding:12px;white-space:pre-wrap;overflow-x:auto;margin-bottom:16px')
-          pre.textContent = String(msg).slice(0, 600)
-          var btn = document.createElement('button')
-          btn.setAttribute('style', 'background:#0ea5e9;color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:14px;font-weight:600;cursor:pointer')
-          btn.textContent = 'Reload the app'
-          btn.onclick = function () { window.location.reload() }
-          inner.appendChild(h); inner.appendChild(p); inner.appendChild(pre); inner.appendChild(btn)
-          box.appendChild(inner); root.appendChild(box)
-        }
-        window.addEventListener('error', function (e) {
-          if (e.message) paintError(e.message + (e.filename ? '\n' + e.filename + ':' + e.lineno : ''))
-        })
-        window.addEventListener('unhandledrejection', function (e) {
-          paintError('Unhandled rejection: ' + (e.reason && e.reason.message ? e.reason.message : e.reason))
-        })
-        function checkMount() {
-          var root = document.getElementById('root')
-          if (root && root.childElementCount > 0) {
-            try { sessionStorage.removeItem(KEY) } catch (e) { /* ignore */ }
-          } else {
-            recover()
-            setTimeout(checkMount, 8000)
-          }
-        }
-        setTimeout(checkMount, 8000)
+        setTimeout(rescue, 8000)
       })()
     </script>
-    <script type="module" src="/src/main.tsx"></script>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Attune</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <noscript><p><a href="/app/">Open Attune</a></p></noscript>
+    <script type="module" src="/src/landing/main.tsx"></script>
   </body>
 </html>

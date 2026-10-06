@@ -25,18 +25,26 @@ export default defineConfig({
       ],
     }),
   ],
-  // Parameterized so the same source ships two builds during the
-  // attune.coach cutover: legacy GH Pages project site keeps
-  // `/Broken-Arrow-Training/`; the attune.coach build sets `/`.
-  base: process.env.VITE_BASE_PATH ?? '/Broken-Arrow-Training/',
+  // attune.coach serves from the root. The legacy GH Pages project site
+  // (`/Broken-Arrow-Training/`) is now only the static airlock, so nothing
+  // builds with that prefix. Keep it '/': the guard, sw.js, Strava redirect
+  // and migration receiver all hard-code `/app/` (initiative 003).
+  base: process.env.VITE_BASE_PATH ?? '/',
   // Free public calculators (G10) — extra HTML entries served pre-auth at
   // /tools/*. PURE CLIENT by locked rule (plan §1-D6): they share the app's
   // engines but make zero API calls, so the MULTI_USER_TODO auth/rate-limit
   // blockers stay out of their critical path.
+  //
+  // Initiative 003: `index.html` is the root page (landing + legacy entry
+  // guard) and the app is its own entry at `app/index.html`, so `/sw.js`,
+  // `/version.json` and the tools stay at the root. The build manifest feeds
+  // scripts/deploy/check-site-layout.mjs.
   build: {
+    manifest: true,
     rollupOptions: {
       input: {
         main: resolve(__dirname, 'index.html'),
+        app: resolve(__dirname, 'app/index.html'),
         'tools-fueling': resolve(__dirname, 'tools/fueling.html'),
         'tools-predictor': resolve(__dirname, 'tools/predictor.html'),
         'tools-heat': resolve(__dirname, 'tools/heat.html'),

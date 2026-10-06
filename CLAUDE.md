@@ -13,17 +13,29 @@ is worse than a missing one, because the agent believes it.
 frontend, a Python serverless API, an LLM coach, a Cloudflare worker for
 Strava OAuth, and an iOS wrapper.
 
+**Site layout (initiative 003):** one Vite build, several HTML entries, base
+`/`. `index.html` is the root page (the landing page, behind a switch) and the
+app is `app/index.html`, served at `/app/`. `/tools/*.html`, `/sw.js`,
+`/version.json`, `/favicon.svg` and `/manifest.webmanifest` stay at the root.
+The root page's entry (`src/landing/main.tsx`) statically imports only the
+guard (`boot.ts`, `legacyEntry.ts`) and `referral.ts`: it forwards installed
+apps, deep links (`?view=`), Strava callbacks, airlock hand-offs, athlete
+hashes and signed-in visitors to `/app/` with query and hash intact, and an
+inline script in `index.html` forwards if the guard fails to load. It must
+never import app code. The landing page itself arrives in later 003 PRs.
+
 "Broken Arrow Training" is legacy branding: the repo name, the airlock's
-legacy path, and `vite.config.ts`'s fallback base path still carry it. The
-product is attune.coach.
+legacy path and `scripts/airlock/` still carry it. The product is
+attune.coach.
 
 ## Commands
 
 ```bash
-npm test                  # vitest, 316 files / ~4003 tests — gates every publish
+npm test                  # vitest, 324 files / ~4119 tests — gates every publish
 npm run build             # tsc -b && vite build — the typecheck gate lives here
-npm run lint              # eslint — NOT yet in CI; 43 errors today (initiative 002)
-npm run dev               # local dev server
+npm run lint              # eslint — blocking in CI; 0 errors (initiative 002)
+npm run dev               # local dev server: the app is at /app/, the root page at /
+node scripts/deploy/check-site-layout.mjs   # after a build: dist/ layout + guard budget
 
 pytest -m "not eval" api/coach/tests     # keyless Python suite (what CI runs)
 npm run test:coach-eval                  # LIVE model calls — spends API budget
@@ -41,7 +53,7 @@ succeed.
 
 | Surface | Route | Gate |
 |---|---|---|
-| Web app → `attune.coach` | `deploy.yml` publishes `dist/` to the **separate** repo `mcbeebe/attune-coach`, branch `gh-pages` | `needs: test` (vitest + `tsc -b`) |
+| Web app → `attune.coach` | `deploy.yml` publishes `dist/` to the **separate** repo `mcbeebe/attune-coach`, branch `gh-pages` | `needs: test` (credential check, `pytest scripts/deploy/tests`, lint, `npm test` twice — the second under `TZ=Pacific/Kiritimati` — and `ground-truth:check`); then in the deploy job `npm run build` (`tsc -b`) and `check-site-layout.mjs` |
 | Python API | Vercel's own git integration, on push | none yet — see initiative 001 |
 | Cloudflare worker | manual `wrangler deploy` | none |
 
@@ -50,6 +62,19 @@ succeed.
   arm for a future migration — **keep both arms** in the publish conditionals.
 - `vars.ATTUNE_PUBLISH_ENABLED` is the kill switch. Set it to anything but
   `'true'` to pause publishing without touching code.
+- `vars.ATTUNE_LANDING_ENABLED` is the landing page's launch switch, baked in
+  at build as `VITE_LANDING_ENABLED`. Anything but `'true'` makes the root page
+  forward every visitor to `/app/`. Launch or roll back by changing it, then
+  dispatching `deploy.yml` on the publishing branch.
+- `scripts/deploy/check-site-layout.mjs` runs after the build on every PR and
+  every publishing-branch push: it fails if the root page, `/app/`, the
+  tools, `/sw.js` or the manifest move, if the manifest loses its `id`
+  (`/?view=today`, the identity existing installs derived) or stops pointing
+  into `/app/`, if the root page loses its inline fallback, or if the root
+  page's guard exceeds 10 KB gzipped.
+- The `cutover-airlock` job publishes on the branch test alone — it ignores
+  `ATTUNE_PUBLISH_ENABLED` and finishes before the attune build — so an
+  airlock change goes live before the app it points at.
 - Every published commit stamps `dist/version.json` with the build SHA, and
   `VITE_GIT_COMMIT_SHA` is baked into the bundle. `/api/version` reports what
   Vercel built. Deploy Diagnostics in Settings compares all three — that is how

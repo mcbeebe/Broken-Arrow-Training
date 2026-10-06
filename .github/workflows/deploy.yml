@@ -184,7 +184,9 @@ jobs:
           VITE_BASE_PATH: /
           VITE_STRAVA_CLIENT_ID: ${{ secrets.VITE_STRAVA_CLIENT_ID }}
           VITE_STRAVA_TOKEN_EXCHANGE_URL: ${{ secrets.VITE_STRAVA_TOKEN_EXCHANGE_URL }}
-          VITE_STRAVA_REDIRECT_URI: https://attune.coach/
+          # The app lives at /app/ (initiative 003). Strava's callback
+          # domain setting is domain-only, so no Strava app change.
+          VITE_STRAVA_REDIRECT_URI: https://attune.coach/app/
           VITE_GARMIN_API_URL: ${{ secrets.VITE_GARMIN_API_URL }}
           VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
           VITE_VAPID_PUBLIC_KEY: ${{ secrets.VITE_VAPID_PUBLIC_KEY }}
@@ -192,6 +194,18 @@ jobs:
           # Migration receiver's origin allowlist — accept postMessage
           # bridges from the legacy GH Pages origin only.
           VITE_SOURCE_ORIGIN: https://mcbeebe.github.io
+          # Initiative 003 launch switch. Anything but 'true' (including
+          # unset) makes the root page forward every visitor to /app/.
+          # Launch or roll back: change the variable, then dispatch this
+          # workflow on the publishing branch.
+          VITE_LANDING_ENABLED: ${{ vars.ATTUNE_LANDING_ENABLED }}
+      # Fail the build (on PRs too) if the root page, /app/, the tools, the
+      # service worker or the manifest moved, or the root guard got heavy.
+      # Then drop the Vite build manifest it reads so it isn't published.
+      - name: Site layout check
+        run: |
+          node scripts/deploy/check-site-layout.mjs
+          rm -rf ./dist/.vite
       # Inject CNAME file so GitHub Pages keeps the custom domain set.
       # Must NOT live in public/ — it'd land in the legacy build too.
       - run: echo "attune.coach" > ./dist/CNAME

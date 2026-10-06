@@ -3,8 +3,9 @@ import { setItemWithRoom, cacheStreamBounded } from './storageRoom'
 
 // Strava OAuth config — set VITE_STRAVA_CLIENT_ID in .env
 const CLIENT_ID = import.meta.env.VITE_STRAVA_CLIENT_ID || ''
+// The app lives at /app/ (initiative 003); the root page is the landing page.
 const REDIRECT_URI = import.meta.env.VITE_STRAVA_REDIRECT_URI ||
-  `${window.location.origin}${import.meta.env.BASE_URL}`
+  `${window.location.origin}/app/`
 const TOKEN_EXCHANGE_URL = import.meta.env.VITE_STRAVA_TOKEN_EXCHANGE_URL || ''
 
 const STORAGE_KEY_TOKENS = 'ba_strava_tokens'
