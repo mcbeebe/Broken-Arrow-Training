@@ -1,7 +1,6 @@
 import { useState, useCallback, useEffect, useMemo } from 'react'
 import type { TrainingWeek, PlannedDay } from '../types'
-import { stampKey } from '../utils/syncStamps'
-import { setItemWithRoom } from '../utils/storageRoom'
+import { setSyncedItemWithRoom } from '../utils/storageRoom'
 
 const STORAGE_KEY = 'ba_day_swaps'
 
@@ -103,7 +102,7 @@ function loadSwaps(athleteId: string, planGeneration?: string): SwapEntry[] {
 
 function saveSwaps(athleteId: string, swaps: SwapEntry[]): void {
   const key = `${STORAGE_KEY}_${athleteId}`
-  if (setItemWithRoom(key, JSON.stringify(swaps))) stampKey(key)
+  setSyncedItemWithRoom(key, JSON.stringify(swaps))
 }
 
 /**

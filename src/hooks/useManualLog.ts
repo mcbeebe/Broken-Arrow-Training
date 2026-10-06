@@ -1,7 +1,6 @@
-import { setItemWithRoom } from '../utils/storageRoom'
+import { setSyncedItemWithRoom } from '../utils/storageRoom'
 import { useState, useCallback, useEffect } from 'react'
 import type { ActualWorkout, TrainingWeek } from '../types'
-import { stampKey } from '../utils/syncStamps'
 import { dayIsoInWeek, parseDayToDate } from '../utils/planDates'
 
 const STORAGE_KEY = 'ba_manual_logs'
@@ -42,11 +41,9 @@ function saveLogs(athleteId: string, logs: ManualLogs): void {
   // Runs inside a state updater: a throw here would take the whole app
   // to the error screen and lose the entry. Make room from the workout
   // chart copies first; if even that fails, keep the entry in memory.
-  if (!setItemWithRoom(key, JSON.stringify(logs))) {
+  if (!setSyncedItemWithRoom(key, JSON.stringify(logs))) {
     console.error('[storage] workout log could not be saved on this phone (storage full)')
-    return
   }
-  stampKey(key)
 }
 
 function loadLogs(athleteId: string): ManualLogs {

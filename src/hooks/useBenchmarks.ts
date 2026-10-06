@@ -1,12 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { stampKey } from '../utils/syncStamps'
 import {
   deriveAnchors, latestByKind, liveEntries, seedFromExisting,
   type Benchmark, type DerivedAnchors,
 } from '../engines/benchmark/log'
 import type { OnboardingConfig } from './useOnboarding'
 import type { StrengthCapacity } from '../engines/strength/benchmark'
-import { setItemWithRoom } from '../utils/storageRoom'
+import { setSyncedItemWithRoom } from '../utils/storageRoom'
 
 /**
  * The athlete's benchmark log, persisted per athlete and synced across
@@ -44,7 +43,7 @@ function read(athleteId?: string): Benchmark[] {
 function write(log: Benchmark[], athleteId?: string) {
   const key = scopedKey(athleteId)
   try {
-    if (setItemWithRoom(key, JSON.stringify(log))) stampKey(key)
+    setSyncedItemWithRoom(key, JSON.stringify(log))
   } catch { /* quota */ }
 }
 

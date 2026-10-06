@@ -16,8 +16,8 @@
  * across page reloads.
  */
 
-const STAMP_PREFIX = '__attune_meta:__stamp:'
-const LAST_UPLOAD_PREFIX = '__attune_meta:__lastUpload:'
+export const STAMP_PREFIX = '__attune_meta:__stamp:'
+export const LAST_UPLOAD_PREFIX = '__attune_meta:__lastUpload:'
 
 /** Record that `key` was just written. Pass the optional `at` (ms since
  *  epoch) when seeding from a server timestamp; defaults to `Date.now()`

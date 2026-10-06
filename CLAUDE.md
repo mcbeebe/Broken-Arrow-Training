@@ -20,7 +20,7 @@ product is attune.coach.
 ## Commands
 
 ```bash
-npm test                  # vitest, 315 files / ~3982 tests — gates every publish
+npm test                  # vitest, 316 files / ~4003 tests — gates every publish
 npm run build             # tsc -b && vite build — the typecheck gate lives here
 npm run lint              # eslint — NOT yet in CI; 43 errors today (initiative 002)
 npm run dev               # local dev server
