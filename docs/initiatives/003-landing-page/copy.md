@@ -1,0 +1,183 @@
+# 003 — Landing page copy (source of truth)
+
+Approved design: "A v2: adapts to every athlete", 2026-10-05. Implement this
+copy verbatim in `src/landing/content.ts`; that module is the only place page
+text lives. Where a line makes a factual claim, the **Backed by** column names
+the code that makes it true. `src/__tests__/landing/claims.test.ts` (PR 3)
+enforces the ones a test can check.
+
+Typography rules: sentence case everywhere, curly apostrophes (’) in rendered
+text, no exclamation marks, numbers as digits.
+
+## Meta
+
+| Field | Text |
+|---|---|
+| `<title>` | Attune: training that adapts to you |
+| meta description | An AI coach that reads your recovery every morning and adjusts today’s workout. Road races, trail and ultra, HYROX, and general fitness. Free during the beta. |
+| og:title | Training that actually adapts to you |
+| og:description | Same as meta description |
+| og:image alt | The Attune “This morning” card: HRV, resting heart rate and sleep, with today’s workout adjusted |
+
+## Header
+
+- Wordmark: **Attune** (with the mark from design-spec.md)
+- Nav: How it works (`#how`) · Who it’s for (`#you`) · The coach (`#coach`) · Free tools (`#tools`) · Sign in (`/app/`) · **Request an invite** (`#join`, button)
+- At ≤640px only **Sign in** and **Request an invite** stay visible.
+
+## Hero
+
+- H1: **Training that actually adapts to you.**
+- Subhead (bold): A coach in your pocket.
+- Lead: Racing a marathon, training for HYROX, or just getting fitter: Attune reads your recovery every morning and adjusts today’s workout to match.
+- Form label: Your email · placeholder `you@example.com`
+- Button: **Request an invite** · while sending: **Sending…**
+- Optional field label: What are you training for? (optional) · placeholder `A spring half, my first HYROX, just getting fit...`
+- Fine print: Free during the beta. Mike reviews every request. Already in? Sign in *(link → `/app/`)*
+
+### Form states
+
+| State | Text |
+|---|---|
+| Empty or malformed email (client check) | Enter an email address like name@example.com. |
+| Server 400 | Show the server’s `error` string as is (today: “Please enter a valid email address.”) |
+| Server 503 or other 5xx | Requests are paused for a moment. Try again in a few minutes. |
+| Server 429 (PR 2) | You’ve sent a few requests already. Try again later. |
+| Network failure | Couldn’t send your request. Check your connection and try again. |
+| Success heading | Request sent. |
+| Success body | Mike will review your request and email {email} the moment you’re approved. Until then, try one of the free tools (link text “free tools” → `#tools`). |
+
+### “This morning” card
+
+- Group label: Same morning, four different athletes
+- Tabs: Running · Trail · HYROX · Fitness (default: Running)
+- Card heading: This morning
+- Metrics (same on every tab):
+  - HRV **41** ms, “18% below normal” (orange text)
+  - Resting HR **56** bpm, “+5 over normal” (orange text)
+  - Sleep **5:40**, “Short night”
+- Ring value **38**, “Readiness: take it easy”, “Based on HRV, resting heart rate, sleep and your last 7 days of training”
+- Labels: Planned (struck through) → Adjusted for today (orange)
+
+| Tab | Who (top right) | Planned | Adjusted for today | Why | Chart caption |
+|---|---|---|---|---|---|
+| Running | Training for a spring half marathon | Tempo run, 8 × 800 m | Easy run, 45 min in zone 2 | Your body hasn’t caught up from Saturday’s long run. The tempo session moves to Thursday, so the week’s work stays the same. | The tempo run moves to Thursday, so week 9 still does its job. |
+| Trail | Training for a 50K trail race | Hill repeats, 8 × 2 min | Flat easy run, 50 min | Saturday’s long descent leaves soreness that peaks a day or two later. The hills move to Friday, when your legs are ready. | Hill repeats move to Friday, so week 9 still does its job. |
+| HYROX | Training for HYROX, Open division | Race simulation: 4 × (1 km run + station) | Easy 30 min row, then light station technique | Race-pace work on a day like this mostly adds fatigue. The simulation moves to Thursday, and the extra work on your weakest station stays in the week. | The race simulation moves to Thursday, so week 9 still does its job. |
+| Fitness | No race. Goal: build endurance | Bike intervals, 6 × 3 min hard | Zone 2 ride, 40 min, plus mobility | The intervals move to Friday. Wednesday’s strength session stays, so the week still covers cardio, intervals and strength. | Bike intervals move to Friday, and the block stays on track. |
+
+All four are illustrative examples (the “Example plan” note sits in the chart caption). They describe the kind of adjustment the engine makes; they are not output captured from it.
+
+## How a morning works (`#how`)
+
+H2: How a morning works
+
+| # | Title | Body | Backed by |
+|---|---|---|---|
+| 1 | Your watch syncs overnight | HRV, resting heart rate, sleep and yesterday’s training come in from Garmin, Strava or Apple Health. | `api/garmin/`, `worker/strava-token-exchange.ts`, `api/apple/health.py` |
+| 2 | Attune scores your readiness | It compares this morning with your own normal, not a population average, and checks how fast your training load is climbing. | `src/utils/readiness.ts` (z-scores vs personal baselines; ACWR guardrail) |
+| 3 | Today’s workout adjusts | Ready to go, it stays. Run down, it eases off and moves the hard session to a day you can handle it. | readiness → plan adjustment |
+| 4 | Ask the coach why | Every change comes with a reason in plain language, and you can push back. | `api/coach/` |
+
+## Whatever you’re training for (`#you`)
+
+- H2: Whatever you’re training for
+- Intro: Each path has its own plan builder, so a HYROX athlete doesn’t get a marathon plan with burpees bolted on. Racing more than once? Put a half marathon and a HYROX in the same season.
+
+| Card | Subtitle | Points | Backed by |
+|---|---|---|---|
+| Road races | 5K to marathon | Proven coaching methods like Daniels, 80/20 and Higdon, matched to your race · Paces set from a recent 5K or 10K · Rides and hikes count toward your load | `src/data/methods/*.json`: the three named are rated GOOD or BEST at 5K, 10K, half and marathon (Hansons is `NOT_SUITED` for 5K and Koop for 5K–half, so neither is named here, and never say “8” on this card); onboarding recommends the 3 best-suited; `Onboarding.tsx` `race_5k`/`race_10k`; cross-training load |
+| Trail and ultra | Trail races and ultras | Methods built for the long stuff, like Koop and Roche SWAP · Counts climbing and descending, not just miles · Eases off after big descents | `koop.json`, `roche_swap.json`; `src/engines/terrain/`, `src/engines/descent/` |
+| HYROX | Open and Pro divisions | Running and all 8 stations in one plan · Station work set for your division · Extra work on your weakest station | `src/engines/hyrox/spec.ts` (`HyroxDivision = 'open' \| 'pro'`, `stationSpecs`); `weakStation` in onboarding |
+| General fitness | No race needed | Pick a goal: stay healthy, lose fat, build muscle or build endurance · Cardio your way: run, bike, row, swim, or a mix · Strength work built into every plan | goals `Onboarding.tsx:1322-1325`; modalities `Onboarding.tsx:1331-1335` (no gym option); strength in every preset template `generalFitness/presets.ts` (build_endurance has 1 strength day at 3–5 days/week, so never say “twice”; an athlete can reshape a week in `weekShape.ts`, so say “plan”, not “every week”) |
+
+Season claim backed by `src/engines/season/` and the onboarding “What kinds of races?” step.
+
+### Your plan, week by week
+
+- H3: Your plan, week by week
+- Toggle: Racing · No race
+- Racing intro: Racing? Attune builds from base to peak, then tapers so you arrive fresh, with easier weeks wherever your method calls for them.
+- No-race intro: No race? Attune plans in blocks of up to 16 weeks: three building weeks, then an easier one so the work sinks in. *(Backed by `generalFitness/index.ts` `DELOAD_EVERY = 4`, `MAX_BLOCK_WEEKS = 16`.)*
+- Racing phase labels: Base, weeks 1 to 5 · Build, weeks 6 to 10 · Peak, 11 to 13 · Taper to race day
+- No-race phase labels: Weeks 1 to 4 · 5 to 8 · 9 to 12 · 13 to 16
+- Bar label above week 9: Today
+- Caption: **Today, week 9** {chart caption from the tab table}. Dashed outline: what was planned. Example plan.
+
+## A coach in your pocket (`#coach`)
+
+- H2: A coach in your pocket
+- Body: It knows your plan, your watch data and your training history, and it answers in plain language. Type or talk. When it suggests a change, you see exactly what moves, and nothing changes until you approve it.
+- Bullets: Ask why today’s workout looks the way it does · Rework the week around travel, work or a bad night · Approved changes go straight to your Garmin watch
+- Demo chat header: {coach name} · “Your coach. {traits, comma-separated}.” (no traits: “Pick a personality below.”)
+- Athlete: Work trip Wednesday to Friday, and I’m already sleeping badly. What should this week look like?
+- Coach: Let’s do your hard session Tuesday, before you leave, and make the travel days short and easy: 30 minutes you can do in a hotel gym or outside. You won’t lose anything that matters.
+- Proposal heading: Proposed change to your plan
+- Rows: **Tue** ~~Easy 40 min~~ Hard session, moved from Thu · **Wed to Fri** ~~Full sessions~~ 30 min easy, hotel-friendly
+- Buttons: **Approve** · Keep my plan
+- After Approve: Plan updated. The new week is on your watch.
+- Input placeholder: Ask {coach name} anything · input label (visually hidden): Message your coach · mic button label (aria): Talk to your coach. Both are disabled in the demo (design-spec.md § CoachDemo)
+
+Backed by: voice in/out (`api/coach/chat.py`, `src/utils/voiceInput.ts`), proposals with approval (`src/components/ProposalCard.tsx`), Garmin re-push (`src/utils/garminRepush.ts`), coach memory.
+
+## Make it yours
+
+- H2: Make it yours
+- Body: Name your coach and choose how it talks to you. It can be the friend who keeps it light or the one who holds you to the plan. Try it: the chat above changes as you do.
+- Field: Coach name (default **Mira**, max 30 characters like the app; blank shows “Your coach”)
+- Group label: Personality · hint: A few of the 17 personalities
+- Traits shown, in this order (exact app labels): Funny · Strict · Motivational · Warm · Direct · Data Nerd · Old School · Chill (default on: Warm, Direct)
+
+Backed by: `COACH_TRAITS` (17 entries) and `DEFAULT_COACH_NAME` in `src/types/index.ts:999-1021`; name limit `CoachPersonaEditor.tsx:58`.
+
+## Works with the gear you already wear
+
+| Name | Body |
+|---|---|
+| Garmin | Pulls HRV, sleep and activities, and sends each week’s workouts to your watch. |
+| Strava | Brings in your runs, rides and hikes so cross-training counts toward your load. |
+| Apple Health | Syncs HRV, resting heart rate, sleep and workouts from your iPhone. |
+
+Do not use Garmin, Strava or Apple logos (trademark guidelines); names as text only.
+
+## Try it before you’re in (`#tools`)
+
+- H2: Try it before you’re in
+- Body: Three free calculators built on the same engine. No sign-up, and nothing you enter leaves your browser.
+
+| Tool | Body | Link text | URL |
+|---|---|---|---|
+| Fueling planner | Carbs, fluid and sodium per hour for a long effort. | Open the fueling planner | `/tools/fueling.html` |
+| Race time predictor | Realistic finish times from a recent result. | Open the race predictor | `/tools/predictor.html` |
+| Heat planner | How to adjust pace and fluids when it’s hot. | Open the heat planner | `/tools/heat.html` |
+
+## Founder note — DRAFT, needs Mike’s sign-off before PR 5 ships
+
+> “I built Attune for my own training: trail races, then HYROX, and the stretches in between. I wanted a plan that noticed when I’d slept badly or overdone it, and changed instead of pretending nothing happened.”
+>
+> **Mike Beebe**, founder, Oakland
+
+## Questions
+
+| Q | A |
+|---|---|
+| Is it only for runners? | No. Attune builds plans for road races, trail and ultra, HYROX, and general fitness with no race at all. A season can even mix races, like a half marathon and a HYROX. |
+| How do I get in? | Request an invite with your email. Mike reviews every request and emails you when you’re approved. You sign in with your Google account. |
+| Does it cost anything? | Attune is free during the beta. |
+| Is the coach a person? | No. It’s an AI coach that works from your plan and your data, and it can’t change your training without your approval. |
+| Which devices work? | Garmin, Strava and Apple Health. Attune runs in your phone’s browser and installs to your home screen like an app. |
+| Do I need a wearable? | It helps. Without one you can still log workouts and how they felt, and the plan adapts to that. |
+
+## Footer
+
+- Line: **Start training that adapts to you.**
+- Sub: Attune is in an invite-only beta and free while it lasts.
+- Button: **Request an invite** (`#join`)
+- Links: Sign in (`/app/`) · Free tools (`#tools`) · Privacy (`/privacy.html`) · Terms (`/terms.html`) · © 2026 Attune
+
+## Words and claims that must never appear
+
+Enforced by `claims.test.ts` (case-insensitive) against the rendered landing page:
+`App Store`, `TestFlight`, `Apple Watch`, `widget`, `official Garmin`,
+`Garmin partner`, `certified`, any currency amount (`$`, `€`, `£` followed by a
+digit), `per month`, `/mo`, `users`, `athletes trust`, `#1`, `best`.

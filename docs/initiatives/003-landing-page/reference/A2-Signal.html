@@ -1,0 +1,511 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700;800&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#0F766E}a:hover{color:#115E59}
+input:focus-visible,button:focus-visible,a:focus-visible,summary:focus-visible{outline:3px solid #0D9488;outline-offset:2px}
+@media (max-width: 640px){.navhide{display:none !important}}
+</style>
+</head><body>
+<div style="font-family: 'Schibsted Grotesk', system-ui, sans-serif; color: #14302B; background: #F3F6F4; min-height: 100vh">
+
+  <header style="max-width: 1180px; margin: 0 auto; padding: 22px 24px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px">
+    <a href="#top" style="display: flex; align-items: center; gap: 10px; text-decoration: none; color: #14302B">
+      <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><circle cx="15" cy="15" r="13" fill="none" stroke="#0F766E" stroke-width="3"></circle><path d="M8 17 L12.5 12 L16 15.5 L22 9" fill="none" stroke="#EA580C" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+      <span style="font-size: 22px; font-weight: 800; letter-spacing: -0.02em">Attune</span>
+    </a>
+    <nav aria-label="Main" style="display: flex; flex-wrap: wrap; align-items: center; gap: 22px; font-size: 15px; font-weight: 500">
+      <a class="navhide" href="#how" style="color: #46595A; text-decoration: none">How it works</a>
+      <a class="navhide" href="#you" style="color: #46595A; text-decoration: none">Who it's for</a>
+      <a class="navhide" href="#coach" style="color: #46595A; text-decoration: none">The coach</a>
+      <a class="navhide" href="#tools" style="color: #46595A; text-decoration: none">Free tools</a>
+      <a href="/app" style="color: #46595A; text-decoration: none">Sign in</a>
+      <a href="#join" style="background: #14302B; color: #F3F6F4; text-decoration: none; padding: 11px 18px; border-radius: 999px; font-weight: 600">Request an invite</a>
+    </nav>
+  </header>
+
+  <section id="top" style="max-width: 1180px; margin: 0 auto; padding: 56px 24px 96px; display: flex; flex-wrap: wrap; gap: 64px; align-items: center">
+    <div id="join" style="flex: 1 1 460px; min-width: 0">
+      <h1 style="margin: 0; font-size: clamp(44px, 6vw, 76px); line-height: 0.98; letter-spacing: -0.035em; font-weight: 800; max-width: 11ch">Training that actually adapts to you.</h1>
+      <p style="margin: 28px 0 0; font-size: 21px; line-height: 1.45; font-weight: 700; max-width: 30em">A coach in your pocket.</p>
+      <p style="margin: 8px 0 0; font-size: 19px; line-height: 1.5; color: #46595A; max-width: 32em">Racing a marathon, training for HYROX, or just getting fitter: Attune reads your recovery every morning and adjusts today's workout to match.</p>
+
+      
+        <form onSubmit="#fn" novalidate="novalidate" style="margin-top: 34px; display: flex; flex-direction: column; gap: 12px; max-width: 520px">
+          <label for="a2-email" style="font-size: 15px; font-weight: 600">Your email</label>
+          <div style="display: flex; flex-wrap: wrap; gap: 10px">
+            <input id="a2-email" type="email" autocomplete="email" placeholder="you@example.com" value="" onChange="#fn" style="flex: 1 1 240px; min-width: 0; height: 52px; padding: 0 16px; font: inherit; font-size: 17px; border: 1.5px solid #94A3B8; border-radius: 12px; background: #FFFFFF; color: #0F172A">
+            <button type="submit" style="height: 52px; padding: 0 22px; font: inherit; font-size: 16px; font-weight: 700; color: #FFFFFF; background: #0F766E; border: 0; border-radius: 12px; cursor: pointer">Request an invite</button>
+          </div>
+          <label for="a2-goal" style="font-size: 15px; font-weight: 600; margin-top: 6px">What are you training for? <span style="font-weight: 400; color: #46595A">(optional)</span></label>
+          <input id="a2-goal" type="text" placeholder="A spring half, my first HYROX, just getting fit..." value="" onChange="#fn" style="height: 48px; padding: 0 16px; font: inherit; font-size: 16px; border: 1.5px solid #CBD5E1; border-radius: 12px; background: #FFFFFF; color: #0F172A">
+          
+          <p style="margin: 4px 0 0; font-size: 15px; color: #46595A">Free during the beta. Mike reviews every request. Already in? <a href="/app" style="font-weight: 600; color: #0F766E">Sign in</a></p>
+        </form>
+      
+      
+    </div>
+
+    <div style="flex: 1 1 420px; min-width: 0; max-width: 520px; margin: 0 auto">
+      <div style="background: #FFFFFF; border-radius: 28px; padding: 26px 28px 28px; box-shadow: 0 30px 60px -30px rgba(18,50,46,0.45), 0 0 0 1px rgba(15,23,42,0.06)">
+        <p id="a2-tabs" style="margin: 0; font-size: 14px; color: #46595A">Same morning, four different athletes</p>
+        <div role="group" aria-labelledby="a2-tabs" style="margin-top: 10px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; background: #E6EEEA; border-radius: 12px; padding: 4px">
+          
+            <button type="button" aria-pressed="true" onClick="#fn" style="min-height: 44px; padding: 0 8px; font: inherit; font-size: 14px; font-weight: 700; border: 0; border-radius: 9px; cursor: pointer; background: #FFFFFF; color: #14302B; box-shadow: 0 1px 2px rgba(15,23,42,0.15)">Running</button>
+          
+            <button type="button" aria-pressed="false" onClick="#fn" style="min-height: 44px; padding: 0 8px; font: inherit; font-size: 14px; font-weight: 700; border: 0; border-radius: 9px; cursor: pointer; background: transparent; color: #46595A">Trail</button>
+          
+            <button type="button" aria-pressed="false" onClick="#fn" style="min-height: 44px; padding: 0 8px; font: inherit; font-size: 14px; font-weight: 700; border: 0; border-radius: 9px; cursor: pointer; background: transparent; color: #46595A">HYROX</button>
+          
+            <button type="button" aria-pressed="false" onClick="#fn" style="min-height: 44px; padding: 0 8px; font: inherit; font-size: 14px; font-weight: 700; border: 0; border-radius: 9px; cursor: pointer; background: transparent; color: #46595A">Fitness</button>
+          
+        </div>
+        <div style="margin-top: 18px; display: flex; justify-content: space-between; align-items: baseline; gap: 12px">
+          <p style="margin: 0; font-size: 15px; font-weight: 700">This morning</p>
+          <p style="margin: 0; font-size: 13px; color: #46595A; text-align: right">Training for a spring half marathon</p>
+        </div>
+        <div style="margin-top: 12px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px">
+          <div style="background: #E6EEEA; border-radius: 14px; padding: 12px 14px">
+            <p style="margin: 0; font-size: 13px; color: #46595A">HRV</p>
+            <p style="margin: 4px 0 0; font-size: clamp(20px, 5vw, 26px); font-weight: 800; letter-spacing: -0.02em; white-space: nowrap">41 <span style="font-size: 13px; font-weight: 500">ms</span></p>
+            <p style="margin: 2px 0 0; font-size: 13px; color: #B4410C; font-weight: 600">18% below normal</p>
+          </div>
+          <div style="background: #E6EEEA; border-radius: 14px; padding: 12px 14px">
+            <p style="margin: 0; font-size: 13px; color: #46595A; white-space: nowrap">Resting HR</p>
+            <p style="margin: 4px 0 0; font-size: clamp(20px, 5vw, 26px); font-weight: 800; letter-spacing: -0.02em; white-space: nowrap">56 <span style="font-size: 13px; font-weight: 500">bpm</span></p>
+            <p style="margin: 2px 0 0; font-size: 13px; color: #B4410C; font-weight: 600">+5 over normal</p>
+          </div>
+          <div style="background: #E6EEEA; border-radius: 14px; padding: 12px 14px">
+            <p style="margin: 0; font-size: 13px; color: #46595A">Sleep</p>
+            <p style="margin: 4px 0 0; font-size: clamp(20px, 5vw, 26px); font-weight: 800; letter-spacing: -0.02em; white-space: nowrap">5:40</p>
+            <p style="margin: 2px 0 0; font-size: 13px; color: #46595A; font-weight: 600">Short night</p>
+          </div>
+        </div>
+        <div style="margin-top: 20px; display: flex; align-items: center; gap: 14px">
+          <div style="flex: 0 0 64px; height: 64px; border-radius: 50%; background: conic-gradient(#EA580C 0 38%, #D3DED9 38% 100%); display: flex; align-items: center; justify-content: center">
+            <div style="width: 48px; height: 48px; border-radius: 50%; background: #FFFFFF; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 17px">38</div>
+          </div>
+          <div>
+            <p style="margin: 0; font-size: 17px; font-weight: 700">Readiness: take it easy</p>
+            <p style="margin: 2px 0 0; font-size: 14px; color: #46595A">Based on HRV, resting heart rate, sleep and your last 7 days of training</p>
+          </div>
+        </div>
+        <div aria-live="polite" style="margin-top: 20px; border-top: 1px solid #D3DED9; padding-top: 18px; min-height: 196px">
+          <p style="margin: 0; font-size: 14px; color: #46595A">Planned</p>
+          <p style="margin: 2px 0 0; font-size: 18px; font-weight: 600; color: #46595A; text-decoration: line-through">Tempo run, 8 × 800 m</p>
+          <p style="margin: 14px 0 0; font-size: 14px; color: #B4410C; font-weight: 700">Adjusted for today</p>
+          <p style="margin: 2px 0 0; font-size: 24px; line-height: 1.15; font-weight: 800; letter-spacing: -0.02em">Easy run, 45 min in zone 2</p>
+          <p style="margin: 10px 0 0; font-size: 15px; line-height: 1.5; color: #46595A">Your body hasn’t caught up from Saturday’s long run. The tempo session moves to Thursday, so the week’s work stays the same.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="how" style="background: #FFFFFF">
+    <div style="max-width: 1180px; margin: 0 auto; padding: 88px 24px">
+      <h2 style="margin: 0; font-size: clamp(32px, 4vw, 48px); letter-spacing: -0.03em; line-height: 1.05; font-weight: 800">How a morning works</h2>
+      <ol style="list-style: none; margin: 44px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 32px">
+        
+          <li style="border-top: 2px solid #0F766E; padding-top: 18px">
+            <p style="margin: 0; font-size: 44px; font-weight: 800; color: #0F766E; line-height: 1">1</p>
+            <h3 style="margin: 14px 0 0; font-size: 21px; font-weight: 700">Your watch syncs overnight</h3>
+            <p style="margin: 8px 0 0; font-size: 16px; line-height: 1.55; color: #46595A">HRV, resting heart rate, sleep and yesterday’s training come in from Garmin, Strava or Apple Health.</p>
+          </li>
+        
+          <li style="border-top: 2px solid #0F766E; padding-top: 18px">
+            <p style="margin: 0; font-size: 44px; font-weight: 800; color: #0F766E; line-height: 1">2</p>
+            <h3 style="margin: 14px 0 0; font-size: 21px; font-weight: 700">Attune scores your readiness</h3>
+            <p style="margin: 8px 0 0; font-size: 16px; line-height: 1.55; color: #46595A">It compares this morning with your own normal, not a population average, and checks how fast your training load is climbing.</p>
+          </li>
+        
+          <li style="border-top: 2px solid #0F766E; padding-top: 18px">
+            <p style="margin: 0; font-size: 44px; font-weight: 800; color: #0F766E; line-height: 1">3</p>
+            <h3 style="margin: 14px 0 0; font-size: 21px; font-weight: 700">Today’s workout adjusts</h3>
+            <p style="margin: 8px 0 0; font-size: 16px; line-height: 1.55; color: #46595A">Ready to go, it stays. Run down, it eases off and moves the hard session to a day you can handle it.</p>
+          </li>
+        
+          <li style="border-top: 2px solid #0F766E; padding-top: 18px">
+            <p style="margin: 0; font-size: 44px; font-weight: 800; color: #0F766E; line-height: 1">4</p>
+            <h3 style="margin: 14px 0 0; font-size: 21px; font-weight: 700">Ask the coach why</h3>
+            <p style="margin: 8px 0 0; font-size: 16px; line-height: 1.55; color: #46595A">Every change comes with a reason in plain language, and you can push back.</p>
+          </li>
+        
+      </ol>
+    </div>
+  </section>
+
+  <section id="you" style="background: #12322E; color: #FFFFFF">
+    <div style="max-width: 1180px; margin: 0 auto; padding: 96px 24px">
+      <div style="display: flex; flex-wrap: wrap; gap: 24px 56px; align-items: flex-end">
+        <h2 style="flex: 1 1 420px; margin: 0; font-size: clamp(34px, 4.6vw, 56px); letter-spacing: -0.035em; line-height: 1; font-weight: 800">Whatever you're training for</h2>
+        <p style="flex: 1 1 420px; min-width: 0; margin: 0; font-size: 18px; line-height: 1.55; color: #CFE3DC">Each path has its own plan builder, so a HYROX athlete doesn't get a marathon plan with burpees bolted on. Racing more than once? Put a half marathon and a HYROX in the same season.</p>
+      </div>
+
+      <div style="margin-top: 44px; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px">
+        
+          <div style="background: #0C2421; border-radius: 20px; padding: 22px">
+            <h3 style="margin: 0; font-size: 22px; font-weight: 800; letter-spacing: -0.02em">Road races</h3>
+            <p style="margin: 6px 0 0; font-size: 15px; color: #5EEAD4; font-weight: 600">5K to marathon</p>
+            <ul style="margin: 14px 0 0; padding: 0 0 0 18px; font-size: 15px; line-height: 1.6; color: #CFE3DC">
+              
+                <li>Proven coaching methods like Daniels, 80/20 and Higdon, matched to your race</li>
+              
+                <li>Paces set from a recent 5K or 10K</li>
+              
+                <li>Rides and hikes count toward your load</li>
+              
+            </ul>
+          </div>
+        
+          <div style="background: #0C2421; border-radius: 20px; padding: 22px">
+            <h3 style="margin: 0; font-size: 22px; font-weight: 800; letter-spacing: -0.02em">Trail and ultra</h3>
+            <p style="margin: 6px 0 0; font-size: 15px; color: #5EEAD4; font-weight: 600">Trail races and ultras</p>
+            <ul style="margin: 14px 0 0; padding: 0 0 0 18px; font-size: 15px; line-height: 1.6; color: #CFE3DC">
+              
+                <li>Methods built for the long stuff, like Koop and Roche SWAP</li>
+              
+                <li>Counts climbing and descending, not just miles</li>
+              
+                <li>Eases off after big descents</li>
+              
+            </ul>
+          </div>
+        
+          <div style="background: #0C2421; border-radius: 20px; padding: 22px">
+            <h3 style="margin: 0; font-size: 22px; font-weight: 800; letter-spacing: -0.02em">HYROX</h3>
+            <p style="margin: 6px 0 0; font-size: 15px; color: #5EEAD4; font-weight: 600">Open and Pro divisions</p>
+            <ul style="margin: 14px 0 0; padding: 0 0 0 18px; font-size: 15px; line-height: 1.6; color: #CFE3DC">
+              
+                <li>Running and all 8 stations in one plan</li>
+              
+                <li>Station work set for your division</li>
+              
+                <li>Extra work on your weakest station</li>
+              
+            </ul>
+          </div>
+        
+          <div style="background: #0C2421; border-radius: 20px; padding: 22px">
+            <h3 style="margin: 0; font-size: 22px; font-weight: 800; letter-spacing: -0.02em">General fitness</h3>
+            <p style="margin: 6px 0 0; font-size: 15px; color: #5EEAD4; font-weight: 600">No race needed</p>
+            <ul style="margin: 14px 0 0; padding: 0 0 0 18px; font-size: 15px; line-height: 1.6; color: #CFE3DC">
+              
+                <li>Pick a goal: stay healthy, lose fat, build muscle or build endurance</li>
+              
+                <li>Cardio your way: run, bike, row, swim, or a mix</li>
+              
+                <li>Strength work built into every plan</li>
+              
+            </ul>
+          </div>
+        
+      </div>
+
+      <div style="margin-top: 64px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 16px 32px">
+        <div style="flex: 1 1 420px; min-width: 0">
+          <h3 style="margin: 0; font-size: clamp(26px, 3vw, 34px); letter-spacing: -0.03em; font-weight: 800">Your plan, week by week</h3>
+          <p style="margin: 8px 0 0; font-size: 17px; line-height: 1.55; color: #CFE3DC">Racing? Attune builds from base to peak, then tapers so you arrive fresh, with easier weeks wherever your method calls for them.</p>
+        </div>
+        <div role="group" aria-label="Show plan type" style="display: flex; gap: 6px; background: #0C2421; border-radius: 12px; padding: 4px">
+          
+            <button type="button" aria-pressed="true" onClick="#fn" style="min-height: 44px; padding: 0 14px; font: inherit; font-size: 14px; font-weight: 700; border: 0; border-radius: 9px; cursor: pointer; background: #FFFFFF; color: #12322E">Racing</button>
+          
+            <button type="button" aria-pressed="false" onClick="#fn" style="min-height: 44px; padding: 0 14px; font: inherit; font-size: 14px; font-weight: 700; border: 0; border-radius: 9px; cursor: pointer; background: transparent; color: #CFE3DC">No race</button>
+          
+        </div>
+      </div>
+
+      <figure style="margin: 28px 0 0; padding: 0">
+        <div role="img" aria-label="Bar chart of weekly training load over 16 weeks, building through base and build to a peak, then tapering to race day. Week 9 is lower than planned because today was adjusted." style="height: 236px; display: flex; align-items: flex-end; gap: 6px; border-bottom: 2px solid #2E5751">
+          
+            <div style="flex: 1 1 0; min-width: 0; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: stretch; position: relative">
+              
+              <div style="height: 86px; background: #8FBFB6; border-radius: 6px 6px 0 0"></div>
+            </div>
+          
+            <div style="flex: 1 1 0; min-width: 0; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: stretch; position: relative">
+              
+              <div style="height: 100px; background: #8FBFB6; border-radius: 6px 6px 0 0"></div>
+            </div>
+          
+            <div style="flex: 1 1 0; min-width: 0; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: stretch; position: relative">
+              
+              <div style="height: 114px; background: #8FBFB6; border-radius: 6px 6px 0 0"></div>
+            </div>
+          
+            <div style="flex: 1 1 0; min-width: 0; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: stretch; position: relative">
+              
+              <div style="height: 77px; background: #8FBFB6; border-radius: 6px 6px 0 0"></div>
+            </div>
+          
+            <div style="flex: 1 1 0; min-width: 0; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: stretch; position: relative">
+              
+              <div style="height: 123px; background: #8FBFB6; border-radius: 6px 6px 0 0"></div>
+            </div>
+          
+            <div style="flex: 1 1 0; min-width: 0; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: stretch; position: relative">
+              
+              <div style="height: 136px; background: #8FBFB6; border-radius: 6px 6px 0 0"></div>
+            </div>
+          
+            <div style="flex: 1 1 0; min-width: 0; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: stretch; position: relative">
+              
+              <div style="height: 150px; background: #8FBFB6; border-radius: 6px 6px 0 0"></div>
+            </div>
+          
+            <div style="flex: 1 1 0; min-width: 0; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: stretch; position: relative">
+              
+              <div style="height: 105px; background: #8FBFB6; border-radius: 6px 6px 0 0"></div>
+            </div>
+          
+            <div style="flex: 1 1 0; min-width: 0; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: stretch; position: relative">
+              
+                <div style="position: absolute; left: 0; right: 0; bottom: 0; height: 159px; border: 2px dashed #FB923C; border-radius: 6px 6px 0 0; box-sizing: border-box"></div>
+                <span style="position: absolute; left: 50%; transform: translateX(-50%); bottom: 167px; font-size: 13px; font-weight: 800; color: #FB923C; white-space: nowrap">Today</span>
+              
+              <div style="height: 114px; background: #EA580C; border-radius: 6px 6px 0 0"></div>
+            </div>
+          
+            <div style="flex: 1 1 0; min-width: 0; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: stretch; position: relative">
+              
+              <div style="height: 173px; background: #8FBFB6; border-radius: 6px 6px 0 0"></div>
+            </div>
+          
+            <div style="flex: 1 1 0; min-width: 0; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: stretch; position: relative">
+              
+              <div style="height: 186px; background: #8FBFB6; border-radius: 6px 6px 0 0"></div>
+            </div>
+          
+            <div style="flex: 1 1 0; min-width: 0; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: stretch; position: relative">
+              
+              <div style="height: 132px; background: #8FBFB6; border-radius: 6px 6px 0 0"></div>
+            </div>
+          
+            <div style="flex: 1 1 0; min-width: 0; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: stretch; position: relative">
+              
+              <div style="height: 200px; background: #8FBFB6; border-radius: 6px 6px 0 0"></div>
+            </div>
+          
+            <div style="flex: 1 1 0; min-width: 0; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: stretch; position: relative">
+              
+              <div style="height: 164px; background: #8FBFB6; border-radius: 6px 6px 0 0"></div>
+            </div>
+          
+            <div style="flex: 1 1 0; min-width: 0; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: stretch; position: relative">
+              
+              <div style="height: 118px; background: #8FBFB6; border-radius: 6px 6px 0 0"></div>
+            </div>
+          
+            <div style="flex: 1 1 0; min-width: 0; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: stretch; position: relative">
+              
+              <div style="height: 68px; background: #8FBFB6; border-radius: 6px 6px 0 0"></div>
+            </div>
+          
+        </div>
+        <div style="display: grid; grid-template-columns: 5fr 5fr 3fr 3fr; gap: 6px; margin-top: 10px; font-size: clamp(12px, 1.4vw, 15px); font-weight: 600; color: #CFE3DC">
+          
+            <span style="">Base, weeks 1 to 5</span>
+          
+            <span style="">Build, weeks 6 to 10</span>
+          
+            <span style="">Peak, 11 to 13</span>
+          
+            <span style="text-align: right">Taper to race day</span>
+          
+        </div>
+        <figcaption style="margin-top: 22px; display: flex; flex-wrap: wrap; gap: 8px 22px; align-items: baseline; background: #0C2421; border-radius: 14px; padding: 16px 20px">
+          <span style="font-size: 18px; font-weight: 800; color: #FB923C">Today, week 9</span>
+          <span style="flex: 1 1 360px; font-size: 16px; line-height: 1.5; color: #FFFFFF">The tempo run moves to Thursday, so week 9 still does its job. Dashed outline: what was planned. Example plan.</span>
+        </figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section id="coach" style="max-width: 1180px; margin: 0 auto; padding: 96px 24px; display: flex; flex-wrap: wrap; gap: 56px; align-items: center">
+    <div style="flex: 1 1 400px; min-width: 0">
+      <h2 style="margin: 0; font-size: clamp(36px, 4.6vw, 56px); letter-spacing: -0.035em; line-height: 1; font-weight: 800">A coach in your pocket</h2>
+      <p style="margin: 20px 0 0; font-size: 19px; line-height: 1.55; color: #46595A; max-width: 32em">It knows your plan, your watch data and your training history, and it answers in plain language. Type or talk. When it suggests a change, you see exactly what moves, and nothing changes until you approve it.</p>
+      <ul style="margin: 24px 0 0; padding: 0 0 0 20px; font-size: 17px; line-height: 1.8; color: #46595A">
+        <li>Ask why today's workout looks the way it does</li>
+        <li>Rework the week around travel, work or a bad night</li>
+        <li>Approved changes go straight to your Garmin watch</li>
+      </ul>
+    </div>
+    <div style="flex: 1 1 440px; min-width: 0; max-width: 500px; margin: 0 auto; background: #FFFFFF; border-radius: 28px; padding: 22px; box-shadow: 0 30px 60px -30px rgba(18,50,46,0.45), 0 0 0 1px rgba(15,23,42,0.06)">
+      <div style="display: flex; align-items: center; gap: 12px; padding-bottom: 14px; border-bottom: 1px solid #D3DED9">
+        <div style="width: 44px; height: 44px; border-radius: 50%; background: #0F766E; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-size: 19px; font-weight: 800">M</div>
+        <div>
+          <p style="margin: 0; font-size: 16px; font-weight: 700">Mira</p>
+          <p style="margin: 0; font-size: 13px; color: #46595A">Your coach. Warm, Direct.</p>
+        </div>
+      </div>
+      <div style="padding-top: 16px; display: flex; flex-direction: column; gap: 12px">
+        <div style="align-self: flex-end; max-width: 84%; background: #14302B; color: #F3F6F4; padding: 12px 16px; border-radius: 18px 18px 4px 18px; font-size: 15px; line-height: 1.5">Work trip Wednesday to Friday, and I'm already sleeping badly. What should this week look like?</div>
+        <div style="align-self: flex-start; max-width: 92%; background: #E6EEEA; padding: 12px 16px; border-radius: 18px 18px 18px 4px; font-size: 15px; line-height: 1.55">Let's do your hard session Tuesday, before you leave, and make the travel days short and easy: 30 minutes you can do in a hotel gym or outside. You won't lose anything that matters.</div>
+        <div style="border: 1.5px solid #0F766E; border-radius: 16px; padding: 14px 16px">
+          <p style="margin: 0; font-size: 13px; font-weight: 700; color: #0F766E">Proposed change to your plan</p>
+          <div style="margin-top: 8px; display: grid; grid-template-columns: 76px 1fr; row-gap: 6px; font-size: 15px">
+            <span style="color: #46595A">Tue</span><span><span style="text-decoration: line-through; color: #46595A">Easy 40 min</span> Hard session, moved from Thu</span>
+            <span style="color: #46595A">Wed to Fri</span><span><span style="text-decoration: line-through; color: #46595A">Full sessions</span> 30 min easy, hotel-friendly</span>
+          </div>
+          
+            <div style="margin-top: 12px; display: flex; gap: 8px">
+              <button type="button" onClick="#fn" style="flex: 1; height: 44px; font: inherit; font-weight: 700; color: #FFFFFF; background: #0F766E; border: 0; border-radius: 10px; cursor: pointer">Approve</button>
+              <button type="button" style="flex: 1; height: 44px; font: inherit; font-weight: 600; color: #14302B; background: #FFFFFF; border: 1.5px solid #CBD5E1; border-radius: 10px">Keep my plan</button>
+            </div>
+          
+          
+        </div>
+      </div>
+      <div style="margin-top: 16px; display: flex; gap: 10px; align-items: center">
+        <label for="a2-ask" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Message your coach</label>
+        <input id="a2-ask" type="text" placeholder="Ask Mira anything" style="flex: 1; min-width: 0; height: 46px; padding: 0 14px; font: inherit; font-size: 15px; border: 1.5px solid #CBD5E1; border-radius: 999px; background: #FFFFFF">
+        <button type="button" aria-label="Talk to your coach" style="width: 46px; height: 46px; border-radius: 50%; border: 0; background: #14302B; display: flex; align-items: center; justify-content: center"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><rect x="7" y="2" width="6" height="11" rx="3" fill="none" stroke="#F3F6F4" stroke-width="1.8"></rect><path d="M4 10a6 6 0 0 0 12 0M10 16v2" fill="none" stroke="#F3F6F4" stroke-width="1.8" stroke-linecap="round"></path></svg></button>
+      </div>
+    </div>
+  </section>
+
+  <section style="background: #FFFFFF">
+    <div style="max-width: 1180px; margin: 0 auto; padding: 88px 24px; display: flex; flex-wrap: wrap; gap: 56px; align-items: center">
+      <div style="flex: 1 1 380px; min-width: 0">
+        <h2 style="margin: 0; font-size: clamp(32px, 4vw, 48px); letter-spacing: -0.03em; line-height: 1.05; font-weight: 800">Make it yours</h2>
+        <p style="margin: 16px 0 0; font-size: 18px; line-height: 1.55; color: #46595A; max-width: 30em">Name your coach and choose how it talks to you. It can be the friend who keeps it light or the one who holds you to the plan. Try it: the chat above changes as you do.</p>
+      </div>
+      <div style="flex: 1 1 420px; min-width: 0; background: #E6EEEA; border-radius: 24px; padding: 28px">
+        <label for="a2-name" style="font-size: 15px; font-weight: 600">Coach name</label>
+        <input id="a2-name" type="text" value="Mira" onChange="#fn" maxlength="30" style="display: block; margin-top: 8px; width: 100%; box-sizing: border-box; height: 48px; padding: 0 14px; font: inherit; font-size: 19px; font-weight: 600; border: 1.5px solid #CBD5E1; border-radius: 10px; background: #FFFFFF; color: #0F172A">
+        <p id="a2-traits" style="margin: 20px 0 10px; font-size: 15px; font-weight: 600">Personality <span style="font-weight: 400; color: #46595A">A few of the 17 personalities</span></p>
+        <div role="group" aria-labelledby="a2-traits" style="display: flex; flex-wrap: wrap; gap: 8px">
+          
+            <button type="button" aria-pressed="false" onClick="#fn" style="height: 44px; padding: 0 16px; font: inherit; font-size: 15px; font-weight: 600; border-radius: 999px; cursor: pointer; background: #FFFFFF; color: #0F172A; border: 1.5px solid #CBD5E1">Funny</button>
+          
+            <button type="button" aria-pressed="false" onClick="#fn" style="height: 44px; padding: 0 16px; font: inherit; font-size: 15px; font-weight: 600; border-radius: 999px; cursor: pointer; background: #FFFFFF; color: #0F172A; border: 1.5px solid #CBD5E1">Strict</button>
+          
+            <button type="button" aria-pressed="false" onClick="#fn" style="height: 44px; padding: 0 16px; font: inherit; font-size: 15px; font-weight: 600; border-radius: 999px; cursor: pointer; background: #FFFFFF; color: #0F172A; border: 1.5px solid #CBD5E1">Motivational</button>
+          
+            <button type="button" aria-pressed="true" onClick="#fn" style="height: 44px; padding: 0 16px; font: inherit; font-size: 15px; font-weight: 600; border-radius: 999px; cursor: pointer; background: #0F766E; color: #FFFFFF; border: 1.5px solid #0F766E">Warm</button>
+          
+            <button type="button" aria-pressed="true" onClick="#fn" style="height: 44px; padding: 0 16px; font: inherit; font-size: 15px; font-weight: 600; border-radius: 999px; cursor: pointer; background: #0F766E; color: #FFFFFF; border: 1.5px solid #0F766E">Direct</button>
+          
+            <button type="button" aria-pressed="false" onClick="#fn" style="height: 44px; padding: 0 16px; font: inherit; font-size: 15px; font-weight: 600; border-radius: 999px; cursor: pointer; background: #FFFFFF; color: #0F172A; border: 1.5px solid #CBD5E1">Data Nerd</button>
+          
+            <button type="button" aria-pressed="false" onClick="#fn" style="height: 44px; padding: 0 16px; font: inherit; font-size: 15px; font-weight: 600; border-radius: 999px; cursor: pointer; background: #FFFFFF; color: #0F172A; border: 1.5px solid #CBD5E1">Old School</button>
+          
+            <button type="button" aria-pressed="false" onClick="#fn" style="height: 44px; padding: 0 16px; font: inherit; font-size: 15px; font-weight: 600; border-radius: 999px; cursor: pointer; background: #FFFFFF; color: #0F172A; border: 1.5px solid #CBD5E1">Chill</button>
+          
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section style="max-width: 1180px; margin: 0 auto; padding: 72px 24px 24px">
+    <h2 style="margin: 0; font-size: 26px; letter-spacing: -0.02em; font-weight: 800">Works with the gear you already wear</h2>
+    <div style="margin-top: 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px">
+      
+        <div style="background: #FFFFFF; border-radius: 16px; padding: 20px 22px">
+          <p style="margin: 0; font-size: 19px; font-weight: 700">Garmin</p>
+          <p style="margin: 6px 0 0; font-size: 15px; line-height: 1.5; color: #46595A">Pulls HRV, sleep and activities, and sends each week’s workouts to your watch.</p>
+        </div>
+      
+        <div style="background: #FFFFFF; border-radius: 16px; padding: 20px 22px">
+          <p style="margin: 0; font-size: 19px; font-weight: 700">Strava</p>
+          <p style="margin: 6px 0 0; font-size: 15px; line-height: 1.5; color: #46595A">Brings in your runs, rides and hikes so cross-training counts toward your load.</p>
+        </div>
+      
+        <div style="background: #FFFFFF; border-radius: 16px; padding: 20px 22px">
+          <p style="margin: 0; font-size: 19px; font-weight: 700">Apple Health</p>
+          <p style="margin: 6px 0 0; font-size: 15px; line-height: 1.5; color: #46595A">Syncs HRV, resting heart rate, sleep and workouts from your iPhone.</p>
+        </div>
+      
+    </div>
+  </section>
+
+  <section id="tools" style="max-width: 1180px; margin: 0 auto; padding: 72px 24px">
+    <div style="background: #12322E; color: #FFFFFF; border-radius: 28px; padding: 44px; display: flex; flex-wrap: wrap; gap: 36px; align-items: flex-start">
+      <div style="flex: 1 1 300px; min-width: 0">
+        <h2 style="margin: 0; font-size: 32px; letter-spacing: -0.03em; line-height: 1.1; font-weight: 800">Try it before you're in</h2>
+        <p style="margin: 14px 0 0; font-size: 17px; line-height: 1.55; color: #CFE3DC">Three free calculators built on the same engine. No sign-up, and nothing you enter leaves your browser.</p>
+      </div>
+      <div style="flex: 2 1 480px; min-width: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px">
+        
+          <a href="/tools/fueling.html" style="display: block; text-decoration: none; color: #FFFFFF; background: #0C2421; border-radius: 18px; padding: 20px">
+            <span style="display: block; font-size: 18px; font-weight: 700">Fueling planner</span>
+            <span style="display: block; margin-top: 6px; font-size: 15px; line-height: 1.5; color: #CFE3DC">Carbs, fluid and sodium per hour for a long effort.</span>
+            <span style="display: block; margin-top: 14px; font-size: 15px; font-weight: 700; color: #5EEAD4">Open the fueling planner</span>
+          </a>
+        
+          <a href="/tools/predictor.html" style="display: block; text-decoration: none; color: #FFFFFF; background: #0C2421; border-radius: 18px; padding: 20px">
+            <span style="display: block; font-size: 18px; font-weight: 700">Race time predictor</span>
+            <span style="display: block; margin-top: 6px; font-size: 15px; line-height: 1.5; color: #CFE3DC">Realistic finish times from a recent result.</span>
+            <span style="display: block; margin-top: 14px; font-size: 15px; font-weight: 700; color: #5EEAD4">Open the race predictor</span>
+          </a>
+        
+          <a href="/tools/heat.html" style="display: block; text-decoration: none; color: #FFFFFF; background: #0C2421; border-radius: 18px; padding: 20px">
+            <span style="display: block; font-size: 18px; font-weight: 700">Heat planner</span>
+            <span style="display: block; margin-top: 6px; font-size: 15px; line-height: 1.5; color: #CFE3DC">How to adjust pace and fluids when it’s hot.</span>
+            <span style="display: block; margin-top: 14px; font-size: 15px; font-weight: 700; color: #5EEAD4">Open the heat planner</span>
+          </a>
+        
+      </div>
+    </div>
+  </section>
+
+  <section style="max-width: 1180px; margin: 0 auto; padding: 24px 24px 88px; display: flex; flex-wrap: wrap; gap: 56px">
+    <figure style="flex: 1 1 420px; min-width: 0; margin: 0">
+      <blockquote style="margin: 0; font-size: 24px; line-height: 1.45; font-weight: 500; letter-spacing: -0.01em">"I built Attune for my own training: trail races, then HYROX, and the stretches in between. I wanted a plan that noticed when I'd slept badly or overdone it, and changed instead of pretending nothing happened."</blockquote>
+      <figcaption style="margin-top: 18px; font-size: 16px; color: #46595A"><span style="font-weight: 700; color: #14302B">Mike Beebe</span>, founder, Oakland</figcaption>
+    </figure>
+    <div style="flex: 1 1 420px; min-width: 0">
+      <h2 style="margin: 0 0 8px; font-size: 26px; letter-spacing: -0.02em; font-weight: 800">Questions</h2>
+      
+        <details style="border-bottom: 1px solid #D3DED9; padding: 14px 0">
+          <summary style="cursor: pointer; font-size: 17px; font-weight: 700; min-height: 28px">Is it only for runners?</summary>
+          <p style="margin: 10px 0 0; font-size: 16px; line-height: 1.55; color: #46595A">No. Attune builds plans for road races, trail and ultra, HYROX, and general fitness with no race at all. A season can even mix races, like a half marathon and a HYROX.</p>
+        </details>
+      
+        <details style="border-bottom: 1px solid #D3DED9; padding: 14px 0">
+          <summary style="cursor: pointer; font-size: 17px; font-weight: 700; min-height: 28px">How do I get in?</summary>
+          <p style="margin: 10px 0 0; font-size: 16px; line-height: 1.55; color: #46595A">Request an invite with your email. Mike reviews every request and emails you when you’re approved. You sign in with your Google account.</p>
+        </details>
+      
+        <details style="border-bottom: 1px solid #D3DED9; padding: 14px 0">
+          <summary style="cursor: pointer; font-size: 17px; font-weight: 700; min-height: 28px">Does it cost anything?</summary>
+          <p style="margin: 10px 0 0; font-size: 16px; line-height: 1.55; color: #46595A">Attune is free during the beta.</p>
+        </details>
+      
+        <details style="border-bottom: 1px solid #D3DED9; padding: 14px 0">
+          <summary style="cursor: pointer; font-size: 17px; font-weight: 700; min-height: 28px">Is the coach a person?</summary>
+          <p style="margin: 10px 0 0; font-size: 16px; line-height: 1.55; color: #46595A">No. It’s an AI coach that works from your plan and your data, and it can’t change your training without your approval.</p>
+        </details>
+      
+        <details style="border-bottom: 1px solid #D3DED9; padding: 14px 0">
+          <summary style="cursor: pointer; font-size: 17px; font-weight: 700; min-height: 28px">Which devices work?</summary>
+          <p style="margin: 10px 0 0; font-size: 16px; line-height: 1.55; color: #46595A">Garmin, Strava and Apple Health. Attune runs in your phone’s browser and installs to your home screen like an app.</p>
+        </details>
+      
+        <details style="border-bottom: 1px solid #D3DED9; padding: 14px 0">
+          <summary style="cursor: pointer; font-size: 17px; font-weight: 700; min-height: 28px">Do I need a wearable?</summary>
+          <p style="margin: 10px 0 0; font-size: 16px; line-height: 1.55; color: #46595A">It helps. Without one you can still log workouts and how they felt, and the plan adapts to that.</p>
+        </details>
+      
+    </div>
+  </section>
+
+  <footer style="background: #12322E; color: #CFE3DC">
+    <div style="max-width: 1180px; margin: 0 auto; padding: 56px 24px; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 28px; align-items: center">
+      <div>
+        <p style="margin: 0; font-size: 30px; font-weight: 800; color: #FFFFFF; letter-spacing: -0.02em">Start training that adapts to you.</p>
+        <p style="margin: 6px 0 0; font-size: 16px">Attune is in an invite-only beta and free while it lasts.</p>
+      </div>
+      <a href="#join" style="background: #F97316; color: #1C1917; text-decoration: none; padding: 15px 24px; border-radius: 999px; font-weight: 700; font-size: 16px">Request an invite</a>
+    </div>
+    <div style="max-width: 1180px; margin: 0 auto; padding: 0 24px 32px; display: flex; flex-wrap: wrap; gap: 22px; font-size: 14px">
+      <a href="/app" style="color: #CFE3DC">Sign in</a>
+      <a href="#tools" style="color: #CFE3DC">Free tools</a>
+      <a href="/privacy" style="color: #CFE3DC">Privacy</a>
+      <a href="/terms" style="color: #CFE3DC">Terms</a>
+      <span>© 2026 Attune</span>
+    </div>
+  </footer>
+</div></body></html>
