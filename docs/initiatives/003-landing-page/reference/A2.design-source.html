@@ -1,0 +1,437 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Attune landing page, v2: adapts to every athlete</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700;800&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#0F766E}a:hover{color:#115E59}
+input:focus-visible,button:focus-visible,a:focus-visible,summary:focus-visible{outline:3px solid #0D9488;outline-offset:2px}
+@media (max-width: 640px){.navhide{display:none !important}}
+</style>
+</helmet>
+<div style="font-family: 'Schibsted Grotesk', system-ui, sans-serif; color: {{p.ink}}; background: {{p.ground}}; min-height: 100vh">
+
+  <header style="max-width: 1180px; margin: 0 auto; padding: 22px 24px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px">
+    <a href="#top" style="display: flex; align-items: center; gap: 10px; text-decoration: none; color: {{p.ink}}">
+      <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><circle cx="15" cy="15" r="13" fill="none" stroke="{{p.action}}" stroke-width="3"></circle><path d="M8 17 L12.5 12 L16 15.5 L22 9" fill="none" stroke="{{p.signal}}" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+      <span style="font-size: 22px; font-weight: 800; letter-spacing: -0.02em">Attune</span>
+    </a>
+    <nav aria-label="Main" style="display: flex; flex-wrap: wrap; align-items: center; gap: 22px; font-size: 15px; font-weight: 500">
+      <a class="navhide" href="#how" style="color: {{p.muted}}; text-decoration: none">How it works</a>
+      <a class="navhide" href="#you" style="color: {{p.muted}}; text-decoration: none">Who it's for</a>
+      <a class="navhide" href="#coach" style="color: {{p.muted}}; text-decoration: none">The coach</a>
+      <a class="navhide" href="#tools" style="color: {{p.muted}}; text-decoration: none">Free tools</a>
+      <a href="/app" style="color: {{p.muted}}; text-decoration: none">Sign in</a>
+      <a href="#join" style="background: {{p.ink}}; color: {{p.ground}}; text-decoration: none; padding: 11px 18px; border-radius: 999px; font-weight: 600">Request an invite</a>
+    </nav>
+  </header>
+
+  <section id="top" style="max-width: 1180px; margin: 0 auto; padding: 56px 24px 96px; display: flex; flex-wrap: wrap; gap: 64px; align-items: center">
+    <div id="join" style="flex: 1 1 460px; min-width: 0">
+      <h1 style="margin: 0; font-size: clamp(44px, 6vw, 76px); line-height: 0.98; letter-spacing: -0.035em; font-weight: 800; max-width: 11ch">Training that actually adapts to you.</h1>
+      <p style="margin: 28px 0 0; font-size: 21px; line-height: 1.45; font-weight: 700; max-width: 30em">A coach in your pocket.</p>
+      <p style="margin: 8px 0 0; font-size: 19px; line-height: 1.5; color: {{p.muted}}; max-width: 32em">Racing a marathon, training for HYROX, or just getting fitter: Attune reads your recovery every morning and adjusts today's workout to match.</p>
+
+      <sc-if value="{{showForm}}" hint-placeholder-val="{{ true }}">
+        <form onSubmit="{{onSubmit}}" novalidate="novalidate" style="margin-top: 34px; display: flex; flex-direction: column; gap: 12px; max-width: 520px">
+          <label for="a2-email" style="font-size: 15px; font-weight: 600">Your email</label>
+          <div style="display: flex; flex-wrap: wrap; gap: 10px">
+            <input id="a2-email" type="email" autocomplete="email" placeholder="you@example.com" value="{{email}}" onChange="{{onEmail}}" style="flex: 1 1 240px; min-width: 0; height: 52px; padding: 0 16px; font: inherit; font-size: 17px; border: 1.5px solid #94A3B8; border-radius: 12px; background: #FFFFFF; color: #0F172A">
+            <button type="submit" style="height: 52px; padding: 0 22px; font: inherit; font-size: 16px; font-weight: 700; color: #FFFFFF; background: {{p.action}}; border: 0; border-radius: 12px; cursor: pointer">Request an invite</button>
+          </div>
+          <label for="a2-goal" style="font-size: 15px; font-weight: 600; margin-top: 6px">What are you training for? <span style="font-weight: 400; color: {{p.muted}}">(optional)</span></label>
+          <input id="a2-goal" type="text" placeholder="A spring half, my first HYROX, just getting fit..." value="{{goal}}" onChange="{{onGoal}}" style="height: 48px; padding: 0 16px; font: inherit; font-size: 16px; border: 1.5px solid #CBD5E1; border-radius: 12px; background: #FFFFFF; color: #0F172A">
+          <sc-if value="{{hasError}}" hint-placeholder-val="{{ false }}">
+            <p role="alert" style="margin: 0; font-size: 15px; color: #B91C1C; font-weight: 600">{{error}}</p>
+          </sc-if>
+          <p style="margin: 4px 0 0; font-size: 15px; color: {{p.muted}}">Free during the beta. Mike reviews every request. Already in? <a href="/app" style="font-weight: 600; color: {{p.action}}">Sign in</a></p>
+        </form>
+      </sc-if>
+      <sc-if value="{{submitted}}" hint-placeholder-val="{{ false }}">
+        <div role="status" style="margin-top: 34px; max-width: 520px; padding: 22px 24px; background: {{p.card}}; border: 1.5px solid {{p.action}}; border-radius: 16px">
+          <p style="margin: 0; font-size: 19px; font-weight: 700">Request sent.</p>
+          <p style="margin: 8px 0 0; font-size: 16px; line-height: 1.5; color: {{p.muted}}">Mike will review your request and email {{email}} the moment you're approved. Until then, try one of the <a href="#tools" style="color: {{p.action}}">free tools</a>.</p>
+        </div>
+      </sc-if>
+    </div>
+
+    <div style="flex: 1 1 420px; min-width: 0; max-width: 520px; margin: 0 auto">
+      <div style="background: {{p.card}}; border-radius: 28px; padding: 26px 28px 28px; box-shadow: 0 30px 60px -30px rgba(18,50,46,0.45), 0 0 0 1px rgba(15,23,42,0.06)">
+        <p id="a2-tabs" style="margin: 0; font-size: 14px; color: {{p.muted}}">Same morning, four different athletes</p>
+        <div role="group" aria-labelledby="a2-tabs" style="margin-top: 10px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; background: {{p.soft}}; border-radius: 12px; padding: 4px">
+          <sc-for list="{{sports}}" as="sp" hint-placeholder-count="4">
+            <button type="button" aria-pressed="{{sp.on}}" onClick="{{sp.pick}}" style="{{sp.style}}">{{sp.label}}</button>
+          </sc-for>
+        </div>
+        <div style="margin-top: 18px; display: flex; justify-content: space-between; align-items: baseline; gap: 12px">
+          <p style="margin: 0; font-size: 15px; font-weight: 700">This morning</p>
+          <p style="margin: 0; font-size: 13px; color: {{p.muted}}; text-align: right">{{ex.who}}</p>
+        </div>
+        <div style="margin-top: 12px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px">
+          <div style="background: {{p.soft}}; border-radius: 14px; padding: 12px 14px">
+            <p style="margin: 0; font-size: 13px; color: {{p.muted}}">HRV</p>
+            <p style="margin: 4px 0 0; font-size: clamp(20px, 5vw, 26px); font-weight: 800; letter-spacing: -0.02em; white-space: nowrap">41 <span style="font-size: 13px; font-weight: 500">ms</span></p>
+            <p style="margin: 2px 0 0; font-size: 13px; color: {{p.signalText}}; font-weight: 600">18% below normal</p>
+          </div>
+          <div style="background: {{p.soft}}; border-radius: 14px; padding: 12px 14px">
+            <p style="margin: 0; font-size: 13px; color: {{p.muted}}; white-space: nowrap">Resting HR</p>
+            <p style="margin: 4px 0 0; font-size: clamp(20px, 5vw, 26px); font-weight: 800; letter-spacing: -0.02em; white-space: nowrap">56 <span style="font-size: 13px; font-weight: 500">bpm</span></p>
+            <p style="margin: 2px 0 0; font-size: 13px; color: {{p.signalText}}; font-weight: 600">+5 over normal</p>
+          </div>
+          <div style="background: {{p.soft}}; border-radius: 14px; padding: 12px 14px">
+            <p style="margin: 0; font-size: 13px; color: {{p.muted}}">Sleep</p>
+            <p style="margin: 4px 0 0; font-size: clamp(20px, 5vw, 26px); font-weight: 800; letter-spacing: -0.02em; white-space: nowrap">5:40</p>
+            <p style="margin: 2px 0 0; font-size: 13px; color: {{p.muted}}; font-weight: 600">Short night</p>
+          </div>
+        </div>
+        <div style="margin-top: 20px; display: flex; align-items: center; gap: 14px">
+          <div style="flex: 0 0 64px; height: 64px; border-radius: 50%; background: {{ringBg}}; display: flex; align-items: center; justify-content: center">
+            <div style="width: 48px; height: 48px; border-radius: 50%; background: {{p.card}}; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 17px">38</div>
+          </div>
+          <div>
+            <p style="margin: 0; font-size: 17px; font-weight: 700">Readiness: take it easy</p>
+            <p style="margin: 2px 0 0; font-size: 14px; color: {{p.muted}}">Based on HRV, resting heart rate, sleep and your last 7 days of training</p>
+          </div>
+        </div>
+        <div aria-live="polite" style="margin-top: 20px; border-top: 1px solid {{p.line}}; padding-top: 18px; min-height: 196px">
+          <p style="margin: 0; font-size: 14px; color: {{p.muted}}">Planned</p>
+          <p style="margin: 2px 0 0; font-size: 18px; font-weight: 600; color: {{p.muted}}; text-decoration: line-through">{{ex.planned}}</p>
+          <p style="margin: 14px 0 0; font-size: 14px; color: {{p.signalText}}; font-weight: 700">Adjusted for today</p>
+          <p style="margin: 2px 0 0; font-size: 24px; line-height: 1.15; font-weight: 800; letter-spacing: -0.02em">{{ex.adjusted}}</p>
+          <p style="margin: 10px 0 0; font-size: 15px; line-height: 1.5; color: {{p.muted}}">{{ex.why}}</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="how" style="background: {{p.card}}">
+    <div style="max-width: 1180px; margin: 0 auto; padding: 88px 24px">
+      <h2 style="margin: 0; font-size: clamp(32px, 4vw, 48px); letter-spacing: -0.03em; line-height: 1.05; font-weight: 800">How a morning works</h2>
+      <ol style="list-style: none; margin: 44px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 32px">
+        <sc-for list="{{steps}}" as="s" hint-placeholder-count="4">
+          <li style="border-top: 2px solid {{p.action}}; padding-top: 18px">
+            <p style="margin: 0; font-size: 44px; font-weight: 800; color: {{p.action}}; line-height: 1">{{s.n}}</p>
+            <h3 style="margin: 14px 0 0; font-size: 21px; font-weight: 700">{{s.title}}</h3>
+            <p style="margin: 8px 0 0; font-size: 16px; line-height: 1.55; color: {{p.muted}}">{{s.body}}</p>
+          </li>
+        </sc-for>
+      </ol>
+    </div>
+  </section>
+
+  <section id="you" style="background: {{p.deep}}; color: {{p.onDeep}}">
+    <div style="max-width: 1180px; margin: 0 auto; padding: 96px 24px">
+      <div style="display: flex; flex-wrap: wrap; gap: 24px 56px; align-items: flex-end">
+        <h2 style="flex: 1 1 420px; margin: 0; font-size: clamp(34px, 4.6vw, 56px); letter-spacing: -0.035em; line-height: 1; font-weight: 800">Whatever you're training for</h2>
+        <p style="flex: 1 1 420px; min-width: 0; margin: 0; font-size: 18px; line-height: 1.55; color: {{p.onDeepMuted}}">Each path has its own plan builder, so a HYROX athlete doesn't get a marathon plan with burpees bolted on. Racing more than once? Put a half marathon and a HYROX in the same season.</p>
+      </div>
+
+      <div style="margin-top: 44px; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px">
+        <sc-for list="{{paths}}" as="pa" hint-placeholder-count="4">
+          <div style="background: {{p.deepCard}}; border-radius: 20px; padding: 22px">
+            <h3 style="margin: 0; font-size: 22px; font-weight: 800; letter-spacing: -0.02em">{{pa.name}}</h3>
+            <p style="margin: 6px 0 0; font-size: 15px; color: {{p.accentOnDeep}}; font-weight: 600">{{pa.for}}</p>
+            <ul style="margin: 14px 0 0; padding: 0 0 0 18px; font-size: 15px; line-height: 1.6; color: {{p.onDeepMuted}}">
+              <sc-for list="{{pa.points}}" as="pt" hint-placeholder-count="3">
+                <li>{{pt}}</li>
+              </sc-for>
+            </ul>
+          </div>
+        </sc-for>
+      </div>
+
+      <div style="margin-top: 64px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 16px 32px">
+        <div style="flex: 1 1 420px; min-width: 0">
+          <h3 style="margin: 0; font-size: clamp(26px, 3vw, 34px); letter-spacing: -0.03em; font-weight: 800">Your plan, week by week</h3>
+          <p style="margin: 8px 0 0; font-size: 17px; line-height: 1.55; color: {{p.onDeepMuted}}">{{chart.intro}}</p>
+        </div>
+        <div role="group" aria-label="Show plan type" style="display: flex; gap: 6px; background: {{p.deepCard}}; border-radius: 12px; padding: 4px">
+          <sc-for list="{{chartTabs}}" as="ct" hint-placeholder-count="2">
+            <button type="button" aria-pressed="{{ct.on}}" onClick="{{ct.pick}}" style="{{ct.style}}">{{ct.label}}</button>
+          </sc-for>
+        </div>
+      </div>
+
+      <figure style="margin: 28px 0 0; padding: 0">
+        <div role="img" aria-label="{{chart.aria}}" style="height: 236px; display: flex; align-items: flex-end; gap: 6px; border-bottom: 2px solid {{p.deepLine}}">
+          <sc-for list="{{bars}}" as="b" hint-placeholder-count="16">
+            <div style="flex: 1 1 0; min-width: 0; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: stretch; position: relative">
+              <sc-if value="{{b.today}}" hint-placeholder-val="{{ false }}">
+                <div style="position: absolute; left: 0; right: 0; bottom: 0; height: {{b.ghostH}}px; border: 2px dashed {{p.signalOnDeep}}; border-radius: 6px 6px 0 0; box-sizing: border-box"></div>
+                <span style="position: absolute; left: 50%; transform: translateX(-50%); bottom: {{b.labelBottom}}px; font-size: 13px; font-weight: 800; color: {{p.signalOnDeep}}; white-space: nowrap">Today</span>
+              </sc-if>
+              <div style="height: {{b.h}}px; background: {{b.fill}}; border-radius: 6px 6px 0 0"></div>
+            </div>
+          </sc-for>
+        </div>
+        <div style="display: grid; grid-template-columns: {{chart.cols}}; gap: 6px; margin-top: 10px; font-size: clamp(12px, 1.4vw, 15px); font-weight: 600; color: {{p.onDeepMuted}}">
+          <sc-for list="{{chart.phases}}" as="ph" hint-placeholder-count="4">
+            <span style="{{ph.style}}">{{ph.t}}</span>
+          </sc-for>
+        </div>
+        <figcaption style="margin-top: 22px; display: flex; flex-wrap: wrap; gap: 8px 22px; align-items: baseline; background: {{p.deepCard}}; border-radius: 14px; padding: 16px 20px">
+          <span style="font-size: 18px; font-weight: 800; color: {{p.signalOnDeep}}">Today, week 9</span>
+          <span style="flex: 1 1 360px; font-size: 16px; line-height: 1.5; color: {{p.onDeep}}">{{chart.today}} Dashed outline: what was planned. Example plan.</span>
+        </figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section id="coach" style="max-width: 1180px; margin: 0 auto; padding: 96px 24px; display: flex; flex-wrap: wrap; gap: 56px; align-items: center">
+    <div style="flex: 1 1 400px; min-width: 0">
+      <h2 style="margin: 0; font-size: clamp(36px, 4.6vw, 56px); letter-spacing: -0.035em; line-height: 1; font-weight: 800">A coach in your pocket</h2>
+      <p style="margin: 20px 0 0; font-size: 19px; line-height: 1.55; color: {{p.muted}}; max-width: 32em">It knows your plan, your watch data and your training history, and it answers in plain language. Type or talk. When it suggests a change, you see exactly what moves, and nothing changes until you approve it.</p>
+      <ul style="margin: 24px 0 0; padding: 0 0 0 20px; font-size: 17px; line-height: 1.8; color: {{p.muted}}">
+        <li>Ask why today's workout looks the way it does</li>
+        <li>Rework the week around travel, work or a bad night</li>
+        <li>Approved changes go straight to your Garmin watch</li>
+      </ul>
+    </div>
+    <div style="flex: 1 1 440px; min-width: 0; max-width: 500px; margin: 0 auto; background: {{p.card}}; border-radius: 28px; padding: 22px; box-shadow: 0 30px 60px -30px rgba(18,50,46,0.45), 0 0 0 1px rgba(15,23,42,0.06)">
+      <div style="display: flex; align-items: center; gap: 12px; padding-bottom: 14px; border-bottom: 1px solid {{p.line}}">
+        <div style="width: 44px; height: 44px; border-radius: 50%; background: {{p.action}}; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-size: 19px; font-weight: 800">{{coachInitial}}</div>
+        <div>
+          <p style="margin: 0; font-size: 16px; font-weight: 700">{{coachName}}</p>
+          <p style="margin: 0; font-size: 13px; color: {{p.muted}}">Your coach. {{traitSummary}}</p>
+        </div>
+      </div>
+      <div style="padding-top: 16px; display: flex; flex-direction: column; gap: 12px">
+        <div style="align-self: flex-end; max-width: 84%; background: {{p.ink}}; color: {{p.ground}}; padding: 12px 16px; border-radius: 18px 18px 4px 18px; font-size: 15px; line-height: 1.5">Work trip Wednesday to Friday, and I'm already sleeping badly. What should this week look like?</div>
+        <div style="align-self: flex-start; max-width: 92%; background: {{p.soft}}; padding: 12px 16px; border-radius: 18px 18px 18px 4px; font-size: 15px; line-height: 1.55">Let's do your hard session Tuesday, before you leave, and make the travel days short and easy: 30 minutes you can do in a hotel gym or outside. You won't lose anything that matters.</div>
+        <div style="border: 1.5px solid {{p.action}}; border-radius: 16px; padding: 14px 16px">
+          <p style="margin: 0; font-size: 13px; font-weight: 700; color: {{p.action}}">Proposed change to your plan</p>
+          <div style="margin-top: 8px; display: grid; grid-template-columns: 76px 1fr; row-gap: 6px; font-size: 15px">
+            <span style="color: {{p.muted}}">Tue</span><span><span style="text-decoration: line-through; color: {{p.muted}}">Easy 40 min</span> Hard session, moved from Thu</span>
+            <span style="color: {{p.muted}}">Wed to Fri</span><span><span style="text-decoration: line-through; color: {{p.muted}}">Full sessions</span> 30 min easy, hotel-friendly</span>
+          </div>
+          <sc-if value="{{notApproved}}" hint-placeholder-val="{{ true }}">
+            <div style="margin-top: 12px; display: flex; gap: 8px">
+              <button type="button" onClick="{{approve}}" style="flex: 1; height: 44px; font: inherit; font-weight: 700; color: #FFFFFF; background: {{p.action}}; border: 0; border-radius: 10px; cursor: pointer">Approve</button>
+              <button type="button" style="flex: 1; height: 44px; font: inherit; font-weight: 600; color: {{p.ink}}; background: {{p.card}}; border: 1.5px solid #CBD5E1; border-radius: 10px">Keep my plan</button>
+            </div>
+          </sc-if>
+          <sc-if value="{{approved}}" hint-placeholder-val="{{ false }}">
+            <p role="status" style="margin: 12px 0 0; font-size: 15px; font-weight: 700; color: {{p.action}}">Plan updated. The new week is on your watch.</p>
+          </sc-if>
+        </div>
+      </div>
+      <div style="margin-top: 16px; display: flex; gap: 10px; align-items: center">
+        <label for="a2-ask" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Message your coach</label>
+        <input id="a2-ask" type="text" placeholder="Ask {{coachName}} anything" style="flex: 1; min-width: 0; height: 46px; padding: 0 14px; font: inherit; font-size: 15px; border: 1.5px solid #CBD5E1; border-radius: 999px; background: #FFFFFF">
+        <button type="button" aria-label="Talk to your coach" style="width: 46px; height: 46px; border-radius: 50%; border: 0; background: {{p.ink}}; display: flex; align-items: center; justify-content: center"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><rect x="7" y="2" width="6" height="11" rx="3" fill="none" stroke="{{p.ground}}" stroke-width="1.8"></rect><path d="M4 10a6 6 0 0 0 12 0M10 16v2" fill="none" stroke="{{p.ground}}" stroke-width="1.8" stroke-linecap="round"></path></svg></button>
+      </div>
+    </div>
+  </section>
+
+  <section style="background: {{p.card}}">
+    <div style="max-width: 1180px; margin: 0 auto; padding: 88px 24px; display: flex; flex-wrap: wrap; gap: 56px; align-items: center">
+      <div style="flex: 1 1 380px; min-width: 0">
+        <h2 style="margin: 0; font-size: clamp(32px, 4vw, 48px); letter-spacing: -0.03em; line-height: 1.05; font-weight: 800">Make it yours</h2>
+        <p style="margin: 16px 0 0; font-size: 18px; line-height: 1.55; color: {{p.muted}}; max-width: 30em">Name your coach and choose how it talks to you. It can be the friend who keeps it light or the one who holds you to the plan. Try it: the chat above changes as you do.</p>
+      </div>
+      <div style="flex: 1 1 420px; min-width: 0; background: {{p.soft}}; border-radius: 24px; padding: 28px">
+        <label for="a2-name" style="font-size: 15px; font-weight: 600">Coach name</label>
+        <input id="a2-name" type="text" value="{{coachName}}" onChange="{{onName}}" maxlength="30" style="display: block; margin-top: 8px; width: 100%; box-sizing: border-box; height: 48px; padding: 0 14px; font: inherit; font-size: 19px; font-weight: 600; border: 1.5px solid #CBD5E1; border-radius: 10px; background: #FFFFFF; color: #0F172A">
+        <p id="a2-traits" style="margin: 20px 0 10px; font-size: 15px; font-weight: 600">Personality <span style="font-weight: 400; color: {{p.muted}}">A few of the 17 personalities</span></p>
+        <div role="group" aria-labelledby="a2-traits" style="display: flex; flex-wrap: wrap; gap: 8px">
+          <sc-for list="{{traits}}" as="t" hint-placeholder-count="8">
+            <button type="button" aria-pressed="{{t.on}}" onClick="{{t.pick}}" style="{{t.style}}">{{t.label}}</button>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section style="max-width: 1180px; margin: 0 auto; padding: 72px 24px 24px">
+    <h2 style="margin: 0; font-size: 26px; letter-spacing: -0.02em; font-weight: 800">Works with the gear you already wear</h2>
+    <div style="margin-top: 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px">
+      <sc-for list="{{gear}}" as="g" hint-placeholder-count="3">
+        <div style="background: {{p.card}}; border-radius: 16px; padding: 20px 22px">
+          <p style="margin: 0; font-size: 19px; font-weight: 700">{{g.name}}</p>
+          <p style="margin: 6px 0 0; font-size: 15px; line-height: 1.5; color: {{p.muted}}">{{g.body}}</p>
+        </div>
+      </sc-for>
+    </div>
+  </section>
+
+  <section id="tools" style="max-width: 1180px; margin: 0 auto; padding: 72px 24px">
+    <div style="background: {{p.deep}}; color: {{p.onDeep}}; border-radius: 28px; padding: 44px; display: flex; flex-wrap: wrap; gap: 36px; align-items: flex-start">
+      <div style="flex: 1 1 300px; min-width: 0">
+        <h2 style="margin: 0; font-size: 32px; letter-spacing: -0.03em; line-height: 1.1; font-weight: 800">Try it before you're in</h2>
+        <p style="margin: 14px 0 0; font-size: 17px; line-height: 1.55; color: {{p.onDeepMuted}}">Three free calculators built on the same engine. No sign-up, and nothing you enter leaves your browser.</p>
+      </div>
+      <div style="flex: 2 1 480px; min-width: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px">
+        <sc-for list="{{tools}}" as="t" hint-placeholder-count="3">
+          <a href="{{t.href}}" style="display: block; text-decoration: none; color: {{p.onDeep}}; background: {{p.deepCard}}; border-radius: 18px; padding: 20px">
+            <span style="display: block; font-size: 18px; font-weight: 700">{{t.name}}</span>
+            <span style="display: block; margin-top: 6px; font-size: 15px; line-height: 1.5; color: {{p.onDeepMuted}}">{{t.body}}</span>
+            <span style="display: block; margin-top: 14px; font-size: 15px; font-weight: 700; color: {{p.accentOnDeep}}">Open the {{t.short}}</span>
+          </a>
+        </sc-for>
+      </div>
+    </div>
+  </section>
+
+  <section style="max-width: 1180px; margin: 0 auto; padding: 24px 24px 88px; display: flex; flex-wrap: wrap; gap: 56px">
+    <figure style="flex: 1 1 420px; min-width: 0; margin: 0">
+      <blockquote style="margin: 0; font-size: 24px; line-height: 1.45; font-weight: 500; letter-spacing: -0.01em">"I built Attune for my own training: trail races, then HYROX, and the stretches in between. I wanted a plan that noticed when I'd slept badly or overdone it, and changed instead of pretending nothing happened."</blockquote>
+      <figcaption style="margin-top: 18px; font-size: 16px; color: {{p.muted}}"><span style="font-weight: 700; color: {{p.ink}}">Mike Beebe</span>, founder, Oakland</figcaption>
+    </figure>
+    <div style="flex: 1 1 420px; min-width: 0">
+      <h2 style="margin: 0 0 8px; font-size: 26px; letter-spacing: -0.02em; font-weight: 800">Questions</h2>
+      <sc-for list="{{faqs}}" as="f" hint-placeholder-count="6">
+        <details style="border-bottom: 1px solid {{p.line}}; padding: 14px 0">
+          <summary style="cursor: pointer; font-size: 17px; font-weight: 700; min-height: 28px">{{f.q}}</summary>
+          <p style="margin: 10px 0 0; font-size: 16px; line-height: 1.55; color: {{p.muted}}">{{f.a}}</p>
+        </details>
+      </sc-for>
+    </div>
+  </section>
+
+  <footer style="background: {{p.deep}}; color: {{p.onDeepMuted}}">
+    <div style="max-width: 1180px; margin: 0 auto; padding: 56px 24px; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 28px; align-items: center">
+      <div>
+        <p style="margin: 0; font-size: 30px; font-weight: 800; color: {{p.onDeep}}; letter-spacing: -0.02em">Start training that adapts to you.</p>
+        <p style="margin: 6px 0 0; font-size: 16px">Attune is in an invite-only beta and free while it lasts.</p>
+      </div>
+      <a href="#join" style="background: {{p.ctaOnDeepBg}}; color: {{p.ctaOnDeepText}}; text-decoration: none; padding: 15px 24px; border-radius: 999px; font-weight: 700; font-size: 16px">Request an invite</a>
+    </div>
+    <div style="max-width: 1180px; margin: 0 auto; padding: 0 24px 32px; display: flex; flex-wrap: wrap; gap: 22px; font-size: 14px">
+      <a href="/app" style="color: {{p.onDeepMuted}}">Sign in</a>
+      <a href="#tools" style="color: {{p.onDeepMuted}}">Free tools</a>
+      <a href="/privacy" style="color: {{p.onDeepMuted}}">Privacy</a>
+      <a href="/terms" style="color: {{p.onDeepMuted}}">Terms</a>
+      <span>© 2026 Attune</span>
+    </div>
+  </footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"palette":{"editor":"enum","options":["Signal","Glacier","Slate"],"default":"Signal","section":"Look"},"$preview":{"width":1280,"height":5150}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { email: '', goal: '', submitted: false, error: '', approved: false, coachName: 'Mira', traits: { warm: true, direct: true }, sport: 'run', plan: 'race' };
+  }
+  palette() {
+    const P = {
+      Signal: { ground: '#F3F6F4', card: '#FFFFFF', soft: '#E6EEEA', line: '#D3DED9', ink: '#14302B', muted: '#46595A', action: '#0F766E', signal: '#EA580C', signalText: '#B4410C', deep: '#12322E', deepCard: '#0C2421', deepBar: '#8FBFB6', todayBar: '#EA580C', deepLine: '#2E5751', onDeep: '#FFFFFF', onDeepMuted: '#CFE3DC', accentOnDeep: '#5EEAD4', signalOnDeep: '#FB923C', ctaOnDeepBg: '#F97316', ctaOnDeepText: '#1C1917' },
+      Glacier: { ground: '#F1F6F5', card: '#FFFFFF', soft: '#EAF2F0', line: '#E2E8F0', ink: '#0F172A', muted: '#475569', action: '#0F766E', signal: '#EA580C', signalText: '#C2410C', deep: '#0B4F4A', deepCard: '#083B37', deepBar: '#8FBFB6', todayBar: '#F97316', deepLine: '#1F6B65', onDeep: '#FFFFFF', onDeepMuted: '#CCFBF1', accentOnDeep: '#5EEAD4', signalOnDeep: '#FDBA74', ctaOnDeepBg: '#FFFFFF', ctaOnDeepText: '#0B4F4A' },
+      Slate: { ground: '#FFFFFF', card: '#F8FAFC', soft: '#EEF3F8', line: '#E2E8F0', ink: '#0F172A', muted: '#475569', action: '#0F766E', signal: '#EA580C', signalText: '#C2410C', deep: '#0F172A', deepCard: '#1E293B', deepBar: '#8FBFB6', todayBar: '#EA580C', deepLine: '#334155', onDeep: '#FFFFFF', onDeepMuted: '#CBD5E1', accentOnDeep: '#5EEAD4', signalOnDeep: '#FB923C', ctaOnDeepBg: '#FFFFFF', ctaOnDeepText: '#0F172A' }
+    };
+    return P[this.props.palette] || P.Signal;
+  }
+  renderVals() {
+    const s = this.state;
+    const p = this.palette();
+    const seg = (on) => 'min-height: 44px; padding: 0 8px; font: inherit; font-size: 14px; font-weight: 700; border: 0; border-radius: 9px; cursor: pointer; ' + (on ? 'background: ' + p.card + '; color: ' + p.ink + '; box-shadow: 0 1px 2px rgba(15,23,42,0.15)' : 'background: transparent; color: ' + p.muted);
+    const segDeep = (on) => 'min-height: 44px; padding: 0 14px; font: inherit; font-size: 14px; font-weight: 700; border: 0; border-radius: 9px; cursor: pointer; ' + (on ? 'background: ' + p.onDeep + '; color: ' + p.deep : 'background: transparent; color: ' + p.onDeepMuted);
+
+    const EX = {
+      run: { label: 'Running', who: 'Training for a spring half marathon', planned: 'Tempo run, 8 × 800 m', adjusted: 'Easy run, 45 min in zone 2', why: 'Your body hasn’t caught up from Saturday’s long run. The tempo session moves to Thursday, so the week’s work stays the same.', today: 'The tempo run moves to Thursday, so week 9 still does its job.' },
+      trail: { label: 'Trail', who: 'Training for a 50K trail race', planned: 'Hill repeats, 8 × 2 min', adjusted: 'Flat easy run, 50 min', why: 'Saturday’s long descent leaves soreness that peaks a day or two later. The hills move to Friday, when your legs are ready.', today: 'Hill repeats move to Friday, so week 9 still does its job.' },
+      hyrox: { label: 'HYROX', who: 'Training for HYROX, Open division', planned: 'Race simulation: 4 × (1 km run + station)', adjusted: 'Easy 30 min row, then light station technique', why: 'Race-pace work on a day like this mostly adds fatigue. The simulation moves to Thursday, and the extra work on your weakest station stays in the week.', today: 'The race simulation moves to Thursday, so week 9 still does its job.' },
+      fit: { label: 'Fitness', who: 'No race. Goal: build endurance', planned: 'Bike intervals, 6 × 3 min hard', adjusted: 'Zone 2 ride, 40 min, plus mobility', why: 'The intervals move to Friday. Wednesday’s strength session stays, so the week still covers cardio, intervals and strength.', today: 'Bike intervals move to Friday, and the block stays on track.' }
+    };
+    const order = ['run', 'trail', 'hyrox', 'fit'];
+    const ex = EX[s.sport] || EX.run;
+    const plan = s.sport === 'fit' ? 'fit' : (s.plan === 'fit' ? 'fit' : 'race');
+
+    const RACE = [38, 44, 50, 34, 54, 60, 66, 46, 70, 76, 82, 58, 88, 72, 52, 30];
+    const FIT = [40, 46, 52, 34, 44, 50, 56, 36, 48, 54, 60, 38, 50, 56, 62, 40];
+    const loads = plan === 'fit' ? FIT : RACE;
+    const max = 88, H = 200, todayIdx = 8;
+    const bars = loads.map((v, i) => {
+      const today = i === todayIdx;
+      const planned = Math.round(v / max * H);
+      return { today, ghostH: planned, h: today ? Math.round(planned * 0.72) : planned, fill: today ? p.todayBar : p.deepBar, labelBottom: planned + 8 };
+    });
+    const lastRight = 'text-align: right';
+    const chart = plan === 'fit'
+      ? { intro: 'No race? Attune plans in blocks of up to 16 weeks: three building weeks, then an easier one so the work sinks in.', cols: 'repeat(4, minmax(0, 1fr))', phases: [{ t: 'Weeks 1 to 4', style: '' }, { t: '5 to 8', style: '' }, { t: '9 to 12', style: '' }, { t: '13 to 16', style: lastRight }], aria: 'Bar chart of weekly training load over 16 weeks in four-week blocks, each ending with an easier week. Week 9 is lower than planned because today was adjusted.', today: ex.today }
+      : { intro: 'Racing? Attune builds from base to peak, then tapers so you arrive fresh, with easier weeks wherever your method calls for them.', cols: '5fr 5fr 3fr 3fr', phases: [{ t: 'Base, weeks 1 to 5', style: '' }, { t: 'Build, weeks 6 to 10', style: '' }, { t: 'Peak, 11 to 13', style: '' }, { t: 'Taper to race day', style: lastRight }], aria: 'Bar chart of weekly training load over 16 weeks, building through base and build to a peak, then tapering to race day. Week 9 is lower than planned because today was adjusted.', today: ex.today };
+
+    const labels = [['funny','Funny'],['strict','Strict'],['motivational','Motivational'],['warm','Warm'],['direct','Direct'],['nerdy','Data Nerd'],['old-school','Old School'],['chill','Chill']];
+    const base = 'height: 44px; padding: 0 16px; font: inherit; font-size: 15px; font-weight: 600; border-radius: 999px; cursor: pointer; ';
+    const on = base + 'background: ' + p.action + '; color: #FFFFFF; border: 1.5px solid ' + p.action;
+    const off = base + 'background: #FFFFFF; color: #0F172A; border: 1.5px solid #CBD5E1';
+    const picked = labels.filter(([id]) => s.traits[id]).map(([, l]) => l);
+    const name = (s.coachName || '').trim() || 'Your coach';
+
+    return {
+      p,
+      ringBg: 'conic-gradient(' + p.signal + ' 0 38%, ' + p.line + ' 38% 100%)',
+      sports: order.map((k) => ({ label: EX[k].label, on: s.sport === k ? 'true' : 'false', style: seg(s.sport === k), pick: () => this.setState({ sport: k, plan: k === 'fit' ? 'fit' : 'race' }) })),
+      ex,
+      chartTabs: [['race', 'Racing'], ['fit', 'No race']].map(([k, l]) => ({ label: l, on: plan === k ? 'true' : 'false', style: segDeep(plan === k), pick: () => this.setState({ plan: k, sport: k === 'fit' ? 'fit' : (s.sport === 'fit' ? 'run' : s.sport) }) })),
+      chart,
+      bars,
+      email: s.email,
+      goal: s.goal,
+      showForm: !s.submitted,
+      submitted: s.submitted,
+      hasError: !!s.error,
+      error: s.error,
+      onEmail: (e) => this.setState({ email: e.target.value, error: '' }),
+      onGoal: (e) => this.setState({ goal: e.target.value }),
+      onSubmit: (e) => {
+        e.preventDefault();
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s.email.trim())) { this.setState({ error: 'Enter an email address like name@example.com.' }); return; }
+        this.setState({ submitted: true, error: '' });
+      },
+      approved: s.approved,
+      notApproved: !s.approved,
+      approve: () => this.setState({ approved: true }),
+      coachName: name,
+      coachInitial: name.charAt(0).toUpperCase(),
+      onName: (e) => this.setState({ coachName: e.target.value }),
+      traitSummary: picked.length ? picked.join(', ') + '.' : 'Pick a personality below.',
+      traits: labels.map(([id, label]) => ({
+        label,
+        on: s.traits[id] ? 'true' : 'false',
+        style: s.traits[id] ? on : off,
+        pick: () => this.setState({ traits: Object.assign({}, s.traits, { [id]: !s.traits[id] }) })
+      })),
+      steps: [
+        { n: '1', title: 'Your watch syncs overnight', body: 'HRV, resting heart rate, sleep and yesterday’s training come in from Garmin, Strava or Apple Health.' },
+        { n: '2', title: 'Attune scores your readiness', body: 'It compares this morning with your own normal, not a population average, and checks how fast your training load is climbing.' },
+        { n: '3', title: 'Today’s workout adjusts', body: 'Ready to go, it stays. Run down, it eases off and moves the hard session to a day you can handle it.' },
+        { n: '4', title: 'Ask the coach why', body: 'Every change comes with a reason in plain language, and you can push back.' }
+      ],
+      paths: [
+        { name: 'Road races', for: '5K to marathon', points: ['Proven coaching methods like Daniels, 80/20 and Higdon, matched to your race', 'Paces set from a recent 5K or 10K', 'Rides and hikes count toward your load'] },
+        { name: 'Trail and ultra', for: 'Trail races and ultras', points: ['Methods built for the long stuff, like Koop and Roche SWAP', 'Counts climbing and descending, not just miles', 'Eases off after big descents'] },
+        { name: 'HYROX', for: 'Open and Pro divisions', points: ['Running and all 8 stations in one plan', 'Station work set for your division', 'Extra work on your weakest station'] },
+        { name: 'General fitness', for: 'No race needed', points: ['Pick a goal: stay healthy, lose fat, build muscle or build endurance', 'Cardio your way: run, bike, row, swim, or a mix', 'Strength work built into every plan'] }
+      ],
+      gear: [
+        { name: 'Garmin', body: 'Pulls HRV, sleep and activities, and sends each week’s workouts to your watch.' },
+        { name: 'Strava', body: 'Brings in your runs, rides and hikes so cross-training counts toward your load.' },
+        { name: 'Apple Health', body: 'Syncs HRV, resting heart rate, sleep and workouts from your iPhone.' }
+      ],
+      tools: [
+        { name: 'Fueling planner', short: 'fueling planner', body: 'Carbs, fluid and sodium per hour for a long effort.', href: '/tools/fueling.html' },
+        { name: 'Race time predictor', short: 'race predictor', body: 'Realistic finish times from a recent result.', href: '/tools/predictor.html' },
+        { name: 'Heat planner', short: 'heat planner', body: 'How to adjust pace and fluids when it’s hot.', href: '/tools/heat.html' }
+      ],
+      faqs: [
+        { q: 'Is it only for runners?', a: 'No. Attune builds plans for road races, trail and ultra, HYROX, and general fitness with no race at all. A season can even mix races, like a half marathon and a HYROX.' },
+        { q: 'How do I get in?', a: 'Request an invite with your email. Mike reviews every request and emails you when you’re approved. You sign in with your Google account.' },
+        { q: 'Does it cost anything?', a: 'Attune is free during the beta.' },
+        { q: 'Is the coach a person?', a: 'No. It’s an AI coach that works from your plan and your data, and it can’t change your training without your approval.' },
+        { q: 'Which devices work?', a: 'Garmin, Strava and Apple Health. Attune runs in your phone’s browser and installs to your home screen like an app.' },
+        { q: 'Do I need a wearable?', a: 'It helps. Without one you can still log workouts and how they felt, and the plan adapts to that.' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>
