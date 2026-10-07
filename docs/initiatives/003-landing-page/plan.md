@@ -228,16 +228,35 @@ forwards the old `/?view=coach` links, so nothing 404s in between.
 
 ---
 
+## PR 4b — Revisions from the owner’s review of PR 4 (added 2026-10-07)
+
+**Subject:** `Landing page: four different mornings, a coach that changes voice, and real app screens`
+
+**Why:** after checking PR 4 locally, the owner asked for: one of each outcome on “This morning” instead of four ease-offs; “Mike reviews every request” gone from the hero line (only); “Make it yours” combined with the chat, with written replies per personality, Ask something else, Reset, and at most 3 tries per visit; real app screenshots; and the final founder quote. Copy approved 2026-10-07 (copy.md).
+
+**As built:**
+- **Mornings:** Running eases off (unchanged), Trail pivots (travel mode’s room cardio), HYROX is a peak morning at full intensity, Fitness stands as planned. `claims.test.tsx` ties each to the app: the ring sits in `classifyStatus`’s band for its readiness line; the readings point the same way; the pivot is `travelSwap(…, 'bodyweight')`’s own “Room cardio (travel)”, 20–30 min and 10 min mobility; peak and steady keep the planned session and never claim added work (the app never adds any); “full intensity” and “All clear” are the app’s own words.
+- **Chart:** week 9 is cut back with a dashed outline only when the morning changed today; otherwise it is full, the outline sentence leaves the caption, and the aria-label says “Week 9 is on plan.”
+- **Coach demo:** one personality at a time (5 shown); 3 questions × 5 voices, written, not generated; Ask something else, Reset, and the 3-try limit in the reducer (`state.ts`), with `aria-disabled` controls that stay focusable and a `role="status"` invite at the limit.
+- **App screens:** 6 crops of the owner’s own screens, with no name, race, status bar or calf note; journal limited to its header and one note; the recommendations stack left out (owner, 2026-10-07). 167 KB in all, lazy-loaded. `check-site-layout.mjs` now fails if a screenshot the page names is missing, over 80 KB, or if all of them pass 240 KB.
+- **Page weight:** the landing page is 79.3 KB of 90 gzipped (+2.5 KB for the written replies).
+
+## PR 4c — A free weekly mileage planner (planned, owner-approved 2026-10-07)
+
+A fourth tool page on the app’s own ramp (`buildWeeklyMileage`, `src/engines/planGenerator/weekPlan.ts`): race distance, current weekly miles and weeks to race in; start, peak and cutback weeks out. Miles only and one default method for v1. Wires into the build, the layout check and “Try it before you’re in” (which then says four calculators).
+
+---
+
 ## PR 5 — Go live
 
 **Subject:** `Landing page goes live: SEO, privacy and terms pages, and the launch switch on`
 
-**Blocked on the owner:** privacy and terms text, the final founder quote, and a look at the PR 4 preview.
+**Blocked on the owner:** privacy and terms text. (The founder quote shipped in PR 4b, and the owner checked PR 4 locally on 2026-10-07.)
 
 **Scope:**
 1. `privacy.html` and `terms.html` as Vite inputs (served at `/privacy.html`, `/terms.html`), styled like the landing page, with the owner-supplied text verbatim. Claude Code must not write policy text. If the text isn’t supplied, stop and ask.
 2. Meta, canonical, Open Graph and Twitter tags; `public/og-image.png` (1200×630, the MorningCard on the Signal ground); `robots.txt`; `sitemap.xml` ([design-spec.md § SEO](design-spec.md#seo-and-sharing-pr-5)).
-3. The founder quote updated to the owner-approved wording, in both content.ts and copy.md.
+3. ~~The founder quote updated to the owner-approved wording~~ (done in PR 4b).
 4. Launch: the owner sets `vars.ATTUNE_LANDING_ENABLED = 'true'`, then dispatches `deploy.yml` (Run workflow) on the publishing branch.
 5. Run the full smoke checklist; record Lighthouse mobile scores in the PR.
 6. Close-out: registry row 003 → **Shipped** with PR numbers; stamp this plan “Shipped YYYY-MM-DD”. `reference/` stays as the design record.

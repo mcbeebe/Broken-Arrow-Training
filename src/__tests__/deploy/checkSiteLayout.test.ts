@@ -11,6 +11,8 @@ import {
   checkSiteLayout,
   GUARD_BUDGET_BYTES,
   PAGE_BUDGET_BYTES,
+  SCREEN_BUDGET_BYTES,
+  SCREENS_TOTAL_BUDGET_BYTES,
   type ReadOnlyFs,
 } from '../../../scripts/deploy/check-site-layout.mjs'
 
@@ -104,6 +106,46 @@ describe('checkSiteLayout', () => {
   ])('fails when %s is missing', rel => {
     remove(rel)
     expect(check()).toContain(`missing dist/${rel}`)
+  })
+
+  describe('app screenshots', () => {
+    beforeEach(() => {
+      write('assets/shared-def.js', "const S = ['/landing/app/today.webp', '/landing/app/coach.webp']")
+      write('landing/app/today.webp', new Uint8Array(1000))
+      write('landing/app/coach.webp', new Uint8Array(SCREEN_BUDGET_BYTES))
+    })
+
+    it('passes when every screenshot the page names ships and is within budget', () => {
+      expect(check()).toEqual([])
+    })
+
+    it('fails when one the page names is missing', () => {
+      remove('landing/app/coach.webp')
+      expect(check()).toEqual(['the landing page shows /landing/app/coach.webp, but dist/landing/app/coach.webp is missing'])
+    })
+
+    it('fails when one is over budget', () => {
+      write('landing/app/today.webp', new Uint8Array(SCREEN_BUDGET_BYTES + 1))
+      expect(check().join('\n')).toContain(`dist/landing/app/today.webp is ${SCREEN_BUDGET_BYTES + 1} bytes, over the ${SCREEN_BUDGET_BYTES}-byte screenshot budget`)
+    })
+
+    it('checks screenshots in any image format, not just WebP', () => {
+      write('assets/shared-def.js', "const S = ['/landing/app/today.png']")
+      expect(check()).toEqual(['the landing page shows /landing/app/today.png, but dist/landing/app/today.png is missing'])
+    })
+
+    it('fails when they are each within budget but too heavy together', () => {
+      const n = Math.ceil(SCREENS_TOTAL_BUDGET_BYTES / SCREEN_BUDGET_BYTES) + 1
+      const names = Array.from({ length: n }, (_, i) => `/landing/app/s${i}.webp`)
+      write('assets/shared-def.js', JSON.stringify(names))
+      for (const n of names) write(n.slice(1), new Uint8Array(SCREEN_BUDGET_BYTES))
+      expect(check().join('\n')).toContain(`over the ${SCREENS_TOTAL_BUDGET_BYTES}-byte budget`)
+    })
+
+    it('ignores screenshots the app bundle names (only the landing page’s count)', () => {
+      write('assets/app-ghi.js', "'/landing/app/nowhere.webp'")
+      expect(check()).toEqual([])
+    })
   })
 
   it('fails when the Vite build manifest is missing', () => {

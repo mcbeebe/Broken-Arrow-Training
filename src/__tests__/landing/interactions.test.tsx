@@ -5,13 +5,14 @@
  * The first block ports docs/initiatives/003-landing-page/reference/
  * interaction_tests.cjs (15 of its 19 cases; the palette case doesn't apply
  * because one palette ships, and its 3 form cases are covered by
- * InviteForm.test.tsx). The rest are plan.md § PR 4's additions.
+ * InviteForm.test.tsx), as PR 4b changed them: one personality at a time, and
+ * one outcome per athlete. The rest are plan.md § PR 4's and PR 4b's additions.
  */
 import { describe, it, expect } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { LandingPage } from '../../landing/LandingPage'
-import { COACH, MAKE, PLAN, SPORTS } from '../../landing/content'
+import { COACH, MAKE, PLAN, SPORTS, changesToday } from '../../landing/content'
 
 function setup() {
   const user = userEvent.setup()
@@ -40,7 +41,12 @@ function setup() {
         label: b.parentElement!.querySelector<HTMLElement>('[data-bar-label]'),
       }
     })
-  return { user, root, tabs, chartToggle, traits, live, chart, nameInput, pressed, status, shownName, shownStatus, bars }
+  const reply = () => root.querySelector('[data-coach-reply]')!.textContent
+  const question = () => root.querySelector('[data-coach-question]')!.textContent
+  const limit = () => root.querySelector<HTMLElement>('[data-coach-limit]')!
+  const ask = () => screen.getByRole('button', { name: COACH.askAnother })
+  const reset = () => screen.getByRole('button', { name: COACH.reset })
+  return { user, root, tabs, chartToggle, traits, live, chart, nameInput, pressed, status, shownName, shownStatus, bars, reply, question, limit, ask, reset }
 }
 
 const tab = (label: string) => ({ name: label })
@@ -51,7 +57,7 @@ describe('ported from reference/interaction_tests.cjs', () => {
     await user.click(screen.getByRole('button', { name: COACH.approve }))
     expect(screen.queryByRole('button', { name: COACH.approve })).toBeNull()
     expect(screen.queryByRole('button', { name: COACH.keep })).toBeNull()
-    expect(within(root.querySelector('#coach')!).getByRole('status')).toHaveTextContent(COACH.approved)
+    expect(within(root.querySelector('#coach')!).getByRole('status', { name: COACH.approved })).toHaveTextContent(COACH.approved)
   })
 
   it('coach: blank name falls back', async () => {
@@ -62,19 +68,18 @@ describe('ported from reference/interaction_tests.cjs', () => {
     expect(root.querySelector('[data-coach-initial]')!.textContent).toBe('Y')
   })
 
-  it('coach: traits toggle and summarize', async () => {
-    const { user, traits, status } = setup()
-    expect(status()).toContain('Your coach. Warm, Direct.')
+  it('coach: a personality replaces the last and summarizes (PR 4b: pick one)', async () => {
+    const { user, traits, shownStatus } = setup()
+    expect(shownStatus()).toBe('Your coach. Warm.')
     await user.click(traits.getByRole('button', { name: 'Funny' }))
-    expect(status()).toContain('Your coach. Funny, Warm, Direct.')
+    expect(shownStatus()).toBe('Your coach. Funny.')
   })
 
-  it('coach: no traits prompts to pick', async () => {
-    const { user, traits, shownStatus } = setup()
+  it('coach: picking the chosen personality again keeps it (there is always one)', async () => {
+    const { user, traits, shownStatus, pressed } = setup()
     await user.click(traits.getByRole('button', { name: 'Warm' }))
-    await user.click(traits.getByRole('button', { name: 'Direct' }))
-    // copy.md: the prompt alone, without “Your coach.” (the reference HTML differs; copy.md wins).
-    expect(shownStatus()).toBe(COACH.noTraits)
+    expect(shownStatus()).toBe('Your coach. Warm.')
+    expect(pressed(traits)).toEqual(['Warm'])
   })
 
   it('tabs: four athletes in order', () => {
@@ -83,17 +88,16 @@ describe('ported from reference/interaction_tests.cjs', () => {
     expect(pressed(tabs)).toEqual(['Running'])
   })
 
-  it('tabs: each athlete has distinct planned/adjusted copy', async () => {
+  it('tabs: each athlete has distinct planned/today copy', async () => {
     const { user, tabs, live, root } = setup()
     const seen = new Set<string>()
     for (const s of SPORTS) {
       await user.click(tabs.getByRole('button', tab(s.tab)))
       expect(live()).toHaveTextContent(s.planned)
-      expect(live()).toHaveTextContent(s.adjusted)
+      expect(live()).toHaveTextContent(s.today)
       expect(live()).toHaveTextContent(s.why)
       expect(root.textContent).toContain(s.who)
-      seen.add(s.adjusted)
-      expect(live().textContent).toContain(s.adjusted)
+      seen.add(s.today)
     }
     expect(seen.size).toBe(4)
   })
@@ -173,6 +177,34 @@ describe('ported from reference/interaction_tests.cjs', () => {
 })
 
 describe('tabs', () => {
+  it('each athlete has their own morning: readings, ring and readiness line', async () => {
+    const { user, tabs, live, root } = setup()
+    for (const s of SPORTS) {
+      await user.click(tabs.getByRole('button', tab(s.tab)))
+      for (const m of s.metrics) expect(live()).toHaveTextContent(`${m.value}`)
+      expect([...live().querySelectorAll('[data-tone]')].map(d => [d.textContent, d.getAttribute('data-tone')])).toEqual(
+        s.metrics.map(m => [m.note, m.tone]),
+      )
+      expect(root.querySelector('[data-ring]')!.getAttribute('data-ring')).toBe(String(s.readiness.value))
+      expect(live()).toHaveTextContent(s.readiness.title)
+    }
+  })
+
+  it('a changed session is struck through and labelled “Adjusted for today”; one that stands is not', async () => {
+    const { user, tabs, root } = setup()
+    for (const s of SPORTS) {
+      await user.click(tabs.getByRole('button', tab(s.tab)))
+      const plan = root.querySelector<HTMLElement>('[data-morning-plan]')!
+      if (changesToday(s.outcome)) {
+        expect(plan.querySelector('s'), s.id).toHaveTextContent(s.planned)
+        expect(plan).toHaveTextContent('Adjusted for today')
+      } else {
+        expect(plan.querySelector('s'), s.id).toBeNull()
+        expect(plan).not.toHaveTextContent('Adjusted for today')
+      }
+    }
+  })
+
   it('aria-pressed follows the selection, one at a time', async () => {
     const { user, tabs, pressed } = setup()
     for (const s of SPORTS) {
@@ -193,11 +225,33 @@ describe('tabs', () => {
 describe('chart', () => {
   it('the toggle changes the label, the intro and the phases', async () => {
     const { user, chartToggle, chart, root } = setup()
-    expect(chart().getAttribute('aria-label')).toBe(PLAN.chartLabel.race)
+    expect(chart().getAttribute('aria-label')).toBe(`${PLAN.chartLabel.race} ${PLAN.week9.changed}`)
     await user.click(chartToggle.getByRole('button', tab(PLAN.toggle.fit)))
-    expect(chart().getAttribute('aria-label')).toBe(PLAN.chartLabel.fit)
+    // No race is the Fitness athlete, whose session stands.
+    expect(chart().getAttribute('aria-label')).toBe(`${PLAN.chartLabel.fit} ${PLAN.week9.same}`)
     expect(root.textContent).toContain(PLAN.intro.fit)
     for (const p of PLAN.phases.fit) expect(root.textContent).toContain(p)
+  })
+
+  it('week 9 is cut back with a dashed outline only when the morning changed today', async () => {
+    const { user, tabs, bars, root, chart } = setup()
+    for (const s of SPORTS) {
+      await user.click(tabs.getByRole('button', tab(s.tab)))
+      const today = bars()[PLAN.todayIndex]
+      const caption = root.querySelector('figcaption')!
+      if (changesToday(s.outcome)) {
+        expect(today.h, s.id).toBeLessThan(today.planned)
+        expect(chart().querySelector('[data-bar-outline]')).not.toBeNull()
+        expect(caption).toHaveTextContent(PLAN.captionOutline)
+      } else {
+        expect(today.h, s.id).toBe(today.planned)
+        expect(chart().querySelector('[data-bar-outline]')).toBeNull()
+        expect(caption).not.toHaveTextContent(PLAN.captionOutline)
+        expect(chart().getAttribute('aria-label')).toContain(PLAN.week9.same)
+      }
+      expect(caption).toHaveTextContent(PLAN.captionExample)
+      expect(today.label).toHaveTextContent(PLAN.todayLabel)
+    }
   })
 
   it('every bar is drawn at round(v / 88 * 200) in both modes', async () => {
@@ -219,7 +273,7 @@ describe('coach demo', () => {
   it('Approve moves focus to the confirmation, not off the page', async () => {
     const { user, root } = setup()
     await user.click(screen.getByRole('button', { name: COACH.approve }))
-    expect(document.activeElement).toBe(within(root.querySelector('#coach')!).getByRole('status'))
+    expect(document.activeElement).toBe(within(root.querySelector('#coach')!).getByRole('status', { name: COACH.approved }))
   })
 
   it('the focused confirmation has an accessible name (role="status" takes none from its text)', async () => {
@@ -252,8 +306,8 @@ describe('persona', () => {
     expect(root.querySelector('[data-coach-initial]')!.textContent).toBe('K')
   })
 
-  it('the status line is exactly “Your coach. Warm, Direct.” by default', () => {
-    expect(setup().shownStatus()).toBe('Your coach. Warm, Direct.')
+  it('the status line is exactly “Your coach. Warm.” by default', () => {
+    expect(setup().shownStatus()).toBe('Your coach. Warm.')
   })
 
   it('the name updates the header, the initial and the placeholder', async () => {
@@ -272,19 +326,112 @@ describe('persona', () => {
     expect(nameInput().value).toHaveLength(MAKE.nameMaxLength)
   })
 
-  it('lists traits in the canonical order, whatever order they were picked in', async () => {
-    const { user, traits, status } = setup()
-    await user.click(traits.getByRole('button', { name: 'Warm' }))
-    await user.click(traits.getByRole('button', { name: 'Direct' }))
-    for (const label of ['Chill', 'Funny', 'Data Nerd']) await user.click(traits.getByRole('button', { name: label }))
-    expect(status()).toContain('Your coach. Funny, Data Nerd, Chill.')
+  it('shows the five personalities in order, exactly one pressed', async () => {
+    const { user, traits, pressed } = setup()
+    expect(traits.getAllByRole('button').map(b => b.textContent)).toEqual(MAKE.traits.map(t => t.label))
+    await user.click(traits.getByRole('button', { name: 'Old School' }))
+    expect(pressed(traits)).toEqual(['Old School'])
   })
 
-  it('aria-pressed follows each trait', async () => {
-    const { user, traits, pressed } = setup()
-    await user.click(traits.getByRole('button', { name: 'Strict' }))
-    await user.click(traits.getByRole('button', { name: 'Warm' }))
-    expect(pressed(traits)).toEqual(['Strict', 'Direct'])
+  it.each(MAKE.traits.map(t => [t.label, t.id] as const))('%s answers every question in its own words', async (label, id) => {
+    // One personality change plus two questions is exactly the try limit.
+    const { user, traits, reply, ask } = setup()
+    if (id !== 'warm') await user.click(traits.getByRole('button', { name: label }))
+    for (const [i, q] of COACH.questions.entries()) {
+      if (i > 0) await user.click(ask())
+      expect(reply()).toBe(q.replies[id])
+    }
+  })
+
+  it('no two personalities say the same thing', () => {
+    for (const q of COACH.questions) expect(new Set(Object.values(q.replies)).size).toBe(MAKE.traits.length)
+  })
+})
+
+describe('ask something else, reset and the try limit', () => {
+  it('cycles the questions and keeps the chosen voice', async () => {
+    const { user, traits, question, reply, ask } = setup()
+    await user.click(traits.getByRole('button', { name: 'Direct' }))
+    await user.click(ask())
+    expect(question()).toBe(COACH.questions[1].athlete)
+    expect(reply()).toBe(COACH.questions[1].replies.direct)
+  })
+
+  it('shows Approve only with a proposal', async () => {
+    const { user, ask } = setup()
+    expect(screen.getByRole('button', { name: COACH.approve })).toBeInTheDocument()
+    await user.click(ask())
+    expect(screen.queryByRole('button', { name: COACH.approve })).toBeNull()
+    expect(screen.queryByText(COACH.proposalHeading)).toBeNull()
+    await user.click(ask())
+    expect(screen.getByRole('button', { name: COACH.approve })).toBeInTheDocument()
+    expect(screen.getAllByText('Long run, 90 min').length).toBeGreaterThan(0)
+  })
+
+  it('a new question brings back its own Approve', async () => {
+    const { user, ask } = setup()
+    await user.click(screen.getByRole('button', { name: COACH.approve }))
+    await user.click(ask())
+    await user.click(ask())
+    expect(screen.getByRole('button', { name: COACH.approve })).toBeInTheDocument()
+    expect(screen.queryByRole('status', { name: COACH.approved })).toBeNull()
+  })
+
+  it('Reset goes back to Mira, Warm, the first question, not approved', async () => {
+    const { user, traits, nameInput, ask, reset, shownName, shownStatus, question } = setup()
+    await user.clear(nameInput())
+    await user.type(nameInput(), 'Kip')
+    await user.click(traits.getByRole('button', { name: 'Funny' }))
+    await user.click(ask())
+    await user.click(reset())
+    expect(shownName()).toBe(MAKE.defaultName)
+    expect(nameInput().value).toBe(MAKE.defaultName)
+    expect(shownStatus()).toBe('Your coach. Warm.')
+    expect(question()).toBe(COACH.questions[0].athlete)
+    expect(screen.getByRole('button', { name: COACH.approve })).toBeInTheDocument()
+  })
+
+  it(`after ${COACH.tryLimit} changes, offers an invite and stops changing`, async () => {
+    const { user, traits, ask, reply, limit, nameInput, pressed } = setup()
+    expect(limit().textContent).toBe('')
+    await user.click(traits.getByRole('button', { name: 'Funny' }))
+    await user.click(ask())
+    expect(limit().textContent).toBe('')
+    await user.click(traits.getByRole('button', { name: 'Data Nerd' }))
+    expect(limit()).toHaveTextContent(`${COACH.limitBefore}${COACH.limitLink}${COACH.limitTail}${MAKE.defaultName}${COACH.limitEnd}`)
+    expect(within(limit()).getByRole('link', { name: COACH.limitLink })).toHaveAttribute('href', '#join')
+
+    const before = reply()
+    await user.click(traits.getByRole('button', { name: 'Old School' }))
+    await user.click(ask())
+    expect(reply()).toBe(before)
+    expect(pressed(traits)).toEqual(['Data Nerd'])
+    expect(ask()).toHaveAttribute('aria-disabled', 'true')
+    expect(traits.getByRole('button', { name: 'Old School' })).toHaveAttribute('aria-disabled', 'true')
+    expect(traits.getByRole('button', { name: 'Data Nerd' })).not.toHaveAttribute('aria-disabled')
+
+    // The name is still free, but the live invite keeps the name it had, so a
+    // screen reader doesn't re-read it on every keystroke.
+    await user.clear(nameInput())
+    await user.type(nameInput(), 'Kip')
+    expect(limit()).toHaveTextContent(`to keep talking to ${MAKE.defaultName}.`)
+  })
+
+  it('Reset after the limit puts the demo back but gives no tries back', async () => {
+    const { user, traits, ask, reset, limit, shownStatus } = setup()
+    await user.click(ask())
+    await user.click(ask())
+    await user.click(ask())
+    await user.click(reset())
+    expect(shownStatus()).toBe('Your coach. Warm.')
+    expect(limit().textContent).not.toBe('')
+    await user.click(traits.getByRole('button', { name: 'Funny' }))
+    expect(shownStatus()).toBe('Your coach. Warm.')
+  })
+
+  it('the limit message is a polite status region that exists before it fills in', () => {
+    const { limit } = setup()
+    expect(limit()).toHaveAttribute('role', 'status')
   })
 })
 
@@ -292,7 +439,7 @@ describe('keyboard', () => {
   it('every control is reachable by Tab, in page order, and none is skipped', async () => {
     const { user, root } = setup()
     const controls = [
-      ...root.querySelectorAll<HTMLElement>('a[href], button:not([disabled]), input:not([disabled]), summary'),
+      ...root.querySelectorAll<HTMLElement>('a[href], button:not([disabled]), input:not([disabled]), summary, [tabindex="0"]'),
     ].filter(el => !el.closest('[aria-hidden="true"]'))
     const reached: HTMLElement[] = []
     for (let i = 0; i < controls.length; i++) {
@@ -302,8 +449,8 @@ describe('keyboard', () => {
     expect(reached).toEqual(controls)
   })
 
-  it.each(['{Enter}', ' '])('tabs, chart toggle, traits and Approve all work with %j', async key => {
-    const { user, tabs, chartToggle, traits, pressed, status, root } = setup()
+  it.each(['{Enter}', ' '])('tabs, chart toggle, personalities, Approve, Ask and Reset all work with %j', async key => {
+    const { user, tabs, chartToggle, traits, pressed, status, root, ask, reset, question } = setup()
     tabs.getByRole('button', tab('HYROX')).focus()
     await user.keyboard(key)
     expect(pressed(tabs)).toEqual(['HYROX'])
@@ -318,7 +465,15 @@ describe('keyboard', () => {
 
     screen.getByRole('button', { name: COACH.approve }).focus()
     await user.keyboard(key)
-    expect(within(root.querySelector('#coach')!).getByRole('status')).toHaveTextContent(COACH.approved)
+    expect(within(root.querySelector('#coach')!).getByRole('status', { name: COACH.approved })).toHaveTextContent(COACH.approved)
+
+    ask().focus()
+    await user.keyboard(key)
+    expect(question()).toBe(COACH.questions[1].athlete)
+
+    reset().focus()
+    await user.keyboard(key)
+    expect(question()).toBe(COACH.questions[0].athlete)
   })
 
   it('the coach name is typed from the keyboard', async () => {

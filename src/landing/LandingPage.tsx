@@ -1,6 +1,6 @@
 import { useReducer } from 'react'
 import { COACH, SKIP_LINK } from './content'
-import { INITIAL_STATE, landingReducer } from './state'
+import { INITIAL_STATE, atTryLimit, landingReducer } from './state'
 import { SiteHeader } from './components/SiteHeader'
 import { Hero } from './components/Hero'
 import { HowItWorks } from './components/HowItWorks'
@@ -8,6 +8,7 @@ import { PathCards } from './components/PathCards'
 import { PlanChart } from './components/PlanChart'
 import { CoachDemo } from './components/CoachDemo'
 import { MakeItYours } from './components/MakeItYours'
+import { AppScreens } from './components/AppScreens'
 import { GearGrid } from './components/GearGrid'
 import { ToolsPanel } from './components/ToolsPanel'
 import { FounderNote } from './components/FounderNote'
@@ -17,10 +18,11 @@ import { SiteFooter } from './components/SiteFooter'
 /**
  * attune.coach's landing page. It owns the shared state (state.ts): the
  * athlete tabs and the chart toggle stay in step, and the persona editor
- * drives the coach demo's header.
+ * drives the coach demo's header and the voice of its replies.
  */
 export function LandingPage() {
   const [state, dispatch] = useReducer(landingReducer, INITIAL_STATE)
+  const limitReached = atTryLimit(state)
   return (
     <div className="min-h-screen bg-landing-ground font-landing text-landing-ink">
       <a
@@ -39,7 +41,7 @@ export function LandingPage() {
             <PlanChart plan={state.plan} sport={state.sport} onPlanChange={plan => dispatch({ type: 'plan', plan })} />
           </div>
         </section>
-        <section id="coach" className="mx-auto flex max-w-landing flex-wrap items-center gap-14 px-6 py-24">
+        <section id="coach" className="mx-auto flex max-w-landing flex-wrap items-start gap-14 px-6 py-24">
           <div className="min-w-0 flex-[1_1_400px]">
             <h2 className="m-0 text-[clamp(36px,4.6vw,56px)] font-extrabold leading-none tracking-[-0.035em]">{COACH.title}</h2>
             <p className="m-0 mt-5 max-w-[32em] text-[19px] leading-[1.55] text-landing-muted">{COACH.body}</p>
@@ -48,20 +50,27 @@ export function LandingPage() {
                 <li key={b}>{b}</li>
               ))}
             </ul>
+            <MakeItYours
+              coachName={state.coachName}
+              personality={state.personality}
+              limitReached={limitReached}
+              onNameChange={name => dispatch({ type: 'name', name })}
+              onPickPersonality={id => dispatch({ type: 'personality', id })}
+            />
           </div>
           <CoachDemo
             coachName={state.coachName}
-            traits={state.traits}
+            personality={state.personality}
+            question={state.question}
             approved={state.approved}
+            limitReached={limitReached}
+            limitName={state.limitName}
             onApprove={() => dispatch({ type: 'approve' })}
+            onAsk={() => dispatch({ type: 'ask' })}
+            onReset={() => dispatch({ type: 'reset' })}
           />
         </section>
-        <MakeItYours
-          coachName={state.coachName}
-          traits={state.traits}
-          onNameChange={name => dispatch({ type: 'name', name })}
-          onToggleTrait={id => dispatch({ type: 'trait', id })}
-        />
+        <AppScreens />
         <GearGrid />
         <ToolsPanel />
         <section className="mx-auto flex max-w-landing flex-wrap gap-14 px-6 pb-[88px] pt-6">
