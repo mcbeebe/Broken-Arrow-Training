@@ -6,7 +6,7 @@
   <title>Moving to attune.coach…</title>
   <meta name="robots" content="noindex" />
   <noscript>
-    <meta http-equiv="refresh" content="0;url=https://attune.coach/" />
+    <meta http-equiv="refresh" content="0;url=https://attune.coach/app/" />
   </noscript>
   <style>
     html, body { margin: 0; padding: 0; min-height: 100%; background: #f8fafc; color: #0f172a; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
@@ -32,12 +32,16 @@
       <button class="btn" id="retry">Try again</button>
       <button class="btn btn-secondary" id="download">Download backup</button>
     </div>
-    <div><a class="btn-link" id="manual" href="https://attune.coach/" hidden>Continue without my data</a></div>
+    <div><a class="btn-link" id="manual" href="https://attune.coach/app/" hidden>Continue without my data</a></div>
   </div>
 
 <script>
 (function () {
+  // TARGET is an ORIGIN: the postMessage checks below compare against it,
+  // and an origin never carries a path. Navigation goes to TARGET + APP_PATH
+  // (the app moved to /app/ in initiative 003; `/` is the landing page).
   var TARGET = 'https://attune.coach';
+  var APP_PATH = '/app/';
   var msg = document.getElementById('msg');
   var bar = document.getElementById('bar');
   var actions = document.getElementById('actions');
@@ -92,9 +96,10 @@
   }
 
   function destRel() {
-    // Strip the legacy /Broken-Arrow-Training prefix from the path so
-    // deep links like /Broken-Arrow-Training/ → / on attune.coach.
-    var path = (location.pathname || '/').replace(/^\/Broken-Arrow-Training\/?/, '/');
+    // Map the legacy /Broken-Arrow-Training prefix to the app's path, so
+    // /Broken-Arrow-Training/?view=plan → /app/?view=plan on attune.coach.
+    // The app's migration receiver navigates to this path verbatim.
+    var path = (location.pathname || '/').replace(/^\/Broken-Arrow-Training\/?/, APP_PATH);
     if (path.charAt(0) !== '/') path = '/' + path;
     return path + location.search + location.hash;
   }
@@ -112,7 +117,7 @@
   function redirectWithPayload() {
     var hash = '__attune_migrate=' +
       encodeURIComponent(JSON.stringify({ p: payload, d: destRel() }));
-    var url = TARGET + '/?__migrate=1#' + hash;
+    var url = TARGET + APP_PATH + '?__migrate=1#' + hash;
     // Guard pathological URL lengths. The receiver also validates
     // (JSON.parse + version check), so a clipped URL degrades to the
     // file-upload fallback rather than corrupting data — but we'd rather
@@ -172,7 +177,7 @@
       a.download = 'attune-migration-' + stamp + '.json';
       a.click();
       setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
-      msg.innerHTML = 'Backup downloaded. <a href="' + TARGET + '/?__migrate=1">Open attune.coach</a> and upload the file when prompted.';
+      msg.innerHTML = 'Backup downloaded. <a href="' + TARGET + APP_PATH + '?__migrate=1">Open attune.coach</a> and upload the file when prompted.';
     } catch (e) {
       msg.innerHTML = '<span class="err">Could not generate backup. Use "Continue without my data" and re-sign-in.</span>';
     }
@@ -181,7 +186,7 @@
   function startMigration() {
     var popup;
     try {
-      popup = window.open(TARGET + '/?__migrate=1', 'attune-migrate', 'width=520,height=560');
+      popup = window.open(TARGET + APP_PATH + '?__migrate=1', 'attune-migrate', 'width=520,height=560');
     } catch (e) { popup = null; }
 
     if (!popup) {
