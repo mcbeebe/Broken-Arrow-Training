@@ -1,6 +1,9 @@
 /** @type {import('tailwindcss').Config} */
 export default {
-  content: ['./index.html', './app/index.html', './src/**/*.{js,ts,jsx,tsx}'],
+  // The landing page (index.html, src/landing) has its own config,
+  // tailwind.landing.config.js; scanning it here would put its utilities into
+  // every app and tool page's CSS.
+  content: ['./app/index.html', './src/**/*.{js,ts,jsx,tsx}', '!./src/landing/**'],
   darkMode: 'class',
   theme: {
     extend: {

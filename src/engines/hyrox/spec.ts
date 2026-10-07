@@ -13,7 +13,9 @@
  */
 import { tier, type TieredValue } from '../evidence'
 
-export type HyroxDivision = 'open' | 'pro'
+/** Every division the engine plans for. The landing page's claims test reads this. */
+export const HYROX_DIVISIONS = ['open', 'pro'] as const
+export type HyroxDivision = (typeof HYROX_DIVISIONS)[number]
 export type HyroxSex = 'male' | 'female'
 
 export interface StationSpec {

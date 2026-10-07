@@ -9,7 +9,7 @@
  * decides which of them belong in the app. It must stay tiny and import
  * nothing from the app: it runs before anything else on the root page.
  */
-import { SECTION_IDS } from './content'
+import { SECTION_IDS } from './sections'
 
 /** Where the app is served. */
 export const APP_PATH = '/app/'

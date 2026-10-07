@@ -44,10 +44,10 @@ function formatPaceRange(b: VdotPaceBounds | null): string {
  *  here; the user just keeps training. */
 const DEFAULT_BLOCK_WEEKS = 12
 const MIN_BLOCK_WEEKS = 4
-const MAX_BLOCK_WEEKS = 16
+export const MAX_BLOCK_WEEKS = 16
 /** Deload cadence — a lighter week every Nth week (trigger-based deloads aren't
  *  modeled offline; this is the sensible default from the research). */
-const DELOAD_EVERY = 4
+export const DELOAD_EVERY = 4
 
 // ── Date helpers (mirror the other generators) ──────────────────────────────
 function addDays(dateStr: string, days: number): string {

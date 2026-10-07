@@ -3,6 +3,7 @@ import { resolve } from 'node:path'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { viteStaticCopy } from 'vite-plugin-static-copy'
+import { moduleMap } from './scripts/deploy/vite-plugin-module-map'
 
 /**
  * Cesium needs its Workers/, Assets/, Widgets/, ThirdParty/ folders
@@ -16,6 +17,8 @@ import { viteStaticCopy } from 'vite-plugin-static-copy'
 export default defineConfig({
   plugins: [
     react(),
+    // dist/.vite/module-map.json for check-site-layout.mjs (initiative 003).
+    moduleMap(),
     viteStaticCopy({
       targets: [
         { src: 'node_modules/cesium/Build/Cesium/Workers', dest: 'cesium' },
