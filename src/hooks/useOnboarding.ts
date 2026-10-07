@@ -11,7 +11,8 @@ export type RaceType = 'trail' | 'road' | 'hyrox' | 'general'
 export type GeneralGoal = 'stay_healthy' | 'lose_fat' | 'build_muscle' | 'build_endurance'
 // Primary cardio modality for the General Fitness path (raceType === 'general').
 // Personalizes the engine's cardio sessions (run vs bike vs row vs swim).
-export type CardioModality = 'running' | 'cycling' | 'rowing' | 'swimming' | 'mixed'
+export const CARDIO_MODALITIES = ['running', 'cycling', 'rowing', 'swimming', 'mixed'] as const
+export type CardioModality = (typeof CARDIO_MODALITIES)[number]
 export type ExperienceLevel = 'first_timer' | 'beginner' | 'intermediate' | 'advanced' | 'elite'
 
 export type WearableType = 'garmin' | 'apple_watch' | 'oura' | 'none'
