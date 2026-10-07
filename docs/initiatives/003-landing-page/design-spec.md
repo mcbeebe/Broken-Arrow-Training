@@ -16,7 +16,7 @@ Tailwind, matching it visually.
 ```
 index.html                     landing page shell (was the app shell)
 app/index.html                 app shell, moved here unchanged except paths
-privacy.html, terms.html       static legal pages (PR 5; owner supplies text)
+privacy.html, terms.html       static legal pages (PR 5b; owner supplies text)
 src/landing/
   main.tsx                     entry: imports only legacyEntry + referral, runs the guard,
                                then import('./LandingPage') dynamically
@@ -271,8 +271,9 @@ on the landing page). Keep search and hash byte-for-byte; do not re-encode.
 ## SEO and sharing (PR 5)
 
 - `<title>`, meta description, canonical `https://attune.coach/`, Open Graph and Twitter card tags (copy.md § Meta).
-- `public/robots.txt`: allow `/`, `/tools/`, `/privacy.html`, `/terms.html`; disallow `/app/`.
-- `public/sitemap.xml`: `/`, the three tools, privacy, terms.
+- `public/og-image.png` (1200×630): the hero headline beside the Running “This morning” card; made by `og-image.mjs` in this folder.
+- `public/robots.txt`: allow `/` and `/tools/`; disallow `/app/`; name the sitemap. (`Allow: /` already covers `/privacy.html` and `/terms.html`.)
+- `public/sitemap.xml`: `/` and the four tools; privacy and terms join in PR 5b.
 - `app/index.html` gets `<meta name="robots" content="noindex">`.
 - Favicon: the landing page links `/attune-mark.svg`. Never edit `/favicon.svg`: it is also the app’s favicon, manifest icon, apple-touch-icon and push icon/badge.
 

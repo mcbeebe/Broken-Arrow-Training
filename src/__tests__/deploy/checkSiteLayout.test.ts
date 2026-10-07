@@ -13,14 +13,33 @@ import {
   PAGE_BUDGET_BYTES,
   SCREEN_BUDGET_BYTES,
   SCREENS_TOTAL_BUDGET_BYTES,
+  SITE_ORIGIN,
+  OG_IMAGE_SIZE,
   type ReadOnlyFs,
 } from '../../../scripts/deploy/check-site-layout.mjs'
 
 const DIST = '/dist'
 const FONT = '/fonts/schibsted-grotesk-latin-wght-normal.woff2'
+const SHARE_TAGS =
+  '<meta property="og:image" content="https://attune.coach/og-image.png" />' +
+  '<meta property="og:image:alt" content="A card" />' +
+  '<meta name="twitter:image" content="https://attune.coach/og-image.png" />'
 const ROOT_HTML =
+  SHARE_TAGS +
   '<script data-root-fallback>if (!window.__attuneGuardRan) {}</script>' +
   '<script type="module" src="/assets/main-abc.js"></script>'
+const ROBOTS = 'User-agent: *\nAllow: /\nDisallow: /app/\n\nSitemap: https://attune.coach/sitemap.xml\n'
+/** A PNG's first 24 bytes: the signature, then the IHDR chunk's length, type, width and height. */
+function pngHeader(width: number, height: number): Uint8Array {
+  const out = new Uint8Array(24)
+  out.set([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13, 0x49, 0x48, 0x44, 0x52])
+  const view = new DataView(out.buffer)
+  view.setUint32(16, width)
+  view.setUint32(20, height)
+  return out
+}
+const sitemap = (...urls: string[]) =>
+  `<?xml version="1.0"?><urlset>${urls.map(u => `<url><loc>${u}</loc></url>`).join('')}</urlset>`
 
 const goodManifest = {
   id: '/?view=today',
@@ -80,6 +99,9 @@ beforeEach(() => {
   write('attune-mark.svg', '<svg/>')
   write('fonts/schibsted-grotesk-latin-wght-normal.woff2', 'font')
   write('manifest.webmanifest', JSON.stringify(goodManifest))
+  write('robots.txt', ROBOTS)
+  write('sitemap.xml', sitemap('https://attune.coach/', 'https://attune.coach/tools/heat.html'))
+  write('og-image.png', pngHeader(1200, 630))
   write('.vite/manifest.json', JSON.stringify(viteManifest))
   write('.vite/module-map.json', JSON.stringify(moduleMap))
   write('assets/main-abc.js', `const FONT_URL = '${FONT}'`)
@@ -104,9 +126,72 @@ describe('checkSiteLayout', () => {
     'attune-mark.svg',
     'fonts/schibsted-grotesk-latin-wght-normal.woff2',
     'manifest.webmanifest',
+    'robots.txt',
+    'sitemap.xml',
+    'og-image.png',
   ])('fails when %s is missing', rel => {
     remove(rel)
     expect(check()).toContain(`missing dist/${rel}`)
+  })
+
+  describe('sitemap, robots.txt and the share image', () => {
+    it('is on the public origin', () => {
+      expect(SITE_ORIGIN).toBe('https://attune.coach')
+    })
+
+    it('the share image is a 1200×630 PNG, the size index.html states', () => {
+      expect(OG_IMAGE_SIZE).toEqual({ width: 1200, height: 630 })
+      write('og-image.png', pngHeader(1200, 628))
+      expect(check()).toEqual(['dist/og-image.png is 1200×628; index.html says 1200×630'])
+      write('og-image.png', pngHeader(1280, 630))
+      expect(check()).toEqual(['dist/og-image.png is 1280×630; index.html says 1200×630'])
+      write('og-image.png', 'GIF89a............................')
+      expect(check()).toEqual(['dist/og-image.png is not a PNG'])
+      write('og-image.png', pngHeader(1200, 630).slice(0, 20))
+      expect(check()).toEqual(['dist/og-image.png is not a PNG'])
+    })
+
+    it('reads a page URL ending in / as its index.html', () => {
+      write('sitemap.xml', sitemap('https://attune.coach/', 'https://attune.coach/tools/'))
+      expect(check()).toEqual(['dist/sitemap.xml lists https://attune.coach/tools/, but dist/tools/index.html is missing'])
+    })
+
+    it('fails when a sitemap URL is not a built page', () => {
+      write('sitemap.xml', sitemap('https://attune.coach/', 'https://attune.coach/tools/pace.html'))
+      expect(check()).toEqual(['dist/sitemap.xml lists https://attune.coach/tools/pace.html, but dist/tools/pace.html is missing'])
+    })
+
+    it('fails when the sitemap lists the app, which robots.txt keeps out', () => {
+      write('sitemap.xml', sitemap('https://attune.coach/', 'https://attune.coach/app/'))
+      expect(check()).toEqual(['dist/sitemap.xml lists https://attune.coach/app/, but robots.txt keeps crawlers out of /app/'])
+    })
+
+    it('fails on a URL on another origin, and on an empty sitemap', () => {
+      write('sitemap.xml', sitemap('https://attune.example/'))
+      expect(check()).toEqual(['dist/sitemap.xml lists https://attune.example/, which is not on https://attune.coach'])
+      write('sitemap.xml', sitemap())
+      expect(check()).toEqual(['dist/sitemap.xml lists no URLs'])
+    })
+
+    it('fails when robots.txt stops disallowing /app/ or naming the sitemap', () => {
+      write('robots.txt', ROBOTS.replace('Disallow: /app/', 'Disallow: /app/private/'))
+      expect(check()).toEqual(['dist/robots.txt must disallow /app/'])
+      write('robots.txt', ROBOTS.replace(/Sitemap.*/, ''))
+      expect(check()).toEqual(['dist/robots.txt must name https://attune.coach/sitemap.xml'])
+    })
+
+    it.each(['og:image', 'twitter:image'])('fails when %s names a file the build lacks', tag => {
+      write('index.html', ROOT_HTML.replace(`"${tag}" content="https://attune.coach/og-image.png"`, `"${tag}" content="https://attune.coach/share.png"`))
+      expect(check()).toEqual([`dist/index.html's ${tag} is https://attune.coach/share.png, but dist/share.png is missing`])
+    })
+
+    it.each(['og:image', 'twitter:image'])('fails when %s is gone or off the site', tag => {
+      const tagged = `"${tag}" content="https://attune.coach/og-image.png"`
+      write('index.html', ROOT_HTML.replace(tagged, `"${tag}" content="https://cdn.example/x.png"`))
+      expect(check()).toEqual([`dist/index.html's ${tag} is https://cdn.example/x.png, not on https://attune.coach`])
+      write('index.html', ROOT_HTML.replace(tagged, `"${tag}-gone" content="x"`))
+      expect(check()).toEqual([`dist/index.html has no ${tag}`])
+    })
   })
 
   describe('app screenshots', () => {
@@ -188,7 +273,7 @@ describe('checkSiteLayout', () => {
   })
 
   it('fails when the root page loses its inline fallback', () => {
-    write('index.html', '<script type="module" src="/assets/main-abc.js"></script>')
+    write('index.html', SHARE_TAGS + '<script type="module" src="/assets/main-abc.js"></script>')
     expect(check()).toEqual([
       'dist/index.html lost its inline fallback (data-root-fallback) that forwards when the guard fails to load',
     ])

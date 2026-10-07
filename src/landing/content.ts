@@ -493,8 +493,7 @@ export const FOOTER = {
   links: [
     { label: 'Sign in', href: '/app/' },
     { label: 'Free tools', href: '#tools' },
-    { label: 'Privacy', href: '/privacy.html' },
-    { label: 'Terms', href: '/terms.html' },
+    // Privacy and Terms come back with their pages (PR 5b, owner's text).
   ],
   copyright: '© 2026 Attune',
 } as const

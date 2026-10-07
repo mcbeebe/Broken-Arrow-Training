@@ -16,7 +16,10 @@
  * scripts/deploy/vite-plugin-module-map.ts), that every chunk the landing
  * page loads holds only its own code, React and the bundler's runtime; and
  * that every app screenshot the landing page references exists and stays under
- * SCREEN_BUDGET_BYTES, and all of them under SCREENS_TOTAL_BUDGET_BYTES.
+ * SCREEN_BUDGET_BYTES, and all of them under SCREENS_TOTAL_BUDGET_BYTES;
+ * and that what search engines and link previews read holds together: every
+ * sitemap URL is a built page, robots.txt names the sitemap and keeps crawlers
+ * out of /app/, and the root page's share image ships.
  */
 import * as nodeFs from 'node:fs'
 import { join, resolve } from 'node:path'
@@ -71,7 +74,16 @@ const REQUIRED_FILES = [
   'attune-mark.svg',
   LANDING_FONT,
   'manifest.webmanifest',
+  'robots.txt',
+  'sitemap.xml',
+  'og-image.png',
 ]
+
+/** The public origin; the sitemap and the share-image tags use absolute URLs on it. */
+export const SITE_ORIGIN = 'https://attune.coach'
+
+/** The share image's size, as index.html's og:image:width and og:image:height state it. */
+export const OG_IMAGE_SIZE = { width: 1200, height: 630 }
 
 const MANIFEST_LINK = /<link\b[^>]*\brel=["']?manifest\b/i
 
@@ -110,6 +122,8 @@ export function checkSiteLayout(distDir, fs = nodeFs) {
     }
   }
 
+  errors.push(...checkSearchFiles(distDir, readFileSync, existsSync, fs))
+
   const viteManifestPath = path('.vite/manifest.json')
   if (!existsSync(viteManifestPath)) {
     errors.push('missing dist/.vite/manifest.json (is build.manifest on in vite.config.ts?)')
@@ -131,6 +145,71 @@ export function checkSiteLayout(distDir, fs = nodeFs) {
     } else errors.push('dist/.vite/manifest.json is not valid JSON')
   }
 
+  return errors
+}
+
+/**
+ * The built file a URL on SITE_ORIGIN serves ('/' and '/x/' serve index.html),
+ * or null for a URL on another origin.
+ *
+ * @param {string} url
+ * @returns {string | null}
+ */
+function builtFileFor(url) {
+  if (!url.startsWith(`${SITE_ORIGIN}/`)) return null
+  const rel = url.slice(SITE_ORIGIN.length + 1).split(/[?#]/)[0]
+  return rel === '' || rel.endsWith('/') ? `${rel}index.html` : rel
+}
+
+/**
+ * Sitemap, robots.txt and the share image. A sitemap URL that 404s or a share
+ * image that is missing fails quietly in search and link previews, so it
+ * fails here instead.
+ */
+function checkSearchFiles(distDir, readFileSync, existsSync, fs) {
+  const errors = []
+  const has = rel => existsSync(join(distDir, rel))
+  if (has('og-image.png')) {
+    const png = fs.readFileSync(join(distDir, 'og-image.png'))
+    const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]
+    const view = new DataView(png.buffer, png.byteOffset, png.byteLength)
+    if (png.length < 24 || PNG_SIGNATURE.some((b, i) => png[i] !== b)) errors.push('dist/og-image.png is not a PNG')
+    else {
+      // The IHDR chunk comes first: width and height are big-endian at bytes 16 and 20.
+      const [width, height] = [view.getUint32(16), view.getUint32(20)]
+      if (width !== OG_IMAGE_SIZE.width || height !== OG_IMAGE_SIZE.height) {
+        errors.push(`dist/og-image.png is ${width}×${height}; index.html says ${OG_IMAGE_SIZE.width}×${OG_IMAGE_SIZE.height}`)
+      }
+    }
+  }
+  if (has('sitemap.xml')) {
+    const locs = [...readFileSync(join(distDir, 'sitemap.xml')).matchAll(/<loc>\s*([^<\s]+)\s*<\/loc>/g)].map(m => m[1])
+    if (!locs.length) errors.push('dist/sitemap.xml lists no URLs')
+    for (const loc of locs) {
+      const rel = builtFileFor(loc)
+      if (rel === null) errors.push(`dist/sitemap.xml lists ${loc}, which is not on ${SITE_ORIGIN}`)
+      else if (rel.startsWith('app/')) errors.push(`dist/sitemap.xml lists ${loc}, but robots.txt keeps crawlers out of /app/`)
+      else if (!has(rel)) errors.push(`dist/sitemap.xml lists ${loc}, but dist/${rel} is missing`)
+    }
+  }
+  if (has('robots.txt')) {
+    const robots = readFileSync(join(distDir, 'robots.txt'))
+    if (!/^Disallow:\s*\/app\/\s*$/m.test(robots)) errors.push('dist/robots.txt must disallow /app/')
+    if (!robots.includes(`Sitemap: ${SITE_ORIGIN}/sitemap.xml`)) errors.push(`dist/robots.txt must name ${SITE_ORIGIN}/sitemap.xml`)
+  }
+  if (has('index.html')) {
+    const rootHtml = readFileSync(join(distDir, 'index.html'))
+    for (const tag of ['og:image', 'twitter:image']) {
+      const m = rootHtml.match(new RegExp(`<meta\\b[^>]*\\b(?:property|name)="${tag}"[^>]*\\bcontent="([^"]+)"`))
+      if (!m) {
+        errors.push(`dist/index.html has no ${tag}`)
+        continue
+      }
+      const rel = builtFileFor(m[1])
+      if (rel === null) errors.push(`dist/index.html's ${tag} is ${m[1]}, not on ${SITE_ORIGIN}`)
+      else if (!has(rel)) errors.push(`dist/index.html's ${tag} is ${m[1]}, but dist/${rel} is missing`)
+    }
+  }
   return errors
 }
 

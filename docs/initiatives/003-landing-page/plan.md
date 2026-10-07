@@ -259,27 +259,39 @@ A fourth tool page, `/tools/mileage.html`, on the app’s own ramp. Copy approve
 
 ## PR 5 — Go live
 
-**Subject:** `Landing page goes live: SEO, privacy and terms pages, and the launch switch on`
+**Subject:** `Landing page goes live: search and share tags, robots.txt and sitemap, footer without legal links until their pages land`
 
-**Blocked on the owner:** privacy and terms text. (The founder quote shipped in PR 4b, and the owner checked PR 4 locally on 2026-10-07.)
+**Split (owner’s call, 2026-10-07):** “let’s get the site live” before the privacy and terms text is in. PR 5 ships everything but the legal pages; **PR 5b** adds them. Until 5b, the footer has no Privacy or Terms links (they would 404), and the invite form ships without a linked privacy notice. That gap was flagged to the owner before launch.
 
-**Scope:**
-1. `privacy.html` and `terms.html` as Vite inputs (served at `/privacy.html`, `/terms.html`), styled like the landing page, with the owner-supplied text verbatim. Claude Code must not write policy text. If the text isn’t supplied, stop and ask.
-2. Meta, canonical, Open Graph and Twitter tags; `public/og-image.png` (1200×630, the MorningCard on the Signal ground); `robots.txt`; `sitemap.xml` ([design-spec.md § SEO](design-spec.md#seo-and-sharing-pr-5)).
-3. ~~The founder quote updated to the owner-approved wording~~ (done in PR 4b).
-4. Launch: the owner sets `vars.ATTUNE_LANDING_ENABLED = 'true'`, then dispatches `deploy.yml` (Run workflow) on the publishing branch.
-5. Run the full smoke checklist; record Lighthouse mobile scores in the PR.
-6. Close-out: registry row 003 → **Shipped** with PR numbers; stamp this plan “Shipped YYYY-MM-DD”. `reference/` stays as the design record.
+**Scope (as built):**
+1. Meta, canonical, Open Graph and Twitter tags in `index.html`, verbatim from copy.md § Meta.
+2. `public/og-image.png`, 1200×630: the hero headline and lede beside the Running “This morning” card, with the header links, invite form and athlete tabs hidden. (The draft said “the MorningCard on the Signal ground”; the hero version matches the alt text and reads at preview size.) Made by `og-image.mjs` in this folder, which reproduces it pixel for pixel.
+3. `public/robots.txt` (allow `/` and `/tools/`, disallow `/app/`, names the sitemap) and `public/sitemap.xml` (`/` and the four tools).
+4. Footer links: Sign in and Free tools only, until PR 5b.
+5. `check-site-layout.mjs` requires `robots.txt`, `sitemap.xml` and `og-image.png`, and fails if a sitemap URL isn’t a built page or lists `/app/`, if `robots.txt` stops disallowing `/app/` or naming the sitemap, if `og:image` or `twitter:image` names a file the build lacks, or if the share image isn’t a 1200×630 PNG.
+6. Launch: the owner sets `vars.ATTUNE_LANDING_ENABLED = 'true'`, then dispatches `deploy.yml` (Run workflow) on the publishing branch.
+7. Run the full smoke checklist (step 9 needs the Vercel email variables `RESEND_API_KEY`, `EMAIL_FROM`, `NOTIFY_EMAIL`).
+8. Lighthouse mobile: recorded in the PR on the local preview of the switch-on build (Performance 98, Accessibility 100, Best Practices 100, SEO 100); re-run on production after launch.
 
-**Tests:** `seo.test.ts` (title, description, canonical and og tags present; `app/index.html` has noindex). `check-site-layout.mjs` also asserts `robots.txt`, `sitemap.xml`, `privacy.html` and `terms.html` exist.
+**Tests:** `seo.test.ts` (every tag against copy.md § Meta, the share tags’ URLs and size, the root page indexable, `app/index.html` noindex, robots.txt, the sitemap against the Vite tool inputs); `checkSiteLayout.test.ts` (each new check, pass and fail).
 
 **Rollback:** set `ATTUNE_LANDING_ENABLED` to anything but `'true'` and dispatch `deploy.yml` on the publishing branch. The root page goes back to forwarding everyone to `/app/`.
+
+## PR 5b — Privacy and terms
+
+**Blocked on the owner:** the privacy and terms text. Claude Code must not write policy text. If the text isn’t supplied, stop and ask.
+
+**Scope:**
+1. `privacy.html` and `terms.html` as Vite inputs (served at `/privacy.html`, `/terms.html`), styled like the landing page, with the owner-supplied text verbatim.
+2. The footer’s Privacy and Terms links return (copy.md § Footer).
+3. Both pages in `sitemap.xml`; `check-site-layout.mjs` requires them.
+4. Close-out: registry row 003 → **Shipped** with PR numbers; stamp this plan “Shipped YYYY-MM-DD”. `reference/` stays as the design record.
 
 ---
 
 ## Smoke checklist
 
-Run steps 1–7 after PR 1, steps 3 and 6 again after PR 2, and all of them after PR 5. Use the production site, from a phone and a laptop. Any failure means roll back.
+Run steps 1–7 after PR 1, steps 3 and 6 again after PR 2, and all of them after PR 5 (once the launch switch is on). Use the production site, from a phone and a laptop. Any failure means roll back.
 
 1. `attune.coach/app/` loads the app; sign in with Google works.
 2. **Installed home-screen app** (iPhone and Android, installed before PR 1) opens straight into the app on Today.
@@ -294,7 +306,7 @@ Run steps 1–7 after PR 1, steps 3 and 6 again after PR 2, and all of them afte
 
 ## Definition of done (initiative)
 
-- All five PRs merged, each with its `/adversary` memo.
+- All the PRs merged (1–4, 4b, 4c, 5, 5b), each with its `/adversary` memo.
 - The smoke checklist passes in production after PR 5.
 - Registry row 003 is **Shipped** with PR numbers, and this plan is stamped.
 - `CLAUDE.md` describes the two entries, `/app/`, the landing switch, the layout check and the claims test.
