@@ -26,6 +26,9 @@ function setup() {
   const pressed = (scope: typeof tabs) =>
     scope.getAllByRole('button').filter(b => b.getAttribute('aria-pressed') === 'true').map(b => b.textContent)
   const status = () => root.querySelector('#coach')!.textContent ?? ''
+  /** The demo header's name line and status line, exactly as shown. */
+  const shownName = () => root.querySelector('[data-coach-name]')!.textContent
+  const shownStatus = () => root.querySelector('[data-coach-status]')!.textContent
   /** Planned (outline) and actual heights of each week, in px. */
   const bars = () =>
     [...chart().querySelectorAll<HTMLElement>('[data-bar]')].map(b => {
@@ -37,7 +40,7 @@ function setup() {
         label: b.parentElement!.querySelector<HTMLElement>('[data-bar-label]'),
       }
     })
-  return { user, root, tabs, chartToggle, traits, live, chart, nameInput, pressed, status, bars }
+  return { user, root, tabs, chartToggle, traits, live, chart, nameInput, pressed, status, shownName, shownStatus, bars }
 }
 
 const tab = (label: string) => ({ name: label })
@@ -52,12 +55,11 @@ describe('ported from reference/interaction_tests.cjs', () => {
   })
 
   it('coach: blank name falls back', async () => {
-    const { user, nameInput, root } = setup()
+    const { user, nameInput, root, shownName } = setup()
     await user.clear(nameInput())
     await user.type(nameInput(), '   ')
-    const header = root.querySelector('#coach')!
-    expect(header).toHaveTextContent(COACH.fallbackName)
-    expect(root.querySelector('[data-coach-initial]')).toHaveTextContent('Y')
+    expect(shownName()).toBe(COACH.fallbackName)
+    expect(root.querySelector('[data-coach-initial]')!.textContent).toBe('Y')
   })
 
   it('coach: traits toggle and summarize', async () => {
@@ -68,10 +70,11 @@ describe('ported from reference/interaction_tests.cjs', () => {
   })
 
   it('coach: no traits prompts to pick', async () => {
-    const { user, traits, status } = setup()
+    const { user, traits, shownStatus } = setup()
     await user.click(traits.getByRole('button', { name: 'Warm' }))
     await user.click(traits.getByRole('button', { name: 'Direct' }))
-    expect(status()).toContain(COACH.noTraits)
+    // copy.md: the prompt alone, without “Your coach.” (the reference HTML differs; copy.md wins).
+    expect(shownStatus()).toBe(COACH.noTraits)
   })
 
   it('tabs: four athletes in order', () => {
@@ -89,7 +92,8 @@ describe('ported from reference/interaction_tests.cjs', () => {
       expect(live()).toHaveTextContent(s.adjusted)
       expect(live()).toHaveTextContent(s.why)
       expect(root.textContent).toContain(s.who)
-      seen.add(live().textContent!)
+      seen.add(s.adjusted)
+      expect(live().textContent).toContain(s.adjusted)
     }
     expect(seen.size).toBe(4)
   })
@@ -159,6 +163,7 @@ describe('ported from reference/interaction_tests.cjs', () => {
     const { user, chartToggle, bars } = setup()
     for (const mode of [PLAN.toggle.race, PLAN.toggle.fit]) {
       await user.click(chartToggle.getByRole('button', tab(mode)))
+      expect(chartToggle.getByRole('button', tab(mode))).toHaveAttribute('aria-pressed', 'true')
       for (const b of bars()) {
         expect(b.planned).toBeLessThanOrEqual(PLAN.plot)
         if (b.today) expect(parseInt(b.label!.style.bottom, 10)).toBeLessThanOrEqual(236 - 16)
@@ -217,6 +222,20 @@ describe('coach demo', () => {
     expect(document.activeElement).toBe(within(root.querySelector('#coach')!).getByRole('status'))
   })
 
+  it('the focused confirmation has an accessible name (role="status" takes none from its text)', async () => {
+    const { user } = setup()
+    await user.click(screen.getByRole('button', { name: COACH.approve }))
+    expect(screen.getByRole('status', { name: COACH.approved })).toBe(document.activeElement)
+  })
+
+  it('typing a name after approving does not pull focus back to the confirmation', async () => {
+    const { user, nameInput } = setup()
+    await user.click(screen.getByRole('button', { name: COACH.approve }))
+    await user.click(nameInput())
+    await user.type(nameInput(), 'x')
+    expect(document.activeElement).toBe(nameInput())
+  })
+
   it('the input and mic stay disabled', () => {
     const { root } = setup()
     expect(root.querySelector<HTMLInputElement>('#coach-ask')!.disabled).toBe(true)
@@ -225,6 +244,18 @@ describe('coach demo', () => {
 })
 
 describe('persona', () => {
+  it('the header shows the name trimmed', async () => {
+    const { user, nameInput, shownName, root } = setup()
+    await user.clear(nameInput())
+    await user.type(nameInput(), '  kip  ')
+    expect(shownName()).toBe('kip')
+    expect(root.querySelector('[data-coach-initial]')!.textContent).toBe('K')
+  })
+
+  it('the status line is exactly “Your coach. Warm, Direct.” by default', () => {
+    expect(setup().shownStatus()).toBe('Your coach. Warm, Direct.')
+  })
+
   it('the name updates the header, the initial and the placeholder', async () => {
     const { user, nameInput, root } = setup()
     await user.clear(nameInput())
