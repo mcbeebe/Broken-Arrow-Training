@@ -14,7 +14,7 @@ export interface RootPageDeps {
   location: { search: string; hash: string; replace(url: string): void }
   standalone: boolean
   hasSession: boolean
-  /** Render the landing page (a placeholder until initiative 003 PR 3). */
+  /** Render the landing page (main.tsx loads it with import()). */
   renderLanding(): void
 }
 

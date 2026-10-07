@@ -26,8 +26,12 @@ to load. Everyone else gets the landing page, loaded with
 `import('./mount')` (initiative 003 PR 3; interactions arrive in PR 4).
 
 The landing page (`src/landing/`) **never imports app code**, recharts or
-cesium: an eslint `no-restricted-imports` override enforces it, and
-`check-site-layout.mjs` re-checks what actually shipped. Its words live only
+cesium. The guarantee is `check-site-layout.mjs`: it allowlists what the
+landing page may ship (`src/landing/`, react, react-dom, scheduler, the
+bundler runtime) and fails the build on anything else. An eslint
+`no-restricted-imports` override catches the common cases earlier, but it
+matches import strings, so don't rely on it alone. The app's
+`tailwind.config.js` skips `src/landing/`. Its words live only
 in `src/landing/content.ts`, verbatim from
 `docs/initiatives/003-landing-page/copy.md`; `claims.test.tsx` checks every
 factual claim (methods, HYROX divisions, coach traits, cardio options, block
@@ -44,7 +48,7 @@ attune.coach.
 ## Commands
 
 ```bash
-npm test                  # vitest, 331 files / ~4463 tests — gates every publish
+npm test                  # vitest, 332 files / ~4507 tests — gates every publish
 npm run build             # tsc -b && vite build — the typecheck gate lives here
 npm run lint              # eslint — blocking in CI; 0 errors (initiative 002)
 npm run dev               # local dev server: the app is at /app/, the root page at /
@@ -87,9 +91,10 @@ succeed.
   into `/app/`, if the root page loses its inline fallback, if the root
   page's guard exceeds 10 KB gzipped, if the whole landing page (shared React
   chunk and CSS included) exceeds 90 KB gzipped, or if any chunk the landing
-  page loads contains app code, recharts or cesium (read from
+  page loads holds anything outside its allowlist (read from
   `dist/.vite/module-map.json`, written by
-  `scripts/deploy/vite-plugin-module-map.ts`).
+  `scripts/deploy/vite-plugin-module-map.ts`), or if the guard's font preload
+  and the landing CSS's `@font-face` stop naming the same file.
 - The `cutover-airlock` job publishes on the branch test alone — it ignores
   `ATTUNE_PUBLISH_ENABLED` and finishes before the attune build — so an
   airlock change goes live before the app it points at.

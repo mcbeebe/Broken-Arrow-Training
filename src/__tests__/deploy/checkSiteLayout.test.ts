@@ -15,6 +15,7 @@ import {
 } from '../../../scripts/deploy/check-site-layout.mjs'
 
 const DIST = '/dist'
+const FONT = '/fonts/schibsted-grotesk-latin-wght-normal.woff2'
 const ROOT_HTML =
   '<script data-root-fallback>if (!window.__attuneGuardRan) {}</script>' +
   '<script type="module" src="/assets/main-abc.js"></script>'
@@ -79,7 +80,7 @@ beforeEach(() => {
   write('manifest.webmanifest', JSON.stringify(goodManifest))
   write('.vite/manifest.json', JSON.stringify(viteManifest))
   write('.vite/module-map.json', JSON.stringify(moduleMap))
-  write('assets/main-abc.js', 'console.log(1)')
+  write('assets/main-abc.js', `const FONT_URL = '${FONT}'`)
   write('assets/shared-def.js', 'console.log(2)')
   write('assets/app-ghi.js', incompressible(GUARD_BUDGET_BYTES * 5))
 })
@@ -211,6 +212,15 @@ describe('checkSiteLayout', () => {
   })
 })
 
+/** CSS that loads the landing font, padded with `body`. */
+function withFont(body: Uint8Array): Uint8Array {
+  const head = new TextEncoder().encode(`@font-face{src:url(${FONT})}`)
+  const out = new Uint8Array(head.length + body.length)
+  out.set(head)
+  out.set(body, head.length)
+  return out
+}
+
 /** A landing page: guard entry → dynamic LandingPage chunk → shared React chunk + CSS. */
 function landingBuild(sizes: { page?: number; react?: number; css?: number } = {}) {
   write(
@@ -241,7 +251,7 @@ function landingBuild(sizes: { page?: number; react?: number; css?: number } = {
   write('assets/mount-1.js', incompressible(sizes.page ?? 1024))
   write('assets/lazy-2.js', 'x')
   write('assets/react-3.js', incompressible(sizes.react ?? 1024))
-  write('assets/mount-1.css', incompressible(sizes.css ?? 512))
+  write('assets/mount-1.css', withFont(incompressible(sizes.css ?? 512)))
 }
 
 describe('the whole landing page budget', () => {
@@ -302,7 +312,13 @@ describe('no app code in the landing page', () => {
     'src/hooks/useOnboarding.ts',
     'src/utils/coachApi.ts',
     'src/data/methods/index.ts',
+    'src/types/index.ts',
+    'src/palettes.ts',
+    'src/schema/plan.ts',
+    'src/tools/fueling-page.tsx',
+    'src/main.tsx',
     'node_modules/recharts/es6/index.js',
+    'node_modules/lodash/index.js',
     'node_modules/cesium/Source/Cesium.js',
     '\0commonjsHelpers.js?commonjs-proxy&node_modules/recharts/lib/index.js',
   ])('fails when the landing page ships %s', mod => {
@@ -313,13 +329,25 @@ describe('no app code in the landing page', () => {
     )
     const errors = check().join('\n')
     expect(errors).toContain('assets/react-3.js')
-    expect(errors).toContain('app code in the landing page')
+    expect(errors).toContain(`outside its allowlist: dist/assets/react-3.js contains ${mod}`)
   })
 
   it('also checks the guard’s own chunks', () => {
     write('.vite/module-map.json', JSON.stringify({ ...moduleMap, 'assets/shared-def.js': ['src/utils/auth.ts'] }))
-    expect(check().join('\n')).toContain('app code in the landing page')
+    expect(check().join('\n')).toContain('outside its allowlist')
   })
+
+  it.each(['index.html', '\0vite/preload-helper.js', '\0vite/modulepreload-polyfill.js', '\0rolldown/runtime.js', 'node_modules/scheduler/index.js'])(
+    'allows %j',
+    mod => {
+      landingBuild()
+      write(
+        '.vite/module-map.json',
+        JSON.stringify({ ...JSON.parse(new TextDecoder().decode(files.get(`${DIST}/.vite/module-map.json`)!)), 'assets/lazy-2.js': [mod] }),
+      )
+      expect(check()).toEqual([])
+    },
+  )
 
   it('allows the landing page’s own modules and React', () => {
     landingBuild()
@@ -337,6 +365,25 @@ describe('the guard stays small', () => {
     landingBuild()
     const map = JSON.parse(new TextDecoder().decode(files.get(`${DIST}/.vite/module-map.json`)!))
     write('.vite/module-map.json', JSON.stringify({ ...map, 'assets/mount-1.js': ['src/landing/mount.tsx', 'src/landing/content.ts'] }))
+    expect(check()).toEqual([])
+  })
+})
+
+describe('the font is wired end to end', () => {
+  it('fails when the landing CSS stops loading the font', () => {
+    landingBuild()
+    write('assets/mount-1.css', '@font-face{src:url(/fonts/other.woff2)}')
+    expect(check().join('\n')).toContain(`the landing CSS no longer loads ${FONT}`)
+  })
+
+  it('fails when the guard stops preloading it', () => {
+    landingBuild()
+    write('assets/main-abc.js', 'console.log(1)')
+    expect(check().join('\n')).toContain(`the root page guard no longer preloads ${FONT}`)
+  })
+
+  it('is not checked before there is a landing page', () => {
+    write('assets/main-abc.js', 'console.log(1)')
     expect(check()).toEqual([])
   })
 })

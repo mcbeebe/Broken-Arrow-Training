@@ -32,8 +32,3 @@ export const SIGNAL = {
   inputBorderSoft: '#CBD5E1',
   focusRing: '#0D9488',
 } as const
-
-export type SignalColor = keyof typeof SIGNAL
-
-/** Self-hosted Schibsted Grotesk (OFL), one variable file for 400–800. */
-export const FONT_URL = '/fonts/schibsted-grotesk-latin-wght-normal.woff2'

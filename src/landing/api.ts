@@ -30,7 +30,12 @@ export function resolveApiBase(env: { VITE_COACH_API_URL?: string; VITE_GARMIN_A
   return (env.VITE_COACH_API_URL || env.VITE_GARMIN_API_URL || '').replace(/\/$/, '')
 }
 
-export const API_BASE = resolveApiBase(import.meta.env as { VITE_COACH_API_URL?: string; VITE_GARMIN_API_URL?: string })
+// Read the two variables by name: passing import.meta.env whole would make
+// Vite inline every VITE_* setting into the landing chunk.
+export const API_BASE = resolveApiBase({
+  VITE_COACH_API_URL: import.meta.env.VITE_COACH_API_URL as string | undefined,
+  VITE_GARMIN_API_URL: import.meta.env.VITE_GARMIN_API_URL as string | undefined,
+})
 
 /**
  * POST an invite request to the existing access queue.

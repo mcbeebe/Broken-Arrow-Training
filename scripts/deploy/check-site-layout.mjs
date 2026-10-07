@@ -13,8 +13,8 @@
  * JS and CSS) stays under GUARD_BUDGET_BYTES gzipped; that the whole landing
  * page (guard + dynamic imports + the shared React chunk + CSS) stays under
  * PAGE_BUDGET_BYTES; and, from dist/.vite/module-map.json (written by
- * scripts/deploy/vite-plugin-module-map.ts), that no chunk the landing page
- * loads contains app code, recharts or cesium.
+ * scripts/deploy/vite-plugin-module-map.ts), that every chunk the landing
+ * page loads holds only its own code, React and the bundler's runtime.
  */
 import * as nodeFs from 'node:fs'
 import { join, resolve } from 'node:path'
@@ -27,12 +27,26 @@ export const GUARD_BUDGET_BYTES = 10 * 1024
 /** Gzipped size limit for everything the landing page loads (JS + CSS). */
 export const PAGE_BUDGET_BYTES = 90 * 1024
 
-/** Modules that must never ship to the landing page (design-spec.md § Files). */
-const FORBIDDEN_IN_LANDING =
-  /(^|\/)src\/(App\.tsx|components\/|engines\/|hooks\/|utils\/|data\/)|node_modules\/(recharts|cesium)\//
+/**
+ * The only modules the landing page may ship (design-spec.md § Files): its own
+ * code, React, and the bundler's runtime helpers. An allowlist, so any app
+ * module (src/types, src/palettes.ts, anything added later) fails the build,
+ * and so does an unexpected helper; add one here only after checking what it
+ * is. Module ids are root-relative (vite-plugin-module-map.ts); virtual ones
+ * start with \0.
+ */
+const ALLOWED_IN_LANDING = [
+  /^index\.html$/,
+  /^src\/landing\/[^?]+$/,
+  /^node_modules\/(react|react-dom|scheduler)\/[^?]+$/,
+  /^\0?(vite\/(modulepreload-polyfill|preload-helper)|rolldown\/runtime)\.js$/,
+]
 
 /** All the page's copy; the guard needs only SECTION_IDS (src/landing/sections.ts). */
 const NOT_IN_GUARD = /(^|\/)src\/landing\/content\.ts$/
+
+/** The landing page's self-hosted font: required, preloaded by the guard, used by the landing CSS. */
+const LANDING_FONT = 'fonts/schibsted-grotesk-latin-wght-normal.woff2'
 
 const REQUIRED_FILES = [
   'index.html',
@@ -43,7 +57,7 @@ const REQUIRED_FILES = [
   'sw.js',
   'favicon.svg',
   'attune-mark.svg',
-  'fonts/schibsted-grotesk-latin-wght-normal.woff2',
+  LANDING_FONT,
   'manifest.webmanifest',
 ]
 
@@ -99,6 +113,7 @@ export function checkSiteLayout(distDir, fs = nodeFs) {
       if (viteManifest['index.html']?.isEntry) {
         errors.push(...checkPageBudget(distDir, viteManifest, fs))
         errors.push(...checkModuleMap(distDir, viteManifest, readFileSync, existsSync))
+        errors.push(...checkFontWiring(distDir, viteManifest, readFileSync, existsSync))
       }
     } else errors.push('dist/.vite/manifest.json is not valid JSON')
   }
@@ -129,6 +144,26 @@ function closure(viteManifest, dynamic) {
   }
   visit('index.html')
   return { js: [...new Set(js)], css: [...new Set(css)] }
+}
+
+/**
+ * The guard preloads the font and the landing CSS's @font-face loads it. If
+ * the two drift, the preload fetches a file nothing uses and the real one
+ * loads late. Only checked once the page has CSS (i.e. there is a page).
+ */
+function checkFontWiring(distDir, viteManifest, readFileSync, existsSync) {
+  const url = `/${LANDING_FONT}`
+  const read = file => (existsSync(join(distDir, file)) ? readFileSync(join(distDir, file)) : '')
+  const { css } = closure(viteManifest, true)
+  if (!css.length) return []
+  const errors = []
+  if (!css.some(file => read(file).includes(url))) {
+    errors.push(`the landing CSS no longer loads ${url} (${css.join(', ')})`)
+  }
+  if (!closure(viteManifest, false).js.some(file => read(file).includes(url))) {
+    errors.push(`the root page guard no longer preloads ${url}, the font the landing CSS uses`)
+  }
+  return errors
 }
 
 function checkPageBudget(distDir, viteManifest, fs) {
@@ -166,8 +201,11 @@ function checkModuleMap(distDir, viteManifest, readFileSync, existsSync) {
       continue
     }
     for (const mod of modules) {
-      if (FORBIDDEN_IN_LANDING.test(mod)) {
-        errors.push(`app code in the landing page: dist/${file} contains ${mod}`)
+      if (!ALLOWED_IN_LANDING.some(re => re.test(mod))) {
+        errors.push(
+          `the landing page ships a module outside its allowlist: dist/${file} contains ${mod} ` +
+            '(allowed: src/landing/, react, react-dom, scheduler, the Vite/Rolldown runtime)',
+        )
       }
       if (guard.has(file) && NOT_IN_GUARD.test(mod)) {
         errors.push(`the root page guard ships ${mod} (dist/${file}); import SECTION_IDS from src/landing/sections.ts instead`)

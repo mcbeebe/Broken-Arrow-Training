@@ -64,7 +64,11 @@ describe('readReferralSource', () => {
     expect(readReferralSource()).toBeNull()
   })
 
-  it.each(['not json', '{}', '{"from":""}', '{"from":42}', 'null'])('is null for a malformed value %j', raw => {
+  it.each([
+    'not json', '{}', '{"from":""}', '{"from":42}', 'null',
+    // Sources the server's regex rejects, so 'landing' is sent instead of nothing.
+    '{"from":"Newsletter"}', '{"from":"tool heat"}', `{"from":"${'a'.repeat(41)}"}`, '{"from":"tool-heat\\n"}',
+  ])('is null for a malformed or unsendable value %j', raw => {
     localStorage.setItem(REFERRAL_KEY, raw)
     expect(readReferralSource()).toBeNull()
   })

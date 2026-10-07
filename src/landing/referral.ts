@@ -26,16 +26,20 @@ export function recordReferralSource(search: string, now: number = Date.now()): 
   }
 }
 
+/** What api/auth/google.py accepts as an invite's `source`; it drops anything else. */
+const SOURCE_RE = /^[a-z0-9-]{1,40}$/
+
 /**
- * The stored first-touch referral source, or null when none (or storage is
- * unavailable). The landing page sends it with an invite request.
+ * The stored first-touch referral source, or null when none, when storage is
+ * unavailable, or when the server would drop it (so the caller can fall back
+ * to its own source instead of sending one that gets thrown away).
  */
 export function readReferralSource(): string | null {
   try {
     const raw = localStorage.getItem(REFERRAL_KEY)
     if (!raw) return null
     const from = (JSON.parse(raw) as { from?: unknown })?.from
-    return typeof from === 'string' && from ? from : null
+    return typeof from === 'string' && SOURCE_RE.test(from) ? from : null
   } catch {
     return null
   }

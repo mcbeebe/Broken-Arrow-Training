@@ -4,7 +4,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Self-hosted, Latin subset; one variable file covers 400–800 (tokens.json). */
+/* Self-hosted, Latin subset; one variable file (its axis runs 400–900; the page uses 400–800). */
 @font-face {
   font-family: 'Schibsted Grotesk';
   font-style: normal;
@@ -37,5 +37,10 @@
   }
   summary {
     cursor: pointer;
+  }
+  /* Tailwind's default placeholder grey is 2.5:1 on white; muted is a checked pair (tokens.json). */
+  input::placeholder {
+    color: theme('colors.landing.muted');
+    opacity: 1;
   }
 }

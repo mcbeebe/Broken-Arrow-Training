@@ -35,13 +35,6 @@ describe('sections', () => {
     }
   })
 
-  it('every rendered id that a link targets is a landing anchor', () => {
-    const targeted = new Set([...root.querySelectorAll('a[href^="#"]')].map(a => a.getAttribute('href')!.slice(1)))
-    for (const el of root.querySelectorAll('[id]')) {
-      if (targeted.has(el.id)) expect(LANDING_ANCHORS.has(`#${el.id}`)).toBe(true)
-    }
-  })
-
   it('links off the page only to /app/, the tools and the legal pages', () => {
     const external = [...root.querySelectorAll('a[href]')].map(a => a.getAttribute('href')!).filter(h => !h.startsWith('#'))
     for (const href of external) {

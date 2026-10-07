@@ -15,6 +15,15 @@ import { HYROX_DIVISIONS, stationSpecs } from '../../engines/hyrox/spec'
 import { MAX_BLOCK_WEEKS, DELOAD_EVERY } from '../../engines/generalFitness'
 import { CARDIO_MODALITIES } from '../../hooks/useOnboarding'
 import { COACH_TRAITS, COACH_TRAIT_EXCLUSIVE_GROUPS, DEFAULT_COACH_NAME } from '../../types'
+import personaEditorSource from '../../components/CoachPersonaEditor.tsx?raw'
+
+/** Every string in content.ts: the states one default render never shows (other tabs, form errors, success). */
+function contentStrings(value: unknown = C, out: string[] = []): string[] {
+  if (typeof value === 'string') out.push(value)
+  else if (Array.isArray(value)) value.forEach(v => contentStrings(v, out))
+  else if (value && typeof value === 'object') Object.values(value).forEach(v => contentStrings(v, out))
+  return out
+}
 
 /** Everything a visitor can read or hear: text, plus labels and placeholders. */
 let pageText = ''
@@ -52,8 +61,12 @@ describe('words and claims that must never appear (copy.md)', () => {
     expect(pageText).toContain(C.HERO.title)
   })
 
-  it.each(BANNED)('never says %s', (_name, pattern) => {
+  it.each(BANNED)('never says %s on the rendered page', (_name, pattern) => {
     expect(pageText).not.toMatch(pattern)
+  })
+
+  it.each(BANNED)('never says %s anywhere in content.ts', (_name, pattern) => {
+    expect(contentStrings().filter(s => pattern.test(s))).toEqual([])
   })
 })
 
@@ -170,11 +183,12 @@ describe('Make it yours: the coach traits', () => {
     for (const id of C.MAKE.defaultTraits) expect(shown.has(id)).toBe(true)
   })
 
-  it('the name input’s maxLength matches the app’s (30)', async () => {
+  it('the name input’s maxLength matches the app’s persona editor', () => {
+    const limits = [...personaEditorSource.matchAll(/maxLength=\{(\d+)\}/g)].map(m => Number(m[1]))
+    expect(limits, 'CoachPersonaEditor.tsx has one maxLength, the name’s').toHaveLength(1)
     const { container, unmount } = render(<LandingPage />)
-    const input = container.querySelector<HTMLInputElement>('#coach-name')!
-    expect(input.maxLength).toBe(30)
-    expect(C.MAKE.nameMaxLength).toBe(30)
+    expect(container.querySelector<HTMLInputElement>('#coach-name')!.maxLength).toBe(limits[0])
+    expect(C.MAKE.nameMaxLength).toBe(limits[0])
     unmount()
   })
 })

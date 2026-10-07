@@ -40,7 +40,6 @@ function messageFor(result: Exclude<InviteResult, { ok: true }>): string {
 export function InviteForm({ submit = requestInvite, getSource = () => readReferralSource() ?? 'landing' }: Props) {
   const [email, setEmail] = useState('')
   const [note, setNote] = useState('')
-  const [honeypot, setHoneypot] = useState('')
   const [state, setState] = useState<State>({ kind: 'idle' })
   const emailRef = useRef<HTMLInputElement>(null)
   const errorRef = useRef<HTMLParagraphElement>(null)
@@ -52,8 +51,11 @@ export function InviteForm({ submit = requestInvite, getSource = () => readRefer
     else if (state.kind === 'error') (state.field ? emailRef : errorRef).current?.focus()
   }, [state])
 
-  async function onSubmit(e: FormEvent) {
+  async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
+    // Read the honeypot from the form, not React state: a bot that sets the
+    // field's value without firing input events still gets caught.
+    const honeypot = String(new FormData(e.currentTarget).get('hp_contact_ref') ?? '')
     if (state.kind === 'sending') return
     const address = email.trim()
     if (!EMAIL_RE.test(address)) {
@@ -138,14 +140,7 @@ export function InviteForm({ submit = requestInvite, getSource = () => readRefer
       />
       {/* Honeypot: hidden from people and assistive tech; bots fill it, the server drops them. */}
       <div aria-hidden="true" className="absolute -left-[10000px] h-px w-px overflow-hidden">
-        <input
-          type="text"
-          name="hp_contact_ref"
-          tabIndex={-1}
-          autoComplete="off"
-          value={honeypot}
-          onChange={e => setHoneypot(e.target.value)}
-        />
+        <input type="text" name="hp_contact_ref" tabIndex={-1} autoComplete="off" defaultValue="" />
       </div>
       <p className="mb-0 mt-1 text-[15px] text-landing-muted">
         {INVITE.fineprint}{' '}

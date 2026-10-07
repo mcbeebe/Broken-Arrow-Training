@@ -81,6 +81,21 @@ describe('sending', () => {
     })
   })
 
+  it('catches a bot that sets the honeypot without typing (no input events)', async () => {
+    const { email, button, submit, container } = setup()
+    fireEvent.change(email, { target: { value: 'new@example.com' } })
+    container.querySelector<HTMLInputElement>('input[name="hp_contact_ref"]')!.value = 'spam'
+    await send(button)
+    expect(submit).toHaveBeenCalledWith(expect.objectContaining({ hp_contact_ref: 'spam' }))
+  })
+
+  it('sends an empty honeypot for a person', async () => {
+    const { email, button, submit } = setup()
+    fireEvent.change(email, { target: { value: 'new@example.com' } })
+    await send(button)
+    expect(submit).toHaveBeenCalledWith(expect.objectContaining({ hp_contact_ref: '' }))
+  })
+
   it('shows “Sending…” and disables the button until the answer comes back', async () => {
     let resolve!: (r: InviteResult) => void
     const { email, button } = setup(new Promise<InviteResult>(r => { resolve = r }))

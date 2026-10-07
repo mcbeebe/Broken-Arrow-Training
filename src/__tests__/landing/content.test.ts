@@ -16,7 +16,8 @@ function leaves(value: unknown, out: string[] = []): string[] {
 }
 
 const ALL = leaves(content)
-const has = (s: string) => ALL.some(leaf => leaf.includes(s))
+/** Short fixtures (labels, numbers) must be a whole string, or 'ms' would match anything. */
+const has = (s: string) => ALL.some(leaf => (s.length < 25 ? leaf === s : leaf.includes(s)))
 
 // copy.md, in document order. Templated lines are split at their {slots}.
 const COPY_MD = [
