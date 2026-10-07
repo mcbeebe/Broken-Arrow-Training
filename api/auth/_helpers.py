@@ -12,6 +12,8 @@ Environment variables:
   APPLE_PRIVATE_KEY: Apple Sign-In private key (PEM, base64-encoded)
   OAUTH_JWT_SECRET: Secret for signing session JWTs
   KV_REST_API_URL / KV_REST_API_TOKEN: Upstash KV
+  ACCESS_REQUEST_SALT: salt for the hashed client IP that keys the
+    request-access throttle (google.py). Unset = throttle off.
 """
 
 import hashlib
@@ -54,6 +56,61 @@ def _kv_get(key: str) -> str | None:
             return json.loads(resp.read().decode()).get("result")
     except Exception:
         return None
+
+
+def _kv_get_strict(key: str) -> str | None:
+    """Like _kv_get, but a failure raises instead of reading as "absent".
+
+    Use it before any read-modify-write: a swallowed error looks exactly like
+    an empty value, and writing back on top of it wipes what was there."""
+    url = _kv_base()
+    token = os.environ.get("KV_REST_API_TOKEN", "")
+    if not url or not token:
+        raise RuntimeError("KV not configured")
+    req = urllib.request.Request(
+        f"{url}/get/{urllib.parse.quote(key, safe='')}",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    with urllib.request.urlopen(req, timeout=10) as resp:
+        return json.loads(resp.read().decode()).get("result")
+
+
+def _kv_multi_exec(commands: list[list[str]], timeout: float = 10) -> list:
+    """Run commands as one Upstash transaction (/multi-exec — /pipeline is
+    not atomic). Returns each command's result; raises if KV is unconfigured,
+    unreachable, or any command errored."""
+    url = _kv_base()
+    token = os.environ.get("KV_REST_API_TOKEN", "")
+    if not url or not token:
+        raise RuntimeError("KV not configured")
+    req = urllib.request.Request(
+        f"{url}/multi-exec",
+        data=json.dumps(commands).encode(),
+        headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+        method="POST",
+    )
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        replies = json.loads(resp.read().decode())
+    if not isinstance(replies, list) or len(replies) != len(commands):
+        raise RuntimeError(f"unexpected multi-exec reply: {replies!r}"[:200])
+    for r in replies:
+        if not isinstance(r, dict) or "error" in r:
+            raise RuntimeError(f"multi-exec command failed: {r!r}"[:200])
+    return [r.get("result") for r in replies]
+
+
+def kv_bump_counter(key: str, ttl_seconds: int, timeout: float = 3) -> int:
+    """Increment a counter that always has an expiry, and return the new value.
+
+    SET key 0 EX ttl NX, then INCR, in one transaction: the TTL is set before
+    the first increment, so no lost call can leave a counter that never
+    expires (which would lock an IP out for good). The short timeout keeps a
+    hung KV from eating the auth functions' 15 s before the real work."""
+    results = _kv_multi_exec([
+        ["SET", key, "0", "EX", str(ttl_seconds), "NX"],
+        ["INCR", key],
+    ], timeout=timeout)
+    return int(results[1])
 
 
 def _kv_set(key: str, value: str) -> None:
@@ -119,7 +176,10 @@ MAX_REQUEST_NOTE_LEN = 200
 
 
 def get_access_requests() -> list[dict]:
-    """Pending access requests, oldest first. [] if none or KV unconfigured."""
+    """Pending access requests, oldest first. [] if none or KV unconfigured.
+
+    Lenient: a failed read also returns []. Fine for display, never for a
+    read-modify-write — use get_access_requests_strict() there."""
     raw = _kv_get(KV_ACCESS_REQUESTS_KEY)
     if not raw:
         return []
@@ -130,21 +190,46 @@ def get_access_requests() -> list[dict]:
     return data if isinstance(data, list) else []
 
 
+def get_access_requests_strict() -> list[dict]:
+    """Pending access requests; raises if the queue can't be read.
+
+    An unreachable KV, an unconfigured KV and a stored value that isn't a JSON
+    list all raise, so a caller can never mistake them for an empty queue."""
+    raw = _kv_get_strict(KV_ACCESS_REQUESTS_KEY)
+    if raw is None:
+        return []
+    data = json.loads(raw)
+    if not isinstance(data, list):
+        raise ValueError("access request queue is not a list")
+    return data
+
+
 def set_access_requests(requests: list[dict]) -> None:
     _kv_set(KV_ACCESS_REQUESTS_KEY, json.dumps(requests, separators=(",", ":")))
 
 
-def add_access_request(email: str, note: str) -> None:
+def add_access_request(email: str, note: str, source: str | None = None) -> bool:
     """Queue a request, de-duped by email (an existing one is refreshed) and
-    capped at MAX_ACCESS_REQUESTS (oldest dropped first under a flood)."""
+    capped at MAX_ACCESS_REQUESTS (oldest dropped first under a flood).
+
+    Raises — and writes nothing — if the current queue can't be read, so a
+    KV hiccup can never replace every pending request with this one.
+    `source` (already validated by the caller) is stored only when given.
+    Returns True if the email wasn't already queued."""
     email = email.strip().lower()
     note = note.strip()[:MAX_REQUEST_NOTE_LEN]
+    current = get_access_requests_strict()
     requests = [
-        r for r in get_access_requests()
+        r for r in current
         if str(r.get("email", "")).strip().lower() != email
     ]
-    requests.append({"email": email, "note": note, "ts": int(time.time())})
+    is_new = len(requests) == len(current)
+    entry = {"email": email, "note": note, "ts": int(time.time())}
+    if source:
+        entry["source"] = source
+    requests.append(entry)
     set_access_requests(requests[-MAX_ACCESS_REQUESTS:])
+    return is_new
 
 
 def remove_access_request(email: str) -> None:
@@ -181,7 +266,7 @@ def get_email_to_athlete_map() -> dict[str, str]:
 #                    domain to reach real users.
 #   NOTIFY_EMAIL   — where new-request alerts go (defaults to the admin's
 #                    allowlisted email)
-#   APP_URL        — sign-in link used in emails (default https://attune.coach)
+#   APP_URL        — sign-in link used in emails (default https://attune.coach/app)
 
 
 def _esc(s: str) -> str:
@@ -193,7 +278,9 @@ def _esc(s: str) -> str:
 
 
 def app_url() -> str:
-    return os.environ.get("APP_URL", "https://attune.coach").rstrip("/")
+    """The app's sign-in URL for emails. The app lives under /app/ (initiative
+    003); `/` is the landing page."""
+    return os.environ.get("APP_URL", "https://attune.coach/app").rstrip("/")
 
 
 def get_admin_email() -> str | None:
@@ -231,7 +318,7 @@ def send_email(to: str, subject: str, html: str, text: str | None = None) -> boo
         return False
 
 
-def notify_admin_of_request(requester_email: str, note: str) -> None:
+def notify_admin_of_request(requester_email: str, note: str, source: str | None = None) -> None:
     """Email the admin that someone asked for access. Best-effort."""
     admin_email = get_admin_email()
     if not admin_email:
@@ -240,14 +327,22 @@ def notify_admin_of_request(requester_email: str, note: str) -> None:
     note_html = (
         f"<p style='margin:8px 0;color:#475569'>Note: {_esc(note)}</p>" if note else ""
     )
+    source_html = (
+        f"<p style='margin:8px 0;color:#475569'>Source: {_esc(source)}</p>" if source else ""
+    )
     html = (
         f"<p>New Attune access request from <strong>{_esc(requester_email)}</strong>.</p>"
-        f"{note_html}"
+        f"{note_html}{source_html}"
         f"<p>Open <a href='{app_url()}'>Attune</a> → Settings → Athletes to approve or dismiss.</p>"
     )
+    details = []
+    if note:
+        details.append(f"Note: {note}")
+    if source:
+        details.append(f"Source: {source}")
     text = (
         f"New Attune access request from {requester_email}."
-        + (f"\n\nNote: {note}" if note else "")
+        + ("\n\n" + "\n".join(details) if details else "")
         + f"\n\nApprove in Attune → Settings → Athletes: {app_url()}"
     )
     send_email(admin_email, f"New Attune access request: {requester_email}", html, text)

@@ -163,9 +163,9 @@ jobs:
   #   3. A user landing on any legacy URL hits the airlock, which reads
   #      their localStorage, postMessages it to attune.coach (allowlisted
   #      via VITE_SOURCE_ORIGIN), and forwards them with the deep link
-  #      preserved — see scripts/airlock/index.html, which strips the
-  #      /Broken-Arrow-Training/ path prefix. Renaming this repo breaks
-  #      that strip and with it the migration path.
+  #      preserved — see scripts/airlock/index.html, which maps the
+  #      /Broken-Arrow-Training/ path prefix to /app/. Renaming this repo
+  #      breaks that mapping and with it the migration path.
   #   4. Rollback: git-revert the cutover commit to restore the previous
   #      build-and-deploy job, or set ATTUNE_PUBLISH_ENABLED to pause.
   build-and-deploy-attune:

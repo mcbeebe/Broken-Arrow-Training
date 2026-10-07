@@ -182,7 +182,7 @@ def run_scheduled_push() -> dict:
             payload = {
                 "title": copy["title"],
                 "body": copy["body"],
-                "url": "/?view=coach",
+                "url": "/app/?view=coach",
                 "tag": f"coach-briefing-{hour}",
             }
             try:
@@ -299,7 +299,7 @@ class handler(BaseHTTPRequestHandler):
             payload = {
                 "title": "Coach",
                 "body": "Test notification — push is wired up. Your 6 AM / 1 PM / 8 PM briefings will land here.",
-                "url": "/?view=coach",
+                "url": "/app/?view=coach",
                 "tag": "coach-test",
             }
             sent, pruned, errors, kept = 0, 0, [], []
