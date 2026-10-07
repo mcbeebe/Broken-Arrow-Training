@@ -124,7 +124,7 @@ export const SPORTS = [
     readiness: { value: 86, title: 'Readiness: ready to push' },
     planned: 'Race simulation: 4 × (1 km run + station)',
     today: 'Race simulation: 4 × (1 km run + station), full intensity',
-    why: 'Your HRV and resting heart rate are both better than normal, and your load is steady. This is the day for your hardest session, so go at full race pace.',
+    why: 'Your HRV and resting heart rate are both better than normal, and your load is steady. This is the day for your hardest session, so get after it.',
     chartCaption: 'The race simulation stays, at full intensity, so week 9 lands as planned.',
   },
   {

@@ -62,7 +62,7 @@ const COPY_MD = [
   '63', '14% above normal', '47', '3 under normal', '8:10', 'Solid night', 'Readiness: ready to push',
   'Training for HYROX, Open division', 'Race simulation: 4 × (1 km run + station)',
   'Race simulation: 4 × (1 km run + station), full intensity',
-  'Your HRV and resting heart rate are both better than normal, and your load is steady. This is the day for your hardest session, so go at full race pace.',
+  'Your HRV and resting heart rate are both better than normal, and your load is steady. This is the day for your hardest session, so get after it.',
   'The race simulation stays, at full intensity, so week 9 lands as planned.',
   // Fitness: neutral
   '50', '7:25', 'Normal night',
