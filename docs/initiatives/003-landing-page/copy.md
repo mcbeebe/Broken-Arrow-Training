@@ -212,13 +212,25 @@ Do not use Garmin, Strava or Apple logos (trademark guidelines); names as text o
 ## Try it before you’re in (`#tools`)
 
 - H2: Try it before you’re in
-- Body: Three free calculators built on the same engine. No sign-up, and nothing you enter leaves your browser.
+- Body: Four free calculators built on the same engine. No sign-up, and nothing you enter leaves your browser. *(PR 4c: was “Three”)*
 
 | Tool | Body | Link text | URL |
 |---|---|---|---|
 | Fueling planner | Carbs, fluid and sodium per hour for a long effort. | Open the fueling planner | `/tools/fueling.html` |
 | Race time predictor | Realistic finish times from a recent result. | Open the race predictor | `/tools/predictor.html` |
 | Heat planner | How to adjust pace and fluids when it’s hot. | Open the heat planner | `/tools/heat.html` |
+| Weekly mileage planner | How many miles a week to build to, and how fast, for your next race. | Open the mileage planner | `/tools/mileage.html` |
+
+### Weekly mileage planner page (`/tools/mileage.html`, PR 4c, approved 2026-10-07)
+
+- Title: Weekly mileage planner · tagline: How many miles a week to build to, and how fast, for your next race.
+- Fields: Race (5K · 10K · Half marathon · Marathon) · Miles you run a week now · Weeks until your race
+- Results: Start at {x} mi a week · Peak at {y} mi in week {n} · Longest run {z} mi
+- Chart caption: Each bar is one week. Lighter bars are easier weeks.
+- Footnote: Built on the Daniels method’s ramp: each building week is at most about 10% above the last full week, and every fourth week of the build is easier. *(Approved as “about 10% more a week at most”; reworded in the build because the week after an easier week rises more than 10% over that easier week. Pending the owner’s OK.)*
+- Invalid input: Enter 1 to 200 miles a week and 4 to 24 weeks.
+
+Backed by `mileagePlan` in `src/tools/toolMath.ts`: the app’s `buildWeeklyMileage` with the Daniels method (`maxWeeklyIncreasePct` 0.10, `cutbackEveryNWeeks` 4), the plan generator’s phase allocation and short-race taper cap, 5 running days and no injury or age adjustments.
 
 ## Founder note — owner’s wording, 2026-10-07
 

@@ -5,8 +5,13 @@ import {
   vertMultiplier,
   formatHms,
   heatPlan,
+  mileagePlan,
+  MILEAGE_DISTANCES,
+  MILEAGE_METHOD_ID,
 } from '../../tools/toolMath'
 import { carbTargetForRaceMiles } from '../../utils/fueling'
+import { getMethodById } from '../../data/methods'
+import { allocatePhaseWeeks, buildWeeklyMileage, capTaperBlocks, TAPER_WEEKS_CAP } from '../../engines/planGenerator/weekPlan'
 
 /**
  * G10 calculator tests. The core invariant: the free tools compute with the
@@ -84,6 +89,88 @@ describe('heatPlan', () => {
 
   it('GUARD: invalid date → null', () => {
     expect(heatPlan('not a date', 90)).toBeNull()
+  })
+})
+
+describe('mileagePlan (initiative 003 PR 4c)', () => {
+  const daniels = getMethodById(MILEAGE_METHOD_ID)!
+
+  it('is the app’s own ramp: buildWeeklyMileage with the Daniels method, phase blocks and taper cap', () => {
+    // Short plans included: that's where the generator's taper cap bites.
+    for (const { id } of MILEAGE_DISTANCES) {
+      for (const weeks of [6, 8, 10, 16]) {
+        const blocks = allocatePhaseWeeks(daniels, weeks)
+        const cap = TAPER_WEEKS_CAP[id]
+        const expected = buildWeeklyMileage(daniels, weeks, cap != null ? capTaperBlocks(blocks, daniels, cap) : blocks, 20, {}, {
+          raceDistance: id,
+          maxTaperWeeks: cap,
+          runningDays: 5,
+        })
+        const plan = mileagePlan(id, 20, weeks)!
+        expect(plan.weeks.map(w => w.miles), `${id} ${weeks}`).toEqual(expected.map(w => w.totalMi))
+        expect(plan.weeks.map(w => w.longRunMi), `${id} ${weeks}`).toEqual(expected.map(w => w.longRunMi))
+        expect(plan.weeks.map(w => w.taper), `${id} ${weeks}`).toEqual(expected.map(w => w.isTaper))
+      }
+    }
+  })
+
+  it.each(MILEAGE_DISTANCES.map(d => d.id))('%s: no building week is more than 10% above the last full one (the footnote)', id => {
+    for (const current of [5, 15, 30, 50]) {
+      for (const weeks of [8, 12, 18, 24]) {
+        const plan = mileagePlan(id, current, weeks)!
+        let lastFull = current
+        for (const w of plan.weeks) {
+          if (w.taper) continue
+          if (!w.easier) {
+            // Shown to 0.1 mi, so allow each figure's rounding: the engine's own step is exactly ≤ 10%.
+            expect(w.miles, `${id} ${current} mi ${weeks} wk, week ${w.week}`).toBeLessThanOrEqual((lastFull + 0.05) * 1.1 + 0.05)
+            lastFull = w.miles
+          }
+        }
+      }
+    }
+  })
+
+  it('has an easier week every fourth week of the build, then a taper that steps down', () => {
+    const plan = mileagePlan('marathon', 25, 18)!
+    const build = plan.weeks.filter(w => !w.taper)
+    const easier = build.filter(w => w.easier).map(w => w.week)
+    expect(easier.length).toBeGreaterThan(0)
+    for (const wk of easier) expect(wk % 4, `week ${wk}`).toBe(0)
+    // ...and every fourth week before the peak is one of them.
+    for (const w of build) if (w.week % 4 === 0 && w.week < plan.peakWeek) expect(w.easier, `week ${w.week}`).toBe(true)
+    // Taper weeks are easier weeks too: the page draws them lighter.
+    for (const w of plan.weeks.filter(w => w.taper)) expect(w.easier, `week ${w.week}`).toBe(true)
+    const taper = plan.weeks.filter(w => w.taper).map(w => w.miles)
+    expect(taper.length).toBeGreaterThan(0)
+    for (let i = 1; i < taper.length; i++) expect(taper[i]).toBeLessThanOrEqual(taper[i - 1])
+  })
+
+  it('summarizes start, peak (and its week) and the longest run from the weeks', () => {
+    const plan = mileagePlan('half_marathon', 20, 12)!
+    expect(plan.startMi).toBe(plan.weeks[0].miles)
+    expect(plan.peakMi).toBe(Math.max(...plan.weeks.map(w => w.miles)))
+    expect(plan.weeks[plan.peakWeek - 1].miles).toBe(plan.peakMi)
+    expect(plan.longestRunMi).toBe(Math.max(...plan.weeks.map(w => w.longRunMi)))
+    expect(plan.weeks).toHaveLength(12)
+  })
+
+  it('caps a short race’s taper as the app does (a 6-week 5K tapers at most 2 weeks)', () => {
+    expect(mileagePlan('5k', 20, 6)!.weeks.filter(w => w.taper).length).toBeLessThanOrEqual(TAPER_WEEKS_CAP['5k']!)
+  })
+
+  it('never opens more than one ramp step above what you run now', () => {
+    for (const current of [5, 20, 40]) expect(mileagePlan('marathon', current, 16)!.startMi).toBeLessThanOrEqual(current * 1.1 + 0.05)
+  })
+
+  it('GUARD: bad input → null', () => {
+    expect(mileagePlan('marathon', 0, 16)).toBeNull()
+    expect(mileagePlan('marathon', -5, 16)).toBeNull()
+    expect(mileagePlan('marathon', NaN, 16)).toBeNull()
+    expect(mileagePlan('marathon', 20, 3)).toBeNull()
+    expect(mileagePlan('marathon', 20, 25)).toBeNull()
+    expect(mileagePlan('marathon', 20, 12.5)).toBeNull()
+    expect(mileagePlan('marathon', 201, 12)).toBeNull()
   })
 })
 

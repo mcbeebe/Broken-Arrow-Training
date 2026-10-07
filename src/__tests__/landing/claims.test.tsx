@@ -23,6 +23,7 @@ import personaEditorSource from '../../components/CoachPersonaEditor.tsx?raw'
 import readinessSource from '../../utils/readiness.ts?raw'
 import verdictSource from '../../utils/verdict.ts?raw'
 import morningOutlookSource from '../../engines/adaptive/morningOutlook.ts?raw'
+import viteConfigSource from '../../../vite.config.ts?raw'
 
 /** Every string in content.ts: the states one default render never shows (other tabs, form errors, success). */
 function contentStrings(value: unknown = C, out: string[] = []): string[] {
@@ -202,6 +203,17 @@ describe('Make it yours: the coach traits', () => {
     expect(container.querySelector<HTMLInputElement>('#coach-name')!.maxLength).toBe(limits[0])
     expect(C.MAKE.nameMaxLength).toBe(limits[0])
     unmount()
+  })
+})
+
+describe('Free tools', () => {
+  it('“Four free calculators” counts the tools listed', () => {
+    const word = NUMBER_WORDS[C.TOOLS.items.length]
+    expect(C.TOOLS.body.startsWith(`${word[0].toUpperCase()}${word.slice(1)} free calculators`)).toBe(true)
+  })
+
+  it('every tool the card links is built (a Vite input)', () => {
+    for (const { href } of C.TOOLS.items) expect(viteConfigSource, href).toContain(`'${href.slice(1)}'`)
   })
 })
 

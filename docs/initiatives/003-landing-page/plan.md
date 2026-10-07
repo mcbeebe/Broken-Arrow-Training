@@ -241,9 +241,18 @@ forwards the old `/?view=coach` links, so nothing 404s in between.
 - **App screens:** 6 crops of the owner’s own screens, with no name, race, status bar or calf note; journal limited to its header and one note; the recommendations stack left out (owner, 2026-10-07). 167 KB in all, lazy-loaded. `check-site-layout.mjs` now fails if a screenshot the page names is missing, over 80 KB, or if all of them pass 240 KB.
 - **Page weight:** the landing page is 79.3 KB of 90 gzipped (+2.5 KB for the written replies).
 
-## PR 4c — A free weekly mileage planner (planned, owner-approved 2026-10-07)
+## PR 4c — A free weekly mileage planner (owner-approved 2026-10-07)
 
-A fourth tool page on the app’s own ramp (`buildWeeklyMileage`, `src/engines/planGenerator/weekPlan.ts`): race distance, current weekly miles and weeks to race in; start, peak and cutback weeks out. Miles only and one default method for v1. Wires into the build, the layout check and “Try it before you’re in” (which then says four calculators).
+**Subject:** `Free weekly mileage planner: the app's own ramp, for a 5K to a marathon`
+
+A fourth tool page, `/tools/mileage.html`, on the app’s own ramp. Copy approved 2026-10-07 (copy.md § Weekly mileage planner page).
+
+**As built:**
+- `mileagePlan` (`src/tools/toolMath.ts`) calls `buildWeeklyMileage` with the Daniels method, the generator’s phase allocation and short-race taper cap, 5 running days and no injury or age adjustments. Inputs: race (5K, 10K, half, marathon), current weekly miles (1–200), weeks to race (4–24). Out: start, peak and its week, longest run, and every week’s miles, drawn as bars (cutback and taper weeks lighter). Miles only.
+- Tests prove it is the engine’s output, not a copy (equal to a direct `buildWeeklyMileage` call at 6, 8, 10 and 16 weeks for every distance), and hold the footnote to it: across 64 combinations no building week is more than 10% above the last full week (allowing for 0.1 mi display rounding), every fourth week before the peak is easier, the taper steps down, and week 1 is at most one step above current.
+- The footnote was approved as “about 10% more a week at most”. It’s reworded because the week after an easier week rises well over 10% from that easier week (e.g. 4.7 → 7.3 mi). Pending the owner’s OK.
+- Wired into the Vite inputs, `check-site-layout.mjs`’s required files, and “Try it before you’re in”, now “Four free calculators” in a 2×2 grid. `claims.test` checks the count word against the cards and that every card’s page is a Vite input.
+- Mutation check: 7 of 8 deliberate regressions turn a test red. The eighth, dropping `capTaperBlocks`, is equivalent: `buildWeeklyMileage` applies the same cap through `maxTaperWeeks`, so only phase labels change, never miles.
 
 ---
 

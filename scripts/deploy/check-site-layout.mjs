@@ -65,6 +65,7 @@ const REQUIRED_FILES = [
   'tools/fueling.html',
   'tools/predictor.html',
   'tools/heat.html',
+  'tools/mileage.html',
   'sw.js',
   'favicon.svg',
   'attune-mark.svg',

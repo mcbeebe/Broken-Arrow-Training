@@ -162,10 +162,11 @@ const COPY_MD = [
   'Apple Health', 'Syncs HRV, resting heart rate, sleep and workouts from your iPhone.',
   // Tools
   'Try it before you’re in',
-  'Three free calculators built on the same engine. No sign-up, and nothing you enter leaves your browser.',
+  'Four free calculators built on the same engine. No sign-up, and nothing you enter leaves your browser.',
   'Fueling planner', 'Carbs, fluid and sodium per hour for a long effort.', 'Open the fueling planner', '/tools/fueling.html',
   'Race time predictor', 'Realistic finish times from a recent result.', 'Open the race predictor', '/tools/predictor.html',
   'Heat planner', 'How to adjust pace and fluids when it’s hot.', 'Open the heat planner', '/tools/heat.html',
+  'Weekly mileage planner', 'How many miles a week to build to, and how fast, for your next race.', 'Open the mileage planner', '/tools/mileage.html',
   // Founder note
   '“I built Attune for my own training: mountain trail races, HYROX, and the stretches in between. I wanted a plan that noticed when I’d slept badly, was exhausted from kids, work travel or simply overdoing it, and changed my plan intelligently instead of pretending nothing happened and getting injured.”',
   'Mike Beebe', ', founder, Oakland',

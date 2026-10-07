@@ -74,7 +74,7 @@ beforeEach(() => {
   files = new Map()
   write('index.html', ROOT_HTML)
   write('app/index.html', '<link rel="manifest" href="/manifest.webmanifest" />')
-  for (const tool of ['fueling', 'predictor', 'heat']) write(`tools/${tool}.html`, '<html></html>')
+  for (const tool of ['fueling', 'predictor', 'heat', 'mileage']) write(`tools/${tool}.html`, '<html></html>')
   write('sw.js', '// sw')
   write('favicon.svg', '<svg/>')
   write('attune-mark.svg', '<svg/>')
@@ -98,6 +98,7 @@ describe('checkSiteLayout', () => {
     'tools/fueling.html',
     'tools/predictor.html',
     'tools/heat.html',
+    'tools/mileage.html',
     'sw.js',
     'favicon.svg',
     'attune-mark.svg',
