@@ -9,8 +9,12 @@
  * and the manifest are where installs, notifications and links expect them;
  * that the manifest keeps existing installs' identity and points into /app/;
  * that only the app links the manifest; that the root page keeps its inline
- * fallback; and that the root page's guard (its entry's static import
- * closure, JS and CSS) stays under GUARD_BUDGET_BYTES gzipped.
+ * fallback; that the root page's guard (its entry's static import closure,
+ * JS and CSS) stays under GUARD_BUDGET_BYTES gzipped; that the whole landing
+ * page (guard + dynamic imports + the shared React chunk + CSS) stays under
+ * PAGE_BUDGET_BYTES; and, from dist/.vite/module-map.json (written by
+ * scripts/deploy/vite-plugin-module-map.ts), that no chunk the landing page
+ * loads contains app code, recharts or cesium.
  */
 import * as nodeFs from 'node:fs'
 import { join, resolve } from 'node:path'
@@ -20,6 +24,16 @@ import { fileURLToPath } from 'node:url'
 /** Gzipped size limit for the root entry's static import closure. */
 export const GUARD_BUDGET_BYTES = 10 * 1024
 
+/** Gzipped size limit for everything the landing page loads (JS + CSS). */
+export const PAGE_BUDGET_BYTES = 90 * 1024
+
+/** Modules that must never ship to the landing page (design-spec.md § Files). */
+const FORBIDDEN_IN_LANDING =
+  /(^|\/)src\/(App\.tsx|components\/|engines\/|hooks\/|utils\/|data\/)|node_modules\/(recharts|cesium)\//
+
+/** All the page's copy; the guard needs only SECTION_IDS (src/landing/sections.ts). */
+const NOT_IN_GUARD = /(^|\/)src\/landing\/content\.ts$/
+
 const REQUIRED_FILES = [
   'index.html',
   'app/index.html',
@@ -28,6 +42,8 @@ const REQUIRED_FILES = [
   'tools/heat.html',
   'sw.js',
   'favicon.svg',
+  'attune-mark.svg',
+  'fonts/schibsted-grotesk-latin-wght-normal.woff2',
   'manifest.webmanifest',
 ]
 
@@ -78,10 +94,86 @@ export function checkSiteLayout(distDir, fs = nodeFs) {
     } catch {
       viteManifest = null
     }
-    if (viteManifest) errors.push(...checkGuardBudget(distDir, viteManifest, fs))
-    else errors.push('dist/.vite/manifest.json is not valid JSON')
+    if (viteManifest) {
+      errors.push(...checkGuardBudget(distDir, viteManifest, fs))
+      if (viteManifest['index.html']?.isEntry) {
+        errors.push(...checkPageBudget(distDir, viteManifest, fs))
+        errors.push(...checkModuleMap(distDir, viteManifest, readFileSync, existsSync))
+      }
+    } else errors.push('dist/.vite/manifest.json is not valid JSON')
   }
 
+  return errors
+}
+
+/**
+ * Every chunk and stylesheet reachable from the root entry.
+ *
+ * @param {Record<string, any>} viteManifest
+ * @param {boolean} dynamic Follow dynamic imports too (the whole page), or not (the guard).
+ * @returns {{ js: string[], css: string[] }}
+ */
+function closure(viteManifest, dynamic) {
+  const seen = new Set()
+  const js = []
+  const css = []
+  const visit = key => {
+    if (seen.has(key)) return
+    seen.add(key)
+    const chunk = viteManifest[key]
+    if (!chunk) return
+    js.push(chunk.file)
+    css.push(...(chunk.css ?? []))
+    for (const dep of chunk.imports ?? []) visit(dep)
+    if (dynamic) for (const dep of chunk.dynamicImports ?? []) visit(dep)
+  }
+  visit('index.html')
+  return { js: [...new Set(js)], css: [...new Set(css)] }
+}
+
+function checkPageBudget(distDir, viteManifest, fs) {
+  const { js, css } = closure(viteManifest, true)
+  let total = 0
+  for (const file of [...js, ...css]) {
+    const full = join(distDir, file)
+    // A missing guard chunk is reported by checkGuardBudget; don't repeat it.
+    if (fs.existsSync(full)) total += gzipSync(fs.readFileSync(full)).length
+  }
+  if (total <= PAGE_BUDGET_BYTES) return []
+  return [
+    `landing page is ${total} bytes gzipped, over the ${PAGE_BUDGET_BYTES}-byte budget ` +
+      `(${[...js, ...css].join(', ')}).`,
+  ]
+}
+
+function checkModuleMap(distDir, viteManifest, readFileSync, existsSync) {
+  const mapPath = join(distDir, '.vite/module-map.json')
+  if (!existsSync(mapPath)) {
+    return ['missing dist/.vite/module-map.json (is moduleMap() from scripts/deploy/vite-plugin-module-map.ts in vite.config.ts?)']
+  }
+  let map
+  try {
+    map = JSON.parse(readFileSync(mapPath))
+  } catch {
+    return ['dist/.vite/module-map.json is not valid JSON']
+  }
+  const errors = []
+  const guard = new Set(closure(viteManifest, false).js)
+  for (const file of closure(viteManifest, true).js) {
+    const modules = map[file]
+    if (!Array.isArray(modules)) {
+      errors.push(`dist/${file} has no entry in dist/.vite/module-map.json, so its contents can't be checked`)
+      continue
+    }
+    for (const mod of modules) {
+      if (FORBIDDEN_IN_LANDING.test(mod)) {
+        errors.push(`app code in the landing page: dist/${file} contains ${mod}`)
+      }
+      if (guard.has(file) && NOT_IN_GUARD.test(mod)) {
+        errors.push(`the root page guard ships ${mod} (dist/${file}); import SECTION_IDS from src/landing/sections.ts instead`)
+      }
+    }
+  }
   return errors
 }
 
@@ -118,21 +210,12 @@ function checkGuardBudget(distDir, viteManifest, fs) {
   const entry = viteManifest['index.html']
   if (!entry?.isEntry) return ['dist/.vite/manifest.json has no index.html entry']
 
-  const seen = new Set()
-  const files = []
-  const visit = key => {
-    if (seen.has(key)) return
-    seen.add(key)
-    const chunk = viteManifest[key]
-    if (!chunk) return
-    files.push(chunk.file, ...(chunk.css ?? []))
-    for (const dep of chunk.imports ?? []) visit(dep)
-  }
-  visit('index.html')
+  const { js, css } = closure(viteManifest, false)
+  const files = [...js, ...css]
 
   let total = 0
   const errors = []
-  for (const file of new Set(files)) {
+  for (const file of files) {
     const full = join(distDir, file)
     if (!fs.existsSync(full)) {
       errors.push(`root entry chunk dist/${file} is missing`)
