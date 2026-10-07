@@ -4,7 +4,6 @@ import { SegmentedControl } from './SegmentedControl'
 interface Props {
   plan: PlanKind
   sport: Sport
-  /** Wired in initiative 003 PR 4. */
   onPlanChange?: (plan: PlanKind) => void
 }
 
@@ -54,10 +53,12 @@ export function PlanChart({ plan, sport, onPlanChange }: Props) {
             return (
               <div key={i} className="relative flex h-full min-w-0 flex-1 flex-col justify-end">
                 <div
+                  data-bar-outline
                   className="absolute inset-x-0 bottom-0 box-border rounded-t-md border-2 border-dashed border-landing-signal-on-deep"
                   style={{ height: `${h}px` }}
                 />
                 <span
+                  data-bar-label
                   className="absolute left-1/2 -translate-x-1/2 whitespace-nowrap text-[13px] font-extrabold text-landing-signal-on-deep"
                   style={{ bottom: `${h + 8}px` }}
                 >

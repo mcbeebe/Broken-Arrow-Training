@@ -23,7 +23,8 @@ forwards installed apps, deep links (`?view=`), Strava callbacks, airlock
 hand-offs, athlete hashes and signed-in visitors to `/app/` with query and
 hash intact, and an inline script in `index.html` forwards if the guard fails
 to load. Everyone else gets the landing page, loaded with
-`import('./mount')` (initiative 003 PR 3; interactions arrive in PR 4).
+`import('./mount')`. Its shared state and sync rules (athlete tabs ⇔ chart
+toggle, the persona demo) live in `src/landing/state.ts`, a pure reducer.
 
 The landing page (`src/landing/`) **never imports app code**, recharts or
 cesium. The guarantee is `check-site-layout.mjs`: it allowlists what the
@@ -48,7 +49,7 @@ attune.coach.
 ## Commands
 
 ```bash
-npm test                  # vitest, 332 files / ~4507 tests — gates every publish
+npm test                  # vitest, 335 files / ~4561 tests — gates every publish
 npm run build             # tsc -b && vite build — the typecheck gate lives here
 npm run lint              # eslint — blocking in CI; 0 errors (initiative 002)
 npm run dev               # local dev server: the app is at /app/, the root page at /
@@ -104,6 +105,11 @@ succeed.
   you tell a stale browser from a stale backend.
 - `mcbeebe/attune-coach` is a **build artifact repo**. It takes no
   hand-authored commits.
+- **If "attune.coach is serving this commit" fails** but `gh-pages` in
+  `mcbeebe/attune-coach` already carries the right `version.json`, GitHub
+  Pages didn't build it (2026-10-07: an Actions incident left its run queued).
+  Don't re-push; request a build:
+  `gh api -X POST repos/mcbeebe/attune-coach/pages/builds`.
 - **Vercel and Supabase are on Pro** (confirmed by the owner 2026-09-26), so
   the Hobby 12-function cap that shaped `api/` no longer applies. Its traces
   stay on purpose: `api/version.py` is folded into `sync.py`, and

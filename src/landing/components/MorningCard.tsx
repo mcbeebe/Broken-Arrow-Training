@@ -4,7 +4,6 @@ import { SegmentedControl } from './SegmentedControl'
 
 interface Props {
   sport: Sport
-  /** Wired in initiative 003 PR 4. */
   onSportChange?: (sport: Sport) => void
 }
 
