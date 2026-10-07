@@ -105,6 +105,11 @@ succeed.
   you tell a stale browser from a stale backend.
 - `mcbeebe/attune-coach` is a **build artifact repo**. It takes no
   hand-authored commits.
+- **If "attune.coach is serving this commit" fails** but `gh-pages` in
+  `mcbeebe/attune-coach` already carries the right `version.json`, GitHub
+  Pages didn't build it (2026-10-07: an Actions incident left its run queued).
+  Don't re-push; request a build:
+  `gh api -X POST repos/mcbeebe/attune-coach/pages/builds`.
 - **Vercel and Supabase are on Pro** (confirmed by the owner 2026-09-26), so
   the Hobby 12-function cap that shaped `api/` no longer applies. Its traces
   stay on purpose: `api/version.py` is folded into `sync.py`, and
