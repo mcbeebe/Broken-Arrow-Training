@@ -11,8 +11,10 @@ export function AppScreens() {
       <div className="mx-auto max-w-landing px-6 py-24">
         <h2 className="m-0 text-[clamp(32px,4vw,48px)] font-extrabold leading-[1.05] tracking-[-0.03em]">{SCREENS.title}</h2>
         <p className="m-0 mt-4 max-w-[30em] text-lg leading-[1.55] text-landing-muted">{SCREENS.intro}</p>
+        {/* Focusable so the phone row can be scrolled from a keyboard; nothing inside it takes focus. */}
         <ul
           aria-label={SCREENS.title}
+          tabIndex={0}
           className="-mx-6 m-0 mt-10 flex list-none snap-x snap-mandatory scroll-px-6 items-start gap-5 overflow-x-auto px-6 pb-4 sm:mx-0 sm:block sm:columns-2 sm:gap-6 sm:overflow-visible sm:px-0 sm:pb-0 lg:columns-3"
         >
           {SCREENS.items.map(s => (

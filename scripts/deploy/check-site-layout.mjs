@@ -16,7 +16,7 @@
  * scripts/deploy/vite-plugin-module-map.ts), that every chunk the landing
  * page loads holds only its own code, React and the bundler's runtime; and
  * that every app screenshot the landing page references exists and stays under
- * SCREEN_BUDGET_BYTES.
+ * SCREEN_BUDGET_BYTES, and all of them under SCREENS_TOTAL_BUDGET_BYTES.
  */
 import * as nodeFs from 'node:fs'
 import { join, resolve } from 'node:path'
@@ -29,11 +29,14 @@ export const GUARD_BUDGET_BYTES = 10 * 1024
 /** Gzipped size limit for everything the landing page loads (JS + CSS). */
 export const PAGE_BUDGET_BYTES = 90 * 1024
 
-/** Size limit for each app screenshot the landing page shows (already-compressed WebP). */
+/** Size limit for each app screenshot the landing page shows (already-compressed images). */
 export const SCREEN_BUDGET_BYTES = 80 * 1024
 
-/** How the landing page's code names its screenshots (content.ts SCREENS). */
-const SCREEN_URL = /\/landing\/app\/[\w-]+\.webp/g
+/** Size limit for all of them together: a phone that scrolls the row pays for every one. */
+export const SCREENS_TOTAL_BUDGET_BYTES = 240 * 1024
+
+/** How the landing page's code names its screenshots (content.ts SCREENS), in any image format. */
+const SCREEN_URL = /\/landing\/app\/[\w-]+\.(?:webp|avif|png|jpe?g|gif|svg)/g
 
 /**
  * The only modules the landing page may ship (design-spec.md § Files): its own
@@ -188,12 +191,19 @@ function checkScreens(distDir, viteManifest, fs) {
     for (const m of new TextDecoder().decode(fs.readFileSync(full)).matchAll(SCREEN_URL)) urls.add(m[0])
   }
   const errors = []
+  let total = 0
   for (const url of urls) {
     const full = join(distDir, url.slice(1))
-    if (!fs.existsSync(full)) errors.push(`the landing page shows ${url}, but dist${url} is missing`)
-    else if (fs.readFileSync(full).length > SCREEN_BUDGET_BYTES) {
-      errors.push(`dist${url} is ${fs.readFileSync(full).length} bytes, over the ${SCREEN_BUDGET_BYTES}-byte screenshot budget`)
+    if (!fs.existsSync(full)) {
+      errors.push(`the landing page shows ${url}, but dist${url} is missing`)
+      continue
     }
+    const size = fs.readFileSync(full).length
+    total += size
+    if (size > SCREEN_BUDGET_BYTES) errors.push(`dist${url} is ${size} bytes, over the ${SCREEN_BUDGET_BYTES}-byte screenshot budget`)
+  }
+  if (total > SCREENS_TOTAL_BUDGET_BYTES) {
+    errors.push(`the landing page's screenshots total ${total} bytes, over the ${SCREENS_TOTAL_BUDGET_BYTES}-byte budget`)
   }
   return errors
 }

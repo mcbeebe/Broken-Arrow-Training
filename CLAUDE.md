@@ -24,8 +24,9 @@ hand-offs, athlete hashes and signed-in visitors to `/app/` with query and
 hash intact, and an inline script in `index.html` forwards if the guard fails
 to load. Everyone else gets the landing page, loaded with
 `import('./mount')`. Its shared state and sync rules (athlete tabs ⇔ chart
-toggle, the coach demo's personality, questions and 3-try limit) live in
-`src/landing/state.ts`, a pure reducer. Its coach replies are written in
+toggle, the coach demo's personality, questions and try limit, whose value
+is `COACH.tryLimit` in content.ts) live in `src/landing/state.ts`, a pure
+reducer. Its coach replies are written in
 content.ts, never generated live. Its app screenshots are cropped WebPs in
 `public/landing/app/`, with nothing personal in them.
 
@@ -99,8 +100,8 @@ succeed.
   `dist/.vite/module-map.json`, written by
   `scripts/deploy/vite-plugin-module-map.ts`), or if the guard's font preload
   and the landing CSS's `@font-face` stop naming the same file, or if a
-  screenshot the landing page names is missing from `dist/landing/app/` or
-  over 80 KB.
+  screenshot the landing page names is missing from `dist/landing/app/`, over
+  80 KB, or if they total over 240 KB.
 - The `cutover-airlock` job publishes on the branch test alone — it ignores
   `ATTUNE_PUBLISH_ENABLED` and finishes before the attune build — so an
   airlock change goes live before the app it points at.

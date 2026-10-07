@@ -12,6 +12,7 @@ import {
   GUARD_BUDGET_BYTES,
   PAGE_BUDGET_BYTES,
   SCREEN_BUDGET_BYTES,
+  SCREENS_TOTAL_BUDGET_BYTES,
   type ReadOnlyFs,
 } from '../../../scripts/deploy/check-site-layout.mjs'
 
@@ -126,6 +127,19 @@ describe('checkSiteLayout', () => {
     it('fails when one is over budget', () => {
       write('landing/app/today.webp', new Uint8Array(SCREEN_BUDGET_BYTES + 1))
       expect(check().join('\n')).toContain(`dist/landing/app/today.webp is ${SCREEN_BUDGET_BYTES + 1} bytes, over the ${SCREEN_BUDGET_BYTES}-byte screenshot budget`)
+    })
+
+    it('checks screenshots in any image format, not just WebP', () => {
+      write('assets/shared-def.js', "const S = ['/landing/app/today.png']")
+      expect(check()).toEqual(['the landing page shows /landing/app/today.png, but dist/landing/app/today.png is missing'])
+    })
+
+    it('fails when they are each within budget but too heavy together', () => {
+      const n = Math.ceil(SCREENS_TOTAL_BUDGET_BYTES / SCREEN_BUDGET_BYTES) + 1
+      const names = Array.from({ length: n }, (_, i) => `/landing/app/s${i}.webp`)
+      write('assets/shared-def.js', JSON.stringify(names))
+      for (const n of names) write(n.slice(1), new Uint8Array(SCREEN_BUDGET_BYTES))
+      expect(check().join('\n')).toContain(`over the ${SCREENS_TOTAL_BUDGET_BYTES}-byte budget`)
     })
 
     it('ignores screenshots the app bundle names (only the landing page’s count)', () => {

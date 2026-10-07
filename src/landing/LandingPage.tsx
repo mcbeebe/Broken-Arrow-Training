@@ -64,6 +64,7 @@ export function LandingPage() {
             question={state.question}
             approved={state.approved}
             limitReached={limitReached}
+            limitName={state.limitName}
             onApprove={() => dispatch({ type: 'approve' })}
             onAsk={() => dispatch({ type: 'ask' })}
             onReset={() => dispatch({ type: 'reset' })}

@@ -9,6 +9,9 @@ export declare const PAGE_BUDGET_BYTES: number
 /** Size limit for each app screenshot the landing page shows. */
 export declare const SCREEN_BUDGET_BYTES: number
 
+/** Size limit for all of the landing page's app screenshots together. */
+export declare const SCREENS_TOTAL_BUDGET_BYTES: number
+
 /** The read-only filesystem the checker needs. */
 export interface ReadOnlyFs {
   existsSync(path: string): boolean

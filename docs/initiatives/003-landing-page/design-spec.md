@@ -90,7 +90,7 @@ Sync rules (the reference implements these; tests in PR 4 lock them):
 - The chart caption always uses the current `sport`’s caption from content.ts.
 - Coach name trimmed; empty shows “Your coach”, initial “Y”. Max 30 chars (`CoachPersonaEditor.tsx` uses 30).
 - The header’s status line is “Your coach. {personality}.” (PR 4b; it listed several traits before).
-- *(PR 4b)* A new personality or a new question costs one try; typing a name is free. At `COACH.tryLimit` (3) the personality buttons and “Ask something else” stay focusable but do nothing (`aria-disabled`), and the demo offers an invite. **Reset** returns to Mira, Warm, question 1, not approved, and gives no tries back; a reload does.
+- *(PR 4b)* A new personality or a new question costs one try; typing a name is free. At `COACH.tryLimit` (3) the personality buttons and “Ask something else” stay focusable but do nothing (`aria-disabled`), and the demo offers an invite naming the coach as it was at that moment (a live region shouldn’t re-announce per keystroke). **Reset** returns to Mira, Warm, question 1, not approved, and gives no tries back; a reload does.
 - *(PR 4b)* “Ask something else” cycles the questions and clears Approve; a question without a proposal has no Approve.
 
 Persona and demo state are page-local. Nothing is persisted, and nothing is sent anywhere.
@@ -108,8 +108,9 @@ Arrow-key roving focus is optional; Tab-to-each-button is required.
 ### MorningCard
 - *(PR 4b)* Each tab has its own morning (copy.md): three readings, a ring and
   a readiness line, one tab per outcome (eases off, pivots, peak, steady).
-  Values use `white-space: nowrap`; a reading’s note is orange below normal,
-  teal above, muted when normal.
+  Values use `white-space: nowrap`; a reading’s note is orange when it is
+  worse than normal, teal when better (a resting HR under normal is better),
+  muted when normal.
 - Readiness ring: 64px circle, `conic-gradient(color 0 N%, line N% 100%)`,
   inner 48px circle with N; `signal` when the morning eases off, `action`
   otherwise. Decorative; the text beside it carries the meaning.
@@ -162,10 +163,11 @@ Picking one rewrites CoachDemo’s header and reply live.
 
 ### AppScreens (PR 4b)
 “See it in the app”: 6 cropped real screens from `public/landing/app/*.webp`
-(720 px wide, each ≤ 80 KB, enforced by `check-site-layout.mjs`), with
+(720 px wide, each ≤ 80 KB and ≤ 240 KB together, enforced by `check-site-layout.mjs`), with
 `loading="lazy"`, fixed `width`/`height`, alt text and a caption. A
 snap-scrolling row that bleeds to the screen edges on phones (portrait
-screens get a narrower card), CSS columns from 640px up.
+screens get a narrower card; the row is focusable so a keyboard can scroll
+it), CSS columns from 640px up.
 
 ### InviteForm
 - `<form noValidate>` with labelled email (`type="email"`, `autocomplete="email"`)

@@ -17,12 +17,11 @@ import { MAX_BLOCK_WEEKS, DELOAD_EVERY } from '../../engines/generalFitness'
 import { CARDIO_MODALITIES } from '../../hooks/useOnboarding'
 import { COACH_TRAITS, COACH_TRAIT_EXCLUSIVE_GROUPS, DEFAULT_COACH_NAME } from '../../types'
 import { classifyStatus } from '../../utils/readiness'
-import { travelSwap } from '../../engines/planGenerator/travelMode'
-import type { PlannedDay } from '../../types'
+import { buildTravelBatch, travelSwap } from '../../engines/planGenerator/travelMode'
+import type { PlannedDay, TrainingWeek } from '../../types'
 import personaEditorSource from '../../components/CoachPersonaEditor.tsx?raw'
 import readinessSource from '../../utils/readiness.ts?raw'
 import verdictSource from '../../utils/verdict.ts?raw'
-import travelModeSource from '../../engines/planGenerator/travelMode.ts?raw'
 import morningOutlookSource from '../../engines/adaptive/morningOutlook.ts?raw'
 
 /** Every string in content.ts: the states one default render never shows (other tabs, form errors, success). */
@@ -208,35 +207,40 @@ describe('Make it yours: the coach traits', () => {
 
 describe('“This morning”: one of each outcome, each true to the app', () => {
   const by = (outcome: C.Outcome) => C.SPORTS.find(s => s.outcome === outcome)!
-  /** The app's status for a 0–100 ring value (compositeToDisplayScore, inverted). */
-  const statusOf = (ring: number) => classifyStatus(ring / 25 - 2)
+  /**
+   * The app's statuses for a 0–100 ring value: every composite that
+   * compositeToDisplayScore rounds to it. A ring on a band edge (81 could be
+   * GREEN or PEAK) yields both, and then the test can't vouch for it.
+   */
+  const statusesOf = (ring: number) => new Set([classifyStatus((ring - 0.5) / 25 - 2), classifyStatus((ring + 0.4999) / 25 - 2)])
 
   it('shows each outcome exactly once', () => {
     expect(C.SPORTS.map(s => s.outcome).sort()).toEqual(['ease', 'peak', 'pivot', 'steady'])
   })
 
   it.each([
-    ['ease', ['RED', 'YELLOW'], 'Readiness: take it easy'],
+    // The autopilot moves a hard session only on RED; on YELLOW it trims it in place.
+    ['ease', ['RED'], 'Readiness: take it easy'],
     ['pivot', ['GREEN'], 'Readiness: good to go'],
     ['steady', ['GREEN'], 'Readiness: good to go'],
     ['peak', ['PEAK'], 'Readiness: ready to push'],
   ] as const)('%s: the ring is in the app’s %j band and says so', (outcome, statuses, title) => {
     const s = by(outcome)
-    expect(statuses as readonly string[]).toContain(statusOf(s.readiness.value))
+    for (const status of statusesOf(s.readiness.value)) expect(statuses as readonly string[]).toContain(status)
     expect(s.readiness.title).toBe(title)
   })
 
   it('the readings point the same way as the ring', () => {
     const tones = (o: C.Outcome) => by(o).metrics.map(m => m.tone)
-    expect(tones('ease')).toContain('low')
-    expect(tones('ease')).not.toContain('high')
-    expect(tones('peak')).toContain('high')
-    expect(tones('peak')).not.toContain('low')
+    expect(tones('ease')).toContain('worse')
+    expect(tones('ease')).not.toContain('better')
+    expect(tones('peak')).toContain('better')
+    expect(tones('peak')).not.toContain('worse')
     expect(tones('steady').every(t => t === 'normal')).toBe(true)
     expect(tones('pivot').every(t => t === 'normal')).toBe(true)
   })
 
-  it('ease: the hard session moves, as the morning autopilot does', () => {
+  it('ease: the hard session moves, as the morning autopilot does on RED', () => {
     expect(morningOutlookSource).toContain('the hard session moves')
     expect(by('ease').why).toMatch(/moves to \w+day/)
   })
@@ -251,8 +255,34 @@ describe('“This morning”: one of each outcome, each true to the app', () => 
     expect(pivot.today).toContain('Room cardio')
     expect(pivot.today).toContain('20 to 30 min')
     expect(pivot.today).toContain('10 min mobility')
-    expect(travelModeSource).toContain('the plan bends forward')
-    expect(pivot.why).toContain('the plan bends forward')
+  })
+
+  it('pivot: nothing to make up — with only a hotel room, travel mode swaps the hills in place and reschedules nothing', () => {
+    const day = (d: string, type: PlannedDay['type'], workout: string): PlannedDay =>
+      ({ day: d, type, workout, detail: workout, zone: 'Z2', route: 'Road', time: '45 min' }) as PlannedDay
+    const week = {
+      num: 9,
+      dates: '',
+      miles: 30,
+      focus: 'Build',
+      startIso: '2026-10-05',
+      days: [
+        day('Mon', 'rest', 'Rest'),
+        day('Tue', 'run', 'Easy run'),
+        day('Wed', 'quality', 'Hill repeats'),
+        day('Thu', 'run', 'Easy run'),
+        day('Fri', 'rest', 'Rest'),
+        day('Sat', 'run', 'Easy run'),
+        day('Sun', 'run', 'Easy run'),
+      ],
+    } as unknown as TrainingWeek
+    const { ops } = buildTravelBatch([week], { startIso: '2026-10-07', endIso: '2026-10-07', kit: 'bodyweight' })
+    // Day edits only: the batch also re-tags the week's mileage and focus.
+    const edits = ops.map(o => o.op as { kind: string; dayIndex: number; updates: Partial<PlannedDay> }).filter(op => op.kind === 'updateDay')
+    expect(edits).toHaveLength(1)
+    expect(edits[0].dayIndex).toBe(2)
+    expect(edits[0].updates.workout).toBe('Room cardio (travel)')
+    expect(by('pivot').why).toContain('Nothing to make up')
   })
 
   it('peak and steady keep the planned session and never add work (the app never does)', () => {

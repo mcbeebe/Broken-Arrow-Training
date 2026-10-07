@@ -8,8 +8,8 @@ interface Props {
 }
 
 const NOTE_TONE: Record<Tone, string> = {
-  low: 'text-landing-signal-text',
-  high: 'text-landing-action',
+  worse: 'text-landing-signal-text',
+  better: 'text-landing-action',
   normal: 'text-landing-muted',
 }
 

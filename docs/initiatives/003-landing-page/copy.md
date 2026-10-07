@@ -69,7 +69,7 @@ of each outcome (2026-10-07), so each tab now has its own morning.
 |---|---|---|---|---|---|
 | Running | Training for a spring half marathon | Tempo run, 8 × 800 m | Easy run, 45 min in zone 2 | Your body hasn’t caught up from Saturday’s long run. The tempo session moves to Thursday, so the week’s work stays the same. | The tempo run moves to Thursday, so week 9 still does its job. |
 | Trail | Training for a 50K trail race | Hill repeats, 8 × 2 min | Room cardio: bodyweight intervals, 20 to 30 min, then 10 min mobility | You’re away for work with only a hotel room. The hill repeats become intervals you can do next to the bed, so the aerobic habit keeps going. Nothing to make up: the plan bends forward. | Hill repeats become room cardio while you’re away, and the plan bends forward. |
-| HYROX | Training for HYROX, Open division | Race simulation: 4 × (1 km run + station) | Race simulation: 4 × (1 km run + station), full intensity | Every number is above your normal and your load is steady. This is the day for your hardest session, so go at full race pace. | The race simulation stays, at full intensity, so week 9 lands as planned. |
+| HYROX | Training for HYROX, Open division | Race simulation: 4 × (1 km run + station) | Race simulation: 4 × (1 km run + station), full intensity | Your HRV and resting heart rate are both better than normal, and your load is steady. This is the day for your hardest session, so go at full race pace. *(PR 4b review: was “Every number is above your normal”, which the card’s own resting HR and sleep contradicted; pending the owner’s OK)* | The race simulation stays, at full intensity, so week 9 lands as planned. |
 | Fitness | No race. Goal: build endurance | Bike intervals, 6 × 3 min hard | Bike intervals, 6 × 3 min hard | All clear: your numbers are right on your normal, so nothing changes. Wednesday’s strength session stays too. | Nothing moves, and the block stays on track. |
 
 All four are illustrative examples (the “Example plan” note sits in the chart
@@ -183,8 +183,9 @@ Backed by: voice in/out (`api/coach/chat.py`, `src/utils/voiceInput.ts`), propos
 ## See it in the app — approved 2026-10-07 (PR 4b)
 
 Real screens from the founder’s own training, cropped so nothing personal
-shows (owner, 2026-10-07). Phone frames: a swipe row on phones, a grid on
-desktop. Placed after the coach section.
+shows (owner, 2026-10-07): no name, race or notes, though the readings,
+heart rate and dates are real. Rounded screens in a swipe row on phones,
+columns on wider screens. Placed after the coach section.
 
 - H2: See it in the app
 - Intro: Real screens from a real training block.

@@ -18,6 +18,7 @@ describe('the initial state', () => {
       question: 0,
       approved: false,
       tries: 0,
+      limitName: null,
     })
   })
 })
@@ -105,6 +106,13 @@ describe('the try limit', () => {
   it('then ignores new personalities and questions', () => {
     expect(landingReducer(used, { type: 'personality', id: 'old-school' })).toBe(used)
     expect(landingReducer(used, { type: 'ask' })).toBe(used)
+  })
+
+  it('remembers the coach’s name at the moment the limit was reached, and only then', () => {
+    expect(run({ type: 'name', name: 'Kip' }, { type: 'ask' }, { type: 'ask' }).limitName).toBeNull()
+    const s = run({ type: 'name', name: 'Kip' }, { type: 'ask' }, { type: 'ask' }, { type: 'ask' }, { type: 'name', name: 'Zed' })
+    expect(s.limitName).toBe('Kip')
+    expect(landingReducer(s, { type: 'reset' }).limitName).toBe('Kip')
   })
 
   it('still lets the visitor type a name and approve', () => {

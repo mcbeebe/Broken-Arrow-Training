@@ -13,8 +13,17 @@ export interface LandingState {
   /** Index into COACH.questions. */
   question: number
   approved: boolean
-  /** Personality and question changes so far; at COACH.tryLimit the demo stops changing. */
+  /**
+   * Personality and question changes so far; at COACH.tryLimit (content.ts)
+   * new personalities and questions are ignored. Reset still works.
+   */
   tries: number
+  /**
+   * The coach's name when the limit was reached. The invite line is a live
+   * region, so it names the coach as it was then rather than re-announcing
+   * on every keystroke in the name field.
+   */
+  limitName: string | null
 }
 
 export type LandingAction =
@@ -34,11 +43,18 @@ export const INITIAL_STATE: LandingState = {
   question: 0,
   approved: false,
   tries: 0,
+  limitName: null,
 }
 
 /** Whether the visitor has used up the demo's changes for this visit. */
 export function atTryLimit(state: LandingState): boolean {
   return state.tries >= COACH.tryLimit
+}
+
+/** Spend one try, noting the coach's name if that was the last one. */
+function spendTry(state: LandingState): Pick<LandingState, 'tries' | 'limitName'> {
+  const tries = state.tries + 1
+  return { tries, limitName: tries >= COACH.tryLimit ? state.coachName : state.limitName }
 }
 
 /**
@@ -59,10 +75,10 @@ export function landingReducer(state: LandingState, action: LandingAction): Land
       return { ...state, coachName: action.name.slice(0, MAKE.nameMaxLength) }
     case 'personality':
       if (action.id === state.personality || atTryLimit(state)) return state
-      return { ...state, personality: action.id, tries: state.tries + 1 }
+      return { ...state, personality: action.id, ...spendTry(state) }
     case 'ask':
       if (atTryLimit(state)) return state
-      return { ...state, question: (state.question + 1) % COACH.questions.length, approved: false, tries: state.tries + 1 }
+      return { ...state, question: (state.question + 1) % COACH.questions.length, approved: false, ...spendTry(state) }
     case 'reset':
       return {
         ...state,

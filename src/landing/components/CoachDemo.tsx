@@ -10,6 +10,8 @@ interface Props {
   approved: boolean
   /** No more personality or question changes this visit. */
   limitReached: boolean
+  /** The coach's name when the limit was reached (state.ts `limitName`). */
+  limitName?: string | null
   onApprove?: () => void
   onAsk?: () => void
   onReset?: () => void
@@ -20,7 +22,7 @@ interface Props {
  * (design-spec.md § CoachDemo). The input and mic are decorative and
  * disabled, so nobody types into a fake chat.
  */
-export function CoachDemo({ coachName, personality, question, approved, limitReached, onApprove, onAsk, onReset }: Props) {
+export function CoachDemo({ coachName, personality, question, approved, limitReached, limitName, onApprove, onAsk, onReset }: Props) {
   const name = coachDisplayName(coachName)
   const q: CoachQuestion = COACH.questions[question] ?? COACH.questions[0]
   // Approve replaces the button that had focus; keep the visitor's place.
@@ -126,7 +128,7 @@ export function CoachDemo({ coachName, personality, question, approved, limitRea
               {COACH.limitLink}
             </a>
             {COACH.limitTail}
-            {name}
+            {coachDisplayName(limitName ?? coachName)}
             {COACH.limitEnd}
           </>
         )}

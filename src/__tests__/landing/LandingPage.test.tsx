@@ -94,6 +94,10 @@ describe('the default state (PR 4 wires the interactions)', () => {
     expect(root.querySelector<HTMLInputElement>('#coach-ask')!.placeholder).toBe(`Ask ${MAKE.defaultName} anything`)
   })
 
+  it('the screens row can take focus, so a keyboard can scroll it on a phone', () => {
+    expect(root.querySelector(`ul[aria-label="${SCREENS.title}"]`)).toHaveAttribute('tabindex', '0')
+  })
+
   it('shows every app screen, lazy-loaded, sized, with alt text and a caption', () => {
     const imgs = [...root.querySelectorAll<HTMLImageElement>('img')]
     expect(imgs.map(i => i.getAttribute('src'))).toEqual(SCREENS.items.map(s => s.src))

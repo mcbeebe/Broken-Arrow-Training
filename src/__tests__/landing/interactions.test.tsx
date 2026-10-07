@@ -410,10 +410,11 @@ describe('ask something else, reset and the try limit', () => {
     expect(traits.getByRole('button', { name: 'Old School' })).toHaveAttribute('aria-disabled', 'true')
     expect(traits.getByRole('button', { name: 'Data Nerd' })).not.toHaveAttribute('aria-disabled')
 
-    // The name is free, and the message follows it.
+    // The name is still free, but the live invite keeps the name it had, so a
+    // screen reader doesn't re-read it on every keystroke.
     await user.clear(nameInput())
     await user.type(nameInput(), 'Kip')
-    expect(limit()).toHaveTextContent('to keep talking to Kip.')
+    expect(limit()).toHaveTextContent(`to keep talking to ${MAKE.defaultName}.`)
   })
 
   it('Reset after the limit puts the demo back but gives no tries back', async () => {
@@ -438,7 +439,7 @@ describe('keyboard', () => {
   it('every control is reachable by Tab, in page order, and none is skipped', async () => {
     const { user, root } = setup()
     const controls = [
-      ...root.querySelectorAll<HTMLElement>('a[href], button:not([disabled]), input:not([disabled]), summary'),
+      ...root.querySelectorAll<HTMLElement>('a[href], button:not([disabled]), input:not([disabled]), summary, [tabindex="0"]'),
     ].filter(el => !el.closest('[aria-hidden="true"]'))
     const reached: HTMLElement[] = []
     for (let i = 0; i < controls.length; i++) {

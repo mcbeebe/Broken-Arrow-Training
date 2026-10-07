@@ -70,8 +70,12 @@ export type Sport = 'run' | 'trail' | 'hyrox' | 'fit'
  */
 export type Outcome = 'ease' | 'pivot' | 'peak' | 'steady'
 
-/** How a reading compares with the athlete's normal: drawn orange, teal or plain. */
-export type Tone = 'low' | 'high' | 'normal'
+/**
+ * Whether a reading is worse or better than the athlete's normal (drawn orange
+ * or teal), not whether the number is lower or higher: a resting heart rate
+ * over normal is worse, under normal is better.
+ */
+export type Tone = 'worse' | 'better' | 'normal'
 
 /** The “This morning” card: four athletes, four mornings, one of each outcome. Illustrative examples. */
 export const SPORTS = [
@@ -81,8 +85,8 @@ export const SPORTS = [
     outcome: 'ease',
     who: 'Training for a spring half marathon',
     metrics: [
-      { value: '41', note: '18% below normal', tone: 'low' },
-      { value: '56', note: '+5 over normal', tone: 'low' },
+      { value: '41', note: '18% below normal', tone: 'worse' },
+      { value: '56', note: '+5 over normal', tone: 'worse' },
       { value: '5:40', note: 'Short night', tone: 'normal' },
     ],
     readiness: { value: 38, title: 'Readiness: take it easy' },
@@ -113,14 +117,14 @@ export const SPORTS = [
     outcome: 'peak',
     who: 'Training for HYROX, Open division',
     metrics: [
-      { value: '63', note: '14% above normal', tone: 'high' },
-      { value: '47', note: '3 under normal', tone: 'high' },
+      { value: '63', note: '14% above normal', tone: 'better' },
+      { value: '47', note: '3 under normal', tone: 'better' },
       { value: '8:10', note: 'Solid night', tone: 'normal' },
     ],
     readiness: { value: 86, title: 'Readiness: ready to push' },
     planned: 'Race simulation: 4 × (1 km run + station)',
     today: 'Race simulation: 4 × (1 km run + station), full intensity',
-    why: 'Every number is above your normal and your load is steady. This is the day for your hardest session, so go at full race pace.',
+    why: 'Your HRV and resting heart rate are both better than normal, and your load is steady. This is the day for your hardest session, so go at full race pace.',
     chartCaption: 'The race simulation stays, at full intensity, so week 9 lands as planned.',
   },
   {
