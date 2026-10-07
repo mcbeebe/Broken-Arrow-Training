@@ -25,3 +25,18 @@ export function recordReferralSource(search: string, now: number = Date.now()): 
     /* attribution is best-effort */
   }
 }
+
+/**
+ * The stored first-touch referral source, or null when none (or storage is
+ * unavailable). The landing page sends it with an invite request.
+ */
+export function readReferralSource(): string | null {
+  try {
+    const raw = localStorage.getItem(REFERRAL_KEY)
+    if (!raw) return null
+    const from = (JSON.parse(raw) as { from?: unknown })?.from
+    return typeof from === 'string' && from ? from : null
+  } catch {
+    return null
+  }
+}

@@ -1,0 +1,188 @@
+/**
+ * Initiative 003: docs/initiatives/003-landing-page/copy.md is the source of
+ * truth for every word on the landing page, and src/landing/content.ts is the
+ * only place page text lives. This fixture is copy.md, string by string: if a
+ * line is reworded in one place and not the other, this fails.
+ */
+import { describe, it, expect } from 'vitest'
+import * as content from '../../landing/content'
+
+/** Every string leaf in the content module, however deeply nested. */
+function leaves(value: unknown, out: string[] = []): string[] {
+  if (typeof value === 'string') out.push(value)
+  else if (Array.isArray(value)) value.forEach(v => leaves(v, out))
+  else if (value && typeof value === 'object') Object.values(value).forEach(v => leaves(v, out))
+  return out
+}
+
+const ALL = leaves(content)
+const has = (s: string) => ALL.some(leaf => leaf.includes(s))
+
+// copy.md, in document order. Templated lines are split at their {slots}.
+const COPY_MD = [
+  // Header
+  'Attune', 'How it works', 'Who it’s for', 'The coach', 'Free tools', 'Sign in', 'Request an invite',
+  // Hero
+  'Training that actually adapts to you.',
+  'A coach in your pocket.',
+  'Racing a marathon, training for HYROX, or just getting fitter: Attune reads your recovery every morning and adjusts today’s workout to match.',
+  'Your email', 'you@example.com', 'Sending…',
+  'What are you training for?', '(optional)',
+  'A spring half, my first HYROX, just getting fit...',
+  'Free during the beta. Mike reviews every request. Already in?',
+  // Form states
+  'Enter an email address like name@example.com.',
+  'Requests are paused for a moment. Try again in a few minutes.',
+  'You’ve sent a few requests already. Try again later.',
+  'Couldn’t send your request. Check your connection and try again.',
+  'Request sent.',
+  'Mike will review your request and email ',
+  ' the moment you’re approved. Until then, try one of the ',
+  'free tools',
+  // This morning card
+  'Same morning, four different athletes',
+  'Running', 'Trail', 'HYROX', 'Fitness',
+  'This morning',
+  'HRV', '41', 'ms', '18% below normal',
+  'Resting HR', '56', 'bpm', '+5 over normal',
+  'Sleep', '5:40', 'Short night',
+  'Readiness: take it easy',
+  'Based on HRV, resting heart rate, sleep and your last 7 days of training',
+  'Planned', 'Adjusted for today',
+  'Training for a spring half marathon', 'Tempo run, 8 × 800 m', 'Easy run, 45 min in zone 2',
+  'Your body hasn’t caught up from Saturday’s long run. The tempo session moves to Thursday, so the week’s work stays the same.',
+  'The tempo run moves to Thursday, so week 9 still does its job.',
+  'Training for a 50K trail race', 'Hill repeats, 8 × 2 min', 'Flat easy run, 50 min',
+  'Saturday’s long descent leaves soreness that peaks a day or two later. The hills move to Friday, when your legs are ready.',
+  'Hill repeats move to Friday, so week 9 still does its job.',
+  'Training for HYROX, Open division', 'Race simulation: 4 × (1 km run + station)',
+  'Easy 30 min row, then light station technique',
+  'Race-pace work on a day like this mostly adds fatigue. The simulation moves to Thursday, and the extra work on your weakest station stays in the week.',
+  'The race simulation moves to Thursday, so week 9 still does its job.',
+  'No race. Goal: build endurance', 'Bike intervals, 6 × 3 min hard', 'Zone 2 ride, 40 min, plus mobility',
+  'The intervals move to Friday. Wednesday’s strength session stays, so the week still covers cardio, intervals and strength.',
+  'Bike intervals move to Friday, and the block stays on track.',
+  // How a morning works
+  'How a morning works',
+  'Your watch syncs overnight',
+  'HRV, resting heart rate, sleep and yesterday’s training come in from Garmin, Strava or Apple Health.',
+  'Attune scores your readiness',
+  'It compares this morning with your own normal, not a population average, and checks how fast your training load is climbing.',
+  'Today’s workout adjusts',
+  'Ready to go, it stays. Run down, it eases off and moves the hard session to a day you can handle it.',
+  'Ask the coach why',
+  'Every change comes with a reason in plain language, and you can push back.',
+  // Whatever you’re training for
+  'Whatever you’re training for',
+  'Each path has its own plan builder, so a HYROX athlete doesn’t get a marathon plan with burpees bolted on. Racing more than once? Put a half marathon and a HYROX in the same season.',
+  'Road races', '5K to marathon',
+  'Proven coaching methods like Daniels, 80/20 and Higdon, matched to your race',
+  'Paces set from a recent 5K or 10K', 'Rides and hikes count toward your load',
+  'Trail and ultra', 'Trail races and ultras',
+  'Methods built for the long stuff, like Koop and Roche SWAP',
+  'Counts climbing and descending, not just miles', 'Eases off after big descents',
+  'Open and Pro divisions',
+  'Running and all 8 stations in one plan', 'Station work set for your division', 'Extra work on your weakest station',
+  'General fitness', 'No race needed',
+  'Pick a goal: stay healthy, lose fat, build muscle or build endurance',
+  'Cardio your way: run, bike, row, swim, or a mix',
+  'Strength work built into every plan',
+  // Your plan, week by week
+  'Your plan, week by week', 'Racing', 'No race',
+  'Racing? Attune builds from base to peak, then tapers so you arrive fresh, with easier weeks wherever your method calls for them.',
+  'No race? Attune plans in blocks of up to 16 weeks: three building weeks, then an easier one so the work sinks in.',
+  'Base, weeks 1 to 5', 'Build, weeks 6 to 10', 'Peak, 11 to 13', 'Taper to race day',
+  'Weeks 1 to 4', '5 to 8', '9 to 12', '13 to 16',
+  'Today', 'Today, week 9', 'Dashed outline: what was planned. Example plan.',
+  // A coach in your pocket
+  'It knows your plan, your watch data and your training history, and it answers in plain language. Type or talk. When it suggests a change, you see exactly what moves, and nothing changes until you approve it.',
+  'Ask why today’s workout looks the way it does',
+  'Rework the week around travel, work or a bad night',
+  'Approved changes go straight to your Garmin watch',
+  'Your coach. ', 'Pick a personality below.',
+  'Work trip Wednesday to Friday, and I’m already sleeping badly. What should this week look like?',
+  'Let’s do your hard session Tuesday, before you leave, and make the travel days short and easy: 30 minutes you can do in a hotel gym or outside. You won’t lose anything that matters.',
+  'Proposed change to your plan',
+  'Tue', 'Easy 40 min', 'Hard session, moved from Thu',
+  'Wed to Fri', 'Full sessions', '30 min easy, hotel-friendly',
+  'Approve', 'Keep my plan',
+  'Plan updated. The new week is on your watch.',
+  'Ask ', ' anything', 'Message your coach', 'Talk to your coach',
+  // Make it yours
+  'Make it yours',
+  'Name your coach and choose how it talks to you. It can be the friend who keeps it light or the one who holds you to the plan. Try it: the chat above changes as you do.',
+  'Coach name', 'Mira', 'Your coach', 'Personality', 'A few of the 17 personalities',
+  'Funny', 'Strict', 'Motivational', 'Warm', 'Direct', 'Data Nerd', 'Old School', 'Chill',
+  // Gear
+  'Works with the gear you already wear',
+  'Garmin', 'Pulls HRV, sleep and activities, and sends each week’s workouts to your watch.',
+  'Strava', 'Brings in your runs, rides and hikes so cross-training counts toward your load.',
+  'Apple Health', 'Syncs HRV, resting heart rate, sleep and workouts from your iPhone.',
+  // Tools
+  'Try it before you’re in',
+  'Three free calculators built on the same engine. No sign-up, and nothing you enter leaves your browser.',
+  'Fueling planner', 'Carbs, fluid and sodium per hour for a long effort.', 'Open the fueling planner', '/tools/fueling.html',
+  'Race time predictor', 'Realistic finish times from a recent result.', 'Open the race predictor', '/tools/predictor.html',
+  'Heat planner', 'How to adjust pace and fluids when it’s hot.', 'Open the heat planner', '/tools/heat.html',
+  // Founder note
+  '“I built Attune for my own training: trail races, then HYROX, and the stretches in between. I wanted a plan that noticed when I’d slept badly or overdone it, and changed instead of pretending nothing happened.”',
+  'Mike Beebe', ', founder, Oakland',
+  // Questions
+  'Questions',
+  'Is it only for runners?',
+  'No. Attune builds plans for road races, trail and ultra, HYROX, and general fitness with no race at all. A season can even mix races, like a half marathon and a HYROX.',
+  'How do I get in?',
+  'Request an invite with your email. Mike reviews every request and emails you when you’re approved. You sign in with your Google account.',
+  'Does it cost anything?', 'Attune is free during the beta.',
+  'Is the coach a person?',
+  'No. It’s an AI coach that works from your plan and your data, and it can’t change your training without your approval.',
+  'Which devices work?',
+  'Garmin, Strava and Apple Health. Attune runs in your phone’s browser and installs to your home screen like an app.',
+  'Do I need a wearable?',
+  'It helps. Without one you can still log workouts and how they felt, and the plan adapts to that.',
+  // Footer
+  'Start training that adapts to you.',
+  'Attune is in an invite-only beta and free while it lasts.',
+  'Privacy', '/privacy.html', 'Terms', '/terms.html', '© 2026 Attune',
+] as const
+
+describe('content.ts carries copy.md verbatim', () => {
+  it.each(COPY_MD)('has %j', s => {
+    expect(has(s)).toBe(true)
+  })
+})
+
+describe('copy.md typography rules hold in content.ts', () => {
+  // Hrefs, ids and other non-prose leaves are exempt from prose rules.
+  const prose = ALL.filter(s => !/^[#/]/.test(s) && !/^[a-z0-9_-]+$/.test(s))
+
+  it('uses curly apostrophes, never straight ones', () => {
+    expect(prose.filter(s => s.includes("'"))).toEqual([])
+  })
+
+  it('has no exclamation marks', () => {
+    expect(prose.filter(s => s.includes('!'))).toEqual([])
+  })
+})
+
+describe('links go where copy.md says', () => {
+  it('signs in at /app/ and requests an invite at #join', () => {
+    expect(content.NAV.signIn.href).toBe('/app/')
+    expect(content.NAV.cta.href).toBe('#join')
+    expect(content.INVITE.signInHref).toBe('/app/')
+    expect(content.FOOTER.cta.href).toBe('#join')
+  })
+
+  it('nav links point at section ids', () => {
+    expect(content.NAV.links.map(l => l.href)).toEqual(['#how', '#you', '#coach', '#tools'])
+  })
+
+  it('the footer links match copy.md', () => {
+    expect(content.FOOTER.links.map(l => [l.label, l.href])).toEqual([
+      ['Sign in', '/app/'],
+      ['Free tools', '#tools'],
+      ['Privacy', '/privacy.html'],
+      ['Terms', '/terms.html'],
+    ])
+  })
+})

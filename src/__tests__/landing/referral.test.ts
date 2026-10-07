@@ -3,7 +3,7 @@
  * app share one implementation: first touch wins and is never overwritten.
  */
 import { describe, it, expect, afterEach, vi } from 'vitest'
-import { REFERRAL_KEY, recordReferralSource } from '../../landing/referral'
+import { REFERRAL_KEY, recordReferralSource, readReferralSource } from '../../landing/referral'
 
 afterEach(() => {
   localStorage.clear()
@@ -51,5 +51,28 @@ describe('recordReferralSource', () => {
     vi.spyOn(Date, 'now').mockReturnValue(42)
     recordReferralSource('?from=tool-predictor')
     expect(JSON.parse(localStorage.getItem(REFERRAL_KEY)!).at).toBe(42)
+  })
+})
+
+describe('readReferralSource', () => {
+  it('reads back what recordReferralSource stored', () => {
+    recordReferralSource('?from=tool-heat', 1)
+    expect(readReferralSource()).toBe('tool-heat')
+  })
+
+  it('is null when nothing is stored', () => {
+    expect(readReferralSource()).toBeNull()
+  })
+
+  it.each(['not json', '{}', '{"from":""}', '{"from":42}', 'null'])('is null for a malformed value %j', raw => {
+    localStorage.setItem(REFERRAL_KEY, raw)
+    expect(readReferralSource()).toBeNull()
+  })
+
+  it('is null when storage throws', () => {
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('SecurityError')
+    })
+    expect(readReferralSource()).toBeNull()
   })
 })

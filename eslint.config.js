@@ -48,4 +48,25 @@ export default defineConfig([
       ],
     },
   },
+  {
+    // Initiative 003: the landing page must not import app code, recharts or
+    // cesium (design-spec.md § Files). The rule matches the import string,
+    // not the resolved path, so the page's own ./components and ../components
+    // imports are re-allowed by negation. scripts/deploy/check-site-layout.mjs
+    // is the backstop: it reads what actually shipped.
+    files: ['src/landing/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': ['error', {
+        patterns: [{
+          group: [
+            '**/App', '**/App.tsx',
+            '**/engines/**', '**/hooks/**', '**/utils/**', '**/data/**', '**/components/**',
+            '!./components/**', '!../components/**',
+            'recharts', 'recharts/**', 'cesium', 'cesium/**',
+          ],
+          message: 'The landing page may not import app code, recharts or cesium (initiative 003). Duplicate the few lines you need, and test them.',
+        }],
+      }],
+    },
+  },
 ])
