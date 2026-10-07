@@ -198,6 +198,7 @@ forwards the old `/?view=coach` links, so nothing 404s in between.
 - A `#tools` / `#coach` link scrolls to its section after the page renders (`scrollToAnchor.ts`): the browser's own jump runs before the dynamically loaded page exists.
 - The honeypot is read from the form at submit, so a bot that sets the field without input events is caught; a stored referral the server would reject is replaced by `'landing'`; placeholders use `muted` (Tailwind's default grey is 2.5:1).
 - **Measured** (switch on): guard 2.5 KB gzipped; whole page 76.3 KB of 90 (React and react-dom 56.5 KB, landing JS 10.9 KB, CSS 4.6 KB).
+- **Shipped** (mcbeebe/Broken-Arrow-Training#472, merged 2026-10-07). Pre-review fixes and departures are in the PR description: the module-map check became an allowlist, the app's Tailwind config skips `src/landing/`, env variables are read by name, and `#section` links scroll after the page renders.
 
 ---
 
@@ -216,6 +217,14 @@ forwards the old `/?view=coach` links, so nothing 404s in between.
 - keyboard: every control reachable by Tab and operable with Enter and Space
 
 **Acceptance:** gates green; manual check at 390 and 1280 px in Safari and Chrome; screenshots of each tab and both chart modes in the PR.
+
+**As built:**
+- The sync rules are a pure reducer, `src/landing/state.ts` (`state.test.ts`); LandingPage holds it with `useReducer`, and the components already took the `on…` props from PR 3.
+- `interactions.test.tsx` drives the rendered page with `@testing-library/user-event` (added as a devDependency, owner-approved 2026-10-07), so Enter and Space are real key presses. Against PR 3's un-wired page 25 of its 30 cases fail; the 5 that pass are true of both (default tab order, the taper, Keep my plan, disabled demo input, Tab order).
+- Approve moves focus to the confirmation, which replaces the focused button (otherwise focus drops to the page).
+- The name is capped at 30 in the reducer as well as by `maxLength`.
+- Chrome checked here at 390 and 1280 px by keyboard: every control operable, a focus ring on every Tab stop, no console errors, no horizontal scroll. **Safari is the owner's check** (WebKit can't be installed in the session sandbox; owner-approved 2026-10-07).
+- Screenshots of each tab and both chart modes, at 1280 and 390 px, are in [screenshots/](screenshots/) as `PR4-*`.
 
 ---
 

@@ -23,7 +23,8 @@ forwards installed apps, deep links (`?view=`), Strava callbacks, airlock
 hand-offs, athlete hashes and signed-in visitors to `/app/` with query and
 hash intact, and an inline script in `index.html` forwards if the guard fails
 to load. Everyone else gets the landing page, loaded with
-`import('./mount')` (initiative 003 PR 3; interactions arrive in PR 4).
+`import('./mount')`. Its shared state and sync rules (athlete tabs ⇔ chart
+toggle, the persona demo) live in `src/landing/state.ts`, a pure reducer.
 
 The landing page (`src/landing/`) **never imports app code**, recharts or
 cesium. The guarantee is `check-site-layout.mjs`: it allowlists what the
@@ -48,7 +49,7 @@ attune.coach.
 ## Commands
 
 ```bash
-npm test                  # vitest, 332 files / ~4507 tests — gates every publish
+npm test                  # vitest, 334 files / ~4551 tests — gates every publish
 npm run build             # tsc -b && vite build — the typecheck gate lives here
 npm run lint              # eslint — blocking in CI; 0 errors (initiative 002)
 npm run dev               # local dev server: the app is at /app/, the root page at /
