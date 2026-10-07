@@ -7,10 +7,12 @@ Verifies the Google ID token, maps email to athlete ID,
 returns a signed session token.
 """
 
+import hashlib
 import json
 import os
 import re
 import urllib.request
+from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler
 from ._helpers import (
     lookup_athlete,
@@ -22,6 +24,7 @@ from ._helpers import (
     set_kv_email_map,
     get_access_requests,
     add_access_request,
+    kv_bump_counter,
     remove_access_request,
     notify_admin_of_request,
     notify_user_approved,
@@ -45,6 +48,58 @@ ADMIN_ACTIONS = {"list", "add", "remove", "requests_approve", "requests_dismiss"
                  "billing_list", "billing_set_tier"}
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 ATHLETE_ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,39}$")
+
+# Request access is the API's one unauthenticated write, and the landing page
+# puts it behind a public form (initiative 003). Limits:
+SOURCE_RE = re.compile(r"[a-z0-9-]{1,40}")  # fullmatch: `$` would allow "x\n"
+IP_LIMIT_PER_HOUR = 5
+ADMIN_EMAILS_PER_UTC_DAY = 20
+UNAVAILABLE = "Requests are temporarily unavailable — please email Mike directly."
+_honeypot_hits = 0  # per warm instance; only for the log line
+
+
+def _client_ip(headers) -> str:
+    """First x-forwarded-for entry. Vercel overwrites the header, so the
+    client can't spoof it."""
+    return (headers.get("x-forwarded-for") or "").split(",")[0].strip()
+
+
+def _over_ip_limit(ip: str) -> bool:
+    """True once this IP has made more than IP_LIMIT_PER_HOUR requests this
+    hour. Fails open: no salt, no IP, or a failed KV call lets it through
+    (the queue write has its own 503).
+
+    Only sha256(salt + ip) is stored. Without the salt the hash of an IPv4
+    address is trivially reversible, so the throttle stays off instead."""
+    salt = os.environ.get("ACCESS_REQUEST_SALT", "")
+    if not salt:
+        print("[access-request] ACCESS_REQUEST_SALT unset; per-IP throttle off")
+        return False
+    if not ip:
+        return False
+    key = "access_req:ip:" + hashlib.sha256((salt + ip).encode()).hexdigest()[:32]
+    try:
+        return kv_bump_counter(key, 3600) > IP_LIMIT_PER_HOUR
+    except Exception as e:
+        print(f"[access-request] throttle unavailable ({type(e).__name__}); allowed")
+        return False
+
+
+def _admin_email_allowed() -> bool:
+    """At most ADMIN_EMAILS_PER_UTC_DAY admin alerts a day; past that the
+    request still queues, silently. Fails open: the queue write just
+    succeeded, so a counter failure is rare, and a missed real request is
+    worse than one extra email."""
+    key = "access_req:mail:" + datetime.now(timezone.utc).strftime("%Y%m%d")
+    try:
+        sent = kv_bump_counter(key, 2 * 86400)
+    except Exception as e:
+        print(f"[access-request] email cap unavailable ({type(e).__name__}); sending")
+        return True
+    if sent > ADMIN_EMAILS_PER_UTC_DAY:
+        print(f"[access-request] admin email cap reached ({sent}); queued without email")
+        return False
+    return True
 
 
 class handler(BaseHTTPRequestHandler):
@@ -134,27 +189,48 @@ class handler(BaseHTTPRequestHandler):
 
         Always answers 200 for a valid email — without revealing whether the
         email is already on the roster — so this endpoint can't be used to
-        probe membership. Invalid emails get a 400 so the form can correct."""
+        probe membership. Invalid emails get a 400 so the form can correct.
+
+        Order matters: the honeypot answers before anything else (a bot learns
+        nothing, not even that its email was bad), and the throttle runs
+        before the membership check, so members and strangers both get 429."""
+        global _honeypot_hits
+        honeypot = body.get("hp_contact_ref")
+        if isinstance(honeypot, str) and honeypot:
+            _honeypot_hits += 1
+            print(f"[access-request] honeypot hit #{_honeypot_hits} on this instance; dropped")
+            self._send_json(200, {"ok": True})
+            return
+
         email = str(body.get("email", "")).strip().lower()
         note = str(body.get("note", ""))
+        source = body.get("source")
+        if not (isinstance(source, str) and SOURCE_RE.fullmatch(source)):
+            source = None
         if not EMAIL_RE.match(email):
             self._send_json(400, {"error": "Please enter a valid email address."})
+            return
+        if _over_ip_limit(_client_ip(self.headers)):
+            self._send_json(429, {"error": "Too many requests"})
             return
         # Already permitted → nothing to queue, but don't disclose that.
         if email in get_email_to_athlete_map():
             self._send_json(200, {"ok": True})
             return
         try:
-            add_access_request(email, note)
-        except RuntimeError:
-            self._send_json(503, {"error": "Requests are temporarily unavailable — please email Mike directly."})
+            add_access_request(email, note, source)
+        except Exception as e:
+            # Unconfigured, unreachable or unreadable KV. Nothing was written.
+            print(f"[access-request] not queued ({type(e).__name__})")
+            self._send_json(503, {"error": UNAVAILABLE})
             return
         # Best-effort: alert the admin. The request is already safely queued, so
         # an email failure must not turn into an error for the requester.
-        try:
-            notify_admin_of_request(email, note)
-        except Exception:
-            pass
+        if _admin_email_allowed():
+            try:
+                notify_admin_of_request(email, note, source)
+            except Exception:
+                pass
         self._send_json(200, {"ok": True})
 
     def _handle_admin(self, body: dict):
