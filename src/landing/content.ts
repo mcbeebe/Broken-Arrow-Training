@@ -42,7 +42,7 @@ export const INVITE = {
   goalPlaceholder: 'A spring half, my first HYROX, just getting fit...',
   /** MAX_REQUEST_NOTE_LEN in api/auth/_helpers.py. */
   goalMaxLength: 200,
-  fineprint: 'Free during the beta. Mike reviews every request. Already in?',
+  fineprint: 'Free during the beta. Already in?',
   signIn: 'Sign in',
   signInHref: '/app/',
   errors: {
@@ -63,61 +63,107 @@ export const INVITE = {
 
 export type Sport = 'run' | 'trail' | 'hyrox' | 'fit'
 
-/** The “This morning” card: one morning, four athletes. Illustrative examples. */
+/**
+ * What the morning did to today's session. `ease` and `pivot` change it;
+ * `peak` and `steady` leave it as planned (the app never adds work on a good
+ * morning, so neither does this page).
+ */
+export type Outcome = 'ease' | 'pivot' | 'peak' | 'steady'
+
+/** How a reading compares with the athlete's normal: drawn orange, teal or plain. */
+export type Tone = 'low' | 'high' | 'normal'
+
+/** The “This morning” card: four athletes, four mornings, one of each outcome. Illustrative examples. */
 export const SPORTS = [
   {
     id: 'run',
     tab: 'Running',
+    outcome: 'ease',
     who: 'Training for a spring half marathon',
+    metrics: [
+      { value: '41', note: '18% below normal', tone: 'low' },
+      { value: '56', note: '+5 over normal', tone: 'low' },
+      { value: '5:40', note: 'Short night', tone: 'normal' },
+    ],
+    readiness: { value: 38, title: 'Readiness: take it easy' },
     planned: 'Tempo run, 8 × 800 m',
-    adjusted: 'Easy run, 45 min in zone 2',
+    today: 'Easy run, 45 min in zone 2',
     why: 'Your body hasn’t caught up from Saturday’s long run. The tempo session moves to Thursday, so the week’s work stays the same.',
     chartCaption: 'The tempo run moves to Thursday, so week 9 still does its job.',
   },
   {
     id: 'trail',
     tab: 'Trail',
+    outcome: 'pivot',
     who: 'Training for a 50K trail race',
+    metrics: [
+      { value: '49', note: 'Normal for you', tone: 'normal' },
+      { value: '52', note: 'Normal for you', tone: 'normal' },
+      { value: '6:20', note: 'Hotel night', tone: 'normal' },
+    ],
+    readiness: { value: 60, title: 'Readiness: good to go' },
     planned: 'Hill repeats, 8 × 2 min',
-    adjusted: 'Flat easy run, 50 min',
-    why: 'Saturday’s long descent leaves soreness that peaks a day or two later. The hills move to Friday, when your legs are ready.',
-    chartCaption: 'Hill repeats move to Friday, so week 9 still does its job.',
+    today: 'Room cardio: bodyweight intervals, 20 to 30 min, then 10 min mobility',
+    why: 'You’re away for work with only a hotel room. The hill repeats become intervals you can do next to the bed, so the aerobic habit keeps going. Nothing to make up: the plan bends forward.',
+    chartCaption: 'Hill repeats become room cardio while you’re away, and the plan bends forward.',
   },
   {
     id: 'hyrox',
     tab: 'HYROX',
+    outcome: 'peak',
     who: 'Training for HYROX, Open division',
+    metrics: [
+      { value: '63', note: '14% above normal', tone: 'high' },
+      { value: '47', note: '3 under normal', tone: 'high' },
+      { value: '8:10', note: 'Solid night', tone: 'normal' },
+    ],
+    readiness: { value: 86, title: 'Readiness: ready to push' },
     planned: 'Race simulation: 4 × (1 km run + station)',
-    adjusted: 'Easy 30 min row, then light station technique',
-    why: 'Race-pace work on a day like this mostly adds fatigue. The simulation moves to Thursday, and the extra work on your weakest station stays in the week.',
-    chartCaption: 'The race simulation moves to Thursday, so week 9 still does its job.',
+    today: 'Race simulation: 4 × (1 km run + station), full intensity',
+    why: 'Every number is above your normal and your load is steady. This is the day for your hardest session, so go at full race pace.',
+    chartCaption: 'The race simulation stays, at full intensity, so week 9 lands as planned.',
   },
   {
     id: 'fit',
     tab: 'Fitness',
+    outcome: 'steady',
     who: 'No race. Goal: build endurance',
+    metrics: [
+      { value: '52', note: 'Normal for you', tone: 'normal' },
+      { value: '50', note: 'Normal for you', tone: 'normal' },
+      { value: '7:25', note: 'Normal night', tone: 'normal' },
+    ],
+    readiness: { value: 66, title: 'Readiness: good to go' },
     planned: 'Bike intervals, 6 × 3 min hard',
-    adjusted: 'Zone 2 ride, 40 min, plus mobility',
-    why: 'The intervals move to Friday. Wednesday’s strength session stays, so the week still covers cardio, intervals and strength.',
-    chartCaption: 'Bike intervals move to Friday, and the block stays on track.',
+    today: 'Bike intervals, 6 × 3 min hard',
+    why: 'All clear: your numbers are right on your normal, so nothing changes. Wednesday’s strength session stays too.',
+    chartCaption: 'Nothing moves, and the block stays on track.',
   },
-] as const satisfies readonly (Record<string, unknown> & { id: Sport })[]
+] as const satisfies readonly (Record<string, unknown> & {
+  id: Sport
+  outcome: Outcome
+  metrics: readonly { value: string; note: string; tone: Tone }[]
+  readiness: { value: number; title: string }
+})[]
+
+/** Whether this morning changed today's session (and so whether the card and chart show what was planned). */
+export function changesToday(outcome: Outcome): boolean {
+  return outcome === 'ease' || outcome === 'pivot'
+}
 
 export const MORNING = {
-  groupLabel: 'Same morning, four different athletes',
+  groupLabel: 'Four athletes, four different mornings',
   heading: 'This morning',
+  /** Labels and units for each sport's three `metrics`, in order. */
   metrics: [
-    { label: 'HRV', value: '41', unit: 'ms', note: '18% below normal', flagged: true },
-    { label: 'Resting HR', value: '56', unit: 'bpm', note: '+5 over normal', flagged: true },
-    { label: 'Sleep', value: '5:40', unit: '', note: 'Short night', flagged: false },
+    { label: 'HRV', unit: 'ms' },
+    { label: 'Resting HR', unit: 'bpm' },
+    { label: 'Sleep', unit: '' },
   ],
-  readiness: {
-    value: 38,
-    title: 'Readiness: take it easy',
-    basis: 'Based on HRV, resting heart rate, sleep and your last 7 days of training',
-  },
+  basis: 'Based on HRV, resting heart rate, sleep and your last 7 days of training',
   plannedLabel: 'Planned',
   adjustedLabel: 'Adjusted for today',
+  todayLabel: 'Today',
 } as const
 
 export const HOW = {
@@ -236,12 +282,19 @@ export const PLAN = {
     fit: ['Weeks 1 to 4', '5 to 8', '9 to 12', '13 to 16'],
   },
   chartLabel: {
-    race: 'Bar chart of weekly training load over 16 weeks, building through base and build to a peak, then tapering to race day. Week 9 is lower than planned because today was adjusted.',
-    fit: 'Bar chart of weekly training load over 16 weeks in four blocks, each ending with an easier week. Week 9 is lower than planned because today was adjusted.',
+    race: 'Bar chart of weekly training load over 16 weeks, building through base and build to a peak, then tapering to race day.',
+    fit: 'Bar chart of weekly training load over 16 weeks in four blocks, each ending with an easier week.',
+  },
+  /** Appended to the chart label: whether today's bar is cut back. */
+  week9: {
+    changed: 'Week 9 is lower than planned because today was adjusted.',
+    same: 'Week 9 is on plan.',
   },
   todayLabel: 'Today',
   captionLead: 'Today, week 9',
-  captionTail: 'Dashed outline: what was planned. Example plan.',
+  /** Shown only when today changed, because only then is there an outline. */
+  captionOutline: 'Dashed outline: what was planned.',
+  captionExample: 'Example plan.',
   bars: {
     race: [38, 44, 50, 34, 54, 60, 66, 46, 70, 76, 82, 58, 88, 72, 52, 30],
     fit: [40, 46, 52, 34, 44, 50, 56, 36, 48, 54, 60, 38, 50, 56, 62, 40],
@@ -251,9 +304,21 @@ export const PLAN = {
   plot: 200,
   /** Week 9. */
   todayIndex: 8,
-  /** Today's bar is filled to this share of its planned height. */
+  /** When today changed, its bar is filled to this share of its planned height. */
   todayShare: 0.72,
 } as const
+
+export type PersonalityId = 'warm' | 'direct' | 'funny' | 'nerdy' | 'old-school'
+
+/** Every reply, once per personality. */
+type Replies = Readonly<Record<PersonalityId, string>>
+
+export interface CoachQuestion {
+  athlete: string
+  replies: Replies
+  /** Rows of the proposal card; a question without one has no Approve. */
+  proposal?: readonly { day: string; from: string; to: string }[]
+}
 
 export const COACH = {
   title: 'A coach in your pocket',
@@ -264,31 +329,70 @@ export const COACH = {
     'Approved changes go straight to your Garmin watch',
   ],
   headerPrefix: 'Your coach. ',
-  noTraits: 'Pick a personality below.',
   fallbackName: 'Your coach',
-  athleteMessage: 'Work trip Wednesday to Friday, and I’m already sleeping badly. What should this week look like?',
-  coachMessage: 'Let’s do your hard session Tuesday, before you leave, and make the travel days short and easy: 30 minutes you can do in a hotel gym or outside. You won’t lose anything that matters.',
-  proposal: {
-    heading: 'Proposed change to your plan',
-    rows: [
-      { day: 'Tue', from: 'Easy 40 min', to: 'Hard session, moved from Thu' },
-      { day: 'Wed to Fri', from: 'Full sessions', to: '30 min easy, hotel-friendly' },
-    ],
-  },
+  /** Written replies, not live AI: “Ask something else” cycles through these in order. */
+  questions: [
+    {
+      athlete: 'Work trip Wednesday to Friday, and I’m already sleeping badly. What should this week look like?',
+      replies: {
+        warm: 'Travel weeks are tough, and a short night on top of one is a lot. Let’s do your hard session Tuesday, before you leave, and keep the trip short and easy: 30 minutes in the hotel gym or outside. You won’t lose anything that matters.',
+        direct: 'Hard session moves to Tuesday, before you fly. Wednesday to Friday: 30 minutes easy, hotel gym or outside. Sleep matters more than volume this week.',
+        funny: 'Airports are great for steps and terrible for intervals. So the hard session moves to Tuesday, before you go, and the trip gets 30 easy minutes a day. Your fitness will be waiting when you land.',
+        nerdy: 'Your HRV is 18% under your baseline and sleep is short, so hard work on travel days is poor value. The hard session moves to Tuesday, and Wednesday to Friday drop to 30 easy minutes. One lighter week won’t dent your fitness.',
+        'old-school': 'Do the work before you go. Hard session Tuesday. On the road, 30 minutes easy every day, gym or out the door. Fitness takes months to build, and three easy days won’t take it away.',
+      },
+      proposal: [
+        { day: 'Tue', from: 'Easy 40 min', to: 'Hard session, moved from Thu' },
+        { day: 'Wed to Fri', from: 'Full sessions', to: '30 min easy, hotel-friendly' },
+      ],
+    },
+    {
+      athlete: 'Why is today an easy day? I feel fine.',
+      replies: {
+        warm: 'Glad you’re feeling good. Today is easy on purpose: it sets you up for Thursday’s tempo run. Keep it relaxed, enjoy it, and bring that energy to Thursday.',
+        direct: 'Because Thursday is hard. Easy days let the hard days be hard. Keep it conversational for 45 minutes and save your legs.',
+        funny: 'Feeling fine is the point. Today is the opening act and Thursday’s tempo run is the headliner. Don’t steal your own show.',
+        nerdy: 'Easy days add aerobic volume at a cost your body clears by tomorrow. Stay in zone 2 today and Thursday’s tempo run gets your freshest legs.',
+        'old-school': 'Easy days make the hard days work. Run slow enough to talk. If it feels too slow, it’s working.',
+      },
+    },
+    {
+      athlete: 'Can I move Saturday’s long run to Sunday?',
+      replies: {
+        warm: 'Of course. Let’s rest Saturday and do the long run Sunday. The rest of the week stays just as it is.',
+        direct: 'Yes. Saturday becomes rest, Sunday gets the long run. Nothing else changes.',
+        funny: 'Big Saturday plans? Respect. The long run slides to Sunday, Saturday becomes a rest day, and the week won’t even notice.',
+        nerdy: 'Yes. Swapping the two days keeps the week’s total load the same, and you get one extra day of rest before the long run.',
+        'old-school': 'Rest Saturday, run long Sunday. Same work, different day.',
+      },
+      proposal: [
+        { day: 'Sat', from: 'Long run, 90 min', to: 'Rest day' },
+        { day: 'Sun', from: 'Rest day', to: 'Long run, 90 min' },
+      ],
+    },
+  ] as const satisfies readonly CoachQuestion[],
+  proposalHeading: 'Proposed change to your plan',
   approve: 'Approve',
   keep: 'Keep my plan',
   approved: 'Plan updated. The new week is on your watch.',
+  askAnother: 'Ask something else',
+  reset: 'Reset',
+  /** Changes per visit (a personality or a question); typing a name is free, and only a reload gives tries back. */
+  tryLimit: 3,
+  limitBefore: 'That’s the demo. ',
+  limitLink: 'Request an invite',
+  limitHref: '#join',
+  limitTail: ' to keep talking to ',
+  limitEnd: '.',
   inputLabel: 'Message your coach',
   inputPlaceholderBefore: 'Ask ',
   inputPlaceholderAfter: ' anything',
   micLabel: 'Talk to your coach',
 } as const
 
-export type TraitId = 'funny' | 'strict' | 'motivational' | 'warm' | 'direct' | 'nerdy' | 'old-school' | 'chill'
-
 export const MAKE = {
   title: 'Make it yours',
-  body: 'Name your coach and choose how it talks to you. It can be the friend who keeps it light or the one who holds you to the plan. Try it: the chat above changes as you do.',
+  body: 'Name your coach and pick how it talks to you. The reply changes as you do.',
   nameLabel: 'Coach name',
   /** DEFAULT_COACH_NAME in src/types/index.ts. */
   defaultName: 'Mira',
@@ -296,22 +400,33 @@ export const MAKE = {
   nameMaxLength: 30,
   groupLabel: 'Personality',
   hint: 'A few of the 17 personalities',
-  /** Exact COACH_TRAITS labels, in this order. */
+  /** Exact COACH_TRAITS labels, in this order; pick one. */
   traits: [
-    { id: 'funny', label: 'Funny' },
-    { id: 'strict', label: 'Strict' },
-    { id: 'motivational', label: 'Motivational' },
     { id: 'warm', label: 'Warm' },
     { id: 'direct', label: 'Direct' },
+    { id: 'funny', label: 'Funny' },
     { id: 'nerdy', label: 'Data Nerd' },
     { id: 'old-school', label: 'Old School' },
-    { id: 'chill', label: 'Chill' },
   ],
-  defaultTraits: ['warm', 'direct'],
+  defaultPersonality: 'warm',
 } as const satisfies Record<string, unknown> & {
-  traits: readonly (Record<string, unknown> & { id: TraitId })[]
-  defaultTraits: readonly TraitId[]
+  traits: readonly (Record<string, unknown> & { id: PersonalityId })[]
+  defaultPersonality: PersonalityId
 }
+
+/** “See it in the app”: real screens, cropped so nothing personal shows. Files in public/landing/app/. */
+export const SCREENS = {
+  title: 'See it in the app',
+  intro: 'Real screens from a real training block.',
+  items: [
+    { id: 'today', src: '/landing/app/today.webp', width: 720, height: 694, caption: 'Every day explains itself, easy days included.', alt: 'The Today screen: week 4 of 12, today’s easy run, and why it’s easy' },
+    { id: 'coach', src: '/landing/app/coach.webp', width: 720, height: 475, caption: 'The coach reads your recovery before it answers.', alt: 'A coach reply that starts from this morning’s readiness, HRV and sleep' },
+    { id: 'progress', src: '/landing/app/progress.webp', width: 720, height: 1402, caption: 'Fitness, fatigue and recovery on one chart, so you can see whether you’re building or digging a hole.', alt: 'The fitness, fatigue and recovery chart for the last month' },
+    { id: 'workout', src: '/landing/app/workout.webp', width: 720, height: 697, caption: 'Every session in detail: heart rate and time in each zone.', alt: 'A strength session’s heart rate over time and time in each zone' },
+    { id: 'load-alert', src: '/landing/app/load-alert.webp', width: 720, height: 222, caption: 'When your load climbs too fast, Attune tells you to back off.', alt: 'An injury risk alert: the load ratio rose from 1.26 to 1.84 in three days' },
+    { id: 'journal', src: '/landing/app/journal.webp', width: 720, height: 304, caption: 'Your training story, in your words.', alt: 'The training journal, with a note about a session skipped on purpose' },
+  ],
+} as const
 
 export const GEAR = {
   title: 'Works with the gear you already wear',
@@ -332,9 +447,9 @@ export const TOOLS = {
   ],
 } as const
 
-/** DRAFT: needs Mike’s sign-off before PR 5 ships (copy.md). */
+/** The owner’s wording, 2026-10-07 (copy.md). */
 export const FOUNDER = {
-  quote: '“I built Attune for my own training: trail races, then HYROX, and the stretches in between. I wanted a plan that noticed when I’d slept badly or overdone it, and changed instead of pretending nothing happened.”',
+  quote: '“I built Attune for my own training: mountain trail races, HYROX, and the stretches in between. I wanted a plan that noticed when I’d slept badly, was exhausted from kids, work travel or simply overdoing it, and changed my plan intelligently instead of pretending nothing happened and getting injured.”',
   name: 'Mike Beebe',
   role: ', founder, Oakland',
 } as const

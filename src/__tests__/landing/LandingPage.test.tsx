@@ -9,7 +9,7 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { render, within } from '@testing-library/react'
 import { LandingPage } from '../../landing/LandingPage'
 import { LANDING_ANCHORS } from '../../landing/legacyEntry'
-import { SECTION_IDS, SPORTS, MORNING, PLAN, MAKE, COACH, HERO } from '../../landing/content'
+import { SECTION_IDS, SPORTS, MORNING, PLAN, MAKE, COACH, HERO, SCREENS } from '../../landing/content'
 
 let root: HTMLElement
 
@@ -54,19 +54,21 @@ describe('the default state (PR 4 wires the interactions)', () => {
     const run = SPORTS.find(s => s.id === 'run')!
     const live = root.querySelector('[aria-live="polite"]')!
     expect(live).toHaveTextContent(run.planned)
-    expect(live).toHaveTextContent(run.adjusted)
+    expect(live).toHaveTextContent(run.today)
     expect(live).toHaveTextContent(run.why)
     expect(root.textContent).toContain(run.who)
   })
 
   it('shows the three metrics and the readiness ring', () => {
-    for (const m of MORNING.metrics) expect(root.textContent).toContain(m.note)
-    expect(root.textContent).toContain(MORNING.readiness.title)
+    for (const m of MORNING.metrics) expect(root.textContent).toContain(m.label)
+    for (const m of SPORTS[0].metrics) expect(root.textContent).toContain(m.note)
+    expect(root.textContent).toContain(SPORTS[0].readiness.title)
+    expect(root.querySelector('[data-ring]')!.getAttribute('data-ring')).toBe(String(SPORTS[0].readiness.value))
   })
 
   it('shows the Racing chart with 16 bars and today at week 9', () => {
     const chart = root.querySelector('[role="img"]')!
-    expect(chart.getAttribute('aria-label')).toBe(PLAN.chartLabel.race)
+    expect(chart.getAttribute('aria-label')).toBe(`${PLAN.chartLabel.race} ${PLAN.week9.changed}`)
     expect(chart.querySelectorAll('[data-bar]')).toHaveLength(16)
     expect(chart.querySelector('[data-bar="today"]')).toBe(chart.querySelectorAll('[data-bar]')[PLAN.todayIndex])
     expect(root.textContent).toContain(PLAN.intro.race)
@@ -80,13 +82,28 @@ describe('the default state (PR 4 wires the interactions)', () => {
     expect(bars.map(b => b.style.height)).toEqual(expected)
   })
 
-  it('names the coach Mira with Warm and Direct on', () => {
-    expect(root.textContent).toContain(`${COACH.headerPrefix}Warm, Direct.`)
+  it('names the coach Mira, Warm, on the first question', () => {
+    expect(root.textContent).toContain(`${COACH.headerPrefix}Warm.`)
     const group = root.querySelector('[aria-labelledby="coach-traits"]')!
     const pressed = [...group.querySelectorAll('button[aria-pressed="true"]')].map(b => b.textContent)
-    expect(pressed).toEqual(['Warm', 'Direct'])
+    expect(pressed).toEqual(['Warm'])
+    expect(root.querySelector('[data-coach-question]')).toHaveTextContent(COACH.questions[0].athlete)
+    expect(root.querySelector('[data-coach-reply]')).toHaveTextContent(COACH.questions[0].replies.warm)
+    expect(root.querySelector('[data-coach-limit]')!.textContent).toBe('')
     expect(root.querySelector<HTMLInputElement>('#coach-name')!.value).toBe(MAKE.defaultName)
     expect(root.querySelector<HTMLInputElement>('#coach-ask')!.placeholder).toBe(`Ask ${MAKE.defaultName} anything`)
+  })
+
+  it('shows every app screen, lazy-loaded, sized, with alt text and a caption', () => {
+    const imgs = [...root.querySelectorAll<HTMLImageElement>('img')]
+    expect(imgs.map(i => i.getAttribute('src'))).toEqual(SCREENS.items.map(s => s.src))
+    for (const [i, s] of SCREENS.items.entries()) {
+      expect(imgs[i]).toHaveAttribute('loading', 'lazy')
+      expect(imgs[i]).toHaveAttribute('alt', s.alt)
+      expect(imgs[i]).toHaveAttribute('width', String(s.width))
+      expect(imgs[i]).toHaveAttribute('height', String(s.height))
+      expect(imgs[i].closest('figure')).toHaveTextContent(s.caption)
+    }
   })
 
   it('shows the hero and the invite form', () => {

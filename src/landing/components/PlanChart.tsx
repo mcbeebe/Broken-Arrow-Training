@@ -1,4 +1,4 @@
-import { PLAN, SPORTS, type PlanKind, type Sport } from '../content'
+import { PLAN, SPORTS, changesToday, type PlanKind, type Sport } from '../content'
 import { SegmentedControl } from './SegmentedControl'
 
 interface Props {
@@ -10,13 +10,16 @@ interface Props {
 const height = (v: number) => Math.round((v / PLAN.max) * PLAN.plot)
 
 /**
- * “Your plan, week by week”: 16 weekly bars with today (week 9) cut back
- * from its dashed planned height (design-spec.md § PlanChart). Plain divs, not
- * recharts: the landing page can't afford the chart library.
+ * “Your plan, week by week”: 16 weekly bars with today (week 9) marked. When
+ * this morning changed today's session, the bar is cut back from its dashed
+ * planned height; when it didn't, the bar is full and there's no outline
+ * (design-spec.md § PlanChart). Plain divs, not recharts: the landing page
+ * can't afford the chart library.
  */
 export function PlanChart({ plan, sport, onPlanChange }: Props) {
   const bars = PLAN.bars[plan]
-  const caption = (SPORTS.find(s => s.id === sport) ?? SPORTS[0]).chartCaption
+  const example = SPORTS.find(s => s.id === sport) ?? SPORTS[0]
+  const changed = changesToday(example.outcome)
   return (
     <>
       <div className="mt-16 flex flex-wrap items-end justify-between gap-x-8 gap-y-4">
@@ -38,7 +41,7 @@ export function PlanChart({ plan, sport, onPlanChange }: Props) {
       <figure className="m-0 mt-7 p-0">
         <div
           role="img"
-          aria-label={PLAN.chartLabel[plan]}
+          aria-label={`${PLAN.chartLabel[plan]} ${changed ? PLAN.week9.changed : PLAN.week9.same}`}
           className="flex h-[236px] items-end gap-1.5 border-0 border-b-2 border-solid border-landing-deep-line"
         >
           {bars.map((v, i) => {
@@ -52,11 +55,13 @@ export function PlanChart({ plan, sport, onPlanChange }: Props) {
             }
             return (
               <div key={i} className="relative flex h-full min-w-0 flex-1 flex-col justify-end">
-                <div
-                  data-bar-outline
-                  className="absolute inset-x-0 bottom-0 box-border rounded-t-md border-2 border-dashed border-landing-signal-on-deep"
-                  style={{ height: `${h}px` }}
-                />
+                {changed && (
+                  <div
+                    data-bar-outline
+                    className="absolute inset-x-0 bottom-0 box-border rounded-t-md border-2 border-dashed border-landing-signal-on-deep"
+                    style={{ height: `${h}px` }}
+                  />
+                )}
                 <span
                   data-bar-label
                   className="absolute left-1/2 -translate-x-1/2 whitespace-nowrap text-[13px] font-extrabold text-landing-signal-on-deep"
@@ -67,7 +72,7 @@ export function PlanChart({ plan, sport, onPlanChange }: Props) {
                 <div
                   data-bar="today"
                   className="rounded-t-md bg-landing-chart-today"
-                  style={{ height: `${Math.round(h * PLAN.todayShare)}px` }}
+                  style={{ height: `${changed ? Math.round(h * PLAN.todayShare) : h}px` }}
                 />
               </div>
             )
@@ -86,7 +91,8 @@ export function PlanChart({ plan, sport, onPlanChange }: Props) {
         <figcaption className="mt-[22px] flex flex-wrap items-baseline gap-x-[22px] gap-y-2 rounded-[14px] bg-landing-deep-card px-5 py-4">
           <span className="text-lg font-extrabold text-landing-signal-on-deep">{PLAN.captionLead}</span>
           <span className="flex-[1_1_360px] text-base leading-normal text-landing-on-deep">
-            {caption} {PLAN.captionTail}
+            {example.chartCaption} {changed && `${PLAN.captionOutline} `}
+            {PLAN.captionExample}
           </span>
         </figcaption>
       </figure>

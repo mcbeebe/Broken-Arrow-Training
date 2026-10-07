@@ -1,8 +1,9 @@
 /**
  * Initiative 003: every factual claim on the landing page is backed by code,
  * and this test reads the code, not a copy of it. Change a method's ratings,
- * the HYROX divisions, the coach traits, the cardio options or the fitness
- * block numbers, and this fails until copy.md and content.ts are updated.
+ * the HYROX divisions, the coach traits, the cardio options, the fitness
+ * block numbers, the readiness bands or travel mode's swap, and this fails
+ * until copy.md and content.ts are updated.
  *
  * (Tests may import app modules; the landing page itself may not.)
  */
@@ -15,7 +16,14 @@ import { HYROX_DIVISIONS, stationSpecs } from '../../engines/hyrox/spec'
 import { MAX_BLOCK_WEEKS, DELOAD_EVERY } from '../../engines/generalFitness'
 import { CARDIO_MODALITIES } from '../../hooks/useOnboarding'
 import { COACH_TRAITS, COACH_TRAIT_EXCLUSIVE_GROUPS, DEFAULT_COACH_NAME } from '../../types'
+import { classifyStatus } from '../../utils/readiness'
+import { travelSwap } from '../../engines/planGenerator/travelMode'
+import type { PlannedDay } from '../../types'
 import personaEditorSource from '../../components/CoachPersonaEditor.tsx?raw'
+import readinessSource from '../../utils/readiness.ts?raw'
+import verdictSource from '../../utils/verdict.ts?raw'
+import travelModeSource from '../../engines/planGenerator/travelMode.ts?raw'
+import morningOutlookSource from '../../engines/adaptive/morningOutlook.ts?raw'
 
 /** Every string in content.ts: the states one default render never shows (other tabs, form errors, success). */
 function contentStrings(value: unknown = C, out: string[] = []): string[] {
@@ -178,9 +186,14 @@ describe('Make it yours: the coach traits', () => {
     expect(C.MAKE.defaultName).toBe(DEFAULT_COACH_NAME)
   })
 
-  it('the default traits are shown traits', () => {
-    const shown = new Set(C.MAKE.traits.map(t => t.id))
-    for (const id of C.MAKE.defaultTraits) expect(shown.has(id)).toBe(true)
+  it('the default personality is one of the shown ones', () => {
+    expect(C.MAKE.traits.map(t => t.id)).toContain(C.MAKE.defaultPersonality)
+  })
+
+  it('every question has a reply in every shown personality’s voice', () => {
+    for (const q of C.COACH.questions) {
+      expect(Object.keys(q.replies).sort()).toEqual(C.MAKE.traits.map(t => t.id).sort())
+    }
   })
 
   it('the name input’s maxLength matches the app’s persona editor', () => {
@@ -190,5 +203,72 @@ describe('Make it yours: the coach traits', () => {
     expect(container.querySelector<HTMLInputElement>('#coach-name')!.maxLength).toBe(limits[0])
     expect(C.MAKE.nameMaxLength).toBe(limits[0])
     unmount()
+  })
+})
+
+describe('“This morning”: one of each outcome, each true to the app', () => {
+  const by = (outcome: C.Outcome) => C.SPORTS.find(s => s.outcome === outcome)!
+  /** The app's status for a 0–100 ring value (compositeToDisplayScore, inverted). */
+  const statusOf = (ring: number) => classifyStatus(ring / 25 - 2)
+
+  it('shows each outcome exactly once', () => {
+    expect(C.SPORTS.map(s => s.outcome).sort()).toEqual(['ease', 'peak', 'pivot', 'steady'])
+  })
+
+  it.each([
+    ['ease', ['RED', 'YELLOW'], 'Readiness: take it easy'],
+    ['pivot', ['GREEN'], 'Readiness: good to go'],
+    ['steady', ['GREEN'], 'Readiness: good to go'],
+    ['peak', ['PEAK'], 'Readiness: ready to push'],
+  ] as const)('%s: the ring is in the app’s %j band and says so', (outcome, statuses, title) => {
+    const s = by(outcome)
+    expect(statuses as readonly string[]).toContain(statusOf(s.readiness.value))
+    expect(s.readiness.title).toBe(title)
+  })
+
+  it('the readings point the same way as the ring', () => {
+    const tones = (o: C.Outcome) => by(o).metrics.map(m => m.tone)
+    expect(tones('ease')).toContain('low')
+    expect(tones('ease')).not.toContain('high')
+    expect(tones('peak')).toContain('high')
+    expect(tones('peak')).not.toContain('low')
+    expect(tones('steady').every(t => t === 'normal')).toBe(true)
+    expect(tones('pivot').every(t => t === 'normal')).toBe(true)
+  })
+
+  it('ease: the hard session moves, as the morning autopilot does', () => {
+    expect(morningOutlookSource).toContain('the hard session moves')
+    expect(by('ease').why).toMatch(/moves to \w+day/)
+  })
+
+  it('pivot: the run becomes travel mode’s own room cardio', () => {
+    const day = { day: 'Wed', type: 'quality', workout: 'Hill repeats', detail: '8 × 2 min', zone: 'Z4', route: 'Hills', time: '50 min' } as PlannedDay
+    const swap = travelSwap(day, 'bodyweight')!
+    expect(swap.workout).toBe('Room cardio (travel)')
+    expect(swap.detail).toMatch(/20–30 min/)
+    expect(swap.detail).toMatch(/Mobility 10 min/)
+    const pivot = by('pivot')
+    expect(pivot.today).toContain('Room cardio')
+    expect(pivot.today).toContain('20 to 30 min')
+    expect(pivot.today).toContain('10 min mobility')
+    expect(travelModeSource).toContain('the plan bends forward')
+    expect(pivot.why).toContain('the plan bends forward')
+  })
+
+  it('peak and steady keep the planned session and never add work (the app never does)', () => {
+    for (const s of [by('peak'), by('steady')]) {
+      expect(s.today.startsWith(s.planned), s.id).toBe(true)
+      expect(`${s.today} ${s.why} ${s.chartCaption}`).not.toMatch(/\b(extra|more|longer|added|adds|harder|bonus)\b/i)
+    }
+  })
+
+  it('peak: full intensity is the app’s own PEAK advice', () => {
+    expect(readinessSource).toContain('execute planned workout at full intensity')
+    expect(by('peak').today).toContain('full intensity')
+  })
+
+  it('steady: “All clear” is the app’s own verdict', () => {
+    expect(verdictSource).toContain('All clear — go as planned.')
+    expect(by('steady').why.startsWith('All clear')).toBe(true)
   })
 })

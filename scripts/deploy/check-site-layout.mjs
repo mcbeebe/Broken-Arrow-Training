@@ -14,7 +14,9 @@
  * page (guard + dynamic imports + the shared React chunk + CSS) stays under
  * PAGE_BUDGET_BYTES; and, from dist/.vite/module-map.json (written by
  * scripts/deploy/vite-plugin-module-map.ts), that every chunk the landing
- * page loads holds only its own code, React and the bundler's runtime.
+ * page loads holds only its own code, React and the bundler's runtime; and
+ * that every app screenshot the landing page references exists and stays under
+ * SCREEN_BUDGET_BYTES.
  */
 import * as nodeFs from 'node:fs'
 import { join, resolve } from 'node:path'
@@ -26,6 +28,12 @@ export const GUARD_BUDGET_BYTES = 10 * 1024
 
 /** Gzipped size limit for everything the landing page loads (JS + CSS). */
 export const PAGE_BUDGET_BYTES = 90 * 1024
+
+/** Size limit for each app screenshot the landing page shows (already-compressed WebP). */
+export const SCREEN_BUDGET_BYTES = 80 * 1024
+
+/** How the landing page's code names its screenshots (content.ts SCREENS). */
+const SCREEN_URL = /\/landing\/app\/[\w-]+\.webp/g
 
 /**
  * The only modules the landing page may ship (design-spec.md § Files): its own
@@ -114,6 +122,7 @@ export function checkSiteLayout(distDir, fs = nodeFs) {
         errors.push(...checkPageBudget(distDir, viteManifest, fs))
         errors.push(...checkModuleMap(distDir, viteManifest, readFileSync, existsSync))
         errors.push(...checkFontWiring(distDir, viteManifest, readFileSync, existsSync))
+        errors.push(...checkScreens(distDir, viteManifest, fs))
       }
     } else errors.push('dist/.vite/manifest.json is not valid JSON')
   }
@@ -162,6 +171,29 @@ function checkFontWiring(distDir, viteManifest, readFileSync, existsSync) {
   }
   if (!closure(viteManifest, false).js.some(file => read(file).includes(url))) {
     errors.push(`the root page guard no longer preloads ${url}, the font the landing CSS uses`)
+  }
+  return errors
+}
+
+/**
+ * Every screenshot the landing page's chunks name must ship, and each stays
+ * small: they load lazily, but a phone still pays for every one it scrolls to.
+ */
+function checkScreens(distDir, viteManifest, fs) {
+  const { js } = closure(viteManifest, true)
+  const urls = new Set()
+  for (const file of js) {
+    const full = join(distDir, file)
+    if (!fs.existsSync(full)) continue
+    for (const m of new TextDecoder().decode(fs.readFileSync(full)).matchAll(SCREEN_URL)) urls.add(m[0])
+  }
+  const errors = []
+  for (const url of urls) {
+    const full = join(distDir, url.slice(1))
+    if (!fs.existsSync(full)) errors.push(`the landing page shows ${url}, but dist${url} is missing`)
+    else if (fs.readFileSync(full).length > SCREEN_BUDGET_BYTES) {
+      errors.push(`dist${url} is ${fs.readFileSync(full).length} bytes, over the ${SCREEN_BUDGET_BYTES}-byte screenshot budget`)
+    }
   }
   return errors
 }

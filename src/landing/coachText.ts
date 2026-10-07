@@ -1,10 +1,10 @@
 /** The demo coach's header text (design-spec.md § Shared state). */
-import { COACH, MAKE, type TraitId } from './content'
+import { COACH, MAKE, type PersonalityId } from './content'
 
-/** “Your coach. Warm, Direct.”: selected traits in their canonical order, or the prompt to pick one. */
-export function coachStatus(traits: ReadonlySet<TraitId>): string {
-  const labels = MAKE.traits.filter(t => traits.has(t.id)).map(t => t.label)
-  return labels.length ? `${COACH.headerPrefix}${labels.join(', ')}.` : COACH.noTraits
+/** “Your coach. Warm.”: the chosen personality's exact app label. */
+export function coachStatus(personality: PersonalityId): string {
+  const label = MAKE.traits.find(t => t.id === personality)?.label ?? MAKE.traits[0].label
+  return `${COACH.headerPrefix}${label}.`
 }
 
 /** The trimmed name, or “Your coach” when blank. */

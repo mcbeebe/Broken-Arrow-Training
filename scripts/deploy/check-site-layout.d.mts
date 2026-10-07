@@ -6,6 +6,9 @@ export declare const GUARD_BUDGET_BYTES: number
 /** Gzipped size limit for everything the landing page loads (JS + CSS). */
 export declare const PAGE_BUDGET_BYTES: number
 
+/** Size limit for each app screenshot the landing page shows. */
+export declare const SCREEN_BUDGET_BYTES: number
+
 /** The read-only filesystem the checker needs. */
 export interface ReadOnlyFs {
   existsSync(path: string): boolean

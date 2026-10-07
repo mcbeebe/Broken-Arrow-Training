@@ -47,7 +47,7 @@ text, no exclamation marks, numbers as digits.
 | Success heading | Request sent. |
 | Success body | Mike will review your request and email {email} the moment you’re approved. Until then, try one of the free tools (link text “free tools” → `#tools`). |
 
-### “This morning” card — DRAFT (PR 4b), awaiting owner approval
+### “This morning” card — approved 2026-10-07 (PR 4b)
 
 PR 4b replaces “Same morning, four different athletes”: the owner asked for one
 of each outcome (2026-10-07), so each tab now has its own morning.
@@ -114,9 +114,9 @@ Season claim backed by `src/engines/season/` and the onboarding “What kinds of
 - Racing phase labels: Base, weeks 1 to 5 · Build, weeks 6 to 10 · Peak, 11 to 13 · Taper to race day
 - No-race phase labels: Weeks 1 to 4 · 5 to 8 · 9 to 12 · 13 to 16
 - Bar label above week 9: Today
-- Caption: **Today, week 9** {chart caption from the tab table}. Dashed outline: what was planned. Example plan.
+- Caption: **Today, week 9** {chart caption from the tab table}. Dashed outline: what was planned. Example plan. *(PR 4b: the “Dashed outline” sentence shows only when the morning changed today; the chart’s aria-label then ends “Week 9 is lower than planned because today was adjusted.”, otherwise “Week 9 is on plan.”)*
 
-## A coach in your pocket (`#coach`) — DRAFT (PR 4b), awaiting owner approval
+## A coach in your pocket (`#coach`) — approved 2026-10-07 (PR 4b)
 
 PR 4b folds “Make it yours” into this section (owner, 2026-10-07): the
 personality picker sits with the chat, and picking one rewrites the coach’s
@@ -180,7 +180,7 @@ Warm, Mira, not approved.
 
 Backed by: voice in/out (`api/coach/chat.py`, `src/utils/voiceInput.ts`), proposals with approval (`src/components/ProposalCard.tsx`), Garmin re-push (`src/utils/garminRepush.ts`), coach memory; personalities `COACH_TRAITS` (17 entries) and `DEFAULT_COACH_NAME` in `src/types/index.ts`; name limit `CoachPersonaEditor.tsx`. “If it feels too slow, it’s working” echoes the app’s own easy-day card.
 
-## See it in the app — DRAFT (PR 4b), awaiting owner approval
+## See it in the app — approved 2026-10-07 (PR 4b)
 
 Real screens from the founder’s own training, cropped so nothing personal
 shows (owner, 2026-10-07). Phone frames: a swipe row on phones, a grid on

@@ -3,7 +3,7 @@
  */
 import { describe, it, expect } from 'vitest'
 import { coachDisplayName, coachStatus } from '../../landing/coachText'
-import { COACH, type TraitId } from '../../landing/content'
+import { COACH, MAKE } from '../../landing/content'
 
 describe('coachDisplayName', () => {
   it.each([
@@ -17,11 +17,7 @@ describe('coachDisplayName', () => {
 })
 
 describe('coachStatus', () => {
-  it('lists traits in canonical order with a trailing period', () => {
-    expect(coachStatus(new Set<TraitId>(['chill', 'funny', 'nerdy']))).toBe('Your coach. Funny, Data Nerd, Chill.')
-  })
-
-  it('is exactly copy.md’s prompt with no traits', () => {
-    expect(coachStatus(new Set())).toBe(COACH.noTraits)
+  it.each(MAKE.traits.map(t => [t.id, t.label] as const))('%s → “Your coach. %s.”', (id, label) => {
+    expect(coachStatus(id)).toBe(`Your coach. ${label}.`)
   })
 })

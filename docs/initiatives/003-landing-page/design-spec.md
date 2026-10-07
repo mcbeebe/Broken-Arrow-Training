@@ -75,7 +75,10 @@ interface LandingState {
   sport: Sport            // default 'run'
   plan: PlanKind          // default 'race'
   coachName: string       // default DEFAULT_COACH_NAME ('Mira'), max 30 like the app
-  traits: Set<TraitId>    // default {'warm','direct'}
+  personality: PersonalityId // PR 4b: one at a time, default 'warm'
+  question: number        // PR 4b: index into COACH.questions, default 0
+  approved: boolean
+  tries: number           // PR 4b: personality + question changes this visit
 }
 ```
 
@@ -86,7 +89,9 @@ Sync rules (the reference implements these; tests in PR 4 lock them):
 - Picking **Racing** while `sport === 'fit'` sets `sport = 'run'`; otherwise `sport` is unchanged.
 - The chart caption always uses the current `sport`’s caption from content.ts.
 - Coach name trimmed; empty shows “Your coach”, initial “Y”. Max 30 chars (`CoachPersonaEditor.tsx` uses 30).
-- Trait summary lists selected traits in the canonical order, comma-separated, with a trailing period.
+- The header’s status line is “Your coach. {personality}.” (PR 4b; it listed several traits before).
+- *(PR 4b)* A new personality or a new question costs one try; typing a name is free. At `COACH.tryLimit` (3) the personality buttons and “Ask something else” stay focusable but do nothing (`aria-disabled`), and the demo offers an invite. **Reset** returns to Mira, Warm, question 1, not approved, and gives no tries back; a reload does.
+- *(PR 4b)* “Ask something else” cycles the questions and clears Approve; a question without a proposal has no Approve.
 
 Persona and demo state are page-local. Nothing is persisted, and nothing is sent anywhere.
 
@@ -101,11 +106,17 @@ On deep: selected `onDeep` background with `deep` text; unselected `onDeepMuted`
 Arrow-key roving focus is optional; Tab-to-each-button is required.
 
 ### MorningCard
-- Metrics are fixed (see copy.md). Values use `white-space: nowrap`.
-- Readiness ring: 64px circle, `conic-gradient(signal 0 38%, line 38% 100%)`,
-  inner 48px circle with “38”. Decorative; the text beside it carries the meaning.
-- The planned/adjusted block is `aria-live="polite"` and has a min-height of
-  196px so switching tabs doesn’t shift the layout.
+- *(PR 4b)* Each tab has its own morning (copy.md): three readings, a ring and
+  a readiness line, one tab per outcome (eases off, pivots, peak, steady).
+  Values use `white-space: nowrap`; a reading’s note is orange below normal,
+  teal above, muted when normal.
+- Readiness ring: 64px circle, `conic-gradient(color 0 N%, line N% 100%)`,
+  inner 48px circle with N; `signal` when the morning eases off, `action`
+  otherwise. Decorative; the text beside it carries the meaning.
+- Everything below the tabs is `aria-live="polite"`. When the session changes,
+  Planned is struck through and the label reads “Adjusted for today”
+  (signal); when it stands, nothing is struck and the label reads “Today”
+  (action). The plan block has a min-height of 196px.
 
 ### PlanChart
 16 weekly bars in a flex row, plot height 236px (bars use ≤ 200px so the
@@ -116,30 +127,45 @@ const RACE = [38,44,50,34, 54,60,66,46, 70,76,82,58, 88,72,52,30] // base→buil
 const FIT  = [40,46,52,34, 44,50,56,36, 48,54,60,38, 50,56,62,40] // easier week every 4th
 const MAX = 88, PLOT = 200, TODAY = 8 // index of week 9
 height(v) = round(v / MAX * PLOT)
-today bar: dashed 2px outline at planned height (signalOnDeep),
-           solid fill at round(planned * 0.72) (chartToday),
-           “Today” label 8px above the outline (13px, 800, signalOnDeep)
+today bar: when today changed (PR 4b: ease off or pivot), a dashed 2px
+           outline at planned height (signalOnDeep) and a solid fill at
+           round(planned * 0.72); when it stands, a full bar and no outline
+           (chartToday either way),
+           “Today” label 8px above the planned height (13px, 800, signalOnDeep)
 other bars: chartBar
 ```
 
 Phase labels: a grid under the bars. Racing `5fr 5fr 3fr 3fr`, No race
 `repeat(4, 1fr)`; last label right-aligned. The chart container has `role="img"`
-and an `aria-label` describing the shape (strings in content.ts). Do not use
+and an `aria-label` describing the shape plus whether week 9 is cut back
+(strings in content.ts); the caption’s “Dashed outline” sentence shows only
+when there is one. Do not use
 recharts here (bundle size).
 
 ### CoachDemo
-Static conversation plus a proposal card. **Approve** swaps the two buttons
-for the confirmation line (`role="status"`). **Keep my plan** does nothing in
+*(PR 4b)* Three written questions, each answered in the chosen personality’s
+voice (copy.md; never live AI). The reply is `aria-live="polite"`.
+**Ask something else** and **Reset** sit under the chat; at the try limit a
+`role="status"` line offers “Request an invite” (→ `#join`). Questions with a
+proposal show the proposal card. **Approve** swaps the two buttons
+for the confirmation line (`role="status"`, named, focused). **Keep my plan** does nothing in
 the demo. The text input and mic button are decorative: render them
 `disabled` with `aria-disabled="true"` and a visually-hidden label, so nobody
 types into a fake chat expecting an answer.
 
 ### MakeItYours
-Name input and 8 trait toggles (`aria-pressed`) in a `role="group"` labelled
-“Personality”, with the hint “A few of the 17 personalities”. The 8 shown are
-real `COACH_TRAITS` labels (see copy.md). Changes update CoachDemo’s header live.
-The landing page does not apply `COACH_TRAIT_EXCLUSIVE_GROUPS`; none of the 8
-shown are in an exclusive pair.
+*(PR 4b)* A panel inside the coach section, not its own section: an H3, the
+name input, and 5 personality buttons (`aria-pressed`, exactly one pressed)
+in a `role="group"` labelled “Personality”, with the hint “A few of the 17
+personalities”. The 5 shown are real `COACH_TRAITS` labels (see copy.md).
+Picking one rewrites CoachDemo’s header and reply live.
+
+### AppScreens (PR 4b)
+“See it in the app”: 6 cropped real screens from `public/landing/app/*.webp`
+(720 px wide, each ≤ 80 KB, enforced by `check-site-layout.mjs`), with
+`loading="lazy"`, fixed `width`/`height`, alt text and a caption. A
+snap-scrolling row that bleeds to the screen edges on phones (portrait
+screens get a narrower card), CSS columns from 640px up.
 
 ### InviteForm
 - `<form noValidate>` with labelled email (`type="email"`, `autocomplete="email"`)
