@@ -38,7 +38,7 @@ describe('sections', () => {
   it('links off the page only to /app/, the tools and the legal pages', () => {
     const external = [...root.querySelectorAll('a[href]')].map(a => a.getAttribute('href')!).filter(h => !h.startsWith('#'))
     for (const href of external) {
-      expect(href, href).toMatch(/^\/(app\/|tools\/(fueling|predictor|heat)\.html|privacy\.html|terms\.html)$/)
+      expect(href, href).toMatch(/^\/(app\/|tools\/(fueling|predictor|heat|mileage)\.html|privacy\.html|terms\.html)$/)
     }
   })
 })

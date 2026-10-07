@@ -51,6 +51,7 @@ export default defineConfig({
         'tools-fueling': resolve(__dirname, 'tools/fueling.html'),
         'tools-predictor': resolve(__dirname, 'tools/predictor.html'),
         'tools-heat': resolve(__dirname, 'tools/heat.html'),
+        'tools-mileage': resolve(__dirname, 'tools/mileage.html'),
       },
     },
   },

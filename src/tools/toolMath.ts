@@ -6,7 +6,8 @@ import { costRun, MINETTI_DOMAIN_MAX, MINETTI_DOMAIN_MIN } from '../engines/terr
 /**
  * Pure math behind the free public calculators (G10). These pages are the
  * acquisition funnel: same engines as the app — carbTargetForRaceMiles,
- * Daniels VDOT, Minetti grade cost — not marketing copies of them. Zero
+ * Daniels VDOT, Minetti grade cost — not marketing copies of them. (The
+ * mileage planner's math is in mileageMath.ts, so these pages don't load it.) Zero
  * network, zero storage: everything below is a pure function of its inputs.
  */
 
@@ -140,3 +141,4 @@ export function heatPlan(raceDateIso: string, expectedHighF: number): HeatPlan |
     raceDayNote: `At ~${Math.round(expectedHighF)}°F, expect easy pace to drift 10–20+ s/mi slower — hold effort, not pace, for the first third.`,
   }
 }
+

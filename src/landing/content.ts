@@ -443,11 +443,12 @@ export const GEAR = {
 
 export const TOOLS = {
   title: 'Try it before you’re in',
-  body: 'Three free calculators built on the same engine. No sign-up, and nothing you enter leaves your browser.',
+  body: 'Four free calculators built on the same engine. No sign-up, and nothing you enter leaves your browser.',
   items: [
     { name: 'Fueling planner', body: 'Carbs, fluid and sodium per hour for a long effort.', link: 'Open the fueling planner', href: '/tools/fueling.html' },
     { name: 'Race time predictor', body: 'Realistic finish times from a recent result.', link: 'Open the race predictor', href: '/tools/predictor.html' },
     { name: 'Heat planner', body: 'How to adjust pace and fluids when it’s hot.', link: 'Open the heat planner', href: '/tools/heat.html' },
+    { name: 'Weekly mileage planner', body: 'How many miles a week to build to, and how fast, for your next race.', link: 'Open the mileage planner', href: '/tools/mileage.html' },
   ],
 } as const
 
