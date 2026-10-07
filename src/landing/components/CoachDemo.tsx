@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import { COACH, type TraitId } from '../content'
 import { coachDisplayName, coachStatus } from '../coachText'
 
@@ -5,7 +6,6 @@ interface Props {
   coachName: string
   traits: ReadonlySet<TraitId>
   approved: boolean
-  /** Wired in initiative 003 PR 4. */
   onApprove?: () => void
 }
 
@@ -15,11 +15,19 @@ interface Props {
  */
 export function CoachDemo({ coachName, traits, approved, onApprove }: Props) {
   const name = coachDisplayName(coachName)
+  // Approve replaces the button that had focus; keep the visitor's place.
+  const confirmation = useRef<HTMLParagraphElement>(null)
+  const wasApproved = useRef(approved)
+  useEffect(() => {
+    if (approved && !wasApproved.current) confirmation.current?.focus()
+    wasApproved.current = approved
+  }, [approved])
   return (
     <div className="mx-auto min-w-0 max-w-[500px] flex-[1_1_440px] rounded-[28px] bg-landing-card p-[22px] shadow-landing-float">
       <div className="flex items-center gap-3 border-0 border-b border-solid border-landing-line pb-3.5">
         <div
           aria-hidden="true"
+          data-coach-initial
           className="flex size-11 flex-none items-center justify-center rounded-full bg-landing-action text-[19px] font-extrabold text-landing-action-text"
         >
           {name.charAt(0).toUpperCase()}
@@ -49,7 +57,7 @@ export function CoachDemo({ coachName, traits, approved, onApprove }: Props) {
             ))}
           </dl>
           {approved ? (
-            <p role="status" className="m-0 mt-3 text-[15px] font-semibold text-landing-action">
+            <p ref={confirmation} role="status" tabIndex={-1} className="m-0 mt-3 text-[15px] font-semibold text-landing-action">
               {COACH.approved}
             </p>
           ) : (

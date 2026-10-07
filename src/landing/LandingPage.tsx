@@ -1,5 +1,6 @@
-import { useState } from 'react'
-import { COACH, MAKE, SKIP_LINK, type PlanKind, type Sport, type TraitId } from './content'
+import { useReducer } from 'react'
+import { COACH, SKIP_LINK } from './content'
+import { INITIAL_STATE, landingReducer } from './state'
 import { SiteHeader } from './components/SiteHeader'
 import { Hero } from './components/Hero'
 import { HowItWorks } from './components/HowItWorks'
@@ -13,30 +14,13 @@ import { FounderNote } from './components/FounderNote'
 import { Faq } from './components/Faq'
 import { SiteFooter } from './components/SiteFooter'
 
-/** The page's shared state (design-spec.md § Shared state). Page-local; nothing is persisted or sent. */
-export interface LandingState {
-  sport: Sport
-  plan: PlanKind
-  coachName: string
-  traits: ReadonlySet<TraitId>
-  approved: boolean
-}
-
-const INITIAL_STATE: LandingState = {
-  sport: 'run',
-  plan: 'race',
-  coachName: MAKE.defaultName,
-  traits: new Set(MAKE.defaultTraits),
-  approved: false,
-}
-
 /**
- * attune.coach's landing page. Initiative 003 PR 3 renders every section in
- * its default state; PR 4 wires the tabs, the chart toggle, Approve and the
- * persona editor to this state.
+ * attune.coach's landing page. It owns the shared state (state.ts): the
+ * athlete tabs and the chart toggle stay in step, and the persona editor
+ * drives the coach demo's header.
  */
 export function LandingPage() {
-  const [state] = useState<LandingState>(INITIAL_STATE)
+  const [state, dispatch] = useReducer(landingReducer, INITIAL_STATE)
   return (
     <div className="min-h-screen bg-landing-ground font-landing text-landing-ink">
       <a
@@ -47,12 +31,12 @@ export function LandingPage() {
       </a>
       <SiteHeader />
       <main id="main" tabIndex={-1} className="outline-none">
-        <Hero sport={state.sport} />
+        <Hero sport={state.sport} onSportChange={sport => dispatch({ type: 'sport', sport })} />
         <HowItWorks />
         <section id="you" className="bg-landing-deep text-landing-on-deep">
           <div className="mx-auto max-w-landing px-6 py-24">
             <PathCards />
-            <PlanChart plan={state.plan} sport={state.sport} />
+            <PlanChart plan={state.plan} sport={state.sport} onPlanChange={plan => dispatch({ type: 'plan', plan })} />
           </div>
         </section>
         <section id="coach" className="mx-auto flex max-w-landing flex-wrap items-center gap-14 px-6 py-24">
@@ -65,9 +49,19 @@ export function LandingPage() {
               ))}
             </ul>
           </div>
-          <CoachDemo coachName={state.coachName} traits={state.traits} approved={state.approved} />
+          <CoachDemo
+            coachName={state.coachName}
+            traits={state.traits}
+            approved={state.approved}
+            onApprove={() => dispatch({ type: 'approve' })}
+          />
         </section>
-        <MakeItYours coachName={state.coachName} traits={state.traits} />
+        <MakeItYours
+          coachName={state.coachName}
+          traits={state.traits}
+          onNameChange={name => dispatch({ type: 'name', name })}
+          onToggleTrait={id => dispatch({ type: 'trait', id })}
+        />
         <GearGrid />
         <ToolsPanel />
         <section className="mx-auto flex max-w-landing flex-wrap gap-14 px-6 pb-[88px] pt-6">

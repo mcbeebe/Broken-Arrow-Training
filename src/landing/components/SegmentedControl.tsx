@@ -11,7 +11,6 @@ export interface SegmentOption<T extends string> {
 interface Props<T extends string> {
   options: readonly SegmentOption<T>[]
   value: T
-  /** Wired in initiative 003 PR 4; the buttons render inert until then. */
   onChange?: (id: T) => void
   tone: 'light' | 'deep'
   /** Id of the element naming the group, or a name for it. */

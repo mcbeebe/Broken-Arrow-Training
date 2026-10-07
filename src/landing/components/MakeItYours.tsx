@@ -3,7 +3,7 @@ import { MAKE, type TraitId } from '../content'
 interface Props {
   coachName: string
   traits: ReadonlySet<TraitId>
-  /** Wired in initiative 003 PR 4; until then the panel shows its default state. */
+  /** Without it the name field is read-only. */
   onNameChange?: (name: string) => void
   onToggleTrait?: (id: TraitId) => void
 }
