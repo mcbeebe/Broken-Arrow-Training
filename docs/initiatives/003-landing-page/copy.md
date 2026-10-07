@@ -33,7 +33,7 @@ text, no exclamation marks, numbers as digits.
 - Form label: Your email · placeholder `you@example.com`
 - Button: **Request an invite** · while sending: **Sending…**
 - Optional field label: What are you training for? (optional) · placeholder `A spring half, my first HYROX, just getting fit...`
-- Fine print: Free during the beta. Mike reviews every request. Already in? Sign in *(link → `/app/`)*
+- Fine print: Free during the beta. Already in? Sign in *(link → `/app/`)* *(PR 4b: “Mike reviews every request.” removed from this line only, at the owner’s request, 2026-10-07; the success body and the FAQ keep it)*
 
 ### Form states
 
@@ -47,26 +47,38 @@ text, no exclamation marks, numbers as digits.
 | Success heading | Request sent. |
 | Success body | Mike will review your request and email {email} the moment you’re approved. Until then, try one of the free tools (link text “free tools” → `#tools`). |
 
-### “This morning” card
+### “This morning” card — DRAFT (PR 4b), awaiting owner approval
 
-- Group label: Same morning, four different athletes
+PR 4b replaces “Same morning, four different athletes”: the owner asked for one
+of each outcome (2026-10-07), so each tab now has its own morning.
+
+- Group label: Four athletes, four different mornings
 - Tabs: Running · Trail · HYROX · Fitness (default: Running)
 - Card heading: This morning
-- Metrics (same on every tab):
-  - HRV **41** ms, “18% below normal” (orange text)
-  - Resting HR **56** bpm, “+5 over normal” (orange text)
-  - Sleep **5:40**, “Short night”
-- Ring value **38**, “Readiness: take it easy”, “Based on HRV, resting heart rate, sleep and your last 7 days of training”
-- Labels: Planned (struck through) → Adjusted for today (orange)
+- Labels: when the workout changes, Planned (struck through) → Adjusted for today (orange); when it stands, Planned → Today (teal, not struck through)
+- Ring footnote (every tab): Based on HRV, resting heart rate, sleep and your last 7 days of training
 
-| Tab | Who (top right) | Planned | Adjusted for today | Why | Chart caption |
+| Tab | Outcome | HRV | Resting HR | Sleep | Ring | Readiness line |
+|---|---|---|---|---|---|---|
+| Running | Eases off | **41** ms, 18% below normal (orange) | **56** bpm, +5 over normal (orange) | **5:40**, Short night | **38** | Readiness: take it easy |
+| Trail | Pivots | **49** ms, Normal for you | **52** bpm, Normal for you | **6:20**, Hotel night | **60** | Readiness: good to go |
+| HYROX | Positive | **63** ms, 14% above normal (teal) | **47** bpm, 3 under normal (teal) | **8:10**, Solid night | **86** | Readiness: ready to push |
+| Fitness | Neutral | **52** ms, Normal for you | **50** bpm, Normal for you | **7:25**, Normal night | **66** | Readiness: good to go |
+
+| Tab | Who (top right) | Planned | Today | Why | Chart caption |
 |---|---|---|---|---|---|
 | Running | Training for a spring half marathon | Tempo run, 8 × 800 m | Easy run, 45 min in zone 2 | Your body hasn’t caught up from Saturday’s long run. The tempo session moves to Thursday, so the week’s work stays the same. | The tempo run moves to Thursday, so week 9 still does its job. |
-| Trail | Training for a 50K trail race | Hill repeats, 8 × 2 min | Flat easy run, 50 min | Saturday’s long descent leaves soreness that peaks a day or two later. The hills move to Friday, when your legs are ready. | Hill repeats move to Friday, so week 9 still does its job. |
-| HYROX | Training for HYROX, Open division | Race simulation: 4 × (1 km run + station) | Easy 30 min row, then light station technique | Race-pace work on a day like this mostly adds fatigue. The simulation moves to Thursday, and the extra work on your weakest station stays in the week. | The race simulation moves to Thursday, so week 9 still does its job. |
-| Fitness | No race. Goal: build endurance | Bike intervals, 6 × 3 min hard | Zone 2 ride, 40 min, plus mobility | The intervals move to Friday. Wednesday’s strength session stays, so the week still covers cardio, intervals and strength. | Bike intervals move to Friday, and the block stays on track. |
+| Trail | Training for a 50K trail race | Hill repeats, 8 × 2 min | Room cardio: bodyweight intervals, 20 to 30 min, then 10 min mobility | You’re away for work with only a hotel room. The hill repeats become intervals you can do next to the bed, so the aerobic habit keeps going. Nothing to make up: the plan bends forward. | Hill repeats become room cardio while you’re away, and the plan bends forward. |
+| HYROX | Training for HYROX, Open division | Race simulation: 4 × (1 km run + station) | Race simulation: 4 × (1 km run + station), full intensity | Every number is above your normal and your load is steady. This is the day for your hardest session, so go at full race pace. | The race simulation stays, at full intensity, so week 9 lands as planned. |
+| Fitness | No race. Goal: build endurance | Bike intervals, 6 × 3 min hard | Bike intervals, 6 × 3 min hard | All clear: your numbers are right on your normal, so nothing changes. Wednesday’s strength session stays too. | Nothing moves, and the block stays on track. |
 
-All four are illustrative examples (the “Example plan” note sits in the chart caption). They describe the kind of adjustment the engine makes; they are not output captured from it.
+All four are illustrative examples (the “Example plan” note sits in the chart
+caption). Backed by:
+
+- **Eases off:** the morning autopilot moves a hard session on a low-readiness stretch (`src/engines/adaptive/morningOutlook.ts`).
+- **Pivots:** travel mode with only a hotel room turns a run into “Room cardio (travel)”: bodyweight intervals 20–30 min and mobility 10 min, “the plan bends forward” (`src/engines/planGenerator/travelMode.ts` `travelSwap`, kit `bodyweight`).
+- **Positive:** a PEAK morning (display score ≥ 81, `src/utils/readiness.ts`) keeps the hard session and says to go at full intensity (“Peak form — execute planned workout at full intensity”). The app never adds work on a good morning, so the copy never says it does.
+- **Neutral:** a GREEN morning stands as planned (“All clear — go as planned.”, `src/utils/verdict.ts`).
 
 ## How a morning works (`#how`)
 
@@ -104,31 +116,87 @@ Season claim backed by `src/engines/season/` and the onboarding “What kinds of
 - Bar label above week 9: Today
 - Caption: **Today, week 9** {chart caption from the tab table}. Dashed outline: what was planned. Example plan.
 
-## A coach in your pocket (`#coach`)
+## A coach in your pocket (`#coach`) — DRAFT (PR 4b), awaiting owner approval
+
+PR 4b folds “Make it yours” into this section (owner, 2026-10-07): the
+personality picker sits with the chat, and picking one rewrites the coach’s
+reply in that style. Every reply is written here, not generated live.
 
 - H2: A coach in your pocket
 - Body: It knows your plan, your watch data and your training history, and it answers in plain language. Type or talk. When it suggests a change, you see exactly what moves, and nothing changes until you approve it.
 - Bullets: Ask why today’s workout looks the way it does · Rework the week around travel, work or a bad night · Approved changes go straight to your Garmin watch
-- Demo chat header: {coach name} · “Your coach. {traits, comma-separated}.” (no traits: “Pick a personality below.”)
-- Athlete: Work trip Wednesday to Friday, and I’m already sleeping badly. What should this week look like?
-- Coach: Let’s do your hard session Tuesday, before you leave, and make the travel days short and easy: 30 minutes you can do in a hotel gym or outside. You won’t lose anything that matters.
-- Proposal heading: Proposed change to your plan
-- Rows: **Tue** ~~Easy 40 min~~ Hard session, moved from Thu · **Wed to Fri** ~~Full sessions~~ 30 min easy, hotel-friendly
-- Buttons: **Approve** · Keep my plan
-- After Approve: Plan updated. The new week is on your watch.
-- Input placeholder: Ask {coach name} anything · input label (visually hidden): Message your coach · mic button label (aria): Talk to your coach. Both are disabled in the demo (design-spec.md § CoachDemo)
-
-Backed by: voice in/out (`api/coach/chat.py`, `src/utils/voiceInput.ts`), proposals with approval (`src/components/ProposalCard.tsx`), Garmin re-push (`src/utils/garminRepush.ts`), coach memory.
-
-## Make it yours
-
-- H2: Make it yours
-- Body: Name your coach and choose how it talks to you. It can be the friend who keeps it light or the one who holds you to the plan. Try it: the chat above changes as you do.
+- H3: Make it yours
+- Body: Name your coach and pick how it talks to you. The reply changes as you do.
 - Field: Coach name (default **Mira**, max 30 characters like the app; blank shows “Your coach”)
 - Group label: Personality · hint: A few of the 17 personalities
-- Traits shown, in this order (exact app labels): Funny · Strict · Motivational · Warm · Direct · Data Nerd · Old School · Chill (default on: Warm, Direct)
+- Personalities shown, pick one (exact app labels, in this order): Warm · Direct · Funny · Data Nerd · Old School (default: Warm)
+- Demo chat header: {coach name} · “Your coach. {personality}.”
+- Buttons under the chat: **Ask something else** · Reset
+- Try limit: 3 changes per visit (a new personality or a new question counts as one; typing a name doesn’t; Reset doesn’t give tries back; a reload does). After the third: “That’s the demo. Request an invite to keep talking to {coach name}.” (link text “Request an invite” → `#join`)
+- Proposal heading: Proposed change to your plan · buttons **Approve** · Keep my plan · after Approve: Plan updated. The new week is on your watch.
+- Input placeholder: Ask {coach name} anything · input label (visually hidden): Message your coach · mic button label (aria): Talk to your coach. Both stay disabled.
 
-Backed by: `COACH_TRAITS` (17 entries) and `DEFAULT_COACH_NAME` in `src/types/index.ts:999-1021`; name limit `CoachPersonaEditor.tsx:58`.
+### Question 1 (shown first)
+
+- Athlete: Work trip Wednesday to Friday, and I’m already sleeping badly. What should this week look like?
+- Proposal: **Tue** ~~Easy 40 min~~ Hard session, moved from Thu · **Wed to Fri** ~~Full sessions~~ 30 min easy, hotel-friendly
+
+| Personality | Coach |
+|---|---|
+| Warm | Travel weeks are tough, and a short night on top of one is a lot. Let’s do your hard session Tuesday, before you leave, and keep the trip short and easy: 30 minutes in the hotel gym or outside. You won’t lose anything that matters. |
+| Direct | Hard session moves to Tuesday, before you fly. Wednesday to Friday: 30 minutes easy, hotel gym or outside. Sleep matters more than volume this week. |
+| Funny | Airports are great for steps and terrible for intervals. So the hard session moves to Tuesday, before you go, and the trip gets 30 easy minutes a day. Your fitness will be waiting when you land. |
+| Data Nerd | Your HRV is 18% under your baseline and sleep is short, so hard work on travel days is poor value. The hard session moves to Tuesday, and Wednesday to Friday drop to 30 easy minutes. One lighter week won’t dent your fitness. |
+| Old School | Do the work before you go. Hard session Tuesday. On the road, 30 minutes easy every day, gym or out the door. Fitness takes months to build, and three easy days won’t take it away. |
+
+### Question 2
+
+- Athlete: Why is today an easy day? I feel fine.
+- No proposal.
+
+| Personality | Coach |
+|---|---|
+| Warm | Glad you’re feeling good. Today is easy on purpose: it sets you up for Thursday’s tempo run. Keep it relaxed, enjoy it, and bring that energy to Thursday. |
+| Direct | Because Thursday is hard. Easy days let the hard days be hard. Keep it conversational for 45 minutes and save your legs. |
+| Funny | Feeling fine is the point. Today is the opening act and Thursday’s tempo run is the headliner. Don’t steal your own show. |
+| Data Nerd | Easy days add aerobic volume at a cost your body clears by tomorrow. Stay in zone 2 today and Thursday’s tempo run gets your freshest legs. |
+| Old School | Easy days make the hard days work. Run slow enough to talk. If it feels too slow, it’s working. |
+
+### Question 3
+
+- Athlete: Can I move Saturday’s long run to Sunday?
+- Proposal: **Sat** ~~Long run, 90 min~~ Rest day · **Sun** ~~Rest day~~ Long run, 90 min
+
+| Personality | Coach |
+|---|---|
+| Warm | Of course. Let’s rest Saturday and do the long run Sunday. The rest of the week stays just as it is. |
+| Direct | Yes. Saturday becomes rest, Sunday gets the long run. Nothing else changes. |
+| Funny | Big Saturday plans? Respect. The long run slides to Sunday, Saturday becomes a rest day, and the week won’t even notice. |
+| Data Nerd | Yes. Swapping the two days keeps the week’s total load the same, and you get one extra day of rest before the long run. |
+| Old School | Rest Saturday, run long Sunday. Same work, different day. |
+
+“Ask something else” cycles 1 → 2 → 3 → 1. Reset returns to question 1,
+Warm, Mira, not approved.
+
+Backed by: voice in/out (`api/coach/chat.py`, `src/utils/voiceInput.ts`), proposals with approval (`src/components/ProposalCard.tsx`), Garmin re-push (`src/utils/garminRepush.ts`), coach memory; personalities `COACH_TRAITS` (17 entries) and `DEFAULT_COACH_NAME` in `src/types/index.ts`; name limit `CoachPersonaEditor.tsx`. “If it feels too slow, it’s working” echoes the app’s own easy-day card.
+
+## See it in the app — DRAFT (PR 4b), awaiting owner approval
+
+Real screens from the founder’s own training, cropped so nothing personal
+shows (owner, 2026-10-07). Phone frames: a swipe row on phones, a grid on
+desktop. Placed after the coach section.
+
+- H2: See it in the app
+- Intro: Real screens from a real training block.
+
+| Screen | Caption | Alt text |
+|---|---|---|
+| Today | Every day explains itself, easy days included. | The Today screen: week 4 of 12, today’s easy run, and why it’s easy |
+| Coach | The coach reads your recovery before it answers. | A coach reply that starts from this morning’s readiness, HRV and sleep |
+| Progress | Fitness, fatigue and recovery on one chart, so you can see whether you’re building or digging a hole. | The fitness, fatigue and recovery chart for the last month |
+| Workout | Every session in detail: heart rate and time in each zone. | A strength session’s heart rate over time and time in each zone |
+| Load alert | When your load climbs too fast, Attune tells you to back off. | An injury risk alert: the load ratio rose from 1.26 to 1.84 in three days |
+| Journal | Your training story, in your words. | The training journal, with a note about a session skipped on purpose |
 
 ## Works with the gear you already wear
 
@@ -151,9 +219,9 @@ Do not use Garmin, Strava or Apple logos (trademark guidelines); names as text o
 | Race time predictor | Realistic finish times from a recent result. | Open the race predictor | `/tools/predictor.html` |
 | Heat planner | How to adjust pace and fluids when it’s hot. | Open the heat planner | `/tools/heat.html` |
 
-## Founder note — DRAFT, needs Mike’s sign-off before PR 5 ships
+## Founder note — owner’s wording, 2026-10-07
 
-> “I built Attune for my own training: trail races, then HYROX, and the stretches in between. I wanted a plan that noticed when I’d slept badly or overdone it, and changed instead of pretending nothing happened.”
+> “I built Attune for my own training: mountain trail races, HYROX, and the stretches in between. I wanted a plan that noticed when I’d slept badly, was exhausted from kids, work travel or simply overdoing it, and changed my plan intelligently instead of pretending nothing happened and getting injured.”
 >
 > **Mike Beebe**, founder, Oakland
 
