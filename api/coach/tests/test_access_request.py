@@ -61,6 +61,7 @@ class FakeWorld:
         self.ttl: dict[str, int] = {}
         self.kv_requests: list[tuple[str, str]] = []
         self.emails: list[dict] = []
+        self.timeouts: list[float | None] = []
         self.fail_reads = False
         self.fail_writes = False
         self.fail_multi = False
@@ -70,6 +71,7 @@ class FakeWorld:
     def urlopen(self, req, timeout=None):
         url = req.full_url
         body = req.data.decode() if req.data else ""
+        self.timeouts.append((url.rsplit("/", 1)[-1], timeout))
         if url.startswith("https://api.resend.com/"):
             self.emails.append(json.loads(body))
             return FakeResponse(b"{}")
@@ -237,6 +239,18 @@ def test_the_honeypot_log_line_counts_hits(world, capsys):
     assert n2 == n1 + 1
 
 
+@pytest.mark.parametrize("value", [1, True, ["x"], {"a": 1}, " "])
+def test_any_non_empty_honeypot_value_is_a_hit(world, value):
+    assert post(req(hp_contact_ref=value)) == (200, OK_MSG)
+    assert world.kv_requests == []
+
+
+@pytest.mark.parametrize("value", [None, ""])
+def test_a_missing_or_empty_honeypot_is_not_a_hit(world, value):
+    assert post(req(hp_contact_ref=value))[0] == 200
+    assert len(world.queue()) == 1
+
+
 def test_an_empty_honeypot_is_a_normal_request(world):
     assert post(req(hp_contact_ref=""))[0] == 200
     assert len(world.queue()) == 1
@@ -402,6 +416,26 @@ def test_the_email_cap_is_per_utc_day(world):
     assert len(world.admin_emails()) == 1
 
 
+def test_a_repeat_of_a_queued_email_refreshes_it_without_a_second_alert(world):
+    """Repeating one address must not burn the day's cap (review F1)."""
+    for i in range(25):
+        assert post(req("same@example.com", note=f"try {i}"), ip=f"203.0.113.{i}")[0] == 200
+    [entry] = world.queue()
+    assert entry["note"] == "try 24"
+    assert len(world.admin_emails()) == 1
+    assert world.store[mail_key()] == "1"
+    assert post(req("real@example.com"), ip="198.51.100.1")[0] == 200
+    assert len(world.admin_emails()) == 2
+
+
+def test_the_cap_counters_use_a_short_timeout(world):
+    """auth functions get 15 s on Vercel; a hung KV must not spend 10 s on
+    the throttle before the queue write even starts (review F4)."""
+    post(req(), ip="203.0.113.9")
+    multi = [t for name, t in world.timeouts if name == "multi-exec"]
+    assert multi and all(t is not None and t <= 3 for t in multi)
+
+
 def test_a_request_past_the_cap_still_answers_200(world):
     world.store[mail_key()] = "20"
     assert post(req()) == (200, OK_MSG)
@@ -449,6 +483,19 @@ def test_the_note_is_still_truncated_to_200(world):
     assert entry["note"] == "x" * H.MAX_REQUEST_NOTE_LEN
     assert H.MAX_REQUEST_NOTE_LEN == 200
     assert entry["source"] == "landing"
+
+
+def test_the_note_in_the_admin_email_is_truncated_too(world):
+    assert post(req(note="y" * 5000))[0] == 200
+    assert "y" * 201 not in world.emails[0]["text"]
+    assert "y" * 200 in world.emails[0]["text"]
+    assert "y" * 201 not in world.emails[0]["html"]
+
+
+@pytest.mark.parametrize("note", [None, 42])
+def test_a_non_string_note_is_never_stored_as_its_repr(world, note):
+    assert post(req(note=note))[0] == 200
+    assert world.queue()[0]["note"] == ""
 
 
 def test_a_note_with_markup_is_escaped_in_the_admin_email(world):

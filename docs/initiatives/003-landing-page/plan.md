@@ -140,7 +140,9 @@ forwards the old `/?view=coach` links, so nothing 404s in between.
 **As built** (details the scope above left open):
 - `ACCESS_REQUEST_SALT` unset → the per-IP throttle is **off** (one log line per request), not run with an empty salt: an unsalted SHA-256 of an IPv4 address is reversible by enumeration, so it would amount to storing the IP. The honeypot and the email cap don't need the salt.
 - The admin-email counter fails **open**: if that one KV call fails right after the queue write succeeded, the email still sends.
-- The honeypot answers before email validation, so a bot gets the same 200 whatever it sent. The throttle runs before the membership check, so members and strangers both get the 429.
+- A repeat of an email already in the queue only refreshes its entry: no second alert, and it doesn't count toward the daily cap, so one address can't silence the day's alerts. The note is truncated to 200 before the email as well as the queue.
+- The two counter transactions use a 3 s timeout (auth functions get 15 s on Vercel), so a hung KV can't spend 10 s on the throttle before the queue write starts.
+- The honeypot answers before email validation, so a bot gets the same 200 whatever it sent. Any value other than missing or `""` is a hit (the real form always sends `""`), so `1` or `true` can't slip past a string check. The throttle runs before the membership check, so members and strangers both get the 429.
 - `source` is checked with `fullmatch` (a `$` anchor would also accept `"tool-heat\n"`).
 - A stored queue that isn't a JSON list also answers 503 and is left for a human, rather than overwritten.
 - The airlock is tested in `scripts/deploy/tests/test_airlock_targets.py`, which runs the page's inline script in Node against a stubbed browser.

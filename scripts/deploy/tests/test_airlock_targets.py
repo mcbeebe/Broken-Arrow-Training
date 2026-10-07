@@ -15,6 +15,7 @@ record where it navigates.
 from __future__ import annotations
 
 import json
+import os
 import pathlib
 import re
 import shutil
@@ -30,6 +31,13 @@ APP = "https://attune.coach/app/"
 
 NODE = shutil.which("node")
 needs_node = pytest.mark.skipif(NODE is None, reason="node not on PATH; airlock behaviour unchecked")
+
+
+def test_ci_has_node():
+    """These tests are the only gate on the airlock publish; in CI a missing
+    node must fail, not quietly skip them."""
+    if os.environ.get("CI"):
+        assert NODE, "node not on PATH in CI: the airlock behaviour tests would all skip"
 
 # A stub browser. Runs the page's script, then the scenario, and prints what
 # happened as JSON: every location.replace, window.open and postMessage.

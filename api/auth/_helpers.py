@@ -75,7 +75,7 @@ def _kv_get_strict(key: str) -> str | None:
         return json.loads(resp.read().decode()).get("result")
 
 
-def _kv_multi_exec(commands: list[list[str]]) -> list:
+def _kv_multi_exec(commands: list[list[str]], timeout: float = 10) -> list:
     """Run commands as one Upstash transaction (/multi-exec — /pipeline is
     not atomic). Returns each command's result; raises if KV is unconfigured,
     unreachable, or any command errored."""
@@ -89,7 +89,7 @@ def _kv_multi_exec(commands: list[list[str]]) -> list:
         headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
         method="POST",
     )
-    with urllib.request.urlopen(req, timeout=10) as resp:
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
         replies = json.loads(resp.read().decode())
     if not isinstance(replies, list) or len(replies) != len(commands):
         raise RuntimeError(f"unexpected multi-exec reply: {replies!r}"[:200])
@@ -99,16 +99,17 @@ def _kv_multi_exec(commands: list[list[str]]) -> list:
     return [r.get("result") for r in replies]
 
 
-def kv_bump_counter(key: str, ttl_seconds: int) -> int:
+def kv_bump_counter(key: str, ttl_seconds: int, timeout: float = 3) -> int:
     """Increment a counter that always has an expiry, and return the new value.
 
     SET key 0 EX ttl NX, then INCR, in one transaction: the TTL is set before
     the first increment, so no lost call can leave a counter that never
-    expires (which would lock an IP out for good)."""
+    expires (which would lock an IP out for good). The short timeout keeps a
+    hung KV from eating the auth functions' 15 s before the real work."""
     results = _kv_multi_exec([
         ["SET", key, "0", "EX", str(ttl_seconds), "NX"],
         ["INCR", key],
-    ])
+    ], timeout=timeout)
     return int(results[1])
 
 
@@ -207,24 +208,28 @@ def set_access_requests(requests: list[dict]) -> None:
     _kv_set(KV_ACCESS_REQUESTS_KEY, json.dumps(requests, separators=(",", ":")))
 
 
-def add_access_request(email: str, note: str, source: str | None = None) -> None:
+def add_access_request(email: str, note: str, source: str | None = None) -> bool:
     """Queue a request, de-duped by email (an existing one is refreshed) and
     capped at MAX_ACCESS_REQUESTS (oldest dropped first under a flood).
 
     Raises — and writes nothing — if the current queue can't be read, so a
     KV hiccup can never replace every pending request with this one.
-    `source` (already validated by the caller) is stored only when given."""
+    `source` (already validated by the caller) is stored only when given.
+    Returns True if the email wasn't already queued."""
     email = email.strip().lower()
     note = note.strip()[:MAX_REQUEST_NOTE_LEN]
+    current = get_access_requests_strict()
     requests = [
-        r for r in get_access_requests_strict()
+        r for r in current
         if str(r.get("email", "")).strip().lower() != email
     ]
+    is_new = len(requests) == len(current)
     entry = {"email": email, "note": note, "ts": int(time.time())}
     if source:
         entry["source"] = source
     requests.append(entry)
     set_access_requests(requests[-MAX_ACCESS_REQUESTS:])
+    return is_new
 
 
 def remove_access_request(email: str) -> None:
@@ -330,7 +335,11 @@ def notify_admin_of_request(requester_email: str, note: str, source: str | None 
         f"{note_html}{source_html}"
         f"<p>Open <a href='{app_url()}'>Attune</a> → Settings → Athletes to approve or dismiss.</p>"
     )
-    details = [f"Note: {note}"] * bool(note) + [f"Source: {source}"] * bool(source)
+    details = []
+    if note:
+        details.append(f"Note: {note}")
+    if source:
+        details.append(f"Source: {source}")
     text = (
         f"New Attune access request from {requester_email}."
         + ("\n\n" + "\n".join(details) if details else "")

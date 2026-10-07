@@ -24,6 +24,7 @@ from ._helpers import (
     set_kv_email_map,
     get_access_requests,
     add_access_request,
+    MAX_REQUEST_NOTE_LEN,
     kv_bump_counter,
     remove_access_request,
     notify_admin_of_request,
@@ -195,15 +196,16 @@ class handler(BaseHTTPRequestHandler):
         nothing, not even that its email was bad), and the throttle runs
         before the membership check, so members and strangers both get 429."""
         global _honeypot_hits
-        honeypot = body.get("hp_contact_ref")
-        if isinstance(honeypot, str) and honeypot:
+        # Any value but missing/"" is a hit: the real form always sends "".
+        if body.get("hp_contact_ref") not in (None, ""):
             _honeypot_hits += 1
             print(f"[access-request] honeypot hit #{_honeypot_hits} on this instance; dropped")
             self._send_json(200, {"ok": True})
             return
 
         email = str(body.get("email", "")).strip().lower()
-        note = str(body.get("note", ""))
+        note = body.get("note")
+        note = note.strip()[:MAX_REQUEST_NOTE_LEN] if isinstance(note, str) else ""
         source = body.get("source")
         if not (isinstance(source, str) and SOURCE_RE.fullmatch(source)):
             source = None
@@ -218,15 +220,17 @@ class handler(BaseHTTPRequestHandler):
             self._send_json(200, {"ok": True})
             return
         try:
-            add_access_request(email, note, source)
+            is_new = add_access_request(email, note, source)
         except Exception as e:
             # Unconfigured, unreachable or unreadable KV. Nothing was written.
             print(f"[access-request] not queued ({type(e).__name__})")
             self._send_json(503, {"error": UNAVAILABLE})
             return
         # Best-effort: alert the admin. The request is already safely queued, so
-        # an email failure must not turn into an error for the requester.
-        if _admin_email_allowed():
+        # an email failure must not turn into an error for the requester. A
+        # repeat of a queued email only refreshes it: no second alert, and it
+        # doesn't count toward the cap (one address can't silence the day).
+        if is_new and _admin_email_allowed():
             try:
                 notify_admin_of_request(email, note, source)
             except Exception:
