@@ -18,11 +18,24 @@ Strava OAuth, and an iOS wrapper.
 app is `app/index.html`, served at `/app/`. `/tools/*.html`, `/sw.js`,
 `/version.json`, `/favicon.svg` and `/manifest.webmanifest` stay at the root.
 The root page's entry (`src/landing/main.tsx`) statically imports only the
-guard (`boot.ts`, `legacyEntry.ts`) and `referral.ts`: it forwards installed
-apps, deep links (`?view=`), Strava callbacks, airlock hand-offs, athlete
-hashes and signed-in visitors to `/app/` with query and hash intact, and an
-inline script in `index.html` forwards if the guard fails to load. It must
-never import app code. The landing page itself arrives in later 003 PRs.
+guard (`boot.ts`, `legacyEntry.ts`, `sections.ts`) and `referral.ts`: it
+forwards installed apps, deep links (`?view=`), Strava callbacks, airlock
+hand-offs, athlete hashes and signed-in visitors to `/app/` with query and
+hash intact, and an inline script in `index.html` forwards if the guard fails
+to load. Everyone else gets the landing page, loaded with
+`import('./mount')` (initiative 003 PR 3; interactions arrive in PR 4).
+
+The landing page (`src/landing/`) **never imports app code**, recharts or
+cesium: an eslint `no-restricted-imports` override enforces it, and
+`check-site-layout.mjs` re-checks what actually shipped. Its words live only
+in `src/landing/content.ts`, verbatim from
+`docs/initiatives/003-landing-page/copy.md`; `claims.test.tsx` checks every
+factual claim (methods, HYROX divisions, coach traits, cardio options, block
+lengths) against the app's code, so changing that code fails the test until
+the copy is updated. It has its own Tailwind config
+(`tailwind.landing.config.js`, colors `landing-*` from `src/landing/tokens.ts`)
+and a self-hosted font in `public/fonts/`. Its logo and favicon is
+`/attune-mark.svg`; `/favicon.svg` is the app's icon and is never edited.
 
 "Broken Arrow Training" is legacy branding: the repo name, the airlock's
 legacy path and `scripts/airlock/` still carry it. The product is
@@ -31,11 +44,12 @@ attune.coach.
 ## Commands
 
 ```bash
-npm test                  # vitest, 324 files / ~4119 tests — gates every publish
+npm test                  # vitest, 331 files / ~4463 tests — gates every publish
 npm run build             # tsc -b && vite build — the typecheck gate lives here
 npm run lint              # eslint — blocking in CI; 0 errors (initiative 002)
 npm run dev               # local dev server: the app is at /app/, the root page at /
-node scripts/deploy/check-site-layout.mjs   # after a build: dist/ layout + guard budget
+node scripts/deploy/check-site-layout.mjs   # after a build: dist/ layout, budgets, no app code on the landing page
+VITE_LANDING_ENABLED=true npm run dev       # see the landing page locally (it forwards to /app/ otherwise)
 
 pytest -m "not eval" api/coach/tests     # keyless Python suite (what CI runs)
 npm run test:coach-eval                  # LIVE model calls — spends API budget
@@ -70,8 +84,12 @@ succeed.
   every publishing-branch push: it fails if the root page, `/app/`, the
   tools, `/sw.js` or the manifest move, if the manifest loses its `id`
   (`/?view=today`, the identity existing installs derived) or stops pointing
-  into `/app/`, if the root page loses its inline fallback, or if the root
-  page's guard exceeds 10 KB gzipped.
+  into `/app/`, if the root page loses its inline fallback, if the root
+  page's guard exceeds 10 KB gzipped, if the whole landing page (shared React
+  chunk and CSS included) exceeds 90 KB gzipped, or if any chunk the landing
+  page loads contains app code, recharts or cesium (read from
+  `dist/.vite/module-map.json`, written by
+  `scripts/deploy/vite-plugin-module-map.ts`).
 - The `cutover-airlock` job publishes on the branch test alone — it ignores
   `ATTUNE_PUBLISH_ENABLED` and finishes before the attune build — so an
   airlock change goes live before the app it points at.

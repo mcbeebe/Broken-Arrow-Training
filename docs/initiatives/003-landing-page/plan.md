@@ -147,6 +147,7 @@ forwards the old `/?view=coach` links, so nothing 404s in between.
 - A stored queue that isn't a JSON list also answers 503 and is left for a human, rather than overwritten.
 - The airlock is tested in `scripts/deploy/tests/test_airlock_targets.py`, which runs the page's inline script in Node against a stubbed browser.
 - Smoke step 3 (push) was N/A after PR 1 because push was never configured in production, so the step-3 repeat after PR 2 stays N/A until it is.
+- **Shipped** (mcbeebe/Broken-Arrow-Training#471, merged 2026-10-07). `ACCESS_REQUEST_SALT` set on Vercel and production redeployed with it; `APP_URL` was not set there. Smoke step 6 passed again after the airlock move (owner, 2026-10-07).
 
 ---
 
@@ -184,6 +185,15 @@ forwards the old `/?view=coach` links, so nothing 404s in between.
 - `LandingPage.test.tsx`: renders every id in `SECTION_IDS`; every rendered `id` used as an in-page link target is in the guard’s `LANDING_ANCHORS`, so a reload on an anchor never forwards to the app.
 
 **Acceptance:** all gates green. `VITE_LANDING_ENABLED=true npm run dev` shows a page matching `reference/A2-Signal-desktop.jpg` and `reference/A2-phone.jpg` at 1280 and 390 px, with no horizontal scroll at 320 px. Attach screenshots to the PR. Production does not change.
+
+**As built** (owner-approved choices and details the scope left open):
+- **Screenshots** are committed in [screenshots/](screenshots/) (the PR API can't attach images). The phone layout follows `A2-Signal-phone-fluid.jpg` and copy.md: the header wraps to two rows with only Sign in and the invite button, no ☰ menu, and the same copy as desktop. `A2-phone.jpg`'s shortened phone copy is not in copy.md, so it isn't used (owner, 2026-10-07).
+- **Font:** the Latin variable woff2 (46.7 KB, weights 400–800) from `@fontsource-variable/schibsted-grotesk` 5.3.0 is committed in `public/fonts/` with its OFL licence; no runtime dependency (owner, 2026-10-07). It is preloaded by `main.tsx` only when the landing page renders, not from `index.html`, so installed apps forwarded to `/app/` never download it.
+- **`SECTION_IDS` moved to `src/landing/sections.ts`** (re-exported from content.ts). The guard imports it; importing content.ts there would have put every word of the page into the guard chunk. `check-site-layout.mjs` now fails if content.ts reaches the guard.
+- **The page loads through `src/landing/mount.tsx`**, not `import('./LandingPage')` directly: the react-refresh lint rule keeps the `createRoot` call out of a component file. If that chunk fails to load, the root shows a link to `/app/` instead of a blank page.
+- `claims.test.tsx` is `.tsx` (it renders the page). It also checks that no recommendable method the Road card doesn't claim is named on it, that “all 8 stations” equals `stationSpecs().length`, and that the No race chart eases off exactly every `DELOAD_EVERY`-th week. `tokens.test.ts` keeps tokens.ts equal to tokens.json.
+- The module-map check also forbids `src/hooks/`, `src/utils/`, `src/data/` and `src/App.tsx`, matching the eslint rule and design-spec.md § Files.
+- **Measured** (switch on): guard 2.5 KB gzipped; whole page 76.3 KB of 90 (React and react-dom 56.5 KB, landing JS 10.9 KB, CSS 4.6 KB).
 
 ---
 
