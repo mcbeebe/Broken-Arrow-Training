@@ -18,8 +18,9 @@
  * that every app screenshot the landing page references exists and stays under
  * SCREEN_BUDGET_BYTES, and all of them under SCREENS_TOTAL_BUDGET_BYTES;
  * and that what search engines and link previews read holds together: every
- * sitemap URL is a built page, robots.txt names the sitemap and keeps crawlers
- * out of /app/, and the root page's share image ships.
+ * sitemap URL is a built page outside /app/, and the root page's share image
+ * ships, whole, at the size its tags state. (robots.txt and the tags' wording
+ * are checked at the source, in src/__tests__/landing/seo.test.ts.)
  */
 import * as nodeFs from 'node:fs'
 import { join, resolve } from 'node:path'
@@ -76,14 +77,10 @@ const REQUIRED_FILES = [
   'manifest.webmanifest',
   'robots.txt',
   'sitemap.xml',
-  'og-image.png',
 ]
 
 /** The public origin; the sitemap and the share-image tags use absolute URLs on it. */
 export const SITE_ORIGIN = 'https://attune.coach'
-
-/** The share image's size, as index.html's og:image:width and og:image:height state it. */
-export const OG_IMAGE_SIZE = { width: 1200, height: 630 }
 
 const MANIFEST_LINK = /<link\b[^>]*\brel=["']?manifest\b/i
 
@@ -161,53 +158,70 @@ function builtFileFor(url) {
   return rel === '' || rel.endsWith('/') ? `${rel}index.html` : rel
 }
 
+const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]
+/** Every PNG ends with this empty IEND chunk (length, type, CRC). */
+const PNG_IEND = [0, 0, 0, 0, 0x49, 0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82]
+
 /**
- * Sitemap, robots.txt and the share image. A sitemap URL that 404s or a share
- * image that is missing fails quietly in search and link previews, so it
- * fails here instead.
+ * A whole PNG's width and height, or null if the bytes aren't a whole PNG.
+ *
+ * @param {Uint8Array} png
+ * @returns {{ width: number, height: number } | null}
+ */
+function pngSize(png) {
+  if (png.length < 24 + PNG_IEND.length) return null
+  if (PNG_SIGNATURE.some((b, i) => png[i] !== b)) return null
+  if (PNG_IEND.some((b, i) => png[png.length - PNG_IEND.length + i] !== b)) return null
+  // The IHDR chunk comes first: width and height are big-endian at bytes 16 and 20.
+  const view = new DataView(png.buffer, png.byteOffset, png.byteLength)
+  return { width: view.getUint32(16), height: view.getUint32(20) }
+}
+
+/** The content of the root page's <meta> with this property or name, or null. */
+function metaContent(html, key) {
+  const tag = html.match(new RegExp(`<meta\\b[^>]*\\b(?:property|name)="${key}"[^>]*>`))
+  return tag?.[0].match(/\bcontent="([^"]*)"/)?.[1] ?? null
+}
+
+/**
+ * Sitemap and share image. A sitemap URL that 404s or a share image that is
+ * missing, cut short or the wrong size fails quietly in search and link
+ * previews, so it fails here instead.
  */
 function checkSearchFiles(distDir, readFileSync, existsSync, fs) {
   const errors = []
   const has = rel => existsSync(join(distDir, rel))
-  if (has('og-image.png')) {
-    const png = fs.readFileSync(join(distDir, 'og-image.png'))
-    const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]
-    const view = new DataView(png.buffer, png.byteOffset, png.byteLength)
-    if (png.length < 24 || PNG_SIGNATURE.some((b, i) => png[i] !== b)) errors.push('dist/og-image.png is not a PNG')
-    else {
-      // The IHDR chunk comes first: width and height are big-endian at bytes 16 and 20.
-      const [width, height] = [view.getUint32(16), view.getUint32(20)]
-      if (width !== OG_IMAGE_SIZE.width || height !== OG_IMAGE_SIZE.height) {
-        errors.push(`dist/og-image.png is ${width}×${height}; index.html says ${OG_IMAGE_SIZE.width}×${OG_IMAGE_SIZE.height}`)
-      }
-    }
-  }
   if (has('sitemap.xml')) {
     const locs = [...readFileSync(join(distDir, 'sitemap.xml')).matchAll(/<loc>\s*([^<\s]+)\s*<\/loc>/g)].map(m => m[1])
     if (!locs.length) errors.push('dist/sitemap.xml lists no URLs')
     for (const loc of locs) {
       const rel = builtFileFor(loc)
       if (rel === null) errors.push(`dist/sitemap.xml lists ${loc}, which is not on ${SITE_ORIGIN}`)
-      else if (rel.startsWith('app/')) errors.push(`dist/sitemap.xml lists ${loc}, but robots.txt keeps crawlers out of /app/`)
+      else if (!rel.endsWith('.html')) errors.push(`dist/sitemap.xml lists ${loc}, which is not a page`)
+      else if (rel.startsWith('app/')) errors.push(`dist/sitemap.xml lists ${loc}, but the app is noindex`)
       else if (!has(rel)) errors.push(`dist/sitemap.xml lists ${loc}, but dist/${rel} is missing`)
     }
   }
-  if (has('robots.txt')) {
-    const robots = readFileSync(join(distDir, 'robots.txt'))
-    if (!/^Disallow:\s*\/app\/\s*$/m.test(robots)) errors.push('dist/robots.txt must disallow /app/')
-    if (!robots.includes(`Sitemap: ${SITE_ORIGIN}/sitemap.xml`)) errors.push(`dist/robots.txt must name ${SITE_ORIGIN}/sitemap.xml`)
-  }
-  if (has('index.html')) {
-    const rootHtml = readFileSync(join(distDir, 'index.html'))
-    for (const tag of ['og:image', 'twitter:image']) {
-      const m = rootHtml.match(new RegExp(`<meta\\b[^>]*\\b(?:property|name)="${tag}"[^>]*\\bcontent="([^"]+)"`))
-      if (!m) {
-        errors.push(`dist/index.html has no ${tag}`)
-        continue
+  if (!has('index.html')) return errors
+  const rootHtml = readFileSync(join(distDir, 'index.html'))
+  for (const tag of ['og:image', 'twitter:image']) {
+    const url = metaContent(rootHtml, tag)
+    if (url === null) {
+      errors.push(`dist/index.html has no ${tag}`)
+      continue
+    }
+    const rel = builtFileFor(url)
+    if (rel === null) errors.push(`dist/index.html's ${tag} is ${url}, not on ${SITE_ORIGIN}`)
+    else if (!has(rel)) errors.push(`dist/index.html's ${tag} is ${url}, but dist/${rel} is missing`)
+    else if (tag === 'og:image') {
+      const size = pngSize(fs.readFileSync(join(distDir, rel)))
+      const [w, h] = [metaContent(rootHtml, 'og:image:width'), metaContent(rootHtml, 'og:image:height')]
+      const stated = `${w}×${h}`
+      if (!size) errors.push(`dist/${rel} (the og:image) is not a whole PNG`)
+      else if (w === null || h === null) errors.push("dist/index.html must state the og:image's size (og:image:width and og:image:height)")
+      else if (`${size.width}×${size.height}` !== stated) {
+        errors.push(`dist/${rel} is ${size.width}×${size.height}, but index.html's og:image:width and og:image:height say ${stated}`)
       }
-      const rel = builtFileFor(m[1])
-      if (rel === null) errors.push(`dist/index.html's ${tag} is ${m[1]}, not on ${SITE_ORIGIN}`)
-      else if (!has(rel)) errors.push(`dist/index.html's ${tag} is ${m[1]}, but dist/${rel} is missing`)
     }
   }
   return errors

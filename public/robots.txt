@@ -1,6 +1,4 @@
 User-agent: *
 Allow: /
-Allow: /tools/
-Disallow: /app/
 
 Sitemap: https://attune.coach/sitemap.xml

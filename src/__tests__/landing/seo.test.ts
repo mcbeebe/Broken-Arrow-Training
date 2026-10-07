@@ -3,7 +3,8 @@
  * The root page's title, description and share tags are copy.md's § Meta,
  * verbatim; the app stays out of search; the sitemap lists exactly the
  * public pages the build makes. check-site-layout.mjs checks the built
- * files (sitemap URLs exist, the share image is a 1200×630 PNG).
+ * files (sitemap URLs exist, the share image is a whole PNG of the size the
+ * tags state).
  */
 import { describe, it, expect } from 'vitest'
 import rootHtml from '../../../index.html?raw'
@@ -90,13 +91,11 @@ describe('the app stays out of search', () => {
     expect(meta(app, 'robots')).toBe('noindex')
   })
 
-  it('robots.txt allows the site, disallows /app/ and names the sitemap', () => {
-    const lines = robots.trim().split('\n').map(l => l.trim())
-    expect(lines).toContain('User-agent: *')
-    expect(lines).toContain('Allow: /')
-    expect(lines).toContain('Disallow: /app/')
-    expect(lines).toContain('Sitemap: https://attune.coach/sitemap.xml')
-    expect(lines.filter(l => l.startsWith('Disallow:'))).toEqual(['Disallow: /app/'])
+  // A crawler blocked by robots.txt never sees noindex, and Google can then
+  // index the blocked URL from links alone. So /app/ stays crawlable and its
+  // noindex does the work; robots.txt blocks nothing.
+  it('robots.txt blocks nothing and names the sitemap', () => {
+    expect(robots).toBe('User-agent: *\nAllow: /\n\nSitemap: https://attune.coach/sitemap.xml\n')
   })
 })
 
@@ -110,8 +109,7 @@ describe('the sitemap', () => {
   })
 
   it('lists the root page and every free tool the build makes, and nothing else', () => {
-    const tools = [...viteConfigSource.matchAll(/'(tools\/[a-z-]+\.html)'/g)].map(m => m[1])
-    expect(tools).toHaveLength(4)
+    const tools = [...viteConfigSource.matchAll(/['"`](tools\/[a-z-]+\.html)['"`]/g)].map(m => m[1])
     expect([...locs].sort()).toEqual(['https://attune.coach/', ...tools.map(t => `https://attune.coach/${t}`)].sort())
   })
 })

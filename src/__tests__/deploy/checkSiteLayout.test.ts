@@ -13,8 +13,6 @@ import {
   PAGE_BUDGET_BYTES,
   SCREEN_BUDGET_BYTES,
   SCREENS_TOTAL_BUDGET_BYTES,
-  SITE_ORIGIN,
-  OG_IMAGE_SIZE,
   type ReadOnlyFs,
 } from '../../../scripts/deploy/check-site-layout.mjs'
 
@@ -22,20 +20,25 @@ const DIST = '/dist'
 const FONT = '/fonts/schibsted-grotesk-latin-wght-normal.woff2'
 const SHARE_TAGS =
   '<meta property="og:image" content="https://attune.coach/og-image.png" />' +
+  '<meta property="og:image:width" content="1200" />' +
+  '<meta property="og:image:height" content="630" />' +
   '<meta property="og:image:alt" content="A card" />' +
   '<meta name="twitter:image" content="https://attune.coach/og-image.png" />'
 const ROOT_HTML =
   SHARE_TAGS +
   '<script data-root-fallback>if (!window.__attuneGuardRan) {}</script>' +
   '<script type="module" src="/assets/main-abc.js"></script>'
-const ROBOTS = 'User-agent: *\nAllow: /\nDisallow: /app/\n\nSitemap: https://attune.coach/sitemap.xml\n'
-/** A PNG's first 24 bytes: the signature, then the IHDR chunk's length, type, width and height. */
-function pngHeader(width: number, height: number): Uint8Array {
-  const out = new Uint8Array(24)
+/**
+ * The shape of a PNG as far as the check reads it: the signature, the IHDR
+ * chunk's length, type, width and height, filler, then the IEND chunk.
+ */
+function png(width: number, height: number): Uint8Array {
+  const out = new Uint8Array(24 + 8 + 12)
   out.set([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13, 0x49, 0x48, 0x44, 0x52])
   const view = new DataView(out.buffer)
   view.setUint32(16, width)
   view.setUint32(20, height)
+  out.set([0, 0, 0, 0, 0x49, 0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82], 32)
   return out
 }
 const sitemap = (...urls: string[]) =>
@@ -99,9 +102,9 @@ beforeEach(() => {
   write('attune-mark.svg', '<svg/>')
   write('fonts/schibsted-grotesk-latin-wght-normal.woff2', 'font')
   write('manifest.webmanifest', JSON.stringify(goodManifest))
-  write('robots.txt', ROBOTS)
+  write('robots.txt', 'User-agent: *')
   write('sitemap.xml', sitemap('https://attune.coach/', 'https://attune.coach/tools/heat.html'))
-  write('og-image.png', pngHeader(1200, 630))
+  write('og-image.png', png(1200, 630))
   write('.vite/manifest.json', JSON.stringify(viteManifest))
   write('.vite/module-map.json', JSON.stringify(moduleMap))
   write('assets/main-abc.js', `const FONT_URL = '${FONT}'`)
@@ -128,29 +131,12 @@ describe('checkSiteLayout', () => {
     'manifest.webmanifest',
     'robots.txt',
     'sitemap.xml',
-    'og-image.png',
   ])('fails when %s is missing', rel => {
     remove(rel)
     expect(check()).toContain(`missing dist/${rel}`)
   })
 
-  describe('sitemap, robots.txt and the share image', () => {
-    it('is on the public origin', () => {
-      expect(SITE_ORIGIN).toBe('https://attune.coach')
-    })
-
-    it('the share image is a 1200×630 PNG, the size index.html states', () => {
-      expect(OG_IMAGE_SIZE).toEqual({ width: 1200, height: 630 })
-      write('og-image.png', pngHeader(1200, 628))
-      expect(check()).toEqual(['dist/og-image.png is 1200×628; index.html says 1200×630'])
-      write('og-image.png', pngHeader(1280, 630))
-      expect(check()).toEqual(['dist/og-image.png is 1280×630; index.html says 1200×630'])
-      write('og-image.png', 'GIF89a............................')
-      expect(check()).toEqual(['dist/og-image.png is not a PNG'])
-      write('og-image.png', pngHeader(1200, 630).slice(0, 20))
-      expect(check()).toEqual(['dist/og-image.png is not a PNG'])
-    })
-
+  describe('sitemap and the share image', () => {
     it('reads a page URL ending in / as its index.html', () => {
       write('sitemap.xml', sitemap('https://attune.coach/', 'https://attune.coach/tools/'))
       expect(check()).toEqual(['dist/sitemap.xml lists https://attune.coach/tools/, but dist/tools/index.html is missing'])
@@ -161,9 +147,17 @@ describe('checkSiteLayout', () => {
       expect(check()).toEqual(['dist/sitemap.xml lists https://attune.coach/tools/pace.html, but dist/tools/pace.html is missing'])
     })
 
-    it('fails when the sitemap lists the app, which robots.txt keeps out', () => {
-      write('sitemap.xml', sitemap('https://attune.coach/', 'https://attune.coach/app/'))
-      expect(check()).toEqual(['dist/sitemap.xml lists https://attune.coach/app/, but robots.txt keeps crawlers out of /app/'])
+    it('fails on a URL that is a folder or a file but not a page, even one that exists', () => {
+      write('sitemap.xml', sitemap('https://attune.coach/', 'https://attune.coach/tools', 'https://attune.coach/sw.js'))
+      expect(check()).toEqual([
+        'dist/sitemap.xml lists https://attune.coach/tools, which is not a page',
+        'dist/sitemap.xml lists https://attune.coach/sw.js, which is not a page',
+      ])
+    })
+
+    it.each(['https://attune.coach/app/', 'https://attune.coach/app/index.html'])('fails when the sitemap lists the app (%s), which is noindex', url => {
+      write('sitemap.xml', sitemap('https://attune.coach/', url))
+      expect(check()).toEqual([`dist/sitemap.xml lists ${url}, but the app is noindex`])
     })
 
     it('fails on a URL on another origin, and on an empty sitemap', () => {
@@ -171,13 +165,6 @@ describe('checkSiteLayout', () => {
       expect(check()).toEqual(['dist/sitemap.xml lists https://attune.example/, which is not on https://attune.coach'])
       write('sitemap.xml', sitemap())
       expect(check()).toEqual(['dist/sitemap.xml lists no URLs'])
-    })
-
-    it('fails when robots.txt stops disallowing /app/ or naming the sitemap', () => {
-      write('robots.txt', ROBOTS.replace('Disallow: /app/', 'Disallow: /app/private/'))
-      expect(check()).toEqual(['dist/robots.txt must disallow /app/'])
-      write('robots.txt', ROBOTS.replace(/Sitemap.*/, ''))
-      expect(check()).toEqual(['dist/robots.txt must name https://attune.coach/sitemap.xml'])
     })
 
     it.each(['og:image', 'twitter:image'])('fails when %s names a file the build lacks', tag => {
@@ -191,6 +178,35 @@ describe('checkSiteLayout', () => {
       expect(check()).toEqual([`dist/index.html's ${tag} is https://cdn.example/x.png, not on https://attune.coach`])
       write('index.html', ROOT_HTML.replace(tagged, `"${tag}-gone" content="x"`))
       expect(check()).toEqual([`dist/index.html has no ${tag}`])
+    })
+
+    it('fails when the share image is not the size its tags state', () => {
+      write('og-image.png', png(1200, 628))
+      expect(check()).toEqual(["dist/og-image.png is 1200×628, but index.html's og:image:width and og:image:height say 1200×630"])
+      write('og-image.png', png(2400, 1260))
+      write('index.html', ROOT_HTML.replace('content="1200"', 'content="2400"').replace('content="630"', 'content="1260"'))
+      expect(check()).toEqual([])
+    })
+
+    it('fails when the size tags are gone', () => {
+      write('index.html', ROOT_HTML.replace('og:image:height', 'og:image:tall'))
+      expect(check()).toEqual(["dist/index.html must state the og:image's size (og:image:width and og:image:height)"])
+    })
+
+    it('checks whichever file og:image names, not a fixed name', () => {
+      write('index.html', ROOT_HTML.replaceAll('og-image.png', 'share-v2.png'))
+      write('share-v2.png', png(1280, 630))
+      expect(check()).toEqual(["dist/share-v2.png is 1280×630, but index.html's og:image:width and og:image:height say 1200×630"])
+    })
+
+    it('fails when the share image is not a PNG, or is cut short', () => {
+      const whole = png(1200, 630)
+      write('og-image.png', 'GIF89a' + '.'.repeat(60))
+      expect(check()).toEqual(['dist/og-image.png (the og:image) is not a whole PNG'])
+      write('og-image.png', whole.slice(0, 40))
+      expect(check()).toEqual(['dist/og-image.png (the og:image) is not a whole PNG'])
+      write('og-image.png', whole.slice(0, 20))
+      expect(check()).toEqual(['dist/og-image.png (the og:image) is not a whole PNG'])
     })
   })
 

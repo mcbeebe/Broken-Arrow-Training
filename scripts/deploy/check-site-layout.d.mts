@@ -15,9 +15,6 @@ export declare const SCREENS_TOTAL_BUDGET_BYTES: number
 /** The public origin; the sitemap and the share-image tags use absolute URLs on it. */
 export declare const SITE_ORIGIN: string
 
-/** The share image's size, as index.html's og:image:width and og:image:height state it. */
-export declare const OG_IMAGE_SIZE: { width: number; height: number }
-
 /** The read-only filesystem the checker needs. */
 export interface ReadOnlyFs {
   existsSync(path: string): boolean

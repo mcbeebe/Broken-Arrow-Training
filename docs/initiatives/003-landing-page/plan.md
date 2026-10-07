@@ -265,15 +265,15 @@ A fourth tool page, `/tools/mileage.html`, on the app’s own ramp. Copy approve
 
 **Scope (as built):**
 1. Meta, canonical, Open Graph and Twitter tags in `index.html`, verbatim from copy.md § Meta.
-2. `public/og-image.png`, 1200×630: the hero headline and lede beside the Running “This morning” card, with the header links, invite form and athlete tabs hidden. (The draft said “the MorningCard on the Signal ground”; the hero version matches the alt text and reads at preview size.) Made by `og-image.mjs` in this folder, which reproduces it pixel for pixel.
-3. `public/robots.txt` (allow `/` and `/tools/`, disallow `/app/`, names the sitemap) and `public/sitemap.xml` (`/` and the four tools).
+2. `public/og-image.png`, 1200×630: the hero headline and lede beside the Running “This morning” card under its “Four athletes, four different mornings” label (which marks the numbers as an example), with the header links, invite form and athlete tabs hidden. (The draft said “the MorningCard on the Signal ground”; the hero version matches the alt text and reads at preview size.) Made by `og-image.mjs` in this folder, which reproduces it pixel for pixel.
+3. `public/robots.txt` (blocks nothing, names the sitemap) and `public/sitemap.xml` (`/` and the four tools). `/app/` stays out of search through its `noindex` alone: the draft also disallowed it in robots.txt, but Google never reads a `noindex` on a page robots.txt blocks, and can then index the URL from links ([Google Search Central](https://developers.google.com/search/docs/crawling-indexing/block-indexing)).
 4. Footer links: Sign in and Free tools only, until PR 5b.
-5. `check-site-layout.mjs` requires `robots.txt`, `sitemap.xml` and `og-image.png`, and fails if a sitemap URL isn’t a built page or lists `/app/`, if `robots.txt` stops disallowing `/app/` or naming the sitemap, if `og:image` or `twitter:image` names a file the build lacks, or if the share image isn’t a 1200×630 PNG.
-6. Launch: the owner sets `vars.ATTUNE_LANDING_ENABLED = 'true'`, then dispatches `deploy.yml` (Run workflow) on the publishing branch.
+5. `check-site-layout.mjs` requires `robots.txt` and `sitemap.xml`, and fails if a sitemap URL isn’t a built `.html` page or is under `/app/`, if `og:image` or `twitter:image` names a file the build lacks, or if the `og:image` isn’t a whole PNG of the size its width and height tags state. `robots.txt`’s content and the tags’ wording are checked at the source, in `seo.test.ts`.
+6. Launch: the owner sets `vars.ATTUNE_LANDING_ENABLED = 'true'` **before** this PR merges, so the merge’s own publish ships the landing page and its search tags together. (Merging first would publish the tags, sitemap and share image while the root page still forwards everyone to `/app/`; crawlers would read that first.) If the merge already published with the switch off, dispatch `deploy.yml` on the publishing branch.
 7. Run the full smoke checklist (step 9 needs the Vercel email variables `RESEND_API_KEY`, `EMAIL_FROM`, `NOTIFY_EMAIL`).
-8. Lighthouse mobile: recorded in the PR on the local preview of the switch-on build (Performance 98, Accessibility 100, Best Practices 100, SEO 100); re-run on production after launch.
+8. Lighthouse mobile: recorded in the PR on the local preview of the switch-on build (Performance 98 and 99 over two runs, Accessibility 100, Best Practices 100, SEO 100); re-run on production after launch.
 
-**Tests:** `seo.test.ts` (every tag against copy.md § Meta, the share tags’ URLs and size, the root page indexable, `app/index.html` noindex, robots.txt, the sitemap against the Vite tool inputs); `checkSiteLayout.test.ts` (each new check, pass and fail).
+**Tests:** `seo.test.ts` (every tag against copy.md § Meta, the share tags’ URLs and size, the root page indexable, `app/index.html` noindex, robots.txt exactly, the sitemap against the Vite tool inputs); `claims.test` (the banned words, now in the title and meta tags too); `LandingPage.test` (no off-page links but `/app/` and the tools until PR 5b); `checkSiteLayout.test.ts` (each new check, pass and fail).
 
 **Rollback:** set `ATTUNE_LANDING_ENABLED` to anything but `'true'` and dispatch `deploy.yml` on the publishing branch. The root page goes back to forwarding everyone to `/app/`.
 

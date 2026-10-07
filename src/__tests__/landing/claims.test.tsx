@@ -24,6 +24,7 @@ import readinessSource from '../../utils/readiness.ts?raw'
 import verdictSource from '../../utils/verdict.ts?raw'
 import morningOutlookSource from '../../engines/adaptive/morningOutlook.ts?raw'
 import viteConfigSource from '../../../vite.config.ts?raw'
+import rootHtml from '../../../index.html?raw'
 
 /** Every string in content.ts: the states one default render never shows (other tabs, form errors, success). */
 function contentStrings(value: unknown = C, out: string[] = []): string[] {
@@ -75,6 +76,17 @@ describe('words and claims that must never appear (copy.md)', () => {
 
   it.each(BANNED)('never says %s anywhere in content.ts', (_name, pattern) => {
     expect(contentStrings().filter(s => pattern.test(s))).toEqual([])
+  })
+
+  // The title and share tags are the copy most people read: in search results and link previews.
+  const headCopy = (() => {
+    const head = new DOMParser().parseFromString(rootHtml, 'text/html')
+    return [head.title, ...[...head.querySelectorAll('meta[content]')].map(m => m.getAttribute('content')!)]
+  })()
+
+  it.each(BANNED)('never says %s in the root page’s title or meta tags', (_name, pattern) => {
+    expect(headCopy.length).toBeGreaterThan(10)
+    expect(headCopy.filter(s => pattern.test(s))).toEqual([])
   })
 })
 

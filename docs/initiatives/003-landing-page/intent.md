@@ -79,11 +79,11 @@ Checkable when all of these are true:
 Owner decisions are recorded in [plan.md § Decisions](plan.md#decisions). Still
 open, each one blocks only the PR named:
 
-1. **Privacy and Terms text** (blocks PR 5 go-live): the footer links to
-   `/privacy.html` and `/terms.html`; the owner must supply the text. Claude Code builds
-   the pages, not the policy.
-2. **Founder quote** (blocks PR 5 go-live): the copy in [copy.md](copy.md) is
-   a draft in Mike's voice and needs his sign-off.
+1. **Privacy and Terms text** (blocks PR 5b): the owner must supply the text.
+   Claude Code builds the pages, not the policy. *(2026-10-07: the owner chose
+   to go live first; PR 5 ships without the footer links and PR 5b adds the
+   pages and the links.)*
+2. ~~**Founder quote**~~: resolved. The owner’s wording shipped in PR 4b.
 3. **`APP_URL` on Vercel** (PR 2): if the env var is set in the Vercel project,
    it must change to `https://attune.coach/app` when PR 2 deploys; the code
    default changes in PR 2, which merges only after PR 1 is live.
