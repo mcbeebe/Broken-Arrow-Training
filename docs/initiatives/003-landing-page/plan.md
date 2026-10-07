@@ -248,11 +248,12 @@ forwards the old `/?view=coach` links, so nothing 404s in between.
 A fourth tool page, `/tools/mileage.html`, on the app’s own ramp. Copy approved 2026-10-07 (copy.md § Weekly mileage planner page).
 
 **As built:**
-- `mileagePlan` (`src/tools/toolMath.ts`) calls `buildWeeklyMileage` with the Daniels method, the generator’s phase allocation and short-race taper cap, 5 running days and no injury or age adjustments. Inputs: race (5K, 10K, half, marathon), current weekly miles (1–200), weeks to race (4–24). Out: start, peak and its week, longest run, and every week’s miles, drawn as bars (cutback and taper weeks lighter). Miles only.
-- Tests prove it is the engine’s output, not a copy (equal to a direct `buildWeeklyMileage` call at 6, 8, 10 and 16 weeks for every distance), and hold the footnote to it: across 64 combinations no building week is more than 10% above the last full week (allowing for 0.1 mi display rounding), every fourth week before the peak is easier, the taper steps down, and week 1 is at most one step above current.
-- The footnote was approved as “about 10% more a week at most”. It’s reworded because the week after an easier week rises well over 10% from that easier week (e.g. 4.7 → 7.3 mi). Pending the owner’s OK.
+- `mileagePlan` (`src/tools/mileageMath.ts`) runs the app’s own `generatePlanFromMethod` (Daniels) for one stated athlete: intermediate, 35, 5 days, healthy, no race time, racing on the Saturday ending week N. It reads each week’s `targetMi` and long-run card. So the tool is the app’s plan by construction, including the generator’s plan-length snapping, its long-run caps (Daniels’ 30%) and its content ceiling.
+- Inputs: race (5K, 10K, half, marathon), current weekly miles (5–200, decimals allowed), weeks to race (4–24). Out: start, peak and its week, longest run, a bar per week (easier weeks, i.e. lower than the week before, lighter), and a collapsed table of every week so nothing depends on the chart or colour. When the plan peaks below what you run now, the page says so.
+- `mileageMath.ts` is its own module, so only `/tools/mileage.html` loads the generator (~182 KB gzipped on that page); the other three tool pages stay at ~67 KB of JS.
+- `mileageMath.test.ts` compares it with a direct generator call across 240 combinations and holds the footnote to the generator’s output: no building week more than 10% above the last full week (allowing for 0.1 mi rounding), every fourth week before the peak easier, “easier” meaning lower than the week before, and the long run within Daniels’ 30% of its week.
+- Copy: see copy.md § Weekly mileage planner page. The footnote was tightened twice in review (pending the owner’s look).
 - Wired into the Vite inputs, `check-site-layout.mjs`’s required files, and “Try it before you’re in”, now “Four free calculators” in a 2×2 grid. `claims.test` checks the count word against the cards and that every card’s page is a Vite input.
-- Mutation check: 7 of 8 deliberate regressions turn a test red. The eighth, dropping `capTaperBlocks`, is equivalent: `buildWeeklyMileage` applies the same cap through `maxTaperWeeks`, so only phase labels change, never miles.
 
 ---
 

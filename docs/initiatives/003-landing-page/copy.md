@@ -227,10 +227,15 @@ Do not use Garmin, Strava or Apple logos (trademark guidelines); names as text o
 - Fields: Race (5K · 10K · Half marathon · Marathon) · Miles you run a week now · Weeks until your race
 - Results: Start at {x} mi a week · Peak at {y} mi in week {n} · Longest run {z} mi
 - Chart caption: Each bar is one week. Lighter bars are easier weeks.
-- Footnote: Built on the Daniels method’s ramp: each building week is at most about 10% above the last full week, and every fourth week of the build is easier. *(Approved as “about 10% more a week at most”; reworded in the build because the week after an easier week rises more than 10% over that easier week. Pending the owner’s OK.)*
-- Invalid input: Enter 1 to 200 miles a week and 4 to 24 weeks.
+- Table (collapsed): Every week · columns Week · Miles · Long run; an easier week’s miles read “{miles} (easier)”.
+- Footnote: Built on the Daniels method’s ramp: each building week is at most about 10% above the last full week, and every fourth week before the peak is easier. This is Attune’s plan for an intermediate runner on 5 days a week with no recent race time; your plan in the app also uses your paces and schedule.
+- When the plan peaks below what you run now: Without a recent race time to set your paces, this plan tops out at {y} mi a week, below what you run now.
+- Invalid input: Enter 5 to 200 miles a week and 4 to 24 weeks.
+- Meta description: How many miles a week to build to, and how fast, for your next 5K, 10K, half or marathon, from Attune’s own plan engine. Free, runs in your browser.
 
-Backed by `mileagePlan` in `src/tools/toolMath.ts`: the app’s `buildWeeklyMileage` with the Daniels method (`maxWeeklyIncreasePct` 0.10, `cutbackEveryNWeeks` 4), the plan generator’s phase allocation and short-race taper cap, 5 running days and no injury or age adjustments.
+*Review history (PR 4c):* the owner approved “about 10% more a week at most”, then “…every fourth week of the build is easier”. The pre-review showed both overclaim (the week after an easier week rises well past 10% from it; at some plan lengths the fourth week falls on the peak and isn’t easier), so the footnote says “before the peak”, and the assumptions sentence, the ceiling line and the table are new. All pending the owner’s look.
+
+Backed by `mileagePlan` in `src/tools/mileageMath.ts`: it runs the app’s `generatePlanFromMethod` with the Daniels method for the athlete in `mileageAthlete` (intermediate, 35, 5 days, healthy, no race time, race on the Saturday ending week N) and reads each week’s `targetMi` and long-run card. `mileageMath.test.ts` checks it equals the generator across 4 distances × 6 mileages × 10 runways, and holds the footnote, the “easier” bars and Daniels’ 30% long-run rule to the generator’s output.
 
 ## Founder note — owner’s wording, 2026-10-07
 

@@ -2,14 +2,12 @@ import { carbTargetForRaceMiles } from '../utils/fueling'
 import { vdotFromRace } from '../engines/planGenerator/vdot'
 import { predictRaceTime } from '../engines/planGenerator/feasibility'
 import { costRun, MINETTI_DOMAIN_MAX, MINETTI_DOMAIN_MIN } from '../engines/terrain/locomotion/minetti'
-import { getMethodById } from '../data/methods'
-import { allocatePhaseWeeks, buildWeeklyMileage, capTaperBlocks, TAPER_WEEKS_CAP } from '../engines/planGenerator/weekPlan'
 
 /**
  * Pure math behind the free public calculators (G10). These pages are the
  * acquisition funnel: same engines as the app — carbTargetForRaceMiles,
- * Daniels VDOT, Minetti grade cost, the weekly mileage ramp — not marketing
- * copies of them. Zero
+ * Daniels VDOT, Minetti grade cost — not marketing copies of them. (The
+ * mileage planner's math is in mileageMath.ts, so these pages don't load it.) Zero
  * network, zero storage: everything below is a pure function of its inputs.
  */
 
@@ -144,69 +142,3 @@ export function heatPlan(raceDateIso: string, expectedHighF: number): HeatPlan |
   }
 }
 
-// ── Weekly mileage planner ──────────────────────────────────────
-
-/** The one method the planner uses: rated for every road distance it offers. */
-export const MILEAGE_METHOD_ID = 'daniels'
-
-/** Road distances the planner offers, as the app's RaceDistance ids. */
-export const MILEAGE_DISTANCES = [
-  { id: '5k', label: '5K' },
-  { id: '10k', label: '10K' },
-  { id: 'half_marathon', label: 'Half marathon' },
-  { id: 'marathon', label: 'Marathon' },
-] as const
-
-export type MileageDistance = (typeof MILEAGE_DISTANCES)[number]['id']
-
-export interface MileageWeek {
-  week: number
-  miles: number
-  longRunMi: number
-  /** A cutback or taper week: drawn lighter. */
-  easier: boolean
-  taper: boolean
-}
-
-export interface MileagePlan {
-  weeks: MileageWeek[]
-  startMi: number
-  peakMi: number
-  /** 1-based week of the first week at peak. */
-  peakWeek: number
-  longestRunMi: number
-}
-
-/**
- * The app's weekly mileage ramp for one road race: the Daniels method's
- * phases and taper (capped for short races, as the plan generator does),
- * built by `buildWeeklyMileage` for a runner on 5 days a week with no injury
- * or age adjustments. Each building week stays within 10% of the last full
- * week, every fourth week is easier, and week 1 is at most one step above
- * what you run now. Null for input the app wouldn't plan (under 1 or over
- * 200 mi a week, or a plan outside 4–24 whole weeks).
- */
-export function mileagePlan(distance: MileageDistance, currentWeeklyMi: number, weeksToRace: number): MileagePlan | null {
-  const method = getMethodById(MILEAGE_METHOD_ID)
-  if (!method) return null
-  if (!isFinite(currentWeeklyMi) || currentWeeklyMi < 1 || currentWeeklyMi > 200) return null
-  if (!Number.isInteger(weeksToRace) || weeksToRace < 4 || weeksToRace > 24) return null
-  const taperCap = TAPER_WEEKS_CAP[distance]
-  const blocks = allocatePhaseWeeks(method, weeksToRace)
-  const weeks = buildWeeklyMileage(
-    method,
-    weeksToRace,
-    taperCap != null ? capTaperBlocks(blocks, method, taperCap) : blocks,
-    currentWeeklyMi,
-    {},
-    { raceDistance: distance, maxTaperWeeks: taperCap, runningDays: 5 },
-  ).map(w => ({ week: w.weekNumber, miles: w.totalMi, longRunMi: w.longRunMi, easier: w.isCutback || w.isTaper, taper: w.isTaper }))
-  const peakMi = Math.max(...weeks.map(w => w.miles))
-  return {
-    weeks,
-    startMi: weeks[0].miles,
-    peakMi,
-    peakWeek: weeks.findIndex(w => w.miles === peakMi) + 1,
-    longestRunMi: Math.max(...weeks.map(w => w.longRunMi)),
-  }
-}
