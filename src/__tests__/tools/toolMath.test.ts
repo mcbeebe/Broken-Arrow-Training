@@ -61,6 +61,31 @@ describe('vert-adjusted finish predictor', () => {
     expect(finishScenarios(13.1, -5, 18, 5000)).toBeNull()
   })
 
+  // Field bug (2026-10-08, live site): a half typed as "1:35" was read as 95 s,
+  // giving "VDOT 17300.5" and a marathon pinned at the solver's 4:00/mi floor
+  // (26 × 4:00 = 1:44:00) in all three cards.
+  it('reads a half typed as "1:35" (95 s, faster than any human) as 1:35:00, like the app does', () => {
+    const typed = finishScenarios(13.1, 95, 26, 100)!
+    const meant = finishScenarios(13.1, 95 * 60, 26, 100)!
+    expect(typed).toEqual(meant)
+    expect(typed.recentSeconds).toBe(95 * 60)
+    expect(typed.vdot).toBeCloseTo(47.8, 1)
+    expect(typed.flatSeconds).toBeGreaterThan(26 * 240 * 1.5)
+  })
+
+  it('leaves a real time alone, fast or slow', () => {
+    expect(finishScenarios(3.1, 19 * 60 + 30, 13.1, 0)!.recentSeconds).toBe(19 * 60 + 30)
+    expect(finishScenarios(50, 11 * 3600, 100, 15000)!.recentSeconds).toBe(11 * 3600)
+  })
+
+  it('GUARD: a time impossible even read as h:mm → null, never a VDOT in the thousands', () => {
+    expect(finishScenarios(13.1, 1, 26, 100)).toBeNull()
+    for (const seconds of [1, 30, 95, 600, 3000, 5700, 9000]) {
+      const s = finishScenarios(13.1, seconds, 26, 100)
+      if (s) expect(s.vdot, `${seconds} s`).toBeLessThan(90)
+    }
+  })
+
   it('formatHms renders h:mm:ss and m:ss', () => {
     expect(formatHms(3661)).toBe('1:01:01')
     expect(formatHms(605)).toBe('10:05')

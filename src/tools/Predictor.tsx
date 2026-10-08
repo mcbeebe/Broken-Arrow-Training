@@ -1,14 +1,7 @@
 import { useState } from 'react'
 import { ToolShell, Field, inputCls } from './ToolShell'
 import { finishScenarios, formatHms } from './toolMath'
-
-function parseTimeToSeconds(raw: string): number {
-  const parts = raw.trim().split(':').map(Number)
-  if (parts.some(isNaN)) return 0
-  if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2]
-  if (parts.length === 2) return parts[0] * 60 + parts[1]
-  return 0
-}
+import { parseTimeToSeconds } from '../utils/parseTime'
 
 export function Predictor() {
   const [recentDist, setRecentDist] = useState('13.1')
@@ -18,7 +11,7 @@ export function Predictor() {
 
   const scenarios = finishScenarios(
     parseFloat(recentDist),
-    parseTimeToSeconds(recentTime),
+    parseTimeToSeconds(recentTime) ?? 0,
     parseFloat(targetDist),
     parseFloat(targetVert),
   )
@@ -54,9 +47,15 @@ export function Predictor() {
           </Field>
         </div>
 
+        {/* Always mounted, so the prompt is announced when it appears. */}
+        <p role="status" className="m-0 text-slate-600 empty:hidden">
+          {scenarios ? '' : 'Enter both distances in miles and your finish time as h:mm:ss, like 1:35:00.'}
+        </p>
+
         {scenarios && (
           <div className="mt-3 space-y-3">
-            <div className="grid grid-cols-3 gap-2 text-center">
+            {/* Three across only where “Conservative” fits its card; stacked on phones. */}
+            <div data-scenarios className="grid grid-cols-1 min-[440px]:grid-cols-3 gap-2 text-center">
               <div className="rounded-lg bg-emerald-50 border border-emerald-200 px-2 py-3">
                 <p className="text-xs font-semibold text-emerald-700 uppercase">Optimistic</p>
                 <p className="text-lg font-bold text-emerald-900">{formatHms(scenarios.optimisticSeconds)}</p>
@@ -74,6 +73,7 @@ export function Predictor() {
               </div>
             </div>
             <ul className="text-sm text-slate-600 space-y-1">
+              <li>Reading your race as {recentDist} mi in <b>{formatHms(scenarios.recentSeconds)}</b>.</li>
               <li>Current fitness: <b>VDOT {scenarios.vdot}</b> → flat {targetDist} mi ≈ <b>{formatHms(scenarios.flatSeconds)}</b></li>
               <li>Terrain cost: climbing + descending this course costs <b>{Math.round((scenarios.vertMultiplier - 1) * 100)}% more energy</b> than flat running (Minetti grade-cost model, out-and-back approximation).</li>
               <li className="text-slate-500">Assumes runnable trail and race-day conditions. Heat, altitude, and technicality add time this simple model can't see — our full engine can.</li>

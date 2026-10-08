@@ -1,5 +1,5 @@
 import { carbTargetForRaceMiles } from '../utils/fueling'
-import { vdotFromRace } from '../engines/planGenerator/vdot'
+import { sanitizeRaceTimeSeconds, vdotFromRace } from '../engines/planGenerator/vdot'
 import { predictRaceTime } from '../engines/planGenerator/feasibility'
 import { costRun, MINETTI_DOMAIN_MAX, MINETTI_DOMAIN_MIN } from '../engines/terrain/locomotion/minetti'
 
@@ -37,6 +37,8 @@ export function fuelingPlan(raceMiles: number, estFinishHours: number): FuelingP
 // ── Vert-adjusted finish predictor ──────────────────────────────
 
 export interface FinishScenarios {
+  /** The recent race time as read: "1:35" for a half is 1:35:00, not 95 s. */
+  recentSeconds: number
   vdot: number
   flatSeconds: number
   vertMultiplier: number
@@ -68,11 +70,16 @@ export function finishScenarios(
   targetVertFt: number,
 ): FinishScenarios | null {
   if (recentDistanceMiles <= 0 || recentTimeSeconds <= 0 || targetDistanceMiles <= 0 || targetVertFt < 0) return null
-  const vdot = vdotFromRace({ distanceMiles: recentDistanceMiles, timeSeconds: recentTimeSeconds })
+  // The app's own guard: a time faster than any human ("1:35" read as 95 s for
+  // a half) is re-read as h:mm, and one still impossible after that is refused.
+  const recentSeconds = sanitizeRaceTimeSeconds(recentTimeSeconds, recentDistanceMiles)
+  if (recentSeconds === null) return null
+  const vdot = vdotFromRace({ distanceMiles: recentDistanceMiles, timeSeconds: recentSeconds })
   if (vdot <= 0) return null
   const flatSeconds = predictRaceTime(vdot, targetDistanceMiles)
   const mult = vertMultiplier(targetDistanceMiles, targetVertFt)
   return {
+    recentSeconds,
     vdot: Math.round(vdot * 10) / 10,
     flatSeconds,
     vertMultiplier: Math.round(mult * 1000) / 1000,
