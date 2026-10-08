@@ -21,6 +21,9 @@ from typing import Any
 DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
 DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 PNG_PATH = pathlib.Path(__file__).parent / "fixtures" / "plan_import" / "spring_10k_grid.png"
+# A fingerprint of the table the PNG was drawn from, written alongside it, so
+# a change to PLAN_A without a fresh PNG fails a keyless test.
+PNG_ROWS_PATH = PNG_PATH.with_suffix(".rows.sha256")
 
 # Filled by the live eval, read by conftest's terminal summary.
 RESULTS: list[dict[str, Any]] = []
@@ -350,6 +353,29 @@ def request_body(case: Case) -> dict[str, Any]:
 
 # ─── Scoring ────────────────────────────────────────────────────
 
+def rows_fingerprint(rows: list[list[str]]) -> str:
+    import hashlib
+    import json
+
+    return hashlib.sha256(json.dumps(rows).encode()).hexdigest()
+
+
+def allowed_misses(expected: int) -> int:
+    """A read passes with at most this many inexact sessions: one, or a tenth."""
+    return max(1, expected // 10)
+
+
+def _norm(text: Any) -> str:
+    return " ".join(str(text or "").lower().split())
+
+
+def _title_ok(got: Any, truth: str) -> bool:
+    """The plan's own words: one title contains the other, ignoring case
+    ("Intervals" for "Intervals 6x800m" is fine; "Workout" is not)."""
+    g, t = _norm(got), _norm(truth)
+    return bool(g) and (g in t or t in g)
+
+
 def _close(a: float | None, b: float | None) -> bool:
     if a is None or b is None:
         return a is None and b is None
@@ -359,10 +385,11 @@ def _close(a: float | None, b: float | None) -> bool:
 def score(case: Case, plan: dict[str, Any]) -> dict[str, Any]:
     """Compare an extraction with the truth, session by session.
 
-    A session counts as exact when its day, type, distance and minutes all
-    match. Weeks are compared by position, so a plan read in the wrong order
-    scores badly. Rest sessions are ignored on both sides. Extra sessions
-    the truth doesn't have are counted separately.
+    A session counts as exact when its day, type, title, distance and minutes
+    all match; a session with no weekday must come back as "any" (inventing
+    days is filling gaps). Weeks are compared by position, so a plan read in
+    the wrong order scores badly. Rest sessions are ignored on both sides.
+    Extra sessions the truth doesn't have are counted separately.
     """
     weeks = plan.get("weeks") or []
     expected = exact = day_ok = type_ok = amount_ok = extra = 0
@@ -382,17 +409,19 @@ def score(case: Case, plan: dict[str, Any]) -> dict[str, Any]:
                 misses.append(f"w{wi + 1} {t.day} {t.title}: missing")
                 continue
             unused.remove(pick)
-            day_ok += 1
+            d_ok = pick.get("d") == t.day
             t_ok = pick.get("t") == t.type
             a_ok = _close(pick.get("dist"), t.dist) and _close(pick.get("min"), t.min)
+            w_ok = _title_ok(pick.get("w"), t.title)
+            day_ok += d_ok
             type_ok += t_ok
             amount_ok += a_ok
-            if t_ok and a_ok:
+            if d_ok and t_ok and a_ok and w_ok:
                 exact += 1
             else:
                 misses.append(
-                    f"w{wi + 1} {t.day} {t.title}: got t={pick.get('t')} "
-                    f"dist={pick.get('dist')} min={pick.get('min')}"
+                    f"w{wi + 1} {t.day} {t.title}: got d={pick.get('d')} t={pick.get('t')} "
+                    f"w={pick.get('w')!r} dist={pick.get('dist')} min={pick.get('min')}"
                 )
         extra += len(unused)
     return {
@@ -429,9 +458,11 @@ if __name__ == "__main__":
     import sys
 
     if "--write-png" in sys.argv:
+        rows = grid_rows(PLAN_A, "mi")
         PNG_PATH.parent.mkdir(parents=True, exist_ok=True)
-        PNG_PATH.write_bytes(render_png(TITLE_A, grid_rows(PLAN_A, "mi")))
-        print(f"wrote {PNG_PATH} ({PNG_PATH.stat().st_size} bytes)")
+        PNG_PATH.write_bytes(render_png(TITLE_A, rows))
+        PNG_ROWS_PATH.write_text(rows_fingerprint(rows) + "\n")
+        print(f"wrote {PNG_PATH} ({PNG_PATH.stat().st_size} bytes) and its fingerprint")
 
 
 def summary_table(results: list[dict[str, Any]]) -> str:

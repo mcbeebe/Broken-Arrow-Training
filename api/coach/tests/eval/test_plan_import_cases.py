@@ -17,15 +17,19 @@ from plan_import_cases import (
     INJECTION,
     PLAN_A,
     PLAN_B,
+    PLAN_C,
     PLAN_F_BEGINNER,
     PLAN_F_INTERMEDIATE,
     PNG_PATH,
+    PNG_ROWS_PATH,
     TITLE_A,
+    allowed_misses,
     as_pdf,
     cases,
     cell,
     grid_rows,
     perfect_extraction,
+    rows_fingerprint,
     request_body,
     score,
     summary_table,
@@ -80,6 +84,22 @@ def test_the_screenshot_is_committed_and_fits():
     assert any(c.id == "a_png" for c in CASES)
 
 
+def test_the_screenshot_was_drawn_from_todays_plan():
+    """Change PLAN_A and this fails until the PNG is regenerated
+    (`python api/coach/tests/eval/plan_import_cases.py --write-png`)."""
+    assert PNG_ROWS_PATH.read_text().strip() == rows_fingerprint(grid_rows(PLAN_A, "mi"))
+
+
+def test_the_truth_follows_the_prompts_long_run_rule():
+    """The prompt types a run "long" only when the plan calls it long. A truth
+    that disagreed would fail a model for following the prompt."""
+    for plan in (PLAN_A, PLAN_B, PLAN_C, PLAN_F_BEGINNER, PLAN_F_INTERMEDIATE):
+        for w in plan:
+            for s in w.sessions:
+                says_long = "long" in s.title.lower()
+                assert (s.type == "long") == says_long, f"{w.label}: {s.title} is typed {s.type}"
+
+
 def test_the_tricky_cases_test_what_they_say():
     by_id = {c.id: c for c in CASES}
     assert INJECTION in by_id["e_injection"].text
@@ -129,6 +149,36 @@ def test_misses_extras_and_rest_days():
     assert s["expected"] - s["exact"] == 3
     assert s["extra"] == 1
     assert len(s["misses"]) == 3
+
+
+def test_renamed_sessions_score_low():
+    case = next(c for c in CASES if c.id == "a_text")
+    plan = perfect_extraction(case)
+    for w in plan["weeks"]:
+        for s in w["s"]:
+            s["w"] = "Workout"
+    assert score(case, plan)["accuracy"] == 0.0
+
+
+def test_a_shortened_title_in_the_plans_words_is_fine():
+    case = next(c for c in CASES if c.id == "a_text")
+    plan = perfect_extraction(case)
+    plan["weeks"][4]["s"][2]["w"] = "intervals"   # "Intervals 6x800m"
+    assert score(case, plan)["accuracy"] == 1.0
+
+
+def test_inventing_weekdays_for_a_plan_without_them_scores_low():
+    case = next(c for c in CASES if c.id == "c_no_weekdays")
+    plan = perfect_extraction(case)
+    for w in plan["weeks"]:
+        for s, day in zip(w["s"], ["mon", "wed", "fri"]):
+            s["d"] = day
+    assert score(case, plan)["accuracy"] == 0.0
+
+
+@pytest.mark.parametrize("expected,allowed", [(9, 1), (19, 1), (20, 2), (28, 2)])
+def test_allowed_misses(expected, allowed):
+    assert allowed_misses(expected) == allowed
 
 
 def test_any_day_sessions_match_in_order():

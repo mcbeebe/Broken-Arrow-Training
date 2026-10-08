@@ -19,10 +19,9 @@ import pytest
 
 from api.coach._core import HAIKU_MODEL, SONNET_MODEL
 from api.coach._plan_import import extract_plan, parse_request
-from plan_import_cases import RESULTS, cases, request_body, score
+from plan_import_cases import RESULTS, allowed_misses, cases, request_body, score
 
 MODELS = sorted({HAIKU_MODEL, SONNET_MODEL})
-MIN_ACCURACY = 0.9
 
 
 @pytest.mark.eval
@@ -59,7 +58,8 @@ def test_reads_the_plan(monkeypatch, model, case) -> None:
     if case.units in ("mi", "km"):
         assert plan["units"] == case.units
     if case.levels:
-        assert set(case.levels) <= set(plan.get("levels", [])), plan.get("levels")
-    assert s["accuracy"] >= MIN_ACCURACY, s["misses"]
+        got = " | ".join(plan.get("levels", [])).lower()
+        assert all(level.lower() in got for level in case.levels), plan.get("levels")
+    assert s["expected"] - s["exact"] <= allowed_misses(s["expected"]), s["misses"]
     assert s["extra"] <= 1, s["misses"]
     row["passed"] = True

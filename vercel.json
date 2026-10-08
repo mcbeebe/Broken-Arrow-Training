@@ -20,11 +20,11 @@
     "api/auth/*.py": {
       "maxDuration": 15
     },
-    "api/coach/*.py": {
-      "maxDuration": 60
-    },
     "api/coach/plan_import.py": {
       "maxDuration": 300
+    },
+    "api/coach/*.py": {
+      "maxDuration": 60
     },
     "api/apple/*.py": {
       "maxDuration": 30

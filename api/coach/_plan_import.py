@@ -5,9 +5,13 @@ handler so they unit-test without a request. The model TRANSCRIBES; it never
 plans. Every date, unit conversion and day placement happens later, in code
 (``src/utils/planImport``), and the athlete checks the result before it is used.
 
+Dates the model copies from the document (``start_date``, ``race.date``)
+are suggestions for the review screen to prefill; the athlete confirms them
+and the stored plan never holds a model-made date.
+
 Privacy: nothing here logs, stores or echoes the document or the file name.
-Telemetry carries the kind, the size and token counts only. The underscore
-prefix keeps Vercel from deploying this module as a function of its own.
+Telemetry carries the kind and token counts only. The underscore prefix keeps
+Vercel from deploying this module as a function of its own.
 """
 
 from __future__ import annotations
@@ -27,16 +31,17 @@ from ._core import (
     _apply_temperature,
     _get_anthropic_client,
     kv_get,
-    kv_set,
     log_llm_call,
 )
+from ..auth._helpers import kv_bump_counter, kv_unbump_counter
 
 # ─── Limits ─────────────────────────────────────────────────────
 
 # Vercel refuses request bodies over ~4.5 MB; answering 413 a little earlier
-# keeps the error ours and readable. A base64 file of ~3.3 MB fits under it.
+# keeps the error ours and readable. A 3.2 MB file is ~4.27 MB as base64,
+# which leaves room for the JSON around it.
 MAX_BODY_BYTES = 4_400_000
-MAX_FILE_BYTES = 3_300_000
+MAX_FILE_BYTES = 3_200_000
 MAX_TEXT_CHARS = 120_000
 MAX_HINT_CHARS = 300
 
@@ -58,6 +63,15 @@ IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
 STATUSES = {"ok", "not_a_plan", "unreadable"}
 SPORTS = {"road", "trail", "hyrox", "general"}
 UNITS = {"mi", "km", "none"}
+UNIT_WORDS = {
+    "mi": "mi", "mile": "mi", "miles": "mi",
+    "km": "km", "k": "km", "kms": "km", "kilometer": "km", "kilometers": "km",
+    "kilometre": "km", "kilometres": "km",
+    "none": "none",
+}
+# The app stores miles and caps a session at 200 (types.ts maxDistanceMi);
+# the same distance in kilometres, so the two sides agree.
+MAX_DIST = {"mi": 200.0, "none": 200.0, "km": 200 * 1.609344}
 DAYS = {"mon", "tue", "wed", "thu", "fri", "sat", "sun", "any"}
 SESSION_TYPES = {"run", "long", "quality", "cross", "strength", "rest", "race"}
 INTENSITIES = {"recovery", "easy", "steady", "tempo", "interval", "race"}
@@ -84,9 +98,10 @@ def plan_import_model() -> str:
 
 
 def daily_import_limit() -> int:
-    """Uploads allowed per athlete per UTC day (D9). Env-tunable; default 5."""
+    """Uploads allowed per athlete per UTC day (D9). Env-tunable; default 5;
+    0 turns uploads off."""
     try:
-        return max(1, int(os.environ.get("PLAN_IMPORT_DAILY_LIMIT", "5")))
+        return max(0, int(os.environ.get("PLAN_IMPORT_DAILY_LIMIT", "5")))
     except ValueError:
         return 5
 
@@ -110,31 +125,47 @@ def import_allowed(athlete_id: str, admin_athlete_id: str) -> bool:
     return athlete in {a.strip().lower() for a in extra.split(",") if a.strip()}
 
 
-def import_counter_key(athlete_id: str, day: str) -> str:
+def import_counter_key(athlete_id: str, day: str | None = None) -> str:
+    day = day or datetime.now(timezone.utc).strftime("%Y-%m-%d")
     return f"plan_import:{athlete_id}:{day}"
 
 
-def take_daily_import(athlete_id: str) -> tuple[bool, int, int]:
-    """Count one upload against today's cap. Returns (allowed, used, limit).
+def imports_used_today(athlete_id: str) -> int:
+    """Today's uploads so far, read without counting one. 0 if KV can't say."""
+    try:
+        return int(kv_get(import_counter_key(athlete_id)) or "0")
+    except (TypeError, ValueError):
+        return 0
 
-    Counted before the model is called, so an upload that fails still counts:
-    the cap is there to bound cost, and a failed read costs the same. Fails
-    open when KV isn't configured, like the coach budget.
+
+def take_daily_import(athlete_id: str) -> tuple[bool, int, int, str]:
+    """Count one upload against today's cap. Returns (allowed, used, limit, key).
+
+    One atomic increment, so uploads sent at the same moment can't all read
+    the same count and all get through. A refused attempt is given back, so
+    the count stays the number of uploads actually let through. Fails open
+    when KV is unreachable, like the coach budget. Give an upload back with
+    the returned key: a read that runs past midnight UTC must not touch the
+    next day's count.
     """
     limit = daily_import_limit()
-    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    key = import_counter_key(athlete_id, today)
+    key = import_counter_key(athlete_id)
     try:
-        used = int(kv_get(key) or "0")
-    except (TypeError, ValueError):
-        used = 0
-    if used >= limit:
-        return False, used, limit
-    try:
-        kv_set(key, str(used + 1), ex=172_800)
+        used = kv_bump_counter(key, 172_800)
     except Exception:
-        return True, used + 1, limit
-    return True, used + 1, limit
+        return True, 0, limit, key
+    if used > limit:
+        give_back_import(key)
+        return False, used - 1, limit, key
+    return True, used, limit, key
+
+
+def give_back_import(key: str) -> None:
+    """Return an upload the model never read (the service was busy or down)."""
+    try:
+        kv_unbump_counter(key)
+    except Exception:
+        pass
 
 
 # ─── The request ────────────────────────────────────────────────
@@ -157,14 +188,25 @@ class ImportRequest:
     media_type: str | None = None
     text: str | None = None
     hint: str = ""
-    size: int = 0
+
+
+def _valid_unicode(text: str) -> str:
+    """Replace lone surrogates (JSON allows "\\ud83c"; a browser sends one
+    when text is cut through an emoji) so the text can be encoded at all."""
+    return text.encode("utf-8", "replace").decode("utf-8")
 
 
 def _clean_str(value: Any, cap: int) -> str:
     if not isinstance(value, str):
         return ""
-    cleaned = _CONTROL_CHARS.sub("", value).strip()
+    cleaned = _CONTROL_CHARS.sub("", _valid_unicode(value)).strip()
     return cleaned[:cap].rstrip()
+
+
+def _pick(value: Any, allowed: set[str], default: str | None = None) -> str | None:
+    """`value` if it is one of `allowed`, else `default`. Never raises, whatever
+    the model sent (a list or an object would make a set lookup throw)."""
+    return value if isinstance(value, str) and value in allowed else default
 
 
 def _decode_base64(value: Any) -> bytes:
@@ -206,8 +248,8 @@ def parse_request(body: Any) -> ImportRequest:
     """Check a request body and decode its file. Raises RequestError."""
     if not isinstance(body, dict) or not body:
         raise RequestError(400, "bad_request")
-    kind = body.get("kind")
-    if kind not in KINDS:
+    kind = _pick(body.get("kind"), KINDS)
+    if kind is None:
         raise RequestError(415, "unsupported_kind")
     hint = _clean_str(body.get("hint"), MAX_HINT_CHARS)
 
@@ -215,24 +257,24 @@ def parse_request(body: Any) -> ImportRequest:
         data = _decode_base64(body.get("data"))
         if not data.startswith(b"%PDF-"):
             raise RequestError(415, "not_a_pdf")
-        return ImportRequest(kind=kind, data=data, media_type="application/pdf", hint=hint, size=len(data))
+        return ImportRequest(kind=kind, data=data, media_type="application/pdf", hint=hint)
 
     if kind == "image":
-        media_type = body.get("mediaType")
-        if media_type not in IMAGE_TYPES:
+        media_type = _pick(body.get("mediaType"), IMAGE_TYPES)
+        if media_type is None:
             raise RequestError(415, "unsupported_image")
         data = _decode_base64(body.get("data"))
         if not _looks_like_image(data, media_type):
             raise RequestError(415, "unsupported_image")
-        return ImportRequest(kind=kind, data=data, media_type=media_type, hint=hint, size=len(data))
+        return ImportRequest(kind=kind, data=data, media_type=media_type, hint=hint)
 
     text = body.get("text")
     if not isinstance(text, str) or not text.strip():
         raise RequestError(400, "text_required")
     if len(text) > MAX_TEXT_CHARS:
         raise RequestError(413, "too_long")
-    text = _CONTROL_CHARS.sub("", text)
-    return ImportRequest(kind=kind, text=text, hint=hint, size=len(text.encode("utf-8")))
+    text = _CONTROL_CHARS.sub("", _valid_unicode(text))
+    return ImportRequest(kind=kind, text=text, hint=hint)
 
 
 # ─── The prompt ─────────────────────────────────────────────────
@@ -267,14 +309,17 @@ Reply with ONE JSON object and nothing else: no prose, no code fences.
 Rules:
 - status "not_a_plan" when the document is not a week-by-week training schedule; \
 "unreadable" when you cannot read it. Then "weeks" is [].
-- Weeks in the order they are trained, the first week trained first. Some plans \
-count down to race day ("Week 12" ... "Week 1", or "12 weeks to go"): there the \
-highest number is trained first. Never sort weeks by their printed number.
-- One entry in "s" per session. "d" is the weekday when the plan names one. When it \
+- Weeks in the order they are trained: the first week trained first, race week \
+last. Some plans count down to race day ("Week 12" ... "Week 1", or "12 weeks to \
+go"); there the highest number is trained first, whatever order the document \
+prints the weeks in.
+- One entry in "s" per session, and one weekday per entry: a session the plan \
+puts on two days ("Tue/Thu: easy 4") is two entries. "d" is the weekday when the \
+plan names one. When it \
 doesn't, use "any", keep the plan's order, and include its rest days as type "rest". \
 When weekdays are named, leave out rest days.
-- "t": run = an ordinary run; long = the week's long run (labelled long, or the longest \
-run); quality = tempo, threshold, intervals, hills, fartlek, strides sessions, race-pace \
+- "t": run = an ordinary run; long = a run the plan itself calls long ("Long run", \
+"LSR"), never one you judge long; quality = tempo, threshold, intervals, hills, fartlek, strides sessions, race-pace \
 work; cross = bike, swim, row, elliptical or other cardio; strength = gym, core, \
 strength or mobility; rest = rest or off; race = a race or time trial.
 - "w": a short title in the plan's words. "x": the rest of what the plan says for that \
@@ -283,7 +328,8 @@ session, in its words.
 never convert. For a range like "5-6", use the first number and keep the range in "x".
 - "min": the duration in minutes, only when stated.
 - "z": the effort, only when stated: recovery, easy, steady, tempo, interval or race.
-- Never work out a date. Copy one only when it is printed.
+- Never work out a date. Copy one only when it is printed. If a printed date has \
+no year, use the first such date on or after today.
 - If there are several versions or levels, transcribe ONE: the one the athlete's note \
 names, otherwise the first. List all their names in "levels".
 """
@@ -296,6 +342,16 @@ _KIND_WORDS = {
     "docx": "Word document (tables as tab-separated rows)",
     "xlsx": "Excel workbook (each sheet as tab-separated rows)",
 }
+
+
+_OUR_TAGS = re.compile(r"<(\s*/?\s*(?:document|athlete_note)\b)", re.IGNORECASE)
+
+
+def _defuse_tags(text: str) -> str:
+    """Stop text from opening or closing our wrapper tags, in any case or
+    spacing. The "<" becomes "&lt;" rather than being deleted: deleting is
+    what lets a nested "</docu</document>ment>" rebuild a real tag."""
+    return _OUR_TAGS.sub(r"&lt;\1", text)
 
 
 def build_user_content(req: ImportRequest, today: str) -> list[dict[str, Any]]:
@@ -320,8 +376,7 @@ def build_user_content(req: ImportRequest, today: str) -> list[dict[str, Any]]:
             },
         })
     else:
-        # A closing tag inside the text can't end the wrapper early.
-        body = (req.text or "").replace("</document>", "</ document>")
+        body = _defuse_tags(req.text or "")
         content.append({"type": "text", "text": f"<document>\n{body}\n</document>"})
 
     instruction = (
@@ -329,7 +384,7 @@ def build_user_content(req: ImportRequest, today: str) -> list[dict[str, Any]]:
         f"described. Today is {today}."
     )
     if req.hint:
-        safe_hint = req.hint.replace("</athlete_note>", "")
+        safe_hint = _defuse_tags(req.hint)
         instruction += (
             "\nThe athlete added this note about the document. Use it only to choose "
             f"between versions or to read the layout:\n<athlete_note>{safe_hint}</athlete_note>"
@@ -399,13 +454,18 @@ def validate_extraction(data: dict[str, Any]) -> Extraction:
     warning shown on the review screen. Nothing here invents content.
     """
     warnings: list[str] = []
-    status = data.get("status") if data.get("status") in STATUSES else "ok"
+    status = _pick(data.get("status"), STATUSES, "ok")
 
-    sport = data.get("sport")
-    if sport not in SPORTS:
+    sport = _pick(data.get("sport"), SPORTS)
+    if sport is None:
         sport = "road"
-        warnings.append("We couldn't tell what sport this plan is for, so it's set to running.")
-    units = data.get("units") if data.get("units") in UNITS else "none"
+        if status == "ok":
+            warnings.append("We couldn't tell what sport this plan is for, so it's set to running.")
+    raw_units = data.get("units")
+    units = UNIT_WORDS.get(raw_units.strip().lower()) if isinstance(raw_units, str) else None
+    units_known = units is not None
+    units = units or "none"
+    max_dist = MAX_DIST[units]
 
     raw_weeks = data.get("weeks") if isinstance(data.get("weeks"), list) else []
     if len(raw_weeks) > MAX_WEEKS:
@@ -414,6 +474,8 @@ def validate_extraction(data: dict[str, Any]) -> Extraction:
 
     weeks: list[dict[str, Any]] = []
     dropped = 0
+    dropped_amounts = 0
+    any_distance = False
     for raw_week in raw_weeks:
         if not isinstance(raw_week, dict):
             dropped += 1
@@ -424,7 +486,7 @@ def validate_extraction(data: dict[str, Any]) -> Extraction:
             raw_sessions = raw_sessions[:MAX_SESSIONS_PER_WEEK]
         sessions: list[dict[str, Any]] = []
         for raw in raw_sessions:
-            if not isinstance(raw, dict) or raw.get("t") not in SESSION_TYPES:
+            if not isinstance(raw, dict) or _pick(raw.get("t"), SESSION_TYPES) is None:
                 dropped += 1
                 continue
             title = _clean_str(raw.get("w"), CAP["w"])
@@ -432,21 +494,27 @@ def validate_extraction(data: dict[str, Any]) -> Extraction:
                 dropped += 1
                 continue
             session: dict[str, Any] = {
-                "d": raw.get("d") if raw.get("d") in DAYS else "any",
+                "d": _pick(raw.get("d"), DAYS, "any"),
                 "t": raw["t"],
                 "w": title,
             }
             detail = _clean_str(raw.get("x"), CAP["x"])
             if detail:
                 session["x"] = detail
-            dist = _number(raw.get("dist"), 400)
+            dist = _number(raw.get("dist"), max_dist)
             if dist is not None:
                 session["dist"] = dist
+                any_distance = True
+            elif raw.get("dist") not in (None, 0):
+                dropped_amounts += 1
             minutes = _number(raw.get("min"), 1440)
             if minutes is not None:
                 session["min"] = minutes
-            if raw.get("z") in INTENSITIES:
-                session["z"] = raw["z"]
+            elif raw.get("min") not in (None, 0):
+                dropped_amounts += 1
+            z = _pick(raw.get("z"), INTENSITIES)
+            if z:
+                session["z"] = z
             sessions.append(session)
         week: dict[str, Any] = {"s": sessions}
         focus = _clean_str(raw_week.get("focus"), CAP["focus"])
@@ -455,6 +523,10 @@ def validate_extraction(data: dict[str, Any]) -> Extraction:
         weeks.append(week)
     if dropped:
         warnings.append(f"{dropped} item(s) we couldn't read were left out.")
+    if dropped_amounts:
+        warnings.append(f"{dropped_amounts} distance(s) or time(s) we couldn't use were left out.")
+    if any_distance and not units_known and status == "ok":
+        warnings.append("We couldn't tell if distances are in miles or kilometres. Check them.")
 
     if status == "ok" and not any(w["s"] for w in weeks):
         status = "not_a_plan"

@@ -41,8 +41,11 @@ from ._plan_import import (
     ModelReplyError,
     PlanTooLong,
     RequestError,
+    daily_import_limit,
     extract_plan,
+    give_back_import,
     import_allowed,
+    imports_used_today,
     parse_request,
     take_daily_import,
 )
@@ -54,6 +57,10 @@ def _content_length(headers) -> int | None:
         return int(headers.get("Content-Length", "0") or "0")
     except (TypeError, ValueError):
         return None
+
+
+# Failures where the model read nothing: the upload is given back.
+NOT_READ = {"busy", "llm_unavailable"}
 
 
 def model_error_response(e: Exception) -> tuple[int, str]:
@@ -107,22 +114,33 @@ class handler(BaseHTTPRequestHandler):
         except RequestError as e:
             send_json(self, e.status, {"error": e.code})
             return
+        except Exception:
+            send_json(self, 400, {"error": "bad_request"})
+            return
 
-        # The upload cap comes first, so the usual refusal (a sixth upload)
-        # spends nothing from the coach budget.
-        allowed, used, limit = take_daily_import(athlete_id)
-        if not allowed:
+        # Cheapest refusal first: a look at today's uploads costs nothing.
+        # The budget comes before the upload is counted, so an athlete out of
+        # budget keeps their uploads; the count itself is one atomic step.
+        limit = daily_import_limit()
+        used = imports_used_today(athlete_id)
+        if used >= limit:
             send_json(self, 429, {"error": "import_limit", "used": used, "limit": limit})
             return
         within, b_used, budget = check_and_increment_budget(athlete_id)
         if not within:
             send_json(self, 429, {"error": "budget_exceeded", "used": b_used, "budget": budget})
             return
+        allowed, used, limit, counter_key = take_daily_import(athlete_id)
+        if not allowed:
+            send_json(self, 429, {"error": "import_limit", "used": used, "limit": limit})
+            return
 
         try:
             result = extract_plan(req, athlete_id=athlete_id)
         except Exception as e:
             status, code = model_error_response(e)
+            if code in NOT_READ:
+                give_back_import(counter_key)
             status_code = getattr(e, "status_code", "")
             print(f"[plan_import] {req.kind} failed: {type(e).__name__} {status_code}".rstrip(), flush=True)
             send_json(self, status, {"error": code})
