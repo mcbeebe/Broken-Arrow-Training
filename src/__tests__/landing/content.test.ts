@@ -49,7 +49,7 @@ const COPY_MD = [
   'Based on HRV, resting heart rate, sleep and your last 7 days of training',
   // Running: eases off
   '41', '18% below normal', '56', '+5 over normal', '5:40', 'Short night', 'Readiness: take it easy',
-  'Training for a spring half marathon', 'Tempo run, 8 × 800 m', 'Easy run, 45 min in zone 2',
+  'Training for a spring half marathon', 'Tempo run, 20 min at threshold', 'Easy run, 45 min in zone 2',
   'Your body hasn’t caught up from Saturday’s long run. The tempo session moves to Thursday, so the week’s work stays the same.',
   'The tempo run moves to Thursday, so week 9 still does its job.',
   // Trail: pivots
