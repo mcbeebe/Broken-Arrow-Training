@@ -27,6 +27,7 @@
 import type { FitnessAnchor, FitnessAnchorType, OnboardingConfig } from '../../hooks/useOnboarding'
 import { RETEST_WEEKS, type StrengthCapacity } from '../strength/benchmark'
 import { daysBetween, isoFromLocalDate } from '../../utils/planDates'
+import { engineAnchorSeconds } from '../planGenerator/paceTargets'
 
 export type BenchmarkKind =
   // pace anchors (feed VDOT / pace targets)
@@ -339,7 +340,14 @@ export function seedFromExisting(
     if (fa.type === 'lthr' && fa.bpm) {
       out.push({ id: seedId('lthr'), kind: 'lthr', value: fa.bpm, unit: 'bpm', dateIso: fa.dateIso ?? fallbackDate, source: 'derived', at })
     } else if (fa.valueSeconds && kind in BENCHMARK_KINDS) {
-      out.push({ id: seedId(kind), kind, value: fa.valueSeconds, unit: 'seconds', dateIso: fa.dateIso ?? fallbackDate, source: 'derived', at })
+      // Seed the time the engine reads: a half stored as "1:35" (95 s) is
+      // 1:35:00. One it can't use is left out: the engine ignores it anyway,
+      // and as a race entry it would outrank a real easy pace. (Once the log
+      // has history, App.tsx then clears it from the config too.)
+      const value = engineAnchorSeconds(fa.type, fa.valueSeconds)
+      if (value !== null) {
+        out.push({ id: seedId(kind), kind, value, unit: 'seconds', dateIso: fa.dateIso ?? fallbackDate, source: 'derived', at })
+      }
     }
   }
   if (config?.testedLthrBpm && !out.some(b => b.kind === 'lthr')) {
@@ -361,6 +369,27 @@ export function seedFromExisting(
     }
   }
   return out
+}
+
+/**
+ * Re-read seeded race and easy-pace entries the way the engine does, for
+ * logs seeded before seedFromExisting did (a half typed "1:35" was seeded as
+ * a 95-second half marathon). Only seeded entries: anything entered since
+ * went through the Benchmarks sheet's own range check. Returns the repaired
+ * log, or null when nothing changed. Safe to run on every load, which it has
+ * to be: a device still on an older build can sync the old value back.
+ */
+export function repairSeededAnchors(log: readonly Benchmark[]): Benchmark[] | null {
+  let changed = false
+  const out = log.map(b => {
+    if (b.deleted || !b.id.startsWith('seed_')) return b
+    if (!RACE_KINDS.includes(b.kind) && b.kind !== 'easy_pace') return b
+    const value = engineAnchorSeconds(b.kind as FitnessAnchorType, b.value)
+    if (value === null || value === b.value) return b
+    changed = true
+    return { ...b, value }
+  })
+  return changed ? out : null
 }
 
 /** A strength benchmark session just saved a capacity: record what it

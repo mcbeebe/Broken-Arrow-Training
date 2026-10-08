@@ -221,6 +221,20 @@ export function normalizeEasyPaceSecPerMile(valueSeconds: number | undefined | n
   return Math.round(sec)
 }
 
+/**
+ * The anchor time the engine actually uses, or null when it cannot use it:
+ * a race time through sanitizeRaceTimeSeconds ("1:35" for a half is
+ * 1:35:00), an easy pace through normalizeEasyPaceSecPerMile ("0:11" is
+ * 11:00/mi; outside 4:00–25:00/mi it goes by HR and effort). Onboarding
+ * stores this, and the benchmark log seeds and repairs with it, so what the
+ * athlete is shown is what the plan is built from.
+ */
+export function engineAnchorSeconds(type: FitnessAnchor['type'], seconds: number): number | null {
+  if (type === 'easy_pace') return normalizeEasyPaceSecPerMile(seconds)
+  const miles = FITNESS_ANCHOR_DISTANCES[type]
+  return miles ? sanitizeRaceTimeSeconds(seconds, miles) : seconds
+}
+
 function paceBoundsFromEasyPace(
   easyPaceSecPerMile: number,
   zone: CanonicalPaceZone,

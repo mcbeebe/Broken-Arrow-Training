@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
-  deriveAnchors, latestByKind, liveEntries, seedFromExisting,
+  deriveAnchors, latestByKind, liveEntries, repairSeededAnchors, seedFromExisting,
   type Benchmark, type DerivedAnchors,
 } from '../engines/benchmark/log'
 import type { OnboardingConfig } from './useOnboarding'
@@ -91,6 +91,16 @@ export function useBenchmarks(
     window.addEventListener('storage', onStorage)
     return () => window.removeEventListener('storage', onStorage)
   }, [athleteId])
+
+  // Logs seeded before the seed read times as the engine does carry a half
+  // typed "1:35" as 95 s. Re-read them on every load (another device on an
+  // older build can sync the old value back); a no-op once they are right.
+  useEffect(() => {
+    const repaired = repairSeededAnchors(log)
+    if (!repaired) return
+    write(repaired, athleteId)
+    setLog(repaired)
+  }, [log, athleteId])
 
   // Seed once, from the fields the log replaces. Guarded on an EMPTY log
   // (tombstones count as history), so an athlete who cleared their entries

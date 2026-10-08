@@ -1,7 +1,9 @@
 import { isHyroxRaceInfo } from '../../engines/season/planSeason'
 import { canLayerOntoAnchor } from '../../engines/season/layerSecondaryWork'
+import { engineAnchorSeconds } from '../../engines/planGenerator/paceTargets'
+import { parseTimeToSeconds } from '../../utils/parseTime'
 import type {
-  AdditionalRace, ExperienceLevel, MenopauseStatus, RaceType,
+  AdditionalRace, ExperienceLevel, FitnessAnchorType, MenopauseStatus, RaceType,
 } from '../../hooks/useOnboarding'
 import type { DetailLevel } from '../../types'
 
@@ -117,6 +119,37 @@ export function formatSecondsLabel(total: number): string {
   const s = total % 60
   const pad = (n: number) => n.toString().padStart(2, '0')
   return h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`
+}
+
+/** What an anchor time is for, as the hint names it mid-sentence. */
+export const ANCHOR_NOUN: Partial<Record<FitnessAnchorType, string>> = {
+  race_5k: 'a 5K',
+  race_10k: 'a 10K',
+  race_hm: 'a half marathon',
+  race_marathon: 'a marathon',
+  easy_pace: 'an easy pace',
+}
+
+/** How the fitness-anchor time field reads what was typed. */
+export type AnchorTimeReading =
+  | { kind: 'unreadable' }
+  /** Readable, but the engine can't use it: a race time faster than any human
+   *  even as h:mm, or an easy pace outside 4:00–25:00/mi. Not stored. */
+  | { kind: 'unusable'; typed: number }
+  | { kind: 'as_typed'; seconds: number }
+  /** "1:35" for a half is 1:35:00; "0:11" for an easy pace is 11:00. */
+  | { kind: 'rescaled'; typed: number; seconds: number }
+
+/**
+ * Read an anchor time the way the engine will (engineAnchorSeconds), so the
+ * hint shows, and onboarding stores, the time the plan is built from.
+ */
+export function readAnchorTime(type: FitnessAnchorType, raw: string): AnchorTimeReading {
+  const typed = parseTimeToSeconds(raw)
+  if (typed === undefined) return { kind: 'unreadable' }
+  const used = engineAnchorSeconds(type, typed)
+  if (used === null) return { kind: 'unusable', typed }
+  return used === typed ? { kind: 'as_typed', seconds: typed } : { kind: 'rescaled', typed, seconds: used }
 }
 
 // Sensible default detail level derived from the experience answer. Newer
