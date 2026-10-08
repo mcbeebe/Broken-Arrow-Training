@@ -1,6 +1,7 @@
 import { carbTargetForRaceMiles } from '../utils/fueling'
-import { vdotFromRace } from '../engines/planGenerator/vdot'
-import { predictRaceTime } from '../engines/planGenerator/feasibility'
+import { sanitizeRaceTimeSeconds, vdotFromRace } from '../engines/planGenerator/vdot'
+import { predictRaceTime, RACE_PACE_SEARCH } from '../engines/planGenerator/feasibility'
+import { parseTimeToSeconds } from '../utils/parseTime'
 import { costRun, MINETTI_DOMAIN_MAX, MINETTI_DOMAIN_MIN } from '../engines/terrain/locomotion/minetti'
 
 /**
@@ -37,12 +38,38 @@ export function fuelingPlan(raceMiles: number, estFinishHours: number): FuelingP
 // ── Vert-adjusted finish predictor ──────────────────────────────
 
 export interface FinishScenarios {
+  /** The recent race time as read: "1:35" for a half is 1:35:00, not 95 s. */
+  recentSeconds: number
   vdot: number
   flatSeconds: number
   vertMultiplier: number
   optimisticSeconds: number
   realisticSeconds: number
   conservativeSeconds: number
+}
+
+/**
+ * Above every world record from 5K to the marathon (VDOT 85.3–85.6, men's). A
+ * higher VDOT is a typo, most often kilometres typed into the miles field.
+ */
+export const MAX_VDOT = 86
+
+/**
+ * A finish time as typed, in seconds: the app's parser (h:mm:ss, m:ss, or
+ * digits alone, since a phone keypad has no colon), plus the decimal seconds
+ * chip results carry ("19:30.4") and a trailing colon left mid-typing.
+ */
+export function parseFinishTime(raw: string): number | null {
+  const m = raw.trim().replace(/:$/, '').match(/^([\d:]+)(?:[.,](\d+))?$/)
+  if (!m) return null
+  const whole = parseTimeToSeconds(m[1])
+  if (whole === undefined) return null
+  return whole + (m[2] ? Number(`0.${m[2]}`) : 0)
+}
+
+/** Miles for display: "13.10" and "013.1" are 13.1. */
+export function formatMiles(miles: number): string {
+  return String(Math.round(miles * 100) / 100)
 }
 
 /**
@@ -67,12 +94,21 @@ export function finishScenarios(
   targetDistanceMiles: number,
   targetVertFt: number,
 ): FinishScenarios | null {
+  if (![recentDistanceMiles, recentTimeSeconds, targetDistanceMiles, targetVertFt].every(Number.isFinite)) return null
   if (recentDistanceMiles <= 0 || recentTimeSeconds <= 0 || targetDistanceMiles <= 0 || targetVertFt < 0) return null
-  const vdot = vdotFromRace({ distanceMiles: recentDistanceMiles, timeSeconds: recentTimeSeconds })
-  if (vdot <= 0) return null
+  // The app's own guard: a time faster than any human ("1:35" read as 95 s for
+  // a half) is re-read as h:mm, and one still impossible after that is refused.
+  const recentSeconds = sanitizeRaceTimeSeconds(recentTimeSeconds, recentDistanceMiles)
+  if (recentSeconds === null || recentSeconds / recentDistanceMiles > RACE_PACE_SEARCH.slowest) return null
+  const vdot = vdotFromRace({ distanceMiles: recentDistanceMiles, timeSeconds: recentSeconds })
+  if (vdot <= 0 || vdot > MAX_VDOT) return null
   const flatSeconds = predictRaceTime(vdot, targetDistanceMiles)
+  // Pinned at either end of the solver's search: the model has no answer here.
+  const flatPace = flatSeconds / targetDistanceMiles
+  if (flatPace <= RACE_PACE_SEARCH.fastest + 1 || flatPace >= RACE_PACE_SEARCH.slowest - 1) return null
   const mult = vertMultiplier(targetDistanceMiles, targetVertFt)
   return {
+    recentSeconds,
     vdot: Math.round(vdot * 10) / 10,
     flatSeconds,
     vertMultiplier: Math.round(mult * 1000) / 1000,

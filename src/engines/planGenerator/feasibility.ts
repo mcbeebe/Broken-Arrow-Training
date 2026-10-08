@@ -71,14 +71,23 @@ function formatClock(seconds: number): string {
 }
 
 /**
+ * The paces `predictRaceTime` searches between (seconds per mile). A VDOT whose
+ * answer lies outside them comes back pinned at one end.
+ */
+export const RACE_PACE_SEARCH = {
+  fastest: 240, // 4:00/mi — faster than any human
+  slowest: 1500, // 25:00/mi — slower than any race effort
+} as const
+
+/**
  * Predict a race time (seconds) for a given VDOT at a distance — the numerical
  * inverse of `vdotFromRace` (monotonic: more time → slower → lower VDOT).
  * Used to translate "realistic VDOT" into a concrete suggested goal time.
  */
 export function predictRaceTime(vdot: number, distanceMiles: number): number {
   if (vdot <= 0 || distanceMiles <= 0) return 0
-  let lo = distanceMiles * 240   // 4:00/mi — faster than any human
-  let hi = distanceMiles * 1500  // 25:00/mi — slower than any race effort
+  let lo = distanceMiles * RACE_PACE_SEARCH.fastest
+  let hi = distanceMiles * RACE_PACE_SEARCH.slowest
   for (let i = 0; i < 50; i++) {
     const mid = (lo + hi) / 2
     const v = vdotFromRace({ distanceMiles, timeSeconds: mid })
