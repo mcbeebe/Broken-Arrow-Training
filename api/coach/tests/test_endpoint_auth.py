@@ -31,7 +31,7 @@ import pytest
 from api.auth import _helpers as H
 
 COACH_DIR = _REPO_ROOT / "api" / "coach"
-ENDPOINTS = ["chat", "insight", "memory", "push", "telemetry"]
+ENDPOINTS = ["chat", "insight", "memory", "plan_import", "push", "telemetry"]
 
 
 class FakeHeaders(dict):

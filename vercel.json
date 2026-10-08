@@ -23,6 +23,9 @@
     "api/coach/*.py": {
       "maxDuration": 60
     },
+    "api/coach/plan_import.py": {
+      "maxDuration": 300
+    },
     "api/apple/*.py": {
       "maxDuration": 30
     },
