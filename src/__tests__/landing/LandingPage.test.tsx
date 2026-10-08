@@ -35,10 +35,11 @@ describe('sections', () => {
     }
   })
 
-  it('links off the page only to /app/, the tools and the legal pages', () => {
+  // Privacy and terms join this list with their pages in PR 5b; until then a link to either would 404.
+  it('links off the page only to /app/ and the tools', () => {
     const external = [...root.querySelectorAll('a[href]')].map(a => a.getAttribute('href')!).filter(h => !h.startsWith('#'))
     for (const href of external) {
-      expect(href, href).toMatch(/^\/(app\/|tools\/(fueling|predictor|heat|mileage)\.html|privacy\.html|terms\.html)$/)
+      expect(href, href).toMatch(/^\/(app\/|tools\/(fueling|predictor|heat|mileage)\.html)$/)
     }
   })
 })

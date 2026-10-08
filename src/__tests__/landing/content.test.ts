@@ -186,7 +186,7 @@ const COPY_MD = [
   // Footer
   'Start training that adapts to you.',
   'Attune is in an invite-only beta and free while it lasts.',
-  'Privacy', '/privacy.html', 'Terms', '/terms.html', '© 2026 Attune',
+  '© 2026 Attune',
 ] as const
 
 describe('content.ts carries copy.md verbatim', () => {
@@ -224,8 +224,6 @@ describe('links go where copy.md says', () => {
     expect(content.FOOTER.links.map(l => [l.label, l.href])).toEqual([
       ['Sign in', '/app/'],
       ['Free tools', '#tools'],
-      ['Privacy', '/privacy.html'],
-      ['Terms', '/terms.html'],
     ])
   })
 })

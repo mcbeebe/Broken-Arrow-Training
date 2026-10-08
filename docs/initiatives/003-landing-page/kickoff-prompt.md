@@ -112,8 +112,10 @@ modes in the PR. /adversary memo in the PR.
 Initiative 003, PR 5. Read CLAUDE.md, then docs/initiatives/003-landing-page/
 plan.md § PR 5 and § Smoke checklist, and design-spec.md § SEO and sharing.
 
-Before you start, ask me for: the privacy policy text, the terms text, and the
-final founder quote. Do not write policy text yourself.
+(As run, 2026-10-07: the founder quote shipped in PR 4b, and the owner chose
+to go live before the legal text, so PR 5 shipped without it and PR 5b adds
+privacy.html and terms.html. For PR 5b, ask me for the privacy policy text and
+the terms text. Do not write policy text yourself.)
 
 Build PR 5. After it merges, walk me through setting
 vars.ATTUNE_LANDING_ENABLED='true' and dispatching deploy.yml on the

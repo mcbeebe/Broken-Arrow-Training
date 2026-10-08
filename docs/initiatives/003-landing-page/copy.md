@@ -259,7 +259,7 @@ Backed by `mileagePlan` in `src/tools/mileageMath.ts`: it runs the app’s `gene
 - Line: **Start training that adapts to you.**
 - Sub: Attune is in an invite-only beta and free while it lasts.
 - Button: **Request an invite** (`#join`)
-- Links: Sign in (`/app/`) · Free tools (`#tools`) · Privacy (`/privacy.html`) · Terms (`/terms.html`) · © 2026 Attune
+- Links: Sign in (`/app/`) · Free tools (`#tools`) · © 2026 Attune. *(PR 5 launches without Privacy (`/privacy.html`) and Terms (`/terms.html`); they return with their pages in PR 5b, once the owner’s text is in. Owner’s call, 2026-10-07.)*
 
 ## Words and claims that must never appear
 

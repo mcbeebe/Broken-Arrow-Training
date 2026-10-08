@@ -17,6 +17,13 @@ Strava OAuth, and an iOS wrapper.
 `/`. `index.html` is the root page (the landing page, behind a switch) and the
 app is `app/index.html`, served at `/app/`. `/tools/*.html`, `/sw.js`,
 `/version.json`, `/favicon.svg` and `/manifest.webmanifest` stay at the root.
+So do `/robots.txt`, `/sitemap.xml` (the root page and the tools) and
+`/og-image.png`, the share image (made by
+`docs/initiatives/003-landing-page/og-image.mjs`). `/app/` is kept out of
+search by its `noindex` alone: **never `Disallow` it in robots.txt**, which
+would hide the `noindex` from Google and let it index `/app/` from links. The root
+page's title, description and share tags are copy.md § Meta, verbatim
+(`seo.test.ts`).
 The root page's entry (`src/landing/main.tsx`) statically imports only the
 guard (`boot.ts`, `legacyEntry.ts`, `sections.ts`) and `referral.ts`: it
 forwards installed apps, deep links (`?view=`), Strava callbacks, airlock
@@ -53,7 +60,7 @@ attune.coach.
 ## Commands
 
 ```bash
-npm test                  # vitest, 337 files / ~4694 tests — gates every publish
+npm test                  # vitest, 338 files / ~4732 tests — gates every publish
 npm run build             # tsc -b && vite build — the typecheck gate lives here
 npm run lint              # eslint — blocking in CI; 0 errors (initiative 002)
 npm run dev               # local dev server: the app is at /app/, the root page at /
@@ -101,7 +108,10 @@ succeed.
   `scripts/deploy/vite-plugin-module-map.ts`), or if the guard's font preload
   and the landing CSS's `@font-face` stop naming the same file, or if a
   screenshot the landing page names is missing from `dist/landing/app/`, over
-  80 KB, or if they total over 240 KB.
+  80 KB, or if they total over 240 KB, or if `robots.txt` or `sitemap.xml` is
+  missing, a sitemap URL isn't a built `.html` page (or is under `/app/`),
+  `og:image`/`twitter:image` names a file the build lacks, or the `og:image`
+  isn't a whole PNG of the size `og:image:width`/`og:image:height` state.
 - The `cutover-airlock` job publishes on the branch test alone — it ignores
   `ATTUNE_PUBLISH_ENABLED` and finishes before the attune build — so an
   airlock change goes live before the app it points at.
