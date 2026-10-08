@@ -267,8 +267,9 @@ Reply with ONE JSON object and nothing else: no prose, no code fences.
 Rules:
 - status "not_a_plan" when the document is not a week-by-week training schedule; \
 "unreadable" when you cannot read it. Then "weeks" is [].
-- Weeks in the order they are trained. If the plan counts down to race day \
-("Week 12" ... "Week 1"), reverse it so the first week trained comes first.
+- Weeks in the order they are trained, the first week trained first. Some plans \
+count down to race day ("Week 12" ... "Week 1", or "12 weeks to go"): there the \
+highest number is trained first. Never sort weeks by their printed number.
 - One entry in "s" per session. "d" is the weekday when the plan names one. When it \
 doesn't, use "any", keep the plan's order, and include its rest days as type "rest". \
 When weekdays are named, leave out rest days.
