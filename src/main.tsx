@@ -1,5 +1,6 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
+import { Analytics } from '@vercel/analytics/react'
 import './index.css'
 import App from './App'
 import ErrorBoundary from './components/ErrorBoundary'
@@ -22,6 +23,7 @@ if (isMigrationReceive()) {
   root.render(
     <StrictMode>
       <MigrationReceive />
+      <Analytics />
     </StrictMode>,
   )
 } else {
@@ -35,6 +37,7 @@ if (isMigrationReceive()) {
         {targetOrigin ? <MigrationBanner targetOrigin={targetOrigin} /> : null}
         <App />
       </ErrorBoundary>
+      <Analytics />
     </StrictMode>,
   )
 }
