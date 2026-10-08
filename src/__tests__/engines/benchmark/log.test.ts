@@ -118,6 +118,28 @@ describe('seedFromExisting — the old fields become the first entries', () => {
     const b = seedFromExisting(config, null, 2)
     expect(a.map(x => x.id)).toEqual(b.map(x => x.id))
   })
+  // Field bug (2026-10-08): a half stored as "1:35" (95 s) was seeded as a
+  // 95-second half marathon, a value the Benchmarks sheet itself refuses.
+  it('seeds a race anchor as the engine reads it: a 95 s half is 1:35:00', () => {
+    const seeded = seedFromExisting({ ...config, fitnessAnchor: { type: 'race_hm', valueSeconds: 95 } }, null, 5_000)
+    const hm = seeded.find(b => b.kind === 'race_hm')!
+    expect(hm.value).toBe(5700)
+    expect(isPlausible('race_hm', hm.value)).toBe(true)
+    expect(deriveAnchors(seeded).fitnessAnchor).toMatchObject({ type: 'race_hm', valueSeconds: 5700 })
+  })
+
+  it('never drops an anchor it cannot place: once the log has history it owns the anchor', () => {
+    // An 8:30:00 marathon is over the sheet's limit, but it is the athlete's anchor.
+    const slow = seedFromExisting({ ...config, fitnessAnchor: { type: 'race_marathon', valueSeconds: 30600 } }, null, 5_000)
+    expect(slow.find(b => b.kind === 'race_marathon')?.value).toBe(30600)
+    // Impossible even as h:mm: seeded as it was, and the engine ignores it as before.
+    const odd = seedFromExisting({ ...config, fitnessAnchor: { type: 'race_hm', valueSeconds: 30 } }, null, 5_000)
+    expect(odd.find(b => b.kind === 'race_hm')?.value).toBe(30)
+    // An easy pace is per mile, never re-read as a race.
+    const easy = seedFromExisting({ ...config, fitnessAnchor: { type: 'easy_pace', valueSeconds: 180 } }, null, 5_000)
+    expect(easy.find(b => b.kind === 'easy_pace')?.value).toBe(180)
+  })
+
   it('an anchor of type none seeds nothing', () => {
     expect(seedFromExisting({ fitnessAnchor: { type: 'none' } } as unknown as OnboardingConfig, null, 1)).toEqual([])
   })

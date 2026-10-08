@@ -586,6 +586,69 @@ describe('Onboarding', () => {
       const cfg = walkHappyPath({ anchorOption: 'easy_pace', anchorTime: '9:15' })
       expect(cfg.fitnessAnchor).toEqual({ type: 'easy_pace', valueSeconds: 555 })
     })
+
+    // Field bug (2026-10-08): a half typed "1:35" was stored as 95 s. The plan
+    // engine re-read it as 1:35:00, but the hint and the benchmark log did not.
+    it('stores a half typed "1:35" as 1:35:00, the time the engine reads', () => {
+      const cfg = walkHappyPath({ anchorOption: 'race_hm', anchorTime: '1:35' })
+      expect(cfg.fitnessAnchor).toEqual({ type: 'race_hm', valueSeconds: 95 * 60 })
+    })
+  })
+
+  describe('fitness anchor hint', () => {
+    /** Walk a road race to the fitness-baseline step and pick an anchor. */
+    function toAnchorStep(anchorOption: string) {
+      render(<Onboarding onComplete={vi.fn()} loadingDurationMs={0} />)
+      fireEvent.click(screen.getByText('A specific race'))
+      clickContinue()
+      fireEvent.click(screen.getByText('Trail / Ultra'))
+      clickContinue()
+      fireEvent.change(screen.getByPlaceholderText(/Broken Arrow|Hyrox|Summer Fitness/i), { target: { value: 'Test Race' } })
+      pickDistance('Marathon')
+      fireEvent.change(screen.getByPlaceholderText(/Terrain, elevation/i), { target: { value: 'Rolling hills.' } })
+      fireEvent.change(screen.getByPlaceholderText(/finish strong/i), { target: { value: 'Finish strong' } })
+      clickContinue()
+      fireEvent.click(screen.getByText('Intermediate'))
+      clickContinue()
+      fireEvent.change(screen.getByRole('combobox'), { target: { value: anchorOption } })
+      const time = screen.getByPlaceholderText(/mm:ss|hh:mm:ss/)
+      return (value: string) => fireEvent.change(time, { target: { value } })
+    }
+
+    it('names the time the plan is built from when it re-reads one, like the goal-time hint', () => {
+      const type = toAnchorStep('race_hm')
+      type('1:35')
+      expect(screen.getByText(/is impossibly fast for a half marathon/).textContent).toBe(
+        '1:35 is impossibly fast for a half marathon — reading it as 1:35:00. Use hh:mm:ss to be exact.',
+      )
+      expect(screen.queryByText(/Reading this as 1:35\./)).toBeNull()
+    })
+
+    it('reads a real time as typed', () => {
+      const type = toAnchorStep('race_hm')
+      type('1:35:00')
+      expect(screen.getByText('Reading this as 1:35:00.')).toBeInTheDocument()
+      type('13500')
+      expect(screen.getByText('Reading this as 1:35:00.')).toBeInTheDocument()
+    })
+
+    it('never re-reads a 5K in minutes, or an easy pace per mile', () => {
+      const type = toAnchorStep('race_5k')
+      type('19:30')
+      expect(screen.getByText('Reading this as 19:30.')).toBeInTheDocument()
+      cleanup()
+      const pace = toAnchorStep('easy_pace')
+      pace('9:15')
+      expect(screen.getByText('Reading this as 9:15.')).toBeInTheDocument()
+    })
+
+    it('asks for the format the field names when a time is unreadable or impossible', () => {
+      const type = toAnchorStep('race_hm')
+      type('abc')
+      expect(screen.getByText('Enter as hh:mm:ss — the “:” is optional.')).toBeInTheDocument()
+      type('0:30') // 30 s, and 30 min read as h:mm is still faster than any human
+      expect(screen.getByText('Enter as hh:mm:ss — the “:” is optional.')).toBeInTheDocument()
+    })
   })
 
   describe('weekly mileage', () => {

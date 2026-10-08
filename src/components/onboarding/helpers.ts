@@ -1,7 +1,9 @@
 import { isHyroxRaceInfo } from '../../engines/season/planSeason'
 import { canLayerOntoAnchor } from '../../engines/season/layerSecondaryWork'
+import { FITNESS_ANCHOR_DISTANCES, sanitizeRaceTimeSeconds } from '../../engines/planGenerator/vdot'
+import { parseTimeToSeconds } from '../../utils/parseTime'
 import type {
-  AdditionalRace, ExperienceLevel, MenopauseStatus, RaceType,
+  AdditionalRace, ExperienceLevel, FitnessAnchorType, MenopauseStatus, RaceType,
 } from '../../hooks/useOnboarding'
 import type { DetailLevel } from '../../types'
 
@@ -117,6 +119,38 @@ export function formatSecondsLabel(total: number): string {
   const s = total % 60
   const pad = (n: number) => n.toString().padStart(2, '0')
   return h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`
+}
+
+/** The race an anchor time is for, as the hint names it mid-sentence. */
+export const ANCHOR_RACE_NOUN: Partial<Record<FitnessAnchorType, string>> = {
+  race_5k: '5K',
+  race_10k: '10K',
+  race_hm: 'half marathon',
+  race_marathon: 'marathon',
+}
+
+/** How the fitness-anchor time field reads what was typed. */
+export type AnchorTimeReading =
+  | { kind: 'unreadable' }
+  /** A race time faster than any human, even read as h:mm. The engine ignores it. */
+  | { kind: 'impossible'; seconds: number }
+  | { kind: 'as_typed'; seconds: number }
+  /** "1:35" for a half: 95 s is faster than any human, so it is 1:35:00. */
+  | { kind: 'rescaled'; typed: number; seconds: number }
+
+/**
+ * Read an anchor time the way the engine will (paceTargets.ts runs race
+ * anchors through sanitizeRaceTimeSeconds), so the hint shows the time the
+ * plan is actually built from. An easy pace is per mile and read as typed.
+ */
+export function readAnchorTime(type: FitnessAnchorType, raw: string): AnchorTimeReading {
+  const typed = parseTimeToSeconds(raw)
+  if (typed === undefined) return { kind: 'unreadable' }
+  const miles = FITNESS_ANCHOR_DISTANCES[type]
+  if (!miles) return { kind: 'as_typed', seconds: typed }
+  const sane = sanitizeRaceTimeSeconds(typed, miles)
+  if (sane === null) return { kind: 'impossible', seconds: typed }
+  return sane === typed ? { kind: 'as_typed', seconds: typed } : { kind: 'rescaled', typed, seconds: sane }
 }
 
 // Sensible default detail level derived from the experience answer. Newer

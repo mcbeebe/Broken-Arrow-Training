@@ -27,6 +27,7 @@
 import type { FitnessAnchor, FitnessAnchorType, OnboardingConfig } from '../../hooks/useOnboarding'
 import { RETEST_WEEKS, type StrengthCapacity } from '../strength/benchmark'
 import { daysBetween, isoFromLocalDate } from '../../utils/planDates'
+import { FITNESS_ANCHOR_DISTANCES, sanitizeRaceTimeSeconds } from '../planGenerator/vdot'
 
 export type BenchmarkKind =
   // pace anchors (feed VDOT / pace targets)
@@ -339,7 +340,12 @@ export function seedFromExisting(
     if (fa.type === 'lthr' && fa.bpm) {
       out.push({ id: seedId('lthr'), kind: 'lthr', value: fa.bpm, unit: 'bpm', dateIso: fa.dateIso ?? fallbackDate, source: 'derived', at })
     } else if (fa.valueSeconds && kind in BENCHMARK_KINDS) {
-      out.push({ id: seedId(kind), kind, value: fa.valueSeconds, unit: 'seconds', dateIso: fa.dateIso ?? fallbackDate, source: 'derived', at })
+      // Read a race time the way the engine does (paceTargets.ts): a half
+      // stored as "1:35" (95 s) is 1:35:00. Never drop one: once the log has
+      // history it owns the anchor, and a missing entry deletes the config's.
+      const miles = FITNESS_ANCHOR_DISTANCES[fa.type]
+      const value = (miles ? sanitizeRaceTimeSeconds(fa.valueSeconds, miles) : null) ?? fa.valueSeconds
+      out.push({ id: seedId(kind), kind, value, unit: 'seconds', dateIso: fa.dateIso ?? fallbackDate, source: 'derived', at })
     }
   }
   if (config?.testedLthrBpm && !out.some(b => b.kind === 'lthr')) {

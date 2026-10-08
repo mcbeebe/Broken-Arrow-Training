@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   assembleAdditionalRaces, parseErgSeconds, formatSecondsLabel,
-  defaultDetailLevel, isRealMenopauseStage, newSeasonRaceRow,
+  defaultDetailLevel, isRealMenopauseStage, newSeasonRaceRow, readAnchorTime, ANCHOR_RACE_NOUN,
   type SeasonRaceRow,
 } from '../components/onboarding/helpers'
 
@@ -192,5 +192,36 @@ describe('the small derivations', () => {
       expect(isRealMenopauseStage(s), s).toBe(false)
     }
     expect(isRealMenopauseStage(null)).toBe(false)
+  })
+})
+
+describe('readAnchorTime — the anchor time as the engine reads it', () => {
+  it('re-reads a race time faster than any human as h:mm ("1:35" for a half is 1:35:00)', () => {
+    expect(readAnchorTime('race_hm', '1:35')).toEqual({ kind: 'rescaled', typed: 95, seconds: 5700 })
+    expect(readAnchorTime('race_marathon', '3:15')).toEqual({ kind: 'rescaled', typed: 195, seconds: 11700 })
+    expect(readAnchorTime('race_10k', '0:45')).toEqual({ kind: 'rescaled', typed: 45, seconds: 2700 })
+  })
+
+  it('leaves real times as typed, with or without colons', () => {
+    expect(readAnchorTime('race_5k', '19:30')).toEqual({ kind: 'as_typed', seconds: 1170 })
+    expect(readAnchorTime('race_5k', '2130')).toEqual({ kind: 'as_typed', seconds: 1290 })
+    expect(readAnchorTime('race_10k', '45:00')).toEqual({ kind: 'as_typed', seconds: 2700 })
+    expect(readAnchorTime('race_hm', '1:35:00')).toEqual({ kind: 'as_typed', seconds: 5700 })
+    expect(readAnchorTime('race_marathon', '6:30:00')).toEqual({ kind: 'as_typed', seconds: 23400 })
+  })
+
+  it('reads an easy pace per mile as typed, never as a race', () => {
+    expect(readAnchorTime('easy_pace', '9:15')).toEqual({ kind: 'as_typed', seconds: 555 })
+    expect(readAnchorTime('easy_pace', '3:00')).toEqual({ kind: 'as_typed', seconds: 180 })
+  })
+
+  it('flags a race time impossible even as h:mm, and an unreadable one', () => {
+    expect(readAnchorTime('race_hm', '0:30')).toEqual({ kind: 'impossible', seconds: 30 })
+    expect(readAnchorTime('race_hm', 'abc')).toEqual({ kind: 'unreadable' })
+    expect(readAnchorTime('race_hm', '')).toEqual({ kind: 'unreadable' })
+  })
+
+  it('has a noun for every race anchor', () => {
+    expect(ANCHOR_RACE_NOUN).toEqual({ race_5k: '5K', race_10k: '10K', race_hm: 'half marathon', race_marathon: 'marathon' })
   })
 })
