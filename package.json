@@ -17,6 +17,7 @@
     "test:tz": "TZ=America/New_York vitest run src/__tests__/raceReadiness.test.ts src/__tests__/utils src/__tests__/planStartDate.test.ts"
   },
   "dependencies": {
+    "@vercel/analytics": "^2.0.1",
     "cesium": "^1.141.0",
     "jspdf": "^4.2.1",
     "react": "^19.2.4",

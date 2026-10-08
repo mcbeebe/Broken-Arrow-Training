@@ -5,6 +5,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { flushSync } from 'react-dom'
+import { Analytics } from '@vercel/analytics/react'
 import { LandingPage } from './LandingPage'
 import { scrollToAnchor } from './scrollToAnchor'
 import './landing.css'
@@ -16,6 +17,7 @@ export function mountLanding(root: HTMLElement): void {
     reactRoot.render(
       <StrictMode>
         <LandingPage />
+        <Analytics />
       </StrictMode>,
     )
   })
