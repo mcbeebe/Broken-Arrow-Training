@@ -130,6 +130,11 @@ export interface PlannedDay {
    *  auto-adjust a day checks this and skips a locked one. Set by
    *  useLockedDays.applyLocksToWeeks. */
   locked?: boolean;
+  /** Initiative 004: `detail` is the athlete's own plan text, kept word for
+   *  word. Rezoning leaves it alone, so the heart rates the plan itself
+   *  wrote are never rewritten; the app-written `zone` string still
+   *  follows the athlete's zones. Set by the uploaded-plan renderer. */
+  verbatimDetail?: boolean;
 }
 
 /**

@@ -102,11 +102,13 @@ export function rezoneDetailString(detail: string, nz: NumericZone[]): string {
   return out
 }
 
-/** Returns a copy of the day with HR strings rewritten to current zones. */
+/** Returns a copy of the day with HR strings rewritten to current zones.
+ *  A day whose detail is the athlete's own plan text (`verbatimDetail`)
+ *  keeps that text exactly; only its app-written zone string is rewritten. */
 export function rezonePlannedDay(day: PlannedDay, nz: NumericZone[]): PlannedDay {
   if (nz.length === 0) return day
   const nextZone = rezoneZoneString(day.zone, nz)
-  const nextDetail = rezoneDetailString(day.detail, nz)
+  const nextDetail = day.verbatimDetail ? day.detail : rezoneDetailString(day.detail, nz)
   if (nextZone === day.zone && nextDetail === day.detail) return day
   return { ...day, zone: nextZone, detail: nextDetail }
 }

@@ -87,11 +87,19 @@ time (D3).
 
 1. `src/utils/planImport/normalize.ts`: the endpoint's JSON → `ImportedPlanV1`.
    "Any day" sessions are placed (seven in order become Mon–Sun; otherwise the
-   long run goes to Sunday and the rest fill the usual training days); two
-   sessions on one day merge; km → miles.
-2. Guardrails (D1): the reshape sheet, reshape proposals from the coach,
-   weak-station reweighting, recalibration and level-up offers, and the season
-   panel are hidden or refused for an uploaded plan.
+   long run goes to Sunday and the rest fill the usual training days); km →
+   miles. Sessions stay separate: combining a day's sessions happens in one
+   place only, `toTrainingPlan.ts` (PR 2).
+2. Guardrails (D1), all required before PR 5 lets anyone write a plan:
+   - "Shape my week" (in place and Rebuild) and the coach's reshape proposals
+     are hidden or refused. Rebuild would call `save()`, clearing the
+     athlete's edits and returning the same plan.
+   - Weak-station reweighting, recalibration and level-up offers are hidden.
+   - The season is off end to end: the season panel, the primary-race pick
+     in the Plan view, and the season context sent to the coach
+     (`buildSeasonContext`), which would otherwise describe layered sessions
+     that don't exist.
+   - Check the HYROX screens for anything that assumes structured station data.
 3. The coach snapshot carries `planSource: imported`, and `_core.py` tells the
    coach: the athlete's own plan; respect its structure; suggest day edits only.
 

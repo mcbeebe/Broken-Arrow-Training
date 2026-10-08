@@ -407,13 +407,16 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
         <div className="text-center space-y-4 max-w-sm">
           <h1 className="text-2xl font-bold text-slate-800">We couldn&rsquo;t open your plan</h1>
           <p className="text-slate-500">
-            The plan you uploaded didn&rsquo;t load on this device. Your training history is safe.
-            Redo onboarding to upload it again or build a new plan.
+            Your uploaded plan didn&rsquo;t load. Your training history is safe. This app may be
+            out of date, so try reloading first. If that doesn&rsquo;t help, redo onboarding to
+            upload your plan again; that replaces it on all your devices.
           </p>
           <div className="pt-4 space-y-2">
-            <button onClick={() => onboarding.requestRedo()} className="text-teal-600 font-medium text-sm">Redo onboarding</button>
+            <button onClick={() => window.location.reload()} className="bg-teal-600 text-white font-semibold text-sm rounded-xl px-5 py-3">Reload the app</button>
             <br />
-            <button onClick={onLogout} className="text-slate-500 font-medium text-sm">Sign out</button>
+            <button onClick={() => onboarding.requestRedo()} className="text-teal-600 font-medium text-sm py-2">Redo onboarding</button>
+            <br />
+            <button onClick={onLogout} className="text-slate-500 font-medium text-sm py-2">Sign out</button>
           </div>
         </div>
       </div>

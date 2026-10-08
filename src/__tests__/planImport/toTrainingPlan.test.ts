@@ -1,11 +1,12 @@
 import { describe, it, expect } from 'vitest'
-import { formatDuration, importedToTrainingPlan } from '../../utils/planImport/toTrainingPlan'
+import { formatDuration, importedToTrainingPlan, weekMiles } from '../../utils/planImport/toTrainingPlan'
 import type { ImportedPlanV1, ImportedSession } from '../../utils/planImport/types'
 import type { OnboardingConfig } from '../../hooks/useOnboarding'
 import { parseDistance, parseDuration, parseHRRange } from '../../utils/targets'
 import { rezoneWeeks } from '../../utils/rezone'
 import { dayIsoInWeek, addDays } from '../../utils/planDates'
 import { validatePlan } from '../../engines/planQA/validatePlan'
+import { formatWeekMilesChip, formatWeekMilesHeader, getMilesNumber } from '../../utils/format'
 import type { HRZone } from '../../types'
 
 const config = {
@@ -118,6 +119,11 @@ describe('importedToTrainingPlan — day strings the app parses', () => {
     expect(saturday.detail).toBe('—')
   })
 
+  it('marks the detail of every day the plan wrote as the plan’s own words', () => {
+    const fromPlan = [easy, strength, tempo, saturday, long]
+    expect(fromPlan.every(d => d.verbatimDetail)).toBe(true)
+  })
+
   it('rezones its bands to the athlete’s own zones and leaves the distance alone', () => {
     const custom: HRZone[] = [
       { zone: 'Z1', hr: '100–120', pct: '', desc: '' },
@@ -130,23 +136,56 @@ describe('importedToTrainingPlan — day strings the app parses', () => {
     expect(rezoned.days[3].zone).toBe('7.0 mi · Z3 (141–160)')
   })
 
+  it('never rewrites the heart rates the plan itself wrote', () => {
+    const own = '3 × 10 min Z3 (152-160), stay under LTHR (165)'
+    const withOwnHr = importedToTrainingPlan(plan([[{ day: 4, type: 'quality', title: 'Threshold', detail: own, distanceMi: 8, intensity: 'tempo' }]]), config)
+    const custom: HRZone[] = [
+      { zone: 'Z1', hr: '100–120', pct: '', desc: '' },
+      { zone: 'Z2', hr: '121–140', pct: '', desc: '' },
+      { zone: 'Z3', hr: '141–160', pct: '', desc: '' },
+      { zone: 'Z4', hr: '161–180', pct: '', desc: '' },
+    ]
+    const thu = rezoneWeeks(withOwnHr.weeks, custom)[0].days[3]
+    expect(thu.detail).toBe(own)
+    expect(thu.zone).toBe('8.0 mi · Z3 (141–160)')
+  })
+
   it('counts only running distance toward the week’s miles', () => {
     const withBike = [...weekOne, { day: 1, type: 'cross' as const, title: 'Bike', distanceMi: 20 }]
     expect(importedToTrainingPlan(plan([weekOne]), config).weeks[0].miles).toBe(32)
     expect(importedToTrainingPlan(plan([withBike]), config).weeks[0].miles).toBe(32)
   })
 
-  it('falls back to minutes, then to Rest, when a week has no running distance', () => {
-    const timed = importedToTrainingPlan(plan([[{ day: 1, type: 'strength', title: 'Gym', durationMin: 45 }]]), config)
-    expect(timed.weeks[0].miles).toBe('~45 min')
+  it('writes no number when the plan gives its running in minutes, so nothing reads minutes as miles', () => {
+    const byTime = [
+      { day: 2, type: 'run' as const, title: 'Easy', durationMin: 45 },
+      { day: 7, type: 'long' as const, title: 'Long', durationMin: 120 },
+    ]
+    const mixed = [
+      { day: 2, type: 'run' as const, title: 'Easy', durationMin: 40 },
+      { day: 7, type: 'long' as const, title: 'Long', distanceMi: 12 },
+    ]
+    const cases: [string, ReturnType<typeof weekMiles>][] = [
+      ['By time', weekMiles(byTime)],
+      ['Miles + time', weekMiles(mixed)],
+      ['No running', weekMiles([{ day: 1, type: 'strength', title: 'Gym', durationMin: 45 }])],
+      ['Rest', weekMiles([])],
+      ['Rest', weekMiles([{ day: 1, type: 'rest', title: 'Rest' }])],
+    ]
+    for (const [label, miles] of cases) {
+      expect(miles).toBe(label)
+      // Every consumer reads 0 as "no mileage target", and the header shows the label.
+      expect(getMilesNumber(miles)).toBe(0)
+      expect(formatWeekMilesChip(miles)).toBe(label)
+      expect(formatWeekMilesHeader(miles)).toBe(label)
+    }
     const empty = importedToTrainingPlan(plan([[]]), config)
-    expect(empty.weeks[0].miles).toBe('Rest')
     expect(empty.weeks[0].days.every(d => d.type === 'rest')).toBe(true)
   })
 })
 
 describe('importedToTrainingPlan — two sessions on one day', () => {
-  it('leads with the harder session, adds up the running, and lists the other', () => {
+  it('leads with the session carrying the most running, and its targets are that session’s alone', () => {
     const tp = importedToTrainingPlan(plan([[
       { day: 3, type: 'strength', title: 'Core', durationMin: 20 },
       { day: 3, type: 'run', title: 'Easy run', distanceMi: 3, durationMin: 30 },
@@ -155,10 +194,33 @@ describe('importedToTrainingPlan — two sessions on one day', () => {
     const wed = tp.weeks[0].days[2]
     expect(wed.type).toBe('quality')
     expect(wed.workout).toBe('Hills')
-    expect(parseDistance(wed.zone)).toBe(8)
-    expect(wed.zone).toContain('Z4 (')
-    expect(wed.time).toBe('50 min')
-    expect(wed.detail).toBe('8 × 60 s uphill · Also: Easy run · Also: Core')
+    expect(wed.zone).toBe(`5.0 mi · Z4 (${tp.zones[3].hr})`)
+    expect(wed.time).toBe('—')
+    expect(wed.detail).toBe('8 × 60 s uphill · Also: Easy run (3.0 mi, 30 min) · Also: Core (20 min)')
+    // The week still counts both runs in full.
+    expect(tp.weeks[0].miles).toBe(8)
+  })
+
+  it('never puts a long easy run on a strides session’s heart rate', () => {
+    const tp = importedToTrainingPlan(plan([[
+      { day: 7, type: 'quality', title: 'Strides', detail: '6 × 20 s', intensity: 'interval' },
+      { day: 7, type: 'long', title: 'Long run', distanceMi: 14, durationMin: 130, intensity: 'easy' },
+    ]]), config)
+    const sun = tp.weeks[0].days[6]
+    expect(sun).toMatchObject({ type: 'long', workout: 'Long run', time: '2 hr 10 min' })
+    expect(sun.zone).toMatch(/^14\.0 mi · Z1–2 \(/)
+    expect(parseHRRange(sun.zone)?.high).toBe(Number(tp.zones[1].hr.split('–')[1]))
+    expect(sun.detail).toBe('Also: Strides — 6 × 20 s')
+  })
+
+  it('gives the day only the lead session’s time', () => {
+    const tp = importedToTrainingPlan(plan([[
+      { day: 2, type: 'run', title: 'Easy run', durationMin: 40 },
+      { day: 2, type: 'strength', title: 'Core', durationMin: 30 },
+    ]]), config)
+    const tue = tp.weeks[0].days[1]
+    expect(tue.workout).toBe('Easy run')
+    expect(parseDuration(tue.time)).toBe(40)
   })
 })
 
@@ -167,6 +229,13 @@ describe('importedToTrainingPlan — the plan around the weeks', () => {
     expect(importedToTrainingPlan(plan([weekOne]), config).race.name).toBe('Spring Marathon Plan')
     const named = importedToTrainingPlan(plan([weekOne], { raceDistance: 'Marathon' }), { ...config, raceName: 'Spring Marathon', raceDate: '2027-02-14' })
     expect(named.race).toMatchObject({ name: 'Spring Marathon', date: '2027-02-14', distance: 'Marathon' })
+  })
+
+  it('carries the race distance and vert the athlete gave in onboarding', () => {
+    const tp = importedToTrainingPlan(plan([weekOne]), { ...config, raceDistance: 'marathon', elevationGainFt: 1200 })
+    expect(tp.race).toMatchObject({ distance: 'Marathon', distanceMiles: 26.2, elevation: '1200 ft', elevationGainFt: 1200 })
+    const exact = importedToTrainingPlan(plan([weekOne], { raceDistance: 'Trail half' }), { ...config, raceDistance: 'half_marathon', raceDistanceMiles: 13.4 })
+    expect(exact.race).toMatchObject({ distance: 'Half Marathon', distanceMiles: 13.4 })
   })
 
   it('labels a general-fitness plan as having no race', () => {

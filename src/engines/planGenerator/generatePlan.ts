@@ -920,7 +920,13 @@ function buildPlannedDay(
   }
 }
 
-function buildRaceInfo(config: OnboardingConfig): RaceInfo {
+/**
+ * The race record a plan carries, from the athlete's onboarding answers: the
+ * distance choice (or the exact miles they typed), the structured vert, and
+ * their description. Shared by the method generator and uploaded plans
+ * (initiative 004) so both describe the same race the same way.
+ */
+export function buildRaceInfo(config: OnboardingConfig): RaceInfo {
   const enumDist = config.raceDistance ? RACE_DISTANCE_LABELS[config.raceDistance] : { label: '', miles: 0 }
   // Structured exact distance (P2) overrides the enum snap; keep the enum's
   // human label when one exists, else render the exact miles.

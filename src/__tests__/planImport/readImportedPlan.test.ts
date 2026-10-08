@@ -104,6 +104,13 @@ describe('readImportedPlan', () => {
     expect(s.detail).toBe('Line one\nLine two')
   })
 
+  it('never cuts an emoji in half at the length cap', () => {
+    const title = `${'a'.repeat(IMPORT_LIMITS.title - 1)}🏃 and more`
+    const read = readImportedPlan({ ...plan(), title })
+    expect(read?.title).toBe('a'.repeat(IMPORT_LIMITS.title - 1))
+    expect(read?.title).not.toMatch(/[\uD800-\uDBFF]$/)
+  })
+
   it('drops numbers that are not positive and finite, and caps huge ones', () => {
     const read = readImportedPlan({
       ...plan(),

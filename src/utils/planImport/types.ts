@@ -11,6 +11,10 @@
  * Because the config syncs between devices, everything read back from it goes
  * through `readImportedPlan`, which refuses a broken plan instead of letting
  * it crash the app.
+ *
+ * Format rule: adding a session type, an intensity, a sport or a source kind
+ * is a format change and bumps `v`. An older app refuses a newer version
+ * outright, rather than quietly reading new session types as rest days.
  */
 
 export const IMPORT_SOURCE_KINDS = ['pdf', 'image', 'docx', 'xlsx', 'csv', 'text'] as const
@@ -57,7 +61,7 @@ export interface ImportedPlanV1 {
 }
 
 export const IMPORT_LIMITS = {
-  maxWeeks: 52,
+  maxWeeks: 40,
   maxSessionsPerWeek: 14,
   maxNotes: 20,
   title: 120,
@@ -79,7 +83,12 @@ function cleanText(value: unknown, max: number): string | undefined {
   if (typeof value !== 'string') return undefined
   const cleaned = value.replace(CONTROL_CHARS, '').trim()
   if (!cleaned) return undefined
-  return cleaned.length > max ? cleaned.slice(0, max).trimEnd() : cleaned
+  if (cleaned.length <= max) return cleaned
+  let cut = cleaned.slice(0, max)
+  // Never leave half of a surrogate pair (an emoji cut in two) at the end.
+  const last = cut.charCodeAt(cut.length - 1)
+  if (last >= 0xd800 && last <= 0xdbff) cut = cut.slice(0, -1)
+  return cut.trimEnd()
 }
 
 function cleanNumber(value: unknown, max: number): number | undefined {

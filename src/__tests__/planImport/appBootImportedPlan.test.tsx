@@ -117,6 +117,8 @@ describe('App boots on an uploaded plan', () => {
     seed({ v: 2, weeks: 'garbled' })
     render(<App />)
     expect(await screen.findByText(/couldn.t open your plan/i, {}, { timeout: 8000 })).toBeTruthy()
+    // Reloading comes first: the likeliest cause is an out-of-date app.
+    expect(screen.getByRole('button', { name: /Reload the app/i })).toBeTruthy()
     expect(screen.getByRole('button', { name: /Redo onboarding/i })).toBeTruthy()
     expect(screen.queryByText(/Pick your training method/)).toBeNull()
   }, 20000)

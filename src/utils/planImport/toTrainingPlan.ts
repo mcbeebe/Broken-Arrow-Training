@@ -11,6 +11,9 @@
  *   zone   "6.0 mi · Z1–2 (128–148)"   distance, then the effort's HR band
  *   time   "45 min" | "1 hr 10 min"
  *   day    "Mon 10/12"
+ *
+ * The day's detail is the plan's own text and is marked `verbatimDetail`, so
+ * rezoning never rewrites the heart rates the plan itself wrote.
  */
 import type { OnboardingConfig } from '../../hooks/useOnboarding'
 import type { HRZone, PlannedDay, RaceInfo, TrainingPlan, TrainingWeek } from '../../types'
@@ -18,11 +21,11 @@ import { addDays, mondayOnOrBefore, todayDateString } from '../planDates'
 import { dayLabel, weekDates } from '../../engines/season/blockWeeks'
 import { computeMaxHR } from '../heartRate'
 import { computeZones } from '../../engines/generalFitness'
-import { makeZonesContiguous } from '../../engines/planGenerator/generatePlan'
+import { buildRaceInfo, makeZonesContiguous } from '../../engines/planGenerator/generatePlan'
 import { toNumericZones } from '../rezone'
 import type { ImportedIntensity, ImportedPlanV1, ImportedSession, ImportedSessionType } from './types'
 
-/** Which session leads a day that carries more than one: the hardest. */
+/** Tie-break between sessions carrying the same load: the harder type. */
 const DAY_PRIORITY: Record<ImportedSessionType, number> = {
   race: 0, quality: 1, long: 2, run: 3, cross: 4, strength: 5, rest: 6,
 }
@@ -62,32 +65,52 @@ function zoneBand(intensity: ImportedIntensity | undefined, zones: HRZone[]): st
   return `${label} (${lo.low}–${hi.high})`
 }
 
-/** One day's sessions as a single PlannedDay. A day with two sessions leads
- *  with the harder one and lists the other in the detail; run distances and
- *  durations add up, so a double day still counts in full. */
+/** Sort order for a day's sessions: the one carrying the day's main load
+ *  first. Running before anything else, then the longest, then the longest
+ *  in time, then the harder type. */
+function byLoad(a: ImportedSession, b: ImportedSession): number {
+  const runA = RUN_TYPES.has(a.type) ? 0 : 1
+  const runB = RUN_TYPES.has(b.type) ? 0 : 1
+  if (runA !== runB) return runA - runB
+  const distance = (b.distanceMi ?? 0) - (a.distanceMi ?? 0)
+  if (distance !== 0) return distance
+  const minutes = (b.durationMin ?? 0) - (a.durationMin ?? 0)
+  if (minutes !== 0) return minutes
+  return DAY_PRIORITY[a.type] - DAY_PRIORITY[b.type]
+}
+
+/** "3.0 mi, 30 min" — the amounts a session states, for the detail line. */
+function amounts(s: ImportedSession): string {
+  const parts: string[] = []
+  if (s.distanceMi) parts.push(`${s.distanceMi.toFixed(1)} mi`)
+  if (s.durationMin) parts.push(formatDuration(s.durationMin))
+  return parts.join(', ')
+}
+
+/** One day's sessions as a single PlannedDay. The session carrying the day's
+ *  main load leads, and the day's distance, time and heart-rate band are that
+ *  session's alone: mixing in another session's numbers would put a 14-mile
+ *  easy run on a strides session's heart rate. Any other session is listed in
+ *  the detail with its own amounts. */
 function plannedDayFor(label: string, sessions: ImportedSession[], zones: HRZone[]): PlannedDay {
   if (sessions.length === 0) {
     return { day: label, type: 'rest', workout: 'Rest', detail: '—', zone: '—', route: '', time: '—' }
   }
-  const ordered = [...sessions].sort((a, b) => DAY_PRIORITY[a.type] - DAY_PRIORITY[b.type])
-  const lead = ordered[0]
-  const extras = ordered.slice(1)
-
-  const runDistance = ordered
-    .filter(s => RUN_TYPES.has(s.type))
-    .reduce((sum, s) => sum + (s.distanceMi ?? 0), 0)
-  const distance = RUN_TYPES.has(lead.type) ? runDistance : (lead.distanceMi ?? 0)
-  const minutes = ordered.reduce((sum, s) => sum + (s.durationMin ?? 0), 0)
+  const [lead, ...extras] = [...sessions].sort(byLoad)
 
   const zoneParts: string[] = []
-  if (distance > 0) zoneParts.push(`${distance.toFixed(1)} mi`)
+  if (lead.distanceMi) zoneParts.push(`${lead.distanceMi.toFixed(1)} mi`)
   const band = zoneBand(lead.intensity, zones)
   if (band) zoneParts.push(band)
 
   const detailParts: string[] = []
   if (lead.detail) detailParts.push(lead.detail)
   for (const extra of extras) {
-    detailParts.push(extra.detail ? `Also: ${extra.title} — ${extra.detail}` : `Also: ${extra.title}`)
+    const amount = amounts(extra)
+    let line = `Also: ${extra.title}`
+    if (amount) line += ` (${amount})`
+    if (extra.detail) line += ` — ${extra.detail}`
+    detailParts.push(line)
   }
 
   return {
@@ -97,18 +120,29 @@ function plannedDayFor(label: string, sessions: ImportedSession[], zones: HRZone
     detail: detailParts.length ? detailParts.join(' · ') : '—',
     zone: zoneParts.length ? zoneParts.join(' · ') : '—',
     route: '',
-    time: minutes > 0 ? formatDuration(minutes) : '—',
+    time: lead.durationMin ? formatDuration(lead.durationMin) : '—',
+    verbatimDetail: true,
   }
 }
 
-function weekMiles(days: PlannedDay[], sessions: ImportedSession[]): number | string {
-  const miles = sessions
-    .filter(s => RUN_TYPES.has(s.type))
-    .reduce((sum, s) => sum + (s.distanceMi ?? 0), 0)
-  if (miles > 0) return Math.round(miles * 10) / 10
-  const minutes = sessions.reduce((sum, s) => sum + (s.durationMin ?? 0), 0)
-  if (minutes > 0) return `~${Math.round(minutes)} min`
-  return days.every(d => d.type === 'rest') ? 'Rest' : '—'
+/**
+ * The week's running miles, or a label when the plan doesn't give them.
+ *
+ * The app reads ANY digits in this field as planned miles (`getMilesNumber`,
+ * the week header), and judges the athlete against them. So a number is
+ * written only when every running session states its distance. Otherwise the
+ * label carries no digits, which every consumer reads as "no mileage target".
+ */
+export function weekMiles(sessions: ImportedSession[]): number | string {
+  const runs = sessions.filter(s => RUN_TYPES.has(s.type))
+  if (runs.length === 0) {
+    return sessions.every(s => s.type === 'rest') ? 'Rest' : 'No running'
+  }
+  const measured = runs.filter(s => s.distanceMi)
+  if (measured.length === runs.length) {
+    return Math.round(measured.reduce((sum, s) => sum + (s.distanceMi ?? 0), 0) * 10) / 10
+  }
+  return measured.length === 0 ? 'By time' : 'Miles + time'
 }
 
 /**
@@ -138,28 +172,22 @@ export function importedToTrainingPlan(
     return {
       num: i + 1,
       dates: weekDates(startIso, addDays(startIso, 6)),
-      miles: weekMiles(days, week.sessions),
+      miles: weekMiles(week.sessions),
       focus: week.focus ?? '',
       days,
       startIso,
     }
   })
 
+  // The race as the athlete described it in onboarding (distance, exact
+  // miles, vert), named after the plan when they gave the race no name.
+  const fromConfig = buildRaceInfo(config)
   const race: RaceInfo = {
+    ...fromConfig,
     name: config.raceName || plan.title,
-    date: config.raceDate || '',
-    startTime: '',
-    distance: plan.sport === 'general' ? 'General fitness — no race' : (plan.raceDistance ?? ''),
-    distanceMiles: config.raceDistanceMiles ?? 0,
-    elevation: '—',
-    elevationGainFt: config.elevationGainFt,
-    elevationRange: '—',
-    course: '—',
-    cutoff: '—',
-    landmarks: [],
-    gear: [],
-    nutrition: '',
-    description: config.raceDescription,
+    distance: plan.sport === 'general'
+      ? 'General fitness — no race'
+      : fromConfig.distance || plan.raceDistance || '',
     athleteGoal: config.athleteGoal,
   }
 
