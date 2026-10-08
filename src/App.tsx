@@ -9,7 +9,7 @@ import { useStrava } from './hooks/useStrava'
 import { useGarmin } from './hooks/useGarmin'
 import { useGarminAutoRepush } from './hooks/useGarminAutoRepush'
 import { realignmentContextForWeeks } from './utils/realignment'
-import { mondayOnOrBefore, todayDateString } from './utils/planDates'
+import { mondayOnOrBefore, todayDateString, weekNumContaining } from './utils/planDates'
 import { seasonQaAdvisories as buildSeasonQaAdvisories, combineAdvisories } from './utils/planAdvisories'
 import { deriveFitnessFromHistory } from './utils/fitnessFromHistory'
 import { useSeason } from './hooks/useSeason'
@@ -43,7 +43,9 @@ import { usePlanEdits } from './hooks/usePlanEdits'
 import { useDaySwap } from './hooks/useDaySwap'
 import { useTravelMode } from './hooks/useTravelMode'
 import { useReadiness } from './hooks/useReadiness'
-import { useOnboarding } from './hooks/useOnboarding'
+import { useOnboarding, isImportedPlan } from './hooks/useOnboarding'
+import { readImportedPlan } from './utils/planImport/types'
+import { importedToTrainingPlan } from './utils/planImport/toTrainingPlan'
 import { useAthleteProfile, readAthleteProfileExtras } from './hooks/useAthleteProfile'
 import { getReadinessTuning } from './utils/engineConfig'
 import { useTutorial } from './hooks/useTutorial'
@@ -273,10 +275,14 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
     )
   }
 
+  // An uploaded plan (initiative 004) is followed as written: no method pick,
+  // no generator, no method or zones primer.
+  const importedMode = !plan && isImportedPlan(onboarding.config)
+
   // Trail/road athletes pick a training method before plan generation.
   // Hyrox/general skip this and go straight to the legacy generator.
   const needsMethodPick =
-    !plan && !!onboarding.config && !!onboarding.config.raceDistance && !onboarding.config.selectedMethodId
+    !plan && !importedMode && !!onboarding.config && !!onboarding.config.raceDistance && !onboarding.config.selectedMethodId
   if (needsMethodPick && onboarding.config) {
     const cfg = onboarding.config
     return (
@@ -295,7 +301,15 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
   // earlier early-returns above mean hook call order would differ across
   // renders. The cost is small and cached by `MainAppShell` below.
   let generatedPlan: import('./types').TrainingPlan | null = null
-  if (!plan && onboarding.config) {
+  // Set when the config carries an uploaded plan that can't be read (a bad
+  // sync, a hand-edited value): it gets its own screen below rather than a
+  // generated plan the athlete never asked for.
+  let importedUnreadable = false
+  if (!plan && onboarding.config && importedMode) {
+    const imported = readImportedPlan(onboarding.config.importedPlan)
+    if (imported) generatedPlan = importedToTrainingPlan(imported, onboarding.config)
+    else importedUnreadable = true
+  } else if (!plan && onboarding.config) {
     // Real-fitness overlay: when the athlete didn't declare a weekly
     // mileage, size the plan from their MEASURED trailing 4 weeks
     // (Garmin/Strava/manual logs) instead of an experience-level guess.
@@ -331,6 +345,7 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
   // taper, poles, etc.) before they start consuming workouts.
   if (
     activePlan &&
+    !importedMode &&
     onboarding.config &&
     !onboarding.config.primerSeenAt &&
     (onboarding.config.raceType === 'trail' || onboarding.config.raceType === 'road')
@@ -361,6 +376,7 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
   // the methodology primer first, hyrox still opts out entirely.
   if (
     activePlan &&
+    !importedMode &&
     onboarding.config &&
     !onboarding.config.zonesPrimerSeenAt &&
     onboarding.config.raceType !== 'hyrox' &&
@@ -382,6 +398,25 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
           try { sessionStorage.setItem('ba_initial_view', 'settings') } catch { /* quota */ }
         }}
       />
+    )
+  }
+
+  if (!activePlan && importedUnreadable) {
+    return (
+      <div className="min-h-screen bg-white flex flex-col items-center justify-center px-6">
+        <div className="text-center space-y-4 max-w-sm">
+          <h1 className="text-2xl font-bold text-slate-800">We couldn&rsquo;t open your plan</h1>
+          <p className="text-slate-500">
+            The plan you uploaded didn&rsquo;t load on this device. Your training history is safe.
+            Redo onboarding to upload it again or build a new plan.
+          </p>
+          <div className="pt-4 space-y-2">
+            <button onClick={() => onboarding.requestRedo()} className="text-teal-600 font-medium text-sm">Redo onboarding</button>
+            <br />
+            <button onClick={onLogout} className="text-slate-500 font-medium text-sm">Sign out</button>
+          </div>
+        </div>
+      </div>
     )
   }
 
@@ -619,14 +654,18 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
   // the advisories below have to derive from that outcome rather than from the
   // athlete's request (D6) — splicing twice would regenerate every later
   // race's plan for the sake of a sentence.
+  // An uploaded plan (initiative 004) is followed as written, so a season
+  // stored from an earlier plan never splices its races into it.
+  const importedMode = isImportedPlan(onboarding.config)
   const spliced = useMemo(() => {
+    if (importedMode) return { weeks: activePlan.weeks, layerReports: [] }
     try {
       return spliceSeasonWithReport(activePlan.weeks, seasonState.planResult, onboarding.config, todayDateString())
     } catch (err) {
       console.error('[season] splice failed — falling back to the base plan:', err)
       return { weeks: activePlan.weeks, layerReports: [] }
     }
-  }, [activePlan.weeks, seasonState.planResult, onboarding.config])
+  }, [importedMode, activePlan.weeks, seasonState.planResult, onboarding.config])
 
   // Merge Strava or manual log data into training plan.
   //
@@ -920,6 +959,12 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
   const currentWeekNum = useMemo(() => {
     const totalWeeks = weeks.length
     if (totalWeeks === 0) return 1
+    // An uploaded plan need not end on race day, so its week comes from the
+    // dates each week carries, never from counting back from the race.
+    if (importedMode) {
+      const n = weekNumContaining(weeks, todayDateString())
+      if (n !== undefined) return n
+    }
     const raceStr = activePlan.race.date.match(/\w+,\s*(.+)/)?.[1] || activePlan.race.date
     // Parse a bare ISO date at noon-local so a negative UTC offset doesn't shift
     // the anchor back a day (mirrors plan generation's 'T12:00:00' anchoring).
@@ -938,7 +983,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     const mmdd = `${now.getMonth() + 1}/${now.getDate()}`
     const idx = weeks.findIndex(w => w.days.some(d => d.day.includes(mmdd)))
     return idx >= 0 ? weeks[idx].num : 1
-  }, [weeks, activePlan.race.date])
+  }, [weeks, activePlan.race.date, importedMode])
 
   // Find today's planned workout
   const todayPlannedWorkout = useMemo(() => {

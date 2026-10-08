@@ -599,6 +599,15 @@ export interface TrainingPlan {
   /** Honest, plan-level notes (feasibility, runway, goal-derived paces). Surfaced
    *  at method selection and on the plan/coach surfaces. Empty/absent = no concerns. */
   advisories?: PlanAdvisory[];
+  /** Set only on a plan the athlete uploaded (initiative 004): the file it
+   *  came from and the plan's own title, for "from your plan" labels and the
+   *  coach. Absent on generated and hand-authored plans. */
+  importSource?: {
+    name: string;
+    kind: import('../utils/planImport/types').ImportSourceKind;
+    importedAt: string;
+    title: string;
+  };
 }
 
 export interface WorkoutStyle {
