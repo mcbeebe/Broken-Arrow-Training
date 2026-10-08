@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { ToolShell, Field, inputCls } from './ToolShell'
-import { finishScenarios, formatHms } from './toolMath'
-import { parseTimeToSeconds } from '../utils/parseTime'
+import { finishScenarios, formatHms, formatMiles, parseFinishTime } from './toolMath'
 
 export function Predictor() {
   const [recentDist, setRecentDist] = useState('13.1')
@@ -9,12 +8,13 @@ export function Predictor() {
   const [targetDist, setTargetDist] = useState('18')
   const [targetVert, setTargetVert] = useState('5000')
 
-  const scenarios = finishScenarios(
-    parseFloat(recentDist),
-    parseTimeToSeconds(recentTime) ?? 0,
-    parseFloat(targetDist),
-    parseFloat(targetVert),
-  )
+  const recentMi = parseFloat(recentDist)
+  const targetMi = parseFloat(targetDist)
+  const vert = parseFloat(targetVert)
+  const seconds = parseFinishTime(recentTime)
+  const scenarios = seconds === null ? null : finishScenarios(recentMi, seconds, targetMi, vert)
+  // Everything parsed and positive, yet no prediction: outside what the model covers.
+  const outOfRange = !scenarios && seconds !== null && recentMi > 0 && targetMi > 0 && vert >= 0
 
   return (
     <ToolShell
@@ -48,14 +48,18 @@ export function Predictor() {
         </div>
 
         {/* Always mounted, so the prompt is announced when it appears. */}
-        <p role="status" className="m-0 text-slate-600 empty:hidden">
-          {scenarios ? '' : 'Enter both distances in miles and your finish time as h:mm:ss, like 1:35:00.'}
+        <p role="status" className="m-0 text-slate-600">
+          {scenarios
+            ? ''
+            : outOfRange
+              ? 'That’s outside what this calculator covers: race paces from 4:00 to 25:00 a mile, up to world-record level. Check that the distances are in miles and the time is h:mm:ss.'
+              : 'Enter both distances in miles and your finish time as h:mm:ss, like 1:35:00.'}
         </p>
 
         {scenarios && (
           <div className="mt-3 space-y-3">
-            {/* Three across only where “Conservative” fits its card; stacked on phones. */}
-            <div data-scenarios className="grid grid-cols-1 min-[440px]:grid-cols-3 gap-2 text-center">
+            {/* Three across only where “Conservative” fits its card with room to spare; stacked on phones. */}
+            <div className="grid grid-cols-1 min-[480px]:grid-cols-3 gap-2 text-center">
               <div className="rounded-lg bg-emerald-50 border border-emerald-200 px-2 py-3">
                 <p className="text-xs font-semibold text-emerald-700 uppercase">Optimistic</p>
                 <p className="text-lg font-bold text-emerald-900">{formatHms(scenarios.optimisticSeconds)}</p>
@@ -73,8 +77,8 @@ export function Predictor() {
               </div>
             </div>
             <ul className="text-sm text-slate-600 space-y-1">
-              <li>Reading your race as {recentDist} mi in <b>{formatHms(scenarios.recentSeconds)}</b>.</li>
-              <li>Current fitness: <b>VDOT {scenarios.vdot}</b> → flat {targetDist} mi ≈ <b>{formatHms(scenarios.flatSeconds)}</b></li>
+              <li>Reading your race as {formatMiles(recentMi)} mi in <b>{formatHms(scenarios.recentSeconds)}</b>.</li>
+              <li>Current fitness: <b>VDOT {scenarios.vdot}</b> → flat {formatMiles(targetMi)} mi ≈ <b>{formatHms(scenarios.flatSeconds)}</b></li>
               <li>Terrain cost: climbing + descending this course costs <b>{Math.round((scenarios.vertMultiplier - 1) * 100)}% more energy</b> than flat running (Minetti grade-cost model, out-and-back approximation).</li>
               <li className="text-slate-500">Assumes runnable trail and race-day conditions. Heat, altitude, and technicality add time this simple model can't see — our full engine can.</li>
             </ul>

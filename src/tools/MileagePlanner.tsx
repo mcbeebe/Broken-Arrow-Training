@@ -40,7 +40,7 @@ export function MileagePlanner() {
         </div>
 
         {/* Always mounted, so the prompt is announced when it appears. */}
-        <p role="status" className="m-0 text-slate-600 empty:hidden">
+        <p role="status" className="m-0 text-slate-600">
           {plan ? '' : `Enter ${minMi} to ${maxMi} miles a week and ${minWeeks} to ${maxWeeks} weeks.`}
         </p>
 
