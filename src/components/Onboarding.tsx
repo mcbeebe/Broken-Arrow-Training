@@ -28,7 +28,7 @@ import { sanitizeRaceTimeSeconds } from '../engines/planGenerator/vdot'
 import OnboardingPlanPreview from './OnboardingPlanPreview'
 import {
   newSeasonRaceRow, parseErgSeconds, assembleAdditionalRaces, formatSecondsLabel,
-  readAnchorTime, ANCHOR_RACE_NOUN,
+  readAnchorTime, ANCHOR_NOUN,
   defaultDetailLevel, isRealMenopauseStage,
 } from './onboarding/helpers'
 import type { SeasonRaceRow } from './onboarding/helpers'
@@ -525,9 +525,10 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
       : undefined
     if (anchorType !== 'none') {
       if (anchorOpt.kind === 'time') {
-        // Store the time the engine will read ("1:35" for a half is 1:35:00), as the goal time is.
+        // Store the time the engine will read ("1:35" for a half is 1:35:00), and
+        // nothing it can't use, as the goal time is.
         const reading = readAnchorTime(anchorType, anchorTime)
-        const secs = reading.kind === 'unreadable' ? 0 : reading.seconds
+        const secs = reading.kind === 'as_typed' || reading.kind === 'rescaled' ? reading.seconds : 0
         if (secs) return { type: anchorType, valueSeconds: secs, ...(dateIso ? { dateIso } : {}) }
       } else if (anchorOpt.kind === 'bpm') {
         const bpm = parseInt(anchorBpm)
@@ -1525,10 +1526,13 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
                       const reading = readAnchorTime(anchorType, anchorTime)
                       if (reading.kind === 'rescaled') {
                         // Same wording as the goal-time hint: "2:30" for a half is impossibly fast.
-                        return <p className="text-xs text-amber-600 mt-1">{formatSecondsLabel(reading.typed)} is impossibly fast for a {ANCHOR_RACE_NOUN[anchorType]} — reading it as <strong>{formatSecondsLabel(reading.seconds)}</strong>. Use hh:mm:ss to be exact.</p>
+                        return <p className="text-xs text-amber-600 mt-1">{formatSecondsLabel(reading.typed)} is impossibly fast for {ANCHOR_NOUN[anchorType]} — reading it as <strong>{formatSecondsLabel(reading.seconds)}</strong>. Use {selectedAnchor.placeholder} to be exact.</p>
                       }
                       if (reading.kind === 'as_typed') {
                         return <p className="text-xs text-teal-600 mt-1">Reading this as {formatSecondsLabel(reading.seconds)}.</p>
+                      }
+                      if (reading.kind === 'unusable' && anchorType === 'easy_pace') {
+                        return <p className="text-xs text-amber-600 mt-1">Easy paces from 4:00 to 25:00 a mile set your paces. Outside that, your plan goes by heart rate and effort.</p>
                       }
                       return <p className="text-xs text-amber-600 mt-1">Enter as {selectedAnchor.placeholder} — the “:” is optional.</p>
                     })()}

@@ -27,6 +27,18 @@ describe('useBenchmarks', () => {
     expect(localStorage.getItem('__attune_meta:__stamp:ba_benchmarks_v1_mike')).toBeTruthy()
   })
 
+  // Field bug (2026-10-08): logs seeded since 2026-09-17 carry a half typed
+  // "1:35" as a 95-second half marathon. The hook repairs them on load.
+  it('repairs a log seeded with a 95 s half to 1:35:00, persists it, and anchors on it', () => {
+    localStorage.setItem('ba_benchmarks_v1_mike', JSON.stringify([
+      { id: 'seed_race_hm', kind: 'race_hm', value: 95, unit: 'seconds', dateIso: '2026-05-02', source: 'derived', at: 1 },
+    ]))
+    const { result } = renderHook(() => useBenchmarks('mike', { config, capacity: null }))
+    expect(result.current.live.map(b => b.value)).toEqual([5700])
+    expect(result.current.anchors.fitnessAnchor).toEqual({ type: 'race_hm', valueSeconds: 5700, dateIso: '2026-05-02' })
+    expect(JSON.parse(localStorage.getItem('ba_benchmarks_v1_mike') ?? '[]')[0].value).toBe(5700)
+  })
+
   it('does not seed when the log already has history — even if it is all tombstones', () => {
     localStorage.setItem('ba_benchmarks_v1_mike', JSON.stringify([
       { id: 'seed_race_5k', kind: 'race_5k', value: 1335, unit: 'seconds', dateIso: '2026-05-02', source: 'derived', at: 1, deleted: true },

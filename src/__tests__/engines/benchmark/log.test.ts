@@ -5,7 +5,7 @@
  */
 import { describe, it, expect } from 'vitest'
 import {
-  deriveAnchors, latestByKind, liveEntries, seedFromExisting, entriesFromCapacity,
+  deriveAnchors, latestByKind, liveEntries, seedFromExisting, entriesFromCapacity, repairSeededAnchors,
   isStale, isPlausible, kindsForPlan, planKindOf, type Benchmark,
 } from '../../../engines/benchmark/log'
 import type { OnboardingConfig } from '../../../hooks/useOnboarding'
@@ -128,16 +128,26 @@ describe('seedFromExisting — the old fields become the first entries', () => {
     expect(deriveAnchors(seeded).fitnessAnchor).toMatchObject({ type: 'race_hm', valueSeconds: 5700 })
   })
 
-  it('never drops an anchor it cannot place: once the log has history it owns the anchor', () => {
-    // An 8:30:00 marathon is over the sheet's limit, but it is the athlete's anchor.
+  it('seeds a real time as it is, slow or not', () => {
+    // An 8:30:00 marathon is over the Benchmarks sheet's limit, but it is a real time the engine uses.
     const slow = seedFromExisting({ ...config, fitnessAnchor: { type: 'race_marathon', valueSeconds: 30600 } }, null, 5_000)
     expect(slow.find(b => b.kind === 'race_marathon')?.value).toBe(30600)
-    // Impossible even as h:mm: seeded as it was, and the engine ignores it as before.
-    const odd = seedFromExisting({ ...config, fitnessAnchor: { type: 'race_hm', valueSeconds: 30 } }, null, 5_000)
-    expect(odd.find(b => b.kind === 'race_hm')?.value).toBe(30)
-    // An easy pace is per mile, never re-read as a race.
-    const easy = seedFromExisting({ ...config, fitnessAnchor: { type: 'easy_pace', valueSeconds: 180 } }, null, 5_000)
-    expect(easy.find(b => b.kind === 'easy_pace')?.value).toBe(180)
+    const easy = seedFromExisting({ ...config, fitnessAnchor: { type: 'easy_pace', valueSeconds: 555 } }, null, 5_000)
+    expect(easy.find(b => b.kind === 'easy_pace')?.value).toBe(555)
+  })
+
+  it('leaves out an anchor the engine cannot use, so it never outranks a real easy pace', () => {
+    for (const fitnessAnchor of [
+      { type: 'race_hm', valueSeconds: 30 }, // impossible even read as h:mm
+      { type: 'easy_pace', valueSeconds: 180 }, // 3:00/mi
+      { type: 'easy_pace', valueSeconds: 1560 }, // 26:00/mi
+    ]) {
+      const seeded = seedFromExisting({ ...config, fitnessAnchor } as OnboardingConfig, null, 5_000)
+      expect(seeded.map(b => b.kind), fitnessAnchor.type).toEqual(['lthr', 'ski_erg_1k'])
+    }
+    // A legacy easy pace in minutes is read as the engine reads it.
+    const legacy = seedFromExisting({ ...config, fitnessAnchor: { type: 'easy_pace', valueSeconds: 11 } }, null, 5_000)
+    expect(legacy.find(b => b.kind === 'easy_pace')?.value).toBe(660)
   })
 
   it('an anchor of type none seeds nothing', () => {
@@ -256,5 +266,37 @@ describe('benchmark series', () => {
     expect(one.deltaVsPrevious).toBeNull()
     expect(one.verdict).toBe('neutral')
     expect(seriesProgress([])).toBeNull()
+  })
+})
+
+describe('repairSeededAnchors — logs seeded before the seed read times as the engine does', () => {
+  const entry = (over: Partial<Benchmark>): Benchmark =>
+    ({ id: 'seed_race_hm', kind: 'race_hm', value: 95, unit: 'seconds', dateIso: '2026-05-02', source: 'derived', at: 1, ...over })
+
+  it('re-reads a seeded 95 s half as 1:35:00, and nothing else about it', () => {
+    const lthr = entry({ id: 'seed_lthr', kind: 'lthr', value: 168, unit: 'bpm' })
+    const repaired = repairSeededAnchors([entry({}), lthr])!
+    expect(repaired).toEqual([entry({ value: 5700 }), lthr])
+    expect(isPlausible('race_hm', repaired[0].value)).toBe(true)
+    expect(deriveAnchors(repaired).fitnessAnchor).toEqual({ type: 'race_hm', valueSeconds: 5700, dateIso: '2026-05-02' })
+  })
+
+  it('is a no-op once the log is right, so it can run on every load', () => {
+    const repaired = repairSeededAnchors([entry({})])!
+    expect(repairSeededAnchors(repaired)).toBeNull()
+    expect(repairSeededAnchors([entry({ value: 5700 })])).toBeNull()
+    expect(repairSeededAnchors([])).toBeNull()
+  })
+
+  it('re-reads a seeded legacy easy pace in minutes', () => {
+    expect(repairSeededAnchors([entry({ id: 'seed_easy_pace', kind: 'easy_pace', value: 11 })])![0].value).toBe(660)
+  })
+
+  it('leaves alone what it should: entries typed since (the sheet checked them), tombstones, and what the engine cannot use', () => {
+    const typed = entry({ id: 'bm_1_abc', kind: 'race_5k', value: 12 * 60 + 10 }) // the sheet allows 12:10
+    const tomb = entry({ deleted: true })
+    const impossible = entry({ value: 30 })
+    const strength = entry({ id: 'seed_push_ups', kind: 'push_ups', value: 40, unit: 'reps' })
+    expect(repairSeededAnchors([typed, tomb, impossible, strength])).toBeNull()
   })
 })

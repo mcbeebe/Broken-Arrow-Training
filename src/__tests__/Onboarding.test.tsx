@@ -593,6 +593,14 @@ describe('Onboarding', () => {
       const cfg = walkHappyPath({ anchorOption: 'race_hm', anchorTime: '1:35' })
       expect(cfg.fitnessAnchor).toEqual({ type: 'race_hm', valueSeconds: 95 * 60 })
     })
+
+    it('stores nothing the engine cannot use, as with the goal time', () => {
+      expect(walkHappyPath({ anchorOption: 'race_hm', anchorTime: '0:30' }).fitnessAnchor).toBeUndefined()
+      cleanup()
+      expect(walkHappyPath({ anchorOption: 'easy_pace', anchorTime: '26:00' }).fitnessAnchor).toBeUndefined()
+      cleanup()
+      expect(walkHappyPath({ anchorOption: 'easy_pace', anchorTime: '0:11' }).fitnessAnchor).toEqual({ type: 'easy_pace', valueSeconds: 660 })
+    })
   })
 
   describe('fitness anchor hint', () => {
@@ -632,7 +640,7 @@ describe('Onboarding', () => {
       expect(screen.getByText('Reading this as 1:35:00.')).toBeInTheDocument()
     })
 
-    it('never re-reads a 5K in minutes, or an easy pace per mile', () => {
+    it('reads a real 5K and a real easy pace as typed', () => {
       const type = toAnchorStep('race_5k')
       type('19:30')
       expect(screen.getByText('Reading this as 19:30.')).toBeInTheDocument()
@@ -640,6 +648,29 @@ describe('Onboarding', () => {
       const pace = toAnchorStep('easy_pace')
       pace('9:15')
       expect(screen.getByText('Reading this as 9:15.')).toBeInTheDocument()
+    })
+
+    it('says the format the field asks for when it re-reads a 5K or an easy pace', () => {
+      const type = toAnchorStep('race_5k')
+      type('0:20')
+      expect(screen.getByText(/is impossibly fast/).textContent).toBe(
+        '0:20 is impossibly fast for a 5K — reading it as 20:00. Use mm:ss to be exact.',
+      )
+      cleanup()
+      const pace = toAnchorStep('easy_pace')
+      pace('0:11')
+      expect(screen.getByText(/is impossibly fast/).textContent).toBe(
+        '0:11 is impossibly fast for an easy pace — reading it as 11:00. Use mm:ss to be exact.',
+      )
+    })
+
+    it('says plainly when an easy pace is outside what sets paces, instead of "Reading this as"', () => {
+      const pace = toAnchorStep('easy_pace')
+      for (const value of ['26:00', '3:00']) {
+        pace(value)
+        expect(screen.getByText('Easy paces from 4:00 to 25:00 a mile set your paces. Outside that, your plan goes by heart rate and effort.')).toBeInTheDocument()
+        expect(screen.queryByText(/Reading this as/)).toBeNull()
+      }
     })
 
     it('asks for the format the field names when a time is unreadable or impossible', () => {

@@ -1,6 +1,6 @@
 import { isHyroxRaceInfo } from '../../engines/season/planSeason'
 import { canLayerOntoAnchor } from '../../engines/season/layerSecondaryWork'
-import { FITNESS_ANCHOR_DISTANCES, sanitizeRaceTimeSeconds } from '../../engines/planGenerator/vdot'
+import { engineAnchorSeconds } from '../../engines/planGenerator/paceTargets'
 import { parseTimeToSeconds } from '../../utils/parseTime'
 import type {
   AdditionalRace, ExperienceLevel, FitnessAnchorType, MenopauseStatus, RaceType,
@@ -121,36 +121,35 @@ export function formatSecondsLabel(total: number): string {
   return h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`
 }
 
-/** The race an anchor time is for, as the hint names it mid-sentence. */
-export const ANCHOR_RACE_NOUN: Partial<Record<FitnessAnchorType, string>> = {
-  race_5k: '5K',
-  race_10k: '10K',
-  race_hm: 'half marathon',
-  race_marathon: 'marathon',
+/** What an anchor time is for, as the hint names it mid-sentence. */
+export const ANCHOR_NOUN: Partial<Record<FitnessAnchorType, string>> = {
+  race_5k: 'a 5K',
+  race_10k: 'a 10K',
+  race_hm: 'a half marathon',
+  race_marathon: 'a marathon',
+  easy_pace: 'an easy pace',
 }
 
 /** How the fitness-anchor time field reads what was typed. */
 export type AnchorTimeReading =
   | { kind: 'unreadable' }
-  /** A race time faster than any human, even read as h:mm. The engine ignores it. */
-  | { kind: 'impossible'; seconds: number }
+  /** Readable, but the engine can't use it: a race time faster than any human
+   *  even as h:mm, or an easy pace outside 4:00–25:00/mi. Not stored. */
+  | { kind: 'unusable'; typed: number }
   | { kind: 'as_typed'; seconds: number }
-  /** "1:35" for a half: 95 s is faster than any human, so it is 1:35:00. */
+  /** "1:35" for a half is 1:35:00; "0:11" for an easy pace is 11:00. */
   | { kind: 'rescaled'; typed: number; seconds: number }
 
 /**
- * Read an anchor time the way the engine will (paceTargets.ts runs race
- * anchors through sanitizeRaceTimeSeconds), so the hint shows the time the
- * plan is actually built from. An easy pace is per mile and read as typed.
+ * Read an anchor time the way the engine will (engineAnchorSeconds), so the
+ * hint shows, and onboarding stores, the time the plan is built from.
  */
 export function readAnchorTime(type: FitnessAnchorType, raw: string): AnchorTimeReading {
   const typed = parseTimeToSeconds(raw)
   if (typed === undefined) return { kind: 'unreadable' }
-  const miles = FITNESS_ANCHOR_DISTANCES[type]
-  if (!miles) return { kind: 'as_typed', seconds: typed }
-  const sane = sanitizeRaceTimeSeconds(typed, miles)
-  if (sane === null) return { kind: 'impossible', seconds: typed }
-  return sane === typed ? { kind: 'as_typed', seconds: typed } : { kind: 'rescaled', typed, seconds: sane }
+  const used = engineAnchorSeconds(type, typed)
+  if (used === null) return { kind: 'unusable', typed }
+  return used === typed ? { kind: 'as_typed', seconds: typed } : { kind: 'rescaled', typed, seconds: used }
 }
 
 // Sensible default detail level derived from the experience answer. Newer
