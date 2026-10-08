@@ -90,7 +90,7 @@ export const SPORTS = [
       { value: '5:40', note: 'Short night', tone: 'normal' },
     ],
     readiness: { value: 38, title: 'Readiness: take it easy' },
-    planned: 'Tempo run, 8 × 800 m',
+    planned: 'Tempo run, 20 min at threshold',
     today: 'Easy run, 45 min in zone 2',
     why: 'Your body hasn’t caught up from Saturday’s long run. The tempo session moves to Thursday, so the week’s work stays the same.',
     chartCaption: 'The tempo run moves to Thursday, so week 9 still does its job.',
