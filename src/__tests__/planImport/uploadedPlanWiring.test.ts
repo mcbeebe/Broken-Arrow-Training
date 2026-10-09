@@ -11,7 +11,7 @@
 import { describe, it, expect } from 'vitest'
 
 function source(path: string): string {
-  const all = import.meta.glob(['../../App.tsx', '../../hooks/useOnboarding.ts', '../../components/CoachLetter.tsx'], {
+  const all = import.meta.glob(['../../App.tsx', '../../hooks/useOnboarding.ts', '../../components/CoachLetter.tsx', '../../components/Settings.tsx'], {
     query: '?raw', import: 'default', eager: true,
   }) as Record<string, string>
   const key = Object.keys(all).find(k => k.endsWith(path))
@@ -39,6 +39,7 @@ describe('App never changes an uploaded plan behind the athlete', () => {
     ['no pace recalibration', 'assessRecalibration(importedMode ? [] : weeks', 1],
     ['no benchmark re-anchor', 'importedMode ? [] : weeks, todayDateString(), maxHROverride.maxHR', 1],
     ['the reshape card is locked without running the generator', 'if (importedMode) return { ...UPLOADED_PLAN_SHAPE_CONTEXT', 1],
+    ['no generated-plan injury ramp ("harder from Week 3")', 'injuryStatus={importedMode ? undefined : onboarding.config?.injuryStatus}', 1],
   ]
   for (const [what, needle, times] of gates) {
     it(what, () => {
@@ -54,6 +55,14 @@ describe('App never changes an uploaded plan behind the athlete', () => {
 })
 
 describe('App never shows a stored season for an uploaded plan', () => {
+  it('never re-seeds the stored calendar for one, which would drop the races added in the Season panel', () => {
+    expect(count(APP, 'importedMode ? undefined : onboarding.config?.additionalRaces')).toBe(1)
+    expect(count(APP, 'importedMode ? undefined : onboarding.config?.completedAt')).toBe(1)
+    // Declared before the season hook reads it.
+    expect(APP.indexOf('const importedMode = isImportedPlan(onboarding.config)'))
+      .toBeLessThan(APP.indexOf('const seasonState = useSeason('))
+  })
+
   it('passes no season to Today, the Plan view or Settings', () => {
     expect(count(APP, 'season={importedMode ? null : seasonState.season}')).toBe(3)
     expect(count(APP, 'onOpenSeason={importedMode ? undefined :')).toBe(1)
@@ -94,5 +103,22 @@ describe('the onboarding hook refuses to reshape an uploaded plan', () => {
 
   it('or by rebuilding, which would clear the athlete\'s day edits', () => {
     expect(hook).toContain('if (!config || isImportedPlan(config)) return')
+  })
+})
+
+describe('saving an uploaded plan (PR 5)', () => {
+  it('Settings saves it through importPlan, and opens Today only when it landed', () => {
+    expect(APP).toContain('const ok = onboarding.importPlan(cfg)\n            if (ok) setView(\'today\')')
+  })
+
+  it('importPlan backs up the outgoing plan before it saves', () => {
+    const hook = source('hooks/useOnboarding.ts')
+    const body = hook.slice(hook.indexOf('const importPlan = useCallback'))
+    expect(body.indexOf("captureBackup(athleteId, 'before upload')")).toBeGreaterThan(-1)
+    expect(body.indexOf("captureBackup(athleteId, 'before upload')")).toBeLessThan(body.indexOf('save(cfg)'))
+  })
+
+  it('the way in is the owner\'s alone during the beta (D8)', () => {
+    expect(source('components/Settings.tsx')).toContain("const canImportPlan = athleteId === 'mike' && !!onboardingConfig && !!onUseImportedPlan && coachApiAvailable()")
   })
 })

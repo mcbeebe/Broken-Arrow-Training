@@ -27,6 +27,10 @@ import ProactiveTimingSettings from './ProactiveTimingSettings'
 import type { AthleteHomeLocation as AthleteHomeLocationType } from '../hooks/useAthleteLocation'
 import type { WorkoutTimeSlot } from '../hooks/useWorkoutTimePreference'
 import ExportDialog from './ExportDialog'
+import PlanImportCard from './PlanImportCard'
+import PlanImportSheet from './PlanImportSheet'
+import { isImportedPlan } from '../hooks/useOnboarding'
+import { coachApiAvailable } from '../utils/coachApi'
 import { shiftIsoByWeeks } from '../utils/planDates'
 import { useDisplayPreferences } from '../hooks/useDisplayPreferences'
 import { DETAIL_LEVELS, type DisplayFlags } from '../types'
@@ -137,6 +141,9 @@ interface SettingsProps {
   /** Local versioned plan backups + one-tap restore. */
   planBackups?: import('../utils/planBackups').PlanBackup[]
   onRestorePlan?: (savedAt: number) => void
+  /** Initiative 004: save an uploaded plan as the athlete's plan; false
+   *  when it couldn't be saved. Settings shows the way in to the owner only. */
+  onUseImportedPlan?: (cfg: OnboardingConfig) => boolean
   setView?: (v: string) => void
   // Auth
   authSession?: AuthSession | null
@@ -205,6 +212,7 @@ export default function Settings({
   onSetPlanStart,
   planBackups,
   onRestorePlan,
+  onUseImportedPlan,
   coachEnabled,
   aboutMeText,
   pendingInferences,
@@ -255,6 +263,12 @@ export default function Settings({
   season,
 }: SettingsProps) {
   const [exportOpen, setExportOpen] = useState(false)
+  const [importOpen, setImportOpen] = useState(false)
+  // Upload my own plan is in beta for the owner only (initiative 004, D8).
+  // The server checks too: opening it to everyone means PLAN_IMPORT_OPEN on
+  // Vercel *and* this line.
+  const canImportPlan = athleteId === 'mike' && !!onboardingConfig && !!onUseImportedPlan && coachApiAvailable()
+  const uploadedTitle = isImportedPlan(onboardingConfig) ? onboardingConfig?.importedPlan?.title || 'your plan' : null
   void _onAcceptInference
   void _onDismissInference
   const display = useDisplayPreferences(athleteId)
@@ -621,7 +635,9 @@ export default function Settings({
         <SettingsSection title="Hyrox Division">
           <div className="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700 space-y-3">
             <p className="text-sm text-slate-600 dark:text-slate-400">
-              Every station load in your plan renders from your division’s rulebook spec — Open and Pro differ by ~50 kg on the sleds alone. Change it here and the plan re-renders.
+              {uploadedTitle
+                ? 'Your plan’s own loads stay as written; your division sets your projected finish.'
+                : 'Every station load in your plan renders from your division’s rulebook spec — Open and Pro differ by ~50 kg on the sleds alone. Change it here and the plan re-renders.'}
             </p>
             <div className="flex gap-1.5" role="radiogroup" aria-label="Hyrox division">
               {(['open', 'pro'] as const).map(d => {
@@ -806,9 +822,20 @@ export default function Settings({
       {/* ── Training Plan section ── */}
       {onResetOnboarding && (
         <SettingsSection title="Training Plan">
+          {canImportPlan && (
+            <div className="mb-3">
+              <PlanImportCard onOpen={() => setImportOpen(true)} />
+            </div>
+          )}
           <div className="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700 space-y-3">
             <div>
               <p className="text-sm font-medium text-slate-800 dark:text-slate-100">Redo Onboarding</p>
+              {uploadedTitle && (
+                <p className="text-xs text-slate-600 dark:text-slate-300 mt-1 leading-relaxed" data-testid="redo-replaces-upload">
+                  Replaces your uploaded plan &ldquo;{uploadedTitle}&rdquo; with one we build. It&rsquo;s backed up
+                  first, so you can bring it back from Restore a Previous Plan.
+                </p>
+              )}
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
                 Finished your target race? Start a fresh onboarding to pick a new race, distance, and training method.
                 Your full training history carries forward — synced activities, HR zones, MIM/DOMS calibration, fatigue
@@ -817,7 +844,8 @@ export default function Settings({
             </div>
             <button
               onClick={() => {
-                if (confirm('This will clear only your race goal and training method, then take you back to onboarding. All training history, activities, HR data, fatigue, and coach memory are preserved. Continue?')) {
+                const replaces = uploadedTitle ? `This replaces your uploaded plan \u201c${uploadedTitle}\u201d (it is backed up first). ` : ''
+                if (confirm(`${replaces}This will clear only your race goal and training method, then take you back to onboarding. All training history, activities, HR data, fatigue, and coach memory are preserved. Continue?`)) {
                   onResetOnboarding()
                 }
               }}
@@ -834,7 +862,7 @@ export default function Settings({
         <SettingsSection title="Restore a Previous Plan">
           <div className="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700 space-y-3">
             <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-              Saved automatically whenever your plan changes, and before a redo. If a rebuild or a
+              Saved automatically whenever your plan changes, before a redo, and before an upload. If a rebuild or a
               cross-device sync ever lands the wrong plan, restore an earlier one here &mdash; it becomes
               your current plan and syncs out. Your logged history is never touched.
             </p>
@@ -845,7 +873,7 @@ export default function Settings({
                     <p className="text-sm font-medium text-slate-800 dark:text-slate-100 truncate">{b.raceName}</p>
                     <p className="text-[11px] text-slate-400">
                       {new Date(b.savedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
-                      {b.reason === 'before redo' ? ' · before a redo' : ''}
+                      {b.reason === 'before redo' ? ' · before a redo' : b.reason === 'before upload' ? ' · before an upload' : ''}
                     </p>
                   </div>
                   <button
@@ -893,6 +921,13 @@ export default function Settings({
           weeks={mergedWeeks ?? activePlan.weeks}
           performance={performance ?? []}
           season={season}
+        />
+      )}
+      {importOpen && canImportPlan && onboardingConfig && onUseImportedPlan && (
+        <PlanImportSheet
+          base={onboardingConfig}
+          onUse={cfg => onUseImportedPlan(cfg)}
+          onClose={() => setImportOpen(false)}
         />
       )}
 
