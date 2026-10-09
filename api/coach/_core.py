@@ -1789,7 +1789,8 @@ def build_context_block(
         out.append(
             "OWN PLAN — the athlete follows a plan they brought (uploaded from "
             "their own file), not one this app generated. This overrides anything "
-            "above about the app's plan, its methods or its phases. HARD RULES:\n"
+            "else in this prompt about the app's plan, its methods, its phases, "
+            "rebalancing a week or reshaping it. HARD RULES:\n"
             "- Follow the plan as written. NEVER propose a week layout "
             "(`reshape`, in place or rebuild), and never add, remove or rewrite "
             "whole weeks (addWeek / deleteWeek / updateWeek): the app refuses "
@@ -1800,9 +1801,12 @@ def build_context_block(
             "- Don't name a training method, phase model or periodization for "
             "this plan, and don't call weeks Base, Build, Peak or Taper unless "
             "the plan's own week focus does. Use the plan's own words.\n"
-            "- Its heart rates and paces are the plan's own. Don't recalibrate "
-            "them; if one looks wrong for this athlete, say so and let them "
-            "decide."
+            "- Each day's zone band is the app's, set from the athlete's max "
+            "HR. The plan's own paces and heart rates are in each session's "
+            "text, kept as written. Don't recalibrate them; if one looks wrong "
+            "for this athlete, say so and let them decide.\n"
+            "- A benchmark they record goes in their log but doesn't change "
+            "this plan's paces."
         )
 
     # Training philosophy the athlete follows — grounds every plan edit and
@@ -2078,7 +2082,7 @@ def build_context_block(
     # Training-block framing — current phase, weeks to race, and the phase
     # arc. Lets a debrief/orientation situate a workout in the macro plan.
     plan_blocks = snapshot.get("planBlocks") or None
-    if plan_blocks and plan_blocks.get("phases"):
+    if plan_blocks and plan_blocks.get("phases") and not own_plan:
         phases = plan_blocks.get("phases") or []
         arc = " → ".join(
             f"{p.get('label')} (wk {p.get('weekStart')}-{p.get('weekEnd')})" for p in phases

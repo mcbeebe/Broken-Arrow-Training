@@ -829,7 +829,9 @@ export default function WeeklyPlan({
           {onboardingConfig?.raceType === 'hyrox' && (
             <HyroxProjectionCard weeks={weeks} config={onboardingConfig} capacity={strength?.capacity} />
           )}
-          <RaceNarrative
+          {/* Base/build/peak/taper by position describes a generated plan,
+              not the athlete's own (initiative 004). */}
+          {!plan?.importSource && <RaceNarrative
             race={race}
             weekNum={week.num}
             totalWeeks={weeks.length}
@@ -837,7 +839,7 @@ export default function WeeklyPlan({
             compliance={compliance}
             perf={latestPerf}
             season={season}
-          />
+          />}
 
           {/* Elevation profile */}
           <div className="mt-3">

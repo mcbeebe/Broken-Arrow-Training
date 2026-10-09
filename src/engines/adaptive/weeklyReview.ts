@@ -58,6 +58,18 @@ export interface WeeklyReview {
 
 const HARD_TYPES: ReadonlySet<WorkoutType> = new Set(['quality', 'long'])
 
+/** After a break on the athlete's own plan: nothing is rebuilt or rescaled
+ *  for them, so the review says how to come back to it instead. */
+const OWN_PLAN_GAP_GUIDANCE =
+  'Your plan stays as written. Start lighter than it says for the first days back and build up; the coach can help you adjust single days.'
+
+function ownPlanHeadline(tier: string, days: number, verdict: string): string {
+  if (tier === 'restart') return 'Long time away — ease back into your plan.'
+  if (tier === 'ease75' || tier === 'rebuild50') return `Back after ${days} days — ease back into your plan.`
+  if (verdict === 'advance') return 'Week delivered — your plan carries on as written.'
+  return 'Week reviewed — your plan carries on as written.'
+}
+
 const fmtMi = (n: number) => (Math.round(n * 10) / 10).toString()
 
 /** Rewrite the leading "X mi" token in a zone string. */
@@ -238,7 +250,13 @@ export function buildWeeklyReview(
   weeks: TrainingWeek[],
   reviewedWeekNum: number,
   todayIso: string,
-  opts: { hrStream?: (day: PlannedDay) => HRStream | null } = {},
+  opts: {
+    hrStream?: (day: PlannedDay) => HRStream | null
+    /** The athlete's own uploaded plan (initiative 004, D1): the review
+     *  scores the week but proposes no changes, and its copy says the plan
+     *  stays as written. */
+    ownPlan?: boolean
+  } = {},
 ): WeeklyReview | null {
   const reviewedWeek = weeks.find(w => w.num === reviewedWeekNum)
   if (!reviewedWeek) return null
@@ -246,10 +264,13 @@ export function buildWeeklyReview(
   const totalWeeks = weeks.length > 0 ? Math.max(...weeks.map(w => w.num)) : 0
 
   const execution = scoreWeekExecution(reviewedWeek, todayIso, opts)
-  const gap = detectTrainingGap(weeks, todayIso)
+  const detected = detectTrainingGap(weeks, todayIso)
+  const gap = opts.ownPlan && detected.tier !== 'none'
+    ? { ...detected, guidance: OWN_PLAN_GAP_GUIDANCE }
+    : detected
 
   const adjustments: WeeklyAdjustment[] = []
-  if (nextWeek && !isProtectedWeek(nextWeek, totalWeeks)) {
+  if (nextWeek && !isProtectedWeek(nextWeek, totalWeeks) && !opts.ownPlan) {
     // A real gap outranks week-by-week tuning — resumption first.
     const rescale = gapRescaleAdjustment(gap, weeks, nextWeek, totalWeeks)
     if (rescale) {
@@ -264,8 +285,8 @@ export function buildWeeklyReview(
     }
   }
 
-  const headline =
-    gap.tier === 'restart' ? 'Long time away — the plan should be rebuilt from where you are.'
+  const headline = opts.ownPlan ? ownPlanHeadline(gap.tier, gap.days, execution.verdict)
+    : gap.tier === 'restart' ? 'Long time away — the plan should be rebuilt from where you are.'
     : gap.tier === 'ease75' || gap.tier === 'rebuild50' ? `Back after ${gap.days} days — here's the way back in.`
     : execution.verdict === 'advance' ? 'Week delivered — next week advances as planned.'
     : execution.verdict === 'hold' ? 'Solid week with one flag — one tweak before advancing.'

@@ -5,6 +5,7 @@ import ProposalCard, { type ShapeContext } from '../../components/ProposalCard'
 import MondayReviewSheet from '../../components/MondayReviewSheet'
 import CoachToolsPanel from '../../components/CoachToolsPanel'
 import { isSimDay } from '../../utils/simSession'
+import { generateTodayNarrative } from '../../utils/todayNarrative'
 import type { CoachAction, PlanEditOp, PlannedDay } from '../../types'
 import type { WeeklyReview } from '../../engines/adaptive/weeklyReview'
 
@@ -135,5 +136,49 @@ describe('simulation days', () => {
   it('never turns an uploaded plan\'s own "simulation" into a HYROX circuit', () => {
     expect(isSimDay({ ...sim, verbatimDetail: true })).toBe(false)
     expect(isSimDay(sim)).toBe(true)
+  })
+})
+
+describe('a coach edit that rewrites whole weeks, on an uploaded plan', () => {
+  const ctx: ShapeContext = {
+    current: { 1: 'rest', 2: 'rest', 3: 'rest', 4: 'rest', 5: 'rest', 6: 'rest', 7: 'rest' },
+    currentWeekNum: 3, lastWeekNum: 5, weekStarted: true, plan: 'road', uploadedPlan: true,
+  }
+
+  it('is locked before the athlete taps anything', () => {
+    const onApprove = vi.fn()
+    render(<ProposalCard action={edit({ kind: 'deleteWeek', weekNum: 4 })} status="pending" shapeContext={ctx} onApprove={onApprove} onReject={vi.fn()} />)
+    expect(screen.getByTestId('edit-locked').textContent).toContain(UPLOADED_PLAN_REFUSAL)
+    expect(screen.queryByText(/Apply/)).toBeNull()
+  })
+
+  it('a single-day edit stays open to approve', () => {
+    const day = edit({ kind: 'updateDay', weekNum: 3, dayIndex: 1, updates: { workout: 'Easy 30 min' } })
+    render(<ProposalCard action={day} status="pending" shapeContext={ctx} onApprove={vi.fn()} />)
+    expect(screen.queryByTestId('edit-locked')).toBeNull()
+  })
+})
+
+describe('Today on an uploaded plan', () => {
+  const rest = (d: string): PlannedDay => ({
+    day: d, type: 'rest', workout: 'Rest', detail: '—', zone: '—', route: '', time: '—', verbatimDetail: true,
+  })
+  const own = (over: Partial<PlannedDay>): PlannedDay => ({
+    day: 'Tue 10/6', type: 'quality', workout: 'Tempo', detail: '3 x 2 mi', zone: '6.0 mi · Z3', route: '', time: '—',
+    verbatimDetail: true, ...over,
+  })
+
+  it('reads a week of rest in the plan\'s own words, not as a generated phase', () => {
+    const week = { num: 2, dates: '', miles: 'Rest', focus: 'Recovery', days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(rest) }
+    const n = generateTodayNarrative({ day: week.days[2], week, weekNum: 2, totalWeeks: 3, todayIso: '2026-10-07' })!
+    expect(n.arc).toBe('Week 2 of 3 of your plan — Recovery.')
+  })
+
+  it('never promises the generator\'s spacing of hard days', () => {
+    const days = [own({ day: 'Tue 10/6' }), own({ day: 'Wed 10/7', workout: 'Intervals' })]
+    const week = { num: 1, dates: '', miles: 12, focus: '', days }
+    const n = generateTodayNarrative({ day: days[0], week, weekNum: 1, totalWeeks: 6, todayIso: '2026-10-06' })!
+    expect(n.week).toContain('one of 2 hard days')
+    expect(n.week).not.toMatch(/spaced deliberately|never two quality/)
   })
 })

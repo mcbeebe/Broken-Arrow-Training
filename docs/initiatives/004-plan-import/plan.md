@@ -121,6 +121,22 @@ time (D3).
   - the Today arc, which now uses the plan's own week focus instead of
     base/build/taper by position;
   - the welcome letter's season text.
+- **Found by the adversary review, and gated too:**
+  - the Monday review now scores an uploaded week but proposes no changes
+    (its "ease the paces" rewrote the plan's own pace text);
+  - the coach's realignment nudge, the Plan view's base/build/peak race
+    narrative, and Settings → Training Methodology;
+  - a refused proposal from a coach insight now reads as kept, not "applied".
+  - The coach prompt now says what the app really does: the zone band is the
+    app's, and a benchmark doesn't change this plan's paces.
+  - Coach-insight cache keys carry `planSource`, so a take written for a
+    generated plan is never served for an uploaded one.
+  - `uploadedPlanWiring.test.ts` reads the `App.tsx` source, so dropping any
+    of these gates fails a named test.
+- **Left as designed, for the owner to weigh:**
+  - The rule filters by op kind, so seven approved `updateDay`s can still
+    rewrite a week.
+  - App changes the athlete approves (travel, the Adjust sheet) stay on.
 - **Owner to confirm:** the morning autopilot is off for an uploaded plan.
   It applies same-day changes without asking, which D1's "the athlete
   approves" rules out. The coach can still propose a day edit. Re-enabling it

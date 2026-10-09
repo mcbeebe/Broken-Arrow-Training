@@ -11,6 +11,8 @@ import { readImportedPlan } from '../../utils/planImport/types'
 const SOURCE = { name: 'coach-plan.pdf', kind: 'pdf' as const }
 const AT = '2026-10-09T08:00:00.000Z'
 
+const S = (t: string, w = t) => ({ d: 'any' as const, t: t as 'run', w })
+
 function extraction(weeks: unknown[], over: Record<string, unknown> = {}) {
   return { status: 'ok', title: 'Spring 10K', sport: 'road', units: 'mi', weeks, ...over }
 }
@@ -66,6 +68,9 @@ describe('normalizeExtraction — the stored plan', () => {
     expect(long.detail).toBe('21.1 km — Half marathon distance')
     // Already says "8 km": not repeated.
     expect(intervals.detail).toBe('8 km with 5 x 1 km')
+    // "18 km" is not "8 km".
+    const v2 = ok(extraction([{ s: [{ d: 'tue', t: 'run', w: 'Easy', dist: 8, x: 'Build to 18 km next month' }] }], { units: 'km' }))
+    expect(v2.plan.weeks[0].sessions[0].detail).toBe('8 km — Build to 18 km next month')
     expect(v.notes.some(n => /kilometres/.test(n))).toBe(true)
   })
 
@@ -92,6 +97,26 @@ describe('normalizeExtraction — the stored plan', () => {
     expect(v.plan.title).toBe('coach-plan')
   })
 
+  it('keeps its own notes when the reader sent the most it may', () => {
+    const twenty = Array.from({ length: 20 }, (_, i) => `Reader note ${i + 1}`)
+    const v = ok(
+      extraction([{ s: [S('run', 'A'), S('long', 'L')] }], { notes: twenty, units: 'km' }),
+      ["We couldn't tell if distances are in miles or kilometres. Check them."],
+    )
+    expect(v.notes).toHaveLength(20)
+    expect(v.notes[0]).toMatch(/had no day/)
+    expect(v.notes.some(n => /miles or kilometres/.test(n))).toBe(true)
+  })
+
+  it('names the source "My plan" when the file name is blank', () => {
+    const r = normalizeExtraction({
+      extraction: extraction([{ s: [{ d: 'tue', t: 'run', w: 'Easy' }] }], { title: '' }),
+      source: { name: '  ', kind: 'text' }, importedAt: AT,
+    })
+    expect(r.ok && r.value.plan.source.name).toBe('My plan')
+    expect(r.ok && r.value.plan.title).toBe('My plan')
+  })
+
   it('passes the reader\'s notes, the server\'s warnings and the levels through', () => {
     const v = ok(
       extraction([{ s: [{ d: 'tue', t: 'run', w: 'Easy' }] }], { notes: ['Week 3 was smudged'], levels: ['Beginner', 'Advanced'] }),
@@ -114,7 +139,7 @@ describe('normalizeExtraction — the stored plan', () => {
     expect(JSON.stringify(v.plan)).not.toContain('2027-03-14')
   })
 
-  it('returns a plan the app can open, unchanged by the app\'s own check', () => {
+  it('builds what the app\'s own check accepts, and what survives sync', () => {
     const v = ok(extraction(Array.from({ length: 6 }, (_, i) => ({ focus: `W${i + 1}`, s: [
       { d: 'any', t: 'run', w: 'Easy', dist: 3 }, { d: 'any', t: 'long', w: 'Long', dist: 6 + i },
     ] })), { units: 'km' }))
@@ -152,8 +177,6 @@ describe('normalizeExtraction — failures', () => {
 })
 
 describe('placeWeek — sessions the plan puts on no day', () => {
-  const S = (t: string, w = t) => ({ d: 'any' as const, t: t as 'run', w })
-
   it('seven unnamed sessions become Monday to Sunday in order', () => {
     const week = ['rest', 'run', 'quality', 'run', 'rest', 'run', 'long'].map(t => S(t))
     const { placed, chosen } = placeWeek(week)
@@ -163,9 +186,22 @@ describe('placeWeek — sessions the plan puts on no day', () => {
     expect(chosen).toBe(5)
   })
 
-  it('puts the long run on Sunday and the rest on spread-out training days, in the plan\'s order', () => {
-    const { placed } = placeWeek([S('run', 'A'), S('quality', 'B'), S('long', 'L'), S('run', 'C')])
+  it('puts a long run that closes the week on Sunday, the rest spread out before it', () => {
+    const { placed } = placeWeek([S('run', 'A'), S('quality', 'B'), S('run', 'C'), S('long', 'L')])
     expect(placed.map(s => [s.w, s.d])).toEqual([['A', 2], ['B', 4], ['C', 6], ['L', 7]])
+  })
+
+  it('never changes the plan\'s order, even when the long run is mid-week', () => {
+    // A plan whose "Day 5" is the long run and "Day 6" a recovery run.
+    const { placed } = placeWeek([S('run', 'A'), S('quality', 'B'), S('run', 'C'), S('run', 'D'), S('long', 'L'), S('run', 'R')])
+    expect(placed.map(s => s.w)).toEqual(['A', 'B', 'C', 'D', 'L', 'R'])
+    const days = placed.map(s => s.d)
+    expect([...days].sort((a, b) => a - b)).toEqual(days)
+  })
+
+  it('leaves Sunday to a session the plan named there', () => {
+    const { placed } = placeWeek([{ d: 7, t: 'race', w: 'Race' }, S('run', 'A'), S('long', 'L')])
+    expect(placed.map(s => [s.w, s.d])).toEqual([['A', 2], ['L', 4], ['Race', 7]])
   })
 
   it('without a long run, three sessions go Tuesday, Thursday, Saturday', () => {
@@ -184,6 +220,13 @@ describe('placeWeek — sessions the plan puts on no day', () => {
       { d: 2, t: 'quality', w: 'Named Tue' }, S('run', 'A'), S('run', 'B'), S('long', 'L'),
     ])
     expect(placed.map(s => [s.w, s.d])).toEqual([['Named Tue', 2], ['A', 4], ['B', 6], ['L', 7]])
+  })
+
+  it('says it spread the sessions, not where long runs went', () => {
+    const v = ok(extraction([{ s: ['rest', 'run', 'quality', 'run', 'rest', 'long', 'run'].map(t => S(t)) }]))
+    const note = v.notes.find(n => /had no day/.test(n)) ?? ''
+    expect(note).toMatch(/in the plan's order/)
+    expect(note).not.toMatch(/Sunday/)
   })
 
   it('doubles up only when the week has more sessions than days', () => {

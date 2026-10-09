@@ -94,6 +94,7 @@ export function materialFields(surface: string, snapshot: CoachSnapshot, morning
       injuryContext?: string
       menopauseContext?: string
       seasonContext?: string
+      planSource?: string
       coachPersona?: { name?: string; traits?: string[] }
       zones?: { hr?: string }[]
     }
@@ -113,6 +114,9 @@ export function materialFields(surface: string, snapshot: CoachSnapshot, morning
       // Season in the cache key: redoing onboarding with different races
       // must regenerate the letter, not serve the single-race cached one.
       season: (s.seasonContext || '').trim(),
+      // An uploaded plan (initiative 004) gets its own letter, never one
+      // written for a generated plan.
+      planSource: s.planSource ?? null,
       detailLevel: s.detailLevel ?? null,
       persona: wlPersona
         ? { name: wlPersona.name?.trim() || '', traits: [...(wlPersona.traits || [])].sort() }
@@ -132,6 +136,7 @@ export function materialFields(surface: string, snapshot: CoachSnapshot, morning
       surface,
       date: snapshot.today?.date,
       digest: snapshot.last7Digest ?? '',
+      planSource: snapshot.planSource ?? null,
       persona: persona
         ? { name: persona.name?.trim() || '', traits: [...(persona.traits || [])].sort() }
         : null,
@@ -168,6 +173,7 @@ export function materialFields(surface: string, snapshot: CoachSnapshot, morning
     plannedTomorrow: tm
       ? { day: tm.day, type: tm.type, workout: tm.workout }
       : null,
+    planSource: snapshot.planSource ?? null,
     // Persona identity is baked into the cache key so changing the
     // coach's name or traits busts cached insights — otherwise you'd
     // keep seeing the old generic voice until the day's signals change.

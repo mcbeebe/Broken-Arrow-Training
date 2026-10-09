@@ -43,12 +43,26 @@ def test_an_uploaded_plan_gets_the_own_plan_rules() -> None:
     # No generated-plan framing.
     assert "Base, Build, Peak or Taper" in section
     assert "Don't recalibrate" in section
+    # What the app really does: the zone band is its own, and a benchmark
+    # doesn't move an uploaded plan (toTrainingPlan reads only max HR and age).
+    assert "zone band is the app's" in section
+    assert "doesn't change this plan's paces" in section
+    assert "else in this prompt" in section
 
 
-def test_no_method_framing_for_an_uploaded_plan_even_if_one_arrives() -> None:
-    ctx = build_context_block({"planSource": "imported", "methodology": METHOD})
+BLOCKS = {"currentPhase": "Peak", "weeksToRace": 3, "phases": [{"label": "Base", "weekStart": 1, "weekEnd": 6}]}
+
+
+def test_no_method_or_phase_framing_for_an_uploaded_plan_even_if_one_arrives() -> None:
+    ctx = build_context_block({"planSource": "imported", "methodology": METHOD, "planBlocks": BLOCKS})
     assert "Training philosophy" not in ctx
     assert "Polarized 80/20" not in ctx
+    assert "Training block:" not in ctx
+    assert "Phase arc" not in ctx
+
+
+def test_a_generated_plan_keeps_its_phase_framing() -> None:
+    assert "Training block: currently Peak" in build_context_block({"planBlocks": BLOCKS})
 
 
 def test_a_generated_plan_is_unchanged() -> None:

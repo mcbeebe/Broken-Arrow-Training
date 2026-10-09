@@ -3,12 +3,16 @@
  *
  * An uploaded plan is followed as written. The coach may suggest edits to
  * single days, and the athlete approves each one. Anything that reshapes the
- * plan is refused: a new week layout (in place or rebuilt), and adding,
- * removing or rewriting a whole week. Recalibration, level-up, weak-station
- * reweighting and the season are switched off where they are offered
- * (App.tsx), so none of them reaches this check.
+ * plan is refused here: a new week layout (in place or rebuilt), and adding,
+ * removing or rewriting a whole week.
+ *
+ * The app's own engines are switched off at their source instead (App.tsx):
+ * pace recalibration, the benchmark re-anchor, the Monday review's
+ * adjustments, the morning autopilot, Level Up, weak-station reweighting,
+ * realignment, rebuild and the season.
  */
 
+import type { ShapeContext } from '../../components/ProposalCard'
 import type { CoachAction, PlanEditOp } from '../../types'
 
 /** Op kinds that act on whole weeks. Day edits (`updateDay`, `addDay`,
@@ -31,4 +35,16 @@ export const UPLOADED_PLAN_HANDOFF =
 export function refusedOnUploadedPlan(action: CoachAction): boolean {
   if (action.type === 'propose_reshape') return true
   return (action.proposedEdit?.ops ?? []).some(o => WEEK_OPS.has(o.op.kind))
+}
+
+/** The reshape card's context on an uploaded plan: only the lock matters,
+ *  so no generated layout is computed. Week numbers are filled in by the
+ *  caller. */
+export const UPLOADED_PLAN_SHAPE_CONTEXT: ShapeContext = {
+  current: { 1: 'rest', 2: 'rest', 3: 'rest', 4: 'rest', 5: 'rest', 6: 'rest', 7: 'rest' },
+  currentWeekNum: 1,
+  lastWeekNum: 1,
+  weekStarted: false,
+  plan: 'road',
+  uploadedPlan: true,
 }

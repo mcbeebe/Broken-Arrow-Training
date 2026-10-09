@@ -46,7 +46,7 @@ import { useReadiness } from './hooks/useReadiness'
 import { useOnboarding, isImportedPlan } from './hooks/useOnboarding'
 import { readImportedPlan } from './utils/planImport/types'
 import { importedToTrainingPlan } from './utils/planImport/toTrainingPlan'
-import { refusedOnUploadedPlan, UPLOADED_PLAN_HANDOFF } from './utils/planImport/guardrails'
+import { refusedOnUploadedPlan, UPLOADED_PLAN_HANDOFF, UPLOADED_PLAN_SHAPE_CONTEXT } from './utils/planImport/guardrails'
 import { useAthleteProfile, readAthleteProfileExtras } from './hooks/useAthleteProfile'
 import { getReadinessTuning } from './utils/engineConfig'
 import { useTutorial } from './hooks/useTutorial'
@@ -1352,8 +1352,9 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
       // Phase 4 — PRs are detected against ALL history (prior plans
       // included), then narrowed to the week under review.
       strengthPRs: detectPRs(strengthWeeks).filter(pr => pr.weekNum === reviewNum),
+      ownPlan: importedMode,
     })
-  }, [weeklyRecapState.visible, weeks, strengthWeeks, compliance.weeks, currentWeekNum, readiness.performance, activePlan.race, activePlan.athlete.name])
+  }, [weeklyRecapState.visible, weeks, strengthWeeks, compliance.weeks, currentWeekNum, readiness.performance, activePlan.race, activePlan.athlete.name, importedMode])
 
   // ── Monday review (Adaptive Engine phase 1) ────────────────────
   // The week that just finished, scored into advance/hold/ease with
@@ -1364,8 +1365,10 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     if (reviewNum < 1) return null
     return buildWeeklyReview(weeks, reviewNum, todayDateString(), {
       hrStream: d => getCachedHRStream(d.actual?.stravaId || d.actual?.garminId),
+      // An uploaded plan is scored but never changed by the review (D1).
+      ownPlan: importedMode,
     })
-  }, [weeks, currentWeekNum])
+  }, [weeks, currentWeekNum, importedMode])
   const reviewGapIso =
     mondayReview && (mondayReview.gap.tier === 'ease75' || mondayReview.gap.tier === 'rebuild50' || mondayReview.gap.tier === 'restart')
       ? mondayReview.gap.lastActivityIso
@@ -1764,7 +1767,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     // type in the trailing 7 days → the coach is prompted to OFFER a
     // rebalanced week as a proposal card. Absent when on track, so a
     // compliant athlete never sees a phantom realignment nudge.
-    const realignmentContext = realignmentContextForWeeks(weeks, todayDateString())
+    const realignmentContext = importedMode ? null : realignmentContextForWeeks(weeks, todayDateString())
     if (realignmentContext) snap.realignmentContext = realignmentContext
     // Season narration (G1b): only multi-race athletes get a SEASON section
     // — where they are in the chain and why today serves the NEXT race.
@@ -2009,6 +2012,8 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
   // shows, because a coach-proposed reshape IS that change.
   const lastWeekNum = weeks.length ? weeks[weeks.length - 1].num : currentWeekNum
   const chatShapeContext = useMemo<ShapeContext | null>(() => {
+    // An uploaded plan has no generated layout; the card only needs the lock.
+    if (importedMode) return { ...UPLOADED_PLAN_SHAPE_CONTEXT, currentWeekNum, lastWeekNum }
     if (!onboarding.config) return null
     const current = effectiveShape(onboarding.config, currentWeekNum) ?? defaultWeekShapeFor(onboarding.config)
     if (!current) return null
@@ -2018,8 +2023,6 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
       current, currentWeekNum, lastWeekNum, plan,
       weekStarted: !!thisWeek?.startIso && thisWeek.startIso < todayDateString(),
       methodRunDays: plan === 'road' || plan === 'trail' ? methodRunDayBounds(methodForConfig(onboarding.config)) : undefined,
-      // An uploaded plan's weeks stay as written: the card says so, no Apply.
-      ...(importedMode ? { uploadedPlan: true as const } : {}),
     }
   }, [onboarding.config, currentWeekNum, lastWeekNum, weeks, importedMode])
 
@@ -2068,7 +2071,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
       'system-handoff',
       ops.length > 0
         ? `[PLAN EDIT APPLIED] Athlete accepted the proposed change → ${describeProposal(action)}. Batch id ${overrideId}.`
-        : `[BENCHMARK RECORDED] Athlete confirmed → ${describeProposal(action)}. It is now in their benchmark log and the plan reads it; do not propose it again.`,
+        : `[BENCHMARK RECORDED] Athlete confirmed → ${describeProposal(action)}. It is now in their benchmark log${importedMode ? '; their own plan is unchanged by it' : ' and the plan reads it'}; do not propose it again.`,
     )
   }, [planEdits, coachMemory, describeProposal, benchmarks, chatShapeContext, onboarding, importedMode])
 
@@ -2079,13 +2082,15 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     const swap = action ? ` → ${describeProposal(action)}` : ''
     coachMemory.appendTurn(
       'system-handoff',
-      action?.type === 'propose_reshape'
+      importedMode && action && refusedOnUploadedPlan(action)
+        ? UPLOADED_PLAN_HANDOFF
+        : action?.type === 'propose_reshape'
         ? `[RESHAPE DECLINED] Athlete kept their week as it is. Ask what they would change rather than re-proposing the same layout.`
         : action?.type === 'propose_benchmark'
         ? `[BENCHMARK DECLINED] Athlete chose not to record${swap}. Ask what was off (the number, the date, the kind) rather than re-proposing the same entry.`
         : `[PLAN EDIT DECLINED] Athlete kept the original instead of the proposed swap${swap}. They did not modify or apply — note this preference for similar future suggestions.`,
     )
-  }, [coachMemory, describeProposal])
+  }, [coachMemory, describeProposal, importedMode])
 
   const handleUndoAction = useCallback((turnId: string, overrideId: string) => {
     if (overrideId.startsWith(RESHAPE_TOKEN)) {
@@ -2116,7 +2121,10 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
   // tracks its own pending/applied/rejected status in localStorage.
   const handleApproveInsightProposal = useCallback((action: CoachAction): string | undefined => {
     if (action.type !== 'propose_edit' || !action.proposedEdit?.ops?.length) return undefined
-    if (importedMode && refusedOnUploadedPlan(action)) return undefined
+    if (importedMode && refusedOnUploadedPlan(action)) {
+      coachMemory.appendTurn('system-handoff', UPLOADED_PLAN_HANDOFF)
+      return undefined
+    }
     const overrideId = planEdits.applyBatch(action.proposedEdit.ops)
     coachMemory.appendTurn(
       'system-handoff',

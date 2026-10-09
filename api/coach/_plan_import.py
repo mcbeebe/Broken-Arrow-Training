@@ -315,9 +315,12 @@ go"); there the highest number is trained first, whatever order the document \
 prints the weeks in.
 - One entry in "s" per session, and one weekday per entry: a session the plan \
 puts on two days ("Tue/Thu: easy 4") is two entries. "d" is the weekday when the \
-plan names one. When it \
-doesn't, use "any", keep the plan's order, and include its rest days as type "rest". \
-When weekdays are named, leave out rest days.
+plan names one. A plan that numbers \
+consecutive days ("Day 1" ... "Day 7", rest days included) names them: Day 1 = "mon" \
+... Day 7 = "sun". When the plan gives no day, or its numbers count sessions rather \
+than days (three "days" a week with rest between), use "any", keep the plan's \
+order, and include its rest days as type "rest". When weekdays are named, leave out \
+rest days.
 - "t": run = an ordinary run; long = a run the plan itself calls long ("Long run", \
 "LSR"), never one you judge long; quality = tempo, threshold, intervals, hills, fartlek, strides sessions, race-pace \
 work; cross = bike, swim, row, elliptical or other cardio; strength = gym, core, \

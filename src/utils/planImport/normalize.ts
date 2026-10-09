@@ -7,9 +7,9 @@
  * distances in the document's units. This turns that into `ImportedPlanV1`:
  *
  * - **Weekdays.** A session the plan puts on no weekday is placed here, in
- *   code. A week of exactly seven such sessions becomes Monday to Sunday in
- *   order. Otherwise the long run goes to Sunday and the rest go to the usual
- *   training days, keeping the plan's order.
+ *   code, always keeping the plan's order. A week of exactly seven such
+ *   sessions becomes Monday to Sunday. Otherwise they spread across the
+ *   usual training days, with a long run that closes the week on Sunday.
  * - **Units.** Kilometres become miles, and the plan's own figure ("10 km")
  *   stays at the front of the session's detail, so nothing the athlete wrote
  *   is lost (D12).
@@ -125,11 +125,12 @@ function formatNumber(n: number): string {
 
 /**
  * Weekdays for a week's sessions. Named days are kept. Unnamed ones:
- * exactly seven, all unnamed, become Monday to Sunday in order; otherwise
- * unnamed rest days are dropped (with no weekdays they mark nothing), the
- * first long run goes to Sunday, and the rest take the free training days in
- * `TRAINING_DAY_ORDER`, assigned in the plan's own order. Returns the placed
- * sessions, Monday first, and how many had their day chosen here.
+ * exactly seven, all unnamed, become Monday to Sunday in order. Otherwise
+ * unnamed rest days are dropped (with no weekdays they mark nothing); a long
+ * run that is the week's last session goes to Sunday when Sunday is free;
+ * the rest take free days in `TRAINING_DAY_ORDER`, assigned in the plan's
+ * own order, so the order never changes. Returns the placed sessions,
+ * Monday first, and how many had their day chosen here.
  */
 export function placeWeek(sessions: RawSession[]): { placed: Array<RawSession & { d: number }>; chosen: number } {
   const unnamed = sessions.filter(s => s.d === 'any')
@@ -151,17 +152,15 @@ export function placeWeek(sessions: RawSession[]): { placed: Array<RawSession & 
   const busy = new Map<number, number>()
   for (const s of named) busy.set(s.d, (busy.get(s.d) ?? 0) + 1)
 
-  const longIndex = toPlace.findIndex(s => s.t === 'long')
-  const placedByIndex = new Map<number, number>()
-  if (longIndex >= 0) {
-    placedByIndex.set(longIndex, SUNDAY)
-    busy.set(SUNDAY, (busy.get(SUNDAY) ?? 0) + 1)
-  }
+  // A long run that closes the week takes Sunday; anywhere else in the week
+  // it keeps its place, or the plan's order would change.
+  const sundayLong = toPlace.length > 0 && toPlace[toPlace.length - 1].t === 'long' && !busy.get(SUNDAY)
+  if (sundayLong) busy.set(SUNDAY, 1)
+  const spread = sundayLong ? toPlace.slice(0, -1) : toPlace
 
-  const rest = toPlace.map((_, i) => i).filter(i => i !== longIndex)
   // Free days first, then the least-used ones, always in the preferred order.
   const days: number[] = []
-  while (days.length < rest.length) {
+  while (days.length < spread.length) {
     const free = TRAINING_DAY_ORDER.filter(d => !(busy.get(d)) && !days.includes(d))
     const pool = free.length
       ? free
@@ -170,14 +169,12 @@ export function placeWeek(sessions: RawSession[]): { placed: Array<RawSession & 
     days.push(day)
     busy.set(day, (busy.get(day) ?? 0) + 1)
   }
-  // The plan's first session takes the earliest chosen day.
+  // Ascending days in the plan's order: the first session takes the earliest.
   days.sort((a, b) => a - b)
-  rest.forEach((sessionIndex, i) => placedByIndex.set(sessionIndex, days[i]))
+  const placedUnnamed = spread.map((s, i) => ({ ...s, d: days[i] }))
+  if (sundayLong) placedUnnamed.push({ ...toPlace[toPlace.length - 1], d: SUNDAY })
 
-  const placed = [
-    ...named,
-    ...toPlace.map((s, i) => ({ ...s, d: placedByIndex.get(i)! })),
-  ].sort((a, b) => a.d - b.d)
+  const placed = [...named, ...placedUnnamed].sort((a, b) => a.d - b.d)
   return { placed, chosen: toPlace.length }
 }
 
@@ -188,7 +185,9 @@ function toStored(s: RawSession & { d: number }, units: 'mi' | 'km' | 'none'): I
     if (units === 'km') {
       session.distanceMi = Math.round((s.dist / KM_PER_MILE) * 100) / 100
       const original = `${formatNumber(s.dist)} km`
-      if (!detail?.includes(original)) detail = detail ? `${original} — ${detail}` : original
+      // Whole number only: "8 km" is not already in "Build to 18 km".
+      const already = detail && new RegExp(`(^|[^\\d.])${original.replace('.', '\\.')}\\b`).test(detail)
+      if (!already) detail = detail ? `${original} — ${detail}` : original
     } else {
       session.distanceMi = s.dist
     }
@@ -238,20 +237,23 @@ export function normalizeExtraction(
   })
   if (!weeks.some(w => w.sessions.some(s => s.type !== 'rest'))) return { ok: false, reason: 'empty' }
 
-  const notes = [...strings(ex.notes), ...strings(input.warnings)]
+  // What this step did and the server's warnings come first: the stored plan
+  // keeps 20 notes, and the reader may have sent that many on its own.
+  const notes: string[] = []
   if (chosen > 0) {
     notes.push(
-      `${chosen} session${chosen === 1 ? '' : 's'} had no day in your plan, so we put ${chosen === 1 ? 'it' : 'them'} on usual training days, with long runs on Sunday. Move any of them after import.`,
+      `${chosen} session${chosen === 1 ? '' : 's'} had no day in your plan, so we spread ${chosen === 1 ? 'it' : 'them'} across the week in the plan's order. Move any of them after import.`,
     )
   }
   if (units === 'km' && weeks.some(w => w.sessions.some(s => s.distanceMi !== undefined))) {
     notes.push('Distances were in kilometres and are shown in miles. Each session keeps its original distance in its notes.')
   }
+  notes.push(...strings(input.warnings), ...strings(ex.notes))
 
   const race = isRecord(ex.race) ? ex.race : {}
   const stored = readImportedPlan({
     v: 1,
-    source: { name: input.source.name, kind: input.source.kind, importedAt: input.importedAt },
+    source: { name: input.source.name.trim() || 'My plan', kind: input.source.kind, importedAt: input.importedAt },
     title: text(ex.title) ?? fileTitle(input.source.name),
     sport,
     raceDistance: text(race.distance),
