@@ -156,6 +156,27 @@ export function todayDateString(): string {
   return isoFromLocalDate(new Date())
 }
 
+/**
+ * The number of the plan week that holds `iso`, read from each week's
+ * stamped `startIso`. A date before the plan maps to its first week; a date
+ * after it, or in a gap between weeks, maps to the last week that started on
+ * or before it. Returns undefined when the plan is empty or any week lacks
+ * `startIso` (legacy plans), so the caller keeps its own rule.
+ */
+export function weekNumContaining(
+  weeks: readonly { num: number; startIso?: string }[],
+  iso: string,
+): number | undefined {
+  if (weeks.length === 0 || weeks.some(w => !w.startIso)) return undefined
+  const ordered = [...weeks].sort((a, b) => (a.startIso! < b.startIso! ? -1 : a.startIso! > b.startIso! ? 1 : 0))
+  let current = ordered[0].num
+  for (const w of ordered) {
+    if (w.startIso! <= iso) current = w.num
+    else break
+  }
+  return current
+}
+
 /** The Monday on or before `iso`.
  *  The plan's pinned start is always a Monday: weeks are Monday-anchored
  *  everywhere else in the app, and pinning mid-week would put week 1 out

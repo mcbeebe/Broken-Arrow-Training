@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react'
 import type { WeekShape, WeekReshape } from '../engines/planGenerator/weekShape'
 import type { DetailLevel } from '../types'
+import type { ImportedPlanV1 } from '../utils/planImport/types'
 import { stampKey } from '../utils/syncStamps'
 import { setItemWithRoom, setSyncedItemWithRoom, setSyncedItemWithRoomOrThrow } from '../utils/storageRoom'
 
@@ -278,6 +279,11 @@ export interface OnboardingConfig {
   // later this season?"). Seeded ONCE into the season calendar (useSeason);
   // add/remove afterward happens on the season panel, never re-seeded.
   additionalRaces?: AdditionalRace[]
+  /** Initiative 004 — the athlete's own plan, uploaded and approved. Its
+   *  presence switches plan generation off: the app renders this plan as
+   *  written, anchored to `planStartPinnedIso`. Synced data, so always read
+   *  it through `readImportedPlan`, never trust this shape directly. */
+  importedPlan?: ImportedPlanV1
   completedAt: string
   // Timestamp of when the post-onboarding methodology primer was dismissed.
   // Unset = primer should be shown the next time a plan is rendered.
@@ -298,6 +304,15 @@ export interface OnboardingConfig {
   // Timestamp of when the post-onboarding "Letter from your Coach" was
   // dismissed. Unset = shown once at the end of onboarding.
   welcomeLetterSeenAt?: string
+}
+
+/**
+ * True when the config carries an uploaded plan (initiative 004), even one
+ * that turns out unreadable: an athlete who uploaded a plan must never be
+ * handed a generated one by accident.
+ */
+export function isImportedPlan(config: OnboardingConfig | null | undefined): boolean {
+  return config?.importedPlan != null
 }
 
 const STORAGE_KEY = 'ba_onboarding'
