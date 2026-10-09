@@ -42,6 +42,7 @@ future session. Initiative IDs are global; a series' own internal numbering
 | 001 | SDLC uplevel — gates, artifact chain, standing instructions | Open | — | [intent](001-sdlc-uplevel/intent.md) · [proposal](001-sdlc-uplevel/proposal.md) · [draft templates](001-sdlc-uplevel/templates/) |
 | 002 | eslint to zero, then make it a required gate | Open | — | [intent](002-eslint-to-green/intent.md) |
 | 003 | Public landing page at attune.coach; app moves to /app/ | Open | #467 (plan), #468 (PR 1), #471 (PR 2), #472 (PR 3), #473 (PR 4), #474 (PR 4b), #475 (PR 4c), #476 (PR 5) | [intent](003-landing-page/intent.md) · [analysis](003-landing-page/analysis.md) · [plan](003-landing-page/plan.md) · [design](003-landing-page/design-spec.md) · [copy](003-landing-page/copy.md) · [kickoff](003-landing-page/kickoff-prompt.md) |
+| 004 | Upload your own plan (PDF, Word, Excel, photo) in Settings and onboarding | Open | — | [intent](004-plan-import/intent.md) · [plan](004-plan-import/plan.md) |
 
 ### Backfilled — pre-convention (recorded 2026-08-29 while the commits were still fresh)
 
