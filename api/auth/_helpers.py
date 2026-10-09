@@ -113,6 +113,14 @@ def kv_bump_counter(key: str, ttl_seconds: int, timeout: float = 3) -> int:
     return int(results[1])
 
 
+def kv_unbump_counter(key: str, timeout: float = 3) -> int:
+    """Give back one count taken by kv_bump_counter, and return the new value.
+
+    For a counted attempt that turned out not to be one (the plan import
+    refunds an upload the model never read). The key keeps its expiry."""
+    return int(_kv_multi_exec([["DECR", key]], timeout=timeout)[0])
+
+
 def _kv_set(key: str, value: str) -> None:
     url = _kv_base()
     token = os.environ.get("KV_REST_API_TOKEN", "")
