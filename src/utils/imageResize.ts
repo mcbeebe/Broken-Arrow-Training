@@ -36,6 +36,10 @@ export async function resizeImage(file: File | Blob): Promise<ResizedImage> {
   canvas.height = h
   const ctx = canvas.getContext('2d')
   if (!ctx) throw new Error('canvas 2d context unavailable')
+  // JPEG has no transparency: without a white ground, a transparent PNG's
+  // dark text would be encoded black on black.
+  ctx.fillStyle = '#ffffff'
+  ctx.fillRect(0, 0, w, h)
   ctx.drawImage(img, 0, 0, w, h)
 
   const outDataUrl = canvas.toDataURL('image/jpeg', JPEG_QUALITY)

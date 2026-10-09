@@ -60,7 +60,7 @@ attune.coach.
 ## Commands
 
 ```bash
-npm test                  # vitest, 343 files / ~4830 tests — gates every publish
+npm test                  # vitest, 354 files / ~5020 tests — gates every publish
 npm run build             # tsc -b && vite build — the typecheck gate lives here
 npm run lint              # eslint — blocking in CI; 0 errors (initiative 002)
 npm run dev               # local dev server: the app is at /app/, the root page at /
@@ -132,6 +132,23 @@ succeed.
   `.vercelignore` still keeps the test directory out of the deployment.
   Prefer a new `surface` on an existing endpoint (e.g. `/api/coach/insight`)
   over a new file when the handler would be the same.
+- **`vercel.json` `functions` keys are first-match, in key order.** A file's
+  own entry must sit *above* any glob that also matches it. Below the glob it
+  matches nothing, and Vercel fails the whole API build with
+  `unused_function`, silently, since the API deploys with no gate.
+  `test_vercel_functions.py` replays both rules on the repo's files.
+- **`api/coach/plan_import.py` is the one function with `maxDuration: 300`**
+  (its own entry, above `api/coach/*.py: 60`): reading a whole plan from a
+  PDF takes minutes, and raising the glob would change how every chat turn
+  fails. Its model call gives up at 240 s, so the
+  athlete sees our error, not Vercel's 504. It is owner-only until
+  `PLAN_IMPORT_OPEN=true` (or `PLAN_IMPORT_ATHLETES=a,b`) is set on Vercel,
+  and its only caller, Settings → Training Plan → Upload my own plan, shows
+  to `athleteId === 'mike'` alone: opening it to anyone else, by either
+  setting, also needs that check changed;
+  `PLAN_IMPORT_DAILY_LIMIT` (default 5) and `ANTHROPIC_PLAN_IMPORT_MODEL`
+  (default Sonnet) tune it. It never stores or logs the uploaded file
+  (initiative 004, D10; `test_plan_import.py` holds it to that).
 
 ## Hard constraints
 

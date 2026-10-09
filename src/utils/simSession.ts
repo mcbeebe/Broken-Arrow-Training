@@ -17,9 +17,11 @@ export interface SimProfile {
 }
 
 /** The plan's simulation days: '★ FULL RACE SIMULATION' and
- *  'HALF SIMULATION: 4 runs + 4 stations', both emitted as type 'long'. */
+ *  'HALF SIMULATION: 4 runs + 4 stations', both emitted as type 'long'.
+ *  Never a day from an uploaded plan (`verbatimDetail`): its "Marathon race
+ *  simulation" is the athlete's own session, not a HYROX circuit to draft. */
 export function isSimDay(day: PlannedDay): boolean {
-  return day.type === 'long' && /simulation/i.test(day.workout)
+  return day.type === 'long' && !day.verbatimDetail && /simulation/i.test(day.workout)
 }
 
 /** Runs (= stations) in the simulation: 4 for the half, 8 for the full. */

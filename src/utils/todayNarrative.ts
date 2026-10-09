@@ -125,6 +125,7 @@ function weekCopy(
   week: TrainingWeek | null | undefined,
   shape: ReturnType<typeof weekShape>,
   isCutback: boolean,
+  ownPlan = false,
 ): string {
   const focus = (week?.focus ?? '').replace(/\s*·\s*replanned\s*$/i, '').trim()
   const focusClause = focus ? `This week's job: ${focus.replace(/\.$/, '')}.` : ''
@@ -139,7 +140,11 @@ function weekCopy(
   }
   return `${focusClause} ${shape.hardCount <= 1
     ? 'It is the only hard day on the calendar this week, which is why it gets the whole week to be ready for it.'
-    : `It is one of ${shape.hardCount} hard days this week, spaced deliberately — never three in a row, and never two quality sessions without recovery between them.`}`.trim()
+    // How hard days are spaced is the generator's rule, not a promise about
+    // a plan the athlete brought.
+    : ownPlan
+      ? `It is one of ${shape.hardCount} hard days this week.`
+      : `It is one of ${shape.hardCount} hard days this week, spaced deliberately — never three in a row, and never two quality sessions without recovery between them.`}`.trim()
 }
 
 function arcCopy(
@@ -202,10 +207,33 @@ export function generateTodayNarrative(input: TodayNarrativeInput): TodayNarrati
   const shape = weekShape(week, day)
   const toRace = daysToRace(race, todayIso)
 
+  // Every day of an uploaded plan carries verbatimDetail (toTrainingPlan).
+  const ownPlan = week.days.some(d => d.verbatimDetail)
   return {
     headline: headlineFor(role, isCutback),
     today: todayCopy(role, day, vert),
-    week: weekCopy(role, week, shape, isCutback),
-    arc: arcCopy(weekNum, totalWeeks, race, toRace, season, todayIso),
+    week: weekCopy(role, week, shape, isCutback, ownPlan),
+    arc: ownPlan
+      ? ownPlanArc(weekNum, totalWeeks, week.focus, race, toRace)
+      : arcCopy(weekNum, totalWeeks, race, toRace, season, todayIso),
   }
+}
+
+/** The arc for an athlete's own uploaded plan (initiative 004): its own
+ *  words for the week, never base, build, peak or taper by position, which
+ *  describe the app's generated plans. No season, which an uploaded plan
+ *  doesn't have. */
+function ownPlanArc(
+  weekNum: number,
+  totalWeeks: number,
+  focus: string | undefined,
+  race: RaceInfo | null | undefined,
+  toRace: number | null,
+): string {
+  const raceName = race?.name?.trim() || 'race day'
+  const countdown = toRace !== null && toRace >= 0
+    ? ` ${toRace === 0 ? `${raceName} is today.` : `${toRace} ${toRace === 1 ? 'day' : 'days'} to ${raceName}.`}`
+    : ''
+  const label = focus?.trim()
+  return `Week ${weekNum} of ${totalWeeks} of your plan${label ? ` — ${label}` : ''}.${countdown}`
 }
