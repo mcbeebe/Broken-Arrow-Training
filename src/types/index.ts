@@ -1581,6 +1581,10 @@ export interface CoachSnapshot {
    *  now, from which week, and the current plan week — so it can propose
    *  a reshape in the athlete's own weekdays. */
   weekShape?: CoachWeekShapeContext
+  /** 'imported' when the athlete follows their own uploaded plan
+   *  (initiative 004): the coach respects its structure and suggests edits
+   *  to single days only. Absent for a plan the app generated. */
+  planSource?: 'imported'
 }
 
 export interface CoachWeekShapeContext {

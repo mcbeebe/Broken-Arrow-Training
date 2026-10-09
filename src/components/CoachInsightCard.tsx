@@ -156,7 +156,9 @@ export default function CoachInsightCard({
 
   function handleApprove(a: CoachAction) {
     const overrideId = onApproveProposal?.(a)
-    writeProposalState(athleteId, a, { status: 'applied', overrideId })
+    // No batch id means nothing was applied (e.g. a whole-week change on the
+    // athlete's own uploaded plan): show it as kept, never as "applied".
+    writeProposalState(athleteId, a, overrideId ? { status: 'applied', overrideId } : { status: 'rejected' })
     setStateVersion(v => v + 1)
   }
 

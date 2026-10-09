@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import App from '../../App'
 import { addDays, mondayOnOrBefore, todayDateString } from '../../utils/planDates'
 import { captureBackup, configForRestore, readBackups } from '../../utils/planBackups'
@@ -111,6 +111,33 @@ describe('App boots on an uploaded plan', () => {
     await screen.findByText('This week, in numbers', {}, { timeout: 8000 })
     expect(screen.getAllByText('Week 5').length).toBeGreaterThanOrEqual(1)
     expect(screen.queryByText('Week 6')).toBeNull()
+  }, 20000)
+
+  it('offers no way to reshape or rebuild the plan from the Plan view', async () => {
+    seed(importedPlan, '?view=plan')
+    render(<App />)
+    // The Plan view opens on week 1 (for every plan); its header is where
+    // "Shape my week" sits on a generated plan.
+    expect((await screen.findAllByText('Block week 1', {}, { timeout: 8000 })).length).toBeGreaterThan(0)
+    expect(screen.queryByTestId('plan-shape-week')).toBeNull()
+    expect(screen.queryByText(/Rebuild the rest of my plan/)).toBeNull()
+    // The app sets no strength loads on an uploaded plan, so none to estimate.
+    expect(screen.queryByText(/Your loads are still estimates/)).toBeNull()
+  }, 20000)
+
+  it('never offers a stored season on Today', async () => {
+    seed(importedPlan, '', addDays(pinned, 34))
+    const cfg = JSON.parse(localStorage.getItem('ba_onboarding_mike')!)
+    cfg.goalMode = 'season'
+    cfg.additionalRaces = [{ name: 'Autumn Half', date: addDays(pinned, 90), priority: 'A', format: 'road' }]
+    localStorage.setItem('ba_onboarding_mike', JSON.stringify(cfg))
+    render(<App />)
+    fireEvent.click(await screen.findByText(/How this fits the week/, {}, { timeout: 8000 }))
+    // The plan's own words for the week, not a generated phase by position.
+    expect(await screen.findByText(/Week 3 of 5 of your plan — Block week 3\./)).toBeTruthy()
+    expect(screen.queryByText(/laying base|the build|taper|sharp end/)).toBeNull()
+    expect(screen.queryByText(/See the whole season/)).toBeNull()
+    expect(screen.queryByText(/Autumn Half|stepping stone/)).toBeNull()
   }, 20000)
 
   it('shows a way out, not a blank app or a generated plan, when the stored plan is broken', async () => {

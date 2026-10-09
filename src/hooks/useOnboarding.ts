@@ -638,7 +638,9 @@ export function useOnboarding(athleteId?: string) {
    *  trained on. A reshape for the same week replaces the previous one. */
   const reshapeWeek = useCallback((shape: WeekShape, fromWeek: number) => {
     setConfig(prev => {
-      if (!prev) return prev
+      // An uploaded plan is followed as written (initiative 004, D1); the
+      // UI never offers this, and a stale path must not write it either.
+      if (!prev || isImportedPlan(prev)) return prev
       const kept = (prev.weekReshapes ?? []).filter(r => r.fromWeek !== fromWeek)
       const next = { ...prev, weekReshapes: [...kept, { fromWeek, shape, at: Date.now() }] }
       const k = scopedKey(athleteId)
@@ -668,7 +670,8 @@ export function useOnboarding(athleteId?: string) {
    *  and stays in Settings → Restore a previous plan). Weeks before
    *  `fromWeek` keep their layout; everything else follows the shape. */
   const rebuildWithShape = useCallback((shape: WeekShape, fromWeek: number) => {
-    if (!config) return
+    // Never on an uploaded plan: save() would clear the athlete's day edits.
+    if (!config || isImportedPlan(config)) return
     setPlanBackups(captureBackup(athleteId, 'before redo'))
     const kept = (config.weekReshapes ?? []).filter(r => r.fromWeek < fromWeek)
     save({ ...config, weekReshapes: [...kept, { fromWeek, shape, at: Date.now() }] })

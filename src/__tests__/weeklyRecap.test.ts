@@ -134,6 +134,14 @@ describe('what the recap says', () => {
     expect(one.suggestion).toBeUndefined()
   })
 
+  it('never offers to rebuild the athlete\'s own uploaded plan (initiative 004)', () => {
+    const short = compliance({ actualMiles: 12, completed: 2, missed: 3 })
+    const own = buildWeeklyRecap({
+      ...base, compliance: short, history: [compliance({ weekNum: 5, actualMiles: 10 })], ownPlan: true,
+    })
+    expect(own.suggestion).toBeUndefined()
+  })
+
   it('reads zone discipline off measured sessions only', () => {
     const measured = buildWeeklyRecap({ ...base, compliance: compliance({ hrCompliance: 85 }) })
     expect(measured.paragraphs.join(' ')).toMatch(/85% time in the prescribed zones/)

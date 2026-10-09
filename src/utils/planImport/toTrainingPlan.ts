@@ -94,7 +94,9 @@ function amounts(s: ImportedSession): string {
  *  the detail with its own amounts. */
 function plannedDayFor(label: string, sessions: ImportedSession[], zones: HRZone[]): PlannedDay {
   if (sessions.length === 0) {
-    return { day: label, type: 'rest', workout: 'Rest', detail: '—', zone: '—', route: '', time: '—' }
+    // Marked like every uploaded day, so a week of rest still reads as the
+    // athlete's own plan wherever a single week is all there is to go on.
+    return { day: label, type: 'rest', workout: 'Rest', detail: '—', zone: '—', route: '', time: '—', verbatimDetail: true }
   }
   const [lead, ...extras] = [...sessions].sort(byLoad)
 

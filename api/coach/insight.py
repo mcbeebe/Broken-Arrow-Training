@@ -220,7 +220,7 @@ SURFACE_INSTRUCTIONS = {
 # context is that card's digest plus what shapes voice and framing — not
 # today's readiness, plan, activities or PR banner, which would pull the
 # take off the week and go stale inside its once-a-day cache.
-_WEEK_TAKE_KEYS = ("today", "currentWeekNum", "last7Digest", "generalGoal", "generalGoalLabel")
+_WEEK_TAKE_KEYS = ("today", "currentWeekNum", "last7Digest", "generalGoal", "generalGoalLabel", "planSource")
 
 
 def _week_take_snapshot(snapshot: dict) -> dict:

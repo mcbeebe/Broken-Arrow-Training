@@ -706,15 +706,18 @@ export default function Settings({
         </div>
       </SettingsSection>
 
-      {/* ── Training Methodology section ── */}
-      <SettingsSection title="Training Methodology">
-        <Methodology
-          zones={hrZones}
-          plan={activePlan}
-          method={trainingMethod}
-          onboardingConfig={onboardingConfig}
-        />
-      </SettingsSection>
+      {/* ── Training Methodology section ── an uploaded plan has no method
+          or phases of ours to explain (initiative 004). */}
+      {!activePlan?.importSource && (
+        <SettingsSection title="Training Methodology">
+          <Methodology
+            zones={hrZones}
+            plan={activePlan}
+            method={trainingMethod}
+            onboardingConfig={onboardingConfig}
+          />
+        </SettingsSection>
+      )}
 
       {/* ── MIM Calibration ── */}
       {mimOverrides && mimOverrides.length > 0 && (

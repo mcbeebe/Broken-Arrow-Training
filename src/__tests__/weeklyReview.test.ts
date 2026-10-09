@@ -125,6 +125,40 @@ describe('buildWeeklyReview', () => {
     expect(rescale.why).toMatch(/75% volume/)
   })
 
+  describe('on the athlete\'s own uploaded plan (initiative 004)', () => {
+    const slowReviewed = () => [
+      day({ detail: 'Easy — 10:30 /mi.' }, { movingTime: 3100, avgHR: 152, startDate: '2026-09-08T07:00:00' }),
+      day({ day: 'Wed 9/9', detail: 'Easy — 10:30 /mi.' }, { movingTime: 3150, avgHR: 154, startDate: '2026-09-09T07:00:00' }),
+    ]
+
+    it('scores the week but proposes no change, even where a generated plan would get one', () => {
+      const next = [day({ day: 'Tue 9/15', detail: 'Easy — 10:30 /mi.' }, null)]
+      const generated = buildWeeklyReview(plan(slowReviewed(), next), 3, '2026-09-14')!
+      expect(generated.adjustments.some(a => a.id === 'ease-paces')).toBe(true)
+      const own = buildWeeklyReview(plan(slowReviewed(), next), 3, '2026-09-14', { ownPlan: true })!
+      expect(own.execution.weekNum).toBe(3)
+      expect(own.adjustments).toEqual([])
+      expect(own.headline).toMatch(/your plan carries on as written/)
+    })
+
+    it('after a gap, says how to come back to the plan instead of rebuilding it', () => {
+      const reviewed = [day({}, { startDate: '2026-08-28T07:00:00' })]
+      const own = buildWeeklyReview(plan(reviewed, nextDays()), 3, '2026-09-14', { ownPlan: true })!
+      expect(own.gap.tier).toBe('ease75')
+      expect(own.adjustments).toEqual([])
+      expect(own.headline).toMatch(/ease back into your plan/)
+      expect(own.gap.guidance).toMatch(/Your plan stays as written/)
+      expect(`${own.headline} ${own.gap.guidance}`).not.toMatch(/rebuil/i)
+    })
+
+    it('after a long time away, still never says to rebuild it', () => {
+      const reviewed = [day({}, { startDate: '2026-05-01T07:00:00' })]
+      const own = buildWeeklyReview(plan(reviewed, nextDays()), 3, '2026-09-14', { ownPlan: true })!
+      expect(own.gap.tier).toBe('restart')
+      expect(`${own.headline} ${own.gap.guidance}`).not.toMatch(/rebuil/i)
+    })
+  })
+
   it('never touches race week or logged days', () => {
     const reviewed = [day({}, { startDate: '2026-08-28T07:00:00' })]
     const r = buildWeeklyReview(plan(reviewed, nextDays()), 3, '2026-09-14')!
