@@ -554,9 +554,19 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
   // anything older at load (June's edits must never replay onto a
   // September rebuild, even when a sync pull resurrects them).
   const daySwap = useDaySwap(athleteId, onboarding.config?.completedAt)
+  // An uploaded plan (initiative 004) is followed as written: no season,
+  // reshape, recalibration or rebuild. Declared here, above the season.
+  const importedMode = isImportedPlan(onboarding.config)
   // Season (G1b): the race calendar + derived block timeline. The plan's
   // race is always race #1 (degenerate one-race season = no season UI).
-  const seasonState = useSeason(activePlan.race, athleteId, onboarding.config?.additionalRaces, onboarding.config?.completedAt)
+  // An upload is a new plan generation, which would re-seed the stored
+  // calendar and drop every race added in the Season panel; with the season
+  // off for an uploaded plan, it is left exactly as it was.
+  const seasonState = useSeason(
+    activePlan.race, athleteId,
+    importedMode ? undefined : onboarding.config?.additionalRaces,
+    importedMode ? undefined : onboarding.config?.completedAt,
+  )
   const planEdits = usePlanEdits(athleteId, onboarding.config?.completedAt)
   // Phase 5 (PRD-110): the missed-workout log, replayed over the derived
   // weeks like swaps and edits. Same generation pruning — a replan can
@@ -660,7 +670,6 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
   // race's plan for the sake of a sentence.
   // An uploaded plan (initiative 004) is followed as written, so a season
   // stored from an earlier plan never splices its races into it.
-  const importedMode = isImportedPlan(onboarding.config)
   const spliced = useMemo(() => {
     if (importedMode) return { weeks: activePlan.weeks, layerReports: [] }
     try {
@@ -2478,7 +2487,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           race={activePlan.race}
           compliance={compliance.weeks}
           dailyTrimp={readiness.dailyTrimp}
-          injuryStatus={onboarding.config?.injuryStatus}
+          injuryStatus={importedMode ? undefined : onboarding.config?.injuryStatus}
           strengthLevel={onboarding.config?.strengthExperience}
           racePacing={racePacingPlan}
           season={importedMode ? null : seasonState.season}
@@ -2761,6 +2770,11 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           onSetPlanStart={onboarding.setPlanStart}
           planBackups={onboarding.planBackups}
           onRestorePlan={(savedAt) => { onboarding.restorePlan(savedAt); setView('today') }}
+          onUseImportedPlan={cfg => {
+            const ok = onboarding.importPlan(cfg)
+            if (ok) setView('today')
+            return ok
+          }}
           coachEnabled={coachEnabled}
           aboutMeText={coachMemory.aboutMe}
           pendingInferences={coachMemory.pendingInferences}

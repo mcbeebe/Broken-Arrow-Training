@@ -10,8 +10,10 @@ owner only (D8).
 
 **Ordering rule:** the frontend (GitHub Pages, gated by tests) and the API
 (Vercel, deploys on push with no gate) ship independently. PR 3 (the endpoint)
-must be live on Vercel before PR 5 (the first caller) is published. The client
-treats a 404 from the endpoint as "not available yet" and says so.
+must be live on Vercel before PR 5 (the first caller) is published. Merging the
+PRs in order guarantees it. The client can't tell "not deployed" apart: the
+browser's CORS preflight to a missing function fails, which reads as a network
+error ("We couldn't reach the server").
 
 ## Decisions
 
@@ -86,9 +88,9 @@ time (D3).
 ## PR 4 — From the model's answer to a stored plan, and the guardrails
 
 1. `src/utils/planImport/normalize.ts`: the endpoint's JSON → `ImportedPlanV1`.
-   "Any day" sessions are placed (seven in order become Mon–Sun; otherwise the
-   long run goes to Sunday and the rest fill the usual training days); km →
-   miles. Sessions stay separate: combining a day's sessions happens in one
+   "Any day" sessions are placed, always in the plan's order (seven become
+   Mon–Sun; otherwise they spread across the usual training days, and a long
+   run that closes the week takes Sunday); km → miles. Sessions stay separate: combining a day's sessions happens in one
    place only, `toTrainingPlan.ts` (PR 2).
 2. Guardrails (D1), all required before PR 5 lets anyone write a plan:
    - "Shape my week" (in place and Rebuild) and the coach's reshape proposals
@@ -149,11 +151,34 @@ time (D3).
 `PlanImportSheet` (upload sheet, mockup screens 6–7), `ImportReview` (screen
 4, shared with onboarding), `usePlanImport`, and the "Upload my own plan" card
 in Settings → Training Plan (screen 5). PDF, photo, CSV and pasted text.
-Saving goes through `useOnboarding.save()`, so the current plan is backed up
-first and the old edit log is cleared.
+Saving goes through `useOnboarding.importPlan()`. It backs up the current
+plan, with its latest day edits, as "before upload", then `save()` clears the
+old edit log. (`save()` itself backs up only *after* writing.)
 
 **Tests:** the sheet (request body, review, apply, errors, cancel, backdrop
 close, `85dvh`), the hook, `buildImportedConfig`, and the card's owner gate.
+
+**As built (2026-10-09):**
+- **The flow:**
+  - **Modules:** `prepareUpload.ts` (pick → body), `client.ts` (the request), `importErrors.ts` (the athlete's words for every outcome), the `usePlanImport` hook, and `ImportReview` / `PlanImportSheet` / `PlanImportCard`.
+  - **Checked locally first.** The browser checks everything the server would refuse, from the file's own bytes, so the athlete hears at once and no megabytes are sent to be told no. (The server refuses those before counting an upload, so this saves time, not uploads.)
+  - **The file name is not part of the request** (D10). It is kept as the plan's source name, which syncs with the plan like the rest of it.
+  - **Word and Excel** say "coming soon, save it as a PDF" until PR 6.
+- **`buildImportedConfig`** decides, field by field, what an upload keeps and clears. A typed table makes a new config field fail the type check until it gets a rule.
+  - **Cleared:** the old race's distance, vert, description and goal (or an uploaded 10K reads "Marathon"); the method; the reshapes.
+  - **Kept:** the athlete, their season answers and the screens they've seen.
+- **The season calendar is kept, through an upload and back.**
+  - **The upload:** App.tsx doesn't re-seed the calendar while the plan is uploaded. An upload is a new plan generation, and re-seeding would have dropped every race added in the Season panel.
+  - **The undo:** backups now hold the calendar. Restore writes it back marked as seeded for the restored plan, so restoring doesn't re-seed it either. (Before this, any Restore re-seeded the calendar and dropped the panel's races.)
+- **The injury ramp note** ("harder from Week 3") is off for an uploaded plan.
+- **Backups:**
+  - A same-plan capture now takes the newest day edits, but never trades the edits it holds for none.
+  - "before upload" is a new label.
+  - **Every backup has its own id** (`savedAt`). A "before …" capture and `save()`'s own capture can land in the same millisecond, and Restore, which finds a backup by its id, could restore the wrong one. `rebuildWithShape` had the same collision.
+  - **Backups are written with `setItemWithRoom`,** which drops regenerable caches to make room. `importPlan` refuses the upload unless the outgoing plan is in the backups.
+- **The client waits 600 s.** The model gives up at 240 s and the function at 300 s, but their clocks start once the upload has arrived, and a read the browser abandons still counts.
+- **Owner-only in two places:** the server (`PLAN_IMPORT_OPEN` / `PLAN_IMPORT_ATHLETES`) and the Settings card (`athleteId === 'mike'`). Opening it to anyone else, by either setting, also needs the card's check changed.
+- **Existing bug found, outside this initiative:** Restore brings back a plan but not its day edits. `configForRestore` re-stamps `completedAt`, and the edit hooks drop every edit older than that. A separate fix is proposed to the owner.
 
 ## PR 6 — Word and Excel
 
