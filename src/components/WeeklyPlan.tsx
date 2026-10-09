@@ -559,7 +559,9 @@ export default function WeeklyPlan({
           Shows when this week hosts a benchmark session (log it) or when
           an existing benchmark has gone stale (re-test it). The loads in
           every strength card downstream are only as good as this. */}
-      {strength && (
+      {/* An uploaded plan's strength sessions are its own text; the app
+          prescribes no loads for it to estimate (initiative 004). */}
+      {strength && !plan?.importSource && (
         week?.days.some(d => /STRENGTH BENCHMARK/i.test(d.workout)) ||
         // Not every plan can spare a strength slot for the test (a week
         // with one strength day keeps it), so the prompt also stands on
@@ -807,7 +809,8 @@ export default function WeeklyPlan({
           {season && <SeasonRacesCard season={season} primaryGoalText={primaryGoalText} />}
         </div>
       )}
-      {viewMode === 'season' && plan && (
+      {/* An uploaded plan has no generated phases to explain (initiative 004). */}
+      {viewMode === 'season' && plan && !plan.importSource && (
         <SeasonOverview
           plan={plan}
           season={season}
@@ -920,7 +923,7 @@ export default function WeeklyPlan({
             return findTrimpRecord(dailyTrimp, d, modalDay.day.actual?.name)
           })()}
           onReweightPlan={onReweightPlan}
-          currentWeakStation={onboardingConfig?.weakStation}
+          currentWeakStation={plan?.importSource ? undefined : onboardingConfig?.weakStation}
           onClaimSecondary={manualLog ? (sec) => {
             // Claim an "other activity" as today's workout: log it so the day
             // resolves and its biometrics attach. The stored source stays as

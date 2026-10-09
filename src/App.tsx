@@ -46,6 +46,7 @@ import { useReadiness } from './hooks/useReadiness'
 import { useOnboarding, isImportedPlan } from './hooks/useOnboarding'
 import { readImportedPlan } from './utils/planImport/types'
 import { importedToTrainingPlan } from './utils/planImport/toTrainingPlan'
+import { refusedOnUploadedPlan, UPLOADED_PLAN_HANDOFF } from './utils/planImport/guardrails'
 import { useAthleteProfile, readAthleteProfileExtras } from './hooks/useAthleteProfile'
 import { getReadinessTuning } from './utils/engineConfig'
 import { useTutorial } from './hooks/useTutorial'
@@ -789,11 +790,13 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
   // Assessed from completed sessions (GAP-corrected via the cached
   // Minetti multiplier — the trail-true input); dismissal is remembered
   // per evidence-set so declining doesn't nag, and new evidence re-offers.
+  // An uploaded plan is followed as written (initiative 004, D1): it is
+  // never recalibrated or re-anchored, so neither assessment sees its weeks.
   const recalAssessment = useMemo(
-    () => assessRecalibration(weeks, todayDateString(), {
+    () => assessRecalibration(importedMode ? [] : weeks, todayDateString(), {
       gapFactor: (isoDate, name) => getCachedRunGAP(isoDate, name, athleteId),
     }),
-    [weeks, athleteId],
+    [weeks, athleteId, importedMode],
   )
   const recalDismissKey = `ba_recal_dismissed_v1_${athleteId}`
   const recalEvidenceKey = recalAssessment.evidence.join('|')
@@ -813,11 +816,11 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
         : Math.round(maxHROverride.maxHR * ESTIMATED_LTHR_PCT_OF_MAX)
   const benchAssessment = useMemo(
     () => assessBenchmarkResult(
-      weeks, todayDateString(), maxHROverride.maxHR, currentLthr,
+      importedMode ? [] : weeks, todayDateString(), maxHROverride.maxHR, currentLthr,
       strengthCapacity.capacity?.erg500Sec ?? null,
       strengthCapacity.capacity?.ergManual ?? false,
     ),
-    [weeks, maxHROverride.maxHR, currentLthr, strengthCapacity.capacity],
+    [weeks, maxHROverride.maxHR, currentLthr, strengthCapacity.capacity, importedMode],
   )
   const benchDismissKey = `ba_benchmark_dismissed_v1_${athleteId}`
   const benchEvidenceKey = benchAssessment.evidence.join('|')
@@ -1650,6 +1653,8 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
   ])
 
   const morningAutopilot = useMorningOutlook(athleteId, morningOutlook, {
+    // An uploaded plan changes only with the athlete's approval (D1).
+    enabled: !importedMode,
     applyBatch: planEdits.applyBatch,
     undoBatch: planEdits.undoBatch,
     appendLog: adaptationLog.append,
@@ -1763,7 +1768,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     if (realignmentContext) snap.realignmentContext = realignmentContext
     // Season narration (G1b): only multi-race athletes get a SEASON section
     // — where they are in the chain and why today serves the NEXT race.
-    const seasonContext = buildSeasonContext(seasonState.planResult, todayDateString())
+    const seasonContext = importedMode ? null : buildSeasonContext(seasonState.planResult, todayDateString())
     if (seasonContext) snap.seasonContext = seasonContext
     // Race pacing (G6): the segment-band plan reaches the coach in the
     // final 2 weeks — when "what pace on the climbs?" gets asked.
@@ -1773,7 +1778,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     // Intensity distribution (G7): the athlete's measured weekly easy/hard
     // split vs their own method's phase target, plus long-run decoupling
     // when lap data exists. Quiet without a method or enough HR data.
-    const g7Method = onboarding.config?.selectedMethodId
+    const g7Method = onboarding.config?.selectedMethodId && !importedMode
       ? getMethodById(onboarding.config.selectedMethodId) : undefined
     const g7Week = compliance.weeks.find(w => w.weekNum === snap.currentWeekNum)
     if (g7Method && g7Week) {
@@ -1811,9 +1816,18 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     if (benchmarkContext) snap.benchmarks = benchmarkContext
     // The week's layout in force, so a reshape the coach proposes starts
     // from what the athlete has and speaks their weekdays.
-    if (onboarding.config) {
+    if (onboarding.config && !importedMode) {
       const shapeContext = buildCoachWeekShapeContext(onboarding.config, currentWeekNum, weeks.length ? weeks[weeks.length - 1].num : currentWeekNum)
       if (shapeContext) snap.weekShape = shapeContext
+    }
+    // The athlete's own uploaded plan (initiative 004): the coach respects
+    // its structure and suggests edits to single days only.
+    if (importedMode) {
+      snap.planSource = 'imported'
+      // The generator's method and its Base/Build/Peak phases describe a
+      // plan the athlete isn't on.
+      delete snap.methodology
+      snap.planBlocks = null
     }
     return snap
   }, [
@@ -2004,8 +2018,10 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
       current, currentWeekNum, lastWeekNum, plan,
       weekStarted: !!thisWeek?.startIso && thisWeek.startIso < todayDateString(),
       methodRunDays: plan === 'road' || plan === 'trail' ? methodRunDayBounds(methodForConfig(onboarding.config)) : undefined,
+      // An uploaded plan's weeks stay as written: the card says so, no Apply.
+      ...(importedMode ? { uploadedPlan: true as const } : {}),
     }
-  }, [onboarding.config, currentWeekNum, lastWeekNum, weeks])
+  }, [onboarding.config, currentWeekNum, lastWeekNum, weeks, importedMode])
 
   // The undo token persisted on the turn is one string. Plan edits store
   // their batch id; benchmarks store "bm:<id>,<id>"; a reshape stores
@@ -2014,6 +2030,11 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
   const BENCHMARK_TOKEN = 'bm:'
   const RESHAPE_TOKEN = 'rs:'
   const handleApproveAction = useCallback((turnId: string, action: CoachAction) => {
+    if (importedMode && refusedOnUploadedPlan(action)) {
+      coachMemory.updateTurn(turnId, { actionStatus: 'rejected' })
+      coachMemory.appendTurn('system-handoff', UPLOADED_PLAN_HANDOFF)
+      return
+    }
     if (action.type === 'propose_reshape' && action.proposedReshape && chatShapeContext) {
       const r = action.proposedReshape
       const fromWeek = r.fromWeek ?? defaultReshapeFromWeek(chatShapeContext)
@@ -2049,7 +2070,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
         ? `[PLAN EDIT APPLIED] Athlete accepted the proposed change → ${describeProposal(action)}. Batch id ${overrideId}.`
         : `[BENCHMARK RECORDED] Athlete confirmed → ${describeProposal(action)}. It is now in their benchmark log and the plan reads it; do not propose it again.`,
     )
-  }, [planEdits, coachMemory, describeProposal, benchmarks, chatShapeContext, onboarding])
+  }, [planEdits, coachMemory, describeProposal, benchmarks, chatShapeContext, onboarding, importedMode])
 
   const handleRejectAction = useCallback((turnId: string) => {
     const turn = coachMemory.conversation.find(t => t.id === turnId)
@@ -2095,13 +2116,14 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
   // tracks its own pending/applied/rejected status in localStorage.
   const handleApproveInsightProposal = useCallback((action: CoachAction): string | undefined => {
     if (action.type !== 'propose_edit' || !action.proposedEdit?.ops?.length) return undefined
+    if (importedMode && refusedOnUploadedPlan(action)) return undefined
     const overrideId = planEdits.applyBatch(action.proposedEdit.ops)
     coachMemory.appendTurn(
       'system-handoff',
       `[PLAN EDIT APPLIED] Athlete accepted the proposed change from a daily insight → ${describeProposal(action)}. Batch id ${overrideId}.`,
     )
     return overrideId
-  }, [planEdits, coachMemory, describeProposal])
+  }, [planEdits, coachMemory, describeProposal, importedMode])
 
   const handleUndoInsightProposal = useCallback((overrideId: string) => {
     planEdits.removeOverride(overrideId)
@@ -2242,7 +2264,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
             if (!weeklyRecapState.markShown()) return
             if (coachEnabled) void coachMemory.appendTurn('coach', markdown, 'weekly_recap')
           }}
-          onRebuildPlan={onboarding.requestRedo}
+          onRebuildPlan={importedMode ? undefined : onboarding.requestRedo}
         />
       )}
 
@@ -2267,7 +2289,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
             mondayReviewState.dismiss()
           }}
           onDismiss={mondayReviewState.dismiss}
-          onRebuild={() => { mondayReviewState.dismiss(); onboarding.requestRedo() }}
+          onRebuild={importedMode ? undefined : () => { mondayReviewState.dismiss(); onboarding.requestRedo() }}
         />
       )}
 
@@ -2410,8 +2432,8 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           planNotesSeen={planNotesRead}
           weeks={weeks}
           race={activePlan.race}
-          season={seasonState.season}
-          onOpenSeason={() => { setPlanViewRequest({ mode: 'season' }); setView('plan') }}
+          season={importedMode ? null : seasonState.season}
+          onOpenSeason={importedMode ? undefined : () => { setPlanViewRequest({ mode: 'season' }); setView('plan') }}
           manualLog={manualLog}
           onAskCoach={handleAskCoach}
           onShareNote={shareWorkoutNote}
@@ -2424,7 +2446,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           raceReadiness={raceReadinessForPlan}
           primaryGoalText={onboarding.config?.athleteGoal}
           weeks={weeks}
-          primaryRace={(() => {
+          primaryRace={importedMode ? null : (() => {
             const p = seasonState.season.races.find(r => r.isPrimary)
             const iso = p ? raceDateToIso(p.raceInfo.date) : null
             return p && iso ? { name: p.raceInfo.name, dateIso: iso } : null
@@ -2436,8 +2458,8 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           travel={{ windows: travelMode.windows, onActivate: activateTravel, onDeactivate: deactivateTravel }}
           onToggleLock={lockedDays.toggleLock}
           replan={replan}
-          onRebuildPlan={onboarding.requestRedo}
-          onShapeWeek={() => setPlanShapeOpen({ initial: null })}
+          onRebuildPlan={importedMode ? undefined : onboarding.requestRedo}
+          onShapeWeek={importedMode ? undefined : () => setPlanShapeOpen({ initial: null })}
           weekReadiness={readiness.weekScores}
           athleteId={athleteId}
           coachEnabled={coachEnabled}
@@ -2451,12 +2473,12 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           injuryStatus={onboarding.config?.injuryStatus}
           strengthLevel={onboarding.config?.strengthExperience}
           racePacing={racePacingPlan}
-          season={seasonState.season}
+          season={importedMode ? null : seasonState.season}
           plan={activePlan}
           method={onboarding.config?.selectedMethodId ? getMethodById(onboarding.config.selectedMethodId) : undefined}
           onboardingConfig={onboarding.config ?? undefined}
           requestView={planViewRequest}
-          onReweightPlan={onboarding.setWeakStation}
+          onReweightPlan={importedMode ? undefined : onboarding.setWeakStation}
           strength={{
             capacity: strengthCapacity.capacity,
             save: cap => {
@@ -2490,7 +2512,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           onClose={() => setBenchmarkSheet(null)}
         />
       )}
-      {planShapeOpen && onboarding.config && (
+      {planShapeOpen && onboarding.config && !importedMode && (
         <PlanShapeSheet
           config={onboarding.config}
           weeks={weeks}
@@ -2626,6 +2648,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
               logCount={adaptationLog.entries.length}
               onOpenLog={() => setShowAdaptationLog(true)}
               levers={levelUpLevers}
+              uploadedPlan={importedMode}
               onAskCoach={(seed) => { setCoachSubTab('chat'); handleAskCoach(seed) }}
               onOpenEngine={() => { setDashSubTabRequest('engine'); setView('progress') }}
             />
@@ -2650,7 +2673,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           onUndoAction={handleUndoAction}
           previewBenchmark={previewChatBenchmark}
           shapeContext={chatShapeContext}
-          onAdjustReshape={r => setPlanShapeOpen({ initial: r })}
+          onAdjustReshape={importedMode ? undefined : r => setPlanShapeOpen({ initial: r })}
           onApproveInsightProposal={handleApproveInsightProposal}
           onUndoInsightProposal={handleUndoInsightProposal}
           onRegenerateInsight={dailyInsight.regenerate}
@@ -2680,7 +2703,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
       {/* Methodology moved into Settings as a collapsible subsection */}
       {view === 'info' && (
         <div className="px-3 pt-3">
-          <SeasonPanel seasonState={seasonState} anchorRaceType={onboarding.config?.raceType} />
+          {!importedMode && <SeasonPanel seasonState={seasonState} anchorRaceType={onboarding.config?.raceType} />}
           <RaceInfo race={activePlan.race} todayIso={todayDateString()} />
         </div>
       )}
@@ -2776,7 +2799,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           onboardingConfig={onboarding.config ?? undefined}
           performance={readiness.performance}
           mergedWeeks={weeks}
-          season={seasonState.season}
+          season={importedMode ? null : seasonState.season}
         />
       )}
 

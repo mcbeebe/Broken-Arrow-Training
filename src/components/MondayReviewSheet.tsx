@@ -125,7 +125,7 @@ export default function MondayReviewSheet({ review, onApply, onDismiss, onRebuil
         </div>
 
         <div className="px-4 pb-7 pt-3 bg-slate-50 dark:bg-slate-900 space-y-2.5">
-          {isRestart ? (
+          {isRestart && onRebuild ? (
             <button
               onClick={onRebuild}
               className="w-full h-[52px] rounded-2xl bg-teal-700 hover:bg-teal-800 text-white font-bold text-[15px]"
@@ -144,10 +144,10 @@ export default function MondayReviewSheet({ review, onApply, onDismiss, onRebuil
               onClick={onDismiss}
               className="w-full h-[52px] rounded-2xl bg-teal-700 hover:bg-teal-800 text-white font-bold text-[15px]"
             >
-              Sounds good
+              {isRestart ? 'Resume as planned' : 'Sounds good'}
             </button>
           )}
-          {(chosen.length > 0 || isRestart) && (
+          {(chosen.length > 0 || (isRestart && onRebuild)) && (
             <button onClick={onDismiss} className="w-full text-center text-[13px] font-medium text-slate-500">
               {isGap || isRestart ? 'Resume as planned' : 'Keep the week as planned'}
             </button>

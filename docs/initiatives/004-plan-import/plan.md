@@ -103,6 +103,31 @@ time (D3).
 3. The coach snapshot carries `planSource: imported`, and `_core.py` tells the
    coach: the athlete's own plan; respect its structure; suggest day edits only.
 
+**As built (2026-10-09):**
+- **Refusal rule.** One helper, `src/utils/planImport/guardrails.ts`, decides
+  what a coach proposal may change. Refused: week layouts, and the whole-week
+  ops `addWeek`, `deleteWeek` and `updateWeek`. Day edits are approved by the
+  athlete.
+- **Prompt parity.** The prompt's OWN PLAN section names the same refused ops.
+  A keyless test checks the two lists match.
+- **Also gated** (found by tracing every plan-changing surface):
+  - the "Rebuild the rest of my plan" and weekly-recap rebuild buttons, which
+    call `requestRedo` and would delete the uploaded plan;
+  - the Monday review's restart-tier rebuild;
+  - pace recalibration and benchmark re-anchor, which rewrite the plan's own
+    detail text;
+  - the strength-load banner;
+  - HYROX simulation detection on uploaded days;
+  - the Today arc, which now uses the plan's own week focus instead of
+    base/build/taper by position;
+  - the welcome letter's season text.
+- **Owner to confirm:** the morning autopilot is off for an uploaded plan.
+  It applies same-day changes without asking, which D1's "the athlete
+  approves" rules out. The coach can still propose a day edit. Re-enabling it
+  is one line in `App.tsx`.
+- **Deferred to PR 5:** Settings copy (the Hyrox-division note, and Redo
+  noting it replaces the uploaded plan).
+
 ## PR 5 — Settings: upload, check, use (owner-only)
 
 `PlanImportSheet` (upload sheet, mockup screens 6–7), `ImportReview` (screen

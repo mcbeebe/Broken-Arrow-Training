@@ -1779,10 +1779,37 @@ def build_context_block(
             "the plain words they'd use."
         )
 
+    # The athlete's own uploaded plan (initiative 004, D1). A hard rule near
+    # the top, like the general-fitness block: the static prompt describes the
+    # app's generated plans, their methods and phases, and the reshape tool,
+    # and none of that applies to a plan the athlete brought.
+    own_plan = snapshot.get("planSource") == "imported"
+    if own_plan:
+        out.append("")
+        out.append(
+            "OWN PLAN — the athlete follows a plan they brought (uploaded from "
+            "their own file), not one this app generated. This overrides anything "
+            "above about the app's plan, its methods or its phases. HARD RULES:\n"
+            "- Follow the plan as written. NEVER propose a week layout "
+            "(`reshape`, in place or rebuild), and never add, remove or rewrite "
+            "whole weeks (addWeek / deleteWeek / updateWeek): the app refuses "
+            "them.\n"
+            "- You MAY propose an edit to a single day (updateDay, addDay, "
+            "deleteDay) when readiness, an injury or their schedule calls for "
+            "it. The athlete approves each one; say why in a sentence.\n"
+            "- Don't name a training method, phase model or periodization for "
+            "this plan, and don't call weeks Base, Build, Peak or Taper unless "
+            "the plan's own week focus does. Use the plan's own words.\n"
+            "- Its heart rates and paces are the plan's own. Don't recalibrate "
+            "them; if one looks wrong for this athlete, say so and let them "
+            "decide."
+        )
+
     # Training philosophy the athlete follows — grounds every plan edit and
-    # recommendation. Present when a method is selected/assigned.
+    # recommendation. Present when a method is selected/assigned. Never for
+    # the athlete's own plan, which no method of ours produced.
     methodology = snapshot.get("methodology") or None
-    if methodology and methodology.get("methodName"):
+    if methodology and methodology.get("methodName") and not own_plan:
         mname = methodology.get("methodName")
         mcoach = methodology.get("methodCoach")
         out.append("")

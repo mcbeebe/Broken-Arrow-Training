@@ -27,6 +27,9 @@ interface Props {
   levers: LevelUpLever[]
   onAskCoach?: (seed: string) => void
   onOpenEngine: () => void
+  /** The athlete follows their own uploaded plan (initiative 004): no Level
+   *  Up, and the autopilot never changes a day on its own. */
+  uploadedPlan?: boolean
 }
 
 function Row({ title, children }: { title: string; children: ReactNode }) {
@@ -39,7 +42,7 @@ function Row({ title, children }: { title: string; children: ReactNode }) {
 }
 
 export default function CoachToolsPanel({
-  autopilot, mondayReviewLive, logCount, onOpenLog, levers, onAskCoach, onOpenEngine,
+  autopilot, mondayReviewLive, logCount, onOpenLog, levers, onAskCoach, onOpenEngine, uploadedPlan = false,
 }: Props) {
   const { baselineNights, baselineTarget, healthConnected, lastAction } = autopilot
   const armed = healthConnected && baselineNights >= baselineTarget
@@ -48,7 +51,7 @@ export default function CoachToolsPanel({
       {/* Ordered per the athlete: the accelerator first, the model
           it stands on second, the log last. */}
 
-      <LevelUpCard levers={levers} onAskCoach={onAskCoach} />
+      {!uploadedPlan && <LevelUpCard levers={levers} onAskCoach={onAskCoach} />}
 
       <Row title="Your engine">
         <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
@@ -64,7 +67,11 @@ export default function CoachToolsPanel({
       </Row>
 
       <Row title="Daily autopilot">
-        {!healthConnected ? (
+        {uploadedPlan ? (
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed" data-testid="autopilot-own-plan">
+            Off for your own plan. Your days change only when you approve an edit.
+          </p>
+        ) : !healthConnected ? (
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
             Connect Garmin or Apple Health and the autopilot watches your overnight data every morning — swapping or trimming a hard day only when a multi-day trend says so.
           </p>

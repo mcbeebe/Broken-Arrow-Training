@@ -1,5 +1,6 @@
 import type { CoachAction, PlannedDay, ProposedBenchmark, ProposedReshape } from '../types'
 import { summarizeOp } from '../utils/chatProposal'
+import { UPLOADED_PLAN_REFUSAL } from '../utils/planImport/guardrails'
 import { BENCHMARK_KINDS } from '../engines/benchmark/log'
 import { formatBenchmarkValue, type BenchmarkPreview } from '../engines/benchmark/preview'
 import {
@@ -17,6 +18,9 @@ export interface ShapeContext {
   weekStarted: boolean
   plan: 'road' | 'trail' | 'hyrox' | 'general'
   methodRunDays?: { min: number; max: number; name?: string }
+  /** The athlete follows their own uploaded plan (initiative 004): a week
+   *  layout can't apply, and the card says so instead of offering Apply. */
+  uploadedPlan?: true
 }
 
 
@@ -62,6 +66,20 @@ const ROLE_TILE: Record<string, string> = {
 function ReshapeProposalCard({ action, status, overrideId, onApprove, onReject, onUndo, onAsk, shapeContext, onAdjustReshape }: Props) {
   const r = action.proposedReshape
   if (!r) return null
+  // Only a pending proposal is locked; a past turn keeps its own history.
+  if (shapeContext?.uploadedPlan && status === 'pending') {
+    return (
+      <div className="mt-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 p-3" data-testid="reshape-locked">
+        <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">{UPLOADED_PLAN_REFUSAL}</p>
+        <button
+          onClick={() => onReject?.()}
+          className="mt-2 w-full text-xs font-medium py-2 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300"
+        >
+          OK
+        </button>
+      </div>
+    )
+  }
   const plan = shapeContext?.plan ?? 'road'
   const current = shapeContext?.current ?? null
   const changed = current ? changedWeekdays(current, r.shape) : WEEKDAYS

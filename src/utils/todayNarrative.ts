@@ -206,6 +206,27 @@ export function generateTodayNarrative(input: TodayNarrativeInput): TodayNarrati
     headline: headlineFor(role, isCutback),
     today: todayCopy(role, day, vert),
     week: weekCopy(role, week, shape, isCutback),
-    arc: arcCopy(weekNum, totalWeeks, race, toRace, season, todayIso),
+    arc: week.days.some(d => d.verbatimDetail)
+      ? ownPlanArc(weekNum, totalWeeks, week.focus, race, toRace)
+      : arcCopy(weekNum, totalWeeks, race, toRace, season, todayIso),
   }
+}
+
+/** The arc for an athlete's own uploaded plan (initiative 004): its own
+ *  words for the week, never base, build, peak or taper by position, which
+ *  describe the app's generated plans. No season, which an uploaded plan
+ *  doesn't have. */
+function ownPlanArc(
+  weekNum: number,
+  totalWeeks: number,
+  focus: string | undefined,
+  race: RaceInfo | null | undefined,
+  toRace: number | null,
+): string {
+  const raceName = race?.name?.trim() || 'race day'
+  const countdown = toRace !== null && toRace >= 0
+    ? ` ${toRace === 0 ? `${raceName} is today.` : `${toRace} ${toRace === 1 ? 'day' : 'days'} to ${raceName}.`}`
+    : ''
+  const label = focus?.trim()
+  return `Week ${weekNum} of ${totalWeeks} of your plan${label ? ` — ${label}` : ''}.${countdown}`
 }
