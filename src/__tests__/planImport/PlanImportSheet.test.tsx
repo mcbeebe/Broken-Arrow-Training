@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react'
+import { strToU8, zipSync } from 'fflate'
 import PlanImportSheet from '../../components/PlanImportSheet'
 import type { OnboardingConfig } from '../../hooks/useOnboarding'
 import type { PlanImportDeps } from '../../hooks/usePlanImport'
@@ -91,6 +92,27 @@ describe('a PDF, from pick to plan', () => {
   })
 })
 
+describe('while a file is being prepared', () => {
+  it('the reading screen shows at once, before anything is sent, and Cancel still works', async () => {
+    const fetchImpl = vi.fn()
+    const deps: PlanImportDeps = {
+      fetchImpl: fetchImpl as unknown as typeof fetch, base: 'https://api.example.test', headers: {},
+      // A photo that takes its time to re-encode, as a big Word file does to unzip.
+      resize: () => new Promise(() => {}),
+    }
+    render(<PlanImportSheet base={base} onUse={vi.fn(() => true)} onClose={vi.fn()} todayIso={TODAY} deps={deps} />)
+    choose(new File([new Uint8Array([0xff, 0xd8, 0xff, 0xe0]), new Uint8Array(15_500_000)], 'IMG_0412.jpg', { type: 'image/jpeg' }))
+    fireEvent.click(screen.getByText('Read my plan'))
+    expect(await screen.findByTestId('plan-import-reading')).toBeTruthy()
+    expect(screen.getByText('Reading IMG_0412.jpg…')).toBeTruthy()
+    expect(fetchImpl).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByText('Cancel'))
+    expect(await screen.findByTestId('plan-import-pick')).toBeTruthy()
+    // Sizes in decimal units, as the limits are stated.
+    expect(screen.getByTestId('plan-file-chosen').textContent).toContain('15.5 MB')
+  })
+})
+
 describe('other ways in', () => {
   it('pasted text goes as text', async () => {
     const fetchImpl = vi.fn(async () => ok())
@@ -114,21 +136,32 @@ describe('other ways in', () => {
     expect(sent).toEqual({ kind: 'image', data: 'SlBFRw==', mediaType: 'image/jpeg' })
   })
 
-  it('the picker offers Word and Excel files, so it can say they are coming', () => {
+  it('the picker offers Word and Excel files, and the older formats so it can ask for a re-save', () => {
     setup(vi.fn() as unknown as typeof fetch)
     expect(screen.getByTestId('plan-file-input').getAttribute('accept')).toMatch(/\.docx.*\.xlsx.*\.doc.*\.xls/)
   })
 })
 
 describe('when it doesn\'t become a plan', () => {
-  it('Word says it is coming, and sends nothing', async () => {
+  it('a Word file that won\'t open says so, and sends nothing', async () => {
     const fetchImpl = vi.fn()
     setup(fetchImpl as unknown as typeof fetch)
     choose(new File([new Uint8Array([0x50, 0x4b, 0x03, 0x04])], 'Coach-block-2.docx'))
     fireEvent.click(screen.getByText('Read my plan'))
-    expect((await screen.findByTestId('plan-import-error')).textContent).toContain('Word and Excel are coming soon')
+    expect((await screen.findByTestId('plan-import-error')).textContent).toContain("We couldn't open that file")
     expect(screen.getByText("This didn't count toward today's uploads.")).toBeTruthy()
     expect(fetchImpl).not.toHaveBeenCalled()
+  })
+
+  it('a Word plan is read in the browser and sent as its text', async () => {
+    const fetchImpl = vi.fn(async () => ok())
+    setup(fetchImpl as unknown as typeof fetch)
+    const W = 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"'
+    choose(new File([zipSync({ 'word/document.xml': strToU8(`<w:document ${W}><w:body><w:p><w:r><w:t>Tue easy 4</w:t></w:r></w:p></w:body></w:document>`) })], 'Club-plan.docx'))
+    fireEvent.click(screen.getByText('Read my plan'))
+    await screen.findByText('Check your plan')
+    const sent = JSON.parse((fetchImpl.mock.calls[0] as unknown as [string, RequestInit])[1].body as string)
+    expect(sent).toEqual({ kind: 'docx', text: 'Tue easy 4' })
   })
 
   it('a file that holds no plan says so, and that it used an upload', async () => {

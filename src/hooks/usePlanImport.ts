@@ -49,6 +49,10 @@ export function usePlanImport(deps: PlanImportDeps = {}) {
     controller.current?.abort()
     const id = ++latest.current
     const d = depsRef.current
+    const now = d.now ?? (() => new Date())
+    // Reading starts now: a big Word or Excel file takes a moment to open
+    // in the browser, before anything is sent.
+    setState({ step: 'reading', sourceName: 'file' in input ? input.file.name || 'My plan' : 'Pasted text', startedAt: now().getTime() })
     const prepared = await prepareUpload(input, { resize: d.resize })
     if (id !== latest.current) return
     if (!prepared.ok) {
@@ -58,8 +62,6 @@ export function usePlanImport(deps: PlanImportDeps = {}) {
     const sourceName = prepared.source.name
     const ctrl = new AbortController()
     controller.current = ctrl
-    const now = d.now ?? (() => new Date())
-    setState({ step: 'reading', sourceName, startedAt: now().getTime() })
 
     const res = await requestPlanImport(prepared.body, {
       signal: ctrl.signal, fetchImpl: d.fetchImpl, base: d.base, headers: d.headers,

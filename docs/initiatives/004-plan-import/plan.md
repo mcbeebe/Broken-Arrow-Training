@@ -29,7 +29,7 @@ error ("We couldn't reach the server").
 | D8 | **Owner-only first**, behind the same owner check as Settings' owner-only sections. Opens to everyone after the eval and the owner's own uploads | Owner 2026-10-08 |
 | D9 | **Five uploads per athlete per day**, a KV counter separate from the coach's daily budget; each upload also spends one budget unit | Owner 2026-10-08 |
 | D10 | **The file is never stored or logged.** The endpoint never calls `log_sample_event` and logs only kind, size and token counts | Recommended, adopted |
-| D11 | **Word and Excel are read in the browser** with `fflate` (already in the lockfile, lazy-loaded). No SheetJS (CVEs on the npm registry), no new Python packages | Recommended, adopted |
+| D11 | **Word and Excel are read in the browser** with `fflate` (already in the lockfile via jspdf; now a direct dependency at `^0.8.3`, with the reader lazy-loaded). No SheetJS (CVEs on the npm registry), no new Python packages | Recommended, adopted |
 | D12 | **Miles only in v1.** Distances in km are converted; the original "10 km" stays in the day's detail | Recommended; owner to confirm (intent § Open questions) |
 
 ---
@@ -182,9 +182,69 @@ close, `85dvh`), the hook, `buildImportedConfig`, and the card's owner gate.
 
 ## PR 6 — Word and Excel
 
-`extractDocx.ts` and `extractXlsx.ts` with `fflate`, lazy-loaded. Word tables
+Word and Excel read in the browser with `fflate`, lazy-loaded. Word tables
 become tab-separated rows; Excel date cells become ISO dates (including 1904
 workbooks). Tests build the zip files in the test itself.
+
+**As built (2026-10-09):**
+- **One module, `extractOffice.ts`,** loaded with `import()` the first time a Word or Excel file is picked (4.9 KB gzipped). It reads the file in the browser and sends `{kind:'docx'|'xlsx', text}`, under the same 120,000-character limit as any text. The server already took these kinds as text, so nothing changes there, and the file itself never leaves the phone.
+- **What counts as Word or Excel:** `.docx/.docm/.dotx/.dotm` and `.xlsx/.xlsm/.xltx/.xltm`, their MIME types, or any zip that holds `word/document.xml` or `xl/workbook.xml` (a cloud-drive download often has no extension). The contents decide which reader runs. Files are capped at 15 MB in the browser (`OFFICE_FILE_BYTES`).
+- **fflate is a direct dependency at `^0.8.3`.** 0.8.2, which jspdf had put in the lockfile, has `unzipSync` loop forever on a crafted ZIP64 archive ([GHSA-px8p-9vwx-vf98](https://github.com/advisories/GHSA-px8p-9vwx-vf98), moderate, CVSS v4 6.6; fixed in 0.8.3), and unzipping a file the athlete picked is exactly that call. jspdf shares the one copy.
+  - A test checks the installed version first. The advisory's own file (built in the test) would hang an older fflate beyond any timeout's reach, so it runs only when that check passes. Verified on 0.8.2: the check fails and nothing hangs.
+- **The bundle:** fflate already shipped up front through jspdf's PDF export. Now that the reader uses its unzip code too, fflate sits in a small shared chunk, and the app's up-front JS grows by **3.5 KB gzipped** (807.4 → 810.9 KB, both builds on the same node_modules). The reader stays lazy.
+- **Limits (`OFFICE_LIMITS`), on what the file really holds, never on what it claims:**
+  - **The zip is read with fflate's streaming `Unzip`,** entry by entry, through two decoders of our own (deflate and stored). They count the bytes each part actually produces and stop at 20 MB a part and 40 MB in total.
+    - Deflate input goes in 16 KB slices, so at most about 16.5 MB comes out between checks.
+    - **The first version trusted the sizes the zip declares.** `unzipSync` inflates into a buffer of the declared size and keeps decoding past its end, so a part claiming 100 bytes cost 4 s per MB of file (the adversary's measurement). A stored part copied its real size whatever it claimed. Both are now refused at once: 64 MB of zeros claiming 100 bytes → `too_large` in 0.2 s (measured in jsdom).
+    - Only the entries actually present are walked, so a directory's claims ("billions of entries") cost nothing.
+    - A zip missing only its index at the end (an interrupted download) is still read.
+  - **At most 1,000 entries and 100 sheets,** and a sheet part named by many sheets is read once. A 3.7 KB crafted workbook naming one hidden-row sheet 80 times took 60 s before. fflate's streaming reader recurses per entry and overflows at about 2,500, so the entry cap sits well below that.
+  - **A deflate stream that takes 1 MB of input with nothing coming out is given up on.** No real stream comes close; junk after a stream's end made fflate re-copy its backlog on every slice (8 MB: 1.8 s, then "ok").
+  - **Reading stops past 1,000,000 characters** (`too_long`). A sheet with a stray cell in column XFD on every row can't grow the text without end. Rows go straight into the output, so a 200,000-row sheet no longer overflows a spread and reads as "unreadable".
+- **Work, not just bytes (the second review).** Byte caps don't bound work: a small file could still make the reader do a lot. Each case found is closed and has a test that the old code fails:
+  - **Trailing runs are trimmed in one pass.** An anchored regex (`/[ \t]+$/`, `/\n+$/`) backtracks over every run it can't finish: 100,000 spaces or line breaks in a 1 KB file took 9–11 s. Now about 20 ms.
+  - **A shared string is cleaned once,** not once per cell that points at it (a 1M-space string in 4,000 cells: 7.8 s → 0.3 s).
+  - **A number format is worked out once,** and a code longer than 255 characters (real ones are a few dozen) reads as General (a 1 MB code on 2,000 styles: 19 s → 77 ms).
+  - **A part that declares a DOCTYPE is never parsed.** Word and Excel never write one, so it could only be there for entity tricks.
+  - **A one-cell layout table looks for its own tables only,** not every descendant at each level. Measured honestly, the deep-nesting case's time was jsdom's own XML parser (9.5 s to parse 300 levels around 50,000 paragraphs), not this search (about 0.3 s of it). Browsers parse natively.
+- **Word:**
+  - Body paragraphs in order: `w:tab` → tab, `w:br` → newline, non-breaking hyphens kept, soft hyphens dropped. Tab-stop definitions are skipped.
+  - **What Word shows is what's read.** Hidden text (`w:vanish`), deleted text and a tracked move's source are left out, as Excel's hidden rows are.
+  - **Tables keep their grid.** One line per row, cells tab-separated. A cell spanning days (`gridSpan`) is followed by an empty field per extra day, and a row that starts late (`gridBefore`) starts with empty fields, so every day stays in its column. A cell's paragraphs, and any table inside it, are joined with " / ". A one-cell layout table around the plan is read as its contents.
+  - Content controls, custom XML and smart tags are looked through. A text box is read once (Word's `Choice`, not its `Fallback` copy), on its own lines.
+- **Excel:**
+  - Every visible sheet, in tab order, as `Sheet: <name>` and then its rows. Hidden and very hidden sheets, hidden rows and hidden columns are left out, and chart sheets are never opened. Column gaps are kept, so a day stays under its heading.
+  - Shared, inline and rich strings (no phonetic guides; `_x000D_` escapes decoded), booleans, formulas' cached values and errors.
+  - **A number reads the way its cell shows it.**
+    - Dates become ISO dates: Excel's 1900 system with its phantom 29 Feb 1900, and the 1904 system, in UTC, up to 9999-12-31 in each.
+    - `ddd` headers become `Mon`; times, paces and durations become 8:30, 07:15 (`m:ss` gives 7:15) and 1:30:00.
+    - Percentages keep %; `#,##0` groups thousands; a lone `m` is the month number; `;;;` hides the value.
+    - Words in a format stay: `"Week "0` reads "Week 3" and `0.0" mi"` reads "6.2 mi".
+  - A row costs what its cells hold, not the column its last cell sits in.
+  - A sheet that the workbook names but is missing or broken makes the file unreadable rather than "empty".
+- **Errors, each telling the athlete what to do:**
+  - **Password-protected or damaged:** a password-protected .docx/.xlsx (an OLE file holding an `EncryptedPackage` stream), or a damaged one.
+  - **Asked to be re-saved as .docx, .xlsx or PDF:**
+    - an older `.doc`/`.xls`, by name, by its exact MIME type, or by its bytes; this includes one renamed `.docx`, since an OLE file with no `EncryptedPackage` is an older format, not a protected one;
+    - an Excel binary `.xlsb`, by name or type.
+  - **"Save it as a PDF or take a screenshot":** a file with no text in it, often a picture of the plan pasted in (`office_no_text`).
+  - **"Copy just the plan into a new file, or save it as a PDF":** contents that unzip past the limits (`office_too_big`), usually a big hidden data sheet or bloated styles, not "too big", since the file itself was under 15 MB. Text past 1,000,000 characters is "more text than we can read at once" (`too_long`).
+  - **A file's type counts only when its name has no extension.** Windows with Excel installed calls every .csv `application/vnd.ms-excel`, which had refused CSVs as old Excel files.
+  - **Other zip formats** (`.zip`, `.pages`, `.numbers`, `.key`, `.odt`, …) are "we can't read that kind of file" whatever their size. Any other zip is read, so a Word file saved as "Plan v1.2" still is.
+  - **"Check your connection":** the reader failed to load (`reader_unavailable`).
+- **Tested against real files** made by python-docx, openpyxl, xlsxwriter and LibreOffice (`scripts/generate-plan-import-office-fixtures.py` writes them, base64, into `src/__tests__/planImport/fixtures/officeFixtures.ts`), then hand-built XML for what those tools can't be made to write.
+- **Known limits, accepted:**
+  - A Word numbered list loses its numbers (they are list formatting, not text).
+  - An Excel merged range shows its text in the first cell only, like any other single session.
+  - Text hidden by a character *style* (not on the run itself) is still read.
+  - The main parts are found by their usual names (`word/document.xml`, `xl/workbook.xml`): the names every tool behind the test files writes (python-docx, openpyxl, xlsxwriter, LibreOffice). A producer that names them otherwise reads as unreadable; following `_rels/.rels` would cover it if one turns up.
+  - Parts are read as UTF-8, which every producer above writes.
+  - Formula cells show their cached value. Excel always writes one; a library-written workbook never opened in Excel may not, and those cells read empty.
+  - A layout table of two or more cells, each holding a plan table, reads each nested plan as one " / "-joined line. Only a one-cell layout table is unwrapped.
+  - **Reading is synchronous on the main thread.** Every way the two reviews found for a small file to make large work is closed and tested, but that is not a proof that none is left. A Worker with a time limit would contain any that remain; it needs an XML parser that doesn't use the DOM, since `DOMParser` doesn't exist in workers. That is a follow-up if a real file is ever slow. The "Reading your plan…" screen, with its Cancel, now shows from the moment the athlete taps Read, not after the file is prepared.
+  - **No fixture comes from Microsoft Word or Excel, Google Docs or Sheets, or Apple Pages or Numbers.** They come from python-docx, openpyxl, xlsxwriter and LibreOffice, the tools that can be scripted here. The owner's first real uploads are the check on the rest.
+  - **The zip's own entries are read, not its central directory** (fflate's streaming reader). A crafted file could show one thing in Word and hold another; the review screen shows what was read before anything is saved.
+  - **Text only (D11):** colour coding, bold week headers and what a merge meant don't reach the reader.
 
 ## PR 7 — Onboarding: "I already have a plan"
 

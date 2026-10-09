@@ -10,8 +10,8 @@ export default function PlanImportCard({ onOpen }: { onOpen: () => void }) {
         <span className="text-[11px] font-bold uppercase tracking-wide text-teal-800 bg-teal-100 dark:bg-teal-900/60 dark:text-teal-200 px-2 py-0.5 rounded-full">Beta</span>
       </div>
       <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-        Training from a coach&rsquo;s, book or club plan? Upload it as a PDF, a CSV, a photo or pasted text and we
-        turn it into your calendar. You check it before it replaces your current plan.
+        Training from a coach&rsquo;s, book or club plan? Upload it as a PDF, Word, Excel or CSV file, a photo or
+        pasted text and we turn it into your calendar. You check it before it replaces your current plan.
       </p>
       <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
         Your current plan is backed up first. Bring it back from Restore a Previous Plan.

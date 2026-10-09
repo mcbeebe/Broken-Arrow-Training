@@ -27,7 +27,13 @@ interface Props {
   deps?: PlanImportDeps
 }
 
-const FILE_ACCEPT = '.pdf,.csv,.tsv,.txt,.docx,.xlsx,.doc,.xls,application/pdf,text/csv,text/plain,image/*'
+const FILE_ACCEPT = [
+  '.pdf', '.csv', '.tsv', '.txt', '.docx', '.docm', '.dotx', '.dotm', '.xlsx', '.xlsm', '.xltx', '.xltm', '.doc', '.xls',
+  'application/pdf', 'text/csv', 'text/plain',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'image/*',
+].join(',')
 
 function badgeFor(file: File): string {
   const ext = /\.([a-z0-9]{1,5})$/i.exec(file.name)?.[1]?.toUpperCase()
@@ -35,10 +41,11 @@ function badgeFor(file: File): string {
   return ext && ext.length <= 4 ? ext : 'FILE'
 }
 
+/** Decimal units, as the limits are stated ("up to 15 MB" is 15,000,000 bytes). */
 function sizeLabel(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+  if (bytes < 1000) return `${bytes} B`
+  if (bytes < 1_000_000) return `${Math.round(bytes / 1000)} KB`
+  return `${(bytes / 1_000_000).toFixed(1)} MB`
 }
 
 /** The upload sheet; see the module comment. */
@@ -179,7 +186,6 @@ export default function PlanImportSheet({ base, onUse, onClose, todayIso, deps }
                     <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">What usually works</p>
                     <p className="text-xs text-slate-600 dark:text-slate-300">· The page or sheet that lists each week&rsquo;s sessions</p>
                     <p className="text-xs text-slate-600 dark:text-slate-300">· A clear photo or screenshot of the schedule, one page at a time</p>
-                    <p className="text-xs text-slate-600 dark:text-slate-300">· Word or Excel: save it as a PDF first</p>
                   </div>
                 )}
                 <div className="space-y-2">
@@ -218,7 +224,7 @@ export default function PlanImportSheet({ base, onUse, onClose, todayIso, deps }
                 <button type="button" onClick={() => fileInput.current?.click()}
                   className="w-full p-5 rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-600 text-center">
                   <span className="block text-sm font-semibold text-slate-800 dark:text-slate-100">Choose a file</span>
-                  <span className="block text-xs text-slate-500 dark:text-slate-400 mt-0.5">A PDF or CSV, or a screenshot of your plan</span>
+                  <span className="block text-xs text-slate-500 dark:text-slate-400 mt-0.5">A PDF, Word, Excel or CSV file, or a screenshot of your plan</span>
                 </button>
               )}
 
