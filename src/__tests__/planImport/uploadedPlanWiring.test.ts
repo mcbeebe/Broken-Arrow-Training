@@ -11,7 +11,7 @@
 import { describe, it, expect } from 'vitest'
 
 function source(path: string): string {
-  const all = import.meta.glob(['../../App.tsx', '../../hooks/useOnboarding.ts', '../../components/CoachLetter.tsx', '../../components/Settings.tsx'], {
+  const all = import.meta.glob(['../../App.tsx', '../../hooks/useOnboarding.ts', '../../components/CoachLetter.tsx', '../../components/Settings.tsx', '../../components/Onboarding.tsx'], {
     query: '?raw', import: 'default', eager: true,
   }) as Record<string, string>
   const key = Object.keys(all).find(k => k.endsWith(path))
@@ -119,6 +119,8 @@ describe('saving an uploaded plan (PR 5)', () => {
   })
 
   it('the way in is the owner\'s alone during the beta (D8)', () => {
-    expect(source('components/Settings.tsx')).toContain("const canImportPlan = athleteId === 'mike' && !!onboardingConfig && !!onUseImportedPlan && coachApiAvailable()")
+    expect(source('components/Settings.tsx')).toContain("const canImportPlan = planImportOpenTo(athleteId) && !!onboardingConfig && !!onUseImportedPlan")
+    // Both ways in ask the one gate, so opening uploads up is one change.
+    expect(source('components/Onboarding.tsx')).toContain('const canImport = planImportOpenTo(athleteId)')
   })
 })

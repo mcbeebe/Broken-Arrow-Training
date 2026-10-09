@@ -256,3 +256,67 @@ change.
 
 **Tests:** `onboardingSteps.test.ts` (exact step list per mode, review still
 last) and an `Onboarding.test.tsx` flow with a slow mocked endpoint.
+
+**As built (2026-10-09):**
+- **The way in:** a fourth card on "What are you training for?", **"I already have a plan"** (mockup screen 1). It shows only to the owner (`athleteId === 'mike'`), and only with the coach API configured (D8). The owner is a seed athlete, so they reach onboarding through Settings → Redo Onboarding, and the card is there on that redo. The file inputs are mounted only for whoever sees the card.
+- **The steps:** `STEP_IMPORT_PLAN = 22` (`'import_plan'`), straight after the first question.
+  - **The path is exactly:** goal → upload → experience → profile → wearable → review. A redo's prefill drops experience and the profile, as on every redo: goal → upload → wearable → review.
+  - **Nothing else is asked** (owner's choice). Race, days, strength, week shape, baseline, health and detail only shape a generated plan (D1).
+  - **Every other path's step list is unchanged,** and the existing onboarding tests pass untouched.
+- **The plan is read while the athlete answers.**
+  - **Continue on the upload step starts the read.** A strip on the questions after it says how it's going: "Reading X… Keep going: it'll be ready when you finish these questions." Back on the upload step, the same strip shows while the pick there is the one being read.
+  - `usePlanImport` and the pick (`usePlanPick`) are held by `Onboarding`, so the read survives step changes.
+  - **One read per pick, whatever happens to it.** Each read is one of the day's uploads, so Continue never sends a pick that was already read, even one whose read failed (the athlete sees why at the review).
+    - **Read again:** a changed file, text or note. The first read is abandoned in the browser; the server has already counted it.
+    - **Read again too:** a pick whose read the athlete cancelled.
+    - **"The same pick":** the note compares as it is sent (trimmed), and a file chosen again is the same file when its name, size, type and last edit match (`sameUpload`).
+  - **"Try again"** reads the same pick once more, by asking. It is offered only where the reader or the connection, not the file, was the problem (`WORTH_RETRYING`: timeout, busy, unavailable, network, server error, the Word and Excel reader not loading).
+- **The review step, on this path:**
+  - **What it shows:**
+    - the reading screen: seconds so far, and Cancel, which stops the read and goes back to the upload step;
+    - the problem, with "Try again" where it may help, and "Try another file";
+    - the shared `ImportReview`.
+
+    The footer's "Create My Plan" is hidden there.
+  - **"Try another file" and "Upload a different file"** go back to the upload step and open the file chooser. What was read stays until another file is chosen: closing the chooser and continuing costs nothing and brings the same review back.
+  - **"Use this plan" finishes onboarding** through `onComplete` → `save()`, with no "building your plan" screen. `importPlan()` can't be used during onboarding: there is no stored config to back up, and Redo already backed it up as "before redo".
+- **The saved config:**
+  - **The base is what this path asked over what a redo already knew.**
+    - **Asked here** (`IMPORT_ASKED`), taken from the same function a generated plan is built from (`answersConfig`): experience, name, age, sex, max HR, FTP and wearable.
+    - **Everything else comes from the previous config,** as an upload from Settings keeps it: injury and its notes, menopause answers, tested LTHR, detail level, gear, strength and schedule.
+    - **The first version built the base from all of onboarding's answers.** That dropped all of those on a redo, since the import path doesn't ask them, and it kept answers left on a path the athlete had turned back from (found by `/adversary`).
+  - **Then `buildImportedConfig`,** as in Settings, clears the old plan's race, method and reshapes.
+  - **`goalMode` 'import' is never stored** (D5), and the season fields (`goalMode`, `raceKinds`, `anchorIsPrimary`, `additionalRaces`) are left out.
+  - **`trainingDaysPerWeek`** is required, but read only by generated plans: it takes the previous config's value, else 5.
+  - **The screens-seen stamps are cleared,** as on any redo, so the welcome screens show again.
+- **The welcome letter now shows on an uploaded plan.**
+  - The Settings path keeps its seen stamp, so this is the first path where it appears.
+  - **Its fallback,** shown when the coach can't write, now says "your own N-week plan, followed as written". It no longer says "built around your goal", or that the coach will "ease in" around an injury.
+  - **The coach is told only the goal the athlete wrote.** An uploaded general-fitness plan was described to it as the "Stay Healthy & Fit" preset the athlete never picked.
+- **Shared with the Settings sheet:**
+  - the picker: `usePlanPick`, `PlanPickFields` and `pickLabels.ts`;
+  - the reading and problem panels: `PlanImportStatus.tsx`.
+
+  Both places say the same thing, and the sheet's tests pass unchanged. On onboarding's problem panel, "your current plan is untouched" is left out: mid-redo, there is no current plan.
+- **`usePlanImport` fix.** Leaving the screen while a file was still being prepared, before the request went out, let the request go out anyway. That spent an upload for a screen that was gone. Unmounting now cancels it. Onboarding is the first screen to hold a read across steps, which made this reachable.
+- **Dark mode.** Onboarding is light-only, but a redo can start from dark mode. The shared fields are drawn for the sheet's dark surface, so they bring that surface with them: a dark card on the white page.
+- **Screen readers.** The review step has a heading of its own, and the seconds counter is seen, not announced (inside the live region it was read out every second; the Settings sheet had the same problem).
+- **Telemetry:** the step reports as `import_plan`, and `onboarding_completed` carries `goalMode: 'import'`.
+- **Owner-only through one client gate:** `planImportOpenTo(athleteId)` in `src/utils/planImport/access.ts`, which both cards ask. The server keeps its own gate in its env. Opening uploads to everyone means changing both.
+- **The bundle:** +1.7 KB gzipped up front (825.7 → 827.4 KB). Both builds were measured the same way: gzip -9 over the 12 files `app/index.html` loads.
+- **Tests:**
+  - `onboardingImport.test.tsx`, covering:
+    - the gate;
+    - the whole flow against a slow endpoint, with exactly one request;
+    - going back and forth, and an abandoned race path;
+    - a failure seen and unseen, "Try again", Cancel and unmount;
+    - the redo, and the saved config's exact fields.
+  - `usePlanPick.test.tsx` and `pickLabels.test.ts`: the shared picker, `sameUpload` and the gate;
+  - the step lists;
+  - `usePlanImport.test.tsx`: an unmount during prepare sends nothing;
+  - the letter;
+  - an app-level test: the real App, from a redo through upload and letter to Today on the uploaded plan.
+- **Known limits, accepted:**
+  - **The review's choices** (week 1's start, the race) reset if the athlete goes Back from the review and returns. The screen shows them, so a reset can't pass unseen.
+  - **A full phone.** "Use this plan" saves through `save()`, which, like every onboarding finish, keeps going if the write fails. The write frees regenerable caches first, so it fails only on a phone with no room after that. The plan then shows from memory, and a reload asks for the upload again. Settings' upload has a "Try saving again"; onboarding doesn't yet. Worth adding before uploads open to everyone.
+  - **The upload step's button says "Continue"** (as the mockup has it), though it starts a read that counts as an upload. The strip says so from the next step on.

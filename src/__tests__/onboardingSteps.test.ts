@@ -3,7 +3,7 @@ import {
   ALL_STEPS, STEP_NAMES, stepName, visibleSteps, showsMenopauseStep,
   STEP_GOAL_MODE, STEP_RACE_TYPE, STEP_RACE_NAME, STEP_SEASON_RACES,
   STEP_GENERAL_GOAL, STEP_GENERAL_CARDIO, STEP_EXPERIENCE, STEP_PROFILE,
-  STEP_MENOPAUSE, STEP_REVIEW,
+  STEP_MENOPAUSE, STEP_REVIEW, STEP_IMPORT_PLAN, STEP_WEARABLE,
 } from '../components/onboarding/steps'
 
 /**
@@ -117,5 +117,49 @@ describe('the menopause gate', () => {
     expect(visibleSteps({ ...FIRST_TIMER, age: '45', sex: 'female' })).toContain(STEP_MENOPAUSE)
     expect(visibleSteps({ ...FIRST_TIMER, age: '45', sex: 'male' })).not.toContain(STEP_MENOPAUSE)
     expect(visibleSteps(FIRST_TIMER)).not.toContain(STEP_MENOPAUSE)
+  })
+})
+
+describe('"I already have a plan" (initiative 004, PR 7)', () => {
+  it('is the upload, then only what an uploaded plan still needs, then the review', () => {
+    // Experience for the coach, the profile for heart-rate zones, the wearable
+    // for syncing. Race, days, strength, week shape, baseline and health only
+    // shape a generated plan, and an uploaded one is followed as written (D1).
+    expect(visibleSteps({ goalMode: 'import' })).toEqual([
+      STEP_GOAL_MODE, STEP_IMPORT_PLAN, STEP_EXPERIENCE, STEP_PROFILE, STEP_WEARABLE, STEP_REVIEW,
+    ])
+  })
+
+  it('a redo skips what it already knows, as every redo does', () => {
+    expect(visibleSteps({ goalMode: 'import', hasProfilePrefill: true, previousExperienceLevel: 'advanced' })).toEqual([
+      STEP_GOAL_MODE, STEP_IMPORT_PLAN, STEP_WEARABLE, STEP_REVIEW,
+    ])
+  })
+
+  it('no answer left over from another path adds a step', () => {
+    // A 52-year-old woman who looked at HYROX first: the menopause and
+    // general-fitness gates would open in other modes, but not here.
+    for (const raceType of ['hyrox', 'general', 'road', null]) {
+      expect(visibleSteps({ goalMode: 'import', raceType, age: '52', sex: 'female' })).toEqual([
+        STEP_GOAL_MODE, STEP_IMPORT_PLAN, STEP_EXPERIENCE, STEP_PROFILE, STEP_WEARABLE, STEP_REVIEW,
+      ])
+    }
+  })
+
+  it('the upload step is in no other path', () => {
+    for (const v of [
+      FIRST_TIMER,
+      { goalMode: 'season', raceType: 'road' },
+      { goalMode: 'general', raceType: 'general' },
+      { goalMode: null },
+      {},
+    ]) {
+      expect(visibleSteps(v)).not.toContain(STEP_IMPORT_PLAN)
+    }
+  })
+
+  it('comes straight after the first question, and reports as import_plan', () => {
+    expect(ALL_STEPS[1]).toBe(STEP_IMPORT_PLAN)
+    expect(stepName(STEP_IMPORT_PLAN)).toBe('import_plan')
   })
 })

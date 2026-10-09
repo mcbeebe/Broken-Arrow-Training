@@ -1,5 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useCoachTelemetry } from '../hooks/useCoachTelemetry'
+import { usePlanImport, type PlanImportState } from '../hooks/usePlanImport'
+import { usePlanPick } from '../hooks/usePlanPick'
+import { planImportOpenTo } from '../utils/planImport/access'
+import { todayDateString } from '../utils/planDates'
+import { sameUpload } from '../utils/planImport/pickLabels'
+import { WORTH_RETRYING } from '../utils/planImport/importErrors'
+import type { UploadInput } from '../utils/planImport/prepareUpload'
 import { canLayerOntoAnchor } from '../engines/season/layerSecondaryWork'
 import { assessExtrasFitForConfig, type ExtrasFitAssessment } from '../engines/planGenerator/extrasFit'
 import type {
@@ -26,6 +33,9 @@ import { SCREENING_COPY } from '../engines/running/screeningCopy'
 import { parseTimeToSeconds } from '../utils/parseTime'
 import { sanitizeRaceTimeSeconds } from '../engines/planGenerator/vdot'
 import OnboardingPlanPreview from './OnboardingPlanPreview'
+import ImportReview from './ImportReview'
+import PlanPickFields from './PlanPickFields'
+import { PlanImportProblem, PlanReading } from './PlanImportStatus'
 import {
   newSeasonRaceRow, parseErgSeconds, assembleAdditionalRaces, formatSecondsLabel,
   readAnchorTime, ANCHOR_NOUN,
@@ -44,12 +54,19 @@ import {
   stepName,
   showsMenopauseStep as gatesMenopauseStep,
   visibleSteps as computeVisibleSteps,
-  STEP_WEEK_SHAPE,
+  STEP_WEEK_SHAPE, STEP_IMPORT_PLAN,
 } from './onboarding/steps'
 import WeekShapeEditor from './WeekShapeEditor'
 import WeekShapePreview from './WeekShapePreview'
 import { validateWeekShape, shapeHasErrors, type WeekShape } from '../engines/planGenerator/weekShape'
 import { defaultWeekShapeFor, methodForConfig, methodRunDayBounds } from '../engines/planGenerator/shapeDefaults'
+
+/** The first question's answer. 'import' is "I already have a plan". */
+type GoalModeAnswer = 'race' | 'season' | 'general' | 'import'
+
+/** What the "I already have a plan" path asks (experience, the profile, the
+ *  wearable); an uploaded plan keeps nothing else from onboarding's answers. */
+const IMPORT_ASKED = ['experienceLevel', 'athleteName', 'age', 'sex', 'maxHR', 'ftpWatts', 'wearable'] as const satisfies readonly (keyof OnboardingConfig)[]
 
 interface Props {
   onComplete: (config: OnboardingConfig) => void
@@ -241,8 +258,9 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
   // builder rows (season mode). Rows are AdditionalRace-shaped with miles
   // kept as raw input text. 'general' routes into the existing
   // general-fitness path (raceType 'general'); config.goalMode maps it to
-  // undefined, exactly the legacy shape.
-  const [goalMode, setGoalMode] = useState<'race' | 'season' | 'general' | null>(null)
+  // undefined, exactly the legacy shape. 'import' is "I already have a plan"
+  // (initiative 004): never stored, since `importedPlan` is the switch (D5).
+  const [goalMode, setGoalMode] = useState<GoalModeAnswer | null>(null)
   const [seasonRaces, setSeasonRaces] = useState<SeasonRaceRow[]>([])
   // Season mode: which race is the MAIN GOAL — the anchor (nearest race,
   // the plan we generate first) by default, or any added row by key. Asked
@@ -268,7 +286,10 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
 
   // Back-navigation-safe selection: picking general fixes raceType; moving
   // back to a race framing after general must re-ask the race type.
-  function chooseGoalMode(mode: 'race' | 'season' | 'general') {
+  // The goal mode a generated plan is built with: an upload builds none.
+  const builtGoalMode = goalMode === 'import' ? null : goalMode
+
+  function chooseGoalMode(mode: GoalModeAnswer) {
     setGoalMode(mode)
     if (mode === 'general') setRaceType('general')
     else if (raceType === 'general') setRaceType(null)
@@ -381,6 +402,17 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
   // the flow it measures.
   const telemetry = useCoachTelemetry(athleteId ?? '', !!athleteId)
   const logEvent = telemetry.logInteraction
+
+  // "I already have a plan" (initiative 004, D8): the owner only, while
+  // uploads are in beta.
+  const canImport = planImportOpenTo(athleteId)
+  // Held here, not in the upload step, so the read keeps going while the
+  // athlete answers the questions after it.
+  const planImport = usePlanImport()
+  const planPick = usePlanPick()
+  // What the read in `planImport` was started from.
+  const [readInput, setReadInput] = useState<UploadInput | null>(null)
+  const readIsOfPick = !!(readInput && planPick.input && sameUpload(readInput, planPick.input))
   const finishedRef = useRef(false)
   const stepRef = useRef(step)
   stepRef.current = step
@@ -447,7 +479,33 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
   // a manual pick in `detailLevel` always wins.
   const effectiveDetail: DetailLevel = detailLevel ?? defaultDetailLevel(experience)
 
+  // Continue on the upload step starts the read, unless this pick has been
+  // read already. Each read is one of the day's uploads, so going back and on
+  // again never spends another, even after a failure: a changed pick or note
+  // is read, and so is one whose read the athlete cancelled. Trying the same
+  // file again is the explicit "Try again", offered where it may help.
+  const startImport = () => {
+    const input = planPick.input
+    if (!input || (planImport.state.step !== 'idle' && readIsOfPick)) return
+    setReadInput(input)
+    void planImport.read(input)
+  }
+  const readAgain = () => {
+    if (readInput) void planImport.read(readInput)
+  }
+  // Cancel stops the read; the pick stays, for Continue to read again.
+  const cancelRead = () => {
+    planImport.reset()
+    setStep(STEP_IMPORT_PLAN)
+  }
+  // "Try another file" keeps what was read until another file is chosen.
+  const pickAnother = () => {
+    setStep(STEP_IMPORT_PLAN)
+    planPick.openFile()
+  }
+
   const next = () => {
+    if (step === STEP_IMPORT_PLAN) startImport()
     if (visibleIdx < visibleSteps.length - 1) {
       setStep(visibleSteps[visibleIdx + 1])
     }
@@ -501,6 +559,7 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
       case STEP_PREVIEW: return true // informational — nothing to answer
       case STEP_HEALTH: return true // fully optional
       case STEP_GOAL_MODE: return !!goalMode
+      case STEP_IMPORT_PLAN: return !!planPick.input
       case STEP_SEASON_RACES: return true // races beyond the anchor are optional
       case STEP_REVIEW: return true
       default: return false
@@ -599,9 +658,9 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
           injuryArea: injury && injury !== 'none' && injuryArea ? injuryArea : undefined,
           planStartDate: planStart || undefined,
           typicalTrainingTempF: trainTemp ?? undefined,
-          goalMode: goalMode === 'general' || raceType === 'general' ? undefined : (goalMode ?? 'race'),
+          goalMode: builtGoalMode === 'general' || raceType === 'general' ? undefined : (builtGoalMode ?? 'race'),
           anchorIsPrimary: goalMode === 'season' ? primaryKey === 'anchor' : undefined,
-          additionalRaces: assembleAdditionalRaces({ raceType, goalMode, seasonRaces, primaryKey, extraRaceName, extraRaceDate, extraRacePriority, extraRaceMiles, extraRaceVertFt, extraRaceDescription }),
+          additionalRaces: assembleAdditionalRaces({ raceType, goalMode: builtGoalMode, seasonRaces, primaryKey, extraRaceName, extraRaceDate, extraRacePriority, extraRaceMiles, extraRaceVertFt, extraRaceDescription }),
           completedAt: '',
         })
       : null
@@ -620,11 +679,13 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
     [step, raceType, provisionalConfig && JSON.stringify(provisionalConfig)],
   )
 
-  const handleComplete = () => {
+  // The athlete's answers as a config: what a generated plan is built from,
+  // and the base an uploaded plan is saved on.
+  const answersConfig = (): OnboardingConfig => {
     const ageNum = parseInt(age) || 30
     const fitnessAnchor = buildFitnessAnchor()
 
-    const config: OnboardingConfig = {
+    return {
       raceType: raceType!,
       raceName: raceName.trim(),
       raceDate,
@@ -691,9 +752,9 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
         showsMenopauseStep && isRealMenopauseStage(menopause) && menopauseNote.trim()
           ? menopauseNote.trim()
           : undefined,
-      goalMode: goalMode === 'general' || raceType === 'general'
+      goalMode: builtGoalMode === 'general' || raceType === 'general'
         ? undefined // general fitness has no race framing (legacy shape)
-        : (goalMode ?? 'race'),
+        : (builtGoalMode ?? 'race'),
       raceKinds: goalMode === 'season' && raceKinds.length > 0 ? raceKinds : undefined,
       // Explicit main-goal answer. Undefined outside season mode (legacy
       // shape); in season mode the anchor is the default main goal.
@@ -702,14 +763,54 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
       // multi-race builder rows; race mode keeps the single optional
       // second-race capture. Half-filled entries (no name or date) are
       // dropped silently — they're optional.
-      additionalRaces: assembleAdditionalRaces({ raceType, goalMode, seasonRaces, primaryKey, extraRaceName, extraRaceDate, extraRacePriority, extraRaceMiles, extraRaceVertFt, extraRaceDescription }),
+      additionalRaces: assembleAdditionalRaces({ raceType, goalMode: builtGoalMode, seasonRaces, primaryKey, extraRaceName, extraRaceDate, extraRacePriority, extraRaceMiles, extraRaceVertFt, extraRaceDescription }),
       completedAt: '',
     }
+  }
 
+  // An uploaded plan's base: what this path asked, over everything a redo
+  // already knew, as an upload from Settings keeps it. Answers left on a
+  // path the athlete turned back from are not theirs to keep. The review
+  // then sets the plan, its sport, race and start (buildImportedConfig), and
+  // `save()` stamps completedAt.
+  const importBase = (): OnboardingConfig => {
+    const answers = answersConfig()
+    return {
+      ...prev,
+      ...(Object.fromEntries(IMPORT_ASKED.map(k => [k, answers[k]])) as Pick<OnboardingConfig, (typeof IMPORT_ASKED)[number]>),
+      detailLevel: prev?.detailLevel ?? answers.detailLevel,
+      // Required, but read only by generated plans.
+      trainingDaysPerWeek: prev?.trainingDaysPerWeek ?? 5,
+      raceType: answers.raceType,
+      raceName: '',
+      raceDate: '',
+      // No season on an uploaded plan (D1), and goalMode is never 'import'.
+      goalMode: undefined,
+      raceKinds: undefined,
+      anchorIsPrimary: undefined,
+      additionalRaces: undefined,
+      // As on any redo, the screens after onboarding show again.
+      primerSeenAt: undefined,
+      zonesPrimerSeenAt: undefined,
+      connectStepSeenAt: undefined,
+      valuePropsSeenAt: undefined,
+      welcomeLetterSeenAt: undefined,
+      completedAt: '',
+    }
+  }
+
+  const finishImport = (cfg: OnboardingConfig) => {
+    finishedRef.current = true
+    logEvent('onboarding_completed', { steps: visibleSteps.length, redo: !!previousConfig, goalMode: 'import' })
+    // Straight in: nothing is generated, so there is no "building your plan".
+    onComplete(cfg)
+  }
+
+  const handleComplete = () => {
     // The plan always anchors on the chronologically FIRST race — if an
     // added race predates the entered one, swap them (the entered race
     // keeps its main-goal flag as an additional race). See seasonConfig.ts.
-    const normalized = normalizeSeasonConfig(config)
+    const normalized = normalizeSeasonConfig(answersConfig())
 
     // Skip the loading screen entirely when consumers (tests) opt out.
     // Otherwise show a brief generating screen so the handoff to the next
@@ -772,8 +873,15 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
         )}
       </div>
 
+      {canImport && planPick.inputs}
+
       {/* Content */}
       <div ref={contentRef} className="flex-1 overflow-y-auto px-5 pt-4 pb-24">
+        {goalMode === 'import' && step !== STEP_GOAL_MODE && step !== STEP_REVIEW
+          && (step !== STEP_IMPORT_PLAN || readIsOfPick) && (
+          <ImportProgress state={planImport.state} />
+        )}
+
         {step === STEP_RACE_TYPE && goalMode !== 'season' && (
           <StepContainer title="What kind of race?" subtitle="Pick the type that matches your goal event">
             <OptionCard selected={raceType === 'road'} onClick={() => setRaceType('road')} title="Road Race" desc="Marathon, half, 10K, 5K — paved, flat-to-rolling." icon="🛣️" />
@@ -1045,6 +1153,26 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
               desc="No race on the calendar. Build endurance, strength, and health."
               icon="general"
             />
+            {canImport && (
+              <OptionCard
+                selected={goalMode === 'import'}
+                onClick={() => chooseGoalMode('import')}
+                title="I already have a plan"
+                desc="Upload it from a PDF, Word, Excel or CSV file, a photo, or pasted text. We turn it into your calendar, and you check it before it goes live."
+                icon="📄"
+              />
+            )}
+          </StepContainer>
+        )}
+
+        {step === STEP_IMPORT_PLAN && (
+          <StepContainer title="Upload your plan" subtitle="A coach's spreadsheet, a book plan, a club PDF: whatever you train from.">
+            {/* The shared fields are drawn for the Settings sheet's surface,
+                dark in dark mode; onboarding is light-only, so they bring
+                that surface with them. */}
+            <div className="space-y-4 dark:bg-slate-800 dark:rounded-2xl dark:p-4" data-testid="onboarding-import-pick">
+              <PlanPickFields pick={planPick} />
+            </div>
           </StepContainer>
         )}
 
@@ -1931,7 +2059,50 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
           </StepContainer>
         )}
 
-        {step === STEP_REVIEW && (
+        {step === STEP_REVIEW && goalMode === 'import' && (
+          <div className="dark:bg-slate-800 dark:rounded-2xl dark:p-4" data-testid="onboarding-import-review">
+            <h1 className="sr-only">Your plan</h1>
+            {planImport.state.step === 'reading' && (
+              <PlanReading sourceName={planImport.state.sourceName} startedAt={planImport.state.startedAt} onCancel={cancelRead} />
+            )}
+            {planImport.state.step === 'error' && (() => {
+              const retry = WORTH_RETRYING.has(planImport.state.problem)
+              return (
+                <PlanImportProblem problem={planImport.state.problem} sourceName={planImport.state.sourceName} limit={planImport.state.limit}>
+                  <div className="space-y-2">
+                    {retry && (
+                      <button type="button" onClick={readAgain}
+                        className="w-full min-h-[48px] rounded-xl bg-teal-700 text-white font-semibold">Try again</button>
+                    )}
+                    <button type="button" onClick={pickAnother}
+                      className={retry
+                        ? 'w-full min-h-[48px] rounded-xl border-2 border-slate-200 dark:border-slate-600 font-semibold text-slate-800 dark:text-slate-100'
+                        : 'w-full min-h-[48px] rounded-xl bg-teal-700 text-white font-semibold'}>Try another file</button>
+                  </div>
+                </PlanImportProblem>
+              )
+            })()}
+            {planImport.state.step === 'review' && (
+              <ImportReview
+                result={planImport.state.result}
+                sourceName={planImport.state.sourceName}
+                base={importBase()}
+                todayIso={todayDateString()}
+                importsLeft={planImport.state.importsLeft}
+                onUse={finishImport}
+                onUploadAnother={pickAnother}
+              />
+            )}
+            {planImport.state.step === 'idle' && (
+              // Not reached: only the upload step's Continue gets here, and
+              // it starts a read. Kept so a slip can't strand the athlete.
+              <button type="button" onClick={cancelRead}
+                className="w-full min-h-[48px] rounded-xl bg-teal-700 text-white font-semibold">Choose your plan</button>
+            )}
+          </div>
+        )}
+
+        {step === STEP_REVIEW && goalMode !== 'import' && (
           <StepContainer title="Review your plan setup" subtitle="Quick check before we build it. Tap Back to change anything.">
             <ReviewSummary
               raceType={raceType}
@@ -2132,20 +2303,45 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
         )}
       </div>
 
-      {/* Continue button */}
-      <div className="fixed bottom-0 left-0 right-0 px-5 py-4 bg-white border-t border-slate-100">
-        <button
-          onClick={isLastStep ? handleComplete : next}
-          disabled={!canContinue}
-          className={`w-full py-3.5 rounded-xl text-base font-semibold transition ${
-            canContinue
-              ? 'bg-teal-600 text-white active:bg-teal-700'
-              : 'bg-slate-200 text-slate-400'
-          }`}
-        >
-          {isLastStep ? 'Create My Plan' : 'Continue'}
-        </button>
-      </div>
+      {/* Continue button. The uploaded plan's review has its own: there
+          is nothing to create, only a plan to use or upload again. */}
+      {!(step === STEP_REVIEW && goalMode === 'import') && (
+        <div className="fixed bottom-0 left-0 right-0 px-5 py-4 bg-white border-t border-slate-100">
+          <button
+            onClick={isLastStep ? handleComplete : next}
+            disabled={!canContinue}
+            className={`w-full py-3.5 rounded-xl text-base font-semibold transition ${
+              canContinue
+                ? 'bg-teal-600 text-white active:bg-teal-700'
+                : 'bg-slate-200 text-slate-400'
+            }`}
+          >
+            {isLastStep ? 'Create My Plan' : 'Continue'}
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** On the questions after the upload: how the read is going. */
+function ImportProgress({ state }: { state: PlanImportState }) {
+  if (state.step === 'idle') return null
+  const name = state.sourceName ?? 'your plan'
+  const [title, line] = state.step === 'reading'
+    ? [`Reading ${name}…`, 'Keep going: it\u2019ll be ready when you finish these questions.']
+    : state.step === 'review'
+      ? [`${name} is read.`, 'You\u2019ll check it at the end.']
+      : [`We couldn\u2019t read ${name}.`, 'You\u2019ll see why at the end, and can try another file.']
+  return (
+    <div className="mb-4 p-3 rounded-xl bg-teal-50 border border-teal-200 flex items-start gap-3" data-testid="import-progress" role="status">
+      {state.step === 'reading' && (
+        <span className="mt-0.5 w-5 h-5 rounded-full border-[3px] border-teal-200 border-t-teal-600 animate-spin shrink-0" aria-hidden="true" />
+      )}
+      <span className="min-w-0">
+        <span className="block text-sm font-semibold text-teal-900 truncate">{title}</span>
+        <span className="block text-xs text-slate-600">{line}</span>
+      </span>
     </div>
   )
 }

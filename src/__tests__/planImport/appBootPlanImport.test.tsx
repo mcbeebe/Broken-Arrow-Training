@@ -8,6 +8,7 @@ import { addDays, todayDateString } from '../../utils/planDates'
  * own plan → Check your plan → Use this plan. The owner sees the way in and
  * nobody else does, and an upload leaves the season calendar exactly as it
  * was (it would otherwise re-seed and drop the races added in the panel).
+ * PR 7 adds the other way in: onboarding's "I already have a plan".
  */
 
 const API = 'https://api.example.test'
@@ -150,4 +151,48 @@ describe('Settings → Upload my own plan', () => {
     expect(await screen.findByText('Redo Onboarding', { selector: 'p' })).toBeTruthy()
     expect(screen.queryByTestId('plan-import-card')).toBeNull()
   })
+})
+
+describe('Onboarding → I already have a plan (PR 7)', () => {
+  it('the owner redoing onboarding uploads their plan, and the app opens on it', async () => {
+    // Mid-redo, as Settings → Redo Onboarding leaves it: the live config is
+    // gone, the old one is kept to prefill who the athlete is.
+    window.history.replaceState({}, '', '/app/#mike')
+    localStorage.setItem('ba_tutorial_seen_mike', '1')
+    localStorage.setItem('ba_onboarding_redo_mike', '1')
+    localStorage.setItem('ba_onboarding_prev_mike', JSON.stringify({
+      raceType: 'road', raceName: 'Fall Half', raceDate: addDays(todayDateString(), 90),
+      raceDistance: 'half_marathon', selectedMethodId: 'higdon',
+      experienceLevel: 'intermediate', trainingDaysPerWeek: 5, longRunDay: 'Sunday',
+      wearable: 'none', athleteName: 'Mike', age: 42, maxHR: 178, completedAt: GENERATION,
+    }))
+    render(<App />)
+
+    fireEvent.click(await screen.findByText('I already have a plan', {}, { timeout: 8000 }))
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
+    fireEvent.change(screen.getByTestId('plan-file-input'), {
+      target: { files: [new File(['%PDF-1.7\nplan'], 'Club-10K.pdf', { type: 'application/pdf' })] },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' })) // → the wearable, prefilled
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' })) // → the review
+    fireEvent.click(await screen.findByText('Use this plan', {}, { timeout: 8000 }))
+    // A redo starts the app afresh, as it does for a generated plan, and the
+    // letter (the coach is unreachable here) says whose plan it is.
+    fireEvent.click(await screen.findByText("Let's go", {}, { timeout: 8000 }))
+    expect(await screen.findByText(/your own 4-week plan, followed as written/, {}, { timeout: 8000 })).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Start training' }))
+
+    expect((await screen.findAllByText(/Easy run|Long run \d/, {}, { timeout: 8000 })).length).toBeGreaterThan(0)
+    expect(screen.queryByText(/Pick your training method/)).toBeNull()
+    expect(importCalls).toHaveLength(1)
+
+    const cfg = JSON.parse(localStorage.getItem('ba_onboarding_mike')!)
+    expect(cfg.importedPlan.title).toBe('Club 10K block')
+    expect(cfg.importedPlan.source.name).toBe('Club-10K.pdf')
+    expect(cfg).not.toHaveProperty('goalMode')
+    expect(cfg).not.toHaveProperty('raceDistance')
+    expect(cfg).not.toHaveProperty('selectedMethodId')
+    expect(cfg).toMatchObject({ athleteName: 'Mike', age: 42, experienceLevel: 'intermediate', raceType: 'road' })
+    expect(localStorage.getItem('ba_onboarding_redo_mike')).toBeNull()
+  }, 30_000)
 })

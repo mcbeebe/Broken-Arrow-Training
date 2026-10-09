@@ -43,7 +43,12 @@ export function usePlanImport(deps: PlanImportDeps = {}) {
   const depsRef = useRef(deps)
   useEffect(() => { depsRef.current = deps })
 
-  useEffect(() => () => controller.current?.abort(), [])
+  // Gone means gone: a read still being prepared (no request yet, so nothing
+  // to abort) must not send one, or it spends an upload for no screen.
+  useEffect(() => () => {
+    latest.current++
+    controller.current?.abort()
+  }, [])
 
   const read = useCallback(async (input: UploadInput) => {
     controller.current?.abort()

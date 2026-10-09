@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { IMPORT_PROBLEMS } from '../../utils/planImport/importErrors'
+import { IMPORT_PROBLEMS, WORTH_RETRYING } from '../../utils/planImport/importErrors'
 import { OFFICE_FILE_BYTES, UPLOAD_LIMITS } from '../../utils/planImport/uploadLimits'
 
 /**
@@ -30,6 +30,18 @@ describe('file problems', () => {
   it('a file refused in the browser never cost an upload', () => {
     for (const key of ['too_large', 'too_long', 'office_unreadable', 'office_no_text', 'office_too_big', 'legacy_office', 'reader_unavailable', 'unsupported', 'empty_file'] as const) {
       expect(IMPORT_PROBLEMS[key].spent).toBe('no')
+    }
+  })
+})
+
+describe('trying the same file again', () => {
+  it('is offered only where the copy itself says to try again', () => {
+    for (const key of WORTH_RETRYING) expect(IMPORT_PROBLEMS[key].body, key).toMatch(/try again/i)
+  })
+
+  it('is never offered for a problem with the file itself', () => {
+    for (const key of ['not_a_plan', 'empty', 'plan_too_long', 'file_unreadable', 'too_large', 'not_a_pdf', 'office_unreadable', 'legacy_office', 'import_limit'] as const) {
+      expect(WORTH_RETRYING.has(key), key).toBe(false)
     }
   })
 })

@@ -6,21 +6,22 @@ import type { TrainingPlan } from '../types'
 // Render the letter from a known markdown body by stubbing the coach API +
 // insight hook. The fix under test: the letter must render markdown (**bold**,
 // # headings, - bullets) instead of printing the raw asterisks/hashes.
-const { insightRef, capturedRef } = vi.hoisted(() => ({
+const { insightRef, errorRef, capturedRef } = vi.hoisted(() => ({
   insightRef: { current: null as { text: string } | null },
+  errorRef: { current: null as string | null },
   capturedRef: { current: null as { snapshot?: Record<string, unknown> } | null },
 }))
 vi.mock('../utils/coachApi', () => ({ coachApiAvailable: () => true }))
 vi.mock('../hooks/useCoachInsight', () => ({
   useCoachInsight: (opts: { snapshot?: Record<string, unknown> }) => {
     capturedRef.current = opts
-    return { insight: insightRef.current, loading: false, error: null }
+    return { insight: insightRef.current, loading: false, error: errorRef.current }
   },
 }))
 
 import CoachLetter from '../components/CoachLetter'
 
-beforeEach(() => cleanup())
+beforeEach(() => { cleanup(); errorRef.current = null })
 
 const plan = {
   athlete: { name: 'Rita', maxHR: 175, currentBase: '~10 mi/wk', weeklyStructure: '5 days/week' },
@@ -149,5 +150,37 @@ describe('CoachLetter season context', () => {
     insightRef.current = { text: 'ok' }
     render(<CoachLetter plan={plan} config={config} athleteId="a1" onContinue={() => {}} />)
     expect((capturedRef.current?.snapshot as { seasonContext?: string })?.seasonContext).toBeUndefined()
+  })
+})
+
+describe('CoachLetter on an uploaded plan (initiative 004)', () => {
+  const uploadedConfig = {
+    ...config, raceName: '', athleteGoal: undefined, injuryStatus: 'current', injuryArea: 'knee',
+    importedPlan: { v: 1, title: 'Club 10K block', sport: 'road', weeks: [] },
+  } as unknown as OnboardingConfig
+
+  it('when the coach can\'t write, says the plan is theirs, not built here or eased in', () => {
+    insightRef.current = null
+    errorRef.current = 'unavailable'
+    const { container } = render(<CoachLetter plan={plan} config={uploadedConfig} athleteId="a1" onContinue={() => {}} />)
+    expect(container.textContent).toContain('your plan is in and ready')
+    expect(container.textContent).toContain('your own 18-week plan, followed as written')
+    expect(container.textContent).not.toMatch(/built around|ease in|built and ready/)
+  })
+
+  it('tells the coach no goal the athlete didn\'t write, even for a general-fitness upload', () => {
+    insightRef.current = { text: 'ok' }
+    render(<CoachLetter plan={plan} config={{ ...uploadedConfig, raceType: 'general' } as OnboardingConfig} athleteId="a1" onContinue={() => {}} />)
+    const snapshot = capturedRef.current?.snapshot as { race?: { athleteGoal?: string }; planSource?: string }
+    expect(snapshot.race?.athleteGoal).toBeUndefined()
+    expect(snapshot.planSource).toBe('imported')
+  })
+
+  it('a generated plan keeps its letter', () => {
+    insightRef.current = null
+    errorRef.current = 'unavailable'
+    const { container } = render(<CoachLetter plan={plan} config={{ ...config, athleteGoal: 'Finish strong' } as OnboardingConfig} athleteId="a1" onContinue={() => {}} />)
+    expect(container.textContent).toContain('your plan is built and ready')
+    expect(container.textContent).toContain('18 weeks built around Finish strong')
   })
 })
