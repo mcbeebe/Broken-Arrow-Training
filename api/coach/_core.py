@@ -1779,10 +1779,41 @@ def build_context_block(
             "the plain words they'd use."
         )
 
+    # The athlete's own uploaded plan (initiative 004, D1). A hard rule near
+    # the top, like the general-fitness block: the static prompt describes the
+    # app's generated plans, their methods and phases, and the reshape tool,
+    # and none of that applies to a plan the athlete brought.
+    own_plan = snapshot.get("planSource") == "imported"
+    if own_plan:
+        out.append("")
+        out.append(
+            "OWN PLAN — the athlete follows a plan they brought (uploaded from "
+            "their own file), not one this app generated. This overrides anything "
+            "else in this prompt about the app's plan, its methods, its phases, "
+            "rebalancing a week or reshaping it. HARD RULES:\n"
+            "- Follow the plan as written. NEVER propose a week layout "
+            "(`reshape`, in place or rebuild), and never add, remove or rewrite "
+            "whole weeks (addWeek / deleteWeek / updateWeek): the app refuses "
+            "them.\n"
+            "- You MAY propose an edit to a single day (updateDay, addDay, "
+            "deleteDay) when readiness, an injury or their schedule calls for "
+            "it. The athlete approves each one; say why in a sentence.\n"
+            "- Don't name a training method, phase model or periodization for "
+            "this plan, and don't call weeks Base, Build, Peak or Taper unless "
+            "the plan's own week focus does. Use the plan's own words.\n"
+            "- Each day's zone band is the app's, set from the athlete's max "
+            "HR. The plan's own paces and heart rates are in each session's "
+            "text, kept as written. Don't recalibrate them; if one looks wrong "
+            "for this athlete, say so and let them decide.\n"
+            "- A benchmark they record goes in their log but doesn't change "
+            "this plan's paces."
+        )
+
     # Training philosophy the athlete follows — grounds every plan edit and
-    # recommendation. Present when a method is selected/assigned.
+    # recommendation. Present when a method is selected/assigned. Never for
+    # the athlete's own plan, which no method of ours produced.
     methodology = snapshot.get("methodology") or None
-    if methodology and methodology.get("methodName"):
+    if methodology and methodology.get("methodName") and not own_plan:
         mname = methodology.get("methodName")
         mcoach = methodology.get("methodCoach")
         out.append("")
@@ -2051,7 +2082,7 @@ def build_context_block(
     # Training-block framing — current phase, weeks to race, and the phase
     # arc. Lets a debrief/orientation situate a workout in the macro plan.
     plan_blocks = snapshot.get("planBlocks") or None
-    if plan_blocks and plan_blocks.get("phases"):
+    if plan_blocks and plan_blocks.get("phases") and not own_plan:
         phases = plan_blocks.get("phases") or []
         arc = " → ".join(
             f"{p.get('label')} (wk {p.get('weekStart')}-{p.get('weekEnd')})" for p in phases

@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from 'react'
 import { canLayerOntoAnchor } from '../engines/season/layerSecondaryWork'
 import type { TrainingPlan, CoachSnapshot } from '../types'
-import type { OnboardingConfig } from '../hooks/useOnboarding'
+import { isImportedPlan, type OnboardingConfig } from '../hooks/useOnboarding'
 import { useCoachInsight } from '../hooks/useCoachInsight'
 import { coachApiAvailable } from '../utils/coachApi'
 import { injurySummaryLine } from '../utils/injuryRamp'
@@ -51,7 +51,10 @@ export default function CoachLetter({ plan, config, athleteId, onContinue }: Pro
 
   // The whole season, in the coach's SEASON section: an athlete who listed
   // four races must get a letter about their season, not just race #1.
-  const extraRaces = config.additionalRaces ?? []
+  // An uploaded plan (initiative 004) is followed as written, with no season
+  // built around it, so the letter never describes one.
+  const uploaded = isImportedPlan(config)
+  const extraRaces = uploaded ? [] : config.additionalRaces ?? []
   // The explicit main-goal answer: an added race with isPrimary, else the
   // anchor (anchorIsPrimary undefined = legacy = anchor).
   const primaryExtra = extraRaces.find(r => r.isPrimary)
@@ -88,7 +91,8 @@ export default function CoachLetter({ plan, config, athleteId, onContinue }: Pro
     injuryContext: injuryLine,
     menopauseContext: menopauseLine,
     seasonContext: seasonLine,
-  } as unknown as CoachSnapshot), [plan, config, goalText, injuryLine, menopauseLine, seasonLine])
+    ...(uploaded ? { planSource: 'imported' as const } : {}),
+  } as unknown as CoachSnapshot), [plan, config, goalText, injuryLine, menopauseLine, seasonLine, uploaded])
 
   const { insight, loading, error } = useCoachInsight({
     athleteId,

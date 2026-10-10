@@ -10,8 +10,10 @@ owner only (D8).
 
 **Ordering rule:** the frontend (GitHub Pages, gated by tests) and the API
 (Vercel, deploys on push with no gate) ship independently. PR 3 (the endpoint)
-must be live on Vercel before PR 5 (the first caller) is published. The client
-treats a 404 from the endpoint as "not available yet" and says so.
+must be live on Vercel before PR 5 (the first caller) is published. Merging the
+PRs in order guarantees it. The client can't tell "not deployed" apart: the
+browser's CORS preflight to a missing function fails, which reads as a network
+error ("We couldn't reach the server").
 
 ## Decisions
 
@@ -86,25 +88,97 @@ time (D3).
 ## PR 4 — From the model's answer to a stored plan, and the guardrails
 
 1. `src/utils/planImport/normalize.ts`: the endpoint's JSON → `ImportedPlanV1`.
-   "Any day" sessions are placed (seven in order become Mon–Sun; otherwise the
-   long run goes to Sunday and the rest fill the usual training days); two
-   sessions on one day merge; km → miles.
-2. Guardrails (D1): the reshape sheet, reshape proposals from the coach,
-   weak-station reweighting, recalibration and level-up offers, and the season
-   panel are hidden or refused for an uploaded plan.
+   "Any day" sessions are placed, always in the plan's order (seven become
+   Mon–Sun; otherwise they spread across the usual training days, and a long
+   run that closes the week takes Sunday); km → miles. Sessions stay separate: combining a day's sessions happens in one
+   place only, `toTrainingPlan.ts` (PR 2).
+2. Guardrails (D1), all required before PR 5 lets anyone write a plan:
+   - "Shape my week" (in place and Rebuild) and the coach's reshape proposals
+     are hidden or refused. Rebuild would call `save()`, clearing the
+     athlete's edits and returning the same plan.
+   - Weak-station reweighting, recalibration and level-up offers are hidden.
+   - The season is off end to end: the season panel, the primary-race pick
+     in the Plan view, and the season context sent to the coach
+     (`buildSeasonContext`), which would otherwise describe layered sessions
+     that don't exist.
+   - Check the HYROX screens for anything that assumes structured station data.
 3. The coach snapshot carries `planSource: imported`, and `_core.py` tells the
    coach: the athlete's own plan; respect its structure; suggest day edits only.
+
+**As built (2026-10-09):**
+- **Refusal rule.** One helper, `src/utils/planImport/guardrails.ts`, decides
+  what a coach proposal may change. Refused: week layouts, and the whole-week
+  ops `addWeek`, `deleteWeek` and `updateWeek`. Day edits are approved by the
+  athlete.
+- **Prompt parity.** The prompt's OWN PLAN section names the same refused ops.
+  A keyless test checks the two lists match.
+- **Also gated** (found by tracing every plan-changing surface):
+  - the "Rebuild the rest of my plan" and weekly-recap rebuild buttons, which
+    call `requestRedo` and would delete the uploaded plan;
+  - the Monday review's restart-tier rebuild;
+  - pace recalibration and benchmark re-anchor, which rewrite the plan's own
+    detail text;
+  - the strength-load banner;
+  - HYROX simulation detection on uploaded days;
+  - the Today arc, which now uses the plan's own week focus instead of
+    base/build/taper by position;
+  - the welcome letter's season text.
+- **Found by the adversary review, and gated too:**
+  - the Monday review now scores an uploaded week but proposes no changes
+    (its "ease the paces" rewrote the plan's own pace text);
+  - the coach's realignment nudge, the Plan view's base/build/peak race
+    narrative, and Settings → Training Methodology;
+  - a refused proposal from a coach insight now reads as kept, not "applied".
+  - The coach prompt now says what the app really does: the zone band is the
+    app's, and a benchmark doesn't change this plan's paces.
+  - Coach-insight cache keys carry `planSource`, so a take written for a
+    generated plan is never served for an uploaded one.
+  - `uploadedPlanWiring.test.ts` reads the `App.tsx` source, so dropping any
+    of these gates fails a named test.
+- **Left as designed, for the owner to weigh:**
+  - The rule filters by op kind, so seven approved `updateDay`s can still
+    rewrite a week.
+  - App changes the athlete approves (travel, the Adjust sheet) stay on.
+- **Owner to confirm:** the morning autopilot is off for an uploaded plan.
+  It applies same-day changes without asking, which D1's "the athlete
+  approves" rules out. The coach can still propose a day edit. Re-enabling it
+  is one line in `App.tsx`.
+- **Deferred to PR 5:** Settings copy (the Hyrox-division note, and Redo
+  noting it replaces the uploaded plan).
 
 ## PR 5 — Settings: upload, check, use (owner-only)
 
 `PlanImportSheet` (upload sheet, mockup screens 6–7), `ImportReview` (screen
 4, shared with onboarding), `usePlanImport`, and the "Upload my own plan" card
 in Settings → Training Plan (screen 5). PDF, photo, CSV and pasted text.
-Saving goes through `useOnboarding.save()`, so the current plan is backed up
-first and the old edit log is cleared.
+Saving goes through `useOnboarding.importPlan()`. It backs up the current
+plan, with its latest day edits, as "before upload", then `save()` clears the
+old edit log. (`save()` itself backs up only *after* writing.)
 
 **Tests:** the sheet (request body, review, apply, errors, cancel, backdrop
 close, `85dvh`), the hook, `buildImportedConfig`, and the card's owner gate.
+
+**As built (2026-10-09):**
+- **The flow:**
+  - **Modules:** `prepareUpload.ts` (pick → body), `client.ts` (the request), `importErrors.ts` (the athlete's words for every outcome), the `usePlanImport` hook, and `ImportReview` / `PlanImportSheet` / `PlanImportCard`.
+  - **Checked locally first.** The browser checks everything the server would refuse, from the file's own bytes, so the athlete hears at once and no megabytes are sent to be told no. (The server refuses those before counting an upload, so this saves time, not uploads.)
+  - **The file name is not part of the request** (D10). It is kept as the plan's source name, which syncs with the plan like the rest of it.
+  - **Word and Excel** say "coming soon, save it as a PDF" until PR 6.
+- **`buildImportedConfig`** decides, field by field, what an upload keeps and clears. A typed table makes a new config field fail the type check until it gets a rule.
+  - **Cleared:** the old race's distance, vert, description and goal (or an uploaded 10K reads "Marathon"); the method; the reshapes.
+  - **Kept:** the athlete, their season answers and the screens they've seen.
+- **The season calendar is kept, through an upload and back.**
+  - **The upload:** App.tsx doesn't re-seed the calendar while the plan is uploaded. An upload is a new plan generation, and re-seeding would have dropped every race added in the Season panel.
+  - **The undo:** backups now hold the calendar. Restore writes it back marked as seeded for the restored plan, so restoring doesn't re-seed it either. (Before this, any Restore re-seeded the calendar and dropped the panel's races.)
+- **The injury ramp note** ("harder from Week 3") is off for an uploaded plan.
+- **Backups:**
+  - A same-plan capture now takes the newest day edits, but never trades the edits it holds for none.
+  - "before upload" is a new label.
+  - **Every backup has its own id** (`savedAt`). A "before …" capture and `save()`'s own capture can land in the same millisecond, and Restore, which finds a backup by its id, could restore the wrong one. `rebuildWithShape` had the same collision.
+  - **Backups are written with `setItemWithRoom`,** which drops regenerable caches to make room. `importPlan` refuses the upload unless the outgoing plan is in the backups.
+- **The client waits 600 s.** The model gives up at 240 s and the function at 300 s, but their clocks start once the upload has arrived, and a read the browser abandons still counts.
+- **Owner-only in two places:** the server (`PLAN_IMPORT_OPEN` / `PLAN_IMPORT_ATHLETES`) and the Settings card (`athleteId === 'mike'`). Opening it to anyone else, by either setting, also needs the card's check changed.
+- **Existing bug found, outside this initiative:** Restore brings back a plan but not its day edits. `configForRestore` re-stamps `completedAt`, and the edit hooks drop every edit older than that. A separate fix is proposed to the owner.
 
 ## PR 6 — Word and Excel
 

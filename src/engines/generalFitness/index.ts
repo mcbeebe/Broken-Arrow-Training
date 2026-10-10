@@ -82,7 +82,12 @@ function dayNameToWeekday(name?: string): number | null {
 }
 
 // ── HR zones (mirror the Hyrox generator's % of max model) ──────────────────
-function computeZones(maxHR: number): HRZone[] {
+/**
+ * The four-zone % of max HR table the General Fitness engine uses. Also the
+ * zone table for uploaded plans (initiative 004), which carry no method of
+ * their own. Callers run it through `makeZonesContiguous` to close the gaps.
+ */
+export function computeZones(maxHR: number): HRZone[] {
   return [
     { zone: 'Z1 – Recovery', hr: `${Math.round(maxHR * 0.55)}–${Math.round(maxHR * 0.65)}`, pct: '55–65%', desc: 'Very easy, full conversation' },
     { zone: 'Z2 – Aerobic', hr: `${Math.round(maxHR * 0.65)}–${Math.round(maxHR * 0.75)}`, pct: '65–75%', desc: 'Easy. Can speak in sentences (Talk Test)' },

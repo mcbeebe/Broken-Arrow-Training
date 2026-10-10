@@ -130,6 +130,11 @@ export interface PlannedDay {
    *  auto-adjust a day checks this and skips a locked one. Set by
    *  useLockedDays.applyLocksToWeeks. */
   locked?: boolean;
+  /** Initiative 004: `detail` is the athlete's own plan text, kept word for
+   *  word. Rezoning leaves it alone, so the heart rates the plan itself
+   *  wrote are never rewritten; the app-written `zone` string still
+   *  follows the athlete's zones. Set by the uploaded-plan renderer. */
+  verbatimDetail?: boolean;
 }
 
 /**
@@ -599,6 +604,15 @@ export interface TrainingPlan {
   /** Honest, plan-level notes (feasibility, runway, goal-derived paces). Surfaced
    *  at method selection and on the plan/coach surfaces. Empty/absent = no concerns. */
   advisories?: PlanAdvisory[];
+  /** Set only on a plan the athlete uploaded (initiative 004): the file it
+   *  came from and the plan's own title, for "from your plan" labels and the
+   *  coach. Absent on generated and hand-authored plans. */
+  importSource?: {
+    name: string;
+    kind: import('../utils/planImport/types').ImportSourceKind;
+    importedAt: string;
+    title: string;
+  };
 }
 
 export interface WorkoutStyle {
@@ -1567,6 +1581,10 @@ export interface CoachSnapshot {
    *  now, from which week, and the current plan week — so it can propose
    *  a reshape in the athlete's own weekdays. */
   weekShape?: CoachWeekShapeContext
+  /** 'imported' when the athlete follows their own uploaded plan
+   *  (initiative 004): the coach respects its structure and suggests edits
+   *  to single days only. Absent for a plan the app generated. */
+  planSource?: 'imported'
 }
 
 export interface CoachWeekShapeContext {

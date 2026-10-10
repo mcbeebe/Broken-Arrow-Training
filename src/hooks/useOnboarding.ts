@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react'
 import type { WeekShape, WeekReshape } from '../engines/planGenerator/weekShape'
 import type { DetailLevel } from '../types'
+import { readImportedPlan, type ImportedPlanV1 } from '../utils/planImport/types'
 import { stampKey } from '../utils/syncStamps'
 import { setItemWithRoom, setSyncedItemWithRoom, setSyncedItemWithRoomOrThrow } from '../utils/storageRoom'
 
@@ -278,6 +279,11 @@ export interface OnboardingConfig {
   // later this season?"). Seeded ONCE into the season calendar (useSeason);
   // add/remove afterward happens on the season panel, never re-seeded.
   additionalRaces?: AdditionalRace[]
+  /** Initiative 004 — the athlete's own plan, uploaded and approved. Its
+   *  presence switches plan generation off: the app renders this plan as
+   *  written, anchored to `planStartPinnedIso`. Synced data, so always read
+   *  it through `readImportedPlan`, never trust this shape directly. */
+  importedPlan?: ImportedPlanV1
   completedAt: string
   // Timestamp of when the post-onboarding methodology primer was dismissed.
   // Unset = primer should be shown the next time a plan is rendered.
@@ -300,6 +306,15 @@ export interface OnboardingConfig {
   welcomeLetterSeenAt?: string
 }
 
+/**
+ * True when the config carries an uploaded plan (initiative 004), even one
+ * that turns out unreadable: an athlete who uploaded a plan must never be
+ * handed a generated one by accident.
+ */
+export function isImportedPlan(config: OnboardingConfig | null | undefined): boolean {
+  return config?.importedPlan != null
+}
+
 const STORAGE_KEY = 'ba_onboarding'
 const REDO_KEY = 'ba_onboarding_redo'
 // Snapshot of the config taken at requestRedo() time, so the redo flow can
@@ -307,7 +322,7 @@ const REDO_KEY = 'ba_onboarding_redo'
 // is deleted for the duration of the redo. Local-only — never synced.
 import { mondayOnOrBefore } from '../utils/planDates'
 
-import { captureBackup, readBackups, configForRestore, type PlanBackup } from '../utils/planBackups'
+import { captureBackup, readBackups, configForRestore, seasonForRestore, SEASON_KEY, type PlanBackup } from '../utils/planBackups'
 
 const PREV_KEY = 'ba_onboarding_prev'
 
@@ -623,7 +638,9 @@ export function useOnboarding(athleteId?: string) {
    *  trained on. A reshape for the same week replaces the previous one. */
   const reshapeWeek = useCallback((shape: WeekShape, fromWeek: number) => {
     setConfig(prev => {
-      if (!prev) return prev
+      // An uploaded plan is followed as written (initiative 004, D1); the
+      // UI never offers this, and a stale path must not write it either.
+      if (!prev || isImportedPlan(prev)) return prev
       const kept = (prev.weekReshapes ?? []).filter(r => r.fromWeek !== fromWeek)
       const next = { ...prev, weekReshapes: [...kept, { fromWeek, shape, at: Date.now() }] }
       const k = scopedKey(athleteId)
@@ -653,10 +670,35 @@ export function useOnboarding(athleteId?: string) {
    *  and stays in Settings → Restore a previous plan). Weeks before
    *  `fromWeek` keep their layout; everything else follows the shape. */
   const rebuildWithShape = useCallback((shape: WeekShape, fromWeek: number) => {
-    if (!config) return
+    // Never on an uploaded plan: save() would clear the athlete's day edits.
+    if (!config || isImportedPlan(config)) return
     setPlanBackups(captureBackup(athleteId, 'before redo'))
     const kept = (config.weekReshapes ?? []).filter(r => r.fromWeek < fromWeek)
     save({ ...config, weekReshapes: [...kept, { fromWeek, shape, at: Date.now() }] })
+  }, [athleteId, config, save])
+
+  /** Replace the plan with one the athlete uploaded (initiative 004). The
+   *  outgoing plan, with its latest day edits and season calendar, is backed
+   *  up first as "before upload", then the config is saved as a new plan
+   *  generation (`save()`: the old plan's day edits are cleared). Returns
+   *  false, with nothing changed, when the plan doesn't pass
+   *  `readImportedPlan`, the backup didn't land, or the write didn't land
+   *  (a full phone): `save()` carries on regardless. */
+  const importPlan = useCallback((cfg: OnboardingConfig): boolean => {
+    const plan = readImportedPlan(cfg.importedPlan)
+    if (!plan) return false
+    const ring = captureBackup(athleteId, 'before upload')
+    setPlanBackups(ring)
+    // The card promises the current plan is backed up first: no backup, no
+    // upload.
+    if (readBackups(athleteId)[0]?.config !== localStorage.getItem(scopedKey(athleteId))) return false
+    save(cfg)
+    try {
+      const stored = JSON.parse(localStorage.getItem(scopedKey(athleteId)) ?? 'null') as OnboardingConfig | null
+      if (stored?.importedPlan?.source?.importedAt === plan.source.importedAt) return true
+    } catch { /* unreadable: treated as not saved */ }
+    setConfig(config)
+    return false
   }, [athleteId, config, save])
 
   /** Restore a previous plan version (Settings → Restore a previous plan).
@@ -678,6 +720,14 @@ export function useOnboarding(athleteId?: string) {
       for (const [ek, val] of Object.entries(b.edits ?? {})) {
         const sk = athleteId ? `${ek}_${athleteId}` : ek
         setSyncedItemWithRoom(sk, val)
+      }
+      // The season calendar as it was, marked as seeded for this restore's
+      // generation, so it is not re-seeded (which would drop the races
+      // added in the Season panel). The season hook reads it on this event.
+      const season = seasonForRestore(b, restored.completedAt)
+      const seasonKey = athleteId ? `${SEASON_KEY}_${athleteId}` : SEASON_KEY
+      if (season && setSyncedItemWithRoom(seasonKey, season)) {
+        window.dispatchEvent(new StorageEvent('storage', { key: seasonKey, newValue: season, storageArea: localStorage }))
       }
       // A restore ends any in-progress redo and clears its snapshot/flag.
       localStorage.removeItem(scopedRedoKey(athleteId))
@@ -767,6 +817,7 @@ export function useOnboarding(athleteId?: string) {
     rebuildWithShape,
     planBackups,
     restorePlan,
+    importPlan,
     markConnectStepSeen,
     markValuePropsSeen,
     markWelcomeLetterSeen,

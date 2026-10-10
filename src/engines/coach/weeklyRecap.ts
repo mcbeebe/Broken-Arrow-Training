@@ -32,6 +32,9 @@ export interface WeeklyRecapInput {
   /** Strength PRs set during this week (Phase 4) — already filtered to
    *  the week by the caller, since detection needs full history. */
   strengthPRs?: PersonalRecord[]
+  /** The athlete's own uploaded plan (initiative 004): never suggest
+   *  rebuilding it. */
+  ownPlan?: boolean
 }
 
 export interface RecapStat {
@@ -218,7 +221,7 @@ export function buildWeeklyRecap(input: WeeklyRecapInput): WeeklyRecap {
   const streak = onPlanStreak(history, c)
 
   const recentTwo = [...history.slice(-1), c].map(completionRatio)
-  const suggestion = recentTwo.length === 2 && recentTwo.every(r => r < 0.7)
+  const suggestion = !input.ownPlan && recentTwo.length === 2 && recentTwo.every(r => r < 0.7)
     ? 'Two short weeks in a row. That usually means the plan no longer matches the life around it — rebuilding the remainder from where you actually are beats chasing a target that has moved.'
     : undefined
 
