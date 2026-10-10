@@ -153,7 +153,9 @@ time (D3).
 in Settings → Training Plan (screen 5). PDF, photo, CSV and pasted text.
 Saving goes through `useOnboarding.importPlan()`. It backs up the current
 plan, with its latest day edits, as "before upload", then `save()` clears the
-old edit log. (`save()` itself backs up only *after* writing.)
+old edit log. (`save()` itself backs up only *after* writing.) Since
+2026-10-10 it saves only if the plan fits, as onboarding does (see PR 7's
+known limits).
 
 **Tests:** the sheet (request body, review, apply, errors, cancel, backdrop
 close, `85dvh`), the hook, `buildImportedConfig`, and the card's owner gate.
@@ -279,7 +281,7 @@ last) and an `Onboarding.test.tsx` flow with a slow mocked endpoint.
 
     The footer's "Create My Plan" is hidden there.
   - **"Try another file" and "Upload a different file"** go back to the upload step and open the file chooser. What was read stays until another file is chosen: closing the chooser and continuing costs nothing and brings the same review back.
-  - **"Use this plan" finishes onboarding** through `onComplete` → `save()`, with no "building your plan" screen. `importPlan()` can't be used during onboarding: there is no stored config to back up, and Redo already backed it up as "before redo".
+  - **"Use this plan" finishes onboarding** with no "building your plan" screen, through `onUseImportedPlan` → `saveIfRoom()` (at first `onComplete` → `save()`; see the known limits). `importPlan()` can't be used during onboarding: there is no stored config to back up, and Redo already backed it up as "before redo".
 - **The saved config:**
   - **The base is what this path asked over what a redo already knew.**
     - **Asked here** (`IMPORT_ASKED`), taken from the same function a generated plan is built from (`answersConfig`): experience, name, age, sex, max HR, FTP and wearable.
@@ -318,5 +320,9 @@ last) and an `Onboarding.test.tsx` flow with a slow mocked endpoint.
   - an app-level test: the real App, from a redo through upload and letter to Today on the uploaded plan.
 - **Known limits, accepted:**
   - **The review's choices** (week 1's start, the race) reset if the athlete goes Back from the review and returns. The screen shows them, so a reset can't pass unseen.
-  - **A full phone.** "Use this plan" saves through `save()`, which, like every onboarding finish, keeps going if the write fails. The write frees regenerable caches first, so it fails only on a phone with no room after that. The plan then shows from memory, and a reload asks for the upload again. Settings' upload has a "Try saving again"; onboarding doesn't yet. Worth adding before uploads open to everyone.
+  - ~~**A full phone.**~~ **Fixed in a follow-up (2026-10-10):** onboarding's "Use this plan" now saves through `useOnboarding.saveIfRoom()`, and Settings' upload (`importPlan()`) the same way.
+    - **Making room:** a full phone is the browser's ~5 MB for the whole site, and the write has already freed the caches the app rebuilds. So when an uploaded plan still doesn't fit, all but the 2 newest restore points are dropped (the newest is the plan being replaced) and it's tried once more (`withRoomFromBackups`, owner's call). If that fails too, the restore points are put back exactly as they were before the first try.
+    - **The backup must hold the day edits:** Settings' upload goes ahead only when the newest restore point holds the outgoing plan *and* its current day edits (`newestBackupIsCurrent`), since the edits are cleared next. On a full phone that backup gets the same room.
+    - **When it still doesn't fit:** nothing of the athlete's changes. Their plan, its day edits and every restore point stay; the redo flag and its prefill stay too, so the owner isn't dropped onto the seed plan. Both ways in show "We couldn't save your plan" ("this app's storage on this phone is full") with "Try saving again", which costs no second read; a try that fails again says "Still no room". Leaving the review drops the kept plan, so a changed answer is the one saved.
+    - Generated plans still finish through `save()` as before: they can be built again for free.
   - **The upload step's button says "Continue"** (as the mockup has it), though it starts a read that counts as an upload. The strip says so from the next step on.

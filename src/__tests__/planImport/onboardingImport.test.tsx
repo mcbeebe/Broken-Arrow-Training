@@ -60,8 +60,12 @@ const heading = () => screen.getByRole('heading', { level: 1 }).textContent
 
 function start(props: Partial<Parameters<typeof Onboarding>[0]> = {}) {
   const onComplete = vi.fn<(cfg: OnboardingConfig) => void>()
-  render(<Onboarding athleteId="mike" onComplete={onComplete} loadingDurationMs={0} {...props} />)
-  return { onComplete }
+  // As App passes it: the uploaded plan is saved, and it fits.
+  const onUseImportedPlan = vi.fn<(cfg: OnboardingConfig) => boolean>(() => true)
+  const { unmount } = render(
+    <Onboarding athleteId="mike" onComplete={onComplete} onUseImportedPlan={onUseImportedPlan} loadingDurationMs={0} {...props} />,
+  )
+  return { onComplete, onUseImportedPlan, unmount }
 }
 
 /** Goal mode → the upload step, with a file picked and Continue pressed. */
@@ -110,11 +114,17 @@ describe('who sees "I already have a plan"', () => {
     start()
     expect(screen.queryByText('I already have a plan')).toBeNull()
   })
+
+  it('nor where there is no way to save it', () => {
+    start({ onUseImportedPlan: undefined })
+    expect(screen.queryByText('I already have a plan')).toBeNull()
+    expect(screen.queryByTestId('plan-file-input')).toBeNull()
+  })
 })
 
 describe('a first-time athlete with their own plan', () => {
   it('is read while they answer, once, and becomes their plan as they checked it', async () => {
-    const { onComplete } = start()
+    const { onComplete, onUseImportedPlan } = start()
     fireEvent.click(screen.getByText('I already have a plan'))
     clickContinue()
     expect(heading()).toBe('Upload your plan')
@@ -148,8 +158,10 @@ describe('a first-time athlete with their own plan', () => {
     expect(calls).toHaveLength(1)
 
     fireEvent.click(screen.getByText('Use this plan'))
-    expect(onComplete).toHaveBeenCalledTimes(1)
-    const cfg = onComplete.mock.calls[0][0]
+    expect(onUseImportedPlan).toHaveBeenCalledTimes(1)
+    // Saved by App straight away: nothing to build, so no generating screen.
+    expect(onComplete).not.toHaveBeenCalled()
+    const cfg = onUseImportedPlan.mock.calls[0][0]
     expect(cfg.importedPlan?.title).toBe('Club 10K block')
     expect(cfg.raceType).toBe('road')
     expect(cfg.goalMode).toBeUndefined()
@@ -254,7 +266,7 @@ describe('going back and forth', () => {
   })
 
   it('a race started and abandoned leaves nothing in the uploaded plan', async () => {
-    const { onComplete } = start()
+    const { onUseImportedPlan } = start()
     fireEvent.click(screen.getByText('A specific race'))
     clickContinue()
     fireEvent.click(screen.getByText('Road Race'))
@@ -272,7 +284,7 @@ describe('going back and forth', () => {
     await vi.waitFor(() => expect(calls).toHaveLength(1))
     calls[0].answer(ok())
     fireEvent.click(await screen.findByText('Use this plan'))
-    const cfg = onComplete.mock.calls[0][0]
+    const cfg = onUseImportedPlan.mock.calls[0][0]
     expect(cfg.raceName).toBe('')
     expect(cfg.raceType).toBe('road')
     for (const field of ['additionalRaces', 'raceDescription', 'athleteGoal', 'raceDistance', 'goalMode'] as const) {
@@ -282,7 +294,7 @@ describe('going back and forth', () => {
   })
 
   it('choosing another goal after all builds a plan as before', async () => {
-    const { onComplete } = start({ athleteId: 'mike' })
+    const { onComplete, onUseImportedPlan } = start({ athleteId: 'mike' })
     pickAndContinue()
     back(); back()
     fireEvent.click(screen.getByText('General fitness'))
@@ -290,6 +302,7 @@ describe('going back and forth', () => {
     expect(heading()).not.toBe('Upload your plan')
     expect(screen.queryByTestId('import-progress')).toBeNull()
     expect(onComplete).not.toHaveBeenCalled()
+    expect(onUseImportedPlan).not.toHaveBeenCalled()
   })
 })
 
@@ -337,7 +350,7 @@ describe('when the plan can\'t be used', () => {
   })
 
   it('a busy reader can be tried again with the same file, by asking', async () => {
-    const { onComplete } = start()
+    const { onUseImportedPlan } = start()
     pickAndContinue()
     answerQuestions()
     await vi.waitFor(() => expect(calls).toHaveLength(1))
@@ -349,7 +362,7 @@ describe('when the plan can\'t be used', () => {
     expect(calls[1].body).toEqual(calls[0].body)
     calls[1].answer(ok())
     fireEvent.click(await screen.findByText('Use this plan'))
-    expect(onComplete).toHaveBeenCalledTimes(1)
+    expect(onUseImportedPlan).toHaveBeenCalledTimes(1)
   })
 
   it('a file refused on the phone costs nothing and is explained the same way', async () => {
@@ -375,7 +388,7 @@ describe('when the plan can\'t be used', () => {
 
   it('Upload a different file goes back to the upload, and keeps the plan read until another is chosen', async () => {
     const opened = vi.spyOn(HTMLInputElement.prototype, 'click').mockImplementation(() => {})
-    const { onComplete } = start()
+    const { onUseImportedPlan } = start()
     pickAndContinue()
     answerQuestions()
     await vi.waitFor(() => expect(calls).toHaveLength(1))
@@ -383,7 +396,7 @@ describe('when the plan can\'t be used', () => {
     fireEvent.click(await screen.findByText('Upload a different file'))
     expect(heading()).toBe('Upload your plan')
     expect(opened).toHaveBeenCalledTimes(1)
-    expect(onComplete).not.toHaveBeenCalled()
+    expect(onUseImportedPlan).not.toHaveBeenCalled()
     // The chooser was closed with nothing picked: the plan already read is
     // still there, and costs nothing more (experience, profile, wearable).
     clickContinue(); clickContinue(); clickContinue(); clickContinue()
@@ -393,11 +406,105 @@ describe('when the plan can\'t be used', () => {
   })
 
   it('closing onboarding mid-read sends nothing more', async () => {
-    const { unmount } = render(<Onboarding athleteId="mike" onComplete={vi.fn()} loadingDurationMs={0} />)
+    const { unmount } = start()
     pickAndContinue()
     await vi.waitFor(() => expect(calls).toHaveLength(1))
     unmount()
     expect(calls[0].signal?.aborted).toBe(true)
+  })
+})
+
+describe('when the phone has no room to save the plan', () => {
+  it('keeps the plan on screen to save again, without reading it again', async () => {
+    let room = false
+    const onUseImportedPlan = vi.fn<(cfg: OnboardingConfig) => boolean>(() => room)
+    const { onComplete } = start({ onUseImportedPlan })
+    pickAndContinue()
+    answerQuestions()
+    await vi.waitFor(() => expect(calls).toHaveLength(1))
+    calls[0].answer(ok())
+    fireEvent.click(await screen.findByText('Use this plan'))
+
+    const failed = screen.getByTestId('plan-import-save-failed')
+    expect(failed.textContent).toContain('We couldn’t save your plan')
+    expect(failed.textContent).toContain('This app’s storage on this phone is full')
+    expect(failed.textContent).toContain('trying again doesn’t use another upload')
+    expect(failed.textContent).not.toContain('Tried')
+    // Mid-onboarding there is no current plan to promise is untouched.
+    expect(failed.textContent).not.toContain('your current plan is untouched')
+    expect(events('onboarding_completed')).toEqual([])
+
+    // A try that fails again says so: the screen changes with every tap.
+    fireEvent.click(within(failed).getByText('Try saving again'))
+    expect(screen.getByTestId('plan-import-save-failed').textContent).toContain('Still no room')
+    expect(screen.getByTestId('plan-import-save-failed').textContent).toContain('Tried 2 times.')
+    fireEvent.click(screen.getByText('Try saving again'))
+    expect(screen.getByTestId('plan-import-save-failed').textContent).toContain('Tried 3 times.')
+
+    // Back to the review and on again: the same plan, still unsaved, and
+    // counted afresh.
+    fireEvent.click(screen.getByText('Back to the review'))
+    fireEvent.click(await screen.findByText('Use this plan'))
+    expect(screen.getByTestId('plan-import-save-failed').textContent).toContain('We couldn’t save your plan')
+
+    room = true
+    fireEvent.click(screen.getByText('Try saving again'))
+    expect(onUseImportedPlan).toHaveBeenCalledTimes(5)
+    const [first, ...rest] = onUseImportedPlan.mock.calls.map(c => c[0])
+    for (const cfg of rest) expect(cfg).toEqual(first)
+    expect(calls).toHaveLength(1)
+    expect(screen.queryByTestId('plan-import-save-failed')).toBeNull()
+    expect(onComplete).not.toHaveBeenCalled()
+    expect(events('onboarding_completed')).toEqual([{ steps: 6, redo: false, goalMode: 'import' }])
+  })
+
+  it('an answer changed after a failed save is the one saved, never the kept plan', async () => {
+    const onUseImportedPlan = vi.fn<(cfg: OnboardingConfig) => boolean>(() => false)
+    start({ onUseImportedPlan })
+    pickAndContinue()
+    answerQuestions()
+    await vi.waitFor(() => expect(calls).toHaveLength(1))
+    calls[0].answer(ok())
+    fireEvent.click(await screen.findByText('Use this plan'))
+    expect(screen.getByTestId('plan-import-save-failed')).toBeTruthy()
+
+    // Back to the wearable, another answer, and on to the review again.
+    back()
+    expect(heading()).toMatch(/wearable/i)
+    fireEvent.click(screen.getByText('Apple Watch'))
+    clickContinue()
+    expect(screen.queryByTestId('plan-import-save-failed')).toBeNull()
+    onUseImportedPlan.mockReturnValue(true)
+    fireEvent.click(screen.getByText('Use this plan'))
+    expect(onUseImportedPlan.mock.calls[0][0].wearable).toBe('garmin')
+    expect(onUseImportedPlan.mock.calls.at(-1)![0].wearable).toBe('apple_watch')
+    expect(calls).toHaveLength(1)
+  })
+})
+
+describe('a plan that couldn\'t be saved, then another file', () => {
+  it('the new file\'s plan is the one checked and saved, never the old one', async () => {
+    const onUseImportedPlan = vi.fn<(cfg: OnboardingConfig) => boolean>(() => false)
+    start({ onUseImportedPlan })
+    pickAndContinue()
+    answerQuestions()
+    await vi.waitFor(() => expect(calls).toHaveLength(1))
+    calls[0].answer(ok())
+    fireEvent.click(await screen.findByText('Use this plan'))
+    expect(screen.getByTestId('plan-import-save-failed')).toBeTruthy()
+
+    // Back through the questions to the upload, and another file.
+    back(); back(); back(); back()
+    expect(heading()).toBe('Upload your plan')
+    choose(pdf('Other-plan.pdf'))
+    clickContinue(); clickContinue(); clickContinue(); clickContinue()
+    await vi.waitFor(() => expect(calls).toHaveLength(2))
+    calls[1].answer(ok({ ...EXTRACTION, title: 'Other block' }))
+    expect(await screen.findByText('Check your plan')).toBeTruthy()
+    expect(screen.queryByTestId('plan-import-save-failed')).toBeNull()
+    onUseImportedPlan.mockReturnValue(true)
+    fireEvent.click(screen.getByText('Use this plan'))
+    expect(onUseImportedPlan.mock.calls.at(-1)![0].importedPlan?.title).toBe('Other block')
   })
 })
 
@@ -415,7 +522,7 @@ describe('the owner redoing onboarding with their own plan', () => {
   } as OnboardingConfig
 
   it('asks only for the upload and the wearable, and keeps who they are', async () => {
-    const { onComplete } = start({ previousConfig })
+    const { onUseImportedPlan } = start({ previousConfig })
     fireEvent.click(screen.getByText('I already have a plan'))
     clickContinue()
     choose(pdf())
@@ -426,7 +533,7 @@ describe('the owner redoing onboarding with their own plan', () => {
     calls[0].answer(ok())
     fireEvent.click(await screen.findByText('Use this plan'))
 
-    const cfg = onComplete.mock.calls[0][0]
+    const cfg = onUseImportedPlan.mock.calls[0][0]
     expect(cfg).toMatchObject({
       athleteName: 'Mike', age: 47, sex: 'male', maxHR: 181, ftpWatts: 250, experienceLevel: 'advanced',
       wearable: 'apple_watch', equipmentAccess: ['gym', 'track'], strengthDaysPerWeek: 2,

@@ -75,3 +75,38 @@ export function PlanImportProblem({ problem, sourceName, limit, note, children }
     </div>
   )
 }
+
+/**
+ * A plan the athlete approved that the phone had no room to store, even
+ * after the app made what room it could. The plan is kept, so trying again
+ * costs no second read. Each failed try changes the screen, so a tap that
+ * failed again is seen to have run.
+ */
+export function PlanSaveFailed({ tries, onRetry, onBack, note }: {
+  /** Saves tried so far, at least 1. */
+  tries: number
+  onRetry: () => void
+  onBack: () => void
+  /** A line under the explanation, e.g. that the current plan is untouched. */
+  note?: string
+}) {
+  return (
+    <div className="space-y-4" data-testid="plan-import-save-failed" role="alert">
+      <div className="text-center space-y-2 py-2">
+        <p className="text-lg font-bold text-slate-900 dark:text-white">
+          {tries > 1 ? 'Still no room' : 'We couldn’t save your plan'}
+        </p>
+        <p className="text-sm text-slate-600 dark:text-slate-300">
+          This app&rsquo;s storage on this phone is full, even after making what room it could. Your plan is
+          still here, so trying again doesn&rsquo;t use another upload.
+        </p>
+        {tries > 1 && <p className="text-sm text-slate-600 dark:text-slate-300">Tried {tries} times.</p>}
+        {note && <p className="text-sm text-slate-600 dark:text-slate-300">{note}</p>}
+      </div>
+      <button type="button" onClick={onRetry}
+        className="w-full min-h-[48px] rounded-xl bg-teal-700 text-white font-semibold">Try saving again</button>
+      <button type="button" onClick={onBack}
+        className="w-full min-h-[44px] text-sm font-semibold text-slate-600 dark:text-slate-300">Back to the review</button>
+    </div>
+  )
+}

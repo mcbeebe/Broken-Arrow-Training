@@ -35,7 +35,7 @@ import { sanitizeRaceTimeSeconds } from '../engines/planGenerator/vdot'
 import OnboardingPlanPreview from './OnboardingPlanPreview'
 import ImportReview from './ImportReview'
 import PlanPickFields from './PlanPickFields'
-import { PlanImportProblem, PlanReading } from './PlanImportStatus'
+import { PlanImportProblem, PlanReading, PlanSaveFailed } from './PlanImportStatus'
 import {
   newSeasonRaceRow, parseErgSeconds, assembleAdditionalRaces, formatSecondsLabel,
   readAnchorTime, ANCHOR_NOUN,
@@ -70,6 +70,10 @@ const IMPORT_ASKED = ['experienceLevel', 'athleteName', 'age', 'sex', 'maxHR', '
 
 interface Props {
   onComplete: (config: OnboardingConfig) => void
+  /** Saves an uploaded plan ("I already have a plan"); false when the phone
+   *  had no room, and onboarding keeps the plan to save again. Without it,
+   *  the "I already have a plan" card isn't offered. */
+  onUseImportedPlan?: (config: OnboardingConfig) => boolean
   onSkip?: () => void
   /** The athlete's existing config when REDOING onboarding: basic info
    *  (name/age/sex/HR/FTP) and stable preferences are prefilled, and the
@@ -224,7 +228,7 @@ const MENOPAUSE_SYMPTOM_OPTIONS: { value: string; label: string }[] = [
   { value: 'brain_fog', label: 'Brain fog' },
 ]
 
-export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 1800, previousConfig, derivedFitness, athleteId }: Props) {
+export default function Onboarding({ onComplete, onUseImportedPlan, onSkip, loadingDurationMs = 1800, previousConfig, derivedFitness, athleteId }: Props) {
   const [step, setStep] = useState(STEP_GOAL_MODE) // ALL_STEPS[0] — the flow's first question
   const [isGenerating, setIsGenerating] = useState(false)
   const [generatingMessage] = useState(
@@ -404,14 +408,18 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
   const logEvent = telemetry.logInteraction
 
   // "I already have a plan" (initiative 004, D8): the owner only, while
-  // uploads are in beta.
-  const canImport = planImportOpenTo(athleteId)
+  // uploads are in beta, and only where there is a way to save it.
+  const canImport = planImportOpenTo(athleteId) && !!onUseImportedPlan
   // Held here, not in the upload step, so the read keeps going while the
   // athlete answers the questions after it.
   const planImport = usePlanImport()
   const planPick = usePlanPick()
   // What the read in `planImport` was started from.
   const [readInput, setReadInput] = useState<UploadInput | null>(null)
+  // The approved plan, kept when the phone had no room to save it: reading it
+  // again would cost another upload. Dropped when the athlete leaves the
+  // review, since the answers it was built from may change.
+  const [unsaved, setUnsaved] = useState<{ cfg: OnboardingConfig; tries: number } | null>(null)
   const readIsOfPick = !!(readInput && planPick.input && sameUpload(readInput, planPick.input))
   const finishedRef = useRef(false)
   const stepRef = useRef(step)
@@ -511,6 +519,7 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
     }
   }
   const back = () => {
+    setUnsaved(null)
     if (visibleIdx > 0) {
       setStep(visibleSteps[visibleIdx - 1])
     }
@@ -799,11 +808,15 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
     }
   }
 
+  // Straight in: nothing is generated, so there is no "building your plan".
   const finishImport = (cfg: OnboardingConfig) => {
+    if (!onUseImportedPlan?.(cfg)) {
+      setUnsaved(prev => ({ cfg, tries: (prev?.tries ?? 0) + 1 }))
+      return
+    }
+    setUnsaved(null)
     finishedRef.current = true
     logEvent('onboarding_completed', { steps: visibleSteps.length, redo: !!previousConfig, goalMode: 'import' })
-    // Straight in: nothing is generated, so there is no "building your plan".
-    onComplete(cfg)
   }
 
   const handleComplete = () => {
@@ -2082,7 +2095,10 @@ export default function Onboarding({ onComplete, onSkip, loadingDurationMs = 180
                 </PlanImportProblem>
               )
             })()}
-            {planImport.state.step === 'review' && (
+            {planImport.state.step === 'review' && unsaved && (
+              <PlanSaveFailed tries={unsaved.tries} onRetry={() => finishImport(unsaved.cfg)} onBack={() => setUnsaved(null)} />
+            )}
+            {planImport.state.step === 'review' && !unsaved && (
               <ImportReview
                 result={planImport.state.result}
                 sourceName={planImport.state.sourceName}

@@ -115,12 +115,16 @@ describe('saving an uploaded plan (PR 5)', () => {
     const hook = source('hooks/useOnboarding.ts')
     const body = hook.slice(hook.indexOf('const importPlan = useCallback'))
     expect(body.indexOf("captureBackup(athleteId, 'before upload')")).toBeGreaterThan(-1)
-    expect(body.indexOf("captureBackup(athleteId, 'before upload')")).toBeLessThan(body.indexOf('save(cfg)'))
+    expect(body.indexOf("captureBackup(athleteId, 'before upload')")).toBeLessThan(body.indexOf('commit(cfg, true)'))
   })
 
   it('the way in is the owner\'s alone during the beta (D8)', () => {
     expect(source('components/Settings.tsx')).toContain("const canImportPlan = planImportOpenTo(athleteId) && !!onboardingConfig && !!onUseImportedPlan")
     // Both ways in ask the one gate, so opening uploads up is one change.
-    expect(source('components/Onboarding.tsx')).toContain('const canImport = planImportOpenTo(athleteId)')
+    // Onboarding offers it only where App can save it.
+    expect(source('components/Onboarding.tsx')).toContain('const canImport = planImportOpenTo(athleteId) && !!onUseImportedPlan')
+    // Onboarding's uploaded plan is saved only if it fits, so a full phone
+    // keeps it on screen to save again rather than losing a paid-for read.
+    expect(source('App.tsx')).toContain('onUseImportedPlan={(config) => onboarding.saveIfRoom(config)}')
   })
 })

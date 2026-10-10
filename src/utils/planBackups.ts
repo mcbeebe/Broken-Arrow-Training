@@ -147,6 +147,60 @@ export function captureBackup(athleteId: string | undefined, reason: PlanBackup[
   return next
 }
 
+/** Restore points kept when a full phone needs room for an uploaded plan:
+ *  the newest is the plan being replaced. */
+export const BACKUPS_KEPT_WHEN_FULL = 2
+
+/**
+ * Keeps only the `keep` newest restore points, to make room on a full
+ * phone. False when there was nothing to drop.
+ */
+export function trimBackups(athleteId: string | undefined, keep: number): boolean {
+  const list = readBackups(athleteId)
+  if (list.length <= keep) return false
+  try {
+    localStorage.setItem(backupsKey(athleteId), JSON.stringify(list.slice(0, keep)))
+    return true
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Runs `write`, which reports whether what it stored landed. When it
+ * didn't (a full phone), the older restore points make room
+ * (`trimBackups`) and it runs once more. If that fails too, the restore
+ * points are put back exactly as they were before the first try. An
+ * uploaded plan cost one of the day's uploads to read, so it is worth more
+ * than a restore point from weeks ago.
+ */
+export function withRoomFromBackups(athleteId: string | undefined, write: () => boolean): boolean {
+  const key = backupsKey(athleteId)
+  const before = localStorage.getItem(key)
+  if (write()) return true
+  if (trimBackups(athleteId, BACKUPS_KEPT_WHEN_FULL) && write()) return true
+  // What a failed try wrote (a capture, a label) goes too: the ring took no
+  // room before the first try that it doesn't take now.
+  try {
+    if (before == null) localStorage.removeItem(key)
+    else localStorage.setItem(key, before)
+  } catch { /* the trimmed ring stays */ }
+  return false
+}
+
+/**
+ * Whether the newest restore point holds the plan as it is now: its config
+ * and, when there are any, its day edits. A capture on a full phone can
+ * fail to write, so a caller that must have the backup asks this.
+ */
+export function newestBackupIsCurrent(athleteId?: string): boolean {
+  const configRaw = localStorage.getItem(scoped('ba_onboarding', athleteId))
+  const newest = readBackups(athleteId)[0]
+  if (!configRaw || newest?.config !== configRaw) return false
+  const edits = readEdits(athleteId)
+  return Object.keys(edits).length === 0 || JSON.stringify(newest.edits ?? {}) === JSON.stringify(edits)
+}
+
 /**
  * The config to write when restoring a backup: the saved config, but stamped
  * with a FRESH completedAt so it is the newest version everywhere and the

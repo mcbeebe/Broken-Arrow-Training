@@ -192,14 +192,24 @@ describe('when it doesn\'t become a plan', () => {
     choose(pdfFile())
     fireEvent.click(screen.getByText('Read my plan'))
     fireEvent.click(await screen.findByText('Use this plan'))
-    expect((await screen.findByTestId('plan-import-save-failed')).textContent).toContain('We couldn’t save your plan')
+    const failed = await screen.findByTestId('plan-import-save-failed')
+    expect(failed.textContent).toContain('We couldn’t save your plan')
+    // In Settings the athlete has a plan, and it is untouched.
+    expect(failed.textContent).toContain('Nothing has changed: your current plan is untouched.')
+    expect(failed.textContent).toContain('This app’s storage on this phone is full')
+    // In place of the review, not beside it.
+    expect(screen.queryByText('Use this plan')).toBeNull()
     // Back to the review keeps the plan that was read.
     fireEvent.click(screen.getByText('Back to the review'))
     fireEvent.click(screen.getByText('Use this plan'))
-    full = false
+    // A try that fails again says so.
     fireEvent.click(await screen.findByText('Try saving again'))
-    expect(onUse).toHaveBeenCalledTimes(3)
-    expect(onUse.mock.calls[2][0]).toEqual(onUse.mock.calls[0][0])
+    expect(screen.getByTestId('plan-import-save-failed').textContent).toContain('Still no room')
+    expect(screen.getByTestId('plan-import-save-failed').textContent).toContain('Tried 2 times.')
+    full = false
+    fireEvent.click(screen.getByText('Try saving again'))
+    expect(onUse).toHaveBeenCalledTimes(4)
+    expect(onUse.mock.calls[3][0]).toEqual(onUse.mock.calls[0][0])
     expect(fetchImpl).toHaveBeenCalledTimes(1)
     expect(screen.queryByTestId('plan-import-save-failed')).toBeNull()
   })
