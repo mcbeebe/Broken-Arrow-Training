@@ -30,6 +30,9 @@ interface TRIMPBreakdownProps {
    *  in the app. Without it, the chart renders bars only. */
   performance?: PerformanceMetrics[]
   athleteId?: string
+  /** Today: a "See full chart" link to the same chart on Progress →
+   *  Performance. Absent there, where the chart already is full. */
+  onOpenFull?: () => void
 }
 
 const SPORT_COLORS: Record<string, string> = {
@@ -134,6 +137,7 @@ export default function TRIMPBreakdown({
   onRangeChange,
   performance,
   athleteId,
+  onOpenFull,
 }: TRIMPBreakdownProps) {
   const { flags } = useDisplayPreferences(athleteId)
   // The lines take the mode's steps, and the halo that lifts the Fatigue
@@ -741,6 +745,15 @@ export default function TRIMPBreakdown({
           {' '}<span className="font-semibold text-slate-500 dark:text-slate-400">Soreness</span> = measured by you (daily check-in).
           When both apply we keep the bigger of the two — never sum.
         </p>
+      )}
+      {onOpenFull && (
+        <button
+          type="button"
+          onClick={onOpenFull}
+          className="mt-3 w-full text-sm font-medium text-teal-700 dark:text-teal-400 py-2 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50"
+        >
+          See full chart on Performance ›
+        </button>
       )}
     </div>
   )

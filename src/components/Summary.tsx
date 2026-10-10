@@ -19,6 +19,7 @@ import WeekReviewCard from './WeekReviewCard'
 import PlanAtAGlance from './PlanAtAGlance'
 import TRIMPBreakdown from './TRIMPBreakdown'
 import PerformanceSnapshot from './PerformanceSnapshot'
+import type { PerformanceTarget } from '../utils/metricTrend'
 import ReadinessTrend from './ReadinessTrend'
 import { readinessIsCurrent } from '../utils/readinessRecency'
 import { notesRowText, shouldShowNotesRow } from '../utils/planNotes'
@@ -86,6 +87,9 @@ interface SummaryProps {
   /** Deep link into the Plan tab's Season view, from the "how this fits"
    *  card. Absent = the card renders without the link. */
   onOpenSeason?: () => void
+  /** Opens Progress → Performance at a metric's full-width card (or the
+   *  Training Load chart). Absent = the tiles and chart aren't links. */
+  onOpenPerformance?: (target: PerformanceTarget) => void
   /** Logs / edits a completed workout. When provided, the workout detail
    *  modals opened from Summary surface a "Log / Edit workout" pill so the
    *  athlete can log what they actually did without leaving the page —
@@ -141,11 +145,18 @@ export default function Summary({
   planNotesSeen = false,
   race, season,
   onOpenSeason,
+  onOpenPerformance,
   manualLog,
   onAskCoach,
   onShareNote,
 }: SummaryProps) {
   const { isSectionVisible } = useDisplayPreferences(athleteId)
+  // The snapshot tiles and the load chart link to Progress → Performance
+  // only when what they'd land on is shown there (the simple level hides
+  // the whole tab).
+  const performanceShown = !!onOpenPerformance && isSectionVisible('dash.tabPerformance')
+  const openMetric = performanceShown && isSectionVisible('dash.performanceChart') ? onOpenPerformance : undefined
+  const openLoadChart = performanceShown && isSectionVisible('dash.trimpBreakdown') ? () => onOpenPerformance!('load') : undefined
   const latestPerf = performance.length > 0 ? performance[performance.length - 1] : null
   const [narrativeOpen, setNarrativeOpen] = useState(true)
   const [showTodayModal, setShowTodayModal] = useState(false)
@@ -469,6 +480,7 @@ export default function Summary({
           sorenessLoadByDate={sorenessLoadByDate}
           performance={performance}
           athleteId={athleteId}
+          onOpenFull={openLoadChart}
         />
       )}
 
@@ -482,6 +494,7 @@ export default function Summary({
           athleteId={athleteId}
           heading="Performance snapshot"
           history={performance}
+          onOpen={openMetric}
         />
       )}
 

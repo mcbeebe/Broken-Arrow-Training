@@ -120,14 +120,18 @@ describe('Performance snapshot: a 14-day sparkline in each tile', () => {
   })
 })
 
-describe('Progress: the sparklines read the whole timeline, not the chart window', () => {
-  it('a 7-day chart window still gets 14-day sparklines', () => {
+describe('Progress: full-width cards, not the miniature tiles', () => {
+  it('a 7-day chart window draws cards over that week, with the change still read from the whole timeline', () => {
     const history = timeline(30)
     const week = history.slice(-7)
     render(
       <PerformanceChart performance={week} history={history} dailyTrimp={[]} recommendations={[]} raceDate="2026-12-05" athleteId="mike" />,
     )
-    expect(screen.getByRole('img', { name: new RegExp(`^Fitness, last 14 days: ${Math.round(history[16].ctl)} to`) })).toBeTruthy()
+    expect(screen.queryAllByTestId('metric-sparkline')).toHaveLength(0)
+    const fitness = screen.getByRole('region', { name: 'Fitness' })
+    expect(within(fitness).getByRole('img', { name: new RegExp(`^Fitness from ${week[0].date} `) })).toBeTruthy()
+    const gain = Math.round(last(history).ctl - history[22].ctl)
+    expect(within(fitness).getByText(`▲ +${gain}`, { exact: false }).textContent).toContain('vs 7d ago')
   })
 })
 

@@ -96,6 +96,7 @@ import WeeklyPlan from './components/WeeklyPlan'
 import Summary from './components/Summary'
 import Journal from './components/Journal'
 import Dashboard, { type DashSubTab } from './components/Dashboard'
+import type { PerformanceTarget } from './utils/metricTrend'
 import RaceInfo from './components/RaceInfo'
 // Methodology is now a subsection within Settings
 import Settings from './components/Settings'
@@ -1407,6 +1408,9 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
   // deep link Tools uses to land Stats on the Engine sub-tab.
   const [coachSubTab, setCoachSubTab] = useState<'chat' | 'review' | 'tools'>('chat')
   const [dashSubTabRequest, setDashSubTabRequest] = useState<DashSubTab | null>(null)
+  // Today's snapshot tile or chart the athlete tapped: Performance scrolls
+  // to its full-width card, then clears it.
+  const [performanceFocus, setPerformanceFocus] = useState<PerformanceTarget | null>(null)
   const todayHeatF = useMemo(() => {
     // Honest heat only: the forecast AT the training hour. Daily highs
     // overstate a 7am run, so no hourly data means no heat action.
@@ -2451,6 +2455,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           race={activePlan.race}
           season={importedMode ? null : seasonState.season}
           onOpenSeason={importedMode ? undefined : () => { setPlanViewRequest({ mode: 'season' }); setView('plan') }}
+          onOpenPerformance={target => { setPerformanceFocus(target); setDashSubTabRequest('performance'); setView('progress') }}
           manualLog={manualLog}
           onAskCoach={handleAskCoach}
           onShareNote={shareWorkoutNote}
@@ -2620,6 +2625,8 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
           athleteId={athleteId}
           subTabRequest={dashSubTabRequest}
           onSubTabRequestHandled={() => setDashSubTabRequest(null)}
+          performanceFocus={performanceFocus}
+          onPerformanceFocusHandled={() => setPerformanceFocus(null)}
         />
       )}
       {view === 'coach' && coachEnabled && (
