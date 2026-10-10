@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { niceTicks, SMOOTH_DAYS } from '../utils/metricTrend'
+import { niceTicks, SMOOTH_DAYS, EXPAND_HINT } from '../utils/metricTrend'
 import { isDarkMode } from '../utils/styles'
 import { ComposedChart, Line, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine, CartesianGrid } from 'recharts'
 import ChartExpandOverlay from './ChartExpandOverlay'
@@ -161,11 +161,11 @@ export default function MetricTrendCard({
       </div>
       {data.length >= 2 ? (
         <div className="mt-2">
+          <p className="mb-1 text-right text-[11px] text-slate-500 dark:text-slate-400">{EXPAND_HINT}</p>
           <ChartExpandOverlay title={lineName} summary={summary}>{chart}</ChartExpandOverlay>
-          <p className="mt-1 text-[11px] leading-snug text-slate-500 dark:text-slate-400">
-            {bandCaption && hasBand && <>{bandCaption} </>}
-            <span className="text-slate-400 dark:text-slate-500">Tap the chart to expand.</span>
-          </p>
+          {bandCaption && hasBand && (
+            <p className="mt-1 text-[11px] leading-snug text-slate-500 dark:text-slate-400">{bandCaption}</p>
+          )}
         </div>
       ) : (
         <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Not enough history in this window yet.</p>

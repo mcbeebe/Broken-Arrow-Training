@@ -687,6 +687,7 @@ function PerformanceTab({
             performance={performance}
             athleteId={athleteId}
             chartHeight={280}
+            expandable
           />
         </div>
       )}

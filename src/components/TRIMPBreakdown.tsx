@@ -7,7 +7,8 @@ import { useDisplayPreferences } from '../hooks/useDisplayPreferences'
 import { ACWR_BOUNDS } from '../utils/loadZones'
 import { LOAD_SERIES_COLORS, seriesHex } from '../utils/loadSeriesColors'
 import { isDarkMode } from '../utils/styles'
-import { fitnessAxisDomain, fitnessChange, formatChange, shiftDate } from '../utils/metricTrend'
+import { fitnessAxisDomain, fitnessChange, formatChange, shiftDate, EXPAND_HINT } from '../utils/metricTrend'
+import ChartExpandOverlay from './ChartExpandOverlay'
 
 export type TRIMPRange = '7d' | '30d' | '90d' | 'ytd' | 'all'
 
@@ -34,6 +35,8 @@ interface TRIMPBreakdownProps {
   onOpenFull?: () => void
   /** Plot height in px: compact on Today, taller on Performance. */
   chartHeight?: number
+  /** Performance: a click opens the chart full screen. */
+  expandable?: boolean
 }
 
 const SPORT_COLORS: Record<string, string> = {
@@ -140,6 +143,7 @@ export default function TRIMPBreakdown({
   athleteId,
   onOpenFull,
   chartHeight = 180,
+  expandable = false,
 }: TRIMPBreakdownProps) {
   const { flags } = useDisplayPreferences(athleteId)
   // The lines take the mode's steps, and the halo that lifts the Fatigue
@@ -324,46 +328,8 @@ export default function TRIMPBreakdown({
 
   const rangeOptions: TRIMPRange[] = ['7d', '30d', '90d', 'ytd']
 
-  return (
-    <div className="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700">
-      <div className="flex items-baseline justify-between mb-3">
-        <div>
-          <p className="text-base font-semibold text-slate-700 dark:text-slate-200">{labels.title}</p>
-          <p className="text-sm text-slate-500 dark:text-slate-400">Garmin <Term name="epoc" /> · <Term name="mim" />-adjusted · <Term name="doms" /> &amp; soreness</p>
-        </div>
-        <div className="text-right">
-          <p className="text-2xl font-bold text-slate-800 dark:text-white">{rangeTotal}</p>
-          <p className="text-xs text-slate-500 dark:text-slate-400 uppercase">{labels.total}</p>
-        </div>
-      </div>
-      {showRangeToggle && (
-        <div className="flex gap-1 bg-slate-100 dark:bg-slate-700 rounded-lg p-0.5 mb-3">
-          {rangeOptions.map(r => (
-            <button
-              key={r}
-              onClick={() => setRange(r)}
-              className={`flex-1 text-xs font-medium py-1.5 rounded-md transition-colors ${
-                range === r
-                  ? 'bg-white dark:bg-slate-600 text-slate-800 dark:text-white shadow-sm'
-                  : 'text-slate-500 dark:text-slate-400'
-              }`}
-            >
-              {RANGE_LABELS[r].tab}
-            </button>
-          ))}
-        </div>
-      )}
-      {change && (
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 bg-blue-50 dark:bg-blue-950/40 rounded-lg px-2.5 py-1.5 mb-2 text-sm" data-testid="fitness-change">
-          <span aria-hidden className={`inline-block w-3.5 h-[3px] rounded-full ${LOAD_SERIES_COLORS.ctl.swatch}`} />
-          <span className="font-semibold text-blue-900 dark:text-blue-200">Fitness {change.to.toFixed(loadDp)}</span>
-          <span className={`font-semibold ${changeShown > 0 ? 'text-green-700 dark:text-green-400' : changeShown < 0 ? 'text-amber-700 dark:text-amber-400' : 'text-slate-500 dark:text-slate-400'}`}>
-            {formatChange(change.delta, loadDp)}{pctShown !== 0 && ` (${pctShown > 0 ? '+' : '−'}${Math.abs(pctShown)}%)`}
-          </span>
-          <span className="ml-auto text-xs text-slate-600 dark:text-slate-300">since {sinceLabel}</span>
-        </div>
-      )}
-      <div style={{ height: chartHeight }}>
+  const renderChart = (expanded: boolean) => (
+      <div style={{ height: expanded ? '100%' : chartHeight }}>
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart
             data={chartData}
@@ -666,6 +632,54 @@ export default function TRIMPBreakdown({
           </ComposedChart>
         </ResponsiveContainer>
       </div>
+  )
+
+
+  return (
+    <div className="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700">
+      <div className="flex items-baseline justify-between mb-3">
+        <div>
+          <p className="text-base font-semibold text-slate-700 dark:text-slate-200">{labels.title}</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400">Garmin <Term name="epoc" /> · <Term name="mim" />-adjusted · <Term name="doms" /> &amp; soreness</p>
+        </div>
+        <div className="text-right">
+          <p className="text-2xl font-bold text-slate-800 dark:text-white">{rangeTotal}</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 uppercase">{labels.total}</p>
+        </div>
+      </div>
+      {showRangeToggle && (
+        <div className="flex gap-1 bg-slate-100 dark:bg-slate-700 rounded-lg p-0.5 mb-3">
+          {rangeOptions.map(r => (
+            <button
+              key={r}
+              onClick={() => setRange(r)}
+              className={`flex-1 text-xs font-medium py-1.5 rounded-md transition-colors ${
+                range === r
+                  ? 'bg-white dark:bg-slate-600 text-slate-800 dark:text-white shadow-sm'
+                  : 'text-slate-500 dark:text-slate-400'
+              }`}
+            >
+              {RANGE_LABELS[r].tab}
+            </button>
+          ))}
+        </div>
+      )}
+      {change && (
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 bg-blue-50 dark:bg-blue-950/40 rounded-lg px-2.5 py-1.5 mb-2 text-sm" data-testid="fitness-change">
+          <span aria-hidden className={`inline-block w-3.5 h-[3px] rounded-full ${LOAD_SERIES_COLORS.ctl.swatch}`} />
+          <span className="font-semibold text-blue-900 dark:text-blue-200">Fitness {change.to.toFixed(loadDp)}</span>
+          <span className={`font-semibold ${changeShown > 0 ? 'text-green-700 dark:text-green-400' : changeShown < 0 ? 'text-amber-700 dark:text-amber-400' : 'text-slate-500 dark:text-slate-400'}`}>
+            {formatChange(change.delta, loadDp)}{pctShown !== 0 && ` (${pctShown > 0 ? '+' : '−'}${Math.abs(pctShown)}%)`}
+          </span>
+          <span className="ml-auto text-xs text-slate-600 dark:text-slate-300">since {sinceLabel}</span>
+        </div>
+      )}
+      {expandable ? (
+        <>
+          <p className="mb-1 text-right text-[11px] text-slate-500 dark:text-slate-400">{EXPAND_HINT}</p>
+          <ChartExpandOverlay title={labels.title} summary={`${labels.title}: ${rangeTotal} total load`}>{renderChart}</ChartExpandOverlay>
+        </>
+      ) : renderChart(false)}
 
       {/* Day labels with rest day indicators — only readable at 7d. For
           longer ranges, individual rest tags would overflow the row. */}

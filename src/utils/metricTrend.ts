@@ -221,8 +221,11 @@ export function niceTicks(lo: number, hi: number, count = 4): number[] {
   return ticks
 }
 
+/** The hint above every expandable chart on the Performance tab. */
+export const EXPAND_HINT = 'Click to expand · rotate for best view'
+
 /** How many days the Smooth toggle averages over. */
-export const SMOOTH_DAYS = 3
+export const SMOOTH_DAYS = 7
 
 /**
  * Trailing rolling mean by calendar date: each point becomes the mean of

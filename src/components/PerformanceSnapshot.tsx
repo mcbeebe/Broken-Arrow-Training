@@ -134,7 +134,7 @@ export default function PerformanceSnapshot({
   if (layout === 'cards') {
     const windowed = [...(series ?? history ?? [])].sort((a, b) => a.date.localeCompare(b.date))
     // Bands and smoothing read the whole timeline, so the window's first
-    // days still have last week's Fitness and their two days before.
+    // days still have last week's Fitness and their week before.
     const full = [...(history ?? windowed)].sort((a, b) => a.date.localeCompare(b.date))
     const bandBounds: BandBounds = {
       acwrLow: acwrBounds.low, acwrHigh: acwrBounds.sweetTop,
