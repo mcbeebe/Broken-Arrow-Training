@@ -3,6 +3,7 @@ import type { OnboardingConfig } from '../hooks/useOnboarding'
 import type { WeekShape, WeekReshape } from '../engines/planGenerator/weekShape'
 import { planForConfig, representativeWeek } from '../engines/planGenerator/shapeDefaults'
 import { getWorkoutStyle } from '../utils/styles'
+import { formatWeekMilesHeader } from '../utils/format'
 
 /**
  * The week the plan would actually build from a shape — the real
@@ -38,7 +39,7 @@ export default function WeekShapePreview({ config, shape, weekNum, reshape, titl
   return (
     <div data-testid="week-shape-preview">
       <p className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">
-        {title ?? `Week ${week.num} with this layout`}{week.miles ? ` · ~${week.miles} mi` : ''}
+        {title ?? `Week ${week.num} with this layout`}{week.miles ? ` · ${formatWeekMilesHeader(week.miles)}` : ''}
       </p>
       <div className="space-y-1">
         {week.days.map((d, i) => {

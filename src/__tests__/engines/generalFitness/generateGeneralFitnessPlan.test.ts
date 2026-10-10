@@ -286,3 +286,22 @@ describe('generateGeneralFitnessPlan — progression, zones, athlete, race', () 
     expect(longDay!.day).toContain('Sat')
   })
 })
+
+describe('generateGeneralFitnessPlan — the week\'s cardio minutes', () => {
+  // Field bug: VO₂max and sprint sessions are "~30 min", which a bare
+  // parseInt reads as NaN, so they dropped out of the week's total.
+  it('add up every cardio session, intervals included', () => {
+    let intervals = 0
+    for (const generalGoal of GOALS) {
+      for (const days of [3, 4, 5, 6]) {
+        for (const w of generateGeneralFitnessPlan(makeConfig({ generalGoal, trainingDaysPerWeek: days }), TODAY).weeks) {
+          const cardio = w.days.filter(d => d.type !== 'strength' && d.type !== 'rest')
+          intervals += cardio.filter(d => d.type === 'quality').length
+          const minutes = cardio.reduce((sum, d) => sum + parseInt(d.time.replace(/^~/, ''), 10), 0)
+          expect(w.miles, `${generalGoal} ${days}d week ${w.num}`).toBe(`~${minutes} min cardio`)
+        }
+      }
+    }
+    expect(intervals).toBeGreaterThan(0)
+  })
+})

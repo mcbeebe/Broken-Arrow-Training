@@ -13,13 +13,29 @@ export function formatMiles(miles: number): string {
   return miles % 1 === 0 ? `${miles} mi` : `${miles.toFixed(1)} mi`
 }
 
-/** TrainingWeek.miles is numeric from every generator now, but stored
- *  legacy plans may still carry strings (some "~"-prefixed — the source
- *  of the field "~~7 mi" header). One parser, two presentations. */
+/** A week's `miles` that states minutes and no miles is a time target, not
+ *  a distance: General Fitness weeks are "~45 min cardio", and reading their
+ *  digits showed 45 minutes of cardio as 45 miles. Such a week has no
+ *  mileage target, like an uploaded plan's "By time" week. */
+function isTimeTarget(miles: string): boolean {
+  // Not \b before the unit: "60min" has no word boundary between 0 and m.
+  return /(?<![a-z])min(ute)?s?\b/i.test(miles) && !/(?<![a-z])mi(les?)?\b/i.test(miles)
+}
+
+/** TrainingWeek.miles is numeric from the race generators, but General
+ *  Fitness writes a time ("~45 min cardio"), uploaded plans write a label
+ *  ("By time"), and stored legacy plans may still carry strings (some
+ *  "~"-prefixed — the source of the field "~~7 mi" header). One parser for
+ *  the header, the chip and the number; anything that isn't miles shows as
+ *  written. */
 function weekMilesNumber(miles: number | string): number | null {
   if (typeof miles === 'number') return miles
-  const n = parseFloat(String(miles).replace(/[^\d.]/g, ''))
-  return Number.isFinite(n) ? n : null
+  const text = String(miles)
+  if (isTimeTarget(text)) return null
+  // The number given in miles ("20 min + 6 mi" is 6), else the first one
+  // ("~7", "14+race"); never the digits run together ("6 mi + 20 min" ≠ 620).
+  const m = text.match(/(\d+(?:\.\d+)?)\s*mi(?:les?)?\b/i) ?? text.match(/(\d+(?:\.\d+)?)/)
+  return m ? Number(m[1]) : null
 }
 
 /** Week header form: "~20 mi" (planned volumes are estimates). */
@@ -64,10 +80,10 @@ export function formatLoadP(load: number, precision: 'low' | 'normal' | 'high'):
   return precision === 'high' ? load.toFixed(1) : `${Math.round(load)}`
 }
 
+/** A week's planned miles, 0 when it has no mileage target (a time target
+ *  such as "~45 min cardio", or a label such as "By time"). */
 export function getMilesNumber(miles: number | string): number {
-  if (typeof miles === 'number') return miles
-  const match = String(miles).match(/(\d+)/)
-  return match ? parseInt(match[1], 10) : 0
+  return weekMilesNumber(miles) ?? 0
 }
 
 /**

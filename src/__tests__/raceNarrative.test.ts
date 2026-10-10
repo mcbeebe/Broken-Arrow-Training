@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { generateRaceNarrative } from '../utils/raceNarrative'
 import type { RaceInfo, Season, SeasonRace, TrainingWeek } from '../types'
+import type { WeekCompliance } from '../hooks/useCompliance'
 
 /**
  * The Plan → Race tab narrative. Field bugs: "The Half Marathon course
@@ -103,5 +104,47 @@ describe('season paragraph', () => {
       race: race(), weekNum: 1, totalWeeks: 12, weeks: weeksOf(12), season: fuzzy, todayIso: '2026-08-03',
     })
     expect(paragraphs.join(' ')).not.toMatch(/main goal/)
+  })
+})
+
+describe('a plan whose weeks are minutes, not miles', () => {
+  // Field bug: a General Fitness week's "~95 min cardio" read as no miles
+  // here ("roughly 0 miles of training"), and elsewhere as 95 miles.
+  const timed = (n: number) => weeksOf(n).map(w => ({ ...w, miles: '~95 min cardio' }))
+
+  it('says nothing about miles, in the base or the build phase', () => {
+    for (const weekNum of [1, 8]) {
+      const all = generateRaceNarrative({ race: race(), weekNum, totalWeeks: 18, weeks: timed(18) }).paragraphs.join(' ')
+      expect(all).not.toMatch(/\d+ miles/)
+    }
+    expect(generateRaceNarrative({ race: race(), weekNum: 1, totalWeeks: 18, weeks: timed(18) }).paragraphs.join(' '))
+      .toContain("you'll have accumulated 18 weeks of training")
+    expect(generateRaceNarrative({ race: race({ elevation: '2,900 ft', elevationRange: '0-900 ft' }), weekNum: 8, totalWeeks: 18, weeks: timed(18) }).paragraphs.join(' '))
+      .toContain('This is Week 8 of 18, with increasing vertical each week.')
+  })
+
+  it('with weeks logged, says nothing of planned miles the plan never had', () => {
+    const logged = (weekNum: number, plannedMiles: number) => ({
+      weekNum, completed: 4, totalWorkouts: 4, plannedMiles, actualMiles: 3.2, plannedElevation: 0, actualElevation: 0,
+    } as WeekCompliance)
+    const timedNarrative = generateRaceNarrative({
+      race: race(), weekNum: 5, totalWeeks: 18, weeks: timed(18), compliance: [1, 2, 3, 4, 5].map(n => logged(n, 0)),
+    }).paragraphs.join(' ')
+    expect(timedNarrative).toContain('100% completion through Weeks 1–4.')
+    expect(timedNarrative).toContain('This week so far: 4 of 4 workouts done.')
+    expect(timedNarrative).not.toMatch(/of 0\.0|\d+ miles/)
+    // Against a mileage target, the miles stay.
+    const milesNarrative = generateRaceNarrative({
+      race: race(), weekNum: 5, totalWeeks: 18, weeks: weeksOf(18), compliance: [1, 2, 3, 4, 5].map(n => logged(n, 20)),
+    }).paragraphs.join(' ')
+    expect(milesNarrative).toContain('with 12.8 of 80.0 planned miles logged.')
+    expect(milesNarrative).toContain('3.2 of 20.0 miles.')
+  })
+
+  it('miles still add up as before', () => {
+    expect(generateRaceNarrative({ race: race(), weekNum: 1, totalWeeks: 18, weeks: weeksOf(18) }).paragraphs.join(' '))
+      .toContain('roughly 360 miles of training across 18 weeks')
+    expect(generateRaceNarrative({ race: race(), weekNum: 8, totalWeeks: 18, weeks: weeksOf(18) }).paragraphs.join(' '))
+      .toContain('Through Week 8, your plan has programmed 160 miles.')
   })
 })

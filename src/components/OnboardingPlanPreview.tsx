@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import type { OnboardingConfig } from '../hooks/useOnboarding'
 import { getWorkoutStyle } from '../utils/styles'
+import { formatWeekMilesHeader } from '../utils/format'
 import { buildPreview } from './onboarding/buildPreview'
 
 export default function OnboardingPlanPreview({ config }: { config: OnboardingConfig }) {
@@ -28,7 +29,7 @@ export default function OnboardingPlanPreview({ config }: { config: OnboardingCo
       )}
       <p className="text-sm font-semibold text-slate-600 mb-2">
         Your week 1 — {plan.weeks.length} week{plan.weeks.length === 1 ? '' : 's'} total
-        {week1.miles ? ` · ~${week1.miles} mi to start` : ''}
+        {week1.miles ? ` · ${formatWeekMilesHeader(week1.miles)} to start` : ''}
       </p>
       <div className="space-y-1.5">
         {week1.days.map((d, i) => {

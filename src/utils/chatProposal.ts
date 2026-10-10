@@ -3,6 +3,7 @@ import { DAY_ROLES, WEEKDAYS, WEEKDAY_SHORT, roleLabel, changedWeekdays, type Da
 import { BENCHMARK_KINDS, isPlausible, type BenchmarkKind, type BenchmarkUnit } from '../engines/benchmark/log'
 import { formatBenchmarkValue } from '../engines/benchmark/preview'
 import { parseTimeToSeconds } from './parseTime'
+import { formatWeekMilesChip } from './format'
 
 /**
  * Parse ```proposal fenced code blocks from LLM output.
@@ -466,7 +467,7 @@ export function summarizeOp(
     case 'updateWeek': {
       const parts: string[] = []
       if (op.updates.focus) parts.push(`focus → ${trunc(op.updates.focus)}`)
-      if (op.updates.miles != null) parts.push(`${op.updates.miles} mi`)
+      if (op.updates.miles != null) parts.push(formatWeekMilesChip(op.updates.miles))
       if (op.updates.dates) parts.push(op.updates.dates)
       return `Wk${op.weekNum}: ${parts.join(' · ') || 'update'}`
     }

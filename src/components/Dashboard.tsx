@@ -372,7 +372,7 @@ function ComplianceTab({
         </summary>
         <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-slate-600 dark:text-slate-300">
           <span>Sessions</span><span className="text-right font-mono">{compliance.totalCompleted} / {compliance.totalCompleted + compliance.totalMissed}</span>
-          <span>Distance</span><span className="text-right font-mono">{compliance.totalActualMiles} / {compliance.totalPlannedMiles} mi</span>
+          <span>Distance</span><span className="text-right font-mono">{compliance.totalPlannedMiles > 0 ? `${compliance.totalActualMiles} / ${compliance.totalPlannedMiles} mi` : `${compliance.totalActualMiles} mi`}</span>
           <span>Duration</span><span className="text-right font-mono">{compliance.overallDurationCompliance}%</span>
           <span>HR in zone</span><span className="text-right font-mono">{compliance.overallHRCompliance}%{compliance.totalFlagged > 0 ? ` · ${compliance.totalFlagged} flagged` : ''}</span>
         </div>
@@ -422,7 +422,9 @@ function ComplianceTab({
           {weeks.map((w, i) => {
             const planned = getMilesNumber(w.miles)
             const actual = compliance.weeks[i]?.actualMiles ?? 0
-            const max = Math.max(...weeks.map(wk => getMilesNumber(wk.miles)), 1)
+            // Actuals too: a plan in minutes plans no miles, and the miles run
+            // would otherwise be drawn against a scale of 1.
+            const max = Math.max(...weeks.map((wk, j) => Math.max(getMilesNumber(wk.miles), compliance.weeks[j]?.actualMiles ?? 0)), 1)
             const pPct = (planned / max) * 100
             const aPct = (actual / max) * 100
             return (

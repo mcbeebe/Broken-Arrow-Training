@@ -102,7 +102,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
         },
       ],
       "focus": "Aerobic volume and intervals, strength to support. Most volume easy (~80/20). One weekly threshold/interval accent.",
-      "miles": "~160 min cardio",
+      "miles": "~195 min cardio",
       "num": 1,
     },
     {
@@ -173,7 +173,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
         },
       ],
       "focus": "Aerobic volume and intervals, strength to support.",
-      "miles": "~165 min cardio",
+      "miles": "~200 min cardio",
       "num": 2,
     },
     {
@@ -244,7 +244,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
         },
       ],
       "focus": "Aerobic volume and intervals, strength to support.",
-      "miles": "~165 min cardio",
+      "miles": "~205 min cardio",
       "num": 3,
     },
     {
@@ -315,7 +315,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
         },
       ],
       "focus": "Deload week — volume down ~40%. Ease off and let adaptations land.",
-      "miles": "~105 min cardio",
+      "miles": "~135 min cardio",
       "num": 4,
     },
     {
@@ -386,7 +386,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
         },
       ],
       "focus": "Aerobic volume and intervals, strength to support.",
-      "miles": "~180 min cardio",
+      "miles": "~225 min cardio",
       "num": 5,
     },
     {
@@ -457,7 +457,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
         },
       ],
       "focus": "Aerobic volume and intervals, strength to support.",
-      "miles": "~180 min cardio",
+      "miles": "~225 min cardio",
       "num": 6,
     },
     {
@@ -528,7 +528,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
         },
       ],
       "focus": "Aerobic volume and intervals, strength to support.",
-      "miles": "~185 min cardio",
+      "miles": "~230 min cardio",
       "num": 7,
     },
     {
@@ -599,7 +599,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
         },
       ],
       "focus": "Deload week — volume down ~40%. Ease off and let adaptations land.",
-      "miles": "~105 min cardio",
+      "miles": "~135 min cardio",
       "num": 8,
     },
   ],
@@ -734,7 +734,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
         },
       ],
       "focus": "Aerobic volume and intervals, strength to support. Most volume easy (~80/20). One weekly threshold/interval accent.",
-      "miles": "~160 min cardio",
+      "miles": "~195 min cardio",
       "num": 1,
     },
     {
@@ -805,7 +805,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
         },
       ],
       "focus": "Aerobic volume and intervals, strength to support.",
-      "miles": "~165 min cardio",
+      "miles": "~200 min cardio",
       "num": 2,
     },
     {
@@ -876,7 +876,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
         },
       ],
       "focus": "Aerobic volume and intervals, strength to support.",
-      "miles": "~165 min cardio",
+      "miles": "~205 min cardio",
       "num": 3,
     },
     {
@@ -947,7 +947,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
         },
       ],
       "focus": "Deload week — volume down ~40%. Ease off and let adaptations land.",
-      "miles": "~105 min cardio",
+      "miles": "~135 min cardio",
       "num": 4,
     },
     {
@@ -1018,7 +1018,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
         },
       ],
       "focus": "Aerobic volume and intervals, strength to support.",
-      "miles": "~165 min cardio",
+      "miles": "~210 min cardio",
       "num": 5,
     },
     {
@@ -1089,7 +1089,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
         },
       ],
       "focus": "Aerobic volume and intervals, strength to support.",
-      "miles": "~180 min cardio",
+      "miles": "~225 min cardio",
       "num": 6,
     },
     {
@@ -1160,7 +1160,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
         },
       ],
       "focus": "Aerobic volume and intervals, strength to support.",
-      "miles": "~180 min cardio",
+      "miles": "~225 min cardio",
       "num": 7,
     },
     {
@@ -1231,7 +1231,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
         },
       ],
       "focus": "Deload week — volume down ~40%. Ease off and let adaptations land.",
-      "miles": "~105 min cardio",
+      "miles": "~135 min cardio",
       "num": 8,
     },
     {
@@ -1302,7 +1302,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
         },
       ],
       "focus": "Aerobic volume and intervals, strength to support.",
-      "miles": "~180 min cardio",
+      "miles": "~225 min cardio",
       "num": 9,
     },
     {
@@ -1373,7 +1373,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
         },
       ],
       "focus": "Aerobic volume and intervals, strength to support.",
-      "miles": "~185 min cardio",
+      "miles": "~230 min cardio",
       "num": 10,
     },
     {
@@ -1444,7 +1444,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
         },
       ],
       "focus": "Aerobic volume and intervals, strength to support.",
-      "miles": "~185 min cardio",
+      "miles": "~230 min cardio",
       "num": 11,
     },
     {
@@ -1515,7 +1515,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > build_endurance · 5 
         },
       ],
       "focus": "Deload week — volume down ~40%. Ease off and let adaptations land.",
-      "miles": "~105 min cardio",
+      "miles": "~135 min cardio",
       "num": 12,
     },
   ],
@@ -2566,7 +2566,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
         },
       ],
       "focus": "Cardio volume up, strength to spare lean mass. Diet drives the deficit — training preserves muscle and builds the core that shows once you lean out. Keep ~8,500 steps/day.",
-      "miles": "~115 min cardio",
+      "miles": "~185 min cardio",
       "num": 1,
     },
     {
@@ -2637,7 +2637,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
         },
       ],
       "focus": "Cardio volume up, strength to spare lean mass.",
-      "miles": "~120 min cardio",
+      "miles": "~190 min cardio",
       "num": 2,
     },
     {
@@ -2708,7 +2708,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
         },
       ],
       "focus": "Cardio volume up, strength to spare lean mass.",
-      "miles": "~120 min cardio",
+      "miles": "~200 min cardio",
       "num": 3,
     },
     {
@@ -2779,7 +2779,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
         },
       ],
       "focus": "Deload week — volume down ~40%. Ease off and let adaptations land.",
-      "miles": "~75 min cardio",
+      "miles": "~135 min cardio",
       "num": 4,
     },
     {
@@ -2850,7 +2850,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
         },
       ],
       "focus": "Cardio volume up, strength to spare lean mass.",
-      "miles": "~120 min cardio",
+      "miles": "~210 min cardio",
       "num": 5,
     },
     {
@@ -2921,7 +2921,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
         },
       ],
       "focus": "Cardio volume up, strength to spare lean mass.",
-      "miles": "~130 min cardio",
+      "miles": "~220 min cardio",
       "num": 6,
     },
     {
@@ -2992,7 +2992,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
         },
       ],
       "focus": "Cardio volume up, strength to spare lean mass.",
-      "miles": "~130 min cardio",
+      "miles": "~220 min cardio",
       "num": 7,
     },
     {
@@ -3063,7 +3063,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
         },
       ],
       "focus": "Deload week — volume down ~40%. Ease off and let adaptations land.",
-      "miles": "~75 min cardio",
+      "miles": "~135 min cardio",
       "num": 8,
     },
     {
@@ -3134,7 +3134,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
         },
       ],
       "focus": "Cardio volume up, strength to spare lean mass.",
-      "miles": "~130 min cardio",
+      "miles": "~220 min cardio",
       "num": 9,
     },
     {
@@ -3205,7 +3205,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
         },
       ],
       "focus": "Cardio volume up, strength to spare lean mass.",
-      "miles": "~135 min cardio",
+      "miles": "~225 min cardio",
       "num": 10,
     },
     {
@@ -3276,7 +3276,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
         },
       ],
       "focus": "Cardio volume up, strength to spare lean mass.",
-      "miles": "~135 min cardio",
+      "miles": "~225 min cardio",
       "num": 11,
     },
     {
@@ -3347,7 +3347,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > lose_fat · 6 days ·
         },
       ],
       "focus": "Deload week — volume down ~40%. Ease off and let adaptations land.",
-      "miles": "~75 min cardio",
+      "miles": "~135 min cardio",
       "num": 12,
     },
   ],
@@ -4398,7 +4398,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
         },
       ],
       "focus": "Balanced cardio, strength, and mobility. Hit the health floor: 150+ min cardio and 2 strength days a week.",
-      "miles": "~35 min cardio",
+      "miles": "~70 min cardio",
       "num": 1,
     },
     {
@@ -4469,7 +4469,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
         },
       ],
       "focus": "Balanced cardio, strength, and mobility.",
-      "miles": "~35 min cardio",
+      "miles": "~70 min cardio",
       "num": 2,
     },
     {
@@ -4540,7 +4540,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
         },
       ],
       "focus": "Balanced cardio, strength, and mobility.",
-      "miles": "~40 min cardio",
+      "miles": "~80 min cardio",
       "num": 3,
     },
     {
@@ -4611,7 +4611,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
         },
       ],
       "focus": "Deload week — volume down ~40%. Ease off and let adaptations land.",
-      "miles": "~25 min cardio",
+      "miles": "~55 min cardio",
       "num": 4,
     },
     {
@@ -4682,7 +4682,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
         },
       ],
       "focus": "Balanced cardio, strength, and mobility.",
-      "miles": "~40 min cardio",
+      "miles": "~85 min cardio",
       "num": 5,
     },
     {
@@ -4753,7 +4753,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
         },
       ],
       "focus": "Balanced cardio, strength, and mobility.",
-      "miles": "~40 min cardio",
+      "miles": "~85 min cardio",
       "num": 6,
     },
     {
@@ -4824,7 +4824,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
         },
       ],
       "focus": "Balanced cardio, strength, and mobility.",
-      "miles": "~40 min cardio",
+      "miles": "~85 min cardio",
       "num": 7,
     },
     {
@@ -4895,7 +4895,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
         },
       ],
       "focus": "Deload week — volume down ~40%. Ease off and let adaptations land.",
-      "miles": "~25 min cardio",
+      "miles": "~55 min cardio",
       "num": 8,
     },
     {
@@ -4966,7 +4966,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
         },
       ],
       "focus": "Balanced cardio, strength, and mobility.",
-      "miles": "~40 min cardio",
+      "miles": "~85 min cardio",
       "num": 9,
     },
     {
@@ -5037,7 +5037,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
         },
       ],
       "focus": "Balanced cardio, strength, and mobility.",
-      "miles": "~45 min cardio",
+      "miles": "~90 min cardio",
       "num": 10,
     },
     {
@@ -5108,7 +5108,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
         },
       ],
       "focus": "Balanced cardio, strength, and mobility.",
-      "miles": "~45 min cardio",
+      "miles": "~90 min cardio",
       "num": 11,
     },
     {
@@ -5179,7 +5179,7 @@ exports[`generateGeneralFitnessPlan — golden snapshots > stay_healthy · 4 day
         },
       ],
       "focus": "Deload week — volume down ~40%. Ease off and let adaptations land.",
-      "miles": "~25 min cardio",
+      "miles": "~55 min cardio",
       "num": 12,
     },
   ],

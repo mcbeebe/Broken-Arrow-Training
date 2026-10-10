@@ -238,7 +238,10 @@ export function buildWeeklyRecap(input: WeeklyRecapInput): WeeklyRecap {
     suggestion,
     digest: [
       `Week ${weekNum} of ${input.totalWeeks}${week.focus ? ` (${week.focus})` : ''}`,
-      `Completed ${c.completed}/${c.totalWorkouts} sessions, ${mi(c.actualMiles)}/${mi(c.plannedMiles)} mi (${pct(ratio)})`,
+      // Miles only against a mileage target; otherwise the ratio is sessions.
+      c.plannedMiles > 0
+        ? `Completed ${c.completed}/${c.totalWorkouts} sessions, ${mi(c.actualMiles)}/${mi(c.plannedMiles)} mi (${pct(ratio)})`
+        : `Completed ${c.completed}/${c.totalWorkouts} sessions (${pct(ratio)})${c.actualMiles > 0 ? `, ${mi(c.actualMiles)} mi run` : ''}`,
       c.hrCheckedWorkouts > 0 ? `Time in zone ${Math.round(c.hrCompliance)}% over ${c.hrCheckedWorkouts} sessions` : '',
       c.actualElevation > 0 ? `${Math.round(c.actualElevation)} ft climbed` : '',
       c.flaggedCount > 0 ? `${c.flaggedCount} sessions well off target` : '',
