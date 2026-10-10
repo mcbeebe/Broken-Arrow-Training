@@ -5,7 +5,8 @@
  * Field request (2026-10-10): "they all should be expandable when clicked.
  * I also want to see the band/zone that represents appropriate, expected
  * and healthy range for each. I also want to be able to toggle a Smooth
- * option that is essentially a 3-day rolling average."
+ * option that is essentially a 3-day rolling average." Later (2026-10-10):
+ * "Change the 3 day to 7 day average."
  */
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest'
 import { render, screen, cleanup, fireEvent, within } from '@testing-library/react'
@@ -67,17 +68,17 @@ describe('healthy bands', () => {
   })
 })
 
-describe('Smooth (3-day average)', () => {
+describe('Smooth (7-day average)', () => {
   it('is off by default; on, it averages the line and says so', () => {
     const h = timeline(30)
     render(<PerformanceSnapshot latest={last(h)} history={h} layout="cards" />)
-    const toggle = screen.getByRole('switch', { name: /Smooth \(3-day avg\)/ })
+    const toggle = screen.getByRole('switch', { name: /Smooth \(7-day avg\)/ })
     expect(toggle.getAttribute('aria-checked')).toBe('false')
     const raw = linePath('Fatigue')
     fireEvent.click(toggle)
     expect(toggle.getAttribute('aria-checked')).toBe('true')
     expect(linePath('Fatigue')).not.toBe(raw)
-    expect(screen.getByRole('img', { name: /^Fatigue \(3-day avg\) from/ })).toBeTruthy()
+    expect(screen.getByRole('img', { name: /^Fatigue \(7-day avg\) from/ })).toBeTruthy()
   })
 
   it('leaves the headline number and the change raw', () => {
@@ -134,8 +135,8 @@ describe('tap to expand', () => {
     const h = timeline(30)
     render(<PerformanceSnapshot latest={last(h)} history={h} layout="cards" />)
     fireEvent.click(screen.getByRole('switch', { name: /Smooth/ }))
-    fireEvent.click(screen.getByRole('button', { name: /^Expand Fatigue \(3-day avg\) chart\./ }))
-    const charts = screen.getAllByRole('img', { name: /^Fatigue \(3-day avg\) from/ })
+    fireEvent.click(screen.getByRole('button', { name: /^Expand Fatigue \(7-day avg\) chart\./ }))
+    const charts = screen.getAllByRole('img', { name: /^Fatigue \(7-day avg\) from/ })
     expect(charts).toHaveLength(2)
     expect(charts[1].querySelector('.metric-healthy-band .recharts-area-area')).toBeTruthy()
   })

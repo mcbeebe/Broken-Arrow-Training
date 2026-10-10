@@ -222,7 +222,7 @@ export function niceTicks(lo: number, hi: number, count = 4): number[] {
 }
 
 /** How many days the Smooth toggle averages over. */
-export const SMOOTH_DAYS = 3
+export const SMOOTH_DAYS = 7
 
 /**
  * Trailing rolling mean by calendar date: each point becomes the mean of

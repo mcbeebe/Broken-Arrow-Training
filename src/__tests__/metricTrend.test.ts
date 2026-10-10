@@ -9,7 +9,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   shiftDate, recentWindow, valueOnOrBefore, changeOver, sparkGeometry,
-  fitnessChange, fitnessAxisDomain, formatChange, changeTone, SPARK_DAYS, niceTicks,
+  fitnessChange, fitnessAxisDomain, formatChange, changeTone, SPARK_DAYS, SMOOTH_DAYS, niceTicks,
   rollingMean, healthyBands, bandCaption, FITNESS_SAFE_WEEKLY_RAMP,
 } from '../utils/metricTrend'
 import type { PerformanceMetrics } from '../types'
@@ -206,21 +206,27 @@ describe('niceTicks', () => {
 describe('rollingMean', () => {
   const pts = (vals: number[], start = '2026-10-01') => vals.map((value, i) => ({ date: shiftDate(start, i), value }))
   it('each day is the mean of itself and the two before', () => {
-    expect(rollingMean(pts([3, 6, 9, 12])).map(p => p.value)).toEqual([3, 4.5, 6, 9])
+    expect(rollingMean(pts([3, 6, 9, 12]), 3).map(p => p.value)).toEqual([3, 4.5, 6, 9])
   })
   it('a gap shrinks the window instead of borrowing from outside it', () => {
     const gappy = [{ date: '2026-10-01', value: 10 }, { date: '2026-10-05', value: 20 }, { date: '2026-10-06', value: 30 }]
-    expect(rollingMean(gappy).map(p => p.value)).toEqual([10, 20, 25])
+    expect(rollingMean(gappy, 3).map(p => p.value)).toEqual([10, 20, 25])
   })
   it('keeps input order and other fields', () => {
     const p = [{ date: '2026-10-02', value: 4, k: 'b' }, { date: '2026-10-01', value: 2, k: 'a' }]
-    expect(rollingMean(p)).toEqual([{ date: '2026-10-02', value: 3, k: 'b' }, { date: '2026-10-01', value: 2, k: 'a' }])
+    expect(rollingMean(p, 3)).toEqual([{ date: '2026-10-02', value: 3, k: 'b' }, { date: '2026-10-01', value: 2, k: 'a' }])
   })
   it('crosses a month boundary by calendar date', () => {
-    expect(rollingMean(pts([1, 2, 3], '2026-09-29')).map(p => p.value)).toEqual([1, 1.5, 2])
+    expect(rollingMean(pts([1, 2, 3], '2026-09-29'), 3).map(p => p.value)).toEqual([1, 1.5, 2])
   })
   it('empty in, empty out', () => {
     expect(rollingMean([])).toEqual([])
+  })
+  it('defaults to a 7-day window (the Smooth toggle)', () => {
+    expect(SMOOTH_DAYS).toBe(7)
+    const out = rollingMean(pts([7, 7, 7, 7, 7, 7, 14, 21])).map(p => p.value)
+    expect(out[6]).toBe(8)       // (7×6 + 14) / 7
+    expect(out[7]).toBe(10)      // day 1 drops out: (7×5 + 14 + 21) / 7
   })
 })
 
