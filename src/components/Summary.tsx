@@ -481,6 +481,7 @@ export default function Summary({
           acwrBounds={acwrBounds}
           athleteId={athleteId}
           heading="Performance snapshot"
+          history={performance}
         />
       )}
 

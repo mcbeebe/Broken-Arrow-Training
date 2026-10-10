@@ -1,0 +1,176 @@
+/**
+ * The trend math behind the snapshot sparklines and the Training Load
+ * chart's Fitness change.
+ *
+ * Field request (2026-10-10): "I want to see my fitness improvement better
+ * on the graph" and "a spark line of how my key metrics have been tracking
+ * over past 1–2 weeks".
+ */
+import { describe, it, expect } from 'vitest'
+import {
+  shiftDate, recentWindow, valueOnOrBefore, changeOver, sparkGeometry,
+  fitnessChange, fitnessAxisDomain, formatChange, changeTone, SPARK_DAYS,
+} from '../utils/metricTrend'
+import type { PerformanceMetrics } from '../types'
+
+const p = (date: string, ctl: number, atl = 50): PerformanceMetrics =>
+  ({ date, ctl, atl, tsb: ctl - atl, acwr: atl / ctl })
+
+/** `n` consecutive days ending 2026-10-10, Fitness rising 1 a day from `start`. */
+const days = (n: number, start = 60) =>
+  Array.from({ length: n }, (_, i) => p(shiftDate('2026-10-10', i - (n - 1)), start + i))
+
+describe('shiftDate', () => {
+  it('crosses month and year boundaries', () => {
+    expect(shiftDate('2026-10-01', -1)).toBe('2026-09-30')
+    expect(shiftDate('2026-01-03', -7)).toBe('2025-12-27')
+    expect(shiftDate('2026-02-28', 1)).toBe('2026-03-01')
+  })
+  it('is a whole calendar day across a DST change', () => {
+    expect(shiftDate('2026-03-08', 1)).toBe('2026-03-09')
+    expect(shiftDate('2026-11-01', 1)).toBe('2026-11-02')
+  })
+})
+
+describe('recentWindow', () => {
+  it('keeps the last 14 calendar days, oldest first, whatever the input order', () => {
+    const w = recentWindow(days(30).reverse())
+    expect(w).toHaveLength(SPARK_DAYS)
+    expect(w[0].date).toBe('2026-09-27')
+    expect(w[w.length - 1].date).toBe('2026-10-10')
+  })
+  it('goes by date, not by count, when the timeline has gaps', () => {
+    const gappy = [p('2026-09-01', 50), p('2026-10-01', 60), p('2026-10-10', 62)]
+    expect(recentWindow(gappy).map(x => x.date)).toEqual(['2026-10-01', '2026-10-10'])
+  })
+  it('is empty for an empty timeline and keeps a short one whole', () => {
+    expect(recentWindow([])).toEqual([])
+    expect(recentWindow(days(3))).toHaveLength(3)
+  })
+})
+
+describe('valueOnOrBefore / changeOver', () => {
+  it('reads the exact day, else carries the newest earlier one forward', () => {
+    const t = [p('2026-10-01', 60), p('2026-10-05', 64)]
+    expect(valueOnOrBefore(t, 'ctl', '2026-10-05')).toBe(64)
+    expect(valueOnOrBefore(t, 'ctl', '2026-10-03')).toBe(60)
+    expect(valueOnOrBefore(t, 'ctl', '2026-09-30')).toBeNull()
+  })
+  it('today minus 7 days ago', () => {
+    expect(changeOver(days(14), 'ctl')).toBe(7)
+    expect(changeOver(days(14), 'atl')).toBe(0)
+  })
+  it('is null when history is shorter than the lookback, or empty', () => {
+    expect(changeOver(days(7), 'ctl')).toBeNull()
+    expect(changeOver(days(8), 'ctl')).toBe(7)
+    expect(changeOver([], 'ctl')).toBeNull()
+  })
+})
+
+describe('sparkGeometry', () => {
+  const opts = { width: 100, height: 40, pad: 0 }
+  it('maps the min to the bottom, the max to the top, first to left, last to right', () => {
+    const g = sparkGeometry([10, 20, 30], opts)!
+    expect(g.d).toBe('M0 40L50 20L100 0')
+    expect(g.end).toEqual({ x: 100, y: 0 })
+  })
+  it('widens the range to include reference values', () => {
+    const g = sparkGeometry([-10, -20], { ...opts, include: [0] })!
+    expect(g.y(0)).toBe(0)
+    expect(g.y(-20)).toBe(40)
+  })
+  it('draws a flat series mid-height instead of dividing by zero', () => {
+    const g = sparkGeometry([5, 5, 5], opts)!
+    expect(g.d).toBe('M0 20L50 20L100 20')
+  })
+  it('is null with fewer than two finite points', () => {
+    expect(sparkGeometry([], opts)).toBeNull()
+    expect(sparkGeometry([3], opts)).toBeNull()
+    expect(sparkGeometry([3, NaN], opts)).toBeNull()
+  })
+  it('keeps the stroke inside the padding', () => {
+    const g = sparkGeometry([0, 1], { width: 100, height: 40, pad: 3 })!
+    expect(g.end).toEqual({ x: 97, y: 3 })
+  })
+})
+
+describe('fitnessChange', () => {
+  it('first reading in the range to the last', () => {
+    const c = fitnessChange(days(30, 64), '2026-09-11', '2026-10-10')!
+    expect(c.from).toBe(64)
+    expect(c.to).toBe(93)
+    expect(c.delta).toBe(29)
+    expect(c.pct).toBeCloseTo(45.3, 1)
+    expect(c.since).toBe('2026-09-11')
+  })
+  it('measures from the first day with data when the range starts earlier', () => {
+    const c = fitnessChange(days(5, 70), '2026-09-11', '2026-10-10')!
+    expect(c.since).toBe('2026-10-06')
+    expect(c.delta).toBe(4)
+  })
+  it('reports a drop as negative', () => {
+    const t = [p('2026-10-01', 70), p('2026-10-10', 63)]
+    expect(fitnessChange(t, '2026-10-01', '2026-10-10')!.delta).toBe(-7)
+  })
+  it('is null without two days of data, or before Fitness has built', () => {
+    expect(fitnessChange([p('2026-10-10', 70)], '2026-10-01', '2026-10-10')).toBeNull()
+    expect(fitnessChange([p('2026-10-01', 0), p('2026-10-10', 0.5)], '2026-10-01', '2026-10-10')).toBeNull()
+  })
+  it('measures from the first day Fitness had built, where the chart line starts', () => {
+    const c = fitnessChange([p('2026-10-01', 0), p('2026-10-02', 0.8), p('2026-10-03', 4), p('2026-10-10', 10)], '2026-10-01', '2026-10-10')!
+    expect(c.since).toBe('2026-10-03')
+    expect(c.delta).toBe(6)
+    expect(c.pct).toBe(150)
+  })
+})
+
+describe('fitnessAxisDomain', () => {
+  it('zooms to the data on multiples of 5, with headroom', () => {
+    expect(fitnessAxisDomain([64, 75.1])).toEqual([60, 80])
+  })
+  it('is at least 10 tall so a flat week does not read as a cliff', () => {
+    const [lo, hi] = fitnessAxisDomain([70, 70.4])!
+    expect(hi - lo).toBeGreaterThanOrEqual(10)
+    expect(lo).toBeLessThanOrEqual(70)
+    expect(hi).toBeGreaterThanOrEqual(70.4)
+  })
+  it('never goes below zero', () => {
+    expect(fitnessAxisDomain([2, 3])![0]).toBe(0)
+  })
+  it('is null with no data', () => {
+    expect(fitnessAxisDomain([])).toBeNull()
+  })
+})
+
+describe('formatChange / changeTone', () => {
+  it('formats with an arrow and a sign', () => {
+    expect(formatChange(1.84, 1)).toBe('▲ +1.8')
+    expect(formatChange(-3.4, 0)).toBe('▼ −3')
+    expect(formatChange(0.04, 1)).toBe('± 0.0')
+    expect(formatChange(-0.4, 0)).toBe('± 0')
+  })
+  const B = { tsbOverreaching: -30, acwrLow: 0.8, acwrHigh: 1.3 }
+  it('Fitness rising is good, falling is caution', () => {
+    expect(changeTone('ctl', 2, 75, B)).toBe('good')
+    expect(changeTone('ctl', -2, 75, B)).toBe('caution')
+  })
+  it('Fatigue rising is caution; falling is only neutral', () => {
+    expect(changeTone('atl', 30, 125, B)).toBe('caution')
+    expect(changeTone('atl', -30, 60, B)).toBe('neutral')
+  })
+  it('Recovery Balance falling is caution only once it is overreaching', () => {
+    expect(changeTone('tsb', 5, -20, B)).toBe('good')
+    expect(changeTone('tsb', -8, -20, B)).toBe('neutral') // a build week, tired by design
+    expect(changeTone('tsb', -8, -35, B)).toBe('caution')
+  })
+  it('Load Ratio toward the band is good, away from it caution, within it neutral', () => {
+    expect(changeTone('acwr', 0.35, 0.95, B)).toBe('good')    // 0.6 → 0.95: out of undertraining
+    expect(changeTone('acwr', -0.3, 1.2, B)).toBe('good')     // 1.5 → 1.2: back from a spike
+    expect(changeTone('acwr', 0.41, 1.67, B)).toBe('caution') // 1.26 → 1.67: spiking
+    expect(changeTone('acwr', -0.2, 0.6, B)).toBe('caution')  // 0.8 → 0.6: detraining
+    expect(changeTone('acwr', 0.1, 1.1, B)).toBe('neutral')   // 1.0 → 1.1: in range
+  })
+  it('no change is neutral', () => {
+    expect(changeTone('ctl', 0, 75, B)).toBe('neutral')
+  })
+})
