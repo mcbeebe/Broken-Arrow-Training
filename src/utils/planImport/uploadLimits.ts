@@ -16,6 +16,13 @@ export const UPLOAD_LIMITS = {
   maxHintChars: 300,
 } as const
 
+/**
+ * A Word or Excel file, as picked. Browser only: the server never sees the
+ * file, only the text read from it (D11), so this bounds what a phone is
+ * asked to unzip. The text still has to fit `maxTextChars`.
+ */
+export const OFFICE_FILE_BYTES = 15_000_000
+
 /** IMAGE_TYPES: the image formats the reader takes. */
 export const IMAGE_MEDIA_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'] as const
 
