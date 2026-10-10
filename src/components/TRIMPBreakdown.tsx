@@ -30,9 +30,10 @@ interface TRIMPBreakdownProps {
    *  in the app. Without it, the chart renders bars only. */
   performance?: PerformanceMetrics[]
   athleteId?: string
-  /** Today: a "See full chart" link to the same chart on Progress →
-   *  Performance. Absent there, where the chart already is full. */
+  /** Today: a link to the same chart on Progress → Performance. */
   onOpenFull?: () => void
+  /** Plot height in px: compact on Today, taller on Performance. */
+  chartHeight?: number
 }
 
 const SPORT_COLORS: Record<string, string> = {
@@ -138,6 +139,7 @@ export default function TRIMPBreakdown({
   performance,
   athleteId,
   onOpenFull,
+  chartHeight = 180,
 }: TRIMPBreakdownProps) {
   const { flags } = useDisplayPreferences(athleteId)
   // The lines take the mode's steps, and the halo that lifts the Fatigue
@@ -361,7 +363,7 @@ export default function TRIMPBreakdown({
           <span className="ml-auto text-xs text-slate-600 dark:text-slate-300">since {sinceLabel}</span>
         </div>
       )}
-      <div style={{ height: 180 }}>
+      <div style={{ height: chartHeight }}>
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart
             data={chartData}
@@ -752,7 +754,7 @@ export default function TRIMPBreakdown({
           onClick={onOpenFull}
           className="mt-3 w-full text-sm font-medium text-teal-700 dark:text-teal-400 py-2 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50"
         >
-          See full chart on Performance ›
+          Open on Performance ›
         </button>
       )}
     </div>

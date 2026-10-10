@@ -684,6 +684,7 @@ function PerformanceTab({
             range={timeWindow}
             performance={performance}
             athleteId={athleteId}
+            chartHeight={280}
           />
         </div>
       )}

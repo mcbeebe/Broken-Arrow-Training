@@ -92,12 +92,23 @@ describe('Today: each snapshot tile opens its card', () => {
     const daily = perf.map(p => ({ date: p.date, total: 90, records: [{ sportType: 'running', adjustedTRIMP: 90 }] }))
     const onOpenFull = vi.fn()
     render(<TRIMPBreakdown dailyTrimp={daily as never} performance={perf} athleteId="mike" onOpenFull={onOpenFull} />)
-    fireEvent.click(screen.getByRole('button', { name: 'See full chart on Performance ›' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Open on Performance ›' }))
     expect(onOpenFull).toHaveBeenCalledTimes(1)
     cleanup()
     render(<TRIMPBreakdown dailyTrimp={daily as never} performance={perf} athleteId="mike" />)
-    expect(screen.queryByRole('button', { name: /See full chart/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: /Open on Performance/ })).toBeNull()
   })
+
+  it('on Performance the load chart is drawn taller than on Today', () => {
+    const perf = timeline(30)
+    const daily = perf.map(p => ({ date: p.date, total: 90, records: [{ sportType: 'running', adjustedTRIMP: 90 }] }))
+    const { container } = render(<TRIMPBreakdown dailyTrimp={daily as never} performance={perf} athleteId="mike" />)
+    expect(container.querySelector<HTMLElement>('[style*="height"]')!.style.height).toBe('180px')
+    cleanup()
+    const tall = render(<TRIMPBreakdown dailyTrimp={daily as never} performance={perf} athleteId="mike" chartHeight={280} />)
+    expect(tall.container.querySelector<HTMLElement>('[style*="height"]')!.style.height).toBe('280px')
+  })
+
 })
 
 describe('Performance: four full-width cards', () => {
