@@ -180,7 +180,7 @@ close, `85dvh`), the hook, `buildImportedConfig`, and the card's owner gate.
   - **Backups are written with `setItemWithRoom`,** which drops regenerable caches to make room. `importPlan` refuses the upload unless the outgoing plan is in the backups.
 - **The client waits 600 s.** The model gives up at 240 s and the function at 300 s, but their clocks start once the upload has arrived, and a read the browser abandons still counts.
 - **Owner-only in two places:** the server (`PLAN_IMPORT_OPEN` / `PLAN_IMPORT_ATHLETES`) and the Settings card (`athleteId === 'mike'`). Opening it to anyone else, by either setting, also needs the card's check changed.
-- **Existing bug found, outside this initiative:** Restore brings back a plan but not its day edits. `configForRestore` re-stamps `completedAt`, and the edit hooks drop every edit older than that. A separate fix is proposed to the owner.
+- **Existing bug found, outside this initiative:** Restore brought back a plan but not its day edits. `configForRestore` re-stamps `completedAt`, and the edit hooks drop every edit older than that. **Fixed in a follow-up (2026-10-10, owner's OK):** `editsForRestore` moves the backup's edits, undos, swaps and resets onto the restored plan's generation, in their order, so the hooks keep them and Undo still works. Each comes back with a new id (its batch kept), so a device still holding the old copies can't win a sync clash with them. `usePlanEdits`' writers build on the newest log, so the morning autopilot acting in the restore's own render can't write the old log back. Locks, replans and travel windows were never in backups and still don't come back.
 
 ## PR 6 — Word and Excel
 

@@ -83,6 +83,11 @@ async function openTrainingPlan() {
 describe('Settings → Upload my own plan', () => {
   it('the owner uploads a plan, and it becomes their plan, with the season left alone', async () => {
     seed('mike')
+    // A day edit made under the generated plan, after its generation.
+    localStorage.setItem('ba_plan_edits_mike', JSON.stringify([{
+      id: 'seed-edit', batchId: 'b-seed', appliedAt: Date.parse(GENERATION) + 60_000,
+      op: { kind: 'updateDay', weekNum: 1, dayIndex: 0, updates: { workout: 'Hill reps with Sam' } },
+    }]))
     render(<App />)
     await openTrainingPlan()
     const card = await screen.findByTestId('plan-import-card')
@@ -133,6 +138,13 @@ describe('Settings → Upload my own plan', () => {
     const after = JSON.parse(localStorage.getItem('ba_season_v1_mike')!)
     expect(after.races.map((r: { raceInfo: { name: string } }) => r.raceInfo.name)).toContain('Panel 5K')
     expect(after.seededGeneration).toBe(restored.completedAt)
+    // And the plan's day edit with it, still there once the app's edit hooks
+    // have run on the restored plan (they used to drop it as older).
+    await new Promise(r => setTimeout(r, 50))
+    const edits = JSON.parse(localStorage.getItem('ba_plan_edits_mike')!)
+    expect(edits.map((e: { id: string }) => e.id)).toEqual([`r${Date.parse(restored.completedAt)}_seed-edit`])
+    expect(edits[0].batchId).toBe('b-seed')
+    expect(edits[0].appliedAt).toBeGreaterThanOrEqual(Date.parse(restored.completedAt))
   }, 30_000)
 
   it('is not offered to anyone else during the beta', async () => {

@@ -269,6 +269,19 @@ describe('generation pruning — old-plan ops never replay onto a rebuild', () =
     expect(JSON.parse(localStorage.getItem('ba_plan_edits_mike')!)).toHaveLength(0)
   })
 
+  it('an edit made after a sync pull keeps what the pull brought', () => {
+    const { result } = renderHook(() => usePlanEdits('mike', GEN))
+    const fromLaptop: PlanEdit = { id: 'laptop', batchId: 'bl', op: { kind: 'updateDay', weekNum: 1, dayIndex: 2, updates: { workout: 'Laptop edit' } }, appliedAt: AFTER }
+    act(() => {
+      localStorage.setItem('ba_plan_edits_mike', JSON.stringify([fromLaptop]))
+      window.dispatchEvent(new StorageEvent('storage', { key: 'ba_plan_edits_mike' }))
+    })
+    act(() => { result.current.applyBatch([{ op: { kind: 'updateDay', weekNum: 1, dayIndex: 0, updates: { workout: 'Phone edit' } } }]) })
+    const stored = JSON.parse(localStorage.getItem('ba_plan_edits_mike')!) as PlanEdit[]
+    expect(stored.map(e => e.id)).toContain('laptop')
+    expect(result.current.edits).toHaveLength(2)
+  })
+
   it('without a generation (seed athletes) nothing is pruned', () => {
     localStorage.setItem('ba_plan_edits_mike', JSON.stringify([juneEdit]))
     const { result } = renderHook(() => usePlanEdits('mike'))

@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo } from 'react'
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import type {
   TrainingWeek,
   PlanEdit,
@@ -273,6 +273,20 @@ export function usePlanEdits(athleteId?: string, planGeneration?: string) {
   const [log, setLog] = useState<PlanEdit[]>(() => readEdits(athleteId, planGeneration))
   const edits = useMemo(() => applyRevocations(log), [log])
 
+  // The writers build on the newest log, not the one this render saw. When
+  // the plan generation changes (a new plan, a Restore), the re-read below
+  // lands a render later, and an effect in that same commit (the morning
+  // autopilot) would otherwise write the old plan's log over the new one. So
+  // a writer reads storage itself when the plan has changed since.
+  const latest = useRef({ log, athleteId, planGeneration })
+  const latestLog = useCallback((): PlanEdit[] => {
+    const l = latest.current
+    if (l.athleteId !== athleteId || l.planGeneration !== planGeneration) {
+      latest.current = { log: readEdits(athleteId, planGeneration), athleteId, planGeneration }
+    }
+    return latest.current.log
+  }, [athleteId, planGeneration])
+
   useEffect(() => {
     setLog(readEdits(athleteId, planGeneration))
   }, [athleteId, planGeneration])
@@ -284,7 +298,9 @@ export function usePlanEdits(athleteId?: string, planGeneration?: string) {
     const watched = scopedKey(STORAGE_KEY, athleteId)
     function onStorage(e: StorageEvent) {
       if (e.key !== watched) return
-      setLog(readEdits(athleteId, planGeneration))
+      const fresh = readEdits(athleteId, planGeneration)
+      latest.current = { log: fresh, athleteId, planGeneration }
+      setLog(fresh)
     }
     window.addEventListener('storage', onStorage)
     return () => window.removeEventListener('storage', onStorage)
@@ -292,12 +308,14 @@ export function usePlanEdits(athleteId?: string, planGeneration?: string) {
 
   const commit = useCallback((next: PlanEdit[]) => {
     writeEdits(next, athleteId)
+    latest.current = { log: next, athleteId, planGeneration }
     setLog(next)
-  }, [athleteId])
+  }, [athleteId, planGeneration])
 
   /** Apply a coach proposal (one or many ops) as a single undoable batch.
    *  Returns the batchId, used as the override/undo handle. */
   const applyBatch = useCallback((ops: PlanEditOpInput[]): string => {
+    const log = latestLog()
     const base = nextStamp(log)
     const batchId = `batch_${base}_${rand()}`
     const newEdits: PlanEdit[] = ops.map((o, i) => ({
@@ -317,12 +335,13 @@ export function usePlanEdits(athleteId?: string, planGeneration?: string) {
     }
     commit([...next, ...newEdits])
     return batchId
-  }, [log, commit])
+  }, [latestLog, commit])
 
 
   /** Append a tombstone. Removals are ADDED rather than subtracted so they
    *  survive a cross-device union — see the `revoke` op in types. */
   const revoke = useCallback((target: PlanEditRevokeTarget) => {
+    const log = latestLog()
     const at = nextStamp(log)
     commit([...log, {
       id: `revoke_${at}_${rand()}`,
@@ -330,7 +349,7 @@ export function usePlanEdits(athleteId?: string, planGeneration?: string) {
       op: { kind: 'revoke', before: at, ...target } as PlanEditOp,
       appliedAt: at,
     }])
-  }, [log, commit])
+  }, [latestLog, commit])
 
   const undoBatch = useCallback((batchId: string) => {
     revoke({ batchId })
@@ -370,7 +389,7 @@ export function usePlanEdits(athleteId?: string, planGeneration?: string) {
   const swapDayIndices = useCallback((weekNum: number, fromIndex: number, toIndex: number) => {
     if (fromIndex === toIndex) return
     const swapIdx = (i: number) => (i === fromIndex ? toIndex : i === toIndex ? fromIndex : i)
-    const next = log.map(e => {
+    const next = latestLog().map(e => {
       const op = e.op
       // A day-targeted TOMBSTONE has to follow the swap too, or after a swap
       // it revokes whichever edit moved into the slot instead of the one it
@@ -388,7 +407,7 @@ export function usePlanEdits(athleteId?: string, planGeneration?: string) {
       return e
     })
     commit(next)
-  }, [log, commit])
+  }, [latestLog, commit])
 
   const applyEditsToWeeks = useCallback((weeks: TrainingWeek[]): TrainingWeek[] => {
     return replayEdits(weeks, edits)

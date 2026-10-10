@@ -216,6 +216,79 @@ export function configForRestore(backup: PlanBackup, now: number = Date.now()): 
 }
 
 /**
+ * The day edits to write back with a restored plan, moved onto its
+ * generation.
+ *
+ * A restore stamps the config with a fresh `completedAt` (it has to count as
+ * the newest version everywhere), and every edit hook drops entries older
+ * than that. Written back as they were, the edits would vanish on the next
+ * render. So every time in the three logs (an edit's `appliedAt`, an undo's
+ * `before`, a swap's or reset's `at`) moves onto the new generation, in
+ * order: the k-th distinct time becomes `generation + k` ms. Each comparison
+ * an undo, a swap reset or the sync merge makes between two of them keeps its
+ * answer, and every entry is new enough to keep.
+ *
+ * Each edit and swap also gets a new id, `r<generation>_<its id>`, as if made
+ * afresh; its `batchId`, which undo and receipts go by, stays. Another device
+ * may still hold the old copies, and sync settles a clash of ids by which
+ * whole log was pushed last, not by which entry is newer: the old copy could
+ * win, and then be dropped as older than the restored plan. (Legacy
+ * overrides keep theirs: their migration takes the batch from the id.)
+ *
+ * Only what belonged to the backed-up plan comes back: an entry older than
+ * the backup's own generation, which its hooks would have dropped, stays
+ * dropped. A log that can't be read is written back as it was.
+ */
+export function editsForRestore(backup: PlanBackup, generation: string): Record<string, string> {
+  const out: Record<string, string> = { ...(backup.edits ?? {}) }
+  const genMs = Date.parse(generation)
+  if (!Number.isFinite(genMs)) return out
+  const sinceMs = backup.completedAt ? Date.parse(backup.completedAt) : NaN
+
+  const logs: [string, Record<string, unknown>[]][] = []
+  for (const [key, raw] of Object.entries(out)) {
+    try {
+      const parsed: unknown = JSON.parse(raw)
+      if (!Array.isArray(parsed)) continue
+      const entries = parsed.filter((e): e is Record<string, unknown> => !!e && typeof e === 'object')
+      logs.push([key, Number.isFinite(sinceMs) ? entries.filter(e => !olderThan(e, sinceMs)) : entries])
+    } catch { /* written back as it was */ }
+  }
+
+  const slots = logs.flatMap(([, entries]) => entries.flatMap(timeSlots))
+  const rank = new Map([...new Set(slots.map(s => s.at[s.field] as number))].sort((a, b) => a - b).map((t, i) => [t, genMs + i]))
+  for (const s of slots) s.at[s.field] = rank.get(s.at[s.field] as number)
+  for (const [key, entries] of logs) {
+    if (key !== 'ba_plan_overrides') {
+      for (const e of entries) {
+        if (typeof e.id === 'string') e.id = `r${genMs}_${e.id.replace(/^r\d+_/, '')}`
+      }
+    }
+    out[key] = JSON.stringify(entries)
+  }
+  return out
+}
+
+/** The time an edit-log entry was made: an edit's `appliedAt`, a swap's `at`. */
+function olderThan(e: Record<string, unknown>, ms: number): boolean {
+  const t = typeof e.appliedAt === 'number' ? e.appliedAt : typeof e.at === 'number' ? e.at : undefined
+  return t !== undefined && t < ms
+}
+
+/** Every time an entry holds that is compared with another entry's. */
+function timeSlots(e: Record<string, unknown>): { at: Record<string, unknown>; field: string }[] {
+  const slots: { at: Record<string, unknown>; field: string }[] = []
+  for (const field of ['appliedAt', 'at']) {
+    if (typeof e[field] === 'number' && Number.isFinite(e[field])) slots.push({ at: e, field })
+  }
+  const op = e.op as Record<string, unknown> | undefined
+  if (op && op.kind === 'revoke' && typeof op.before === 'number' && Number.isFinite(op.before)) {
+    slots.push({ at: op, field: 'before' })
+  }
+  return slots
+}
+
+/**
  * The season calendar to write back with a restored plan, or null when the
  * backup holds none (taken before backups kept it). It is marked as already
  * seeded for the restored plan's generation, so the season hook keeps it as
