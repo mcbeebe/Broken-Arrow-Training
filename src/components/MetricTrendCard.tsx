@@ -67,12 +67,15 @@ export default function MetricTrendCard({
   const first = data[0]
   const last = data[data.length - 1]
   const lineName = smoothed ? `${name} (${SMOOTH_DAYS}-day avg)` : name
+  const summary = data.length >= 2
+    ? `${lineName} from ${first.date} (${first.value.toFixed(dp)}) to ${last.date} (${last.value.toFixed(dp)})`
+    : ''
 
   const chart = (expanded: boolean) => (
     <div
       style={{ height: expanded ? '100%' : 160 }}
       role="img"
-      aria-label={`${lineName} from ${first.date} (${first.value.toFixed(dp)}) to ${last.date} (${last.value.toFixed(dp)})`}
+      aria-label={summary}
     >
       <ResponsiveContainer width="100%" height="100%">
         <ComposedChart data={data} margin={{ top: 6, right: 8, bottom: 0, left: 0 }}>
@@ -158,7 +161,7 @@ export default function MetricTrendCard({
       </div>
       {data.length >= 2 ? (
         <div className="mt-2">
-          <ChartExpandOverlay title={lineName}>{chart}</ChartExpandOverlay>
+          <ChartExpandOverlay title={lineName} summary={summary}>{chart}</ChartExpandOverlay>
           <p className="mt-1 text-[11px] leading-snug text-slate-500 dark:text-slate-400">
             {bandCaption && hasBand && <>{bandCaption} </>}
             <span className="text-slate-400 dark:text-slate-500">Tap the chart to expand.</span>

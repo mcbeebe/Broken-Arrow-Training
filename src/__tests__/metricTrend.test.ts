@@ -151,8 +151,10 @@ describe('formatChange / changeTone', () => {
     expect(formatChange(-0.4, 0)).toBe('± 0')
   })
   const B = { tsbOverreaching: -30, acwrLow: 0.8, acwrHigh: 1.3 }
-  it('Fitness rising is good, falling is caution', () => {
+  it('Fitness rising is good up to the safe weekly ramp, caution past it; falling is caution', () => {
     expect(changeTone('ctl', 2, 75, B)).toBe('good')
+    expect(changeTone('ctl', 8, 75, B)).toBe('good')
+    expect(changeTone('ctl', 12, 75, B)).toBe('caution')
     expect(changeTone('ctl', -2, 75, B)).toBe('caution')
   })
   it('Fatigue rising is caution; falling is only neutral', () => {

@@ -176,7 +176,8 @@ export interface ToneBounds {
  * The change's color: green for good news, amber for caution, grey when
  * the direction alone says nothing. Direction is judged against where the
  * metric now sits, so a planned build week isn't flagged every day:
- * - Fitness: rising good, falling caution.
+ * - Fitness: rising good up to the safe weekly ramp, caution past it
+ *   (the Fitness card's band says the same); falling caution.
  * - Fatigue: rising caution, falling neutral (backing off isn't good or
  *   bad on its own).
  * - Recovery Balance: rising good; falling is caution only once it is in
@@ -187,7 +188,7 @@ export interface ToneBounds {
 export function changeTone(metric: TrendMetric, delta: number, current: number, bounds: ToneBounds): 'good' | 'caution' | 'neutral' {
   if (Math.abs(delta) < 1e-9) return 'neutral'
   switch (metric) {
-    case 'ctl': return delta > 0 ? 'good' : 'caution'
+    case 'ctl': return delta > FITNESS_SAFE_WEEKLY_RAMP ? 'caution' : delta > 0 ? 'good' : 'caution'
     case 'atl': return delta > 0 ? 'caution' : 'neutral'
     case 'tsb': return delta > 0 ? 'good' : current < bounds.tsbOverreaching ? 'caution' : 'neutral'
     case 'acwr': {
@@ -254,7 +255,7 @@ export interface BandBounds {
   /** Load Ratio's in-range band (the athlete's tuned values). */
   acwrLow: number
   acwrHigh: number
-  /** Recovery Balance's healthy range: build zone up to fresh / peaked. */
+  /** Recovery Balance's healthy range: build zone up to race-ready. */
   tsbLow: number
   tsbHigh: number
 }
@@ -266,7 +267,8 @@ export interface BandBounds {
  * - Fitness: last week's Fitness up to +FITNESS_SAFE_WEEKLY_RAMP. Above =
  *   ramping too fast; below = losing fitness.
  * - Fatigue: the Load Ratio band in Fatigue units (low–high × Fitness).
- * - Recovery Balance: the build zone up to fresh (the app's TSB zones).
+ * - Recovery Balance: the build zone up to the top of the race-day band
+ *   (the app's TSB zones: Peaked is good, so it sits inside).
  * - Load Ratio: its in-range band.
  */
 export function healthyBands(
@@ -296,9 +298,9 @@ export function bandCaption(metric: TrendMetric, b: BandBounds): string {
   const f = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(2).replace(/0$/, ''))
   const signed = (n: number) => (n > 0 ? `+${n}` : n < 0 ? `−${Math.abs(n)}` : '0')
   switch (metric) {
-    case 'ctl': return `Green band: a safe build, up to +${FITNESS_SAFE_WEEKLY_RAMP} a week on last week's Fitness. Above it, ramping too fast; below, losing fitness.`
-    case 'atl': return `Green band: ${f(b.acwrLow)}–${f(b.acwrHigh)}× your Fitness. Above it, load is ramping too fast.`
-    case 'tsb': return `Green band: ${signed(b.tsbLow)} to ${signed(b.tsbHigh)}, build zone to fresh. Below it, overreaching.`
+    case 'ctl': return `Green band: a safe build, up to +${FITNESS_SAFE_WEEKLY_RAMP} a week on last week's Fitness. Above it, ramping too fast; below, Fitness is easing (expected in a taper or recovery week).`
+    case 'atl': return `Green band: ${f(b.acwrLow)}–${f(b.acwrHigh)}× your Fitness. Above it, ramping too fast; below it, room to push harder.`
+    case 'tsb': return `Green band: ${signed(b.tsbLow)} to ${signed(b.tsbHigh)}, build zone up to race-ready. Below it, overreaching.`
     case 'acwr': return `Green band: ${f(b.acwrLow)}–${f(b.acwrHigh)}, the lowest-injury range.`
   }
 }

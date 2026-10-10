@@ -1,6 +1,6 @@
 import { useId, useState, type ReactNode } from 'react'
 import type { PerformanceMetrics } from '../types'
-import { tsbZone, acwrZone, ACWR_BOUNDS, TSB_BOUNDS, ACWR_IN_RANGE_RAMPING_NOTE, type AcwrBounds, type ZoneTone } from '../utils/loadZones'
+import { tsbZone, acwrZone, ACWR_BOUNDS, TSB_BOUNDS, TSB_BANDS, ACWR_IN_RANGE_RAMPING_NOTE, type AcwrBounds, type ZoneTone } from '../utils/loadZones'
 import { formatLoadP } from '../utils/format'
 import Term from './TermGlossary'
 import { useDisplayPreferences } from '../hooks/useDisplayPreferences'
@@ -94,9 +94,12 @@ export default function PerformanceSnapshot({
       valueClass: LOAD_SERIES_COLORS.atl.text!, sub: '', swatch: LOAD_SERIES_COLORS.atl.swatch,
       color: seriesHex('atl', dark), dp: loadDp,
       note:
-        latest.atl > latest.ctl * 1.5 ? 'Very high — consider an easy day soon'
+        // The same lines as the card's green band (the Load Ratio bounds
+        // in Fatigue units), so the note and the band never disagree.
+        latest.atl > latest.ctl * acwrBounds.danger ? 'Very high — consider an easy day soon'
+        : latest.atl > latest.ctl * acwrBounds.sweetTop ? 'Ramping fast — trim this week\u2019s volume'
         : latest.atl > latest.ctl ? 'Fatigue exceeds fitness — normal in build weeks'
-        : latest.atl > latest.ctl * 0.8 ? 'Balanced — steady training'
+        : latest.atl >= latest.ctl * acwrBounds.low ? 'Balanced — steady training'
         : 'Low fatigue — room to push harder',
     },
     {
@@ -135,7 +138,7 @@ export default function PerformanceSnapshot({
     const full = [...(history ?? windowed)].sort((a, b) => a.date.localeCompare(b.date))
     const bandBounds: BandBounds = {
       acwrLow: acwrBounds.low, acwrHigh: acwrBounds.sweetTop,
-      tsbLow: TSB_BOUNDS.build, tsbHigh: TSB_BOUNDS.peaked,
+      tsbLow: TSB_BOUNDS.build, tsbHigh: TSB_BANDS.raceDay.y2,
     }
     const points = (v: MetricView) => {
       const bands = healthyBands(full, v.metric, bandBounds)

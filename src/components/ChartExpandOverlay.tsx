@@ -34,10 +34,14 @@ interface ChartExpandOverlayProps {
   zones?: HRZone[]
   targetZone?: string
   initialMetric?: Metric
+  /** What the chart shows, read with the expand button's name: the
+   *  button's children are presentational to screen readers, so a summary
+   *  inside them would otherwise go unheard. */
+  summary?: string
 }
 
 export default function ChartExpandOverlay({
-  children, title, stream, zones, targetZone, initialMetric = 'hr',
+  children, title, stream, zones, targetZone, initialMetric = 'hr', summary,
 }: ChartExpandOverlayProps) {
   const [expanded, setExpanded] = useState(false)
   const [metrics, setMetrics] = useState<Set<Metric>>(() => new Set([initialMetric]))
@@ -84,10 +88,13 @@ export default function ChartExpandOverlay({
     <>
       <div
         onClick={openExpanded}
+        onKeyDown={e => {
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openExpanded() }
+        }}
         className="cursor-pointer active:opacity-80 transition-opacity"
         role="button"
         tabIndex={0}
-        aria-label={`Expand ${title} chart`}
+        aria-label={summary ? `Expand ${title} chart. ${summary}` : `Expand ${title} chart`}
       >
         {children(false)}
       </div>
@@ -96,11 +103,15 @@ export default function ChartExpandOverlay({
         <div
           className="fixed inset-0 flex flex-col bg-white dark:bg-slate-900"
           style={{ zIndex: 9999 }}
+          role="dialog"
+          aria-modal="true"
+          aria-label={title}
           onClick={() => setExpanded(false)}
         >
           <div className="flex items-center justify-between px-4 pt-3 pb-1 shrink-0 border-b border-slate-200 dark:border-slate-700">
             <p className="text-slate-800 dark:text-white font-semibold text-base">{title}</p>
             <button
+              autoFocus
               onClick={() => setExpanded(false)}
               className="text-teal-600 dark:text-teal-400 hover:text-teal-700 text-base font-semibold px-2 py-1"
             >

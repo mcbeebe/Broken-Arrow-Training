@@ -49,7 +49,7 @@ describe('healthy bands', () => {
     render(<PerformanceSnapshot latest={last(h)} history={h} layout="cards" />)
     expect(within(screen.getByRole('region', { name: 'Fitness' })).getByText(/safe build, up to \+8 a week/)).toBeTruthy()
     expect(within(screen.getByRole('region', { name: 'Fatigue' })).getByText(/0\.8–1\.3× your Fitness/)).toBeTruthy()
-    expect(within(screen.getByRole('region', { name: 'Recovery Balance' })).getByText(/−30 to \+15/)).toBeTruthy()
+    expect(within(screen.getByRole('region', { name: 'Recovery Balance' })).getByText(/−30 to \+25, build zone up to race-ready/)).toBeTruthy()
     expect(within(screen.getByRole('region', { name: 'Load Ratio' })).getByText(/0\.8–1\.3, the lowest-injury range/)).toBeTruthy()
   })
 
@@ -121,7 +121,7 @@ describe('tap to expand', () => {
     const h = timeline(30)
     render(<PerformanceSnapshot latest={last(h)} history={h} layout="cards" />)
     for (const name of ['Fitness', 'Fatigue', 'Recovery Balance', 'Load Ratio']) {
-      fireEvent.click(screen.getByRole('button', { name: `Expand ${name} chart` }))
+      fireEvent.click(screen.getByRole('button', { name: new RegExp(`^Expand ${name} chart\\. ${name} from `) }))
       const close = screen.getByRole('button', { name: 'Close' })
       // The full-screen copy is a second chart for the same metric.
       expect(screen.getAllByRole('img', { name: new RegExp(`^${name} from`) })).toHaveLength(2)
@@ -134,9 +134,61 @@ describe('tap to expand', () => {
     const h = timeline(30)
     render(<PerformanceSnapshot latest={last(h)} history={h} layout="cards" />)
     fireEvent.click(screen.getByRole('switch', { name: /Smooth/ }))
-    fireEvent.click(screen.getByRole('button', { name: 'Expand Fatigue (3-day avg) chart' }))
+    fireEvent.click(screen.getByRole('button', { name: /^Expand Fatigue \(3-day avg\) chart\./ }))
     const charts = screen.getAllByRole('img', { name: /^Fatigue \(3-day avg\) from/ })
     expect(charts).toHaveLength(2)
     expect(charts[1].querySelector('.metric-healthy-band .recharts-area-area')).toBeTruthy()
+  })
+})
+
+describe('the bands agree with the cards they sit on', () => {
+  it('Recovery Balance: the band is the app\u2019s own zones, so Peaked (race-ready) sits inside it', () => {
+    // TSB_BOUNDS.build to the top of TSB_BANDS.raceDay.
+    const h = timeline(30).map(p => ({ ...p, tsb: 18 }))
+    render(<PerformanceSnapshot latest={last(h)} history={h} layout="cards" />)
+    const rb = screen.getByRole('region', { name: 'Recovery Balance' })
+    expect(within(rb).getByText('Peaked')).toBeTruthy()
+    expect(within(rb).getByText(/−30 to \+25/)).toBeTruthy()
+  })
+
+  it('Fatigue: the note uses the band\u2019s lines (1.4× Fitness is "ramping fast", not "normal")', () => {
+    const at = (ratio: number) => {
+      const h = timeline(30).map(p => ({ ...p, ctl: 60, atl: 60 * ratio }))
+      render(<PerformanceSnapshot latest={last(h)} history={h} layout="cards" />)
+      const text = screen.getByRole('region', { name: 'Fatigue' }).textContent
+      cleanup()
+      return text
+    }
+    expect(at(1.6)).toContain('Very high — consider an easy day soon')
+    expect(at(1.4)).toContain('Ramping fast — trim this week\u2019s volume')
+    expect(at(1.1)).toContain('Fatigue exceeds fitness — normal in build weeks')
+    expect(at(0.9)).toContain('Balanced — steady training')
+    expect(at(0.6)).toContain('Low fatigue — room to push harder')
+  })
+
+  it('Fitness: a gain past the safe weekly ramp reads amber, as the band does', () => {
+    const h = timeline(30).map((p, i) => ({ ...p, ctl: 40 + i * 2 })) // +14 a week
+    render(<PerformanceSnapshot latest={last(h)} history={h} layout="cards" />)
+    const chip = within(screen.getByRole('region', { name: 'Fitness' })).getByText(/vs 7d ago/).parentElement!
+    expect(chip.textContent).toContain('▲ +14')
+    expect(chip.className).toContain('text-amber-700')
+  })
+})
+
+describe('expand is reachable without a mouse', () => {
+  it('Enter on the chart opens a labelled dialog with focus on Close', () => {
+    const h = timeline(30)
+    render(<PerformanceSnapshot latest={last(h)} history={h} layout="cards" />)
+    fireEvent.keyDown(screen.getByRole('button', { name: /^Expand Load Ratio chart\./ }), { key: 'Enter' })
+    const dialog = screen.getByRole('dialog', { name: 'Load Ratio' })
+    expect(dialog.getAttribute('aria-modal')).toBe('true')
+    expect(document.activeElement).toBe(within(dialog).getByRole('button', { name: 'Close' }))
+  })
+
+  it('Space opens it too', () => {
+    const h = timeline(30)
+    render(<PerformanceSnapshot latest={last(h)} history={h} layout="cards" />)
+    fireEvent.keyDown(screen.getByRole('button', { name: /^Expand Fitness chart\./ }), { key: ' ' })
+    expect(screen.getByRole('dialog', { name: 'Fitness' })).toBeTruthy()
   })
 })
