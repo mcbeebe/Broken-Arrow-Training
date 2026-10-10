@@ -78,3 +78,12 @@ export function spentLine(spent: ImportProblemCopy['spent']): string {
   if (spent === 'maybe') return "It may have counted as one of today's uploads."
   return "This didn't count toward today's uploads."
 }
+
+/**
+ * Problems where the same file may well work a second time: the reader or
+ * the connection, not the file. Onboarding offers "Try again" for these, and
+ * otherwise never reads the same pick twice.
+ */
+export const WORTH_RETRYING: ReadonlySet<ImportProblem> = new Set<ImportProblem>([
+  'timeout', 'busy', 'llm_unavailable', 'network', 'server_error', 'unavailable', 'reader_unavailable',
+])

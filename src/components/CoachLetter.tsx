@@ -40,8 +40,12 @@ export default function CoachLetter({ plan, config, athleteId, onContinue }: Pro
   // that's the preset (e.g. "Lose Fat"), optionally with their free-text goal;
   // for a race it's their stated race goal. And surface pertinent personal
   // context (injury) so the coach acknowledges it instead of writing generically.
+  // An uploaded plan (initiative 004) is followed as written, with no season
+  // built around it, so the letter never describes one, and its goal is only
+  // what the athlete wrote, never a general-fitness preset they didn't pick.
+  const uploaded = isImportedPlan(config)
   const goalText =
-    config.raceType === 'general'
+    config.raceType === 'general' && !uploaded
       ? [GOAL_PRESETS[config.generalGoal ?? 'stay_healthy'].label, config.athleteGoal?.trim()]
           .filter(Boolean)
           .join(' — ')
@@ -51,9 +55,6 @@ export default function CoachLetter({ plan, config, athleteId, onContinue }: Pro
 
   // The whole season, in the coach's SEASON section: an athlete who listed
   // four races must get a letter about their season, not just race #1.
-  // An uploaded plan (initiative 004) is followed as written, with no season
-  // built around it, so the letter never describes one.
-  const uploaded = isImportedPlan(config)
   const extraRaces = uploaded ? [] : config.additionalRaces ?? []
   // The explicit main-goal answer: an added race with isPrimary, else the
   // anchor (anchorIsPrimary undefined = legacy = anchor).
@@ -112,11 +113,17 @@ export default function CoachLetter({ plan, config, athleteId, onContinue }: Pro
   const menopauseSentence = menopauseLine
     ? ` I also see you're ${menopauseLine} — the old "more cardio, lighter weights" advice works against you in midlife, so we'll lean into strength, keep your hard days, and protect your recovery.`
     : ''
-  const fallback =
-    `Welcome, ${plan.athlete.name || 'athlete'} — your plan is built and ready.\n\n` +
-    `It's ${plan.weeks.length} weeks built around ${goalPhrase}.${injurySentence}${menopauseSentence} ` +
-    `Trust the process, show up for the easy days as much as the hard ones, and we'll get there together.\n\n` +
-    `I'm in the Coach tab whenever you want to talk it through. Let's get to work.`
+  // An uploaded plan was not built here and is not eased or reshaped around
+  // anything (D1), so its letter promises neither.
+  const fallback = uploaded
+    ? `Welcome, ${plan.athlete.name || 'athlete'} — your plan is in and ready.\n\n` +
+      `It's your own ${plan.weeks.length}-week plan, followed as written. ` +
+      `Show up for the easy days as much as the hard ones, and we'll get there together.\n\n` +
+      `I'm in the Coach tab whenever you want to talk it through. Let's get to work.`
+    : `Welcome, ${plan.athlete.name || 'athlete'} — your plan is built and ready.\n\n` +
+      `It's ${plan.weeks.length} weeks built around ${goalPhrase}.${injurySentence}${menopauseSentence} ` +
+      `Trust the process, show up for the easy days as much as the hard ones, and we'll get there together.\n\n` +
+      `I'm in the Coach tab whenever you want to talk it through. Let's get to work.`
 
   return (
     <div className="fixed inset-0 z-50 bg-white dark:bg-slate-900 flex flex-col">

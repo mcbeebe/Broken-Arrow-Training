@@ -30,7 +30,7 @@ import ExportDialog from './ExportDialog'
 import PlanImportCard from './PlanImportCard'
 import PlanImportSheet from './PlanImportSheet'
 import { isImportedPlan } from '../hooks/useOnboarding'
-import { coachApiAvailable } from '../utils/coachApi'
+import { planImportOpenTo } from '../utils/planImport/access'
 import { shiftIsoByWeeks } from '../utils/planDates'
 import { useDisplayPreferences } from '../hooks/useDisplayPreferences'
 import { DETAIL_LEVELS, type DisplayFlags } from '../types'
@@ -267,7 +267,7 @@ export default function Settings({
   // Upload my own plan is in beta for the owner only (initiative 004, D8).
   // The server checks too: opening it to everyone means PLAN_IMPORT_OPEN on
   // Vercel *and* this line.
-  const canImportPlan = athleteId === 'mike' && !!onboardingConfig && !!onUseImportedPlan && coachApiAvailable()
+  const canImportPlan = planImportOpenTo(athleteId) && !!onboardingConfig && !!onUseImportedPlan
   const uploadedTitle = isImportedPlan(onboardingConfig) ? onboardingConfig?.importedPlan?.title || 'your plan' : null
   void _onAcceptInference
   void _onDismissInference

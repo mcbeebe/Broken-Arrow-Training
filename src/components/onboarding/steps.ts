@@ -51,6 +51,9 @@ export const STEP_HEALTH = 20
 // carries which role, after the days / long-run day / strength answers it
 // is built from. Untouched, the engines lay the week out as before.
 export const STEP_WEEK_SHAPE = 21
+// Initiative 004, PR 7 — "I already have a plan": the athlete uploads the
+// plan they follow instead of answering the questions that build one.
+export const STEP_IMPORT_PLAN = 22
 
 /**
  * G3 ordering (goal-first, preview mid-flow, prefs last):
@@ -66,6 +69,7 @@ export const STEP_WEEK_SHAPE = 21
  */
 export const ALL_STEPS = [
   STEP_GOAL_MODE, // the very first question: one race, a season, or no race
+  STEP_IMPORT_PLAN, // only on the "I already have a plan" path
   STEP_RACE_TYPE,
   STEP_RACE_NAME,
   STEP_SEASON_RACES,
@@ -98,6 +102,7 @@ export const ALL_STEPS = [
  *  throwing, because instrumentation must never break the flow. */
 export const STEP_NAMES: Readonly<Record<number, string>> = {
   [STEP_GOAL_MODE]: 'goal_mode',
+  [STEP_IMPORT_PLAN]: 'import_plan',
   [STEP_RACE_TYPE]: 'race_type',
   [STEP_RACE_NAME]: 'race_name',
   [STEP_SEASON_RACES]: 'season_races',
@@ -129,7 +134,9 @@ export function stepName(step: number): string {
 export interface StepVisibility {
   /** 'trail' | 'road' | 'hyrox' | 'general' — the general-goal steps mirror it. */
   raceType?: string | null
-  /** 'race' | 'season' | 'general' — the goal-mode answer, always step 1. */
+  /** 'race' | 'season' | 'general' | 'import' — the goal-mode answer, always
+   *  step 1. 'import' ("I already have a plan") is never stored: an uploaded
+   *  plan is told apart by the config's `importedPlan` (D5). */
   goalMode?: string | null
   /** Raw age field from the profile step; unparseable reads as 0. */
   age?: string
@@ -162,13 +169,27 @@ export function showsMenopauseStep(v: StepVisibility): boolean {
  * Navigation and the progress bar are index-based (`visibleSteps.indexOf`),
  * never value-based, so a step dropping out here shifts nothing else.
  */
+/**
+ * The steps of the "I already have a plan" path: the upload, then only what an
+ * uploaded plan still needs (experience for the coach, the profile for
+ * heart-rate zones, the wearable for syncing), then the review. Everything
+ * else shapes a generated plan, and the athlete's own plan is followed as
+ * written (D1). A redo's prefill drops experience and the profile as usual.
+ */
+const IMPORT_PATH: ReadonlySet<number> = new Set([
+  STEP_GOAL_MODE, STEP_IMPORT_PLAN, STEP_EXPERIENCE, STEP_PROFILE, STEP_WEARABLE, STEP_REVIEW,
+])
+
 export function visibleSteps(v: StepVisibility): readonly number[] {
   // Race-distance step only shows for trail/road races (hyrox is a fixed format,
   // general fitness has no target distance). The general-goal step is the mirror
   // image — shown only for general fitness.
   const showsGoalStep = v.raceType === 'general'
   const menopause = showsMenopauseStep(v)
+  const importing = v.goalMode === 'import'
   return ALL_STEPS.filter(s => {
+    if (importing && !IMPORT_PATH.has(s)) return false
+    if (s === STEP_IMPORT_PLAN) return importing
     if (s === STEP_GENERAL_GOAL) return showsGoalStep
     if (s === STEP_GENERAL_CARDIO) return showsGoalStep
     if (s === STEP_MENOPAUSE) return menopause
