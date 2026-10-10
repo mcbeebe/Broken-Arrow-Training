@@ -103,31 +103,31 @@ export interface FitnessChange {
   from: number
   to: number
   delta: number
-  /** Percent of the starting value; null when it started at ~0. */
-  pct: number | null
+  /** Percent of the starting value. */
+  pct: number
   /** The date the change is measured from (the range's first day with data). */
   since: string
 }
 
 /**
  * How much Fitness moved across a date range: its first reading on or
- * after `startDate` to its last reading on or before `endDate`. Null
- * without two distinct days of data, or before Fitness has built at all.
+ * after `startDate` to its last reading on or before `endDate`. Readings
+ * before Fitness has built (≤ 1, where the chart draws no line) don't
+ * count. Null without two such days.
  */
 export function fitnessChange(timeline: PerformanceMetrics[], startDate: string, endDate: string): FitnessChange | null {
   const inRange = timeline
-    .filter(p => p.date >= startDate && p.date <= endDate)
+    .filter(p => p.date >= startDate && p.date <= endDate && p.ctl > 1)
     .sort((a, b) => a.date.localeCompare(b.date))
   if (inRange.length < 2) return null
   const first = inRange[0]
   const last = inRange[inRange.length - 1]
-  if (last.ctl <= 1) return null
   const delta = last.ctl - first.ctl
   return {
     from: first.ctl,
     to: last.ctl,
     delta,
-    pct: first.ctl > 1 ? (delta / first.ctl) * 100 : null,
+    pct: (delta / first.ctl) * 100,
     since: first.date,
   }
 }
@@ -157,15 +157,37 @@ export function formatChange(v: number, dp: number): string {
   return v > 0 ? `▲ +${s}` : `▼ −${s}`
 }
 
+/** The zone edges the change colors read: Recovery Balance's
+ *  overreaching line and Load Ratio's in-range band. */
+export interface ToneBounds {
+  tsbOverreaching: number
+  acwrLow: number
+  acwrHigh: number
+}
+
 /**
  * The change's color: green for good news, amber for caution, grey when
- * the direction alone says nothing. Fitness and Recovery Balance rising
- * is good and falling is caution. Fatigue and Load Ratio rising is
- * caution, but falling is only neutral: backing off isn't automatically
- * good (a Load Ratio under the band is detraining).
+ * the direction alone says nothing. Direction is judged against where the
+ * metric now sits, so a planned build week isn't flagged every day:
+ * - Fitness: rising good, falling caution.
+ * - Fatigue: rising caution, falling neutral (backing off isn't good or
+ *   bad on its own).
+ * - Recovery Balance: rising good; falling is caution only once it is in
+ *   overreaching, else neutral (the build zone is tired by design).
+ * - Load Ratio: moving toward the in-range band good, moving away from
+ *   it caution, moving within it neutral.
  */
-export function changeTone(metric: TrendMetric, delta: number): 'good' | 'caution' | 'neutral' {
+export function changeTone(metric: TrendMetric, delta: number, current: number, bounds: ToneBounds): 'good' | 'caution' | 'neutral' {
   if (Math.abs(delta) < 1e-9) return 'neutral'
-  if (metric === 'ctl' || metric === 'tsb') return delta > 0 ? 'good' : 'caution'
-  return delta > 0 ? 'caution' : 'neutral'
+  switch (metric) {
+    case 'ctl': return delta > 0 ? 'good' : 'caution'
+    case 'atl': return delta > 0 ? 'caution' : 'neutral'
+    case 'tsb': return delta > 0 ? 'good' : current < bounds.tsbOverreaching ? 'caution' : 'neutral'
+    case 'acwr': {
+      const before = current - delta
+      const dist = (v: number) => v < bounds.acwrLow ? bounds.acwrLow - v : v > bounds.acwrHigh ? v - bounds.acwrHigh : 0
+      const was = dist(before), now = dist(current)
+      return now < was ? 'good' : now > was ? 'caution' : 'neutral'
+    }
+  }
 }

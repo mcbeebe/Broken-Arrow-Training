@@ -116,9 +116,11 @@ describe('fitnessChange', () => {
     expect(fitnessChange([p('2026-10-10', 70)], '2026-10-01', '2026-10-10')).toBeNull()
     expect(fitnessChange([p('2026-10-01', 0), p('2026-10-10', 0.5)], '2026-10-01', '2026-10-10')).toBeNull()
   })
-  it('has no percentage when it starts from ~0', () => {
-    const c = fitnessChange([p('2026-10-01', 0), p('2026-10-10', 5)], '2026-10-01', '2026-10-10')!
-    expect(c.pct).toBeNull()
+  it('measures from the first day Fitness had built, where the chart line starts', () => {
+    const c = fitnessChange([p('2026-10-01', 0), p('2026-10-02', 0.8), p('2026-10-03', 4), p('2026-10-10', 10)], '2026-10-01', '2026-10-10')!
+    expect(c.since).toBe('2026-10-03')
+    expect(c.delta).toBe(6)
+    expect(c.pct).toBe(150)
   })
 })
 
@@ -147,19 +149,28 @@ describe('formatChange / changeTone', () => {
     expect(formatChange(0.04, 1)).toBe('± 0.0')
     expect(formatChange(-0.4, 0)).toBe('± 0')
   })
-  it('Fitness and Recovery Balance rising is good, falling is caution', () => {
-    expect(changeTone('ctl', 2)).toBe('good')
-    expect(changeTone('ctl', -2)).toBe('caution')
-    expect(changeTone('tsb', 5)).toBe('good')
-    expect(changeTone('tsb', -5)).toBe('caution')
+  const B = { tsbOverreaching: -30, acwrLow: 0.8, acwrHigh: 1.3 }
+  it('Fitness rising is good, falling is caution', () => {
+    expect(changeTone('ctl', 2, 75, B)).toBe('good')
+    expect(changeTone('ctl', -2, 75, B)).toBe('caution')
   })
-  it('Fatigue and Load Ratio rising is caution; falling is only neutral', () => {
-    expect(changeTone('atl', 30)).toBe('caution')
-    expect(changeTone('atl', -30)).toBe('neutral')
-    expect(changeTone('acwr', 0.3)).toBe('caution')
-    expect(changeTone('acwr', -0.3)).toBe('neutral')
+  it('Fatigue rising is caution; falling is only neutral', () => {
+    expect(changeTone('atl', 30, 125, B)).toBe('caution')
+    expect(changeTone('atl', -30, 60, B)).toBe('neutral')
+  })
+  it('Recovery Balance falling is caution only once it is overreaching', () => {
+    expect(changeTone('tsb', 5, -20, B)).toBe('good')
+    expect(changeTone('tsb', -8, -20, B)).toBe('neutral') // a build week, tired by design
+    expect(changeTone('tsb', -8, -35, B)).toBe('caution')
+  })
+  it('Load Ratio toward the band is good, away from it caution, within it neutral', () => {
+    expect(changeTone('acwr', 0.35, 0.95, B)).toBe('good')    // 0.6 → 0.95: out of undertraining
+    expect(changeTone('acwr', -0.3, 1.2, B)).toBe('good')     // 1.5 → 1.2: back from a spike
+    expect(changeTone('acwr', 0.41, 1.67, B)).toBe('caution') // 1.26 → 1.67: spiking
+    expect(changeTone('acwr', -0.2, 0.6, B)).toBe('caution')  // 0.8 → 0.6: detraining
+    expect(changeTone('acwr', 0.1, 1.1, B)).toBe('neutral')   // 1.0 → 1.1: in range
   })
   it('no change is neutral', () => {
-    expect(changeTone('ctl', 0)).toBe('neutral')
+    expect(changeTone('ctl', 0, 75, B)).toBe('neutral')
   })
 })

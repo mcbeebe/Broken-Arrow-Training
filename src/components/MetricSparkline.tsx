@@ -32,6 +32,9 @@ export default function MetricSparkline({ values, color, label, baseline, band, 
       width="100%"
       height={height}
       viewBox={`0 0 ${width} ${height}`}
+      // Stretch to the tile's width; the strokes below don't scale, and
+      // the dot is a zero-length round-capped stroke so it stays round.
+      preserveAspectRatio="none"
       role="img"
       aria-label={label}
       className="block mt-1"
@@ -53,10 +56,11 @@ export default function MetricSparkline({ values, color, label, baseline, band, 
           data-testid="sparkline-baseline"
           x1={0} x2={width} y1={g.y(baseline)} y2={g.y(baseline)}
           stroke="#94a3b8" strokeWidth={1} strokeDasharray="3 3"
+          vectorEffect="non-scaling-stroke"
         />
       )}
-      <path d={g.d} fill="none" stroke={color} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
-      <circle cx={g.end.x} cy={g.end.y} r={3} fill={color} />
+      <path d={g.d} fill="none" stroke={color} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+      <path data-testid="sparkline-today" d={`M${g.end.x} ${g.end.y}h0`} stroke={color} strokeWidth={6} strokeLinecap="round" vectorEffect="non-scaling-stroke" />
     </svg>
   )
 }

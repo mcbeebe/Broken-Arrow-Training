@@ -1,6 +1,6 @@
 import { useId } from 'react'
 import type { PerformanceMetrics } from '../types'
-import { tsbZone, acwrZone, ACWR_BOUNDS, ACWR_IN_RANGE_RAMPING_NOTE, type AcwrBounds, type ZoneTone } from '../utils/loadZones'
+import { tsbZone, acwrZone, ACWR_BOUNDS, TSB_BOUNDS, ACWR_IN_RANGE_RAMPING_NOTE, type AcwrBounds, type ZoneTone } from '../utils/loadZones'
 import { formatLoadP } from '../utils/format'
 import Term from './TermGlossary'
 import { useDisplayPreferences } from '../hooks/useDisplayPreferences'
@@ -46,6 +46,7 @@ export default function PerformanceSnapshot({ latest, rampAlert = false, acwrBou
   const dark = isDarkMode()
   const loadDp = flags.numericPrecision === 'high' ? 1 : 0
   const ratioDp = flags.numericPrecision === 'low' ? 1 : 2
+  const toneBounds = { tsbOverreaching: TSB_BOUNDS.build, acwrLow: acwrBounds.low, acwrHigh: acwrBounds.sweetTop }
   const trend = (metric: TrendMetric, name: string, color: string, dp: number, extra: { baseline?: number; band?: [number, number] } = {}) => {
     if (recent.length < 2) return undefined
     const values = recent.map(p => p[metric])
@@ -63,7 +64,7 @@ export default function PerformanceSnapshot({ latest, rampAlert = false, acwrBou
           {...extra}
         />
         {shown !== null && (
-          <p className={`text-xs font-semibold mt-0.5 ${CHANGE_TONE_CLASS[changeTone(metric, shown)]}`}>
+          <p className={`text-xs font-semibold mt-0.5 ${CHANGE_TONE_CLASS[changeTone(metric, shown, values[values.length - 1], toneBounds)]}`}>
             {formatChange(shown, dp)} <span className="font-normal text-slate-500 dark:text-slate-400">vs {DELTA_DAYS}d ago</span>
           </p>
         )}

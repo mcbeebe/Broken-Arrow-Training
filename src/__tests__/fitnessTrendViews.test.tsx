@@ -162,11 +162,38 @@ describe('Training Load chart: Fitness on its own axis', () => {
     expect(within(chip).getByText('▲ +11 (+17%)').className).toContain('text-green-700')
   })
 
-  it('the range sets the window: 7d measures the last week', () => {
+  it('the range sets the window: 7d measures seven days, matching the tiles\' "vs 7d ago"', () => {
     const perf = timeline(30)
-    render(<TRIMPBreakdown dailyTrimp={load(perf) as never} performance={perf} range="7d" athleteId="mike" />)
-    const gain = Math.round(last(perf).ctl - perf[23].ctl)
-    expect(screen.getByTestId('fitness-change').textContent).toContain(`▲ +${gain}`)
+    render(
+      <>
+        <TRIMPBreakdown dailyTrimp={load(perf) as never} performance={perf} range="7d" athleteId="mike" />
+        <PerformanceSnapshot latest={last(perf)} history={perf} />
+      </>,
+    )
+    const gain = Math.round(last(perf).ctl - perf[22].ctl)
+    const chip = screen.getByTestId('fitness-change')
+    expect(chip.textContent).toContain(`▲ +${gain}`)
+    expect(chip.textContent).toContain(`since ${perf[22].date.slice(5)}`)
+    // The Fitness tile, just below on Today, says the same number.
+    expect(screen.getByText(`▲ +${gain}`, { selector: 'p' }).textContent).toContain('vs 7d ago')
+  })
+
+  it('names the year when the range crosses one, and drops a 0% that adds nothing', () => {
+    const perf = [
+      { date: '2025-12-20', ctl: 50, atl: 50, tsb: 0, acwr: 1 },
+      { date: '2026-01-05', ctl: 50.3, atl: 50, tsb: 0.3, acwr: 0.99 },
+    ]
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date(2026, 0, 5, 12))
+    try {
+      render(<TRIMPBreakdown dailyTrimp={load(perf) as never} performance={perf} range="all" athleteId="mike" />)
+    } finally {
+      vi.useRealTimers()
+    }
+    const chip = screen.getByTestId('fitness-change')
+    expect(chip.textContent).toContain('since 2025-12-20')
+    expect(chip.textContent).toContain('± 0')
+    expect(chip.textContent).not.toContain('%')
   })
 
   it('a falling Fitness reads amber', () => {

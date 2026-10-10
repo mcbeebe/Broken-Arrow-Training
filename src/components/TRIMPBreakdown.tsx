@@ -7,7 +7,7 @@ import { useDisplayPreferences } from '../hooks/useDisplayPreferences'
 import { ACWR_BOUNDS } from '../utils/loadZones'
 import { LOAD_SERIES_COLORS, seriesHex } from '../utils/loadSeriesColors'
 import { isDarkMode } from '../utils/styles'
-import { fitnessAxisDomain, fitnessChange, formatChange } from '../utils/metricTrend'
+import { fitnessAxisDomain, fitnessChange, formatChange, shiftDate } from '../utils/metricTrend'
 
 export type TRIMPRange = '7d' | '30d' | '90d' | 'ytd' | 'all'
 
@@ -199,11 +199,19 @@ export default function TRIMPBreakdown({
   }
   const fitnessDomain = fitnessByDay.size >= 2 ? fitnessAxisDomain([...fitnessByDay.values()]) : null
   const hasFitness = fitnessDomain !== null
+  // Measured from the day before the range so "7d" spans seven days of
+  // change, as the snapshot's "vs 7d ago" does.
+  const rangeEnd = rangeDays[rangeDays.length - 1]
   const change = hasFitness && rangeDays.length > 0
-    ? fitnessChange(performance ?? [], rangeDays[0], rangeDays[rangeDays.length - 1])
+    ? fitnessChange(performance ?? [], shiftDate(rangeDays[0], -1), rangeEnd)
     : null
   const loadDp = flags.numericPrecision === 'high' ? 1 : 0
   const changeShown = change ? Number(change.delta.toFixed(loadDp)) : 0
+  const pctShown = change && changeShown !== 0 ? Math.round(change.pct) : 0
+  // The year only when the range crosses one ("All" can).
+  const sinceLabel = change
+    ? change.since.slice(0, 4) === rangeEnd.slice(0, 4) ? change.since.slice(5) : change.since
+    : ''
 
   // Per-day decomposition. After useReadiness applies its dedup logic:
   //   day.total = (recordSum + exerciseLoad) × rpeMult
@@ -344,9 +352,9 @@ export default function TRIMPBreakdown({
           <span aria-hidden className={`inline-block w-3.5 h-[3px] rounded-full ${LOAD_SERIES_COLORS.ctl.swatch}`} />
           <span className="font-semibold text-blue-900 dark:text-blue-200">Fitness {change.to.toFixed(loadDp)}</span>
           <span className={`font-semibold ${changeShown > 0 ? 'text-green-700 dark:text-green-400' : changeShown < 0 ? 'text-amber-700 dark:text-amber-400' : 'text-slate-500 dark:text-slate-400'}`}>
-            {formatChange(change.delta, loadDp)}{change.pct !== null && ` (${change.pct >= 0 ? '+' : '−'}${Math.abs(Math.round(change.pct))}%)`}
+            {formatChange(change.delta, loadDp)}{pctShown !== 0 && ` (${pctShown > 0 ? '+' : '−'}${Math.abs(pctShown)}%)`}
           </span>
-          <span className="ml-auto text-xs text-slate-600 dark:text-slate-300">since {change.since.slice(5)}</span>
+          <span className="ml-auto text-xs text-slate-600 dark:text-slate-300">since {sinceLabel}</span>
         </div>
       )}
       <div style={{ height: 180 }}>
