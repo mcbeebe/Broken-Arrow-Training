@@ -49,7 +49,7 @@ export default function MetricTrendCard({
   // As many decimals as the ticks themselves need: 60 / 65 / 70, not
   // 60.0 at high precision; 0.75 / 1.00 / 1.25 for Load Ratio.
   const tickDp = Math.max(0, ...ticks.map(t => (String(t).split('.')[1] ?? '').length))
-  const dark = isDarkMode()
+  const isDark = isDarkMode()
   const first = data[0]
   const last = data[data.length - 1]
 
@@ -74,7 +74,7 @@ export default function MetricTrendCard({
         <div className="mt-2" style={{ height: 160 }} role="img" aria-label={`${name} from ${first.date} (${first.value.toFixed(dp)}) to ${last.date} (${last.value.toFixed(dp)})`}>
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={data} margin={{ top: 6, right: 8, bottom: 0, left: 0 }}>
-              <CartesianGrid stroke={dark ? '#334155' : '#e2e8f0'} strokeDasharray="3 3" vertical={false} />
+              <CartesianGrid stroke={isDark ? '#334155' : '#e2e8f0'} strokeDasharray="3 3" vertical={false} />
               {band && (
                 <ReferenceArea y1={band[0]} y2={band[1]} fill={bandColor} fillOpacity={0.12} stroke="none" ifOverflow="extendDomain" />
               )}
@@ -103,9 +103,9 @@ export default function MetricTrendCard({
                 contentStyle={{
                   fontSize: 13,
                   borderRadius: 8,
-                  border: dark ? '1px solid #334155' : '1px solid #e2e8f0',
-                  backgroundColor: dark ? '#1e293b' : '#ffffff',
-                  color: dark ? '#f1f5f9' : '#1e293b',
+                  border: isDark ? '1px solid #334155' : '1px solid #e2e8f0',
+                  backgroundColor: isDark ? '#1e293b' : '#ffffff',
+                  color: isDark ? '#f1f5f9' : '#1e293b',
                 }}
                 labelFormatter={(d) => String(d)}
                 formatter={(v) => [Number(v).toFixed(dp), name]}
