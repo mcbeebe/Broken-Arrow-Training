@@ -7,6 +7,7 @@ import {
   ResponsiveContainer, ReferenceLine, ReferenceArea, CartesianGrid,
 } from 'recharts'
 import ChartExpandOverlay from './ChartExpandOverlay'
+import { EXPAND_HINT } from '../utils/metricTrend'
 import PerformanceSnapshot from './PerformanceSnapshot'
 import { useDisplayPreferences } from '../hooks/useDisplayPreferences'
 import { LOAD_SERIES_COLORS, seriesHex, type LoadSeries } from '../utils/loadSeriesColors'
@@ -123,7 +124,7 @@ export default function PerformanceChart({
       <div>
         {!expanded && (
           <div className="flex items-center justify-end mb-1">
-            <span className="text-[10px] text-slate-400">Tap to expand</span>
+            <span className="text-[11px] text-slate-500 dark:text-slate-400">{EXPAND_HINT}</span>
           </div>
         )}
         <div style={expanded ? { width: '100%', height: 'calc(100vh - 120px)' } : { height: 220 }}>

@@ -44,6 +44,16 @@ export default function ChartExpandOverlay({
   children, title, stream, zones, targetZone, initialMetric = 'hr', summary,
 }: ChartExpandOverlayProps) {
   const [expanded, setExpanded] = useState(false)
+  // A phone held upright squeezes a time series; say so while it is.
+  const [portrait, setPortrait] = useState(false)
+  useEffect(() => {
+    if (!expanded || typeof window.matchMedia !== 'function') return
+    const mq = window.matchMedia('(orientation: portrait)')
+    const update = () => setPortrait(mq.matches)
+    update()
+    mq.addEventListener?.('change', update)
+    return () => mq.removeEventListener?.('change', update)
+  }, [expanded])
   const [metrics, setMetrics] = useState<Set<Metric>>(() => new Set([initialMetric]))
 
   const openExpanded = () => {
@@ -109,7 +119,12 @@ export default function ChartExpandOverlay({
           onClick={() => setExpanded(false)}
         >
           <div className="flex items-center justify-between px-4 pt-3 pb-1 shrink-0 border-b border-slate-200 dark:border-slate-700">
-            <p className="text-slate-800 dark:text-white font-semibold text-base">{title}</p>
+            <div>
+              <p className="text-slate-800 dark:text-white font-semibold text-base">{title}</p>
+              {portrait && (
+                <p className="text-xs text-slate-500 dark:text-slate-400" data-testid="rotate-hint">Rotate your phone for the best view</p>
+              )}
+            </div>
             <button
               autoFocus
               onClick={() => setExpanded(false)}

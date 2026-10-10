@@ -193,3 +193,49 @@ describe('expand is reachable without a mouse', () => {
     expect(screen.getByRole('dialog', { name: 'Fitness' })).toBeTruthy()
   })
 })
+
+describe('the expand hint sits at the top of each chart, with a rotate tip', () => {
+  // Field request (2026-10-10): "Should say click to expand at top of graph
+  // and rotate for best view."
+  it('each card shows the hint above its chart, not under it', () => {
+    const h = timeline(30)
+    render(<PerformanceSnapshot latest={last(h)} history={h} layout="cards" />)
+    for (const name of ['Fitness', 'Fatigue', 'Recovery Balance', 'Load Ratio']) {
+      const card = screen.getByRole('region', { name })
+      const hint = within(card).getByText('Click to expand · rotate for best view')
+      const chart = within(card).getByRole('button', { name: new RegExp(`^Expand ${name} chart`) })
+      // DOCUMENT_POSITION_FOLLOWING: the chart comes after the hint.
+      expect(hint.compareDocumentPosition(chart) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+      expect(within(card).queryByText(/Tap the chart to expand/)).toBeNull()
+    }
+  })
+
+  function mockOrientation(portrait: boolean) {
+    const original = window.matchMedia
+    window.matchMedia = ((q: string) => ({
+      matches: q.includes('portrait') ? portrait : false,
+      media: q, addEventListener: () => {}, removeEventListener: () => {},
+    })) as unknown as typeof window.matchMedia
+    return () => { window.matchMedia = original }
+  }
+
+  it('the full-screen view says to rotate while the phone is upright', () => {
+    const restore = mockOrientation(true)
+    try {
+      const h = timeline(30)
+      render(<PerformanceSnapshot latest={last(h)} history={h} layout="cards" />)
+      fireEvent.click(screen.getByRole('button', { name: /^Expand Fitness chart/ }))
+      expect(within(screen.getByRole('dialog')).getByText('Rotate your phone for the best view')).toBeTruthy()
+    } finally { restore() }
+  })
+
+  it('and not once it is sideways', () => {
+    const restore = mockOrientation(false)
+    try {
+      const h = timeline(30)
+      render(<PerformanceSnapshot latest={last(h)} history={h} layout="cards" />)
+      fireEvent.click(screen.getByRole('button', { name: /^Expand Fitness chart/ }))
+      expect(screen.queryByTestId('rotate-hint')).toBeNull()
+    } finally { restore() }
+  })
+})

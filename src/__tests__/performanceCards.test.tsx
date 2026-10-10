@@ -242,3 +242,30 @@ describe('Today → Progress wiring (App)', () => {
     expect(APP).toContain('onPerformanceFocusHandled={() => setPerformanceFocus(null)}')
   })
 })
+
+describe('Training Load chart: expandable on Performance, not on Today', () => {
+  const perf = () => timeline(30)
+  const daily = (p: PerformanceMetrics[]) => p.map(x => ({ date: x.date, total: 90, records: [{ sportType: 'running', adjustedTRIMP: 90 }] }))
+
+  it('on Performance it carries the hint and opens full screen', () => {
+    const p = perf()
+    render(<TRIMPBreakdown dailyTrimp={daily(p) as never} performance={p} athleteId="mike" range="30d" chartHeight={280} expandable />)
+    expect(screen.getByText('Click to expand · rotate for best view')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: /^Expand 30-Day Training Load chart/ }))
+    const dialog = screen.getByRole('dialog', { name: '30-Day Training Load' })
+    expect(dialog.querySelector('.recharts-surface')).toBeTruthy()
+  })
+
+  it('on Today it stays a plain chart', () => {
+    const p = perf()
+    render(<TRIMPBreakdown dailyTrimp={daily(p) as never} performance={p} athleteId="mike" />)
+    expect(screen.queryByText(/Click to expand/)).toBeNull()
+    expect(screen.queryByRole('button', { name: /^Expand/ })).toBeNull()
+  })
+
+  it('the Performance tab asks for it', () => {
+    const DASH = Object.values(import.meta.glob('../components/Dashboard.tsx', { query: '?raw', import: 'default', eager: true }))[0] as string
+    const el = DASH.slice(DASH.indexOf('<TRIMPBreakdown', DASH.indexOf('function PerformanceTab')))
+    expect(el.slice(0, el.indexOf('/>'))).toMatch(/\bexpandable\b/)
+  })
+})
