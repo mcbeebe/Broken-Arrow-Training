@@ -10,6 +10,7 @@ import { describe, it, expect } from 'vitest'
 import {
   shiftDate, recentWindow, valueOnOrBefore, changeOver, sparkGeometry,
   fitnessChange, fitnessAxisDomain, formatChange, changeTone, SPARK_DAYS, niceTicks,
+  rollingMean, healthyBands, bandCaption, FITNESS_SAFE_WEEKLY_RAMP,
 } from '../utils/metricTrend'
 import type { PerformanceMetrics } from '../types'
 
@@ -197,5 +198,57 @@ describe('niceTicks', () => {
   it('a flat series still gets an axis; nonsense gets none', () => {
     expect(niceTicks(5, 5).length).toBeGreaterThan(1)
     expect(niceTicks(NaN, 3)).toEqual([])
+  })
+})
+
+describe('rollingMean', () => {
+  const pts = (vals: number[], start = '2026-10-01') => vals.map((value, i) => ({ date: shiftDate(start, i), value }))
+  it('each day is the mean of itself and the two before', () => {
+    expect(rollingMean(pts([3, 6, 9, 12])).map(p => p.value)).toEqual([3, 4.5, 6, 9])
+  })
+  it('a gap shrinks the window instead of borrowing from outside it', () => {
+    const gappy = [{ date: '2026-10-01', value: 10 }, { date: '2026-10-05', value: 20 }, { date: '2026-10-06', value: 30 }]
+    expect(rollingMean(gappy).map(p => p.value)).toEqual([10, 20, 25])
+  })
+  it('keeps input order and other fields', () => {
+    const p = [{ date: '2026-10-02', value: 4, k: 'b' }, { date: '2026-10-01', value: 2, k: 'a' }]
+    expect(rollingMean(p)).toEqual([{ date: '2026-10-02', value: 3, k: 'b' }, { date: '2026-10-01', value: 2, k: 'a' }])
+  })
+  it('crosses a month boundary by calendar date', () => {
+    expect(rollingMean(pts([1, 2, 3], '2026-09-29')).map(p => p.value)).toEqual([1, 1.5, 2])
+  })
+  it('empty in, empty out', () => {
+    expect(rollingMean([])).toEqual([])
+  })
+})
+
+describe('healthyBands', () => {
+  const B = { acwrLow: 0.8, acwrHigh: 1.3, tsbLow: -30, tsbHigh: 15 }
+  it('Fitness: last week up to the safe weekly ramp; none without a reading a week back', () => {
+    const t = days(14, 60)
+    const bands = healthyBands(t, 'ctl', B)
+    expect(bands.get(t[6].date)).toBeNull()
+    expect(bands.get(t[7].date)).toEqual([60, 60 + FITNESS_SAFE_WEEKLY_RAMP])
+    expect(bands.get(t[13].date)).toEqual([66, 66 + FITNESS_SAFE_WEEKLY_RAMP])
+  })
+  it('Fatigue: the Load Ratio band in Fatigue units', () => {
+    const t = [p('2026-10-10', 50)]
+    const [lo, hi] = healthyBands(t, 'atl', B).get('2026-10-10')!
+    expect(lo).toBeCloseTo(40)
+    expect(hi).toBeCloseTo(65)
+  })
+  it('Fatigue: none before Fitness has built', () => {
+    expect(healthyBands([p('2026-10-10', 0.5)], 'atl', B).get('2026-10-10')).toBeNull()
+  })
+  it('Recovery Balance and Load Ratio: fixed ranges from the bounds', () => {
+    const t = [p('2026-10-10', 50)]
+    expect(healthyBands(t, 'tsb', B).get('2026-10-10')).toEqual([-30, 15])
+    expect(healthyBands(t, 'acwr', { ...B, acwrHigh: 1.2 }).get('2026-10-10')).toEqual([0.8, 1.2])
+  })
+  it('captions say what each band means, with the tuned numbers', () => {
+    expect(bandCaption('ctl', B)).toContain(`+${FITNESS_SAFE_WEEKLY_RAMP} a week`)
+    expect(bandCaption('atl', B)).toContain('0.8–1.3× your Fitness')
+    expect(bandCaption('tsb', B)).toContain('−30 to +15')
+    expect(bandCaption('acwr', { ...B, acwrHigh: 1.2 })).toContain('0.8–1.2')
   })
 })

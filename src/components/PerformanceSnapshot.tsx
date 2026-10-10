@@ -1,4 +1,4 @@
-import { useId, type ReactNode } from 'react'
+import { useId, useState, type ReactNode } from 'react'
 import type { PerformanceMetrics } from '../types'
 import { tsbZone, acwrZone, ACWR_BOUNDS, TSB_BOUNDS, ACWR_IN_RANGE_RAMPING_NOTE, type AcwrBounds, type ZoneTone } from '../utils/loadZones'
 import { formatLoadP } from '../utils/format'
@@ -6,7 +6,7 @@ import Term from './TermGlossary'
 import { useDisplayPreferences } from '../hooks/useDisplayPreferences'
 import { LOAD_SERIES_COLORS, seriesHex } from '../utils/loadSeriesColors'
 import { isDarkMode } from '../utils/styles'
-import { recentWindow, changeOver, changeTone, formatChange, SPARK_DAYS, DELTA_DAYS, performanceTargetId, type TrendMetric } from '../utils/metricTrend'
+import { recentWindow, changeOver, changeTone, formatChange, SPARK_DAYS, DELTA_DAYS, SMOOTH_DAYS, performanceTargetId, rollingMean, healthyBands, bandCaption, type TrendMetric, type BandBounds } from '../utils/metricTrend'
 import MetricSparkline from './MetricSparkline'
 import MetricTrendCard from './MetricTrendCard'
 
@@ -62,6 +62,7 @@ export default function PerformanceSnapshot({
 }: Props) {
   const { flags } = useDisplayPreferences(athleteId)
   const headingId = useId()
+  const [smooth, setSmooth] = useSmoothPreference()
   // One table for every load surface (utils/loadZones): the bands, the
   // cards and the glossary can no longer disagree about a number.
   const tsb = tsbZone(latest.tsb)
@@ -129,8 +130,36 @@ export default function PerformanceSnapshot({
 
   if (layout === 'cards') {
     const windowed = [...(series ?? history ?? [])].sort((a, b) => a.date.localeCompare(b.date))
+    // Bands and smoothing read the whole timeline, so the window's first
+    // days still have last week's Fitness and their two days before.
+    const full = [...(history ?? windowed)].sort((a, b) => a.date.localeCompare(b.date))
+    const bandBounds: BandBounds = {
+      acwrLow: acwrBounds.low, acwrHigh: acwrBounds.sweetTop,
+      tsbLow: TSB_BOUNDS.build, tsbHigh: TSB_BOUNDS.peaked,
+    }
+    const points = (v: MetricView) => {
+      const bands = healthyBands(full, v.metric, bandBounds)
+      const raw = full.map(p => ({ date: p.date, value: p[v.metric] }))
+      const line = new Map((smooth ? rollingMean(raw) : raw).map(p => [p.date, p.value]))
+      return windowed.map(p => ({ date: p.date, value: line.get(p.date) ?? p[v.metric], band: bands.get(p.date) ?? null }))
+    }
     return (
       <div className="space-y-3">
+        <div className="flex items-center justify-between gap-3 px-1">
+          <p className="text-xs text-slate-500 dark:text-slate-400">Green = healthy range</p>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={smooth}
+            onClick={() => setSmooth(!smooth)}
+            className="flex items-center gap-2 whitespace-nowrap text-sm font-medium text-slate-700 dark:text-slate-200 py-2"
+          >
+            <span>Smooth ({SMOOTH_DAYS}-day avg)</span>
+            <span aria-hidden className={`relative inline-block w-9 h-5 rounded-full transition-colors ${smooth ? 'bg-teal-600' : 'bg-slate-300 dark:bg-slate-600'}`}>
+              <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${smooth ? 'translate-x-4' : ''}`} />
+            </span>
+          </button>
+        </div>
         {views.map(v => (
           <MetricTrendCard
             key={v.metric}
@@ -143,11 +172,12 @@ export default function PerformanceSnapshot({
             sub={v.sub || undefined}
             change={changeLine(v, 'sm')}
             note={v.note}
-            data={windowed.map(p => ({ date: p.date, value: p[v.metric] }))}
+            data={points(v)}
             color={v.color}
             dp={v.dp}
             baseline={v.baseline}
-            band={v.band}
+            bandCaption={bandCaption(v.metric, bandBounds)}
+            smoothed={smooth}
           />
         ))}
       </div>
@@ -193,6 +223,21 @@ export default function PerformanceSnapshot({
       {tiles}
     </section>
   )
+}
+
+const SMOOTH_KEY = 'ba_perf_smooth_v1'
+
+/** The Smooth toggle, remembered on this device. Storage can be missing
+ *  or blocked (private mode), so it falls back to off and stays usable. */
+function useSmoothPreference(): [boolean, (on: boolean) => void] {
+  const [on, setOn] = useState(() => {
+    try { return localStorage.getItem(SMOOTH_KEY) === '1' } catch { return false }
+  })
+  const set = (next: boolean) => {
+    setOn(next)
+    try { localStorage.setItem(SMOOTH_KEY, next ? '1' : '0') } catch { /* not remembered */ }
+  }
+  return [on, set]
 }
 
 /** A change's tone as text: green good, amber caution, grey neutral. */

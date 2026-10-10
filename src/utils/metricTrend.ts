@@ -219,3 +219,86 @@ export function niceTicks(lo: number, hi: number, count = 4): number[] {
   for (let v = start; v <= end + step / 2; v += step) ticks.push(Number(v.toFixed(dp)))
   return ticks
 }
+
+/** How many days the Smooth toggle averages over. */
+export const SMOOTH_DAYS = 3
+
+/**
+ * Trailing rolling mean by calendar date: each point becomes the mean of
+ * the points within the last `days` days, itself included. Gaps shrink
+ * the window rather than borrow from outside it. Input order is kept.
+ */
+export function rollingMean<T extends { date: string; value: number }>(points: T[], days: number = SMOOTH_DAYS): T[] {
+  const sorted = [...points].sort((a, b) => a.date.localeCompare(b.date))
+  const meanByDate = new Map<string, number>()
+  let start = 0
+  let sum = 0
+  for (let i = 0; i < sorted.length; i++) {
+    sum += sorted[i].value
+    const from = shiftDate(sorted[i].date, -(days - 1))
+    while (sorted[start].date < from) { sum -= sorted[start].value; start++ }
+    meanByDate.set(sorted[i].date, sum / (i - start + 1))
+  }
+  return points.map(p => ({ ...p, value: meanByDate.get(p.date) ?? p.value }))
+}
+
+/**
+ * The most Fitness should climb in a week to build safely: TrainingPeaks /
+ * Joe Friel's guidance is about 5–8 points a week for most athletes, with
+ * risk climbing above that. Written for TSS-based Fitness; ours is
+ * TRIMP-based, so it is a guide, not a hard line.
+ */
+export const FITNESS_SAFE_WEEKLY_RAMP = 8
+
+export interface BandBounds {
+  /** Load Ratio's in-range band (the athlete's tuned values). */
+  acwrLow: number
+  acwrHigh: number
+  /** Recovery Balance's healthy range: build zone up to fresh / peaked. */
+  tsbLow: number
+  tsbHigh: number
+}
+
+/**
+ * The healthy range for a metric on each day of the timeline, or null
+ * where it can't be known (Fitness needs a reading a week earlier;
+ * Fatigue needs Fitness to have built):
+ * - Fitness: last week's Fitness up to +FITNESS_SAFE_WEEKLY_RAMP. Above =
+ *   ramping too fast; below = losing fitness.
+ * - Fatigue: the Load Ratio band in Fatigue units (low–high × Fitness).
+ * - Recovery Balance: the build zone up to fresh (the app's TSB zones).
+ * - Load Ratio: its in-range band.
+ */
+export function healthyBands(
+  timeline: PerformanceMetrics[], metric: TrendMetric, b: BandBounds,
+): Map<string, [number, number] | null> {
+  const byDate = new Map(timeline.map(p => [p.date, p]))
+  const out = new Map<string, [number, number] | null>()
+  for (const p of timeline) {
+    let band: [number, number] | null = null
+    if (metric === 'ctl') {
+      const prior = byDate.get(shiftDate(p.date, -7))
+      band = prior && prior.ctl > 1 ? [prior.ctl, prior.ctl + FITNESS_SAFE_WEEKLY_RAMP] : null
+    } else if (metric === 'atl') {
+      band = p.ctl > 1 ? [p.ctl * b.acwrLow, p.ctl * b.acwrHigh] : null
+    } else if (metric === 'tsb') {
+      band = [b.tsbLow, b.tsbHigh]
+    } else {
+      band = [b.acwrLow, b.acwrHigh]
+    }
+    out.set(p.date, band)
+  }
+  return out
+}
+
+/** The one line under a card that says what its green band means. */
+export function bandCaption(metric: TrendMetric, b: BandBounds): string {
+  const f = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(2).replace(/0$/, ''))
+  const signed = (n: number) => (n > 0 ? `+${n}` : n < 0 ? `−${Math.abs(n)}` : '0')
+  switch (metric) {
+    case 'ctl': return `Green band: a safe build, up to +${FITNESS_SAFE_WEEKLY_RAMP} a week on last week's Fitness. Above it, ramping too fast; below, losing fitness.`
+    case 'atl': return `Green band: ${f(b.acwrLow)}–${f(b.acwrHigh)}× your Fitness. Above it, load is ramping too fast.`
+    case 'tsb': return `Green band: ${signed(b.tsbLow)} to ${signed(b.tsbHigh)}, build zone to fresh. Below it, overreaching.`
+    case 'acwr': return `Green band: ${f(b.acwrLow)}–${f(b.acwrHigh)}, the lowest-injury range.`
+  }
+}
