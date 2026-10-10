@@ -5,7 +5,7 @@ import { usePlanPick } from '../hooks/usePlanPick'
 import { todayDateString } from '../utils/planDates'
 import ImportReview from './ImportReview'
 import PlanPickFields from './PlanPickFields'
-import { PlanImportProblem, PlanReading } from './PlanImportStatus'
+import { PlanImportProblem, PlanReading, PlanSaveFailed } from './PlanImportStatus'
 
 /**
  * "Upload my own plan" (initiative 004, PR 5): pick a file, a photo or pasted
@@ -33,9 +33,9 @@ export default function PlanImportSheet({ base, onUse, onClose, todayIso, deps }
   const { state, read, reset } = usePlanImport(deps)
   // The plan the athlete approved, kept when saving it failed (a full
   // phone), so trying again costs no second read.
-  const [failedCfg, setFailedCfg] = useState<OnboardingConfig | null>(null)
+  const [failed, setFailed] = useState<{ cfg: OnboardingConfig; tries: number } | null>(null)
   const startOver = () => {
-    setFailedCfg(null)
+    setFailed(null)
     reset()
   }
   const pick = usePlanPick(startOver)
@@ -49,7 +49,10 @@ export default function PlanImportSheet({ base, onUse, onClose, todayIso, deps }
     onClose()
   }
 
-  const use = (cfg: OnboardingConfig) => setFailedCfg(onUse(cfg) ? null : cfg)
+  const use = (cfg: OnboardingConfig) => {
+    if (onUse(cfg)) setFailed(null)
+    else setFailed(prev => ({ cfg, tries: (prev?.tries ?? 0) + 1 }))
+  }
   const readPlan = () => {
     if (pick.input) void read(pick.input)
   }
@@ -70,7 +73,7 @@ export default function PlanImportSheet({ base, onUse, onClose, todayIso, deps }
         {pick.inputs}
 
         <div className="px-4 py-4">
-          {state.step === 'review' && !failedCfg && (
+          {state.step === 'review' && !failed && (
             <ImportReview
               result={state.result}
               sourceName={state.sourceName}
@@ -86,21 +89,9 @@ export default function PlanImportSheet({ base, onUse, onClose, todayIso, deps }
             <PlanReading sourceName={state.sourceName} startedAt={state.startedAt} onCancel={reset} />
           )}
 
-          {failedCfg && (
-            <div className="space-y-4" data-testid="plan-import-save-failed" role="alert">
-              <div className="text-center space-y-2 py-2">
-                <p className="text-lg font-bold text-slate-900 dark:text-white">We couldn&rsquo;t save your plan</p>
-                <p className="text-sm text-slate-600 dark:text-slate-300">
-                  Your phone may be out of storage. Free some space, then try again. Your plan is still here, so
-                  trying again doesn&rsquo;t use another upload.
-                </p>
-                <p className="text-sm text-slate-600 dark:text-slate-300">Nothing has changed: your current plan is untouched.</p>
-              </div>
-              <button type="button" onClick={() => use(failedCfg)}
-                className="w-full min-h-[48px] rounded-xl bg-teal-700 text-white font-semibold">Try saving again</button>
-              <button type="button" onClick={() => setFailedCfg(null)}
-                className="w-full min-h-[44px] text-sm font-semibold text-slate-600 dark:text-slate-300">Back to the review</button>
-            </div>
+          {failed && (
+            <PlanSaveFailed tries={failed.tries} onRetry={() => use(failed.cfg)} onBack={() => setFailed(null)}
+              note="Nothing has changed: your current plan is untouched." />
           )}
 
           {state.step === 'error' && (

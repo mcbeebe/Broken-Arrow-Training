@@ -233,6 +233,7 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession | null; 
         onComplete={(config) => {
           onboarding.save(config)
         }}
+        onUseImportedPlan={(config) => onboarding.saveIfRoom(config)}
         onSkip={onLogout}
         previousConfig={onboarding.previousConfig}
         derivedFitness={onboarding.previousConfig ? deriveFitnessFromHistory(athleteId, todayDateString()) : null}

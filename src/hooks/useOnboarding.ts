@@ -322,7 +322,7 @@ const REDO_KEY = 'ba_onboarding_redo'
 // is deleted for the duration of the redo. Local-only — never synced.
 import { mondayOnOrBefore } from '../utils/planDates'
 
-import { captureBackup, readBackups, configForRestore, seasonForRestore, SEASON_KEY, type PlanBackup } from '../utils/planBackups'
+import { captureBackup, readBackups, configForRestore, seasonForRestore, withRoomFromBackups, newestBackupIsCurrent, SEASON_KEY, type PlanBackup } from '../utils/planBackups'
 
 const PREV_KEY = 'ba_onboarding_prev'
 
@@ -336,6 +336,39 @@ function scopedRedoKey(athleteId?: string) {
 
 function scopedPrevKey(athleteId?: string) {
   return athleteId ? `${PREV_KEY}_${athleteId}` : PREV_KEY
+}
+
+/** Stores a new plan's config and clears what it makes stale: the old plan's
+ *  day edits, the redo flag and its snapshot. False when the phone had no room
+ *  for the config; then nothing was written or cleared. */
+function writeNewPlan(athleteId: string | undefined, withTimestamp: OnboardingConfig): boolean {
+  try {
+    setSyncedItemWithRoomOrThrow(scopedKey(athleteId), JSON.stringify(withTimestamp))
+  } catch {
+    return false
+  }
+  try {
+    // A new plan generation invalidates day-level customizations of the
+    // OLD plan: the edit/swap op-logs are keyed by week/day INDEX, so
+    // replaying them onto a rebuilt calendar scattered June's custom
+    // workouts across random September days (field P0). Logged history
+    // is untouched — actuals/notes live in the ISO-keyed manual logs.
+    for (const editKey of ['ba_plan_edits', 'ba_day_swaps', 'ba_plan_overrides']) {
+      const ek = athleteId ? `${editKey}_${athleteId}` : editKey
+      localStorage.removeItem(ek)
+      stampKey(ek) // tombstone so a sync pull can't resurrect them
+    }
+    const redoK = scopedRedoKey(athleteId)
+    localStorage.removeItem(redoK)
+    // Tombstone the cleared redo flag so a stale server copy (a prior
+    // redo that was never deleted server-side) can't be re-pulled by a
+    // background sync and bounce the athlete back into onboarding right
+    // after they finished. See hydrateFromServer's tombstone rule.
+    stampKey(redoK)
+    // The redo is complete — the snapshot has served its purpose.
+    localStorage.removeItem(scopedPrevKey(athleteId))
+  } catch { /* the plan is stored; the next save clears what this missed */ }
+  return true
 }
 
 /** Anchors a completed benchmark (or the Settings calibration entry) writes
@@ -469,37 +502,36 @@ export function useOnboarding(athleteId?: string) {
     return () => window.removeEventListener('storage', onStorage)
   }, [athleteId])
 
-  const save = useCallback((cfg: OnboardingConfig) => {
+  // Saving a finished plan. `save` shows it even when the phone had no room
+  // to store it (a generated plan can be built again for free); with
+  // `onlyIfStored` nothing of the athlete's changes then, in storage or on
+  // screen. Either way the write may first clear caches the app rebuilds.
+  const commit = useCallback((cfg: OnboardingConfig, onlyIfStored: boolean): boolean => {
     const withTimestamp = { ...cfg, completedAt: new Date().toISOString() }
-    const k = scopedKey(athleteId)
-    const redoK = scopedRedoKey(athleteId)
-    try {
-      setSyncedItemWithRoomOrThrow(k, JSON.stringify(withTimestamp))
-      // A new plan generation invalidates day-level customizations of the
-      // OLD plan: the edit/swap op-logs are keyed by week/day INDEX, so
-      // replaying them onto a rebuilt calendar scattered June's custom
-      // workouts across random September days (field P0). Logged history
-      // is untouched — actuals/notes live in the ISO-keyed manual logs.
-      for (const editKey of ['ba_plan_edits', 'ba_day_swaps', 'ba_plan_overrides']) {
-        const ek = athleteId ? `${editKey}_${athleteId}` : editKey
-        localStorage.removeItem(ek)
-        stampKey(ek) // tombstone so a sync pull can't resurrect them
-      }
-      localStorage.removeItem(redoK)
-      // Tombstone the cleared redo flag so a stale server copy (a prior
-      // redo that was never deleted server-side) can't be re-pulled by a
-      // background sync and bounce the athlete back into onboarding right
-      // after they finished. See hydrateFromServer's tombstone rule.
-      stampKey(redoK)
-      // The redo is complete — the snapshot has served its purpose.
-      localStorage.removeItem(scopedPrevKey(athleteId))
-    } catch { /* quota */ }
+    const stored = writeNewPlan(athleteId, withTimestamp)
+    if (!stored && onlyIfStored) return false
     setConfig(withTimestamp)
     setRedoRequested(false)
     setPreviousConfig(null)
     // Snapshot the freshly-built plan so it's an anchor to come back to.
     setPlanBackups(captureBackup(athleteId, 'auto'))
+    return stored
   }, [athleteId])
+
+  const save = useCallback((cfg: OnboardingConfig) => { commit(cfg, false) }, [commit])
+
+  /**
+   * Saves a finished plan only if the phone has room to store it, making room
+   * from the older restore points when it must (`withRoomFromBackups`);
+   * false otherwise, with nothing of the athlete's changed. Onboarding's
+   * uploaded plan uses it: that plan cost one of the day's uploads to read,
+   * so a full phone must keep it on screen to save again rather than show it
+   * once and lose it on reload.
+   */
+  const saveIfRoom = useCallback(
+    (cfg: OnboardingConfig): boolean => withRoomFromBackups(athleteId, () => commit(cfg, true)),
+    [athleteId, commit],
+  )
 
   const clear = useCallback(() => {
     const cfgK = scopedKey(athleteId)
@@ -680,26 +712,21 @@ export function useOnboarding(athleteId?: string) {
   /** Replace the plan with one the athlete uploaded (initiative 004). The
    *  outgoing plan, with its latest day edits and season calendar, is backed
    *  up first as "before upload", then the config is saved as a new plan
-   *  generation (`save()`: the old plan's day edits are cleared). Returns
-   *  false, with nothing changed, when the plan doesn't pass
-   *  `readImportedPlan`, the backup didn't land, or the write didn't land
-   *  (a full phone): `save()` carries on regardless. */
+   *  generation (the old plan's day edits are cleared). On a full phone the
+   *  older restore points make room, as for `saveIfRoom`. Returns false, with
+   *  nothing of the athlete's changed, when the plan doesn't pass
+   *  `readImportedPlan` or the backup or the plan didn't land. */
   const importPlan = useCallback((cfg: OnboardingConfig): boolean => {
-    const plan = readImportedPlan(cfg.importedPlan)
-    if (!plan) return false
-    const ring = captureBackup(athleteId, 'before upload')
-    setPlanBackups(ring)
-    // The card promises the current plan is backed up first: no backup, no
-    // upload.
-    if (readBackups(athleteId)[0]?.config !== localStorage.getItem(scopedKey(athleteId))) return false
-    save(cfg)
-    try {
-      const stored = JSON.parse(localStorage.getItem(scopedKey(athleteId)) ?? 'null') as OnboardingConfig | null
-      if (stored?.importedPlan?.source?.importedAt === plan.source.importedAt) return true
-    } catch { /* unreadable: treated as not saved */ }
-    setConfig(config)
-    return false
-  }, [athleteId, config, save])
+    if (!readImportedPlan(cfg.importedPlan)) return false
+    const saved = withRoomFromBackups(athleteId, () => {
+      captureBackup(athleteId, 'before upload')
+      // The card promises the current plan, with its day edits, is backed up
+      // first: no backup, no upload (the edits are cleared next).
+      return newestBackupIsCurrent(athleteId) && commit(cfg, true)
+    })
+    // On success `commit` shows the new ring; on failure it is as it was.
+    return saved
+  }, [athleteId, commit])
 
   /** Restore a previous plan version (Settings → Restore a previous plan).
    *  Writes the backup's config with a FRESH completedAt so it is the newest
@@ -804,6 +831,7 @@ export function useOnboarding(athleteId?: string) {
     redoRequested,
     previousConfig,
     save,
+    saveIfRoom,
     clear,
     requestRedo,
     markPrimerSeen,
