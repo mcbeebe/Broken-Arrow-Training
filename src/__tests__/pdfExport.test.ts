@@ -510,3 +510,34 @@ describe('pdfFilename with suffix', () => {
     expect(pdfFilename('Mike B', new Date('2026-08-01T12:00:00'))).toBe('broken-arrow-mike-b-20260801.pdf')
   })
 })
+
+describe('a week whose volume is a time (General Fitness)', () => {
+  // Field bug: the PDFs printed a General Fitness week as "~95 min cardio mi".
+  const at = new Date('2026-08-01T12:00:00')
+  // The training log prints only the weeks in its window.
+  const inWindow = new Date('2026-05-14T12:00:00')
+  const timed = (num: number): TrainingWeek => ({ ...week(num, 0), miles: '~95 min cardio' })
+
+  it('the plan prints it as written', async () => {
+    const text = await pdfText(generatePlanPdf({ athleteName: 'Mike', race: race(), weeks: [timed(1)], generatedAt: at }))
+    expect(text).toContain('~95 min cardio)')
+    expect(text).not.toContain('min cardio mi')
+  })
+
+  it('the training log says it was planned, in minutes', async () => {
+    const text = await pdfText(generateAthletePdf({
+      athleteName: 'Mike', race: race(), weeks: [timed(1)], performance: performance(7), windowWeeks: 12, generatedAt: inWindow,
+    }))
+    expect(text).toContain('~95 min cardio planned)')
+    expect(text).not.toContain('min cardio mi')
+  })
+
+  it('miles still print as miles', async () => {
+    const plan = await pdfText(generatePlanPdf({ athleteName: 'Mike', race: race(), weeks: [week(1, 0)], generatedAt: at }))
+    expect(plan).toContain('25 mi)')
+    const log = await pdfText(generateAthletePdf({
+      athleteName: 'Mike', race: race(), weeks: [week(1, 0)], performance: performance(7), windowWeeks: 12, generatedAt: inWindow,
+    }))
+    expect(log).toContain('25 mi planned)')
+  })
+})

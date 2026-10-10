@@ -66,6 +66,10 @@ describe('summarizeOp', () => {
     expect(summarizeOp({ kind: 'deleteWeek', weekNum: 3 })).toContain('Remove week 3')
     expect(summarizeOp({ kind: 'addDay', weekNum: 4, atIndex: 0, day: { day: 'Mon 1/1', type: 'run', workout: 'Easy', detail: '—', zone: '—', route: '—', time: '—' } })).toContain('add Mon 1/1')
     expect(summarizeOp({ kind: 'updateWeek', weekNum: 5, updates: { focus: 'Recovery' } })).toContain('Recovery')
+    // A week's volume as the plan writes it: miles carry the unit, a time
+    // doesn't get "mi" stuck after it.
+    expect(summarizeOp({ kind: 'updateWeek', weekNum: 3, updates: { miles: 24 } })).toBe('Wk3: 24 mi')
+    expect(summarizeOp({ kind: 'updateWeek', weekNum: 3, updates: { miles: '~110 min cardio' } })).toBe('Wk3: ~110 min cardio')
   })
 })
 

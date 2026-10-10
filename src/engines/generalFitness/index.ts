@@ -478,7 +478,9 @@ export function generateGeneralFitnessPlan(
       roleIdx++
       const content = sessionContent(role, ctx, strengthIndex, weekStrengthIndex)
       if (role === 'strength') { strengthIndex++; weekStrengthIndex++ }
-      const m = parseInt(content.time)
+      // "~30 min" (intervals) counts too: a bare parseInt of it is NaN, which
+      // left every VO₂max and sprint session out of the week's cardio total.
+      const m = parseInt(content.time.replace(/^~/, ''), 10)
       if (!Number.isNaN(m) && (role === 'zone2' || role === 'long' || role === 'cross' || role === 'vo2max')) weekCardioMin += m
       days.push({ day: label, ...content })
     }

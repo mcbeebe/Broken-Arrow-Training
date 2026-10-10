@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import OnboardingPlanPreview from '../../components/OnboardingPlanPreview'
+import WeekShapePreview from '../../components/WeekShapePreview'
+import { defaultWeekShapeFor } from '../../engines/planGenerator/shapeDefaults'
 import { buildPreview } from '../../components/onboarding/buildPreview'
 import type { OnboardingConfig } from '../../hooks/useOnboarding'
 
@@ -65,9 +67,38 @@ describe('<OnboardingPlanPreview />', () => {
     expect(screen.getByText(/Best-fit training system/i)).toBeInTheDocument()
   })
 
+  it('a General Fitness week 1 starts with its minutes of cardio, not miles', () => {
+    render(<OnboardingPlanPreview config={partialConfig({ raceType: 'general', raceDistance: undefined, generalGoal: 'stay_healthy' })} />)
+    const line = screen.getByText(/Your week 1/).textContent ?? ''
+    expect(line).toMatch(/· ~\d+ min cardio to start$/)
+    expect(line).not.toMatch(/\d+ mi\b/)
+  })
+
+  it('a race plan\'s week 1 still starts with its miles', () => {
+    render(<OnboardingPlanPreview config={partialConfig()} />)
+    expect(screen.getByText(/Your week 1/).textContent).toMatch(/· ~\d+(\.\d+)? mi to start$/)
+  })
+
   it('renders the keep-going fallback instead of crashing on a bad config', () => {
     render(<OnboardingPlanPreview config={partialConfig({ raceDistance: undefined })} />)
     expect(screen.queryByTestId('plan-preview')).toBeNull()
     expect(screen.getByText(/Keep going/)).toBeInTheDocument()
+  })
+})
+
+describe('<WeekShapePreview />', () => {
+  const heading = () => screen.getByTestId('week-shape-preview').querySelector('p')!.textContent ?? ''
+
+  it('a General Fitness week reads its minutes of cardio, not miles', () => {
+    const config = partialConfig({ raceType: 'general', raceDistance: undefined, generalGoal: 'stay_healthy' })
+    render(<WeekShapePreview config={config} shape={defaultWeekShapeFor(config)!} />)
+    expect(heading()).toMatch(/ · ~\d+ min cardio$/)
+    expect(heading()).not.toMatch(/\d+ mi\b/)
+  })
+
+  it('a race week still reads its miles', () => {
+    const config = partialConfig()
+    render(<WeekShapePreview config={config} shape={defaultWeekShapeFor(config)!} />)
+    expect(heading()).toMatch(/ · ~\d+(\.\d+)? mi$/)
   })
 })

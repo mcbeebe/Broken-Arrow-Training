@@ -1668,6 +1668,21 @@ def _strength_effort(session: dict[str, Any], sets: Any) -> str:
     return f"x{session.get('avgReps', 0)}x{sets}"
 
 
+def _week_volume(miles: Any) -> str:
+    """A week's planned volume for the full-plan lines. Most plans give miles
+    as a number ("32mi"); General Fitness gives a time ("~45 min cardio") and
+    an uploaded plan may give a label ("By time"), which read as they are,
+    never with "mi" stuck on ("~45 min cardiomi")."""
+    if isinstance(miles, bool) or miles is None:
+        return "?"
+    if isinstance(miles, (int, float)):
+        return f"{miles}mi"
+    text = str(miles).strip()
+    if re.fullmatch(r"~?\d+(\.\d+)?", text):
+        return f"{text}mi"
+    return text or "?"
+
+
 def build_context_block(
     snapshot: dict[str, Any],
     depth: str = "7d",
@@ -2610,7 +2625,7 @@ def build_context_block(
             out.append("Full plan overview (all weeks):")
             for w in wk_lines:
                 out.append(
-                    f"  Wk {w.get('num')} ({w.get('dates')}, {w.get('miles')}mi): "
+                    f"  Wk {w.get('num')} ({w.get('dates')}, {_week_volume(w.get('miles'))}): "
                     f"{w.get('focus')}"
                 )
         if dy_lines:

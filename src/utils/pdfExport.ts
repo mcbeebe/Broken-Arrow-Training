@@ -1,4 +1,5 @@
 import { isHoldSet } from './setTime'
+import { formatWeekMilesChip } from './format'
 import jsPDF from 'jspdf'
 import type { ActualWorkout, PlannedDay, PerformanceMetrics, RaceInfo, Season, StrengthExerciseLog, TrainingWeek } from '../types'
 
@@ -250,7 +251,7 @@ export function generateAthletePdf(input: AthletePdfInput): Blob {
     pageBreakIfNeeded(28)
     y += 4
     writeLine(
-      `Week ${week.num}${week.dates ? ` — ${week.dates}` : ''}${week.focus ? `  ·  ${week.focus}` : ''}${week.miles ? `  ·  ${week.miles} mi planned` : ''}`,
+      `Week ${week.num}${week.dates ? ` — ${week.dates}` : ''}${week.focus ? `  ·  ${week.focus}` : ''}${week.miles ? `  ·  ${formatWeekMilesChip(week.miles)} planned` : ''}`,
       { bold: true, size: 11 },
     )
 
@@ -488,7 +489,7 @@ export function generatePlanPdf(input: PlanPdfInput): Blob {
     pageBreakIfNeeded(28)
     y += 4
     writeLine(
-      `Week ${week.num}${week.dates ? ` — ${week.dates}` : ''}${week.focus ? `  ·  ${week.focus}` : ''}${week.miles ? `  ·  ${week.miles} mi` : ''}`,
+      `Week ${week.num}${week.dates ? ` — ${week.dates}` : ''}${week.focus ? `  ·  ${week.focus}` : ''}${week.miles ? `  ·  ${formatWeekMilesChip(week.miles)}` : ''}`,
       { bold: true, size: 11 },
     )
 

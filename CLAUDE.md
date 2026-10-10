@@ -60,7 +60,7 @@ attune.coach.
 ## Commands
 
 ```bash
-npm test                  # vitest, 361 files / ~5200 tests — gates every publish
+npm test                  # vitest, 365 files / ~5300 tests — gates every publish
 npm run build             # tsc -b && vite build — the typecheck gate lives here
 npm run lint              # eslint — blocking in CI; 0 errors (initiative 002)
 npm run dev               # local dev server: the app is at /app/, the root page at /

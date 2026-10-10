@@ -4,6 +4,7 @@ import { raceDateToIso } from '../engines/season'
 import { isHyroxRaceInfo } from '../engines/season/planSeason'
 import { todayDateString } from './planDates'
 import { hasRealVert } from './todayNarrative'
+import { getMilesNumber } from './format'
 
 interface NarrativeInput {
   race: RaceInfo
@@ -118,31 +119,33 @@ function getTrainingPurpose(phase: Phase, race: RaceInfo, weeks: TrainingWeek[],
     return `Course reminder: ${course}${elevRange ? ` Elevation range: ${elevRange}.` : ''} ${nutrition ? `Nutrition plan: ${nutrition}.` : ''} ${gearList ? `Required gear: ${gearList}.` : ''}`
   }
 
-  const totalPlanMiles = weeks.reduce((sum, w) => {
-    const mi = typeof w.miles === 'number' ? w.miles : parseFloat(String(w.miles)) || 0
-    return sum + mi
-  }, 0)
+  // 0 for a plan with no mileage target (General Fitness counts minutes), and
+  // then the narrative says nothing about miles rather than "roughly 0".
+  const totalPlanMiles = weeks.reduce((sum, w) => sum + getMilesNumber(w.miles), 0)
 
   if (phase === 'base') {
     // Flat and indoor courses get flat-course copy. Telling a Hyrox
     // athlete their strength work "protects against the pounding of Flat
     // (indoor) descending" is a template talking over the athlete's
     // actual race.
+    const accumulated = totalPlanMiles > 0
+      ? `roughly ${Math.round(totalPlanMiles)} miles of training across ${weeks.length} weeks`
+      : `${weeks.length} weeks of training`
     if (!hasRealVert(race)) {
-      return `Your plan builds progressively: easy runs establish aerobic capacity, cross-training builds durability, and strength work keeps you resilient under repeated load. By race day you'll have accumulated roughly ${Math.round(totalPlanMiles)} miles of training across ${weeks.length} weeks, with the race-specific work growing as race day gets closer.`
+      return `Your plan builds progressively: easy runs establish aerobic capacity, cross-training builds durability, and strength work keeps you resilient under repeated load. By race day you'll have accumulated ${accumulated}, with the race-specific work growing as race day gets closer.`
     }
-    return `Your plan builds progressively: easy runs establish aerobic capacity, cross-training builds durability, and strength work protects against the pounding of ${race.elevation || 'significant'} descending. By race day you'll have accumulated roughly ${Math.round(totalPlanMiles)} miles of training across ${weeks.length} weeks, with increasing vertical each week to prepare for the course's ${race.elevation || 'elevation'}.`
+    return `Your plan builds progressively: easy runs establish aerobic capacity, cross-training builds durability, and strength work protects against the pounding of ${race.elevation || 'significant'} descending. By race day you'll have accumulated ${accumulated}, with increasing vertical each week to prepare for the course's ${race.elevation || 'elevation'}.`
   }
 
-  const milesThrough = weeks.slice(0, weekNum).reduce((sum, w) => {
-    const mi = typeof w.miles === 'number' ? w.miles : parseFloat(String(w.miles)) || 0
-    return sum + mi
-  }, 0)
+  const milesThrough = weeks.slice(0, weekNum).reduce((sum, w) => sum + getMilesNumber(w.miles), 0)
 
+  const through = milesThrough > 0
+    ? `Through Week ${weekNum}, your plan has programmed ${Math.round(milesThrough)} miles`
+    : `This is Week ${weekNum} of ${weeks.length}`
   if (!hasRealVert(race)) {
-    return `Through Week ${weekNum}, your plan has programmed ${Math.round(milesThrough)} miles. The long runs are teaching your legs to hold pace deep into the distance, and the quality sessions build the muscular endurance to keep moving when the effort stops feeling comfortable.`
+    return `${through}. The long runs are teaching your legs to hold pace deep into the distance, and the quality sessions build the muscular endurance to keep moving when the effort stops feeling comfortable.`
   }
-  return `Through Week ${weekNum}, your plan has programmed ${Math.round(milesThrough)} miles with increasing vertical each week. The long runs and hill repeats are teaching your legs to climb efficiently at altitude${elevRange ? ` (${elevRange})` : ''}. The quality sessions build the muscular endurance needed to keep moving when the course tilts up.`
+  return `${through}, with increasing vertical each week. The long runs and hill repeats are teaching your legs to climb efficiently at altitude${elevRange ? ` (${elevRange})` : ''}. The quality sessions build the muscular endurance needed to keep moving when the course tilts up.`
 }
 
 function getProgressNarrative(
@@ -172,13 +175,15 @@ function getProgressNarrative(
     const pastRate = pastTotal > 0 ? Math.round((pastCompleted / pastTotal) * 100) : 0
     const pastPlannedMiles = completedWeeks.reduce((s, w) => s + w.plannedMiles, 0)
     const pastActualMiles = completedWeeks.reduce((s, w) => s + w.actualMiles, 0)
+    // Only against a mileage target: a plan in minutes has none ("of 0.0").
+    const pastMiles = pastPlannedMiles > 0 ? `${pastActualMiles.toFixed(1)} of ${pastPlannedMiles.toFixed(1)}` : null
 
     if (pastRate >= 90) {
-      parts.push(`Strong consistency — ${pastRate}% completion through ${completedWeeks.length === 1 ? 'Week ' + completedWeeks[0].weekNum : 'Weeks 1–' + completedWeeks[completedWeeks.length - 1].weekNum} with ${pastActualMiles.toFixed(1)} of ${pastPlannedMiles.toFixed(1)} planned miles logged.`)
+      parts.push(`Strong consistency — ${pastRate}% completion through ${completedWeeks.length === 1 ? 'Week ' + completedWeeks[0].weekNum : 'Weeks 1–' + completedWeeks[completedWeeks.length - 1].weekNum}${pastMiles ? ` with ${pastMiles} planned miles logged` : ''}.`)
     } else if (pastRate >= 75) {
-      parts.push(`Solid progress — ${pastRate}% completion through ${completedWeeks.length === 1 ? 'Week ' + completedWeeks[0].weekNum : completedWeeks.length + ' weeks'}, ${pastActualMiles.toFixed(1)} of ${pastPlannedMiles.toFixed(1)} miles. Consistency matters more than perfection.`)
+      parts.push(`Solid progress — ${pastRate}% completion through ${completedWeeks.length === 1 ? 'Week ' + completedWeeks[0].weekNum : completedWeeks.length + ' weeks'}${pastMiles ? `, ${pastMiles} miles` : ''}. Consistency matters more than perfection.`)
     } else {
-      parts.push(`You've completed ${pastRate}% of workouts through ${completedWeeks.length === 1 ? 'Week ' + completedWeeks[0].weekNum : completedWeeks.length + ' weeks'} (${pastActualMiles.toFixed(1)} of ${pastPlannedMiles.toFixed(1)} miles). Prioritize the long runs and quality sessions — those build race-specific fitness.`)
+      parts.push(`You've completed ${pastRate}% of workouts through ${completedWeeks.length === 1 ? 'Week ' + completedWeeks[0].weekNum : completedWeeks.length + ' weeks'}${pastMiles ? ` (${pastMiles} miles)` : ''}. Prioritize the long runs and quality sessions — those build race-specific fitness.`)
     }
   }
 
@@ -189,7 +194,7 @@ function getProgressNarrative(
     const cwMiles = currentWeek.actualMiles
     const cwPlanned = currentWeek.plannedMiles
     if (cwCompleted > 0 || cwMiles > 0) {
-      parts.push(`This week so far: ${cwCompleted} of ${cwTotal} workouts done, ${cwMiles.toFixed(1)} of ${cwPlanned.toFixed(1)} miles.`)
+      parts.push(`This week so far: ${cwCompleted} of ${cwTotal} workouts done${cwPlanned > 0 ? `, ${cwMiles.toFixed(1)} of ${cwPlanned.toFixed(1)} miles` : ''}.`)
     }
   }
 

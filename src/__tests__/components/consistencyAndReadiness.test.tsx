@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import ComplianceWeekRow from '../../components/ComplianceWeekRow'
+import Dashboard from '../../components/Dashboard'
 import ReadinessBanner from '../../components/ReadinessBanner'
 import type { WeekCompliance } from '../../hooks/useCompliance'
 import type { DayCompliance, ReadinessScore, WorkoutType } from '../../types'
@@ -70,6 +71,39 @@ describe('G9 — flexible consistency headline (rest counts, no streaks)', () =>
     render(<ComplianceWeekRow week={week} />)
     expect(screen.getByText('2 of 3 sessions')).toBeInTheDocument()
     expect(screen.queryByText(/on track/)).toBeNull()
+  })
+})
+
+describe('the week\'s miles in the footer', () => {
+  it('reads run against planned', () => {
+    render(<ComplianceWeekRow week={makeWeek([dc('2025-01-06', 'run', true)], 1)} />)
+    expect(screen.getByText('18 / 20 mi')).toBeInTheDocument()
+  })
+
+  it('a week with no mileage target (General Fitness minutes) shows the miles run, not "of 0"', () => {
+    render(<ComplianceWeekRow week={{ ...makeWeek([dc('2025-01-06', 'cross', true)], 1), plannedMiles: 0, actualMiles: 3.2 }} />)
+    expect(screen.getByText('3.2 mi')).toBeInTheDocument()
+    expect(screen.queryByText(/\/ 0 mi/)).toBeNull()
+  })
+})
+
+describe('Progress for a plan in minutes (General Fitness), with no mileage target', () => {
+  const weeks = [1, 2].map(num => ({ num, dates: '', miles: '~95 min cardio', focus: 'Base', days: [] }))
+  const overall = {
+    weeks: [{ ...makeWeek([dc('2025-01-06', 'cross', true)], 1), weekNum: 1, plannedMiles: 0, actualMiles: 3.2 },
+      { ...makeWeek([dc('2025-01-13', 'cross', true)], 1), weekNum: 2, plannedMiles: 0, actualMiles: 2 }],
+    totalCompleted: 2, totalMissed: 0, totalWorkouts: 2, completionRate: 100,
+    totalPlannedMiles: 0, totalActualMiles: 5.2, totalPlannedElevation: 0, totalActualElevation: 0,
+    overallHRCompliance: 0, overallDistanceCompliance: 0, overallDurationCompliance: 93, totalFlagged: 0,
+  }
+
+  it('season to date shows the miles run, not "of 0", and the bars are drawn to their own scale', () => {
+    const { container } = render(<Dashboard weeks={weeks} compliance={overall} raceDate="" />)
+    expect(screen.getByText('5.2 mi')).toBeInTheDocument()
+    expect(screen.queryByText(/\/ 0 mi/)).toBeNull()
+    const heights = [...container.querySelectorAll<HTMLElement>('.rounded-t.bg-teal-500')].map(el => parseFloat(el.style.height))
+    expect(heights.length).toBeGreaterThan(0)
+    for (const h of heights) expect(h).toBeLessThanOrEqual(100)
   })
 })
 

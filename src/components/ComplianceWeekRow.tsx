@@ -163,7 +163,9 @@ export default function ComplianceWeekRow({ week, weekLabel, weekFocus, planZone
       {/* Footer */}
       <div className="mt-2 pt-2 border-t border-slate-100 dark:border-slate-700 flex justify-between text-[10px] text-slate-500 dark:text-slate-400">
         <span className="flex flex-wrap items-center gap-x-2">
-          <span>{week.actualMiles} / {week.plannedMiles} mi</span>
+          {/* A week with no mileage target (General Fitness minutes, an
+              uploaded "By time" week) shows the miles run, not "of 0". */}
+          <span>{week.plannedMiles > 0 ? `${week.actualMiles} / ${week.plannedMiles} mi` : `${week.actualMiles} mi`}</span>
           {showVertical && (week.plannedElevation > 0 || week.actualElevation > 0) && (
             <span
               title={week.plannedElevation > 0

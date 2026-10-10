@@ -160,6 +160,12 @@ describe('what the recap says', () => {
     expect(r.digest).toContain('31/32 mi')
   })
 
+  it('a week with no mileage target (General Fitness minutes) grounds the coach on sessions, never "x/0 mi"', () => {
+    const r = buildWeeklyRecap({ ...base, compliance: compliance({ plannedMiles: 0, actualMiles: 3.2, completed: 3, totalWorkouts: 4 }) })
+    expect(r.digest).toContain('Completed 3/4 sessions (75%), 3.2 mi run')
+    expect(r.digest).not.toMatch(/\/0 mi/)
+  })
+
   it('the archived markdown carries the headline, the stats and the body', () => {
     const r = buildWeeklyRecap({ ...base, compliance: compliance() })
     const md = recapToMarkdown(r)
