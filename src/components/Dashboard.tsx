@@ -19,6 +19,7 @@ import type { ReadinessTuning } from '../utils/engineConfig'
 import ReadinessBanner from './ReadinessBanner'
 import TRIMPBreakdown from './TRIMPBreakdown'
 import PerformanceChart from './PerformanceChart'
+import { performanceTargetId, type PerformanceTarget } from '../utils/metricTrend'
 import ComplianceWeekRow from './ComplianceWeekRow'
 import CalendarHeatmap from './CalendarHeatmap'
 import ReadinessTrend from './ReadinessTrend'
@@ -87,6 +88,11 @@ interface DashboardProps {
    *  this sub-tab when it becomes non-null, then report handled. */
   subTabRequest?: DashSubTab | null
   onSubTabRequestHandled?: () => void
+  /** One-shot: with `subTabRequest: 'performance'`, scroll the
+   *  Performance tab to this metric's card (or the Training Load chart),
+   *  then report handled. A tap on Today's snapshot sends it. */
+  performanceFocus?: PerformanceTarget | null
+  onPerformanceFocusHandled?: () => void
 }
 
 export default function Dashboard({
@@ -119,6 +125,8 @@ export default function Dashboard({
   currentWeekNum = 1,
   subTabRequest,
   onSubTabRequestHandled,
+  performanceFocus,
+  onPerformanceFocusHandled,
 }: DashboardProps) {
   const [subTab, setSubTab] = useState<DashSubTab>('compliance')
   const [volumeActiveWeek, setVolumeActiveWeek] = useState(0)
@@ -158,6 +166,11 @@ export default function Dashboard({
     if (subTabRequest && visibleSubTabs.some(t => t.id === subTabRequest)) {
       setSubTab(subTabRequest)
       onSubTabRequestHandled?.()
+    }
+    // A focus request with no Performance tab to land on (hidden in
+    // Settings) is dropped, not left to fire on some later visit.
+    if (performanceFocus && !visibleSubTabs.some(t => t.id === 'performance')) {
+      onPerformanceFocusHandled?.()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [subTabRequest, visibleIds])
@@ -263,6 +276,8 @@ export default function Dashboard({
           sorenessLoadByDate={sorenessLoadByDate}
           athleteId={athleteId}
           readinessTuning={readinessTuning}
+          focus={performanceFocus ?? null}
+          onFocusHandled={onPerformanceFocusHandled}
         />
       )}
       {subTab === 'strength' && (
@@ -618,6 +633,8 @@ function PerformanceTab({
   sorenessLoadByDate,
   athleteId,
   readinessTuning,
+  focus = null,
+  onFocusHandled,
 }: {
   dailyTrimp: DailyTRIMP[]
   performance: PerformanceMetrics[]
@@ -627,11 +644,21 @@ function PerformanceTab({
   sorenessLoadByDate?: Map<string, number>
   athleteId?: string
   readinessTuning?: ReadinessTuning
+  focus?: PerformanceTarget | null
+  onFocusHandled?: () => void
 }) {
   const [timeWindow, setTimeWindow] = useState<TimeWindow>('all')
   const { isSectionVisible, flags } = useDisplayPreferences(athleteId)
   const filteredPerformance = useMemo(() => filterByTimeWindow(performance, timeWindow), [performance, timeWindow])
   const verdict = loadVerdict(performance)
+  // Arriving from a tap on Today: bring that card (or chart) into view.
+  // One-shot, consumed whether or not the target is shown.
+  useEffect(() => {
+    if (!focus) return
+    document.getElementById(performanceTargetId(focus))?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    onFocusHandled?.()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focus])
   return (
     <div className="space-y-4">
       {verdict && <ChartVerdictHeader verdict={verdict} />}
@@ -650,13 +677,16 @@ function PerformanceTab({
         />
       )}
       {isSectionVisible('dash.trimpBreakdown') && (
-        <TRIMPBreakdown
-          dailyTrimp={dailyTrimp}
-          sorenessLoadByDate={sorenessLoadByDate}
-          range={timeWindow}
-          performance={performance}
-          athleteId={athleteId}
-        />
+        <div id={performanceTargetId('load')} className="scroll-mt-4">
+          <TRIMPBreakdown
+            dailyTrimp={dailyTrimp}
+            sorenessLoadByDate={sorenessLoadByDate}
+            range={timeWindow}
+            performance={performance}
+            athleteId={athleteId}
+            chartHeight={280}
+          />
+        </div>
       )}
       <PerformanceGlossary defaultOpen={flags.explanationVerbosity === 'high'} readinessTuning={readinessTuning} />
     </div>

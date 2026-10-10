@@ -287,7 +287,7 @@ export default function PerformanceChart({
       </div>
 
       {/* Current stats cards with contextual notes */}
-      <PerformanceSnapshot latest={latest} rampAlert={rampAlert} acwrBounds={acwrBounds} athleteId={athleteId} history={history ?? performance} />
+      <PerformanceSnapshot latest={latest} rampAlert={rampAlert} acwrBounds={acwrBounds} athleteId={athleteId} history={history ?? performance} layout="cards" series={performance} />
 
       {/* Recommendations */}
       {recommendations.length > 0 && (

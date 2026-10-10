@@ -13,6 +13,13 @@ import { localDateStr } from './format'
 /** The metrics a sparkline can draw. */
 export type TrendMetric = 'ctl' | 'atl' | 'tsb' | 'acwr'
 
+/** Where a tap on Today's snapshot lands on the Performance tab: a
+ *  metric's full-width card, or the Training Load chart. */
+export type PerformanceTarget = TrendMetric | 'load'
+
+/** The DOM id of a target on the Performance tab. */
+export const performanceTargetId = (t: PerformanceTarget) => `perf-${t}`
+
 /** How many days a sparkline covers, today included. */
 export const SPARK_DAYS = 14
 /** How far back the "vs 7d ago" change looks. */
@@ -190,4 +197,25 @@ export function changeTone(metric: TrendMetric, delta: number, current: number, 
       return now < was ? 'good' : now > was ? 'caution' : 'neutral'
     }
   }
+}
+
+/**
+ * Round axis ticks spanning [lo, hi]: about `count` intervals on a step of
+ * 1, 2, 2.5 or 5 × 10ⁿ, starting and ending on a tick so the scale reads
+ * cleanly (60 / 65 / 70 / 75, not 62 / 66 / 70 / 74 / 77).
+ */
+export function niceTicks(lo: number, hi: number, count = 4): number[] {
+  if (!Number.isFinite(lo) || !Number.isFinite(hi)) return []
+  if (hi < lo) [lo, hi] = [hi, lo]
+  if (hi === lo) { hi = lo + 1; lo = lo - 1 }
+  const raw = (hi - lo) / count
+  const mag = 10 ** Math.floor(Math.log10(raw))
+  const step = [1, 2, 2.5, 5, 10].map(m => m * mag).find(s => s >= raw)!
+  const start = Math.floor(lo / step) * step
+  const end = Math.ceil(hi / step) * step
+  const ticks: number[] = []
+  // Round each tick to the step's precision so 0.1 + 0.2 stays 0.3.
+  const dp = Math.max(0, -Math.floor(Math.log10(step)) + 1)
+  for (let v = start; v <= end + step / 2; v += step) ticks.push(Number(v.toFixed(dp)))
+  return ticks
 }

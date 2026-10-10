@@ -9,7 +9,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   shiftDate, recentWindow, valueOnOrBefore, changeOver, sparkGeometry,
-  fitnessChange, fitnessAxisDomain, formatChange, changeTone, SPARK_DAYS,
+  fitnessChange, fitnessAxisDomain, formatChange, changeTone, SPARK_DAYS, niceTicks,
 } from '../utils/metricTrend'
 import type { PerformanceMetrics } from '../types'
 
@@ -172,5 +172,30 @@ describe('formatChange / changeTone', () => {
   })
   it('no change is neutral', () => {
     expect(changeTone('ctl', 0, 75, B)).toBe('neutral')
+  })
+})
+
+describe('niceTicks', () => {
+  it('lands on round steps that cover the data', () => {
+    expect(niceTicks(64, 75.1)).toEqual([60, 65, 70, 75, 80])
+    expect(niceTicks(52, 130)).toEqual([40, 60, 80, 100, 120, 140])
+    expect(niceTicks(-55.3, 6)).toEqual([-60, -40, -20, 0, 20])
+  })
+  it('handles ratios without float noise', () => {
+    const t = niceTicks(0.8, 1.67)
+    expect(t).toEqual([0.75, 1, 1.25, 1.5, 1.75])
+  })
+  it('first tick ≤ lo, last ≥ hi, evenly spaced', () => {
+    for (const [lo, hi] of [[3, 97], [0.01, 0.04], [-12, -3], [1000, 1234]]) {
+      const t = niceTicks(lo, hi)
+      expect(t[0]).toBeLessThanOrEqual(lo)
+      expect(t[t.length - 1]).toBeGreaterThanOrEqual(hi)
+      const steps = t.slice(1).map((v, i) => +(v - t[i]).toFixed(9))
+      expect(new Set(steps).size).toBe(1)
+    }
+  })
+  it('a flat series still gets an axis; nonsense gets none', () => {
+    expect(niceTicks(5, 5).length).toBeGreaterThan(1)
+    expect(niceTicks(NaN, 3)).toEqual([])
   })
 })
