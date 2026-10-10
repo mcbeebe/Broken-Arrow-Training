@@ -36,7 +36,8 @@ const withUpload = (plan: unknown = uploaded): OnboardingConfig =>
 beforeEach(() => {
   localStorage.clear()
   localStorage.setItem(CFG, JSON.stringify(generated))
-  localStorage.setItem(EDITS, JSON.stringify([{ id: 'e1', appliedAt: 1 }]))
+  // An edit made under the generated plan (after its generation).
+  localStorage.setItem(EDITS, JSON.stringify([{ id: 'e1', appliedAt: Date.parse('2026-09-02T00:00:00.000Z') }]))
 })
 afterEach(() => vi.restoreAllMocks())
 
@@ -65,9 +66,7 @@ describe('importPlan', () => {
     expect(JSON.parse(before!.edits.ba_plan_edits)).toHaveLength(2)
   })
 
-  // Storage only: in the app, the edit hooks then drop these edits as older
-  // than the restored plan (an existing Restore bug, outside initiative 004).
-  it('Restore brings the generated plan back and puts its edit log back in storage, even when both backups share a millisecond', () => {
+  it('Restore brings the generated plan back with its edit log, even when both backups share a millisecond', () => {
     const { result } = renderHook(() => useOnboarding(ID))
     // Moving the start changes the config without a backup, so the "before
     // upload" capture is a new entry, taken in the same millisecond as
@@ -82,7 +81,9 @@ describe('importPlan', () => {
     expect(result.current.config?.importedPlan).toBeUndefined()
     expect(result.current.config?.raceName).toBe('Spring Marathon')
     expect(result.current.config?.planStartPinnedIso).toBe('2026-09-14')
-    expect(JSON.parse(localStorage.getItem(EDITS)!)).toEqual([{ id: 'e1', appliedAt: 1 }])
+    // On the restored plan's generation, so the edit hooks keep it.
+    const gen = Date.parse(result.current.config!.completedAt)
+    expect(JSON.parse(localStorage.getItem(EDITS)!)).toEqual([{ id: `r${gen}_e1`, appliedAt: gen }])
   })
 
   it('Restore brings back the season calendar as it was, marked so it is not re-seeded', () => {

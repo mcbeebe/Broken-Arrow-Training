@@ -322,7 +322,7 @@ const REDO_KEY = 'ba_onboarding_redo'
 // is deleted for the duration of the redo. Local-only — never synced.
 import { mondayOnOrBefore } from '../utils/planDates'
 
-import { captureBackup, readBackups, configForRestore, seasonForRestore, withRoomFromBackups, newestBackupIsCurrent, SEASON_KEY, type PlanBackup } from '../utils/planBackups'
+import { captureBackup, readBackups, configForRestore, editsForRestore, seasonForRestore, withRoomFromBackups, newestBackupIsCurrent, SEASON_KEY, type PlanBackup } from '../utils/planBackups'
 
 const PREV_KEY = 'ba_onboarding_prev'
 
@@ -744,7 +744,9 @@ export function useOnboarding(athleteId?: string) {
     // would take away. The edits after it are best-effort.
     if (!setSyncedItemWithRoom(k, JSON.stringify(restored))) return false
     try {
-      for (const [ek, val] of Object.entries(b.edits ?? {})) {
+      // The day edits, moved onto the restored plan's generation so the edit
+      // hooks keep them (see editsForRestore).
+      for (const [ek, val] of Object.entries(editsForRestore(b, restored.completedAt))) {
         const sk = athleteId ? `${ek}_${athleteId}` : ek
         setSyncedItemWithRoom(sk, val)
       }
