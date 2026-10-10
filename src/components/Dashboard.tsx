@@ -646,6 +646,7 @@ function PerformanceTab({
           athleteId={athleteId}
           rampAlert={hasRampAlert(riskFlags)}
           acwrBounds={acwrBoundsFrom(readinessTuning)}
+          history={performance}
         />
       )}
       {isSectionVisible('dash.trimpBreakdown') && (

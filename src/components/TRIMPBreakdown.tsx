@@ -5,8 +5,9 @@ import { ComposedChart, Bar, Line, Area, XAxis, YAxis, Tooltip, ResponsiveContai
 import Term from './TermGlossary'
 import { useDisplayPreferences } from '../hooks/useDisplayPreferences'
 import { ACWR_BOUNDS } from '../utils/loadZones'
-import { seriesHex } from '../utils/loadSeriesColors'
+import { LOAD_SERIES_COLORS, seriesHex } from '../utils/loadSeriesColors'
 import { isDarkMode } from '../utils/styles'
+import { fitnessAxisDomain, fitnessChange, formatChange } from '../utils/metricTrend'
 
 export type TRIMPRange = '7d' | '30d' | '90d' | 'ytd' | 'all'
 
@@ -141,6 +142,7 @@ export default function TRIMPBreakdown({
   const dark = isDarkMode()
   const trendColor = seriesHex('atl', dark)
   const zoneColor = seriesHex('ctl', dark)
+  const fitnessColor = zoneColor
   const haloColor = dark ? '#1e293b' : '#ffffff'
   const [internalRange, setInternalRange] = useState<TRIMPRange>('7d')
   const range = controlledRange ?? internalRange
@@ -185,6 +187,23 @@ export default function TRIMPBreakdown({
       if (p.ctl > 1) ctlByDay.set(date, p.ctl)
     }
   }
+
+  // Fitness line. Unlike the band it is never back-filled: a flat line
+  // before the timeline starts would draw a trend that isn't there.
+  const fitnessByDay = new Map<string, number>()
+  let lastFitness: number | null = null
+  for (const date of rangeDays) {
+    const exact = perfExact.get(date)
+    if (exact) lastFitness = exact.ctl
+    if (lastFitness !== null && lastFitness > 1) fitnessByDay.set(date, Math.round(lastFitness * 10) / 10)
+  }
+  const fitnessDomain = fitnessByDay.size >= 2 ? fitnessAxisDomain([...fitnessByDay.values()]) : null
+  const hasFitness = fitnessDomain !== null
+  const change = hasFitness && rangeDays.length > 0
+    ? fitnessChange(performance ?? [], rangeDays[0], rangeDays[rangeDays.length - 1])
+    : null
+  const loadDp = flags.numericPrecision === 'high' ? 1 : 0
+  const changeShown = change ? Number(change.delta.toFixed(loadDp)) : 0
 
   // Per-day decomposition. After useReadiness applies its dedup logic:
   //   day.total = (recordSum + exerciseLoad) × rpeMult
@@ -259,6 +278,8 @@ export default function TRIMPBreakdown({
     if (atl != null) entry['trend'] = Math.round(atl)
     const ctl = ctlByDay.get(day.date)
     if (ctl != null) entry['zone'] = [Math.round(ctl * 0.8), Math.round(ctl * 1.3)]
+    const fitness = fitnessByDay.get(day.date)
+    if (fitness != null && hasFitness) entry['_fitness'] = fitness
     return entry
   })
 
@@ -318,6 +339,16 @@ export default function TRIMPBreakdown({
           ))}
         </div>
       )}
+      {change && (
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 bg-blue-50 dark:bg-blue-950/40 rounded-lg px-2.5 py-1.5 mb-2 text-sm" data-testid="fitness-change">
+          <span aria-hidden className={`inline-block w-3.5 h-[3px] rounded-full ${LOAD_SERIES_COLORS.ctl.swatch}`} />
+          <span className="font-semibold text-blue-900 dark:text-blue-200">Fitness {change.to.toFixed(loadDp)}</span>
+          <span className={`font-semibold ${changeShown > 0 ? 'text-green-700 dark:text-green-400' : changeShown < 0 ? 'text-amber-700 dark:text-amber-400' : 'text-slate-500 dark:text-slate-400'}`}>
+            {formatChange(change.delta, loadDp)}{change.pct !== null && ` (${change.pct >= 0 ? '+' : '−'}${Math.abs(Math.round(change.pct))}%)`}
+          </span>
+          <span className="ml-auto text-xs text-slate-600 dark:text-slate-300">since {change.since.slice(5)}</span>
+        </div>
+      )}
       <div style={{ height: 180 }}>
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart
@@ -347,13 +378,27 @@ export default function TRIMPBreakdown({
               tickLine={false}
               width={32}
             />
+            {/* Fitness on its own scale (right): on the load axis a gain of
+                10 is a sliver of a 600-tall chart and reads as flat. */}
+            {hasFitness && (
+              <YAxis
+                yAxisId="fitness"
+                orientation="right"
+                domain={fitnessDomain!}
+                allowDecimals={false}
+                tick={{ fontSize: 12, fill: fitnessColor, fontWeight: 600 }}
+                axisLine={false}
+                tickLine={false}
+                width={28}
+              />
+            )}
             <Tooltip
               contentStyle={{ fontSize: 13, borderRadius: 8 }}
               itemSorter={() => 0}
               content={(props) => {
                 const { active, payload, label } = props as unknown as {
                   active?: boolean
-                  payload?: ReadonlyArray<{ payload?: { fullDate?: string; trend?: number; zone?: [number, number] } }>
+                  payload?: ReadonlyArray<{ payload?: { fullDate?: string; trend?: number; zone?: [number, number]; _fitness?: number } }>
                   label?: string | number
                 }
                 if (!active || !payload?.length) return null
@@ -362,6 +407,7 @@ export default function TRIMPBreakdown({
                 const bd = fullDate ? breakdownByDate.get(fullDate) : undefined
                 if (!bd || bd.dayTotal <= 0) return null
                 const trendVal = typeof entry?.trend === 'number' ? entry.trend : null
+                const fitnessVal = typeof entry?._fitness === 'number' ? entry._fitness : null
                 const zoneVal = Array.isArray(entry?.zone) ? entry!.zone : null
                 const zoneStatus = trendVal !== null && zoneVal
                   ? trendVal < zoneVal[0] ? 'below range'
@@ -455,6 +501,13 @@ export default function TRIMPBreakdown({
                       <span className="text-slate-700 dark:text-slate-200 font-semibold">Day total</span>
                       <span className="ml-auto font-semibold text-slate-700 dark:text-slate-200">{Math.round(bd.dayTotal)} TRIMP</span>
                     </div>
+                    {fitnessVal !== null && (
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="w-2.5 h-[3px] rounded-full inline-block shrink-0" style={{ backgroundColor: fitnessColor }} />
+                        <span className="text-slate-600 dark:text-slate-300">Fitness</span>
+                        <span className="ml-auto font-medium text-slate-700 dark:text-slate-200">{fitnessVal.toFixed(loadDp)}</span>
+                      </div>
+                    )}
                     {trendVal !== null && (
                       <div className="flex items-center gap-2 mt-1">
                         <span className="w-2.5 h-[3px] rounded-full inline-block shrink-0" style={{ backgroundColor: trendColor }} />
@@ -564,6 +617,38 @@ export default function TRIMPBreakdown({
                 isAnimationActive={false}
               />
             )}
+            {/* Fitness — last, so it reads over the bars and Fatigue. */}
+            {hasFitness && (
+              <Line
+                className="series-ctl-halo"
+                yAxisId="fitness"
+                dataKey="_fitness"
+                type="monotone"
+                stroke={haloColor}
+                strokeWidth={6}
+                dot={false}
+                activeDot={false}
+                connectNulls
+                isAnimationActive={false}
+                legendType="none"
+                tooltipType="none"
+              />
+            )}
+            {hasFitness && (
+              <Line
+                className="series-ctl"
+                yAxisId="fitness"
+                dataKey="_fitness"
+                type="monotone"
+                stroke={fitnessColor}
+                strokeWidth={2.5}
+                strokeLinecap="round"
+                dot={false}
+                activeDot={{ r: 4, stroke: haloColor }}
+                connectNulls
+                isAnimationActive={false}
+              />
+            )}
           </ComposedChart>
         </ResponsiveContainer>
       </div>
@@ -584,6 +669,12 @@ export default function TRIMPBreakdown({
 
       {/* Legend */}
       <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2">
+        {hasFitness && (
+          <span className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
+            <span className="w-3 h-[3px] rounded-full inline-block" style={{ backgroundColor: fitnessColor }} />
+            Fitness (right axis)
+          </span>
+        )}
         {hasTrend && (
           <span className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
             <span className="w-3 h-[3px] rounded-full inline-block" style={{ backgroundColor: trendColor }} />
@@ -624,6 +715,11 @@ export default function TRIMPBreakdown({
           </span>
         )}
       </div>
+      {hasFitness && (
+        <p className="mt-2 text-[10px] text-slate-400 dark:text-slate-500 leading-snug">
+          <span className="font-semibold text-slate-500 dark:text-slate-400">Fitness</span> (blue, right axis) = your long-term load (6-week average), zoomed to its own range so a gain shows. The bars{hasTrend ? ' and Fatigue' : ''} use the left axis.
+        </p>
+      )}
       {hasZone && (
         <p className="mt-2 text-[10px] text-slate-400 dark:text-slate-500 leading-snug">
           <span className="font-semibold text-slate-500 dark:text-slate-400">Fatigue (acute load)</span> = your rolling recent training load (7-day average).

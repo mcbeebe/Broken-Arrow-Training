@@ -23,6 +23,10 @@ interface PerformanceChartProps {
   rampAlert?: boolean
   /** The athlete's tuned in-range / spike lines (age, experience). */
   acwrBounds?: AcwrBounds
+  /** The whole load timeline, for the snapshot tiles' 14-day sparklines.
+   *  `performance` is sliced to the chosen window (7d would cut the
+   *  sparklines short), so the caller passes the unsliced one here. */
+  history?: PerformanceMetrics[]
 }
 
 type MetricKey = 'ctl' | 'atl' | 'tsb' | 'load'
@@ -43,6 +47,7 @@ export default function PerformanceChart({
   athleteId,
   rampAlert = false,
   acwrBounds = ACWR_BOUNDS,
+  history,
 }: PerformanceChartProps) {
   const { flags } = useDisplayPreferences(athleteId)
   const [visible, setVisible] = useState<Record<MetricKey, boolean>>(() =>
@@ -282,7 +287,7 @@ export default function PerformanceChart({
       </div>
 
       {/* Current stats cards with contextual notes */}
-      <PerformanceSnapshot latest={latest} rampAlert={rampAlert} acwrBounds={acwrBounds} athleteId={athleteId} />
+      <PerformanceSnapshot latest={latest} rampAlert={rampAlert} acwrBounds={acwrBounds} athleteId={athleteId} history={history ?? performance} />
 
       {/* Recommendations */}
       {recommendations.length > 0 && (
