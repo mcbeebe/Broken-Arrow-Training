@@ -141,12 +141,14 @@ describe('Performance: four full-width cards', () => {
     expect(within(fit).getByText(/vs 7d ago/).parentElement!.textContent).toMatch(/^▲ \+\d+ vs 7d ago$/)
   })
 
-  it('Recovery Balance draws its zero line; Load Ratio its in-range band', () => {
+  it('every card draws a healthy band; Recovery Balance also keeps its zero line', () => {
     const history = timeline(30)
     render(<PerformanceSnapshot latest={last(history)} history={history} layout="cards" />)
+    for (const name of NAMES) {
+      expect(screen.getByRole('region', { name }).querySelector('.metric-healthy-band .recharts-area-area'), name).toBeTruthy()
+    }
     expect(screen.getByRole('region', { name: 'Recovery Balance' }).querySelector('.recharts-reference-line')).toBeTruthy()
-    expect(screen.getByRole('region', { name: 'Load Ratio' }).querySelector('.recharts-reference-area')).toBeTruthy()
-    expect(screen.getByRole('region', { name: 'Fitness' }).querySelector('.recharts-reference-line, .recharts-reference-area')).toBeNull()
+    expect(screen.getByRole('region', { name: 'Fitness' }).querySelector('.recharts-reference-line')).toBeNull()
   })
 
   it('the chart covers the chosen window, not the whole history', () => {
