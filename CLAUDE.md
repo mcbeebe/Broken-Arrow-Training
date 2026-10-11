@@ -60,7 +60,7 @@ attune.coach.
 ## Commands
 
 ```bash
-npm test                  # vitest, 365 files / ~5300 tests — gates every publish
+npm test                  # vitest, 369 files / ~5400 tests — gates every publish
 npm run build             # tsc -b && vite build — the typecheck gate lives here
 npm run lint              # eslint — blocking in CI; 0 errors (initiative 002)
 npm run dev               # local dev server: the app is at /app/, the root page at /
@@ -155,6 +155,19 @@ succeed.
   `PLAN_IMPORT_DAILY_LIMIT` (default 5) and `ANTHROPIC_PLAN_IMPORT_MODEL`
   (default Sonnet) tune it. It never stores or logs the uploaded file
   (initiative 004, D10; `test_plan_import.py` holds it to that).
+
+- **The Coach check-in email** (initiative 005) goes out Sunday and
+  Wednesday from 6:00 am local (retried hourly until 9:59), sent by the
+  hourly `scheduled_push` cron through Resend (`RESEND_API_KEY`,
+  `EMAIL_FROM`). The server cannot rebuild the plan, so the app uploads a
+  snapshot to `/api/coach/checkin` whenever it changes, but only once the
+  athlete has turned the email on in Settings → Notifications. The snapshot's
+  schema is `src/utils/checkin/snapshot.ts` on one side and
+  `api/coach/_checkin.clean_snapshot` on the other: change both together. It
+  is open to `mike` alone, through `checkinOpenTo`
+  (`src/utils/checkin/access.ts`) and `CHECKIN_ATHLETES` on Vercel; opening it
+  to anyone else changes both. Only the email's "Coach's read" paragraph is
+  model-written, and the email goes without it if that call fails.
 
 ## Hard constraints
 

@@ -3087,14 +3087,21 @@ def call_anthropic(
     log_sample: bool = False,
     validate_context: str | None = None,
     validate_regenerate: bool = True,
+    timeout_s: float | None = None,
 ) -> dict[str, Any]:
     """Non-streaming Anthropic call. Logs telemetry. Returns {text, usage}.
+
+    `timeout_s` gives the call a hard deadline with no SDK retries, for a
+    caller that must finish inside its function's time limit (the check-in
+    email runs inside the hourly cron's 60 s).
     `system` can be a string or a list of content blocks (for prompt caching).
 
     If `validate_context` contains a PR_STATUS line, the reply is scanned for
     PR / pace / time-delta claims that contradict it (R3): on a violation we
     regenerate once on the same model, else strip the offending sentence(s)."""
     client = _get_anthropic_client()
+    if timeout_s is not None:
+        client = client.with_options(timeout=timeout_s, max_retries=0)
     t0 = time.time()
     success = True
     text = ""
