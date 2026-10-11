@@ -199,6 +199,9 @@ jobs:
           # Launch or roll back: change the variable, then dispatch this
           # workflow on the publishing branch.
           VITE_LANDING_ENABLED: ${{ vars.ATTUNE_LANDING_ENABLED }}
+          # GA4 for the landing page only (src/landing/analytics.ts); /app/ is
+          # never measured. Property "attune.coach" in Google Analytics.
+          VITE_GA_MEASUREMENT_ID: G-SDJM5EQL4B
       # Fail the build (on PRs too) if the root page, /app/, the tools, the
       # service worker or the manifest moved, or the root guard got heavy.
       # Then drop the Vite build manifest it reads so it isn't published.
