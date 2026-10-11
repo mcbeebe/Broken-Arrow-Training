@@ -96,6 +96,11 @@ succeed.
   at build as `VITE_LANDING_ENABLED`. Anything but `'true'` makes the root page
   forward every visitor to `/app/`. Launch or roll back by changing it, then
   dispatching `deploy.yml` on the publishing branch.
+- `VITE_GA_MEASUREMENT_ID` (set in `deploy.yml`) turns on Google Analytics 4
+  for the landing page only: `src/landing/analytics.ts`, started from
+  `mount.tsx`, so visitors the guard forwards to `/app/` never load it and the
+  app is never measured. Page addresses keep only `utm_*` and `?from=`. Unset
+  means no GA. Do not add GA to the app without a privacy review.
 - `scripts/deploy/check-site-layout.mjs` runs after the build on every PR and
   every publishing-branch push: it fails if the root page, `/app/`, the
   tools, `/sw.js` or the manifest move, if the manifest loses its `id`
