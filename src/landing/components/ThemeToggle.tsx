@@ -15,7 +15,7 @@ function storage(): Storage | undefined {
  * device's setting or a saved pick) and follows the device while there is no
  * pick. The icon shows what a press switches to: a moon on light, a sun on dark.
  */
-export function ThemeToggle() {
+export function ThemeToggle({ className = '' }: { className?: string }) {
   const [deviceDark, setDeviceDark] = useState(() => deviceIsDark(window))
   const [picked, setPicked] = useState<Theme | null>(() => readStoredTheme(storage()))
   const theme = resolveTheme(picked, deviceDark)
@@ -41,7 +41,7 @@ export function ThemeToggle() {
       onClick={toggle}
       aria-label={dark ? THEME_TOGGLE.toLight : THEME_TOGGLE.toDark}
       data-theme-toggle={theme}
-      className="inline-flex size-11 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent text-landing-muted"
+      className={`inline-flex size-11 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent text-landing-muted ${className}`}
     >
       <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         {dark ? (

@@ -16,6 +16,11 @@ import { SIGNAL, SIGNAL_DARK, tokenVar } from './src/landing/tokens.ts'
 
 const kebab = s => s.replace(/[A-Z]/g, c => `-${c.toLowerCase()}`)
 
+const SHADOW_SEGMENT = {
+  light: '0 1px 2px rgba(15,23,42,0.15)',
+  dark: '0 1px 2px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.06)',
+}
+
 const SHADOW_FLOAT = {
   light: '0 30px 60px -30px rgba(18,50,46,0.45), 0 0 0 1px rgba(15,23,42,0.06)',
   // A dark shadow vanishes on a dark ground; a faint light hairline keeps the card's edge.
@@ -26,6 +31,7 @@ const SHADOW_FLOAT = {
 const vars = (palette, mode) => ({
   colorScheme: mode === 'dark' ? 'dark' : 'only light',
   '--landing-shadow-float': SHADOW_FLOAT[mode],
+  '--landing-shadow-segment': SHADOW_SEGMENT[mode],
   ...Object.fromEntries(Object.entries(palette).map(([k, v]) => [tokenVar(k), v])),
 })
 
@@ -44,7 +50,7 @@ export default {
       },
       boxShadow: {
         'landing-float': 'var(--landing-shadow-float)',
-        'landing-segment': '0 1px 2px rgba(15,23,42,0.15)',
+        'landing-segment': 'var(--landing-shadow-segment)',
       },
     },
   },

@@ -37,7 +37,8 @@ export const SIGNAL = {
 
 /**
  * Signal for dark mode (tokens.json `signalDark`): the light grounds turn dark,
- * the deep bands keep their colors. Same keys as SIGNAL.
+ * and the deep bands lighten a step so they still stand apart from the dark
+ * ground. Same keys as SIGNAL.
  */
 export const SIGNAL_DARK: Record<keyof typeof SIGNAL, string> = {
   ground: '#0E1614',
@@ -50,15 +51,15 @@ export const SIGNAL_DARK: Record<keyof typeof SIGNAL, string> = {
   actionText: '#042F2B',
   signal: '#FB923C',
   signalText: '#FB923C',
-  deep: '#12322E',
-  deepCard: '#0C2421',
-  deepLine: '#2E5751',
+  deep: '#1A4842',
+  deepCard: '#12352F',
+  deepLine: '#3A6B64',
   onDeep: '#FFFFFF',
   onDeepMuted: '#CFE3DC',
   accentOnDeep: '#5EEAD4',
   signalOnDeep: '#FB923C',
   chartBar: '#8FBFB6',
-  chartToday: '#EA580C',
+  chartToday: '#FB923C',
   ctaOnDeepBg: '#F97316',
   ctaOnDeepText: '#1C1917',
   error: '#F87171',

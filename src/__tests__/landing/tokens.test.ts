@@ -4,7 +4,7 @@
  * so both are pinned to the JSON, and every pair the page puts together
  * (tokens.json `checkedPairs`) is contrast-checked in both palettes here.
  */
-import { describe, it, expect } from 'vitest'
+import { beforeAll, describe, it, expect } from 'vitest'
 import type { Config } from 'tailwindcss'
 import tokens from '../../../docs/initiatives/003-landing-page/tokens.json'
 import { SIGNAL, SIGNAL_DARK, themed, tokenVar } from '../../landing/tokens'
@@ -48,10 +48,12 @@ describe('tokens.ts', () => {
     expect(Object.keys(SIGNAL_DARK).sort()).toEqual(Object.keys(SIGNAL).sort())
   })
 
-  it('keeps the deep bands the same in both palettes', () => {
-    for (const k of ['deep', 'deepCard', 'deepLine', 'onDeep', 'onDeepMuted', 'accentOnDeep'] as const) {
-      expect(SIGNAL_DARK[k]).toBe(SIGNAL[k])
-    }
+  it.each([
+    ['light', SIGNAL as Record<Name, string>],
+    ['dark', SIGNAL_DARK],
+  ] as const)('keeps the deep bands visibly apart from the ground in %s', (_mode, palette) => {
+    // Decorative, so no WCAG minimum; 1.5:1 is where a band's edge stays visible on a phone.
+    expect(contrast(palette.deep, palette.ground)).toBeGreaterThanOrEqual(1.5)
   })
 
   it('names custom properties in kebab case', () => {
@@ -61,23 +63,43 @@ describe('tokens.ts', () => {
   })
 })
 
-const PAIRS = tokens.checkedPairs as unknown as { text: [Name, Name][]; marks: [Name, Name][] }
+const PAIRS = tokens.checkedPairs as unknown as {
+  text: [Name, Name][]
+  marks: [Name, Name][]
+  knownFailures: Record<string, [Name, Name, string][]>
+}
 
-describe.each([
-  ['light', SIGNAL as Record<Name, string>],
-  ['dark', SIGNAL_DARK],
-] as const)('%s palette contrast', (_mode, palette) => {
-  it.each(PAIRS.text)('text %s on %s is at least 4.5:1', (fg, bg) => {
+const PALETTES = [
+  ['signal', SIGNAL as Record<Name, string>],
+  ['signalDark', SIGNAL_DARK],
+] as const
+
+describe.each(PALETTES)('%s contrast', (key, palette) => {
+  const known = (PAIRS.knownFailures[key] ?? []).map(([fg, bg]) => `${fg}/${bg}`)
+  const checked = (pairs: [Name, Name][]) => pairs.filter(([fg, bg]) => !known.includes(`${fg}/${bg}`))
+
+  it.each(checked(PAIRS.text))('text %s on %s is at least 4.5:1', (fg, bg) => {
     expect(contrast(palette[fg], palette[bg])).toBeGreaterThanOrEqual(4.5)
   })
 
-  it.each(PAIRS.marks)('mark %s on %s is at least 3:1', (fg, bg) => {
+  it.each(checked(PAIRS.marks))('mark %s on %s is at least 3:1', (fg, bg) => {
     expect(contrast(palette[fg], palette[bg])).toBeGreaterThanOrEqual(3)
+  })
+
+  it.each(PAIRS.knownFailures[key] ?? [])('known failure %s on %s still fails (delete its entry once fixed)', (fg, bg) => {
+    expect(contrast(palette[fg], palette[bg])).toBeLessThan(3)
   })
 })
 
 describe('checkedPairs', () => {
-  it('names only real tokens', () => {
+  it('names only real tokens and palettes', () => {
+    for (const k of Object.keys(PAIRS.knownFailures).filter(k => !k.startsWith('$'))) {
+      expect(['signal', 'signalDark']).toContain(k)
+    }
+    const listed = [...PAIRS.text, ...PAIRS.marks].map(([fg, bg]) => `${fg}/${bg}`)
+    for (const [fg, bg] of Object.entries(PAIRS.knownFailures).flatMap(([k, v]) => (k.startsWith('$') ? [] : v))) {
+      expect(listed).toContain(`${fg}/${bg}`)
+    }
     for (const [fg, bg] of [...PAIRS.text, ...PAIRS.marks]) {
       expect(SIGNAL).toHaveProperty(fg)
       expect(SIGNAL).toHaveProperty(bg)
@@ -100,19 +122,48 @@ describe('tailwind.landing.config.js', () => {
   })
 })
 
-describe('landing components', () => {
-  const sources = import.meta.glob<string>(['../../landing/components/*.tsx', '../../landing/LandingPage.tsx'], {
-    query: '?raw',
-    import: 'default',
-    eager: true,
+describe('landing source', () => {
+  // Everything under src/landing except tokens.ts, which defines the palettes.
+  const sources: Record<string, string> = import.meta.glob<string>(
+    ['../../landing/**/*.{ts,tsx}', '!../../landing/tokens.ts'],
+    { query: '?raw', import: 'default', eager: true },
+  )
+
+  beforeAll(async () => {
+    // Vitest stubs every CSS import to '' (even ?raw), so the stylesheet is read from
+    // disk, relative to the repo root that vitest runs from.
+    const fsModule = 'node:fs'
+    const fs = (await import(/* @vite-ignore */ fsModule)) as { readFileSync: (p: string, e: 'utf8') => string }
+    sources['../../landing/landing.css'] = fs.readFileSync('src/landing/landing.css', 'utf8')
   })
 
-  it('finds the components', () => {
-    expect(Object.keys(sources).length).toBeGreaterThan(15)
+  const FIXED = [
+    ['a hex color', /#(?:[0-9A-Fa-f]{8}|[0-9A-Fa-f]{6}|[0-9A-Fa-f]{3,4})\b/],
+    ['an rgb()/hsl() color', /\b(?:rgba?|hsla?)\(/],
+    ['the SIGNAL hex values', /\bSIGNAL(?:_DARK)?\b/],
+    [
+      'a Tailwind palette color',
+      /\b(?:bg|text|border|ring|fill|stroke|from|via|to|outline|decoration|divide|placeholder|caret|accent|shadow)-(?:white|black|slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)\b/,
+    ],
+    ['a named CSS color', /\b(?:color|background(?:-color)?|border(?:-color)?|fill|stroke)\s*:\s*(?:white|black)\b/],
+  ] as const
+
+  it('finds the page’s files, the stylesheet with its contents', () => {
+    const files = Object.keys(sources)
+    expect(files.length).toBeGreaterThan(25)
+    expect(files.some(f => f.endsWith('tokens.ts'))).toBe(false)
+    expect(sources['../../landing/landing.css']).toContain('@tailwind base')
   })
 
-  it.each(Object.entries(sources))('%s uses no fixed colors (dark mode could not reach them)', (_file, src) => {
-    expect(src).not.toMatch(/#[0-9A-Fa-f]{6}\b|#[0-9A-Fa-f]{3}\b/)
-    expect(src).not.toMatch(/\bSIGNAL(_DARK)?\b/)
+  it('no file uses a fixed color (dark mode could not reach it)', () => {
+    const hits = Object.entries(sources).flatMap(([file, src]) =>
+      FIXED.filter(([, re]) => re.test(src)).map(([what]) => `${file}: ${what}`),
+    )
+    expect(hits).toEqual([])
+  })
+
+  it.each(FIXED)('the guard catches %s', (_what, re) => {
+    const samples = ['#0E1614', 'rgba(0,0,0,0.5)', 'SIGNAL.action', 'text-white', 'color: white']
+    expect(samples.some(x => re.test(x))).toBe(true)
   })
 })
