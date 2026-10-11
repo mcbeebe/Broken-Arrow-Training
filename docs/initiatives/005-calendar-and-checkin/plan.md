@@ -51,27 +51,34 @@ same day.
 | # | Decision | Choice |
 |---|----------|--------|
 | D1 | Design | **B**: a connected calendar with `calendar.app.created`, and the email via Resend |
-| D2 | Audience | Owner (`mike`) only. One gate, `checkinOpenTo` / `calendarOpenTo` in `src/utils/checkin/access.ts`, mirrored server-side by `CHECKIN_ATHLETES` (default `mike`) |
+| D2 | Audience | Owner (`mike`) only. One gate, `checkinOpenTo` / `calendarOpenTo` in `src/utils/checkin/access.ts`, mirrored server-side by the admin athlete plus anyone in `CHECKIN_ATHLETES` |
 | D3 | Workout time | 6:00 am local; length = the midpoint of the workout's planned duration (60 min when unknown) |
 | D4 | Email days | Sunday and Wednesday |
 | D5 | Email time | **6:00 am local** (recommended), the same slot as the existing morning briefing |
 | D6 | Time zone | The device's IANA zone, sent with every snapshot (as `usePushNotifications` already does). The calendar is created in that zone |
-| D7 | Coach paragraph | **Model-written, with a templated fallback** (recommended). The numbers and the day-by-day lists are always templated, so they can't be wrong. Only the 3–5 sentence "coach's read" uses the model, through the existing Anthropic client, about 2 calls a week. If the model fails, the email still goes out without that paragraph |
+| D7 | Coach paragraph | **Model-written; the templated sections are the fallback** (approved). The numbers and the day-by-day lists are always templated, so they can't be wrong. Only the 3–5 sentence "coach's read" uses the model, through the existing Anthropic client with a 20 s deadline and no retries, about 2 calls a week. If the model fails, is slow or the day's coach budget is spent, the email goes out without that paragraph |
 | D8 | Rest days | **Left off the calendar** (recommended): less clutter. Race day always appears |
 | D9 | Calendar window | Today through +6 weeks. Past events are never edited or deleted, so the calendar keeps a history of what was planned |
 | D10 | Edits made in Google | The app's plan is the source of truth. If the athlete drags an event in Google, it stays until that day changes in the app or the nightly reconcile runs, then it is put back. Moving a workout is done in the app |
-| D11 | Stale data | Each email states "Based on your data as of <date>". If the last upload is older than 3 days, it says so plainly and asks the athlete to open the app |
+| D11 | Stale data | Each email states "Based on your data as of <date, time>". If the last upload is 3 or more days old (Sunday to Wednesday included), it says so plainly and asks the athlete to open the app. Sessions after that date are counted as not yet synced, never as missed, and load numbers older than a day carry their own date |
 | D12 | Token storage | Refresh token in KV, the same as Garmin tokens. Never logged, never returned to the client. A test asserts both |
 
 ## What the email contains
 
-1. **This week so far.** Sessions done vs planned, miles or time, any missed
-   key session.
-2. **Last 2 weeks.** Fitness / Fatigue / Recovery Balance change (the same
-   `changeOver` math as the Performance cards) and planned vs actual volume.
-3. **Next 2 weeks.** Day-by-day key sessions; the week's focus.
-4. **Beyond.** Weeks to the next race, the current block and the next one.
-5. **Coach's read** (D7) and an **Open attune.coach** button.
+The week, the phase and every window are worked out for the send date, not
+the upload date.
+
+1. **Coach's read** (D7), at the top.
+2. **This week so far:** sessions done vs planned, miles, any missed key
+   session, sessions not yet synced, and today's session(s).
+3. **Last 2 weeks:** sessions and key sessions done vs planned, logged
+   miles and time, Fitness with its 14-day change, Fatigue, Recovery Balance
+   and Load Ratio with their zone words.
+4. **Next 2 weeks:** every session day by day, through the end of that plan
+   week.
+5. **Further ahead:** time to the next race, the current phase and the next
+   one, and the later weeks' focus and miles.
+6. The data date, and an **Open attune.coach** button.
 
 ## Tests (by PR)
 

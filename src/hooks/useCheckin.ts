@@ -21,6 +21,8 @@ import { checkinHash, type CheckinSnapshot } from '../utils/checkin/snapshot'
 
 /** Wait for edits to settle before uploading. */
 export const CHECKIN_UPLOAD_DEBOUNCE_MS = 5000
+/** Waits before retrying a failed status check. */
+export const STATUS_RETRY_MS = [30_000, 120_000, 300_000]
 
 const HASH_KEY = 'ba_checkin_uploaded_v1'
 
@@ -86,12 +88,21 @@ export function useCheckin(athleteId: string, snapshot: CheckinSnapshot | null):
   useEffect(() => {
     if (!gated) return
     let live = true
-    fetchCheckinStatus().then(r => {
-      if (!live) return
-      if (r.ok) setStatus(r.body)
-      setLoadedFor(athleteId)
-    })
-    return () => { live = false }
+    let timer: ReturnType<typeof setTimeout> | undefined
+    // A failed status check (offline, a cold-start error) must not leave
+    // the whole session without uploads: retry, backing off.
+    const load = (attempt: number) => {
+      fetchCheckinStatus().then(r => {
+        if (!live) return
+        if (r.ok) setStatus(r.body)
+        setLoadedFor(athleteId)
+        if (!r.ok && attempt < STATUS_RETRY_MS.length) {
+          timer = setTimeout(() => load(attempt + 1), STATUS_RETRY_MS[attempt])
+        }
+      })
+    }
+    load(0)
+    return () => { live = false; clearTimeout(timer) }
   }, [gated, athleteId])
   const loading = gated && loadedFor !== athleteId
 

@@ -17,9 +17,11 @@ class.
 
 from __future__ import annotations
 
+import json
 import os
 import re
 import time
+import urllib.request
 from datetime import date, datetime, timedelta, timezone
 from typing import Any, Callable
 
@@ -28,7 +30,7 @@ try:
 except Exception:  # pragma: no cover - zoneinfo is stdlib on 3.9+
     ZoneInfo = None  # type: ignore
 
-from ._core import kv_del, kv_get_json, kv_set_json
+from ._core import _kv_base, _kv_headers, kv_del, kv_get_json, kv_set, kv_set_json
 
 # ── Schedule (D4, D5) ────────────────────────────────────────────────────
 
@@ -43,9 +45,17 @@ STALE_AFTER_DAYS = 3
 #: Test sends per athlete per day (the Settings button).
 TEST_SENDS_PER_DAY = 5
 
+#: The coach's read must finish well inside the cron's 60 s, after the push
+#: fan-out: a slow model means an email without it, never no email.
+READ_TIMEOUT_S = 20
+
 INDEX_KEY = "checkin_index"
 SNAPSHOT_TTL_SECONDS = 60 * 86400
 SENT_TTL_SECONDS = 3 * 86400
+#: A claim held by a run that died mid-send (Vercel's time limit) expires
+#: before the next hourly run, which then retries.
+CLAIM_TTL_SECONDS = 50 * 60
+SENT_MARKER = 1_000_000
 
 #: Body cap for a snapshot upload. A real one is ~20 KB.
 MAX_BODY_BYTES = 256 * 1024
@@ -317,7 +327,6 @@ def build_digest(snap: dict, today: date) -> dict:
     (the athlete's local date at send time). Pure — no I/O."""
     as_of = snap["asOf"]
     days = snap.get("days") or []
-    by_date = {d["date"]: d for d in days}
     t = today.isoformat()
 
     # This plan week: the week whose span holds today; Monday-start fallback.
@@ -327,8 +336,10 @@ def build_digest(snap: dict, today: date) -> dict:
         if start <= today <= start + timedelta(days=6):
             week = w
     week_start = _d(week["startIso"]) if week else today - timedelta(days=today.weekday())
-    week_dates = [(week_start + timedelta(days=i)).isoformat() for i in range(7)]
-    week_days = [by_date[x] for x in week_dates if x in by_date]
+    week_dates = {(week_start + timedelta(days=i)).isoformat() for i in range(7)}
+    # A date can carry two sessions (a run plus added strength): every list
+    # here keeps them all.
+    week_days = [d for d in days if d["date"] in week_dates]
 
     def tally(span: list[dict]) -> dict:
         sessions = [d for d in span if d["type"] not in REST_TYPES]
@@ -352,37 +363,51 @@ def build_digest(snap: dict, today: date) -> dict:
         }
 
     so_far = [d for d in week_days if d["date"] < t]
-    today_day = by_date.get(t)
-    week_rest = [d for d in week_days if d["date"] > t and d["type"] not in REST_TYPES]
+    today_sessions = [d for d in days if d["date"] == t and d["type"] not in REST_TYPES]
 
     last14 = [d for d in days if (today - timedelta(days=14)).isoformat() <= d["date"] < t]
 
-    next14_end = (today + timedelta(days=13)).isoformat()
-    next14 = [d for d in days if t <= d["date"] <= next14_end and d["type"] not in REST_TYPES]
+    # Two weeks ahead, then on to the end of that plan week, so a week is
+    # never split between this list and the weeks further ahead.
+    horizon = today + timedelta(days=13)
+    horizon_week = next((w for w in snap.get("weeks") or []
+                         if _d(w["startIso"]) <= horizon <= _d(w["startIso"]) + timedelta(days=6)), None)
+    horizon_end = (_d(horizon_week["startIso"]) + timedelta(days=6)) if horizon_week \
+        else horizon + timedelta(days=6 - horizon.weekday())
+    next14_end = horizon_end.isoformat()
+    # From tomorrow: today's session is in "This week".
+    next14 = [d for d in days if t < d["date"] <= next14_end and d["type"] not in REST_TYPES]
 
-    beyond_from = today + timedelta(days=14)
-    beyond_weeks = [w for w in snap.get("weeks") or [] if _d(w["startIso"]) + timedelta(days=6) >= beyond_from]
+    # Weeks that start after the 2-week list ends, so no day is listed twice.
+    beyond_weeks = [w for w in snap.get("weeks") or [] if w["startIso"] > next14_end]
 
     race = snap.get("race")
     race_line = None
     if race and race.get("date"):
         days_to = (_d(race["date"]) - today).days
-        if days_to >= 0:
-            weeks_to = -(-days_to // 7)
-            if days_to == 0:
-                race_line = f"{race['name']} is today."
-            elif days_to < 14:
-                race_line = f"{race['name']} is in {days_to} days ({_long(_d(race['date']))})."
-            else:
-                race_line = f"{race['name']} is {weeks_to} weeks away ({_long(_d(race['date']))})."
+        if days_to == 0:
+            race_line = f"{race['name']} is today."
+        elif 0 < days_to < 28:
+            # In days while weeks would round: 16 days is not "3 weeks".
+            race_line = f"{race['name']} is in {days_to} days ({_long(_d(race['date']))})."
+        elif days_to >= 28:
+            race_line = f"{race['name']} is {round(days_to / 7)} weeks away ({_long(_d(race['date']))})."
 
+    # The week and phase are worked out for the send date, not taken from
+    # the snapshot: a Wednesday email from a Sunday snapshot is a week on.
     block = snap.get("block") or {}
-    week_num = block.get("weekNum") or (week or {}).get("num")
+    week_num = (week or {}).get("num")
+    phases = block.get("phases") or []
+    current_phase = ""
     next_phase = None
-    for p in block.get("phases") or []:
-        if week_num is not None and p["weekStart"] > week_num:
-            next_phase = p
-            break
+    if phases and week_num is not None:
+        current_phase = next((p["label"] for p in phases if p["weekStart"] <= week_num <= p["weekEnd"]), "")
+        next_phase = next((p for p in phases if p["weekStart"] > week_num), None)
+    elif not phases and week_num == block.get("weekNum"):
+        current_phase = block.get("currentPhase") or ""
+
+    load = snap.get("load")
+    load_age = (today - _d(load["date"])).days if load and _iso(load.get("date")) else 0
 
     stale_days = (today - _d(as_of)).days
     return {
@@ -392,20 +417,20 @@ def build_digest(snap: dict, today: date) -> dict:
         "generatedAt": snap.get("generatedAt") or "",
         "timezone": snap.get("timezone") or "UTC",
         "staleDays": stale_days,
-        "isStale": stale_days > STALE_AFTER_DAYS,
+        "isStale": stale_days >= STALE_AFTER_DAYS,
         "weekNum": week_num,
         "totalWeeks": block.get("totalWeeks"),
         "weekFocus": (week or {}).get("focus") or "",
         "weekPlannedMiles": (week or {}).get("plannedMiles"),
         "soFar": tally(so_far),
-        "todaySession": today_day if today_day and today_day["type"] not in REST_TYPES else None,
-        "weekRest": week_rest,
+        "todaySessions": today_sessions,
         "last14": tally(last14),
-        "load": snap.get("load"),
+        "load": load,
+        "loadAge": load_age,
         "next14": next14,
         "beyondWeeks": beyond_weeks,
         "raceLine": race_line,
-        "currentPhase": block.get("currentPhase") or "",
+        "currentPhase": current_phase,
         "nextPhase": next_phase,
     }
 
@@ -440,13 +465,12 @@ def _sections(dg: dict) -> list[tuple[str, list[str]]]:
     if sf["missedKey"]:
         week_lines.append("Missed key session: " + "; ".join(sf["missedKey"]) + ".")
     if sf["unsynced"]:
-        week_lines.append(f"{sf['unsynced']} session(s) since your last sync aren't counted yet.")
-    if dg["todaySession"]:
-        week_lines.append(f"Today: {_session_label(dg['todaySession'])}"
-                          + (f" — {dg['todaySession']['detail']}" if dg["todaySession"].get("detail") else "") + ".")
-    if dg["weekRest"]:
-        week_lines.append("Still to come: " + "; ".join(
-            f"{_short(d['date'])} {_session_label(d)}" for d in dg["weekRest"]) + ".")
+        n = sf["unsynced"]
+        week_lines.append(f"{n} session{'' if n == 1 else 's'} since your last sync {'isn’t' if n == 1 else 'aren’t'} counted yet.")
+    if dg["todaySessions"]:
+        week_lines.append("Today: " + "; ".join(
+            _session_label(d) + (f" — {d['detail']}" if d.get("detail") and d["detail"] != d.get("workout") else "")
+            for d in dg["todaySessions"]) + ".")
     if not week_lines:
         week_lines.append("Nothing on the plan this week.")
     heading = "This week"
@@ -470,6 +494,9 @@ def _sections(dg: dict) -> list[tuple[str, list[str]]]:
         fit = f"Fitness {_fmt_num(load['fitness'])}"
         if load.get("fitnessChange") is not None:
             fit += f" ({_signed(load['fitnessChange'])} over 14 days)"
+        if dg.get("loadAge", 0) > 1:
+            # Health sync stopped: say whose numbers these are.
+            fit += f", as of {_long(_d(load['date']))}"
         past_lines.append(fit + ".")
         extras = []
         if load.get("fatigue") is not None:
@@ -589,19 +616,38 @@ def compose_email(dg: dict, coach_read: str | None, link: str, test: bool = Fals
 
 # ── The coach's read (D7) ────────────────────────────────────────────────
 
-_MD = re.compile(r"(\*\*|__|`|^#+\s*|^\s*[-*•]\s+|^>\s*(\[![A-Z]+\]\s*)?)", re.MULTILINE)
+# The chat system prompt teaches bold, bullets and callouts (and the model
+# sometimes writes GitHub's callout words in any case), so strip them all.
+_MD = re.compile(
+    r"(\*\*|__|`|^#+\s*|^\s*[-*•]\s+|^>\s*(\[![A-Za-z]+\]\s*)?|^\[![A-Za-z]+\]\s*)",
+    re.MULTILINE,
+)
+_ITALIC = re.compile(r"(?<![\w*])[*_](?=\S)([^*_\n]+?)(?<=\S)[*_](?![\w*])")
+_SENTENCE_END = re.compile(r"[.!?](?=\s|$)")
+READ_MAX_CHARS = 1200
 
 
 def clean_read(text: str) -> str | None:
-    """Plain prose: no markdown, no 'Triggered by' line, at most ~1200 chars."""
+    """Plain prose: no markdown, tables, code or 'Triggered by' line, cut at a
+    sentence end (never inside a number like 42.5) within READ_MAX_CHARS."""
     if not text:
         return None
-    lines = [ln for ln in text.strip().splitlines() if not ln.lower().startswith("triggered by")]
-    out = _MD.sub("", "\n".join(lines)).strip()
+    lines: list[str] = []
+    in_fence = False
+    for ln in text.strip().splitlines():
+        if ln.strip().startswith("```"):
+            in_fence = not in_fence
+            continue
+        if in_fence or ln.strip().startswith("|") or ln.lower().startswith("triggered by"):
+            continue
+        lines.append(ln)
+    out = _MD.sub("", "\n".join(lines))
+    out = _ITALIC.sub(r"\1", out).strip()
     out = re.sub(r"\n{3,}", "\n\n", out)
-    if len(out) > 1200:
-        cut = out[:1200]
-        out = cut[: cut.rfind(".") + 1] or cut
+    if len(out) > READ_MAX_CHARS:
+        cut = out[:READ_MAX_CHARS]
+        ends = [m.end() for m in _SENTENCE_END.finditer(cut)]
+        out = cut[: ends[-1]] if ends else cut.rstrip() + "…"
     return out or None
 
 
@@ -649,6 +695,7 @@ def write_coach_read(athlete_id: str, dg: dict) -> str | None:
             max_tokens=500,
             athlete_id=athlete_id,
             surface="checkin_email",
+            timeout_s=READ_TIMEOUT_S,
         )
     except Exception as e:  # never the message: it may quote the prompt
         print(f"[checkin] coach read failed: {type(e).__name__}", flush=True)
@@ -677,8 +724,27 @@ def save_prefs(athlete_id: str, enabled: bool, email: str) -> dict:
     return prefs
 
 
+def _kv_set_large(key: str, value: str, ex: int) -> None:
+    """SET with the value in the request body, not the URL. `kv_set` puts the
+    value in the path, and a snapshot runs to tens of KB. Upstash takes a
+    command as a JSON array POSTed to the base URL."""
+    url = _kv_base()
+    if not url:
+        raise RuntimeError("KV not configured")
+    req = urllib.request.Request(
+        url,
+        data=json.dumps(["SET", key, value, "EX", str(ex)]).encode(),
+        headers={**_kv_headers(), "Content-Type": "application/json"},
+        method="POST",
+    )
+    with urllib.request.urlopen(req, timeout=10) as resp:
+        reply = json.loads(resp.read().decode() or "{}")
+    if not isinstance(reply, dict) or "error" in reply:
+        raise RuntimeError("KV SET failed")
+
+
 def save_snapshot(athlete_id: str, snap: dict) -> None:
-    kv_set_json(snapshot_key(athlete_id), snap, ex=SNAPSHOT_TTL_SECONDS)
+    _kv_set_large(snapshot_key(athlete_id), json.dumps(snap, separators=(",", ":")), SNAPSHOT_TTL_SECONDS)
 
 
 def load_snapshot(athlete_id: str) -> dict | None:
@@ -749,22 +815,31 @@ def run_checkin_emails(
     *,
     claim: Callable[[str], bool] | None = None,
     release: Callable[[str], None] | None = None,
+    mark_sent: Callable[[str], None] | None = None,
     sender: Callable[..., bool] = send_checkin,
 ) -> dict:
     """The cron's half: send every due check-in once. Returns a summary.
 
-    Idempotent per athlete per local date: the claim is an atomic counter, so
-    two overlapping cron runs cannot both send. A failed send gives the claim
-    back and the next hourly run retries, until SEND_LAST_HOUR.
+    Once per athlete per local date. The claim is an atomic counter, so two
+    overlapping cron runs cannot both send. It expires after
+    CLAIM_TTL_SECONDS, so a run killed mid-send (Vercel's time limit) is
+    retried next hour; a sent email turns it into a marker that lasts
+    SENT_TTL_SECONDS. A failed send gives the claim back and the next hourly
+    run retries, until SEND_LAST_HOUR. One duplicate remains possible: Resend
+    accepting an email but timing out before it says so.
     """
     from ..auth._helpers import ADMIN_ATHLETE_ID, kv_bump_counter, kv_unbump_counter
 
     if claim is None:
         def claim(key: str) -> bool:
-            return kv_bump_counter(key, SENT_TTL_SECONDS) == 1
+            return kv_bump_counter(key, CLAIM_TTL_SECONDS) == 1
     if release is None:
         def release(key: str) -> None:
             kv_unbump_counter(key)
+    if mark_sent is None:
+        def mark_sent(key: str) -> None:
+            # A large count, not a word: a later INCR still works, and is never 1.
+            kv_set(key, str(SENT_MARKER), ex=SENT_TTL_SECONDS)
 
     idx = kv_get_json(INDEX_KEY)
     athlete_ids = [a for a in (idx if isinstance(idx, list) else []) if isinstance(a, str)]
@@ -802,6 +877,12 @@ def run_checkin_emails(
             ok = False
         if ok:
             summary["sent"] += 1
+            try:
+                mark_sent(key)
+            except Exception as e:
+                # The claim still holds for CLAIM_TTL_SECONDS, past this
+                # send window's next run; only a later hour could repeat it.
+                print(f"[checkin] mark failed: {type(e).__name__}", flush=True)
         else:
             summary["failed"] += 1
             try:

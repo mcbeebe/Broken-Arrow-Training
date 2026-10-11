@@ -15,7 +15,7 @@ the token subject. Owner-only until CHECKIN_ATHLETES names others (D2).
 
 Errors are short codes:
   400 bad_request | bad_snapshot | bad_version | bad_as_of | bad_days | unknown_action
-  403 not_available   404 no_snapshot   409 not_enabled | no_email
+  403 not_available   404 no_snapshot   409 not_enabled | no_email | older_snapshot
   413 too_large       429 test_limit    502 send_failed
 """
 
@@ -108,6 +108,9 @@ class handler(BaseHTTPRequestHandler):
             send_json(self, 413, {"error": "too_large"})
             return
         body = read_json_body(self)
+        if not isinstance(body, dict):
+            send_json(self, 400, {"error": "bad_request"})
+            return
         action = str(body.get("action", "")).strip()
 
         if action == "settings":
@@ -131,6 +134,12 @@ class handler(BaseHTTPRequestHandler):
                 snap = clean_snapshot(body.get("snapshot"))
             except SnapshotError as e:
                 send_json(self, 400, {"error": e.code})
+                return
+            # Last writer wins, except an older one: a stale tab or a second
+            # device must not overwrite a newer snapshot.
+            stored = load_snapshot(athlete_id)
+            if stored and snap["generatedAt"] and snap["generatedAt"] < (stored.get("generatedAt") or ""):
+                send_json(self, 409, {"error": "older_snapshot"})
                 return
             save_snapshot(athlete_id, snap)
             send_json(self, 200, {"ok": True, "asOf": snap["asOf"], "days": len(snap["days"])})

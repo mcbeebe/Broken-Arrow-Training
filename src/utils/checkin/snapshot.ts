@@ -4,7 +4,7 @@ import { buildMethodologyContext } from '../methodologyContext'
 import { dayIsoInWeek } from '../planDates'
 import { plannedMinutes } from '../markDone'
 import { parseRaceDate } from '../raceCountdown'
-import { shiftDate, valueOnOrBefore } from '../metricTrend'
+import { changeOver, shiftDate } from '../metricTrend'
 import { acwrZone, tsbZone, type AcwrBounds } from '../loadZones'
 
 /**
@@ -157,11 +157,11 @@ export function buildCheckinSnapshot(inputs: CheckinInputs): CheckinSnapshot {
   let load: CheckinSnapshot['load'] = null
   const latest = performance.length ? performance[performance.length - 1] : null
   if (latest) {
-    const before = valueOnOrBefore(performance, 'ctl', shiftDate(latest.date, -CHECKIN_PAST_DAYS))
+    const change = changeOver(performance, 'ctl', CHECKIN_PAST_DAYS)
     load = {
       date: latest.date,
       fitness: round(latest.ctl),
-      fitnessChange: before == null ? null : round(latest.ctl - before),
+      fitnessChange: change == null ? null : round(change),
       fatigue: round(latest.atl),
       balance: round(latest.tsb),
       balanceLabel: tsbZone(latest.tsb).label,

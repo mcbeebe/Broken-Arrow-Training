@@ -95,12 +95,18 @@ SUNDAY = date(2026, 10, 11)
 class FakeKV:
     def __init__(self):
         self.store: dict[str, str] = {}
+        self.ttls: dict[str, int | None] = {}
 
     def get(self, key):
         return self.store.get(key)
 
     def set(self, key, value, ex=None):
         self.store[key] = value
+        self.ttls[key] = ex
+
+    def expire(self, key):
+        """What Redis does when a key's TTL runs out."""
+        self.store.pop(key, None)
 
     def delete(self, key):
         self.store.pop(key, None)
@@ -108,6 +114,7 @@ class FakeKV:
     def bump(self, key, ttl_seconds, timeout=3):
         value = int(self.store.get(key, "0")) + 1
         self.store[key] = str(value)
+        self.ttls[key] = ttl_seconds
         return value
 
     def unbump(self, key, timeout=3):
@@ -122,6 +129,8 @@ def kv(monkeypatch):
     monkeypatch.setattr(C, "kv_get", store.get)
     monkeypatch.setattr(C, "kv_set", store.set)
     monkeypatch.setattr(K, "kv_del", store.delete)
+    monkeypatch.setattr(K, "kv_set", store.set)
+    monkeypatch.setattr(K, "_kv_set_large", lambda k, v, ex: store.set(k, v, ex))
     monkeypatch.setattr(H, "kv_bump_counter", store.bump)
     monkeypatch.setattr(H, "kv_unbump_counter", store.unbump)
     monkeypatch.setattr(E, "kv_bump_counter", store.bump)
@@ -188,7 +197,7 @@ def test_this_week_tells_done_missed_and_unsynced_apart():
     assert sf["missedKey"] == ["Intervals (Wed 10/7)"]
     assert len(sf["missed"]) == 2
     assert sf["miles"] == pytest.approx(9.2)
-    assert dg["todaySession"]["workout"] == "Recovery jog"
+    assert [d["workout"] for d in dg["todaySessions"]] == ["Recovery jog"]
     assert dg["weekNum"] == 6 and dg["weekFocus"] == "Build"
 
 
@@ -202,12 +211,14 @@ def test_the_last_two_weeks_are_counted_back_from_the_send_date():
     assert l14["miles"] == pytest.approx(5 + 8 + 0 + 12.1 + 5.2 + 4)
 
 
-def test_the_next_two_weeks_skip_rest_days_and_stop_at_13_days():
+def test_the_next_two_weeks_start_tomorrow_skip_rest_days_and_end_with_a_plan_week():
     dg = K.build_digest(K.clean_snapshot(snapshot()), SUNDAY)
     dates = [d["date"] for d in dg["next14"]]
-    assert dates == ["2026-10-11", "2026-10-13", "2026-10-14", "2026-10-18", "2026-10-21"]
+    # Day 13 is Sat 10/24, in week 8: the list runs on to that week's Sunday.
+    assert dates == ["2026-10-13", "2026-10-14", "2026-10-18", "2026-10-21", "2026-10-25"]
+    assert "2026-10-11" not in dates  # today is under 'This week'
     assert "2026-10-12" not in dates  # rest
-    assert "2026-10-25" not in dates  # day 14 — 'further ahead'
+    assert "2026-10-26" not in dates  # week 9 — 'further ahead'
 
 
 def test_further_ahead_has_the_race_the_phase_and_later_weeks():
@@ -215,7 +226,7 @@ def test_further_ahead_has_the_race_the_phase_and_later_weeks():
     assert dg["raceLine"] == "Broken Arrow 23K is 9 weeks away (Saturday, Dec 12)."
     assert dg["currentPhase"] == "Build"
     assert dg["nextPhase"]["label"] == "Peak"
-    assert [w["num"] for w in dg["beyondWeeks"]] == [8, 9, 10]
+    assert [w["num"] for w in dg["beyondWeeks"]] == [9, 10]  # no day listed twice
 
 
 def test_a_passed_race_is_not_counted_down():
@@ -240,6 +251,8 @@ def test_the_email_has_every_section_and_the_data_date():
         assert heading in html
     assert "Coach&#x27;s read" in html or "Coach's read" in html
     assert "Based on your data as of Saturday, Oct 10, 1:05 pm." in text
+    assert "1 session since your last sync isn’t counted yet." in text
+    assert text.count("Recovery jog") == 1
     assert "Fitness 42.3 (+3.4 over 14 days)." in text
     assert "Recovery Balance −8.7 (Steady)" in text
     assert "Load Ratio 1.21 (Sweet spot)" in text
@@ -479,3 +492,165 @@ def test_nothing_logs_the_snapshot_or_address():
     for line in src.splitlines():
         if "print(" in line:
             assert "type(e).__name__" in line, f"a log line may carry data: {line.strip()}"
+
+
+# ── 7. adversarial review fixes ──────────────────────────────────────────
+
+WEDNESDAY = date(2026, 10, 14)
+
+
+def test_a_wednesday_email_from_a_sunday_snapshot_is_a_week_on():
+    """The week number and phase come from the send date, not the upload."""
+    snap = K.clean_snapshot(snapshot(asOf="2026-10-11", generatedAt="2026-10-11T16:00:00Z",
+                                     block={**snapshot()["block"], "weekNum": 6}))
+    dg = K.build_digest(snap, WEDNESDAY)
+    assert dg["weekNum"] == 7 and dg["weekFocus"] == "Build"
+    assert K.subject_for(dg) == "Your Wednesday check-in · week 7 of 15"
+    # Week 10 starts Peak: on week 7, Build continues and Peak is next.
+    assert dg["currentPhase"] == "Build" and dg["nextPhase"]["weekStart"] == 10
+    # Sunday → Wednesday is the common gap, and it is called out.
+    assert dg["isStale"] is True and "3 days ago" in K.data_date_line(dg)
+
+
+def test_two_sessions_on_one_date_are_both_counted():
+    raw = snapshot()
+    raw["days"].append(day("2026-10-06", "strength", "Core", "", actual={"miles": 0, "minutes": 20, "name": "Core"}))
+    raw["days"].append(day("2026-10-11", "strength", "Mobility", "15 min"))
+    dg = K.build_digest(K.clean_snapshot(raw), SUNDAY)
+    assert dg["soFar"]["planned"] == 6 and dg["soFar"]["done"] == 3
+    assert sorted(d["workout"] for d in dg["todaySessions"]) == ["Mobility", "Recovery jog"]
+
+
+def test_old_load_numbers_say_how_old():
+    dg = K.build_digest(K.clean_snapshot(snapshot(load={**snapshot()["load"], "date": "2026-10-05"})), SUNDAY)
+    assert "Fitness 42.3 (+3.4 over 14 days), as of Monday, Oct 5." in K.digest_text(dg)
+    fresh = K.build_digest(K.clean_snapshot(snapshot()), SUNDAY)
+    assert "as of" not in K.digest_text(fresh).split("THE NEXT")[0].split("Fitness")[1].split("\n")[0]
+
+
+@pytest.mark.parametrize("days_out, words", [
+    (0, "is today."), (16, "is in 16 days"), (27, "is in 27 days"), (28, "is 4 weeks away"), (62, "is 9 weeks away"),
+])
+def test_the_race_countdown_never_rounds_days_into_wrong_weeks(days_out, words):
+    from datetime import timedelta
+    race_day = (SUNDAY + timedelta(days=days_out)).isoformat()
+    dg = K.build_digest(K.clean_snapshot(snapshot(race={"name": "R", "date": race_day})), SUNDAY)
+    assert words in dg["raceLine"]
+
+
+@pytest.mark.parametrize("raw, expected", [
+    ("> [!Tip] Keep it easy\n*really* easy", "Keep it easy\nreally easy"),
+    ("[!note] Sleep.", "Sleep."),
+    ("Before.\n```json\n{\"a\": 1}\n```\nAfter.", "Before.\nAfter."),
+    ("| a | b |\n|---|---|\nPlain.", "Plain."),
+    ("5*4 = 20, keep 3_000 steps.", "5*4 = 20, keep 3_000 steps."),
+])
+def test_clean_read_strips_what_the_chat_prompt_teaches(raw, expected):
+    assert K.clean_read(raw) == expected
+
+
+def test_a_long_read_is_cut_at_a_sentence_never_inside_a_number():
+    out = K.clean_read("Fitness is 42.5 and rising. " * 60)
+    assert out.endswith("rising.")
+    assert len(out) <= K.READ_MAX_CHARS
+
+
+def test_the_coach_read_has_a_hard_deadline(kv, monkeypatch):
+    seen = {}
+    monkeypatch.setattr(C, "call_anthropic", lambda **kw: seen.update(kw) or {"text": "Fine."})
+    monkeypatch.setattr(C, "check_and_increment_budget", lambda a: (True, 1, 30))
+    K.write_coach_read("mike", K.build_digest(K.clean_snapshot(snapshot()), SUNDAY))
+    assert seen["timeout_s"] == K.READ_TIMEOUT_S < 30
+
+
+def test_call_anthropic_applies_the_deadline_with_no_retries(monkeypatch):
+    applied = {}
+
+    class Client:
+        def with_options(self, **kw):
+            applied.update(kw)
+            return self
+
+        class messages:
+            @staticmethod
+            def create(**kw):
+                return SimpleNamespace(content=[SimpleNamespace(type="text", text="ok")],
+                                       usage=SimpleNamespace(input_tokens=1, output_tokens=1))
+    monkeypatch.setattr(C, "_get_anthropic_client", lambda: Client())
+    monkeypatch.setattr(C, "log_telemetry", lambda *a, **k: None, raising=False)
+    C.call_anthropic(model="m", system="s", messages=[{"role": "user", "content": "x"}], timeout_s=20)
+    assert applied == {"timeout": 20, "max_retries": 0}
+
+
+def test_a_run_killed_mid_send_is_retried_next_hour(kv):
+    _enable(kv)
+    key = K.sent_claim_key("mike", "2026-10-11")
+
+    def killed(*a):
+        raise SystemExit  # Vercel's time limit: no Python cleanup runs
+    with pytest.raises(SystemExit):
+        K.run_checkin_emails(_utc(2026, 10, 11, 13, 5), sender=killed)
+    assert kv.ttls[key] == K.CLAIM_TTL_SECONDS < 3600
+    kv.expire(key)  # the claim runs out before 07:05
+    sent = []
+    K.run_checkin_emails(_utc(2026, 10, 11, 14, 5), sender=lambda *a: sent.append(a) or True)
+    assert len(sent) == 1
+
+
+def test_a_sent_email_holds_for_days_not_minutes(kv):
+    _enable(kv)
+    K.run_checkin_emails(_utc(2026, 10, 11, 13, 5), sender=lambda *a: True)
+    key = K.sent_claim_key("mike", "2026-10-11")
+    assert kv.ttls[key] == K.SENT_TTL_SECONDS
+    sent = []
+    K.run_checkin_emails(_utc(2026, 10, 11, 16, 5), sender=lambda *a: sent.append(a) or True)
+    assert sent == []
+
+
+def test_a_non_object_body_is_a_bad_request(world):
+    for body in ([1, 2], "hello", 7):
+        assert call(world, "POST", body) == (400, {"error": "bad_request"})
+
+
+def test_an_older_snapshot_cannot_overwrite_a_newer_one(world):
+    call(world, "POST", {"action": "settings", "enabled": True})
+    call(world, "POST", {"action": "snapshot", "snapshot": snapshot(generatedAt="2026-10-10T20:05:00.000Z")})
+    stale = snapshot(asOf="2026-10-09", generatedAt="2026-10-09T08:00:00.000Z")
+    assert call(world, "POST", {"action": "snapshot", "snapshot": stale}) == (409, {"error": "older_snapshot"})
+    assert json.loads(world.kv.store[K.snapshot_key("mike")])["asOf"] == "2026-10-10"
+
+
+# ── 8. the cron entry point runs both jobs independently ────────────────
+
+def _run_cron(monkeypatch, push, checkin):
+    from api.coach import scheduled_push as S
+    out = []
+    monkeypatch.setattr(S, "_cron_authorized", lambda headers: True)
+    monkeypatch.setattr(S, "run_scheduled_push", push)
+    monkeypatch.setattr(S, "run_checkin_emails", checkin)
+    monkeypatch.setattr(S, "send_json", lambda h, status, payload: out.append((status, payload)))
+    h = S.handler.__new__(S.handler)
+    h.headers = {}
+    h.do_GET()
+    return out[0]
+
+
+def test_a_failing_push_still_sends_the_checkin(monkeypatch):
+    ran = []
+
+    def push():
+        raise RuntimeError("vapid")
+    status, payload = _run_cron(monkeypatch, push, lambda: ran.append(1) or {"sent": 1})
+    assert ran == [1] and status == 500 and payload["checkin"] == {"sent": 1}
+
+
+def test_a_failing_checkin_leaves_the_push_result_alone(monkeypatch):
+    def checkin():
+        raise RuntimeError("kv")
+    status, payload = _run_cron(monkeypatch, lambda: {"ok": True, "sent": 3}, checkin)
+    assert status == 200 and payload["sent"] == 3 and payload["checkin"] == {"error": "RuntimeError"}
+
+
+def test_push_not_configured_keeps_its_200(monkeypatch):
+    status, payload = _run_cron(monkeypatch, lambda: {"ok": False, "error": "push not configured"}, lambda: {})
+    assert status == 200

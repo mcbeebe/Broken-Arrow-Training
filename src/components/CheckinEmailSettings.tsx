@@ -40,7 +40,7 @@ export default function CheckinEmailSettings({ checkin }: { checkin: CheckinStat
         <>
           <p className="text-xs text-slate-500 dark:text-slate-400">
             Sent to <span className="font-medium text-slate-700 dark:text-slate-200">{checkin.email}</span>
-            {checkin.lastSent ? <> · last sent {formatSent(checkin.lastSent.at)}</> : null}
+            {checkin.lastSent ? <> · last sent {formatSent(checkin.lastSent.at)}{checkin.lastSent.test ? ' (test)' : ''}</> : null}
           </p>
           <button
             type="button"

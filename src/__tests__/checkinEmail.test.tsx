@@ -30,7 +30,7 @@ vi.mock('../utils/checkin/access', () => ({
   checkinOpenTo: (id: string | undefined) => id === 'mike',
 }))
 
-const { useCheckin, CHECKIN_UPLOAD_DEBOUNCE_MS } = await import('../hooks/useCheckin')
+const { useCheckin, CHECKIN_UPLOAD_DEBOUNCE_MS, STATUS_RETRY_MS } = await import('../hooks/useCheckin')
 const { default: CheckinEmailSettings } = await import('../components/CheckinEmailSettings')
 
 function snap(workout = 'Easy run', asOf = '2026-10-11'): CheckinSnapshot {
@@ -119,6 +119,31 @@ describe('the upload', () => {
     expect(api.uploadCheckinSnapshot).toHaveBeenCalledTimes(2)
   })
 
+  it('a failed status check at app open is retried, and the upload follows', async () => {
+    api.fetchCheckinStatus.mockImplementationOnce(() => reply({ error: 'network' }, false, 0))
+    renderHook(() => useCheckin('mike', snap()))
+    await flush()
+    act(() => { vi.advanceTimersByTime(CHECKIN_UPLOAD_DEBOUNCE_MS) })
+    await flush()
+    expect(api.uploadCheckinSnapshot).not.toHaveBeenCalled()
+    act(() => { vi.advanceTimersByTime(STATUS_RETRY_MS[0]) })
+    await flush()
+    expect(api.fetchCheckinStatus).toHaveBeenCalledTimes(2)
+    act(() => { vi.advanceTimersByTime(CHECKIN_UPLOAD_DEBOUNCE_MS) })
+    await flush()
+    expect(api.uploadCheckinSnapshot).toHaveBeenCalledTimes(1)
+  })
+
+  it('gives up on the status check after the last retry', async () => {
+    api.fetchCheckinStatus.mockImplementation(() => reply({ error: 'network' }, false, 0))
+    renderHook(() => useCheckin('mike', snap()))
+    for (const ms of [0, ...STATUS_RETRY_MS, 3_600_000]) {
+      act(() => { vi.advanceTimersByTime(ms) })
+      await flush()
+    }
+    expect(api.fetchCheckinStatus).toHaveBeenCalledTimes(STATUS_RETRY_MS.length + 1)
+  })
+
   it('does nothing at all for an athlete the email is not open to', async () => {
     const { result } = renderHook(() => useCheckin('lori', null))
     await flush()
@@ -159,6 +184,15 @@ describe('Settings', () => {
     await flush()
     expect(api.sendCheckinTest).toHaveBeenCalledTimes(1)
     expect(screen.getByRole('status').textContent).toMatch(/Sent to mike@example.com/)
+  })
+
+  it('labels a test as a test in "last sent"', async () => {
+    api.fetchCheckinStatus.mockImplementation(() => reply({
+      allowed: true, enabled: true, email: 'mike@example.com', lastSent: { at: Date.UTC(2026, 9, 11, 13), subject: 's', test: true },
+    }))
+    render(<Harness />)
+    await flush()
+    expect(screen.getByText(/last sent .*\(test\)/)).toBeTruthy()
   })
 
   it('the switch turns it off, and the test button goes with it', async () => {
