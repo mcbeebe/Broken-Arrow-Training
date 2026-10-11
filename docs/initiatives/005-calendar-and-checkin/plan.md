@@ -1,6 +1,6 @@
 # 005 — Plan
 
-**Status:** Proposed, awaiting owner approval · **Intent:** [intent.md](intent.md)
+**Status:** Approved by the owner 2026-10-11 (D5, D7, D8 as recommended) · **Intent:** [intent.md](intent.md)
 
 ## Shape: one snapshot, two consumers
 
@@ -45,8 +45,8 @@ useful on its own, so if the Google setup stalls, the email still ships.
 
 ## Decisions
 
-The owner made the first four on 2026-10-11. The rest are my recommendations,
-open until the owner approves this plan.
+The owner made D1–D4 on 2026-10-11 and approved the rest as recommended the
+same day.
 
 | # | Decision | Choice |
 |---|----------|--------|

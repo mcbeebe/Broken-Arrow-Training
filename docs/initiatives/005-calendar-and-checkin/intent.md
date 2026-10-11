@@ -70,8 +70,8 @@ Answered by the owner on 2026-10-11:
 - *Default workout time?* 6:00 am.
 - *Email cadence?* Sunday and Wednesday.
 
-Still open (see plan.md § Decisions for my recommendation on each):
+Answered the same day (approved as recommended, plan.md § Decisions):
 
-- Should the email's coach paragraph be model-written or templated?
-- What time on Sunday and Wednesday should the email arrive?
-- Rest days: show them on the calendar, or leave them off?
+- *Coach paragraph?* Model-written, with a templated fallback (D7).
+- *Email time?* 6:00 am local (D5).
+- *Rest days on the calendar?* Left off; race day always shows (D8).
