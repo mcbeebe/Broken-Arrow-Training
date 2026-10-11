@@ -24,6 +24,7 @@ text, no exclamation marks, numbers as digits.
 - Wordmark: **Attune** (with the mark from design-spec.md)
 - Nav: How it works (`#how`) · Who it’s for (`#you`) · The coach (`#coach`) · Free tools (`#tools`) · Sign in (`/app/`) · **Request an invite** (`#join`, button)
 - At ≤640px only **Sign in** and **Request an invite** stay visible.
+- Light/dark switch (icon button, right of the wordmark and before the nav; on the wordmark’s row when the nav wraps; visible at every width). Its accessible name says what it does: Switch to dark mode · Switch to light mode. *(Added 2026-10-11: the page follows the device’s light or dark setting; the switch overrides it.)*
 
 ## Hero
 

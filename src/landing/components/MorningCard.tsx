@@ -1,5 +1,5 @@
 import { MORNING, SPORTS, changesToday, type Sport, type Tone } from '../content'
-import { SIGNAL } from '../tokens'
+import { themed } from '../tokens'
 import { SegmentedControl } from './SegmentedControl'
 
 interface Props {
@@ -18,7 +18,7 @@ export function MorningCard({ sport, onSportChange }: Props) {
   const example = SPORTS.find(s => s.id === sport) ?? SPORTS[0]
   const changed = changesToday(example.outcome)
   const ring = example.readiness.value
-  const ringColor = example.outcome === 'ease' ? SIGNAL.signal : SIGNAL.action
+  const ringColor = example.outcome === 'ease' ? themed('signal') : themed('action')
   return (
     <div className="rounded-[28px] bg-landing-card px-7 pb-7 pt-[26px] shadow-landing-float">
       <p id="morning-tabs" className="m-0 text-sm text-landing-muted">
@@ -59,7 +59,7 @@ export function MorningCard({ sport, onSportChange }: Props) {
             aria-hidden="true"
             data-ring={ring}
             className="flex size-16 flex-none items-center justify-center rounded-full"
-            style={{ background: `conic-gradient(${ringColor} 0 ${ring}%, ${SIGNAL.line} ${ring}% 100%)` }}
+            style={{ background: `conic-gradient(${ringColor} 0 ${ring}%, ${themed('line')} ${ring}% 100%)` }}
           >
             <div className="flex size-12 items-center justify-center rounded-full bg-landing-card text-[17px] font-extrabold">{ring}</div>
           </div>

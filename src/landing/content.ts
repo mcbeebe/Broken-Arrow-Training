@@ -26,6 +26,12 @@ export const NAV = {
   cta: { label: 'Request an invite', href: '#join' },
 } as const
 
+/** The header's light/dark switch. Icon only: these are its accessible names. */
+export const THEME_TOGGLE = {
+  toDark: 'Switch to dark mode',
+  toLight: 'Switch to light mode',
+} as const
+
 export const HERO = {
   title: 'Training that actually adapts to you.',
   subhead: 'A coach in your pocket.',

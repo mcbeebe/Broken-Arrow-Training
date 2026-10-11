@@ -256,7 +256,8 @@ on the landing page). Keep search and hash byte-for-byte; do not re-encode.
 - Every input has a `<label>`. Icon-only buttons have `aria-label`.
 - Visible focus: `outline: 3px solid focusRing; outline-offset: 2px` on `:focus-visible`.
 - Touch targets ≥ 44px.
-- Contrast: all text pairs ≥ 4.5:1 and chart marks ≥ 3:1 (verified for Signal in tokens.json). Don’t introduce new color pairs without checking.
+- Contrast: all text pairs ≥ 4.5:1 and chart marks ≥ 3:1, in both palettes. The pairs are tokens.json `checkedPairs`, and `tokens.test.ts` checks each one in Signal and Signal dark. A new pairing goes into that list.
+- Light and dark (added 2026-10-11): the page follows the device’s setting (`prefers-color-scheme`). The header’s sun/moon switch overrides it and remembers the pick in localStorage; a pick that matches the device is forgotten, so the page follows the device again. Dark is tokens.json `signalDark`: the light grounds turn dark, and the deep bands lighten a step so they still stand apart. Components never use hex values or `SIGNAL` directly (a test holds them to it): classes, or `themed()` for inline styles.
 - No auto-playing motion. If any transition is added, wrap it in `prefers-reduced-motion: no-preference`.
 - `lang="en"`.
 

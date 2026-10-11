@@ -50,7 +50,14 @@ factual claim (methods, HYROX divisions, coach traits, cardio options, block
 lengths) against the app's code, so changing that code fails the test until
 the copy is updated. It has its own Tailwind config
 (`tailwind.landing.config.js`, colors `landing-*` from `src/landing/tokens.ts`)
-and a self-hosted font in `public/fonts/`. Its logo and favicon is
+and a self-hosted font in `public/fonts/`. It has a light and a dark palette
+(tokens.json `signal` and `signalDark`): each `landing-*` color is a CSS
+variable, the device's light/dark setting picks the palette, and the header's
+switch overrides it (`src/landing/theme.ts`; `index.html`'s inline
+`data-theme-pick` script applies a saved pick before first paint). Components
+never use a hex value or `SIGNAL` directly (`tokens.test.ts` fails otherwise),
+and every pair in tokens.json `checkedPairs` is contrast-checked in both
+palettes. Its logo and favicon is
 `/attune-mark.svg`; `/favicon.svg` is the app's icon and is never edited.
 
 "Broken Arrow Training" is legacy branding: the repo name, the airlock's
@@ -60,7 +67,7 @@ attune.coach.
 ## Commands
 
 ```bash
-npm test                  # vitest, 365 files / ~5300 tests — gates every publish
+npm test                  # vitest, 367 files / ~5500 tests — gates every publish
 npm run build             # tsc -b && vite build — the typecheck gate lives here
 npm run lint              # eslint — blocking in CI; 0 errors (initiative 002)
 npm run dev               # local dev server: the app is at /app/, the root page at /
