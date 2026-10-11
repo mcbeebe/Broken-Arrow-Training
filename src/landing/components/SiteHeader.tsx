@@ -1,7 +1,8 @@
 import { BRAND, NAV } from '../content'
 import { AttuneMark } from './AttuneMark'
+import { ThemeToggle } from './ThemeToggle'
 
-/** Wordmark left, nav right. At ≤640px only Sign in and the invite button stay. */
+/** Wordmark left, nav right. At ≤640px only Sign in, the invite button and the light/dark switch stay. */
 export function SiteHeader() {
   return (
     <header className="mx-auto flex max-w-landing flex-wrap items-center justify-between gap-4 px-6 py-[22px]">
@@ -28,6 +29,7 @@ export function SiteHeader() {
         >
           {NAV.cta.label}
         </a>
+        <ThemeToggle />
       </nav>
     </header>
   )

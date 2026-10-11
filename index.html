@@ -2,6 +2,22 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <!-- Light or dark follows the device; the header switch overrides it (src/landing/theme.ts).
+         Apply a saved pick before first paint, and paint the ground before the page's CSS arrives. -->
+    <meta name="color-scheme" content="light dark" />
+    <script data-theme-pick>
+      ;(function () {
+        try {
+          var t = localStorage.getItem('attune.landing.theme')
+          if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t)
+        } catch (e) {}
+      })()
+    </script>
+    <style data-theme-ground>
+      :root { color-scheme: only light; background: #F3F6F4; }
+      @media (prefers-color-scheme: dark) { :root:not([data-theme='light']) { color-scheme: dark; background: #0E1614; } }
+      :root[data-theme='dark'] { color-scheme: dark; background: #0E1614; }
+    </style>
     <script data-root-fallback>
       // Installed home-screen apps, notification taps and Strava callbacks
       // all open here first. If the guard module (src/landing/main.tsx)
