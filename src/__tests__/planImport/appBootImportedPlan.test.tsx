@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, afterAll, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import App from '../../App'
 import { addDays, mondayOnOrBefore, todayDateString } from '../../utils/planDates'
@@ -7,9 +7,20 @@ import type { ImportedPlanV1, ImportedSession } from '../../utils/planImport/typ
 
 /**
  * Initiative 004 — boots the REAL App against an onboarding config that
- * carries an uploaded plan. Whatever day the suite runs, week 1 is pinned two
- * Mondays back, so today always falls in week 3.
+ * carries an uploaded plan. Week 1 is pinned two Mondays back, so today always
+ * falls in week 3.
+ *
+ * The clock is pinned to a Wednesday morning (local time, so every CI time zone
+ * sees the same day). From 6 PM the Today tab adds an evening close that
+ * previews tomorrow's session, and on a Sunday evening tomorrow is week 4: the
+ * first test failed every Sunday after 6 PM wherever the suite ran. Only Date
+ * is faked, so the app's timers and Testing Library's waits run normally.
  */
+vi.useFakeTimers({ toFake: ['Date'] })
+vi.setSystemTime(new Date(2026, 9, 7, 10, 0, 0))
+afterAll(() => {
+  vi.useRealTimers()
+})
 
 const thisMonday = mondayOnOrBefore(todayDateString())
 const pinned = addDays(thisMonday, -14)
