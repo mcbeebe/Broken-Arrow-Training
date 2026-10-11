@@ -2,8 +2,10 @@
 
 GET /api/coach/scheduled_push → run_scheduled_push() over every subscribed
 athlete, sending the 6 AM / 1 PM / 8 PM nudge to each device in that device's
-LOCAL time. Idempotent per device/local-day/period via the coach_push_sent:*
-dedup keys, so an extra invocation is harmless.
+LOCAL time, then the Sunday/Wednesday Coach check-in emails
+(`_checkin.run_checkin_emails`, initiative 005). Idempotent per
+device/local-day/period via the coach_push_sent:* dedup keys, and per
+athlete/local-day for the emails, so an extra invocation is harmless.
 
 WHY THIS FILE EXISTS AGAIN
 --------------------------
@@ -30,6 +32,7 @@ from http.server import BaseHTTPRequestHandler
 
 from ._core import send_json, send_cors_preflight
 from .push import run_scheduled_push, _cron_authorized
+from ._checkin import run_checkin_emails
 
 
 class handler(BaseHTTPRequestHandler):
@@ -42,7 +45,14 @@ class handler(BaseHTTPRequestHandler):
         if not _cron_authorized(self.headers):
             send_json(self, 401, {"error": "unauthorized"})
             return
+        # Two independent jobs: a failure in one must not stop the other.
+        status = 200
         try:
-            send_json(self, 200, run_scheduled_push())
+            result = run_scheduled_push()
         except Exception as e:
-            send_json(self, 500, {"error": str(e)})
+            status, result = 500, {"error": str(e)}
+        try:
+            result["checkin"] = run_checkin_emails()
+        except Exception as e:
+            result["checkin"] = {"error": type(e).__name__}
+        send_json(self, status, result)

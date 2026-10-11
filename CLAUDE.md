@@ -156,6 +156,19 @@ succeed.
   (default Sonnet) tune it. It never stores or logs the uploaded file
   (initiative 004, D10; `test_plan_import.py` holds it to that).
 
+- **The Coach check-in email** (initiative 005) goes out Sunday and
+  Wednesday from 6:00 am local (retried hourly until 9:59), sent by the
+  hourly `scheduled_push` cron through Resend (`RESEND_API_KEY`,
+  `EMAIL_FROM`). The server cannot rebuild the plan, so the app uploads a
+  snapshot to `/api/coach/checkin` whenever it changes, but only once the
+  athlete has turned the email on in Settings → Notifications. The snapshot's
+  schema is `src/utils/checkin/snapshot.ts` on one side and
+  `api/coach/_checkin.clean_snapshot` on the other: change both together. It
+  is open to `mike` alone, through `checkinOpenTo`
+  (`src/utils/checkin/access.ts`) and `CHECKIN_ATHLETES` on Vercel; opening it
+  to anyone else changes both. Only the email's "Coach's read" paragraph is
+  model-written, and the email goes without it if that call fails.
+
 ## Hard constraints
 
 - **`api/requirements.txt` pins *are* the deployment** — Vercel installs fresh

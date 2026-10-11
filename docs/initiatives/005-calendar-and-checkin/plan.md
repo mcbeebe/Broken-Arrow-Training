@@ -34,7 +34,7 @@ hourly cron (existing scheduled_push) ──────────────
 
 | PR | What | Ships |
 |----|------|-------|
-| **0** | This intent and plan, plus the registry row | docs only |
+| **0** | This intent and plan, plus the registry row (#499) | docs only |
 | **1** | **Check-in email.** `buildCheckinSnapshot` and the upload hook, `api/coach/checkin.py` (authed POST, owner-gated), `api/coach/_checkin.py` (composer: HTML and plain text), and the Sun/Wed hook in the cron. In Settings → Notifications: a "Coach check-in email" switch and a **Send a test now** button. | the email |
 | **2** | **Connect Google Calendar.** `api/auth/google_calendar.py`: start (signed `state`, 10 min), callback (code → refresh token in KV, creates the **attune.coach** calendar in the athlete's time zone), status, disconnect (deletes the calendar, revokes the token, clears KV). A Settings → Connections card. | connect / disconnect, empty calendar |
 | **3** | **Calendar sync.** The server-side diff on snapshot upload, events upserted under deterministic IDs (one per date), and the 02:00 reconcile. | workouts on the calendar, kept in step |
