@@ -14,12 +14,15 @@ Environment variables:
   KV_REST_API_URL / KV_REST_API_TOKEN: Upstash KV
   ACCESS_REQUEST_SALT: salt for the hashed client IP that keys the
     request-access throttle (google.py). Unset = throttle off.
+  API_URL: public origin of this API, for the review links in the admin's
+    access-request email. Default: https://$VERCEL_PROJECT_PRODUCTION_URL.
 """
 
 import hashlib
 import hmac
 import json
 import os
+import re
 import time
 import base64
 import urllib.request
@@ -169,6 +172,20 @@ def get_kv_email_map() -> dict[str, str]:
         return {}
 
 
+def get_kv_email_map_strict() -> dict[str, str]:
+    """Like get_kv_email_map, but raises if the allowlist can't be read.
+
+    Use it before writing the map back: the lenient read turns a KV hiccup
+    into {}, and writing on top of that drops every admin-added athlete."""
+    raw = _kv_get_strict(KV_ATHLETE_EMAILS_KEY)
+    if raw is None:
+        return {}
+    data = json.loads(raw)
+    if not isinstance(data, dict):
+        raise ValueError("athlete allowlist is not an object")
+    return _normalize_map(data)
+
+
 def set_kv_email_map(mapping: dict[str, str]) -> None:
     _kv_set(KV_ATHLETE_EMAILS_KEY, json.dumps(_normalize_map(mapping), separators=(",", ":")))
 
@@ -252,6 +269,52 @@ def remove_access_request(email: str) -> None:
         set_access_requests(remaining)
 
 
+_ATHLETE_ID_CHARS = re.compile(r"[^a-z0-9-]")
+MAX_ATHLETE_ID_LEN = 40
+
+
+def unique_athlete_id(seed: str, taken: set[str]) -> str:
+    """An athlete ID for a new athlete that no one else already has.
+
+    `seed` is an email (its local part is used, as the admin panel's
+    deriveAthleteId does) or a preferred ID. A clash gets -2, -3, ...:
+    approving mike@elsewhere.com must never sign a stranger in as `mike`."""
+    local = seed.split("@", 1)[0] if "@" in seed else seed
+    base = _ATHLETE_ID_CHARS.sub("", local.lower()).lstrip("-")[:MAX_ATHLETE_ID_LEN]
+    base = base or "athlete"
+    if base not in taken:
+        return base
+    n = 2
+    while True:
+        suffix = f"-{n}"
+        candidate = base[:MAX_ATHLETE_ID_LEN - len(suffix)] + suffix
+        if candidate not in taken:
+            return candidate
+        n += 1
+
+
+def approve_access_request(email: str, preferred_id: str | None = None) -> tuple[str, bool]:
+    """Let `email` sign in, and clear its queued request.
+
+    An email that can already sign in keeps its athlete ID. A new one gets
+    `preferred_id` (or one derived from the email), made unique against
+    every ID in use. Returns (athlete_id, newly_allowed). Raises, writing
+    nothing, if the allowlist can't be read; raises if it can't be written."""
+    email = email.strip().lower()
+    env_map = get_env_email_map()
+    kv_map = get_kv_email_map_strict()
+    existing = env_map.get(email) or kv_map.get(email)
+    if existing:
+        remove_access_request(email)
+        return existing, False
+    taken = set(env_map.values()) | set(kv_map.values())
+    athlete_id = unique_athlete_id(preferred_id or email, taken)
+    kv_map[email] = athlete_id
+    set_kv_email_map(kv_map)
+    remove_access_request(email)
+    return athlete_id, True
+
+
 def get_email_to_athlete_map() -> dict[str, str]:
     """Merged allowlist used at login. Admin-added (KV) entries override the
     env seed so the same email can be re-pointed without a redeploy."""
@@ -281,7 +344,7 @@ def _esc(s: str) -> str:
     """Minimal HTML escape for user-supplied text dropped into email bodies."""
     return (
         s.replace("&", "&amp;").replace("<", "&lt;")
-        .replace(">", "&gt;").replace('"', "&quot;")
+        .replace(">", "&gt;").replace('"', "&quot;").replace("'", "&#39;")
     )
 
 
@@ -308,7 +371,10 @@ def send_email(to: str, subject: str, html: str, text: str | None = None) -> boo
     False otherwise (including when unconfigured). Never raises."""
     api_key = os.environ.get("RESEND_API_KEY", "").strip()
     sender = os.environ.get("EMAIL_FROM", "Attune <onboarding@resend.dev>").strip()
-    if not api_key or not to:
+    if not api_key:
+        print("[email] RESEND_API_KEY unset; not sent", flush=True)
+        return False
+    if not to:
         return False
     payload = {"from": sender, "to": [to], "subject": subject, "html": html}
     if text:
@@ -321,15 +387,90 @@ def send_email(to: str, subject: str, html: str, text: str | None = None) -> boo
     )
     try:
         with urllib.request.urlopen(req, timeout=10) as resp:
-            return 200 <= resp.status < 300
-    except Exception:
+            if 200 <= resp.status < 300:
+                return True
+            print(f"[email] Resend answered {resp.status}; not sent", flush=True)
+            return False
+    except Exception as e:
+        # An HTTPError's code says why (403: unverified sender domain).
+        code = getattr(e, "code", None)
+        detail = f"{type(e).__name__} {code}" if code else type(e).__name__
+        print(f"[email] send failed ({detail})", flush=True)
         return False
 
 
+# ─── One-click review links ──────────────────────────────────────
+# The admin's access-request email carries Approve and Dismiss links. Each is
+# signed (HMAC of action, email and expiry, keyed off OAUTH_JWT_SECRET), so it
+# can't be forged or pointed at another email. Opening one only shows a
+# confirm page; the change happens on its button's POST, so a mail scanner
+# that fetches every link in a message can't approve anyone.
+REVIEW_ACTIONS = ("approve", "dismiss")
+REVIEW_LINK_TTL_SECONDS = 7 * 86400
+
+
+def api_url() -> str | None:
+    """This API's public origin: API_URL if set, else Vercel's production
+    domain. None when neither is known (the email then omits the links)."""
+    override = os.environ.get("API_URL", "").strip().rstrip("/")
+    if override:
+        return override
+    host = os.environ.get("VERCEL_PROJECT_PRODUCTION_URL", "").strip().strip("/")
+    return f"https://{host}" if host else None
+
+
+def _review_signature(action: str, email: str, exp: int) -> str | None:
+    secret = get_jwt_secret()
+    if not secret:
+        return None
+    # A key of its own, so a review signature can never pass as a session
+    # token's or the other way round.
+    key = hmac.new(secret.encode(), b"attune:access-review:v1", hashlib.sha256).digest()
+    msg = f"{action}\n{email.strip().lower()}\n{exp}".encode()
+    return hmac.new(key, msg, hashlib.sha256).hexdigest()
+
+
+def review_url(action: str, email: str, now: float | None = None) -> str | None:
+    """A signed link that opens the confirm page for one action on one
+    request, valid REVIEW_LINK_TTL_SECONDS. None if it can't be signed."""
+    base = api_url()
+    exp = int(now if now is not None else time.time()) + REVIEW_LINK_TTL_SECONDS
+    sig = _review_signature(action, email, exp)
+    if not base or not sig or action not in REVIEW_ACTIONS:
+        return None
+    query = urllib.parse.urlencode({
+        "review": action, "email": email.strip().lower(), "exp": str(exp), "sig": sig,
+    })
+    return f"{base}/api/auth/google?{query}"
+
+
+def check_review(action: str, email: str, exp: str, sig: str, now: float | None = None) -> str:
+    """'ok', 'expired' or 'invalid' for a review link's parameters.
+
+    'expired' only for a genuine signature, so the page never tells a
+    forger anything about a guess."""
+    if action not in REVIEW_ACTIONS or not exp.isdigit() or len(exp) > 12 or not sig:
+        return "invalid"
+    expected = _review_signature(action, email, int(exp))
+    if not expected or not hmac.compare_digest(expected, sig):
+        return "invalid"
+    if int(exp) < int(now if now is not None else time.time()):
+        return "expired"
+    return "ok"
+
+
+_BUTTON = (
+    "display:inline-block;padding:10px 18px;border-radius:8px;"
+    "font-weight:600;text-decoration:none;"
+)
+
+
 def notify_admin_of_request(requester_email: str, note: str, source: str | None = None) -> None:
-    """Email the admin that someone asked for access. Best-effort."""
+    """Email the admin that someone asked for access, with signed Approve and
+    Dismiss links when they can be built. Best-effort."""
     admin_email = get_admin_email()
     if not admin_email:
+        print("[email] no admin email (NOTIFY_EMAIL unset, no admin on the allowlist)", flush=True)
         return
     note = note.strip()
     note_html = (
@@ -338,10 +479,25 @@ def notify_admin_of_request(requester_email: str, note: str, source: str | None 
     source_html = (
         f"<p style='margin:8px 0;color:#475569'>Source: {_esc(source)}</p>" if source else ""
     )
+    approve = review_url("approve", requester_email)
+    dismiss = review_url("dismiss", requester_email)
+    if approve and dismiss:
+        buttons_html = (
+            "<p style='margin:20px 0'>"
+            f"<a href='{_esc(approve)}' style='{_BUTTON}background:#0f766e;color:#ffffff'>Approve</a>"
+            "&nbsp;&nbsp;"
+            f"<a href='{_esc(dismiss)}' style='{_BUTTON}background:#e2e8f0;color:#0f172a'>Dismiss</a>"
+            "</p>"
+            "<p style='color:#64748b;font-size:13px'>Each button opens a page to confirm. "
+            "The links work for 7 days.</p>"
+        )
+        buttons_text = f"\n\nApprove: {approve}\nDismiss: {dismiss}\n(Each opens a page to confirm; the links work for 7 days.)"
+    else:
+        buttons_html = buttons_text = ""
     html = (
         f"<p>New Attune access request from <strong>{_esc(requester_email)}</strong>.</p>"
-        f"{note_html}{source_html}"
-        f"<p>Open <a href='{app_url()}'>Attune</a> → Settings → Athletes to approve or dismiss.</p>"
+        f"{note_html}{source_html}{buttons_html}"
+        f"<p>Or open <a href='{app_url()}'>Attune</a> → Settings → Athletes.</p>"
     )
     details = []
     if note:
@@ -351,16 +507,20 @@ def notify_admin_of_request(requester_email: str, note: str, source: str | None 
     text = (
         f"New Attune access request from {requester_email}."
         + ("\n\n" + "\n".join(details) if details else "")
-        + f"\n\nApprove in Attune → Settings → Athletes: {app_url()}"
+        + buttons_text
+        + f"\n\nOr approve in Attune → Settings → Athletes: {app_url()}"
     )
     send_email(admin_email, f"New Attune access request: {requester_email}", html, text)
 
 
-def notify_user_approved(user_email: str) -> None:
-    """Email a newly-approved athlete that they can sign in now. Best-effort."""
+def notify_user_approved(user_email: str) -> bool:
+    """Email a newly-approved athlete that they can sign in now. Best-effort;
+    True if Resend accepted it."""
     url = app_url()
     html = (
         "<p>You're in! Your Attune account is ready.</p>"
+        f"<p style='margin:20px 0'><a href='{url}' style='{_BUTTON}background:#0f766e;color:#ffffff'>"
+        "Sign in to Attune</a></p>"
         f"<p>Sign in with Google at <a href='{url}'>{url}</a> using this email address.</p>"
         "<p style='color:#475569'>— Mike</p>"
     )
@@ -368,7 +528,7 @@ def notify_user_approved(user_email: str) -> None:
         "You're in! Your Attune account is ready.\n\n"
         f"Sign in with Google at {url} using this email address.\n\n— Mike"
     )
-    send_email(user_email, "You're in — your Attune account is ready", html, text)
+    return send_email(user_email, "You're in — your Attune account is ready", html, text)
 
 
 def lookup_athlete(email: str) -> str | None:
