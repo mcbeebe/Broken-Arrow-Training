@@ -6,7 +6,7 @@ Body: { "credential": "..." }  (Google ID token from Sign In with Google)
 Verifies the Google ID token, maps email to athlete ID,
 returns a signed session token.
 
-GET /api/auth/google?review=approve|dismiss&email=&exp=&sig=
+GET /api/auth/google?review=approve|dismiss&email=&rid=&exp=&sig=
   The signed link in the admin's access-request email. Shows a confirm page;
   its button POSTs the same fields as a form, which makes the change.
 """
@@ -28,13 +28,15 @@ from ._helpers import (
     get_kv_email_map,
     set_kv_email_map,
     get_access_requests,
-    add_access_request,
+    queue_access_request,
     MAX_REQUEST_NOTE_LEN,
     kv_bump_counter,
     remove_access_request,
     notify_admin_of_request,
     notify_user_approved,
     approve_access_request,
+    next_athlete_id,
+    retire_athlete_id,
     check_review,
     get_kv_email_map_strict,
     app_url,
@@ -245,7 +247,7 @@ class handler(BaseHTTPRequestHandler):
             self._send_json(200, {"ok": True})
             return
         try:
-            is_new = add_access_request(email, note, source)
+            is_new, rid = queue_access_request(email, note, source)
         except Exception as e:
             # Unconfigured, unreachable or unreadable KV. Nothing was written.
             print(f"[access-request] not queued ({type(e).__name__})")
@@ -257,7 +259,7 @@ class handler(BaseHTTPRequestHandler):
         # doesn't count toward the cap (one address can't silence the day).
         if is_new and _admin_email_allowed():
             try:
-                notify_admin_of_request(email, note, source)
+                notify_admin_of_request(email, note, source, rid)
             except Exception:
                 pass
         self._send_json(200, {"ok": True})
@@ -266,34 +268,34 @@ class handler(BaseHTTPRequestHandler):
         """The admin's one-click review link (see review_url in _helpers).
 
         GET only reads and shows a confirm page; the change happens on the
-        page's POST. Both re-check the signature, so the POST is as hard to
-        forge as the link."""
+        page's POST. Both re-check the signature and that the request the
+        link was made for is still pending, so a link works once."""
         def one(name: str) -> str:
             values = fields.get(name) or [""]
             return str(values[0]).strip()
 
-        action, email = one("review"), one("email").lower()
+        action, email, rid = one("review"), one("email").lower(), one("rid")
         exp, sig = one("exp"), one("sig")
-        verdict = check_review(action, email, exp, sig)
+        settings = f"<a href='{app_url()}'>Attune</a> → Settings → Athletes"
+        verdict = check_review(action, email, rid, exp, sig)
         if verdict == "expired":
             self._send_page(410, "This link has expired",
-                            "<p>Review links work for 7 days. Approve or dismiss the request "
-                            f"in <a href='{app_url()}'>Attune</a> → Settings → Athletes.</p>")
+                            f"<p>Review links work for 7 days. Approve or dismiss the request in {settings}.</p>")
             return
         if verdict != "ok" or not EMAIL_RE.match(email):
             self._send_page(403, "This link isn't valid",
-                            "<p>Open the link from the email again, or use "
-                            f"<a href='{app_url()}'>Attune</a> → Settings → Athletes.</p>")
+                            f"<p>Open the link from the email again, or use {settings}.</p>")
             return
 
         who = f"<strong>{_esc(email)}</strong>"
+        unreadable = ("Try again in a minute",
+                      "<p>The athlete list couldn't be read, so nothing was changed.</p>")
         try:
             env_map = get_env_email_map()
             allowed_as = env_map.get(email) or get_kv_email_map_strict().get(email)
         except Exception as e:
             print(f"[access-review] allowlist unreadable ({type(e).__name__})")
-            self._send_page(503, "Try again in a minute",
-                            "<p>The athlete list couldn't be read, so nothing was changed.</p>")
+            self._send_page(503, *unreadable)
             return
         if allowed_as:
             self._send_page(200, "Already approved",
@@ -302,14 +304,15 @@ class handler(BaseHTTPRequestHandler):
             return
         pending = next((r for r in get_access_requests()
                         if str(r.get("email", "")).strip().lower() == email), None)
+        if not pending or str(pending.get("rid") or "") != rid:
+            self._send_page(200, "No longer pending",
+                            f"<p>This request from {who} was already dismissed or handled, "
+                            f"so this link no longer works. To let them in, use {settings}.</p>")
+            return
 
         if action == "dismiss":
-            if not pending:
-                self._send_page(200, "Nothing to dismiss",
-                                f"<p>There's no pending request from {who}.</p>")
-                return
             if not commit:
-                self._send_confirm(action, email, exp, sig, pending,
+                self._send_confirm(action, email, rid, exp, sig, pending,
                                    f"Dismiss the request from {who}?", "Dismiss")
                 return
             try:
@@ -323,11 +326,16 @@ class handler(BaseHTTPRequestHandler):
                             "They weren't emailed.</p>")
             return
 
-        # approve: a link stays good for 7 days even after a dismiss, so
-        # the admin can change their mind.
         if not commit:
-            self._send_confirm(action, email, exp, sig, pending,
-                               f"Approve {who}?", "Approve")
+            try:
+                athlete_id = next_athlete_id(email, None)
+            except Exception as e:
+                print(f"[access-review] athlete IDs unreadable ({type(e).__name__})")
+                self._send_page(503, *unreadable)
+                return
+            self._send_confirm(action, email, rid, exp, sig, pending,
+                               f"Approve {who}?", "Approve",
+                               f"They'll sign in as athlete <code>{_esc(athlete_id)}</code>.")
             return
         try:
             athlete_id, newly_allowed = approve_access_request(email)
@@ -355,21 +363,21 @@ class handler(BaseHTTPRequestHandler):
                         f"<p>{who} can sign in now, as athlete <code>{_esc(athlete_id)}</code>.</p>"
                         f"<p>{told}</p>")
 
-    def _send_confirm(self, action: str, email: str, exp: str, sig: str,
-                      pending: dict | None, question: str, button: str):
+    def _send_confirm(self, action: str, email: str, rid: str, exp: str, sig: str,
+                      pending: dict, question: str, button: str, outcome_html: str = ""):
         details = ""
-        if pending:
-            note = str(pending.get("note") or "").strip()
-            source = str(pending.get("source") or "").strip()
-            if note:
-                details += f"<p class='muted'>Note: {_esc(note)}</p>"
-            if source:
-                details += f"<p class='muted'>Source: {_esc(source)}</p>"
-        else:
-            details = "<p class='muted'>This request is no longer in the queue.</p>"
+        note = str(pending.get("note") or "").strip()
+        source = str(pending.get("source") or "").strip()
+        if note:
+            details += f"<p class='muted'>Note: {_esc(note)}</p>"
+        if source:
+            details += f"<p class='muted'>Source: {_esc(source)}</p>"
+        if outcome_html:
+            details += f"<p>{outcome_html}</p>"
         hidden = "".join(
             f"<input type='hidden' name='{k}' value='{_esc(v)}'>"
-            for k, v in (("review", action), ("email", email), ("exp", exp), ("sig", sig))
+            for k, v in (("review", action), ("email", email), ("rid", rid),
+                         ("exp", exp), ("sig", sig))
         )
         primary = " primary" if action == "approve" else ""
         self._send_page(200, question, (
@@ -463,24 +471,34 @@ class handler(BaseHTTPRequestHandler):
                 self._send_json(409, {"error": f"{email} is configured in the env seed and can't be edited here"})
                 return
             try:
-                kv_map = get_kv_email_map()
+                kv_map = get_kv_email_map_strict()
                 kv_map[email] = athlete_id
                 set_kv_email_map(kv_map)
-            except RuntimeError:
-                self._send_json(503, {"error": "Allowlist storage (KV) is not configured"})
+            except Exception as e:
+                print(f"[athletes] add failed ({type(e).__name__})")
+                self._send_json(503, {"error": "Allowlist storage (KV) is unavailable"})
                 return
 
         elif action == "remove":
             email = str(body.get("email", "")).strip().lower()
-            kv_map = get_kv_email_map()
+            try:
+                kv_map = get_kv_email_map_strict()
+            except Exception as e:
+                print(f"[athletes] remove: allowlist unreadable ({type(e).__name__})")
+                self._send_json(503, {"error": "Allowlist storage (KV) is unavailable"})
+                return
             if email not in kv_map:
                 self._send_json(404, {"error": f"{email} is not an admin-managed athlete"})
                 return
             try:
+                # Retire the ID first: their data stays keyed by it, so it
+                # must never go to someone new (see approve_access_request).
+                retire_athlete_id(kv_map[email], email)
                 del kv_map[email]
                 set_kv_email_map(kv_map)
-            except RuntimeError:
-                self._send_json(503, {"error": "Allowlist storage (KV) is not configured"})
+            except Exception as e:
+                print(f"[athletes] remove failed ({type(e).__name__})")
+                self._send_json(503, {"error": "Allowlist storage (KV) is unavailable"})
                 return
 
         elif action == "requests_approve":
