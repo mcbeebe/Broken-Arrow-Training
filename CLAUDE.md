@@ -160,6 +160,25 @@ succeed.
   (default Sonnet) tune it. It never stores or logs the uploaded file
   (initiative 004, D10; `test_plan_import.py` holds it to that).
 
+- **Access requests close by email** (`api/auth/google.py`). A request
+  from the landing page or the login screen emails `NOTIFY_EMAIL` with
+  signed **Approve** / **Dismiss** links (HMAC keyed off
+  `OAUTH_JWT_SECRET`, 7 days, on `API_URL` or else
+  `VERCEL_PROJECT_PRODUCTION_URL`). Each link is bound to the queued
+  request's random `rid`, so it works once: after an approve, a dismiss or
+  a Settings removal it does nothing. Opening a link only shows a confirm
+  page: the change is the page's form POST, so a mail scanner that fetches
+  links can't approve anyone. **Keep GET read-only.** Approving from the
+  link or from Settings → Athletes goes through one helper,
+  `approve_access_request`: a new athlete never gets an ID in use, the
+  admin's, or one retired by Settings → Remove (their data stays keyed by
+  it; `auth:retired_athlete_ids`), and it never writes back an allowlist
+  it couldn't read. Athletes removed before 2026-10-12 aren't in the
+  retired list. The athlete then gets the "You're in" email with the
+  `/app/` link. All of this needs `RESEND_API_KEY` and a verified
+  `EMAIL_FROM` on Vercel: without the key every email is skipped, and
+  `send_email` logs `[email] ...` to say why.
+
 - **The Coach check-in email** (initiative 005) goes out Sunday and
   Wednesday from 6:00 am local (retried hourly until 9:59), sent by the
   hourly `scheduled_push` cron through Resend (`RESEND_API_KEY`,

@@ -5,12 +5,17 @@ Body: { "credential": "..." }  (Google ID token from Sign In with Google)
 
 Verifies the Google ID token, maps email to athlete ID,
 returns a signed session token.
+
+GET /api/auth/google?review=approve|dismiss&email=&rid=&exp=&sig=
+  The signed link in the admin's access-request email. Shows a confirm page;
+  its button POSTs the same fields as a form, which makes the change.
 """
 
 import hashlib
 import json
 import os
 import re
+import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler
@@ -23,12 +28,19 @@ from ._helpers import (
     get_kv_email_map,
     set_kv_email_map,
     get_access_requests,
-    add_access_request,
+    queue_access_request,
     MAX_REQUEST_NOTE_LEN,
     kv_bump_counter,
     remove_access_request,
     notify_admin_of_request,
     notify_user_approved,
+    approve_access_request,
+    next_athlete_id,
+    retire_athlete_id,
+    check_review,
+    get_kv_email_map_strict,
+    app_url,
+    _esc,
 )
 from ._entitlements import (
     default_tier,
@@ -111,7 +123,22 @@ class handler(BaseHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.end_headers()
 
+    def do_GET(self):
+        query = urllib.parse.urlsplit(self.path).query
+        self._handle_review(urllib.parse.parse_qs(query), commit=False)
+
     def do_POST(self):
+        content_type = (self.headers.get("Content-Type") or "").split(";")[0].strip().lower()
+        if content_type == "application/x-www-form-urlencoded":
+            # The confirm page's button. The app and the landing page only
+            # ever send JSON.
+            try:
+                length = min(int(self.headers.get("Content-Length", 0)), 4096)
+                fields = urllib.parse.parse_qs(self.rfile.read(length).decode())
+            except Exception:
+                fields = {}
+            self._handle_review(fields, commit=True)
+            return
         try:
             content_length = int(self.headers.get("Content-Length", 0))
             body = json.loads(self.rfile.read(content_length).decode()) if content_length > 0 else {}
@@ -220,7 +247,7 @@ class handler(BaseHTTPRequestHandler):
             self._send_json(200, {"ok": True})
             return
         try:
-            is_new = add_access_request(email, note, source)
+            is_new, rid = queue_access_request(email, note, source)
         except Exception as e:
             # Unconfigured, unreachable or unreadable KV. Nothing was written.
             print(f"[access-request] not queued ({type(e).__name__})")
@@ -232,10 +259,163 @@ class handler(BaseHTTPRequestHandler):
         # doesn't count toward the cap (one address can't silence the day).
         if is_new and _admin_email_allowed():
             try:
-                notify_admin_of_request(email, note, source)
+                notify_admin_of_request(email, note, source, rid)
             except Exception:
                 pass
         self._send_json(200, {"ok": True})
+
+    def _handle_review(self, fields: dict, commit: bool):
+        """The admin's one-click review link (see review_url in _helpers).
+
+        GET only reads and shows a confirm page; the change happens on the
+        page's POST. Both re-check the signature and that the request the
+        link was made for is still pending, so a link works once."""
+        def one(name: str) -> str:
+            values = fields.get(name) or [""]
+            return str(values[0]).strip()
+
+        action, email, rid = one("review"), one("email").lower(), one("rid")
+        exp, sig = one("exp"), one("sig")
+        settings = f"<a href='{app_url()}'>Attune</a> → Settings → Athletes"
+        verdict = check_review(action, email, rid, exp, sig)
+        if verdict == "expired":
+            self._send_page(410, "This link has expired",
+                            f"<p>Review links work for 7 days. Approve or dismiss the request in {settings}.</p>")
+            return
+        if verdict != "ok" or not EMAIL_RE.match(email):
+            self._send_page(403, "This link isn't valid",
+                            f"<p>Open the link from the email again, or use {settings}.</p>")
+            return
+
+        who = f"<strong>{_esc(email)}</strong>"
+        unreadable = ("Try again in a minute",
+                      "<p>The athlete list couldn't be read, so nothing was changed.</p>")
+        try:
+            env_map = get_env_email_map()
+            allowed_as = env_map.get(email) or get_kv_email_map_strict().get(email)
+        except Exception as e:
+            print(f"[access-review] allowlist unreadable ({type(e).__name__})")
+            self._send_page(503, *unreadable)
+            return
+        if allowed_as:
+            self._send_page(200, "Already approved",
+                            f"<p>{who} can already sign in, as athlete "
+                            f"<code>{_esc(allowed_as)}</code>. Nothing to do.</p>")
+            return
+        pending = next((r for r in get_access_requests()
+                        if str(r.get("email", "")).strip().lower() == email), None)
+        if not pending or str(pending.get("rid") or "") != rid:
+            self._send_page(200, "No longer pending",
+                            f"<p>This request from {who} was already dismissed or handled, "
+                            f"so this link no longer works. To let them in, use {settings}.</p>")
+            return
+
+        if action == "dismiss":
+            if not commit:
+                self._send_confirm(action, email, rid, exp, sig, pending,
+                                   f"Dismiss the request from {who}?", "Dismiss")
+                return
+            try:
+                remove_access_request(email)
+            except Exception as e:
+                print(f"[access-review] dismiss failed ({type(e).__name__})")
+                self._send_page(503, "Try again in a minute",
+                                "<p>The request couldn't be dismissed. Nothing was changed.</p>")
+                return
+            self._send_page(200, "Dismissed", f"<p>The request from {who} is gone. "
+                            "They weren't emailed.</p>")
+            return
+
+        if not commit:
+            try:
+                athlete_id = next_athlete_id(email, None)
+            except Exception as e:
+                print(f"[access-review] athlete IDs unreadable ({type(e).__name__})")
+                self._send_page(503, *unreadable)
+                return
+            self._send_confirm(action, email, rid, exp, sig, pending,
+                               f"Approve {who}?", "Approve",
+                               f"They'll sign in as athlete <code>{_esc(athlete_id)}</code>.")
+            return
+        try:
+            athlete_id, newly_allowed = approve_access_request(email)
+        except Exception as e:
+            print(f"[access-review] approve failed ({type(e).__name__})")
+            self._send_page(503, "Try again in a minute",
+                            "<p>The athlete list couldn't be updated, so nothing was changed.</p>")
+            return
+        if not newly_allowed:
+            self._send_page(200, "Already approved",
+                            f"<p>{who} can already sign in, as athlete "
+                            f"<code>{_esc(athlete_id)}</code>.</p>")
+            return
+        try:
+            emailed = notify_user_approved(email)
+        except Exception:
+            emailed = False
+        told = (
+            "We've emailed them a link to sign in."
+            if emailed else
+            f"<strong>The email to them didn't send.</strong> Tell them to sign in with Google at "
+            f"<a href='{app_url()}'>{_esc(app_url())}</a>."
+        )
+        self._send_page(200, "Approved",
+                        f"<p>{who} can sign in now, as athlete <code>{_esc(athlete_id)}</code>.</p>"
+                        f"<p>{told}</p>")
+
+    def _send_confirm(self, action: str, email: str, rid: str, exp: str, sig: str,
+                      pending: dict, question: str, button: str, outcome_html: str = ""):
+        details = ""
+        note = str(pending.get("note") or "").strip()
+        source = str(pending.get("source") or "").strip()
+        if note:
+            details += f"<p class='muted'>Note: {_esc(note)}</p>"
+        if source:
+            details += f"<p class='muted'>Source: {_esc(source)}</p>"
+        if outcome_html:
+            details += f"<p>{outcome_html}</p>"
+        hidden = "".join(
+            f"<input type='hidden' name='{k}' value='{_esc(v)}'>"
+            for k, v in (("review", action), ("email", email), ("rid", rid),
+                         ("exp", exp), ("sig", sig))
+        )
+        primary = " primary" if action == "approve" else ""
+        self._send_page(200, question, (
+            f"{details}<form method='post' action='/api/auth/google'>{hidden}"
+            f"<button type='submit' class='btn{primary}'>{button}</button></form>"
+        ))
+
+    def _send_page(self, status: int, heading: str, body_html: str):
+        """A small standalone HTML page for the review flow. `heading` and
+        `body_html` are trusted markup; callers escape what they interpolate."""
+        title = re.sub(r"<[^>]+>", "", heading)
+        page = (
+            "<!doctype html><html lang='en'><head><meta charset='utf-8'>"
+            "<meta name='viewport' content='width=device-width,initial-scale=1'>"
+            f"<title>{title} · Attune</title><style>"
+            "body{font-family:-apple-system,system-ui,sans-serif;background:#f1f5f4;color:#0f172a;"
+            "margin:0;padding:32px 16px}"
+            "main{max-width:440px;margin:0 auto;background:#fff;border-radius:16px;padding:28px;"
+            "box-shadow:0 1px 3px rgba(0,0,0,.08)}"
+            "h1{font-size:22px;margin:0 0 12px;line-height:1.3}p{line-height:1.5}.muted{color:#475569}"
+            "a{color:#0f766e}code{background:#f1f5f9;padding:1px 5px;border-radius:4px}"
+            ".btn{font:inherit;font-weight:600;border:0;border-radius:10px;padding:12px 22px;"
+            "background:#e2e8f0;color:#0f172a;cursor:pointer;margin-top:8px;width:100%}"
+            ".btn.primary{background:#0f766e;color:#fff}"
+            f"</style></head><body><main><h1>{heading}</h1>{body_html}</main></body></html>"
+        ).encode()
+        self.send_response(status)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Cache-Control", "no-store")
+        # The page's URL carries the signature: never leak it, never frame it.
+        self.send_header("Referrer-Policy", "no-referrer")
+        self.send_header("X-Frame-Options", "DENY")
+        self.send_header("Content-Security-Policy",
+                         "default-src 'none'; style-src 'unsafe-inline'; "
+                         "form-action 'self'; frame-ancestors 'none'; base-uri 'none'")
+        self.send_header("X-Robots-Tag", "noindex")
+        self.end_headers()
+        self.wfile.write(page)
 
     def _handle_admin(self, body: dict):
         """Owner-only allowlist + request-queue management
@@ -291,30 +471,40 @@ class handler(BaseHTTPRequestHandler):
                 self._send_json(409, {"error": f"{email} is configured in the env seed and can't be edited here"})
                 return
             try:
-                kv_map = get_kv_email_map()
+                kv_map = get_kv_email_map_strict()
                 kv_map[email] = athlete_id
                 set_kv_email_map(kv_map)
-            except RuntimeError:
-                self._send_json(503, {"error": "Allowlist storage (KV) is not configured"})
+            except Exception as e:
+                print(f"[athletes] add failed ({type(e).__name__})")
+                self._send_json(503, {"error": "Allowlist storage (KV) is unavailable"})
                 return
 
         elif action == "remove":
             email = str(body.get("email", "")).strip().lower()
-            kv_map = get_kv_email_map()
+            try:
+                kv_map = get_kv_email_map_strict()
+            except Exception as e:
+                print(f"[athletes] remove: allowlist unreadable ({type(e).__name__})")
+                self._send_json(503, {"error": "Allowlist storage (KV) is unavailable"})
+                return
             if email not in kv_map:
                 self._send_json(404, {"error": f"{email} is not an admin-managed athlete"})
                 return
             try:
+                # Retire the ID first: their data stays keyed by it, so it
+                # must never go to someone new (see approve_access_request).
+                retire_athlete_id(kv_map[email], email)
                 del kv_map[email]
                 set_kv_email_map(kv_map)
-            except RuntimeError:
-                self._send_json(503, {"error": "Allowlist storage (KV) is not configured"})
+            except Exception as e:
+                print(f"[athletes] remove failed ({type(e).__name__})")
+                self._send_json(503, {"error": "Allowlist storage (KV) is unavailable"})
                 return
 
         elif action == "requests_approve":
             # Approve a pending request: add to the allowlist, then clear it
-            # from the queue. athleteId is supplied by the caller (derived from
-            # the email client-side) and validated here.
+            # from the queue. athleteId is the caller's suggestion (derived
+            # from the email client-side), validated here and made unique.
             email = str(body.get("email", "")).strip().lower()
             athlete_id = str(body.get("athleteId", "")).strip().lower()
             if not EMAIL_RE.match(email):
@@ -324,21 +514,18 @@ class handler(BaseHTTPRequestHandler):
                 self._send_json(400, {"error": "athleteId must be lowercase letters, numbers, or hyphens"})
                 return
             try:
-                # Env-seeded emails can already sign in; only KV needs the add.
-                if email not in get_env_email_map():
-                    kv_map = get_kv_email_map()
-                    kv_map[email] = athlete_id
-                    set_kv_email_map(kv_map)
-                remove_access_request(email)
-            except RuntimeError:
-                self._send_json(503, {"error": "Allowlist storage (KV) is not configured"})
+                _, newly_allowed = approve_access_request(email, athlete_id)
+            except Exception as e:
+                print(f"[access-request] approve failed ({type(e).__name__})")
+                self._send_json(503, {"error": "Allowlist storage (KV) is unavailable"})
                 return
             # Best-effort: tell the athlete they're in. Already approved, so an
             # email failure must not fail the request.
-            try:
-                notify_user_approved(email)
-            except Exception:
-                pass
+            if newly_allowed:
+                try:
+                    notify_user_approved(email)
+                except Exception:
+                    pass
 
         elif action == "requests_dismiss":
             email = str(body.get("email", "")).strip().lower()
