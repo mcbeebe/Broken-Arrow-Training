@@ -12,7 +12,8 @@ import './landing.css'
 
 /**
  * Render the landing page into `root`, honour a `#section` in the URL, then
- * start Google Analytics (a no-op unless the build set VITE_GA_MEASUREMENT_ID).
+ * start Google Analytics (a no-op unless the build set VITE_GA_MEASUREMENT_ID
+ * and the page is on attune.coach).
  */
 export function mountLanding(root: HTMLElement): void {
   const reactRoot = createRoot(root)

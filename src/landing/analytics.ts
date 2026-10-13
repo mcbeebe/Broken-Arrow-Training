@@ -9,6 +9,13 @@
 /** GA4 Measurement IDs look like "G-XXXXXXXXXX". */
 const MEASUREMENT_ID = /^G-[A-Z0-9]{4,20}$/
 
+/**
+ * The only hosts that report to GA. Anywhere else (a local `vite preview` of a
+ * production build, a copy of `dist/` on another host) stays untracked even
+ * when the build carries the Measurement ID.
+ */
+export const LIVE_HOSTS: readonly string[] = ['attune.coach']
+
 /** Query parameters GA may see: campaign tags and the tools' `?from=` referral. */
 const KEPT_PARAM = /^(utm_[a-z_]+|from)$/
 
@@ -32,8 +39,10 @@ export function analyticsPageLocation(loc: Pick<Location, 'origin' | 'pathname' 
 
 /**
  * Load gtag.js and record a page view with a sanitized address. Does nothing
- * unless `id` is a valid Measurement ID, so local builds and any build without
- * `VITE_GA_MEASUREMENT_ID` stay untracked.
+ * unless `id` is a valid Measurement ID and the page is on one of
+ * {@link LIVE_HOSTS}, so local builds, any build without
+ * `VITE_GA_MEASUREMENT_ID`, and production builds served elsewhere stay
+ * untracked.
  *
  * @param id GA4 Measurement ID, normally `import.meta.env.VITE_GA_MEASUREMENT_ID`.
  * @param win The window to install `gtag` on.
@@ -41,6 +50,7 @@ export function analyticsPageLocation(loc: Pick<Location, 'origin' | 'pathname' 
  */
 export function startAnalytics(id: string | undefined, win: Window = window): boolean {
   if (!id || !MEASUREMENT_ID.test(id)) return false
+  if (!LIVE_HOSTS.includes(win.location.hostname)) return false
   const w = win as GtagWindow
   const doc = w.document
   w.dataLayer = w.dataLayer || []
