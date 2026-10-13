@@ -100,7 +100,11 @@ succeed.
   for the landing page only: `src/landing/analytics.ts`, started from
   `mount.tsx`, so visitors the guard forwards to `/app/` never load it and the
   app is never measured. Page addresses keep only `utm_*` and `?from=`. Unset
-  means no GA. Do not add GA to the app without a privacy review.
+  means no GA, and even when set it reports only from `attune.coach`
+  (`LIVE_HOSTS`), so a production build served anywhere else (`vite preview`,
+  a copy of `dist/`) stays untracked; `analytics.test.ts` fails if the CNAME
+  `deploy.yml` writes or `SITE_ORIGIN` leaves that list. Do not add GA to the
+  app without a privacy review.
 - `scripts/deploy/check-site-layout.mjs` runs after the build on every PR and
   every publishing-branch push: it fails if the root page, `/app/`, the
   tools, `/sw.js` or the manifest move, if the manifest loses its `id`
