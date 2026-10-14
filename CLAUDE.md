@@ -17,13 +17,21 @@ Strava OAuth, and an iOS wrapper.
 `/`. `index.html` is the root page (the landing page, behind a switch) and the
 app is `app/index.html`, served at `/app/`. `/tools/*.html`, `/sw.js`,
 `/version.json`, `/favicon.svg` and `/manifest.webmanifest` stay at the root.
-So do `/robots.txt`, `/sitemap.xml` (the root page and the tools) and
+So do `/robots.txt`, `/sitemap.xml` (the root page and the tools; its
+`<lastmod>` dates are stamped at build from git by
+`scripts/deploy/vite-plugin-sitemap-lastmod.ts`, from the files named in
+`scripts/deploy/sitemap-lastmod.ts`, so a new URL needs an entry there and
+`deploy.yml` checks out with full history; a build in CI without it fails instead of stamping the build date, and `sitemapLastmodPlugin.test.ts` pins the checkout setting) and
 `/og-image.png`, the share image (made by
 `docs/initiatives/003-landing-page/og-image.mjs`). `/app/` is kept out of
 search by its `noindex` alone: **never `Disallow` it in robots.txt**, which
 would hide the `noindex` from Google and let it index `/app/` from links. The root
 page's title, description and share tags are copy.md § Meta, verbatim
-(`seo.test.ts`). A build with the landing page launched also puts the hero's
+(`seo.test.ts`). Each `tools/*.html` ships its own canonical link, share tags,
+`WebApplication` JSON-LD and a static `<h1>` plus description inside `#root`
+for crawlers; React replaces them on mount, so the `<h1>` must stay the
+planner's own title word for word (`staticHeading.test.tsx`).
+A build with the landing page launched also puts the hero's
 `<h1>` and each section's `<h2>` and intro (visually hidden, replaced when
 React mounts) and `Organization` / `WebApplication` JSON-LD into the root page,
 generated from `content.ts` by `scripts/deploy/landing-static.ts`, so a new
@@ -128,6 +136,9 @@ succeed.
   missing, a sitemap URL isn't a built `.html` page (or is under `/app/`),
   `og:image`/`twitter:image` names a file the build lacks, or the `og:image`
   isn't a whole PNG of the size `og:image:width`/`og:image:height` state.
+  It also fails if a sitemap `<url>` has no `<lastmod>` date, or if a tool page
+  loses, in its own HTML, its canonical link, share tags, `<h1>` or
+  `WebApplication` JSON-LD (initiative 006).
   A launched build's `index.html` must hold the `<h1>`, `<h2>`s and both
   JSON-LD types; a build that forwards everyone to `/app/` must hold none.
 - The `cutover-airlock` job publishes on the branch test alone — it ignores

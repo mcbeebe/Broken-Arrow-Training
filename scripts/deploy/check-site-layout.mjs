@@ -19,7 +19,9 @@
  * SCREEN_BUDGET_BYTES, and all of them under SCREENS_TOTAL_BUDGET_BYTES;
  * and that what search engines and link previews read holds together: every
  * sitemap URL is a built page outside /app/, and the root page's share image
- * ships, whole, at the size its tags state; and that the root page's crawlable
+ * ships, whole, at the size its tags state; every sitemap URL carries a
+ * <lastmod>, and each tool page has, in its own HTML, a canonical link, share
+ * tags, an <h1> and WebApplication JSON-LD; and that the root page's crawlable
  * text and JSON-LD are there in a build that launches the landing page and
  * absent from one that doesn't (initiative 006). (robots.txt and the tags'
  * wording are checked at the source, in src/__tests__/landing/seo.test.ts.)
@@ -64,6 +66,11 @@ const NOT_IN_GUARD = /(^|\/)src\/landing\/content\.ts$/
 
 /** The landing page's self-hosted font: required, preloaded by the guard, used by the landing CSS. */
 const LANDING_FONT = 'fonts/schibsted-grotesk-latin-wght-normal.woff2'
+
+const TOOL_PAGES = ['fueling', 'predictor', 'heat', 'mileage']
+
+/** A W3C date, the form <lastmod> takes in a sitemap. */
+const W3C_DATE = /^\d{4}-\d{2}-\d{2}$/
 
 const REQUIRED_FILES = [
   'index.html',
@@ -186,6 +193,39 @@ function metaContent(html, key) {
   return tag?.[0].match(/\bcontent="([^"]*)"/)?.[1] ?? null
 }
 
+/** The <script type="application/ld+json"> blocks of a page, parsed (null where one isn't JSON). */
+function jsonLdBlocks(html) {
+  return [...html.matchAll(/<script\b[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)].map(m => {
+    try {
+      return JSON.parse(m[1])
+    } catch {
+      return null
+    }
+  })
+}
+
+/**
+ * A tool page's own HTML must carry what a crawler that doesn't run the page's
+ * script can read (initiative 006): a canonical link to itself, share tags, an
+ * <h1> and WebApplication JSON-LD.
+ */
+function checkToolPage(name, html) {
+  const file = `dist/tools/${name}.html`
+  const errors = []
+  const url = `${SITE_ORIGIN}/tools/${name}.html`
+  const canonical = html.match(/<link\b[^>]*\brel="canonical"[^>]*>/)?.[0].match(/\bhref="([^"]*)"/)?.[1]
+  if (canonical !== url) errors.push(`${file} must have <link rel="canonical" href="${url}">, has ${canonical ?? 'none'}`)
+  for (const key of ['og:title', 'og:description', 'og:url', 'og:type', 'og:image', 'twitter:card', 'twitter:image']) {
+    if (metaContent(html, key) === null) errors.push(`${file} has no ${key}`)
+  }
+  if (metaContent(html, 'og:url') !== null && metaContent(html, 'og:url') !== url) errors.push(`${file}'s og:url must be ${url}`)
+  if (!/<h1\b[^>]*>\s*[^<\s][^<]*<\/h1>/.test(html)) errors.push(`${file} has no <h1> with text in its HTML`)
+  const app = jsonLdBlocks(html).find(b => b && b['@type'] === 'WebApplication')
+  if (!app) errors.push(`${file} has no WebApplication JSON-LD`)
+  else if (app.url !== url) errors.push(`${file}'s JSON-LD url must be ${url}`)
+  return errors
+}
+
 /**
  * Sitemap and share image. A sitemap URL that 404s or a share image that is
  * missing, cut short or the wrong size fails quietly in search and link
@@ -195,8 +235,15 @@ function checkSearchFiles(distDir, readFileSync, existsSync, fs) {
   const errors = []
   const has = rel => existsSync(join(distDir, rel))
   if (has('sitemap.xml')) {
-    const locs = [...readFileSync(join(distDir, 'sitemap.xml')).matchAll(/<loc>\s*([^<\s]+)\s*<\/loc>/g)].map(m => m[1])
+    const sitemapXml = readFileSync(join(distDir, 'sitemap.xml'))
+    const locs = [...sitemapXml.matchAll(/<loc>\s*([^<\s]+)\s*<\/loc>/g)].map(m => m[1])
     if (!locs.length) errors.push('dist/sitemap.xml lists no URLs')
+    for (const [, inner] of sitemapXml.matchAll(/<url>([\s\S]*?)<\/url>/g)) {
+      const loc = inner.match(/<loc>\s*([^<\s]+)\s*<\/loc>/)?.[1] ?? '(no loc)'
+      const lastmod = inner.match(/<lastmod>\s*([^<]*?)\s*<\/lastmod>/)?.[1]
+      if (lastmod === undefined) errors.push(`dist/sitemap.xml lists ${loc} without a <lastmod>`)
+      else if (!W3C_DATE.test(lastmod)) errors.push(`dist/sitemap.xml gives ${loc} the <lastmod> ${lastmod}, which is not a YYYY-MM-DD date`)
+    }
     for (const loc of locs) {
       const rel = builtFileFor(loc)
       if (rel === null) errors.push(`dist/sitemap.xml lists ${loc}, which is not on ${SITE_ORIGIN}`)
@@ -204,6 +251,9 @@ function checkSearchFiles(distDir, readFileSync, existsSync, fs) {
       else if (rel.startsWith('app/')) errors.push(`dist/sitemap.xml lists ${loc}, but the app is noindex`)
       else if (!has(rel)) errors.push(`dist/sitemap.xml lists ${loc}, but dist/${rel} is missing`)
     }
+  }
+  for (const name of TOOL_PAGES) {
+    if (has(`tools/${name}.html`)) errors.push(...checkToolPage(name, readFileSync(join(distDir, `tools/${name}.html`))))
   }
   if (!has('index.html')) return errors
   const rootHtml = readFileSync(join(distDir, 'index.html'))
