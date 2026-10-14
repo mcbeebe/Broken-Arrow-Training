@@ -31,6 +31,14 @@ page's title, description and share tags are copy.md § Meta, verbatim
 `WebApplication` JSON-LD and a static `<h1>` plus description inside `#root`
 for crawlers; React replaces them on mount, so the `<h1>` must stay the
 planner's own title word for word (`staticHeading.test.tsx`).
+A build with the landing page launched also puts the hero's
+`<h1>` and each section's `<h2>` and intro (visually hidden, replaced when
+React mounts) and `Organization` / `WebApplication` JSON-LD into the root page,
+generated from `content.ts` by `scripts/deploy/landing-static.ts`, so a new
+section needs an entry in `scripts/deploy/landing-static-content.ts`
+(`landingStatic.test.tsx` renders the real page and fails on drift). With the
+switch off nothing is injected. The build writes `dist/.vite/site-build.json`
+so the layout check knows which kind of build it is checking.
 The root page's entry (`src/landing/main.tsx`) statically imports only the
 guard (`boot.ts`, `legacyEntry.ts`, `sections.ts`) and `referral.ts`: it
 forwards installed apps, deep links (`?view=`), Strava callbacks, airlock
@@ -67,7 +75,7 @@ attune.coach.
 ## Commands
 
 ```bash
-npm test                  # vitest, 369 files / ~5400 tests — gates every publish
+npm test                  # vitest, 374 files / ~5460 tests — gates every publish
 npm run build             # tsc -b && vite build — the typecheck gate lives here
 npm run lint              # eslint — blocking in CI; 0 errors (initiative 002)
 npm run dev               # local dev server: the app is at /app/, the root page at /
@@ -131,6 +139,8 @@ succeed.
   It also fails if a sitemap `<url>` has no `<lastmod>` date, or if a tool page
   loses, in its own HTML, its canonical link, share tags, `<h1>` or
   `WebApplication` JSON-LD (initiative 006).
+  A launched build's `index.html` must hold the `<h1>`, `<h2>`s and both
+  JSON-LD types; a build that forwards everyone to `/app/` must hold none.
 - The `cutover-airlock` job publishes on the branch test alone — it ignores
   `ATTUNE_PUBLISH_ENABLED` and finishes before the attune build — so an
   airlock change goes live before the app it points at.

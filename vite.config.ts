@@ -4,6 +4,7 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { viteStaticCopy } from 'vite-plugin-static-copy'
 import { moduleMap } from './scripts/deploy/vite-plugin-module-map'
+import { landingStatic } from './scripts/deploy/vite-plugin-landing-static'
 import { sitemapLastmod } from './scripts/deploy/vite-plugin-sitemap-lastmod'
 
 /**
@@ -20,6 +21,8 @@ export default defineConfig({
     react(),
     // dist/.vite/module-map.json for check-site-layout.mjs (initiative 003).
     moduleMap(),
+    // Crawlable text + JSON-LD in the root page, only when the landing page is launched (initiative 006).
+    landingStatic(),
     // <lastmod> on every sitemap.xml URL, from git (initiative 006).
     sitemapLastmod(),
     viteStaticCopy({

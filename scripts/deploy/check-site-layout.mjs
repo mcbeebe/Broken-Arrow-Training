@@ -21,9 +21,10 @@
  * sitemap URL is a built page outside /app/, and the root page's share image
  * ships, whole, at the size its tags state; every sitemap URL carries a
  * <lastmod>, and each tool page has, in its own HTML, a canonical link, share
- * tags, an <h1> and WebApplication JSON-LD (initiative 006). (robots.txt and
- * the tags' wording are checked at the source, in
- * src/__tests__/landing/seo.test.ts.)
+ * tags, an <h1> and WebApplication JSON-LD; and that the root page's crawlable
+ * text and JSON-LD are there in a build that launches the landing page and
+ * absent from one that doesn't (initiative 006). (robots.txt and the tags'
+ * wording are checked at the source, in src/__tests__/landing/seo.test.ts.)
  */
 import * as nodeFs from 'node:fs'
 import { join, resolve } from 'node:path'
@@ -146,6 +147,7 @@ export function checkSiteLayout(distDir, fs = nodeFs) {
         errors.push(...checkModuleMap(distDir, viteManifest, readFileSync, existsSync))
         errors.push(...checkFontWiring(distDir, viteManifest, readFileSync, existsSync))
         errors.push(...checkScreens(distDir, viteManifest, fs))
+        errors.push(...checkRootStatic(distDir, readFileSync, existsSync))
       }
     } else errors.push('dist/.vite/manifest.json is not valid JSON')
   }
@@ -274,6 +276,51 @@ function checkSearchFiles(distDir, readFileSync, existsSync, fs) {
         errors.push(`dist/${rel} is ${size.width}×${size.height}, but index.html's og:image:width and og:image:height say ${stated}`)
       }
     }
+  }
+  return errors
+}
+
+/**
+ * The root page's crawlable text and JSON-LD (scripts/deploy/vite-plugin-landing-static.ts)
+ * come with a build that launches the landing page, and only with that build:
+ * dist/.vite/site-build.json says which kind this is. A launched build's
+ * index.html must hold an <h1>, <h2>s and Organization and WebApplication
+ * JSON-LD; one that forwards everyone to /app/ must hold none of it.
+ */
+function checkRootStatic(distDir, readFileSync, existsSync) {
+  const buildInfo = join(distDir, '.vite/site-build.json')
+  if (!existsSync(buildInfo)) {
+    return ['missing dist/.vite/site-build.json (is landingStatic() from scripts/deploy/vite-plugin-landing-static.ts in vite.config.ts?)']
+  }
+  let launched
+  try {
+    launched = JSON.parse(readFileSync(buildInfo)).landingEnabled === true
+  } catch {
+    return ['dist/.vite/site-build.json is not valid JSON']
+  }
+  if (!existsSync(join(distDir, 'index.html'))) return []
+  const html = readFileSync(join(distDir, 'index.html'))
+  const root = html.match(/<div id="root">([\s\S]*?)<\/div>\s*<noscript>/)?.[1] ?? ''
+  const types = [...html.matchAll(/<script\b[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)].flatMap(m => {
+    try {
+      const data = JSON.parse(m[1])
+      return (data['@graph'] ?? [data]).map(node => node['@type'])
+    } catch {
+      return ['(invalid JSON)']
+    }
+  })
+  const errors = []
+  if (launched) {
+    if (!/<h1\b[^>]*>\s*[^<\s][^<]*<\/h1>/.test(root)) errors.push('dist/index.html: a build with the landing page launched must hold an <h1> with text inside #root')
+    if (!/<h2\b/.test(root)) errors.push('dist/index.html: a build with the landing page launched must hold its section headings (<h2>) inside #root')
+    for (const type of ['Organization', 'WebApplication']) {
+      if (!types.includes(type)) errors.push(`dist/index.html: a build with the landing page launched must hold ${type} JSON-LD`)
+    }
+    if (types.includes('(invalid JSON)')) errors.push('dist/index.html has JSON-LD that is not JSON')
+  } else {
+    if (/<h[1-6]\b/.test(root) || root.trim() !== '') errors.push('dist/index.html: a build that forwards everyone to /app/ must leave #root empty')
+    if (types.length) errors.push('dist/index.html: a build that forwards everyone to /app/ must carry no JSON-LD')
+    if (html.includes('id="seo-static"')) errors.push('dist/index.html: a build that forwards everyone to /app/ must not hold the static landing text')
   }
   return errors
 }
