@@ -41,6 +41,12 @@ function png(width: number, height: number): Uint8Array {
   out.set([0, 0, 0, 0, 0x49, 0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82], 32)
   return out
 }
+/** A launched build's root page: static text inside #root and the JSON-LD, as landingStatic() writes them. */
+const LAUNCHED_ROOT_HTML = ROOT_HTML.replace(
+  '<script data-root-fallback>',
+  `<script type="application/ld+json">${JSON.stringify({ '@graph': [{ '@type': 'Organization' }, { '@type': 'WebApplication' }] })}</script><script data-root-fallback>`,
+) + '<div id="root"><div id="seo-static"><header><h1>Heading</h1></header><main><section><h2>Section</h2></section></main></div></div>\n<noscript></noscript>'
+
 const sitemap = (...urls: string[]) =>
   `<?xml version="1.0"?><urlset>${urls.map(u => `<url><loc>${u}</loc></url>`).join('')}</urlset>`
 
@@ -107,6 +113,7 @@ beforeEach(() => {
   write('og-image.png', png(1200, 630))
   write('.vite/manifest.json', JSON.stringify(viteManifest))
   write('.vite/module-map.json', JSON.stringify(moduleMap))
+  write('.vite/site-build.json', JSON.stringify({ landingEnabled: false }))
   write('assets/main-abc.js', `const FONT_URL = '${FONT}'`)
   write('assets/shared-def.js', 'console.log(2)')
   write('assets/app-ghi.js', incompressible(GUARD_BUDGET_BYTES * 5))
@@ -134,6 +141,42 @@ describe('checkSiteLayout', () => {
   ])('fails when %s is missing', rel => {
     remove(rel)
     expect(check()).toContain(`missing dist/${rel}`)
+  })
+
+  describe('the root page’s crawlable text', () => {
+    const launched = () => write('.vite/site-build.json', JSON.stringify({ landingEnabled: true }))
+
+    it('passes a launched build that holds the h1, the h2s and both JSON-LD types', () => {
+      launched()
+      write('index.html', LAUNCHED_ROOT_HTML)
+      expect(check()).toEqual([])
+    })
+
+    it('fails a launched build that lost its h1, its h2s or a JSON-LD type', () => {
+      launched()
+      write('index.html', LAUNCHED_ROOT_HTML.replace('<h1>Heading</h1>', ''))
+      expect(check()).toEqual(['dist/index.html: a build with the landing page launched must hold an <h1> with text inside #root'])
+      write('index.html', LAUNCHED_ROOT_HTML.replace('<h2>Section</h2>', ''))
+      expect(check()).toEqual(['dist/index.html: a build with the landing page launched must hold its section headings (<h2>) inside #root'])
+      write('index.html', LAUNCHED_ROOT_HTML.replace('"Organization"', '"Thing"'))
+      expect(check()).toEqual(['dist/index.html: a build with the landing page launched must hold Organization JSON-LD'])
+    })
+
+    it('fails a build that forwards everyone to /app/ if it holds any of it', () => {
+      write('index.html', LAUNCHED_ROOT_HTML)
+      expect(check()).toEqual([
+        'dist/index.html: a build that forwards everyone to /app/ must leave #root empty',
+        'dist/index.html: a build that forwards everyone to /app/ must carry no JSON-LD',
+        'dist/index.html: a build that forwards everyone to /app/ must not hold the static landing text',
+      ])
+    })
+
+    it('fails when the build record is missing or not JSON', () => {
+      remove('.vite/site-build.json')
+      expect(check()).toEqual(['missing dist/.vite/site-build.json (is landingStatic() from scripts/deploy/vite-plugin-landing-static.ts in vite.config.ts?)'])
+      write('.vite/site-build.json', 'nope')
+      expect(check()).toEqual(['dist/.vite/site-build.json is not valid JSON'])
+    })
   })
 
   describe('sitemap and the share image', () => {

@@ -4,6 +4,7 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { viteStaticCopy } from 'vite-plugin-static-copy'
 import { moduleMap } from './scripts/deploy/vite-plugin-module-map'
+import { landingStatic } from './scripts/deploy/vite-plugin-landing-static'
 
 /**
  * Cesium needs its Workers/, Assets/, Widgets/, ThirdParty/ folders
@@ -19,6 +20,8 @@ export default defineConfig({
     react(),
     // dist/.vite/module-map.json for check-site-layout.mjs (initiative 003).
     moduleMap(),
+    // Crawlable text + JSON-LD in the root page, only when the landing page is launched (initiative 006).
+    landingStatic(),
     viteStaticCopy({
       targets: [
         { src: 'node_modules/cesium/Build/Cesium/Workers', dest: 'cesium' },

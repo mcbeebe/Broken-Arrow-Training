@@ -37,7 +37,8 @@ function renderFallback(root: HTMLElement): void {
   const link = document.createElement('a')
   link.href = APP_PATH
   link.textContent = 'Open the app'
-  root.append(heading, link)
+  // Replace, not append: a launched build leaves the crawlable text in #root (initiative 006).
+  root.replaceChildren(heading, link)
 }
 
 bootRootPage({

@@ -23,7 +23,14 @@ So do `/robots.txt`, `/sitemap.xml` (the root page and the tools) and
 search by its `noindex` alone: **never `Disallow` it in robots.txt**, which
 would hide the `noindex` from Google and let it index `/app/` from links. The root
 page's title, description and share tags are copy.md § Meta, verbatim
-(`seo.test.ts`).
+(`seo.test.ts`). A build with the landing page launched also puts the hero's
+`<h1>` and each section's `<h2>` and intro (visually hidden, replaced when
+React mounts) and `Organization` / `WebApplication` JSON-LD into the root page,
+generated from `content.ts` by `scripts/deploy/landing-static.ts`, so a new
+section needs an entry in `scripts/deploy/landing-static-content.ts`
+(`landingStatic.test.tsx` renders the real page and fails on drift). With the
+switch off nothing is injected. The build writes `dist/.vite/site-build.json`
+so the layout check knows which kind of build it is checking.
 The root page's entry (`src/landing/main.tsx`) statically imports only the
 guard (`boot.ts`, `legacyEntry.ts`, `sections.ts`) and `referral.ts`: it
 forwards installed apps, deep links (`?view=`), Strava callbacks, airlock
@@ -121,6 +128,8 @@ succeed.
   missing, a sitemap URL isn't a built `.html` page (or is under `/app/`),
   `og:image`/`twitter:image` names a file the build lacks, or the `og:image`
   isn't a whole PNG of the size `og:image:width`/`og:image:height` state.
+  A launched build's `index.html` must hold the `<h1>`, `<h2>`s and both
+  JSON-LD types; a build that forwards everyone to `/app/` must hold none.
 - The `cutover-airlock` job publishes on the branch test alone — it ignores
   `ATTUNE_PUBLISH_ENABLED` and finishes before the attune build — so an
   airlock change goes live before the app it points at.
