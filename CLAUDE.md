@@ -21,7 +21,7 @@ So do `/robots.txt`, `/sitemap.xml` (the root page and the tools; its
 `<lastmod>` dates are stamped at build from git by
 `scripts/deploy/vite-plugin-sitemap-lastmod.ts`, from the files named in
 `scripts/deploy/sitemap-lastmod.ts`, so a new URL needs an entry there and
-`deploy.yml` checks out with full history) and
+`deploy.yml` checks out with full history; a build in CI without it fails instead of stamping the build date, and `sitemapLastmodPlugin.test.ts` pins the checkout setting) and
 `/og-image.png`, the share image (made by
 `docs/initiatives/003-landing-page/og-image.mjs`). `/app/` is kept out of
 search by its `noindex` alone: **never `Disallow` it in robots.txt**, which

@@ -19,10 +19,15 @@ Checkable when all of these are true:
 - **Tools.** Each `tools/*.html` ships, in its own HTML, a canonical link,
   Open Graph and Twitter tags using the existing `/og-image.png`, an `<h1>`
   and a one-sentence description inside `#root`, and `WebApplication`
-  JSON-LD. Nothing changes for a visitor: React replaces the static text on
-  mount.
+  JSON-LD. React replaces the static text on mount (no hydration), so the
+  mounted page is unchanged; before the script runs a visitor sees the plain
+  heading and description, unstyled, for a moment.
 - **Sitemap.** Every `<url>` in the built `sitemap.xml` has a `<lastmod>`,
-  stamped from the last commit that touched the page's sources.
+  stamped from the AUTHOR date of the last commit that touched the page's
+  sources, including the engines a tool computes with (`SITEMAP_SOURCES`). It
+  needs git history: deploy.yml checks out with `fetch-depth: 0`, and a build
+  in CI without it fails rather than stamping the build date (a local build
+  warns and uses the build date).
 - **Root page** (separate PR, and only when the landing page is launched).
   The built `index.html` carries the hero heading, each section's heading and
   intro, and `Organization` / `WebApplication` JSON-LD, all generated from

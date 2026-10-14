@@ -5,17 +5,39 @@
  */
 
 /**
+ * What `src/tools/toolMath.ts` computes with (its imports): the numbers on the
+ * fueling, predictor and heat pages come from these, so a change to them is a
+ * change to what the page says.
+ */
+const TOOL_MATH = [
+  'src/tools/toolMath.ts',
+  'src/utils/fueling.ts',
+  'src/utils/parseTime.ts',
+  'src/engines/planGenerator',
+  'src/engines/terrain/locomotion/minetti.ts',
+] as const
+
+/** The same for `src/tools/mileageMath.ts`: the mileage page prints the plan engine's output. */
+const MILEAGE_MATH = [
+  'src/tools/mileageMath.ts',
+  'src/engines/planGenerator',
+  'src/data/methods',
+  'src/utils/planDates.ts',
+  'src/hooks/useOnboarding.ts',
+] as const
+
+/**
  * The source files whose last commit dates each sitemap URL's `<lastmod>`,
  * keyed by the URL's path. A page changes when its HTML or the code that
  * renders its words changes. A URL missing from this map is stamped with the
  * build date, and sitemap-lastmod.test.ts fails until it is added.
  */
 export const SITEMAP_SOURCES: Record<string, readonly string[]> = {
-  '/': ['index.html', 'src/landing'],
-  '/tools/fueling.html': ['tools/fueling.html', 'src/tools/FuelingPlanner.tsx', 'src/tools/ToolShell.tsx', 'src/tools/toolMath.ts'],
-  '/tools/predictor.html': ['tools/predictor.html', 'src/tools/Predictor.tsx', 'src/tools/ToolShell.tsx', 'src/tools/toolMath.ts'],
-  '/tools/heat.html': ['tools/heat.html', 'src/tools/HeatPlanner.tsx', 'src/tools/ToolShell.tsx', 'src/tools/toolMath.ts'],
-  '/tools/mileage.html': ['tools/mileage.html', 'src/tools/MileagePlanner.tsx', 'src/tools/ToolShell.tsx', 'src/tools/mileageMath.ts'],
+  '/': ['index.html', 'src/landing', 'tailwind.landing.config.js', 'public/landing', 'public/fonts'],
+  '/tools/fueling.html': ['tools/fueling.html', 'src/tools/FuelingPlanner.tsx', 'src/tools/ToolShell.tsx', ...TOOL_MATH],
+  '/tools/predictor.html': ['tools/predictor.html', 'src/tools/Predictor.tsx', 'src/tools/ToolShell.tsx', ...TOOL_MATH],
+  '/tools/heat.html': ['tools/heat.html', 'src/tools/HeatPlanner.tsx', 'src/tools/ToolShell.tsx', ...TOOL_MATH],
+  '/tools/mileage.html': ['tools/mileage.html', 'src/tools/MileagePlanner.tsx', 'src/tools/ToolShell.tsx', ...MILEAGE_MATH],
 }
 
 /** A W3C date (YYYY-MM-DD), the form the sitemap protocol accepts. */
