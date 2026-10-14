@@ -13,6 +13,10 @@ import robots from '../../../public/robots.txt?raw'
 import sitemap from '../../../public/sitemap.xml?raw'
 import copyMd from '../../../docs/initiatives/003-landing-page/copy.md?raw'
 import viteConfigSource from '../../../vite.config.ts?raw'
+import fuelingHtml from '../../../tools/fueling.html?raw'
+import heatHtml from '../../../tools/heat.html?raw'
+import mileageHtml from '../../../tools/mileage.html?raw'
+import predictorHtml from '../../../tools/predictor.html?raw'
 
 const root = new DOMParser().parseFromString(rootHtml, 'text/html')
 const app = new DOMParser().parseFromString(appHtml, 'text/html')
@@ -111,5 +115,68 @@ describe('the sitemap', () => {
   it('lists the root page and every free tool the build makes, and nothing else', () => {
     const tools = [...viteConfigSource.matchAll(/['"`](tools\/[a-z-]+\.html)['"`]/g)].map(m => m[1])
     expect([...locs].sort()).toEqual(['https://attune.coach/', ...tools.map(t => `https://attune.coach/${t}`)].sort())
+  })
+})
+
+/**
+ * Initiative 006: the free tools' own HTML is what a crawler reads before (or
+ * without) running the page's script, so it carries the canonical link, the
+ * share tags, a heading and description inside #root, and WebApplication
+ * JSON-LD. React's createRoot replaces #root's children on mount.
+ */
+describe('the free tools’ static HTML', () => {
+  const tools = [
+    { name: 'fueling', source: fuelingHtml, h1: 'Trail Fueling Planner' },
+    { name: 'heat', source: heatHtml, h1: 'Race-Day Heat Planner' },
+    { name: 'mileage', source: mileageHtml, h1: 'Weekly mileage planner' },
+    { name: 'predictor', source: predictorHtml, h1: 'Vert-Adjusted Finish Predictor' },
+  ]
+
+  it.each(tools)('$name: canonical link and share tags match the page', ({ name, source }) => {
+    const doc = new DOMParser().parseFromString(source, 'text/html')
+    const url = `https://attune.coach/tools/${name}.html`
+    expect(doc.querySelector('link[rel="canonical"]')?.getAttribute('href')).toBe(url)
+    expect(meta(doc, 'og:url')).toBe(url)
+    expect(meta(doc, 'og:type')).toBe('website')
+    expect(meta(doc, 'og:site_name')).toBe('Attune')
+    expect(meta(doc, 'og:title')).toBe(doc.title)
+    expect(meta(doc, 'twitter:title')).toBe(doc.title)
+    expect(meta(doc, 'og:description')).toBe(meta(doc, 'description'))
+    expect(meta(doc, 'twitter:description')).toBe(meta(doc, 'description'))
+    expect(meta(doc, 'og:image')).toBe('https://attune.coach/og-image.png')
+    expect(meta(doc, 'twitter:image')).toBe('https://attune.coach/og-image.png')
+    expect(meta(doc, 'twitter:card')).toBe('summary_large_image')
+    expect(meta(doc, 'og:image:width')).toBe('1200')
+    expect(meta(doc, 'og:image:height')).toBe('630')
+    expect(meta(doc, 'og:image:alt')).toBe(copyMeta('og:image alt'))
+    expect(meta(doc, 'twitter:image:alt')).toBe(copyMeta('og:image alt'))
+    expect(doc.querySelector('meta[name="robots"]')).toBeNull()
+  })
+
+  it.each(tools)('$name: #root holds the heading and the meta description, as plain text', ({ source, h1 }) => {
+    const doc = new DOMParser().parseFromString(source, 'text/html')
+    const root = doc.getElementById('root')!
+    expect(root.querySelectorAll('h1')).toHaveLength(1)
+    expect(root.querySelector('h1')!.textContent).toBe(h1)
+    expect(root.querySelector('p')!.textContent).toBe(meta(doc, 'description'))
+    expect(root.querySelector('script, img, a')).toBeNull()
+  })
+
+  it.each(tools)('$name: JSON-LD is a free WebApplication for this page, with no ratings or reviews', ({ name, source, h1 }) => {
+    const doc = new DOMParser().parseFromString(source, 'text/html')
+    const blocks = doc.querySelectorAll('script[type="application/ld+json"]')
+    expect(blocks).toHaveLength(1)
+    const ld = JSON.parse(blocks[0].textContent!)
+    expect(ld).toEqual({
+      '@context': 'https://schema.org',
+      '@type': 'WebApplication',
+      name: h1,
+      url: `https://attune.coach/tools/${name}.html`,
+      description: meta(doc, 'description'),
+      applicationCategory: 'SportsApplication',
+      operatingSystem: 'Any',
+      isAccessibleForFree: true,
+      publisher: { '@type': 'Organization', name: 'Attune', url: 'https://attune.coach/' },
+    })
   })
 })
