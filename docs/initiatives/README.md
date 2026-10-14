@@ -44,6 +44,7 @@ future session. Initiative IDs are global; a series' own internal numbering
 | 003 | Public landing page at attune.coach; app moves to /app/ | Open | #467 (plan), #468 (PR 1), #471 (PR 2), #472 (PR 3), #473 (PR 4), #474 (PR 4b), #475 (PR 4c), #476 (PR 5) | [intent](003-landing-page/intent.md) · [analysis](003-landing-page/analysis.md) · [plan](003-landing-page/plan.md) · [design](003-landing-page/design-spec.md) · [copy](003-landing-page/copy.md) · [kickoff](003-landing-page/kickoff-prompt.md) |
 | 004 | Upload your own plan (PDF, Word, Excel, photo) in Settings and onboarding | Open | — | [intent](004-plan-import/intent.md) · [plan](004-plan-import/plan.md) |
 | 005 | Workouts on Google Calendar; Coach check-in email Sun & Wed | Open | — | [intent](005-calendar-and-checkin/intent.md) · [plan](005-calendar-and-checkin/plan.md) |
+| 006 | Make the public pages crawlable: static head and body text, JSON-LD, sitemap lastmod | Open | — | [intent](006-seo-crawlability/intent.md) |
 
 ### Backfilled — pre-convention (recorded 2026-08-29 while the commits were still fresh)
 
