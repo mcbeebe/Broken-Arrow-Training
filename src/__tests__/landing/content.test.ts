@@ -23,6 +23,7 @@ const has = (s: string) => ALL.some(leaf => (s.length < 25 ? leaf === s : leaf.i
 const COPY_MD = [
   // Header
   'Attune', 'How it works', 'Who it’s for', 'The coach', 'Free tools', 'Sign in', 'Request an invite',
+  'Switch to dark mode', 'Switch to light mode',
   // Hero
   'Training that actually adapts to you.',
   'A coach in your pocket.',
