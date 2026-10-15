@@ -41,8 +41,31 @@ function png(width: number, height: number): Uint8Array {
   out.set([0, 0, 0, 0, 0x49, 0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82], 32)
   return out
 }
+/** A launched build's root page: static text inside #root and the JSON-LD, as landingStatic() writes them. */
+const LAUNCHED_ROOT_HTML = ROOT_HTML.replace(
+  '<script data-root-fallback>',
+  `<script type="application/ld+json">${JSON.stringify({ '@graph': [{ '@type': 'Organization' }, { '@type': 'WebApplication' }] })}</script><script data-root-fallback>`,
+) + '<div id="root"><div id="seo-static"><header><h1>Heading</h1></header><main><section><h2>Section</h2></section></main></div></div>\n<noscript></noscript>'
+
 const sitemap = (...urls: string[]) =>
-  `<?xml version="1.0"?><urlset>${urls.map(u => `<url><loc>${u}</loc></url>`).join('')}</urlset>`
+  `<?xml version="1.0"?><urlset>${urls.map(u => `<url><loc>${u}</loc><lastmod>2026-10-14</lastmod></url>`).join('')}</urlset>`
+
+/** A tool page's HTML as far as the check reads it: canonical, share tags, an h1, WebApplication JSON-LD. */
+function toolHtml(name: string): string {
+  const url = `https://attune.coach/tools/${name}.html`
+  return (
+    `<link rel="canonical" href="${url}" />` +
+    '<meta property="og:type" content="website" />' +
+    `<meta property="og:url" content="${url}" />` +
+    '<meta property="og:title" content="A tool" />' +
+    '<meta property="og:description" content="Does a thing." />' +
+    '<meta property="og:image" content="https://attune.coach/og-image.png" />' +
+    '<meta name="twitter:card" content="summary_large_image" />' +
+    '<meta name="twitter:image" content="https://attune.coach/og-image.png" />' +
+    `<script type="application/ld+json">${JSON.stringify({ '@type': 'WebApplication', url })}</script>` +
+    '<div id="root"><h1>A tool</h1></div>'
+  )
+}
 
 const goodManifest = {
   id: '/?view=today',
@@ -96,7 +119,7 @@ beforeEach(() => {
   files = new Map()
   write('index.html', ROOT_HTML)
   write('app/index.html', '<link rel="manifest" href="/manifest.webmanifest" />')
-  for (const tool of ['fueling', 'predictor', 'heat', 'mileage']) write(`tools/${tool}.html`, '<html></html>')
+  for (const tool of ['fueling', 'predictor', 'heat', 'mileage']) write(`tools/${tool}.html`, toolHtml(tool))
   write('sw.js', '// sw')
   write('favicon.svg', '<svg/>')
   write('attune-mark.svg', '<svg/>')
@@ -107,6 +130,7 @@ beforeEach(() => {
   write('og-image.png', png(1200, 630))
   write('.vite/manifest.json', JSON.stringify(viteManifest))
   write('.vite/module-map.json', JSON.stringify(moduleMap))
+  write('.vite/site-build.json', JSON.stringify({ landingEnabled: false }))
   write('assets/main-abc.js', `const FONT_URL = '${FONT}'`)
   write('assets/shared-def.js', 'console.log(2)')
   write('assets/app-ghi.js', incompressible(GUARD_BUDGET_BYTES * 5))
@@ -134,6 +158,42 @@ describe('checkSiteLayout', () => {
   ])('fails when %s is missing', rel => {
     remove(rel)
     expect(check()).toContain(`missing dist/${rel}`)
+  })
+
+  describe('the root page’s crawlable text', () => {
+    const launched = () => write('.vite/site-build.json', JSON.stringify({ landingEnabled: true }))
+
+    it('passes a launched build that holds the h1, the h2s and both JSON-LD types', () => {
+      launched()
+      write('index.html', LAUNCHED_ROOT_HTML)
+      expect(check()).toEqual([])
+    })
+
+    it('fails a launched build that lost its h1, its h2s or a JSON-LD type', () => {
+      launched()
+      write('index.html', LAUNCHED_ROOT_HTML.replace('<h1>Heading</h1>', ''))
+      expect(check()).toEqual(['dist/index.html: a build with the landing page launched must hold an <h1> with text inside #root'])
+      write('index.html', LAUNCHED_ROOT_HTML.replace('<h2>Section</h2>', ''))
+      expect(check()).toEqual(['dist/index.html: a build with the landing page launched must hold its section headings (<h2>) inside #root'])
+      write('index.html', LAUNCHED_ROOT_HTML.replace('"Organization"', '"Thing"'))
+      expect(check()).toEqual(['dist/index.html: a build with the landing page launched must hold Organization JSON-LD'])
+    })
+
+    it('fails a build that forwards everyone to /app/ if it holds any of it', () => {
+      write('index.html', LAUNCHED_ROOT_HTML)
+      expect(check()).toEqual([
+        'dist/index.html: a build that forwards everyone to /app/ must leave #root empty',
+        'dist/index.html: a build that forwards everyone to /app/ must carry no JSON-LD',
+        'dist/index.html: a build that forwards everyone to /app/ must not hold the static landing text',
+      ])
+    })
+
+    it('fails when the build record is missing or not JSON', () => {
+      remove('.vite/site-build.json')
+      expect(check()).toEqual(['missing dist/.vite/site-build.json (is landingStatic() from scripts/deploy/vite-plugin-landing-static.ts in vite.config.ts?)'])
+      write('.vite/site-build.json', 'nope')
+      expect(check()).toEqual(['dist/.vite/site-build.json is not valid JSON'])
+    })
   })
 
   describe('sitemap and the share image', () => {
@@ -167,6 +227,14 @@ describe('checkSiteLayout', () => {
       expect(check()).toEqual(['dist/sitemap.xml lists no URLs'])
     })
 
+    it('fails when a sitemap URL has no <lastmod>, or one that is not a date', () => {
+      write('sitemap.xml', '<urlset><url><loc>https://attune.coach/</loc></url><url><loc>https://attune.coach/tools/heat.html</loc><lastmod>yesterday</lastmod></url></urlset>')
+      expect(check()).toEqual([
+        'dist/sitemap.xml lists https://attune.coach/ without a <lastmod>',
+        'dist/sitemap.xml gives https://attune.coach/tools/heat.html the <lastmod> yesterday, which is not a YYYY-MM-DD date',
+      ])
+    })
+
     it.each(['og:image', 'twitter:image'])('fails when %s names a file the build lacks', tag => {
       write('index.html', ROOT_HTML.replace(`"${tag}" content="https://attune.coach/og-image.png"`, `"${tag}" content="https://attune.coach/share.png"`))
       expect(check()).toEqual([`dist/index.html's ${tag} is https://attune.coach/share.png, but dist/share.png is missing`])
@@ -186,6 +254,34 @@ describe('checkSiteLayout', () => {
       write('og-image.png', png(2400, 1260))
       write('index.html', ROOT_HTML.replace('content="1200"', 'content="2400"').replace('content="630"', 'content="1260"'))
       expect(check()).toEqual([])
+    })
+
+    describe('tool pages carry their own crawlable HTML', () => {
+      it('fails when a tool page loses its canonical link, a share tag, its h1 or its JSON-LD', () => {
+        const page = toolHtml('heat')
+        write('tools/heat.html', page.replace('rel="canonical"', 'rel="alternate"'))
+        expect(check()).toEqual(['dist/tools/heat.html must have <link rel="canonical" href="https://attune.coach/tools/heat.html">, has none'])
+        write('tools/heat.html', page.replace('og:title', 'og:titel'))
+        expect(check()).toEqual(['dist/tools/heat.html has no og:title'])
+        write('tools/heat.html', page.replace('<h1>A tool</h1>', '<h1> </h1>'))
+        expect(check()).toEqual(['dist/tools/heat.html has no <h1> with text in its HTML'])
+        write('tools/heat.html', page.replace('WebApplication', 'Thing'))
+        expect(check()).toEqual(['dist/tools/heat.html has no WebApplication JSON-LD'])
+      })
+
+      it('fails when the canonical, og:url or JSON-LD url names another page', () => {
+        write('tools/heat.html', toolHtml('fueling'))
+        expect(check()).toEqual([
+          'dist/tools/heat.html must have <link rel="canonical" href="https://attune.coach/tools/heat.html">, has https://attune.coach/tools/fueling.html',
+          "dist/tools/heat.html's og:url must be https://attune.coach/tools/heat.html",
+          "dist/tools/heat.html's JSON-LD url must be https://attune.coach/tools/heat.html",
+        ])
+      })
+
+      it('fails on JSON-LD that is not JSON', () => {
+        write('tools/heat.html', toolHtml('heat').replace(/(<script type="application\/ld\+json">)[^<]*/, '$1{oops'))
+        expect(check()).toEqual(['dist/tools/heat.html has no WebApplication JSON-LD'])
+      })
     })
 
     it('fails when the size tags are gone', () => {

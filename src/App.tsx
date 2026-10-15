@@ -8,6 +8,10 @@ import { generateHyroxPlan } from './utils/planGenerator'
 import { useStrava } from './hooks/useStrava'
 import { useGarmin } from './hooks/useGarmin'
 import { useGarminAutoRepush } from './hooks/useGarminAutoRepush'
+import { useCheckin } from './hooks/useCheckin'
+import { checkinOpenTo } from './utils/checkin/access'
+import { buildCheckinSnapshot } from './utils/checkin/snapshot'
+import { deviceTimezone } from './utils/push'
 import { realignmentContextForWeeks } from './utils/realignment'
 import { mondayOnOrBefore, todayDateString, weekNumContaining } from './utils/planDates'
 import { seasonQaAdvisories as buildSeasonQaAdvisories, combineAdvisories } from './utils/planAdvisories'
@@ -1688,6 +1692,26 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
     return id ? getMethodById(id) : undefined
   }, [athleteId, onboarding.config])
 
+  // Coach check-in email (initiative 005). The server can't rebuild the
+  // plan, so the app uploads this snapshot whenever it changes; every edit
+  // path, Coach-chat approvals included, ends at `weeks`. Null for anyone
+  // the email isn't open to, so they do none of the work.
+  const checkinTodayIso = todayDateString()
+  const checkinSnapshot = useMemo(() => {
+    if (!checkinOpenTo(athleteId)) return null
+    return buildCheckinSnapshot({
+      plan: { ...activePlan, weeks },
+      currentWeekNum,
+      performance: readiness.performance,
+      method: trainingMethod,
+      acwrBounds: acwrBoundsFrom(readinessTuning),
+      todayIso: checkinTodayIso,
+      now: new Date(),
+      timezone: deviceTimezone(),
+    })
+  }, [athleteId, activePlan, weeks, currentWeekNum, readiness.performance, trainingMethod, readinessTuning, checkinTodayIso])
+  const checkin = useCheckin(athleteId, checkinSnapshot)
+
   // Assemble the CoachSnapshot for LLM calls
   const coachSnapshot: CoachSnapshot | null = useMemo(() => {
     if (!coachEnabled) return null
@@ -2734,6 +2758,7 @@ function MainAppShell({ session, onLogout, athleteId, activePlan, onboarding, tu
       )}
       {view === 'settings' && showStrava && (
         <Settings
+          checkin={checkin}
           connected={strava.connected}
           configured={strava.configured}
           loading={strava.loading}

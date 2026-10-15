@@ -19,8 +19,12 @@
  * SCREEN_BUDGET_BYTES, and all of them under SCREENS_TOTAL_BUDGET_BYTES;
  * and that what search engines and link previews read holds together: every
  * sitemap URL is a built page outside /app/, and the root page's share image
- * ships, whole, at the size its tags state. (robots.txt and the tags' wording
- * are checked at the source, in src/__tests__/landing/seo.test.ts.)
+ * ships, whole, at the size its tags state; every sitemap URL carries a
+ * <lastmod>, and each tool page has, in its own HTML, a canonical link, share
+ * tags, an <h1> and WebApplication JSON-LD; and that the root page's crawlable
+ * text and JSON-LD are there in a build that launches the landing page and
+ * absent from one that doesn't (initiative 006). (robots.txt and the tags'
+ * wording are checked at the source, in src/__tests__/landing/seo.test.ts.)
  */
 import * as nodeFs from 'node:fs'
 import { join, resolve } from 'node:path'
@@ -62,6 +66,11 @@ const NOT_IN_GUARD = /(^|\/)src\/landing\/content\.ts$/
 
 /** The landing page's self-hosted font: required, preloaded by the guard, used by the landing CSS. */
 const LANDING_FONT = 'fonts/schibsted-grotesk-latin-wght-normal.woff2'
+
+const TOOL_PAGES = ['fueling', 'predictor', 'heat', 'mileage']
+
+/** A W3C date, the form <lastmod> takes in a sitemap. */
+const W3C_DATE = /^\d{4}-\d{2}-\d{2}$/
 
 const REQUIRED_FILES = [
   'index.html',
@@ -138,6 +147,7 @@ export function checkSiteLayout(distDir, fs = nodeFs) {
         errors.push(...checkModuleMap(distDir, viteManifest, readFileSync, existsSync))
         errors.push(...checkFontWiring(distDir, viteManifest, readFileSync, existsSync))
         errors.push(...checkScreens(distDir, viteManifest, fs))
+        errors.push(...checkRootStatic(distDir, readFileSync, existsSync))
       }
     } else errors.push('dist/.vite/manifest.json is not valid JSON')
   }
@@ -183,6 +193,39 @@ function metaContent(html, key) {
   return tag?.[0].match(/\bcontent="([^"]*)"/)?.[1] ?? null
 }
 
+/** The <script type="application/ld+json"> blocks of a page, parsed (null where one isn't JSON). */
+function jsonLdBlocks(html) {
+  return [...html.matchAll(/<script\b[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)].map(m => {
+    try {
+      return JSON.parse(m[1])
+    } catch {
+      return null
+    }
+  })
+}
+
+/**
+ * A tool page's own HTML must carry what a crawler that doesn't run the page's
+ * script can read (initiative 006): a canonical link to itself, share tags, an
+ * <h1> and WebApplication JSON-LD.
+ */
+function checkToolPage(name, html) {
+  const file = `dist/tools/${name}.html`
+  const errors = []
+  const url = `${SITE_ORIGIN}/tools/${name}.html`
+  const canonical = html.match(/<link\b[^>]*\brel="canonical"[^>]*>/)?.[0].match(/\bhref="([^"]*)"/)?.[1]
+  if (canonical !== url) errors.push(`${file} must have <link rel="canonical" href="${url}">, has ${canonical ?? 'none'}`)
+  for (const key of ['og:title', 'og:description', 'og:url', 'og:type', 'og:image', 'twitter:card', 'twitter:image']) {
+    if (metaContent(html, key) === null) errors.push(`${file} has no ${key}`)
+  }
+  if (metaContent(html, 'og:url') !== null && metaContent(html, 'og:url') !== url) errors.push(`${file}'s og:url must be ${url}`)
+  if (!/<h1\b[^>]*>\s*[^<\s][^<]*<\/h1>/.test(html)) errors.push(`${file} has no <h1> with text in its HTML`)
+  const app = jsonLdBlocks(html).find(b => b && b['@type'] === 'WebApplication')
+  if (!app) errors.push(`${file} has no WebApplication JSON-LD`)
+  else if (app.url !== url) errors.push(`${file}'s JSON-LD url must be ${url}`)
+  return errors
+}
+
 /**
  * Sitemap and share image. A sitemap URL that 404s or a share image that is
  * missing, cut short or the wrong size fails quietly in search and link
@@ -192,8 +235,15 @@ function checkSearchFiles(distDir, readFileSync, existsSync, fs) {
   const errors = []
   const has = rel => existsSync(join(distDir, rel))
   if (has('sitemap.xml')) {
-    const locs = [...readFileSync(join(distDir, 'sitemap.xml')).matchAll(/<loc>\s*([^<\s]+)\s*<\/loc>/g)].map(m => m[1])
+    const sitemapXml = readFileSync(join(distDir, 'sitemap.xml'))
+    const locs = [...sitemapXml.matchAll(/<loc>\s*([^<\s]+)\s*<\/loc>/g)].map(m => m[1])
     if (!locs.length) errors.push('dist/sitemap.xml lists no URLs')
+    for (const [, inner] of sitemapXml.matchAll(/<url>([\s\S]*?)<\/url>/g)) {
+      const loc = inner.match(/<loc>\s*([^<\s]+)\s*<\/loc>/)?.[1] ?? '(no loc)'
+      const lastmod = inner.match(/<lastmod>\s*([^<]*?)\s*<\/lastmod>/)?.[1]
+      if (lastmod === undefined) errors.push(`dist/sitemap.xml lists ${loc} without a <lastmod>`)
+      else if (!W3C_DATE.test(lastmod)) errors.push(`dist/sitemap.xml gives ${loc} the <lastmod> ${lastmod}, which is not a YYYY-MM-DD date`)
+    }
     for (const loc of locs) {
       const rel = builtFileFor(loc)
       if (rel === null) errors.push(`dist/sitemap.xml lists ${loc}, which is not on ${SITE_ORIGIN}`)
@@ -201,6 +251,9 @@ function checkSearchFiles(distDir, readFileSync, existsSync, fs) {
       else if (rel.startsWith('app/')) errors.push(`dist/sitemap.xml lists ${loc}, but the app is noindex`)
       else if (!has(rel)) errors.push(`dist/sitemap.xml lists ${loc}, but dist/${rel} is missing`)
     }
+  }
+  for (const name of TOOL_PAGES) {
+    if (has(`tools/${name}.html`)) errors.push(...checkToolPage(name, readFileSync(join(distDir, `tools/${name}.html`))))
   }
   if (!has('index.html')) return errors
   const rootHtml = readFileSync(join(distDir, 'index.html'))
@@ -223,6 +276,51 @@ function checkSearchFiles(distDir, readFileSync, existsSync, fs) {
         errors.push(`dist/${rel} is ${size.width}×${size.height}, but index.html's og:image:width and og:image:height say ${stated}`)
       }
     }
+  }
+  return errors
+}
+
+/**
+ * The root page's crawlable text and JSON-LD (scripts/deploy/vite-plugin-landing-static.ts)
+ * come with a build that launches the landing page, and only with that build:
+ * dist/.vite/site-build.json says which kind this is. A launched build's
+ * index.html must hold an <h1>, <h2>s and Organization and WebApplication
+ * JSON-LD; one that forwards everyone to /app/ must hold none of it.
+ */
+function checkRootStatic(distDir, readFileSync, existsSync) {
+  const buildInfo = join(distDir, '.vite/site-build.json')
+  if (!existsSync(buildInfo)) {
+    return ['missing dist/.vite/site-build.json (is landingStatic() from scripts/deploy/vite-plugin-landing-static.ts in vite.config.ts?)']
+  }
+  let launched
+  try {
+    launched = JSON.parse(readFileSync(buildInfo)).landingEnabled === true
+  } catch {
+    return ['dist/.vite/site-build.json is not valid JSON']
+  }
+  if (!existsSync(join(distDir, 'index.html'))) return []
+  const html = readFileSync(join(distDir, 'index.html'))
+  const root = html.match(/<div id="root">([\s\S]*?)<\/div>\s*<noscript>/)?.[1] ?? ''
+  const types = [...html.matchAll(/<script\b[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)].flatMap(m => {
+    try {
+      const data = JSON.parse(m[1])
+      return (data['@graph'] ?? [data]).map(node => node['@type'])
+    } catch {
+      return ['(invalid JSON)']
+    }
+  })
+  const errors = []
+  if (launched) {
+    if (!/<h1\b[^>]*>\s*[^<\s][^<]*<\/h1>/.test(root)) errors.push('dist/index.html: a build with the landing page launched must hold an <h1> with text inside #root')
+    if (!/<h2\b/.test(root)) errors.push('dist/index.html: a build with the landing page launched must hold its section headings (<h2>) inside #root')
+    for (const type of ['Organization', 'WebApplication']) {
+      if (!types.includes(type)) errors.push(`dist/index.html: a build with the landing page launched must hold ${type} JSON-LD`)
+    }
+    if (types.includes('(invalid JSON)')) errors.push('dist/index.html has JSON-LD that is not JSON')
+  } else {
+    if (/<h[1-6]\b/.test(root) || root.trim() !== '') errors.push('dist/index.html: a build that forwards everyone to /app/ must leave #root empty')
+    if (types.length) errors.push('dist/index.html: a build that forwards everyone to /app/ must carry no JSON-LD')
+    if (html.includes('id="seo-static"')) errors.push('dist/index.html: a build that forwards everyone to /app/ must not hold the static landing text')
   }
   return errors
 }

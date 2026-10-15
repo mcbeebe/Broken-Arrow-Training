@@ -172,7 +172,12 @@ jobs:
     needs: test
     runs-on: ubuntu-latest
     steps:
+      # Full history: the build stamps each sitemap URL's <lastmod> from the
+      # last commit that touched its sources (initiative 006). A shallow
+      # checkout would date every page with the one commit's day.
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -199,6 +204,9 @@ jobs:
           # Launch or roll back: change the variable, then dispatch this
           # workflow on the publishing branch.
           VITE_LANDING_ENABLED: ${{ vars.ATTUNE_LANDING_ENABLED }}
+          # GA4 for the landing page only (src/landing/analytics.ts); /app/ is
+          # never measured. Property "attune.coach" in Google Analytics.
+          VITE_GA_MEASUREMENT_ID: G-SDJM5EQL4B
       # Fail the build (on PRs too) if the root page, /app/, the tools, the
       # service worker or the manifest moved, or the root guard got heavy.
       # Then drop the Vite build manifest it reads so it isn't published.

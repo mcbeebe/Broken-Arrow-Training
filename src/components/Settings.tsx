@@ -21,6 +21,8 @@ import CoachMemoryPanel from './CoachMemoryPanel'
 import AthleteProfileEditor from './AthleteProfileEditor'
 import type { AthleteProfileExtras } from '../hooks/useAthleteProfile'
 import NotificationSettings from './NotificationSettings'
+import CheckinEmailSettings from './CheckinEmailSettings'
+import type { CheckinState } from '../hooks/useCheckin'
 import AthleteHomeLocation from './AthleteHomeLocation'
 import WorkoutTimePreference from './WorkoutTimePreference'
 import ProactiveTimingSettings from './ProactiveTimingSettings'
@@ -39,6 +41,9 @@ import { PALETTES, type PaletteId } from '../palettes'
 import type { ConversationTurn, PerformanceMetrics, TrainingWeek } from '../types'
 
 interface SettingsProps {
+  /** The Coach check-in email (initiative 005); renders nothing unless
+   *  it is open to this athlete. */
+  checkin?: CheckinState
   /** Owner diagnostics: current Garmin day-detail cache + force-refetch. */
   garminActivityDetails?: Record<string, import('../types').GarminActivityDetail[]>
   onProbeGarminDay?: (date: string) => Promise<import('../types').GarminActivityDetail[]>
@@ -172,6 +177,7 @@ interface SettingsProps {
 }
 
 export default function Settings({
+  checkin,
   garminActivityDetails,
   onProbeGarminDay,
   connected,
@@ -535,9 +541,10 @@ export default function Settings({
         </SettingsSection>
       )}
 
-      {coachEnabled && athleteId && (
+      {((coachEnabled && athleteId) || checkin?.available) && (
         <SettingsSection title="Notifications">
-          <NotificationSettings athleteId={athleteId} />
+          {coachEnabled && athleteId && <NotificationSettings athleteId={athleteId} />}
+          {checkin && <CheckinEmailSettings checkin={checkin} />}
         </SettingsSection>
       )}
 
